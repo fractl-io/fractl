@@ -12,6 +12,17 @@
   :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
             [lein-doo "0.1.10"]]
 
+  :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.20"]
+                                  [com.bhauman/figwheel-main "0.2.12"]
+                                  [com.bhauman/rebel-readline-cljs "0.1.4"]]
+                   ;; setup target as a resource path
+                   :resource-paths ["target" "resources"]
+                   ;; set up an alias to invoke your figwheel build
+                   :aliases {"fig" ["trampoline" "run" "-m" "figwheel.main"]
+                             "build-dev" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
+                             "fig:test" ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "v8dml.test-runner"]}
+                   :clean-targets ^{:protect false} ["target"]}}
+
   :cljsbuild {:builds
               [{:id "dev"
                 :source-paths ["src"]
