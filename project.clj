@@ -20,7 +20,7 @@
                    ;; set up an alias to invoke your figwheel build
                    :aliases {"fig" ["trampoline" "run" "-m" "figwheel.main"]
                              "build-dev" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
-                             "fig:test" ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "v8dml.test-runner"]}
+                             "fig:test" ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "fractl.test.test-runner"]}
                    :clean-targets ^{:protect false} ["target"]}}
 
   :cljsbuild {:builds

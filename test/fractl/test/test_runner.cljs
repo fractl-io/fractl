@@ -1,4 +1,4 @@
-(ns fractl.test.test_runner
+(ns fractl.test.test-runner
   "This ns should be used to run tests with `figwheel-main` test runner."
   (:require [cljs-test-display.core]
             [figwheel.main.testing :refer-macros [run-tests run-tests-async]]
