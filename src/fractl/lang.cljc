@@ -154,6 +154,14 @@
       (not (list? v)) (u/throw-ex (str "invalid attribute specification - " v))))
   attrs)
 
+(defn- query-eval-fn [recname attrs k v]
+  ;; TODO: implement the query->fn compilation phase.
+  )
+
+(defn- attref? [n]
+  (let [[[_ _] a] (li/ref-as-names n)]
+    (if a true false)))
+
 (defn- normalize-attr [recname attrs fqn [k v]]
   (let [newv (cond
                (map? v)
@@ -180,7 +188,7 @@
   (li/validate-name (n/canonical-type-name n)))
 
 (defn- normalized-attributes [recname orig-attrs]
-  (let [f (partial n/canonical-type-name (n/current-namespace))
+  (let [f (partial n/canonical-type-name (n/get-current-namespace))
         attrs (dissoc orig-attrs :meta)
         newattrs (map (partial normalize-attr recname attrs f) attrs)
         final-attrs (into {} (validate-attributes newattrs))]
@@ -348,15 +356,15 @@
   ([schema]
    (entity (first (keys schema)) (first (vals schema)))))
 
-(defn- resolver-for-entity [namespace-name ename spec]
+(defn- resolver-for-entity [namespace ename spec]
   (if (n/find-entity-schema ename)
-    (n/install-resolver namespace-name ename spec)
+    (n/install-resolver namespace ename spec)
     (u/throw-ex (str "cannot install resolver, schema not found for " ename))))
 
-(defn- resolver-for-namespace [namespace-name spec]
-  (if (n/namespace-exists? namespace-name)
-    (n/install-resolver namespace-name spec)
-    (u/throw-ex (str "cannot install resolver, namespace not found - " namespace-name))))
+(defn- resolver-for-namespace [namespace spec]
+  (if (n/namespace-exists? namespace)
+    (n/install-resolver namespace spec)
+    (u/throw-ex (str "cannot install resolver, namespace not found - " namespace))))
 
 (def ^:private resolver-keys #{:type :compose? :config})
 
@@ -388,7 +396,7 @@
 (def date-time? stru/parse-date-time)
 
 (defn UUID? [s]
-  (if (u/string-as-uuid s) true false))
+  (if (u/uuid-from-string s) true false))
 
 (def ^:private kernel-inited
   #?(:clj

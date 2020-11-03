@@ -28,13 +28,13 @@
        x#
        ~@(rest alternative))))
 
-(defn uuid-str []
+(defn uuid-string []
   #?(:clj
      (str (java.util.UUID/randomUUID))
      :cljs
      (str (random-uuid))))
 
-(defn string-as-uuid [string]
+(defn uuid-from-string [string]
   (try
     #?(:clj
        (java.util.UUID/fromString string)

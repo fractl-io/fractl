@@ -8,7 +8,7 @@
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             [fractl.store :as store]
-            [fractl.runtime.resolver :as r])
+            [fractl.resolver :as r])
   #?(:cljs [fractl.lang
             :refer [namespace attribute event
                     entity record kernel-decimal?]
@@ -73,7 +73,7 @@
             {:Id? 'id
              :X 100
              :Y '(+ :X 10)}}
-        uuid (u/uuid-str)]
+        uuid (u/uuid-string)]
     ;; Variable `id` not in context.
     (tu/is-error (c p1))
     ;; Any value will do, variable validation
@@ -98,16 +98,16 @@
             {:Id? 'id
              :X '(+ :Y 20)
              :Y '(+ :X 10)}}
-        uuid (u/uuid-str)]
+        uuid (u/uuid-string)]
     (ctx/bind-variable! ctx 'id uuid)
     ;; Compilation fail on cyclic-dependency
     (tu/is-error (c p1))))
 
-(defmacro defnamespace [namespace-name & body]
-  `(do (f ~namespace-name)
+(defmacro defnamespace [namespace & body]
+  `(do (namespace ~namespace)
        ~@body
-       (store/create-schema (store/get-default-store) ~namespace-name)
-       ~namespace-name))
+       (store/create-schema (store/get-default-store) ~namespace)
+       ~namespace))
 
 (deftest compile-ref
   (defnamespace :Df01
@@ -126,14 +126,14 @@
               :Y :Kernel/Int}})
     (record {:Df02/R {:A :Kernel/Int}})
     (event {:Df02/PostE {:R :Df02/R}}))
-  (raw-dataflow :Df02/PostE
-                {:Df02/E {:X :Df02/PostE.R.A
-                          :Y '(* :X 10)}})
+  (dataflow :Df02/PostE
+            {:Df02/E {:X :Df02/PostE.R.A
+                      :Y '(* :X 10)}})
   (let [r (n/make-instance :Df02/R {:A 100})
         evt (n/make-instance :Df02/PostE {:R r})
         result (:result (first (r/eval-all-dataflows-for-event evt)))]
     (is (n/instance-of? :Df02/E result))
-    (is (u/str->uuid (:Id result)))
+    (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
     (is (= 1000 (:Y result)))))
 
@@ -144,15 +144,15 @@
                       :Y :Kernel/Int
                       :Z :Kernel/Int}})
     (event {:Df03/PostE {:R :Df03/R}}))
-  (raw-dataflow :Df03/PostE
-                {:Df03/E {:X :Df03/PostE.R.A
-                          :Z '(+ :X :Y)
-                          :Y '(* :X 10)}})
+  (dataflow :Df03/PostE
+            {:Df03/E {:X :Df03/PostE.R.A
+                      :Z '(+ :X :Y)
+                      :Y '(* :X 10)}})
   (let [r (n/make-instance :Df03/R {:A 100})
         evt (n/make-instance :Df03/PostE {:R r})
         result (:result (first (r/eval-all-dataflows-for-event evt)))]
     (is (n/instance-of? :Df03/E result))
-    (is (u/str->uuid (:Id result)))
+    (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
     (is (= 1000 (:Y result)))
     (is (= 1100 (:Z result)))))
@@ -164,9 +164,9 @@
                        :X :Kernel/Int
                        :Y {:expr '(* :X :Df04/E1.A)}}})
     (event {:Df04/PostE2 {:E1 :Df04/E1}}))
-  (raw-dataflow :Df04/PostE2
-                {:Df04/E2 {:AId :Df04/PostE2.E1.Id
-                           :X 500}})
+  (dataflow :Df04/PostE2
+            {:Df04/E2 {:AId :Df04/PostE2.E1.Id
+                       :X 500}})
   (let [e1 (n/make-instance :Df04/E1 {:A 100})
         id (:Id e1)
         e2 (n/make-instance :Df04/E2 {:AId id
@@ -174,7 +174,7 @@
         evt (n/make-instance :Df04/PostE2 {:E1 e1})
         result (:result (first (r/eval-all-dataflows-for-event evt)))]
     (is (n/instance-of? :Df04/E2 result))
-    (is (u/str->uuid (:Id result)))
+    (is (u/uuid-from-string (:Id result)))
     (is (= (:AId result) id))
     (is (= (:X result) 500))
     (is (= (:Y result) 50000))))
@@ -185,10 +185,10 @@
     (entity {:Df05/E2 {:B :Kernel/Int}})
     (event {:Df05/Evt01 {:E1 :Df05/E1}})
     (event {:Df05/Evt02 {:E1 :Df05/E1}})
-    (raw-dataflow :Df05/Evt01
-                  {:Df05/Evt02 {:E1 :Df05/Evt01.E1}})
-    (raw-dataflow :Df05/Evt02
-                  {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
+    (dataflow :Df05/Evt01
+              {:Df05/Evt02 {:E1 :Df05/Evt01.E1}})
+    (dataflow :Df05/Evt02
+              {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
   (let [e1 (n/make-instance :Df05/E1 {:A 100})
         evt (n/make-instance :Df05/Evt01 {:E1 e1})
         result (:result (first (r/eval-all-dataflows-for-event evt)))

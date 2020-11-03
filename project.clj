@@ -2,6 +2,7 @@
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/clojurescript "1.10.773"]
                  [cheshire "5.9.0"]
+                 [com.taoensso/timbre "4.10.0"]
                  [seancorfield/next.jdbc "1.1.581"]
                  [c3p0/c3p0 "0.9.1.2"]
                  [com.h2database/h2 "1.4.200"]]

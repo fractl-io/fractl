@@ -36,13 +36,13 @@
   (let [parts (li/path-parts n)]
     (cond
       (:path parts)
-      `(v8dml.runtime.env/peek-obj-attribute ~runtime-env-var ~n)
+      `(fractl.env/peek-obj-attribute ~runtime-env-var ~n)
 
       (seq (:refs parts))
-      `(v8dml.runtime.env/lookup-reference ~runtime-env-var ~parts)
+      `(fractl.env/lookup-reference ~runtime-env-var ~parts)
 
       :else
-      `(v8dml.runtime.env/lookup-instance ~runtime-env-var [(:namespace parts) (:record parts)]))))
+      `(fractl.env/lookup-instance ~runtime-env-var [(:namespace parts) (:record parts)]))))
 
 (defn- arg-lookup [arg]
   (cond
@@ -53,7 +53,7 @@
     (reference-lookup-call arg)
 
     (symbol? arg)
-    `(v8dml.runtime.env/lookup-variable ~runtime-env-var ~arg)
+    `(fractl.env/lookup-variable ~runtime-env-var ~arg)
 
     :else arg))
 
@@ -214,7 +214,7 @@
       (if-let [[refattr ukattr] (reference-attributes attrs [namespace rec])]
         `(~(first refs)
           (first
-           (v8dml.runtime.env/lookup-instances-by-attributes
+           (fractl.env/lookup-instances-by-attributes
             ~runtime-env-var
             ~[namespace rec] [[~ukattr (~refattr ~current-instance-var)]])))
         (u/throw-ex (str "no unique reference can be traced from " [rec-name aname arg]))))))

@@ -159,10 +159,10 @@
     (split-by-delim #"\." (str path))))
 
 (defn make-path
-  ([namespace-name obj-name]
-   (keyword (str (name namespace-name) "/" (name obj-name))))
-  ([[namespace-name obj-name]]
-   (make-path namespaceg-name obj-name)))
+  ([namespace obj-name]
+   (keyword (str (name namespace) "/" (name obj-name))))
+  ([[namespace obj-name]]
+   (make-path namespace obj-name)))
 
 (defn make-ref [recname attrname]
   (keyword (str (name recname) "." (name attrname))))
@@ -170,8 +170,8 @@
 (defn has-modpath? [path]
   (some #{\/} (str path)))
 
-(defn parsedpath-as-name [[namespace-name obj-name]]
-  (make-path namespace-name obj-name))
+(defn parsedpath-as-name [[namespace obj-name]]
+  (make-path namespace obj-name))
 
 (defn ref-as-names
   "Split a path like :Namespace/RecordName.AttributeName into
@@ -182,7 +182,7 @@
       (let [[rn an] (split-ref rp)]
         [[m rn] an]))))
 
-(defn root-namespace-name [refpath]
+(defn root-namespace [refpath]
   (first (split-ref refpath)))
 
 (def ^:private uppercase-namespace (partial util/capitalize #"[\s-_]" ""))
@@ -232,7 +232,7 @@
 
 (defn namespaces [^String namespace-ns]
   (let [parts (string/split namespace-ns #"\.")
-        names (string/join "." (map uppsercase-namespace parts))]
+        names (string/join "." (map uppercase-namespace parts))]
     (keyword names)))
 
 (defn literal? [x]

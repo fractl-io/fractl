@@ -67,7 +67,7 @@
 (defn- reach-name [ctx schema n]
   (let [{namespace :namespace rec :record refs :refs
          path :path}
-        (li/path->parts n)]
+        (li/path-parts n)]
     (if path
       (if (n/has-attribute? schema path)
         true

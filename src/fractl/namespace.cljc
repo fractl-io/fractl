@@ -7,145 +7,145 @@
             [fractl.util.log :as log]
             [fractl.lang.internal :as li]))
 
-(def ^:private models
-  "Table that maps model names to their definitions."
+(def ^:private namespaces
+  "Table that maps namespace names to their definitions."
   #?(:clj  (ref {})
      :cljs (atom {})))
 
-(def ^:private current-model
-  "The name of the active model for the current thread."
+(def ^:private current-namespace
+  "The name of the active namespace for the current thread."
   #?(:clj
      (proxy [ThreadLocal] []
        (initialValue [] :Kernel))
      :cljs
      (atom nil)))
 
-(def ^:private models-inited
-  "All models inited, but init-events not yet fired."
+(def ^:private namespaces-inited
+  "All namespaces inited, but init-events not yet fired."
   #?(:clj (ref [])
      :cljs (atom [])))
 
-(defn- set-current-model [n]
-  #?(:clj (dosync (.set current-model n)
-                  (ref-set models-inited (conj @models-inited n)))
-     :cljs (do (reset! current-model n)
-               (reset! models-inited (conj @models-inited n))))
+(defn- set-current-namespace [n]
+  #?(:clj (dosync (.set current-namespace n)
+                  (ref-set namespaces-inited (conj @namespaces-inited n)))
+     :cljs (do (reset! current-namespace n)
+               (reset! namespaces-inited (conj @namespaces-inited n))))
   n)
 
-(defn get-current-model []
-  #?(:clj (.get current-model)
-     :cljs @current-model))
+(defn get-current-namespace []
+  #?(:clj (.get current-namespace)
+     :cljs @current-namespace))
 
-(defn fetch-models-inited! []
+(defn fetch-namespaces-inited! []
   (dosync
-   (let [ms @models-inited]
-     (ref-set models-inited [])
+   (let [ms @namespaces-inited]
+     (ref-set namespaces-inited [])
      ms)))
 
 (def full-name li/make-path)
 
 (defn canonical-type-name
   "Return the fully-qualified type-name."
-  ([model-name typname]
+  ([namespace typname]
    (if (pos? (.indexOf (str typname) "/"))
      typname
-     (full-name model-name typname)))
-  ([typname] (canonical-type-name (get-current-model) typname)))
+     (full-name namespace typname)))
+  ([typname] (canonical-type-name (get-current-namespace) typname)))
 
 (defn normalize-type-name [^String n]
   (last (li/split-path n)))
 
-(defn model-init-event-name [model-name]
-  (keyword (str (name model-name) "_Init")))
+(defn namespace-init-event-name [namespace]
+  (keyword (str (name namespace) "_Init")))
 
 (declare intern-attribute intern-event)
 
-(defn create-model
-  "Create a new model with the given name and references to
-  the models in the imports list. If a model already exists with
-  the same name, it will be overwritten. Returns the name of the new model."
-  [model-name spec]
+(defn create-namespace
+  "Create a new namespace with the given name and references to
+  the namespaces in the imports list. If a namespace already exists with
+  the same name, it will be overwritten. Returns the name of the new namespace."
+  [namespace spec]
   (util/safe-set-result
-   models
-   #(let [ms @models
-         imports (when-let [imports (:imports spec)]
-                      {:import [imports (li/mappify-alias-imports imports)]
-                       ;; Special alias key for imports
-                       :alias (li/mappify-alias-imports imports)})
-            clj-imports (when-let [clj-imports (:clj-imports spec)]
-                          {:clj [(first (rest clj-imports)) (li/mappify-alias-imports clj-imports)]})
-            java-imports (when-let [java-imports (:java-imports spec)]
-                           {:java (first (rest java-imports))})
-            v8-imports (when-let [v8-imports (:v8-imports spec)]
-                         {:v8 [(first (rest v8-imports)) (li/mappify-alias-imports v8-imports)]})]
-        ;; The interned model has the following structure:
-        ;; {model-name {:resolver <resolver-config-map>
-        ;;              :import [imports aliases]
-        ;;              :clj [clj-imports aliases]
-        ;;              :java java-imports
-        ;;              :v8 [v8-imports aliases]}}
-        (assoc ms model-name
-               (merge {:resolver (:resolver spec)}
-                      imports clj-imports java-imports v8-imports))))
-  (intern-attribute [model-name :Id]
+   namespaces
+   #(let [ms @namespaces
+          imports (when-let [imports (:imports spec)]
+                    {:import [imports (li/mappify-alias-imports imports)]
+                     ;; Special alias key for imports
+                     :alias (li/mappify-alias-imports imports)})
+          clj-imports (when-let [clj-imports (:clj-imports spec)]
+                        {:clj [(first (rest clj-imports)) (li/mappify-alias-imports clj-imports)]})
+          java-imports (when-let [java-imports (:java-imports spec)]
+                         {:java (first (rest java-imports))})
+          v8-imports (when-let [v8-imports (:v8-imports spec)]
+                       {:v8 [(first (rest v8-imports)) (li/mappify-alias-imports v8-imports)]})]
+      ;; The interned namespace has the following structure:
+      ;; {namespace {:resolver <resolver-config-map>
+      ;;              :import [imports aliases]
+      ;;              :clj [clj-imports aliases]
+      ;;              :java java-imports
+      ;;              :v8 [v8-imports aliases]}}
+      (assoc ms namespace
+             (merge {:resolver (:resolver spec)}
+                    imports clj-imports java-imports v8-imports))))
+  (intern-attribute [namespace :Id]
                     {:type :Kernel/UUID
                      :unique true
                      :immutable true
-                     :default util/uuid-str})
-  (intern-event [model-name (model-init-event-name model-name)]
-                {:ModelName :Kernel/Keyword})
-  (set-current-model model-name)
-  model-name)
+                     :default util/uuid-string})
+  (intern-event [namespace (namespace-init-event-name namespace)]
+                {:NamespaceName :Kernel/Keyword})
+  (set-current-namespace namespace)
+  namespace)
 
-(defn remove-model [model-name]
-  (util/safe-set-result models #(dissoc @models model-name)))
+(defn remove-namespace [namespace]
+  (util/safe-set-result namespaces #(dissoc @namespaces namespace)))
 
-(defn model-exists? [model-name]
-  (find @models model-name))
+(defn namespace-exists? [namespace]
+  (find @namespaces namespace))
 
-(defn extract-alias-of-model [model-name alias-entry]
-  (if (model-exists? model-name)
-    (get-in @models [model-name :alias alias-entry])
-    (log/error (str "Model " model-name " is not present!"))))
+(defn extract-alias-of-namespace [namespace alias-entry]
+  (if (namespace-exists? namespace)
+    (get-in @namespaces [namespace :alias alias-entry])
+    (log/error (str "Namespace " namespace " is not present!"))))
 
-(defn- model-intern
-  "Add or replace a model entry.
-  `typname` must be in the format - :ModelName/TypName
-  Returns the name of the entry. If the model is non-existing, raise an exception."
+(defn- namespace-intern
+  "Add or replace a namespace entry.
+  `typname` must be in the format - :NamespaceName/TypName
+  Returns the name of the entry. If the namespace is non-existing, raise an exception."
   [typname typdef typtag]
-  (let [[model-name n] (li/split-path typname)]
-    (when-not (model-exists? model-name)
-      (util/throw-ex-info (str "model not found - " model-name) {:name typname
-                                                                 :tag typtag}))
-    (util/safe-set-result models #(assoc-in @models [model-name typtag n] typdef))
+  (let [[namespace n] (li/split-path typname)]
+    (when-not (namespace-exists? namespace)
+      (util/throw-ex-info (str "namespace not found - " namespace) {:name typname
+                                                                    :tag typtag}))
+    (util/safe-set-result namespaces #(assoc-in @namespaces [namespace typtag n] typdef))
     typname))
 
-(defn- model-find [path]
-  (get-in @models path))
+(defn- namespace-find [path]
+  (get-in @namespaces path))
 
-(defn model-resolvers [model-name]
-  (model-find [model-name :resolvers :model-level]))
+(defn namespace-resolvers [namespace]
+  (namespace-find [namespace :resolvers :namespace-level]))
 
-(defn entity-resolvers [model-name entity-name]
-  (model-find [model-name :resolvers entity-name]))
+(defn entity-resolvers [namespace entity-name]
+  (namespace-find [namespace :resolvers entity-name]))
 
 (defn install-resolver
-  "Add a resolver for a model or an entity."
-  ([model-name entity-name spec]
-   (let [resolvers (or (if (= :model-level entity-name)
-                         (model-resolvers model-name)
-                         (entity-resolvers model-name entity-name))
+  "Add a resolver for a namespace or an entity."
+  ([namespace entity-name spec]
+   (let [resolvers (or (if (= :namespace-level entity-name)
+                         (namespace-resolvers namespace)
+                         (entity-resolvers namespace entity-name))
                        [])]
-     (model-intern [model-name entity-name] (conj resolvers spec) :resolvers)))
-  ([model-name spec]
-   (install-resolver model-name :model-level spec)))
+     (namespace-intern [namespace entity-name] (conj resolvers spec) :resolvers)))
+  ([namespace spec]
+   (install-resolver namespace :namespace-level spec)))
 
 (defn intern-attribute
-  "Add or replace an attribute in a model.
-  The attribute name must be fully-qualified, as in - `:ModelName/AttrName`.
-  Returns the name of the attribute. If the model is non-existing, raise an exception."
+  "Add or replace an attribute in a namespace.
+  The attribute name must be fully-qualified, as in - `:NamespaceName/AttrName`.
+  Returns the name of the attribute. If the namespace is non-existing, raise an exception."
   [attrname attrdef]
-  (model-intern attrname attrdef :attributes))
+  (namespace-intern attrname attrdef :attributes))
 
 (def ^:private type-tag-key :type-*-tag-*-)
 
@@ -158,11 +158,11 @@
       (assoc recdef type-tag-key typetag))))
 
 (defn intern-record
-  "Add or replace an record in a model.
-  The record name must be fully-qualified, as in - `:ModelName/RecName`
-  Returns the name of the record. If the model is non-existing, raise an exception."
+  "Add or replace an record in a namespace.
+  The record name must be fully-qualified, as in - `:NamespaceName/RecName`
+  Returns the name of the record. If the namespace is non-existing, raise an exception."
   ([typetag recname recdef]
-   (model-intern recname (normalize-recdef recdef typetag) :records))
+   (namespace-intern recname (normalize-recdef recdef typetag) :records))
   ([recname recdef]
    (intern-record :record recname recdef)))
 
@@ -172,31 +172,31 @@
 (defn find-attribute-schema
   "Find and return an attribute schema by the given path.
   Path should be in one of the following forms:
-   - :ModelName/AttributeName
-   - :ModelName/RecordName.AttributeName
+   - :NamespaceName/AttributeName
+   - :NamespaceName/RecordName.AttributeName
   If the lookup succeeds, return the attribute schema as a map.
   Return `nil` on lookup failure."
-  ([model-name aref]
+  ([namespace aref]
    (let [[recname attrname] (li/split-ref aref)]
      (if attrname
-       (when-let [rec (model-find [model-name :records recname])]
+       (when-let [rec (namespace-find [namespace :records recname])]
          (find-attribute-schema (get-in rec [:schema attrname])))
-       (model-find [model-name :attributes aref]))))
+       (namespace-find [namespace :attributes aref]))))
   ([path]
-   (let [[model-name aref] (li/split-path path)]
-     (find-attribute-schema model-name aref))))
+   (let [[namespace aref] (li/split-path path)]
+     (find-attribute-schema namespace aref))))
 
-(defn all-attributes [model-name]
-  (model-find [model-name :attributes]))
+(defn all-attributes [namespace]
+  (namespace-find [namespace :attributes]))
 
 (defn find-record-schema
   "Find and return an record schema by the given path.
-   Path should be of the form - :ModelName/RecordName.
+   Path should be of the form - :NamespaceName/RecordName.
    If the lookup succeeds, return the record schema as a map.
    Return `nil` on lookup failure."
   [path]
-  (let [[model-name recname] (li/split-path path)]
-    (model-find [model-name :records recname])))
+  (let [[namespace recname] (li/split-path path)]
+    (namespace-find [namespace :records recname])))
 
 (defn- find-record-schema-by-type [typ path]
   (when-let [scm (find-record-schema path)]
@@ -359,7 +359,7 @@
   "Call make-error to create a new instance of error, wrap it in an
   ex-info and raise it as an exception."
   ([msg attributes]
-   (util/throw-ex-info (str "model/error: " msg)
+   (util/throw-ex-info (str "namespace/error: " msg)
                        {:error (make-error msg attributes)}))
   ([msg] (throw-error msg nil)))
 
@@ -546,7 +546,7 @@
 (defn make-instance
   "Initialize an instance of a record from the given map of attributes.
    All attribute values will be validated using the associated value predicates.
-   full-record-name must be in the form - :ModelName/RecordName.
+   full-record-name must be in the form - :NamespaceName/RecordName.
    Return the new record on success, return an :error record on failure."
   ([record-name attributes validate?]
    (let [attrs (maps-to-insts attributes validate?)
@@ -624,8 +624,8 @@
    A new instance of this type is returned with the attributes of `b` merged into `a`."
   [a b]
   (let [newattrs (validate-record-attributes
-                   (instance-name a)
-                   (merge (instance-attributes a) (instance-attributes b)))]
+                  (instance-name a)
+                  (merge (instance-attributes a) (instance-attributes b)))]
     (make-with-attributes a newattrs)))
 
 (defn- event-name [e]
@@ -640,12 +640,12 @@
 
 (defn register-dataflow
   "Attach a dataflow to the event."
-  ([event head patterns model-name]
+  ([event head patterns namespace]
    (util/safe-set-result
-    models
-    #(let [ms @models
+    namespaces
+    #(let [ms @namespaces
            ename (normalize-type-name (event-name event))
-           path [model-name :events ename]
+           path [namespace :events ename]
            currpats (get-in ms path [])
            newpats (conj currpats [event {:head head
                                           :event-pattern event
@@ -654,8 +654,8 @@
        (assoc-in ms path newpats)))
    event)
   ([event head patterns]
-   (let [[model-name _] (li/split-path (event-name event))]
-     (register-dataflow event head patterns model-name)))
+   (let [[namespace _] (li/split-path (event-name event))]
+     (register-dataflow event head patterns namespace)))
   ([event patterns] (register-dataflow event nil patterns)))
 
 (defn- register-entity-event-df [head patterns event-name _ _]
@@ -781,22 +781,22 @@
 (defn dataflows-for-event
   "Return all dataflows attached to the event."
   [event]
-  (let [[model-name ename] (li/split-path (event-name event))
-        path [model-name :events ename]]
-    (filter-by-conditional-events event (model-find path))))
+  (let [[namespace ename] (li/split-path (event-name event))
+        path [namespace :events ename]]
+    (filter-by-conditional-events event (namespace-find path))))
 
 (defn evalable-dataflow [[k dfspec :as df]]
   [k (dataflow-patterns df)])
 
-;; Model querying, useful for the edges.
+;; Namespace querying, useful for the edges.
 
 (defn record-names-by-type
-  "Return a list of record-names, of the given type, interned in this model.
+  "Return a list of record-names, of the given type, interned in this namespace.
   The type argument `tp` could be one of - :record, :event or :entity."
-  [tp model-name]
+  [tp namespace]
   (let [evts (filter (fn [[_ v]] (= tp (type-tag-key v)))
-                     (:records (get @models model-name)))]
-    (set (map (partial full-name model-name) (keys evts)))))
+                     (:records (get @namespaces namespace)))]
+    (set (map (partial full-name namespace) (keys evts)))))
 
 (def record-names (partial record-names-by-type :record))
 (def entity-names (partial record-names-by-type :entity))

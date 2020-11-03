@@ -1,3 +1,5 @@
+* Find an alternative for `namespace`
+
 * Integrate the store to the new runtime system (also see TODO in runtime/env.clj, L21 and test/compile.clj, L163)
 
 * Integrate the new store and resolver protocols to the init process (exec.cljc).
