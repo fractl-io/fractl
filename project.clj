@@ -5,7 +5,9 @@
                  [com.taoensso/timbre "4.10.0"]
                  [seancorfield/next.jdbc "1.1.581"]
                  [c3p0/c3p0 "0.9.1.2"]
-                 [com.h2database/h2 "1.4.200"]]
+                 [com.h2database/h2 "1.4.200"]
+                 [net.cgrand/macrovich "0.2.1"]]
+
   :main fractl.core
   :aot :all
 
