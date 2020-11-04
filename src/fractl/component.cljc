@@ -36,11 +36,12 @@
   #?(:clj (.get current-component)
      :cljs @current-component))
 
-(defn fetch-components-inited! []
-  (dosync
-   (let [ms @components-inited]
-     (ref-set components-inited [])
-     ms)))
+#?(:clj
+   (defn fetch-components-inited! []
+         (dosync
+          (let [ms @components-inited]
+            (ref-set components-inited [])
+            ms))))
 
 (def full-name li/make-path)
 
