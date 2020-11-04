@@ -101,6 +101,11 @@
   (util/safe-set-result components #(dissoc @components component)))
 
 (defn component-exists? [component]
+  (if (find @components component)
+    true
+    false))
+
+(defn component-definition [component]
   (find @components component))
 
 (defn extract-alias-of-component [component alias-entry]
