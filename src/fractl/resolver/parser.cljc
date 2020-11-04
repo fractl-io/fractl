@@ -1,6 +1,6 @@
 (ns fractl.resolver.parser
   "Parsing and pattern matching during runtime."
-  (:require [fractl.namespace :as n]
+  (:require [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.env :as env]))
 
@@ -16,7 +16,7 @@
 (defn- match-structure [env inst-name pattern instance]
   (when (and (map? pattern)
              (= inst-name (first (keys pattern))))
-    (let [p (partial match-attribute-pattern (n/instance-attributes instance))]
+    (let [p (partial match-attribute-pattern (cn/instance-attributes instance))]
       (loop [pattrs (first (vals pattern)), result-env env]
         (if-let [pattr (first pattrs)]
           (when-let [updated-env (p result-env pattr)]
@@ -24,7 +24,7 @@
           result-env)))))
 
 (defn match-pattern [env pattern instance]
-  (let [n (li/split-path (n/instance-name instance))
+  (let [n (li/split-path (cn/instance-name instance))
         updated-env (if (= n pattern)
                       env
                       (match-structure env n pattern instance))]

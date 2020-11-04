@@ -5,7 +5,7 @@
             [fractl.util.str :as stru]
             [fractl.util.hash :as sh]
             [fractl.lang.internal :as li]
-            [fractl.namespace :as n]
+            [fractl.component :as cn]
             [fractl.compiler :as c]))
 
 (defn- normalize-imports [imports]
@@ -14,22 +14,22 @@
       [imps]
       imps)))
 
-(defn- namespace-spec-for [k spec]
+(defn- component-spec-for [k spec]
   (seq (filter #(= k (first %)) spec)))
 
 (declare init)
 
-(defn namespace
-  "Create and activate a new namespace with the given name."
+(defn component
+  "Create and activate a new component with the given name."
   [n & spec]
   (init)
   (let [ns-name (li/validate-name n)
-        imports (namespace-spec-for :import spec)
-        clj-imports (namespace-spec-for :clj spec)
-        java-imports (namespace-spec-for :java-imports spec)
-        v8-imports (namespace-spec-for :v8-imports spec)
-        resolver (namespace-spec-for :resolver spec)]
-    (n/create-namespace
+        imports (component-spec-for :import spec)
+        clj-imports (component-spec-for :clj spec)
+        java-imports (component-spec-for :java-imports spec)
+        v8-imports (component-spec-for :v8-imports spec)
+        resolver (component-spec-for :resolver spec)]
+    (cn/create-component
      ns-name
      {:imports (normalize-imports
                 (li/validate-imports (first imports)))
@@ -39,8 +39,8 @@
       :resolver resolver})))
 
 (defn- attribute-type? [nm]
-  (or (n/find-attribute-schema nm)
-      (n/find-record-schema nm)))
+  (or (cn/find-attribute-schema nm)
+      (cn/find-record-schema nm)))
 
 (defn- normalize-attribute-schema [scm]
   (if (fn? scm)
@@ -71,7 +71,7 @@
     attr-schema))
 
 (defn- reference-exists? [path]
-  (if-let [scm (n/find-attribute-schema path)]
+  (if-let [scm (cn/find-attribute-schema path)]
     true
     false))
 
@@ -109,7 +109,7 @@
   (merge {:unique false :immutable false} scm))
 
 (defn- find-ref-type [path]
-  (when-let [scm (n/find-attribute-schema path)]
+  (when-let [scm (cn/find-attribute-schema path)]
     (or (:type scm)
         (when-let [rpath (:ref scm)]
           (find-ref-type rpath)))))
@@ -137,9 +137,9 @@
      (li/validate map? "attribute specification should be a map" scm))))
 
 (defn attribute
-  "Add a new attribute definition to the namespace."
+  "Add a new attribute definition to the component."
   [n scm]
-  (n/intern-attribute
+  (cn/intern-attribute
    (li/validate-name n)
    (normalize-attribute-schema
     (validate-attribute-schema scm))))
@@ -185,10 +185,10 @@
     [k newv]))
 
 (defn- validated-canonical-type-name [n]
-  (li/validate-name (n/canonical-type-name n)))
+  (li/validate-name (cn/canonical-type-name n)))
 
 (defn- normalized-attributes [recname orig-attrs]
-  (let [f (partial n/canonical-type-name (n/get-current-namespace))
+  (let [f (partial cn/canonical-type-name (cn/get-current-component))
         attrs (dissoc orig-attrs :meta)
         newattrs (map (partial normalize-attr recname attrs f) attrs)
         final-attrs (into {} (validate-attributes newattrs))]
@@ -197,13 +197,13 @@
       final-attrs)))
 
 (defn record
-  "Add a new record definition to the namespace."
+  "Add a new record definition to the component."
   ([n attrs]
    (let [cn (validated-canonical-type-name n)]
      (if (get-in attrs [:meta :ui-component])
        #?(:clj false ;; Ignore the record definition on server-side.
           :cljs (clk/record cn (normalized-attributes cn attrs)))
-       (n/intern-record
+       (cn/intern-record
         cn (normalized-attributes cn attrs)))))
   ([schema]
    (record (first (keys schema)) (first (vals schema)))))
@@ -212,8 +212,8 @@
   ([n attrs verify-name?]
    (let [cn (if verify-name?
               (validated-canonical-type-name n)
-              (n/canonical-type-name n))]
-     (n/intern-event cn (if (n/inferred-event-schema? attrs)
+              (cn/canonical-type-name n))]
+     (cn/intern-event cn (if (cn/inferred-event-schema? attrs)
                               attrs
                               (normalized-attributes cn attrs)))))
   ([n attrs]
@@ -227,11 +227,11 @@
    (event (first (keys schema)) (first (vals schema)))))
 
 (defn- intern-inferred-event [nm]
-  (event nm n/inferred-event-schema))
+  (event nm cn/inferred-event-schema))
 
 (defn ensure-event! [x]
   (if-let [n (li/record-name x)]
-    (when-not (n/find-event-schema n)
+    (when-not (cn/find-event-schema n)
       (intern-inferred-event n))
     (u/throw-ex (str "not an event - " x))))
 
@@ -268,21 +268,21 @@
   (ensure-dataflow-patterns! patterns)
   (let [hd (:head match-pat)]
     (if-let [mt (and hd (:on-entity-event hd))]
-      (n/register-entity-dataflow mt hd patterns)
+      (cn/register-entity-dataflow mt hd patterns)
       (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
         (do (ensure-event! event)
-            (n/register-dataflow event hd patterns))))))
+            (cn/register-dataflow event hd patterns))))))
 
 (defn- crud-evname [entity-name evtname]
-  (n/canonical-type-name
+  (cn/canonical-type-name
    (keyword (str (name evtname) "_" (name entity-name)))))
 
 (defn- crud-event-inst-accessor [evtname]
-  (n/canonical-type-name
+  (cn/canonical-type-name
    (keyword (str (name evtname) ".Instance"))))
 
 (defn- id-accessor [evtname]
-  (n/canonical-type-name
+  (cn/canonical-type-name
    (keyword (str (name evtname) ".Instance.Id"))))
 
 (defn- crud-event-update-pattern [evtname entity-name]
@@ -293,7 +293,7 @@
   [:delete {entity-name {:Id (id-accessor evtname)}}])
 
 (defn- crud-event-lookup-pattern [evtname entity-name]
-  {entity-name {:Id? (n/canonical-type-name
+  {entity-name {:Id? (cn/canonical-type-name
                       (keyword (str (name evtname) ".Id")))}})
 
 (defn- implicit-entity-event-dfexp
@@ -326,12 +326,12 @@
   ([n attrs]
    (let [entity-name (validated-canonical-type-name n)
          [attrs dfexps] (lift-implicit-entity-events entity-name attrs)
-         result (n/intern-entity
+         result (cn/intern-entity
                  entity-name
                  (normalized-attributes
                   entity-name
                   ;; TODO: Check for user-define identity attributes first.
-                  (assoc attrs :Id (n/canonical-type-name :Id))))
+                  (assoc attrs :Id (cn/canonical-type-name :Id))))
          ev (partial crud-evname n)
          evattrs {:Instance n}]
      ;; Define CRUD events and dataflows:
@@ -340,31 +340,31 @@
            delevt (ev :Delete)
            lookupevt (ev :Lookup)]
        (event-internal crevt evattrs)
-       (n/for-each-entity-event-name
+       (cn/for-each-entity-event-name
         entity-name
         (partial entity-event entity-name))
-       (n/register-dataflow crevt [(crud-event-inst-accessor crevt)])
+       (cn/register-dataflow crevt [(crud-event-inst-accessor crevt)])
        (event-internal upevt (assoc evattrs :CurrentInstance n))
-       (n/register-dataflow upevt [(crud-event-update-pattern upevt entity-name)])
+       (cn/register-dataflow upevt [(crud-event-update-pattern upevt entity-name)])
        (event-internal delevt evattrs)
-       (n/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
+       (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
        (event-internal lookupevt {:Id :Kernel/UUID})
-       (n/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt entity-name)]))
+       (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt entity-name)]))
      ;; Install dataflows for implicit events.
      (when dfexps (doall (map eval dfexps)))
      result))
   ([schema]
    (entity (first (keys schema)) (first (vals schema)))))
 
-(defn- resolver-for-entity [namespace ename spec]
-  (if (n/find-entity-schema ename)
-    (n/install-resolver namespace ename spec)
+(defn- resolver-for-entity [component ename spec]
+  (if (cn/find-entity-schema ename)
+    (cn/install-resolver component ename spec)
     (u/throw-ex (str "cannot install resolver, schema not found for " ename))))
 
-(defn- resolver-for-namespace [namespace spec]
-  (if (n/namespace-exists? namespace)
-    (n/install-resolver namespace spec)
-    (u/throw-ex (str "cannot install resolver, namespace not found - " namespace))))
+(defn- resolver-for-component [component spec]
+  (if (cn/component-exists? component)
+    (cn/install-resolver component spec)
+    (u/throw-ex (str "cannot install resolver, component not found - " component))))
 
 (def ^:private resolver-keys #{:type :compose? :config})
 
@@ -379,14 +379,14 @@
                                      resolver-keys)))))
 
 (defn resolver
-  "Add a resolver for a namespace or entity.
-  Target should be fully-qualified name of a namespace or entity."
+  "Add a resolver for a component or entity.
+  Target should be fully-qualified name of a component or entity."
   [target spec]
   (let [spec (validate-resolver-spec spec)
         [a b] (li/split-path target)]
     (if (and a b)
       (resolver-for-entity a b spec)
-      (resolver-for-namespace target spec))))
+      (resolver-for-component target spec))))
 
 (defn kernel-string?
   ([s rgex-s]
@@ -434,7 +434,7 @@
        (re-matches email-pattern x)))
 
 (defn- do-init-kernel []
-  (n/create-namespace :Kernel {})
+  (cn/create-component :Kernel {})
   (attribute :Kernel/String kernel-string?)
   (attribute :Kernel/Keyword keyword?)
   (attribute :Kernel/DateTime date-time?)
@@ -446,9 +446,9 @@
   (attribute :Kernel/Double double?)
   (attribute :Kernel/Decimal kernel-decimal?)
   (attribute :Kernel/Boolean boolean?)
-  (attribute :Kernel/Record n/record-instance?)
-  (attribute :Kernel/Entity n/entity-instance?)
-  (attribute :Kernel/Event n/event-instance?)
+  (attribute :Kernel/Record cn/record-instance?)
+  (attribute :Kernel/Entity cn/entity-instance?)
+  (attribute :Kernel/Event cn/event-instance?)
   (attribute :Kernel/Any any-obj?)
   (attribute :Kernel/Email email?)
   (attribute :Kernel/Map map?)

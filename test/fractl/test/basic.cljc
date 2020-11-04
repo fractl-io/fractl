@@ -3,26 +3,26 @@
   (:require [clojure.test :refer [deftest is]]
             [fractl.test.util :as tu]
             [fractl.util :as u]
-            [fractl.namespace :as n]
+            [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             [fractl.store :as store]
             [fractl.resolver :as r])
   #?(:cljs [fractl.lang
-            :refer [namespace attribute event
+            :refer [component attribute event
                     entity record kernel-decimal?]
             :refer-macros [dataflow]]))
 
-(defn- install-test-namespace []
-  (n/remove-namespace :CompileTest)
-  (namespace :CompileTest)
+(defn- install-test-component []
+  (cn/remove-component :CompileTest)
+  (component :CompileTest)
   (entity {:CompileTest/E1
            {:X :Kernel/Int
             :Y :Kernel/Int}}))
 
 (defn- init-test-context []
-  (install-test-namespace)
+  (install-test-component)
   (c/make-context))
 
 (defn- compile-pattern [ctx pat]
@@ -103,24 +103,24 @@
     ;; Compilation fail on cyclic-dependency
     (tu/is-error (c p1))))
 
-(defmacro defnamespace [namespace & body]
-  `(do (namespace ~namespace)
+(defmacro defcomponent [component & body]
+  `(do (component ~component)
        ~@body
-       (store/create-schema (store/get-default-store) ~namespace)
-       ~namespace))
+       (store/create-schema (store/get-default-store) ~component)
+       ~component))
 
 (deftest compile-ref
-  (defnamespace :Df01
+  (defcomponent :Df01
     (entity {:Df01/E
              {:X :Kernel/Int
               :Y :Kernel/Int}}))
-  (let [e (n/make-instance :Df01/E {:X 10 :Y 20})
-        evt (n/make-instance :Df01/Create_E {:Instance e})
+  (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
+        evt (cn/make-instance :Df01/Create_E {:Instance e})
         result (:result (first (r/eval-all-dataflows-for-event evt)))]
-    (is (n/same-instance? e result))))
+    (is (cn/same-instance? e result))))
 
 (deftest compile-create
-  (defnamespace :Df02
+  (defcomponent :Df02
     (entity {:Df02/E
              {:X :Kernel/Int
               :Y :Kernel/Int}})
@@ -129,16 +129,16 @@
   (dataflow :Df02/PostE
             {:Df02/E {:X :Df02/PostE.R.A
                       :Y '(* :X 10)}})
-  (let [r (n/make-instance :Df02/R {:A 100})
-        evt (n/make-instance :Df02/PostE {:R r})
+  (let [r (cn/make-instance :Df02/R {:A 100})
+        evt (cn/make-instance :Df02/PostE {:R r})
         result (:result (first (r/eval-all-dataflows-for-event evt)))]
-    (is (n/instance-of? :Df02/E result))
+    (is (cn/instance-of? :Df02/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
     (is (= 1000 (:Y result)))))
 
 (deftest dependency
-  (defnamespace :Df03
+  (defcomponent :Df03
     (record {:Df03/R {:A :Kernel/Int}})
     (entity {:Df03/E {:X :Kernel/Int
                       :Y :Kernel/Int
@@ -148,17 +148,17 @@
             {:Df03/E {:X :Df03/PostE.R.A
                       :Z '(+ :X :Y)
                       :Y '(* :X 10)}})
-  (let [r (n/make-instance :Df03/R {:A 100})
-        evt (n/make-instance :Df03/PostE {:R r})
+  (let [r (cn/make-instance :Df03/R {:A 100})
+        evt (cn/make-instance :Df03/PostE {:R r})
         result (:result (first (r/eval-all-dataflows-for-event evt)))]
-    (is (n/instance-of? :Df03/E result))
+    (is (cn/instance-of? :Df03/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
     (is (= 1000 (:Y result)))
     (is (= 1100 (:Z result)))))
 
 (deftest compound-attributes
-  (defnamespace :Df04
+  (defcomponent :Df04
     (entity {:Df04/E1 {:A :Kernel/Int}})
     (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
                        :X :Kernel/Int
@@ -167,20 +167,20 @@
   (dataflow :Df04/PostE2
             {:Df04/E2 {:AId :Df04/PostE2.E1.Id
                        :X 500}})
-  (let [e1 (n/make-instance :Df04/E1 {:A 100})
+  (let [e1 (cn/make-instance :Df04/E1 {:A 100})
         id (:Id e1)
-        e2 (n/make-instance :Df04/E2 {:AId id
+        e2 (cn/make-instance :Df04/E2 {:AId id
                                           :X 20})
-        evt (n/make-instance :Df04/PostE2 {:E1 e1})
+        evt (cn/make-instance :Df04/PostE2 {:E1 e1})
         result (:result (first (r/eval-all-dataflows-for-event evt)))]
-    (is (n/instance-of? :Df04/E2 result))
+    (is (cn/instance-of? :Df04/E2 result))
     (is (u/uuid-from-string (:Id result)))
     (is (= (:AId result) id))
     (is (= (:X result) 500))
     (is (= (:Y result) 50000))))
 
 (deftest fire-event
-  (defnamespace :Df05
+  (defcomponent :Df05
     (entity {:Df05/E1 {:A :Kernel/Int}})
     (entity {:Df05/E2 {:B :Kernel/Int}})
     (event {:Df05/Evt01 {:E1 :Df05/E1}})
@@ -189,9 +189,9 @@
               {:Df05/Evt02 {:E1 :Df05/Evt01.E1}})
     (dataflow :Df05/Evt02
               {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
-  (let [e1 (n/make-instance :Df05/E1 {:A 100})
-        evt (n/make-instance :Df05/Evt01 {:E1 e1})
+  (let [e1 (cn/make-instance :Df05/E1 {:A 100})
+        evt (cn/make-instance :Df05/Evt01 {:E1 e1})
         result (:result (first (r/eval-all-dataflows-for-event evt)))
         inst (:result (first result))]
-    (is (n/instance-of? :Df05/E2 inst))
+    (is (cn/instance-of? :Df05/E2 inst))
     (is (= (:B inst) 100))))

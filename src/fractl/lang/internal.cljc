@@ -142,8 +142,8 @@
             (string/split string delim))))
 
 (defn split-path
-  "Split a :Namespace/Member path into the individual
-  components - [:Namespace, :Member]. If the path is already
+  "Split a :Component/Member path into the individual
+  components - [:Component, :Member]. If the path is already
   parsed, return it as it is."
   [path]
   (if (parsed-path? path)
@@ -151,7 +151,7 @@
     (split-by-delim #"/" (str path))))
 
 (defn split-ref
-  "Split a :Namespace.SubNs1.SubNsN or a :Record.Attribute path into the individual
+  "Split a :Component.SubNs1.SubNsN or a :Record.Attribute path into the individual
   components. If the path is already parsed, return it as it is."
   [path]
   (if (parsed-path? path)
@@ -159,10 +159,10 @@
     (split-by-delim #"\." (str path))))
 
 (defn make-path
-  ([namespace obj-name]
-   (keyword (str (name namespace) "/" (name obj-name))))
-  ([[namespace obj-name]]
-   (make-path namespace obj-name)))
+  ([component obj-name]
+   (keyword (str (name component) "/" (name obj-name))))
+  ([[component obj-name]]
+   (make-path component obj-name)))
 
 (defn make-ref [recname attrname]
   (keyword (str (name recname) "." (name attrname))))
@@ -170,29 +170,29 @@
 (defn has-modpath? [path]
   (some #{\/} (str path)))
 
-(defn parsedpath-as-name [[namespace obj-name]]
-  (make-path namespace obj-name))
+(defn parsedpath-as-name [[component obj-name]]
+  (make-path component obj-name))
 
 (defn ref-as-names
-  "Split a path like :Namespace/RecordName.AttributeName into
-  [[Namespace RecordName] AttributeName]."
+  "Split a path like :Component/RecordName.AttributeName into
+  [[Component RecordName] AttributeName]."
   [path]
   (let [[m rp] (split-path path)]
     (when (and m rp)
       (let [[rn an] (split-ref rp)]
         [[m rn] an]))))
 
-(defn root-namespace [refpath]
+(defn root-component [refpath]
   (first (split-ref refpath)))
 
-(def ^:private uppercase-namespace (partial util/capitalize #"[\s-_]" ""))
+(def ^:private uppercase-component (partial util/capitalize #"[\s-_]" ""))
 
-(def ^:private lowercase-namespace (partial util/lowercase #"[\s-_]" ""))
+(def ^:private lowercase-component (partial util/lowercase #"[\s-_]" ""))
 
 (defn v8ns-as-cljns
   [v8ns]
   (let [parts (string/split (name v8ns) #"\.")
-        names (string/join "." (map lowercase-namespace parts))]
+        names (string/join "." (map lowercase-component parts))]
     names))
 
 (def file-separator
@@ -220,19 +220,19 @@
      :else file-name))
   ([^String file-name] (trim-path-prefix file-name nil)))
 
-(defn namespace-from-filename [^String file-name ^String namespace-path]
+(defn component-from-filename [^String file-name ^String component-path]
   (let [parts (.split (trim-path-prefix
                        (trim-path-prefix file-name)
-                       namespace-path)
+                       component-path)
                       file-separator)
         ns-parts (concat (take (dec (count parts)) parts)
                          [(util/remove-extension (last parts))])
-        names (string/join "." (map uppercase-namespace ns-parts))]
+        names (string/join "." (map uppercase-component ns-parts))]
     (keyword names)))
 
-(defn namespaces [^String namespace-ns]
-  (let [parts (string/split namespace-ns #"\.")
-        names (string/join "." (map uppercase-namespace parts))]
+(defn components [^String component-ns]
+  (let [parts (string/split component-ns #"\.")
+        names (string/join "." (map uppercase-component parts))]
     (keyword names)))
 
 (defn literal? [x]
@@ -310,7 +310,7 @@
 (defn path-parts
   "Parse a path of the form :M/R.A1.A2 to a map.
    The returned map will have the structure:
-    {:namespace :M :record R :refs (:A1, :A2)}
+    {:component :M :record R :refs (:A1, :A2)}
    :refs may be nil. If the path is simple name like :P,
    the returned map will be {:path :P}."
   [path]
@@ -320,7 +320,7 @@
         [m r] (kw [a b])
         refs (seq (kw cs))]
     (if (and r refs)
-      {:namespace m
+      {:component m
        :record (if refs (first refs) r)
        :refs (seq (rest refs))}
       {:path path})))

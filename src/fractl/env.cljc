@@ -2,7 +2,7 @@
   "The environment of instance and variable bindings,
   used for pattern resolution."
   (:require [fractl.util :as u]
-            [fractl.namespace :as n]))
+            [fractl.component :as cn]))
 
 (def EMPTY {})
 
@@ -31,13 +31,13 @@
   (peek (getinsts env rec-name)))
 
 (defn follow-reference [env path-parts]
-  (let [recname [(:namespace path-parts) (:record path-parts)]
+  (let [recname [(:component path-parts) (:record path-parts)]
         inst (lookup-instance env recname)]
     (loop [env env, refs (:refs path-parts), obj inst]
       (if-let [r (first refs)]
         (let [x (get obj r)]
-          (recur (if (n/an-instance? x)
-                   (bind-instance env (n/parsed-instance-name x) x)
+          (recur (if (cn/an-instance? x)
+                   (bind-instance env (cn/parsed-instance-name x) x)
                    env)
                  (rest refs) x))
         [obj env]))))

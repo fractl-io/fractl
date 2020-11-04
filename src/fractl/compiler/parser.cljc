@@ -2,7 +2,7 @@
   (:require [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.graph :as g]
-            [fractl.namespace :as n]
+            [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.compiler.context :as ctx]
             [fractl.compiler.validation :as cv]))
@@ -53,26 +53,26 @@
          (su/aconj result tag [k v])))
       result)))
 
-(defn- name-in-context [ctx namespace rec refs]
-  (if-let [inst (ctx/fetch-record ctx [namespace rec])]
+(defn- name-in-context [ctx component rec refs]
+  (if-let [inst (ctx/fetch-record ctx [component rec])]
     (do (when (seq refs)
-          (let [p (li/make-path namespace rec)
-                [_ scm] (n/find-schema p)]
+          (let [p (li/make-path component rec)
+                [_ scm] (cn/find-schema p)]
             ;; TODO: validate multi-level references.
-            (when-not (some #{(first refs)} (n/attribute-names scm))
+            (when-not (some #{(first refs)} (cn/attribute-names scm))
               (u/throw-ex (str "invalid reference - " [p refs])))))
         true)
-    (u/throw-ex (str "reference not in context - " [namespace rec refs]))))
+    (u/throw-ex (str "reference not in context - " [component rec refs]))))
 
 (defn- reach-name [ctx schema n]
-  (let [{namespace :namespace rec :record refs :refs
+  (let [{component :component rec :record refs :refs
          path :path}
         (li/path-parts n)]
     (if path
-      (if (n/has-attribute? schema path)
+      (if (cn/has-attribute? schema path)
         true
         (u/throw-ex (str "reference not in schema - " path)))
-      (name-in-context ctx namespace rec refs))))
+      (name-in-context ctx component rec refs))))
 
 (defn- valid-dependency [ctx schema v]
   (cond

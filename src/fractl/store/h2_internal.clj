@@ -4,7 +4,7 @@
             [next.jdbc.prepare :as jdbcp]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
-            [fractl.namespace :as n]
+            [fractl.component :as cn]
             [cheshire.core :as json])
   (:import [java.sql PreparedStatement]))
 
@@ -24,7 +24,7 @@
   ([entity-name] (table-for-entity entity-name nil)))
 
 (defn- indexed-attributes [entity-schema]
-  (set (remove #{:Id} (n/indexed-attributes entity-schema))))
+  (set (remove #{:Id} (cn/indexed-attributes entity-schema))))
 
 (defn- find-indexed-attributes
   ([entity-name entity-schema]
@@ -32,7 +32,7 @@
      (indexed-attributes entity-schema)
      (u/throw-ex (str "no schema for " entity-name))))
   ([entity-name]
-   (find-indexed-attributes entity-name (n/entity-schema entity-name))))
+   (find-indexed-attributes entity-name (cn/entity-schema entity-name))))
 
 (defn- index-table-name
   "Construct the lookup table-name for the attribute, from the main entity
@@ -115,7 +115,7 @@
 (defn- create-index-table! [connection entity-schema entity-table-name attrname idxattr]
   (let [[tabsql idxsql] (create-index-table-sql
                          entity-table-name attrname
-                         (n/unique-attribute? entity-schema idxattr))]
+                         (cn/unique-attribute? entity-schema idxattr))]
     (when-not (and (jdbc/execute! connection [tabsql])
                    (jdbc/execute! connection [idxsql]))
       (u/throw-ex (str "Failed to create lookup table for " [entity-table-name attrname])))))
@@ -158,9 +158,9 @@
   (let [scmname (db-schema-for-model model-name)]
     (with-open [conn (jdbc/get-connection datasource)]
       (create-db-schema! conn scmname)
-      (doseq [ename (n/entity-names model-name)]
+      (doseq [ename (cn/entity-names model-name)]
         (let [tabname (table-for-entity ename)
-              schema (n/entity-schema ename)
+              schema (cn/entity-schema ename)
               indexed-attrs (find-indexed-attributes ename schema)]
           (create-tables! conn schema tabname :Id indexed-attrs))))
     model-name))
@@ -199,7 +199,7 @@
 (defn- upsert-inst!
   "Insert or update an entity instance."
   [conn table-name inst]
-  (let [attrs (n/serializable-attributes inst)
+  (let [attrs (cn/serializable-attributes inst)
         id (:Id attrs)
         obj (json/generate-string (dissoc attrs :Id))
         pstmt (upsert-inst-statement conn table-name id obj)]

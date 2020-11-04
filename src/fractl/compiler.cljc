@@ -6,7 +6,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
             [fractl.compiler.context :as ctx]
-            [fractl.namespace :as n]
+            [fractl.component :as cn]
             [fractl.compiler.validation :as cv]
             [fractl.compiler.parser :as p]))
 
@@ -42,7 +42,7 @@
       `(fractl.env/lookup-reference ~runtime-env-var ~parts)
 
       :else
-      `(fractl.env/lookup-instance ~runtime-env-var [(:namespace parts) (:record parts)]))))
+      `(fractl.env/lookup-instance ~runtime-env-var [(:component parts) (:record parts)]))))
 
 (defn- arg-lookup [arg]
   (cond
@@ -138,9 +138,9 @@
   )
 
 (defn- compile-pathname [ctx pat]
-  (let [{namespace :namespace record :record refs :refs
+  (let [{component :component record :record refs :refs
          path :path} (li/path-parts pat)
-        n (or path [namespace record])
+        n (or path [component record])
         opc (and (cv/find-schema n)
                  (if refs
                    (emit-load-references ctx n refs)
@@ -151,8 +151,8 @@
 (defn- compile-map [ctx pat]
   (if (li/instance-pattern? pat)
     (let [full-nm (li/instance-pattern-name pat)
-          {namespace :namespace record :record} (li/path-parts full-nm)
-          nm [namespace record]
+          {component :component record :record} (li/path-parts full-nm)
+          nm [component record]
           attrs (li/instance-pattern-attrs pat)
           [tag scm] (cv/find-schema nm full-nm)]
       (let [c (case tag
@@ -185,18 +185,18 @@
     [ec pc]))
 
 (defn compiled-dataflows-for-event [lookup-resolver event]
-  (let [dfs (n/dataflows-for-event event)]
+  (let [dfs (cn/dataflows-for-event event)]
     (doseq [df dfs]
-      (when-not (n/dataflow-opcode df)
-        (n/set-dataflow-opcode!
+      (when-not (cn/dataflow-opcode df)
+        (cn/set-dataflow-opcode!
          df (compile-dataflow
              lookup-resolver
-             (n/dataflow-event-pattern df)
-             (n/dataflow-patterns df)))))
+             (cn/dataflow-event-pattern df)
+             (cn/dataflow-patterns df)))))
     dfs))
 
 (defn- reference-attributes [attrs refrec]
-  (when-let [result (seq (filter (partial n/attribute-unique-reference-path refrec) attrs))]
+  (when-let [result (seq (filter (partial cn/attribute-unique-reference-path refrec) attrs))]
     (let [[attr-name path] (first result)
           {refs :refs} (li/path-parts (:ref path))]
       [attr-name (first refs)])))
@@ -210,13 +210,13 @@
     `(~arg ~current-instance-var)
 
     :else
-    (let [{namespace :namespace rec :record refs :refs} (li/path-parts arg)]
-      (if-let [[refattr ukattr] (reference-attributes attrs [namespace rec])]
+    (let [{component :component rec :record refs :refs} (li/path-parts arg)]
+      (if-let [[refattr ukattr] (reference-attributes attrs [component rec])]
         `(~(first refs)
           (first
            (fractl.env/lookup-instances-by-attributes
             ~runtime-env-var
-            ~[namespace rec] [[~ukattr (~refattr ~current-instance-var)]])))
+            ~[component rec] [[~ukattr (~refattr ~current-instance-var)]])))
         (u/throw-ex (str "no unique reference can be traced from " [rec-name aname arg]))))))
 
 (defn compile-attribute-expression [rec-name attrs aname aval]

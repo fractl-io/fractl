@@ -1,5 +1,5 @@
-(ns fractl.namespace
-  "Manage namespaces for a model."
+(ns fractl.component
+  "Manage components for a model."
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [fractl.util :as util]
@@ -7,67 +7,67 @@
             [fractl.util.log :as log]
             [fractl.lang.internal :as li]))
 
-(def ^:private namespaces
-  "Table that maps namespace names to their definitions."
+(def ^:private components
+  "Table that maps component names to their definitions."
   #?(:clj  (ref {})
      :cljs (atom {})))
 
-(def ^:private current-namespace
-  "The name of the active namespace for the current thread."
+(def ^:private current-component
+  "The name of the active component for the current thread."
   #?(:clj
      (proxy [ThreadLocal] []
        (initialValue [] :Kernel))
      :cljs
      (atom nil)))
 
-(def ^:private namespaces-inited
-  "All namespaces inited, but init-events not yet fired."
+(def ^:private components-inited
+  "All components inited, but init-events not yet fired."
   #?(:clj (ref [])
      :cljs (atom [])))
 
-(defn- set-current-namespace [n]
-  #?(:clj (dosync (.set current-namespace n)
-                  (ref-set namespaces-inited (conj @namespaces-inited n)))
-     :cljs (do (reset! current-namespace n)
-               (reset! namespaces-inited (conj @namespaces-inited n))))
+(defn- set-current-component [n]
+  #?(:clj (dosync (.set current-component n)
+                  (ref-set components-inited (conj @components-inited n)))
+     :cljs (do (reset! current-component n)
+               (reset! components-inited (conj @components-inited n))))
   n)
 
-(defn get-current-namespace []
-  #?(:clj (.get current-namespace)
-     :cljs @current-namespace))
+(defn get-current-component []
+  #?(:clj (.get current-component)
+     :cljs @current-component))
 
-(defn fetch-namespaces-inited! []
+(defn fetch-components-inited! []
   (dosync
-   (let [ms @namespaces-inited]
-     (ref-set namespaces-inited [])
+   (let [ms @components-inited]
+     (ref-set components-inited [])
      ms)))
 
 (def full-name li/make-path)
 
 (defn canonical-type-name
   "Return the fully-qualified type-name."
-  ([namespace typname]
+  ([component typname]
    (if (pos? (.indexOf (str typname) "/"))
      typname
-     (full-name namespace typname)))
-  ([typname] (canonical-type-name (get-current-namespace) typname)))
+     (full-name component typname)))
+  ([typname] (canonical-type-name (get-current-component) typname)))
 
 (defn normalize-type-name [^String n]
   (last (li/split-path n)))
 
-(defn namespace-init-event-name [namespace]
-  (keyword (str (name namespace) "_Init")))
+(defn component-init-event-name [component]
+  (keyword (str (name component) "_Init")))
 
 (declare intern-attribute intern-event)
 
-(defn create-namespace
-  "Create a new namespace with the given name and references to
-  the namespaces in the imports list. If a namespace already exists with
-  the same name, it will be overwritten. Returns the name of the new namespace."
-  [namespace spec]
+(defn create-component
+  "Create a new component with the given name and references to
+  the components in the imports list. If a component already exists with
+  the same name, it will be overwritten. Returns the name of the new component."
+  [component spec]
   (util/safe-set-result
-   namespaces
-   #(let [ms @namespaces
+   components
+   #(let [ms @components
           imports (when-let [imports (:imports spec)]
                     {:import [imports (li/mappify-alias-imports imports)]
                      ;; Special alias key for imports
@@ -78,74 +78,74 @@
                          {:java (first (rest java-imports))})
           v8-imports (when-let [v8-imports (:v8-imports spec)]
                        {:v8 [(first (rest v8-imports)) (li/mappify-alias-imports v8-imports)]})]
-      ;; The interned namespace has the following structure:
-      ;; {namespace {:resolver <resolver-config-map>
+      ;; The interned component has the following structure:
+      ;; {component {:resolver <resolver-config-map>
       ;;              :import [imports aliases]
       ;;              :clj [clj-imports aliases]
       ;;              :java java-imports
       ;;              :v8 [v8-imports aliases]}}
-      (assoc ms namespace
+      (assoc ms component
              (merge {:resolver (:resolver spec)}
                     imports clj-imports java-imports v8-imports))))
-  (intern-attribute [namespace :Id]
+  (intern-attribute [component :Id]
                     {:type :Kernel/UUID
                      :unique true
                      :immutable true
                      :default util/uuid-string})
-  (intern-event [namespace (namespace-init-event-name namespace)]
-                {:NamespaceName :Kernel/Keyword})
-  (set-current-namespace namespace)
-  namespace)
+  (intern-event [component (component-init-event-name component)]
+                {:ComponentName :Kernel/Keyword})
+  (set-current-component component)
+  component)
 
-(defn remove-namespace [namespace]
-  (util/safe-set-result namespaces #(dissoc @namespaces namespace)))
+(defn remove-component [component]
+  (util/safe-set-result components #(dissoc @components component)))
 
-(defn namespace-exists? [namespace]
-  (find @namespaces namespace))
+(defn component-exists? [component]
+  (find @components component))
 
-(defn extract-alias-of-namespace [namespace alias-entry]
-  (if (namespace-exists? namespace)
-    (get-in @namespaces [namespace :alias alias-entry])
-    (log/error (str "Namespace " namespace " is not present!"))))
+(defn extract-alias-of-component [component alias-entry]
+  (if (component-exists? component)
+    (get-in @components [component :alias alias-entry])
+    (log/error (str "Component " component " is not present!"))))
 
-(defn- namespace-intern
-  "Add or replace a namespace entry.
-  `typname` must be in the format - :NamespaceName/TypName
-  Returns the name of the entry. If the namespace is non-existing, raise an exception."
+(defn- component-intern
+  "Add or replace a component entry.
+  `typname` must be in the format - :ComponentName/TypName
+  Returns the name of the entry. If the component is non-existing, raise an exception."
   [typname typdef typtag]
-  (let [[namespace n] (li/split-path typname)]
-    (when-not (namespace-exists? namespace)
-      (util/throw-ex-info (str "namespace not found - " namespace) {:name typname
+  (let [[component n] (li/split-path typname)]
+    (when-not (component-exists? component)
+      (util/throw-ex-info (str "component not found - " component) {:name typname
                                                                     :tag typtag}))
-    (util/safe-set-result namespaces #(assoc-in @namespaces [namespace typtag n] typdef))
+    (util/safe-set-result components #(assoc-in @components [component typtag n] typdef))
     typname))
 
-(defn- namespace-find [path]
-  (get-in @namespaces path))
+(defn- component-find [path]
+  (get-in @components path))
 
-(defn namespace-resolvers [namespace]
-  (namespace-find [namespace :resolvers :namespace-level]))
+(defn component-resolvers [component]
+  (component-find [component :resolvers :component-level]))
 
-(defn entity-resolvers [namespace entity-name]
-  (namespace-find [namespace :resolvers entity-name]))
+(defn entity-resolvers [component entity-name]
+  (component-find [component :resolvers entity-name]))
 
 (defn install-resolver
-  "Add a resolver for a namespace or an entity."
-  ([namespace entity-name spec]
-   (let [resolvers (or (if (= :namespace-level entity-name)
-                         (namespace-resolvers namespace)
-                         (entity-resolvers namespace entity-name))
+  "Add a resolver for a component or an entity."
+  ([component entity-name spec]
+   (let [resolvers (or (if (= :component-level entity-name)
+                         (component-resolvers component)
+                         (entity-resolvers component entity-name))
                        [])]
-     (namespace-intern [namespace entity-name] (conj resolvers spec) :resolvers)))
-  ([namespace spec]
-   (install-resolver namespace :namespace-level spec)))
+     (component-intern [component entity-name] (conj resolvers spec) :resolvers)))
+  ([component spec]
+   (install-resolver component :component-level spec)))
 
 (defn intern-attribute
-  "Add or replace an attribute in a namespace.
-  The attribute name must be fully-qualified, as in - `:NamespaceName/AttrName`.
-  Returns the name of the attribute. If the namespace is non-existing, raise an exception."
+  "Add or replace an attribute in a component.
+  The attribute name must be fully-qualified, as in - `:ComponentName/AttrName`.
+  Returns the name of the attribute. If the component is non-existing, raise an exception."
   [attrname attrdef]
-  (namespace-intern attrname attrdef :attributes))
+  (component-intern attrname attrdef :attributes))
 
 (def ^:private type-tag-key :type-*-tag-*-)
 
@@ -158,11 +158,11 @@
       (assoc recdef type-tag-key typetag))))
 
 (defn intern-record
-  "Add or replace an record in a namespace.
-  The record name must be fully-qualified, as in - `:NamespaceName/RecName`
-  Returns the name of the record. If the namespace is non-existing, raise an exception."
+  "Add or replace an record in a component.
+  The record name must be fully-qualified, as in - `:ComponentName/RecName`
+  Returns the name of the record. If the component is non-existing, raise an exception."
   ([typetag recname recdef]
-   (namespace-intern recname (normalize-recdef recdef typetag) :records))
+   (component-intern recname (normalize-recdef recdef typetag) :records))
   ([recname recdef]
    (intern-record :record recname recdef)))
 
@@ -172,31 +172,31 @@
 (defn find-attribute-schema
   "Find and return an attribute schema by the given path.
   Path should be in one of the following forms:
-   - :NamespaceName/AttributeName
-   - :NamespaceName/RecordName.AttributeName
+   - :ComponentName/AttributeName
+   - :ComponentName/RecordName.AttributeName
   If the lookup succeeds, return the attribute schema as a map.
   Return `nil` on lookup failure."
-  ([namespace aref]
+  ([component aref]
    (let [[recname attrname] (li/split-ref aref)]
      (if attrname
-       (when-let [rec (namespace-find [namespace :records recname])]
+       (when-let [rec (component-find [component :records recname])]
          (find-attribute-schema (get-in rec [:schema attrname])))
-       (namespace-find [namespace :attributes aref]))))
+       (component-find [component :attributes aref]))))
   ([path]
-   (let [[namespace aref] (li/split-path path)]
-     (find-attribute-schema namespace aref))))
+   (let [[component aref] (li/split-path path)]
+     (find-attribute-schema component aref))))
 
-(defn all-attributes [namespace]
-  (namespace-find [namespace :attributes]))
+(defn all-attributes [component]
+  (component-find [component :attributes]))
 
 (defn find-record-schema
   "Find and return an record schema by the given path.
-   Path should be of the form - :NamespaceName/RecordName.
+   Path should be of the form - :ComponentName/RecordName.
    If the lookup succeeds, return the record schema as a map.
    Return `nil` on lookup failure."
   [path]
-  (let [[namespace recname] (li/split-path path)]
-    (namespace-find [namespace :records recname])))
+  (let [[component recname] (li/split-path path)]
+    (component-find [component :records recname])))
 
 (defn- find-record-schema-by-type [typ path]
   (when-let [scm (find-record-schema path)]
@@ -359,7 +359,7 @@
   "Call make-error to create a new instance of error, wrap it in an
   ex-info and raise it as an exception."
   ([msg attributes]
-   (util/throw-ex-info (str "namespace/error: " msg)
+   (util/throw-ex-info (str "component/error: " msg)
                        {:error (make-error msg attributes)}))
   ([msg] (throw-error msg nil)))
 
@@ -546,7 +546,7 @@
 (defn make-instance
   "Initialize an instance of a record from the given map of attributes.
    All attribute values will be validated using the associated value predicates.
-   full-record-name must be in the form - :NamespaceName/RecordName.
+   full-record-name must be in the form - :ComponentName/RecordName.
    Return the new record on success, return an :error record on failure."
   ([record-name attributes validate?]
    (let [attrs (maps-to-insts attributes validate?)
@@ -640,12 +640,12 @@
 
 (defn register-dataflow
   "Attach a dataflow to the event."
-  ([event head patterns namespace]
+  ([event head patterns component]
    (util/safe-set-result
-    namespaces
-    #(let [ms @namespaces
+    components
+    #(let [ms @components
            ename (normalize-type-name (event-name event))
-           path [namespace :events ename]
+           path [component :events ename]
            currpats (get-in ms path [])
            newpats (conj currpats [event {:head head
                                           :event-pattern event
@@ -654,8 +654,8 @@
        (assoc-in ms path newpats)))
    event)
   ([event head patterns]
-   (let [[namespace _] (li/split-path (event-name event))]
-     (register-dataflow event head patterns namespace)))
+   (let [[component _] (li/split-path (event-name event))]
+     (register-dataflow event head patterns component)))
   ([event patterns] (register-dataflow event nil patterns)))
 
 (defn- register-entity-event-df [head patterns event-name _ _]
@@ -781,22 +781,22 @@
 (defn dataflows-for-event
   "Return all dataflows attached to the event."
   [event]
-  (let [[namespace ename] (li/split-path (event-name event))
-        path [namespace :events ename]]
-    (filter-by-conditional-events event (namespace-find path))))
+  (let [[component ename] (li/split-path (event-name event))
+        path [component :events ename]]
+    (filter-by-conditional-events event (component-find path))))
 
 (defn evalable-dataflow [[k dfspec :as df]]
   [k (dataflow-patterns df)])
 
-;; Namespace querying, useful for the edges.
+;; Component querying, useful for the edges.
 
 (defn record-names-by-type
-  "Return a list of record-names, of the given type, interned in this namespace.
+  "Return a list of record-names, of the given type, interned in this component.
   The type argument `tp` could be one of - :record, :event or :entity."
-  [tp namespace]
+  [tp component]
   (let [evts (filter (fn [[_ v]] (= tp (type-tag-key v)))
-                     (:records (get @namespaces namespace)))]
-    (set (map (partial full-name namespace) (keys evts)))))
+                     (:records (get @components component)))]
+    (set (map (partial full-name component) (keys evts)))))
 
 (def record-names (partial record-names-by-type :record))
 (def entity-names (partial record-names-by-type :entity))

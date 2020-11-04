@@ -2,7 +2,7 @@
   "The default resolver implementation, the root of a normal resolver sequence."
   (:require [fractl.resolver.protocol :as p]
             [fractl.env :as env]
-            [fractl.namespace :as n]
+            [fractl.component :as cn]
             [fractl.resolver.parser :as parser]
             [fractl.store :as store]
             [fractl.util :as u]
@@ -15,7 +15,7 @@
       raw-obj)))
 
 (defn- assoc-computed-attributes [env record-name raw-obj]
-  (let [[efns qfns] (n/all-computed-attribute-fns record-name)
+  (let [[efns qfns] (cn/all-computed-attribute-fns record-name)
         f (partial assoc-fn-attributes env)]
     (f (f raw-obj efns) qfns)))
 
@@ -29,8 +29,8 @@
    (set-obj-attr env attr-name attr-value nil)))
 
 (defn- bind-if-instance [env x]
-  (if (n/an-instance? x)
-    (env/bind-instance env (li/split-path (n/instance-name x)) x)
+  (if (cn/an-instance? x)
+    (env/bind-instance env (li/split-path (cn/instance-name x)) x)
     env))
 
 (defn- id-attribute [query-attrs]
@@ -47,7 +47,7 @@
 (defn- pop-and-intern-instance [env store record-name]
   (let [[env [_ obj]] (env/pop-obj env)
         final-obj (assoc-computed-attributes env record-name obj)
-        inst (n/make-instance (li/make-path record-name) final-obj)
+        inst (cn/make-instance (li/make-path record-name) final-obj)
         env (env/bind-instance env record-name
                                (if store
                                  (store/upsert-instance store record-name inst)
@@ -68,7 +68,7 @@
 
     (do-load-references [_ env [record-name refs]]
       (let [inst (env/lookup-instance env record-name)]
-        (if-let [v (get (n/instance-attributes inst) (first refs))]
+        (if-let [v (get (cn/instance-attributes inst) (first refs))]
           (p/ok v (bind-if-instance env v))
           p/not-found)))
 

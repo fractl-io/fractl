@@ -2,7 +2,7 @@
   "Pattern resolvers, aka evaluators"
   (:require [fractl.util :as u]
             [fractl.util.seq :as us]
-            [fractl.namespace :as n]
+            [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
@@ -26,9 +26,9 @@
 
 (defn eval-dataflow
   ([env event-instance df]
-   (let [n (li/split-path (n/instance-name event-instance))
+   (let [n (li/split-path (cn/instance-name event-instance))
          env (env/bind-instance env n event-instance)
-         [_ dc] (n/dataflow-opcode df)]
+         [_ dc] (cn/dataflow-opcode df)]
      (loop [dc dc, result (p/dummy-result env)]
        (if (p/ok? result)
          (if-let [opcode (first dc)]
