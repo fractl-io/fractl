@@ -8,10 +8,10 @@
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             [fractl.store :as store]
-            [fractl.resolver :as r])
-  #?(:cljs [fractl.lang
-            :refer [component attribute event
-                    entity record dataflow]]))
+            [fractl.resolver :as r]
+    #?(:cljs [fractl.lang
+                      :refer [component attribute event
+                                entity record dataflow]])))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
