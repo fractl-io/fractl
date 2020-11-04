@@ -11,8 +11,7 @@
             [fractl.resolver :as r])
   #?(:cljs [fractl.lang
             :refer [component attribute event
-                    entity record kernel-decimal?]
-            :refer-macros [dataflow]]))
+                    entity record dataflow]]))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
