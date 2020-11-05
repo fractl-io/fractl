@@ -46,6 +46,8 @@
 
 (defn- arg-lookup [arg]
   (cond
+    (i/literal? arg) arg
+
     (seqable? arg)
     (expr-with-arg-lookups arg)
 
@@ -58,10 +60,12 @@
     :else arg))
 
 (defn- expr-with-arg-lookups [expr]
-  (if (seqable? expr)
+  (cond
+    (i/literal? expr) expr
+    (seqable? expr)
     (let [final-args (map arg-lookup (rest expr))]
       `(~(first expr) ~@final-args))
-    (arg-lookup expr)))
+    :else (arg-lookup expr)))
 
 (defn- expr-as-fn
   "Compile compound expression to a function.
@@ -92,10 +96,9 @@
         deps-graph (appl fs [ctx schema ug/EMPTY])
         compound-exprs (map (fn [[k v]] [k (expr-as-fn v)]) compound)
         parsed-refs (map (fn [[k v]] [k (li/path-parts v)]) refs)
-        parsed-query (i/parse-query (map (fn [[k v]] [k (vec (expr-with-arg-lookups v))]) query))]
-    ;; TODO: Compile queries - this should be query-parse calls to the resolver.
-    ;;       All queries should be merged into one using AND.
-    {:attrs (assoc cls-attrs :compound compound-exprs :refs parsed-refs)
+        parsed-query (i/parse-query (map (fn [[k v]] [k (expr-with-arg-lookups v)]) query))
+        final-attrs (if (seq parsed-query) (assoc cls-attrs :query parsed-query) cls-attrs)]
+    {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
      :deps deps-graph}))
 
 (def ^:private set-attr-opcode-fns {:computed op/set-literal-attribute
