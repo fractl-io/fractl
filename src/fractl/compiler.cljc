@@ -8,7 +8,7 @@
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.compiler.validation :as cv]
-            [fractl.compiler.parser :as p]))
+            [fractl.compiler.internal :as i]))
 
 (def make-context ctx/make)
 
@@ -24,7 +24,7 @@
 
 (defn- build-dependency-graph [attr-pats ctx schema graph]
   ;; makes parser/build-dependency-graph callable from util/apply->
-  (let [result-graph (p/build-dependency-graph attr-pats ctx schema graph)]
+  (let [result-graph (i/build-dependency-graph attr-pats ctx schema graph)]
     [ctx schema result-graph]))
 
 (def ^:private runtime-env-var '--env--)
@@ -87,12 +87,12 @@
   [ctx pat-attrs schema]
   (let [{computed :computed refs :refs
          compound :compound query :query
-         :as cls-attrs} (p/classify-attributes ctx pat-attrs schema)
+         :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
         fs (map #(partial build-dependency-graph %) [refs compound query])
         deps-graph (appl fs [ctx schema ug/EMPTY])
         compound-exprs (map (fn [[k v]] [k (expr-as-fn v)]) compound)
         parsed-refs (map (fn [[k v]] [k (li/path-parts v)]) refs)
-        parsed-query (p/parse-query (map (fn [[k v]] [k (vec (expr-with-arg-lookups v))]) query))]
+        parsed-query (i/parse-query (map (fn [[k v]] [k (vec (expr-with-arg-lookups v))]) query))]
     ;; TODO: Compile queries - this should be query-parse calls to the resolver.
     ;;       All queries should be merged into one using AND.
     {:attrs (assoc cls-attrs :compound compound-exprs :refs parsed-refs)
@@ -118,7 +118,7 @@
              (op/intern-instance rec-name))]))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
-  (let [sorted (p/sort-attributes-by-dependency attrs deps-graph)]
+  (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)]
     (assoc attrs :sorted sorted)))
 
 (defn- emit-realize-instance [ctx pat-name pat-attrs schema event?]

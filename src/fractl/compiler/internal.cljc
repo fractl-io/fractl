@@ -1,4 +1,4 @@
-(ns fractl.compiler.parser
+(ns fractl.compiler.internal
   (:require [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.graph :as g]
