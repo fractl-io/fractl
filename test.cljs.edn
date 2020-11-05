@@ -1,0 +1,8 @@
+^{:watch-dirs ["src" "test"]
+  :css-dirs ["resources/public/css"]
+  :extra-main-files {:testing {:main v8dml.test-runner}}
+  :log-syntax-error-style :concise
+  ;:auto-testing true
+  }
+
+{:main fractl.core}

@@ -119,18 +119,6 @@
 (defn nodes [dg] (set (keys dg)))
 (defn all-edges [dg] (vals dg))
 
-(defn preorder [dg v]
-  #?(:clj
-     (let [^Queue q (LinkedList.)
-           f (fn [v] (.add q v))
-           _ (mkdfs dg v {} f nil)]
-       (seq q))
-     :cljs
-     (let [q (atom  #queue [])
-           f (fn [v] (reset! q (conj @q v)))
-           _ (mkdfs dg v {} f nil)]
-       q)))
-
 (defn- traverse [dg v pre?]
   (let [dfs (partial mkdfs dg v {})]
     #?(:clj
