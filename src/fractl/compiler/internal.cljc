@@ -137,5 +137,15 @@
 (defn sort-attributes-by-dependency [attrs graph]
   (as-sorted-attrs attrs (g/topological-all graph)))
 
-(defn parse-query [query-pattern]
-  query-pattern)
+(defn- process-where-clause [clause]
+  (cv/ensure-where-clause
+   (if (= 2 (count clause))
+     (su/vec-add-first := clause)
+     clause)))
+
+(defn expand-query [entity-name query-pattern]
+  (let [qp (map process-where-clause query-pattern)]
+    [[:select :*] [:from entity-name]
+     [:where (if (> (count qp) 1)
+               (su/vec-add-first :and qp)
+               (first qp))]]))

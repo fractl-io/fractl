@@ -37,6 +37,11 @@
     (is (v (opc/arg opcode)))
     (is (= v (opc/arg opcode)))))
 
+(defn- valid-opcode-with-query? [opcode farg]
+  (is (opc/query-instance? opcode))
+  (let [arg (opc/arg opcode)]
+    (is (= farg (first arg)))))
+
 (def ^:private load-instance? (partial valid-opcode? opc/load-instance?))
 (def ^:private match-inst? (partial valid-opcode? opc/match-instance?))
 
@@ -81,8 +86,7 @@
     ;; compile-time itself.
     (ctx/bind-variable! ctx 'id uuid)
     (let [opcs (c p1)]
-      (is (valid-opcode? opc/query-instance?
-                         (first opcs) [[:CompileTest :E1] [[:Id uuid]]]))
+      (is (valid-opcode-with-query? (first opcs) [:CompileTest :E1]))
       (is (valid-opcode? opc/set-literal-attribute?
                          (second opcs) [:X 100]))
       (is (valid-opcode? opc/set-compound-attribute?

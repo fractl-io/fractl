@@ -39,7 +39,7 @@
       `(fractl.env/peek-obj-attribute ~runtime-env-var ~n)
 
       (seq (:refs parts))
-      `(fractl.env/lookup-reference ~runtime-env-var ~parts)
+      `(fractl.env/follow-reference ~runtime-env-var ~parts)
 
       :else
       `(fractl.env/lookup-instance ~runtime-env-var [(:component parts) (:record parts)]))))
@@ -75,6 +75,11 @@
   (eval `(fn [~runtime-env-var ~current-instance-var]
            ~(expr-with-arg-lookups expr))))
 
+(defn- expand-query [entity-name query]
+  (i/expand-query
+   entity-name
+   (map (fn [[k v]] [k (expr-as-fn v)]) query)))
+
 (def ^:private appl (partial u/apply-> last))
 
 (defn- parse-attributes
@@ -88,7 +93,7 @@
 
     A graph of dependencies is prepared for each attribute. If there is a cycle in the graph,
     raise an error. Otherwise return a map with each attribute group and their attached graphs."
-  [ctx pat-attrs schema]
+  [ctx pat-name pat-attrs schema]
   (let [{computed :computed refs :refs
          compound :compound query :query
          :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
@@ -96,8 +101,10 @@
         deps-graph (appl fs [ctx schema ug/EMPTY])
         compound-exprs (map (fn [[k v]] [k (expr-as-fn v)]) compound)
         parsed-refs (map (fn [[k v]] [k (li/path-parts v)]) refs)
-        parsed-query (i/parse-query (map (fn [[k v]] [k (expr-with-arg-lookups v)]) query))
-        final-attrs (if (seq parsed-query) (assoc cls-attrs :query parsed-query) cls-attrs)]
+        expanded-query (when query (expand-query pat-name query))
+        final-attrs (if (seq expanded-query)
+                      (assoc cls-attrs :query expanded-query)
+                      cls-attrs)]
     {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
      :deps deps-graph}))
 
@@ -127,7 +134,7 @@
 (defn- emit-realize-instance [ctx pat-name pat-attrs schema event?]
   (when-let [xs (cv/invalid-attributes pat-attrs schema)]
     (u/throw-ex (str "invalid attributes in pattern - " xs)))
-  (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-attrs schema)
+  (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
     (emit-build-entity-instance ctx pat-name sorted-attrs schema event?)))
 

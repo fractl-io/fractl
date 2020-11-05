@@ -61,3 +61,6 @@
 
 (defn conj-if [xs x]
   (if x (conj xs x) xs))
+
+(defn vec-add-first [x vec]
+  (apply conj [x] vec))
