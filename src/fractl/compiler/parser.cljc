@@ -136,3 +136,6 @@
 
 (defn sort-attributes-by-dependency [attrs graph]
   (as-sorted-attrs attrs (g/topological-all graph)))
+
+(defn parse-query [query-pattern]
+  query-pattern)

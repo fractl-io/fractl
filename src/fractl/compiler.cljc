@@ -58,8 +58,10 @@
     :else arg))
 
 (defn- expr-with-arg-lookups [expr]
-  (let [final-args (map arg-lookup (rest expr))]
-    `(~(first expr) ~@final-args)))
+  (if (seqable? expr)
+    (let [final-args (map arg-lookup (rest expr))]
+      `(~(first expr) ~@final-args))
+    (arg-lookup expr)))
 
 (defn- expr-as-fn
   "Compile compound expression to a function.
@@ -88,11 +90,12 @@
          :as cls-attrs} (p/classify-attributes ctx pat-attrs schema)
         fs (map #(partial build-dependency-graph %) [refs compound query])
         deps-graph (appl fs [ctx schema ug/EMPTY])
-        compound2 (map (fn [[k v]] [k (expr-as-fn v)]) compound)
-        refs2 (map (fn [[k v]] [k (li/path-parts v)]) refs)]
+        compound-exprs (map (fn [[k v]] [k (expr-as-fn v)]) compound)
+        parsed-refs (map (fn [[k v]] [k (li/path-parts v)]) refs)
+        parsed-query (p/parse-query (map (fn [[k v]] [k (vec (expr-with-arg-lookups v))]) query))]
     ;; TODO: Compile queries - this should be query-parse calls to the resolver.
     ;;       All queries should be merged into one using AND.
-    {:attrs (assoc cls-attrs :compound compound2 :refs refs2)
+    {:attrs (assoc cls-attrs :compound compound-exprs :refs parsed-refs)
      :deps deps-graph}))
 
 (def ^:private set-attr-opcode-fns {:computed op/set-literal-attribute
