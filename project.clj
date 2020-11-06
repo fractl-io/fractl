@@ -14,16 +14,16 @@
   :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
             [lein-doo "0.1.10"]]
 
-  :profiles {:dev {:dependencies [[figwheel-sidecar "0.5.20"]
-                                  [com.bhauman/figwheel-main "0.2.12"]
-                                  [com.bhauman/rebel-readline-cljs "0.1.4"]]
+  :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4"]
+                                  [thheller/shadow-cljs "2.11.7"]]
                    ;; setup target as a resource path
-                   :resource-paths ["target" "resources"]
+                   :resource-paths ["target" "resources" "node_modules"]
                    ;; set up an alias to invoke your figwheel build
-                   :aliases {"fig" ["trampoline" "run" "-m" "figwheel.main"]
-                             "build-dev" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
-                             "fig:test" ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "fractl.test.test-runner"]}
-                   :clean-targets ^{:protect false} ["target"]}}
+                   :aliases {
+                             "cljs:cli" ["run" "-m" "shadow.cljs.devtools.cli"]
+                             "cljs:test" ["run" "-m" "shadow.cljs.devtools.cli" "compile" "test"]
+                             "cljs:app" ["run" "-m" "shadow.cljs.devtools.cli" "compile" "app"]}
+                   :clean-targets ^{:protect false} ["target" "out"]}}
 
   :cljsbuild {:builds
               [{:id "dev"
