@@ -54,7 +54,7 @@
                                  inst))]
     [inst env]))
 
-(defn make [store df-eval]
+(defn make [store eval-event-dataflows]
   (reify p/Resolver
     (do-match-instance [_ env [pattern instance]]
       (if-let [updated-env (parser/match-pattern env pattern instance)]
@@ -98,12 +98,12 @@
 
     (do-intern-event-instance [_ env record-name]
       (let [[inst env] (pop-and-intern-instance env nil record-name)]
-        (p/ok (df-eval inst) env)))))
+        (p/ok (eval-event-dataflows inst) env)))))
 
 (def ^:private default-resolver (u/make-cell))
 
-(defn get-default-resolver [df-eval]
+(defn get-default-resolver [eval-event-dataflows]
   (u/safe-set-once
    default-resolver
    #(let [store (store/get-default-store)]
-      (make store df-eval))))
+      (make store eval-event-dataflows))))
