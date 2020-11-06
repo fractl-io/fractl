@@ -16,3 +16,4 @@ jobs:
       run: lein deps
     - name: Run clj test
       run: lein test
+    # TODO: Run a clojure app
