@@ -8,27 +8,22 @@ on:
 
 jobs:
   test_clj:
-
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-
     - name: Install dependencies
       run: lein deps
     - name: Run clj test
       run: lein test
 
+
   test_cljs:
-
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-        - name: Install dependencies
-          run: lein deps
-        - name: Run cljs test
-          run: lein cljs:test
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install dependencies
+      run: lein deps
+    - name: Run cljs test
+      run: lein cljs:test
