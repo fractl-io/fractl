@@ -7,7 +7,7 @@
 
 (defn- dispatch-an-opcode [env opcode resolver]
   (if-let [f ((opc/op opcode) p/dispatch-table)]
-    (f resolver env (opc/arg opcode))
+    (f (p/vm resolver) env (opc/arg opcode))
     (u/throw-ex (str "no dispatcher for opcode - " (opc/op opcode)))))
 
 (defn dispatch [env {opcode :opcode resolver :resolver :as x}]

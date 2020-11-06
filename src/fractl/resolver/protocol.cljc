@@ -1,19 +1,16 @@
 (ns fractl.resolver.protocol
   (:require [fractl.lang.opcode :as opc]))
 
-(def Resolver
-  "Protocol for resolution or evaluation of various patterns.
-   There is a 1-1 correspondence with this protocol and the
-   virtual-machine instructions defined in v8dml.lang.opcode.
+(defn make
+  ([vm store config]
+   {:vm vm
+    :store store
+    :config config})
+  ([vm store] (make vm store nil)))
 
-   The methods declared below return a map with status information and result.
-   The general forms of this map are:
-    - {:status :ok :result <optional-result> :env <optional-updated-environment>}, call success.
-    - {:status :not-found}, a query or lookup returned no-data.
-    - {:status :declined}, the resolver refuses to service the call.
-    - {:status :no-op}, no operation needs to be performed, for instance, no dataflows attached to an event.
-    - {:status :error :message <error-message>}, there was an unxpected error."
-  opc/VM)
+(def vm :vm)
+(def store :store)
+(def config :config)
 
 (def dispatch-table opc/dispatch-table)
 

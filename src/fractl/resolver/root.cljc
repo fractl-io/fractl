@@ -6,6 +6,7 @@
             [fractl.resolver.parser :as parser]
             [fractl.store :as store]
             [fractl.util :as u]
+            [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]))
 
 (defn- assoc-fn-attributes [env raw-obj fns]
@@ -54,8 +55,8 @@
                                  inst))]
     [inst env]))
 
-(defn make [store eval-event-dataflows]
-  (reify p/Resolver
+(defn make-root-vm [store eval-event-dataflows]
+  (reify opc/VM
     (do-match-instance [_ env [pattern instance]]
       (if-let [updated-env (parser/match-pattern env pattern instance)]
         (p/ok true updated-env)
@@ -99,6 +100,9 @@
     (do-intern-event-instance [_ env record-name]
       (let [[inst env] (pop-and-intern-instance env nil record-name)]
         (p/ok (eval-event-dataflows inst) env)))))
+
+(defn make [store eval-event-dataflows]
+  (p/make (make-root-vm store eval-event-dataflows) store))
 
 (def ^:private default-resolver (u/make-cell))
 

@@ -48,10 +48,18 @@
 ;; the handler methods. Each method corresponds to an opcode.
 ;;
 ;; The argument list of the new protocol will be extended to receive
-;; a reference to self and the runtime environment. Also the `do-` prefix
+;; a reference to `this` and the runtime environment. Also the `do-` prefix
 ;; will be added to the method names. For example, the method
 ;; `(match-instance [pattern instance])` will become `(do-match-instance [self env pattern instance])`.
 ;; A resolver is an implementation of this newly defined protocol.
+;;
+;; The `do-`methods defined by resolvers should return a map with status information and result.
+;; The general forms of this map are:
+;;  - {:status :ok :result <optional-result> :env <optional-updated-environment>}, call success.
+;;  - {:status :not-found}, a query or lookup returned no-data.
+;;  - {:status :declined}, the resolver refuses to service the call.
+;;  - {:status :no-op}, no operation needs to be performed, for instance, no dataflows attached to an event.
+;;  - {:status :error :message <error-message>}, there was an unxpected error."
 ;;
 ;; The dispatch table will have the structure {:match-instance match-instance ...}.
 ;; If someone has an opcode, its keyword mnemonic can be fetched with a call to the
