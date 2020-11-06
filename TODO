@@ -1,7 +1,7 @@
 * Compile and evaluate queries (start from L93 of fractl/compiler.cljc)
 
    - the compiler should get the resolver to compile queries (the resolver may in-turn
-     delegate this task to the store protocol
+     delegate this task to the store protocol)
 
 * Integrate the new store and resolver protocols to the init process (exec.cljc).
 

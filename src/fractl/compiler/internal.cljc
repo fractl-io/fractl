@@ -145,7 +145,7 @@
 
 (defn expand-query [entity-name query-pattern]
   (let [qp (map process-where-clause query-pattern)]
-    [[:select :*] [:from entity-name]
-     [:where (if (> (count qp) 1)
-               (su/vec-add-first :and qp)
-               (first qp))]]))
+    {:from entity-name
+     :where (if (> (count qp) 1)
+              (su/vec-add-first :and qp)
+              (first qp))}))
