@@ -1,4 +1,4 @@
 # fractl
-https://github.com/fract-io/fractl/workflows/FractlCI/badge.svg
+https://github.com/fractl-io/fractl/workflows/FractlCI/badge.svg
 
 Fractl Language for Domain Modeling
