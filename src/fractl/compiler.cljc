@@ -75,10 +75,11 @@
   (eval `(fn [~runtime-env-var ~current-instance-var]
            ~(expr-with-arg-lookups expr))))
 
-(defn- expand-query [entity-name query]
-  (i/expand-query
-   entity-name
-   (map (fn [[k v]] [k (expr-as-fn v)]) query)))
+(defn- compile-query [ctx entity-name query]
+  (let [expanded-query (i/expand-query
+                        entity-name
+                        (map (fn [[k v]] [k (expr-as-fn v)]) query))]
+    expanded-query))
 
 (def ^:private appl (partial u/apply-> last))
 
@@ -101,9 +102,9 @@
         deps-graph (appl fs [ctx schema ug/EMPTY])
         compound-exprs (map (fn [[k v]] [k (expr-as-fn v)]) compound)
         parsed-refs (map (fn [[k v]] [k (li/path-parts v)]) refs)
-        expanded-query (when query (expand-query pat-name query))
-        final-attrs (if (seq expanded-query)
-                      (assoc cls-attrs :query expanded-query)
+        compiled-query (when query (compile-query ctx pat-name query))
+        final-attrs (if (seq compiled-query)
+                      (assoc cls-attrs :query compiled-query)
                       cls-attrs)]
     {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
      :deps deps-graph}))
@@ -188,7 +189,9 @@
              (map? pat) [compile-map (when (li/instance-pattern? pat)
                                        (li/instance-pattern-name pat))]
              (vector? pat) [compile-command (first pat)])]
-    {:opcode (c ctx pat) :resolver (lookup-resolver resolver-path)}
+    (let [resolver (lookup-resolver resolver-path)]
+      (ctx/bind-resolver! ctx resolver)
+      {:opcode (c ctx pat) :resolver resolver})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
 (defn- compile-dataflow [lookup-resolver evt-pattern df-patterns]
