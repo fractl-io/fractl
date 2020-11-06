@@ -36,4 +36,4 @@
   (bind-variable! ctx :resolver r))
 
 (defn fetch-resolver [ctx]
-  (fetch-variable ctx :resolver))
+  (second (fetch-variable ctx :resolver)))

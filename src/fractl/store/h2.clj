@@ -5,6 +5,7 @@
   (:require [fractl.util :as u]
             [fractl.store.protocol :as p]
             [fractl.store.util :as su]
+            [fractl.store.sql :as sql]
             [fractl.store.jdbc-cp :as cp]
             [fractl.store.h2-internal :as i]))
 
@@ -47,4 +48,6 @@
       (find-by-id [_ entity-name id]
         (i/find-by-id @datasource entity-name id))
       (find-by-query [_ query]
-        ))))
+        )
+      (compile-query [_ query-pattern]
+        (sql/compile-query query-pattern)))))

@@ -5,6 +5,7 @@
             [fractl.util.seq :as us]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
+            [fractl.resolver :as r]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.compiler.validation :as cv]
@@ -79,7 +80,7 @@
   (let [expanded-query (i/expand-query
                         entity-name
                         (map (fn [[k v]] [k (expr-as-fn v)]) query))]
-    expanded-query))
+    (r/compile-query (ctx/fetch-resolver ctx) query)))
 
 (def ^:private appl (partial u/apply-> last))
 

@@ -21,3 +21,4 @@
 (def delete-instance p/delete-instance)
 (def find-by-id p/find-by-id)
 (def find-by-query p/find-by-query)
+(def compile-query p/compile-query)

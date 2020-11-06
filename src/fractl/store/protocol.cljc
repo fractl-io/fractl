@@ -28,4 +28,7 @@
      does not exist. On failure, raise an exception.")
   (find-by-query [store query] ;; TODO: define query format, maybe reuse honeysql.
     "Return all instances that satisfy the query. Return nil if no data found.
-     On failure or if the query is not supported, raise an exception."))
+     On failure or if the query is not supported, raise an exception.")
+  (compile-query [store query-pattern]
+    "Compile the query from a dataflow pattern to a format understood by this
+     store implementation."))

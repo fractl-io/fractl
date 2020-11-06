@@ -2,6 +2,7 @@
   "Pattern resolvers, aka evaluators"
   (:require [fractl.util :as u]
             [fractl.lang.opcode :as opc]
+            [fractl.store :as store]
             [fractl.resolver.internal :as i]
             [fractl.resolver.root :as r]))
 
@@ -18,6 +19,9 @@
         (let [r (dispatch-an-opcode env opc resolver)]
           (recur (rest opcs) (:env r) r))
         result))))
+
+(defn compile-query [resolver query-pattern]
+  (store/compile-query (i/store resolver) query-pattern))
 
 ;; The database of registered resolvers.
 (def ^:private db (ref {}))
