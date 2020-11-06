@@ -20,4 +20,4 @@ jobs:
     - name: Run clj test
       run: lein test
     - name: Run cljs test
-      run: lein fig:test
+      run: lein cljs:test
