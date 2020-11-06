@@ -1,4 +1,4 @@
-name: Fractl CI
+name: FractlCI
 
 on:
   push:
