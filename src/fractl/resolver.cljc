@@ -2,12 +2,12 @@
   "Pattern resolvers, aka evaluators"
   (:require [fractl.util :as u]
             [fractl.lang.opcode :as opc]
-            [fractl.resolver.protocol :as p]
+            [fractl.resolver.internal :as i]
             [fractl.resolver.root :as r]))
 
 (defn- dispatch-an-opcode [env opcode resolver]
-  (if-let [f ((opc/op opcode) p/dispatch-table)]
-    (f (p/vm resolver) env (opc/arg opcode))
+  (if-let [f ((opc/op opcode) i/dispatch-table)]
+    (f (i/vm resolver) env (opc/arg opcode))
     (u/throw-ex (str "no dispatcher for opcode - " (opc/op opcode)))))
 
 (defn dispatch [env {opcode :opcode resolver :resolver :as x}]
@@ -25,3 +25,6 @@
 (defn resolver-for-path [path eval-event-dataflows]
   (or (get db path)
       (r/get-default-resolver eval-event-dataflows)))
+
+(def ok? i/ok?)
+(def dummy-result i/dummy-result)

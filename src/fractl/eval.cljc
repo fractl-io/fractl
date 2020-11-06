@@ -4,8 +4,7 @@
             [fractl.compiler :as c]
             [fractl.lang.internal :as li]
             [fractl.env :as env]
-            [fractl.resolver :as r]            
-            [fractl.resolver.protocol :as p]))
+            [fractl.resolver :as r]))
 
 (declare eval-all-dataflows-for-event)
 
@@ -17,8 +16,8 @@
    (let [n (li/split-path (cn/instance-name event-instance))
          env (env/bind-instance env n event-instance)
          [_ dc] (cn/dataflow-opcode df)]
-     (loop [dc dc, result (p/dummy-result env)]
-       (if (p/ok? result)
+     (loop [dc dc, result (r/dummy-result env)]
+       (if (r/ok? result)
          (if-let [opcode (first dc)]
            (recur (rest dc) (r/dispatch (:env result) opcode))
            result)

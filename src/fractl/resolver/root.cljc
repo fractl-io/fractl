@@ -1,6 +1,6 @@
 (ns fractl.resolver.root
   "The default resolver implementation, the root of a normal resolver sequence."
-  (:require [fractl.resolver.protocol :as p]
+  (:require [fractl.resolver.internal :as i]
             [fractl.env :as env]
             [fractl.component :as cn]
             [fractl.resolver.parser :as parser]
@@ -25,7 +25,7 @@
    (let [[env [n obj]] (or stk (env/pop-obj env))
          newobj (assoc obj attr-name attr-value)
          env (env/push-obj env n newobj)]
-     (p/ok newobj env)))
+     (i/ok newobj env)))
   ([env attr-name attr-value]
    (set-obj-attr env attr-name attr-value nil)))
 
@@ -59,28 +59,28 @@
   (reify opc/VM
     (do-match-instance [_ env [pattern instance]]
       (if-let [updated-env (parser/match-pattern env pattern instance)]
-        (p/ok true updated-env)
-        (p/ok false env)))
+        (i/ok true updated-env)
+        (i/ok false env)))
 
     (do-load-instance [_ env record-name]
       (if-let [inst (env/lookup-instance env record-name)]
-        (p/ok inst env)
-        p/not-found))
+        (i/ok inst env)
+        i/not-found))
 
     (do-load-references [_ env [record-name refs]]
       (let [inst (env/lookup-instance env record-name)]
         (if-let [v (get (cn/instance-attributes inst) (first refs))]
-          (p/ok v (bind-if-instance env v))
-          p/not-found)))
+          (i/ok v (bind-if-instance env v))
+          i/not-found)))
 
     (do-new-instance [_ env record-name]
       (let [env (env/push-obj env record-name)]
-        (p/ok record-name env)))
+        (i/ok record-name env)))
 
     (do-query-instance [_ env [entity-name query-attrs]]
       (if-let [[inst env] (find-instance env store entity-name query-attrs)]
-        (p/ok inst (env/push-obj env entity-name inst))
-        p/not-found))
+        (i/ok inst (env/push-obj env entity-name inst))
+        i/not-found))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
@@ -95,14 +95,14 @@
 
     (do-intern-instance [_ env record-name]
       (let [[inst env] (pop-and-intern-instance env store record-name)]
-        (p/ok inst env)))
+        (i/ok inst env)))
 
     (do-intern-event-instance [_ env record-name]
       (let [[inst env] (pop-and-intern-instance env nil record-name)]
-        (p/ok (eval-event-dataflows inst) env)))))
+        (i/ok (eval-event-dataflows inst) env)))))
 
 (defn make [store eval-event-dataflows]
-  (p/make (make-root-vm store eval-event-dataflows) store))
+  (i/make (make-root-vm store eval-event-dataflows) store))
 
 (def ^:private default-resolver (u/make-cell))
 

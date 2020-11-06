@@ -1,4 +1,4 @@
-(ns fractl.resolver.protocol
+(ns fractl.resolver.internal
   (:require [fractl.lang.opcode :as opc]))
 
 (defn make
@@ -15,21 +15,22 @@
 (def dispatch-table opc/dispatch-table)
 
 ;; Result builders.
-(defn- res
+(defn make-result
   ([status result env message]
    {:status status :result result
     :env env :message message})
-  ([status result env] (res status result env nil))
+  ([status result env] (make-result status result env nil))
   ([status] {:status status}))
 
-(def ok (partial res :ok))
+;; result builders
+(def ok (partial make-result :ok))
 
-(def not-found (res :not-found))
-(def declined (res :declined))
-(def no-op (res :no-op))
+(def not-found (make-result :not-found))
+(def declined (make-result :declined))
+(def no-op (make-result :no-op))
 
 (defn error [message]
-  (res :error nil nil message))
+  (make-result :error nil nil message))
 
 (defn ok? [r] (= :ok (:status r)))
 
