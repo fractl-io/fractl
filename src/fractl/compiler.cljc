@@ -79,8 +79,12 @@
 (defn- compile-query [ctx entity-name query]
   (let [expanded-query (i/expand-query
                         entity-name
-                        (map (fn [[k v]] [k (expr-as-fn v)]) query))]
-    (r/compile-query (ctx/fetch-resolver ctx) query)))
+                        (map (fn [[k v]]
+                               [k (if (i/literal? v)
+                                    v
+                                    (expr-as-fn v))])
+                             query))]
+    (r/compile-query (ctx/fetch-resolver ctx) expanded-query)))
 
 (def ^:private appl (partial u/apply-> last))
 

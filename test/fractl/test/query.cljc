@@ -31,5 +31,4 @@
           r01 (e/eval-all-dataflows-for-event evt01)
           evt02 (cn/make-instance :Q01/QE02 {:X 10 :Y 100})
           r02 (e/eval-all-dataflows-for-event evt02)]
-      ;; TODO: test eval results
       true)))

@@ -2,10 +2,11 @@
   (:require [clojure.string :as string]
             [next.jdbc :as jdbc]
             [next.jdbc.prepare :as jdbcp]
+            [cheshire.core :as json]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
-            [cheshire.core :as json])
+            [fractl.store.sql :as sql])
   (:import [java.sql PreparedStatement]))
 
 (defn- db-ident [k]
@@ -263,3 +264,7 @@
     (with-open [conn (jdbc/get-connection datasource)]
       (let [pstmt (find-by-id-statement tabname id)]
         (jdbc/execute-one! conn pstmt)))))
+
+(def compile-to-indexed-query (partial sql/compile-to-indexed-query
+                                       table-for-entity
+                                       index-table-name))

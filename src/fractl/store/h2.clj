@@ -5,7 +5,6 @@
   (:require [fractl.util :as u]
             [fractl.store.protocol :as p]
             [fractl.store.util :as su]
-            [fractl.store.sql :as sql]
             [fractl.store.jdbc-cp :as cp]
             [fractl.store.h2-internal :as i]))
 
@@ -50,4 +49,4 @@
       (find-by-query [_ query]
         )
       (compile-query [_ query-pattern]
-        (sql/compile-query query-pattern)))))
+        (i/compile-to-indexed-query query-pattern)))))
