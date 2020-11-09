@@ -119,8 +119,8 @@
                                     :compound op/set-compound-attribute})
 
 (defn- begin-build-instance [rec-name attrs]
-  (if-let [qattrs (:query attrs)]
-    (op/query-instance [rec-name qattrs])
+  (if-let [q (:query attrs)]
+    (op/query-instance [rec-name q])
     (op/new-instance rec-name)))
 
 (defn- emit-build-entity-instance [ctx rec-name attrs schema event?]

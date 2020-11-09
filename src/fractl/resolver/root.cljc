@@ -37,12 +37,17 @@
 (defn- id-attribute [query-attrs]
   (first (filter #(= :Id (first %)) query-attrs)))
 
-(defn- find-instance [env store entity-name query-attrs]
-  (if-let [inst (first (env/lookup-instances-by-attributes env entity-name query-attrs))]
-    [inst env]
-    ;; TODO: the current store lookup is limited to the `:Id` attribute, extend this to
-    ;; support complex queries on all the given attributes.
-    (when-let [inst (store/find-by-id store entity-name (id-attribute query-attrs))]
+(defn- resolve-id-queries [store id-queries]
+  (let [result (map #(if-let [r (:result %)]
+                       r
+                       (let [[q p] (:query %)]
+                         (store/do-query store q p)))
+                    id-queries)]
+    (flatten result)))
+
+(defn- find-instance [env store entity-name queries]
+  (when-let [id-results (seq (resolve-id-queries store (:id-queries queries)))]
+    (when-let [inst (first (store/query-by-id store (:query queries) id-results))]
       [inst (env/bind-instance env entity-name inst)])))
 
 (defn- pop-and-intern-instance [env store record-name]
@@ -77,8 +82,8 @@
       (let [env (env/push-obj env record-name)]
         (i/ok record-name env)))
 
-    (do-query-instance [_ env [entity-name query-attrs]]
-      (if-let [[inst env] (find-instance env store entity-name query-attrs)]
+    (do-query-instance [_ env [entity-name queries]]
+      (if-let [[inst env] (find-instance env store entity-name queries)]
         (i/ok inst (env/push-obj env entity-name inst))
         i/not-found))
 

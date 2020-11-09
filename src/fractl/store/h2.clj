@@ -44,9 +44,9 @@
         (i/upsert-instance @datasource entity-name instance))
       (delete-instance [_ entity-name instance]
         (i/delete-instance @datasource entity-name instance))
-      (find-by-id [_ entity-name id]
-        (i/find-by-id @datasource entity-name id))
-      (find-by-query [_ query]
-        )
+      (query-by-id [_ query ids]
+        (i/query-by-id @datasource query ids))
+      (do-query [_ query params]
+        (i/do-query @datasource query params))
       (compile-query [_ query-pattern]
         (i/compile-to-indexed-query query-pattern)))))

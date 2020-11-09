@@ -23,10 +23,10 @@
     "Delete the instance, the only attribute required to be present is :Id.
      On success, return instance. If the instance does not exist, return nil.
      On failure, raise an exception.")
-  (find-by-id [store entity-name id]
-    "Return the instance with the given :Id attribute. Return nil if the instance
+  (query-by-id [store query-sql ids]
+    "Return the instances with the given :Id attributes. Return nil if the instances
      does not exist. On failure, raise an exception.")
-  (find-by-query [store query] ;; TODO: define query format, maybe reuse honeysql.
+  (do-query [store query query-params]
     "Return all instances that satisfy the query. Return nil if no data found.
      On failure or if the query is not supported, raise an exception.")
   (compile-query [store query-pattern]

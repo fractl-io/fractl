@@ -19,6 +19,6 @@
 (def drop-schema p/drop-schema)
 (def upsert-instance p/upsert-instance)
 (def delete-instance p/delete-instance)
-(def find-by-id p/find-by-id)
-(def find-by-query p/find-by-query)
+(def query-by-id p/query-by-id)
+(def do-query p/do-query)
 (def compile-query p/compile-query)

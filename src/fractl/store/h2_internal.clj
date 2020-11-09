@@ -253,17 +253,21 @@
         (delete-inst! txn tabname id)))
     id))
 
-(defn- find-by-id-statement [conn entity-table-name id]
-  (let [sql (str "SELECT * FROM " entity-table-name " WHERE id = ?")
-        ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    (jdbcp/set-parameters pstmt [id])
+(defn- query-by-id-statement [conn query-sql ids]
+  (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
+    (.setObject pstmt ids)
     pstmt))
 
-(defn find-by-id [datasource entity-name id]
-  (let [tabname (table-for-entity entity-name)]
-    (with-open [conn (jdbc/get-connection datasource)]
-      (let [pstmt (find-by-id-statement tabname id)]
-        (jdbc/execute-one! conn pstmt)))))
+(defn query-by-id [datasource query-sql ids]
+  (with-open [conn (jdbc/get-connection datasource)]
+    (let [pstmt (query-by-id-statement conn query-sql ids)]
+      (jdbc/execute-one! conn pstmt))))
+
+(defn do-query [datasource query-sql query-params]
+  (with-open [conn (jdbc/get-connection datasource)]
+    (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
+      (jdbcp/set-parameters pstmt query-params)
+      (jdbc/execute-one! conn pstmt))))
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        table-for-entity
