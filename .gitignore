@@ -18,3 +18,7 @@ lsp/
 *.iml
 *.pyc
 test.db.*
+node_modules/
+resources/
+out/
+.shadow-cljs/

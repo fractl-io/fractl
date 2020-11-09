@@ -1,0 +1,12 @@
+{:lein {:profile "+cljs"}
+ :builds
+ {:app
+  {:target :browser
+   :output-dir "out/app/js"
+   :modules {:main {:entries [fractl.core]}}}
+  :test
+  {:ns-regexp "(.+)-test$"
+   :output-to "out/node-tests.js"
+   :target :node-test
+   :autorun true}}
+ :source-paths ["src/fractl" "test"]}

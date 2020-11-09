@@ -1,0 +1,19 @@
+name: ClojureCI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test_clj:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install dependencies
+      run: lein deps
+    - name: Run clj test
+      run: lein test
+    # TODO: Run a clojure app
