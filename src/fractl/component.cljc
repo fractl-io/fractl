@@ -1,5 +1,5 @@
 (ns fractl.component
-  "Manage components for a model."
+  "Components of a model."
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [fractl.util :as util]

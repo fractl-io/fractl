@@ -14,13 +14,13 @@
     (string/lower-case (name k))
     k))
 
-(defn- db-schema-for-model [model-name]
-  (string/lower-case (string/replace (name model-name) #"\." "_")))
+(defn- db-schema-for-component [component-name]
+  (string/lower-case (string/replace (name component-name) #"\." "_")))
 
 (defn- table-for-entity
   ([entity-name db-schema-name]
-   (let [[model-name r] (li/split-path entity-name)
-         scmname (or db-schema-name (db-schema-for-model model-name))]
+   (let [[component-name r] (li/split-path entity-name)
+         scmname (or db-schema-name (db-schema-for-component component-name))]
      (str scmname "." (db-ident r))))
   ([entity-name] (table-for-entity entity-name nil)))
 
@@ -154,25 +154,25 @@
     (u/throw-ex (str "Failed to drop schema - " db-schema-name))))
 
 (defn create-schema
-  "Create the schema, tables and indexes for the model."
-  [datasource model-name]
-  (let [scmname (db-schema-for-model model-name)]
+  "Create the schema, tables and indexes for the component."
+  [datasource component-name]
+  (let [scmname (db-schema-for-component component-name)]
     (with-open [conn (jdbc/get-connection datasource)]
       (create-db-schema! conn scmname)
-      (doseq [ename (cn/entity-names model-name)]
+      (doseq [ename (cn/entity-names component-name)]
         (let [tabname (table-for-entity ename)
               schema (cn/entity-schema ename)
               indexed-attrs (find-indexed-attributes ename schema)]
           (create-tables! conn schema tabname :Id indexed-attrs))))
-    model-name))
+    component-name))
 
 (defn drop-schema
   "Remove the schema from the database, perform a non-cascading delete."
-  [datasource model-name]
-  (let [scmname (db-schema-for-model model-name)]
+  [datasource component-name]
+  (let [scmname (db-schema-for-component component-name)]
     (with-open [conn (jdbc/get-connection datasource)]
       (drop-db-schema! conn scmname))
-    model-name))
+    component-name))
 
 (defn- upsert-index-statement [conn table-name colname id attrval]
   (let [sql (str "MERGE INTO " table-name " KEY (id) VALUES (?, ?)")

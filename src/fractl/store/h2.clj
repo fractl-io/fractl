@@ -36,10 +36,10 @@
                  nil))
               true)
           (catch Exception _ false)))
-      (create-schema [_ model-name]
-        (i/create-schema @datasource model-name))
-      (drop-schema [_ model-name]
-        (i/drop-schema @datasource model-name))
+      (create-schema [_ component-name]
+        (i/create-schema @datasource component-name))
+      (drop-schema [_ component-name]
+        (i/drop-schema @datasource component-name))
       (upsert-instance [_ entity-name instance]
         (i/upsert-instance @datasource entity-name instance))
       (delete-instance [_ entity-name instance]

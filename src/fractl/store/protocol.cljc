@@ -9,12 +9,12 @@
   (close-connection [store]
     "Close the active connection, return true on success, false if the connection
      cannot be closed.")
-  (create-schema [store model-name]
+  (create-schema [store component-name]
     "Initialize the schema to store entity-instances defined
-     in the model. On success, return model-name. If the schema
+     in the component. On success, return component-name. If the schema
      already exists, return nil. On failure, raise an exception.")
-  (drop-schema [store model-name]
-    "Drop the schema for the model. Return model-name on success, nil if the
+  (drop-schema [store component-name]
+    "Drop the schema for the component. Return component-name on success, nil if the
      schema does not exist. On failure, raise an exception.")
   (upsert-instance [store entity-name instance]
     "Insert or update the instance in the store. On success, return instance.
