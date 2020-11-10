@@ -2,7 +2,8 @@
   #?(:clj (:use [fractl.lang]))
   (:require [clojure.test :refer [deftest is]]
             [fractl.component :as cn]
-            [fractl.eval :as e])
+            [fractl.eval :as e]
+            [fractl.store :as store])
   #?(:cljs [fractl.lang
             :refer [component attribute event
                     entity record dataflow]]))
@@ -10,6 +11,8 @@
 (deftest q01
   (component :Q01)
   (entity {:Q01/E {:X :Kernel/Int}})
+  (let [store (store/open-default-store nil)]
+    (store/create-schema store :Q01))
   (let [e (cn/make-instance :Q01/E {:X 10})
         evt (cn/make-instance :Q01/Create_E {:Instance e})
         e1 (:result (first (e/eval-all-dataflows-for-event evt)))

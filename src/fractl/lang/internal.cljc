@@ -322,7 +322,8 @@
     (if (and r refs)
       {:component m
        :record (if refs (first refs) r)
-       :refs (seq (rest refs))}
+       :refs (when-let [rs (seq (rest refs))]
+               (vec rs))}
       {:path path})))
 
 (defn query-on-attr? [a]

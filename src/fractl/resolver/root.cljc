@@ -29,31 +29,52 @@
   ([env attr-name attr-value]
    (set-obj-attr env attr-name attr-value nil)))
 
-(defn- bind-if-instance [env x]
+(defn- bind-and-persist [env store x]
   (if (cn/an-instance? x)
-    (env/bind-instance env (li/split-path (cn/instance-name x)) x)
+    (let [n (li/split-path (cn/instance-name x))]
+      (when (and store (cn/entity-instance? x))
+        (store/upsert-instance store n x))
+      (env/bind-instance env n x))
     env))
 
 (defn- id-attribute [query-attrs]
   (first (filter #(= :Id (first %)) query-attrs)))
 
-(defn- resolve-id-queries [store id-queries]
-  (let [result (map #(if-let [r (:result %)]
-                       r
-                       (let [[q p] (:query %)]
-                         (store/do-query store q p)))
-                    id-queries)]
-    (flatten result)))
+(defn- bind-query-results [env results]
+  env)
+
+(defn- resolve-id-result [env r]
+  (if (fn? r)
+    (r env nil)
+    [r env]))
+
+(defn- resolve-id-query [env store query param running-result]
+  (let [rs (store/do-query store query param)]
+    [(bind-query-results env rs)
+     (concat running-result rs)]))
+
+(defn- resolve-id-queries [env store id-queries]
+  (loop [idqs id-queries, env env, result []]
+    (if-let [idq (first idqs)]
+      (if-let [r (:result idq)]
+        (let [[obj new-env] (resolve-id-result env r)]
+          (recur (rest idqs) new-env (conj result obj)))
+        (let [[q p] (:query idq)
+              [new-env rs] (resolve-id-query env store q p result)]
+          (recur (rest idqs) new-env rs)))
+      result)))
 
 (defn- find-instance [env store entity-name queries]
-  (when-let [id-results (seq (resolve-id-queries store (:id-queries queries)))]
-    (when-let [inst (first (store/query-by-id store (:query queries) id-results))]
+  (when-let [id-results (seq (resolve-id-queries env store (:id-queries queries)))]
+    (when-let [inst (first (store/query-by-id store entity-name (:query queries) id-results))]
       [inst (env/bind-instance env entity-name inst)])))
 
 (defn- pop-and-intern-instance [env store record-name]
   (let [[env [_ obj]] (env/pop-obj env)
         final-obj (assoc-computed-attributes env record-name obj)
-        inst (cn/make-instance (li/make-path record-name) final-obj)
+        inst (if (cn/an-instance? final-obj)
+               final-obj
+               (cn/make-instance (li/make-path record-name) final-obj))
         env (env/bind-instance env record-name
                                (if store
                                  (store/upsert-instance store record-name inst)
@@ -75,7 +96,7 @@
     (do-load-references [_ env [record-name refs]]
       (let [inst (env/lookup-instance env record-name)]
         (if-let [v (get (cn/instance-attributes inst) (first refs))]
-          (i/ok v (bind-if-instance env v))
+          (i/ok v (bind-and-persist env store v))
           i/not-found)))
 
     (do-new-instance [_ env record-name]
@@ -111,8 +132,11 @@
 
 (def ^:private default-resolver (u/make-cell))
 
-(defn get-default-resolver [eval-event-dataflows]
-  (u/safe-set-once
-   default-resolver
-   #(let [store (store/get-default-store)]
-      (make store eval-event-dataflows))))
+(defn get-default-resolver
+  ([eval-event-dataflows store-config]
+   (u/safe-set-once
+    default-resolver
+    #(let [store (store/open-default-store store-config)]
+       (make store eval-event-dataflows))))
+  ([eval-event-dataflows]
+   (get-default-resolver eval-event-dataflows nil)))

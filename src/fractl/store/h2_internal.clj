@@ -6,6 +6,7 @@
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
+            [fractl.store.util :as su]
             [fractl.store.sql :as sql])
   (:import [java.sql PreparedStatement]))
 
@@ -253,21 +254,26 @@
         (delete-inst! txn tabname id)))
     id))
 
-(defn- query-by-id-statement [conn query-sql ids]
+(defn- query-by-id-statement [conn query-sql id]
   (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
-    (.setObject pstmt ids)
+    (.setString pstmt 1 id)
     pstmt))
 
-(defn query-by-id [datasource query-sql ids]
+(defn query-by-id [datasource entity-name query-sql ids]
   (with-open [conn (jdbc/get-connection datasource)]
-    (let [pstmt (query-by-id-statement conn query-sql ids)]
-      (jdbc/execute-one! conn pstmt))))
+    (let [[id-key json-key] (su/make-result-keys entity-name)]
+      (doall
+       (map
+        (partial su/result-as-instance entity-name id-key json-key)
+        (map #(let [pstmt (query-by-id-statement conn query-sql %)]
+                (jdbc/execute-one! pstmt))
+             ids))))))
 
 (defn do-query [datasource query-sql query-params]
   (with-open [conn (jdbc/get-connection datasource)]
     (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
       (jdbcp/set-parameters pstmt query-params)
-      (jdbc/execute-one! conn pstmt))))
+      (jdbc/execute-one! pstmt))))
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        table-for-entity

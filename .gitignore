@@ -17,7 +17,7 @@ figwheel_server.log
 lsp/
 *.iml
 *.pyc
-test.db.*
+*.db.*
 node_modules/
 resources/
 out/

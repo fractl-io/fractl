@@ -256,7 +256,8 @@
 (defn instance-of?
   "Return true if the fully-qualified name is the same as that of the instance."
   [nm inst]
-  (= nm (instance-name inst)))
+  (= (li/split-path nm)
+     (parsed-instance-name inst)))
 
 (defn instance-attributes [x]
   (when (an-instance? x)
@@ -329,7 +330,7 @@
   (or (identical? a b)
       (if (every? entity-instance? [a b])
         (let [instname (instance-name a)]
-          (and (= instname (instance-name b))
+          (and (instance-of? (instance-name a) b)
                (when-let [idattr (identity-attribute-name instname)]
                  (= (idattr (instance-attributes a))
                     (idattr (instance-attributes b))))))

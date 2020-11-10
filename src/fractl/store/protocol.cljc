@@ -23,7 +23,7 @@
     "Delete the instance, the only attribute required to be present is :Id.
      On success, return instance. If the instance does not exist, return nil.
      On failure, raise an exception.")
-  (query-by-id [store query-sql ids]
+  (query-by-id [store entity-name query-sql ids]
     "Return the instances with the given :Id attributes. Return nil if the instances
      does not exist. On failure, raise an exception.")
   (do-query [store query query-params]

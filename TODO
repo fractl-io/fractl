@@ -1,4 +1,4 @@
-* test h2-internal/query-by-id and do-query
+* get the query/q02 test to pass
 
 * Integrate the new store and resolver protocols to the init process (exec.cljc).
 

@@ -11,16 +11,14 @@
                    :where where-clause})}))
 
 (defn compile-to-indexed-query [table-name-fn index-table-name-fn query-pattern]
-  (let [from (table-name-fn (:from query-pattern))
+  (let [table (table-name-fn (:from query-pattern))
         where-clause (:where query-pattern)
         norm-where-clause (if (= :and (first where-clause))
                             (rest where-clause)
                             [where-clause])
-        index-tables (map #(index-table-name-fn from (second %)) norm-where-clause)]
+        index-tables (map #(index-table-name-fn table (second %)) norm-where-clause)]
     {:id-queries
      (vec (map #(select-from-index-table %1 %2)
                index-tables norm-where-clause))
      :query
-     (first (hsql/format {:select [:*]
-                          :from [(keyword from)]
-                          :where [:in :id :?id]}))}))
+     (str "SELECT * FROM " table " WHERE id = ?")}))
