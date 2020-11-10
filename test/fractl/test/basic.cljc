@@ -109,7 +109,7 @@
 (defmacro defcomponent [component & body]
   `(do (component ~component)
        ~@body
-       (store/create-schema (store/get-default-store) ~component)
+       (store/create-schema (store/open-default-store nil) ~component)
        ~component))
 
 (deftest compile-ref
