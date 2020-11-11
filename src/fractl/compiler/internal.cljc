@@ -8,13 +8,7 @@
             [fractl.compiler.validation :as cv]))
 
 (defn literal? [x]
-  (or (number? x) (string? x)
-      ;; TODO: the check for fn is only for
-      ;; compatibility with the old v8dml evaluator,
-      ;; should be removed. Translation of compound
-      ;; expressions to functions should happen only
-      ;; in the compiler.
-      (fn? x)))
+  (or (number? x) (string? x)))
 
 (defn- var-in-context [ctx s]
   (if-let [[_ v] (ctx/fetch-variable ctx s)]
@@ -23,10 +17,6 @@
 
 (defn- valid-attr-value [ctx k v schema]
   (cond
-    ;; TODO: for compatibility with the old v8dml evaluator, remove
-    ;; this after the new resolver is added.
-    (fn? v) v
-
     (literal? v)
     (cv/validate-attribute-value k v schema)
 

@@ -1,13 +1,12 @@
 (ns fractl.test.basic
   #?(:clj (:use [fractl.lang]))
   (:require [clojure.test :refer [deftest is]]
-            [fractl.test.util :as tu]
+            [fractl.test.util :as tu :refer [defcomponent]]
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
-            [fractl.store :as store]
             [fractl.eval :as e])
   #?(:cljs [fractl.lang
             :refer [component attribute event
@@ -105,12 +104,6 @@
     (ctx/bind-variable! ctx 'id uuid)
     ;; Compilation fail on cyclic-dependency
     (tu/is-error (c p1))))
-
-(defmacro defcomponent [component & body]
-  `(do (component ~component)
-       ~@body
-       (store/create-schema (store/open-default-store nil) ~component)
-       ~component))
 
 (deftest compile-ref
   (defcomponent :Df01

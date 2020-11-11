@@ -1,5 +1,1 @@
 * get the query/q02 test to pass
-
-* Integrate the new store and resolver protocols to the init process (exec.cljc).
-
-* Handle TODOs in fractl/compiler/parser.cljc
