@@ -4,14 +4,16 @@
             [fractl.util :as u]))
 
 (def ^:private default-store (u/make-cell))
-(def ^:private default-store-config {:dbname "./fractl.db"})
+
+(defn- make-default-store-config []
+  {:dbname (str "./fractl.db." (System/currentTimeMillis))})
 
 (defn open-default-store [store-config]
   (u/safe-set-once
    default-store
    #(let [store (h2/make)]
       (p/open-connection store (or store-config
-                                   default-store-config))
+                                   (make-default-store-config)))
       ;; NOTE: The default db connection, if opened,
       ;; will last the lifetime of the app.
       store)))

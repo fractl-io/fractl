@@ -1,6 +1,7 @@
 (ns fractl.store.sql
   "Support for translating dataflow-query patterns to generic SQL."
-  (:require [honeysql.core :as hsql]))
+  (:require [honeysql.core :as hsql]
+            [fractl.util :as u]))
 
 (defn- select-from-index-table [index-table-name where-clause]
   (if (= :Id (second where-clause))
@@ -22,3 +23,20 @@
                index-tables norm-where-clause))
      :query
      (str "SELECT * FROM " table " WHERE id = ?")}))
+
+(defn sql-index-type
+  ([max-varchar-length bool-type date-time-type attribute-type]
+   (case attribute-type
+     (:Kernel/String :Kernel/Keyword)
+     (str "VARCHAR(" max-varchar-length ")")
+     :Kernel/DateTime "DATE"
+     :Kernel/UUID "UUID"
+     :Kernel/Int "INT"
+     (:Kernel/Int64 :Kernel/Integer) "BIGINT"
+     :Kernel/Float "REAL"
+     :Kernel/Double "DOUBLE"
+     :Kernel/Decimal "DECIMAL"
+     :Kernel/Boolean bool-type
+     (u/throw-ex (str "type cannot be indexed - " attribute-type))))
+  ([attribute-type]
+   (sql-index-type Integer/MAX_VALUE "BOOLEAN" "DATE" attribute-type)))

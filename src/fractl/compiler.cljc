@@ -68,23 +68,34 @@
       `(~(first expr) ~@final-args))
     :else (arg-lookup expr)))
 
-(defn- expr-as-fn
+(defn- expr-as-fn [expr]
+  (eval `(fn [~runtime-env-var ~current-instance-var] ~expr)))
+
+(defn- query-param-lookup [p]
+  (let [r (arg-lookup p)]
+    (if (i/literal? r)
+      r
+      (expr-as-fn r))))
+
+(defn- query-param-process [[k v]]
+  (cond
+    (i/literal? v) [k v]
+    (seqable? v) (concat
+                  [(first v)]
+                  (concat [k] (map query-param-lookup (rest v))))
+    :else [k (query-param-lookup v)]))
+
+(defn- compile-query [ctx entity-name query]
+  (let [expanded-query (i/expand-query
+                        entity-name (map query-param-process query))]
+    (r/compile-query (ctx/fetch-resolver ctx) expanded-query)))
+
+(defn- compound-expr-as-fn
   "Compile compound expression to a function.
    Arguments are tranlated to lookup calls on
    the runtime context."
   [expr]
-  (eval `(fn [~runtime-env-var ~current-instance-var]
-           ~(expr-with-arg-lookups expr))))
-
-(defn- compile-query [ctx entity-name query]
-  (let [expanded-query (i/expand-query
-                        entity-name
-                        (map (fn [[k v]]
-                               [k (if (i/literal? v)
-                                    v
-                                    (expr-as-fn v))])
-                             query))]
-    (r/compile-query (ctx/fetch-resolver ctx) expanded-query)))
+  (expr-as-fn (expr-with-arg-lookups expr)))
 
 (def ^:private appl (partial u/apply-> last))
 
@@ -105,7 +116,7 @@
          :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
         fs (map #(partial build-dependency-graph %) [refs compound query])
         deps-graph (appl fs [ctx schema ug/EMPTY])
-        compound-exprs (map (fn [[k v]] [k (expr-as-fn v)]) compound)
+        compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
         parsed-refs (map (fn [[k v]] [k (li/path-parts v)]) refs)
         compiled-query (when query (compile-query ctx pat-name query))
         final-attrs (if (seq compiled-query)

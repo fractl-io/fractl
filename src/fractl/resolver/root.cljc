@@ -41,6 +41,7 @@
   (first (filter #(= :Id (first %)) query-attrs)))
 
 (defn- bind-query-results [env results]
+  ;; TODO: bind query result objects to env
   env)
 
 (defn- resolve-id-result [env r]
@@ -49,9 +50,10 @@
     [r env]))
 
 (defn- resolve-id-query [env store query param running-result]
-  (let [rs (store/do-query store query param)]
+  (let [[p env] (resolve-id-result env param)
+        rs (store/do-query store query [p])]
     [(bind-query-results env rs)
-     (concat running-result rs)]))
+     (concat running-result (map second rs))]))
 
 (defn- resolve-id-queries [env store id-queries]
   (loop [idqs id-queries, env env, result []]

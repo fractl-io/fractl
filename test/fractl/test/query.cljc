@@ -23,8 +23,10 @@
 
 (deftest q02
   (defcomponent :Q02
-    (entity {:Q02/E {:X :Kernel/Int
-                     :Y :Kernel/Int}})
+    (entity {:Q02/E {:X {:type :Kernel/Int
+                         :indexed true}
+                     :Y {:type :Kernel/Int
+                         :indexed true}}})
     (event {:Q02/QE01 {:Y :Kernel/Int}})
     (dataflow :Q02/QE01
               {:Q02/E {:X? [:>= 10]

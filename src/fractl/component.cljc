@@ -896,3 +896,6 @@
 
 (defn unique-attribute? [entity-schema attr]
   (:unique (find-attribute-schema (get entity-schema attr))))
+
+(defn attribute-type [entity-schema attr]
+  (:type (find-attribute-schema (get entity-schema attr))))
