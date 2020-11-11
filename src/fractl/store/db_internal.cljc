@@ -9,13 +9,13 @@
     (string/lower-case (name k))
     k))
 
-(defn db-schema-for-model [model-name]
-  (string/lower-case (string/replace (name model-name) #"\." "_")))
+(defn db-schema-for-component [component-name]
+  (string/lower-case (string/replace (name component-name) #"\." "_")))
 
 (defn table-for-entity
   ([entity-name db-schema-name]
-   (let [[model-name r] (li/split-path entity-name)
-         scmname (or db-schema-name (db-schema-for-model model-name))]
+   (let [[component-name r] (li/split-path entity-name)
+         scmname (or db-schema-name (db-schema-for-component component-name))]
      (str scmname "." (db-ident r))))
   ([entity-name] (table-for-entity entity-name nil)))
 
@@ -49,17 +49,16 @@
   (let [tabnames (map #(index-table-name entity-table-name %) indexed-attrs)]
     (into {} (map vector indexed-attrs tabnames))))
 
-(def  create-table-prefix "CREATE TABLE IF NOT EXISTS")
-(def  create-index-prefix "CREATE INDEX IF NOT EXISTS")
-(def  create-unique-index-prefix "CREATE UNIQUE INDEX IF NOT EXISTS")
+(def create-table-prefix "CREATE TABLE IF NOT EXISTS")
+(def create-index-prefix "CREATE INDEX IF NOT EXISTS")
+(def create-unique-index-prefix "CREATE UNIQUE INDEX IF NOT EXISTS")
 
 (defn create-index-sql
-  "Given an entity-table-name and an attribute-column-name, return the
+  "Given n table-name and an attribute-column-name, return the
   CREATE INDEX sql statement for that attribute."
-  [entity-table-name colname unique?]
-  (let [tabname (index-table-name entity-table-name colname)]
-    (str (if unique? create-unique-index-prefix create-index-prefix)
-         " " (index-name tabname) " ON " tabname "(" colname ")")))
+  [table-name colname unique?]
+  (str (if unique? create-unique-index-prefix create-index-prefix)
+       " " (index-name table-name) " ON " table-name "(" colname ")"))
 
 (defn create-schema-sql [schema-name]
   (str "CREATE SCHEMA IF NOT EXISTS " schema-name))
