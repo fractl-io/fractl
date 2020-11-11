@@ -1,78 +1,21 @@
 (ns fractl.store.h2-internal
-  (:require [clojure.string :as string]
-            [next.jdbc :as jdbc]
+  (:require [next.jdbc :as jdbc]
             [next.jdbc.prepare :as jdbcp]
             [cheshire.core :as json]
             [fractl.util :as u]
-            [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.store.util :as su]
-            [fractl.store.sql :as sql])
+            [fractl.store.sql :as sql]
+            [fractl.store.db-internal :as dbi])
   (:import [java.sql PreparedStatement]))
-
-(defn- db-ident [k]
-  (if (keyword? k)
-    (string/lower-case (name k))
-    k))
-
-(defn- db-schema-for-component [component-name]
-  (string/lower-case (string/replace (name component-name) #"\." "_")))
-
-(defn- table-for-entity
-  ([entity-name db-schema-name]
-   (let [[component-name r] (li/split-path entity-name)
-         scmname (or db-schema-name (db-schema-for-component component-name))]
-     (str scmname "." (db-ident r))))
-  ([entity-name] (table-for-entity entity-name nil)))
-
-(defn- indexed-attributes [entity-schema]
-  (set (remove #{:Id} (cn/indexed-attributes entity-schema))))
-
-(defn- find-indexed-attributes
-  ([entity-name entity-schema]
-   (if entity-schema
-     (indexed-attributes entity-schema)
-     (u/throw-ex (str "no schema for " entity-name))))
-  ([entity-name]
-   (find-indexed-attributes entity-name (cn/entity-schema entity-name))))
-
-(defn- index-table-name
-  "Construct the lookup table-name for the attribute, from the main entity
-  table-name and attribute-name."
-  [tabname attrname]
-  (let [attrname (db-ident attrname)]
-    (str tabname "_" attrname)))
-
-(defn index-name
-  "Given a table-name, return its relative index table name."
-  [tabname]
-  (string/replace (str tabname "_idx") #"\." "_"))
-
-(defn index-table-names
-  "Given an entity table-name and its indexed attributes, return a sequence of
-  all index table names."
-  [entity-table-name indexed-attrs]
-  (let [tabnames (map #(index-table-name entity-table-name %) indexed-attrs)]
-    (into {} (map vector indexed-attrs tabnames))))
-
-(def ^:private create-table-prefix "CREATE TABLE IF NOT EXISTS")
-(def ^:private create-index-prefix "CREATE INDEX IF NOT EXISTS")
-(def ^:private create-unique-index-prefix "CREATE UNIQUE INDEX IF NOT EXISTS")
-
-(defn- create-index-sql
-  "Given n table-name and an attribute-column-name, return the
-  CREATE INDEX sql statement for that attribute."
-  [table-name colname unique?]
-  (str (if unique? create-unique-index-prefix create-index-prefix)
-       " " (index-name table-name) " ON " table-name "(" colname ")"))
 
 (defn- create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
   return the DML statement to create that table."
   [tabname ident-attr]
-  (str create-table-prefix " " tabname " "
+  (str dbi/create-table-prefix " " tabname " "
        (if ident-attr
-         (str "(" (db-ident ident-attr) " UUID, ")
+         (str "(" (dbi/db-ident ident-attr) " UUID, ")
          "(")
        "instance_json JSON)"))
 
@@ -80,8 +23,8 @@
   "Given a database-type, entity-table-name and attribute-column name, return the
   DML statements for creating an index table and the index for its 'id' column."
   [entity-table-name colname coltype unique?]
-  (let [index-tabname (index-table-name entity-table-name colname)]
-    [(str create-table-prefix " " index-tabname " "
+  (let [index-tabname (dbi/index-table-name entity-table-name colname)]
+    [(str dbi/create-table-prefix " " index-tabname " "
           ;; `id` is not a foreign key reference to the main table,
           ;; because insert is fully controlled by the V8 runtime and
           ;; we get an index for free.
@@ -90,15 +33,15 @@
           ;; SQL type for `colname`, see the issue https://ventur8.atlassian.net/browse/V8DML-117.
           colname " " coltype
           (if unique? (str ",UNIQUE(" colname "))") ")"))
-     (create-index-sql index-tabname colname unique?)]))
+     (dbi/create-index-sql index-tabname colname unique?)]))
 
 (defn- create-identity-index-sql [entity-table-name colname]
-  (str create-unique-index-prefix
-       " " (index-name entity-table-name)
+  (str dbi/create-unique-index-prefix
+       " " (dbi/index-name entity-table-name)
        " ON " entity-table-name "(" colname ")"))
 
 (defn- create-identity-index! [connection entity-table-name ident-attr]
-  (let [sql (create-identity-index-sql entity-table-name (db-ident ident-attr))]
+  (let [sql (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))]
     (if (jdbc/execute! connection [sql])
       entity-table-name
       (u/throw-ex (str "Failed to create index table for identity column - "
@@ -130,45 +73,39 @@
     (create-identity-index! connection entity-table-name ident-attr))
   (let [cit (partial create-index-table! connection entity-schema entity-table-name)]
     (doseq [idxattr indexed-attrs]
-      (let [attrname (db-ident idxattr)]
+      (let [attrname (dbi/db-ident idxattr)]
         (cit attrname idxattr)))
     entity-table-name))
-
-(defn- create-schema-sql [schema-name]
-  (str "CREATE SCHEMA IF NOT EXISTS " schema-name))
-
-(defn- drop-schema-sql [schema-name]
-  (str "DROP SCHEMA IF EXISTS " schema-name))
 
 (defn- create-db-schema!
   "Create a new schema (a logical grouping of tables), if it does not already exist."
   [connection db-schema-name]
-  (if (seq (jdbc/execute! connection [(create-schema-sql db-schema-name)]))
+  (if (seq (jdbc/execute! connection [(dbi/create-schema-sql db-schema-name)]))
     db-schema-name
     (u/throw-ex (str "Failed to create schema - " db-schema-name))))
 
 (defn- drop-db-schema! [connection db-schema-name]
-  (if (seq (jdbc/execute! connection [(drop-schema-sql db-schema-name)]))
+  (if (seq (jdbc/execute! connection [(dbi/drop-schema-sql db-schema-name)]))
     db-schema-name
     (u/throw-ex (str "Failed to drop schema - " db-schema-name))))
 
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
-  (let [scmname (db-schema-for-component component-name)]
+  (let [scmname (dbi/db-schema-for-component component-name)]
     (with-open [conn (jdbc/get-connection datasource)]
       (create-db-schema! conn scmname)
       (doseq [ename (cn/entity-names component-name)]
-        (let [tabname (table-for-entity ename)
+        (let [tabname (dbi/table-for-entity ename)
               schema (cn/entity-schema ename)
-              indexed-attrs (find-indexed-attributes ename schema)]
+              indexed-attrs (dbi/find-indexed-attributes ename schema)]
           (create-tables! conn schema tabname :Id indexed-attrs))))
     component-name))
 
 (defn drop-schema
   "Remove the schema from the database, perform a non-cascading delete."
   [datasource component-name]
-  (let [scmname (db-schema-for-component component-name)]
+  (let [scmname (dbi/db-schema-for-component component-name)]
     (with-open [conn (jdbc/get-connection datasource)]
       (drop-db-schema! conn scmname))
     component-name))
@@ -184,9 +121,9 @@
   The index values are available in the `attrs` parameter."
   [conn entity-table-name indexed-attrs instance]
   (let [id (:Id instance)]
-    (doseq [[attrname tabname] (index-table-names entity-table-name indexed-attrs)]
-      (let [pstmt (upsert-index-statement conn tabname (db-ident attrname) id
-                                          (attrname instance))]
+    (doseq [[attrname tabname] (dbi/index-table-names entity-table-name indexed-attrs)]
+      (let [pstmt (upsert-index-statement conn tabname (dbi/db-ident attrname)
+                                          id (attrname instance))]
         (jdbc/execute! pstmt)))))
 
 (defn- upsert-inst-statement [conn table-name id obj]
@@ -205,8 +142,8 @@
     (jdbc/execute! pstmt)))
 
 (defn upsert-instance [datasource entity-name instance]
-  (let [tabname (table-for-entity entity-name)
-        indexed-attrs (find-indexed-attributes entity-name)]
+  (let [tabname (dbi/table-for-entity entity-name)
+        indexed-attrs (dbi/find-indexed-attributes entity-name)]
     (with-open [conn (jdbc/get-connection datasource)]
       (jdbc/with-transaction [txn conn]
         (upsert-inst! txn tabname instance)
@@ -222,11 +159,11 @@
 (defn- delete-indices!
   "Delete index entries relevant for an entity instance."
   [conn entity-table-name indexed-attrs id]
-  (let [index-tabnames (index-table-names entity-table-name indexed-attrs)]
+  (let [index-tabnames (dbi/index-table-names entity-table-name indexed-attrs)]
     (doseq [[attrname tabname] index-tabnames]
       (let [pstmt (delete-index-statement
                    conn tabname
-                   (db-ident attrname) id)]
+                   (dbi/db-ident attrname) id)]
         (jdbc/execute! pstmt)))))
 
 (defn- delete-inst-statement [conn table-name id]
@@ -243,8 +180,8 @@
 
 (defn delete-instance [datasource entity-name instance]
   (let [id (:Id instance)
-        tabname (table-for-entity entity-name)
-        indexed-attrs (find-indexed-attributes entity-name)]
+        tabname (dbi/table-for-entity entity-name)
+        indexed-attrs (dbi/find-indexed-attributes entity-name)]
     (with-open [conn (jdbc/get-connection datasource)]
       (jdbc/with-transaction [txn conn]
         (delete-indices! txn tabname indexed-attrs id)
@@ -271,5 +208,5 @@
       (jdbc/execute! pstmt))))
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
-                                       table-for-entity
-                                       index-table-name))
+                                       dbi/table-for-entity
+                                       dbi/index-table-name))
