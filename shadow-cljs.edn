@@ -3,7 +3,8 @@
  {:app
   {:target :browser
    :output-dir "out/app/js"
-   :modules {:main {:entries [fractl.core]}}}
+   :modules {:main {:entries [fractl.core]}}
+   :asset-path "/assets/js"}
   :test
   {:ns-regexp "(.+)-test$"
    :output-to "out/node-tests.js"
