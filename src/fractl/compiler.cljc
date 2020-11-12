@@ -37,7 +37,7 @@
   (let [parts (li/path-parts n)]
     (cond
       (:path parts)
-      `(fractl.env/peek-obj-attribute ~runtime-env-var ~n)
+      `(get ~current-instance-var ~n)
 
       (seq (:refs parts))
       `(fractl.env/follow-reference ~runtime-env-var ~parts)
@@ -131,7 +131,7 @@
 
 (defn- begin-build-instance [rec-name attrs]
   (if-let [q (:query attrs)]
-    (op/query-instance [rec-name q])
+    (op/query-instances [rec-name q])
     (op/new-instance rec-name)))
 
 (defn- emit-build-entity-instance [ctx rec-name attrs schema event?]

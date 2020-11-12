@@ -16,6 +16,9 @@
                           :Id (.toString id))]
     (cn/make-instance entity-name parsed-obj)))
 
+(defn results-as-instances [entity-name id-key json-key results]
+  (doall (map (partial result-as-instance entity-name id-key json-key) results)))
+
 (defn make-result-keys [entity-name]
   (let [n (name (second entity-name))]
     [(keyword (str n "/ID")) (keyword (str n "/INSTANCE_JSON"))]))

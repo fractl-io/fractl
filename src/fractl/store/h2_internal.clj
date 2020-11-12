@@ -259,12 +259,10 @@
 (defn query-by-id [datasource entity-name query-sql ids]
   (with-open [conn (jdbc/get-connection datasource)]
     (let [[id-key json-key] (su/make-result-keys entity-name)]
-      (doall
-       (map
-        (partial su/result-as-instance entity-name id-key json-key)
-        (map #(let [pstmt (query-by-id-statement conn query-sql %)]
-                (jdbc/execute-one! pstmt))
-             ids))))))
+      ((partial su/results-as-instances entity-name id-key json-key)
+       (flatten (map #(let [pstmt (query-by-id-statement conn query-sql %)]
+                        (jdbc/execute! pstmt))
+                     ids))))))
 
 (defn do-query [datasource query-sql query-params]
   (with-open [conn (jdbc/get-connection datasource)]

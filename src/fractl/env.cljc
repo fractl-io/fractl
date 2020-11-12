@@ -57,22 +57,20 @@
   (get env :objstack (list)))
 
 (defn push-obj
-  ([env rec-name obj]
+  "Push a single object or a sequence of objects to the stack"
+  ([env rec-name x]
    (let [stack (objstack env)]
-     (assoc env :objstack (conj stack [rec-name obj]))))
+     (assoc env :objstack (conj stack [rec-name x]))))
   ([env rec-name] (push-obj env rec-name {})))
-
-(defn push-objs [env rec-name objs]
-  (su/move-all objs env #(push-obj %1 rec-name %2)))
 
 (defn peek-obj [env]
   (peek (objstack env)))
 
-(defn pop-obj [env]
-  (let [s (objstack env)]
+(defn pop-obj
+  "Pop the object stack,
+  return [updated-env single-object-flag? [name object]]"
+  [env]
+  (let [s (objstack env)
+        [n obj :as x] (peek s)]
     [(assoc env :objstack (pop s))
-     (peek s)]))
-
-(defn peek-obj-attribute [env n]
-  (let [[_ obj] (peek-obj env)]
-    (get obj n)))
+     (map? obj) x]))

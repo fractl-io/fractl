@@ -21,16 +21,15 @@
         f (partial assoc-fn-attributes env)]
     (f (f raw-obj efns) qfns)))
 
-(defn- set-obj-attr
-  ([env attr-name attr-value stk]
-   (let [[env [n x]] (or stk (env/pop-obj env))
-         single? (map? x)
-         objs (if single? [x] x)
-         new-objs (map #(assoc % attr-name attr-value) objs)
-         env (env/push-objs env n new-objs)]
-     (i/ok (if single? (first new-objs) new-objs) env)))
-  ([env attr-name attr-value]
-   (set-obj-attr env attr-name attr-value nil)))
+(defn- set-obj-attr [env attr-name attr-value]
+  (let [[env single? [n x]] (env/pop-obj env)
+        objs (if single? [x] x)
+        new-objs (map #(assoc % attr-name (if (fn? attr-value)
+                                            (attr-value env %)
+                                            attr-value))
+                      objs)
+        env (env/push-obj env n (if single? (first new-objs) new-objs))]
+    (i/ok (if single? (first new-objs) new-objs) env)))
 
 (defn- bind-and-persist [env store x]
   (if (cn/an-instance? x)
@@ -69,25 +68,24 @@
           (recur (rest idqs) new-env rs)))
       result)))
 
-(defn- find-instance [env store entity-name queries]
+(defn- find-instances [env store entity-name queries]
   (when-let [id-results (seq (resolve-id-queries env store (:id-queries queries)))]
     (let [result (store/query-by-id store entity-name (:query queries) id-results)]
-      [(if (= (count result) 1)
-         (first result)
-         result)
-       (env/bind-instances env entity-name result)])))
+      [result (env/bind-instances env entity-name result)])))
 
 (defn- pop-and-intern-instance [env store record-name]
-  (let [[env [_ obj]] (env/pop-obj env)
-        final-obj (assoc-computed-attributes env record-name obj)
-        inst (if (cn/an-instance? final-obj)
-               final-obj
-               (cn/make-instance (li/make-path record-name) final-obj))
-        env (env/bind-instance env record-name
-                               (if store
-                                 (store/upsert-instance store record-name inst)
-                                 inst))]
-    [inst env]))
+  (let [[env single? [_ x]] (env/pop-obj env)
+        objs (if single? [x] x)
+        final-objs (map #(assoc-computed-attributes env record-name %) objs)
+        insts (map #(if (cn/an-instance? %)
+                      %
+                      (cn/make-instance (li/make-path record-name) %))
+                   final-objs)
+        env (env/bind-instances env record-name
+                                (if store
+                                  (store/upsert-instances store record-name insts)
+                                  insts))]
+    [(if single? (first insts) insts) env]))
 
 (defn make-root-vm [store eval-event-dataflows]
   (reify opc/VM
@@ -111,9 +109,9 @@
       (let [env (env/push-obj env record-name)]
         (i/ok record-name env)))
 
-    (do-query-instance [_ env [entity-name queries]]
-      (if-let [[inst env] (find-instance env store entity-name queries)]
-        (i/ok inst (env/push-obj env entity-name inst))
+    (do-query-instances [_ env [entity-name queries]]
+      (if-let [[insts env] (find-instances env store entity-name queries)]
+        (i/ok insts (env/push-obj env entity-name insts))
         i/not-found))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
@@ -124,8 +122,7 @@
         (set-obj-attr env attr-name obj)))
 
     (do-set-compound-attribute [_ env [attr-name f]]
-      (let [[_ obj :as stk] (env/pop-obj env)]
-        (set-obj-attr env attr-name (f env obj) stk)))
+      (set-obj-attr env attr-name f))
 
     (do-intern-instance [_ env record-name]
       (let [[inst env] (pop-and-intern-instance env store record-name)]

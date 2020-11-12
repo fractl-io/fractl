@@ -17,7 +17,7 @@
         e1 (tu/fresult (e/eval-all-dataflows-for-event evt))
         id (:Id e1)
         evt (cn/make-instance :Q01/Lookup_E {:Id id})
-        e2 (tu/fresult (e/eval-all-dataflows-for-event evt))]
+        e2 (first (tu/fresult (e/eval-all-dataflows-for-event evt)))]
     (is (cn/instance-of? :Q01/E e2))
     (is (cn/same-instance? e1 e2))))
 

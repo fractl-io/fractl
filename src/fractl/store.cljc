@@ -27,3 +27,8 @@
 (def query-by-id p/query-by-id)
 (def do-query p/do-query)
 (def compile-query p/compile-query)
+
+(defn upsert-instances [store record-name insts]
+  (doseq [inst insts]
+    (p/upsert-instance store record-name inst))
+  insts)

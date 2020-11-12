@@ -81,9 +81,9 @@
          (new-instance
           [record-name]
           "Start initializing a record/entity/event instance.")
-         (query-instance
+         (query-instances
           [[entity-name query-attrs]]
-          "Start initializing an entity instance in env by first querying it from a persistent store.")
+          "Start initializing entity instances in env by first querying it from a persistent store.")
          (set-literal-attribute
           [[attr-name attr-value]]
           "Set the attribute in the instance that is being inited to the given value.")

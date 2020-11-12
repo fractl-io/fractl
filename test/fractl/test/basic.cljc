@@ -37,7 +37,7 @@
     (is (= v (opc/arg opcode)))))
 
 (defn- valid-opcode-with-query? [opcode farg]
-  (is (opc/query-instance? opcode))
+  (is (opc/query-instances? opcode))
   (let [arg (opc/arg opcode)]
     (is (= farg (first arg)))))
 
