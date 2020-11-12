@@ -262,7 +262,7 @@
       ((partial su/results-as-instances entity-name id-key json-key)
        (flatten (map #(let [pstmt (query-by-id-statement conn query-sql %)]
                         (jdbc/execute! pstmt))
-                     ids))))))
+                     (set ids)))))))
 
 (defn do-query [datasource query-sql query-params]
   (with-open [conn (jdbc/get-connection datasource)]

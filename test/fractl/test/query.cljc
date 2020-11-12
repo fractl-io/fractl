@@ -44,7 +44,10 @@
         ids (map :Id insts)]
     (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
     (let [evt01 (cn/make-instance :Q02/QE01 {:Y 100})
-          r01 (e/eval-all-dataflows-for-event evt01)
+          r01 (tu/fresult (e/eval-all-dataflows-for-event evt01))
           evt02 (cn/make-instance :Q02/QE02 {:X 10 :Y 100})
-          r02 (e/eval-all-dataflows-for-event evt02)]
-      true)))
+          r02 (tu/fresult (e/eval-all-dataflows-for-event evt02))]
+      (is (= 2 (count r01)))
+      (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r01))
+      (is (= 2 (count r02)))
+      (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r02)))))

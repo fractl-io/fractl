@@ -1,3 +1,2 @@
-* get the second eval in query/q02 test to pass, add asserts for both eval results
 * store instance as JSON (instead of CLOB) in h2
 * bind query result objects to env (resolver/root/bind-query-results)
