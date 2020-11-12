@@ -2,9 +2,13 @@ name: ClojureScriptCI
 
 on:
   push:
-  pull_request:
     branches:
       - main
+  pull_request:
+    branches:
+      - '*'         # matches every branch that doesn't contain a '/'
+      - '*/*'       # matches every branch containing a single '/'
+      - '**'        # matches every branch
 
 jobs:
   test_cljs:
@@ -24,10 +28,10 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Slack Notification
-      uses: rtCamp/action-slack-notify@master
+      uses: rtCamp/action-slack-notify@v2.1.0
       env:
         SLACK_CHANNEL: ci
-        SLACK_TITLE: Nom Nom Nom... Actions was triggered
+        SLACK_FOOTER: Cookie! Om nom nom nom
         SLACK_ICON: https://avatars3.githubusercontent.com/u/10654370?size=48
         SLACK_USERNAME: Cookie Monster
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

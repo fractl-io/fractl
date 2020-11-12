@@ -2,9 +2,13 @@ name: ClojureCI
 
 on:
   push:
-  pull_request:
     branches:
       - main
+  pull_request:
+    branches:
+      - '*'         # matches every branch that doesn't contain a '/'
+      - '*/*'       # matches every branch containing a single '/'
+      - '**'        # matches every branch
 
 jobs:
   test_clj:
@@ -24,10 +28,22 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Slack Notification
-      uses: rtCamp/action-slack-notify@master
+      if: ${{ success() }}
+      uses: rtCamp/action-slack-notify@v2.1.0
       env:
         SLACK_CHANNEL: ci
-        SLACK_TITLE: Nom Nom Nom... Actions was triggered
-        SLACK_ICON: https://avatars3.githubusercontent.com/u/10654370?size=48
+        SLACK_FOOTER: Cookie! Om nom nom nom
+        SLACK_TITLE: 'All cool. More COOKIES! :cookie: :cookie:'
+        SLACK_ICON: https://s.yimg.com/ny/api/res/1.2/5V_4ZnbeUOIWX0jvzJi4qQ--/YXBwaWQ9aGlnaGxhbmRlcjt3PTcwNTtoPTM5Ni41NjI1/https://s.yimg.com/uu/api/res/1.2/zsjOo16W1oVnGpxtwqZJEA--~B/aD0yMjU7dz00MDA7c209MTthcHBpZD15dGFjaHlvbg--/http://media.zenfs.com/en-US/homerun/hello_giggles_454/f060aa1119b1aa41ae7ed5a0678ec581
+        SLACK_USERNAME: Cookie Monster
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    - name: Slack Notification
+      if: ${{ failure() }}
+      uses: rtCamp/action-slack-notify@v2.1.0
+      env:
+        SLACK_CHANNEL: ci
+        SLACK_FOOTER: Cookie! Om nom nom nom
+        SLACK_TITLE: 'It Failed! No cookies. :cry:'
+        SLACK_ICON: https://s.yimg.com/ny/api/res/1.2/5V_4ZnbeUOIWX0jvzJi4qQ--/YXBwaWQ9aGlnaGxhbmRlcjt3PTcwNTtoPTM5Ni41NjI1/https://s.yimg.com/uu/api/res/1.2/zsjOo16W1oVnGpxtwqZJEA--~B/aD0yMjU7dz00MDA7c209MTthcHBpZD15dGFjaHlvbg--/http://media.zenfs.com/en-US/homerun/hello_giggles_454/f060aa1119b1aa41ae7ed5a0678ec581
         SLACK_USERNAME: Cookie Monster
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
