@@ -2,9 +2,9 @@ name: ClojureCI
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   test_clj:
@@ -17,3 +17,17 @@ jobs:
     - name: Run clj test
       run: lein test
     # TODO: Run a clojure app
+
+  slackNotification:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Slack Notification
+      uses: rtCamp/action-slack-notify@master
+      env:
+        SLACK_CHANNEL: ci
+        SLACK_TITLE: Nom Nom Nom... Actions was triggered
+        SLACK_ICON: https://avatars3.githubusercontent.com/u/10654370?size=48
+        SLACK_USERNAME: Cookie Monster
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
