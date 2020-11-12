@@ -112,7 +112,7 @@
               :Y :Kernel/Int}}))
   (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
         evt (cn/make-instance :Df01/Create_E {:Instance e})
-        result (:result (first (e/eval-all-dataflows-for-event evt)))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
     (is (cn/same-instance? e result))))
 
 (deftest compile-create
@@ -127,7 +127,7 @@
                       :Y '(* :X 10)}})
   (let [r (cn/make-instance :Df02/R {:A 100})
         evt (cn/make-instance :Df02/PostE {:R r})
-        result (:result (first (e/eval-all-dataflows-for-event evt)))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
     (is (cn/instance-of? :Df02/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
@@ -146,7 +146,7 @@
                       :Y '(* :X 10)}})
   (let [r (cn/make-instance :Df03/R {:A 100})
         evt (cn/make-instance :Df03/PostE {:R r})
-        result (:result (first (e/eval-all-dataflows-for-event evt)))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
     (is (cn/instance-of? :Df03/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
@@ -168,7 +168,7 @@
         e2 (cn/make-instance :Df04/E2 {:AId id
                                           :X 20})
         evt (cn/make-instance :Df04/PostE2 {:E1 e1})
-        result (:result (first (e/eval-all-dataflows-for-event evt)))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
     (is (cn/instance-of? :Df04/E2 result))
     (is (u/uuid-from-string (:Id result)))
     (is (= (:AId result) id))
@@ -187,7 +187,7 @@
               {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
   (let [e1 (cn/make-instance :Df05/E1 {:A 100})
         evt (cn/make-instance :Df05/Evt01 {:E1 e1})
-        result (:result (first (e/eval-all-dataflows-for-event evt)))
-        inst (:result (first result))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))
+        inst (tu/fresult result)]
     (is (cn/instance-of? :Df05/E2 inst))
     (is (= (:B inst) 100))))

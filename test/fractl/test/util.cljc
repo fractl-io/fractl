@@ -14,3 +14,5 @@
        ~@body
        (store/create-schema (store/open-default-store nil) ~component)
        ~component))
+
+(def fresult (comp :result first))

@@ -1,7 +1,7 @@
 (ns fractl.test.query
   #?(:clj (:use [fractl.lang]))
   (:require [clojure.test :refer [deftest is]]
-            [fractl.test.util :refer [defcomponent]]
+            [fractl.test.util :as tu :refer [defcomponent]]
             [fractl.component :as cn]
             [fractl.eval :as e]
             [fractl.store :as store])
@@ -14,10 +14,10 @@
     (entity {:Q01/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :Q01/E {:X 10})
         evt (cn/make-instance :Q01/Create_E {:Instance e})
-        e1 (:result (first (e/eval-all-dataflows-for-event evt)))
+        e1 (tu/fresult (e/eval-all-dataflows-for-event evt))
         id (:Id e1)
         evt (cn/make-instance :Q01/Lookup_E {:Id id})
-        e2 (:result (first (e/eval-all-dataflows-for-event evt)))]
+        e2 (tu/fresult (e/eval-all-dataflows-for-event evt))]
     (is (cn/instance-of? :Q01/E e2))
     (is (cn/same-instance? e1 e2))))
 
