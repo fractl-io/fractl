@@ -34,7 +34,7 @@ jobs:
         SLACK_CHANNEL: ci
         SLACK_FOOTER: Cookie! Om nom nom nom
         SLACK_TITLE: 'All cool. More COOKIES! :cookie: :cookie:'
-        SLACK_ICON: https://s.yimg.com/ny/api/res/1.2/5V_4ZnbeUOIWX0jvzJi4qQ--/YXBwaWQ9aGlnaGxhbmRlcjt3PTcwNTtoPTM5Ni41NjI1/https://s.yimg.com/uu/api/res/1.2/zsjOo16W1oVnGpxtwqZJEA--~B/aD0yMjU7dz00MDA7c209MTthcHBpZD15dGFjaHlvbg--/http://media.zenfs.com/en-US/homerun/hello_giggles_454/f060aa1119b1aa41ae7ed5a0678ec581
+        SLACK_MESSAGE: 'Om Nom Nom :cookie:'
         SLACK_USERNAME: Cookie Monster
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
     - name: Slack Notification
@@ -43,7 +43,9 @@ jobs:
       env:
         SLACK_CHANNEL: ci
         SLACK_FOOTER: Cookie! Om nom nom nom
-        SLACK_TITLE: 'It Failed! No cookies. :cry:'
-        SLACK_ICON: https://s.yimg.com/ny/api/res/1.2/5V_4ZnbeUOIWX0jvzJi4qQ--/YXBwaWQ9aGlnaGxhbmRlcjt3PTcwNTtoPTM5Ni41NjI1/https://s.yimg.com/uu/api/res/1.2/zsjOo16W1oVnGpxtwqZJEA--~B/aD0yMjU7dz00MDA7c209MTthcHBpZD15dGFjaHlvbg--/http://media.zenfs.com/en-US/homerun/hello_giggles_454/f060aa1119b1aa41ae7ed5a0678ec581
+        SLACK_TITLE: 'It Failed! No cookies.'
+        SLACK_MESSAGE: 'No cookie? :cry:'
+        SLACK_COLOR: '#ff1100'
+        SLACK_ICON_EMOJI: ':scream:'
         SLACK_USERNAME: Cookie Monster
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
