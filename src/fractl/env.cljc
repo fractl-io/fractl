@@ -2,6 +2,7 @@
   "The environment of instance and variable bindings,
   used for pattern resolution."
   (:require [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.component :as cn]))
 
 (def EMPTY {})
@@ -26,6 +27,9 @@
 (defn bind-instance [env rec-name instance]
   (let [insts (or (getinsts env rec-name) (list))]
     (assoc env rec-name (conj insts instance))))
+
+(defn bind-instances [env rec-name instances]
+  (su/move-all instances env #(bind-instance %1 rec-name %2)))
 
 (defn lookup-instance [env rec-name]
   (peek (getinsts env rec-name)))
@@ -57,6 +61,9 @@
    (let [stack (objstack env)]
      (assoc env :objstack (conj stack [rec-name obj]))))
   ([env rec-name] (push-obj env rec-name {})))
+
+(defn push-objs [env rec-name objs]
+  (su/move-all objs env #(push-obj %1 rec-name %2)))
 
 (defn peek-obj [env]
   (peek (objstack env)))

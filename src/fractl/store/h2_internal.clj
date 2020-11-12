@@ -270,7 +270,7 @@
   (with-open [conn (jdbc/get-connection datasource)]
     (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
       (jdbcp/set-parameters pstmt query-params)
-      (jdbc/execute-one! pstmt))))
+      (jdbc/execute! pstmt))))
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        table-for-entity

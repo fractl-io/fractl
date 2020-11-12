@@ -6,6 +6,7 @@
             [fractl.resolver.parser :as parser]
             [fractl.store :as store]
             [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]))
 
@@ -22,10 +23,12 @@
 
 (defn- set-obj-attr
   ([env attr-name attr-value stk]
-   (let [[env [n obj]] (or stk (env/pop-obj env))
-         newobj (assoc obj attr-name attr-value)
-         env (env/push-obj env n newobj)]
-     (i/ok newobj env)))
+   (let [[env [n x]] (or stk (env/pop-obj env))
+         single? (map? x)
+         objs (if single? [x] x)
+         new-objs (map #(assoc % attr-name attr-value) objs)
+         env (env/push-objs env n new-objs)]
+     (i/ok (if single? (first new-objs) new-objs) env)))
   ([env attr-name attr-value]
    (set-obj-attr env attr-name attr-value nil)))
 
@@ -53,7 +56,7 @@
   (let [[p env] (resolve-id-result env param)
         rs (store/do-query store query [p])]
     [(bind-query-results env rs)
-     (concat running-result (map second rs))]))
+     (concat running-result (map su/first-val rs))]))
 
 (defn- resolve-id-queries [env store id-queries]
   (loop [idqs id-queries, env env, result []]
@@ -68,8 +71,11 @@
 
 (defn- find-instance [env store entity-name queries]
   (when-let [id-results (seq (resolve-id-queries env store (:id-queries queries)))]
-    (when-let [inst (first (store/query-by-id store entity-name (:query queries) id-results))]
-      [inst (env/bind-instance env entity-name inst)])))
+    (let [result (store/query-by-id store entity-name (:query queries) id-results)]
+      [(if (= (count result) 1)
+         (first result)
+         result)
+       (env/bind-instances env entity-name result)])))
 
 (defn- pop-and-intern-instance [env store record-name]
   (let [[env [_ obj]] (env/pop-obj env)
