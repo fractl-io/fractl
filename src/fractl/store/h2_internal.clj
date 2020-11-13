@@ -74,7 +74,7 @@
        (if ident-attr
          (str "(" (db-ident ident-attr) " UUID, ")
          "(")
-       "instance_json CLOB)")) ;; TODO: change CLOB to JSON
+       "instance_json JSON)")) ;; TODO: change CLOB to JSON
 
 (defn- create-index-table-sql
   "Given a database-type, entity-table-name and attribute-column name, return the
@@ -190,7 +190,7 @@
         (jdbc/execute! pstmt)))))
 
 (defn- upsert-inst-statement [conn table-name id obj]
-  (let [sql (str "MERGE INTO " table-name " KEY (ID) VALUES (?, ?)")
+  (let [sql (str "MERGE INTO " table-name " KEY (ID) VALUES (?, ? FORMAT JSON)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     (jdbcp/set-parameters pstmt [id obj])
     pstmt))
