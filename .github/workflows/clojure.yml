@@ -35,6 +35,7 @@ jobs:
         SLACK_FOOTER: Cookie! Om nom nom nom
         SLACK_TITLE: 'All cool. More COOKIES! :cookie: :cookie:'
         SLACK_MESSAGE: 'Om Nom Nom :cookie:'
+        SLACK_ICON: https://avatars3.githubusercontent.com/u/10654370?size=48
         SLACK_USERNAME: Cookie Monster
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
     - name: Slack Notification
