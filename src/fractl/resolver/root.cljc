@@ -8,7 +8,8 @@
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.lang.opcode :as opc]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            #?(:cljs [fractl.sql-store :as store])))
 
 (defn- assoc-fn-attributes [env raw-obj fns]
   (loop [fns fns, raw-obj raw-obj]
