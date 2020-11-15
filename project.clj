@@ -7,7 +7,8 @@
                  [c3p0/c3p0 "0.9.1.2"]
                  [com.h2database/h2 "1.4.200"]
                  [honeysql "1.0.444"]
-                 [net.cgrand/macrovich "0.2.1"]]
+                 [net.cgrand/macrovich "0.2.1"]
+                 [cljc.java-time "0.1.11"]]
 
   :main fractl.core
   :aot :all
