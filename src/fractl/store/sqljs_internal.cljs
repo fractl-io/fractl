@@ -2,7 +2,8 @@
   (:require [clojure.string :as string]
             ["sql.js" :default initSqlJs]
             [fractl.store.db-internal :as dbi]
-            [fractl.util :as u]))
+            [fractl.util :as u]
+            [fractl.component :as cn]))
 
 ;; Store for databases.
 (defonce sql-db (atom nil))
@@ -39,7 +40,7 @@
        " ON " entity-table-name "(" colname ")"))
 
 ;; Clean this up in a better approach.
-(defn create-sqlite-conn 
+(defn create-sqlite-conn
   ([table table-name attr]
    (-> (initSqlJs)
        (.then (fn [sql]
@@ -60,7 +61,7 @@
                     (do
                       table-name
                       (reset! sql-db db))
-                    (u/throw-ex (str "Failed to create table for " tabname))))))
+                    (u/throw-ex (str "Failed to create table for " table-name))))))
        (.catch (fn [err]
                  (print "error: " err)))))
   ([table]
