@@ -73,6 +73,24 @@
        (.catch (fn [err]
                  (print "error: " err))))))
 
+(defn prepare-sqlite
+  [sql-string]
+  (-> (initSqlJs)
+      (.then (fn [sql]
+               (let [db (sql.Database.)]
+                 (.prepare db [sql-string]))))
+      (.catch (fn [err]
+                (print "error: " err)))))
+
+(defn runner-sqlite
+  "Run on prepared sqlite statements."
+  [prep attrs]
+  (-> (initSqlJs)
+      (.then (fn [sql]
+               (.run prep [attrs])))
+      (.catch (fn [err]
+                (print "error: " err)))))
+
 (defn- create-identity-index! [entity-table-name ident-attr]
   (let [table (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))]
     ; (fn []
@@ -179,3 +197,93 @@
   (let [scmname (dbi/db-schema-for-model model-name)]
     (drop-db-schema! scmname)
     model-name))
+
+(defn- upsert-index-statement [table-name id attrval]
+  (let [sql (str "MERGE INTO " table-name " KEY (id) VALUES (?, ?)")
+        pstmt (prepare-sqlite [sql])]
+    (runner-sqlite pstmt [id attrval])
+    pstmt))
+
+(defn- upsert-indices!
+  "Insert or update new index entries relevant for an entity instance.
+  The index values are available in the `attrs` parameter."
+  [entity-table-name indexed-attrs id]
+  (let [index-tabnames (dbi/index-table-names entity-table-name indexed-attrs)]
+    (doseq [[attrname tabname] index-tabnames]
+      (let [pstmt (upsert-index-statement tabname
+                                          id (attrname indexed-attrs))]
+        (create-sqlite-conn pstmt)))))
+
+(defn- upsert-inst-statement [table-name id obj]
+  (let [sql (str "MERGE INTO " table-name " KEY (ID) VALUES (?, ?)")
+        pstmt (prepare-sqlite [sql])]
+    (runner-sqlite pstmt [id obj])
+    pstmt))
+
+(defn- upsert-inst!
+  "Insert or update an entity instance."
+  [table-name inst]
+  (let [attrs (cn/serializable-attributes inst)
+        id (:Id attrs)
+        obj (.stringify js/JSON (clj->js (dissoc attrs :Id)))
+        pstmt (upsert-inst-statement table-name id obj)]
+    (create-sqlite-conn pstmt)))
+
+(defn upsert-instance [entity-name instance]
+  (let [tabname (dbi/table-for-entity entity-name)
+        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+    (upsert-inst! tabname instance)
+    (upsert-indices! tabname indexed-attrs (:Id instance))
+    instance))
+
+(defn- delete-index-statement [table-name colname id]
+  (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
+        pstmt (prepare-sqlite [sql])]
+    (runner-sqlite pstmt [id])
+    pstmt))
+
+(defn- delete-indices!
+  "Delete index entries relevant for an entity instance."
+  [entity-table-name indexed-attrs id]
+  (let [index-tabnames (dbi/index-table-names entity-table-name indexed-attrs)]
+    (doseq [[attrname tabname] index-tabnames]
+      (let [pstmt (delete-index-statement
+                   tabname
+                   (dbi/db-ident attrname) id)]
+        (create-sqlite-conn pstmt)))))
+
+(defn- delete-inst-statement [table-name id]
+  (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
+        pstmt (prepare-sqlite [sql])]
+    (runner-sqlite pstmt [id])
+    pstmt))
+
+(defn- delete-inst!
+  "Delete an entity instance."
+  [tabname id]
+  (let [pstmt (delete-inst-statement tabname id)]
+    (create-sqlite-conn pstmt)))
+
+(defn delete-instance [entity-name instance]
+  (let [id (:Id instance)
+        tabname (dbi/table-for-entity entity-name)
+        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+    (delete-indices! tabname indexed-attrs id)
+    (delete-inst! tabname id)
+    id))
+
+(defn- find-by-id-statement [entity-table-name id]
+  (let [sql (str "SELECT * FROM " entity-table-name " WHERE id = ?")
+        pstmt (prepare-sqlite [sql])]
+    (runner-sqlite pstmt [id])
+    pstmt))
+
+(defn find-by-id [entity-name id]
+  (let [tabname (dbi/table-for-entity entity-name)
+        pstmt (find-by-id-statement tabname id)]
+    (-> (initSqlJs)
+        (.then (fn [sql]
+                 (let [db (sql.Database.)]
+                   (.run db pstmt))))
+        (.catch (fn [err]
+                  (print "error: " err))))))
