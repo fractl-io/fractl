@@ -12,7 +12,8 @@
                  [http-kit "2.5.0"]
                  [cljs-http "0.1.46"]
                  [ring-cors "0.1.13"]
-                 [net.cgrand/macrovich "0.2.1"]]
+                 [net.cgrand/macrovich "0.2.1"]
+                 [cljc.java-time "0.1.11"]]
 
   :main fractl.core
   :aot :all
