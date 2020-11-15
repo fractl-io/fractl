@@ -162,7 +162,7 @@
     (doseq [idxattr indexed-attrs]
       (let [attrname (dbi/db-ident idxattr)]
         (cit attrname idxattr)
-        (when-not (create-sqlite-conn [(dbi/create-index-sql entity-table-name attrname)])
+        (when-not (create-sqlite-conn [(dbi/create-index-sql entity-table-name attrname nil)])
           (u/throw-ex (str "Failed to create index for " [entity-table-name attrname])))))
     entity-table-name))
 
