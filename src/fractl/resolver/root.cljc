@@ -4,7 +4,7 @@
             [fractl.env :as env]
             [fractl.component :as cn]
             [fractl.resolver.parser :as parser]
-            [fractl.store :as store]
+            #?(:clj [fractl.store :as store])
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.lang.opcode :as opc]
