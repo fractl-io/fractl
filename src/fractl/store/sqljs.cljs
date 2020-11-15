@@ -4,13 +4,6 @@
             [fractl.store.sqljs-internal :as i]))
 
 (defn make []
-  (reify p/sql-store
-    (create-schema [model-name]
-      (i/create-schema model-name))
-    (drop-schema [model-name]
-      (i/drop-schema model-name))))
-
-(defn make []
   (reify p/Store
     (open-connection [store connection-info])
     (close-connection [_])

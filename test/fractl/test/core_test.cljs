@@ -19,7 +19,7 @@
   `(is (try
          (do ~exp false)
          (catch Exception ex#
-           (println (str "Expected exception in test: " (.getMessage ex#)))
+           (println (str "Expected exception in test: " (js/Error ex#)))
            ex#))))
 
 (defn- install-test-component []
