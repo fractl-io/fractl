@@ -1,17 +1,13 @@
 (ns fractl.test.basic
-  #?(:clj (:use [fractl.lang]))
+  (:use [fractl.lang])
   (:require [clojure.test :refer [deftest is]]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
+            [fractl.test.util :as tu :refer [defcomponent]]
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
-            [fractl.eval :as e])
-  #?(:cljs [fractl.lang
-            :refer [component attribute event
-                    entity record dataflow]]))
+            [fractl.eval :as e]))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
