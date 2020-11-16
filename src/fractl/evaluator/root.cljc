@@ -10,8 +10,7 @@
             [fractl.evaluator.parser :as parser]
             [fractl.evaluator.internal :as i]
             [fractl.lang.opcode :as opc]
-            [fractl.lang.internal :as li]
-            #?(:cljs [fractl.sql-store :as store])))
+            [fractl.lang.internal :as li]))
 
 (defn- assoc-fn-attributes [env raw-obj fns]
   (loop [fns fns, raw-obj raw-obj]
