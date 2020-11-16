@@ -8,6 +8,22 @@
 ;; Store for databases.
 (defonce sql-db (atom nil))
 
+(def db-new (atom {}))
+
+(defn new-db [create-statement]
+  (let [db-ref (atom {})
+        _ (-> (initSqlJs)
+              (.then (fn [sql]
+                       (let [_  (js/d ::sql sql)
+                             db (sql.Database.)]
+                         (js/d ::db db)
+                         (-> db
+                             (.run create-statement))
+                         (reset! db-new db))))
+              (.catch (fn [err]
+                        (print "error : " err))))]
+    db-ref))
+
 (defn- create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
   return the DML statement to create that table."
@@ -44,50 +60,70 @@
   ([table table-name attr]
    (-> (initSqlJs)
        (.then (fn [sql]
-                (let [db (sql.Database.)]
-                  (if (.exec db [table])
-                    (do
-                      table-name
-                      (reset! sql-db db))
-                    (u/throw-ex (str "Failed to create index table for identity column - "
-                                     [table-name attr]))))))
+                (let [_ (js/d ::sql sql)
+                      db (sql.Database.)]
+                  (js/d ::db db)
+                  (-> db
+                      (.then (if (.exec [table])
+                         table-name
+                         (u/throw-ex (str "Failed to create index table for identity column - "
+                                          [table-name attr]))))
+                      (.catch (fn [err]
+                                (print "no db connection. more: " err))))
+                  (reset! db-new db))))
        (.catch (fn [err]
                  (print "error: " err)))))
   ([table table-name]
    (-> (initSqlJs)
        (.then (fn [sql]
-                (let [db (sql.Database.)]
-                  (if (.exec db [table])
-                    (do
-                      table-name
-                      (reset! sql-db db))
-                    (u/throw-ex (str "Failed to create table for " table-name))))))
+                (let [_ (js/d ::sql sql)
+                      db (sql.Database.)]
+                  (js/d ::db db)
+                  (-> db
+                      (.then (if (.exec [table])
+                               table-name
+                               (u/throw-ex (str "Failed to create index table for identity column - "
+                                                [table-name]))))
+                      (.catch (fn [err]
+                                (print "no db connection. more: " err))))
+                  (reset! db-new db))))
        (.catch (fn [err]
                  (print "error: " err)))))
   ([table]
    (-> (initSqlJs)
        (.then (fn [sql]
-                (let [db (sql.Database.)]
+                (let [_ (js/d ::sql sql)
+                      db (sql.Database.)]
+                  (js/d ::db db)
                   (if (.exec db [table])
-                    (reset! sql-db db)))))
+                    (reset! sql-db db))
+                  (-> db
+                      (.exec [table]))
+                  (reset! db-new db))))
        (.catch (fn [err]
                  (print "error: " err))))))
 
 (defn prepare-sqlite
   [sql-string]
-  (-> (initSqlJs)
-      (.then (fn [sql]
-               (let [db (sql.Database.)]
-                 (.prepare db [sql-string]))))
-      (.catch (fn [err]
-                (print "error: " err)))))
+  (let [db-ref (atom {})
+        _ (-> (initSqlJs)
+              (.then (fn [sql]
+                       (let [_ (js/d ::sql sql)
+                             db (sql.Database.)]
+                         (js/d ::db db)
+                         (-> db
+                             (.prepare sql-string))
+                         (reset! db-new db))))
+              (.catch (fn [err]
+                        (print "error: " err))))]
+    db-ref))
 
 (defn runner-sqlite
   "Run on prepared sqlite statements."
   [prep attrs]
   (-> (initSqlJs)
       (.then (fn [sql]
-               (.run prep [attrs])))
+               (.run @prep [attrs])))
       (.catch (fn [err]
                 (print "error: " err)))))
 
