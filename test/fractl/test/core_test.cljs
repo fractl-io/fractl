@@ -9,7 +9,7 @@
                      entity record dataflow]]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
-            [fractl.sql-store :as store]
+            [fractl.store :as store]
             [fractl.resolver :as r]))
 
 (deftest test-numbers
