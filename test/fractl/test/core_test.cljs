@@ -10,7 +10,8 @@
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             [fractl.store :as store]
-            [fractl.resolver :as r]))
+            [fractl.resolver :as r])
+  (:require-macros [fractl.test.macros]))
 
 (deftest test-numbers
   (is (= 1 1)))
@@ -111,14 +112,8 @@
     ;; Compilation fail on cyclic-dependency
     (is-error (c p1))))
 
-(defmacro defcomponent [component & body]
-  `(do (component ~component)
-       ~@body
-       (store/create-schema (store/get-default-store) ~component)
-       ~component))
-
 (deftest compile-ref
-  (defcomponent :Df01
+  (fractl.test.macros/defcomponent :Df01
     (entity {:Df01/E
              {:X :Kernel/Int
               :Y :Kernel/Int}}))
@@ -126,3 +121,80 @@
         evt (cn/make-instance :Df01/Create_E {:Instance e})
         result (:result (first (r/eval-all-dataflows-for-event evt)))]
     (is (cn/same-instance? e result))))
+
+(deftest compile-create
+  (fractl.test.macros/defcomponent :Df02
+    (entity {:Df02/E
+             {:X :Kernel/Int
+              :Y :Kernel/Int}})
+    (record {:Df02/R {:A :Kernel/Int}})
+    (event {:Df02/PostE {:R :Df02/R}}))
+  (dataflow :Df02/PostE
+            {:Df02/E {:X :Df02/PostE.R.A
+                      :Y '(* :X 10)}})
+  (let [r (cn/make-instance :Df02/R {:A 100})
+        evt (cn/make-instance :Df02/PostE {:R r})
+        result (:result (first (r/eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :Df02/E result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= 100 (:X result)))
+    (is (= 1000 (:Y result)))))
+
+(deftest dependency
+  (fractl.test.macros/defcomponent :Df03
+    (record {:Df03/R {:A :Kernel/Int}})
+    (entity {:Df03/E {:X :Kernel/Int
+                      :Y :Kernel/Int
+                      :Z :Kernel/Int}})
+    (event {:Df03/PostE {:R :Df03/R}}))
+  (dataflow :Df03/PostE
+            {:Df03/E {:X :Df03/PostE.R.A
+                      :Z '(+ :X :Y)
+                      :Y '(* :X 10)}})
+  (let [r (cn/make-instance :Df03/R {:A 100})
+        evt (cn/make-instance :Df03/PostE {:R r})
+        result (:result (first (r/eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :Df03/E result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= 100 (:X result)))
+    (is (= 1000 (:Y result)))
+    (is (= 1100 (:Z result)))))
+
+(deftest compound-attributes
+  (fractl.test.macros/defcomponent :Df04
+    (entity {:Df04/E1 {:A :Kernel/Int}})
+    (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
+                       :X :Kernel/Int
+                       :Y {:expr '(* :X :Df04/E1.A)}}})
+    (event {:Df04/PostE2 {:E1 :Df04/E1}}))
+  (dataflow :Df04/PostE2
+            {:Df04/E2 {:AId :Df04/PostE2.E1.Id
+                       :X 500}})
+  (let [e1 (cn/make-instance :Df04/E1 {:A 100})
+        id (:Id e1)
+        e2 (cn/make-instance :Df04/E2 {:AId id
+                                          :X 20})
+        evt (cn/make-instance :Df04/PostE2 {:E1 e1})
+        result (:result (first (r/eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :Df04/E2 result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= (:AId result) id))
+    (is (= (:X result) 500))
+    (is (= (:Y result) 50000))))
+
+(deftest fire-event
+  (fractl.test.macros/defcomponent :Df05
+    (entity {:Df05/E1 {:A :Kernel/Int}})
+    (entity {:Df05/E2 {:B :Kernel/Int}})
+    (event {:Df05/Evt01 {:E1 :Df05/E1}})
+    (event {:Df05/Evt02 {:E1 :Df05/E1}})
+    (dataflow :Df05/Evt01
+              {:Df05/Evt02 {:E1 :Df05/Evt01.E1}})
+    (dataflow :Df05/Evt02
+              {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
+  (let [e1 (cn/make-instance :Df05/E1 {:A 100})
+        evt (cn/make-instance :Df05/Evt01 {:E1 e1})
+        result (:result (first (r/eval-all-dataflows-for-event evt)))
+        inst (:result (first result))]
+    (is (cn/instance-of? :Df05/E2 inst))
+    (is (= (:B inst) 100))))
