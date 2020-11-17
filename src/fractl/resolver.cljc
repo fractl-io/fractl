@@ -24,7 +24,8 @@
   (store/compile-query (i/store resolver) query-pattern))
 
 ;; The database of registered resolvers.
-(def ^:private db (ref {}))
+#?(:clj (def ^:private db (ref {}))
+   :cljs (def ^:private db (atom {})))
 
 (defn resolver-for-path [path eval-event-dataflows]
   (or (get db path)
