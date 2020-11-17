@@ -10,18 +10,13 @@
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             [fractl.store :as store]
-            [fractl.resolver :as r])
-  (:require-macros [fractl.test.macros]))
+            [fractl.resolver :as r]
+            [fractl.test.macros :refer-macros [defcomponent is-error]])
+  ;; (:require-macros [fractl.test.macros :as mac :refer [defcomponent is-error]])
+  )
 
 (deftest test-numbers
   (is (= 1 1)))
-
-(defmacro is-error [exp]
-  `(is (try
-         (do ~exp false)
-         (catch Exception ex#
-           (println (str "Expected exception in test: " (js/Error ex#)))
-           ex#))))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
@@ -113,7 +108,7 @@
     (is-error (c p1))))
 
 (deftest compile-ref
-  (fractl.test.macros/defcomponent :Df01
+  (defcomponent :Df01
     (entity {:Df01/E
              {:X :Kernel/Int
               :Y :Kernel/Int}}))
@@ -123,7 +118,7 @@
     (is (cn/same-instance? e result))))
 
 (deftest compile-create
-  (fractl.test.macros/defcomponent :Df02
+  (defcomponent :Df02
     (entity {:Df02/E
              {:X :Kernel/Int
               :Y :Kernel/Int}})
@@ -141,7 +136,7 @@
     (is (= 1000 (:Y result)))))
 
 (deftest dependency
-  (fractl.test.macros/defcomponent :Df03
+  (defcomponent :Df03
     (record {:Df03/R {:A :Kernel/Int}})
     (entity {:Df03/E {:X :Kernel/Int
                       :Y :Kernel/Int
@@ -161,7 +156,7 @@
     (is (= 1100 (:Z result)))))
 
 (deftest compound-attributes
-  (fractl.test.macros/defcomponent :Df04
+  (defcomponent :Df04
     (entity {:Df04/E1 {:A :Kernel/Int}})
     (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
                        :X :Kernel/Int
@@ -183,7 +178,7 @@
     (is (= (:Y result) 50000))))
 
 (deftest fire-event
-  (fractl.test.macros/defcomponent :Df05
+  (defcomponent :Df05
     (entity {:Df05/E1 {:A :Kernel/Int}})
     (entity {:Df05/E2 {:B :Kernel/Int}})
     (event {:Df05/Evt01 {:E1 :Df05/E1}})
