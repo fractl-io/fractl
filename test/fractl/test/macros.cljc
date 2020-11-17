@@ -7,18 +7,3 @@
        ~@body
        (store/create-schema (store/get-default-store) ~component)
        ~component))
-
-;; #?(:clj
-;;    (defmacro is-error [exp]
-;;      `(is (try
-;;             (do ~exp false)
-;;             (catch Exception ex#
-;;               (println (str "Expected exception in test: " (.getMessage ex#)))
-;;               ex#)))))
-
-(defmacro is-error [exp]
-  `(is (try
-         (do ~exp false)
-         (catch js/Error ex#
-           (println (str "Expected exception in test: " ex#))
-           ex#))))
