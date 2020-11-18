@@ -48,10 +48,18 @@
 ;; the handler methods. Each method corresponds to an opcode.
 ;;
 ;; The argument list of the new protocol will be extended to receive
-;; a reference to self and the runtime environment. Also the `do-` prefix
+;; a reference to `this` and the runtime environment. Also the `do-` prefix
 ;; will be added to the method names. For example, the method
 ;; `(match-instance [pattern instance])` will become `(do-match-instance [self env pattern instance])`.
 ;; A resolver is an implementation of this newly defined protocol.
+;;
+;; The `do-`methods defined by resolvers should return a map with status information and result.
+;; The general forms of this map are:
+;;  - {:status :ok :result <optional-result> :env <optional-updated-environment>}, call success.
+;;  - {:status :not-found}, a query or lookup returned no-data.
+;;  - {:status :declined}, the resolver refuses to service the call.
+;;  - {:status :no-op}, no operation needs to be performed, for instance, no dataflows attached to an event.
+;;  - {:status :error :message <error-message>}, there was an unxpected error."
 ;;
 ;; The dispatch table will have the structure {:match-instance match-instance ...}.
 ;; If someone has an opcode, its keyword mnemonic can be fetched with a call to the
@@ -62,7 +70,7 @@
  (defvm [(match-instance
           [[pattern instance]]
           "If the instance matches the pattern, update env with the instance. Return {:result true}.
-          If there is no match, return {:result false}.")
+           If there is no match, return {:result false}.")
          (load-instance
           [record-name]
           "Load an instance from the environment. The resolver may extend the search to a database backend, then
@@ -73,16 +81,16 @@
          (new-instance
           [record-name]
           "Start initializing a record/entity/event instance.")
-         (query-instance
+         (query-instances
           [[entity-name query-attrs]]
-          "Start initializing an entity instance in env by first querying it from a persistent store.")
+          "Start initializing entity instances in env by first querying it from a persistent store.")
          (set-literal-attribute
           [[attr-name attr-value]]
           "Set the attribute in the instance that is being inited to the given value.")
          (set-ref-attribute
           [[attr-name attr-ref]]
           "Set the attribute in the instance that is being inited by fetching a value from
-          the reference.")
+           the reference.")
          (set-compound-attribute
           [[attr-name f]]
           "Set the attribute in the instance that is being inited by invoking the function.")

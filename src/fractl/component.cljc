@@ -1,5 +1,5 @@
 (ns fractl.component
-  "Manage components for a model."
+  "Components of a model."
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [fractl.util :as util]
@@ -105,6 +105,11 @@
   (util/safe-set-result components #(dissoc @components component)))
 
 (defn component-exists? [component]
+  (if (find @components component)
+    true
+    false))
+
+(defn component-definition [component]
   (find @components component))
 
 (defn extract-alias-of-component [component alias-entry]
@@ -251,7 +256,8 @@
 (defn instance-of?
   "Return true if the fully-qualified name is the same as that of the instance."
   [nm inst]
-  (= nm (instance-name inst)))
+  (= (li/split-path nm)
+     (parsed-instance-name inst)))
 
 (defn instance-attributes [x]
   (when (an-instance? x)
@@ -324,7 +330,7 @@
   (or (identical? a b)
       (if (every? entity-instance? [a b])
         (let [instname (instance-name a)]
-          (and (= instname (instance-name b))
+          (and (instance-of? (instance-name a) b)
                (when-let [idattr (identity-attribute-name instname)]
                  (= (idattr (instance-attributes a))
                     (idattr (instance-attributes b))))))
@@ -890,3 +896,6 @@
 
 (defn unique-attribute? [entity-schema attr]
   (:unique (find-attribute-schema (get entity-schema attr))))
+
+(defn attribute-type [entity-schema attr]
+  (:type (find-attribute-schema (get entity-schema attr))))

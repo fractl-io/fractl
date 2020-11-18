@@ -2,10 +2,12 @@
   (:require [clojure.string :as string]
             [next.jdbc :as jdbc]
             [next.jdbc.prepare :as jdbcp]
+            [cheshire.core :as json]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
-            [cheshire.core :as json])
+            [fractl.store.util :as su]
+            [fractl.store.sql :as sql])
   (:import [java.sql PreparedStatement]))
 
 (defn- db-ident [k]
@@ -13,13 +15,13 @@
     (string/lower-case (name k))
     k))
 
-(defn- db-schema-for-model [model-name]
-  (string/lower-case (string/replace (name model-name) #"\." "_")))
+(defn- db-schema-for-component [component-name]
+  (string/lower-case (string/replace (name component-name) #"\." "_")))
 
 (defn- table-for-entity
   ([entity-name db-schema-name]
-   (let [[model-name r] (li/split-path entity-name)
-         scmname (or db-schema-name (db-schema-for-model model-name))]
+   (let [[component-name r] (li/split-path entity-name)
+         scmname (or db-schema-name (db-schema-for-component component-name))]
      (str scmname "." (db-ident r))))
   ([entity-name] (table-for-entity entity-name nil)))
 
@@ -58,12 +60,11 @@
 (def ^:private create-unique-index-prefix "CREATE UNIQUE INDEX IF NOT EXISTS")
 
 (defn- create-index-sql
-  "Given an entity-table-name and an attribute-column-name, return the
+  "Given n table-name and an attribute-column-name, return the
   CREATE INDEX sql statement for that attribute."
-  [entity-table-name colname unique?]
-  (let [tabname (index-table-name entity-table-name colname)]
-    (str (if unique? create-unique-index-prefix create-index-prefix)
-         " " (index-name tabname) " ON " tabname "(" colname ")")))
+  [table-name colname unique?]
+  (str (if unique? create-unique-index-prefix create-index-prefix)
+       " " (index-name table-name) " ON " table-name "(" colname ")"))
 
 (defn- create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
@@ -73,12 +74,12 @@
        (if ident-attr
          (str "(" (db-ident ident-attr) " UUID, ")
          "(")
-       "instance_json CLOB)"))
+       "instance_json JSON)"))
 
 (defn- create-index-table-sql
   "Given a database-type, entity-table-name and attribute-column name, return the
   DML statements for creating an index table and the index for its 'id' column."
-  [entity-table-name colname unique?]
+  [entity-table-name colname coltype unique?]
   (let [index-tabname (index-table-name entity-table-name colname)]
     [(str create-table-prefix " " index-tabname " "
           ;; `id` is not a foreign key reference to the main table,
@@ -87,9 +88,9 @@
           "(id UUID, "
           ;; Storage and search can be optimized by inferring a more appropriate
           ;; SQL type for `colname`, see the issue https://ventur8.atlassian.net/browse/V8DML-117.
-          colname " CLOB"
+          colname " " coltype
           (if unique? (str ",UNIQUE(" colname "))") ")"))
-     (create-index-sql index-tabname "id" true)]))
+     (create-index-sql index-tabname colname unique?)]))
 
 (defn- create-identity-index-sql [entity-table-name colname]
   (str create-unique-index-prefix
@@ -115,6 +116,7 @@
 (defn- create-index-table! [connection entity-schema entity-table-name attrname idxattr]
   (let [[tabsql idxsql] (create-index-table-sql
                          entity-table-name attrname
+                         (sql/sql-index-type (cn/attribute-type entity-schema idxattr))
                          (cn/unique-attribute? entity-schema idxattr))]
     (when-not (and (jdbc/execute! connection [tabsql])
                    (jdbc/execute! connection [idxsql]))
@@ -129,9 +131,7 @@
   (let [cit (partial create-index-table! connection entity-schema entity-table-name)]
     (doseq [idxattr indexed-attrs]
       (let [attrname (db-ident idxattr)]
-        (cit attrname idxattr)
-        (when-not (jdbc/execute! connection [(create-index-sql entity-table-name attrname)])
-          (u/throw-ex (str "Failed to create index for " [entity-table-name attrname])))))
+        (cit attrname idxattr)))
     entity-table-name))
 
 (defn- create-schema-sql [schema-name]
@@ -153,28 +153,28 @@
     (u/throw-ex (str "Failed to drop schema - " db-schema-name))))
 
 (defn create-schema
-  "Create the schema, tables and indexes for the model."
-  [datasource model-name]
-  (let [scmname (db-schema-for-model model-name)]
+  "Create the schema, tables and indexes for the component."
+  [datasource component-name]
+  (let [scmname (db-schema-for-component component-name)]
     (with-open [conn (jdbc/get-connection datasource)]
       (create-db-schema! conn scmname)
-      (doseq [ename (cn/entity-names model-name)]
+      (doseq [ename (cn/entity-names component-name)]
         (let [tabname (table-for-entity ename)
               schema (cn/entity-schema ename)
               indexed-attrs (find-indexed-attributes ename schema)]
           (create-tables! conn schema tabname :Id indexed-attrs))))
-    model-name))
+    component-name))
 
 (defn drop-schema
   "Remove the schema from the database, perform a non-cascading delete."
-  [datasource model-name]
-  (let [scmname (db-schema-for-model model-name)]
+  [datasource component-name]
+  (let [scmname (db-schema-for-component component-name)]
     (with-open [conn (jdbc/get-connection datasource)]
       (drop-db-schema! conn scmname))
-    model-name))
+    component-name))
 
 (defn- upsert-index-statement [conn table-name colname id attrval]
-  (let [sql (str "MERGE INTO " table-name " KEY (id) VALUES (?, ?)")
+  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     (jdbcp/set-parameters pstmt [id attrval])
     pstmt))
@@ -182,16 +182,15 @@
 (defn- upsert-indices!
   "Insert or update new index entries relevant for an entity instance.
   The index values are available in the `attrs` parameter."
-  [conn entity-table-name indexed-attrs id]
-  (let [index-tabnames (index-table-names entity-table-name indexed-attrs)]
-    (doseq [[attrname tabname] index-tabnames]
-      (let [pstmt (upsert-index-statement conn tabname
-                                          (db-ident attrname)
-                                          id (attrname indexed-attrs))]
+  [conn entity-table-name indexed-attrs instance]
+  (let [id (:Id instance)]
+    (doseq [[attrname tabname] (index-table-names entity-table-name indexed-attrs)]
+      (let [pstmt (upsert-index-statement conn tabname (db-ident attrname) id
+                                          (attrname instance))]
         (jdbc/execute! pstmt)))))
 
 (defn- upsert-inst-statement [conn table-name id obj]
-  (let [sql (str "MERGE INTO " table-name " KEY (ID) VALUES (?, ?)")
+  (let [sql (str "MERGE INTO " table-name " KEY (ID) VALUES (?, ? FORMAT JSON)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     (jdbcp/set-parameters pstmt [id obj])
     pstmt))
@@ -211,7 +210,7 @@
     (with-open [conn (jdbc/get-connection datasource)]
       (jdbc/with-transaction [txn conn]
         (upsert-inst! txn tabname instance)
-        (upsert-indices! txn tabname indexed-attrs (:Id instance))))
+        (upsert-indices! txn tabname indexed-attrs instance)))
     instance))
 
 (defn- delete-index-statement [conn table-name colname id]
@@ -252,14 +251,25 @@
         (delete-inst! txn tabname id)))
     id))
 
-(defn- find-by-id-statement [conn entity-table-name id]
-  (let [sql (str "SELECT * FROM " entity-table-name " WHERE id = ?")
-        ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    (jdbcp/set-parameters pstmt [id])
+(defn- query-by-id-statement [conn query-sql id]
+  (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
+    (.setString pstmt 1 (str id))
     pstmt))
 
-(defn find-by-id [datasource entity-name id]
-  (let [tabname (table-for-entity entity-name)]
-    (with-open [conn (jdbc/get-connection datasource)]
-      (let [pstmt (find-by-id-statement tabname id)]
-        (jdbc/execute-one! conn pstmt)))))
+(defn query-by-id [datasource entity-name query-sql ids]
+  (with-open [conn (jdbc/get-connection datasource)]
+    (let [[id-key json-key] (su/make-result-keys entity-name)]
+      ((partial su/results-as-instances entity-name id-key json-key)
+       (flatten (map #(let [pstmt (query-by-id-statement conn query-sql %)]
+                        (jdbc/execute! pstmt))
+                     (set ids)))))))
+
+(defn do-query [datasource query-sql query-params]
+  (with-open [conn (jdbc/get-connection datasource)]
+    (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
+      (jdbcp/set-parameters pstmt query-params)
+      (jdbc/execute! pstmt))))
+
+(def compile-to-indexed-query (partial sql/compile-to-indexed-query
+                                       table-for-entity
+                                       index-table-name))

@@ -1,11 +1,13 @@
 (ns fractl.resolver.root
   "The default resolver implementation, the root of a normal resolver sequence."
-  (:require [fractl.resolver.protocol :as p]
+  (:require [fractl.resolver.internal :as i]
             [fractl.env :as env]
             [fractl.component :as cn]
             [fractl.resolver.parser :as parser]
             [fractl.store :as store]
             [fractl.util :as u]
+            [fractl.util.seq :as su]
+            [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]))
 
 (defn- assoc-fn-attributes [env raw-obj fns]
@@ -19,67 +21,102 @@
         f (partial assoc-fn-attributes env)]
     (f (f raw-obj efns) qfns)))
 
-(defn- set-obj-attr
-  ([env attr-name attr-value stk]
-   (let [[env [n obj]] (or stk (env/pop-obj env))
-         newobj (assoc obj attr-name attr-value)
-         env (env/push-obj env n newobj)]
-     (p/ok newobj env)))
-  ([env attr-name attr-value]
-   (set-obj-attr env attr-name attr-value nil)))
+(defn- set-obj-attr [env attr-name attr-value]
+  (let [[env single? [n x]] (env/pop-obj env)
+        objs (if single? [x] x)
+        new-objs (map #(assoc % attr-name (if (fn? attr-value)
+                                            (attr-value env %)
+                                            attr-value))
+                      objs)
+        env (env/push-obj env n (if single? (first new-objs) new-objs))]
+    (i/ok (if single? (first new-objs) new-objs) env)))
 
-(defn- bind-if-instance [env x]
+(defn- bind-and-persist [env store x]
   (if (cn/an-instance? x)
-    (env/bind-instance env (li/split-path (cn/instance-name x)) x)
+    (let [n (li/split-path (cn/instance-name x))]
+      (when (and store (cn/entity-instance? x))
+        (store/upsert-instance store n x))
+      (env/bind-instance env n x))
     env))
 
 (defn- id-attribute [query-attrs]
   (first (filter #(= :Id (first %)) query-attrs)))
 
-(defn- find-instance [env store entity-name query-attrs]
-  (if-let [inst (first (env/lookup-instances-by-attributes env entity-name query-attrs))]
-    [inst env]
-    ;; TODO: the current store lookup is limited to the `:Id` attribute, extend this to
-    ;; support complex queries on all the given attributes.
-    (when-let [inst (store/find-by-id store entity-name (id-attribute query-attrs))]
-      [inst (env/bind-instance env entity-name inst)])))
+(defn- resolve-id-result [env r]
+  (if (fn? r)
+    (r env nil)
+    [r env]))
 
-(defn- pop-and-intern-instance [env store record-name]
-  (let [[env [_ obj]] (env/pop-obj env)
-        final-obj (assoc-computed-attributes env record-name obj)
-        inst (cn/make-instance (li/make-path record-name) final-obj)
-        env (env/bind-instance env record-name
-                               (if store
-                                 (store/upsert-instance store record-name inst)
-                                 inst))]
-    [inst env]))
+(defn- resolve-id-query [env store query param running-result]
+  (let [[p env] (resolve-id-result env param)
+        rs (store/do-query store query [p])]
+    [(concat running-result (map su/first-val rs)) env]))
 
-(defn make [store df-eval]
-  (reify p/Resolver
+(defn- resolve-id-queries
+  "Resolve unique IDs from queries into index tables. Each entry in the sequence id-queries will
+   be a map with two possible keys - :result and :query. If there is a :result, that will be
+   bound to an ID statically resolved by the compiler. Otherwise, execute the query and find the ID.
+   Return the final sequence of IDs."
+  [env store id-queries]
+  (loop [idqs id-queries, env env, result []]
+    (if-let [idq (first idqs)]
+      (if-let [r (:result idq)]
+        (let [[obj new-env] (resolve-id-result env r)]
+          (recur (rest idqs) new-env (conj result obj)))
+        (let [[q p] (:query idq)
+              [rs new-env] (resolve-id-query env store q p result)]
+          (recur (rest idqs) new-env rs)))
+      result)))
+
+(defn- find-instances [env store entity-name queries]
+  (when-let [id-results (seq (resolve-id-queries env store (:id-queries queries)))]
+    (let [result (store/query-by-id store entity-name (:query queries) id-results)]
+      [result (env/bind-instances env entity-name result)])))
+
+(defn- pop-and-intern-instance
+  "An instance is built in stages, the partial object is stored in a stack.
+   Once an instance is realized, pop it from the stack and bind it to the environment.
+   If it's an entity instance, add that to the store."
+  [env store record-name]
+  (let [[env single? [_ x]] (env/pop-obj env)
+        objs (if single? [x] x)
+        final-objs (map #(assoc-computed-attributes env record-name %) objs)
+        insts (map #(if (cn/an-instance? %)
+                      %
+                      (cn/make-instance (li/make-path record-name) %))
+                   final-objs)
+        env (env/bind-instances env record-name
+                                (if store
+                                  (store/upsert-instances store record-name insts)
+                                  insts))]
+    [(if single? (first insts) insts) env]))
+
+(defn make-root-vm [store eval-event-dataflows]
+  (reify opc/VM
     (do-match-instance [_ env [pattern instance]]
       (if-let [updated-env (parser/match-pattern env pattern instance)]
-        (p/ok true updated-env)
-        (p/ok false env)))
+        (i/ok true updated-env)
+        (i/ok false env)))
 
     (do-load-instance [_ env record-name]
       (if-let [inst (env/lookup-instance env record-name)]
-        (p/ok inst env)
-        p/not-found))
+        (i/ok inst env)
+        i/not-found))
 
     (do-load-references [_ env [record-name refs]]
       (let [inst (env/lookup-instance env record-name)]
         (if-let [v (get (cn/instance-attributes inst) (first refs))]
-          (p/ok v (bind-if-instance env v))
-          p/not-found)))
+          (i/ok v (bind-and-persist env store v))
+          i/not-found)))
 
     (do-new-instance [_ env record-name]
       (let [env (env/push-obj env record-name)]
-        (p/ok record-name env)))
+        (i/ok record-name env)))
 
-    (do-query-instance [_ env [entity-name query-attrs]]
-      (if-let [[inst env] (find-instance env store entity-name query-attrs)]
-        (p/ok inst (env/push-obj env entity-name inst))
-        p/not-found))
+    (do-query-instances [_ env [entity-name queries]]
+      (if-let [[insts env] (find-instances env store entity-name queries)]
+        (i/ok insts (env/push-obj env entity-name insts))
+        i/not-found))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
@@ -89,21 +126,26 @@
         (set-obj-attr env attr-name obj)))
 
     (do-set-compound-attribute [_ env [attr-name f]]
-      (let [[_ obj :as stk] (env/pop-obj env)]
-        (set-obj-attr env attr-name (f env obj) stk)))
+      (set-obj-attr env attr-name f))
 
     (do-intern-instance [_ env record-name]
       (let [[inst env] (pop-and-intern-instance env store record-name)]
-        (p/ok inst env)))
+        (i/ok inst env)))
 
     (do-intern-event-instance [_ env record-name]
       (let [[inst env] (pop-and-intern-instance env nil record-name)]
-        (p/ok (df-eval inst) env)))))
+        (i/ok (eval-event-dataflows inst) env)))))
+
+(defn make [store eval-event-dataflows]
+  (i/make (make-root-vm store eval-event-dataflows) store))
 
 (def ^:private default-resolver (u/make-cell))
 
-(defn get-default-resolver [df-eval]
-  (u/safe-set-once
-   default-resolver
-   #(let [store (store/get-default-store)]
-      (make store df-eval))))
+(defn get-default-resolver
+  ([eval-event-dataflows store-config]
+   (u/safe-set-once
+    default-resolver
+    #(let [store (store/open-default-store store-config)]
+       (make store eval-event-dataflows))))
+  ([eval-event-dataflows]
+   (get-default-resolver eval-event-dataflows nil)))

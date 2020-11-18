@@ -61,3 +61,16 @@
 
 (defn conj-if [xs x]
   (if x (conj xs x) xs))
+
+(defn vec-add-first [x vec]
+  (apply conj [x] vec))
+
+(defn first-val [m]
+  (first (vals m)))
+
+(defn move-all [xs target f]
+  (loop [xs xs, target target]
+    (if-let [x (first xs)]
+      (recur (rest xs)
+             (f target x))
+      target)))

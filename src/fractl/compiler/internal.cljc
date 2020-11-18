@@ -1,4 +1,4 @@
-(ns fractl.compiler.parser
+(ns fractl.compiler.internal
   (:require [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.graph :as g]
@@ -8,13 +8,7 @@
             [fractl.compiler.validation :as cv]))
 
 (defn literal? [x]
-  (or (number? x) (string? x)
-      ;; TODO: the check for fn is only for
-      ;; compatibility with the current evaluator,
-      ;; should be removed. Translation of compound
-      ;; expressions to functions should happen only
-      ;; in the compiler.
-      (fn? x)))
+  (or (number? x) (string? x)))
 
 (defn- var-in-context [ctx s]
   (if-let [[_ v] (ctx/fetch-variable ctx s)]
@@ -23,10 +17,6 @@
 
 (defn- valid-attr-value [ctx k v schema]
   (cond
-    ;; TODO: for compatibility with current evaluator, remove
-    ;; this after the new resolver is added.
-    (fn? v) v
-
     (literal? v)
     (cv/validate-attribute-value k v schema)
 
@@ -136,3 +126,16 @@
 
 (defn sort-attributes-by-dependency [attrs graph]
   (as-sorted-attrs attrs (g/topological-all graph)))
+
+(defn- process-where-clause [clause]
+  (cv/ensure-where-clause
+   (if (= 2 (count clause))
+     (su/vec-add-first := clause)
+     clause)))
+
+(defn expand-query [entity-name query-pattern]
+  (let [qp (map process-where-clause query-pattern)]
+    {:from entity-name
+     :where (if (> (count qp) 1)
+              (su/vec-add-first :and qp)
+              (first qp))}))

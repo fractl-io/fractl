@@ -1,17 +1,17 @@
 (ns fractl.test.basic
   #?(:clj (:use [fractl.lang]))
   (:require [clojure.test :refer [deftest is]]
-            [fractl.test.util :as tu]
+            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
+               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
-            [fractl.store :as store]
-            [fractl.resolver :as r]
-   #?(:cljs [fractl.lang
-             :refer [component attribute event
-                     entity record dataflow]])))
+            [fractl.eval :as e])
+  #?(:cljs [fractl.lang
+            :refer [component attribute event
+                    entity record dataflow]]))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
@@ -25,7 +25,7 @@
   (c/make-context))
 
 (defn- compile-pattern [ctx pat]
-  (:opcode (c/compile-pattern r/resolver-for-path ctx pat)))
+  (:opcode (c/compile-pattern e/resolver-for-path ctx pat)))
 
 (defn- pattern-compiler []
   (let [ctx (init-test-context)]
@@ -37,6 +37,11 @@
     (is (v (opc/arg opcode)))
     (is (= v (opc/arg opcode)))))
 
+(defn- valid-opcode-with-query? [opcode farg]
+  (is (opc/query-instances? opcode))
+  (let [arg (opc/arg opcode)]
+    (is (= farg (first arg)))))
+
 (def ^:private load-instance? (partial valid-opcode? opc/load-instance?))
 (def ^:private match-inst? (partial valid-opcode? opc/match-instance?))
 
@@ -47,9 +52,9 @@
         p2 :CompileTest/Create_E1
         p2e :CompileTest/Create_E111]
     (load-instance? (c p1) [:CompileTest :E1])
-    (tu/is-error (c p1e))
+    (tu/is-error #(c p1e))
     (load-instance? (c p2) [:CompileTest :Create_E1])
-    (tu/is-error (c p2e))))
+    (tu/is-error #(c p2e))))
 
 (deftest compile-pattern-01
   (let [[_ c] (pattern-compiler)
@@ -74,15 +79,14 @@
              :Y '(+ :X 10)}}
         uuid (u/uuid-string)]
     ;; Variable `id` not in context.
-    (tu/is-error (c p1))
+    (tu/is-error #(c p1))
     ;; Any value will do, variable validation
     ;; will happen only during runtime.
     ;; In this case, the variable is resolved at
     ;; compile-time itself.
     (ctx/bind-variable! ctx 'id uuid)
     (let [opcs (c p1)]
-      (is (valid-opcode? opc/query-instance?
-                         (first opcs) [[:CompileTest :E1] [[:Id uuid]]]))
+      (is (valid-opcode-with-query? (first opcs) [:CompileTest :E1]))
       (is (valid-opcode? opc/set-literal-attribute?
                          (second opcs) [:X 100]))
       (is (valid-opcode? opc/set-compound-attribute?
@@ -100,13 +104,7 @@
         uuid (u/uuid-string)]
     (ctx/bind-variable! ctx 'id uuid)
     ;; Compilation fail on cyclic-dependency
-    (tu/is-error (c p1))))
-
-(defmacro defcomponent [component & body]
-  `(do (component ~component)
-       ~@body
-       (store/create-schema (store/get-default-store) ~component)
-       ~component))
+    (tu/is-error #(c p1))))
 
 (deftest compile-ref
   (defcomponent :Df01
@@ -115,7 +113,7 @@
               :Y :Kernel/Int}}))
   (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
         evt (cn/make-instance :Df01/Create_E {:Instance e})
-        result (:result (first (r/eval-all-dataflows-for-event evt)))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
     (is (cn/same-instance? e result))))
 
 (deftest compile-create
@@ -130,7 +128,7 @@
                       :Y '(* :X 10)}})
   (let [r (cn/make-instance :Df02/R {:A 100})
         evt (cn/make-instance :Df02/PostE {:R r})
-        result (:result (first (r/eval-all-dataflows-for-event evt)))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
     (is (cn/instance-of? :Df02/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
@@ -149,7 +147,7 @@
                       :Y '(* :X 10)}})
   (let [r (cn/make-instance :Df03/R {:A 100})
         evt (cn/make-instance :Df03/PostE {:R r})
-        result (:result (first (r/eval-all-dataflows-for-event evt)))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
     (is (cn/instance-of? :Df03/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
@@ -171,7 +169,7 @@
         e2 (cn/make-instance :Df04/E2 {:AId id
                                           :X 20})
         evt (cn/make-instance :Df04/PostE2 {:E1 e1})
-        result (:result (first (r/eval-all-dataflows-for-event evt)))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
     (is (cn/instance-of? :Df04/E2 result))
     (is (u/uuid-from-string (:Id result)))
     (is (= (:AId result) id))
@@ -190,7 +188,7 @@
               {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
   (let [e1 (cn/make-instance :Df05/E1 {:A 100})
         evt (cn/make-instance :Df05/Evt01 {:E1 e1})
-        result (:result (first (r/eval-all-dataflows-for-event evt)))
-        inst (:result (first result))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))
+        inst (tu/fresult result)]
     (is (cn/instance-of? :Df05/E2 inst))
     (is (= (:B inst) 100))))

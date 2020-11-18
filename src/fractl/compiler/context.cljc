@@ -31,3 +31,9 @@
   (if-let [r (fetch-variable ctx k)]
     r
     (u/throw-ex (str "unbound variable - " k))))
+
+(defn bind-resolver! [ctx r]
+  (bind-variable! ctx :resolver r))
+
+(defn fetch-resolver [ctx]
+  (second (fetch-variable ctx :resolver)))

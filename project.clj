@@ -6,6 +6,7 @@
                  [seancorfield/next.jdbc "1.1.581"]
                  [c3p0/c3p0 "0.9.1.2"]
                  [com.h2database/h2 "1.4.200"]
+                 [honeysql "1.0.444"]
                  [net.cgrand/macrovich "0.2.1"]]
 
   :main fractl.core

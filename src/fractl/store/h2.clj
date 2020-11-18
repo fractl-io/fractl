@@ -36,15 +36,17 @@
                  nil))
               true)
           (catch Exception _ false)))
-      (create-schema [_ model-name]
-        (i/create-schema @datasource model-name))
-      (drop-schema [_ model-name]
-        (i/drop-schema @datasource model-name))
+      (create-schema [_ component-name]
+        (i/create-schema @datasource component-name))
+      (drop-schema [_ component-name]
+        (i/drop-schema @datasource component-name))
       (upsert-instance [_ entity-name instance]
         (i/upsert-instance @datasource entity-name instance))
       (delete-instance [_ entity-name instance]
         (i/delete-instance @datasource entity-name instance))
-      (find-by-id [_ entity-name id]
-        (i/find-by-id @datasource entity-name id))
-      (find-by-query [_ query]
-        ))))
+      (query-by-id [_ entity-name query ids]
+        (i/query-by-id @datasource entity-name query ids))
+      (do-query [_ query params]
+        (i/do-query @datasource query params))
+      (compile-query [_ query-pattern]
+        (i/compile-to-indexed-query query-pattern)))))

@@ -32,3 +32,14 @@
             (recur (:type adef) (rest rs))
             (u/throw-ex (str "invalid reference - " [rec-name refs])))))))
   refs)
+
+(def ^:private where-oprs #{:= :< :<= :> :>=})
+
+(defn- where-opr? [k]
+  (some #{k} where-oprs))
+
+(defn ensure-where-clause [clause]
+  (if (and (= 3 (count clause))
+           (where-opr? (first clause)))
+    clause
+    (u/throw-ex (str "invalid clause in query - " clause))))

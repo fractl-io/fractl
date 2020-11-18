@@ -5,10 +5,11 @@
             [fractl.util.seq :as us]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
+            [fractl.resolver :as r]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.compiler.validation :as cv]
-            [fractl.compiler.parser :as p]))
+            [fractl.compiler.internal :as i]))
 
 (def make-context ctx/make)
 
@@ -24,7 +25,7 @@
 
 (defn- build-dependency-graph [attr-pats ctx schema graph]
   ;; makes parser/build-dependency-graph callable from util/apply->
-  (let [result-graph (p/build-dependency-graph attr-pats ctx schema graph)]
+  (let [result-graph (i/build-dependency-graph attr-pats ctx schema graph)]
     [ctx schema result-graph]))
 
 (def ^:private runtime-env-var '--env--)
@@ -36,16 +37,18 @@
   (let [parts (li/path-parts n)]
     (cond
       (:path parts)
-      `(fractl.env/peek-obj-attribute ~runtime-env-var ~n)
+      `(get ~current-instance-var ~n)
 
       (seq (:refs parts))
-      `(fractl.env/lookup-reference ~runtime-env-var ~parts)
+      `(fractl.env/follow-reference ~runtime-env-var ~parts)
 
       :else
       `(fractl.env/lookup-instance ~runtime-env-var [(:component parts) (:record parts)]))))
 
 (defn- arg-lookup [arg]
   (cond
+    (i/literal? arg) arg
+
     (seqable? arg)
     (expr-with-arg-lookups arg)
 
@@ -58,16 +61,41 @@
     :else arg))
 
 (defn- expr-with-arg-lookups [expr]
-  (let [final-args (map arg-lookup (rest expr))]
-    `(~(first expr) ~@final-args)))
+  (cond
+    (i/literal? expr) expr
+    (seqable? expr)
+    (let [final-args (map arg-lookup (rest expr))]
+      `(~(first expr) ~@final-args))
+    :else (arg-lookup expr)))
 
-(defn- expr-as-fn
+(defn- expr-as-fn [expr]
+  (eval `(fn [~runtime-env-var ~current-instance-var] ~expr)))
+
+(defn- query-param-lookup [p]
+  (let [r (arg-lookup p)]
+    (if (i/literal? r)
+      r
+      (expr-as-fn r))))
+
+(defn- query-param-process [[k v]]
+  (cond
+    (i/literal? v) [k v]
+    (seqable? v) (concat
+                  [(first v)]
+                  (concat [k] (map query-param-lookup (rest v))))
+    :else [k (query-param-lookup v)]))
+
+(defn- compile-query [ctx entity-name query]
+  (let [expanded-query (i/expand-query
+                        entity-name (map query-param-process query))]
+    (r/compile-query (ctx/fetch-resolver ctx) expanded-query)))
+
+(defn- compound-expr-as-fn
   "Compile compound expression to a function.
    Arguments are tranlated to lookup calls on
    the runtime context."
   [expr]
-  (eval `(fn [~runtime-env-var ~current-instance-var]
-           ~(expr-with-arg-lookups expr))))
+  (expr-as-fn (expr-with-arg-lookups expr)))
 
 (def ^:private appl (partial u/apply-> last))
 
@@ -82,17 +110,19 @@
 
     A graph of dependencies is prepared for each attribute. If there is a cycle in the graph,
     raise an error. Otherwise return a map with each attribute group and their attached graphs."
-  [ctx pat-attrs schema]
+  [ctx pat-name pat-attrs schema]
   (let [{computed :computed refs :refs
          compound :compound query :query
-         :as cls-attrs} (p/classify-attributes ctx pat-attrs schema)
+         :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
         fs (map #(partial build-dependency-graph %) [refs compound query])
         deps-graph (appl fs [ctx schema ug/EMPTY])
-        compound2 (map (fn [[k v]] [k (expr-as-fn v)]) compound)
-        refs2 (map (fn [[k v]] [k (li/path-parts v)]) refs)]
-    ;; TODO: Compile queries - this should be query-parse calls to the resolver.
-    ;;       All queries should be merged into one using AND.
-    {:attrs (assoc cls-attrs :compound compound2 :refs refs2)
+        compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
+        parsed-refs (map (fn [[k v]] [k (li/path-parts v)]) refs)
+        compiled-query (when query (compile-query ctx pat-name query))
+        final-attrs (if (seq compiled-query)
+                      (assoc cls-attrs :query compiled-query)
+                      cls-attrs)]
+    {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
      :deps deps-graph}))
 
 (def ^:private set-attr-opcode-fns {:computed op/set-literal-attribute
@@ -100,8 +130,8 @@
                                     :compound op/set-compound-attribute})
 
 (defn- begin-build-instance [rec-name attrs]
-  (if-let [qattrs (:query attrs)]
-    (op/query-instance [rec-name qattrs])
+  (if-let [q (:query attrs)]
+    (op/query-instances [rec-name q])
     (op/new-instance rec-name)))
 
 (defn- emit-build-entity-instance [ctx rec-name attrs schema event?]
@@ -115,13 +145,13 @@
              (op/intern-instance rec-name))]))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
-  (let [sorted (p/sort-attributes-by-dependency attrs deps-graph)]
+  (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)]
     (assoc attrs :sorted sorted)))
 
 (defn- emit-realize-instance [ctx pat-name pat-attrs schema event?]
   (when-let [xs (cv/invalid-attributes pat-attrs schema)]
     (u/throw-ex (str "invalid attributes in pattern - " xs)))
-  (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-attrs schema)
+  (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
     (emit-build-entity-instance ctx pat-name sorted-attrs schema event?)))
 
@@ -175,7 +205,9 @@
              (map? pat) [compile-map (when (li/instance-pattern? pat)
                                        (li/instance-pattern-name pat))]
              (vector? pat) [compile-command (first pat)])]
-    {:opcode (c ctx pat) :resolver (lookup-resolver resolver-path)}
+    (let [resolver (lookup-resolver resolver-path)]
+      (ctx/bind-resolver! ctx resolver)
+      {:opcode (c ctx pat) :resolver resolver})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
 (defn- compile-dataflow [lookup-resolver evt-pattern df-patterns]
