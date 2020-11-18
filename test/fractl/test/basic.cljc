@@ -1,7 +1,8 @@
 (ns fractl.test.basic
   #?(:clj (:use [fractl.lang]))
   (:require [clojure.test :refer [deftest is]]
-            [fractl.test.util :as tu :refer [defcomponent]]
+            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
+               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.compiler :as c]
@@ -51,9 +52,9 @@
         p2 :CompileTest/Create_E1
         p2e :CompileTest/Create_E111]
     (load-instance? (c p1) [:CompileTest :E1])
-    (tu/is-error (c p1e))
+    (tu/is-error #(c p1e))
     (load-instance? (c p2) [:CompileTest :Create_E1])
-    (tu/is-error (c p2e))))
+    (tu/is-error #(c p2e))))
 
 (deftest compile-pattern-01
   (let [[_ c] (pattern-compiler)
@@ -78,7 +79,7 @@
              :Y '(+ :X 10)}}
         uuid (u/uuid-string)]
     ;; Variable `id` not in context.
-    (tu/is-error (c p1))
+    (tu/is-error #(c p1))
     ;; Any value will do, variable validation
     ;; will happen only during runtime.
     ;; In this case, the variable is resolved at
@@ -103,7 +104,7 @@
         uuid (u/uuid-string)]
     (ctx/bind-variable! ctx 'id uuid)
     ;; Compilation fail on cyclic-dependency
-    (tu/is-error (c p1))))
+    (tu/is-error #(c p1))))
 
 (deftest compile-ref
   (defcomponent :Df01

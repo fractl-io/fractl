@@ -1,7 +1,8 @@
 (ns fractl.test.query
   #?(:clj (:use [fractl.lang]))
   (:require [clojure.test :refer [deftest is]]
-            [fractl.test.util :as tu :refer [defcomponent]]
+            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
+               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
             [fractl.component :as cn]
             [fractl.eval :as e]
             [fractl.store :as store])

@@ -74,7 +74,7 @@
        (if ident-attr
          (str "(" (db-ident ident-attr) " UUID, ")
          "(")
-       "instance_json JSON)")) ;; TODO: change CLOB to JSON
+       "instance_json JSON)"))
 
 (defn- create-index-table-sql
   "Given a database-type, entity-table-name and attribute-column name, return the
