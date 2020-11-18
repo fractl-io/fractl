@@ -73,7 +73,11 @@
     (let [result (store/query-by-id store entity-name (:query queries) id-results)]
       [result (env/bind-instances env entity-name result)])))
 
-(defn- pop-and-intern-instance [env store record-name]
+(defn- pop-and-intern-instance
+  "An instance is built in stages, the partial object is stored in a stack.
+   Once an instance is realized, pop it from the stack and bind it to the environment.
+   If it's an entity instance, add that to the store."
+  [env store record-name]
   (let [[env single? [_ x]] (env/pop-obj env)
         objs (if single? [x] x)
         final-objs (map #(assoc-computed-attributes env record-name %) objs)

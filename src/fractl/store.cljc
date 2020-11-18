@@ -6,7 +6,7 @@
 (def ^:private default-store (u/make-cell))
 
 (defn- make-default-store-config []
-  {:dbname (str "./fractl.db." (System/currentTimeMillis))})
+  #?(:clj {:dbname (str "./fractl.db." (System/currentTimeMillis))}))
 
 (defn open-default-store [store-config]
   (u/safe-set-once
