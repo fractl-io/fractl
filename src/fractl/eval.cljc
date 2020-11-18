@@ -12,6 +12,9 @@
   (r/resolver-for-path path eval-all-dataflows-for-event))
 
 (defn eval-dataflow
+  "Evaluate a compiled dataflow, triggered by event-instance, within the context
+   of the provided environment. Each compiled pattern is dispatched to a resolver,
+   where the real evaluation is happens. Return the value produced by the resolver."
   ([env event-instance df]
    (let [n (li/split-path (cn/instance-name event-instance))
          env (env/bind-instance env n event-instance)

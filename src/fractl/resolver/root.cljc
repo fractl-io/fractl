@@ -52,7 +52,12 @@
         rs (store/do-query store query [p])]
     [(concat running-result (map su/first-val rs)) env]))
 
-(defn- resolve-id-queries [env store id-queries]
+(defn- resolve-id-queries
+  "Resolve unique IDs from queries into index tables. Each entry in the sequence id-queries will
+   be a map with two possible keys - :result and :query. If there is a :result, that will be
+   bound to an ID statically resolved by the compiler. Otherwise, execute the query and find the ID.
+   Return the final sequence of IDs."
+  [env store id-queries]
   (loop [idqs id-queries, env env, result []]
     (if-let [idq (first idqs)]
       (if-let [r (:result idq)]

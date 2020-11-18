@@ -70,7 +70,7 @@
  (defvm [(match-instance
           [[pattern instance]]
           "If the instance matches the pattern, update env with the instance. Return {:result true}.
-              If there is no match, return {:result false}.")
+           If there is no match, return {:result false}.")
          (load-instance
           [record-name]
           "Load an instance from the environment. The resolver may extend the search to a database backend, then
@@ -90,7 +90,7 @@
          (set-ref-attribute
           [[attr-name attr-ref]]
           "Set the attribute in the instance that is being inited by fetching a value from
-              the reference.")
+           the reference.")
          (set-compound-attribute
           [[attr-name f]]
           "Set the attribute in the instance that is being inited by invoking the function.")
