@@ -1,0 +1,3 @@
+ * root resolver to call external resolvers in `do-intern-instance` and `do-intern-event-instance`.
+    - upsert in store only if resolver is composed.
+ * add opcode for instance delete, integrate that with external resolvers.

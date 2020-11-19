@@ -75,9 +75,8 @@
 
 (defn- pop-and-intern-instance
   "An instance is built in stages, the partial object is stored in a stack.
-   Once an instance is realized, pop it from the stack and bind it to the environment.
-   If it's an entity instance, add that to the store."
-  [env store record-name]
+   Once an instance is realized, pop it from the stack and bind it to the environment."
+  [env record-name]
   (let [[env single? [_ x]] (env/pop-obj env)
         objs (if single? [x] x)
         final-objs (map #(assoc-computed-attributes env record-name %) objs)
@@ -85,11 +84,13 @@
                       %
                       (cn/make-instance (li/make-path record-name) %))
                    final-objs)
-        env (env/bind-instances env record-name
-                                (if store
-                                  (store/upsert-instances store record-name insts)
-                                  insts))]
+        env (env/bind-instances env record-name insts)]
     [(if single? (first insts) insts) env]))
+
+(defn- entity-instances? [xs]
+  (if (map? xs)
+    (cn/entity-instance? xs)
+    (cn/entity-instance? (first xs))))
 
 (defn make-root-vm [store eval-event-dataflows]
   (reify opc/VM
@@ -129,11 +130,14 @@
       (set-obj-attr env attr-name f))
 
     (do-intern-instance [_ env record-name]
-      (let [[inst env] (pop-and-intern-instance env store record-name)]
-        (i/ok inst env)))
+      (let [[insts env] (pop-and-intern-instance env record-name)
+            final-insts (if (entity-instances? insts)
+                          (store/upsert-instances store record-name insts)
+                          insts)]
+        (i/ok final-insts env)))
 
     (do-intern-event-instance [_ env record-name]
-      (let [[inst env] (pop-and-intern-instance env nil record-name)]
+      (let [[inst env] (pop-and-intern-instance env record-name)]
         (i/ok (eval-event-dataflows inst) env)))))
 
 (defn make [store eval-event-dataflows]
