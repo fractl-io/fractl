@@ -13,8 +13,8 @@
         (do (f) false)
         #?(:clj (catch Exception ex
                   (report-expected-ex ex))
-           (catch js/Error e
-             (report-expected-ex e))))))
+           :cljs (catch js/Error e
+                   (report-expected-ex e))))))
 
 (defmacro defcomponent [component & body]
   `(do (fractl.lang/component ~component)
