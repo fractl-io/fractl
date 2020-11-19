@@ -10,7 +10,8 @@
 
 (defn result-as-instance [entity-name id-key json-key result]
   (let [id (id-key result)
-        json-str (String. (json-key result))
+        json-str #?(:clj  (String. (json-key result))
+                    :cljs (str (json-key result)))
         parsed-obj (assoc #?(:clj (json/parse-string json-str true)
                              :cljs (cljs.reader/read-string json-str))
                           :Id (str id))]

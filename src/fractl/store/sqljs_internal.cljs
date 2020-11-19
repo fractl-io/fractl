@@ -3,6 +3,8 @@
             ["sql.js" :default initSqlJs]
             [fractl.store.db-internal :as dbi]
             [fractl.util :as u]
+            [fractl.store.util :as su]
+            [fractl.store.sql :as sql]
             [fractl.component :as cn]))
 
 ;; Store for databases.
@@ -64,7 +66,7 @@
                       db (sql.Database.)]
                   (js/d ::db db)
                   (-> db
-                      (.then (if (.exec [table])
+                      (.then (if (.exec table)
                          table-name
                          (u/throw-ex (str "Failed to create index table for identity column - "
                                           [table-name attr]))))
@@ -80,7 +82,7 @@
                       db (sql.Database.)]
                   (js/d ::db db)
                   (-> db
-                      (.then (if (.exec [table])
+                      (.then (if (.exec table)
                                table-name
                                (u/throw-ex (str "Failed to create index table for identity column - "
                                                 [table-name]))))
@@ -95,10 +97,10 @@
                 (let [_ (js/d ::sql sql)
                       db (sql.Database.)]
                   (js/d ::db db)
-                  (if (.exec db [table])
+                  (if (.exec db table)
                     (reset! sql-db db))
                   (-> db
-                      (.exec [table]))
+                      (.exec table))
                   (reset! db-new db))))
        (.catch (fn [err]
                  (print "error: " err))))))
@@ -120,12 +122,18 @@
 
 (defn runner-sqlite
   "Run on prepared sqlite statements."
-  [prep attrs]
-  (-> (initSqlJs)
-      (.then (fn [sql]
-               (.run @prep [attrs])))
-      (.catch (fn [err]
-                (print "error: " err)))))
+  ([prep attrs]
+   (-> (initSqlJs)
+       (.then (fn [sql]
+                (.run @prep attrs)))
+       (.catch (fn [err]
+                 (print "error: " err)))))
+  ([prep atr attrs]
+   (-> (initSqlJs)
+       (.then (fn [sql]
+                (.run @prep atr attrs)))
+       (.catch (fn [err]
+                 (print "error: " err))))))
 
 (defn- create-identity-index! [entity-table-name ident-attr]
   (let [table (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))]
@@ -217,22 +225,22 @@
 (defn create-schema
   "Create the schema, tables and indexes for the model.
    No needed to create extra connection unlike h2, since, it's in-memory."
-  [model-name]
-  (let [scmname (dbi/db-schema-for-model model-name)]
+  [component-name]
+  (let [scmname (dbi/db-schema-for-component component-name)]
     (create-db-schema! scmname)
-    (doseq [ename (cn/entity-names model-name)]
+    (doseq [ename (cn/entity-names component-name)]
       (let [tabname (dbi/table-for-entity ename)
             schema (cn/entity-schema ename)
             indexed-attrs (dbi/find-indexed-attributes ename schema)]
         (create-tables! schema tabname :Id indexed-attrs)))
-    model-name))
+    component-name))
 
 (defn drop-schema
   "Remove the schema from the database, perform a non-cascading delete."
-  [model-name]
-  (let [scmname (dbi/db-schema-for-model model-name)]
+  [component-name]
+  (let [scmname (dbi/db-schema-for-component component-name)]
     (drop-db-schema! scmname)
-    model-name))
+    component-name))
 
 (defn- upsert-index-statement [table-name id attrval]
   (let [sql (str "MERGE INTO " table-name " KEY (id) VALUES (?, ?)")
@@ -323,3 +331,34 @@
                    (.run db pstmt))))
         (.catch (fn [err]
                   (print "error: " err))))))
+
+(defn- query-by-id-statement [query-sql id]
+  (let [pstmt (prepare-sqlite [query-sql])]
+    (runner-sqlite pstmt 1 (str id))
+    pstmt))
+
+(defn query-by-id [entity-name query-sql ids]
+  (let [[id-key json-key] (su/make-result-keys entity-name)]
+    ((partial su/results-as-instances entity-name id-key json-key)
+     (flatten (map #(let [pstmt (query-by-id-statement query-sql %)]
+                      (-> (initSqlJs)
+                          (.then (fn [sql]
+                                   (let [db (sql.Database.)]
+                                     (.exec db pstmt))))
+                          (.catch (fn [err]
+                                    (print "error: " err)))))
+                   (set ids))))))
+
+(defn do-query [query-sql query-params]
+  (let [pstmt (prepare-sqlite [query-sql])]
+    (runner-sqlite pstmt query-params)
+    (-> (initSqlJs)
+        (.then (fn [sql]
+                 (let [db (sql.Database.)]
+                   (.exec db pstmt))))
+        (.catch (fn [err]
+                  (print "error: " err))))))
+
+(def compile-to-indexed-query (partial sql/compile-to-indexed-query
+                                       dbi/table-for-entity
+                                       dbi/index-table-name))

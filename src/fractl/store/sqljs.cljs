@@ -7,15 +7,17 @@
   (reify p/Store
     (open-connection [store connection-info])
     (close-connection [_])
-    (create-schema [_ model-name]
-      (i/create-schema model-name))
-    (drop-schema [_ model-name]
-      (i/drop-schema model-name))
+    (create-schema [_ component-name]
+      (i/create-schema component-name))
+    (drop-schema [_ component-name]
+      (i/drop-schema component-name))
     (upsert-instance [_ entity-name instance]
       (i/upsert-instance entity-name instance))
     (delete-instance [_ entity-name instance]
       (i/delete-instance entity-name instance))
-    (find-by-id [_ entity-name id]
-      (i/find-by-id entity-name id))
-    (find-by-query [_ query]
-      )))
+    (query-by-id [_ entity-name query ids]
+      (i/query-by-id entity-name query ids))
+    (do-query [_ query params]
+      (i/do-query query params))
+    (compile-query [_ query-pattern]
+      (i/compile-to-indexed-query query-pattern))))

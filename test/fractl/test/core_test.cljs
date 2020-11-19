@@ -9,9 +9,8 @@
                      entity record dataflow]]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
-            [fractl.store :as store]
-            [fractl.resolver :as r]
-            [fractl.test.macros :refer-macros [defcomponent]]))
+            [fractl.test.util :as tu :refer-macros [defcomponent]]
+            [fractl.eval :as e]))
 
 (deftest test-numbers
   (is (= 1 1)))
@@ -28,7 +27,7 @@
   (c/make-context))
 
 (defn- compile-pattern [ctx pat]
-  (:opcode (c/compile-pattern r/resolver-for-path ctx pat)))
+  (:opcode (c/compile-pattern e/resolver-for-path ctx pat)))
 
 (defn- pattern-compiler []
   (let [ctx (init-test-context)]
@@ -114,7 +113,7 @@
               :Y :Kernel/Int}}))
   (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
         evt (cn/make-instance :Df01/Create_E {:Instance e})
-        result (:result (first (r/eval-all-dataflows-for-event @evt)))]
+        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
     ;; (with-out-str (println "Here lies some data: " evt))
     (is (cn/same-instance? e result))))
 
