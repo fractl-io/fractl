@@ -4,6 +4,7 @@
             [fractl.lang.opcode :as opc]
             [fractl.store :as store]
             [fractl.resolver.internal :as i]
+            [fractl.resolver.registry :as rg]
             [fractl.resolver.root :as r]))
 
 (defn- dispatch-an-opcode [env opcode resolver]
@@ -23,22 +24,9 @@
 (defn compile-query [resolver query-pattern]
   (store/compile-query (i/store resolver) query-pattern))
 
-;; The database of registered resolvers.
-(def ^:private db (u/make-cell {}))
-
-(defn resolver-for-path [path eval-event-dataflows]
-  (or (get db path)
-      (r/get-default-resolver eval-event-dataflows)))
-
 (def ok? i/ok?)
 (def dummy-result i/dummy-result)
 
-(defn make-crud-resolver [name upsert-fn delete-fn]
-  {:name name :upsert upsert-fn :delete delete-fn})
-
-(def resolver-name :name)
-(def resolver-upsert :upsert)
-(def resolver-delete :delete)
-
-(defn register-resolver [path resolver]
-  (u/safe-set db (assoc @db path resolver)))
+(defn resolver-for-path [path eval-event-dataflows]
+  (or (rg/sole-resolver-for-path path)
+      (r/get-default-resolver eval-event-dataflows)))
