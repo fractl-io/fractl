@@ -14,12 +14,14 @@
          ;; NOTE: The default db connection will last the lifetime of the app.
          (p/open-connection store {:dbname "./test.db"})
          store)))
-   :cljs
-   (defn get-default-store []
-     (u/safe-set-once
-      default-store
-      #(let [store (sq/make)]
-         store))))
+   ;; :cljs
+   ;; (defn get-default-store []
+   ;;   (u/safe-set-once
+   ;;    default-store
+   ;;    #(let [store (sq/make)]
+   ;;       store)))
+   )
+
 
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)
