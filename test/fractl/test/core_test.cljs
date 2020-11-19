@@ -107,15 +107,16 @@
     ;; Compilation fail on cyclic-dependency
     (is (thrown? js/Error (c p1)))))
 
-;; (deftest compile-ref
-;;   (defcomponent :Df01
-;;     (entity {:Df01/E
-;;              {:X :Kernel/Int
-;;               :Y :Kernel/Int}}))
-;;   (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
-;;         evt (cn/make-instance :Df01/Create_E {:Instance e})
-;;         result (:result (first (r/eval-all-dataflows-for-event evt)))]
-;;     (is (cn/same-instance? e result))))
+(deftest compile-ref
+  (defcomponent :Df01
+    (entity {:Df01/E
+             {:X :Kernel/Int
+              :Y :Kernel/Int}}))
+  (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
+        evt (cn/make-instance :Df01/Create_E {:Instance e})
+        result (:result (first (r/eval-all-dataflows-for-event @evt)))]
+    ;; (with-out-str (println "Here lies some data: " evt))
+    (is (cn/same-instance? e result))))
 
 ;; (deftest compile-create
 ;;   (defcomponent :Df02
