@@ -69,28 +69,27 @@
   the components in the imports list. If a component already exists with
   the same name, it will be overwritten. Returns the name of the new component."
   [component spec]
-  (util/safe-set-result
+  (util/safe-set
    components
-   #(let [ms @components
-          imports (when-let [imports (:imports spec)]
-                    {:import [imports (li/mappify-alias-imports imports)]
-                     ;; Special alias key for imports
-                     :alias (li/mappify-alias-imports imports)})
-          clj-imports (when-let [clj-imports (:clj-imports spec)]
-                        {:clj [(first (rest clj-imports)) (li/mappify-alias-imports clj-imports)]})
-          java-imports (when-let [java-imports (:java-imports spec)]
-                         {:java (first (rest java-imports))})
-          v8-imports (when-let [v8-imports (:v8-imports spec)]
-                       {:v8 [(first (rest v8-imports)) (li/mappify-alias-imports v8-imports)]})]
-      ;; The interned component has the following structure:
-      ;; {component {:resolver <resolver-config-map>
-      ;;              :import [imports aliases]
-      ;;              :clj [clj-imports aliases]
-      ;;              :java java-imports
-      ;;              :v8 [v8-imports aliases]}}
-      (assoc ms component
-             (merge {:resolver (:resolver spec)}
-                    imports clj-imports java-imports v8-imports))))
+   (let [imports (when-let [imports (:imports spec)]
+                   {:import [imports (li/mappify-alias-imports imports)]
+                    ;; Special alias key for imports
+                    :alias (li/mappify-alias-imports imports)})
+         clj-imports (when-let [clj-imports (:clj-imports spec)]
+                       {:clj [(first (rest clj-imports)) (li/mappify-alias-imports clj-imports)]})
+         java-imports (when-let [java-imports (:java-imports spec)]
+                        {:java (first (rest java-imports))})
+         v8-imports (when-let [v8-imports (:v8-imports spec)]
+                      {:v8 [(first (rest v8-imports)) (li/mappify-alias-imports v8-imports)]})]
+     ;; The interned component has the following structure:
+     ;; {component {:resolver <resolver-config-map>
+     ;;              :import [imports aliases]
+     ;;              :clj [clj-imports aliases]
+     ;;              :java java-imports
+     ;;              :v8 [v8-imports aliases]}}
+     (assoc @components component
+            (merge {:resolver (:resolver spec)}
+                   imports clj-imports java-imports v8-imports))))
   (intern-attribute [component :Id]
                     {:type :Kernel/UUID
                      :unique true
@@ -102,7 +101,7 @@
   component)
 
 (defn remove-component [component]
-  (util/safe-set-result components #(dissoc @components component)))
+  (util/safe-set components (dissoc @components component)))
 
 (defn component-exists? [component]
   (if (find @components component)
@@ -126,7 +125,7 @@
     (when-not (component-exists? component)
       (util/throw-ex-info (str "component not found - " component) {:name typname
                                                                     :tag typtag}))
-    (util/safe-set-result components #(assoc-in @components [component typtag n] typdef))
+    (util/safe-set components (assoc-in @components [component typtag n] typdef))
     typname))
 
 (defn- component-find [path]
@@ -651,17 +650,17 @@
 (defn register-dataflow
   "Attach a dataflow to the event."
   ([event head patterns component]
-   (util/safe-set-result
+   (util/safe-set
     components
-    #(let [ms @components
-           ename (normalize-type-name (event-name event))
-           path [component :events ename]
-           currpats (get-in ms path [])
-           newpats (conj currpats [event {:head head
-                                          :event-pattern event
-                                          :patterns patterns
-                                          :opcode (util/make-cell nil)}])]
-       (assoc-in ms path newpats)))
+    (let [ms @components
+          ename (normalize-type-name (event-name event))
+          path [component :events ename]
+          currpats (get-in ms path [])
+          newpats (conj currpats [event {:head head
+                                         :event-pattern event
+                                         :patterns patterns
+                                         :opcode (util/make-cell nil)}])]
+      (assoc-in ms path newpats)))
    event)
   ([event head patterns]
    (let [[component _] (li/split-path (event-name event))]
@@ -752,9 +751,9 @@
   @(:opcode (dataflow-spec df)))
 
 (defn set-dataflow-opcode! [df opc]
-  (util/safe-set-result
+  (util/safe-set
    (:opcode (dataflow-spec df))
-   (constantly opc)))
+   opc))
 
 (defn dataflow-on-entity [df]
   (get-in (dataflow-spec df) [:head :on-entity-event]))

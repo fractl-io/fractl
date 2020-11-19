@@ -24,7 +24,7 @@
   (store/compile-query (i/store resolver) query-pattern))
 
 ;; The database of registered resolvers.
-(def ^:private db (ref {}))
+(def ^:private db (u/make-cell {}))
 
 (defn resolver-for-path [path eval-event-dataflows]
   (or (get db path)
@@ -32,3 +32,13 @@
 
 (def ok? i/ok?)
 (def dummy-result i/dummy-result)
+
+(defn make-crud-resolver [name upsert-fn delete-fn]
+  {:name name :upsert upsert-fn :delete delete-fn})
+
+(def resolver-name :name)
+(def resolver-upsert :upsert)
+(def resolver-delete :delete)
+
+(defn register-resolver [path resolver]
+  (u/safe-set db (assoc @db path resolver)))
