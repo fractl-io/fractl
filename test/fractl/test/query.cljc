@@ -4,7 +4,7 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
             [fractl.component :as cn]
-            [fractl.eval :as e]
+            [fractl.evaluator :as e]
             [fractl.store :as store])
   #?(:cljs [fractl.lang
             :refer [component attribute event

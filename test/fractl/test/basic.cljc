@@ -8,7 +8,7 @@
             [fractl.compiler :as c]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
-            [fractl.eval :as e])
+            [fractl.evaluator :as e])
   #?(:cljs [fractl.lang
             :refer [component attribute event
                     entity record dataflow]]))
@@ -22,10 +22,13 @@
 
 (defn- init-test-context []
   (install-test-component)
-  (c/make-context))
+  (let [ctx (c/make-context)
+        f (partial e/compile-query (e/get-default-evaluator))]
+    (ctx/bind-compile-query-fn! ctx f)
+    ctx))
 
 (defn- compile-pattern [ctx pat]
-  (:opcode (c/compile-pattern e/resolver-for-path ctx pat)))
+  (:opcode (c/compile-pattern ctx pat)))
 
 (defn- pattern-compiler []
   (let [ctx (init-test-context)]

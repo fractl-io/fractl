@@ -212,9 +212,9 @@
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
-  (let [cmp (partial compile-pattern ctx)
-        ec (cmp evt-pattern)
-        pc (map cmp df-patterns)]
+  (let [c (partial compile-pattern ctx)
+        ec (c evt-pattern)
+        pc (map c df-patterns)]
     [ec pc]))
 
 (defn compile-dataflows-for-event [compile-query-fn event]
