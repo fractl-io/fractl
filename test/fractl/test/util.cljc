@@ -1,5 +1,6 @@
 (ns fractl.test.util
-  (:require [clojure.test :refer [is]]
+  (:require #?(:clj [clojure.test :refer [is]]
+               :cljs [cljs.test :refer-macros [is]])
             [fractl.store :as store]))
 
 (defn- report-expected-ex [ex]

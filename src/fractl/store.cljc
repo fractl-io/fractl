@@ -18,7 +18,11 @@
                                       (make-default-store-config)))
          ;; NOTE: The default db connection, if opened,
          ;; will last the lifetime of the app.
-         store))))
+         store))
+     :cljs (u/safe-set-once
+             (atom {})
+             #(let [store (sq/make)]
+                store))))
 
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)
