@@ -228,6 +228,7 @@
   [component-name]
   (let [scmname (dbi/db-schema-for-component component-name)]
     (create-db-schema! scmname)
+    (print scmname)
     (doseq [ename (cn/entity-names component-name)]
       (let [tabname (dbi/table-for-entity ename)
             schema (cn/entity-schema ename)
