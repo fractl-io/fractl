@@ -30,8 +30,8 @@
     r
     (u/throw-ex (str "unbound variable - " k))))
 
-(defn bind-resolver! [ctx r]
-  (bind-variable! ctx :resolver r))
+(defn bind-compile-query-fn! [ctx r]
+  (bind-variable! ctx :compile-query-fn r))
 
-(defn fetch-resolver [ctx]
-  (second (fetch-variable ctx :resolver)))
+(defn fetch-compile-query-fn [ctx]
+  (second (fetch-variable ctx :compile-query-fn)))

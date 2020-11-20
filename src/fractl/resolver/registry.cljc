@@ -3,9 +3,8 @@
 
 (def ^:private resolver-db (u/make-cell {}))
 
-(defn sole-resolver-for-path [path]
-  (when-let [r (get @resolver-db path)]
-    (and (map? r) r)))
+(defn resolver-for-path [path]
+  (get @resolver-db path))
 
 (defn make-crud-resolver [name upsert-fn delete-fn]
   {:name name :upsert upsert-fn :delete delete-fn})

@@ -88,7 +88,7 @@
 (defn- compile-query [ctx entity-name query]
   (let [expanded-query (i/expand-query
                         entity-name (map query-param-process query))]
-    (r/compile-query (ctx/fetch-resolver ctx) expanded-query)))
+    ((ctx/fetch-compile-query-fn ctx) expanded-query)))
 
 (defn- compound-expr-as-fn
   "Compile compound expression to a function.
@@ -198,32 +198,34 @@
 (defn- compile-command [ctx pat]
   )
 
-(defn compile-pattern [lookup-resolver ctx pat]
+(defn compile-pattern [ctx pat]
   (if-let [[c resolver-path]
            (cond
              (li/pathname? pat) [compile-pathname pat]
              (map? pat) [compile-map (when (li/instance-pattern? pat)
                                        (li/instance-pattern-name pat))]
              (vector? pat) [compile-command (first pat)])]
-    (let [resolver (lookup-resolver resolver-path)]
-      (ctx/bind-resolver! ctx resolver)
-      {:opcode (c ctx pat) :resolver resolver})
+    (let [code (c ctx pat)]
+      (if-let [resolver (r/lookup-resolver resolver-path)]
+        {:opcode code :resolver resolver}
+        {:opcode code}))
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
-(defn- compile-dataflow [lookup-resolver evt-pattern df-patterns]
-  (let [cmp (partial compile-pattern lookup-resolver (make-context))
+(defn- compile-dataflow [ctx evt-pattern df-patterns]
+  (let [cmp (partial compile-pattern ctx)
         ec (cmp evt-pattern)
         pc (map cmp df-patterns)]
     [ec pc]))
 
-(defn compiled-dataflows-for-event [lookup-resolver event]
-  (let [dfs (cn/dataflows-for-event event)]
+(defn compile-dataflows-for-event [compile-query-fn event]
+  (let [dfs (cn/dataflows-for-event event)
+        ctx (make-context)]
+    (ctx/bind-compile-query-fn! ctx compile-query-fn)
     (doseq [df dfs]
       (when-not (cn/dataflow-opcode df)
         (cn/set-dataflow-opcode!
          df (compile-dataflow
-             lookup-resolver
-             (cn/dataflow-event-pattern df)
+             ctx (cn/dataflow-event-pattern df)
              (cn/dataflow-patterns df)))))
     dfs))
 

@@ -1,9 +1,9 @@
-(ns fractl.resolver.root
-  "The default resolver implementation, the root of a normal resolver sequence."
-  (:require [fractl.resolver.internal :as i]
-            [fractl.env :as env]
+(ns fractl.evaluator.root
+  "The default evaluator implementation"
+  (:require [fractl.env :as env]
             [fractl.component :as cn]
-            [fractl.resolver.parser :as parser]
+            [fractl.evaluator.parser :as parser]
+            [fractl.evaluator.internal :as i]
             [fractl.store :as store]
             [fractl.util :as u]
             [fractl.util.seq :as su]
@@ -42,34 +42,34 @@
 (defn- id-attribute [query-attrs]
   (first (filter #(= :Id (first %)) query-attrs)))
 
-(defn- resolve-id-result [env r]
+(defn- evaluate-id-result [env r]
   (if (fn? r)
     (r env nil)
     [r env]))
 
-(defn- resolve-id-query [env store query param running-result]
-  (let [[p env] (resolve-id-result env param)
+(defn- evaluate-id-query [env store query param running-result]
+  (let [[p env] (evaluate-id-result env param)
         rs (store/do-query store query [p])]
     [(concat running-result (map su/first-val rs)) env]))
 
-(defn- resolve-id-queries
-  "Resolve unique IDs from queries into index tables. Each entry in the sequence id-queries will
+(defn- evaluate-id-queries
+  "Evaluate unique IDs from queries into index tables. Each entry in the sequence id-queries will
    be a map with two possible keys - :result and :query. If there is a :result, that will be
-   bound to an ID statically resolved by the compiler. Otherwise, execute the query and find the ID.
+   bound to an ID statically evaluated by the compiler. Otherwise, execute the query and find the ID.
    Return the final sequence of IDs."
   [env store id-queries]
   (loop [idqs id-queries, env env, result []]
     (if-let [idq (first idqs)]
       (if-let [r (:result idq)]
-        (let [[obj new-env] (resolve-id-result env r)]
+        (let [[obj new-env] (evaluate-id-result env r)]
           (recur (rest idqs) new-env (conj result obj)))
         (let [[q p] (:query idq)
-              [rs new-env] (resolve-id-query env store q p result)]
+              [rs new-env] (evaluate-id-query env store q p result)]
           (recur (rest idqs) new-env rs)))
       result)))
 
 (defn- find-instances [env store entity-name queries]
-  (when-let [id-results (seq (resolve-id-queries env store (:id-queries queries)))]
+  (when-let [id-results (seq (evaluate-id-queries env store (:id-queries queries)))]
     (let [result (store/query-by-id store entity-name (:query queries) id-results)]
       [result (env/bind-instances env entity-name result)])))
 
@@ -136,20 +136,20 @@
                           insts)]
         (i/ok final-insts env)))
 
-    (do-intern-event-instance [_ env record-name]
+    (do-intern-event-instance [self env record-name]
       (let [[inst env] (pop-and-intern-instance env record-name)]
-        (i/ok (eval-event-dataflows inst) env)))))
+        (i/ok (eval-event-dataflows self inst) env)))))
 
 (defn make [store eval-event-dataflows]
   (i/make (make-root-vm store eval-event-dataflows) store))
 
-(def ^:private default-resolver (u/make-cell))
+(def ^:private default-evaluator (u/make-cell))
 
-(defn get-default-resolver
+(defn get-default-evaluator
   ([eval-event-dataflows store-config]
    (u/safe-set-once
-    default-resolver
+    default-evaluator
     #(let [store (store/open-default-store store-config)]
        (make store eval-event-dataflows))))
   ([eval-event-dataflows]
-   (get-default-resolver eval-event-dataflows nil)))
+   (get-default-evaluator eval-event-dataflows nil)))

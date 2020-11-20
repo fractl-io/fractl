@@ -1,4 +1,4 @@
-(ns fractl.resolver.internal
+(ns fractl.evaluator.internal
   (:require [fractl.lang.opcode :as opc]))
 
 (defn make
