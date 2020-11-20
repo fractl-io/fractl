@@ -140,16 +140,9 @@
       (let [[inst env] (pop-and-intern-instance env record-name)]
         (i/ok (eval-event-dataflows self inst) env)))))
 
-(defn make [store eval-event-dataflows]
-  (i/make (make-root-vm store eval-event-dataflows) store))
-
 (def ^:private default-evaluator (u/make-cell))
 
-(defn get-default-evaluator
-  ([eval-event-dataflows store-config]
-   (u/safe-set-once
-    default-evaluator
-    #(let [store (store/open-default-store store-config)]
-       (make store eval-event-dataflows))))
-  ([eval-event-dataflows]
-   (get-default-evaluator eval-event-dataflows nil)))
+(defn get-default-evaluator [store eval-event-dataflows]
+  (u/safe-set-once
+   default-evaluator
+   #(make-root-vm store eval-event-dataflows)))

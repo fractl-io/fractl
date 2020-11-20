@@ -12,7 +12,7 @@
 
 (defn- dispatch-an-opcode [evaluator env opcode]
   (if-let [f ((opc/op opcode) i/dispatch-table)]
-    (f (i/vm evaluator) env (opc/arg opcode))
+    (f evaluator env (opc/arg opcode))
     (u/throw-ex (str "no dispatcher for opcode - " (opc/op opcode)))))
 
 (defn dispatch [evaluator env {opcode :opcode}]
@@ -23,9 +23,6 @@
         (let [r (dispatch-an-opcode evaluator env opc)]
           (recur (rest opcs) (:env r) r))
         result))))
-
-(defn compile-query [evaluator query-pattern]
-  (store/compile-query (i/store evaluator) query-pattern))
 
 (def ok? i/ok?)
 (def dummy-result i/dummy-result)
@@ -46,17 +43,19 @@
          result))))
   ([evaluator event-instance df] (eval-dataflow evaluator env/EMPTY event-instance df)))
 
-(declare eval-all-dataflows-for-event)
+(declare run-dataflows)
 
-(defn get-default-evaluator
-  ([store-config]
-   (r/get-default-evaluator eval-all-dataflows-for-event))
-  ([] (get-default-evaluator nil)))
+(defn make
+  "Use the given store to create a query compiler and pattern evaluator.
+   Return the vector [compile-query-fn, evaluator]."
+  [store]
+  (let [cq (partial store/compile-query store)]
+    [cq (r/get-default-evaluator store (partial run-dataflows cq))]))
 
-(defn eval-all-dataflows-for-event
-  ([evaluator event-instance]
-   (let [cq (partial compile-query evaluator)
-         dfs (c/compile-dataflows-for-event cq event-instance)]
-     (map #(eval-dataflow evaluator event-instance %) dfs)))
-  ([event-instance]
-   (eval-all-dataflows-for-event (get-default-evaluator) event-instance)))
+(defn run-dataflows
+  "Compile and evaluate all dataflows attached to an event. The query-compiler
+   and evaluator returned by a previous call to evaluator/make may be passed as
+   the first two arguments."
+  [compile-query-fn evaluator event-instance]
+  (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)]
+    (map #(eval-dataflow evaluator event-instance %) dfs)))

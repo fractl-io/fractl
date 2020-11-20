@@ -217,17 +217,20 @@
         pc (map c df-patterns)]
     [ec pc]))
 
+(defn- maybe-compile-dataflow [compile-query-fn df]
+  (when-not (cn/dataflow-opcode df)
+    (let [ctx (make-context)]
+      (ctx/bind-compile-query-fn! ctx compile-query-fn)
+      (cn/set-dataflow-opcode!
+       df (compile-dataflow
+           ctx (cn/dataflow-event-pattern df)
+           (cn/dataflow-patterns df)))))
+  df)
+
 (defn compile-dataflows-for-event [compile-query-fn event]
-  (let [dfs (cn/dataflows-for-event event)
-        ctx (make-context)]
-    (ctx/bind-compile-query-fn! ctx compile-query-fn)
-    (doseq [df dfs]
-      (when-not (cn/dataflow-opcode df)
-        (cn/set-dataflow-opcode!
-         df (compile-dataflow
-             ctx (cn/dataflow-event-pattern df)
-             (cn/dataflow-patterns df)))))
-    dfs))
+  (doall
+   (map (partial maybe-compile-dataflow compile-query-fn)
+        (cn/dataflows-for-event event))))
 
 (defn- reference-attributes [attrs refrec]
   (when-let [result (seq (filter (partial cn/attribute-unique-reference-path refrec) attrs))]

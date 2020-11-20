@@ -1,17 +1,6 @@
 (ns fractl.evaluator.internal
   (:require [fractl.lang.opcode :as opc]))
 
-(defn make
-  ([vm store config]
-   {:vm vm
-    :store store
-    :config config})
-  ([vm store] (make vm store nil)))
-
-(def vm :vm)
-(def store :store)
-(def config :config)
-
 (def dispatch-table opc/dispatch-table)
 
 ;; Result builders.
