@@ -212,8 +212,8 @@
 
 (defn- create-db-schema!
   "Create a new schema (a logical grouping of tables), if it does not already exist."
-  [db-schema-name]
-  (if (seq (create-sqlite-conn [(dbi/create-schema-sql db-schema-name)]))
+  [connection db-schema-name]
+  (if (.run ^js connection (dbi/create-schema-sql db-schema-name))
     db-schema-name
     (u/throw-ex (str "Failed to create schema - " db-schema-name))))
 
@@ -225,10 +225,9 @@
 (defn create-schema
   "Create the schema, tables and indexes for the model.
    No needed to create extra connection unlike h2, since, it's in-memory."
-  [component-name]
+  [datasource component-name]
   (let [scmname (dbi/db-schema-for-component component-name)]
-    (create-db-schema! scmname)
-    (print scmname)
+    (create-db-schema! datasource scmname)
     (doseq [ename (cn/entity-names component-name)]
       (let [tabname (dbi/table-for-entity ename)
             schema (cn/entity-schema ename)
@@ -363,3 +362,15 @@
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        dbi/table-for-entity
                                        dbi/index-table-name))
+
+(defn open-connection [_ set-f]
+  (-> (initSqlJs)
+      (.then (fn [sql]
+               (let [db (sql.Database.)]
+                 (set-f db)
+                 db)))
+      (.catch (fn [err]
+                (print "error: " err)
+                nil))))
+
+(defn close-connection [_])

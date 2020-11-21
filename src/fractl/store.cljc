@@ -20,9 +20,10 @@
          ;; will last the lifetime of the app.
          store))
      :cljs (u/safe-set-once
-             (atom {})
-             #(let [store (sq/make)]
-                store))))
+            default-store
+            #(let [store (sq/make)]
+               (p/open-connection store store-config)
+               store))))
 
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)
