@@ -2,11 +2,12 @@
   "The default evaluator implementation"
   (:require [fractl.env :as env]
             [fractl.component :as cn]
-            [fractl.evaluator.parser :as parser]
-            [fractl.evaluator.internal :as i]
-            [fractl.store :as store]
             [fractl.util :as u]
             [fractl.util.seq :as su]
+            [fractl.store :as store]
+            [fractl.resolver :as r]
+            [fractl.evaluator.parser :as parser]
+            [fractl.evaluator.internal :as i]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]))
 
@@ -87,10 +88,32 @@
         env (env/bind-instances env record-name insts)]
     [(if single? (first insts) insts) env]))
 
-(defn- entity-instances? [xs]
-  (if (map? xs)
-    (cn/entity-instance? xs)
-    (cn/entity-instance? (first xs))))
+(defn- on-inst [f xs]
+  (f (if (map? xs) xs (first xs))))
+
+(defn- need-storage? [xs]
+  (on-inst cn/entity-instance? xs))
+
+(defn- resolver-for-path [xs]
+  (let [path (on-inst cn/instance-name xs)]
+    (r/resolver-for-path path)))
+
+(defn- call-resolver-upsert [resolver composed? insts]
+  (let [rs (if composed? resolver [resolver])
+        ins (if (map? insts) insts [insts])]
+    (doall (map (fn [r]
+                  (doall
+                   (map #(r/call-resolver-upsert r %) ins))
+                  rs)))))
+
+(defn- call-resolver-eval [resolver composed? inst]
+  (let [rs (if composed? resolver [resolver])]
+    (doall (map #(r/call-resolver-eval % inst) rs))))
+
+(defn- pack-results [local-result resolver-result]
+  {:eval-with-resolver
+   {:local local-result
+    :resolver resolver-result}})
 
 (defn make-root-vm [store eval-event-dataflows]
   (reify opc/VM
@@ -131,14 +154,25 @@
 
     (do-intern-instance [_ env record-name]
       (let [[insts env] (pop-and-intern-instance env record-name)
-            final-insts (if (entity-instances? insts)
-                          (store/upsert-instances store record-name insts)
-                          insts)]
-        (i/ok final-insts env)))
+            resolver (resolver-for-path insts)
+            composed? (r/composed? resolver)
+            upsert? (or (not resolver) composed?)
+            local-result (if (and (need-storage? insts) upsert?)
+                           (store/upsert-instances store record-name insts)
+                           insts)
+            resolver-result (when resolver
+                              (call-resolver-upsert resolver composed? local-result))]
+        (i/ok (pack-results local-result resolver-result) env)))
 
     (do-intern-event-instance [self env record-name]
-      (let [[inst env] (pop-and-intern-instance env record-name)]
-        (i/ok (eval-event-dataflows self inst) env)))))
+      (let [[inst env] (pop-and-intern-instance env record-name)
+            resolver (resolver-for-path inst)
+            composed? (r/composed? resolver)
+            local-result (when (or (not resolver) composed?)
+                           (eval-event-dataflows self inst))
+            resolver-result (when resolver
+                              (call-resolver-eval resolver composed? inst))]
+        (i/ok (pack-results local-result resolver-result) env)))))
 
 (def ^:private default-evaluator (u/make-cell))
 

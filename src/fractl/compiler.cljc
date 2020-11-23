@@ -5,7 +5,6 @@
             [fractl.util.seq :as us]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
-            [fractl.resolver :as r]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.compiler.validation :as cv]
@@ -199,16 +198,12 @@
   )
 
 (defn compile-pattern [ctx pat]
-  (if-let [[c resolver-path]
-           (cond
-             (li/pathname? pat) [compile-pathname pat]
-             (map? pat) [compile-map (when (li/instance-pattern? pat)
-                                       (li/instance-pattern-name pat))]
-             (vector? pat) [compile-command (first pat)])]
+  (if-let [c (cond
+               (li/pathname? pat) compile-pathname
+               (map? pat) compile-map
+               (vector? pat) compile-command)]
     (let [code (c ctx pat)]
-      (if-let [resolver (r/lookup-resolver resolver-path)]
-        {:opcode code :resolver resolver}
-        {:opcode code}))
+      {:opcode code})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]

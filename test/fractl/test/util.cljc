@@ -23,7 +23,12 @@
        (store/create-schema (store/open-default-store nil) ~component)
        ~component))
 
-(def fresult (comp :result first))
+(defn fresult [r]
+  (let [fr (:result (first r))]
+    (if (map? fr)
+      (or (get-in fr [:eval-with-resolver :local])
+          fr)
+      fr)))
 
 (def store (store/open-default-store))
 
