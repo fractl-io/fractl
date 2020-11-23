@@ -46,6 +46,7 @@
     "zprint-clj": "^0.8.0"
   },
   "dependencies": {
+    "alasql": "^0.6.5",
     "chalk": "^4.1.0",
     "ora": "^5.1.0",
     "semver": "^7.3.2",
