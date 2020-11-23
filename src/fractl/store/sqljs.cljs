@@ -3,9 +3,10 @@
   (:require [fractl.util :as u]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p]
-            [fractl.store.sqljs-internal :as i]))
+            ;[fractl.store.sqljs-internal :as i]
+            [fractl.store.sql-internal :as i]))
 
-(defn make []
+#_(defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
       (open-connection [_ connection-info]
@@ -36,3 +37,9 @@
         (i/do-query @datasource query params))
       (compile-query [_ query-pattern]
         (i/compile-to-indexed-query query-pattern)))))
+
+(defn make []
+  (let [datasource (u/make-cell)]
+    (reify p/Store
+      (create-schema [_ component-name]
+        (i/create-schema component-name)))))
