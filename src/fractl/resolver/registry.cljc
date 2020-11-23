@@ -6,12 +6,15 @@
 (defn resolver-for-path [path]
   (get @resolver-db path))
 
-(defn make-crud-resolver [name upsert-fn delete-fn]
-  {:name name :upsert upsert-fn :delete delete-fn})
+(defn make-resolver [name upsert-fn delete-fn get-fn query-fn]
+  {:name name :upsert upsert-fn :delete delete-fn
+   :get get-fn :query query-fn})
 
 (def resolver-name :name)
 (def resolver-upsert :upsert)
 (def resolver-delete :delete)
+(def resolver-get :get)
+(def resolver-query :query)
 
 (defn override-resolver [path resolver]
   (u/safe-set resolver-db (assoc @resolver-db path resolver)))
