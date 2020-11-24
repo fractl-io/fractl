@@ -15,10 +15,10 @@
     (entity {:Q01/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :Q01/E {:X 10})
         evt (cn/make-instance :Q01/Create_E {:Instance e})
-        e1 (tu/fresult (eval-all-dataflows-for-event evt))
+        e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
         id (:Id e1)
         evt (cn/make-instance :Q01/Lookup_E {:Id id})
-        e2 (first (tu/fresult (eval-all-dataflows-for-event evt)))]
+        e2 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (is (cn/instance-of? :Q01/E e2))
     (is (cn/same-instance? e1 e2))))
 
@@ -41,13 +41,14 @@
             (cn/make-instance :Q02/E {:X 12 :Y 6})
             (cn/make-instance :Q02/E {:X 9 :Y 3})]
         evts (map #(cn/make-instance :Q02/Create_E {:Instance %}) es)
-        insts (map #(:result (first (eval-all-dataflows-for-event %))) evts)
+        f (comp ffirst #(:result (first (eval-all-dataflows-for-event %))))
+        insts (map f evts)
         ids (map :Id insts)]
     (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
     (let [evt01 (cn/make-instance :Q02/QE01 {:Y 100})
-          r01 (tu/fresult (eval-all-dataflows-for-event evt01))
+          r01 (first (tu/fresult (eval-all-dataflows-for-event evt01)))
           evt02 (cn/make-instance :Q02/QE02 {:X 10 :Y 100})
-          r02 (tu/fresult (eval-all-dataflows-for-event evt02))]
+          r02 (first (tu/fresult (eval-all-dataflows-for-event evt02)))]
       (is (= 2 (count r01)))
       (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r01))
       (is (= 2 (count r02)))

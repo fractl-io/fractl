@@ -24,11 +24,7 @@
        ~component))
 
 (defn fresult [r]
-  (let [fr (:result (first r))]
-    (if (map? fr)
-      (or (get-in fr [:eval-with-resolver :local])
-          fr)
-      fr)))
+  (:result (first r)))
 
 (def store (store/open-default-store))
 

@@ -1,24 +1,44 @@
 (ns fractl.resolver
-  (:require [fractl.resolver.registry :as rg]))
+  (:require [fractl.util :as u]
+            [fractl.resolver.registry :as rg]
+            [fractl.lang.internal :as li]))
 
-(def resolver-for-path rg/resolver-for-path)
+(def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval})
 
-(def override-resolver rg/override-resolver)
-(def compose-resolver rg/compose-resolver)
+(defn make-resolver [name fnmap]
+  (when-not (every? identity (map #(some #{%} valid-resolver-keys) (keys fnmap)))
+    (u/throw-ex (str "invalid resolver keys - " (keys fnmap))))
+  (doseq [[k v] fnmap]
+    (when-not (fn? v)
+      (u/throw-ex (str "resolver key " k " must be mapped to a function"))))
+  (assoc fnmap :name name))
+
+(def resolver-name :name)
+(def resolver-upsert :upsert)
+(def resolver-delete :delete)
+(def resolver-get :get)
+(def resolver-query :query)
+(def resolver-eval :eval)
+
+(defn resolver-for-path [path]
+  (rg/resolver-for-path (li/split-path path)))
+
+(defn override-resolver [path resolver]
+  (rg/override-resolver (li/split-path path) resolver))
+
+(defn compose-resolver [path resolver]
+  (rg/compose-resolver (li/split-path path) resolver))
+
 (def composed? rg/composed?)
 (def override? rg/override?)
 
-(defn call-resolver-upsert [resolver inst]
-  ((rg/resolver-upsert resolver) inst))
+(defn- wrap-result [method resolver arg]
+  {:resolver (:name resolver)
+   :method method
+   :result ((method resolver) arg)})
 
-(defn call-resolver-delete [resolver inst]
-  ((rg/resolver-delete resolver) inst))
-
-(defn call-resolver-get [resolver inst]
-  ((rg/resolver-get resolver) inst))
-
-(defn call-resolver-query [resolver query]
-  ((rg/resolver-query resolver) query))
-
-(defn call-resolver-eval [resolver event-inst]
-  ((rg/resolver-eval resolver) event-inst))
+(def call-resolver-upsert (partial wrap-result :upsert))
+(def call-resolver-delete (partial wrap-result :delete))
+(def call-resolver-get (partial wrap-result :get))
+(def call-resolver-query (partial wrap-result :query))
+(def call-resolver-eval (partial wrap-result :eval))

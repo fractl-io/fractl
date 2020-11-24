@@ -32,13 +32,46 @@
         env (env/push-obj env n (if single? (first new-objs) new-objs))]
     (i/ok (if single? (first new-objs) new-objs) env)))
 
+(defn- on-inst [f xs]
+  (f (if (map? xs) xs (first xs))))
+
+(defn- need-storage? [xs]
+  (on-inst cn/entity-instance? xs))
+
+(defn- resolver-for-path [xs]
+  (let [path (on-inst cn/instance-name xs)]
+    (r/resolver-for-path path)))
+
+(defn- call-resolver-upsert [resolver composed? insts]
+  (let [rs (if composed? resolver [resolver])
+        ins (if (map? insts) [insts] insts)]
+    (doall (map (fn [r]
+                  (doall
+                   (map #(r/call-resolver-upsert r %) ins)))
+                rs))))
+
+(defn- call-resolver-eval [resolver composed? inst]
+  (let [rs (if composed? resolver [resolver])]
+    (doall (map #(r/call-resolver-eval % inst) rs))))
+
+(defn- chained-upsert [store record-name insts]
+  (let [insts (if (map? insts) [insts] insts)
+        resolver (resolver-for-path insts)
+        composed? (r/composed? resolver)
+        upsert? (or (not resolver) composed?)
+        local-result (if (and upsert? store (need-storage? insts))
+                       (store/upsert-instances store record-name insts)
+                       insts)
+        resolver-result (when resolver
+                          (call-resolver-upsert resolver composed? local-result))]
+    [local-result resolver-result]))
+
 (defn- bind-and-persist [env store x]
   (if (cn/an-instance? x)
-    (let [n (li/split-path (cn/instance-name x))]
-      (when (and store (cn/entity-instance? x))
-        (store/upsert-instance store n x))
-      (env/bind-instance env n x))
-    env))
+    (let [n (li/split-path (cn/instance-name x))
+          r (chained-upsert store n x)]
+      [(env/bind-instance env n x) r])
+    [env nil]))
 
 (defn- id-attribute [query-attrs]
   (first (filter #(= :Id (first %)) query-attrs)))
@@ -88,32 +121,8 @@
         env (env/bind-instances env record-name insts)]
     [(if single? (first insts) insts) env]))
 
-(defn- on-inst [f xs]
-  (f (if (map? xs) xs (first xs))))
-
-(defn- need-storage? [xs]
-  (on-inst cn/entity-instance? xs))
-
-(defn- resolver-for-path [xs]
-  (let [path (on-inst cn/instance-name xs)]
-    (r/resolver-for-path path)))
-
-(defn- call-resolver-upsert [resolver composed? insts]
-  (let [rs (if composed? resolver [resolver])
-        ins (if (map? insts) insts [insts])]
-    (doall (map (fn [r]
-                  (doall
-                   (map #(r/call-resolver-upsert r %) ins))
-                  rs)))))
-
-(defn- call-resolver-eval [resolver composed? inst]
-  (let [rs (if composed? resolver [resolver])]
-    (doall (map #(r/call-resolver-eval % inst) rs))))
-
-(defn- pack-results [local-result resolver-result]
-  {:eval-with-resolver
-   {:local local-result
-    :resolver resolver-result}})
+(defn- pack-results [local-result resolver-results]
+  [local-result resolver-results])
 
 (defn make-root-vm [store eval-event-dataflows]
   (reify opc/VM
@@ -130,7 +139,8 @@
     (do-load-references [_ env [record-name refs]]
       (let [inst (env/lookup-instance env record-name)]
         (if-let [v (get (cn/instance-attributes inst) (first refs))]
-          (i/ok v (bind-and-persist env store v))
+          (let [[env [local-result resolver-results :as r]] (bind-and-persist env store v)]
+            (i/ok (if r (pack-results local-result resolver-results) v) env))
           i/not-found)))
 
     (do-new-instance [_ env record-name]
@@ -154,15 +164,8 @@
 
     (do-intern-instance [_ env record-name]
       (let [[insts env] (pop-and-intern-instance env record-name)
-            resolver (resolver-for-path insts)
-            composed? (r/composed? resolver)
-            upsert? (or (not resolver) composed?)
-            local-result (if (and (need-storage? insts) upsert?)
-                           (store/upsert-instances store record-name insts)
-                           insts)
-            resolver-result (when resolver
-                              (call-resolver-upsert resolver composed? local-result))]
-        (i/ok (pack-results local-result resolver-result) env)))
+            [local-result resolver-results] (chained-upsert store record-name insts)]
+        (i/ok (pack-results local-result resolver-results) env)))
 
     (do-intern-event-instance [self env record-name]
       (let [[inst env] (pop-and-intern-instance env record-name)
@@ -170,9 +173,9 @@
             composed? (r/composed? resolver)
             local-result (when (or (not resolver) composed?)
                            (eval-event-dataflows self inst))
-            resolver-result (when resolver
-                              (call-resolver-eval resolver composed? inst))]
-        (i/ok (pack-results local-result resolver-result) env)))))
+            resolver-results (when resolver
+                               (call-resolver-eval resolver composed? inst))]
+        (i/ok (pack-results local-result resolver-results) env)))))
 
 (def ^:private default-evaluator (u/make-cell))
 
