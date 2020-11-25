@@ -107,15 +107,18 @@
     (is (thrown? js/Error (c p1)))))
 
 (deftest compile-ref
-  (defcomponent :Df01
-    (entity {:Df01/E
-             {:X :Kernel/Int
-              :Y :Kernel/Int}}))
-  (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
-        evt (cn/make-instance :Df01/Create_E {:Instance e})
-        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
-    ;; (with-out-str (println "Here lies some data: " evt))
-    (is (cn/same-instance? e result))))
+  (try
+    (defcomponent :Df01
+                  (entity {:Df01/E
+                           {:X :Kernel/Int
+                            :Y :Kernel/Int}}))
+    (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
+          evt (cn/make-instance :Df01/Create_E {:Instance e})
+          result (tu/fresult (e/eval-all-dataflows-for-event evt))]
+      ;; (with-out-str (println "Here lies some data: " evt))
+      (is (cn/same-instance? e result)))
+    (catch js/Error e
+      (.log js/console (.-stack e)))))
 
 ;; (deftest compile-create
 ;;   (defcomponent :Df02

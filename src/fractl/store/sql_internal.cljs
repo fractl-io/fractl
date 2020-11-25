@@ -3,7 +3,8 @@
             [fractl.store.db-internal :as dbi]
             [fractl.util :as u]
             [fractl.component :as cn]
-            [fractl.store.sql :as sql]))
+            [fractl.store.sql :as sql]
+            [clojure.string :as str]))
 
 ;; Store for databases.
 (defonce sql-db (atom nil))
@@ -14,7 +15,7 @@
   "Given a database-type, entity-table-name and identity-attribute name,
   return the DML statement to create that table."
   [tabname ident-attr]
-  (str dbi/create-table-prefix " " tabname " "
+  (str dbi/create-table-prefix " " (second (str/split tabname #"\.")) " "
        (if ident-attr
          (str "(" (dbi/db-ident ident-attr) " UUID, ")
          "(")
@@ -41,29 +42,34 @@
   (println entity-table-name)
   (println colname)
   (str dbi/create-unique-index-prefix
-       " " entity-table-name
-       " ON " entity-table-name "(" colname ")"))
+       " " (dbi/index-name entity-table-name)
+       " ON " (second (str/split entity-table-name #"\.")) "(" colname ")"))
 
-(defn- create-identity-index! [entity-table-name ident-attr]
-  (let [sql (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))]
+(defn create-identity-index! [entity-table-name ident-attr]
+  (let [fname (first (str/split entity-table-name #"\."))
+        sql (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))
+        db (. alasql Database (str fname))]
+    (println (.exec db (str "SHOW TABLES from " fname)))
+    (println fname)
     (println sql)
-    (if (alasql sql)
+    (if (.exec db (str sql))
       entity-table-name
       (u/throw-ex (str "Failed to create index table for identity column - "
                        [entity-table-name ident-attr])))))
 
-(defn- create-entity-table!
+(defn create-entity-table!
   "Create a table to store instances of an entity. As 'identity-attribute' is
   specified to be used as the primary-key in the table."
   [tabname ident-attr]
   (println "HERE:")
   (println tabname)
   (println ident-attr)
-  (let [sql (create-entity-table-sql tabname ident-attr)
-        ;db (. alasql Database)
-        ]
-    (println sql)
-    (if (alasql sql)
+  (let [fname (first (str/split tabname #"\."))
+        sql (create-entity-table-sql tabname ident-attr)
+        db (. alasql Database fname)]
+    (println "HERE'S JOHNNNY: " sql)
+    (println "HERE's the DB name" fname)
+    (if (.exec db (str sql))
       tabname
       (u/throw-ex (str "Failed to create table for " tabname)))))
 
@@ -114,7 +120,6 @@
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [component-name]
-  (.trace js/console)
   (let [scmname (dbi/db-schema-for-component component-name)
         ename (cn/entity-names component-name)]
     (create-db-schema! scmname)
