@@ -51,7 +51,7 @@
 
 (def create-table-prefix "CREATE TABLE IF NOT EXISTS")
 (def create-index-prefix "CREATE INDEX IF NOT EXISTS")
-(def create-unique-index-prefix "CREATE UNIQUE INDEX IF NOT EXISTS")
+(def create-unique-index-prefix "CREATE UNIQUE INDEX")
 
 (defn create-index-sql
   "Given n table-name and an attribute-column-name, return the
