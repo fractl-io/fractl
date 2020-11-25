@@ -19,6 +19,12 @@
 (deftest r01
   (defcomponent :R01
     (entity {:R01/E {:X :Kernel/Int}}))
+  (let [e (cn/make-instance :R01/E {:X 10})
+        evt (cn/make-instance :R01/Create_E {:Instance e})
+        result (tu/fresult (eval-all-dataflows-for-event evt))
+        e01 (ffirst result)]
+    (is (cn/instance-of? :R01/E e01))
+    (is (nil? (second result))))
   (compose-test-resolver :R01/E)
   (let [e (cn/make-instance :R01/E {:X 10})
         evt (cn/make-instance :R01/Create_E {:Instance e})
