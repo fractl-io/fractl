@@ -24,7 +24,6 @@
             default-store
             #(let [store (sq/make)]
                ;(p/open-connection store store-config)
-               (.trace js/console)
                store))
      ))
 
