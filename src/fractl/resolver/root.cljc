@@ -31,13 +31,14 @@
         env (env/push-obj env n (if single? (first new-objs) new-objs))]
     (i/ok (if single? (first new-objs) new-objs) env)))
 
-(defn- bind-and-persist [env store x]
-  (if (cn/an-instance? x)
-    (let [n (li/split-path (cn/instance-name x))]
-      (when (and store (cn/entity-instance? x))
-        (store/upsert-instance store n x))
-      (env/bind-instance env n x))
-    env))
+#?(:clj
+   (defn- bind-and-persist [env store x]
+     (if (cn/an-instance? x)
+       (let [n (li/split-path (cn/instance-name x))]
+         (when (and store (cn/entity-instance? x))
+           (store/upsert-instance store n x))
+         (env/bind-instance env n x))
+       env)))
 
 (defn- id-attribute [query-attrs]
   (first (filter #(= :Id (first %)) query-attrs)))
