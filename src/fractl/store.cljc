@@ -1,8 +1,8 @@
 (ns fractl.store
-  (:require [fractl.store.protocol :as p]
-            #?(:cljs [fractl.store.proj :as pr])
-            #?(:clj [fractl.store.h2 :as h2]
-               :cljs [fractl.store.sqljs :as sq])
+  (:require #?(:cljs [fractl.store.proj :as pr])
+            #?(:clj [fractl.store.h2 :as h2])
+            #?(:cljs [fractl.store.sqljs :as sq])
+            #?(:clj [fractl.store.protocol :as p])
             [fractl.util :as u]))
 
 (def ^:private default-store (u/make-cell))
@@ -27,17 +27,21 @@
                store))
      ))
 
-;(def open-connection p/open-connection)
-;(def close-connection p/close-connection)
-#?(:cljs (def create-schema pr/create-schema))
-;(def drop-schema p/drop-schema)
-;(def upsert-instance p/upsert-instance)
-;(def delete-instance p/delete-instance)
-;(def query-by-id p/query-by-id)
-;(def do-query p/do-query)
-;(def compile-query p/compile-query)
+#?(:clj
+   (def open-connection p/open-connection)
+   (def close-connection p/close-connection)
+   (def drop-schema p/drop-schema)
+   (def upsert-instance p/upsert-instance)
+   (def delete-instance p/delete-instance)
+   (def query-by-id p/query-by-id)
+   (def do-query p/do-query)
+   (def compile-query p/compile-query)
+   (def create-schema p/create-schema))
 
-(defn upsert-instances [store record-name insts]
-  (doseq [inst insts]
-    (p/upsert-instance store record-name inst))
-  insts)
+#?(:cljs (def create-schema pr/create-schema))
+
+#?(:clj
+   (defn upsert-instances [store record-name insts]
+     (doseq [inst insts]
+       (p/upsert-instance store record-name inst))
+     insts))
