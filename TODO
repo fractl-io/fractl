@@ -1,2 +1,0 @@
-* more tests for current resolver integration - override vs composition
-* add opcode for instance delete, integrate that with external resolvers.
