@@ -1,5 +1,6 @@
 (ns fractl.store
   (:require [fractl.store.protocol :as p]
+            #?(:cljs [fractl.store.proj :as pr])
             #?(:clj [fractl.store.h2 :as h2]
                :cljs [fractl.store.sqljs :as sq])
             [fractl.util :as u]))
@@ -22,18 +23,20 @@
      :cljs (u/safe-set-once
             default-store
             #(let [store (sq/make)]
-               (p/open-connection store store-config)
-               store))))
+               ;(p/open-connection store store-config)
+               (.trace js/console)
+               store))
+     ))
 
-(def open-connection p/open-connection)
-(def close-connection p/close-connection)
-(def create-schema p/create-schema)
-(def drop-schema p/drop-schema)
-(def upsert-instance p/upsert-instance)
-(def delete-instance p/delete-instance)
-(def query-by-id p/query-by-id)
-(def do-query p/do-query)
-(def compile-query p/compile-query)
+;(def open-connection p/open-connection)
+;(def close-connection p/close-connection)
+#?(:cljs (def create-schema pr/create-schema))
+;(def drop-schema p/drop-schema)
+;(def upsert-instance p/upsert-instance)
+;(def delete-instance p/delete-instance)
+;(def query-by-id p/query-by-id)
+;(def do-query p/do-query)
+;(def compile-query p/compile-query)
 
 (defn upsert-instances [store record-name insts]
   (doseq [inst insts]

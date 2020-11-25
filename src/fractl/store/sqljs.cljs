@@ -2,7 +2,8 @@
   "The storage layer implementation for SQL.js database."
   (:require [fractl.util :as u]
             [fractl.store.util :as su]
-            [fractl.store.protocol :as p]
+            ;[fractl.store.protocol :as p]
+            [fractl.store.proj :as p]
             ;[fractl.store.sqljs-internal :as i]
             [fractl.store.sql-internal :as i]))
 
@@ -39,7 +40,7 @@
         (i/compile-to-indexed-query query-pattern)))))
 
 (defn make []
-  (let [datasource (u/make-cell)]
-    (reify p/Store
-      (create-schema [_ component-name]
-        (i/create-schema component-name)))))
+  (reify
+    p/Store
+    (create-schema [this component-name]
+      (i/create-schema component-name))))
