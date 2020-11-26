@@ -1,6 +1,6 @@
 (ns fractl.core
   (:require [clojure.tools.cli :refer [parse-opts]]
-            [fractl.resolver.http :as h])
+            [fractl.http :as h])
   (:gen-class))
 
 (def cli-options

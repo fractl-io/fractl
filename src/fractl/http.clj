@@ -1,13 +1,13 @@
-(ns fractl.resolver.http
+(ns fractl.http
   (:require [org.httpkit.server :as h])
   (:use [compojure.core :only [defroutes POST]]
         [compojure.route :only [not-found]]))
 
-(defn- resolve [request]
+(defn- evaluate [request]
   )
 
 (defroutes routes
-  (POST "/r" resolve)
+  (POST "/_e" evaluate)
   (not-found "<p>Resource not found.</p>")) ;; return 404
 
 (defn run-server
