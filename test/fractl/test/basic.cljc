@@ -8,10 +8,12 @@
             [fractl.compiler :as c]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
-            [fractl.eval :as e])
+            [fractl.store :as store])
   #?(:cljs [fractl.lang
             :refer [component attribute event
                     entity record dataflow]]))
+
+(def eval-all-dataflows-for-event (tu/make-df-eval))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
@@ -22,10 +24,13 @@
 
 (defn- init-test-context []
   (install-test-component)
-  (c/make-context))
+  (let [ctx (c/make-context)
+        f (partial store/compile-query tu/store)]
+    (ctx/bind-compile-query-fn! ctx f)
+    ctx))
 
 (defn- compile-pattern [ctx pat]
-  (:opcode (c/compile-pattern e/resolver-for-path ctx pat)))
+  (:opcode (c/compile-pattern ctx pat)))
 
 (defn- pattern-compiler []
   (let [ctx (init-test-context)]
@@ -113,7 +118,7 @@
               :Y :Kernel/Int}}))
   (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
         evt (cn/make-instance :Df01/Create_E {:Instance e})
-        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (is (cn/same-instance? e result))))
 
 (deftest compile-create
@@ -128,7 +133,7 @@
                       :Y '(* :X 10)}})
   (let [r (cn/make-instance :Df02/R {:A 100})
         evt (cn/make-instance :Df02/PostE {:R r})
-        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (is (cn/instance-of? :Df02/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
@@ -147,7 +152,7 @@
                       :Y '(* :X 10)}})
   (let [r (cn/make-instance :Df03/R {:A 100})
         evt (cn/make-instance :Df03/PostE {:R r})
-        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (is (cn/instance-of? :Df03/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
@@ -169,7 +174,7 @@
         e2 (cn/make-instance :Df04/E2 {:AId id
                                           :X 20})
         evt (cn/make-instance :Df04/PostE2 {:E1 e1})
-        result (tu/fresult (e/eval-all-dataflows-for-event evt))]
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (is (cn/instance-of? :Df04/E2 result))
     (is (u/uuid-from-string (:Id result)))
     (is (= (:AId result) id))
@@ -188,7 +193,7 @@
               {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
   (let [e1 (cn/make-instance :Df05/E1 {:A 100})
         evt (cn/make-instance :Df05/Evt01 {:E1 e1})
-        result (tu/fresult (e/eval-all-dataflows-for-event evt))
-        inst (tu/fresult result)]
+        result (tu/fresult (eval-all-dataflows-for-event evt))
+        inst (ffirst (tu/fresult (first result)))]
     (is (cn/instance-of? :Df05/E2 inst))
     (is (= (:B inst) 100))))

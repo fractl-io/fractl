@@ -29,7 +29,7 @@
           true))
       (close-connection [_]
         (try
-          (do (u/safe-set-result
+          (do (u/safe-set
                datasource
                (when @datasource
                  (cp/close-pooled-datasource @datasource)

@@ -1,6 +1,7 @@
 (ns fractl.test.util
   (:require [clojure.test :refer [is]]
-            [fractl.store :as store]))
+            [fractl.store :as store]
+            [fractl.evaluator :as e]))
 
 (defn- report-expected-ex [ex]
   (println (str "Expected exception in test: "
@@ -22,4 +23,11 @@
        (store/create-schema (store/open-default-store nil) ~component)
        ~component))
 
-(def fresult (comp :result first))
+(defn fresult [r]
+  (:result (first r)))
+
+(def store (store/open-default-store))
+
+(defn make-df-eval []
+  (let [[compile-query-fn evaluator] (e/make store)]
+    (partial e/run-dataflows compile-query-fn evaluator)))

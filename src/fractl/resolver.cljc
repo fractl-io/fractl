@@ -1,34 +1,44 @@
 (ns fractl.resolver
-  "Pattern resolvers, aka evaluators"
   (:require [fractl.util :as u]
-            [fractl.lang.opcode :as opc]
-            [fractl.store :as store]
-            [fractl.resolver.internal :as i]
-            [fractl.resolver.root :as r]))
+            [fractl.resolver.registry :as rg]
+            [fractl.lang.internal :as li]))
 
-(defn- dispatch-an-opcode [env opcode resolver]
-  (if-let [f ((opc/op opcode) i/dispatch-table)]
-    (f (i/vm resolver) env (opc/arg opcode))
-    (u/throw-ex (str "no dispatcher for opcode - " (opc/op opcode)))))
+(def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval})
 
-(defn dispatch [env {opcode :opcode resolver :resolver :as x}]
-  (if (map? opcode)
-    (dispatch-an-opcode env opcode resolver)
-    (loop [opcs opcode, env env, result nil]
-      (if-let [opc (first opcs)]
-        (let [r (dispatch-an-opcode env opc resolver)]
-          (recur (rest opcs) (:env r) r))
-        result))))
+(defn make-resolver [name fnmap]
+  (when-not (every? identity (map #(some #{%} valid-resolver-keys) (keys fnmap)))
+    (u/throw-ex (str "invalid resolver keys - " (keys fnmap))))
+  (doseq [[k v] fnmap]
+    (when-not (fn? v)
+      (u/throw-ex (str "resolver key " k " must be mapped to a function"))))
+  (assoc fnmap :name name))
 
-(defn compile-query [resolver query-pattern]
-  (store/compile-query (i/store resolver) query-pattern))
+(def resolver-name :name)
+(def resolver-upsert :upsert)
+(def resolver-delete :delete)
+(def resolver-get :get)
+(def resolver-query :query)
+(def resolver-eval :eval)
 
-;; The database of registered resolvers.
-(def ^:private db (ref {}))
+(defn resolver-for-path [path]
+  (rg/resolver-for-path (li/split-path path)))
 
-(defn resolver-for-path [path eval-event-dataflows]
-  (or (get db path)
-      (r/get-default-resolver eval-event-dataflows)))
+(defn override-resolver [path resolver]
+  (rg/override-resolver (li/split-path path) resolver))
 
-(def ok? i/ok?)
-(def dummy-result i/dummy-result)
+(defn compose-resolver [path resolver]
+  (rg/compose-resolver (li/split-path path) resolver))
+
+(def composed? rg/composed?)
+(def override? rg/override?)
+
+(defn- wrap-result [method resolver arg]
+  {:resolver (:name resolver)
+   :method method
+   :result ((method resolver) arg)})
+
+(def call-resolver-upsert (partial wrap-result :upsert))
+(def call-resolver-delete (partial wrap-result :delete))
+(def call-resolver-get (partial wrap-result :get))
+(def call-resolver-query (partial wrap-result :query))
+(def call-resolver-eval (partial wrap-result :eval))

@@ -112,37 +112,30 @@
   [] (.availableProcessors (Runtime/getRuntime))))
 
 (defn make-cell
-  "A mutable place that is portable."
+  "A common mutable place for both clj and cljs."
   ([obj]
    #?(:clj (ref obj)
       :cljs (atom obj)))
   ([] (make-cell nil)))
 
-(defn safe-set-result [cell f]
-  #?(:clj (dosync
-           (ref-set cell (f)))
-     :cljs (reset! cell (f))))
+(defn safe-set
+  ([cell value result]
+   #?(:clj (dosync
+            (ref-set cell value))
+      :cljs (reset! cell value))
+   result)
+  ([cell value] (safe-set cell value value)))
 
 (defn safe-set-once [cell f]
-  #?(:clj (dosync
-           (or @cell
-               (ref-set cell (f))))
-     :cljs (or @cell (reset! cell (f)))))
+  (or @cell (safe-set cell (f))))
 
 (defn safe-set-truth [cell f]
-  #?(:clj (dosync
-           (when-let [r (f)]
-             (ref-set cell r)))
-     :cljs (when-let [r (f)] (reset! cell r))))
+  (when-let [r (f)]
+    (safe-set cell r)))
 
 (defn safe-set-first [cell f]
-  #?(:clj (dosync
-           (let [[a b] (f)]
-             (ref-set cell a)
-             b))
-     :cljs (let [[a b] (f)]
-             (reset! cell a)
-             b)))
+  (let [[a b] (f)]
+    (safe-set cell a b)))
 
 (defn apply->
   "Apply args to the first function,
