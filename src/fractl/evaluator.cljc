@@ -43,15 +43,6 @@
          result))))
   ([evaluator event-instance df] (eval-dataflow evaluator env/EMPTY event-instance df)))
 
-(declare run-dataflows)
-
-(defn make
-  "Use the given store to create a query compiler and pattern evaluator.
-   Return the vector [compile-query-fn, evaluator]."
-  [store]
-  (let [cq (partial store/compile-query store)]
-    [cq (r/get-default-evaluator store (partial run-dataflows cq))]))
-
 (defn run-dataflows
   "Compile and evaluate all dataflows attached to an event. The query-compiler
    and evaluator returned by a previous call to evaluator/make may be passed as
@@ -59,3 +50,10 @@
   [compile-query-fn evaluator event-instance]
   (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)]
     (map #(eval-dataflow evaluator event-instance %) dfs)))
+
+(defn make
+  "Use the given store to create a query compiler and pattern evaluator.
+   Return the vector [compile-query-fn, evaluator]."
+  [store]
+  (let [cq (partial store/compile-query store)]
+    [cq (r/get-default-evaluator store (partial run-dataflows cq))]))
