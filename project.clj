@@ -1,6 +1,7 @@
 (defproject fractl "0.0.1"
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/clojurescript "1.10.773"]
+                 [org.clojure/tools.cli "1.0.194"]
                  [cheshire "5.9.0"]
                  [com.taoensso/timbre "5.1.0"]
                  [seancorfield/next.jdbc "1.1.581"]

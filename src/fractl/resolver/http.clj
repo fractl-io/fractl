@@ -3,11 +3,14 @@
   (:use [compojure.core :only [defroutes POST]]
         [compojure.route :only [not-found]]))
 
+(defn- resolve [request]
+  )
+
 (defroutes routes
   (POST "/r" resolve)
   (not-found "<p>Resource not found.</p>")) ;; return 404
 
 (defn run-server
-  ([config]
+  ([component-names config]
    (h/run-server routes config))
-  ([] (run-server {:port 8080})))
+  ([component-names] (run-server {:port 8080})))
