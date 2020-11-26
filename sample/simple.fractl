@@ -1,0 +1,6 @@
+(ns sample.simple
+  (:use [fractl.lang]))
+
+(component :Sample.Simple)
+
+(entity {:E {:X :Kernel/Int}})
