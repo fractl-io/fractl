@@ -7,6 +7,8 @@
                  [c3p0/c3p0 "0.9.1.2"]
                  [com.h2database/h2 "1.4.200"]
                  [honeysql "1.0.444"]
+                 [compojure "1.6.2"]
+                 [http-kit "2.5.0"]
                  [net.cgrand/macrovich "0.2.1"]]
 
   :main fractl.core
