@@ -1,5 +1,6 @@
 (ns fractl.core
   (:require [clojure.tools.cli :refer [parse-opts]]
+            [taoensso.timbre :as log]
             [fractl.http :as h]
             [fractl.lang.loader :as loader])
   (:gen-class))
@@ -12,10 +13,21 @@
   (doall (map (partial loader/load-script component-root-path)
               component-scripts)))
 
+(defn- log-service-info! [components server-cfg]
+  (loop [components components, s "Components - "]
+    (if-let [c (first components)]
+      (let [cs (rest components)
+            sep (if (seq (rest cs)) " " "")]
+        (recur cs (str s sep c)))
+      (log/info s)))
+  (log/info (str "Server config - " server-cfg)))
+
 (defn- run-cmd [args config]
-  (when (every? keyword? (load-components args (:component-root config)))
-    (when-let [server-cfg (:service config)]
-      (h/run-server server-cfg))))
+  (let [components (load-components args (:component-root config))]
+    (when (every? keyword? components)
+      (when-let [server-cfg (:service config)]
+        (log-service-info! components server-cfg)
+        (h/run-server server-cfg)))))
 
 (defn- read-config [options]
   (read-string (slurp (get options :config "./config.edn"))))
