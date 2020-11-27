@@ -48,11 +48,11 @@
 (defn create-identity-index! [entity-table-name ident-attr]
   (let [fname (first (str/split entity-table-name #"\."))
         sql (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))
-        db (. alasql Database (str fname))]
-    (println (.exec db (str "SHOW TABLES from " fname)))
-    (println fname)
-    (println sql)
-    (if (.exec db (str sql))
+        db (. alasql Database fname)]
+    ;(println (.exec db (str "SHOW TABLES from " fname)))
+    ;(println fname)
+    ;(println sql)
+    (if (.exec db sql)
       entity-table-name
       (u/throw-ex (str "Failed to create index table for identity column - "
                        [entity-table-name ident-attr])))))
