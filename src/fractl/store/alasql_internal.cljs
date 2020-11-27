@@ -1,8 +1,6 @@
 (ns fractl.store.alasql-internal
   (:require [clojure.string :as str]
             ["alasql" :as alasql]
-(ns fractl.store.sql-internal
-  (:require ["alasql" :as alasql]
             [fractl.store.db-internal :as dbi]
             [fractl.util :as u]
             [fractl.component :as cn]
@@ -161,3 +159,47 @@
   (let [scmname (dbi/db-schema-for-component component-name)]
     (drop-db-schema! datasource scmname)
     component-name))
+
+(defn- upsert-index-statement [db table-name colname id attrval]
+  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")
+        pstmt (.compile db sql)]
+    (pstmt id attrval)))
+
+(defn- upsert-indices!
+  "Insert or update new index entries relevant for an entity instance.
+  The index values are available in the `attrs` parameter."
+  [db entity-table-name indexed-attrs instance]
+  (let [id (:Id instance)]
+    (doseq [[attrname tabname] (dbi/index-table-names entity-table-name indexed-attrs)]
+      (let [pstmt (upsert-index-statement db tabname (dbi/db-ident attrname) id
+                                          (attrname instance))]
+        (.exec db pstmt)))))
+
+(defn- upsert-inst-statement [db table-name id obj]
+  (println "GOOBLE GABBLE: " db)
+  ;; Some doubts regarding this: Test whether MERGE INTO is supported!
+  (let [sql (str "MERGE INTO " table-name " KEY (ID) VALUES (?, ? FORMAT JSON)")
+        sql-with-db (str sql db)
+        ;pstmt (.compile alasql sql-with-db)
+        ]
+    ;(pstmt id obj)
+    (.exec db (str sql [[id obj]]))
+    ))
+
+(defn- upsert-inst!
+  "Insert or update an entity instance."
+  [db table-name inst]
+  (let [attrs (cn/serializable-attributes inst)
+        id (:Id attrs)
+        obj (.stringify js/JSON (clj->js (dissoc attrs :Id)))
+        pstmt (upsert-inst-statement db table-name id obj)]
+    ;(.exec db pstmt)
+    pstmt))
+
+(defn upsert-instance [datasource entity-name instance]
+  (let [tabname (dbi/table-for-entity entity-name)
+        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+    (upsert-inst! datasource tabname instance)
+    (upsert-indices! datasource tabname indexed-attrs instance)
+    instance))
+
