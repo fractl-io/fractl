@@ -203,3 +203,37 @@
     (upsert-indices! datasource tabname indexed-attrs instance)
     instance))
 
+(defn- delete-index-statement [db table-name colname id]
+  (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
+        pstmt (.compile db sql)]
+    (pstmt id)))
+
+(defn- delete-indices!
+  "Delete index entries relevant for an entity instance."
+  [db entity-table-name indexed-attrs id]
+  (let [index-tabnames (dbi/index-table-names entity-table-name indexed-attrs)]
+    (doseq [[attrname tabname] index-tabnames]
+      (let [pstmt (delete-index-statement
+                    db tabname
+                    (dbi/db-ident attrname) id)]
+        (.exec db pstmt)))))
+
+(defn- delete-inst-statement [db table-name id]
+  (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
+        pstmt (.compile db sql)]
+    (pstmt id)))
+
+(defn- delete-inst!
+  "Delete an entity instance."
+  [db tabname id]
+  (let [pstmt (delete-inst-statement db tabname id)]
+    (.exec db pstmt)))
+
+(defn delete-instance [datasource entity-name instance]
+  (let [id (:Id instance)
+        tabname (dbi/table-for-entity entity-name)
+        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+    (delete-indices! datasource tabname indexed-attrs id)
+    (delete-inst! datasource tabname id)
+    id))
+
