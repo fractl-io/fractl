@@ -237,3 +237,22 @@
     (delete-inst! datasource tabname id)
     id))
 
+(defn- query-by-id-statement [db query-sql id]
+  (let [pstmt (.compile db query-sql)]
+    (pstmt 1 (str id))))
+
+(defn query-by-id [datasource entity-name query-sql ids]
+  (let [[id-key json-key] (su/make-result-keys entity-name)]
+    ((partial su/results-as-instances entity-name id-key json-key)
+     (flatten (map #(let [pstmt (query-by-id-statement datasource query-sql %)]
+                      (.exec datasource pstmt))
+                   (set ids))))))
+
+(defn do-query [datasource query-sql query-params]
+  (let [pstmt (.compile datasource query-sql)]
+    (pstmt query-params)
+    (.exec datasource pstmt)))
+
+(def compile-to-indexed-query (partial sql/compile-to-indexed-query
+                                       dbi/table-for-entity
+                                       dbi/index-table-name))
