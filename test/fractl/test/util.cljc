@@ -21,7 +21,7 @@
 (defmacro defcomponent [component & body]
   `(do (fractl.lang/component ~component)
        ~@body
-       (store/create-schema ~component)
+       (store/create-schema (store/open-default-store nil) ~component)
        ~component))
 
 (defn fresult [r]
