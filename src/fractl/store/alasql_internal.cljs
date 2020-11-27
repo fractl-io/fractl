@@ -1,15 +1,22 @@
+(ns fractl.store.alasql-internal
+  (:require [clojure.string :as str]
+            ["alasql" :as alasql]
 (ns fractl.store.sql-internal
   (:require ["alasql" :as alasql]
             [fractl.store.db-internal :as dbi]
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.store.sql :as sql]
-            [clojure.string :as str]))
+            [fractl.store.util :as su]))
 
 ;; Store for databases.
 (defonce sql-db (atom nil))
 
 (def db-new (atom {}))
+
+(defn create-db [name]
+  (alasql (str "CREATE DATABASE IF NOT EXISTS " name))
+  (. alasql Database name))
 
 (defn- create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
@@ -19,9 +26,9 @@
        (if ident-attr
          (str "(" (dbi/db-ident ident-attr) " UUID, ")
          "(")
-       "instance_json CLOB)"))
+       "instance_json JSON)"))
 
-(defn- create-index-table-sql
+(defn create-index-table-sql
   "Given a database-type, entity-table-name and attribute-column name, return the
   DML statements for creating an index table and the index for its 'id' column."
   [entity-table-name colname coltype unique?]
@@ -43,19 +50,28 @@
   (println colname)
   (str dbi/create-unique-index-prefix
        " " (dbi/index-name entity-table-name)
-       " ON " (second (str/split entity-table-name #"\.")) "(" colname ")"))
+       " ON "
+       (second (str/split entity-table-name #"\."))
+       ;entity-table-name
+       "(" colname ")"))
 
 (defn create-identity-index! [entity-table-name ident-attr]
+  "Create identity index for an entity-table-name. This implementation
+  is slightly different than h2 part as here rather than use alasql
+  internal DB connection we hardcode SQL to bypass alasql's limitations."
   (let [fname (first (str/split entity-table-name #"\."))
-        sql (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))
-        db (. alasql Database fname)]
-    ;(println (.exec db (str "SHOW TABLES from " fname)))
-    ;(println fname)
-    ;(println sql)
-    (if (.exec db sql)
+        sql (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))]
+    (alasql (str "USE " fname))
+    (alasql (str sql))
+    (println sql)
+    (println (alasql "SHOW DATABASES"))
+    (println (alasql (str "SHOW TABLES FROM " fname)))
+    entity-table-name
+    #_(if (.exec other-db sql)
       entity-table-name
       (u/throw-ex (str "Failed to create index table for identity column - "
-                       [entity-table-name ident-attr])))))
+                       [entity-table-name ident-attr])))
+    ))
 
 (defn create-entity-table!
   "Create a table to store instances of an entity. As 'identity-attribute' is
@@ -67,10 +83,14 @@
   (let [fname (first (str/split tabname #"\."))
         sql (create-entity-table-sql tabname ident-attr)
         db (. alasql Database fname)]
-    (println "HERE'S JOHNNNY: " sql)
-    (println "HERE's the DB name" fname)
-    (if (.exec db (str sql))
-      tabname
+    (println "HERE is create-entity-table: " fname " and " sql)
+    ;(.exec db sql)
+    ;(println (.exec db "SHOW TABLES"))
+    (if (.exec db sql)
+      (do
+        tabname
+        (println "TABNAME IS: " tabname)
+        (println (.exec db "SHOW TABLES")))
       (u/throw-ex (str "Failed to create table for " tabname)))))
 
 (defn- create-index-table! [entity-schema entity-table-name attrname idxattr]
@@ -80,61 +100,64 @@
                           (cn/unique-attribute? entity-schema idxattr))
         ;db (. alasql Database)
         ]
+    (println "HERE IS tabsql " tabsql)
+    (println " HERE IS idxsql " idxsql)
+    ;; Might be a problem on further tests... Need to investigate.
     (when-not (and (alasql tabsql)
                    (alasql idxsql))
       (u/throw-ex (str "Failed to create lookup table for " [entity-table-name attrname])))))
 
 (defn create-tables!
   "Create the main entity tables and lookup tables for the indexed attributes."
-  [entity-schema entity-table-name ident-attr indexed-attrs]
+  [db entity-schema entity-table-name ident-attr indexed-attrs]
   (println "PART OF CREATE TABLES!")
   (println entity-schema)
   (println entity-table-name)
   (println ident-attr)
   (println indexed-attrs)
   (create-entity-table! entity-table-name ident-attr)
-  (println (create-entity-table! entity-table-name ident-attr))
   (when ident-attr
     (create-identity-index! entity-table-name ident-attr))
-  (let [cit (partial create-index-table! entity-schema entity-table-name)]
+  #_(let [cit (partial create-index-table! entity-schema entity-table-name)]
     (println cit)
     (doseq [idxattr indexed-attrs]
       (let [attrname (dbi/db-ident idxattr)]
         (cit attrname idxattr)))
-    entity-table-name))
+    entity-table-name)
+  )
 
 (defn create-db-schema!
   "Create a new schema (a logical grouping of tables), if it does not already exist."
-  [db-schema-name]
+  [db db-schema-name]
   ;(let [db (. alasql Database)])
-  (if (alasql (dbi/create-schema-sql db-schema-name))
+  (if (.exec db (dbi/create-schema-sql db-schema-name))
     db-schema-name
     (u/throw-ex (str "Failed to create schema - " db-schema-name))))
 
-(defn- drop-db-schema! [db-schema-name]
+(defn- drop-db-schema! [db db-schema-name]
   ;(let [db (. alasql Database)])
-  (if (alasql (dbi/drop-schema-sql db-schema-name))
+  (if (.exec db (dbi/drop-schema-sql db-schema-name))
     db-schema-name
     (u/throw-ex (str "Failed to drop schema - " db-schema-name))))
 
 (defn create-schema
   "Create the schema, tables and indexes for the component."
-  [component-name]
-  (let [scmname (dbi/db-schema-for-component component-name)
-        ename (cn/entity-names component-name)]
-    (create-db-schema! scmname)
-    (doseq [vename (vec ename)]
-      (let [tabname (dbi/table-for-entity vename)
-            schema (cn/entity-schema vename)
-            indexed-attrs (dbi/find-indexed-attributes vename schema)]
-        (println vename)
+  [datasource component-name]
+  (.log js/console datasource)
+  (let [scmname (dbi/db-schema-for-component component-name)]
+    (create-db-schema! datasource scmname)
+    (doseq [ename (cn/entity-names component-name)]
+      (let [tabname (dbi/table-for-entity ename)
+            schema (cn/entity-schema ename)
+            indexed-attrs (dbi/find-indexed-attributes ename schema)]
+        (println ename)
         (println schema)
-        (create-tables! schema tabname :Id indexed-attrs)))
+        (create-tables! datasource schema tabname :Id indexed-attrs)))
     component-name))
 
 (defn drop-schema
   "Remove the schema from the database, perform a non-cascading delete."
-  [component-name]
+  [datasource component-name]
   (let [scmname (dbi/db-schema-for-component component-name)]
-    (drop-db-schema! scmname)
+    (drop-db-schema! datasource scmname)
     component-name))
