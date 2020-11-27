@@ -42,7 +42,7 @@
 (def ^:private load-instance? (partial valid-opcode? opc/load-instance?))
 (def ^:private match-inst? (partial valid-opcode? opc/match-instance?))
 
-(deftest compile-path
+#_(deftest compile-path
   (let [[_ c] (pattern-compiler)
         p1 :CompileTest/E1
         p1e :CompileTest/E111
@@ -53,7 +53,7 @@
     (load-instance? (c p2) [:CompileTest :Create_E1])
     (is (thrown? js/Error (c p2e)))))
 
-(deftest compile-pattern-01
+#_(deftest compile-pattern-01
   (let [[_ c] (pattern-compiler)
         p1 {:CompileTest/E1
             {:X 100
@@ -95,7 +95,7 @@
       (is (valid-opcode? opc/intern-instance?
                          (nth @opcs 3) [:CompileTest :E1])))))
 
-(deftest circular-dependency
+#_(deftest circular-dependency
   (let [[ctx c] (pattern-compiler)
         p1 {:CompileTest/E1
             {:Id? 'id
@@ -108,12 +108,12 @@
 
 (deftest compile-ref
   (try
-    (defcomponent :Df01
-                  (entity {:Df01/E
+    (defcomponent :Df67
+                  (entity {:Df67/E
                            {:X :Kernel/Int
                             :Y :Kernel/Int}}))
-    (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
-          evt (cn/make-instance :Df01/Create_E {:Instance e})
+    (let [e (cn/make-instance :Df67/E {:X 10 :Y 20})
+          evt (cn/make-instance :Df67/Create_E {:Instance e})
           result (tu/fresult (e/eval-all-dataflows-for-event evt))]
       ;; (with-out-str (println "Here lies some data: " evt))
       (is (cn/same-instance? e result)))
