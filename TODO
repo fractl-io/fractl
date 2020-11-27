@@ -1,1 +1,2 @@
- * Complete http-evaluator implementation, see TODOs in fractl/http.clj
+  * Test all event evaluations over HTTP.
+  * Add store to runtime config, initialize store based on this.

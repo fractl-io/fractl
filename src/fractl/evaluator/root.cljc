@@ -54,7 +54,18 @@
   (let [rs (if composed? resolver [resolver])]
     (doall (map #(r/call-resolver-eval % inst) rs))))
 
+(def ^:private inited-components (u/make-cell []))
+
+(defn- maybe-init-schema! [store component-name]
+  (when-not (some #{component-name} @inited-components)
+    (u/safe-set
+     inited-components
+     (do (store/create-schema store component-name)
+         (conj @inited-components component-name))
+     component-name)))
+
 (defn- chained-upsert [store record-name insts]
+  (maybe-init-schema! store (first record-name))
   (let [insts (if (map? insts) [insts] insts)
         resolver (resolver-for-path insts)
         composed? (r/composed? resolver)
