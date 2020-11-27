@@ -10,6 +10,7 @@
                  [honeysql "1.0.444"]
                  [compojure "1.6.2"]
                  [http-kit "2.5.0"]
+                 [ring-cors "0.1.13"]
                  [net.cgrand/macrovich "0.2.1"]]
 
   :main fractl.core

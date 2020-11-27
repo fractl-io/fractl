@@ -2,6 +2,7 @@
   (:require [clojure.tools.cli :refer [parse-opts]]
             [taoensso.timbre :as log]
             [fractl.http :as h]
+            [fractl.evaluator :as e]
             [fractl.lang.loader :as loader])
   (:gen-class))
 
@@ -27,7 +28,7 @@
     (when (every? keyword? components)
       (when-let [server-cfg (:service config)]
         (log-service-info! components server-cfg)
-        (h/run-server server-cfg)))))
+        (h/run-server (e/evaluator) server-cfg)))))
 
 (defn- read-config [options]
   (read-string (slurp (get options :config "./config.edn"))))
