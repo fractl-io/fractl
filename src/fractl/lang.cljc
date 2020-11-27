@@ -200,8 +200,13 @@
   "Add a new record definition to the component."
   ([n attrs]
    (let [cn (validated-canonical-type-name n)]
-     (cn/intern-record
-      cn (normalized-attributes cn attrs))))
+     (if (get-in attrs [:meta :ui-component])
+       #?(:clj false ;; Ignore the record definition on server-side.
+          ;:cljs (clk/record cn (normalized-attributes cn attrs))
+          ;; Implementation is incomplete here so.
+          :cljs false)
+       (cn/intern-record
+         cn (normalized-attributes cn attrs)))))
   ([schema]
    (record (first (keys schema)) (first (vals schema)))))
 
