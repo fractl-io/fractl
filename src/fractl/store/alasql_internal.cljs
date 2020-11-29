@@ -160,10 +160,9 @@
     (drop-db-schema! datasource scmname)
     component-name))
 
-(defn- upsert-index-statement [db table-name colname id attrval]
-  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")
-        pstmt (.compile db sql)]
-    (pstmt id attrval)))
+(defn- upsert-index-statement [table-name colname id attrval]
+  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")]
+    sql))
 
 (defn- upsert-indices!
   "Insert or update new index entries relevant for an entity instance.
@@ -171,19 +170,21 @@
   [db entity-table-name indexed-attrs instance]
   (let [id (:Id instance)]
     (doseq [[attrname tabname] (dbi/index-table-names entity-table-name indexed-attrs)]
-      (let [pstmt (upsert-index-statement db tabname (dbi/db-ident attrname) id
+      (let [pstmt (upsert-index-statement tabname (dbi/db-ident attrname) id
                                           (attrname instance))]
-        (.exec db pstmt)))))
+        (.exec db (str sql [id (attrname instance)]))))))
 
 (defn- upsert-inst-statement [db table-name id obj]
   (println "GOOBLE GABBLE: " db)
   ;; Some doubts regarding this: Test whether MERGE INTO is supported!
-  (let [sql (str "MERGE INTO " table-name " KEY (ID) VALUES (?, ? FORMAT JSON)")
+  (let [sname (second (str/split table-name #"\."))
+        sql (str "INSERT OR REPLACE INTO " sname " VALUES(?, ?)")
         sql-with-db (str sql db)
         ;pstmt (.compile alasql sql-with-db)
         ]
     ;(pstmt id obj)
-    (.exec db (str sql [[id obj]]))
+    ;(.exec db (str sql [[id obj]]))
+    sql
     ))
 
 (defn- upsert-inst!
@@ -191,10 +192,15 @@
   [db table-name inst]
   (let [attrs (cn/serializable-attributes inst)
         id (:Id attrs)
-        obj (.stringify js/JSON (clj->js (dissoc attrs :Id)))
+        obj (clj->js (dissoc attrs :Id))
         pstmt (upsert-inst-statement db table-name id obj)]
+    (println "MESSAGE" id)
+    (println "BOTTLE" obj)
+    (println "RAMBO: " (str pstmt ", " [[id obj]]))
+    (.exec db (str pstmt ", " [id obj]))
     ;(.exec db pstmt)
-    pstmt))
+    ;pstmt
+    ))
 
 (defn upsert-instance [datasource entity-name instance]
   (let [tabname (dbi/table-for-entity entity-name)
