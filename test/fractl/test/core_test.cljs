@@ -2,6 +2,7 @@
   "A basic cljs test."
   (:require [cljs.test :refer-macros [deftest is]]
             [fractl.util :as u]
+            [fractl.store :as store]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.lang
