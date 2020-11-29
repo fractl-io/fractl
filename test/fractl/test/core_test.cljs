@@ -9,11 +9,12 @@
                      entity record dataflow]]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
-            [fractl.test.util :as tu :refer-macros [defcomponent]]
-            [fractl.eval :as e]))
+            [fractl.test.util :as tu :refer-macros [defcomponent]]))
 
 (deftest test-numbers
   (is (= 1 1)))
+
+(def eval-all-dataflows-for-event (tu/make-df-eval))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
@@ -24,10 +25,13 @@
 
 (defn- init-test-context []
   (install-test-component)
-  (c/make-context))
+  (let [ctx (c/make-context)
+        f (partial store/compile-query tu/store)]
+    (ctx/bind-compile-query-fn! ctx f)
+    ctx))
 
 (defn- compile-pattern [ctx pat]
-  (:opcode (c/compile-pattern e/resolver-for-path ctx pat)))
+  (:opcode (c/compile-pattern ctx pat)))
 
 (defn- pattern-compiler []
   (let [ctx (init-test-context)]
@@ -38,6 +42,11 @@
   (if (fn? v)
     (is (v (opc/arg opcode)))
     (is (= v (opc/arg opcode)))))
+
+(defn- valid-opcode-with-query? [opcode farg]
+  (is (opc/query-instances? opcode))
+  (let [arg (opc/arg opcode)]
+    (is (= farg (first arg)))))
 
 (def ^:private load-instance? (partial valid-opcode? opc/load-instance?))
 (def ^:private match-inst? (partial valid-opcode? opc/match-instance?))
@@ -108,14 +117,13 @@
 
 (deftest compile-ref
   (try
-    (defcomponent :Df67
-                  (entity {:Df67/E
-                           {:X :Kernel/Int
-                            :Y :Kernel/Int}}))
-    (let [e (cn/make-instance :Df67/E {:X 10 :Y 20})
-          evt (cn/make-instance :Df67/Create_E {:Instance e})
-          result (tu/fresult (e/eval-all-dataflows-for-event evt))]
-      ;; (with-out-str (println "Here lies some data: " evt))
+    (defcomponent :Df01
+      (entity {:Df01/E
+               {:X :Kernel/Int
+                :Y :Kernel/Int}}))
+    (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
+          evt (cn/make-instance :Df01/Create_E {:Instance e})
+          result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
       (is (cn/same-instance? e result)))
     (catch js/Error e
       (.log js/console (.-stack e)))))

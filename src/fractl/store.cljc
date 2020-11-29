@@ -1,6 +1,6 @@
 (ns fractl.store
-  (:require #?(:clj [fractl.store.h2 :as h2])
-            #?(:cljs [fractl.store.alasql :as alasq])
+  (:require #?(:clj [fractl.store.h2 :as h2]
+               :cljs [fractl.store.alasql :as alasq])
             [fractl.store.protocol :as p]
             [fractl.util :as u]))
 
@@ -20,9 +20,12 @@
                                     (make-default-store-config)))
        store)))
 
-(defn open-default-store [store-config]
-  #?(:clj (make-default-store store-config (h2/make))
-     :cljs (make-default-store store-config (alasq/make))))
+(defn open-default-store
+  ([store-config]
+   #?(:clj (make-default-store store-config (h2/make))
+      :cljs (make-default-store store-config (alasq/make))))
+  ([] #?(:clj (make-default-store nil (h2/make))
+         :cljs (make-default-store nil (alasq/make)))))
 
 
 (def open-connection p/open-connection)
