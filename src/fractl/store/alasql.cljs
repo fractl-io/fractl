@@ -24,7 +24,7 @@
           true))
       (close-connection [_]
         (try
-          (do (u/safe-set-result
+          (do (u/safe-set
                 datasource
                 nil)
               true)
