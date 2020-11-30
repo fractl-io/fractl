@@ -3,4 +3,5 @@
 
 (component :Sample.Simple)
 
-(entity {:E {:X :Kernel/Int}})
+(entity {:E1 {:X :Kernel/Int}})
+(entity {:E2 {:X :Kernel/Int}})

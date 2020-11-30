@@ -1,0 +1,6 @@
+{:component-root "./sample"
+ :service {:port 8000}
+ :resolver {:remote01
+            {:type :remote
+             :paths [:Sample/E2]
+             :config {:host "http://localhost:8080"}}}}
