@@ -1,6 +1,5 @@
 (ns fractl.resolver.core
   (:require [fractl.util :as u]
-            [fractl.resolver.registry :as rg]
             [fractl.lang.internal :as li]))
 
 (def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval})
@@ -19,18 +18,6 @@
 (def resolver-get :get)
 (def resolver-query :query)
 (def resolver-eval :eval)
-
-(defn resolver-for-path [path]
-  (rg/resolver-for-path (li/split-path path)))
-
-(defn override-resolver [path resolver]
-  (rg/override-resolver (li/split-path path) resolver))
-
-(defn compose-resolver [path resolver]
-  (rg/compose-resolver (li/split-path path) resolver))
-
-(def composed? rg/composed?)
-(def override? rg/override?)
 
 (defn- wrap-result [method resolver arg]
   {:resolver (:name resolver)

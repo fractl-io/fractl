@@ -4,7 +4,8 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
             [fractl.component :as cn]
-            [fractl.resolver.core :as r])
+            [fractl.resolver.core :as r]
+            [fractl.resolver.registry :as rg])
   #?(:cljs [fractl.lang
             :refer [component attribute event
                     entity record dataflow]]))
@@ -15,8 +16,8 @@
   (let [r (r/make-resolver resolver-name {:upsert identity})]
     (install-resolver path r)))
 
-(def compose-test-resolver (partial test-resolver r/compose-resolver))
-(def override-test-resolver (partial test-resolver r/override-resolver))
+(def compose-test-resolver (partial test-resolver rg/compose-resolver))
+(def override-test-resolver (partial test-resolver rg/override-resolver))
 
 (defn- persisted? [comp-name entity-instance]
   (let [id (:Id entity-instance)

@@ -6,6 +6,7 @@
             [fractl.util.seq :as su]
             [fractl.store :as store]
             [fractl.resolver.core :as r]
+            [fractl.resolver.registry :as rg]
             [fractl.evaluator.parser :as parser]
             [fractl.evaluator.internal :as i]
             [fractl.lang.opcode :as opc]
@@ -40,7 +41,7 @@
 
 (defn- resolver-for-path [xs]
   (let [path (on-inst cn/instance-name xs)]
-    (r/resolver-for-path path)))
+    (rg/resolver-for-path path)))
 
 (defn- call-resolver-upsert [resolver composed? insts]
   (let [rs (if composed? resolver [resolver])
@@ -68,7 +69,7 @@
   (maybe-init-schema! store (first record-name))
   (let [insts (if (map? insts) [insts] insts)
         resolver (resolver-for-path insts)
-        composed? (r/composed? resolver)
+        composed? (rg/composed? resolver)
         upsert? (or (not resolver) composed?)
         local-result (if (and upsert? store (need-storage? insts))
                        (store/upsert-instances store record-name insts)
@@ -181,7 +182,7 @@
     (do-intern-event-instance [self env record-name]
       (let [[inst env] (pop-and-intern-instance env record-name)
             resolver (resolver-for-path inst)
-            composed? (r/composed? resolver)
+            composed? (rg/composed? resolver)
             local-result (when (or (not resolver) composed?)
                            (eval-event-dataflows self inst))
             resolver-results (when resolver

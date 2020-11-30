@@ -1,5 +1,6 @@
 (ns fractl.resolver.registry
-  (:require [fractl.util :as u]))
+  (:require [fractl.util :as u]
+            [fractl.resolver.remote :as remote]))
 
 (def ^:private resolver-db (u/make-cell {}))
 
@@ -17,3 +18,5 @@
 
 (def composed? (complement map?))
 (def override? map?)
+
+(def constructors {:remote remote/make})
