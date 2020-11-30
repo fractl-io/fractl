@@ -10,13 +10,6 @@
     (reify p/Store
       (open-connection [store connection-info]
         (let [connection-info (su/normalize-connection-info connection-info)]
-          #_(u/safe-set-once
-            datasource
-            #(let [dbspec {:driver-class driver-class
-                           :jdbc-url jdbc-url
-                           :username username
-                           :password password}]
-               (cp/open-pooled-datasource dbspec)))
           (u/safe-set-once
             datasource
             #(if-let [dbname (:dbname connection-info)]

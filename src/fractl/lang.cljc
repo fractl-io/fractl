@@ -202,9 +202,7 @@
    (let [cn (validated-canonical-type-name n)]
      (if (get-in attrs [:meta :ui-component])
        #?(:clj false ;; Ignore the record definition on server-side.
-          ;:cljs (clk/record cn (normalized-attributes cn attrs))
-          ;; Implementation is incomplete here so.
-          :cljs false)
+          :cljs (record cn (normalized-attributes cn attrs)))
        (cn/intern-record
          cn (normalized-attributes cn attrs)))))
   ([schema]
