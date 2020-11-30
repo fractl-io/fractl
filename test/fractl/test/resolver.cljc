@@ -28,7 +28,7 @@
   (defcomponent :R01
     (entity {:R01/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :R01/E {:X 10})
-        evt (cn/make-instance :R01/Create_E {:Instance e})
+        evt (cn/make-instance :R01/Upsert_E {:Instance e})
         result (tu/fresult (eval-all-dataflows-for-event evt))
         e01 (ffirst result)]
     (is (cn/instance-of? :R01/E e01))
@@ -36,7 +36,7 @@
     (is (persisted? :R01 e01)))
   (compose-test-resolver :TestResolver01 :R01/E)
   (let [e (cn/make-instance :R01/E {:X 10})
-        evt (cn/make-instance :R01/Create_E {:Instance e})
+        evt (cn/make-instance :R01/Upsert_E {:Instance e})
         result (tu/fresult (eval-all-dataflows-for-event evt))
         e01 (ffirst result)
         r (ffirst (second result))]
@@ -51,7 +51,7 @@
     (entity {:R02/E {:X :Kernel/Int}}))
   (override-test-resolver :TestResolver02 :R02/E)
   (let [e (cn/make-instance :R02/E {:X 10})
-        evt (cn/make-instance :R02/Create_E {:Instance e})
+        evt (cn/make-instance :R02/Upsert_E {:Instance e})
         result (tu/fresult (eval-all-dataflows-for-event evt))
         e01 (ffirst result)
         r (ffirst (second result))]

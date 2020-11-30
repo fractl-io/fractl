@@ -54,11 +54,11 @@
   (let [[_ c] (pattern-compiler)
         p1 :CompileTest/E1
         p1e :CompileTest/E111
-        p2 :CompileTest/Create_E1
-        p2e :CompileTest/Create_E111]
+        p2 :CompileTest/Upsert_E1
+        p2e :CompileTest/Upsert_E111]
     (load-instance? (c p1) [:CompileTest :E1])
     (tu/is-error #(c p1e))
-    (load-instance? (c p2) [:CompileTest :Create_E1])
+    (load-instance? (c p2) [:CompileTest :Upsert_E1])
     (tu/is-error #(c p2e))))
 
 (deftest compile-pattern-01
@@ -117,7 +117,7 @@
              {:X :Kernel/Int
               :Y :Kernel/Int}}))
   (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
-        evt (cn/make-instance :Df01/Create_E {:Instance e})
+        evt (cn/make-instance :Df01/Upsert_E {:Instance e})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (is (cn/same-instance? e result))))
 

@@ -5,13 +5,13 @@
 
 (def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval})
 
-(defn make-resolver [name fnmap]
+(defn make-resolver [resolver-name fnmap]
   (when-not (every? identity (map #(some #{%} valid-resolver-keys) (keys fnmap)))
     (u/throw-ex (str "invalid resolver keys - " (keys fnmap))))
   (doseq [[k v] fnmap]
     (when-not (fn? v)
       (u/throw-ex (str "resolver key " k " must be mapped to a function"))))
-  (assoc fnmap :name name))
+  (assoc fnmap :name resolver-name))
 
 (def resolver-name :name)
 (def resolver-upsert :upsert)
