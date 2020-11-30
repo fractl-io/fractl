@@ -177,8 +177,9 @@
 (defn- upsert-inst-statement [db table-name id obj]
   (println "GOOBLE GABBLE: " db)
   ;; Some doubts regarding this: Test whether MERGE INTO is supported!
-  (let [sname (second (str/split table-name #"\."))
-        sql (str "INSERT OR REPLACE INTO " sname " VALUES(?, ?)")
+  (let [
+        ;sname (second (str/split table-name #"\."))
+        sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")
         sql-with-db (str sql db)
         ;pstmt (.compile alasql sql-with-db)
         ]
@@ -194,10 +195,10 @@
         id (:Id attrs)
         obj (clj->js (dissoc attrs :Id))
         pstmt (upsert-inst-statement db table-name id obj)]
-    (println "MESSAGE" id)
-    (println "BOTTLE" obj)
-    (println "RAMBO: " (str pstmt ", " [[id obj]]))
-    (.exec db (str pstmt ", " [id obj]))
+    (println "ID " id)
+    (println "OBJ " obj)
+    (println "UPSERT INST! " (str pstmt ", " [[id obj]]))
+    (.exec db pstmt #js [#js [id obj]])
     ;(.exec db pstmt)
     ;pstmt
     ))
