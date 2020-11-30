@@ -1,4 +1,4 @@
-(ns fractl.resolver
+(ns fractl.resolver.core
   (:require [fractl.util :as u]
             [fractl.resolver.registry :as rg]
             [fractl.lang.internal :as li]))

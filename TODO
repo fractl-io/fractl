@@ -1,2 +1,2 @@
-  * Test all event evaluations over HTTP.
+  * Implement and test the remote resolver.
   * Add store to runtime config, initialize store based on this.
