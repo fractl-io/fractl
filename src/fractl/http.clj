@@ -36,15 +36,23 @@
       (log/error ex)
       (internal-error (.getMessage ex)))))
 
-(defn- request-object [request event-name]
-  (try
-    (let [obj (json/parse-string (String. (.bytes (:body request))) true)
-          obj-name (li/split-path (first (keys obj)))]
-      (if (= obj-name event-name)
-        [(cn/make-event-instance event-name (first (vals obj))) nil]
-        [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
-    (catch Exception ex
-      [nil (str "Failed to parse request - " (.getMessage ex))])))
+(defn- event-from-request
+  ([request event-name]
+   (try
+     (let [obj (json/parse-string (String. (.bytes (:body request))) true)
+           obj-name (li/split-path (first (keys obj)))]
+       (if (or (not event-name) (= obj-name event-name))
+         [(cn/make-event-instance obj-name (first (vals obj))) nil]
+         [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
+     (catch Exception ex
+       [nil (str "Failed to parse request - " (.getMessage ex))])))
+  ([request] (event-from-request request nil)))
+
+(defn- process-dynamic-eval [evaluator event-name request]
+  (let [[obj err] (event-from-request request event-name)]
+    (if err
+      (bad-request err)
+      (evaluate evaluator obj))))
 
 (defn- process-request [evaluator request]
   (let [params (:params request)
@@ -52,14 +60,20 @@
         event (keyword (:event params))
         n [component event]]
     (if (cn/find-event-schema n)
-      (let [[obj err] (request-object request n)]
-        (if err
-          (bad-request err)
-          (evaluate evaluator obj)))
+      (process-dynamic-eval evaluator n request)
       (bad-request (str "Event not found - " n)))))
 
-(defn- make-routes [process-request]
-  (let [r (apply routes [(POST "/_e/:component/:event" [] process-request)
+(defn- process-query [request]
+  (internal-error "Remote query processing not implemented yet"))
+
+(def entity-event-prefix "/_e/")
+(def query-prefix "/_q/")
+(def dynamic-eval-prefix "/_dynamic/")
+
+(defn- make-routes [process-request process-dynamic-eval]
+  (let [r (apply routes [(POST (str entity-event-prefix ":component/:event") [] process-request)
+                         (POST query-prefix [] process-query)
+                         (POST dynamic-eval-prefix [] process-dynamic-eval)
                          (not-found "<p>Resource not found.</p>")])]
     (cors/wrap-cors
      r :access-control-allow-origin [#".*"]
@@ -69,7 +83,8 @@
 
 (defn run-server
   ([evaluator config]
-   (h/run-server (make-routes (partial process-request evaluator))
+   (h/run-server (make-routes (partial process-request evaluator)
+                              (partial process-dynamic-eval evaluator nil))
                  (if (:thread config)
                    config
                    (assoc config :thread (+ 1 (u/n-cpu))))))

@@ -285,10 +285,6 @@
   (cn/canonical-type-name
    (keyword (str (name evtname) ".Instance.Id"))))
 
-(defn- crud-event-update-pattern [evtname entity-name]
-  [:update {entity-name {:Id? (id-accessor evtname)}}
-   (crud-event-inst-accessor evtname)])
-
 (defn- crud-event-delete-pattern [evtname entity-name]
   [:delete {entity-name {:Id (id-accessor evtname)}}])
 
