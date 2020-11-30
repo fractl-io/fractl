@@ -160,7 +160,7 @@
     (drop-db-schema! datasource scmname)
     component-name))
 
-(defn- upsert-index-statement [table-name colname id attrval]
+(defn- upsert-index-statement [table-name]
   (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")]
     sql))
 
@@ -170,9 +170,8 @@
   [db entity-table-name indexed-attrs instance]
   (let [id (:Id instance)]
     (doseq [[attrname tabname] (dbi/index-table-names entity-table-name indexed-attrs)]
-      (let [pstmt (upsert-index-statement tabname (dbi/db-ident attrname) id
-                                          (attrname instance))]
-        (.exec db (str sql [id (attrname instance)]))))))
+      (let [pstmt (upsert-index-statement tabname)]
+        (.exec db pstmt #js [#js [id (attrname instance)]])))))
 
 (defn- upsert-inst-statement [db table-name id obj]
   (println "GOOBLE GABBLE: " db)
