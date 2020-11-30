@@ -5,7 +5,7 @@
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.store :as store]
-            [fractl.resolver :as r]
+            [fractl.resolver.core :as r]
             [fractl.evaluator.parser :as parser]
             [fractl.evaluator.internal :as i]
             [fractl.lang.opcode :as opc]

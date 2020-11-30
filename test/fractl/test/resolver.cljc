@@ -4,7 +4,7 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
             [fractl.component :as cn]
-            [fractl.resolver :as r])
+            [fractl.resolver.core :as r])
   #?(:cljs [fractl.lang
             :refer [component attribute event
                     entity record dataflow]]))
