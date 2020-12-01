@@ -2,6 +2,7 @@
   (:require [clojure.tools.cli :refer [parse-opts]]
             [taoensso.timbre :as log]
             [fractl.http :as h]
+            [fractl.resolver.registry :as rr]
             [fractl.evaluator :as e]
             [fractl.lang.loader :as loader])
   (:gen-class))
@@ -23,9 +24,14 @@
       (log/info s)))
   (log/info (str "Server config - " server-cfg)))
 
+(defn- register-resolvers! [resolver-specs]
+  (let [rns (rr/register-resolvers resolver-specs)]
+    (log/info (str "Resolvers - " rns))))
+
 (defn- run-cmd [args config]
   (let [components (load-components args (:component-root config))]
     (when (every? keyword? components)
+      (register-resolvers! (:resolvers config))
       (when-let [server-cfg (:service config)]
         (log-service-info! components server-cfg)
         (h/run-server (e/evaluator) server-cfg)))))

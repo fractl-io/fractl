@@ -1,6 +1,5 @@
   * Implement and test the remote resolver.
      - Load an instance with sample/config-resolver.edn
-     - Initialize resolver registry with the resolver in config (use registry/constructors)
      - Test against another instance started with the normal config
 
   * Add store to runtime config, initialize store based on this.
