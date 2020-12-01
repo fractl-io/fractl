@@ -15,25 +15,25 @@
   (doall (map (partial loader/load-script component-root-path)
               component-scripts)))
 
-(defn- log-service-info! [components server-cfg]
-  (loop [components components, s "Components - "]
-    (if-let [c (first components)]
-      (let [cs (rest components)
+(defn- log-seq! [prefix xs]
+  (loop [xs xs, s (str prefix " - ")]
+    (if-let [c (first xs)]
+      (let [cs (rest xs)
             sep (if (seq (rest cs)) " " "")]
         (recur cs (str s sep c)))
-      (log/info s)))
-  (log/info (str "Server config - " server-cfg)))
+      (log/info s))))
 
 (defn- register-resolvers! [resolver-specs]
-  (let [rns (rr/register-resolvers resolver-specs)]
-    (log/info (str "Resolvers - " rns))))
+  (when-let [rns (seq (rr/register-resolvers resolver-specs))]
+    (log-seq! "Resolvers" rns)))
 
 (defn- run-cmd [args config]
   (let [components (load-components args (:component-root config))]
     (when (every? keyword? components)
+      (log-seq! "Components" components)
       (register-resolvers! (:resolvers config))
       (when-let [server-cfg (:service config)]
-        (log-service-info! components server-cfg)
+        (log/info (str "Server config - " server-cfg))
         (h/run-server (e/evaluator) server-cfg)))))
 
 (defn- read-config [options]

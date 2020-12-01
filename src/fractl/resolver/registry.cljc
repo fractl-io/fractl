@@ -1,17 +1,19 @@
 (ns fractl.resolver.registry
   (:require [fractl.util :as u]
+            [fractl.lang.internal :as li]
             [fractl.resolver.remote :as remote]))
 
 (def ^:private resolver-db (u/make-cell {}))
 
 (defn resolver-for-path [path]
-  (get @resolver-db path))
+  (get @resolver-db (li/split-path path)))
 
 (defn override-resolver [path resolver]
-  (u/safe-set resolver-db (assoc @resolver-db path resolver)))
+  (u/safe-set resolver-db (assoc @resolver-db (li/split-path path) resolver)))
 
 (defn compose-resolver [path resolver]
-  (let [resolvers (get @resolver-db path [])]
+  (let [path (li/split-path path)
+        resolvers (get @resolver-db path [])]
     (u/safe-set resolver-db
                 (assoc @resolver-db path
                        (conj resolvers resolver)))))
@@ -25,7 +27,7 @@
                           compose? :compose?
                           paths :paths config :config}]
   (if-let [c (t constructors)]
-    (let [resolver (c config)
+    (let [resolver (c n config)
           rf (if compose? compose-resolver override-resolver)]
       (doseq [p paths] (rf p resolver))
       n)

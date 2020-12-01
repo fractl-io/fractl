@@ -3,5 +3,5 @@
  :resolvers [{:name :remote01
               :type :remote
               :compose? true
-              :paths [:Sample/E2]
+              :paths [:Sample.Simple/E2]
               :config {:host "http://localhost:8080"}}]}
