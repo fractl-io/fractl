@@ -1,5 +1,0 @@
-  * Implement and test the remote resolver.
-     - Load an instance with sample/config-resolver.edn
-     - Test against another instance started with the normal config
-
-  * Add store to runtime config, initialize store based on this.
