@@ -66,8 +66,9 @@
   [tabname ident-attr]
   (let [fname (first (str/split tabname #"\."))
         sql (create-entity-table-sql tabname ident-attr)
-        db (. alasql Database fname)]
-    (if (.exec db sql)
+        ;db (. alasql Database fname)
+        db (alasql (str "USE " fname))]
+    (if (alasql (str sql))
       tabname
       (u/throw-ex (str "Failed to create table for " tabname)))))
 
@@ -136,7 +137,7 @@
       (let [pstmt (upsert-index-statement tabname)]
         (.exec db pstmt #js [#js [id (attrname instance)]])))))
 
-(defn- upsert-inst-statement [db table-name id obj]
+(defn- upsert-inst-statement [table-name]
   (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")]
     sql))
 
@@ -146,7 +147,7 @@
   (let [attrs (cn/serializable-attributes inst)
         id (:Id attrs)
         obj (.stringify js/JSON (clj->js (dissoc attrs :Id)))
-        pstmt (upsert-inst-statement db table-name id obj)]
+        pstmt (upsert-inst-statement table-name)]
     (.exec db pstmt #js [#js [id obj]])))
 
 (defn upsert-instance [datasource entity-name instance]
