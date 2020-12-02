@@ -169,7 +169,7 @@
     (is (= 1000 (:Y result)))
     (is (= 1100 (:Z result)))))
 
-#_(deftest compound-attributes
+(deftest compound-attributes
   (try (defcomponent :Df04
                      (entity {:Df04/E1 {:A :Kernel/Int}})
                      (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
@@ -205,16 +205,12 @@
                                {:Df05/Evt02 {:E1 :Df05/Evt01.E1}})
                      (dataflow :Df05/Evt02
                                {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
-       (println (str "HERE IS EVENT " (cn/make-instance :Df05/Evt01 {:E1 (cn/make-instance :Df05/E1 {:A 100})})))
        (let [e1 (cn/make-instance :Df05/E1 {:A 100})
              evt (cn/make-instance :Df05/Evt01 {:E1 e1})
-             ;result (tu/fresult (eval-all-dataflows-for-event evt))
-             ;inst (ffirst (tu/fresult (first result)))
+             result (tu/fresult (eval-all-dataflows-for-event evt))
+             inst (ffirst (tu/fresult (first result)))
              ]
-         ;(is (cn/instance-of? :Df05/E2 inst))
-         ;(is (= (:B inst) 100))
-         (println (str "GOT EVENT " evt))
-         (println (str "GOT RESULT " (eval-all-dataflows-for-event evt)))
-         )
+         (is (cn/instance-of? :Df05/E2 inst))
+         (is (= (:B inst) 100)))
     (catch js/Error e
       (.log js/console (.-stack e)))))
