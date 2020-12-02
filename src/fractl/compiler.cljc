@@ -8,7 +8,8 @@
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.compiler.validation :as cv]
-            [fractl.compiler.internal :as i]))
+            [fractl.compiler.internal :as i]
+            #?(:cljs [cljs.js :refer [eval empty-state js-eval]])))
 
 (def make-context ctx/make)
 
@@ -68,7 +69,12 @@
     :else (arg-lookup expr)))
 
 (defn- expr-as-fn [expr]
-  (eval `(fn [~runtime-env-var ~current-instance-var] ~expr)))
+  #?(:clj (eval `(fn [~runtime-env-var ~current-instance-var] ~expr))
+     :cljs (eval (empty-state)
+                    `(fn [~runtime-env-var ~current-instance-var] ~expr)
+                    {:eval js-eval
+                     :context :expr}
+                    :value)))
 
 (defn- query-param-lookup [p]
   (let [r (arg-lookup p)]
@@ -257,4 +263,12 @@
   (let [fexprs (map (partial arg-lookup-fn rec-name attrs (keys attrs) aname) (rest aval))
         exp `(fn [~runtime-env-var ~current-instance-var]
                (~(first aval) ~@fexprs))]
-    (eval exp)))
+    (println "HERE IS EXP " exp)
+    #?(:clj (eval exp)
+       :cljs (eval (empty-state)
+                   exp
+                   {:eval js-eval
+                    :context :expr}
+                   :value))
+    ;(eval exp)
+    ))
