@@ -1,5 +1,7 @@
 {:component-root "./sample"
  :service {:port 8000}
+ :store {:type :h2
+         :dbname "./sample.simple"}
  :resolvers [{:name :remote01
               :type :remote
               :compose? true

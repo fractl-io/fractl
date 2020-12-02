@@ -8,18 +8,24 @@
 (defn- make-default-store-config []
   #?(:clj {:dbname (str "./fractl.db." (System/currentTimeMillis))}))
 
-(defn open-default-store
-  ([store-config]
-   #?(:clj
-      (u/safe-set-once
-       default-store
-       #(let [store (h2/make)]
-          (p/open-connection store (or store-config
-                                       (make-default-store-config)))
-          ;; NOTE: The default db connection, if opened,
-          ;; will last the lifetime of the app.
-          store))))
-  ([] (open-default-store nil)))
+(defn- open-default-store [store-config]
+  #?(:clj
+     (u/safe-set-once
+      default-store
+      #(let [store (h2/make)]
+         (p/open-connection store store-config)
+         ;; NOTE: The default db connection, if opened,
+         ;; will last the lifetime of the app.
+         store))))
+
+(def ^:private store-constructors {:h2 open-default-store})
+
+(defn open-store [store-config]
+  (if store-config
+    (if-let [make-fn ((:type store-config) store-constructors)]
+      (make-fn (dissoc store-config :type))
+      (u/throw-ex (str "Store not supported - " (:type store-config))))
+    (open-default-store (make-default-store-config))))
 
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)
