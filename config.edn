@@ -1,0 +1,2 @@
+{:component-root "./sample"
+ :service {:port 8080}}

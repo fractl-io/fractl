@@ -1,12 +1,17 @@
 (defproject fractl "0.0.1"
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/clojurescript "1.10.773"]
+                 [org.clojure/tools.cli "1.0.194"]
                  [cheshire "5.9.0"]
                  [com.taoensso/timbre "5.1.0"]
                  [seancorfield/next.jdbc "1.1.581"]
                  [c3p0/c3p0 "0.9.1.2"]
                  [com.h2database/h2 "1.4.200"]
                  [honeysql "1.0.444"]
+                 [compojure "1.6.2"]
+                 [http-kit "2.5.0"]
+                 [cljs-http "0.1.46"]
+                 [ring-cors "0.1.13"]
                  [net.cgrand/macrovich "0.2.1"]]
 
   :main fractl.core

@@ -204,7 +204,7 @@
 (def pwd-prefix (str "." file-separator))
 
 (defn- trim-path-prefix
-  "Return file-name after removing any of these path prefixes: ./, ., /"
+  "Return file-name after removing any of these path prefixes: path-prefix, ./, ., /"
   ([^String file-name ^String path-prefix]
    (cond
      (and path-prefix (string/starts-with? file-name path-prefix))
@@ -220,10 +220,10 @@
      :else file-name))
   ([^String file-name] (trim-path-prefix file-name nil)))
 
-(defn component-from-filename [^String file-name ^String component-path]
+(defn component-from-filename [^String component-root-path ^String file-name]
   (let [parts (.split (trim-path-prefix
                        (trim-path-prefix file-name)
-                       component-path)
+                       component-root-path)
                       file-separator)
         ns-parts (concat (take (dec (count parts)) parts)
                          [(util/remove-extension (last parts))])

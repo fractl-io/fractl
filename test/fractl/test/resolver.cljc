@@ -4,7 +4,8 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
             [fractl.component :as cn]
-            [fractl.resolver :as r])
+            [fractl.resolver.core :as r]
+            [fractl.resolver.registry :as rg])
   #?(:cljs [fractl.lang
             :refer [component attribute event
                     entity record dataflow]]))
@@ -15,8 +16,8 @@
   (let [r (r/make-resolver resolver-name {:upsert identity})]
     (install-resolver path r)))
 
-(def compose-test-resolver (partial test-resolver r/compose-resolver))
-(def override-test-resolver (partial test-resolver r/override-resolver))
+(def compose-test-resolver (partial test-resolver rg/compose-resolver))
+(def override-test-resolver (partial test-resolver rg/override-resolver))
 
 (defn- persisted? [comp-name entity-instance]
   (let [id (:Id entity-instance)
@@ -28,7 +29,7 @@
   (defcomponent :R01
     (entity {:R01/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :R01/E {:X 10})
-        evt (cn/make-instance :R01/Create_E {:Instance e})
+        evt (cn/make-instance :R01/Upsert_E {:Instance e})
         result (tu/fresult (eval-all-dataflows-for-event evt))
         e01 (ffirst result)]
     (is (cn/instance-of? :R01/E e01))
@@ -36,7 +37,7 @@
     (is (persisted? :R01 e01)))
   (compose-test-resolver :TestResolver01 :R01/E)
   (let [e (cn/make-instance :R01/E {:X 10})
-        evt (cn/make-instance :R01/Create_E {:Instance e})
+        evt (cn/make-instance :R01/Upsert_E {:Instance e})
         result (tu/fresult (eval-all-dataflows-for-event evt))
         e01 (ffirst result)
         r (ffirst (second result))]
@@ -51,7 +52,7 @@
     (entity {:R02/E {:X :Kernel/Int}}))
   (override-test-resolver :TestResolver02 :R02/E)
   (let [e (cn/make-instance :R02/E {:X 10})
-        evt (cn/make-instance :R02/Create_E {:Instance e})
+        evt (cn/make-instance :R02/Upsert_E {:Instance e})
         result (tu/fresult (eval-all-dataflows-for-event evt))
         e01 (ffirst result)
         r (ffirst (second result))]

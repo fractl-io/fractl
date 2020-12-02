@@ -285,10 +285,6 @@
   (cn/canonical-type-name
    (keyword (str (name evtname) ".Instance.Id"))))
 
-(defn- crud-event-update-pattern [evtname entity-name]
-  [:update {entity-name {:Id? (id-accessor evtname)}}
-   (crud-event-inst-accessor evtname)])
-
 (defn- crud-event-delete-pattern [evtname entity-name]
   [:delete {entity-name {:Id (id-accessor evtname)}}])
 
@@ -335,17 +331,14 @@
          ev (partial crud-evname n)
          evattrs {:Instance n}]
      ;; Define CRUD events and dataflows:
-     (let [crevt (ev :Create)
-           upevt (ev :Update)
+     (let [upevt (ev :Upsert)
            delevt (ev :Delete)
            lookupevt (ev :Lookup)]
-       (event-internal crevt evattrs)
        (cn/for-each-entity-event-name
         entity-name
         (partial entity-event entity-name))
-       (cn/register-dataflow crevt [(crud-event-inst-accessor crevt)])
-       (event-internal upevt (assoc evattrs :CurrentInstance n))
-       (cn/register-dataflow upevt [(crud-event-update-pattern upevt entity-name)])
+       (event-internal upevt evattrs)
+       (cn/register-dataflow upevt [(crud-event-inst-accessor upevt)])
        (event-internal delevt evattrs)
        (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
        (event-internal lookupevt {:Id :Kernel/UUID})

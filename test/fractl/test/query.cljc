@@ -14,7 +14,7 @@
   (defcomponent :Q01
     (entity {:Q01/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :Q01/E {:X 10})
-        evt (cn/make-instance :Q01/Create_E {:Instance e})
+        evt (cn/make-instance :Q01/Upsert_E {:Instance e})
         e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
         id (:Id e1)
         evt (cn/make-instance :Q01/Lookup_E {:Id id})
@@ -40,7 +40,7 @@
   (let [es [(cn/make-instance :Q02/E {:X 10 :Y 4})
             (cn/make-instance :Q02/E {:X 12 :Y 6})
             (cn/make-instance :Q02/E {:X 9 :Y 3})]
-        evts (map #(cn/make-instance :Q02/Create_E {:Instance %}) es)
+        evts (map #(cn/make-instance :Q02/Upsert_E {:Instance %}) es)
         f (comp ffirst #(:result (first (eval-all-dataflows-for-event %))))
         insts (map f evts)
         ids (map :Id insts)]

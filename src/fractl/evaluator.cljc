@@ -57,3 +57,9 @@
   [store]
   (let [cq (partial store/compile-query store)]
     [cq (r/get-default-evaluator store (partial run-dataflows cq))]))
+
+(defn evaluator
+  ([store]
+   (let [[compile-query-fn evaluator] (make store)]
+     (partial run-dataflows compile-query-fn evaluator)))
+  ([] (evaluator (store/open-default-store))))

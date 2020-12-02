@@ -5,7 +5,8 @@
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.store :as store]
-            [fractl.resolver :as r]
+            [fractl.resolver.core :as r]
+            [fractl.resolver.registry :as rg]
             [fractl.evaluator.parser :as parser]
             [fractl.evaluator.internal :as i]
             [fractl.lang.opcode :as opc]
@@ -40,7 +41,7 @@
 
 (defn- resolver-for-path [xs]
   (let [path (on-inst cn/instance-name xs)]
-    (r/resolver-for-path path)))
+    (rg/resolver-for-path path)))
 
 (defn- call-resolver-upsert [resolver composed? insts]
   (let [rs (if composed? resolver [resolver])
@@ -54,10 +55,21 @@
   (let [rs (if composed? resolver [resolver])]
     (doall (map #(r/call-resolver-eval % inst) rs))))
 
+(def ^:private inited-components (u/make-cell []))
+
+(defn- maybe-init-schema! [store component-name]
+  (when-not (some #{component-name} @inited-components)
+    (u/safe-set
+     inited-components
+     (do (store/create-schema store component-name)
+         (conj @inited-components component-name))
+     component-name)))
+
 (defn- chained-upsert [store record-name insts]
+  (maybe-init-schema! store (first record-name))
   (let [insts (if (map? insts) [insts] insts)
         resolver (resolver-for-path insts)
-        composed? (r/composed? resolver)
+        composed? (rg/composed? resolver)
         upsert? (or (not resolver) composed?)
         local-result (if (and upsert? store (need-storage? insts))
                        (store/upsert-instances store record-name insts)
@@ -170,7 +182,7 @@
     (do-intern-event-instance [self env record-name]
       (let [[inst env] (pop-and-intern-instance env record-name)
             resolver (resolver-for-path inst)
-            composed? (r/composed? resolver)
+            composed? (rg/composed? resolver)
             local-result (when (or (not resolver) composed?)
                            (eval-event-dataflows self inst))
             resolver-results (when resolver

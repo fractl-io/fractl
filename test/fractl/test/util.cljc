@@ -20,7 +20,6 @@
 (defmacro defcomponent [component & body]
   `(do (fractl.lang/component ~component)
        ~@body
-       (store/create-schema (store/open-default-store nil) ~component)
        ~component))
 
 (defn fresult [r]
@@ -28,6 +27,4 @@
 
 (def store (store/open-default-store))
 
-(defn make-df-eval []
-  (let [[compile-query-fn evaluator] (e/make store)]
-    (partial e/run-dataflows compile-query-fn evaluator)))
+(def make-df-eval e/evaluator)
