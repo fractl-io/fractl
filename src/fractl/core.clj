@@ -29,12 +29,12 @@
 
 (defn- run-cmd [args config]
   (let [components (load-components args (:component-root config))]
-    (when (every? keyword? components)
+    (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
       (register-resolvers! (:resolvers config))
       (when-let [server-cfg (:service config)]
         (log/info (str "Server config - " server-cfg))
-        (h/run-server (e/evaluator) server-cfg)))))
+        (h/run-server (e/evaluator (:store config)) server-cfg)))))
 
 (defn- read-config [options]
   (read-string (slurp (get options :config "./config.edn"))))
