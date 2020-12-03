@@ -250,11 +250,13 @@
     :else
     (let [{component :component rec :record refs :refs} (li/path-parts arg)]
       (if-let [[refattr ukattr] (reference-attributes attrs [component rec])]
-        `(~(first refs)
-          (first
-           (fractl.env/lookup-instances-by-attributes
-            ~runtime-env-var
-            ~[component rec] [[~ukattr (~refattr ~current-instance-var)]])))
+        `(do
+           (require '[fractl.env])
+           (~(first refs)
+            (first
+             (fractl.env/lookup-instances-by-attributes
+              ~runtime-env-var
+              ~[component rec] [[~ukattr (~refattr ~current-instance-var)]]))))
         (u/throw-ex (str "no unique reference can be traced from " [rec-name aname arg]))))))
 
 (defn compile-attribute-expression [rec-name attrs aname aval]
