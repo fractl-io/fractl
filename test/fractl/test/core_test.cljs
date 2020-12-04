@@ -78,7 +78,7 @@
     (is (valid-opcode? opc/intern-instance?
                        (nth opcs 3) [:CompileTest :E1]))))
 
-#_(deftest compile-pattern-02
+(deftest compile-pattern-02
   (let [[ctx c] (pattern-compiler)
              p1 {:CompileTest/E1
                  {:Id? 'id
@@ -124,7 +124,7 @@
           result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
       (is (cn/same-instance? e result))))
 
-#_(deftest compile-create
+(deftest compile-create
   (defcomponent :Df02
                 (entity {:Df02/E
                          {:X :Kernel/Int
@@ -142,7 +142,7 @@
     (is (= 100 (:X result)))
     (is (= 1000 (:Y result)))))
 
-#_(deftest dependency
+(deftest dependency
   (defcomponent :Df03
                 (record {:Df03/R {:A :Kernel/Int}})
                 (entity {:Df03/E {:X :Kernel/Int
@@ -163,26 +163,20 @@
     (is (= 1100 (:Z result)))))
 
 (deftest compound-attributes
-  (println "Starting  compound-attributes")
   (defcomponent :Df04
     (entity {:Df04/E1 {:A :Kernel/Int}})
     (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
                        :X   :Kernel/Int
                        :Y   {:expr '(* :X :Df04/E1.A)}}})
     (event {:Df04/PostE2 {:E1 :Df04/E1}}))
-  (println "Done with defcomponent in compound-attributes")
   (dataflow :Df04/PostE2
             {:Df04/E2 {:AId :Df04/PostE2.E1.Id
                        :X   500}})
-  (println "Will make instances and eval - ")
   (let [e1 (cn/make-instance :Df04/E1 {:A 100})
         id (:Id e1)
         e2 (cn/make-instance :Df04/E2 {:AId id
                                        :X   20})
         evt (cn/make-instance :Df04/PostE2 {:E1 e1})]
-    (println "compound-attributes - e1: " e1)
-    (println "compound-attributes - e2: " e2)
-    (println "compound-attributes - evt: " evt)
     (let [result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
       (println "RESULT: " e1)
       (is (cn/instance-of? :Df04/E2 result))
@@ -208,7 +202,3 @@
              ]
          (is (cn/instance-of? :Df05/E2 inst))
          (is (= (:B inst) 100))))
-
-(deftest test-numbers2
-  (is (= 1 1)))
-
