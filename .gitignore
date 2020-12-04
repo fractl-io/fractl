@@ -19,6 +19,6 @@ lsp/
 *.pyc
 *.db.*
 node_modules/
-resources/
+cljs-out/
 out/
 .shadow-cljs/
