@@ -1,6 +1,6 @@
 (ns fractl.store.alasql-internal
   (:require [clojure.string :as str]
-            ["alasql" :as alasql]
+            [cljsjs.alasql]
             [fractl.store.db-internal :as dbi]
             [fractl.util :as u]
             [fractl.component :as cn]
@@ -13,8 +13,8 @@
 (def db-new (atom {}))
 
 (defn create-db [name]
-  (alasql (str "CREATE DATABASE IF NOT EXISTS " name))
-  (. alasql Database name))
+  (js/alasql (str "CREATE DATABASE IF NOT EXISTS " name))
+  (. js/alasql Database name))
 
 (defn- create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
@@ -56,8 +56,8 @@
   internal DB connection we hardcode SQL to bypass alasql's limitations."
   (let [fname (first (str/split entity-table-name #"\."))
         sql (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))]
-    (alasql (str "USE " fname))
-    (alasql (str sql))
+    (js/alasql (str "USE " fname))
+    (js/alasql (str sql))
     entity-table-name))
 
 (defn create-entity-table!
@@ -66,9 +66,9 @@
   [tabname ident-attr]
   (let [fname (first (str/split tabname #"\."))
         sql (create-entity-table-sql tabname ident-attr)
-        ;db (. alasql Database fname)
-        db (alasql (str "USE " fname))]
-    (if (alasql (str sql))
+        ;db (. js/alasql Database fname)
+        db (js/alasql (str "USE " fname))]
+    (if (js/alasql (str sql))
       tabname
       (u/throw-ex (str "Failed to create table for " tabname)))))
 

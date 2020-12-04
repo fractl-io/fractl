@@ -16,7 +16,10 @@
 #?(:clj
    (throw (Exception. msg))
    :cljs
-   (throw (js/Error. msg))))
+   (let [e (js/Error. msg)]
+     (println msg)
+     (.log js/console (.-stack e))
+     (throw e))))
 
 (macros/deftime
   (defmacro passthru

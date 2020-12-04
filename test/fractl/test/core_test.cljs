@@ -17,8 +17,6 @@
 
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 
-(println "EVAL DATAFLOWS " (tu/make-df-eval))
-
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
   (component :CompileTest)
@@ -81,7 +79,7 @@
                        (nth opcs 3) [:CompileTest :E1]))))
 
 #_(deftest compile-pattern-02
-  (try (let [[ctx c] (pattern-compiler)
+  (let [[ctx c] (pattern-compiler)
              p1 {:CompileTest/E1
                  {:Id? 'id
                   :X   100
@@ -103,9 +101,7 @@
                               (nth opcs 2) (fn [[n f]]
                                              (and (= :Y n) (fn? f)))))
            (is (valid-opcode? opc/intern-instance?
-                              (nth opcs 3) [:CompileTest :E1]))))
-       (catch js/Error e
-         (.log js/console (.-stack e)))))
+                              (nth opcs 3) [:CompileTest :E1])))))
 
 (deftest circular-dependency
   (let [[ctx c] (pattern-compiler)
@@ -119,7 +115,6 @@
     (tu/is-error #(c p1))))
 
 (deftest compile-ref
-  (try
     (defcomponent :Df01
       (entity {:Df01/E
                {:X :Kernel/Int
@@ -127,9 +122,7 @@
     (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
           evt (cn/make-instance :Df01/Create_E {:Instance e})
           result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-      (is (cn/same-instance? e result)))
-    (catch js/Error e
-      (.log js/console (.-stack e)))))
+      (is (cn/same-instance? e result))))
 
 #_(deftest compile-create
   (defcomponent :Df02
@@ -170,32 +163,35 @@
     (is (= 1100 (:Z result)))))
 
 (deftest compound-attributes
-  (try (defcomponent :Df04
-                     (entity {:Df04/E1 {:A :Kernel/Int}})
-                     (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
-                                        :X   :Kernel/Int
-                                        :Y   {:expr '(* :X :Df04/E1.A)}}})
-                     (event {:Df04/PostE2 {:E1 :Df04/E1}}))
-       (dataflow :Df04/PostE2
-                 {:Df04/E2 {:AId :Df04/PostE2.E1.Id
-                            :X   500}})
-       (let [e1 (cn/make-instance :Df04/E1 {:A 100})
-             id (:Id e1)
-             e2 (cn/make-instance :Df04/E2 {:AId id
-                                            :X   20})
-             evt (cn/make-instance :Df04/PostE2 {:E1 e1})
-             result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-         (println "RESULT: " e1)
-         (is (cn/instance-of? :Df04/E2 result))
-         (is (u/uuid-from-string (:Id result)))
-         (is (= (:AId result) id))
-         (is (= (:X result) 500))
-         (is (= (:Y result) 50000)))
-       (catch js/Error e
-         (.log js/console (.-stack e)))))
+  (println "Starting  compound-attributes")
+  (defcomponent :Df04
+    (entity {:Df04/E1 {:A :Kernel/Int}})
+    (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
+                       :X   :Kernel/Int
+                       :Y   {:expr '(* :X :Df04/E1.A)}}})
+    (event {:Df04/PostE2 {:E1 :Df04/E1}}))
+  (println "Done with defcomponent in compound-attributes")
+  (dataflow :Df04/PostE2
+            {:Df04/E2 {:AId :Df04/PostE2.E1.Id
+                       :X   500}})
+  (println "Will make instances and eval - ")
+  (let [e1 (cn/make-instance :Df04/E1 {:A 100})
+        id (:Id e1)
+        e2 (cn/make-instance :Df04/E2 {:AId id
+                                       :X   20})
+        evt (cn/make-instance :Df04/PostE2 {:E1 e1})]
+    (println "compound-attributes - e1: " e1)
+    (println "compound-attributes - e2: " e2)
+    (println "compound-attributes - evt: " evt)
+    (let [result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+      (println "RESULT: " e1)
+      (is (cn/instance-of? :Df04/E2 result))
+      (is (u/uuid-from-string (:Id result)))
+      (is (= (:AId result) id))
+      (is (= (:X result) 500))
+      (is (= (:Y result) 50000)))))
 
 (deftest fire-event
-  (try
     (defcomponent :Df05
                      (entity {:Df05/E1 {:A :Kernel/Int}})
                      (entity {:Df05/E2 {:B :Kernel/Int}})
@@ -211,6 +207,8 @@
              inst (ffirst (tu/fresult (first result)))
              ]
          (is (cn/instance-of? :Df05/E2 inst))
-         (is (= (:B inst) 100)))
-    (catch js/Error e
-      (.log js/console (.-stack e)))))
+         (is (= (:B inst) 100))))
+
+(deftest test-numbers2
+  (is (= 1 1)))
+

@@ -8,6 +8,7 @@
                  [com.h2database/h2 "1.4.200"]
                  [honeysql "1.0.444"]
                  [net.cgrand/macrovich "0.2.1"]
+                 [cljsjs/alasql "0.6.5-0"]
                  [cljc.java-time "0.1.11"]]
 
   :main fractl.core
