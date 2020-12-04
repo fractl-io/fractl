@@ -1,7 +1,7 @@
 ^{
   ;; use an alternative landing page for the tests so that we don't
   ;; launch the application
-  :open-url "http://[[server-hostname]]:[[server-port]]/test.html"
+  :open-url "http://[[server-hostname]]:[[server-port]]/index.html"
 
   ;; uncomment to launch tests in a headless environment
   ;; you will have to figure out the path to chrome on your system

@@ -8,8 +8,7 @@
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.compiler.validation :as cv]
-            [fractl.compiler.internal :as i]
-            #?(:cljs [cljs.js :refer [eval empty-state js-eval]])))
+            [fractl.compiler.internal :as i]))
 
 (def make-context ctx/make)
 

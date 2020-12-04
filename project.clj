@@ -23,22 +23,18 @@
             [lein-doo "0.1.10"]]
 
   :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4"]
-                                  [thheller/shadow-cljs "2.11.7"]
                                   [com.bhauman/figwheel-main "0.2.12"]]
                    ;; setup target as a resource path
                    :resource-paths ["target" "resources" "node_modules"]
                    ;; set up an alias to invoke your figwheel build
-                   :aliases  {"cljs:cli"  ["run" "-m" "shadow.cljs.devtools.cli"]
-                              "cljs:test" ["run" "-m" "shadow.cljs.devtools.cli" "compile" "test"]
-                              "cljs:app"  ["run" "-m" "shadow.cljs.devtools.cli" "compile" "app"]
-                              "fig"       ["trampoline" "run" "-m" "figwheel.main"]
+                   :aliases  {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
                               "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
                               "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
                               "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "fractl.test-runner"]}
                    :clean-targets  ^{:protect false} ["target" "out"]}}
 
   :cljsbuild {:builds
-              [{:id  "dev"
+              [{:id "dev"
                 :source-paths ["src"]
                 :compiler  {:main                 fractl.core
                             :target               :bundle
@@ -51,7 +47,7 @@
                             ;; To console.log CLJS data-structures make sure you enable devtools in Chrome
                             ;; https://github.com/binaryage/cljs-devtools
                             :preloads             [devtools.preload]}}
-               {:id  "test"
+               {:id "test"
                 :compiler
                      {:asset-path    "target/test"
                       :main          fractl.test
@@ -62,7 +58,7 @@
                ;; This next build is a compressed minified build for
                ;; production. You can build this with:
                ;; lein cljsbuild once min
-               {:id  "min"
+               {:id "min"
                 :source-paths ["src"]
                 :compiler  {:output-to     "resources/public/js/compiled/fractl.js"
                             :main          fractl.core

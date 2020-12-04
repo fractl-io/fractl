@@ -30,13 +30,13 @@
 
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)
+(def create-schema p/create-schema)
 (def drop-schema p/drop-schema)
 (def upsert-instance p/upsert-instance)
 (def delete-instance p/delete-instance)
 (def query-by-id p/query-by-id)
 (def do-query p/do-query)
 (def compile-query p/compile-query)
-(def create-schema p/create-schema)
 
 (defn upsert-instances [store record-name insts]
   (doseq [inst insts]
