@@ -66,7 +66,6 @@
   [tabname ident-attr]
   (let [fname (first (str/split tabname #"\."))
         sql (create-entity-table-sql tabname ident-attr)
-        ;db (. js/alasql Database fname)
         db (js/alasql (str "USE " fname))]
     (if (js/alasql (str sql))
       tabname
