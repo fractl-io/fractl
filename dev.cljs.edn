@@ -1,5 +1,0 @@
-^{:watch-dirs ["src" "test"]
-  ;:extra-main-files {:testing {:main fractl.test-runner}}
-  :auto-testing true
-  :log-syntax-error-style :concise}
-{:main fractl.core}
