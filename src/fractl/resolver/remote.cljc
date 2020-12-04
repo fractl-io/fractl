@@ -4,7 +4,7 @@
             #?(:cljs [cljs-http.client :as http])
             #?(:cljs [cljs.core.async :refer [<!]])
             [fractl.component :as cn]
-            [fractl.http :as fh]
+            #?(:clj [fractl.http :as fh])
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as r])
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))

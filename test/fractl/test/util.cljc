@@ -26,6 +26,6 @@
 (defn fresult [r]
   (:result (first r)))
 
-(def store (store/open-store nil))
+(def store (store/open-default-store nil))
 
 (def make-df-eval e/evaluator)

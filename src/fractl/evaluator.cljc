@@ -60,7 +60,7 @@
 
 (defn evaluator
   ([store-config]
-   (let [store (store/open-store store-config)]
+   (let [store (store/open-default-store store-config)]
      (let [[compile-query-fn evaluator] (make store)]
        (partial run-dataflows compile-query-fn evaluator))))
   ([] (evaluator nil)))
