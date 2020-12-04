@@ -12,9 +12,6 @@
             [fractl.compiler.context :as ctx]
             [fractl.test.util :as tu :refer-macros [defcomponent]]))
 
-(deftest test-numbers
-  (is (= 1 1)))
-
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 
 (defn- install-test-component []
@@ -80,28 +77,27 @@
 
 (deftest compile-pattern-02
   (let [[ctx c] (pattern-compiler)
-             p1 {:CompileTest/E1
-                 {:Id? 'id
-                  :X   100
-                  :Y   '(+ :X 10)}}
-             uuid (u/uuid-string)]
-         ;; Variable `id` not in context.
-         ;(tu/is-error #(c p1))
-         (is (thrown? js/Error (c p1)))
-         ;; Any value will do, variable validation
-         ;; will happen only during runtime.
-         ;; In this case, the variable is resolved at
-         ;; compile-time itself.
-         (ctx/bind-variable! ctx 'id uuid)
-         (let [opcs (c p1)]
-           (is (valid-opcode-with-query? (first opcs) [:CompileTest :E1]))
-           (is (valid-opcode? opc/set-literal-attribute?
-                              (second opcs) [:X 100]))
-           (is (valid-opcode? opc/set-compound-attribute?
-                              (nth opcs 2) (fn [[n f]]
-                                             (and (= :Y n) (fn? f)))))
-           (is (valid-opcode? opc/intern-instance?
-                              (nth opcs 3) [:CompileTest :E1])))))
+        p1 {:CompileTest/E1
+            {:Id? 'id
+             :X 100
+             :Y '(+ :X 10)}}
+        uuid (u/uuid-string)]
+    ;; Variable `id` not in context.
+    (tu/is-error #(c p1))
+    ;; Any value will do, variable validation
+    ;; will happen only during runtime.
+    ;; In this case, the variable is resolved at
+    ;; compile-time itself.
+    (ctx/bind-variable! ctx 'id uuid)
+    (let [opcs (c p1)]
+      (is (valid-opcode-with-query? (first opcs) [:CompileTest :E1]))
+      (is (valid-opcode? opc/set-literal-attribute?
+                         (second opcs) [:X 100]))
+      (is (valid-opcode? opc/set-compound-attribute?
+                         (nth opcs 2) (fn [[n f]]
+                                        (and (= :Y n) (fn? f)))))
+      (is (valid-opcode? opc/intern-instance?
+                         (nth opcs 3) [:CompileTest :E1])))))
 
 (deftest circular-dependency
   (let [[ctx c] (pattern-compiler)
@@ -115,14 +111,14 @@
     (tu/is-error #(c p1))))
 
 (deftest compile-ref
-    (defcomponent :Df01
-      (entity {:Df01/E
-               {:X :Kernel/Int
-                :Y :Kernel/Int}}))
-    (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
-          evt (cn/make-instance :Df01/Create_E {:Instance e})
-          result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-      (is (cn/same-instance? e result))))
+  (defcomponent :Df01
+                (entity {:Df01/E
+                         {:X :Kernel/Int
+                          :Y :Kernel/Int}}))
+  (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
+        evt (cn/make-instance :Df01/Create_E {:Instance e})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/same-instance? e result))))
 
 (deftest compile-create
   (defcomponent :Df02
@@ -164,41 +160,39 @@
 
 (deftest compound-attributes
   (defcomponent :Df04
-    (entity {:Df04/E1 {:A :Kernel/Int}})
-    (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
-                       :X   :Kernel/Int
-                       :Y   {:expr '(* :X :Df04/E1.A)}}})
-    (event {:Df04/PostE2 {:E1 :Df04/E1}}))
+                (entity {:Df04/E1 {:A :Kernel/Int}})
+                (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
+                                   :X :Kernel/Int
+                                   :Y {:expr '(* :X :Df04/E1.A)}}})
+                (event {:Df04/PostE2 {:E1 :Df04/E1}}))
   (dataflow :Df04/PostE2
             {:Df04/E2 {:AId :Df04/PostE2.E1.Id
-                       :X   500}})
+                       :X 500}})
   (let [e1 (cn/make-instance :Df04/E1 {:A 100})
         id (:Id e1)
         e2 (cn/make-instance :Df04/E2 {:AId id
-                                       :X   20})
-        evt (cn/make-instance :Df04/PostE2 {:E1 e1})]
-    (let [result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-      (println "RESULT: " e1)
-      (is (cn/instance-of? :Df04/E2 result))
-      (is (u/uuid-from-string (:Id result)))
-      (is (= (:AId result) id))
-      (is (= (:X result) 500))
-      (is (= (:Y result) 50000)))))
+                                       :X 20})
+        evt (cn/make-instance :Df04/PostE2 {:E1 e1})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :Df04/E2 result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= (:AId result) id))
+    (is (= (:X result) 500))
+    (is (= (:Y result) 50000))))
 
 (deftest fire-event
-    (defcomponent :Df05
-                     (entity {:Df05/E1 {:A :Kernel/Int}})
-                     (entity {:Df05/E2 {:B :Kernel/Int}})
-                     (event {:Df05/Evt01 {:E1 :Df05/E1}})
-                     (event {:Df05/Evt02 {:E1 :Df05/E1}})
-                     (dataflow :Df05/Evt01
-                               {:Df05/Evt02 {:E1 :Df05/Evt01.E1}})
-                     (dataflow :Df05/Evt02
-                               {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
-       (let [e1 (cn/make-instance :Df05/E1 {:A 100})
-             evt (cn/make-instance :Df05/Evt01 {:E1 e1})
-             result (tu/fresult (eval-all-dataflows-for-event evt))
-             inst (ffirst (tu/fresult (first result)))
-             ]
-         (is (cn/instance-of? :Df05/E2 inst))
-         (is (= (:B inst) 100))))
+  (defcomponent :Df05
+                (entity {:Df05/E1 {:A :Kernel/Int}})
+                (entity {:Df05/E2 {:B :Kernel/Int}})
+                (event {:Df05/Evt01 {:E1 :Df05/E1}})
+                (event {:Df05/Evt02 {:E1 :Df05/E1}})
+                (dataflow :Df05/Evt01
+                          {:Df05/Evt02 {:E1 :Df05/Evt01.E1}})
+                (dataflow :Df05/Evt02
+                          {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
+  (let [e1 (cn/make-instance :Df05/E1 {:A 100})
+        evt (cn/make-instance :Df05/Evt01 {:E1 e1})
+        result (tu/fresult (eval-all-dataflows-for-event evt))
+        inst (ffirst (tu/fresult (first result)))]
+    (is (cn/instance-of? :Df05/E2 inst))
+    (is (= (:B inst) 100))))
