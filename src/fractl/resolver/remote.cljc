@@ -1,19 +1,8 @@
 (ns fractl.resolver.remote
-  (:require #?(:clj [org.httpkit.client :as http])
-            #?(:clj [cheshire.core :as json])
-            #?(:cljs [cljs-http.client :as http])
-            #?(:cljs [cljs.core.async :refer [<!]])
-            [fractl.component :as cn]
-            #?(:clj [fractl.http :as fh])
+  (:require [fractl.component :as cn]
+            [fractl.util.http :as uh]
             [fractl.lang.internal :as li]
-            [fractl.resolver.core :as r])
-  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
-
-(defn- do-post [url options request-obj]
-  (let [body (#?(:clj json/generate-string :cljs identity) request-obj)]
-    #?(:clj @(http/post url (assoc options :body body))
-       :cljs (go (let [response (<! (http/post url {:json-params body}))]
-                   ((:cljs-response-handler options) response))))))
+            [fractl.resolver.core :as r]))
 
 (defn- event-name [event-type inst]
   (let [[component inst-name] (li/split-path (cn/instance-name inst))]
@@ -21,11 +10,11 @@
 
 (defn- remote-request [event-type mkobj host options inst]
   (let [en (event-name event-type inst)
-        url (str host fh/entity-event-prefix en)
+        url (str host uh/entity-event-prefix en)
         request-obj {en (if mkobj
                           (mkobj inst)
                           {:Instance inst})}]
-    (do-post url options request-obj)))
+    (uh/do-post url options request-obj)))
 
 (defn- mk-lookup-obj [inst]
   {:Id (:Id inst)})
@@ -35,10 +24,10 @@
 (def ^:private remote-get (partial remote-request :Lookup mk-lookup-obj))
 
 (defn- remote-query [host options query]
-  (do-post (str host fh/query-prefix) {:Query query}))
+  (uh/do-post (str host uh/query-prefix) options {:Query query}))
 
 (defn- remote-eval [host options event-inst]
-  (do-post (str host fh/dynamic-eval-prefix) event-inst))
+  (uh/do-post (str host uh/dynamic-eval-prefix) options event-inst))
 
 (def ^:private resolver-fns
   {:upsert remote-upsert
