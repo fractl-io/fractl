@@ -20,7 +20,10 @@
   :aot :all
 
   :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
+            [s3-wagon-private "1.3.4"]
             [lein-doo "0.1.10"]]
+
+  :repositories [["aws" {:url "s3p://cljsjs.alasql/snapshot/" :no-auth true}]]
 
   :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4"]
                                   [com.bhauman/figwheel-main "0.2.12"]]
