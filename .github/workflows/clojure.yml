@@ -22,13 +22,6 @@ jobs:
       run: lein deps
     - name: Run clj test
       run: lein test
-    # TODO: Run a clojure app
-
-  slackNotification:
-    name: Slack Notification
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
     - name: Slack Notification
       if: ${{ success() }}
       uses: rtCamp/action-slack-notify@v2.1.0
