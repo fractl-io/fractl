@@ -1,17 +1,18 @@
 (ns fractl.test.basic
-  #?(:clj (:use [fractl.lang]))
-  (:require [clojure.test :refer [deftest is]]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
+  "A basic cljs test."
+  (:require #?(:clj [clojure.test :refer [deftest is]]
+               :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.util :as u]
+            [fractl.store :as store]
             [fractl.component :as cn]
             [fractl.compiler :as c]
+            [fractl.lang
+             :refer [component attribute event
+                     entity record dataflow]]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
-            [fractl.store :as store])
-  #?(:cljs [fractl.lang
-            :refer [component attribute event
-                    entity record dataflow]]))
+            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
+               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 

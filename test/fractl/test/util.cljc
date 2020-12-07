@@ -1,5 +1,6 @@
 (ns fractl.test.util
-  (:require [clojure.test :refer [is]]
+  (:require #?(:clj [clojure.test :refer [is]]
+               :cljs [cljs.test :refer-macros [is]])
             [fractl.store :as store]
             [fractl.evaluator :as e]))
 
@@ -12,10 +13,10 @@
 (defn is-error [f]
   (is (try
         (do (f) false)
-        #?(:clj (catch Exception ex
-                  (report-expected-ex ex))
-           (catch js/Error e
-             (report-expected-ex e))))))
+        #?(:clj  (catch Exception ex
+                   (report-expected-ex ex))
+           :cljs (catch js/Error e
+                   (report-expected-ex e))))))
 
 (defmacro defcomponent [component & body]
   `(do (fractl.lang/component ~component)
@@ -25,6 +26,6 @@
 (defn fresult [r]
   (:result (first r)))
 
-(def store (store/open-store nil))
+(def store (store/open-default-store nil))
 
 (def make-df-eval e/evaluator)

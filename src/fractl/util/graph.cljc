@@ -134,7 +134,7 @@
              _ (if pre?
                  (dfs f nil)
                  (dfs nil f))]
-         q))))
+         (seq @q)))))
 
 (defn preorder [dg v] (traverse dg v true))
 (defn postorder [dg v] (traverse dg v false))

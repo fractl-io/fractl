@@ -1,31 +1,32 @@
 (ns fractl.store
-  (:require [fractl.store.protocol :as p]
-            [fractl.store.h2 :as h2]
+  (:require #?(:clj [fractl.store.h2 :as h2]
+               :cljs [fractl.store.alasql :as alasq])
+            [fractl.store.protocol :as p]
             [fractl.util :as u]))
 
 (def ^:private default-store (u/make-cell))
 
 (defn- make-default-store-config []
-  #?(:clj {:dbname (str "./fractl.db." (System/currentTimeMillis))}))
+  #?(:clj {:dbname (str "./fractl.db." (System/currentTimeMillis))}
+     :cljs {:dbname (str (gensym "fractl_db"))}))
 
-(defn- open-default-store [store-config]
-  #?(:clj
-     (u/safe-set-once
-      default-store
-      #(let [store (h2/make)]
-         (p/open-connection store store-config)
-         ;; NOTE: The default db connection, if opened,
-         ;; will last the lifetime of the app.
-         store))))
+(defn- make-default-store [store-config store]
+  ;; NOTE: The default db connection, if opened,
+  ;; will last the lifetime of the app.
+  (u/safe-set-once
+    default-store
+    #(do
+       (p/open-connection store (or store-config
+                                    (make-default-store-config)))
+       store)))
 
-(def ^:private store-constructors {:h2 open-default-store})
+(defn open-default-store
+  ([store-config]
+   #?(:clj (make-default-store store-config (h2/make))
+      :cljs (make-default-store store-config (alasq/make))))
+  ([] #?(:clj (make-default-store nil (h2/make))
+         :cljs (make-default-store nil (alasq/make)))))
 
-(defn open-store [store-config]
-  (if store-config
-    (if-let [make-fn ((:type store-config) store-constructors)]
-      (make-fn (dissoc store-config :type))
-      (u/throw-ex (str "Store not supported - " (:type store-config))))
-    (open-default-store (make-default-store-config))))
 
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)

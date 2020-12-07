@@ -1,5 +1,10 @@
 (ns fractl.util
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string])
+  #?(:clj
+     (:require [net.cgrand.macrovich :as macros])
+     :cljs
+     (:require-macros [net.cgrand.macrovich :as macros]
+                      [fractl.util :refer [passthru]])))
 
 (defn throw-ex-info
   ([msg errobj]
@@ -11,22 +16,26 @@
 #?(:clj
    (throw (Exception. msg))
    :cljs
-   (throw (js/Error. msg))))
+   (let [e (js/Error. msg)]
+     (println msg)
+     (.log js/console (.-stack e))
+     (throw e))))
 
-(defmacro passthru
-  "If the predicate function returns true for exp1, return exp1, otherwise return
+(macros/deftime
+  (defmacro passthru
+    "If the predicate function returns true for exp1, return exp1, otherwise return
   the value defined for alternative. The alternative, if provided,
   must be of the form `:else exp2`. If the alternative is not provided
   and exp1 fail the predicate test, return nil."
-  [predicate exp1 & alternative]
-  (when (seq alternative)
-    (let [k (first alternative)]
-      (when-not (= k :else)
-        (throw-ex (str "Expected :else, not " k)))))
-  `(let [x# ~exp1]
-     (if (~predicate x#)
-       x#
-       ~@(rest alternative))))
+    [predicate exp1 & alternative]
+    (when (seq alternative)
+      (let [k (first alternative)]
+        (when-not (= k :else)
+          (throw-ex (str "Expected :else, not " k)))))
+    `(let [x# ~exp1]
+       (if (~predicate x#)
+         x#
+         ~@(rest alternative)))))
 
 (defn uuid-string []
   #?(:clj

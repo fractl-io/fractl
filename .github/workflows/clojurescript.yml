@@ -19,7 +19,7 @@ jobs:
     - name: Install dependencies
       run: lein deps
     - name: Run cljs test
-      run: lein cljs:test
+      run: lein fig:test
     # TODO: Run a clojurescript app
 
   slackNotification:

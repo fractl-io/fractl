@@ -1,8 +1,14 @@
-^{:watch-dirs ["src" "test"]
-  :css-dirs ["resources/public/css"]
-  :extra-main-files {:testing {:main v8dml.test-runner}}
+^{
+  ;; use an alternative landing page for the tests so that we don't
+  ;; launch the application
+  :open-url "http://[[server-hostname]]:[[server-port]]"
+
+  ;; uncomment to launch tests in a headless environment
+  ;; you will have to figure out the path to chrome on your system
+  ;; :launch-js ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" "--headless" "--disable-gpu" "--repl" :open-url]
+  :watch-dirs ["src" "test"]
+  ;:extra-main-files {:testing {:main fractl.test-runner}}
   :log-syntax-error-style :concise
-  ;:auto-testing true
   }
 
-{:main fractl.core}
+{:main fractl.test-runner}

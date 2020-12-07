@@ -68,7 +68,7 @@
     :else (arg-lookup expr)))
 
 (defn- expr-as-fn [expr]
-  (eval `(fn [~runtime-env-var ~current-instance-var] ~expr)))
+  (li/evaluate `(fn [~runtime-env-var ~current-instance-var] ~expr)))
 
 (defn- query-param-lookup [p]
   (let [r (arg-lookup p)]
@@ -257,4 +257,4 @@
   (let [fexprs (map (partial arg-lookup-fn rec-name attrs (keys attrs) aname) (rest aval))
         exp `(fn [~runtime-env-var ~current-instance-var]
                (~(first aval) ~@fexprs))]
-    (eval exp)))
+    (li/evaluate exp)))

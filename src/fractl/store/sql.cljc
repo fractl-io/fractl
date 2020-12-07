@@ -39,4 +39,6 @@
      :Kernel/Boolean bool-type
      (u/throw-ex (str "type cannot be indexed - " attribute-type))))
   ([attribute-type]
-   (sql-index-type Integer/MAX_VALUE "BOOLEAN" "DATE" attribute-type)))
+   #?(:clj (sql-index-type Integer/MAX_VALUE "BOOLEAN" "DATE" attribute-type)
+      :cljs (sql-index-type (.-MAX_SAFE_INTEGER js/Number) "BOOLEAN" "DATE" attribute-type))
+   ))

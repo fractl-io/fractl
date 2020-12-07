@@ -17,22 +17,22 @@
     (u/throw-ex (str "not a parsed record name - " rec-name))
     rec-name))
 
-(defmacro getinsts
+(defn get-instances
   "Fetch the instances of the specified record type.
    Ensures that only parsed record-names are passed to the
    runtime environment."
   [env rec-name]
-  `(get ~env (assert-parsed-rec-name ~rec-name)))
+  (get env (assert-parsed-rec-name rec-name)))
 
 (defn bind-instance [env rec-name instance]
-  (let [insts (or (getinsts env rec-name) (list))]
+  (let [insts (or (get-instances env rec-name) (list))]
     (assoc env rec-name (conj insts instance))))
 
 (defn bind-instances [env rec-name instances]
   (su/move-all instances env #(bind-instance %1 rec-name %2)))
 
 (defn lookup-instance [env rec-name]
-  (peek (getinsts env rec-name)))
+  (peek (get-instances env rec-name)))
 
 (defn follow-reference [env path-parts]
   (let [recname [(:component path-parts) (:record path-parts)]
@@ -47,7 +47,7 @@
         [obj env]))))
 
 (defn lookup-instances-by-attributes [env rec-name query-attrs]
-  (when-let [insts (seq (getinsts env rec-name))]
+  (when-let [insts (seq (get-instances env rec-name))]
     (filter #(every? (fn [[k v]] (= v (get % k))) query-attrs) insts)))
 
 (def bind-variable assoc)
