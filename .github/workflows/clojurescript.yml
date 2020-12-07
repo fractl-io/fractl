@@ -16,7 +16,8 @@ jobs:
     steps:
     - name: Checkout & Setup
       uses: actions/checkout@v2
-    - uses: cypress-io/github-action@v2
+    - name: Cypress.io
+      uses: cypress-io/github-action@v2.6.1
       with:
         browser: chrome
         headless: true
