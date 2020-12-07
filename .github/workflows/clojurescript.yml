@@ -26,8 +26,10 @@ jobs:
       run: mvn install:install-file -Dfile=lib/alasql-0.6.5-0.jar -DgroupId=cljsjs -DartifactId=alasql -Dversion=0.6.5-0 -Dpackaging=jar
     - name: Install dependencies
       run: lein deps
+    # - name: Run cljs test
+    #   run: clojure -m figwheel.main -fwo '{:open-url "http://[[server-hostname]]:[[server-port]]" :watch-dirs ["src" "test"] :log-syntax-error-style :concise :launch-js ["/opt/google/chrome/chrome" "--headless" "--disable-gpu" "--repl" "--disable-dev-shm" :open-url]' -m fractl.test-runner
     - name: Run cljs test
-      run: clojure -m figwheel.main -fwo '{:open-url "http://[[server-hostname]]:[[server-port]]" :watch-dirs ["src" "test"] :log-syntax-error-style :concise :launch-js ["/opt/google/chrome/chrome" "--headless" "--disable-gpu" "--repl" "--disable-dev-shm" :open-url]' -m fractl.test-runner
+      run: lein fig:ci
     - name: Slack Notification
       if: ${{ success() }}
       uses: rtCamp/action-slack-notify@v2.1.0
