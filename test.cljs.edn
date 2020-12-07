@@ -6,7 +6,7 @@
   ;; uncomment to launch tests in a headless environment
   ;; you will have to figure out the path to chrome on your system
   ;; :launch-js ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" "--headless" "--disable-gpu" "--repl" :open-url]
-  ;; :launch-js ["/usr/bin/google-chrome" "--headless" "--disable-gpu" "--repl" :open-url]
+  :launch-js ["/opt/google/chrome/chrome" "--headless" "--disable-gpu" "--repl" "--disable-dev-shm" :open-url]
   :watch-dirs ["src" "test"]
   ;:extra-main-files {:testing {:main fractl.test-runner}}
   :log-syntax-error-style :concise
