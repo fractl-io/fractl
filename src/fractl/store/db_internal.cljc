@@ -10,7 +10,6 @@
     k))
 
 (defn db-schema-for-component [component-name]
-  #?(:cljs (.log js/console component-name))
   (string/lower-case (string/replace (name component-name) #"\." "_")))
 
 (defn table-for-entity

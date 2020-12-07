@@ -13,8 +13,8 @@
 (defn is-error [f]
   (is (try
         (do (f) false)
-        #?(:clj (catch Exception ex
-                  (report-expected-ex ex))
+        #?(:clj  (catch Exception ex
+                   (report-expected-ex ex))
            :cljs (catch js/Error e
                    (report-expected-ex e))))))
 
