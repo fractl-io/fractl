@@ -12,21 +12,20 @@ on:
 
 jobs:
   test_cljs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
-    - name: Checkout
+    - name: Checkout & Setup
       uses: actions/checkout@v2
+    - uses: cypress-io/github-action@v2
+      with:
+        browser: chrome
+        headless: true
+    - name: Install maven dependency
+      run: mvn install:install-file -Dfile=lib/alasql-0.6.5-0.jar -DgroupId=cljsjs -DartifactId=alasql -Dversion=0.6.5-0 -Dpackaging=jar
     - name: Install dependencies
       run: lein deps
     - name: Run cljs test
       run: lein fig:test
-    # TODO: Run a clojurescript app
-
-  slackNotification:
-    name: Slack Notification
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
     - name: Slack Notification
       if: ${{ success() }}
       uses: rtCamp/action-slack-notify@v2.1.0
@@ -50,3 +49,4 @@ jobs:
         SLACK_ICON_EMOJI: ':scream:'
         SLACK_USERNAME: Cookie Monster
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
