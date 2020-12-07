@@ -2,9 +2,9 @@
   "The core constructs of the modeling language."
   (:require [clojure.set :as set]
             [fractl.util :as u]
-            [fractl.util.str :as stru]
             [fractl.util.hash :as sh]
             [fractl.lang.internal :as li]
+            [fractl.lang.datetime :as dt]
             [fractl.component :as cn]
             [fractl.compiler :as c]))
 
@@ -383,7 +383,7 @@
    (re-matches (re-pattern rgex-s) s))
   ([s] (string? s)))
 
-(def date-time? stru/parse-date-time)
+(def date-time? dt/parse-date-time)
 
 (defn UUID? [s]
   (if (u/uuid-from-string s) true false))
