@@ -7,7 +7,7 @@
                  [seancorfield/next.jdbc "1.1.581"]
                  [c3p0/c3p0 "0.9.1.2"]
                  [com.h2database/h2 "1.4.200"]
-                 [org.mindrot.jbcrypt "0.3"]
+                 [org.mindrot/jbcrypt "0.4"]
                  [honeysql "1.0.444"]
                  [compojure "1.6.2"]
                  [http-kit "2.5.0"]
