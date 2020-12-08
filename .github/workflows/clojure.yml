@@ -16,8 +16,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: Install maven dependency
-      run: mvn install:install-file -Dfile=lib/alasql-0.6.5-0.jar -DgroupId=cljsjs -DartifactId=alasql -Dversion=0.6.5-0 -Dpackaging=jar
     - name: Install dependencies
       run: lein deps
     - name: Run clj test
