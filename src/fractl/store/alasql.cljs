@@ -3,7 +3,7 @@
   (:require [fractl.util :as u]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p]
-            [fractl.store.alasql-internal :as i]))
+            ;; [fractl.store.alasql-internal :as i]))
 
 (defn make []
   (let [datasource (u/make-cell)]
