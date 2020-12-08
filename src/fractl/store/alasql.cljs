@@ -3,18 +3,19 @@
   (:require [fractl.util :as u]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p]
-            ;; [fractl.store.alasql-internal :as i]))
+            [fractl.store.alasql-internal :as i]))
 
 (defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
       (open-connection [store connection-info]
-        (let [connection-info (su/normalize-connection-info connection-info)]
+        #_(let [connection-info (su/normalize-connection-info connection-info)]
           (u/safe-set-once
             datasource
             #(if-let [dbname (:dbname connection-info)]
                (i/create-db dbname)))
-          true))
+          true)
+        nil)
       (close-connection [_]
         (try
           (do (u/safe-set
