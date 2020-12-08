@@ -1,6 +1,6 @@
 (ns fractl.lang.string
   #?(:clj
-     (:import [org.mindrot BCrypt])))
+     (:import [org.mindrot.jbcrypt BCrypt])))
 
 (defn string-in-range? [min max obj]
   (and (string? obj)
