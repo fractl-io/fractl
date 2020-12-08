@@ -1,0 +1,4 @@
+{:name :Platform
+ :components [:Platform/Identity
+              :Platform/AppCatalog]
+ :config {:service {:port 5050}}}
