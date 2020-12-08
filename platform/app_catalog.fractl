@@ -13,7 +13,7 @@
 
 (entity {:Application
          {:Name {:check app-name?}
-          :Publisher {:ref :Platform.Identity/User.id}
+          :Publisher {:ref :Platform.Identity/User.Id}
           :PublishDate {:type :Kernel/DateTime
                         :immutable true
                         :default now}

@@ -1,5 +1,6 @@
 (ns fractl.core
   (:require [clojure.tools.cli :refer [parse-opts]]
+            [clojure.string :as s]
             [taoensso.timbre :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
@@ -7,28 +8,53 @@
             [fractl.lang.loader :as loader])
   (:gen-class))
 
+(def script-extn ".fractl")
+(def model-script-name "model.fractl")
+
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
    ["-h" "--help"]])
+
+(defn- script-name-from-component-name [component-name]
+  (loop [s (subs (str component-name) 1), sep "", result []]
+    (if-let [c (first s)]
+      (cond
+        (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
+        (= \/ c) (recur (rest s) "" (conj result java.io.File/separator))
+        :else (recur (rest s) sep (conj result c)))
+      (str (s/join result) script-extn))))
 
 (defn- load-components [component-scripts component-root-path]
   (doall (map (partial loader/load-script component-root-path)
               component-scripts)))
 
+(defn- load-components-from-model [model component-root-path]
+  (load-components (map script-name-from-component-name (:components model))
+                   component-root-path))
+
 (defn- log-seq! [prefix xs]
-  (loop [xs xs, s (str prefix " - ")]
-    (if-let [c (first xs)]
-      (let [cs (rest xs)
-            sep (if (seq (rest cs)) " " "")]
-        (recur cs (str s sep c)))
-      (log/info s))))
+  (loop [xs xs, sep "", s (str prefix " - ")]
+    (when-let [c (first xs)]
+      (let [s (str s sep c)]
+        (if-let [cs (seq (rest xs))]
+          (recur cs " " s)
+          (log/info s))))))
 
 (defn- register-resolvers! [resolver-specs]
   (when-let [rns (seq (rr/register-resolvers resolver-specs))]
     (log-seq! "Resolvers" rns)))
 
+(defn- maybe-load-model [args]
+  (when (and (= (count args) 1) (s/ends-with? (first args) model-script-name))
+    (read-string (slurp (first args)))))
+
 (defn- run-cmd [args config]
-  (let [components (load-components args (:component-root config))]
+  (let [model (maybe-load-model args)
+        config (merge (:config model) config)
+        comp-root (:component-root config)
+        components (if model
+                     (load-components-from-model model comp-root)
+                     (load-components args comp-root))]
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
       (register-resolvers! (:resolvers config))
@@ -37,7 +63,8 @@
         (h/run-server (e/evaluator (:store config)) server-cfg)))))
 
 (defn- read-config [options]
-  (read-string (slurp (get options :config "./config.edn"))))
+  (when-let [config-file (get options :config)]
+    (read-string (slurp config-file))))
 
 (defn -main [& args]
   (let [{options :options args :arguments
