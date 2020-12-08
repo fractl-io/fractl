@@ -1,7 +1,8 @@
 (ns platform.identity
   "Simple user-identity management for the app-catalog"
-  (:import [clojure.string :as s])
+  (:require [clojure.string :as s])
   (:use [fractl.lang]
+        [fractl.lang.datetime]
         [fractl.lang.string]))
 
 (component :Platform.Identity)
