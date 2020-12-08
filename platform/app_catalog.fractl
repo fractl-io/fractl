@@ -1,4 +1,5 @@
 (ns platform.app-catalog
+  "Manage a list of deployable applications"
   (:use [fractl.lang]
         [fractl.lang.datetime]
         [fractl.lang.string]

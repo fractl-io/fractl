@@ -2,7 +2,6 @@
   "The core constructs of the modeling language."
   (:require [clojure.set :as set]
             [fractl.util :as u]
-            [fractl.util.hash :as sh]
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]
             [fractl.component :as cn]
@@ -394,7 +393,7 @@
      :cljs
      (atom false)))
 
-(def ^:private kernel-bindings #{:String :DateTime :UUID
+(def ^:private kernel-bindings #{:String :DateTime :UUID :Password
                                  :Int :Int64 :Integer
                                  :Float :Double :Decimal
                                  :Boolean :Record :Entity :Event})
@@ -429,6 +428,7 @@
   (attribute :Kernel/Keyword keyword?)
   (attribute :Kernel/DateTime date-time?)
   (attribute :Kernel/UUID UUID?)
+  (attribute :Kernel/Password identity)
   (attribute :Kernel/Int int?)
   (attribute :Kernel/Int64 integer?)
   (attribute :Kernel/Integer integer?)
@@ -459,10 +459,6 @@
 
   (event :Kernel/AppInit
          {:AppName :Kernel/Keyword}))
-
-(def hash-password sh/salted-hash)
-(def hashed-password? sh/salted-hash?)
-(def password-hash-eq? sh/hash-eq?)
 
 (defn- initf []
   (when-not @kernel-inited
