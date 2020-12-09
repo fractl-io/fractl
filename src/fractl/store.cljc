@@ -8,7 +8,7 @@
 (def ^:private default-store (u/make-cell))
 
 (defn- make-default-store-config []
-  {:dbname (str (gensym "fractl_db_"))})
+  {:dbname (str (gensym "./fractl_db_"))})
 
 (defn- make-default-store [store-config store]
   ;; NOTE: The default db connection, if opened,
