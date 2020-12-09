@@ -888,7 +888,7 @@
   (or (= k :name)
       (= k type-tag-key)))
 
-(defn attribute-unique-reference-path [refrec [attr-name attr-spec]]
+(defn attribute-unique-reference-path [[attr-name attr-spec]]
   (when-let [r (:ref attr-spec)]
     (when (:unique (find-attribute-schema r))
       [attr-name r])))
