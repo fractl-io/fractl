@@ -22,6 +22,8 @@
   :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
             [s3-wagon-private "1.3.4"]
             [lein-doo "0.1.10"]]
+  
+  :repositories [["github" {:url "https://maven.pkg.github.com/fractl-io" :creds :gpg}]]
 
   :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4"]
                                   [com.bhauman/figwheel-main "0.2.12"]]
