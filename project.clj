@@ -1,4 +1,4 @@
-(defproject fractl "0.0.1"
+(defproject fractl-io/fractl "0.0.1"
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/clojurescript "1.10.773"]
                  [org.clojure/tools.cli "1.0.194"]
@@ -22,6 +22,12 @@
   :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
             [s3-wagon-private "1.3.4"]
             [lein-doo "0.1.10"]]
+
+  :pom-addition [:distributionManagement
+                  [:repository
+                    ["id" "github"]
+                    ["name" "GitHub fractl.io Apache Maven Packages"]
+                    ["url" "https://maven.pkg.github.com/fractl-io/fractl"]]]
 
   :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4"]
                                   [com.bhauman/figwheel-main "0.2.12"]]

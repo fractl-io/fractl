@@ -1,0 +1,52 @@
+name: PublishPackage
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'         # matches every branch that doesn't contain a '/'
+      - '*/*'       # matches every branch containing a single '/'
+      - '**'        # matches every branch
+
+jobs:
+  test_clj:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Install dependencies
+      run: lein deps
+    - name: Run clj test
+      run: lein test
+    - name: Deploy to Github Package Registry
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        mkdir -p ~/.m2
+        echo "<settings><servers><server><id>github</id><username>$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $1}')</username><password>\${env.GITHUB_TOKEN}</password></server></servers></settings>" > ~/.m2/settings.xml
+        mvn deploy
+    - name: Slack Notification
+      if: ${{ success() }}
+      uses: rtCamp/action-slack-notify@v2.1.0
+      env:
+        SLACK_CHANNEL: ci
+        SLACK_FOOTER: Cookie! Om nom nom nom
+        SLACK_TITLE: 'All cool. More COOKIES! :cookie: :cookie:'
+        SLACK_MESSAGE: 'Om Nom Nom :cookie:'
+        SLACK_ICON: https://avatars3.githubusercontent.com/u/10654370?size=48
+        SLACK_USERNAME: Cookie Monster
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+    - name: Slack Notification
+      if: ${{ failure() }}
+      uses: rtCamp/action-slack-notify@v2.1.0
+      env:
+        SLACK_CHANNEL: ci
+        SLACK_FOOTER: Cookie! Om nom nom nom
+        SLACK_TITLE: 'It Failed! No cookies.'
+        SLACK_MESSAGE: 'No cookie? :cry:'
+        SLACK_COLOR: '#ff1100'
+        SLACK_ICON_EMOJI: ':scream:'
+        SLACK_USERNAME: Cookie Monster
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
