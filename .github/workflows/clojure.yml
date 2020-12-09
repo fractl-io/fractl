@@ -20,6 +20,15 @@ jobs:
       run: lein deps
     - name: Run clj test
       run: lein test
+    - name: Generate pom.xml
+      run: lein pom
+    - name: Deploy to Github Package Registry
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        mkdir -p ~/.m2
+        echo "<settings><servers><server><id>github</id><username>$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $1}')</username><password>\${env.GITHUB_TOKEN}</password></server></servers></settings>" > ~/.m2/settings.xml
+        mvn deploy
     - name: Slack Notification
       if: ${{ success() }}
       uses: rtCamp/action-slack-notify@v2.1.0
