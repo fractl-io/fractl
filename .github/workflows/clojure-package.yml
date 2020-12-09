@@ -17,6 +17,8 @@ jobs:
       run: lein deps
     - name: Run tests
       run: lein test
+    - name: Generate pom.xml
+      run: lein pom
 
     - name: Deploy to Github Package Registry
       env:
