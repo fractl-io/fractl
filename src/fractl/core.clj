@@ -60,7 +60,7 @@
       (register-resolvers! (:resolvers config))
       (when-let [server-cfg (:service config)]
         (log/info (str "Server config - " server-cfg))
-        (h/run-server (e/evaluator (:store config)) server-cfg)))))
+        (h/run-server (e/public-evaluator (:store config)) server-cfg)))))
 
 (defn- read-config [options]
   (when-let [config-file (get options :config)]
