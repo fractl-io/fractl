@@ -24,3 +24,4 @@ out/
 .shadow-cljs/
 .clj-kondo/
 .lsp/
+/platform/*.db*
