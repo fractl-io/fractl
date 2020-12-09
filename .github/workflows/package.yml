@@ -11,7 +11,7 @@ on:
       - '**'        # matches every branch
 
 jobs:
-  test_clj:
+  package:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -20,6 +20,8 @@ jobs:
       run: lein deps
     - name: Run clj test
       run: lein test
+    - name: Generate pom.xml needed for mvn deploy
+      run: lein pom
     - name: Deploy to Github Package Registry
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
