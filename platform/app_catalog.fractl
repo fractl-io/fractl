@@ -13,10 +13,17 @@
 
 (entity {:Application
          {:Name {:check app-name?}
-          :Publisher {:ref :Platform.Identity/User.Id}
+          :Publisher {:ref :Platform.Identity/User.Id
+                      :indexed true}
           :PublishDate {:type :Kernel/DateTime
                         :immutable true
                         :default now}
           :LastUpdated {:type :Kernel/DateTime
                         :default now}
           :Artifact {:check app-artifact?}}})
+
+(event {:ListApplications
+        {:Publisher :Kernel/UUID}})
+
+(dataflow :ListApplications
+          {:Application {:Publisher? :Platform.AppCatalog/ListApplications.Publisher}})

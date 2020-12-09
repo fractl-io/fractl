@@ -8,8 +8,7 @@
 (def ^:private default-store (u/make-cell))
 
 (defn- make-default-store-config []
-  #?(:clj {:dbname (str "./fractl.db." (System/currentTimeMillis))}
-     :cljs {:dbname (str (gensym "fractl_db"))}))
+  {:dbname (str (gensym "fractl_db_"))})
 
 (defn- make-default-store [store-config store]
   ;; NOTE: The default db connection, if opened,
