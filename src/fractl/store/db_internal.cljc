@@ -22,14 +22,6 @@
 (defn indexed-attributes [entity-schema]
   (set (remove #{:Id} (cn/indexed-attributes entity-schema))))
 
-(defn find-indexed-attributes
-  ([entity-name entity-schema]
-   (if entity-schema
-     (indexed-attributes entity-schema)
-     (u/throw-ex (str "no schema for " entity-name))))
-  ([entity-name]
-   (find-indexed-attributes entity-name (cn/entity-schema entity-name))))
-
 (defn index-table-name
   "Construct the lookup table-name for the attribute, from the main entity
   table-name and attribute-name."
@@ -65,3 +57,8 @@
 
 (defn drop-schema-sql [schema-name]
   (str "DROP SCHEMA IF EXISTS " schema-name))
+
+(defn find-entity-schema [entity-name]
+  (if-let [scm (cn/entity-schema entity-name)]
+    scm
+    (u/throw-ex (str "schema not found for entity - " entity-name))))

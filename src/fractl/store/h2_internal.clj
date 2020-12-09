@@ -97,8 +97,8 @@
       (create-db-schema! conn scmname)
       (doseq [ename (cn/entity-names component-name)]
         (let [tabname (dbi/table-for-entity ename)
-              schema (cn/entity-schema ename)
-              indexed-attrs (dbi/find-indexed-attributes ename schema)]
+              schema (dbi/find-entity-schema ename)
+              indexed-attrs (cn/indexed-attributes schema)]
           (create-tables! conn schema tabname :Id indexed-attrs))))
     component-name))
 
@@ -132,9 +132,21 @@
     (jdbcp/set-parameters pstmt [id obj])
     pstmt))
 
+(defn- validate-references! [inst ref-attrs]
+  (doseq [[aname scmname] ref-attrs]
+    (let [p (cn/find-ref-path scmname)
+          component (:component p)
+          entity-name (:record p)
+          tabname (dbi/table-for-entity [component entity-name] (name component))
+          index-tabname (dbi/index-table-name tabname (name (first (:refs p))))]
+      ;; TODO: check if the refrenced value exists in index-tabname, if not throw error
+      )))
+
 (defn- upsert-inst!
   "Insert or update an entity instance."
-  [conn table-name inst]
+  [conn table-name inst ref-attrs]
+  (when (seq ref-attrs)
+    (validate-references! inst ref-attrs))
   (let [attrs (cn/serializable-attributes inst)
         id (:Id attrs)
         obj (json/generate-string (dissoc attrs :Id))
@@ -143,10 +155,12 @@
 
 (defn upsert-instance [datasource entity-name instance]
   (let [tabname (dbi/table-for-entity entity-name)
-        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+        entity-schema (dbi/find-entity-schema entity-name)
+        indexed-attrs (cn/indexed-attributes entity-schema)
+        ref-attrs (cn/ref-attribute-schemas entity-schema)]
     (with-open [conn (jdbc/get-connection datasource)]
       (jdbc/with-transaction [txn conn]
-        (upsert-inst! txn tabname instance)
+        (upsert-inst! txn tabname instance ref-attrs)
         (upsert-indices! txn tabname indexed-attrs instance)))
     instance))
 
@@ -181,7 +195,8 @@
 (defn delete-instance [datasource entity-name instance]
   (let [id (:Id instance)
         tabname (dbi/table-for-entity entity-name)
-        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+        entity-schema (dbi/find-entity-schema entity-name)
+        indexed-attrs (cn/indexed-attributes entity-schema)]
     (with-open [conn (jdbc/get-connection datasource)]
       (jdbc/with-transaction [txn conn]
         (delete-indices! txn tabname indexed-attrs id)

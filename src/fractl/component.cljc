@@ -298,16 +298,23 @@
     true
     false))
 
+(defn- filter-attribute-schemas [predic entity-schema]
+  (filter #(let [ascm (find-attribute-schema (second %))]
+             (predic ascm))
+          entity-schema))
+
 (defn- filter-attributes
   "Filter attribute names based on the attribute schema check using the predicate."
-  [predic schema]
-  (map first (filter #(let [ascm (find-attribute-schema (second %))]
-                        (predic ascm))
-                     schema)))
+  [predic entity-schema]
+  (map first (filter-attribute-schemas predic entity-schema)))
 
 (def indexed-attributes
   "Return the names of all attributes marked :indexed."
   (partial filter-attributes #(:indexed %)))
+
+(def ref-attribute-schemas
+  "Return the names and schemas of all attributes which has a :ref."
+  (partial filter-attribute-schemas #(:ref %)))
 
 (def unique-attributes
   "Return the names of all unique attributes."
@@ -901,3 +908,6 @@
 
 (defn attribute-type [entity-schema attr]
   (:type (find-attribute-schema (get entity-schema attr))))
+
+(defn find-ref-path [attr-schema-name]
+  (:ref (find-attribute-schema attr-schema-name)))

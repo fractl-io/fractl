@@ -42,10 +42,15 @@
   (or (cn/find-attribute-schema nm)
       (cn/find-record-schema nm)))
 
-(defn- normalize-attribute-schema [scm]
-  (if (fn? scm)
-    {:check scm}
+(defn- rewrite-ref-path [scm]
+  (if-let [p (:ref scm)]
+    (assoc scm :ref (li/path-parts p))
     scm))
+
+(defn- normalize-attribute-schema [scm]
+  (rewrite-ref-path (if (fn? scm)
+                      {:check scm}
+                      scm)))
 
 (defn- normalize-oneof-values [xs]
   (map #(if (keyword? %)
