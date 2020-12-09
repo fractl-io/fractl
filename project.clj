@@ -27,7 +27,7 @@
                   [:repository
                     ["id" "github"]
                     ["name" "GitHub fractl.io Apache Maven Packages"]
-                    ["url" "https://maven.pkg.github.com/fractl-io/fractl"]]]
+                    ["url" "https://maven.pkg.github.com/fractl-io"]]]
 
   :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4"]
                                   [com.bhauman/figwheel-main "0.2.12"]]
