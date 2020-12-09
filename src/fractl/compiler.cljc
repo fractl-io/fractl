@@ -228,7 +228,7 @@
         (cn/dataflows-for-event event))))
 
 (defn- reference-attributes [attrs refrec]
-  (when-let [result (seq (filter cn/attribute-unique-reference-path attrs))]
+  (when-let [result (cn/all-reference-paths attrs)]
     (let [[attr-name path] (first result)
           {refs :refs} (li/path-parts (:ref path))]
       [attr-name (first refs)])))

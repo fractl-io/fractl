@@ -893,6 +893,9 @@
     (when (:unique (find-attribute-schema r))
       [attr-name r])))
 
+(defn all-reference-paths [attrs]
+  (seq (filter attribute-unique-reference-path attrs)))
+
 (defn unique-attribute? [entity-schema attr]
   (:unique (find-attribute-schema (get entity-schema attr))))
 
