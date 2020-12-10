@@ -111,8 +111,8 @@
     (create-db-schema! datasource scmname)
     (doseq [ename (cn/entity-names component-name)]
       (let [tabname (dbi/table-for-entity ename)
-            schema (cn/entity-schema ename)
-            indexed-attrs (dbi/find-indexed-attributes ename schema)]
+            schema (dbi/find-entity-schema ename)
+            indexed-attrs (cn/indexed-attributes schema)]
         (create-tables! datasource schema tabname :Id indexed-attrs)))
       component-name))
 
