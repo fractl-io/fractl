@@ -16,7 +16,7 @@
   (js/alasql (str "CREATE DATABASE IF NOT EXISTS " name))
   (. js/alasql Database name))
 
-(defn- create-entity-table-sql
+(defn create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
   return the DML statement to create that table."
   [tabname ident-attr]
@@ -123,7 +123,7 @@
     (drop-db-schema! datasource scmname)
     component-name))
 
-(defn- upsert-index-statement [table-name]
+(defn upsert-index-statement [conn table-name _ id attrval]
   (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")]
     sql))
 
@@ -136,18 +136,32 @@
       (let [pstmt (upsert-index-statement tabname)]
         (.exec db pstmt #js [#js [id (attrname instance)]])))))
 
-(defn- upsert-inst-statement [table-name]
-  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")]
-    sql))
+(defn upsert-inst-statement [conn table-name id obj]
+  (.log js/console (str "upsert-inst-statement - table-name: " table-name))
+  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)") 
+        params #js [#js [id obj]]]
+    (.log js/console sql)
+    (.log js/console params)
+    [sql params]))
+
+(defn transact! [db f]
+  (f db))
+
+(defn execute-sql! [db sql]
+  (.exec db sql))
+
+(defn execute-stmt! [db stmt params]
+  (.exec db stmt params))
 
 (defn- upsert-inst!
   "Insert or update an entity instance."
   [db table-name inst]
+  (.log js/console "alasql_internal - upsert-inst! - table-name: " table-name)
   (let [attrs (cn/serializable-attributes inst)
         id (:Id attrs)
         obj (.stringify js/JSON (clj->js (dissoc attrs :Id)))
-        pstmt (upsert-inst-statement table-name)]
-    (.exec db pstmt #js [#js [id obj]])))
+        [sql params] (upsert-inst-statement table-name id obj)]
+    (execute-stmt! db sql params)))
 
 (defn upsert-instance [datasource entity-name instance]
   (let [tabname (dbi/table-for-entity entity-name)
@@ -157,7 +171,7 @@
     (upsert-indices! datasource tabname indexed-attrs instance)
     instance))
 
-(defn- delete-index-statement [table-name]
+(defn delete-index-statement [table-name]
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")]
     sql))
 
@@ -169,7 +183,7 @@
       (let [pstmt (delete-index-statement tabname)]
         (.exec db pstmt #js [#js [id]])))))
 
-(defn- delete-inst-statement [table-name]
+(defn delete-inst-statement [table-name]
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")]
     sql))
 

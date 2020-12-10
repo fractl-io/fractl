@@ -23,3 +23,8 @@
 (defn make-result-keys [entity-name]
   (let [n (name (second entity-name))]
     [(keyword (str n "/ID")) (keyword (str n "/INSTANCE_JSON"))]))
+
+(defn clj->json
+  [data]
+  #?(:clj (json/generate-string data)
+     :cljs (.stringify js/JSON (clj->js data))))
