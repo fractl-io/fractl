@@ -32,7 +32,7 @@ jobs:
         SLACK_FOOTER: Fractl Release Notification
         SLACK_TITLE: 'Release packaging successful'
         SLACK_MESSAGE: ${{ github.event.release.tag_name }}
-        SLACK_USERNAME: Cookie Monster
+        SLACK_USERNAME: Release Bot
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
     - name: Slack Notification
       if: ${{ failure() }}
@@ -43,5 +43,5 @@ jobs:
         SLACK_TITLE: 'Release packaging failed'
         SLACK_MESSAGE: ${{ github.event.release.tag_name }}
         SLACK_COLOR: '#ff1100'
-        SLACK_USERNAME: Cookie Monster
+        SLACK_USERNAME: Release Bot
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
