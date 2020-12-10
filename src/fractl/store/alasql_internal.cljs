@@ -16,27 +16,35 @@
 
 (defn create-db [name]
   (js/alasql (str "CREATE DATABASE IF NOT EXISTS " name))
-  (. js/alasql Database name))
+  (let [db (. js/alasql Database name)]
+    (js/alasql (str "USE " name))
+    db))
+
+(defn- normalized-tab-name [tabname]
+  (let [s (str/join "__" (str/split tabname #"\."))]
+    (.log js/console (str "normalized-tab-name - tabname: " tabname " s: " s))
+    s))
 
 (defn create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
   return the DML statement to create that table."
   [tabname ident-attr]
-  (let [fname (first (str/split tabname #"\."))
-        use-stmt (str "USE " fname)
-        sql (str dbi/create-table-prefix " " (second (str/split tabname #"\.")) " "
+  (let [ntabname (normalized-tab-name tabname)
+        sql (str dbi/create-table-prefix " " ntabname " "
                  (if ident-attr
                    (str "(" (dbi/db-ident ident-attr) " UUID, ")
                    "(")
                  "instance_json JSON)")]
-    [use-stmt sql]))
+    [sql]))
 
 (defn create-index-table-sql
   "Given a database-type, entity-table-name and attribute-column name, return the
   DML statements for creating an index table and the index for its 'id' column."
   [entity-table-name colname coltype unique?]
-  (let [index-tabname (dbi/index-table-name entity-table-name colname)]
-    [(str dbi/create-table-prefix " " index-tabname " "
+  (let [netabname (normalized-tab-name entity-table-name)
+        index-tabname (dbi/index-table-name netabname colname)
+        nitabname (normalized-tab-name index-tabname)]
+    [(str dbi/create-table-prefix " " nitabname " "
           ;; `id` is not a foreign key reference to the main table,
           ;; because insert is fully controlled by the fractl runtime and
           ;; we get an index for free.
@@ -45,28 +53,27 @@
           ;; SQL type for `colname`, see the issue https://ventur8.atlassian.net/browse/V8DML-117.
           colname " " coltype
           (if unique? (str ",UNIQUE(" colname "))") ")"))]
-    [(dbi/create-index-sql index-tabname colname unique?)]))
+    [(dbi/create-index-sql nitabname colname unique?)]))
 
 (defn create-identity-index-sql [entity-table-name colname]
   (let [ent-fname (first (str/split entity-table-name #"\."))
+        netabname (normalized-tab-name entity-table-name)
         ent-use-stmt (str "USE " ent-fname)
         sql (str dbi/create-unique-index-prefix
-                 " " (dbi/index-name entity-table-name)
+                 " " (dbi/index-name netabname)
                  " ON "
-                 (second (str/split entity-table-name #"\."))
+                 netabname
                  ;entity-table-name
                  "(" colname ")")]
-    [ent-use-stmt sql]))
+    [sql]))
 
-(defn create-identity-index! [db entity-table-name ident-attr]
+(defn create-identity-index!
   "Create identity index for an entity-table-name. This implementation
   is slightly different than h2 part as here rather than use alasql
   internal DB connection we hardcode SQL to bypass alasql's limitations."
+  [db entity-table-name ident-attr]
   (let [sqls (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))]
-    (doseq [s sqls]
-      (js/alasql (str s)))
-;    (js/alasql (str "USE " fname))
-;    (js/alasql (str sql))
+    (execute-sql! db sqls)
     entity-table-name))
 
 (defn create-entity-table!
@@ -103,6 +110,7 @@
   (let [cit (partial create-index-table! db entity-schema entity-table-name)]
     (doseq [idxattr indexed-attrs]
       (let [attrname (dbi/db-ident idxattr)]
+        (.log js/console (str "create-tables! - attrname: " attrname " idxattr: " idxattr))
         (cit attrname idxattr)))
     entity-table-name))
 
@@ -138,7 +146,8 @@
     component-name))
 
 (defn upsert-index-statement [conn table-name _ id attrval]
-  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")
+  (let [ntabname (normalized-tab-name table-name)
+        sql (str "INSERT INTO " ntabname " VALUES (?, ?)")
         params #js [#js [id attrval]]]
     (.log js/console (str "upsert-index-statement - sql: " sql))
     (.log js/console (str "upsert-index-statement - params: " params))
@@ -146,7 +155,8 @@
 
 (defn upsert-inst-statement [conn table-name id obj]
   (.log js/console (str "upsert-inst-statement - table-name: " table-name))
-  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)") 
+  (let [ntabname (normalized-tab-name table-name)
+        sql (str "INSERT OR REPLACE INTO " ntabname " VALUES(?, ?)") 
         params #js [#js [id obj]]]
     (.log js/console (str "upsert-inst-statement - sql: " sql))
     (.log js/console (str "upsert-inst-statement - params: " params))
@@ -182,7 +192,7 @@
 
 (defn execute-sql! [db sqls]
   (doseq [sql sqls]
-    (when-not (js/alasql sql)
+    (when-not (.exec db sql)
       (u/throw-ex (str "Failed to execute sql statement - " sql))))
   true)
 

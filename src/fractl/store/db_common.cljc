@@ -145,7 +145,7 @@
   "Insert or update an entity instance."
   [conn table-name inst ref-attrs]
   #?(:cljs (.log js/console "upsert-inst! - table-name: " table-name))
-  (when (seq ref-attrs)
+  #_(when (seq ref-attrs)
     (validate-references! conn inst ref-attrs))
   (let [attrs (cn/serializable-attributes inst)
         id (:Id attrs)
