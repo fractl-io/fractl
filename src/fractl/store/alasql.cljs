@@ -30,7 +30,7 @@
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance @datasource entity-name instance))
       (delete-instance [_ entity-name instance]
-        (i/delete-instance @datasource entity-name instance))
+        (db/delete-instance @datasource entity-name instance))
       (query-by-id [_ entity-name query ids]
         (i/query-by-id @datasource entity-name query ids))
       (do-query [_ query params]

@@ -10,32 +10,32 @@
   "Given a database-type, entity-table-name and identity-attribute name,
   return the DML statement to create that table."
   [tabname ident-attr]
-  (str dbi/create-table-prefix " " tabname " "
-       (if ident-attr
-         (str "(" (dbi/db-ident ident-attr) " UUID, ")
-         "(")
-       "instance_json JSON)"))
+  [(str dbi/create-table-prefix " " tabname " "
+        (if ident-attr
+          (str "(" (dbi/db-ident ident-attr) " UUID, ")
+          "(")
+        "instance_json JSON)")])
 
 (defn create-index-table-sql
   "Given a database-type, entity-table-name and attribute-column name, return the
   DML statements for creating an index table and the index for its 'id' column."
   [entity-table-name colname coltype unique?]
   (let [index-tabname (dbi/index-table-name entity-table-name colname)]
-    [(str dbi/create-table-prefix " " index-tabname " "
+    [[(str dbi/create-table-prefix " " index-tabname " "
           ;; `id` is not a foreign key reference to the main table,
           ;; because insert is fully controlled by the V8 runtime and
           ;; we get an index for free.
-          "(id UUID, "
+           "(id UUID, "
           ;; Storage and search can be optimized by inferring a more appropriate
           ;; SQL type for `colname`, see the issue https://ventur8.atlassian.net/browse/V8DML-117.
-          colname " " coltype
-          (if unique? (str ",UNIQUE(" colname "))") ")"))
-     (dbi/create-index-sql index-tabname colname unique?)]))
+           colname " " coltype
+           (if unique? (str ",UNIQUE(" colname "))") ")"))]
+     [(dbi/create-index-sql index-tabname colname unique?)]]))
 
 (defn create-identity-index-sql [entity-table-name colname]
-  (str dbi/create-unique-index-prefix
-       " " (dbi/index-name entity-table-name)
-       " ON " entity-table-name "(" colname ")"))
+  [(str dbi/create-unique-index-prefix
+        " " (dbi/index-name entity-table-name)
+        " ON " entity-table-name "(" colname ")")])
 
 (defn upsert-index-statement [conn table-name _ id attrval]
   (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")

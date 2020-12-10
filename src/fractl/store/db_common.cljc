@@ -48,7 +48,7 @@
 
 (defn- create-identity-index! [connection entity-table-name ident-attr]
   (let [sql (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))]
-    (if (execute-sql! connection [sql])
+    (if (execute-sql! connection sql)
       entity-table-name
       (u/throw-ex (str "Failed to create index table for identity column - "
                        [entity-table-name ident-attr])))))
@@ -58,7 +58,7 @@
   specified to be used as the primary-key in the table."
   [connection tabname ident-attr]
   (let [sql (create-entity-table-sql tabname ident-attr)]
-    (if (execute-sql! connection [sql])
+    (if (execute-sql! connection sql)
       tabname
       (u/throw-ex (str "Failed to create table for " tabname)))))
 
@@ -67,8 +67,8 @@
                          entity-table-name attrname
                          (sql/sql-index-type (cn/attribute-type entity-schema idxattr))
                          (cn/unique-attribute? entity-schema idxattr))]
-    (when-not (and (execute-sql! connection [tabsql])
-                   (execute-sql! connection [idxsql]))
+    (when-not (and (execute-sql! connection tabsql)
+                   (execute-sql! connection idxsql))
       (u/throw-ex (str "Failed to create lookup table for " [entity-table-name attrname])))))
 
 (defn- create-tables!
@@ -145,7 +145,7 @@
   "Insert or update an entity instance."
   [conn table-name inst ref-attrs]
   #?(:cljs (.log js/console "upsert-inst! - table-name: " table-name))
-  #_(when (seq ref-attrs)
+  (when (seq ref-attrs)
     (validate-references! conn inst ref-attrs))
   (let [attrs (cn/serializable-attributes inst)
         id (:Id attrs)
