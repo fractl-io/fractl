@@ -1,2 +1,1 @@
- * Complete h2-internal/validate-references!
- * Enfore indexed check for attributes that are referenced.
+ * Enforce indexed check for attributes that are referenced.
