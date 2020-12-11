@@ -171,8 +171,8 @@
 (defn- upsert-inst!
   "Insert or update an entity instance."
   [conn table-name inst ref-attrs]
-  #?(:clj (when (seq ref-attrs)
-            (validate-references! conn inst ref-attrs)))
+  (when (seq ref-attrs)
+    (validate-references! conn inst ref-attrs))
   (let [attrs (cn/serializable-attributes inst)
         id (:Id attrs)
         obj (su/clj->json (dissoc attrs :Id))
@@ -188,6 +188,7 @@
                (fn [txn]
                  (upsert-inst! txn tabname instance ref-attrs)
                  (upsert-indices! txn tabname indexed-attrs instance)))
+    #?(:cljs (aqi/dump-db-table datasource tabname))
     instance))
 
 (defn- delete-indices!

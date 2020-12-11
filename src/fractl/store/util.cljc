@@ -6,6 +6,10 @@
             [fractl.lang.internal :as li]
             [fractl.util :as fu]))
 
+(defn norm-sql-statement
+  [sql]
+  (clojure.string/lower-case sql))
+
 (defn db-ident [k]
   (if (keyword? k)
     (str/lower-case (name k))
@@ -97,7 +101,7 @@
         parsed-obj (assoc #?(:clj (json/parse-string json-str true)
                              :cljs (cljs.reader/read-string json-str))
                           :Id (str id))]
-      (cn/make-instance entity-name parsed-obj)))
+    (cn/make-instance entity-name parsed-obj)))
 
 (defn results-as-instances [entity-name id-key json-key results]
   (doall (map (partial result-as-instance entity-name id-key json-key) results)))

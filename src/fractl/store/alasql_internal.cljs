@@ -11,26 +11,24 @@
     db))
 
 (defn upsert-index-statement [_ table-name _ id attrval]
-  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")
-        params #js [#js [id attrval]]]
-    [sql params]))
+  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")]
+    [sql #js [id attrval]]))
 
 (defn upsert-inst-statement [_ table-name id obj]
-  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)") 
-        params #js [#js [id obj]]]
-    [sql params]))
+  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")]
+    [sql #js [id obj]]))
 
 (defn delete-index-statement [_ table-name _ id]
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")]
-    [sql #js [#js [id]]]))
+    [sql #js [id]]))
 
 (defn delete-inst-statement [_ table-name id]
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")]
-    [sql #js [#js [id]]]))
+    [sql #js [id]]))
 
 (defn query-by-id-statement [_ query-sql id]
-  (let [stmt (str query-sql id)]
-    [stmt #js [#js [id]]]))
+  (let [stmt (str query-sql " * " (str id))]
+    [stmt nil]))
 
 (defn query-by-id [datasource entity-name query-sql ids]
   (let [[id-key json-key] (su/make-result-keys entity-name)]
@@ -41,10 +39,10 @@
 
 (defn validate-ref-statement [_ index-tabname colname ref]
   (let [sql (str "SELECT 1 FROM " index-tabname " WHERE " colname " = ?")]
-    [sql #js [#js [ref]]]))
+    [sql #js [ref]]))
 
 (defn do-query-statement [_ query-sql query-params]
-    [query-sql #js [#js [query-params]]])
+    [query-sql [query-params]])
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        su/table-for-entity
@@ -55,9 +53,13 @@
 
 (defn execute-sql! [db sqls]
   (doseq [sql sqls]
-    (when-not (.exec db sql)
-      (u/throw-ex (str "Failed to execute sql statement - " sql))))
+    (let [nsql (su/norm-sql-statement sql)]
+      (when-not (.exec db nsql)
+        (u/throw-ex (str "Failed to execute sql statement - " nsql)))))
   true)
 
 (defn execute-stmt! [db stmt params]
-  (.exec db stmt params))
+  (let [nstmt (su/norm-sql-statement stmt)]
+    (if params
+      (.exec db nstmt params)
+      (.exec db nstmt))))
