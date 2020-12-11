@@ -1,22 +1,20 @@
 (ns fractl.store.util
   (:require #?(:clj [cheshire.core :as json])
-            [clojure.set :as s]
-            [clojure.string :as str]
+            [clojure.set :as set]
+            [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.util :as fu]))
 
-(defn norm-sql-statement
-  [sql]
-  (clojure.string/lower-case sql))
+(def norm-sql-statement s/lower-case)
 
 (defn db-ident [k]
   (if (keyword? k)
-    (str/lower-case (name k))
+    (s/lower-case (name k))
     k))
 
 (defn db-schema-for-component [component-name]
-  (str/lower-case (str/replace (name component-name) #"\." "_")))
+  (s/lower-case (s/replace (name component-name) #"\." "_")))
 
 (defn table-for-entity
   ([entity-name db-schema-name]
@@ -38,7 +36,7 @@
 (defn index-name
   "Given a table-name, return its relative index table name."
   [tabname]
-  (str/replace (str tabname "_idx") #"\." "_"))
+  (s/replace (str tabname "_idx") #"\." "_"))
 
 (defn index-table-names
   "Given an entity table-name and its indexed attributes, return a sequence of
@@ -72,8 +70,8 @@
 (defn table-name->entity
   [tabname] 
    (let [tabnamestr (name tabname)
-         [cnstr estr] (str/split tabnamestr #"__")]
-     [(keyword cnstr) (keyword estr)]))
+         [cnstr estr] (s/split tabnamestr #"__")]
+     [(keyword (s/replace cnstr #"_" ".")) (keyword estr)]))
 
 (defn- table-attr->entity-attr
   [table-attr]
@@ -91,7 +89,7 @@
   [result]
   (let [attrs (keys result)
         attrmap (apply assoc {} (interleave attrs (map table-attr->entity-attr attrs)))]
-    (s/rename-keys result attrmap)))
+    (set/rename-keys result attrmap)))
 
 (defn result-as-instance [entity-name id-key json-key result]
   (let [nresult (normalize-result result)
@@ -107,8 +105,8 @@
   (doall (map (partial result-as-instance entity-name id-key json-key) results)))
 
 (defn make-result-keys [entity-name]
-  (let [cn (name (first entity-name))
-        e (name (second entity-name))]
+  (let [cn (s/upper-case (name (first entity-name)))
+        e (s/upper-case (name (second entity-name)))]
     [(keyword (str cn "." e "/ID")) (keyword (str cn "." e "/INSTANCE_JSON"))]))
 
 (defn clj->json
