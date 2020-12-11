@@ -6,15 +6,13 @@
             [fractl.lang.internal :as li]
             [fractl.util :as fu]))
 
-(def norm-sql-statement s/lower-case)
-
 (defn db-ident [k]
   (if (keyword? k)
-    (s/lower-case (name k))
+    (name k)
     k))
 
 (defn db-schema-for-component [component-name]
-  (s/lower-case (s/replace (name component-name) #"\." "_")))
+  (s/replace (name component-name) #"\." "_"))
 
 (defn table-for-entity
   ([entity-name db-schema-name]

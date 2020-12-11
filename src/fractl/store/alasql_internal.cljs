@@ -53,13 +53,11 @@
 
 (defn execute-sql! [db sqls]
   (doseq [sql sqls]
-    (let [nsql (su/norm-sql-statement sql)]
-      (when-not (.exec db nsql)
-        (u/throw-ex (str "Failed to execute sql statement - " nsql)))))
+    (when-not (.exec db sql)
+      (u/throw-ex (str "Failed to execute sql statement - " sql))))
   true)
 
 (defn execute-stmt! [db stmt params]
-  (let [nstmt (su/norm-sql-statement stmt)]
-    (if params
-      (.exec db nstmt params)
-      (.exec db nstmt))))
+  (if params
+    (.exec db stmt params)
+    (.exec db stmt)))
