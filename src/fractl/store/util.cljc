@@ -17,7 +17,7 @@
 (defn table-for-entity
   ([entity-name db-schema-name]
    (let [[component-name r] (li/split-path entity-name)
-         scmname (or db-schema-name (db-schema-for-component component-name))]
+         scmname (db-schema-for-component component-name)]
      (str scmname "__" (db-ident r))))
   ([entity-name] (table-for-entity entity-name nil)))
 
