@@ -48,7 +48,7 @@
           ;; `id` is not a foreign key reference to the main table,
           ;; because insert is fully controlled by the V8 runtime and
           ;; we get an index for free.
-           "(id UUID, "
+           "(id UUID PRIMARY KEY, "
           ;; Storage and search can be optimized by inferring a more appropriate
           ;; SQL type for `colname`, see the issue https://ventur8.atlassian.net/browse/V8DML-117.
            colname " " coltype
@@ -211,8 +211,7 @@
                      results (flatten (map #(let [[pstmt params] (query-by-id-statement txn query-sql %)]
                                               (execute-stmt! txn pstmt params))
                                            (set ids)))]
-                 ((partial su/results-as-instances entity-name id-key json-key)
-                  results)))))
+                 (su/results-as-instances entity-name id-key json-key results)))))
 
 (defn do-query [datasource query-sql query-params]
   (transact! datasource

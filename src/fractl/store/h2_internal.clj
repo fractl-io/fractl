@@ -4,12 +4,12 @@
   (:import [java.sql PreparedStatement]))
 
 (defn upsert-index-statement [conn table-name _ id attrval]
-  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")
+  (let [sql (str "MERGE INTO " table-name " KEY (id) VALUES (?, ?)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id attrval]]))
 
 (defn upsert-inst-statement [conn table-name id obj]
-  (let [sql (str "MERGE INTO " table-name " KEY (ID) VALUES (?, ? FORMAT JSON)")
+  (let [sql (str "MERGE INTO " table-name " KEY (id) VALUES (?, ? FORMAT JSON)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id obj]]))
 
@@ -39,8 +39,8 @@
 
 (defn transact! [datasource f]
   (with-open [conn (jdbc/get-connection datasource)]
-      (jdbc/with-transaction [txn conn]
-        (f txn))))
+    (jdbc/with-transaction [txn conn]
+      (f txn))))
 
 (defn execute-sql! [conn sql]
   (jdbc/execute! conn sql))
