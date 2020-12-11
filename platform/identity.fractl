@@ -11,7 +11,8 @@
 (def password? (partial string-in-range? 3 20))
 
 (entity {:User
-         {:UserName {:check user-name?
+         {:UserName {:type :Kernel/String
+                     :check user-name?
                      :unique true}
           :Password {:type :Kernel/Password
                      :check password?}

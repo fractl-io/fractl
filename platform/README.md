@@ -3,6 +3,19 @@ This model, once mature enough, should move to a dedicated repository.
 
 ## Sample requests
 
+### Create user
+
+```
+POST _e/Platform.Identity/Upsert_User
+
+{"Platform.Identity/Upsert_User":
+  {"Instance":
+    {"Platform.Identity/User":
+      {"UserName": "User01",
+       "Password": "kk123",
+       "Email": "user01@v8.io"}}}}
+```
+
 ### Create application
 
 ```
