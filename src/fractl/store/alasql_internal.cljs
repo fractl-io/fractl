@@ -35,7 +35,7 @@
             ;; `id` is not a foreign key reference to the main table,
             ;; because insert is fully controlled by the fractl runtime and
             ;; we get an index for free.
-            "(id UUID, "
+            "(id UUID PRIMARY KEY, "
             ;; Storage and search can be optimized by inferring a more appropriate
             ;; SQL type for `colname`, see the issue https://ventur8.atlassian.net/browse/V8DML-117.
             colname " " coltype
@@ -124,7 +124,7 @@
     component-name))
 
 (defn- upsert-index-statement [table-name]
-  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")]
+  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES (?, ?)")]
     sql))
 
 (defn- upsert-indices!
