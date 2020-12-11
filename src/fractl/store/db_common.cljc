@@ -6,30 +6,17 @@
             #?(:clj [fractl.store.h2-internal :as h2i]
                :cljs [fractl.store.alasql-internal :as aqi])))
 
-#?(:clj
-   (def ^:private store-fns
-     {:transact! h2i/transact!
-      :execute-sql! h2i/execute-sql!
-      :execute-stmt! h2i/execute-stmt!
-      :upsert-inst-statement h2i/upsert-inst-statement
-      :upsert-index-statement h2i/upsert-index-statement
-      :delete-inst-statement h2i/delete-inst-statement
-      :delete-index-statement h2i/delete-index-statement
-      :query-by-id-statement h2i/query-by-id-statement
-      :do-query-statement h2i/do-query-statement
-      :validate-ref-statement h2i/validate-ref-statement})
-   :cljs
-   (def ^:private store-fns
-     {:transact! aqi/transact!
-      :execute-sql! aqi/execute-sql!
-      :execute-stmt! aqi/execute-stmt!
-      :upsert-inst-statement aqi/upsert-inst-statement
-      :upsert-index-statement aqi/upsert-index-statement
-      :delete-inst-statement aqi/delete-inst-statement
-      :delete-index-statement aqi/delete-index-statement
-      :query-by-id-statement aqi/query-by-id-statement
-      :do-query-statement aqi/do-query-statement
-      :validate-ref-statement aqi/validate-ref-statement}))
+(def ^:private store-fns
+  {:transact! #?(:clj h2i/transact! :cljs aqi/transact!)
+   :execute-sql! #?(:clj h2i/execute-sql! :cljs aqi/execute-sql!)
+   :execute-stmt! #?(:clj h2i/execute-stmt! :cljs aqi/execute-stmt!)
+   :upsert-inst-statement #?(:clj h2i/upsert-inst-statement :cljs aqi/upsert-inst-statement)
+   :upsert-index-statement #?(:clj h2i/upsert-index-statement :cljs aqi/upsert-index-statement)
+   :delete-inst-statement #?(:clj h2i/delete-inst-statement :cljs aqi/delete-inst-statement)
+   :delete-index-statement #?(:clj h2i/delete-index-statement :cljs aqi/delete-index-statement)
+   :query-by-id-statement #?(:clj h2i/query-by-id-statement :cljs aqi/query-by-id-statement)
+   :do-query-statement #?(:clj h2i/do-query-statement :cljs aqi/do-query-statement)
+   :validate-ref-statement #?(:clj h2i/validate-ref-statement :cljs aqi/validate-ref-statement)})
 
 (def transact! (partial (:transact! store-fns)))
 (def execute-sql! (partial (:execute-sql! store-fns)))
@@ -219,16 +206,16 @@
 
 (defn query-by-id [datasource entity-name query-sql ids]
   (transact! datasource
-    (fn [txn]
-      (let [[id-key json-key] (su/make-result-keys entity-name)
-            results (flatten (map #(let [[pstmt params] (query-by-id-statement txn query-sql %)]
-                                     (execute-stmt! txn pstmt params))
-                                  (set ids)))]
-        ((partial su/results-as-instances entity-name id-key json-key)
-         results
-         #_(flatten (map #(let [pstmt (query-by-id-statement conn query-sql %)]
-                            (jdbc/execute! pstmt))
-                         (set ids))))))))
+             (fn [txn]
+               (let [[id-key json-key] (su/make-result-keys entity-name)
+                     results (flatten (map #(let [[pstmt params] (query-by-id-statement txn query-sql %)]
+                                              (execute-stmt! txn pstmt params))
+                                           (set ids)))]
+                 ((partial su/results-as-instances entity-name id-key json-key)
+                  results
+                  #_(flatten (map #(let [pstmt (query-by-id-statement conn query-sql %)]
+                                     (jdbc/execute! pstmt))
+                                  (set ids))))))))
 
 (defn do-query [datasource query-sql query-params]
   (transact! datasource
