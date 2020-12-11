@@ -210,10 +210,8 @@
         id (:Id e)
         e2 (cn/make-instance :RefCheck/E2 {:AId id :X 20})
         evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})]
-    ;; Raise reference not found exception, this check is currently
-    ;; supported on JDBC.
-    #?(:clj (tu/is-error
-             #(tu/fresult (eval-all-dataflows-for-event evt))))
+    (tu/is-error
+     #(tu/fresult (eval-all-dataflows-for-event evt)))
     (let [evt (cn/make-instance :RefCheck/Upsert_E1 {:Instance e})
           e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
           id (:Id e1)
