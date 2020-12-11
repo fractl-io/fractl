@@ -6,7 +6,7 @@
             [fractl.store.protocol :as p]
             [fractl.store.util :as su]
             [fractl.store.jdbc-cp :as cp]
-            [fractl.store.h2-internal :as i]))
+            [fractl.store.db-common :as db]))
 
 (def ^:private driver-class "org.h2.Driver")
 (def ^:private url-prefix "jdbc:h2:")
@@ -37,16 +37,16 @@
               true)
           (catch Exception _ false)))
       (create-schema [_ component-name]
-        (i/create-schema @datasource component-name))
+        (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
-        (i/drop-schema @datasource component-name))
+        (db/drop-schema @datasource component-name))
       (upsert-instance [_ entity-name instance]
-        (i/upsert-instance @datasource entity-name instance))
+        (db/upsert-instance @datasource entity-name instance))
       (delete-instance [_ entity-name instance]
-        (i/delete-instance @datasource entity-name instance))
+        (db/delete-instance @datasource entity-name instance))
       (query-by-id [_ entity-name query ids]
-        (i/query-by-id @datasource entity-name query ids))
+        (db/query-by-id @datasource entity-name query ids))
       (do-query [_ query params]
-        (i/do-query @datasource query params))
+        (db/do-query @datasource query params))
       (compile-query [_ query-pattern]
-        (i/compile-to-indexed-query query-pattern)))))
+        (db/compile-to-indexed-query query-pattern)))))

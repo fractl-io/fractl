@@ -1,19 +1,12 @@
 (ns fractl.store.alasql-internal
-  (:require [clojure.string :as str]
-            [cljsjs.alasql]
-            [fractl.store.db-internal :as dbi]
+  (:require [cljsjs.alasql]
             [fractl.util :as u]
-            [fractl.component :as cn]
             [fractl.store.sql :as sql]
             [fractl.store.util :as su]))
 
-;; Store for databases.
-(defonce sql-db (atom nil))
-
-(def db-new (atom {}))
-
 (defn create-db [name]
   (js/alasql (str "CREATE DATABASE IF NOT EXISTS " name))
+<<<<<<< HEAD
   (. js/alasql Database name))
 
 (defn- create-entity-table-sql
@@ -126,70 +119,31 @@
 (defn- upsert-index-statement [table-name]
   (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES (?, ?)")]
     sql))
+=======
+  (let [db (. js/alasql Database name)]
+    (js/alasql (str "USE " name))
+    db))
 
-(defn- upsert-indices!
-  "Insert or update new index entries relevant for an entity instance.
-  The index values are available in the `attrs` parameter."
-  [db entity-table-name indexed-attrs instance]
-  (let [id (:Id instance)]
-    (doseq [[attrname tabname] (dbi/index-table-names entity-table-name indexed-attrs)]
-      (let [pstmt (upsert-index-statement tabname)]
-        (.exec db pstmt #js [#js [id (attrname instance)]])))))
+(defn upsert-index-statement [_ table-name _ id attrval]
+  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")]
+    [sql #js [id attrval]]))
+>>>>>>> 4b96cde645b378a7bbac7b635d3672c4361b9a41
 
-(defn- upsert-inst-statement [table-name]
+(defn upsert-inst-statement [_ table-name id obj]
   (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")]
-    sql))
+    [sql #js [id obj]]))
 
-(defn- upsert-inst!
-  "Insert or update an entity instance."
-  [db table-name inst]
-  (let [attrs (cn/serializable-attributes inst)
-        id (:Id attrs)
-        obj (.stringify js/JSON (clj->js (dissoc attrs :Id)))
-        pstmt (upsert-inst-statement table-name)]
-    (.exec db pstmt #js [#js [id obj]])))
-
-(defn upsert-instance [datasource entity-name instance]
-  (let [tabname (dbi/table-for-entity entity-name)
-        entity-schema (dbi/find-entity-schema entity-name)
-        indexed-attrs (cn/indexed-attributes entity-schema)]
-    (upsert-inst! datasource tabname instance)
-    (upsert-indices! datasource tabname indexed-attrs instance)
-    instance))
-
-(defn- delete-index-statement [table-name]
+(defn delete-index-statement [_ table-name _ id]
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")]
-    sql))
+    [sql #js [id]]))
 
-(defn- delete-indices!
-  "Delete index entries relevant for an entity instance."
-  [db entity-table-name indexed-attrs id]
-  (let [index-tabnames (dbi/index-table-names entity-table-name indexed-attrs)]
-    (doseq [[attrname tabname] index-tabnames]
-      (let [pstmt (delete-index-statement tabname)]
-        (.exec db pstmt #js [#js [id]])))))
-
-(defn- delete-inst-statement [table-name]
+(defn delete-inst-statement [_ table-name id]
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")]
-    sql))
+    [sql #js [id]]))
 
-(defn- delete-inst!
-  "Delete an entity instance."
-  [db tabname id]
-  (let [pstmt (delete-inst-statement tabname)]
-    (.exec db pstmt #js [#js [id]])))
-
-(defn delete-instance [datasource entity-name instance]
-  (let [id (:Id instance)
-        tabname (dbi/table-for-entity entity-name)
-        entity-schema (dbi/find-entity-schema entity-name)
-        indexed-attrs (cn/indexed-attributes entity-schema)]
-    (delete-indices! datasource tabname indexed-attrs id)
-    (delete-inst! datasource tabname id)
-    id))
-
-(defn- query-by-id-statement [db query-sql id]
-  (.exec db query-sql #js [#js [id]]))
+(defn query-by-id-statement [_ query-sql id]
+  (let [stmt (str query-sql " * " (str id))]
+    [stmt nil]))
 
 (defn query-by-id [datasource entity-name query-sql ids]
   (let [[id-key json-key] (su/make-result-keys entity-name)]
@@ -198,9 +152,29 @@
                       pstmt
                       (set ids)))))))
 
-(defn do-query [datasource query-sql query-params]
-  (.exec datasource query-sql #js [#js [query-params]]))
+(defn validate-ref-statement [_ index-tabname colname ref]
+  (let [sql (str "SELECT 1 FROM " index-tabname " WHERE " colname " = ?")]
+    [sql #js [ref]]))
+
+(defn do-query-statement [_ query-sql query-params]
+    [query-sql [query-params]])
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
-                                       dbi/table-for-entity
-                                       dbi/index-table-name))
+                                       su/table-for-entity
+                                       su/index-table-name))
+
+(defn transact! [db f]
+  (f db))
+
+(defn execute-sql! [db sqls]
+  (doseq [sql sqls]
+    (let [nsql (su/norm-sql-statement sql)]
+      (when-not (.exec db nsql)
+        (u/throw-ex (str "Failed to execute sql statement - " nsql)))))
+  true)
+
+(defn execute-stmt! [db stmt params]
+  (let [nstmt (su/norm-sql-statement stmt)]
+    (if params
+      (.exec db nstmt params)
+      (.exec db nstmt))))
