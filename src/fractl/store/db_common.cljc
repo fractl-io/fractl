@@ -188,7 +188,6 @@
                (fn [txn]
                  (upsert-inst! txn tabname instance ref-attrs)
                  (upsert-indices! txn tabname indexed-attrs instance)))
-    #?(:cljs (aqi/dump-db-table datasource tabname))
     instance))
 
 (defn- delete-indices!
