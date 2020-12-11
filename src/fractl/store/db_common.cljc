@@ -7,7 +7,8 @@
                :cljs [fractl.store.alasql-internal :as aqi])))
 
 (def ^:private store-fns
-  {:transact! #?(:clj h2i/transact! :cljs aqi/transact!)
+  {:commit-transact! #?(:clj h2i/commit-transact! :cljs aqi/commit!)
+   :commit! #?(:clj h2i/commit! :cljs aqi/commit!)
    :execute-sql! #?(:clj h2i/execute-sql! :cljs aqi/execute-sql!)
    :execute-stmt! #?(:clj h2i/execute-stmt! :cljs aqi/execute-stmt!)
    :upsert-inst-statement #?(:clj h2i/upsert-inst-statement :cljs aqi/upsert-inst-statement)
@@ -18,7 +19,8 @@
    :do-query-statement #?(:clj h2i/do-query-statement :cljs aqi/do-query-statement)
    :validate-ref-statement #?(:clj h2i/validate-ref-statement :cljs aqi/validate-ref-statement)})
 
-(def transact! (partial (:transact! store-fns)))
+(def commit-transact! (partial (:commit-transact! store-fns)))
+(def commit! (partial (:commit! store-fns)))
 (def execute-sql! (partial (:execute-sql! store-fns)))
 (def execute-stmt! (partial (:execute-stmt! store-fns)))
 (def upsert-inst-statement (partial (:upsert-inst-statement store-fns)))
@@ -113,7 +115,7 @@
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
   (let [scmname (su/db-schema-for-component component-name)]
-    (transact! datasource
+    (commit! datasource
                (fn [txn]
                  (create-db-schema! txn scmname)
                  (doseq [ename (cn/entity-names component-name)]
@@ -127,7 +129,7 @@
   "Remove the schema from the database, perform a non-cascading delete."
   [datasource component-name]
   (let [scmname (su/db-schema-for-component component-name)]
-    (transact! datasource
+    (commit! datasource
                (fn [txn]
                  (drop-db-schema! txn scmname)))
     component-name))
@@ -171,7 +173,7 @@
         entity-schema (su/find-entity-schema entity-name)
         indexed-attrs (cn/indexed-attributes entity-schema)
         ref-attrs (cn/ref-attribute-schemas entity-schema)]
-    (transact! datasource
+    (commit-transact! datasource
                (fn [txn]
                  (upsert-inst! txn tabname instance ref-attrs)
                  (upsert-indices! txn tabname indexed-attrs instance)))
@@ -198,14 +200,14 @@
         tabname (su/table-for-entity entity-name)
         entity-schema (su/find-entity-schema entity-name)
         indexed-attrs (cn/indexed-attributes entity-schema)]
-    (transact! datasource
+    (commit-transact! datasource
                (fn [txn]
                  (delete-indices! txn tabname indexed-attrs id)
                  (delete-inst! txn tabname id)))
     id))
 
 (defn query-by-id [datasource entity-name query-sql ids]
-  (transact! datasource
+  (commit! datasource
              (fn [txn]
                (let [[id-key json-key] (su/make-result-keys entity-name)
                      results (flatten (map #(let [[pstmt params] (query-by-id-statement txn query-sql %)]
@@ -214,7 +216,7 @@
                  (su/results-as-instances entity-name id-key json-key results)))))
 
 (defn do-query [datasource query-sql query-params]
-  (transact! datasource
+  (commit! datasource
              (fn [txn]
                (let [[pstmt params] (do-query-statement txn query-sql query-params)]
                  (execute-stmt! txn pstmt params)))))

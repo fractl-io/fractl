@@ -37,10 +37,14 @@
     (.setString pstmt 1 (str id))
     [pstmt nil]))
 
-(defn transact! [datasource f]
+(defn commit-transact! [datasource f]
   (with-open [conn (jdbc/get-connection datasource)]
     (jdbc/with-transaction [txn conn]
       (f txn))))
+
+(defn commit! [datasource f]
+  (with-open [conn (jdbc/get-connection datasource)]
+      (f conn)))
 
 (defn execute-sql! [conn sql]
   (jdbc/execute! conn sql))
