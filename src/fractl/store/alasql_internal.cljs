@@ -1,7 +1,6 @@
 (ns fractl.store.alasql-internal
   (:require [clojure.string :as str]
             [cljsjs.alasql]
-            [fractl.store.db-internal :as dbi]
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.store.sql :as sql]
@@ -20,31 +19,22 @@
     (js/alasql (str "USE " name))
     db))
 
-(defn- normalized-tab-name [tabname]
-  (let [s (str/join "__" (str/split tabname #"\."))]
-    (.log js/console (str "normalized-tab-name - tabname: " tabname " s: " s))
-    s))
-
 (defn create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
   return the DML statement to create that table."
   [tabname ident-attr]
-  (let [ntabname (normalized-tab-name tabname)
-        sql (str dbi/create-table-prefix " " ntabname " "
-                 (if ident-attr
-                   (str "(" (dbi/db-ident ident-attr) " UUID, ")
-                   "(")
-                 "instance_json JSON)")]
-    [sql]))
+  [(str su/create-table-prefix " " tabname " "
+        (if ident-attr
+          (str "(" (su/db-ident ident-attr) " UUID, ")
+          "(")
+        "instance_json JSON)")])
 
 (defn create-index-table-sql
   "Given a database-type, entity-table-name and attribute-column name, return the
   DML statements for creating an index table and the index for its 'id' column."
   [entity-table-name colname coltype unique?]
-  (let [netabname (normalized-tab-name entity-table-name)
-        index-tabname (dbi/index-table-name netabname colname)
-        nitabname (normalized-tab-name index-tabname)]
-    [(str dbi/create-table-prefix " " nitabname " "
+  (let [index-tabname (su/index-table-name entity-table-name colname)]
+    [(str su/create-table-prefix " " index-tabname " "
           ;; `id` is not a foreign key reference to the main table,
           ;; because insert is fully controlled by the fractl runtime and
           ;; we get an index for free.
@@ -53,18 +43,12 @@
           ;; SQL type for `colname`, see the issue https://ventur8.atlassian.net/browse/V8DML-117.
           colname " " coltype
           (if unique? (str ",UNIQUE(" colname "))") ")"))]
-    [(dbi/create-index-sql nitabname colname unique?)]))
+    [(su/create-index-sql index-tabname colname unique?)]))
 
 (defn create-identity-index-sql [entity-table-name colname]
-  (let [ent-fname (first (str/split entity-table-name #"\."))
-        netabname (normalized-tab-name entity-table-name)
-        ent-use-stmt (str "USE " ent-fname)
-        sql (str dbi/create-unique-index-prefix
-                 " " (dbi/index-name netabname)
-                 " ON "
-                 netabname
-                 ;entity-table-name
-                 "(" colname ")")]
+  (let [sql (str su/create-unique-index-prefix
+                 " " (su/index-name entity-table-name)
+                 " ON " entity-table-name "(" colname ")")]
     [sql]))
 
 (defn create-identity-index!
@@ -72,7 +56,7 @@
   is slightly different than h2 part as here rather than use alasql
   internal DB connection we hardcode SQL to bypass alasql's limitations."
   [db entity-table-name ident-attr]
-  (let [sqls (create-identity-index-sql entity-table-name (dbi/db-ident ident-attr))]
+  (let [sqls (create-identity-index-sql entity-table-name (su/db-ident ident-attr))]
     (execute-sql! db sqls)
     entity-table-name))
 
@@ -93,13 +77,7 @@
                            (sql/sql-index-type (cn/attribute-type entity-schema idxattr))
                            (cn/unique-attribute? entity-schema idxattr))]
     (execute-sql! db tabsqls)
-    (execute-sql! db idxsqls)
-    #_(doseq [sql tabsqls]
-      (if-not (.exec db sql)
-        (u/throw-ex (str "Failed to create lookup table for " [entity-table-name attrname]))))
-    #_(doseq [sql idxsqls]
-      (if-not (.exec db sql)
-        (u/throw-ex (str "Failed to create lookup table for " [entity-table-name attrname]))))))
+    (execute-sql! db idxsqls)))
 
 (defn create-tables!
   "Create the main entity tables and lookup tables for the indexed attributes."
@@ -109,31 +87,30 @@
     (create-identity-index! db entity-table-name ident-attr))
   (let [cit (partial create-index-table! db entity-schema entity-table-name)]
     (doseq [idxattr indexed-attrs]
-      (let [attrname (dbi/db-ident idxattr)]
-        (.log js/console (str "create-tables! - attrname: " attrname " idxattr: " idxattr))
+      (let [attrname (su/db-ident idxattr)]
         (cit attrname idxattr)))
     entity-table-name))
 
 (defn create-db-schema!
   "Create a new schema (a logical grouping of tables), if it does not already exist."
   [db db-schema-name]
-  (if (execute-sql! db [(dbi/create-schema-sql db-schema-name)])
+  (if (execute-sql! db [(su/create-schema-sql db-schema-name)])
     db-schema-name
     (u/throw-ex (str "Failed to create schema - " db-schema-name))))
 
 (defn- drop-db-schema! [db db-schema-name]
-  (if (execute-sql! db [(dbi/drop-schema-sql db-schema-name)])
+  (if (execute-sql! db [(su/drop-schema-sql db-schema-name)])
     db-schema-name
     (u/throw-ex (str "Failed to drop schema - " db-schema-name))))
 
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
-  (let [scmname (dbi/db-schema-for-component component-name)]
+  (let [scmname (su/db-schema-for-component component-name)]
     (create-db-schema! datasource scmname)
     (doseq [ename (cn/entity-names component-name)]
-      (let [tabname (dbi/table-for-entity ename)
-            schema (dbi/find-entity-schema ename)
+      (let [tabname (su/table-for-entity ename)
+            schema (su/find-entity-schema ename)
             indexed-attrs (cn/indexed-attributes schema)]
         (create-tables! datasource schema tabname :Id indexed-attrs)))
     component-name))
@@ -141,25 +118,18 @@
 (defn drop-schema
   "Remove the schema from the database, perform a non-cascading delete."
   [datasource component-name]
-  (let [scmname (dbi/db-schema-for-component component-name)]
+  (let [scmname (su/db-schema-for-component component-name)]
     (drop-db-schema! datasource scmname)
     component-name))
 
 (defn upsert-index-statement [conn table-name _ id attrval]
-  (let [ntabname (normalized-tab-name table-name)
-        sql (str "INSERT INTO " ntabname " VALUES (?, ?)")
+  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")
         params #js [#js [id attrval]]]
-    (.log js/console (str "upsert-index-statement - sql: " sql))
-    (.log js/console (str "upsert-index-statement - params: " params))
     [sql params]))
 
 (defn upsert-inst-statement [conn table-name id obj]
-  (.log js/console (str "upsert-inst-statement - table-name: " table-name))
-  (let [ntabname (normalized-tab-name table-name)
-        sql (str "INSERT OR REPLACE INTO " ntabname " VALUES(?, ?)") 
+  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)") 
         params #js [#js [id obj]]]
-    (.log js/console (str "upsert-inst-statement - sql: " sql))
-    (.log js/console (str "upsert-inst-statement - params: " params))
     [sql params]))
 
 (defn delete-index-statement [conn table-name _ id]
@@ -184,8 +154,8 @@
   (.exec datasource query-sql #js [#js [query-params]]))
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
-                                       dbi/table-for-entity
-                                       dbi/index-table-name))
+                                       su/table-for-entity
+                                       su/index-table-name))
 
 (defn transact! [db f]
   (f db))
