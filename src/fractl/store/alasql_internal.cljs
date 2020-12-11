@@ -48,7 +48,7 @@
                                        su/table-for-entity
                                        su/index-table-name))
 
-(defn commit! [db f]
+(defn execute-fn! [db f]
   (f db))
 
 (defn execute-sql! [db sqls]
