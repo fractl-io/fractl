@@ -1,8 +1,6 @@
 (ns fractl.store.alasql-internal
-  (:require [clojure.string :as str]
-            [cljsjs.alasql]
+  (:require [cljsjs.alasql]
             [fractl.util :as u]
-            [fractl.component :as cn]
             [fractl.store.sql :as sql]
             [fractl.store.util :as su]))
 

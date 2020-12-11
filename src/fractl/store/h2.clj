@@ -6,7 +6,6 @@
             [fractl.store.protocol :as p]
             [fractl.store.util :as su]
             [fractl.store.jdbc-cp :as cp]
-            [fractl.store.h2-internal :as i]
             [fractl.store.db-common :as db]))
 
 (def ^:private driver-class "org.h2.Driver")
