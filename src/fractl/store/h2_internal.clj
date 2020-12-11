@@ -97,8 +97,8 @@
       (create-db-schema! conn scmname)
       (doseq [ename (cn/entity-names component-name)]
         (let [tabname (dbi/table-for-entity ename)
-              schema (cn/entity-schema ename)
-              indexed-attrs (dbi/find-indexed-attributes ename schema)]
+              schema (dbi/find-entity-schema ename)
+              indexed-attrs (cn/indexed-attributes schema)]
           (create-tables! conn schema tabname :Id indexed-attrs))))
     component-name))
 
@@ -113,8 +113,7 @@
 (defn- upsert-index-statement [conn table-name colname id attrval]
   (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    (jdbcp/set-parameters pstmt [id attrval])
-    pstmt))
+    (jdbcp/set-parameters pstmt [id attrval])))
 
 (defn- upsert-indices!
   "Insert or update new index entries relevant for an entity instance.
@@ -129,12 +128,29 @@
 (defn- upsert-inst-statement [conn table-name id obj]
   (let [sql (str "MERGE INTO " table-name " KEY (ID) VALUES (?, ? FORMAT JSON)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    (jdbcp/set-parameters pstmt [id obj])
-    pstmt))
+    (jdbcp/set-parameters pstmt [id obj])))
+
+(defn- validate-references! [conn inst ref-attrs]
+  (doseq [[aname scmname] ref-attrs]
+    (let [p (cn/find-ref-path scmname)
+          component (:component p)
+          entity-name (:record p)
+          tabname (dbi/table-for-entity [component entity-name] (name component))
+          rattr (first (:refs p))
+          colname (name rattr)
+          index-tabname (if (= rattr :Id) tabname (dbi/index-table-name tabname colname))
+          sql (str "SELECT 1 FROM " index-tabname " WHERE " colname " = ?")
+          ^PreparedStatement pstmt (jdbcp/set-parameters
+                                    (jdbc/prepare conn [sql])
+                                    [(get inst aname)])]
+      (when-not (seq (jdbc/execute! pstmt))
+        (u/throw-ex (str "Reference not found - " aname ", " p))))))
 
 (defn- upsert-inst!
   "Insert or update an entity instance."
-  [conn table-name inst]
+  [conn table-name inst ref-attrs]
+  (when (seq ref-attrs)
+    (validate-references! conn inst ref-attrs))
   (let [attrs (cn/serializable-attributes inst)
         id (:Id attrs)
         obj (json/generate-string (dissoc attrs :Id))
@@ -143,10 +159,12 @@
 
 (defn upsert-instance [datasource entity-name instance]
   (let [tabname (dbi/table-for-entity entity-name)
-        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+        entity-schema (dbi/find-entity-schema entity-name)
+        indexed-attrs (cn/indexed-attributes entity-schema)
+        ref-attrs (cn/ref-attribute-schemas entity-schema)]
     (with-open [conn (jdbc/get-connection datasource)]
       (jdbc/with-transaction [txn conn]
-        (upsert-inst! txn tabname instance)
+        (upsert-inst! txn tabname instance ref-attrs)
         (upsert-indices! txn tabname indexed-attrs instance)))
     instance))
 
@@ -181,7 +199,8 @@
 (defn delete-instance [datasource entity-name instance]
   (let [id (:Id instance)
         tabname (dbi/table-for-entity entity-name)
-        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+        entity-schema (dbi/find-entity-schema entity-name)
+        indexed-attrs (cn/indexed-attributes entity-schema)]
     (with-open [conn (jdbc/get-connection datasource)]
       (jdbc/with-transaction [txn conn]
         (delete-indices! txn tabname indexed-attrs id)

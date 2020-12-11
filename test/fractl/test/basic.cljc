@@ -170,10 +170,12 @@
   (dataflow :Df04/PostE2
             {:Df04/E2 {:AId :Df04/PostE2.E1.Id
                        :X 500}})
-  (let [e1 (cn/make-instance :Df04/E1 {:A 100})
+  (let [e (cn/make-instance :Df04/E1 {:A 100})
+        evt (cn/make-instance :Df04/Upsert_E1 {:Instance e})
+        e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
         id (:Id e1)
         e2 (cn/make-instance :Df04/E2 {:AId id
-                                          :X 20})
+                                       :X 20})
         evt (cn/make-instance :Df04/PostE2 {:E1 e1})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (is (cn/instance-of? :Df04/E2 result))
@@ -198,3 +200,25 @@
         inst (ffirst (tu/fresult (first result)))]
     (is (cn/instance-of? :Df05/E2 inst))
     (is (= (:B inst) 100))))
+
+(deftest refcheck
+  (defcomponent :RefCheck
+    (entity {:RefCheck/E1 {:A :Kernel/Int}})
+    (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
+                           :X :Kernel/Int}}))
+  (let [e (cn/make-instance :RefCheck/E1 {:A 100})
+        id (:Id e)
+        e2 (cn/make-instance :RefCheck/E2 {:AId id :X 20})
+        evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})]
+    ;; Raise reference not found exception, this check is currently
+    ;; supported on JDBC.
+    #?(:clj (tu/is-error
+             #(tu/fresult (eval-all-dataflows-for-event evt))))
+    (let [evt (cn/make-instance :RefCheck/Upsert_E1 {:Instance e})
+          e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
+          id (:Id e1)
+          e2 (cn/make-instance :RefCheck/E2 {:AId id :X 20})
+          evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})
+          inst (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+      (is (cn/instance-of? :RefCheck/E2 inst))
+      (is (= (:AId inst) id)))))

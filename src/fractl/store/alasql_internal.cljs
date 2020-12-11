@@ -111,10 +111,10 @@
     (create-db-schema! datasource scmname)
     (doseq [ename (cn/entity-names component-name)]
       (let [tabname (dbi/table-for-entity ename)
-            schema (cn/entity-schema ename)
-            indexed-attrs (dbi/find-indexed-attributes ename schema)]
+            schema (dbi/find-entity-schema ename)
+            indexed-attrs (cn/indexed-attributes schema)]
         (create-tables! datasource schema tabname :Id indexed-attrs)))
-      component-name))
+    component-name))
 
 (defn drop-schema
   "Remove the schema from the database, perform a non-cascading delete."
@@ -151,7 +151,8 @@
 
 (defn upsert-instance [datasource entity-name instance]
   (let [tabname (dbi/table-for-entity entity-name)
-        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+        entity-schema (dbi/find-entity-schema entity-name)
+        indexed-attrs (cn/indexed-attributes entity-schema)]
     (upsert-inst! datasource tabname instance)
     (upsert-indices! datasource tabname indexed-attrs instance)
     instance))
@@ -181,7 +182,8 @@
 (defn delete-instance [datasource entity-name instance]
   (let [id (:Id instance)
         tabname (dbi/table-for-entity entity-name)
-        indexed-attrs (dbi/find-indexed-attributes entity-name)]
+        entity-schema (dbi/find-entity-schema entity-name)
+        indexed-attrs (cn/indexed-attributes entity-schema)]
     (delete-indices! datasource tabname indexed-attrs id)
     (delete-inst! datasource tabname id)
     id))
