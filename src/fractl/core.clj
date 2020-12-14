@@ -4,7 +4,9 @@
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
             [fractl.evaluator :as e]
-            [fractl.lang.loader :as loader])
+            [fractl.lang.loader :as loader]
+            [fractl.deps :as deps]
+            [fractl.util :as util])
   (:gen-class))
 
 (def cli-options
@@ -38,6 +40,17 @@
 
 (defn- read-config [options]
   (read-string (slurp (get options :config "./config.edn"))))
+
+(defn exec-component-lib
+  [cfg cname cv]
+  (when-let [deps (deps/read-deps cname cv)]
+    (when-not (empty? deps)
+      (doseq [[dcname dv] deps]
+        (when-not (or (nil? dcname) (nil? dv))
+          (deps/component-nslist dcname dv)))))
+  (if-let [nsnames (deps/component-nslist cname cv)]
+    (run-cmd nsnames cfg)
+    (util/throw-ex (str "Failed to find namespaces to execute " cname))))
 
 (defn -main [& args]
   (let [{options :options args :arguments
