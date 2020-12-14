@@ -189,11 +189,16 @@
 
 (def ^:private lowercase-component (partial util/lowercase #"[\s-_]" ""))
 
-(defn v8ns-as-cljns
-  [v8ns]
-  (let [parts (string/split (name v8ns) #"\.")
+(defn flns-as-cljns
+  [flns]
+  (let [parts (string/split (name flns) #"\.")
         names (string/join "." (map lowercase-component parts))]
     names))
+
+(defn cns->component-name [component-ns]
+  (let [parts (string/split component-ns #"\.")
+        names (string/join "." (map uppercase-component parts))]
+    (keyword names)))
 
 (def file-separator
   #?(:clj
