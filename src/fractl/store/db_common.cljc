@@ -149,7 +149,7 @@
     (let [p (cn/find-ref-path scmname)
           component (:component p)
           entity-name (:record p)
-          tabname (su/table-for-entity [component entity-name] (name component))
+          tabname (su/table-for-entity [component entity-name])
           rattr (first (:refs p))
           colname (name rattr)
           index-tabname (if (= rattr :Id) tabname (su/index-table-name tabname colname))
