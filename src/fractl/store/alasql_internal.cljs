@@ -42,13 +42,13 @@
     [sql #js [ref]]))
 
 (defn do-query-statement [_ query-sql query-params]
-    [query-sql [query-params]])
+    [query-sql #js [query-params]])
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        su/table-for-entity
                                        su/index-table-name))
 
-(defn transact! [db f]
+(defn execute-fn! [db f]
   (f db))
 
 (defn execute-sql! [db sqls]
