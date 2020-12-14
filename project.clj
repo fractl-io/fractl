@@ -14,7 +14,8 @@
                  [ring-cors "0.1.13"]
                  [net.cgrand/macrovich "0.2.1"]
                  [cljsjs/alasql "0.6.5-0"]
-                 [cljc.java-time "0.1.11"]]
+                 [cljc.java-time "0.1.11"]
+                 [clj-commons/pomegranate "1.2.0"]]
 
   :main fractl.core
   :aot :all
