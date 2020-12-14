@@ -11,7 +11,7 @@
     db))
 
 (defn upsert-index-statement [_ table-name _ id attrval]
-  (let [sql (str "INSERT INTO " table-name " VALUES (?, ?)")]
+  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES (?, ?)")]
     [sql #js [id attrval]]))
 
 (defn upsert-inst-statement [_ table-name id obj]
