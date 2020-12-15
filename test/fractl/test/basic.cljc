@@ -220,3 +220,45 @@
           inst (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
       (is (cn/instance-of? :RefCheck/E2 inst))
       (is (= (:AId inst) id)))))
+
+(deftest s3-test
+  (defcomponent :AWS
+    (record {:AWS/CreateBucketConfig
+             {:LocationConstraint :Kernel/String}})
+    (entity {:AWS/S3Bucket
+             {:Bucket :Kernel/String
+              :CreateBucketConfiguration :AWS/CreateBucketConfig}})
+    (event {:AWS/CreateBucket
+            {:Bucket :Kernel/String
+             :Region :Kernel/String}}))
+  (dataflow :AWS/CreateBucket
+            {:AWS/CreateBucketConfig {:LocationConstraint :AWS/CreateBucket.Region}}
+            {:AWS/S3Bucket {:Bucket :AWS/CreateBucket.Bucket
+                            :CreateBucketConfiguration :AWS/CreateBucketConfig}})
+  ;(override-test-resolver :AWSS3Resolver :AWS/S3Bucket)
+  (let [bucket "ftltestbucket11"
+        region "us-east-1"
+        evt (cn/make-instance :AWS/CreateBucket {:Bucket bucket :Region region})
+        e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :AWS/S3Bucket e1))
+    (is (= bucket (:Bucket e1)))
+    (is (cn/instance-of? :AWS/CreateBucketConfig (:CreateBucketConfiguration e1)))
+    (is (= region (get-in e1 [:CreateBucketConfiguration :LocationConstraint])))))
+
+(deftest record-in-entity
+  (defcomponent :RecordEnt
+    (record {:RecordEnt/R {:A :Kernel/Int}})
+    (entity {:RecordEnt/E {:Q :Kernel/Int
+                           :R :RecordEnt/R}})
+    (event {:RecordEnt/PostE {:RA :Kernel/Int}}))
+  (dataflow :RecordEnt/PostE
+            {:RecordEnt/R {:A :RecordEnt/PostE.RA}}
+            {:RecordEnt/E {:Q 100
+                           :R :RecordEnt/R}})
+  (let [evt (cn/make-instance :RecordEnt/PostE {:RA 10})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (println "record-in-entity - result: " result)
+    (is (cn/instance-of? :RecordEnt/E result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= 100 (:Q result)))
+    (is (= 10 (:A (:R result))))))
