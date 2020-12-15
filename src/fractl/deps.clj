@@ -83,23 +83,6 @@
   (require (symbol cetans))
   (eval (symbol (str (symbol cetans) "/" (symbol "namespaces")))))
 
-(defn- read-depends
-  "Each compiled fractl project is expected to contain a namespace called
-      <component_name>.fldeps.clj
-   This namespace is expected to contain an symbol 'dependencies' which
-   should correspond to a vectors in the fldeps that need to
-   be loaded.
-   Example:
-       (ns sample.fldeps
-         (:gen-class))
-
-       (def dependencies
-         '[...])
-  "
-  [depens]
-  (require (symbol depens))
-  (eval (symbol (str (symbol depens) "/" (symbol "dependencies")))))
-
 (defn- load-component-ns [cns]
   (require (symbol cns))
   (let [exps (eval (symbol (str (symbol cns) "/" (symbol "expressions"))))]
@@ -113,12 +96,6 @@
         (map li/flns-as-cljns loadnslist))
       '())
     '()))
-
-(defn read-deps
-  [mname mv]
-  (ensure-dynamic-classloader!)
-  (add-dependencies :coordinates (vec [(vec [(symbol mname) mv])]))
-  (read-depends (str mname ".fldeps")))
 
 (defn component-nslist
   [cname cv]

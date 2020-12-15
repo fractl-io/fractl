@@ -43,17 +43,12 @@
 (defn- read-config [options]
   (read-string (slurp (get options :config "./config.edn"))))
 
-(defn exec-component-lib
+(defn jar-resolver
   [jar cfg]
   (let [prop (jar :jar)
         strprop (str prop)
         name-ver (string/split strprop #"\ ")
         [cname cv] name-ver]
-    (when-let [deps (deps/read-deps cname cv)]
-      (when-not (empty? deps)
-        (doseq [[dcname dv] deps]
-          (when-not (or (nil? dcname) (nil? dv))
-            (deps/component-nslist dcname dv)))))
     (if-let [nsnames (deps/component-nslist cname cv)]
       (run-cmd nsnames cfg)
       (util/throw-ex (str "Failed to find namespaces to execute " cname)))))
@@ -64,5 +59,5 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
-      (:jar options) (exec-component-lib options (read-config args))
+      (:jar options) (jar-resolver options (read-config args))
       :else (run-cmd args (read-config options)))))
