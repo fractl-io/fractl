@@ -6,12 +6,14 @@
             [fractl.evaluator :as e]
             [fractl.lang.loader :as loader]
             [fractl.deps :as deps]
-            [fractl.util :as util])
+            [fractl.util :as util]
+            [clojure.string :as string])
   (:gen-class))
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
-   ["-h" "--help"]])
+   ["-h" "--help"]
+   ["-j" "--jar JAR" "Name and version of jar"]])
 
 (defn- load-components [component-scripts component-root-path]
   (doall (map (partial loader/load-script component-root-path)
@@ -42,15 +44,19 @@
   (read-string (slurp (get options :config "./config.edn"))))
 
 (defn exec-component-lib
-  [cfg cname cv]
-  (when-let [deps (deps/read-deps cname cv)]
-    (when-not (empty? deps)
-      (doseq [[dcname dv] deps]
-        (when-not (or (nil? dcname) (nil? dv))
-          (deps/component-nslist dcname dv)))))
-  (if-let [nsnames (deps/component-nslist cname cv)]
-    (run-cmd nsnames cfg)
-    (util/throw-ex (str "Failed to find namespaces to execute " cname))))
+  [jar cfg]
+  (let [prop (jar :jar)
+        strprop (str prop)
+        name-ver (string/split strprop #"\ ")
+        [cname cv] name-ver]
+    (when-let [deps (deps/read-deps cname cv)]
+      (when-not (empty? deps)
+        (doseq [[dcname dv] deps]
+          (when-not (or (nil? dcname) (nil? dv))
+            (deps/component-nslist dcname dv)))))
+    (if-let [nsnames (deps/component-nslist cname cv)]
+      (run-cmd nsnames cfg)
+      (util/throw-ex (str "Failed to find namespaces to execute " cname)))))
 
 (defn -main [& args]
   (let [{options :options args :arguments
@@ -58,4 +64,5 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
+      (:jar options) (exec-component-lib options (read-config args))
       :else (run-cmd args (read-config options)))))
