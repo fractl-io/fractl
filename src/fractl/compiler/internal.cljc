@@ -105,23 +105,34 @@
           (recur (rest attrs)))
         (recur (rest attrs))))))
 
+(defn- process-dep-entry [attrs deps result]
+  (loop [deps deps, r result]
+    (if-let [d (first deps)]
+      (recur (rest deps)
+             (if-not (some #{d} (first r))
+               [(conj (first r) d)
+                (if-let [e (attr-entry attrs d)]
+                  (conj (second r) e)
+                  (second r))]
+               r))
+      r)))
+
+(defn- process-dependency [attrs sorted-dep result]
+  (loop [sorted-dep sorted-dep, result result]
+    (if-let [deps (seq (first sorted-dep))]
+      (recur (rest sorted-dep)
+             (process-dep-entry attrs deps result))
+      result)))
+
 (defn- as-sorted-attrs [attrs graph]
   (let [m (sort-by first (comp - compare)
-                   (group-by count (g/all-edges graph)))]
+                   (group-by count (g/all-edges graph)))
+        pd (partial process-dependency attrs)]
     (loop [sorted-deps (vals (into {} m))
            result [#{} []]]
-      (if-let [ds (seq (ffirst sorted-deps))]
+      (if-let [sd (seq (first sorted-deps))]
         (recur (rest sorted-deps)
-               (loop [ds ds, r result]
-                 (if-let [d (first ds)]
-                   (recur (rest ds)
-                          (if-not (some #{d} (first r))
-                            [(conj (first r) d)
-                             (if-let [e (attr-entry attrs d)]
-                               (conj (second r) e)
-                               (second r))]
-                            r))
-                   r)))
+               (pd sd result))
         (second result)))))
 
 (defn sort-attributes-by-dependency [attrs graph]
