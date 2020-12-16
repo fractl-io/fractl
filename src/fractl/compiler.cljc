@@ -1,6 +1,7 @@
 (ns fractl.compiler
   "Compile dataflow patterns to calls into the resolver protocol."
-  (:require [fractl.util :as u]
+  (:require [clojure.walk :as w]
+            [fractl.util :as u]
             [fractl.util.graph :as ug]
             [fractl.util.seq :as us]
             [fractl.lang.internal :as li]
@@ -157,8 +158,7 @@
 (defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema]
   (emit-realize-instance ctx pat-name pat-attrs schema false))
 
-(defn- emit-realize-record-instance [ctx pat-name pat-attrs schema]
-  (emit-realize-instance ctx pat-name pat-attrs schema false))
+(def ^:private emit-realize-record-instance emit-realize-entity-instance)
 
 (defn- emit-realize-event-instance [ctx pat-name pat-attrs schema]
   (emit-realize-instance ctx pat-name pat-attrs schema true))
@@ -183,6 +183,7 @@
           {component :component record :record} (li/path-parts full-nm)
           nm [component record]
           attrs (li/instance-pattern-attrs pat)
+          alias (:as pat)
           [tag scm] (cv/find-schema nm full-nm)]
       (let [c (case tag
                 :entity emit-realize-entity-instance
@@ -191,20 +192,31 @@
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
             opc (c ctx nm attrs scm)]
         (ctx/put-record! ctx nm pat)
+        (when alias
+          (ctx/add-alias! ctx nm alias))
         opc))
     (emit-realize-map ctx pat)))
 
 (defn- compile-command [ctx pat]
   )
 
+(defn- name-to-alias [ctx pat]
+  (if (li/name? pat)
+    (or (ctx/aliased-name ctx pat) pat)
+    pat))
+
+(defn- rename-aliases [ctx pat]
+  (w/prewalk (partial name-to-alias ctx) pat))
+
 (defn compile-pattern [ctx pat]
-  (if-let [c (cond
-               (li/pathname? pat) compile-pathname
-               (map? pat) compile-map
-               (vector? pat) compile-command)]
-    (let [code (c ctx pat)]
-      {:opcode code})
-    (u/throw-ex (str "cannot compile invalid pattern - " pat))))
+  (let [p (rename-aliases ctx pat)]
+    (if-let [c (cond
+                 (li/pathname? p) compile-pathname
+                 (map? p) compile-map
+                 (vector? p) compile-command)]
+      (let [code (c ctx p)]
+        {:opcode code})
+      (u/throw-ex (str "cannot compile invalid pattern - " pat)))))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial compile-pattern ctx)

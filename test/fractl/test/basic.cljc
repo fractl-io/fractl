@@ -262,3 +262,19 @@
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:Q result)))
     (is (= 10 (:A (:R result))))))
+
+(deftest alias
+  (defcomponent :Alias
+    (entity {:Alias/E {:X :Kernel/Int}})
+    (entity {:Alias/F {:Y :Kernel/Int}})
+    (record {:Alias/R {:F :Alias/F}})
+    (event {:Alias/Evt {:Instance :Alias/E}})
+    (dataflow :Alias/Evt
+              {:Alias/F {:Y :Alias/Evt.Instance.X} :as :G}
+              {:Alias/R {:F :G}}))
+  (let [e (cn/make-instance :Alias/E {:X 100})
+        evt (cn/make-instance :Alias/Evt {:Instance e})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :Alias/R result))
+    (is (cn/instance-of? :Alias/F (:F result)))
+    (is (= 100 (get-in result [:F :Y])))))
