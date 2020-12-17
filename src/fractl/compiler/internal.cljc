@@ -54,12 +54,19 @@
         true)
     (u/throw-ex (str "reference not in context - " [component rec refs]))))
 
+(declare reach-name)
+
+(defn- aliased-name-in-context [ctx schema n]
+  (when-let [an (ctx/aliased-name ctx n)]
+    (reach-name ctx schema an)))
+
 (defn- reach-name [ctx schema n]
   (let [{component :component rec :record refs :refs
          path :path}
         (li/path-parts n)]
     (if path
-      (if (cn/has-attribute? schema path)
+      (if (or (cn/has-attribute? schema path)
+              (aliased-name-in-context ctx schema n))
         true
         (u/throw-ex (str "reference not in schema - " path)))
       (name-in-context ctx component rec refs))))

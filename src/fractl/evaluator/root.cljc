@@ -122,7 +122,7 @@
 (defn- pop-and-intern-instance
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
-  [env record-name]
+  [env record-name alias]
   (let [[env single? [_ x]] (env/pop-obj env)
         objs (if single? [x] x)
         final-objs (map #(assoc-computed-attributes env record-name %) objs)
@@ -130,8 +130,9 @@
                       %
                       (cn/make-instance (li/make-path record-name) %))
                    final-objs)
-        env (env/bind-instances env record-name insts)]
-    [(if single? (first insts) insts) env]))
+        env (env/bind-instances env record-name insts)
+        final-env (if alias (env/bind-instance-to-alias env alias (first insts)) env)]
+    [(if single? (first insts) insts) final-env]))
 
 (defn- pack-results [local-result resolver-results]
   [local-result resolver-results])
@@ -174,13 +175,13 @@
     (do-set-compound-attribute [_ env [attr-name f]]
       (set-obj-attr env attr-name f))
 
-    (do-intern-instance [_ env record-name]
-      (let [[insts env] (pop-and-intern-instance env record-name)
+    (do-intern-instance [_ env [record-name alias]]
+      (let [[insts env] (pop-and-intern-instance env record-name alias)
             [local-result resolver-results] (chained-upsert store record-name insts)]
         (i/ok (pack-results local-result resolver-results) env)))
 
-    (do-intern-event-instance [self env record-name]
-      (let [[inst env] (pop-and-intern-instance env record-name)
+    (do-intern-event-instance [self env [record-name alias]]
+      (let [[inst env] (pop-and-intern-instance env record-name alias)
             resolver (resolver-for-path inst)
             composed? (rg/composed? resolver)
             local-result (when (or (not resolver) composed?)

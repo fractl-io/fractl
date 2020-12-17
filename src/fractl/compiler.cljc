@@ -134,34 +134,34 @@
     (op/query-instances [rec-name q])
     (op/new-instance rec-name)))
 
-(defn- emit-build-entity-instance [ctx rec-name attrs schema event?]
+(defn- emit-build-entity-instance [ctx rec-name attrs schema alias event?]
   (concat [(begin-build-instance rec-name attrs)]
           (map #(op/set-literal-attribute %) (:computed attrs))
           (map (fn [[k v]]
                  ((k set-attr-opcode-fns) v))
                (:sorted attrs))
           [(if event?
-             (op/intern-event-instance rec-name)
-             (op/intern-instance rec-name))]))
+             (op/intern-event-instance [rec-name alias])
+             (op/intern-instance [rec-name alias]))]))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
   (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)]
     (assoc attrs :sorted sorted)))
 
-(defn- emit-realize-instance [ctx pat-name pat-attrs schema event?]
+(defn- emit-realize-instance [ctx pat-name pat-attrs schema alias event?]
   (when-let [xs (cv/invalid-attributes pat-attrs schema)]
     (u/throw-ex (str "invalid attributes in pattern - " xs)))
   (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
-    (emit-build-entity-instance ctx pat-name sorted-attrs schema event?)))
+    (emit-build-entity-instance ctx pat-name sorted-attrs schema alias event?)))
 
-(defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema]
-  (emit-realize-instance ctx pat-name pat-attrs schema false))
+(defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema alias]
+  (emit-realize-instance ctx pat-name pat-attrs schema alias false))
 
 (def ^:private emit-realize-record-instance emit-realize-entity-instance)
 
-(defn- emit-realize-event-instance [ctx pat-name pat-attrs schema]
-  (emit-realize-instance ctx pat-name pat-attrs schema true))
+(defn- emit-realize-event-instance [ctx pat-name pat-attrs schema alias]
+  (emit-realize-instance ctx pat-name pat-attrs schema alias true))
 
 (defn- emit-realize-map [ctx pat]
   )
@@ -190,7 +190,7 @@
                 :record emit-realize-record-instance
                 :event emit-realize-event-instance
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
-            opc (c ctx nm attrs scm)]
+            opc (c ctx nm attrs scm alias)]
         (ctx/put-record! ctx nm pat)
         (when alias
           (ctx/add-alias! ctx nm alias))
@@ -200,23 +200,14 @@
 (defn- compile-command [ctx pat]
   )
 
-(defn- name-to-alias [ctx pat]
-  (if (li/name? pat)
-    (or (ctx/aliased-name ctx pat) pat)
-    pat))
-
-(defn- rename-aliases [ctx pat]
-  (w/prewalk (partial name-to-alias ctx) pat))
-
 (defn compile-pattern [ctx pat]
-  (let [p (rename-aliases ctx pat)]
-    (if-let [c (cond
-                 (li/pathname? p) compile-pathname
-                 (map? p) compile-map
-                 (vector? p) compile-command)]
-      (let [code (c ctx p)]
-        {:opcode code})
-      (u/throw-ex (str "cannot compile invalid pattern - " pat)))))
+  (if-let [c (cond
+               (li/pathname? pat) compile-pathname
+               (map? pat) compile-map
+               (vector? pat) compile-command)]
+    (let [code (c ctx pat)]
+      {:opcode code})
+    (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial compile-pattern ctx)

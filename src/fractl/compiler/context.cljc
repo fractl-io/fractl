@@ -43,5 +43,9 @@
     (bind-variable! ctx :aliases (assoc aliases alias v))))
 
 (defn aliased-name [ctx k]
-  (when-let [aliases (second (fetch-variable ctx :aliases))]
-    (get aliases k)))
+  (let [[n r] (li/split-ref k)
+        aliases (second (fetch-variable ctx :aliases))]
+    (when-let [a (get aliases n)]
+      (if r
+        (keyword (subs (str a "." (name r)) 1))
+        a))))
