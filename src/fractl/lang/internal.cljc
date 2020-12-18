@@ -324,7 +324,9 @@
        :record (if refs (first refs) r)
        :refs (when-let [rs (seq (rest refs))]
                (vec rs))}
-      {:path path})))
+      (if refs ; must be a reference via an alias.
+        {:path (first refs) :refs (rest refs)}
+        {:path path}))))
 
 (defn query-on-attr? [a]
   (string/ends-with? (name a) "?"))

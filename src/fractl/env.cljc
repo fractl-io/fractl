@@ -31,20 +31,27 @@
 (defn bind-instances [env rec-name instances]
   (su/move-all instances env #(bind-instance %1 rec-name %2)))
 
+(def bind-instance-to-alias assoc)
+
 (defn lookup-instance [env rec-name]
   (peek (get-instances env rec-name)))
 
+(defn- find-instance-by-path-parts [env path-parts]
+  (if-let [p (:path path-parts)] ; maybe an alias
+    (get env p)
+    (let [recname [(:component path-parts) (:record path-parts)]]
+      (lookup-instance env recname))))
+
 (defn follow-reference [env path-parts]
-  (let [recname [(:component path-parts) (:record path-parts)]
-        inst (lookup-instance env recname)]
-    (loop [env env, refs (:refs path-parts), obj inst]
-      (if-let [r (first refs)]
-        (let [x (get obj r)]
-          (recur (if (cn/an-instance? x)
-                   (bind-instance env (cn/parsed-instance-name x) x)
-                   env)
-                 (rest refs) x))
-        [obj env]))))
+  (loop [env env, refs (:refs path-parts)
+         obj (find-instance-by-path-parts env path-parts)]
+    (if-let [r (first refs)]
+      (let [x (get obj r)]
+        (recur (if (cn/an-instance? x)
+                 (bind-instance env (cn/parsed-instance-name x) x)
+                 env)
+               (rest refs) x))
+      [obj env])))
 
 (defn lookup-instances-by-attributes [env rec-name query-attrs]
   (when-let [insts (seq (get-instances env rec-name))]

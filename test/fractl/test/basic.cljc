@@ -75,7 +75,7 @@
     (is (valid-opcode? opc/set-literal-attribute?
                        (nth opcs 2) [:Y 200]))
     (is (valid-opcode? opc/intern-instance?
-                       (nth opcs 3) [:CompileTest :E1]))))
+                       (nth opcs 3) [[:CompileTest :E1] nil]))))
 
 (deftest compile-pattern-02
   (let [[ctx c] (pattern-compiler)
@@ -99,7 +99,7 @@
                          (nth opcs 2) (fn [[n f]]
                                         (and (= :Y n) (fn? f)))))
       (is (valid-opcode? opc/intern-instance?
-                         (nth opcs 3) [:CompileTest :E1])))))
+                         (nth opcs 3) [[:CompileTest :E1] nil])))))
 
 (deftest circular-dependency
   (let [[ctx c] (pattern-compiler)
@@ -262,3 +262,36 @@
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:Q result)))
     (is (= 10 (:A (:R result))))))
+
+(deftest alias
+  (defcomponent :Alias
+    (entity {:Alias/E {:X :Kernel/Int}})
+    (entity {:Alias/F {:Y :Kernel/Int}})
+    (record {:Alias/R {:F :Alias/F}})
+    (event {:Alias/Evt {:Instance :Alias/E}})
+    (dataflow :Alias/Evt
+              {:Alias/F {:Y :Alias/Evt.Instance.X} :as :G}
+              {:Alias/R {:F :G}}))
+  (let [e (cn/make-instance :Alias/E {:X 100})
+        evt (cn/make-instance :Alias/Evt {:Instance e})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :Alias/R result))
+    (is (cn/instance-of? :Alias/F (:F result)))
+    (is (= 100 (get-in result [:F :Y])))))
+
+(deftest multi-alias
+  (defcomponent :MultiAlias
+    (entity {:MultiAlias/E {:X :Kernel/Int}})
+    (entity {:MultiAlias/F {:A :Kernel/Int
+                            :B :Kernel/Int}})
+    (event {:MultiAlias/Evt {:EX1 :Kernel/Int
+                             :EX2 :Kernel/Int}})
+    (dataflow :MultiAlias/Evt
+              {:MultiAlias/E {:X :MultiAlias/Evt.EX1} :as :E1}
+              {:MultiAlias/E {:X :MultiAlias/Evt.EX2} :as :E2}
+              {:MultiAlias/F {:A :E1.X :B :E2.X}}))
+  (let [evt (cn/make-instance :MultiAlias/Evt {:EX1 100 :EX2 10})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :MultiAlias/F result))
+    (is (= 100 (:A result)))
+    (is (= 10 (:B result)))))
