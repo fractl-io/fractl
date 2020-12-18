@@ -3,6 +3,7 @@
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [fractl.util :as util]
+            [fractl.util.hash :as sh]
             [fractl.util.seq :as su]
             [fractl.util.log :as log]
             [fractl.lang.internal :as li]))
@@ -308,9 +309,16 @@
   [predic entity-schema]
   (map first (filter-attribute-schemas predic entity-schema)))
 
+(defn- make-attributes-filter [predic]
+  (partial filter-attributes predic))
+
 (def indexed-attributes
   "Return the names of all attributes marked :indexed."
-  (partial filter-attributes #(:indexed %)))
+  (make-attributes-filter #(:indexed %)))
+
+(def encrypted-attriutes (make-attributes-filter #(:encryption %)))
+
+(def write-only-attributes (make-attributes-filter #(:write-only %)))
 
 (def ref-attribute-schemas
   "Return the names and schemas of all attributes which has a :ref."
@@ -318,11 +326,11 @@
 
 (def unique-attributes
   "Return the names of all unique attributes."
-  (partial filter-attributes #(:unique %)))
+  (make-attributes-filter #(:unique %)))
 
 (def identity-attributes
   "Return the names of all identity attributes in the schema."
-  (partial filter-attributes #(and (:unique %) (:immutable %))))
+  (make-attributes-filter #(and (:unique %) (:immutable %))))
 
 (defn- identity-attribute-name
   "Return the name of any one of the identity attributes of the given entity."
@@ -336,7 +344,7 @@
   (or (identical? a b)
       (if (every? entity-instance? [a b])
         (let [instname (instance-name a)]
-          (and (instance-of? (instance-name a) b)
+          (and (instance-of? instname b)
                (when-let [idattr (identity-attribute-name instname)]
                  (= (idattr (instance-attributes a))
                     (idattr (instance-attributes b))))))
@@ -497,16 +505,21 @@
     (inferred-event-schema? scm)
     (:inferred schema)))
 
-(defn- validate-record-attributes [recname recattrs]
+(defn ensure-schema [recname]
   (if-let [rec (find-record-schema recname)]
-    (let [schema (:schema rec)]
-      ;; The :inferred key will be added
-      ;; only for inferred events. Do no validate
-      ;; the schema of inferred events.
-      (if (:inferred schema)
-        recattrs
-        (validated-attribute-values schema recattrs)))
+    (:schema rec)
     (throw-error (str "schema not found for " recname))))
+
+(defn- validate-record-attributes
+  ([recname recattrs schema]
+   ;; The :inferred key will be added
+   ;; only for inferred events. Do no validate
+   ;; the schema of inferred events.
+   (if (:inferred schema)
+     recattrs
+     (validated-attribute-values schema recattrs)))
+  ([recname recattrs]
+   (validated-attribute-values recattrs recattrs (ensure-schema recname))))
 
 (defn- type-tag-of [recname]
   (type-tag-key (find-record-schema recname)))
@@ -559,16 +572,26 @@
                   [k (maybe-instance v validate?)])
                 attrs)))
 
+(defn- post-process-attributes
+  "Apply any additional processing to attribute values, like encryption"
+  [recname attrs schema]
+  (loop [encrypted (seq (encrypted-attriutes schema)), result attrs]
+    (if-let [k (first encrypted)]
+      (recur (rest encrypted) (assoc result k (sh/salted-hash (k result))))
+      result)))
+
 (defn make-instance
   "Initialize an instance of a record from the given map of attributes.
    All attribute values will be validated using the associated value predicates.
    full-record-name must be in the form - :ComponentName/RecordName.
    Return the new record on success, return an :error record on failure."
   ([record-name attributes validate?]
-   (let [attrs (maps-to-insts attributes validate?)
-         attrs (if validate?
-                 (validate-record-attributes record-name attrs)
-                 attrs)]
+   (let [attrs-with-insts (maps-to-insts attributes validate?)
+         schema (ensure-schema record-name)
+         validated-attrs (if validate?
+                           (validate-record-attributes record-name attrs-with-insts schema)
+                           attrs-with-insts)
+         attrs (post-process-attributes record-name validated-attrs schema)]
      (if (error? attrs)
        attrs
        (make-record-instance (type-tag-of record-name) record-name attrs))))
