@@ -1,6 +1,7 @@
 (ns fractl.compiler.context
   "Context information attached to a compilation session."
-  (:require [fractl.util :as u]))
+  (:require [fractl.util :as u]
+            [fractl.lang.internal :as li]))
 
 (defn make []
   (u/make-cell {}))
@@ -35,3 +36,16 @@
 
 (defn fetch-compile-query-fn [ctx]
   (second (fetch-variable ctx :compile-query-fn)))
+
+(defn add-alias! [ctx nm alias]
+  (let [aliases (or (second (fetch-variable ctx :aliases)) {})
+        v (if (li/parsed-path? nm) (li/make-path nm) nm)]
+    (bind-variable! ctx :aliases (assoc aliases alias v))))
+
+(defn aliased-name [ctx k]
+  (let [[n r] (li/split-ref k)
+        aliases (second (fetch-variable ctx :aliases))]
+    (when-let [a (get aliases n)]
+      (if r
+        (keyword (subs (str a "." (name r)) 1))
+        a))))
