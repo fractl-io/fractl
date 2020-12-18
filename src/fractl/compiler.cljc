@@ -251,19 +251,21 @@
     `(~arg ~current-instance-var)
 
     :else
-    (let [{component :component rec :record refs :refs} (li/path-parts arg)]
-      (if-let [[refattr ukattr] (reference-attributes attrs [component rec])]
-        (do
+    (if-let [[refattr attr] (li/split-ref arg)]
+      (if-let [refpath (:ref (get attrs refattr))]
+        (let [{component :component rec :record refs :refs} (li/path-parts refpath)
+              ukattr (first refs)]
           (assert-unique! [component rec] ukattr refattr)
           ;; The referenced instance is auto-loaded into the environment by the
           ;; evaluator, before the following code executes.
           ;; See evaluator/root/do-load-references
-          `(~(first refs)
+          `(~attr
             (first
              (fractl.env/lookup-instances-by-attributes
               ~runtime-env-var
               ~[component rec] [[~ukattr (~refattr ~current-instance-var)]]))))
-        (u/throw-ex (str "no unique reference can be traced from " [rec-name aname arg]))))))
+        (u/throw-ex (str "not a reference attribute " [rec-name aname arg])))
+      (u/throw-ex (str "invalid reference attribute " [rec-name aname arg])))))
 
 (defn compile-attribute-expression [rec-name attrs aname aval]
   (when-not aval
