@@ -165,7 +165,7 @@
     (entity {:Df04/E1 {:A :Kernel/Int}})
     (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
                        :X :Kernel/Int
-                       :Y {:expr '(* :X :Df04/E1.A)}}})
+                       :Y {:expr '(* :X :AId.A)}}})
     (event {:Df04/PostE2 {:E1 :Df04/E1}}))
   (dataflow :Df04/PostE2
             {:Df04/E2 {:AId :Df04/PostE2.E1.Id
@@ -257,7 +257,6 @@
                            :R :RecordEnt/R}})
   (let [evt (cn/make-instance :RecordEnt/PostE {:RA 10})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-    (println "record-in-entity - result: " result)
     (is (cn/instance-of? :RecordEnt/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:Q result)))
