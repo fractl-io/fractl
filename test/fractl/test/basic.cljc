@@ -273,9 +273,14 @@
   (let [x "this is a secret"
         e (cn/make-instance :H/E {:A 10 :X x})
         evt (cn/make-instance :H/Upsert_E {:Instance e})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
+        r2 (cn/dissoc-write-only result)]
     (is (cn/instance-of? :H/E result))
-    (is (sh/hash-eq? (:X result) x))))
+    (is (sh/hash-eq? (:X result) x))
+    (is (= 10 (:A result)))
+    (is (cn/instance-of? :H/E r2))
+    (is (not (:X r2)))
+    (is (= 10 (:A r2)))))
 
 (deftest alias
   (defcomponent :Alias

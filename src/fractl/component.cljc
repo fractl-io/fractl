@@ -934,3 +934,11 @@
 
 (defn find-ref-path [attr-schema-name]
   (:ref (find-attribute-schema attr-schema-name)))
+
+(defn dissoc-write-only [instance]
+  (let [schema (ensure-schema (instance-name instance))]
+    (if-let [wo-attrs (seq (write-only-attributes schema))]
+      (into {} (filter (fn [[k _]]
+                         (not (some #{k} wo-attrs)))
+                       instance))
+      instance)))

@@ -5,3 +5,8 @@
 
 (entity {:E1 {:X :Kernel/Int}})
 (entity {:E2 {:X :Kernel/Int}})
+
+(entity {:E3 {:A :Kernel/Int
+              :B :Kernel/Int
+              :X {:type :Kernel/String
+                  :write-only true}}})
