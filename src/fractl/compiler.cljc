@@ -164,7 +164,8 @@
   (emit-realize-instance ctx pat-name pat-attrs schema alias true))
 
 (defn- emit-realize-map [ctx pat]
-  )
+  ;; TODO: implement support for map literals.
+  (u/throw-ex (str "cannot compile map literal " pat)))
 
 (defn- compile-pathname [ctx pat]
   (let [{component :component record :record refs :refs
