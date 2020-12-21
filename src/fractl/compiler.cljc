@@ -198,14 +198,33 @@
         opc))
     (emit-realize-map ctx pat)))
 
-(defn- compile-command [ctx pat]
+(defn- compile-user-macro [ctx pat]
+  (let [m (first pat)]
+    (if (li/macro-name? m)
+      (u/throw-ex (str "macro not found - " m))
+      (u/throw-ex (str "not a valid macro name - " m)))))
+
+(defn- compile-for-each-macro [ctx pat]
+  ;; TODO: implement the iteration macro.
+  (u/throw-ex "for-each macro not implemented"))
+
+(defn- compile-match-macro [ctx pat]
   )
+
+(defn- compile-special-form
+  "Compile built-in special-forms (or macros) for performing basic
+  conditional and iterative operations."
+  [ctx pat]
+  (case (first pat)
+    :match (compile-match-macro ctx (rest pat))
+    :for-each (compile-for-each-macro ctx (rest pat))
+    (compile-user-macro ctx pat)))
 
 (defn compile-pattern [ctx pat]
   (if-let [c (cond
                (li/pathname? pat) compile-pathname
                (map? pat) compile-map
-               (vector? pat) compile-command)]
+               (vector? pat) compile-special-form)]
     (let [code (c ctx pat)]
       {:opcode code})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
