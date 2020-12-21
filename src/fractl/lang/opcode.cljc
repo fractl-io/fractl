@@ -78,6 +78,9 @@
          (load-references
           [[record-name refs]]
           "Update env with referenced instances.")
+         (load-literal
+          [[obj]]
+          "Load a literal object (number, string) to some VM specific location, like a register.")
          (new-instance
           [record-name]
           "Start initializing a record/entity/event instance.")

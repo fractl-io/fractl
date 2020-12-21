@@ -13,6 +13,7 @@
 
 (def make-context ctx/make)
 
+(def ^:private emit-load-literal op/load-literal)
 (def ^:private emit-load-instance-by-name op/load-instance)
 
 (defn- emit-load-references [rec-name refs]
@@ -221,8 +222,8 @@
 (defn- compile-match-cases [ctx cases]
   (loop [cases cases, cases-code []]
     (if-let [[case-pat conseq] (first cases)]
-      (recur (rest cases) (conj cases-code [(compile-pattern ctx case-pat)
-                                            (compile-pattern ctx conseq)]))
+      (recur (rest cases) (conj cases-code [[(compile-pattern ctx case-pat)]
+                                            [(compile-pattern ctx conseq)]]))
       cases-code)))
 
 (defn- compile-match-macro [ctx pat]
@@ -230,7 +231,7 @@
         [cases alternative] (extract-match-clauses (rest pat))
         cases-code (compile-match-cases ctx cases)
         alt-code (when alternative (compile-pattern ctx alternative))]
-    (emit-match match-pat-code cases-code alt-code)))
+    (emit-match [match-pat-code] cases-code [alt-code])))
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic
@@ -241,11 +242,15 @@
     :for-each (compile-for-each-macro ctx (rest pat))
     (compile-user-macro ctx pat)))
 
+(defn- compile-literal [_ pat]
+  (emit-load-literal pat))
+
 (defn compile-pattern [ctx pat]
   (if-let [c (cond
                (li/pathname? pat) compile-pathname
                (map? pat) compile-map
-               (vector? pat) compile-special-form)]
+               (vector? pat) compile-special-form
+               (i/literal? pat) compile-literal)]
     (let [code (c ctx pat)]
       {:opcode code})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))

@@ -262,7 +262,7 @@
     (is (= 100 (:Q result)))
     (is (= 10 (:A (:R result))))))
 
-(deftest alias
+(deftest alias-for-instances
   (defcomponent :Alias
     (entity {:Alias/E {:X :Kernel/Int}})
     (entity {:Alias/F {:Y :Kernel/Int}})
@@ -294,3 +294,22 @@
     (is (cn/instance-of? :MultiAlias/F result))
     (is (= 100 (:A result)))
     (is (= 10 (:B result)))))
+
+(defn- conditional-event [i x]
+  (let [evt (cn/make-instance :Cond/Evt {:I i})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :Cond/R result))
+    (is (= x (:X result)))))
+
+(deftest conditional
+  (defcomponent :Cond
+    (record {:Cond/R {:X :Kernel/Int}})
+    (event {:Cond/Evt {:I :Kernel/Int}})
+    (dataflow :Cond/Evt
+              [:match :Cond/Evt.I
+               0 {:Cond/R {:X 100}}
+               1 {:Cond/R {:X 200}}
+               {:Cond/R {:X 300}}]))
+  (conditional-event 0 100)
+  (conditional-event 1 200)
+  (conditional-event 3 300))

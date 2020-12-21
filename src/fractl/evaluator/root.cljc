@@ -137,6 +137,23 @@
 (defn- pack-results [local-result resolver-results]
   [local-result resolver-results])
 
+(defn- ok-result [r]
+  (when (i/ok? r)
+    (:result r)))
+
+(defn- eval-cases [evaluator env eval-opcode match-obj cases-code alternative-code]
+  (loop [cases-code cases-code, env env]
+    (if-let [[condition consequent] (first cases-code)]
+      (let [result (eval-opcode evaluator env condition)]
+        (if-let [r (ok-result result)]
+          (if (= r match-obj)
+            (eval-opcode evaluator (:env result) consequent)
+            (recur (rest cases-code) (:env result)))
+          result))
+      (if alternative-code
+        (eval-opcode evaluator env alternative-code)
+        (i/ok false env)))))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -148,6 +165,9 @@
       (if-let [updated-env (parser/match-pattern env pattern instance)]
         (i/ok true updated-env)
         (i/ok false env)))
+
+    (do-load-literal [_ env x]
+      (i/ok x env))
 
     (do-load-instance [_ env record-name]
       (if-let [inst (env/lookup-instance env record-name)]
@@ -196,7 +216,10 @@
         (i/ok (pack-results local-result resolver-results) env)))
 
     (do-match [self env [match-pattern-code cases-code alternative-code]]
-      )))
+      (let [result (eval-opcode self env match-pattern-code)]
+        (if-let [r (ok-result result)]
+          (eval-cases self (:env result) eval-opcode r cases-code alternative-code)
+          result)))))
 
 (def ^:private default-evaluator (u/make-cell))
 
