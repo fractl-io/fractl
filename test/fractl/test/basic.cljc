@@ -3,6 +3,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.util :as u]
+            [fractl.util.hash :as sh]
             [fractl.store :as store]
             [fractl.component :as cn]
             [fractl.compiler :as c]
@@ -261,6 +262,24 @@
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:Q result)))
     (is (= 10 (:A (:R result))))))
+
+(deftest hidden-attributes
+  (defcomponent :H
+    (entity {:H/E {:A :Kernel/Int
+                   :X {:type :Kernel/String
+                       :encryption :default
+                       :write-only true}}}))
+  (let [x "this is a secret"
+        e (cn/make-instance :H/E {:A 10 :X x})
+        evt (cn/make-instance :H/Upsert_E {:Instance e})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
+        r2 (cn/dissoc-write-only result)]
+    (is (cn/instance-of? :H/E result))
+    (is (sh/hash-eq? (:X result) x))
+    (is (= 10 (:A result)))
+    (is (cn/instance-of? :H/E r2))
+    (is (not (:X r2)))
+    (is (= 10 (:A r2)))))
 
 (deftest alias
   (defcomponent :Alias

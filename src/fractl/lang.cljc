@@ -3,7 +3,6 @@
   (:require [clojure.set :as set]
             [fractl.util :as u]
             [fractl.util.str :as stru]
-            [fractl.util.hash :as sh]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.compiler :as c]))
@@ -90,6 +89,13 @@
 (defn- fn-or-name? [x]
   (or (fn? x) (li/name? x)))
 
+(defn- encryption? [x]
+  ;; true/:default means use the default encryption algorithm.
+  ;; In future, specific algorithms may be supported
+  ;; as an enum of keywords, e.g - :bcrypt, :sha512 etc.
+  (or (= true x)
+      (= :default x)))
+
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
     (case k
@@ -106,6 +112,8 @@
       :listof (li/validate attribute-type? ":listof has invalid type" v)
       :setof (li/validate attribute-type? ":setof has invalid type" v)
       :indexed (li/validate-bool :indexed v)
+      :write-only (li/validate-bool :write-only v)
+      :encryption (li/validate encryption? "invalid encryption type" v)
       :type-in-store (li/validate string? ":type-in-store must be specified as a string" v)
       :ref (li/validate reference-exists? ":ref is invalid" v)
       :var (li/validate-bool :var v)
@@ -464,10 +472,6 @@
 
   (event :Kernel/AppInit
          {:AppName :Kernel/Keyword}))
-
-(def hash-password sh/salted-hash)
-(def hashed-password? sh/salted-hash?)
-(def password-hash-eq? sh/hash-eq?)
 
 (defn- initf []
   (when-not @kernel-inited
