@@ -27,20 +27,26 @@
 (def ok? i/ok?)
 (def dummy-result i/dummy-result)
 
+(defn- dispatch-opcodes [evaluator env opcodes]
+  (loop [dc opcodes, result (dummy-result env)]
+    (if (ok? result)
+      (if-let [opcode (first dc)]
+        (recur (rest dc) (dispatch evaluator (:env result) opcode))
+        result)
+      result)))
+
 (defn eval-dataflow
   "Evaluate a compiled dataflow, triggered by event-instance, within the context
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (let [n (li/split-path (cn/instance-name event-instance))
-         env (env/bind-instance env n event-instance)
+   (let [env (if event-instance
+               (env/bind-instance
+                env (li/split-path (cn/instance-name event-instance))
+                event-instance)
+               env)
          [_ dc] (cn/dataflow-opcode df)]
-     (loop [dc dc, result (dummy-result env)]
-       (if (ok? result)
-         (if-let [opcode (first dc)]
-           (recur (rest dc) (dispatch evaluator (:env result) opcode))
-           result)
-         result))))
+     (dispatch-opcodes evaluator env dc)))
   ([evaluator event-instance df] (eval-dataflow evaluator env/EMPTY event-instance df)))
 
 (defn run-dataflows
@@ -56,7 +62,7 @@
    Return the vector [compile-query-fn, evaluator]."
   [store]
   (let [cq (partial store/compile-query store)]
-    [cq (r/get-default-evaluator store (partial run-dataflows cq))]))
+    [cq (r/get-default-evaluator store (partial run-dataflows cq) dispatch-opcodes)]))
 
 (defn evaluator
   ([store-config]

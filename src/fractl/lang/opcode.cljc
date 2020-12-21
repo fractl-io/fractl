@@ -99,4 +99,7 @@
           "Finish the instance initialization by intering that in env.")
          (intern-event-instance
           [[record-name alias]]
-          "Finish the instance initialization of an event, evaluate attached dataflows.")]))
+          "Finish the instance initialization of an event, evaluate attached dataflows.")
+         (match
+          [[match-pattern-code cases-code alternative-code]]
+          "Execute code for each part of conditional evaluation based on the :match construct.")]))

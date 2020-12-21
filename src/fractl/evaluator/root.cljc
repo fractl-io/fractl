@@ -137,7 +137,12 @@
 (defn- pack-results [local-result resolver-results]
   [local-result resolver-results])
 
-(defn make-root-vm [store eval-event-dataflows]
+(defn make-root-vm
+  "Make a VM for running compiled opcode. The is given a handle each to,
+     - a store implementation
+     - a evaluator for dataflows attached to an event
+     - an evaluator for standalone opcode, required for constructs like :match"
+  [store eval-event-dataflows eval-opcode]
   (reify opc/VM
     (do-match-instance [_ env [pattern instance]]
       (if-let [updated-env (parser/match-pattern env pattern instance)]
@@ -188,11 +193,14 @@
                            (eval-event-dataflows self inst))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? inst))]
-        (i/ok (pack-results local-result resolver-results) env)))))
+        (i/ok (pack-results local-result resolver-results) env)))
+
+    (do-match [self env [match-pattern-code cases-code alternative-code]]
+      )))
 
 (def ^:private default-evaluator (u/make-cell))
 
-(defn get-default-evaluator [store eval-event-dataflows]
+(defn get-default-evaluator [store eval-event-dataflows eval-opcode]
   (u/safe-set-once
    default-evaluator
-   #(make-root-vm store eval-event-dataflows)))
+   #(make-root-vm store eval-event-dataflows eval-opcode)))
