@@ -1,5 +1,6 @@
 (ns fractl.http
-  (:require [org.httpkit.server :as h]
+  (:require [clojure.walk :as w]
+            [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
             [cheshire.core :as json]
             [taoensso.timbre :as log]
@@ -29,9 +30,19 @@
 (defn- ok [obj]
   (response obj 200))
 
+(defn- maybe-remove-read-only-attributes [obj]
+  (if (cn/an-instance? obj)
+    (cn/dissoc-write-only obj)
+    obj))
+
+(defn- remove-all-read-only-attributes [obj]
+  (w/prewalk maybe-remove-read-only-attributes obj))
+
 (defn- evaluate [evaluator event-instance]
   (try
-    (ok (evaluator event-instance))
+    (let [result (remove-all-read-only-attributes
+                  (evaluator event-instance))]
+      (ok result))
     (catch Exception ex
       (log/error ex)
       (internal-error (.getMessage ex)))))
