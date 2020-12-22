@@ -29,7 +29,7 @@
             attrs (cn/attributes scm)]
         (when-not (cn/inferred-event-schema? scm)
           (if-let [adef (get attrs r)]
-            (recur (:type adef) (rest rs))
+            (recur adef (rest rs))
             (u/throw-ex (str "invalid reference - " [rec-name refs])))))))
   refs)
 

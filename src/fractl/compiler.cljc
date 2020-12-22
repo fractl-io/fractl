@@ -170,16 +170,19 @@
 (declare compile-pattern)
 
 (defn- compile-pathname [ctx pat]
-  (let [p (or (ctx/aliased-name ctx pat) pat)
-        {component :component record :record refs :refs
-         path :path} (li/path-parts p)
-        n (or path [component record])
-        opc (and (cv/find-schema n)
-                 (if refs
-                   (emit-load-references n refs)
-                   (emit-load-instance-by-name n)))]
-    (ctx/put-record! ctx n {})
-    opc))
+  (let [{component :component record :record refs :refs
+         path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
+     (if path
+       (if-let [p (ctx/aliased-name ctx path)]
+         (compile-pathname ctx (assoc (li/path-parts p) :refs refs))
+         (compile-pathname ctx parts))
+       (let [n [component record]
+             opc (and (cv/find-schema n)
+                      (if refs
+                        (emit-load-references n refs)
+                        (emit-load-instance-by-name n)))]
+         (ctx/put-record! ctx n {})
+         opc))))
 
 (defn- compile-map [ctx pat]
   (if (li/instance-pattern? pat)
