@@ -53,6 +53,12 @@
 (defn aconj [m tag x]
   (assoc m tag (conj (get m tag []) x)))
 
+(defn aconjseq [m s]
+  (loop [elem s res m]
+    (if-let [[tag x] (first elem)]
+      (recur (rest elem) (aconj res tag x))
+      res)))
+
 (defn seqs [xs]
   (filter seq xs))
 

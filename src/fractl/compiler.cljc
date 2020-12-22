@@ -166,8 +166,13 @@
   (when-let [xs (cv/invalid-attributes pat-attrs schema)]
     (u/throw-ex (str "invalid attributes in pattern - " xs)))
   (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
-        sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
-    (emit-build-entity-instance ctx pat-name sorted-attrs schema alias event?)))
+        sorted-attrs (sort-attributes-by-dependency attrs deps-graph)
+        pattern-deps (map (fn [[_ ref]]
+                           (when-let [[_ parsed-path] ref]
+                             (:path parsed-path)))
+                         (:sorted sorted-attrs))]
+    [(emit-build-entity-instance ctx pat-name sorted-attrs schema alias event?)
+     pattern-deps]))
 
 (defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema alias]
   (emit-realize-instance ctx pat-name pat-attrs schema alias false))
@@ -186,8 +191,8 @@
                  (if refs
                    (emit-load-references ctx path refs)
                    (emit-load-instance-by-name ctx path)))]
-    (ctx/put-record! ctx path {})
-    opc))
+        (ctx/put-record! ctx path {})
+    [path opc refs]))
 
 (defn- compile-map [ctx pat]
   (if (li/instance-pattern? pat)
@@ -201,11 +206,11 @@
                 :record emit-realize-record-instance
                 :event emit-realize-event-instance
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
-            opc (c ctx path attrs scm alias)]
+            [opc deps] (c ctx path attrs scm alias)]
         (ctx/put-record! ctx path pat)
         (when alias
           (ctx/add-alias! ctx path alias))
-        opc))
+        [(if alias alias path) opc deps]))
     (emit-realize-map ctx pat)))
 
 (defn- compile-command [ctx pat]
@@ -216,15 +221,24 @@
                (li/pathname? pat) compile-pathname
                (map? pat) compile-map
                (vector? pat) compile-command)]
-    (let [code (c ctx pat)]
-      {:opcode code})
+    (let [[path code deps] (c ctx pat)]
+      {:code {:opcode code} :path path :deps deps})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial compile-pattern ctx)
         ec (c evt-pattern)
-        pc (map c df-patterns)]
-    [ec pc]))
+        pc (loop [dfps df-patterns result {:code [] :graph ug/EMPTY}]
+             (if-let [dfp (first dfps)]
+               (let [{path :path code :code deps :deps} (c dfp)
+                     g (:graph result)
+                     g2 (if (seq deps)
+                          (ug/add-edges g path deps)
+                          g)]
+                 (recur (rest dfps)
+                        (us/aconjseq result {:code code :graph g2})))
+               result))]
+    [ec (:code pc)]))
 
 (defn- maybe-compile-dataflow [compile-query-fn df]
   (when-not (cn/dataflow-opcode df)

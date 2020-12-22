@@ -32,7 +32,7 @@
     ctx))
 
 (defn- compile-pattern [ctx pat]
-  (:opcode (c/compile-pattern ctx pat)))
+  (get-in (c/compile-pattern ctx pat) [:code :opcode]))
 
 (defn- pattern-compiler []
   (let [ctx (init-test-context)]
