@@ -150,7 +150,7 @@
             (eval-opcode evaluator (:env result) consequent)
             (recur (rest cases-code) (:env result)))
           result))
-      (if alternative-code
+      (if (first alternative-code)
         (eval-opcode evaluator env alternative-code)
         (i/ok false env)))))
 

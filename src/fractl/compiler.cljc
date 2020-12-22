@@ -170,8 +170,9 @@
 (declare compile-pattern)
 
 (defn- compile-pathname [ctx pat]
-  (let [{component :component record :record refs :refs
-         path :path} (li/path-parts pat)
+  (let [p (or (ctx/aliased-name ctx pat) pat)
+        {component :component record :record refs :refs
+         path :path} (li/path-parts p)
         n (or path [component record])
         opc (and (cv/find-schema n)
                  (if refs

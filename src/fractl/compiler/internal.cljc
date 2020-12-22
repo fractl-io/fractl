@@ -8,7 +8,7 @@
             [fractl.compiler.validation :as cv]))
 
 (defn literal? [x]
-  (or (number? x) (string? x)))
+  (or (number? x) (string? x) (boolean? x)))
 
 (defn- var-in-context [ctx s]
   (if-let [[_ v] (ctx/fetch-variable ctx s)]
