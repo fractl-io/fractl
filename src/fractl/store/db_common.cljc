@@ -146,16 +146,16 @@
 
 (defn- validate-references! [conn inst ref-attrs]
   (doseq [[aname scmname] ref-attrs]
-    (let [p (cn/find-ref-path scmname)
-          component (:component p)
-          entity-name (:record p)
-          tabname (su/table-for-entity [component entity-name] (name component))
-          rattr (first (:refs p))
-          colname (name rattr)
-          index-tabname (if (= rattr :Id) tabname (su/index-table-name tabname colname))
-          [stmt params] (validate-ref-statement conn index-tabname colname (get inst aname))]
-      (when-not (seq (execute-stmt! conn stmt params))
-        (u/throw-ex (str "Reference not found - " aname ", " p))))))
+    (let [{path :path refs :refs} (cn/find-ref-path scmname)]
+      (if-let [component (when (seqable? path) (first path))]
+        (let [tabname (su/table-for-entity path (name component))
+              rattr (first refs)
+              colname (name rattr)
+              index-tabname (if (= rattr :Id) tabname (su/index-table-name tabname colname))
+              [stmt params] (validate-ref-statement conn index-tabname colname (get inst aname))]
+          (when-not (seq (execute-stmt! conn stmt params))
+            (u/throw-ex (str "Reference not found - " aname ", " path))))
+        (u/throw-ex (str "Aliases not supported for DB references - " aname " , " path))))))
 
 (defn- upsert-inst!
   "Insert or update an entity instance."

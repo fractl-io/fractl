@@ -54,35 +54,51 @@
         true)
     (u/throw-ex (str "reference not in context - " [component rec refs]))))
 
-(declare reach-name)
+(declare reach-parsed-path)
 
-(defn- aliased-name-in-context [ctx schema n]
+(defn- aliased-name-in-context [ctx schema n refs]
   (when-let [an (ctx/aliased-name ctx n)]
-    (reach-name ctx schema an)))
+    (let [{path :path ref :refs} (li/path-parts an)]
+      (reach-parsed-path ctx schema path ref))))
 
 (defn- reach-name [ctx schema n]
-  (let [{component :component rec :record refs :refs
-         path :path}
-        (li/path-parts n)]
-    (if path
-      (if (or (cn/has-attribute? schema path)
-              (aliased-name-in-context ctx schema n))
+  (let [{refs :refs path :path} (li/path-parts n)]
+    (if (cn/has-attribute? schema path)
+      true
+      (u/throw-ex (str "reference not in schema - " path)))))
+
+(defn- reach-parsed-path [ctx schema path refs]
+  (if (seqable? path)
+    (name-in-context ctx (first path) (second path) refs)
+    (if refs 
+      (if (aliased-name-in-context ctx schema path refs)
         true
-        (u/throw-ex (str "reference not in schema - " path)))
-      (name-in-context ctx component rec refs))))
+        (u/throw-ex (str "invalid aliased reference - " path)))
+      (if (cn/has-attribute? schema path)
+        true
+        (u/throw-ex (str "reference not in schema - " path))))))
 
 (defn- valid-dependency [ctx schema v]
-  (cond
-    (and (li/name? v) (reach-name ctx schema v))
-    [v false]
+  (if (map? v)
+    (let [{path :path refs :refs} v]
+      (cond
+        (and (seqable? path) (reach-parsed-path ctx schema path refs))
+        [v false]
 
-    (symbol? v)
-    (do (var-in-context ctx v)
-        nil)
+        (and (li/name? path) refs (reach-parsed-path ctx schema path refs))
+        [v false]))
 
-    (seqable? v)
-    [(seq (su/nonils (map first (map #(valid-dependency ctx schema %) (rest v)))))
-     true]))
+    (cond
+      (and (li/name? v) (reach-name ctx schema v))
+      [v false]
+
+      (symbol? v)
+      (do (var-in-context ctx v)
+          nil)
+
+      (seqable? v)
+      [(seq (su/nonils (map first (map #(valid-dependency ctx schema %) (rest v)))))
+       true])))
 
 (defn add-edges-with-cycle-check [graph k vs]
   (let [g (g/add-edges graph k vs)

@@ -37,10 +37,10 @@
   (peek (get-instances env rec-name)))
 
 (defn- find-instance-by-path-parts [env path-parts]
-  (if-let [p (:path path-parts)] ; maybe an alias
-    (get env p)
-    (let [recname [(:component path-parts) (:record path-parts)]]
-      (lookup-instance env recname))))
+  (let [p (:path path-parts)]
+    (if (seqable? p)
+      (lookup-instance env p)
+      (get env p))))
 
 (defn follow-reference [env path-parts]
   (loop [env env, refs (:refs path-parts)

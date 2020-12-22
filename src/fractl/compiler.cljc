@@ -34,16 +34,17 @@
 (declare expr-with-arg-lookups)
 
 (defn- reference-lookup-call [n]
-  (let [parts (li/path-parts n)]
+  (let [parts (li/path-parts n)
+        {path :path refs :refs} parts]
     (cond
-      (:path parts)
-      `(get ~current-instance-var ~n)
-
-      (seq (:refs parts))
+      (and (seqable? path) (seq refs))
       `(fractl.env/follow-reference ~runtime-env-var ~parts)
 
+      (not (seq refs))
+      `(get ~current-instance-var ~path)
+
       :else
-      `(fractl.env/lookup-instance ~runtime-env-var [(:component parts) (:record parts)]))))
+      `(fractl.env/lookup-instance ~runtime-env-var ~path))))
 
 (defn- arg-lookup [arg]
   (cond
@@ -85,6 +86,18 @@
                   (concat [k] (map query-param-lookup (rest v))))
     :else [k (query-param-lookup v)]))
 
+(defn- query-param-attr-deps [v]
+  (cond
+    (i/literal? v) v
+    :else (li/path-parts v)))
+
+(defn- query-param-deps [[k v]]
+  (cond
+    (seqable? v) (concat
+                  [(first v)]
+                  (concat [k] (map query-param-attr-deps (rest v))))
+    :else [k (query-param-attr-deps v)]))
+
 (defn- compile-query [ctx entity-name query]
   (let [expanded-query (i/expand-query
                         entity-name (map query-param-process query))]
@@ -114,14 +127,15 @@
   (let [{computed :computed refs :refs
          compound :compound query :query
          :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
-        fs (map #(partial build-dependency-graph %) [refs compound query])
-        deps-graph (appl fs [ctx schema ug/EMPTY])
         compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
         parsed-refs (map (fn [[k v]] [k (li/path-parts v)]) refs)
+        parsed-query (when query (map query-param-deps query))
         compiled-query (when query (compile-query ctx pat-name query))
         final-attrs (if (seq compiled-query)
                       (assoc cls-attrs :query compiled-query)
-                      cls-attrs)]
+                      cls-attrs)
+        fs (map #(partial build-dependency-graph %) [parsed-refs compound parsed-query])
+        deps-graph (appl fs [ctx schema ug/EMPTY])]
     {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
      :deps deps-graph}))
 
@@ -167,33 +181,30 @@
   )
 
 (defn- compile-pathname [ctx pat]
-  (let [{component :component record :record refs :refs
-         path :path} (li/path-parts pat)
-        n (or path [component record])
-        opc (and (cv/find-schema n)
+  (let [{refs :refs path :path} (li/path-parts pat)
+        opc (and (cv/find-schema path)
                  (if refs
-                   (emit-load-references ctx n refs)
-                   (emit-load-instance-by-name ctx n)))]
-    (ctx/put-record! ctx n {})
+                   (emit-load-references ctx path refs)
+                   (emit-load-instance-by-name ctx path)))]
+    (ctx/put-record! ctx path {})
     opc))
 
 (defn- compile-map [ctx pat]
   (if (li/instance-pattern? pat)
     (let [full-nm (li/instance-pattern-name pat)
-          {component :component record :record} (li/path-parts full-nm)
-          nm [component record]
+          {path :path} (li/path-parts full-nm)
           attrs (li/instance-pattern-attrs pat)
           alias (:as pat)
-          [tag scm] (cv/find-schema nm full-nm)]
+          [tag scm] (cv/find-schema path full-nm)]
       (let [c (case tag
                 :entity emit-realize-entity-instance
                 :record emit-realize-record-instance
                 :event emit-realize-event-instance
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
-            opc (c ctx nm attrs scm alias)]
-        (ctx/put-record! ctx nm pat)
+            opc (c ctx path attrs scm alias)]
+        (ctx/put-record! ctx path pat)
         (when alias
-          (ctx/add-alias! ctx nm alias))
+          (ctx/add-alias! ctx path alias))
         opc))
     (emit-realize-map ctx pat)))
 
@@ -253,9 +264,9 @@
     :else
     (if-let [[refattr attr] (li/split-ref arg)]
       (if-let [refpath (:ref (get attrs refattr))]
-        (let [{component :component rec :record refs :refs} (li/path-parts refpath)
+        (let [{path :path refs :refs} (li/path-parts refpath)
               ukattr (first refs)]
-          (assert-unique! [component rec] ukattr refattr)
+          (assert-unique! path ukattr refattr)
           ;; The referenced instance is auto-loaded into the environment by the
           ;; evaluator, before the following code executes.
           ;; See evaluator/root/do-load-references
@@ -263,7 +274,7 @@
             (first
              (fractl.env/lookup-instances-by-attributes
               ~runtime-env-var
-              ~[component rec] [[~ukattr (~refattr ~current-instance-var)]]))))
+              ~path [[~ukattr (~refattr ~current-instance-var)]]))))
         (u/throw-ex (str "not a reference attribute " [rec-name aname arg])))
       (u/throw-ex (str "invalid reference attribute " [rec-name aname arg])))))
 

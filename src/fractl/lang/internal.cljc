@@ -320,8 +320,7 @@
         [m r] (kw [a b])
         refs (seq (kw cs))]
     (if (and r refs)
-      {:component m
-       :record (if refs (first refs) r)
+      {:path [m (if refs (first refs) r)]
        :refs (when-let [rs (seq (rest refs))]
                (vec rs))}
       (if refs ; must be a reference via an alias.
