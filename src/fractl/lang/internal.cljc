@@ -336,3 +336,7 @@
     (if (string/ends-with? n "?")
       (keyword (subs n 0 (dec (count n))))
       a)))
+
+(defn macro-name? [x]
+  (and (keyword? x)
+       (Character/isLowerCase (first (name x)))))

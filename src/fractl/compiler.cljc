@@ -13,20 +13,15 @@
 
 (def make-context ctx/make)
 
-(defn- emit-load-instance-by-name [_ rec-name]
-  (op/load-instance rec-name))
+(def ^:private emit-load-literal op/load-literal)
+(def ^:private emit-load-instance-by-name op/load-instance)
 
-(defn- emit-match-event-by-name [_ event-name]
-  (op/match-instance event-name))
-
-(defn- emit-load-references [_ rec-name refs]
+(defn- emit-load-references [rec-name refs]
   (when (cv/validate-references rec-name refs)
     (op/load-references [rec-name refs])))
 
-(defn- build-dependency-graph [attr-pats ctx schema graph]
-  ;; makes parser/build-dependency-graph callable from util/apply->
-  (let [result-graph (i/build-dependency-graph attr-pats ctx schema graph)]
-    [ctx schema result-graph]))
+(defn- emit-match [match-pattern-code cases-code alternative-code]
+  (op/match [match-pattern-code cases-code alternative-code]))
 
 (def ^:private runtime-env-var '--env--)
 (def ^:private current-instance-var '--inst--)
@@ -97,6 +92,11 @@
   [expr]
   (expr-as-fn (expr-with-arg-lookups expr)))
 
+(defn- build-dependency-graph [attr-pats ctx schema graph]
+  ;; makes parser/build-dependency-graph callable from util/apply->
+  (let [result-graph (i/build-dependency-graph attr-pats ctx schema graph)]
+    [ctx schema result-graph]))
+
 (def ^:private appl (partial u/apply-> last))
 
 (defn- parse-attributes
@@ -134,7 +134,7 @@
     (op/query-instances [rec-name q])
     (op/new-instance rec-name)))
 
-(defn- emit-build-entity-instance [ctx rec-name attrs schema alias event?]
+(defn- emit-build-entity-instance [rec-name attrs schema alias event?]
   (concat [(begin-build-instance rec-name attrs)]
           (map #(op/set-literal-attribute %) (:computed attrs))
           (map (fn [[k v]]
@@ -153,7 +153,7 @@
     (u/throw-ex (str "invalid attributes in pattern - " xs)))
   (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
-    (emit-build-entity-instance ctx pat-name sorted-attrs schema alias event?)))
+    (emit-build-entity-instance pat-name sorted-attrs schema alias event?)))
 
 (defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema alias]
   (emit-realize-instance ctx pat-name pat-attrs schema alias false))
@@ -163,19 +163,26 @@
 (defn- emit-realize-event-instance [ctx pat-name pat-attrs schema alias]
   (emit-realize-instance ctx pat-name pat-attrs schema alias true))
 
-(defn- emit-realize-map [ctx pat]
-  )
+(defn- emit-realize-map-literal [ctx pat]
+  ;; TODO: implement support for map literals.
+  (u/throw-ex (str "cannot compile map literal " pat)))
+
+(declare compile-pattern)
 
 (defn- compile-pathname [ctx pat]
   (let [{component :component record :record refs :refs
-         path :path} (li/path-parts pat)
-        n (or path [component record])
-        opc (and (cv/find-schema n)
-                 (if refs
-                   (emit-load-references ctx n refs)
-                   (emit-load-instance-by-name ctx n)))]
-    (ctx/put-record! ctx n {})
-    opc))
+         path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
+     (if path
+       (if-let [p (ctx/aliased-name ctx path)]
+         (compile-pathname ctx (assoc (li/path-parts p) :refs refs))
+         (compile-pathname ctx parts))
+       (let [n [component record]
+             opc (and (cv/find-schema n)
+                      (if refs
+                        (emit-load-references n refs)
+                        (emit-load-instance-by-name n)))]
+         (ctx/put-record! ctx n {})
+         opc))))
 
 (defn- compile-map [ctx pat]
   (if (li/instance-pattern? pat)
@@ -195,16 +202,59 @@
         (when alias
           (ctx/add-alias! ctx nm alias))
         opc))
-    (emit-realize-map ctx pat)))
+    (emit-realize-map-literal ctx pat)))
 
-(defn- compile-command [ctx pat]
-  )
+(defn- compile-user-macro [ctx pat]
+  (let [m (first pat)]
+    (if (li/macro-name? m)
+      (u/throw-ex (str "macro not found - " m))
+      (u/throw-ex (str "not a valid macro name - " m)))))
+
+(defn- compile-for-each-macro [ctx pat]
+  ;; TODO: implement the iteration macro.
+  (u/throw-ex "for-each macro not implemented"))
+
+(defn- extract-match-clauses [pat]
+  (loop [pat pat, result []]
+    (if (seq pat)
+      (let [case-pat (first pat), conseq (first (rest pat))]
+        (if conseq
+          (recur (nthrest pat 2) (conj result [case-pat conseq]))
+          [result case-pat]))
+      [result nil])))
+
+(defn- compile-match-cases [ctx cases]
+  (loop [cases cases, cases-code []]
+    (if-let [[case-pat conseq] (first cases)]
+      (recur (rest cases) (conj cases-code [[(compile-pattern ctx case-pat)]
+                                            [(compile-pattern ctx conseq)]]))
+      cases-code)))
+
+(defn- compile-match-macro [ctx pat]
+  (let [match-pat-code (compile-pattern ctx (first pat))
+        [cases alternative] (extract-match-clauses (rest pat))
+        cases-code (compile-match-cases ctx cases)
+        alt-code (when alternative (compile-pattern ctx alternative))]
+    (emit-match [match-pat-code] cases-code [alt-code])))
+
+(defn- compile-special-form
+  "Compile built-in special-forms (or macros) for performing basic
+  conditional and iterative operations."
+  [ctx pat]
+  (case (first pat)
+    :match (compile-match-macro ctx (rest pat))
+    :for-each (compile-for-each-macro ctx (rest pat))
+    (compile-user-macro ctx pat)))
+
+(defn- compile-literal [_ pat]
+  (emit-load-literal pat))
 
 (defn compile-pattern [ctx pat]
   (if-let [c (cond
                (li/pathname? pat) compile-pathname
                (map? pat) compile-map
-               (vector? pat) compile-command)]
+               (vector? pat) compile-special-form
+               (i/literal? pat) compile-literal)]
     (let [code (c ctx pat)]
       {:opcode code})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))

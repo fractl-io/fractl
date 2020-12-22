@@ -281,7 +281,7 @@
     (is (not (:X r2)))
     (is (= 10 (:A r2)))))
 
-(deftest alias
+(deftest alias-for-instances
   (defcomponent :Alias
     (entity {:Alias/E {:X :Kernel/Int}})
     (entity {:Alias/F {:Y :Kernel/Int}})
@@ -313,3 +313,34 @@
     (is (cn/instance-of? :MultiAlias/F result))
     (is (= 100 (:A result)))
     (is (= 10 (:B result)))))
+
+(defn- conditional-event-01 [i x]
+  (let [evt (cn/make-instance :Cond/Evt {:I i})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :Cond/R result))
+    (is (= x (:X result)))))
+
+(defn- conditional-event-02 [r predic]
+  (let [evt (cn/make-instance :Cond/EvtWithInst {:R r})
+        result (tu/fresult (eval-all-dataflows-for-event evt))]
+    (is (predic result))))
+
+(deftest conditional
+  (defcomponent :Cond
+    (record {:Cond/R {:X :Kernel/Int}})
+    (event {:Cond/Evt {:I :Kernel/Int}})
+    (dataflow :Cond/Evt
+              [:match :Cond/Evt.I
+               0 {:Cond/R {:X 100}}
+               1 {:Cond/R {:X 200}}
+               {:Cond/R {:X 300}}])
+    (event {:Cond/EvtWithInst {:R :Cond/R}})
+    (dataflow :Cond/EvtWithInst
+              {:Cond/R {:X 100} :as :R1}
+              [:match :Cond/EvtWithInst.R.X
+               :R1.X true]))
+  (conditional-event-01 0 100)
+  (conditional-event-01 1 200)
+  (conditional-event-01 3 300)
+  (conditional-event-02 (cn/make-instance :Cond/R {:X 200}) false?)
+  (conditional-event-02 (cn/make-instance :Cond/R {:X 100}) true?))

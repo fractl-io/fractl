@@ -78,6 +78,9 @@
          (load-references
           [[record-name refs]]
           "Update env with referenced instances.")
+         (load-literal
+          [[obj]]
+          "Load a literal object (number, string) to some VM specific location, like a register.")
          (new-instance
           [record-name]
           "Start initializing a record/entity/event instance.")
@@ -99,4 +102,7 @@
           "Finish the instance initialization by intering that in env.")
          (intern-event-instance
           [[record-name alias]]
-          "Finish the instance initialization of an event, evaluate attached dataflows.")]))
+          "Finish the instance initialization of an event, evaluate attached dataflows.")
+         (match
+          [[match-pattern-code cases-code alternative-code]]
+          "Execute code for each part of conditional evaluation based on the :match construct.")]))
