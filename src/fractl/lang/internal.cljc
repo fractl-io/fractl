@@ -339,4 +339,6 @@
 
 (defn macro-name? [x]
   (and (keyword? x)
-       (Character/isLowerCase (first (name x)))))
+    (let [c (first (name x))]
+      (= c (string/lower-case c)))))
+
