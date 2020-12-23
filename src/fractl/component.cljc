@@ -519,7 +519,7 @@
      recattrs
      (validated-attribute-values schema recattrs)))
   ([recname recattrs]
-   (validated-attribute-values recattrs recattrs (ensure-schema recname))))
+   (validate-record-attributes recname recattrs (ensure-schema recname))))
 
 (defn- type-tag-of [recname]
   (type-tag-key (find-record-schema recname)))

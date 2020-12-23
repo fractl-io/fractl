@@ -185,6 +185,25 @@
     (is (= (:X result) 500))
     (is (= (:Y result) 50000))))
 
+(defn- assert-ca-e! [result]
+  (is (cn/instance-of? :CA/E result))
+  (is (= 20 (:A result)))
+  (is (= 200 (:B result))))
+
+(deftest compound-attributes-with-default-events
+  (defcomponent :CA
+    (entity {:CA/E {:A :Kernel/Int
+                    :B {:expr '(* :A 10)}}}))
+  (let [e (cn/make-instance :CA/E {:A 20})
+        evt (cn/make-instance :CA/Upsert_E {:Instance e})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (assert-ca-e! result)
+    #?(:clj
+       (let [id (:Id result)
+             evt (cn/make-instance :CA/Lookup_E {:Id id})
+             result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+         (assert-ca-e! result)))))
+
 (deftest compound-attributes-literal-arg
   (defcomponent :Df04_1
     (record {:Df04_1/R {:A :Kernel/Int}})

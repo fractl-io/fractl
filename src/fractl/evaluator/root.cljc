@@ -177,8 +177,9 @@
     (do-load-references [_ env [record-name refs]]
       (let [inst (env/lookup-instance env record-name)]
         (if-let [v (get-in (cn/instance-attributes inst) refs)]
-          (let [[env [local-result resolver-results :as r]] (bind-and-persist env store v)]
-            (i/ok (if r (pack-results local-result resolver-results) v) env))
+          (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
+                [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
+            (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
           i/not-found)))
 
     (do-new-instance [_ env record-name]
