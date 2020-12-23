@@ -42,7 +42,7 @@
     [sql #js [ref]]))
 
 (defn do-query-statement [_ query-sql query-params]
-    [query-sql #js [query-params]])
+  [query-sql #js [query-params]])
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        su/table-for-entity

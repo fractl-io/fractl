@@ -198,10 +198,11 @@
         evt (cn/make-instance :CA/Upsert_E {:Instance e})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (assert-ca-e! result)
-    (let [id (:Id result)
-          evt (cn/make-instance :CA/Lookup_E {:Id id})
-          result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-      (assert-ca-e! result))))
+    #?(:clj
+       (let [id (:Id result)
+             evt (cn/make-instance :CA/Lookup_E {:Id id})
+             result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+         (assert-ca-e! result)))))
 
 (deftest compound-attributes-literal-arg
   (defcomponent :Df04_1
