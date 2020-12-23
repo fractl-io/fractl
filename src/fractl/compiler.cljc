@@ -294,6 +294,9 @@
 
 (defn- arg-lookup-fn [rec-name attrs attr-names aname arg]
   (cond
+    (li/literal? arg)
+    arg
+
     (= aname arg)
     (u/throw-ex (str "self-reference in attribute expression - " [rec-name aname]))
 

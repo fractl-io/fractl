@@ -185,6 +185,21 @@
     (is (= (:X result) 500))
     (is (= (:Y result) 50000))))
 
+(deftest compound-attributes-literal-arg
+  (defcomponent :Df04_1
+    (record {:Df04_1/R {:A :Kernel/Int}})
+    (entity {:Df04_1/E {:X :Kernel/Int
+                      :Y {:expr '(* :X 10)}}})
+    (event {:Df04_1/PostE {:R :Df04_1/R}}))
+  (dataflow :Df04_1/PostE
+            {:Df04_1/E {:X :Df04_1/PostE.R.A}})
+  (let [r (cn/make-instance :Df04_1/R {:A 100})
+        evt (cn/make-instance :Df04_1/PostE {:R r})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :Df04_1/E result))
+    (is (= (:X result) 100))
+    (is (= (:Y result) 1000))))
+
 (deftest fire-event
   (defcomponent :Df05
     (entity {:Df05/E1 {:A :Kernel/Int}})
