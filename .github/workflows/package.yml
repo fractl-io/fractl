@@ -1,9 +1,10 @@
 name: PublishPackage
 
 on:
+  workflow_dispatch:
   release:
-    types:
-      - created
+    types: [published]
+
 
 jobs:
   package:

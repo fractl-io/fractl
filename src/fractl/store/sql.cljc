@@ -7,7 +7,7 @@
   (if (= :Id (second where-clause))
     {:result (nth where-clause 2)}
     {:query
-     (hsql/format {:select [:id]
+     (hsql/format {:select [:*]
                    :from [(keyword index-table-name)]
                    :where where-clause})}))
 
@@ -22,7 +22,7 @@
      (vec (map #(select-from-index-table %1 %2)
                index-tables norm-where-clause))
      :query
-     (str "SELECT * FROM " table " WHERE id = ?")}))
+     (str "SELECT * FROM " table " WHERE Id = ?")}))
 
 (defn sql-index-type
   ([max-varchar-length bool-type date-time-type attribute-type]
