@@ -1,14 +1,14 @@
 (ns fractl.test.resolver
-  #?(:clj (:use [fractl.lang]))
-  (:require [clojure.test :refer [deftest is]]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])
+  (:require #?(:clj [clojure.test :refer [deftest is]]
+               :cljs [cljs.test :refer-macros [deftest is]])
+            [fractl.lang
+             :refer [component attribute event
+                     entity record dataflow]]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
-            [fractl.resolver.registry :as rg])
-  #?(:cljs [fractl.lang
-            :refer [component attribute event
-                    entity record dataflow]]))
+            [fractl.resolver.registry :as rg]
+            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
+               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 

@@ -37,7 +37,7 @@
   [tabname ident-attr]
   [(str su/create-table-prefix " " tabname " "
         (if ident-attr
-          (str "(" (su/db-ident ident-attr) " UUID, ")
+          (str "(" (su/db-ident ident-attr) " UUID PRIMARY KEY, ")
           "(")
         "instance_json JSON)")])
 
@@ -50,7 +50,7 @@
           ;; `id` is not a foreign key reference to the main table,
           ;; because insert is fully controlled by the V8 runtime and
           ;; we get an index for free.
-           "(id UUID PRIMARY KEY, "
+           "(Id UUID PRIMARY KEY, "
           ;; Storage and search can be optimized by inferring a more appropriate
           ;; SQL type for `colname`, see the issue https://ventur8.atlassian.net/browse/V8DML-117.
            colname " " coltype
