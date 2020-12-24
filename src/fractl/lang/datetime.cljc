@@ -30,20 +30,15 @@
 
 #?(:clj (def default-fmt (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")))
 
-#?(:clj
-   (defn parse-date-time
+(defn parse-date-time
      ([s pat]
       (try-parse-date s (if pat
-                          (DateTimeFormatter/ofPattern pat)
-                          default-fmt)))
+                          #?(:clj (DateTimeFormatter/ofPattern pat)
+                          default-fmt)
+                          #?(:cljs (format/of-pattern pat)
+                          format/iso-offset-date-time))))
      ([s]
-      (parse-date-time s nil)))
-   :cljs
-   (defn parse-date-time
-     ([s pat]
-      (try-parse-date s (format/of-pattern pat)))
-     ([s]
-      (try-parse-date s format/iso-offset-date-time))))
+      (parse-date-time s nil))))
 
 (defn now
   ([pat]
