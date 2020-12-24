@@ -28,7 +28,7 @@
              (lt/parse s formatter)
              (catch :default ex false))))
 
-#?(:clj (def default-fmt #?(:clj (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'"))))
+#?(:clj (def default-fmt (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")))
 
 #?(:clj
    (defn parse-date-time
