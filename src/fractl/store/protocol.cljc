@@ -19,10 +19,9 @@
   (upsert-instance [store entity-name instance]
     "Insert or update the instance in the store. On success, return instance.
      On failure, raise an exception.")
-  (delete-instance [store entity-name instance]
-    "Delete the instance, the only attribute required to be present is :Id.
-     On success, return instance. If the instance does not exist, return nil.
-     On failure, raise an exception.")
+  (delete-by-id [store entity-name id]
+    "Delete the instance with the given id. On success, return id.
+     If the instance does not exist, return nil. On failure, raise an exception.")
   (query-by-id [store entity-name query-sql ids]
     "Return the instances with the given :Id attributes. Return nil if the instances
      does not exist. On failure, raise an exception.")

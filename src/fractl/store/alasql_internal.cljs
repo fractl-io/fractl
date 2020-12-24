@@ -22,7 +22,7 @@
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")]
     [sql #js [id]]))
 
-(defn delete-inst-statement [_ table-name id]
+(defn delete-by-id-statement [_ table-name id]
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")]
     [sql #js [id]]))
 

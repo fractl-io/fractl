@@ -216,6 +216,11 @@
                                (call-resolver-eval resolver composed? inst))]
         (i/ok (pack-results local-result resolver-results) env)))
 
+    (do-delete-instance [self env [record-name id]]
+      (if (store/delete-by-id record-name id)
+        (i/ok [record-name id] (env/purge-instance record-name id))
+        (i/not-found [record-name id] env)))
+
     (do-match [self env [match-pattern-code cases-code alternative-code]]
       (let [result (eval-opcode self env match-pattern-code)]
         (if-let [r (ok-result result)]

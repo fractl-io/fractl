@@ -23,7 +23,7 @@
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 
-(defn delete-inst-statement [conn table-name id]
+(defn delete-by-id-statement [conn table-name id]
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))

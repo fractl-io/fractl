@@ -36,6 +36,10 @@
 (defn lookup-instance [env rec-name]
   (peek (get-instances env rec-name)))
 
+(defn purge-instance [env rec-name id]
+  (let [insts (filter #(not= (:Id %) id) (get-instances env rec-name))]
+    (assoc env rec-name insts)))
+
 (defn- find-instance-by-path-parts [env path-parts]
   (if-let [p (:path path-parts)] ; maybe an alias
     (get env p)

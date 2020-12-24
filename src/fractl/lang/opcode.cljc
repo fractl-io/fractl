@@ -103,6 +103,9 @@
          (intern-event-instance
           [[record-name alias]]
           "Finish the instance initialization of an event, evaluate attached dataflows.")
+         (delete-instance
+          [[record-name id]]
+          "Remove an instance of the given type and id from the store and caches.")
          (match
           [[match-pattern-code cases-code alternative-code]]
           "Execute code for each part of conditional evaluation based on the :match construct.")]))
