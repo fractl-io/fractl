@@ -242,7 +242,7 @@
 
 (defn- compile-delete-macro [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
-    (emit-delete recname id-pat-code)))
+    (emit-delete (li/split-path recname) [id-pat-code])))
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic

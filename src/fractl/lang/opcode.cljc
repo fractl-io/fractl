@@ -99,7 +99,7 @@
           "Set the attribute in the instance that is being inited by invoking the function.")
          (intern-instance
           [[record-name alias]]
-          "Finish the instance initialization by intering that in env.")
+          "Finish the instance initialization by inserting that in env.")
          (intern-event-instance
           [[record-name alias]]
           "Finish the instance initialization of an event, evaluate attached dataflows.")

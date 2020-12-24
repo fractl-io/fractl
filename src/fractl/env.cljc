@@ -81,7 +81,7 @@
   "Pop the object stack,
   return [updated-env single-object-flag? [name object]]"
   [env]
-  (let [s (objstack env)
-        [n obj :as x] (peek s)]
-    [(assoc env :objstack (pop s))
-     (map? obj) x]))
+  (when-let [s (seq (objstack env))]
+    (let [[_ obj :as x] (peek s)]
+      [(assoc env :objstack (pop s))
+       (map? obj) x])))
