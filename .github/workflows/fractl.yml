@@ -20,6 +20,8 @@ jobs:
       run: lein deps
     - name: Run clj test
       run: lein test
+    - name: Clean target
+      run: lein clean
     - name: Run cljs test
       run: lein fig:ci
     - name: Slack Notification
