@@ -19,12 +19,12 @@
     [pstmt [ref]]))
 
 (defn delete-index-statement [conn table-name _ id]
-  (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
+  (let [sql (str "DELETE FROM " table-name " WHERE Id = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 
 (defn delete-inst-statement [conn table-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
+  (let [sql (str "DELETE FROM " table-name " WHERE Id = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 

@@ -44,8 +44,11 @@
     (into {} (map vector indexed-attrs tabnames))))
 
 (def create-table-prefix "CREATE TABLE IF NOT EXISTS")
-(def create-index-prefix "CREATE INDEX IF NOT EXISTS")
 (def create-unique-index-prefix "CREATE UNIQUE INDEX")
+#?(:clj
+   (def create-index-prefix "CREATE INDEX IF NOT EXISTS")
+   :cljs
+   (def create-index-prefix "CREATE INDEX"))
 
 (defn create-index-sql
   "Given a table-name and an attribute-column-name, return the
@@ -90,12 +93,13 @@
     (set/rename-keys result attrmap)))
 
 (defn result-as-instance [entity-name id-key json-key result]
-  (let [nresult (normalize-result result)
+  (let [nresult #?(:clj (normalize-result result)
+                   :cljs result)
         id (id-key nresult)
         json-str #?(:clj  (String. (json-key nresult))
-                    :cljs (str (json-key nresult)))
+                    :cljs (json-key nresult))
         parsed-obj (assoc #?(:clj (json/parse-string json-str true)
-                             :cljs (cljs.reader/read-string json-str))
+                             :cljs (js->clj (.parse js/JSON json-str) :keywordize-keys true))
                           :Id (str id))]
     (cn/make-instance entity-name parsed-obj)))
 
@@ -103,9 +107,12 @@
   (doall (map (partial result-as-instance entity-name id-key json-key) results)))
 
 (defn make-result-keys [entity-name]
-  (let [cn (s/upper-case (name (first entity-name)))
-        e (s/upper-case (name (second entity-name)))]
-    [(keyword (str cn "." e "/ID")) (keyword (str cn "." e "/INSTANCE_JSON"))]))
+  #?(:clj
+     (let [cn (s/upper-case (name (first entity-name)))
+           e (s/upper-case (name (second entity-name)))]
+       [(keyword (str cn "." e "/ID")) (keyword (str cn "." e "/INSTANCE_JSON"))])
+     :cljs
+     [:Id :instance_json]))
 
 (defn clj->json
   [data]
