@@ -23,6 +23,9 @@
 (defn- emit-match [match-pattern-code cases-code alternative-code]
   (op/match [match-pattern-code cases-code alternative-code]))
 
+(defn- emit-delete [recname id-pat-code]
+  (op/delete-instance [recname id-pat-code]))
+
 (def ^:private runtime-env-var '--env--)
 (def ^:private current-instance-var '--inst--)
 
@@ -237,6 +240,10 @@
         alt-code (when alternative (compile-pattern ctx alternative))]
     (emit-match [match-pat-code] cases-code [alt-code])))
 
+(defn- compile-delete-macro [ctx [recname id-pat]]
+  (let [id-pat-code (compile-pattern ctx id-pat)]
+    (emit-delete (li/split-path recname) [id-pat-code])))
+
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic
   conditional and iterative operations."
@@ -244,6 +251,7 @@
   (case (first pat)
     :match (compile-match-macro ctx (rest pat))
     :for-each (compile-for-each-macro ctx (rest pat))
+    :delete (compile-delete-macro ctx (rest pat))
     (compile-user-macro ctx pat)))
 
 (defn- compile-literal [_ pat]

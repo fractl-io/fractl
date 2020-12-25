@@ -24,14 +24,16 @@
     (f (f raw-obj efns) qfns)))
 
 (defn- set-obj-attr [env attr-name attr-value]
-  (let [[env single? [n x]] (env/pop-obj env)
-        objs (if single? [x] x)
-        new-objs (map #(assoc % attr-name (if (fn? attr-value)
-                                            (attr-value env %)
-                                            attr-value))
-                      objs)
-        env (env/push-obj env n (if single? (first new-objs) new-objs))]
-    (i/ok (if single? (first new-objs) new-objs) env)))
+  (if-let [xs (env/pop-obj env)]
+    (let [[env single? [n x]] xs
+          objs (if single? [x] x)
+          new-objs (map #(assoc % attr-name (if (fn? attr-value)
+                                              (attr-value env %)
+                                              attr-value))
+                        objs)
+          env (env/push-obj env n (if single? (first new-objs) new-objs))]
+      (i/ok (if single? (first new-objs) new-objs) env))
+    (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value]))))
 
 (defn- on-inst [f xs]
   (f (if (map? xs) xs (first xs))))
@@ -123,16 +125,18 @@
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
   [env record-name alias]
-  (let [[env single? [_ x]] (env/pop-obj env)
-        objs (if single? [x] x)
-        final-objs (map #(assoc-computed-attributes env record-name %) objs)
-        insts (map #(if (cn/an-instance? %)
-                      %
-                      (cn/make-instance (li/make-path record-name) %))
-                   final-objs)
-        env (env/bind-instances env record-name insts)
-        final-env (if alias (env/bind-instance-to-alias env alias (first insts)) env)]
-    [(if single? (first insts) insts) final-env]))
+  (if-let [xs (env/pop-obj env)]
+    (let [[env single? [_ x]] xs
+          objs (if single? [x] x)
+          final-objs (map #(assoc-computed-attributes env record-name %) objs)
+          insts (map #(if (cn/an-instance? %)
+                        %
+                        (cn/make-instance (li/make-path record-name) %))
+                     final-objs)
+          env (env/bind-instances env record-name insts)
+          final-env (if alias (env/bind-instance-to-alias env alias (first insts)) env)]
+      [(if single? (first insts) insts) final-env])
+    [nil env]))
 
 (defn- pack-results [local-result resolver-results]
   [local-result resolver-results])
@@ -172,7 +176,7 @@
     (do-load-instance [_ env record-name]
       (if-let [inst (env/lookup-instance env record-name)]
         (i/ok inst env)
-        i/not-found))
+        (i/not-found record-name env)))
 
     (do-load-references [_ env [record-name refs]]
       (let [inst (env/lookup-instance env record-name)]
@@ -180,7 +184,7 @@
           (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
                 [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
             (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
-          i/not-found)))
+          (i/not-found record-name env))))
 
     (do-new-instance [_ env record-name]
       (let [env (env/push-obj env record-name)]
@@ -188,8 +192,10 @@
 
     (do-query-instances [_ env [entity-name queries]]
       (if-let [[insts env] (find-instances env store entity-name queries)]
-        (i/ok insts (env/push-obj env entity-name insts))
-        i/not-found))
+        (if (seq insts)
+          (i/ok insts (env/push-obj env entity-name insts))
+          (i/not-found entity-name env))
+        (i/not-found entity-name env)))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
@@ -202,9 +208,11 @@
       (set-obj-attr env attr-name f))
 
     (do-intern-instance [_ env [record-name alias]]
-      (let [[insts env] (pop-and-intern-instance env record-name alias)
-            [local-result resolver-results] (chained-upsert store record-name insts)]
-        (i/ok (pack-results local-result resolver-results) env)))
+      (let [[insts env] (pop-and-intern-instance env record-name alias)]
+        (if insts
+          (let [[local-result resolver-results] (chained-upsert store record-name insts)]
+            (i/ok (pack-results local-result resolver-results) env))
+          (i/not-found record-name env))))
 
     (do-intern-event-instance [self env [record-name alias]]
       (let [[inst env] (pop-and-intern-instance env record-name alias)
@@ -215,6 +223,14 @@
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? inst))]
         (i/ok (pack-results local-result resolver-results) env)))
+
+    (do-delete-instance [self env [record-name id-pattern-code]]
+      (let [result (eval-opcode self env id-pattern-code)]
+        (if-let [id (ok-result result)]
+          (if (store/delete-by-id store record-name id)
+            (i/ok [record-name id] (env/purge-instance env record-name id))
+            (i/not-found [record-name id] env))
+          result)))
 
     (do-match [self env [match-pattern-code cases-code alternative-code]]
       (let [result (eval-opcode self env match-pattern-code)]

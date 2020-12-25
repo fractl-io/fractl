@@ -99,10 +99,14 @@
           "Set the attribute in the instance that is being inited by invoking the function.")
          (intern-instance
           [[record-name alias]]
-          "Finish the instance initialization by intering that in env.")
+          "Finish the instance initialization by inserting that in env.")
          (intern-event-instance
           [[record-name alias]]
           "Finish the instance initialization of an event, evaluate attached dataflows.")
+         (delete-instance
+          [[record-name id-pattern-code]]
+          "Remove an instance of the given type and id from the store and caches. The value of
+           the id is resolved by evaluating id-pattern-code.")
          (match
           [[match-pattern-code cases-code alternative-code]]
           "Execute code for each part of conditional evaluation based on the :match construct.")]))

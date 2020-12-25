@@ -295,12 +295,15 @@
   (cn/canonical-type-name
    (keyword (str (name evtname) ".Instance.Id"))))
 
+(defn- direct-id-accessor [evtname]
+  (cn/canonical-type-name
+   (keyword (str (name evtname) ".Id"))))
+
 (defn- crud-event-delete-pattern [evtname entity-name]
-  [:delete {entity-name {:Id (id-accessor evtname)}}])
+  [:delete entity-name (direct-id-accessor evtname)])
 
 (defn- crud-event-lookup-pattern [evtname entity-name]
-  {entity-name {:Id? (cn/canonical-type-name
-                      (keyword (str (name evtname) ".Id")))}})
+  {entity-name {:Id? (direct-id-accessor evtname)}})
 
 (defn- implicit-entity-event-dfexp
   "Construct a dataflow expressions for an implicit dataflow
@@ -339,7 +342,8 @@
                   ;; TODO: Check for user-define identity attributes first.
                   (assoc attrs :Id (cn/canonical-type-name :Id))))
          ev (partial crud-evname n)
-         evattrs {:Instance n}]
+         inst-evattrs {:Instance n}
+         id-evattrs {:Id :Kernel/UUID}]
      ;; Define CRUD events and dataflows:
      (let [upevt (ev :Upsert)
            delevt (ev :Delete)
@@ -347,11 +351,11 @@
        (cn/for-each-entity-event-name
         entity-name
         (partial entity-event entity-name))
-       (event-internal upevt evattrs)
+       (event-internal upevt inst-evattrs)
        (cn/register-dataflow upevt [(crud-event-inst-accessor upevt)])
-       (event-internal delevt evattrs)
+       (event-internal delevt id-evattrs)
        (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
-       (event-internal lookupevt {:Id :Kernel/UUID})
+       (event-internal lookupevt id-evattrs)
        (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt entity-name)]))
      ;; Install dataflows for implicit events.
      (when dfexps (doall (map eval dfexps)))

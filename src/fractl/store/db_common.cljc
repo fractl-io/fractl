@@ -13,7 +13,7 @@
    :execute-stmt! #?(:clj h2i/execute-stmt! :cljs aqi/execute-stmt!)
    :upsert-inst-statement #?(:clj h2i/upsert-inst-statement :cljs aqi/upsert-inst-statement)
    :upsert-index-statement #?(:clj h2i/upsert-index-statement :cljs aqi/upsert-index-statement)
-   :delete-inst-statement #?(:clj h2i/delete-inst-statement :cljs aqi/delete-inst-statement)
+   :delete-by-id-statement #?(:clj h2i/delete-by-id-statement :cljs aqi/delete-by-id-statement)
    :delete-index-statement #?(:clj h2i/delete-index-statement :cljs aqi/delete-index-statement)
    :query-by-id-statement #?(:clj h2i/query-by-id-statement :cljs aqi/query-by-id-statement)
    :do-query-statement #?(:clj h2i/do-query-statement :cljs aqi/do-query-statement)
@@ -25,7 +25,7 @@
 (def execute-stmt! (partial (:execute-stmt! store-fns)))
 (def upsert-inst-statement (partial (:upsert-inst-statement store-fns)))
 (def upsert-index-statement (partial (:upsert-index-statement store-fns)))
-(def delete-inst-statement (partial (:delete-inst-statement store-fns)))
+(def delete-by-id-statement (partial (:delete-by-id-statement store-fns)))
 (def delete-index-statement (partial (:delete-index-statement store-fns)))
 (def query-by-id-statement (partial (:query-by-id-statement store-fns)))
 (def do-query-statement (partial (:do-query-statement store-fns)))
@@ -192,12 +192,11 @@
 (defn- delete-inst!
   "Delete an entity instance."
   [conn tabname id]
-  (let [[pstmt params] (delete-inst-statement conn tabname id)]
+  (let [[pstmt params] (delete-by-id-statement conn tabname id)]
     (execute-stmt! conn pstmt params)))
 
-(defn delete-instance [datasource entity-name instance]
-  (let [id (:Id instance)
-        tabname (su/table-for-entity entity-name)
+(defn delete-by-id [datasource entity-name id]
+  (let [tabname (su/table-for-entity entity-name)
         entity-schema (su/find-entity-schema entity-name)
         indexed-attrs (cn/indexed-attributes entity-schema)]
     (transact-fn! datasource

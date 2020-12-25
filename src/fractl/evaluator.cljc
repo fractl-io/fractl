@@ -21,7 +21,7 @@
     (loop [opcs opcode, env env, result nil]
       (if-let [opc (first opcs)]
         (let [r (dispatch-an-opcode evaluator env opc)]
-          (recur (rest opcs) (:env r) r))
+          (recur (rest opcs) (or (:env r) env) r))
         result))))
 
 (def ok? i/ok?)

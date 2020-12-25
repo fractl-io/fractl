@@ -42,8 +42,8 @@
         (db/drop-schema @datasource component-name))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance @datasource entity-name instance))
-      (delete-instance [_ entity-name instance]
-        (db/delete-instance @datasource entity-name instance))
+      (delete-by-id [_ entity-name id]
+        (db/delete-by-id @datasource entity-name id))
       (query-by-id [_ entity-name query ids]
         (db/query-by-id @datasource entity-name query ids))
       (do-query [_ query params]

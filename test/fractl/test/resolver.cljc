@@ -22,8 +22,10 @@
 (defn- persisted? [comp-name entity-instance]
   (let [id (:Id entity-instance)
         evt (cn/make-instance (keyword (str (name comp-name) "/Lookup_E")) {:Id id})
-        e (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-    (cn/same-instance? entity-instance e)))
+        r (first (eval-all-dataflows-for-event evt))]
+    (when-not (= :not-found (:status r))
+      (let [e (ffirst (:result r))]
+        (cn/same-instance? entity-instance e)))))
 
 (deftest r01
   (defcomponent :R01

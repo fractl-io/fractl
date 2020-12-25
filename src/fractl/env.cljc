@@ -36,6 +36,10 @@
 (defn lookup-instance [env rec-name]
   (peek (get-instances env rec-name)))
 
+(defn purge-instance [env rec-name id]
+  (let [insts (filter #(not= (:Id %) id) (get-instances env rec-name))]
+    (assoc env rec-name insts)))
+
 (defn- find-instance-by-path-parts [env path-parts]
   (if-let [p (:path path-parts)] ; maybe an alias
     (get env p)
@@ -77,7 +81,7 @@
   "Pop the object stack,
   return [updated-env single-object-flag? [name object]]"
   [env]
-  (let [s (objstack env)
-        [n obj :as x] (peek s)]
-    [(assoc env :objstack (pop s))
-     (map? obj) x]))
+  (when-let [s (seq (objstack env))]
+    (let [[_ obj :as x] (peek s)]
+      [(assoc env :objstack (pop s))
+       (map? obj) x])))

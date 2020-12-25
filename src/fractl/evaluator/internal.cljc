@@ -14,9 +14,9 @@
 ;; result builders
 (def ok (partial make-result :ok))
 
-(def not-found (make-result :not-found))
-(def declined (make-result :declined))
-(def no-op (make-result :no-op))
+(def not-found (partial make-result :not-found))
+(def declined (partial make-result :declined))
+(def no-op (partial make-result :no-op))
 
 (defn error [message]
   (make-result :error nil nil message))

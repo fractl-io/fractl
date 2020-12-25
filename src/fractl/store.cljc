@@ -33,7 +33,7 @@
 (def create-schema p/create-schema)
 (def drop-schema p/drop-schema)
 (def upsert-instance p/upsert-instance)
-(def delete-instance p/delete-instance)
+(def delete-by-id p/delete-by-id)
 (def query-by-id p/query-by-id)
 (def do-query p/do-query)
 (def compile-query p/compile-query)

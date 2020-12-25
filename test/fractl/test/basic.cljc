@@ -377,3 +377,20 @@
   (conditional-event-01 3 300)
   (conditional-event-02 (cn/make-instance :Cond/R {:X 200}) false?)
   (conditional-event-02 (cn/make-instance :Cond/R {:X 100}) true?))
+
+(deftest delete-insts
+  (defcomponent :Del
+    (entity {:Del/E {:X :Kernel/Int}}))
+  (let [e (cn/make-instance :Del/E {:X 100})
+        evt (cn/make-instance :Del/Upsert_E {:Instance e})
+        e01 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
+        id (:Id e01)
+        lookup-evt (cn/make-instance :Del/Lookup_E {:Id id})
+        e02 (ffirst (tu/fresult (eval-all-dataflows-for-event lookup-evt)))
+        del-evt (cn/make-instance :Del/Delete_E {:Id id})
+        r01 (second (tu/fresult (eval-all-dataflows-for-event del-evt)))
+        r02 (eval-all-dataflows-for-event lookup-evt)]
+    (is (cn/instance-of? :Del/E e01))
+    (is (cn/same-instance? e01 e02))
+    (is (= id r01))
+    (is (= :not-found (:status (first r02))))))
