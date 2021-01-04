@@ -205,20 +205,33 @@
                  (delete-inst! txn tabname id)))
     id))
 
+(defn- query-instances [entity-name query-fns]
+  (let [[id-key json-key] (su/make-result-keys entity-name)
+        results (flatten (map (fn [f] (f)) query-fns))]
+    (su/results-as-instances entity-name id-key json-key results)))
+
 (defn query-by-id [datasource entity-name query-sql ids]
   (execute-fn! datasource
-             (fn [txn]
-               (let [[id-key json-key] (su/make-result-keys entity-name)
-                     results (flatten (map #(let [[pstmt params] (query-by-id-statement txn query-sql %)]
-                                              (execute-stmt! txn pstmt params))
-                                           (set ids)))]
-                 (su/results-as-instances entity-name id-key json-key results)))))
+               (fn [conn]
+                 (query-instances
+                  entity-name
+                  (map #(let [[pstmt params] (query-by-id-statement conn query-sql %)]
+                          (fn [] (execute-stmt! conn pstmt params)))
+                       (set ids))))))
+
+(defn query-all [datasource entity-name query-sql]
+  (execute-fn! datasource
+               (fn [conn]
+                 (query-instances
+                  entity-name
+                  (let [[pstmt params] (do-query-statement conn query-sql nil)]
+                    [(fn [] (execute-stmt! conn pstmt params))])))))
 
 (defn do-query [datasource query-sql query-params]
   (execute-fn! datasource
-             (fn [txn]
-               (let [[pstmt params] (do-query-statement txn query-sql query-params)]
-                 (execute-stmt! txn pstmt params)))))
+               (fn [conn]
+                 (let [[pstmt params] (do-query-statement conn query-sql query-params)]
+                   (execute-stmt! conn pstmt params)))))
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        su/table-for-entity

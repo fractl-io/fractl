@@ -53,3 +53,19 @@
       (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r01))
       (is (= 2 (count r02)))
       (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r02)))))
+
+(deftest query-all
+  (defcomponent :QueryAll
+    (entity {:QueryAll/E {:X :Kernel/Int :N :Kernel/String}})
+    (event {:QueryAll/AllE {}})
+    (dataflow :QueryAll/AllE
+              :QueryAll/E?))
+  (let [es [(cn/make-instance :QueryAll/E {:X 1 :N "e01"})
+            (cn/make-instance :QueryAll/E {:X 2 :N "e02"})]
+        evts (map #(cn/make-instance :QueryAll/Upsert_E {:Instance %}) es)
+        _ (doall (map tu/fresult (map #(eval-all-dataflows-for-event %) evts)))
+        evt (cn/make-instance :QueryAll/AllE {})
+        result (tu/fresult (eval-all-dataflows-for-event evt))]
+    (doseq [r result]
+      (is (cn/instance-of? :QueryAll/E r))
+      (is (= (if (= 1 (:X r)) "e01" "e02") (:N r))))))

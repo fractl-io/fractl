@@ -25,6 +25,9 @@
   (query-by-id [store entity-name query-sql ids]
     "Return the instances with the given :Id attributes. Return nil if the instances
      does not exist. On failure, raise an exception.")
+  (query-all [store entity-name query-sql]
+    "Return all instances of the entity. Return nil if the instances
+     does not exist. On failure, raise an exception.")
   (do-query [store query query-params]
     "Return all instances that satisfy the query. Return nil if no data found.
      On failure or if the query is not supported, raise an exception.")

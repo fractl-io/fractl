@@ -152,9 +152,10 @@
      clause)))
 
 (defn expand-query [entity-name query-pattern]
-  (let [qp (map process-where-clause query-pattern)
-        where-clause (if (= :* query-pattern)
-                       query-pattern
+  (let [wildcard? (not query-pattern)
+        qp (when-not wildcard? (map process-where-clause query-pattern))
+        where-clause (if wildcard?
+                       :*
                        (if (> (count qp) 1)
                          (su/vec-add-first :and qp)
                          (first qp)))]

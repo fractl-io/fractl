@@ -332,7 +332,7 @@
   (and (keyword? a) (string/ends-with? (name a) "?")))
 
 (defn query-target-name [q]
-  (keyword (let [s (name q)] (subs s 0 (dec (count s))))))
+  (keyword (let [s (subs (str q) 1)] (subs s 0 (dec (count s))))))
 
 (defn normalize-attr-name [a]
   (let [n (name a)]

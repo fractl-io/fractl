@@ -85,7 +85,9 @@
 
 (defn- compile-query [ctx entity-name query]
   (let [expanded-query (i/expand-query
-                        entity-name (map query-param-process query))]
+                        entity-name
+                        (when query
+                          (map query-param-process query)))]
     ((ctx/fetch-compile-query-fn ctx) expanded-query)))
 
 (defn- compound-expr-as-fn
@@ -171,8 +173,9 @@
   (u/throw-ex (str "cannot compile map literal " pat)))
 
 (defn- compile-fetch-all-query [ctx pat]
-  (let [entity-name (li/query-target-name pat)]
-    (compile-query ctx entity-name :*)))
+  (let [entity-name (li/split-path (li/query-target-name pat))
+        q (compile-query ctx entity-name nil)]
+    (op/query-instances [entity-name q])))
 
 (declare compile-pattern)
 
