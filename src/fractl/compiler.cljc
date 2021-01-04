@@ -170,22 +170,28 @@
   ;; TODO: implement support for map literals.
   (u/throw-ex (str "cannot compile map literal " pat)))
 
+(defn- compile-fetch-all-query [ctx pat]
+  (let [entity-name (li/query-target-name pat)]
+    (compile-query ctx entity-name :*)))
+
 (declare compile-pattern)
 
 (defn- compile-pathname [ctx pat]
-  (let [{component :component record :record refs :refs
-         path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
-     (if path
-       (if-let [p (ctx/aliased-name ctx path)]
-         (compile-pathname ctx (assoc (li/path-parts p) :refs refs))
-         (compile-pathname ctx parts))
-       (let [n [component record]
-             opc (and (cv/find-schema n)
-                      (if refs
-                        (emit-load-references n refs)
-                        (emit-load-instance-by-name n)))]
-         (ctx/put-record! ctx n {})
-         opc))))
+  (if (li/query-pattern? pat)
+    (compile-fetch-all-query ctx pat)
+    (let [{component :component record :record refs :refs
+           path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
+      (if path
+        (if-let [p (ctx/aliased-name ctx path)]
+          (compile-pathname ctx (assoc (li/path-parts p) :refs refs))
+          (compile-pathname ctx parts))
+        (let [n [component record]
+              opc (and (cv/find-schema n)
+                       (if refs
+                         (emit-load-references n refs)
+                         (emit-load-instance-by-name n)))]
+          (ctx/put-record! ctx n {})
+          opc)))))
 
 (defn- compile-map [ctx pat]
   (if (li/instance-pattern? pat)
