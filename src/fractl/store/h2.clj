@@ -46,6 +46,8 @@
         (db/delete-by-id @datasource entity-name id))
       (query-by-id [_ entity-name query ids]
         (db/query-by-id @datasource entity-name query ids))
+      (query-all [_ entity-name query]
+        (db/query-all @datasource entity-name query))
       (do-query [_ query params]
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]

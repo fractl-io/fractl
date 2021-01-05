@@ -27,7 +27,6 @@
   ([] #?(:clj (make-default-store nil (h2/make))
          :cljs (make-default-store nil (alasq/make)))))
 
-
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)
 (def create-schema p/create-schema)
@@ -35,6 +34,7 @@
 (def upsert-instance p/upsert-instance)
 (def delete-by-id p/delete-by-id)
 (def query-by-id p/query-by-id)
+(def query-all p/query-all)
 (def do-query p/do-query)
 (def compile-query p/compile-query)
 

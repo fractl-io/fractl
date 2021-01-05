@@ -328,8 +328,11 @@
         {:path (first refs) :refs (rest refs)}
         {:path path}))))
 
-(defn query-on-attr? [a]
-  (string/ends-with? (name a) "?"))
+(defn query-pattern? [a]
+  (and (keyword? a) (string/ends-with? (name a) "?")))
+
+(defn query-target-name [q]
+  (keyword (let [s (subs (str q) 1)] (subs s 0 (dec (count s))))))
 
 (defn normalize-attr-name [a]
   (let [n (name a)]

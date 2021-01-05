@@ -35,7 +35,7 @@
        (let [k (li/normalize-attr-name ak)
              v (valid-attr-value ctx k av schema)
              tag (cond
-                   (li/query-on-attr? ak) :query
+                   (li/query-pattern? ak) :query
                    (literal? v) :computed
                    (li/name? v) :refs
                    (seqable? v) :compound
@@ -152,8 +152,12 @@
      clause)))
 
 (defn expand-query [entity-name query-pattern]
-  (let [qp (map process-where-clause query-pattern)]
+  (let [wildcard? (not query-pattern)
+        qp (when-not wildcard? (map process-where-clause query-pattern))
+        where-clause (if wildcard?
+                       :*
+                       (if (> (count qp) 1)
+                         (su/vec-add-first :and qp)
+                         (first qp)))]
     {:from entity-name
-     :where (if (> (count qp) 1)
-              (su/vec-add-first :and qp)
-              (first qp))}))
+     :where where-clause}))

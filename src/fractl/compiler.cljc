@@ -85,7 +85,9 @@
 
 (defn- compile-query [ctx entity-name query]
   (let [expanded-query (i/expand-query
-                        entity-name (map query-param-process query))]
+                        entity-name
+                        (when query
+                          (map query-param-process query)))]
     ((ctx/fetch-compile-query-fn ctx) expanded-query)))
 
 (defn- compound-expr-as-fn
@@ -170,22 +172,33 @@
   ;; TODO: implement support for map literals.
   (u/throw-ex (str "cannot compile map literal " pat)))
 
+(defn- compile-fetch-all-query
+  "Generate code for the wildcard query pattern (:EntityName?) to retrieve
+  all instances of an entity. For an SQL backend, this will make the store do
+  a `SELECT * FROM entity_table`."
+  [ctx pat]
+  (let [entity-name (li/split-path (li/query-target-name pat))
+        q (compile-query ctx entity-name nil)]
+    (op/query-instances [entity-name q])))
+
 (declare compile-pattern)
 
 (defn- compile-pathname [ctx pat]
-  (let [{component :component record :record refs :refs
-         path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
-     (if path
-       (if-let [p (ctx/aliased-name ctx path)]
-         (compile-pathname ctx (assoc (li/path-parts p) :refs refs))
-         (compile-pathname ctx parts))
-       (let [n [component record]
-             opc (and (cv/find-schema n)
-                      (if refs
-                        (emit-load-references n refs)
-                        (emit-load-instance-by-name n)))]
-         (ctx/put-record! ctx n {})
-         opc))))
+  (if (li/query-pattern? pat)
+    (compile-fetch-all-query ctx pat)
+    (let [{component :component record :record refs :refs
+           path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
+      (if path
+        (if-let [p (ctx/aliased-name ctx path)]
+          (compile-pathname ctx (assoc (li/path-parts p) :refs refs))
+          (compile-pathname ctx parts))
+        (let [n [component record]
+              opc (and (cv/find-schema n)
+                       (if refs
+                         (emit-load-references n refs)
+                         (emit-load-instance-by-name n)))]
+          (ctx/put-record! ctx n {})
+          opc)))))
 
 (defn- compile-map [ctx pat]
   (if (li/instance-pattern? pat)

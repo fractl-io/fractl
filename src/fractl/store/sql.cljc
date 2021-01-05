@@ -13,16 +13,18 @@
 
 (defn compile-to-indexed-query [table-name-fn index-table-name-fn query-pattern]
   (let [table (table-name-fn (:from query-pattern))
-        where-clause (:where query-pattern)
-        norm-where-clause (if (= :and (first where-clause))
-                            (rest where-clause)
-                            [where-clause])
-        index-tables (map #(index-table-name-fn table (second %)) norm-where-clause)]
-    {:id-queries
-     (vec (map #(select-from-index-table %1 %2)
-               index-tables norm-where-clause))
-     :query
-     (str "SELECT * FROM " table " WHERE Id = ?")}))
+        where-clause (:where query-pattern)]
+    (if (= :* where-clause)
+      {:query (str "SELECT * FROM " table)}
+      (let [norm-where-clause (if (= :and (first where-clause))
+                                (rest where-clause)
+                                [where-clause])
+            index-tables (map #(index-table-name-fn table (second %)) norm-where-clause)]
+        {:id-queries
+         (vec (map #(select-from-index-table %1 %2)
+                   index-tables norm-where-clause))
+         :query
+         (str "SELECT * FROM " table " WHERE Id = ?")}))))
 
 (defn sql-index-type
   ([max-varchar-length bool-type date-time-type attribute-type]

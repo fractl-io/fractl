@@ -117,9 +117,11 @@
       result)))
 
 (defn- find-instances [env store entity-name queries]
-  (when-let [id-results (seq (evaluate-id-queries env store (:id-queries queries)))]
-    (let [result (store/query-by-id store entity-name (:query queries) id-results)]
-      [result (env/bind-instances env entity-name result)])))
+  (let [result
+        (if-let [id-results (seq (evaluate-id-queries env store (:id-queries queries)))]
+          (store/query-by-id store entity-name (:query queries) id-results)
+          (store/query-all store entity-name (:query queries)))]
+    [result (env/bind-instances env entity-name result)]))
 
 (defn- pop-and-intern-instance
   "An instance is built in stages, the partial object is stored in a stack.
