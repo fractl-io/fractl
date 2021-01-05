@@ -160,3 +160,5 @@
 
 (defn map-when [f xs]
   (map #(when % (f %)) xs))
+
+(defn apply0 [f] (f))
