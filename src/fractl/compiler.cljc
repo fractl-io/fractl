@@ -172,7 +172,11 @@
   ;; TODO: implement support for map literals.
   (u/throw-ex (str "cannot compile map literal " pat)))
 
-(defn- compile-fetch-all-query [ctx pat]
+(defn- compile-fetch-all-query
+  "Generate code for the wildcard query pattern (:EntityName?) to retrieve
+  all instances of an entity. For an SQL backend, this will make the store do
+  a `SELECT * FROM entity_table`."
+  [ctx pat]
   (let [entity-name (li/split-path (li/query-target-name pat))
         q (compile-query ctx entity-name nil)]
     (op/query-instances [entity-name q])))
