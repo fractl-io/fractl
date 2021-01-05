@@ -13,7 +13,8 @@
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 
 (defn- test-resolver [install-resolver resolver-name path]
-  (let [r (r/make-resolver resolver-name {:upsert identity})]
+  (let [r (r/make-resolver resolver-name {:upsert identity
+                                          :delete (fn [x] {:deleted x})})]
     (install-resolver path r)))
 
 (def compose-test-resolver (partial test-resolver rg/compose-resolver))
@@ -47,7 +48,16 @@
     (is (persisted? :R01 e01))
     (is (= :TestResolver01 (:resolver r)))
     (is (= :upsert (:method r)))
-    (is (= e01 (:result r)))))
+    (is (= e01 (:result r)))
+    (let [id (:Id e01)
+          evt (cn/make-instance :R01/Delete_E {:Id id})
+          result (tu/fresult (eval-all-dataflows-for-event evt))
+          r01 (first result)
+          r02 (first (second result))]
+      (is (= r01 [[:R01 :E] id]))
+      (is (= r02 {:resolver :TestResolver01
+                  :method :delete
+                  :result {:deleted [[:R01 :E] id]}})))))
 
 (deftest r02
   (defcomponent :R02

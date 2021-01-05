@@ -41,17 +41,22 @@
 (defn- need-storage? [xs]
   (on-inst cn/entity-instance? xs))
 
-(defn- resolver-for-path [xs]
-  (let [path (on-inst cn/instance-name xs)]
+(defn- resolver-for-instance [insts]
+  (let [path (on-inst cn/instance-name insts)]
     (rg/resolver-for-path path)))
 
-(defn- call-resolver-upsert [resolver composed? insts]
+(defn- call-resolver-crud [f single? resolver composed? data]
   (let [rs (if composed? resolver [resolver])
-        ins (if (map? insts) [insts] insts)]
+        insts (if (map? data) [data] data)]
     (doall (map (fn [r]
-                  (doall
-                   (map #(r/call-resolver-upsert r %) ins)))
+                  (if single?
+                    (f r insts)
+                    (doall
+                     (map #(f r %) insts))))
                 rs))))
+
+(def ^:private call-resolver-upsert (partial call-resolver-crud r/call-resolver-upsert false))
+(def ^:private call-resolver-delete (partial call-resolver-crud r/call-resolver-delete true))
 
 (defn- call-resolver-eval [resolver composed? inst]
   (let [rs (if composed? resolver [resolver])]
@@ -67,18 +72,34 @@
          (conj @inited-components component-name))
      component-name)))
 
-(defn- chained-upsert [store record-name insts]
-  (maybe-init-schema! store (first record-name))
-  (let [insts (if (map? insts) [insts] insts)
-        resolver (resolver-for-path insts)
+(defn- chained-crud [store-f resolver-f single-arg-path insts]
+  (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
+        resolver (if single-arg-path
+                   (rg/resolver-for-path single-arg-path)
+                   (resolver-for-instance insts))
         composed? (rg/composed? resolver)
-        upsert? (or (not resolver) composed?)
-        local-result (if (and upsert? store (need-storage? insts))
-                       (store/upsert-instances store record-name insts)
+        crud? (or (not resolver) composed?)
+        local-result (if (and crud? store-f
+                              (or single-arg-path (need-storage? insts)))
+                       (store-f insts)
                        insts)
         resolver-result (when resolver
-                          (call-resolver-upsert resolver composed? local-result))]
+                          (resolver-f resolver composed? local-result))]
     [local-result resolver-result]))
+
+(defn- chained-upsert [store record-name insts]
+  (maybe-init-schema! store (first record-name))
+  (chained-crud
+   (when store (partial store/upsert-instances store record-name))
+   call-resolver-upsert nil insts))
+
+(defn- delete-by-id [store record-name data]
+  [record-name (store/delete-by-id store record-name (second data))])
+
+(defn- chained-delete [store record-name id]
+  (chained-crud
+   (when store (partial delete-by-id store record-name))
+   call-resolver-delete record-name [record-name id]))
 
 (defn- bind-and-persist [env store x]
   (if (cn/an-instance? x)
@@ -218,7 +239,7 @@
 
     (do-intern-event-instance [self env [record-name alias]]
       (let [[inst env] (pop-and-intern-instance env record-name alias)
-            resolver (resolver-for-path inst)
+            resolver (resolver-for-instance inst)
             composed? (rg/composed? resolver)
             local-result (when (or (not resolver) composed?)
                            (eval-event-dataflows self inst))
@@ -229,9 +250,9 @@
     (do-delete-instance [self env [record-name id-pattern-code]]
       (let [result (eval-opcode self env id-pattern-code)]
         (if-let [id (ok-result result)]
-          (if (store/delete-by-id store record-name id)
-            (i/ok [record-name id] (env/purge-instance env record-name id))
-            (i/not-found [record-name id] env))
+          (let [[local-result resolver-results] (chained-delete store record-name id)]
+            (i/ok (pack-results local-result resolver-results)
+                  (env/purge-instance env record-name id)))
           result)))
 
     (do-match [self env [match-pattern-code cases-code alternative-code]]
