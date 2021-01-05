@@ -137,11 +137,21 @@
           (recur (rest idqs) new-env rs)))
       result)))
 
+(defn- find-instances-via-resolvers [entity-name queries]
+  (when-let [resolver (rg/resolver-for-path entity-name)]
+    (if (rg/composed? resolver)
+      (loop [rs resolver]
+        (when-let [r (first rs)]
+          (if-let [result (seq (r/call-resolver-query r [entity-name queries]))]
+            result
+            (recur (rest rs)))))
+      (seq (r/call-resolver-query resolver [entity-name queries])))))
+
 (defn- find-instances [env store entity-name queries]
-  (let [result
-        (if-let [id-results (seq (evaluate-id-queries env store (:id-queries queries)))]
-          (store/query-by-id store entity-name (:query queries) id-results)
-          (store/query-all store entity-name (:query queries)))]
+  (let [result (or (find-instances-via-resolvers entity-name queries)
+                   (if-let [id-results (seq (evaluate-id-queries env store (:id-queries queries)))]
+                     (store/query-by-id store entity-name (:query queries) id-results)
+                     (store/query-all store entity-name (:query queries))))]
     [result (env/bind-instances env entity-name result)]))
 
 (defn- pop-and-intern-instance

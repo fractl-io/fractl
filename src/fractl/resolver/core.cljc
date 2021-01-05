@@ -20,9 +20,10 @@
 (def resolver-eval :eval)
 
 (defn- wrap-result [method resolver arg]
-  {:resolver (:name resolver)
-   :method method
-   :result ((method resolver) arg)})
+  (when-let [m (method resolver)]
+    {:resolver (:name resolver)
+     :method method
+     :result (m arg)}))
 
 (def call-resolver-upsert (partial wrap-result :upsert))
 (def call-resolver-delete (partial wrap-result :delete))
