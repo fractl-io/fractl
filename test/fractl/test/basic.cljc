@@ -411,7 +411,10 @@
               {:L/E {:Xs :L/MakeE0.Xs :Y :L/MakeE0.Y}})
     (event {:L/MakeE1 {:X1 :Kernel/Int :X2 :Kernel/Int :Y :Kernel/Int}})
     (dataflow :L/MakeE1
-              {:L/E {:Xs [:L/MakeE1.X1 :L/MakeE1.X2] :Y :L/MakeE1.Y}}))
+              {:L/E {:Xs [:L/MakeE1.X1 :L/MakeE1.X2] :Y :L/MakeE1.Y}})
+    (event {:L/MakeE2 {:X :Kernel/Int :Y :Kernel/Int}})
+    (dataflow :L/MakeE2
+              {:L/E {:Xs [(* 100 2) 780 :L/MakeE2.X] :Y :L/MakeE2.Y}}))
   (let [e (cn/make-instance :L/E {:Xs [1 2 3] :Y 100})
         evt (cn/make-instance :L/Upsert_E {:Instance e})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
@@ -421,4 +424,7 @@
     (assert-le result [10 20 30 40] 1))
   (let [evt (cn/make-instance :L/MakeE1 {:X1 10 :X2 20 :Y 1})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-    (assert-le result [10 20] 1)))
+    (assert-le result [10 20] 1))
+  (let [evt (cn/make-instance :L/MakeE2 {:X 10 :Y 90})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (assert-le result [200 780 10] 90)))
