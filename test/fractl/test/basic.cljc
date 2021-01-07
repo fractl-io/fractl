@@ -395,3 +395,15 @@
     (is (cn/same-instance? e01 e02))
     (is (= id r01))
     (is (= :not-found (:status (first r02))))))
+
+(deftest listof
+  (defcomponent :L
+    (entity {:L/E {:Xs {:listof :Kernel/Int}
+                   :Y :Kernel/Int}}))
+  (let [e (cn/make-instance :L/E {:Xs [1 2 3] :Y 100})
+        evt (cn/make-instance :L/Upsert_E {:Instance e})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :L/E e))
+    (is (:Id e))
+    (is (= [1 2 3] (:Xs e)))
+    (is (= 100 (:Y e)))))
