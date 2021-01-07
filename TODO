@@ -1,2 +1,1 @@
- * refactor find-instances-via-resolvers for style
  * remove resolver-get, final tests of resolver-query

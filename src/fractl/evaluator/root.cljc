@@ -152,31 +152,37 @@
                      [where-clause env]))]
     [(assoc q :where wc) env]))
 
+(defn- find-instances-via-composed-resolvers [env entity-name query resolvers]
+  (loop [rs resolvers]
+    (if-let [r (first rs)]
+      (let [result (r/call-resolver-query r [entity-name query])]
+        (if (:result result)
+          [result env]
+          (recur (rest rs))))
+      [nil env])))
+
 (defn- find-instances-via-resolvers [env entity-name full-query]
   (if-let [resolver (rg/resolver-for-path entity-name)]
     (let [[q env] (normalize-raw-query env (:raw-query full-query))]
       (if (rg/composed? resolver)
-        (loop [rs resolver]
-          (if-let [r (first rs)]
-            (let [result (r/call-resolver-query r [entity-name q])]
-              (if (:result result)
-                [result env]
-                (recur (rest rs))))
-            [nil env]))
+        (find-instances-via-composed-resolvers env entity-name q resolver)
         [(r/call-resolver-query resolver [entity-name q]) env]))
     [nil env]))
+
+(defn- find-instances-in-store [env store entity-name full-query]
+  (let [q (:compiled-query full-query)
+        [id-results env] (evaluate-id-queries env store (:id-queries q))]
+    [(if (seq id-results)
+       (store/query-by-id store entity-name (:query q) id-results)
+       (store/query-all store entity-name (:query q)))
+     env]))
 
 (defn- find-instances [env store entity-name full-query]
   (let [[r env] (find-instances-via-resolvers env entity-name full-query)
         resolver-result (seq (:result r))
         [result env] (if resolver-result
                        [resolver-result env]
-                       (let [q (:compiled-query full-query)
-                             [id-results env] (evaluate-id-queries env store (:id-queries q))]
-                         [(if (seq id-results)
-                            (store/query-by-id store entity-name (:query q) id-results)
-                            (store/query-all store entity-name (:query q)))
-                          env]))]
+                       (find-instances-in-store env store entity-name full-query))]
     [result (env/bind-instances env entity-name result)]))
 
 (defn- pop-and-intern-instance
