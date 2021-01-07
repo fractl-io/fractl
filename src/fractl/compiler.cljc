@@ -88,7 +88,8 @@
                         entity-name
                         (when query
                           (map query-param-process query)))]
-    ((ctx/fetch-compile-query-fn ctx) expanded-query)))
+    {:compiled-query ((ctx/fetch-compile-query-fn ctx) expanded-query)
+     :raw-query expanded-query}))
 
 (defn- compound-expr-as-fn
   "Compile compound expression to a function.

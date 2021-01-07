@@ -13,7 +13,8 @@
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 
 (defn- test-resolver [install-resolver resolver-name path]
-  (let [r (r/make-resolver resolver-name {:upsert identity})]
+  (let [r (r/make-resolver resolver-name {:upsert identity
+                                          :delete (fn [x] {:deleted x})})]
     (install-resolver path r)))
 
 (def compose-test-resolver (partial test-resolver rg/compose-resolver))
@@ -22,7 +23,8 @@
 (defn- persisted? [comp-name entity-instance]
   (let [id (:Id entity-instance)
         evt (cn/make-instance (keyword (str (name comp-name) "/Lookup_E")) {:Id id})
-        r (first (eval-all-dataflows-for-event evt))]
+        result (eval-all-dataflows-for-event evt)
+        r (first result)]
     (when-not (= :not-found (:status r))
       (let [e (ffirst (:result r))]
         (cn/same-instance? entity-instance e)))))
@@ -47,7 +49,16 @@
     (is (persisted? :R01 e01))
     (is (= :TestResolver01 (:resolver r)))
     (is (= :upsert (:method r)))
-    (is (= e01 (:result r)))))
+    (is (= e01 (:result r)))
+    (let [id (:Id e01)
+          evt (cn/make-instance :R01/Delete_E {:Id id})
+          result (tu/fresult (eval-all-dataflows-for-event evt))
+          r01 (first result)
+          r02 (first (second result))]
+      (is (= r01 [[:R01 :E] id]))
+      (is (= r02 {:resolver :TestResolver01
+                  :method :delete
+                  :result {:deleted [[:R01 :E] id]}})))))
 
 (deftest r02
   (defcomponent :R02
@@ -63,3 +74,25 @@
     (is (= :TestResolver02 (:resolver r)))
     (is (= :upsert (:method r)))
     (is (= e01 (:result r)))))
+
+(defn- test-query-resolver [install-resolver resolver-name path]
+  (let [r (r/make-resolver resolver-name {:query (fn [arg]
+                                                   (let [id (nth (:where (:raw-query arg)) 2)]
+                                                     [(cn/make-instance :RQ/E {:X 1 :Id id})]))})]
+    (install-resolver path r)))
+
+(deftest query
+  (defcomponent :RQ
+    (entity {:RQ/E {:X :Kernel/Int}}))
+  (test-query-resolver rg/compose-resolver :RQResolver :RQ/E)
+  (let [e (cn/make-instance :RQ/E {:X 10})
+        evt (cn/make-instance :RQ/Upsert_E {:Instance e})
+        e01 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :RQ/E e01))
+    (is (= 10 (:X e01)))
+    (let [id (:Id e01)
+          evt (cn/make-instance :RQ/Lookup_E {:Id id})
+          e02 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+      (is (cn/instance-of? :RQ/E e02))
+      ;(is (= id (:Id e02)))
+      (is (= 1 (:X e02))))))

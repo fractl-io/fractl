@@ -388,7 +388,8 @@
         lookup-evt (cn/make-instance :Del/Lookup_E {:Id id})
         e02 (ffirst (tu/fresult (eval-all-dataflows-for-event lookup-evt)))
         del-evt (cn/make-instance :Del/Delete_E {:Id id})
-        r01 (second (tu/fresult (eval-all-dataflows-for-event del-evt)))
+        del-result (eval-all-dataflows-for-event del-evt)
+        r01 (second (first (tu/fresult del-result)))
         r02 (eval-all-dataflows-for-event lookup-evt)]
     (is (cn/instance-of? :Del/E e01))
     (is (cn/same-instance? e01 e02))
