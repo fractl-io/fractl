@@ -36,7 +36,7 @@
              v (valid-attr-value ctx k av schema)
              tag (cond
                    (li/query-pattern? ak) :query
-                   (literal? v) :computed
+                   (or (literal? v) (vector? v)) :computed
                    (li/name? v) :refs
                    (seqable? v) :compound
                    :else (u/throw-ex (str "not a valid attribute pattern - " a)))]

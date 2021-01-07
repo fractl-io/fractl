@@ -140,9 +140,16 @@
     (op/query-instances [rec-name q])
     (op/new-instance rec-name)))
 
-(defn- emit-build-entity-instance [rec-name attrs schema alias event?]
+(declare compile-list-literal)
+
+(defn- set-literal-attribute [ctx [aname valpat :as attr]]
+  (if (vector? valpat)
+    (compile-list-literal ctx aname valpat)
+    (op/set-literal-attribute attr)))
+
+(defn- emit-build-entity-instance [ctx rec-name attrs schema alias event?]
   (concat [(begin-build-instance rec-name attrs)]
-          (map #(op/set-literal-attribute %) (:computed attrs))
+          (map (partial set-literal-attribute ctx) (:computed attrs))
           (map (fn [[k v]]
                  ((k set-attr-opcode-fns) v))
                (:sorted attrs))
@@ -159,7 +166,7 @@
     (u/throw-ex (str "invalid attributes in pattern - " xs)))
   (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
-    (emit-build-entity-instance pat-name sorted-attrs schema alias event?)))
+    (emit-build-entity-instance ctx pat-name sorted-attrs schema alias event?)))
 
 (defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema alias]
   (emit-realize-instance ctx pat-name pat-attrs schema alias false))
@@ -258,15 +265,34 @@
   (let [id-pat-code (compile-pattern ctx id-pat)]
     (emit-delete (li/split-path recname) [id-pat-code])))
 
+(def ^:private special-form-handlers {:match compile-match-macro
+                                     :for-each compile-for-each-macro
+                                     :delete compile-delete-macro})
+(def ^:private special-form-names (set (keys special-form-handlers)))
+
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic
   conditional and iterative operations."
   [ctx pat]
-  (case (first pat)
-    :match (compile-match-macro ctx (rest pat))
-    :for-each (compile-for-each-macro ctx (rest pat))
-    :delete (compile-delete-macro ctx (rest pat))
+  (if-let [h ((first pat) special-form-handlers)]
+    (h ctx (rest pat))
     (compile-user-macro ctx pat)))
+
+(defn- user-defined-macro? [k]
+  ;; TODO: implemenet lookup into registered user-macro names.
+  false)
+
+(defn- registered-macro? [k]
+  (or (some #{k} special-form-names)
+      (user-defined-macro? k)))
+
+(defn- compile-list-literal [ctx attr-name pat]
+  (op/set-list-attribute [attr-name (map #(list (compile-pattern ctx %)) pat)]))
+
+(defn- compile-vector [ctx pat]
+  (if (registered-macro? (first pat))
+    (compile-special-form ctx pat)
+    (compile-list-literal ctx nil pat)))
 
 (defn- compile-literal [_ pat]
   (emit-load-literal pat))
@@ -275,7 +301,7 @@
   (if-let [c (cond
                (li/pathname? pat) compile-pathname
                (map? pat) compile-map
-               (vector? pat) compile-special-form
+               (vector? pat) compile-vector
                (i/literal? pat) compile-literal)]
     (let [code (c ctx pat)]
       {:opcode code})

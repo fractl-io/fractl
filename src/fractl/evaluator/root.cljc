@@ -264,6 +264,14 @@
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
 
+    (do-set-list-attribute [self env [attr-name elements-opcode]]
+      (loop [results (map (partial eval-opcode self env) elements-opcode), final-list []]
+        (if-let [result (first results)]
+          (if-let [r (ok-result result)]
+            (recur (rest results) (conj final-list r))
+            result)
+          (set-obj-attr env attr-name final-list))))
+
     (do-set-ref-attribute [_ env [attr-name attr-ref]]
       (let [[obj env] (env/follow-reference env attr-ref)]
         (set-obj-attr env attr-name obj)))

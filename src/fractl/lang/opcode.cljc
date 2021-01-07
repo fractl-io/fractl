@@ -97,6 +97,9 @@
          (set-compound-attribute
           [[attr-name f]]
           "Set the attribute in the instance that is being inited by invoking the function.")
+         (set-list-attribute
+          [[attr-name elements-opcodes]]
+          "Construct a list by evaluating each set of opcodes, set the result as an attribute of the current instance.")
          (intern-instance
           [[record-name alias]]
           "Finish the instance initialization by inserting that in env.")
