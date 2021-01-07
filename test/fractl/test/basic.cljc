@@ -422,6 +422,12 @@
   (let [evt (cn/make-instance :L/MakeE0 {:Xs [10 20 30 40] :Y 1})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (assert-le result [10 20 30 40] 1))
+  (try
+    (let [evt (cn/make-instance :L/MakeE0 {:Xs [10 "hi"] :Y 1})
+          result (tu/fresult (eval-all-dataflows-for-event evt))]
+      (is false))
+    (catch Exception ex
+      (is ex)))
   (let [evt (cn/make-instance :L/MakeE1 {:X1 10 :X2 20 :Y 1})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (assert-le result [10 20] 1))
