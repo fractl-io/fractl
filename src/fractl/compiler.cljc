@@ -45,7 +45,7 @@
 
 (defn- arg-lookup [arg]
   (cond
-    (i/literal? arg) arg
+    (i/const-value? arg) arg
 
     (seqable? arg)
     (expr-with-arg-lookups arg)
@@ -60,7 +60,7 @@
 
 (defn- expr-with-arg-lookups [expr]
   (cond
-    (i/literal? expr) expr
+    (i/const-value? expr) expr
     (seqable? expr)
     (let [final-args (map arg-lookup (rest expr))]
       `(~(first expr) ~@final-args))
@@ -71,13 +71,13 @@
 
 (defn- query-param-lookup [p]
   (let [r (arg-lookup p)]
-    (if (i/literal? r)
+    (if (i/const-value? r)
       r
       (expr-as-fn r))))
 
 (defn- query-param-process [[k v]]
   (cond
-    (i/literal? v) [k v]
+    (i/const-value? v) [k v]
     (seqable? v) (concat
                   [(first v)]
                   (concat [k] (map query-param-lookup (rest v))))
@@ -265,10 +265,10 @@
   (let [id-pat-code (compile-pattern ctx id-pat)]
     (emit-delete (li/split-path recname) [id-pat-code])))
 
-(def ^:private special-form-handlers {:match compile-match-macro
-                                     :for-each compile-for-each-macro
-                                     :delete compile-delete-macro})
-(def ^:private special-form-names (set (keys special-form-handlers)))
+(def ^:private special-form-handlers
+  {:match compile-match-macro
+   :for-each compile-for-each-macro
+   :delete compile-delete-macro})
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic
@@ -278,19 +278,11 @@
     (h ctx (rest pat))
     (compile-user-macro ctx pat)))
 
-(defn- user-defined-macro? [k]
-  ;; TODO: implemenet lookup into registered user-macro names.
-  false)
-
-(defn- registered-macro? [k]
-  (or (some #{k} special-form-names)
-      (user-defined-macro? k)))
-
 (defn- compile-list-literal [ctx attr-name pat]
   (op/set-list-attribute [attr-name (map #(list (compile-pattern ctx %)) pat)]))
 
 (defn- compile-vector [ctx pat]
-  (if (registered-macro? (first pat))
+  (if (li/registered-macro? (first pat))
     (compile-special-form ctx pat)
     (compile-list-literal ctx nil pat)))
 
@@ -302,7 +294,7 @@
                (li/pathname? pat) compile-pathname
                (map? pat) compile-map
                (vector? pat) compile-vector
-               (i/literal? pat) compile-literal)]
+               (i/const-value? pat) compile-literal)]
     (let [code (c ctx pat)]
       {:opcode code})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
