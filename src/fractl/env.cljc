@@ -29,7 +29,8 @@
     (assoc env rec-name (conj insts instance))))
 
 (defn bind-instances [env rec-name instances]
-  (su/move-all instances env #(bind-instance %1 rec-name %2)))
+  (let [env (assoc env rec-name (list))]
+    (su/move-all instances env #(bind-instance %1 rec-name %2))))
 
 (def bind-instance-to-alias assoc)
 

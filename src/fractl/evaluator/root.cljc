@@ -198,8 +198,9 @@
                         (cn/make-instance (li/make-path record-name) %))
                      final-objs)
           env (env/bind-instances env record-name insts)
-          final-env (if alias (env/bind-instance-to-alias env alias (first insts)) env)]
-      [(if single? (first insts) insts) final-env])
+          bindable (if single? (first insts) insts)
+          final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]
+      [bindable final-env])
     [nil env]))
 
 (defn- pack-results [local-result resolver-results]
@@ -243,11 +244,15 @@
         (i/not-found record-name env)))
 
     (do-load-references [_ env [record-name refs]]
-      (let [inst (env/lookup-instance env record-name)]
-        (if-let [v (get-in (cn/instance-attributes inst) refs)]
-          (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
-                [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
-            (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
+      (if (seq refs)
+        (let [inst (env/lookup-instance env record-name)]
+          (if-let [v (get-in (cn/instance-attributes inst) refs)]
+            (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
+                  [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
+              (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
+            (i/not-found record-name env)))
+        (if-let [insts (env/get-instances env record-name)]
+          (i/ok insts env)
           (i/not-found record-name env))))
 
     (do-new-instance [_ env record-name]

@@ -69,3 +69,27 @@
     (doseq [r result]
       (is (cn/instance-of? :QueryAll/E r))
       (is (= (if (= 1 (:X r)) "e01" "e02") (:N r))))))
+
+(deftest alias-on-query-result
+  (defcomponent :QueryAlias
+    (entity {:QueryAlias/E {:X {:type :Kernel/Int
+                                :indexed true}
+                            :N :Kernel/String}})
+    (event {:QueryAlias/Evt {:X :Kernel/Int}})
+    (dataflow :QueryAlias/Evt
+              {:QueryAlias/E {:X? :QueryAlias/Evt.X} :as :R}
+              :R))
+  (let [es [(cn/make-instance :QueryAlias/E {:X 1 :N "e01"})
+            (cn/make-instance :QueryAlias/E {:X 2 :N "e02"})
+            (cn/make-instance :QueryAlias/E {:X 1 :N "e03"})]
+        evts (map #(cn/make-instance :QueryAlias/Upsert_E {:Instance %}) es)
+        es_result (doall (map (comp (comp ffirst tu/fresult)
+                                    #(eval-all-dataflows-for-event %))
+                              evts))
+        evt (cn/make-instance :QueryAlias/Evt {:X 1})
+        result (tu/fresult (eval-all-dataflows-for-event evt))]
+    (doseq [r result]
+      (is (cn/instance-of? :QueryAlias/E r))
+      (is (= 1 (:X r)))
+      (is (let [n (:N r)]
+            (some #{n} #{"e01" "e03"}))))))
