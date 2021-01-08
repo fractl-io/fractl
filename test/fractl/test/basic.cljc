@@ -396,11 +396,13 @@
     (is (= id r01))
     (is (= :not-found (:status (first r02))))))
 
-(defn- assert-le [obj xs y]
-  (is (cn/instance-of? :L/E obj))
-  (is (:Id obj))
-  (is (= xs (:Xs obj)))
-  (is (= y (:Y obj))))
+(defn- assert-le
+  ([n obj xs y]
+   (is (cn/instance-of? n obj))
+   (is (:Id obj))
+   (is (= xs (:Xs obj)))
+   (is (= y (:Y obj))))
+  ([obj xs y] (assert-le :L/E obj xs y)))
 
 (deftest listof
   (defcomponent :L
@@ -414,7 +416,9 @@
               {:L/E {:Xs [:L/MakeE1.X1 :L/MakeE1.X2] :Y :L/MakeE1.Y}})
     (event {:L/MakeE2 {:X :Kernel/Int :Y :Kernel/Int}})
     (dataflow :L/MakeE2
-              {:L/E {:Xs [(* 100 2) 780 :L/MakeE2.X] :Y :L/MakeE2.Y}}))
+              {:L/E {:Xs [(* 100 2) 780 :L/MakeE2.X] :Y :L/MakeE2.Y}})
+    (entity {:L/F {:Xs {:listof :Kernel/Any}
+                   :Y :Kernel/Int}}))
   (let [e (cn/make-instance :L/E {:Xs [1 2 3] :Y 100})
         evt (cn/make-instance :L/Upsert_E {:Instance e})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
@@ -433,4 +437,8 @@
     (assert-le result [10 20] 1))
   (let [evt (cn/make-instance :L/MakeE2 {:X 10 :Y 90})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-    (assert-le result [200 780 10] 90)))
+    (assert-le result [200 780 10] 90))
+  (let [e (cn/make-instance :L/F {:Xs [10 "hi"] :Y 1})
+        evt (cn/make-instance :L/Upsert_F {:Instance e})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (assert-le :L/F result [10 "hi"] 1)))
