@@ -45,7 +45,7 @@
 
 (defn- arg-lookup [arg]
   (cond
-    (i/literal? arg) arg
+    (i/const-value? arg) arg
 
     (seqable? arg)
     (expr-with-arg-lookups arg)
@@ -60,7 +60,7 @@
 
 (defn- expr-with-arg-lookups [expr]
   (cond
-    (i/literal? expr) expr
+    (i/const-value? expr) expr
     (seqable? expr)
     (let [final-args (map arg-lookup (rest expr))]
       `(~(first expr) ~@final-args))
@@ -71,13 +71,13 @@
 
 (defn- query-param-lookup [p]
   (let [r (arg-lookup p)]
-    (if (i/literal? r)
+    (if (i/const-value? r)
       r
       (expr-as-fn r))))
 
 (defn- query-param-process [[k v]]
   (cond
-    (i/literal? v) [k v]
+    (i/const-value? v) [k v]
     (seqable? v) (concat
                   [(first v)]
                   (concat [k] (map query-param-lookup (rest v))))
@@ -140,9 +140,16 @@
     (op/query-instances [rec-name q])
     (op/new-instance rec-name)))
 
-(defn- emit-build-entity-instance [rec-name attrs schema alias event?]
+(declare compile-list-literal)
+
+(defn- set-literal-attribute [ctx [aname valpat :as attr]]
+  (if (vector? valpat)
+    (compile-list-literal ctx aname valpat)
+    (op/set-literal-attribute attr)))
+
+(defn- emit-build-entity-instance [ctx rec-name attrs schema alias event?]
   (concat [(begin-build-instance rec-name attrs)]
-          (map #(op/set-literal-attribute %) (:computed attrs))
+          (map (partial set-literal-attribute ctx) (:computed attrs))
           (map (fn [[k v]]
                  ((k set-attr-opcode-fns) v))
                (:sorted attrs))
@@ -159,7 +166,7 @@
     (u/throw-ex (str "invalid attributes in pattern - " xs)))
   (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
-    (emit-build-entity-instance pat-name sorted-attrs schema alias event?)))
+    (emit-build-entity-instance ctx pat-name sorted-attrs schema alias event?)))
 
 (defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema alias]
   (emit-realize-instance ctx pat-name pat-attrs schema alias false))
@@ -258,15 +265,26 @@
   (let [id-pat-code (compile-pattern ctx id-pat)]
     (emit-delete (li/split-path recname) [id-pat-code])))
 
+(def ^:private special-form-handlers
+  {:match compile-match-macro
+   :for-each compile-for-each-macro
+   :delete compile-delete-macro})
+
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic
   conditional and iterative operations."
   [ctx pat]
-  (case (first pat)
-    :match (compile-match-macro ctx (rest pat))
-    :for-each (compile-for-each-macro ctx (rest pat))
-    :delete (compile-delete-macro ctx (rest pat))
+  (if-let [h ((first pat) special-form-handlers)]
+    (h ctx (rest pat))
     (compile-user-macro ctx pat)))
+
+(defn- compile-list-literal [ctx attr-name pat]
+  (op/set-list-attribute [attr-name (map #(list (compile-pattern ctx %)) pat)]))
+
+(defn- compile-vector [ctx pat]
+  (if (li/registered-macro? (first pat))
+    (compile-special-form ctx pat)
+    (compile-list-literal ctx nil pat)))
 
 (defn- compile-literal [_ pat]
   (emit-load-literal pat))
@@ -275,8 +293,8 @@
   (if-let [c (cond
                (li/pathname? pat) compile-pathname
                (map? pat) compile-map
-               (vector? pat) compile-special-form
-               (i/literal? pat) compile-literal)]
+               (vector? pat) compile-vector
+               (i/const-value? pat) compile-literal)]
     (let [code (c ctx pat)]
       {:opcode code})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))

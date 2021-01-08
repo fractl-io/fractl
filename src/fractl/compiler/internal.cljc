@@ -7,7 +7,7 @@
             [fractl.compiler.context :as ctx]
             [fractl.compiler.validation :as cv]))
 
-(defn literal? [x]
+(defn const-value? [x]
   (or (number? x) (string? x) (boolean? x)))
 
 (defn- var-in-context [ctx s]
@@ -17,7 +17,7 @@
 
 (defn- valid-attr-value [ctx k v schema]
   (cond
-    (literal? v)
+    (const-value? v)
     (cv/validate-attribute-value k v schema)
 
     (symbol? v)
@@ -36,7 +36,7 @@
              v (valid-attr-value ctx k av schema)
              tag (cond
                    (li/query-pattern? ak) :query
-                   (literal? v) :computed
+                   (or (const-value? v) (vector? v)) :computed
                    (li/name? v) :refs
                    (seqable? v) :compound
                    :else (u/throw-ex (str "not a valid attribute pattern - " a)))]

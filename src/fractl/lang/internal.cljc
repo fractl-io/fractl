@@ -38,12 +38,23 @@
 (def pathname? name?)
 (def parsed-path? coll?)
 
+(def ^:private special-form-names
+  #{:match :for-each :delete
+    :and :or := :< :<= :> :>=
+    :between :async :future-get
+    :resolver})
+
 (defn special-form? [x]
   (and (vector? x)
-       (some #{(first x)} #{:match :check :for-each
-                            :and :or := :< :<= :> :>=
-                            :between :async :future-get
-                            :resolver})))
+       (some #{(first x)} special-form-names)))
+
+(defn- user-defined-macro? [k]
+  ;; TODO: implemenet lookup into registered user-macro names.
+  false)
+
+(defn registered-macro? [k]
+  (or (some #{k} special-form-names)
+      (user-defined-macro? k)))
 
 (defn logical-opr? [x]
   (or (= x :and)
