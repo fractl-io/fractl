@@ -111,5 +111,5 @@
           "Remove an instance of the given type and id from the store and caches. The value of
            the id is resolved by evaluating id-pattern-code.")
          (match
-          [[match-pattern-code cases-code alternative-code]]
+          [[match-pattern-code cases-code alternative-code result-alias]]
           "Execute code for each part of conditional evaluation based on the :match construct.")]))

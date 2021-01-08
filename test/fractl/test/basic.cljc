@@ -378,6 +378,19 @@
   (conditional-event-02 (cn/make-instance :Cond/R {:X 200}) false?)
   (conditional-event-02 (cn/make-instance :Cond/R {:X 100}) true?))
 
+(deftest match-with-alias
+  (defcomponent :MA
+    (record {:MA/R {:X :Kernel/Int}})
+    (event {:MA/Evt {:I :Kernel/Int}})
+    (dataflow :MA/Evt
+              [:match :Cond/Evt.I
+               0 {:Cond/R {:X 100}}
+               1 {:Cond/R {:X 200}}
+               {:Cond/R {:X 300}} :as :K]
+              :K))
+  ;; TODO: run the dataflow
+  )
+
 (deftest delete-insts
   (defcomponent :Del
     (entity {:Del/E {:X :Kernel/Int}}))

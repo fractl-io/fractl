@@ -210,18 +210,28 @@
   (when (i/ok? r)
     (:result r)))
 
-(defn- eval-cases [evaluator env eval-opcode match-obj cases-code alternative-code]
-  (loop [cases-code cases-code, env env]
-    (if-let [[condition consequent] (first cases-code)]
-      (let [result (eval-opcode evaluator env condition)]
-        (if-let [r (ok-result result)]
-          (if (= r match-obj)
-            (eval-opcode evaluator (:env result) consequent)
-            (recur (rest cases-code) (:env result)))
-          result))
-      (if (first alternative-code)
-        (eval-opcode evaluator env alternative-code)
-        (i/ok false env)))))
+(defn- bind-result-to-alias [result-alias result]
+  (if result-alias
+    (let [env (:env result)
+          r (ffirst (:result result))
+          new-env (env/bind-instance-to-alias env result-alias r)]
+      (assoc result :env new-env))
+    result))
+
+(defn- eval-cases [evaluator env eval-opcode match-obj cases-code alternative-code result-alias]
+  (bind-result-to-alias
+   result-alias
+   (loop [cases-code cases-code, env env]
+     (if-let [[condition consequent] (first cases-code)]
+       (let [result (eval-opcode evaluator env condition)]
+         (if-let [r (ok-result result)]
+           (if (= r match-obj)
+             (eval-opcode evaluator (:env result) consequent)
+             (recur (rest cases-code) (:env result)))
+           result))
+       (if (first alternative-code)
+         (eval-opcode evaluator env alternative-code)
+         (i/ok false env))))))
 
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
@@ -309,10 +319,10 @@
                   (env/purge-instance env record-name id)))
           result)))
 
-    (do-match [self env [match-pattern-code cases-code alternative-code]]
+    (do-match [self env [match-pattern-code cases-code alternative-code result-alias]]
       (let [result (eval-opcode self env match-pattern-code)]
         (if-let [r (ok-result result)]
-          (eval-cases self (:env result) eval-opcode r cases-code alternative-code)
+          (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)
           result)))))
 
 (def ^:private default-evaluator (u/make-cell))

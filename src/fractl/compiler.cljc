@@ -20,8 +20,8 @@
   (when (cv/validate-references rec-name refs)
     (op/load-references [rec-name refs])))
 
-(defn- emit-match [match-pattern-code cases-code alternative-code]
-  (op/match [match-pattern-code cases-code alternative-code]))
+(defn- emit-match [match-pattern-code cases-code alternative-code alias]
+  (op/match [match-pattern-code cases-code alternative-code alias]))
 
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
@@ -238,14 +238,21 @@
   ;; TODO: implement the iteration macro.
   (u/throw-ex "for-each macro not implemented"))
 
+(defn- match-alias [pat]
+  (let [rpat (reverse pat)]
+    (if (= :as (second rpat))
+      [(vec (reverse (nthrest rpat 2))) (first rpat)]
+      [pat nil])))
+
 (defn- extract-match-clauses [pat]
-  (loop [pat pat, result []]
-    (if (seq pat)
-      (let [case-pat (first pat), conseq (first (rest pat))]
-        (if conseq
-          (recur (nthrest pat 2) (conj result [case-pat conseq]))
-          [result case-pat]))
-      [result nil])))
+  (let [[pat alias] (match-alias pat)]
+    (loop [pat pat, result []]
+      (if (seq pat)
+        (let [case-pat (first pat), conseq (first (rest pat))]
+          (if conseq
+            (recur (nthrest pat 2) (conj result [case-pat conseq]))
+            [result case-pat alias]))
+        [result nil alias]))))
 
 (defn- compile-match-cases [ctx cases]
   (loop [cases cases, cases-code []]
@@ -256,10 +263,12 @@
 
 (defn- compile-match-macro [ctx pat]
   (let [match-pat-code (compile-pattern ctx (first pat))
-        [cases alternative] (extract-match-clauses (rest pat))
+        [cases alternative alias] (extract-match-clauses (rest pat))
         cases-code (compile-match-cases ctx cases)
         alt-code (when alternative (compile-pattern ctx alternative))]
-    (emit-match [match-pat-code] cases-code [alt-code])))
+    (when alias
+      (ctx/add-alias! ctx alias alias))
+    (emit-match [match-pat-code] cases-code [alt-code] alias)))
 
 (defn- compile-delete-macro [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
