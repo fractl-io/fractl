@@ -198,8 +198,9 @@
                         (cn/make-instance (li/make-path record-name) %))
                      final-objs)
           env (env/bind-instances env record-name insts)
-          final-env (if alias (env/bind-instance-to-alias env alias (first insts)) env)]
-      [(if single? (first insts) insts) final-env])
+          bindable (if single? (first insts) insts)
+          final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]
+      [bindable final-env])
     [nil env]))
 
 (defn- pack-results [local-result resolver-results]
@@ -209,18 +210,28 @@
   (when (i/ok? r)
     (:result r)))
 
-(defn- eval-cases [evaluator env eval-opcode match-obj cases-code alternative-code]
-  (loop [cases-code cases-code, env env]
-    (if-let [[condition consequent] (first cases-code)]
-      (let [result (eval-opcode evaluator env condition)]
-        (if-let [r (ok-result result)]
-          (if (= r match-obj)
-            (eval-opcode evaluator (:env result) consequent)
-            (recur (rest cases-code) (:env result)))
-          result))
-      (if (first alternative-code)
-        (eval-opcode evaluator env alternative-code)
-        (i/ok false env)))))
+(defn- bind-result-to-alias [result-alias result]
+  (if result-alias
+    (let [env (:env result)
+          r (ffirst (:result result))
+          new-env (env/bind-instance-to-alias env result-alias r)]
+      (assoc result :env new-env))
+    result))
+
+(defn- eval-cases [evaluator env eval-opcode match-obj cases-code alternative-code result-alias]
+  (bind-result-to-alias
+   result-alias
+   (loop [cases-code cases-code, env env]
+     (if-let [[condition consequent] (first cases-code)]
+       (let [result (eval-opcode evaluator env condition)]
+         (if-let [r (ok-result result)]
+           (if (= r match-obj)
+             (eval-opcode evaluator (:env result) consequent)
+             (recur (rest cases-code) (:env result)))
+           result))
+       (if (first alternative-code)
+         (eval-opcode evaluator env alternative-code)
+         (i/ok false env))))))
 
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
@@ -237,17 +248,27 @@
     (do-load-literal [_ env x]
       (i/ok x env))
 
-    (do-load-instance [_ env record-name]
-      (if-let [inst (env/lookup-instance env record-name)]
+    (do-load-instance [_ env [record-name alias]]
+      (if-let [inst (if alias
+                      (env/lookup-by-alias env alias)
+                      (env/lookup-instance env record-name))]
         (i/ok inst env)
         (i/not-found record-name env)))
 
-    (do-load-references [_ env [record-name refs]]
-      (let [inst (env/lookup-instance env record-name)]
-        (if-let [v (get-in (cn/instance-attributes inst) refs)]
-          (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
-                [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
-            (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
+    (do-load-references [_ env [[record-name alias] refs]]
+      (if (seq refs)
+        (let [inst (if alias
+                     (env/lookup-by-alias env alias)
+                     (env/lookup-instance env record-name))]
+          (if-let [v (get-in (cn/instance-attributes inst) refs)]
+            (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
+                  [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
+              (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
+            (i/not-found record-name env)))
+        (if-let [insts (if alias
+                         (env/lookup-by-alias env alias)
+                         (env/get-instances env record-name))]
+          (i/ok insts env)
           (i/not-found record-name env))))
 
     (do-new-instance [_ env record-name]
@@ -304,10 +325,10 @@
                   (env/purge-instance env record-name id)))
           result)))
 
-    (do-match [self env [match-pattern-code cases-code alternative-code]]
+    (do-match [self env [match-pattern-code cases-code alternative-code result-alias]]
       (let [result (eval-opcode self env match-pattern-code)]
         (if-let [r (ok-result result)]
-          (eval-cases self (:env result) eval-opcode r cases-code alternative-code)
+          (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)
           result)))))
 
 (def ^:private default-evaluator (u/make-cell))

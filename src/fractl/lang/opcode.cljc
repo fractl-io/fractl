@@ -72,11 +72,11 @@
           "If the instance matches the pattern, update env with the instance. Return {:result true}.
            If there is no match, return {:result false}.")
          (load-instance
-          [record-name]
+          [[record-name alias]]
           "Load an instance from the environment. The resolver may extend the search to a database backend, then
           env must be updated with the loaded instance.")
          (load-references
-          [[record-name refs]]
+          [[[record-name alias] refs]]
           "Update env with referenced instances.")
          (load-literal
           [[obj]]
@@ -111,5 +111,5 @@
           "Remove an instance of the given type and id from the store and caches. The value of
            the id is resolved by evaluating id-pattern-code.")
          (match
-          [[match-pattern-code cases-code alternative-code]]
+          [[match-pattern-code cases-code alternative-code result-alias]]
           "Execute code for each part of conditional evaluation based on the :match construct.")]))

@@ -16,12 +16,12 @@
 (def ^:private emit-load-literal op/load-literal)
 (def ^:private emit-load-instance-by-name op/load-instance)
 
-(defn- emit-load-references [rec-name refs]
+(defn- emit-load-references [[rec-name alias :as n] refs]
   (when (cv/validate-references rec-name refs)
-    (op/load-references [rec-name refs])))
+    (op/load-references [n refs])))
 
-(defn- emit-match [match-pattern-code cases-code alternative-code]
-  (op/match [match-pattern-code cases-code alternative-code]))
+(defn- emit-match [match-pattern-code cases-code alternative-code alias]
+  (op/match [match-pattern-code cases-code alternative-code alias]))
 
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
@@ -35,7 +35,12 @@
   (let [parts (li/path-parts n)]
     (cond
       (:path parts)
-      `(get ~current-instance-var ~n)
+      `(if-let [r# (get ~current-instance-var ~n)]
+         r#
+         (let [r# (fractl.env/lookup-by-alias ~runtime-env-var ~(:path parts))]
+           (if-let [refs# '~(seq (:refs parts))]
+             (get-in r# refs#)
+             r#)))
 
       (seq (:refs parts))
       `(fractl.env/follow-reference ~runtime-env-var ~parts)
@@ -191,22 +196,26 @@
 
 (declare compile-pattern)
 
-(defn- compile-pathname [ctx pat]
-  (if (li/query-pattern? pat)
-    (compile-fetch-all-query ctx pat)
-    (let [{component :component record :record refs :refs
-           path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
-      (if path
-        (if-let [p (ctx/aliased-name ctx path)]
-          (compile-pathname ctx (assoc (li/path-parts p) :refs refs))
-          (compile-pathname ctx parts))
-        (let [n [component record]
-              opc (and (cv/find-schema n)
-                       (if refs
-                         (emit-load-references n refs)
-                         (emit-load-instance-by-name n)))]
-          (ctx/put-record! ctx n {})
-          opc)))))
+(defn- compile-pathname
+  ([ctx pat alias]
+   (if (li/query-pattern? pat)
+     (compile-fetch-all-query ctx pat)
+     (let [{component :component record :record refs :refs
+            path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
+       (if path
+         (if-let [p (ctx/aliased-name ctx path)]
+           (if (= p path)
+             (emit-load-instance-by-name [p p])
+             (compile-pathname ctx (assoc (li/path-parts p) :refs refs) path))
+           (compile-pathname ctx parts))
+         (let [n [component record]
+               opc (and (cv/find-schema n)
+                        (if refs
+                          (emit-load-references [n alias] refs)
+                          (emit-load-instance-by-name [n alias])))]
+           (ctx/put-record! ctx n {})
+           opc)))))
+  ([ctx pat] (compile-pathname ctx pat nil)))
 
 (defn- compile-map [ctx pat]
   (if (li/instance-pattern? pat)
@@ -238,14 +247,21 @@
   ;; TODO: implement the iteration macro.
   (u/throw-ex "for-each macro not implemented"))
 
+(defn- match-alias [pat]
+  (let [rpat (reverse pat)]
+    (if (= :as (second rpat))
+      [(vec (reverse (nthrest rpat 2))) (first rpat)]
+      [pat nil])))
+
 (defn- extract-match-clauses [pat]
-  (loop [pat pat, result []]
-    (if (seq pat)
-      (let [case-pat (first pat), conseq (first (rest pat))]
-        (if conseq
-          (recur (nthrest pat 2) (conj result [case-pat conseq]))
-          [result case-pat]))
-      [result nil])))
+  (let [[pat alias] (match-alias pat)]
+    (loop [pat pat, result []]
+      (if (seq pat)
+        (let [case-pat (first pat), conseq (first (rest pat))]
+          (if conseq
+            (recur (nthrest pat 2) (conj result [case-pat conseq]))
+            [result case-pat alias]))
+        [result nil alias]))))
 
 (defn- compile-match-cases [ctx cases]
   (loop [cases cases, cases-code []]
@@ -256,10 +272,12 @@
 
 (defn- compile-match-macro [ctx pat]
   (let [match-pat-code (compile-pattern ctx (first pat))
-        [cases alternative] (extract-match-clauses (rest pat))
+        [cases alternative alias] (extract-match-clauses (rest pat))
         cases-code (compile-match-cases ctx cases)
         alt-code (when alternative (compile-pattern ctx alternative))]
-    (emit-match [match-pat-code] cases-code [alt-code])))
+    (when alias
+      (ctx/add-alias! ctx alias alias))
+    (emit-match [match-pat-code] cases-code [alt-code] alias)))
 
 (defn- compile-delete-macro [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]

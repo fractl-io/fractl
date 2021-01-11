@@ -58,9 +58,9 @@
         p1e :CompileTest/E111
         p2 :CompileTest/Upsert_E1
         p2e :CompileTest/Upsert_E111]
-    (load-instance? (c p1) [:CompileTest :E1])
+    (load-instance? (c p1) [[:CompileTest :E1] nil])
     (tu/is-error #(c p1e))
-    (load-instance? (c p2) [:CompileTest :Upsert_E1])
+    (load-instance? (c p2) [[:CompileTest :Upsert_E1] nil])
     (tu/is-error #(c p2e))))
 
 (deftest compile-pattern-01
@@ -377,6 +377,44 @@
   (conditional-event-01 3 300)
   (conditional-event-02 (cn/make-instance :Cond/R {:X 200}) false?)
   (conditional-event-02 (cn/make-instance :Cond/R {:X 100}) true?))
+
+(deftest match-with-alias
+  (defcomponent :MA
+    (record {:MA/R {:X :Kernel/Int}})
+    (event {:MA/Evt {:I :Kernel/Int}})
+    (dataflow :MA/Evt
+              [:match :MA/Evt.I
+               0 {:MA/R {:X 100}}
+               1 {:MA/R {:X 200}}
+               {:MA/R {:X 300}} :as :K]
+              :K))
+  (let [evt (cn/make-instance :MA/Evt {:I 1})
+        r01 (tu/fresult (eval-all-dataflows-for-event evt))
+        evt (cn/make-instance :MA/Evt {:I 0})
+        r02 (tu/fresult (eval-all-dataflows-for-event evt))
+        evt (cn/make-instance :MA/Evt {:I 3})
+        r03 (tu/fresult (eval-all-dataflows-for-event evt))]
+    (is (cn/instance-of? :MA/R r01))
+    (is (= 200 (:X r01)))
+    (is (cn/instance-of? :MA/R r02))
+    (is (= 100 (:X r02)))
+    (is (cn/instance-of? :MA/R r03))
+    (is (= 300 (:X r03)))))
+
+(deftest alias-scope
+  (defcomponent :AScope
+    (entity {:AScope/E {:X :Kernel/Int}})
+    (record {:AScope/R {:A :Kernel/Int :B :Kernel/Int}})
+    (event {:AScope/Evt {:I :Kernel/Int}})
+    (dataflow :AScope/Evt
+              {:AScope/E {:X :AScope/Evt.I} :as :E1}
+              {:AScope/E {:X '(+ :E1.X 1)} :as :E2}
+              {:AScope/R {:A :E1.X :B :E2.X}}))
+  (let [evt (cn/make-instance :AScope/Evt {:I 10})
+        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+    (is (cn/instance-of? :AScope/R result))
+    (is (= 10 (:A result)))
+    (is (= 11 (:B result)))))
 
 (deftest delete-insts
   (defcomponent :Del
