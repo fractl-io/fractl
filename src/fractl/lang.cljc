@@ -2,8 +2,8 @@
   "The core constructs of the modeling language."
   (:require [clojure.set :as set]
             [fractl.util :as u]
-            [fractl.util.str :as stru]
             [fractl.lang.internal :as li]
+            [fractl.lang.kernel :as k]
             [fractl.component :as cn]
             [fractl.compiler :as c]))
 
@@ -102,6 +102,7 @@
       :check (li/validate fn? ":check is not a predicate" v)
       :unique (li/validate-bool :unique v)
       :immutable (li/validate-bool :immutable v)
+      :optional (li/validate-bool :optional v)
       :default (when-not (fn? v)
                  (when-let [predic (:check scm)]
                    (li/validate predic "invalid value for :default" v)))
@@ -209,6 +210,21 @@
       (assoc final-attrs :meta meta)
       final-attrs)))
 
+(defn- apply-attr-meta [attrs meta]
+  )
+
+(defn- record-name-from-schema [schema]
+  (first (filter #(not= :meta %) (keys schema))))
+
+(defn- parse-and-define [f schema]
+  (let [n (record-name-from-schema schema)
+        meta (:meta schema)
+        attrs (get schema n)
+        processed-attrs (if meta
+                          (apply-attr-meta attrs meta)
+                          attrs)]
+    (f n processed-attrs)))
+
 (defn record
   "Add a new record definition to the component."
   ([n attrs]
@@ -216,7 +232,7 @@
      (cn/intern-record
       cn (normalized-attributes cn attrs))))
   ([schema]
-   (record (first (keys schema)) (first (vals schema)))))
+   (parse-and-define record schema)))
 
 (defn- event-internal
   ([n attrs verify-name?]
@@ -234,7 +250,7 @@
   ([n attrs]
    (event-internal n attrs true))
   ([schema]
-   (event (first (keys schema)) (first (vals schema)))))
+   (parse-and-define event schema)))
 
 (defn- intern-inferred-event [nm]
   (event nm cn/inferred-event-schema))
@@ -360,8 +376,7 @@
      ;; Install dataflows for implicit events.
      (when dfexps (doall (map eval dfexps)))
      result))
-  ([schema]
-   (entity (first (keys schema)) (first (vals schema)))))
+  ([schema] (parse-and-define entity schema)))
 
 (defn- resolver-for-entity [component ename spec]
   (if (cn/find-entity-schema ename)
@@ -395,70 +410,16 @@
       (resolver-for-entity a b spec)
       (resolver-for-component target spec))))
 
-(defn kernel-string?
-  ([s rgex-s]
-   (re-matches (re-pattern rgex-s) s))
-  ([s] (string? s)))
-
-(def date-time? stru/parse-date-time)
-
-(defn UUID? [s]
-  (if (u/uuid-from-string s) true false))
-
 (def ^:private kernel-inited
   #?(:clj
      (ref false)
      :cljs
      (atom false)))
 
-(def ^:private kernel-bindings #{:String :DateTime :UUID
-                                 :Int :Int64 :Integer
-                                 :Float :Double :Decimal
-                                 :Boolean :Record :Entity :Event})
-
-(defn kernel-binding? [n]
-  (some #{n} kernel-bindings))
-
-(def any-obj? (constantly true))
-
-(defn kernel-decimal? [x]
-  #?(:clj
-     (and (bigdec x) true)
-     :cljs
-     (float? x)))
-
-(defn kernel-decimal [x]
-  #?(:clj
-     (bigdec x)
-     :cljs
-     (float x)))
-
-(def ^:private email-pattern
-  #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
-
-(defn email? [x]
-  (and (string? x)
-       (re-matches email-pattern x)))
-
 (defn- do-init-kernel []
   (cn/create-component :Kernel {})
-  (attribute :Kernel/String kernel-string?)
-  (attribute :Kernel/Keyword keyword?)
-  (attribute :Kernel/DateTime date-time?)
-  (attribute :Kernel/UUID UUID?)
-  (attribute :Kernel/Int int?)
-  (attribute :Kernel/Int64 integer?)
-  (attribute :Kernel/Integer integer?)
-  (attribute :Kernel/Float float?)
-  (attribute :Kernel/Double double?)
-  (attribute :Kernel/Decimal kernel-decimal?)
-  (attribute :Kernel/Boolean boolean?)
-  (attribute :Kernel/Record cn/record-instance?)
-  (attribute :Kernel/Entity cn/entity-instance?)
-  (attribute :Kernel/Event cn/event-instance?)
-  (attribute :Kernel/Any any-obj?)
-  (attribute :Kernel/Email email?)
-  (attribute :Kernel/Map map?)
+  (doseq [[type-name type-def] k/types]
+    (attribute type-name (k/type-predicate type-def)))
 
   (record :Kernel/DataflowResult
           {:Pattern :Kernel/Any
