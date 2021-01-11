@@ -201,29 +201,42 @@
 (defn- validated-canonical-type-name [n]
   (li/validate-name (cn/canonical-type-name n)))
 
+(defn- type-nilvalue [type-name attr-name]
+  (if-let [nv (k/type-nilvalue (get k/types type-name))]
+    nv
+    (u/throw-ex (str attr-name " cannot be optional, no default value defined"))))
+
+(defn- maybe-mark-optional [req-attr-names [aname adef]]
+  (let [new-def (cond
+                  (some #{aname} req-attr-names)
+                  (if (:optional adef)
+                    (u/throw-ex (str aname " cannot be marked required and optional at the same time"))
+                    adef)
+                  (:default adef) adef
+                  :else (assoc adef :default (type-nilvalue aname (:type adef))))]
+    [aname new-def]))
+
+(defn- mark-optional-attributes [attrs req-attr-names]
+  (let [marked-attrs (map (partial maybe-mark-optional req-attr-names) attrs)]
+    (into {} marked-attrs)))
+
+(defn- apply-attributes-meta [attrs meta]
+  (if-let [req-attr-names (:required-attributes meta)]
+    (mark-optional-attributes attrs req-attr-names)
+    attrs))
+
 (defn- normalized-attributes [recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
         attrs (dissoc orig-attrs :meta)
         newattrs (map (partial normalize-attr recname attrs f) attrs)
         final-attrs (into {} (validate-attributes newattrs))]
     (if-let [meta (:meta orig-attrs)]
-      (assoc final-attrs :meta meta)
+      (assoc (apply-attributes-meta final-attrs meta) :meta meta)
       final-attrs)))
 
-(defn- apply-attr-meta [attrs meta]
-  )
-
-(defn- record-name-from-schema [schema]
-  (first (filter #(not= :meta %) (keys schema))))
-
 (defn- parse-and-define [f schema]
-  (let [n (record-name-from-schema schema)
-        meta (:meta schema)
-        attrs (get schema n)
-        processed-attrs (if meta
-                          (apply-attr-meta attrs meta)
-                          attrs)]
-    (f n processed-attrs)))
+  (let [n (first (keys schema))]
+    (f n (get schema n))))
 
 (defn record
   "Add a new record definition to the component."
