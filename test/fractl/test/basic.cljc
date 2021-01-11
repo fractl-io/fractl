@@ -402,17 +402,17 @@
     (is (= 300 (:X r03)))))
 
 (deftest alias-scope
-  (defcomponent :AS
-    (entity {:AS/E {:X :Kernel/Int}})
-    (record {:AS/R {:A :Kernel/Int :B :Kernel/Int}})
-    (event {:AS/Evt {:I :Kernel/Int}})
-    (dataflow :AS/Evt
-              {:AS/E {:X :AS/Evt.I} :as :E1}
-              {:AS/E {:X '(+ :E1.X 1)} :as :E2}
-              {:AS/R {:A :E1.X :B :E2.X}}))
-  (let [evt (cn/make-instance :AS/Evt {:I 10})
+  (defcomponent :AScope
+    (entity {:AScope/E {:X :Kernel/Int}})
+    (record {:AScope/R {:A :Kernel/Int :B :Kernel/Int}})
+    (event {:AScope/Evt {:I :Kernel/Int}})
+    (dataflow :AScope/Evt
+              {:AScope/E {:X :AScope/Evt.I} :as :E1}
+              {:AScope/E {:X '(+ :E1.X 1)} :as :E2}
+              {:AScope/R {:A :E1.X :B :E2.X}}))
+  (let [evt (cn/make-instance :AScope/Evt {:I 10})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
-    (is (cn/instance-of? :AS/R result))
+    (is (cn/instance-of? :AScope/R result))
     (is (= 10 (:A result)))
     (is (= 11 (:B result)))))
 
