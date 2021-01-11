@@ -58,9 +58,9 @@
         p1e :CompileTest/E111
         p2 :CompileTest/Upsert_E1
         p2e :CompileTest/Upsert_E111]
-    (load-instance? (c p1) [:CompileTest :E1])
+    (load-instance? (c p1) [[:CompileTest :E1] nil])
     (tu/is-error #(c p1e))
-    (load-instance? (c p2) [:CompileTest :Upsert_E1])
+    (load-instance? (c p2) [[:CompileTest :Upsert_E1] nil])
     (tu/is-error #(c p2e))))
 
 (deftest compile-pattern-01
@@ -383,13 +383,23 @@
     (record {:MA/R {:X :Kernel/Int}})
     (event {:MA/Evt {:I :Kernel/Int}})
     (dataflow :MA/Evt
-              [:match :Cond/Evt.I
-               0 {:Cond/R {:X 100}}
-               1 {:Cond/R {:X 200}}
-               {:Cond/R {:X 300}} :as :K]
+              [:match :MA/Evt.I
+               0 {:MA/R {:X 100}}
+               1 {:MA/R {:X 200}}
+               {:MA/R {:X 300}} :as :K]
               :K))
-  ;; TODO: run the dataflow
-  )
+  (let [evt (cn/make-instance :MA/Evt {:I 1})
+        r01 (tu/fresult (eval-all-dataflows-for-event evt))
+        evt (cn/make-instance :MA/Evt {:I 0})
+        r02 (tu/fresult (eval-all-dataflows-for-event evt))
+        evt (cn/make-instance :MA/Evt {:I 3})
+        r03 (tu/fresult (eval-all-dataflows-for-event evt))]
+    (is (cn/instance-of? :MA/R r01))
+    (is (= 200 (:X r01)))
+    (is (cn/instance-of? :MA/R r02))
+    (is (= 100 (:X r02)))
+    (is (cn/instance-of? :MA/R r03))
+    (is (= 300 (:X r03)))))
 
 (deftest delete-insts
   (defcomponent :Del

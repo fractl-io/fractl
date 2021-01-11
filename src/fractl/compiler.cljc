@@ -16,9 +16,9 @@
 (def ^:private emit-load-literal op/load-literal)
 (def ^:private emit-load-instance-by-name op/load-instance)
 
-(defn- emit-load-references [rec-name refs]
+(defn- emit-load-references [[rec-name alias :as n] refs]
   (when (cv/validate-references rec-name refs)
-    (op/load-references [rec-name refs])))
+    (op/load-references [n refs])))
 
 (defn- emit-match [match-pattern-code cases-code alternative-code alias]
   (op/match [match-pattern-code cases-code alternative-code alias]))
@@ -191,22 +191,26 @@
 
 (declare compile-pattern)
 
-(defn- compile-pathname [ctx pat]
-  (if (li/query-pattern? pat)
-    (compile-fetch-all-query ctx pat)
-    (let [{component :component record :record refs :refs
-           path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
-      (if path
-        (if-let [p (ctx/aliased-name ctx path)]
-          (compile-pathname ctx (assoc (li/path-parts p) :refs refs))
-          (compile-pathname ctx parts))
-        (let [n [component record]
-              opc (and (cv/find-schema n)
-                       (if refs
-                         (emit-load-references n refs)
-                         (emit-load-instance-by-name n)))]
-          (ctx/put-record! ctx n {})
-          opc)))))
+(defn- compile-pathname
+  ([ctx pat alias]
+   (if (li/query-pattern? pat)
+     (compile-fetch-all-query ctx pat)
+     (let [{component :component record :record refs :refs
+            path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
+       (if path
+         (if-let [p (ctx/aliased-name ctx path)]
+           (if (= p path)
+             (emit-load-instance-by-name [p p])
+             (compile-pathname ctx (assoc (li/path-parts p) :refs refs) path))
+           (compile-pathname ctx parts))
+         (let [n [component record]
+               opc (and (cv/find-schema n)
+                        (if refs
+                          (emit-load-references [n alias] refs)
+                          (emit-load-instance-by-name [n alias])))]
+           (ctx/put-record! ctx n {})
+           opc)))))
+  ([ctx pat] (compile-pathname ctx pat nil)))
 
 (defn- compile-map [ctx pat]
   (if (li/instance-pattern? pat)

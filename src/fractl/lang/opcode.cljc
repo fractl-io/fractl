@@ -72,11 +72,11 @@
           "If the instance matches the pattern, update env with the instance. Return {:result true}.
            If there is no match, return {:result false}.")
          (load-instance
-          [record-name]
+          [[record-name alias]]
           "Load an instance from the environment. The resolver may extend the search to a database backend, then
           env must be updated with the loaded instance.")
          (load-references
-          [[record-name refs]]
+          [[[record-name alias] refs]]
           "Update env with referenced instances.")
          (load-literal
           [[obj]]

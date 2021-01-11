@@ -248,20 +248,26 @@
     (do-load-literal [_ env x]
       (i/ok x env))
 
-    (do-load-instance [_ env record-name]
-      (if-let [inst (env/lookup-instance env record-name)]
+    (do-load-instance [_ env [record-name alias]]
+      (if-let [inst (if alias
+                      (env/lookup-by-alias env alias)
+                      (env/lookup-instance env record-name))]
         (i/ok inst env)
         (i/not-found record-name env)))
 
-    (do-load-references [_ env [record-name refs]]
+    (do-load-references [_ env [[record-name alias] refs]]
       (if (seq refs)
-        (let [inst (env/lookup-instance env record-name)]
+        (let [inst (if alias
+                     (env/lookup-by-alias env alias)
+                     (env/lookup-instance env record-name))]
           (if-let [v (get-in (cn/instance-attributes inst) refs)]
             (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
                   [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
               (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
             (i/not-found record-name env)))
-        (if-let [insts (env/get-instances env record-name)]
+        (if-let [insts (if alias
+                         (env/lookup-by-alias env alias)
+                         (env/get-instances env record-name))]
           (i/ok insts env)
           (i/not-found record-name env))))
 
