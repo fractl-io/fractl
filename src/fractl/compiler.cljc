@@ -35,7 +35,12 @@
   (let [parts (li/path-parts n)]
     (cond
       (:path parts)
-      `(get ~current-instance-var ~n)
+      `(if-let [r# (get ~current-instance-var ~n)]
+         r#
+         (let [r# (fractl.env/lookup-by-alias ~runtime-env-var ~(:path parts))]
+           (if-let [refs# '~(seq (:refs parts))]
+             (get-in r# refs#)
+             r#)))
 
       (seq (:refs parts))
       `(fractl.env/follow-reference ~runtime-env-var ~parts)
