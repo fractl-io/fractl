@@ -59,6 +59,19 @@
                (rest refs) x))
       [obj env])))
 
+(defn instance-ref-path
+  "Returns a path to the record in the format of [record-name inst-id]
+   along with values of any refs"
+  [env record-name alias refs]
+  (let [inst (if alias
+               (lookup-by-alias env alias)
+               (lookup-instance env record-name))
+        inst-id (:Id inst)
+        path [record-name inst-id]]
+    (if (seq refs)
+      [path (get-in (cn/instance-attributes inst) refs)]
+      [path inst])))
+
 (defn lookup-instances-by-attributes [env rec-name query-attrs]
   (when-let [insts (seq (get-instances env rec-name))]
     (filter #(every? (fn [[k v]] (= v (get % k))) query-attrs) insts)))
