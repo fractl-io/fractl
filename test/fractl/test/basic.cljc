@@ -480,3 +480,13 @@
         evt (cn/make-instance :L/Upsert_F {:Instance e})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (assert-le :L/F result [10 "hi"] 1)))
+
+(deftest optional-attributes
+  (defcomponent :OptAttr
+    (entity {:OptAttr/E {:X :Kernel/Int
+                         :Y {:type :Kernel/Int
+                             :optional true}
+                         :S :Kernel/String}}))
+  ;; (let [e (cn/make-instance :OptAttr/E {:X 10 :S "hello"})]
+  ;;   (println "@@@@@@@@@@@@@@@@@@@@@@@" e)))
+  )

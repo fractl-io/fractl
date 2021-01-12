@@ -56,6 +56,11 @@
             (kt :Kernel/Email email? nil)
             (kt :Kernel/Map map? {})]))
 
+(def ^:private type-names (keys types))
+
+(defn kernel-type? [n]
+  (some #{n} type-names))
+
 (def type-predicate first)
 (def type-nilvalue second)
 
