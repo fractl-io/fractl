@@ -487,6 +487,6 @@
                          :Y {:type :Kernel/Int
                              :optional true}
                          :S :Kernel/String}}))
-  ;; (let [e (cn/make-instance :OptAttr/E {:X 10 :S "hello"})]
-  ;;   (println "@@@@@@@@@@@@@@@@@@@@@@@" e)))
-  )
+   (let [e (cn/make-instance :OptAttr/E {:X 10 :S "hello"})]
+     (is (cn/instance-of? :OptAttr/E e))
+     (is (= (:Y e) 0))))

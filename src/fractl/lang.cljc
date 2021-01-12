@@ -209,13 +209,37 @@
                    true))
                attrs)))
 
+(defn- infer-default [attr-name attr-def dict?]
+  (let [type-name (if dict? (:type attr-def) attr-def)
+        scm (cn/find-attribute-schema type-name)]
+    (if scm
+      (if-let [d (:default scm)]
+        (if dict?
+          (assoc attr-def :default d)
+          {:type type-name
+           :default d})
+        (u/throw-ex (str attr-name " - no default defined for " type-name)))
+      (u/throw-ex (str attr-name " - undefined type - " type-name)))))
+
+(defn- assoc-defaults [req-attrs [aname adef]]
+  (let [optional? (not (some #{aname} req-attrs))
+        dict? (map? adef)]
+    (when (and (not optional?) dict? (:optional adef))
+      (u/throw-ex (str aname " - cannot be marked :optional")))
+    [aname (if optional?
+             (if (and dict? (:default adef))
+               adef
+               (infer-default aname adef dict?))
+             adef)]))
+
 (defn- normalized-attributes [recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
         meta (:meta orig-attrs)
         req-attrs (or (:required-attributes meta)
                       (required-attribute-names orig-attrs))
         attrs (if meta (dissoc orig-attrs :meta) orig-attrs)
-        newattrs (map (partial normalize-attr recname attrs f) attrs)
+        attrs-with-defaults (into {} (map (partial assoc-defaults req-attrs) attrs))
+        newattrs (map (partial normalize-attr recname attrs f) attrs-with-defaults)
         final-attrs (into {} (validate-attributes newattrs))]
     (assoc final-attrs :meta (assoc meta :required-attributes req-attrs))))
 
@@ -417,7 +441,10 @@
 (defn- do-init-kernel []
   (cn/create-component :Kernel {})
   (doseq [[type-name type-def] k/types]
-    (attribute type-name (k/type-predicate type-def)))
+    (if-let [d (k/type-default-value type-def)]
+      (attribute type-name {:check (k/type-predicate type-def)
+                            :default d})
+      (attribute type-name (k/type-predicate type-def))))
 
   (record :Kernel/DataflowResult
           {:Pattern :Kernel/Any

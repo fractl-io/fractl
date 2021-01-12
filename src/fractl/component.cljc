@@ -418,9 +418,8 @@
     nil))
 
 (defn- merge-attr-schema [parent-scm child-scm]
-  (if-let [fmt (:format child-scm)]
-    (assoc parent-scm :format fmt)
-    parent-scm))
+  (let [scm (merge parent-scm child-scm)]
+    (dissoc scm :type)))
 
 (defn- valid-attrval [v]
   (when-not (nil? v) [true v]))

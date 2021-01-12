@@ -34,8 +34,8 @@
   (and (string? x)
        (re-matches email-pattern x)))
 
-(defn- kt [type-name predic nilvalue]
-  [type-name [predic nilvalue]])
+(defn- kt [type-name predic default-value]
+  [type-name [predic default-value]])
 
 (def types
   (into {} [(kt :Kernel/String kernel-string? "")
@@ -62,7 +62,7 @@
   (some #{n} type-names))
 
 (def type-predicate first)
-(def type-nilvalue second)
+(def type-default-value second)
 
 (def ^:private kernel-bindings #{:String :DateTime :UUID
                                  :Int :Int64 :Integer
