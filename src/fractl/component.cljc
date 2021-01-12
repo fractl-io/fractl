@@ -267,13 +267,6 @@
   (when (an-instance? x)
     x))
 
-(defn instance-user-attributes
-  "Returns only the user assigned attributes.
-   Excludes :Id in its return"
-  [inst]
-  (when (an-instance? inst)
-    (dissoc inst type-tag-key :Id :name :dirty)))
-
 (def set-attribute-value assoc)
 
 (def error? (partial instance-of? :error))
