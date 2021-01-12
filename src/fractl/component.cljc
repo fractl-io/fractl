@@ -117,12 +117,16 @@
     (get-in @components [component :alias alias-entry])
     (log/error (str "Component " component " is not present!"))))
 
+(defn- meta-key [path]
+  (conj path :-*-meta-*-))
+
 (defn- component-intern
   "Add or replace a component entry.
   `typname` must be in the format - :ComponentName/TypName
   Returns the name of the entry. If the component is non-existing, raise an exception."
   ([typname typdef typtag meta]
-   (let [[component n] (li/split-path typname)]
+   (let [[component n] (li/split-path typname)
+         k [component typtag n]]
      (when-not (component-exists? component)
        (util/throw-ex-info
         (str "component not found - " component)
@@ -130,7 +134,10 @@
          :tag typtag}))
      (util/safe-set
       components
-      (assoc-in @components [component typtag n] typdef))
+      (assoc-in (if meta
+                  (assoc-in @components (meta-key k) meta)
+                  @components)
+                k typdef))
      typname))
   ([typname typdef typtag]
    (component-intern typname typdef typtag nil)))
