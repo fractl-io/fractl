@@ -1,7 +1,6 @@
 (ns fractl.test.util
   (:require #?(:clj [clojure.test :refer [is]]
-               :cljs [cljs.test :refer-macros [is]])
-            [fractl.evaluator :as e]))
+               :cljs [cljs.test :refer-macros [is]])))
 
 (defn- report-expected-ex [ex]
   (println (str "Expected exception in test: "
@@ -24,5 +23,3 @@
 
 (defn fresult [r]
   (:result (first r)))
-
-(def make-df-eval e/evaluator)

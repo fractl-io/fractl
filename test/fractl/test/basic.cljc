@@ -10,14 +10,13 @@
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
+            [fractl.evaluator :as e]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
 (def store (store/open-default-store nil))
-
-(def eval-all-dataflows-for-event (tu/make-df-eval))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
@@ -121,8 +120,8 @@
              {:X :Kernel/Int
               :Y :Kernel/Int}}))
   (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
-        evt (cn/make-instance :Df01/Upsert_E {:Instance e})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        evt {:Df01/Upsert_E {:Instance e}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/same-instance? e result))))
 
 (deftest compile-create
@@ -137,7 +136,7 @@
                       :Y '(* :X 10)}})
   (let [r (cn/make-instance :Df02/R {:A 100})
         evt (cn/make-instance :Df02/PostE {:R r})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Df02/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
@@ -155,8 +154,8 @@
                       :Z '(+ :X :Y)
                       :Y '(* :X 10)}})
   (let [r (cn/make-instance :Df03/R {:A 100})
-        evt (cn/make-instance :Df03/PostE {:R r})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        evt {:Df03/PostE {:R r}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Df03/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:X result)))
@@ -175,12 +174,12 @@
                        :X 500}})
   (let [e (cn/make-instance :Df04/E1 {:A 100})
         evt (cn/make-instance :Df04/Upsert_E1 {:Instance e})
-        e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
+        e1 (ffirst (tu/fresult (e/eval-all-dataflows evt)))
         id (:Id e1)
         e2 (cn/make-instance :Df04/E2 {:AId id
                                        :X 20})
         evt (cn/make-instance :Df04/PostE2 {:E1 e1})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Df04/E2 result))
     (is (u/uuid-from-string (:Id result)))
     (is (= (:AId result) id))
@@ -197,12 +196,12 @@
     (entity {:CA/E {:A :Kernel/Int
                     :B {:expr '(* :A 10)}}}))
   (let [e (cn/make-instance :CA/E {:A 20})
-        evt (cn/make-instance :CA/Upsert_E {:Instance e})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        evt {:CA/Upsert_E {:Instance e}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (assert-ca-e! result)
     (let [id (:Id result)
-          evt (cn/make-instance :CA/Lookup_E {:Id id})
-          result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+          evt {:CA/Lookup_E {:Id id}}
+          result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
       (assert-ca-e! result))))
 
 (deftest compound-attributes-literal-arg
@@ -215,7 +214,7 @@
             {:Df04_1/E {:X :Df04_1/PostE.R.A}})
   (let [r (cn/make-instance :Df04_1/R {:A 100})
         evt (cn/make-instance :Df04_1/PostE {:R r})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Df04_1/E result))
     (is (= (:X result) 100))
     (is (= (:Y result) 1000))))
@@ -231,8 +230,8 @@
     (dataflow :Df05/Evt02
               {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
   (let [e1 (cn/make-instance :Df05/E1 {:A 100})
-        evt (cn/make-instance :Df05/Evt01 {:E1 e1})
-        result (tu/fresult (eval-all-dataflows-for-event evt))
+        evt {:Df05/Evt01 {:E1 e1}}
+        result (tu/fresult (e/eval-all-dataflows evt))
         inst (ffirst (tu/fresult (first result)))]
     (is (cn/instance-of? :Df05/E2 inst))
     (is (= (:B inst) 100))))
@@ -247,13 +246,13 @@
         e2 (cn/make-instance :RefCheck/E2 {:AId id :X 20})
         evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})]
     (tu/is-error
-     #(tu/fresult (eval-all-dataflows-for-event evt)))
+     #(tu/fresult (e/eval-all-dataflows evt)))
     (let [evt (cn/make-instance :RefCheck/Upsert_E1 {:Instance e})
-          e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
+          e1 (ffirst (tu/fresult (e/eval-all-dataflows evt)))
           id (:Id e1)
           e2 (cn/make-instance :RefCheck/E2 {:AId id :X 20})
           evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})
-          inst (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+          inst (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
       (is (cn/instance-of? :RefCheck/E2 inst))
       (is (= (:AId inst) id)))))
 
@@ -274,8 +273,8 @@
   ;(override-test-resolver :AWSS3Resolver :AWS/S3Bucket)
   (let [bucket "ftltestbucket11"
         region "us-east-1"
-        evt (cn/make-instance :AWS/CreateBucket {:Bucket bucket :Region region})
-        e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        evt {:AWS/CreateBucket {:Bucket bucket :Region region}}
+        e1 (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :AWS/S3Bucket e1))
     (is (= bucket (:Bucket e1)))
     (is (cn/instance-of? :AWS/CreateBucketConfig (:CreateBucketConfiguration e1)))
@@ -291,8 +290,8 @@
             {:RecordEnt/R {:A :RecordEnt/PostE.RA}}
             {:RecordEnt/E {:Q 100
                            :R :RecordEnt/R}})
-  (let [evt (cn/make-instance :RecordEnt/PostE {:RA 10})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+  (let [evt {:RecordEnt/PostE {:RA 10}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :RecordEnt/E result))
     (is (u/uuid-from-string (:Id result)))
     (is (= 100 (:Q result)))
@@ -306,8 +305,8 @@
                        :write-only true}}}))
   (let [x "this is a secret"
         e (cn/make-instance :H/E {:A 10 :X x})
-        evt (cn/make-instance :H/Upsert_E {:Instance e})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
+        evt {:H/Upsert_E {:Instance e}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))
         r2 (cn/dissoc-write-only result)]
     (is (cn/instance-of? :H/E result))
     (is (sh/hash-eq? (:X result) x))
@@ -327,7 +326,7 @@
               {:Alias/R {:F :G}}))
   (let [e (cn/make-instance :Alias/E {:X 100})
         evt (cn/make-instance :Alias/Evt {:Instance e})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Alias/R result))
     (is (cn/instance-of? :Alias/F (:F result)))
     (is (= 100 (get-in result [:F :Y])))))
@@ -343,21 +342,21 @@
               {:MultiAlias/E {:X :MultiAlias/Evt.EX1} :as :E1}
               {:MultiAlias/E {:X :MultiAlias/Evt.EX2} :as :E2}
               {:MultiAlias/F {:A :E1.X :B :E2.X}}))
-  (let [evt (cn/make-instance :MultiAlias/Evt {:EX1 100 :EX2 10})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+  (let [evt {:MultiAlias/Evt {:EX1 100 :EX2 10}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :MultiAlias/F result))
     (is (= 100 (:A result)))
     (is (= 10 (:B result)))))
 
 (defn- conditional-event-01 [i x]
-  (let [evt (cn/make-instance :Cond/Evt {:I i})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+  (let [evt {:Cond/Evt {:I i}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Cond/R result))
     (is (= x (:X result)))))
 
 (defn- conditional-event-02 [r predic]
-  (let [evt (cn/make-instance :Cond/EvtWithInst {:R r})
-        result (tu/fresult (eval-all-dataflows-for-event evt))]
+  (let [evt {:Cond/EvtWithInst {:R r}}
+        result (tu/fresult (e/eval-all-dataflows evt))]
     (is (predic result))))
 
 (deftest conditional
@@ -390,12 +389,9 @@
                1 {:MA/R {:X 200}}
                {:MA/R {:X 300}} :as :K]
               :K))
-  (let [evt (cn/make-instance :MA/Evt {:I 1})
-        r01 (tu/fresult (eval-all-dataflows-for-event evt))
-        evt (cn/make-instance :MA/Evt {:I 0})
-        r02 (tu/fresult (eval-all-dataflows-for-event evt))
-        evt (cn/make-instance :MA/Evt {:I 3})
-        r03 (tu/fresult (eval-all-dataflows-for-event evt))]
+  (let [r01 (tu/fresult (e/eval-all-dataflows {:MA/Evt {:I 1}}))
+        r02 (tu/fresult (e/eval-all-dataflows {:MA/Evt {:I 0}}))
+        r03 (tu/fresult (e/eval-all-dataflows {:MA/Evt {:I 3}}))]
     (is (cn/instance-of? :MA/R r01))
     (is (= 200 (:X r01)))
     (is (cn/instance-of? :MA/R r02))
@@ -412,8 +408,7 @@
               {:AScope/E {:X :AScope/Evt.I} :as :E1}
               {:AScope/E {:X '(+ :E1.X 1)} :as :E2}
               {:AScope/R {:A :E1.X :B :E2.X}}))
-  (let [evt (cn/make-instance :AScope/Evt {:I 10})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+  (let [result (ffirst (tu/fresult (e/eval-all-dataflows {:AScope/Evt {:I 10}})))]
     (is (cn/instance-of? :AScope/R result))
     (is (= 10 (:A result)))
     (is (= 11 (:B result)))))
@@ -422,15 +417,13 @@
   (defcomponent :Del
     (entity {:Del/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :Del/E {:X 100})
-        evt (cn/make-instance :Del/Upsert_E {:Instance e})
-        e01 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
+        e01 (ffirst (tu/fresult (e/eval-all-dataflows {:Del/Upsert_E {:Instance e}})))
         id (:Id e01)
         lookup-evt (cn/make-instance :Del/Lookup_E {:Id id})
-        e02 (ffirst (tu/fresult (eval-all-dataflows-for-event lookup-evt)))
-        del-evt (cn/make-instance :Del/Delete_E {:Id id})
-        del-result (eval-all-dataflows-for-event del-evt)
+        e02 (ffirst (tu/fresult (e/eval-all-dataflows lookup-evt)))
+        del-result (e/eval-all-dataflows {:Del/Delete_E {:Id id}})
         r01 (second (first (tu/fresult del-result)))
-        r02 (eval-all-dataflows-for-event lookup-evt)]
+        r02 (e/eval-all-dataflows lookup-evt)]
     (is (cn/instance-of? :Del/E e01))
     (is (cn/same-instance? e01 e02))
     (is (= id r01))
@@ -460,27 +453,27 @@
     (entity {:L/F {:Xs {:listof :Kernel/Any}
                    :Y :Kernel/Int}}))
   (let [e (cn/make-instance :L/E {:Xs [1 2 3] :Y 100})
-        evt (cn/make-instance :L/Upsert_E {:Instance e})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        evt {:L/Upsert_E {:Instance e}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (assert-le result [1 2 3] 100))
-  (let [evt (cn/make-instance :L/MakeE0 {:Xs [10 20 30 40] :Y 1})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+  (let [evt {:L/MakeE0 {:Xs [10 20 30 40] :Y 1}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (assert-le result [10 20 30 40] 1))
   (try
-    (let [evt (cn/make-instance :L/MakeE0 {:Xs [10 "hi"] :Y 1})
-          result (tu/fresult (eval-all-dataflows-for-event evt))]
+    (let [evt {:L/MakeE0 {:Xs [10 "hi"] :Y 1}}
+          result (tu/fresult (e/eval-all-dataflows evt))]
       (is false))
     (catch #?(:clj Exception :cljs :default) ex
       (is ex)))
-  (let [evt (cn/make-instance :L/MakeE1 {:X1 10 :X2 20 :Y 1})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+  (let [evt {:L/MakeE1 {:X1 10 :X2 20 :Y 1}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (assert-le result [10 20] 1))
-  (let [evt (cn/make-instance :L/MakeE2 {:X 10 :Y 90})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+  (let [evt {:L/MakeE2 {:X 10 :Y 90}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (assert-le result [200 780 10] 90))
   (let [e (cn/make-instance :L/F {:Xs [10 "hi"] :Y 1})
-        evt (cn/make-instance :L/Upsert_F {:Instance e})
-        result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        evt {:L/Upsert_F {:Instance e}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (assert-le :L/F result [10 "hi"] 1)))
 
 (deftest optional-attributes
