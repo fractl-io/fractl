@@ -24,9 +24,7 @@
               true)
           (catch (js/Error) _ false)))
       (connection-info [_]
-        (if @datasource
-           @datasource
-           {}))
+        (or @datasource {}))
       (create-schema [_ component-name]
         (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
