@@ -482,3 +482,26 @@
         evt (cn/make-instance :L/Upsert_F {:Instance e})
         result (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
     (assert-le :L/F result [10 "hi"] 1)))
+
+(deftest optional-attributes
+  (defcomponent :OptAttr
+    (entity {:OptAttr/E {:X :Kernel/Int
+                         :Y {:type :Kernel/Int
+                             :optional true}
+                         :S :Kernel/String}})
+    (entity {:OptAttr/F {:X :Kernel/Int
+                         :Y :Kernel/Int
+                         :S :Kernel/String
+                         :meta {:required-attributes [:X :S]}}}))
+  (let [e1 (cn/make-instance :OptAttr/E {:X 10 :S "hello"})
+        e2 (cn/make-instance :OptAttr/E {:X 1 :Y 2 :S "hi"})]
+    (is (cn/instance-of? :OptAttr/E e1))
+    (is (= [10 0 "hello"] [(:X e1) (:Y e1) (:S e1)]))
+    (is (cn/instance-of? :OptAttr/E e2))
+    (is (= [1 2 "hi"] [(:X e2) (:Y e2) (:S e2)])))
+  (let [f1 (cn/make-instance :OptAttr/F {:X 10 :S "hello"})
+        f2 (cn/make-instance :OptAttr/F {:X 1 :Y 2 :S "hi"})]
+    (is (cn/instance-of? :OptAttr/F f1))
+    (is (= [10 0 "hello"] [(:X f1) (:Y f1) (:S f1)]))
+    (is (cn/instance-of? :OptAttr/F f2))
+    (is (= [1 2 "hi"] [(:X f2) (:Y f2) (:S f2)]))))

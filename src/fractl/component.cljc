@@ -117,17 +117,30 @@
     (get-in @components [component :alias alias-entry])
     (log/error (str "Component " component " is not present!"))))
 
+(defn- meta-key [path]
+  (conj path :-*-meta-*-))
+
 (defn- component-intern
   "Add or replace a component entry.
   `typname` must be in the format - :ComponentName/TypName
   Returns the name of the entry. If the component is non-existing, raise an exception."
-  [typname typdef typtag]
-  (let [[component n] (li/split-path typname)]
-    (when-not (component-exists? component)
-      (util/throw-ex-info (str "component not found - " component) {:name typname
-                                                                    :tag typtag}))
-    (util/safe-set components (assoc-in @components [component typtag n] typdef))
-    typname))
+  ([typname typdef typtag meta]
+   (let [[component n] (li/split-path typname)
+         k [component typtag n]]
+     (when-not (component-exists? component)
+       (util/throw-ex-info
+        (str "component not found - " component)
+        {:name typname
+         :tag typtag}))
+     (util/safe-set
+      components
+      (assoc-in (if meta
+                  (assoc-in @components (meta-key k) meta)
+                  @components)
+                k typdef))
+     typname))
+  ([typname typdef typtag]
+   (component-intern typname typdef typtag nil)))
 
 (defn- component-find [path]
   (get-in @components path))
@@ -171,7 +184,9 @@
   The record name must be fully-qualified, as in - `:ComponentName/RecName`
   Returns the name of the record. If the component is non-existing, raise an exception."
   ([typetag recname recdef]
-   (component-intern recname (normalize-recdef recdef typetag) :records))
+   (let [meta (:meta recdef)
+         recdef (dissoc recdef :meta)]
+     (component-intern recname (normalize-recdef recdef typetag) :records meta)))
   ([recname recdef]
    (intern-record :record recname recdef)))
 
@@ -366,8 +381,8 @@
 (defn same-type? [inst1 inst2]
   (and (= (instance-type-tag inst1)
           (instance-type-tag inst2))
-       (= (instance-name inst1)
-          (instance-name inst2))))
+       (= (parsed-instance-name inst1)
+          (parsed-instance-name inst2))))
 
 (defn same-instance? [a b]
   (and (instance-eq? a b) (attributes-eq? a b)))
@@ -410,9 +425,8 @@
     nil))
 
 (defn- merge-attr-schema [parent-scm child-scm]
-  (if-let [fmt (:format child-scm)]
-    (assoc parent-scm :format fmt)
-    parent-scm))
+  (let [scm (merge parent-scm child-scm)]
+    (dissoc scm :type)))
 
 (defn- valid-attrval [v]
   (when-not (nil? v) [true v]))

@@ -2,8 +2,8 @@
   "The core constructs of the modeling language."
   (:require [clojure.set :as set]
             [fractl.util :as u]
-            [fractl.util.str :as stru]
             [fractl.lang.internal :as li]
+            [fractl.lang.kernel :as k]
             [fractl.component :as cn]
             [fractl.compiler :as c]))
 
@@ -102,6 +102,7 @@
       :check (li/validate fn? ":check is not a predicate" v)
       :unique (li/validate-bool :unique v)
       :immutable (li/validate-bool :immutable v)
+      :optional (li/validate-bool :optional v)
       :default (when-not (fn? v)
                  (when-let [predic (:check scm)]
                    (li/validate predic "invalid value for :default" v)))
@@ -200,14 +201,51 @@
 (defn- validated-canonical-type-name [n]
   (li/validate-name (cn/canonical-type-name n)))
 
+(defn- required-attribute-names [attrs]
+  (map first
+       (filter (fn [[_ v]]
+                 (if (map? v)
+                   (not (or (:optional v) (:default v)))
+                   true))
+               attrs)))
+
+(defn- infer-default [attr-name attr-def dict?]
+  (let [type-name (if dict? (:type attr-def) attr-def)
+        scm (cn/find-attribute-schema type-name)]
+    (if scm
+      (if-let [d (:default scm)]
+        (if dict?
+          (assoc attr-def :default d)
+          {:type type-name
+           :default d})
+        (u/throw-ex (str attr-name " - no default defined for " type-name)))
+      (u/throw-ex (str attr-name " - undefined type - " type-name)))))
+
+(defn- assoc-defaults [req-attrs [aname adef]]
+  (let [optional? (not (some #{aname} req-attrs))
+        dict? (map? adef)]
+    (when (and (not optional?) dict? (:optional adef))
+      (u/throw-ex (str aname " - cannot be marked :optional")))
+    [aname (if optional?
+             (if (and dict? (:default adef))
+               adef
+               (infer-default aname adef dict?))
+             adef)]))
+
 (defn- normalized-attributes [recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
-        attrs (dissoc orig-attrs :meta)
-        newattrs (map (partial normalize-attr recname attrs f) attrs)
+        meta (:meta orig-attrs)
+        req-attrs (or (:required-attributes meta)
+                      (required-attribute-names orig-attrs))
+        attrs (if meta (dissoc orig-attrs :meta) orig-attrs)
+        attrs-with-defaults (into {} (map (partial assoc-defaults req-attrs) attrs))
+        newattrs (map (partial normalize-attr recname attrs f) attrs-with-defaults)
         final-attrs (into {} (validate-attributes newattrs))]
-    (if-let [meta (:meta orig-attrs)]
-      (assoc final-attrs :meta meta)
-      final-attrs)))
+    (assoc final-attrs :meta (assoc meta :required-attributes req-attrs))))
+
+(defn- parse-and-define [f schema]
+  (let [n (first (keys schema))]
+    (f n (get schema n))))
 
 (defn record
   "Add a new record definition to the component."
@@ -216,7 +254,7 @@
      (cn/intern-record
       cn (normalized-attributes cn attrs))))
   ([schema]
-   (record (first (keys schema)) (first (vals schema)))))
+   (parse-and-define record schema)))
 
 (defn- event-internal
   ([n attrs verify-name?]
@@ -234,7 +272,7 @@
   ([n attrs]
    (event-internal n attrs true))
   ([schema]
-   (event (first (keys schema)) (first (vals schema)))))
+   (parse-and-define event schema)))
 
 (defn- intern-inferred-event [nm]
   (event nm cn/inferred-event-schema))
@@ -360,8 +398,7 @@
      ;; Install dataflows for implicit events.
      (when dfexps (doall (map eval dfexps)))
      result))
-  ([schema]
-   (entity (first (keys schema)) (first (vals schema)))))
+  ([schema] (parse-and-define entity schema)))
 
 (defn- resolver-for-entity [component ename spec]
   (if (cn/find-entity-schema ename)
@@ -395,70 +432,19 @@
       (resolver-for-entity a b spec)
       (resolver-for-component target spec))))
 
-(defn kernel-string?
-  ([s rgex-s]
-   (re-matches (re-pattern rgex-s) s))
-  ([s] (string? s)))
-
-(def date-time? stru/parse-date-time)
-
-(defn UUID? [s]
-  (if (u/uuid-from-string s) true false))
-
 (def ^:private kernel-inited
   #?(:clj
      (ref false)
      :cljs
      (atom false)))
 
-(def ^:private kernel-bindings #{:String :DateTime :UUID
-                                 :Int :Int64 :Integer
-                                 :Float :Double :Decimal
-                                 :Boolean :Record :Entity :Event})
-
-(defn kernel-binding? [n]
-  (some #{n} kernel-bindings))
-
-(def any-obj? (constantly true))
-
-(defn kernel-decimal? [x]
-  #?(:clj
-     (and (bigdec x) true)
-     :cljs
-     (float? x)))
-
-(defn kernel-decimal [x]
-  #?(:clj
-     (bigdec x)
-     :cljs
-     (float x)))
-
-(def ^:private email-pattern
-  #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
-
-(defn email? [x]
-  (and (string? x)
-       (re-matches email-pattern x)))
-
 (defn- do-init-kernel []
   (cn/create-component :Kernel {})
-  (attribute :Kernel/String kernel-string?)
-  (attribute :Kernel/Keyword keyword?)
-  (attribute :Kernel/DateTime date-time?)
-  (attribute :Kernel/UUID UUID?)
-  (attribute :Kernel/Int int?)
-  (attribute :Kernel/Int64 integer?)
-  (attribute :Kernel/Integer integer?)
-  (attribute :Kernel/Float float?)
-  (attribute :Kernel/Double double?)
-  (attribute :Kernel/Decimal kernel-decimal?)
-  (attribute :Kernel/Boolean boolean?)
-  (attribute :Kernel/Record cn/record-instance?)
-  (attribute :Kernel/Entity cn/entity-instance?)
-  (attribute :Kernel/Event cn/event-instance?)
-  (attribute :Kernel/Any any-obj?)
-  (attribute :Kernel/Email email?)
-  (attribute :Kernel/Map map?)
+  (doseq [[type-name type-def] k/types]
+    (if-let [d (k/type-default-value type-def)]
+      (attribute type-name {:check (k/type-predicate type-def)
+                            :default d})
+      (attribute type-name (k/type-predicate type-def))))
 
   (record :Kernel/DataflowResult
           {:Pattern :Kernel/Any

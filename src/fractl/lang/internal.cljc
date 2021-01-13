@@ -1,7 +1,7 @@
 (ns fractl.lang.internal
   (:require [clojure.string :as string]
-            [fractl.util :as util]
             [clojure.set :as set]
+            [fractl.util :as util]
             #?(:cljs
                [cljs.js :refer [eval empty-state js-eval]])))
 

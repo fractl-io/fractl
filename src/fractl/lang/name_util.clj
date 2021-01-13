@@ -3,11 +3,11 @@
   (:require [clojure.string :as string]
             [fractl.util.seq :as su]
             [fractl.component :as cn]
-            [fractl.lang :as ln]
+            [fractl.lang.kernel :as k]
             [fractl.lang.internal :as li]))
 
 (defn- infer-component-with-ns [n]
-  (if (ln/kernel-binding? n)
+  (if (k/kernel-binding? n)
     :Kernel
     (cn/get-current-component)))
 
