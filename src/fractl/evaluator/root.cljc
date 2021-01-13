@@ -45,18 +45,22 @@
   (let [path (on-inst cn/instance-name insts)]
     (rg/resolver-for-path path)))
 
-(defn- call-resolver-crud [f single? resolver composed? data]
+(defn- call-resolver-upsert [f resolver composed? data]
   (let [rs (if composed? resolver [resolver])
         insts (if (map? data) [data] data)]
     (doall (map (fn [r]
-                  (if single?
-                    (f r insts)
-                    (doall
-                     (map #(f r %) insts))))
+                  (doall
+                   (map #(merge % (:result (f r %))) insts)))
                 rs))))
 
-(def ^:private call-resolver-upsert (partial call-resolver-crud r/call-resolver-upsert false))
-(def ^:private call-resolver-delete (partial call-resolver-crud r/call-resolver-delete true))
+(defn- call-resolver-delete [f resolver composed? insts]
+  (let [rs (if composed? resolver [resolver])]
+    (doall (map (fn [r]
+                  (:result (f r insts)))
+                rs))))
+
+(def ^:private resolver-upsert (partial call-resolver-upsert r/call-resolver-upsert))
+(def ^:private resolver-delete (partial call-resolver-delete r/call-resolver-delete))
 
 (defn- call-resolver-eval [resolver composed? inst]
   (let [rs (if composed? resolver [resolver])]
@@ -79,27 +83,28 @@
                    (resolver-for-instance insts))
         composed? (rg/composed? resolver)
         crud? (or (not resolver) composed?)
-        local-result (if (and crud? store-f
-                              (or single-arg-path (need-storage? insts)))
-                       (store-f insts)
-                       insts)
         resolver-result (when resolver
-                          (resolver-f resolver composed? local-result))]
+                          (resolver-f resolver composed? insts))
+        resolved-insts (if resolver (first resolver-result) insts)
+        local-result (if (and crud? store-f
+                              (or single-arg-path (need-storage? resolved-insts)))
+                       (store-f resolved-insts)
+                       resolved-insts)]
     [local-result resolver-result]))
 
 (defn- chained-upsert [store record-name insts]
   (maybe-init-schema! store (first record-name))
   (chained-crud
    (when store (partial store/upsert-instances store record-name))
-   call-resolver-upsert nil insts))
+   resolver-upsert nil insts))
 
-(defn- delete-by-id [store record-name data]
-  [record-name (store/delete-by-id store record-name (second data))])
+(defn- delete-by-id [store record-name del-list]
+  [record-name (store/delete-by-id store record-name (second (first del-list)))])
 
 (defn- chained-delete [store record-name id]
   (chained-crud
    (when store (partial delete-by-id store record-name))
-   call-resolver-delete record-name [record-name id]))
+   resolver-delete record-name [[record-name id]]))
 
 (defn- bind-and-persist [env store x]
   (if (cn/an-instance? x)
@@ -256,20 +261,15 @@
         (i/not-found record-name env)))
 
     (do-load-references [_ env [[record-name alias] refs]]
-      (if (seq refs)
-        (let [inst (if alias
-                     (env/lookup-by-alias env alias)
-                     (env/lookup-instance env record-name))]
-          (if-let [v (get-in (cn/instance-attributes inst) refs)]
-            (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
-                  [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
-              (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
-            (i/not-found record-name env)))
-        (if-let [insts (if alias
-                         (env/lookup-by-alias env alias)
-                         (env/get-instances env record-name))]
-          (i/ok insts env)
-          (i/not-found record-name env))))
+      (if-let [[path v] (env/instance-ref-path env record-name alias refs)]
+        (if (cn/an-instance? v)
+          (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
+                [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
+            (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
+          (if (store/reactive? store)
+            (i/ok (store/get-reference store path refs) env)
+            (i/ok v env)))
+        (i/not-found record-name env)))
 
     (do-new-instance [_ env record-name]
       (let [env (env/push-obj env record-name)]

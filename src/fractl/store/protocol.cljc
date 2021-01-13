@@ -9,6 +9,8 @@
   (close-connection [store]
     "Close the active connection, return true on success, false if the connection
      cannot be closed.")
+  (connection-info [store]
+    "Return information about the current connection")
   (create-schema [store component-name]
     "Initialize the schema to store entity-instances defined
      in the component. On success, return component-name. If the schema
@@ -33,4 +35,7 @@
      On failure or if the query is not supported, raise an exception.")
   (compile-query [store query-pattern]
     "Compile the query from a dataflow pattern to a format understood by this
-     store implementation."))
+     store implementation.")
+  (get-reference [store path refs]
+    "Get reference to instances stored in the store. This is useful for
+     tracking instances in reactive store"))

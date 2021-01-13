@@ -65,8 +65,10 @@
     [cq (r/get-default-evaluator store (partial run-dataflows cq) dispatch-opcodes)]))
 
 (defn evaluator
+  ([store store-config]
+   (let [[compile-query-fn evaluator] (make store)]
+     (partial run-dataflows compile-query-fn evaluator)))
   ([store-config]
    (let [store (store/open-default-store store-config)]
-     (let [[compile-query-fn evaluator] (make store)]
-       (partial run-dataflows compile-query-fn evaluator))))
+     (evaluator store store-config)))
   ([] (evaluator nil)))

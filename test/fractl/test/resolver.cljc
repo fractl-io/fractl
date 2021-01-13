@@ -5,16 +5,19 @@
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.component :as cn]
+            [fractl.store :as store]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
+(def store (store/open-default-store nil))
+
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 
 (defn- test-resolver [install-resolver resolver-name path]
   (let [r (r/make-resolver resolver-name {:upsert identity
-                                          :delete (fn [x] {:deleted x})})]
+                                          :delete (fn [x] x)})]
     (install-resolver path r)))
 
 (def compose-test-resolver (partial test-resolver rg/compose-resolver))
@@ -47,18 +50,15 @@
         r (ffirst (second result))]
     (is (cn/instance-of? :R01/E e01))
     (is (persisted? :R01 e01))
-    (is (= :TestResolver01 (:resolver r)))
-    (is (= :upsert (:method r)))
-    (is (= e01 (:result r)))
+    (is (cn/instance-of? :R01/E r))
+    (is (= e01 r))
     (let [id (:Id e01)
           evt (cn/make-instance :R01/Delete_E {:Id id})
           result (tu/fresult (eval-all-dataflows-for-event evt))
           r01 (first result)
-          r02 (first (second result))]
+          r02 (ffirst (second result))]
       (is (= r01 [[:R01 :E] id]))
-      (is (= r02 {:resolver :TestResolver01
-                  :method :delete
-                  :result {:deleted [[:R01 :E] id]}})))))
+      (is (= r02 [[:R01 :E] id])))))
 
 (deftest r02
   (defcomponent :R02
@@ -71,9 +71,7 @@
         r (ffirst (second result))]
     (is (cn/instance-of? :R02/E e01))
     (is (not (persisted? :R02 e01)))
-    (is (= :TestResolver02 (:resolver r)))
-    (is (= :upsert (:method r)))
-    (is (= e01 (:result r)))))
+    (is (= e01 r))))
 
 (defn- test-query-resolver [install-resolver resolver-name path]
   (let [r (r/make-resolver resolver-name {:query (fn [arg]

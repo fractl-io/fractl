@@ -15,6 +15,8 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
+(def store (store/open-default-store nil))
+
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 
 (defn- install-test-component []
@@ -27,7 +29,7 @@
 (defn- init-test-context []
   (install-test-component)
   (let [ctx (c/make-context)
-        f (partial store/compile-query tu/store)]
+        f (partial store/compile-query store)]
     (ctx/bind-compile-query-fn! ctx f)
     ctx))
 
