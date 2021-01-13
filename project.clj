@@ -13,6 +13,7 @@
                  [cljs-http "0.1.46"]
                  [ring-cors "0.1.13"]
                  [net.cgrand/macrovich "0.2.1"]
+                 [reagent "1.0.0"]
                  [cljsjs/alasql "0.6.5-0"]
                  [cljc.java-time "0.1.11"]]
 
@@ -34,9 +35,10 @@
                    ;; setup target as a resource path
                    :resource-paths ["target" "resources" "node_modules"]
                    ;; set up an alias to invoke your figwheel build
-                   :aliases  {"fig"       ["trampoline" "run" "-m" "figwheel.main"]
+                   :aliases  {"figwheel"  ["trampoline" "run" "-m" "figwheel.main"]
                               "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
                               "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
                               "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "fractl.test-runner"]
-                              "fig:ci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.test-runner"]}
+                              "fig:ci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.test-runner"]
+                              "fig:rci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.reagent-test-runner"]}
                    :clean-targets  ^{:protect false} ["target" "out"]}})

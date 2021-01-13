@@ -23,6 +23,8 @@
                 nil)
               true)
           (catch (js/Error) _ false)))
+      (connection-info [_]
+        (or @datasource {}))
       (create-schema [_ component-name]
         (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
@@ -38,4 +40,5 @@
       (do-query [_ query params]
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]
-        (db/compile-to-indexed-query query-pattern)))))
+        (db/compile-to-indexed-query query-pattern))
+      (get-reference [_ path refs]))))

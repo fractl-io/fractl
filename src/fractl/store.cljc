@@ -1,6 +1,7 @@
 (ns fractl.store
   (:require #?(:clj [fractl.store.h2 :as h2]
-               :cljs [fractl.store.alasql :as alasq])
+               :cljs [fractl.store.alasql :as alasql])
+            #?(:cljs [fractl.store.reagent.core :as reagent])
             [fractl.store.protocol :as p]
             [fractl.util :as u]))
 
@@ -23,12 +24,20 @@
 (defn open-default-store
   ([store-config]
    #?(:clj (make-default-store store-config (h2/make))
-      :cljs (make-default-store store-config (alasq/make))))
-  ([] #?(:clj (make-default-store nil (h2/make))
-         :cljs (make-default-store nil (alasq/make)))))
+      :cljs (make-default-store store-config (alasql/make))))
+  ([]
+   (open-default-store nil)))
+
+(defn open-reagent-store
+  ([store-config]
+   #?(:clj (u/throw-ex (str "Reagent store not supported - " store-config))
+      :cljs (make-default-store (assoc store-config :reactive true) (reagent/make))))
+  ([]
+   (open-reagent-store nil)))
 
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)
+(def connection-info p/connection-info)
 (def create-schema p/create-schema)
 (def drop-schema p/drop-schema)
 (def upsert-instance p/upsert-instance)
@@ -37,6 +46,15 @@
 (def query-all p/query-all)
 (def do-query p/do-query)
 (def compile-query p/compile-query)
+(def get-reference p/get-reference)
+
+(defn reactive?
+  "Checks whether a given store supports reactive references"
+  [store]
+  (if-let [conn-info (connection-info store)]
+    (when (map? conn-info)
+      (get conn-info :reactive))
+    false))
 
 (defn upsert-instances [store record-name insts]
   (doseq [inst insts]

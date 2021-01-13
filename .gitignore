@@ -22,3 +22,5 @@ node_modules/
 cljs-out/
 out/
 .shadow-cljs/
+.clj-kondo/
+.lsp/

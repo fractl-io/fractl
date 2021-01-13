@@ -5,10 +5,13 @@
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.component :as cn]
+            [fractl.store :as store]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+
+(def store (store/open-default-store nil))
 
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 

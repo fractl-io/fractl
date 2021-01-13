@@ -1,7 +1,6 @@
 (ns fractl.test.util
   (:require #?(:clj [clojure.test :refer [is]]
                :cljs [cljs.test :refer-macros [is]])
-            [fractl.store :as store]
             [fractl.evaluator :as e]))
 
 (defn- report-expected-ex [ex]
@@ -25,7 +24,5 @@
 
 (defn fresult [r]
   (:result (first r)))
-
-(def store (store/open-default-store nil))
 
 (def make-df-eval e/evaluator)
