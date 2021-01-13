@@ -24,6 +24,8 @@ jobs:
       run: lein clean
     - name: Run cljs test
       run: lein fig:ci
+    - name: Run cljs reagent test
+      run: lein fig:rtest
     - name: Slack Notification
       if: ${{ success() }}
       uses: rtCamp/action-slack-notify@v2.1.0
