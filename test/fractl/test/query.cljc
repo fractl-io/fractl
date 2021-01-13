@@ -2,11 +2,14 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
+            [fractl.store :as store]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+
+(def store (store/open-default-store nil))
 
 (def eval-all-dataflows-for-event (tu/make-df-eval))
 
