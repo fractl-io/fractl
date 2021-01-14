@@ -511,15 +511,16 @@
               {:EdnAttr/Form
                {:Title :EdnAttr/RenderLoginForm.Title
                 :X :EdnAttr/RenderLoginForm.X
-                :View [:div [:p [:b :Title]]
-                       [:div
-                        [:label "Username: "]
-                        [:textinput [:size 100]]]
-                       [:div
-                        [:label "Password: "]
-                        [:password [:size 40]]]
-                       [:div
-                        [:submit [:text "Login"]]]]}}))
+                :View [:q#
+                       [:div [:p [:b [:uq# :EdnAttr/RenderLoginForm.Title]]]
+                        [:div
+                         [:label "Username: "]
+                         [:textinput [:size 100]]]
+                        [:div
+                         [:label "Password: "]
+                         [:password [:size 40]]]
+                        [:div
+                         [:submit [:text "Login"]]]]]}}))
   (let [result (ffirst
                 (tu/fresult
                  (e/eval-all-dataflows
@@ -527,5 +528,6 @@
                    {:Title "Login" :X 150}})))]
     (is (cn/instance-of? :EdnAttr/Form result))
     (is (= 160 (:Y result)))
-    ;; TODO: check :View with updated :Title
-    ))
+    (is (= [:div [:p [:b "Login"]]]
+           [(first (:View result))
+            (second (:View result))]))))

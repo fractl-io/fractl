@@ -14,7 +14,13 @@
   (if (u/uuid-from-string s) true false))
 
 (def any-obj? (constantly true))
-(def edn? any-obj?)
+
+(defn- edn? [x]
+  (or (vector? x) (map? x)
+      (symbol? x) (keyword? x)
+      (string? x) (number? x)
+      (boolean? x) (nil? x)
+      (list? x) (set? x)))
 
 (defn kernel-decimal? [x]
   #?(:clj
