@@ -617,7 +617,9 @@
        attrs
        (make-record-instance (type-tag-of record-name) record-name attrs))))
   ([record-name attributes]
-   (make-instance record-name attributes true)))
+   (make-instance record-name attributes true))
+  ([m]
+   (make-instance (first (keys m)) (first (vals m)))))
 
 (defn- make-X-instance
   "Make a new instance of the record, entity or event with the name `xname`.

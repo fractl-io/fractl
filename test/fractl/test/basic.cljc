@@ -498,3 +498,7 @@
     (is (= [10 0 "hello"] [(:X f1) (:Y f1) (:S f1)]))
     (is (cn/instance-of? :OptAttr/F f2))
     (is (= [1 2 "hi"] [(:X f2) (:Y f2) (:S f2)]))))
+
+(deftest edn-attribute
+  (defcomponent :EdnAttr
+    (entity :EdnAttr/Form {:Title :Kernel/Int :View :Kernel/Edn})))

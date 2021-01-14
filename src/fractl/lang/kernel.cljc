@@ -14,6 +14,7 @@
   (if (u/uuid-from-string s) true false))
 
 (def any-obj? (constantly true))
+(def edn? any-obj?)
 
 (defn kernel-decimal? [x]
   #?(:clj
@@ -54,7 +55,8 @@
             (kt :Kernel/Event cn/event-instance? nil)
             (kt :Kernel/Any any-obj? {})
             (kt :Kernel/Email email? nil)
-            (kt :Kernel/Map map? {})]))
+            (kt :Kernel/Map map? {})
+            (kt :Kernel/Edn edn? [])]))
 
 (def ^:private type-names (keys types))
 
