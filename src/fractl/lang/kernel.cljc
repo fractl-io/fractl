@@ -49,6 +49,7 @@
             (kt :Kernel/Keyword keyword? :undef)
             (kt :Kernel/DateTime date-time? dt/now)
             (kt :Kernel/UUID UUID? u/uuid-string)
+            (kt :Kernel/Password identity nil)
             (kt :Kernel/Int int? 0)
             (kt :Kernel/Int64 integer? 0)
             (kt :Kernel/Integer integer? 0)
