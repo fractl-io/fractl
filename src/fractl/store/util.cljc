@@ -44,7 +44,10 @@
     (into {} (map vector indexed-attrs tabnames))))
 
 (def create-table-prefix "CREATE TABLE IF NOT EXISTS")
-(def create-unique-index-prefix "CREATE UNIQUE INDEX IF NOT EXISTS")
+#?(:clj 
+   (def create-unique-index-prefix "CREATE UNIQUE INDEX IF NOT EXISTS")
+   :cljs
+   (def create-unique-index-prefix "CREATE UNIQUE INDEX"))
 #?(:clj
    (def create-index-prefix "CREATE INDEX IF NOT EXISTS")
    :cljs
