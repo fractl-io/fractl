@@ -3,6 +3,7 @@
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
             [fractl.store :as store]
+            [fractl.evaluator :as e]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
@@ -11,17 +12,13 @@
 
 (def store (store/open-default-store nil))
 
-(def eval-all-dataflows-for-event (tu/make-df-eval))
-
 (deftest q01
   (defcomponent :Q01
     (entity {:Q01/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :Q01/E {:X 10})
-        evt (cn/make-instance :Q01/Upsert_E {:Instance e})
-        e1 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))
+        e1 (ffirst (tu/fresult (e/eval-all-dataflows {:Q01/Upsert_E {:Instance e}})))
         id (:Id e1)
-        evt (cn/make-instance :Q01/Lookup_E {:Id id})
-        e2 (ffirst (tu/fresult (eval-all-dataflows-for-event evt)))]
+        e2 (ffirst (tu/fresult (e/eval-all-dataflows {:Q01/Lookup_E {:Id id}})))]
     (is (cn/instance-of? :Q01/E e2))
     (is (cn/same-instance? e1 e2))))
 
@@ -44,14 +41,12 @@
             (cn/make-instance :Q02/E {:X 12 :Y 6})
             (cn/make-instance :Q02/E {:X 9 :Y 3})]
         evts (map #(cn/make-instance :Q02/Upsert_E {:Instance %}) es)
-        f (comp ffirst #(:result (first (eval-all-dataflows-for-event %))))
+        f (comp ffirst #(:result (first (e/eval-all-dataflows %))))
         insts (map f evts)
         ids (map :Id insts)]
     (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
-    (let [evt01 (cn/make-instance :Q02/QE01 {:Y 100})
-          r01 (first (tu/fresult (eval-all-dataflows-for-event evt01)))
-          evt02 (cn/make-instance :Q02/QE02 {:X 10 :Y 100})
-          r02 (first (tu/fresult (eval-all-dataflows-for-event evt02)))]
+    (let [r01 (first (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}})))
+          r02 (first (tu/fresult (e/eval-all-dataflows {:Q02/QE02 {:X 10 :Y 100}})))]
       (is (= 2 (count r01)))
       (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r01))
       (is (= 2 (count r02)))
@@ -66,9 +61,8 @@
   (let [es [(cn/make-instance :QueryAll/E {:X 1 :N "e01"})
             (cn/make-instance :QueryAll/E {:X 2 :N "e02"})]
         evts (map #(cn/make-instance :QueryAll/Upsert_E {:Instance %}) es)
-        _ (doall (map tu/fresult (map #(eval-all-dataflows-for-event %) evts)))
-        evt (cn/make-instance :QueryAll/AllE {})
-        result (tu/fresult (eval-all-dataflows-for-event evt))]
+        _ (doall (map tu/fresult (map #(e/eval-all-dataflows %) evts)))
+        result (tu/fresult (e/eval-all-dataflows {:QueryAll/AllE {}}))]
     (doseq [r result]
       (is (cn/instance-of? :QueryAll/E r))
       (is (= (if (= 1 (:X r)) "e01" "e02") (:N r))))))
@@ -87,10 +81,9 @@
             (cn/make-instance :QueryAlias/E {:X 1 :N "e03"})]
         evts (map #(cn/make-instance :QueryAlias/Upsert_E {:Instance %}) es)
         es_result (doall (map (comp (comp ffirst tu/fresult)
-                                    #(eval-all-dataflows-for-event %))
+                                    #(e/eval-all-dataflows %))
                               evts))
-        evt (cn/make-instance :QueryAlias/Evt {:X 1})
-        result (tu/fresult (eval-all-dataflows-for-event evt))]
+        result (tu/fresult (e/eval-all-dataflows {:QueryAlias/Evt {:X 1}}))]
     (doseq [r result]
       (is (cn/instance-of? :QueryAlias/E r))
       (is (= 1 (:X r)))

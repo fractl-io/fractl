@@ -65,10 +65,24 @@
     [cq (r/get-default-evaluator store (partial run-dataflows cq) dispatch-opcodes)]))
 
 (defn evaluator
-  ([store store-config]
-   (let [[compile-query-fn evaluator] (make store)]
+  ([store-or-store-config]
+   (let [store (if (or (nil? store-or-store-config)
+                       (map? store-or-store-config))
+                 (store/open-default-store store-or-store-config)
+                 store-or-store-config)
+         [compile-query-fn evaluator] (make store)]
      (partial run-dataflows compile-query-fn evaluator)))
-  ([store-config]
-   (let [store (store/open-default-store store-config)]
-     (evaluator store store-config)))
   ([] (evaluator nil)))
+
+(defn- maybe-init-event [event-obj]
+  (if (cn/event-instance? event-obj)
+    event-obj
+    (let [event-name (first (keys event-obj))]
+      (cn/make-instance event-name (event-name event-obj)))))
+
+(defn eval-all-dataflows
+  ([event-obj store-or-store-config]
+     ((evaluator store-or-store-config)
+      (maybe-init-event event-obj)))
+  ([event-obj]
+   (eval-all-dataflows event-obj nil)))
