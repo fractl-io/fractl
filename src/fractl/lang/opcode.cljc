@@ -110,6 +110,9 @@
           [[record-name id-pattern-code]]
           "Remove an instance of the given type and id from the store and caches. The value of
            the id is resolved by evaluating id-pattern-code.")
+         (call-function
+          [fnobj]
+          "Call the function with the current environment and instance being inited as arguments. Return the result.")
          (match
           [[match-pattern-code cases-code alternative-code result-alias]]
           "Execute code for each part of conditional evaluation based on the :match construct.")]))
