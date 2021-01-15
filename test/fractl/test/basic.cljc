@@ -498,3 +498,36 @@
     (is (= [10 0 "hello"] [(:X f1) (:Y f1) (:S f1)]))
     (is (cn/instance-of? :OptAttr/F f2))
     (is (= [1 2 "hi"] [(:X f2) (:Y f2) (:S f2)]))))
+
+(deftest edn-attribute
+  (defcomponent :EdnAttr
+    (entity :EdnAttr/Form {:Title :Kernel/String
+                           :X :Kernel/Int
+                           :Y {:expr '(+ :X 10)}
+                           :View :Kernel/Edn})
+    (event :EdnAttr/RenderLoginForm {:Title :Kernel/String
+                                     :X :Kernel/Int})
+    (dataflow :EdnAttr/RenderLoginForm
+              {:EdnAttr/Form
+               {:Title :EdnAttr/RenderLoginForm.Title
+                :X :EdnAttr/RenderLoginForm.X
+                :View [:q#
+                       [:div [:p [:b [:uq# :EdnAttr/RenderLoginForm.Title]]]
+                        [:div
+                         [:label "Username: "]
+                         [:textinput [:size 100]]]
+                        [:div
+                         [:label "Password: "]
+                         [:password [:size 40]]]
+                        [:div
+                         [:submit [:text "Login"]]]]]}}))
+  (let [result (ffirst
+                (tu/fresult
+                 (e/eval-all-dataflows
+                  {:EdnAttr/RenderLoginForm
+                   {:Title "Login" :X 150}})))]
+    (is (cn/instance-of? :EdnAttr/Form result))
+    (is (= 160 (:Y result)))
+    (is (= [:div [:p [:b "Login"]]]
+           [(first (:View result))
+            (second (:View result))]))))

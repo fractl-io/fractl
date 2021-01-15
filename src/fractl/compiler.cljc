@@ -207,7 +207,9 @@
            (if (= p path)
              (emit-load-instance-by-name [p p])
              (compile-pathname ctx (assoc (li/path-parts p) :refs refs) path))
-           (compile-pathname ctx parts))
+           (if (= path pat)
+             (u/throw-ex (str "ambiguous reference - " pat))
+             (compile-pathname ctx parts)))
          (let [n [component record]
                opc (and (cv/find-schema n)
                         (if refs
@@ -283,6 +285,17 @@
   (let [id-pat-code (compile-pattern ctx id-pat)]
     (emit-delete (li/split-path recname) [id-pat-code])))
 
+(defn- compile-quoted-expression [ctx exp]
+  (if (and (vector? exp)
+           (= li/unquote-tag (first exp)))
+    (if (> (count exp) 2)
+      (u/throw-ex (str "cannot compile rest of unquoted expression - " exp))
+      (compile-pattern ctx (second exp)))
+    exp))
+
+(defn- compile-quoted-list [ctx pat]
+  (w/prewalk (partial compile-quoted-expression ctx) pat))
+
 (def ^:private special-form-handlers
   {:match compile-match-macro
    :for-each compile-for-each-macro
@@ -297,7 +310,13 @@
     (compile-user-macro ctx pat)))
 
 (defn- compile-list-literal [ctx attr-name pat]
-  (op/set-list-attribute [attr-name (map #(list (compile-pattern ctx %)) pat)]))
+  (let [quoted? (= (first pat) li/quote-tag)]
+    (op/set-list-attribute
+     [attr-name
+      (if quoted?
+        (compile-quoted-list ctx (rest pat))
+        (map #(list (compile-pattern ctx %)) pat))
+      quoted?])))
 
 (defn- compile-vector [ctx pat]
   (if (li/registered-macro? (first pat))

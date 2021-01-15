@@ -1,6 +1,7 @@
 (ns fractl.evaluator.root
   "The default evaluator implementation"
-  (:require [fractl.env :as env]
+  (:require [clojure.walk :as w]
+            [fractl.env :as env]
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.seq :as su]
@@ -238,6 +239,29 @@
          (eval-opcode evaluator env alternative-code)
          (i/ok false env))))))
 
+(defn- opcode-data? [x]
+  (if (vector? x)
+    (opcode-data? (first x))
+    (and (map? x) (:opcode x))))
+
+(defn- set-quoted-list [opcode-eval elements-opcode]
+  (first
+   (w/prewalk
+    #(if (opcode-data? %)
+       (let [result (opcode-eval %)]
+         (or (ok-result result)
+             (u/throw-ex result)))
+       %)
+    elements-opcode)))
+
+(defn- set-flat-list [opcode-eval elements-opcode]
+  (loop [results (map opcode-eval elements-opcode), final-list []]
+    (if-let [result (first results)]
+      (if-let [r (ok-result result)]
+        (recur (rest results) (conj final-list r))
+        result)
+      final-list)))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -285,13 +309,14 @@
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
 
-    (do-set-list-attribute [self env [attr-name elements-opcode]]
-      (loop [results (map (partial eval-opcode self env) elements-opcode), final-list []]
-        (if-let [result (first results)]
-          (if-let [r (ok-result result)]
-            (recur (rest results) (conj final-list r))
-            result)
-          (set-obj-attr env attr-name final-list))))
+    (do-set-list-attribute [self env [attr-name elements-opcode quoted?]]
+      (try
+        (let [opcode-eval (partial eval-opcode self env)
+              final-list ((if quoted? set-quoted-list set-flat-list)
+                          opcode-eval elements-opcode)]
+          (set-obj-attr env attr-name (vec final-list)))
+        (catch Exception e
+          (or (ex-data e) (i/error (.getMessage e))))))
 
     (do-set-ref-attribute [_ env [attr-name attr-ref]]
       (let [[obj env] (env/follow-reference env attr-ref)]

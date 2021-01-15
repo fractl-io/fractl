@@ -38,8 +38,12 @@
 (def pathname? name?)
 (def parsed-path? coll?)
 
+(def quote-tag :q#)
+(def unquote-tag :uq#)
+
 (def ^:private special-form-names
   #{:match :for-each :delete
+    quote-tag unquote-tag
     :and :or := :< :<= :> :>=
     :between :async :future-get
     :resolver})

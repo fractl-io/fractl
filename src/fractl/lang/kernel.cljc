@@ -15,6 +15,13 @@
 
 (def any-obj? (constantly true))
 
+(defn- edn? [x]
+  (or (vector? x) (map? x)
+      (symbol? x) (keyword? x)
+      (string? x) (number? x)
+      (boolean? x) (nil? x)
+      (list? x) (set? x)))
+
 (defn kernel-decimal? [x]
   #?(:clj
      (and (bigdec x) true)
@@ -54,7 +61,8 @@
             (kt :Kernel/Event cn/event-instance? nil)
             (kt :Kernel/Any any-obj? {})
             (kt :Kernel/Email email? nil)
-            (kt :Kernel/Map map? {})]))
+            (kt :Kernel/Map map? {})
+            (kt :Kernel/Edn edn? [])]))
 
 (def ^:private type-names (keys types))
 

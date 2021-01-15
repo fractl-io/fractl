@@ -28,12 +28,14 @@
 (def dummy-result i/dummy-result)
 
 (defn- dispatch-opcodes [evaluator env opcodes]
-  (loop [dc opcodes, result (dummy-result env)]
-    (if (ok? result)
-      (if-let [opcode (first dc)]
-        (recur (rest dc) (dispatch evaluator (:env result) opcode))
-        result)
-      result)))
+  (if (map? opcodes)
+    (dispatch evaluator env opcodes)
+    (loop [dc opcodes, result (dummy-result env)]
+      (if (ok? result)
+        (if-let [opcode (first dc)]
+          (recur (rest dc) (dispatch evaluator (:env result) opcode))
+          result)
+        result))))
 
 (defn eval-dataflow
   "Evaluate a compiled dataflow, triggered by event-instance, within the context
