@@ -74,3 +74,7 @@
       (recur (rest xs)
              (f target x))
       target)))
+
+(defn map-mirror [m]
+  (let [mm (map (fn [[k v]] [v k]) m)]
+    (into {} mm)))
