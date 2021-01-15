@@ -36,6 +36,13 @@
       (i/ok (if single? (first new-objs) new-objs) env))
     (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value]))))
 
+(defn- call-function [env f]
+  (if-let [xs (env/pop-obj env)]
+    (let [[env single? [n x]] xs
+          inst (if single? x (first x))]
+      (i/ok (f env inst) env))
+    (i/error "cannot call function, cannot find argument instance in stack")))
+
 (defn- on-inst [f xs]
   (f (if (map? xs) xs (first xs))))
 
@@ -349,6 +356,9 @@
             (i/ok (pack-results local-result resolver-results)
                   (env/purge-instance env record-name id)))
           result)))
+
+    (do-call-function [_ env fnobj]
+      (call-function env fnobj))
 
     (do-match [self env [match-pattern-code cases-code alternative-code result-alias]]
       (let [result (eval-opcode self env match-pattern-code)]

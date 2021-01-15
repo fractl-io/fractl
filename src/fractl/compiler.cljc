@@ -43,7 +43,7 @@
              r#)))
 
       (seq (:refs parts))
-      `(fractl.env/follow-reference ~runtime-env-var ~parts)
+      `(first (fractl.env/follow-reference ~runtime-env-var ~parts))
 
       :else
       `(fractl.env/lookup-instance ~runtime-env-var [(:component parts) (:record parts)]))))
@@ -326,12 +326,16 @@
 (defn- compile-literal [_ pat]
   (emit-load-literal pat))
 
+(defn- compile-fncall-expression [_ pat]
+  (op/call-function (compound-expr-as-fn pat)))
+
 (defn compile-pattern [ctx pat]
   (if-let [c (cond
                (li/pathname? pat) compile-pathname
                (map? pat) compile-map
                (vector? pat) compile-vector
-               (i/const-value? pat) compile-literal)]
+               (i/const-value? pat) compile-literal
+               (seqable? pat) compile-fncall-expression)]
     (let [code (c ctx pat)]
       {:opcode code})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))

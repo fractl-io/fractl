@@ -506,7 +506,8 @@
                            :Y {:expr '(+ :X 10)}
                            :View :Kernel/Edn})
     (event :EdnAttr/RenderLoginForm {:Title :Kernel/String
-                                     :X :Kernel/Int})
+                                     :X :Kernel/Int
+                                     :Y :Kernel/Int})
     (dataflow :EdnAttr/RenderLoginForm
               {:EdnAttr/Form
                {:Title :EdnAttr/RenderLoginForm.Title
@@ -515,7 +516,7 @@
                        [:div [:p [:b [:uq# :EdnAttr/RenderLoginForm.Title]]]
                         [:div
                          [:label "Username: "]
-                         [:textinput [:size 100]]]
+                         [:textinput [:size [:uq# '(* :EdnAttr/RenderLoginForm.Y 10)]]]]
                         [:div
                          [:label "Password: "]
                          [:password [:size 40]]]
@@ -525,9 +526,12 @@
                 (tu/fresult
                  (e/eval-all-dataflows
                   {:EdnAttr/RenderLoginForm
-                   {:Title "Login" :X 150}})))]
+                   {:Title "Login" :X 150 :Y 12}})))]
     (is (cn/instance-of? :EdnAttr/Form result))
     (is (= 160 (:Y result)))
     (is (= [:div [:p [:b "Login"]]]
            [(first (:View result))
-            (second (:View result))]))))
+            (second (:View result))]))
+    (is (= 120 (-> (nthrest (:View result) 2)
+                   first
+                   (nth 2) second second)))))
