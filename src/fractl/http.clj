@@ -87,7 +87,7 @@
 
 (defn- request-content-type [request]
   (s/lower-case
-   (get (:headers request) "Content-Type")))
+   (get-in request [:headers "content-type"])))
 
 (defn- find-data-format [request]
   (let [ct (request-content-type request)]
