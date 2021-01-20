@@ -535,3 +535,23 @@
     (is (= 120 (-> (nthrest (:View result) 2)
                    first
                    (nth 2) second second)))))
+
+(deftest hooks-resolver
+  (defcomponent :Hooks
+    (event {:Hooks/OnClickEvent {:Source :Kernel/UUID}})
+    (record {:Hooks/Position {:X :Kernel/Int :Y :Kernel/Int
+                              :W :Kernel/Int :H :Kernel/Int}})
+    (entity {:Hooks/Button {:Title :Kernel/String
+                            :Position :Hooks/Position
+                            :OnClick :Hooks/OnClickEvent}})
+    (event {:Hooks/AddButton {:Title :Kernel/String :Position :Hooks/Position}})
+    (dataflow :Hooks/AddButton
+              {:Hooks/Button {:Title :Hooks/AddButton.Title
+                              :Position :Hooks/AddButton.Position
+                              :OnClick {:Hooks/OnClickEvent {:Source :Id}}}}))
+  (let [pos (cn/make-instance {:Hooks/Position {:X 10 :Y 10 :W 100 :H 50}})
+        add-btn (cn/make-instance {:Hooks/AddButton {:Title "OK" :Position pos}})
+        result (e/eval-all-dataflows add-btn)]
+    ;; TODO: complete the tasks in project-TODO
+    ;; and implement the remaining tests
+    ))
