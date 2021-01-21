@@ -551,7 +551,9 @@
                               :OnClick {:Hooks/OnClickEvent {:Source :Id}}}}))
   (let [pos (cn/make-instance {:Hooks/Position {:X 10 :Y 10 :W 100 :H 50}})
         add-btn (cn/make-instance {:Hooks/AddButton {:Title "OK" :Position pos}})
-        result (e/eval-all-dataflows add-btn)]
+        result (ffirst (tu/fresult (e/eval-all-dataflows add-btn)))]
+    (is (cn/instance-of? :Hooks/Button result))
+    (is (cn/instance-of? :Hooks/OnClickEvent (:OnClick result)))
     ;; TODO: complete the tasks in project-TODO
     ;; and implement the remaining tests
     ))

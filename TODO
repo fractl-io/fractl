@@ -1,2 +1,1 @@
- * parse map literals as part of compound attributes, the generated function should call cn/make-instance.
  * a generic resolver that can handle events attached to specifc attributes.
