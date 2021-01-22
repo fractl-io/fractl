@@ -63,9 +63,26 @@
 
     :else arg))
 
+(defn- map-values-as-exprs [m]
+  (let [r (map (fn [[k v]]
+                 [k (arg-lookup v)])
+               m)]
+    (into {} r)))
+
+(defn- make-map-expr [expr]
+  (let [inst-pat? (li/instance-pattern? expr)
+        m (if inst-pat? (li/instance-pattern-attrs expr) expr)
+        m-with-exprs (map-values-as-exprs m)]
+    (if inst-pat?
+      `(fractl.component/make-instance
+        {~(li/instance-pattern-name expr)
+         ~m-with-exprs})
+      m-with-exprs)))
+
 (defn- expr-with-arg-lookups [expr]
   (cond
     (i/const-value? expr) expr
+    (map? expr) (make-map-expr expr)
     (seqable? expr)
     (let [final-args (map arg-lookup (rest expr))]
       `(~(first expr) ~@final-args))

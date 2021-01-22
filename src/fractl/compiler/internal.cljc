@@ -71,18 +71,30 @@
         (u/throw-ex (str "reference not in schema - " path)))
       (name-in-context ctx component rec refs))))
 
-(defn- valid-dependency [ctx schema v]
-  (cond
-    (and (li/name? v) (reach-name ctx schema v))
-    [v false]
+(defn- map->seqable [m]
+  (map second (if (li/instance-pattern? m)
+                (li/instance-pattern-attrs m)
+                m)))
 
-    (symbol? v)
-    (do (var-in-context ctx v)
-        nil)
+(defn- valid-dependency
+  ([ctx schema v vals-of-map?]
+   (cond
+     (and (li/name? v) (reach-name ctx schema v))
+     [v false]
 
-    (seqable? v)
-    [(seq (su/nonils (map first (map #(valid-dependency ctx schema %) (rest v)))))
-     true]))
+     (symbol? v)
+     (do (var-in-context ctx v)
+         nil)
+
+     (map? v)
+     (valid-dependency ctx schema (map->seqable v) true)
+
+     (seqable? v)
+     [(seq (su/nonils (map first (map #(valid-dependency ctx schema %)
+                                      (if vals-of-map? v (rest v))))))
+      true]))
+  ([ctx schema v]
+   (valid-dependency ctx schema v false)))
 
 (defn add-edges-with-cycle-check [graph k vs]
   (let [g (g/add-edges graph k vs)
