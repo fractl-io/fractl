@@ -1,0 +1,11 @@
+^{
+  ;; use an alternative landing page for the tests so that we don't
+  ;; launch the application
+  :open-url "http://[[server-hostname]]:[[server-port]]"
+
+  :watch-dirs ["src" "test"]
+  ;; :extra-main-files {:testing {:main fractl.test-runner}}
+  :log-syntax-error-style :concise
+  }
+
+{:main fractl.ui.core}
