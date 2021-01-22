@@ -322,8 +322,12 @@
               final-list ((if quoted? set-quoted-list set-flat-list)
                           opcode-eval elements-opcode)]
           (set-obj-attr env attr-name (vec final-list)))
-        (catch Exception e
-          (or (ex-data e) (i/error (.getMessage e))))))
+        #?(:clj
+           (catch Exception e
+             (or (ex-data e) (i/error (.getMessage e))))
+           :cljs
+           (catch js/Error e
+             (or (.-ex-data e) (i/error e))))))
 
     (do-set-ref-attribute [_ env [attr-name attr-ref]]
       (let [[obj env] (env/follow-reference env attr-ref)]
