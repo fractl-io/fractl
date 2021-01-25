@@ -536,24 +536,21 @@
                    first
                    (nth 2) second second)))))
 
-(deftest hooks-resolver
-  (defcomponent :Hooks
-    (event {:Hooks/OnClickEvent {:Source :Kernel/UUID}})
-    (record {:Hooks/Position {:X :Kernel/Int :Y :Kernel/Int
-                              :W :Kernel/Int :H :Kernel/Int}})
-    (entity {:Hooks/Button {:Title :Kernel/String
-                            :Position :Hooks/Position
-                            :OnClick :Hooks/OnClickEvent}})
-    (event {:Hooks/AddButton {:Title :Kernel/String :Position :Hooks/Position}})
-    (dataflow :Hooks/AddButton
-              {:Hooks/Button {:Title :Hooks/AddButton.Title
-                              :Position :Hooks/AddButton.Position
-                              :OnClick {:Hooks/OnClickEvent {:Source :Id}}}}))
-  (let [pos (cn/make-instance {:Hooks/Position {:X 10 :Y 10 :W 100 :H 50}})
-        add-btn (cn/make-instance {:Hooks/AddButton {:Title "OK" :Position pos}})
+(deftest patterns-in-attributes
+  (defcomponent :PA
+    (event {:PA/OnClickEvent {:Source :Kernel/UUID}})
+    (record {:PA/Position {:X :Kernel/Int :Y :Kernel/Int
+                           :W :Kernel/Int :H :Kernel/Int}})
+    (entity {:PA/Button {:Title :Kernel/String
+                         :Position :PA/Position
+                         :OnClick :PA/OnClickEvent}})
+    (event {:PA/AddButton {:Title :Kernel/String :Position :PA/Position}})
+    (dataflow :PA/AddButton
+              {:PA/Button {:Title :PA/AddButton.Title
+                           :Position :PA/AddButton.Position
+                           :OnClick {:PA/OnClickEvent {:Source :Id}}}}))
+  (let [pos (cn/make-instance {:PA/Position {:X 10 :Y 10 :W 100 :H 50}})
+        add-btn (cn/make-instance {:PA/AddButton {:Title "OK" :Position pos}})
         result (ffirst (tu/fresult (e/eval-all-dataflows add-btn)))]
-    (is (cn/instance-of? :Hooks/Button result))
-    (is (cn/instance-of? :Hooks/OnClickEvent (:OnClick result)))
-    ;; TODO: complete the tasks in project-TODO
-    ;; and implement the remaining tests
-    ))
+    (is (cn/instance-of? :PA/Button result))
+    (is (cn/instance-of? :PA/OnClickEvent (:OnClick result)))))
