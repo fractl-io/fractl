@@ -7,57 +7,60 @@
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rr]))
 
-(defn upsert [inst]
+(defn core-ui-upsert [inst]
   (rgdom/render
    [(:View inst)]
    (.getElementById js/document (:DOM_Target inst))))
 
-(defn make-ui-resolver [resolver-name]
-  (r/make-resolver resolver-name {:upsert upsert}))
+(def click-count (rg/atom 0))
 
-(f/component :FractlUI)
-(f/entity {:FractlUI/SimpleComponent
+(defn atom-input [v]
+  [:input {:type "text"
+           :value @v
+           :on-change #(reset! v (-> % .-target .-value))}])
+
+(def text-val (rg/atom "hi"))
+
+(defn input-component []
+  [:div
+   [:p "The value is now: " @text-val]
+   [:p "Change it here: " [atom-input text-val]]])
+
+(defn counter-component []
+  [:div
+   "The atom " [:code "click-count"] " has value: "
+   @click-count ". "
+   [:input {:type "button" :value "Click me!"
+            :on-click #(swap! click-count inc)}]])
+
+(f/component :BasicUI)
+
+(f/entity {:BasicUI/Greeting
            {:View :Kernel/Any
             :DOM_Target :Kernel/String}})
 
-(def ui-resolver (make-ui-resolver :UI-Resolver))
-(rr/override-resolver :FractlUI/SimpleComponent ui-resolver)
+(f/event {:BasicUI/ShowGreeting
+          {:Message :Kernel/String}})
 
-(defn install-component
-  ([target view]
-   (let [c (cn/make-instance {:FractlUI/SimpleComponent
-                              {:View view
-                               :DOM_Target target}})
-         evt (cn/make-instance {:FractlUI/Upsert_SimpleComponent
-                                {:Instance c}})]
-     (ffirst (:result (first (e/eval-all-dataflows evt))))))
-  ([view]
-   (install-component "app" view)))
+(f/dataflow :BasicUI/ShowGreeting
+            {:BasicUI/Greeting
+             {:View [:q# [:div [:p [:uq# :BasicUI/ShowGreeting.Message]]
+                          [:p [counter-component]]
+                          [:div [input-component]]]]
+              :DOM_Target "app"}})
 
-(defn greet []
-  (install-component (fn [] [:h2 "Hello Fractl World!"])))
+(defn- basic-ui-upsert [inst]
+  (core-ui-upsert
+   (assoc inst :View (fn [] (:View inst)))))
 
-(def click-count (rg/atom 0))
+(defn make-ui-resolver [resolver-name upsert]
+  (r/make-resolver resolver-name {:upsert upsert}))
 
-(defn counter []
-  (install-component
-   (fn [] [:div
-           "The atom " [:code "click-count"] " has value: "
-           @click-count ". "
-           [:input {:type "button" :value "Click me!"
-                    :on-click #(swap! click-count inc)}]])))
+(rr/override-resolver
+ :BasicUI/Greeting
+ (make-ui-resolver :BasicUI-Resolver basic-ui-upsert))
 
-(defn atom-input [val]
-  [:input {:type "text"
-           :value @val
-           :on-change #(do (println @val %) (reset! val (-> % .-target .-value)))}])
-
-(defn state-demo []
-  (let [val (rg/atom "hi")]
-    (install-component
-     (fn [] [:div
-             [:p "The value is now: " @val]
-             [:p "Change it here: " [atom-input val]]]))))
-
-;;(counter)
-(state-demo)
+(let [evt (cn/make-instance {:BasicUI/ShowGreeting
+                             {:Message "hello, world"}})
+      result (e/eval-all-dataflows evt)]
+  (println result))

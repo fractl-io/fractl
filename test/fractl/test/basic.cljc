@@ -1,5 +1,4 @@
 (ns fractl.test.basic
-  "A basic cljs test."
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.util :as u]
