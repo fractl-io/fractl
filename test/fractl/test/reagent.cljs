@@ -11,7 +11,7 @@
 
 (def store (store/open-reagent-store nil))
 
-(def eval-all-dataflows-for-event (e/evaluator store nil))
+(def eval-all-dataflows-for-event (e/evaluator store))
 
 (defn- test-resolver [install-resolver resolver-name path]
   (let [r (r/make-resolver resolver-name {:upsert identity

@@ -1,7 +1,8 @@
 (ns fractl.lang.kernel
   (:require [fractl.util :as u]
             [fractl.lang.datetime :as dt]
-            [fractl.component :as cn]))
+            [fractl.component :as cn]
+            #?(:cljs [reagent.core :as r])))
 
 (defn kernel-string?
   ([s rgex-s]
@@ -44,6 +45,18 @@
 (defn- kt [type-name predic default-value]
   [type-name [predic default-value]])
 
+(defn- cell? [x]
+  #?(:clj
+     (= (type x) clojure.lang.Atom)
+     :cljs
+     (= (type x) reagent.ratom/RAtom)))
+
+(defn cell [v]
+  #?(:clj
+     (atom v)
+     :cljs
+     (r/atom v)))
+
 (def types
   (into {} [(kt :Kernel/String kernel-string? "")
             (kt :Kernel/Keyword keyword? :undef)
@@ -62,7 +75,8 @@
             (kt :Kernel/Any any-obj? {})
             (kt :Kernel/Email email? nil)
             (kt :Kernel/Map map? {})
-            (kt :Kernel/Edn edn? [])]))
+            (kt :Kernel/Edn edn? [])
+            (kt :Kernel/Cell cell? (cell nil))]))
 
 (def ^:private type-names (keys types))
 

@@ -1,5 +1,6 @@
 (ns fractl.ui.core
-  (:require [reagent.core :as rg]
+  (:require [clojure.walk :as w]
+            [reagent.core :as rg]
             [reagent.dom :as rgdom]
             [fractl.lang :as f]
             [fractl.component :as cn]
@@ -39,19 +40,41 @@
            {:View :Kernel/Any
             :DOM_Target :Kernel/String}})
 
+(f/entity {:BasicUI/Counter
+           {:ClickCount {:type :Kernel/Cell
+                         :default (f/cell 0)}
+            :View {:expr '(identity
+                           [:div
+                            "The atom " [:code "click-count"] " has value: "
+                            (:deref :ClickCount) ". "
+                            [:input {:type "button" :value "Click me!"
+                                     :on-click #(:swap! :ClickCount :inc)}]])}}})
+
 (f/event {:BasicUI/ShowGreeting
           {:Message :Kernel/String}})
 
 (f/dataflow :BasicUI/ShowGreeting
+            {:BasicUI/Counter {}}
             {:BasicUI/Greeting
              {:View [:q# [:div [:p [:uq# :BasicUI/ShowGreeting.Message]]
-                          [:p [counter-component]]
+                          ;;[:div [:uq# :BasicUI/Counter]]
+                          [:div [counter-component]]
                           [:div [input-component]]]]
               :DOM_Target "app"}})
 
+(defn- embedded-views-as-fns [view-spec]
+  (w/prewalk (fn [x]
+               (cond
+                 (cn/entity-instance? x)
+                 (:View x)
+                 (and (seqable? x) (= :deref (first x)))
+                 `(deref ~(second x))
+                 :else x))
+             view-spec))
+
 (defn- basic-ui-upsert [inst]
   (core-ui-upsert
-   (assoc inst :View (fn [] (:View inst)))))
+   (assoc inst :View (fn [] (embedded-views-as-fns (:View inst))))))
 
 (defn make-ui-resolver [resolver-name upsert]
   (r/make-resolver resolver-name {:upsert upsert}))
