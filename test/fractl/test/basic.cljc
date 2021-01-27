@@ -623,27 +623,35 @@
                        [:button [:title :ButtonTitle]
                         :on-click :HandlerEvent]]]}}})
     (entity {:EdnUI/LoginForm
-             {:UserLogin {:ref :EdnUI/UserLogin.Id}
+             {:UserLogin {:type :EdnUI/UserLogin
+                          :optional true}
               :Title {:type :Kernel/String
                       :default "Login"}
+              :DOM_Target :Kernel/String
               :View {:type :Kernel/Edn
                      :default
                      [:div
                       [:h2 :Title]
-                      [:div :EdnUI/UserLogin]]}}})
+                      [:div :UserLogin.View]]}}})
+
+    (event {:EdnUI/LoginEvent
+            {:Data :Kernel/Any}})
 
     (dataflow :EdnUI/MakeLoginForm
               {:EdnUI/UserLogin
                {:UserNameLabel :EdnUI/MakeLoginForm.UserNameLabel
                 :PasswordLabel :EdnUI/MakeLoginForm.PasswordLabel
-                :ButtonTitle :EdnUI/MakeLoginForm.ButtonTitle}}
+                :ButtonTitle :EdnUI/MakeLoginForm.ButtonTitle
+                :HandlerEvent :EdnUI/MakeLoginForm.HandlerEvent}}
               {:EdnUI/LoginForm
                {:Title :EdnUI/MakeLoginForm.FormTitle
-                :UserLogin :EdnUI/UserLogin.Id}})
+                :DOM_Target "app"
+                :UserLogin :EdnUI/UserLogin}})
     (let [evt (cn/make-instance {:EdnUI/MakeLoginForm
                                  {:FormTitle "Login to the V8 Platform"
                                   :UserNameLabel "Your V8 userId or email: "
                                   :PasswordLabel "Password: "
-                                  :ButtonTitle "Login"}})
+                                  :ButtonTitle "Login"
+                                  :HandlerEvent :EdnUI/LoginEvent}})
           result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
       (is (cn/instance-of? :EdnUI/LoginForm result)))))

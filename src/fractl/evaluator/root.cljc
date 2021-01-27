@@ -1,6 +1,7 @@
 (ns fractl.evaluator.root
   "The default evaluator implementation"
   (:require [clojure.walk :as w]
+            [clojure.set :as set]
             [fractl.env :as env]
             [fractl.component :as cn]
             [fractl.util :as u]
@@ -198,6 +199,48 @@
                        (find-instances-in-store env store entity-name full-query))]
     [result (env/bind-instances env entity-name result)]))
 
+(defn- lookup-name [env inst path]
+  (let [{c :component r :record refs :refs p :path} (li/path-parts path)]
+    (cond
+      (= p path)
+      (path inst)
+
+      (seq refs)
+      (if p
+        (get-in (p inst) refs)
+        (let [[_ v] (env/instance-ref-path env [c r] nil refs)]
+          v))
+
+      :else (env/lookup-instance env [c r]))))
+
+(defn- rewrite-names [env inst obj]
+  (w/postwalk #(if (li/name? %)
+                 (lookup-name env inst %)
+                 %)
+              obj))
+
+(defn- rewrite-default-attribute-value [env inst attrname]
+  (let [v (attrname inst)]
+    (cond
+      (li/name? v) (lookup-name env inst v)
+      (or (vector? v) (map? v)) (rewrite-names env inst v)
+      :else v)))
+
+(defn- process-default-attributes [env computed-attr-names inst]
+  (if-let [attrs-with-defaults
+           (seq
+            (set/difference
+             (set (keys (cn/instance-attributes (dissoc inst :Id))))
+             computed-attr-names))]
+    (loop [attrnames attrs-with-defaults, final-inst inst]
+      (if-let [attrname (first attrnames)]
+        (recur (rest attrnames)
+               (assoc final-inst attrname
+                      (rewrite-default-attribute-value
+                       env inst attrname)))
+        (into {} final-inst)))
+    inst))
+
 (defn- pop-and-intern-instance
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
@@ -206,10 +249,14 @@
     (let [[env single? [_ x]] xs
           objs (if single? [x] x)
           final-objs (map #(assoc-computed-attributes env record-name %) objs)
-          insts (map #(if (cn/an-instance? %)
-                        %
-                        (cn/make-instance (li/make-path record-name) %))
-                     final-objs)
+          base-insts (map #(if (cn/an-instance? %)
+                             %
+                             (cn/make-instance (li/make-path record-name) %))
+                          final-objs)
+          insts (map (partial
+                      process-default-attributes
+                      env (set (keys (first final-objs))))
+                     base-insts)
           env (env/bind-instances env record-name insts)
           bindable (if single? (first insts) insts)
           final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]
