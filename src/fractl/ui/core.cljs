@@ -46,9 +46,9 @@
             :View {:expr '(identity
                            [:div
                             "The atom " [:code "click-count"] " has value: "
-                            (:deref :ClickCount) ". "
+                            (deref :ClickCount) ". "
                             [:input {:type "button" :value "Click me!"
-                                     :on-click #(:swap! :ClickCount :inc)}]])}}})
+                                     :on-click #(swap! :ClickCount inc)}]])}}})
 
 (f/event {:BasicUI/ShowGreeting
           {:Message :Kernel/String}})

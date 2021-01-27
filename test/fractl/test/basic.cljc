@@ -553,3 +553,51 @@
         result (ffirst (tu/fresult (e/eval-all-dataflows add-btn)))]
     (is (cn/instance-of? :PA/Button result))
     (is (cn/instance-of? :PA/OnClickEvent (:OnClick result)))))
+
+(deftest edn-ui
+  (defcomponent :EdnUI
+    (entity {:EdnUI/UserLogin
+             {:UserNameLabel {:type :Kernel/String
+                              :default "Username: "}
+              :PasswordLabel {:type :Kernel/String
+                              :default "Password: "}
+              :ButtonTitle {:type :Kernel/String
+                            :default "Login"}
+              :HandlerEvent :Kernel/Keyword
+              :View {:type :Kernel/Edn
+                     :default
+                     [:div
+                      [:div
+                       [:label :UserNameLabel]
+                       [:input [:type "text"]]]
+                      [:div
+                       [:label :PasswordLabel]
+                       [:input [:type "password"]]]
+                      [:div
+                       [:button [:title :ButtonTitle]
+                        :on-click :HandlerEvent]]]}}})
+    (entity {:EdnUI/LoginForm
+             {:UserLogin {:ref :EdnUI/UserLogin.Id}
+              :Title {:type :Kernel/String
+                      :default "Login"}
+              :View {:type :Kernel/Edn
+                     :default
+                     [:div
+                      [:h2 :Title]
+                      [:div :EdnUI/UserLogin]]}}})
+
+    (dataflow :EdnUI/MakeLoginForm
+              {:EdnUI/UserLogin
+               {:UserNameLabel :EdnUI/MakeLoginForm.UserNameLabel
+                :PasswordLabel :EdnUI/MakeLoginForm.PasswordLabel
+                :ButtonTitle :EdnUI/MakeLoginForm.ButtonTitle}}
+              {:EdnUI/LoginForm
+               {:Title :EdnUI/MakeLoginForm.FormTitle
+                :UserLogin :EdnUI/UserLogin.Id}})
+    (let [evt (cn/make-instance {:EdnUI/MakeLoginForm
+                                 {:FormTitle "Login to the V8 Platform"
+                                  :UserNameLabel "Your V8 userId or email: "
+                                  :PasswordLabel "Password: "
+                                  :ButtonTitle "Login"}})
+          result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+      (is (cn/instance-of? :EdnUI/LoginForm result)))))
