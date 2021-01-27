@@ -162,6 +162,36 @@
     (is (= 1000 (:Y result)))
     (is (= 1100 (:Z result)))))
 
+(deftest self-reference
+  (defcomponent :SelfRef
+    (entity {:SelfRef/E
+             {:X :Kernel/Int
+              :Y :Kernel/Int
+              :Z :Kernel/Int}})
+    (event {:SelfRef/AddToX {:EId :Kernel/UUID
+                             :Y :Kernel/Int}}))
+  (dataflow :SelfRef/AddToX
+            {:SelfRef/E {:Id? :SelfRef/AddToX.EId
+                         :X '(+ :X :SelfRef/AddToX.Y)
+                         :Y :SelfRef/AddToX.Y
+                         :Z 1}})
+  (let [e (cn/make-instance :SelfRef/E {:X 100 :Y 200 :Z 300})
+        evt (cn/make-instance :SelfRef/Upsert_E {:Instance e})
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :SelfRef/E result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= 100 (:X result)))
+    (is (= 200 (:Y result)))
+    (is (= 300 (:Z result)))
+    (let [id (:Id result)
+          addevt (cn/make-instance :SelfRef/AddToX {:EId id :Y 10})
+          result (ffirst (tu/fresult (e/eval-all-dataflows addevt)))]
+      (is (cn/instance-of? :SelfRef/E result))
+      (is (u/uuid-from-string (:Id result)))
+      (is (= 110 (:X result)))
+      (is (= 10 (:Y result)))
+      (is (= 1 (:Z result))))))
+
 (deftest compound-attributes
   (defcomponent :Df04
     (entity {:Df04/E1 {:A :Kernel/Int}})
