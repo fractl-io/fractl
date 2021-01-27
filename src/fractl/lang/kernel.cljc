@@ -41,29 +41,25 @@
   (and (string? x)
        (re-matches email-pattern x)))
 
-(defn- kt [type-name predic default-value]
-  [type-name [predic default-value]])
-
 (def types
-  (into {} [(kt :Kernel/String kernel-string? "")
-            (kt :Kernel/Keyword keyword? :undef)
-            (kt :Kernel/DateTime date-time? dt/now)
-            (kt :Kernel/UUID UUID? u/uuid-string)
-            (kt :Kernel/Password identity nil)
-            (kt :Kernel/Int int? 0)
-            (kt :Kernel/Int64 integer? 0)
-            (kt :Kernel/Integer integer? 0)
-            (kt :Kernel/Float float? 0.0)
-            (kt :Kernel/Double double? 0.0)
-            (kt :Kernel/Decimal kernel-decimal? (kernel-decimal 0.0))
-            (kt :Kernel/Boolean boolean? false)
-            (kt :Kernel/Record cn/record-instance? nil)
-            (kt :Kernel/Entity cn/entity-instance? nil)
-            (kt :Kernel/Event cn/event-instance? nil)
-            (kt :Kernel/Any any-obj? {})
-            (kt :Kernel/Email email? nil)
-            (kt :Kernel/Map map? {})
-            (kt :Kernel/Edn edn? [])]))
+  {:Kernel/String kernel-string?
+   :Kernel/Keyword keyword?
+   :Kernel/DateTime date-time?
+   :Kernel/UUID UUID?
+   :Kernel/Int int?
+   :Kernel/Int64 integer?
+   :Kernel/Integer integer?
+   :Kernel/Float float?
+   :Kernel/Double double?
+   :Kernel/Decimal kernel-decimal?
+   :Kernel/Boolean boolean?
+   :Kernel/Record cn/record-instance?
+   :Kernel/Entity cn/entity-instance?
+   :Kernel/Event cn/event-instance?
+   :Kernel/Any any-obj?
+   :Kernel/Email email?
+   :Kernel/Map map?
+   :Kernel/Edn edn?})
 
 (def ^:private type-names (keys types))
 

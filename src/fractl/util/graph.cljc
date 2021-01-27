@@ -115,6 +115,12 @@
 (defn has-cycle? [dg src]
   (or (:cycle (detect-cycle dg src)) false))
 
+(defn has-non-self-cycle? [dg src]
+  (let [cycinfo (detect-cycle dg src)]
+    (if (:cycle cycinfo)
+      (not (every? #(= (first (:path cycinfo)) %) (:path cycinfo)))
+      false)))
+
 (defn edges [dg v] (vec (adj dg v)))
 (defn nodes [dg] (set (keys dg)))
 (defn all-edges [dg] (vals dg))
@@ -140,7 +146,7 @@
 (defn postorder [dg v] (traverse dg v false))
 
 (defn topological [dg v]
-  (when-not (has-cycle? dg v)
+  (when-not (has-non-self-cycle? dg v)
     (postorder dg v)))
 
 (defn topological-all [dg]
