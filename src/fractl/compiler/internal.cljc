@@ -100,7 +100,9 @@
   (let [g (g/add-edges graph k vs)
         cycinfo (g/detect-cycle g k)]
     (when (:cycle cycinfo)
-      (u/throw-ex (str "attribute has a cyclic-dependency - " k " " (:path cycinfo))))
+      (if (every? #(= k %) (:path cycinfo))
+        g
+        (u/throw-ex (str "attribute has a cyclic-dependency - " k " " (:path cycinfo)))))
     g))
 
 (defn build-dependency-graph [pat-attrs ctx schema graph]
