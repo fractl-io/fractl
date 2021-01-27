@@ -42,7 +42,7 @@
        (re-matches email-pattern x)))
 
 (defn- kt [type-name predic default-value]
-  [type-name [predic default-value]])
+  [type-name predic])
 
 (def types
   (into {} [(kt :Kernel/String kernel-string? "")
