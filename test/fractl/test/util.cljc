@@ -23,3 +23,9 @@
 
 (defn fresult [r]
   (:result (first r)))
+
+(defn uuid-string []
+  #?(:clj
+     (str (java.util.UUID/randomUUID))
+     :cljs
+     (str (random-uuid))))

@@ -161,6 +161,36 @@
     (is (= 1000 (:Y result)))
     (is (= 1100 (:Z result)))))
 
+(deftest self-reference
+  (defcomponent :SelfRef
+    (entity {:SelfRef/E
+             {:X :Kernel/Int
+              :Y :Kernel/Int
+              :Z :Kernel/Int}})
+    (event {:SelfRef/AddToX {:EId :Kernel/UUID
+                             :Y :Kernel/Int}}))
+  (dataflow :SelfRef/AddToX
+            {:SelfRef/E {:Id? :SelfRef/AddToX.EId
+                         :X '(+ :X :SelfRef/AddToX.Y)
+                         :Y :SelfRef/AddToX.Y
+                         :Z 1}})
+  (let [e (cn/make-instance :SelfRef/E {:X 100 :Y 200 :Z 300})
+        evt (cn/make-instance :SelfRef/Upsert_E {:Instance e})
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :SelfRef/E result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= 100 (:X result)))
+    (is (= 200 (:Y result)))
+    (is (= 300 (:Z result)))
+    (let [id (:Id result)
+          addevt (cn/make-instance :SelfRef/AddToX {:EId id :Y 10})
+          result (ffirst (tu/fresult (e/eval-all-dataflows addevt)))]
+      (is (cn/instance-of? :SelfRef/E result))
+      (is (u/uuid-from-string (:Id result)))
+      (is (= 110 (:X result)))
+      (is (= 10 (:Y result)))
+      (is (= 1 (:Z result))))))
+
 (deftest compound-attributes
   (defcomponent :Df04
     (entity {:Df04/E1 {:A :Kernel/Int}})
@@ -488,15 +518,30 @@
   (let [e1 (cn/make-instance :OptAttr/E {:X 10 :S "hello"})
         e2 (cn/make-instance :OptAttr/E {:X 1 :Y 2 :S "hi"})]
     (is (cn/instance-of? :OptAttr/E e1))
-    (is (= [10 0 "hello"] [(:X e1) (:Y e1) (:S e1)]))
+    (is (= [10 nil "hello"] [(:X e1) (:Y e1) (:S e1)]))
     (is (cn/instance-of? :OptAttr/E e2))
     (is (= [1 2 "hi"] [(:X e2) (:Y e2) (:S e2)])))
   (let [f1 (cn/make-instance :OptAttr/F {:X 10 :S "hello"})
         f2 (cn/make-instance :OptAttr/F {:X 1 :Y 2 :S "hi"})]
     (is (cn/instance-of? :OptAttr/F f1))
-    (is (= [10 0 "hello"] [(:X f1) (:Y f1) (:S f1)]))
+    (is (= [10 nil "hello"] [(:X f1) (:Y f1) (:S f1)]))
     (is (cn/instance-of? :OptAttr/F f2))
     (is (= [1 2 "hi"] [(:X f2) (:Y f2) (:S f2)]))))
+
+ (deftest optional-record-attribute
+   (defcomponent :OptRecAttr
+     (record {:OptRecAttr/R {:A :Kernel/Int}})
+     (entity {:OptRecAttr/E {:Q :Kernel/Int
+                             :R {:type :OptRecAttr/R
+                                 :optional true}}})
+     (event {:OptRecAttr/PostE {:Q :Kernel/Int}}))
+   (dataflow :OptRecAttr/PostE
+             {:OptRecAttr/E {:Q :OptRecAttr/PostE.Q}})
+   (let [evt {:OptRecAttr/PostE {:Q 10}}
+         result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+     (is (cn/instance-of? :OptRecAttr/E result))
+     (is (u/uuid-from-string (:Id result)))
+     (is (= 10 (:Q result)))))
 
 (deftest edn-attribute
   (defcomponent :EdnAttr
@@ -537,7 +582,7 @@
 
 (deftest patterns-in-attributes
   (defcomponent :PA
-    (event {:PA/OnClickEvent {:Source :Kernel/UUID}})
+    (event {:PA/OnClickEvent {:Source {:type :Kernel/UUID :optional true}}})
     (record {:PA/Position {:X :Kernel/Int :Y :Kernel/Int
                            :W :Kernel/Int :H :Kernel/Int}})
     (entity {:PA/Button {:Title :Kernel/String
@@ -563,7 +608,8 @@
                               :default "Password: "}
               :ButtonTitle {:type :Kernel/String
                             :default "Login"}
-              :HandlerEvent :Kernel/Keyword
+              :HandlerEvent {:type :Kernel/Keyword
+                             :optional true}
               :View {:type :Kernel/Edn
                      :default
                      [:div

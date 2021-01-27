@@ -229,7 +229,9 @@
     [aname (if optional?
              (if (and dict? (:default adef))
                adef
-               (infer-default aname adef dict?))
+               (if dict?
+                 (assoc adef :optional true)
+                 {:type adef :optional true}))
              adef)]))
 
 (defn- normalized-attributes [recname orig-attrs]
@@ -441,10 +443,7 @@
 (defn- do-init-kernel []
   (cn/create-component :Kernel {})
   (doseq [[type-name type-def] k/types]
-    (if-let [d (k/type-default-value type-def)]
-      (attribute type-name {:check (k/type-predicate type-def)
-                            :default d})
-      (attribute type-name (k/type-predicate type-def))))
+    (attribute type-name type-def))
 
   (record :Kernel/DataflowResult
           {:Pattern :Kernel/Any
