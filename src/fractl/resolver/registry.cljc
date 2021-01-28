@@ -9,14 +9,18 @@
   (get @resolver-db (li/split-path path)))
 
 (defn override-resolver [path resolver]
-  (u/safe-set resolver-db (assoc @resolver-db (li/split-path path) resolver)))
+  (if (vector? path)
+    (doseq [p path] (override-resolver p resolver))
+    (u/safe-set resolver-db (assoc @resolver-db (li/split-path path) resolver))))
 
 (defn compose-resolver [path resolver]
-  (let [path (li/split-path path)
-        resolvers (get @resolver-db path [])]
-    (u/safe-set resolver-db
-                (assoc @resolver-db path
-                       (conj resolvers resolver)))))
+  (if (vector? path)
+    (doseq [p path] (compose-resolver p resolver))
+    (let [path (li/split-path path)
+          resolvers (get @resolver-db path [])]
+      (u/safe-set resolver-db
+                  (assoc @resolver-db path
+                         (conj resolvers resolver))))))
 
 (def composed? (complement map?))
 (def override? map?)

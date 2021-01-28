@@ -6,7 +6,8 @@
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.resolver.core :as r]
-            [fractl.resolver.registry :as rr]))
+            [fractl.resolver.registry :as rr]
+            [fractl.resolver.ui :as uir]))
 
 (defn core-ui-upsert [inst]
   (rgdom/render
@@ -83,7 +84,73 @@
  :BasicUI/Greeting
  (make-ui-resolver :BasicUI-Resolver basic-ui-upsert))
 
-(let [evt (cn/make-instance {:BasicUI/ShowGreeting
-                             {:Message "hello, world"}})
-      result (e/eval-all-dataflows evt)]
-  (println result))
+(defn- test-01 []
+  (let [evt (cn/make-instance {:BasicUI/ShowGreeting
+                               {:Message "hello, world"}})
+        result (e/eval-all-dataflows evt)]
+    (println result)))
+
+(f/component :EdnUI)
+(f/entity {:EdnUI/UserLogin
+           {:UserNameLabel {:type :Kernel/String
+                            :default "Username: "}
+            :PasswordLabel {:type :Kernel/String
+                            :default "Password: "}
+            :ButtonTitle {:type :Kernel/String
+                          :default "Login"}
+            :HandlerEvent {:type :Kernel/Keyword
+                           :optional true}
+            :DOM_View {:type :Kernel/Edn
+                       :default
+                       [:div
+                        [:div
+                         [:label :UserNameLabel]
+                         [:input {:type "text"}]]
+                        [:div
+                         [:label :PasswordLabel]
+                         [:input {:type "password"}]]
+                        [:div
+                         [:button {:title :ButtonTitle
+                                   :on-click :HandlerEvent}]]]}}})
+
+(f/entity {:EdnUI/LoginForm
+           {:UserLogin {:type :EdnUI/UserLogin
+                        :optional true}
+            :Title {:type :Kernel/String
+                    :default "Login"}
+            :DOM_Target :Kernel/String
+            :DOM_View {:type :Kernel/Edn
+                       :default
+                       [:div
+                        [:h2 :Title]
+                        [:div :UserLogin]]}}})
+
+(f/event {:EdnUI/LoginEvent
+          {:Data :Kernel/Any}})
+
+(f/dataflow :EdnUI/MakeLoginForm
+            {:EdnUI/UserLogin
+             {:UserNameLabel :EdnUI/MakeLoginForm.UserNameLabel
+              :PasswordLabel :EdnUI/MakeLoginForm.PasswordLabel
+              :ButtonTitle :EdnUI/MakeLoginForm.ButtonTitle
+              :HandlerEvent :EdnUI/MakeLoginForm.HandlerEvent}}
+            {:EdnUI/LoginForm
+             {:Title :EdnUI/MakeLoginForm.FormTitle
+              :DOM_Target "app"
+              :UserLogin :EdnUI/UserLogin}})
+
+(rr/override-resolver
+ :EdnUI/LoginForm
+ (uir/make-resolver :Edn-Resolver-01))
+
+(defn test-02 []
+  (let [evt (cn/make-instance {:EdnUI/MakeLoginForm
+                               {:FormTitle "Login to the V8 Platform"
+                                :UserNameLabel "Your V8 userId or email: "
+                                :PasswordLabel "Password: "
+                                :ButtonTitle "Login"
+                                :HandlerEvent :EdnUI/LoginEvent}})
+        result (doall (e/eval-all-dataflows evt))]
+    result))
+
+(test-02)

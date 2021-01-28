@@ -2,8 +2,12 @@
   (:require [clojure.walk :as w]
             [reagent.core :as rg]
             [reagent.dom :as rgdom]
+            [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.env :as env]))
+
+(def view-tag :DOM_View)
+(def target-tag :DOM_Target)
 
 (defn- lookup-name [env inst path]
   (let [{c :component r :record refs :refs p :path} (li/path-parts path)]
@@ -19,25 +23,34 @@
 
       :else (env/lookup-instance env [c r]))))
 
+(defn- ui-component? [x]
+  (and (cn/an-instance? x) (view-tag x)))
+
+(declare preprocess-inst)
+
 (defn- rewrite-names [env inst obj]
   (w/postwalk #(if (li/name? %)
-                 (lookup-name env inst %)
+                 (let [obj (lookup-name env inst %)]
+                   (if (ui-component? obj)
+                     (view-tag (preprocess-inst env obj))
+                     obj))
                  %)
               obj))
 
-(defn- preprocess [{env :env insts :insts}]
-  (map
-   #(if-let [v (:View %)]
-      (assoc % :View (rewrite-names env inst v))
-      %)
-   insts))
+(defn- preprocess-inst [env inst]
+  (if-let [v (view-tag inst)]
+    (assoc inst view-tag (rewrite-names env inst v))
+    inst))
 
-(defn- upsert [inst]
-  (let [target (:DOM_Target inst)
-        view-fn (parse-view (:View inst))]
-    (rgdom/render
-     [view-fn]
-     (.getElementById js/document target))))
+(defn- preprocess [{env :env insts :insts}]
+  (map (partial preprocess-inst env) insts))
+
+(defn- upsert [insts]
+  (doseq [inst insts]
+    (when-let [target (target-tag inst)]
+      (rgdom/render
+       [(fn [] (view-tag inst))]
+       (.getElementById js/document target)))))
 
 (defn make-resolver [n]
   {:name n
