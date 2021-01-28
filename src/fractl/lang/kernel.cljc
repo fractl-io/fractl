@@ -59,6 +59,7 @@
    :Kernel/Keyword keyword?
    :Kernel/DateTime date-time?
    :Kernel/UUID UUID?
+   :Kernel/Password identity
    :Kernel/Int int?
    :Kernel/Int64 integer?
    :Kernel/Integer integer?
