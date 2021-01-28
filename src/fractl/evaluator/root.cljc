@@ -68,6 +68,16 @@
                   (:result (f r insts)))
                 rs))))
 
+(defn- call-resolver-preprocess [f env resolver composed? insts]
+  (if (r/can-preprocess? resolver)
+    (let [rs (if composed? resolver [resolver])
+          arg {:env env :insts insts}]
+      (doall (map (fn [r]
+                    (:result (f r arg)))
+                  rs)))
+    insts))
+
+(def ^:private resolver-preprocess (partial call-resolver-preprocess r/call-resolver-preprocess))
 (def ^:private resolver-upsert (partial call-resolver-upsert r/call-resolver-upsert))
 (def ^:private resolver-delete (partial call-resolver-delete r/call-resolver-delete))
 
@@ -85,7 +95,13 @@
          (conj @inited-components component-name))
      component-name)))
 
-(defn- chained-crud [store-f resolver-f single-arg-path insts]
+(defn- resolved-results [resolver composed? resolver-preproc resolver-upsert insts]
+  (let [rups (partial resolver-upsert resolver composed?)
+        rpreproc (when resolver-preproc
+                   (partial resolver-preproc resolver composed?))]
+    (rups (if rpreproc (rpreproc insts) insts))))
+
+(defn- chained-crud [store-f resolver-preproc resolver-upsert single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
                    (rg/resolver-for-path single-arg-path)
@@ -93,7 +109,9 @@
         composed? (rg/composed? resolver)
         crud? (or (not resolver) composed?)
         resolver-result (when resolver
-                          (resolver-f resolver composed? insts))
+                          (resolved-results
+                           resolver composed?
+                           resolver-preproc resolver-upsert insts))
         resolved-insts (if resolver (first resolver-result) insts)
         local-result (if (and crud? store-f
                               (or single-arg-path (need-storage? resolved-insts)))
@@ -101,11 +119,11 @@
                        resolved-insts)]
     [local-result resolver-result]))
 
-(defn- chained-upsert [store record-name insts]
+(defn- chained-upsert [env store record-name insts]
   (maybe-init-schema! store (first record-name))
   (chained-crud
    (when store (partial store/upsert-instances store record-name))
-   resolver-upsert nil insts))
+   (partial resolver-preprocess env) resolver-upsert nil insts))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
@@ -113,12 +131,12 @@
 (defn- chained-delete [store record-name id]
   (chained-crud
    (when store (partial delete-by-id store record-name))
-   resolver-delete record-name [[record-name id]]))
+   nil resolver-delete record-name [[record-name id]]))
 
 (defn- bind-and-persist [env store x]
   (if (cn/an-instance? x)
     (let [n (li/split-path (cn/instance-name x))
-          r (chained-upsert store n x)]
+          r (chained-upsert env store n x)]
       [(env/bind-instance env n x) r])
     [env nil]))
 
@@ -199,48 +217,6 @@
                        (find-instances-in-store env store entity-name full-query))]
     [result (env/bind-instances env entity-name result)]))
 
-(defn- lookup-name [env inst path]
-  (let [{c :component r :record refs :refs p :path} (li/path-parts path)]
-    (cond
-      (= p path)
-      (path inst)
-
-      (seq refs)
-      (if p
-        (get-in (p inst) refs)
-        (let [[_ v] (env/instance-ref-path env [c r] nil refs)]
-          v))
-
-      :else (env/lookup-instance env [c r]))))
-
-(defn- rewrite-names [env inst obj]
-  (w/postwalk #(if (li/name? %)
-                 (lookup-name env inst %)
-                 %)
-              obj))
-
-(defn- rewrite-default-attribute-value [env inst attrname]
-  (let [v (attrname inst)]
-    (cond
-      (li/name? v) (lookup-name env inst v)
-      (or (vector? v) (map? v)) (rewrite-names env inst v)
-      :else v)))
-
-(defn- process-default-attributes [env computed-attr-names inst]
-  (if-let [attrs-with-defaults
-           (seq
-            (set/difference
-             (set (keys (cn/instance-attributes (dissoc inst :Id))))
-             computed-attr-names))]
-    (loop [attrnames attrs-with-defaults, final-inst inst]
-      (if-let [attrname (first attrnames)]
-        (recur (rest attrnames)
-               (assoc final-inst attrname
-                      (rewrite-default-attribute-value
-                       env inst attrname)))
-        (into {} final-inst)))
-    inst))
-
 (defn- pop-and-intern-instance
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
@@ -249,14 +225,10 @@
     (let [[env single? [_ x]] xs
           objs (if single? [x] x)
           final-objs (map #(assoc-computed-attributes env record-name %) objs)
-          base-insts (map #(if (cn/an-instance? %)
-                             %
-                             (cn/make-instance (li/make-path record-name) %))
-                          final-objs)
-          insts (map (partial
-                      process-default-attributes
-                      env (set (keys (first final-objs))))
-                     base-insts)
+          insts (map #(if (cn/an-instance? %)
+                        %
+                        (cn/make-instance (li/make-path record-name) %))
+                     final-objs)
           env (env/bind-instances env record-name insts)
           bindable (if single? (first insts) insts)
           final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]
@@ -386,7 +358,7 @@
     (do-intern-instance [_ env [record-name alias]]
       (let [[insts env] (pop-and-intern-instance env record-name alias)]
         (if insts
-          (let [[local-result resolver-results] (chained-upsert store record-name insts)]
+          (let [[local-result resolver-results] (chained-upsert env store record-name insts)]
             (i/ok (pack-results local-result resolver-results) env))
           (i/not-found record-name env))))
 
