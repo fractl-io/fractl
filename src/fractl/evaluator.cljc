@@ -88,3 +88,11 @@
       (maybe-init-event event-obj)))
   ([event-obj]
    (eval-all-dataflows event-obj nil)))
+
+(defn- filter-public-result [xs]
+  (if (map? xs)
+    (dissoc xs :env)
+    (doall (map filter-public-result xs))))
+
+(defn public-evaluator [store-config]
+  (comp filter-public-result (evaluator store-config)))

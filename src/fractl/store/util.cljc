@@ -17,7 +17,7 @@
 (defn table-for-entity
   ([entity-name db-schema-name]
    (let [[component-name r] (li/split-path entity-name)
-         scmname (or db-schema-name (db-schema-for-component component-name))]
+         scmname (db-schema-for-component component-name)]
      (str scmname "__" (db-ident r))))
   ([entity-name] (table-for-entity entity-name nil)))
 
@@ -44,7 +44,10 @@
     (into {} (map vector indexed-attrs tabnames))))
 
 (def create-table-prefix "CREATE TABLE IF NOT EXISTS")
-(def create-unique-index-prefix "CREATE UNIQUE INDEX")
+#?(:clj 
+   (def create-unique-index-prefix "CREATE UNIQUE INDEX IF NOT EXISTS")
+   :cljs
+   (def create-unique-index-prefix "CREATE UNIQUE INDEX"))
 #?(:clj
    (def create-index-prefix "CREATE INDEX IF NOT EXISTS")
    :cljs
