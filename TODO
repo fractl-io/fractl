@@ -1,1 +1,5 @@
- * Fix preprocessing of event-handlers (fractl.resolver.ui and fractl.ui.core)
+ * reagent atom support has to be added to fractl as a new type, probably :Kernel/Cell
+      - this type has to be backed by an "atom" store, indexed by the instance :Id or a
+        "name" provided in the attribute definition. if a name is provided like this,
+	the atom essentially becomes a global var.
+      - define operations on the atom (store) - :set, :reset, :swap and :deref

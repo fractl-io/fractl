@@ -29,17 +29,21 @@
 
 (defn- rewrite-event [model-event spec]
   (let [with-args? (seqable? model-event)
-        [model-event-name args]
+        [n args]
         (if with-args?
           [(first model-event) (rest model-event)]
           [model-event nil])]
     [(first spec)
      (fn [event-obj]
-       (e/eval-all-dataflows
-        (cn/make-instance
-         {model-event-name
-          {:EventObject event-obj
-           :UserData args}})))]))
+       (if (= n :set)
+         (reset! (first args)
+                 (if (= :-value (second args))
+                   (-> event-obj .-target .-value)
+                   (second args)))
+         (e/eval-all-dataflows
+          (cn/make-instance
+           {n {:EventObject event-obj
+               :UserData args}}))))]))
 
 (def ^:private ui-event-names #{:on-click :on-change})
 
