@@ -91,6 +91,9 @@
     (println result)))
 
 (f/component :EdnUI)
+
+(def user-name (rg/atom ""))
+
 (f/entity {:EdnUI/UserLogin
            {:UserNameLabel {:type :Kernel/String
                             :default "Username: "}
@@ -105,13 +108,14 @@
                        [:div
                         [:div
                          [:label :UserNameLabel]
-                         [:input {:type "text"}]]
+                         [:input {:type "text"
+                                  :on-change #(reset! user-name (-> % .-target .-value))}]]
                         [:div
                          [:label :PasswordLabel]
                          [:input {:type "password"}]]
                         [:div
-                         [:button {:title :ButtonTitle
-                                   :on-click :HandlerEvent}]]]}}})
+                         [:input {:type "button" :value :ButtonTitle
+                                  :on-click [:HandlerEvent user-name]}]]]}}})
 
 (f/entity {:EdnUI/LoginForm
            {:UserLogin {:type :EdnUI/UserLogin
@@ -126,7 +130,11 @@
                         [:div :UserLogin]]}}})
 
 (f/event {:EdnUI/LoginEvent
-          {:Data :Kernel/Any}})
+          {:EventObject :Kernel/Any
+           :UserData :Kernel/Any}})
+
+(f/record {:EdnUI/LoginEventResult
+           {:Result :Kernel/Any}})
 
 (f/dataflow :EdnUI/MakeLoginForm
             {:EdnUI/UserLogin
@@ -138,6 +146,10 @@
              {:Title :EdnUI/MakeLoginForm.FormTitle
               :DOM_Target "app"
               :UserLogin :EdnUI/UserLogin}})
+
+(f/dataflow :EdnUI/LoginEvent
+            {:EdnUI/LoginEventResult
+             {:Result :EdnUI/LoginEvent.UserData}})
 
 (rr/override-resolver
  :EdnUI/LoginForm
