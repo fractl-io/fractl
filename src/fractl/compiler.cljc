@@ -23,6 +23,9 @@
 (defn- emit-match [match-pattern-code cases-code alternative-code alias]
   (op/match [match-pattern-code cases-code alternative-code alias]))
 
+(defn- emit-for-each [bind-pattern-code body-code alias]
+  (op/for-each [bind-pattern-code body-code alias]))
+
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
 
@@ -262,18 +265,29 @@
       (u/throw-ex (str "macro not found - " m))
       (u/throw-ex (str "not a valid macro name - " m)))))
 
-(defn- compile-for-each-macro [ctx pat]
-  ;; TODO: implement the iteration macro.
-  (u/throw-ex "for-each macro not implemented"))
-
-(defn- match-alias [pat]
+(defn- special-form-alias [pat]
   (let [rpat (reverse pat)]
     (if (= :as (second rpat))
       [(vec (reverse (nthrest rpat 2))) (first rpat)]
       [pat nil])))
 
+(defn- compile-for-each-body [ctx body-pats]
+  (loop [body-pats body-pats, body-code []]
+    (if-let [body-pat (first body-pats)]
+      (recur (rest body-pats)
+             (conj body-code [(compile-pattern ctx body-pat)]))
+      body-code)))
+
+(defn- compile-for-each-macro [ctx pat]
+  (let [bind-pat-code (compile-pattern ctx (first pat))
+        [body-pats alias] (special-form-alias (rest pat))
+        body-code (compile-for-each-body ctx body-pats)]
+    (when alias
+      (ctx/add-alias! ctx alias alias))
+    (emit-for-each bind-pat-code body-code alias)))
+
 (defn- extract-match-clauses [pat]
-  (let [[pat alias] (match-alias pat)]
+  (let [[pat alias] (special-form-alias pat)]
     (loop [pat pat, result []]
       (if (seq pat)
         (let [case-pat (first pat), conseq (first (rest pat))]

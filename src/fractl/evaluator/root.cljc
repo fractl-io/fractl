@@ -246,6 +246,32 @@
          (eval-opcode evaluator env alternative-code)
          (i/ok false env))))))
 
+(defn- eval-for-each-body [evaluator env eval-opcode body-code element]
+  (when (cn/entity-instance? element)
+    (let [entity-name (cn/instance-name element)
+          new-env (env/bind-instance env entity-name element)]
+      (loop [body-code body-code, env new-env result nil]
+        (if-let [opcode (first body-code)]
+          (let [result (eval-opcode evaluator env opcode)]
+            (if (ok-result result)
+              (recur (rest body-code)
+                     (:env result)
+                     result)
+              result))
+          result)))))
+
+(defn- eval-for-each [evaluator env eval-opcode collection body-code result-alias]
+  (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code)
+        results (doall (map eval-body collection))]
+    (if-let [failure (first (filter #(not (ok-result %)) results))]
+      failure
+      (let [eval-output (doall (map #(first (ok-result %)) results))
+            result-insts (reduce concat eval-output)]
+        (if result-alias
+          (let [new-env (env/bind-to-alias env result-alias result-insts)]
+            (i/ok result-insts new-env))
+          (i/ok result-insts env))))))
+
 (defn- opcode-data? [x]
   (if (vector? x)
     (opcode-data? (first x))
@@ -364,6 +390,12 @@
       (let [result (eval-opcode self env match-pattern-code)]
         (if-let [r (ok-result result)]
           (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)
+          result)))
+
+    (do-for-each [self env [bind-pattern-code body-code result-alias]]
+      (let [result (eval-opcode self env bind-pattern-code)]
+        (if-let [r (ok-result result)]
+          (eval-for-each self (:env result) eval-opcode r body-code result-alias)
           result)))))
 
 (def ^:private default-evaluator (u/make-cell))

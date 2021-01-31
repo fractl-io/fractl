@@ -443,6 +443,45 @@
     (is (= 10 (:A result)))
     (is (= 11 (:B result)))))
 
+(deftest for-each
+  (defcomponent :ForEach
+    (entity {:ForEach/E {:X :Kernel/Int}})
+    (record {:ForEach/R {:A :Kernel/Int}})
+    (event {:ForEach/Evt {:I :Kernel/Int}})
+    (dataflow :ForEach/Evt
+              {:ForEach/E {:X :ForEach/Evt.I} :as :E1}
+              {:ForEach/E {:X '(+ :E1.X 1)} :as :E2}
+              [:for-each :ForEach/E?
+               {:ForEach/R {:A :ForEach/E.X}}]))
+  (let [result (tu/fresult (e/eval-all-dataflows {:ForEach/Evt {:I 10}}))
+        firstE (first result)
+        secondE (second result)]
+    (is (= 2 (count result)))
+    (is (cn/instance-of? :ForEach/R firstE))
+    (is (= 10 (:A firstE)))
+    (is (cn/instance-of? :ForEach/R secondE))
+    (is (= 11 (:A secondE)))))
+
+(deftest for-each-with-alias
+  (defcomponent :ForEach
+    (entity {:ForEach/E {:X :Kernel/Int}})
+    (record {:ForEach/R {:A :Kernel/Int}})
+    (event {:ForEach/Evt {:I :Kernel/Int}})
+    (dataflow :ForEach/Evt
+              {:ForEach/E {:X :ForEach/Evt.I} :as :E1}
+              {:ForEach/E {:X '(+ :E1.X 1)} :as :E2}
+              [:for-each :ForEach/E?
+               {:ForEach/R {:A :ForEach/E.X}} :as :L]
+              :L))
+  (let [result (tu/fresult (e/eval-all-dataflows {:ForEach/Evt {:I 10}}))
+        firstE (first result)
+        secondE (second result)]
+    (is (= 2 (count result)))
+    (is (cn/instance-of? :ForEach/R firstE))
+    (is (= 10 (:A firstE)))
+    (is (cn/instance-of? :ForEach/R secondE))
+    (is (= 11 (:A secondE)))))
+
 (deftest delete-insts
   (defcomponent :Del
     (entity {:Del/E {:X :Kernel/Int}}))

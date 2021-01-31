@@ -115,4 +115,7 @@
           "Call the function with the current environment and instance being inited as arguments. Return the result.")
          (match
           [[match-pattern-code cases-code alternative-code result-alias]]
-          "Execute code for each part of conditional evaluation based on the :match construct.")]))
+          "Execute code for each part of conditional evaluation based on the :match construct.")
+         (for-each
+          [[bind-pattern-code body-code result-alias]]
+           "Execute code for the binding pattern and the iteration.")]))
