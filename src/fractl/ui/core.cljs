@@ -5,9 +5,12 @@
             [fractl.lang :as f]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
+            [fractl.store :as store]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rr]
             [fractl.resolver.ui :as uir]))
+
+(store/open-default-store {:type :reagent :reactive true})
 
 (defn core-ui-upsert [inst]
   (rgdom/render
