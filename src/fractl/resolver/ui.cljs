@@ -7,7 +7,8 @@
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.lang.internal :as li]
-            [fractl.env :as env]))
+            [fractl.env :as env]
+            [fractl.store.reagent.core :as rstore]))
 
 (def view-tag :DOM_View)
 (def target-tag :DOM_Target)
@@ -16,10 +17,15 @@
   (if-let [rp (:ref (cn/find-attribute-schema
                           (get rec-schema attr-name)))]
     (let [ukattr (first (:refs rp))
+          rec-name [(:component rp) (:record rp)]
+          ukattr-val (attr-name inst)
+          ;; TODO: the explicit find-instance-with-attribute call
+          ;; may be removed.
           ref-inst (env/find-instance-with-attribute
-                    env [(:component rp) (:record rp)] ukattr
-                    (attr-name inst))]
-      (get-in ref-inst refs))
+                    env rec-name ukattr ukattr-val)]
+      (if (seq ref-inst)
+        (rg/cursor rstore/state (concat [rec-name ukattr-val] refs))
+        (u/throw-ex (str "referenced instance not found - " [rec-name [ukattr ukattr-val]]))))
     (u/throw-ex (str "invalid reference - " [attr-name refs]))))
 
 (defn- lookup-reference [env inst rec-schema parts]
@@ -69,7 +75,6 @@
                   (cn/make-instance
                    {n {:EventObject event-obj
                        :UserData args}}))]
-           (log/debug (str "ui event dataflow result - " r))
            r)))]))
 
 (def ^:private ui-event-names #{:on-click :on-change})

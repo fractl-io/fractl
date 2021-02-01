@@ -4,7 +4,7 @@
             [fractl.util :as u]
             [reagent.core :as reagent]))
 
-(def ^:private inst-store (reagent/atom {}))
+(def inst-store (reagent/atom {}))
 
 (defn- store
   []
