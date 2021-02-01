@@ -2,6 +2,7 @@
   (:require [clojure.walk :as w]
             [reagent.core :as rg]
             [reagent.dom :as rgdom]
+            [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.lang.internal :as li]
@@ -10,17 +11,40 @@
 (def view-tag :DOM_View)
 (def target-tag :DOM_Target)
 
-(defn- lookup-name [env inst path]
-  (let [{c :component r :record refs :refs p :path} (li/path-parts path)]
+(defn- follow-ref [env inst rec-schema attr-name refs]
+  (if-let [rp (:ref (cn/find-attribute-schema
+                          (get rec-schema attr-name)))]
+    (let [ukattr (first (:refs rp))
+          ref-inst (env/find-instance-with-attribute
+                    env [(:component rp) (:record rp)] ukattr
+                    (attr-name inst))]
+      (get-in ref-inst refs))
+    (u/throw-ex (str "invalid reference - " [attr-name refs]))))
+
+(defn- lookup-reference [env inst rec-schema parts]
+  (let [{c :component r :record
+         refs :refs p :path} parts]
+    (cond
+      p
+      (or (get-in (p inst) refs)
+          (follow-ref env inst rec-schema p refs))
+
+      (not c)
+      (follow-ref env inst rec-schema r refs)
+
+      :else
+      (let [[_ v] (env/instance-ref-path env [c r] nil refs)]
+        v))))
+
+(defn- lookup-name [env inst rec-schema path]
+  (let [{c :component r :record refs :refs p :path :as parts}
+        (li/path-parts path)]
     (cond
       (= p path)
       (path inst)
 
       (seq refs)
-      (if p
-        (get-in (p inst) refs)
-        (let [[_ v] (env/instance-ref-path env [c r] nil refs)]
-          v))
+      (lookup-reference env inst rec-schema parts)
 
       :else (env/lookup-instance env [c r]))))
 
@@ -56,25 +80,29 @@
         (rewrite-event x obj)))
     obj))
 
+(defn- find-schema [inst]
+  (let [n (cn/instance-name inst)]
+    (or (cn/entity-schema n) (cn/record-schema n))))
+
 (declare preprocess-inst)
 
-(defn- rewrite-names [env inst obj]
+(defn- rewrite-names [env rec-schema inst obj]
   (w/postwalk
    #(if (li/name? %)
-      (let [obj (lookup-name env inst %)]
+      (let [obj (lookup-name env inst rec-schema %)]
         (if (ui-component? obj)
-          (view-tag (preprocess-inst env obj))
+          (view-tag (preprocess-inst env (find-schema obj) obj))
           obj))
       (maybe-rewrite-event %))
    obj))
 
-(defn- preprocess-inst [env inst]
+(defn- preprocess-inst [env rec-schema inst]
   (if-let [v (view-tag inst)]
-    (assoc inst view-tag (rewrite-names env inst v))
+    (assoc inst view-tag (rewrite-names env rec-schema inst v))
     inst))
 
 (defn- preprocess [{env :env insts :insts}]
-  (map (partial preprocess-inst env) insts))
+  (map (partial preprocess-inst env (find-schema (first insts))) insts))
 
 (defn- upsert [insts]
   (doseq [inst insts]

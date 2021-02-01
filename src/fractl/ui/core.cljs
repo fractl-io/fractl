@@ -46,6 +46,9 @@
 
 (def user-name (rg/atom ""))
 
+(f/entity {:EdnUI/User
+           {:Name :Kernel/String}})
+
 (f/entity {:EdnUI/UserLogin
            {:UserNameLabel {:type :Kernel/String
                             :default "Username: "}
@@ -55,12 +58,14 @@
                           :default "Login"}
             :HandlerEvent {:type :Kernel/Keyword
                            :optional true}
+            :User {:ref :EdnUI/User.Id}
             :DOM_View {:type :Kernel/Edn
                        :default
                        [:div
                         [:div
                          [:label :UserNameLabel]
                          [:input {:type "text"
+                                  :value :User.Name
                                   :on-change [:set user-name :-value]}]]
                         [:div
                          [:label :PasswordLabel]
@@ -89,10 +94,12 @@
            {:Result :Kernel/Any}})
 
 (f/dataflow :EdnUI/MakeLoginForm
+            {:EdnUI/User {:Name "joe"}}
             {:EdnUI/UserLogin
              {:UserNameLabel :EdnUI/MakeLoginForm.UserNameLabel
               :PasswordLabel :EdnUI/MakeLoginForm.PasswordLabel
               :ButtonTitle :EdnUI/MakeLoginForm.ButtonTitle
+              :User :EdnUI/User.Id
               :HandlerEvent :EdnUI/MakeLoginForm.HandlerEvent}}
             {:EdnUI/LoginForm
              {:Title :EdnUI/MakeLoginForm.FormTitle
