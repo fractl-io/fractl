@@ -1,5 +1,6 @@
 (ns fractl.resolver.ui
   (:require [clojure.walk :as w]
+            [taoensso.timbre :as log]
             [reagent.core :as rg]
             [reagent.dom :as rgdom]
             [fractl.util :as u]
@@ -55,7 +56,7 @@
   (let [with-args? (seqable? model-event)
         [n args]
         (if with-args?
-          [(first model-event) (rest model-event)]
+          [(first model-event) (first (rest model-event))]
           [model-event nil])]
     [(first spec)
      (fn [event-obj]
@@ -64,10 +65,12 @@
                  (if (= :-value (second args))
                    (-> event-obj .-target .-value)
                    (second args)))
-         (e/eval-all-dataflows
-          (cn/make-instance
-           {n {:EventObject event-obj
-               :UserData args}}))))]))
+         (let [r (e/eval-all-dataflows
+                  (cn/make-instance
+                   {n {:EventObject event-obj
+                       :UserData args}}))]
+           (log/debug (str "ui event dataflow result - " r))
+           r)))]))
 
 (def ^:private ui-event-names #{:on-click :on-change})
 

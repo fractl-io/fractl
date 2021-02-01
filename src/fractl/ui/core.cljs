@@ -72,7 +72,7 @@
                          [:input {:type "password"}]]
                         [:div
                          [:input {:type "button" :value :ButtonTitle
-                                  :on-click [:HandlerEvent user-name]}]]]}}})
+                                  :on-click [:HandlerEvent :User.Id]}]]]}}})
 
 (f/entity {:EdnUI/LoginForm
            {:UserLogin {:type :EdnUI/UserLogin
@@ -107,6 +107,9 @@
               :UserLogin :EdnUI/UserLogin}})
 
 (f/dataflow :EdnUI/LoginEvent
+            {:EdnUI/User
+             {:Id? :EdnUI/LoginEvent.UserData
+              :Name "jim"}}
             {:EdnUI/LoginEventResult
              {:Result :EdnUI/LoginEvent.UserData}})
 
