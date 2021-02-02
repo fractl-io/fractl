@@ -198,6 +198,22 @@
                        (find-instances-in-store env store entity-name full-query))]
     [result (env/bind-instances env entity-name result)]))
 
+(defn- pop-instance
+  "An instance is built in stages, the partial object is stored in a stack.
+   Once an instance is realized, pop it from the stack and bind it to the environment."
+  [env record-name]
+  (if-let [xs (env/pop-obj env)]
+    (let [[env single? [_ x]] xs
+          objs (if single? [x] x)
+          final-objs (map #(assoc-computed-attributes env record-name %) objs)
+          insts (map #(if (cn/an-instance? %)
+                        %
+                        (cn/make-instance (li/make-path record-name) %))
+                     final-objs)
+          bindable (if single? (first insts) insts)]
+      [bindable single? env])
+    [nil false env]))
+
 (defn- pop-and-intern-instance
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
@@ -359,10 +375,16 @@
       (set-obj-attr env attr-name f))
 
     (do-intern-instance [_ env [record-name alias]]
-      (let [[insts env] (pop-and-intern-instance env record-name alias)]
+      (let [[insts single? env] (pop-instance env record-name)]
         (if insts
           (let [[local-result resolver-results] (chained-upsert store record-name insts)]
-            (i/ok (pack-results local-result resolver-results) env))
+            (if-let [bindable (if single? (first local-result) local-result)]
+              (let [env-with-inst (env/bind-instances env record-name local-result)
+                    final-env (if alias
+                                (env/bind-instance-to-alias env-with-inst alias bindable)
+                                env-with-inst)]
+                (i/ok (pack-results local-result resolver-results) final-env))
+              (i/ok (pack-results local-result resolver-results) env)))
           (i/not-found record-name env))))
 
     (do-intern-event-instance [self env [record-name alias]]
