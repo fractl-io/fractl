@@ -13,6 +13,19 @@
 (def view-tag :DOM_View)
 (def target-tag :DOM_Target)
 
+(def ^:private cursors (atom {}))
+
+(defn- fetch-cursor [path]
+  (or (get @cursors path)
+      (let [c (rg/cursor rstore/state path)]
+        (swap! cursors assoc path c)
+        c)))
+
+(defn- cursor-spec? [x]
+  (and (seqable? x) (= :cursor (first x))))
+
+(defn- cursor-path [x] (first (rest x)))
+
 (defn- follow-ref [env inst rec-schema attr-name refs]
   (if-let [rp (:ref (cn/find-attribute-schema
                           (get rec-schema attr-name)))]
@@ -52,30 +65,37 @@
 (defn- ui-component? [x]
   (and (cn/an-instance? x) (view-tag x)))
 
+(defn- normalize-event-arg [x]
+  (if (cursor-spec? x)
+    (deref (fetch-cursor (cursor-path x)))
+    x))
+
+(defn- set-value [event-obj args]
+  (let [f (first args)
+        s (second args)
+        cur? (cursor-spec? f)
+        v (if (= :value s)
+            (-> event-obj .-target .-value)
+            s)]
+    (if cur?
+      (swap! rstore/state assoc-in (cursor-path f) v)
+      (reset! (first args) v))))
+
 (defn- rewrite-event [model-event spec]
   (let [with-args? (seqable? model-event)
-        [n args]
-        (if with-args?
-          [(first model-event) (first (rest model-event))]
-          [model-event nil])]
+        [n args] (if with-args?
+                   [(first model-event) (rest model-event)]
+                   [model-event nil])]
     [(first spec)
      (fn [event-obj]
        (if (= n :set)
-         (reset! (first args)
-                 (if (= :-value (second args))
-                   (-> event-obj .-target .-value)
-                   (second args)))
-         (let [r (e/eval-all-dataflows
+         (set-value event-obj args)
+         (let [args (normalize-event-arg (first args))
+               r (e/eval-all-dataflows
                   (cn/make-instance
                    {n {:EventObject event-obj
                        :UserData args}}))]
            (doall r))))]))
-
-(defn- normalize-cursor [obj]
-  (let [x (second obj)]
-    (if (and (seqable? x) (= :cursor (first x)))
-      [(first obj) (second (second x))]
-      obj)))
 
 (def ^:private ui-event-names #{:on-click :on-change})
 
@@ -85,7 +105,7 @@
     (let [x (second obj)]
       (if (fn? x)
         obj
-        (rewrite-event (normalize-cursor x) obj)))
+        (rewrite-event x obj)))
     obj))
 
 (defn- find-schema [inst]
@@ -112,18 +132,10 @@
 (defn- preprocess [{env :env insts :insts}]
   (map (partial preprocess-inst env (find-schema (first insts))) insts))
 
-(def ^:private cursors (atom {}))
-
-(defn- fetch-cursor [path]
-  (or (get @cursors path)
-      (let [c (rg/cursor rstore/state path)]
-        (swap! cursors assoc path c)
-        c)))
-
 (defn- process-cursors [spec]
   (w/postwalk
-   #(if (and (seqable? %) (= :cursor (first %)))
-      (deref (fetch-cursor (second %)))
+   #(if (cursor-spec? %)
+      (deref (fetch-cursor (cursor-path %)))
       %)
    spec))
 

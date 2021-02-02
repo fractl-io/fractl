@@ -44,8 +44,6 @@
 
 (f/component :EdnUI)
 
-(def user-name (rg/atom ""))
-
 (f/entity {:EdnUI/User
            {:Name :Kernel/String}})
 
@@ -66,7 +64,7 @@
                          [:label :UserNameLabel]
                          [:input {:type "text"
                                   :value :User.Name
-                                  :on-change [:set user-name :-value]}]]
+                                  :on-change [:set :User.Name :value]}]]
                         [:div
                          [:label :PasswordLabel]
                          [:input {:type "password"}]]

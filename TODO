@@ -1,2 +1,2 @@
- * Move event cursor processing to `rewrite-event` (fractl.resolver.ui)
- * Test reactive updates
+ * Write more UI samples making use of the atom/cursor integration.
+   (See fractl.ui.sample).
