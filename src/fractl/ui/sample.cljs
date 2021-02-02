@@ -1,4 +1,4 @@
-(ns fractl.ui.core
+(ns fractl.ui.sample
   (:require [clojure.walk :as w]
             [reagent.core :as rg]
             [reagent.dom :as rgdom]
