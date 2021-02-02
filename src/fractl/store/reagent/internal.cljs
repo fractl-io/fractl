@@ -20,7 +20,6 @@
   (let [entity-name (cn/instance-name inst)
         parsed-entity (li/split-path entity-name)
         id (:Id inst)]
-    (println "@@@@@@@@@@@@@@@@@@@@@@@" [parsed-entity id] inst)
     (swap! inst-store assoc-in [parsed-entity id] inst)))
 
 (defn- validate-references!

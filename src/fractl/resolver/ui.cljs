@@ -18,14 +18,8 @@
                           (get rec-schema attr-name)))]
     (let [ukattr (first (:refs rp))
           rec-name [(:component rp) (:record rp)]
-          ukattr-val (attr-name inst)
-          ;; TODO: the explicit find-instance-with-attribute call
-          ;; may be removed.
-          ref-inst (env/find-instance-with-attribute
-                    env rec-name ukattr ukattr-val)]
-      (if (seq ref-inst)
-        (rg/cursor rstore/state (concat [rec-name ukattr-val] refs))
-        (u/throw-ex (str "referenced instance not found - " [rec-name [ukattr ukattr-val]]))))
+          ukattr-val (attr-name inst)]
+      [:cursor (concat [rec-name ukattr-val] refs)])
     (u/throw-ex (str "invalid reference - " [attr-name refs]))))
 
 (defn- lookup-reference [env inst rec-schema parts]
@@ -75,7 +69,13 @@
                   (cn/make-instance
                    {n {:EventObject event-obj
                        :UserData args}}))]
-           r)))]))
+           (doall r))))]))
+
+(defn- normalize-cursor [obj]
+  (let [x (second obj)]
+    (if (and (seqable? x) (= :cursor (first x)))
+      [(first obj) (second (second x))]
+      obj)))
 
 (def ^:private ui-event-names #{:on-click :on-change})
 
@@ -85,7 +85,7 @@
     (let [x (second obj)]
       (if (fn? x)
         obj
-        (rewrite-event x obj)))
+        (rewrite-event (normalize-cursor x) obj)))
     obj))
 
 (defn- find-schema [inst]
@@ -112,11 +112,26 @@
 (defn- preprocess [{env :env insts :insts}]
   (map (partial preprocess-inst env (find-schema (first insts))) insts))
 
+(def ^:private cursors (atom {}))
+
+(defn- fetch-cursor [path]
+  (or (get @cursors path)
+      (let [c (rg/cursor rstore/state path)]
+        (swap! cursors assoc path c)
+        c)))
+
+(defn- process-cursors [spec]
+  (w/postwalk
+   #(if (and (seqable? %) (= :cursor (first %)))
+      (deref (fetch-cursor (second %)))
+      %)
+   spec))
+
 (defn- upsert [insts]
   (doseq [inst insts]
     (when-let [target (target-tag inst)]
       (rgdom/render
-       [(fn [] (view-tag inst))]
+       [(fn [] (process-cursors (view-tag inst)))]
        (.getElementById js/document target)))))
 
 (defn make-resolver [n]
