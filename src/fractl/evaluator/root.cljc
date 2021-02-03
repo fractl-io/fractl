@@ -431,10 +431,10 @@
 
 (def ^:private default-evaluator (u/make-cell))
 
-(defn get-default-evaluator [store eval-event-dataflows eval-opcode]
+(defn get-default-evaluator [eval-event-dataflows eval-opcode]
   (u/safe-set-once
    default-evaluator
-   #(make-root-vm store eval-event-dataflows eval-opcode)))
+   #(make-root-vm eval-event-dataflows eval-opcode)))
 
-(defn get-temporal-evaluator [eval-event-dataflows eval-opcode]
-  (make-root-vm nil eval-event-dataflows eval-opcode))
+(defn get-transient-evaluator [eval-event-dataflows eval-opcode]
+  (make-root-vm eval-event-dataflows eval-opcode))

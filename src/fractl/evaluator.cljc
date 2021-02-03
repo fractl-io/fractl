@@ -65,7 +65,7 @@
    Return the vector [compile-query-fn, evaluator]."
   [store]
   (let [cq (partial store/compile-query store)]
-    [cq (r/get-default-evaluator store (partial run-dataflows cq) dispatch-opcodes)]))
+    [cq (r/get-default-evaluator (partial run-dataflows cq) dispatch-opcodes)]))
 
 (defn evaluator
   ([store-or-store-config resolver-or-resolver-config]
@@ -104,10 +104,10 @@
   ([event-obj]
    (eval-all-dataflows event-obj nil nil)))
 
-(defn eval-temporal-dataflows
+(defn eval-transient-dataflows
   [event-obj]
   (run-dataflows nil
-                 (r/get-temporal-evaluator (partial run-dataflows nil) dispatch-opcodes)
+                 (r/get-transient-evaluator (partial run-dataflows nil) dispatch-opcodes)
                  env/EMPTY
                  (maybe-init-event event-obj)))
 
