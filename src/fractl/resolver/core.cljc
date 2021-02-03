@@ -23,6 +23,9 @@
 (def resolver-delete :delete)
 (def resolver-query :query)
 (def resolver-eval :eval)
+(def resolver-preprocess :preprocess)
+
+(def can-preprocess? :preprocess)
 
 (defn- ok? [r] (= :ok (:status r)))
 
@@ -74,3 +77,4 @@
 (def call-resolver-delete (partial wrap-result :delete))
 (def call-resolver-query (partial wrap-result :query))
 (def call-resolver-eval (partial wrap-result :eval))
+(def call-resolver-preprocess (partial wrap-result :preprocess))
