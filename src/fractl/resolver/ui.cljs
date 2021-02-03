@@ -150,6 +150,6 @@
 (defn make-resolver [n]
   (r/make-resolver
    n
-   {:upsert {:handler upsert
-             :xform {:in [preprocess]}}}
+   {:upsert {:handler upsert}
+    :preprocess {:handler preprocess}}
    e/eval-transient-dataflows))
