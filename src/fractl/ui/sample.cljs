@@ -44,10 +44,11 @@
 
 (f/component :EdnUI)
 
-(f/entity {:EdnUI/User
-           {:Name :Kernel/String}})
+(f/entity {:EdnUI/UserLoginInfo
+           {:Name :Kernel/String
+            :Password :Kernel/String}})
 
-(f/entity {:EdnUI/UserLogin
+(f/entity {:EdnUI/UserLoginView
            {:UserNameLabel {:type :Kernel/String
                             :default "Username: "}
             :PasswordLabel {:type :Kernel/String
@@ -56,25 +57,35 @@
                           :default "Login"}
             :HandlerEvent {:type :Kernel/Keyword
                            :optional true}
-            :User {:ref :EdnUI/User.Id}
+            :UserLoginInfo {:ref :EdnUI/UserLoginInfo.Id}
             :DOM_View {:type :Kernel/Edn
                        :default
                        [:div
                         [:div
                          [:label :UserNameLabel]
                          [:input {:type "text"
-                                  :value :User.Name
-                                  :on-change [:set :User.Name :value]}]]
+                                  :value :UserLoginInfo.Name
+                                  :on-change [:set :UserLoginInfo.Name :value]}]]
                         [:div
                          [:label :PasswordLabel]
-                         [:input {:type "password"}]]
+                         [:input {:type "password"
+                                  :on-change [:set :UserLoginInfo.Password :value]}]]
                         [:div
                          [:input {:type "button" :value :ButtonTitle
-                                  :on-click [:HandlerEvent :User.Id]}]]]}}})
+                                  :on-click [:HandlerEvent :UserLoginInfo.Id]}]]]}}})
+
+(f/entity {:EdnUI/LoginResultView
+           {:UserLoginInfo :EdnUI/UserLoginInfo
+            :DOM_Target :Kernel/String
+            :DOM_View {:type :Kernel/Edn
+                       :default
+                       [:div
+                        [:div [:label "Username: " [:b :UserLoginInfo.Name]]]
+                        [:div [:label "Password: " [:b :UserLoginInfo.Password]]]]}}})
 
 (f/entity {:EdnUI/LoginForm
-           {:UserLogin {:type :EdnUI/UserLogin
-                        :optional true}
+           {:UserLoginView {:type :EdnUI/UserLoginView
+                            :optional true}
             :Title {:type :Kernel/String
                     :default "Login"}
             :DOM_Target :Kernel/String
@@ -82,7 +93,7 @@
                        :default
                        [:div
                         [:h2 :Title]
-                        [:div :UserLogin]]}}})
+                        [:div :UserLoginView]]}}})
 
 (f/event {:EdnUI/LoginEvent
           {:EventObject :Kernel/Any
@@ -92,28 +103,39 @@
            {:Result :Kernel/Any}})
 
 (f/dataflow :EdnUI/MakeLoginForm
-            {:EdnUI/User {:Name "joe"}}
-            {:EdnUI/UserLogin
+            {:EdnUI/UserLoginInfo {:Name "" :Password ""}}
+            {:EdnUI/UserLoginView
              {:UserNameLabel :EdnUI/MakeLoginForm.UserNameLabel
               :PasswordLabel :EdnUI/MakeLoginForm.PasswordLabel
               :ButtonTitle :EdnUI/MakeLoginForm.ButtonTitle
-              :User :EdnUI/User.Id
+              :UserLoginInfo :EdnUI/UserLoginInfo.Id
               :HandlerEvent :EdnUI/MakeLoginForm.HandlerEvent}}
             {:EdnUI/LoginForm
              {:Title :EdnUI/MakeLoginForm.FormTitle
               :DOM_Target "app"
-              :UserLogin :EdnUI/UserLogin}})
+              :UserLoginView :EdnUI/UserLoginView}})
+
+(f/event {:EdnUI/MakeLoginResultView
+          {:UserLoginInfo :EdnUI/UserLoginInfo}})
+
+(f/dataflow :EdnUI/MakeLoginResultView
+            {:EdnUI/LoginResultView
+             {:UserLoginInfo :EdnUI/MakeLoginResultView.UserLoginInfo
+              :DOM_Target "app"}})
 
 (f/dataflow :EdnUI/LoginEvent
-            {:EdnUI/User
-             {:Id? :EdnUI/LoginEvent.UserData
-              :Name "jim"}}
-            {:EdnUI/LoginEventResult
-             {:Result :EdnUI/LoginEvent.UserData}})
+            {:EdnUI/UserLoginInfo
+             {:Id? :EdnUI/LoginEvent.UserData}}
+            {:EdnUI/MakeLoginResultView
+             {:UserLoginInfo :EdnUI/UserLoginInfo}})
 
 (rr/override-resolver
  :EdnUI/LoginForm
  (uir/make-resolver :Edn-Resolver-01))
+
+(rr/override-resolver
+ :EdnUI/LoginResultView
+ (uir/make-resolver :Edn-Resolver-02))
 
 (defn test-02 []
   (let [evt (cn/make-instance {:EdnUI/MakeLoginForm

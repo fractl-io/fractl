@@ -367,7 +367,7 @@
             resolver (resolver-for-instance inst)
             composed? (rg/composed? resolver)
             local-result (when (or (not resolver) composed?)
-                           (eval-event-dataflows self inst))
+                           (doall (eval-event-dataflows self inst)))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? inst))]
         (i/ok (pack-results local-result resolver-results) env)))
