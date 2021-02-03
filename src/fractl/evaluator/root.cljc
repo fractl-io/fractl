@@ -53,26 +53,25 @@
   (let [path (on-inst cn/instance-name insts)]
     (rg/resolver-for-path resolver path)))
 
-(defn- call-resolver-upsert [f resolver composed? data]
+(defn- call-resolver-upsert [f env resolver composed? data]
   (let [rs (if composed? resolver [resolver])
         insts (if (map? data) [data] data)]
     (doall (map (fn [r]
                   (doall
-                   (map #(merge % (:result (f r %))) insts)))
+                   (map #(merge % (:result (f r env %))) insts)))
                 rs))))
 
-(defn- call-resolver-delete [f resolver composed? insts]
+(defn- call-resolver-delete [f env resolver composed? insts]
   (let [rs (if composed? resolver [resolver])]
     (doall (map (fn [r]
-                  (:result (f r insts)))
+                  (:result (f r env insts)))
                 rs))))
 
 (defn- call-resolver-preprocess [f env resolver composed? insts]
   (if (r/can-preprocess? resolver)
-    (let [rs (if composed? resolver [resolver])
-          arg {:env env :insts insts}]
+    (let [rs (if composed? resolver [resolver])]
       (doall (map (fn [r]
-                    (:result (f r arg)))
+                    (:result (f r env insts)))
                   rs)))
     insts))
 
@@ -124,7 +123,7 @@
     (when store (maybe-init-schema! store (first record-name)))
     (chained-crud
      (when store (partial store/upsert-instances store record-name))
-     resolver(partial resolver-preprocess env) resolver-upsert nil insts)))
+     resolver (partial resolver-preprocess env) (partial resolver-upsert env) nil insts)))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])

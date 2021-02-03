@@ -34,10 +34,10 @@
     (ffirst (:result r))))
 
 (defn- apply-xform
-  [xform eval-dataflow arg]
+  [xform eval-dataflow env arg]
   (cond
     (fn? xform)
-    (xform arg)
+    (xform env arg)
 
     (li/name? xform)
     (when eval-dataflow
@@ -50,28 +50,28 @@
     arg))
 
 (defn- apply-xforms
-  [xforms eval-dataflow arg]
+  [xforms eval-dataflow env arg]
   (loop [xforms xforms arg arg]
     (if-let [xf (first xforms)]
       (recur (rest xforms)
-             (apply-xform xf eval-dataflow arg))
+             (apply-xform xf eval-dataflow env arg))
       arg)))
 
-(defn- invoke-method [method resolver f arg]
+(defn- invoke-method [method resolver f env arg]
   (if-let [in-xforms (get-in resolver [method :xform :in])]
     (let [eval-dataflow (:evt-handler resolver)
-          final-arg (apply-xforms in-xforms eval-dataflow arg)
+          final-arg (apply-xforms in-xforms eval-dataflow env arg)
           result (f final-arg)]
       (if-let [out-xforms (get-in resolver [method :xform :out])]
-        (apply-xforms out-xforms eval-dataflow result)
+        (apply-xforms out-xforms eval-dataflow env result)
         result))
-    (f arg)))
+    (f env arg)))
 
-(defn- wrap-result [method resolver arg]
+(defn- wrap-result [method resolver env arg]
   (when-let [m (get-in resolver [method :handler])]
     {:resolver (:name resolver)
      :method method
-     :result (invoke-method method resolver m arg)}))
+     :result (invoke-method method resolver m env arg)}))
 
 (def call-resolver-upsert (partial wrap-result :upsert))
 (def call-resolver-delete (partial wrap-result :delete))

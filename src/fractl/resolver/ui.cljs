@@ -130,8 +130,9 @@
     (assoc inst view-tag (rewrite-names env rec-schema inst v))
     inst))
 
-(defn- preprocess [{env :env insts :insts}]
-  (map (partial preprocess-inst env (find-schema (first insts))) insts))
+(defn- transform-inst
+  [env inst]
+  (preprocess-inst env (find-schema inst) inst))
 
 (defn- process-cursors [spec]
   (w/postwalk
@@ -140,16 +141,16 @@
       %)
    spec))
 
-(defn- upsert [insts]
-  (doseq [inst insts]
-    (when-let [target (target-tag inst)]
-      (rgdom/render
-       [(fn [] (process-cursors (view-tag inst)))]
-       (.getElementById js/document target)))))
+(defn- upsert [inst]
+  (when-let [target (target-tag inst)]
+    (rgdom/render
+     [(fn [] (process-cursors (view-tag inst)))]
+     (.getElementById js/document target)))
+  inst)
 
 (defn make-resolver [n]
   (r/make-resolver
    n
-   {:upsert {:handler upsert}
-    :preprocess {:handler preprocess}}
+   {:upsert {:handler upsert
+             :xform {:in [transform-inst]}}}
    e/eval-transient-dataflows))
