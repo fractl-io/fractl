@@ -4,7 +4,7 @@
             [fractl.util :as u]
             [reagent.core :as reagent]))
 
-(def ^:private inst-store (reagent/atom {}))
+(def inst-store (reagent/atom {}))
 
 (defn- store
   []
@@ -20,9 +20,7 @@
   (let [entity-name (cn/instance-name inst)
         parsed-entity (li/split-path entity-name)
         id (:Id inst)]
-    (u/safe-set
-     inst-store
-     (assoc-in @inst-store [parsed-entity id] inst))))
+    (swap! inst-store assoc-in [parsed-entity id] inst)))
 
 (defn- validate-references!
   [inst ref-attrs]

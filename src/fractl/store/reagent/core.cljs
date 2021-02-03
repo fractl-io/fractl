@@ -33,3 +33,5 @@
       (get-reference
         [_ path refs]
         (i/get-reference path refs)))))
+
+(def state i/inst-store)

@@ -49,8 +49,9 @@
           (let [p (li/make-path component rec)
                 [_ scm] (cn/find-schema p)]
             ;; TODO: validate multi-level references.
-            (when-not (some #{(first refs)} (cn/attribute-names scm))
-              (u/throw-ex (str "invalid reference - " [p refs])))))
+            (when-not (cn/inferred-event-schema? scm)
+              (when-not (some #{(first refs)} (cn/attribute-names scm))
+                (u/throw-ex (str "invalid reference - " [p refs]))))))
         true)
     (u/throw-ex (str "reference not in context - " [component rec refs]))))
 
