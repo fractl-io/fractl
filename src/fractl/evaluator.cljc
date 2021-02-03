@@ -105,11 +105,16 @@
    (eval-all-dataflows event-obj nil nil)))
 
 (defn eval-transient-dataflows
+  "Facility to evaluate dataflows without producing any side-effects.
+   This is useful for pure tasks like data-format transformation.
+   An example: transforming data before being sent to a resolver to
+   match the format requirements of the backend"
   [event-obj]
-  (run-dataflows nil
-                 (r/get-transient-evaluator (partial run-dataflows nil) dispatch-opcodes)
-                 env/EMPTY
-                 (maybe-init-event event-obj)))
+  (run-dataflows
+   nil
+   (r/get-transient-evaluator (partial run-dataflows nil) dispatch-opcodes)
+   env/EMPTY
+   (maybe-init-event event-obj)))
 
 (defn- filter-public-result [xs]
   (if (map? xs)

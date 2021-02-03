@@ -14,7 +14,7 @@
       (u/throw-ex (str "resolver key " k " must be mapped to a function"))))
   (assoc fnmap
          :name resolver-name
-         :df-evaluator eval-dataflow))
+         :evt-handler eval-dataflow))
   ([resolver-name fnmap]
    (make-resolver resolver-name fnmap nil)))
 
@@ -54,22 +54,21 @@
              (apply-xform xf eval-dataflow arg))
       arg)))
 
-(defn- exec-method [method resolver f arg]
-  (let [eval-dataflow (:df-evaluator resolver)]
-    (if-let [in-xforms (get-in resolver [method :xform :in])]
-      (let [final-arg (apply-xforms in-xforms eval-dataflow arg)]
-        (let [result (f final-arg)]
-          (if-let [out-xforms (get-in resolver [method :xform :out])]
-            (let [final-result (apply-xforms out-xforms eval-dataflow result)]
-              final-result)
-            result)))
-      (f arg))))
+(defn- invoke-method [method resolver f arg]
+  (if-let [in-xforms (get-in resolver [method :xform :in])]
+    (let [eval-dataflow (:evt-handler resolver)
+          final-arg (apply-xforms in-xforms eval-dataflow arg)
+          result (f final-arg)]
+      (if-let [out-xforms (get-in resolver [method :xform :out])]
+        (apply-xforms out-xforms eval-dataflow result)
+        result))
+    (f arg)))
 
 (defn- wrap-result [method resolver arg]
   (when-let [m (get-in resolver [method :handler])]
     {:resolver (:name resolver)
      :method method
-     :result (exec-method method resolver m arg)}))
+     :result (invoke-method method resolver m arg)}))
 
 (def call-resolver-upsert (partial wrap-result :upsert))
 (def call-resolver-delete (partial wrap-result :delete))

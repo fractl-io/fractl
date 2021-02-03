@@ -51,7 +51,6 @@
         result (tu/fresult (e/eval-all-dataflows evt store))
         e01 (ffirst result)
         r (ffirst (second result))]
-    (println "store-test - result: " result)
     (is (cn/instance-of? :ST/E e01))
     (is (persisted? :ST e01))
     (is (cn/instance-of? :ST/E r))
