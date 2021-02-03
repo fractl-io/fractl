@@ -62,7 +62,11 @@
       (if-let [out-xforms (get-in resolver [method :xform :out])]
         (apply-xforms out-xforms eval-dataflow env result)
         result))
-    (f env arg)))
+    (let [eval-dataflow (:evt-handler resolver)
+          result (f arg)]
+      (if-let [out-xforms (get-in resolver [method :xform :out])]
+        (apply-xforms out-xforms eval-dataflow env result)
+        result))))
 
 (defn- wrap-result [method resolver env arg]
   (when-let [m (get-in resolver [method :handler])]
