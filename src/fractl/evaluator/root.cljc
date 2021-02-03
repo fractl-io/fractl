@@ -49,9 +49,9 @@
 (defn- need-storage? [xs]
   (on-inst cn/entity-instance? xs))
 
-(defn- resolver-for-instance [insts]
+(defn- resolver-for-instance [resolver insts]
   (let [path (on-inst cn/instance-name insts)]
-    (rg/resolver-for-path path)))
+    (rg/resolver-for-path resolver path)))
 
 (defn- call-resolver-upsert [f resolver composed? data]
   (let [rs (if composed? resolver [resolver])
@@ -84,11 +84,11 @@
          (conj @inited-components component-name))
      component-name)))
 
-(defn- chained-crud [store-f resolver-f single-arg-path insts]
+(defn- chained-crud [store-f resolver-f res single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
-                   (rg/resolver-for-path single-arg-path)
-                   (resolver-for-instance insts))
+                   (rg/resolver-for-path res single-arg-path)
+                   (resolver-for-instance res insts))
         composed? (rg/composed? resolver)
         crud? (or (not resolver) composed?)
         resolver-result (when resolver
@@ -100,24 +100,28 @@
                        resolved-insts)]
     [local-result resolver-result]))
 
-(defn- chained-upsert [store record-name insts]
-  (maybe-init-schema! store (first record-name))
-  (chained-crud
-   (when store (partial store/upsert-instances store record-name))
-   resolver-upsert nil insts))
+(defn- chained-upsert [env record-name insts]
+  (let [store (env/get-store env)
+        resolver (env/get-resolver env)]
+    (when store (maybe-init-schema! store (first record-name)))
+    (chained-crud
+     (when store (partial store/upsert-instances store record-name))
+     resolver-upsert resolver nil insts)))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
 
-(defn- chained-delete [store record-name id]
-  (chained-crud
-   (when store (partial delete-by-id store record-name))
-   resolver-delete record-name [[record-name id]]))
+(defn- chained-delete [env record-name id]
+  (let [store (env/get-store env)
+        resolver (env/get-resolver env)]
+    (chained-crud
+     (when store (partial delete-by-id store record-name))
+     resolver-delete resolver record-name [[record-name id]])))
 
-(defn- bind-and-persist [env store x]
+(defn- bind-and-persist [env x]
   (if (cn/an-instance? x)
     (let [n (li/split-path (cn/instance-name x))
-          r (chained-upsert store n x)]
+          r (chained-upsert env n x)]
       [(env/bind-instance env n x) r])
     [env nil]))
 
@@ -316,7 +320,7 @@
      - a store implementation
      - a evaluator for dataflows attached to an event
      - an evaluator for standalone opcode, required for constructs like :match"
-  [store eval-event-dataflows eval-opcode]
+  [eval-event-dataflows eval-opcode]
   (reify opc/VM
     (do-match-instance [_ env [pattern instance]]
       (if-let [updated-env (parser/match-pattern env pattern instance)]
@@ -337,10 +341,12 @@
       (if-let [[path v] (env/instance-ref-path env record-name alias refs)]
         (if (cn/an-instance? v)
           (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
-                [env [local-result resolver-results :as r]] (bind-and-persist env store final-inst)]
+                [env [local-result resolver-results :as r]] (bind-and-persist env final-inst)]
             (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
-          (if (store/reactive? store)
-            (i/ok (store/get-reference store path refs) env)
+          (if-let [store (env/get-store env)]
+            (if (store/reactive? store)
+              (i/ok (store/get-reference store path refs) env)
+              (i/ok v env))
             (i/ok v env)))
         (i/not-found record-name env)))
 
@@ -349,9 +355,11 @@
         (i/ok record-name env)))
 
     (do-query-instances [_ env [entity-name queries]]
-      (if-let [[insts env] (find-instances env store entity-name queries)]
-        (if (seq insts)
-          (i/ok insts (env/push-obj env entity-name insts))
+      (if-let [store (env/get-store env)]
+        (if-let [[insts env] (find-instances env store entity-name queries)]
+          (if (seq insts)
+            (i/ok insts (env/push-obj env entity-name insts))
+            (i/not-found entity-name env))
           (i/not-found entity-name env))
         (i/not-found entity-name env)))
 
@@ -377,7 +385,7 @@
     (do-intern-instance [_ env [record-name alias]]
       (let [[insts single? env] (pop-instance env record-name)]
         (if insts
-          (let [[local-result resolver-results] (chained-upsert store record-name insts)]
+          (let [[local-result resolver-results] (chained-upsert env record-name insts)]
             (if-let [bindable (if single? (first local-result) local-result)]
               (let [env-with-inst (env/bind-instances env record-name local-result)
                     final-env (if alias
@@ -389,10 +397,11 @@
 
     (do-intern-event-instance [self env [record-name alias]]
       (let [[inst env] (pop-and-intern-instance env record-name alias)
-            resolver (resolver-for-instance inst)
+            resolver (env/get-resolver env)
+            resolver (resolver-for-instance resolver inst)
             composed? (rg/composed? resolver)
             local-result (when (or (not resolver) composed?)
-                           (eval-event-dataflows self inst))
+                           (eval-event-dataflows self env/EMPTY inst))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? inst))]
         (i/ok (pack-results local-result resolver-results) env)))
@@ -400,7 +409,7 @@
     (do-delete-instance [self env [record-name id-pattern-code]]
       (let [result (eval-opcode self env id-pattern-code)]
         (if-let [id (ok-result result)]
-          (let [[local-result resolver-results] (chained-delete store record-name id)]
+          (let [[local-result resolver-results] (chained-delete env record-name id)]
             (i/ok (pack-results local-result resolver-results)
                   (env/purge-instance env record-name id)))
           result)))
@@ -426,3 +435,6 @@
   (u/safe-set-once
    default-evaluator
    #(make-root-vm store eval-event-dataflows eval-opcode)))
+
+(defn get-temporal-evaluator [eval-event-dataflows eval-opcode]
+  (make-root-vm nil eval-event-dataflows eval-opcode))
