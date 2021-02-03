@@ -1,6 +1,5 @@
 (ns fractl.resolver.ui
   (:require [clojure.walk :as w]
-            [taoensso.timbre :as log]
             [reagent.core :as rg]
             [reagent.dom :as rgdom]
             [fractl.util :as u]
@@ -120,19 +119,15 @@
    #(if (li/name? %)
       (let [obj (lookup-name env inst rec-schema %)]
         (if (ui-component? obj)
-          (view-tag (preprocess-inst env (find-schema obj) obj))
+          (view-tag (preprocess-inst env obj))
           obj))
       (maybe-rewrite-event %))
    obj))
 
-(defn- preprocess-inst [env rec-schema inst]
+(defn- preprocess-inst [env inst]
   (if-let [v (view-tag inst)]
-    (assoc inst view-tag (rewrite-names env rec-schema inst v))
+    (assoc inst view-tag (rewrite-names env (find-schema inst) inst v))
     inst))
-
-(defn- transform-inst
-  [env inst]
-  (preprocess-inst env (find-schema inst) inst))
 
 (defn- process-cursors [spec]
   (w/postwalk
@@ -152,5 +147,5 @@
   (r/make-resolver
    n
    {:upsert {:handler upsert
-             :xform {:in [transform-inst]}}}
+             :xform {:in [preprocess-inst]}}}
    e/eval-transient-dataflows))

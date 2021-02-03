@@ -67,15 +67,6 @@
                   (:result (f r env insts)))
                 rs))))
 
-(defn- call-resolver-preprocess [f env resolver composed? insts]
-  (if (r/can-preprocess? resolver)
-    (let [rs (if composed? resolver [resolver])]
-      (doall (map (fn [r]
-                    (:result (f r env insts)))
-                  rs)))
-    insts))
-
-(def ^:private resolver-preprocess (partial call-resolver-preprocess r/call-resolver-preprocess))
 (def ^:private resolver-upsert (partial call-resolver-upsert r/call-resolver-upsert))
 (def ^:private resolver-delete (partial call-resolver-delete r/call-resolver-delete))
 
@@ -93,13 +84,7 @@
          (conj @inited-components component-name))
      component-name)))
 
-(defn- resolved-results [resolver composed? resolver-preproc resolver-upsert insts]
-  (let [rups (partial resolver-upsert resolver composed?)
-        rpreproc (when resolver-preproc
-                   (partial resolver-preproc resolver composed?))]
-    (rups (if rpreproc (rpreproc insts) insts))))
-
-(defn- chained-crud [store-f res resolver-preproc resolver-upsert single-arg-path insts]
+(defn- chained-crud [store-f res resolver-upsert single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
                    (rg/resolver-for-path res single-arg-path)
@@ -107,9 +92,7 @@
         composed? (rg/composed? resolver)
         crud? (or (not resolver) composed?)
         resolver-result (when resolver
-                          (resolved-results
-                           resolver composed?
-                           resolver-preproc resolver-upsert insts))
+                          (resolver-upsert resolver composed? insts))
         resolved-insts (if resolver (first resolver-result) insts)
         local-result (if (and crud? store-f
                               (or single-arg-path (need-storage? resolved-insts)))
@@ -123,7 +106,7 @@
     (when store (maybe-init-schema! store (first record-name)))
     (chained-crud
      (when store (partial store/upsert-instances store record-name))
-     resolver (partial resolver-preprocess env) (partial resolver-upsert env) nil insts)))
+     resolver (partial resolver-upsert env) nil insts)))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
@@ -133,7 +116,7 @@
         resolver (env/get-resolver env)]
     (chained-crud
      (when store (partial delete-by-id store record-name))
-     resolver nil resolver-delete record-name [[record-name id]])))
+     resolver resolver-delete record-name [[record-name id]])))
 
 (defn- bind-and-persist [env x]
   (if (cn/an-instance? x)
