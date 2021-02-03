@@ -1,7 +1,6 @@
 (ns fractl.evaluator.root
   "The default evaluator implementation"
   (:require [clojure.walk :as w]
-            [clojure.set :as set]
             [fractl.env :as env]
             [fractl.component :as cn]
             [fractl.util :as u]

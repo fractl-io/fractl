@@ -1,8 +1,7 @@
 (ns fractl.lang.kernel
   (:require [fractl.util :as u]
             [fractl.lang.datetime :as dt]
-            [fractl.component :as cn]
-            #?(:cljs [reagent.core :as r])))
+            [fractl.component :as cn]))
 
 (defn kernel-string?
   ([s rgex-s]
@@ -42,18 +41,6 @@
   (and (string? x)
        (re-matches email-pattern x)))
 
-(defn- cell? [x]
-  #?(:clj
-     (= (type x) clojure.lang.Atom)
-     :cljs
-     (= (type x) reagent.ratom/RAtom)))
-
-(defn cell [v]
-  #?(:clj
-     (atom v)
-     :cljs
-     (r/atom v)))
-
 (def types
   {:Kernel/String kernel-string?
    :Kernel/Keyword keyword?
@@ -73,8 +60,7 @@
    :Kernel/Any any-obj?
    :Kernel/Email email?
    :Kernel/Map map?
-   :Kernel/Edn edn?
-   :Kernel/Cell cell?})
+   :Kernel/Edn edn?})
 
 (def ^:private type-names (keys types))
 

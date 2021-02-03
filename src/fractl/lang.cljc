@@ -462,8 +462,6 @@
   (event :Kernel/AppInit
          {:AppName :Kernel/Keyword}))
 
-(def cell k/cell)
-
 (defn- initf []
   (when-not @kernel-inited
     (do-init-kernel)

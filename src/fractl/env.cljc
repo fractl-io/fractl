@@ -100,6 +100,3 @@
     (let [[_ obj :as x] (peek s)]
       [(assoc env :objstack (pop s))
        (map? obj) x])))
-
-(defn find-instance-with-attribute [env rec-name attr-name attr-value]
-  (first (filter #(= (attr-name %) attr-value) (get-instances env rec-name))))
