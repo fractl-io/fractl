@@ -3,7 +3,7 @@
             [fractl.component :as cn]
             [fractl.lang.internal :as li]))
 
-(def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval})
+(def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval :preprocess})
 
 (defn make-resolver
   ([resolver-name fnmap eval-dataflow]
