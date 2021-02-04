@@ -201,7 +201,8 @@
     [nil env]))
 
 (defn- find-instances-in-store [env store entity-name full-query]
-  (let [q (:compiled-query full-query)
+  (let [q (or (:compiled-query full-query)
+              (store/compile-query store full-query))
         [id-results env] (evaluate-id-queries env store (:id-queries q))]
     [(if (seq id-results)
        (store/query-by-id store entity-name (:query q) id-results)
