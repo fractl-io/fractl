@@ -1,5 +1,6 @@
 (ns fractl.resolver.remote
   (:require [fractl.component :as cn]
+            [fractl.util :as u]
             [fractl.util.http :as uh]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as r]))
@@ -8,13 +9,20 @@
   (let [[component inst-name] (li/split-path (cn/instance-name inst))]
     (str (name component) "/" (name event-type) "_" inst-name)))
 
+(defn- do-post [url options request-obj]
+  (let [response (uh/do-post url options request-obj)
+        status (:status response)]
+    (if (< 199 status 299)
+      response
+      (u/throw-ex (str "remote resolver error - " response)))))
+
 (defn- remote-request [event-type mkobj host options inst]
   (let [en (event-name event-type inst)
         url (str host uh/entity-event-prefix en)
         request-obj {en (if mkobj
                           (mkobj inst)
                           {:Instance inst})}]
-    (uh/do-post url options request-obj)))
+    (do-post url options request-obj)))
 
 (defn- mk-lookup-obj [inst]
   {:Id (:Id inst)})
@@ -24,10 +32,10 @@
 (def ^:private remote-get (partial remote-request :Lookup mk-lookup-obj))
 
 (defn- remote-query [host options query]
-  (uh/do-post (str host uh/query-prefix) options {:Query query}))
+  (do-post (str host uh/query-prefix) options {:Query query}))
 
 (defn- remote-eval [host options event-inst]
-  (uh/do-post (str host uh/dynamic-eval-prefix) options event-inst))
+  (do-post (str host uh/dynamic-eval-prefix) options event-inst))
 
 (def ^:private resolver-fns
   {:upsert remote-upsert

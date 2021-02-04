@@ -208,7 +208,7 @@
        (store/query-all store entity-name (:query q)))
      env]))
 
-(defn- find-instances [env store entity-name full-query]
+(defn find-instances [env store entity-name full-query]
   (let [[r env] (find-instances-via-resolvers env entity-name full-query)
         resolver-result (seq (:result r))
         [result env] (if resolver-result

@@ -67,13 +67,20 @@
     [cq (r/get-default-evaluator store (partial run-dataflows cq) dispatch-opcodes)]))
 
 (defn evaluator
-  ([store-or-store-config]
+  ([store-or-store-config with-query-support]
    (let [store (if (or (nil? store-or-store-config)
                        (map? store-or-store-config))
                  (store/open-default-store store-or-store-config)
                  store-or-store-config)
-         [compile-query-fn evaluator] (make store)]
-     (partial run-dataflows compile-query-fn evaluator)))
+         [compile-query-fn evaluator] (make store)
+         ef (partial run-dataflows compile-query-fn evaluator)]
+     (if with-query-support
+       (fn [x]
+         (if-let [qinfo (:Query x)]
+           (r/find-instances env/EMPTY store (first qinfo) (second qinfo))
+           (ef x)))
+       ef)))
+  ([store-or-store-config] (evaluator store-or-store-config false))
   ([] (evaluator nil)))
 
 (defn- maybe-init-event [event-obj]
@@ -94,5 +101,5 @@
     (dissoc xs :env)
     (doall (map filter-public-result xs))))
 
-(defn public-evaluator [store-config]
-  (comp filter-public-result (evaluator store-config)))
+(defn public-evaluator [store-config with-query-support]
+  (comp filter-public-result (evaluator store-config with-query-support)))

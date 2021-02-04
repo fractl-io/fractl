@@ -112,20 +112,33 @@
       (process-dynamic-eval evaluator n request)
       (bad-request (str "Event not found - " n)))))
 
-(defn- process-query [request]
-  (internal-error "Remote query processing not implemented yet"))
+(defn- do-query [evaluator request-obj]
+  (if (:Query request-obj)
+    (evaluator request-obj)
+    (bad-request (str "not a valid query request - " request-obj))))
+
+(defn- process-query [evaluator request]
+  (try
+    (if-let [data-fmt (find-data-format request)]
+      (do-query evaluator ((decoder data-fmt) (String. (.bytes (:body request)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))
+    (catch Exception ex
+      (internal-error (str "Failed to parse request - " (.getMessage ex))))))
 
 (def entity-event-prefix "/_e/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
 
-(defn- make-routes [process-request process-dynamic-eval]
+(defn- make-routes [process-request process-query process-dynamic-eval]
   (let [r (apply routes [(POST (str entity-event-prefix ":component/:event") [] process-request)
                          (POST query-prefix [] process-query)
                          (POST dynamic-eval-prefix [] process-dynamic-eval)
                          (not-found "<p>Resource not found.</p>")])]
     (cors/wrap-cors
-     r :access-control-allow-origin [#".*"]
+     r
+     :access-control-allow-origin [#".*"]
      :access-control-allow-headers ["Content-Type"]
      :access-control-allow-credentials true
      :access-control-allow-methods [:post])))
@@ -133,6 +146,7 @@
 (defn run-server
   ([evaluator config]
    (h/run-server (make-routes (partial process-request evaluator)
+                              (partial process-query evaluator)
                               (partial process-dynamic-eval evaluator nil))
                  (if (:thread config)
                    config
