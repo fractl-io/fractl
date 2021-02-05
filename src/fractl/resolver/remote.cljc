@@ -7,14 +7,17 @@
 
 (defn- event-name [event-type inst]
   (let [[component inst-name] (li/split-path (cn/instance-name inst))]
-    (str (name component) "/" (name event-type) "_" inst-name)))
+    (str (name component) "/" (name event-type) "_" (name inst-name))))
 
-(defn- do-post [url options request-obj]
-  (let [response (uh/do-post url options request-obj)
-        status (:status response)]
-    (if (< 199 status 299)
-      response
-      (u/throw-ex (str "remote resolver error - " response)))))
+(defn- do-post
+  ([url options request-obj format]
+   (let [response (uh/do-post url options request-obj format)
+         status (:status response)]
+     (if (< 199 status 299)
+       (assoc response :body ((uh/decoder format) (:body response)))
+       (u/throw-ex (str "remote resolver error - " response)))))
+  ([url options request-obj]
+   (do-post url options request-obj :transit+json)))
 
 (defn- remote-request [event-type mkobj host options inst]
   (let [en (event-name event-type inst)
@@ -32,7 +35,10 @@
 (def ^:private remote-get (partial remote-request :Lookup mk-lookup-obj))
 
 (defn- remote-query [host options query]
-  (do-post (str host uh/query-prefix) options {:Query query}))
+  (let [response (do-post
+                  (str host uh/query-prefix)
+                  options {:Query query})]
+    (first (:body response))))
 
 (defn- remote-eval [host options event-inst]
   (do-post (str host uh/dynamic-eval-prefix) options event-inst))
@@ -45,9 +51,7 @@
    :eval remote-eval})
 
 (defn- with-required-options [options]
-  (let [hdrs (assoc (:headers options) "Content-Type" "application/json")]
-    (merge {:timeout 1000}
-           (assoc options :headers hdrs))))
+  (merge {:timeout 1000} options))
 
 (defn make [resolver-name config]
   (let [host (:host config)

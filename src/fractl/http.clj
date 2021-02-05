@@ -3,36 +3,13 @@
             [clojure.string :as s]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
-            [cheshire.core :as json]
             [taoensso.timbre :as log]
             [fractl.util :as u]
-            [fractl.util.seq :as us]
+            [fractl.util.http :as uh]
             [fractl.component :as cn]
-            [fractl.datafmt.transit :as t]
             [fractl.lang.internal :as li])
   (:use [compojure.core :only [routes POST]]
         [compojure.route :only [not-found]]))
-
-(defn- json-parse-string [s]
-  (json/parse-string s true))
-
-(def ^:private enc-dec
-  {:json [json-parse-string json/generate-string]
-   :transit+json [t/decode t/encode]})
-
-(def ^:private content-types
-  {"application/json" :json
-   "application/transit+json" :transit+json})
-
-(def ^:private datafmt-content-types (us/map-mirror content-types))
-
-(defn- encoder [data-fmt]
-  (second (data-fmt enc-dec)))
-
-(defn- decoder [data-fmt]
-  (first (data-fmt enc-dec)))
-
-(def ^:private content-type (partial get datafmt-content-types))
 
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
@@ -40,8 +17,8 @@
    Also see: https://github.com/ring-clojure/ring/wiki/Creating-responses"
   [json-obj status data-fmt]
   (let [r {:status status
-           :headers {"Content-Type" (content-type data-fmt)}
-           :body ((encoder data-fmt) json-obj)}]
+           :headers {"Content-Type" (uh/content-type data-fmt)}
+           :body ((uh/encoder data-fmt) json-obj)}]
     (log/debug {:response r})
     r))
 
@@ -77,7 +54,7 @@
 
 (defn- event-from-request [request event-name data-fmt]
   (try
-    (let [obj ((decoder data-fmt) (String. (.bytes (:body request))))
+    (let [obj ((uh/decoder data-fmt) (String. (.bytes (:body request))))
           obj-name (li/split-path (first (keys obj)))]
       (if (or (not event-name) (= obj-name event-name))
         [(cn/make-event-instance obj-name (first (vals obj))) nil]
@@ -91,7 +68,7 @@
 
 (defn- find-data-format [request]
   (let [ct (request-content-type request)]
-    (get content-types ct)))
+    (uh/content-types ct)))
 
 (defn- process-dynamic-eval [evaluator event-name request]
   (if-let [data-fmt (find-data-format request)]
@@ -112,20 +89,23 @@
       (process-dynamic-eval evaluator n request)
       (bad-request (str "Event not found - " n)))))
 
-(defn- do-query [evaluator request-obj]
+(defn- do-query [evaluator request-obj data-fmt]
   (if (:Query request-obj)
-    (evaluator request-obj)
+    (ok (evaluator request-obj) data-fmt)
     (bad-request (str "not a valid query request - " request-obj))))
 
 (defn- process-query [evaluator request]
   (try
     (if-let [data-fmt (find-data-format request)]
-      (do-query evaluator ((decoder data-fmt) (String. (.bytes (:body request)))))
+      (do-query
+       evaluator
+       ((uh/decoder data-fmt) (String. (.bytes (:body request))))
+       data-fmt)
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request))))
     (catch Exception ex
-      (internal-error (str "Failed to parse request - " (.getMessage ex))))))
+      (internal-error (str "Failed to process query request - " (.getMessage ex))))))
 
 (def entity-event-prefix "/_e/")
 (def query-prefix "/_q/")
