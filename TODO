@@ -1,1 +1,1 @@
- * Remote seems to be unable to resolver upsert event, debug.
+ * Avoid redundant upserts, this can be achieved by maintaining a 'dirty' flag in the VM.
