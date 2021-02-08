@@ -68,32 +68,40 @@
              (partial store/compile-query store))]
     [cq (r/get-default-evaluator (partial run-dataflows cq) dispatch-opcodes)]))
 
+(defn- store-from-config
+  [store-or-store-config]
+  (cond
+    (or (nil? store-or-store-config)
+        (map? store-or-store-config))
+    (store/open-default-store store-or-store-config)
+
+    (and (keyword? store-or-store-config)
+         (= store-or-store-config :none))
+    nil
+
+    :else
+    store-or-store-config))
+
+(defn- resolver-from-config
+  [resolver-or-resolver-config]
+  (cond
+    (nil? resolver-or-resolver-config)
+    (rr/registered-resolvers)
+
+    (map? resolver-or-resolver-config)
+    (rr/register-resolvers resolver-or-resolver-config)
+
+    (and (keyword? resolver-or-resolver-config)
+         (= resolver-or-resolver-config :none))
+    nil
+
+    :else
+    resolver-or-resolver-config))
+
 (defn evaluator
   ([store-or-store-config resolver-or-resolver-config]
-   (let [store (cond
-                 (or (nil? store-or-store-config)
-                     (map? store-or-store-config))
-                 (store/open-default-store store-or-store-config)
-
-                 (and (keyword? store-or-store-config)
-                      (= store-or-store-config :none))
-                 nil
-
-                 :else
-                 store-or-store-config)
-         resolver (cond
-                    (nil? resolver-or-resolver-config)
-                    (rr/registered-resolvers)
-
-                    (map? resolver-or-resolver-config)
-                    (rr/register-resolvers resolver-or-resolver-config)
-
-                    (and (keyword? resolver-or-resolver-config)
-                         (= resolver-or-resolver-config :none))
-                    nil
-
-                    :else
-                    resolver-or-resolver-config)
+   (let [store (store-from-config store-or-store-config)
+         resolver (resolver-from-config resolver-or-resolver-config)
          [compile-query-fn evaluator] (make store)
          env (env/make store resolver)]
      (partial run-dataflows compile-query-fn evaluator env)))

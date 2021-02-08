@@ -379,7 +379,7 @@
             (i/ok insts (env/push-obj env entity-name insts))
             (i/not-found entity-name env))
           (i/not-found entity-name env))
-        (i/not-found entity-name env)))
+        (i/error (str "Invalid query request for " entity-name " - no store specified"))))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
@@ -419,8 +419,7 @@
 
     (do-intern-event-instance [self env [record-name alias]]
       (let [[inst env] (pop-and-intern-instance env record-name alias)
-            resolver (env/get-resolver env)
-            resolver (resolver-for-instance resolver inst)
+            resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
             local-result (when (or (not resolver) composed?)
                            (doall (eval-event-dataflows self env/EMPTY inst)))
