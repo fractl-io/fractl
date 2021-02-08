@@ -22,7 +22,7 @@
 (defn- persisted? [comp-name entity-instance]
   (let [id (:Id entity-instance)
         evt (cn/make-instance (keyword (str (name comp-name) "/Lookup_E")) {:Id id})
-        result (e/eval-all-dataflows evt store)
+        result (e/eval-all-dataflows evt store nil)
         r (first result)]
     (when-not (= :not-found (:status r))
       (let [e (ffirst (:result r))]
@@ -40,7 +40,7 @@
 
   (let [e (cn/make-instance :ST/E {:X 10})
         evt (cn/make-instance :ST/Upsert_E {:Instance e})
-        result (tu/fresult (e/eval-all-dataflows evt store))
+        result (tu/fresult (e/eval-all-dataflows evt store nil))
         e01 (ffirst result)]
     (is (cn/instance-of? :ST/E e01))
     (is (nil? (second result)))
@@ -48,7 +48,7 @@
   (compose-test-resolver :TestResolver01 :ST/E)
   (let [e (cn/make-instance :ST/E {:X 10})
         evt (cn/make-instance :ST/Upsert_E {:Instance e})
-        result (tu/fresult (e/eval-all-dataflows evt store))
+        result (tu/fresult (e/eval-all-dataflows evt store nil))
         e01 (ffirst result)
         r (ffirst (second result))]
     (is (cn/instance-of? :ST/E e01))
@@ -56,6 +56,6 @@
     (is (cn/instance-of? :ST/E r))
     (is (= e01 r))
     (let [evt (cn/make-instance :ST/New_E {:X 100})
-          result (tu/fresult (e/eval-all-dataflows evt store))]
+          result (tu/fresult (e/eval-all-dataflows evt store nil))]
       (is (fn? result))
       (is (= (result) 100)))))
