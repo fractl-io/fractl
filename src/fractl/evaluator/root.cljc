@@ -116,7 +116,7 @@
         resolver (env/get-resolver env)]
     (chained-crud
      (when store (partial delete-by-id store record-name))
-     resolver resolver-delete record-name [[record-name id]])))
+     resolver (partial resolver-delete env) record-name [[record-name id]])))
 
 (defn- bind-and-persist [env x]
   (if (cn/an-instance? x)
@@ -172,7 +172,7 @@
 (defn- find-instances-via-composed-resolvers [env entity-name query resolvers]
   (loop [rs resolvers]
     (if-let [r (first rs)]
-      (let [result (r/call-resolver-query r [entity-name query])]
+      (let [result (r/call-resolver-query r env [entity-name query])]
         (if (:result result)
           [result env]
           (recur (rest rs))))
@@ -183,7 +183,7 @@
     (let [[q env] (normalize-raw-query env (:raw-query full-query))]
       (if (rg/composed? resolver)
         (find-instances-via-composed-resolvers env entity-name q resolver)
-        [(r/call-resolver-query resolver [entity-name q]) env]))
+        [(r/call-resolver-query resolver env [entity-name q]) env]))
     [nil env]))
 
 (defn- find-instances-in-store [env store entity-name full-query]

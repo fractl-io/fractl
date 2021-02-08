@@ -15,11 +15,12 @@
 (def store (store/open-default-store nil))
 
 (defn- test-resolver [install-resolver resolver-name path]
-  (let [r (r/make-resolver resolver-name {:upsert {:handler identity
-                                                   :xform {:in [identity :EntityXformR01/EToEPrime]
-                                                           :out [identity :EntityXformR01/EPrimeToE]}}
+  (let [f (fn [_ arg] arg)
+        r (r/make-resolver resolver-name {:upsert {:handler identity
+                                                   :xform {:in [f :EntityXformR01/EToEPrime]
+                                                           :out [f :EntityXformR01/EPrimeToE]}}
                                           :delete {:handler identity
-                                                   :xform {:in [identity]}}}
+                                                   :xform {:in [f]}}}
                            e/eval-transient-dataflows)]
     (install-resolver path r)))
 
@@ -74,11 +75,12 @@
       (is (= r02 [[:R01 :E] id])))))
 
 (defn- test-resolver-r02 [install-resolver resolver-name path]
-  (let [r (r/make-resolver resolver-name {:upsert {:handler identity
-                                                   :xform {:in [identity :EntityXformR02/EToEPrime]
-                                                           :out [identity :EntityXformR02/EPrimeToE]}}
+  (let [f (fn [_ arg] arg)
+        r (r/make-resolver resolver-name {:upsert {:handler identity
+                                                   :xform {:in [f :EntityXformR02/EToEPrime]
+                                                           :out [f :EntityXformR02/EPrimeToE]}}
                                           :delete {:handler identity
-                                                   :xform {:in [identity]}}}
+                                                   :xform {:in [f]}}}
                            e/eval-transient-dataflows)]
     (install-resolver path r)))
 
