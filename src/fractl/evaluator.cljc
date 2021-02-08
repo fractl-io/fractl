@@ -120,7 +120,7 @@
   ([event-obj]
    (eval-all-dataflows event-obj nil nil)))
 
-(defn eval-transient-dataflows
+(defn eval-pure-dataflows
   "Facility to evaluate dataflows without producing any side-effects.
    This is useful for pure tasks like data-format transformation.
    An example: transforming data before being sent to a resolver to
