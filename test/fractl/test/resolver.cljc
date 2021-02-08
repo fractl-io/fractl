@@ -21,7 +21,7 @@
                                                            :out [f :EntityXformR01/EPrimeToE]}}
                                           :delete {:handler identity
                                                    :xform {:in [f]}}}
-                           e/eval-transient-dataflows)]
+                           e/eval-pure-dataflows)]
     (install-resolver path r)))
 
 (def compose-test-resolver (partial test-resolver rg/compose-resolver))
@@ -81,7 +81,7 @@
                                                            :out [f :EntityXformR02/EPrimeToE]}}
                                           :delete {:handler identity
                                                    :xform {:in [f]}}}
-                           e/eval-transient-dataflows)]
+                           e/eval-pure-dataflows)]
     (install-resolver path r)))
 
 (def compose-test-resolver-r02 (partial test-resolver-r02 rg/compose-resolver))
