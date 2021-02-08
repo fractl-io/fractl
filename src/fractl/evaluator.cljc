@@ -64,29 +64,47 @@
   "Use the given store to create a query compiler and pattern evaluator.
    Return the vector [compile-query-fn, evaluator]."
   [store]
-  (let [cq (partial store/compile-query store)]
+  (let [cq (when store
+             (partial store/compile-query store))]
     [cq (r/get-default-evaluator (partial run-dataflows cq) dispatch-opcodes)]))
+
+(defn- store-from-config
+  [store-or-store-config]
+  (cond
+    (or (nil? store-or-store-config)
+        (map? store-or-store-config))
+    (store/open-default-store store-or-store-config)
+
+    (and (keyword? store-or-store-config)
+         (= store-or-store-config :none))
+    nil
+
+    :else
+    store-or-store-config))
+
+(defn- resolver-from-config
+  [resolver-or-resolver-config]
+  (cond
+    (nil? resolver-or-resolver-config)
+    (rr/registered-resolvers)
+
+    (map? resolver-or-resolver-config)
+    (rr/register-resolvers resolver-or-resolver-config)
+
+    (and (keyword? resolver-or-resolver-config)
+         (= resolver-or-resolver-config :none))
+    nil
+
+    :else
+    resolver-or-resolver-config))
 
 (defn evaluator
   ([store-or-store-config resolver-or-resolver-config]
-   (let [store (if (or (nil? store-or-store-config)
-                       (map? store-or-store-config))
-                 (store/open-default-store store-or-store-config)
-                 store-or-store-config)
-         resolver (cond
-                    (nil? resolver-or-resolver-config)
-                    (rr/get-default-resolver)
-
-                    (map? resolver-or-resolver-config)
-                    (rr/register-resolvers resolver-or-resolver-config)
-
-                    :else
-                    resolver-or-resolver-config)
+   (let [store (store-from-config store-or-store-config)
+         resolver (resolver-from-config resolver-or-resolver-config)
          [compile-query-fn evaluator] (make store)
          env (env/make store resolver)]
      (partial run-dataflows compile-query-fn evaluator env)))
-  ([store-or-store-config]
-   (evaluator store-or-store-config nil))
   ([] (evaluator nil nil)))
 
 (defn- maybe-init-event [event-obj]
@@ -99,8 +117,6 @@
   ([event-obj store-or-store-config resolver-or-resolver-config]
    ((evaluator store-or-store-config resolver-or-resolver-config)
     (maybe-init-event event-obj)))
-  ([event-obj store-or-store-config]
-   (eval-all-dataflows event-obj store-or-store-config nil))
   ([event-obj]
    (eval-all-dataflows event-obj nil nil)))
 
@@ -110,11 +126,7 @@
    An example: transforming data before being sent to a resolver to
    match the format requirements of the backend"
   [event-obj]
-  (run-dataflows
-   nil
-   (r/get-transient-evaluator (partial run-dataflows nil) dispatch-opcodes)
-   env/EMPTY
-   (maybe-init-event event-obj)))
+  (eval-all-dataflows event-obj :none :none))
 
 (defn- filter-public-result [xs]
   (if (map? xs)
@@ -122,4 +134,4 @@
     (doall (map filter-public-result xs))))
 
 (defn public-evaluator [store-config]
-  (comp filter-public-result (evaluator store-config)))
+  (comp filter-public-result (evaluator store-config nil)))

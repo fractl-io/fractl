@@ -31,6 +31,17 @@
     (ffirst (:result r))))
 
 (defn- apply-xform
+  "Tranformations can be applied as the data moves from the evaluator to
+   resolver, and vice versa. Transformations are specified as a vector in
+   a `:xform` map in the resolver specification. `:in` represents the
+   xforms of data flowing from evaluator to resolver and `:out` represents
+   those in the reverse direction.
+
+   xforms can be represented either by a clojure function or a fractl name.
+   With a clojure function, the function is applied to the data (or the result
+   of a previous transformation). With a fractl name, a event corresponding
+   to the specified name is triggered and evaluated. The event body has a single
+   field called `:Instance`, which carries the data (entity instance)."
   [xform eval-dataflow env arg]
   (cond
     (fn? xform)
