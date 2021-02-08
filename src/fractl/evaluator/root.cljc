@@ -33,7 +33,7 @@
                                               attr-value))
                         objs)
           env (env/push-obj env n (if single? (first new-objs) new-objs))]
-      (i/ok (if single? (first new-objs) new-objs) env))
+      (i/ok (if single? (first new-objs) new-objs) (env/mark-all-dirty env new-objs)))
     (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value]))))
 
 (defn- call-function [env f]
@@ -120,9 +120,11 @@
 
 (defn- chained-upsert [env store record-name insts]
   (maybe-init-schema! store (first record-name))
-  (chained-crud
-   (when store (partial store/upsert-instances store record-name))
-   (partial resolver-preprocess env) resolver-upsert nil insts))
+  (if (env/any-dirty? env insts)
+    (chained-crud
+     (when store (partial store/upsert-instances store record-name))
+     (partial resolver-preprocess env) resolver-upsert nil insts)
+    [insts nil]))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
@@ -354,7 +356,9 @@
     (do-query-instances [_ env [entity-name queries]]
       (if-let [[insts env] (find-instances env store entity-name queries)]
         (if (seq insts)
-          (i/ok insts (env/push-obj env entity-name insts))
+          (i/ok insts (env/mark-all-mint
+                       (env/push-obj env entity-name insts)
+                       insts))
           (i/not-found entity-name env))
         (i/not-found entity-name env)))
 

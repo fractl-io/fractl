@@ -101,3 +101,26 @@
     (let [[_ obj :as x] (peek s)]
       [(assoc env :objstack (pop s))
        (map? obj) x])))
+
+(defn- mark-insts-state [state env insts]
+  (loop [insts insts, ds (get env :dirty {})]
+    (if-let [inst (first insts)]
+      (if-let [id (:Id inst)]
+        (recur (rest insts) (assoc ds id state))
+        (recur (rest insts) ds))
+      (assoc env :dirty ds))))
+
+(def mark-all-mint (partial mark-insts-state false))
+(def mark-all-dirty (partial mark-insts-state true))
+
+(defn any-dirty? [env insts]
+  (if (cn/entity-instance? (first insts))
+    (if-let [ds (:dirty env)]
+      (loop [insts insts]
+        (if-let [inst (first insts)]
+          (let [f (get ds (:Id inst))]
+            (if (or f (nil? f))
+              true
+              (recur (rest insts))))
+          false)))
+    true))
