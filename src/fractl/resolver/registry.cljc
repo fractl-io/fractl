@@ -43,6 +43,6 @@
 (defn register-resolvers [specs]
   (doall (map register-resolver specs)))
 
-(defn get-default-resolver
+(defn registered-resolvers
   []
   @resolver-db)
