@@ -4,7 +4,7 @@
             [fractl.util :as u]))
 
 (defn- select-from-index-table [index-table-name where-clause]
-  (if (= :Id (second where-clause))
+  (if (= :Id (keyword (second where-clause)))
     {:result (nth where-clause 2)}
     {:query
      (hsql/format {:select [:*]

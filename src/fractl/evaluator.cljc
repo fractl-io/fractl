@@ -99,12 +99,20 @@
     resolver-or-resolver-config))
 
 (defn evaluator
-  ([store-or-store-config resolver-or-resolver-config]
+  ([store-or-store-config resolver-or-resolver-config with-query-support]
    (let [store (store-from-config store-or-store-config)
          resolver (resolver-from-config resolver-or-resolver-config)
          [compile-query-fn evaluator] (make store)
-         env (env/make store resolver)]
-     (partial run-dataflows compile-query-fn evaluator env)))
+         env (env/make store resolver)
+         ef (partial run-dataflows compile-query-fn evaluator env)]
+     (if with-query-support
+       (fn [x]
+         (if-let [qinfo (:Query x)]
+           (r/find-instances env store (first qinfo) (second qinfo))
+           (ef x)))
+       ef)))
+  ([store-or-store-config resolver-or-resolver-config]
+   (evaluator store-or-store-config resolver-or-resolver-config false))
   ([] (evaluator nil nil)))
 
 (defn- maybe-init-event [event-obj]
@@ -133,5 +141,5 @@
     (dissoc xs :env)
     (doall (map filter-public-result xs))))
 
-(defn public-evaluator [store-config]
-  (comp filter-public-result (evaluator store-config nil)))
+(defn public-evaluator [store-config with-query-support]
+  (comp filter-public-result (evaluator store-config with-query-support)))
