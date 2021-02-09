@@ -33,7 +33,7 @@
                                               attr-value))
                         objs)
           env (env/push-obj env n (if single? (first new-objs) new-objs))]
-      (i/ok (if single? (first new-objs) new-objs) env))
+      (i/ok (if single? (first new-objs) new-objs) (env/mark-all-dirty env new-objs)))
     (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value]))))
 
 (defn- call-function [env f]
@@ -120,9 +120,11 @@
 
 (defn- chained-upsert [env store record-name insts]
   (maybe-init-schema! store (first record-name))
-  (chained-crud
-   (when store (partial store/upsert-instances store record-name))
-   (partial resolver-preprocess env) resolver-upsert nil insts))
+  (if (env/any-dirty? env insts)
+    (chained-crud
+     (when store (partial store/upsert-instances store record-name))
+     (partial resolver-preprocess env) resolver-upsert nil insts)
+    [insts nil]))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
@@ -201,14 +203,15 @@
     [nil env]))
 
 (defn- find-instances-in-store [env store entity-name full-query]
-  (let [q (:compiled-query full-query)
+  (let [q (or (:compiled-query full-query)
+              (store/compile-query store full-query))
         [id-results env] (evaluate-id-queries env store (:id-queries q))]
     [(if (seq id-results)
        (store/query-by-id store entity-name (:query q) id-results)
        (store/query-all store entity-name (:query q)))
      env]))
 
-(defn- find-instances [env store entity-name full-query]
+(defn find-instances [env store entity-name full-query]
   (let [[r env] (find-instances-via-resolvers env entity-name full-query)
         resolver-result (seq (:result r))
         [result env] (if resolver-result
@@ -353,7 +356,9 @@
     (do-query-instances [_ env [entity-name queries]]
       (if-let [[insts env] (find-instances env store entity-name queries)]
         (if (seq insts)
-          (i/ok insts (env/push-obj env entity-name insts))
+          (i/ok insts (env/mark-all-mint
+                       (env/push-obj env entity-name insts)
+                       insts))
           (i/not-found entity-name env))
         (i/not-found entity-name env)))
 

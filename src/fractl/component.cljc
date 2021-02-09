@@ -555,9 +555,17 @@
 (defn- serialized-instance? [x]
   (and (type-tag-key x) (:name x)))
 
+(defn- deserialize-name [x]
+  (let [n (:name x)]
+    (cond
+      (keyword? n) n
+      (string? n) (keyword n)
+      (seqable? n) (vec (map #(if (keyword? %) % (keyword %)) n))
+      :else (util/throw-ex (str "not a valid name - " n)))))
+
 (defn- deserialize-instance [x]
   (let [tp (keyword (type-tag-key x))
-        nm (keyword (:name x))]
+        nm (deserialize-name x)]
     (assoc x type-tag-key tp :name nm)))
 
 (declare make-instance)
