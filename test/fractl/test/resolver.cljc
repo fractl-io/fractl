@@ -12,7 +12,10 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(def store (store/open-default-store nil))
+#?(:clj
+   (def store (store/open-default-store nil))
+   :cljs
+   (def store (store/open-default-store {:type :alasql})))
 
 (defn- test-resolver [install-resolver resolver-name path]
   (let [f (fn [_ arg] arg)
@@ -21,7 +24,7 @@
                                                            :out [f :EntityXformR01/EPrimeToE]}}
                                           :delete {:handler identity
                                                    :xform {:in [f]}}}
-                           e/eval-transient-dataflows)]
+                           e/eval-pure-dataflows)]
     (install-resolver path r)))
 
 (def compose-test-resolver (partial test-resolver rg/compose-resolver))
@@ -81,7 +84,7 @@
                                                            :out [f :EntityXformR02/EPrimeToE]}}
                                           :delete {:handler identity
                                                    :xform {:in [f]}}}
-                           e/eval-transient-dataflows)]
+                           e/eval-pure-dataflows)]
     (install-resolver path r)))
 
 (def compose-test-resolver-r02 (partial test-resolver-r02 rg/compose-resolver))

@@ -4,6 +4,8 @@
             [fractl.util :as u]
             [reagent.core :as reagent]))
 
+(def view-tag :DOM_View)
+
 (def inst-store (reagent/atom {}))
 
 (defn- store
@@ -58,9 +60,10 @@
 
 (defn get-reference
   [[entity-name id] refs]
-  (fn []
-    (-> (track-instance entity-name id)
-        (get-in refs))))
+  (let [tag (if (= (last refs) view-tag)
+              :view-track
+              :track)]
+    [tag [entity-name id (last refs)]]))
 
 (defn compile-to-indexed-query [query-pattern]
   (let [where-clause (:where query-pattern)

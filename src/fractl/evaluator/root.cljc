@@ -320,7 +320,7 @@
      - a store implementation
      - a evaluator for dataflows attached to an event
      - an evaluator for standalone opcode, required for constructs like :match"
-  [eval-event-dataflows eval-opcode]
+  [eval-event-dataflows eval-opcode eval-dataflow]
   (reify opc/VM
     (do-match-instance [_ env [pattern instance]]
       (if-let [updated-env (parser/match-pattern env pattern instance)]
@@ -403,8 +403,9 @@
       (let [[inst env] (pop-and-intern-instance env record-name alias)
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
+            eval-env (env/make (env/get-store env) (env/get-resolver env))
             local-result (when (or (not resolver) composed?)
-                           (doall (eval-event-dataflows self env/EMPTY inst)))
+                           (doall (eval-event-dataflows self eval-env inst)))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? inst))]
         (i/ok (pack-results local-result resolver-results) env)))
@@ -426,6 +427,20 @@
           (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)
           result)))
 
+    (do-dispatch-on [self env body-code]
+      (let [df-eval (partial eval-dataflow self env)]
+        (i/ok (fn [e]
+                (println "Hello!")
+                (let [value (-> e .-target .-value)
+                      evt (cn/make-instance :Fractl.Basic_UI/DomEvent
+                                            {:Value value})]
+                  (println env)
+                  (println evt)
+                  (println body-code)
+                  (println "value: " value)
+                  (eval-dataflow self env evt (list :Fractl.Basic_UI/DomEvent {:opcode (atom body-code)}))))
+              env)))
+
     (do-for-each [self env [bind-pattern-code body-code result-alias]]
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
@@ -434,10 +449,8 @@
 
 (def ^:private default-evaluator (u/make-cell))
 
-(defn get-default-evaluator [eval-event-dataflows eval-opcode]
+(defn get-default-evaluator [eval-event-dataflows eval-opcode eval-dataflow]
   (u/safe-set-once
    default-evaluator
-   #(make-root-vm eval-event-dataflows eval-opcode)))
+   #(make-root-vm eval-event-dataflows eval-opcode eval-dataflow)))
 
-(defn get-transient-evaluator [eval-event-dataflows eval-opcode]
-  (make-root-vm eval-event-dataflows eval-opcode))

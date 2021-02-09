@@ -32,7 +32,7 @@
   (if-let [t (:type config)]
     (t store-constructors)
     #?(:clj h2/make
-       :cljs alasql/make)))
+       :cljs reagent/make)))
 
 (defn open-default-store
   ([store-config]

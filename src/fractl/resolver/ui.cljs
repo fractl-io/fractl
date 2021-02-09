@@ -148,4 +148,4 @@
    n
    {:upsert {:handler upsert
              :xform {:in [preprocess-inst]}}}
-   e/eval-transient-dataflows))
+   e/eval-pure-dataflows))
