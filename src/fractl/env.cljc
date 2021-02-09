@@ -7,6 +7,20 @@
 
 (def EMPTY {})
 
+(defn make
+  [store resolver]
+  (assoc EMPTY
+         :store store
+         :resolver resolver))
+
+(defn get-store
+  [self]
+  (:store self))
+
+(defn get-resolver
+  [self]
+  (:resolver self))
+
 ;; !!NOTE!! This assertion may be removed once the
 ;; pattern-match algorithm is fully implemented.
 ;; This check ensures that the compiler never pushes

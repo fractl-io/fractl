@@ -44,11 +44,11 @@
   (do-post (str host uh/dynamic-eval-prefix) options event-inst))
 
 (def ^:private resolver-fns
-  {:upsert remote-upsert
-   :delete remote-delete
-   :get remote-get
-   :query remote-query
-   :eval remote-eval})
+  {:upsert {:handler remote-upsert}
+   :delete {:handler remote-delete}
+   :get {:handler remote-get}
+   :query {:handler remote-query}
+   :eval {:handler remote-eval}})
 
 (defn- with-required-options [options]
   (merge {:timeout 1000} options))
@@ -56,7 +56,7 @@
 (defn make [resolver-name config]
   (let [host (:host config)
         options (with-required-options (dissoc config :host))
-        handlers (map (fn [[k f]]
-                        [k (partial f host options)])
+        handlers (map (fn [[k res]]
+                        [k (partial (:handler res) host options)])
                       resolver-fns)]
     (r/make-resolver resolver-name (into {} handlers))))

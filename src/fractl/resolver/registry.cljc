@@ -5,8 +5,11 @@
 
 (def ^:private resolver-db (u/make-cell {}))
 
-(defn resolver-for-path [path]
-  (get @resolver-db (li/split-path path)))
+(defn resolver-for-path
+  ([resolver path]
+   (get resolver (li/split-path path)))
+  ([path]
+   (resolver-for-path @resolver-db path)))
 
 (defn override-resolver [path resolver]
   (if (vector? path)
@@ -39,3 +42,7 @@
 
 (defn register-resolvers [specs]
   (doall (map register-resolver specs)))
+
+(defn registered-resolvers
+  []
+  @resolver-db)

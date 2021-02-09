@@ -8,6 +8,7 @@
             [fractl.evaluator :as e]
             [fractl.lang.internal :as li]
             [fractl.env :as env]
+            [fractl.resolver.core :as r]
             [fractl.store.reagent.core :as rstore]))
 
 (def view-tag :DOM_View)
@@ -147,6 +148,8 @@
        (.getElementById js/document target)))))
 
 (defn make-resolver [n]
-  {:name n
-   :upsert upsert
-   :preprocess preprocess})
+  (r/make-resolver
+   n
+   {:upsert {:handler upsert}
+    :preprocess {:handler preprocess}}
+   e/eval-transient-dataflows))

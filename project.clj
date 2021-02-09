@@ -44,6 +44,7 @@
                               "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
                               "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
                               "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "fractl.test-runner"]
+                              "fig:rtest"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "fractl.reagent-test-runner"]
                               "fig:ci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.test-runner"]
                               "fig:rci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.reagent-test-runner"]}
                    :clean-targets  ^{:protect false} ["target" "out"]}})
