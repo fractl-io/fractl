@@ -46,18 +46,12 @@
   (let [env (assoc env rec-name (list))]
     (su/move-all instances env #(bind-instance %1 rec-name %2))))
 
-(defn- maybe-deref [obj]
-  (if (cn/future-object? obj)
-    (or (cn/deref-future-object obj)
-        (cn/make-error "Future object timeout" obj))
-    obj))
-
 (def bind-instance-to-alias assoc)
 (def bind-to-alias assoc)
-(def lookup-by-alias (comp maybe-deref get))
+(def lookup-by-alias (comp cn/maybe-deref get))
 
 (defn lookup-instance [env rec-name]
-  (maybe-deref (peek (get-instances env rec-name))))
+  (cn/maybe-deref (peek (get-instances env rec-name))))
 
 (defn purge-instance [env rec-name id]
   (let [insts (filter #(not= (:Id %) id) (get-instances env rec-name))]

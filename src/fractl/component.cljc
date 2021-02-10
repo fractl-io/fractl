@@ -984,3 +984,9 @@
 
 (defn deref-future-object [obj]
   (deref (:Result obj) (:TimeoutMillis obj) nil))
+
+(defn maybe-deref [obj]
+  (if (future-object? obj)
+    (or (deref-future-object obj)
+        (make-error "Future object timeout" obj))
+    obj))

@@ -706,5 +706,8 @@
     (dataflow :AE/Evt02
               {:AE/R01 {:X :AE/Evt02.B}}))
   (let [evt01 (cn/make-instance {:AE/Evt01 {:A 100}})
-        result (e/eval-all-dataflows evt01)]
-    (clojure.pprint/pprint result)))
+        result (first (tu/fresult (e/eval-all-dataflows evt01)))]
+    (is (cn/future-object? result))
+    (let [r (ffirst (tu/fresult (cn/deref-future-object result)))]
+      (is (cn/instance-of? :AE/R01 r))
+      (is (= 100 (:X r))))))
