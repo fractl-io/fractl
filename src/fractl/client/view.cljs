@@ -18,10 +18,10 @@
 (def target-tag :DOM_Target)
 
 (defn- view-track? [x]
-  (and (seqable? x) (= :view-track (first x))))
+  (and (seqable? x) (= :view-cursor (first x))))
 
 (defn- track? [x]
-  (and (seqable? x) (= :track (first x))))
+  (and (seqable? x) (= :cursor (first x))))
 
 (defn- tracker [x]
   (first (rest x)))

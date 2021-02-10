@@ -1,10 +1,8 @@
 (ns fractl.client.form
   (:require [fractl.component :as cn]
             [fractl.lang :refer [event entity dataflow]]
-            [fractl.client.basic :as basic]
-            [fractl.client.view :as view]
-            [fractl.evaluator :as e]
-            [fractl.store :as store]
+            [fractl.client.basic]
+            [fractl.client.view]
             [fractl.client.util :as u :refer-macros [defcomponent]]))
 
 (defcomponent :UI_Form
@@ -26,12 +24,12 @@
   (dataflow :UI_Form/GetCount
             {:UI_Form/Counter {:Id? :UI_Form/SetCount.CId}})
 
-  (event {:UI_Form/AddCount
+  (event {:UI_Form/ResetCount
           {:CId :Kernel/UUID}})
 
-  (dataflow :UI_Form/AddCount
-            {:UI_Form/Counter {:Id? :UI_Form/AddCount.CId
-                               :Count "100"}})
+  (dataflow :UI_Form/ResetCount
+            {:UI_Form/Counter {:Id? :UI_Form/ResetCount.CId
+                               :Count "10"}})
 
   (event {:UI_Form/CreateCounter
           {:Name :Kernel/String}})
@@ -57,27 +55,25 @@
               [:q#
                [:div
                 [:input {:type "button"
-                         :value "Add"
+                         :value "Reset"
                          :on-click [:uq# [:dispatch-on
                                           :Fractl.Basic_UI/DomEvent
-                                          {:UI_Form/AddCount
+                                          {:UI_Form/ResetCount
                                            {:CId :C1.Id}}]]}]]]}
-             :as :AddButton}
+             :as :ResetButton}
             {:Fractl.Basic_UI/Component
              {:DOM_View
               [:q# [:div
                     [:div [:uq# :Label.DOM_View]]
-                    [:div [:uq# :AddButton.DOM_View]]
-                    [:div [:uq# :C1.Count]]]]}
+                    [:div "Count is: " [:uq# :C1.Count]]
+                    [:div [:uq# :ResetButton.DOM_View]]]]}
              :as :CV}
             {:Fractl.View/Root {:DOM_View :CV.DOM_View
                                 :DOM_Target "app"}}))
 
-(def resolvers [view/view-resolver basic/comp-resolver])
 (defn run-test
   []
   (try
-    (println resolvers)
     (let [cevt (cn/make-instance :UI_Form/CreateCounter {:Name "My Counter"})]
       (ffirst (u/fresult (u/eval-dataflows-for-event cevt))))
     (catch js/Error e (.log js/console e (.-stack e)))))

@@ -3,8 +3,7 @@
             [fractl.lang :refer [entity event]]
             [fractl.client.util :as u :refer-macros [defcomponent]]
             [fractl.resolver.core :as r]
-            [fractl.resolver.registry :as rg]
-            [reagent.core :as reagent]))
+            [fractl.resolver.registry :as rg]))
 
 (def view-tag :DOM_View)
 
@@ -15,57 +14,40 @@
   (event {:Fractl.Basic_UI/DomEvent
           {:Value :Kernel/String}}))
 
-(defn- cursor-spec? [x]
-  (and (seqable? x) (= :cursor (first x))))
+(defn- parse-dispatch-on
+  [form]
+  (let [[cmd event callback-f] form]
+    (when (and cmd (= cmd :dispatch-on)
+               event (= event :Fractl.Basic_UI/DomEvent)
+               callback-f (fn? callback-f))
+      [:Fractl.Basic_UI/DomEvent callback-f])))
 
-(defn- cursor-path [x] (first (rest x)))
+(defn- rewrite-event [ev-name model-event]
+  (let [[event-name callback-f] (parse-dispatch-on model-event)]
+    (if (and event-name callback-f)
+      [ev-name
+       (fn [dom-evt]
+         (let [value (-> dom-evt .-target .-value)
+               evt-body {:Value value}]
+           (callback-f :Fractl.Basic_UI/DomEvent evt-body)))]
+      [ev-name nil])))
 
-(defn- process-data
-  [spec]
-  (reduce-kv (fn [m k v]
-               (assoc m k (cond
-                            (cursor-spec? v)
-                            @(reagent/track (cursor-path v))
+(def ^:private ui-event-names #{:on-click :on-change})
 
-                            (and (keyword? v) (= :value v))
-                            v
-
-                            :else
-                            v)))
-             {}
-             spec))
-
-(defn- process-view [spec]
-  (println "process-cursors - spec: " spec)
-  (into [] (map #(cond
-                   (cursor-spec? %)
-                   (cursor-path %)
-
-                   (vector? %)
-                   (process-view %)
-
-                   (map? %)
-                   (process-data %)
-
-                   (and (keyword? %) (= :value %))
-                   %
-
-                   :else
-                   %)
-                spec)))
-
-(defn- process-view-2 [spec]
+(defn- process-view [obj]
   (w/postwalk
-   #(if (cursor-spec? %)
-      [(cursor-path %)]
+   #(if (and (vector? %)
+             (some #{(first %)} ui-event-names))
+      (let [x (second %)]
+        (if (fn? x)
+          %
+          (rewrite-event (first %) x)))
       %)
-   spec))
+   obj))
 
 (defn- inst->component
   [inst]
-  (println "inst->component - inst: " inst)
-  inst
-  #_(when-let [spec (view-tag inst)]
+  (when-let [spec (view-tag inst)]
     (assoc inst view-tag (process-view spec))))
 
 (defn- component-resolver-fn [install-resolver resolver-name path]

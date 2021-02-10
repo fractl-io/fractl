@@ -333,7 +333,8 @@
   (let [evt-name (first pat)
         dispatch-pattern (rest pat)]
     (op/dispatch-on
-     (compile-dataflow ctx evt-name dispatch-pattern))))
+     [evt-name
+      (compile-dataflow ctx evt-name dispatch-pattern)])))
 
 (def ^:private special-form-handlers
   {:match compile-match-macro

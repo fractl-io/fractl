@@ -58,5 +58,7 @@
     (let [evt (cn/make-instance :ST/New_E {:X 100})
           result (tu/fresult (e/eval-all-dataflows evt store nil))]
       (is (= :cursor (first result)))
-      (is (fn? (second result)))
-      (is (= ((second result)) 100)))))
+      (let [cursor (second result)]
+        (is (vector? cursor))
+        (is (= [:ST :E] (first cursor)))
+        (is (= :X (last cursor)))))))

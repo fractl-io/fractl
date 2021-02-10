@@ -22,7 +22,8 @@
   (let [entity-name (cn/instance-name inst)
         parsed-entity (li/split-path entity-name)
         id (:Id inst)]
-    (swap! inst-store assoc-in [parsed-entity id] inst)))
+    (swap! inst-store assoc-in [parsed-entity id] inst))
+  inst)
 
 (defn- validate-references!
   [inst ref-attrs]
@@ -38,17 +39,14 @@
 (defn upsert-instance
   [entity-name inst]
   (let [entity-schema (cn/entity-schema entity-name)
-        parsed-entity (li/split-path entity-name)
-        ref-attrs (cn/ref-attribute-schemas entity-schema)
-        id (:Id inst)]
+        ref-attrs (cn/ref-attribute-schemas entity-schema)]
     (when (seq ref-attrs)
       (validate-references! inst ref-attrs))
-    (intern-instance! inst)
-    (track-instance parsed-entity id)))
+    (intern-instance! inst)))
 
 (defn query-by-id
   [entity-name ids]
-  (remove nil? (flatten (map #(track-instance entity-name %) (set ids)))))
+  (remove nil? (flatten (map #(get-in @inst-store [entity-name %]) (set ids)))))
 
 (defn delete-by-id
   [entity-name id]
@@ -61,8 +59,8 @@
 (defn get-reference
   [[entity-name id] refs]
   (let [tag (if (= (last refs) view-tag)
-              :view-track
-              :track)]
+              :view-cursor
+              :cursor)]
     [tag [entity-name id (last refs)]]))
 
 (defn compile-to-indexed-query [query-pattern]

@@ -1,5 +1,6 @@
 (ns fractl.client.core
-  (:require [fractl.client.form :as form]))
+  (:require [fractl.client.form :as form]
+            [fractl.client.counter :as counter]))
 
 (js/console.log "Write your awesome fractl app here!")
 (println "Welcome to Fractl!")
