@@ -12,11 +12,6 @@
   []
   @inst-store)
 
-(defn- track-instance
-  [entity-name id]
-  (-> @(reagent/track store)
-      (get-in [entity-name id])))
-
 (defn- intern-instance!
   [inst]
   (let [entity-name (cn/instance-name inst)

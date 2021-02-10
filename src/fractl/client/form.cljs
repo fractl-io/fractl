@@ -44,7 +44,7 @@
                 [:label [:uq# :C1.Name]]
                 [:input {:type "text"
                          :value [:uq# :C1.Count]
-                         :on-change [:uq# [:dispatch-on
+                         :on-change [:uq# [:eval-on
                                            :Fractl.Basic_UI/DomEvent
                                            {:UI_Form/SetCount
                                             {:CId :C1.Id
@@ -56,7 +56,7 @@
                [:div
                 [:input {:type "button"
                          :value "Reset"
-                         :on-click [:uq# [:dispatch-on
+                         :on-click [:uq# [:eval-on
                                           :Fractl.Basic_UI/DomEvent
                                           {:UI_Form/ResetCount
                                            {:CId :C1.Id}}]]}]]]}

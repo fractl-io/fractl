@@ -427,7 +427,7 @@
           (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)
           result)))
 
-    (do-dispatch-on [self env [evt-name df-code]]
+    (do-eval-on [self env [evt-name df-code]]
       (let [df-eval (partial eval-dataflow self env)]
         (i/ok [:dispatch-on
                evt-name

@@ -329,18 +329,18 @@
 
 (declare compile-dataflow)
 
-(defn- compile-dispatch-macro [ctx pat]
+(defn- compile-eval-on-macro [ctx pat]
   (let [evt-name (first pat)
-        dispatch-pattern (rest pat)]
-    (op/dispatch-on
+        eval-pattern (rest pat)]
+    (op/eval-on
      [evt-name
-      (compile-dataflow ctx evt-name dispatch-pattern)])))
+      (compile-dataflow ctx evt-name eval-pattern)])))
 
 (def ^:private special-form-handlers
   {:match compile-match-macro
    :for-each compile-for-each-macro
    :delete compile-delete-macro
-   :dispatch-on compile-dispatch-macro})
+   :eval-on compile-eval-on-macro})
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic
