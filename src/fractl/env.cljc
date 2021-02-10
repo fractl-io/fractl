@@ -115,3 +115,32 @@
     (let [[_ obj :as x] (peek s)]
       [(assoc env :objstack (pop s))
        (map? obj) x])))
+
+(defn- dirty-flag-switch
+  "Turn on or off the `dirty` flag for the given instances.
+  Instances marked dirty will be later flushed to store."
+  [flag env insts]
+  (loop [insts insts, ds (get env :dirty {})]
+    (if-let [inst (first insts)]
+      (if-let [id (:Id inst)]
+        (recur (rest insts) (assoc ds id flag))
+        (recur (rest insts) ds))
+      (assoc env :dirty ds))))
+
+(def mark-all-mint (partial dirty-flag-switch false))
+(def mark-all-dirty (partial dirty-flag-switch true))
+
+(defn any-dirty?
+  "Return true if any of the instances are marked dirty, otherwise
+  return false."
+  [env insts]
+  (if (cn/entity-instance? (first insts))
+    (if-let [ds (:dirty env)]
+      (loop [insts insts]
+        (if-let [inst (first insts)]
+          (let [f (get ds (:Id inst))]
+            (if (or f (nil? f))
+              true
+              (recur (rest insts))))
+          false)))
+    true))
