@@ -323,7 +323,7 @@
      - a store implementation
      - a evaluator for dataflows attached to an event
      - an evaluator for standalone opcode, required for constructs like :match"
-  [eval-event-dataflows eval-opcode]
+  [eval-event-dataflows eval-opcode eval-dataflow]
   (reify opc/VM
     (do-match-instance [_ env [pattern instance]]
       (if-let [updated-env (parser/match-pattern env pattern instance)]
@@ -432,6 +432,15 @@
           (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)
           result)))
 
+    (do-eval-on [self env [evt-name df-code]]
+      (let [df-eval (partial eval-dataflow self env)]
+        (i/ok [:dispatch-on
+               evt-name
+               (fn [evt-name evt-body]
+                (let [evt (cn/make-instance evt-name evt-body)]
+                  (df-eval evt (list evt-name {:opcode (atom df-code)}))))]
+              env)))
+
     (do-for-each [self env [bind-pattern-code body-code result-alias]]
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
@@ -440,10 +449,8 @@
 
 (def ^:private default-evaluator (u/make-cell))
 
-(defn get-default-evaluator [eval-event-dataflows eval-opcode]
+(defn get-default-evaluator [eval-event-dataflows eval-opcode eval-dataflow]
   (u/safe-set-once
    default-evaluator
-   #(make-root-vm eval-event-dataflows eval-opcode)))
+   #(make-root-vm eval-event-dataflows eval-opcode eval-dataflow)))
 
-(defn get-transient-evaluator [eval-event-dataflows eval-opcode]
-  (make-root-vm eval-event-dataflows eval-opcode))

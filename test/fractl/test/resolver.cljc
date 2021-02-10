@@ -12,7 +12,10 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(def store (store/open-default-store nil))
+#?(:clj
+   (def store (store/open-default-store nil))
+   :cljs
+   (def store (store/open-default-store {:type :alasql})))
 
 (defn- test-resolver [install-resolver resolver-name path]
   (let [f (fn [_ arg] arg)

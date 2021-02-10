@@ -327,10 +327,20 @@
 (defn- compile-quoted-list [ctx pat]
   (w/prewalk (partial compile-quoted-expression ctx) pat))
 
+(declare compile-dataflow)
+
+(defn- compile-eval-on-macro [ctx pat]
+  (let [evt-name (first pat)
+        eval-pattern (rest pat)]
+    (op/eval-on
+     [evt-name
+      (compile-dataflow ctx evt-name eval-pattern)])))
+
 (def ^:private special-form-handlers
   {:match compile-match-macro
    :for-each compile-for-each-macro
-   :delete compile-delete-macro})
+   :delete compile-delete-macro
+   :eval-on compile-eval-on-macro})
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic

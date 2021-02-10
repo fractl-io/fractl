@@ -8,4 +8,4 @@
   :log-syntax-error-style :concise
   }
 
-{:main fractl.ui.sample}
+{:main fractl.client.core}
