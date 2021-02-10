@@ -261,7 +261,8 @@
   (let [e1 (cn/make-instance :Df05/E1 {:A 100})
         evt {:Df05/Evt01 {:E1 e1}}
         result (tu/fresult (e/eval-all-dataflows evt))
-        inst (ffirst (tu/fresult (first result)))]
+        df-result (cn/deref-future-object (first result))
+        inst (ffirst (tu/fresult df-result))]
     (is (cn/instance-of? :Df05/E2 inst))
     (is (= (:B inst) 100))))
 
@@ -694,3 +695,16 @@
                                   :HandlerEvent :EdnUI/LoginEvent}})
           result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
       (is (cn/instance-of? :EdnUI/LoginForm result)))))
+
+(deftest async-event
+  (defcomponent :AE
+    (record {:AE/R01 {:X :Kernel/Int}})
+    (event {:AE/Evt01 {:A :Kernel/Int}})
+    (event {:AE/Evt02 {:B :Kernel/Int}})
+    (dataflow :AE/Evt01
+              {:AE/Evt02 {:B :AE/Evt01.A}})
+    (dataflow :AE/Evt02
+              {:AE/R01 {:X :AE/Evt02.B}}))
+  (let [evt01 (cn/make-instance {:AE/Evt01 {:A 100}})
+        result (e/eval-all-dataflows evt01)]
+    (clojure.pprint/pprint result)))

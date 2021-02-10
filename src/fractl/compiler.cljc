@@ -172,34 +172,40 @@
     (compile-list-literal ctx aname valpat)
     (op/set-literal-attribute attr)))
 
-(defn- emit-build-entity-instance [ctx rec-name attrs schema alias event?]
+(defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
   (concat [(begin-build-instance rec-name attrs)]
           (map (partial set-literal-attribute ctx) (:computed attrs))
           (map (fn [[k v]]
                  ((k set-attr-opcode-fns) v))
                (:sorted attrs))
           [(if event?
-             (op/intern-event-instance [rec-name alias])
+             (op/intern-event-instance [rec-name alias timeout-ms])
              (op/intern-instance [rec-name alias]))]))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
   (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)]
     (assoc attrs :sorted sorted)))
 
-(defn- emit-realize-instance [ctx pat-name pat-attrs schema alias event?]
-  (when-let [xs (cv/invalid-attributes pat-attrs schema)]
-    (u/throw-ex (str "invalid attributes in pattern - " xs)))
-  (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
-        sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
-    (emit-build-entity-instance ctx pat-name sorted-attrs schema alias event?)))
+(defn- emit-realize-instance
+  ([ctx pat-name pat-attrs schema alias event? timeout-ms]
+   (when-let [xs (cv/invalid-attributes pat-attrs schema)]
+     (u/throw-ex (str "invalid attributes in pattern - " xs)))
+   (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
+         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
+     (emit-build-record-instance ctx pat-name sorted-attrs schema alias event? timeout-ms)))
+  ([ctx pat-name pat-attrs schema alias event?]
+   (emit-realize-instance ctx pat-name pat-attrs schema alias event? nil)))
 
 (defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema alias]
   (emit-realize-instance ctx pat-name pat-attrs schema alias false))
 
 (def ^:private emit-realize-record-instance emit-realize-entity-instance)
 
-(defn- emit-realize-event-instance [ctx pat-name pat-attrs schema alias]
-  (emit-realize-instance ctx pat-name pat-attrs schema alias true))
+(defn- emit-realize-event-instance
+  ([ctx pat-name pat-attrs schema alias timeout-ms]
+   (emit-realize-instance ctx pat-name pat-attrs schema alias true timeout-ms))
+  ([ctx pat-name pat-attrs schema alias]
+   (emit-realize-event-instance ctx pat-name pat-attrs schema alias nil)))
 
 (defn- emit-realize-map-literal [ctx pat]
   ;; TODO: implement support for map literals.
@@ -246,13 +252,14 @@
           nm [component record]
           attrs (li/instance-pattern-attrs pat)
           alias (:as pat)
+          timeout-ms (:timeout-ms pat)
           [tag scm] (cv/find-schema nm full-nm)]
       (let [c (case tag
                 :entity emit-realize-entity-instance
                 :record emit-realize-record-instance
                 :event emit-realize-event-instance
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
-            opc (c ctx nm attrs scm alias)]
+            opc (apply c ctx nm attrs scm (if timeout-ms [alias timeout-ms] [alias]))]
         (ctx/put-record! ctx nm pat)
         (when alias
           (ctx/add-alias! ctx nm alias))

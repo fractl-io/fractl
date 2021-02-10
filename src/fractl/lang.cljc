@@ -452,7 +452,8 @@
 
   (record :Kernel/Future
           {:Result :Kernel/Any
-           :AsyncConfig :Kernel/Any})
+           :TimeoutMillis {:type :Kernel/Int
+                           :default 2000}})
 
   (entity {:Kernel/Resolver
            {:Type {:check keyword?}
