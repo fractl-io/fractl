@@ -21,10 +21,24 @@
                                     (make-default-store-config)))
        store)))
 
+(def ^:private store-constructors
+  #?(:clj
+     {:h2 h2/make}
+     :cljs
+     {:alasql alasql/make
+      :reagent reagent/make}))
+
+(defn- store-cons [config]
+  (if-let [t (:type config)]
+    (t store-constructors)
+    #?(:clj h2/make
+       :cljs reagent/make)))
+
 (defn open-default-store
   ([store-config]
-   #?(:clj (make-default-store store-config (h2/make))
-      :cljs (make-default-store store-config (alasql/make))))
+   (let [make-store (store-cons store-config)]
+     #?(:clj (make-default-store store-config (make-store))
+        :cljs (make-default-store store-config (make-store)))))
   ([]
    (open-default-store nil)))
 

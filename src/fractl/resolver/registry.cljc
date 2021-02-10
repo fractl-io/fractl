@@ -5,18 +5,25 @@
 
 (def ^:private resolver-db (u/make-cell {}))
 
-(defn resolver-for-path [path]
-  (get @resolver-db (li/split-path path)))
+(defn resolver-for-path
+  ([resolver path]
+   (get resolver (li/split-path path)))
+  ([path]
+   (resolver-for-path @resolver-db path)))
 
 (defn override-resolver [path resolver]
-  (u/safe-set resolver-db (assoc @resolver-db (li/split-path path) resolver)))
+  (if (vector? path)
+    (doseq [p path] (override-resolver p resolver))
+    (u/safe-set resolver-db (assoc @resolver-db (li/split-path path) resolver))))
 
 (defn compose-resolver [path resolver]
-  (let [path (li/split-path path)
-        resolvers (get @resolver-db path [])]
-    (u/safe-set resolver-db
-                (assoc @resolver-db path
-                       (conj resolvers resolver)))))
+  (if (vector? path)
+    (doseq [p path] (compose-resolver p resolver))
+    (let [path (li/split-path path)
+          resolvers (get @resolver-db path [])]
+      (u/safe-set resolver-db
+                  (assoc @resolver-db path
+                         (conj resolvers resolver))))))
 
 (def composed? (complement map?))
 (def override? map?)
@@ -35,3 +42,7 @@
 
 (defn register-resolvers [specs]
   (doall (map register-resolver specs)))
+
+(defn registered-resolvers
+  []
+  @resolver-db)

@@ -12,11 +12,19 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(def store (store/open-default-store nil))
+#?(:clj
+   (def store (store/open-default-store nil))
+   :cljs
+   (def store (store/open-default-store {:type :alasql})))
 
 (defn- test-resolver [install-resolver resolver-name path]
-  (let [r (r/make-resolver resolver-name {:upsert identity
-                                          :delete (fn [x] x)})]
+  (let [f (fn [_ arg] arg)
+        r (r/make-resolver resolver-name {:upsert {:handler identity
+                                                   :xform {:in [f :EntityXformR01/EToEPrime]
+                                                           :out [f :EntityXformR01/EPrimeToE]}}
+                                          :delete {:handler identity
+                                                   :xform {:in [f]}}}
+                           e/eval-pure-dataflows)]
     (install-resolver path r)))
 
 (def compose-test-resolver (partial test-resolver rg/compose-resolver))
@@ -32,8 +40,21 @@
         (cn/same-instance? entity-instance e)))))
 
 (deftest r01
+  (defcomponent :EntityXformR01
+    (entity :EntityXformR01/EPrime
+            {:X :Kernel/Int})
+    (event {:EntityXformR01/EToEPrime
+            {:Instance :Kernel/Entity}})
+    (dataflow :EntityXformR01/EToEPrime
+              {:EntityXformR01/EPrime {:X :EntityXformR01/EToEPrime.Instance.X
+                                       :Id :EntityXformR01/EToEPrime.Instance.Id}})
+    (event {:EntityXformR01/EPrimeToE
+            {:Instance :Kernel/Entity}}))
   (defcomponent :R01
     (entity {:R01/E {:X :Kernel/Int}}))
+  (dataflow :EntityXformR01/EPrimeToE
+            {:R01/E {:X :EntityXformR01/EPrimeToE.Instance.X
+                     :Id :EntityXformR01/EPrimeToE.Instance.Id}})
   (let [e (cn/make-instance :R01/E {:X 10})
         result (tu/fresult (e/eval-all-dataflows {:R01/Upsert_E {:Instance e}}))
         e01 (ffirst result)]
@@ -56,10 +77,36 @@
       (is (= r01 [[:R01 :E] id]))
       (is (= r02 [[:R01 :E] id])))))
 
+(defn- test-resolver-r02 [install-resolver resolver-name path]
+  (let [f (fn [_ arg] arg)
+        r (r/make-resolver resolver-name {:upsert {:handler identity
+                                                   :xform {:in [f :EntityXformR02/EToEPrime]
+                                                           :out [f :EntityXformR02/EPrimeToE]}}
+                                          :delete {:handler identity
+                                                   :xform {:in [f]}}}
+                           e/eval-pure-dataflows)]
+    (install-resolver path r)))
+
+(def compose-test-resolver-r02 (partial test-resolver-r02 rg/compose-resolver))
+(def override-test-resolver-r02 (partial test-resolver-r02 rg/override-resolver))
+
 (deftest r02
+  (defcomponent :EntityXformR02
+    (entity :EntityXformR02/EPrime
+            {:X :Kernel/Int})
+    (event {:EntityXformR02/EToEPrime
+            {:Instance :Kernel/Entity}})
+    (dataflow :EntityXformR02/EToEPrime
+              {:EntityXformR02/EPrime {:X :EntityXformR02/EToEPrime.Instance.X
+                                       :Id :EntityXformR02/EToEPrime.Instance.Id}})
+    (event {:EntityXformR02/EPrimeToE
+            {:Instance :Kernel/Entity}}))
   (defcomponent :R02
     (entity {:R02/E {:X :Kernel/Int}}))
-  (override-test-resolver :TestResolver02 :R02/E)
+  (dataflow :EntityXformR02/EPrimeToE
+            {:R02/E {:X :EntityXformR02/EPrimeToE.Instance.X
+                     :Id :EntityXformR02/EPrimeToE.Instance.Id}})
+  (override-test-resolver-r02 :TestResolver02 :R02/E)
   (let [e (cn/make-instance :R02/E {:X 10})
         result (tu/fresult (e/eval-all-dataflows {:R02/Upsert_E {:Instance e}}))
         e01 (ffirst result)
@@ -69,14 +116,18 @@
     (is (= e01 r))))
 
 (defn- test-query-resolver [install-resolver resolver-name path]
-  (let [r (r/make-resolver resolver-name {:query (fn [arg]
-                                                   (let [where-clause (:where (second arg))
-                                                         wild-card? (= where-clause :*)]
-                                                     (if wild-card?
-                                                       [(cn/make-instance :Res_QueryAll/E {:X 1 :N "e01"})
-                                                        (cn/make-instance :Res_QueryAll/E {:X 2 :N "e02"})]
-                                                       (when-let [id (nth where-clause 2)]
-                                                         [(cn/make-instance :RQ/E {:X 1 :Id id})]))))})]
+  (let [r (r/make-resolver resolver-name
+                           {:query
+                            {:handler
+                             (fn [arg]
+                               (let [where-clause (:where (second arg))
+                                     wild-card? (= where-clause :*)]
+                                 (if wild-card?
+                                   [(cn/make-instance :Res_QueryAll/E {:X 1 :N "e01"})
+                                    (cn/make-instance :Res_QueryAll/E {:X 2 :N "e02"})]
+                                   (when-let [id (nth where-clause 2)]
+                                     [(cn/make-instance :RQ/E {:X 1 :Id id})]))))}}
+                           #(e/eval-all-dataflows % store {}))]
     (install-resolver path r)))
 
 (deftest query

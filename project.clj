@@ -1,4 +1,4 @@
-(defproject fractl-io/fractl "0.1.1"
+(defproject fractl-io/fractl "0.1.2"
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/clojurescript "1.10.773"]
                  [org.clojure/tools.cli "1.0.194"]
@@ -37,11 +37,14 @@
                                   [com.bhauman/figwheel-main "0.2.12"]]
                    ;; setup target as a resource path
                    :resource-paths ["target" "resources" "node_modules"]
+
                    ;; set up an alias to invoke your figwheel build
                    :aliases  {"figwheel"  ["trampoline" "run" "-m" "figwheel.main"]
+                              "fig:ui" ["trampoline" "run" "-m" "figwheel.main" "-co" "ui.cljs.edn" "-r"]
                               "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
                               "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
                               "fig:test"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "fractl.test-runner"]
+                              "fig:rtest"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "fractl.reagent-test-runner"]
                               "fig:ci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.test-runner"]
                               "fig:rci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.reagent-test-runner"]}
                    :clean-targets  ^{:protect false} ["target" "out"]}})

@@ -1,5 +1,4 @@
 (ns fractl.test.basic
-  "A basic cljs test."
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.util :as u]
@@ -16,7 +15,10 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(def store (store/open-default-store nil))
+#? (:clj
+    (def store (store/open-default-store nil))
+    :cljs
+    (def store (store/open-default-store {:type :alasql})))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)
@@ -443,6 +445,45 @@
     (is (= 10 (:A result)))
     (is (= 11 (:B result)))))
 
+(deftest for-each
+  (defcomponent :ForEach
+    (entity {:ForEach/E {:X :Kernel/Int}})
+    (record {:ForEach/R {:A :Kernel/Int}})
+    (event {:ForEach/Evt {:I :Kernel/Int}})
+    (dataflow :ForEach/Evt
+              {:ForEach/E {:X :ForEach/Evt.I} :as :E1}
+              {:ForEach/E {:X '(+ :E1.X 1)} :as :E2}
+              [:for-each :ForEach/E?
+               {:ForEach/R {:A :ForEach/E.X}}]))
+  (let [result (tu/fresult (e/eval-all-dataflows {:ForEach/Evt {:I 10}}))
+        firstE (first result)
+        secondE (second result)]
+    (is (= 2 (count result)))
+    (is (cn/instance-of? :ForEach/R firstE))
+    (is (= 10 (:A firstE)))
+    (is (cn/instance-of? :ForEach/R secondE))
+    (is (= 11 (:A secondE)))))
+
+(deftest for-each-with-alias
+  (defcomponent :ForEachAlias
+    (entity {:ForEachAlias/E {:X :Kernel/Int}})
+    (record {:ForEachAlias/R {:A :Kernel/Int}})
+    (event {:ForEachAlias/Evt {:I :Kernel/Int}})
+    (dataflow :ForEachAlias/Evt
+              {:ForEachAlias/E {:X :ForEachAlias/Evt.I} :as :E1}
+              {:ForEachAlias/E {:X '(+ :E1.X 1)} :as :E2}
+              [:for-each :ForEachAlias/E?
+               {:ForEachAlias/R {:A :ForEachAlias/E.X}} :as :L]
+              :L))
+  (let [result (tu/fresult (e/eval-all-dataflows {:ForEachAlias/Evt {:I 10}}))
+        firstE (first result)
+        secondE (second result)]
+    (is (= 2 (count result)))
+    (is (cn/instance-of? :ForEachAlias/R firstE))
+    (is (= 10 (:A firstE)))
+    (is (cn/instance-of? :ForEachAlias/R secondE))
+    (is (= 11 (:A secondE)))))
+
 (deftest delete-insts
   (defcomponent :Del
     (entity {:Del/E {:X :Kernel/Int}}))
@@ -581,30 +622,78 @@
                    first
                    (nth 2) second second)))))
 
-(deftest hooks-resolver
-  (defcomponent :Hooks
-    (event {:Hooks/OnClickEvent {:Source :Kernel/UUID}})
-    (record {:Hooks/Position {:X :Kernel/Int :Y :Kernel/Int
-                              :W :Kernel/Int :H :Kernel/Int}})
-    (entity {:Hooks/Button {:Title :Kernel/String
-                            :Position :Hooks/Position
-                            :OnClick :Hooks/OnClickEvent}})
-    (event {:Hooks/AddButton {:Title :Kernel/String
-                              :Position :Hooks/Position
-                              :BId :Kernel/UUID}})
-    (dataflow :Hooks/AddButton
-              {:Hooks/Button {:Id :Hooks/AddButton.BId
-                              :Title :Hooks/AddButton.Title
-                              :Position :Hooks/AddButton.Position
-                              :OnClick {:Hooks/OnClickEvent {:Source :Hooks/AddButton.BId}}}}))
-  (let [button-id (u/uuid-string)
-        pos (cn/make-instance {:Hooks/Position {:X 10 :Y 10 :W 100 :H 50}})
-        add-btn (cn/make-instance {:Hooks/AddButton {:Title "OK"
-                                                     :Position pos
-                                                     :BId button-id}})
+(deftest patterns-in-attributes
+  (defcomponent :PA
+    (event {:PA/OnClickEvent {:Source {:type :Kernel/UUID :optional true}}})
+    (record {:PA/Position {:X :Kernel/Int :Y :Kernel/Int
+                           :W :Kernel/Int :H :Kernel/Int}})
+    (entity {:PA/Button {:Title :Kernel/String
+                         :Position :PA/Position
+                         :OnClick :PA/OnClickEvent}})
+    (event {:PA/AddButton {:Title :Kernel/String :Position :PA/Position}})
+    (dataflow :PA/AddButton
+              {:PA/Button {:Title :PA/AddButton.Title
+                           :Position :PA/AddButton.Position
+                           :OnClick {:PA/OnClickEvent {:Source :Id}}}}))
+  (let [pos (cn/make-instance {:PA/Position {:X 10 :Y 10 :W 100 :H 50}})
+        add-btn (cn/make-instance {:PA/AddButton {:Title "OK" :Position pos}})
         result (ffirst (tu/fresult (e/eval-all-dataflows add-btn)))]
-    (is (cn/instance-of? :Hooks/Button result))
-    (is (cn/instance-of? :Hooks/OnClickEvent (:OnClick result)))
-    ;; TODO: complete the tasks in project-TODO
-    ;; and implement the remaining tests
-    ))
+    (is (cn/instance-of? :PA/Button result))
+    (is (cn/instance-of? :PA/OnClickEvent (:OnClick result)))))
+
+(deftest edn-ui
+  (defcomponent :EdnUI
+    (entity {:EdnUI/UserLogin
+             {:UserNameLabel {:type :Kernel/String
+                              :default "Username: "}
+              :PasswordLabel {:type :Kernel/String
+                              :default "Password: "}
+              :ButtonTitle {:type :Kernel/String
+                            :default "Login"}
+              :HandlerEvent {:type :Kernel/Keyword
+                             :optional true}
+              :View {:type :Kernel/Edn
+                     :default
+                     [:div
+                      [:div
+                       [:label :UserNameLabel]
+                       [:input [:type "text"]]]
+                      [:div
+                       [:label :PasswordLabel]
+                       [:input [:type "password"]]]
+                      [:div
+                       [:button [:title :ButtonTitle]
+                        :on-click :HandlerEvent]]]}}})
+    (entity {:EdnUI/LoginForm
+             {:UserLogin {:type :EdnUI/UserLogin
+                          :optional true}
+              :Title {:type :Kernel/String
+                      :default "Login"}
+              :DOM_Target :Kernel/String
+              :View {:type :Kernel/Edn
+                     :default
+                     [:div
+                      [:h2 :Title]
+                      [:div :UserLogin.View]]}}})
+
+    (event {:EdnUI/LoginEvent
+            {:Data :Kernel/Any}})
+
+    (dataflow :EdnUI/MakeLoginForm
+              {:EdnUI/UserLogin
+               {:UserNameLabel :EdnUI/MakeLoginForm.UserNameLabel
+                :PasswordLabel :EdnUI/MakeLoginForm.PasswordLabel
+                :ButtonTitle :EdnUI/MakeLoginForm.ButtonTitle
+                :HandlerEvent :EdnUI/MakeLoginForm.HandlerEvent}}
+              {:EdnUI/LoginForm
+               {:Title :EdnUI/MakeLoginForm.FormTitle
+                :DOM_Target "app"
+                :UserLogin :EdnUI/UserLogin}})
+    (let [evt (cn/make-instance {:EdnUI/MakeLoginForm
+                                 {:FormTitle "Login to the V8 Platform"
+                                  :UserNameLabel "Your V8 userId or email: "
+                                  :PasswordLabel "Password: "
+                                  :ButtonTitle "Login"
+                                  :HandlerEvent :EdnUI/LoginEvent}})
+          result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+      (is (cn/instance-of? :EdnUI/LoginForm result)))))

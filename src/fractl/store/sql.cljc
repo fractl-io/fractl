@@ -4,7 +4,7 @@
             [fractl.util :as u]))
 
 (defn- select-from-index-table [index-table-name where-clause]
-  (if (= :Id (second where-clause))
+  (if (= :Id (keyword (second where-clause)))
     {:result (nth where-clause 2)}
     {:query
      (hsql/format {:select [:*]
@@ -29,7 +29,7 @@
 (defn sql-index-type
   ([max-varchar-length bool-type date-time-type attribute-type]
    (case attribute-type
-     (:Kernel/String :Kernel/Keyword)
+     (:Kernel/String :Kernel/Keyword :Kernel/Email)
      (str "VARCHAR(" max-varchar-length ")")
      :Kernel/DateTime "DATE"
      :Kernel/UUID "UUID"

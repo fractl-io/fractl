@@ -7,6 +7,20 @@
 
 (def EMPTY {})
 
+(defn make
+  [store resolver]
+  (assoc EMPTY
+         :store store
+         :resolver resolver))
+
+(defn get-store
+  [self]
+  (:store self))
+
+(defn get-resolver
+  [self]
+  (:resolver self))
+
 ;; !!NOTE!! This assertion may be removed once the
 ;; pattern-match algorithm is fully implemented.
 ;; This check ensures that the compiler never pushes
@@ -33,6 +47,7 @@
     (su/move-all instances env #(bind-instance %1 rec-name %2))))
 
 (def bind-instance-to-alias assoc)
+(def bind-to-alias assoc)
 (def lookup-by-alias get)
 
 (defn lookup-instance [env rec-name]
@@ -100,3 +115,32 @@
     (let [[_ obj :as x] (peek s)]
       [(assoc env :objstack (pop s))
        (map? obj) x])))
+
+(defn- dirty-flag-switch
+  "Turn on or off the `dirty` flag for the given instances.
+  Instances marked dirty will be later flushed to store."
+  [flag env insts]
+  (loop [insts insts, ds (get env :dirty {})]
+    (if-let [inst (first insts)]
+      (if-let [id (:Id inst)]
+        (recur (rest insts) (assoc ds id flag))
+        (recur (rest insts) ds))
+      (assoc env :dirty ds))))
+
+(def mark-all-mint (partial dirty-flag-switch false))
+(def mark-all-dirty (partial dirty-flag-switch true))
+
+(defn any-dirty?
+  "Return true if any of the instances are marked dirty, otherwise
+  return false."
+  [env insts]
+  (if (cn/entity-instance? (first insts))
+    (if-let [ds (:dirty env)]
+      (loop [insts insts]
+        (if-let [inst (first insts)]
+          (let [f (get ds (:Id inst))]
+            (if (or f (nil? f))
+              true
+              (recur (rest insts))))
+          false)))
+    true))
