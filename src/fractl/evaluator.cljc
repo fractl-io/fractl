@@ -142,4 +142,4 @@
     (doall (map filter-public-result xs))))
 
 (defn public-evaluator [store-config with-query-support]
-  (comp filter-public-result (evaluator store-config with-query-support)))
+  (comp filter-public-result (evaluator store-config nil with-query-support)))
