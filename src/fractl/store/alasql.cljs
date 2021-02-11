@@ -13,7 +13,9 @@
         (let [connection-info (su/normalize-connection-info connection-info)]
           (u/safe-set-once
             datasource
-            #(if-let [dbname (:dbname connection-info)]
+            #(let [dbname (if (:dbname connection-info)
+                            (:dbname connection-info)
+                            (str (gensym "fractl_db")))]
                (i/create-db dbname)))
           true))
       (close-connection [_]

@@ -76,7 +76,7 @@
   [store]
   (let [cq (when store
              (partial store/compile-query store))]
-    [cq (r/get-default-evaluator (partial run-dataflows cq) dispatch-opcodes)]))
+    [cq (r/get-default-evaluator (partial run-dataflows cq) dispatch-opcodes eval-dataflow)]))
 
 (defn- store-from-config
   [store-or-store-config]
@@ -152,4 +152,4 @@
     (doall (map filter-public-result xs))))
 
 (defn public-evaluator [store-config with-query-support]
-  (comp filter-public-result (evaluator store-config with-query-support)))
+  (comp filter-public-result (evaluator store-config nil with-query-support)))

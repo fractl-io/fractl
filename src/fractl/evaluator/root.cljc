@@ -54,33 +54,23 @@
   (let [path (on-inst cn/instance-name insts)]
     (rg/resolver-for-path resolver path)))
 
-(defn- call-resolver-upsert [f resolver composed? data]
+(defn- call-resolver-upsert [f env resolver composed? data]
   (let [rs (if composed? resolver [resolver])
         insts (if (map? data) [data] data)]
     (doall (map (fn [r]
                   (doall
-                   (map #(merge % (:result (f r %))) insts)))
+                   (map #(merge % (:result (f r env %))) insts)))
                 rs))))
 
-(defn- call-resolver-delete [f resolver composed? insts]
+(defn- call-resolver-delete [f env resolver composed? insts]
   (let [rs (if composed? resolver [resolver])]
     (doall (map (fn [r]
-                  (:result (f r insts)))
+                  (:result (f r env insts)))
                 rs))))
-
-(defn- call-resolver-preprocess [f env resolver composed? insts]
-  (if (r/can-preprocess? resolver)
-    (let [rs (if composed? resolver [resolver])
-          arg {:env env :insts insts}]
-      (doall (map (fn [r]
-                    (:result (f r arg)))
-                  rs)))
-    insts))
 
 (defn- async-invoke [timeout-ms f]
   (cn/make-future (a/async-invoke f) timeout-ms))
 
-(def ^:private resolver-preprocess (partial call-resolver-preprocess r/call-resolver-preprocess))
 (def ^:private resolver-upsert (partial call-resolver-upsert r/call-resolver-upsert))
 (def ^:private resolver-delete (partial call-resolver-delete r/call-resolver-delete))
 
@@ -98,13 +88,7 @@
          (conj @inited-components component-name))
      component-name)))
 
-(defn- resolved-results [resolver composed? resolver-preproc resolver-upsert insts]
-  (let [rups (partial resolver-upsert resolver composed?)
-        rpreproc (when resolver-preproc
-                   (partial resolver-preproc resolver composed?))]
-    (rups (if rpreproc (rpreproc insts) insts))))
-
-(defn- chained-crud [store-f res resolver-preproc resolver-upsert single-arg-path insts]
+(defn- chained-crud [store-f res resolver-upsert single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
                    (rg/resolver-for-path res single-arg-path)
@@ -112,9 +96,7 @@
         composed? (rg/composed? resolver)
         crud? (or (not resolver) composed?)
         resolver-result (when resolver
-                          (resolved-results
-                           resolver composed?
-                           resolver-preproc resolver-upsert insts))
+                          (resolver-upsert resolver composed? insts))
         resolved-insts (if resolver (first resolver-result) insts)
         local-result (if (and crud? store-f
                               (or single-arg-path (need-storage? resolved-insts)))
@@ -129,7 +111,7 @@
     (if (env/any-dirty? env insts)
       (chained-crud
        (when store (partial store/upsert-instances store record-name))
-       resolver (partial resolver-preprocess env) resolver-upsert nil insts)
+       resolver (partial resolver-upsert env) nil insts)
       [insts nil])))
 
 (defn- delete-by-id [store record-name del-list]
@@ -140,7 +122,7 @@
         resolver (env/get-resolver env)]
     (chained-crud
      (when store (partial delete-by-id store record-name))
-     resolver nil resolver-delete record-name [[record-name id]])))
+     resolver (partial resolver-delete env) record-name [[record-name id]])))
 
 (defn- bind-and-persist [env x]
   (if (cn/an-instance? x)
@@ -196,7 +178,7 @@
 (defn- find-instances-via-composed-resolvers [env entity-name query resolvers]
   (loop [rs resolvers]
     (if-let [r (first rs)]
-      (let [result (r/call-resolver-query r [entity-name query])]
+      (let [result (r/call-resolver-query r env [entity-name query])]
         (if (:result result)
           [result env]
           (recur (rest rs))))
@@ -207,7 +189,7 @@
     (let [[q env] (normalize-raw-query env (:raw-query full-query))]
       (if (rg/composed? resolver)
         (find-instances-via-composed-resolvers env entity-name q resolver)
-        [(r/call-resolver-query resolver [entity-name q]) env]))
+        [(r/call-resolver-query resolver env [entity-name q]) env]))
     [nil env]))
 
 (defn- find-instances-in-store [env store entity-name full-query]
@@ -345,7 +327,7 @@
      - a store implementation
      - a evaluator for dataflows attached to an event
      - an evaluator for standalone opcode, required for constructs like :match"
-  [eval-event-dataflows eval-opcode]
+  [eval-event-dataflows eval-opcode eval-dataflow]
   (reify opc/VM
     (do-match-instance [_ env [pattern instance]]
       (if-let [updated-env (parser/match-pattern env pattern instance)]
@@ -456,6 +438,15 @@
           (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)
           result)))
 
+    (do-eval-on [self env [evt-name df-code]]
+      (let [df-eval (partial eval-dataflow self env)]
+        (i/ok [:dispatch-on
+               evt-name
+               (fn [evt-name evt-body]
+                (let [evt (cn/make-instance evt-name evt-body)]
+                  (df-eval evt (list evt-name {:opcode (atom df-code)}))))]
+              env)))
+
     (do-for-each [self env [bind-pattern-code body-code result-alias]]
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
@@ -464,10 +455,8 @@
 
 (def ^:private default-evaluator (u/make-cell))
 
-(defn get-default-evaluator [eval-event-dataflows eval-opcode]
+(defn get-default-evaluator [eval-event-dataflows eval-opcode eval-dataflow]
   (u/safe-set-once
    default-evaluator
-   #(make-root-vm eval-event-dataflows eval-opcode)))
+   #(make-root-vm eval-event-dataflows eval-opcode eval-dataflow)))
 
-(defn get-transient-evaluator [eval-event-dataflows eval-opcode]
-  (make-root-vm eval-event-dataflows eval-opcode))
