@@ -16,6 +16,7 @@
                  [net.cgrand/macrovich "0.2.1"]
                  [reagent "1.0.0"]
                  [cljsjs/alasql "0.6.5-0"]
+                 [funcool/promesa "6.0.0"]
                  [cljc.java-time "0.1.11"]
                  [com.cognitect/transit-clj "1.0.324"]
                  [com.cognitect/transit-cljs "0.8.264"]]

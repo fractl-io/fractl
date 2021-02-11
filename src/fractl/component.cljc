@@ -6,7 +6,8 @@
             [fractl.util.hash :as sh]
             [fractl.util.seq :as su]
             [fractl.util.log :as log]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            #?(:cljs [promesa.core :as p])))
 
 (def ^:private components
   "Table that maps component names to their definitions."
@@ -983,10 +984,20 @@
 (def future-object? (partial instance-of? :Kernel/Future))
 
 (defn deref-future-object [obj]
-  (deref (:Result obj) (:TimeoutMillis obj) nil))
+  #?(:clj
+     (deref (:Result obj) (:TimeoutMillis obj) nil)
+     :cljs
+     (let [r (atom nil)
+           p (:Result obj)
+           toms (:TimeoutMillis obj)]
+       (-> p
+           (p/timeout toms)
+           (p/then #(reset! r %))
+           (p/catch #(reset! r (make-error "Async timeout" obj))))
+       [(make-instance :Kernel/FutureResult {:Result r})])))
 
 (defn maybe-deref [obj]
   (if (future-object? obj)
     (or (deref-future-object obj)
-        (make-error "Future object timeout" obj))
+        (make-error "Async timeout" obj))
     obj))

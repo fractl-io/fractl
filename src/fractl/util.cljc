@@ -162,3 +162,5 @@
   (map #(when % (f %)) xs))
 
 (defn apply0 [f] (f))
+
+(defn noop [])

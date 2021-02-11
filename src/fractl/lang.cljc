@@ -455,6 +455,10 @@
            :TimeoutMillis {:type :Kernel/Int
                            :default 2000}})
 
+  #?(:cljs
+     (record :Kernel/FutureResult
+             {:Result :Kernel/Any}))
+
   (entity {:Kernel/Resolver
            {:Type {:check keyword?}
             :Configuration :Kernel/Map
