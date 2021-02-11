@@ -1,6 +1,7 @@
 (ns fractl.evaluator
   "Helper functions for compiling and evaluating patterns."
-  (:require [fractl.component :as cn]
+  (:require [clojure.walk :as w]
+            [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.env :as env]
             [fractl.util :as u]
@@ -32,11 +33,19 @@
   (if (map? opcodes)
     (dispatch evaluator env opcodes)
     (loop [dc opcodes, result (dummy-result env)]
-      (if (ok? result)
+      (if (or (ok? result)
+              (cn/future-object? result))
         (if-let [opcode (first dc)]
           (recur (rest dc) (dispatch evaluator (:env result) opcode))
           result)
         result))))
+
+(defn- deref-futures [result]
+  (w/prewalk
+   #(if (cn/future-object? %)
+      (cn/deref-future-object %)
+      %)
+   result))
 
 (defn eval-dataflow
   "Evaluate a compiled dataflow, triggered by event-instance, within the context
@@ -48,8 +57,9 @@
                 env (li/split-path (cn/instance-name event-instance))
                 event-instance)
                env)
-         [_ dc] (cn/dataflow-opcode df)]
-     (dispatch-opcodes evaluator env dc)))
+         [_ dc] (cn/dataflow-opcode df)
+         result (dispatch-opcodes evaluator env dc)]
+     (deref-futures result)))
   ([evaluator event-instance df] (eval-dataflow evaluator env/EMPTY event-instance df)))
 
 (defn run-dataflows

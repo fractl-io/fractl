@@ -260,9 +260,8 @@
               {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
   (let [e1 (cn/make-instance :Df05/E1 {:A 100})
         evt {:Df05/Evt01 {:E1 e1}}
-        result (tu/fresult (e/eval-all-dataflows evt))
-        df-result (cn/deref-future-object (first result))
-        inst (ffirst (tu/fresult df-result))]
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))
+        inst (ffirst (:result result))]
     (is (cn/instance-of? :Df05/E2 inst))
     (is (= (:B inst) 100))))
 
@@ -706,8 +705,7 @@
     (dataflow :AE/Evt02
               {:AE/R01 {:X :AE/Evt02.B}}))
   (let [evt01 (cn/make-instance {:AE/Evt01 {:A 100}})
-        result (first (tu/fresult (e/eval-all-dataflows evt01)))]
-    (is (cn/future-object? result))
-    (let [r (ffirst (tu/fresult (cn/deref-future-object result)))]
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt01)))]
+    (let [r (ffirst (:result result))]
       (is (cn/instance-of? :AE/R01 r))
       (is (= 100 (:X r))))))
