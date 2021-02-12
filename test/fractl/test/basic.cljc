@@ -252,21 +252,23 @@
     (is (= (:Y result) 1000))))
 
 (deftest fire-event
-  (defcomponent :Df05
-    (entity {:Df05/E1 {:A :Kernel/Int}})
-    (entity {:Df05/E2 {:B :Kernel/Int}})
-    (event {:Df05/Evt01 {:E1 :Df05/E1}})
-    (event {:Df05/Evt02 {:E1 :Df05/E1}})
-    (dataflow :Df05/Evt01
-              {:Df05/Evt02 {:E1 :Df05/Evt01.E1}})
-    (dataflow :Df05/Evt02
-              {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
-  (let [e1 (cn/make-instance :Df05/E1 {:A 100})
-        evt {:Df05/Evt01 {:E1 e1}}
-        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))
-        inst (ffirst (:result result))]
-    (is (cn/instance-of? :Df05/E2 inst))
-    (is (= (:B inst) 100))))
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :Df05
+     (entity {:Df05/E1 {:A :Kernel/Int}})
+     (entity {:Df05/E2 {:B :Kernel/Int}})
+     (event {:Df05/Evt01 {:E1 :Df05/E1}})
+     (event {:Df05/Evt02 {:E1 :Df05/E1}})
+     (dataflow :Df05/Evt01
+               {:Df05/Evt02 {:E1 :Df05/Evt01.E1}})
+     (dataflow :Df05/Evt02
+               {:Df05/E2 {:B :Df05/Evt02.E1.A}}))
+   (let [e1 (cn/make-instance :Df05/E1 {:A 100})
+         evt {:Df05/Evt01 {:E1 e1}}
+         result (ffirst (tu/fresult (e/eval-all-dataflows evt)))
+         inst (ffirst (:result result))]
+     (is (cn/instance-of? :Df05/E2 inst))
+     (is (= (:B inst) 100)))))
 
 (deftest refcheck
   (defcomponent :RefCheck
@@ -699,16 +701,18 @@
       (is (cn/instance-of? :EdnUI/LoginForm result)))))
 
 (deftest async-event
-  (defcomponent :AE
-    (record {:AE/R01 {:X :Kernel/Int}})
-    (event {:AE/Evt01 {:A :Kernel/Int}})
-    (event {:AE/Evt02 {:B :Kernel/Int}})
-    (dataflow :AE/Evt01
-              {:AE/Evt02 {:B :AE/Evt01.A}})
-    (dataflow :AE/Evt02
-              {:AE/R01 {:X :AE/Evt02.B}}))
-  (let [evt01 (cn/make-instance {:AE/Evt01 {:A 100}})
-        result (ffirst (tu/fresult (e/eval-all-dataflows evt01)))]
-    (let [r (ffirst (:result result))]
-      (is (cn/instance-of? :AE/R01 r))
-      (is (= 100 (:X r))))))
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :AE
+     (record {:AE/R01 {:X :Kernel/Int}})
+     (event {:AE/Evt01 {:A :Kernel/Int}})
+     (event {:AE/Evt02 {:B :Kernel/Int}})
+     (dataflow :AE/Evt01
+               {:AE/Evt02 {:B :AE/Evt01.A}})
+     (dataflow :AE/Evt02
+               {:AE/R01 {:X :AE/Evt02.B}}))
+   (let [evt01 (cn/make-instance {:AE/Evt01 {:A 100}})
+         result (ffirst (tu/fresult (e/eval-all-dataflows evt01)))]
+     (let [r (ffirst (:result result))]
+       (is (cn/instance-of? :AE/R01 r))
+       (is (= 100 (:X r)))))))

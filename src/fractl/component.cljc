@@ -7,7 +7,7 @@
             [fractl.util.seq :as su]
             [fractl.util.log :as log]
             [fractl.lang.internal :as li]
-            #?(:cljs [promesa.core :as p])))
+            #?(:cljs [cljs.core.async :as async])))
 
 (def ^:private components
   "Table that maps component names to their definitions."
@@ -987,14 +987,11 @@
   #?(:clj
      (deref (:Result obj) (:TimeoutMillis obj) nil)
      :cljs
-     (let [r (atom nil)
-           p (:Result obj)
-           toms (:TimeoutMillis obj)]
-       (-> p
-           (p/timeout toms)
-           (p/then #(reset! r %))
-           (p/catch #(reset! r (make-error "Async timeout" obj))))
-       [(make-instance :Kernel/FutureResult {:Result r})])))
+     (let [[r c] (async/alts!
+                  [(async/timeout (:TimeoutMillis obj))
+                   (:Result obj)])]
+       (async/close! c)
+       r)))
 
 (defn maybe-deref [obj]
   (if (future-object? obj)
