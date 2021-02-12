@@ -26,9 +26,7 @@
 (defn name? [x]
   (and (keyword? x)
        (not-reserved? x)
-       (let [s (subs (str x) 1)]
-         (and (no-invalid-chars? s)
-              (capitalized? s)))))
+       (no-invalid-chars? (name x))))
 
 (defn wildcard? [x]
   (and (symbol? x)
