@@ -6,8 +6,7 @@
             [fractl.util.hash :as sh]
             [fractl.util.seq :as su]
             [fractl.util.log :as log]
-            [fractl.lang.internal :as li]
-            #?(:cljs [cljs.core.async :as async])))
+            [fractl.lang.internal :as li]))
 
 (def ^:private components
   "Table that maps component names to their definitions."
@@ -987,11 +986,8 @@
   #?(:clj
      (deref (:Result obj) (:TimeoutMillis obj) nil)
      :cljs
-     (let [[r c] (async/alts!
-                  [(async/timeout (:TimeoutMillis obj))
-                   (:Result obj)])]
-       (async/close! c)
-       r)))
+     ;; Concurrency not yet implemented in cljs.
+     (:Result obj)))
 
 (defn maybe-deref [obj]
   (if (future-object? obj)

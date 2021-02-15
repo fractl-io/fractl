@@ -2,7 +2,6 @@
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [org.clojure/clojurescript "1.10.773"]
                  [org.clojure/tools.cli "1.0.194"]
-                 [org.clojure/core.async "1.3.610"]
                  [cheshire "5.9.0"]
                  [com.taoensso/timbre "5.1.0"]
                  [seancorfield/next.jdbc "1.1.581"]
