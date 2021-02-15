@@ -187,6 +187,9 @@
     (assoc attrs :sorted sorted)))
 
 (defn- emit-realize-instance
+  "Emit opcode for realizing a fully-built instance of a record, entity or event.
+  It is assumed that the opcodes for setting the individual attributes were emitted
+  prior to this."
   ([ctx pat-name pat-attrs schema alias event? timeout-ms]
    (when-let [xs (cv/invalid-attributes pat-attrs schema)]
      (u/throw-ex (str "invalid attributes in pattern - " xs)))
