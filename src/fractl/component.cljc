@@ -975,3 +975,22 @@
                          (not (some #{k} wo-attrs)))
                        instance))
       instance)))
+
+(defn make-future [future-obj timeout-ms]
+  (make-instance :Kernel/Future {:Result future-obj
+                                 :TimeoutMillis timeout-ms}))
+
+(def future-object? (partial instance-of? :Kernel/Future))
+
+(defn deref-future-object [obj]
+  #?(:clj
+     (deref (:Result obj) (:TimeoutMillis obj) nil)
+     :cljs
+     ;; Concurrency not yet implemented in cljs.
+     (:Result obj)))
+
+(defn maybe-deref [obj]
+  (if (future-object? obj)
+    (or (deref-future-object obj)
+        (make-error "Async timeout" obj))
+    obj))

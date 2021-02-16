@@ -48,10 +48,10 @@
 
 (def bind-instance-to-alias assoc)
 (def bind-to-alias assoc)
-(def lookup-by-alias get)
+(def lookup-by-alias (comp cn/maybe-deref get))
 
 (defn lookup-instance [env rec-name]
-  (peek (get-instances env rec-name)))
+  (cn/maybe-deref (peek (get-instances env rec-name))))
 
 (defn purge-instance [env rec-name id]
   (let [insts (filter #(not= (:Id %) id) (get-instances env rec-name))]

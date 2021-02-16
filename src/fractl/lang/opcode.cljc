@@ -104,7 +104,7 @@
           [[record-name alias]]
           "Finish the instance initialization by inserting that in env.")
          (intern-event-instance
-          [[record-name alias]]
+          [[record-name alias timeout-ms]]
           "Finish the instance initialization of an event, evaluate attached dataflows.")
          (delete-instance
           [[record-name id-pattern-code]]

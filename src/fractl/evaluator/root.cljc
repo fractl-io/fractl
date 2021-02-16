@@ -2,6 +2,7 @@
   "The default evaluator implementation"
   (:require [clojure.walk :as w]
             [fractl.env :as env]
+            [fractl.async :as a]
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.seq :as su]
@@ -66,6 +67,9 @@
     (doall (map (fn [r]
                   (:result (f r env insts)))
                 rs))))
+
+(defn- async-invoke [timeout-ms f]
+  (cn/make-future (a/async-invoke f) timeout-ms))
 
 (def ^:private resolver-upsert (partial call-resolver-upsert r/call-resolver-upsert))
 (def ^:private resolver-delete (partial call-resolver-delete r/call-resolver-delete))
@@ -404,13 +408,15 @@
               (i/ok (pack-results local-result resolver-results) env)))
           (i/not-found record-name env))))
 
-    (do-intern-event-instance [self env [record-name alias]]
+    (do-intern-event-instance [self env [record-name alias timeout-ms]]
       (let [[inst env] (pop-and-intern-instance env record-name alias)
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
             eval-env (env/make (env/get-store env) (env/get-resolver env))
             local-result (when (or (not resolver) composed?)
-                           (doall (eval-event-dataflows self eval-env inst)))
+                           (async-invoke
+                            timeout-ms
+                            #(doall (eval-event-dataflows self eval-env inst))))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? inst))]
         (i/ok (pack-results local-result resolver-results) env)))

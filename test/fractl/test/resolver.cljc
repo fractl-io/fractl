@@ -156,7 +156,6 @@
         evts (map #(cn/make-instance :Res_QueryAll/Upsert_E {:Instance %}) es)
         _ (doall (map tu/fresult (map #(e/eval-all-dataflows %) evts)))
         result (tu/fresult (e/eval-all-dataflows {:Res_QueryAll/AllE {}}))]
-    (println "query-all - result: " result)
     (doseq [r result]
       (is (cn/instance-of? :Res_QueryAll/E r))
       (is (= (if (= 1 (:X r)) "e01" "e02") (:N r))))))
