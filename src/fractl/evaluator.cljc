@@ -133,8 +133,8 @@
 
 (defn eval-all-dataflows
   ([event-obj store-or-store-config resolver-or-resolver-config]
-   ((evaluator store-or-store-config resolver-or-resolver-config)
-    (maybe-init-event event-obj)))
+   (doall ((evaluator store-or-store-config resolver-or-resolver-config)
+           (maybe-init-event event-obj))))
   ([event-obj]
    (eval-all-dataflows event-obj nil nil)))
 
