@@ -1,9 +1,11 @@
 (defproject fractl-io/fractl "0.1.2"
-  :dependencies [[org.clojure/clojure "1.10.0"]
-                 [org.clojure/clojurescript "1.10.773"]
+  :dependencies [[org.clojure/clojure "1.10.1"]
+                 [org.clojure/clojurescript "1.10.773"
+                  :exclusions [com.google.code.findbugs/jsr305]]
                  [org.clojure/tools.cli "1.0.194"]
                  [cheshire "5.9.0"]
-                 [com.taoensso/timbre "5.1.0"]
+                 [com.taoensso/timbre "5.1.0"
+                  :exclusions [org.clojure/tools.reader]]
                  [seancorfield/next.jdbc "1.1.581"]
                  [c3p0/c3p0 "0.9.1.2"]
                  [com.h2database/h2 "1.4.200"]
@@ -33,8 +35,11 @@
                     ["name" "GitHub fractl.io Apache Maven Packages"]
                     ["url" "https://maven.pkg.github.com/fractl-io/fractl"]]]
 
-  :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4"]
-                                  [com.bhauman/figwheel-main "0.2.12"]]
+  :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4" :exclusions [args4j]]
+                                  [com.bhauman/figwheel-main "0.2.12"
+                                   :exclusions [args4j
+                                                com.google.code.findbugs/jsr305
+                                                org.clojure/java.classpath]]]
                    ;; setup target as a resource path
                    :resource-paths ["target" "resources" "node_modules"]
 
