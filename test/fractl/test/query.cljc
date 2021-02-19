@@ -11,7 +11,7 @@
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
 #?(:clj
-   (def store (store/open-default-store nil))
+   (def store (store/open-default-store {:type :postgres}))
    :cljs
    (def store (store/open-default-store {:type :alasql})))
 
