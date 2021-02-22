@@ -11,7 +11,10 @@
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
 #?(:clj
-   (def store (store/open-default-store {:type :postgres}))
+   (def store (store/open-default-store
+               ;; To test potgres, uncomment the following,
+               ;; {:type :postgres}
+               ))
    :cljs
    (def store (store/open-default-store {:type :alasql})))
 

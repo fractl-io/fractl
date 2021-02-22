@@ -3,21 +3,22 @@
             [fractl.util :as u]
             [fractl.store.util :as su]
             [fractl.store.sql :as sql]
+            #?(:clj [fractl.store.jdbc-internal :as ji])
             #?(:clj [fractl.store.h2-internal :as h2i]
                :cljs [fractl.store.alasql-internal :as aqi])))
 
 (def ^:private store-fns
-  {:transact-fn! #?(:clj h2i/transact-fn! :cljs aqi/execute-fn!)
-   :execute-fn! #?(:clj h2i/execute-fn! :cljs aqi/execute-fn!)
-   :execute-sql! #?(:clj h2i/execute-sql! :cljs aqi/execute-sql!)
-   :execute-stmt! #?(:clj h2i/execute-stmt! :cljs aqi/execute-stmt!)
+  {:transact-fn! #?(:clj ji/transact-fn! :cljs aqi/execute-fn!)
+   :execute-fn! #?(:clj ji/execute-fn! :cljs aqi/execute-fn!)
+   :execute-sql! #?(:clj ji/execute-sql! :cljs aqi/execute-sql!)
+   :execute-stmt! #?(:clj ji/execute-stmt! :cljs aqi/execute-stmt!)
    :upsert-inst-statement #?(:clj h2i/upsert-inst-statement :cljs aqi/upsert-inst-statement)
    :upsert-index-statement #?(:clj h2i/upsert-index-statement :cljs aqi/upsert-index-statement)
-   :delete-by-id-statement #?(:clj h2i/delete-by-id-statement :cljs aqi/delete-by-id-statement)
-   :delete-index-statement #?(:clj h2i/delete-index-statement :cljs aqi/delete-index-statement)
+   :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
+   :delete-index-statement #?(:clj ji/delete-index-statement :cljs aqi/delete-index-statement)
    :query-by-id-statement #?(:clj h2i/query-by-id-statement :cljs aqi/query-by-id-statement)
-   :do-query-statement #?(:clj h2i/do-query-statement :cljs aqi/do-query-statement)
-   :validate-ref-statement #?(:clj h2i/validate-ref-statement :cljs aqi/validate-ref-statement)})
+   :do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement)
+   :validate-ref-statement #?(:clj ji/validate-ref-statement :cljs aqi/validate-ref-statement)})
 
 (def transact-fn! (:transact-fn! store-fns))
 (def execute-fn! (:execute-fn! store-fns))
