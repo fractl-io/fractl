@@ -9,7 +9,7 @@
     [pstmt [id attrval]]))
 
 (defn upsert-inst-statement [conn table-name id obj]
-  (let [sql (str "MERGE INTO " table-name " KEY (id) VALUES (?, ? FORMAT JSON)")
+  (let [sql (str "MERGE INTO " table-name " KEY (id) VALUES (?, ?)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id obj]]))
 

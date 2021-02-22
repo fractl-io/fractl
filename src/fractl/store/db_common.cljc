@@ -19,19 +19,19 @@
    :do-query-statement #?(:clj h2i/do-query-statement :cljs aqi/do-query-statement)
    :validate-ref-statement #?(:clj h2i/validate-ref-statement :cljs aqi/validate-ref-statement)})
 
-(def transact-fn! (partial (:transact-fn! store-fns)))
-(def execute-fn! (partial (:execute-fn! store-fns)))
-(def execute-sql! (partial (:execute-sql! store-fns)))
-(def execute-stmt! (partial (:execute-stmt! store-fns)))
-(def upsert-inst-statement (partial (:upsert-inst-statement store-fns)))
-(def upsert-index-statement (partial (:upsert-index-statement store-fns)))
-(def delete-by-id-statement (partial (:delete-by-id-statement store-fns)))
-(def delete-index-statement (partial (:delete-index-statement store-fns)))
-(def query-by-id-statement (partial (:query-by-id-statement store-fns)))
-(def do-query-statement (partial (:do-query-statement store-fns)))
-(def validate-ref-statement (partial (:validate-ref-statement store-fns)))
+(def transact-fn! (:transact-fn! store-fns))
+(def execute-fn! (:execute-fn! store-fns))
+(def execute-sql! (:execute-sql! store-fns))
+(def execute-stmt! (:execute-stmt! store-fns))
+(def upsert-inst-statement (:upsert-inst-statement store-fns))
+(def upsert-index-statement (:upsert-index-statement store-fns))
+(def delete-by-id-statement (:delete-by-id-statement store-fns))
+(def delete-index-statement (:delete-index-statement store-fns))
+(def query-by-id-statement (:query-by-id-statement store-fns))
+(def do-query-statement (:do-query-statement store-fns))
+(def validate-ref-statement (:validate-ref-statement store-fns))
 
-(defn create-entity-table-sql
+(defn- create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
   return the DML statement to create that table."
   [tabname ident-attr]
@@ -39,9 +39,9 @@
         (if ident-attr
           (str "(" (su/db-ident ident-attr) " UUID PRIMARY KEY, ")
           "(")
-        "instance_json JSON)")])
+        "instance_json VARCHAR)")])
 
-(defn create-index-table-sql
+(defn- create-index-table-sql
   "Given a database-type, entity-table-name and attribute-column name, return the
   DML statements for creating an index table and the index for its 'id' column."
   [entity-table-name colname coltype unique?]
@@ -137,7 +137,7 @@
 (defn- upsert-indices!
   "Insert or update new index entries relevant for an entity instance.
   The index values are available in the `attrs` parameter."
-  [conn entity-table-name indexed-attrs instance]
+  [conn entity-table-name indexed-attrs instance upsert-index-statement]
   (let [id (:Id instance)]
     (doseq [[attrname tabname] (su/index-table-names entity-table-name indexed-attrs)]
       (let [[pstmt params] (upsert-index-statement conn tabname (su/db-ident attrname)
@@ -159,7 +159,7 @@
 
 (defn- upsert-inst!
   "Insert or update an entity instance."
-  [conn table-name inst ref-attrs]
+  [conn table-name inst ref-attrs upsert-inst-statement]
   (when (seq ref-attrs)
     (validate-references! conn inst ref-attrs))
   (let [attrs (cn/serializable-attributes inst)
@@ -168,16 +168,21 @@
         [pstmt params] (upsert-inst-statement conn table-name id obj)]
     (execute-stmt! conn pstmt params)))
 
-(defn upsert-instance [datasource entity-name instance]
-  (let [tabname (su/table-for-entity entity-name)
-        entity-schema (su/find-entity-schema entity-name)
-        indexed-attrs (cn/indexed-attributes entity-schema)
-        ref-attrs (cn/ref-attribute-schemas entity-schema)]
-    (transact-fn! datasource
-               (fn [txn]
-                 (upsert-inst! txn tabname instance ref-attrs)
-                 (upsert-indices! txn tabname indexed-attrs instance)))
-    instance))
+(defn upsert-instance
+  ([upsert-inst-statement upsert-index-statement datasource entity-name instance]
+   (let [tabname (su/table-for-entity entity-name)
+         entity-schema (su/find-entity-schema entity-name)
+         indexed-attrs (cn/indexed-attributes entity-schema)
+         ref-attrs (cn/ref-attribute-schemas entity-schema)]
+     (transact-fn! datasource
+                   (fn [txn]
+                     (upsert-inst! txn tabname instance ref-attrs upsert-inst-statement)
+                     (upsert-indices! txn tabname indexed-attrs instance upsert-index-statement)))
+     instance))
+  ([datasource entity-name instance]
+   (upsert-instance
+    upsert-inst-statement upsert-index-statement
+    datasource entity-name instance)))
 
 (defn- delete-indices!
   "Delete index entries relevant for an entity instance."
@@ -210,15 +215,18 @@
         results (flatten (map u/apply0 query-fns))]
     (su/results-as-instances entity-name id-key json-key results)))
 
-(defn query-by-id [datasource entity-name query-sql ids]
-  (execute-fn!
-   datasource
-   (fn [conn]
-     (query-instances
-      entity-name
-      (map #(let [[pstmt params] (query-by-id-statement conn query-sql %)]
-              (fn [] (execute-stmt! conn pstmt params)))
-           (set ids))))))
+(defn query-by-id
+  ([query-by-id-statement datasource entity-name query-sql ids]
+   (execute-fn!
+    datasource
+    (fn [conn]
+      (query-instances
+       entity-name
+       (map #(let [[pstmt params] (query-by-id-statement conn query-sql %)]
+               (fn [] (execute-stmt! conn pstmt params)))
+            (set ids))))))
+  ([datasource entity-name query-sql ids]
+   (query-by-id query-by-id-statement datasource entity-name query-sql ids)))
 
 (defn query-all [datasource entity-name query-sql]
   (execute-fn!

@@ -49,7 +49,8 @@
         ids (map :Id insts)]
     (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
     (let [r01 (first (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}})))
-          r02 (first (tu/fresult (e/eval-all-dataflows {:Q02/QE02 {:X 10 :Y 100}})))]
+          r (e/eval-all-dataflows {:Q02/QE02 {:X 10 :Y 100}})
+          r02 (first (tu/fresult r))]
       (is (= 2 (count r01)))
       (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r01))
       (is (= 2 (count r02)))
