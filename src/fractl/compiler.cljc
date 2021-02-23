@@ -40,7 +40,8 @@
       (:path parts)
       `(if-let [r# (get ~current-instance-var ~n)]
          r#
-         (let [r# (fractl.env/lookup-by-alias ~runtime-env-var ~(:path parts))]
+         (let [result# (fractl.env/lookup-by-alias ~runtime-env-var ~(:path parts))
+               r# (if (map? result#) result# (first result#))]
            (if-let [refs# '~(seq (:refs parts))]
              (get-in r# refs#)
              r#)))

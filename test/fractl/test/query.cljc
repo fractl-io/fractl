@@ -96,3 +96,42 @@
       (is (= 1 (:X r)))
       (is (let [n (:N r)]
             (some #{n} #{"e01" "e03"}))))))
+
+(deftest query-alias-in-expr
+  (defcomponent :QueryAliasInExpr
+    (entity {:QueryAliasInExpr/OrderLine
+             {:Title :Kernel/String
+              :Qty :Kernel/Int}})
+    (entity {:QueryAliasInExpr/ProductBatch
+             {:Title :Kernel/String
+              :AvailableQty :Kernel/Int}})
+    (dataflow :QueryAliasInExpr/AllocateOrderLine
+              {:QueryAliasInExpr/OrderLine
+               {:Id? :QueryAliasInExpr/AllocateOrderLine.LineId}
+               :as :OL}
+              {:QueryAliasInExpr/ProductBatch
+               {:Id? :QueryAliasInExpr/AllocateOrderLine.BatchId
+                :AvailableQty '(- :AvailableQty :OL.Qty)}}))
+  (let [batch (cn/make-instance
+               {:QueryAliasInExpr/ProductBatch
+                {:Title "Table"
+                 :AvailableQty 20}})
+        evt (cn/make-instance
+             {:QueryAliasInExpr/Upsert_ProductBatch
+              {:Instance batch}})
+        r (ffirst (tu/fresult (e/eval-all-dataflows evt)))
+        batch-id (:Id r)
+        order-line (cn/make-instance
+                    {:QueryAliasInExpr/OrderLine
+                     {:Title "Table"
+                      :Qty 2}})
+        evt (cn/make-instance
+             {:QueryAliasInExpr/Upsert_OrderLine
+              {:Instance order-line}})
+        r (ffirst (tu/fresult (e/eval-all-dataflows evt)))
+        line-id (:Id r)
+        evt (cn/make-instance
+             {:QueryAliasInExpr/AllocateOrderLine
+              {:BatchId batch-id :LineId line-id}})
+        r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (= (:AvailableQty r) 18))))
