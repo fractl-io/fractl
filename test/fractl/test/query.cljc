@@ -11,7 +11,10 @@
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
 #?(:clj
-   (def store (store/open-default-store nil))
+   (def store (store/open-default-store
+               ;; To test potgres, uncomment the following,
+               ;; {:type :postgres}
+               ))
    :cljs
    (def store (store/open-default-store {:type :alasql})))
 
@@ -49,7 +52,8 @@
         ids (map :Id insts)]
     (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
     (let [r01 (first (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}})))
-          r02 (first (tu/fresult (e/eval-all-dataflows {:Q02/QE02 {:X 10 :Y 100}})))]
+          r (e/eval-all-dataflows {:Q02/QE02 {:X 10 :Y 100}})
+          r02 (first (tu/fresult r))]
       (is (= 2 (count r01)))
       (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r01))
       (is (= 2 (count r02)))

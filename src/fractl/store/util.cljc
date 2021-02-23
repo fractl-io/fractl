@@ -81,7 +81,7 @@
   [table-attr]
   (let [[cne attr] (li/split-path table-attr)
         [cn e] (table-name->entity cne)]
-    (keyword (str (name cn) "." (name e) "/" (name attr)))))
+    (keyword (s/upper-case (str (name cn) "." (name e) "/" (name attr))))))
 
 (defn normalize-connection-info [connection-info]
   (if-let [f (:decrypt-fn connection-info)]
