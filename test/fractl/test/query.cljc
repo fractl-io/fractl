@@ -104,7 +104,7 @@
               :Qty :Kernel/Int}})
     (entity {:QueryAliasInExpr/ProductBatch
              {:Title :Kernel/String
-              :AvailableQty :Kernel/Int}})
+              :AvailableQty {:type :Kernel/Int :check pos?}}})
     (dataflow :QueryAliasInExpr/AllocateOrderLine
               {:QueryAliasInExpr/OrderLine
                {:Id? :QueryAliasInExpr/AllocateOrderLine.LineId}
@@ -121,6 +121,19 @@
               {:Instance batch}})
         r (ffirst (tu/fresult (e/eval-all-dataflows evt)))
         batch-id (:Id r)
+        order-line (cn/make-instance
+                    {:QueryAliasInExpr/OrderLine
+                     {:Title "Table"
+                      :Qty 21}})
+        evt (cn/make-instance
+             {:QueryAliasInExpr/Upsert_OrderLine
+              {:Instance order-line}})
+        r (ffirst (tu/fresult (e/eval-all-dataflows evt)))
+        line-id (:Id r)
+        evt (cn/make-instance
+             {:QueryAliasInExpr/AllocateOrderLine
+              {:BatchId batch-id :LineId line-id}})
+        _ (tu/is-error #(doall (e/eval-all-dataflows evt)))
         order-line (cn/make-instance
                     {:QueryAliasInExpr/OrderLine
                      {:Title "Table"

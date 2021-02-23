@@ -994,3 +994,10 @@
     (or (deref-future-object obj)
         (make-error "Async timeout" obj))
     obj))
+
+(defn validate-instance [inst]
+  (let [n (instance-name inst)
+        schema (ensure-schema n)]
+    (validate-record-attributes
+     n (instance-attributes inst) schema)
+    inst))
