@@ -218,7 +218,7 @@
           objs (if single? [x] x)
           final-objs (map #(assoc-computed-attributes env record-name %) objs)
           insts (map #(if (cn/an-instance? %)
-                        %
+                        (cn/validate-instance %)
                         (cn/make-instance (li/make-path record-name) %))
                      final-objs)
           bindable (if single? (first insts) insts)]
@@ -234,7 +234,7 @@
           objs (if single? [x] x)
           final-objs (map #(assoc-computed-attributes env record-name %) objs)
           insts (map #(if (cn/an-instance? %)
-                        %
+                        (cn/validate-instance %)
                         (cn/make-instance (li/make-path record-name) %))
                      final-objs)
           env (env/bind-instances env record-name insts)
