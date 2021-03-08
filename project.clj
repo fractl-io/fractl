@@ -3,6 +3,8 @@
                  [org.clojure/clojurescript "1.10.773"
                   :exclusions [com.google.code.findbugs/jsr305]]
                  [org.clojure/tools.cli "1.0.194"]
+                 [org.clojure/data.xml "0.2.0-alpha5"]
+                 [aysylu/loom "1.0.2"]
                  [cheshire "5.9.0"]
                  [com.taoensso/timbre "5.1.0"
                   :exclusions [org.clojure/tools.reader]]
