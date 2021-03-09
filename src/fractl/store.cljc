@@ -2,6 +2,7 @@
   (:require #?(:clj [fractl.store.h2 :as h2]
                :cljs [fractl.store.alasql :as alasql])
             #?(:clj [fractl.store.postgres :as postgres])
+            #?(:clj [fractl.store.sfdc :as sfdc])
             #?(:cljs [fractl.store.reagent.core :as reagent])
             [fractl.store.protocol :as p]
             [fractl.util :as u]))
@@ -25,7 +26,8 @@
 (def ^:private store-constructors
   #?(:clj
      {:h2 h2/make
-      :postgres postgres/make}
+      :postgres postgres/make
+      :sfdc sfdc/make}
      :cljs
      {:alasql alasql/make
       :reagent reagent/make}))
