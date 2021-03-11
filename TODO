@@ -1,0 +1,2 @@
+ * store/sfdc-metadata - implemenet `manifest-from-options` and test retrieve
+ * implement commit and push
