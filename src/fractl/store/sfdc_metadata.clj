@@ -1,10 +1,11 @@
 (ns fractl.store.sfdc-metadata
   "Define a storage layer on top of SFDC Metadata API."
   (:require [clojure.string :as s]
+            [clojure.java.io :as io]
             [fractl.util :as u]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p])
-  (:import [fractl.store.sfdc MetadataLoginUtil]))
+  (:import [fractl.store.sfdc MetadataLoginUtil MetadataPushPull]))
 
 (def ^:private login-url "https://login.salesforce.com/services/Soap/c/51.0")
 
@@ -19,6 +20,17 @@
 (defn- sfdc-login [username password]
   (let [conn (MetadataLoginUtil/login username password login-url)]
     conn))
+
+(defn- manifest-from-options [options]
+  ;; TODO: generate manifest xml from options edn
+  )
+
+(def ^:private zip-file-name "components.zip")
+(def ^:private manifest-file-name "package.xml")
+
+(defn- write-manifest! [xml]
+  (with-open [w (io/writer manifest-file-name)]
+    (.write w xml)))
 
 (defn make []
   (let [datasource (u/make-cell)]
@@ -62,4 +74,8 @@
       (get-reference [_ path refs]
         nil)
       (pull [store options]
-        ))))
+        (let [manifest-xml (manifest-from-options options)
+              mpp (MetadataPushPull. @datasource)]
+          (write-manifest! manifest-xml)
+          (.retrieveZip mpp zip-file-name manifest-file-name)
+          true)))))
