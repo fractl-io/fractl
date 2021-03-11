@@ -1,4 +1,11 @@
-(ns fractl.store.protocol)
+(ns fractl.store.protocol
+  (:require [fractl.util :as u]))
+
+(defn- not-implemented [method]
+  (u/throw-ex
+   (str
+    (name method)
+    " - method not implemented for this storage layer")))
 
 (defprotocol Store
   "The interface for all storage layer technologies."
@@ -38,4 +45,14 @@
      store implementation.")
   (get-reference [store path refs]
     "Get reference to instances stored in the store. This is useful for
-     tracking instances in reactive store"))
+     tracking instances in reactive store")
+  (pull [store options]
+    "Pull data to local storage, based on options. The format of options is implementation specific"
+    (not-implemented :pull))
+  (commit [store msg]
+    "Commit local changes, return the version number"
+    (not-implemented :commit))
+  (push [store version]
+    "Push the specified version of local data to the remote store. Version could be nil,
+     in which all pending commits will be pushed."
+    (not-implemented :push)))
