@@ -1,72 +1,24 @@
 (ns fractl.store.sfdc-metadata
   "Define a storage layer on top of SFDC Metadata API."
   (:require [clojure.string :as s]
-            [clojure.xml :as xml]
-            [org.httpkit.client :as http]
             [fractl.util :as u]
             [fractl.store.util :as su]
-            [fractl.store.protocol :as p]))
+            [fractl.store.protocol :as p])
+  (:import [fractl.store.sfdc MetadataLoginUtil]))
 
-(def ^:private login-request
-  "<?xml version=\"1.0\" encoding=\"utf-8\" ?>
-    <env:Envelope xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"
-                  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"
-                  xmlns:env=\"http://schemas.xmlsoap.org/soap/envelope/\">
-      <env:Body>
-       <n1:login xmlns:n1=\"urn:partner.soap.sforce.com\">
-          <n1:username>$USERNAME</n1:username>
-          <n1:password>$PASSWORD</n1:password>
-       </n1:login>
-      </env:Body>
-    </env:Envelope>")
+(def ^:private login-url "https://login.salesforce.com/services/Soap/c/51.0")
 
-(def ^:private username-pattern #"\$USERNAME")
-(def ^:private password-pattern #"\$PASSWORD")
+(defn- service-endpoint [conn]
+  (-> (.getConfig conn)
+      .getServiceEndpoint))
 
-(def ^:private sfdc-login-url
-  "https://login.salesforce.com/services/Soap/u/51.0")
-
-(def ^:private sfdc-login-options
-  {:headers
-   {"Content-Type" "text/xml"
-    "SOAPAction" "login"}})
-
-(defn- filter-tag [tag xs]
-  (first (filter #(= tag (:tag %)) xs)))
-
-(defn- normalize-data [xs]
-  (if (= 1 (count xs))
-    (first xs)
-    xs))
-
-(defn- normalize-content [xs]
-  (if (map? (first xs))
-    (let [m (map #(when-let [tag (:tag %)]
-                    [tag (normalize-content (:content %))])
-                 xs)]
-      (into {} (filter identity m)))
-    (normalize-data xs)))
-
-(defn- fetch-login-response [response]
-  (let [dom (xml/parse
-             (java.io.ByteArrayInputStream.
-              (.getBytes response)))
-        content (:content (first (:content dom)))
-        result (:content
-                (filter-tag
-                 :result
-                 (:content (filter-tag :loginResponse content))))]
-    (normalize-content result)))
+(defn- session-id [conn]
+  (-> (.getConfig conn)
+      .getSessionId))
 
 (defn- sfdc-login [username password]
-  (let [req (-> (s/replace login-request username-pattern username)
-                (s/replace password-pattern password))
-        {:keys [status error body]} @(http/post
-                                 sfdc-login-url
-                                 (assoc sfdc-login-options :body req))]
-    (if (= status 200)
-      (fetch-login-response body)
-      (u/throw-ex (str "SFDC login failed - " {:status status :error error})))))
+  (let [conn (MetadataLoginUtil/login username password login-url)]
+    conn))
 
 (defn make []
   (let [datasource (u/make-cell)]
