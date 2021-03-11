@@ -1,5 +1,5 @@
-(ns fractl.store.sfdc
-  "Define a storage layer on top of SFDC Bulk API."
+(ns fractl.store.sfdc-metadata
+  "Define a storage layer on top of SFDC Metadata API."
   (:require [clojure.string :as s]
             [clojure.xml :as xml]
             [org.httpkit.client :as http]
@@ -88,7 +88,7 @@
         component-name)
       (drop-schema [_ component-name]
         component-name)
-      (upsert-instance [_ entity-name instance]
+      (upsert-instance [_ entity-name instances]
         ;; TODO: instance should ideally be a composite of multiple SFDC objects.
         ;; Call the bulk upsert API
         )
@@ -102,7 +102,7 @@
         ;; TODO: call the bulk API query, return result
         )
       (do-query [_ query params]
-        ;; TODO: call the bulk API query, return result        
+        ;; TODO: call the bulk API query, return result
         )
       (compile-query [_ query-pattern]
         ;; TODO: compile query to a bulk API query
