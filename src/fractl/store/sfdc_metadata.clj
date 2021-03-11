@@ -60,4 +60,6 @@
         ;; TODO: compile query to a bulk API query
         )
       (get-reference [_ path refs]
-        nil))))
+        nil)
+      (pull [store options]
+        ))))
