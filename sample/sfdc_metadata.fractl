@@ -1,0 +1,7 @@
+(ns sample.sfdc-metadata
+  (:use [fractl.lang]))
+
+(component :Sample.SfdcMetadata)
+
+(dataflow :Sample.SfdcMetadata/PullCustomObjects
+          [:pull [:CustomObject]])

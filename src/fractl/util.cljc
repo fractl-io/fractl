@@ -164,3 +164,11 @@
 (defn apply0 [f] (f))
 
 (defn noop [])
+
+(defn getenv
+  ([varname default]
+   (if-let [val (or (System/getenv varname) default)]
+     val
+     (throw-ex (str varname " - environment variable not set"))))
+  ([varname]
+   (getenv varname nil)))

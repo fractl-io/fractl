@@ -455,7 +455,7 @@
 
     (do-pull [_ env options]
       (if-let [store (env/get-store env)]
-        (store/pull store options)
+        (i/ok (store/pull store (first options)) env)
         (i/error (str "pull failed - store not set in environment"))))))
 
 (def ^:private default-evaluator (u/make-cell))
