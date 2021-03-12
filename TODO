@@ -1,1 +1,5 @@
+ * see how sfdc-metadata pull results can be mapped to local entities,
+   this may not be directly possible because queries can be on subset of
+   entities and not all entities seems to be defined in metadata.wsdl.
+   A dynamic approach where dataflow patterns are mapped to xml objects may be needed.
  * implement commit and push

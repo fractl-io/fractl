@@ -2,7 +2,7 @@
   "Define a storage layer on top of SFDC Metadata API."
   (:require [clojure.string :as s]
             [clojure.java.io :as io]
-            [clojure.xml :as xml]
+            [clojure.data.xml :as xml]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.store.util :as su]
@@ -24,7 +24,10 @@
     conn))
 
 (defn- members-tag [n]
-  {:tag :members :content [(str n)]})
+  (let [s (str (if (li/name? n)
+                 (subs (str (second (li/split-path n))) 1)
+                 n))]
+    {:tag :members :content [s]}))
 
 (def ^:private all-members (members-tag "*"))
 
@@ -43,20 +46,19 @@
       [{:tag :version :content [(u/getenv "SFDC_METADATA_API_VERSION" "51.0")]}])}))
 
 (defn- manifest-from-options [options]
-  (let [content (map types-tag options)
-        xml {:tag :Package :attrs
-             {:xmlns (u/getenv
-                      "SFDC_METADATA_SCHEMA_URL"
-                      "http://soap.sforce.com/2006/04/metadata")}
-             :content content}]
-    (with-out-str (xml/emit xml))))
+  (let [content (map types-tag options)]
+    {:tag :Package :attrs
+     {:xmlns (u/getenv
+              "SFDC_METADATA_SCHEMA_URL"
+              "http://soap.sforce.com/2006/04/metadata")}
+     :content content}))
 
 (def ^:private zip-file-name "components.zip")
 (def ^:private manifest-file-name "package.xml")
 
 (defn- write-manifest! [xml]
-  (with-open [w (io/writer manifest-file-name)]
-    (.write w xml)))
+  (with-open [out-file (java.io.FileWriter. manifest-file-name)]
+    (xml/emit xml out-file)))
 
 (defn make []
   (let [datasource (u/make-cell)]
