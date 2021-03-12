@@ -1,2 +1,3 @@
- * store/sfdc-metadata - implemenet `manifest-from-options` and test retrieve
+ * add support for :pull to eval
+ * test retrieve
  * implement commit and push

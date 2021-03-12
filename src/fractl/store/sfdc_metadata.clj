@@ -2,6 +2,7 @@
   "Define a storage layer on top of SFDC Metadata API."
   (:require [clojure.string :as s]
             [clojure.java.io :as io]
+            [clojure.xml :as xml]
             [fractl.util :as u]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p])
@@ -21,9 +22,27 @@
   (let [conn (MetadataLoginUtil/login username password login-url)]
     conn))
 
+(defn- members-tag [n]
+  {:tag :members :content n})
+
+(def ^:private all-members (members-tag '*))
+
+(defn- types-tag [opt]
+  (let [n (symbol (subs (str (first opt)) 1))]
+    {:tag :types :content
+     (if (seqable? opt)
+       (concat [{:tag :name :content n}]
+               (if (seqable? (second opt))
+                 (map members-tag (second opt))
+                 [(members-tag (second opt))]))
+       [{:tag :name :content n} all-members])}))
+
 (defn- manifest-from-options [options]
-  ;; TODO: generate manifest xml from options edn
-  )
+  (let [content (map types-tag options)]
+    (with-out-str
+      (xml/emit
+       {:tag :Package :attrs {:xmlns "http://soap.sforce.com/2006/04/metadata"}
+        :content content}))))
 
 (def ^:private zip-file-name "components.zip")
 (def ^:private manifest-file-name "package.xml")
