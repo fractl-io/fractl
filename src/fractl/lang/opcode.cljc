@@ -121,4 +121,7 @@
           "Generate function to dispatch a fractl event.")
          (for-each
           [[bind-pattern-code body-code result-alias]]
-          "Execute code for the binding pattern and the iteration.")]))
+          "Execute code for the binding pattern and the iteration.")
+         (pull
+          [pull-options]
+          "Execute a data pull call on the current store.")]))
