@@ -4,6 +4,7 @@
             [clojure.java.io :as io]
             [clojure.xml :as xml]
             [fractl.util :as u]
+            [fractl.lang.internal :as li]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p])
   (:import [fractl.store.sfdc MetadataLoginUtil MetadataPushPull]))
@@ -23,26 +24,32 @@
     conn))
 
 (defn- members-tag [n]
-  {:tag :members :content n})
+  {:tag :members :content [(str n)]})
 
-(def ^:private all-members (members-tag '*))
+(def ^:private all-members (members-tag "*"))
 
 (defn- types-tag [opt]
-  (let [n (symbol (subs (str (first opt)) 1))]
+  (let [has-query (seqable? opt)
+        [_ m] (li/split-path (if has-query (first opt) opt))
+        n (name m)]
     {:tag :types :content
-     (if (seqable? opt)
-       (concat [{:tag :name :content n}]
-               (if (seqable? (second opt))
-                 (map members-tag (second opt))
-                 [(members-tag (second opt))]))
-       [{:tag :name :content n} all-members])}))
+     (concat
+      (if has-query
+        (concat [{:tag :name :content [n]}]
+                (if (seqable? (second opt))
+                  (map members-tag (second opt))
+                  [(members-tag (second opt))]))
+        [{:tag :name :content [n]} all-members])
+      [{:tag :version :content [(u/getenv "SFDC_METADATA_API_VERSION" "51.0")]}])}))
 
 (defn- manifest-from-options [options]
-  (let [content (map types-tag options)]
-    (with-out-str
-      (xml/emit
-       {:tag :Package :attrs {:xmlns "http://soap.sforce.com/2006/04/metadata"}
-        :content content}))))
+  (let [content (map types-tag options)
+        xml {:tag :Package :attrs
+             {:xmlns (u/getenv
+                      "SFDC_METADATA_SCHEMA_URL"
+                      "http://soap.sforce.com/2006/04/metadata")}
+             :content content}]
+    (with-out-str (xml/emit xml))))
 
 (def ^:private zip-file-name "components.zip")
 (def ^:private manifest-file-name "package.xml")
@@ -56,8 +63,8 @@
     (reify p/Store
       (open-connection [store connection-info]
         (let [connection-info (su/normalize-connection-info connection-info)
-              username (or (:username connection-info) (System/getenv "SFDC_USERNAME"))
-              password (or (:password connection-info) (System/getenv "SFDC_PASSWORD"))]
+              username (or (:username connection-info) (u/getenv "SFDC_USERNAME"))
+              password (or (:password connection-info) (u/getenv "SFDC_PASSWORD"))]
           (u/safe-set-once
            datasource
            #(sfdc-login username password))
