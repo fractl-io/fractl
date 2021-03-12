@@ -451,7 +451,12 @@
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
           (eval-for-each self (:env result) eval-opcode r body-code result-alias)
-          result)))))
+          result)))
+
+    (do-pull [_ env options]
+      (if-let [store (env/get-store env)]
+        (store/pull store options)
+        (i/error (str "pull failed - store not set in environment"))))))
 
 (def ^:private default-evaluator (u/make-cell))
 
