@@ -2,7 +2,7 @@
   (:require #?(:clj [fractl.store.h2 :as h2]
                :cljs [fractl.store.alasql :as alasql])
             #?(:clj [fractl.store.postgres :as postgres])
-            #?(:clj [fractl.store.sfdc-metadata :as sfdc-metadata])
+            #?(:clj [fractl.store.sfdc.metadata :as sfdc-metadata])
             #?(:cljs [fractl.store.reagent.core :as reagent])
             [fractl.store.protocol :as p]
             [fractl.util :as u]))

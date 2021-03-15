@@ -4,4 +4,4 @@
 (component :Sample.SfdcMetadata)
 
 (dataflow :Sample.SfdcMetadata/PullCustomObjects
-          [:pull [[:CustomField :Account.Industry]]])
+          [:pull])
