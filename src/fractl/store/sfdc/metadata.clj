@@ -1,4 +1,4 @@
-(ns fractl.store.sfdc-metadata
+(ns fractl.store.sfdc.metadata
   "Define a storage layer on top of SFDC Metadata API."
   (:require [clojure.string :as s]
             [clojure.java.io :as io]
@@ -6,7 +6,8 @@
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.store.util :as su]
-            [fractl.store.protocol :as p])
+            [fractl.store.protocol :as p]
+            [fractl.store.sfdc.metadata-types :as mt])
   (:import [fractl.store.sfdc MetadataLoginUtil MetadataPushPull]))
 
 (def ^:private login-url "https://login.salesforce.com/services/Soap/c/51.0")
@@ -33,7 +34,8 @@
 
 (defn- types-tag [opt]
   (let [has-query (seqable? opt)
-        [_ m] (li/split-path (if has-query (first opt) opt))
+        [a b] (li/split-path (if has-query (first opt) opt))
+        m (or b a)
         n (name m)]
     {:tag :types :content
      (concat
@@ -42,11 +44,13 @@
                 (if (seqable? (second opt))
                   (map members-tag (second opt))
                   [(members-tag (second opt))]))
-        [{:tag :name :content [n]} all-members])
-      [{:tag :version :content [(u/getenv "SFDC_METADATA_API_VERSION" "51.0")]}])}))
+        [{:tag :name :content [n]} all-members]))}))
 
 (defn- manifest-from-options [options]
-  (let [content (map types-tag options)]
+  (let [options (or options mt/type-names)
+        vers (u/getenv "SFDC_METADATA_API_VERSION" "51.0")
+        content (concat (map types-tag options)
+                        [{:tag :version :content [vers]}])]
     {:tag :Package :attrs
      {:xmlns (u/getenv
               "SFDC_METADATA_SCHEMA_URL"
