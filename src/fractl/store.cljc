@@ -66,6 +66,7 @@
 (def compile-query p/compile-query)
 (def get-reference p/get-reference)
 (def pull p/pull)
+(def push p/push)
 
 (defn reactive?
   "Checks whether a given store supports reactive references"
