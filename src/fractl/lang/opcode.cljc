@@ -123,5 +123,8 @@
           [[bind-pattern-code body-code result-alias]]
           "Execute code for the binding pattern and the iteration.")
          (pull
-          [pull-options]
-          "Execute a data pull call on the current store.")]))
+          [options]
+          "Execute a data pull call on the current store.")
+         (push
+          [options]
+          "Execute a data push on the current store.")]))

@@ -21,7 +21,7 @@ public class MetadataPushPull {
     private static final double API_VERSION = 29.0;
  
     // one second in milliseconds
-    private static final long ONE_SECOND = 1000;
+    private static final long ASYNC_WAIT_MS = 1000;
  
     // maximum number of attempts to deploy the zip file
     private static final int MAX_NUM_POLL_REQUESTS = 50;
@@ -143,7 +143,7 @@ public class MetadataPushPull {
  
     private DeployResult waitForDeployCompletion(String asyncResultId) throws Exception {
         int poll = 0;
-        long waitTimeMilliSecs = ONE_SECOND;
+        long waitTimeMilliSecs = ASYNC_WAIT_MS;
         DeployResult deployResult;
         boolean fetchDetails;
         do {
@@ -172,14 +172,14 @@ public class MetadataPushPull {
             // Get the final result with details if we didn't do it in the last attempt.
             deployResult = metadataConnection.checkDeployStatus(asyncResultId, true);
         }
-        
+
         return deployResult;
     }
  
     private RetrieveResult waitForRetrieveCompletion(AsyncResult asyncResult) throws Exception {
     	// Wait for the retrieve to complete
         int poll = 0;
-        long waitTimeMilliSecs = ONE_SECOND;
+        long waitTimeMilliSecs = ASYNC_WAIT_MS;
         String asyncResultId = asyncResult.getId();
         RetrieveResult result = null;
         do {

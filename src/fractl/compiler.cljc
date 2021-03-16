@@ -350,12 +350,16 @@
 (defn- compile-pull [_ pat]
   (op/pull pat))
 
+(defn- compile-push [_ pat]
+  (op/push pat))
+
 (def ^:private special-form-handlers
   {:match compile-match
    :for-each compile-for-each
    :delete compile-delete
    :eval-on compile-eval-on
-   :pull compile-pull})
+   :pull compile-pull
+   :push compile-push})
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic

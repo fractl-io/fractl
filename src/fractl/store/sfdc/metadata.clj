@@ -110,4 +110,9 @@
               mpp (MetadataPushPull. @datasource)]
           (write-manifest! manifest-xml)
           (.retrieveZip mpp zip-file-name manifest-file-name)
+          true))
+      (push [store options]
+        (let [zip-file (or (:zip-file options) "components.zip")
+              mpp (MetadataPushPull. @datasource)]
+          (.deployZip mpp zip-file)
           true)))))

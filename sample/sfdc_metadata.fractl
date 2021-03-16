@@ -3,5 +3,8 @@
 
 (component :Sample.SfdcMetadata)
 
-(dataflow :Sample.SfdcMetadata/PullCustomObjects
+(dataflow :Sample.SfdcMetadata/PullMetadata
           [:pull])
+
+(dataflow :Sample.SfdcMetadata/PushMetadata
+          [:push])
