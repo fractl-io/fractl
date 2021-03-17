@@ -46,7 +46,7 @@
    :Community
    :CommunityTemplateDefinition
    :CommunityThemeDefinition
-   :ConnectedApp
+   ;; :ConnectedApp
    :ContentAsset
    :CorsWhitelistOrigin
    :CspTrustedSite
