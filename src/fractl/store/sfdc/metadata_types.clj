@@ -1,5 +1,7 @@
 (ns fractl.store.sfdc.metadata-types)
 
+;; Note - some types that can cause errors with deploy/retrieve are
+;; commented out.
 (def type-names
   [:AccountRelationshipShareRule
    :ActionLinkGroupTemplate
@@ -8,7 +10,7 @@
    :AIApplicationConfig
    :AnalyticSnapshot
    :AnimationRule
-   :ArticleType
+   ;; :ArticleType
    :ApexClass
    :ApexComponent
    :ApexEmailNotifications
@@ -98,7 +100,7 @@
    :Flow
    :FlowCategory
    :FlowDefinition
-   :Folder
+   ;; :Folder
    ;; :GlobalPicklist
    ;; :GlobalPicklistValue
    :GlobalValueSet
@@ -124,8 +126,8 @@
    :ManagedContentType
    :ManagedTopics
    :MatchingRule
-   :Metadata
-   :MetadataWithContent
+   ;; :Metadata
+   ;; :MetadataWithContent
    :MilestoneType
    :MlDomain
    :MktDataTranObject
@@ -143,7 +145,7 @@
    :OauthCustomScope
    :ObjectSourceTargetMap
    :OutboundNetworkConnection
-   ;;:Package
+   ;; :Package
    :PathAssistant
    :PaymentGatewayProvider
    :PermissionSet
@@ -157,7 +159,7 @@
    :PresenceDeclineReason
    :PresenceUserConfig
    :Profile
-   :ProfileActionOverride
+   ;; :ProfileActionOverride
    :ProfilePasswordPolicy
    :ProfileSessionSetting
    :Prompt
@@ -171,7 +173,7 @@
    :Report
    :ReportType
    :Role
-   :RoleOrTerritory
+   ;; :RoleOrTerritory
    :SalesWorkQueueSettings
    :SamlSsoConfig
    :Scontrol
@@ -180,8 +182,8 @@
    :ServiceChannel
    :ServicePresenceStatus
    :Settings
-   :SharedTo
-   :SharingBaseRule
+   ;; :SharedTo
+   ;; :SharingBaseRule
    :SharingRules
    :SharingSet
    :SiteDotCom

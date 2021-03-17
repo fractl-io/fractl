@@ -18,7 +18,7 @@ public class MetadataPushPull {
  
     private MetadataConnection metadataConnection;
  
-    private static final double API_VERSION = 29.0;
+    private static final double API_VERSION = 51.0;
  
     // one second in milliseconds
     private static final long ASYNC_WAIT_MS = 1000;
@@ -37,6 +37,7 @@ public class MetadataPushPull {
         DeployOptions deployOptions = new DeployOptions();
         deployOptions.setPerformRetrieve(false);
         deployOptions.setRollbackOnError(true);
+	deployOptions.setSinglePackage(true);
         AsyncResult asyncResult = metadataConnection.deploy(zipBytes, deployOptions);
         return waitForDeployCompletion(asyncResult.getId());
     }
