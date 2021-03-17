@@ -59,6 +59,7 @@
 
 (def ^:private zip-file-name "components.zip")
 (def ^:private manifest-file-name "package.xml")
+(def ^:private deploy-zip-file-name "deploy.zip")
 
 (defn- write-manifest! [xml]
   (with-open [out-file (java.io.FileWriter. manifest-file-name)]
@@ -112,7 +113,7 @@
           (.retrieveZip mpp zip-file-name manifest-file-name)
           true))
       (push [store options]
-        (let [zip-file (or (:zip-file options) "components.zip")
+        (let [zip-file (or (:zip-file options) deploy-zip-file-name)
               mpp (MetadataPushPull. @datasource)]
           (.deployZip mpp zip-file)
           true)))))
