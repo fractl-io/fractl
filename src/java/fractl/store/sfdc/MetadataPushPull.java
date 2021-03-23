@@ -36,8 +36,8 @@ public class MetadataPushPull {
         byte zipBytes[] = readZipFile(zipFileName);
         DeployOptions deployOptions = new DeployOptions();
         deployOptions.setPerformRetrieve(false);
-        deployOptions.setRollbackOnError(true);
-	deployOptions.setSinglePackage(true);
+        //deployOptions.setRollbackOnError(true);
+	    deployOptions.setSinglePackage(true);
         AsyncResult asyncResult = metadataConnection.deploy(zipBytes, deployOptions);
         return waitForDeployCompletion(asyncResult.getId());
     }
