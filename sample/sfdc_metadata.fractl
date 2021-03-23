@@ -19,3 +19,12 @@
          :CaseAccessLevel {:oneof access-levels}
          :ContactAccessLevel {:oneof access-levels}
          :Description :Kernel/String})
+
+(event :Sample.SfdcMetadata/UpdateRoleFullName
+       {:RoleName :Kernel/String
+        :NewFullName :Kernel/String})
+
+(dataflow :Sample.SfdcMetadata/UpdateRoleFullName
+          {:Sample.SfdcMetadata/Role
+           {:Name? :Sample.SfdcMetadata/UpdateRoleFullName.RoleName
+            :FullName :Sample.SfdcMetadata/UpdateRoleFullName.NewFullName}})

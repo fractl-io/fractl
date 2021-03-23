@@ -102,11 +102,10 @@
         ;; TODO: call the bulk API query, return result
         )
       (do-query [_ query params]
-        ;; TODO: call the bulk API query, return result
+        ;; TODO: handle query
         )
       (compile-query [_ query-pattern]
-        ;; TODO: compile query to a bulk API query
-        )
+        {:query-direct true})
       (get-reference [_ path refs]
         nil)
       (pull [store options]

@@ -248,4 +248,3 @@
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        su/table-for-entity
                                        su/index-table-name))
-

@@ -194,12 +194,16 @@
 
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)
-              (store/compile-query store full-query))
-        [id-results env] (evaluate-id-queries env store (:id-queries q))]
-    [(if (seq id-results)
-       (store/query-by-id store entity-name (:query q) id-results)
-       (store/query-all store entity-name (:query q)))
-     env]))
+              (store/compile-query store full-query))]
+    (if (:query-direct q)
+      [(store/do-query store (:raw-query full-query)
+                       {:lookup-fn-params [env nil]})
+       env]
+      (let [[id-results env] (evaluate-id-queries env store (:id-queries q))]
+        [(if (seq id-results)
+           (store/query-by-id store entity-name (:query q) id-results)
+           (store/query-all store entity-name (:query q)))
+         env]))))
 
 (defn find-instances [env store entity-name full-query]
   (let [[r env] (find-instances-via-resolvers env entity-name full-query)
