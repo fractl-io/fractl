@@ -7,6 +7,7 @@
             [fractl.lang.internal :as li]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p]
+            [fractl.store.sfdc.persistence :as prs]
             [fractl.store.sfdc.metadata-types :as mt])
   (:import [fractl.store.sfdc MetadataLoginUtil MetadataPushPull]))
 
@@ -86,9 +87,11 @@
       (drop-schema [_ component-name]
         component-name)
       (upsert-instance [_ entity-name instances]
-        ;; TODO: instance should ideally be a composite of multiple SFDC objects.
-        ;; Call the bulk upsert API
-        )
+        (prs/write-object
+         entity-name
+         (if (map? instances)
+           [instances]
+           instances)))
       (delete-by-id [_ entity-name id]
         ;; TODO: call the delete bulk/SOAP API
         )

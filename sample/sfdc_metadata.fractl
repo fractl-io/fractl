@@ -8,3 +8,14 @@
 
 (dataflow :Sample.SfdcMetadata/PushMetadata
           [:push])
+
+(def access-levels ["Read" "Edit" "None"])
+
+(entity :Sample.SfdcMetadata/Role
+        {:FullName {:type :Kernel/String
+                    :indexed true
+                    :unique true}
+         :Name :Kernel/String
+         :CaseAccessLevel {:oneof access-levels}
+         :ContactAccessLevel {:oneof access-levels}
+         :Description :Kernel/String})
