@@ -485,8 +485,8 @@
   (if (or (:expr ascm) (:query ascm))
     attributes
     (if-let [[_ aval] (get-attr-val ascm attributes aname)]
-      (when (valid-attribute-value aname aval ascm)
-        attributes)
+      (do (valid-attribute-value aname aval ascm)
+          attributes)
       (if-let [dval (valid-attribute-value aname nil ascm)]
         (assoc attributes aname dval)
         (if (:optional ascm)

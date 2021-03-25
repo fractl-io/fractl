@@ -15,16 +15,19 @@
         {:FullName {:type :Kernel/String
                     :indexed true
                     :unique true}
-         :Name :Kernel/String
-         :CaseAccessLevel {:oneof access-levels}
-         :ContactAccessLevel {:oneof access-levels}
-         :Description :Kernel/String})
+         :Name {:type :Kernel/String :optional true}
+         :CaseAccessLevel {:oneof access-levels :default "None"}
+         :ContactAccessLevel {:oneof access-levels :default "None"}
+         :MayForecastManagerShare {:type :Kernel/Boolean :optional true}
+         :ParentRole {:type :Kernel/String :optional true}
+         :OpportunityAccessLevel {:oneof access-levels :default "None"}
+         :Description {:type :Kernel/String :optional true}})
 
-(event :Sample.SfdcMetadata/UpdateRoleFullName
-       {:RoleName :Kernel/String
-        :NewFullName :Kernel/String})
+(event :Sample.SfdcMetadata/UpdateRoleName
+       {:FullName :Kernel/String
+        :NewName :Kernel/String})
 
-(dataflow :Sample.SfdcMetadata/UpdateRoleFullName
+(dataflow :Sample.SfdcMetadata/UpdateRoleName
           {:Sample.SfdcMetadata/Role
-           {:Name? :Sample.SfdcMetadata/UpdateRoleFullName.RoleName
-            :FullName :Sample.SfdcMetadata/UpdateRoleFullName.NewFullName}})
+           {:FullName? :Sample.SfdcMetadata/UpdateRoleName.FullName
+            :Name :Sample.SfdcMetadata/UpdateRoleName.NewName}})

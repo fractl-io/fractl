@@ -1,1 +1,1 @@
- * Implement store.sfdc.metadata/do-query (raw query is passed here with params to call lookup fn)
+ * Implement store.sfdc.metadata/upsert
