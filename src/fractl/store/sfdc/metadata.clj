@@ -1,12 +1,14 @@
 (ns fractl.store.sfdc.metadata
   "Define a storage layer on top of SFDC Metadata API."
   (:require [clojure.string :as s]
+            [clojure.walk :as w]
             [clojure.java.io :as io]
             [clojure.data.xml :as xml]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p]
+            [fractl.store.db-common :as db]
             [fractl.store.sfdc.persistence :as prs]
             [fractl.store.sfdc.metadata-types :as mt])
   (:import [fractl.store.sfdc MetadataLoginUtil MetadataPushPull]))
@@ -66,6 +68,13 @@
   (with-open [out-file (java.io.FileWriter. manifest-file-name)]
     (xml/emit xml out-file)))
 
+(defn- normalize-where-clause [where-clause lookup-fn-params]
+  (w/prewalk
+   #(if (fn? %)
+      (apply % lookup-fn-params)
+      %)
+   where-clause))
+
 (defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
@@ -102,8 +111,10 @@
         ;; TODO: call the bulk API query, return result
         )
       (do-query [_ query params]
-        ;; TODO: handle query
-        )
+        (let [conditions (when-let [wc (:where query)]
+                           (normalize-where-clause
+                            wc (:lookup-fn-params params)))]
+          (prs/filter-records (:from query) conditions)))
       (compile-query [_ query-pattern]
         {:query-direct true})
       (get-reference [_ path refs]
