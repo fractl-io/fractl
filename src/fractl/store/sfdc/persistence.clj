@@ -11,8 +11,8 @@
 (def ^:private io-config
   {:Role {:extn ".role"
           :folder-path (str storage-root path-sep "roles")
-          :file-name #(str (:Name %) ".role")
-          :meta-dissoc #(dissoc % :Id :Name)
+          :file-name #(str (:FullName %) ".role")
+          :meta-dissoc #(dissoc % :Id :FullName)
           :parser fmt/parse-role}})
 
 (defn- object-file-extension [recname]
