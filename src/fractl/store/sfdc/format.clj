@@ -10,9 +10,26 @@
 (def ^:private xml-header "<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
 (def ^:private metadata-schema-url "xmlns=\"http://soap.sforce.com/2006/04/metadata\"")
 
+(declare attributes-as-xml)
+
+(defn- emit-tag [tag elem]
+  (let [elem-is-inst (cn/an-instance? elem)
+        v (if elem-is-inst
+            (attributes-as-xml (cn/instance-attributes elem))
+            elem)]
+    (str "<" tag ">"
+         (when elem-is-inst line-sep)
+         v
+         (when elem-is-inst line-sep)
+         "</" tag ">")))
+
 (defn- attribute-as-xml [[k v]]
   (let [tag (u/lowercase (name k))]
-    (str "<" tag ">" v "</" tag ">")))
+    (if (vector? v)
+      (s/join
+       line-sep
+       (map #(emit-tag tag %) v))
+      (emit-tag tag v))))
 
 (defn- attributes-as-xml [attrs]
   (s/join line-sep (map attribute-as-xml attrs)))
@@ -40,7 +57,7 @@
     (= x "false") false
     :else x))
 
-(defn- parse-role-attribute [elem]
+(defn- parse-attribute [elem]
   (when-not (string? elem)
     (let [[_ k] (li/split-path (get elem :tag))
           v (first (get elem :content))]
@@ -53,19 +70,35 @@
       (.substring s (+ i 1) len)
       s)))
 
-(defn- role-name-from-file [^String file-name]
-  (let [i (.lastIndexOf file-name ".role")]
+(defn- type-name-from-file [^String type ^String file-name]
+  (let [i (.lastIndexOf file-name type)]
     (if (> i 0)
       (last-path-component (.substring file-name 0 i))
       file-name)))
 
-(defn parse-role [full-recname file-name xml]
+(defn- parse-generic-metadata-object [attribute-parser find-full-name
+                                      full-recname file-name xml]
   (let [tree (xml/parse (java.io.StringReader. xml))
         content (get tree :content)
         attrs (filter
                identity
-               (map parse-role-attribute content))
-        role-name (role-name-from-file file-name)]
+               (map attribute-parser content))
+        fn (find-full-name file-name)]
     (cn/make-instance
      full-recname
-     (assoc (into {} attrs) :FullName role-name))))
+     (assoc (into {} attrs) :FullName fn))))
+
+(def ^:private role-name-from-file (partial type-name-from-file ".role"))
+
+(def parse-role (partial parse-generic-metadata-object
+                         parse-attribute role-name-from-file))
+
+(defn- parse-profile-attribute [elem]
+  ;; TODO: implement parsing of profile attributes XML elements.
+  )
+
+(def ^:private profile-name-from-file (partial type-name-from-file ".profile"))
+
+(def parse-profile (partial parse-generic-metadata-object
+                            parse-profile-attribute
+                            profile-name-from-file))

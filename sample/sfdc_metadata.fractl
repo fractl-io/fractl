@@ -31,3 +31,29 @@
           {:Sample.SfdcMetadata/Role
            {:FullName? :Sample.SfdcMetadata/UpdateRoleName.FullName
             :Name :Sample.SfdcMetadata/UpdateRoleName.NewName}})
+
+(record :Sample.SfdcMetadata/UserPermission
+        {:Enabled :Kernel/Boolean
+         :Name :Kernel/String})
+
+(record :Sample.SfdcMetadata/ProfileApexPageAccess
+        {:ApexPage :Kernel/String
+         :Enabled :Kernel/Boolean})
+
+(entity :Sample.SfdcMetadata/Profile
+        {:FullName {:type :Kernel/String
+                    :indexed true
+                    :unique true}
+         :Custom :Kernel/Boolean
+         :PageAccesses {:listof :Sample.SfdcMetadata/ProfileApexPageAccess}
+         :UserLicense :Kernel/String
+         :UserPermissions {:listof :Sample.SfdcMetadata/UserPermission}})
+
+(event :Sample.SfdcMetadata/UpdateProfileLicense
+       {:FullName :Kernel/String
+        :NewLicense :Kernel/String})
+
+(dataflow :Sample.SfdcMetadata/UpdateProfileLicense
+          {:Sample.SfdcMetadata/Profile
+           {:FullName? :Sample.SfdcMetadata/UpdateProfileLicense.FullName
+            :UserLicense :Sample.SfdcMetadata/UpdateProfileLicense.NewLicense}})
