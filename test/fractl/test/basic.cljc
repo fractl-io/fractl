@@ -622,6 +622,23 @@
      (is (u/uuid-from-string (:Id result)))
      (is (= 10 (:Q result)))))
 
+ (deftest inherits
+   (defcomponent :Inherits
+     (record {:Inherits/Base {:A {:type :Kernel/Int
+                                  :optional true}
+                              :B :Kernel/Int}})
+     (entity {:Inherits/E {:X :Kernel/Int
+                           :Y {:type :Kernel/Int
+                               :optional true}
+                           :S :Kernel/String
+                           :inherits :Inherits/Base}})
+   (let [e1 (cn/make-instance :Inherits/E {:X 10 :S "hello" :A 100 :B 200})
+         e2 (cn/make-instance :Inherits/E {:X 1 :Y 2 :S "hi" :B 200})]
+     (is (cn/instance-of? :Inherits/E e1))
+     (is (= [10 nil "hello" 100 200] [(:X e1) (:Y e1) (:S e1) (:A e1) (:B e1)]))
+     (is (cn/instance-of? :Inherits/E e2))
+     (is (= [1 2 "hi" nil 200] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2)])))))
+
 (deftest edn-attribute
   (defcomponent :EdnAttr
     (entity :EdnAttr/Form {:Title :Kernel/String
