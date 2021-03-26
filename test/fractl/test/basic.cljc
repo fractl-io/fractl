@@ -632,12 +632,26 @@
                                :optional true}
                            :S :Kernel/String
                            :inherits :Inherits/Base}})
+     (record {:Inherits/BaseMeta {:A :Kernel/Int
+                                  :B :Kernel/Int
+                                  :meta {:required-attributes [:B]}}})
+     (entity {:Inherits/F {:X :Kernel/Int
+                           :Y {:type :Kernel/Int
+                               :optional true}
+                           :S :Kernel/String
+                           :inherits :Inherits/BaseMeta}}))
    (let [e1 (cn/make-instance :Inherits/E {:X 10 :S "hello" :A 100 :B 200})
          e2 (cn/make-instance :Inherits/E {:X 1 :Y 2 :S "hi" :B 200})]
      (is (cn/instance-of? :Inherits/E e1))
      (is (= [10 nil "hello" 100 200] [(:X e1) (:Y e1) (:S e1) (:A e1) (:B e1)]))
      (is (cn/instance-of? :Inherits/E e2))
-     (is (= [1 2 "hi" nil 200] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2)])))))
+     (is (= [1 2 "hi" nil 200] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2)])))
+   (let [f1 (cn/make-instance :Inherits/F {:X 10 :S "hello" :A 100 :B 200})
+         f2 (cn/make-instance :Inherits/F {:X 1 :Y 2 :S "hi" :B 200})]
+     (is (cn/instance-of? :Inherits/F f1))
+     (is (= [10 nil "hello" 100 200] [(:X f1) (:Y f1) (:S f1) (:A f1) (:B f1)]))
+     (is (cn/instance-of? :Inherits/F f2))
+     (is (= [1 2 "hi" nil 200] [(:X f2) (:Y f2) (:S f2) (:A f2) (:B f2)]))))
 
 (deftest edn-attribute
   (defcomponent :EdnAttr
