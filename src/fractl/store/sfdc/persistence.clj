@@ -8,12 +8,17 @@
 (def ^:private storage-root "unpackaged")
 (def ^:private path-sep File/separator)
 
+(defn- generic-io-config [type-name parser]
+  (let [extn (str "." type-name)]
+    {:extn extn
+     :folder-path (str storage-root path-sep (str type-name "s"))
+     :file-name #(str (:FullName %) extn)
+     :meta-dissoc #(dissoc % :Id :FullName)
+     :parser parser}))
+
 (def ^:private io-config
-  {:Role {:extn ".role"
-          :folder-path (str storage-root path-sep "roles")
-          :file-name #(str (:FullName %) ".role")
-          :meta-dissoc #(dissoc % :Id :FullName)
-          :parser fmt/parse-role}})
+  {:Role (generic-io-config "role" fmt/parse-role)
+   :Profile (generic-io-config "profile" fmt/parse-profile)})
 
 (defn- object-file-extension [recname]
   (get-in io-config [recname :extn]))
