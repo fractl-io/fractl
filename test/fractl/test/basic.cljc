@@ -654,22 +654,43 @@
     (is (= [1 2 "hi" nil 200] [(:X f2) (:Y f2) (:S f2) (:A f2) (:B f2)]))))
 
 (deftest multi-level-inherits
-  (defcomponent :Inherits
-    (record {:Inherits/BaseA {:A {:type :Kernel/Int
-                                  :optional true}}})
-    (record {:Inherits/BaseB {:B :Kernel/Int
-                              :inherits :Inherits/BaseA}})
-    (entity {:Inherits/E {:X :Kernel/Int
-                          :Y {:type :Kernel/Int
-                              :optional true}
-                          :S :Kernel/String
-                          :inherits :Inherits/BaseB}}))
-  (let [e1 (cn/make-instance :Inherits/E {:X 10 :S "hello" :A 100 :B 200})
-        e2 (cn/make-instance :Inherits/E {:X 1 :Y 2 :S "hi" :B 200})]
-    (is (cn/instance-of? :Inherits/E e1))
-    (is (= [10 nil "hello" 100 200] [(:X e1) (:Y e1) (:S e1) (:A e1) (:B e1)]))
-    (is (cn/instance-of? :Inherits/E e2))
-    (is (= [1 2 "hi" nil 200] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2)]))))
+  (defcomponent :MultiInherits
+    (record {:MultiInherits/Base1 {:A {:type :Kernel/Int
+                                       :optional true}
+                                   :B :Kernel/Int}})
+    (record {:MultiInherits/Base2 {:C :Kernel/Int
+                                   :inherits :MultiInherits/Base1}})
+    (entity {:MultiInherits/E {:X :Kernel/Int
+                               :Y {:type :Kernel/Int
+                                   :optional true}
+                               :S :Kernel/String
+                               :inherits :MultiInherits/Base2}}))
+  (let [e1 (cn/make-instance :MultiInherits/E {:X 10 :S "hello" :A 100 :B 200 :C 300})
+        e2 (cn/make-instance :MultiInherits/E {:X 1 :Y 2 :S "hi" :B 200 :C 300})]
+    (is (cn/instance-of? :MultiInherits/E e1))
+    (is (= [10 nil "hello" 100 200 300] [(:X e1) (:Y e1) (:S e1) (:A e1) (:B e1) (:C e1)]))
+    (is (cn/instance-of? :MultiInherits/E e2))
+    (is (= [1 2 "hi" nil 200 300] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2) (:C e1)]))))
+
+(deftest multi-level-inherits-meta
+  (defcomponent :MultiInheritsMeta
+    (record {:MultiInheritsMeta/Base1 {:A :Kernel/Int
+                                       :B :Kernel/Int
+                                       :meta {:required-attributes [:B]}}})
+    (record {:MultiInheritsMeta/Base2 {:C :Kernel/Int
+                                       :inherits :MultiInheritsMeta/Base1}})
+    (entity {:MultiInheritsMeta/E {:X :Kernel/Int
+                                   :Y {:type :Kernel/Int
+                                       :optional true}
+                                   :S :Kernel/String
+                                   :inherits :MultiInheritsMeta/Base2}}))
+  (let [e1 (cn/make-instance :MultiInheritsMeta/E {:X 10 :S "hello" :A 100 :B 200 :C 300})
+        e2 (cn/make-instance :MultiInheritsMeta/E {:X 1 :Y 2 :S "hi" :B 200 :C 300})]
+    (is (cn/instance-of? :MultiInheritsMeta/E e1))
+    (is (= [10 nil "hello" 100 200 300] [(:X e1) (:Y e1) (:S e1) (:A e1) (:B e1) (:C e1)]))
+    (is (cn/instance-of? :MultiInheritsMeta/E e2))
+    (is (= [1 2 "hi" nil 200 300] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2) (:C e1)]))))
+
 
 (deftest edn-attribute
   (defcomponent :EdnAttr
