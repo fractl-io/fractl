@@ -35,10 +35,24 @@
 (defn- instance-parser [recname]
   (get-in io-config [recname :parser]))
 
+(def ^:private journal-file "sfdc-metadata.journal")
+
+(defn- make-journal-entry [recname file-path]
+  (let [entries (try
+                  (read-string (slurp journal-file))
+                  (catch Exception _
+                    {}))
+        reclog (get entries recname #{})
+        updated-entries (assoc entries recname
+                               (conj reclog file-path))]
+    (spit journal-file updated-entries)))
+
 (defn- write-object-file [recname folder inst]
   (let [file-name (object-file-name recname inst)
-        xml (fmt/instance-as-xml recname (dissoc-meta-fields recname inst))]
-    (spit (str folder path-sep file-name) xml)))          
+        xml (fmt/instance-as-xml recname (dissoc-meta-fields recname inst))
+        full-path (str folder path-sep file-name)]
+    (make-journal-entry recname full-path)
+    (spit full-path xml)))
 
 (defn write-object [entity-name instances]
   (let [[_ n] (li/split-path entity-name)
