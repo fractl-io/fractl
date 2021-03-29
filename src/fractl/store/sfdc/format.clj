@@ -63,6 +63,9 @@
           v (first (get elem :content))]
       [(keyword (u/capitalize (name k))) (normalize-value v)])))
 
+(defn- parse-multi-attribute-value [elem]
+  (map parse-attribute elem))
+
 (defn- last-path-component [^String s]
   (let [i (.lastIndexOf s java.io.File/separator)
         len (.length s)]
@@ -76,13 +79,34 @@
       (last-path-component (.substring file-name 0 i))
       file-name)))
 
+(defn- fold-attributes
+  "Fold duplicate keys into a single attribute of type [:listof :Kernel/Map]"
+  [multi-attr-names attrs]
+  (loop [attrs attrs, result {}]
+    (if-let [[a b] (first attrs)]
+      (if (contains? multi-attr-names a)
+        (let [vs (get result a [])]
+          (recur (rest attrs) (assoc result a (conj vs (into {} b)))))
+        (recur (rest attrs) (assoc result a b)))
+      result)))
+
+(defn- capitalize-keys [m]
+  (into {}
+        (map
+         (fn [[k v]]
+           [(keyword (u/capitalize (name k))) v])
+         m)))
+
 (defn- parse-generic-metadata-object [attribute-parser find-full-name
+                                      fold-attributes
                                       full-recname file-name xml]
   (let [tree (xml/parse (java.io.StringReader. xml))
         content (get tree :content)
-        attrs (filter
-               identity
-               (map attribute-parser content))
+        attrs (capitalize-keys
+               (fold-attributes
+                (filter
+                 identity
+                 (map attribute-parser content))))
         fn (find-full-name file-name)]
     (cn/make-instance
      full-recname
@@ -91,14 +115,29 @@
 (def ^:private role-name-from-file (partial type-name-from-file ".role"))
 
 (def parse-role (partial parse-generic-metadata-object
-                         parse-attribute role-name-from-file))
+                         parse-attribute role-name-from-file #(into {} %)))
+
+(defn- normalize-attribute-content-seq
+  "Remove newline strings from parsed xml content
+   that represent an attribute value sequence."
+  [c]
+  (filter (complement string?) c))
+
+(def ^:private profile-multi-attrs #{:userPermissions :pageAccesses})
 
 (defn- parse-profile-attribute [elem]
-  ;; TODO: implement parsing of profile attributes XML elements.
-  )
+  (when-not (string? elem)
+    (let [[_ k] (li/split-path (get elem :tag))
+          content (get elem :content)
+          v (if (contains? profile-multi-attrs k)
+              (parse-multi-attribute-value
+               (normalize-attribute-content-seq content))
+              (first content))]
+      [k (normalize-value v)])))
 
 (def ^:private profile-name-from-file (partial type-name-from-file ".profile"))
 
 (def parse-profile (partial parse-generic-metadata-object
                             parse-profile-attribute
-                            profile-name-from-file))
+                            profile-name-from-file
+                            (partial fold-attributes profile-multi-attrs)))

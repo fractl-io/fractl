@@ -45,9 +45,9 @@
                     :indexed true
                     :unique true}
          :Custom :Kernel/Boolean
-         :PageAccesses {:listof :Sample.SfdcMetadata/ProfileApexPageAccess}
+         :PageAccesses {:listof :Kernel/Map}
          :UserLicense :Kernel/String
-         :UserPermissions {:listof :Sample.SfdcMetadata/UserPermission}})
+         :UserPermissions {:listof :Kernel/Map}})
 
 (event :Sample.SfdcMetadata/UpdateProfileLicense
        {:FullName :Kernel/String
