@@ -14,8 +14,12 @@
 
 (defn- emit-tag [tag elem]
   (let [elem-is-inst (cn/an-instance? elem)
-        v (if elem-is-inst
-            (attributes-as-xml (cn/instance-attributes elem))
+        elem-is-map (or elem-is-inst (map? elem))
+        v (if elem-is-map
+            (attributes-as-xml
+             (if elem-is-inst
+               (cn/instance-attributes elem)
+               elem))
             elem)]
     (str "<" tag ">"
          (when elem-is-inst line-sep)
