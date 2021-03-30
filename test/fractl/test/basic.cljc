@@ -240,7 +240,7 @@
   (defcomponent :Df04_1
     (record {:Df04_1/R {:A :Kernel/Int}})
     (entity {:Df04_1/E {:X :Kernel/Int
-                      :Y {:expr '(* :X 10)}}})
+                        :Y {:expr '(* :X 10)}}})
     (event {:Df04_1/PostE {:R :Df04_1/R}}))
   (dataflow :Df04_1/PostE
             {:Df04_1/E {:X :Df04_1/PostE.R.A}})
@@ -607,20 +607,90 @@
     (is (cn/instance-of? :OptAttr/F f2))
     (is (= [1 2 "hi"] [(:X f2) (:Y f2) (:S f2)]))))
 
- (deftest optional-record-attribute
-   (defcomponent :OptRecAttr
-     (record {:OptRecAttr/R {:A :Kernel/Int}})
-     (entity {:OptRecAttr/E {:Q :Kernel/Int
-                             :R {:type :OptRecAttr/R
-                                 :optional true}}})
-     (event {:OptRecAttr/PostE {:Q :Kernel/Int}}))
-   (dataflow :OptRecAttr/PostE
-             {:OptRecAttr/E {:Q :OptRecAttr/PostE.Q}})
-   (let [evt {:OptRecAttr/PostE {:Q 10}}
-         result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
-     (is (cn/instance-of? :OptRecAttr/E result))
-     (is (u/uuid-from-string (:Id result)))
-     (is (= 10 (:Q result)))))
+(deftest optional-record-attribute
+  (defcomponent :OptRecAttr
+    (record {:OptRecAttr/R {:A :Kernel/Int}})
+    (entity {:OptRecAttr/E {:Q :Kernel/Int
+                            :R {:type :OptRecAttr/R
+                                :optional true}}})
+    (event {:OptRecAttr/PostE {:Q :Kernel/Int}}))
+  (dataflow :OptRecAttr/PostE
+            {:OptRecAttr/E {:Q :OptRecAttr/PostE.Q}})
+  (let [evt {:OptRecAttr/PostE {:Q 10}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :OptRecAttr/E result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= 10 (:Q result)))))
+
+(deftest inherits
+  (defcomponent :Inherits
+    (record {:Inherits/Base {:A {:type :Kernel/Int
+                                 :optional true}
+                             :B :Kernel/Int}})
+    (entity {:Inherits/E {:X :Kernel/Int
+                          :Y {:type :Kernel/Int
+                              :optional true}
+                          :S :Kernel/String
+                          :inherits :Inherits/Base}})
+    (record {:Inherits/BaseMeta {:A :Kernel/Int
+                                 :B :Kernel/Int
+                                 :meta {:required-attributes [:B]}}})
+    (entity {:Inherits/F {:X :Kernel/Int
+                          :Y {:type :Kernel/Int
+                              :optional true}
+                          :S :Kernel/String
+                          :inherits :Inherits/BaseMeta}}))
+  (let [e1 (cn/make-instance :Inherits/E {:X 10 :S "hello" :A 100 :B 200})
+        e2 (cn/make-instance :Inherits/E {:X 1 :Y 2 :S "hi" :B 200})]
+    (is (cn/instance-of? :Inherits/E e1))
+    (is (= [10 nil "hello" 100 200] [(:X e1) (:Y e1) (:S e1) (:A e1) (:B e1)]))
+    (is (cn/instance-of? :Inherits/E e2))
+    (is (= [1 2 "hi" nil 200] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2)])))
+  (let [f1 (cn/make-instance :Inherits/F {:X 10 :S "hello" :A 100 :B 200})
+        f2 (cn/make-instance :Inherits/F {:X 1 :Y 2 :S "hi" :B 200})]
+    (is (cn/instance-of? :Inherits/F f1))
+    (is (= [10 nil "hello" 100 200] [(:X f1) (:Y f1) (:S f1) (:A f1) (:B f1)]))
+    (is (cn/instance-of? :Inherits/F f2))
+    (is (= [1 2 "hi" nil 200] [(:X f2) (:Y f2) (:S f2) (:A f2) (:B f2)]))))
+
+(deftest multi-level-inherits
+  (defcomponent :MultiInherits
+    (record {:MultiInherits/Base1 {:A {:type :Kernel/Int
+                                       :optional true}
+                                   :B :Kernel/Int}})
+    (record {:MultiInherits/Base2 {:C :Kernel/Int
+                                   :inherits :MultiInherits/Base1}})
+    (entity {:MultiInherits/E {:X :Kernel/Int
+                               :Y {:type :Kernel/Int
+                                   :optional true}
+                               :S :Kernel/String
+                               :inherits :MultiInherits/Base2}}))
+  (let [e1 (cn/make-instance :MultiInherits/E {:X 10 :S "hello" :A 100 :B 200 :C 300})
+        e2 (cn/make-instance :MultiInherits/E {:X 1 :Y 2 :S "hi" :B 200 :C 300})]
+    (is (cn/instance-of? :MultiInherits/E e1))
+    (is (= [10 nil "hello" 100 200 300] [(:X e1) (:Y e1) (:S e1) (:A e1) (:B e1) (:C e1)]))
+    (is (cn/instance-of? :MultiInherits/E e2))
+    (is (= [1 2 "hi" nil 200 300] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2) (:C e1)]))))
+
+(deftest multi-level-inherits-meta
+  (defcomponent :MultiInheritsMeta
+    (record {:MultiInheritsMeta/Base1 {:A :Kernel/Int
+                                       :B :Kernel/Int
+                                       :meta {:required-attributes [:B]}}})
+    (record {:MultiInheritsMeta/Base2 {:C :Kernel/Int
+                                       :inherits :MultiInheritsMeta/Base1}})
+    (entity {:MultiInheritsMeta/E {:X :Kernel/Int
+                                   :Y {:type :Kernel/Int
+                                       :optional true}
+                                   :S :Kernel/String
+                                   :inherits :MultiInheritsMeta/Base2}}))
+  (let [e1 (cn/make-instance :MultiInheritsMeta/E {:X 10 :S "hello" :A 100 :B 200 :C 300})
+        e2 (cn/make-instance :MultiInheritsMeta/E {:X 1 :Y 2 :S "hi" :B 200 :C 300})]
+    (is (cn/instance-of? :MultiInheritsMeta/E e1))
+    (is (= [10 nil "hello" 100 200 300] [(:X e1) (:Y e1) (:S e1) (:A e1) (:B e1) (:C e1)]))
+    (is (cn/instance-of? :MultiInheritsMeta/E e2))
+    (is (= [1 2 "hi" nil 200 300] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2) (:C e1)]))))
+
 
 (deftest edn-attribute
   (defcomponent :EdnAttr
