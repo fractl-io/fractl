@@ -1,12 +1,22 @@
 (ns fractl.store.sfdc.persistence
   "Local data storage for SFDC objects"
-  (:require [fractl.util :as u]
+  (:require [clojure.data.xml :as xml]
+            [clojure.string :as s]
+            [fractl.util :as u]
             [fractl.lang.internal :as li]
+            [fractl.store.sfdc.metadata-types :as mt]
             [fractl.store.sfdc.format :as fmt])
-  (:import [java.io File FilenameFilter]))
+  (:import [java.io File FilenameFilter]
+           [fractl.filesystem Util]
+           [fractl.filesystem Zip]))
 
 (def ^:private storage-root "unpackaged")
+
 (def ^:private path-sep File/separator)
+(def ^:private path-sep-re-pattern (re-pattern path-sep))
+
+(def manifest-file-name "package.xml")
+(def ^:private deploy-root-path "deploy")
 
 (defn- generic-io-config [type-name parser]
   (let [extn (str "." type-name)]
@@ -37,11 +47,14 @@
 
 (def ^:private journal-file "sfdc-metadata.journal")
 
+(defn- read-journal-entries []
+  (try
+    (read-string (slurp journal-file))
+    (catch Exception _
+      {})))
+
 (defn- make-journal-entry [recname file-path]
-  (let [entries (try
-                  (read-string (slurp journal-file))
-                  (catch Exception _
-                    {}))
+  (let [entries (read-journal-entries)
         reclog (get entries recname #{})
         updated-entries (assoc entries recname
                                (conj reclog file-path))]
@@ -89,3 +102,60 @@
 (defn filter-records [full-recname conditions]
   (filter (predicate-from-conditions conditions)
           (load-all-objects full-recname)))
+
+(defn- members-tag [n]
+  (let [s (str (if (li/name? n)
+                 (subs (str (second (li/split-path n))) 1)
+                 n))]
+    {:tag :members :content [s]}))
+
+(def ^:private all-members (members-tag "*"))
+
+(defn- types-tag [opt]
+  (let [has-query (seqable? opt)
+        [a b] (li/split-path (if has-query (first opt) opt))
+        m (or b a)
+        n (name m)]
+    {:tag :types :content
+     (concat
+      (if has-query
+        (concat [{:tag :name :content [n]}]
+                (if (seqable? (second opt))
+                  (map members-tag (second opt))
+                  [(members-tag (second opt))]))
+        [{:tag :name :content [n]} all-members]))}))
+
+(defn- manifest-from-options [options]
+  (let [options (or options mt/type-names)
+        vers (u/getenv "SFDC_METADATA_API_VERSION" "51.0")
+        content (concat (map types-tag options)
+                        [{:tag :version :content [vers]}])]
+    {:tag :Package :attrs
+     {:xmlns (u/getenv
+              "SFDC_METADATA_SCHEMA_URL"
+              "http://soap.sforce.com/2006/04/metadata")}
+     :content content}))
+
+(defn write-manifest!
+  ([options root-path]
+   (Util/maybeCreateDirectories root-path)
+   (let [xml (manifest-from-options options)]
+     (with-open [out-file (java.io.FileWriter.
+                           (str root-path path-sep manifest-file-name))]
+       (xml/emit xml out-file))))
+  ([options]
+   (write-manifest! options ".")))
+
+(defn prepare-deploy-package []
+  (when-let [journal (seq (read-journal-entries))]
+    (write-manifest! (keys journal) deploy-root-path)
+    (doseq [vs (vals journal)]
+      (doseq [src vs]
+        (let [parts (s/split src path-sep-re-pattern)
+              folder (s/join
+                      path-sep
+                      (conj (drop 1 (drop-last parts)) deploy-root-path))
+              dest (str folder path-sep (last parts))]
+          (Util/maybeCreateDirectories folder)
+          (Util/copyOrReplaceFile src dest))))
+    (Zip/zipFolder deploy-root-path)))
