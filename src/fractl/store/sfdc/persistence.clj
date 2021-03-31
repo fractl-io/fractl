@@ -159,3 +159,8 @@
           (Util/maybeCreateDirectories folder)
           (Util/copyOrReplaceFile src dest))))
     (Zip/zipFolder deploy-root-path)))
+
+(defn finalize-deploy [deploy-package-name]
+  (and (Util/forceDeleteDirectory deploy-root-path)
+       (Util/deleteFile deploy-package-name)
+       (Util/deleteFile journal-file)))
