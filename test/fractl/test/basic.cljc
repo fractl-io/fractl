@@ -607,20 +607,20 @@
     (is (cn/instance-of? :OptAttr/F f2))
     (is (= [1 2 "hi"] [(:X f2) (:Y f2) (:S f2)]))))
 
- (deftest optional-record-attribute
-   (defcomponent :OptRecAttr
-     (record {:OptRecAttr/R {:A :Kernel/Int}})
-     (entity {:OptRecAttr/E {:Q :Kernel/Int
-                             :R {:type :OptRecAttr/R
-                                 :optional true}}})
-     (event {:OptRecAttr/PostE {:Q :Kernel/Int}}))
-   (dataflow :OptRecAttr/PostE
-             {:OptRecAttr/E {:Q :OptRecAttr/PostE.Q}})
-   (let [evt {:OptRecAttr/PostE {:Q 10}}
-         result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
-     (is (cn/instance-of? :OptRecAttr/E result))
-     (is (u/uuid-from-string (:Id result)))
-     (is (= 10 (:Q result)))))
+(deftest optional-record-attribute
+  (defcomponent :OptRecAttr
+    (record {:OptRecAttr/R {:A :Kernel/Int}})
+    (entity {:OptRecAttr/E {:Q :Kernel/Int
+                            :R {:type :OptRecAttr/R
+                                :optional true}}})
+    (event {:OptRecAttr/PostE {:Q :Kernel/Int}}))
+  (dataflow :OptRecAttr/PostE
+            {:OptRecAttr/E {:Q :OptRecAttr/PostE.Q}})
+  (let [evt {:OptRecAttr/PostE {:Q 10}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :OptRecAttr/E result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= 10 (:Q result)))))
 
 (deftest edn-attribute
   (defcomponent :EdnAttr

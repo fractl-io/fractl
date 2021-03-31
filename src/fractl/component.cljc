@@ -477,9 +477,8 @@
 
       :else true)
     (let [dval (:default ascm)]
-      (if-not (nil? dval)
-        (if (fn? dval) (dval) dval)
-        false))))
+      (when-not (nil? dval)
+        (if (fn? dval) (dval) dval)))))
 
 (defn- apply-attribute-validation [aname ascm attributes]
   (if (or (:expr ascm) (:query ascm))
@@ -487,11 +486,12 @@
     (if-let [[_ aval] (get-attr-val ascm attributes aname)]
       (do (valid-attribute-value aname aval ascm)
           attributes)
-      (if-let [dval (valid-attribute-value aname nil ascm)]
-        (assoc attributes aname dval)
-        (if (:optional ascm)
-          attributes
-          (throw-error (str "no default value defined for " aname)))))))
+      (let [dval (valid-attribute-value aname nil ascm)]
+        (if-not (nil? dval)
+          (assoc attributes aname dval)
+          (if (:optional ascm)
+            attributes
+            (throw-error (str "no default value defined for " aname))))))))
 
 (defn- ensure-attribute-is-instance-of [recname attrname attributes]
   (if-let [aval (get attributes attrname)]

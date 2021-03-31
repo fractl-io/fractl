@@ -18,7 +18,7 @@
          :Name {:type :Kernel/String :optional true}
          :CaseAccessLevel {:oneof access-levels :default "None"}
          :ContactAccessLevel {:oneof access-levels :default "None"}
-         :MayForecastManagerShare {:type :Kernel/Boolean :optional true}
+         :MayForecastManagerShare {:type :Kernel/Boolean :default false}
          :ParentRole {:type :Kernel/String :optional true}
          :OpportunityAccessLevel {:oneof access-levels :default "None"}
          :Description {:type :Kernel/String :optional true}})
