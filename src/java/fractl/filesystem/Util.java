@@ -19,4 +19,23 @@ public final class Util {
 	File b = new File(dest);
         Files.copy (a.toPath(), b.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
+
+    public static boolean forceDeleteDirectory(String dirName) {
+	return _forceDeleteDirectory(new File(dirName));
+    }
+
+    private static boolean _forceDeleteDirectory(File directoryToBeDeleted) {
+	File[] allContents = directoryToBeDeleted.listFiles();
+	if (allContents != null) {
+	    for (File file : allContents) {
+		_forceDeleteDirectory(file);
+	    }
+	}
+	return directoryToBeDeleted.delete();
+    }
+
+    public static boolean deleteFile(String fileName) {
+	File f = new File(fileName);
+	return f.delete();
+    }
 }

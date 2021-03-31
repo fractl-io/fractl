@@ -84,7 +84,7 @@
           (.retrieveZip mpp zip-file-name prs/manifest-file-name)
           true))
       (push [store options]
-        (let [zip-file (prs/prepare-deploy-package)
+        (let [pkg (prs/prepare-deploy-package)
               mpp (MetadataPushPull. @datasource)]
-          (.deployZip mpp zip-file)
-          true)))))
+          (.deployZip mpp pkg)
+          (prs/finalize-deploy pkg))))))
