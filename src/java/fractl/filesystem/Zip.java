@@ -89,6 +89,7 @@ public class Zip {
         ZipEntry zipEntry = zis.getNextEntry();
         while (zipEntry != null) {
 	    File newFile = newFile(destDir, zipEntry);
+	    System.out.println(newFile + ", " + zipEntry);
 	    if (zipEntry.isDirectory()) {
 		if (!newFile.isDirectory() && !newFile.mkdirs()) {
 		    throw new IOException("Failed to create directory " + newFile);

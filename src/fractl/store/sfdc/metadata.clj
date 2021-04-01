@@ -34,6 +34,11 @@
       %)
    where-clause))
 
+(defn- metadata-root [options]
+  (or (:metadata-root options)
+      (u/getenv "SFDC_METADATA_ROOT")
+      "."))
+
 (defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
@@ -82,7 +87,8 @@
         (let [mpp (MetadataPushPull. @datasource)]
           (prs/write-manifest! options)
           (.retrieveZip mpp zip-file-name prs/manifest-file-name)
-          (prs/init-local-store zip-file-name)))
+          (prs/init-local-store zip-file-name
+                                (metadata-root options))))
       (push [store options]
         (let [pkg (prs/prepare-deploy-package)
               mpp (MetadataPushPull. @datasource)]
