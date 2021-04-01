@@ -3,6 +3,7 @@
   (:require [clojure.data.xml :as xml]
             [clojure.string :as s]
             [fractl.util :as u]
+            [fractl.git :as git]
             [fractl.lang.internal :as li]
             [fractl.store.sfdc.metadata-types :as mt]
             [fractl.store.sfdc.format :as fmt])
@@ -169,4 +170,6 @@
   (Zip/unzip package-file dest-dir)
   (Util/deleteFile package-file)
   (Util/deleteFile manifest-file-name)
-  true)
+  (when (and (git/add dest-dir [storage-root])
+             (git/commit dest-dir "first commit"))
+    true))
