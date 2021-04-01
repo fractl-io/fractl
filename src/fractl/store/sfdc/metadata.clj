@@ -82,7 +82,7 @@
         (let [mpp (MetadataPushPull. @datasource)]
           (prs/write-manifest! options)
           (.retrieveZip mpp zip-file-name prs/manifest-file-name)
-          true))
+          (prs/init-local-store zip-file-name)))
       (push [store options]
         (let [pkg (prs/prepare-deploy-package)
               mpp (MetadataPushPull. @datasource)]
