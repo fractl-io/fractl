@@ -126,7 +126,7 @@
         [{:tag :name :content [n]} all-members]))}))
 
 (defn- manifest-from-options [options]
-  (let [options (or options mt/type-names)
+  (let [options (or (:types options) mt/type-names)
         vers (u/getenv "SFDC_METADATA_API_VERSION" "51.0")
         content (concat (map types-tag options)
                         [{:tag :version :content [vers]}])]
@@ -165,6 +165,8 @@
        (Util/deleteFile deploy-package-name)
        (Util/deleteFile journal-file)))
 
-(defn init-local-store [package-file]
-  (Zip/unzip package-file ".")
+(defn init-local-store [package-file dest-dir]
+  (Zip/unzip package-file dest-dir)
+  (Util/deleteFile package-file)
+  (Util/deleteFile manifest-file-name)
   true)
