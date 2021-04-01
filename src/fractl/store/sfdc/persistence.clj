@@ -164,3 +164,7 @@
   (and (Util/forceDeleteDirectory deploy-root-path)
        (Util/deleteFile deploy-package-name)
        (Util/deleteFile journal-file)))
+
+(defn init-local-store [package-file]
+  (Zip/unzip package-file ".")
+  true)
