@@ -34,8 +34,8 @@
 (defn- object-file-extension [recname]
   (get-in io-config [recname :extn]))
 
-(defn- folder-path [recname]
-  (get-in io-config [recname :folder-path]))
+(defn- folder-path [recname repo-dir]
+  (str repo-dir path-sep (get-in io-config [recname :folder-path])))
 
 (defn- dissoc-meta-fields [recname inst]
   ((get-in io-config [recname :meta-dissoc]) inst))
@@ -59,19 +59,22 @@
         reclog (get entries recname #{})
         updated-entries (assoc entries recname
                                (conj reclog file-path))]
-    (spit journal-file updated-entries)))
+    (spit journal-file updated-entries)
+    recname))
 
-(defn- write-object-file [recname folder inst]
+(defn- write-object-file [recname folder repo-dir inst]
   (let [file-name (object-file-name recname inst)
         xml (fmt/instance-as-xml recname (dissoc-meta-fields recname inst))
         full-path (str folder path-sep file-name)]
-    (make-journal-entry recname full-path)
-    (spit full-path xml)))
+    ;; TODO: Make these steps atomic.
+    (spit full-path xml)
+    (git/add repo-dir [full-path])
+    (make-journal-entry recname full-path)))
 
-(defn write-object [entity-name instances]
+(defn write-object [entity-name instances repo-dir]
   (let [[_ n] (li/split-path entity-name)
-        folder (folder-path n)
-        outfn (partial write-object-file n folder)]
+        folder (folder-path n repo-dir)
+        outfn (partial write-object-file n folder repo-dir)]
     (doseq [inst instances]
       (outfn inst))
     instances))
