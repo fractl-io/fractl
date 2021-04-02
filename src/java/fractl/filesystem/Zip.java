@@ -11,7 +11,7 @@ import java.net.URI;
 public class Zip {
 
     public static String zipFolder(String path) throws IOException {
-	
+
         Path source = Paths.get(path);
 	
         if (!Files.isDirectory(source))
@@ -21,7 +21,7 @@ public class Zip {
 	
         String zipFileName = source.getFileName().toString() + ".zip";
         URI uri = URI.create("jar:file:" + currentPath + zipFileName);
-	
+
         Files.walkFileTree(source, new SimpleFileVisitor<>() {
 		@Override
 		public FileVisitResult visitFile(Path file,
@@ -39,7 +39,6 @@ public class Zip {
 
 			Path targetFile = source.relativize(file);
 			Path pathInZipfile = zipfs.getPath(targetFile.toString());
-
 			// NoSuchFileException, need create parent directories in zip path
 			if (pathInZipfile.getParent() != null) {
 			    Files.createDirectories(pathInZipfile.getParent());

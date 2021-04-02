@@ -93,7 +93,8 @@
           (prs/init-local-store zip-file-name
                                 (metadata-root options))))
       (push [store options]
-        (let [pkg (prs/prepare-deploy-package)
+        (let [mroot (metadata-root @pull-options)
+              pkg (prs/prepare-deploy-package mroot)
               mpp (MetadataPushPull. @datasource)]
           (.deployZip mpp pkg)
-          (prs/finalize-deploy pkg))))))
+          (prs/finalize-deploy pkg mroot))))))

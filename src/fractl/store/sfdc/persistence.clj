@@ -150,29 +150,34 @@
   ([options]
    (write-manifest! options ".")))
 
-(defn prepare-deploy-package []
+(defn- deploy-folder-name [repo-dir]
+  (str repo-dir path-sep storage-root path-sep deploy-root-path))
+
+(defn prepare-deploy-package [repo-dir]
   (when-let [journal (seq (read-journal-entries))]
-    (write-manifest! (keys journal) deploy-root-path)
-    (doseq [vs (vals journal)]
-      (doseq [src vs]
-        (let [parts (s/split src path-sep-re-pattern)
-              folder (s/join
-                      path-sep
-                      (conj (drop 1 (drop-last parts)) deploy-root-path))
-              dest (str folder path-sep (last parts))]
-          (Util/maybeCreateDirectories folder)
-          (Util/copyOrReplaceFile src dest))))
-    (Zip/zipFolder deploy-root-path)))
+    (let [df (deploy-folder-name repo-dir)]
+      (write-manifest! (keys journal) df)
+      (doseq [vs (vals journal)]
+        (doseq [src vs]
+          (let [parts (s/split src path-sep-re-pattern)
+                folder (s/join
+                        path-sep
+                        (conj (drop 1 (drop-last parts)) df))
+                dest (str folder path-sep (last parts))]
+            (Util/maybeCreateDirectories folder)
+            (Util/copyOrReplaceFile src dest))))
+      (Zip/zipFolder df))))
 
-(defn finalize-deploy [deploy-package-name]
-  (and (Util/forceDeleteDirectory deploy-root-path)
-       (Util/deleteFile deploy-package-name)
-       (Util/deleteFile journal-file)))
+(defn finalize-deploy [deploy-package-name repo-dir]
+  (when (git/commit-and-push repo-dir (slurp journal-file))
+    (and (Util/forceDeleteDirectory (deploy-folder-name repo-dir))
+         (Util/deleteFile deploy-package-name)
+         (Util/deleteFile journal-file))))
 
-(defn init-local-store [package-file dest-dir]
-  (Zip/unzip package-file dest-dir)
+(defn init-local-store [package-file repo-dir]
+  (Zip/unzip package-file repo-dir)
   (Util/deleteFile package-file)
   (Util/deleteFile manifest-file-name)
-  (when (and (git/add dest-dir [storage-root])
-             (git/commit dest-dir "first commit"))
+  (when (and (git/add repo-dir [storage-root])
+             (git/commit repo-dir "first commit"))
     true))
