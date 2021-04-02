@@ -10,13 +10,28 @@
       (u/throw-ex (str (first args) " failed - " out)))))
 
 (defn commit [repo-dir commit-message]
-  (sh! "git" "commit" "-a" "-m" commit-message :dir repo-dir))
+  (try
+    (sh! "git" "commit" "-a" "-m" commit-message :dir repo-dir)
+    (catch Exception ex
+      (println ex))))
 
 (defn push
   ([repo-dir branch-name]
-   (sh! "git" "push" "origin" branch-name :dir repo-dir))
+   (if-let [url (u/getenv "SFDC_GIT_URL" false)]
+     (sh! "git" "push" url "--all"
+          :dir repo-dir)
+     (sh! "git" "push" "origin"
+          (or branch-name "main")
+          :dir repo-dir)))
   ([repo-dir]
-   (push repo-dir "main")))
+   (push repo-dir nil)))
+
+(defn commit-and-push
+  ([repo-dir commit-message branch-name]
+   (commit repo-dir commit-message)
+   (push repo-dir branch-name))
+  ([repo-dir commit-message]
+   (commit-and-push repo-dir commit-message nil)))
 
 (defn pull
   ([repo-dir branch-name]

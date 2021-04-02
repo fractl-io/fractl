@@ -167,8 +167,9 @@
 
 (defn getenv
   ([varname default]
-   (if-let [val (or (System/getenv varname) default)]
-     val
-     (throw-ex (str varname " - environment variable not set"))))
+   (let [val (or (System/getenv varname) default)]
+     (if-not (nil? val)
+       val
+       (throw-ex (str varname " - environment variable not set")))))
   ([varname]
    (getenv varname nil)))
