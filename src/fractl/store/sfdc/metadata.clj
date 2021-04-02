@@ -40,7 +40,8 @@
       "."))
 
 (defn make []
-  (let [datasource (u/make-cell)]
+  (let [datasource (u/make-cell)
+        pull-options (u/make-cell)]
     (reify p/Store
       (open-connection [store connection-info]
         (let [connection-info (su/normalize-connection-info connection-info)
@@ -64,7 +65,8 @@
          entity-name
          (if (map? instances)
            [instances]
-           instances)))
+           instances)
+         (metadata-root @pull-options)))
       (delete-by-id [_ entity-name id]
         ;; TODO: call the delete bulk/SOAP API
         )
@@ -87,6 +89,7 @@
         (let [mpp (MetadataPushPull. @datasource)]
           (prs/write-manifest! options)
           (.retrieveZip mpp zip-file-name prs/manifest-file-name)
+          (u/safe-set pull-options options)
           (prs/init-local-store zip-file-name
                                 (metadata-root options))))
       (push [store options]
