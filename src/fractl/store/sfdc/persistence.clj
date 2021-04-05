@@ -151,18 +151,18 @@
    (write-manifest! options ".")))
 
 (defn- deploy-folder-name [repo-dir]
-  (str repo-dir path-sep storage-root path-sep deploy-root-path))
+  (str "." path-sep deploy-root-path))
 
 (defn prepare-deploy-package [repo-dir]
   (when-let [journal (seq (read-journal-entries))]
     (let [df (deploy-folder-name repo-dir)]
-      (write-manifest! (keys journal) df)
+      (write-manifest! {:types (keys journal)} df)
       (doseq [vs (vals journal)]
         (doseq [src vs]
           (let [parts (s/split src path-sep-re-pattern)
                 folder (s/join
                         path-sep
-                        (conj (drop 1 (drop-last parts)) df))
+                        (concat [df] (take-last 1 (drop-last parts))))
                 dest (str folder path-sep (last parts))]
             (Util/maybeCreateDirectories folder)
             (Util/copyOrReplaceFile src dest))))
