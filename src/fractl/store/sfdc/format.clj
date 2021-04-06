@@ -107,7 +107,7 @@
   (let [tree (xml/parse (java.io.StringReader. xml))
         content (get tree :content)
         attrs (capitalize-keys
-               (fold-attributes
+               ((or fold-attributes #(into {} %))
                 (filter
                  identity
                  (map attribute-parser content))))
@@ -119,7 +119,7 @@
 (def ^:private role-name-from-file (partial type-name-from-file ".role"))
 
 (def parse-role (partial parse-generic-metadata-object
-                         parse-attribute role-name-from-file #(into {} %)))
+                         parse-attribute role-name-from-file nil))
 
 (defn- normalize-attribute-content-seq
   "Remove newline strings from parsed xml content
@@ -145,3 +145,7 @@
                             parse-profile-attribute
                             profile-name-from-file
                             (partial fold-attributes profile-multi-attrs)))
+
+(def parse-security-settings (partial parse-generic-metadata-object
+                                      parse-attribute (constantly "Security")
+                                      nil))
