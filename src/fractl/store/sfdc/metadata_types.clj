@@ -1,6 +1,6 @@
 (ns fractl.store.sfdc.metadata-types)
 
-(def type-names [:Profile :Role :ApexPage])
+(def type-names [:Profile :Role :ApexPage :Settings])
 
 ;; Note - some types that can cause errors with deploy/retrieve are
 ;; commented out.
