@@ -19,17 +19,24 @@
 (def manifest-file-name "package.xml")
 (def ^:private deploy-root-path "deploy")
 
-(defn- generic-io-config [type-name parser]
-  (let [extn (str "." type-name)]
-    {:extn extn
-     :folder-path (str storage-root path-sep (str type-name "s"))
-     :file-name #(str (:FullName %) extn)
-     :meta-dissoc #(dissoc % :Id :FullName)
-     :parser parser}))
+(defn- generic-io-config
+  ([type-name pluralize parser]
+   (let [extn (str "." type-name)]
+     {:extn extn
+      :folder-path (str storage-root path-sep
+                        (if pluralize
+                          (str type-name "s")
+                          type-name))
+      :file-name #(str (:FullName %) extn)
+      :meta-dissoc #(dissoc % :Id :FullName)
+      :parser parser}))
+  ([type-name parser]
+   (generic-io-config type-name true parser)))
 
 (def ^:private io-config
   {:Role (generic-io-config "role" fmt/parse-role)
-   :Profile (generic-io-config "profile" fmt/parse-profile)})
+   :Profile (generic-io-config "profile" fmt/parse-profile)
+   :SecuritySettings (generic-io-config "settings" false fmt/parse-security-settings)})
 
 (defn- object-file-extension [recname]
   (get-in io-config [recname :extn]))
@@ -64,8 +71,8 @@
 
 (defn- write-object-file [recname folder repo-dir inst]
   (let [file-name (object-file-name recname inst)
-        xml (fmt/instance-as-xml recname (dissoc-meta-fields recname inst))
-        full-path (str folder path-sep file-name)]
+        full-path (str folder path-sep file-name)
+        xml (fmt/instance-as-xml recname (dissoc-meta-fields recname inst))]
     ;; TODO: Make these steps atomic.
     (spit full-path xml)
     (git/add repo-dir [full-path])
