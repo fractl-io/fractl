@@ -1,1 +1,2 @@
+* On loading SecuritySettings from XML, translate embedded maps to proper instances.
 * A dataflow is required for updating SecuritySettings, use this to test IO on securitysettings.

@@ -77,10 +77,11 @@
         ;; TODO: call the bulk API query, return result
         )
       (do-query [_ query params]
-        (let [conditions (when-let [wc (:where query)]
+        (let [mroot (metadata-root @pull-options)
+              conditions (when-let [wc (:where query)]
                            (normalize-where-clause
                             wc (:lookup-fn-params params)))]
-          (prs/filter-records (:from query) conditions)))
+          (prs/filter-records (:from query) conditions mroot)))
       (compile-query [_ query-pattern]
         {:query-direct true})
       (get-reference [_ path refs]
