@@ -99,8 +99,8 @@
     (accept [this f file-name]
       (.endsWith file-name extn))))
 
-(defn- load-all-objects [[_ recname :as full-recname]]
-  (let [^File folder (File. (folder-path recname))
+(defn- load-all-objects [[_ recname :as full-recname] repo-dir]
+  (let [^File folder (File. (folder-path recname repo-dir))
         files (.listFiles
                folder
                (make-file-extension-filter
@@ -110,9 +110,21 @@
      #(let [s (str %)] (parse s (slurp s)))
      files)))
 
-(defn filter-records [full-recname conditions]
-  (filter (predicate-from-conditions conditions)
-          (load-all-objects full-recname)))
+(def ^:private singleton-objects {:SecuritySettings "Security.settings"})
+
+(defn- load-singleton [[_ recname :as full-recname] repo-dir]
+  (let [file-name (str (folder-path recname repo-dir) path-sep
+                       (recname singleton-objects))]
+    ((instance-parser recname) full-recname file-name (slurp file-name))))
+
+(defn- singleton? [recname]
+  (contains? singleton-objects recname))
+
+(defn filter-records [full-recname conditions repo-dir]
+  (if (singleton? (second full-recname))
+    (load-singleton full-recname repo-dir)
+    (filter (predicate-from-conditions conditions)
+            (load-all-objects full-recname repo-dir))))
 
 (defn- members-tag [n]
   (let [s (str (if (li/name? n)

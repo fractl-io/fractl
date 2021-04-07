@@ -127,13 +127,11 @@
   [c]
   (filter (complement string?) c))
 
-(def ^:private profile-multi-attrs #{:userPermissions :pageAccesses})
-
-(defn- parse-profile-attribute [elem]
+(defn- parse-attribute-with-multiple-values [multi-attrs elem]
   (when-not (string? elem)
     (let [[_ k] (li/split-path (get elem :tag))
           content (get elem :content)
-          v (if (contains? profile-multi-attrs k)
+          v (if (contains? multi-attrs k)
               (parse-multi-attribute-value
                (normalize-attribute-content-seq content))
               (first content))]
@@ -141,11 +139,22 @@
 
 (def ^:private profile-name-from-file (partial type-name-from-file ".profile"))
 
+(def ^:private profile-multi-attrs #{:userPermissions :pageAccesses})
+
+(def ^:private parse-profile-attribute (partial parse-attribute-with-multiple-values
+                                                profile-multi-attrs))
+
 (def parse-profile (partial parse-generic-metadata-object
-                            parse-profile-attribute
+                            (partial parse-attribute-with-multiple-values
+                                     profile-multi-attrs)
                             profile-name-from-file
                             (partial fold-attributes profile-multi-attrs)))
 
+(def ^:private security-settings-multi-attrs #{:passwordPolicies :sessionSettings
+                                               :singleSignOnSettings})
+
 (def parse-security-settings (partial parse-generic-metadata-object
-                                      parse-attribute (constantly "Security")
-                                      nil))
+                                      (partial parse-attribute-with-multiple-values
+                                               security-settings-multi-attrs)
+                                      (constantly "Security")
+                                      (partial fold-attributes security-settings-multi-attrs)))

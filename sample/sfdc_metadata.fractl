@@ -140,7 +140,10 @@
          :IsLoginWithSalesforceCredentialsDisabled :Kernel/Boolean})
 
 (entity :Sample.SfdcMetadata/SecuritySettings
-        {:CanUsersGrantLoginAccess :Kernel/Boolean
+        {:FullName {:type :Kernel/String
+                    :default "Security"}
+         :NetworkAccess :Kernel/Any
+         :CanUsersGrantLoginAccess :Kernel/Boolean
          :EnableAdminLoginAsAnyUser :Kernel/Boolean
          :EnableAuditFieldsInactiveOwner :Kernel/Boolean
          :EnableAuraSecureEvalPref :Kernel/Boolean
@@ -148,3 +151,6 @@
          :PasswordPolicies :Sample.SfdcMetadata/PasswordPolicies
          :SessionSettings :Sample.SfdcMetadata/SessionSettings
          :SingleSignOnSettings :Sample.SfdcMetadata/SingleSignOnSettings})
+
+(dataflow :Sample.SfdcMetadata/LoadSecuritySettings
+          :Sample.SfdcMetadata/SecuritySettings?)
