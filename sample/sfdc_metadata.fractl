@@ -142,7 +142,7 @@
 (entity :Sample.SfdcMetadata/SecuritySettings
         {:FullName {:type :Kernel/String
                     :default "Security"}
-         :NetworkAccess :Kernel/Any
+         :NetworkAccess {:type :Kernel/Map :default {}}
          :CanUsersGrantLoginAccess :Kernel/Boolean
          :EnableAdminLoginAsAnyUser :Kernel/Boolean
          :EnableAuditFieldsInactiveOwner :Kernel/Boolean
