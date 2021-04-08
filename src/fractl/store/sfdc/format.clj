@@ -68,7 +68,10 @@
       [(keyword (u/capitalize (name k))) (normalize-value v)])))
 
 (defn- parse-multi-attribute-value [elem]
-  (map parse-attribute elem))
+  (let [xs (map parse-attribute elem)]
+    (if (= (type (first elem)) clojure.data.xml.node.Element)
+      (into {} xs)
+      xs)))
 
 (defn- last-path-component [^String s]
   (let [i (.lastIndexOf s java.io.File/separator)
@@ -101,9 +104,20 @@
            [(keyword (u/capitalize (name k))) v])
          m)))
 
+(defn- normalize-maps [model-name attrs]
+  (map (fn [[k v]]
+         (let [v (if (and (seqable? v) (map? (first v)))
+                   (first v)
+                   v)]
+           (if (map? v)
+             [k (cn/tag-record [model-name k] v)]
+             [k v])))
+       attrs))
+
 (defn- parse-generic-metadata-object [attribute-parser find-full-name
                                       fold-attributes
-                                      full-recname file-name xml]
+                                      [model-name _ :as full-recname]
+                                      file-name xml]
   (let [tree (xml/parse (java.io.StringReader. xml))
         content (get tree :content)
         attrs (capitalize-keys
@@ -111,10 +125,11 @@
                 (filter
                  identity
                  (map attribute-parser content))))
+        final-attrs (normalize-maps model-name attrs)
         fn (find-full-name file-name)]
     (cn/make-instance
      full-recname
-     (assoc (into {} attrs) :FullName fn))))
+     (assoc (into {} final-attrs) :FullName fn))))
 
 (def ^:private role-name-from-file (partial type-name-from-file ".role"))
 

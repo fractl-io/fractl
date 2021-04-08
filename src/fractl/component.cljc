@@ -1001,3 +1001,6 @@
     (validate-record-attributes
      n (instance-attributes inst) schema)
     inst))
+
+(defn tag-record [recname attrs]
+  (assoc attrs :name recname type-tag-key :record))
