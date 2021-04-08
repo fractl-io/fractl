@@ -143,9 +143,10 @@
      (concat
       (if has-query
         (concat [{:tag :name :content [n]}]
-                (if (seqable? (second opt))
-                  (map members-tag (second opt))
-                  [(members-tag (second opt))]))
+                (let [s (second opt)]
+                  (if (seqable? s)
+                    (map members-tag s)
+                    [(members-tag s)])))
         [{:tag :name :content [n]} all-members]))}))
 
 (defn- manifest-from-options [options]
@@ -172,10 +173,16 @@
 (defn- deploy-folder-name [repo-dir]
   (str "." path-sep deploy-root-path))
 
+(defn process-type-names [ks]
+  (map #(if (= % :SecuritySettings)
+          [:Settings ["Security"]]
+          %)
+       ks))
+
 (defn prepare-deploy-package [repo-dir]
   (when-let [journal (seq (read-journal-entries))]
     (let [df (deploy-folder-name repo-dir)]
-      (write-manifest! {:types (keys journal)} df)
+      (write-manifest! {:types (process-type-names (keys journal))} df)
       (doseq [vs (vals journal)]
         (doseq [src vs]
           (let [parts (s/split src path-sep-re-pattern)
