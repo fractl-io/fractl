@@ -3,10 +3,13 @@
 
 (component :Sample.SfdcMetadata)
 
+(event :Sample.SfdcMetadata/GitPush {})
+
 (dataflow :Sample.SfdcMetadata/PullMetadata
           [:pull])
 
 (dataflow :Sample.SfdcMetadata/PushMetadata
+          {:Sample.SfdcMetadata/GitPush {}}
           [:push])
 
 (def access-levels ["Read" "Edit" "None"])

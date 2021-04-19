@@ -74,9 +74,9 @@
 (def ^:private resolver-upsert (partial call-resolver-upsert r/call-resolver-upsert))
 (def ^:private resolver-delete (partial call-resolver-delete r/call-resolver-delete))
 
-(defn- call-resolver-eval [resolver composed? inst]
+(defn- call-resolver-eval [resolver composed? env inst]
   (let [rs (if composed? resolver [resolver])]
-    (doall (map #(r/call-resolver-eval % inst) rs))))
+    (doall (map #(r/call-resolver-eval % env inst) rs))))
 
 (def ^:private inited-components (u/make-cell []))
 
@@ -422,7 +422,7 @@
                             timeout-ms
                             #(doall (eval-event-dataflows self eval-env inst))))
             resolver-results (when resolver
-                               (call-resolver-eval resolver composed? inst))]
+                               (call-resolver-eval resolver composed? env inst))]
         (i/ok (pack-results local-result resolver-results) env)))
 
     (do-delete-instance [self env [record-name id-pattern-code]]
@@ -473,4 +473,3 @@
   (u/safe-set-once
    default-evaluator
    #(make-root-vm eval-event-dataflows eval-opcode eval-dataflow)))
-

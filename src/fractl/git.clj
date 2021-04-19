@@ -45,3 +45,6 @@
       (do (sh! "git" "add" f :dir repo-dir)
           (recur (rest fns)))
       file-names)))
+
+(defn add-all [repo-dir]
+  (add repo-dir ["."]))

@@ -3,7 +3,6 @@
   (:require [clojure.data.xml :as xml]
             [clojure.string :as s]
             [fractl.util :as u]
-            [fractl.git :as git]
             [fractl.lang.internal :as li]
             [fractl.store.sfdc.metadata-types :as mt]
             [fractl.store.sfdc.format :as fmt])
@@ -75,7 +74,6 @@
         xml (fmt/instance-as-xml recname (dissoc-meta-fields recname inst))]
     ;; TODO: Make these steps atomic.
     (spit full-path xml)
-    (git/add repo-dir [full-path])
     (make-journal-entry recname full-path)))
 
 (defn write-object [entity-name instances repo-dir]
@@ -195,15 +193,12 @@
       (Zip/zipFolder df))))
 
 (defn finalize-deploy [deploy-package-name repo-dir]
-  (when (git/commit-and-push repo-dir (slurp journal-file))
-    (and (Util/forceDeleteDirectory (deploy-folder-name repo-dir))
-         (Util/deleteFile deploy-package-name)
-         (Util/deleteFile journal-file))))
+  (and (Util/forceDeleteDirectory (deploy-folder-name repo-dir))
+       (Util/deleteFile deploy-package-name)
+       (Util/deleteFile journal-file)))
 
 (defn init-local-store [package-file repo-dir]
   (Zip/unzip package-file repo-dir)
   (Util/deleteFile package-file)
   (Util/deleteFile manifest-file-name)
-  (when (and (git/add repo-dir [storage-root])
-             (git/commit repo-dir "first commit"))
-    true))
+  true)

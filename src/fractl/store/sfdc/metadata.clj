@@ -34,9 +34,8 @@
       %)
    where-clause))
 
-(defn- metadata-root [options]
-  (or (:metadata-root options)
-      (u/getenv "SFDC_METADATA_ROOT")
+(defn metadata-root []
+  (or (u/getenv "SFDC_METADATA_ROOT")
       "."))
 
 (defn make []
@@ -66,7 +65,7 @@
          (if (map? instances)
            [instances]
            instances)
-         (metadata-root @pull-options)))
+         (metadata-root)))
       (delete-by-id [_ entity-name id]
         ;; TODO: call the delete bulk/SOAP API
         )
@@ -77,7 +76,7 @@
         ;; TODO: call the bulk API query, return result
         )
       (do-query [_ query params]
-        (let [mroot (metadata-root @pull-options)
+        (let [mroot (metadata-root)
               conditions (when-let [wc (:where query)]
                            (normalize-where-clause
                             wc (:lookup-fn-params params)))]
@@ -92,9 +91,9 @@
           (.retrieveZip mpp zip-file-name prs/manifest-file-name)
           (u/safe-set pull-options options)
           (prs/init-local-store zip-file-name
-                                (metadata-root options))))
+                                (metadata-root))))
       (push [store options]
-        (let [mroot (metadata-root @pull-options)
+        (let [mroot (metadata-root)
               pkg (prs/prepare-deploy-package mroot)
               mpp (MetadataPushPull. @datasource)]
           (.deployZip mpp pkg)
