@@ -1,3 +1,7 @@
 {:component-root "./sample"
  :store {:type :sfdc-metadata}
- :service {:port 8080}}
+ :service {:port 8080}
+ :resolvers [{:name :metadata-git
+              :type :git
+              :compose? false
+              :paths [:Sample.SfdcMetadata/GitPush]}]}
