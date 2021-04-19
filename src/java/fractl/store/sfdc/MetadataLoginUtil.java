@@ -29,6 +29,11 @@ public class MetadataLoginUtil {
         config.setAuthEndpoint(loginUrl);
         config.setServiceEndpoint(loginUrl);
         config.setManualLogin(true);
-        return (new EnterpriseConnection(config)).login(username, password);
+	try {
+	    return (new EnterpriseConnection(config)).login(username, password);
+	} catch(Exception ex) {
+	    ex.printStackTrace();
+	    return null;
+	}
     }
 }

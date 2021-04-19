@@ -37,7 +37,7 @@ public class MetadataPushPull {
         DeployOptions deployOptions = new DeployOptions();
         deployOptions.setPerformRetrieve(false);
         //deployOptions.setRollbackOnError(true);
-	    deployOptions.setSinglePackage(true);
+	deployOptions.setSinglePackage(true);
         AsyncResult asyncResult = metadataConnection.deploy(zipBytes, deployOptions);
         return waitForDeployCompletion(asyncResult.getId());
     }
@@ -174,6 +174,7 @@ public class MetadataPushPull {
             deployResult = metadataConnection.checkDeployStatus(asyncResultId, true);
         }
 
+	// TODO: parse deployResult and report errors.
         return deployResult;
     }
  
