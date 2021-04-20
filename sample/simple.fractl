@@ -13,4 +13,5 @@
 
 (dataflow :Sample.Simple/MakeEntity
           [:entity {:E4 {:X :Kernel/Int
-                         :Y :Kernel/String}}])
+                         :Y :Kernel/String
+                         :Z :Kernel/Boolean}}])

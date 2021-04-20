@@ -59,6 +59,10 @@
         component-name)
       (drop-schema [_ component-name]
         component-name)
+      (create-table [_ entity-name]
+        (prs/create-custom-type
+         @datasource entity-name
+         (su/find-entity-schema entity-name)))
       (upsert-instance [_ entity-name instances]
         (prs/write-object
          entity-name
