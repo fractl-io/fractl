@@ -1,1 +1,1 @@
-* A dataflow is required for updating SecuritySettings, use this to test IO on securitysettings.
+* Make sure setFields is working for new customobjects.

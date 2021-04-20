@@ -7,6 +7,8 @@
             [fractl.store.sfdc.metadata-types :as mt]
             [fractl.store.sfdc.format :as fmt])
   (:import [java.io File FilenameFilter]
+           [com.sforce.soap.metadata CustomObject CustomField
+            FieldType DeploymentStatus SharingModel]
            [fractl.filesystem Util]
            [fractl.filesystem Zip]))
 
@@ -202,3 +204,48 @@
   (Util/deleteFile package-file)
   (Util/deleteFile manifest-file-name)
   true)
+
+(defn- attribute-type-to-field-type [atype]
+  (case atype
+    :Kernel/Int FieldType/Number
+    :Kernel/Double FieldType/Currency
+    :Kernel/DateTime FieldType/DateTime
+    :Kernel/Boolean FieldType/Checkbox
+    FieldType/Text))
+
+(defn- attributes-as-fields [attrs]
+  (when (seq attrs)
+    (let [result (make-array CustomField (count attrs))]
+      (loop [i 0, attrs attrs]
+        (if-let [[aname atype] (first attrs)]
+          (let [fname (name aname)
+                cf (doto (CustomField.)
+                     (.setType (attribute-type-to-field-type atype))
+                     (.setDescription fname)
+                     (.setLabel fname)
+                     (.setFullName (str fname "__c")))]
+            (aset result i cf)
+            (recur (inc i) (rest attrs)))
+          result)))))
+
+(defn create-custom-type [connection entity-name attrs]
+  (let [[_ type-name] (li/split-path entity-name)
+        fields (attributes-as-fields attrs)
+        obj-name (name type-name)
+        name-cf (doto (CustomField.)
+                  (.setType FieldType/Text)
+                  (.setDescription "The custom object identifier field")
+                  (.setLabel obj-name)
+                  (.setFullName (str obj-name "__c")))
+        obj (doto (CustomObject.)
+              (.setFullName (str obj-name "__c"))
+              (.setDeploymentStatus (DeploymentStatus/Deployed))
+              (.setDescription "Created by Fractl using the Metadata API")
+              (.setLabel obj-name)
+              (.setPluralLabel (str obj-name "s"))
+              (.setSharingModel SharingModel/ReadWrite)
+              (.setEnableActivities true)
+              (.setNameField name-cf))]
+    (when fields
+      (.setFields obj fields))
+    (.createMetadata connection (into-array CustomObject [obj]))))

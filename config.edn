@@ -1,5 +1,5 @@
 {:component-root "./sample"
- ;:store {:type :sfdc-metadata}
+ :store {:type :sfdc-metadata}
  :service {:port 8080}
  :resolvers [{:name :metadata-git
               :type :git
