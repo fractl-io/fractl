@@ -58,6 +58,7 @@
 (def connection-info p/connection-info)
 (def create-schema p/create-schema)
 (def drop-schema p/drop-schema)
+(def create-table p/create-table)
 (def upsert-instance p/upsert-instance)
 (def delete-by-id p/delete-by-id)
 (def query-by-id p/query-by-id)

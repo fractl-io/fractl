@@ -353,13 +353,17 @@
 (defn- compile-push [_ pat]
   (op/push pat))
 
+(defn- compile-entity-definition [_ pat]
+  (op/entity-def (first pat)))
+
 (def ^:private special-form-handlers
   {:match compile-match
    :for-each compile-for-each
    :delete compile-delete
    :eval-on compile-eval-on
    :pull compile-pull
-   :push compile-push})
+   :push compile-push
+   :entity compile-entity-definition})
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic

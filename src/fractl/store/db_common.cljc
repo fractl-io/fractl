@@ -135,6 +135,18 @@
                  (drop-db-schema! txn scmname)))
     component-name))
 
+(defn create-table
+  "Create the table and indexes for the entity."
+  [datasource entity-name]
+  (execute-fn!
+   datasource
+   (fn [txn]
+     (let [tabname (su/table-for-entity entity-name)
+           schema (su/find-entity-schema entity-name)
+           indexed-attrs (cn/indexed-attributes schema)]
+       (create-tables! txn schema tabname :Id indexed-attrs))))
+  entity-name)
+
 (defn- upsert-indices!
   "Insert or update new index entries relevant for an entity instance.
   The index values are available in the `attrs` parameter."
