@@ -219,11 +219,22 @@
       (loop [i 0, attrs attrs]
         (if-let [[aname atype] (first attrs)]
           (let [fname (name aname)
+                tp (attribute-type-to-field-type atype)
                 cf (doto (CustomField.)
-                     (.setType (attribute-type-to-field-type atype))
+                     (.setType tp)
                      (.setDescription fname)
                      (.setLabel fname)
                      (.setFullName (str fname "__c")))]
+            (cond
+              (= tp FieldType/Text)
+              (.setLength cf 100)
+
+              (= tp FieldType/Checkbox)
+              (.setDefaultValue cf "true")
+
+              (= tp FieldType/Number)
+              (do (.setPrecision cf 10)
+                  (.setScale cf 3)))
             (aset result i cf)
             (recur (inc i) (rest attrs)))
           result)))))
@@ -248,4 +259,9 @@
               (.setNameField name-cf))]
     (when fields
       (.setFields obj fields))
-    (.createMetadata connection (into-array CustomObject [obj]))))
+    (let [results (.upsertMetadata connection (into-array CustomObject [obj]))]
+      (amap results idx _
+            (let [r (aget results idx)]
+              (when-not (.isSuccess r)
+                (u/throw-ex (str "failed to define CustomObject - " r)))))
+      entity-name)))
