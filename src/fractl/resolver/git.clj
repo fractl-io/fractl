@@ -1,10 +1,9 @@
 (ns fractl.resolver.git
   (:require [fractl.resolver.core :as r]
-            [fractl.store.sfdc.metadata :as m]
             [fractl.git :as git]))
 
 (defn- git-eval [inst]
-  (let [repo-dir (m/metadata-root)]
+  (let [repo-dir (:Path inst)]
     (git/add-all repo-dir)
     (git/commit-and-push
      repo-dir
