@@ -1,0 +1,2 @@
+ * handle http errors in store.sfdc.persistence/create-record
+ * extend customtypes to handle user-defined fields (are they attributes?)
