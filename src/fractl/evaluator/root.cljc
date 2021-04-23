@@ -459,8 +459,12 @@
           result)))
 
     (do-entity-def [_ env schema]
-      (let [r (ln/entity schema)]
-        (store/create-table (env/get-store env) (li/record-name schema))
+      (let [n (li/record-name schema)
+            [c _] (li/split-path n)
+            old-c (cn/switch-component c)
+            r (ln/entity schema)]
+        (store/create-table (env/get-store env) n)
+        (cn/switch-component old-c)
         (i/ok r env)))
 
     (do-pull [_ env options]

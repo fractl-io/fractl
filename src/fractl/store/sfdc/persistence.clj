@@ -2,7 +2,10 @@
   "Local data storage for SFDC objects"
   (:require [clojure.data.xml :as xml]
             [clojure.string :as s]
+            [org.httpkit.client :as http]
+            [cheshire.core :as json]
             [fractl.util :as u]
+            [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.store.sfdc.metadata-types :as mt]
             [fractl.store.sfdc.format :as fmt])
@@ -241,7 +244,7 @@
 
 (defn create-custom-type [connection entity-name attrs]
   (let [[_ type-name] (li/split-path entity-name)
-        fields (attributes-as-fields attrs)
+        fields (attributes-as-fields (dissoc attrs :Id :Name))
         obj-name (name type-name)
         name-cf (doto (CustomField.)
                   (.setType FieldType/Text)
@@ -265,3 +268,30 @@
               (when-not (.isSuccess r)
                 (u/throw-ex (str "failed to define CustomObject - " r)))))
       entity-name)))
+
+(defn- type-name-from-entity-name [sfdc-namespace [_ n]]
+  (str sfdc-namespace "__" (name n) "__c"))
+
+(defn- custom-names [sfdc-namespace attrs]
+  (let [r (map (fn [[k v]]
+                 (if (or (= k :Name))
+                   [k v]
+                   [(str sfdc-namespace "__" (name k) "__c") v]))
+               attrs)]
+    (into {} r)))
+
+(defn create-record [instance-name auth-token sfdc-namespace entity-name instances]
+  (let [typename (type-name-from-entity-name sfdc-namespace entity-name)
+        url (str "https://" instance-name "/services/data/v51.0/sobjects/" typename "/")
+        hdrs {"Authorization" (str "Bearer " auth-token)
+              "Content-Type" "application/json"}
+        results (map #(let [attrs (custom-names
+                                   sfdc-namespace
+                                   (dissoc (cn/instance-attributes %) :Id))
+                            opts {:body (json/generate-string attrs)
+                                  :headers hdrs}]
+                        (http/post url opts)))]
+    (doseq [r results]
+      ;; TODO: check status and handle errors
+      @r)
+    instances))

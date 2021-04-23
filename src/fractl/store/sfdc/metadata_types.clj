@@ -217,3 +217,6 @@
    :WebStoreTemplate
    :Workflow
    :WorkSkillRouting])
+
+(defn built-in-type [n]
+  (some #{n} type-names))
