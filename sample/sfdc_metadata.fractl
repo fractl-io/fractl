@@ -159,4 +159,5 @@
           :Sample.SfdcMetadata/SecuritySettings?)
 
 (dataflow :Sample.SfdcMetadata/MakeEntity
-          [:entity {:Sample.SfdcMetadata/E6 {:Name :Kernel/String}}])
+          [:entity {:Sample.SfdcMetadata/E12 {:Name :Kernel/String
+                                              :X :Kernel/String}}])
