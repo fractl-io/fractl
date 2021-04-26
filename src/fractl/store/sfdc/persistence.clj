@@ -251,6 +251,7 @@
                   (.setType FieldType/Text)
                   (.setDescription "The custom object identifier field")
                   (.setLabel obj-name)
+                  (.setRequired true)
                   (.setFullName (str obj-name "__c")))
         obj (doto (CustomObject.)
               (.setFullName (str obj-name "__c"))
