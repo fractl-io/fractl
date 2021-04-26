@@ -4,6 +4,7 @@
             [clojure.string :as s]
             [org.httpkit.client :as http]
             [cheshire.core :as json]
+            [taoensso.timbre :as log]
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
@@ -290,8 +291,11 @@
                                    (dissoc (cn/instance-attributes %) :Id))
                             opts {:body (json/generate-string attrs)
                                   :headers hdrs}]
-                        (http/post url opts)))]
+                        (http/post url opts))
+                     instances)]
     (doseq [r results]
-      ;; TODO: check status and handle errors
-      @r)
+      (let [s (:status @r)]
+        (when-not (<= 200 s 201)
+          (log/error @r)
+          (u/throw-ex (str "SFDC create-record failed with status " s)))))
     instances))

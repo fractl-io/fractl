@@ -22,6 +22,7 @@ SFDC_PASSWORD
 SFDC_METADATA_ROOT=repository_folder
 SFDC_AUTH_TOKEN
 SFDC_INSTANCE_NAME (e.g d5y000001bryquae-dev-ed.my.salesforce.com)
+SFDC_NAMESPACE (e.g we8)
 
 SFDC_METADATA_ROOT should already contain an initialized git repository.
 Instead of setting SFDC_GIT_URL, you may ask git to cache credentials:
