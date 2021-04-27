@@ -12,7 +12,8 @@
             [fractl.store.sfdc.format :as fmt])
   (:import [java.io File FilenameFilter]
            [com.sforce.soap.metadata CustomObject CustomField
-            FieldType DeploymentStatus SharingModel]
+            FieldType DeploymentStatus SharingModel Profile Metadata
+            ProfileFieldLevelSecurity]
            [fractl.filesystem Util]
            [fractl.filesystem Zip]))
 
@@ -243,9 +244,34 @@
             (recur (inc i) (rest attrs)))
           result)))))
 
-(defn create-custom-type [connection entity-name attrs]
+(defn- update-field-permissions [connection sfdc-namespace entity-name sfdc-attrs]
+  (let [full-type-name (str (name sfdc-namespace) "__" (name entity-name) "__c")
+        profiles ["Admin" "Standard"]]
+    (doseq [p profiles]
+      (doseq [[n _] sfdc-attrs]
+        (let [^Profile profile (Profile.)
+              ^ProfileFieldLevelSecurity field-sec (ProfileFieldLevelSecurity.)
+              fsecs (make-array ProfileFieldLevelSecurity 1)
+              mtdts (make-array Metadata 1)]
+          (.setFullName profile p)
+          (.setCustom profile false)
+          (.setField field-sec (str full-type-name "." (name n) "__c"))
+          (.setEditable field-sec true)
+          (.setReadable field-sec true)
+          (aset fsecs 0 field-sec)
+          (.setFieldPermissions profile fsecs)
+          (aset mtdts 0 profile)
+          (let [results (.updateMetadata connection mtdts)]
+            (amap results idx _
+                  (let [r (aget results idx)]
+                    (when-not (.isSuccess r)
+                      (u/throw-ex (str "failed to set field permissions - " r)))))))))
+    entity-name))
+
+(defn create-custom-type [connection sfdc-namespace entity-name attrs]
   (let [[_ type-name] (li/split-path entity-name)
-        fields (attributes-as-fields (dissoc attrs :Id :Name))
+        sfdc-attrs (dissoc attrs :Id :Name)
+        fields (attributes-as-fields sfdc-attrs)
         obj-name (name type-name)
         name-cf (doto (CustomField.)
                   (.setType FieldType/Text)
@@ -268,8 +294,8 @@
       (amap results idx _
             (let [r (aget results idx)]
               (when-not (.isSuccess r)
-                (u/throw-ex (str "failed to define CustomObject - " r)))))
-      entity-name)))
+                (u/throw-ex (str "failed to define CustomObject - " r))))))
+    (update-field-permissions connection sfdc-namespace entity-name sfdc-attrs)))
 
 (defn- type-name-from-entity-name [sfdc-namespace [_ n]]
   (str sfdc-namespace "__" (name n) "__c"))
