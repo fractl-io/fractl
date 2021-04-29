@@ -464,16 +464,18 @@
   (event :Kernel/AppInit
          {:AppName :Kernel/Keyword})
 
-  (cn/create-component :Git {})
+  #?(:clj
+     (do
+       (cn/create-component :Git {})
 
-  (event :Git/Push
-         {:Path :Kernel/String})
+       (event :Git/Push
+              {:Path :Kernel/String})
 
-  (r/register-resolvers
-   [{:name :git
-     :type :git
-     :compose? false
-     :paths [:Git/Push]}]))
+       (r/register-resolvers
+        [{:name :git
+          :type :git
+          :compose? false
+          :paths [:Git/Push]}]))))
 
 (defn- initf []
   (when-not @kernel-inited
