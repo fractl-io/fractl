@@ -2,7 +2,7 @@
   (:require [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.resolver.remote :as remote]
-            [fractl.resolver.git :as git]))
+            #?(:clj [fractl.resolver.git :as git])))
 
 (def ^:private resolver-db (u/make-cell {}))
 
@@ -29,8 +29,8 @@
 (def composed? (complement map?))
 (def override? map?)
 
-(def constructors {:remote remote/make
-                   :git git/make})
+(def constructors (merge {:remote remote/make}
+                         #?(:clj {:git git/make})))
 
 (defn register-resolver [{n :name t :type
                           compose? :compose?
