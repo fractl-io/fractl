@@ -1,1 +1,1 @@
-* A dataflow is required for updating SecuritySettings, use this to test IO on securitysettings.
+ * extend customtypes to handle user-defined fields (are they attributes?)

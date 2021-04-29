@@ -1,6 +1,6 @@
 (ns fractl.store.sfdc.metadata-types)
 
-(def type-names [:Profile :Role :ApexPage :Settings])
+(def type-names [:Profile :Role :ApexPage :Settings :CustomObject])
 
 ;; Note - some types that can cause errors with deploy/retrieve are
 ;; commented out.
@@ -217,3 +217,6 @@
    :WebStoreTemplate
    :Workflow
    :WorkSkillRouting])
+
+(defn built-in-type [n]
+  (some #{n} type-names))
