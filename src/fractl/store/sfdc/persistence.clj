@@ -2,11 +2,18 @@
   "Local data storage for SFDC objects"
   (:require [clojure.data.xml :as xml]
             [clojure.string :as s]
+            [org.httpkit.client :as http]
+            [cheshire.core :as json]
+            [taoensso.timbre :as log]
             [fractl.util :as u]
+            [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.store.sfdc.metadata-types :as mt]
             [fractl.store.sfdc.format :as fmt])
   (:import [java.io File FilenameFilter]
+           [com.sforce.soap.metadata CustomObject CustomField
+            FieldType DeploymentStatus SharingModel Profile Metadata
+            ProfileFieldLevelSecurity]
            [fractl.filesystem Util]
            [fractl.filesystem Zip]))
 
@@ -202,3 +209,120 @@
   (Util/deleteFile package-file)
   (Util/deleteFile manifest-file-name)
   true)
+
+(defn- attribute-type-to-field-type [atype]
+  (case atype
+    :Kernel/Int FieldType/Number
+    :Kernel/Double FieldType/Currency
+    :Kernel/DateTime FieldType/DateTime
+    :Kernel/Boolean FieldType/Checkbox
+    FieldType/Text))
+
+(defn- attributes-as-fields [attrs]
+  (when (seq attrs)
+    (let [result (make-array CustomField (count attrs))]
+      (loop [i 0, attrs attrs]
+        (if-let [[aname atype] (first attrs)]
+          (let [fname (name aname)
+                tp (attribute-type-to-field-type atype)
+                cf (doto (CustomField.)
+                     (.setType tp)
+                     (.setDescription fname)
+                     (.setLabel fname)
+                     (.setFullName (str fname "__c")))]
+            (cond
+              (= tp FieldType/Text)
+              (.setLength cf 100)
+
+              (= tp FieldType/Checkbox)
+              (.setDefaultValue cf "true")
+
+              (= tp FieldType/Number)
+              (do (.setPrecision cf 10)
+                  (.setScale cf 3)))
+            (aset result i cf)
+            (recur (inc i) (rest attrs)))
+          result)))))
+
+(defn- update-field-permissions [connection sfdc-namespace entity-name sfdc-attrs]
+  (let [full-type-name (str (name sfdc-namespace) "__" (name entity-name) "__c")
+        profiles ["Admin" "Standard"]]
+    (doseq [p profiles]
+      (doseq [[n _] sfdc-attrs]
+        (let [^Profile profile (Profile.)
+              ^ProfileFieldLevelSecurity field-sec (ProfileFieldLevelSecurity.)
+              fsecs (make-array ProfileFieldLevelSecurity 1)
+              mtdts (make-array Metadata 1)]
+          (.setFullName profile p)
+          (.setCustom profile false)
+          (.setField field-sec (str full-type-name "." (name n) "__c"))
+          (.setEditable field-sec true)
+          (.setReadable field-sec true)
+          (aset fsecs 0 field-sec)
+          (.setFieldPermissions profile fsecs)
+          (aset mtdts 0 profile)
+          (let [results (.updateMetadata connection mtdts)]
+            (amap results idx _
+                  (let [r (aget results idx)]
+                    (when-not (.isSuccess r)
+                      (u/throw-ex (str "failed to set field permissions - " r)))))))))
+    entity-name))
+
+(defn create-custom-type [connection sfdc-namespace entity-name attrs]
+  (let [[_ type-name] (li/split-path entity-name)
+        sfdc-attrs (dissoc attrs :Id :Name)
+        fields (attributes-as-fields sfdc-attrs)
+        obj-name (name type-name)
+        name-cf (doto (CustomField.)
+                  (.setType FieldType/Text)
+                  (.setDescription "The custom object identifier field")
+                  (.setLabel obj-name)
+                  (.setRequired true)
+                  (.setFullName (str obj-name "__c")))
+        obj (doto (CustomObject.)
+              (.setFullName (str obj-name "__c"))
+              (.setDeploymentStatus (DeploymentStatus/Deployed))
+              (.setDescription "Created by Fractl using the Metadata API")
+              (.setLabel obj-name)
+              (.setPluralLabel (str obj-name "s"))
+              (.setSharingModel SharingModel/ReadWrite)
+              (.setEnableActivities true)
+              (.setNameField name-cf))]
+    (when fields
+      (.setFields obj fields))
+    (let [results (.upsertMetadata connection (into-array CustomObject [obj]))]
+      (amap results idx _
+            (let [r (aget results idx)]
+              (when-not (.isSuccess r)
+                (u/throw-ex (str "failed to define CustomObject - " r))))))
+    (update-field-permissions connection sfdc-namespace entity-name sfdc-attrs)))
+
+(defn- type-name-from-entity-name [sfdc-namespace [_ n]]
+  (str sfdc-namespace "__" (name n) "__c"))
+
+(defn- custom-names [sfdc-namespace attrs]
+  (let [r (map (fn [[k v]]
+                 (if (or (= k :Name))
+                   [k v]
+                   [(str sfdc-namespace "__" (name k) "__c") v]))
+               attrs)]
+    (into {} r)))
+
+(defn create-record [instance-name auth-token sfdc-namespace entity-name instances]
+  (let [typename (type-name-from-entity-name sfdc-namespace entity-name)
+        url (str "https://" instance-name "/services/data/v51.0/sobjects/" typename "/")
+        hdrs {"Authorization" (str "Bearer " auth-token)
+              "Content-Type" "application/json"}
+        results (map #(let [attrs (custom-names
+                                   sfdc-namespace
+                                   (dissoc (cn/instance-attributes %) :Id))
+                            opts {:body (json/generate-string attrs)
+                                  :headers hdrs}]
+                        (http/post url opts))
+                     instances)]
+    (doseq [r results]
+      (let [s (:status @r)]
+        (when-not (<= 200 s 201)
+          (log/error @r)
+          (u/throw-ex (str "SFDC create-record failed with status " s)))))
+    instances))

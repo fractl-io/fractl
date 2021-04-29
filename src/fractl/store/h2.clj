@@ -42,6 +42,8 @@
         (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
         (db/drop-schema @datasource component-name))
+      (create-table [_ entity-name]
+        (db/create-table @datasource entity-name))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance @datasource entity-name instance))
       (delete-by-id [_ entity-name id]

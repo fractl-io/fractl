@@ -11,6 +11,7 @@
             [fractl.resolver.registry :as rg]
             [fractl.evaluator.parser :as parser]
             [fractl.evaluator.internal :as i]
+            [fractl.lang :as ln]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]))
 
@@ -456,6 +457,15 @@
         (if-let [r (ok-result result)]
           (eval-for-each self (:env result) eval-opcode r body-code result-alias)
           result)))
+
+    (do-entity-def [_ env schema]
+      (let [n (li/record-name schema)
+            [c _] (li/split-path n)
+            old-c (cn/switch-component c)
+            r (ln/entity schema)]
+        (store/create-table (env/get-store env) n)
+        (cn/switch-component old-c)
+        (i/ok r env)))
 
     (do-pull [_ env options]
       (if-let [store (env/get-store env)]

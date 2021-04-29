@@ -37,6 +37,11 @@
   #?(:clj (.get current-component)
      :cljs @current-component))
 
+(defn switch-component [n]
+  (let [oldn (get-current-component)]
+    (set-current-component n)
+    oldn))
+
 (defn fetch-components-inited! []
   #?(:clj
      (dosync
