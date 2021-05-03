@@ -3,7 +3,14 @@
                  [org.clojure/clojurescript "1.10.773"
                   :exclusions [com.google.code.findbugs/jsr305]]
                  [org.clojure/tools.cli "1.0.194"]
+                 [org.clojure/data.xml "0.2.0-alpha5"]
+                 [aysylu/loom "1.0.2"]
                  [cheshire "5.9.0"]
+                 ;; required for store/sfdc-metadata
+                 [org.antlr/antlr-complete "3.5.2"]
+                 [com.force.api/force-wsc "51.2.0"]
+                 [com.force.api/force-metadata-api "51.2.0"]
+
                  [com.taoensso/timbre "5.1.0"
                   :exclusions [org.clojure/tools.reader]]
                  [seancorfield/next.jdbc "1.1.581"]
@@ -23,6 +30,8 @@
                  [com.cognitect/transit-clj "1.0.324"]
                  [com.cognitect/transit-cljs "0.8.264"]]
 
+  :java-source-paths ["src/java"]
+  :resource-paths ["lib/sfdc-enterprise.jar"]
   :main fractl.core
   :aot :all
 

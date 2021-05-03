@@ -37,6 +37,11 @@
   #?(:clj (.get current-component)
      :cljs @current-component))
 
+(defn switch-component [n]
+  (let [oldn (get-current-component)]
+    (set-current-component n)
+    oldn))
+
 (defn fetch-components-inited! []
   #?(:clj
      (dosync
@@ -477,21 +482,21 @@
 
       :else true)
     (let [dval (:default ascm)]
-      (if-not (nil? dval)
-        (if (fn? dval) (dval) dval)
-        false))))
+      (when-not (nil? dval)
+        (if (fn? dval) (dval) dval)))))
 
 (defn- apply-attribute-validation [aname ascm attributes]
   (if (or (:expr ascm) (:query ascm))
     attributes
     (if-let [[_ aval] (get-attr-val ascm attributes aname)]
-      (when (valid-attribute-value aname aval ascm)
-        attributes)
-      (if-let [dval (valid-attribute-value aname nil ascm)]
-        (assoc attributes aname dval)
-        (if (:optional ascm)
-          attributes
-          (throw-error (str "no default value defined for " aname)))))))
+      (do (valid-attribute-value aname aval ascm)
+          attributes)
+      (let [dval (valid-attribute-value aname nil ascm)]
+        (if-not (nil? dval)
+          (assoc attributes aname dval)
+          (if (:optional ascm)
+            attributes
+            (throw-error (str "no default value defined for " aname))))))))
 
 (defn- ensure-attribute-is-instance-of [recname attrname attributes]
   (if-let [aval (get attributes attrname)]
@@ -1001,3 +1006,6 @@
     (validate-record-attributes
      n (instance-attributes inst) schema)
     inst))
+
+(defn tag-record [recname attrs]
+  (assoc attrs :name recname type-tag-key :record))

@@ -5,7 +5,8 @@
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
             [fractl.component :as cn]
-            [fractl.compiler :as c]))
+            [fractl.compiler :as c]
+            [fractl.resolver.registry :as r]))
 
 (defn- normalize-imports [imports]
   (let [imps (rest imports)]
@@ -470,7 +471,20 @@
             :Identifier {:check keyword? :unique true}}})
 
   (event :Kernel/AppInit
-         {:AppName :Kernel/Keyword}))
+         {:AppName :Kernel/Keyword})
+
+  #?(:clj
+     (do
+       (cn/create-component :Git {})
+
+       (event :Git/Push
+              {:Path :Kernel/String})
+
+       (r/register-resolvers
+        [{:name :git
+          :type :git
+          :compose? false
+          :paths [:Git/Push]}]))))
 
 (defn- initf []
   (when-not @kernel-inited

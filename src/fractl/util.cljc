@@ -164,3 +164,20 @@
 (defn apply0 [f] (f))
 
 (defn noop [])
+
+(defn getenv
+  ([varname default]
+   (let [val (or (System/getenv varname) default)]
+     (if-not (nil? val)
+       val
+       (throw-ex (str varname " - environment variable not set")))))
+  ([varname]
+   (getenv varname nil)))
+
+(defn empty-string?
+  "Return true if x is either nil or an empty string"
+  [x]
+  (let [s (if (string? x)
+            (seq (string/trim x))
+            x)]
+    (or (nil? x) (nil? s))))

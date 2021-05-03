@@ -691,7 +691,6 @@
     (is (cn/instance-of? :MultiInheritsMeta/E e2))
     (is (= [1 2 "hi" nil 200 300] [(:X e2) (:Y e2) (:S e2) (:A e2) (:B e2) (:C e1)]))))
 
-
 (deftest edn-attribute
   (defcomponent :EdnAttr
     (entity :EdnAttr/Form {:Title :Kernel/String
