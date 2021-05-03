@@ -181,11 +181,19 @@
         [pstmt params] (upsert-inst-statement conn table-name id obj)]
     (execute-stmt! conn pstmt params)))
 
+(defn- remove-unique-attributes [indexed-attrs entity-schema]
+  (if-let [uq-attrs (seq (cn/unique-attributes entity-schema))]
+    (clojure.set/difference (set indexed-attrs) (set uq-attrs))
+    indexed-attrs))
+
 (defn upsert-instance
-  ([upsert-inst-statement upsert-index-statement datasource entity-name instance]
+  ([upsert-inst-statement upsert-index-statement datasource entity-name instance update-unique-indices?]
    (let [tabname (su/table-for-entity entity-name)
          entity-schema (su/find-entity-schema entity-name)
-         indexed-attrs (cn/indexed-attributes entity-schema)
+         all-indexed-attrs (cn/indexed-attributes entity-schema)
+         indexed-attrs (if update-unique-indices?
+                         all-indexed-attrs
+                         (remove-unique-attributes all-indexed-attrs entity-schema))
          ref-attrs (cn/ref-attribute-schemas entity-schema)]
      (transact-fn! datasource
                    (fn [txn]
@@ -195,7 +203,15 @@
   ([datasource entity-name instance]
    (upsert-instance
     upsert-inst-statement upsert-index-statement
-    datasource entity-name instance)))
+    datasource entity-name instance true)))
+
+(defn update-instance
+  ([upsert-inst-statement upsert-index-statement datasource entity-name instance]
+   (upsert-instance upsert-inst-statement upsert-index-statement datasource
+                    entity-name instance false))
+  ([datasource entity-name instance]
+   (upsert-instance upsert-inst-statement upsert-index-statement datasource
+                    entity-name instance false)))
 
 (defn- delete-indices!
   "Delete index entries relevant for an entity instance."
@@ -240,6 +256,10 @@
             (set ids))))))
   ([datasource entity-name query-sql ids]
    (query-by-id query-by-id-statement datasource entity-name query-sql ids)))
+
+(defn query-by-unique-keys [datasource entity-name unique-keys unique-values]
+  ;; TODO: query by unique key index values
+  )
 
 (defn query-all [datasource entity-name query-sql]
   (execute-fn!

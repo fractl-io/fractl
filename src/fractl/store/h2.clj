@@ -44,12 +44,16 @@
         (db/drop-schema @datasource component-name))
       (create-table [_ entity-name]
         (db/create-table @datasource entity-name))
+      (update-instance [_ entity-name instance]
+        (db/update-instance @datasource entity-name instance))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance @datasource entity-name instance))
       (delete-by-id [_ entity-name id]
         (db/delete-by-id @datasource entity-name id))
       (query-by-id [_ entity-name query ids]
         (db/query-by-id @datasource entity-name query ids))
+      (query-by-unique-keys [store entity-name unique-keys unique-values]
+        (db/query-by-unique-keys @datasource entity-name unique-keys unique-values))
       (query-all [_ entity-name query]
         (db/query-all @datasource entity-name query))
       (do-query [_ query params]

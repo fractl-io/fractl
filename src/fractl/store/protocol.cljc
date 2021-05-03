@@ -30,12 +30,16 @@
   (upsert-instance [store entity-name instance]
     "Insert or update the instance in the store. On success, return instance.
      On failure, raise an exception.")
+  (update-instance [store entity-name instance]
+    "Update the instance without violating unique-key constraints.")
   (delete-by-id [store entity-name id]
     "Delete the instance with the given id. On success, return id.
      If the instance does not exist, return nil. On failure, raise an exception.")
   (query-by-id [store entity-name query-sql ids]
     "Return the instances with the given :Id attributes. Return nil if the instances
      does not exist. On failure, raise an exception.")
+  (query-by-unique-keys [store entity-name unique-keys unique-values]
+    "Return the instance with the given unique values, if no data found, return nil.")
   (query-all [store entity-name query-sql]
     "Return all instances of the entity. Return nil if the instances
      does not exist. On failure, raise an exception.")

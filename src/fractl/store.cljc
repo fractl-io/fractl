@@ -4,6 +4,8 @@
             #?(:clj [fractl.store.postgres :as postgres])
             #?(:clj [fractl.store.sfdc.metadata :as sfdc-metadata])
             #?(:cljs [fractl.store.reagent.core :as reagent])
+            [fractl.component :as cn]
+            [fractl.store.util :as su]
             [fractl.store.protocol :as p]
             [fractl.util :as u]))
 
@@ -53,13 +55,31 @@
   ([]
    (open-reagent-store nil)))
 
+(defn- merge-non-unique [inst-a inst-b unique-keys]
+  (loop [ks (keys inst-a), result inst-a]
+    (if-let [k (first ks)]
+      (if-not (some #{k} uq-attrs)
+        (if-let [v (get inst-b k)]
+          (recur (rest ks) (assoc result k v))
+          (recur (rest ks) result))
+        (recur (rest ks) result))
+      result)))
+
+(defn- upsert-instance [store record-name instance]
+  (let [uq-attrs (cn/unique-attributes
+                  (su/find-entity-schema record-name))]
+    (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
+                               (p/query-by-unique-keys store record-name uq-attrs instance))]
+      (p/update-instance store record-name (merge-non-unique old-instance instance uq-attrs))
+      (p/upsert-instance store record-name instance))))
+
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)
 (def connection-info p/connection-info)
 (def create-schema p/create-schema)
 (def drop-schema p/drop-schema)
 (def create-table p/create-table)
-(def upsert-instance p/upsert-instance)
+(def upsert-instance upsert-instance)
 (def delete-by-id p/delete-by-id)
 (def query-by-id p/query-by-id)
 (def query-all p/query-all)
@@ -79,5 +99,5 @@
 
 (defn upsert-instances [store record-name insts]
   (doseq [inst insts]
-    (p/upsert-instance store record-name inst))
+    (upsert-instance store record-name inst))
   insts)
