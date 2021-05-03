@@ -238,9 +238,18 @@
 (defn- normalized-attributes [recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
         meta (:meta orig-attrs)
-        req-attrs (or (:required-attributes meta)
-                      (required-attribute-names orig-attrs))
-        attrs (if meta (dissoc orig-attrs :meta) orig-attrs)
+        inherits (:inherits orig-attrs)
+        [_ scm] (cn/find-schema inherits)
+        inherited-scm (when scm (:schema scm))
+        req-inherited-attrs (or (:required-attributes inherited-scm)
+                                (required-attribute-names inherited-scm))
+        base-attrs (dissoc orig-attrs :meta :inherits)
+        attrs (if inherited-scm
+                (merge inherited-scm base-attrs)
+                base-attrs)
+        req-orig-attrs (or (:required-attributes meta)
+                           (required-attribute-names attrs))
+        req-attrs (concat req-orig-attrs req-inherited-attrs)
         attrs-with-defaults (into {} (map (partial assoc-defaults req-attrs) attrs))
         newattrs (map (partial normalize-attr recname attrs f) attrs-with-defaults)
         final-attrs (into {} (validate-attributes newattrs))]
