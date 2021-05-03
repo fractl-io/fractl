@@ -148,3 +148,15 @@
               {:BatchId batch-id :LineId line-id}})
         r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (= (:AvailableQty r) 18))))
+
+(deftest idempotent-upsert
+  (defcomponent :IdUps
+    (entity {:IdUps/E {:X {:type :Kernel/Int
+                           :unique true
+                           :indexed true}}})
+    (let [e1 (cn/make-instance :IdUps/E {:X 10})
+          r1 (ffirst (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e1}})))
+          e2 (cn/make-instance :IdUps/E {:X 10})
+          r2 (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e2}})]
+      ;; TODO: complete the test
+      (doall [r1 r2]))))
