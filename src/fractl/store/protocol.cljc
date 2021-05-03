@@ -1,4 +1,11 @@
-(ns fractl.store.protocol)
+(ns fractl.store.protocol
+  (:require [fractl.util :as u]))
+
+(defn- not-implemented [method]
+  (u/throw-ex
+   (str
+    (name method)
+    " - method not implemented for this storage layer")))
 
 (defprotocol Store
   "The interface for all storage layer technologies."
@@ -18,6 +25,8 @@
   (drop-schema [store component-name]
     "Drop the schema for the component. Return component-name on success, nil if the
      schema does not exist. On failure, raise an exception.")
+  (create-table [store entity-name]
+    "Create a table for a newly defined entity.")
   (upsert-instance [store entity-name instance]
     "Insert or update the instance in the store. On success, return instance.
      On failure, raise an exception.")
@@ -38,4 +47,15 @@
      store implementation.")
   (get-reference [store path refs]
     "Get reference to instances stored in the store. This is useful for
-     tracking instances in reactive store"))
+     tracking instances in reactive store")
+  (pull [store options]
+    "Pull data to local storage, based on options.
+     The spec for options is implementation specific"
+    (not-implemented :pull))
+  (commit [store msg]
+    "Commit local changes, return the version number"
+    (not-implemented :commit))
+  (push [store options]
+    "Push all current local commits to the remote store.
+     The spec for options is implementation specific"
+    (not-implemented :push)))

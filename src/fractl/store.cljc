@@ -2,6 +2,7 @@
   (:require #?(:clj [fractl.store.h2 :as h2]
                :cljs [fractl.store.alasql :as alasql])
             #?(:clj [fractl.store.postgres :as postgres])
+            #?(:clj [fractl.store.sfdc.metadata :as sfdc-metadata])
             #?(:cljs [fractl.store.reagent.core :as reagent])
             [fractl.store.protocol :as p]
             [fractl.util :as u]))
@@ -25,7 +26,8 @@
 (def ^:private store-constructors
   #?(:clj
      {:h2 h2/make
-      :postgres postgres/make}
+      :postgres postgres/make
+      :sfdc-metadata sfdc-metadata/make}
      :cljs
      {:alasql alasql/make
       :reagent reagent/make}))
@@ -56,6 +58,7 @@
 (def connection-info p/connection-info)
 (def create-schema p/create-schema)
 (def drop-schema p/drop-schema)
+(def create-table p/create-table)
 (def upsert-instance p/upsert-instance)
 (def delete-by-id p/delete-by-id)
 (def query-by-id p/query-by-id)
@@ -63,6 +66,8 @@
 (def do-query p/do-query)
 (def compile-query p/compile-query)
 (def get-reference p/get-reference)
+(def pull p/pull)
+(def push p/push)
 
 (defn reactive?
   "Checks whether a given store supports reactive references"

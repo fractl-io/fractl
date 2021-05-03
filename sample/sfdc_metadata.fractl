@@ -1,0 +1,163 @@
+(ns sample.sfdc-metadata
+  (:use [fractl.lang]))
+
+(component :Sample.SfdcMetadata)
+
+(dataflow :Sample.SfdcMetadata/PullMetadata
+          [:pull])
+
+(dataflow :Sample.SfdcMetadata/PushMetadata
+          [:push])
+
+(dataflow :Sample.SfdcMetadata/GitPush
+          {:Git/Push {:Path :Sample.SfdcMetadata/GitPush.Path}})
+
+(def access-levels ["Read" "Edit" "None"])
+
+(entity :Sample.SfdcMetadata/Role
+        {:FullName {:type :Kernel/String
+                    :indexed true
+                    :unique true}
+         :Name {:type :Kernel/String :optional true}
+         :CaseAccessLevel {:oneof access-levels :default "None"}
+         :ContactAccessLevel {:oneof access-levels :default "None"}
+         :MayForecastManagerShare {:type :Kernel/Boolean :default false}
+         :ParentRole {:type :Kernel/String :optional true}
+         :OpportunityAccessLevel {:oneof access-levels :default "None"}
+         :Description {:type :Kernel/String :optional true}})
+
+(event :Sample.SfdcMetadata/UpdateRoleName
+       {:FullName :Kernel/String
+        :NewName :Kernel/String})
+
+(dataflow :Sample.SfdcMetadata/UpdateRoleName
+          {:Sample.SfdcMetadata/Role
+           {:FullName? :Sample.SfdcMetadata/UpdateRoleName.FullName
+            :Name :Sample.SfdcMetadata/UpdateRoleName.NewName}})
+
+(record :Sample.SfdcMetadata/UserPermission
+        {:Enabled :Kernel/Boolean
+         :Name :Kernel/String})
+
+(record :Sample.SfdcMetadata/ProfileApexPageAccess
+        {:ApexPage :Kernel/String
+         :Enabled :Kernel/Boolean})
+
+(entity :Sample.SfdcMetadata/Profile
+        {:FullName {:type :Kernel/String
+                    :indexed true
+                    :unique true}
+         :Custom :Kernel/Boolean
+         :PageAccesses {:listof :Kernel/Map}
+         :UserLicense :Kernel/String
+         :UserPermissions {:listof :Kernel/Map}})
+
+(event :Sample.SfdcMetadata/UpdateProfileLicense
+       {:FullName :Kernel/String
+        :NewLicense :Kernel/String})
+
+(dataflow :Sample.SfdcMetadata/UpdateProfileLicense
+          {:Sample.SfdcMetadata/Profile
+           {:FullName? :Sample.SfdcMetadata/UpdateProfileLicense.FullName
+            :UserLicense :Sample.SfdcMetadata/UpdateProfileLicense.NewLicense}})
+
+(def password-policies ["NoRestriction" "AlphaNumeric" "SpecialCharacters"
+                        "UpperLowerCaseNumeric" "UpperLowerCaseNumericSpecialCharacters"
+                        "Any3UpperLowerCaseNumericSpecialCharacters"])
+
+(def password-expiration ["Never" "ThirtyDays" "SixtyDays" "NinetyDays"
+                          "SixMonths" "OneYear"])
+
+(def password-lockout-interval ["FifteenMinutes" "ThirtyMinutes" "SixtyMinutes" "Forever"])
+
+(def password-max-login-attempts ["NoLimit" "ThreeAttempts" "FiveAttempts" "TenAttempts"])
+
+(record :Sample.SfdcMetadata/PasswordPolicies
+        {:Complexity {:oneof password-policies
+                      :default "AlphaNumeric"}
+         :ExpirationNinetyDays {:oneof password-expiration
+                                :default "NinetyDays"}
+         :HistoryRestriction {:type :Kernel/Integer
+                              :default 3}
+         :LockoutInterval {:oneof password-lockout-interval
+                           :default "FifteenMinutes"}
+         :MaxLoginAttempts {:oneof password-max-login-attempts
+                            :default "TenAttempts"}
+         :MinimumPasswordLength {:type :Kernel/Integer
+                                 :default 8}
+         :MinimumPasswordLifetime :Kernel/Boolean
+         :ObscureSecretAnswer :Kernel/Boolean
+         :QuestionRestriction {:oneof ["None" "DoesNotContainPassword"]
+                               :default "DoesNotContainPassword"}})
+
+(def session-timeout ["FifteenMinutes" "ThirtyMinutes" "SixtyMinutes"
+                      "TwoHours" "FourHours" "EightHours" "TwelveHours"])
+
+(record :Sample.SfdcMetadata/SessionSettings
+        {:AllowUserAuthenticationByCertificate :Kernel/Boolean
+         :CanConfirmEmailChangeInLightningCommunities :Kernel/Boolean
+         :CanConfirmIdentityBySmsOnly :Kernel/Boolean
+         :DisableTimeoutWarning :Kernel/Boolean
+         :EnableCSPOnEmail :Kernel/Boolean
+         :EnableCSRFOnGet :Kernel/Boolean
+         :EnableCSRFOnPost :Kernel/Boolean
+         :EnableCacheAndAutocomplete :Kernel/Boolean
+         :EnableClickjackNonsetupSFDC :Kernel/Boolean
+         :EnableClickjackNonsetupUser :Kernel/Boolean
+         :EnableClickjackNonsetupUserHeaderless :Kernel/Boolean
+         :EnableClickjackSetup :Kernel/Boolean
+         :EnableContentSniffingProtection :Kernel/Boolean
+         :EnableLightningLogin :Kernel/Boolean
+         :EnableLightningLoginOnlyWithUserPerm :Kernel/Boolean
+         :EnableOauthCorsPolicy :Kernel/Boolean
+         :EnablePostForSessions :Kernel/Boolean
+         :EnableSMSIdentity :Kernel/Boolean
+         :EnableU2F :Kernel/Boolean
+         :EnableUpgradeInsecureRequests :Kernel/Boolean
+         :EnableXssProtection :Kernel/Boolean
+         :EnforceIpRangesEveryRequest :Kernel/Boolean
+         :EnforceUserDeviceRevoked :Kernel/Boolean
+         :ForceLogoutOnSessionTimeout :Kernel/Boolean
+         :ForceRelogin :Kernel/Boolean
+         :HasRetainedLoginHints :Kernel/Boolean
+         :HasUserSwitching :Kernel/Boolean
+         :HstsOnForcecomSites :Kernel/Boolean
+         :IdentityConfirmationOnEmailChange :Kernel/Boolean
+         :IdentityConfirmationOnTwoFactorRegistrationEnabled :Kernel/Boolean
+         :LockSessionsToDomain :Kernel/Boolean
+         :LockSessionsToIp :Kernel/Boolean
+         :LockerServiceCSP :Kernel/Boolean
+         :LockerServiceNext :Kernel/Boolean
+         :RedirectionWarning :Kernel/Boolean
+         :ReferrerPolicy :Kernel/Boolean
+         :RequireHttpOnly :Kernel/Boolean
+         :RequireHttps :Kernel/Boolean
+         :SessionTimeout {:oneof session-timeout
+                          :default "TwoHours"}})
+
+(record :Sample.SfdcMetadata/SingleSignOnSettings
+        {:EnableCaseInsensitiveFederationID :Kernel/Boolean
+         :EnableMultipleSamlConfigs :Kernel/Boolean
+         :EnableSamlJitProvisioning :Kernel/Boolean
+         :EnableSamlLogin :Kernel/Boolean
+         :IsLoginWithSalesforceCredentialsDisabled :Kernel/Boolean})
+
+(entity :Sample.SfdcMetadata/SecuritySettings
+        {:FullName {:type :Kernel/String
+                    :default "Security"}
+         :NetworkAccess {:type :Kernel/Map :default {}}
+         :CanUsersGrantLoginAccess :Kernel/Boolean
+         :EnableAdminLoginAsAnyUser :Kernel/Boolean
+         :EnableAuditFieldsInactiveOwner :Kernel/Boolean
+         :EnableAuraSecureEvalPref :Kernel/Boolean
+         :EnableRequireHttpsConnection :Kernel/Boolean
+         :PasswordPolicies :Sample.SfdcMetadata/PasswordPolicies
+         :SessionSettings :Sample.SfdcMetadata/SessionSettings
+         :SingleSignOnSettings :Sample.SfdcMetadata/SingleSignOnSettings})
+
+(dataflow :Sample.SfdcMetadata/LoadSecuritySettings
+          :Sample.SfdcMetadata/SecuritySettings?)
+
+(dataflow :Sample.SfdcMetadata/MakeEntity
+          [:entity {:Sample.SfdcMetadata/E19 {:Name :Kernel/String
+                                              :X :Kernel/String}}])

@@ -289,7 +289,7 @@
              (conj body-code [(compile-pattern ctx body-pat)]))
       body-code)))
 
-(defn- compile-for-each-macro [ctx pat]
+(defn- compile-for-each [ctx pat]
   (let [bind-pat-code (compile-pattern ctx (first pat))
         [body-pats alias] (special-form-alias (rest pat))
         body-code (compile-for-each-body ctx body-pats)]
@@ -314,7 +314,7 @@
                                             [(compile-pattern ctx conseq)]]))
       cases-code)))
 
-(defn- compile-match-macro [ctx pat]
+(defn- compile-match [ctx pat]
   (let [match-pat-code (compile-pattern ctx (first pat))
         [cases alternative alias] (extract-match-clauses (rest pat))
         cases-code (compile-match-cases ctx cases)
@@ -323,7 +323,7 @@
       (ctx/add-alias! ctx alias alias))
     (emit-match [match-pat-code] cases-code [alt-code] alias)))
 
-(defn- compile-delete-macro [ctx [recname id-pat]]
+(defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
     (emit-delete (li/split-path recname) [id-pat-code])))
 
@@ -340,18 +340,30 @@
 
 (declare compile-dataflow)
 
-(defn- compile-eval-on-macro [ctx pat]
+(defn- compile-eval-on [ctx pat]
   (let [evt-name (first pat)
         eval-pattern (rest pat)]
     (op/eval-on
      [evt-name
       (compile-dataflow ctx evt-name eval-pattern)])))
 
+(defn- compile-pull [_ pat]
+  (op/pull pat))
+
+(defn- compile-push [_ pat]
+  (op/push pat))
+
+(defn- compile-entity-definition [_ pat]
+  (op/entity-def (first pat)))
+
 (def ^:private special-form-handlers
-  {:match compile-match-macro
-   :for-each compile-for-each-macro
-   :delete compile-delete-macro
-   :eval-on compile-eval-on-macro})
+  {:match compile-match
+   :for-each compile-for-each
+   :delete compile-delete
+   :eval-on compile-eval-on
+   :pull compile-pull
+   :push compile-push
+   :entity compile-entity-definition})
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic

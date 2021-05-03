@@ -46,7 +46,7 @@
     quote-tag unquote-tag
     :and :or := :< :<= :> :>=
     :between :async :future-get
-    :resolver :eval-on})
+    :resolver :eval-on :pull :push :entity})
 
 (defn special-form? [x]
   (and (vector? x)

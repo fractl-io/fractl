@@ -11,6 +11,7 @@
             [fractl.resolver.registry :as rg]
             [fractl.evaluator.parser :as parser]
             [fractl.evaluator.internal :as i]
+            [fractl.lang :as ln]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]))
 
@@ -74,9 +75,9 @@
 (def ^:private resolver-upsert (partial call-resolver-upsert r/call-resolver-upsert))
 (def ^:private resolver-delete (partial call-resolver-delete r/call-resolver-delete))
 
-(defn- call-resolver-eval [resolver composed? inst]
+(defn- call-resolver-eval [resolver composed? env inst]
   (let [rs (if composed? resolver [resolver])]
-    (doall (map #(r/call-resolver-eval % inst) rs))))
+    (doall (map #(r/call-resolver-eval % env inst) rs))))
 
 (def ^:private inited-components (u/make-cell []))
 
@@ -194,12 +195,16 @@
 
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)
-              (store/compile-query store full-query))
-        [id-results env] (evaluate-id-queries env store (:id-queries q))]
-    [(if (seq id-results)
-       (store/query-by-id store entity-name (:query q) id-results)
-       (store/query-all store entity-name (:query q)))
-     env]))
+              (store/compile-query store full-query))]
+    (if (:query-direct q)
+      [(store/do-query store (:raw-query full-query)
+                       {:lookup-fn-params [env nil]})
+       env]
+      (let [[id-results env] (evaluate-id-queries env store (:id-queries q))]
+        [(if (seq id-results)
+           (store/query-by-id store entity-name (:query q) id-results)
+           (store/query-all store entity-name (:query q)))
+         env]))))
 
 (defn find-instances [env store entity-name full-query]
   (let [[r env] (find-instances-via-resolvers env entity-name full-query)
@@ -418,7 +423,7 @@
                             timeout-ms
                             #(doall (eval-event-dataflows self eval-env inst))))
             resolver-results (when resolver
-                               (call-resolver-eval resolver composed? inst))]
+                               (call-resolver-eval resolver composed? env inst))]
         (i/ok (pack-results local-result resolver-results) env)))
 
     (do-delete-instance [self env [record-name id-pattern-code]]
@@ -451,7 +456,26 @@
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
           (eval-for-each self (:env result) eval-opcode r body-code result-alias)
-          result)))))
+          result)))
+
+    (do-entity-def [_ env schema]
+      (let [n (li/record-name schema)
+            [c _] (li/split-path n)
+            old-c (cn/switch-component c)
+            r (ln/entity schema)]
+        (store/create-table (env/get-store env) n)
+        (cn/switch-component old-c)
+        (i/ok r env)))
+
+    (do-pull [_ env options]
+      (if-let [store (env/get-store env)]
+        (i/ok (store/pull store (first options)) env)
+        (i/error (str "pull failed - store not set in environment"))))
+
+    (do-push [_ env options]
+      (if-let [store (env/get-store env)]
+        (i/ok (store/push store (first options)) env)
+        (i/error (str "push failed - store not set in environment"))))))
 
 (def ^:private default-evaluator (u/make-cell))
 
@@ -459,4 +483,3 @@
   (u/safe-set-once
    default-evaluator
    #(make-root-vm eval-event-dataflows eval-opcode eval-dataflow)))
-
