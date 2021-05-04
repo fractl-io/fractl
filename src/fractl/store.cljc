@@ -55,7 +55,10 @@
   ([]
    (open-reagent-store nil)))
 
-(defn- merge-non-unique [inst-a inst-b unique-keys]
+(defn- merge-non-unique
+  "Merge non-unique attributes from inst-b to inst-a.
+   The resulting instance is used for updating the store."
+  [inst-a inst-b unique-keys]
   (loop [ks (keys inst-a), result inst-a]
     (if-let [k (first ks)]
       (if-not (some #{k} unique-keys)
