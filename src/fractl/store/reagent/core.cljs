@@ -19,12 +19,18 @@
           {}))
       (create-schema [_ component-name])
       (drop-schema [_ component-name])
+      (update-instance [_ entity-name instance]
+        ;; always over-write
+        (i/upsert-instance entity-name instance))
       (upsert-instance [_ entity-name instance]
         (i/upsert-instance entity-name instance))
       (delete-by-id [_ entity-name id]
         (i/delete-by-id entity-name id))
       (query-by-id [_ entity-name query ids]
         (i/query-by-id entity-name ids))
+      (query-by-unique-keys [_ entity-name unique-keys unique-values]
+        ;; no unique-key enforcement, always over-write
+        nil)
       (do-query [_ query params]
         (u/throw-ex "Not implemented"))
       (compile-query
