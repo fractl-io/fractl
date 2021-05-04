@@ -70,7 +70,13 @@
                   (su/find-entity-schema record-name))]
     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
                                (p/query-by-unique-keys store record-name uq-attrs instance))]
-      (p/update-instance store record-name (merge-non-unique old-instance instance uq-attrs))
+      (let [new-instance
+            (p/update-instance
+             store record-name
+             (merge-non-unique old-instance instance uq-attrs))]
+        {:transition
+         {:from old-instance
+          :to new-instance}})
       (p/upsert-instance store record-name instance))))
 
 (def open-connection p/open-connection)
@@ -98,6 +104,7 @@
     false))
 
 (defn upsert-instances [store record-name insts]
-  (doseq [inst insts]
-    (upsert-instance store record-name inst))
-  insts)
+  (doall
+   (map
+    #(upsert-instance store record-name %)
+    insts)))
