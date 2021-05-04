@@ -58,7 +58,7 @@
 (defn- merge-non-unique [inst-a inst-b unique-keys]
   (loop [ks (keys inst-a), result inst-a]
     (if-let [k (first ks)]
-      (if-not (some #{k} uq-attrs)
+      (if-not (some #{k} unique-keys)
         (if-let [v (get inst-b k)]
           (recur (rest ks) (assoc result k v))
           (recur (rest ks) result))

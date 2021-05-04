@@ -1,5 +1,6 @@
 (ns fractl.store.db-common
-  (:require [fractl.component :as cn]
+  (:require [clojure.string :as s]
+            [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.store.util :as su]
             [fractl.store.sql :as sql]
@@ -239,6 +240,10 @@
                  (delete-inst! txn tabname id)))
     id))
 
+(def compile-to-indexed-query (partial sql/compile-to-indexed-query
+                                       su/table-for-entity
+                                       su/index-table-name))
+
 (defn- query-instances [entity-name query-fns]
   (let [[id-key json-key] (su/make-result-keys entity-name)
         results (flatten (map u/apply0 query-fns))]
@@ -257,9 +262,24 @@
   ([datasource entity-name query-sql ids]
    (query-by-id query-by-id-statement datasource entity-name query-sql ids)))
 
+(defn do-query [datasource query-sql query-params]
+  (execute-fn!
+   datasource
+   (fn [conn]
+     (let [[pstmt params] (do-query-statement conn query-sql query-params)]
+       (execute-stmt! conn pstmt params)))))
+
 (defn query-by-unique-keys [datasource entity-name unique-keys unique-values]
-  ;; TODO: query by unique key index values
-  )
+  (let [c (compile-to-indexed-query
+           {:from entity-name
+            :where (let [k (first (filter #(not= :Id %) unique-keys))]
+                     [:= k (get unique-values k)])})
+        id-query (:query (first (:id-queries c)))
+        id-result (do-query datasource (first id-query) (rest id-query))]
+    (when (seq id-result)
+      (let [id (second (first (filter (fn [[k _]] (= "ID" (s/upper-case (name k)))) (first id-result))))
+            result (query-by-id datasource entity-name (:query c) [id])]
+        (first result)))))
 
 (defn query-all [datasource entity-name query-sql]
   (execute-fn!
@@ -269,14 +289,3 @@
       entity-name
       (let [[pstmt params] (do-query-statement conn query-sql nil)]
         [(fn [] (execute-stmt! conn pstmt params))])))))
-
-(defn do-query [datasource query-sql query-params]
-  (execute-fn!
-   datasource
-   (fn [conn]
-     (let [[pstmt params] (do-query-statement conn query-sql query-params)]
-       (execute-stmt! conn pstmt params)))))
-
-(def compile-to-indexed-query (partial sql/compile-to-indexed-query
-                                       su/table-for-entity
-                                       su/index-table-name))
