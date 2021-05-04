@@ -1,2 +1,1 @@
- * implement fractl.store.db-common/query-by-unique-keys
  * complete the fractl.test.query/idempotent-upsert test
