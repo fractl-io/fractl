@@ -269,12 +269,14 @@
      (let [[pstmt params] (do-query-statement conn query-sql query-params)]
        (execute-stmt! conn pstmt params)))))
 
-(defn query-by-unique-keys [datasource entity-name unique-keys unique-values]
+(defn query-by-unique-keys
+  "Query the instance by a unique-key value."
+  [datasource entity-name unique-keys attribute-values]
   (when-not (and (= 1 (count unique-keys)) (= :Id (first unique-keys)))
     (let [c (compile-to-indexed-query
              {:from entity-name
               :where (let [k (first (filter #(not= :Id %) unique-keys))]
-                       [:= k (get unique-values k)])})
+                       [:= k (get attribute-values k)])})
           id-query (:query (first (:id-queries c)))
           id-result (do-query datasource (first id-query) (rest id-query))]
       (when (seq id-result)
