@@ -1,2 +1,3 @@
 {:component-root "./sample"
+ :store {:type :sfdc-metadata}
  :service {:port 8080}}
