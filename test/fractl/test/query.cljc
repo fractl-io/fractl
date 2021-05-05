@@ -148,3 +148,23 @@
               {:BatchId batch-id :LineId line-id}})
         r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
     (is (= (:AvailableQty r) 18))))
+
+(deftest idempotent-upsert
+  (defcomponent :IdUps
+    (entity {:IdUps/E {:X {:type :Kernel/Int
+                           :unique true
+                           :indexed true}
+                       :Y :Kernel/Int}})
+    (let [e1 (cn/make-instance :IdUps/E {:X 10 :Y 20})
+          r1 (ffirst (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e1}})))
+          id (:Id r1)
+          r2 (ffirst (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))
+          e2 (cn/make-instance :IdUps/E {:X 10 :Y 30})
+          r3 (ffirst (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e2}})))
+          r4 (ffirst (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))]
+      (is (= 20 (get-in r3 [:transition :from :Y])))
+      (is (= 30 (get-in r3 [:transition :to :Y])))
+      (is (= id (:Id r4)))
+      (is (= (:X r2) (:X r4)))
+      (is (= 20 (:Y r2)))
+      (is (= 30 (:Y r4))))))

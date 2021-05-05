@@ -14,12 +14,10 @@
 (defn db-schema-for-component [component-name]
   (s/replace (name component-name) #"\." "_"))
 
-(defn table-for-entity
-  ([entity-name db-schema-name]
-   (let [[component-name r] (li/split-path entity-name)
-         scmname (db-schema-for-component component-name)]
-     (str scmname "__" (db-ident r))))
-  ([entity-name] (table-for-entity entity-name nil)))
+(defn table-for-entity [entity-name]
+  (let [[component-name r] (li/split-path entity-name)
+        scmname (db-schema-for-component component-name)]
+    (str scmname "__" (db-ident r))))
 
 (defn indexed-attributes [entity-schema]
   (set (remove #{:Id} (cn/indexed-attributes entity-schema))))

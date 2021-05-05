@@ -1,5 +1,6 @@
 (ns fractl.store.db-common
-  (:require [fractl.component :as cn]
+  (:require [clojure.string :as s]
+            [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.store.util :as su]
             [fractl.store.sql :as sql]
@@ -181,11 +182,19 @@
         [pstmt params] (upsert-inst-statement conn table-name id obj)]
     (execute-stmt! conn pstmt params)))
 
+(defn- remove-unique-attributes [indexed-attrs entity-schema]
+  (if-let [uq-attrs (seq (cn/unique-attributes entity-schema))]
+    (clojure.set/difference (set indexed-attrs) (set uq-attrs))
+    indexed-attrs))
+
 (defn upsert-instance
-  ([upsert-inst-statement upsert-index-statement datasource entity-name instance]
+  ([upsert-inst-statement upsert-index-statement datasource entity-name instance update-unique-indices?]
    (let [tabname (su/table-for-entity entity-name)
          entity-schema (su/find-entity-schema entity-name)
-         indexed-attrs (cn/indexed-attributes entity-schema)
+         all-indexed-attrs (cn/indexed-attributes entity-schema)
+         indexed-attrs (if update-unique-indices?
+                         all-indexed-attrs
+                         (remove-unique-attributes all-indexed-attrs entity-schema))
          ref-attrs (cn/ref-attribute-schemas entity-schema)]
      (transact-fn! datasource
                    (fn [txn]
@@ -195,7 +204,15 @@
   ([datasource entity-name instance]
    (upsert-instance
     upsert-inst-statement upsert-index-statement
-    datasource entity-name instance)))
+    datasource entity-name instance true)))
+
+(defn update-instance
+  ([upsert-inst-statement upsert-index-statement datasource entity-name instance]
+   (upsert-instance upsert-inst-statement upsert-index-statement datasource
+                    entity-name instance false))
+  ([datasource entity-name instance]
+   (upsert-instance upsert-inst-statement upsert-index-statement datasource
+                    entity-name instance false)))
 
 (defn- delete-indices!
   "Delete index entries relevant for an entity instance."
@@ -223,6 +240,10 @@
                  (delete-inst! txn tabname id)))
     id))
 
+(def compile-to-indexed-query (partial sql/compile-to-indexed-query
+                                       su/table-for-entity
+                                       su/index-table-name))
+
 (defn- query-instances [entity-name query-fns]
   (let [[id-key json-key] (su/make-result-keys entity-name)
         results (flatten (map u/apply0 query-fns))]
@@ -241,6 +262,28 @@
   ([datasource entity-name query-sql ids]
    (query-by-id query-by-id-statement datasource entity-name query-sql ids)))
 
+(defn do-query [datasource query-sql query-params]
+  (execute-fn!
+   datasource
+   (fn [conn]
+     (let [[pstmt params] (do-query-statement conn query-sql query-params)]
+       (execute-stmt! conn pstmt params)))))
+
+(defn query-by-unique-keys
+  "Query the instance by a unique-key value."
+  [datasource entity-name unique-keys attribute-values]
+  (when-not (and (= 1 (count unique-keys)) (= :Id (first unique-keys)))
+    (let [c (compile-to-indexed-query
+             {:from entity-name
+              :where (let [k (first (filter #(not= :Id %) unique-keys))]
+                       [:= k (get attribute-values k)])})
+          id-query (:query (first (:id-queries c)))
+          id-result (do-query datasource (first id-query) (rest id-query))]
+      (when (seq id-result)
+        (let [id (second (first (filter (fn [[k _]] (= "ID" (s/upper-case (name k)))) (first id-result))))
+              result (query-by-id datasource entity-name (:query c) [id])]
+          (first result))))))
+
 (defn query-all [datasource entity-name query-sql]
   (execute-fn!
    datasource
@@ -249,14 +292,3 @@
       entity-name
       (let [[pstmt params] (do-query-statement conn query-sql nil)]
         [(fn [] (execute-stmt! conn pstmt params))])))))
-
-(defn do-query [datasource query-sql query-params]
-  (execute-fn!
-   datasource
-   (fn [conn]
-     (let [[pstmt params] (do-query-statement conn query-sql query-params)]
-       (execute-stmt! conn pstmt params)))))
-
-(def compile-to-indexed-query (partial sql/compile-to-indexed-query
-                                       su/table-for-entity
-                                       su/index-table-name))
