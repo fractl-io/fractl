@@ -1,6 +1,7 @@
 (ns fractl.evaluator.root
   "The default evaluator implementation"
   (:require [clojure.walk :as w]
+            [taoensso.timbre :as log]
             [fractl.env :as env]
             [fractl.async :as a]
             [fractl.component :as cn]
@@ -200,10 +201,15 @@
       [(store/do-query store (:raw-query full-query)
                        {:lookup-fn-params [env nil]})
        env]
-      (let [[id-results env] (evaluate-id-queries env store (:id-queries q))]
+      (let [idqs (seq (:id-queries q))
+            [id-results env]
+            (if idqs
+              (evaluate-id-queries env store idqs)
+              [nil env])]
         [(if (seq id-results)
            (store/query-by-id store entity-name (:query q) id-results)
-           (store/query-all store entity-name (:query q)))
+           (when-not idqs
+             (store/query-all store entity-name (:query q))))
          env]))))
 
 (defn find-instances [env store entity-name full-query]
