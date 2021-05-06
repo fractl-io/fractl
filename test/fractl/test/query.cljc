@@ -168,3 +168,46 @@
       (is (= (:X r2) (:X r4)))
       (is (= 20 (:Y r2)))
       (is (= 30 (:Y r4))))))
+
+(deftest query-by-id-and-delete
+  (defcomponent :QIdDel
+    (entity {:QIdDel/E {:X {:type :Kernel/Int
+                            :indexed true}}})
+    (event {:QIdDel/FindByIdAndDel
+            {:EId :Kernel/UUID}})
+    (dataflow :QIdDel/FindByIdAndDel
+              [:delete :QIdDel/E :QIdDel/FindByIdAndDel.EId]))
+  (let [e (cn/make-instance :QIdDel/E {:X 100})
+        e01 (ffirst (tu/fresult (e/eval-all-dataflows {:QIdDel/Upsert_E {:Instance e}})))
+        id (:Id e01)
+        devt (cn/make-instance :QIdDel/FindByIdAndDel {:EId id})
+        _ (doall (e/eval-all-dataflows devt))
+        levt (cn/make-instance :QIdDel/Lookup_E {:Id id})
+        lookup-result (doall (e/eval-all-dataflows levt))]
+    (is (= :not-found (:status (first lookup-result))))))
+
+(deftest query-and-delete
+  (defcomponent :QDel
+    (entity {:QDel/E {:X {:type :Kernel/Int
+                          :indexed true}}})
+    (event {:QDel/FindAndDel
+            {:X :Kernel/Int}})
+    (dataflow :QDel/FindAndDel
+              {:QDel/E {:X? :QDel/FindAndDel.X}}
+              [:delete :QDel/E :QDel/E.Id])
+    (dataflow :QDel/DeleteById
+              [:delete :QDel/E :QDel/DeleteById.EId]))
+  (let [e (cn/make-instance :QDel/E {:X 100})
+        e01 (ffirst (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e}})))
+        id (:Id e01)
+        devt (cn/make-instance :QDel/FindAndDel {:X 100})
+        _ (doall (e/eval-all-dataflows devt))
+        levt (cn/make-instance :QDel/Lookup_E {:Id id})
+        lookup-result (doall (e/eval-all-dataflows levt))
+        devt (cn/make-instance :QDel/FindAndDel {:X 100})
+        del-result1 (doall (e/eval-all-dataflows devt))
+        devt (cn/make-instance :QDel/DeleteById {:EId id})
+        del-result2 (doall (e/eval-all-dataflows devt))]
+    (is (= :not-found (:status (first del-result1))))
+    (is (= :ok (:status (first del-result2))))
+    (is (= :not-found (:status (first lookup-result))))))
