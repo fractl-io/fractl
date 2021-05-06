@@ -10,7 +10,6 @@
                  [org.antlr/antlr-complete "3.5.2"]
                  [com.force.api/force-wsc "51.2.0"]
                  [com.force.api/force-metadata-api "51.2.0"]
-
                  [com.taoensso/timbre "5.1.0"
                   :exclusions [org.clojure/tools.reader]]
                  [seancorfield/next.jdbc "1.1.581"]
@@ -28,7 +27,8 @@
                  [org.postgresql/postgresql "42.2.19"]
                  [cljc.java-time "0.1.11"]
                  [com.cognitect/transit-clj "1.0.324"]
-                 [com.cognitect/transit-cljs "0.8.264"]]
+                 [com.cognitect/transit-cljs "0.8.264"]
+                 [camdez/sendgrid "0.2.0"]]
 
   :java-source-paths ["src/java"]
   :resource-paths ["lib/sfdc-enterprise.jar"]
