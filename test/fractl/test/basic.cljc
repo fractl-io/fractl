@@ -413,6 +413,24 @@
   (conditional-event-02 (cn/make-instance :Cond/R {:X 200}) false?)
   (conditional-event-02 (cn/make-instance :Cond/R {:X 100}) true?))
 
+(deftest conditional-boolean
+  (defcomponent :CondBool
+    (record {:CondBool/R {:X :Kernel/Int}})
+    (event {:CondBool/Evt {:I :Kernel/Boolean}})
+    (dataflow :CondBool/Evt
+              [:match :CondBool/Evt.I
+               true {:CondBool/R {:X 100}}
+               false {:CondBool/R {:X 200}}
+               {:CondBool/R {:X 300}}]))
+  (let [evt {:CondBool/Evt {:I true}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :CondBool/R result))
+    (is (= 100 (:X result))))
+  (let [evt {:CondBool/Evt {:I false}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :CondBool/R result))
+    (is (= 200 (:X result)))))
+
 (deftest match-with-alias
   (defcomponent :MA
     (record {:MA/R {:X :Kernel/Int}})
