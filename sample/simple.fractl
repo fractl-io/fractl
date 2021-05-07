@@ -8,5 +8,18 @@
 
 (entity {:E3 {:A :Kernel/Int
               :B :Kernel/Int
+              :C :Kernel/Int
               :X {:type :Kernel/String
-                  :write-only true}}})
+                  :write-only true}
+              :Y :Kernel/DateTime}})
+
+(dataflow :K
+          {:E3 {:A '(+ 5 :B)
+                :B 10
+                :C '(+ 10 :A)
+                :X "secret"
+                :Y '(fractl.lang.datetime/now)}})
+
+(entity {:E4 {:Y :Kernel/DateTime}})
+
+(dataflow :KK {:E4 {:Y '(fractl.lang.datetime/now)}})

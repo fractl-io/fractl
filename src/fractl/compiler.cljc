@@ -176,6 +176,8 @@
 (defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
   (concat [(begin-build-instance rec-name attrs)]
           (map (partial set-literal-attribute ctx) (:computed attrs))
+          (let [f (:compound set-attr-opcode-fns)]
+            (map #(f %) (:compound attrs)))
           (map (fn [[k v]]
                  ((k set-attr-opcode-fns) v))
                (:sorted attrs))
@@ -184,8 +186,9 @@
              (op/intern-instance [rec-name alias]))]))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
-  (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)]
-    (assoc attrs :sorted sorted)))
+  (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)
+        compound (i/left-out-from-sorted :compound attrs sorted)]
+    (assoc attrs :sorted sorted :compound compound)))
 
 (defn- emit-realize-instance
   "Emit opcode for realizing a fully-built instance of a record, entity or event.

@@ -157,8 +157,20 @@
                (pd sd result))
         (second result)))))
 
+(defn left-out-from-sorted [tag attrs sorted]
+  (let [all-in-tag (apply
+                    concat
+                    (map second (filter (fn [[k _]] (= k tag)) sorted)))
+        ks (filter li/name? all-in-tag)
+        left-out (filter
+                  (fn [[k _]]
+                    (not (some #{k} ks)))
+                  (tag attrs))]
+    left-out))
+
 (defn sort-attributes-by-dependency [attrs graph]
-  (as-sorted-attrs attrs (g/topological-all graph)))
+  (let [sorted (as-sorted-attrs attrs (g/topological-all graph))]
+    sorted))
 
 (defn- process-where-clause [clause]
   (cv/ensure-where-clause
