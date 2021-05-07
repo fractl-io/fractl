@@ -273,6 +273,17 @@
       (assoc result :env new-env))
     result))
 
+(defn- eval-opcode-list [evaluator env eval-opcode opcode-list]
+  (loop [opcode-list opcode-list, env env result nil]
+    (if-let [opcode (first opcode-list)]
+      (let [result (eval-opcode evaluator env opcode)]
+        (if (ok-result result)
+          (recur (rest opcode-list)
+                 (:env result)
+                 result)
+          result))
+      result)))
+
 (defn- eval-cases [evaluator env eval-opcode match-obj cases-code alternative-code result-alias]
   (bind-result-to-alias
    result-alias
@@ -282,11 +293,11 @@
              r (ok-result result)]
          (if (not (nil? r))
            (if (= r match-obj)
-             (eval-opcode evaluator (:env result) consequent)
+             (eval-opcode-list evaluator (:env result) eval-opcode consequent)
              (recur (rest cases-code) (:env result)))
            result))
        (if (first alternative-code)
-         (eval-opcode evaluator env alternative-code)
+         (eval-opcode-list evaluator env eval-opcode alternative-code)
          (i/ok false env))))))
 
 (defn- eval-for-each-body [evaluator env eval-opcode body-code element]
