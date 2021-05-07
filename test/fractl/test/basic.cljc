@@ -10,6 +10,7 @@
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.evaluator :as e]
+            [fractl.lang.datetime :as dt]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
@@ -826,3 +827,30 @@
          result (ffirst (tu/fresult (e/eval-all-dataflows evt01)))]
      (is (cn/instance-of? :AE/R01 result))
      (is (= 100 (:X result))))))
+
+(deftest issue-195
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I195
+     (entity {:I195/E1 {:A :Kernel/Int
+                        :B :Kernel/Int
+                        :C :Kernel/Int
+                        :Y :Kernel/DateTime}})
+     (dataflow :I195/K
+               {:I195/E1 {:A '(+ 5 :B)
+                          :B 10
+                          :C '(+ 10 :A)
+                          :Y '(fractl.lang.datetime/now)}})
+     (entity {:I195/E2 {:Y :Kernel/DateTime}})
+     (dataflow :I195/KK {:I195/E2 {:Y '(fractl.lang.datetime/now)}}))
+   (let [evt (cn/make-instance :I195/K {})
+         r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+     (is (cn/instance-of? :I195/E1 r))
+     (is (dt/parse-date-time (:Y r)))
+     (is (= 10 (:B r)))
+     (is (= 15 (:A r)))
+     (is (= 25 (:C r))))
+   (let [evt (cn/make-instance :I195/KK {})
+         r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+     (is (cn/instance-of? :I195/E2 r))
+     (is (dt/parse-date-time (:Y r))))))
