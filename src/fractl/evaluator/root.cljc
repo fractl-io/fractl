@@ -274,8 +274,9 @@
    result-alias
    (loop [cases-code cases-code, env env]
      (if-let [[condition consequent] (first cases-code)]
-       (let [result (eval-opcode evaluator env condition)]
-         (if-let [r (ok-result result)]
+       (let [result (eval-opcode evaluator env condition)
+             r (ok-result result)]
+         (if (not (nil? r))
            (if (= r match-obj)
              (eval-opcode evaluator (:env result) consequent)
              (recur (rest cases-code) (:env result)))
@@ -444,10 +445,11 @@
       (call-function env fnobj))
 
     (do-match [self env [match-pattern-code cases-code alternative-code result-alias]]
-      (let [result (eval-opcode self env match-pattern-code)]
-        (if-let [r (ok-result result)]
-          (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)
-          result)))
+      (let [result (eval-opcode self env match-pattern-code)
+            r (ok-result result)]
+        (if (nil? r)
+          result
+          (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias))))
 
     (do-eval-on [self env [evt-name df-code]]
       (let [df-eval (partial eval-dataflow self env)]
