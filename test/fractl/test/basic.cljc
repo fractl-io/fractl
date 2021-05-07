@@ -456,6 +456,25 @@
     (is (cn/instance-of? :CondBool/R result))
     (is (= 200 (:X result)))))
 
+(deftest conditional-pattern-list
+  (defcomponent :CondPatList
+    (record {:CondPatList/R {:X :Kernel/Int}})
+    (event {:CondPatList/Evt {:I :Kernel/Int}})
+    (dataflow :CondPatList/Evt
+              [:match :CondPatList/Evt.I
+               0 [{:CondPatList/R {:X 100}}
+                  {:CondPatList/R {:X 101}}]
+               1 {:CondPatList/R {:X 200}}
+               {:CondPatList/R {:X 300}}]))
+  (let [evt {:CondPatList/Evt {:I 0}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :CondPatList/R result))
+    (is (= 101 (:X result))))
+  (let [evt {:CondPatList/Evt {:I 1}}
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :CondPatList/R result))
+    (is (= 200 (:X result)))))
+
 (deftest match-with-alias
   (defcomponent :MA
     (record {:MA/R {:X :Kernel/Int}})

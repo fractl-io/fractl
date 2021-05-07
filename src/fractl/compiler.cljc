@@ -310,18 +310,23 @@
             [result case-pat alias]))
         [result nil alias]))))
 
+(defn- compile-maybe-pattern-list [ctx pat]
+  (if (vector? pat)
+    (map #(compile-pattern ctx %) pat)
+    (compile-pattern ctx pat)))
+
 (defn- compile-match-cases [ctx cases]
   (loop [cases cases, cases-code []]
     (if-let [[case-pat conseq] (first cases)]
       (recur (rest cases) (conj cases-code [[(compile-pattern ctx case-pat)]
-                                            [(compile-pattern ctx conseq)]]))
+                                            [(compile-maybe-pattern-list ctx conseq)]]))
       cases-code)))
 
 (defn- compile-match [ctx pat]
   (let [match-pat-code (compile-pattern ctx (first pat))
         [cases alternative alias] (extract-match-clauses (rest pat))
         cases-code (compile-match-cases ctx cases)
-        alt-code (when alternative (compile-pattern ctx alternative))]
+        alt-code (when alternative (compile-maybe-pattern-list ctx alternative))]
     (when alias
       (ctx/add-alias! ctx alias alias))
     (emit-match [match-pat-code] cases-code [alt-code] alias)))
