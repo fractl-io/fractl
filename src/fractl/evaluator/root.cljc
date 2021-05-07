@@ -261,6 +261,10 @@
   (when (i/ok? r)
     (:result r)))
 
+(defn- extract-local-result [r]
+  (when (i/ok? r)
+    (first (:result r))))
+
 (defn- bind-result-to-alias [result-alias result]
   (if result-alias
     (let [env (:env result)
@@ -428,7 +432,7 @@
             local-result (when (or (not resolver) composed?)
                            (async-invoke
                             timeout-ms
-                            #(doall (eval-event-dataflows self eval-env inst))))
+                            #(doall (extract-local-result (first (eval-event-dataflows self eval-env inst))))))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? env inst))]
         (i/ok (pack-results local-result resolver-results) env)))
