@@ -448,7 +448,7 @@
   try to return the default value for the attribute. Otherwise, raise an
   exception."
   [aname aval ascm]
-  (if aval
+  (if-not (nil? aval)
     (cond
       (:type ascm)
       (valid-attribute-value
