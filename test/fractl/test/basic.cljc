@@ -164,6 +164,31 @@
     (is (= 1000 (:Y result)))
     (is (= 1100 (:Z result)))))
 
+(deftest boolean-type
+  (defcomponent :Bool
+    (entity {:Bool/E {:X :Kernel/Boolean
+                      :Y :Kernel/Boolean}})
+    (event {:Bool/PostE1 {:B :Kernel/Boolean}})
+    (event {:Bool/PostE2 {:B :Kernel/Boolean}}))
+  (dataflow :Bool/PostE1
+            {:Bool/E {:X :Bool/PostE1.B
+                      :Y true}})
+  (dataflow :Bool/PostE2
+            {:Bool/E {:X :Bool/PostE2.B
+                      :Y false}})
+  (let [evt (cn/make-instance :Bool/PostE1 {:B true})
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :Bool/E result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= true (:X result)))
+    (is (= true (:Y result))))
+  (let [evt (cn/make-instance :Bool/PostE2 {:B false})
+        result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :Bool/E result))
+    (is (u/uuid-from-string (:Id result)))
+    (is (= false (:X result)))
+    (is (= false (:Y result)))))
+
 (deftest self-reference
   (defcomponent :SelfRef
     (entity {:SelfRef/E
