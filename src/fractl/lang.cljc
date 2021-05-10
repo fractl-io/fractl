@@ -235,6 +235,16 @@
                  {:type adef :optional true}))
              adef)]))
 
+(defn- merge-unique-flags [attrs uq-attr-names]
+  (map (fn [[k v]]
+         (if (some #{k} uq-attr-names)
+           [k (if (keyword? v)
+                {:type v
+                 :unique true}
+                (assoc v :unique true))]
+           [k v]))
+       attrs))
+
 (defn- normalized-attributes [recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
         meta (:meta orig-attrs)
@@ -251,7 +261,11 @@
                            (required-attribute-names attrs))
         req-attrs (concat req-orig-attrs req-inherited-attrs)
         attrs-with-defaults (into {} (map (partial assoc-defaults req-attrs) attrs))
-        newattrs (map (partial normalize-attr recname attrs f) attrs-with-defaults)
+        unique-attr-names (:unique meta)
+        attrs-with-uq-flags (if unique-attr-names
+                              (merge-unique-flags attrs-with-defaults unique-attr-names)
+                              attrs-with-defaults)
+        newattrs (map (partial normalize-attr recname attrs f) attrs-with-uq-flags)
         final-attrs (into {} (validate-attributes newattrs))]
     (assoc final-attrs :meta (assoc meta :required-attributes req-attrs))))
 
