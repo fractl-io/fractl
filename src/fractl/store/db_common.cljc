@@ -188,18 +188,24 @@
     indexed-attrs))
 
 (defn upsert-instance
-  ([upsert-inst-statement upsert-index-statement datasource entity-name instance update-unique-indices?]
+  ([upsert-inst-statement upsert-index-statement datasource
+    entity-name instance update-unique-indices?]
    (let [tabname (su/table-for-entity entity-name)
          entity-schema (su/find-entity-schema entity-name)
          all-indexed-attrs (cn/indexed-attributes entity-schema)
          indexed-attrs (if update-unique-indices?
                          all-indexed-attrs
-                         (remove-unique-attributes all-indexed-attrs entity-schema))
+                         (remove-unique-attributes
+                          all-indexed-attrs entity-schema))
          ref-attrs (cn/ref-attribute-schemas entity-schema)]
      (transact-fn! datasource
                    (fn [txn]
-                     (upsert-inst! txn tabname instance ref-attrs upsert-inst-statement)
-                     (upsert-indices! txn tabname indexed-attrs instance upsert-index-statement)))
+                     (upsert-inst!
+                      txn tabname instance ref-attrs
+                      upsert-inst-statement)
+                     (upsert-indices!
+                      txn tabname indexed-attrs instance
+                      upsert-index-statement)))
      instance))
   ([datasource entity-name instance]
    (upsert-instance
@@ -273,16 +279,22 @@
   "Query the instance by a unique-key value."
   [datasource entity-name unique-keys attribute-values]
   (when-not (and (= 1 (count unique-keys)) (= :Id (first unique-keys)))
-    (let [c (compile-to-indexed-query
-             {:from entity-name
-              :where (let [k (first (filter #(not= :Id %) unique-keys))]
-                       [:= k (get attribute-values k)])})
-          id-query (:query (first (:id-queries c)))
-          id-result (do-query datasource (first id-query) (rest id-query))]
-      (when (seq id-result)
-        (let [id (second (first (filter (fn [[k _]] (= "ID" (s/upper-case (name k)))) (first id-result))))
-              result (query-by-id datasource entity-name (:query c) [id])]
-          (first result))))))
+    (let [ks (filter #(not= :Id %) unique-keys)]
+      (first
+       (filter
+        identity
+        (map
+         (fn [k]
+           (let [c (compile-to-indexed-query
+                    {:from entity-name
+                     :where [:= k (get attribute-values k)]})
+                 id-query (:query (first (:id-queries c)))
+                 id-result (do-query datasource (first id-query) (rest id-query))]
+             (when (seq id-result)
+               (let [id (second (first (filter (fn [[k _]] (= "ID" (s/upper-case (name k)))) (first id-result))))
+                     result (query-by-id datasource entity-name (:query c) [id])]
+                 (first result)))))
+         ks))))))
 
 (defn query-all [datasource entity-name query-sql]
   (execute-fn!
