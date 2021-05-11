@@ -263,17 +263,17 @@
       (assert-ca-e! result))))
 
 (deftest compound-attributes-literal-arg
-  (defcomponent :Df04_1
-    (record {:Df04_1/R {:A :Kernel/Int}})
-    (entity {:Df04_1/E {:X :Kernel/Int
+  (defcomponent :Df041
+    (record {:Df041/R {:A :Kernel/Int}})
+    (entity {:Df041/E {:X :Kernel/Int
                         :Y {:expr '(* :X 10)}}})
-    (event {:Df04_1/PostE {:R :Df04_1/R}}))
-  (dataflow :Df04_1/PostE
-            {:Df04_1/E {:X :Df04_1/PostE.R.A}})
-  (let [r (cn/make-instance :Df04_1/R {:A 100})
-        evt (cn/make-instance :Df04_1/PostE {:R r})
+    (event {:Df041/PostE {:R :Df041/R}}))
+  (dataflow :Df041/PostE
+            {:Df041/E {:X :Df041/PostE.R.A}})
+  (let [r (cn/make-instance :Df041/R {:A 100})
+        evt (cn/make-instance :Df041/PostE {:R r})
         result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
-    (is (cn/instance-of? :Df04_1/E result))
+    (is (cn/instance-of? :Df041/E result))
     (is (= (:X result) 100))
     (is (= (:Y result) 1000))))
 
@@ -802,7 +802,7 @@
                           :optional true}
               :Title {:type :Kernel/String
                       :default "Login"}
-              :DOM_Target :Kernel/String
+              :DOMTarget :Kernel/String
               :View {:type :Kernel/Edn
                      :default
                      [:div
@@ -820,7 +820,7 @@
                 :HandlerEvent :EdnUI/MakeLoginForm.HandlerEvent}}
               {:EdnUI/LoginForm
                {:Title :EdnUI/MakeLoginForm.FormTitle
-                :DOM_Target "app"
+                :DOMTarget "app"
                 :UserLogin :EdnUI/UserLogin}})
     (let [evt (cn/make-instance {:EdnUI/MakeLoginForm
                                  {:FormTitle "Login to the V8 Platform"
