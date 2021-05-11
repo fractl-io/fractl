@@ -20,15 +20,24 @@
   (let [s1 (first s)]
     (= (str s1) (string/capitalize s1))))
 
+(defn- no-special-chars? [s]
+  (not-any? #{\_ \- \$ \@ \# \! \& \^ \% \~} s))
+
 (defn- no-invalid-chars? [s]
   (not-any? #{\+ \*} s))
 
-(defn name? [x]
-  (and (keyword? x)
-       (not-reserved? x)
-       (let [s (subs (str x) 1)]
-         (and (no-invalid-chars? s)
-              (capitalized? s)))))
+(defn- no-restricted-chars? [s]
+  (and (no-special-chars? s)
+       (no-invalid-chars? s)))
+
+(defn name?
+  ([char-predic x]
+   (and (keyword? x)
+        (not-reserved? x)
+        (let [s (subs (str x) 1)]
+          (and (char-predic s)
+               (capitalized? s)))))
+  ([x] (name? no-invalid-chars? x)))
 
 (defn wildcard? [x]
   (and (symbol? x)
@@ -282,7 +291,8 @@
     (util/throw-ex (str errmsg " - " x)))
   x)
 
-(def validate-name (partial validate name? "not a valid name"))
+(def validate-name (partial validate (partial name? no-restricted-chars?) "not a valid name"))
+(def validate-name-relaxed (partial validate name? "not a valid name"))
 (def validate-imports (partial validate import-list? "not a valid imports list"))
 (def validate-clj-imports (partial validate clj-list? "not a valid clj require list"))
 (def validate-java-imports (partial validate java-list? "not a valid java import list"))
