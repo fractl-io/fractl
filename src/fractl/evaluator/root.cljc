@@ -349,6 +349,12 @@
         result)
       final-list)))
 
+(defn- normalize-transitions [xs]
+  (map #(if-let [t (:transition %)]
+          (:to t)
+          %)
+       xs))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -425,9 +431,10 @@
     (do-intern-instance [_ env [record-name alias]]
       (let [[insts single? env] (pop-instance env record-name)]
         (if insts
-          (let [[local-result resolver-results] (chained-upsert env record-name insts)]
-            (if-let [bindable (if single? (first local-result) local-result)]
-              (let [env-with-inst (env/bind-instances env record-name local-result)
+          (let [[local-result resolver-results] (chained-upsert env record-name insts)
+                lr (normalize-transitions local-result)]
+            (if-let [bindable (if single? (first lr) lr)]
+              (let [env-with-inst (env/bind-instances env record-name lr)
                     final-env (if alias
                                 (env/bind-instance-to-alias env-with-inst alias bindable)
                                 env-with-inst)]

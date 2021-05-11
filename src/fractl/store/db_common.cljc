@@ -188,18 +188,24 @@
     indexed-attrs))
 
 (defn upsert-instance
-  ([upsert-inst-statement upsert-index-statement datasource entity-name instance update-unique-indices?]
+  ([upsert-inst-statement upsert-index-statement datasource
+    entity-name instance update-unique-indices?]
    (let [tabname (su/table-for-entity entity-name)
          entity-schema (su/find-entity-schema entity-name)
          all-indexed-attrs (cn/indexed-attributes entity-schema)
          indexed-attrs (if update-unique-indices?
                          all-indexed-attrs
-                         (remove-unique-attributes all-indexed-attrs entity-schema))
+                         (remove-unique-attributes
+                          all-indexed-attrs entity-schema))
          ref-attrs (cn/ref-attribute-schemas entity-schema)]
      (transact-fn! datasource
                    (fn [txn]
-                     (upsert-inst! txn tabname instance ref-attrs upsert-inst-statement)
-                     (upsert-indices! txn tabname indexed-attrs instance upsert-index-statement)))
+                     (upsert-inst!
+                      txn tabname instance ref-attrs
+                      upsert-inst-statement)
+                     (upsert-indices!
+                      txn tabname indexed-attrs instance
+                      upsert-index-statement)))
      instance))
   ([datasource entity-name instance]
    (upsert-instance
