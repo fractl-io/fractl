@@ -32,10 +32,10 @@
   (defcomponent :ST
     (entity {:ST/E {:X :Kernel/Int}})
 
-    (event {:ST/New_E {:X :Kernel/Int}})
+    (event {:ST/NewE {:X :Kernel/Int}})
 
-    (dataflow :ST/New_E
-              {:ST/E {:X :ST/New_E.X}}
+    (dataflow :ST/NewE
+              {:ST/E {:X :ST/NewE.X}}
               :ST/E.X))
 
   (let [e (cn/make-instance :ST/E {:X 10})
@@ -55,7 +55,7 @@
     (is (persisted? :ST e01))
     (is (cn/instance-of? :ST/E r))
     (is (= e01 r))
-    (let [evt (cn/make-instance :ST/New_E {:X 100})
+    (let [evt (cn/make-instance :ST/NewE {:X 100})
           result (tu/fresult (e/eval-all-dataflows evt store nil))]
       (is (= :cursor (first result)))
       (let [cursor (second result)]
