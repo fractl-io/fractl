@@ -2,21 +2,22 @@
   "Fractl resolver to send email."
   (:require [sendgrid.core :as sendgrid]
             [postmark.core :as postmark]
-            [fractl.resolver.core :as r]))
-
-(defn api [key]
-  {:api-key key})
+            [fractl.resolver.core :as r]
+            [fractl.util :as u]))
 
 (defn send-email
   "Simple send email using simple HTML.
   The backend option is either SendGrid or Postmark."
-  [backend key receiver sender subject text]
+  [backend receiver subject text]
   (if (= backend "SendGrid")
-    (sendgrid/send-email (api key) {:to      receiver
-                                    :from    sender
-                                    :subject subject
-                                    :html    "<h1> " (str text) " </h1>"})
-    (let [pm (postmark/postmark key sender)]
+    (sendgrid/send-email {:api-key (u/getenv "EMAIL_API_KEY")}
+                         {:to      receiver
+                          :from    (u/getenv "EMAIL_SENDER")
+                          :subject subject
+                          :html    "<h1> " (str text) " </h1>"})
+    (let [pm (postmark/postmark
+               (u/getenv "EMAIL_API_KEY")
+               (u/getenv "EMAIL_SENDER"))]
       (pm {:to receiver
            :subject subject
            :text text}))))
@@ -25,12 +26,10 @@
   "The backend is either SendGrid or Postmark."
   [inst]
   (let [backend (:Backend inst)
-        key (:Key inst)
         receiver (:Receiver inst)
-        sender (:Sender inst)
         subject (:Subject inst)
         text (:Text inst)]
-    (send-email backend key receiver sender subject text)))
+    (send-email backend receiver subject text)))
 
 (def ^:private resolver-fns
   {:eval {:handler email}})
