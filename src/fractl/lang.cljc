@@ -476,15 +476,26 @@
   #?(:clj
      (do
        (cn/create-component :Git {})
+       (cn/create-component :Email {})
 
        (event :Git/Push
               {:Path :Kernel/String})
+
+       (event :Email/Push
+              {:Backend :Kernel/String
+               :Receiver :Kernel/Email
+               :Subject :Kernel/String
+               :Text :Kernel/String})
 
        (r/register-resolvers
         [{:name :git
           :type :git
           :compose? false
-          :paths [:Git/Push]}]))))
+          :paths [:Git/Push]}
+         {:name :email
+          :type :email
+          :compose? false
+          :paths [:Email/Push]}]))))
 
 (defn- initf []
   (when-not @kernel-inited
