@@ -155,7 +155,7 @@
   "Add a new attribute definition to the component."
   [n scm]
   (cn/intern-attribute
-   (li/validate-name n)
+   (li/validate-name-relaxed n)
    (normalize-attribute-schema
     (validate-attribute-schema scm))))
 
