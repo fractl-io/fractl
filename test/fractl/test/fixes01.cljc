@@ -70,3 +70,26 @@
        (a [10 40 30] [10 60 30] (nth results 2)))
      (is (cn/instance-of? :I196/E1 (nth results 3)))
      (is (= [20 40 70] (map #(% (nth results 3)) [:A :B :C]))))))
+
+(deftest issue-206
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I206
+     (entity {:I206/E1 {:A :Kernel/Int
+                        :B :Kernel/Int
+                        :C :Kernel/Int
+                        :meta {:unique [:A :C]}}}))
+   (let [e01 (cn/make-instance :I206/E1 {:A 10 :B 20 :C 30})
+         evt1 (cn/make-instance {:I206/Upsert_E1 {:Instance e01}})
+         e02 (cn/make-instance :I206/E1 {:A 10 :C 50} false)
+         evt2 (cn/make-instance {:I206/Upsert_E1 {:Instance e02}})
+         e03 (cn/make-instance :I206/E1 {:A 20 :B 60 :C 30})
+         evt3 (cn/make-instance {:I206/Upsert_E1 {:Instance e03}})
+         results (map #(ffirst (tu/fresult (e/eval-all-dataflows %)))
+                      [evt1 evt2 evt3])]
+     (is (cn/instance-of?
+          :I206/E1
+          (first results)))
+     (let [a (partial assert-transition [:A :B :C])]
+       (a [10 20 30] [10 20 30] (second results))
+       (a [10 20 30] [10 60 30] (nth results 2))))))
