@@ -220,6 +220,15 @@
                        (find-instances-in-store env store entity-name full-query))]
     [result (env/bind-instances env entity-name result)]))
 
+(defn- validated-instance [record-name obj]
+  (if (cn/an-instance? obj)
+    (if-not (cn/entity-instance? obj)
+      (cn/validate-instance obj)
+      obj)
+    (let [n (li/make-path record-name)
+          validate? (if (cn/find-entity-schema n) false true)]
+      (cn/make-instance n obj validate?))))
+
 (defn- pop-instance
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
@@ -228,10 +237,7 @@
     (let [[env single? [_ x]] xs
           objs (if single? [x] x)
           final-objs (map #(assoc-computed-attributes env record-name %) objs)
-          insts (map #(if (cn/an-instance? %)
-                        (cn/validate-instance %)
-                        (cn/make-instance (li/make-path record-name) %))
-                     final-objs)
+          insts (map (partial validated-instance record-name) final-objs)
           bindable (if single? (first insts) insts)]
       [bindable single? env])
     [nil false env]))
@@ -244,10 +250,7 @@
     (let [[env single? [_ x]] xs
           objs (if single? [x] x)
           final-objs (map #(assoc-computed-attributes env record-name %) objs)
-          insts (map #(if (cn/an-instance? %)
-                        (cn/validate-instance %)
-                        (cn/make-instance (li/make-path record-name) %))
-                     final-objs)
+          insts (map (partial validated-instance record-name) final-objs)
           env (env/bind-instances env record-name insts)
           bindable (if single? (first insts) insts)
           final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]

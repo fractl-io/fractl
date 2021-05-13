@@ -74,13 +74,16 @@
     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
                                (p/query-by-unique-keys store record-name uq-attrs instance))]
       (let [new-instance
-            (p/update-instance
-             store record-name
-             (merge-non-unique old-instance instance uq-attrs))]
+            (cn/validate-instance
+             (p/update-instance
+              store record-name
+              (merge-non-unique old-instance instance uq-attrs)))]
         {:transition
          {:from old-instance
           :to new-instance}})
-      (p/upsert-instance store record-name instance))))
+      (p/upsert-instance
+       store record-name
+       (cn/validate-instance instance)))))
 
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)

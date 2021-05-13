@@ -1002,10 +1002,12 @@
 
 (defn validate-instance [inst]
   (let [n (instance-name inst)
-        schema (ensure-schema n)]
-    (validate-record-attributes
-     n (instance-attributes inst) schema)
-    inst))
+        schema (ensure-schema n)
+        attrs (validate-record-attributes
+               n (instance-attributes inst) schema)]
+    (if (error? attrs)
+      (util/throw-ex attrs)
+      (make-record-instance (type-tag-key inst) n attrs))))
 
 (defn tag-record [recname attrs]
   (assoc attrs :name recname type-tag-key :record))
