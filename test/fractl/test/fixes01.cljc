@@ -93,3 +93,16 @@
      (let [a (partial assert-transition [:A :B :C])]
        (a [10 20 30] [10 20 30] (second results))
        (a [10 20 30] [10 60 30] (nth results 2))))))
+
+(deftest issue-185
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I185
+     (entity {:I185/E {:X :Kernel/Int}})
+     (record {:I185/R {:Y :Kernel/Int}})
+     (dataflow [:I185/OnXGt10 :when [:> 10 :I185/E.X]]
+               {:I185/R {:Y 100}}))
+   (let [e (cn/make-instance {:I185/E {:X 20}})
+         evt (cn/make-instance {:I185/Upsert_E {:Instance e}})
+         result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+     (is (cn/instance-of? :I185/E result)))))
