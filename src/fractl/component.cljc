@@ -1012,9 +1012,28 @@
 (defn tag-record [recname attrs]
   (assoc attrs :name recname type-tag-key :record))
 
+(def ^:private trigger-store
+  #?(:clj  (ref {})
+     :cljs (atom {})))
+
 (defn install-triggers!
   "Install the predicate for the given records.
   On upsert, the event is triggered if the predicate
   return true for the record instance"
   [record-names event-name predicate]
-  )
+  (doseq [rn record-names]
+    (let [ts @trigger-store]
+      (util/safe-set
+       trigger-store
+       (let [trigs (get ts rn)]
+         (assoc
+          ts rn
+          (conj trigs [predicate event-name])))))))
+
+(defn conditional-events
+  "Return conditional events to fire for the given instance"
+  [instance]
+  (let [recname (instance-name instance)]
+    (when-let [trigs (seq (get @trigger-store recname))]
+      (let [k (li/split-path recname)]
+        (map second (filter #((first %) {k instance}) trigs))))))
