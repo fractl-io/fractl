@@ -398,6 +398,8 @@
   [rec-names]
   (loop [rs rec-names, attrs {}]
     (if-let [r (first rs)]
-      (let [[_ n] (split-path r)]
-        (recur (rest rs) (assoc attrs n r)))
+      (let [[p _] (split-ref r)
+            [_ n] (split-path p)
+            pn (keyword (str "Upserted" (name n)))]
+        (recur (rest rs) (assoc attrs n p pn {:type p :optional true})))
       attrs)))
