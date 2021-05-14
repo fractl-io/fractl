@@ -80,6 +80,21 @@
   (let [rs (if composed? resolver [resolver])]
     (doall (map #(r/call-resolver-eval % env inst) rs))))
 
+(defn- fire-conditional-event [instance event-name]
+  ;; TODO: Create an instance of event and evaluate it.
+  ;; If the Upserted<InstanceName> attribute needes to be set
+  ;; is decided by looking at a transition.
+  )
+
+(defn- fire-conditional-events [insts]
+  ;; TODO: Extract the real instance from transitions
+  ;; that may be in insts.
+  (filter
+   identity
+   (map #(seq (map (partial fire-conditional-event %)
+                   (cn/conditional-events %)))
+        insts)))
+
 (def ^:private inited-components (u/make-cell []))
 
 (defn- maybe-init-schema! [store component-name]
@@ -111,9 +126,12 @@
         resolver (env/get-resolver env)]
     (when store (maybe-init-schema! store (first record-name)))
     (if (env/any-dirty? env insts)
-      (chained-crud
-       (when store (partial store/upsert-instances store record-name))
-       resolver (partial resolver-upsert env) nil insts)
+      (let [[local-result resolver-result]
+            (chained-crud
+             (when store (partial store/upsert-instances store record-name))
+             resolver (partial resolver-upsert env) nil insts)
+            conditional-event-results (fire-conditional-events local-result)]
+        [(concat local-result conditional-event-results) resolver-result])
       [insts nil])))
 
 (defn- delete-by-id [store record-name del-list]

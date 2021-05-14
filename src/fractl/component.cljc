@@ -1036,4 +1036,5 @@
   (let [recname (instance-name instance)]
     (when-let [trigs (seq (get @trigger-store recname))]
       (let [k (li/split-path recname)]
-        (map second (filter #((first %) {k instance}) trigs))))))
+        (when-let [ts (seq (filter #((first %) {k instance}) trigs))]
+          (map second ts))))))
