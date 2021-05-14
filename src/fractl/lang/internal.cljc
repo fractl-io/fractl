@@ -24,7 +24,7 @@
   (not-any? #{\_ \- \$ \@ \# \! \& \^ \% \~} s))
 
 (defn- no-invalid-chars? [s]
-  (not-any? #{\+ \*} s))
+  (not-any? #{\+ \* \< \> \=} s))
 
 (defn- no-restricted-chars? [s]
   (and (no-special-chars? s)
@@ -378,10 +378,26 @@
 (defn referenced-record-names
   "Return record names referenced in the pattern"
   [pattern]
-  )
+  (loop [ps pattern, recnames []]
+    (if-let [p (first ps)]
+      (recur (rest ps)
+             (cond
+               (vector? p)
+               (concat
+                recnames
+                (referenced-record-names p))
+
+               (name? p) (conj recnames p)
+
+               :else recnames))
+      (set recnames))))
 
 (defn references-to-event-attributes
   "Return attributes for a pattern-triggered event,
   from the list of record names referenced in the pattern"
   [rec-names]
-  )
+  (loop [rs rec-names, attrs {}]
+    (if-let [r (first rs)]
+      (let [[_ n] (split-path r)]
+        (recur (rest rs) (assoc attrs n r)))
+      attrs)))

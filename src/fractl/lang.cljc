@@ -340,19 +340,23 @@
   (let [event-name (first match-pat)]
     (when-not (li/name? event-name)
       (u/throw-ex (str "not a valid event name - " event-name)))
-    (let [predic (li/compile-event-trigger-pattern match-pat)
-          rnames (li/referenced-record-names match-pat)
+    (when-not (= :when (second match-pat))
+      (u/throw-ex (str "expected keyword :when not found - " match-pat)))
+    (let [pat (nthrest match-pat 2)
+          predic (li/compile-event-trigger-pattern pat)
+          rnames (li/referenced-record-names pat)
           event-attrs (li/references-to-event-attributes rnames)
-          result (event event-name event-attrs)]
+          evt-name (event event-name event-attrs)]
       (cn/install-triggers! rnames event-name predic)
-      result)))
+      evt-name)))
 
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
   (ensure-dataflow-patterns! patterns)
   (if (vector? match-pat)
-    (dataflow
+    (apply
+     dataflow
      (install-event-trigger-pattern match-pat)
      patterns)
     (let [hd (:head match-pat)]
