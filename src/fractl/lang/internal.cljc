@@ -379,7 +379,8 @@
   (symbol (name x)))
 
 (defn- accessor-expression [n]
-  (let [[p r] (split-ref n)]
+  (let [[path r] (split-ref n)
+        p (split-path path)]
     `(get (get ~(symbol "-arg-map-") ~p) ~r)))
 
 (defn compile-one-event-trigger-pattern [pat]
@@ -411,7 +412,9 @@
                 recnames
                 (referenced-record-names p))
 
-               (name? p) (conj recnames p)
+               (name? p)
+               (let [[n _] (split-ref p)]
+                 (conj recnames n))
 
                :else recnames))
       (set recnames))))
@@ -422,8 +425,7 @@
   [rec-names]
   (loop [rs rec-names, attrs {}]
     (if-let [r (first rs)]
-      (let [[p _] (split-ref r)
-            [_ n] (split-path p)
+      (let [[_ n] (split-path r)
             pn (keyword (str "Upserted" (name n)))]
-        (recur (rest rs) (assoc attrs n p pn {:type p :optional true})))
+        (recur (rest rs) (assoc attrs n r pn {:type r :optional true})))
       attrs)))

@@ -100,7 +100,7 @@
    (defcomponent :I185
      (entity {:I185/E {:X :Kernel/Int}})
      (record {:I185/R {:Y :Kernel/Int}})
-     (dataflow [:I185/OnXGt10 :when [:> 10 :I185/E.X]]
+     (dataflow [:I185/OnXGt10 :when [:> :I185/E.X 10]]
                {:I185/R {:Y 100}}))
    (let [e (cn/make-instance {:I185/E {:X 20}})
          evt (cn/make-instance {:I185/Upsert_E {:Instance e}})
