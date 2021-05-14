@@ -370,10 +370,34 @@
     (let [c (first (name x))]
       (= c (string/lower-case c)))))
 
+(def ^:private oprs [:= :< :> :<= :>= :and :or])
+
+(defn- operator? [x]
+  (some #{x} oprs))
+
+(defn- operator-name [x]
+  (symbol (name x)))
+
+(defn- accessor-expression [n]
+  (let [[p r] (split-ref n)]
+    `(get (get ~(symbol "-arg-map-") ~p) ~r)))
+
+(defn compile-one-event-trigger-pattern [pat]
+  (map
+   (fn [p]
+     (cond
+       (operator? p) (operator-name p)
+       (name? p) (accessor-expression p)
+       (vector? p) (compile-one-event-trigger-pattern p)
+       :else p))
+   pat))
+
 (defn compile-event-trigger-pattern
   "Compile the dataflow match pattern into a predicate"
   [pat]
-  )
+  (let [expr (compile-one-event-trigger-pattern pat)
+        fexpr `(fn [~(symbol "-arg-map-")] ~@expr)]
+    (eval fexpr)))
 
 (defn referenced-record-names
   "Return record names referenced in the pattern"
