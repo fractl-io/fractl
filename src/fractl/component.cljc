@@ -1011,3 +1011,10 @@
 
 (defn tag-record [recname attrs]
   (assoc attrs :name recname type-tag-key :record))
+
+(defn install-triggers!
+  "Install the predicate for the given records.
+  On upsert, the event is triggered if the predicate
+  return true for the record instance"
+  [record-names event-name predicate]
+  )

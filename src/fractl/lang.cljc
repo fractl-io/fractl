@@ -336,16 +336,31 @@
       (into {(first (keys pattern)) (into {} attrs)}))
     pattern))
 
+(defn- install-event-trigger-pattern [match-pat]
+  (let [event-name (first match-pat)]
+    (when-not (li/name? event-name)
+      (u/throw-ex (str "not a valid event name - " event-name)))
+    (let [predic (li/compile-event-trigger-pattern match-pat)
+          rnames (li/referenced-record-names match-pat)
+          event-attrs (li/references-to-event-attributes rnames)
+          result (event event-name event-attrs)]
+      (cn/install-triggers! rnames event-name predic)
+      result)))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
   (ensure-dataflow-patterns! patterns)
-  (let [hd (:head match-pat)]
-    (if-let [mt (and hd (:on-entity-event hd))]
-      (cn/register-entity-dataflow mt hd patterns)
-      (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-        (do (ensure-event! event)
-            (cn/register-dataflow event hd patterns))))))
+  (if (vector? match-pat)
+    (dataflow
+     (install-event-trigger-pattern match-pat)
+     patterns)
+    (let [hd (:head match-pat)]
+      (if-let [mt (and hd (:on-entity-event hd))]
+        (cn/register-entity-dataflow mt hd patterns)
+        (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
+          (do (ensure-event! event)
+              (cn/register-dataflow event hd patterns)))))))
 
 (defn- crud-evname [entity-name evtname]
   (cn/canonical-type-name

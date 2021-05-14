@@ -370,3 +370,18 @@
     (let [c (first (name x))]
       (= c (string/lower-case c)))))
 
+(defn compile-event-trigger-pattern
+  "Compile the dataflow match pattern into a predicate"
+  [pat]
+  )
+
+(defn referenced-record-names
+  "Return record names referenced in the pattern"
+  [pattern]
+  )
+
+(defn references-to-event-attributes
+  "Return attributes for a pattern-triggered event,
+  from the list of record names referenced in the pattern"
+  [rec-names]
+  )
