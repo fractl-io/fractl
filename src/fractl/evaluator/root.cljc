@@ -92,8 +92,6 @@
     (event-evaluator evt)))
 
 (defn- fire-all-conditional-events [event-evaluator insts]
-  ;; TODO: Extract the real instance from transitions
-  ;; that may be in insts.
   (let [f (partial fire-conditional-event event-evaluator)]
     (filter
      identity
