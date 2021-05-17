@@ -80,20 +80,25 @@
   (let [rs (if composed? resolver [resolver])]
     (doall (map #(r/call-resolver-eval % env inst) rs))))
 
-(defn- fire-conditional-event [instance event-name]
-  ;; TODO: Create an instance of event and evaluate it.
-  ;; If the Upserted<InstanceName> attribute needes to be set
-  ;; is decided by looking at a transition.
-  )
+(defn- fire-conditional-event [event-evaluator event-name instance]
+  (let [[_ n] (li/split-path (cn/instance-name instance))
+        upserted-inst (when-let [t (:transition instance)]
+                        (:from t))
+        upserted-n (li/upserted-instance-attribute n)
+        evt (cn/make-instance
+             event-name
+             {n instance
+              upserted-n upserted-inst})]
+    (event-evaluator evt)))
 
-(defn- fire-conditional-events [insts]
+(defn- fire-all-conditional-events [event-evaluator insts]
   ;; TODO: Extract the real instance from transitions
   ;; that may be in insts.
-  (filter
-   identity
-   (map #(seq (map (partial fire-conditional-event %)
-                   (cn/conditional-events %)))
-        insts)))
+  (let [f (partial fire-conditional-event event-evaluator)]
+    (filter
+     identity
+     (map #(seq (map (fn [e] (f e %)) (cn/conditional-events %)))
+          insts))))
 
 (def ^:private inited-components (u/make-cell []))
 
@@ -121,7 +126,7 @@
                        resolved-insts)]
     [local-result resolver-result]))
 
-(defn- chained-upsert [env record-name insts]
+(defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (when store (maybe-init-schema! store (first record-name)))
@@ -130,7 +135,9 @@
             (chained-crud
              (when store (partial store/upsert-instances store record-name))
              resolver (partial resolver-upsert env) nil insts)
-            conditional-event-results (fire-conditional-events local-result)]
+            conditional-event-results
+            (fire-all-conditional-events
+             event-evaluator local-result)]
         [(concat local-result conditional-event-results) resolver-result])
       [insts nil])))
 
@@ -144,10 +151,10 @@
      (when store (partial delete-by-id store record-name))
      resolver (partial resolver-delete env) record-name [[record-name id]])))
 
-(defn- bind-and-persist [env x]
+(defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
     (let [n (li/split-path (cn/instance-name x))
-          r (chained-upsert env n x)]
+          r (chained-upsert env event-evaluator n x)]
       [(env/bind-instance env n x) r])
     [env nil]))
 
@@ -398,11 +405,13 @@
         (i/ok inst env)
         (i/not-found record-name env)))
 
-    (do-load-references [_ env [[record-name alias] refs]]
+    (do-load-references [self env [[record-name alias] refs]]
       (if-let [[path v] (env/instance-ref-path env record-name alias refs)]
         (if (cn/an-instance? v)
           (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
-                [env [local-result resolver-results :as r]] (bind-and-persist env final-inst)]
+                event-evaluator (partial eval-event-dataflows self env)
+                [env [local-result resolver-results :as r]]
+                (bind-and-persist env event-evaluator final-inst)]
             (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
           (if-let [store (env/get-store env)]
             (if (store/reactive? store)
@@ -449,10 +458,11 @@
     (do-set-compound-attribute [_ env [attr-name f]]
       (set-obj-attr env attr-name f))
 
-    (do-intern-instance [_ env [record-name alias]]
+    (do-intern-instance [self env [record-name alias]]
       (let [[insts single? env] (pop-instance env record-name)]
         (if insts
-          (let [[local-result resolver-results] (chained-upsert env record-name insts)
+          (let [event-eval (partial eval-event-dataflows self env)
+                [local-result resolver-results] (chained-upsert env event-eval record-name insts)
                 lr (normalize-transitions local-result)]
             (if-let [bindable (if single? (first lr) lr)]
               (let [env-with-inst (env/bind-instances env record-name lr)
