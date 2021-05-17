@@ -510,6 +510,7 @@
      (do
        (cn/create-component :Git {})
        (cn/create-component :Email {})
+       (cn/create-component :Sms {})
 
        (event :Git/Push
               {:Path :Kernel/String})
