@@ -100,9 +100,23 @@
    (defcomponent :I185
      (entity {:I185/E {:X :Kernel/Int}})
      (record {:I185/R {:Y :Kernel/Int}})
+     (dataflow :I185/UpdateE
+               {:I185/E {:Id? :I185/UpdateE.Id
+                         :X :I185/UpdateE.X}})
      (dataflow [:I185/OnXGt10 :when [:> :I185/E.X 10]]
                {:I185/R {:Y 100}}))
-   (let [e (cn/make-instance {:I185/E {:X 20}})
+   (let [e (cn/make-instance {:I185/E {:X 10}})
          evt (cn/make-instance {:I185/Upsert_E {:Instance e}})
-         result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
-     (is (cn/instance-of? :I185/E result)))))
+         r (tu/fresult (e/eval-all-dataflows evt))
+         r1 (ffirst r)
+         id (:Id r1)
+         evt (cn/make-instance {:I185/UpdateE {:Id id :X 20}})
+         r2 (tu/fresult (e/eval-all-dataflows evt))
+         r3 (ffirst (tu/embedded-results r2))]
+     (is (nil? (tu/embedded-results r)))
+     (is (cn/instance-of? :I185/E r1))
+     (is (= 10 (:X r1)))
+     (is (cn/instance-of? :I185/E (ffirst r2)))
+     (is (= 20 (:X (ffirst r2))))
+     (is (cn/instance-of? :I185/R r3))
+     (is (= 100 (:Y r3))))))

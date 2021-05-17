@@ -1022,7 +1022,8 @@
   return true for the record instance"
   [record-names event-name predicate]
   (doseq [rn record-names]
-    (let [ts @trigger-store]
+    (let [rn (li/split-path rn)
+          ts @trigger-store]
       (util/safe-set
        trigger-store
        (let [trigs (get ts rn)]
@@ -1033,8 +1034,7 @@
 (defn conditional-events
   "Return conditional events to fire for the given instance"
   [instance]
-  (let [recname (instance-name instance)]
+  (let [recname (li/split-path (instance-name instance))]
     (when-let [trigs (seq (get @trigger-store recname))]
-      (let [k (li/split-path recname)]
-        (when-let [ts (seq (filter #((first %) {k instance}) trigs))]
-          (map second ts))))))
+      (when-let [ts (seq (filter #((first %) {recname instance}) trigs))]
+        (map second ts)))))

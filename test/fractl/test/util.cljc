@@ -24,6 +24,9 @@
 (defn fresult [r]
   (:result (first r)))
 
+(defn embedded-results [r]
+  (fresult (first (second (first r)))))
+
 (defn uuid-string []
   #?(:clj
      (str (java.util.UUID/randomUUID))
