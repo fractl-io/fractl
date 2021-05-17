@@ -52,3 +52,16 @@ Email resolver requires following keys:
  :Subject "This is demo."
  :Text "Hi."}
 ```
+
+## Sms Resolver
+```dotenv
+TWILIO_SID=<sid from twilio>
+TWILIO_AUTH_TOKEN=<token from Twilio>
+TWILIO_PHONE_NUMBER=<phone number provided from twilio>
+```
+
+Sms resolver requires following keys:
+```clojure
+{:To "Phone number (e.g. +977XXXXXXXXXX"
+ :Body "Text message (e.g. Hi. How are you doing?)"}
+```
