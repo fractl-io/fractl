@@ -419,6 +419,9 @@
                :else recnames))
       (set recnames))))
 
+(defn upserted-instance-attribute [rec-name]
+  (keyword (str "Upserted" (name rec-name))))
+
 (defn references-to-event-attributes
   "Return attributes for a pattern-triggered event,
   from the list of record names referenced in the pattern"
@@ -426,6 +429,6 @@
   (loop [rs rec-names, attrs {}]
     (if-let [r (first rs)]
       (let [[_ n] (split-path r)
-            pn (keyword (str "Upserted" (name n)))]
+            pn (upserted-instance-attribute n)]
         (recur (rest rs) (assoc attrs n r pn {:type r :optional true})))
       attrs)))
