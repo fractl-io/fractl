@@ -24,6 +24,13 @@
     (catch Exception e
       (println e))))
 
+(defn push [dir]
+  (if (System/getenv "SSH_KEY")
+    (with-identity {:name (u/getenv "SSH_KEY") :trust-all? true}
+                   (git-push dir))
+    (with-credentials {:login (u/getenv "GIT_USERNAME") :pw (u/getenv "GIT_PASSWORD")}
+                      (git-push dir))))
+
 (defn commit-and-push
   "Commits and push.
   If branch given then, checkout branch -> commit and push."
@@ -31,12 +38,12 @@
    (let [git-dir (load-repo repo-dir)]
      (if (contains? (into #{} (git-branch-list git-dir)) branch-name)
        (do (git-checkout branch-name)
-           (commit git-dir commit-message))
+           (commit repo-dir commit-message))
        (do (git-branch-create branch-name)
            (git-checkout branch-name)
-           (commit git-dir commit-message)))
-     (git-push git-dir)))
+           (commit repo-dir commit-message)))
+     (push git-dir)))
   ([repo-dir commit-message]
    (let [git-dir (load-repo repo-dir)]
-     (commit git-dir commit-message)
-     (git-push git-dir))))
+     (commit repo-dir commit-message)
+     (push git-dir))))
