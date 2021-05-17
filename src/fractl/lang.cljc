@@ -520,6 +520,10 @@
                :Subject :Kernel/String
                :Text :Kernel/String})
 
+       (event :Sms/Push
+              {:To :Kernel/String
+               :Body :Kernel/String})
+
        (r/register-resolvers
         [{:name :git
           :type :git
@@ -528,7 +532,11 @@
          {:name :email
           :type :email
           :compose? false
-          :paths [:Email/Push]}]))))
+          :paths [:Email/Push]}
+         {:name :sms
+          :type :sms
+          :compose? false
+          :paths [:Sms/Push]}]))))
 
 (defn- initf []
   (when-not @kernel-inited
