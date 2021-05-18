@@ -336,6 +336,30 @@
       (into {(first (keys pattern)) (into {} attrs)}))
     pattern))
 
+(defn- path-via-references
+  "Trace a path from the source entity to all entities in the
+   targets list. Return the path in the right order.
+   If any target cannot be reached, return nil"
+  [source targets]
+  ;; TODO: implement
+  true)
+
+(defn- find-paths-via-references
+  "Return a map of reference paths from each entity named in the list
+   `recnames` to its other members"
+  [recnames]
+  (if (= 1 (count recnames))
+    {}
+    (let [rset (set recnames)]
+      (loop [rs recnames, paths {}]
+        (if-let [r (first rs)]
+          (let [targets (set/difference rset #{r})]
+            (if-let [path (path-via-references r targets)]
+              (recur (rest rs) (assoc paths r path))
+              (recur (rest rs) paths)))
+          (when (seq paths)
+            paths))))))
+
 (defn- install-event-trigger-pattern [match-pat]
   (let [event-name (first match-pat)]
     (when-not (li/name? event-name)
@@ -345,10 +369,13 @@
     (let [pat (nthrest match-pat 2)
           predic (li/compile-event-trigger-pattern pat)
           rnames (li/referenced-record-names pat)
-          event-attrs (li/references-to-event-attributes rnames)
-          evt-name (event event-name event-attrs)]
-      (cn/install-triggers! rnames event-name predic)
-      evt-name)))
+          ref-paths (find-paths-via-references rnames)]
+      (when-not ref-paths
+        (u/throw-ex (str "unreachable entity references - " match-pat)))
+      (let [event-attrs (li/references-to-event-attributes rnames)
+            evt-name (event event-name event-attrs)]
+        (cn/install-triggers! rnames event-name ref-paths predic)
+        evt-name))))
 
 (defn dataflow
   "A declarative data transformation pipeline."
