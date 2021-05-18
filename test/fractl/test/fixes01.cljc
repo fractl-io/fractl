@@ -93,3 +93,46 @@
      (let [a (partial assert-transition [:A :B :C])]
        (a [10 20 30] [10 20 30] (second results))
        (a [10 20 30] [10 60 30] (nth results 2))))))
+
+(deftest issue-185
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I185
+     (entity {:I185/E {:X :Kernel/Int :Y :Kernel/Int}})
+     (record {:I185/R {:Y :Kernel/Int}})
+     (dataflow :I185/UpdateE
+               {:I185/E {:Id? :I185/UpdateE.Id
+                         :X :I185/UpdateE.X
+                         :Y :I185/UpdateE.Y}})
+     (dataflow [:I185/OnXGt10 :when [:and
+                                     [:> :I185/E.X 10]
+                                     [:= :I185/E.Y 200]]]
+               {:I185/R {:Y 100}}))
+   (let [e (cn/make-instance {:I185/E {:X 10 :Y 1}})
+         evt (cn/make-instance {:I185/Upsert_E {:Instance e}})
+         r (tu/fresult (e/eval-all-dataflows evt))
+         r1 (ffirst r)
+         id (:Id r1)
+         evt (cn/make-instance {:I185/UpdateE {:Id id :X 20 :Y 100}})
+         r2 (tu/fresult (e/eval-all-dataflows evt))
+         r3 (ffirst (tu/embedded-results r2))
+         evt (cn/make-instance {:I185/UpdateE {:Id id :X 11 :Y 200}})
+         r4 (tu/fresult (e/eval-all-dataflows evt))
+         r5 (ffirst (tu/embedded-results r4))
+         evt (cn/make-instance {:I185/Lookup_E {:Id id}})
+         r6 (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+     (is (nil? (tu/embedded-results r)))
+     (is (cn/instance-of? :I185/E r1))
+     (is (= 10 (:X r1)))
+     (is (= 1 (:Y r1)))
+     (is (cn/instance-of? :I185/E (ffirst r2)))
+     (is (= 20 (:X (ffirst r2))))
+     (is (nil? r3))
+     (is (cn/instance-of? :I185/E (ffirst r4)))
+     (is (= 11 (:X (ffirst r4))))
+     (is (= 200 (:Y (ffirst r4))))
+     (is (cn/instance-of? :I185/R r5))
+     (is (= 100 (:Y r5)))
+     (is (cn/instance-of? :I185/E r6))
+     (is (= 11 (:X r6)))
+     (is (= 200 (:Y r6))))))

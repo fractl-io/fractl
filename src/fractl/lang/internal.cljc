@@ -24,7 +24,7 @@
   (not-any? #{\_ \- \$ \@ \# \! \& \^ \% \~} s))
 
 (defn- no-invalid-chars? [s]
-  (not-any? #{\+ \*} s))
+  (not-any? #{\+ \* \< \> \=} s))
 
 (defn- no-restricted-chars? [s]
   (and (no-special-chars? s)
@@ -370,3 +370,65 @@
     (let [c (first (name x))]
       (= c (string/lower-case c)))))
 
+(def ^:private oprs [:= :< :> :<= :>= :and :or])
+
+(defn- operator? [x]
+  (some #{x} oprs))
+
+(defn- operator-name [x]
+  (symbol (name x)))
+
+(defn- accessor-expression [n]
+  (let [[path r] (split-ref n)
+        p (split-path path)]
+    `(get (get ~(symbol "-arg-map-") ~p) ~r)))
+
+(defn compile-one-event-trigger-pattern [pat]
+  (map
+   (fn [p]
+     (cond
+       (operator? p) (operator-name p)
+       (name? p) (accessor-expression p)
+       (vector? p) (compile-one-event-trigger-pattern p)
+       :else p))
+   pat))
+
+(defn compile-event-trigger-pattern
+  "Compile the dataflow match pattern into a predicate"
+  [pat]
+  (let [expr (compile-one-event-trigger-pattern pat)
+        fexpr `(fn [~(symbol "-arg-map-")] ~@expr)]
+    (eval fexpr)))
+
+(defn referenced-record-names
+  "Return record names referenced in the pattern"
+  [pattern]
+  (loop [ps pattern, recnames []]
+    (if-let [p (first ps)]
+      (recur (rest ps)
+             (cond
+               (vector? p)
+               (concat
+                recnames
+                (referenced-record-names p))
+
+               (name? p)
+               (let [[n _] (split-ref p)]
+                 (conj recnames n))
+
+               :else recnames))
+      (set recnames))))
+
+(defn upserted-instance-attribute [rec-name]
+  (keyword (str "Upserted" (name rec-name))))
+
+(defn references-to-event-attributes
+  "Return attributes for a pattern-triggered event,
+  from the list of record names referenced in the pattern"
+  [rec-names]
+  (loop [rs rec-names, attrs {}]
+    (if-let [r (first rs)]
+      (let [[_ n] (split-path r)
+            pn (upserted-instance-attribute n)]
+        (recur (rest rs) (assoc attrs n r pn {:type r :optional true})))
+      attrs)))
