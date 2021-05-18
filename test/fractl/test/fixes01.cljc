@@ -136,3 +136,23 @@
      (is (cn/instance-of? :I185/E r6))
      (is (= 11 (:X r6)))
      (is (= 200 (:Y r6))))))
+
+(deftest issue-213
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I213
+     (entity {:I213/E1 {:X :Kernel/Int}})
+     (entity {:I213/E2 {:E1 {:ref :I213/E1.Id}
+                        :Y :Kernel/Int}})
+     (entity {:I213/E3 {:Z :Kernel/Int}})
+     (record {:I213/R {:Y :Kernel/Int}})
+     (dataflow :I213/UpdateE1
+               {:I213/E1 {:Id? :I213/UpdateE1.Id
+                          :X :I213/UpdateE1.X}})
+     (dataflow :I213/UpdateE2
+               {:I213/E2 {:Id? :I213/UpdateE2.Id
+                          :Y :I213/UpdateE2.Y}})
+     (dataflow [:I213/CrossCond :when [:and
+                                       [:> :I213/E1.X 10]
+                                       [:= :I213/E2.Y 200]]]
+               {:I213/R {:Y 100}}))))
