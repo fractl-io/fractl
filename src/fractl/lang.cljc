@@ -336,13 +336,54 @@
       (into {(first (keys pattern)) (into {} attrs)}))
     pattern))
 
+(defn- has-path?
+  "Return true if there is a ref path from source to target"
+  [source target]
+  (let [src-scm (cn/fetch-schema source)
+        tgt-scm (cn/fetch-schema target)
+        [c n] (li/split-path target)]
+    (when (first (filter (fn [[_ v]]
+                           (let [ascm (cn/find-attribute-schema v)]
+                             (when-let [r (:ref ascm)]
+                               (= [c n] [(:component r) (:record r)]))))
+                         src-scm))
+      true)))
+
+(declare path-via-references)
+
+(defn- find-paths-for-isolated [isolated sources]
+  (loop [ss sources, no-paths (set isolated), paths []]
+    (if-let [s (first ss)]
+      (if-let [p (path-via-references s isolated false)]
+        (if-let [r (seq (set/difference (conj no-paths s) (set p)))]
+          (recur (rest ss) (set r) (conj paths p))
+          paths)
+        (recur (rest ss) no-paths paths))
+      (seq paths))))
+
 (defn- path-via-references
   "Trace a path from the source entity to all entities in the
    targets list. Return the path in the right order.
-   If any target cannot be reached, return nil"
-  [source targets]
-  ;; TODO: implement
-  true)
+   If a target cannot be reached, return nil"
+  ([source targets dig-isolated]
+   (loop [ts targets, isolated [], paths []]
+     (if-let [t (first ts)]
+       (if (has-path? source t)
+         (recur (rest ts) isolated (conj paths t))
+         (recur (rest ts) (conj isolated t) paths))
+       (let [pseq (seq paths)
+             result (when pseq (concat [source] paths))]
+         (cond
+           (not pseq) nil
+           (seq isolated)
+           (if dig-isolated
+             (concat
+              result
+              (find-paths-for-isolated isolated paths))
+             result)
+           :else result)))))
+  ([source targets]
+   (path-via-references source targets true)))
 
 (defn- find-paths-via-references
   "Return a map of reference paths from each entity named in the list

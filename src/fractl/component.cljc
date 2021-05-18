@@ -886,6 +886,9 @@
 (def record-schema (partial get-schema find-record-schema))
 (def entity-schema (partial get-schema find-entity-schema))
 
+(defn fetch-schema [some-type]
+  (:schema (second (find-schema some-type))))
+
 (defn computed-attribute-fns
   "Return the expression or query functions attached to computed attributes
   as a mapping of [[attrname fn], ...]"
