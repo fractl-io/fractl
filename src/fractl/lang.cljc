@@ -336,16 +336,35 @@
       (into {(first (keys pattern)) (into {} attrs)}))
     pattern))
 
+(defn- install-event-trigger-pattern [match-pat]
+  (let [event-name (first match-pat)]
+    (when-not (li/name? event-name)
+      (u/throw-ex (str "not a valid event name - " event-name)))
+    (when-not (= :when (second match-pat))
+      (u/throw-ex (str "expected keyword :when not found - " match-pat)))
+    (let [pat (nthrest match-pat 2)
+          predic (li/compile-event-trigger-pattern pat)
+          rnames (li/referenced-record-names pat)
+          event-attrs (li/references-to-event-attributes rnames)
+          evt-name (event event-name event-attrs)]
+      (cn/install-triggers! rnames event-name predic)
+      evt-name)))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
   (ensure-dataflow-patterns! patterns)
-  (let [hd (:head match-pat)]
-    (if-let [mt (and hd (:on-entity-event hd))]
-      (cn/register-entity-dataflow mt hd patterns)
-      (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-        (do (ensure-event! event)
-            (cn/register-dataflow event hd patterns))))))
+  (if (vector? match-pat)
+    (apply
+     dataflow
+     (install-event-trigger-pattern match-pat)
+     patterns)
+    (let [hd (:head match-pat)]
+      (if-let [mt (and hd (:on-entity-event hd))]
+        (cn/register-entity-dataflow mt hd patterns)
+        (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
+          (do (ensure-event! event)
+              (cn/register-dataflow event hd patterns)))))))
 
 (defn- crud-evname [entity-name evtname]
   (cn/canonical-type-name
