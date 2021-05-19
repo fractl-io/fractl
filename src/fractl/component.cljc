@@ -1023,8 +1023,10 @@
   "Install the predicate for the given records.
   On upsert, the event is triggered if the predicate
   return true for the record instance"
-  [record-names event-name ref-paths predicate]
-  (doseq [rn record-names]
+  [record-names event-name predicate where-clause]
+  (doseq [rn (if (keyword? record-names)
+               [record-names]
+               record-names)]
     (let [rn (li/split-path rn)
           ts @trigger-store]
       (util/safe-set
@@ -1032,7 +1034,7 @@
        (let [trigs (get ts rn)]
          (assoc
           ts rn
-          (conj trigs [predicate event-name ref-paths])))))))
+          (conj trigs [predicate event-name where-clause])))))))
 
 (defn conditional-events
   "Return conditional events to fire for the given instance"

@@ -336,70 +336,15 @@
       (into {(first (keys pattern)) (into {} attrs)}))
     pattern))
 
-(defn- has-path?
-  "Return true if there is a ref path from source to target"
-  [source target]
-  (let [src-scm (cn/fetch-schema source)
-        tgt-scm (cn/fetch-schema target)
-        [c n] (li/split-path target)]
-    (when (first (filter (fn [[_ v]]
-                           (let [ascm (cn/find-attribute-schema v)]
-                             (when-let [r (:ref ascm)]
-                               (= [c n] [(:component r) (:record r)]))))
-                         src-scm))
-      true)))
-
-(declare path-via-references)
-
-(defn- find-paths-for-isolated [isolated sources]
-  (loop [ss sources, no-paths (set isolated), paths []]
-    (if-let [s (first ss)]
-      (if-let [p (path-via-references s isolated false)]
-        (if-let [r (seq (set/difference (conj no-paths s) (set p)))]
-          (recur (rest ss) (set r) (conj paths p))
-          paths)
-        (recur (rest ss) no-paths paths))
-      (seq paths))))
-
-(defn- path-via-references
-  "Trace a path from the source entity to all entities in the
-   targets list. Return the path in the right order.
-   If a target cannot be reached, return nil"
-  ([source targets dig-isolated]
-   (loop [ts targets, isolated [], paths []]
-     (if-let [t (first ts)]
-       (if (has-path? source t)
-         (recur (rest ts) isolated (conj paths t))
-         (recur (rest ts) (conj isolated t) paths))
-       (let [pseq (seq paths)
-             result (when pseq (concat [source] paths))]
-         (cond
-           (not pseq) nil
-           (seq isolated)
-           (if dig-isolated
-             (concat
-              result
-              (find-paths-for-isolated isolated paths))
-             result)
-           :else result)))))
-  ([source targets]
-   (path-via-references source targets true)))
-
-(defn- find-paths-via-references
-  "Return a map of reference paths from each entity named in the list
-   `recnames` to its other members"
-  [recnames]
-  (if (= 1 (count recnames))
-    {}
-    (let [rset (set recnames)]
-      (loop [rs recnames, paths {}]
-        (if-let [r (first rs)]
-          (let [targets (set/difference rset #{r})]
-            (if-let [path (path-via-references r targets)]
-              (recur (rest rs) (assoc paths r path))
-              (recur (rest rs) paths)))
-          (when (seq paths)
-            paths))))))
+(defn- extract-on-and-where [match-pat]
+  (if (= (count match-pat) 7)
+    (do
+      (when-not (= :on (nth match-pat 3))
+        (u/throw-ex (str ":on keyword not found - " match-pat)))
+      (when-not (= :where (nth match-pat 5))
+        (u/throw-ex (str ("where clause not found - " match-pat))))
+      [(nth match-pat 4) (nth match-pat 6)])
+    (u/throw-ex (str ":on and :where clauses expected - " match-pat))))
 
 (defn- install-event-trigger-pattern [match-pat]
   (let [event-name (first match-pat)]
@@ -407,16 +352,15 @@
       (u/throw-ex (str "not a valid event name - " event-name)))
     (when-not (= :when (second match-pat))
       (u/throw-ex (str "expected keyword :when not found - " match-pat)))
-    (let [pat (nthrest match-pat 2)
+    (let [pat (nth match-pat 2)
           predic (li/compile-event-trigger-pattern pat)
           rnames (li/referenced-record-names pat)
-          ref-paths (find-paths-via-references rnames)]
-      (when-not ref-paths
-        (u/throw-ex (str "unreachable entity references - " match-pat)))
-      (let [event-attrs (li/references-to-event-attributes rnames)
-            evt-name (event event-name event-attrs)]
-        (cn/install-triggers! rnames event-name ref-paths predic)
-        evt-name))))
+          [on where :as clauses] (when (> (count rnames) 1)
+                                   (extract-on-and-where match-pat))
+          event-attrs (li/references-to-event-attributes rnames)
+          evt-name (event event-name event-attrs)]
+      (cn/install-triggers! (or on rnames) event-name predic where)
+      evt-name)))
 
 (defn dataflow
   "A declarative data transformation pipeline."

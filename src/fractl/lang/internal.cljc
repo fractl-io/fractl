@@ -396,7 +396,7 @@
 (defn compile-event-trigger-pattern
   "Compile the dataflow match pattern into a predicate"
   [pat]
-  (let [expr (compile-one-event-trigger-pattern pat)
+  (let [expr (compile-one-event-trigger-pattern [pat])
         fexpr `(fn [~(symbol "-arg-map-")] ~@expr)]
     (eval fexpr)))
 

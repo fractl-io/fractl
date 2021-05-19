@@ -152,7 +152,10 @@
      (dataflow :I213/UpdateE2
                {:I213/E2 {:Id? :I213/UpdateE2.Id
                           :Y :I213/UpdateE2.Y}})
-     (dataflow [:I213/CrossCond :when [:and
-                                       [:> :I213/E1.X 10]
-                                       [:= :I213/E2.Y 200]]]
+     (dataflow [:I213/CrossCond
+                :when [:and
+                       [:> :I213/E1.X 10]
+                       [:= :I213/E2.Y 200]]
+                :on :I213/E2
+                :where [:= :I213/E2.E1 :I213/E1.Id]]
                {:I213/R {:Y 100}}))))
