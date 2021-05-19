@@ -80,8 +80,19 @@
   (let [rs (if composed? resolver [resolver])]
     (doall (map #(r/call-resolver-eval % env inst) rs))))
 
-(defn- fire-conditional-event [event-evaluator event-name instance]
-  (let [[_ n] (li/split-path (cn/instance-name instance))
+(defn- load-instances-for-conditional-event [store where-clause
+                                             records-to-load loaded-instances]
+  (loop [wcs where-clause, rs records-to-load, ls loaded-instances]
+    (if-let [wc (first wcs)]
+      (let [p (cn/parse-where-clause wc ls)]
+        (recur (rest wcs) rs ls))
+      ls)))
+
+(defn- fire-conditional-event [event-evaluator store event-info instance]
+  (let [[event-name [where-clause records-to-load]] event-info
+        all-insts (load-instances-for-conditional-event
+                   store where-clause records-to-load #{instance})
+        [_ n] (li/split-path (cn/instance-name instance))
         upserted-inst (when-let [t (:transition instance)]
                         (:from t))
         upserted-n (li/upserted-instance-attribute n)
@@ -91,8 +102,8 @@
               upserted-n upserted-inst})]
     (event-evaluator evt)))
 
-(defn- fire-all-conditional-events [event-evaluator insts]
-  (let [f (partial fire-conditional-event event-evaluator)]
+(defn- fire-all-conditional-events [event-evaluator store insts]
+  (let [f (partial fire-conditional-event event-evaluator store)]
     (filter
      identity
      (map #(seq (map (fn [e] (f e %)) (cn/conditional-events %)))
@@ -135,7 +146,7 @@
              resolver (partial resolver-upsert env) nil insts)
             conditional-event-results
             (fire-all-conditional-events
-             event-evaluator local-result)]
+             event-evaluator store local-result)]
         [(concat local-result conditional-event-results) resolver-result])
       [insts nil])))
 
