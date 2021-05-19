@@ -2,7 +2,7 @@
   "Components of a model."
   (:require [clojure.set :as set]
             [clojure.string :as s]
-            [fractl.util :as util]
+            [fractl.util :as u]
             [fractl.util.hash :as sh]
             [fractl.util.seq :as su]
             [fractl.util.log :as log]
@@ -75,7 +75,7 @@
   the components in the imports list. If a component already exists with
   the same name, it will be overwritten. Returns the name of the new component."
   [component spec]
-  (util/safe-set
+  (u/safe-set
    components
    (let [imports (when-let [imports (:imports spec)]
                    {:import [imports (li/mappify-alias-imports imports)]
@@ -100,14 +100,14 @@
                     {:type :Kernel/UUID
                      :unique true
                      :immutable true
-                     :default util/uuid-string})
+                     :default u/uuid-string})
   (intern-event [component (component-init-event-name component)]
                 {:ComponentName :Kernel/Keyword})
   (set-current-component component)
   component)
 
 (defn remove-component [component]
-  (util/safe-set components (dissoc @components component)))
+  (u/safe-set components (dissoc @components component)))
 
 (defn component-exists? [component]
   (if (find @components component)
@@ -133,11 +133,11 @@
    (let [[component n] (li/split-path typname)
          k [component typtag n]]
      (when-not (component-exists? component)
-       (util/throw-ex-info
+       (u/throw-ex-info
         (str "component not found - " component)
         {:name typname
          :tag typtag}))
-     (util/safe-set
+     (u/safe-set
       components
       (assoc-in (if meta
                   (assoc-in @components (meta-key k) meta)
@@ -236,7 +236,7 @@
 (def find-event-schema (partial find-record-schema-by-type :event))
 
 (defn find-schema [path]
-  (util/first-applied [find-attribute-schema :attribute
+  (u/first-applied [find-attribute-schema :attribute
                        find-entity-schema :entity
                        find-event-schema :event
                        find-record-schema :record]
@@ -410,7 +410,7 @@
   "Call make-error to create a new instance of error, wrap it in an
   ex-info and raise it as an exception."
   ([msg attributes]
-   (util/throw-ex-info (str "component/error: " msg)
+   (u/throw-ex-info (str "component/error: " msg)
                        {:error (make-error msg attributes)}))
   ([msg] (throw-error msg nil)))
 
@@ -566,7 +566,7 @@
       (keyword? n) n
       (string? n) (keyword n)
       (seqable? n) (vec (map #(if (keyword? %) % (keyword %)) n))
-      :else (util/throw-ex (str "not a valid name - " n)))))
+      :else (u/throw-ex (str "not a valid name - " n)))))
 
 (defn- deserialize-instance [x]
   (let [tp (keyword (type-tag-key x))
@@ -712,13 +712,13 @@
     (map? e) (let [n (first (keys e))]
                (if (keyword? n)
                  n
-                 (util/throw-ex (str "not a valid event name - " n))))
-    :else (util/throw-ex (str "invalid event pattern - " e))))
+                 (u/throw-ex (str "not a valid event name - " n))))
+    :else (u/throw-ex (str "invalid event pattern - " e))))
 
 (defn register-dataflow
   "Attach a dataflow to the event."
   ([event head patterns component]
-   (util/safe-set
+   (u/safe-set
     components
     (let [ms @components
           ename (normalize-type-name (event-name event))
@@ -727,7 +727,7 @@
           newpats (conj currpats [event {:head head
                                          :event-pattern event
                                          :patterns patterns
-                                         :opcode (util/make-cell nil)}])]
+                                         :opcode (u/make-cell nil)}])]
       (assoc-in ms path newpats)))
    event)
   ([event head patterns]
@@ -819,7 +819,7 @@
   @(:opcode (dataflow-spec df)))
 
 (defn set-dataflow-opcode! [df opc]
-  (util/safe-set
+  (u/safe-set
    (:opcode (dataflow-spec df))
    opc))
 
@@ -1009,7 +1009,7 @@
         attrs (validate-record-attributes
                n (instance-attributes inst) schema)]
     (if (error? attrs)
-      (util/throw-ex attrs)
+      (u/throw-ex attrs)
       (make-record-instance (type-tag-key inst) n attrs))))
 
 (defn tag-record [recname attrs]
@@ -1023,18 +1023,21 @@
   "Install the predicate for the given records.
   On upsert, the event is triggered if the predicate
   return true for the record instance"
-  [record-names event-name predicate where-clause]
+  [record-names event-name predicate where-clause records-to-load]
   (doseq [rn (if (keyword? record-names)
                [record-names]
                record-names)]
     (let [rn (li/split-path rn)
           ts @trigger-store]
-      (util/safe-set
+      (u/safe-set
        trigger-store
-       (let [trigs (get ts rn)]
+       (let [trigs (get ts rn)
+             rs (set (map li/split-path records-to-load))]
          (assoc
           ts rn
-          (conj trigs [predicate event-name where-clause])))))))
+          (conj
+           trigs
+           [predicate event-name [where-clause rs]])))))))
 
 (defn conditional-events
   "Return conditional events to fire for the given instance"
@@ -1042,4 +1045,39 @@
   (let [recname (li/split-path (instance-name instance))]
     (when-let [trigs (seq (get @trigger-store recname))]
       (when-let [ts (seq (filter #((first %) {recname instance}) trigs))]
-        (map second ts)))))
+        (map (fn [t] [(second t) (nth t 2)]) ts)))))
+
+(defn- replace-referenced-value [loaded-instances [[c n] r :as term]]
+  (if-let [inst (first (filter #(= (instance-name %) [c n]) loaded-instances))]
+    (if-let [v (get inst r)]
+      v
+      (u/throw-ex (str "failed to load reference - " term)))
+    term))
+
+(defn- rewrite-term [loaded-instances term]
+  (if (li/parsed-path? term)
+    (replace-referenced-value loaded-instances term)
+    term))
+
+(defn- extract-query-target [rewritten-clause]
+  (loop [rcs rewritten-clause, target nil]
+    (if-let [r (first rcs)]
+      (if (li/parsed-path? r)
+        (if target
+          (u/throw-ex
+           (str "cannot have two targets in the same clause - "
+                rewritten-clause))
+          (recur (rest rcs) (first r))))
+      target)))
+
+(defn- normalize-rewritten [rewritten-clause]
+  (map #(if (li/parsed-path? %)
+          (second %)
+          %)
+       rewritten-clause))
+
+(defn parse-where-clause [clause loaded-instances]
+  (let [opr (first clause)
+        rewritten (map (partial rewrite-term loaded-instances) (rest clause))]
+    {:from (extract-query-target rewritten)
+     :where (concat [opr] (normalize-rewritten rewritten))}))

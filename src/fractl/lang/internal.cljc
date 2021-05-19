@@ -1,7 +1,7 @@
 (ns fractl.lang.internal
   (:require [clojure.string :as string]
             [clojure.set :as set]
-            [fractl.util :as util]
+            [fractl.util :as u]
             #?(:cljs
                [cljs.js :refer [eval empty-state js-eval]])))
 
@@ -209,9 +209,9 @@
 (defn root-component [refpath]
   (first (split-ref refpath)))
 
-(def ^:private uppercase-component (partial util/capitalize #"[\s-_]" ""))
+(def ^:private uppercase-component (partial u/capitalize #"[\s-_]" ""))
 
-(def ^:private lowercase-component (partial util/lowercase #"[\s-_]" ""))
+(def ^:private lowercase-component (partial u/lowercase #"[\s-_]" ""))
 
 (defn v8ns-as-cljns
   [v8ns]
@@ -250,7 +250,7 @@
                        component-root-path)
                       file-separator)
         ns-parts (concat (take (dec (count parts)) parts)
-                         [(util/remove-extension (last parts))])
+                         [(u/remove-extension (last parts))])
         names (string/join "." (map uppercase-component ns-parts))]
     (keyword names)))
 
@@ -288,7 +288,7 @@
 
 (defn validate [predic errmsg x]
   (when-not (predic x)
-    (util/throw-ex (str errmsg " - " x)))
+    (u/throw-ex (str errmsg " - " x)))
   x)
 
 (def validate-name (partial validate (partial name? no-restricted-chars?) "not a valid name"))
@@ -330,7 +330,7 @@
   (first (vals pat)))
 
 (def kw "Convert non-nil strings to keywords"
-  (partial util/map-when keyword))
+  (partial u/map-when keyword))
 
 (defn path-parts
   "Parse a path of the form :M/R.A1.A2 to a map.
@@ -370,7 +370,8 @@
     (let [c (first (name x))]
       (= c (string/lower-case c)))))
 
-(def ^:private oprs [:= :< :> :<= :>= :and :or])
+(def ^:private cmpr-oprs [:= :< :> :<= :>=])
+(def ^:private oprs (concat cmpr-oprs [:and :or]))
 
 (defn- operator? [x]
   (some #{x} oprs))
@@ -432,3 +433,29 @@
             pn (upserted-instance-attribute n)]
         (recur (rest rs) (assoc attrs n r pn {:type r :optional true})))
       attrs)))
+
+(defn validate-on-clause [on]
+  (if (or (name? on)
+          (every? name? on))
+    on
+    (u/throw-ex (str "invalid :on clause - " on))))
+
+(defn- valid-where-clause? [c]
+  (and (some #{(first c)} cmpr-oprs)
+       (every? #(or (name? %)
+                    (literal? %))
+               (rest c))
+       true))
+
+(defn- pre-parse-name [x]
+  (if (name? x)
+    (let [[n r] (split-ref x)]
+      [(split-path n) r])
+    x))
+
+(defn validate-where-clause [wc]
+  (if-not (vector? (first wc))
+    (validate-where-clause [wc])
+    (if (every? valid-where-clause? wc)
+      (map #(map pre-parse-name %) wc)
+      (u/throw-ex (str "invalid :where clause - " wc)))))

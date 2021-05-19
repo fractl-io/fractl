@@ -343,7 +343,8 @@
         (u/throw-ex (str ":on keyword not found - " match-pat)))
       (when-not (= :where (nth match-pat 5))
         (u/throw-ex (str ("where clause not found - " match-pat))))
-      [(nth match-pat 4) (nth match-pat 6)])
+      [(li/validate-on-clause (nth match-pat 4))
+       (li/validate-where-clause (nth match-pat 6))])
     (u/throw-ex (str ":on and :where clauses expected - " match-pat))))
 
 (defn- install-event-trigger-pattern [match-pat]
@@ -355,11 +356,13 @@
     (let [pat (nth match-pat 2)
           predic (li/compile-event-trigger-pattern pat)
           rnames (li/referenced-record-names pat)
-          [on where :as clauses] (when (> (count rnames) 1)
-                                   (extract-on-and-where match-pat))
+          [on where] (when (> (count rnames) 1)
+                       (extract-on-and-where match-pat))
           event-attrs (li/references-to-event-attributes rnames)
           evt-name (event event-name event-attrs)]
-      (cn/install-triggers! (or on rnames) event-name predic where)
+      (cn/install-triggers!
+       (or on rnames)
+       event-name predic where rnames)
       evt-name)))
 
 (defn dataflow
