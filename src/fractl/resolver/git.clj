@@ -4,7 +4,6 @@
 
 (defn- git-eval [inst]
   (let [repo-dir (:Path inst)]
-    (git/add-all repo-dir)
     (git/commit-and-push
      repo-dir
      (str "commit - " (java.util.Date.)))))
