@@ -7,7 +7,7 @@
   (:import [java.io FileInputStream InputStreamReader PushbackReader]))
 
 (defn- read-expressions
-  "Read expressions in sequence from a V8 component file. Each expression read
+  "Read expressions in sequence from a fractl component file. Each expression read
    is preprocessed to add component-name prefixes to names. Then the expression is evaluated.
    Return a list with the results of evaluations."
   [file-name]
