@@ -10,6 +10,7 @@
                  [org.antlr/antlr-complete "3.5.2"]
                  [com.force.api/force-wsc "51.2.0"]
                  [com.force.api/force-metadata-api "51.2.0"]
+                 [clj-jgit "1.0.1"]
                  [com.taoensso/timbre "5.1.0"
                   :exclusions [org.clojure/tools.reader]]
                  [seancorfield/next.jdbc "1.1.581"]

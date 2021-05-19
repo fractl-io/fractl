@@ -1,50 +1,49 @@
 (ns fractl.git
   "A wrapper for git shell commands"
   (:require [fractl.util :as u])
-  (:use [clojure.java.shell :only [sh]]))
+  (:use [clj-jgit.porcelain]))
 
-(defn- sh! [& args]
-  (let [{exit :exit out :out} (apply sh args)]
-    (if (zero? exit)
-      true
-      (u/throw-ex (str (first args) " failed - " out)))))
+(defn status [repo-dir]
+  (git-status (load-repo repo-dir)))
+
+(defn add-all-files [repo-dir]
+  (try
+    (git-add (load-repo repo-dir) ".")
+    (catch Exception e
+      (println e))))
 
 (defn commit [repo-dir commit-message]
-  (try
-    (sh! "git" "commit" "-a" "-m" commit-message :dir repo-dir)
-    (catch Exception ex
-      (println ex))))
+   (try
+     (git-commit (load-repo repo-dir) commit-message :all? true)
+       (catch Exception e
+         (println e))))
 
-(defn push
-  ([repo-dir branch-name]
-   (if-let [url (u/getenv "SFDC_GIT_URL" false)]
-     (sh! "git" "push" url "--all"
-          :dir repo-dir)
-     (sh! "git" "push" "origin"
-          (or branch-name "main")
-          :dir repo-dir)))
-  ([repo-dir]
-   (push repo-dir nil)))
+(defn pull [repo-dir]
+  (try
+    (git-pull (load-repo repo-dir))
+    (catch Exception e
+      (println e))))
+
+(defn push [dir]
+  (if (System/getenv "SSH_KEY")
+    (with-identity {:name (u/getenv "SSH_KEY") :trust-all? true}
+                   (git-push dir))
+    (with-credentials {:login (u/getenv "GIT_USERNAME") :pw (u/getenv "GIT_PASSWORD")}
+                      (git-push dir))))
 
 (defn commit-and-push
-  ([repo-dir commit-message branch-name]
-   (commit repo-dir commit-message)
-   (push repo-dir branch-name))
+  "Commits and push.
+  If branch given then, checkout branch -> commit and push."
+  ([repo-dir branch-name commit-message]
+   (let [git-dir (load-repo repo-dir)]
+     (if (contains? (into #{} (git-branch-list git-dir)) branch-name)
+       (do (git-checkout branch-name)
+           (commit repo-dir commit-message))
+       (do (git-branch-create branch-name)
+           (git-checkout branch-name)
+           (commit repo-dir commit-message)))
+     (push git-dir)))
   ([repo-dir commit-message]
-   (commit-and-push repo-dir commit-message nil)))
-
-(defn pull
-  ([repo-dir branch-name]
-   (sh! "git" "pull" "origin" branch-name :dir repo-dir))
-  ([repo-dir]
-   (pull repo-dir "main")))
-
-(defn add [repo-dir file-names]
-  (loop [fns file-names]
-    (if-let [f (first fns)]
-      (do (sh! "git" "add" f :dir repo-dir)
-          (recur (rest fns)))
-      file-names)))
-
-(defn add-all [repo-dir]
-  (add repo-dir ["."]))
+   (let [git-dir (load-repo repo-dir)]
+     (commit repo-dir commit-message)
+     (push git-dir))))
