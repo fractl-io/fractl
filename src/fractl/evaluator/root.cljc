@@ -87,9 +87,8 @@
   (loop [wcs where-clause, rs records-to-load, ls loaded-instances]
     (if-let [wc (first wcs)]
       (let [p (cn/parse-where-clause wc ls)
-            q (store/compile-query store p)
-            result (find-instances-in-store nil store (:from p) q)]
-        (recur (rest wcs) rs ls))
+            result (find-instances-in-store nil store (:from p) p)]
+        (recur (rest wcs) rs (conj ls (ffirst result))))
       ls)))
 
 (defn- fire-conditional-event [event-evaluator store event-info instance]

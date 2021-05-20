@@ -1075,10 +1075,12 @@
       target)))
 
 (defn- normalize-rewritten [rewritten-clause]
-  (map #(if (li/parsed-path? %)
-          (second %)
-          %)
-       rewritten-clause))
+  (loop [rcs rewritten-clause, literals [], result []]
+    (if-let [r (first rcs)]
+      (if (li/parsed-path? r)
+        (recur (rest rcs) literals (conj result (second r)))
+        (recur (rest rcs) (conj literals r) result))
+      (concat result literals))))
 
 (defn parse-where-clause [clause loaded-instances]
   (let [opr (first clause)
