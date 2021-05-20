@@ -1046,7 +1046,7 @@
     (seq (get @trigger-store recname))))
 
 (defn fire-event? [event-info instances]
-  (let [args (map (fn [inst] [(instance-name inst) inst]) instances)]
+  (let [args (map (fn [inst] [(li/split-path (instance-name inst)) inst]) instances)]
     (when ((first event-info) (into {} args))
       true)))
 
