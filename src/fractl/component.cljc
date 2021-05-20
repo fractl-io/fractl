@@ -1043,12 +1043,15 @@
   "Return conditional events to fire for the given instance"
   [instance]
   (let [recname (li/split-path (instance-name instance))]
-    (when-let [trigs (seq (get @trigger-store recname))]
-      (when-let [ts (seq (filter #((first %) {recname instance}) trigs))]
-        (map (fn [t] [(second t) (nth t 2)]) ts)))))
+    (seq (get @trigger-store recname))))
+
+(defn fire-event? [event-info instances]
+  (let [args (map (fn [inst] [(instance-name inst) inst]) instances)]
+    (when ((first event-info) (into {} args))
+      true)))
 
 (defn- replace-referenced-value [loaded-instances [[c n] r :as term]]
-  (if-let [inst (first (filter #(= (instance-name %) [c n]) loaded-instances))]
+  (if-let [inst (first (filter #(= (li/split-path (instance-name %)) [c n]) loaded-instances))]
     (if-let [v (get inst r)]
       v
       (u/throw-ex (str "failed to load reference - " term)))
@@ -1067,7 +1070,8 @@
           (u/throw-ex
            (str "cannot have two targets in the same clause - "
                 rewritten-clause))
-          (recur (rest rcs) (first r))))
+          (recur (rest rcs) (first r)))
+        (recur (rest rcs) target))
       target)))
 
 (defn- normalize-rewritten [rewritten-clause]
