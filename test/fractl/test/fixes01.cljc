@@ -158,4 +158,12 @@
                        [:= :I213/E2.Y 200]]
                 :on :I213/E2
                 :where [:= :I213/E2.E1 :I213/E1.Id]]
-               {:I213/R {:Y 100}}))))
+               {:I213/R {:Y 100}})
+     (let [e1 (cn/make-instance {:I213/E1 {:X 10}})
+           evt (cn/make-instance {:I213/Upsert_E1 {:Instance e1}})
+           e1 (ffirst (tu/fresult (e/eval-all-dataflows evt)))
+           e2 (cn/make-instance {:I213/E2 {:E1 (:Id e1) :Y 20}})
+           evt (cn/make-instance {:I213/Upsert_E2 {:Instance e2}})
+           e2 (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+       (is (cn/instance-of? :I213/E1 e1))
+       (is (cn/instance-of? :I213/E2 e2))))))
