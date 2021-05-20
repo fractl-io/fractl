@@ -437,8 +437,9 @@
   (loop [rs rec-names, attrs {}]
     (if-let [r (first rs)]
       (let [[_ n] (split-path r)
-            pn (upserted-instance-attribute n)]
-        (recur (rest rs) (assoc attrs n r pn {:type r :optional true})))
+            pn (upserted-instance-attribute n)
+            spec {:type r :optional true}]
+        (recur (rest rs) (assoc attrs n spec pn spec)))
       attrs)))
 
 (defn validate-on-clause [on]
