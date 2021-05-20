@@ -80,27 +80,32 @@
   (let [rs (if composed? resolver [resolver])]
     (doall (map #(r/call-resolver-eval % env inst) rs))))
 
+(declare find-instances-in-store)
+
 (defn- load-instances-for-conditional-event [store where-clause
                                              records-to-load loaded-instances]
   (loop [wcs where-clause, rs records-to-load, ls loaded-instances]
     (if-let [wc (first wcs)]
-      (let [p (cn/parse-where-clause wc ls)]
+      (let [p (cn/parse-where-clause wc ls)
+            q (store/compile-query store p)
+            result (find-instances-in-store nil store (:from p) q)]
         (recur (rest wcs) rs ls))
       ls)))
 
 (defn- fire-conditional-event [event-evaluator store event-info instance]
-  (let [[event-name [where-clause records-to-load]] event-info
+  (let [[_ event-name [where-clause records-to-load]] event-info
         all-insts (load-instances-for-conditional-event
-                   store where-clause records-to-load #{instance})
-        [_ n] (li/split-path (cn/instance-name instance))
-        upserted-inst (when-let [t (:transition instance)]
-                        (:from t))
-        upserted-n (li/upserted-instance-attribute n)
-        evt (cn/make-instance
-             event-name
-             {n instance
-              upserted-n upserted-inst})]
-    (event-evaluator evt)))
+                   store where-clause records-to-load #{instance})]
+    (when (cn/fire-event? event-info all-insts)
+      (let [[_ n] (li/split-path (cn/instance-name instance))
+            upserted-inst (when-let [t (:transition instance)]
+                            (:from t))
+            upserted-n (li/upserted-instance-attribute n)
+            evt (cn/make-instance
+                 event-name
+                 {n instance
+                  upserted-n upserted-inst})]
+        (event-evaluator evt)))))
 
 (defn- fire-all-conditional-events [event-evaluator store insts]
   (let [f (partial fire-conditional-event event-evaluator store)]
