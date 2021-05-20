@@ -398,7 +398,14 @@
   "Compile the dataflow match pattern into a predicate"
   [pat]
   (let [expr (compile-one-event-trigger-pattern [pat])
-        fexpr `(fn [~(symbol "-arg-map-")] ~@expr)]
+        fexpr `(fn [~(symbol "-arg-map-")]
+                 (try
+                   ~@expr
+                   (catch Exception ex#
+                     (taoensso.timbre/error
+                      "failure in conditional event predicate"
+                      ex#)
+                     nil)))]
     (eval fexpr)))
 
 (defn referenced-record-names
