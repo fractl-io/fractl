@@ -93,6 +93,7 @@
 
 (defn- fire-conditional-event [event-evaluator env store event-info instance]
   (let [[_ event-name [where-clause records-to-load]] event-info
+        env (env/bind-instance env instance)
         [all-insts env] (load-instances-for-conditional-event
                          env store where-clause
                          records-to-load #{instance})]
