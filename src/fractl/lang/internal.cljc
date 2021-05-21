@@ -403,7 +403,7 @@
                    ~@expr
                    (catch Exception ex#
                      (taoensso.timbre/error
-                      "failure in conditional event predicate"
+                      "cannot execute conditional event predicate"
                       ex#)
                      nil)))]
     (eval fexpr)))
