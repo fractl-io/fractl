@@ -107,7 +107,7 @@
      (dataflow [:I185/OnXGt10 :when [:and
                                      [:> :I185/E.X 10]
                                      [:= :I185/E.Y 200]]]
-               {:I185/R {:Y 100}}))
+               {:I185/R {:Y '(* 2 :I185/E.Y)}}))
    (let [e (cn/make-instance {:I185/E {:X 10 :Y 1}})
          evt (cn/make-instance {:I185/Upsert_E {:Instance e}})
          r (tu/fresult (e/eval-all-dataflows evt))
@@ -132,7 +132,7 @@
      (is (= 11 (:X (ffirst r4))))
      (is (= 200 (:Y (ffirst r4))))
      (is (cn/instance-of? :I185/R r5))
-     (is (= 100 (:Y r5)))
+     (is (= 400 (:Y r5)))
      (is (cn/instance-of? :I185/E r6))
      (is (= 11 (:X r6)))
      (is (= 200 (:Y r6))))))
@@ -144,7 +144,7 @@
      (entity {:I213/E1 {:X :Kernel/Int}})
      (entity {:I213/E2 {:E1 {:ref :I213/E1.Id}
                         :Y :Kernel/Int}})
-     (record {:I213/R {:Y :Kernel/Int}})
+     (record {:I213/R {:Y :Kernel/Int :Z :Kernel/Int}})
      (dataflow :I213/UpdateE1
                {:I213/E1 {:Id? :I213/UpdateE1.Id
                           :X :I213/UpdateE1.X}})
@@ -157,7 +157,7 @@
                        [:= :I213/E2.Y 200]]
                 :on :I213/E2
                 :where [:= :I213/E2.E1 :I213/E1.Id]]
-               {:I213/R {:Y 100}})
+               {:I213/R {:Y '(* :I213/E2.Y :I213/E1.X) :Z 1}})
      (let [e1 (cn/make-instance {:I213/E1 {:X 10}})
            evt (cn/make-instance {:I213/Upsert_E1 {:Instance e1}})
            r1 (tu/fresult (e/eval-all-dataflows evt))
@@ -185,4 +185,5 @@
        (is (= 20 (:X e3)))
        (is (= 200 (:Y e4)))
        (is (cn/instance-of? :I213/R r5))
-       (is (= 100 (:Y r5)))))))
+       (is (= 1 (:Z r5)))
+       (is (= 4000 (:Y r5)))))))

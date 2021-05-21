@@ -1,5 +1,6 @@
 (ns fractl.compiler.internal
-  (:require [fractl.util :as u]
+  (:require [taoensso.timbre :as log]
+            [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.graph :as g]
             [fractl.component :as cn]
@@ -53,7 +54,8 @@
               (when-not (some #{(first refs)} (cn/attribute-names scm))
                 (u/throw-ex (str "invalid reference - " [p refs]))))))
         true)
-    (u/throw-ex (str "reference not in context - " [component rec refs]))))
+    (do (log/warn (str "reference not in context - " [component rec refs]))
+        true)))
 
 (declare reach-name)
 
