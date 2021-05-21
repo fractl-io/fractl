@@ -144,7 +144,6 @@
      (entity {:I213/E1 {:X :Kernel/Int}})
      (entity {:I213/E2 {:E1 {:ref :I213/E1.Id}
                         :Y :Kernel/Int}})
-     (entity {:I213/E3 {:Z :Kernel/Int}})
      (record {:I213/R {:Y :Kernel/Int}})
      (dataflow :I213/UpdateE1
                {:I213/E1 {:Id? :I213/UpdateE1.Id
