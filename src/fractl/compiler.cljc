@@ -412,8 +412,14 @@
       {:opcode code})
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
+(defn- maybe-mark-conditional-df [ctx evt-pattern]
+  (when (li/name? evt-pattern)
+    (when (cn/conditional-event? evt-pattern)
+      (ctx/bind-variable! ctx :conditional-dataflow true)))
+  ctx)
+
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
-  (let [c (partial compile-pattern ctx)
+  (let [c (partial compile-pattern (maybe-mark-conditional-df ctx evt-pattern))
         ec (c evt-pattern)
         pc (map c df-patterns)]
     [ec pc]))
