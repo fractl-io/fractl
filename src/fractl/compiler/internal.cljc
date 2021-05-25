@@ -44,18 +44,23 @@
          (su/aconj result tag [k v])))
       result)))
 
+(defn- log-warn [s]
+  (log/warn s))
+
 (defn- name-in-context [ctx component rec refs]
-  (if-let [inst (ctx/fetch-record ctx [component rec])]
-    (do (when (seq refs)
-          (let [p (li/make-path component rec)
-                [_ scm] (cn/find-schema p)]
-            ;; TODO: validate multi-level references.
-            (when-not (cn/inferred-event-schema? scm)
-              (when-not (some #{(first refs)} (cn/attribute-names scm))
-                (u/throw-ex (str "invalid reference - " [p refs]))))))
-        true)
-    (do (log/warn (str "reference not in context - " [component rec refs]))
-        true)))
+  (if (ctx/fetch-record ctx [component rec])
+    (when (seq refs)
+      (let [p (li/make-path component rec)
+            [_ scm] (cn/find-schema p)]
+        ;; TODO: validate multi-level references.
+        (when-not (cn/inferred-event-schema? scm)
+          (when-not (some #{(first refs)} (cn/attribute-names scm))
+            (u/throw-ex (str "invalid reference - " [p refs]))))))
+    ((if (ctx/fetch-variable ctx :conditional-dataflow)
+       log-warn
+       u/throw-ex)
+     (str "reference not in context - " [component rec refs])))
+  true)
 
 (declare reach-name)
 

@@ -1033,11 +1033,19 @@
        trigger-store
        (let [trigs (get ts rn)
              rs (set (map li/split-path records-to-load))]
-         (assoc
-          ts rn
-          (conj
-           trigs
-           [predicate event-name [where-clause rs]])))))))
+           (assoc
+            ts rn
+            (conj
+             trigs
+             [predicate event-name [where-clause rs]]))))))
+  (u/safe-set
+   trigger-store
+   (assoc
+    @trigger-store
+    (li/split-path event-name) :conditional-event)))
+
+(defn conditional-event? [n]
+  (= :conditional-event (get @trigger-store (li/split-path n))))
 
 (defn conditional-events
   "Return conditional events to fire for the given instance"
