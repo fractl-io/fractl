@@ -44,6 +44,8 @@
          (su/aconj result tag [k v])))
       result)))
 
+(def conditional-dataflow-tag :conditional-dataflow)
+
 (defn- log-warn [s]
   (log/warn s))
 
@@ -56,7 +58,7 @@
         (when-not (cn/inferred-event-schema? scm)
           (when-not (some #{(first refs)} (cn/attribute-names scm))
             (u/throw-ex (str "invalid reference - " [p refs]))))))
-    ((if (ctx/fetch-variable ctx :conditional-dataflow)
+    ((if (ctx/fetch-variable ctx conditional-dataflow-tag)
        log-warn
        u/throw-ex)
      (str "reference not in context - " [component rec refs])))
