@@ -415,7 +415,7 @@
 (defn- maybe-mark-conditional-df [ctx evt-pattern]
   (when (li/name? evt-pattern)
     (when (cn/conditional-event? evt-pattern)
-      (ctx/bind-variable! ctx :conditional-dataflow true)))
+      (ctx/bind-variable! ctx i/conditional-dataflow-tag true)))
   ctx)
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
