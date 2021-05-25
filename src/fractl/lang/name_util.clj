@@ -40,13 +40,26 @@
 
 (declare map-with-fq-names fq-generic)
 
+(defn vals-sanitizer [attrs]
+  (let [sanattrs (for [[k v] attrs]
+                   (cond
+                     (keyword? v) {k v}
+                     (map? v) {k v}
+                     :else (if (re-matches #"\(quote .*" (str v))
+                             {k v}
+                             (let [qv (str "(quote " v ")")]
+                               {k qv}))))]
+    (into {} sanattrs)))
+
 (defn- fq-inst-pat
   "Update the keys and values in an instance pattern with
    component-qualified names."
   [x is-recdef]
   (let [n (first (keys x))
-        attrs (first (vals x))]
-    {(fq-name n) (map-with-fq-names attrs is-recdef)}))
+        attrs (first (vals x))
+        mvs (vals-sanitizer attrs)
+        mergvs (merge attrs mvs)]
+    {(fq-name n) (map-with-fq-names mergvs is-recdef)}))
 
 (defn- fq-map
   "Update the keys and values in a map literal with
@@ -64,7 +77,9 @@
   [v is-recdef]
   (cond
     (li/name? v) (fq-name v)
-    (map? v) (if (looks-like-inst? v) (fq-inst-pat v is-recdef) (fq-map v is-recdef))
+    (map? v) (if (looks-like-inst? v)
+               (fq-inst-pat v is-recdef)
+               (fq-map v is-recdef))
     (list? v) (if-not is-recdef
                 (reverse (into '() (map #(fq-generic % is-recdef) v)))
                 v)
@@ -101,8 +116,10 @@
 
 (defn- fq-named-df-pat [pat]
   (let [k (fq-name (first (keys pat)))
-        vs (first (vals pat))]
-    {k vs}))
+        vs (first (vals pat))
+        mvs (vals-sanitizer vs)
+        mergvs (merge vs mvs)]
+    {k mergvs}))
 
 (defn- fq-preproc-dataflow-def
   "Preprocess a dataflow to add fully-qualified names."
