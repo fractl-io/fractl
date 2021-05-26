@@ -107,7 +107,7 @@
      (dataflow [:I185/OnXGt10 :when [:and
                                      [:> :I185/E.X 10]
                                      [:= :I185/E.Y 200]]]
-               {:I185/R {:Y 100}}))
+               {:I185/R {:Y '(* 2 :I185/E.Y)}}))
    (let [e (cn/make-instance {:I185/E {:X 10 :Y 1}})
          evt (cn/make-instance {:I185/Upsert_E {:Instance e}})
          r (tu/fresult (e/eval-all-dataflows evt))
@@ -132,7 +132,98 @@
      (is (= 11 (:X (ffirst r4))))
      (is (= 200 (:Y (ffirst r4))))
      (is (cn/instance-of? :I185/R r5))
-     (is (= 100 (:Y r5)))
+     (is (= 400 (:Y r5)))
      (is (cn/instance-of? :I185/E r6))
      (is (= 11 (:X r6)))
      (is (= 200 (:Y r6))))))
+
+(deftest issue-213
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I213
+     (entity {:I213/E1 {:X :Kernel/Int}})
+     (entity {:I213/E2 {:E1 {:ref :I213/E1.Id}
+                        :Y :Kernel/Int}})
+     (record {:I213/R {:Y :Kernel/Int :Z :Kernel/Int}})
+     (dataflow :I213/UpdateE1
+               {:I213/E1 {:Id? :I213/UpdateE1.Id
+                          :X :I213/UpdateE1.X}})
+     (dataflow :I213/UpdateE2
+               {:I213/E2 {:Id? :I213/UpdateE2.Id
+                          :Y :I213/UpdateE2.Y}})
+     (dataflow [:I213/CrossCond
+                :when [:and
+                       [:> :I213/E1.X 10]
+                       [:= :I213/E2.Y 200]]
+                :on :I213/E2
+                :where [:= :I213/E2.E1 :I213/E1.Id]]
+               {:I213/R {:Y '(* :I213/E2.Y :I213/E1.X) :Z 1}})
+     (let [e1 (cn/make-instance {:I213/E1 {:X 10}})
+           evt (cn/make-instance {:I213/Upsert_E1 {:Instance e1}})
+           r1 (tu/fresult (e/eval-all-dataflows evt))
+           e1 (ffirst r1)
+           e2 (cn/make-instance {:I213/E2 {:E1 (:Id e1)
+                                           :Y 20}})
+           evt (cn/make-instance {:I213/Upsert_E2 {:Instance e2}})
+           r2 (tu/fresult (e/eval-all-dataflows evt))
+           e2 (ffirst r2)
+           evt (cn/make-instance {:I213/UpdateE1
+                                  {:Id (:Id e1)
+                                   :X 20}})
+           r3 (tu/fresult (e/eval-all-dataflows evt))
+           e3 (ffirst r3)
+           evt (cn/make-instance {:I213/UpdateE2
+                                  {:Id (:Id e2)
+                                   :Y 200}})
+           r4 (tu/fresult (e/eval-all-dataflows evt))
+           e4 (ffirst r4)
+           r5 (ffirst (tu/embedded-results r4))]
+       (is (cn/instance-of? :I213/E2 e2))
+       (is (nil? (tu/embedded-results r1)))
+       (is (nil? (tu/embedded-results r2)))
+       (is (nil? (tu/embedded-results r3)))
+       (is (= 20 (:X e3)))
+       (is (= 200 (:Y e4)))
+       (is (cn/instance-of? :I213/R r5))
+       (is (= 1 (:Z r5)))
+       (is (= 4000 (:Y r5)))))))
+
+(deftest issue-213-no-refs
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I213NR
+     (entity {:I213NR/E1 {:X :Kernel/Int
+                          :Z {:type :Kernel/Int
+                              :indexed true}}})
+     (entity {:I213NR/E2 {:Y :Kernel/Int}})
+     (record {:I213NR/R {:Y :Kernel/Int}})
+     (dataflow [:I213NR/CrossCond
+                :when [:and
+                       [:> :I213NR/E1.X 10]
+                       [:= :I213NR/E2.Y 200]]
+                :on :I213NR/E2
+                :where [:= :I213NR/E1.Z 1]]
+               {:I213NR/R {:Y '(+ :I213NR/E1.X :I213NR/E2.Y)}})
+     (let [e1 (cn/make-instance {:I213NR/E1 {:X 9 :Z 2}})
+           evt (cn/make-instance {:I213NR/Upsert_E1 {:Instance e1}})
+           r1 (tu/fresult (e/eval-all-dataflows evt))
+           e1 (ffirst r1)
+           e2 (cn/make-instance {:I213NR/E2 {:Y 20}})
+           evt (cn/make-instance {:I213NR/Upsert_E2 {:Instance e2}})
+           r2 (tu/fresult (e/eval-all-dataflows evt))
+           e2 (ffirst r2)
+           e11 (cn/make-instance {:I213NR/E1 {:X 11 :Z 1}})
+           evt (cn/make-instance {:I213NR/Upsert_E1 {:Instance e11}})
+           r11 (tu/fresult (e/eval-all-dataflows evt))
+           e11 (ffirst r11)
+           e22 (cn/make-instance {:I213NR/E2 {:Y 200}})
+           evt (cn/make-instance {:I213NR/Upsert_E2 {:Instance e22}})
+           r22 (tu/fresult (e/eval-all-dataflows evt))
+           e22 (ffirst r22)
+           r (ffirst (tu/embedded-results r22))]
+       (is (cn/instance-of? :I213NR/E1 e1))
+       (is (nil? (tu/embedded-results r1)))
+       (is (cn/instance-of? :I213NR/E2 e2))
+       (is (nil? (tu/embedded-results r2)))
+       (is (cn/instance-of? :I213NR/R r))
+       (is (= 211 (:Y r)))))))

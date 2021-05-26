@@ -1,5 +1,6 @@
 (ns fractl.compiler.internal
-  (:require [fractl.util :as u]
+  (:require [taoensso.timbre :as log]
+            [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.graph :as g]
             [fractl.component :as cn]
@@ -43,17 +44,25 @@
          (su/aconj result tag [k v])))
       result)))
 
+(def conditional-dataflow-tag :conditional-dataflow)
+
+(defn- log-warn [s]
+  (log/warn s))
+
 (defn- name-in-context [ctx component rec refs]
-  (if-let [inst (ctx/fetch-record ctx [component rec])]
-    (do (when (seq refs)
-          (let [p (li/make-path component rec)
-                [_ scm] (cn/find-schema p)]
-            ;; TODO: validate multi-level references.
-            (when-not (cn/inferred-event-schema? scm)
-              (when-not (some #{(first refs)} (cn/attribute-names scm))
-                (u/throw-ex (str "invalid reference - " [p refs]))))))
-        true)
-    (u/throw-ex (str "reference not in context - " [component rec refs]))))
+  (if (ctx/fetch-record ctx [component rec])
+    (when (seq refs)
+      (let [p (li/make-path component rec)
+            [_ scm] (cn/find-schema p)]
+        ;; TODO: validate multi-level references.
+        (when-not (cn/inferred-event-schema? scm)
+          (when-not (some #{(first refs)} (cn/attribute-names scm))
+            (u/throw-ex (str "invalid reference - " [p refs]))))))
+    ((if (ctx/fetch-variable ctx conditional-dataflow-tag)
+       log-warn
+       u/throw-ex)
+     (str "reference not in context - " [component rec refs])))
+  true)
 
 (declare reach-name)
 

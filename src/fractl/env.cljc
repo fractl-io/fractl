@@ -3,6 +3,7 @@
   used for pattern resolution."
   (:require [fractl.util :as u]
             [fractl.util.seq :as su]
+            [fractl.lang.internal :as li]
             [fractl.component :as cn]))
 
 (def EMPTY {})
@@ -38,9 +39,14 @@
   [env rec-name]
   (get env (assert-parsed-rec-name rec-name)))
 
-(defn bind-instance [env rec-name instance]
-  (let [insts (or (get-instances env rec-name) (list))]
-    (assoc env rec-name (conj insts instance))))
+(defn bind-instance
+  ([env rec-name instance]
+   (let [insts (or (get-instances env rec-name) (list))]
+     (assoc env rec-name (conj insts instance))))
+  ([env instance]
+   (bind-instance
+    env (li/split-path (cn/instance-name instance))
+    instance)))
 
 (defn bind-instances [env rec-name instances]
   (let [env (assoc env rec-name (list))]
