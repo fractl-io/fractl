@@ -35,7 +35,11 @@
      :cljs
      (float x)))
 
-(defn- path? [x]
+(defn- path?
+  "Encode a path in a fractl record. Examples:
+     :C, :C/E, :C/E.R. Paths may als be represented
+   as strings - \"C/E.R\""
+  [x]
   (let [k (cond
             (string? x)
             (keyword x)
