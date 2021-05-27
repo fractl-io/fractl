@@ -1,5 +1,6 @@
 (ns fractl.lang.kernel
   (:require [fractl.util :as u]
+            [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]
             [fractl.component :as cn]))
 
@@ -34,6 +35,21 @@
      :cljs
      (float x)))
 
+(defn- path? [x]
+  (let [k (cond
+            (string? x)
+            (keyword x)
+
+            (vector? x)
+            (map #(if (string? %)
+                    (keyword %)
+                    %)
+                 x)
+            :else x)]
+    (every?
+     li/name?
+     (li/split-path k))))
+
 (def ^:private email-pattern
   #"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?")
 
@@ -44,6 +60,7 @@
 (def types
   {:Kernel/String kernel-string?
    :Kernel/Keyword keyword?
+   :Kernel/Path path?
    :Kernel/DateTime date-time?
    :Kernel/UUID UUID?
    :Kernel/Password identity
