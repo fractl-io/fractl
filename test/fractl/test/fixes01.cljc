@@ -227,3 +227,23 @@
        (is (nil? (tu/embedded-results r2)))
        (is (cn/instance-of? :I213NR/R r))
        (is (= 211 (:Y r)))))))
+
+(deftest issue-219-event-context
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I219
+     (event :I219/Evt {:Y :Kernel/Int})
+     (record :I219/R {:Y :Kernel/Int
+                      :Z :Kernel/Map})
+     (dataflow :I219/Evt
+               {:I219/R {:Y '(+ 10 :I219/Evt.Y)
+                         :Z :I219/Evt.EventContext}}))
+   (let [ctx {:a 1 :b 2}
+         evt (cn/make-instance
+              {:I219/Evt
+               {:Y 100
+                :EventContext ctx}})
+         r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+     (is (cn/instance-of? :I219/R r))
+     (is (= 110 (:Y r)))
+     (is (= ctx (:Z r))))))

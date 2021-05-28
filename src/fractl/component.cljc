@@ -237,10 +237,10 @@
 
 (defn find-schema [path]
   (u/first-applied [find-attribute-schema :attribute
-                       find-entity-schema :entity
-                       find-event-schema :event
-                       find-record-schema :record]
-                      [path]))
+                    find-entity-schema :entity
+                    find-event-schema :event
+                    find-record-schema :record]
+                   [path]))
 
 (defn make-record-instance [type-tag full-name attributes]
   (into {} (concat {type-tag-key type-tag
@@ -480,7 +480,7 @@
               aval
               (throw-error (str "invalid list for " aname)))))
 
-      :else true)
+      :else aval)
     (let [dval (:default ascm)]
       (when-not (nil? dval)
         (if (fn? dval) (dval) dval)))))
