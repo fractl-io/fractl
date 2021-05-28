@@ -293,10 +293,17 @@
   ([n attrs]
    (event-internal n attrs false)))
 
+(defn- ensure-no-reserved-event-attrs! [attrs]
+  (when (some #(= :EventContext (first %)) attrs)
+    (u/throw-ex ":EventContext is a reserved attribute name")))
+
 (defn event
   "An event record with timestamp and other auto-generated meta fields."
   ([n attrs]
-   (event-internal n attrs true))
+   (ensure-no-reserved-event-attrs! attrs)
+   (event-internal
+    n (assoc attrs :EventContext (k/event-context-attribute-name))
+    true))
   ([schema]
    (parse-and-define event schema)))
 
@@ -502,6 +509,9 @@
   (cn/create-component :Kernel {})
   (doseq [[type-name type-def] k/types]
     (attribute type-name type-def))
+
+  (attribute (k/event-context-attribute-name)
+             (k/event-context-attribute-schema))
 
   (record :Kernel/DataflowResult
           {:Pattern :Kernel/Any
