@@ -98,3 +98,13 @@
 
 (defn kernel-binding? [n]
   (some #{n} kernel-bindings))
+
+(def ^:private event-context-type [:Kernel/_EventContext
+                                   {:type :Kernel/Map
+                                    :optional true}])
+
+(defn event-context-attribute-name []
+  (first event-context-type))
+
+(defn event-context-attribute-schema []
+  (second event-context-type))
