@@ -846,3 +846,18 @@
          result (ffirst (tu/fresult (e/eval-all-dataflows evt01)))]
      (is (cn/instance-of? :AE/R01 result))
      (is (= 100 (:X result))))))
+
+(deftest path-type
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :PathType
+     (entity {:PathType/E
+              {:X :Kernel/Path}}))
+   (let [e1 (cn/make-instance {:PathType/E {:X :A/B.R}})
+         e2 (cn/make-instance {:PathType/E {:X "A/B.R"}})]
+     (is (cn/instance-of? :PathType/E e1))
+     (is (= :A/B.R (:X e1)))
+     (is (cn/instance-of? :PathType/E e2))
+     (is (= :A/B.R (keyword (:X e2))))
+     (tu/is-error #(cn/make-instance {:PathType/E {:X "k/j"}}))
+     (tu/is-error #(cn/make-instance {:PathType/E {:X :k}})))))
