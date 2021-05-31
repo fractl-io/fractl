@@ -5,7 +5,7 @@
             [fractl.util :as u]
             [fractl.util.hash :as sh]
             [fractl.util.seq :as su]
-            [fractl.util.log :as log]
+            [fractl.util.logger :as log]
             [fractl.lang.internal :as li]))
 
 (def ^:private components

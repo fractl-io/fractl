@@ -26,3 +26,4 @@ out/
 .clj-kondo/
 .lsp/
 /platform/*.db*
+fractl.log

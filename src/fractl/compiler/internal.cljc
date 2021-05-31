@@ -1,8 +1,8 @@
 (ns fractl.compiler.internal
-  (:require [taoensso.timbre :as log]
-            [fractl.util :as u]
+  (:require [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.graph :as g]
+            [fractl.util.logger :as log]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.compiler.context :as ctx]

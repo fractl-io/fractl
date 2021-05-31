@@ -3,6 +3,30 @@
 
 Fractl Language for Domain Modeling
 
+## Logging setup:
+
+Fractl repo provides 4 types of log appenders only one of which is switched on by default.
+
+1. `print` to console/terminal
+2. Write to a file and rotate it. (Default)
+3. Stream to `reimann`
+4. `filebeat->logstash->elasticsearch<-kibana` setup.
+
+Note: In production logging will always be (2) with (3) or (4), or some variant of it.
+
+To get how to configure and try other setups configure `fractl.util.logger` if you want to
+have a direct stream setup to open ports of `riemann` or `logstash` else, you can use the provided
+`docker-compose.yml` and provided conf files of `logstash`, `filebeat`, `riemann` and such.
+
+### Running Docker compose for ELK(filebeat) and Riemann similar to production system:
+1. Install docker on your machine. (Obviously)
+2. Install docker-cli or docker-compose.
+```shell
+docker-compose up
+OR
+docker-compose up -d # to run it in detached mode in background
+```
+
 
 ## Postgres configuration
 ```clojure

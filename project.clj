@@ -30,7 +30,9 @@
                  [com.cognitect/transit-clj "1.0.324"]
                  [com.cognitect/transit-cljs "0.8.264"]
                  [camdez/sendgrid "0.2.0"]
-                 [postmark "1.4.1"]]
+                 [postmark "1.4.1"]
+                 [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
+                 [lambdaisland/glogi "1.0.106"]]
 
   :java-source-paths ["src/java"]
   :resource-paths ["lib/sfdc-enterprise.jar"]
@@ -39,7 +41,14 @@
 
   :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
             [s3-wagon-private "1.3.4"]
-            [lein-doo "0.1.10"]]
+            [lein-doo "0.1.10"]
+            [reifyhealth/lein-git-down "0.4.0"]]
+
+  :middleware [lein-git-down.plugin/inject-properties]
+
+  :git-down {de.active-group/active-logger {:coordinates kitrerp/active-logger}}
+
+  :repositories [["public-github" {:url "git://github.com" :protocol :https}]]
 
   :pom-addition [:distributionManagement
                   [:repository
