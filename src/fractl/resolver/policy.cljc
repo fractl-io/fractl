@@ -1,9 +1,32 @@
 (ns fractl.resolver.policy
-  (:require [fractl.resolver.core :as r]))
+  (:require [fractl.util :as u]
+            [fractl.resolver.core :as r]))
+
+(def ^:private policy-db (u/make-cell {:RBAC {} :Logging {}}))
+
+(defn- assoc-rbac-policy [db policy]
+  (let [rule (:Rule policy)]
+    (loop [db db, rs (:Resource policy)]
+      (if-let [r (first rs)]
+        (recur (assoc db r (conj (get db r []) rule))
+               (rest rs))
+        db))))
+
+(defn- assoc-logging-policy [db policy]
+  )
+
+(def ^:private assoc-policy
+  {:RBAC assoc-rbac-policy
+   :Logging assoc-logging-policy})
 
 (defn- policy-upsert [inst]
-  ;; TODO: implement upsert
-  inst)
+  (let [k (:Intercept inst)]
+    (if-let [db (get @policy-db k)]
+      (u/safe-set
+       policy-db
+       (assoc @policy-db k ((k assoc-policy) db inst)))
+      (u/throw-ex (str "policy intercept not supported - " k)))
+    inst))
 
 (defn- policy-delete [inst]
   ;; TODO: implement delete
