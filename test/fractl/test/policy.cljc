@@ -38,4 +38,6 @@
                 {:Kernel/Upsert_Policy
                  {:Instance policy}}))]
        (is (cn/instance-of? :BPI/User r1))
-       (is (cn/instance-of? :Kernel/Policy r2))))))
+       (is (cn/instance-of? :Kernel/Policy r2))
+       (is (:Id r2))
+       (is (= :Default (keyword (:InterceptStage r2))))))))
