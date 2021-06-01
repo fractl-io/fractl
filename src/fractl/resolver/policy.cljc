@@ -5,10 +5,14 @@
 (def ^:private policy-db (u/make-cell {:RBAC {} :Logging {}}))
 
 (defn- assoc-rbac-policy [db policy]
-  (let [rule (:Rule policy)]
+  (let [rule (:Rule policy)
+        stg (:InterceptStage policy)
+        stage (if (= stg :Default)
+                :PreEval
+                stg)]
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
-        (recur (assoc db r (conj (get db r []) rule))
+        (recur (assoc db [r stage] (conj (get db r []) rule))
                (rest rs))
         db))))
 
