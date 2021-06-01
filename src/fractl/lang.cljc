@@ -528,6 +528,13 @@
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
 
+  (entity {:Kernel/Policy
+           {:Intercept :Kernel/Keyword
+            :Resource {:listof :Kernel/Path}
+            :Rule :Kernel/Any
+            :InterceptStage {:oneof [:PreEval :PostEval :Default]
+                             :default :Default}}})
+
   (event :Kernel/AppInit
          {:AppName :Kernel/Keyword})
 
@@ -551,7 +558,11 @@
                :Body :Kernel/String})
 
        (r/register-resolvers
-        [{:name :git
+        [{:name :policy
+          :type :policy
+          :compose? false
+          :paths [:Kernel/Policy]}
+         {:name :git
           :type :git
           :compose? false
           :paths [:Git/Push]}

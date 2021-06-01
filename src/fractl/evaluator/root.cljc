@@ -115,7 +115,7 @@
      (map #(seq (map (fn [e] (f e %)) (cn/conditional-events %)))
           insts))))
 
-(def ^:private inited-components (u/make-cell []))
+(def ^:private inited-components (u/make-cell [:Kernel]))
 
 (defn- maybe-init-schema! [store component-name]
   (when-not (some #{component-name} @inited-components)
