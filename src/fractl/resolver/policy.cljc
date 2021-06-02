@@ -1,6 +1,10 @@
 (ns fractl.resolver.policy
   (:require [fractl.util :as u]
+            [fractl.component :as cn]
             [fractl.resolver.core :as r]))
+
+(def PRE-EVAL :PreEval)
+(def POST-EVAL :PostEval)
 
 (def ^:private policy-db (u/make-cell {:RBAC {} :Logging {}}))
 
@@ -8,12 +12,13 @@
   (let [rule (:Rule policy)
         stg (:InterceptStage policy)
         stage (if (= stg :Default)
-                :PreEval
+                PRE-EVAL
                 stg)]
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
-        (recur (assoc db [r stage] (conj (get db r []) rule))
-               (rest rs))
+        (recur
+         (assoc db [r stage] (conj (get db r []) rule))
+         (rest rs))
         db))))
 
 (defn- assoc-logging-policy [db policy]
@@ -37,7 +42,7 @@
   (:Id inst))
 
 (defn- policy-query [query]
-  ;; TODO: implement query
+  ;; TODO: implement delete
   nil)
 
 (def ^:private resolver-fns
@@ -47,3 +52,9 @@
 
 (defn make [resolver-name config]
   (r/make-resolver resolver-name resolver-fns))
+
+(defn pre-eval-rules [k]
+  (get @policy-db [k PRE-EVAL]))
+
+(defn post-eval-rules [k]
+  (get @policy-db [k POST-EVAL]))
