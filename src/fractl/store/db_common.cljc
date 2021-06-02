@@ -17,7 +17,7 @@
    :upsert-index-statement #?(:clj h2i/upsert-index-statement :cljs aqi/upsert-index-statement)
    :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
    :delete-index-statement #?(:clj ji/delete-index-statement :cljs aqi/delete-index-statement)
-   :query-by-id-statement #?(:clj h2i/query-by-id-statement :cljs aqi/query-by-id-statement)
+   :query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement)
    :do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement)
    :validate-ref-statement #?(:clj ji/validate-ref-statement :cljs aqi/validate-ref-statement)})
 
