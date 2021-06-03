@@ -3,7 +3,7 @@
             [clojure.string :as s]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
-            [taoensso.timbre :as log]
+            [fractl.util.logger :as log]
             [fractl.util :as u]
             [fractl.util.http :as uh]
             [fractl.component :as cn]
