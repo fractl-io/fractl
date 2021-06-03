@@ -264,28 +264,6 @@
            (symbol? x)
            (special-form? x))))
 
-;; Generic comparison
-(defn- cmpr [opr x1 x2 & xs]
-  (loop [xs (concat [x1 x2] xs)]
-    (if-let [x (first xs)]
-      (if-let [y (second xs)]
-        (if (opr (compare x y) 0)
-          (recur (rest xs))
-          false)
-        true)
-      true)))
-
-(def lt (partial cmpr <))
-(def gt (partial cmpr >))
-(def lteq (partial cmpr <=))
-(def gteq (partial cmpr >=))
-(def eq (partial cmpr =))
-
-(def cmpr-oprs {:= =, :< lt, :<= lteq, :> gt, :>= gteq})
-
-(defn cmpr-opr? [x]
-  (contains? cmpr-oprs x))
-
 (defn validate [predic errmsg x]
   (when-not (predic x)
     (u/throw-ex (str errmsg " - " x)))
@@ -370,46 +348,6 @@
     (let [c (first (name x))]
       (= c (string/lower-case c)))))
 
-(def ^:private cmpr-oprs [:= :< :> :<= :>=])
-(def ^:private oprs (concat cmpr-oprs [:and :or]))
-
-(defn- operator? [x]
-  (some #{x} oprs))
-
-(defn- operator-name [x]
-  (symbol (name x)))
-
-(defn- accessor-expression [n]
-  (let [parts (split-ref n)
-        r (vec (rest parts))
-        [a b :as ab] (split-path (first parts))
-        p (if (and a b) ab (or a b))]
-    `(get-in (get ~(symbol "-arg-map-") ~p) ~r)))
-
-(defn compile-one-event-trigger-pattern [pat]
-  (map
-   (fn [p]
-     (cond
-       (operator? p) (operator-name p)
-       (name? p) (accessor-expression p)
-       (vector? p) (compile-one-event-trigger-pattern p)
-       :else p))
-   pat))
-
-(defn compile-event-trigger-pattern
-  "Compile the dataflow match pattern into a predicate"
-  [pat]
-  (let [expr (compile-one-event-trigger-pattern [pat])
-        fexpr `(fn [~(symbol "-arg-map-")]
-                 (try
-                   ~@expr
-                   (catch Exception ex#
-                     (taoensso.timbre/error
-                      "cannot execute conditional event predicate"
-                      ex#)
-                     nil)))]
-    (eval fexpr)))
-
 (defn referenced-record-names
   "Return record names referenced in the pattern"
   [pattern]
@@ -449,6 +387,8 @@
           (every? name? on))
     on
     (u/throw-ex (str "invalid :on clause - " on))))
+
+(def cmpr-oprs [:= :< :> :<= :>=])
 
 (defn- valid-where-clause? [c]
   (and (some #{(first c)} cmpr-oprs)

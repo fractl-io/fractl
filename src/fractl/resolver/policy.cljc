@@ -1,7 +1,7 @@
 (ns fractl.resolver.policy
   (:require [fractl.util :as u]
             [fractl.component :as cn]
-            [fractl.lang.internal :as li]
+            [fractl.lang.rule :as rl]
             [fractl.resolver.core :as r]))
 
 (def PRE-EVAL :PreEval)
@@ -11,7 +11,7 @@
 
 (defn- compile-rule [r]
   (if (= :when (first r))
-    (li/compile-event-trigger-pattern (second r))
+    (rl/compile-rule-pattern (second r))
     (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
 
 (defn- save-rbac-policy [db policy]

@@ -4,6 +4,7 @@
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
+            [fractl.lang.rule :as rl]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.resolver.registry :as r]))
@@ -361,7 +362,7 @@
     (when-not (= :when (second match-pat))
       (u/throw-ex (str "expected keyword :when not found - " match-pat)))
     (let [pat (nth match-pat 2)
-          predic (li/compile-event-trigger-pattern pat)
+          predic (rl/compile-rule-pattern pat)
           rnames (li/referenced-record-names pat)
           [on where] (when (> (count rnames) 1)
                        (extract-on-and-where match-pat))
