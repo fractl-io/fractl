@@ -1,7 +1,7 @@
 (ns fractl.core
   (:require [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as s]
-            [taoensso.timbre :as log]
+            [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
             [fractl.evaluator :as e]

@@ -4,7 +4,7 @@
             [clojure.string :as s]
             [org.httpkit.client :as http]
             [cheshire.core :as json]
-            [taoensso.timbre :as log]
+            [fractl.util.logger :as log]
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]

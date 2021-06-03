@@ -1,9 +1,8 @@
 (ns fractl.lang.datetime
-  #?(:clj (:require [taoensso.timbre :as log])
-     :cljs (:require [taoensso.timbre :as log]
-                     [cljc.java-time.local-date :as ld]
-                     [cljc.java-time.local-time :as lt]
-                     [cljc.java-time.format.date-time-formatter :as format]))
+  (:require [fractl.util.logger :as log]
+            [cljc.java-time.local-date :as ld]
+            [cljc.java-time.local-time :as lt]
+            [cljc.java-time.format.date-time-formatter :as format])
   #?(:clj (:import [java.time LocalDate LocalTime LocalDateTime]
                    [java.time.format DateTimeFormatter]
                    [java.time.format DateTimeParseException])))
@@ -16,7 +15,9 @@
               false))
      :cljs (try
              (ld/parse s formatter)
-             (catch :default ex false))))
+             (catch :default ex
+               (log/error ex)
+               false))))
 
 (defn try-parse-time [s formatter]
   #?(:clj (try
@@ -26,7 +27,9 @@
               false))
      :cljs (try
              (lt/parse s formatter)
-             (catch :default ex false))))
+             (catch :default ex
+               (log/error ex)
+               false))))
 
 #?(:clj (def default-fmt (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")))
 
