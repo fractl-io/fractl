@@ -380,9 +380,11 @@
   (symbol (name x)))
 
 (defn- accessor-expression [n]
-  (let [[path r] (split-ref n)
-        p (split-path path)]
-    `(get (get ~(symbol "-arg-map-") ~p) ~r)))
+  (let [parts (split-ref n)
+        r (vec (rest parts))
+        [a b :as ab] (split-path (first parts))
+        p (if (and a b) ab (or a b))]
+    `(get-in (get ~(symbol "-arg-map-") ~p) ~r)))
 
 (defn compile-one-event-trigger-pattern [pat]
   (map

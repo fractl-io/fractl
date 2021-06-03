@@ -7,7 +7,7 @@
   rules set for pre-eval rbac, if not return
   false."
   [event-instance]
-  (if-let [rules (pr/pre-eval-rules
+  (if-let [rules (pr/rbac-eval-rules
                   (cn/instance-name event-instance))]
     (every? #(% event-instance) rules)
     ;; if no rules are set, allow the evaluation.

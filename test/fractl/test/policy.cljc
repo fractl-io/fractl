@@ -31,7 +31,7 @@
                     {:Intercept :RBAC
                      :Resource [:BPI/Upsert_User]
                      :Rule [:when
-                            [:= "admin" :_Context.Auth.Owner.Group]]}})
+                            [:= "admin" :EventContext.Auth.Owner.Group]]}})
            r2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -39,4 +39,15 @@
        (is (cn/instance-of? :BPI/User r1))
        (is (cn/instance-of? :Kernel/Policy r2))
        (is (:Id r2))
-       (is (= :Default (keyword (:InterceptStage r2))))))))
+       (is (= :Default (keyword (:InterceptStage r2))))
+       (let [user (cn/make-instance
+                   {:BPI/User
+                    {:UserName "akc"
+                     :Password "998112kl"
+                     :Group "customer"}})
+             r2 (tu/first-result
+                 (cn/make-instance
+                  {:BPI/Upsert_User
+                   {:Instance user
+                    :EventContext {:Auth {:Owner {:Group "admin"}}}}}))]
+         (is (cn/instance-of? :BPI/User r2)))))))

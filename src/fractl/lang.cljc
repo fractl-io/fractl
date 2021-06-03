@@ -447,8 +447,9 @@
                   ;; TODO: Check for user-define identity attributes first.
                   (assoc attrs :Id (cn/canonical-type-name :Id))))
          ev (partial crud-evname n)
-         inst-evattrs {:Instance n}
-         id-evattrs {:Id :Kernel/UUID}]
+         ctx-aname (k/event-context-attribute-name)
+         inst-evattrs {:Instance n :EventContext ctx-aname}
+         id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
      ;; Define CRUD events and dataflows:
      (let [upevt (ev :Upsert)
            delevt (ev :Delete)
