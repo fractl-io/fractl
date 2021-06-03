@@ -30,9 +30,8 @@
                    {:Kernel/Policy
                     {:Intercept :RBAC
                      :Resource [:BPI/Upsert_User]
-                     :Rule [:allow
-                            [:when
-                             [:= "admin" :_Context.Auth.Owner.Group]]]}})
+                     :Rule [:when
+                            [:= "admin" :_Context.Auth.Owner.Group]]}})
            r2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy

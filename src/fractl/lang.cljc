@@ -532,6 +532,7 @@
            {:Intercept :Kernel/Keyword
             :Resource {:listof :Kernel/Path}
             :Rule :Kernel/Any
+            :Trigger {:type :Kernel/Path :optional true}
             :InterceptStage {:oneof [:PreEval :PostEval :Default]
                              :default :Default}}})
 
