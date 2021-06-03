@@ -50,4 +50,10 @@
                   {:BPI/Upsert_User
                    {:Instance user
                     :EventContext {:Auth {:Owner {:Group "admin"}}}}}))]
-         (is (cn/instance-of? :BPI/User r2)))))))
+         (is (cn/instance-of? :BPI/User r2))
+         (tu/is-error
+          #(tu/first-result
+            (cn/make-instance
+             {:BPI/Upsert_User
+              {:Instance user
+               :EventContext {:Auth {:Owner {:Group "sales"}}}}}))))))))
