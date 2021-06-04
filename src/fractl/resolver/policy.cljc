@@ -83,7 +83,7 @@
   {:RBAC save-rbac-policy
    :Logging save-logging-policy})
 
-(defn- policy-upsert [inst]
+(defn policy-upsert [inst]
   (let [k (:Intercept inst)]
     (if-let [db (get @policy-db k)]
       (u/safe-set

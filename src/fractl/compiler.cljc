@@ -6,6 +6,7 @@
             [fractl.util.seq :as us]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
+            [fractl.policy.rbac :as rbac]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.compiler.validation :as cv]
@@ -15,6 +16,22 @@
 
 (def ^:private emit-load-literal op/load-literal)
 (def ^:private emit-load-instance-by-name op/load-instance)
+
+(def ^:private rbac-policy-queue (u/make-cell []))
+(def ^:private current-event-name (u/make-cell nil))
+
+(defn- queue-for-policy! [recname opr]
+  (u/safe-set rbac-policy-queue #(conj @rbac-policy-queue [recname opr])))
+
+(defn- flush-rbac-policies! []
+  (u/safe-set
+   rbac-policy-queue
+   #(do (rbac/install-entity-policies
+         @rbac-policy-queue @current-event-name)
+        [])))
+
+(defn- reset-rbac-policies! []
+  (u/safe-set rbac-policy-queue []))
 
 (defn- emit-load-references [[rec-name alias :as n] refs]
   (when (cv/validate-references rec-name refs)
@@ -27,6 +44,7 @@
   (op/for-each [bind-pattern-code body-code alias]))
 
 (defn- emit-delete [recname id-pat-code]
+  (queue-for-policy! recname :Delete)
   (op/delete-instance [recname id-pat-code]))
 
 (def ^:private runtime-env-var '--env--)
@@ -174,6 +192,7 @@
     (op/set-literal-attribute attr)))
 
 (defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
+  (queue-for-policy! rec-name :Upsert)
   (concat [(begin-build-instance rec-name attrs)]
           (map (partial set-literal-attribute ctx) (:computed attrs))
           (let [f (:compound set-attr-opcode-fns)]
@@ -419,10 +438,15 @@
   ctx)
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
+  (reset-rbac-policies!)
   (let [c (partial compile-pattern (maybe-mark-conditional-df ctx evt-pattern))
-        ec (c evt-pattern)
-        pc (map c df-patterns)]
-    [ec pc]))
+        ec (c evt-pattern)]
+    (u/safe-set
+     current-event-name
+     #(if (li/name? evt-pattern)
+        evt-pattern
+        (first (keys evt-pattern))))
+    [ec (map c df-patterns)]))
 
 (defn- maybe-compile-dataflow [compile-query-fn df]
   (when-not (cn/dataflow-opcode df)
