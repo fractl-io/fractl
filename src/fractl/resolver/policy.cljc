@@ -2,6 +2,7 @@
   (:require [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.lang.rule :as rl]
+            [fractl.lang.internal :as li]
             [fractl.resolver.core :as r]))
 
 (def PRE-EVAL :PreEval)
@@ -9,12 +10,41 @@
 
 (def ^:private policy-db (u/make-cell {:RBAC {} :Logging {}}))
 
+(def ^:private store-opr-names #{:Upsert :Delete :Lookup})
+
 (defn- compile-rule [r]
   (if (= :when (first r))
     (rl/compile-rule-pattern (second r))
     (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
 
-(defn- save-rbac-policy [db policy]
+(defn- make-default-event-names [oprs entity-name]
+  (let [[a b] (map name (li/split-path entity-name))]
+    (map #(keyword (str a "/" (name %) "_" b)) oprs)))
+
+(declare install-policy)
+
+(defn- install-event-policies [db policy event-names]
+  (loop [db db, evt-names event-names]
+    (if-let [ename (first evt-names)]
+      (recur
+       (install-policy
+        db
+        (assoc
+         policy
+         :Resource [ename])
+        true)
+       (rest evt-names))
+      db)))
+
+(defn- install-default-event-policies [db policy]
+  (let [rule (:Rule policy)
+        f (partial make-default-event-names (first rule))
+        clause (second rule)]
+    (install-event-policies
+     db (assoc policy :Rule clause)
+     (flatten (map #(f %) (:Resource policy))))))
+
+(defn- install-policy [db policy compile?]
   (let [rule (:Rule policy)
         stg (keyword (:InterceptStage policy))
         stage (if (= stg :Default)
@@ -27,9 +57,24 @@
           db [r stage]
           (conj
            (get db r [])
-           (compile-rule rule)))
+           (if compile? (compile-rule rule) rule)))
          (rest rs))
-        db))))
+        (if compile? db (install-default-event-policies db policy))))))
+
+(defn- store-opr-name? [n]
+  (some #{n} store-opr-names))
+
+(defn- rule-on-store?
+  "Return true if the rule specifies CRUD on an entity"
+  [rule]
+  (let [f (first rule)]
+    (and (vector? f)
+         (every? store-opr-name? f))))
+
+(defn- save-rbac-policy [db policy]
+  (install-policy
+   db policy
+   (not (rule-on-store? (:Rule policy)))))
 
 (defn- save-logging-policy [db policy]
   )
