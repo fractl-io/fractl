@@ -495,6 +495,23 @@
     (is (cn/instance-of? :MA/R r03))
     (is (= 300 (:X r03)))))
 
+(deftest match-with-alias-no-alternative-case
+  (defcomponent :MA2
+                (record {:MA2/R {:X :Kernel/Int}})
+                (event {:MA2/Evt {:I :Kernel/Int}})
+                (dataflow :MA2/Evt
+                          [:match :MA2/Evt.I
+                           0 {:MA2/R {:X 100}}
+                           1 {:MA2/R {:X 200}} :as :K]
+                          :K))
+  (let [r01 (tu/fresult (e/eval-all-dataflows {:MA2/Evt {:I 1}}))
+        r02 (tu/fresult (e/eval-all-dataflows {:MA2/Evt {:I 0}}))
+        r03 (tu/fresult (e/eval-all-dataflows {:MA2/Evt {:I 2}}))]
+    (is (cn/instance-of? :MA2/R r01))
+    (is (= 200 (:X r01)))
+    (is (cn/instance-of? :MA2/R r02))
+    (is (= 100 (:X r02)))))
+
 (deftest alias-scope
   (defcomponent :AScope
     (entity {:AScope/E {:X :Kernel/Int}})
