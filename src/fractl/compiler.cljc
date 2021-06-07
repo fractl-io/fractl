@@ -18,17 +18,18 @@
 (def ^:private emit-load-instance-by-name op/load-instance)
 
 (def ^:private rbac-policy-queue (u/make-cell []))
-(def ^:private current-event-name (u/make-cell nil))
 
 (defn- queue-for-policy! [recname opr]
-  (u/safe-set rbac-policy-queue #(conj @rbac-policy-queue [recname opr])))
-
-(defn- flush-rbac-policies! []
   (u/safe-set
    rbac-policy-queue
-   #(do (rbac/install-entity-policies
-         @rbac-policy-queue @current-event-name)
-        [])))
+   (conj @rbac-policy-queue [recname opr])))
+
+(defn- flush-rbac-policies! [event-name]
+  (u/safe-set
+   rbac-policy-queue
+   (do (rbac/install-entity-policies
+        event-name @rbac-policy-queue)
+       [])))
 
 (defn- reset-rbac-policies! []
   (u/safe-set rbac-policy-queue []))
@@ -440,13 +441,13 @@
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (reset-rbac-policies!)
   (let [c (partial compile-pattern (maybe-mark-conditional-df ctx evt-pattern))
-        ec (c evt-pattern)]
-    (u/safe-set
-     current-event-name
-     #(if (li/name? evt-pattern)
-        evt-pattern
-        (first (keys evt-pattern))))
-    [ec (map c df-patterns)]))
+        ec (c evt-pattern)
+        ename (if (li/name? evt-pattern)
+                evt-pattern
+                (first (keys evt-pattern)))
+        result [ec (doall (map c df-patterns))]]
+    (flush-rbac-policies! ename)
+    result))
 
 (defn- maybe-compile-dataflow [compile-query-fn df]
   (when-not (cn/dataflow-opcode df)

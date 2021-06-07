@@ -68,11 +68,11 @@
    and evaluator returned by a previous call to evaluator/make may be passed as
    the first two arguments."
   [compile-query-fn evaluator env event-instance]
-  (if (rbac/evaluate? event-instance)
-    (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)]
-      (map #(eval-dataflow evaluator env event-instance %) dfs))
-    (u/throw-ex (str "no authorization to evaluate dataflows on event - "
-                     (cn/instance-name event-instance)))))
+  (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)]
+    (if (rbac/evaluate? event-instance)
+      (map #(eval-dataflow evaluator env event-instance %) dfs)
+      (u/throw-ex (str "no authorization to evaluate dataflows on event - "
+                       (cn/instance-name event-instance))))))
 
 (defn make
   "Use the given store to create a query compiler and pattern evaluator.

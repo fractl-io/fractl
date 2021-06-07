@@ -52,13 +52,14 @@
                 stg)]
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
-        (recur
-         (assoc
-          db [r stage]
-          (conj
-           (get db r [])
-           (if compile? (compile-rule rule) rule)))
-         (rest rs))
+        (let [r (li/split-path r)]
+          (recur
+           (assoc
+            db [r stage]
+            (conj
+             (get db r [])
+             (if compile? (compile-rule rule) rule)))
+           (rest rs)))
         (if compile? db (install-default-event-policies db policy))))))
 
 (defn- store-opr-name? [n]
@@ -109,4 +110,4 @@
   (r/make-resolver resolver-name resolver-fns))
 
 (defn rbac-eval-rules [k]
-  (get-in @policy-db [:RBAC [k PRE-EVAL]]))
+  (get-in @policy-db [:RBAC [(li/split-path k) PRE-EVAL]]))

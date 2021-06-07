@@ -13,9 +13,9 @@
     ;; if no rules are set, allow the evaluation.
     true))
 
-(defn install-entity-policies [spec event-name]
+(defn install-entity-policies [event-name spec]
   (doseq [[n opr] spec]
-    (when (cn/entity-schema n)
+    (when (cn/find-entity-schema n)
       (doseq [rule (rp/rbac-eval-rules n)]
         (when (some #{opr} (first rule))
           (rp/policy-upsert
@@ -24,5 +24,5 @@
             {:Intercept :RBAC
              :Resource [event-name]
              :Rule (second rule)
-             :InterceptStage :Default}))))))
+             :InterceptStage "Default"}))))))
   event-name)

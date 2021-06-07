@@ -9,6 +9,9 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
+(defn- mkauth [s]
+  {:Auth {:Owner {:Group s}}})
+
 (deftest event-policies
   (#?(:clj do
       :cljs cljs.core.async/go)
@@ -49,14 +52,14 @@
                  (cn/make-instance
                   {:EVP/Upsert_User
                    {:Instance user
-                    :EventContext {:Auth {:Owner {:Group "admin"}}}}}))]
+                    :EventContext (mkauth "admin")}}))]
          (is (cn/instance-of? :EVP/User r2))
          (tu/is-error
           #(tu/first-result
             (cn/make-instance
              {:EVP/Upsert_User
               {:Instance user
-               :EventContext {:Auth {:Owner {:Group "sales"}}}}}))))))))
+               :EventContext (mkauth "sales")}}))))))))
 
 (deftest entity-policies
   (#?(:clj do
@@ -66,6 +69,11 @@
               {:UserName :Kernel/String
                :Password :Kernel/Password
                :Group {:oneof ["admin" "customer" "sales"]}}})
+     (event {:ENP/ChangeGroup {:UserId :Kernel/UUID :Group :Kernel/String}})
+     (dataflow :ENP/ChangeGroup
+               {:ENP/User
+                {:Id? :ENP/ChangeGroup.UserId
+                 :Group :ENP/ChangeGroup.Group}})
      (let [admin (cn/make-instance
                   {:ENP/User
                    {:UserName "admin"
@@ -81,7 +89,8 @@
                      :Resource [:ENP/User]
                      :Rule [[:Upsert]
                             [:when
-                             [:= "admin" :EventContext.Auth.Owner.Group]]]}})
+                             [:= "admin"
+                              :EventContext.Auth.Owner.Group]]]}})
            r2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -99,11 +108,24 @@
                  (cn/make-instance
                   {:ENP/Upsert_User
                    {:Instance user
-                    :EventContext {:Auth {:Owner {:Group "admin"}}}}}))]
+                    :EventContext (mkauth "admin")}}))]
          (is (cn/instance-of? :ENP/User r2))
          (tu/is-error
           #(tu/first-result
             (cn/make-instance
              {:ENP/Upsert_User
               {:Instance user
-               :EventContext {:Auth {:Owner {:Group "sales"}}}}}))))))))
+               :EventContext (mkauth "sales")}})))
+         (let [attrs {:UserId (:Id r2)
+                      :Group "sales"
+                      :EventContext (mkauth "admin")}
+               evt (cn/make-instance
+                    {:ENP/ChangeGroup attrs})
+               r3 (tu/first-result evt)]
+           (is (cn/instance-of? :ENP/User r3))
+           (is (= "sales" (:Group r3)))
+           (tu/is-error
+            #(tu/first-result
+              (cn/make-instance
+               {:ENP/ChangeGroup
+                (assoc attrs :EventContext (mkauth "sales"))})))))))))
