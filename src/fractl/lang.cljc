@@ -4,6 +4,7 @@
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
+            [fractl.lang.rule :as rl]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.resolver.registry :as r]))
@@ -361,7 +362,7 @@
     (when-not (= :when (second match-pat))
       (u/throw-ex (str "expected keyword :when not found - " match-pat)))
     (let [pat (nth match-pat 2)
-          predic (li/compile-event-trigger-pattern pat)
+          predic (rl/compile-rule-pattern pat)
           rnames (li/referenced-record-names pat)
           [on where] (when (> (count rnames) 1)
                        (extract-on-and-where match-pat))
@@ -447,8 +448,9 @@
                   ;; TODO: Check for user-define identity attributes first.
                   (assoc attrs :Id (cn/canonical-type-name :Id))))
          ev (partial crud-evname n)
-         inst-evattrs {:Instance n}
-         id-evattrs {:Id :Kernel/UUID}]
+         ctx-aname (k/event-context-attribute-name)
+         inst-evattrs {:Instance n :EventContext ctx-aname}
+         id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
      ;; Define CRUD events and dataflows:
      (let [upevt (ev :Upsert)
            delevt (ev :Delete)
@@ -528,6 +530,14 @@
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
 
+  (entity {:Kernel/Policy
+           {:Intercept :Kernel/Keyword
+            :Resource {:listof :Kernel/Path}
+            :Rule :Kernel/Any
+            :Trigger {:type :Kernel/Path :optional true}
+            :InterceptStage {:oneof [:PreEval :PostEval :Default]
+                             :default :Default}}})
+
   (event :Kernel/AppInit
          {:AppName :Kernel/Keyword})
 
@@ -551,7 +561,11 @@
                :Body :Kernel/String})
 
        (r/register-resolvers
-        [{:name :git
+        [{:name :policy
+          :type :policy
+          :compose? false
+          :paths [:Kernel/Policy]}
+         {:name :git
           :type :git
           :compose? false
           :paths [:Git/Push]}

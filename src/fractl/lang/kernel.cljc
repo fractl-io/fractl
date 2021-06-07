@@ -99,7 +99,7 @@
 (defn kernel-binding? [n]
   (some #{n} kernel-bindings))
 
-(def ^:private event-context-type [:Kernel/_EventContext
+(def ^:private event-context-type [:Kernel/EventContext
                                    {:type :Kernel/Map
                                     :optional true}])
 
