@@ -2,6 +2,7 @@
   (:require [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.resolver.remote :as remote]
+            [fractl.resolver.policy :as policy]
             #?(:clj [fractl.resolver.git :as git])
             #?(:clj [fractl.resolver.email :as email])
             #?(:clj [fractl.resolver.sms :as sms])))
@@ -31,7 +32,8 @@
 (def composed? (complement map?))
 (def override? map?)
 
-(def constructors (merge {:remote remote/make}
+(def constructors (merge {:remote remote/make
+                          :policy policy/make}
                          #?(:clj {:git git/make})
                          #?(:clj {:email email/make})
                          #?(:clj {:sms sms/make})))

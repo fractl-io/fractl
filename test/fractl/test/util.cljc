@@ -1,5 +1,6 @@
 (ns fractl.test.util
-  (:require #?(:clj [clojure.test :refer [is]]
+  (:require [fractl.evaluator :as e]
+            #?(:clj [clojure.test :refer [is]]
                :cljs [cljs.test :refer-macros [is]])))
 
 (defn- report-expected-ex [ex]
@@ -32,3 +33,8 @@
      (str (java.util.UUID/randomUUID))
      :cljs
      (str (random-uuid))))
+
+(defn first-result [evt]
+  (ffirst
+   (fresult
+    (e/eval-all-dataflows evt))))
