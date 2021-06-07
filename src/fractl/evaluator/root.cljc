@@ -311,7 +311,9 @@
 (defn- bind-result-to-alias [result-alias result]
   (if result-alias
     (let [env (:env result)
-          r (ffirst (:result result))
+          r (if (false? (:result result))
+                  result
+                  (ffirst (:result result)))
           new-env (env/bind-instance-to-alias env result-alias r)]
       (assoc result :env new-env))
     result))
