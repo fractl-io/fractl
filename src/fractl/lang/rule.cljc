@@ -1,6 +1,7 @@
 (ns fractl.lang.rule
   "Parsing and compilations of the embedded rule language"
-  (:require [fractl.lang.internal :as li]))
+  (:require [fractl.util.log :as log]
+            [fractl.lang.internal :as li]))
 
 (def ^:private oprs (concat li/cmpr-oprs [:and :or]))
 
@@ -35,8 +36,8 @@
                  (try
                    ~@expr
                    (catch Exception ex#
-                     (taoensso.timbre/error
-                      "cannot execute conditional event predicate"
-                      ex#)
+                     (log/error
+                      (str "cannot execute conditional event predicate"
+                           ex#))
                      nil)))]
     (eval fexpr)))
