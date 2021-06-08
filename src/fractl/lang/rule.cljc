@@ -3,13 +3,41 @@
   (:require [fractl.util.log :as log]
             [fractl.lang.internal :as li]))
 
-(def ^:private oprs (concat li/cmpr-oprs [:and :or]))
+(def ^:private oprs (concat li/cmpr-oprs [:not :and :or :between :in]))
 
 (defn- operator? [x]
   (some #{x} oprs))
 
+(defn in [xs x]
+  (some #{x} xs))
+
+(defn lt [a b]
+  (= -1 (compare a b)))
+
+(defn lteq [a b]
+  (let [c (compare a b)]
+    (or (= c 0) (= c -1))))
+
+(defn gt [a b]
+  (= 1 (compare a b)))
+
+(defn gteq [a b]
+  (let [c (compare a b)]
+    (or (= c 0) (= c 1))))
+
+(defn between [a b x]
+  (and (gt x a)
+       (lt x b)))
+
 (defn- operator-name [x]
-  (symbol (name x)))
+  (case x
+    :< 'fractl.lang.rule/lt
+    :<= 'fractl.lang.rule/lteq
+    :> 'fractl.lang.rule/gt
+    :>= 'fractl.lang.rule/gteq
+    :in 'fractl.lang.rule/in
+    :between 'fractl.lang.rule/between
+    (symbol (name x))))
 
 (defn- accessor-expression
   "Parse the name into a path and return an expression that
@@ -29,7 +57,11 @@
      (cond
        (operator? p) (operator-name p)
        (li/name? p) (accessor-expression p)
-       (vector? p) (compile-one-rule-pattern p)
+       (vector? p)
+       (let [r (compile-one-rule-pattern p)]
+         (if (operator? (first p))
+           r
+           (vec r)))
        :else p))
    pat))
 
