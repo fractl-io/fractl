@@ -70,7 +70,9 @@
             db [r stage]
             (conj
              (get db r [])
-             (if compile? (compile-rule rule) rule)))
+             (if (and compile? (= :RBAC (:Intercept policy)))
+               (compile-rule rule)
+               rule)))
            (rest rs)))
         (if compile? db (install-default-event-policies db policy))))))
 
@@ -84,28 +86,27 @@
     (and (vector? f)
          (every? store-opr-name? f))))
 
-(defn- save-rbac-policy [db policy]
+(defn- save-any-policy [db policy]
   (install-policy
    db policy
    (not (rule-on-store? (:Rule policy)))))
 
-(defn- save-logging-policy [db policy]
-  )
-
 (def ^:private save-policy
-  {:RBAC save-rbac-policy
-   :Logging save-logging-policy})
+  {:RBAC save-any-policy
+   :Logging save-any-policy})
 
 (defn policy-upsert
   "Add a policy object to the policy store"
   [inst]
-  (let [k (:Intercept inst)]
-    (if-let [db (get @policy-db k)]
+  (let [k (:Intercept inst)
+        save-fn (k save-policy)]
+    (when-not save-fn
+      (u/throw-ex (str "policy intercept not supported - " k)))
+    (let [db (get @policy-db k {})]
       (u/safe-set
        policy-db
        (assoc @policy-db k ((k save-policy) db inst)))
-      (u/throw-ex (str "policy intercept not supported - " k)))
-    inst))
+      inst)))
 
 (defn- policy-delete [inst]
   ;; TODO: implement delete
@@ -125,8 +126,11 @@
   [resolver-name config]
   (r/make-resolver resolver-name resolver-fns))
 
-(defn rbac-eval-rules
+(defn eval-rules
   "Return the RBAC polices stored at the key provided.
   Key should be a path."
-  [k]
-  (get-in @policy-db [:RBAC [(li/split-path k) PRE-EVAL]]))
+  [intercept stage k]
+  (get-in @policy-db [intercept [(li/split-path k) stage]]))
+
+(def rbac-eval-rules (partial eval-rules :RBAC PRE-EVAL))
+(def logging-eval-rules (partial eval-rules :Logging PRE-EVAL))

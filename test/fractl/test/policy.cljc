@@ -5,6 +5,7 @@
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
+            [fractl.resolver.policy :as rp]
             [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -12,7 +13,7 @@
 (defn- mkauth [s]
   {:Auth {:Owner {:Group s}}})
 
-(deftest event-policies
+(deftest event-rbac-policies
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :EVP
@@ -61,7 +62,7 @@
               {:Instance user
                :EventContext (mkauth "sales")}}))))))))
 
-(deftest entity-policies
+(deftest entity-rbac-policies
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :ENP
@@ -129,3 +130,34 @@
               (cn/make-instance
                {:ENP/ChangeGroup
                 (assoc attrs :EventContext (mkauth "sales"))})))))))))
+
+(deftest logging-policies
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :LP
+     (entity {:LP/User {:UserName :Kernel/String
+                        :Password :Kernel/Password
+                        :DOB :Kernel/DateTime}})
+     (let [p1 (tu/first-result
+               (cn/make-instance
+                {:Kernel/Upsert_Policy
+                 {:Instance
+                  (cn/make-instance
+                   {:Kernel/Policy
+                    {:Intercept :Logging
+                     :Resource [:LP/Upsert_User :LP/Lookup_User]
+                     :Rule {:Disable :INFO
+                            :PagerThreshold {:WARN 5 :ERROR 3}}}})}}))
+           p2 (tu/first-result
+               (cn/make-instance
+                {:Kernel/Upsert_Policy
+                 {:Instance
+                  (cn/make-instance
+                   {:Kernel/Policy
+                    {:Intercept :Logging
+                     :Resource [:LP/User]
+                     :Rule [[:Upsert :Lookup] {:ExcludeAttributes [:LP/User.DOB]}]}})}}))]
+       (is (cn/instance-of? :Kernel/Policy p1))
+       (is (cn/instance-of? :Kernel/Policy p2))
+       (is (= [{:ExcludeAttributes [:LP/User.DOB]}]
+              (rp/logging-eval-rules [:LP :Upsert_User])))))))
