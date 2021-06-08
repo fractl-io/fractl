@@ -7,6 +7,7 @@
                      entity record dataflow]]
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
+            [fractl.lang.rule :as rule]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -247,3 +248,24 @@
      (is (cn/instance-of? :I219/R r))
      (is (= 110 (:Y r)))
      (is (= ctx (:Z r))))))
+
+(deftest issue-231-rules-operators
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (let [r1 (rule/compile-rule-pattern [:= 1 :A.B])
+         r2 (rule/compile-rule-pattern
+             [:and
+              [:= "abc" :A.Name]
+              [:> :A.Date "2020-01-20"]])
+         r3 (rule/compile-rule-pattern
+             [:between "2020-01-20" "2021-01-20" :A.Date])
+         r4 (rule/compile-rule-pattern
+             [:in [1 2 3] :A.B])]
+     (is (r1 {:A {:B 1}}))
+     (is (not (r1 {:A {:B 2}})))
+     (is (r2 {:A {:Name "abc"
+                  :Date "2021-01-20"}}))
+     (is (r3 {:A {:Date "2021-01-10"}}))
+     (is (not (r3 {:A {:Date "2021-02-10"}})))
+     (is (r4 {:A {:B 2}}))
+     (is (not (r4 {:A {:B 4}}))))))
