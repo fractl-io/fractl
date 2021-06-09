@@ -163,4 +163,14 @@
        (is (cn/instance-of? :Kernel/Policy p1))
        (is (cn/instance-of? :Kernel/Policy p2))
        (is (= [{:ExcludeAttributes [:LP/User.DOB]}]
-              (rp/logging-eval-rules [:LP :Upsert_User])))))))
+              (rp/logging-eval-rules [:LP :Upsert_User])))
+       (tu/is-error
+        #(tu/first-result
+          (cn/make-instance
+           {:Kernel/Upsert_Policy
+            {:Instance
+             (cn/make-instance
+              {:Kernel/Policy
+               {:Intercept :Logging
+                :Resource [:LP/User]
+                :Rule [[:Upsert :Lookup] {:InvalidPolicyKey 123}]}})}})))))))
