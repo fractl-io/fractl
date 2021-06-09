@@ -18,7 +18,30 @@
     (rl/compile-rule-pattern (second r))
     (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
 
+(def ^:private log-levels [:DEBUG :INFO :WARN :ERROR])
+
 (defn- compile-logging-rule [r]
+  (doseq [k (keys r)]
+    (when-not (some #{k} #{:Disable :PagerThreshold :ExcludeAttributes})
+      (u/throw-ex (str "invalid logging rule - " k))))
+  (when-let [levels (:Disable r)]
+    (let [levels (if (keyword? levels) [levels] levels)]
+      (doseq [lvl levels]
+        (when-not (some #{lvl} log-levels)
+          (u/throw-ex (str "invalid log level - " lvl))))))
+  (when-let [pt (:PagerThreshold r)]
+    (when-not (map? pt)
+      (u/throw-ex (str ":PagerThreshold must be a map - " pt)))
+    (doseq [lvl (keys pt)]
+      (when-not (some #{lvl} log-levels)
+        (u/throw-ex (str "invalid log level in :PagerThreshold - " lvl)))
+      (doseq [k (keys (lvl pt))]
+        (when-not (some #{k} #{:count :duration-minutes})
+          (u/throw-ex (str "invalid :PagerThreshold entry - " [lvl k]))))))
+  (when-let [ea (:ExcludeAttributes r)]
+    (doseq [n ea]
+      (when-not (li/name? n)
+        (u/throw-ex (str "invalid name in :ExcludeAttributes - " n)))))
   r)
 
 (def ^:private compile-rule {:RBAC compile-rbac-rule
