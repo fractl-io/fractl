@@ -147,7 +147,10 @@
                     {:Intercept :Logging
                      :Resource [:LP/Upsert_User :LP/Lookup_User]
                      :Rule {:Disable :INFO
-                            :PagerThreshold {:WARN 5 :ERROR 3}}}})}}))
+                            :PagerThreshold {:WARN {:count 5
+                                                    :duration-minutes 10}
+                                             :ERROR {:count 3
+                                                     :duration-minutes 5}}}}})}}))
            p2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy

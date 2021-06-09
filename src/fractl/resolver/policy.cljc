@@ -13,10 +13,16 @@
 
 (def ^:private store-opr-names #{:Upsert :Delete :Lookup})
 
-(defn- compile-rule [r]
+(defn- compile-rbac-rule [r]
   (if (= :when (first r))
     (rl/compile-rule-pattern (second r))
     (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
+
+(defn- compile-logging-rule [r]
+  r)
+
+(def ^:private compile-rule {:RBAC compile-rbac-rule
+                             :Logging compile-logging-rule})
 
 (defn- make-default-event-names
   "Return the default event names for the given entity"
@@ -70,8 +76,8 @@
             db [r stage]
             (conj
              (get db r [])
-             (if (and compile? (= :RBAC (:Intercept policy)))
-               (compile-rule rule)
+             (if compile?
+               (((:Intercept policy) compile-rule) rule)
                rule)))
            (rest rs)))
         (if compile? db (install-default-event-policies db policy))))))
