@@ -1,7 +1,6 @@
 (ns fractl.evaluator.root
   "The default evaluator implementation"
   (:require [clojure.walk :as w]
-            [taoensso.timbre :as log]
             [fractl.env :as env]
             [fractl.async :as a]
             [fractl.component :as cn]

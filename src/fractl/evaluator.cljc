@@ -5,6 +5,7 @@
             [fractl.compiler :as c]
             [fractl.env :as env]
             [fractl.util :as u]
+            [fractl.util.log :as log]
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
             [fractl.policy.rbac :as rbac]
@@ -48,6 +49,21 @@
       %)
    result))
 
+(defn- log-levels-for-event [event-instance]
+  ;; TODO: consult policies for disabled levels
+  #{:DEBUG :INFO :WARN :ERROR})
+
+(defn- log-event [event-instance]
+  ;; TODO: consult policies for attributes to exclude
+  (log/info
+   (str "evaluating dataflow for event - " event-instance)))
+
+(defn- log-result-object [event-instance obj]
+  ;; TODO: consult policies for attributes to exclude in result obj
+  (log/info
+   (str "dataflow result for " (cn/instance-name event-instance)
+        " - " obj)))
+
 (defn eval-dataflow
   "Evaluate a compiled dataflow, triggered by event-instance, within the context
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
@@ -59,9 +75,16 @@
                 event-instance)
                env)
          [_ dc] (cn/dataflow-opcode df)
-         result (dispatch-opcodes evaluator env dc)]
-     (deref-futures result)))
-  ([evaluator event-instance df] (eval-dataflow evaluator env/EMPTY event-instance df)))
+         log-levels (log-levels-for-event event-instance)
+         log-info (some #{:INFO} log-levels)
+         _ (when log-info (log-event event-instance))
+         result (deref-futures
+                 (dispatch-opcodes evaluator env dc))]
+     (when log-info
+       (log-result-object event-instance result))
+     result))
+  ([evaluator event-instance df]
+   (eval-dataflow evaluator env/EMPTY event-instance df)))
 
 (defn run-dataflows
   "Compile and evaluate all dataflows attached to an event. The query-compiler
