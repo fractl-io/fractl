@@ -50,17 +50,6 @@
       %)
    result))
 
-(defn- log-event [event-instance]
-  ;; TODO: consult policies for attributes to exclude
-  (log/info
-   (str "evaluating dataflow for event - " event-instance)))
-
-(defn- log-result-object [event-instance obj]
-  ;; TODO: consult policies for attributes to exclude in result obj
-  (log/info
-   (str "dataflow result for " (cn/instance-name event-instance)
-        " - " obj)))
-
 (defn eval-dataflow
   "Evaluate a compiled dataflow, triggered by event-instance, within the context
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
@@ -72,27 +61,59 @@
                 event-instance)
                env)
          [_ dc] (cn/dataflow-opcode df)
-         log-levels (logging/log-levels-for-event event-instance)
-         log-info (some #{:INFO} log-levels)
-         _ (when log-info (log-event event-instance))
          result (deref-futures
                  (dispatch-opcodes evaluator env dc))]
-     (when log-info
-       (log-result-object event-instance result))
      result))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
+
+(defn- log-event [event-instance]
+  ;; TODO: consult policies for attributes to exclude
+  (log/info
+   (str "evaluating dataflow for event - " event-instance)))
+
+(defn- log-result-object [event-instance obj]
+  ;; TODO: consult policies for attributes to exclude in result obj
+  (log/info
+   (str "dataflow result for " (cn/instance-name event-instance)
+        " - " obj)))
+
+(defn- eval-dataflow-with-logs [evaluator env event-instance
+                                log-info log-error df]
+  (try
+    (let [r (eval-dataflow evaluator env event-instance df)]
+      (when log-info
+        (log-result-object event-instance r))
+      r)
+    (catch Exception ex
+      (do (when log-error
+            (log/error
+             (str "error in dataflow for "
+                  (cn/instance-name event-instance)
+                  " - " (.getMessage ex))))
+          (throw ex)))))
 
 (defn run-dataflows
   "Compile and evaluate all dataflows attached to an event. The query-compiler
    and evaluator returned by a previous call to evaluator/make may be passed as
    the first two arguments."
   [compile-query-fn evaluator env event-instance]
-  (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)]
+  (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)
+        log-levels (logging/log-levels-for-event event-instance)
+        log-info (some #{:INFO} log-levels)
+        log-error (some #{:ERROR} log-levels)
+        log-warn (some #{:WARN} log-levels)]
     (if (rbac/evaluate? event-instance)
-      (map #(eval-dataflow evaluator env event-instance %) dfs)
-      (u/throw-ex (str "no authorization to evaluate dataflows on event - "
-                       (cn/instance-name event-instance))))))
+      (let [ef (partial
+                eval-dataflow-with-logs evaluator
+                env event-instance log-info log-error)]
+        (when log-info (log-event event-instance))
+        (doall (map ef dfs)))
+      (let [msg (str "no authorization to evaluate dataflows on event - "
+                     (cn/instance-name event-instance))]
+        (when log-warn
+          (log/warn msg))
+        (u/throw-ex msg)))))
 
 (defn make
   "Use the given store to create a query compiler and pattern evaluator.
