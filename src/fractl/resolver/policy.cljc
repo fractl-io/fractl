@@ -4,7 +4,7 @@
             [fractl.component :as cn]
             [fractl.lang.rule :as rl]
             [fractl.lang.internal :as li]
-            [fractl.policy.logging :as pl]
+            [fractl.policy.logging-util :as lu]
             [fractl.resolver.core :as r]))
 
 (def PRE-EVAL :PreEval)
@@ -20,7 +20,7 @@
     (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
 
 (def ^:private compile-rule {:RBAC compile-rbac-rule
-                             :Logging pl/compile-logging-rule})
+                             :Logging lu/compile-logging-rule})
 
 (defn- make-default-event-names
   "Return the default event names for the given entity"

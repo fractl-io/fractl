@@ -9,6 +9,7 @@
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
             [fractl.policy.rbac :as rbac]
+            [fractl.policy.logging :as logging]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
             [fractl.evaluator.internal :as i]
@@ -49,10 +50,6 @@
       %)
    result))
 
-(defn- log-levels-for-event [event-instance]
-  ;; TODO: consult policies for disabled levels
-  #{:DEBUG :INFO :WARN :ERROR})
-
 (defn- log-event [event-instance]
   ;; TODO: consult policies for attributes to exclude
   (log/info
@@ -75,7 +72,7 @@
                 event-instance)
                env)
          [_ dc] (cn/dataflow-opcode df)
-         log-levels (log-levels-for-event event-instance)
+         log-levels (logging/log-levels-for-event event-instance)
          log-info (some #{:INFO} log-levels)
          _ (when log-info (log-event event-instance))
          result (deref-futures
