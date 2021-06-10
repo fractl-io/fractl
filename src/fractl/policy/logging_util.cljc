@@ -4,13 +4,13 @@
 
 (def log-levels #{:DEBUG :INFO :WARN :ERROR})
 
-(defn- validate-logging-rule-keys [r]
+(defn- parse-logging-rule-keys [r]
   (doseq [k (keys r)]
-    (when-not (some #{k} #{:Disable :PagerThreshold :ExcludeAttributes})
+    (when-not (some #{k} #{:Disable :PagerThreshold :HideAttributes})
       (u/throw-ex (str "invalid logging rule - " k))))
   r)
 
-(defn- validate-logging-disable-rule [r]
+(defn- parse-logging-disable-rule [r]
   (if-let [levels (:Disable r)]
     (let [levels (if (keyword? levels) [levels] levels)]
       (doseq [lvl levels]
@@ -19,7 +19,7 @@
       (assoc r :Disable levels))
     r))
 
-(defn- validate-pagerthreshold-rule [r]
+(defn- parse-pagerthreshold-rule [r]
   (when-let [pt (:PagerThreshold r)]
     (when-not (map? pt)
       (u/throw-ex (str ":PagerThreshold must be a map - " pt)))
@@ -31,18 +31,23 @@
           (u/throw-ex (str "invalid :PagerThreshold entry - " [lvl k]))))))
   r)
 
-(defn- validate-exclude-attribute-rule [r]
-  (when-let [ea (:ExcludeAttributes r)]
-    (doseq [n ea]
-      (when-not (li/name? n)
-        (u/throw-ex (str "invalid name in :ExcludeAttributes - " n)))))
-  r)
+(defn- parse-hide-attribute-rule [r]
+  (if-let [ns (:HideAttributes r)]
+    (assoc
+     r :HideAttributes
+     (map #(do (when-not (li/name? %)
+                 (u/throw-ex (str "invalid name in :HideAttributes - " %)))
+               (let [[a b] (li/split-path %)
+                     rs (li/split-ref b)]
+                 [[a (first rs)] (rest rs)]))
+          ns))
+    r))
 
 (defn compile-logging-rule
   "Parse a logging rule for validity, return the rule structure as is."
   [r]
   (-> r
-      validate-logging-rule-keys
-      validate-logging-disable-rule
-      validate-pagerthreshold-rule
-      validate-exclude-attribute-rule))
+      parse-logging-rule-keys
+      parse-logging-disable-rule
+      parse-pagerthreshold-rule
+      parse-hide-attribute-rule))

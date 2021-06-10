@@ -160,13 +160,17 @@
                    {:Kernel/Policy
                     {:Intercept :Logging
                      :Resource [:LP/User]
-                     :Rule [[:Upsert :Lookup] {:ExcludeAttributes [:LP/User.DOB]}]}})}}))]
+                     :Rule [[:Upsert :Lookup]
+                            {:HideAttributes
+                             [:LP/User.Password
+                              :LP/Upsert_User.Instance.Password]}]}})}}))]
        (is (cn/instance-of? :Kernel/Policy p1))
        (is (cn/instance-of? :Kernel/Policy p2))
        (is (= [{:Disable [:INFO], :PagerThreshold
                 {:WARN {:count 5, :duration-minutes 10},
                  :ERROR {:count 3, :duration-minutes 5}}}
-               {:ExcludeAttributes [:LP/User.DOB]}]
+               {:HideAttributes [[[:LP :User] [:Password]]
+                                 [[:LP :Upsert_User] [:Instance :Password]]]}]
               (rp/logging-eval-rules [:LP :Upsert_User])))
        (tu/is-error
         #(tu/first-result
@@ -186,6 +190,7 @@
                       {:UserName "abc"
                        :Password "abc123"
                        :DOB "2000-03-20T00:00:00.000000Z"}})}})
-             rules (pl/rules evt)
-             lvls (pl/log-levels rules)]
-         (is (= #{:WARN :ERROR :DEBUG} lvls)))))))
+             rules (pl/rules evt)]
+         (is (= [[[:LP :User] [:Password]] [[:LP :Upsert_User] [:Instance :Password]]]
+                (pl/hidden-attributes rules)))
+         (is (= #{:WARN :ERROR :DEBUG} (pl/log-levels rules))))))))

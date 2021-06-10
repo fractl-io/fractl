@@ -8,11 +8,17 @@
   (rp/logging-eval-rules
    (cn/instance-name event-instance)))
 
+(defn- rules-with-key [rules k]
+  (filter
+   identity
+   (map k rules)))
+
 (defn log-levels [rules]
-  (let [disabled-levels
-        (set
-         (flatten
-          (filter
-           identity
-           (map :Disable rules))))]
-    (set/difference lu/log-levels disabled-levels)))
+  (set/difference
+   lu/log-levels
+   (set
+    (flatten
+     (rules-with-key rules :Disable)))))
+
+(defn hidden-attributes [rules]
+  (first (rules-with-key rules :HideAttributes)))
