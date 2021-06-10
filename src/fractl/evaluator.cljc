@@ -99,7 +99,8 @@
    the first two arguments."
   [compile-query-fn evaluator env event-instance]
   (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)
-        log-levels (logging/log-levels-for-event event-instance)
+        logging-rules (logging/rules event-instance)
+        log-levels (logging/log-levels logging-rules)
         log-info (some #{:INFO} log-levels)
         log-error (some #{:ERROR} log-levels)
         log-warn (some #{:WARN} log-levels)]

@@ -6,6 +6,7 @@
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.resolver.policy :as rp]
+            [fractl.policy.logging :as pl]
             [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -162,7 +163,10 @@
                      :Rule [[:Upsert :Lookup] {:ExcludeAttributes [:LP/User.DOB]}]}})}}))]
        (is (cn/instance-of? :Kernel/Policy p1))
        (is (cn/instance-of? :Kernel/Policy p2))
-       (is (= [{:ExcludeAttributes [:LP/User.DOB]}]
+       (is (= [{:Disable [:INFO], :PagerThreshold
+                {:WARN {:count 5, :duration-minutes 10},
+                 :ERROR {:count 3, :duration-minutes 5}}}
+               {:ExcludeAttributes [:LP/User.DOB]}]
               (rp/logging-eval-rules [:LP :Upsert_User])))
        (tu/is-error
         #(tu/first-result
@@ -173,4 +177,15 @@
               {:Kernel/Policy
                {:Intercept :Logging
                 :Resource [:LP/User]
-                :Rule [[:Upsert :Lookup] {:InvalidPolicyKey 123}]}})}})))))))
+                :Rule [[:Upsert :Lookup] {:InvalidPolicyKey 123}]}})}})))
+       (let [evt (cn/make-instance
+                  {:LP/Upsert_User
+                   {:Instance
+                    (cn/make-instance
+                     {:LP/User
+                      {:UserName "abc"
+                       :Password "abc123"
+                       :DOB "2000-03-20T00:00:00.000000Z"}})}})
+             rules (pl/rules evt)
+             lvls (pl/log-levels rules)]
+         (is (= #{:WARN :ERROR :DEBUG} lvls)))))))

@@ -2,7 +2,7 @@
   (:require [fractl.util :as u]
             [fractl.lang.internal :as li]))
 
-(def log-levels [:DEBUG :INFO :WARN :ERROR])
+(def log-levels #{:DEBUG :INFO :WARN :ERROR})
 
 (defn- validate-logging-rule-keys [r]
   (doseq [k (keys r)]
@@ -11,12 +11,13 @@
   r)
 
 (defn- validate-logging-disable-rule [r]
-  (when-let [levels (:Disable r)]
+  (if-let [levels (:Disable r)]
     (let [levels (if (keyword? levels) [levels] levels)]
       (doseq [lvl levels]
         (when-not (some #{lvl} log-levels)
-          (u/throw-ex (str "invalid log level - " lvl))))))
-  r)
+          (u/throw-ex (str "invalid log level - " lvl))))
+      (assoc r :Disable levels))
+    r))
 
 (defn- validate-pagerthreshold-rule [r]
   (when-let [pt (:PagerThreshold r)]

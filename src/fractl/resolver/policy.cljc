@@ -68,12 +68,13 @@
                 stg)]
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
-        (let [r (li/split-path r)]
+        (let [r (li/split-path r)
+              k [r stage]]
           (recur
            (assoc
-            db [r stage]
+            db k
             (conj
-             (get db r [])
+             (get db k [])
              (if compile?
                (((:Intercept policy) compile-rule) rule)
                rule)))
