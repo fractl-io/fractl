@@ -13,10 +13,57 @@
 
 (def ^:private store-opr-names #{:Upsert :Delete :Lookup})
 
-(defn- compile-rule [r]
+(defn- compile-rbac-rule [r]
   (if (= :when (first r))
     (rl/compile-rule-pattern (second r))
     (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
+
+(def ^:private log-levels [:DEBUG :INFO :WARN :ERROR])
+
+(defn- validate-logging-rule-keys [r]
+  (doseq [k (keys r)]
+    (when-not (some #{k} #{:Disable :PagerThreshold :ExcludeAttributes})
+      (u/throw-ex (str "invalid logging rule - " k))))
+  r)
+
+(defn- validate-logging-disable-rule [r]
+  (when-let [levels (:Disable r)]
+    (let [levels (if (keyword? levels) [levels] levels)]
+      (doseq [lvl levels]
+        (when-not (some #{lvl} log-levels)
+          (u/throw-ex (str "invalid log level - " lvl))))))
+  r)
+
+(defn- validate-pagerthreshold-rule [r]
+  (when-let [pt (:PagerThreshold r)]
+    (when-not (map? pt)
+      (u/throw-ex (str ":PagerThreshold must be a map - " pt)))
+    (doseq [lvl (keys pt)]
+      (when-not (some #{lvl} log-levels)
+        (u/throw-ex (str "invalid log level in :PagerThreshold - " lvl)))
+      (doseq [k (keys (lvl pt))]
+        (when-not (some #{k} #{:count :duration-minutes})
+          (u/throw-ex (str "invalid :PagerThreshold entry - " [lvl k]))))))
+  r)
+
+(defn- validate-exclude-attribute-rule [r]
+  (when-let [ea (:ExcludeAttributes r)]
+    (doseq [n ea]
+      (when-not (li/name? n)
+        (u/throw-ex (str "invalid name in :ExcludeAttributes - " n)))))
+  r)
+
+(defn- compile-logging-rule
+  "Parse a logging rule for validity, return the rule structure as is."
+  [r]
+  (-> r
+      validate-logging-rule-keys
+      validate-logging-disable-rule
+      validate-pagerthreshold-rule
+      validate-exclude-attribute-rule))
+
+(def ^:private compile-rule {:RBAC compile-rbac-rule
+                             :Logging compile-logging-rule})
 
 (defn- make-default-event-names
   "Return the default event names for the given entity"
@@ -70,7 +117,9 @@
             db [r stage]
             (conj
              (get db r [])
-             (if compile? (compile-rule rule) rule)))
+             (if compile?
+               (((:Intercept policy) compile-rule) rule)
+               rule)))
            (rest rs)))
         (if compile? db (install-default-event-policies db policy))))))
 
@@ -84,28 +133,27 @@
     (and (vector? f)
          (every? store-opr-name? f))))
 
-(defn- save-rbac-policy [db policy]
+(defn- save-any-policy [db policy]
   (install-policy
    db policy
    (not (rule-on-store? (:Rule policy)))))
 
-(defn- save-logging-policy [db policy]
-  )
-
 (def ^:private save-policy
-  {:RBAC save-rbac-policy
-   :Logging save-logging-policy})
+  {:RBAC save-any-policy
+   :Logging save-any-policy})
 
 (defn policy-upsert
   "Add a policy object to the policy store"
   [inst]
-  (let [k (:Intercept inst)]
-    (if-let [db (get @policy-db k)]
+  (let [k (:Intercept inst)
+        save-fn (k save-policy)]
+    (when-not save-fn
+      (u/throw-ex (str "policy intercept not supported - " k)))
+    (let [db (get @policy-db k {})]
       (u/safe-set
        policy-db
        (assoc @policy-db k ((k save-policy) db inst)))
-      (u/throw-ex (str "policy intercept not supported - " k)))
-    inst))
+      inst)))
 
 (defn- policy-delete [inst]
   ;; TODO: implement delete
@@ -125,8 +173,11 @@
   [resolver-name config]
   (r/make-resolver resolver-name resolver-fns))
 
-(defn rbac-eval-rules
+(defn eval-rules
   "Return the RBAC polices stored at the key provided.
   Key should be a path."
-  [k]
-  (get-in @policy-db [:RBAC [(li/split-path k) PRE-EVAL]]))
+  [intercept stage k]
+  (get-in @policy-db [intercept [(li/split-path k) stage]]))
+
+(def rbac-eval-rules (partial eval-rules :RBAC PRE-EVAL))
+(def logging-eval-rules (partial eval-rules :Logging PRE-EVAL))
