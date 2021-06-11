@@ -23,3 +23,10 @@
 (entity {:E4 {:Y :Kernel/DateTime}})
 
 (dataflow :KK {:E4 {:Y '(fractl.lang.datetime/now)}})
+
+(dataflow :RBACPolicy
+  {:Kernel/Policy
+   {:Intercept "RBAC"
+    :Resource ["Sample.Simple/Upsert_E4"]
+    :Rule [:when
+           [:= "life" :EventContext.Auth.Owner.Group]]}})

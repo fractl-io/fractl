@@ -42,13 +42,14 @@
 
 (defn vals-sanitizer [attrs]
   (let [sanattrs (for [[k v] attrs]
-                   (cond
-                     (keyword? v) {k v}
-                     (map? v) {k v}
-                     :else (if (re-matches #"\(quote .*" (str v))
-                             {k v}
-                             (let [qv (str "(quote " v ")")]
-                               {k (read-string qv)}))))]
+                   (if (or (keyword? v)
+                           (map? v)
+                           (string? v))
+                     {k v}
+                     (if (re-matches #"\(quote .*" (str v))
+                       {k v}
+                       (let [qv (str "(quote " v ")")]
+                         {k (eval (read-string qv))}))))]
     (into {} sanattrs)))
 
 (defn- fq-inst-pat

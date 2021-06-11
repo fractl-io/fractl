@@ -108,7 +108,8 @@
         stg (keyword (:InterceptStage policy))
         stage (if (= stg :Default)
                 PRE-EVAL
-                stg)]
+                stg)
+        intercept (keyword (:Intercept policy))]
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
         (let [r (li/split-path r)]
@@ -118,7 +119,7 @@
             (conj
              (get db r [])
              (if compile?
-               (((:Intercept policy) compile-rule) rule)
+               ((compile-rule intercept) rule)
                rule)))
            (rest rs)))
         (if compile? db (install-default-event-policies db policy))))))
@@ -145,7 +146,7 @@
 (defn policy-upsert
   "Add a policy object to the policy store"
   [inst]
-  (let [k (:Intercept inst)
+  (let [k (keyword (:Intercept inst))
         save-fn (k save-policy)]
     (when-not save-fn
       (u/throw-ex (str "policy intercept not supported - " k)))

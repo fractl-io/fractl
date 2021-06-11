@@ -971,7 +971,12 @@
   (:unique (find-attribute-schema (get entity-schema attr))))
 
 (defn attribute-type [entity-schema attr]
-  (:type (find-attribute-schema (get entity-schema attr))))
+  (let [ascm (get entity-schema attr)]
+    (or (:type (find-attribute-schema ascm))
+        ascm)))
+
+(defn type-any? [entity-schema attr]
+  (= :Kernel/Any (attribute-type entity-schema attr)))
 
 (defn find-ref-path [attr-schema-name]
   (:ref (find-attribute-schema attr-schema-name)))
