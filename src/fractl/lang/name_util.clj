@@ -48,7 +48,7 @@
                      :else (if (re-matches #"\(quote .*" (str v))
                              {k v}
                              (let [qv (str "(quote " v ")")]
-                               {k qv}))))]
+                               {k (read-string qv)}))))]
     (into {} sanattrs)))
 
 (defn- fq-inst-pat
