@@ -21,7 +21,7 @@
           (rp/policy-upsert
            (cn/make-instance
             :Kernel/Policy
-            {:Intercept :RBAC
+            {:Intercept "RBAC"
              :Resource [event-name]
              :Rule (second rule)
              :InterceptStage "Default"}))))))

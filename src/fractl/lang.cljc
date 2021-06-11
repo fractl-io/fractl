@@ -526,12 +526,12 @@
                            :default 2000}})
 
   (entity {:Kernel/Resolver
-           {:Type {:check keyword?}
+           {:Type :Kernel/Keyword
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
 
   (entity {:Kernel/Policy
-           {:Intercept :Kernel/Keyword
+           {:Intercept :Kernel/String
             :Resource {:listof :Kernel/Path}
             :Rule :Kernel/Any
             :Trigger {:type :Kernel/Path :optional true}
