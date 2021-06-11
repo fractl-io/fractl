@@ -69,14 +69,23 @@
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 
 (defn- remove-hidden-attributes [hidden-attrs inst]
-  (loop [hs hidden-attrs, inst inst]
-    (if-let [h (first hs)]
-      (recur
-       (rest hs)
-       (if (cn/instance-of? (first h) inst)
-         (su/dissoc-in inst (second h))
-         inst))
-      inst)))
+  (if-let [r (:result inst)]
+    (if (vector? r)
+      (assoc
+       inst
+       :result
+       (map
+        (partial remove-hidden-attributes hidden-attrs)
+        r))
+      (remove-hidden-attributes hidden-attrs r))
+    (loop [hs hidden-attrs, inst inst]
+      (if-let [h (first hs)]
+        (recur
+         (rest hs)
+         (if (cn/instance-of? (first h) inst)
+           (su/dissoc-in inst (second h))
+           inst))
+        inst))))
 
 (defn- log-event [hidden-attrs event-instance]
   (log/info
@@ -120,7 +129,7 @@
             ef (partial
                 eval-dataflow-with-logs evaluator
                 env event-instance log-info log-error hidden-attrs)]
-        (when log-info (log-event event-instance hidden-attrs))
+        (when log-info (log-event hidden-attrs event-instance))
         (doall (map ef dfs)))
       (let [msg (str "no authorization to evaluate dataflows on event - "
                      (cn/instance-name event-instance))]

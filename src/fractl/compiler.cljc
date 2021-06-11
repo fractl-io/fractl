@@ -187,15 +187,18 @@
 
 (declare compile-list-literal)
 
-(defn- set-literal-attribute [ctx [aname valpat :as attr]]
-  (if (vector? valpat)
-    (compile-list-literal ctx aname valpat)
-    (op/set-literal-attribute attr)))
+(defn- set-literal-attribute [ctx schema [aname valpat :as attr]]
+  (if (cn/type-any? schema aname)
+    (op/set-literal-attribute attr)
+    (if (vector? valpat)
+      (compile-list-literal ctx aname valpat)
+      (op/set-literal-attribute attr))))
 
 (defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
   (queue-for-policy! rec-name :Upsert)
   (concat [(begin-build-instance rec-name attrs)]
-          (map (partial set-literal-attribute ctx) (:computed attrs))
+          (map (partial set-literal-attribute ctx (:schema schema))
+               (:computed attrs))
           (let [f (:compound set-attr-opcode-fns)]
             (map #(f %) (:compound attrs)))
           (map (fn [[k v]]

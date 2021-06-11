@@ -33,8 +33,8 @@
                  {:Instance admin}}))
            policy (cn/make-instance
                    {:Kernel/Policy
-                    {:Intercept :RBAC
-                     :Resource [:EVP/Upsert_User]
+                    {:Intercept "RBAC"
+                     :Resource ["EVP/Upsert_User"]
                      :Rule [:when
                             [:= "admin" :EventContext.Auth.Owner.Group]]}})
            r2 (tu/first-result
@@ -87,8 +87,8 @@
                  {:Instance admin}}))
            policy (cn/make-instance
                    {:Kernel/Policy
-                    {:Intercept :RBAC
-                     :Resource [:ENP/User]
+                    {:Intercept "RBAC"
+                     :Resource ["ENP/User"]
                      :Rule [[:Upsert]
                             [:when
                              [:= "admin"
@@ -145,7 +145,7 @@
                  {:Instance
                   (cn/make-instance
                    {:Kernel/Policy
-                    {:Intercept :Logging
+                    {:Intercept "Logging"
                      :Resource [:LP/Upsert_User :LP/Lookup_User]
                      :Rule {:Disable :INFO
                             :PagerThreshold {:WARN {:count 5
@@ -158,8 +158,8 @@
                  {:Instance
                   (cn/make-instance
                    {:Kernel/Policy
-                    {:Intercept :Logging
-                     :Resource [:LP/User]
+                    {:Intercept "Logging"
+                     :Resource ["LP/User"]
                      :Rule [[:Upsert :Lookup]
                             {:HideAttributes
                              [:LP/User.Password
@@ -179,8 +179,8 @@
             {:Instance
              (cn/make-instance
               {:Kernel/Policy
-               {:Intercept :Logging
-                :Resource [:LP/User]
+               {:Intercept "Logging"
+                :Resource ["LP/User"]
                 :Rule [[:Upsert :Lookup] {:InvalidPolicyKey 123}]}})}})))
        (let [evt (cn/make-instance
                   {:LP/Upsert_User
