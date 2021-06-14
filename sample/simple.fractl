@@ -29,12 +29,14 @@
  {:Kernel/Policy
   {:Intercept "RBAC"
    :Resource ["Sample.Simple/Upsert_E4"]
-   :Rule [:when
-          [:= "life" :EventContext.Auth.Owner.Group]]}})
+   :Rule [:q#
+          [:when
+           [:= "life" :EventContext.Auth.Owner.Group]]]}})
 
 (dataflow
  :LoggingPolicy
  {:Kernel/Policy
   {:Intercept "Logging"
    :Resource ["Sample.Simple/Upsert_E1"]
-   :Rule {"Disable" "INFO"}}})
+   :Rule [:q#
+          {:Disable :INFO}]}})

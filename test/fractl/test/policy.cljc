@@ -35,8 +35,9 @@
                    {:Kernel/Policy
                     {:Intercept "RBAC"
                      :Resource ["EVP/Upsert_User"]
-                     :Rule [:when
-                            [:= "admin" :EventContext.Auth.Owner.Group]]}})
+                     :Rule [:q#
+                            [:when
+                             [:= "admin" :EventContext.Auth.Owner.Group]]]}})
            r2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -89,10 +90,11 @@
                    {:Kernel/Policy
                     {:Intercept "RBAC"
                      :Resource ["ENP/User"]
-                     :Rule [[:Upsert]
-                            [:when
-                             [:= "admin"
-                              :EventContext.Auth.Owner.Group]]]}})
+                     :Rule [:q#
+                            [[:Upsert]
+                             [:when
+                              [:= "admin"
+                               :EventContext.Auth.Owner.Group]]]]}})
            r2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -147,11 +149,15 @@
                    {:Kernel/Policy
                     {:Intercept "Logging"
                      :Resource [:LP/Upsert_User :LP/Lookup_User]
-                     :Rule {:Disable :INFO
-                            :PagerThreshold {:WARN {:count 5
-                                                    :duration-minutes 10}
-                                             :ERROR {:count 3
-                                                     :duration-minutes 5}}}}})}}))
+                     :Rule [:q#
+                            {:Disable :INFO
+                             :PagerThreshold
+                             {:WARN
+                              {:count 5
+                               :duration-minutes 10}
+                              :ERROR
+                              {:count 3
+                               :duration-minutes 5}}}]}})}}))
            p2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -160,10 +166,11 @@
                    {:Kernel/Policy
                     {:Intercept "Logging"
                      :Resource ["LP/User"]
-                     :Rule [[:Upsert :Lookup]
-                            {:HideAttributes
-                             [:LP/User.Password
-                              :LP/Upsert_User.Instance.Password]}]}})}}))]
+                     :Rule [:q#
+                            [[:Upsert :Lookup]
+                             {:HideAttributes
+                              [:LP/User.Password
+                               :LP/Upsert_User.Instance.Password]}]]}})}}))]
        (is (cn/instance-of? :Kernel/Policy p1))
        (is (cn/instance-of? :Kernel/Policy p2))
        (is (= [{:Disable [:INFO], :PagerThreshold
@@ -181,7 +188,9 @@
               {:Kernel/Policy
                {:Intercept "Logging"
                 :Resource ["LP/User"]
-                :Rule [[:Upsert :Lookup] {:InvalidPolicyKey 123}]}})}})))
+                :Rule [:q#
+                       [[:Upsert :Lookup]
+                        {:InvalidPolicyKey 123}]]}})}})))
        (let [evt (cn/make-instance
                   {:LP/Upsert_User
                    {:Instance

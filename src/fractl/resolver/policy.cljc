@@ -19,8 +19,9 @@
     (rl/compile-rule-pattern (second r))
     (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
 
-(def ^:private compile-rule {:RBAC compile-rbac-rule
-                             :Logging lu/compile-logging-rule})
+(def ^:private compile-rule
+  {:RBAC compile-rbac-rule
+   :Logging lu/compile-logging-rule})
 
 (defn- make-default-event-names
   "Return the default event names for the given entity"
@@ -101,10 +102,18 @@
   {:RBAC save-any-policy
    :Logging save-any-policy})
 
+(defn- normalize-policy [inst]
+  ;; Remove the :q# (quote) prefix from rule.
+  (let [rule (:Rule inst)]
+    (if (li/quoted? rule)
+      (assoc inst :Rule (second rule))
+      inst)))
+
 (defn policy-upsert
   "Add a policy object to the policy store"
   [inst]
-  (let [k (keyword (:Intercept inst))
+  (let [inst (normalize-policy inst)
+        k (keyword (:Intercept inst))
         save-fn (k save-policy)]
     (when-not save-fn
       (u/throw-ex (str "policy intercept not supported - " k)))

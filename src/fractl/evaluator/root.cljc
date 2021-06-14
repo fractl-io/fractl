@@ -376,14 +376,13 @@
     (and (map? x) (:opcode x))))
 
 (defn- set-quoted-list [opcode-eval elements-opcode]
-  (first
-   (w/prewalk
-    #(if (opcode-data? %)
-       (let [result (opcode-eval %)]
-         (or (ok-result result)
-             (u/throw-ex result)))
-       %)
-    elements-opcode)))
+  (w/prewalk
+   #(if (opcode-data? %)
+      (let [result (opcode-eval %)]
+        (or (ok-result result)
+            (u/throw-ex result)))
+      %)
+   elements-opcode))
 
 (defn- set-flat-list [opcode-eval elements-opcode]
   (loop [results (map opcode-eval elements-opcode), final-list []]
@@ -459,7 +458,7 @@
         (let [opcode-eval (partial eval-opcode self env)
               final-list ((if quoted? set-quoted-list set-flat-list)
                           opcode-eval elements-opcode)]
-          (set-obj-attr env attr-name (vec final-list)))
+          (set-obj-attr env attr-name final-list))
         #?(:clj
            (catch Exception e
              (or (ex-data e) (i/error (.getMessage e))))
