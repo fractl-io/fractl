@@ -1,6 +1,7 @@
 (ns fractl.lang.name-util
   "Namespace for fully-qualified name utilities"
   (:require [clojure.string :as string]
+            [clojure.walk :as w]
             [fractl.util.seq :as su]
             [fractl.component :as cn]
             [fractl.lang.kernel :as k]
@@ -76,16 +77,22 @@
 (defn- fq-generic
   "Update a data-literal in a component with fully-qualified names."
   [v is-recdef]
-  (cond
-    (li/name? v) (fq-name v)
-    (map? v) (if (looks-like-inst? v)
-               (fq-inst-pat v is-recdef)
-               (fq-map v is-recdef))
-    (list? v) (if-not is-recdef
-                (reverse (into '() (map #(fq-generic % is-recdef) v)))
-                v)
-    (vector? v) (vec (map #(fq-generic % is-recdef) v))
-    :else v))
+  (if (li/quoted? v)
+    (w/prewalk
+     #(if (li/unquoted? %)
+        (fq-generic % is-recdef)
+        %)
+     v)
+    (cond
+      (li/name? v) (fq-name v)
+      (map? v) (if (looks-like-inst? v)
+                 (fq-inst-pat v is-recdef)
+                 (fq-map v is-recdef))
+      (list? v) (if-not is-recdef
+                  (reverse (into '() (map #(fq-generic % is-recdef) v)))
+                  v)
+      (vector? v) (vec (map #(fq-generic % is-recdef) v))
+      :else v)))
 
 (defn- fq-map-entry [[k v] is-recdef]
   (if (or (query-key? k) (= :meta k))

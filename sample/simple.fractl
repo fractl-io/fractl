@@ -24,9 +24,19 @@
 
 (dataflow :KK {:E4 {:Y '(fractl.lang.datetime/now)}})
 
-(dataflow :RBACPolicy
-  {:Kernel/Policy
-   {:Intercept "RBAC"
-    :Resource ["Sample.Simple/Upsert_E4"]
-    :Rule [:when
-           [:= "life" :EventContext.Auth.Owner.Group]]}})
+(dataflow
+ :RBACPolicy
+ {:Kernel/Policy
+  {:Intercept "RBAC"
+   :Resource ["Sample.Simple/Upsert_E4"]
+   :Rule [:q#
+          [:when
+           [:= "life" :EventContext.Auth.Owner.Group]]]}})
+
+(dataflow
+ :LoggingPolicy
+ {:Kernel/Policy
+  {:Intercept "Logging"
+   :Resource ["Sample.Simple/Upsert_E1"]
+   :Rule [:q#
+          {:Disable :INFO}]}})

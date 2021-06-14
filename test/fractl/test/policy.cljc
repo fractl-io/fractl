@@ -6,6 +6,7 @@
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.resolver.policy :as rp]
+            [fractl.policy.logging :as pl]
             [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -34,8 +35,9 @@
                    {:Kernel/Policy
                     {:Intercept "RBAC"
                      :Resource ["EVP/Upsert_User"]
-                     :Rule [:when
-                            [:= "admin" :EventContext.Auth.Owner.Group]]}})
+                     :Rule [:q#
+                            [:when
+                             [:= "admin" :EventContext.Auth.Owner.Group]]]}})
            r2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -88,10 +90,11 @@
                    {:Kernel/Policy
                     {:Intercept "RBAC"
                      :Resource ["ENP/User"]
-                     :Rule [[:Upsert]
-                            [:when
-                             [:= "admin"
-                              :EventContext.Auth.Owner.Group]]]}})
+                     :Rule [:q#
+                            [[:Upsert]
+                             [:when
+                              [:= "admin"
+                               :EventContext.Auth.Owner.Group]]]]}})
            r2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -145,12 +148,16 @@
                   (cn/make-instance
                    {:Kernel/Policy
                     {:Intercept "Logging"
-                     :Resource ["LP/Upsert_User" "LP/Lookup_User"]
-                     :Rule {:Disable :INFO
-                            :PagerThreshold {:WARN {:count 5
-                                                    :duration-minutes 10}
-                                             :ERROR {:count 3
-                                                     :duration-minutes 5}}}}})}}))
+                     :Resource [:LP/Upsert_User :LP/Lookup_User]
+                     :Rule [:q#
+                            {:Disable :INFO
+                             :PagerThreshold
+                             {:WARN
+                              {:count 5
+                               :duration-minutes 10}
+                              :ERROR
+                              {:count 3
+                               :duration-minutes 5}}}]}})}}))
            p2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -159,10 +166,18 @@
                    {:Kernel/Policy
                     {:Intercept "Logging"
                      :Resource ["LP/User"]
-                     :Rule [[:Upsert :Lookup] {:ExcludeAttributes [:LP/User.DOB]}]}})}}))]
+                     :Rule [:q#
+                            [[:Upsert :Lookup]
+                             {:HideAttributes
+                              [:LP/User.Password
+                               :LP/Upsert_User.Instance.Password]}]]}})}}))]
        (is (cn/instance-of? :Kernel/Policy p1))
        (is (cn/instance-of? :Kernel/Policy p2))
-       (is (= [{:ExcludeAttributes [:LP/User.DOB]}]
+       (is (= [{:Disable [:INFO], :PagerThreshold
+                {:WARN {:count 5, :duration-minutes 10},
+                 :ERROR {:count 3, :duration-minutes 5}}}
+               {:HideAttributes [[[:LP :User] [:Password]]
+                                 [[:LP :Upsert_User] [:Instance :Password]]]}]
               (rp/logging-eval-rules [:LP :Upsert_User])))
        (tu/is-error
         #(tu/first-result
@@ -173,4 +188,18 @@
               {:Kernel/Policy
                {:Intercept "Logging"
                 :Resource ["LP/User"]
-                :Rule [[:Upsert :Lookup] {:InvalidPolicyKey 123}]}})}})))))))
+                :Rule [:q#
+                       [[:Upsert :Lookup]
+                        {:InvalidPolicyKey 123}]]}})}})))
+       (let [evt (cn/make-instance
+                  {:LP/Upsert_User
+                   {:Instance
+                    (cn/make-instance
+                     {:LP/User
+                      {:UserName "abc"
+                       :Password "abc123"
+                       :DOB "2000-03-20T00:00:00.000000Z"}})}})
+             rules (pl/rules evt)]
+         (is (= [[[:LP :User] [:Password]] [[:LP :Upsert_User] [:Instance :Password]]]
+                (pl/hidden-attributes rules)))
+         (is (= #{:WARN :ERROR :DEBUG} (pl/log-levels rules))))))))
