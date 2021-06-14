@@ -47,8 +47,8 @@
 (def pathname? name?)
 (def parsed-path? coll?)
 
-(def quote-tag :q#)
-(def unquote-tag :uq#)
+(def ^:private quote-tag :q#)
+(def ^:private unquote-tag :uq#)
 
 (def ^:private special-form-names
   #{:match :for-each :delete
@@ -56,6 +56,14 @@
     :and :or := :< :<= :> :>=
     :between :async :future-get
     :resolver :eval-on :pull :push :entity})
+
+(defn quoted? [x]
+  (and (vector? x)
+       (= quote-tag (first x))))
+
+(defn unquoted? [x]
+  (and (vector? x)
+       (= unquote-tag (first x))))
 
 (defn special-form? [x]
   (and (vector? x)

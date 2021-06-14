@@ -1,7 +1,6 @@
 (ns fractl.evaluator.root
   "The default evaluator implementation"
   (:require [clojure.walk :as w]
-            [taoensso.timbre :as log]
             [fractl.env :as env]
             [fractl.async :as a]
             [fractl.component :as cn]
@@ -266,7 +265,7 @@
       (cn/validate-instance obj)
       obj)
     (let [n (li/make-path record-name)
-          validate? (if (cn/find-entity-schema n) false true)]
+          validate? (if (cn/find-entity-schema n) true false)]
       (cn/make-instance n obj validate?))))
 
 (defn- pop-instance
@@ -377,14 +376,13 @@
     (and (map? x) (:opcode x))))
 
 (defn- set-quoted-list [opcode-eval elements-opcode]
-  (first
-   (w/prewalk
-    #(if (opcode-data? %)
-       (let [result (opcode-eval %)]
-         (or (ok-result result)
-             (u/throw-ex result)))
-       %)
-    elements-opcode)))
+  (w/prewalk
+   #(if (opcode-data? %)
+      (let [result (opcode-eval %)]
+        (or (ok-result result)
+            (u/throw-ex result)))
+      %)
+   elements-opcode))
 
 (defn- set-flat-list [opcode-eval elements-opcode]
   (loop [results (map opcode-eval elements-opcode), final-list []]
@@ -460,7 +458,7 @@
         (let [opcode-eval (partial eval-opcode self env)
               final-list ((if quoted? set-quoted-list set-flat-list)
                           opcode-eval elements-opcode)]
-          (set-obj-attr env attr-name (vec final-list)))
+          (set-obj-attr env attr-name final-list))
         #?(:clj
            (catch Exception e
              (or (ex-data e) (i/error (.getMessage e))))

@@ -5,9 +5,12 @@
             [fractl.compiler :as c]
             [fractl.env :as env]
             [fractl.util :as u]
+            [fractl.util.log :as log]
+            [fractl.util.seq :as su]
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
             [fractl.policy.rbac :as rbac]
+            [fractl.policy.logging :as logging]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
             [fractl.evaluator.internal :as i]
@@ -59,20 +62,80 @@
                 event-instance)
                env)
          [_ dc] (cn/dataflow-opcode df)
-         result (dispatch-opcodes evaluator env dc)]
-     (deref-futures result)))
-  ([evaluator event-instance df] (eval-dataflow evaluator env/EMPTY event-instance df)))
+         result (deref-futures
+                 (dispatch-opcodes evaluator env dc))]
+     result))
+  ([evaluator event-instance df]
+   (eval-dataflow evaluator env/EMPTY event-instance df)))
+
+(defn- remove-hidden-attributes [hidden-attrs inst]
+  (if-let [r (:result inst)]
+    (if (vector? r)
+      (assoc
+       inst
+       :result
+       (map
+        (partial remove-hidden-attributes hidden-attrs)
+        r))
+      (remove-hidden-attributes hidden-attrs r))
+    (loop [hs hidden-attrs, inst inst]
+      (if-let [h (first hs)]
+        (recur
+         (rest hs)
+         (if (cn/instance-of? (first h) inst)
+           (su/dissoc-in inst (second h))
+           inst))
+        inst))))
+
+(defn- log-event [hidden-attrs event-instance]
+  (log/info
+   (str "evaluating dataflow for event - "
+        (remove-hidden-attributes hidden-attrs event-instance))))
+
+(defn- log-result-object [hidden-attrs event-instance obj]
+  (log/info
+   (str "dataflow result for " (cn/instance-name event-instance)
+        " - " (remove-hidden-attributes hidden-attrs obj))))
+
+(defn- eval-dataflow-with-logs [evaluator env event-instance
+                                log-info log-error hidden-attrs
+                                df]
+  (try
+    (let [r (eval-dataflow evaluator env event-instance df)]
+      (when log-info
+        (log-result-object hidden-attrs event-instance r))
+      r)
+    (catch Exception ex
+      (do (when log-error
+            (log/error
+             (str "error in dataflow for "
+                  (cn/instance-name event-instance)
+                  " - " (.getMessage ex))))
+          (throw ex)))))
 
 (defn run-dataflows
   "Compile and evaluate all dataflows attached to an event. The query-compiler
    and evaluator returned by a previous call to evaluator/make may be passed as
    the first two arguments."
   [compile-query-fn evaluator env event-instance]
-  (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)]
+  (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)
+        logging-rules (logging/rules event-instance)
+        log-levels (logging/log-levels logging-rules)
+        log-warn (some #{:WARN} log-levels)]
     (if (rbac/evaluate? event-instance)
-      (map #(eval-dataflow evaluator env event-instance %) dfs)
-      (u/throw-ex (str "no authorization to evaluate dataflows on event - "
-                       (cn/instance-name event-instance))))))
+      (let [log-info (some #{:INFO} log-levels)
+            log-error (some #{:ERROR} log-levels)
+            hidden-attrs (logging/hidden-attributes logging-rules)
+            ef (partial
+                eval-dataflow-with-logs evaluator
+                env event-instance log-info log-error hidden-attrs)]
+        (when log-info (log-event hidden-attrs event-instance))
+        (doall (map ef dfs)))
+      (let [msg (str "no authorization to evaluate dataflows on event - "
+                     (cn/instance-name event-instance))]
+        (when log-warn
+          (log/warn msg))
+        (u/throw-ex msg)))))
 
 (defn make
   "Use the given store to create a query compiler and pattern evaluator.

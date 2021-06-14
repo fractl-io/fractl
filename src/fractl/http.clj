@@ -3,7 +3,6 @@
             [clojure.string :as s]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
-            [fractl.util.logger :as log]
             [fractl.util :as u]
             [fractl.util.http :as uh]
             [fractl.component :as cn]
@@ -19,7 +18,6 @@
   (let [r {:status status
            :headers {"Content-Type" (uh/content-type data-fmt)}
            :body ((uh/encoder data-fmt) json-obj)}]
-    (log/debug {:response r})
     r))
 
 (defn- bad-request
@@ -49,7 +47,6 @@
                   (evaluator event-instance))]
       (ok result data-fmt))
     (catch Exception ex
-      (log/error ex)
       (internal-error (.getMessage ex) data-fmt))))
 
 (defn- event-from-request [request event-name data-fmt]
