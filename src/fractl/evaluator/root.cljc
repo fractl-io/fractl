@@ -265,7 +265,7 @@
       (cn/validate-instance obj)
       obj)
     (let [n (li/make-path record-name)
-          validate? (if (cn/find-entity-schema n) false true)]
+          validate? (if (cn/find-entity-schema n) true false)]
       (cn/make-instance n obj validate?))))
 
 (defn- pop-instance
