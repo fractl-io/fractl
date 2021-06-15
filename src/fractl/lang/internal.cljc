@@ -13,6 +13,12 @@
                   :context :expr}
                  :value)))
 
+(def cmpr-oprs [:= :< :> :<= :>=])
+(def oprs (concat cmpr-oprs [:not :and :or :between :in]))
+
+(defn operator? [x]
+  (some #{x} oprs))
+
 (defn- not-reserved? [x]
   (not-any? #{x} #{:Error :Future :DataflowResult}))
 
@@ -34,9 +40,9 @@
   ([char-predic x]
    (and (keyword? x)
         (not-reserved? x)
+        (not (operator? x))
         (let [s (subs (str x) 1)]
-          (and (char-predic s)
-               (capitalized? s)))))
+          (char-predic s))))
   ([x] (name? no-invalid-chars? x)))
 
 (defn wildcard? [x]
@@ -395,8 +401,6 @@
           (every? name? on))
     on
     (u/throw-ex (str "invalid :on clause - " on))))
-
-(def cmpr-oprs [:= :< :> :<= :>=])
 
 (defn- valid-where-clause? [c]
   (and (some #{(first c)} cmpr-oprs)

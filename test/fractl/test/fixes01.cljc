@@ -269,3 +269,13 @@
      (is (not (r3 {:A {:Date "2021-02-10"}})))
      (is (r4 {:A {:B 2}}))
      (is (not (r4 {:A {:B 4}}))))))
+
+(deftest issue-241-lowercase-names
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :lcase
+     (entity :lcase/e {:x :Kernel/Int})
+     (let [e (cn/make-instance
+              {:lcase/e {:x 100}})]
+       (is (cn/instance-of? :lcase/e e))
+       (is (= 100 (:x e)))))))
