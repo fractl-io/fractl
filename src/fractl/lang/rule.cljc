@@ -3,11 +3,6 @@
   (:require [fractl.util.log :as log]
             [fractl.lang.internal :as li]))
 
-(def ^:private oprs (concat li/cmpr-oprs [:not :and :or :between :in]))
-
-(defn- operator? [x]
-  (some #{x} oprs))
-
 (defn in [xs x]
   (some #{x} xs))
 
@@ -55,11 +50,11 @@
   (map
    (fn [p]
      (cond
-       (operator? p) (operator-name p)
+       (li/operator? p) (operator-name p)
        (li/name? p) (accessor-expression p)
        (vector? p)
        (let [r (compile-one-rule-pattern p)]
-         (if (operator? (first p))
+         (if (li/operator? (first p))
            r
            (vec r)))
        :else p))

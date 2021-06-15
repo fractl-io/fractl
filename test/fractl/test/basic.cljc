@@ -876,5 +876,5 @@
      (is (= :A/B.R (:X e1)))
      (is (cn/instance-of? :PathType/E e2))
      (is (= :A/B.R (keyword (:X e2))))
-     (tu/is-error #(cn/make-instance {:PathType/E {:X "k/j"}}))
-     (tu/is-error #(cn/make-instance {:PathType/E {:X :k}})))))
+     (is (= "k/j" (:X (cn/make-instance {:PathType/E {:X "k/j"}}))))
+     (is (= :k (:X (cn/make-instance {:PathType/E {:X :k}})))))))
