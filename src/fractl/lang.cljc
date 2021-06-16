@@ -26,17 +26,17 @@
   (init)
   (let [ns-name (li/validate-name n)
         imports (component-spec-for :import spec)
-        clj-imports (component-spec-for :clj spec)
-        java-imports (component-spec-for :java-imports spec)
-        v8-imports (component-spec-for :v8-imports spec)
+        clj-imports (component-spec-for :clj-import spec)
+        java-imports (component-spec-for :java-import spec)
+        v8-imports (component-spec-for :v8-import spec)
         resolver (component-spec-for :resolver spec)]
     (cn/create-component
      ns-name
-     {:imports (normalize-imports
+     {:import (normalize-imports
                 (li/validate-imports (first imports)))
-      :clj-imports (li/validate-clj-imports (first clj-imports))
-      :java-imports (li/validate-java-imports (first java-imports))
-      :v8-imports (li/validate-clj-imports (first v8-imports))
+      :clj-import (li/validate-clj-imports (first clj-imports))
+      :java-import (li/validate-java-imports (first java-imports))
+      :v8-import (li/validate-clj-imports (first v8-imports))
       :resolver resolver})))
 
 (defn- attribute-type? [nm]
