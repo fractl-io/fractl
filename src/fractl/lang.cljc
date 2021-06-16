@@ -530,6 +530,12 @@
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
 
+  (entity {:Kernel/Authentication
+           {:Owner :Kernel/UUID
+            :OwnerType :Kernel/Path
+            :Issued {:type :Kernel/DateTime :optional true}
+            :ExpirySeconds {:type :Kernel/Integer :default 300}}})
+
   (entity {:Kernel/Policy
            {:Intercept :Kernel/String
             :Resource {:listof :Kernel/Path}
