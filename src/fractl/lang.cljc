@@ -571,6 +571,10 @@
           :type :policy
           :compose? false
           :paths [:Kernel/Policy]}
+         {:name :auth
+          :type :auth
+          :compose? false
+          :paths [:Kernel/Authentication]}
          {:name :git
           :type :git
           :compose? false
