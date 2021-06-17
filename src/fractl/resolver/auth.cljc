@@ -7,14 +7,15 @@
 (def ^:private db (u/make-cell {}))
 
 (defn auth-upsert [inst]
-  (let [inst-with-issued
-        (assoc inst :Issued (dt/now))]
+  (let [now (dt/now-raw)
+        inst-with-issued
+        (assoc inst :Issued now)]
     (u/safe-set
      db
      (assoc
       @db (:Id inst)
       inst-with-issued))
-    inst-with-issued))
+    (assoc inst :Issued (dt/as-string now))))
 
 (defn- auth-delete [inst]
   (let [id (:Id inst)]
@@ -24,7 +25,13 @@
     id))
 
 (defn auth-query [id]
-  (get @db id))
+  (when-let [inst (get @db id)]
+    (if (> (:ExpirySeconds inst)
+           (dt/difference-in-seconds
+            (:Issued inst) (dt/now-raw)))
+      inst
+      (do (auth-delete {:Id id})
+          nil))))
 
 (def ^:private resolver-fns
   {:upsert {:handler auth-upsert}
