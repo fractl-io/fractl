@@ -24,8 +24,7 @@
        {:UserName? :SimpleAuth/Login.UserName}}
       [:match :SimpleAuth/User.Password
        :SimpleAuth/Login.Password {:Kernel/Authentication
-                                   {:Owner :SimpleAuth/User.Id
-                                    :OwnerType "SimpleAuth/User"
+                                   {:Owner :SimpleAuth/User
                                     :ExpirySeconds 5000}}])
      (let [uname "abc"
            pswd "gg677"
@@ -42,10 +41,18 @@
                    {:UserName uname
                     :Password pswd}}))]
        (is (cn/instance-of? :Kernel/Authentication auth))
-       (is (= (:Id user) (:Owner auth)))
-       (is (= :SimpleAuth/User (keyword (:OwnerType auth))))
+       (is (= (:Id user) (:Id (:Owner auth))))
        (is (dt/parse-date-time (:Issued auth)))
        (is (= 5000 (:ExpirySeconds auth)))
+       (let [user2 (tu/first-result
+                    (cn/make-instance
+                     {:SimpleAuth/Upsert_User
+                      {:Instance
+                       {:SimpleAuth/User
+                        {:UserName "hhh"
+                         :Password "34sss"}}
+                       :EventContext {:Auth (:Id auth)}}}))]
+         (is (cn/instance-of? :SimpleAuth/User user2)))
        (is (false? (tu/fresult
                     (e/eval-all-dataflows
                      (cn/make-instance

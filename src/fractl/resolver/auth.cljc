@@ -23,7 +23,7 @@
      (dissoc @db id))
     id))
 
-(defn- auth-query [id]
+(defn auth-query [id]
   (get @db id))
 
 (def ^:private resolver-fns

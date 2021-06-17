@@ -531,8 +531,7 @@
             :Identifier {:check keyword? :unique true}}})
 
   (entity {:Kernel/Authentication
-           {:Owner :Kernel/UUID
-            :OwnerType :Kernel/Path
+           {:Owner :Kernel/Any
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Integer :default 300}}})
 
