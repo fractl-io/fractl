@@ -122,7 +122,11 @@
       :var (li/validate-bool :var v)
       :writer (li/validate fn? ":writer must be a function" v)
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
-  (merge {:unique false :immutable false} scm))
+  (merge
+   {:unique false :immutable false}
+   (if-let [fmt (:format scm)]
+     (assoc scm :format (partial re-matches (re-pattern fmt)))
+     scm)))
 
 (defn- find-ref-type [path]
   (when-let [scm (cn/find-attribute-schema path)]

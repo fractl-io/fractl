@@ -442,6 +442,15 @@
       [f (deref v)]
       r)))
 
+(defn- check-format [ascm aname aval]
+  (when-let [p (:check ascm)]
+    (when-not (p aval)
+      (throw-error (str "check failed, invalid value for " aname))))
+  (when-let [fmt (:format ascm)]
+    (when-not (fmt aval)
+      (throw-error (str "format mismatch - " aname))))
+  aval)
+
 (defn valid-attribute-value
   "Check against the attribute schema, if the provided value (v)
   is a valid value for the attribute. If valid, return v. If v is nil,
@@ -452,17 +461,8 @@
     (cond
       (:type ascm)
       (valid-attribute-value
-       aname aval
+       aname (check-format ascm aname aval)
        (merge-attr-schema (find-attribute-schema (:type ascm)) ascm))
-
-      (:check ascm)
-      (let [p (:check ascm)
-            r (if-let [fmt (:format ascm)]
-                (p aval fmt)
-                (p aval))]
-        (if-not r
-          (throw-error (str "check failed, invalid value for " aname))
-          aval))
 
       (:listof ascm)
       (let [tp (:listof ascm)
@@ -480,7 +480,7 @@
               aval
               (throw-error (str "invalid list for " aname)))))
 
-      :else aval)
+      :else (check-format ascm aname aval))
     (let [dval (:default ascm)]
       (when-not (nil? dval)
         (if (fn? dval) (dval) dval)))))

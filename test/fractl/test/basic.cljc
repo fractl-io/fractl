@@ -878,3 +878,19 @@
      (is (= :A/B.R (keyword (:X e2))))
      (is (= "k/j" (:X (cn/make-instance {:PathType/E {:X "k/j"}}))))
      (is (= :k (:X (cn/make-instance {:PathType/E {:X :k}})))))))
+
+(deftest format-test
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :FormatTest
+     (entity {:FormatTest/E
+              {:DOB {:type :Kernel/String
+                     :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}}})
+     (is (cn/instance-of?
+          :FormatTest/E
+          (cn/make-instance
+           {:FormatTest/E
+            {:DOB "1999-03-20"}})))
+     (tu/is-error #(cn/make-instance
+                    {:FormatTest/E
+                     {:DOB "1877-09-01"}})))))
