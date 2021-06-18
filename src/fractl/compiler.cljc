@@ -128,7 +128,7 @@
                   (concat [k] (map query-param-lookup (rest v))))
     :else [k (query-param-lookup v)]))
 
-(defn- compile-query [ctx entity-name query]
+(defn compile-query [ctx entity-name query]
   (let [expanded-query (i/expand-query
                         entity-name
                         (when query
