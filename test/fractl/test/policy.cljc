@@ -6,13 +6,20 @@
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.resolver.policy :as rp]
+            [fractl.resolver.auth :as auth]
             [fractl.policy.logging :as pl]
             [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(defn- mkauth [s]
-  {:Auth {:Owner {:Group s}}})
+(defn- mkauth [group]
+  (auth/auth-upsert
+   (cn/make-instance
+    {:Kernel/Authentication
+     {:Owner {:Group group}}})))
+
+(defn- ctx [auth]
+  {:Auth (:Id auth)})
 
 (deftest event-rbac-policies
   (#?(:clj do
@@ -22,7 +29,9 @@
               {:UserName :Kernel/String
                :Password :Kernel/Password
                :Group {:oneof ["admin" "customer" "sales"]}}})
-     (let [admin (cn/make-instance
+     (let [admin-auth (mkauth "admin")
+           sales-auth (mkauth "sales")
+           admin (cn/make-instance
                   {:EVP/User
                    {:UserName "admin"
                     :Password "kj6671"
@@ -55,14 +64,14 @@
                  (cn/make-instance
                   {:EVP/Upsert_User
                    {:Instance user
-                    :EventContext (mkauth "admin")}}))]
+                    :EventContext (ctx admin-auth)}}))]
          (is (cn/instance-of? :EVP/User r2))
          (tu/is-error
           #(tu/first-result
             (cn/make-instance
              {:EVP/Upsert_User
               {:Instance user
-               :EventContext (mkauth "sales")}}))))))))
+               :EventContext (ctx sales-auth)}}))))))))
 
 (deftest entity-rbac-policies
   (#?(:clj do
@@ -103,7 +112,9 @@
        (is (cn/instance-of? :Kernel/Policy r2))
        (is (:Id r2))
        (is (= :Default (keyword (:InterceptStage r2))))
-       (let [user (cn/make-instance
+       (let [admin-auth (mkauth "admin")
+             sales-auth (mkauth "sales")
+             user (cn/make-instance
                    {:ENP/User
                     {:UserName "akc"
                      :Password "998112kl"
@@ -112,17 +123,17 @@
                  (cn/make-instance
                   {:ENP/Upsert_User
                    {:Instance user
-                    :EventContext (mkauth "admin")}}))]
+                    :EventContext (ctx admin-auth)}}))]
          (is (cn/instance-of? :ENP/User r2))
          (tu/is-error
           #(tu/first-result
             (cn/make-instance
              {:ENP/Upsert_User
               {:Instance user
-               :EventContext (mkauth "sales")}})))
+               :EventContext (ctx sales-auth)}})))
          (let [attrs {:UserId (:Id r2)
                       :Group "sales"
-                      :EventContext (mkauth "admin")}
+                      :EventContext (ctx admin-auth)}
                evt (cn/make-instance
                     {:ENP/ChangeGroup attrs})
                r3 (tu/first-result evt)]
@@ -132,7 +143,7 @@
             #(tu/first-result
               (cn/make-instance
                {:ENP/ChangeGroup
-                (assoc attrs :EventContext (mkauth "sales"))})))))))))
+                (assoc attrs :EventContext (ctx sales-auth))})))))))))
 
 (deftest logging-policies
   (#?(:clj do

@@ -2,31 +2,20 @@
   (:require [fractl.util.logger :as log]
             [cljc.java-time.local-date :as ld]
             [cljc.java-time.local-time :as lt]
-            [cljc.java-time.format.date-time-formatter :as format])
-  #?(:clj (:import [java.time LocalDate LocalTime LocalDateTime]
+            [cljc.java-time.format.date-time-formatter :as format]
+            [cljc.java-time.temporal.chrono-unit :as cu])
+  #?(:clj (:import [java.time LocalDateTime]
                    [java.time.format DateTimeFormatter]
                    [java.time.format DateTimeParseException])))
 
 (defn try-parse-date [s formatter]
   #?(:clj (try
-            (LocalDate/parse s formatter)
+            (LocalDateTime/parse s formatter)
             (catch DateTimeParseException ex
               (log/error ex)
               false))
      :cljs (try
              (ld/parse s formatter)
-             (catch :default ex
-               (log/error ex)
-               false))))
-
-(defn try-parse-time [s formatter]
-  #?(:clj (try
-            (LocalTime/parse s formatter)
-            (catch DateTimeParseException ex
-              (log/error ex)
-              false))
-     :cljs (try
-             (lt/parse s formatter)
              (catch :default ex
                (log/error ex)
                false))))
@@ -48,12 +37,25 @@
      ([s]
       (try-parse-date s format/iso-offset-date-time))))
 
+(defn as-string
+  ([dt pat]
+   #?(:clj (let [^DateTimeFormatter fmt
+                 (if pat
+                   (DateTimeFormatter/ofPattern pat)
+                   default-fmt)]
+             (.format fmt dt))
+      :cljs dt))
+  ([dt] (as-string dt nil)))
+
 (defn now
   ([pat]
-   #?(:clj
-      (let [^DateTimeFormatter fmt (if pat
-                                     (DateTimeFormatter/ofPattern pat)
-                                     default-fmt)]
-        (.format fmt (LocalDateTime/now)))
+   #?(:clj (as-string (LocalDateTime/now) pat)
       :cljs (ld/now)))
   ([] (now nil)))
+
+(defn now-raw []
+  #?(:clj (LocalDateTime/now)
+     :cljs (ld/now)))
+
+(defn difference-in-seconds [dt1 dt2]
+  (cu/between cu/seconds dt1 dt2))

@@ -19,15 +19,16 @@
 (defn operator? [x]
   (some #{x} oprs))
 
-(defn- not-reserved? [x]
-  (not-any? #{x} #{:type :check :unique
-                   :immutable :optional :default
-                   :expr :query :format :listof
-                   :setof :indexed :write-only
-                   :encryption :type-in-store
-                   :ref :var :writer :import :clj-import
-                   :java-import :v8-import :resolver
-                   :Error :Future :DataflowResult}))
+(defn- reserved? [x]
+  (some #{x} #{:type :check :unique
+               :immutable :optional :default
+               :expr :query :format :listof
+               :setof :indexed :write-only
+               :encryption :type-in-store
+               :ref :var :writer :match
+               :import :clj-import :java-import
+               :v8-import :resolver
+               :Error :Future :DataflowResult}))
 
 (defn- capitalized? [s]
   (let [s1 (first s)]
@@ -46,7 +47,7 @@
 (defn name?
   ([char-predic x]
    (and (keyword? x)
-        (not-reserved? x)
+        (not (reserved? x))
         (not (operator? x))
         (let [s (subs (str x) 1)]
           (char-predic s))))

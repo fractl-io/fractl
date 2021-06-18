@@ -9,6 +9,7 @@
             [fractl.util.seq :as su]
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
+            [fractl.auth :as auth]
             [fractl.policy.rbac :as rbac]
             [fractl.policy.logging :as logging]
             [fractl.lang.internal :as li]
@@ -113,12 +114,27 @@
                   " - " (.getMessage ex))))
           (throw ex)))))
 
+(defn- enrich-with-auth-owner
+  "Query the :Authentication object using the :Id bound to
+  :EventContext/Auth and using the information stored in that auth,
+  load the :Owner object. Bind this object to :EventContext/Auth/Owner
+  and return the updated event-instance."
+  [event-instance]
+  (if-let [auth-id (get-in event-instance [:EventContext :Auth])]
+    (if-let [auth (auth/query auth-id)]
+      (let [ctx (dissoc (:EventContext event-instance) :Auth)
+            new-ctx (assoc-in ctx [:Auth :Owner] (:Owner auth))]
+        (assoc event-instance :EventContext new-ctx))
+      (u/throw-ex (str "no authorization bound to " auth-id)))
+    event-instance))
+
 (defn run-dataflows
   "Compile and evaluate all dataflows attached to an event. The query-compiler
    and evaluator returned by a previous call to evaluator/make may be passed as
    the first two arguments."
   [compile-query-fn evaluator env event-instance]
-  (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)
+  (let [event-instance (enrich-with-auth-owner event-instance)
+        dfs (c/compile-dataflows-for-event compile-query-fn event-instance)
         logging-rules (logging/rules event-instance)
         log-levels (logging/log-levels logging-rules)
         log-warn (some #{:WARN} log-levels)]

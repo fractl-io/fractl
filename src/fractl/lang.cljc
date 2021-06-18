@@ -530,6 +530,11 @@
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
 
+  (entity {:Kernel/Authentication
+           {:Owner :Kernel/Any
+            :Issued {:type :Kernel/DateTime :optional true}
+            :ExpirySeconds {:type :Kernel/Integer :default 300}}})
+
   (entity {:Kernel/Policy
            {:Intercept :Kernel/String
             :Resource {:listof :Kernel/Path}
@@ -565,6 +570,10 @@
           :type :policy
           :compose? false
           :paths [:Kernel/Policy]}
+         {:name :auth
+          :type :auth
+          :compose? false
+          :paths [:Kernel/Authentication]}
          {:name :git
           :type :git
           :compose? false
