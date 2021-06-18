@@ -1,0 +1,32 @@
+(ns sample.blog
+  (:use [fractl.lang]))
+
+(component :Sample.Blog)
+
+(entity
+ {:User
+  {:UserName :Kernel/String
+   :Password :Kernel/Password
+   :DOB :Kernel/DateTime
+   :Sex {:oneof ["M" "F"]} 
+   :Email :Kernel/Email}})
+
+(defn valid-comment [s]
+  (and (string? s)
+       (< 10 (count s) 500)))
+
+(record
+ {:Comment
+  {:CreatedBy {:ref :User.Id}
+   :DateCreated {:type :Kernel/DateTime
+                 :optional true}
+   :Content {:check valid-comment}}})
+
+(entity
+ {:BlogEntry
+  {:CreatedBy {:ref :User.Id}
+   :DateCreated {:type :Kernel/DateTime
+                 :optional true}
+   :Title :Kernel/String
+   :Content :Kernel/String
+   :Comments {:listof :Comment}}})
