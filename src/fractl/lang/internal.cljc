@@ -23,7 +23,7 @@
   (some #{x} #{:type :check :unique
                :immutable :optional :default
                :expr :query :format :listof
-               :setof :indexed :write-only
+               :setof :oneof :indexed :write-only
                :encryption :type-in-store
                :ref :var :writer :match
                :import :clj-import :java-import
