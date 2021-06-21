@@ -1,0 +1,61 @@
+name: AppCI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'         # matches every branch that doesn't contain a '/'
+      - '*/*'       # matches every branch containing a single '/'
+      - '**'        # matches every branch
+
+jobs:
+  test_library_app:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [12.x]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: lein deps
+      - name: Install Node JS ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Newman cli install
+        run: npm install -g newman
+      - name: Run lein library app & Newman API test
+        run: |
+          lein run library/model.fractl &
+          sleep 180
+          newman run library/library-ci.postman_collection.json
+          kill -9 `lsof -i:8000 -t`
+        env:
+          API_HOST: 127.0.0.1:8000
+          CI: true
+      - name: Slack Notification
+        if: ${{ success() }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_CHANNEL: ci
+          SLACK_FOOTER: Fractl app runner
+          SLACK_TITLE: 'Awesome! Ran successfully with library app!'
+          SLACK_MESSAGE: 'App responded with response code: 200 :dancer:'
+          SLACK_ICON: ':white_check_mark:'
+          SLACK_USERNAME: Cookie Monster
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      - name: Slack Notification
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_CHANNEL: ci
+          SLACK_FOOTER: Fractl app runner
+          SLACK_TITLE: 'Oh no! It failed. You introduced a regression!'
+          SLACK_MESSAGE: 'Regression for library app which was running! :boom:'
+          SLACK_COLOR: '#ff1100'
+          SLACK_ICON_EMOJI: ':crossed_fingers:'
+          SLACK_USERNAME: Cookie Monster
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

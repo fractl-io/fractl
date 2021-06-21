@@ -1,0 +1,41 @@
+(ns library.identity
+  "Simple user-identity management for the library"
+  (:require [clojure.string :as s])
+  (:use [fractl.lang]
+        [fractl.lang.datetime]
+        [fractl.lang.string]))
+
+(component :Library.Identity)
+
+(def user-name? (partial string-in-range? 2 50))
+(def password? (partial string-in-range? 3 20))
+
+(entity {:User
+         {:UserName    {:type   :Kernel/String
+                        :check  user-name?
+                        :unique true}
+          :Group       {:oneof ["incharge" "general" "intern"]}
+          :Password    {:type  :Kernel/Password
+                        :check password?}
+          :Email       {:type   :Kernel/Email
+                        :unique true}
+          :DateCreated {:type    :Kernel/DateTime
+                        :default now}}})
+
+(entity {:Member
+         {:Name     {:type  :Kernel/String
+                     :check user-name?}
+          :UserName {:type   :Kernel/String
+                     :check  user-name?
+                     :unique true}
+          :Password {:type  :Kernel/Password
+                     :check password?}
+          :Email    {:type   :Kernel/Email
+                     :unique true}
+          :DOB      :Kernel/String
+          :DateCreated {:type    :Kernel/DateTime
+                        :default now}
+          ;; Membership Types obtained from here.
+          ;; https://www.londonlibrary.co.uk/join/types-of-membership
+          :Group {:oneof ["life" "individual" "family"
+                          "remote" "oversees" "supported" "associate" "temporary"]}}})
