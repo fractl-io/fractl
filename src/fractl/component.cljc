@@ -421,6 +421,18 @@
       (throw-error "invalid attribute(s) found" {:irritant ks})
       true)))
 
+(defn decimal-value? [x]
+  #?(:clj
+     (decimal? x)
+     :cljs
+     (float? x)))
+
+(defn decimal [x]
+  #?(:clj
+     (bigdec x)
+     :cljs
+     (float x)))
+
 (declare apply-attribute-validation)
 
 (defn- element-type-check [tpname [tptag tpscm] x]
@@ -505,6 +517,15 @@
       (throw-error (str "attribute " attrname " is not of type " recname)))
     (throw-error (str "no record set for attribute " attrname))))
 
+(defn- preproc-attribute-value [attributes attrname attr-type]
+  (if-let [p (case attr-type
+               :Kernel/Float float
+               :Kernel/Double double
+               :Kernel/Decimal decimal
+               false)]
+    (assoc attributes attrname (p (get attributes attrname)))
+    attributes))
+
 (defn- validated-attribute-values [schema attributes]
   (let [r (check-attribute-names schema attributes)]
     (or (error? r)
@@ -515,7 +536,8 @@
               (let [typname (li/extract-attribute-name atype)]
                 (recur (rest schema)
                        (if-let [ascm (find-attribute-schema typname)]
-                         (apply-attribute-validation aname ascm attributes)
+                         (apply-attribute-validation
+                          aname ascm (preproc-attribute-value attributes aname typname))
                          (ensure-attribute-is-instance-of typname aname attributes)))))
             attributes)))))
 

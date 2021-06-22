@@ -894,3 +894,36 @@
      (tu/is-error #(cn/make-instance
                     {:FormatTest/E
                      {:DOB "1877-09-01"}})))))
+
+(deftest numeric-types
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :NT
+     (entity
+      :NT/E
+      {:X :Kernel/Int
+       :Y :Kernel/Int64
+       :Z :Kernel/BigInteger
+       :A :Kernel/Float
+       :B :Kernel/Double
+       :C :Kernel/Decimal
+       :D :Kernel/DateTime})
+     (let [bi 8993993938884848858996996
+           f 1.2
+           d "90.8"
+           dt "2014-03-14T12:34:20.000000Z"
+           e (cn/make-instance
+              {:NT/E
+               {:X 10
+                :Y Long/MAX_VALUE
+                :Z bi
+                :A f
+                :B f
+                :C d
+                :D dt}})]
+       (is (cn/instance-of? :NT/E e))
+       (is (= 90.8M (:C e)))
+       (is (= (float f) (:A e)))
+       (is (= (double f) (:B e)))
+       (is (= bi (:Z e)))
+       (is (= dt (:D e)))))))
