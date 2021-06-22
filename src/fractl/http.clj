@@ -51,7 +51,10 @@
 
 (defn- event-from-request [request event-name data-fmt]
   (try
-    (let [obj ((uh/decoder data-fmt) (String. (.bytes (:body request))))
+    (let [obj ((uh/decoder data-fmt)
+               (String.
+                (.bytes (:body request))
+                java.nio.charset.StandardCharsets/UTF_8))
           obj-name (li/split-path (first (keys obj)))]
       (if (or (not event-name) (= obj-name event-name))
         [(cn/make-event-instance obj-name (first (vals obj))) nil]

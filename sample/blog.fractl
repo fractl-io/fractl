@@ -1,5 +1,6 @@
 (ns sample.blog
-  (:use [fractl.lang]))
+  (:use [fractl.lang]
+        [fractl.lang.datetime]))
 
 (component :Sample.Blog)
 
@@ -7,7 +8,8 @@
  {:User
   {:UserName :Kernel/String
    :Password :Kernel/Password
-   :DOB :Kernel/DateTime
+   :DOB {:type :Kernel/String
+         :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}
    :Sex {:oneof ["M" "F"]} 
    :Email :Kernel/Email}})
 
@@ -19,14 +21,25 @@
  {:Comment
   {:CreatedBy {:ref :User.Id}
    :DateCreated {:type :Kernel/DateTime
-                 :optional true}
+                 :default now}
    :Content {:check valid-comment}}})
 
 (entity
  {:BlogEntry
-  {:CreatedBy {:ref :User.Id}
+  {:CreatedBy {:ref :User.Id
+               :indexed true}
    :DateCreated {:type :Kernel/DateTime
-                 :optional true}
+                 :default now}
    :Title :Kernel/String
    :Content :Kernel/String
-   :Comments {:listof :Comment}}})
+   :Comments {:listof :Comment
+              :optional true}}})
+
+(event
+ {:FindAllBlogEntries
+  {:User :Kernel/UUID}})
+
+(dataflow
+ :FindAllBlogEntries
+ {:BlogEntry
+  {:CreatedBy? :Sample.Blog/FindAllBlogEntries.User}})
