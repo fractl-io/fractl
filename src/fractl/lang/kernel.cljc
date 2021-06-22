@@ -69,8 +69,8 @@
    :Kernel/UUID UUID?
    :Kernel/Password identity
    :Kernel/Int int?
-   :Kernel/Int64 integer?
-   :Kernel/Integer integer?
+   :Kernel/Int64 int?
+   :Kernel/BigInteger integer?
    :Kernel/Float float?
    :Kernel/Double double?
    :Kernel/Decimal kernel-decimal?

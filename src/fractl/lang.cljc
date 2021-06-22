@@ -537,7 +537,7 @@
   (entity {:Kernel/Authentication
            {:Owner :Kernel/Any
             :Issued {:type :Kernel/DateTime :optional true}
-            :ExpirySeconds {:type :Kernel/Integer :default 300}}})
+            :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
   (entity {:Kernel/Policy
            {:Intercept :Kernel/String
