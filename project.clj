@@ -39,6 +39,10 @@
   :main fractl.core
   :aot :all
 
+  :jar-exclusions [#"(?:^|/).fractl/" #"(?:^|/).db/" #"(?:^|/).json/"]
+
+  :uberjar-exclusions [#"(?:^|/).fractl/" #"(?:^|/).db/" #"(?:^|/).json/"]
+
   :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
             [s3-wagon-private "1.3.4"]
             [lein-doo "0.1.10"]
