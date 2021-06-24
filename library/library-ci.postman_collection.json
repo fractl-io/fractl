@@ -1,0 +1,181 @@
+{
+	"info": {
+		"_postman_id": "7aa05211-ebf3-4abe-a852-5755924b833f",
+		"name": "library-ci",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "upsert user",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"Library.Identity/Upsert_User\": {\n        \"Instance\": {\n            \"Library.Identity/User\": {\n                \"UserName\": \"Book Publisher\",\n                \"Group\": \"incharge\",\n                \"Password\": \"iamabovethelaw\",\n                \"Email\": \"books@v8.io\"\n            }\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/_e/Library.Identity/Upsert_User",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"_e",
+						"Library.Identity",
+						"Upsert_User"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "upsert book",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"Library.Catalog/Upsert_Book\": {\n        \"Instance\": {\n            \"Library.Catalog/Book\": {\n                \"Name\": \"The Godfather\",\n                \"Publisher\": \"392b00cf-e13f-4d4a-b0a6-3c52487781fc\"\n            }\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/_e/Library.Catalog/Upsert_Book",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"_e",
+						"Library.Catalog",
+						"Upsert_Book"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "upsert member",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"Library.Identity/Upsert_Member\": {\n        \"Instance\": {\n            \"Library.Identity/Member\": {\n                \"Name\": \"Mario Puzo\",\n                \"UserName\": \"michael\",\n                \"Password\": \"sicilian\",\n                \"Email\": \"mpuzo@v8.io\",\n                \"DOB\": \"1920-03-02\",\n                \"Group\": \"life\"\n            }\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/_e/Library.Identity/Upsert_Member",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"_e",
+						"Library.Identity",
+						"Upsert_Member"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "CheckoutBook",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status test\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"Library.Ledger/CheckoutBook\": {\n        \"Book\": \"99225389-b846-4f3e-9aa5-ebda87f5e316\",\n        \"Member\": \"3cc173d4-7e4f-42fe-b39d-656c6d82fccd\",\n        \"Group\": \"life\",\n        \"Backend\": \"Postmark\",\n        \"Receiver\": \"test@test.io\",\n        \"Subject\": \"Book Checked out\",\n        \"Text\": \"You have checked out Crime and Punishment. Please return it after 2 weeks.\",\n        \"To\": \"+9779841XXXXXX\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8000/_e/Library.Ledger/CheckoutBook",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"_e",
+						"Library.Ledger",
+						"CheckoutBook"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
