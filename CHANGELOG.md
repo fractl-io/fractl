@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.1.3] - 2021-06-24
+- Add salesforce/sdfc drivers(libraries)
+- Postgres support
+- Git/Email/SMS resolver
+- Support for inheritance of attributes from base record
+- Autoquoting support
+- More accurate interpretation of the numeric types
+- Enhanced Logs with support for riemann, kibana, etc with log rotations
+- New Policies for CRUD access
+- Authentication model to enforce policies
+- Policy support - RBAC and logging
+- New internal type `:Kernel/Path`.
 
 ### Added
 
