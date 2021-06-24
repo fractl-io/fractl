@@ -1,11 +1,11 @@
-(ns library.catalog
+(ns sample.library.catalog
   "Manage a list of books in the library"
   (:use [fractl.lang]
         [fractl.lang.datetime]
         [fractl.lang.string]
         [fractl.lang.b64]))
 
-(component :Library.Catalog)
+(component :Sample.Library.Catalog)
 
 (def valid-name? (partial string-in-range? 3 120))
 (def app-name? valid-name?)
@@ -13,7 +13,7 @@
 
 (entity {:Book
          {:Name {:check app-name?}
-          :Publisher {:ref :Library.Identity/User.Id
+          :Publisher {:ref :Sample.Library.Identity/User.Id
                       :indexed true}
           :PublishDate {:type :Kernel/DateTime
                         :immutable true
@@ -29,7 +29,7 @@
         {:Publisher :Kernel/UUID}})
 
 (dataflow :ListBooks
-          {:Book {:Publisher? :Library.Catalog/ListBooks.Publisher}})
+          {:Book {:Publisher? :Sample.Library.Catalog/ListBooks.Publisher}})
 
 (event {:ListAllBooks
         {}})
