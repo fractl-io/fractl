@@ -1,4 +1,4 @@
-name: FractlCI
+name: "Fractl clj CI"
 
 on:
   push:
@@ -22,19 +22,15 @@ jobs:
       run: lein test
     - name: Clean target
       run: lein clean
-    - name: Run cljs test
-      run: lein fig:ci
-    - name: Run cljs reagent test
-      run: lein fig:rci
     - name: Slack Notification
       if: ${{ success() }}
       uses: rtCamp/action-slack-notify@v2.1.0
       env:
         SLACK_CHANNEL: ci
         SLACK_FOOTER: Cookie! Om nom nom nom
-        SLACK_TITLE: 'All cool. More COOKIES! :cookie: :cookie:'
+        SLACK_TITLE: 'Cool! `lein test` passed! :cookie: :cookie:'
         SLACK_MESSAGE: 'Om Nom Nom :cookie:'
-        SLACK_ICON: https://avatars3.githubusercontent.com/u/10654370?size=48
+        SLACK_ICON_EMOJI: ':smile:'
         SLACK_USERNAME: Cookie Monster
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
     - name: Slack Notification
@@ -43,7 +39,7 @@ jobs:
       env:
         SLACK_CHANNEL: ci
         SLACK_FOOTER: Cookie! Om nom nom nom
-        SLACK_TITLE: 'It Failed! No cookies.'
+        SLACK_TITLE: '`lein test` Failed! No cookies.'
         SLACK_MESSAGE: 'No cookie? :cry:'
         SLACK_COLOR: '#ff1100'
         SLACK_ICON_EMOJI: ':scream:'

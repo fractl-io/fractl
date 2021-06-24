@@ -1,4 +1,4 @@
-(ns library.ledger
+(ns sample.library.ledger
   "Manage a list of books in the library"
   (:use [fractl.lang]
         [fractl.lang.datetime]
@@ -6,13 +6,13 @@
         [fractl.lang.b64])
   (:require [fractl.component :as cn]))
 
-(component :Library.Ledger)
+(component :Sample.Library.Ledger)
 
 (entity {:CheckoutLog
-         {:Member       {:ref     :Library.Identity/Member.Id
+         {:Member       {:ref     :Sample.Library.Identity/Member.Id
                          :indexed true}
           :Group        :Kernel/String
-          :Book         {:ref     :Library.Catalog/Book.Id
+          :Book         {:ref     :Sample.Library.Catalog/Book.Id
                          :indexed true}
           :IsCheckedout {:type    :Kernel/Boolean
                          :default true}
@@ -27,15 +27,15 @@
           :Issued        {:type :Kernel/DateTime :optional true}
           :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
-(dataflow :Library.Ledger/MemberLogin
-          {:Library.Identity/Member {:UserName? :Library.Ledger/MemberLogin.UserName}}
-          [:match :Library.Identity/Member.Password
-           :Library.Ledger/MemberLogin.Password  {:Kernel/Authentication {:Owner :Library.Identity/Member}}])
+(dataflow :Sample.Library.Ledger/MemberLogin
+          {:Sample.Library.Identity/Member {:UserName? :Sample.Library.Ledger/MemberLogin.UserName}}
+          [:match :Sample.Library.Identity/Member.Password
+           :Sample.Library.Ledger/MemberLogin.Password  {:Kernel/Authentication {:Owner :Sample.Library.Identity/Member}}])
 
-(dataflow :Library.Ledger/UserLogin
-          {:Library.Identity/User {:UserName? :Library.Ledger/UserLogin.UserName}}
-          [:match :Library.Identity/User.Password
-           :Library.Ledger/UserLogin.Password  {:Kernel/Authentication {:Owner :Library.Identity/User}}])
+(dataflow :Sample.Library.Ledger/UserLogin
+          {:Sample.Library.Identity/User {:UserName? :Sample.Library.Ledger/UserLogin.UserName}}
+          [:match :Sample.Library.Identity/User.Password
+           :Sample.Library.Ledger/UserLogin.Password  {:Kernel/Authentication {:Owner :Sample.Library.Identity/User}}])
 
 (event {:CheckoutBook
         {:Member   :Kernel/UUID
@@ -48,18 +48,18 @@
          :To       :Kernel/String}})
 
 (dataflow :CheckoutBook
-          {:CheckoutLog {:Member       :Library.Ledger/CheckoutBook.Member
-                         :Group        :Library.Ledger/CheckoutBook.Group
-                         :Book         :Library.Ledger/CheckoutBook.Book
+          {:CheckoutLog {:Member       :Sample.Library.Ledger/CheckoutBook.Member
+                         :Group        :Sample.Library.Ledger/CheckoutBook.Group
+                         :Book         :Sample.Library.Ledger/CheckoutBook.Book
                          :IsCheckedout true}}
-          #_{:Email/Push {:Backend  :Library.Ledger/CheckoutBook.Backend
-                        :Receiver :Library.Ledger/CheckoutBook.Receiver
-                        :Subject  :Library.Ledger/CheckoutBook.Subject
-                        :Text     :Library.Ledger/CheckoutBook.Text}}
-          #_{:Sms/Push {:To   :Library.Ledger/CheckoutBook.To
-                      :Body :Library.Ledger/CheckoutBook.Text}}
-          {:CheckoutLog {:Member? :Library.Ledger/CheckoutBook.Member
-                         :Book?   :Library.Ledger/CheckoutBook.Book}})
+          #_{:Email/Push {:Backend  :Sample.Library.Ledger/CheckoutBook.Backend
+                        :Receiver :Sample.Library.Ledger/CheckoutBook.Receiver
+                        :Subject  :Sample.Library.Ledger/CheckoutBook.Subject
+                        :Text     :Sample.Library.Ledger/CheckoutBook.Text}}
+          #_{:Sms/Push {:To   :Sample.Library.Ledger/CheckoutBook.To
+                      :Body :Sample.Library.Ledger/CheckoutBook.Text}}
+          {:CheckoutLog {:Member? :Sample.Library.Ledger/CheckoutBook.Member
+                         :Book?   :Sample.Library.Ledger/CheckoutBook.Book}})
 
 (event {:CheckinBook
         {:Member   :Kernel/UUID
@@ -72,30 +72,30 @@
          :To       :Kernel/String}})
 
 (dataflow :CheckinBook
-          {:CheckoutLog {:Member       :Library.Ledger/CheckinBook.Member
-                         :Group        :Library.Ledger/CheckinBook.Group
-                         :Book         :Library.Ledger/CheckinBook.Book
+          {:CheckoutLog {:Member       :Sample.Library.Ledger/CheckinBook.Member
+                         :Group        :Sample.Library.Ledger/CheckinBook.Group
+                         :Book         :Sample.Library.Ledger/CheckinBook.Book
                          :IsCheckedout false}}
-          #_{:Email/Push {:Backend  :Library.Ledger/CheckoutBook.Backend
-                        :Receiver :Library.Ledger/CheckoutBook.Receiver
-                        :Subject  :Library.Ledger/CheckoutBook.Subject
-                        :Text     :Library.Ledger/CheckoutBook.Text}}
-          #_{:Sms/Push {:To   :Library.Ledger/CheckoutBook.To
-                      :Body :Library.Ledger/CheckoutBook.Text}}
-          {:CheckoutLog {:Member? :Library.Ledger/CheckinBook.Member
-                         :Book?   :Library.Ledger/CheckinBook.Book}})
+          #_{:Email/Push {:Backend  :Sample.Library.Ledger/CheckoutBook.Backend
+                        :Receiver :Sample.Library.Ledger/CheckoutBook.Receiver
+                        :Subject  :Sample.Library.Ledger/CheckoutBook.Subject
+                        :Text     :Sample.Library.Ledger/CheckoutBook.Text}}
+          #_{:Sms/Push {:To   :Sample.Library.Ledger/CheckoutBook.To
+                      :Body :Sample.Library.Ledger/CheckoutBook.Text}}
+          {:CheckoutLog {:Member? :Sample.Library.Ledger/CheckinBook.Member
+                         :Book?   :Sample.Library.Ledger/CheckinBook.Book}})
 
 (event {:CheckedoutBooks
         {:Member :Kernel/UUID}})
 
 (dataflow :CheckedoutBooks
-          {:CheckoutLog {:Member? :Library.Ledger/CheckedoutBooks.Member}})
+          {:CheckoutLog {:Member? :Sample.Library.Ledger/CheckedoutBooks.Member}})
 
 (event {:CheckedoutBy
         {:Book :Kernel/UUID}})
 
 (dataflow :CheckedoutBy
-          {:CheckoutLog {:Book? :Library.Ledger/CheckedoutBy.Book}}
+          {:CheckoutLog {:Book? :Sample.Library.Ledger/CheckedoutBy.Book}}
           [:match :CheckoutLog.IsCheckedout
            true :CheckoutLog])
 
@@ -107,7 +107,7 @@
 (dataflow :ServicePolicy
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource  ["Library.Identity/Upsert_Member"]
+            :Resource  ["Sample.Library.Identity/Upsert_Member"]
             :Rule      [:q#
                         [:when
                          [:in ["life" "individual" "family"
@@ -117,7 +117,7 @@
 (dataflow :UserCreationPolicy
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource  ["Library.Identity/Upsert_User"]
+            :Resource  ["Sample.Library.Identity/Upsert_User"]
             :Rule      [:q#
                         [:when
                          [:= "incharge" :EventContext.Auth.Owner.Group]]]}})
@@ -125,7 +125,7 @@
 (dataflow :CheckoutPolicy
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource  ["Library.Ledger/CheckoutBook"]
+            :Resource  ["Sample.Library.Ledger/CheckoutBook"]
             :Rule      [:q#
                         [:when
                          [:in ["life" "individual" "family"
@@ -135,7 +135,7 @@
 (dataflow :CheckinPolicy
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource  ["Library.Ledger/CheckinBook"]
+            :Resource  ["Sample.Library.Ledger/CheckinBook"]
             :Rule      [:q#
                         [:when
                          [:in ["life" "individual" "family"
@@ -145,10 +145,10 @@
 (dataflow :RBACPolicyLogging
           {:Kernel/Policy
            {:Intercept "Logging"
-            :Resource  ["Library.Ledger/CheckoutBook"
-                        "Library.Ledger/CheckinBook"
-                        "Library.Identity/Upsert_Member"
-                        "Library.Identity/Upsert_User"]
+            :Resource  ["Sample.Library.Ledger/CheckoutBook"
+                        "Sample.Library.Ledger/CheckinBook"
+                        "Sample.Library.Identity/Upsert_Member"
+                        "Sample.Library.Identity/Upsert_User"]
             :Rule      [:q# {:Disable        :INFO
                              :PagerThreshold {:WARN  {:count            5
                                                       :duration-minutes 10}

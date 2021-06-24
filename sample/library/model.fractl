@@ -1,0 +1,6 @@
+{:name :Library
+ :components [:Sample/Library/Identity
+              :Sample/Library/Catalog
+              :Sample/Library/Ledger]
+ :config {:service {:port 8000}
+          :store {:dbname "./sample/library/db"}}}

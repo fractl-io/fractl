@@ -1,11 +1,11 @@
-(ns library.identity
+(ns sample.library.identity
   "Simple user-identity management for the library"
   (:require [clojure.string :as s])
   (:use [fractl.lang]
         [fractl.lang.datetime]
         [fractl.lang.string]))
 
-(component :Library.Identity)
+(component :Sample.Library.Identity)
 
 (def user-name? (partial string-in-range? 2 50))
 (def password? (partial string-in-range? 3 20))

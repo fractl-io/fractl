@@ -25,7 +25,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Library.Identity/Upsert_User\": {\n        \"Instance\": {\n            \"Library.Identity/User\": {\n                \"UserName\": \"Book Publisher\",\n                \"Group\": \"incharge\",\n                \"Password\": \"iamabovethelaw\",\n                \"Email\": \"books@v8.io\"\n            }\n        }\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Identity/Upsert_User\": {\n        \"Instance\": {\n            \"Sample.Library.Identity/User\": {\n                \"UserName\": \"Book Publisher\",\n                \"Group\": \"incharge\",\n                \"Password\": \"iamabovethelaw\",\n                \"Email\": \"books@v8.io\"\n            }\n        }\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -33,7 +33,7 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Library.Identity/Upsert_User",
+					"raw": "http://localhost:8000/_e/Sample.Library.Identity/Upsert_User",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -41,7 +41,7 @@
 					"port": "8000",
 					"path": [
 						"_e",
-						"Library.Identity",
+						"Sample.Library.Identity",
 						"Upsert_User"
 					]
 				}
@@ -68,7 +68,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Library.Catalog/Upsert_Book\": {\n        \"Instance\": {\n            \"Library.Catalog/Book\": {\n                \"Name\": \"The Godfather\",\n                \"Publisher\": \"392b00cf-e13f-4d4a-b0a6-3c52487781fc\"\n            }\n        }\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Catalog/Upsert_Book\": {\n        \"Instance\": {\n            \"Sample.Library.Catalog/Book\": {\n                \"Name\": \"The Godfather\",\n                \"Publisher\": \"9b4cb0ef-c55e-46bf-920b-7e4f3f0e8dae\"\n            }\n        }\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -76,7 +76,7 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Library.Catalog/Upsert_Book",
+					"raw": "http://localhost:8000/_e/Sample.Library.Catalog/Upsert_Book",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -84,7 +84,7 @@
 					"port": "8000",
 					"path": [
 						"_e",
-						"Library.Catalog",
+						"Sample.Library.Catalog",
 						"Upsert_Book"
 					]
 				}
@@ -111,7 +111,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Library.Identity/Upsert_Member\": {\n        \"Instance\": {\n            \"Library.Identity/Member\": {\n                \"Name\": \"Mario Puzo\",\n                \"UserName\": \"michael\",\n                \"Password\": \"sicilian\",\n                \"Email\": \"mpuzo@v8.io\",\n                \"DOB\": \"1920-03-02\",\n                \"Group\": \"life\"\n            }\n        }\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Identity/Upsert_Member\": {\n        \"Instance\": {\n            \"Sample.Library.Identity/Member\": {\n                \"Name\": \"Mario Puzo\",\n                \"UserName\": \"michael\",\n                \"Password\": \"sicilian\",\n                \"Email\": \"mpuzo@v8.io\",\n                \"DOB\": \"1920-03-02\",\n                \"Group\": \"life\"\n            }\n        }\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -119,7 +119,7 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Library.Identity/Upsert_Member",
+					"raw": "http://localhost:8000/_e/Sample.Library.Identity/Upsert_Member",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -127,7 +127,7 @@
 					"port": "8000",
 					"path": [
 						"_e",
-						"Library.Identity",
+						"Sample.Library.Identity",
 						"Upsert_Member"
 					]
 				}
@@ -154,7 +154,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Library.Ledger/CheckoutBook\": {\n        \"Book\": \"99225389-b846-4f3e-9aa5-ebda87f5e316\",\n        \"Member\": \"3cc173d4-7e4f-42fe-b39d-656c6d82fccd\",\n        \"Group\": \"life\",\n        \"Backend\": \"Postmark\",\n        \"Receiver\": \"test@test.io\",\n        \"Subject\": \"Book Checked out\",\n        \"Text\": \"You have checked out Crime and Punishment. Please return it after 2 weeks.\",\n        \"To\": \"+9779841XXXXXX\"\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Ledger/CheckoutBook\": {\n        \"Book\": \"332adeae-a2d2-4968-8892-0341abb586ce\",\n        \"Member\": \"85bacb21-9bb5-4450-817f-522007450f54\",\n        \"Group\": \"life\",\n        \"Backend\": \"Postmark\",\n        \"Receiver\": \"test@test.io\",\n        \"Subject\": \"Book Checked out\",\n        \"Text\": \"You have checked out Crime and Punishment. Please return it after 2 weeks.\",\n        \"To\": \"+9779841XXXXXX\"\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -162,7 +162,7 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Library.Ledger/CheckoutBook",
+					"raw": "http://localhost:8000/_e/Sample.Library.Ledger/CheckoutBook",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -170,7 +170,7 @@
 					"port": "8000",
 					"path": [
 						"_e",
-						"Library.Ledger",
+						"Sample.Library.Ledger",
 						"CheckoutBook"
 					]
 				}

@@ -1,6 +1,0 @@
-{:name :Library
- :components [:Library/Identity
-              :Library/Catalog
-              :Library/Ledger]
- :config {:service {:port 8000}
-          :store {:dbname "./library/db"}}}

@@ -27,4 +27,4 @@ out/
 .lsp/
 /platform/*.db*
 fractl.log
-!library/*.db
+!sample/library/*.db
