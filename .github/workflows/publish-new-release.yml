@@ -48,7 +48,7 @@ jobs:
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          commit: {{ github.event.pull_request.merge_commit_sha }}
+          commit: ${{ github.event.pull_request.merge_commit_sha }}
           tag: ${{ env.RELEASE_VERSION }}
           artifacts: "fractl-${{env.RELEASE_VERSION}}.jar,fractl-${{env.RELEASE_VERSION}}-standalone.jar"
           token: ${{ secrets.GITHUB_TOKEN }}
