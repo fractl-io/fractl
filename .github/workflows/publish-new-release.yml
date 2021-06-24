@@ -34,13 +34,15 @@ jobs:
           VERSION=${BRANCH_NAME#hotfix/}
           echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
 
-      - name: Deploy to Github Package Registry
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p ~/.m2
-          echo "<settings><servers><server><id>github</id><username>$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $1}')</username><password>\${env.GITHUB_TOKEN}</password></server></servers></settings>" > ~/.m2/settings.xml
-          mvn deploy
+#      This feature is removed for now, as we do not depend upon Github Package Registry for jar files.
+#      Additionally, it causes some issue during mvn packaging.
+#      - name: Deploy to Github Package Registry
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        run: |
+#          mkdir -p ~/.m2
+#          echo "<settings><servers><server><id>github</id><username>$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $1}')</username><password>\${env.GITHUB_TOKEN}</password></server></servers></settings>" > ~/.m2/settings.xml
+#          mvn deploy
 
       - name: Generate jar
         run: lein jar
