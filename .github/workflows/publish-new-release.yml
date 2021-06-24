@@ -1,0 +1,78 @@
+name: "Publish new release"
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+jobs:
+  release:
+    name: Publish new release
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true # only merged pull requests must trigger this job
+    steps:
+      - name: Install dependencies
+        run: lein deps
+      - name: Generate pom.xml needed for mvn deploy
+        run: lein pom
+
+      - name: Extract version from branch name (for release branches)
+        if: startsWith(github.event.pull_request.head.ref, 'release/')
+        run: |
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          VERSION=${BRANCH_NAME#release/}
+          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Extract version from branch name (for hotfix branches)
+        if: startsWith(github.event.pull_request.head.ref, 'hotfix/')
+        run: |
+          BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+          VERSION=${BRANCH_NAME#hotfix/}
+          echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Deploy to Github Package Registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings><servers><server><id>github</id><username>$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $1}')</username><password>\${env.GITHUB_TOKEN}</password></server></servers></settings>" > ~/.m2/settings.xml
+          mvn deploy
+
+      - name: Generate jar
+        run: lein jar
+      - name: Generate uberjar
+        run: lein uberjar # Create a standalone jar.
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          commit: {{ github.event.pull_request.merge_commit_sha }}
+          tag: ${{ env.RELEASE_VERSION }}
+          artifacts: "fractl-${{env.RELEASE_VERSION}}.jar,fractl-${{env.RELEASE_VERSION}}-standalone.jar"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+
+      - name: Slack Notification
+        if: ${{ success() }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_CHANNEL: releases
+          SLACK_FOOTER: Fractl Release Notification
+          SLACK_TITLE: 'Release packaging successful'
+          SLACK_MESSAGE: ${{ github.event.release.tag_name }}
+          SLACK_USERNAME: Release Bot
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      - name: Slack Notification
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_CHANNEL: releases
+          SLACK_FOOTER: Fractl Release Notification
+          SLACK_TITLE: 'Release packaging failed'
+          SLACK_MESSAGE: ${{ github.event.release.tag_name }}
+          SLACK_COLOR: '#ff1100'
+          SLACK_USERNAME: Release Bot
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
