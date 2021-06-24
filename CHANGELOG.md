@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2021-06-24
+
 ### Added
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.3...HEAD
+
+[0.1.3]: https://github.com/fractl-io/fractl/compare/79d9dc82aaa39831e1dfc9f324e6b1a55df9d5c4...0.1.3
