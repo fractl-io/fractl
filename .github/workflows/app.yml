@@ -31,7 +31,7 @@ jobs:
         run: |
           lein run sample/model.fractl &
           sleep 180
-          newman run library/library-ci.postman_collection.json
+          newman run sample/library-ci.postman_collection.json
           kill -9 `lsof -i:8000 -t`
         env:
           API_HOST: 127.0.0.1:8000
