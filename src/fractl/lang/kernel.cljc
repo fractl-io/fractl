@@ -9,6 +9,18 @@
    (re-matches (re-pattern rgex-s) s))
   ([s] (string? s)))
 
+(defn kernel-float? [x]
+  #?(:clj
+     (instance? Float x)
+     :cljs
+     (float? x)))
+
+(defn kernel-double? [x]
+  #?(:clj
+     (instance? Double x)
+     :cljs
+     (float? x)))
+
 (def date-time? dt/parse-date-time)
 
 (defn UUID? [s]
@@ -22,18 +34,6 @@
       (string? x) (number? x)
       (boolean? x) (nil? x)
       (list? x) (set? x)))
-
-(defn kernel-decimal? [x]
-  #?(:clj
-     (and (bigdec x) true)
-     :cljs
-     (float? x)))
-
-(defn kernel-decimal [x]
-  #?(:clj
-     (bigdec x)
-     :cljs
-     (float x)))
 
 (defn- path?
   "Encode a path in a fractl record. Examples:
@@ -69,11 +69,11 @@
    :Kernel/UUID UUID?
    :Kernel/Password identity
    :Kernel/Int int?
-   :Kernel/Int64 integer?
-   :Kernel/Integer integer?
-   :Kernel/Float float?
-   :Kernel/Double double?
-   :Kernel/Decimal kernel-decimal?
+   :Kernel/Int64 int?
+   :Kernel/BigInteger integer?
+   :Kernel/Float kernel-float?
+   :Kernel/Double kernel-double?
+   :Kernel/Decimal cn/decimal-value?
    :Kernel/Boolean boolean?
    :Kernel/Record cn/record-instance?
    :Kernel/Entity cn/entity-instance?

@@ -25,7 +25,7 @@
 (entity {:Kernel/Authentication
          {:Owner         :Kernel/Any
           :Issued        {:type :Kernel/DateTime :optional true}
-          :ExpirySeconds {:type :Kernel/Integer :default 300}}})
+          :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
 (dataflow :Library.Ledger/MemberLogin
           {:Library.Identity/Member {:UserName? :Library.Ledger/MemberLogin.UserName}}
