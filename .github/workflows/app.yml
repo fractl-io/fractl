@@ -29,7 +29,7 @@ jobs:
         run: npm install -g newman
       - name: Run lein library app & Newman API test
         run: |
-          lein run library/model.fractl &
+          lein run sample/model.fractl &
           sleep 180
           newman run library/library-ci.postman_collection.json
           kill -9 `lsof -i:8000 -t`
@@ -44,7 +44,7 @@ jobs:
           SLACK_FOOTER: Fractl app runner
           SLACK_TITLE: 'Awesome! Ran successfully with library app!'
           SLACK_MESSAGE: 'App responded with response code: 200 :dancer:'
-          SLACK_ICON: ':white_check_mark:'
+          SLACK_ICON_EMOJI: ':white_check_mark:'
           SLACK_USERNAME: Cookie Monster
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       - name: Slack Notification
