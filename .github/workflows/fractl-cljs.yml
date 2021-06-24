@@ -1,0 +1,48 @@
+name: "Fractl cljs CI"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '*'         # matches every branch that doesn't contain a '/'
+      - '*/*'       # matches every branch containing a single '/'
+      - '**'        # matches every branch
+
+jobs:
+  test_clj_and_cljs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: lein deps
+      - name: Run cljs test
+        run: lein fig:ci
+      - name: Run cljs reagent test
+        run: lein fig:rci
+      - name: Clean target
+        run: lein clean
+      - name: Slack Notification
+        if: ${{ success() }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_CHANNEL: ci
+          SLACK_FOOTER: Cookie! Om nom nom nom
+          SLACK_TITLE: 'Cool! `lein fig` tests passed! :cookie: :cookie:'
+          SLACK_MESSAGE: 'Om Nom Nom :cookie:'
+          SLACK_USERNAME: Cookie Monster
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      - name: Slack Notification
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_CHANNEL: ci
+          SLACK_FOOTER: Cookie! Om nom nom nom
+          SLACK_TITLE: 'Oh no! `lein fig` tests Failed! No cookies.'
+          SLACK_MESSAGE: 'No cookie? :cry:'
+          SLACK_COLOR: '#ff1100'
+          SLACK_ICON_EMOJI: ':scream:'
+          SLACK_USERNAME: Cookie Monster
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
