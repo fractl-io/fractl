@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.3] - 2021-06-24
 
-## [0.1.3] - 2021-06-24
-
 -   Add salesforce/sdfc drivers(libraries)
 -   Postgres support
 -   Git/Email/SMS resolver
@@ -28,7 +26,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Everything since the beginning!
 
 [Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.3...HEAD
-
-[0.1.3]: https://github.com/fractl-io/fractl/compare/0.1.3...0.1.3
 
 [0.1.3]: https://github.com/fractl-io/fractl/compare/v0.1.2...0.1.3
