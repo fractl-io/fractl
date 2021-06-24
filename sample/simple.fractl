@@ -40,3 +40,20 @@
    :Resource ["Sample.Simple/Upsert_E1"]
    :Rule [:q#
           {:Disable :INFO}]}})
+
+(entity :Employee
+        {:DeptNo {:type :Kernel/Int
+                  :indexed true}
+         :Salary :Kernel/Decimal})
+
+(event :FindAllEmployeesInDepartment
+       {:Dept :Kernel/Int})
+
+(dataflow :FindAllEmployeesInDepartment
+          {:Employee
+           {:DeptNo? :Sample.Simple/FindAllEmployeesInDepartment.Dept}})
+
+(dataflow :SalaryIncrement
+          {:Employee
+           {:DeptNo? :Sample.Simple/SalaryIncrement.Dept
+            :Salary '(+ :Salary (* :Salary :Sample.Simple/SalaryIncrement.Percentage))}})

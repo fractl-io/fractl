@@ -878,3 +878,52 @@
      (is (= :A/B.R (keyword (:X e2))))
      (is (= "k/j" (:X (cn/make-instance {:PathType/E {:X "k/j"}}))))
      (is (= :k (:X (cn/make-instance {:PathType/E {:X :k}})))))))
+
+(deftest format-test
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :FormatTest
+     (entity {:FormatTest/E
+              {:DOB {:type :Kernel/String
+                     :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}}})
+     (is (cn/instance-of?
+          :FormatTest/E
+          (cn/make-instance
+           {:FormatTest/E
+            {:DOB "1999-03-20"}})))
+     (tu/is-error #(cn/make-instance
+                    {:FormatTest/E
+                     {:DOB "1877-09-01"}})))))
+
+(deftest numeric-types
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :NT
+     (entity
+      :NT/E
+      {:X :Kernel/Int
+       :Y :Kernel/Int64
+       :Z :Kernel/BigInteger
+       :A :Kernel/Float
+       :B :Kernel/Double
+       :C :Kernel/Decimal
+       :D :Kernel/DateTime})
+     (let [bi 8993993938884848858996996
+           f 1.2
+           d "90.8"
+           dt "2014-03-14T12:34:20.000000Z"
+           e (cn/make-instance
+              {:NT/E
+               {:X 10
+                :Y Long/MAX_VALUE
+                :Z bi
+                :A f
+                :B f
+                :C d
+                :D dt}})]
+       (is (cn/instance-of? :NT/E e))
+       (is (= 90.8M (:C e)))
+       (is (= (float f) (:A e)))
+       (is (= (double f) (:B e)))
+       (is (= bi (:Z e)))
+       (is (= dt (:D e)))))))
