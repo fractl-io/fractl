@@ -343,14 +343,29 @@
                                             [(compile-maybe-pattern-list ctx conseq)]]))
       cases-code)))
 
+(defn- case-match?
+  "If the first component of the match is a name or literal, it's a
+  normal match expression (similar to Clojure `case`),
+  otherwise it's a conditional expression.
+  Return true for a normal match expression."
+  [pat]
+  (let [f (first pat)]
+    (or (li/name? f)
+        (li/literal? f))))
+
+(defn- compile-cond [ctx pat]
+  )
+
 (defn- compile-match [ctx pat]
-  (let [match-pat-code (compile-pattern ctx (first pat))
-        [cases alternative alias] (extract-match-clauses (rest pat))
-        cases-code (compile-match-cases ctx cases)
-        alt-code (when alternative (compile-maybe-pattern-list ctx alternative))]
-    (when alias
-      (ctx/add-alias! ctx alias alias))
-    (emit-match [match-pat-code] cases-code [alt-code] alias)))
+  (if (case-match? pat)
+    (let [match-pat-code (compile-pattern ctx (first pat))
+          [cases alternative alias] (extract-match-clauses (rest pat))
+          cases-code (compile-match-cases ctx cases)
+          alt-code (when alternative (compile-maybe-pattern-list ctx alternative))]
+      (when alias
+        (ctx/add-alias! ctx alias alias))
+      (emit-match [match-pat-code] cases-code [alt-code] alias))
+    (compile-cond ctx pat)))
 
 (defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
