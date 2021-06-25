@@ -42,9 +42,6 @@
 (defn- emit-match [match-pattern-code cases-code alternative-code alias]
   (op/match [match-pattern-code cases-code alternative-code alias]))
 
-(defn- emit-cond [clauses alias]
-  (op/condition [clauses alias]))
-
 (defn- emit-for-each [bind-pattern-code body-code alias]
   (op/for-each [bind-pattern-code body-code alias]))
 
@@ -363,16 +360,18 @@
       (if-not (seq (rest clauses))
         {:clauses code :else (compile-pattern ctx c)}
         (recur (nthrest clauses 2)
-               [(rule/compile-rule-pattern c)
-                (compile-pattern ctx (second clauses))]))
+               (conj
+                code
+                [(rule/compile-rule-pattern c)
+                 (compile-pattern ctx (second clauses))])))
       {:clauses code})))
 
-(defn- compile-cond [ctx pat]
+(defn- compile-match-cond [ctx pat]
   (let [[pat alias] (special-form-alias pat)
-        cond-code (generate-cond-code ctx pat)]
+        code (generate-cond-code ctx pat)]
     (when alias
       (ctx/add-alias! ctx alias alias))
-    (emit-cond cond-code alias)))
+    (emit-match nil (:clauses code) (:else code) alias)))
 
 (defn- compile-match [ctx pat]
   (if (case-match? pat)
@@ -383,7 +382,7 @@
       (when alias
         (ctx/add-alias! ctx alias alias))
       (emit-match [match-pat-code] cases-code [alt-code] alias))
-    (compile-cond ctx pat)))
+    (compile-match-cond ctx pat)))
 
 (defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
