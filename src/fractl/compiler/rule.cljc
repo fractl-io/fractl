@@ -44,7 +44,7 @@
         r (vec (rest parts))
         [a b :as ab] (li/split-path (first parts))
         p (if (and a b) ab (or a b))]
-    `(get-in (get ~(symbol "-arg-map-") ~p) ~r)))
+    `(get-in (~(symbol "-arg-map-") ~p) ~r)))
 
 (defn compile-one-rule-pattern [pat]
   (map

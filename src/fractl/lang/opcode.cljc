@@ -116,6 +116,9 @@
          (match
           [[match-pattern-code cases-code alternative-code result-alias]]
           "Execute code for each part of conditional evaluation based on the :match construct.")
+         (condition
+          [[clauses-code result-alias]]
+          "Evaluate the clauses for a :match conditional expression.")
          (eval-on
           [[evt-name df-code]]
           "Generate function to dispatch a fractl event.")

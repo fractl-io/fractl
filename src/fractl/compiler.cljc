@@ -9,6 +9,7 @@
             [fractl.policy.rbac :as rbac]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
+            [fractl.compiler.rule :as rule]
             [fractl.compiler.validation :as cv]
             [fractl.compiler.internal :as i]))
 
@@ -40,6 +41,9 @@
 
 (defn- emit-match [match-pattern-code cases-code alternative-code alias]
   (op/match [match-pattern-code cases-code alternative-code alias]))
+
+(defn- emit-cond [clauses alias]
+  (op/condition [clauses alias]))
 
 (defn- emit-for-each [bind-pattern-code body-code alias]
   (op/for-each [bind-pattern-code body-code alias]))
@@ -353,8 +357,22 @@
     (or (li/name? f)
         (li/literal? f))))
 
+(defn- generate-cond-code [ctx pat]
+  (loop [clauses pat, code []]
+    (if-let [c (first clauses)]
+      (if-not (seq (rest clauses))
+        {:clauses code :else (compile-pattern ctx c)}
+        (recur (nthrest clauses 2)
+               [(rule/compile-rule-pattern c)
+                (compile-pattern ctx (second clauses))]))
+      {:clauses code})))
+
 (defn- compile-cond [ctx pat]
-  )
+  (let [[pat alias] (special-form-alias pat)
+        cond-code (generate-cond-code ctx pat)]
+    (when alias
+      (ctx/add-alias! ctx alias alias))
+    (emit-cond cond-code alias)))
 
 (defn- compile-match [ctx pat]
   (if (case-match? pat)

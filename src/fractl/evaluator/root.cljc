@@ -344,6 +344,19 @@
          (eval-opcode-list evaluator env eval-opcode alternative-code)
          (i/ok false env))))))
 
+(defn- eval-condition [evaluator env eval-opcode code result-alias]
+  (bind-result-to-alias
+   result-alias
+   (let [arg (partial env/lookup-instance env)]
+     (loop [main-clauses (:clauses code)]
+       (if-let [[condition body] (first main-clauses)]
+         (if (condition arg)
+           (eval-opcode-list evaluator env eval-opcode body)
+           (recur (rest main-clauses)))
+         (if-let [alternative (:else code)]
+           (eval-opcode-list evaluator env eval-opcode alternative)
+           (i/ok false env)))))))
+
 (defn- eval-for-each-body [evaluator env eval-opcode body-code element]
   (when (cn/entity-instance? element)
     (let [entity-name (cn/instance-name element)
@@ -518,6 +531,9 @@
         (if (nil? r)
           result
           (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias))))
+
+    (do-condition [self env [code result-alias]]
+      (eval-condition self env eval-opcode code result-alias))
 
     (do-eval-on [self env [evt-name df-code]]
       (let [df-eval (partial eval-dataflow self env)]
