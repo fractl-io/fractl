@@ -4,9 +4,9 @@
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
-            [fractl.lang.rule :as rl]
             [fractl.component :as cn]
             [fractl.compiler :as c]
+            [fractl.compiler.rule :as rl]
             [fractl.resolver.registry :as r]))
 
 (defn- normalize-imports [imports]

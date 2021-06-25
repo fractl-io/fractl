@@ -2,7 +2,7 @@
   "Policy management"
   (:require [fractl.util :as u]
             [fractl.component :as cn]
-            [fractl.lang.rule :as rl]
+            [fractl.compiler.rule :as rl]
             [fractl.lang.internal :as li]
             [fractl.policy.logging-util :as lu]
             [fractl.resolver.core :as r]))
