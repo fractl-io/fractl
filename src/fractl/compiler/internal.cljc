@@ -188,21 +188,12 @@
      clause)))
 
 (defn expand-query [entity-name query-pattern]
-  (let [indexed-attrs (set
-                       (conj
-                        (cn/indexed-attributes
-                         (cn/fetch-schema entity-name))
-                        :Id))
-        predic #(su/contains-any % indexed-attrs)
-        qp (seq (filter predic query-pattern))
-        fp (seq (filter (complement predic) query-pattern))
-        wildcard? (not qp)
-        qp (when-not wildcard? (map process-where-clause qp))
+  (let [wildcard? (not query-pattern)
+        qp (when-not wildcard? (map process-where-clause query-pattern))
         where-clause (if wildcard?
                        :*
                        (if (> (count qp) 1)
                          (su/vec-add-first :and qp)
                          (first qp)))]
     {:from entity-name
-     :where where-clause
-     :filter (when fp (map process-where-clause fp))}))
+     :where where-clause}))

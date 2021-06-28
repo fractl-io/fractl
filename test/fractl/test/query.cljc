@@ -217,21 +217,28 @@
     (entity {:I255/E {:X {:type :Kernel/Int
                           :indexed true}
                       :Y :Kernel/Int}})
-    (event {:I255/Q {:X :Kernel/Int}})
-    (dataflow :I255/Q
-              {:I255/E {:X? :I255/Q.X
-                        :Y? [:< 5]}}))
+    (dataflow :I255/Q1
+              {:I255/E {:X? :I255/Q1.X
+                        :Y? [:< 5]}})
+    (dataflow :I255/Q2
+              {:I255/E {:X? :I255/Q2.X
+                        :Y? [:> :X]}}))
   (let [es [(cn/make-instance :I255/E {:X 10 :Y 4})
             (cn/make-instance :I255/E {:X 10 :Y 6})
             (cn/make-instance :I255/E {:X 10 :Y 3})
-            (cn/make-instance :I255/E {:X 9 :Y 2})]
+            (cn/make-instance :I255/E {:X 9 :Y 2})
+            (cn/make-instance :I255/E {:X 10 :Y 20})]
         evts (map #(cn/make-instance :I255/Upsert_E {:Instance %}) es)
         f (comp ffirst #(:result (first (e/eval-all-dataflows %))))
-        insts (map f evts)
-        ids (map :Id insts)]
+        insts (map f evts)]
     (is (every? true? (map #(cn/instance-of? :I255/E %) insts)))
-    (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q {:X 10}})))]
+    (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q1 {:X 10}})))]
       (is (= (count r) 2))
       (doseq [e r]
         (is (and (= 10 (:X e))
-                 (< (:Y e) 5)))))))
+                 (< (:Y e) 5)))))
+    (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q2 {:X 10}})))]
+      (is (= (count r) 1))
+      (doseq [e r]
+        (is (and (= 10 (:X e))
+                 (> (:Y e) 10)))))))
