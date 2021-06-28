@@ -130,12 +130,10 @@
     :else [k (query-param-lookup v)]))
 
 (defn compile-query [ctx entity-name query]
-  (let [expanded-query (i/expand-query
-                        entity-name
-                        (when query
-                          (map query-param-process query)))
-        fp (:filter expanded-query)
-        eq (dissoc expanded-query :filter)]
+  (let [eq (i/expand-query
+            entity-name
+            (when query
+              (map query-param-process query)))]
     {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
      :raw-query eq}))
 
