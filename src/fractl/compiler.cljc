@@ -133,23 +133,23 @@
   (vec `[~(first r) ~k  ~@(rest r)]))
 
 (defn compile-query [ctx entity-name query]
-  (when query
-    (let [indexed-attrs (set
-                         (conj
-                          (cn/indexed-attributes
-                           (cn/fetch-schema entity-name))
-                          :Id))
-          predic #(us/contains-any % indexed-attrs)
-          qp (seq (filter predic query))
-          fp (seq (filter (complement predic) query))
-          eq (i/expand-query
-              entity-name
-              (map query-param-process qp))]
-      {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
-       :raw-query eq
-       :filter (when fp
-                 (rule/compile-rule-pattern
-                  `[:and ~@(map process-query-filter-rule fp)]))})))
+  (let [indexed-attrs (set
+                       (conj
+                        (cn/indexed-attributes
+                         (cn/fetch-schema entity-name))
+                        :Id))
+        predic #(us/contains-any % indexed-attrs)
+        qp (seq (filter predic query))
+        fp (seq (filter (complement predic) query))
+        eq (i/expand-query
+            entity-name
+            (when qp
+              (map query-param-process qp)))]
+    {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
+     :raw-query eq
+     :filter (when fp
+               (rule/compile-rule-pattern
+                `[:and ~@(map process-query-filter-rule fp)]))}))
 
 (defn- compound-expr-as-fn
   "Compile compound expression to a function.
