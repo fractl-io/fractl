@@ -234,7 +234,10 @@
     [nil env]))
 
 (defn- filter-query-result [rule env result]
-  (let [predic #(rule (merge % (env/as-map env)))]
+  (let [predic #(rule
+                 (fn [x]
+                   (or (% x)
+                       (env/lookup-instance (env/bind-instance env %) x))))]
     (filter predic result)))
 
 (defn- find-instances-in-store [env store entity-name full-query]

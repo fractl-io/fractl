@@ -129,8 +129,8 @@
                   (concat [k] (map query-param-lookup (rest v))))
     :else [k (query-param-lookup v)]))
 
-(defn- process-query-filter-rule [[k r]]
-  (vec `[~(first r) ~k  ~@(rest r)]))
+(defn- process-query-filter-rule [[_ r]]
+  (vec r))
 
 (defn compile-query [ctx entity-name query]
   (let [indexed-attrs (set
@@ -149,7 +149,10 @@
      :raw-query eq
      :filter (when fp
                (rule/compile-rule-pattern
-                `[:and ~@(map process-query-filter-rule fp)]))}))
+                (let [rules (map process-query-filter-rule fp)]
+                  (if (= (count rules) 1)
+                    (first rules)
+                    `[:and ~@rules]))))}))
 
 (defn- compound-expr-as-fn
   "Compile compound expression to a function.

@@ -219,10 +219,10 @@
                       :Y :Kernel/Int}})
     (dataflow :I255/Q1
               {:I255/E {:X? :I255/Q1.X
-                        :Y? [:< 5]}})
+                        :Y? [:< :Y 5]}})
     (dataflow :I255/Q2
               {:I255/E {:X? :I255/Q2.X
-                        :Y? [:> :X]}}))
+                        :Y? [:or [:> :Y :X] [:= :Y :I255/Q2.Y]]}}))
   (let [es [(cn/make-instance :I255/E {:X 10 :Y 4})
             (cn/make-instance :I255/E {:X 10 :Y 6})
             (cn/make-instance :I255/E {:X 10 :Y 3})
@@ -237,8 +237,9 @@
       (doseq [e r]
         (is (and (= 10 (:X e))
                  (< (:Y e) 5)))))
-    (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q2 {:X 10}})))]
-      (is (= (count r) 1))
+    (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q2 {:X 10 :Y 3}})))]
+      (is (= (count r) 2))
       (doseq [e r]
         (is (and (= 10 (:X e))
-                 (> (:Y e) 10)))))))
+                 (or (> (:Y e) 10)
+                     (= (:Y e) 3))))))))
