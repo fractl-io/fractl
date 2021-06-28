@@ -133,9 +133,11 @@
   (let [expanded-query (i/expand-query
                         entity-name
                         (when query
-                          (map query-param-process query)))]
-    {:compiled-query ((ctx/fetch-compile-query-fn ctx) expanded-query)
-     :raw-query expanded-query}))
+                          (map query-param-process query)))
+        fp (:filter expanded-query)
+        eq (dissoc expanded-query :filter)]
+    {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
+     :raw-query eq}))
 
 (defn- compound-expr-as-fn
   "Compile compound expression to a function.
