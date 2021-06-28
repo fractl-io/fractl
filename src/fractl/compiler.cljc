@@ -9,6 +9,7 @@
             [fractl.policy.rbac :as rbac]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
+            [fractl.compiler.rule :as rule]
             [fractl.compiler.validation :as cv]
             [fractl.compiler.internal :as i]))
 
@@ -343,14 +344,45 @@
                                             [(compile-maybe-pattern-list ctx conseq)]]))
       cases-code)))
 
-(defn- compile-match [ctx pat]
-  (let [match-pat-code (compile-pattern ctx (first pat))
-        [cases alternative alias] (extract-match-clauses (rest pat))
-        cases-code (compile-match-cases ctx cases)
-        alt-code (when alternative (compile-maybe-pattern-list ctx alternative))]
+(defn- case-match?
+  "If the first component of the match is a name or literal, it's a
+  normal match expression (similar to Clojure `case`),
+  otherwise it's a conditional expression.
+  Return true for a normal match expression."
+  [pat]
+  (let [f (first pat)]
+    (or (li/name? f)
+        (li/literal? f))))
+
+(defn- generate-cond-code [ctx pat]
+  (loop [clauses pat, code []]
+    (if-let [c (first clauses)]
+      (if-not (seq (rest clauses))
+        {:clauses code :else (compile-pattern ctx c)}
+        (recur (nthrest clauses 2)
+               (conj
+                code
+                [(rule/compile-rule-pattern c)
+                 (compile-pattern ctx (second clauses))])))
+      {:clauses code})))
+
+(defn- compile-match-cond [ctx pat]
+  (let [[pat alias] (special-form-alias pat)
+        code (generate-cond-code ctx pat)]
     (when alias
       (ctx/add-alias! ctx alias alias))
-    (emit-match [match-pat-code] cases-code [alt-code] alias)))
+    (emit-match nil (:clauses code) (:else code) alias)))
+
+(defn- compile-match [ctx pat]
+  (if (case-match? pat)
+    (let [match-pat-code (compile-pattern ctx (first pat))
+          [cases alternative alias] (extract-match-clauses (rest pat))
+          cases-code (compile-match-cases ctx cases)
+          alt-code (when alternative (compile-maybe-pattern-list ctx alternative))]
+      (when alias
+        (ctx/add-alias! ctx alias alias))
+      (emit-match [match-pat-code] cases-code [alt-code] alias))
+    (compile-match-cond ctx pat)))
 
 (defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]

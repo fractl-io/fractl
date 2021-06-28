@@ -1,4 +1,4 @@
-(ns fractl.lang.rule
+(ns fractl.compiler.rule
   "Parsing and compilations of the embedded rule language"
   (:require [fractl.util.log :as log]
             [fractl.lang.internal :as li]))
@@ -26,12 +26,12 @@
 
 (defn- operator-name [x]
   (case x
-    :< 'fractl.lang.rule/lt
-    :<= 'fractl.lang.rule/lteq
-    :> 'fractl.lang.rule/gt
-    :>= 'fractl.lang.rule/gteq
-    :in 'fractl.lang.rule/in
-    :between 'fractl.lang.rule/between
+    :< 'fractl.compiler.rule/lt
+    :<= 'fractl.compiler.rule/lteq
+    :> 'fractl.compiler.rule/gt
+    :>= 'fractl.compiler.rule/gteq
+    :in 'fractl.compiler.rule/in
+    :between 'fractl.compiler.rule/between
     (symbol (name x))))
 
 (defn- accessor-expression
@@ -44,7 +44,7 @@
         r (vec (rest parts))
         [a b :as ab] (li/split-path (first parts))
         p (if (and a b) ab (or a b))]
-    `(get-in (get ~(symbol "-arg-map-") ~p) ~r)))
+    `(get-in (~(symbol "-arg-map-") ~p) ~r)))
 
 (defn compile-one-rule-pattern [pat]
   (map
