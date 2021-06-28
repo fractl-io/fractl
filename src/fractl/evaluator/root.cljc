@@ -311,8 +311,8 @@
   (if result-alias
     (let [env (:env result)
           r (if (false? (:result result))
-                  result
-                  (ffirst (:result result)))
+              result
+              (:result result))
           new-env (env/bind-instance-to-alias env result-alias r)]
       (assoc result :env new-env))
     result))
@@ -343,6 +343,19 @@
        (if (first alternative-code)
          (eval-opcode-list evaluator env eval-opcode alternative-code)
          (i/ok false env))))))
+
+(defn- eval-condition [evaluator env eval-opcode conds alternative result-alias]
+  (bind-result-to-alias
+   result-alias
+   (let [arg (partial env/lookup-instance env)]
+     (loop [main-clauses conds]
+       (if-let [[condition body] (first main-clauses)]
+         (if (condition arg)
+           (eval-opcode evaluator env body)
+           (recur (rest main-clauses)))
+         (if alternative
+           (eval-opcode evaluator env alternative)
+           (i/ok false env)))))))
 
 (defn- eval-for-each-body [evaluator env eval-opcode body-code element]
   (when (cn/entity-instance? element)
@@ -513,11 +526,13 @@
       (call-function env fnobj))
 
     (do-match [self env [match-pattern-code cases-code alternative-code result-alias]]
-      (let [result (eval-opcode self env match-pattern-code)
-            r (ok-result result)]
-        (if (nil? r)
-          result
-          (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias))))
+      (if match-pattern-code
+        (let [result (eval-opcode self env match-pattern-code)
+              r (ok-result result)]
+          (if (nil? r)
+            result
+            (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)))
+        (eval-condition self env eval-opcode cases-code alternative-code result-alias)))
 
     (do-eval-on [self env [evt-name df-code]]
       (let [df-eval (partial eval-dataflow self env)]

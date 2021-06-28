@@ -7,7 +7,7 @@
                      entity record dataflow]]
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
-            [fractl.lang.rule :as rule]
+            [fractl.compiler.rule :as rule]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 

@@ -485,9 +485,9 @@
                1 {:MA/R {:X 200}}
                {:MA/R {:X 300}} :as :K]
               :K))
-  (let [r01 (tu/fresult (e/eval-all-dataflows {:MA/Evt {:I 1}}))
-        r02 (tu/fresult (e/eval-all-dataflows {:MA/Evt {:I 0}}))
-        r03 (tu/fresult (e/eval-all-dataflows {:MA/Evt {:I 3}}))]
+  (let [r01 (ffirst (tu/fresult (e/eval-all-dataflows {:MA/Evt {:I 1}})))
+        r02 (ffirst (tu/fresult (e/eval-all-dataflows {:MA/Evt {:I 0}})))
+        r03 (ffirst (tu/fresult (e/eval-all-dataflows {:MA/Evt {:I 3}})))]
     (is (cn/instance-of? :MA/R r01))
     (is (= 200 (:X r01)))
     (is (cn/instance-of? :MA/R r02))
@@ -504,9 +504,9 @@
                            0 {:MA2/R {:X 100}}
                            1 {:MA2/R {:X 200}} :as :K]
                           :K))
-  (let [r01 (tu/fresult (e/eval-all-dataflows {:MA2/Evt {:I 1}}))
-        r02 (tu/fresult (e/eval-all-dataflows {:MA2/Evt {:I 0}}))
-        r03 (tu/fresult (e/eval-all-dataflows {:MA2/Evt {:I 2}}))]
+  (let [r01 (ffirst (tu/fresult (e/eval-all-dataflows {:MA2/Evt {:I 1}})))
+        r02 (ffirst (tu/fresult (e/eval-all-dataflows {:MA2/Evt {:I 0}})))
+        r03 (ffirst (tu/fresult (e/eval-all-dataflows {:MA2/Evt {:I 2}})))]
     (is (cn/instance-of? :MA2/R r01))
     (is (= 200 (:X r01)))
     (is (cn/instance-of? :MA2/R r02))
@@ -927,3 +927,29 @@
        (is (= (double f) (:B e)))
        (is (= bi (:Z e)))
        (is (= dt (:D e)))))))
+
+(deftest match-cond
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :MC
+     (record
+      {:MC/R
+       {:X :Kernel/Int}})
+     (dataflow
+      :MC/E
+      [:match
+       [:< :MC/E.X 10] {:MC/R {:X 1}}
+       [:>= :MC/E.X 100] {:MC/R {:X 2}}
+       {:MC/R {:X 3}}
+       :as :Result]
+      :Result))
+   (defn run [x result]
+     (let [r (ffirst
+              (tu/fresult
+               (e/eval-all-dataflows
+                (cn/make-instance
+                 {:MC/E {:X x}}))))]
+       (is (= (:X r) result))))
+   (run 200 2)
+   (run 9 1)
+   (run 22 3)))
