@@ -20,14 +20,12 @@
                (log/error ex)
                false))))
 
-#?(:clj (def default-fmt (DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'")))
-
 #?(:clj
    (defn parse-date-time
      ([s pat]
       (try-parse-date s (if pat
                           (DateTimeFormatter/ofPattern pat)
-                          default-fmt)))
+                          (DateTimeFormatter/ISO_LOCAL_DATE_TIME))))
      ([s]
       (parse-date-time s nil)))
    :cljs
@@ -35,14 +33,14 @@
      ([s pat]
       (try-parse-date s (format/of-pattern pat)))
      ([s]
-      (try-parse-date s format/iso-offset-date-time))))
+      (try-parse-date s format/iso-local-date-time))))
 
 (defn as-string
   ([dt pat]
    #?(:clj (let [^DateTimeFormatter fmt
                  (if pat
                    (DateTimeFormatter/ofPattern pat)
-                   default-fmt)]
+                   (DateTimeFormatter/ISO_LOCAL_DATE_TIME))]
              (.format fmt dt))
       :cljs dt))
   ([dt] (as-string dt nil)))
