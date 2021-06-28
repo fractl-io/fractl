@@ -233,12 +233,22 @@
         [(r/call-resolver-query resolver env [entity-name q]) env]))
     [nil env]))
 
+(defn- filter-query-result [rule env result]
+  (let [predic #(rule (merge % (env/as-map env)))]
+    (filter predic result)))
+
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)
-              (store/compile-query store full-query))]
+              (store/compile-query store full-query))
+        rule (:filter full-query)
+        filter-results
+        (if rule
+          (partial filter-query-result rule env)
+          identity)]
     (if (:query-direct q)
-      [(store/do-query store (:raw-query full-query)
-                       {:lookup-fn-params [env nil]})
+      [(filter-results
+        (store/do-query store (:raw-query full-query)
+                        {:lookup-fn-params [env nil]}))
        env]
       (let [idqs (seq (:id-queries q))
             [id-results env]
@@ -246,9 +256,11 @@
               (evaluate-id-queries env store idqs)
               [nil env])]
         [(if (seq id-results)
-           (store/query-by-id store entity-name (:query q) id-results)
+           (filter-results
+            (store/query-by-id store entity-name (:query q) id-results))
            (when-not idqs
-             (store/query-all store entity-name (:query q))))
+             (filter-results
+              (store/query-all store entity-name (:query q)))))
          env]))))
 
 (defn find-instances [env store entity-name full-query]

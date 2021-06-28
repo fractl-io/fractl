@@ -231,5 +231,7 @@
         ids (map :Id insts)]
     (is (every? true? (map #(cn/instance-of? :I255/E %) insts)))
     (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q {:X 10}})))]
-      (is (= (count r) 3))
-      (doseq [e r] (is (= 10 (:X e)))))))
+      (is (= (count r) 2))
+      (doseq [e r]
+        (is (and (= 10 (:X e))
+                 (< (:Y e) 5)))))))

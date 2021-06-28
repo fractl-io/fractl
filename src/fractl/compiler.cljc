@@ -130,12 +130,16 @@
     :else [k (query-param-lookup v)]))
 
 (defn compile-query [ctx entity-name query]
-  (let [eq (i/expand-query
-            entity-name
-            (when query
-              (map query-param-process query)))]
+  (let [expanded-query (i/expand-query
+                        entity-name
+                        (when query
+                          (map query-param-process query)))
+        fp (map vec (:filter expanded-query))
+        eq (dissoc expanded-query :filter)]
     {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
-     :raw-query eq}))
+     :raw-query eq
+     :filter (when fp
+               (rule/compile-rule-pattern `[:and ~@fp]))}))
 
 (defn- compound-expr-as-fn
   "Compile compound expression to a function.

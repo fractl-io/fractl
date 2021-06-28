@@ -205,4 +205,4 @@
                          (first qp)))]
     {:from entity-name
      :where where-clause
-     :filter fp}))
+     :filter (when fp (map process-where-clause fp))}))
