@@ -4,6 +4,7 @@
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
+            [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.lang.loader :as loader])
   (:gen-class))
@@ -48,6 +49,26 @@
   (when (and (= (count args) 1) (s/ends-with? (first args) model-script-name))
     (read-string (slurp (first args)))))
 
+(defn- log-app-init-result! [result]
+  (cond
+    (map? result)
+    (let [f (if (= :ok (:status result))
+              log/info
+              log/error)]
+      (f (str "app-init: " result)))
+
+    (seqable? result)
+    (doseq [r result] (log-app-init-result! r))
+
+    :else (log/error (str "app-init: " result))))
+
+(defn- trigger-appinit-event! [evaluator data]
+  (let [result (evaluator
+                (cn/make-instance
+                 {:Kernel/AppInit
+                  {:Data (or data {})}}))]
+    (log-app-init-result! result)))
+
 (defn- run-cmd [args config]
   (let [model (maybe-load-model args)
         config (merge (:config model) config)
@@ -58,9 +79,11 @@
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
       (register-resolvers! (:resolvers config))
-      (when-let [server-cfg (:service config)]
-        (log/info (str "Server config - " server-cfg))
-        (h/run-server (e/public-evaluator (:store config) true) server-cfg)))))
+      (let [ev (e/public-evaluator (:store config) true)]
+        (trigger-appinit-event! ev (:init-data model))
+        (when-let [server-cfg (:service config)]
+          (log/info (str "Server config - " server-cfg))
+          (h/run-server ev server-cfg))))))
 
 (defn- read-config [options]
   (when-let [config-file (get options :config)]
