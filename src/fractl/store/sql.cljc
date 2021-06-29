@@ -31,7 +31,7 @@
    (case attribute-type
      (:Kernel/String :Kernel/Keyword :Kernel/Email)
      (str "VARCHAR(" max-varchar-length ")")
-     :Kernel/DateTime "DATE"
+     :Kernel/DateTime "TIMESTAMP"
      :Kernel/UUID "UUID"
      :Kernel/Int "INT"
      (:Kernel/Int64 :Kernel/Integer) "BIGINT"
