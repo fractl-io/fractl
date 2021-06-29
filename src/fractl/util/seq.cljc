@@ -92,3 +92,12 @@
           (dissoc m k)))
       m)
     (dissoc m k)))
+
+(defn contains-any [xs ys]
+  "Return the first element from xs that exists also in ys.
+   If no element from xs is found in ys, return nil."
+  (loop [xs xs]
+    (when-let [x (first xs)]
+      (if (some #{x} ys)
+        x
+        (recur (rest xs))))))

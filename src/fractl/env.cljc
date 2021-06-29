@@ -150,3 +150,5 @@
               (recur (rest insts))))
           false)))
     true))
+
+(def as-map identity)
