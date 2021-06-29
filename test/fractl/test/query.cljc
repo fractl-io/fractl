@@ -212,6 +212,40 @@
     (is (= :ok (:status (first del-result2))))
     (is (= :not-found (:status (first lookup-result))))))
 
+(deftest issue-255-query-non-indexed
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I255
+     (entity {:I255/E {:X {:type :Kernel/Int
+                           :indexed true}
+                       :Y :Kernel/Int}})
+     (dataflow :I255/Q1
+               {:I255/E {:X? :I255/Q1.X
+                         :Y? [:< :Y 5]}})
+     (dataflow :I255/Q2
+               {:I255/E {:X? :I255/Q2.X
+                         :Y? [:or [:> :Y :X] [:= :Y :I255/Q2.Y]]}}))
+   (let [es [(cn/make-instance :I255/E {:X 10 :Y 4})
+             (cn/make-instance :I255/E {:X 10 :Y 6})
+             (cn/make-instance :I255/E {:X 10 :Y 3})
+             (cn/make-instance :I255/E {:X 9 :Y 2})
+             (cn/make-instance :I255/E {:X 10 :Y 20})]
+         evts (map #(cn/make-instance :I255/Upsert_E {:Instance %}) es)
+         f (comp ffirst #(:result (first (e/eval-all-dataflows %))))
+         insts (map f evts)]
+     (is (every? true? (map #(cn/instance-of? :I255/E %) insts)))
+     (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q1 {:X 10}})))]
+       (is (= (count r) 2))
+       (doseq [e r]
+         (is (and (= 10 (:X e))
+                  (< (:Y e) 5)))))
+     (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q2 {:X 10 :Y 3}})))]
+       (is (= (count r) 2))
+       (doseq [e r]
+         (is (and (= 10 (:X e))
+                  (or (> (:Y e) 10)
+                      (= (:Y e) 3)))))))))
+
 (deftest test-unique-date-time
   (defcomponent :Dt01
                 (entity {:Dt01/E {:Name :Kernel/String
