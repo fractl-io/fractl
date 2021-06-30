@@ -548,7 +548,7 @@
                              :default :Default}}})
 
   (event :Kernel/AppInit
-         {:AppName :Kernel/Keyword})
+         {:Data :Kernel/Map})
 
   #?(:clj
      (do
