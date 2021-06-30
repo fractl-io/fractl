@@ -1,3 +1,4 @@
 {:component-root "./sample"
  ;; :store {:type :sfdc-metadata}
+ :zero-trust-rbac false
  :service {:port 8080}}
