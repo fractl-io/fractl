@@ -57,3 +57,6 @@
           {:Employee
            {:DeptNo? :Sample.Simple/SalaryIncrement.Dept
             :Salary '(+ :Salary (* :Salary :Sample.Simple/SalaryIncrement.Percentage))}})
+
+(dataflow :Kernel/AppInit
+          {:LoggingPolicy {}})
