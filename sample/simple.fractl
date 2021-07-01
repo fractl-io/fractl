@@ -13,12 +13,13 @@
                   :write-only true}
               :Y :Kernel/DateTime}})
 
-(dataflow :K
-          {:E3 {:A '(+ 5 :B)
-                :B 10
-                :C '(+ 10 :A)
-                :X "secret"
-                :Y '(fractl.lang.datetime/now)}})
+(dataflow
+ :K
+ {:E3 {:A '(+ 5 :B)
+       :B 10
+       :C '(+ 10 :A)
+       :X "secret"
+       :Y '(fractl.lang.datetime/now)}})
 
 (entity {:E4 {:Y :Kernel/DateTime}})
 
@@ -41,22 +42,56 @@
    :Rule [:q#
           {:Disable :INFO}]}})
 
-(entity :Employee
-        {:DeptNo {:type :Kernel/Int
-                  :indexed true}
-         :Salary :Kernel/Decimal})
+(entity
+ :Employee
+ {:DeptNo {:type :Kernel/Int
+           :indexed true}
+  :Group :Kernel/String
+  :Salary :Kernel/Decimal})
 
-(event :FindAllEmployeesInDepartment
-       {:Dept :Kernel/Int})
+(event
+ :FindAllEmployeesInDepartment
+ {:Dept :Kernel/Int})
 
-(dataflow :FindAllEmployeesInDepartment
-          {:Employee
-           {:DeptNo? :Sample.Simple/FindAllEmployeesInDepartment.Dept}})
+(dataflow
+ :FindAllEmployeesInDepartment
+ {:Employee
+  {:DeptNo? :Sample.Simple/FindAllEmployeesInDepartment.Dept}})
 
-(dataflow :SalaryIncrement
-          {:Employee
-           {:DeptNo? :Sample.Simple/SalaryIncrement.Dept
-            :Salary '(+ :Salary (* :Salary :Sample.Simple/SalaryIncrement.Percentage))}})
+(dataflow
+ :SalaryIncrement
+ {:Employee
+  {:DeptNo? :Sample.Simple/SalaryIncrement.Dept
+   :Salary '(+ :Salary (* :Salary :Sample.Simple/SalaryIncrement.Percentage))}})
 
-(dataflow :Kernel/AppInit
-          {:LoggingPolicy {}})
+(dataflow
+ :EmployeeLogin
+ {:Employee {:Id? :Sample.Simple/EmployeeLogin.Employee}}
+ {:Kernel/Authentication
+  {:Owner :Sample.Simple/Employee}})
+
+(dataflow
+ :EmployeeLoginPolicy
+ {:Kernel/Policy
+  {:Intercept "RBAC"
+   :Resource ["Sample.Simple/EmployeeLogin"]
+   :Rule [:q# [:allow-all]]}})
+
+(dataflow
+ :UpsertEmployeePolicy
+ {:Kernel/Policy
+  {:Intercept "RBAC"
+   :Resource ["Sample.Simple/Upsert_Employee"]
+   :Rule [:q#
+          [:when
+           [:= "admin" :EventContext.Auth.Owner.Group]]]}})
+
+(dataflow
+ :Kernel/AppInit
+ {:LoggingPolicy {}}
+ {:EmployeeLoginPolicy {}}
+ {:UpsertEmployeePolicy {}}
+ {:Employee
+  {:DeptNo 101
+   :Group "admin"
+   :Salary 1000M}})
