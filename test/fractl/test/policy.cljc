@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
+            [fractl.evaluator :as e]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
@@ -214,3 +215,45 @@
          (is (= [[[:LP :User] [:Password]] [[:LP :Upsert_User] [:Instance :Password]]]
                 (pl/hidden-attributes rules)))
          (is (= #{:WARN :ERROR :DEBUG} (pl/log-levels rules))))))))
+
+(deftest zero-trust-rbac
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :ZtRbac
+     (record {:ZtRbac/R {:X :Kernel/Int}})
+     (dataflow :ZtRbac/Evt1
+               {:ZtRbac/R {:X :ZtRbac/Evt1.X}})
+     (dataflow :ZtRbac/Evt2
+               {:ZtRbac/R {:X :ZtRbac/Evt2.X}})
+     (dataflow :ZtRbac/Evt2Policy
+               {:Kernel/Policy
+                {:Intercept "RBAC"
+                 :Resource ["ZtRbac/Evt2"]
+                     :Rule [:q# [:allow-all]]}})
+     (let [p (tu/first-result
+              (cn/make-instance
+               {:ZtRbac/Evt2Policy {}}))
+           r1 (tu/first-result
+               (cn/make-instance
+                {:ZtRbac/Evt1 {:X 10}}))
+           r2 (tu/first-result
+               (cn/make-instance
+                {:ZtRbac/Evt2 {:X 20}}))]
+       (is (cn/instance-of? :Kernel/Policy p))
+       (is (cn/instance-of? :ZtRbac/R r1))
+       (is (= 10 (:X r1)))
+       (is (cn/instance-of? :ZtRbac/R r2))
+       (is (= 20 (:X r2))))
+     ;; Setting zero-trust-rbac to true will cause other tests to fail,
+     ;; if they are running parallely and trying to evaluate dataflows.
+     (e/zero-trust-rbac! true)
+     (tu/is-error
+      #(e/eval-all-dataflows
+        (cn/make-instance
+         {:ZtRbac/Evt1 {:X 10}})))
+     (let [r (tu/first-result
+              (cn/make-instance
+               {:ZtRbac/Evt2 {:X 30}}))]
+       (is (cn/instance-of? :ZtRbac/R r))
+       (is (= 30 (:X r))))
+     (e/zero-trust-rbac! false))))
