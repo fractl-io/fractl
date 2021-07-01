@@ -423,7 +423,8 @@
 
 (defn decimal-value? [x]
   #?(:clj
-     (decimal? x)
+     (or (decimal? x)
+         (decimal? (bigdec x)))
      :cljs
      (float? x)))
 
