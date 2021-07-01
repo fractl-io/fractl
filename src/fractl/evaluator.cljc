@@ -128,7 +128,11 @@
       (u/throw-ex (str "no authorization bound to " auth-id)))
     event-instance))
 
-(defn run-dataflows
+(def ^:private zero-trust-rbac-flag (u/make-cell false))
+
+(def zero-trust-rbac! (partial u/safe-set zero-trust-rbac-flag))
+
+(defn- run-dataflows
   "Compile and evaluate all dataflows attached to an event. The query-compiler
    and evaluator returned by a previous call to evaluator/make may be passed as
    the first two arguments."
@@ -138,7 +142,7 @@
         logging-rules (logging/rules event-instance)
         log-levels (logging/log-levels logging-rules)
         log-warn (some #{:WARN} log-levels)]
-    (if (rbac/evaluate? event-instance)
+    (if (rbac/evaluate? event-instance @zero-trust-rbac-flag)
       (let [log-info (some #{:INFO} log-levels)
             log-error (some #{:ERROR} log-levels)
             hidden-attrs (logging/hidden-attributes logging-rules)
@@ -153,7 +157,7 @@
           (log/warn msg))
         (u/throw-ex msg)))))
 
-(defn make
+(defn- make
   "Use the given store to create a query compiler and pattern evaluator.
    Return the vector [compile-query-fn, evaluator]."
   [store]

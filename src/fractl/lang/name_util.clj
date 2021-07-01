@@ -149,8 +149,6 @@
                                 'dataflow fq-preproc-dataflow-def})
 
 (defn fully-qualified-names [exp]
-  (let [exp
-        (if (seqable? exp)
-          ((get fq-preproc-defs (first exp) identity) exp)
-          exp)]
+  (if (seqable? exp)
+    ((get fq-preproc-defs (first exp) identity) exp)
     exp))

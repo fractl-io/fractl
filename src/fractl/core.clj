@@ -81,6 +81,9 @@
       (register-resolvers! (:resolvers config))
       (let [ev (e/public-evaluator (:store config) true)]
         (trigger-appinit-event! ev (:init-data model))
+        (e/zero-trust-rbac!
+         (let [f (:zero-trust-rbac config)]
+           (or (nil? f) f)))
         (when-let [server-cfg (:service config)]
           (log/info (str "Server config - " server-cfg))
           (h/run-server ev server-cfg))))))
