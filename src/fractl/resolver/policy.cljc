@@ -14,9 +14,15 @@
 
 (def ^:private store-opr-names #{:Upsert :Delete :Lookup})
 
+(def ^:private allow-all (constantly true))
+
 (defn- compile-rbac-rule [r]
-  (if (= :when (first r))
+  (cond
+    (= :allow-all r)
+    allow-all
+    (= :when (first r))
     (rl/compile-rule-pattern (second r))
+    :else
     (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
 
 (def ^:private compile-rule
