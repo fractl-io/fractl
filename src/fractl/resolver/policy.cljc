@@ -124,10 +124,10 @@
         save-fn (k save-policy)]
     (when-not save-fn
       (u/throw-ex (str "policy intercept not supported - " k)))
-    (let [db (get @policy-db k {})]
-      (u/safe-set
-       policy-db
-       (assoc @policy-db k ((k save-policy) db inst)))
+    (let [db (get @policy-db k {})
+          _ (u/safe-set
+             policy-db
+             (doall (assoc @policy-db k ((k save-policy) db inst))))]
       inst)))
 
 (defn- policy-delete [inst]
