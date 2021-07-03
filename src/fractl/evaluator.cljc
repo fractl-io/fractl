@@ -5,7 +5,7 @@
             [fractl.compiler :as c]
             [fractl.env :as env]
             [fractl.util :as u]
-            [fractl.util.log :as log]
+            [fractl.util.logger :as log]
             [fractl.util.seq :as su]
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
