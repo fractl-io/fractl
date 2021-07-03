@@ -43,7 +43,11 @@
        (event-logger/log-event! :info msg))
 
      (defn warn [msg]
-       (event-logger/log-event! :warn msg)))
+       (event-logger/log-event! :warn msg))
+
+     (defn exception [ex]
+       (error (.getMessage ex))
+       (debug ex)))
 
    :cljs
    (do
@@ -78,4 +82,6 @@
        "This is default info for fractl lang to use.
        If other form inputs are required no need to import this."
        [msg]
-       (log/warn :fractl {:message msg}))))
+       (log/warn :fractl {:message msg}))
+
+     (def exception error)))

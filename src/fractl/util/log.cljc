@@ -2,8 +2,7 @@
   (:require [taoensso.timbre :as timbre])
   #?(:clj
      (:require [taoensso.timbre.appenders.3rd-party.rolling :as rolling]
-               [taoensso.timbre.appenders.3rd-party.rotor :as rotor]))
-  #?(:clj (:import [java.io StringWriter PrintWriter])))
+               [taoensso.timbre.appenders.3rd-party.rotor :as rotor])))
 
 (defn- println-appender [config]
   config)
@@ -52,13 +51,3 @@
 
 (defn warn [msg]
   (timbre/warn msg))
-
-(defn exception [ex]
-  #?(:clj
-     (do (error (.getMessage ex))
-         (let [^StringWriter sw (StringWriter.)
-               ^PrintWriter pw (PrintWriter. sw)]
-           (.printStackTrace ex pw)
-           (.close pw)
-           (debug (.toString sw))))
-     :cljs (error ex)))

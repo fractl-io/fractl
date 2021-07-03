@@ -1,7 +1,7 @@
 (ns fractl.git
   "A wrapper for git shell commands"
   (:require [fractl.util :as u]
-            [fractl.util.log :as log])
+            [fractl.util.logger :as log])
   (:use [clj-jgit.porcelain]))
 
 (defn status [repo-dir]

@@ -4,7 +4,7 @@
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
             [fractl.util :as u]
-            [fractl.util.log :as log]
+            [fractl.util.logger :as log]
             [fractl.util.http :as uh]
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
