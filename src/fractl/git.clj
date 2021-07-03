@@ -1,6 +1,7 @@
 (ns fractl.git
   "A wrapper for git shell commands"
-  (:require [fractl.util :as u])
+  (:require [fractl.util :as u]
+            [fractl.util.logger :as log])
   (:use [clj-jgit.porcelain]))
 
 (defn status [repo-dir]
@@ -10,19 +11,19 @@
   (try
     (git-add (load-repo repo-dir) ".")
     (catch Exception e
-      (println e))))
+      (log/exception e))))
 
 (defn commit [repo-dir commit-message]
    (try
      (git-commit (load-repo repo-dir) commit-message :all? true)
        (catch Exception e
-         (println e))))
+         (log/exception e))))
 
 (defn pull [repo-dir]
   (try
     (git-pull (load-repo repo-dir))
     (catch Exception e
-      (println e))))
+      (log/exception e))))
 
 (defn push [dir]
   (if (System/getenv "SSH_KEY")

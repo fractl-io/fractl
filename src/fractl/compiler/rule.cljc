@@ -1,6 +1,6 @@
 (ns fractl.compiler.rule
   "Parsing and compilations of the embedded rule language"
-  (:require [fractl.util.log :as log]
+  (:require [fractl.util.logger :as log]
             [fractl.lang.internal :as li]))
 
 (defn in [xs x]

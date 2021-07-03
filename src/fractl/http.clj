@@ -4,6 +4,7 @@
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.util.http :as uh]
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
@@ -47,6 +48,7 @@
                   (evaluator event-instance))]
       (ok result data-fmt))
     (catch Exception ex
+      (log/exception ex)
       (internal-error (.getMessage ex) data-fmt))))
 
 (defn- event-from-request [request event-name data-fmt]
@@ -60,6 +62,7 @@
         [(cn/make-event-instance obj-name (first (vals obj))) nil]
         [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
     (catch Exception ex
+      (log/exception ex)
       [nil (str "Failed to parse request - " (.getMessage ex))])))
 
 (defn- request-content-type [request]
@@ -105,6 +108,7 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))
     (catch Exception ex
+      (log/exception ex)
       (internal-error (str "Failed to process query request - " (.getMessage ex))))))
 
 (def entity-event-prefix "/_e/")

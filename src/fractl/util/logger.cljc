@@ -4,6 +4,7 @@
                      [active.clojure.logger.config.timbre :as timbre-config])
      :cljs (:require [lambdaisland.glogi :as log]
                      [lambdaisland.glogi.console :as log-console])))
+
 #?(:clj
    (do
      (def config-map
@@ -43,7 +44,15 @@
        (event-logger/log-event! :info msg))
 
      (defn warn [msg]
-       (event-logger/log-event! :warn msg)))
+       (event-logger/log-event! :warn msg))
+
+     (defn exception [ex]
+       (error (.getMessage ex))
+       (let [^java.io.StringWriter sw (java.io.StringWriter.)
+             ^java.io.PrintWriter pw (java.io.PrintWriter. sw)]
+         (.printStackTrace ex pw)
+         (.close pw)
+         (debug (.toString sw)))))
 
    :cljs
    (do
@@ -78,4 +87,6 @@
        "This is default info for fractl lang to use.
        If other form inputs are required no need to import this."
        [msg]
-       (log/warn :fractl {:message msg}))))
+       (log/warn :fractl {:message msg}))
+
+     (def exception error)))
