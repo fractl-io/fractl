@@ -4,6 +4,7 @@
                      [active.clojure.logger.config.timbre :as timbre-config])
      :cljs (:require [lambdaisland.glogi :as log]
                      [lambdaisland.glogi.console :as log-console])))
+
 #?(:clj
    (do
      (def config-map
@@ -47,7 +48,11 @@
 
      (defn exception [ex]
        (error (.getMessage ex))
-       (debug ex)))
+       (let [^java.io.StringWriter sw (java.io.StringWriter.)
+             ^java.io.PrintWriter pw (java.io.PrintWriter. sw)]
+         (.printStackTrace ex pw)
+         (.close pw)
+         (debug (.toString sw)))))
 
    :cljs
    (do
