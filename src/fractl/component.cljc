@@ -535,11 +535,12 @@
             (if-not (li/name? aname)
               (recur (rest schema) attributes)
               (let [typname (li/extract-attribute-name atype)]
-                (recur (rest schema)
-                       (if-let [ascm (find-attribute-schema typname)]
-                         (apply-attribute-validation
-                          aname ascm (preproc-attribute-value attributes aname typname))
-                         (ensure-attribute-is-instance-of typname aname attributes)))))
+                (recur
+                 (rest schema)
+                 (if-let [ascm (find-attribute-schema typname)]
+                   (apply-attribute-validation
+                    aname ascm (preproc-attribute-value attributes aname typname))
+                   (ensure-attribute-is-instance-of typname aname attributes)))))
             attributes)))))
 
 (defn validate-attribute-value [attr-name attr-val schema]

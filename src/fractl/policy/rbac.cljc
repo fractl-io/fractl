@@ -13,7 +13,13 @@
     ;; if no rules are set, allow the evaluation.
     (not zero-trust-rbac)))
 
-(defn install-entity-policies [event-name spec]
+(defn install-entity-policies
+  "Check if policies are defined for the entity in spec.
+   Apply those policies to the event, so entity operations
+   in its dataflow is under the control of these policies.
+   `spec` is a vector [[entity-name1 operation1] ...], where operation
+   is one of `:Upsert`, `:Delete`."
+  [event-name spec]
   (doseq [[n opr] spec]
     (when (cn/find-entity-schema n)
       (doseq [rule (rp/rbac-eval-rules n)]
