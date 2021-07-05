@@ -10,18 +10,18 @@
   (let [now (dt/now-raw)
         inst-with-issued
         (assoc inst :Issued now)]
-    (u/safe-set
+    (u/call-and-set
      db
-     (assoc
-      @db (:Id inst)
-      inst-with-issued))
+     #(assoc
+       @db (:Id inst)
+       inst-with-issued))
     (assoc inst :Issued (dt/as-string now))))
 
 (defn- auth-delete [inst]
   (let [id (:Id inst)]
-    (u/safe-set
+    (u/call-and-set
      db
-     (dissoc @db id))
+     #(dissoc @db id))
     id))
 
 (defn auth-query [id]

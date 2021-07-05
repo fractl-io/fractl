@@ -127,6 +127,11 @@
       :cljs (atom obj)))
   ([] (make-cell nil)))
 
+(defn call-and-set [cell f]
+  #?(:clj (dosync
+           (ref-set cell (f)))
+     :cljs (reset! cell (f))))
+
 (defn safe-set
   ([cell value result]
    #?(:clj (dosync

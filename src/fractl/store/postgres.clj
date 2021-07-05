@@ -36,11 +36,11 @@
           true))
       (close-connection [_]
         (try
-          (do (u/safe-set
+          (do (u/call-and-set
                datasource
-               (when @datasource
-                 (cp/close-pooled-datasource @datasource)
-                 nil))
+               #(when @datasource
+                  (cp/close-pooled-datasource @datasource)
+                  nil))
               true)
           (catch Exception _ false)))
       (connection-info [_]

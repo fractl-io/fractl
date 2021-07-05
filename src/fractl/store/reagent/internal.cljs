@@ -46,9 +46,9 @@
 (defn delete-by-id
   [entity-name id]
   (let [parsed-entity (li/split-path entity-name)]
-    (u/safe-set
+    (u/call-and-set
      inst-store
-     (update-in @inst-store [parsed-entity] dissoc id))
+     #(update-in @inst-store [parsed-entity] dissoc id))
     id))
 
 (defn get-reference

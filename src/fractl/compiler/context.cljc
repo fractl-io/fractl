@@ -10,13 +10,13 @@
   "A record/entity/event encounterd during the compilation
   process. This can be used to validate references downstream."  
   [ctx rec-name schema]
-  (u/safe-set ctx (assoc @ctx rec-name schema)))
+  (u/call-and-set ctx #(assoc @ctx rec-name schema)))
 
 (defn fetch-record [ctx rec-name]
   (get @ctx rec-name))
 
 (defn bind-variable! [ctx k v]
-  (u/safe-set ctx (assoc @ctx k v)))
+  (u/call-and-set ctx #(assoc @ctx k v)))
 
 (defn fetch-variable [ctx k]
   (find @ctx k))
