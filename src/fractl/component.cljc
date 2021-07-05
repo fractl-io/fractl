@@ -75,27 +75,27 @@
   the components in the imports list. If a component already exists with
   the same name, it will be overwritten. Returns the name of the new component."
   [component spec]
-  (u/safe-set
+  (u/call-and-set
    components
-   (let [imports (when-let [imports (:imports spec)]
-                   {:import [imports (li/mappify-alias-imports imports)]
-                    ;; Special alias key for imports
-                    :alias (li/mappify-alias-imports imports)})
-         clj-imports (when-let [clj-imports (:clj-imports spec)]
-                       {:clj [(first (rest clj-imports)) (li/mappify-alias-imports clj-imports)]})
-         java-imports (when-let [java-imports (:java-imports spec)]
-                        {:java (first (rest java-imports))})
-         v8-imports (when-let [v8-imports (:v8-imports spec)]
-                      {:v8 [(first (rest v8-imports)) (li/mappify-alias-imports v8-imports)]})]
-     ;; The interned component has the following structure:
-     ;; {component {:resolver <resolver-config-map>
-     ;;              :import [imports aliases]
-     ;;              :clj [clj-imports aliases]
-     ;;              :java java-imports
-     ;;              :v8 [v8-imports aliases]}}
-     (assoc @components component
-            (merge {:resolver (:resolver spec)}
-                   imports clj-imports java-imports v8-imports))))
+   #(let [imports (when-let [imports (:imports spec)]
+                    {:import [imports (li/mappify-alias-imports imports)]
+                     ;; Special alias key for imports
+                     :alias (li/mappify-alias-imports imports)})
+          clj-imports (when-let [clj-imports (:clj-imports spec)]
+                        {:clj [(first (rest clj-imports)) (li/mappify-alias-imports clj-imports)]})
+          java-imports (when-let [java-imports (:java-imports spec)]
+                         {:java (first (rest java-imports))})
+          v8-imports (when-let [v8-imports (:v8-imports spec)]
+                       {:v8 [(first (rest v8-imports)) (li/mappify-alias-imports v8-imports)]})]
+      ;; The interned component has the following structure:
+      ;; {component {:resolver <resolver-config-map>
+      ;;              :import [imports aliases]
+      ;;              :clj [clj-imports aliases]
+      ;;              :java java-imports
+      ;;              :v8 [v8-imports aliases]}}
+      (assoc @components component
+             (merge {:resolver (:resolver spec)}
+                    imports clj-imports java-imports v8-imports))))
   (intern-attribute [component :Id]
                     {:type :Kernel/UUID
                      :unique true
@@ -107,7 +107,7 @@
   component)
 
 (defn remove-component [component]
-  (u/safe-set components (dissoc @components component)))
+  (u/call-and-set components #(dissoc @components component)))
 
 (defn component-exists? [component]
   (if (find @components component)
@@ -137,12 +137,12 @@
         (str "component not found - " component)
         {:name typname
          :tag typtag}))
-     (u/safe-set
+     (u/call-and-set
       components
-      (assoc-in (if meta
-                  (assoc-in @components (meta-key k) meta)
-                  @components)
-                k typdef))
+      #(assoc-in (if meta
+                   (assoc-in @components (meta-key k) meta)
+                   @components)
+                 k typdef))
      typname))
   ([typname typdef typtag]
    (component-intern typname typdef typtag nil)))
@@ -535,11 +535,12 @@
             (if-not (li/name? aname)
               (recur (rest schema) attributes)
               (let [typname (li/extract-attribute-name atype)]
-                (recur (rest schema)
-                       (if-let [ascm (find-attribute-schema typname)]
-                         (apply-attribute-validation
-                          aname ascm (preproc-attribute-value attributes aname typname))
-                         (ensure-attribute-is-instance-of typname aname attributes)))))
+                (recur
+                 (rest schema)
+                 (if-let [ascm (find-attribute-schema typname)]
+                   (apply-attribute-validation
+                    aname ascm (preproc-attribute-value attributes aname typname))
+                   (ensure-attribute-is-instance-of typname aname attributes)))))
             attributes)))))
 
 (defn validate-attribute-value [attr-name attr-val schema]
@@ -741,17 +742,17 @@
 (defn register-dataflow
   "Attach a dataflow to the event."
   ([event head patterns component]
-   (u/safe-set
+   (u/call-and-set
     components
-    (let [ms @components
-          ename (normalize-type-name (event-name event))
-          path [component :events ename]
-          currpats (get-in ms path [])
-          newpats (conj currpats [event {:head head
-                                         :event-pattern event
+    #(let [ms @components
+           ename (normalize-type-name (event-name event))
+           path [component :events ename]
+           currpats (get-in ms path [])
+           newpats (conj currpats [event {:head head
+                                          :event-pattern event
                                          :patterns patterns
-                                         :opcode (u/make-cell nil)}])]
-      (assoc-in ms path newpats)))
+                                          :opcode (u/make-cell nil)}])]
+       (assoc-in ms path newpats)))
    event)
   ([event head patterns]
    (let [[component _] (li/split-path (event-name event))]
@@ -1066,11 +1067,11 @@
             (conj
              trigs
              [predicate event-name [where-clause rs]]))))))
-  (u/safe-set
+  (u/call-and-set
    trigger-store
-   (assoc
-    @trigger-store
-    (li/split-path event-name) :conditional-event)))
+   #(assoc
+     @trigger-store
+     (li/split-path event-name) :conditional-event)))
 
 (defn conditional-event? [n]
   (= :conditional-event (get @trigger-store (li/split-path n))))
