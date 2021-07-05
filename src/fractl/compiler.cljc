@@ -21,16 +21,16 @@
 (def ^:private rbac-policy-queue (u/make-cell []))
 
 (defn- queue-for-policy! [recname opr]
-  (u/safe-set
+  (u/call-and-set
    rbac-policy-queue
-   (conj @rbac-policy-queue [recname opr])))
+   #(conj @rbac-policy-queue [recname opr])))
 
 (defn- flush-rbac-policies! [event-name]
-  (u/safe-set
+  (u/call-and-set
    rbac-policy-queue
-   (do (rbac/install-entity-policies
-        event-name @rbac-policy-queue)
-       [])))
+   #(do (rbac/install-entity-policies
+         event-name @rbac-policy-queue)
+        [])))
 
 (defn- reset-rbac-policies! []
   (u/safe-set rbac-policy-queue []))
