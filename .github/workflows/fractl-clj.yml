@@ -11,7 +11,7 @@ on:
       - '**'        # matches every branch
 
 jobs:
-  test_clj_and_cljs:
+  test_clj:
     runs-on: ubuntu-latest
     services:
       # Label used to access the service container
@@ -36,7 +36,7 @@ jobs:
       uses: actions/checkout@v2
     - name: Install dependencies
       run: lein deps
-    - name: Run clj test
+    - name: Run fractl.test.query test
       run: lein test fractl.test.query
       env:
         # The hostname used to communicate with the PostgreSQL service container
@@ -44,6 +44,8 @@ jobs:
         # The default PostgreSQL port
         POSTGRES_PORT: 5432
         POSTGRES_PASSWORD: postgres
+    - name: Run fractl test
+      run: lein test
     - name: Clean target
       run: lein clean
     - name: Slack Notification

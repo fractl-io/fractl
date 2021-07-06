@@ -11,7 +11,7 @@ on:
       - '**'        # matches every branch
 
 jobs:
-  test_clj_and_cljs:
+  test_cljs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
