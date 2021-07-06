@@ -16,15 +16,17 @@
 
 (def ^:private allow-all (constantly true))
 
-(defn- compile-rbac-rule [r]
-  (case (first r)
-    :when
-    (rl/compile-rule-pattern (second r))
-    :allow-all
-    (if (= 1 (count r))
-      allow-all
-      (u/throw-ex (str "invalid rule " r)))
-    (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
+(defn- compile-rbac-rule [r rules-on-store]
+  (if-not rules-on-store
+    (case (first r)
+      :when
+      (rl/compile-rule-pattern (second r))
+      :allow-all
+      (if (= 1 (count r))
+        allow-all
+        (u/throw-ex (str "invalid rule " r)))
+      (u/throw-ex (str "invalid clause " (first r) " in rule - " r)))
+    [(vec (first r)) (compile-rbac-rule (second r) false)]))
 
 (def ^:private compile-rule
   {:RBAC compile-rbac-rule
@@ -36,39 +38,10 @@
   (let [[a b] (map name (li/split-path entity-name))]
     (map #(keyword (str a "/" (name %) "_" b)) oprs)))
 
-(declare install-policy)
-
-(defn- install-event-policies
-  "Install policies for the named events."
-  [db policy event-names]
-  (loop [db db, evt-names event-names]
-    (if-let [ename (first evt-names)]
-      (recur
-       (install-policy
-        db
-        (assoc
-         policy
-         :Resource [ename])
-        true)
-       (rest evt-names))
-      db)))
-
-(defn- install-default-event-policies
-  "Install policies for the default events like Upsert_entity and Lookup_entity"
-  [db policy]
-  (let [rule (:Rule policy)
-        f (partial make-default-event-names (first rule))
-        clause (second rule)]
-    (install-event-policies
-     db (assoc policy :Rule clause)
-     (flatten (map #(f %) (:Resource policy))))))
-
 (defn- install-policy
-  "Add a policy to the store. If the compile? flag is ture, the policy
-  rules are compiled with the help of the rule engine. A rule defined
-  for an event resource is always compiled. Rules defined for entities
-  are compiled when new dataflows are declared."
-  [db policy compile?]
+  "Add a policy to the store. The policy rules are compiled with the
+  help of the rule engine."
+  [db policy rule-on-store]
   (let [rule (:Rule policy)
         stg (keyword (:InterceptStage policy))
         stage (if (= stg :Default)
@@ -84,11 +57,9 @@
             db k
             (conj
              (get db k [])
-             (if compile?
-               ((compile-rule intercept) rule)
-               rule)))
+             ((compile-rule intercept) rule rule-on-store)))
            (rest rs)))
-        (if compile? db (install-default-event-policies db policy))))))
+        db))))
 
 (defn- store-opr-name? [n]
   (some #{n} store-opr-names))
@@ -103,7 +74,7 @@
 (defn- save-any-policy [db policy]
   (install-policy
    db policy
-   (not (rule-on-store? (:Rule policy)))))
+   (rule-on-store? (:Rule policy))))
 
 (def ^:private save-policy
   {:RBAC save-any-policy

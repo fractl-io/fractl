@@ -124,6 +124,10 @@
          (conj @inited-components component-name))
      component-name)))
 
+(defn- perform-rbac! [env opr recname]
+  (when-not ((env/rbac-check env) opr recname)
+    (u/throw-ex (str "no permission to execute " opr " on " recname))))
+
 (defn- chained-crud [store-f res resolver-upsert single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
@@ -141,6 +145,7 @@
     [local-result resolver-result]))
 
 (defn- chained-upsert [env event-evaluator record-name insts]
+  (perform-rbac! env :Upsert record-name)
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (when store (maybe-init-schema! store (first record-name)))
@@ -159,6 +164,7 @@
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
 
 (defn- chained-delete [env record-name id]
+  (perform-rbac! env :Delete record-name)
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (chained-crud
@@ -267,6 +273,7 @@
          env]))))
 
 (defn find-instances [env store entity-name full-query]
+  (perform-rbac! env :Lookup entity-name)
   (let [[r env] (find-instances-via-resolvers env entity-name full-query)
         resolver-result (seq (:result r))
         [result env] (if resolver-result

@@ -1,8 +1,9 @@
 (ns fractl.policy.rbac
   (:require [fractl.component :as cn]
+            [fractl.util :as u]
             [fractl.resolver.policy :as rp]))
 
-(defn evaluate?
+(defn evaluate-dataflow?
   "Return true if the event-instance meet
   rules set for pre-eval rbac, if not return
   false."
@@ -13,22 +14,18 @@
     ;; if no rules are set, allow the evaluation.
     (not zero-trust-rbac)))
 
-(defn install-entity-policies
-  "Check if policies are defined for the entity in spec.
-   Apply those policies to the event, so entity operations
-   in its dataflow is under the control of these policies.
-   `spec` is a vector [[entity-name1 operation1] ...], where operation
-   is one of `:Upsert`, `:Delete`."
-  [event-name spec]
-  (doseq [[n opr] spec]
-    (when (cn/find-entity-schema n)
-      (doseq [rule (rp/rbac-eval-rules n)]
-        (when (some #{opr} (first rule))
-          (rp/policy-upsert
-           (cn/make-instance
-            :Kernel/Policy
-            {:Intercept "RBAC"
-             :Resource [event-name]
-             :Rule (second rule)
-             :InterceptStage "Default"}))))))
-  event-name)
+(defn evaluate-opcode?
+  "Return true if it is permitted to perform the specified
+  CRUD action on an entity."
+  [event-instance zero-trust-rbac action rec-name]
+  (if (cn/find-entity-schema rec-name)
+    (if-let [rules (seq (rp/rbac-eval-rules rec-name))]
+      (loop [rules rules]
+        (if-let [rule (first rules)]
+          (if (some #{action} (first rule))
+            (when ((second rule) event-instance)
+              (recur (rest rules)))
+            (recur (rest rules)))
+          true))
+      (not zero-trust-rbac))
+    true))

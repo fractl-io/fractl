@@ -5,10 +5,14 @@
 (def log-levels #{:DEBUG :INFO :WARN :ERROR})
 
 (defn- parse-logging-rule-keys [r]
-  (doseq [k (keys r)]
-    (when-not (some #{k} #{:Disable :PagerThreshold :HideAttributes})
-      (u/throw-ex (str "invalid logging rule - " k))))
-  r)
+  (let [crud-policy (not (map? r))
+        rules (if crud-policy (second r) r)]
+    (doseq [k (keys rules)]
+      (when-not (some #{k} #{:Disable :PagerThreshold :HideAttributes})
+        (u/throw-ex (str "invalid logging rule - " k))))
+    (if crud-policy
+      [(vec (first r)) rules]
+      rules)))
 
 (defn- parse-logging-disable-rule [r]
   (if-let [levels (:Disable r)]
@@ -45,7 +49,7 @@
 
 (defn compile-logging-rule
   "Parse a logging rule for validity, return the rule structure as is."
-  [r]
+  [r _]
   (-> r
       parse-logging-rule-keys
       parse-logging-disable-rule

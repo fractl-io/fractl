@@ -17,10 +17,12 @@
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.root :as r]))
 
+(def ^:private zero-trust-rbac-flag (u/make-cell false))
+(def zero-trust-rbac! (partial u/safe-set zero-trust-rbac-flag))
+
 (defn- dispatch-an-opcode [evaluator env opcode]
-  (if-let [f ((opc/op opcode) i/dispatch-table)]
-    (f evaluator env (opc/arg opcode))
-    (u/throw-ex (str "no dispatcher for opcode - " (opc/op opcode)))))
+  (((opc/op opcode) i/dispatch-table)
+   evaluator env (opc/arg opcode)))
 
 (defn dispatch [evaluator env {opcode :opcode}]
   (if (map? opcode)
@@ -59,7 +61,13 @@
   ([evaluator env event-instance df]
    (let [env (if event-instance
                (env/bind-instance
-                env (li/split-path (cn/instance-name event-instance))
+                (env/bind-rbac-check
+                 env
+                 (partial
+                  rbac/evaluate-opcode?
+                  event-instance
+                  @zero-trust-rbac-flag))
+                (li/split-path (cn/instance-name event-instance))
                 event-instance)
                env)
          [_ dc] (cn/dataflow-opcode df)
@@ -128,21 +136,19 @@
       (u/throw-ex (str "no authorization bound to " auth-id)))
     event-instance))
 
-(def ^:private zero-trust-rbac-flag (u/make-cell false))
-
-(def zero-trust-rbac! (partial u/safe-set zero-trust-rbac-flag))
-
 (defn- run-dataflows
   "Compile and evaluate all dataflows attached to an event. The query-compiler
    and evaluator returned by a previous call to evaluator/make may be passed as
    the first two arguments."
   [compile-query-fn evaluator env event-instance]
   (let [event-instance (enrich-with-auth-owner event-instance)
-        dfs (c/compile-dataflows-for-event compile-query-fn event-instance)
+        dfs (c/compile-dataflows-for-event
+             compile-query-fn @zero-trust-rbac-flag
+             event-instance)
         logging-rules (logging/rules event-instance)
         log-levels (logging/log-levels logging-rules)
         log-warn (some #{:WARN} log-levels)]
-    (if (rbac/evaluate? event-instance @zero-trust-rbac-flag)
+    (if (rbac/evaluate-dataflow? event-instance @zero-trust-rbac-flag)
       (let [log-info (some #{:INFO} log-levels)
             log-error (some #{:ERROR} log-levels)
             hidden-attrs (logging/hidden-attributes logging-rules)

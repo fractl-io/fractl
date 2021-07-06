@@ -187,10 +187,12 @@
        (is (cn/instance-of? :Kernel/Policy p2))
        (is (= [{:Disable [:INFO], :PagerThreshold
                 {:WARN {:count 5, :duration-minutes 10},
-                 :ERROR {:count 3, :duration-minutes 5}}}
-               {:HideAttributes [[[:LP :User] [:Password]]
-                                 [[:LP :Upsert_User] [:Instance :Password]]]}]
+                 :ERROR {:count 3, :duration-minutes 5}}}]
               (rp/logging-eval-rules [:LP :Upsert_User])))
+       (is (= [[[:Upsert :Lookup]
+                {:HideAttributes
+                 [:LP/User.Password :LP/Upsert_User.Instance.Password]}]]
+              (rp/logging-eval-rules [:LP :User])))
        (tu/is-error
         #(tu/first-result
           (cn/make-instance
@@ -203,18 +205,15 @@
                 :Rule [:q#
                        [[:Upsert :Lookup]
                         {:InvalidPolicyKey 123}]]}})}})))
-       (let [evt (cn/make-instance
-                  {:LP/Upsert_User
-                   {:Instance
-                    (cn/make-instance
-                     {:LP/User
-                      {:UserName "abc"
-                       :Password "abc123"
-                       :DOB "2000-03-20T00:00:00.000000"}})}})
-             rules (pl/rules evt)]
-         (is (= [[[:LP :User] [:Password]] [[:LP :Upsert_User] [:Instance :Password]]]
+       (let [user (cn/make-instance
+                   {:LP/User
+                    {:UserName "abc"
+                     :Password "abc123"
+                     :DOB "2000-03-20T00:00:00.000000"}})
+             rules (pl/rules user)]
+         (is (= [:LP/User.Password :LP/Upsert_User.Instance.Password]
                 (pl/hidden-attributes rules)))
-         (is (= #{:WARN :ERROR :DEBUG} (pl/log-levels rules))))))))
+         (is (= #{:WARN :ERROR :DEBUG :INFO} (pl/log-levels rules))))))))
 
 (deftest zero-trust-rbac
   (#?(:clj do
