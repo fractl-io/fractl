@@ -95,6 +95,15 @@
   {:Intercept "RBAC"
    :Resource ["Kernel/Authentication"]
    :Rule [:q# [[:Upsert :Delete] [:allow-all]]]}}
+ {:Kernel/Policy
+  {:Intercept "RBAC"
+   :Resource ["Sample.Simple/Employee"]
+   :Rule [:q# [[:Lookup]
+               [:when
+                [:or
+                 [= [:Sample.Simple :EmployeeLogin] :name]
+                 [:= "admin" :EventContext.Auth.Owner.Group]
+                 [:= :EventContext.Auth.Owner.Id :EventContext.Data.Id]]]]]}}
  {:Employee
   {:DeptNo 101
    :Group "admin"

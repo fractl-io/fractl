@@ -10,7 +10,22 @@
 (def PRE-EVAL :PreEval)
 (def POST-EVAL :PostEval)
 
-(def ^:private policy-db (u/make-cell {:RBAC {} :Logging {}}))
+(def ^:private lock
+  #?(:clj (java.util.concurrent.locks.ReentrantLock.)))
+
+(def ^:private policy-db
+  #?(:clj (java.util.HashMap.)
+     :cljs (u/make-cell {:RBAC {} :Logging {}})))
+
+(defn- with-lock [f]
+  #?(:clj
+     (do
+       (.lock lock)
+       (try
+         (f)
+         (finally
+           (.unlock lock))))
+     :cljs (f)))
 
 (def ^:private store-opr-names #{:Upsert :Delete :Lookup})
 
@@ -51,12 +66,13 @@
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
         (let [r (li/split-path r)
-              k [r stage]]
+              k [r stage]
+              rls (get db k [])]
           (recur
            (assoc
             db k
             (conj
-             (get db k [])
+             rls
              ((compile-rule intercept) rule rule-on-store)))
            (rest rs)))
         db))))
@@ -87,6 +103,23 @@
       (assoc inst :Rule (second rule))
       inst)))
 
+(defn- intercept-db [k]
+  #?(:clj
+     (or (.get policy-db k)
+         {})
+     :cljs (get @policy-db k {})))
+
+(defn- write-policy! [k inst]
+  (let [db ((k save-policy)
+            (intercept-db k)
+            inst)]
+    #?(:clj
+       (.put policy-db k db)
+       :cljs
+       (u/call-and-set
+        policy-db
+        #(assoc @policy-db k db)))))
+
 (defn policy-upsert
   "Add a policy object to the policy store"
   [inst]
@@ -95,11 +128,9 @@
         save-fn (k save-policy)]
     (when-not save-fn
       (u/throw-ex (str "policy intercept not supported - " k)))
-    (let [db (get @policy-db k {})
-          _ (u/call-and-set
-             policy-db
-             #(assoc @policy-db k ((k save-policy) db inst)))]
-      inst)))
+    (with-lock
+      #(write-policy! k inst))
+    inst))
 
 (defn- policy-delete [inst]
   ;; TODO: implement delete
@@ -123,7 +154,12 @@
   "Return the RBAC polices stored at the key provided.
   Key should be a path."
   [intercept stage k]
-  (get-in @policy-db [intercept [(li/split-path k) stage]]))
+  (let [pk [(li/split-path k) stage]]
+    #?(:clj
+       (with-lock
+         #(let [db (intercept-db intercept)]
+            (get db pk)))
+       :cljs (get-in @policy-db [intercept pk]))))
 
 (def rbac-eval-rules (partial eval-rules :RBAC PRE-EVAL))
 (def logging-eval-rules (partial eval-rules :Logging PRE-EVAL))

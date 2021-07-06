@@ -17,15 +17,16 @@
 (defn evaluate-opcode?
   "Return true if it is permitted to perform the specified
   CRUD action on an entity."
-  [event-instance zero-trust-rbac action rec-name]
+  [event-instance zero-trust-rbac action rec-name caller-data]
   (if (cn/find-entity-schema rec-name)
-    (if-let [rules (seq (rp/rbac-eval-rules rec-name))]
-      (loop [rules rules]
-        (if-let [rule (first rules)]
-          (if (some #{action} (first rule))
-            (when ((second rule) event-instance)
+    (let [evt (assoc-in event-instance [:EventContext :Data] caller-data)]
+      (if-let [rules (seq (rp/rbac-eval-rules rec-name))]
+        (loop [rules rules]
+          (if-let [rule (first rules)]
+            (if (some #{action} (first rule))
+              (when ((second rule) evt)
+                (recur (rest rules)))
               (recur (rest rules)))
-            (recur (rest rules)))
-          true))
-      (not zero-trust-rbac))
+            true))
+        (not zero-trust-rbac)))
     true))
