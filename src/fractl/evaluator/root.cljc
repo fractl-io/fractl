@@ -149,19 +149,20 @@
     [local-result resolver-result]))
 
 (defn- chained-upsert [env event-evaluator record-name insts]
-  (perform-rbac! env :Upsert record-name insts)
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (when store (maybe-init-schema! store (first record-name)))
     (if (env/any-dirty? env insts)
-      (let [[local-result resolver-result]
-            (chained-crud
-             (when store (partial store/upsert-instances store record-name))
-             resolver (partial resolver-upsert env) nil insts)
-            conditional-event-results
-            (fire-all-conditional-events
-             event-evaluator env store local-result)]
-        [(concat local-result conditional-event-results) resolver-result])
+      (do
+        (perform-rbac! env :Upsert record-name insts)
+        (let [[local-result resolver-result]
+              (chained-crud
+               (when store (partial store/upsert-instances store record-name))
+               resolver (partial resolver-upsert env) nil insts)
+              conditional-event-results
+              (fire-all-conditional-events
+               event-evaluator env store local-result)]
+          [(concat local-result conditional-event-results) resolver-result]))
       [insts nil])))
 
 (defn- delete-by-id [store record-name del-list]
