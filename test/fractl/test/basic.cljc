@@ -234,7 +234,7 @@
         evt (cn/make-instance :Df04/Upsert_E1 {:Instance e})
         e1 (ffirst (tu/fresult (e/eval-all-dataflows evt)))
         id (:Id e1)
-        e2 (cn/make-instance :Df04/E2 {:AId id
+        e2 (cn/make-instance :Df04/E2 {:AId (:Id e1)
                                        :X 20})
         evt (cn/make-instance :Df04/PostE2 {:E1 e1})
         result (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
@@ -302,14 +302,14 @@
                            :X :Kernel/Int}}))
   (let [e (cn/make-instance :RefCheck/E1 {:A 100})
         id (:Id e)
-        e2 (cn/make-instance :RefCheck/E2 {:AId id :X 20})
+        e2 (cn/make-instance :RefCheck/E2 {:AId (:Id e) :X 20})
         evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})]
     (tu/is-error
      #(tu/fresult (e/eval-all-dataflows evt)))
     (let [evt (cn/make-instance :RefCheck/Upsert_E1 {:Instance e})
           e1 (ffirst (tu/fresult (e/eval-all-dataflows evt)))
           id (:Id e1)
-          e2 (cn/make-instance :RefCheck/E2 {:AId id :X 20})
+          e2 (cn/make-instance :RefCheck/E2 {:AId (:Id e1) :X 20})
           evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})
           inst (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
       (is (cn/instance-of? :RefCheck/E2 inst))
