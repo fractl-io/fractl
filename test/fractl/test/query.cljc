@@ -1,5 +1,5 @@
 (ns fractl.test.query
-  (:require #?(:clj [clojure.test :refer [deftest is]]
+  (:require #?(:clj  [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
             [fractl.store :as store]
@@ -7,13 +7,17 @@
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
+            #?(:clj  [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
 #?(:clj
    (def store (store/open-default-store
-               ;; To test potgres, uncomment the following,
-               ;; {:type :postgres}
+               ;; To test postgres in CI, uncomment the following,
+               {:type :postgres
+                :host (System/getenv "POSTGRES_HOST")
+                :dbname "postgres"
+                :username "postgres"
+                :password (System/getenv "POSTGRES_PASSWORD")}
                ))
    :cljs
    (def store (store/open-default-store {:type :alasql})))
@@ -180,7 +184,7 @@
   (let [e (cn/make-instance :QIdDel/E {:X 100})
         e01 (ffirst (tu/fresult (e/eval-all-dataflows {:QIdDel/Upsert_E {:Instance e}})))
         id (:Id e01)
-        devt (cn/make-instance :QIdDel/FindByIdAndDel {:EId id})
+        devt (cn/make-instance :QIdDel/FindByIdAndDel {:EId (:Id e01)})
         _ (doall (e/eval-all-dataflows devt))
         levt (cn/make-instance :QIdDel/Lookup_E {:Id id})
         lookup-result (doall (e/eval-all-dataflows levt))]
@@ -250,7 +254,9 @@
   (defcomponent :Dt01
                 (entity {:Dt01/E {:Name :Kernel/String
                                   :LastAccountAccess {:type :Kernel/DateTime
-                                                      :unique true}}}))
+                                                      ;; Disable this for postgres
+                                                      ;:unique true
+                                                      }}}))
   (let [e (cn/make-instance :Dt01/E {:Name "Birkhe" :LastAccountAccess "2018-07-28T12:15:30"})
         e1 (ffirst (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
         id (:Id e1)

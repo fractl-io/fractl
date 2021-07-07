@@ -5,6 +5,7 @@
             [fractl.store.util :as su]
             [fractl.store.sql :as sql]
             #?(:clj [fractl.store.jdbc-internal :as ji])
+            #?(:clj [fractl.store.postgres-internal :as pi])
             #?(:clj [fractl.store.h2-internal :as h2i]
                :cljs [fractl.store.alasql-internal :as aqi])))
 
@@ -222,7 +223,7 @@
 
 (defn- delete-indices!
   "Delete index entries relevant for an entity instance."
-  [conn entity-table-name indexed-attrs id]
+  [conn entity-table-name indexed-attrs id delete-index-statement]
   (let [index-tabnames (su/index-table-names entity-table-name indexed-attrs)]
     (doseq [[attrname tabname] index-tabnames]
       (let [[pstmt params] (delete-index-statement
@@ -232,19 +233,22 @@
 
 (defn- delete-inst!
   "Delete an entity instance."
-  [conn tabname id]
+  [conn tabname id delete-by-id-statement]
   (let [[pstmt params] (delete-by-id-statement conn tabname id)]
     (execute-stmt! conn pstmt params)))
 
-(defn delete-by-id [datasource entity-name id]
-  (let [tabname (su/table-for-entity entity-name)
-        entity-schema (su/find-entity-schema entity-name)
-        indexed-attrs (cn/indexed-attributes entity-schema)]
-    (transact-fn! datasource
-               (fn [txn]
-                 (delete-indices! txn tabname indexed-attrs id)
-                 (delete-inst! txn tabname id)))
-    id))
+(defn delete-by-id
+  ([delete-by-id-statement delete-index-statement datasource entity-name id]
+   (let [tabname (su/table-for-entity entity-name)
+         entity-schema (su/find-entity-schema entity-name)
+         indexed-attrs (cn/indexed-attributes entity-schema)]
+     (transact-fn! datasource
+                   (fn [txn]
+                     (delete-indices! txn tabname indexed-attrs id delete-index-statement)
+                     (delete-inst! txn tabname id delete-by-id-statement)))
+     id))
+  ([datasource entity-name id]
+   (delete-by-id delete-by-id-statement delete-index-statement datasource entity-name id)))
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        su/table-for-entity
@@ -277,24 +281,28 @@
 
 (defn query-by-unique-keys
   "Query the instance by a unique-key value."
-  [datasource entity-name unique-keys attribute-values]
-  (when-not (and (= 1 (count unique-keys)) (= :Id (first unique-keys)))
-    (let [ks (filter #(not= :Id %) unique-keys)]
-      (first
-       (filter
-        identity
-        (map
-         (fn [k]
-           (let [c (compile-to-indexed-query
-                    {:from entity-name
-                     :where [:= k (get attribute-values k)]})
-                 id-query (:query (first (:id-queries c)))
-                 id-result (do-query datasource (first id-query) (rest id-query))]
-             (when (seq id-result)
-               (let [id (second (first (filter (fn [[k _]] (= "ID" (s/upper-case (name k)))) (first id-result))))
-                     result (query-by-id datasource entity-name (:query c) [id])]
-                 (first result)))))
-         ks))))))
+  ([query-by-id-statement datasource entity-name unique-keys attribute-values]
+   (when-not (and (= 1 (count unique-keys)) (= :Id (first unique-keys)))
+     (let [ks (filter #(not= :Id %) unique-keys)]
+       (first
+         (filter
+           identity
+           (map
+             (fn [k]
+               (let [c (compile-to-indexed-query
+                         {:from  entity-name
+                          :where [:= k (get attribute-values k)]})
+                     id-query (:query (first (:id-queries c)))
+                     id-result (do-query datasource (first id-query) (rest id-query))]
+                 (when (seq id-result)
+                   (let [id (second (first (filter (fn [[k _]] (= "ID" (s/upper-case (name k)))) (first id-result))))
+                         result (if query-by-id-statement
+                                  (query-by-id query-by-id-statement datasource entity-name (:query c) [id])
+                                  (query-by-id datasource entity-name (:query c) [id]))]
+                     (first result)))))
+             ks))))))
+  ([datasource entity-name unique-keys attribute-values]
+   (query-by-unique-keys nil datasource entity-name unique-keys attribute-values)))
 
 (defn query-all [datasource entity-name query-sql]
   (execute-fn!
