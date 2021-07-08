@@ -53,10 +53,9 @@
        (li/operator? p) (operator-name p)
        (li/name? p) (accessor-expression p)
        (vector? p)
-       (let [r (compile-one-rule-pattern p)]
-         (if (li/operator? (first p))
-           r
-           (vec r)))
+       (if (li/operator? (first p))
+         (compile-one-rule-pattern p)
+         p)
        :else p))
    pat))
 

@@ -9,6 +9,7 @@
             [fractl.resolver.policy :as rp]
             [fractl.resolver.auth :as auth]
             [fractl.policy.logging :as pl]
+            [fractl.policy.rbac :as rbac]
             [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -21,6 +22,8 @@
 
 (defn- ctx [auth]
   {:Auth (:Id auth)})
+
+(rbac/init!)
 
 (deftest event-rbac-policies
   (#?(:clj do
@@ -189,9 +192,9 @@
                 {:WARN {:count 5, :duration-minutes 10},
                  :ERROR {:count 3, :duration-minutes 5}}}]
               (rp/logging-eval-rules [:LP :Upsert_User])))
-       (is (= [[[:Upsert :Lookup]
-                {:HideAttributes
-                 [:LP/User.Password :LP/Upsert_User.Instance.Password]}]]
+       (is (= [[:Upsert :Lookup]
+               {:HideAttributes
+                [:LP/User.Password :LP/Upsert_User.Instance.Password]}]
               (rp/logging-eval-rules [:LP :User])))
        (tu/is-error
         #(tu/first-result

@@ -4,6 +4,7 @@
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
+            [fractl.policy.rbac :as rbac]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.lang.loader :as loader])
@@ -81,6 +82,7 @@
       (register-resolvers! (:resolvers config))
       (let [ev (e/public-evaluator (:store config) true)]
         (trigger-appinit-event! ev (:init-data model))
+        (rbac/init!)
         (e/zero-trust-rbac!
          (let [f (:zero-trust-rbac config)]
            (or (nil? f) f)))

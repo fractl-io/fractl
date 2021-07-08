@@ -74,6 +74,16 @@
  {:Kernel/Authentication
   {:Owner :Sample.Simple/Employee}})
 
+(def admin-rule [:when
+                 [:= "admin" :EventContext.Auth.Owner.Group]])
+
+(def self-or-admin-rule
+  [:when
+   [:or
+    [:= [:Sample.Simple :EmployeeLogin] :name]
+    [:= "admin" :EventContext.Auth.Owner.Group]
+    [:= :EventContext.Auth.Owner.Id :EventContext.Data.Id]]])
+
 (dataflow
  :EmployeeLoginPolicy
  {:Kernel/Policy
@@ -86,18 +96,18 @@
  {:Kernel/Policy
   {:Intercept "RBAC"
    :Resource ["Sample.Simple/Upsert_Employee"]
-   :Rule [:q#
-          [:when
-           [:= "admin" :EventContext.Auth.Owner.Group]]]}}
-  {:Kernel/Policy
+   :Rule [:q# admin-rule]}}
+ {:Kernel/Policy
+  {:Intercept "RBAC"
+   :Resource ["Sample.Simple/Lookup_Employee"]
+   :Rule [:q# [:allow-all]]}}
+ {:Kernel/Policy
   {:Intercept "RBAC"
    :Resource ["Sample.Simple/Employee"]
-   :Rule [:q# [[:Lookup :Upsert]
-               [:when
-                [:or
-                 [= [:Sample.Simple :EmployeeLogin] :name]
-                 [:= "admin" :EventContext.Auth.Owner.Group]
-                 [:= :EventContext.Auth.Owner.Id :EventContext.Data.Id]]]]]}})
+   :Rule [:q# [[:Lookup]
+               self-or-admin-rule
+               [:Upsert]
+               admin-rule]]}})
 
 (event :FindContractor {:Contractor :Kernel/UUID})
 
@@ -110,20 +120,16 @@
  {:Kernel/Policy
   {:Intercept "RBAC"
    :Resource ["Sample.Simple/Upsert_Contractor"]
-   :Rule [:q#
-          [:when
-           [:= "admin" :EventContext.Auth.Owner.Group]]]}}
+   :Rule [:q# admin-rule]}}
  {:Kernel/Policy
   {:Intercept "RBAC"
    :Resource ["Sample.Simple/Contractor"]
    :Rule [:q# [[:Upsert]
-               [:when
-                [:= "admin" :EventContext.Auth.Owner.Group]]]]}}
+               admin-rule]]}}
  {:Kernel/Policy
   {:Intercept "RBAC"
    :Resource ["Sample.Simple/FindContractor"]
-   :Rule [:q# [:when
-               [:= "admin" :EventContext.Auth.Owner.Group]]]}})
+   :Rule [:q# admin-rule]}})
 
 (dataflow
  :Kernel/AppInit

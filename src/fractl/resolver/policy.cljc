@@ -31,17 +31,29 @@
 
 (def ^:private allow-all (constantly true))
 
-(defn- compile-rbac-rule [r rules-on-store]
-  (if-not rules-on-store
-    (case (first r)
+(declare compile-rbac-rule)
+
+(defn- compile-crud-rules [rs]
+  (loop [rs rs, result []]
+    (if-let [hd (first rs)]
+      (recur (nthrest rs 2)
+             (conj
+              result
+              [(vec hd)
+               (compile-rbac-rule (second rs) false)]))
+      result)))
+
+(defn- compile-rbac-rule [rs crud-rule]
+  (if crud-rule
+    (compile-crud-rules rs)
+    (case (first rs)
       :when
-      (rl/compile-rule-pattern (second r))
+      (rl/compile-rule-pattern (second rs))
       :allow-all
-      (if (= 1 (count r))
+      (if (= 1 (count rs))
         allow-all
-        (u/throw-ex (str "invalid rule " r)))
-      (u/throw-ex (str "invalid clause " (first r) " in rule - " r)))
-    [(vec (first r)) (compile-rbac-rule (second r) false)]))
+        (u/throw-ex (str "invalid rule " rs)))
+      (u/throw-ex (str "invalid clause " (first rs) " in rule - " rs)))))
 
 (def ^:private compile-rule
   {:RBAC compile-rbac-rule
@@ -56,13 +68,14 @@
 (defn- install-policy
   "Add a policy to the store. The policy rules are compiled with the
   help of the rule engine."
-  [db policy rule-on-store]
+  [db policy crud-rule]
   (let [rule (:Rule policy)
         stg (keyword (:InterceptStage policy))
         stage (if (= stg :Default)
                 PRE-EVAL
                 stg)
-        intercept (keyword (:Intercept policy))]
+        intercept (keyword (:Intercept policy))
+        add-rule (if crud-rule concat conj)]
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
         (let [r (li/split-path r)
@@ -71,16 +84,16 @@
           (recur
            (assoc
             db k
-            (conj
+            (add-rule
              rls
-             ((compile-rule intercept) rule rule-on-store)))
+             ((compile-rule intercept) rule crud-rule)))
            (rest rs)))
         db))))
 
 (defn- store-opr-name? [n]
   (some #{n} store-opr-names))
 
-(defn- rule-on-store?
+(defn- crud-rule?
   "Return true if the rule specifies CRUD on an entity"
   [rule]
   (let [f (first rule)]
@@ -90,7 +103,7 @@
 (defn- save-any-policy [db policy]
   (install-policy
    db policy
-   (rule-on-store? (:Rule policy))))
+   (crud-rule? (:Rule policy))))
 
 (def ^:private save-policy
   {:RBAC save-any-policy
