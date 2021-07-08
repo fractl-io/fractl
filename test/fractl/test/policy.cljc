@@ -101,7 +101,7 @@
                     {:Intercept "RBAC"
                      :Resource ["ENP/User"]
                      :Rule [:q#
-                            [[:Upsert]
+                            [[:Upsert :Lookup]
                              [:when
                               [:= "admin"
                                :EventContext.Auth.Owner.Group]]]]}})

@@ -21,12 +21,12 @@
   (if (cn/find-entity-schema rec-name)
     (let [evt (assoc-in event-instance [:EventContext :Data] caller-data)]
       (if-let [rules (seq (rp/rbac-eval-rules rec-name))]
-        (loop [rules rules]
+        (loop [rules rules, result false]
           (if-let [rule (first rules)]
             (if (some #{action} (first rule))
               (when ((second rule) evt)
-                (recur (rest rules)))
-              (recur (rest rules)))
-            true))
+                (recur (rest rules) true))
+              (recur (rest rules) false))
+            result))
         (not zero-trust-rbac)))
     true))
