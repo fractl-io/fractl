@@ -10,21 +10,50 @@
 (def PRE-EVAL :PreEval)
 (def POST-EVAL :PostEval)
 
-(def ^:private policy-db (u/make-cell {:RBAC {} :Logging {}}))
+(def ^:private lock
+  #?(:clj (java.util.concurrent.locks.ReentrantLock.)))
+
+(def ^:private policy-db
+  #?(:clj (java.util.HashMap.)
+     :cljs (u/make-cell {:RBAC {} :Logging {}})))
+
+(defn- with-lock [f]
+  #?(:clj
+     (do
+       (.lock lock)
+       (try
+         (f)
+         (finally
+           (.unlock lock))))
+     :cljs (f)))
 
 (def ^:private store-opr-names #{:Upsert :Delete :Lookup})
 
 (def ^:private allow-all (constantly true))
 
-(defn- compile-rbac-rule [r]
-  (case (first r)
-    :when
-    (rl/compile-rule-pattern (second r))
-    :allow-all
-    (if (= 1 (count r))
-      allow-all
-      (u/throw-ex (str "invalid rule " r)))
-    (u/throw-ex (str "invalid clause " (first r) " in rule - " r))))
+(declare compile-rbac-rule)
+
+(defn- compile-crud-rules [rs]
+  (loop [rs rs, result []]
+    (if-let [hd (first rs)]
+      (recur (nthrest rs 2)
+             (conj
+              result
+              [(vec hd)
+               (compile-rbac-rule (second rs) false)]))
+      result)))
+
+(defn- compile-rbac-rule [rs crud-rule]
+  (if crud-rule
+    (compile-crud-rules rs)
+    (case (first rs)
+      :when
+      (rl/compile-rule-pattern (second rs))
+      :allow-all
+      (if (= 1 (count rs))
+        allow-all
+        (u/throw-ex (str "invalid rule " rs)))
+      (u/throw-ex (str "invalid clause " (first rs) " in rule - " rs)))))
 
 (def ^:private compile-rule
   {:RBAC compile-rbac-rule
@@ -36,64 +65,35 @@
   (let [[a b] (map name (li/split-path entity-name))]
     (map #(keyword (str a "/" (name %) "_" b)) oprs)))
 
-(declare install-policy)
-
-(defn- install-event-policies
-  "Install policies for the named events."
-  [db policy event-names]
-  (loop [db db, evt-names event-names]
-    (if-let [ename (first evt-names)]
-      (recur
-       (install-policy
-        db
-        (assoc
-         policy
-         :Resource [ename])
-        true)
-       (rest evt-names))
-      db)))
-
-(defn- install-default-event-policies
-  "Install policies for the default events like Upsert_entity and Lookup_entity"
-  [db policy]
-  (let [rule (:Rule policy)
-        f (partial make-default-event-names (first rule))
-        clause (second rule)]
-    (install-event-policies
-     db (assoc policy :Rule clause)
-     (flatten (map #(f %) (:Resource policy))))))
-
 (defn- install-policy
-  "Add a policy to the store. If the compile? flag is ture, the policy
-  rules are compiled with the help of the rule engine. A rule defined
-  for an event resource is always compiled. Rules defined for entities
-  are compiled when new dataflows are declared."
-  [db policy compile?]
+  "Add a policy to the store. The policy rules are compiled with the
+  help of the rule engine."
+  [db policy crud-rule]
   (let [rule (:Rule policy)
         stg (keyword (:InterceptStage policy))
         stage (if (= stg :Default)
                 PRE-EVAL
                 stg)
-        intercept (keyword (:Intercept policy))]
+        intercept (keyword (:Intercept policy))
+        add-rule (if crud-rule concat conj)]
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
         (let [r (li/split-path r)
-              k [r stage]]
+              k [r stage]
+              rls (get db k [])]
           (recur
            (assoc
             db k
-            (conj
-             (get db k [])
-             (if compile?
-               ((compile-rule intercept) rule)
-               rule)))
+            (add-rule
+             rls
+             ((compile-rule intercept) rule crud-rule)))
            (rest rs)))
-        (if compile? db (install-default-event-policies db policy))))))
+        db))))
 
 (defn- store-opr-name? [n]
   (some #{n} store-opr-names))
 
-(defn- rule-on-store?
+(defn- crud-rule?
   "Return true if the rule specifies CRUD on an entity"
   [rule]
   (let [f (first rule)]
@@ -103,7 +103,7 @@
 (defn- save-any-policy [db policy]
   (install-policy
    db policy
-   (not (rule-on-store? (:Rule policy)))))
+   (crud-rule? (:Rule policy))))
 
 (def ^:private save-policy
   {:RBAC save-any-policy
@@ -116,6 +116,23 @@
       (assoc inst :Rule (second rule))
       inst)))
 
+(defn- intercept-db [k]
+  #?(:clj
+     (or (.get policy-db k)
+         {})
+     :cljs (get @policy-db k {})))
+
+(defn- write-policy! [k inst]
+  (let [db ((k save-policy)
+            (intercept-db k)
+            inst)]
+    #?(:clj
+       (.put policy-db k db)
+       :cljs
+       (u/call-and-set
+        policy-db
+        #(assoc @policy-db k db)))))
+
 (defn policy-upsert
   "Add a policy object to the policy store"
   [inst]
@@ -124,11 +141,9 @@
         save-fn (k save-policy)]
     (when-not save-fn
       (u/throw-ex (str "policy intercept not supported - " k)))
-    (let [db (get @policy-db k {})
-          _ (u/call-and-set
-             policy-db
-             #(assoc @policy-db k ((k save-policy) db inst)))]
-      inst)))
+    (with-lock
+      #(write-policy! k inst))
+    inst))
 
 (defn- policy-delete [inst]
   ;; TODO: implement delete
@@ -152,7 +167,12 @@
   "Return the RBAC polices stored at the key provided.
   Key should be a path."
   [intercept stage k]
-  (get-in @policy-db [intercept [(li/split-path k) stage]]))
+  (let [pk [(li/split-path k) stage]]
+    #?(:clj
+       (with-lock
+         #(let [db (intercept-db intercept)]
+            (get db pk)))
+       :cljs (get-in @policy-db [intercept pk]))))
 
 (def rbac-eval-rules (partial eval-rules :RBAC PRE-EVAL))
 (def logging-eval-rules (partial eval-rules :Logging PRE-EVAL))

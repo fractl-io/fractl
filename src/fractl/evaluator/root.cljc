@@ -124,6 +124,14 @@
          (conj @inited-components component-name))
      component-name)))
 
+(defn- perform-rbac! [env opr recname data]
+  (when-not ((env/rbac-check env)
+             opr recname
+             (if (or (map? data) (string? data))
+               data
+               (first data)))
+    (u/throw-ex (str "no permission to execute " opr " on " recname))))
+
 (defn- chained-crud [store-f res resolver-upsert single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
@@ -145,20 +153,23 @@
         resolver (env/get-resolver env)]
     (when store (maybe-init-schema! store (first record-name)))
     (if (env/any-dirty? env insts)
-      (let [[local-result resolver-result]
-            (chained-crud
-             (when store (partial store/upsert-instances store record-name))
-             resolver (partial resolver-upsert env) nil insts)
-            conditional-event-results
-            (fire-all-conditional-events
-             event-evaluator env store local-result)]
-        [(concat local-result conditional-event-results) resolver-result])
+      (do
+        (perform-rbac! env :Upsert record-name insts)
+        (let [[local-result resolver-result]
+              (chained-crud
+               (when store (partial store/upsert-instances store record-name))
+               resolver (partial resolver-upsert env) nil insts)
+              conditional-event-results
+              (fire-all-conditional-events
+               event-evaluator env store local-result)]
+          [(concat local-result conditional-event-results) resolver-result]))
       [insts nil])))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
 
 (defn- chained-delete [env record-name id]
+  (perform-rbac! env :Delete record-name id)
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (chained-crud
@@ -272,6 +283,7 @@
         [result env] (if resolver-result
                        [resolver-result env]
                        (find-instances-in-store env store entity-name full-query))]
+    (perform-rbac! env :Lookup entity-name result)
     [result (env/bind-instances env entity-name result)]))
 
 (defn- validated-instance [record-name obj]

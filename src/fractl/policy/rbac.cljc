@@ -1,34 +1,39 @@
 (ns fractl.policy.rbac
   (:require [fractl.component :as cn]
+            [fractl.util :as u]
             [fractl.resolver.policy :as rp]))
 
-(defn evaluate?
+(def ^:private rbac-inited (u/make-cell false))
+
+(defn init! []
+  (u/safe-set rbac-inited true))
+
+(defn evaluate-dataflow?
   "Return true if the event-instance meet
   rules set for pre-eval rbac, if not return
   false."
   [event-instance zero-trust-rbac]
-  (if-let [rules (rp/rbac-eval-rules
-                  (cn/instance-name event-instance))]
-    (every? #(% event-instance) rules)
-    ;; if no rules are set, allow the evaluation.
-    (not zero-trust-rbac)))
+  (if @rbac-inited
+    (if-let [rules (rp/rbac-eval-rules
+                    (cn/instance-name event-instance))]
+      (every? #(% event-instance) rules)
+      ;; if no rules are set, allow the evaluation.
+      (not zero-trust-rbac))
+    true))
 
-(defn install-entity-policies
-  "Check if policies are defined for the entity in spec.
-   Apply those policies to the event, so entity operations
-   in its dataflow is under the control of these policies.
-   `spec` is a vector [[entity-name1 operation1] ...], where operation
-   is one of `:Upsert`, `:Delete`."
-  [event-name spec]
-  (doseq [[n opr] spec]
-    (when (cn/find-entity-schema n)
-      (doseq [rule (rp/rbac-eval-rules n)]
-        (when (some #{opr} (first rule))
-          (rp/policy-upsert
-           (cn/make-instance
-            :Kernel/Policy
-            {:Intercept "RBAC"
-             :Resource [event-name]
-             :Rule (second rule)
-             :InterceptStage "Default"}))))))
-  event-name)
+(defn evaluate-opcode?
+  "Return true if it is permitted to perform the specified
+  CRUD action on an entity."
+  [event-instance zero-trust-rbac action rec-name caller-data]
+  (if (and @rbac-inited (cn/find-entity-schema rec-name))
+    (let [evt (assoc-in event-instance [:EventContext :Data] caller-data)]
+      (if-let [rules (seq (rp/rbac-eval-rules rec-name))]
+        (loop [rules rules, result false]
+          (if-let [rule (first rules)]
+            (if (some #{action} (first rule))
+              (when ((second rule) evt)
+                (recur (rest rules) true))
+              (recur (rest rules) result))
+            result))
+        (not zero-trust-rbac)))
+    true))
