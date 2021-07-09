@@ -16,6 +16,11 @@
 (defn op? [tag opc]
   (= (op opc) tag))
 
+(def new-instance-opcode? (partial op? :new-instance))
+(def query-instances-opcode? (partial op? :query-instances))
+(def load-instance-opcode? (partial op? :load-instance))
+(def intern-instance-opcode? (partial op? :intern-instance))
+
 (macros/deftime
   ;; anything inside a deftime block will only appear at the macro compilation stage.
   (defmacro defopcode [opc]

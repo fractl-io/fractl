@@ -11,7 +11,10 @@
 (defn- rules-with-key [rules k]
   (filter
    identity
-   (map k rules)))
+   (map #(if (map? %)
+           (k %)
+           (k (second %)))
+        rules)))
 
 (defn log-levels [rules]
   (set/difference

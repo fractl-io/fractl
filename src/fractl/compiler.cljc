@@ -6,7 +6,6 @@
             [fractl.util.seq :as us]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
-            [fractl.policy.rbac :as rbac]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.compiler.rule :as rule]
@@ -17,23 +16,6 @@
 
 (def ^:private emit-load-literal op/load-literal)
 (def ^:private emit-load-instance-by-name op/load-instance)
-
-(def ^:private rbac-policy-queue (u/make-cell []))
-
-(defn- queue-for-policy! [recname opr]
-  (u/call-and-set
-   rbac-policy-queue
-   #(conj @rbac-policy-queue [recname opr])))
-
-(defn- flush-rbac-policies! [event-name]
-  (u/call-and-set
-   rbac-policy-queue
-   #(do (rbac/install-entity-policies
-         event-name @rbac-policy-queue)
-        [])))
-
-(defn- reset-rbac-policies! []
-  (u/safe-set rbac-policy-queue []))
 
 (defn- emit-load-references [[rec-name alias :as n] refs]
   (when (cv/validate-references rec-name refs)
@@ -46,7 +28,6 @@
   (op/for-each [bind-pattern-code body-code alias]))
 
 (defn- emit-delete [recname id-pat-code]
-  (queue-for-policy! recname :Delete)
   (op/delete-instance [recname id-pat-code]))
 
 (def ^:private runtime-env-var '--env--)
@@ -210,8 +191,12 @@
     (compile-list-literal ctx aname valpat)
     (op/set-literal-attribute attr)))
 
+(defn- build-record-for-upsert? [attrs]
+  (or (seq (:compound attrs))
+      (seq (:computed attrs))
+      (seq (:sorted attrs))))
+
 (defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
-  (queue-for-policy! rec-name :Upsert)
   (concat [(begin-build-instance rec-name attrs)]
           (map (partial set-literal-attribute ctx)
                (:computed attrs))
@@ -488,29 +473,30 @@
   ctx)
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
-  (reset-rbac-policies!)
-  (let [c (partial compile-pattern (maybe-mark-conditional-df ctx evt-pattern))
+  (let [c (partial
+           compile-pattern
+           (maybe-mark-conditional-df ctx evt-pattern))
         ec (c evt-pattern)
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
         result [ec (doall (map c df-patterns))]]
-    (flush-rbac-policies! ename)
     result))
 
-(defn- maybe-compile-dataflow [compile-query-fn df]
+(defn- maybe-compile-dataflow [compile-query-fn zero-trust-rbac df]
   (when-not (cn/dataflow-opcode df)
     (let [ctx (make-context)]
       (ctx/bind-compile-query-fn! ctx compile-query-fn)
+      (ctx/bind-variable! ctx :zero-trust-rbac zero-trust-rbac)
       (cn/set-dataflow-opcode!
        df (compile-dataflow
            ctx (cn/dataflow-event-pattern df)
            (cn/dataflow-patterns df)))))
   df)
 
-(defn compile-dataflows-for-event [compile-query-fn event]
+(defn compile-dataflows-for-event [compile-query-fn zero-trust-rbac event]
   (doall
-   (map (partial maybe-compile-dataflow compile-query-fn)
+   (map (partial maybe-compile-dataflow compile-query-fn zero-trust-rbac)
         (cn/dataflows-for-event event))))
 
 (defn- reference-attributes [attrs refrec]
