@@ -2,25 +2,12 @@
   (:require #?(:clj  [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
-            [fractl.store :as store]
             [fractl.evaluator :as e]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
             #?(:clj  [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
-
-#?(:clj
-   (def store (store/open-default-store
-               ;; To test postgres in CI, uncomment the following,
-               {:type :postgres
-                :host (System/getenv "POSTGRES_HOST")
-                :dbname "postgres"
-                :username "postgres"
-                :password (System/getenv "POSTGRES_PASSWORD")}
-               ))
-   :cljs
-   (def store (store/open-default-store {:type :alasql})))
 
 (deftest q01
   (defcomponent :Q01
