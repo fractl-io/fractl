@@ -1,5 +1,7 @@
 # fractl
-![FractlCI](https://github.com/fractl-io/fractl/workflows/FractlCI/badge.svg)
+[![AppCI](https://github.com/fractl-io/fractl/actions/workflows/app.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/app.yml)
+[![Fractl clj CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml)
+[![Fractl cljs CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml)
 
 Fractl Language for Domain Modeling
 
@@ -93,4 +95,20 @@ Sms resolver requires following keys:
 ```clojure
 {:To "Phone number (e.g. +977XXXXXXXXXX"
  :Body "Text message (e.g. Hi. How are you doing?)"}
+```
+
+## Using docker for postgres
+In macos homebrew based postgres provides false positive so, rather than having deal with
+that, there is alternative to use docker for running postgres as, Dockerfile is provided.
+
+#### Build image:
+
+```shell
+docker build -t postgresql .
+```
+
+#### Run image exposing ports:
+
+```shell
+docker run -p 127.0.0.1:5432:5432/tcp --rm -P --name pg_test postgresql
 ```

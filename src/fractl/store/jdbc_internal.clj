@@ -1,12 +1,13 @@
 (ns fractl.store.jdbc-internal
   (:require [next.jdbc :as jdbc]
-            [next.jdbc.prepare :as jdbcp])
+            [next.jdbc.prepare :as jdbcp]
+            [fractl.util :as u])
   (:import [java.sql PreparedStatement]))
 
 (defn validate-ref-statement [conn index-tabname colname ref]
   (let [sql (str "SELECT 1 FROM " index-tabname " WHERE " colname " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    [pstmt [ref]]))
+    [pstmt [(u/uuid-from-string ref)]]))
 
 (defn query-by-id-statement [conn query-sql id]
   (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]

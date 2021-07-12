@@ -1,7 +1,8 @@
 (ns fractl.test.util
   (:require [fractl.evaluator :as e]
-            #?(:clj [clojure.test :refer [is]]
-               :cljs [cljs.test :refer-macros [is]])))
+            #?(:clj  [clojure.test :refer [is]]
+               :cljs [cljs.test :refer-macros [is]])
+            [fractl.store :as store]))
 
 (defn- report-expected-ex [ex]
   (println (str "Expected exception in test: "
@@ -38,3 +39,12 @@
   (ffirst
    (fresult
     (e/eval-all-dataflows evt))))
+
+(store/open-default-store
+  ;; To test postgres in CI, uncomment the following,
+  #?(:clj {:type     :postgres
+           :host     (System/getenv "POSTGRES_HOST")
+           :dbname   "postgres"
+           :username "postgres"
+           :password (System/getenv "POSTGRES_PASSWORD")}
+     :cljs {:type :alasql}))
