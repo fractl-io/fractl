@@ -62,7 +62,7 @@ jobs:
           prerelease: false
 
       - name: Cleanup jar
-        run |
+        run: |
           rm -r lib/fractl-${{env.RELEASE_VERSION}}.jar
           rm -r lib/fractl-${{env.RELEASE_VERSION}}-standalone.jar
           lein clean
