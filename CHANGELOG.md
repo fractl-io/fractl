@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.4] - 2021-07-13
 
+## [0.1.4] - 2021-07-13
+
 -   Zero-trust RBAC - events execution and CRUD on entities require RBAC.
 -   Trigger AppInit event on startup.
 -   Data race fix in cell update.
@@ -36,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 -   Everything since the beginning!
 
 [Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.4...HEAD
+
+[0.1.4]: https://github.com/fractl-io/fractl/compare/0.1.4...0.1.4
 
 [0.1.4]: https://github.com/fractl-io/fractl/compare/0.1.3...0.1.4
 
