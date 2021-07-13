@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2021-07-13
+
 ## [0.1.3] - 2021-06-24
 
 -   Add salesforce/sdfc drivers(libraries)
@@ -25,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.3...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.4...HEAD
+
+[0.1.4]: https://github.com/fractl-io/fractl/compare/0.1.3...0.1.4
 
 [0.1.3]: https://github.com/fractl-io/fractl/compare/v0.1.2...0.1.3
