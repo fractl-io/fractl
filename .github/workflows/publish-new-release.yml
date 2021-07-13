@@ -48,23 +48,23 @@ jobs:
         run: |
           lein jar
           lein uberjar
-          cp -r target/fractl-${{env.RELEASE_VERSION}}.jar lib/
-          cp -r target/fractl-${{env.RELEASE_VERSION}}-standalone.jar lib/
+          cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}.jar /home/runner/work/fractl/fractl/lib/
+          cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}-standalone.jar /home/runner/work/fractl/fractl/lib/
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
           commit: ${{ github.event.pull_request.merge_commit_sha }}
           tag: ${{ env.RELEASE_VERSION }}
-          artifacts: "lib/fractl-${{env.RELEASE_VERSION}}.jar,lib/fractl-${{env.RELEASE_VERSION}}-standalone.jar"
+          artifacts: "/home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}.jar,/home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}-standalone.jar"
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
 
       - name: Cleanup jar
         run: |
-          rm -r lib/fractl-${{env.RELEASE_VERSION}}.jar
-          rm -r lib/fractl-${{env.RELEASE_VERSION}}-standalone.jar
+          rm -r /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}.jar
+          rm -r /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}-standalone.jar
           lein clean
 
       - name: Slack Notification
