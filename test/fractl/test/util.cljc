@@ -40,11 +40,14 @@
    (fresult
     (e/eval-all-dataflows evt))))
 
+;; To test postgres in CI, set to true
+(def test-with-postgres false)
+
 (store/open-default-store
-  ;; To test postgres in CI, uncomment the following,
-  #?(:clj {:type     :postgres
-           :host     (System/getenv "POSTGRES_HOST")
-           :dbname   "postgres"
-           :username "postgres"
-           :password (System/getenv "POSTGRES_PASSWORD")}
-     :cljs {:type :alasql}))
+ #?(:clj (when test-with-postgres
+           {:type     :postgres
+            :host     (System/getenv "POSTGRES_HOST")
+            :dbname   "postgres"
+            :username "postgres"
+            :password (System/getenv "POSTGRES_PASSWORD")})
+    :cljs {:type :alasql}))
