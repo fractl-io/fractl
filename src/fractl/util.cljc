@@ -186,3 +186,11 @@
             (seq (string/trim x))
             x)]
     (or (nil? x) (nil? s))))
+
+(def line-sep (System/lineSeparator))
+
+(defn concat-lines [s & ss]
+  (loop [ss ss, result s]
+    (if-let [s (first ss)]
+      (recur (rest ss) (str result line-sep s))
+      result)))
