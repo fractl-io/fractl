@@ -187,6 +187,12 @@
             x)]
     (or (nil? x) (nil? s))))
 
+(def path-sep
+  #?(:clj
+     java.io.File/separator
+     :cljs
+     "/"))
+
 (def line-sep (System/lineSeparator))
 
 (defn concat-lines [s & ss]

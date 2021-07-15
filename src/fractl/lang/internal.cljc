@@ -241,11 +241,7 @@
         names (string/join "." (map lowercase-component parts))]
     names))
 
-(def file-separator
-  #?(:clj
-     java.io.File/separator
-     :cljs
-     "/"))
+(def ^:private file-separator u/path-sep)
 
 (def pwd-prefix (str "." file-separator))
 

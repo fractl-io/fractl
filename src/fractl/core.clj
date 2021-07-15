@@ -7,6 +7,7 @@
             [fractl.policy.rbac :as rbac]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
+            [fractl.deploy.core :as d]
             [fractl.lang.loader :as loader])
   (:gen-class))
 
@@ -15,6 +16,7 @@
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
+   ["-d" "--deploy MODEL-DIRECTORY" "Root directory of the model to deploy"]
    ["-h" "--help"]])
 
 (defn- script-name-from-component-name [component-name]
@@ -99,5 +101,6 @@
          summary :summary errors :errors} (parse-opts args cli-options)]
     (cond
       errors (println errors)
+      (:deploy options) (d/deploy (:deploy options))
       (:help options) (println summary)
       :else (run-cmd args (read-config options)))))
