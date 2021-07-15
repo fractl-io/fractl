@@ -32,6 +32,9 @@
                  [camdez/sendgrid "0.2.0"]
                  [postmark "1.4.1"]
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
+                 [software.amazon.awssdk/bom "2.16.101" :extension "pom"]
+                 [software.amazon.awssdk/regions "2.16.101"]
+                 [software.amazon.awssdk/ecr "2.16.101"]
                  [lambdaisland/glogi "1.0.106"]]
 
   :java-source-paths ["src/java"]
