@@ -8,9 +8,9 @@ import software.amazon.awssdk.services.ecr.model.CreateRepositoryRequest;
 import software.amazon.awssdk.services.ecr.model.CreateRepositoryResponse;
 
 public final class Container {
-    public static EcrAsyncClient buildClient(Region region) {
+    public static EcrAsyncClient buildClient(String region) {
 	return EcrAsyncClient.builder()
-	    .region(region)
+	    .region(Region.of(region))
 	    .build();
     }
 

@@ -1,10 +1,27 @@
 (ns fractl.deploy.core
   (:require [fractl.util :as u]
-            [fractl.deploy.docker :as docker])
+            [fractl.util.seq :as us]
+            [fractl.deploy.docker :as docker]
+            [fractl.deploy.awscs :as awscs])
   (:import [java.io File]
            [fractl.filesystem Util]))
 
 (def ^:private runtime-jar-pattern "fractl*standalone*.jar")
+
+(def ^:private deploy-fns
+  {:container
+   {:docker docker/generate-container}
+   :repository
+   {:aws awscs/create-repository}})
+
+(defn- assoc-defaults [config]
+  (-> (us/maybe-assoc config :container :docker)
+      (us/maybe-assoc :repository :aws)))
+
+(defn- get-deploy-fn [config k]
+  (if-let [f (get-in deploy-fns [k (k config)])]
+    f
+    (u/throw-ex (str "no deployment action associated with " k))))
 
 (defn- find-runtime-jar []
   (if-let [^File jar
@@ -15,6 +32,7 @@
     (.getAbsolutePath jar)
     (u/throw-ex "runtime jar file not found")))
 
-(defn deploy [model-dir]
-  (docker/generate-container
-   (find-runtime-jar) model-dir))
+(defn deploy [model-dir config]
+  (let [config (assoc-defaults config)]
+    ((get-deploy-fn :container)
+     (find-runtime-jar) model-dir)))
