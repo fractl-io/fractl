@@ -1,5 +1,6 @@
 (ns fractl.deploy.core
-  (:require [fractl.util :as u]
+  (:require [clojure.string :as s]
+            [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.deploy.docker :as docker]
             [fractl.deploy.awscs :as awscs])
@@ -12,7 +13,8 @@
   {:container
    {:docker docker/generate-container}
    :repository
-   {:aws awscs/create-repository}})
+   {:aws {:open awscs/repository-client
+          :create awscs/create-repository}}})
 
 (defn- assoc-defaults [config]
   (-> (us/maybe-assoc config :container :docker)
@@ -33,6 +35,10 @@
     (u/throw-ex "runtime jar file not found")))
 
 (defn deploy [model-dir config]
-  (let [config (assoc-defaults config)]
-    ((get-deploy-fn :container)
-     (find-runtime-jar) model-dir)))
+  (let [config (assoc-defaults config)
+        model-name (last (s/split model-dir (re-pattern u/path-sep)))]
+    (when ((get-deploy-fn :container)
+           model-name (find-runtime-jar) model-dir)
+      (let [repo (get-deploy-fn :repository)
+            conn ((:open repo) config)]
+        ((:create repo) conn (str model-name "-repository"))))))

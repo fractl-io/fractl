@@ -44,20 +44,19 @@
         (u/throw-ex
          (str "docker command failed with exit code - " status))))))
 
-(defn generate-container [runtime-jar model-dir]
+(defn generate-container [model-name runtime-jar model-dir]
   (log/info (str "generating container - " [runtime-jar model-dir]))
-  (let [model-name (last (s/split model-dir (re-pattern u/path-sep)))]
-    (spit
-     "Dockerfile"
-     (apply
-      u/concat-lines
-      "FROM adoptopenjdk:14-jre-hotspot"
-      (str "COPY " (relative-path runtime-jar) " /fractl-runtime.jar")
-      (str "COPY " model-dir (maybe-path-sep model-dir)
-           "config.edn /config.edn")
-      (str "RUN mkdir /" model-name)
-      (concat
-       (copy-all-components model-dir model-name)
-       [(str "CMD [\"java\", \"-jar\", \"fractl-runtime.jar\", \"-c\", \"config.edn\", "
-             "\"" model-name "/model.fractl\"]")])))
-    (run-docker model-name)))
+  (spit
+   "Dockerfile"
+   (apply
+    u/concat-lines
+    "FROM adoptopenjdk:14-jre-hotspot"
+    (str "COPY " (relative-path runtime-jar) " /fractl-runtime.jar")
+    (str "COPY " model-dir (maybe-path-sep model-dir)
+         "config.edn /config.edn")
+    (str "RUN mkdir /" model-name)
+    (concat
+     (copy-all-components model-dir model-name)
+     [(str "CMD [\"java\", \"-jar\", \"fractl-runtime.jar\", \"-c\", \"config.edn\", "
+           "\"" model-name "/model.fractl\"]")])))
+  (run-docker model-name))
