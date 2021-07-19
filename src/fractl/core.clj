@@ -101,6 +101,6 @@
          summary :summary errors :errors} (parse-opts args cli-options)]
     (cond
       errors (println errors)
-      (:deploy options) (d/deploy (:deploy options))
+      (:deploy options) (d/deploy (:deploy options) nil)
       (:help options) (println summary)
       :else (run-cmd args (read-config options)))))

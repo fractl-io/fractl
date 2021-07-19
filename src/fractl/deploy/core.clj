@@ -36,9 +36,10 @@
 
 (defn deploy [model-dir config]
   (let [config (assoc-defaults config)
-        model-name (last (s/split model-dir (re-pattern u/path-sep)))]
-    (when ((get-deploy-fn :container)
+        model-name (last (s/split model-dir (re-pattern u/path-sep)))
+        dfn (partial get-deploy-fn config)]
+    (when ((dfn :container)
            model-name (find-runtime-jar) model-dir)
-      (let [repo (get-deploy-fn :repository)
+      (let [repo (dfn :repository)
             conn ((:open repo) config)]
         ((:create repo) conn (str model-name "-repository"))))))

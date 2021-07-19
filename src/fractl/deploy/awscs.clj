@@ -5,7 +5,7 @@
 
 (defn repository-client [config]
   (Container/buildClient
-   (get config :region "US_EAST_2")))
+   (get config :region "us-east-2")))
 
 (defn- handle-create-repo-result [[r err]]
   (when err
@@ -13,11 +13,11 @@
   r)
 
 (defn create-repository [client repo-name]
-  (let [result (atom nil)
+  (let [result (promise)
         fetch #(deref result 100 nil)]
     (Container/createRepository
      client repo-name
-     #(reset! result [%1 %2]))
+     #(deliver result [%1 %2]))
     (loop [r (fetch)]
       (if r
         (handle-create-repo-result r)
