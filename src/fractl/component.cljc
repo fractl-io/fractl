@@ -464,6 +464,33 @@
       (throw-error (str "format mismatch - " aname))))
   aval)
 
+(defn- instantiable-map? [x]
+  (and (map? x)
+       (= 1 (count (keys x)))
+       (map? (first (vals x)))))
+
+(defn- instantiable-map-of? [type-name x]
+  (or (instance-of? type-name x)
+      (and (instantiable-map? x)
+           (= type-name (keyword (first (keys x)))))))
+
+(defn- assert-literal-instance [attr-name type-name obj]
+  (if (instantiable-map-of? type-name obj)
+    obj
+    (throw-error (str "expected type for " attr-name " is " type-name))))
+
+(declare valid-attribute-value)
+
+(defn- type-check [attr-name obj ascm]
+  (let [tp (:type ascm)]
+    (if (find-record-schema tp)
+      (assert-literal-instance attr-name tp obj)
+      (if-let [attr-scm (find-attribute-schema tp)]
+        (valid-attribute-value
+         attr-name (check-format ascm attr-name obj)
+         (merge-attr-schema attr-scm ascm))
+      (throw-error (str "no schema defined for " tp))))))
+
 (defn valid-attribute-value
   "Check against the attribute schema, if the provided value (v)
   is a valid value for the attribute. If valid, return v. If v is nil,
@@ -473,9 +500,7 @@
   (if-not (nil? aval)
     (cond
       (:type ascm)
-      (valid-attribute-value
-       aname (check-format ascm aname aval)
-       (merge-attr-schema (find-attribute-schema (:type ascm)) ascm))
+      (type-check aname aval ascm)
 
       (:listof ascm)
       (let [tp (:listof ascm)
@@ -575,11 +600,6 @@
 
 (defn- type-tag-of [recname]
   (type-tag-key (find-record-schema recname)))
-
-(defn- instantiable-map? [x]
-  (and (map? x)
-       (= 1 (count (keys x)))
-       (map? (first (vals x)))))
 
 (defn- serialized-instance? [x]
   (and (type-tag-key x) (:name x)))
