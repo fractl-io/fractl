@@ -1,0 +1,107 @@
+(ns ecommerce.inventory
+  (:require [clojure.string :as s]
+            [fractl.resolver.registry :as rg]
+            [fractl.resolver.core :as r]
+            [fractl.read-file :as rf]
+            [fractl.component :as cn])
+  (:use [fractl.lang]
+        [fractl.lang.datetime]
+        [fractl.lang.string]))
+
+(component :Ecommerce.Inventory)
+
+(def user-name? (partial string-in-range? 2 50))
+(def password? (partial string-in-range? 3 20))
+
+(entity {:User
+         {:UserName    {:type   :Kernel/String
+                        :check  user-name?
+                        :unique true}
+          :Group       {:oneof ["incharge" "general" "intern"]}
+          :Password    {:type  :Kernel/Password
+                        :check password?}
+          :Email       {:type   :Kernel/Email
+                        :unique true}
+          :DateCreated {:type    :Kernel/DateTime
+                        :default now}}})
+
+(entity {:ElectronicProductCSV
+         {:pricesshipping :Kernel/String
+          :asins :Kernel/String
+          :dateUpdated :Kernel/DateTime
+          :pricesavailability :Kernel/String
+          :sourceURLs :Kernel/String
+          :name :Kernel/String
+          :ean :Kernel/String
+          :pricesMerchant :Kernel/String
+          :pricescondition :Kernel/String
+          :pricesamountMin :Kernel/String
+          :brand :Kernel/String
+          :pricesisSale :Kernel/String
+          :pricesamountMax :Kernel/String
+          :imageURLs :Kernel/String
+          :manufacturerNumber :Kernel/String
+          :keys :Kernel/String
+          :categories :Kernel/String
+          :weight :Kernel/String
+          :id :Kernel/String
+          :primaryCategories :Kernel/String
+          :upc :Kernel/String
+          :manufacturer :Kernel/String
+          :dateAdded :Kernel/DateTime
+          :pricessourceURLs :Kernel/String
+          :pricesdateSeen :Kernel/DateTime
+          :pricescurrency :Kernel/String}})
+
+(defn dotcase->camelCase [k]
+      (let [words (clojure.string/split (name k) #"\.")]
+           (->>
+             ;(map clojure.string/capitalize (rest words))
+             (rest words)
+             (apply str (first words))
+             keyword)))
+
+(defn map-keys [f m]
+      (->> (map (fn [[k v]] [(f k) v]) m)
+           (into {})))
+
+(defn transform-keys [t form]
+      (clojure.walk/postwalk (fn [x] (if (map? x) (map-keys t x) x)) form))
+
+(defn read-file [inst]
+      (let [f (:File inst)
+            vec-maps
+            (into [] (rf/read-file
+                       "/Users/prertik/Developer/ventur8/fractl/ecommerce/ElectronicsModified.csv"))
+            ;trans-vec-maps (into [] (transform-keys dotcase->camelCase vec-maps))
+            ]
+           (for [inst vec-maps]
+                  (cn/make-instance {:Ecommerce.Inventory/Upsert_ElectronicProductCSV
+                                     {:Instance
+                                      {:Ecommerce.Inventory/ElectronicProductCSV
+                                       (map-keys dotcase->camelCase inst)}}}))))
+
+(defn- component-resolver-fn [install-resolver resolver-name path]
+       (let [r (r/make-resolver resolver-name {:query {:handler read-file}})]
+            (println "component-resolver-fn - r: " r)
+            (install-resolver path r)))
+
+(def component-resolver-f (partial component-resolver-fn rg/override-resolver))
+
+(def comp-resolver (component-resolver-f :ElectronicProductCSVResolver
+                                         :Ecommerce.Inventory/ElectronicProductCSV))
+
+(event {:ElectronicProduct
+        {
+         ;:Name :Kernel/String
+         :brand :Kernel/String
+         }})
+
+
+(dataflow :LoadCSV
+          :Ecommerce.Inventory/ElectronicProductCSV?
+          [:for-each :Ecommerce.Inventory/ElectronicProductCSV
+           {:ElectronicProduct {:brand? :Ecommerce.Inventory/ElectronicProductCSV.brand}}])
+
+;Call make-instance in a loop for each map and return a collection of instances.
+;Fix for-each problem.

@@ -3,7 +3,8 @@
             [clojure.set :as set]
             [fractl.util :as u]
             #?(:cljs
-               [cljs.js :refer [eval empty-state js-eval]])))
+               [cljs.js :refer [eval empty-state js-eval]])
+            [clojure.string :as str]))
 
 (defn evaluate [form]
   #?(:clj (eval form)
@@ -44,11 +45,40 @@
   (and (no-special-chars? s)
        (no-invalid-chars? s)))
 
+(def ^:private quote-tag :q#)
+(def ^:private unquote-tag :uq#)
+
+(def ^:private special-form-names
+  #{:match :for-each :delete
+    quote-tag unquote-tag
+    :and :or := :< :<= :> :>=
+    :between :async :future-get
+    :resolver :eval-on :pull :push :entity})
+
+(defn special-form? [x]
+  (or (and (vector? x)
+           (some #{(first x)} special-form-names))
+      (some #{x} special-form-names)))
+
+#_(defn special-form? [x]
+  (some #{x} #{:match :for-each :delete
+               quote-tag unquote-tag
+               :and :or := :< :<= :> :>=
+               :between :async :future-get
+               :resolver :eval-on :pull :push :entity}))
+
+(defn kernel-reserved? [x]
+  (if (= (namespace x) "Kernel")
+    true
+    false))
+
 (defn name?
   ([char-predic x]
    (and (keyword? x)
         (not (reserved? x))
         (not (operator? x))
+        (not (special-form? x))
+        ;(not (kernel-reserved? x))
         (let [s (subs (str x) 1)]
           (char-predic s))))
   ([x] (name? no-invalid-chars? x)))
@@ -61,15 +91,6 @@
 (def pathname? name?)
 (def parsed-path? coll?)
 
-(def ^:private quote-tag :q#)
-(def ^:private unquote-tag :uq#)
-
-(def ^:private special-form-names
-  #{:match :for-each :delete
-    :and :or := :< :<= :> :>=
-    :between :async :future-get
-    :resolver :eval-on :pull :push :entity})
-
 (defn quoted? [x]
   (and (vector? x)
        (= quote-tag (first x))))
@@ -77,10 +98,6 @@
 (defn unquoted? [x]
   (and (vector? x)
        (= unquote-tag (first x))))
-
-(defn special-form? [x]
-  (and (vector? x)
-       (some #{(first x)} special-form-names)))
 
 (defn- user-defined-macro? [k]
   ;; TODO: implemenet lookup into registered user-macro names.
