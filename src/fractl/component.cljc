@@ -426,6 +426,8 @@
   ([msg] (throw-error msg nil)))
 
 (defn- check-attribute-names [schema attributes]
+  (println "schema: " schema)
+  (println "attributes: " attributes)
   (let [sks (set (keys schema))
         aks (set (keys attributes))]
     (if-let [ks (seq (set/difference aks sks))]
@@ -548,6 +550,9 @@
             (throw-error (str "no default value defined for " aname))))))))
 
 (defn- ensure-attribute-is-instance-of [recname attrname attributes]
+  (println "recname: " recname)
+  (println "attrname: " attrname)
+  (println "attributes: " attributes)
   (if-let [aval (get attributes attrname)]
     (if (instance-of? recname aval)
       attributes
@@ -594,6 +599,7 @@
     (:inferred schema)))
 
 (defn ensure-schema [recname]
+  (println "Here is  from ensure-schema: " recname)
   (if-let [rec (find-record-schema recname)]
     (:schema rec)
     (throw-error (str "schema not found for " recname))))
