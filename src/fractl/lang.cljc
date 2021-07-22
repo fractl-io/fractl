@@ -250,12 +250,21 @@
            [k v]))
        attrs))
 
-(defn- normalized-attributes [recname orig-attrs]
+(defn- fetch-inherited-schema [type-name child-record-type]
+  (if-let [scm (case child-record-type
+                 (:entity :record)
+                 (or (cn/find-entity-schema type-name)
+                     (cn/find-record-schema type-name))
+                 :event (or (cn/find-event-schema type-name)
+                            (cn/find-record-schema type-name)))]
+    (:schema scm)
+    (u/throw-ex (str "parent type not found - " type-name))))
+
+(defn- normalized-attributes [rectype recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
         meta (:meta orig-attrs)
         inherits (:inherits meta)
-        [_ scm] (cn/find-schema inherits)
-        inherited-scm (when scm (:schema scm))
+        inherited-scm (when inherits (fetch-inherited-schema inherits rectype))
         req-inherited-attrs (or (:required-attributes inherited-scm)
                                 (required-attribute-names inherited-scm))
         base-attrs (dissoc orig-attrs :meta)
@@ -272,7 +281,7 @@
                               attrs-with-defaults)
         newattrs (map (partial normalize-attr recname attrs f) attrs-with-uq-flags)
         final-attrs (into {} (validate-attributes newattrs))]
-    (assoc final-attrs :meta (assoc meta :required-attributes req-attrs))))
+    (assoc final-attrs :meta (assoc meta :required-attributes req-attrs :record-type rectype))))
 
 (defn- parse-and-define [f schema]
   (let [n (first (keys schema))]
@@ -283,7 +292,7 @@
   ([n attrs]
    (let [cn (validated-canonical-type-name n)]
      (cn/intern-record
-      cn (normalized-attributes cn attrs))))
+      cn (normalized-attributes :record cn attrs))))
   ([schema]
    (parse-and-define record schema)))
 
@@ -294,7 +303,7 @@
               (cn/canonical-type-name n))]
      (cn/intern-event cn (if (cn/inferred-event-schema? attrs)
                               attrs
-                              (normalized-attributes cn attrs)))))
+                              (normalized-attributes :event cn attrs)))))
   ([n attrs]
    (event-internal n attrs false)))
 
@@ -448,6 +457,7 @@
          result (cn/intern-entity
                  entity-name
                  (normalized-attributes
+                  :entity
                   entity-name
                   ;; TODO: Check for user-define identity attributes first.
                   (assoc attrs :Id (cn/canonical-type-name :Id))))
