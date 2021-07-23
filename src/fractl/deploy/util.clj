@@ -1,0 +1,19 @@
+(ns fractl.deploy.util
+  (:require [clojure.string :as s]
+            [fractl.util :as u]
+            [fractl.util.logger :as log])
+  (:use [clojure.java.shell :only [sh]]))
+  
+(defn run-shell-command
+  ([cmd ok-exit-code]
+   (let [cmd-str (s/join " " cmd)]
+     (log/info cmd-str)
+     (let [r (apply sh cmd)
+           status (:exit r)]
+       (log/info (:out r))
+       (if (= ok-exit-code status)
+         true
+         (u/throw-ex
+          (str "`" cmd-str "` - command failed with exit code - " status))))))
+  ([cmd]
+   (run-shell-command cmd 0)))

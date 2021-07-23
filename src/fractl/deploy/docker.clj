@@ -1,8 +1,7 @@
 (ns fractl.deploy.docker
-  (:require [clojure.string :as s]
-            [fractl.util :as u]
-            [fractl.util.logger :as log])
-  (:use [clojure.java.shell :only [sh]])
+  (:require [fractl.util :as u]
+            [fractl.util.logger :as log]
+            [fractl.deploy.util :as ud])
   (:import [java.io File]
            [fractl.filesystem Util]))
 
@@ -34,15 +33,7 @@
     (map #(str "COPY " (first %) " /" model-name "/" (second %)) file-paths)))
 
 (defn- run-docker [model-name]
-  (let [cmd ["docker" "build" "-t" model-name "."]]
-    (log/info (s/join " " cmd))
-    (let [r (apply sh cmd)
-          status (:exit r)]
-      (log/info (:out r))
-      (if (zero? status)
-        true
-        (u/throw-ex
-         (str "docker command failed with exit code - " status))))))
+  (ud/run-shell-command ["docker" "build" "-t" model-name "."]))
 
 (defn generate-container [model-name runtime-jar model-dir]
   (log/info (str "generating container - " [runtime-jar model-dir]))
