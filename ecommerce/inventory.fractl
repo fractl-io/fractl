@@ -167,8 +167,8 @@
             :Ecommerce.Inventory/ElectronicProductCSV.weight             :Ecommerce.Inventory/LoadCSV.weight
             :Ecommerce.Inventory/ElectronicProductCSV.id                 :Ecommerce.Inventory/LoadCSV.id
             :Ecommerce.Inventory/ElectronicProductCSV.pricescurrency     :Ecommerce.Inventory/LoadCSV.pricescurrency} :as :E1}
-          :Ecommerce.Inventory/ElectronicProductCSV?
-          [:for-each :Ecommerce.Inventory/ElectronicProductCSV
+          ;:Ecommerce.Inventory/ElectronicProductCSV?
+          [:for-each :Ecommerce.Inventory/ElectronicProductCSV?
            {:Ecommerce.Inventory/ElectronicProductBrand {:brand :Ecommerce.Inventory/ElectronicProductCSV.brand}} :as :L]
           :L
           )
