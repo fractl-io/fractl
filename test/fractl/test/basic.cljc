@@ -588,8 +588,7 @@
     (dataflow :ForEachAlias/Evt
               {:ForEachAlias/E {:X :ForEachAlias/Evt.I} :as :E1}
               {:ForEachAlias/E {:X '(+ :E1.X 1)} :as :E2}
-              :ForEachAlias/E?
-              [:for-each :ForEachAlias/E
+              [:for-each :ForEachAlias/E?
                {:ForEachAlias/R {:A :ForEachAlias/E.X}} :as :L]
               :L))
   (let [result (tu/fresult (e/eval-all-dataflows {:ForEachAlias/Evt {:I 10}}))
