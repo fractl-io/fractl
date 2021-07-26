@@ -21,6 +21,7 @@
 (def zero-trust-rbac! (partial u/safe-set zero-trust-rbac-flag))
 
 (defn- dispatch-an-opcode [evaluator env opcode]
+  (println "dispatch-an-opcode: " opcode)
   (((opc/op opcode) i/dispatch-table)
    evaluator env (opc/arg opcode)))
 

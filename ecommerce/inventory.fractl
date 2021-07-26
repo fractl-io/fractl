@@ -115,7 +115,7 @@
                                       ))
                 )))
 
-(defn read-file [inst]
+#_(defn read-file [inst]
       (let [f (:File inst)
             vec-maps (read-string (slurp "/Users/prertik/Developer/ventur8/fractl/ecommerce/csv-maps.clj"))]
            (for [m vec-maps]
@@ -131,13 +131,20 @@
            (cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV (first (transform-keys dotcase->camelCase vec-maps)))
            ))
 
-(defn read-file-temp [inst]
+
+(defn read-file [inst]
+      (let [f (:File inst)
+            vec-maps (rf/read-file "/Users/prertik/Developer/ventur8/fractl/ecommerce/Ecommerce datatest.csv")]
+           (for [m vec-maps]
+                (cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV m))))
+
+#_(defn read-file-temp [inst]
       (let [x (read-file inst)]
            (println x)
            x))
 
 (defn- component-resolver-fn [install-resolver resolver-name path]
-       (let [r (r/make-resolver resolver-name {:query {:handler read-file-temp}})]
+       (let [r (r/make-resolver resolver-name {:query {:handler read-file}})]
             (println "component-resolver-fn - r: " r)
             (install-resolver path r)))
 
@@ -146,7 +153,7 @@
 (def comp-resolver (component-resolver-f :ElectronicProductCSVResolver
                                          :Ecommerce.Inventory/ElectronicProductCSV))
 
-(event {:ElectronicProduct
+(record {:ElectronicProduct
         {
          ;:Name :Kernel/String
          :brand :Kernel/String
@@ -155,14 +162,8 @@
 
 (dataflow :LoadCSV
           :Ecommerce.Inventory/ElectronicProductCSV?
-          #_[:for-each :Ecommerce.Inventory/ElectronicProductCSV
-           {:ElectronicProductCSV {:brand? :Ecommerce.Inventory/ElectronicProductCSV.brand}}]
-          )
+          [:for-each :Ecommerce.Inventory/ElectronicProductCSV
+           {:ElectronicProductCSV {:brand :Ecommerce.Inventory/ElectronicProductCSV.brand}}])
 
 ;Call make-instance in a loop for each map and return a collection of instances.
 ;Fix for-each problem.
-
-
-;#_{
-; "reason": "component/error: schema not found for Sanus VLF410B1 10-Inch Super Slim Full-Motion Mount for 37 - 84 Inches TV's"
-; }

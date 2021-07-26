@@ -1,0 +1,4 @@
+id,pricesamountMax,pricesamountMin,pricesavailability,pricescondition,pricescurrency,pricesisSale,asins,brand,manufacturerNumber,weight
+AVphzgbJLJeJML43fA0o,104.99,104.99,Yes,New,USD,FALSE,B00C78VIUE,Sanus,VLF410B1,32.8 pounds
+AVpgMuGwLJeJML43KY_c,69,64.99,In Stock,New,USD,TRUE,"B018K251JE,B00VILQKQ8",Boytone,BT-210F,14 pounds
+AVpgMuGwLJeJML43KY_c,69,69,In Stock,New,USD,FALSE,"B018K251JE,B00VILQKQ8",Boytone,BT-210F,14 pounds
