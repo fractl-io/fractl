@@ -7,29 +7,17 @@
             [fractl.component :as cn]
             [cheshire.core :as json]
             [camel-snake-kebab.core :as csk]
-            [fractl.component :as cn])
+            [fractl.component :as cn]
+            [fractl.evaluator :as e]
+            [fractl.component :as cn]
+            [fractl.evaluator :as e])
   (:use [fractl.lang]
         [fractl.lang.datetime]
         [fractl.lang.string]))
 
 (component :Ecommerce.Inventory)
 
-(def user-name? (partial string-in-range? 2 50))
-(def password? (partial string-in-range? 3 20))
-
-(entity {:User
-         {:UserName    {:type   :Kernel/String
-                        :check  user-name?
-                        :unique true}
-          :Group       {:oneof ["incharge" "general" "intern"]}
-          :Password    {:type  :Kernel/Password
-                        :check password?}
-          :Email       {:type   :Kernel/Email
-                        :unique true}
-          :DateCreated {:type    :Kernel/DateTime
-                        :default now}}})
-
-(entity {:Ecommerce.Inventory/ElectronicProductCSV
+(entity {:ElectronicProductCSV
          {:pricesshipping     {:type :Kernel/String
                                :optional true}
           :asins              {:type :Kernel/String
@@ -83,87 +71,163 @@
           :pricescurrency     {:type :Kernel/String
                                :optional true}}})
 
-(defn dotcase->camelCase [k]
-      (let [words (clojure.string/split (name k) #"\.")]
-           (if (not (empty? words))
-             (->>
-               ;(map clojure.string/capitalize (rest words))
-               (rest words)
-               (apply str (first words))
-               keyword)
-             (keyword (apply str "dummy" k)))))
+(record {:ElectronicProductBrand
+         {:brand :Kernel/String}})
 
-(defn map-keys [f m]
-      (->> (map (fn [[k v]] [(f k) v]) m)
-           (into {})))
-
-(defn transform-keys [t form]
-      (clojure.walk/postwalk (fn [x] (if (map? x) (map-keys t x) x)) form))
-
-#_(defn read-file [inst]
-      (let [f (:File inst)
-            vec-maps
-            (into [] (rf/read-file
-                       "/Users/prertik/Developer/ventur8/fractl/ecommerce/DatafinitiElectronicsProductsPricingData.csv"))
-            trans-vec-maps (into [] (transform-keys dotcase->camelCase vec-maps))
-            ]
-           (doseq [inst trans-vec-maps]
-                (do (println "THis is inst: each time: " inst)
-                    (cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV
-                                      ;(map-keys dotcase->camelCase inst)
-                                      inst
-                                      ))
-                )))
-
-#_(defn read-file [inst]
-      (let [f (:File inst)
-            vec-maps (read-string (slurp "/Users/prertik/Developer/ventur8/fractl/ecommerce/csv-maps.clj"))]
-           (for [m vec-maps]
-                (cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV m))))
-
-#_(defn read-file [inst]
-      (let [f (:File inst)
-            vec-maps
-            (into [] (rf/read-file
-                       "/Users/prertik/Developer/ventur8/fractl/ecommerce/ElectronicsSecond.csv"))
-            ;trans-vec-maps (into [] (transform-keys dotcase->camelCase vec-maps))
-            ]
-           (cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV (first (transform-keys dotcase->camelCase vec-maps)))
-           ))
-
+(event {:LoadCSV
+        {:pricesshipping     {:type :Kernel/String
+                              :optional true}
+         :asins              {:type :Kernel/String
+                              :optional true}
+         :dateUpdated        {:type :Kernel/String
+                              :optional true}
+         :pricesavailability {:type :Kernel/String
+                              :optional true}
+         :sourceURLs         {:type :Kernel/String
+                              :optional true}
+         :name               {:type :Kernel/String
+                              :optional true}
+         :ean                {:type :Kernel/String
+                              :optional true}
+         :pricesmerchant     {:type :Kernel/String
+                              :optional true}
+         :pricescondition    {:type :Kernel/String
+                              :optional true}
+         :pricesamountMin    {:type :Kernel/String
+                              :optional true}
+         :brand              {:type :Kernel/String
+                              :optional true}
+         :pricesisSale       {:type :Kernel/String
+                              :optional true}
+         :pricesamountMax    {:type :Kernel/String
+                              :optional true}
+         :imageURLs          {:type :Kernel/String
+                              :optional true}
+         :manufacturerNumber {:type :Kernel/String
+                              :optional true}
+         :keys               {:type :Kernel/String
+                              :optional true}
+         :categories         {:type :Kernel/String
+                              :optional true}
+         :weight             {:type :Kernel/String
+                              :optional true}
+         :id                 {:type :Kernel/String
+                              :optional true}
+         :primaryCategories  {:type :Kernel/String
+                              :optional true}
+         :upc                {:type :Kernel/String
+                              :optional true}
+         :manufacturer       {:type :Kernel/String
+                              :optional true}
+         :dateAdded          {:type :Kernel/String
+                              :optional true}
+         :pricessourceURLs   {:type :Kernel/String
+                              :optional true}
+         :pricesdateSeen     {:type :Kernel/String
+                              :optional true}
+         :pricescurrency     {:type :Kernel/String
+                              :optional true}}})
 
 (defn read-file [inst]
       (let [f (:File inst)
             vec-maps (rf/read-file "/Users/prertik/Developer/ventur8/fractl/ecommerce/Ecommerce datatest.csv")]
            (for [m vec-maps]
-                (cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV m))))
+                ;(cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV m)
+                (cn/make-instance {:Ecommerce.Inventory/LoadCSV m})
+                ;(e/eval-all-dataflows {:Ecommerce.Inventory/LoadCSV m})
+                )))
 
-#_(defn read-file-temp [inst]
-      (let [x (read-file inst)]
-           (println x)
-           x))
+(defn read-file-temp [inst]
+        (let [x (read-file inst)]
+             (println x)
+             x))
 
 (defn- component-resolver-fn [install-resolver resolver-name path]
-       (let [r (r/make-resolver resolver-name {:query {:handler read-file}})]
+       (let [r (r/make-resolver resolver-name {:query {:handler read-file-temp}})]
             (println "component-resolver-fn - r: " r)
             (install-resolver path r)))
 
 (def component-resolver-f (partial component-resolver-fn rg/override-resolver))
 
-(def comp-resolver (component-resolver-f :ElectronicProductCSVResolver
-                                         :Ecommerce.Inventory/ElectronicProductCSV))
-
-(record {:ElectronicProduct
-        {
-         ;:Name :Kernel/String
-         :brand :Kernel/String
-         }})
-
+(def comp-resolver (component-resolver-f :ElectronicProductResolver
+                                         ;:Ecommerce.Inventory/ElectronicProductCSV
+                                         :Ecommerce.Inventory/LoadCSV
+                                         ))
 
 (dataflow :LoadCSV
+          {:ElectronicProductCSV
+           {:Ecommerce.Inventory/ElectronicProductCSV.asins      :Ecommerce.Inventory/LoadCSV.asins
+            :Ecommerce.Inventory/ElectronicProductCSV.pricesavailability :Ecommerce.Inventory/LoadCSV.pricesavailability
+            :Ecommerce.Inventory/ElectronicProductCSV.pricescondition    :Ecommerce.Inventory/LoadCSV.pricescondition
+            :Ecommerce.Inventory/ElectronicProductCSV.pricesamountMin    :Ecommerce.Inventory/LoadCSV.pricesamountMin
+            :Ecommerce.Inventory/ElectronicProductCSV.brand              :Ecommerce.Inventory/LoadCSV.brand
+            :Ecommerce.Inventory/ElectronicProductCSV.pricesisSale       :Ecommerce.Inventory/LoadCSV.pricesisSale
+            :Ecommerce.Inventory/ElectronicProductCSV.pricesamountMax    :Ecommerce.Inventory/LoadCSV.pricesamountMax
+            :Ecommerce.Inventory/ElectronicProductCSV.manufacturerNumber :Ecommerce.Inventory/LoadCSV.manufacturerNumber
+            :Ecommerce.Inventory/ElectronicProductCSV.weight             :Ecommerce.Inventory/LoadCSV.weight
+            :Ecommerce.Inventory/ElectronicProductCSV.id                 :Ecommerce.Inventory/LoadCSV.id
+            :Ecommerce.Inventory/ElectronicProductCSV.pricescurrency     :Ecommerce.Inventory/LoadCSV.pricescurrency} :as :E1}
           :Ecommerce.Inventory/ElectronicProductCSV?
           [:for-each :Ecommerce.Inventory/ElectronicProductCSV
-           {:ElectronicProductCSV {:brand :Ecommerce.Inventory/ElectronicProductCSV.brand}}])
+           {:Ecommerce.Inventory/ElectronicProductBrand {:brand :Ecommerce.Inventory/ElectronicProductCSV.brand}} :as :L]
+          :L
+          )
 
-;Call make-instance in a loop for each map and return a collection of instances.
-;Fix for-each problem.
+(event {:LoadAll {}})
+(dataflow :LoadAll
+          :Ecommerce.Inventory/LoadCSV?)
+
+;; Utilities:
+
+#_(defn dotcase->camelCase [k]
+        (let [words (clojure.string/split (name k) #"\.")]
+             (if (not (empty? words))
+               (->>
+                 ;(map clojure.string/capitalize (rest words))
+                 (rest words)
+                 (apply str (first words))
+                 keyword)
+               (keyword (apply str "dummy" k)))))
+
+#_(defn map-keys [f m]
+        (->> (map (fn [[k v]] [(f k) v]) m)
+             (into {})))
+
+#_(defn transform-keys [t form]
+        (clojure.walk/postwalk (fn [x] (if (map? x) (map-keys t x) x)) form))
+
+#_(defn read-file [inst]
+        (let [f (:File inst)
+              vec-maps
+              (into [] (rf/read-file
+                         "/Users/prertik/Developer/ventur8/fractl/ecommerce/DatafinitiElectronicsProductsPricingData.csv"))
+              trans-vec-maps (into [] (transform-keys dotcase->camelCase vec-maps))
+              ]
+             (doseq [inst trans-vec-maps]
+                    (do (println "THis is inst: each time: " inst)
+                        (cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV
+                                          ;(map-keys dotcase->camelCase inst)
+                                          inst
+                                          ))
+                    )))
+
+#_(defn read-file [inst]
+        (let [f (:File inst)
+              vec-maps (read-string (slurp "/Users/prertik/Developer/ventur8/fractl/ecommerce/csv-maps.clj"))]
+             (for [m vec-maps]
+                  (cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV m))))
+
+#_(defn read-file [inst]
+        (let [f (:File inst)
+              vec-maps
+              (into [] (rf/read-file
+                         "/Users/prertik/Developer/ventur8/fractl/ecommerce/ElectronicsSecond.csv"))
+              ;trans-vec-maps (into [] (transform-keys dotcase->camelCase vec-maps))
+              ]
+             (cn/make-instance :Ecommerce.Inventory/ElectronicProductCSV (first (transform-keys dotcase->camelCase vec-maps)))
+             ))
+
+#_(defn read-file-temp [inst]
+        (let [x (read-file inst)]
+             (println x)
+             x))
