@@ -1,0 +1,38 @@
+(ns ecommerce.store
+  (:require [clojure.string :as s]
+            [fractl.resolver.registry :as rg]
+            [fractl.resolver.core :as r]
+            [fractl.component :as cn]
+            [fractl.evaluator :as e])
+  (:use [fractl.lang]
+        [fractl.lang.datetime]
+        [fractl.lang.string]))
+
+(component :Ecommerce.Store)
+
+(record {:Inventory
+         {:productId :Kernel/UUID
+          :Brand :Kernel/String
+          :Price :Kernel/String
+          :Name :Kernel/String
+          :ManufacturerName :Kernel/String
+          :ManufacturerId :Kernel/UUID
+          :Weight :Kernel/String
+          :Availability :Kernel/Boolean
+          :Shipping :Kernel/Boolean
+          :Stock :Kernel/Int}})
+
+(entity {:StoreInfo
+         {:Name :Kernel/String
+          :Location :Kernel/String
+          :Inventory :Ecommerce.Store/Inventory
+          :StoreRatings :Kernel/Any}})
+
+(entity {:StoreAdmin
+         {:Email :Kernel/Email
+          :Password :Kernel/Password}})
+
+(event {:ListAllStores {}})
+
+(dataflow :ListAllStores
+          :Ecommerce.Store/Inventory/StoreInfo?)

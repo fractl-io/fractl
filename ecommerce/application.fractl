@@ -1,0 +1,35 @@
+(ns ecommerce.application
+  (:require [clojure.string :as s]
+            [fractl.resolver.registry :as rg]
+            [fractl.resolver.core :as r]
+            [fractl.component :as cn]
+            [fractl.evaluator :as e])
+  (:use [fractl.lang]
+        [fractl.lang.datetime]
+        [fractl.lang.string]))
+
+(component :Ecommerce.Application)
+
+(entity {:AddtoCart
+         {:Store {:ref :Ecommerce.Store/StoreInfo.Id
+                  :indexed true}
+          :Item :Kernel/String
+          :Stock :Kernel/Int
+          :AddedAt {:type :Kernel/DateTime
+                    :default now}}})
+
+(entity {:CheckoutLog
+         {:Cart {:ref :Ecommerce.Application/AddtoCart.Id
+                 :indexed true}
+          :User {:ref :Ecommerce.User/UserInfo.Id
+                 :indexed true}
+          :ShippingDate :Kernel/DateTime
+          :ExpectedDelivery :Kernel/String
+          :ShippingCharge :Kernel/String
+          :PaymentMethod :Kernel/String
+          :Paid :Kernel/Boolean
+          :meta {:uniqye [:User :Cart]}}})
+
+(event {:CheckoutItem
+        {}})
+

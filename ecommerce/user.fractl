@@ -1,0 +1,18 @@
+(ns ecommerce.user
+  (:require [clojure.string :as s]
+            [fractl.resolver.registry :as rg]
+            [fractl.resolver.core :as r]
+            [fractl.component :as cn]
+            [fractl.evaluator :as e])
+  (:use [fractl.lang]
+        [fractl.lang.datetime]
+        [fractl.lang.string]))
+
+(component :Ecommerce.User)
+
+(entity {:UserInfo
+         {:Email :Kernel/Email
+          :Password :Kernel/Password
+          :Name :Kernel/String
+          :CurrentAddress :Kernel/String
+          :ShippingAddress :Kernel/String}})

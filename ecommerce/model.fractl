@@ -1,5 +1,7 @@
 {:name :Ecommerce
- :components [:Ecommerce/Inventory]
+ :components [:Ecommerce/Store
+              :Ecommerce/User
+              :Ecommerce/Application]
  :config {:service {:port 8000}
           :zero-trust-rbac false
           :store {:dbname "./ecommerce/db"}}}
