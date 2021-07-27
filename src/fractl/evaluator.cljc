@@ -114,7 +114,7 @@
       (when log-info
         (log-result-object hidden-attrs event-instance r))
       r)
-    (catch Exception ex
+    (catch #?(:clj Exception :cljs default) ex
       (do (when log-error
             (log/error
              (str "error in dataflow for "

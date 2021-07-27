@@ -19,7 +19,7 @@
 #? (:clj
     (def store (store/open-default-store nil))
     :cljs
-    (def store (store/open-default-store {:type :alasql})))
+    (def store (store/open-default-store {:type :reagent})))
 
 (defn- install-test-component []
   (cn/remove-component :CompileTest)

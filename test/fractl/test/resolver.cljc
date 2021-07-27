@@ -15,7 +15,9 @@
 #?(:clj
    (def store (store/open-default-store nil))
    :cljs
-   (def store (store/open-default-store {:type :alasql})))
+   ;(def store (store/open-default-store {:type :alasql}))
+   (def store (store/open-default-store {:type :reagent}))
+   )
 
 (defn- test-resolver [install-resolver resolver-name path]
   (let [f (fn [_ arg] arg)

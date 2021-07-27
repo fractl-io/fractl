@@ -40,7 +40,19 @@
    (fresult
     (e/eval-all-dataflows evt))))
 
+#?(:clj
+   (def postgres-config
+     {:type     :postgres
+      :host     (System/getenv "POSTGRES_HOST")
+      :dbname   "postgres"
+      :username "postgres"
+      :password (System/getenv "POSTGRES_PASSWORD")}))
+
 (store/open-default-store
+  #?(:clj {:type :h2}
+     :cljs {:type :reagent}))
+
+#_(store/open-default-store
   ;; To test postgres in CI, uncomment the following,
   #?(:clj {:type     :postgres
            :host     (System/getenv "POSTGRES_HOST")
