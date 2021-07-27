@@ -40,13 +40,13 @@
    (fresult
     (e/eval-all-dataflows evt))))
 
-#?(:clj
-   (def postgres-config
-     {:type     :postgres
-      :host     (System/getenv "POSTGRES_HOST")
-      :dbname   "postgres"
-      :username "postgres"
-      :password (System/getenv "POSTGRES_PASSWORD")}))
+;#?(:clj
+;   (def postgres-config
+;     {:type     :postgres
+;      :host     (System/getenv "POSTGRES_HOST")
+;      :dbname   "postgres"
+;      :username "postgres"
+;      :password (System/getenv "POSTGRES_PASSWORD")}))
 
 (store/open-default-store
   #?(:clj {:type :h2}
