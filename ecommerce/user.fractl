@@ -15,4 +15,41 @@
           :Password :Kernel/Password
           :Name :Kernel/String
           :CurrentAddress :Kernel/String
-          :ShippingAddress :Kernel/String}})
+          :ShippingAddress :Kernel/String
+          :Group {:oneof ["member" "user" "guest"]}}})
+
+(dataflow :EntityRBAC
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource ["Ecommerce.User/UserInfo"]
+            :Rule [:q#
+                   [[:Lookup] [:allow-all]]]}}
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource  ["Ecommerce.User/Member"]
+            :Rule      [:q#
+                        [[:Upsert]
+                         [:when
+                          [:or [:= "admin" :EventContext.Auth.Owner.Group]
+                           [:and
+                            [:or [:= "member" :EventContext.Auth.Owner.Group]
+                                 [:= "user" :EventContext.Auth.Owner.Group]]
+                            [:= :Instance.Id :EventContext.Auth.Owner.Id]]]]]]}})
+
+(dataflow :EventRBAC
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource ["Ecommerce.User/Upsert_UserInfo"]
+            :Rule [:q#
+                   [:when
+                    [:= "admin" :EventContext.Auth.Owner.Group]]]}})
+
+(dataflow :LoggingPolicy
+          {:Kernel/Policy
+           {:Intercept "Logging"
+            :Resource  ["Ecommerce.User/Upsert_UserInfo"]
+            :Rule      [:q# {:Disable        :INFO
+                             :PagerThreshold {:WARN  {:count            5
+                                                      :duration-minutes 10}
+                                              :ERROR {:count            3
+                                                      :duration-minutes 5}}}]}})
