@@ -1,0 +1,22 @@
+(ns ecommerce.policy
+  "Policies for CRUD operation in ecommerce"
+  (:use [fractl.lang]
+        [fractl.lang.datetime]
+        [fractl.lang.string]
+        [fractl.lang.b64])
+  (:require [fractl.component :as cn]))
+
+(component :Ecommerce.Policy)
+
+(dataflow :Kernel/AppInit
+          {:Ecommerce.Store/StoreAdmin{:Name "Super Admin"
+                                       :UserName "superadmin"
+                                       :Group "admin"
+                                       :Password "imightnotbehere123"
+                                       :Email "superadmin@v8.io"}}
+          {:Ecommerce.Store/EntityRBAC {}}
+          {:Ecommerce.Store/EventRBAC {}}
+          {:Ecommerce.Store/LoggingPolicy {}}
+          {:Ecommerce.Application/EntityRBAC {}}
+          {:Ecommerce.Application/EventRBAC {}}
+          {:Ecommerce.Application/LoggingPolicy {}})

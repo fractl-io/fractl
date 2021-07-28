@@ -10,16 +10,15 @@
 
 (component :Ecommerce.Application)
 
-(entity {:AddtoCart
-         {:Store {:ref :Ecommerce.Store/StoreInfo.Id
-                  :indexed true}
-          :Item :Kernel/String
-          :Stock :Kernel/Int
-          :AddedAt {:type :Kernel/DateTime
-                    :default now}}})
+(entity {:CartInfo
+         {:Store   {:ref     :Ecommerce.Store/StoreInfo.Id
+                    :indexed true}
+          :Item    :Kernel/String
+          :Stock   :Kernel/Int
+          :AddedAt {:type :Kernel/DateTime}}})
 
 (entity {:CheckoutLog
-         {:Cart {:ref :Ecommerce.Application/AddtoCart.Id
+         {:Cart {:ref :Ecommerce.Application/CartInfo.Id
                  :indexed true}
           :User {:ref :Ecommerce.User/UserInfo.Id
                  :indexed true}
@@ -27,9 +26,80 @@
           :ExpectedDelivery :Kernel/String
           :ShippingCharge :Kernel/String
           :PaymentMethod :Kernel/String
-          :Paid :Kernel/Boolean
+          :IsPaid :Kernel/Boolean
           :meta {:uniqye [:User :Cart]}}})
 
-(event {:CheckoutItem
-        {}})
+(event {:AddToCart
+        {:Store :Kernel/UUID
+         :Item :Kernel/String
+         :Stock :Kernel/Int
+         :AddedAt {:type :Kernel/DateTime
+                   :default now}}})
 
+(dataflow :AddToCart
+          {:CartInfo {:Store :Ecommerce.Application/AddToCart.Store
+                      :Item :Ecommerce.Application/AddToCart.Item
+                      :Stock :Ecommerce.Application/AddToCart.Stock}}
+          {:CartInfo {:Store? :Ecommerce.Application/AddToCart.Store}})
+
+(event {:CheckoutItem
+        {:Cart :Kernel/UUID
+         :User :Kernel/UUID
+         :ShippingDate :Kernel/DateTime
+         :ExpectedDelivery :Kernel/String
+         :PaymentMethod :Kernel/String
+         :Backend  :Kernel/String
+         :Receiver :Kernel/String
+         :Subject  :Kernel/String
+         :Text     :Kernel/String
+         :To       :Kernel/String}})
+
+(dataflow :CheckoutItem
+          {:CheckoutLog {:Cart :Ecommerce.Application/CheckoutItem.Cart
+                         :User :Ecommerce.Application/CheckoutItem.User
+                         :ShippingDate :Ecommerce.Application/CheckoutItem.ShippingDate
+                         :ExpectedDelivery :Ecommerce.Application/CheckoutItem.ExpectedDelivery
+                         :PaymentMethod :Ecommerce.Application/CheckoutItem.PaymentMethod
+                         :IsPaid true}}
+          {:Email/Push {:Backend :Ecommerce.Application/CheckoutItem.Backend
+                        :Receiver :Ecommerce.Application/CheckoutItem.Receiver
+                        :Subject :Ecommerce.Application/CheckoutItem.Subject
+                        :Text :Ecommerce.Application/CheckoutItem.Text}}
+          {:Sms/Push {:To :Ecommerce.Application/CheckoutItem.To
+                      :Body :Ecommerce.Application/CheckoutItem.Text}}
+          {:CheckoutLog {:Cart? :Ecommerce.Application/CheckoutItem.Cart
+                         :User? :Ecommerce.Application/CheckoutItem.User}})
+
+(event {:AllCheckouts {}})
+
+(dataflow :AllCheckouts
+          :CheckoutLog?)
+
+(dataflow :EntityRBAC
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource  ["Ecommerce.Application/CheckoutLog"]
+            :Rule      [:q#
+                        [[:Upsert :Lookup]
+                         [:when
+                          [:or
+                           [:= "admin" :EventContext.Auth.Owner.Group]
+                           [:= "member" :EventContext.Auth.Owner.Group]]]]]}})
+
+(dataflow :EventRBAC
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource  ["Ecommerce.Application/CheckoutItem"]
+            :Rule      [:q#
+                        [:when
+                         [:= "member" :EventContext.Auth.Owner.Group]]]}})
+
+(dataflow :LoggingPolicy
+          {:Kernel/Policy
+           {:Intercept "Logging"
+            :Resource  ["Ecommerce.Application/CheckoutItem"]
+            :Rule      [:q# {:Disable        :INFO
+                             :PagerThreshold {:WARN  {:count            5
+                                                      :duration-minutes 10}
+                                              :ERROR {:count            3
+                                                      :duration-minutes 5}}}]}})

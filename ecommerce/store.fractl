@@ -26,11 +26,53 @@
          {:Name :Kernel/String
           :Location :Kernel/String
           :Inventory :Ecommerce.Store/Inventory
-          :StoreRatings :Kernel/Any}})
+          :StoreRatings :Kernel/Any
+          :ItemsSold :Kernel/String}})
 
 (entity {:StoreAdmin
-         {:Email :Kernel/Email
-          :Password :Kernel/Password}})
+         {:Name :Kernel/String
+          :UserName :Kernel/String
+          :Email :Kernel/Email
+          :Password :Kernel/Password
+          :Group {:oneof ["admin" "member"]
+                  :default "admin"}
+          :ActiveSince {:type :Kernel/DateTime
+                        :default now}}})
+
+(dataflow :EntityRBAC
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource ["Ecommerce.Store/StoreAdmin"]
+            :Rule [:q#
+                   [[:Upsert]
+                    [:when
+                     [:= "admin" :EventContext.Auth.Owner.Group]]]]}}
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource ["Ecommerce.Store/StoreAdmin"
+                       "Ecommerce.Store/StoreInfo"]
+            :Rule [:q#
+                   [[:Lookup] [:allow-all]]]}})
+
+(dataflow :EventRBAC
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource ["Ecommerce.Store/Upsert_StoreAdmin"
+                       "Ecommerce.Store/Upsert_StoreInfo"]
+            :Rule [:q#
+                   [:when
+                    [:= "admin" :EventContext.Auth.Owner.Group]]]}})
+
+(dataflow :LoggingPolicy
+          {:Kernel/Policy
+           {:Intercept "Logging"
+            :Resource  ["Ecommerce.Store/Upsert_StoreAdmin"
+                        "Ecommerce.Store/Upsert_StoreInfo"]
+            :Rule      [:q# {:Disable        :INFO
+                             :PagerThreshold {:WARN  {:count            5
+                                                      :duration-minutes 10}
+                                              :ERROR {:count            3
+                                                      :duration-minutes 5}}}]}})
 
 (event {:ListAllStores {}})
 
