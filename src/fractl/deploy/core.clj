@@ -16,7 +16,9 @@
    {:docker docker/generate-container}
    :repository
    {:aws {:open awscs/repository-client
-          :create awscs/create-repository}}})
+          :create awscs/create-repository}}
+   :cluster
+   {:aws {:create awscs/create-cluster}}})
 
 (defn- assoc-defaults [config]
   (-> (us/maybe-assoc config :container :docker)
@@ -46,7 +48,8 @@
                       root-uri)]
     (ud/run-shell-command ["/bin/sh" "-c" aws-auth])
     (ud/run-shell-command ["docker" "tag" image-name dest])
-    (ud/run-shell-command ["docker" "push" dest])))
+    (ud/run-shell-command ["docker" "push" dest])
+    image-name))
 
 (defn deploy [model-dir config]
   (let [config (assoc-defaults config)
@@ -56,7 +59,9 @@
     (when ((dfn :container)
            model-name (find-runtime-jar) model-dir)
       (let [repo (dfn :repository)
-            conn ((:open repo) region)]
-        (upload-image
-         model-name region
-         ((:create repo) conn (str model-name "-repository")))))))
+            conn ((:open repo) region)
+            image-name (upload-image
+                        model-name region
+                        ((:create repo) conn (str model-name "-repository")))
+            create-cluster (:create (dfn :cluster))]
+        (create-cluster region model-name image-name)))))
