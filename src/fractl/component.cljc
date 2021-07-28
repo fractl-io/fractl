@@ -125,13 +125,16 @@
 (defn- meta-key [path]
   (conj path :-*-meta-*-))
 
+(defn fetch-meta [path]
+  (get-in @components (meta-key (li/split-path path))))
+
 (defn- component-intern
   "Add or replace a component entry.
   `typname` must be in the format - :ComponentName/TypName
   Returns the name of the entry. If the component is non-existing, raise an exception."
   ([typname typdef typtag meta]
-   (let [[component n] (li/split-path typname)
-         k [component typtag n]]
+   (let [[component n :as k] (li/split-path typname)
+         intern-k [component typtag n]]
      (when-not (component-exists? component)
        (u/throw-ex-info
         (str "component not found - " component)
@@ -142,7 +145,7 @@
       #(assoc-in (if meta
                    (assoc-in @components (meta-key k) meta)
                    @components)
-                 k typdef))
+                 intern-k typdef))
      typname))
   ([typname typdef typtag]
    (component-intern typname typdef typtag nil)))
@@ -273,11 +276,19 @@
   (and (an-instance? x)
        (entity-instance? x)))
 
+(defn inherits? [base-type child-type]
+  (if-let [t (:inherits (fetch-meta child-type))]
+    (if (= t base-type)
+      true
+      (inherits? base-type t))
+    false))
+
 (defn instance-of?
   "Return true if the fully-qualified name is the same as that of the instance."
   [nm inst]
-  (= (li/split-path nm)
-     (parsed-instance-name inst)))
+  (or (= (li/split-path nm)
+         (parsed-instance-name inst))
+      (inherits? nm (instance-name inst))))
 
 (defn instance-attributes [x]
   (when (an-instance? x)
@@ -464,6 +475,33 @@
       (throw-error (str "format mismatch - " aname))))
   aval)
 
+(defn- instantiable-map? [x]
+  (and (map? x)
+       (= 1 (count (keys x)))
+       (map? (first (vals x)))))
+
+(defn- instantiable-map-of? [type-name x]
+  (or (instance-of? type-name x)
+      (and (instantiable-map? x)
+           (= type-name (keyword (first (keys x)))))))
+
+(defn- assert-literal-instance [attr-name type-name obj]
+  (if (instantiable-map-of? type-name obj)
+    obj
+    (throw-error (str "expected type for " attr-name " is " type-name))))
+
+(declare valid-attribute-value)
+
+(defn- type-check [attr-name obj ascm]
+  (let [tp (:type ascm)]
+    (if (find-record-schema tp)
+      (assert-literal-instance attr-name tp obj)
+      (if-let [attr-scm (find-attribute-schema tp)]
+        (valid-attribute-value
+         attr-name (check-format ascm attr-name obj)
+         (merge-attr-schema attr-scm ascm))
+      (throw-error (str "no schema defined for " tp))))))
+
 (defn valid-attribute-value
   "Check against the attribute schema, if the provided value (v)
   is a valid value for the attribute. If valid, return v. If v is nil,
@@ -473,9 +511,7 @@
   (if-not (nil? aval)
     (cond
       (:type ascm)
-      (valid-attribute-value
-       aname (check-format ascm aname aval)
-       (merge-attr-schema (find-attribute-schema (:type ascm)) ascm))
+      (type-check aname aval ascm)
 
       (:listof ascm)
       (let [tp (:listof ascm)
@@ -575,11 +611,6 @@
 
 (defn- type-tag-of [recname]
   (type-tag-key (find-record-schema recname)))
-
-(defn- instantiable-map? [x]
-  (and (map? x)
-       (= 1 (count (keys x)))
-       (map? (first (vals x)))))
 
 (defn- serialized-instance? [x]
   (and (type-tag-key x) (:name x)))

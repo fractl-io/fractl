@@ -23,6 +23,19 @@
 
 (entity {:E4 {:Y :Kernel/DateTime}})
 
+(record {:StringField
+         {:Question {:type :Kernel/String}
+          :Value {:type :Kernel/String
+                  :optional true}}})
+
+(defn valid-name? [s]
+  (and (string? s)
+       (<= 3 (count s) 50)))
+
+(entity {:Survey
+         {:Name {:check valid-name?}
+          :Field {:type :StringField}}})
+
 (dataflow :KK {:E4 {:Y '(fractl.lang.datetime/now)}})
 
 (dataflow
