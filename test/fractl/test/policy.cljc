@@ -189,7 +189,7 @@
        (is (cn/instance-of? :Kernel/Policy p1))
        (is (cn/instance-of? :Kernel/Policy p2))
        (is (= [{:Disable [:INFO], :PagerThreshold
-                {:WARN {:count 5, :duration-minutes 10},
+                {:WARN {:count 5, :duration-minutes 10}
                  :ERROR {:count 3, :duration-minutes 5}}}]
               (rp/logging-eval-rules [:LP :Upsert_User])))
        (is (= [[:Upsert :Lookup]
@@ -231,7 +231,7 @@
                {:Kernel/Policy
                 {:Intercept "RBAC"
                  :Resource ["ZtRbac/Evt2"]
-                     :Rule [:q# [:allow-all]]}})
+                 :Rule [:q# [:allow-all]]}})
      (let [p (tu/first-result
               (cn/make-instance
                {:ZtRbac/Evt2Policy {}}))

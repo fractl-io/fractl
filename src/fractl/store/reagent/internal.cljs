@@ -4,7 +4,7 @@
             [fractl.util :as u]
             [reagent.core :as reagent]))
 
-(def view-tag :DOM_View)
+(def view-tag :DOMView)
 
 (def inst-store (reagent/atom {}))
 
@@ -43,6 +43,12 @@
   [entity-name ids]
   (remove nil? (flatten (map #(get-in @inst-store [entity-name %]) (set ids)))))
 
+(defn query-all
+  [entity-name query]
+  (if-let [filters (get query :where)]
+    (vals (get @inst-store entity-name))
+    (vals (get @inst-store entity-name))))
+
 (defn delete-by-id
   [entity-name id]
   (let [parsed-entity (li/split-path entity-name)]
@@ -59,13 +65,12 @@
     [tag [entity-name id (last refs)]]))
 
 (defn compile-to-indexed-query [query-pattern]
-  (let [where-clause (:where query-pattern)
-        norm-where-clause (if (= :and (first where-clause))
-                            (rest where-clause)
-                            [where-clause])]
-    {:id-queries
-     (vec (map #(if (= :Id (second %))
-                  {:result (nth % 2)}
-                  {:query nil})
-               norm-where-clause))
-     :query nil}))
+  (let [entity-name (:from query-pattern)
+        where-clause (:where query-pattern)]
+    (if (= :* where-clause)
+      {:query {:entity entity-name}}
+      (let [norm-where-clause (if (= :and (first where-clause))
+                                (rest where-clause)
+                                [where-clause])]
+        {:query {:entity entity-name
+                 :filter norm-where-clause}}))))

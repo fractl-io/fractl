@@ -68,7 +68,7 @@
         (recur (rest ks) result))
       result)))
 
-(defn- upsert-instance [store record-name instance]
+(defn upsert-instance [store record-name instance]
   (let [uq-attrs (cn/unique-attributes
                   (su/find-entity-schema record-name))]
     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
@@ -91,7 +91,6 @@
 (def create-schema p/create-schema)
 (def drop-schema p/drop-schema)
 (def create-table p/create-table)
-(def upsert-instance upsert-instance)
 (def delete-by-id p/delete-by-id)
 (def query-by-id p/query-by-id)
 (def query-all p/query-all)

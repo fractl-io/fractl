@@ -142,11 +142,11 @@
         resolver-result (when resolver
                           (resolver-upsert resolver composed? insts))
         resolved-insts (if resolver (first resolver-result) insts)
-        local-result (if (and crud? store-f
+        final-result (if (and crud? store-f
                               (or single-arg-path (need-storage? resolved-insts)))
                        (store-f resolved-insts)
                        resolved-insts)]
-    [local-result resolver-result]))
+    final-result))
 
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
@@ -155,15 +155,15 @@
     (if (env/any-dirty? env insts)
       (do
         (perform-rbac! env :Upsert record-name insts)
-        (let [[local-result resolver-result]
+        (let [result
               (chained-crud
                (when store (partial store/upsert-instances store record-name))
                resolver (partial resolver-upsert env) nil insts)
               conditional-event-results
               (fire-all-conditional-events
-               event-evaluator env store local-result)]
-          [(concat local-result conditional-event-results) resolver-result]))
-      [insts nil])))
+               event-evaluator env store result)]
+          (concat result conditional-event-results)))
+      insts)))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
@@ -293,7 +293,7 @@
       obj)
     (let [n (li/make-path record-name)
           validate? (if (cn/find-entity-schema n) true false)]
-      (cn/make-instance n obj validate?))))
+      (cn/make-instance record-name obj validate?))))
 
 (defn- pop-instance
   "An instance is built in stages, the partial object is stored in a stack.
@@ -401,14 +401,16 @@
 (defn- eval-for-each [evaluator env eval-opcode collection body-code result-alias]
   (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code)
         results (doall (map eval-body collection))]
-    (if-let [failure (first (filter #(not (ok-result %)) results))]
-      failure
-      (let [eval-output (doall (map #(first (ok-result %)) results))
-            result-insts (reduce concat eval-output)]
+    (if (every? #(ok-result %) results)
+      (let [eval-output (doall (map #(ok-result %) results))
+            result-insts (if (seq? (first eval-output))
+                           (reduce concat eval-output)
+                           eval-output)]
         (if result-alias
           (let [new-env (env/bind-to-alias env result-alias result-insts)]
             (i/ok result-insts new-env))
-          (i/ok result-insts env))))))
+          (i/ok result-insts env)))
+      (first (filter #(not (ok-result %)) results)))))
 
 (defn- opcode-data? [x]
   (if (vector? x)
@@ -465,9 +467,9 @@
         (if (cn/an-instance? v)
           (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
                 event-evaluator (partial eval-event-dataflows self)
-                [env [local-result resolver-results :as r]]
+                [env r]
                 (bind-and-persist env event-evaluator final-inst)]
-            (i/ok (if r (pack-results local-result resolver-results) final-inst) env))
+            (i/ok (if r r final-inst) env))
           (if-let [store (env/get-store env)]
             (if (store/reactive? store)
               (i/ok (store/get-reference store path refs) env)
@@ -517,15 +519,15 @@
       (let [[insts single? env] (pop-instance env record-name)]
         (if insts
           (let [event-eval (partial eval-event-dataflows self)
-                [local-result resolver-results] (chained-upsert env event-eval record-name insts)
+                local-result (chained-upsert env event-eval record-name insts)
                 lr (normalize-transitions local-result)]
             (if-let [bindable (if single? (first lr) lr)]
               (let [env-with-inst (env/bind-instances env record-name lr)
                     final-env (if alias
                                 (env/bind-instance-to-alias env-with-inst alias bindable)
                                 env-with-inst)]
-                (i/ok (pack-results local-result resolver-results) final-env))
-              (i/ok (pack-results local-result resolver-results) env)))
+                (i/ok local-result final-env))
+              (i/ok local-result env)))
           (i/not-found record-name env))))
 
     (do-intern-event-instance [self env [record-name alias timeout-ms]]
@@ -544,8 +546,8 @@
     (do-delete-instance [self env [record-name id-pattern-code]]
       (let [result (eval-opcode self env id-pattern-code)]
         (if-let [id (ok-result result)]
-          (let [[local-result resolver-results] (chained-delete env record-name id)]
-            (i/ok (pack-results local-result resolver-results)
+          (let [local-result (chained-delete env record-name id)]
+            (i/ok local-result
                   (env/purge-instance env record-name id)))
           result)))
 
@@ -566,8 +568,8 @@
         (i/ok [:dispatch-on
                evt-name
                (fn [evt-name evt-body]
-                (let [evt (cn/make-instance evt-name evt-body)]
-                  (df-eval evt (list evt-name {:opcode (atom df-code)}))))]
+                 (let [evt (cn/make-instance evt-name evt-body)]
+                   (df-eval evt (list evt-name {:opcode (atom df-code)}))))]
               env)))
 
     (do-for-each [self env [bind-pattern-code body-code result-alias]]
