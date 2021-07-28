@@ -35,10 +35,10 @@
   "apiVersion: v1
 kind: Service
 metadata:
-  name: $model-name
+  name: $app-name
 spec:
   selector:
-    app: $model-name
+    app: $app-name
   ports:
     - port: 8080
       targetPort: 8080
@@ -47,19 +47,19 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: $model-name
+  name: $app-name
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: $model-name
+      app: $app-name
   template:
     metadata:
       labels:
-        app: $model-name
+        app: $app-name
     spec:
       containers:
-        - name: $model-name
+        - name: $app-name
           image: $image-name
           ports:
             - containerPort: 8080
@@ -69,14 +69,17 @@ spec:
           imagePullPolicy: Always")
 
 (defn create-cluster [region model-name image-name]
-  (let [cfg (s/replace
-             (s/replace cluster-spec-yml #"\$model-name" model-name)
+  (let [app-name (str model-name "-" (u/uuid-string))
+        cfg (s/replace
+             (s/replace cluster-spec-yml #"\$app-name" app-name)
              #"\$image-name" image-name)
         cfg-file (str model-name ".yml")]
     (spit cfg-file cfg)
     (ud/run-shell-command ["eksctl" "create" "cluster"
                            (str "--region=" region)
-                           (str "--name=" model-name)])
+                           (str "--name=" app-name)])
     (ud/run-shell-command ["kubectl" "apply" "-f" cfg-file])
-    (ud/run-shell-command ["kubectl" "get" "service" model-name] true)
-    model-name))
+    (ud/run-shell-command-ignore-error ["kubectl" "get" "service" app-name] true)
+    (log/info (str "deployed cluster - " app-name))
+    (log/info (str "to undeploy, run - `eksctl delete cluster --region=" region " --name=" app-name "`"))
+    app-name))

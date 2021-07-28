@@ -21,3 +21,9 @@
    (run-shell-command cmd ok-exit-code false))
   ([cmd]
    (run-shell-command cmd 0)))
+
+(defn run-shell-command-ignore-error [cmd ok-exit-code print-out]
+  (try
+    (run-shell-command cmd ok-exit-code print-out)
+    (catch Exception ex
+      (log/error ex))))

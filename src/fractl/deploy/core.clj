@@ -22,7 +22,8 @@
 
 (defn- assoc-defaults [config]
   (-> (us/maybe-assoc config :container :docker)
-      (us/maybe-assoc :repository :aws)))
+      (us/maybe-assoc :repository :aws)
+      (us/maybe-assoc :cluster :aws)))
 
 (defn- get-deploy-fn [config k]
   (if-let [f (get-in deploy-fns [k (k config)])]
@@ -49,7 +50,7 @@
     (ud/run-shell-command ["/bin/sh" "-c" aws-auth])
     (ud/run-shell-command ["docker" "tag" image-name dest])
     (ud/run-shell-command ["docker" "push" dest])
-    image-name))
+    dest))
 
 (defn deploy [model-dir config]
   (let [config (assoc-defaults config)
