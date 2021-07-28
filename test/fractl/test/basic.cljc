@@ -671,19 +671,19 @@
     (record {:Inherits/Base {:A {:type :Kernel/Int
                                  :optional true}
                              :B :Kernel/Int}})
-    (entity {:Inherits/E {:X :Kernel/Int
+    (entity {:Inherits/E {:meta {:inherits :Inherits/Base}
+                          :X :Kernel/Int
                           :Y {:type :Kernel/Int
                               :optional true}
-                          :S :Kernel/String
-                          :inherits :Inherits/Base}})
+                          :S :Kernel/String}})
     (record {:Inherits/BaseMeta {:A :Kernel/Int
                                  :B :Kernel/Int
                                  :meta {:required-attributes [:B]}}})
-    (entity {:Inherits/F {:X :Kernel/Int
+    (entity {:Inherits/F {:meta {:inherits :Inherits/BaseMeta}
+                          :X :Kernel/Int
                           :Y {:type :Kernel/Int
                               :optional true}
-                          :S :Kernel/String
-                          :inherits :Inherits/BaseMeta}}))
+                          :S :Kernel/String}}))
   (let [e1 (cn/make-instance :Inherits/E {:X 10 :S "hello" :A 100 :B 200})
         e2 (cn/make-instance :Inherits/E {:X 1 :Y 2 :S "hi" :B 200})]
     (is (cn/instance-of? :Inherits/E e1))
@@ -703,12 +703,12 @@
                                        :optional true}
                                    :B :Kernel/Int}})
     (record {:MultiInherits/Base2 {:C :Kernel/Int
-                                   :inherits :MultiInherits/Base1}})
+                                   :meta {:inherits :MultiInherits/Base1}}})
     (entity {:MultiInherits/E {:X :Kernel/Int
                                :Y {:type :Kernel/Int
                                    :optional true}
                                :S :Kernel/String
-                               :inherits :MultiInherits/Base2}}))
+                               :meta {:inherits :MultiInherits/Base2}}}))
   (let [e1 (cn/make-instance :MultiInherits/E {:X 10 :S "hello" :A 100 :B 200 :C 300})
         e2 (cn/make-instance :MultiInherits/E {:X 1 :Y 2 :S "hi" :B 200 :C 300})]
     (is (cn/instance-of? :MultiInherits/E e1))
@@ -722,12 +722,12 @@
                                        :B :Kernel/Int
                                        :meta {:required-attributes [:B]}}})
     (record {:MultiInheritsMeta/Base2 {:C :Kernel/Int
-                                       :inherits :MultiInheritsMeta/Base1}})
+                                       :meta {:inherits :MultiInheritsMeta/Base1}}})
     (entity {:MultiInheritsMeta/E {:X :Kernel/Int
                                    :Y {:type :Kernel/Int
                                        :optional true}
                                    :S :Kernel/String
-                                   :inherits :MultiInheritsMeta/Base2}}))
+                                   :meta {:inherits :MultiInheritsMeta/Base2}}}))
   (let [e1 (cn/make-instance :MultiInheritsMeta/E {:X 10 :S "hello" :A 100 :B 200 :C 300})
         e2 (cn/make-instance :MultiInheritsMeta/E {:X 1 :Y 2 :S "hi" :B 200 :C 300})]
     (is (cn/instance-of? :MultiInheritsMeta/E e1))
@@ -953,3 +953,41 @@
    (run 200 2)
    (run 9 1)
    (run 22 3)))
+
+(deftest inheritance-type-check
+  (defcomponent :Itc
+    (record
+     :Itc/Base
+     {:X :Kernel/Int})
+    (record
+     :Itc/Child1
+     {:meta {:inherits :Itc/Base}
+      :Y :Kernel/Int})
+    (record
+     :Itc/Child2
+     {:meta {:inherits :Itc/Base}
+      :Z :Kernel/Int})
+    (record
+     :Itc/Child3
+     {:meta {:inherits :Itc/Child1}
+      :A :Kernel/Int})
+    (entity
+     :Itc/E
+     {:Values {:listof :Itc/Base}}))
+  (let [v1 (cn/make-instance {:Itc/Child1 {:X 1 :Y 2}})
+        v2 (cn/make-instance {:Itc/Child2 {:X 10 :Z 20}})
+        v3 (cn/make-instance {:Itc/Child3 {:X 9 :Y 8 :A 7}})
+        e (cn/make-instance {:Itc/E
+                             {:Values [v1 v2 v3]}})
+        result (ffirst
+                (tu/fresult
+                 (e/eval-all-dataflows
+                  (cn/make-instance
+                   {:Itc/Upsert_E
+                    {:Instance e}}))))]
+    (is (cn/instance-of? :Itc/E result))
+    (every? #(or (cn/instance-of? :Itc/Child1 %)
+                 (cn/instance-of? :Itc/Child2 %)
+                 (cn/instance-of? :Itc/Child3 %))
+            (:Values result))
+    (every? (partial cn/instance-of? :Itc/Base) (:Values result))))
