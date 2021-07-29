@@ -33,6 +33,8 @@
         nil)
       (do-query [_ query params]
         (u/throw-ex "Not implemented"))
+      (query-all [_ entity-name query]
+        (i/query-all entity-name query))
       (compile-query
         [_ query-pattern]
         (i/compile-to-indexed-query query-pattern))

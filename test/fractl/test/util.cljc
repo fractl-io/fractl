@@ -27,7 +27,7 @@
   (:result (first r)))
 
 (defn embedded-results [r]
-  (fresult (first (second (first r)))))
+  (fresult (first (second r))))
 
 (defn uuid-string []
   #?(:clj
@@ -36,18 +36,19 @@
      (str (random-uuid))))
 
 (defn first-result [evt]
-  (ffirst
+  (first
    (fresult
     (e/eval-all-dataflows evt))))
 
 ;; To test postgres, use the following config
 ;; for :clj in store/open-default-store.
-(def postgres-config
-  {:type     :postgres
-   :host     (System/getenv "POSTGRES_HOST")
-   :dbname   "postgres"
-   :username "postgres"
-   :password (System/getenv "POSTGRES_PASSWORD")})
+#?(:clj
+   (def postgres-config
+     {:type     :postgres
+      :host     (System/getenv "POSTGRES_HOST")
+      :dbname   "postgres"
+      :username "postgres"
+      :password (System/getenv "POSTGRES_PASSWORD")}))
 
 (store/open-default-store
  #?(:clj nil
