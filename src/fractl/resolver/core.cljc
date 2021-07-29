@@ -26,9 +26,9 @@
 
 (defn- ok? [r] (= :ok (:status r)))
 
-(defn- ok-ffresult [r]
+(defn- ok-fresult [r]
   (when (ok? r)
-    (ffirst (:result r))))
+    (first (:result r))))
 
 (defn- apply-xform
   "Tranformations can be applied as the data moves from the evaluator to
@@ -52,7 +52,7 @@
       (let [evt-inst (cn/make-instance
                       {xform {:Instance arg}})
             result (eval-dataflow evt-inst)]
-        (ok-ffresult (first result))))
+        (ok-fresult (first result))))
 
     :else
     arg))

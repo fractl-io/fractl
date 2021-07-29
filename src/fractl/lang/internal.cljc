@@ -66,7 +66,6 @@
 
 (def ^:private special-form-names
   #{:match :for-each :delete
-    quote-tag unquote-tag
     :and :or := :< :<= :> :>=
     :between :async :future-get
     :resolver :eval-on :pull :push :entity})
