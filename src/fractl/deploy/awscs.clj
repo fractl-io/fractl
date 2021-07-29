@@ -41,8 +41,8 @@ spec:
   selector:
     app: $app-name
   ports:
-    - port: 8080
-      targetPort: 8080
+    - port: $port
+      targetPort: $port
   type: LoadBalancer
 ---
 apiVersion: apps/v1
@@ -63,16 +63,18 @@ spec:
         - name: $app-name
           image: $image-name
           ports:
-            - containerPort: 8080
+            - containerPort: $port
 #          env:
 #            - name: <ENV_VAR>
 #              value: <env_val>
           imagePullPolicy: Always")
 
-(defn create-cluster [region model-name image-name]
+(defn create-cluster [config region model-name image-name]
   (let [app-name (str model-name "-" (u/uuid-string))
         cfg (s/replace
-             (s/replace cluster-spec-yml #"\$app-name" app-name)
+             (s/replace
+              (s/replace cluster-spec-yml #"\$app-name" app-name)
+              #"\$port" (str (get-in config [:config :service :port] 8080)))
              #"\$image-name" image-name)
         cfg-file (str model-name ".yml")]
     (spit cfg-file cfg)

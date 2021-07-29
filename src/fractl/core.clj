@@ -72,10 +72,8 @@
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
-(defn- run-cmd [args config]
-  (let [model (maybe-load-model args)
-        config (merge (:config model) config)
-        comp-root (:component-root config)
+(defn- run-cmd [args [model config]]
+  (let [comp-root (:component-root config)
         components (if model
                      (load-components-from-model model comp-root)
                      (load-components args comp-root))]
@@ -92,15 +90,23 @@
           (log/info (str "Server config - " server-cfg))
           (h/run-server ev server-cfg))))))
 
-(defn- read-config [options]
-  (when-let [config-file (get options :config)]
-    (read-string (slurp config-file))))
+(defn- read-model-and-config [args options]
+  (let [config-file (get options :config)
+        config (when config-file
+                 (read-string (slurp config-file)))
+        model (maybe-load-model args)]
+    [model (merge (:config model) config)]))
+
+(defn- deploy [options]
+  (let [model (:deploy options)
+        [_ config] (read-model-and-config [model] options)]
+    (d/deploy (:deploy options) {:config config})))
 
 (defn -main [& args]
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)]
     (cond
       errors (println errors)
-      (:deploy options) (d/deploy (:deploy options) nil)
+      (:deploy options) (deploy options)
       (:help options) (println summary)
-      :else (run-cmd args (read-config options)))))
+      :else (run-cmd args (read-model-and-config args options)))))

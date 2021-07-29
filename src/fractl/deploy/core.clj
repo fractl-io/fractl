@@ -65,4 +65,4 @@
                         model-name region
                         ((:create repo) conn (str model-name "-repository")))
             create-cluster (:create (dfn :cluster))]
-        (create-cluster region model-name image-name)))))
+        (create-cluster config region model-name image-name)))))
