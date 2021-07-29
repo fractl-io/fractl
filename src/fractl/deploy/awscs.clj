@@ -2,6 +2,7 @@
   "AWS container services"
   (:require [clojure.string :as s]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.deploy.util :as ud])
   (:import [fractl.deploy.aws Container]))
 
@@ -75,6 +76,7 @@ spec:
              #"\$image-name" image-name)
         cfg-file (str model-name ".yml")]
     (spit cfg-file cfg)
+    (log/info (str "creating cluster " app-name " with image " image-name))
     (ud/run-shell-command ["eksctl" "create" "cluster"
                            (str "--region=" region)
                            (str "--name=" app-name)])
