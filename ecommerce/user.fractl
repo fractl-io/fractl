@@ -12,6 +12,7 @@
 
 (entity {:UserInfo
          {:Email :Kernel/Email
+          :UserName :Kernel/String
           :Password :Kernel/Password
           :Name :Kernel/String
           :CurrentAddress :Kernel/String
