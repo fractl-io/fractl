@@ -51,6 +51,14 @@
       :cljs (ld/now)))
   ([] (now nil)))
 
+(defn add-days-to-datetime
+  ([days date]
+   (if (string? date)
+     (ld/plus-days (ld/parse date) days)
+     (log/error "Date isn't a string!")))
+  ([days]
+   (add-days-to-datetime days (str (ld/now)))))
+
 (defn now-raw []
   #?(:clj (LocalDateTime/now)
      :cljs (ld/now)))
