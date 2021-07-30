@@ -1,0 +1,33 @@
+(ns ecommerce.authentication
+  "Manage authentication for ecommerce"
+  (:use [fractl.lang]
+        [fractl.lang.datetime]
+        [fractl.lang.string]
+        [fractl.lang.b64])
+  (:require [fractl.component :as cn]))
+
+(component :Ecommerce.Authentication)
+
+(dataflow :Ecommerce.Authentication/StoreAdminLogin
+          {:Ecommerce.Store/StoreAdmin {:UserName? :Ecommerce.Authentication/StoreAdminLogin.UserName}}
+          [:match :Ecommerce.Store/StoreAdmin.Password
+           :Ecommerce.Authentication/StoreAdminLogin.Password  {:Kernel/Authentication {:Owner :Ecommerce.Store/StoreAdmin}}])
+
+(dataflow :Ecommerce.Authentication/UserLogin
+          {:Ecommerce.User/UserInfo {:UserName? :Ecommerce.Authentication/UserLogin.UserName}}
+          [:match :Ecommerce.User/UserInfo.Password
+           :Ecommerce.Authentication/UserLogin.Password  {:Kernel/Authentication {:Owner :Ecommerce.User/UserInfo}}])
+
+(dataflow :LoginPolicy
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource ["Ecommerce.Authentication/StoreAdminLogin"]
+            :Rule [:q# [:allow-all]]}}
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource ["Ecommerce.Authentication/UserLogin"]
+            :Rule [:q# [:allow-all]]}}
+          {:Kernel/Policy
+           {:Intercept "RBAC"
+            :Resource ["Kernel/Authentication"]
+            :Rule [:q# [[:Upsert :Delete] [:allow-all]]]}})
