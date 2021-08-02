@@ -27,7 +27,7 @@
   (:result (first r)))
 
 (defn embedded-results [r]
-  (fresult (first (second (first r)))))
+  (fresult (first (second r))))
 
 (defn uuid-string []
   #?(:clj
@@ -36,7 +36,7 @@
      (str (random-uuid))))
 
 (defn first-result [evt]
-  (ffirst
+  (first
    (fresult
     (e/eval-all-dataflows evt))))
 

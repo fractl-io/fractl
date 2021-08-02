@@ -27,14 +27,14 @@
      (entity {:I195/E2 {:Y :Kernel/DateTime}})
      (dataflow :I195/KK {:I195/E2 {:Y '(fractl.lang.datetime/now)}}))
    (let [evt (cn/make-instance :I195/K {})
-         r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+         r (first (tu/fresult (e/eval-all-dataflows evt)))]
      (is (cn/instance-of? :I195/E1 r))
      (is (dt/parse-date-time (:Y r)))
      (is (= 10 (:B r)))
      (is (= 15 (:A r)))
      (is (= 25 (:C r))))
    (let [evt (cn/make-instance :I195/KK {})
-         r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+         r (first (tu/fresult (e/eval-all-dataflows evt)))]
      (is (cn/instance-of? :I195/E2 r))
      (is (dt/parse-date-time (:Y r))))))
 
@@ -61,7 +61,7 @@
          evt3 (cn/make-instance {:I196/Upsert_E1 {:Instance e03}})
          e04 (cn/make-instance :I196/E1 {:A 20 :B 40 :C 70})
          evt4 (cn/make-instance {:I196/Upsert_E1 {:Instance e04}})
-         results (map #(ffirst (tu/fresult (e/eval-all-dataflows %)))
+         results (map #(first (tu/fresult (e/eval-all-dataflows %)))
                       [evt1 evt2 evt3 evt4])]
      (is (cn/instance-of?
           :I196/E1
@@ -86,7 +86,7 @@
          evt2 (cn/make-instance {:I206/Upsert_E1 {:Instance e02}})
          e03 (cn/make-instance :I206/E1 {:A 20 :B 60 :C 30})
          evt3 (cn/make-instance {:I206/Upsert_E1 {:Instance e03}})
-         results (map #(ffirst (tu/fresult (e/eval-all-dataflows %)))
+         results (map #(first (tu/fresult (e/eval-all-dataflows %)))
                       [evt1 evt2 evt3])]
      (is (cn/instance-of?
           :I206/E1
@@ -112,26 +112,26 @@
    (let [e (cn/make-instance {:I185/E {:X 10 :Y 1}})
          evt (cn/make-instance {:I185/Upsert_E {:Instance e}})
          r (tu/fresult (e/eval-all-dataflows evt))
-         r1 (ffirst r)
+         r1 (first r)
          id (:Id r1)
          evt (cn/make-instance {:I185/UpdateE {:Id id :X 20 :Y 100}})
          r2 (tu/fresult (e/eval-all-dataflows evt))
-         r3 (ffirst (tu/embedded-results r2))
+         r3 (first (tu/embedded-results r2))
          evt (cn/make-instance {:I185/UpdateE {:Id id :X 11 :Y 200}})
          r4 (tu/fresult (e/eval-all-dataflows evt))
-         r5 (ffirst (tu/embedded-results r4))
+         r5 (first (tu/embedded-results r4))
          evt (cn/make-instance {:I185/Lookup_E {:Id id}})
-         r6 (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+         r6 (first (tu/fresult (e/eval-all-dataflows evt)))]
      (is (nil? (tu/embedded-results r)))
      (is (cn/instance-of? :I185/E r1))
      (is (= 10 (:X r1)))
      (is (= 1 (:Y r1)))
-     (is (cn/instance-of? :I185/E (ffirst r2)))
-     (is (= 20 (:X (ffirst r2))))
+     (is (cn/instance-of? :I185/E (first r2)))
+     (is (= 20 (:X (first r2))))
      (is (nil? r3))
-     (is (cn/instance-of? :I185/E (ffirst r4)))
-     (is (= 11 (:X (ffirst r4))))
-     (is (= 200 (:Y (ffirst r4))))
+     (is (cn/instance-of? :I185/E (first r4)))
+     (is (= 11 (:X (first r4))))
+     (is (= 200 (:Y (first r4))))
      (is (cn/instance-of? :I185/R r5))
      (is (= 400 (:Y r5)))
      (is (cn/instance-of? :I185/E r6))
@@ -162,23 +162,23 @@
      (let [e1 (cn/make-instance {:I213/E1 {:X 10}})
            evt (cn/make-instance {:I213/Upsert_E1 {:Instance e1}})
            r1 (tu/fresult (e/eval-all-dataflows evt))
-           e1 (ffirst r1)
+           e1 (first r1)
            e2 (cn/make-instance {:I213/E2 {:E1 (:Id e1)
                                            :Y 20}})
            evt (cn/make-instance {:I213/Upsert_E2 {:Instance e2}})
            r2 (tu/fresult (e/eval-all-dataflows evt))
-           e2 (ffirst r2)
+           e2 (first r2)
            evt (cn/make-instance {:I213/UpdateE1
                                   {:Id (:Id e1)
                                    :X 20}})
            r3 (tu/fresult (e/eval-all-dataflows evt))
-           e3 (ffirst r3)
+           e3 (first r3)
            evt (cn/make-instance {:I213/UpdateE2
                                   {:Id (:Id e2)
                                    :Y 200}})
            r4 (tu/fresult (e/eval-all-dataflows evt))
-           e4 (ffirst r4)
-           r5 (ffirst (tu/embedded-results r4))]
+           e4 (first r4)
+           r5 (first (tu/embedded-results r4))]
        (is (cn/instance-of? :I213/E2 e2))
        (is (nil? (tu/embedded-results r1)))
        (is (nil? (tu/embedded-results r2)))
@@ -208,20 +208,20 @@
      (let [e1 (cn/make-instance {:I213NR/E1 {:X 9 :Z 2}})
            evt (cn/make-instance {:I213NR/Upsert_E1 {:Instance e1}})
            r1 (tu/fresult (e/eval-all-dataflows evt))
-           e1 (ffirst r1)
+           e1 (first r1)
            e2 (cn/make-instance {:I213NR/E2 {:Y 20}})
            evt (cn/make-instance {:I213NR/Upsert_E2 {:Instance e2}})
            r2 (tu/fresult (e/eval-all-dataflows evt))
-           e2 (ffirst r2)
+           e2 (first r2)
            e11 (cn/make-instance {:I213NR/E1 {:X 11 :Z 1}})
            evt (cn/make-instance {:I213NR/Upsert_E1 {:Instance e11}})
            r11 (tu/fresult (e/eval-all-dataflows evt))
-           e11 (ffirst r11)
+           e11 (first r11)
            e22 (cn/make-instance {:I213NR/E2 {:Y 200}})
            evt (cn/make-instance {:I213NR/Upsert_E2 {:Instance e22}})
            r22 (tu/fresult (e/eval-all-dataflows evt))
-           e22 (ffirst r22)
-           r (ffirst (tu/embedded-results r22))]
+           e22 (first r22)
+           r (first (tu/embedded-results r22))]
        (is (cn/instance-of? :I213NR/E1 e1))
        (is (nil? (tu/embedded-results r1)))
        (is (cn/instance-of? :I213NR/E2 e2))
@@ -244,7 +244,7 @@
               {:I219/Evt
                {:Y 100
                 :EventContext ctx}})
-         r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+         r (first (tu/fresult (e/eval-all-dataflows evt)))]
      (is (cn/instance-of? :I219/R r))
      (is (= 110 (:Y r)))
      (is (= ctx (:Z r))))))

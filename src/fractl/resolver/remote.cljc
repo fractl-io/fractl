@@ -57,6 +57,6 @@
   (let [host (:host config)
         options (with-required-options (dissoc config :host))
         handlers (map (fn [[k res]]
-                        [k (partial (:handler res) host options)])
+                        [k {:handler (partial (:handler res) host options)}])
                       resolver-fns)]
     (r/make-resolver resolver-name (into {} handlers))))

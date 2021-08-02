@@ -13,9 +13,9 @@
   (defcomponent :Q01
     (entity {:Q01/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :Q01/E {:X 10})
-        e1 (ffirst (tu/fresult (e/eval-all-dataflows {:Q01/Upsert_E {:Instance e}})))
+        e1 (first (tu/fresult (e/eval-all-dataflows {:Q01/Upsert_E {:Instance e}})))
         id (:Id e1)
-        e2 (ffirst (tu/fresult (e/eval-all-dataflows {:Q01/Lookup_E {:Id id}})))]
+        e2 (first (tu/fresult (e/eval-all-dataflows {:Q01/Lookup_E {:Id id}})))]
     (is (cn/instance-of? :Q01/E e2))
     (is (cn/same-instance? e1 e2))))
 
@@ -38,13 +38,13 @@
             (cn/make-instance :Q02/E {:X 12 :Y 6})
             (cn/make-instance :Q02/E {:X 9 :Y 3})]
         evts (map #(cn/make-instance :Q02/Upsert_E {:Instance %}) es)
-        f (comp ffirst #(:result (first (e/eval-all-dataflows %))))
+        f (comp first #(:result (first (e/eval-all-dataflows %))))
         insts (map f evts)
         ids (map :Id insts)]
     (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
-    (let [r01 (first (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}})))
+    (let [r01 (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}}))
           r (e/eval-all-dataflows {:Q02/QE02 {:X 10 :Y 100}})
-          r02 (first (tu/fresult r))]
+          r02 (tu/fresult r)]
       (is (= 2 (count r01)))
       (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r01))
       (is (= 2 (count r02)))
@@ -78,7 +78,7 @@
             (cn/make-instance :QueryAlias/E {:X 2 :N "e02"})
             (cn/make-instance :QueryAlias/E {:X 1 :N "e03"})]
         evts (map #(cn/make-instance :QueryAlias/Upsert_E {:Instance %}) es)
-        es_result (doall (map (comp (comp ffirst tu/fresult)
+        es_result (doall (map (comp (comp first tu/fresult)
                                     #(e/eval-all-dataflows %))
                               evts))
         result (tu/fresult (e/eval-all-dataflows {:QueryAlias/Evt {:X 1}}))]
@@ -110,7 +110,7 @@
         evt (cn/make-instance
              {:QueryAliasInExpr/Upsert_ProductBatch
               {:Instance batch}})
-        r (ffirst (tu/fresult (e/eval-all-dataflows evt)))
+        r (first (tu/fresult (e/eval-all-dataflows evt)))
         batch-id (:Id r)
         order-line (cn/make-instance
                     {:QueryAliasInExpr/OrderLine
@@ -119,7 +119,7 @@
         evt (cn/make-instance
              {:QueryAliasInExpr/Upsert_OrderLine
               {:Instance order-line}})
-        r (ffirst (tu/fresult (e/eval-all-dataflows evt)))
+        r (first (tu/fresult (e/eval-all-dataflows evt)))
         line-id (:Id r)
         evt (cn/make-instance
              {:QueryAliasInExpr/AllocateOrderLine
@@ -132,12 +132,12 @@
         evt (cn/make-instance
              {:QueryAliasInExpr/Upsert_OrderLine
               {:Instance order-line}})
-        r (ffirst (tu/fresult (e/eval-all-dataflows evt)))
+        r (first (tu/fresult (e/eval-all-dataflows evt)))
         line-id (:Id r)
         evt (cn/make-instance
              {:QueryAliasInExpr/AllocateOrderLine
               {:BatchId batch-id :LineId line-id}})
-        r (ffirst (tu/fresult (e/eval-all-dataflows evt)))]
+        r (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (= (:AvailableQty r) 18))))
 
 (deftest idempotent-upsert
@@ -147,12 +147,12 @@
                            :indexed true}
                        :Y :Kernel/Int}})
     (let [e1 (cn/make-instance :IdUps/E {:X 10 :Y 20})
-          r1 (ffirst (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e1}})))
+          r1 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e1}})))
           id (:Id r1)
-          r2 (ffirst (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))
+          r2 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))
           e2 (cn/make-instance :IdUps/E {:X 10 :Y 30})
-          r3 (ffirst (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e2}})))
-          r4 (ffirst (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))]
+          r3 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e2}})))
+          r4 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))]
       (is (= 20 (get-in r3 [:transition :from :Y])))
       (is (= 30 (get-in r3 [:transition :to :Y])))
       (is (= id (:Id r4)))
@@ -169,7 +169,7 @@
     (dataflow :QIdDel/FindByIdAndDel
               [:delete :QIdDel/E :QIdDel/FindByIdAndDel.EId]))
   (let [e (cn/make-instance :QIdDel/E {:X 100})
-        e01 (ffirst (tu/fresult (e/eval-all-dataflows {:QIdDel/Upsert_E {:Instance e}})))
+        e01 (first (tu/fresult (e/eval-all-dataflows {:QIdDel/Upsert_E {:Instance e}})))
         id (:Id e01)
         devt (cn/make-instance :QIdDel/FindByIdAndDel {:EId (:Id e01)})
         _ (doall (e/eval-all-dataflows devt))
@@ -189,7 +189,7 @@
     (dataflow :QDel/DeleteById
               [:delete :QDel/E :QDel/DeleteById.EId]))
   (let [e (cn/make-instance :QDel/E {:X 100})
-        e01 (ffirst (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e}})))
+        e01 (first (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e}})))
         id (:Id e01)
         devt (cn/make-instance :QDel/FindAndDel {:X 100})
         _ (doall (e/eval-all-dataflows devt))
@@ -222,15 +222,15 @@
              (cn/make-instance :I255/E {:X 9 :Y 2})
              (cn/make-instance :I255/E {:X 10 :Y 20})]
          evts (map #(cn/make-instance :I255/Upsert_E {:Instance %}) es)
-         f (comp ffirst #(:result (first (e/eval-all-dataflows %))))
+         f (comp first #(:result (first (e/eval-all-dataflows %))))
          insts (map f evts)]
      (is (every? true? (map #(cn/instance-of? :I255/E %) insts)))
-     (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q1 {:X 10}})))]
+     (let [r (tu/fresult (e/eval-all-dataflows {:I255/Q1 {:X 10}}))]
        (is (= (count r) 2))
        (doseq [e r]
          (is (and (= 10 (:X e))
                   (< (:Y e) 5)))))
-     (let [r (first (tu/fresult (e/eval-all-dataflows {:I255/Q2 {:X 10 :Y 3}})))]
+     (let [r (tu/fresult (e/eval-all-dataflows {:I255/Q2 {:X 10 :Y 3}}))]
        (is (= (count r) 2))
        (doseq [e r]
          (is (and (= 10 (:X e))
@@ -239,15 +239,15 @@
 
 (deftest test-unique-date-time
   (defcomponent :Dt01
-                (entity {:Dt01/E {:Name :Kernel/String
-                                  :LastAccountAccess {:type :Kernel/DateTime
+    (entity {:Dt01/E {:Name :Kernel/String
+                      :LastAccountAccess {:type :Kernel/DateTime
                                                       ;; Disable this for postgres
                                                       ;:unique true
-                                                      }}}))
+                                          }}}))
   (let [e (cn/make-instance :Dt01/E {:Name "Birkhe" :LastAccountAccess "2018-07-28T12:15:30"})
-        e1 (ffirst (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
+        e1 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
         id (:Id e1)
-        e2 (ffirst (tu/fresult (e/eval-all-dataflows {:Dt01/Lookup_E {:Id id}})))
+        e2 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Lookup_E {:Id id}})))
         laa (:LastAccountAccess e2)]
     (is (cn/instance-of? :Dt01/E e2))
     (is (cn/same-instance? e1 e2))

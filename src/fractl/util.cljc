@@ -172,7 +172,8 @@
 
 (defn getenv
   ([varname default]
-   (let [val (or (System/getenv varname) default)]
+   (let [val #?(:clj (or (System/getenv varname) default)
+                :cljs default)]
      (if-not (nil? val)
        val
        (throw-ex (str varname " - environment variable not set")))))

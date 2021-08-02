@@ -36,7 +36,7 @@
         result (e/eval-all-dataflows evt)
         r (first result)]
     (when-not (= :not-found (:status r))
-      (let [e (ffirst (:result r))]
+      (let [e (first (:result r))]
         (cn/same-instance? entity-instance e)))))
 
 (deftest r01
@@ -57,25 +57,19 @@
                      :Id :EntityXformR01/EPrimeToE.Instance.Id}})
   (let [e (cn/make-instance :R01/E {:X 10})
         result (tu/fresult (e/eval-all-dataflows {:R01/Upsert_E {:Instance e}}))
-        e01 (ffirst result)]
+        e01 (first result)]
     (is (cn/instance-of? :R01/E e01))
     (is (nil? (second result)))
     (is (persisted? :R01 e01)))
   (compose-test-resolver :TestResolver01 :R01/E)
   (let [e (cn/make-instance :R01/E {:X 10})
         result (tu/fresult (e/eval-all-dataflows {:R01/Upsert_E {:Instance e}}))
-        e01 (ffirst result)
-        r (ffirst (second result))]
+        e01 (first result)]
     (is (cn/instance-of? :R01/E e01))
     (is (persisted? :R01 e01))
-    (is (cn/instance-of? :R01/E r))
-    (is (= e01 r))
     (let [id (:Id e01)
-          result (tu/fresult (e/eval-all-dataflows {:R01/Delete_E {:Id id}}))
-          r01 (first result)
-          r02 (ffirst (second result))]
-      (is (= r01 [[:R01 :E] id]))
-      (is (= r02 [[:R01 :E] id])))))
+          result (tu/fresult (e/eval-all-dataflows {:R01/Delete_E {:Id id}}))]
+      (is (= result [[:R01 :E] id])))))
 
 (defn- test-resolver-r02 [install-resolver resolver-name path]
   (let [f (fn [_ arg] arg)
@@ -109,11 +103,9 @@
   (override-test-resolver-r02 :TestResolver02 :R02/E)
   (let [e (cn/make-instance :R02/E {:X 10})
         result (tu/fresult (e/eval-all-dataflows {:R02/Upsert_E {:Instance e}}))
-        e01 (ffirst result)
-        r (ffirst (second result))]
+        e01 (first result)]
     (is (cn/instance-of? :R02/E e01))
-    (is (not (persisted? :R02 e01)))
-    (is (= e01 r))))
+    (is (not (persisted? :R02 e01)))))
 
 (defn- test-query-resolver [install-resolver resolver-name path]
   (let [r (r/make-resolver resolver-name
@@ -135,11 +127,11 @@
     (entity {:RQ/E {:X :Kernel/Int}}))
   (test-query-resolver rg/compose-resolver :RQResolver :RQ/E)
   (let [e (cn/make-instance :RQ/E {:X 10})
-        e01 (ffirst (tu/fresult (e/eval-all-dataflows {:RQ/Upsert_E {:Instance e}})))]
+        e01 (first (tu/fresult (e/eval-all-dataflows {:RQ/Upsert_E {:Instance e}})))]
     (is (cn/instance-of? :RQ/E e01))
     (is (= 10 (:X e01)))
     (let [id (:Id e01)
-          e02 (ffirst (tu/fresult (e/eval-all-dataflows {:RQ/Lookup_E {:Id id}})))]
+          e02 (first (tu/fresult (e/eval-all-dataflows {:RQ/Lookup_E {:Id id}})))]
       (is (cn/instance-of? :RQ/E e02))
       ;(is (= id (:Id e02)))
       (is (= 1 (:X e02))))))

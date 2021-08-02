@@ -469,7 +469,7 @@
 (defn- check-format [ascm aname aval]
   (when-let [p (:check ascm)]
     (when-not (p aval)
-      (throw-error (str "check failed, invalid value for " aname))))
+      (throw-error (str "check failed, invalid value " aval " for " aname))))
   (when-let [fmt (:format ascm)]
     (when-not (fmt aval)
       (throw-error (str "format mismatch - " aname))))
