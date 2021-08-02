@@ -6,6 +6,9 @@
      (:require-macros [net.cgrand.macrovich :as macros]
                       [fractl.util :refer [passthru]])))
 
+(def script-extn ".fractl")
+(def model-script-name "model.fractl")
+
 (defn throw-ex-info
   ([msg errobj]
    (throw (ex-info msg errobj)))

@@ -1,6 +1,7 @@
 (ns fractl.core
   (:require [clojure.tools.cli :refer [parse-opts]]
             [clojure.string :as s]
+            [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
@@ -10,9 +11,6 @@
             [fractl.deploy.core :as d]
             [fractl.lang.loader :as loader])
   (:gen-class))
-
-(def script-extn ".fractl")
-(def model-script-name "model.fractl")
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
@@ -26,7 +24,7 @@
         (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
         (= \/ c) (recur (rest s) "" (conj result java.io.File/separator))
         :else (recur (rest s) sep (conj result c)))
-      (str (s/join result) script-extn))))
+      (str (s/join result) u/script-extn))))
 
 (defn- load-components [component-scripts component-root-path]
   (doall (map (partial loader/load-script component-root-path)
@@ -49,7 +47,7 @@
     (log-seq! "Resolvers" rns)))
 
 (defn- maybe-load-model [args]
-  (when (and (= (count args) 1) (s/ends-with? (first args) model-script-name))
+  (when (and (= (count args) 1) (s/ends-with? (first args) u/model-script-name))
     (read-string (slurp (first args)))))
 
 (defn- log-app-init-result! [result]

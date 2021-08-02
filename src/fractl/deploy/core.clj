@@ -52,17 +52,28 @@
     (ud/run-shell-command ["docker" "push" dest])
     dest))
 
-(defn deploy [model-dir config]
-  (let [config (assoc-defaults config)
-        model-name (last (s/split model-dir (re-pattern u/path-sep)))
-        dfn (partial get-deploy-fn config)
-        region (get config :region "us-east-2")]
-    (when ((dfn :container)
-           model-name (find-runtime-jar) model-dir)
-      (let [repo (dfn :repository)
-            conn ((:open repo) region)
-            image-name (upload-image
-                        model-name region
-                        ((:create repo) conn (str model-name "-repository")))
-            create-cluster (:create (dfn :cluster))]
-        (create-cluster config region model-name image-name)))))
+(defn- get-region [config]
+  (let [default (when (= (:cluster config) :aws)
+                  "us-east-2")]
+    (get config :region default)))
+
+(defn deploy
+  ([model-dir config]
+   (let [config (assoc-defaults config)
+         model-name (last (s/split model-dir (re-pattern u/path-sep)))
+         dfn (partial get-deploy-fn config)
+         region (get-region config)]
+     (when ((dfn :container)
+            model-name (find-runtime-jar) model-dir)
+       (let [repo (dfn :repository)
+             conn ((:open repo) region)
+             image-name (upload-image
+                         model-name region
+                         ((:create repo) conn (str model-name "-repository")))
+             create-cluster (:create (dfn :cluster))]
+         (create-cluster config region model-name image-name)))))
+  ([model-dir]
+   (let [model (read-string
+                (slurp
+                 (str model-dir u/path-sep u/model-script-name)))]
+     (deploy model-dir (:config model)))))
