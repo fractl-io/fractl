@@ -8,13 +8,11 @@
             [fractl.policy.rbac :as rbac]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
-            [fractl.deploy.core :as d]
             [fractl.lang.loader :as loader])
   (:gen-class))
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
-   ["-d" "--deploy MODEL-DIRECTORY" "Root directory of the model to deploy"]
    ["-h" "--help"]])
 
 (defn- script-name-from-component-name [component-name]
@@ -88,23 +86,17 @@
           (log/info (str "Server config - " server-cfg))
           (h/run-server ev server-cfg))))))
 
-(defn- read-model-and-config [args options]
+(defn read-model-and-config [args options]
   (let [config-file (get options :config)
         config (when config-file
                  (read-string (slurp config-file)))
         model (maybe-load-model args)]
     [model (merge (:config model) config)]))
 
-(defn- deploy [options]
-  (let [model (:deploy options)
-        [_ config] (read-model-and-config [model] options)]
-    (d/deploy (:deploy options) {:config config})))
-
 (defn -main [& args]
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)]
     (cond
       errors (println errors)
-      (:deploy options) (deploy options)
       (:help options) (println summary)
       :else (run-cmd args (read-model-and-config args options)))))
