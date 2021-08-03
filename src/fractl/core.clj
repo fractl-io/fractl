@@ -68,7 +68,7 @@
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
-(defn- run-cmd [args [model config]]
+(defn run-service [args [model config]]
   (let [comp-root (:component-root config)
         components (if model
                      (load-components-from-model model comp-root)
@@ -99,4 +99,4 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
-      :else (run-cmd args (read-model-and-config args options)))))
+      :else (run-service args (read-model-and-config args options)))))
