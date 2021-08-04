@@ -10,24 +10,26 @@
 
 (component :Ecommerce.Store)
 
-(record {:Inventory
+(entity {:Product
          {:productId :Kernel/UUID
           :Brand :Kernel/String
           :Price :Kernel/String
           :Name :Kernel/String
           :ManufacturerName :Kernel/String
           :ManufacturerId :Kernel/UUID
-          :Weight :Kernel/String
-          :Availability :Kernel/Boolean
-          :Shipping :Kernel/Boolean
-          :Stock :Kernel/Int}})
+          :Weight :Kernel/String}})
 
 (entity {:StoreInfo
          {:Name         :Kernel/String
           :Location     :Kernel/String
-          :Inventory    {:listof :Ecommerce.Store/Inventory}
           :StoreRatings :Kernel/Any
           :ItemsSold    :Kernel/String}})
+
+(entity {:Inventory
+         {:Shipping :Kernel/Boolean
+          :Stock :Kernel/Int
+          :Product {:ref :Ecommerce.Store/Product.Id}
+          :Store {:ref :Ecommerce.Store/StoreInfo.Id}}})
 
 (entity {:StoreAdmin
          {:Name            :Kernel/String
@@ -37,12 +39,15 @@
           :Group           {:oneof   ["admin" "member"]
                             :default "admin"}
           :ActiveSince     {:type    :Kernel/DateTime
-                            :default now}
-          ; This doesn't work for some reason.
-          ;:AssociatedStore {:ref :Ecommerce.Store/StoreInfo.Id
-          ;                  :indexed true
-          ;                  :optional true}
-          }})
+                            :default now}}})
+
+(entity {:Staff
+         {:Name :Kernel/String
+          :UserName :Kernel/String
+          :Email :Kernel/Email
+          :Password :Kernel/Password
+          :Group {:oneof ["admin" "IT" "support"]
+                  :default "admin"}}})
 
 (dataflow :EntityRBAC
           {:Kernel/Policy
@@ -87,6 +92,6 @@
                                                       :duration-minutes 5}}}]}})
 
 (event {:ListAllStores {}})
-
+;
 (dataflow :ListAllStores
           :Ecommerce.Store/StoreInfo?)
