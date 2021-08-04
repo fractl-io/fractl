@@ -1,6 +1,7 @@
 {:name :Ecommerce
  :components [:Ecommerce/Store
               :Ecommerce/User
+              :Ecommerce/Cart
               :Ecommerce/Application
               :Ecommerce/Policy
               :Ecommerce/Authentication]
