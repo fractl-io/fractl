@@ -1,0 +1,59 @@
+(ns ecommerce.cart
+  (:require [clojure.string :as s]
+            [fractl.resolver.registry :as rg]
+            [fractl.resolver.core :as r]
+            [fractl.component :as cn]
+            [fractl.evaluator :as e])
+  (:use [fractl.lang]
+        [fractl.lang.datetime]
+        [fractl.lang.string]))
+
+(component :Ecommerce.Cart)
+
+(entity {:CartInfo
+         {:Store   {:ref     :Ecommerce.Store/StoreInfo.Id
+                    :indexed true}
+          :Inventory   {:ref :Ecommerce.Store/Inventory.Id
+                        :indexed true}
+          :Product {:ref :Ecommerce.Store/Product.Id
+                    :indexed true}
+          :AddedAt {:type    :Kernel/DateTime
+                    :default now}
+          :NoofItems :Kernel/Int
+          :TotalPrice :Kernel/String
+          :Currency :Kernel/String}})
+
+(event {:AddToCart
+        {:Product :Kernel/UUID
+         :Inventory :Kernel/UUID
+         :Store :Kernel/UUID
+         :NoofItems :Kernel/Int
+         :AddedAt {:type    :Kernel/DateTime
+                   :default now}
+         :Price :Kernel/String
+         :Currency :Kernel/String}})
+
+(dataflow :AddToCart
+          {:CartInfo {:Store      :Ecommerce.Cart/AddToCart.Store
+                      :Inventory  :Ecommerce.Cart/AddToCart.Inventory
+                      :Product    :Ecommerce.Cart/AddToCart.Product
+                      :Item       :Ecommerce.Cart/AddToCart.Item
+                      :NoofItems  :Ecommerce.Cart/AddToCart.NoofItems
+                      :TotalPrice :Ecommerce.Cart/AddToCart.Price
+                      :Currency   :Ecommerce.Cart/AddToCart.Currency
+                      ;; Check whether product stock is >=1
+                      ;:Stock? [:>= 1]
+                      }}
+          {:CartInfo {:Store? :Ecommerce.Cart/AddToCart.Store}})
+
+(event {:DeleteCart
+        {:Cart :Kernel/UUID}})
+
+(dataflow :DeleteCart
+          [:delete :Ecommerce.Cart/CartInfo :Ecommerce.Cart/DeleteCart.Cart])
+
+(event {:AllCartItems {}})
+
+(dataflow :AllCartItems
+          :CartInfo?)
+
