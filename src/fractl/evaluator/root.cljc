@@ -286,14 +286,21 @@
     (perform-rbac! env :Lookup entity-name result)
     [result (env/bind-instances env entity-name result)]))
 
+(defn- require-validation? [n]
+  (if (or (cn/find-entity-schema n)
+          (cn/find-event-schema n)
+          (cn/find-record-schema n))
+    true
+    false))
+
 (defn- validated-instance [record-name obj]
   (if (cn/an-instance? obj)
     (if-not (cn/entity-instance? obj)
       (cn/validate-instance obj)
       obj)
-    (let [n (li/make-path record-name)
-          validate? (if (cn/find-entity-schema n) true false)]
-      (cn/make-instance record-name obj validate?))))
+    (cn/make-instance
+     record-name obj
+     (require-validation? (li/make-path record-name)))))
 
 (defn- pop-instance
   "An instance is built in stages, the partial object is stored in a stack.
