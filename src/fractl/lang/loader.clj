@@ -20,18 +20,27 @@
         exps
         (recur (rdf) (conj exps (eval (nu/fully-qualified-names exp))))))))
 
+(defn- maybe-fetch-component-name [file-name]
+  (loop [exps (read-string (str "(do" (slurp file-name) ")"))]
+    (when-let [exp (first exps)]
+      (if (and (seqable? exp) (= 'component (first exp)))
+        (second exp)
+        (recur (rest exps))))))
+
 (defn load-script
   "Load, complile and intern the component from a script file."
-  [component-root-path file-name]
+  [^String component-root-path ^String file-name]
   (let [crp (or component-root-path "./")
-        component-name (li/component-from-filename crp file-name)]
-    (cn/remove-component component-name)
+        full-file-name
+        (if (and component-root-path (not (.startsWith file-name component-root-path)))
+          (str component-root-path li/file-separator file-name)
+          file-name)
+        component-name (maybe-fetch-component-name full-file-name)]
+    (when component-name
+      (cn/remove-component component-name))
     (binding [*ns* *ns*]
-      (read-expressions
-       (if component-root-path
-         (str component-root-path li/file-separator file-name)
-         file-name)))
-    (when (cn/component-exists? component-name)
+      (read-expressions full-file-name))
+    (when (and component-name (cn/component-exists? component-name))
       component-name)))
 
 (defn load-expressions
