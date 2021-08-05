@@ -240,11 +240,7 @@
         names (string/join "." (map lowercase-component parts))]
     names))
 
-(def file-separator
-  #?(:clj
-     java.io.File/separator
-     :cljs
-     "/"))
+(def file-separator u/file-separator)
 
 (def pwd-prefix (str "." file-separator))
 
