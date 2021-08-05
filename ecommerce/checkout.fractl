@@ -1,9 +1,4 @@
 (ns ecommerce.checkout
-  (:require [clojure.string :as s]
-            [fractl.resolver.registry :as rg]
-            [fractl.resolver.core :as r]
-            [fractl.component :as cn]
-            [fractl.evaluator :as e])
   (:use [fractl.lang]
         [fractl.lang.datetime]
         [fractl.lang.string]))
@@ -30,7 +25,6 @@
          :Membership       {:oneof   ["member" "user" "guest"]
                             :default "user"}
          :ShippingDate     :Kernel/String
-         ;:ExpectedDelivery :Kernel/String
          :PaymentMethod    :Kernel/String
          ;:Backend          :Kernel/String
          ;:Receiver         :Kernel/String

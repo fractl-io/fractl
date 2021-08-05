@@ -31,16 +31,17 @@
           :Product {:ref :Ecommerce.Store/Product.Id}
           :Store {:ref :Ecommerce.Store/StoreInfo.Id}}})
 
-(entity {:StoreAdmin
+(entity {:StoreRepresentative
          {:Name            :Kernel/String
           :UserName        :Kernel/String
           :Email           :Kernel/Email
           :Password        :Kernel/Password
-          :Group           {:oneof   ["admin" "member"]
+          :Group           {:oneof   ["admin" "marketer"]
                             :default "admin"}
           :ActiveSince     {:type    :Kernel/DateTime
                             :default now}}})
 
+; Staff of ecommerce store
 (entity {:Staff
          {:Name :Kernel/String
           :UserName :Kernel/String
@@ -53,8 +54,9 @@
           {:Kernel/Policy
            {:Intercept "RBAC"
             :Resource ["Ecommerce.Store/StoreAdmin"
+                       "Ecommerce.Store/Staff"
                        ;"Ecommerce.Store/StoreInfo"
-                       ;"Ecommerce.Store/Inventory"
+                       "Ecommerce.Store/Inventory"
                        ]
             :Rule [:q#
                    [[:Upsert]
