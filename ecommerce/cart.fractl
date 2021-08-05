@@ -20,7 +20,7 @@
           :AddedAt    {:type    :Kernel/DateTime
                        :default now}
           :NoofItems  :Kernel/Int
-          :TotalPrice :Kernel/String
+          :Price :Kernel/String
           :Currency   {:type :Kernel/String
                        :default "USD"}}})
 
@@ -41,7 +41,7 @@
                       :Product    :Ecommerce.Cart/AddToCart.Product
                       :Item       :Ecommerce.Cart/AddToCart.Item
                       :NoofItems  :Ecommerce.Cart/AddToCart.NoofItems
-                      :TotalPrice :Ecommerce.Cart/AddToCart.Price
+                      :Price :Ecommerce.Cart/AddToCart.Price
                       ;:Currency   :Ecommerce.Cart/AddToCart.Currency
                       ;; Check whether product stock is >=1
                       :Stock? [:>= 1]}}
@@ -59,8 +59,7 @@
             :Product :Kernel/UUID
             :Store :Kernel/UUID
             :Price :Kernel/String
-            :NoofItems :Kernel/Int
-            :Price :Kernel/String}})
+            :NoofItems :Kernel/Int}})
 
 (dataflow :AddProductToCart
           {:CartInfo {:Id? :Ecommerce.Cart/AddProductToCart.Cart

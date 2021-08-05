@@ -36,7 +36,7 @@
 (dataflow :CheckoutItem
           ;; If a user is a premium member, they will receive item the very next day.
           [:match :Ecommerce.Checkout/CheckoutItem.Membership
-           "member" {:CheckoutLog {:Cart             :Ecommerce.Cart/CheckoutItem.Cart
+           "member" {:CheckoutLog {:Cart             :Ecommerce.Checkout/CheckoutItem.Cart
                                    :User             :Ecommerce.Checkout/CheckoutItem.User
                                    :ShippingDate     :Ecommerce.Checkout/CheckoutItem.ShippingDate
                                    :ShippingCharge   "Free"

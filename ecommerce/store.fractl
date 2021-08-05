@@ -36,8 +36,8 @@
           :UserName        :Kernel/String
           :Email           :Kernel/Email
           :Password        :Kernel/Password
-          :Group           {:oneof   ["admin" "marketer"]
-                            :default "admin"}
+          :Group           {:oneof   ["owner" "marketer"]
+                            :default "owner"}
           :ActiveSince     {:type    :Kernel/DateTime
                             :default now}}})
 
@@ -53,30 +53,33 @@
 (dataflow :EntityRBAC
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource ["Ecommerce.Store/StoreAdmin"
+            :Resource ["Ecommerce.Store/StoreRepresentative"
                        "Ecommerce.Store/Staff"
-                       ;"Ecommerce.Store/StoreInfo"
+                       "Ecommerce.Store/StoreInfo"
                        "Ecommerce.Store/Inventory"
-                       ]
+                       "Ecommerce.Store/Product"]
             :Rule [:q#
                    [[:Upsert]
                     [:when
                      [:= "admin" :EventContext.Auth.Owner.Group]]]]}}
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource ["Ecommerce.Store/StoreAdmin"
-                       ;"Ecommerce.Store/StoreInfo"
-                       ;"Ecommerce.Store/Inventory"
-                       ]
+            :Resource ["Ecommerce.Store/StoreRepresentative"
+                       "Ecommerce.Store/Staff"
+                       "Ecommerce.Store/StoreInfo"
+                       "Ecommerce.Store/Inventory"
+                       "Ecommerce.Store/Product"]
             :Rule [:q#
                    [[:Lookup] [:allow-all]]]}})
 
 (dataflow :EventRBAC
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource ["Ecommerce.Store/Upsert_StoreAdmin"
-                       ;"Ecommerce.Store/Upsert_StoreInfo"
-                       ]
+            :Resource ["Ecommerce.Store/Upsert_StoreRepresentative"
+                       "Ecommerce.Store/Upsert_StoreInfo"
+                       "Ecommerce.Store/Upsert_Staff"
+                       "Ecommerce.Store/Upsert_Product"
+                       "Ecommerce.Store/Upsert_Inventory"]
             :Rule [:q#
                    [:when
                     [:= "admin" :EventContext.Auth.Owner.Group]]]}})
@@ -84,9 +87,11 @@
 (dataflow :LoggingPolicy
           {:Kernel/Policy
            {:Intercept "Logging"
-            :Resource  ["Ecommerce.Store/Upsert_StoreAdmin"
-                        ;"Ecommerce.Store/Upsert_StoreInfo"
-                        ]
+            :Resource  ["Ecommerce.Store/Upsert_StoreRepresentative"
+                        "Ecommerce.Store/Upsert_StoreInfo"
+                        "Ecommerce.Store/Upsert_Staff"
+                        "Ecommerce.Store/Upsert_Product"
+                        "Ecommerce.Store/Upsert_Inventory"]
             :Rule      [:q# {:Disable        :INFO
                              :PagerThreshold {:WARN  {:count            5
                                                       :duration-minutes 10}

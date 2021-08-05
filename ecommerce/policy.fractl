@@ -9,11 +9,11 @@
 (component :Ecommerce.Policy)
 
 (dataflow :Kernel/AppInit
-          {:Ecommerce.Store/StoreAdmin{:Name "Super Admin"
-                                       :UserName "superadmin"
-                                       :Group "admin"
-                                       :Password "imightnotbehere123"
-                                       :Email "superadmin@v8.io"}}
+          {:Ecommerce.Store/Staff{:Name "Super Admin"
+                                  :UserName "superadmin"
+                                  :Group "admin"
+                                  :Password "imightnotbehere123"
+                                  :Email "superadmin@v8.io"}}
           {:Ecommerce.Store/EntityRBAC {}}
           {:Ecommerce.Store/EventRBAC {}}
           {:Ecommerce.Store/LoggingPolicy {}}
