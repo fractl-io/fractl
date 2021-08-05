@@ -19,8 +19,9 @@
    ["-h" "--help"]])
 
 (defn- find-model-paths [model current-model-paths config]
-  (let [mp (or (:model-path model)
-               (:model-path config)
+  (let [mpkey :model-paths
+        mp (or (mpkey model)
+               (mpkey config)
                ".")]
     (set
      (concat
@@ -46,9 +47,10 @@
   (load-components (map script-name-from-component-name (:components model))
                    model-root))
 
-(defn- read-model [model-file]
+(defn read-model [model-file]
   [(read-string (slurp model-file))
-   (.getParent (java.io.File. model-file))])
+   (.getParent
+    (java.io.File. (.getParent (java.io.File. model-file))))])
 
 (defn- read-model-from-paths [model-paths model-name]
   (let [s (s/lower-case (name model-name))]
@@ -62,7 +64,7 @@
          (str model-name " - model not found in any of "
               model-paths))))))
 
-(defn- load-model [model model-root model-paths config]
+(defn load-model [model model-root model-paths config]
   (let [nm (s/lower-case (name (:name model)))
         model-paths (find-model-paths model model-paths config)
         rmp (partial read-model-from-paths model-paths)]

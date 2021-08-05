@@ -26,7 +26,11 @@
   (let [crp (or component-root-path "./")
         component-name (li/component-from-filename crp file-name)]
     (cn/remove-component component-name)
-    (binding [*ns* *ns*] (read-expressions file-name))
+    (binding [*ns* *ns*]
+      (read-expressions
+       (if component-root-path
+         (str component-root-path li/file-separator file-name)
+         file-name)))
     (when (cn/component-exists? component-name)
       component-name)))
 
@@ -35,10 +39,15 @@
   ([mns mns-exps convert-fq?]
    (use 'fractl.lang)
    (cn/remove-component mns)
-   (binding [*ns* *ns*] (into '() (map #(eval (if convert-fq?
-                                                (nu/fully-qualified-names %)
-                                                %))
-                                       mns-exps)))
+   (binding [*ns* *ns*]
+     (into
+      '()
+      (map
+       #(eval
+         (if convert-fq?
+           (nu/fully-qualified-names %)
+           %))
+       mns-exps)))
    (when (cn/component-exists? mns)
      mns))
   ([mns mns-exps]

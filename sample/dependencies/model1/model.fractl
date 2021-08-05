@@ -1,0 +1,6 @@
+{:name :Model1
+ :components [:Model1/C1]
+ :dependencies [:Model2]
+ :model-paths ["./sample/dependencies"]
+ :config {:service {:port 8080}
+          :store {:dbname "./app/db"}}}
