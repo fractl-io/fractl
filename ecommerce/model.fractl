@@ -2,7 +2,7 @@
  :components [:Ecommerce/Store
               :Ecommerce/User
               :Ecommerce/Cart
-              :Ecommerce/Application
+              :Ecommerce/Checkout
               :Ecommerce/Policy
               :Ecommerce/Authentication]
  :config {:service {:port 8000}

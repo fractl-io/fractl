@@ -17,6 +17,6 @@
           {:Ecommerce.Store/EntityRBAC {}}
           {:Ecommerce.Store/EventRBAC {}}
           {:Ecommerce.Store/LoggingPolicy {}}
-          {:Ecommerce.Application/EntityRBAC {}}
-          {:Ecommerce.Application/EventRBAC {}}
-          {:Ecommerce.Application/LoggingPolicy {}})
+          {:Ecommerce.Checkout/EntityRBAC {}}
+          {:Ecommerce.Checkout/EventRBAC {}}
+          {:Ecommerce.Checkout/LoggingPolicy {}})
