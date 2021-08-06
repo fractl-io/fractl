@@ -187,3 +187,9 @@
             (seq (string/trim x))
             x)]
     (or (nil? x) (nil? s))))
+
+(def file-separator
+  #?(:clj
+     java.io.File/separator
+     :cljs
+     "/"))
