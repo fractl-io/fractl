@@ -1,9 +1,4 @@
 (ns ecommerce.store
-  (:require [clojure.string :as s]
-            [fractl.resolver.registry :as rg]
-            [fractl.resolver.core :as r]
-            [fractl.component :as cn]
-            [fractl.evaluator :as e])
   (:use [fractl.lang]
         [fractl.lang.datetime]
         [fractl.lang.string]))
@@ -11,13 +6,13 @@
 (component :Ecommerce.Store)
 
 (entity {:Product
-         {:productId :Kernel/UUID
-          :Brand :Kernel/String
-          :Price :Kernel/String
-          :Name :Kernel/String
+         {:productId        :Kernel/UUID
+          :Brand            :Kernel/String
+          :Price            :Kernel/String
+          :Name             :Kernel/String
           :ManufacturerName :Kernel/String
-          :ManufacturerId :Kernel/UUID
-          :Weight :Kernel/String}})
+          :ManufacturerId   :Kernel/UUID
+          :Weight           :Kernel/String}})
 
 (entity {:StoreInfo
          {:Name         :Kernel/String
@@ -27,62 +22,62 @@
 
 (entity {:Inventory
          {:Shipping :Kernel/Boolean
-          :Stock :Kernel/Int
-          :Product {:ref :Ecommerce.Store/Product.Id}
-          :Store {:ref :Ecommerce.Store/StoreInfo.Id}}})
+          :Stock    :Kernel/Int
+          :Product  {:ref :Ecommerce.Store/Product.Id}
+          :Store    {:ref :Ecommerce.Store/StoreInfo.Id}}})
 
 (entity {:StoreRepresentative
-         {:Name            :Kernel/String
-          :UserName        :Kernel/String
-          :Email           :Kernel/Email
-          :Password        :Kernel/Password
-          :Group           {:oneof   ["owner" "marketer"]
-                            :default "owner"}
-          :ActiveSince     {:type    :Kernel/DateTime
-                            :default now}}})
+         {:Name        :Kernel/String
+          :UserName    :Kernel/String
+          :Email       :Kernel/Email
+          :Password    :Kernel/Password
+          :Group       {:oneof   ["owner" "marketer"]
+                        :default "owner"}
+          :ActiveSince {:type    :Kernel/DateTime
+                        :default now}}})
 
 ; Staff of ecommerce store
 (entity {:Staff
-         {:Name :Kernel/String
+         {:Name     :Kernel/String
           :UserName :Kernel/String
-          :Email :Kernel/Email
+          :Email    :Kernel/Email
           :Password :Kernel/Password
-          :Group {:oneof ["admin" "IT" "support"]
-                  :default "admin"}}})
+          :Group    {:oneof   ["admin" "IT" "support"]
+                     :default "admin"}}})
 
 (dataflow :EntityRBAC
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource ["Ecommerce.Store/StoreRepresentative"
-                       "Ecommerce.Store/Staff"
-                       "Ecommerce.Store/StoreInfo"
-                       "Ecommerce.Store/Inventory"
-                       "Ecommerce.Store/Product"]
-            :Rule [:q#
-                   [[:Upsert]
-                    [:when
-                     [:= "admin" :EventContext.Auth.Owner.Group]]]]}}
+            :Resource  ["Ecommerce.Store/StoreRepresentative"
+                        "Ecommerce.Store/Staff"
+                        "Ecommerce.Store/StoreInfo"
+                        "Ecommerce.Store/Inventory"
+                        "Ecommerce.Store/Product"]
+            :Rule      [:q#
+                        [[:Upsert]
+                         [:when
+                          [:= "admin" :EventContext.Auth.Owner.Group]]]]}}
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource ["Ecommerce.Store/StoreRepresentative"
-                       "Ecommerce.Store/Staff"
-                       "Ecommerce.Store/StoreInfo"
-                       "Ecommerce.Store/Inventory"
-                       "Ecommerce.Store/Product"]
-            :Rule [:q#
-                   [[:Lookup] [:allow-all]]]}})
+            :Resource  ["Ecommerce.Store/StoreRepresentative"
+                        "Ecommerce.Store/Staff"
+                        "Ecommerce.Store/StoreInfo"
+                        "Ecommerce.Store/Inventory"
+                        "Ecommerce.Store/Product"]
+            :Rule      [:q#
+                        [[:Lookup] [:allow-all]]]}})
 
 (dataflow :EventRBAC
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource ["Ecommerce.Store/Upsert_StoreRepresentative"
-                       "Ecommerce.Store/Upsert_StoreInfo"
-                       "Ecommerce.Store/Upsert_Staff"
-                       "Ecommerce.Store/Upsert_Product"
-                       "Ecommerce.Store/Upsert_Inventory"]
-            :Rule [:q#
-                   [:when
-                    [:= "admin" :EventContext.Auth.Owner.Group]]]}})
+            :Resource  ["Ecommerce.Store/Upsert_StoreRepresentative"
+                        "Ecommerce.Store/Upsert_StoreInfo"
+                        "Ecommerce.Store/Upsert_Staff"
+                        "Ecommerce.Store/Upsert_Product"
+                        "Ecommerce.Store/Upsert_Inventory"]
+            :Rule      [:q#
+                        [:when
+                         [:= "admin" :EventContext.Auth.Owner.Group]]]}})
 
 (dataflow :LoggingPolicy
           {:Kernel/Policy

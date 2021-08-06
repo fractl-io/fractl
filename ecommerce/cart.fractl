@@ -1,9 +1,4 @@
 (ns ecommerce.cart
-  (:require [clojure.string :as s]
-            [fractl.resolver.registry :as rg]
-            [fractl.resolver.core :as r]
-            [fractl.component :as cn]
-            [fractl.evaluator :as e])
   (:use [fractl.lang]
         [fractl.lang.datetime]
         [fractl.lang.string]))
@@ -11,41 +6,27 @@
 (component :Ecommerce.Cart)
 
 (entity {:CartInfo
-         {:Store      {:ref     :Ecommerce.Store/StoreInfo.Id
-                       :indexed true}
-          :Inventory  {:ref     :Ecommerce.Store/Inventory.Id
-                       :indexed true}
-          :Product    {:ref     :Ecommerce.Store/Product.Id
-                       :indexed true}
-          :AddedAt    {:type    :Kernel/DateTime
-                       :default now}
-          :NoofItems  :Kernel/Int
-          :Price :Kernel/String
-          :Currency   {:type :Kernel/String
-                       :default "USD"}}})
+         {:Inventory {:ref     :Ecommerce.Store/Inventory.Id
+                      :indexed true}
+          :AddedAt   {:type    :Kernel/DateTime
+                      :default now}
+          :NoofItems :Kernel/Int
+          :Price     :Kernel/String
+          :Currency  {:type    :Kernel/String
+                      :default "USD"}}})
 
 (event {:AddCart
-        {:Product :Kernel/UUID
-         :Inventory :Kernel/UUID
-         :Store :Kernel/UUID
+        {:Inventory :Kernel/UUID
          :NoofItems :Kernel/Int
-         :AddedAt {:type    :Kernel/DateTime
-                   :default now}
-         :Price :Kernel/String
-         ;:Currency :Kernel/String
-         }})
+         :Price     :Kernel/String}})
 
 (dataflow :AddCart
-          {:CartInfo {:Store      :Ecommerce.Cart/AddToCart.Store
-                      :Inventory  :Ecommerce.Cart/AddToCart.Inventory
-                      :Product    :Ecommerce.Cart/AddToCart.Product
-                      :Item       :Ecommerce.Cart/AddToCart.Item
-                      :NoofItems  :Ecommerce.Cart/AddToCart.NoofItems
-                      :Price :Ecommerce.Cart/AddToCart.Price
-                      ;:Currency   :Ecommerce.Cart/AddToCart.Currency
+          {:CartInfo {:Inventory                        :Ecommerce.Cart/AddToCart.Inventory
+                      :NoofItems                        :Ecommerce.Cart/AddToCart.NoofItems
+                      :Price                            :Ecommerce.Cart/AddToCart.Price
                       ;; Check whether product stock is >=1
-                      :Stock? [:>= 1]}}
-          {:CartInfo {:Store? :Ecommerce.Cart/AddToCart.Store}})
+                      :Ecommerce.Stock/Inventory.Stock? [:>= 1]}}
+          {:CartInfo {:Inventory? :Ecommerce.Cart/AddToCart.Inventory?}})
 
 (event {:DeleteCart
         {:Cart :Kernel/UUID}})
@@ -54,21 +35,17 @@
           [:delete :Ecommerce.Cart/CartInfo :Ecommerce.Cart/DeleteCart.Cart])
 
 (event {:AddProductToCart
-           {:Inventory :Kernel/UUID
-            :Cart :Kernel/UUID
-            :Product :Kernel/UUID
-            :Store :Kernel/UUID
-            :Price :Kernel/String
-            :NoofItems :Kernel/Int}})
+        {:Inventory :Kernel/UUID
+         :Cart      :Kernel/UUID
+         :Product   :Kernel/UUID
+         :Store     :Kernel/UUID
+         :Price     :Kernel/String
+         :NoofItems :Kernel/Int}})
 
 (dataflow :AddProductToCart
-          {:CartInfo {:Id? :Ecommerce.Cart/AddProductToCart.Cart
-                      :Inventory? :Ecommerce.Cart/AddProductToCart.Inventory
-                      :Product? :Ecommerce.Cart/AddProductToCart.Product
-                      :Store? :Ecommerce.Cart/AddProductToCart.Store
-                      ; Logic to add no. of items here is complicated.
-                      :NoofItems :Ecommerce.Cart/AddProductToCart.NoofItems
-                      :Price :Ecommerce.Cart/AddProductToCart.Price}})
+          {:CartInfo {:Id?       :Ecommerce.Cart/AddProductToCart.Cart
+                      :NoofItems '(+ :Ecommerce.Cart/CartInfo.NoofItems :Ecommerce.Cart/AddProductToCart.NoofItems)
+                      :Price     '(+ :Ecommerce.Cart/CartInfo.Price :Ecommerce.Cart/AddProductToCart.Price)}})
 
 (event {:AllCartItems {}})
 
@@ -78,46 +55,12 @@
 (record {:TotalPrice
          {:Price :Kernel/String}})
 
-(event {:TotalFromCart
-        {:TotalPrice :Kernel/String}})
+(defn total-price [cartinfos]
+      (reduce + (map #(:Price %) cartinfos)))
 
-;; This is very experimental
 (dataflow :TotalFromCart
-          [:for-each :Ecommerce.Cart/CartInfo?
-           {:Ecommerce.Cart/TotalPrice {:Price :Ecommerce.Cart/CartInfo.Price}} :as :L
-           '(let [ep (conj [] :L)]
-                 (reduce + ep))])
+          :Ecommerce.Cart/CartInfo?
+          {:TotalPrice '(total-price :Ecommerce.Cart/CartInfo)})
 
-;This RBAC isn't required in Cart as, usually ecommerce sites allow to add
+;RBAC isn't required in Cart as, usually ecommerce sites allow to add
 ;carts or add items to cart but, checkout requires login.
-#_(dataflow :EntityRBAC
-          {:Kernel/Policy
-           {:Intercept "RBAC"
-            :Resource  ["Ecommerce.Cart/CartInfo"]
-            :Rule      [:q#
-                        [[:Upsert :Lookup]
-                         [:when
-                          [:or
-                           [:= "admin" :EventContext.Auth.Owner.Group]
-                           [:= "member" :EventContext.Auth.Owner.Group]]]]]}})
-
-#_(dataflow :EventRBAC
-          {:Kernel/Policy
-           {:Intercept "RBAC"
-            :Resource  ["Ecommerce.Cart/AddCart"
-                        "Ecommerce.Cart/DeleteCart"]
-            :Rule      [:q#
-                        [:when
-                         [:= "member" :EventContext.Auth.Owner.Group]]]}})
-
-#_(dataflow :LoggingPolicy
-          {:Kernel/Policy
-           {:Intercept "Logging"
-            :Resource  ["Ecommerce.Cart/CartInfo"
-                        "Ecommerce.Cart/AddCart"
-                        "Ecommerce.Cart/DeleteCart"]
-            :Rule      [:q# {:Disable        :INFO
-                             :PagerThreshold {:WARN  {:count            5
-                                                      :duration-minutes 10}
-                                              :ERROR {:count            3
-                                                      :duration-minutes 5}}}]}})
