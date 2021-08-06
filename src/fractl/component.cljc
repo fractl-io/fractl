@@ -245,6 +245,11 @@
                     find-record-schema :record]
                    [path]))
 
+(defn find-object-schema [path]
+  (or (find-entity-schema path)
+      (find-record-schema path)
+      (find-event-schema path)))
+
 (defn make-record-instance [type-tag full-name attributes]
   (into {} (concat {type-tag-key type-tag
                     :name full-name} attributes)))
@@ -958,8 +963,8 @@
 (def expr-fns (partial computed-attribute-fns :expr))
 (def query-fns (partial computed-attribute-fns :query))
 
-(defn all-computed-attribute-fns [entity-name]
-  (when-let [scm (find-entity-schema entity-name)]
+(defn all-computed-attribute-fns [record-name]
+  (when-let [scm (find-object-schema record-name)]
     [(expr-fns scm) (query-fns scm)]))
 
 (defn mark-dirty [inst]
