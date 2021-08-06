@@ -23,7 +23,8 @@
               jdbc-url (str jdbc-url-prefix
                             (or (:host connection-info) "localhost")
                             "/"
-                            (or (:dbname connection-info) "v8"))
+                            (or (:dbname connection-info) "v8")
+                            "?stringtype=unspecified")
               username (or (:username connection-info) "postgres")
               password (or (:password connection-info) "posterV8")]
           (u/safe-set-once

@@ -39,17 +39,24 @@
 (def composed? (complement map?))
 (def override? map?)
 
-(def constructors (merge {:remote remote/make
-                          :policy policy/make
-                          :auth auth/make}
-                         #?(:clj {:git git/make})
-                         #?(:clj {:email email/make})
-                         #?(:clj {:sms sms/make})))
+(def constructors
+  (u/make-cell
+   (merge {:remote remote/make
+           :policy policy/make
+           :auth auth/make}
+          #?(:clj {:git git/make})
+          #?(:clj {:email email/make})
+          #?(:clj {:sms sms/make}))))
+
+(defn register-resolver-type [type-name constructor]
+  (u/call-and-set
+   constructors
+   #(assoc @constructors type-name constructor)))
 
 (defn register-resolver [{n :name t :type
                           compose? :compose?
                           paths :paths config :config}]
-  (if-let [c (t constructors)]
+  (if-let [c (t @constructors)]
     (let [resolver (c n config)
           rf (if compose? compose-resolver override-resolver)]
       (doseq [p paths] (rf p resolver))

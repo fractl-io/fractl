@@ -11,9 +11,6 @@
             [fractl.lang.loader :as loader])
   (:gen-class))
 
-(def script-extn ".fractl")
-(def model-script-name "model.fractl")
-
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
    ["-h" "--help"]])
@@ -37,7 +34,7 @@
         (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
         (= \/ c) (recur (rest s) "" (conj result java.io.File/separator))
         :else (recur (rest s) sep (conj result c)))
-      (str (s/join result) script-extn))))
+      (str (s/join result) u/script-extn))))
 
 (defn- load-components [component-scripts model-root]
   (doall (map (partial loader/load-script model-root)
@@ -56,7 +53,7 @@
   (let [s (s/lower-case (name model-name))]
     (loop [mps model-paths]
       (if-let [mp (first mps)]
-        (let [p (str mp u/file-separator s u/file-separator model-script-name)]
+        (let [p (str mp u/path-sep s u/path-sep u/model-script-name)]
           (if (.exists (java.io.File. p))
             (read-model p)
             (recur (rest mps))))
@@ -88,7 +85,8 @@
     (log-seq! "Resolvers" rns)))
 
 (defn- maybe-read-model [args]
-  (when (and (= (count args) 1) (s/ends-with? (first args) model-script-name))
+  (when (and (= (count args) 1)
+             (s/ends-with? (first args) u/model-script-name))
     (read-model (first args))))
 
 (defn- log-app-init-result! [result]
@@ -111,7 +109,7 @@
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
-(defn- run-cmd [args config]
+(defn run-service [args [model config]]
   (let [[model model-root] (maybe-read-model args)
         config (merge (:config model) config)
         components (if model
@@ -130,9 +128,12 @@
           (log/info (str "Server config - " server-cfg))
           (h/run-server ev server-cfg))))))
 
-(defn- read-config [options]
-  (when-let [config-file (get options :config)]
-    (read-string (slurp config-file))))
+(defn read-model-and-config [args options]
+  (let [config-file (get options :config)
+        config (when config-file
+                 (read-string (slurp config-file)))
+        model (maybe-read-model args)]
+    [model (merge (:config model) config)]))
 
 (defn -main [& args]
   (let [{options :options args :arguments
@@ -140,4 +141,4 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
-      :else (run-cmd args (read-config options)))))
+      :else (run-service args (read-model-and-config args options)))))

@@ -6,6 +6,9 @@
      (:require-macros [net.cgrand.macrovich :as macros]
                       [fractl.util :refer [passthru]])))
 
+(def script-extn ".fractl")
+(def model-script-name "model.fractl")
+
 (defn throw-ex-info
   ([msg errobj]
    (throw (ex-info msg errobj)))
@@ -188,8 +191,17 @@
             x)]
     (or (nil? x) (nil? s))))
 
-(def file-separator
+
+(def path-sep
   #?(:clj
      java.io.File/separator
      :cljs
      "/"))
+
+(def line-sep (System/lineSeparator))
+
+(defn concat-lines [s & ss]
+  (loop [ss ss, result s]
+    (if-let [s (first ss)]
+      (recur (rest ss) (str result line-sep s))
+      result)))
