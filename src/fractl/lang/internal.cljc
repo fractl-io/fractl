@@ -240,9 +240,7 @@
         names (string/join "." (map lowercase-component parts))]
     names))
 
-(def file-separator u/file-separator)
-
-(def pwd-prefix (str "." file-separator))
+(def pwd-prefix (str "." u/path-sep))
 
 (defn- trim-path-prefix
   "Return file-name after removing any of these path prefixes: path-prefix, ./, ., /"
@@ -254,7 +252,7 @@
      (string/starts-with? file-name pwd-prefix)
      (subs file-name 2)
 
-     (or (string/starts-with? file-name file-separator)
+     (or (string/starts-with? file-name u/path-sep)
          (string/starts-with? file-name "."))
      (subs file-name 1)
 
@@ -265,7 +263,7 @@
   (let [parts (.split (trim-path-prefix
                        (trim-path-prefix file-name)
                        component-root-path)
-                      file-separator)
+                      u/path-sep)
         ns-parts (concat (take (dec (count parts)) parts)
                          [(u/remove-extension (last parts))])
         names (string/join "." (map uppercase-component ns-parts))]

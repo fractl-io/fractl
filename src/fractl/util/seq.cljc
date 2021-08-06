@@ -101,3 +101,8 @@
       (if (some #{x} ys)
         x
         (recur (rest xs))))))
+
+(defn maybe-assoc [m k v]
+  (if (contains? m k)
+    m
+    (assoc m k v)))

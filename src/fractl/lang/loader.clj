@@ -1,8 +1,8 @@
 (ns fractl.lang.loader
   "Component script loading with pre-processing."
-  (:require [fractl.util.seq :as su]
+  (:require [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.lang.name-util :as nu]
-            [fractl.lang.internal :as li]
             [fractl.component :as cn])
   (:import [java.io FileInputStream InputStreamReader PushbackReader]))
 
@@ -33,7 +33,7 @@
   (let [crp (or component-root-path "./")
         full-file-name
         (if (and component-root-path (not (.startsWith file-name component-root-path)))
-          (str component-root-path li/file-separator file-name)
+          (str component-root-path u/path-sep file-name)
           file-name)
         component-name (maybe-fetch-component-name full-file-name)]
     (when component-name
