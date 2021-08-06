@@ -279,3 +279,19 @@
               {:lcase/e {:x 100}})]
        (is (cn/instance-of? :lcase/e e))
        (is (= 100 (:x e)))))))
+
+(deftest issue-314-compound-exprs-in-records
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I314
+     (record :I314/R {:X :Kernel/Int
+                      :Y '(+ 10 :X)})
+     (dataflow :I314/Evt {:I314/R {:X :I314/Evt.X}}))
+   (let [r (first
+            (tu/fresult
+             (e/eval-all-dataflows
+              (cn/make-instance
+               {:I314/Evt {:X 20}}))))]
+     (is (cn/instance-of? :I314/R r))
+     (is (= 20 (:X r)))
+     (is (= 30 (:Y r))))))
