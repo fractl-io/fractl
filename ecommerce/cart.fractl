@@ -21,11 +21,12 @@
          :Price     :Kernel/String}})
 
 (dataflow :AddCart
-          {:CartInfo {:Inventory                        :Ecommerce.Cart/AddToCart.Inventory
-                      :NoofItems                        :Ecommerce.Cart/AddToCart.NoofItems
-                      :Price                            :Ecommerce.Cart/AddToCart.Price
-                      ;; Check whether product stock is >=1
-                      :Ecommerce.Stock/Inventory.Stock? [:>= 1]}}
+          {:Ecommerce.Stock/Inventory {:Id? :Ecommerce.Cart/AddCart.Inventory}}
+          [:match
+           [:>= :Ecommerce.Stock/Inventory.Stock 1]
+           {:CartInfo {:Inventory :Ecommerce.Cart/AddToCart.Inventory
+                       :NoofItems :Ecommerce.Cart/AddToCart.NoofItems
+                       :Price     :Ecommerce.Cart/AddToCart.Price}}]
           {:CartInfo {:Inventory? :Ecommerce.Cart/AddToCart.Inventory?}})
 
 (event {:DeleteCart
@@ -34,18 +35,19 @@
 (dataflow :DeleteCart
           [:delete :Ecommerce.Cart/CartInfo :Ecommerce.Cart/DeleteCart.Cart])
 
-(event {:AddProductToCart
-        {:Inventory :Kernel/UUID
-         :Cart      :Kernel/UUID
-         :Product   :Kernel/UUID
-         :Store     :Kernel/UUID
+(event {:AddSameProductToCart
+        {:Cart      :Kernel/UUID
+         :Inventory :Kernel/UUID
          :Price     :Kernel/String
          :NoofItems :Kernel/Int}})
 
-(dataflow :AddProductToCart
-          {:CartInfo {:Id?       :Ecommerce.Cart/AddProductToCart.Cart
-                      :NoofItems '(+ :Ecommerce.Cart/CartInfo.NoofItems :Ecommerce.Cart/AddProductToCart.NoofItems)
-                      :Price     '(+ :Ecommerce.Cart/CartInfo.Price :Ecommerce.Cart/AddProductToCart.Price)}})
+(dataflow :AddSameProductToCart
+          {:Ecommerce.Cart/CartInfo {:Id? :Ecommerce.Cart/AddSameProductToCart.Cart}}
+          {:Ecommerce.Stock/Inventory {:Id? :Ecommerce.Cart/AddSameProductToCart.Inventory}}
+          [:match
+           [:>= :Ecommerce.Stock/Inventory.Stock 1]
+           {:CartInfo {:NoofItems '(+ :Ecommerce.Cart/CartInfo.NoofItems :Ecommerce.Cart/AddSameProductToCart.NoofItems)
+                       :Price     '(+ :Ecommerce.Cart/CartInfo.Price :Ecommerce.Cart/AddSameProductToCart.Price)}}])
 
 (event {:AllCartItems {}})
 
