@@ -15,6 +15,18 @@
   [["-c" "--config CONFIG" "Configuration file"]
    ["-h" "--help"]])
 
+(defn- find-model-paths [model current-model-paths config]
+  (let [mpkey :model-paths
+        mp (or (mpkey model)
+               (mpkey config)
+               ".")]
+    (set
+     (concat
+      current-model-paths
+      (if (vector? mp)
+        mp
+        [mp])))))
+
 (defn- script-name-from-component-name [component-name]
   (loop [s (subs (str component-name) 1), sep "", result []]
     (if-let [c (first s)]
@@ -24,13 +36,41 @@
         :else (recur (rest s) sep (conj result c)))
       (str (s/join result) u/script-extn))))
 
-(defn- load-components [component-scripts component-root-path]
-  (doall (map (partial loader/load-script component-root-path)
+(defn- load-components [component-scripts model-root]
+  (doall (map (partial loader/load-script model-root)
               component-scripts)))
 
-(defn- load-components-from-model [model component-root-path]
+(defn- load-components-from-model [model model-root]
   (load-components (map script-name-from-component-name (:components model))
-                   component-root-path))
+                   model-root))
+
+(defn read-model [model-file]
+  [(read-string (slurp model-file))
+   (.getParent
+    (java.io.File. (.getParent (java.io.File. model-file))))])
+
+(defn- read-model-from-paths [model-paths model-name]
+  (let [s (s/lower-case (name model-name))]
+    (loop [mps model-paths]
+      (if-let [mp (first mps)]
+        (let [p (str mp u/path-sep s u/path-sep u/model-script-name)]
+          (if (.exists (java.io.File. p))
+            (read-model p)
+            (recur (rest mps))))
+        (u/throw-ex
+         (str model-name " - model not found in any of "
+              model-paths))))))
+
+(defn load-model [model model-root model-paths config]
+  (let [nm (s/lower-case (name (:name model)))
+        model-paths (find-model-paths model model-paths config)
+        rmp (partial read-model-from-paths model-paths)]
+    (doall
+     (map
+      #(let [[m mr] (rmp %)]
+         (load-model m mr model-paths config))
+      (:dependencies model)))
+    (load-components-from-model model model-root)))
 
 (defn- log-seq! [prefix xs]
   (loop [xs xs, sep "", s (str prefix " - ")]
@@ -44,9 +84,10 @@
   (when-let [rns (seq (rr/register-resolvers resolver-specs))]
     (log-seq! "Resolvers" rns)))
 
-(defn- maybe-load-model [args]
-  (when (and (= (count args) 1) (s/ends-with? (first args) u/model-script-name))
-    (read-string (slurp (first args)))))
+(defn- maybe-read-model [args]
+  (when (and (= (count args) 1)
+             (s/ends-with? (first args) u/model-script-name))
+    (read-model (first args))))
 
 (defn- log-app-init-result! [result]
   (cond
@@ -69,10 +110,11 @@
     (log-app-init-result! result)))
 
 (defn run-service [args [model config]]
-  (let [comp-root (:component-root config)
+  (let [[model model-root] (maybe-read-model args)
+        config (merge (:config model) config)
         components (if model
-                     (load-components-from-model model comp-root)
-                     (load-components args comp-root))]
+                     (load-model model model-root nil config)
+                     (load-components args (:component-root config)))]
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
       (register-resolvers! (:resolvers config))
@@ -90,7 +132,7 @@
   (let [config-file (get options :config)
         config (when config-file
                  (read-string (slurp config-file)))
-        model (maybe-load-model args)]
+        model (maybe-read-model args)]
     [model (merge (:config model) config)]))
 
 (defn -main [& args]
