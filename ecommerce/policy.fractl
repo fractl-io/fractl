@@ -14,6 +14,10 @@
                                   :Group "admin"
                                   :Password "imightnotbehere123"
                                   :Email "superadmin@v8.io"}}
+          {:Ecommerce.Store/StoreRepresentative {:Name "Clint Eastwood"
+                                                 :UserName "ClintE"
+                                                 :Password "getoffmylawn12"
+                                                 :Email "clint@eastwood.com"}}
           {:Ecommerce.Store/EntityRBAC {}}
           {:Ecommerce.Store/EventRBAC {}}
           {:Ecommerce.Store/LoggingPolicy {}}

@@ -50,15 +50,19 @@
 
 (def ^:private special-form-names
   #{:match :for-each :delete
-    quote-tag unquote-tag
+    ;quote-tag unquote-tag
     :and :or := :< :<= :> :>=
     :between :async :future-get
     :resolver :eval-on :pull :push :entity})
 
 (defn special-form? [x]
-  (or (and (vector? x)
+  (and (vector? x)
+       (some #{(first x)} special-form-names))
+  #_(or (and (vector? x)
            (some #{(first x)} special-form-names))
-      (some #{x} special-form-names)))
+      (some #{x} special-form-names)
+      )
+  )
 
 #_(defn special-form? [x]
   (some #{x} #{:match :for-each :delete
@@ -77,7 +81,7 @@
    (and (keyword? x)
         (not (reserved? x))
         (not (operator? x))
-        (not (special-form? x))
+        ;(not (special-form? x))
         ;(not (kernel-reserved? x))
         (let [s (subs (str x) 1)]
           (char-predic s))))

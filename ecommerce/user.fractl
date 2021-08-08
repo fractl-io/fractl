@@ -22,7 +22,7 @@
                         [[:Lookup] [:allow-all]]]}}
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource  ["Ecommerce.User/Member"]
+            :Resource  ["Ecommerce.User/UserInfo"]
             :Rule      [:q#
                         [[:Upsert]
                          [:when

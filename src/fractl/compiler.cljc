@@ -111,8 +111,9 @@
     :else [k (query-param-lookup v)]))
 
 (defn- process-query-filter-rule [[_ r]]
-  (println r)
-  (vec (name r)))
+  ;(vec (name r))
+  (vec r)
+  )
 
 (defn compile-query [ctx entity-name query]
   (let [indexed-attrs (set
