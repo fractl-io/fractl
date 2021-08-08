@@ -56,13 +56,9 @@
     :resolver :eval-on :pull :push :entity})
 
 (defn special-form? [x]
+  (println "X is: " x)
   (and (vector? x)
-       (some #{(first x)} special-form-names))
-  #_(or (and (vector? x)
-           (some #{(first x)} special-form-names))
-      (some #{x} special-form-names)
-      )
-  )
+       (some #{(first x)} special-form-names)))
 
 #_(defn special-form? [x]
   (some #{x} #{:match :for-each :delete

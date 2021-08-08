@@ -27,8 +27,7 @@
            {:CartInfo {:Inventory :Ecommerce.Cart/AddToCart.Inventory
                        :NoofItems :Ecommerce.Cart/AddToCart.NoofItems
                        :Price     :Ecommerce.Cart/AddToCart.Price}}]
-          ;{:CartInfo {:Inventory? :Ecommerce.Cart/AddToCart.Inventory}}
-            )
+          {:CartInfo {:Inventory? :Ecommerce.Cart/AddToCart.Inventory}})
 
 #_(event {:DeleteCart
         {:Cart :Kernel/UUID}})
