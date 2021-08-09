@@ -252,3 +252,37 @@
     (is (cn/instance-of? :Dt01/E e2))
     (is (cn/same-instance? e1 e2))
     (is (= "2018-07-28T12:15:30" laa))))
+
+(deftest query-in-for-each
+  (defcomponent :Qfe
+    (entity {:Qfe/E {:X {:type :Kernel/Int
+                         :indexed true}}})
+    (record {:Qfe/R {:Y :Kernel/Int}})
+    (dataflow
+     :Qfe/Evt1
+     [:for-each :Qfe/E? {:Qfe/R {:Y '(+ 10 :Qfe/E.X)}}])
+    (dataflow
+     :Qfe/Evt2
+     [:for-each {:Qfe/E {:X? 20}}
+      {:Qfe/R {:Y '(+ 10 :Qfe/E.X)}}]))
+  (defn make-e [x]
+    (let [evt (cn/make-instance
+               {:Qfe/Upsert_E
+                {:Instance
+                 (cn/make-instance {:Qfe/E {:X x}})}})
+          e (first (tu/fresult (e/eval-all-dataflows evt)))]
+      (is (cn/instance-of? :Qfe/E e))
+      (is (= x (:X e)))
+      e))
+  (let [e1 (make-e 10)
+        e2 (make-e 20)
+        evt1 (cn/make-instance {:Qfe/Evt1 {}})
+        rs1 (tu/fresult (e/eval-all-dataflows evt1))
+        evt2 (cn/make-instance {:Qfe/Evt2 {:X 20}})
+        rs2 (tu/fresult (e/eval-all-dataflows evt2))]
+    (doseq [r rs1]
+      (is (cn/instance-of? :Qfe/R r))
+      (let [y (:Y r)]
+        (is (or (= y 20) (= y 30)))))
+    (is (= 1 (count rs2)))
+    (is (= 30 (:Y (first rs2))))))
