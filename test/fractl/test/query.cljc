@@ -264,7 +264,19 @@
     (dataflow
      :Qfe/Evt2
      [:for-each {:Qfe/E {:X? 20}}
-      {:Qfe/R {:Y '(+ 10 :Qfe/E.X)}}]))
+      {:Qfe/R {:Y '(+ 10 :Qfe/E.X)}}])
+    (dataflow
+     :Qfe/Evt3
+     {:Qfe/E {:X :Qfe/Evt3.I} :as :E1}
+     {:Qfe/E {:X '(+ :E1.X 1)} :as :E2}
+     [:for-each {:Qfe/E {:X? 10}}
+      {:Qfe/R {:Y :Qfe/E.X}}])
+    (dataflow
+     :Qfe/Evt4
+     {:Qfe/E {:X :Qfe/Evt4.I} :as :E1}
+     {:Qfe/E {:X '(+ :E1.X 1)} :as :E2}
+     [:for-each :Qfe/E?
+      {:Qfe/R {:Y :Qfe/E.X}}]))
   (defn make-e [x]
     (let [evt (cn/make-instance
                {:Qfe/Upsert_E
@@ -279,10 +291,21 @@
         evt1 (cn/make-instance {:Qfe/Evt1 {}})
         rs1 (tu/fresult (e/eval-all-dataflows evt1))
         evt2 (cn/make-instance {:Qfe/Evt2 {:X 20}})
-        rs2 (tu/fresult (e/eval-all-dataflows evt2))]
+        rs2 (tu/fresult (e/eval-all-dataflows evt2))
+        evt3 (cn/make-instance {:Qfe/Evt3 {:I 10}})
+        rs3 (tu/fresult (e/eval-all-dataflows evt3))
+        evt4 (cn/make-instance {:Qfe/Evt4 {:I 100}})
+        rs4 (tu/fresult (e/eval-all-dataflows evt4))]
     (doseq [r rs1]
       (is (cn/instance-of? :Qfe/R r))
       (let [y (:Y r)]
         (is (or (= y 20) (= y 30)))))
     (is (= 1 (count rs2)))
-    (is (= 30 (:Y (first rs2))))))
+    (is (= 30 (:Y (first rs2))))
+    (is (= 2 (count rs3)))
+    (doseq [r rs3]
+      (is (= 10 (:Y r))))
+    (is (= 6 (count rs4)))
+    (doseq [r rs4]
+      (let [y (:Y r)]
+        (some #{y} #{10 11 20 100 101})))))
