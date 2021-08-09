@@ -11,23 +11,23 @@
           :AddedAt   {:type    :Kernel/DateTime
                       :default now}
           :NoofItems :Kernel/Int
-          :Price     :Kernel/String
+          :Price     :Kernel/Float
           :Currency  {:type    :Kernel/String
                       :default "USD"}}})
 
 (event {:AddCart
         {:Inventory :Kernel/UUID
          :NoofItems :Kernel/Int
-         :Price     :Kernel/String}})
+         :Price     :Kernel/Float}})
 
 (dataflow :AddCart
           {:Ecommerce.Store/Inventory {:Id? :Ecommerce.Cart/AddCart.Inventory}}
-          [:match
-           [:>= :Ecommerce.Store/Inventory.Stock 1]
-           {:CartInfo {:Inventory :Ecommerce.Cart/AddToCart.Inventory
-                       :NoofItems :Ecommerce.Cart/AddToCart.NoofItems
-                       :Price     :Ecommerce.Cart/AddToCart.Price}}]
-          {:CartInfo {:Inventory? :Ecommerce.Cart/AddToCart.Inventory}})
+          [:match [:>= :Ecommerce.Store/Inventory.Stock 1]
+           true {:CartInfo {:Inventory :Ecommerce.Cart/AddCart.Inventory
+                            :NoofItems :Ecommerce.Cart/AddCart.NoofItems
+                            :Price     :Ecommerce.Cart/AddCart.Price}}]
+          ;{:CartInfo {:Inventory? :Ecommerce.Cart/AddCart.Inventory}}
+          )
 
 #_(event {:DeleteCart
         {:Cart :Kernel/UUID}})
@@ -38,31 +38,35 @@
 (event {:AddSameProductToCart
         {:Cart      :Kernel/UUID
          :Inventory :Kernel/UUID
-         :Price     :Kernel/String
+         :Price     :Kernel/Float
          :NoofItems :Kernel/Int}})
 
 (dataflow :AddSameProductToCart
           {:Ecommerce.Cart/CartInfo {:Id? :Ecommerce.Cart/AddSameProductToCart.Cart}}
           {:Ecommerce.Store/Inventory {:Id? :Ecommerce.Cart/AddSameProductToCart.Inventory}}
-          [:match
-           [:>= :Ecommerce.Store/Inventory.Stock 1]
-           {:CartInfo {:NoofItems '(+ :Ecommerce.Cart/CartInfo.NoofItems :Ecommerce.Cart/AddSameProductToCart.NoofItems)
-                       :Price     '(+ :Ecommerce.Cart/CartInfo.Price :Ecommerce.Cart/AddSameProductToCart.Price)}}])
+          [:match [:>= :Ecommerce.Store/Inventory.Stock 1]
+           true {:CartInfo {:Inventory :Ecommerce.Cart/AddSameProductToCart.Inventory
+                            :NoofItems '(+ :Ecommerce.Cart/CartInfo.NoofItems :Ecommerce.Cart/AddSameProductToCart.NoofItems)
+                            :Price     '(+ :Ecommerce.Cart/CartInfo.Price :Ecommerce.Cart/AddSameProductToCart.Price)}}])
 
 (event {:AllCartItems {}})
 
 (dataflow :AllCartItems
-          :CartInfo?)
+          :Ecommerce.Cart/CartInfo?)
 
 (record {:TotalPrice
-         {:Price :Kernel/String}})
+         {:Price :Kernel/Float}})
 
+;Needs more work.
 (defn total-price [cartinfos]
       (reduce + (map #(:Price %) cartinfos)))
 
 (dataflow :TotalFromCart
           :Ecommerce.Cart/CartInfo?
-          {:TotalPrice '(total-price :Ecommerce.Cart/CartInfo)})
+          {:TotalPrice
+           ;'(total-price :Ecommerce.Cart/CartInfo)
+           '(reduce + (map #(:Price %) (get (first :Ecommerce.Cart/CartInfo) :result)))
+           })
 
 ;RBAC isn't required in Cart as, usually ecommerce sites allow to add
 ;carts or add items to cart but, checkout requires login.

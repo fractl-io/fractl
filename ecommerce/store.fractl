@@ -8,7 +8,7 @@
 (entity {:Product
          {:productId        :Kernel/UUID
           :Brand            :Kernel/String
-          :Price            :Kernel/String
+          :Price            :Kernel/Float
           :Name             :Kernel/String
           :ManufacturerName :Kernel/String
           :ManufacturerId   :Kernel/UUID

@@ -21,37 +21,34 @@
 (event {:CheckoutItem
         {:Cart          :Kernel/UUID
          :User          :Kernel/UUID
-         :Membership    {:oneof   ["member" "user" "guest"]
-                         :default "user"}
          :ShippingDate  :Kernel/String
          :PaymentMethod :Kernel/String
          :Backend       {:type :Kernel/String
                          :default "Postmark"}}})
 
 (dataflow :CheckoutItem
+          {:Ecommerce.User/UserInfo {:Id? :Ecommerce.Checkout/CheckoutItem.User}}
           ;; If a user is a premium member, they will receive item the very next day.
-          [:match :Ecommerce.Checkout/CheckoutItem.Membership
-           "member" {:CheckoutLog {:Cart             :Ecommerce.Checkout/CheckoutItem.Cart
-                                   :User             :Ecommerce.Checkout/CheckoutItem.User
-                                   :ShippingDate     :Ecommerce.Checkout/CheckoutItem.ShippingDate
-                                   :ShippingCharge   "Free"
-                                   :ExpectedDelivery '(str (fractl.lang.datetime/add-days-to-datetime 1 :Ecommerce.Checkout/CheckoutItem.ShippingDate))
-                                   :IsPaid           true
-                                   :PaymentMethod    :Ecommerce.Checkout/CheckoutItem.PaymentMethod}}
-           "user" {:CheckoutLog {:Cart             :Ecommerce.Cart/CheckoutItem.Cart
-                                 :User             :Ecommerce.Checkout/CheckoutItem.User
-                                 :ShippingDate     :Ecommerce.Checkout/CheckoutItem.ShippingDate
-                                 :ShippingCharge   "200 USD"
-                                 :ExpectedDelivery '(str (fractl.lang.datetime/add-days-to-datetime 3 :Ecommerce.Checkout/CheckoutItem.ShippingDate))
-                                 :IsPaid           true
-                                 :PaymentMethod    :Ecommerce.Checkout/CheckoutItem.PaymentMethod}}]
+          [:match [:= :Ecommerce.User/UserInfo.Group "member"]
+           true {:Ecommerce.Checkout/CheckoutLog {:Cart             :Ecommerce.Checkout/CheckoutItem.Cart
+                               :User             :Ecommerce.Checkout/CheckoutItem.User
+                               :ShippingDate     :Ecommerce.Checkout/CheckoutItem.ShippingDate
+                               :ShippingCharge   "Free"
+                               :ExpectedDelivery '(str (fractl.lang.datetime/add-days-to-datetime 1 :Ecommerce.Checkout/CheckoutItem.ShippingDate))
+                               :IsPaid           true
+                               :PaymentMethod    :Ecommerce.Checkout/CheckoutItem.PaymentMethod}}
+           false {:Ecommerce.Checkout/CheckoutLog {:Cart             :Ecommerce.Checkout/CheckoutItem.Cart
+                                :User             :Ecommerce.Checkout/CheckoutItem.User
+                                :ShippingDate     :Ecommerce.Checkout/CheckoutItem.ShippingDate
+                                :ShippingCharge   "200 USD"
+                                :ExpectedDelivery '(str (fractl.lang.datetime/add-days-to-datetime 3 :Ecommerce.Checkout/CheckoutItem.ShippingDate))
+                                :IsPaid           true
+                                :PaymentMethod    :Ecommerce.Checkout/CheckoutItem.PaymentMethod}}]
           {:Ecommerce.User/UserInfo {:Id? :Ecommerce.Checkout/CheckoutItem.User}}
           {:Ecommerce.Cart/CartInfo {:Id? :Ecommerce.Checkout/CheckoutItem.Cart}}
           {:Email/Push {:Receiver :Ecommerce.User/UserInfo.Email
                         :Subject  "Item Checked out!"
-                        :Text     '(str "You have paid - " :Ecommerce.Cart/CartInfo.Price)}}
-          {:CheckoutLog {:Cart? :Ecommerce.Checkout/CheckoutItem.Cart
-                         :User? :Ecommerce.Checkout/CheckoutItem.User}})
+                        :Text     '(str "You have paid - " :Ecommerce.Cart/CartInfo.Price)}})
 
 (event {:AllCheckouts {}})
 
@@ -63,7 +60,7 @@
         {:ShippingDate :Kernel/String}})
 
 (dataflow :AllShippingInfo
-          :CheckoutLog {:ShippingDate? :Ecommerce.Checkout/:AllShippingInaDate.ShippingDate})
+          :CheckoutLog {:ShippingDate? :Ecommerce.Checkout/AllShippingInaDate.ShippingDate})
 
 (dataflow :EntityRBAC
           {:Kernel/Policy
@@ -79,7 +76,8 @@
 (dataflow :EventRBAC
           {:Kernel/Policy
            {:Intercept "RBAC"
-            :Resource  ["Ecommerce.Checkout/CheckoutItem"]
+            :Resource  ["Ecommerce.Checkout/CheckoutItem"
+                        "Ecommerce.Checkout/AllCheckouts"]
             :Rule      [:q#
                         [:when
                          [:= "member" :EventContext.Auth.Owner.Group]]]}})
