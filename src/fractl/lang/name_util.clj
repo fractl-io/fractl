@@ -44,9 +44,6 @@
                 mname))))
         n))))
 
-(defn- query-key? [k]
-  (string/ends-with? (str k) "?"))
-
 (defn- looks-like-inst? [x]
   (and (= 1 (count (keys x)))
        (map? (first (vals x)))))
@@ -85,9 +82,7 @@
    component-qualified names."
   [x is-recdef]
   (let [y (mapv (fn [[k v]]
-                  (if (query-key? k)
-                    [k v]
-                    [(fq-name k) (fq-generic v is-recdef)]))
+                  [(fq-name k) (fq-generic v is-recdef)])
                 x)]
     (into {} y)))
 
@@ -112,7 +107,7 @@
       :else v)))
 
 (defn- fq-map-entry [[k v] is-recdef]
-  (if (or (query-key? k) (= :meta k))
+  (if (= :meta k)
     [k v]
     [k (fq-generic v is-recdef)]))
 
