@@ -25,6 +25,8 @@
   (drop-schema [store component-name]
     "Drop the schema for the component. Return component-name on success, nil if the
      schema does not exist. On failure, raise an exception.")
+  (fetch-schema [store]
+    "Return the schema as a map. Return nil if the schema cannot be retrieved.")
   (create-table [store entity-name]
     "Create a table for a newly defined entity.")
   (upsert-instance [store entity-name instance]

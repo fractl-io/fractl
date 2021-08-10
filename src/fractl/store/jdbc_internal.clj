@@ -24,9 +24,12 @@
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 
-(defn do-query-statement [conn query-sql query-params]
-  (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
-    [pstmt query-params]))
+(defn do-query-statement
+  ([conn query-sql query-params]
+   (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
+     [pstmt query-params]))
+  ([conn query-sql]
+   (jdbc/prepare conn [query-sql])))
 
 (defn transact-fn! [datasource f]
   (with-open [conn (jdbc/get-connection datasource)]

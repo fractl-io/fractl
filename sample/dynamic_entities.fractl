@@ -1,0 +1,6 @@
+(ns sample.dynamic-entities
+  (:use [fractl.lang]))
+
+(component :Sample.DynamicEntities)
+
+(record {:R {:X :Kernel/Int}})

@@ -254,9 +254,12 @@
                                        su/table-for-entity
                                        su/index-table-name))
 
+(defn- raw-results [query-fns]
+  (flatten (map u/apply0 query-fns)))
+
 (defn- query-instances [entity-name query-fns]
   (let [[id-key json-key] (su/make-result-keys entity-name)
-        results (flatten (map u/apply0 query-fns))]
+        results (raw-results query-fns)]
     (su/results-as-instances entity-name id-key json-key results)))
 
 (defn query-by-id
@@ -312,3 +315,21 @@
       entity-name
       (let [[pstmt params] (do-query-statement conn query-sql nil)]
         [(fn [] (execute-stmt! conn pstmt params))])))))
+
+(defn fetch-schema [datasource fetch-schema-sql
+                    get-table-names fetch-columns-sql]
+  (execute-fn!
+   datasource
+   (fn [conn]
+     (let [[pstmt params] (do-query-statement conn fetch-schema-sql nil)
+           tabnames (get-table-names
+                     (raw-results
+                      [#(execute-stmt! conn pstmt params)]))
+           col-pstmt (do-query-statement conn fetch-columns-sql)]
+       (mapv
+        (fn [tn]
+          {tn
+           (raw-results
+            [#(execute-stmt!
+               conn col-pstmt [tn])])})
+        tabnames)))))

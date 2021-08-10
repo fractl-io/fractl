@@ -1,3 +1,4 @@
 {;; :component-root "./sample"
  ;; :store {:type :sfdc-metadata}
+ ;; :store {:type :postgres}
  :service {:port 8080}}

@@ -71,9 +71,9 @@
 
 (defn table-name->entity
   [tabname] 
-   (let [tabnamestr (name tabname)
-         [cnstr estr] (s/split tabnamestr #"__")]
-     [(keyword (s/replace cnstr #"_" ".")) (keyword estr)]))
+  (let [tabnamestr (name tabname)
+        [cnstr estr] (s/split tabnamestr #"__")]
+    [(keyword (s/replace cnstr #"_" ".")) (keyword estr)]))
 
 (defn- table-attr->entity-attr
   [table-attr]

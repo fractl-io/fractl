@@ -21,8 +21,10 @@
   (u/safe-set-once
     default-store
     #(do
-       (p/open-connection store (or store-config
-                                    (make-default-store-config)))
+       (p/open-connection
+        store
+        (or store-config
+            (make-default-store-config)))
        store)))
 
 (def ^:private store-constructors

@@ -15,6 +15,29 @@
     (u/uuid-from-string x)
     x))
 
+(defn- table-names-from-schema [result]
+  (mapv :pg_tables/tablename result))
+
+(defn- normalize-table-schema [result]
+  (into
+   {}
+   (mapv
+    (fn [r]
+      (let [k (first (keys r))
+            v (get r k)]
+        [k (into {} (mapv
+                     (fn [c]
+                       [(:columns/column_name c)
+                        (:columns/data_type c)])
+                     v))]))
+    result)))
+
+(def ^:private fetch-schema-sql
+  "select * from pg_catalog.pg_tables where schemaname<>'pg_catalog' and schemaname<>'information_schema'")
+
+(def ^:private fetch-columns-sql
+  "select column_name, data_type from information_schema.columns where table_name = ?")
+
 (defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
@@ -50,6 +73,11 @@
         (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
         (db/drop-schema @datasource component-name))
+      (fetch-schema [_]
+        (normalize-table-schema
+         (db/fetch-schema
+          @datasource fetch-schema-sql
+          table-names-from-schema fetch-columns-sql)))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance
          pi/upsert-inst-statement pi/upsert-index-statement
