@@ -8,6 +8,9 @@
             [fractl.policy.rbac :as rbac]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
+            [fractl.store :as store]
+            [fractl.lang :as ln]
+            [fractl.lang.internal :as li]
             [fractl.lang.loader :as loader])
   (:gen-class))
 
@@ -109,6 +112,19 @@
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
+(defn- init-dynamic-entities! [component entity-names schema]
+  (let [s (into {} (filter (fn [[k _]] (some #{k} entity-names)) schema))]
+    (doseq [[k v] s]
+      (ln/entity (li/make-path component k) v))))
+
+(defn- run-appinit-tasks! [evaluator store model components]
+  (when-let [schema (when (some cn/dynamic-entities components)
+                      (store/fetch-schema store))]
+    (doseq [c components]
+      (when-let [entity-names (cn/dynamic-entities c)]
+        (init-dynamic-entities! c entity-names schema))))
+  (trigger-appinit-event! evaluator (:init-data model)))
+
 (defn run-service [args [model config]]
   (let [[model model-root] (maybe-read-model args)
         config (merge (:config model) config)
@@ -118,8 +134,9 @@
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
       (register-resolvers! (:resolvers config))
-      (let [ev (e/public-evaluator (:store config) true)]
-        (trigger-appinit-event! ev (:init-data model))
+      (let [store (e/store-from-config (:store config))
+            ev (e/public-evaluator store true)]
+        (run-appinit-tasks! ev store model components)
         (rbac/init!)
         (e/zero-trust-rbac!
          (let [f (:zero-trust-rbac config)]

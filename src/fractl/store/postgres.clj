@@ -88,14 +88,15 @@
     (fn [r]
       (let [k (first (keys r))
             v (get r k)]
-        [k (into
-            {}
-            (mapv
-             (fn [c]
-               (if-let [t (type-lookup (:columns/data_type c))]
-                 [(:columns/column_name c) t]
-                 (u/throw-ex (str "type not supported - " (:columns/data_type c)))))
-             v))]))
+        [(keyword k)
+         (into
+          {}
+          (mapv
+           (fn [c]
+             (if-let [t (type-lookup (:columns/data_type c))]
+               [(keyword (:columns/column_name c)) t]
+               (u/throw-ex (str "type not supported - " (:columns/data_type c)))))
+           v))]))
     result)))
 
 (def ^:private fetch-schema-sql

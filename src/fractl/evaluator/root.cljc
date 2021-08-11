@@ -117,12 +117,13 @@
 (def ^:private inited-components (u/make-cell [:Kernel]))
 
 (defn- maybe-init-schema! [store component-name]
-  (when-not (some #{component-name} @inited-components)
-    (u/safe-set
-     inited-components
-     (do (store/create-schema store component-name)
-         (conj @inited-components component-name))
-     component-name)))
+  (when-not (cn/dynamic-entities component-name)
+    (when-not (some #{component-name} @inited-components)
+      (u/safe-set
+       inited-components
+       (do (store/create-schema store component-name)
+           (conj @inited-components component-name))
+       component-name))))
 
 (defn- perform-rbac! [env opr recname data]
   (when-not ((env/rbac-check env)

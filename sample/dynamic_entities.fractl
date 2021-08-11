@@ -1,6 +1,7 @@
 (ns sample.dynamic-entities
   (:use [fractl.lang]))
 
-(component :Sample.DynamicEntities)
+(component :Sample.DynamicEntities
+           {:dynamic-entities [:dept :employee]})
 
 (record {:R {:X :Kernel/Int}})

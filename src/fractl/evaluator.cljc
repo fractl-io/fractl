@@ -171,7 +171,7 @@
              (partial store/compile-query store))]
     [cq (r/get-default-evaluator (partial run-dataflows cq) dispatch-opcodes eval-dataflow)]))
 
-(defn- store-from-config
+(defn store-from-config
   [store-or-store-config]
   (cond
     (or (nil? store-or-store-config)

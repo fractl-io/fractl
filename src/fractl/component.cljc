@@ -70,6 +70,8 @@
 
 (declare intern-attribute intern-event)
 
+(def dynamic-entities-key :dynamic-entities)
+
 (defn create-component
   "Create a new component with the given name and references to
   the components in the imports list. If a component already exists with
@@ -94,7 +96,8 @@
       ;;              :java java-imports
       ;;              :v8 [v8-imports aliases]}}
       (assoc @components component
-             (merge {:resolver (:resolver spec)}
+             (merge {:resolver (:resolver spec)
+                     dynamic-entities-key (dynamic-entities-key spec)}
                     imports clj-imports java-imports v8-imports))))
   (intern-attribute [component :Id]
                     {:type :Kernel/UUID
@@ -116,6 +119,9 @@
 
 (defn component-definition [component]
   (find @components component))
+
+(defn dynamic-entities [component]
+  (dynamic-entities-key (second (component-definition component))))
 
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)

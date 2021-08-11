@@ -15,29 +15,36 @@
       [imps]
       imps)))
 
-(defn- component-spec-for [k spec]
-  (seq (filter #(= k (first %)) spec)))
-
 (declare init)
+
+(def ^:private component-spec-validators
+  {:import #(normalize-imports
+             (li/validate-imports %))
+   :clj-import li/validate-clj-imports
+   :java-import li/validate-java-imports
+   :v8-import li/validate-clj-imports
+   cn/dynamic-entities-key #(do (every? li/name? %)
+                                %)})
+
+(defn- validate-component-spec [spec]
+  (into
+   {}
+   (map
+    (fn [[k v]]
+      (let [vf (or (k component-spec-validators)
+                   identity)]
+        [k (vf v)]))
+    spec)))
 
 (defn component
   "Create and activate a new component with the given name."
-  [n & spec]
-  (init)
-  (let [ns-name (li/validate-name n)
-        imports (component-spec-for :import spec)
-        clj-imports (component-spec-for :clj-import spec)
-        java-imports (component-spec-for :java-import spec)
-        v8-imports (component-spec-for :v8-import spec)
-        resolver (component-spec-for :resolver spec)]
-    (cn/create-component
-     ns-name
-     {:import (normalize-imports
-                (li/validate-imports (first imports)))
-      :clj-import (li/validate-clj-imports (first clj-imports))
-      :java-import (li/validate-java-imports (first java-imports))
-      :v8-import (li/validate-clj-imports (first v8-imports))
-      :resolver resolver})))
+  ([n spec]
+   (init)
+   (let [ns-name (li/validate-name n)]
+     (cn/create-component
+      ns-name
+      (when spec (validate-component-spec spec)))))
+  ([n] (component n nil)))
 
 (defn- attribute-type? [nm]
   (or (cn/find-attribute-schema nm)

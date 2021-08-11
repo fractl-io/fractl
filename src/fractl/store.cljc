@@ -91,6 +91,7 @@
 (def close-connection p/close-connection)
 (def connection-info p/connection-info)
 (def create-schema p/create-schema)
+(def fetch-schema p/fetch-schema)
 (def drop-schema p/drop-schema)
 (def create-table p/create-table)
 (def delete-by-id p/delete-by-id)
