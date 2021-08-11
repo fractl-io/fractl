@@ -18,6 +18,69 @@
 (defn- table-names-from-schema [result]
   (mapv :pg_tables/tablename result))
 
+(def ^:private
+  type-lookup
+  "Maps postgres to fractl types.
+  Types currently unsupported in fractl are explicitly mapped to false."
+  {"bigint" :Kernel/Int64
+   "int8" :Kernel/Int64
+   "bigserial" :Kernel/Int64
+   "serial8" :Kernel/Int64
+   "bit" false
+   "bit varying" false
+   "varbit" false
+   "boolean" :Kernel/Boolean
+   "bool" :Kernel/Boolean
+   "box" false
+   "bytea" false
+   "binary data" false
+   "character" :Kernel/String
+   "char" :Kernel/String
+   "character varying" :Kernel/String
+   "varchar" :Kernel/String
+   "cidr" false
+   "circle" false
+   "date" :Kernel/String
+   "double precision" :Kernel/Double
+   "float8" :Kernel/Double
+   "inet" false
+   "integer" :Kernel/Int
+   "int" :Kernel/Int
+   "int4" :Kernel/Int
+   "interval" false
+   "json" :Kernel/String
+   "jsonb" false
+   "line" false
+   "lseg" false
+   "macaddr" false
+   "money" :Kernel/Decimal
+   "numeric" :Kernel/Decimal
+   "decimal" :Kernel/Decimal
+   "path" false
+   "pg_lsn" false
+   "point" false
+   "polygon" false
+   "real" :Kernel/Float
+   "float4" :Kernel/Float
+   "smallint" :Kernel/Int
+   "int2" :Kernel/Int
+   "smallserial" :Kernel/Int
+   "serial2" :Kernel/Int
+   "serial" :Kernel/Int
+   "serial4" :Kernel/Int
+   "text" :Kernel/String
+   "time" :Kernel/String
+   "time with time zone" :Kernel/String
+   "timetz" :Kernel/String
+   "timestamp" :Kernel/String
+   "timestamp with time zone" :Kernel/String
+   "timestamptz" :Kernel/String
+   "tsquery" :Kernel/String
+   "tsvector" false
+   "txid_snapshot" false
+   "uuid" :Kernel/UUID
+   "xml" :Kernel/String})
+
 (defn- normalize-table-schema [result]
   (into
    {}
@@ -25,11 +88,14 @@
     (fn [r]
       (let [k (first (keys r))
             v (get r k)]
-        [k (into {} (mapv
-                     (fn [c]
-                       [(:columns/column_name c)
-                        (:columns/data_type c)])
-                     v))]))
+        [k (into
+            {}
+            (mapv
+             (fn [c]
+               (if-let [t (type-lookup (:columns/data_type c))]
+                 [(:columns/column_name c) t]
+                 (u/throw-ex (str "type not supported - " (:columns/data_type c)))))
+             v))]))
     result)))
 
 (def ^:private fetch-schema-sql
