@@ -126,6 +126,7 @@
             entity-name
             (when qp
               (map query-param-process qp)))]
+    (ctx/put-fresh-record! ctx entity-name {})
     {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
      :raw-query eq
      :filter (when fp
