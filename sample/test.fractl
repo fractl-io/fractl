@@ -1,0 +1,15 @@
+(ns sample.test
+  (:use [fractl.lang]))
+
+(component :Sample.Test)
+
+(record
+ :HelloWorld
+ {:Name :Kernel/String
+  :Message :Kernel/String})
+
+(dataflow
+ :SayHello
+ {:HelloWorld
+  {:Name :SayHello.Name
+   :Message '(str "Hello World from " :SayHello.Name)}})

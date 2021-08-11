@@ -106,3 +106,7 @@
   (if (contains? m k)
     m
     (assoc m k v)))
+
+(defn list-or-cons? [x]
+  (or (= (type x) clojure.lang.Cons)
+      (list? x)))

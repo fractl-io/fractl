@@ -3,7 +3,9 @@
   (:require [clojure.test :refer [deftest is]]
             [fractl.core :as fc]
             [fractl.component :as cn]
-            [fractl.lang.loader :as loader]))
+            [fractl.lang.loader :as loader]
+            [fractl.evaluator :as e]
+            [fractl.test.util :as tu]))
 
 (deftest test-load-script
   (is :Sample.Simple (loader/load-script nil "sample/simple.fractl"))
@@ -21,3 +23,11 @@
     (is (= [:Model1.C1] (fc/load-model model model-root [] nil)))
     (is (cn/component-exists? :Model1.C1))
     (is (cn/component-exists? :Model2.C1))))
+
+(deftest issue-321
+  (is :Sample.Test (loader/load-script nil "sample/test.fractl"))
+  (let [evt (cn/make-instance {:Sample.Test/SayHello {:Name "Clojure"}})
+        r (first (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :Sample.Test/HelloWorld r))
+    (is (= (:Message r) "Hello World from Clojure"))
+    (is (= (:Name r) "Clojure"))))
