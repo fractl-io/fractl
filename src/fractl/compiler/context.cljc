@@ -15,6 +15,13 @@
 (defn fetch-record [ctx rec-name]
   (get @ctx rec-name))
 
+(defn put-fresh-record!
+  "Call put-record! if rec-name does not exist in context."
+  [ctx rec-name schema]
+  (if-not (fetch-record ctx rec-name)
+    (u/call-and-set ctx #(assoc @ctx rec-name schema))
+    ctx))
+
 (defn bind-variable! [ctx k v]
   (u/call-and-set ctx #(assoc @ctx k v)))
 
