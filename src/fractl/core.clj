@@ -113,9 +113,13 @@
     (log-app-init-result! result)))
 
 (defn- init-dynamic-entities! [component entity-names schema]
-  (let [s (into {} (filter (fn [[k _]] (some #{k} entity-names)) schema))]
-    (doseq [[k v] s]
-      (ln/entity (li/make-path component k) v))))
+  (let [s (filter (fn [r]
+                    (let [k (first (keys r))]
+                      (some #{k} entity-names)) schema)
+                  schema)]
+    (doseq [t s]
+      (ln/entity (li/make-path component (first (keys t)))
+                 (first (vals t))))))
 
 (defn- run-appinit-tasks! [evaluator store model components]
   (when-let [schema (when (some cn/dynamic-entities components)

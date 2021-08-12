@@ -456,6 +456,13 @@
                  :OldInstance entity-name})]
     (event-internal event-name attrs)))
 
+(defn- maybe-assoc-id [entity-name attrs]
+  (if (cn/dynamic-entity? entity-name)
+    attrs
+    (assoc
+     attrs :Id
+     (cn/canonical-type-name :Id))))
+
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
@@ -466,8 +473,7 @@
                  (normalized-attributes
                   :entity
                   entity-name
-                  ;; TODO: Check for user-define identity attributes first.
-                  (assoc attrs :Id (cn/canonical-type-name :Id))))
+                  (maybe-assoc-id entity-name attrs)))
          ev (partial crud-evname n)
          ctx-aname (k/event-context-attribute-name)
          inst-evattrs {:Instance n :EventContext ctx-aname}

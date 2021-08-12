@@ -123,6 +123,12 @@
 (defn dynamic-entities [component]
   (dynamic-entities-key (second (component-definition component))))
 
+(defn dynamic-entity?
+  ([component entity-name]
+   (some #{entity-name} (dynamic-entities component)))
+  ([full-entity-name]
+   (apply dynamic-entity? (li/split-path full-entity-name))))
+
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)
     (get-in @components [component :alias alias-entry])
@@ -381,7 +387,7 @@
   "Return the names of all identity attributes in the schema."
   (make-attributes-filter #(and (:unique %) (:immutable %))))
 
-(defn- identity-attribute-name
+(defn identity-attribute-name
   "Return the name of any one of the identity attributes of the given entity."
   [type-name]
   (let [scm (find-entity-schema type-name)]

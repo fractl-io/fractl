@@ -188,6 +188,11 @@
     (clojure.set/difference (set indexed-attrs) (set uq-attrs))
     indexed-attrs))
 
+(defn- upsert-dynamic-entity-instance [datasource entity-name instance]
+  (let [tabname (su/table-for-entity entity-name)]
+    ;; TODO: generate upsert sql
+    ))
+
 (defn upsert-instance
   ([upsert-inst-statement upsert-index-statement datasource
     entity-name instance update-unique-indices?]
@@ -209,9 +214,12 @@
                       upsert-index-statement)))
      instance))
   ([datasource entity-name instance]
-   (upsert-instance
-    upsert-inst-statement upsert-index-statement
-    datasource entity-name instance true)))
+   (if (cn/dynamic-entity? entity-name)
+     (upsert-dynamic-entity-instance
+      datasource entity-name instance)
+     (upsert-instance
+      upsert-inst-statement upsert-index-statement
+      datasource entity-name instance true))))
 
 (defn update-instance
   ([upsert-inst-statement upsert-index-statement datasource entity-name instance]
@@ -316,8 +324,32 @@
       (let [[pstmt params] (do-query-statement conn query-sql nil)]
         [(fn [] (execute-stmt! conn pstmt params))])))))
 
+(defn- query-pk-columns [conn table-name sql]
+  (let [pstmt (do-query-statement conn (s/replace sql #"\?" table-name))]
+    (mapv :pg_attribute/attname (execute-stmt! conn pstmt nil))))
+
+(defn- mark-pks [pks schema]
+  (map
+   #(let [colname (:columns/column_name %)]
+      (if (some #{colname} pks)
+        (assoc % :columns/pk true)
+        %))
+   schema))
+
+(defn- normalize-table-schema [type-lookup cols]
+  (apply
+   merge
+   (mapv
+    (fn [c]
+      (if-let [t (type-lookup (:columns/data_type c))]
+        {(keyword (:columns/column_name c))
+         (merge {:type t} (when (:columns/pk c) {:unique true :immutable true}))}
+        (u/throw-ex (str "type not supported - " (:columns/data_type c)))))
+    cols)))
+
 (defn fetch-schema [datasource fetch-schema-sql
-                    get-table-names fetch-columns-sql]
+                    get-table-names fetch-columns-sql
+                    fetch-pk-columns-sql type-lookup]
   (execute-fn!
    datasource
    (fn [conn]
@@ -328,8 +360,9 @@
            col-pstmt (do-query-statement conn fetch-columns-sql)]
        (mapv
         (fn [tn]
-          {tn
-           (raw-results
-            [#(execute-stmt!
-               conn col-pstmt [tn])])})
+          (let [pks (query-pk-columns conn tn fetch-pk-columns-sql)
+                r (raw-results
+                   [#(execute-stmt!
+                      conn col-pstmt [tn])])]
+            {(keyword tn) (normalize-table-schema type-lookup (mark-pks pks r))}))
         tabnames)))))

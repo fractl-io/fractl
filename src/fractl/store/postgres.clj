@@ -81,29 +81,18 @@
    "uuid" :Kernel/UUID
    "xml" :Kernel/String})
 
-(defn- normalize-table-schema [result]
-  (into
-   {}
-   (mapv
-    (fn [r]
-      (let [k (first (keys r))
-            v (get r k)]
-        [(keyword k)
-         (into
-          {}
-          (mapv
-           (fn [c]
-             (if-let [t (type-lookup (:columns/data_type c))]
-               [(keyword (:columns/column_name c)) t]
-               (u/throw-ex (str "type not supported - " (:columns/data_type c)))))
-           v))]))
-    result)))
-
 (def ^:private fetch-schema-sql
   "select * from pg_catalog.pg_tables where schemaname<>'pg_catalog' and schemaname<>'information_schema'")
 
 (def ^:private fetch-columns-sql
   "select column_name, data_type from information_schema.columns where table_name = ?")
+
+(def ^:private fetch-pk-columns-sql
+  (str "select a.attname, format_type(a.atttypid, a.atttypmod) as data_type "
+       "from pg_index i "
+       "join pg_attribute a ON a.attrelid = i.indrelid and a.attnum = any(i.indkey) "
+       "where i.indrelid = '?'::regclass "
+       "and i.indisprimary"))
 
 (defn make []
   (let [datasource (u/make-cell)]
@@ -141,10 +130,10 @@
       (drop-schema [_ component-name]
         (db/drop-schema @datasource component-name))
       (fetch-schema [_]
-        (normalize-table-schema
-         (db/fetch-schema
-          @datasource fetch-schema-sql
-          table-names-from-schema fetch-columns-sql)))
+        (db/fetch-schema
+         @datasource fetch-schema-sql
+         table-names-from-schema fetch-columns-sql
+         fetch-pk-columns-sql type-lookup))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance
          pi/upsert-inst-statement pi/upsert-index-statement
