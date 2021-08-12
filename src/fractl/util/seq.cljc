@@ -110,3 +110,11 @@
 (defn list-or-cons? [x]
   (or (= (type x) clojure.lang.Cons)
       (list? x)))
+
+(defn join-as-string [xs delim]
+  (loop [xs xs, s ""]
+    (if-let [x (first xs)]
+      (recur (rest xs)
+             (str s x (when (rest xs)
+                        delim)))
+      s)))

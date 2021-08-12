@@ -129,6 +129,19 @@
   ([full-entity-name]
    (apply dynamic-entity? (li/split-path full-entity-name))))
 
+(def ^:private dynamic-mark-key :-*-dynamic-entity-instance-*-)
+
+(defn flag-dynamic-entity [record-name instance]
+  (if (dynamic-entity? record-name)
+    (assoc instance dynamic-mark-key true)
+    instance))
+
+(defn has-dynamic-entity-flag? [instance]
+  (dynamic-mark-key instance))
+
+(defn remove-dynamic-entity-flag [instance]
+  (dissoc instance dynamic-mark-key))
+
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)
     (get-in @components [component :alias alias-entry])

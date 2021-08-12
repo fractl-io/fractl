@@ -26,6 +26,16 @@
          :query
          (str "SELECT * FROM " table " WHERE Id = ?")}))))
 
+(defn compile-to-direct-query [table-name col-names]
+  (str "SELECT * FROM " table-name " WHERE "
+       (loop [cs col-names, s ""]
+         (if-let [c (first cs)]
+           (recur (rest cs)
+                  (str s c " = ? "
+                       (when (seq (rest cs))
+                         "AND ")))
+           s))))
+
 (defn sql-index-type
   ([max-varchar-length bool-type date-time-type attribute-type]
    (case attribute-type
