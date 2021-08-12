@@ -433,9 +433,10 @@
 (defn- check-attribute-names [schema attributes]
   (let [sks (set (keys schema))
         aks (set (keys attributes))]
-    (if-let [ks (seq (set/difference aks sks))]
-      (throw-error "invalid attribute(s) found" {:irritant ks})
-      true)))
+    (when-let [ks (seq (set/difference aks sks))]
+      (throw-error (str "Here is the error line: " (conj {} (first schema))))
+      (log/error (str "invalid attribute(s) found" {:irritant ks})))
+    true))
 
 (defn decimal-value? [x]
   #?(:clj
