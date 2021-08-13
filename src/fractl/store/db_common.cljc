@@ -4,6 +4,7 @@
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.seq :as us]
+            [fractl.lang.internal :as li]
             [fractl.store.util :as su]
             [fractl.store.sql :as sql]
             #?(:clj [fractl.store.jdbc-internal :as ji])
@@ -194,49 +195,56 @@
   (loop [cs col-names, s ""]
     (if-let [c (first cs)]
       (recur (rest cs)
-             (str s "SET " c " = EXCLUDED." c
-                  (when (rest cs)
+             (str s " " c " = EXCLUDED." c
+                  (when (seq (rest cs))
                     ", ")))
       s)))
 
-(defn- upsert-dynamic-entity-instance [datasource entity-name instance]
+(defn upsert-dynamic-entity-instance [datasource entity-name instance]
   (let [tabname (name (second entity-name))
-        id-attr (cn/identity-attribute-name
-                 (cn/find-entity-schema entity-name))
+        id-attr (cn/identity-attribute-name entity-name)
         id-attr-nm (name id-attr)
-        ks (keys instance)
+        ks (keys (cn/instance-attributes instance))
         col-names (map name ks)
         col-vals (map #(% instance) ks)
         sql (str "INSERT INTO " tabname "("
                  (us/join-as-string col-names ", ")
                  ") VALUES ("
-                 (us/join-as-string col-vals ", ")
-                 ")  ON CONFLICT (" id-attr-nm ") DO UPDATE SET "
+                 (us/join-as-string (mapv (constantly "?") col-vals) ", ")
+                 ")  ON CONFLICT (" id-attr-nm ") DO UPDATE SET"
                  (set-excluded-columns
                   (set/difference (set col-names) #{id-attr-nm})))]
-    ;; TODO: Test generated SQL, exclude unique columns from conflict update.
-    (execute-fn! datasource #(execute-sql! % sql))))
+    (execute-fn!
+     datasource
+     #(apply
+       execute-stmt! %
+       (do-query-statement % sql col-vals)))
+    instance))
 
 (defn upsert-instance
   ([upsert-inst-statement upsert-index-statement datasource
     entity-name instance update-unique-indices?]
-   (let [tabname (su/table-for-entity entity-name)
-         entity-schema (su/find-entity-schema entity-name)
-         all-indexed-attrs (cn/indexed-attributes entity-schema)
-         indexed-attrs (if update-unique-indices?
-                         all-indexed-attrs
-                         (remove-unique-attributes
-                          all-indexed-attrs entity-schema))
-         ref-attrs (cn/ref-attribute-schemas entity-schema)]
-     (transact-fn! datasource
-                   (fn [txn]
+   (if (or (cn/has-dynamic-entity-flag? instance)
+           (cn/dynamic-entity? entity-name))
+     (upsert-dynamic-entity-instance
+      datasource entity-name instance)
+     (let [tabname (su/table-for-entity entity-name)
+           entity-schema (su/find-entity-schema entity-name)
+           all-indexed-attrs (cn/indexed-attributes entity-schema)
+           indexed-attrs (if update-unique-indices?
+                           all-indexed-attrs
+                           (remove-unique-attributes
+                            all-indexed-attrs entity-schema))
+           ref-attrs (cn/ref-attribute-schemas entity-schema)]
+       (transact-fn! datasource
+                     (fn [txn]
                      (upsert-inst!
                       txn tabname instance ref-attrs
                       upsert-inst-statement)
-                     (upsert-indices!
-                      txn tabname indexed-attrs instance
-                      upsert-index-statement)))
-     instance))
+                       (upsert-indices!
+                        txn tabname indexed-attrs instance
+                        upsert-index-statement)))
+       instance)))
   ([datasource entity-name instance]
    (if (or (cn/has-dynamic-entity-flag? instance)
            (cn/dynamic-entity? entity-name))
@@ -315,9 +323,15 @@
      (let [[pstmt params] (do-query-statement conn query-sql query-params)]
        (execute-stmt! conn pstmt params)))))
 
+(defn- row-as-dynamic-entity [entity-name row]
+  (cn/make-instance
+   entity-name
+   (into {} (map (fn [[k v]] [(second (li/split-path k)) v]) row))))
+
 (defn- query-dynamic-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
   (let [sql (sql/compile-to-direct-query (name (second entity-name)) (map name unique-keys))]
-    (seq (do-query datasource sql (map #(attribute-values %) unique-keys)))))
+    (when-let [rows (seq (do-query datasource sql (map #(attribute-values %) unique-keys)))]
+      (row-as-dynamic-entity entity-name (first rows)))))
 
 (defn query-by-unique-keys
   "Query the instance by a unique-key value."

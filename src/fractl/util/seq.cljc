@@ -115,6 +115,6 @@
   (loop [xs xs, s ""]
     (if-let [x (first xs)]
       (recur (rest xs)
-             (str s x (when (rest xs)
+             (str s x (when (seq (rest xs))
                         delim)))
       s)))

@@ -1,6 +1,7 @@
 (ns fractl.store.postgres
   "The storage layer implementation for PostgresSQL."
   (:require [fractl.util :as u]
+            [fractl.component :as cn]
             [fractl.store.protocol :as p]
             [fractl.store.util :as su]
             [fractl.store.jdbc-cp :as cp]
@@ -135,9 +136,13 @@
          table-names-from-schema fetch-columns-sql
          fetch-pk-columns-sql type-lookup))
       (upsert-instance [_ entity-name instance]
-        (db/upsert-instance
-         pi/upsert-inst-statement pi/upsert-index-statement
-         @datasource entity-name instance true))
+        (if (or (cn/has-dynamic-entity-flag? instance)
+                (cn/dynamic-entity? entity-name))
+          (db/upsert-dynamic-entity-instance
+           @datasource entity-name instance)
+          (db/upsert-instance
+           pi/upsert-inst-statement pi/upsert-index-statement
+           @datasource entity-name instance true)))
       (update-instance [_ entity-name instance]
         (db/update-instance pi/upsert-inst-statement pi/upsert-index-statement @datasource entity-name instance))
       (delete-by-id [_ entity-name id]

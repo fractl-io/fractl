@@ -153,6 +153,9 @@
 (defn fetch-meta [path]
   (get-in @components (meta-key (li/split-path path))))
 
+(def ^:private name-key :-*-name-*-)
+(def ^:private dirty-key :-*-dirty-*-)
+
 (defn- component-intern
   "Add or replace a component entry.
   `typname` must be in the format - :ComponentName/TypName
@@ -163,7 +166,7 @@
      (when-not (component-exists? component)
        (u/throw-ex-info
         (str "component not found - " component)
-        {:name typname
+        {name-key typname
          :tag typtag}))
      (u/call-and-set
       components
@@ -277,7 +280,7 @@
 
 (defn make-record-instance [type-tag full-name attributes]
   (into {} (concat {type-tag-key type-tag
-                    :name full-name} attributes)))
+                    name-key full-name} attributes)))
 
 (def instance->map identity)
 
@@ -285,10 +288,10 @@
   (type-tag-key rec))
 
 (defn instance-name [rec]
-  (:name rec))
+  (name-key rec))
 
 (defn parsed-instance-name [rec]
-  (li/split-path (:name rec)))
+  (li/split-path (name-key rec)))
 
 (defn record-instance? [rec]
   (= :record (instance-type-tag rec)))
@@ -322,7 +325,10 @@
 
 (defn instance-attributes [x]
   (when (an-instance? x)
-    (dissoc x type-tag-key :name :dirty)))
+    (dissoc
+     x type-tag-key
+     dynamic-mark-key
+     name-key dirty-key)))
 
 (defn instance-all-attributes [x]
   (when (an-instance? x)
@@ -333,7 +339,7 @@
    Excludes :Id in its return"
   [inst]
   (when (an-instance? inst)
-    (dissoc inst type-tag-key :Id :name :dirty)))
+    (dissoc inst type-tag-key :Id name-key dirty-key)))
 
 (def set-attribute-value assoc)
 
@@ -643,10 +649,10 @@
   (type-tag-key (find-record-schema recname)))
 
 (defn- serialized-instance? [x]
-  (and (type-tag-key x) (:name x)))
+  (and (type-tag-key x) (name-key x)))
 
 (defn- deserialize-name [x]
-  (let [n (:name x)]
+  (let [n (name-key x)]
     (cond
       (keyword? n) n
       (string? n) (keyword n)
@@ -656,7 +662,7 @@
 (defn- deserialize-instance [x]
   (let [tp (keyword (type-tag-key x))
         nm (deserialize-name x)]
-    (assoc x type-tag-key tp :name nm)))
+    (assoc x type-tag-key tp name-key nm)))
 
 (declare make-instance)
 
@@ -993,17 +999,17 @@
     [(expr-fns scm) (query-fns scm)]))
 
 (defn mark-dirty [inst]
-  (assoc inst :dirty true))
+  (assoc inst dirty-key true))
 
 (defn dirty? [x]
-  (:dirty x))
+  (dirty-key x))
 
 (defn unmark-dirty [inst]
-  (dissoc inst :dirty))
+  (dissoc inst dirty-key))
 
 (defn filter-dirty [insts-map]
   (let [res (map (fn [[nm insts]]
-                   [nm (filter #(:dirty %) insts)])
+                   [nm (filter #(dirty-key %) insts)])
                  insts-map)]
     (into {} res)))
 
@@ -1017,7 +1023,7 @@
 
 (defn serializable-attributes [inst]
   (let [attrs (instance-attributes inst)
-        schema (entity-schema (:name inst))
+        schema (entity-schema (name-key inst))
         new-attrs (map (fn [[k v]]
                          (let [ascm (find-attribute-schema v)]
                            (when-not (computed? ascm)
@@ -1041,7 +1047,7 @@
     :Result result} false))
 
 (defn tag? [k]
-  (or (= k :name)
+  (or (= k name-key)
       (= k type-tag-key)))
 
 (defn attribute-unique-reference-path [[attr-name attr-spec]]
@@ -1093,6 +1099,14 @@
         (make-error "Async timeout" obj))
     obj))
 
+(defn- restore-flags [attrs orig-instance]
+  (merge
+   attrs
+   (when (dynamic-mark-key orig-instance)
+     {dynamic-mark-key true})
+   (when (dirty-key orig-instance)
+     {dirty-key true})))
+
 (defn validate-instance [inst]
   (let [n (instance-name inst)
         schema (ensure-schema n)
@@ -1100,10 +1114,12 @@
                n (instance-attributes inst) schema)]
     (if (error? attrs)
       (u/throw-ex attrs)
-      (make-record-instance (type-tag-key inst) n attrs))))
+      (restore-flags
+       (make-record-instance (type-tag-key inst) n attrs)
+       inst))))
 
 (defn tag-record [recname attrs]
-  (assoc attrs :name recname type-tag-key :record))
+  (assoc attrs name-key recname type-tag-key :record))
 
 (def ^:private trigger-store
   #?(:clj  (ref {})
