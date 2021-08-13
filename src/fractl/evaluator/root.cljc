@@ -152,7 +152,8 @@
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
-    (when store (maybe-init-schema! store (first record-name)))
+    (when (and store (not (cn/dynamic-entity? record-name)))
+      (maybe-init-schema! store (first record-name)))
     (if (env/any-dirty? env insts)
       (do
         (perform-rbac! env :Upsert record-name insts)
@@ -252,6 +253,14 @@
                        (env/lookup-instance (env/bind-instance env %) x))))]
     (filter predic result)))
 
+(defn- query-all [env store entity-name query]
+  (if (string? query)
+    (store/query-all store entity-name query)
+    (store/query-all
+     store entity-name
+     [(first query)
+      (mapv #(first (evaluate-id-result env %)) (second query))])))
+
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)
               (store/compile-query store full-query))
@@ -275,7 +284,7 @@
             (store/query-by-id store entity-name (:query q) id-results))
            (when-not idqs
              (filter-results
-              (store/query-all store entity-name (:query q)))))
+              (query-all env store entity-name (:query q)))))
          env]))))
 
 (defn find-instances [env store entity-name full-query]

@@ -297,15 +297,23 @@
    su/table-for-entity
    su/index-table-name))
 
+(defn- column-names-and-values [where-clause]
+  (let [conds (if (= :and (first where-clause))
+                (rest where-clause)
+                [where-clause])]
+    (map (fn [c] [(name (second c)) (nth c 2)]) conds)))
+
 (defn compile-to-direct-query [query-pattern]
   (let [where-clause (:where query-pattern)
-        col-names (if (= where-clause :*)
-                    :*
-                    (map #(name (second %)) where-clause))]
+        namevals (if (= where-clause :*)
+                   :*
+                   (column-names-and-values where-clause))]
     {:query [(sql/compile-to-direct-query
               (name (second (:from query-pattern)))
-              col-names)
-             (mapv #(nth % 2) where-clause)]}))
+              (map first namevals))
+             (if (keyword? where-clause)
+               where-clause
+               (map second namevals))]}))
 
 (defn- raw-results [query-fns]
   (flatten (map u/apply0 query-fns)))
@@ -340,6 +348,10 @@
    entity-name
    (into {} (map (fn [[k v]] [(second (li/split-path k)) v]) row))))
 
+(defn- dynamic-query-instances [entity-name query-fns]
+  (let [results (raw-results query-fns)]
+    (mapv (partial row-as-dynamic-entity entity-name) results)))
+
 (defn- query-dynamic-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
   (let [sql (sql/compile-to-direct-query (name (second entity-name)) (map name unique-keys))]
     (when-let [rows (seq (do-query datasource sql (map #(attribute-values %) unique-keys)))]
@@ -373,14 +385,21 @@
   ([datasource entity-name unique-keys attribute-values]
    (query-by-unique-keys nil datasource entity-name unique-keys attribute-values)))
 
-(defn query-all [datasource entity-name query-sql]
-  (execute-fn!
-   datasource
-   (fn [conn]
-     (query-instances
-      entity-name
-      (let [[pstmt params] (do-query-statement conn query-sql nil)]
-        [(fn [] (execute-stmt! conn pstmt params))])))))
+(defn query-all
+  ([datasource entity-name rows-to-instances query-sql query-params]
+   (execute-fn!
+    datasource
+    (fn [conn]
+      (rows-to-instances
+       entity-name
+       (let [[pstmt params] (do-query-statement conn query-sql query-params)]
+         [#(execute-stmt! conn pstmt params)])))))
+  ([datasource entity-name query-sql]
+   (query-all datasource entity-name query-instances query-sql nil)))
+
+(defn query-all-dynamic [datasource entity-name query]
+  (query-all datasource entity-name dynamic-query-instances
+   (first query) (second query)))
 
 (defn- query-pk-columns [conn table-name sql]
   (let [pstmt (do-query-statement conn (s/replace sql #"\?" table-name))]

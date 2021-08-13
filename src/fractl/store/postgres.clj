@@ -156,7 +156,9 @@
          pi/query-by-id-statement @datasource
          entity-name unique-keys unique-values))
       (query-all [_ entity-name query]
-        (db/query-all @datasource entity-name query))
+        (if (cn/dynamic-entity? entity-name)
+          (db/query-all-dynamic @datasource entity-name query)
+          (db/query-all @datasource entity-name query)))
       (do-query [_ query params]
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]

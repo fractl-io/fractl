@@ -38,7 +38,7 @@
 
 (defn execute-fn! [datasource f]
   (with-open [conn (jdbc/get-connection datasource)]
-      (f conn)))
+    (f conn)))
 
 (defn execute-sql! [conn sql]
   (jdbc/execute! conn sql))
