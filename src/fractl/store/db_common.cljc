@@ -291,9 +291,21 @@
   ([datasource entity-name id]
    (delete-by-id delete-by-id-statement delete-index-statement datasource entity-name id)))
 
-(def compile-to-indexed-query (partial sql/compile-to-indexed-query
-                                       su/table-for-entity
-                                       su/index-table-name))
+(def compile-to-indexed-query
+  (partial
+   sql/compile-to-indexed-query
+   su/table-for-entity
+   su/index-table-name))
+
+(defn compile-to-direct-query [query-pattern]
+  (let [where-clause (:where query-pattern)
+        col-names (if (= where-clause :*)
+                    :*
+                    (map #(name (second %)) where-clause))]
+    {:query [(sql/compile-to-direct-query
+              (name (second (:from query-pattern)))
+              col-names)
+             (mapv #(nth % 2) where-clause)]}))
 
 (defn- raw-results [query-fns]
   (flatten (map u/apply0 query-fns)))

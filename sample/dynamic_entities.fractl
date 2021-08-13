@@ -4,4 +4,6 @@
 (component :Sample.DynamicEntities
            {:dynamic-entities [:dept :employee]})
 
-(record {:R {:X :Kernel/Int}})
+(dataflow
+ :FindEmployee
+ {:employee {:empno? :FindEmployee.empno}})
