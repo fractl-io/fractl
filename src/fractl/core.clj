@@ -9,6 +9,7 @@
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.lang.loader :as loader])
+  (:import (java.util Properties))
   (:gen-class))
 
 (def cli-options
@@ -136,6 +137,10 @@
     [model (merge (:config model) config)]))
 
 (defn -main [& args]
+  (System/setProperties
+    (doto (Properties. (System/getProperties))
+      (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
+      (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF")))
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)]
     (cond
