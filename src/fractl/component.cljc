@@ -430,11 +430,15 @@
                        {:error (make-error msg attributes)}))
   ([msg] (throw-error msg nil)))
 
-(defn- check-attribute-names [schema attributes]
+(defn- check-attribute-names [recname schema attributes]
   (let [sks (set (keys schema))
         aks (set (keys attributes))]
     (when-let [ks (seq (set/difference aks sks))]
-      (throw-error (str "Here is the error line: " (conj {} (first schema))))
+      (throw-error (str "Error in " (when (get schema :EventContext) "event ")
+                        recname
+                        " Here is the error line: "
+                        (when (get schema :EventContext) "check this line in event: ")
+                        (conj {} (first schema))))
       (log/error (str "invalid attribute(s) found" {:irritant ks})))
     true))
 
@@ -569,8 +573,8 @@
     (assoc attributes attrname (p (get attributes attrname)))
     attributes))
 
-(defn- validated-attribute-values [schema attributes]
-  (let [r (check-attribute-names schema attributes)]
+(defn- validated-attribute-values [recname schema attributes]
+  (let [r (check-attribute-names recname schema attributes)]
     (or (error? r)
         (loop [schema schema, attributes attributes]
           (if-let [[aname atype] (first schema)]
@@ -611,7 +615,7 @@
    ;; the schema of inferred events.
    (if (:inferred schema)
      recattrs
-     (validated-attribute-values schema recattrs)))
+     (validated-attribute-values recname schema recattrs)))
   ([recname recattrs]
    (validate-record-attributes recname recattrs (ensure-schema recname))))
 
