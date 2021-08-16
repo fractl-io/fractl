@@ -32,7 +32,8 @@
                  [camdez/sendgrid "0.2.0"]
                  [postmark "1.4.1"]
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
-                 [lambdaisland/glogi "1.0.106"]]
+                 [lambdaisland/glogi "1.0.106"]
+                 [com.fzakaria/slf4j-timbre "0.3.21"]]
 
   :java-source-paths ["src/java"]
   :resource-paths ["lib/sfdc-enterprise.jar"]
