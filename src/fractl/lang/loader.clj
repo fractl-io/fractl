@@ -2,6 +2,7 @@
   "Component script loading with pre-processing."
   (:require [fractl.util :as u]
             [fractl.util.seq :as su]
+            [fractl.util.logger :as log]
             [fractl.lang.name-util :as nu]
             [fractl.component :as cn])
   (:import [java.io FileInputStream InputStreamReader PushbackReader]))
@@ -52,6 +53,8 @@
 (defn load-script
   "Load, complile and intern the component from a script file."
   [^String component-root-path ^String file-name]
+  (log/info (str "Component root path: " component-root-path))
+  (log/info (str "File name: " file-name))
   (let [crp (or component-root-path "./")
         full-file-name
         (if (and component-root-path (not (.startsWith file-name component-root-path)))
