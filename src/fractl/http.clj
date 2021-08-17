@@ -116,10 +116,12 @@
 (def dynamic-eval-prefix "/_dynamic/")
 
 (defn- make-routes [process-request process-query process-dynamic-eval]
-  (let [r (apply routes [(POST (str entity-event-prefix ":component/:event") [] process-request)
-                         (POST query-prefix [] process-query)
-                         (POST dynamic-eval-prefix [] process-dynamic-eval)
-                         (not-found "<p>Resource not found.</p>")])]
+  (let [r (apply
+           routes
+           [(POST (str entity-event-prefix ":component/:event") [] process-request)
+            (POST query-prefix [] process-query)
+            (POST dynamic-eval-prefix [] process-dynamic-eval)
+            (not-found "<p>Resource not found.</p>")])]
     (cors/wrap-cors
      r
      :access-control-allow-origin [#".*"]
@@ -129,11 +131,13 @@
 
 (defn run-server
   ([evaluator config]
-   (h/run-server (make-routes (partial process-request evaluator)
-                              (partial process-query evaluator)
-                              (partial process-dynamic-eval evaluator nil))
-                 (if (:thread config)
-                   config
-                   (assoc config :thread (+ 1 (u/n-cpu))))))
+   (h/run-server
+    (make-routes
+     (partial process-request evaluator)
+     (partial process-query evaluator)
+     (partial process-dynamic-eval evaluator nil))
+    (if (:thread config)
+      config
+      (assoc config :thread (+ 1 (u/n-cpu))))))
   ([evaluator]
    (run-server evaluator {:port 8080})))
