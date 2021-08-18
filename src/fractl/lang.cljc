@@ -297,9 +297,11 @@
 (defn record
   "Add a new record definition to the component."
   ([n attrs]
-   (let [cn (validated-canonical-type-name n)]
-     (cn/intern-record
-      cn (normalized-attributes :record cn attrs))))
+   (if (map? attrs)
+     (let [cn (validated-canonical-type-name n)]
+       (cn/intern-record
+         cn (normalized-attributes :record cn attrs)))
+     (u/throw-ex (str "Syntax error in record. Check record: " n))))
   ([schema]
    (parse-and-define record schema)))
 
