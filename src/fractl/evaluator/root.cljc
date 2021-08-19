@@ -391,19 +391,22 @@
            (eval-opcode evaluator env alternative)
            (i/ok false env)))))))
 
+(defn- bind-for-each-element [env element]
+  (if (cn/an-instance? element)
+    (env/bind-instance env (cn/instance-name element) element)
+    (env/bind-variable env '% element)))
+
 (defn- eval-for-each-body [evaluator env eval-opcode body-code element]
-  (when (cn/entity-instance? element)
-    (let [entity-name (cn/instance-name element)
-          new-env (env/bind-instance env entity-name element)]
-      (loop [body-code body-code, env new-env result nil]
-        (if-let [opcode (first body-code)]
-          (let [result (eval-opcode evaluator env opcode)]
-            (if (ok-result result)
-              (recur (rest body-code)
-                     (:env result)
-                     result)
-              result))
-          result)))))
+  (let [new-env (bind-for-each-element env element)]
+    (loop [body-code body-code, env new-env result nil]
+      (if-let [opcode (first body-code)]
+        (let [result (eval-opcode evaluator env opcode)]
+          (if (ok-result result)
+            (recur (rest body-code)
+                   (:env result)
+                   result)
+            result))
+        result))))
 
 (defn- eval-for-each [evaluator env eval-opcode collection body-code result-alias]
   (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code)

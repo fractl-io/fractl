@@ -74,16 +74,22 @@
     (let [recname [(:component path-parts) (:record path-parts)]]
       (lookup-instance env recname))))
 
+(def bind-variable assoc)
+(def lookup-variable find)
+
 (defn follow-reference [env path-parts]
-  (loop [env env, refs (:refs path-parts)
-         obj (find-instance-by-path-parts env path-parts)]
-    (if-let [r (first refs)]
-      (let [x (get obj r)]
-        (recur (if (cn/an-instance? x)
-                 (bind-instance env (cn/parsed-instance-name x) x)
-                 env)
-               (rest refs) x))
-      [obj env])))
+  (let [refs (:refs path-parts)]
+    (if (symbol? refs)
+      [(second (lookup-variable env refs)) env]
+      (loop [env env, refs refs
+             obj (find-instance-by-path-parts env path-parts)]
+        (if-let [r (first refs)]
+          (let [x (get obj r)]
+            (recur (if (cn/an-instance? x)
+                     (bind-instance env (cn/parsed-instance-name x) x)
+                     env)
+                   (rest refs) x))
+          [obj env])))))
 
 (defn instance-ref-path
   "Returns a path to the record in the format of [record-name inst-id]
@@ -101,9 +107,6 @@
 (defn lookup-instances-by-attributes [env rec-name query-attrs]
   (when-let [insts (seq (get-instances env rec-name))]
     (filter #(every? (fn [[k v]] (= v (get % k))) query-attrs) insts)))
-
-(def bind-variable assoc)
-(def lookup-variable find)
 
 (defn- objstack [env]
   (get env :objstack (list)))

@@ -295,3 +295,23 @@
      (is (cn/instance-of? :I314/R r))
      (is (= 20 (:X r)))
      (is (= 30 (:Y r))))))
+
+(deftest issue-350-listof
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :LEnt
+     (record {:LEnt/E {:X :Kernel/Int}})
+     (entity {:LEnt/F {:Es {:listof :LEnt/E}}})
+     (event {:LEnt/MakeF {:Xs {:listof :Kernel/Int}}})
+     (dataflow
+      :LEnt/MakeF
+      [:for-each :LEnt/MakeF.Xs
+       {:LEnt/E {:X '%}}
+       :as :ListofEs]
+      {:LEnt/F {:Es :ListofEs}}))
+   (let [xs [10 20 30 40]
+         evt {:LEnt/MakeF {:Xs xs}}
+         result (first (tu/fresult (e/eval-all-dataflows evt)))]
+     (doseq [e (:Es result)]
+       (is (cn/instance-of? :LEnt/E e))
+       (is (some #{(:X e)} xs))))))
