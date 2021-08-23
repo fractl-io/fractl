@@ -21,8 +21,10 @@
   (u/safe-set-once
     default-store
     #(do
-       (p/open-connection store (or store-config
-                                    (make-default-store-config)))
+       (p/open-connection
+        store
+        (or store-config
+            (make-default-store-config)))
        store)))
 
 (def ^:private store-constructors
@@ -70,7 +72,8 @@
 
 (defn upsert-instance [store record-name instance]
   (let [uq-attrs (cn/unique-attributes
-                  (su/find-entity-schema record-name))]
+                  (su/find-entity-schema record-name))
+        instance (cn/flag-dynamic-entity record-name instance)]
     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
                                (p/query-by-unique-keys store record-name uq-attrs instance))]
       (let [new-instance
@@ -89,6 +92,7 @@
 (def close-connection p/close-connection)
 (def connection-info p/connection-info)
 (def create-schema p/create-schema)
+(def fetch-schema p/fetch-schema)
 (def drop-schema p/drop-schema)
 (def create-table p/create-table)
 (def delete-by-id p/delete-by-id)
@@ -111,5 +115,7 @@
 (defn upsert-instances [store record-name insts]
   (doall
    (map
-    #(upsert-instance store record-name %)
+    #(upsert-instance
+      store record-name
+      %)
     insts)))

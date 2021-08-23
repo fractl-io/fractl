@@ -15,9 +15,10 @@
   (s/replace (name component-name) #"\." "_"))
 
 (defn table-for-entity [entity-name]
-  (let [[component-name r] (li/split-path entity-name)
-        scmname (db-schema-for-component component-name)]
-    (str scmname "__" (db-ident r))))
+  (let [[component-name r] (li/split-path entity-name)]
+    (if (cn/dynamic-entity? entity-name)
+      (db-ident r)
+      (str (db-schema-for-component component-name) "__" (db-ident r)))))
 
 (defn indexed-attributes [entity-schema]
   (set (remove #{:Id} (cn/indexed-attributes entity-schema))))
@@ -71,9 +72,9 @@
 
 (defn table-name->entity
   [tabname] 
-   (let [tabnamestr (name tabname)
-         [cnstr estr] (s/split tabnamestr #"__")]
-     [(keyword (s/replace cnstr #"_" ".")) (keyword estr)]))
+  (let [tabnamestr (name tabname)
+        [cnstr estr] (s/split tabnamestr #"__")]
+    [(keyword (s/replace cnstr #"_" ".")) (keyword estr)]))
 
 (defn- table-attr->entity-attr
   [table-attr]
