@@ -31,6 +31,8 @@
         (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
         (db/drop-schema @datasource component-name))
+      (fetch-schema [_]
+        nil)
       (update-instance [_ entity-name instance]
         (db/update-instance @datasource entity-name instance))
       (upsert-instance [_ entity-name instance]

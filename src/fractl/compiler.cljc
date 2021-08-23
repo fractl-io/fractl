@@ -116,7 +116,17 @@
 (defn- process-query-filter-rule [[_ r]]
   (vec r))
 
-(defn compile-query [ctx entity-name query]
+(defn- compile-dynamic-entity-query [ctx entity-name query]
+  (let [eq (i/expand-query
+            entity-name
+            (map query-param-process query))]
+    {:compiled-query
+     ((ctx/fetch-compile-query-fn ctx)
+      {:dynamic true
+       :query eq})
+     :raw-query eq}))
+
+(defn- compile-entity-query [ctx entity-name query]
   (let [indexed-attrs (set
                        (conj
                         (cn/indexed-attributes
@@ -129,7 +139,6 @@
             entity-name
             (when qp
               (map query-param-process qp)))]
-    (ctx/put-fresh-record! ctx entity-name {})
     {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
      :raw-query eq
      :filter (when fp
@@ -138,6 +147,14 @@
                   (if (= (count rules) 1)
                     (first rules)
                     `[:and ~@rules]))))}))
+
+(defn compile-query [ctx entity-name query]
+  (let [q ((if (cn/dynamic-entity? entity-name)
+             compile-dynamic-entity-query
+             compile-entity-query)
+           ctx entity-name query)]
+    (ctx/put-fresh-record! ctx entity-name {})
+    q))
 
 (defn- compound-expr-as-fn
   "Compile compound expression to a function.
@@ -227,7 +244,11 @@
   prior to this."
   ([ctx pat-name pat-attrs schema alias event? timeout-ms]
    (when-let [xs (cv/invalid-attributes pat-attrs schema)]
-     (u/throw-ex (str "invalid attributes in pattern - " xs)))
+     (if (= (first xs) :Id)
+       (if (= (get schema :type-*-tag-*-) :record)
+         (u/throw-ex (str "Invalid attribute :Id for type record: " pat-name))
+         (u/throw-ex (str "Wrong reference of id in line: " pat-attrs "of " pat-name)))
+       (u/throw-ex (str "Invalid attributes in pattern - " xs))))
    (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
          sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
      (emit-build-record-instance ctx pat-name sorted-attrs schema alias event? timeout-ms)))
