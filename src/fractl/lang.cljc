@@ -297,9 +297,11 @@
 (defn record
   "Add a new record definition to the component."
   ([n attrs]
-   (let [cn (validated-canonical-type-name n)]
-     (cn/intern-record
-      cn (normalized-attributes :record cn attrs))))
+   (if (map? attrs)
+     (let [cn (validated-canonical-type-name n)]
+       (cn/intern-record
+         cn (normalized-attributes :record cn attrs)))
+     (u/throw-ex (str "Syntax error in record. Check record: " n))))
   ([schema]
    (parse-and-define record schema)))
 
@@ -341,7 +343,7 @@
   (cond
     (keyword? x) (li/validate-name x)
     (or (map? x) (li/special-form? x) (symbol? x)) x
-    :else (u/throw-ex (str "invalid dataflow pattern - " x))))
+    :else (u/throw-ex (str "Invalid dataflow pattern. Possible syntax error - " x))))
 
 (defn ensure-dataflow-patterns! [xs]
   (doseq [x xs] (ensure-dataflow-pattern! x)))
@@ -466,34 +468,36 @@
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
-   (let [entity-name (validated-canonical-type-name n)
-         [attrs dfexps] (lift-implicit-entity-events entity-name attrs)
-         result (cn/intern-entity
-                 entity-name
-                 (normalized-attributes
-                  :entity
-                  entity-name
-                  (maybe-assoc-id entity-name attrs)))
-         ev (partial crud-evname n)
-         ctx-aname (k/event-context-attribute-name)
-         inst-evattrs {:Instance n :EventContext ctx-aname}
-         id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
-     ;; Define CRUD events and dataflows:
-     (let [upevt (ev :Upsert)
-           delevt (ev :Delete)
-           lookupevt (ev :Lookup)]
-       (cn/for-each-entity-event-name
-        entity-name
-        (partial entity-event entity-name))
-       (event-internal upevt inst-evattrs)
-       (cn/register-dataflow upevt [(crud-event-inst-accessor upevt)])
-       (event-internal delevt id-evattrs)
-       (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
-       (event-internal lookupevt id-evattrs)
-       (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt entity-name)]))
-     ;; Install dataflows for implicit events.
-     (when dfexps (doall (map eval dfexps)))
-     result))
+   (if (map? attrs)
+     (let [entity-name (validated-canonical-type-name n)
+           [attrs dfexps] (lift-implicit-entity-events entity-name attrs)
+           result (cn/intern-entity
+                    entity-name
+                    (normalized-attributes
+                      :entity
+                      entity-name
+                      (maybe-assoc-id entity-name attrs)))
+           ev (partial crud-evname n)
+           ctx-aname (k/event-context-attribute-name)
+           inst-evattrs {:Instance n :EventContext ctx-aname}
+           id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
+       ;; Define CRUD events and dataflows:
+       (let [upevt (ev :Upsert)
+             delevt (ev :Delete)
+             lookupevt (ev :Lookup)]
+         (cn/for-each-entity-event-name
+           entity-name
+           (partial entity-event entity-name))
+         (event-internal upevt inst-evattrs)
+         (cn/register-dataflow upevt [(crud-event-inst-accessor upevt)])
+         (event-internal delevt id-evattrs)
+         (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
+         (event-internal lookupevt id-evattrs)
+         (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt entity-name)]))
+       ;; Install dataflows for implicit events.
+       (when dfexps (doall (map eval dfexps)))
+       result)
+     (u/throw-ex (str "Syntax error in entity. Check entity: " n))))
   ([schema] (parse-and-define entity schema)))
 
 (defn- resolver-for-entity [component ename spec]
