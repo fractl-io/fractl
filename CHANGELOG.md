@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.5] - 2021-08-23
 
+- Add descriptive errors for different types of errors (like reference error, wrong lookup of id, attribute name mismatch)
+- Remove extra info printed on terminal when http server is running
+
 ## [0.1.4] - 2021-07-13
 
 -   Zero-trust RBAC - events execution and CRUD on entities require RBAC.
