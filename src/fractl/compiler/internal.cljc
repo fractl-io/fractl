@@ -57,11 +57,16 @@
         ;; TODO: validate multi-level references.
         (when-not (cn/inferred-event-schema? scm)
           (when-not (some #{(first refs)} (cn/attribute-names scm))
-            (u/throw-ex (str "invalid reference - " [p refs]))))))
+            (if (= (get scm :type-*-tag-*-) :event)
+              (u/throw-ex (str "Error in: Event " p " no such attribute - " (first refs)))
+              (u/throw-ex (str "Invalid reference - " [p refs])))))))
     ((if (ctx/fetch-variable ctx conditional-dataflow-tag)
        log-warn
        u/throw-ex)
-     (str "reference not in context - " [component rec refs])))
+     (str "Reference cannot be found for "
+          rec
+          " Did you mean one of: "
+          (first (keys (dissoc @ctx :compile-query-fn :zero-trust-rbac))))))
   true)
 
 (declare reach-name)

@@ -1029,6 +1029,40 @@
     (every? (partial cn/instance-of? :Itc/Base) (:Values result))))
 
 #?(:clj
+   (deftest check-wrong-reference-attribute-use
+     (defcomponent :UserAccount
+                   (entity {:UserAccount/Estimate
+                            {:Balance :Kernel/Float
+                             :Loan    :Kernel/Float}})
+                   (record {:UserAccount/Total {:Total :Kernel/Float}})
+                   (event {:UserAccount/IncreaseLoan {:Balance :UserAccount/Total}}))
+     (dataflow :UserAccount/IncreaseLoan
+               {:UserAccount/Estimate {:Balance :UserAccount/IncreaseLoan.Total
+                                       :Loan    '(+ :Balance 10000)}})
+     (let [r (cn/make-instance :UserAccount/Total {:Total 100000})
+           evt (cn/make-instance :UserAccount/IncreaseLoan {:Balance r})]
+       (is (thrown-with-msg? Exception #"Error in: Event "
+                             (cn/instance-of? :UserAccount/Estimate
+                                              (first (tu/fresult (e/eval-all-dataflows evt)))))))))
+
+#?(:clj
+   (deftest access-wrong-event-entity
+     (defcomponent :UserAccount
+                   (entity {:UserAccount/Estimate
+                            {:Balance :Kernel/Float
+                             :Loan    :Kernel/Float}})
+                   (record {:UserAccount/Total {:Total :Kernel/Float}})
+                   (event {:UserAccount/IncreaseLoan {:Balance :UserAccount/Total}}))
+     (dataflow :UserAccount/IncreaseLoan
+               ;Intentional
+               {:UserAccount/Estimate {:Balance :UserAccount/Increase.Balance.Total
+                                       :Loan    '(+ :Balance 10000)}})
+     (let [r (cn/make-instance :UserAccount/Total {:Total 100000})
+           evt (cn/make-instance :UserAccount/IncreaseLoan {:Balance r})]
+       (is (thrown-with-msg? Exception #"Reference cannot be found for"
+                             (cn/instance-of? :UserAccount/Estimate
+                                              (first (tu/fresult (e/eval-all-dataflows evt)))))))))
+#?(:clj
    (deftest ref-id-of-record
           (defcomponent :UserAccount
                         (record {:UserAccount/Estimate
