@@ -24,8 +24,8 @@
 (defn- emit-match [match-pattern-code cases-code alternative-code alias]
   (op/match [match-pattern-code cases-code alternative-code alias]))
 
-(defn- emit-for-each [bind-pattern-code body-code alias]
-  (op/for-each [bind-pattern-code body-code alias]))
+(defn- emit-for-each [bind-pattern-code elem-alias body-code alias]
+  (op/for-each [bind-pattern-code elem-alias body-code alias]))
 
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
@@ -314,22 +314,36 @@
       [pat nil])))
 
 (defn- compile-for-each-body [ctx body-pats]
-  (ctx/bind-variable! ctx '% nil)
+  (ctx/add-alias! ctx :% :%)
   (let [code (loop [body-pats body-pats, body-code []]
                (if-let [body-pat (first body-pats)]
                  (recur (rest body-pats)
                         (conj body-code [(compile-pattern ctx body-pat)]))
                  body-code))]
-    (ctx/unbind-variable! ctx '%)
     code))
 
+(defn- parse-for-each-match-pattern [pat]
+  (if (vector? pat)
+    (let [[kw alias] (take-last 2 pat)]
+      (if (= :as kw)
+        [(drop-last 2 pat) alias]
+        [pat nil]))
+    [pat nil]))
+
+(defn- compile-for-each-match-pattern [ctx pat]
+  (let [[pat alias] (parse-for-each-match-pattern pat)]
+    (when alias
+      (ctx/add-alias! ctx alias alias))
+    [(compile-pattern ctx pat) alias]))
+
 (defn- compile-for-each [ctx pat]
-  (let [bind-pat-code (compile-pattern ctx (first pat))
+  (let [[bind-pat-code elem-alias]
+        (compile-for-each-match-pattern ctx (first pat))
         [body-pats alias] (special-form-alias (rest pat))
         body-code (compile-for-each-body ctx body-pats)]
     (when alias
       (ctx/add-alias! ctx alias alias))
-    (emit-for-each bind-pat-code body-code alias)))
+    (emit-for-each bind-pat-code elem-alias body-code alias)))
 
 (defn- extract-match-clauses [pat]
   (let [[pat alias] (special-form-alias pat)]

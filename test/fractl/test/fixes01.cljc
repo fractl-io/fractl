@@ -306,7 +306,7 @@
      (dataflow
       :LEnt/MakeF
       [:for-each :LEnt/MakeF.Xs
-       {:LEnt/E {:X '%}}
+       {:LEnt/E {:X :%}}
        :as :ListofEs]
       {:LEnt/F {:Es :ListofEs}}))
    (let [xs [10 20 30 40]

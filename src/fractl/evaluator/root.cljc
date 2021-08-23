@@ -391,13 +391,19 @@
            (eval-opcode evaluator env alternative)
            (i/ok false env)))))))
 
-(defn- bind-for-each-element [env element]
-  (if (cn/an-instance? element)
-    (env/bind-instance env (cn/instance-name element) element)
-    (env/bind-variable env '% element)))
+(defn- bind-for-each-element [env element elem-alias]
+  (cond
+    elem-alias
+    (env/bind-to-alias env elem-alias element)
 
-(defn- eval-for-each-body [evaluator env eval-opcode body-code element]
-  (let [new-env (bind-for-each-element env element)]
+    (cn/an-instance? element)
+    (env/bind-instance env (cn/instance-name element) element)
+
+    :else
+    (env/bind-to-alias env :% element)))
+
+(defn- eval-for-each-body [evaluator env eval-opcode body-code elem-alias element]
+  (let [new-env (bind-for-each-element env element elem-alias)]
     (loop [body-code body-code, env new-env result nil]
       (if-let [opcode (first body-code)]
         (let [result (eval-opcode evaluator env opcode)]
@@ -408,8 +414,8 @@
             result))
         result))))
 
-(defn- eval-for-each [evaluator env eval-opcode collection body-code result-alias]
-  (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code)
+(defn- eval-for-each [evaluator env eval-opcode collection body-code elem-alias result-alias]
+  (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code elem-alias)
         results (doall (map eval-body collection))]
     (if (every? #(ok-result %) results)
       (let [eval-output (doall (map #(ok-result %) results))
@@ -582,10 +588,10 @@
                    (df-eval evt (list evt-name {:opcode (atom df-code)}))))]
               env)))
 
-    (do-for-each [self env [bind-pattern-code body-code result-alias]]
+    (do-for-each [self env [bind-pattern-code elem-alias body-code result-alias]]
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
-          (eval-for-each self (:env result) eval-opcode r body-code result-alias)
+          (eval-for-each self (:env result) eval-opcode r body-code elem-alias result-alias)
           result)))
 
     (do-entity-def [_ env schema]
