@@ -308,10 +308,22 @@
       [:for-each :LEnt/MakeF.Xs
        {:LEnt/E {:X :%}}
        :as :ListofEs]
+      {:LEnt/F {:Es :ListofEs}})
+     (dataflow
+      :LEnt/MakeF
+      [:for-each [:LEnt/MakeF.Xs :as :I]
+       {:LEnt/E {:X '(* 10 :I)}}
+       :as :ListofEs]
       {:LEnt/F {:Es :ListofEs}}))
    (let [xs [10 20 30 40]
+         xs*10 (mapv #(* 10 %) xs)
          evt {:LEnt/MakeF {:Xs xs}}
-         result (first (tu/fresult (e/eval-all-dataflows evt)))]
-     (doseq [e (:Es result)]
+         result (e/eval-all-dataflows evt)
+         rs1 (first (tu/fresult result))
+         rs2 (first (tu/nth-result result 1))]
+     (doseq [e (:Es rs1)]
        (is (cn/instance-of? :LEnt/E e))
-       (is (some #{(:X e)} xs))))))
+       (is (some #{(:X e)} xs)))
+     (doseq [e (:Es rs2)]
+       (is (cn/instance-of? :LEnt/E e))
+       (is (some #{(:X e)} xs*10))))))

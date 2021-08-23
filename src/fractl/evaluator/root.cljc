@@ -30,10 +30,13 @@
   (if-let [xs (env/pop-obj env)]
     (let [[env single? [n x]] xs
           objs (if single? [x] x)
-          new-objs (map #(assoc % attr-name (if (fn? attr-value)
-                                              (attr-value env %)
-                                              attr-value))
-                        objs)
+          new-objs (map
+                    #(assoc
+                      % attr-name
+                      (if (fn? attr-value)
+                        (attr-value env %)
+                        attr-value))
+                    objs)
           env (env/push-obj env n (if single? (first new-objs) new-objs))]
       (i/ok (if single? (first new-objs) new-objs) (env/mark-all-dirty env new-objs)))
     (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value]))))
@@ -43,7 +46,7 @@
     (let [[env single? [n x]] xs
           inst (if single? x (first x))]
       (i/ok (f env inst) env))
-    (i/error "cannot call function, cannot find argument instance in stack")))
+    (i/ok (f env nil) env)))
 
 (defn- on-inst [f xs]
   (f (if (map? xs) xs (first xs))))

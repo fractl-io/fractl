@@ -26,6 +26,9 @@
 (defn fresult [r]
   (:result (first r)))
 
+(defn nth-result [r n]
+  (:result (nth r n)))
+
 (defn embedded-results [r]
   (fresult (first (second r))))
 

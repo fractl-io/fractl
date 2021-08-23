@@ -42,7 +42,10 @@
       `(if-let [r# (get ~current-instance-var ~n)]
          r#
          (let [result# (fractl.env/lookup-by-alias ~runtime-env-var ~(:path parts))
-               r# (if (map? result#) result# (first result#))]
+               r# (if (map? result#) result#
+                      (if (i/const-value? result#)
+                        result#
+                        (first result#)))]
            (if-let [refs# '~(seq (:refs parts))]
              (get-in r# refs#)
              r#)))
@@ -324,10 +327,9 @@
 
 (defn- parse-for-each-match-pattern [pat]
   (if (vector? pat)
-    (let [[kw alias] (take-last 2 pat)]
-      (if (= :as kw)
-        [(drop-last 2 pat) alias]
-        [pat nil]))
+    (if (= :as (second pat))
+      [(first pat) (nth pat 2)]
+      [pat nil])
     [pat nil]))
 
 (defn- compile-for-each-match-pattern [ctx pat]
