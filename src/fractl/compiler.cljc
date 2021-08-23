@@ -113,7 +113,17 @@
 (defn- process-query-filter-rule [[_ r]]
   (vec r))
 
-(defn compile-query [ctx entity-name query]
+(defn- compile-dynamic-entity-query [ctx entity-name query]
+  (let [eq (i/expand-query
+            entity-name
+            (map query-param-process query))]
+    {:compiled-query
+     ((ctx/fetch-compile-query-fn ctx)
+      {:dynamic true
+       :query eq})
+     :raw-query eq}))
+
+(defn- compile-entity-query [ctx entity-name query]
   (let [indexed-attrs (set
                        (conj
                         (cn/indexed-attributes
@@ -126,7 +136,6 @@
             entity-name
             (when qp
               (map query-param-process qp)))]
-    (ctx/put-fresh-record! ctx entity-name {})
     {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
      :raw-query eq
      :filter (when fp
@@ -135,6 +144,14 @@
                   (if (= (count rules) 1)
                     (first rules)
                     `[:and ~@rules]))))}))
+
+(defn compile-query [ctx entity-name query]
+  (let [q ((if (cn/dynamic-entity? entity-name)
+             compile-dynamic-entity-query
+             compile-entity-query)
+           ctx entity-name query)]
+    (ctx/put-fresh-record! ctx entity-name {})
+    q))
 
 (defn- compound-expr-as-fn
   "Compile compound expression to a function.

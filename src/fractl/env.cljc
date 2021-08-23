@@ -127,15 +127,20 @@
       [(assoc env :objstack (pop s))
        (map? obj) x])))
 
+(defn- identity-attribute [inst]
+  (or (cn/identity-attribute-name (cn/instance-name inst))
+      :Id))
+
 (defn- dirty-flag-switch
   "Turn on or off the `dirty` flag for the given instances.
   Instances marked dirty will be later flushed to store."
   [flag env insts]
   (loop [insts insts, ds (get env :dirty {})]
     (if-let [inst (first insts)]
-      (if-let [id (:Id inst)]
-        (recur (rest insts) (assoc ds id flag))
-        (recur (rest insts) ds))
+      (let [id-attr (identity-attribute inst)]
+        (if-let [id (id-attr inst)]
+          (recur (rest insts) (assoc ds id flag))
+          (recur (rest insts) ds)))
       (assoc env :dirty ds))))
 
 (def mark-all-mint (partial dirty-flag-switch false))
@@ -149,7 +154,8 @@
     (if-let [ds (:dirty env)]
       (loop [insts insts]
         (if-let [inst (first insts)]
-          (let [f (get ds (:Id inst))]
+          (let [id-attr (identity-attribute inst)
+                f (get ds (id-attr inst))]
             (if (or f (nil? f))
               true
               (recur (rest insts))))
