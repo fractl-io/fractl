@@ -238,7 +238,11 @@
   prior to this."
   ([ctx pat-name pat-attrs schema alias event? timeout-ms]
    (when-let [xs (cv/invalid-attributes pat-attrs schema)]
-     (u/throw-ex (str "invalid attributes in pattern - " xs)))
+     (if (= (first xs) :Id)
+       (if (= (get schema :type-*-tag-*-) :record)
+         (u/throw-ex (str "Invalid attribute :Id for type record: " pat-name))
+         (u/throw-ex (str "Wrong reference of id in line: " pat-attrs "of " pat-name)))
+       (u/throw-ex (str "Invalid attributes in pattern - " xs))))
    (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
          sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
      (emit-build-record-instance ctx pat-name sorted-attrs schema alias event? timeout-ms)))
