@@ -188,7 +188,8 @@
 
 (defn- process-where-clause [clause]
   (cv/ensure-where-clause
-   (if (= 2 (count clause))
+   (if (and (= 2 (count clause))
+            (not (vector? (first clause))))
      (su/vec-add-first := clause)
      clause)))
 
@@ -197,7 +198,7 @@
         qp (when-not wildcard? (map process-where-clause query-pattern))
         where-clause (if wildcard?
                        :*
-                       (if (> (count qp) 1)
+                       (if (vector? (ffirst qp))
                          (su/vec-add-first :and qp)
                          (first qp)))]
     {:from entity-name

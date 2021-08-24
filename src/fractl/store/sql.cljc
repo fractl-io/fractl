@@ -17,7 +17,7 @@
     (if (= :* where-clause)
       {:query (str "SELECT * FROM " table)}
       (let [norm-where-clause (if (= :and (first where-clause))
-                                (rest where-clause)
+                                (first (rest where-clause))
                                 [where-clause])
             index-tables (map #(index-table-name-fn table (second %)) norm-where-clause)]
         {:id-queries
@@ -42,9 +42,8 @@
 (defn sql-index-type
   ([max-varchar-length bool-type date-time-type attribute-type]
    (case attribute-type
-     (:Kernel/String :Kernel/Keyword :Kernel/Email)
+     (:Kernel/String :Kernel/Keyword :Kernel/Email :Kernel/DateTime)
      (str "VARCHAR(" max-varchar-length ")")
-     :Kernel/DateTime "TIMESTAMP"
      :Kernel/UUID "UUID"
      :Kernel/Int "INT"
      (:Kernel/Int64 :Kernel/Integer) "BIGINT"

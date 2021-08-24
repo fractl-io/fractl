@@ -417,7 +417,7 @@
   [a b]
   (or (identical? a b)
       (if (every? entity-instance? [a b])
-        (let [instname (instance-name a)]
+        (let [instname (parsed-instance-name a)]
           (and (instance-of? instname b)
                (when-let [idattr (identity-attribute-name instname)]
                  (= (idattr (instance-attributes a))
