@@ -40,7 +40,7 @@
          r3 (tu/first-result
              {:I352DtIndex/FindBetween
               {:Start "2021-11-30T00:00:00"
-               :End "2021-15-30T00:00:00"}})]
+               :End "2022-01-30T00:00:00"}})]
      (is (cn/instance-of? :I352DtIndex/E r1))
      (is (cn/instance-of? :I352DtIndex/E r2))
      (is (cn/instance-of? :I352DtIndex/E r3))
