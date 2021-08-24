@@ -30,10 +30,13 @@
   (if-let [xs (env/pop-obj env)]
     (let [[env single? [n x]] xs
           objs (if single? [x] x)
-          new-objs (map #(assoc % attr-name (if (fn? attr-value)
-                                              (attr-value env %)
-                                              attr-value))
-                        objs)
+          new-objs (map
+                    #(assoc
+                      % attr-name
+                      (if (fn? attr-value)
+                        (attr-value env %)
+                        attr-value))
+                    objs)
           env (env/push-obj env n (if single? (first new-objs) new-objs))]
       (i/ok (if single? (first new-objs) new-objs) (env/mark-all-dirty env new-objs)))
     (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value]))))
@@ -43,7 +46,7 @@
     (let [[env single? [n x]] xs
           inst (if single? x (first x))]
       (i/ok (f env inst) env))
-    (i/error "cannot call function, cannot find argument instance in stack")))
+    (i/ok (f env nil) env)))
 
 (defn- on-inst [f xs]
   (f (if (map? xs) xs (first xs))))
@@ -401,22 +404,31 @@
            (eval-opcode evaluator env alternative)
            (i/ok false env)))))))
 
-(defn- eval-for-each-body [evaluator env eval-opcode body-code element]
-  (when (cn/entity-instance? element)
-    (let [entity-name (cn/instance-name element)
-          new-env (env/bind-instance env entity-name element)]
-      (loop [body-code body-code, env new-env result nil]
-        (if-let [opcode (first body-code)]
-          (let [result (eval-opcode evaluator env opcode)]
-            (if (ok-result result)
-              (recur (rest body-code)
-                     (:env result)
-                     result)
-              result))
-          result)))))
+(defn- bind-for-each-element [env element elem-alias]
+  (cond
+    elem-alias
+    (env/bind-to-alias env elem-alias element)
 
-(defn- eval-for-each [evaluator env eval-opcode collection body-code result-alias]
-  (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code)
+    (cn/an-instance? element)
+    (env/bind-instance env (cn/instance-name element) element)
+
+    :else
+    (env/bind-to-alias env :% element)))
+
+(defn- eval-for-each-body [evaluator env eval-opcode body-code elem-alias element]
+  (let [new-env (bind-for-each-element env element elem-alias)]
+    (loop [body-code body-code, env new-env result nil]
+      (if-let [opcode (first body-code)]
+        (let [result (eval-opcode evaluator env opcode)]
+          (if (ok-result result)
+            (recur (rest body-code)
+                   (:env result)
+                   result)
+            result))
+        result))))
+
+(defn- eval-for-each [evaluator env eval-opcode collection body-code elem-alias result-alias]
+  (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code elem-alias)
         results (doall (map eval-body collection))]
     (if (every? #(ok-result %) results)
       (let [eval-output (doall (map #(ok-result %) results))
@@ -589,10 +601,10 @@
                    (df-eval evt (list evt-name {:opcode (atom df-code)}))))]
               env)))
 
-    (do-for-each [self env [bind-pattern-code body-code result-alias]]
+    (do-for-each [self env [bind-pattern-code elem-alias body-code result-alias]]
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
-          (eval-for-each self (:env result) eval-opcode r body-code result-alias)
+          (eval-for-each self (:env result) eval-opcode r body-code elem-alias result-alias)
           result)))
 
     (do-entity-def [_ env schema]
