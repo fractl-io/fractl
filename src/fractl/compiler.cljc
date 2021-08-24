@@ -24,8 +24,8 @@
 (defn- emit-match [match-pattern-code cases-code alternative-code alias]
   (op/match [match-pattern-code cases-code alternative-code alias]))
 
-(defn- emit-for-each [bind-pattern-code body-code alias]
-  (op/for-each [bind-pattern-code body-code alias]))
+(defn- emit-for-each [bind-pattern-code elem-alias body-code alias]
+  (op/for-each [bind-pattern-code elem-alias body-code alias]))
 
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
@@ -42,7 +42,10 @@
       `(if-let [r# (get ~current-instance-var ~n)]
          r#
          (let [result# (fractl.env/lookup-by-alias ~runtime-env-var ~(:path parts))
-               r# (if (map? result#) result# (first result#))]
+               r# (if (map? result#) result#
+                      (if (i/const-value? result#)
+                        result#
+                        (first result#)))]
            (if-let [refs# '~(seq (:refs parts))]
              (get-in r# refs#)
              r#)))
@@ -185,7 +188,7 @@
         fs (map #(partial build-dependency-graph %) [refs compound query])
         deps-graph (appl fs [ctx schema ug/EMPTY])
         compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
-        parsed-refs (map (fn [[k v]] [k (li/path-parts v)]) refs)
+        parsed-refs (map (fn [[k v]] [k (if (symbol? v) {:refs v} (li/path-parts v))]) refs)
         compiled-query (when query (compile-query ctx pat-name query))
         final-attrs (if (seq compiled-query)
                       (assoc cls-attrs :query compiled-query)
@@ -216,13 +219,16 @@
 
 (defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
   (concat [(begin-build-instance rec-name attrs)]
-          (map (partial set-literal-attribute ctx)
-               (:computed attrs))
+          (mapv (partial set-literal-attribute ctx)
+                (:computed attrs))
           (let [f (:compound set-attr-opcode-fns)]
-            (map #(f %) (:compound attrs)))
-          (map (fn [[k v]]
-                 ((k set-attr-opcode-fns) v))
-               (:sorted attrs))
+            (mapv #(f %) (:compound attrs)))
+          (mapv (fn [[k v]]
+                  ((k set-attr-opcode-fns) v))
+                (:sorted attrs))
+          (mapv (fn [arg]
+                  (op/set-ref-attribute arg))
+                (:refs attrs))
           [(if event?
              (op/intern-event-instance [rec-name alias timeout-ms])
              (op/intern-instance [rec-name alias]))]))
@@ -332,19 +338,35 @@
       [pat nil])))
 
 (defn- compile-for-each-body [ctx body-pats]
-  (loop [body-pats body-pats, body-code []]
-    (if-let [body-pat (first body-pats)]
-      (recur (rest body-pats)
-             (conj body-code [(compile-pattern ctx body-pat)]))
-      body-code)))
+  (ctx/add-alias! ctx :% :%)
+  (let [code (loop [body-pats body-pats, body-code []]
+               (if-let [body-pat (first body-pats)]
+                 (recur (rest body-pats)
+                        (conj body-code [(compile-pattern ctx body-pat)]))
+                 body-code))]
+    code))
+
+(defn- parse-for-each-match-pattern [pat]
+  (if (vector? pat)
+    (if (= :as (second pat))
+      [(first pat) (nth pat 2)]
+      [pat nil])
+    [pat nil]))
+
+(defn- compile-for-each-match-pattern [ctx pat]
+  (let [[pat alias] (parse-for-each-match-pattern pat)]
+    (when alias
+      (ctx/add-alias! ctx alias alias))
+    [(compile-pattern ctx pat) alias]))
 
 (defn- compile-for-each [ctx pat]
-  (let [bind-pat-code (compile-pattern ctx (first pat))
+  (let [[bind-pat-code elem-alias]
+        (compile-for-each-match-pattern ctx (first pat))
         [body-pats alias] (special-form-alias (rest pat))
         body-code (compile-for-each-body ctx body-pats)]
     (when alias
       (ctx/add-alias! ctx alias alias))
-    (emit-for-each bind-pat-code body-code alias)))
+    (emit-for-each bind-pat-code elem-alias body-code alias)))
 
 (defn- extract-match-clauses [pat]
   (let [[pat alias] (special-form-alias pat)]

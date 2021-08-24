@@ -38,7 +38,7 @@
              tag (cond
                    (li/query-pattern? ak) :query
                    (or (const-value? v) (vector? v)) :computed
-                   (li/name? v) :refs
+                   (or (li/name? v) (symbol? v)) :refs
                    (seqable? v) :compound
                    :else (u/throw-ex (str "not a valid attribute pattern - " a)))]
          (su/aconj result tag [k v])))
@@ -73,7 +73,9 @@
 
 (defn- aliased-name-in-context [ctx schema n]
   (when-let [an (ctx/aliased-name ctx n)]
-    (reach-name ctx schema an)))
+    (if (= n an)
+      n
+      (reach-name ctx schema an))))
 
 (defn- reach-name [ctx schema n]
   (let [{component :component rec :record refs :refs

@@ -28,6 +28,9 @@
 (defn fetch-variable [ctx k]
   (find @ctx k))
 
+(defn unbind-variable! [ctx k]
+  (u/call-and-set ctx #(dissoc @ctx k)))
+
 (defn lookup-record [ctx instance path]
   (if-let [r (fetch-record ctx path)]
     r
