@@ -41,12 +41,14 @@
              {:I352DtIndex/FindBetween
               {:Start "2021-11-30T00:00:00"
                :End "2022-01-30T00:00:00"}})
-         r4 (tu/first-result
-             {:I352DtIndex/FindBetween
-              {:Start "2022-11-30T00:00:00"
-               :End "2023-01-30T00:00:00"}})]
+         r4 (first
+             (e/eval-all-dataflows
+              {:I352DtIndex/FindBetween
+               {:Start "2022-11-30T00:00:00"
+                :End "2023-01-30T00:00:00"}}))]
      (is (cn/instance-of? :I352DtIndex/E r1))
      (is (cn/instance-of? :I352DtIndex/E r2))
      (is (cn/instance-of? :I352DtIndex/E r3))
      (is (cn/same-instance? r1 r2))
-     (is (cn/same-instance? r1 r3)))))
+     (is (cn/same-instance? r1 r3))
+     (is (= :not-found (:status r4))))))

@@ -188,15 +188,25 @@
 (defn- id-attribute [query-attrs]
   (first (filter #(= :Id (first %)) query-attrs)))
 
-(defn- evaluate-id-result [env r]
-  (if (fn? r)
-    (let [result (r env nil)]
-      (if (vector? result) result [result env]))
-    [r env]))
+(defn- evaluate-id-result [env rs]
+  (loop [rs rs, env env, values []]
+    (if-let [r (first rs)]
+      (if (fn? r)
+        (let [x (r env nil)
+              [v new-env]
+              (if (vector? x)
+                x
+                [x env])]
+          (recur
+           (rest rs)
+           new-env
+           (conj values v)))
+        (recur (rest rs) env (conj values r)))
+      [values env])))
 
-(defn- evaluate-id-query [env store query param running-result]
-  (let [[p env] (evaluate-id-result env param)
-        rs (store/do-query store query [p])]
+(defn- evaluate-id-query [env store query params running-result]
+  (let [[p env] (evaluate-id-result env params)
+        rs (store/do-query store query p)]
     [(concat running-result (map su/first-val rs)) env]))
 
 (defn- evaluate-id-queries
@@ -208,9 +218,10 @@
   (loop [idqs id-queries, env env, result []]
     (if-let [idq (first idqs)]
       (if-let [r (:result idq)]
-        (let [[obj env] (evaluate-id-result env r)]
-          (recur (rest idqs) env (conj result obj)))
-        (let [[q p] (:query idq)
+        (let [[obj env] (evaluate-id-result env [r])]
+          (recur (rest idqs) env (conj result (first obj))))
+        (let [query (:query idq)
+              [q p] [(first query) (seq (rest query))]
               [rs env] (evaluate-id-query env store q p result)]
           (recur (rest idqs) env rs)))
       [result env])))
@@ -225,7 +236,11 @@
 (defn- normalize-raw-query [env q]
   (let [[wc env] (let [where-clause (:where q)]
                    (if (seqable? where-clause)
-                     (normalize-raw-where-clause env where-clause)
+                     (normalize-raw-where-clause
+                      env
+                      (if (seqable? (first where-clause))
+                        where-clause
+                        [where-clause]))
                      [where-clause env]))]
     [(assoc q :where wc) env]))
 
