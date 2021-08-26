@@ -53,7 +53,9 @@
 (defn sql-index-type
   ([max-varchar-length bool-type date-time-type attribute-type]
    (case attribute-type
-     (:Kernel/String :Kernel/Keyword :Kernel/Email :Kernel/DateTime)
+     (:Kernel/String
+      :Kernel/Keyword :Kernel/Email
+      :Kernel/DateTime :Kernel/Date :Kernel/Time)
      (str "VARCHAR(" max-varchar-length ")")
      :Kernel/UUID "UUID"
      :Kernel/Int "INT"

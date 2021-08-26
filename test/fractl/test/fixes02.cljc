@@ -62,3 +62,22 @@
                 "04:05:06 America/New_York"]]
      (is (every? dt/parse-date dates))
      (is (every? dt/parse-time times)))))
+
+(deftest issue-352-date-time-upserts
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I352Dtu
+     (entity
+      :I352Dtu/E
+      {:A :Kernel/Date
+       :B :Kernel/Time}))
+   (let [r1 (tu/first-result
+             {:I352Dtu/Upsert_E
+              {:Instance
+               {:I352Dtu/E
+                {:A "2021-08-26"
+                 :B "14:24:30"}}}})
+         r2 (tu/first-result
+             {:I352Dtu/Lookup_E
+              {:Id (:Id r1)}})]
+     (is (cn/same-instance? r1 r2)))))

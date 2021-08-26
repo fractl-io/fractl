@@ -28,6 +28,7 @@
    format/of-pattern
    ["MMMM d, yyyy" ; January 8, 2021
     "yyyy-MMM-dd"  ; 2021-Jan-08
+    "yyyy-MM-dd"   ; 2021-01-30
     "MMM-dd-yyyy"  ; Jan-08-2021
     "dd-MMM-yyyy"  ; 08-Jan-2021
     "yyyyMMdd"]))  ; 20210108
@@ -36,6 +37,7 @@
   (map
    format/of-pattern
    ["HH:mm:ss.SSS"  ; 04:05:06.789
+    "HH:mm:ss"      ; 04:05:06
     "HH:mm"         ; 04:05
     "HHmmss"        ; 040506
     "hh:mm a"       ; 04:05 pm, hour <= 12
