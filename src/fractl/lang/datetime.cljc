@@ -17,11 +17,15 @@
 (def try-parse-date (partial valid-format? ld/parse))
 (def try-parse-time (partial valid-format? lt/parse))
 
-(defn parse-date-time
-  ([s pat]
-   (try-parse-date-time (format/of-pattern pat) s))
-  ([s]
-   (try-parse-date-time format/iso-local-date-time s)))
+(def ^:private date-time-formatters
+  (concat
+   [format/iso-local-date-time]  ; 2011-12-03T10:15:30
+   (map
+    format/of-pattern
+    ["yyyy-MM-dd HH:mm:ss"       ; 2021-01-08 04:05:06
+     "yyyy-MM-dd HH:mm:ss.SSS"   ; 2021-01-08 04:05:06.789
+     "yyyyMMddHHmmss"            ; 20210108040506
+     "yyyy-MM-dd HH:mm:ss z"]))) ; 2021-01-08 04:05:06 PST or America/New_York
 
 (def ^:private date-formatters
   (map
@@ -43,11 +47,12 @@
     "hh:mm a"       ; 04:05 pm, hour <= 12
     "HH:mm:ss z"])) ; 04:05:06 PST or 04:05:06 America/New_York
 
-(defn parse-date [s]
-  (some #(try-parse-date % s) date-formatters))
+(defn- find-format [try-parse-fn formatters s]
+  (some #(try-parse-fn % s) formatters))
 
-(defn parse-time [s]
-  (some #(try-parse-time % s) time-formatters))
+(def parse-date-time (partial find-format try-parse-date-time date-time-formatters))
+(def parse-date (partial find-format try-parse-date date-formatters))
+(def parse-time (partial find-format try-parse-time time-formatters))
 
 (defn as-string
   ([dt pat]
