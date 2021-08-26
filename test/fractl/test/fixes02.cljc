@@ -58,7 +58,13 @@
    (let [dates ["January 8, 2021" "2021-Jan-08"
                 "Jan-08-2021" "08-Jan-2021" "20210108"]
          times ["04:05:06.789" "04:05" "040506"
-                "04:05 pm" "04:05:06 PST"
+                ;;; NOTE:
+                ;;; jvm14 expects lower-case am/pm, while jvm11 expects uppser-case AM/PM.
+                ;;; disabling test for AM/PM until CI moves up to jvm14.
+
+                ;; "04:05 pm"
+
+                "04:05:06 PST"
                 "04:05:06 America/New_York"]
          date-times ["2021-01-08T04:05:06"
                      "2021-01-08 04:05:06"
@@ -67,7 +73,7 @@
                      "2021-01-08 04:05:06 PST"
                      "2021-01-08 04:05:06 America/New_York"]]
      (is (every? dt/parse-date dates))
-     ;(is (every? dt/parse-time times))
+     (is (every? dt/parse-time times))
      (is (every? dt/parse-date-time date-times)))))
 
 (deftest issue-352-date-time-upserts
