@@ -6,25 +6,46 @@
             [cljc.java-time.format.date-time-formatter :as format]
             [cljc.java-time.temporal.chrono-unit :as cu]))
 
-(defn try-parse-date [s formatter]
+(defn- valid-format? [parser formatter s]
   (try
-    (ldt/parse s formatter)
+    (parser s formatter)
     (catch #?(:clj Exception :cljs :default) ex
       (log/error ex)
       false)))
 
+(def try-parse-date-time (partial valid-format? ldt/parse))
+(def try-parse-date (partial valid-format? ld/parse))
+(def try-parse-time (partial valid-format? lt/parse))
+
 (defn parse-date-time
   ([s pat]
-   (try-parse-date s (format/of-pattern pat)))
+   (try-parse-date-time (format/of-pattern pat) s))
   ([s]
-   (try-parse-date s format/iso-local-date-time)))
+   (try-parse-date-time format/iso-local-date-time s)))
 
-;; TODO: implement parse-date and parse-time
+(def ^:private date-formatters
+  (map
+   format/of-pattern
+   ["MMMM d, yyyy" ; January 8, 2021
+    "yyyy-MMM-dd"  ; 2021-Jan-08
+    "MMM-dd-yyyy"  ; Jan-08-2021
+    "dd-MMM-yyyy"  ; 08-Jan-2021
+    "yyyyMMdd"]))  ; 20210108
+
+(def ^:private time-formatters
+  (map
+   format/of-pattern
+   ["HH:mm:ss.SSS"  ; 04:05:06.789
+    "HH:mm"         ; 04:05
+    "HHmmss"        ; 040506
+    "hh:mm a"       ; 04:05 pm, hour <= 12
+    "HH:mm:ss z"])) ; 04:05:06 PST or 04:05:06 America/New_York
+
 (defn parse-date [s]
-  true)
+  (some #(try-parse-date % s) date-formatters))
 
 (defn parse-time [s]
-  true)
+  (some #(try-parse-time % s) time-formatters))
 
 (defn as-string
   ([dt pat]

@@ -7,7 +7,6 @@
                      entity record dataflow]]
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
-            [fractl.compiler.rule :as rule]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -52,3 +51,14 @@
      (is (cn/same-instance? r1 r2))
      (is (cn/same-instance? r1 r3))
      (is (= :not-found (:status r4))))))
+
+(deftest issue-352-date-time-formats
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (let [dates ["January 8, 2021" "2021-Jan-08"
+                "Jan-08-2021" "08-Jan-2021" "20210108"]
+         times ["04:05:06.789" "04:05" "040506"
+                "04:05 pm" "04:05:06 PST"
+                "04:05:06 America/New_York"]]
+     (is (every? dt/parse-date dates))
+     (is (every? dt/parse-time times)))))
