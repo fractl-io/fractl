@@ -1,5 +1,6 @@
 (ns fractl.lang.datetime
-  (:require [fractl.util.logger :as log]
+  (:require [clojure.string :as str]
+            [fractl.util.logger :as log]
             [cljc.java-time.local-date :as ld]
             [cljc.java-time.local-time :as lt]
             [cljc.java-time.local-date-time :as ldt]
@@ -44,7 +45,10 @@
     "HH:mm:ss"      ; 04:05:06
     "HH:mm"         ; 04:05
     "HHmmss"        ; 040506
-    "hh:mm a"       ; 04:05 pm, hour <= 12
+    ;;; 12-hour format time is manually parsed because
+    ;;; Java11 and Java14 behave differently for the
+    ;;; following pattern.
+    ;; "hh:mm a"    ; 04:05 pm, hour <= 12
     "HH:mm:ss z"])) ; 04:05:06 PST or 04:05:06 America/New_York
 
 (defn- find-format [try-parse-fn formatters s]
@@ -52,7 +56,24 @@
 
 (def parse-date-time (partial find-format try-parse-date-time date-time-formatters))
 (def parse-date (partial find-format try-parse-date date-formatters))
-(def parse-time (partial find-format try-parse-time time-formatters))
+
+(defn- am-pm? [s]
+  (let [s (str/lower-case s)]
+    (or (= s "am") (= s "pm"))))
+
+(defn- parse-12hr-time [s]
+  (let [n (count s)]
+    (when (and (= n 8)
+               (= \: (nth s 2))
+               (am-pm? (subs s 6)))
+      (let [h (read-string (subs s 0 2))
+            m (read-string (subs s 3 5))]
+        (and (number? h) (number? m)
+             (<= 0 h 12) (<= 0 m 59))))))
+
+(defn parse-time [s]
+  (or (find-format try-parse-time time-formatters s)
+      (parse-12hr-time s)))
 
 (defn as-string
   ([dt pat]
