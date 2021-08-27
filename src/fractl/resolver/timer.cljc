@@ -1,25 +1,94 @@
 (ns fractl.resolver.timer
   (:require [fractl.util :as u]
+            [fractl.util.logger :as log]
+            [fractl.component :as cn]
             [fractl.resolver.core :as r]
-            [fractl.lang.datetime :as dt]))
+            [fractl.evaluator.state :as es]
+            [fractl.lang.datetime :as dt])
+  #?(:clj
+     (:import [java.util.concurrent ExecutorService Executors
+               Future TimeUnit])))
 
 (def ^:private db (u/make-cell {}))
 
+#?(:clj
+   (def ^:private ^ExecutorService executor (Executors/newCachedThreadPool)))
+
+(defn- upsert-timer-inst [id created inst]
+  (u/call-and-set
+   db
+   #(assoc
+     @db id
+     [created inst]))
+  inst)
+
+(defn- delete-timer-inst! [id]
+  (u/call-and-set
+   db
+   #(dissoc @db id))
+  id)
+
+(defn- update-task-handle! [id handle]
+  (when-let [[created inst]
+             (get @db id)]
+    (upsert-timer-inst
+     id created (assoc inst :TaskHandle handle))))
+
+(defn- expiry-as-ms [inst]
+  (let [n (:Expiry inst)]
+    (case (:ExpiryUnit inst)
+      :Seconds (* 1000 n)
+      :Minutes (* 60 1000 n)
+      :Hours (* 60 60 1000 n)
+      :Days (* 24 60 60 1000 n))))
+
+(defn- sleep [inst]
+  #?(:clj
+     (try
+       (.sleep
+        (case (:ExpiryUnit inst)
+          :Seconds TimeUnit/SECONDS
+          :Minutes TimeUnit/MINUTES
+          :Hours TimeUnit/HOURS
+          :Days TimeUnit/DAYS)
+        (:Expiry inst))
+       (catch Exception ex
+         (log/error (str "task sleep interrupted - " ex))))))
+
+(defn- task-cancelled? [id]
+  (get @db id))
+
+(defn- cancel-task! [id]
+  (when-let [[_ inst] (get @db id)]
+    (when-let [handle (:TaskHandle inst)]
+      #?(:clj
+         (.cancel ^Future handle true)
+         :cljs
+         (js/clearTimeout handle)))
+    (delete-timer-inst! id)))
+
+(defn- make-callback [id inst]
+  (fn []
+    (sleep inst)
+    (when-not (task-cancelled? id)
+      (log/info (str "running timer task - " id))
+      (delete-timer-inst! id)
+      ((es/get-active-evaluator)
+       (cn/make-instance (:ExpiryEvent inst))))))
+
 (defn timer-upsert [inst]
-  (let [created (dt/now-raw)]
-    (u/call-and-set
-     db
-     #(assoc
-       @db (:Id inst)
-       [created inst]))
-    inst))
+  (let [id (:Id inst)]
+    (upsert-timer-inst id (dt/now-raw) inst)
+    (let [callback (make-callback id inst)
+          handle #?(:clj
+                    (.submit executor ^Callable callback)
+                    :cljs
+                    (js/setTimeout callback (expiry-as-ms inst)))]
+      (update-task-handle! id handle)
+      inst)))
 
 (defn- timer-delete [inst]
-  (let [id (:Id inst)]
-    (u/call-and-set
-     db
-     #(dissoc @db id))
-    id))
+  (cancel-task! (:Id inst)))
 
 (def ^:private resolver-fns
   {:upsert {:handler timer-upsert}

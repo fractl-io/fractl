@@ -577,7 +577,10 @@
   (entity {:Kernel/Timer
            {:Expiry :Kernel/Int
             :ExpiryUnit {:oneof [:Seconds :Minutes :Hours :Days]}
-            :ExpiryEvent :Kernel/Keyword}})
+            :ExpiryEvent :Kernel/Map
+            ;; :TaskHandle is set by the runtime, represents the
+            ;; thread that execute the event after timer expiry.
+            :TaskHandle {:type :Kernel/Any :optional true}}})
 
   (event :Kernel/AppInit
          {:Data :Kernel/Map})
