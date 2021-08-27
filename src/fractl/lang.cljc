@@ -574,6 +574,11 @@
             :InterceptStage {:oneof [:PreEval :PostEval :Default]
                              :default :Default}}})
 
+  (entity {:Kernel/Timer
+           {:Expiry :Kernel/Int
+            :ExpiryUnit {:oneof [:Seconds :Minutes :Hours :Days]}
+            :ExpiryEvent :Kernel/Keyword}})
+
   (event :Kernel/AppInit
          {:Data :Kernel/Map})
 
@@ -605,6 +610,10 @@
           :type :auth
           :compose? false
           :paths [:Kernel/Authentication]}
+         {:name :timer
+          :type :timer
+          :compose? false
+          :paths [:Kernel/Timer]}
          {:name :git
           :type :git
           :compose? false
