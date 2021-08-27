@@ -105,12 +105,19 @@
       r
       (expr-as-fn r))))
 
+(declare query-param-process)
+
+(defn- param-process-seq-query [attrname query]
+  (if (vector? (first query))
+    (mapv #(query-param-process [attrname %]) query)
+    (concat
+     [(first query)]
+     (concat [attrname] (mapv query-param-lookup (rest query))))))
+
 (defn- query-param-process [[k v]]
   (cond
     (i/const-value? v) [k v]
-    (seqable? v) (concat
-                  [(first v)]
-                  (concat [k] (map query-param-lookup (rest v))))
+    (seqable? v) (vec (param-process-seq-query k v))
     :else [k (query-param-lookup v)]))
 
 (defn- process-query-filter-rule [[_ r]]

@@ -22,6 +22,8 @@
      (float? x)))
 
 (def date-time? dt/parse-date-time)
+(def date? dt/parse-date)
+(def time? dt/parse-time)
 
 (defn UUID? [s]
   (if (u/uuid-from-string s) true false))
@@ -66,6 +68,8 @@
    :Kernel/Keyword keyword?
    :Kernel/Path path?
    :Kernel/DateTime date-time?
+   :Kernel/Date date?
+   :Kernel/Time time?
    :Kernel/UUID UUID?
    :Kernel/Password identity
    :Kernel/Int int?

@@ -117,7 +117,7 @@
                                  (if wild-card?
                                    [(cn/make-instance :ResQueryAll/E {:X 1 :N "e01"})
                                     (cn/make-instance :ResQueryAll/E {:X 2 :N "e02"})]
-                                   (when-let [id (nth where-clause 2)]
+                                   (when-let [id (nth (first where-clause) 2)]
                                      [(cn/make-instance :RQ/E {:X 1 :Id id})]))))}}
                            #(e/eval-all-dataflows % store {}))]
     (install-resolver path r)))
