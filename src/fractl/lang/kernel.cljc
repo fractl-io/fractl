@@ -21,14 +21,20 @@
      :cljs
      (float? x)))
 
-(defn date-time? [s]
-  (dt/parse-date-time s))
+#?(:clj (def date-time? dt/parse-date-time)
+   :cljs
+   (defn date-time? [s]
+     (dt/parse-date-time s)))
 
-(defn date? [s]
-  (dt/parse-date s))
+#?(:clj (def date? dt/parse-date)
+   :cljs
+   (defn date? [s]
+     (dt/parse-date s)))
 
-(defn time? [s]
-  (dt/parse-time s))
+#?(:clj (def time? dt/parse-time)
+   :cljs
+   (defn time? [s]
+     (dt/parse-time s)))
 
 (defn UUID? [s]
   (if (u/uuid-from-string s) true false))
