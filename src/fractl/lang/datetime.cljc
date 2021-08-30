@@ -15,9 +15,14 @@
       (log/error ex)
       false)))
 
-(def try-parse-date-time (partial valid-format? ldt/parse))
-(def try-parse-date (partial valid-format? ld/parse))
-(def try-parse-time (partial valid-format? lt/parse))
+(defn- try-parse-date-time [formatter s]
+  (valid-format? ldt/parse formatter s))
+
+(defn- try-parse-date [formatter s]
+  (valid-format? ld/parse formatter s))
+
+(defn- try-parse-time [formatter s]
+  (valid-format? lt/parse formatter s))
 
 (def ^:private date-time-formatters
   (concat
@@ -91,7 +96,9 @@
 (defn now []
   (as-string (ldt/now)))
 
-(def now-raw ldt/now)
+#?(:clj (def now-raw ldt/now)
+   :cljs (defn now-raw []
+           (ldt/now)))
 
 (defn difference-in-seconds [dt1 dt2]
   (cu/between cu/seconds dt1 dt2))
