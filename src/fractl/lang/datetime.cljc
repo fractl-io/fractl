@@ -55,8 +55,11 @@
 (defn- find-format [try-parse-fn formatters s]
   (some #(try-parse-fn % s) formatters))
 
-(def parse-date-time (partial find-format try-parse-date-time date-time-formatters))
-(def parse-date (partial find-format try-parse-date date-formatters))
+(defn parse-date-time [s]
+  (find-format try-parse-date-time date-time-formatters s))
+
+(defn parse-date [s]
+  (find-format try-parse-date date-formatters s))
 
 (defn- am-pm? [s]
   (let [s (str/lower-case s)]
