@@ -2,6 +2,8 @@
   (:require [clojure.string :as str]
             [fractl.util :as u]
             [fractl.util.logger :as log]
+            [tick.core :as t]
+            [tick.locale-en-us]
             [cljc.java-time.local-date :as ld]
             [cljc.java-time.local-time :as lt]
             [cljc.java-time.local-date-time :as ldt]
@@ -11,11 +13,12 @@
 (defn- valid-format? [parser formatter s]
   (try
     (parser s formatter)
-    (catch #?(:clj Exception :cljs :default) ex
+    (catch
+      #?(:clj Exception :cljs :default) ex
       (log/error ex)
       false)))
 
-(defn- try-parse-date-time [formatter s]
+(defn try-parse-date-time [formatter s]
   (valid-format? ldt/parse formatter s))
 
 (defn- try-parse-date [formatter s]
@@ -24,15 +27,20 @@
 (defn- try-parse-time [formatter s]
   (valid-format? lt/parse formatter s))
 
-(def ^:private date-time-formatters
-  (concat
-   [format/iso-local-date-time]  ; 2011-12-03T10:15:30
-   (mapv
-    format/of-pattern
-    ["yyyy-MM-dd HH:mm:ss"       ; 2021-01-08 04:05:06
-     "yyyy-MM-dd HH:mm:ss.SSS"   ; 2021-01-08 04:05:06.789
-     "yyyyMMddHHmmss"            ; 20210108040506
-     "yyyy-MM-dd HH:mm:ss z"]))) ; 2021-01-08 04:05:06 PST or America/New_York
+#?(:clj
+   (def date-time-formatters
+          (concat
+            [format/iso-local-date-time]                    ; 2011-12-03T10:15:30
+            (mapv
+              format/of-pattern
+              ["yyyy-MM-dd HH:mm:ss"                        ; 2021-01-08 04:05:06
+               "yyyy-MM-dd HH:mm:ss.SSS"                    ; 2021-01-08 04:05:06.789
+               "yyyyMMddHHmmss"                             ; 20210108040506
+               "yyyy-MM-dd HH:mm:ss z"])))                  ; 2021-01-08 04:05:06 PST or America/New_York
+  :cljs
+   (defn date-time-formatters [s]
+     (t/formatter :iso-local-date-time s)))
+
 
 (def ^:private date-formatters
   (map
@@ -57,7 +65,7 @@
     ;; "hh:mm a"    ; 04:05 pm, hour <= 12
     "HH:mm:ss z"])) ; 04:05:06 PST or 04:05:06 America/New_York
 
-(defn- find-format [try-parse-fn formatters s]
+(defn find-format [try-parse-fn formatters s]
   (some #(try-parse-fn % s) formatters))
 
 (defn parse-date-time [s]
