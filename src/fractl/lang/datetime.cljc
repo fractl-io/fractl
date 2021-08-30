@@ -1,5 +1,6 @@
 (ns fractl.lang.datetime
   (:require [clojure.string :as str]
+            [fractl.util :as u]
             [fractl.util.logger :as log]
             [cljc.java-time.local-date :as ld]
             [cljc.java-time.local-time :as lt]
@@ -21,7 +22,7 @@
 (def ^:private date-time-formatters
   (concat
    [format/iso-local-date-time]  ; 2011-12-03T10:15:30
-   (map
+   (mapv
     format/of-pattern
     ["yyyy-MM-dd HH:mm:ss"       ; 2021-01-08 04:05:06
      "yyyy-MM-dd HH:mm:ss.SSS"   ; 2021-01-08 04:05:06.789
@@ -66,8 +67,8 @@
     (when (and (= n 8)
                (= \: (nth s 2))
                (am-pm? (subs s 6)))
-      (let [h (read-string (subs s 0 2))
-            m (read-string (subs s 3 5))]
+      (let [h (u/parse-string (subs s 0 2))
+            m (u/parse-string (subs s 3 5))]
         (and (number? h) (number? m)
              (<= 0 h 12) (<= 0 m 59))))))
 

@@ -80,7 +80,7 @@
             (try
               ((es/get-active-evaluator)
                (cn/make-instance (:ExpiryEvent inst)))
-              (catch Exception ex
+              (catch #?(:clj Exception :cljs js/Error) ex
                 (log/error (str "error in task callback - " ex))))]
         (delete-timer-inst! id)
         result))))
