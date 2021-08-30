@@ -45,17 +45,21 @@
 (defn- sleep [inst]
   #?(:clj
      (try
-       (.sleep
-        (case (:ExpiryUnit inst)
-          :Seconds TimeUnit/SECONDS
-          :Minutes TimeUnit/MINUTES
-          :Hours TimeUnit/HOURS
-          :Days TimeUnit/DAYS)
-        (:Expiry inst))
+       (let [eu (:ExpiryUnit inst)
+             unit (if (keyword? eu)
+                    eu
+                    (keyword eu))]
+         (.sleep
+          (case unit
+            :Seconds TimeUnit/SECONDS
+            :Minutes TimeUnit/MINUTES
+            :Hours TimeUnit/HOURS
+            :Days TimeUnit/DAYS)
+          (:Expiry inst)))
        (catch Exception ex
          (log/error (str "task sleep interrupted - " ex))))))
 
-(defn- task-cancelled? [id]
+(defn- task-active? [id]
   (get @db id))
 
 (defn- cancel-task! [id]
@@ -70,11 +74,16 @@
 (defn- make-callback [id inst]
   (fn []
     (sleep inst)
-    (when-not (task-cancelled? id)
+    (when (task-active? id)
       (log/info (str "running timer task - " id))
-      (delete-timer-inst! id)
-      ((es/get-active-evaluator)
-       (cn/make-instance (:ExpiryEvent inst))))))
+      (let [result
+            (try
+              ((es/get-active-evaluator)
+               (cn/make-instance (:ExpiryEvent inst)))
+              (catch Exception ex
+                (log/error (str "error in task callback - " ex))))]
+        (delete-timer-inst! id)
+        result))))
 
 (defn timer-upsert [inst]
   (let [id (:Id inst)]
