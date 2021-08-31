@@ -4,8 +4,9 @@
                   :exclusions [com.google.code.findbugs/jsr305]]
                  [org.clojure/tools.cli "1.0.194"]
                  [org.clojure/data.xml "0.2.0-alpha5"]
-                 [aysylu/loom "1.0.2"]
+                 [org.clojure/data.csv "1.0.0"]
                  [cheshire "5.9.0"]
+                 [aysylu/loom "1.0.2"]
                  ;; required for store/sfdc-metadata
                  [org.antlr/antlr-complete "3.5.2"]
                  [com.force.api/force-wsc "51.2.0"]

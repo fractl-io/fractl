@@ -90,3 +90,31 @@
              {:I352Dtu/Lookup_E
               {:Id (:Id r1)}})]
      (is (cn/same-instance? r1 r2)))))
+
+#?(:clj
+   (deftest issue-358-csv-import
+     (defcomponent :I358Csv01
+       (entity
+        :I358Csv01/Employee
+        {:FirstName :Kernel/String
+         :LastName :Kernel/String
+         :Salary :Kernel/Decimal})
+       (dataflow
+        :I358Csv01/ImportEmployees
+        {:Kernel/FileImport
+         {:Spec
+          {:Kernel/FileDataTransfer
+           {:FilePath "sample/emp.csv"
+            :TargetEntity "I358Csv01/Employee"
+            :AttributeMapping
+            {"first_name" "FirstName"
+             "last_name" "LastName"
+             "salary" "Salary"}}}}}))
+     (let [r (first
+              (e/eval-all-dataflows
+               {:I358Csv01/ImportEmployees
+                {}}))
+           result (first (second (:result r)))]
+       (is (= :ok (:status r)))
+       (is (= :file-import-export (:resolver result)))
+       (is (every? (partial cn/instance-of? :I358Csv01/Employee) (:result result))))))
