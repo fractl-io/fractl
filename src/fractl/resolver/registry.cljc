@@ -4,7 +4,7 @@
             [fractl.resolver.remote :as remote]
             [fractl.resolver.policy :as policy]
             [fractl.resolver.auth :as auth]
-            #?(:clj [fractl.resolver.file-import-export :as fiex])
+            #?(:clj [fractl.resolver.data-sync :as ds])
             #?(:clj [fractl.resolver.git :as git])
             #?(:clj [fractl.resolver.email :as email])
             #?(:clj [fractl.resolver.sms :as sms])))
@@ -45,7 +45,7 @@
    (merge {:remote remote/make
            :policy policy/make
            :auth auth/make}
-          #?(:clj {:file-import-export fiex/make})
+          #?(:clj {:data-sync ds/make})
           #?(:clj {:git git/make})
           #?(:clj {:email email/make})
           #?(:clj {:sms sms/make}))))

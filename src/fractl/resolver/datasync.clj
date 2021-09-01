@@ -1,4 +1,4 @@
-(ns fractl.resolver.file-import-export
+(ns fractl.resolver.data-sync
   (:require [fractl.resolver.core :as r]
             [fractl.util :as u]
             [fractl.util.seq :as su]
@@ -75,19 +75,19 @@
 (defn- file-export [spec]
   ;; TODO: implement
   )
-                         
-(defn- file-import-export-eval [inst]
-  ((case (cn/instance-name inst)
-     [:Kernel :FileImport] file-import
-     [:Kernel :FileExport] file-export
-     (fn [_]
-       (u/throw-ex
-        (str "file-import-export resolver cannot handle "
-             (cn/instance-name inst)))))
-   (:Spec inst)))
+
+(defn- data-sync [spec]
+  )
+
+(defn- data-sync-eval [inst]
+  (case (cn/instance-name inst)
+    [:Kernel :DataSync] (data-sync inst)
+    (u/throw-ex
+     (str "data-sync resolver cannot handle "
+          (cn/instance-name inst)))))
 
 (def ^:private resolver-fns
-  {:eval {:handler file-import-export-eval}})
+  {:eval {:handler data-sync-eval}})
 
 (defn make [resolver-name config]
   (r/make-resolver resolver-name resolver-fns))
