@@ -117,4 +117,6 @@
            result (first (second (:result r)))]
        (is (= :ok (:status r)))
        (is (= :data-sync (:resolver result)))
-       (is (every? (partial cn/instance-of? :I358Csv01/Employee) (:result result))))))
+       (is (every?
+            (partial cn/instance-of? :I358Csv01/Employee)
+            (:result result))))))
