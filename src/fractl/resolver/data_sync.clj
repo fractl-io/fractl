@@ -58,7 +58,7 @@
 (defn- file-import [spec]
   ;; TODO: Upsert new instances in DB.
   (let [contents (csv/read-csv (:FilePath spec))
-        entity-name (:TargetEntity spec)]
+        entity-name (:Entity spec)]
     (if-let [attr-map (attribute-mapping-as-indices
                        (:AttributeMapping spec)
                        (first contents)
@@ -70,14 +70,27 @@
       (u/throw-ex
        (str
         "no valid attribute mapping for "
-        (:TargetEntity spec))))))
+        (:Entity spec))))))
 
-(defn- file-export [spec]
-  ;; TODO: implement
-  )
+(def ^:private file-uri-prefix "file://")
+(def ^:private file-uri-prefix-length (count file-uri-prefix))
+
+(defn- file-path-from-uri [^String uri]
+  (.substring uri file-uri-prefix-length))
+
+(defn- do-data-import [^String uri src-spec]
+  (if (.startsWith uri file-uri-prefix)
+    (file-import (assoc src-spec :FilePath (file-path-from-uri uri)))
+    (u/throw-ex (str "source not supported: " uri))))
 
 (defn- data-sync [spec]
-  )
+  (let [src (:Source spec)]
+    (if-let [uri (:Uri src)]
+      (if-let [dest (:DestinationUri spec)]
+        (u/throw-ex (str "data-sync not supported for destination "
+                         dest))
+        (do-data-import uri src))
+      (u/throw-ex (str "data-sync: export not implemented for default store")))))
 
 (defn- data-sync-eval [inst]
   (case (cn/instance-name inst)

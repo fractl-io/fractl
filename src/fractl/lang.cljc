@@ -597,7 +597,7 @@
                :Body :Kernel/String})
 
        (record :Kernel/DataSource
-               {:URI {:type :Kernel/String
+               {:Uri {:type :Kernel/String
                       :optional true} ;; defaults to currently active store
                 :Entity :Kernel/Path ;; name of an entity
                 :AttributeMapping {:type :Kernel/Map

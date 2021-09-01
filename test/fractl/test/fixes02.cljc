@@ -101,11 +101,11 @@
          :Salary :Kernel/Decimal})
        (dataflow
         :I358Csv01/ImportEmployees
-        {:Kernel/FileImport
-         {:Spec
-          {:Kernel/FileDataTransfer
-           {:FilePath "sample/emp.csv"
-            :TargetEntity "I358Csv01/Employee"
+        {:Kernel/DataSync
+         {:Source
+          {:Kernel/DataSource
+           {:Uri "file://sample/emp.csv"
+            :Entity "I358Csv01/Employee"
             :AttributeMapping
             {"first_name" "FirstName"
              "last_name" "LastName"
@@ -116,5 +116,5 @@
                 {}}))
            result (first (second (:result r)))]
        (is (= :ok (:status r)))
-       (is (= :file-import-export (:resolver result)))
+       (is (= :data-sync (:resolver result)))
        (is (every? (partial cn/instance-of? :I358Csv01/Employee) (:result result))))))
