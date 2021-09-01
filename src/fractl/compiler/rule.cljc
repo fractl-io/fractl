@@ -1,7 +1,8 @@
 (ns fractl.compiler.rule
   "Parsing and compilations of the embedded rule language"
   (:require [fractl.util.logger :as log]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            #?(:cljs [cljs.js])))
 
 (defn in [xs x]
   (some #{x} xs))
@@ -71,4 +72,12 @@
                       (str "cannot execute conditional event predicate"
                            ex#))
                      nil)))]
-    (eval fexpr)))
+    #?(:clj (eval fexpr)
+       :cljs (let [eval *eval*
+                   st (cljs.js/empty-state)]
+               (set! *eval*
+                     (fn [fexpr]
+                       (binding [cljs.env/*compiler* st
+                                 *ns* (find-ns cljs.analyzer/*cljs-ns*)
+                                 cljs.js/*eval-fn* cljs.js/js-eval]
+                         (eval fexpr))))))))

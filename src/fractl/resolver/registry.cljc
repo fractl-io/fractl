@@ -4,6 +4,7 @@
             [fractl.resolver.remote :as remote]
             [fractl.resolver.policy :as policy]
             [fractl.resolver.auth :as auth]
+            [fractl.resolver.timer :as timer]
             #?(:clj [fractl.resolver.data-sync :as ds])
             #?(:clj [fractl.resolver.git :as git])
             #?(:clj [fractl.resolver.email :as email])
@@ -44,7 +45,8 @@
   (u/make-cell
    (merge {:remote remote/make
            :policy policy/make
-           :auth auth/make}
+           :auth auth/make
+           :timer timer/make}
           #?(:clj {:data-sync ds/make})
           #?(:clj {:git git/make})
           #?(:clj {:email email/make})

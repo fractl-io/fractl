@@ -3,6 +3,8 @@
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.component :as cn]
+            [fractl.lang.internal :as li]
+            [fractl.evaluator.state :as es]
             [fractl.datafmt.csv :as csv]))
 
 (defn- normalize-attribute-names [entity-schema attr-map]
@@ -54,19 +56,31 @@
 
 (defn- records-as-instances [entity-name attr-map records]
   (mapv (partial record-as-instance entity-name attr-map) records))
-   
+
+(defn- upsert-instances [insts]
+  (let [ev (es/get-active-evaluator)
+        [component entity-name] (li/split-path (cn/instance-name (first insts)))
+        event-name (li/make-path
+                    [component
+                     (keyword (str "Upsert_" (subs (str entity-name) 1)))])]
+    (doseq [inst insts]
+      (ev (cn/make-instance
+           {event-name
+            {:Instance inst}})))
+    insts))
+
 (defn- file-import [spec]
-  ;; TODO: Upsert new instances in DB.
   (let [contents (csv/read-csv (:FilePath spec))
         entity-name (:Entity spec)]
     (if-let [attr-map (attribute-mapping-as-indices
                        (:AttributeMapping spec)
                        (first contents)
                        (cn/entity-schema entity-name))]
-      (records-as-instances
-       entity-name
-       attr-map
-       (rest contents))
+      (upsert-instances
+       (records-as-instances
+        entity-name
+        attr-map
+        (rest contents)))
       (u/throw-ex
        (str
         "no valid attribute mapping for "

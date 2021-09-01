@@ -119,4 +119,9 @@
        (is (= :data-sync (:resolver result)))
        (is (every?
             (partial cn/instance-of? :I358Csv01/Employee)
-            (:result result))))))
+            (:result result)))
+       (let [id (:Id (first (:result result)))
+             r (tu/first-result
+                {:I358Csv01/Lookup_Employee
+                 {:Id id}})]
+         (is (cn/same-instance? r (first (:result result))))))))
