@@ -596,19 +596,17 @@
               {:To :Kernel/String
                :Body :Kernel/String})
 
-       (record :Kernel/FileDataTransfer
-               {:FilePath :Kernel/String
-                :Format {:oneof [:CSV :JSON]
-                         :default :CSV}
-                :TargetEntity :Kernel/Path
+       (record :Kernel/DataSource
+               {:URI {:type :Kernel/String
+                      :optional true} ;; defaults to currently active store
+                :Entity :Kernel/Path ;; name of an entity
                 :AttributeMapping {:type :Kernel/Map
                                    :optional true}})
 
-       (event :Kernel/FileImport
-              {:Spec :Kernel/FileDataTransfer})
-
-       (event :Kernel/FileExport
-              {:Spec :Kernel/FileDataTransfer})
+       (event :Kernel/DataSync
+              {:Source :Kernel/DataSource
+               :DestinationUri {:type :Kernel/String
+                                :optional true}})
 
        (r/register-resolvers
         [{:name :policy
@@ -623,11 +621,10 @@
           :type :git
           :compose? false
           :paths [:Git/Push]}
-         {:name :file-import-export
-          :type :file-import-export
+         {:name :data-sync
+          :type :data-sync
           :compose? false
-          :paths [:Kernel/FileImport
-                  :Kernel/FileExport]}
+          :paths [:Kernel/DataSync]}
          {:name :email
           :type :email
           :compose? false
