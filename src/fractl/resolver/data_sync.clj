@@ -3,6 +3,7 @@
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.component :as cn]
+            [fractl.store :as store]
             [fractl.lang.internal :as li]
             [fractl.evaluator.state :as es]
             [fractl.datafmt.csv :as csv]))
@@ -86,6 +87,50 @@
         "no valid attribute mapping for "
         (:Entity spec))))))
 
+(defn- attribute-map-for-export [attr-map]
+  (into
+   {}
+   (mapv
+    (fn [[k v]]
+      [(if (keyword? k)
+         k
+         (keyword k))
+       v])
+    attr-map)))
+
+(defn- emit-titles [attr-map ks]
+  (let [s (reduce
+           #(str %1 (get attr-map %2) ",")
+           "" ks)]
+    (subs s 0 (dec (count s)))))
+
+(defn- emit-row [attr-map ks row]
+  (let [s (reduce
+           #(str %1 (get row %2) ",")
+           "" ks)]
+    (subs s 0 (dec (count s)))))
+
+(defn- instances-to-csv [spec rows]
+  (let [attr-map (attribute-map-for-export (:AttributeMapping spec))
+        ks (keys attr-map)
+        titles (str (emit-titles attr-map ks) u/line-sep)
+        er (partial emit-row attr-map ks)]
+    (loop [rows rows, s ""]
+      (if-let [row (first rows)]
+        (recur (rest rows) (str s (er row) u/line-sep))
+        (str titles s)))))
+
+(defn- file-export [spec]
+  (let [entity-name (li/split-path (:Entity spec))
+        store (es/get-active-store)
+        query (store/compile-query
+               store
+               {:from entity-name :where :*})
+        rows (store/query-all store entity-name (:query query))
+        out-file (:FilePath spec)]
+    (spit out-file (instances-to-csv spec rows))
+    out-file))
+
 (def ^:private file-uri-prefix "file://")
 (def ^:private file-uri-prefix-length (count file-uri-prefix))
 
@@ -97,14 +142,19 @@
     (file-import (assoc src-spec :FilePath (file-path-from-uri uri)))
     (u/throw-ex (str "source not supported: " uri))))
 
+(defn- do-data-export [src-spec ^String dest-uri]
+  (if (.startsWith dest-uri file-uri-prefix)
+    (file-export (assoc src-spec :FilePath (file-path-from-uri dest-uri)))
+    (u/throw-ex (str "destination type not supported: " dest-uri))))
+
 (defn- data-sync [spec]
   (let [src (:Source spec)]
     (if-let [uri (:Uri src)]
+      (do-data-import uri src)
       (if-let [dest (:DestinationUri spec)]
-        (u/throw-ex (str "data-sync not supported for destination "
-                         dest))
-        (do-data-import uri src))
-      (u/throw-ex (str "data-sync: export not implemented for default store")))))
+        (do-data-export src dest)
+        (u/throw-ex
+         "destination required for data-sync")))))
 
 (defn- data-sync-eval [inst]
   (case (cn/instance-name inst)

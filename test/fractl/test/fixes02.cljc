@@ -7,6 +7,8 @@
                      entity record dataflow]]
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
+            [clojure.java.io :as io]
+            #?(:clj [fractl.datafmt.csv :as csv])
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -109,11 +111,21 @@
             :AttributeMapping
             {"first_name" "FirstName"
              "last_name" "LastName"
-             "salary" "Salary"}}}}}))
+             "salary" "Salary"}}}}})
+       (dataflow
+        :I358Csv01/ExportEmployees
+        {:Kernel/DataSync
+         {:Source
+          {:Kernel/DataSource
+           {:Entity "I358Csv01/Employee"
+            :AttributeMapping
+            {"FirstName" "first_name"
+             "LastName" "last_name"
+             "Salary" "salary"}}}
+          :DestinationUri "file://sample/emp2.csv"}}))
      (let [r (first
               (e/eval-all-dataflows
-               {:I358Csv01/ImportEmployees
-                {}}))
+               {:I358Csv01/ImportEmployees {}}))
            result (first (second (:result r)))]
        (is (= :ok (:status r)))
        (is (= :data-sync (:resolver result)))
@@ -124,4 +136,17 @@
              r (tu/first-result
                 {:I358Csv01/Lookup_Employee
                  {:Id id}})]
-         (is (cn/same-instance? r (first (:result result))))))))
+         (is (cn/same-instance? r (first (:result result)))))
+       (let [r (first
+                (e/eval-all-dataflows
+                 {:I358Csv01/ExportEmployees {}}))
+             result (first (second (:result r)))
+             csv-file "sample/emp2.csv"]
+         (is (= :ok (:status r)))
+         (is (= :data-sync (:resolver result)))
+         (is (= csv-file (:result result)))
+         (let [csv (csv/read-csv csv-file)]
+           (io/delete-file csv-file true)
+           (is (= ["first_name" "last_name" "salary"] (first csv)))
+           (doseq [row (rest csv)]
+             (is (some #{row} [["robert" "k" "2400"] ["jane" "a" "5600"]]))))))))
