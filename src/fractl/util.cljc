@@ -198,10 +198,16 @@
      :cljs
      "/"))
 
-(def line-sep (System/lineSeparator))
+(def line-sep
+  #?(:clj (System/lineSeparator)
+     :cljs "\n"))
 
 (defn concat-lines [s & ss]
   (loop [ss ss, result s]
     (if-let [s (first ss)]
       (recur (rest ss) (str result line-sep s))
       result)))
+
+(def parse-string
+  #?(:clj read-string
+     :cljs cljs.reader/read-string))

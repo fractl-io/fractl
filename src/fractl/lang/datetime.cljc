@@ -1,6 +1,9 @@
 (ns fractl.lang.datetime
   (:require [clojure.string :as str]
+            [fractl.util :as u]
             [fractl.util.logger :as log]
+            [tick.core :as t]
+            [tick.locale-en-us]
             [cljc.java-time.local-date :as ld]
             [cljc.java-time.local-time :as lt]
             [cljc.java-time.local-date-time :as ldt]
@@ -10,23 +13,34 @@
 (defn- valid-format? [parser formatter s]
   (try
     (parser s formatter)
-    (catch #?(:clj Exception :cljs :default) ex
+    (catch
+      #?(:clj Exception :cljs :default) ex
       (log/error ex)
       false)))
 
-(def try-parse-date-time (partial valid-format? ldt/parse))
-(def try-parse-date (partial valid-format? ld/parse))
-(def try-parse-time (partial valid-format? lt/parse))
+(defn try-parse-date-time [formatter s]
+  (valid-format? ldt/parse formatter s))
 
-(def ^:private date-time-formatters
-  (concat
-   [format/iso-local-date-time]  ; 2011-12-03T10:15:30
-   (map
-    format/of-pattern
-    ["yyyy-MM-dd HH:mm:ss"       ; 2021-01-08 04:05:06
-     "yyyy-MM-dd HH:mm:ss.SSS"   ; 2021-01-08 04:05:06.789
-     "yyyyMMddHHmmss"            ; 20210108040506
-     "yyyy-MM-dd HH:mm:ss z"]))) ; 2021-01-08 04:05:06 PST or America/New_York
+(defn- try-parse-date [formatter s]
+  (valid-format? ld/parse formatter s))
+
+(defn- try-parse-time [formatter s]
+  (valid-format? lt/parse formatter s))
+
+#?(:clj
+   (def date-time-formatters
+          (concat
+            [format/iso-local-date-time]                    ; 2011-12-03T10:15:30
+            (mapv
+              format/of-pattern
+              ["yyyy-MM-dd HH:mm:ss"                        ; 2021-01-08 04:05:06
+               "yyyy-MM-dd HH:mm:ss.SSS"                    ; 2021-01-08 04:05:06.789
+               "yyyyMMddHHmmss"                             ; 20210108040506
+               "yyyy-MM-dd HH:mm:ss z"])))                  ; 2021-01-08 04:05:06 PST or America/New_York
+  :cljs
+   (defn date-time-formatters [s]
+     (t/formatter :iso-local-date-time s)))
+
 
 (def ^:private date-formatters
   (map
@@ -51,11 +65,14 @@
     ;; "hh:mm a"    ; 04:05 pm, hour <= 12
     "HH:mm:ss z"])) ; 04:05:06 PST or 04:05:06 America/New_York
 
-(defn- find-format [try-parse-fn formatters s]
+(defn find-format [try-parse-fn formatters s]
   (some #(try-parse-fn % s) formatters))
 
-(def parse-date-time (partial find-format try-parse-date-time date-time-formatters))
-(def parse-date (partial find-format try-parse-date date-formatters))
+(defn parse-date-time [s]
+  (find-format try-parse-date-time date-time-formatters s))
+
+(defn parse-date [s]
+  (find-format try-parse-date date-formatters s))
 
 (defn- am-pm? [s]
   (let [s (str/lower-case s)]
@@ -66,8 +83,8 @@
     (when (and (= n 8)
                (= \: (nth s 2))
                (am-pm? (subs s 6)))
-      (let [h (read-string (subs s 0 2))
-            m (read-string (subs s 3 5))]
+      (let [h (u/parse-string (subs s 0 2))
+            m (u/parse-string (subs s 3 5))]
         (and (number? h) (number? m)
              (<= 0 h 12) (<= 0 m 59))))))
 
@@ -87,7 +104,9 @@
 (defn now []
   (as-string (ldt/now)))
 
-(def now-raw ldt/now)
+#?(:clj (def now-raw ldt/now)
+   :cljs (defn now-raw []
+           (ldt/now)))
 
 (defn difference-in-seconds [dt1 dt2]
   (cu/between cu/seconds dt1 dt2))
