@@ -157,11 +157,11 @@
       (assoc newscm :indexed true)
       newscm)))
 
-(defn- validate-attribute-schema [scm]
+(defn- validate-attribute-schema [n scm]
   (if (fn? scm)
     scm
     (validate-attribute-schema-map-keys
-     (li/validate map? "attribute specification should be a map" scm))))
+     (li/validate map? (str n " - attribute specification should be a map") scm))))
 
 (defn attribute
   "Add a new attribute definition to the component."
@@ -169,7 +169,7 @@
   (cn/intern-attribute
    (li/validate-name-relaxed n)
    (normalize-attribute-schema
-    (validate-attribute-schema scm))))
+    (validate-attribute-schema n scm))))
 
 (defn- validate-attributes [attrs]
   (doseq [[k v] attrs]
@@ -574,6 +574,15 @@
             :InterceptStage {:oneof [:PreEval :PostEval :Default]
                              :default :Default}}})
 
+  (entity {:Kernel/Timer
+           {:Expiry :Kernel/Int
+            :ExpiryUnit {:oneof [:Seconds :Minutes :Hours :Days]
+                         :default :Seconds}
+            :ExpiryEvent :Kernel/Map
+            ;; :TaskHandle is set by the runtime, represents the
+            ;; thread that execute the event after timer expiry.
+            :TaskHandle {:type :Kernel/Any :optional true}}})
+
   (event :Kernel/AppInit
          {:Data :Kernel/Map})
 
@@ -605,6 +614,10 @@
           :type :auth
           :compose? false
           :paths [:Kernel/Authentication]}
+         {:name :timer
+          :type :timer
+          :compose? false
+          :paths [:Kernel/Timer]}
          {:name :git
           :type :git
           :compose? false

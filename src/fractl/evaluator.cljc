@@ -14,6 +14,7 @@
             [fractl.policy.logging :as logging]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
+            [fractl.evaluator.state :as es]
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.root :as r]))
 
@@ -207,13 +208,15 @@
          resolver (resolver-from-config resolver-or-resolver-config)
          [compile-query-fn evaluator] (make store)
          env (env/make store resolver)
-         ef (partial run-dataflows compile-query-fn evaluator env)]
-     (if with-query-support
-       (fn [x]
-         (if-let [qinfo (:Query x)]
-           (r/find-instances env store (first qinfo) (second qinfo))
-           (ef x)))
-       ef)))
+         ef (partial run-dataflows compile-query-fn evaluator env)
+         result (if with-query-support
+                  (fn [x]
+                    (if-let [qinfo (:Query x)]
+                      (r/find-instances env store (first qinfo) (second qinfo))
+                      (ef x)))
+                  ef)]
+     (es/set-active-evaluator! result)
+     result))
   ([store-or-store-config resolver-or-resolver-config]
    (evaluator store-or-store-config resolver-or-resolver-config false))
   ([] (evaluator nil nil)))
