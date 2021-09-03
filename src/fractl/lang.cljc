@@ -605,6 +605,18 @@
               {:To :Kernel/String
                :Body :Kernel/String})
 
+       (record :Kernel/DataSource
+               {:Uri {:type :Kernel/String
+                      :optional true} ;; defaults to currently active store
+                :Entity :Kernel/Path ;; name of an entity
+                :AttributeMapping {:type :Kernel/Map
+                                   :optional true}})
+
+       (event :Kernel/DataSync
+              {:Source :Kernel/DataSource
+               :DestinationUri {:type :Kernel/String
+                                :optional true}})
+
        (r/register-resolvers
         [{:name :policy
           :type :policy
@@ -622,6 +634,10 @@
           :type :git
           :compose? false
           :paths [:Git/Push]}
+         {:name :data-sync
+          :type :data-sync
+          :compose? false
+          :paths [:Kernel/DataSync]}
          {:name :email
           :type :email
           :compose? false
