@@ -118,3 +118,10 @@
              (str s x (when (seq (rest xs))
                         delim)))
       s)))
+
+(defn index-of [needle haystack]
+  (loop [xs haystack, i 0]
+    (when-let [x (first xs)]
+      (if (= needle x)
+        i
+        (recur (rest xs) (inc i))))))

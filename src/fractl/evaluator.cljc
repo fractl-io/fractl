@@ -216,6 +216,7 @@
                       (ef x)))
                   ef)]
      (es/set-active-evaluator! result)
+     (es/set-active-store! store)
      result))
   ([store-or-store-config resolver-or-resolver-config]
    (evaluator store-or-store-config resolver-or-resolver-config false))
