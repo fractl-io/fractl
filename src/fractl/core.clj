@@ -1,5 +1,6 @@
 (ns fractl.core
   (:require [clojure.tools.cli :refer [parse-opts]]
+            [clojure.java.io :as io]
             [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.logger :as log]
@@ -12,7 +13,9 @@
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.loader :as loader])
-  (:import (java.util Properties))
+  (:import [java.util Properties]
+           [java.net URL]
+           [java.io File])
   (:gen-class))
 
 (def cli-options
@@ -40,13 +43,19 @@
         :else (recur (rest s) sep (conj result c)))
       (str (s/join result) u/script-extn))))
 
-(defn- load-components [component-scripts model-root]
-  (doall (map (partial loader/load-script model-root)
-              component-scripts)))
+(defn- load-components [component-scripts model-root load-from-resource]
+  (mapv
+   #(loader/load-script
+     model-root
+     (if load-from-resource
+       (io/resource (str "model/" %))
+       %))
+   component-scripts))
 
-(defn- load-components-from-model [model model-root]
-  (load-components (map script-name-from-component-name (:components model))
-                   model-root))
+(defn- load-components-from-model [model model-root load-from-resource]
+  (load-components
+   (mapv script-name-from-component-name (:components model))
+   model-root load-from-resource))
 
 (defn read-model [model-file]
   [(read-string (slurp model-file))
@@ -69,12 +78,13 @@
   (let [nm (s/lower-case (name (:name model)))
         model-paths (find-model-paths model model-paths config)
         rmp (partial read-model-from-paths model-paths)]
-    (doall
-     (map
-      #(let [[m mr] (rmp %)]
-         (load-model m mr model-paths config))
-      (:dependencies model)))
-    (load-components-from-model model model-root)))
+    (mapv
+     #(let [[m mr] (rmp %)]
+        (load-model m mr model-paths config))
+     (:dependencies model))
+    (load-components-from-model
+     model model-root
+     (:load-model-from-resource config))))
 
 (defn- log-seq! [prefix xs]
   (loop [xs xs, sep "", s (str prefix " - ")]
@@ -135,7 +145,7 @@
         config (merge (:config model) config)
         components (if model
                      (load-model model model-root nil config)
-                     (load-components args (:component-root config)))]
+                     (load-components args (:component-root config) false))]
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
       (register-resolvers! (:resolvers config))
@@ -157,14 +167,35 @@
         model (maybe-read-model args)]
     [model (merge (:config model) config)]))
 
+(defn- read-model-from-resource [component-root]
+  (if-let [model (read-string
+                  (slurp
+                   (io/resource
+                    (str "model/" component-root "/" u/model-script-name))))]
+    model
+    (u/throw-ex (str "failed to load model from " component-root))))
+
+(defn- load-model-from-resource []
+  (when-let [cfgres (io/resource "config.edn")]
+    (let [config (read-string (slurp cfgres))]
+      (if-let [component-root (:component-root config)]
+        (let [model (read-model-from-resource component-root)
+              config (merge (:config model) config)]
+          (load-model
+           model component-root nil
+           (assoc config :load-model-from-resource true)))
+        (u/throw-ex "component-root not defined in config")))))
+
 (defn -main [& args]
   (System/setProperties
-    (doto (Properties. (System/getProperties))
-      (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
-      (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF")))
-  (let [{options :options args :arguments
-         summary :summary errors :errors} (parse-opts args cli-options)]
-    (cond
-      errors (println errors)
-      (:help options) (println summary)
-      :else (run-service args (read-model-and-config args options)))))
+   (doto (Properties. (System/getProperties))
+     (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
+     (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF")))
+  (if-let [model (load-model-from-resource)]
+    (log-seq! "Components loaded from resources" model)
+    (let [{options :options args :arguments
+           summary :summary errors :errors} (parse-opts args cli-options)]
+      (cond
+        errors (println errors)
+        (:help options) (println summary)
+        :else (run-service args (read-model-and-config args options))))))

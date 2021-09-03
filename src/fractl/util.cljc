@@ -211,3 +211,11 @@
 (def parse-string
   #?(:clj read-string
      :cljs cljs.reader/read-string))
+
+#?(:clj
+   (defn safe-close [obj]
+     (try
+       (.close obj)
+       true
+       (catch Exception ex
+         false))))
