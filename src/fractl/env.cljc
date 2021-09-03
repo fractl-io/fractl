@@ -74,16 +74,22 @@
     (let [recname [(:component path-parts) (:record path-parts)]]
       (lookup-instance env recname))))
 
+(def bind-variable assoc)
+(def lookup-variable find)
+
 (defn follow-reference [env path-parts]
-  (loop [env env, refs (:refs path-parts)
-         obj (find-instance-by-path-parts env path-parts)]
-    (if-let [r (first refs)]
-      (let [x (get obj r)]
-        (recur (if (cn/an-instance? x)
-                 (bind-instance env (cn/parsed-instance-name x) x)
-                 env)
-               (rest refs) x))
-      [obj env])))
+  (let [refs (:refs path-parts)]
+    (if (symbol? refs)
+      [(second (lookup-variable env refs)) env]
+      (loop [env env, refs refs
+             obj (find-instance-by-path-parts env path-parts)]
+        (if-let [r (first refs)]
+          (let [x (get obj r)]
+            (recur (if (cn/an-instance? x)
+                     (bind-instance env (cn/parsed-instance-name x) x)
+                     env)
+                   (rest refs) x))
+          [obj env])))))
 
 (defn instance-ref-path
   "Returns a path to the record in the format of [record-name inst-id]
@@ -101,9 +107,6 @@
 (defn lookup-instances-by-attributes [env rec-name query-attrs]
   (when-let [insts (seq (get-instances env rec-name))]
     (filter #(every? (fn [[k v]] (= v (get % k))) query-attrs) insts)))
-
-(def bind-variable assoc)
-(def lookup-variable find)
 
 (defn- objstack [env]
   (get env :objstack (list)))
@@ -127,15 +130,20 @@
       [(assoc env :objstack (pop s))
        (map? obj) x])))
 
+(defn- identity-attribute [inst]
+  (or (cn/identity-attribute-name (cn/instance-name inst))
+      :Id))
+
 (defn- dirty-flag-switch
   "Turn on or off the `dirty` flag for the given instances.
   Instances marked dirty will be later flushed to store."
   [flag env insts]
   (loop [insts insts, ds (get env :dirty {})]
     (if-let [inst (first insts)]
-      (if-let [id (:Id inst)]
-        (recur (rest insts) (assoc ds id flag))
-        (recur (rest insts) ds))
+      (let [id-attr (identity-attribute inst)]
+        (if-let [id (id-attr inst)]
+          (recur (rest insts) (assoc ds id flag))
+          (recur (rest insts) ds)))
       (assoc env :dirty ds))))
 
 (def mark-all-mint (partial dirty-flag-switch false))
@@ -149,7 +157,8 @@
     (if-let [ds (:dirty env)]
       (loop [insts insts]
         (if-let [inst (first insts)]
-          (let [f (get ds (:Id inst))]
+          (let [id-attr (identity-attribute inst)
+                f (get ds (id-attr inst))]
             (if (or f (nil? f))
               true
               (recur (rest insts))))

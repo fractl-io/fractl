@@ -70,6 +70,8 @@
 
 (declare intern-attribute intern-event)
 
+(def dynamic-entities-key :dynamic-entities)
+
 (defn create-component
   "Create a new component with the given name and references to
   the components in the imports list. If a component already exists with
@@ -94,7 +96,8 @@
       ;;              :java java-imports
       ;;              :v8 [v8-imports aliases]}}
       (assoc @components component
-             (merge {:resolver (:resolver spec)}
+             (merge {:resolver (:resolver spec)
+                     dynamic-entities-key (dynamic-entities-key spec)}
                     imports clj-imports java-imports v8-imports))))
   (intern-attribute [component :Id]
                     {:type :Kernel/UUID
@@ -117,6 +120,28 @@
 (defn component-definition [component]
   (find @components component))
 
+(defn dynamic-entities [component]
+  (dynamic-entities-key (second (component-definition component))))
+
+(defn dynamic-entity?
+  ([component entity-name]
+   (some #{entity-name} (dynamic-entities component)))
+  ([full-entity-name]
+   (apply dynamic-entity? (li/split-path full-entity-name))))
+
+(def ^:private dynamic-mark-key :-*-dynamic-entity-instance-*-)
+
+(defn flag-dynamic-entity [record-name instance]
+  (if (dynamic-entity? record-name)
+    (assoc instance dynamic-mark-key true)
+    instance))
+
+(defn has-dynamic-entity-flag? [instance]
+  (dynamic-mark-key instance))
+
+(defn remove-dynamic-entity-flag [instance]
+  (dissoc instance dynamic-mark-key))
+
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)
     (get-in @components [component :alias alias-entry])
@@ -128,6 +153,9 @@
 (defn fetch-meta [path]
   (get-in @components (meta-key (li/split-path path))))
 
+(def ^:private name-key :-*-name-*-)
+(def ^:private dirty-key :-*-dirty-*-)
+
 (defn- component-intern
   "Add or replace a component entry.
   `typname` must be in the format - :ComponentName/TypName
@@ -138,7 +166,7 @@
      (when-not (component-exists? component)
        (u/throw-ex-info
         (str "component not found - " component)
-        {:name typname
+        {name-key typname
          :tag typtag}))
      (u/call-and-set
       components
@@ -252,7 +280,7 @@
 
 (defn make-record-instance [type-tag full-name attributes]
   (into {} (concat {type-tag-key type-tag
-                    :name full-name} attributes)))
+                    name-key full-name} attributes)))
 
 (def instance->map identity)
 
@@ -260,10 +288,10 @@
   (type-tag-key rec))
 
 (defn instance-name [rec]
-  (:name rec))
+  (name-key rec))
 
 (defn parsed-instance-name [rec]
-  (li/split-path (:name rec)))
+  (li/split-path (name-key rec)))
 
 (defn record-instance? [rec]
   (= :record (instance-type-tag rec)))
@@ -297,7 +325,10 @@
 
 (defn instance-attributes [x]
   (when (an-instance? x)
-    (dissoc x type-tag-key :name :dirty)))
+    (dissoc
+     x type-tag-key
+     dynamic-mark-key
+     name-key dirty-key)))
 
 (defn instance-all-attributes [x]
   (when (an-instance? x)
@@ -308,7 +339,7 @@
    Excludes :Id in its return"
   [inst]
   (when (an-instance? inst)
-    (dissoc inst type-tag-key :Id :name :dirty)))
+    (dissoc inst type-tag-key :Id name-key dirty-key)))
 
 (def set-attribute-value assoc)
 
@@ -375,7 +406,7 @@
   "Return the names of all identity attributes in the schema."
   (make-attributes-filter #(and (:unique %) (:immutable %))))
 
-(defn- identity-attribute-name
+(defn identity-attribute-name
   "Return the name of any one of the identity attributes of the given entity."
   [type-name]
   (let [scm (find-entity-schema type-name)]
@@ -386,7 +417,7 @@
   [a b]
   (or (identical? a b)
       (if (every? entity-instance? [a b])
-        (let [instname (instance-name a)]
+        (let [instname (parsed-instance-name a)]
           (and (instance-of? instname b)
                (when-let [idattr (identity-attribute-name instname)]
                  (= (idattr (instance-attributes a))
@@ -623,10 +654,10 @@
   (type-tag-key (find-record-schema recname)))
 
 (defn- serialized-instance? [x]
-  (and (type-tag-key x) (:name x)))
+  (and (type-tag-key x) (name-key x)))
 
 (defn- deserialize-name [x]
-  (let [n (:name x)]
+  (let [n (name-key x)]
     (cond
       (keyword? n) n
       (string? n) (keyword n)
@@ -636,7 +667,7 @@
 (defn- deserialize-instance [x]
   (let [tp (keyword (type-tag-key x))
         nm (deserialize-name x)]
-    (assoc x type-tag-key tp :name nm)))
+    (assoc x type-tag-key tp name-key nm)))
 
 (declare make-instance)
 
@@ -699,7 +730,9 @@
   ([record-name attributes]
    (make-instance record-name attributes true))
   ([m]
-   (make-instance (first (keys m)) (first (vals m)))))
+   (if (an-instance? m)
+     m
+     (make-instance (first (keys m)) (first (vals m))))))
 
 (defn- make-X-instance
   "Make a new instance of the record, entity or event with the name `xname`.
@@ -973,17 +1006,17 @@
     [(expr-fns scm) (query-fns scm)]))
 
 (defn mark-dirty [inst]
-  (assoc inst :dirty true))
+  (assoc inst dirty-key true))
 
 (defn dirty? [x]
-  (:dirty x))
+  (dirty-key x))
 
 (defn unmark-dirty [inst]
-  (dissoc inst :dirty))
+  (dissoc inst dirty-key))
 
 (defn filter-dirty [insts-map]
   (let [res (map (fn [[nm insts]]
-                   [nm (filter #(:dirty %) insts)])
+                   [nm (filter #(dirty-key %) insts)])
                  insts-map)]
     (into {} res)))
 
@@ -997,7 +1030,7 @@
 
 (defn serializable-attributes [inst]
   (let [attrs (instance-attributes inst)
-        schema (entity-schema (:name inst))
+        schema (entity-schema (name-key inst))
         new-attrs (map (fn [[k v]]
                          (let [ascm (find-attribute-schema v)]
                            (when-not (computed? ascm)
@@ -1021,7 +1054,7 @@
     :Result result} false))
 
 (defn tag? [k]
-  (or (= k :name)
+  (or (= k name-key)
       (= k type-tag-key)))
 
 (defn attribute-unique-reference-path [[attr-name attr-spec]]
@@ -1073,6 +1106,14 @@
         (make-error "Async timeout" obj))
     obj))
 
+(defn- restore-flags [attrs orig-instance]
+  (merge
+   attrs
+   (when (dynamic-mark-key orig-instance)
+     {dynamic-mark-key true})
+   (when (dirty-key orig-instance)
+     {dirty-key true})))
+
 (defn validate-instance [inst]
   (let [n (instance-name inst)
         schema (ensure-schema n)
@@ -1080,10 +1121,12 @@
                n (instance-attributes inst) schema)]
     (if (error? attrs)
       (u/throw-ex attrs)
-      (make-record-instance (type-tag-key inst) n attrs))))
+      (restore-flags
+       (make-record-instance (type-tag-key inst) n attrs)
+       inst))))
 
 (defn tag-record [recname attrs]
-  (assoc attrs :name recname type-tag-key :record))
+  (assoc attrs name-key recname type-tag-key :record))
 
 (def ^:private trigger-store
   #?(:clj  (ref {})

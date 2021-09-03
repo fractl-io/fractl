@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2021-08-23
+
+-   Add descriptive errors for different types of errors (like reference error, wrong lookup of id, attribute name mismatch)
+-   Remove extra info printed on terminal when http server is running
+-   Models as libraries with dependency specifications
+-   Compound attributes in records
+-   Direct query support in :for-each
+-   Auto-generation of entities from existing DB schema
+
 ## [0.1.4] - 2021-07-13
 
 -   Zero-trust RBAC - events execution and CRUD on entities require RBAC.
@@ -35,7 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.4...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.5...HEAD
+
+[0.1.5]: https://github.com/fractl-io/fractl/compare/0.1.4...0.1.5
 
 [0.1.4]: https://github.com/fractl-io/fractl/compare/0.1.3...0.1.4
 

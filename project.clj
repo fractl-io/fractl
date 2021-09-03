@@ -1,4 +1,4 @@
-(defproject fractl-io/fractl "0.1.4"
+(defproject fractl-io/fractl "0.1.5"
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [org.clojure/clojurescript "1.10.773"
                   :exclusions [com.google.code.findbugs/jsr305]]
@@ -36,7 +36,8 @@
                  [postmark "1.4.1"]
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
                  [lambdaisland/glogi "1.0.106"]
-                 [com.fzakaria/slf4j-timbre "0.3.21"]]
+                 [com.fzakaria/slf4j-timbre "0.3.21"]
+                 [tick "0.5.0-RC1"]]
 
   :java-source-paths ["src/java"]
   :resource-paths ["lib/sfdc-enterprise.jar"]

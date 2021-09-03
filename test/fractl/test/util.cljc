@@ -26,6 +26,9 @@
 (defn fresult [r]
   (:result (first r)))
 
+(defn nth-result [r n]
+  (:result (nth r n)))
+
 (defn embedded-results [r]
   (fresult (first (second r))))
 
@@ -39,6 +42,17 @@
   (first
    (fresult
     (e/eval-all-dataflows evt))))
+
+(defn sleep [msec f]
+  #?(:clj
+     (do
+       (try
+         (Thread/sleep msec)
+         (catch Exception ex
+           nil))
+       (f))
+     :cljs
+     (js/setTimeout f msec)))
 
 ;; To test postgres in CI, set to true
 (def test-with-postgres false)

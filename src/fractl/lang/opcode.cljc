@@ -125,7 +125,7 @@
           [[evt-name df-code]]
           "Generate function to dispatch a fractl event.")
          (for-each
-          [[bind-pattern-code body-code result-alias]]
+          [[bind-pattern-code match-alias body-code result-alias]]
           "Execute code for the binding pattern and the iteration.")
          (entity-def
           [schema]

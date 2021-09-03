@@ -15,29 +15,36 @@
       [imps]
       imps)))
 
-(defn- component-spec-for [k spec]
-  (seq (filter #(= k (first %)) spec)))
-
 (declare init)
+
+(def ^:private component-spec-validators
+  {:import #(normalize-imports
+             (li/validate-imports %))
+   :clj-import li/validate-clj-imports
+   :java-import li/validate-java-imports
+   :v8-import li/validate-clj-imports
+   cn/dynamic-entities-key #(do (every? li/name? %)
+                                %)})
+
+(defn- validate-component-spec [spec]
+  (into
+   {}
+   (map
+    (fn [[k v]]
+      (let [vf (or (k component-spec-validators)
+                   identity)]
+        [k (vf v)]))
+    spec)))
 
 (defn component
   "Create and activate a new component with the given name."
-  [n & spec]
-  (init)
-  (let [ns-name (li/validate-name n)
-        imports (component-spec-for :import spec)
-        clj-imports (component-spec-for :clj-import spec)
-        java-imports (component-spec-for :java-import spec)
-        v8-imports (component-spec-for :v8-import spec)
-        resolver (component-spec-for :resolver spec)]
-    (cn/create-component
-     ns-name
-     {:import (normalize-imports
-                (li/validate-imports (first imports)))
-      :clj-import (li/validate-clj-imports (first clj-imports))
-      :java-import (li/validate-java-imports (first java-imports))
-      :v8-import (li/validate-clj-imports (first v8-imports))
-      :resolver resolver})))
+  ([n spec]
+   (init)
+   (let [ns-name (li/validate-name n)]
+     (cn/create-component
+      ns-name
+      (when spec (validate-component-spec spec)))))
+  ([n] (component n nil)))
 
 (defn- attribute-type? [nm]
   (or (cn/find-attribute-schema nm)
@@ -150,11 +157,11 @@
       (assoc newscm :indexed true)
       newscm)))
 
-(defn- validate-attribute-schema [scm]
+(defn- validate-attribute-schema [n scm]
   (if (fn? scm)
     scm
     (validate-attribute-schema-map-keys
-     (li/validate map? "attribute specification should be a map" scm))))
+     (li/validate map? (str n " - attribute specification should be a map") scm))))
 
 (defn attribute
   "Add a new attribute definition to the component."
@@ -162,7 +169,7 @@
   (cn/intern-attribute
    (li/validate-name-relaxed n)
    (normalize-attribute-schema
-    (validate-attribute-schema scm))))
+    (validate-attribute-schema n scm))))
 
 (defn- validate-attributes [attrs]
   (doseq [[k v] attrs]
@@ -290,9 +297,11 @@
 (defn record
   "Add a new record definition to the component."
   ([n attrs]
-   (let [cn (validated-canonical-type-name n)]
-     (cn/intern-record
-      cn (normalized-attributes :record cn attrs))))
+   (if (map? attrs)
+     (let [cn (validated-canonical-type-name n)]
+       (cn/intern-record
+         cn (normalized-attributes :record cn attrs)))
+     (u/throw-ex (str "Syntax error in record. Check record: " n))))
   ([schema]
    (parse-and-define record schema)))
 
@@ -334,7 +343,7 @@
   (cond
     (keyword? x) (li/validate-name x)
     (or (map? x) (li/special-form? x) (symbol? x)) x
-    :else (u/throw-ex (str "invalid dataflow pattern - " x))))
+    :else (u/throw-ex (str "Invalid dataflow pattern. Possible syntax error - " x))))
 
 (defn ensure-dataflow-patterns! [xs]
   (doseq [x xs] (ensure-dataflow-pattern! x)))
@@ -449,38 +458,46 @@
                  :OldInstance entity-name})]
     (event-internal event-name attrs)))
 
+(defn- maybe-assoc-id [entity-name attrs]
+  (if (cn/dynamic-entity? entity-name)
+    attrs
+    (assoc
+     attrs :Id
+     (cn/canonical-type-name :Id))))
+
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
-   (let [entity-name (validated-canonical-type-name n)
-         [attrs dfexps] (lift-implicit-entity-events entity-name attrs)
-         result (cn/intern-entity
-                 entity-name
-                 (normalized-attributes
-                  :entity
-                  entity-name
-                  ;; TODO: Check for user-define identity attributes first.
-                  (assoc attrs :Id (cn/canonical-type-name :Id))))
-         ev (partial crud-evname n)
-         ctx-aname (k/event-context-attribute-name)
-         inst-evattrs {:Instance n :EventContext ctx-aname}
-         id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
-     ;; Define CRUD events and dataflows:
-     (let [upevt (ev :Upsert)
-           delevt (ev :Delete)
-           lookupevt (ev :Lookup)]
-       (cn/for-each-entity-event-name
-        entity-name
-        (partial entity-event entity-name))
-       (event-internal upevt inst-evattrs)
-       (cn/register-dataflow upevt [(crud-event-inst-accessor upevt)])
-       (event-internal delevt id-evattrs)
-       (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
-       (event-internal lookupevt id-evattrs)
-       (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt entity-name)]))
-     ;; Install dataflows for implicit events.
-     (when dfexps (doall (map eval dfexps)))
-     result))
+   (if (map? attrs)
+     (let [entity-name (validated-canonical-type-name n)
+           [attrs dfexps] (lift-implicit-entity-events entity-name attrs)
+           result (cn/intern-entity
+                    entity-name
+                    (normalized-attributes
+                      :entity
+                      entity-name
+                      (maybe-assoc-id entity-name attrs)))
+           ev (partial crud-evname n)
+           ctx-aname (k/event-context-attribute-name)
+           inst-evattrs {:Instance n :EventContext ctx-aname}
+           id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
+       ;; Define CRUD events and dataflows:
+       (let [upevt (ev :Upsert)
+             delevt (ev :Delete)
+             lookupevt (ev :Lookup)]
+         (cn/for-each-entity-event-name
+           entity-name
+           (partial entity-event entity-name))
+         (event-internal upevt inst-evattrs)
+         (cn/register-dataflow upevt [(crud-event-inst-accessor upevt)])
+         (event-internal delevt id-evattrs)
+         (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
+         (event-internal lookupevt id-evattrs)
+         (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt entity-name)]))
+       ;; Install dataflows for implicit events.
+       (when dfexps (doall (map eval dfexps)))
+       result)
+     (u/throw-ex (str "Syntax error in entity. Check entity: " n))))
   ([schema] (parse-and-define entity schema)))
 
 (defn- resolver-for-entity [component ename spec]
@@ -557,6 +574,15 @@
             :InterceptStage {:oneof [:PreEval :PostEval :Default]
                              :default :Default}}})
 
+  (entity {:Kernel/Timer
+           {:Expiry :Kernel/Int
+            :ExpiryUnit {:oneof [:Seconds :Minutes :Hours :Days]
+                         :default :Seconds}
+            :ExpiryEvent :Kernel/Map
+            ;; :TaskHandle is set by the runtime, represents the
+            ;; thread that execute the event after timer expiry.
+            :TaskHandle {:type :Kernel/Any :optional true}}})
+
   (event :Kernel/AppInit
          {:Data :Kernel/Map})
 
@@ -588,6 +614,10 @@
           :type :auth
           :compose? false
           :paths [:Kernel/Authentication]}
+         {:name :timer
+          :type :timer
+          :compose? false
+          :paths [:Kernel/Timer]}
          {:name :git
           :type :git
           :compose? false

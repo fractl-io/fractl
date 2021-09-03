@@ -30,10 +30,13 @@
   (if-let [xs (env/pop-obj env)]
     (let [[env single? [n x]] xs
           objs (if single? [x] x)
-          new-objs (map #(assoc % attr-name (if (fn? attr-value)
-                                              (attr-value env %)
-                                              attr-value))
-                        objs)
+          new-objs (map
+                    #(assoc
+                      % attr-name
+                      (if (fn? attr-value)
+                        (attr-value env %)
+                        attr-value))
+                    objs)
           env (env/push-obj env n (if single? (first new-objs) new-objs))]
       (i/ok (if single? (first new-objs) new-objs) (env/mark-all-dirty env new-objs)))
     (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value]))))
@@ -43,7 +46,7 @@
     (let [[env single? [n x]] xs
           inst (if single? x (first x))]
       (i/ok (f env inst) env))
-    (i/error "cannot call function, cannot find argument instance in stack")))
+    (i/ok (f env nil) env)))
 
 (defn- on-inst [f xs]
   (f (if (map? xs) xs (first xs))))
@@ -117,12 +120,13 @@
 (def ^:private inited-components (u/make-cell [:Kernel]))
 
 (defn- maybe-init-schema! [store component-name]
-  (when-not (some #{component-name} @inited-components)
-    (u/safe-set
-     inited-components
-     (do (store/create-schema store component-name)
-         (conj @inited-components component-name))
-     component-name)))
+  (when-not (cn/dynamic-entities component-name)
+    (when-not (some #{component-name} @inited-components)
+      (u/safe-set
+       inited-components
+       (do (store/create-schema store component-name)
+           (conj @inited-components component-name))
+       component-name))))
 
 (defn- perform-rbac! [env opr recname data]
   (when-not ((env/rbac-check env)
@@ -151,7 +155,8 @@
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
-    (when store (maybe-init-schema! store (first record-name)))
+    (when (and store (not (cn/dynamic-entity? record-name)))
+      (maybe-init-schema! store (first record-name)))
     (if (env/any-dirty? env insts)
       (do
         (perform-rbac! env :Upsert record-name insts)
@@ -186,15 +191,25 @@
 (defn- id-attribute [query-attrs]
   (first (filter #(= :Id (first %)) query-attrs)))
 
-(defn- evaluate-id-result [env r]
-  (if (fn? r)
-    (let [result (r env nil)]
-      (if (vector? result) result [result env]))
-    [r env]))
+(defn- evaluate-id-result [env rs]
+  (loop [rs rs, env env, values []]
+    (if-let [r (first rs)]
+      (if (fn? r)
+        (let [x (r env nil)
+              [v new-env]
+              (if (vector? x)
+                x
+                [x env])]
+          (recur
+           (rest rs)
+           new-env
+           (conj values v)))
+        (recur (rest rs) env (conj values r)))
+      [values env])))
 
-(defn- evaluate-id-query [env store query param running-result]
-  (let [[p env] (evaluate-id-result env param)
-        rs (store/do-query store query [p])]
+(defn- evaluate-id-query [env store query params running-result]
+  (let [[p env] (evaluate-id-result env params)
+        rs (store/do-query store query p)]
     [(concat running-result (map su/first-val rs)) env]))
 
 (defn- evaluate-id-queries
@@ -206,9 +221,10 @@
   (loop [idqs id-queries, env env, result []]
     (if-let [idq (first idqs)]
       (if-let [r (:result idq)]
-        (let [[obj env] (evaluate-id-result env r)]
-          (recur (rest idqs) env (conj result obj)))
-        (let [[q p] (:query idq)
+        (let [[obj env] (evaluate-id-result env [r])]
+          (recur (rest idqs) env (conj result (first obj))))
+        (let [query (:query idq)
+              [q p] [(first query) (seq (rest query))]
               [rs env] (evaluate-id-query env store q p result)]
           (recur (rest idqs) env rs)))
       [result env])))
@@ -223,7 +239,11 @@
 (defn- normalize-raw-query [env q]
   (let [[wc env] (let [where-clause (:where q)]
                    (if (seqable? where-clause)
-                     (normalize-raw-where-clause env where-clause)
+                     (normalize-raw-where-clause
+                      env
+                      (if (seqable? (first where-clause))
+                        where-clause
+                        [where-clause]))
                      [where-clause env]))]
     [(assoc q :where wc) env]))
 
@@ -251,6 +271,14 @@
                        (env/lookup-instance (env/bind-instance env %) x))))]
     (filter predic result)))
 
+(defn- query-all [env store entity-name query]
+  (if (string? query)
+    (store/query-all store entity-name query)
+    (store/query-all
+     store entity-name
+     [(first query)
+      (mapv #(first (evaluate-id-result env %)) (second query))])))
+
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)
               (store/compile-query store full-query))
@@ -274,7 +302,7 @@
             (store/query-by-id store entity-name (:query q) id-results))
            (when-not idqs
              (filter-results
-              (store/query-all store entity-name (:query q)))))
+              (query-all env store entity-name (:query q)))))
          env]))))
 
 (defn find-instances [env store entity-name full-query]
@@ -391,22 +419,31 @@
            (eval-opcode evaluator env alternative)
            (i/ok false env)))))))
 
-(defn- eval-for-each-body [evaluator env eval-opcode body-code element]
-  (when (cn/entity-instance? element)
-    (let [entity-name (cn/instance-name element)
-          new-env (env/bind-instance env entity-name element)]
-      (loop [body-code body-code, env new-env result nil]
-        (if-let [opcode (first body-code)]
-          (let [result (eval-opcode evaluator env opcode)]
-            (if (ok-result result)
-              (recur (rest body-code)
-                     (:env result)
-                     result)
-              result))
-          result)))))
+(defn- bind-for-each-element [env element elem-alias]
+  (cond
+    elem-alias
+    (env/bind-to-alias env elem-alias element)
 
-(defn- eval-for-each [evaluator env eval-opcode collection body-code result-alias]
-  (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code)
+    (cn/an-instance? element)
+    (env/bind-instance env (cn/instance-name element) element)
+
+    :else
+    (env/bind-to-alias env :% element)))
+
+(defn- eval-for-each-body [evaluator env eval-opcode body-code elem-alias element]
+  (let [new-env (bind-for-each-element env element elem-alias)]
+    (loop [body-code body-code, env new-env result nil]
+      (if-let [opcode (first body-code)]
+        (let [result (eval-opcode evaluator env opcode)]
+          (if (ok-result result)
+            (recur (rest body-code)
+                   (:env result)
+                   result)
+            result))
+        result))))
+
+(defn- eval-for-each [evaluator env eval-opcode collection body-code elem-alias result-alias]
+  (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code elem-alias)
         results (doall (map eval-body collection))]
     (if (every? #(ok-result %) results)
       (let [eval-output (doall (map #(ok-result %) results))
@@ -545,7 +582,9 @@
             local-result (when (or (not resolver) composed?)
                            (async-invoke
                             timeout-ms
-                            #(doall (extract-local-result (first (eval-event-dataflows self eval-env inst))))))
+                            #(doall
+                              (extract-local-result
+                               (first (eval-event-dataflows self eval-env inst))))))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? env inst))]
         (i/ok (pack-results local-result resolver-results) env)))
@@ -579,10 +618,10 @@
                    (df-eval evt (list evt-name {:opcode (atom df-code)}))))]
               env)))
 
-    (do-for-each [self env [bind-pattern-code body-code result-alias]]
+    (do-for-each [self env [bind-pattern-code elem-alias body-code result-alias]]
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
-          (eval-for-each self (:env result) eval-opcode r body-code result-alias)
+          (eval-for-each self (:env result) eval-opcode r body-code elem-alias result-alias)
           result)))
 
     (do-entity-def [_ env schema]

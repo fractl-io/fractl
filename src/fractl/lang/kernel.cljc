@@ -21,7 +21,24 @@
      :cljs
      (float? x)))
 
-(def date-time? dt/parse-date-time)
+#?(:clj (def date-time? dt/parse-date-time)
+   :cljs
+   (defn date-time? [s]
+     ;(dt/parse-date-time s)
+     #_(some #(dt/try-parse-date-time (dt/date-time-formatters %) %) s)
+     (if (dt/try-parse-date-time (dt/date-time-formatters s) s)
+       true
+       false)))
+
+#?(:clj (def date? dt/parse-date)
+   :cljs
+   (defn date? [s]
+     (dt/parse-date s)))
+
+#?(:clj (def time? dt/parse-time)
+   :cljs
+   (defn time? [s]
+     (dt/parse-time s)))
 
 (defn UUID? [s]
   (if (u/uuid-from-string s) true false))
@@ -66,6 +83,8 @@
    :Kernel/Keyword keyword?
    :Kernel/Path path?
    :Kernel/DateTime date-time?
+   :Kernel/Date date?
+   :Kernel/Time time?
    :Kernel/UUID UUID?
    :Kernel/Password identity
    :Kernel/Int int?

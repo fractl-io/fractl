@@ -42,6 +42,8 @@
         (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
         (db/drop-schema @datasource component-name))
+      (fetch-schema [_]
+        nil)
       (create-table [_ entity-name]
         (db/create-table @datasource entity-name))
       (update-instance [_ entity-name instance]

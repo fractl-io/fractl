@@ -38,7 +38,7 @@
              tag (cond
                    (li/query-pattern? ak) :query
                    (or (const-value? v) (vector? v)) :computed
-                   (li/name? v) :refs
+                   (or (li/name? v) (symbol? v)) :refs
                    (seqable? v) :compound
                    :else (u/throw-ex (str "not a valid attribute pattern - " a)))]
          (su/aconj result tag [k v])))
@@ -57,18 +57,25 @@
         ;; TODO: validate multi-level references.
         (when-not (cn/inferred-event-schema? scm)
           (when-not (some #{(first refs)} (cn/attribute-names scm))
-            (u/throw-ex (str "invalid reference - " [p refs]))))))
+            (if (= (get scm :type-*-tag-*-) :event)
+              (u/throw-ex (str "Error in: Event " p " no such attribute - " (first refs)))
+              (u/throw-ex (str "Invalid reference - " [p refs])))))))
     ((if (ctx/fetch-variable ctx conditional-dataflow-tag)
        log-warn
        u/throw-ex)
-     (str "reference not in context - " [component rec refs])))
+     (str "Reference cannot be found for "
+          rec
+          " Did you mean one of: "
+          (first (keys (dissoc @ctx :compile-query-fn :zero-trust-rbac))))))
   true)
 
 (declare reach-name)
 
 (defn- aliased-name-in-context [ctx schema n]
   (when-let [an (ctx/aliased-name ctx n)]
-    (reach-name ctx schema an)))
+    (if (= n an)
+      n
+      (reach-name ctx schema an))))
 
 (defn- reach-name [ctx schema n]
   (let [{component :component rec :record refs :refs
@@ -183,7 +190,8 @@
 
 (defn- process-where-clause [clause]
   (cv/ensure-where-clause
-   (if (= 2 (count clause))
+   (if (and (= 2 (count clause))
+            (not (vector? (first clause))))
      (su/vec-add-first := clause)
      clause)))
 
@@ -192,7 +200,7 @@
         qp (when-not wildcard? (map process-where-clause query-pattern))
         where-clause (if wildcard?
                        :*
-                       (if (> (count qp) 1)
+                       (if (vector? (ffirst qp))
                          (su/vec-add-first :and qp)
                          (first qp)))]
     {:from entity-name
