@@ -29,3 +29,4 @@ out/
 fractl.log
 fractl.log.*
 !sample/library/*.db
+app

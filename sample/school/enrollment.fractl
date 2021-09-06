@@ -1,0 +1,12 @@
+(ns school.enrollment
+  (:use [fractl.lang]
+        [fractl.lang.datetime]))
+
+(component :School.Enrollment)
+
+(entity {:Student
+         {:FirstName :Kernel/String
+          :LastName :Kernel/String
+          :DOB :Kernel/Date
+          :DateCreated {:type :Kernel/DateTime
+                        :default now}}})

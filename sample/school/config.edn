@@ -1,0 +1,9 @@
+{:component-root "./library"
+ :zero-trust-rbac false
+ :store
+ {:type     :postgres
+  :host     "database-2.c2v9gy8etqg1.us-east-2.rds.amazonaws.com"
+  :dbname   "fractldb"
+  :username "postgres"
+  :password "fractldb1"}
+ :service {:port 8080}}
