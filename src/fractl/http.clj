@@ -53,10 +53,13 @@
 
 (defn- event-from-request [request event-name data-fmt]
   (try
-    (let [obj ((uh/decoder data-fmt)
-               (String.
-                (.bytes (:body request))
-                java.nio.charset.StandardCharsets/UTF_8))
+    (let [body (:body request)
+          obj (if (map? body)
+                body
+                ((uh/decoder data-fmt)
+                 (String.
+                  (.bytes body)
+                  java.nio.charset.StandardCharsets/UTF_8)))
           obj-name (li/split-path (first (keys obj)))]
       (if (or (not event-name) (= obj-name event-name))
         [(cn/make-event-instance obj-name (first (vals obj))) nil]
@@ -67,7 +70,8 @@
 
 (defn- request-content-type [request]
   (s/lower-case
-   (get-in request [:headers "content-type"])))
+   (or (get-in request [:headers "content-type"])
+       "application/json")))
 
 (defn- find-data-format [request]
   (let [ct (request-content-type request)]
@@ -83,7 +87,7 @@
      (str "unsupported content-type in request - "
           (request-content-type request)))))
 
-(defn- process-request [evaluator request]
+(defn process-request [evaluator request]
   (let [params (:params request)
         component (keyword (:component params))
         event (keyword (:event params))

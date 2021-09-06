@@ -15,7 +15,8 @@
             [fractl.lang.loader :as loader])
   (:import [java.util Properties]
            [java.net URL]
-           [java.io File])
+           [java.io File]
+           [fractl.aws LambdaHandler])
   (:gen-class))
 
 (def cli-options
@@ -140,6 +141,17 @@
         (init-dynamic-entities! c entity-names schema))))
   (trigger-appinit-event! evaluator (:init-data model)))
 
+(defn- init-runtime! [model components config]
+  (register-resolvers! (:resolvers config))
+  (let [store (e/store-from-config (:store config))
+        ev (e/public-evaluator store true)]
+    (run-appinit-tasks! ev store model components)
+    (rbac/init!)
+    (e/zero-trust-rbac!
+     (let [f (:zero-trust-rbac config)]
+       (or (nil? f) f)))
+    ev))
+
 (defn run-service [args [model config]]
   (let [[model model-root] (maybe-read-model args)
         config (merge (:config model) config)
@@ -148,17 +160,10 @@
                      (load-components args (:component-root config) false))]
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
-      (register-resolvers! (:resolvers config))
-      (let [store (e/store-from-config (:store config))
-            ev (e/public-evaluator store true)]
-        (run-appinit-tasks! ev store model components)
-        (rbac/init!)
-        (e/zero-trust-rbac!
-         (let [f (:zero-trust-rbac config)]
-           (or (nil? f) f)))
-        (when-let [server-cfg (:service config)]
+      (when-let [server-cfg (:service config)]
+        (let [evaluator (init-runtime! model components config)]
           (log/info (str "Server config - " server-cfg))
-          (h/run-server ev server-cfg))))))
+          (h/run-server evaluator server-cfg))))))
 
 (defn read-model-and-config [args options]
   (let [config-file (get options :config)
@@ -175,27 +180,43 @@
     model
     (u/throw-ex (str "failed to load model from " component-root))))
 
-(defn- load-model-from-resource []
+(defn load-model-from-resource []
   (when-let [cfgres (io/resource "config.edn")]
     (let [config (read-string (slurp cfgres))]
       (if-let [component-root (:component-root config)]
         (let [model (read-model-from-resource component-root)
-              config (merge (:config model) config)]
-          (load-model
-           model component-root nil
-           (assoc config :load-model-from-resource true)))
+              config (merge (:config model) config)
+              components (load-model
+                          model component-root nil
+                          (assoc config :load-model-from-resource true))]
+          (when (seq components)
+            (log-seq! "Components loaded from resources" components)
+            [config model components]))
         (u/throw-ex "component-root not defined in config")))))
 
-(defn -main [& args]
+(defn initialize []
   (System/setProperties
    (doto (Properties. (System/getProperties))
      (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
-     (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF")))
-  (if-let [model (load-model-from-resource)]
-    (log-seq! "Components loaded from resources" model)
-    (let [{options :options args :arguments
-           summary :summary errors :errors} (parse-opts args cli-options)]
-      (cond
-        errors (println errors)
-        (:help options) (println summary)
-        :else (run-service args (read-model-and-config args options))))))
+     (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF"))))
+
+(defn process-request [evaluator request]
+  (let [e (or evaluator
+              (do
+                (initialize)
+                (let [[config model components] (load-model-from-resource)]
+                  (when-not (seq components)
+                    (u/throw-ex (str "no components loaded from model " model)))
+                  (init-runtime! model components config))))]
+    [(h/process-request e request) e]))
+
+(LambdaHandler/setCallback process-request)
+
+(defn -main [& args]
+  (initialize)
+  (let [{options :options args :arguments
+         summary :summary errors :errors} (parse-opts args cli-options)]
+    (cond
+      errors (println errors)
+      (:help options) (println summary)
+      :else (run-service args (read-model-and-config args options)))))
