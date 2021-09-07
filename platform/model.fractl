@@ -1,5 +1,0 @@
-{:name :Platform
- :components [:Platform/Identity
-              :Platform/AppCatalog]
- :config {:service {:port 5050}
-          :store {:dbname "./platform/db"}}}

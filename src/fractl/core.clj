@@ -15,9 +15,10 @@
             [fractl.lang.loader :as loader])
   (:import [java.util Properties]
            [java.net URL]
-           [java.io File]
-           [fractl.aws LambdaHandler])
-  (:gen-class))
+           [java.io File])
+  (:gen-class
+   :name fractl.core
+   :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
@@ -200,7 +201,7 @@
      (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
      (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF"))))
 
-(defn process-request [evaluator request]
+(defn process_request [evaluator request]
   (let [e (or evaluator
               (do
                 (initialize)
@@ -210,7 +211,8 @@
                   (init-runtime! model components config))))]
     [(h/process-request e request) e]))
 
-(LambdaHandler/setCallback process-request)
+(defn -process_request [a b]
+  (process_request a b))
 
 (defn -main [& args]
   (initialize)
