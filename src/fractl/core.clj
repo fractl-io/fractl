@@ -2,7 +2,9 @@
   (:require [clojure.tools.cli :refer [parse-opts]]
             [clojure.java.io :as io]
             [clojure.string :as s]
+            [cheshire.core :as json]
             [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
@@ -201,6 +203,11 @@
      (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
      (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF"))))
 
+(defn- normalize-external-request [request]
+  (if (string? request)
+    (json/parse-string request true)
+    (su/keys-as-keywords request)))
+
 (defn process_request [evaluator request]
   (let [e (or evaluator
               (do
@@ -208,8 +215,9 @@
                 (let [[config model components] (load-model-from-resource)]
                   (when-not (seq components)
                     (u/throw-ex (str "no components loaded from model " model)))
-                  (init-runtime! model components config))))]
-    [(h/process-request e request) e]))
+                  (init-runtime! model components config))))
+        parsed-request (normalize-external-request request)]
+    [(h/process-request e parsed-request) e]))
 
 (defn -process_request [a b]
   (process_request a b))
