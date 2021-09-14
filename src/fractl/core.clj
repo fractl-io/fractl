@@ -203,10 +203,18 @@
      (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
      (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF"))))
 
+(defn- attach-params [request]
+  (if (:params request)
+    request
+    (let [inst (json/parse-string (:body request) true)
+          [c n] (li/split-path (first (keys inst)))]
+      (assoc request :body inst :params {:component c :event n}))))
+
 (defn- normalize-external-request [request]
-  (if (string? request)
-    (json/parse-string request true)
-    (su/keys-as-keywords request)))
+  (attach-params
+   (if (string? request)
+     (json/parse-string request true)
+     (su/keys-as-keywords request))))
 
 (defn process_request [evaluator request]
   (let [e (or evaluator
