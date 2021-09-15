@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.6] - 2021-09-15
 
+-   Fix list attribute bug
+-   Add comprehensive date, time and datetime support
+-   Add support for Timed events and new `:Kernel/Timer` functionality
+-   Add support for CSV store
+
 ## [0.1.5] - 2021-08-23
 
 -   Add descriptive errors for different types of errors (like reference error, wrong lookup of id, attribute name mismatch)
