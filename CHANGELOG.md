@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2021-09-15
+
 ## [0.1.5] - 2021-08-23
 
 -   Add descriptive errors for different types of errors (like reference error, wrong lookup of id, attribute name mismatch)
@@ -44,7 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.5...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.6...HEAD
+
+[0.1.6]: https://github.com/fractl-io/fractl/compare/0.1.5...0.1.6
 
 [0.1.5]: https://github.com/fractl-io/fractl/compare/0.1.4...0.1.5
 
