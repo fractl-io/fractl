@@ -29,6 +29,9 @@
                  [cljc.java-time "0.1.11"]
                  [com.cognitect/transit-clj "1.0.324"]
                  [com.cognitect/transit-cljs "0.8.264"]
+                 [com.amazonaws/aws-lambda-java-core "1.2.1"]
+                 [com.amazonaws/aws-lambda-java-events "3.1.0"]
+                 [com.amazonaws/aws-lambda-java-log4j2 "1.2.0"]
                  [camdez/sendgrid "0.2.0"]
                  [postmark "1.4.1"]
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
@@ -79,4 +82,6 @@
                               "fig:rtest"  ["run" "-m" "figwheel.main" "-co" "test.cljs.edn" "-m" "fractl.reagent-test-runner"]
                               "fig:ci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.test-runner"]
                               "fig:rci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.reagent-test-runner"]}
-                   :clean-targets  ^{:protect false} ["target" "out"]}})
+                   :clean-targets  ^{:protect false} ["target" "out"]}
+             :aws-lambda {:javac-options ["-target" "11" "-source" "11" "-Xlint:-options"]
+                          :resource-paths ["app"]}})

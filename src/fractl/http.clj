@@ -53,10 +53,13 @@
 
 (defn- event-from-request [request event-name data-fmt]
   (try
-    (let [obj ((uh/decoder data-fmt)
-               (String.
-                (.bytes (:body request))
-                java.nio.charset.StandardCharsets/UTF_8))
+    (let [body (:body request)
+          obj (if (map? body)
+                body
+                ((uh/decoder data-fmt)
+                 (String.
+                  (.bytes body)
+                  java.nio.charset.StandardCharsets/UTF_8)))
           obj-name (li/split-path (first (keys obj)))]
       (if (or (not event-name) (= obj-name event-name))
         [(cn/make-event-instance obj-name (first (vals obj))) nil]
@@ -67,7 +70,8 @@
 
 (defn- request-content-type [request]
   (s/lower-case
-   (get-in request [:headers "content-type"])))
+   (or (get-in request [:headers "content-type"])
+       "application/json")))
 
 (defn- find-data-format [request]
   (let [ct (request-content-type request)]
@@ -83,7 +87,7 @@
      (str "unsupported content-type in request - "
           (request-content-type request)))))
 
-(defn- process-request [evaluator request]
+(defn process-request [evaluator request]
   (let [params (:params request)
         component (keyword (:component params))
         event (keyword (:event params))
@@ -116,10 +120,12 @@
 (def dynamic-eval-prefix "/_dynamic/")
 
 (defn- make-routes [process-request process-query process-dynamic-eval]
-  (let [r (apply routes [(POST (str entity-event-prefix ":component/:event") [] process-request)
-                         (POST query-prefix [] process-query)
-                         (POST dynamic-eval-prefix [] process-dynamic-eval)
-                         (not-found "<p>Resource not found.</p>")])]
+  (let [r (apply
+           routes
+           [(POST (str entity-event-prefix ":component/:event") [] process-request)
+            (POST query-prefix [] process-query)
+            (POST dynamic-eval-prefix [] process-dynamic-eval)
+            (not-found "<p>Resource not found.</p>")])]
     (cors/wrap-cors
      r
      :access-control-allow-origin [#".*"]
@@ -129,11 +135,13 @@
 
 (defn run-server
   ([evaluator config]
-   (h/run-server (make-routes (partial process-request evaluator)
-                              (partial process-query evaluator)
-                              (partial process-dynamic-eval evaluator nil))
-                 (if (:thread config)
-                   config
-                   (assoc config :thread (+ 1 (u/n-cpu))))))
+   (h/run-server
+    (make-routes
+     (partial process-request evaluator)
+     (partial process-query evaluator)
+     (partial process-dynamic-eval evaluator nil))
+    (if (:thread config)
+      config
+      (assoc config :thread (+ 1 (u/n-cpu))))))
   ([evaluator]
    (run-server evaluator {:port 8080})))
