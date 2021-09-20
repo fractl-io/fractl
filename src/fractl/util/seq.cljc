@@ -125,3 +125,16 @@
       (if (= needle x)
         i
         (recur (rest xs) (inc i))))))
+
+(defn keys-as-keywords [m]
+  (let [r (mapv
+           (fn [[k v]]
+             [(if (string? k)
+                (keyword k)
+                k)
+              (if (or (map? v)
+                      #?(:clj (instance? java.util.Map v)))
+                (keys-as-keywords v)
+                v)])
+           m)]
+    (into {} r)))

@@ -1,7 +1,10 @@
 (ns fractl.core
   (:require [clojure.tools.cli :refer [parse-opts]]
+            [clojure.java.io :as io]
             [clojure.string :as s]
+            [cheshire.core :as json]
             [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
@@ -12,8 +15,12 @@
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.loader :as loader])
-  (:import (java.util Properties))
-  (:gen-class))
+  (:import [java.util Properties]
+           [java.net URL]
+           [java.io File])
+  (:gen-class
+   :name fractl.core
+   :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
@@ -40,13 +47,19 @@
         :else (recur (rest s) sep (conj result c)))
       (str (s/join result) u/script-extn))))
 
-(defn- load-components [component-scripts model-root]
-  (doall (map (partial loader/load-script model-root)
-              component-scripts)))
+(defn- load-components [component-scripts model-root load-from-resource]
+  (mapv
+   #(loader/load-script
+     model-root
+     (if load-from-resource
+       (io/resource (str "model/" %))
+       %))
+   component-scripts))
 
-(defn- load-components-from-model [model model-root]
-  (load-components (map script-name-from-component-name (:components model))
-                   model-root))
+(defn- load-components-from-model [model model-root load-from-resource]
+  (load-components
+   (mapv script-name-from-component-name (:components model))
+   model-root load-from-resource))
 
 (defn read-model [model-file]
   [(read-string (slurp model-file))
@@ -69,12 +82,13 @@
   (let [nm (s/lower-case (name (:name model)))
         model-paths (find-model-paths model model-paths config)
         rmp (partial read-model-from-paths model-paths)]
-    (doall
-     (map
-      #(let [[m mr] (rmp %)]
-         (load-model m mr model-paths config))
-      (:dependencies model)))
-    (load-components-from-model model model-root)))
+    (mapv
+     #(let [[m mr] (rmp %)]
+        (load-model m mr model-paths config))
+     (:dependencies model))
+    (load-components-from-model
+     model model-root
+     (:load-model-from-resource config))))
 
 (defn- log-seq! [prefix xs]
   (loop [xs xs, sep "", s (str prefix " - ")]
@@ -130,25 +144,29 @@
         (init-dynamic-entities! c entity-names schema))))
   (trigger-appinit-event! evaluator (:init-data model)))
 
+(defn- init-runtime! [model components config]
+  (register-resolvers! (:resolvers config))
+  (let [store (e/store-from-config (:store config))
+        ev (e/public-evaluator store true)]
+    (run-appinit-tasks! ev store model components)
+    (rbac/init!)
+    (e/zero-trust-rbac!
+     (let [f (:zero-trust-rbac config)]
+       (or (nil? f) f)))
+    ev))
+
 (defn run-service [args [model config]]
   (let [[model model-root] (maybe-read-model args)
         config (merge (:config model) config)
         components (if model
                      (load-model model model-root nil config)
-                     (load-components args (:component-root config)))]
+                     (load-components args (:component-root config) false))]
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
-      (register-resolvers! (:resolvers config))
-      (let [store (e/store-from-config (:store config))
-            ev (e/public-evaluator store true)]
-        (run-appinit-tasks! ev store model components)
-        (rbac/init!)
-        (e/zero-trust-rbac!
-         (let [f (:zero-trust-rbac config)]
-           (or (nil? f) f)))
-        (when-let [server-cfg (:service config)]
+      (when-let [server-cfg (:service config)]
+        (let [evaluator (init-runtime! model components config)]
           (log/info (str "Server config - " server-cfg))
-          (h/run-server ev server-cfg))))))
+          (h/run-server evaluator server-cfg))))))
 
 (defn read-model-and-config [args options]
   (let [config-file (get options :config)
@@ -157,11 +175,63 @@
         model (maybe-read-model args)]
     [model (merge (:config model) config)]))
 
-(defn -main [& args]
+(defn- read-model-from-resource [component-root]
+  (if-let [model (read-string
+                  (slurp
+                   (io/resource
+                    (str "model/" component-root "/" u/model-script-name))))]
+    model
+    (u/throw-ex (str "failed to load model from " component-root))))
+
+(defn load-model-from-resource []
+  (when-let [cfgres (io/resource "config.edn")]
+    (let [config (read-string (slurp cfgres))]
+      (if-let [component-root (:component-root config)]
+        (let [model (read-model-from-resource component-root)
+              config (merge (:config model) config)
+              components (load-model
+                          model component-root nil
+                          (assoc config :load-model-from-resource true))]
+          (when (seq components)
+            (log-seq! "Components loaded from resources" components)
+            [config model components]))
+        (u/throw-ex "component-root not defined in config")))))
+
+(defn initialize []
   (System/setProperties
-    (doto (Properties. (System/getProperties))
-      (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
-      (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF")))
+   (doto (Properties. (System/getProperties))
+     (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
+     (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF"))))
+
+(defn- attach-params [request]
+  (if (:params request)
+    request
+    (let [inst (json/parse-string (:body request) true)
+          [c n] (li/split-path (first (keys inst)))]
+      (assoc request :body inst :params {:component c :event n}))))
+
+(defn- normalize-external-request [request]
+  (attach-params
+   (if (string? request)
+     (json/parse-string request true)
+     (su/keys-as-keywords request))))
+
+(defn process_request [evaluator request]
+  (let [e (or evaluator
+              (do
+                (initialize)
+                (let [[config model components] (load-model-from-resource)]
+                  (when-not (seq components)
+                    (u/throw-ex (str "no components loaded from model " model)))
+                  (init-runtime! model components config))))
+        parsed-request (normalize-external-request request)]
+    [(h/process-request e parsed-request) e]))
+
+(defn -process_request [a b]
+  (process_request a b))
+
+(defn -main [& args]
+  (initialize)
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)]
     (cond

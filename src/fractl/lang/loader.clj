@@ -1,6 +1,7 @@
 (ns fractl.lang.loader
   "Component script loading with pre-processing."
-  (:require [fractl.util :as u]
+  (:require [clojure.java.io :as io]
+            [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang.name-util :as nu]
@@ -37,35 +38,49 @@
   "Read expressions in sequence from a fractl component file. Each expression read
    is preprocessed to add component-name prefixes to names. Then the expression is evaluated.
    Return a list with the results of evaluations."
-  ([file-name declared-names]
+  ([file-name-or-input-stream declared-names]
    (let [reader (PushbackReader.
                  (InputStreamReader.
-                  (FileInputStream. file-name)))
+                  (if (string? file-name-or-input-stream)
+                    (FileInputStream. file-name-or-input-stream)
+                    (io/input-stream file-name-or-input-stream))))
          rdf #(read reader nil :done)
          fqn (partial nu/fully-qualified-names declared-names)]
-     (loop [exp (rdf), exps nil]
-       (if (= exp :done)
-         exps
-         (recur (rdf) (conj exps (eval (fqn exp))))))))
-  ([file-name]
-   (read-expressions file-name (fetch-declared-names file-name))))
+     (try
+       (loop [exp (rdf), exps nil]
+         (if (= exp :done)
+           exps
+           (recur (rdf) (conj exps (eval (fqn exp))))))
+       (finally
+         (u/safe-close reader)))))
+  ([file-name-or-input-stream]
+   (read-expressions
+    file-name-or-input-stream
+    (fetch-declared-names file-name-or-input-stream))))
 
 (defn load-script
   "Load, complile and intern the component from a script file."
-  [^String component-root-path ^String file-name]
+  [^String component-root-path file-name-or-input-stream]
   (log/info (str "Component root path: " component-root-path))
-  (log/info (str "File name: " file-name))
+  (log/info (str "File name: " file-name-or-input-stream))
   (let [crp (or component-root-path "./")
-        full-file-name
-        (if (and component-root-path (not (.startsWith file-name component-root-path)))
-          (str component-root-path u/path-sep file-name)
-          file-name)
-        names (fetch-declared-names full-file-name)
+        input-reader? (not (string? file-name-or-input-stream))
+        file-ident
+        (if input-reader?
+          (InputStreamReader. (io/input-stream file-name-or-input-stream))
+          (if (and
+               component-root-path
+               (not (.startsWith
+                     file-name-or-input-stream
+                     component-root-path)))
+            (str component-root-path u/path-sep file-name-or-input-stream)
+            file-name-or-input-stream))
+        names (fetch-declared-names file-ident)
         component-name (:component names)]
     (when component-name
       (cn/remove-component component-name))
     (binding [*ns* *ns*]
-      (read-expressions full-file-name names))
+      (read-expressions (if input-reader? file-name-or-input-stream file-ident) names))
     (when (and component-name (cn/component-exists? component-name))
       component-name)))
 
@@ -77,7 +92,7 @@
    (binding [*ns* *ns*]
      (into
       '()
-      (map
+      (mapv
        #(eval
          (if convert-fq?
            (nu/fully-qualified-names %)
