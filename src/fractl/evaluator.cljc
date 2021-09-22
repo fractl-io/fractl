@@ -193,7 +193,8 @@
     (rr/root-registry)
 
     (map? resolver-or-resolver-config)
-    (rr/register-resolvers resolver-or-resolver-config)
+    (do (rr/register-resolvers resolver-or-resolver-config)
+        (rr/root-registry))
 
     (and (keyword? resolver-or-resolver-config)
          (= resolver-or-resolver-config :none))

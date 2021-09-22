@@ -92,8 +92,7 @@
     (u/throw-ex (str "Invalid resolver type " t " for resolver " n))))
 
 (defn register-resolvers [specs]
-  (doall (map register-resolver specs))
-  root-resolver-db)
+  (mapv register-resolver specs))
 
 (defn root-registry
   []
