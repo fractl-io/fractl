@@ -190,17 +190,20 @@
   [resolver-or-resolver-config]
   (cond
     (nil? resolver-or-resolver-config)
-    (rr/registered-resolvers)
+    (rr/root-registry)
 
     (map? resolver-or-resolver-config)
-    (rr/register-resolvers resolver-or-resolver-config)
+    (do (rr/register-resolvers resolver-or-resolver-config)
+        (rr/root-registry))
 
     (and (keyword? resolver-or-resolver-config)
          (= resolver-or-resolver-config :none))
     nil
 
     :else
-    resolver-or-resolver-config))
+    (if (rr/registry? resolver-or-resolver-config)
+      resolver-or-resolver-config
+      (u/throw-ex (str "invalid resolver config " resolver-or-resolver-config)))))
 
 (defn evaluator
   ([store-or-store-config resolver-or-resolver-config with-query-support]

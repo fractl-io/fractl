@@ -130,6 +130,10 @@
       :cljs (atom obj)))
   ([] (make-cell nil)))
 
+(defn cell? [obj]
+  #?(:clj (= clojure.lang.Ref (type obj))
+     :cljs (= cljs.core/Atom (type obj))))
+
 (defn call-and-set [cell f]
   #?(:clj (dosync
            (ref-set cell (f)))

@@ -99,7 +99,7 @@
           (log/info s))))))
 
 (defn- register-resolvers! [resolver-specs]
-  (when-let [rns (seq (rr/register-resolvers resolver-specs))]
+  (when-let [rns (rr/register-resolvers resolver-specs)]
     (log-seq! "Resolvers" rns)))
 
 (defn- maybe-read-model [args]
