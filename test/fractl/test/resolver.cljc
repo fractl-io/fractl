@@ -74,8 +74,8 @@
 (defn- test-resolver-r02 [install-resolver resolver-name path]
   (let [f (fn [_ arg] arg)
         r (r/make-resolver resolver-name {:upsert {:handler identity
-                                                   :xform {:in [f :EntityXformR02/EToEPrime]
-                                                           :out [f :EntityXformR02/EPrimeToE]}}
+                                                   :xform {:in [f :EntityXformR02/EToE]
+                                                           :out [f :EntityXformR02/EToK]}}
                                           :delete {:handler identity
                                                    :xform {:in [f]}}}
                            e/eval-pure-dataflows)]
@@ -86,25 +86,27 @@
 
 (deftest r02
   (defcomponent :EntityXformR02
-    (entity :EntityXformR02/EPrime
+    (entity :EntityXformR02/E
             {:X :Kernel/Int})
-    (event {:EntityXformR02/EToEPrime
+    (event {:EntityXformR02/EToE
             {:Instance :Kernel/Entity}})
-    (dataflow :EntityXformR02/EToEPrime
-              {:EntityXformR02/EPrime {:X :EntityXformR02/EToEPrime.Instance.X
-                                       :Id :EntityXformR02/EToEPrime.Instance.Id}})
-    (event {:EntityXformR02/EPrimeToE
+    (dataflow :EntityXformR02/EToE
+              {:EntityXformR02/E
+               {:X :EntityXformR02/EToE.Instance.X
+                :Id :EntityXformR02/EToE.Instance.Id}})
+    (event {:EntityXformR02/EToK
             {:Instance :Kernel/Entity}}))
   (defcomponent :R02
-    (entity {:R02/E {:X :Kernel/Int}}))
-  (dataflow :EntityXformR02/EPrimeToE
-            {:R02/E {:X :EntityXformR02/EPrimeToE.Instance.X
-                     :Id :EntityXformR02/EPrimeToE.Instance.Id}})
+    (entity {:R02/E {:X :Kernel/Int}})
+    (record {:R02/K {:X :Kernel/Int :Id :Kernel/UUID}}))
+  (dataflow :EntityXformR02/EToK
+            {:R02/K {:X :EntityXformR02/EToK.Instance.X
+                     :Id :EntityXformR02/EToK.Instance.Id}})
   (override-test-resolver-r02 :TestResolver02 :R02/E)
   (let [e (cn/make-instance :R02/E {:X 10})
         result (tu/fresult (e/eval-all-dataflows {:R02/Upsert_E {:Instance e}}))
         e01 (first result)]
-    (is (cn/instance-of? :R02/E e01))
+    (is (cn/instance-of? :R02/K e01))
     (is (not (persisted? :R02 e01)))))
 
 (defn- test-query-resolver [install-resolver resolver-name path]

@@ -182,9 +182,9 @@
   "Split a delimiter-separated string into individual components.
   The delimiter must be a regex pattern."
   [delim string]
-  (vec (map #(keyword (.substring
-                       % (if (= \: (first %)) 1 0)))
-            (string/split string delim))))
+  (mapv #(keyword (.substring
+                   % (if (= \: (first %)) 1 0)))
+        (string/split string delim)))
 
 (defn split-path
   "Split a :Component/Member path into the individual
