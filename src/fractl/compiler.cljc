@@ -393,8 +393,12 @@
 (defn- compile-match-cases [ctx cases]
   (loop [cases cases, cases-code []]
     (if-let [[case-pat conseq] (first cases)]
-      (recur (rest cases) (conj cases-code [[(compile-pattern ctx case-pat)]
-                                            [(compile-maybe-pattern-list ctx conseq)]]))
+      (recur
+       (rest cases)
+       (conj
+        cases-code
+        [[(compile-pattern ctx case-pat)]
+         [(compile-maybe-pattern-list ctx conseq)]]))
       cases-code)))
 
 (defn- case-match?

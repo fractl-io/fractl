@@ -265,19 +265,23 @@
     [nil env]))
 
 (defn- filter-query-result [rule env result]
-  (let [predic #(rule
-                 (fn [x]
-                   (or (% x)
-                       (env/lookup-instance (env/bind-instance env %) x))))]
-    (filter predic result)))
+  (when (seq result)
+    (let [predic #(rule
+                   (fn [x]
+                     (or (% x)
+                         (env/lookup-instance (env/bind-instance env %) x))))]
+      (filter predic result))))
 
 (defn- query-all [env store entity-name query]
-  (if (string? query)
+  (cond
+    (or (string? query) (map? query))
     (store/query-all store entity-name query)
+
+    :else
     (store/query-all
      store entity-name
-     [(first query)
-      (mapv #(first (evaluate-id-result env %)) (second query))])))
+     (first query)
+     (mapv #(first (evaluate-id-result env %)) (second query)))))
 
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)
