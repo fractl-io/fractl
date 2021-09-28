@@ -37,8 +37,9 @@
                         (attr-value env %)
                         attr-value))
                     objs)
-          env (env/push-obj env n (if single? (first new-objs) new-objs))]
-      (i/ok (if single? (first new-objs) new-objs) (env/mark-all-dirty env new-objs)))
+          elem (if single? (first new-objs) new-objs)
+          env (env/push-obj env n elem)]
+      (i/ok elem (env/mark-all-dirty env new-objs)))
     (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value]))))
 
 (defn- call-function [env f]
@@ -488,15 +489,15 @@
           %)
        xs))
 
-(defmacro with-exception-as-error [exp]
-  `(try
-     ~exp
-     #?(:clj
-        (catch Exception e#
-          (or (ex-data e#) (i/error (.getMessage e#))))
-        :cljs
-        (catch js/Error e#
-          (or (.-ex-data e#) (i/error e#))))))
+(defn- call-with-exception-as-error [f]
+  (try
+    (f)
+    #?(:clj
+       (catch Exception e
+         (or (ex-data e) (i/error (.getMessage e))))
+       :cljs
+       (catch js/Error e
+         (or (.-ex-data e) (i/error e))))))
 
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
@@ -554,8 +555,8 @@
       (set-obj-attr env attr-name attr-value))
 
     (do-set-list-attribute [self env [attr-name elements-opcode quoted?]]
-      (with-exception-as-error
-        (let [opcode-eval (partial eval-opcode self env)
+      (call-with-exception-as-error
+       #(let [opcode-eval (partial eval-opcode self env)
               final-list ((if quoted? set-quoted-list set-flat-list)
                           opcode-eval elements-opcode)]
           (set-obj-attr env attr-name final-list))))
@@ -618,11 +619,11 @@
         (eval-condition self env eval-opcode cases-code alternative-code result-alias)))
 
     (do-try_ [self env [body handlers]]
-      (let [result (with-exception-as-error
-                     (eval-opcode self env body))
+      (let [result (call-with-exception-as-error
+                    #(eval-opcode self env body))
             h ((:status result) handlers)]
         (if h
-          (eval-opcode self env h)
+          (eval-opcode self (or (:env result) env) h)
           result)))
 
     (do-eval-on [self env [evt-name df-code]]

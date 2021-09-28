@@ -1093,8 +1093,8 @@
      :Try/Find
      [:try
       {:Try/E {:X? :Try/Find.X}}
-      :not-found {:Try/R {:Y false}}
-      :ok {:Try/R {:Y true}}]))
+      :ok {:Try/R {:Y true}}
+      [:error :not-found] {:Try/R {:Y false}}]))
   (let [r1 (tu/first-result {:Try/Find {:X 100}})
         e (cn/make-instance {:Try/E {:X 100}})
         _ (tu/first-result {:Try/Upsert_E

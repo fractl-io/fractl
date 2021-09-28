@@ -463,6 +463,8 @@
         handler-pats (distribute-handler-keys
                       (into {} (map vec (partition 2 (rest pat)))))
         handlers (map (partial compile-try-handler ctx) handler-pats)]
+    (when-not (seq handlers)
+      (u/throw-ex "proper handlers are required for :try"))
     (emit-try body (into {} handlers))))
 
 (defn- compile-delete [ctx [recname id-pat]]
