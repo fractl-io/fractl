@@ -449,9 +449,19 @@
     (u/throw-ex (str "invalid try handler " k)))
   [k (compile-pattern ctx pat)])
 
+(defn- distribute-handler-keys [handler-spec]
+  (loop [hs handler-spec, final-spec {}]
+    (if-let [[k v] (first hs)]
+      (recur (rest hs)
+             (if (vector? k)
+               (reduce #(assoc %1 %2 v) final-spec k)
+               (assoc final-spec k v)))
+      final-spec)))
+
 (defn- compile-try [ctx pat]
   (let [body (compile-pattern ctx (first pat))
-        handler-pats (into {} (map vec (partition 2 (rest pat))))
+        handler-pats (distribute-handler-keys
+                      (into {} (map vec (partition 2 (rest pat)))))
         handlers (map (partial compile-try-handler ctx) handler-pats)]
     (emit-try body (into {} handlers))))
 
