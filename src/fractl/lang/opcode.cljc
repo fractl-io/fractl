@@ -47,6 +47,20 @@
            ~@opcdefs
            (def dispatch-table ~dispatch-table)))))
 
+;; evaluation result tags
+(def ^:private result-tags #{:ok :not-found :declined :error})
+
+(def ok-tag :ok)
+(def not-found-tag :not-found)
+(def declined-tag :declined)
+(def error-tag :error)
+
+(defn result-tag? [x]
+  (some #{x} result-tags))
+
+(def result-status-tag :status)
+(def result-status result-status-tag)
+
 ;; The virtual machine for evaluating dataflows.
 ;; Declares the instruction-set (opcodes), defines a protocol for
 ;; handling these instructions and initializes a dispatch table for
@@ -63,7 +77,6 @@
 ;;  - {:status :ok :result <optional-result> :env <optional-updated-environment>}, call success.
 ;;  - {:status :not-found}, a query or lookup returned no-data.
 ;;  - {:status :declined}, the resolver refuses to service the call.
-;;  - {:status :no-op}, no operation needs to be performed, for instance, no dataflows attached to an event.
 ;;  - {:status :error :message <error-message>}, there was an unxpected error."
 ;;
 ;; The dispatch table will have the structure {:match-instance match-instance ...}.
@@ -121,6 +134,9 @@
          (match
           [[match-pattern-code cases-code alternative-code result-alias]]
           "Execute code for each part of conditional evaluation based on the :match construct.")
+         (try_
+          [[body handlers]]
+          "Evaluate body, branch to a handler based on the result")
          (eval-on
           [[evt-name df-code]]
           "Generate function to dispatch a fractl event.")

@@ -488,6 +488,16 @@
           %)
        xs))
 
+(defmacro with-exception-as-error [exp]
+  `(try
+     ~exp
+     #?(:clj
+        (catch Exception e#
+          (or (ex-data e#) (i/error (.getMessage e#))))
+        :cljs
+        (catch js/Error e#
+          (or (.-ex-data e#) (i/error e#))))))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -535,7 +545,7 @@
           (if (seq insts)
             (i/ok insts (env/mark-all-mint
                          (env/push-obj env entity-name insts)
-                         insts))
+                           insts))
             (i/not-found entity-name env))
           (i/not-found entity-name env))
         (i/error (str "Invalid query request for " entity-name " - no store specified"))))
@@ -544,17 +554,11 @@
       (set-obj-attr env attr-name attr-value))
 
     (do-set-list-attribute [self env [attr-name elements-opcode quoted?]]
-      (try
+      (with-exception-as-error
         (let [opcode-eval (partial eval-opcode self env)
               final-list ((if quoted? set-quoted-list set-flat-list)
                           opcode-eval elements-opcode)]
-          (set-obj-attr env attr-name final-list))
-        #?(:clj
-           (catch Exception e
-             (or (ex-data e) (i/error (.getMessage e))))
-           :cljs
-           (catch js/Error e
-             (or (.-ex-data e) (i/error e))))))
+          (set-obj-attr env attr-name final-list))))
 
     (do-set-ref-attribute [_ env [attr-name attr-ref]]
       (let [[obj env] (env/follow-reference env attr-ref)]
@@ -612,6 +616,14 @@
             result
             (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)))
         (eval-condition self env eval-opcode cases-code alternative-code result-alias)))
+
+    (do-try_ [self env [body handlers]]
+      (let [result (with-exception-as-error
+                     (eval-opcode self env body))
+            h ((:status result) handlers)]
+        (if h
+          (eval-opcode self env h)
+          result)))
 
     (do-eval-on [self env [evt-name df-code]]
       (let [df-eval (partial eval-dataflow self env)]

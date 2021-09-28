@@ -6,22 +6,21 @@
 ;; Result builders.
 (defn make-result
   ([status result env message]
-   {:status status :result result
+   {opc/result-status-tag status :result result
     :env env :message message})
   ([status result env] (make-result status result env nil))
-  ([status] {:status status}))
+  ([status] {opc/result-status-tag status}))
 
 ;; result builders
-(def ok (partial make-result :ok))
+(def ok (partial make-result opc/ok-tag))
 
-(def not-found (partial make-result :not-found))
-(def declined (partial make-result :declined))
-(def no-op (partial make-result :no-op))
+(def not-found (partial make-result opc/not-found-tag))
+(def declined (partial make-result opc/declined-tag))
 
 (defn error [message]
-  (make-result :error nil nil message))
+  (make-result opc/error-tag nil nil message))
 
-(defn ok? [r] (= :ok (:status r)))
+(defn ok? [r] (= opc/ok-tag (opc/result-status r)))
 
 (defn dummy-result [env]
-  {:status :ok :env env})
+  {opc/result-status-tag opc/ok-tag :env env})

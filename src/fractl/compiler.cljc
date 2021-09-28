@@ -30,6 +30,9 @@
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
 
+(defn- emit-try [body handlers]
+  (op/try_ [body handlers]))
+
 (def ^:private runtime-env-var '--env--)
 (def ^:private current-instance-var '--inst--)
 
@@ -441,6 +444,17 @@
       (emit-match [match-pat-code] cases-code [alt-code] alias))
     (compile-match-cond ctx pat)))
 
+(defn- compile-try-handler [ctx [k pat]]
+  (when-not (op/result-tag? k)
+    (u/throw-ex (str "invalid try handler " k)))
+  [k (compile-pattern ctx pat)])
+
+(defn- compile-try [ctx pat]
+  (let [body (compile-pattern ctx (first pat))
+        handler-pats (into {} (map vec (partition 2 (rest pat))))
+        handlers (map (partial compile-try-handler ctx) handler-pats)]
+    (emit-try body (into {} handlers))))
+
 (defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
     (emit-delete (li/split-path recname) [id-pat-code])))
@@ -475,6 +489,7 @@
 
 (def ^:private special-form-handlers
   {:match compile-match
+   :try compile-try
    :for-each compile-for-each
    :delete compile-delete
    :eval-on compile-eval-on

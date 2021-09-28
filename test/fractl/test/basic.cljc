@@ -1079,3 +1079,26 @@
           (let [r (cn/make-instance :UserAccount/Total {:Total 100000})
                 evt (cn/make-instance :UserAccount/IncreaseLoan {:Balance r})]
             (is (thrown? Exception (cn/instance-of? :UserAccount/Estimate (first (tu/fresult (e/eval-all-dataflows evt)))))))))
+
+(deftest try_
+  (defcomponent :Try
+    (entity
+     :Try/E
+     {:X {:type :Kernel/Int
+          :indexed true}})
+    (record
+     :Try/R
+     {:Y :Kernel/Boolean})
+    (dataflow
+     :Try/Find
+     [:try
+      {:Try/E {:X? :Try/Find.X}}
+      :not-found {:Try/R {:Y false}}
+      :ok {:Try/R {:Y true}}]))
+  (let [r1 (tu/first-result {:Try/Find {:X 100}})
+        e (cn/make-instance {:Try/E {:X 100}})
+        _ (tu/first-result {:Try/Upsert_E
+                            {:Instance e}})
+        r2 (tu/first-result {:Try/Find {:X 100}})]
+    (is (not (:Y r1)))
+    (is (:Y r2))))

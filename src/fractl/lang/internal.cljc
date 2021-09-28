@@ -65,7 +65,7 @@
 (def ^:private unquote-tag :uq#)
 
 (def ^:private special-form-names
-  #{:match :for-each :delete
+  #{:match :try :for-each :delete
     :and :or := :< :<= :> :>=
     :between :async :future-get
     :resolver :eval-on :pull :push :entity})
