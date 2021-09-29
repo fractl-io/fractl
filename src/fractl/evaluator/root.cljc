@@ -62,16 +62,15 @@
 (defn- call-resolver-upsert [f env resolver composed? data]
   (let [rs (if composed? resolver [resolver])
         insts (if (map? data) [data] data)]
-    (doall (map (fn [r]
-                  (doall
-                   (map #(merge % (:result (f r env %))) insts)))
-                rs))))
+    (mapv (fn [r]
+            (mapv #(merge % (:result (f r env %))) insts))
+          rs)))
 
 (defn- call-resolver-delete [f env resolver composed? insts]
   (let [rs (if composed? resolver [resolver])]
-    (doall (map (fn [r]
-                  (:result (f r env insts)))
-                rs))))
+    (mapv (fn [r]
+            (:result (f r env insts)))
+          rs)))
 
 (defn- async-invoke [timeout-ms f]
   (cn/make-future (a/async-invoke f) timeout-ms))
@@ -81,7 +80,7 @@
 
 (defn- call-resolver-eval [resolver composed? env inst]
   (let [rs (if composed? resolver [resolver])]
-    (doall (map #(r/call-resolver-eval % env inst) rs))))
+    (mapv #(r/call-resolver-eval % env inst) rs)))
 
 (declare find-instances)
 
@@ -449,9 +448,9 @@
 
 (defn- eval-for-each [evaluator env eval-opcode collection body-code elem-alias result-alias]
   (let [eval-body (partial eval-for-each-body evaluator env eval-opcode body-code elem-alias)
-        results (doall (map eval-body collection))]
+        results (mapv eval-body collection)]
     (if (every? #(ok-result %) results)
-      (let [eval-output (doall (map #(ok-result %) results))
+      (let [eval-output (mapv #(ok-result %) results)
             result-insts (if (seq? (first eval-output))
                            (reduce concat eval-output)
                            eval-output)]

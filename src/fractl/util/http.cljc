@@ -40,7 +40,8 @@
          options (assoc options :headers headers)
          body ((encoder format) request-obj)]
      #?(:clj @(http/post url (assoc options :body body))
-        :cljs (go (let [response (<! (http/post url {:json-params body}))]
+        :cljs (go (let [k (if (= format :transit+json) :transit-params :json-params)
+                        response (<! (http/post url {k body}))]
                     ((:cljs-response-handler options) response))))))
   ([url options request-obj]
    (do-post url options request-obj :json)))

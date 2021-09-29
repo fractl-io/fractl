@@ -19,16 +19,27 @@
 (defn operator? [x]
   (some #{x} oprs))
 
+(def ^:private special-form-names
+  #{:match :try :for-each :delete
+    :and :or := :< :<= :> :>=
+    :between :async :future-get
+    :resolver :eval-on :pull :push :entity})
+
+(def ^:private reserved-names
+  (set (concat
+        special-form-names
+        #{:type :check :unique
+          :immutable :optional :default
+          :expr :query :format :listof
+          :setof :oneof :indexed :write-only
+          :encryption :type-in-store
+          :ref :var :writer
+          :import :clj-import :java-import
+          :v8-import :resolver
+          :Error :Future :DataflowResult})))
+
 (defn- reserved? [x]
-  (some #{x} #{:type :check :unique
-               :immutable :optional :default
-               :expr :query :format :listof
-               :setof :oneof :indexed :write-only
-               :encryption :type-in-store
-               :ref :var :writer :match
-               :import :clj-import :java-import
-               :v8-import :resolver
-               :Error :Future :DataflowResult}))
+  (some #{x} reserved-names))
 
 (defn- capitalized? [s]
   (let [s1 (first s)]
@@ -63,12 +74,6 @@
 
 (def ^:private quote-tag :q#)
 (def ^:private unquote-tag :uq#)
-
-(def ^:private special-form-names
-  #{:match :try :for-each :delete
-    :and :or := :< :<= :> :>=
-    :between :async :future-get
-    :resolver :eval-on :pull :push :entity})
 
 (defn quoted? [x]
   (and (vector? x)

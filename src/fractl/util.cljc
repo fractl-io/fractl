@@ -223,3 +223,8 @@
        true
        (catch Exception ex
          false))))
+
+(defn string-as-keyword [x]
+  (if (string? x)
+    (keyword x)
+    x))
