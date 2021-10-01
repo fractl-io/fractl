@@ -546,10 +546,6 @@
   (attribute (k/event-context-attribute-name)
              (k/event-context-attribute-schema))
 
-  (record :Kernel/DataflowResult
-          {:Pattern :Kernel/Any
-           :Event :Kernel/Event
-           :Result :Kernel/Any})
 
   (record :Kernel/Future
           {:Result :Kernel/Any

@@ -481,6 +481,12 @@
 (defn- compile-quoted-list [ctx pat]
   (w/prewalk (partial compile-quoted-expression ctx) pat))
 
+(defn- compile-await [ctx pat]
+  (when-not (= :then (second pat))
+    (u/throw-ex ":await requires :then clause"))
+  (let [async-code (compile-pattern ctx (first pat))]
+    (op/await_ [async-code (compile-pattern ctx (nth pat 2))])))
+
 (defn- compile-pull [_ pat]
   (op/pull pat))
 
@@ -495,6 +501,7 @@
    :try compile-try
    :for-each compile-for-each
    :delete compile-delete
+   :await compile-await
    :pull compile-pull
    :push compile-push
    :entity compile-entity-definition})

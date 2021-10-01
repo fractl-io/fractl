@@ -1041,18 +1041,6 @@
 (defn kernel-resolver-name? [n]
   (= :Kernel/Resolver n))
 
-(defn as-df-result
-  "Return the result of a dataflow evaluation as an instance
-  of :DataflowResult. `pat` is the event pattern attached to the
-  dataflow. `evt` is the instance of the event that triggered the evaluation.
-  `result` is the value of evaluation."
-  [result pat evt]
-  (make-instance
-   :Kernel/DataflowResult
-   {:Pattern pat
-    :Event evt
-    :Result result} false))
-
 (defn tag? [k]
   (or (= k name-key)
       (= k type-tag-key)))

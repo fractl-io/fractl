@@ -13,7 +13,10 @@
             [fractl.evaluator.internal :as i]
             [fractl.lang :as ln]
             [fractl.lang.opcode :as opc]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            #?(:clj [clojure.core.async :refer [go <!]])
+            #?(:cljs [cljs.core.async :refer [<!]]))
+  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
 (defn- assoc-fn-attributes [env raw-obj fns]
   (loop [fns fns, raw-obj raw-obj]
@@ -624,6 +627,18 @@
         (if h
           (eval-opcode self (or (:env result) env) h)
           result)))
+
+    (do-await_ [self env [body continuation]]
+      (do
+        (go
+          (let [obj (eval-opcode self env body)
+                r (if (or (map? obj) (vector? obj))
+                    obj
+                    (<! obj))]
+            ;; TODO: implement proper interpretation of obj
+            ;; TODO: intern r into env, if that's required
+            (eval-opcode self env continuation)))
+        (i/ok [:await :ok] env)))
 
     (do-for-each [self env [bind-pattern-code elem-alias body-code result-alias]]
       (let [result (eval-opcode self env bind-pattern-code)]

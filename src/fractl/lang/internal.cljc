@@ -22,8 +22,8 @@
 (def ^:private special-form-names
   #{:match :try :for-each :delete
     :and :or := :< :<= :> :>=
-    :between :async :future-get
-    :resolver :eval-on :pull :push :entity})
+    :between :await :resolver
+    :pull :push :entity})
 
 (def ^:private reserved-names
   (set (concat
@@ -35,8 +35,7 @@
           :encryption :type-in-store
           :ref :var :writer
           :import :clj-import :java-import
-          :v8-import :resolver
-          :Error :Future :DataflowResult})))
+          :v8-import :resolver :Future})))
 
 (defn- reserved? [x]
   (some #{x} reserved-names))
@@ -311,11 +310,6 @@
 
 (defn unq-name []
   (keyword (gensym)))
-
-(defn async-var-ref? [exp]
-  (and (seqable? exp)
-       (special-form? (first exp))
-       (= :future-get (ffirst exp))))
 
 (defn instance-pattern? [pat]
   (let [ks (keys pat)]

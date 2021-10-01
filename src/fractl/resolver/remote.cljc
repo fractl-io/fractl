@@ -10,21 +10,18 @@
     (str (name component) "/" (name event-type) "_" (name inst-name))))
 
 (defn- response-handler [response]
-  (let [status (:status response)]
-    (if (< 199 status 299)
-      (:body
-       #?(:clj
-          (assoc response :body ((uh/decoder format) (:body response)))
-          :cljs response))
-      (u/throw-ex (str "remote resolver error - " response)))))
+  (if (map? response)
+    (let [status (:status response)]
+      (if (< 199 status 299)
+        #?(:clj
+           ((uh/decoder format) (:body response))
+           :cljs (:body response))
+        (u/throw-ex (str "remote resolver error - " response))))
+    response))
 
 (defn- do-post
   ([url options request-obj format]
-   (let [options #?(:clj options
-                    :cljs (assoc options :cljs-response-handler response-handler))
-         response (uh/do-post
-                   url options request-obj format)]
-     (response-handler response)))
+   (response-handler (uh/do-post url options request-obj format)))
   ([url options request-obj]
    (do-post url options request-obj :transit+json)))
 

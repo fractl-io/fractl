@@ -140,6 +140,10 @@
          (for-each
           [[bind-pattern-code match-alias body-code result-alias]]
           "Execute code for the binding pattern and the iteration.")
+         (await_
+          [[body continuation]]
+          "Evaluate body asynchronously and then evaluate the continuation in an env updated
+           by the result of body")
          (entity-def
           [schema]
           "Define a new entity.")

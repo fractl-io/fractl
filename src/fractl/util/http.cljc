@@ -3,9 +3,7 @@
                :cljs [cljs-http.client :as http])
             #?(:clj [cheshire.core :as json])
             [fractl.util.seq :as us]
-            [fractl.datafmt.transit :as t]
-            #?(:cljs [cljs.core.async :refer [<!]]))
-  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
+            [fractl.datafmt.transit :as t]))
 
 (defn- json-parse-string [s]
   #?(:clj (json/parse-string s true)
@@ -40,8 +38,7 @@
          options (assoc options :headers headers)
          body ((encoder format) request-obj)]
      #?(:clj @(http/post url (assoc options :body body))
-        :cljs (go (let [k (if (= format :transit+json) :transit-params :json-params)
-                        response (<! (http/post url {k body}))]
-                    ((:cljs-response-handler options) response))))))
+        :cljs (let [k (if (= format :transit+json) :transit-params :json-params)]
+                (http/post url {k body})))))
   ([url options request-obj]
    (do-post url options request-obj :json)))
