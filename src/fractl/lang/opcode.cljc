@@ -137,9 +137,6 @@
          (try_
           [[body handlers]]
           "Evaluate body, branch to a handler based on the result")
-         (eval-on
-          [[evt-name df-code]]
-          "Generate function to dispatch a fractl event.")
          (for-each
           [[bind-pattern-code match-alias body-code result-alias]]
           "Execute code for the binding pattern and the iteration.")

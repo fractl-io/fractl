@@ -481,15 +481,6 @@
 (defn- compile-quoted-list [ctx pat]
   (w/prewalk (partial compile-quoted-expression ctx) pat))
 
-(declare compile-dataflow)
-
-(defn- compile-eval-on [ctx pat]
-  (let [evt-name (first pat)
-        eval-pattern (rest pat)]
-    (op/eval-on
-     [evt-name
-      (compile-dataflow ctx evt-name eval-pattern)])))
-
 (defn- compile-pull [_ pat]
   (op/pull pat))
 
@@ -504,7 +495,6 @@
    :try compile-try
    :for-each compile-for-each
    :delete compile-delete
-   :eval-on compile-eval-on
    :pull compile-pull
    :push compile-push
    :entity compile-entity-definition})

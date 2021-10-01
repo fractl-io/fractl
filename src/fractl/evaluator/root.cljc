@@ -625,15 +625,6 @@
           (eval-opcode self (or (:env result) env) h)
           result)))
 
-    (do-eval-on [self env [evt-name df-code]]
-      (let [df-eval (partial eval-dataflow self env)]
-        (i/ok [:dispatch-on
-               evt-name
-               (fn [evt-name evt-body]
-                 (let [evt (cn/make-instance evt-name evt-body)]
-                   (df-eval evt (list evt-name {:opcode (atom df-code)}))))]
-              env)))
-
     (do-for-each [self env [bind-pattern-code elem-alias body-code result-alias]]
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
