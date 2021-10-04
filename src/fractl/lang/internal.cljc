@@ -20,7 +20,7 @@
   (some #{x} oprs))
 
 (defn- reserved? [x]
-  (some #{x} #{:type :check :unique
+  (some #{x} #{:type :check :unique :delete
                :immutable :optional :default
                :expr :query :format :listof
                :setof :oneof :indexed :write-only
