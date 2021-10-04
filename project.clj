@@ -1,4 +1,4 @@
-(defproject fractl-io/fractl "0.1.6"
+(defproject fractl-io/fractl "0.2.0"
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [org.clojure/clojurescript "1.10.773"
                   :exclusions [com.google.code.findbugs/jsr305]]
