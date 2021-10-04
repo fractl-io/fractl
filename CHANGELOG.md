@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.2.0] - 2021-10-04
+-   First customer release!!!
+-   Resolver changes to support nested resolvers
+-   AWS Lambda support
+-   Bug fixes related to timer
 
 ## [0.1.6] - 2021-09-15
 
