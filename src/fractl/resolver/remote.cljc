@@ -21,7 +21,7 @@
 
 (defn- do-post
   ([url options request-obj format]
-   (response-handler (uh/do-post url options request-obj format)))
+   (uh/do-post url options request-obj format response-handler))
   ([url options request-obj]
    (do-post url options request-obj :transit+json)))
 

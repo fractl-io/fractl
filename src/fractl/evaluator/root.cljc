@@ -62,11 +62,48 @@
   (let [path (on-inst cn/instance-name insts)]
     (rg/resolver-for-path resolver path)))
 
+(def ^:private async-result-key :-*async-result*-)
+
+(defn- merge-async-result [inst async-result]
+  (assoc inst async-result-key async-result))
+
+(defn- realize-async-attributes [eval-opcode env code result]
+  (go
+    (let [final-result
+          (cond
+            (map? result)
+            (when-let [a (async-result-key result)]
+              [(merge (dissoc result async-result-key) (<! a))])
+
+            (seqable? result)
+            (loop [xs result, r []]
+              (if-let [x (first xs)]
+                (recur
+                 (rest xs)
+                 (if-let [a (async-result-key x)]
+                   (let [ar (<! a)]
+                     (conj r (if (i/ok? (first ar))
+                               (merge (dissoc x async-result-key) (:result ar))
+                               (dissoc x async-result-key))))
+                   (conj r x)))
+                r))
+
+            :else result)
+          updated-env (env/bind-instances env final-result)]
+      (eval-opcode env code))))
+
+(defn- process-resolver-upsert [resolver method env inst]
+  (if-let [result (:result (method resolver env inst))]
+    (if (map? result)
+      (merge inst result)
+      (merge-async-result inst result))
+    inst))
+
 (defn- call-resolver-upsert [f env resolver composed? data]
   (let [rs (if composed? resolver [resolver])
         insts (if (map? data) [data] data)]
     (mapv (fn [r]
-            (mapv #(merge % (:result (f r env %))) insts))
+            (mapv (partial process-resolver-upsert r f env) insts))
           rs)))
 
 (defn- call-resolver-delete [f env resolver composed? insts]
@@ -631,13 +668,11 @@
     (do-await_ [self env [body continuation]]
       (do
         (go
-          (let [obj (eval-opcode self env body)
-                r (if (or (map? obj) (vector? obj))
-                    obj
-                    (<! obj))]
-            ;; TODO: implement proper interpretation of obj
-            ;; TODO: intern r into env, if that's required
-            (eval-opcode self env continuation)))
+          (let [obj (eval-opcode self env body)]
+            (when (i/ok? obj)
+              (realize-async-attributes
+               (partial eval-opcode self)
+               (:env obj) continuation (:result obj)))))
         (i/ok [:await :ok] env)))
 
     (do-for-each [self env [bind-pattern-code elem-alias body-code result-alias]]

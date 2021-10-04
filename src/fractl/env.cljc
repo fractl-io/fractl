@@ -48,9 +48,14 @@
     env (li/split-path (cn/instance-name instance))
     instance)))
 
-(defn bind-instances [env rec-name instances]
-  (let [env (assoc env rec-name (list))]
-    (su/move-all instances env #(bind-instance %1 rec-name %2))))
+(defn bind-instances
+  ([env rec-name instances]
+   (let [env (assoc env rec-name (list))]
+     (su/move-all instances env #(bind-instance %1 rec-name %2))))
+  ([env instances]
+   (bind-instances
+    env (li/split-path (cn/instance-name (first instances)))
+    instances)))
 
 (def bind-instance-to-alias assoc)
 (def bind-to-alias assoc)

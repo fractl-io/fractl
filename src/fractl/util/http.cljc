@@ -3,7 +3,9 @@
                :cljs [cljs-http.client :as http])
             #?(:clj [cheshire.core :as json])
             [fractl.util.seq :as us]
-            [fractl.datafmt.transit :as t]))
+            [fractl.datafmt.transit :as t]
+            #?(:cljs [cljs.core.async :refer [<!]]))
+  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
 (defn- json-parse-string [s]
   #?(:clj (json/parse-string s true)
@@ -33,12 +35,13 @@
 (def dynamic-eval-prefix "/_dynamic/")
 
 (defn do-post
-  ([url options request-obj format]
+  ([url options request-obj format response-handler]
    (let [headers (assoc (:headers options) "Content-Type" (content-type format))
          options (assoc options :headers headers)
          body ((encoder format) request-obj)]
-     #?(:clj @(http/post url (assoc options :body body))
-        :cljs (let [k (if (= format :transit+json) :transit-params :json-params)]
-                (http/post url {k body})))))
+     #?(:clj (response-handler @(http/post url (assoc options :body body)))
+        :cljs (go
+                (let [k (if (= format :transit+json) :transit-params :json-params)]
+                  (response-handler (<! (http/post url {k body}))))))))
   ([url options request-obj]
-   (do-post url options request-obj :json)))
+   (do-post url options request-obj :json identity)))
