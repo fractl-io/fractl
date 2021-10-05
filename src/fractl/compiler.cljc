@@ -458,14 +458,18 @@
                (assoc final-spec k v)))
       final-spec)))
 
-(defn- compile-try [ctx pat]
+(defn- compile-construct-with-handlers [ctx pat]
   (let [body (compile-pattern ctx (first pat))
         handler-pats (distribute-handler-keys
                       (into {} (map vec (partition 2 (rest pat)))))
         handlers (map (partial compile-try-handler ctx) handler-pats)]
     (when-not (seq handlers)
       (u/throw-ex "proper handlers are required for :try"))
-    (emit-try body (into {} handlers))))
+    [body (into {} handlers)]))
+
+(defn- compile-try [ctx pat]
+  (let [[body handlers] (compile-construct-with-handlers ctx pat)]
+    (emit-try body handlers)))
 
 (defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
@@ -482,10 +486,7 @@
   (w/prewalk (partial compile-quoted-expression ctx) pat))
 
 (defn- compile-await [ctx pat]
-  (when-not (= :then (second pat))
-    (u/throw-ex ":await requires :then clause"))
-  (let [async-code (compile-pattern ctx (first pat))]
-    (op/await_ [async-code (compile-pattern ctx (nth pat 2))])))
+  (op/await_ (compile-construct-with-handlers ctx pat)))
 
 (defn- compile-pull [_ pat]
   (op/pull pat))

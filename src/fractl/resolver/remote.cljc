@@ -44,7 +44,9 @@
   (let [response (do-post
                   (str host uh/query-prefix)
                   options {:Query query})]
-    (first (:body response))))
+    (if (map? response)
+      (first (:body response))
+      response)))
 
 (defn- remote-eval [host options event-inst]
   (do-post (str host uh/dynamic-eval-prefix) options event-inst))

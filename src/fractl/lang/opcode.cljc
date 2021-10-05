@@ -142,8 +142,8 @@
           "Execute code for the binding pattern and the iteration.")
          (await_
           [[body continuation]]
-          "Evaluate body asynchronously and then evaluate the continuation in an env updated
-           by the result of body")
+          "Evaluate body asynchronously and then evaluate the proper handler in the 
+           continuation based on the result, in an updated env")
          (entity-def
           [schema]
           "Define a new entity.")

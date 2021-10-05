@@ -67,7 +67,7 @@
 (defn- merge-async-result [inst async-result]
   (assoc inst async-result-key async-result))
 
-(defn- realize-async-attributes [eval-opcode env code result]
+(defn- realize-async-result [eval-opcode env code result]
   (go
     (let [final-result
           (cond
@@ -85,10 +85,9 @@
                      (conj r (if (i/ok? (first ar))
                                (merge (dissoc x async-result-key) (:result ar))
                                (dissoc x async-result-key))))
-                   (conj r x)))
-                r))
+                   (conj r x)))))
+            :else (<! result))
 
-            :else result)
           updated-env (env/bind-instances env final-result)]
       (eval-opcode env code))))
 
@@ -169,12 +168,12 @@
        component-name))))
 
 (defn- perform-rbac! [env opr recname data]
-  (when-not ((env/rbac-check env)
-             opr recname
-             (if (or (map? data) (string? data))
-               data
-               (first data)))
-    (u/throw-ex (str "no permission to execute " opr " on " recname))))
+  (when-let [f (env/rbac-check env)]
+    (when-not (f opr recname
+                 (if (or (map? data) (string? data))
+                   data
+                   (first data)))
+      (u/throw-ex (str "no permission to execute " opr " on " recname)))))
 
 (defn- chained-crud [store-f res resolver-upsert single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
@@ -269,21 +268,10 @@
           (recur (rest idqs) env rs)))
       [result env])))
 
-(defn- normalize-raw-where-clause [env where-clause]
-  (loop [wcs where-clause, env env, final-wc []]
-    (if-let [wc (first wcs)]
-      (let [[r env] (evaluate-id-result env wc)]
-        (recur (rest wcs) env (conj final-wc r)))
-      [final-wc env])))
-
 (defn- normalize-raw-query [env q]
   (let [[wc env] (let [where-clause (:where q)]
                    (if (seqable? where-clause)
-                     (normalize-raw-where-clause
-                      env
-                      (if (seqable? (first where-clause))
-                        where-clause
-                        [where-clause]))
+                     (evaluate-id-result env where-clause)
                      [where-clause env]))]
     [(assoc q :where wc) env]))
 
@@ -349,14 +337,22 @@
               (query-all env store entity-name (:query q)))))
          env]))))
 
+(defn- maybe-async-channel? [x]
+  (and x (not (seqable? x))))
+
 (defn find-instances [env store entity-name full-query]
   (let [[r env] (find-instances-via-resolvers env entity-name full-query)
-        resolver-result (seq (:result r))
+        x (:result r)
+        ch? (maybe-async-channel? x)
+        resolver-result (if ch? x (seq x))
         [result env] (if resolver-result
                        [resolver-result env]
                        (find-instances-in-store env store entity-name full-query))]
-    (perform-rbac! env :Lookup entity-name result)
-    [result (env/bind-instances env entity-name result)]))
+    (if ch?
+      [result env]
+      (do
+        (perform-rbac! env :Lookup entity-name result)
+        [result (env/bind-instances env entity-name result)]))))
 
 (defn- require-validation? [n]
   (if (or (cn/find-entity-schema n)
@@ -582,10 +578,16 @@
     (do-query-instances [_ env [entity-name queries]]
       (if-let [store (env/get-store env)]
         (if-let [[insts env] (find-instances env store entity-name queries)]
-          (if (seq insts)
+          (cond
+            (maybe-async-channel? insts)
+            (i/ok insts (env/push-obj env entity-name insts))
+
+            (seq insts)
             (i/ok insts (env/mark-all-mint
                          (env/push-obj env entity-name insts)
-                           insts))
+                         insts))
+
+            :else
             (i/not-found entity-name env))
           (i/not-found entity-name env))
         (i/error (str "Invalid query request for " entity-name " - no store specified"))))
@@ -609,7 +611,11 @@
 
     (do-intern-instance [self env [record-name alias]]
       (let [[insts single? env] (pop-instance env record-name)]
-        (if insts
+        (cond
+          (maybe-async-channel? insts)
+          (i/ok insts env)
+
+          insts
           (let [event-eval (partial eval-event-dataflows self)
                 local-result (chained-upsert env event-eval record-name insts)
                 lr (normalize-transitions local-result)]
@@ -620,6 +626,8 @@
                                 env-with-inst)]
                 (i/ok local-result final-env))
               (i/ok local-result env)))
+
+          :else
           (i/not-found record-name env))))
 
     (do-intern-event-instance [self env [record-name alias timeout-ms]]
@@ -668,11 +676,12 @@
     (do-await_ [self env [body continuation]]
       (do
         (go
-          (let [obj (eval-opcode self env body)]
-            (when (i/ok? obj)
-              (realize-async-attributes
-               (partial eval-opcode self)
-               (:env obj) continuation (:result obj)))))
+          (let [result (call-with-exception-as-error
+                        #(eval-opcode self env body))
+                h ((:status result) continuation)]
+            (realize-async-result
+             (partial eval-opcode self)
+             (:env result) h (:result result))))
         (i/ok [:await :ok] env)))
 
     (do-for-each [self env [bind-pattern-code elem-alias body-code result-alias]]
