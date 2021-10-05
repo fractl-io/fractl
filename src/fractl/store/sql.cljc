@@ -10,7 +10,9 @@
     {:query
      (hsql/format {:select [:*]
                    :from [(keyword index-table-name)]
-                   :where where-clause})}))
+                   :where (if (seqable? (first where-clause))
+                            (first where-clause)
+                            where-clause)})}))
 
 (defn- concat-where-clauses [clauses]
   (reduce conj [:and] clauses))
