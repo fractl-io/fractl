@@ -89,7 +89,7 @@
             :else (<! result))
 
           updated-env (env/bind-instances env final-result)]
-      (eval-opcode env code))))
+      (eval-opcode updated-env code))))
 
 (defn- process-resolver-upsert [resolver method env inst]
   (if-let [result (:result (method resolver env inst))]
@@ -375,12 +375,14 @@
    Once an instance is realized, pop it from the stack and bind it to the environment."
   [env record-name]
   (if-let [xs (env/pop-obj env)]
-    (let [[env single? [_ x]] xs
-          objs (if single? [x] x)
-          final-objs (map #(assoc-computed-attributes env record-name %) objs)
-          insts (map (partial validated-instance record-name) final-objs)
-          bindable (if single? (first insts) insts)]
-      [bindable single? env])
+    (let [[env single? [_ x]] xs]
+      (if (maybe-async-channel? x)
+        [x single? env]
+        (let [objs (if single? [x] x)
+              final-objs (map #(assoc-computed-attributes env record-name %) objs)
+              insts (map (partial validated-instance record-name) final-objs)
+              bindable (if single? (first insts) insts)]
+          [bindable single? env])))
     [nil false env]))
 
 (defn- pop-and-intern-instance
@@ -578,17 +580,18 @@
     (do-query-instances [_ env [entity-name queries]]
       (if-let [store (env/get-store env)]
         (if-let [[insts env] (find-instances env store entity-name queries)]
-          (cond
-            (maybe-async-channel? insts)
-            (i/ok insts (env/push-obj env entity-name insts))
+          (do
+            (cond
+              (maybe-async-channel? insts)
+              (i/ok insts (env/push-obj env entity-name insts))
 
-            (seq insts)
-            (i/ok insts (env/mark-all-mint
-                         (env/push-obj env entity-name insts)
-                         insts))
+              (seq insts)
+              (i/ok insts (env/mark-all-mint
+                           (env/push-obj env entity-name insts)
+                           insts))
 
-            :else
-            (i/not-found entity-name env))
+              :else
+              (i/not-found entity-name env)))
           (i/not-found entity-name env))
         (i/error (str "Invalid query request for " entity-name " - no store specified"))))
 
