@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2021-10-04
+-   First customer release!!!
+-   Resolver changes to support nested resolvers
+-   AWS Lambda support
+-   Bug fixes related to timer
+
 ## [0.1.6] - 2021-09-15
 
 -   Fix list attribute bug
@@ -51,7 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.1.6...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.2.0...HEAD
+
+[0.2.0]: https://github.com/fractl-io/fractl/compare/0.1.6...0.2.0
 
 [0.1.6]: https://github.com/fractl-io/fractl/compare/0.1.5...0.1.6
 

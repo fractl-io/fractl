@@ -97,7 +97,8 @@
       inst)))
 
 (defn- timer-delete [inst]
-  (cancel-task! (:Id inst)))
+  (let [[_ id] (first inst)]
+    (cancel-task! id)))
 
 (def ^:private resolver-fns
   {:upsert {:handler timer-upsert}

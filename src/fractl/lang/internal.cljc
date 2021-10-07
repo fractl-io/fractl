@@ -35,7 +35,7 @@
           :encryption :type-in-store
           :ref :var :writer
           :import :clj-import :java-import
-          :v8-import :resolver :Future})))
+          :v8-import :resolver :Future :Error :DataflowResult})))
 
 (defn- reserved? [x]
   (some #{x} reserved-names))
