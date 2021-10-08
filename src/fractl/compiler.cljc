@@ -30,6 +30,9 @@
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
 
+(defn- emit-try [body handlers]
+  (op/try_ [body handlers]))
+
 (def ^:private runtime-env-var '--env--)
 (def ^:private current-instance-var '--inst--)
 
@@ -393,8 +396,12 @@
 (defn- compile-match-cases [ctx cases]
   (loop [cases cases, cases-code []]
     (if-let [[case-pat conseq] (first cases)]
-      (recur (rest cases) (conj cases-code [[(compile-pattern ctx case-pat)]
-                                            [(compile-maybe-pattern-list ctx conseq)]]))
+      (recur
+       (rest cases)
+       (conj
+        cases-code
+        [[(compile-pattern ctx case-pat)]
+         [(compile-maybe-pattern-list ctx conseq)]]))
       cases-code)))
 
 (defn- case-match?
@@ -437,6 +444,33 @@
       (emit-match [match-pat-code] cases-code [alt-code] alias))
     (compile-match-cond ctx pat)))
 
+(defn- compile-try-handler [ctx [k pat]]
+  (when-not (op/result-tag? k)
+    (u/throw-ex (str "invalid try handler " k)))
+  [k (compile-pattern ctx pat)])
+
+(defn- distribute-handler-keys [handler-spec]
+  (loop [hs handler-spec, final-spec {}]
+    (if-let [[k v] (first hs)]
+      (recur (rest hs)
+             (if (vector? k)
+               (reduce #(assoc %1 %2 v) final-spec k)
+               (assoc final-spec k v)))
+      final-spec)))
+
+(defn- compile-construct-with-handlers [ctx pat]
+  (let [body (compile-pattern ctx (first pat))
+        handler-pats (distribute-handler-keys
+                      (into {} (map vec (partition 2 (rest pat)))))
+        handlers (map (partial compile-try-handler ctx) handler-pats)]
+    (when-not (seq handlers)
+      (u/throw-ex "proper handlers are required for :try"))
+    [body (into {} handlers)]))
+
+(defn- compile-try [ctx pat]
+  (let [[body handlers] (compile-construct-with-handlers ctx pat)]
+    (emit-try body handlers)))
+
 (defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
     (emit-delete (li/split-path recname) [id-pat-code])))
@@ -451,14 +485,8 @@
 (defn- compile-quoted-list [ctx pat]
   (w/prewalk (partial compile-quoted-expression ctx) pat))
 
-(declare compile-dataflow)
-
-(defn- compile-eval-on [ctx pat]
-  (let [evt-name (first pat)
-        eval-pattern (rest pat)]
-    (op/eval-on
-     [evt-name
-      (compile-dataflow ctx evt-name eval-pattern)])))
+(defn- compile-await [ctx pat]
+  (op/await_ (compile-construct-with-handlers ctx pat)))
 
 (defn- compile-pull [_ pat]
   (op/pull pat))
@@ -471,9 +499,10 @@
 
 (def ^:private special-form-handlers
   {:match compile-match
+   :try compile-try
    :for-each compile-for-each
    :delete compile-delete
-   :eval-on compile-eval-on
+   :await compile-await
    :pull compile-pull
    :push compile-push
    :entity compile-entity-definition})

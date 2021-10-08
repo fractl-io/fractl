@@ -9,13 +9,19 @@
   (let [[component inst-name] (li/split-path (cn/instance-name inst))]
     (str (name component) "/" (name event-type) "_" (name inst-name))))
 
+(defn- response-handler [response]
+  (if (map? response)
+    (let [status (:status response)]
+      (if (< 199 status 299)
+        #?(:clj
+           ((uh/decoder format) (:body response))
+           :cljs (:body response))
+        (u/throw-ex (str "remote resolver error - " response))))
+    response))
+
 (defn- do-post
   ([url options request-obj format]
-   (let [response (uh/do-post url options request-obj format)
-         status (:status response)]
-     (if (< 199 status 299)
-       (assoc response :body ((uh/decoder format) (:body response)))
-       (u/throw-ex (str "remote resolver error - " response)))))
+   (uh/do-post url options request-obj format response-handler))
   ([url options request-obj]
    (do-post url options request-obj :transit+json)))
 
@@ -38,7 +44,9 @@
   (let [response (do-post
                   (str host uh/query-prefix)
                   options {:Query query})]
-    (first (:body response))))
+    (if (map? response)
+      (first (:body response))
+      response)))
 
 (defn- remote-eval [host options event-inst]
   (do-post (str host uh/dynamic-eval-prefix) options event-inst))

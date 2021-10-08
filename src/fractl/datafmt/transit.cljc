@@ -17,8 +17,11 @@
   #?(:clj
      (let [in (ByteArrayInputStream.
                (.getBytes s "UTF-8"))
-           r (t/reader in :json)]
-       (t/read r))
+           r (t/reader in :json)
+           obj (t/read r)]
+       (if (string? obj) ; quote-tagged object?
+         (decode obj)
+         obj))
      :cljs
      (let [r (t/reader :json)]
        (t/read r s))))

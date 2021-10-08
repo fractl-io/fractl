@@ -253,3 +253,7 @@
 
 (defn public-evaluator [store-config with-query-support]
   (comp filter-public-result (evaluator store-config nil with-query-support)))
+
+(defn query-fn [store]
+  ;; TODO: enrich the environment with rbac check fn
+  (partial r/find-instances env/EMPTY store))

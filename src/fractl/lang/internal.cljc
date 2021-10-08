@@ -19,16 +19,26 @@
 (defn operator? [x]
   (some #{x} oprs))
 
+(def ^:private special-form-names
+  #{:match :try :for-each :delete
+    :and :or := :< :<= :> :>=
+    :between :await :resolver
+    :pull :push :entity})
+
+(def ^:private reserved-names
+  (set (concat
+        special-form-names
+        #{:type :check :unique
+          :immutable :optional :default
+          :expr :query :format :listof
+          :setof :oneof :indexed :write-only
+          :encryption :type-in-store
+          :ref :var :writer
+          :import :clj-import :java-import
+          :v8-import :resolver :Future :Error :DataflowResult})))
+
 (defn- reserved? [x]
-  (some #{x} #{:type :check :unique :delete
-               :immutable :optional :default
-               :expr :query :format :listof
-               :setof :oneof :indexed :write-only
-               :encryption :type-in-store
-               :ref :var :writer :match
-               :import :clj-import :java-import
-               :v8-import :resolver
-               :Error :Future :DataflowResult}))
+  (some #{x} reserved-names))
 
 (defn- capitalized? [s]
   (let [s1 (first s)]
@@ -63,12 +73,6 @@
 
 (def ^:private quote-tag :q#)
 (def ^:private unquote-tag :uq#)
-
-(def ^:private special-form-names
-  #{:match :for-each :delete
-    :and :or := :< :<= :> :>=
-    :between :async :future-get
-    :resolver :eval-on :pull :push :entity})
 
 (defn quoted? [x]
   (and (vector? x)
@@ -306,11 +310,6 @@
 
 (defn unq-name []
   (keyword (gensym)))
-
-(defn async-var-ref? [exp]
-  (and (seqable? exp)
-       (special-form? (first exp))
-       (= :future-get (ffirst exp))))
 
 (defn instance-pattern? [pat]
   (let [ks (keys pat)]

@@ -60,7 +60,7 @@
                  (String.
                   (.bytes body)
                   java.nio.charset.StandardCharsets/UTF_8)))
-          obj-name (li/split-path (first (keys obj)))]
+          obj-name (li/split-path (u/string-as-keyword (first (keys obj))))]
       (if (or (not event-name) (= obj-name event-name))
         [(cn/make-event-instance obj-name (first (vals obj))) nil]
         [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
@@ -96,16 +96,17 @@
       (process-dynamic-eval evaluator n request)
       (bad-request (str "Event not found - " n)))))
 
-(defn- do-query [evaluator request-obj data-fmt]
-  (if (:Query request-obj)
-    (ok (evaluator request-obj) data-fmt)
+(defn- do-query [evaluator query-fn request-obj data-fmt]
+  (if-let [q (:Query request-obj)]
+    (let [result (query-fn (first q) (second q))]
+      (ok (first result) data-fmt))
     (bad-request (str "not a valid query request - " request-obj))))
 
-(defn- process-query [evaluator request]
+(defn- process-query [evaluator query-fn request]
   (try
     (if-let [data-fmt (find-data-format request)]
       (do-query
-       evaluator
+       evaluator query-fn
        ((uh/decoder data-fmt) (String. (.bytes (:body request))))
        data-fmt)
       (bad-request
@@ -134,14 +135,14 @@
      :access-control-allow-methods [:post])))
 
 (defn run-server
-  ([evaluator config]
+  ([[evaluator query-fn] config]
    (h/run-server
     (make-routes
      (partial process-request evaluator)
-     (partial process-query evaluator)
+     (partial process-query evaluator query-fn)
      (partial process-dynamic-eval evaluator nil))
     (if (:thread config)
       config
       (assoc config :thread (+ 1 (u/n-cpu))))))
-  ([evaluator]
-   (run-server evaluator {:port 8080})))
+  ([eval-context]
+   (run-server eval-context {:port 8080})))

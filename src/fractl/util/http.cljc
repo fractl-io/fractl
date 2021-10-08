@@ -35,12 +35,13 @@
 (def dynamic-eval-prefix "/_dynamic/")
 
 (defn do-post
-  ([url options request-obj format]
+  ([url options request-obj format response-handler]
    (let [headers (assoc (:headers options) "Content-Type" (content-type format))
          options (assoc options :headers headers)
          body ((encoder format) request-obj)]
-     #?(:clj @(http/post url (assoc options :body body))
-        :cljs (go (let [response (<! (http/post url {:json-params body}))]
-                    ((:cljs-response-handler options) response))))))
+     #?(:clj (response-handler @(http/post url (assoc options :body body)))
+        :cljs (go
+                (let [k (if (= format :transit+json) :transit-params :json-params)]
+                  (response-handler (<! (http/post url {k body}))))))))
   ([url options request-obj]
-   (do-post url options request-obj :json)))
+   (do-post url options request-obj :json identity)))
