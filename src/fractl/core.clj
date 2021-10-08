@@ -144,7 +144,7 @@
         (init-dynamic-entities! c entity-names schema))))
   (trigger-appinit-event! evaluator (:init-data model)))
 
-(defn- init-runtime! [model components config]
+(defn- init-runtime [model components config]
   (register-resolvers! (:resolvers config))
   (let [store (e/store-from-config (:store config))
         ev (e/public-evaluator store true)]
@@ -153,7 +153,7 @@
     (e/zero-trust-rbac!
      (let [f (:zero-trust-rbac config)]
        (or (nil? f) f)))
-    ev))
+    [ev store]))
 
 (defn run-service [args [model config]]
   (let [[model model-root] (maybe-read-model args)
@@ -164,9 +164,10 @@
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
       (when-let [server-cfg (:service config)]
-        (let [evaluator (init-runtime! model components config)]
+        (let [[evaluator store] (init-runtime model components config)
+              query-fn (e/query-fn store)]
           (log/info (str "Server config - " server-cfg))
-          (h/run-server evaluator server-cfg))))))
+          (h/run-server [evaluator query-fn] server-cfg))))))
 
 (defn read-model-and-config [args options]
   (let [config-file (get options :config)
@@ -223,7 +224,7 @@
                 (let [[config model components] (load-model-from-resource)]
                   (when-not (seq components)
                     (u/throw-ex (str "no components loaded from model " model)))
-                  (init-runtime! model components config))))
+                  (first (init-runtime model components config)))))
         parsed-request (normalize-external-request request)]
     [(h/process-request e parsed-request) e]))
 
