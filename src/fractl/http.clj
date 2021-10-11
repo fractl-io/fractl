@@ -11,6 +11,10 @@
   (:use [compojure.core :only [routes POST GET]]
         [compojure.route :only [not-found]]))
 
+(def entity-event-prefix "/_e/")
+(def query-prefix "/_q/")
+(def dynamic-eval-prefix "/_dynamic/")
+
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
    The map object will be encoded as JSON in the response.
@@ -90,15 +94,18 @@
      (str "unsupported content-type in request - "
           (request-content-type request)))))
 
-(defn- meta-info [component type-names type-schema]
-  (mapv (fn [n] {n (type-schema n)}) (type-names component)))
+(defn- paths-info [component]
+  (mapv (fn [n] {(subs (str n) 1)
+                 {"post" {"parameters" (cn/event-schema n)}}})
+        (cn/event-names component)))
+
+(defn- schemas-info [component]
+  (mapv (fn [n] {n (cn/entity-schema n)})
+        (cn/entity-names component)))
 
 (defn- process-meta-request [request]
-  (let [c (keyword (get-in request [:params :component]))
-        events (meta-info c cn/event-names cn/event-schema)
-        entities (meta-info c cn/entity-names cn/entity-schema)]
-    (ok {:Events events
-         :Entities entities})))
+  (let [c (keyword (get-in request [:params :component]))]
+    (ok {:paths (paths-info c) :schemas (schemas-info c)})))
 
 (defn process-request [evaluator request]
   (let [params (:params request)
@@ -128,10 +135,6 @@
     (catch Exception ex
       (log/exception ex)
       (internal-error (str "Failed to process query request - " (.getMessage ex))))))
-
-(def entity-event-prefix "/_e/")
-(def query-prefix "/_q/")
-(def dynamic-eval-prefix "/_dynamic/")
 
 (defn- make-routes [process-request process-query process-dynamic-eval]
   (let [r (routes
