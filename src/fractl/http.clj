@@ -8,7 +8,7 @@
             [fractl.util.http :as uh]
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
-  (:use [compojure.core :only [routes POST]]
+  (:use [compojure.core :only [routes POST GET]]
         [compojure.route :only [not-found]]))
 
 (defn- response
@@ -31,8 +31,11 @@
    (response {:reason s} 500 data-fmt))
   ([s] (internal-error s :json)))
 
-(defn- ok [obj data-fmt]
-  (response obj 200 data-fmt))
+(defn- ok
+  ([obj data-fmt]
+   (response obj 200 data-fmt))
+  ([obj]
+   (ok obj :json)))
 
 (defn- maybe-remove-read-only-attributes [obj]
   (if (cn/an-instance? obj)
@@ -87,6 +90,16 @@
      (str "unsupported content-type in request - "
           (request-content-type request)))))
 
+(defn- meta-info [component type-names type-schema]
+  (mapv (fn [n] {n (type-schema n)}) (type-names component)))
+
+(defn- process-meta-request [request]
+  (let [c (keyword (get-in request [:params :component]))
+        events (meta-info c cn/event-names cn/event-schema)
+        entities (meta-info c cn/entity-names cn/entity-schema)]
+    (ok {:Events events
+         :Entities entities})))
+
 (defn process-request [evaluator request]
   (let [params (:params request)
         component (keyword (:component params))
@@ -125,7 +138,8 @@
            (POST (str entity-event-prefix ":component/:event") [] process-request)
            (POST query-prefix [] process-query)
            (POST dynamic-eval-prefix [] process-dynamic-eval)
-           (not-found "<p>Resource not found.</p>"))]
+           (GET "/meta/:component" [] process-meta-request)
+           (not-found "<p>Resource not found</p>"))]
     (cors/wrap-cors
      r
      :access-control-allow-origin [#".*"]
