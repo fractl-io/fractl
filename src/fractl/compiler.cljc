@@ -626,3 +626,15 @@
         exp `(fn [~runtime-env-var ~current-instance-var]
                (~(first aval) ~@fexprs))]
     (li/evaluate exp)))
+
+(def ^:private expression-compiler-registry (u/make-cell {}))
+
+(defn register-expression-compiler [tag compile-fn]
+  (u/safe-set
+   expression-compiler-registry
+   (assoc @expression-compiler-registry tag compile-fn)))
+
+(defn expression-compiler [tag]
+  (if-let [c (tag @expression-compiler-registry)]
+    c
+    (u/throw-ex (str tag " - no compiler attached for expression tag"))))
