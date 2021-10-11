@@ -121,12 +121,11 @@
 (def dynamic-eval-prefix "/_dynamic/")
 
 (defn- make-routes [process-request process-query process-dynamic-eval]
-  (let [r (apply
-           routes
-           [(POST (str entity-event-prefix ":component/:event") [] process-request)
-            (POST query-prefix [] process-query)
-            (POST dynamic-eval-prefix [] process-dynamic-eval)
-            (not-found "<p>Resource not found.</p>")])]
+  (let [r (routes
+           (POST (str entity-event-prefix ":component/:event") [] process-request)
+           (POST query-prefix [] process-query)
+           (POST dynamic-eval-prefix [] process-dynamic-eval)
+           (not-found "<p>Resource not found.</p>"))]
     (cors/wrap-cors
      r
      :access-control-allow-origin [#".*"]
