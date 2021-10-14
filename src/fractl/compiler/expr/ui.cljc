@@ -28,14 +28,15 @@
   `(fn [obj#]
      (let [v# (-> obj# .-target .-value)
            inst# (deref (fractl.compiler.expr.ui/state-refer ~'instance))
-           r# ~(if (seq (rest setref))
-                 `(assoc-in inst# ~(vec setref) v#)
-                 `(assoc inst# ~(first setref) v#))]
+           ref# ~setref
+           r# (if (seq (rest ref#))
+                (assoc-in inst# (vec ref#) v#)
+                (assoc inst# (first ref#) v#))]
        (fractl.compiler.expr.ui/state-intern r#))))
 
 (defn- make-setter-exp [attr-names exp]
   (cond
-    (map? exp)
+    (or (map? exp) (li/name? exp))
     (eval-event attr-names exp)
 
     (list? exp)
@@ -63,9 +64,14 @@
       3 (value-setter attr-names parts (nth elem 2))
       (u/throw-ex (str "invalid :set " elem)))))
 
+(defn- fire-event [attr-names elem]
+  (let [code (eval-event attr-names (second elem))]
+    `(fn [] ~code)))
+
 (defn- process-command [attr-names elem]
-  (if (= :set (first elem))
-    (process-set attr-names elem)
+  (case (first elem)
+    :set (process-set attr-names elem)
+    :fire (fire-event attr-names elem)
     (loop [xs elem, result []]
       (if-let [x (first xs)]
         (recur (rest xs) (conj result (process-spec attr-names x)))
