@@ -24,7 +24,7 @@
       {:query (str "SELECT * FROM " table)}
       (let [and-clause (= :and (first where-clause))
             norm-where-clause (if and-clause
-                                (first (rest where-clause))
+                                (rest where-clause)
                                 [where-clause])
             index-tables (set (map #(index-table-name-fn table (second %)) norm-where-clause))]
         (when (and and-clause (> (count index-tables) 1))

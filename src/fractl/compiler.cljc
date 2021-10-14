@@ -117,11 +117,19 @@
      [(first query)]
      (concat [attrname] (mapv query-param-lookup (rest query))))))
 
+(defn- logical-query? [q]
+  (and (seqable? q)
+       (let [f (first q)]
+         (or (= :and f) (= :or f)))))
+
 (defn- query-param-process [[k v]]
-  (cond
-    (i/const-value? v) [k v]
-    (seqable? v) (vec (param-process-seq-query k v))
-    :else [k (query-param-lookup v)]))
+  (if (logical-query? v)
+    (let [opr (first v)]
+      `[~opr ~@(map #(query-param-process [k %]) (rest v))])
+    (cond
+      (i/const-value? v) [k v]
+      (seqable? v) (vec (param-process-seq-query k v))
+      :else [k (query-param-lookup v)])))
 
 (defn- process-query-filter-rule [[_ r]]
   (vec r))
@@ -129,7 +137,7 @@
 (defn- compile-dynamic-entity-query [ctx entity-name query]
   (let [eq (i/expand-query
             entity-name
-            (map query-param-process query))]
+            (mapv query-param-process query))]
     {:compiled-query
      ((ctx/fetch-compile-query-fn ctx)
       {:dynamic true
@@ -148,7 +156,7 @@
         eq (i/expand-query
             entity-name
             (when qp
-              (map query-param-process qp)))]
+              (mapv query-param-process qp)))]
     {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
      :raw-query eq
      :filter (when fp
