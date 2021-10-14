@@ -26,7 +26,8 @@
                 {:A? :I352DtIndex/FindByDateTime.Input}})
      (dataflow :I352DtIndex/FindBetween
                {:I352DtIndex/E
-                {:A? [[:> :I352DtIndex/FindBetween.Start]
+                {:A? [:and
+                      [:> :I352DtIndex/FindBetween.Start]
                       [:< :I352DtIndex/FindBetween.End]]}}))
    (let [dt "2021-12-30T03:30:24"
          r1 (tu/first-result
@@ -150,3 +151,38 @@
            (is (= ["first_name" "last_name" "salary"] (first csv)))
            (doseq [row (rest csv)]
              (is (some #{row} [["robert" "k" "2400"] ["jane" "a" "5600"]]))))))))
+
+(deftest issue-372-range-query
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I372
+     (entity
+      :I372/E
+      {:X {:type :Kernel/Int
+           :indexed true}})
+     (dataflow
+      :I372/Lookup
+      {:I372/E
+       {:X? [:and
+             [:>= :I372/Lookup.A]
+             [:< :I372/Lookup.B]]}}))
+   (let [e1 (tu/first-result
+             {:I372/Upsert_E
+              {:Instance {:I372/E {:X 10}}}})
+         e2 (tu/first-result
+             {:I372/Upsert_E
+              {:Instance {:I372/E {:X 20}}}})
+         r1 (:result
+             (first
+              (e/eval-all-dataflows
+               {:I372/Lookup {:A 10 :B 20}})))
+         r2 (:result
+             (first
+              (e/eval-all-dataflows
+               {:I372/Lookup {:A 10 :B 21}})))]
+     (is (= (count r1) 1))
+     (is (cn/same-instance? e1 (first r1)))
+     (is (= (count r2) 2))
+     (doseq [inst r2]
+       (is (or (cn/same-instance? e1 inst)
+               (cn/same-instance? e2 inst)))))))
