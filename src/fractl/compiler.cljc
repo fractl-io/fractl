@@ -10,7 +10,8 @@
             [fractl.component :as cn]
             [fractl.compiler.rule :as rule]
             [fractl.compiler.validation :as cv]
-            [fractl.compiler.internal :as i]))
+            [fractl.compiler.internal :as i]
+            [fractl.compiler.expr.ui :as uic]))
 
 (def make-context ctx/make)
 
@@ -635,7 +636,7 @@
                (~(first aval) ~@fexprs))]
     (li/evaluate exp)))
 
-(def ^:private expression-compiler-registry (u/make-cell {}))
+(def expression-compiler-registry (u/make-cell {:ui uic/compile-ui-spec}))
 
 (defn register-expression-compiler [tag compile-fn]
   (u/safe-set
