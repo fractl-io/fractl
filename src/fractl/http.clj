@@ -8,8 +8,12 @@
             [fractl.util.http :as uh]
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
-  (:use [compojure.core :only [routes POST]]
+  (:use [compojure.core :only [routes POST GET]]
         [compojure.route :only [not-found]]))
+
+(def entity-event-prefix "/_e/")
+(def query-prefix "/_q/")
+(def dynamic-eval-prefix "/_dynamic/")
 
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
@@ -31,8 +35,11 @@
    (response {:reason s} 500 data-fmt))
   ([s] (internal-error s :json)))
 
-(defn- ok [obj data-fmt]
-  (response obj 200 data-fmt))
+(defn- ok
+  ([obj data-fmt]
+   (response obj 200 data-fmt))
+  ([obj]
+   (ok obj :json)))
 
 (defn- maybe-remove-read-only-attributes [obj]
   (if (cn/an-instance? obj)
@@ -87,6 +94,19 @@
      (str "unsupported content-type in request - "
           (request-content-type request)))))
 
+(defn- paths-info [component]
+  (mapv (fn [n] {(subs (str n) 1)
+                 {"post" {"parameters" (cn/event-schema n)}}})
+        (cn/event-names component)))
+
+(defn- schemas-info [component]
+  (mapv (fn [n] {n (cn/entity-schema n)})
+        (cn/entity-names component)))
+
+(defn- process-meta-request [request]
+  (let [c (keyword (get-in request [:params :component]))]
+    (ok {:paths (paths-info c) :schemas (schemas-info c)})))
+
 (defn process-request [evaluator request]
   (let [params (:params request)
         component (keyword (:component params))
@@ -116,17 +136,13 @@
       (log/exception ex)
       (internal-error (str "Failed to process query request - " (.getMessage ex))))))
 
-(def entity-event-prefix "/_e/")
-(def query-prefix "/_q/")
-(def dynamic-eval-prefix "/_dynamic/")
-
 (defn- make-routes [process-request process-query process-dynamic-eval]
-  (let [r (apply
-           routes
-           [(POST (str entity-event-prefix ":component/:event") [] process-request)
-            (POST query-prefix [] process-query)
-            (POST dynamic-eval-prefix [] process-dynamic-eval)
-            (not-found "<p>Resource not found.</p>")])]
+  (let [r (routes
+           (POST (str entity-event-prefix ":component/:event") [] process-request)
+           (POST query-prefix [] process-query)
+           (POST dynamic-eval-prefix [] process-dynamic-eval)
+           (GET "/meta/:component" [] process-meta-request)
+           (not-found "<p>Resource not found</p>"))]
     (cors/wrap-cors
      r
      :access-control-allow-origin [#".*"]
