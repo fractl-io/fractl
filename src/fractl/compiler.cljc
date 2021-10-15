@@ -643,7 +643,9 @@
    expression-compiler-registry
    (assoc @expression-compiler-registry tag compile-fn)))
 
-(defn expression-compiler [tag]
-  (if-let [c (tag @expression-compiler-registry)]
-    c
-    (u/throw-ex (str tag " - no compiler attached for expression tag"))))
+(defn expression-compiler [n]
+  (let [[a b] (li/split-path n)
+        tag (or b a)]
+    (if-let [c (tag @expression-compiler-registry)]
+      c
+      (u/throw-ex (str tag " - no compiler attached for expression tag")))))

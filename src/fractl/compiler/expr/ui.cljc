@@ -102,11 +102,13 @@
     :else elem))
 
 (defn compile-ui-spec [record-name attributes spec-attr-name spec]
-  (let [code (process-spec (set (keys attributes)) (first (rest spec)))
-        f `(fn [~'env ~'instance]
-             (fn [~'instance]
-               (fn [] ~code)))]
-    (li/evaluate f)))
+  #?(:cljs
+     (let [code (process-spec (set (keys attributes)) (first (rest spec)))
+           f `(fn [~'env ~'instance]
+                (fn [~'instance]
+                  (fn [] ~code)))]
+       (li/evaluate f))
+     :clj (fn [] spec)))
 
 (def ^:private state-db (atom {}))
 
