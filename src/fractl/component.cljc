@@ -1196,3 +1196,29 @@
         rewritten (map (partial rewrite-term loaded-instances) (rest clause))]
     {:from (extract-query-target rewritten)
      :where (concat [opr] (normalize-rewritten rewritten))}))
+
+(def ^:private custom-compiled-records-db (u/make-cell {}))
+
+(defn register-custom-compiled-record [tag recname]
+  (u/call-and-set
+   custom-compiled-records-db
+   (fn []
+     (let [db @custom-compiled-records-db
+           recs (get db tag [])]
+       (assoc db tag (conj recs recname))))))
+
+(defn custom-compiled-records [tag]
+  (get @custom-compiled-records-db tag))
+
+(defn- all-custom-compiled-records [component]
+  (let [db @custom-compiled-records-db]
+    (filter
+     (fn [n]
+       (let [[c _] (li/split-path n)]
+         (= c component)))
+     (flatten (mapv #(% db) (keys db))))))
+
+(defn mundane-entities [component]
+  (let [ns (set (all-custom-compiled-records component))
+        es (set (entity-names component))]
+    (set/difference es ns)))

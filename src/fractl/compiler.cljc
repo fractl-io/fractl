@@ -647,5 +647,5 @@
   (let [[a b] (li/split-path n)
         tag (or b a)]
     (if-let [c (tag @expression-compiler-registry)]
-      c
+      [c tag]
       (u/throw-ex (str tag " - no compiler attached for expression tag")))))
