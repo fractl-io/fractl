@@ -648,4 +648,4 @@
         tag (or b a)]
     (if-let [c (tag @expression-compiler-registry)]
       [c tag]
-      (u/throw-ex (str tag " - no compiler attached for expression tag")))))
+      (u/throw-ex (str tag " - unsupported expression tag")))))
