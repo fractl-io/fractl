@@ -108,7 +108,7 @@
                 (fn [~'instance]
                   (fn [] ~code)))]
        (li/evaluate f))
-     :clj (fn [] spec)))
+     :clj identity))
 
 (def ^:private state-db (atom {}))
 
