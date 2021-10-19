@@ -183,7 +183,14 @@
 
 (defn- query-eval-fn [recname attrs k v]
   ;; TODO: implement the query->fn compilation phase.
-  )
+  (u/throw-ex (str k " - inline compilation for :query not implemented")))
+
+(def ^:private default-expression-compiler [c/compile-attribute-expression nil])
+
+(defn- fetch-expression-compiler [expr]
+  (if (vector? expr)
+    (c/expression-compiler (first expr))
+    default-expression-compiler))
 
 (defn- attref? [n]
   (let [[[_ _] a] (li/ref-as-names n)]
@@ -196,8 +203,10 @@
                  (if (query-pattern? v)
                    (attribute nm {:query (query-eval-fn recname attrs k v)})
                    (if-let [expr (:expr v)]
-                     (attribute nm {:expr (c/compile-attribute-expression
-                                           recname attrs k expr)})
+                     (let [[c tag] (fetch-expression-compiler expr)]
+                       (when tag
+                         (cn/register-custom-compiled-record tag recname))
+                       (attribute nm {:expr (c recname attrs k expr)}))
                      (attribute nm v))))
                (list? v)
                (attribute (fqn (li/unq-name))
