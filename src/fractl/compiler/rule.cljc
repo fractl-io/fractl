@@ -45,7 +45,9 @@
         r (vec (rest parts))
         [a b :as ab] (li/split-path (first parts))
         p (if (and a b) ab (or a b))]
-    `(get-in (~(symbol "-arg-map-") ~p) ~r)))
+    (if (seq r)
+      `(get-in (~(symbol "-arg-map-") ~p) ~r)
+      `(~(symbol "-arg-map-") ~p))))
 
 (defn compile-one-rule-pattern [pat]
   (map
@@ -69,7 +71,7 @@
                    ~@expr
                    (catch Exception ex#
                      (log/error
-                      (str "cannot execute conditional event predicate"
+                      (str "failed to execute conditional event predicate"
                            ex#))
                      nil)))]
     (li/evaluate fexpr)))

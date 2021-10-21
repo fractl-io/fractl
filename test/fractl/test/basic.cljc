@@ -10,7 +10,6 @@
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.evaluator :as e]
-            [fractl.lang.datetime :as dt]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]

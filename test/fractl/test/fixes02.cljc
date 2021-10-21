@@ -186,3 +186,68 @@
      (doseq [inst r2]
        (is (or (cn/same-instance? e1 inst)
                (cn/same-instance? e2 inst)))))))
+
+(deftest issue-377-multi-query
+  (#?(:clj do)
+   (defcomponent :I377
+     (entity
+      :I377/Defect
+      {:SiteLocation :Kernel/String
+       :DefectType :Kernel/String
+       :Timestamp {:type :Kernel/DateTime
+                   :default dt/now
+                   :indexed true}
+       :MarkedAsDeleted {:type :Kernel/Boolean
+                         :default false}})
+
+     (event
+      :I377/GetDefectsByDateAndSiteLocation
+      {:From :Kernel/String
+       :To :Kernel/String
+       :SiteLocation :Kernel/String})
+
+     (dataflow
+      :I377/GetDefectsByDateAndSiteLocation
+      {:I377/Defect
+       {:SiteLocation? [:= :SiteLocation :I377/GetDefectsByDateAndSiteLocation.SiteLocation]
+        :Timestamp? [:and
+                     [:> :I377/GetDefectsByDateAndSiteLocation.From]
+                     [:< :I377/GetDefectsByDateAndSiteLocation.To]]
+        :MarkedAsDeleted? [:= :MarkedAsDeleted false]}}))
+
+   (let [s (dt/now)
+         _ (Thread/sleep 1000)
+         e1 (cn/make-instance
+             {:I377/Defect
+              {:SiteLocation "a"
+               :Timestamp "2021-10-20T11:39:55.539551"
+               :DefectType "fatal"}})
+         er1 (tu/first-result
+              {:I377/Upsert_Defect {:Instance e1}})
+         e2 (cn/make-instance
+             {:I377/Defect
+              {:SiteLocation "b"
+               :Timestamp "2021-10-20T11:39:20.539551"
+               :DefectType "serious"}})
+         er2 (tu/first-result
+              {:I377/Upsert_Defect {:Instance e2}})
+         e3 (cn/make-instance
+             {:I377/Defect
+              {:SiteLocation "b"
+               :DefectType "normal"}})
+         er3 (tu/first-result
+              {:I377/Upsert_Defect {:Instance e3}})
+         e4 (cn/make-instance
+             {:I377/Defect
+              {:SiteLocation "a"
+               :DefectType "fatal"}})
+         er4 (tu/first-result
+              {:I377/Upsert_Defect {:Instance e4}})
+         evt (cn/make-instance
+              {:I377/GetDefectsByDateAndSiteLocation
+               {:From s
+                :To (dt/now)
+                :SiteLocation "b"}})
+         r (:result (first (e/eval-all-dataflows evt)))]
+     (is (= 1 (count r)))
+     (is (= (:Id (first r)) (:Id er3))))))
