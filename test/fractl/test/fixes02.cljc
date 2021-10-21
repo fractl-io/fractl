@@ -209,11 +209,11 @@
      (dataflow
       :I377/GetDefectsByDateAndSiteLocation
       {:I377/Defect
-       {:SiteLocation? [:= :SiteLocation :I377/GetDefectsByDateAndSiteLocation.SiteLocation]
-        :Timestamp? [:and
+       {:Timestamp? [:and
                      [:> :I377/GetDefectsByDateAndSiteLocation.From]
                      [:< :I377/GetDefectsByDateAndSiteLocation.To]]
-        :MarkedAsDeleted? [:= :MarkedAsDeleted false]}}))
+        :SiteLocation? [:= :I377/GetDefectsByDateAndSiteLocation.SiteLocation]
+        :MarkedAsDeleted? [:= false]}}))
 
    (let [s (dt/now)
          _ (Thread/sleep 1000)

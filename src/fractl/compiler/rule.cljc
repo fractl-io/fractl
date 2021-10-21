@@ -49,29 +49,39 @@
       `(get-in (~(symbol "-arg-map-") ~p) ~r)
       `(~(symbol "-arg-map-") ~p))))
 
-(defn compile-one-rule-pattern [pat]
-  (map
-   (fn [p]
-     (cond
-       (li/operator? p) (operator-name p)
-       (li/name? p) (accessor-expression p)
-       (vector? p)
-       (if (li/operator? (first p))
-         (compile-one-rule-pattern p)
-         p)
-       :else p))
-   pat))
+(defn- fix-operands [attr-name pat]
+  (if (<= (count pat) 2)
+    [(first pat) attr-name (second pat)]
+    pat))
+
+(defn compile-one-rule-pattern
+  ([attr-name pat]
+   (map
+    (fn [p]
+      (cond
+        (li/operator? p) (operator-name p)
+        (li/name? p) (accessor-expression p)
+        (vector? p)
+        (if (li/operator? (first p))
+          (compile-one-rule-pattern attr-name (fix-operands attr-name p))
+          p)
+        :else p))
+    pat))
+  ([pat]
+   (compile-one-rule-pattern nil pat)))
 
 (defn compile-rule-pattern
   "Compile the dataflow match pattern into a predicate"
-  [pat]
-  (let [expr (compile-one-rule-pattern [pat])
-        fexpr `(fn [~(symbol "-arg-map-")]
-                 (try
-                   ~@expr
-                   (catch Exception ex#
-                     (log/error
-                      (str "failed to execute conditional event predicate"
-                           ex#))
-                     nil)))]
-    (li/evaluate fexpr)))
+  ([attr-name pat]
+   (let [expr (compile-one-rule-pattern attr-name [pat])
+         fexpr `(fn [~(symbol "-arg-map-")]
+                  (try
+                    ~@expr
+                    (catch Exception ex#
+                      (log/error
+                       (str "failed to execute conditional event predicate"
+                            ex#))
+                      nil)))]
+     (li/evaluate fexpr)))
+  ([pat]
+   (compile-rule-pattern nil pat)))
