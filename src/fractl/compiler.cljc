@@ -132,9 +132,6 @@
       (seqable? v) (vec (param-process-seq-query k v))
       :else [k (query-param-lookup v)])))
 
-(defn- process-query-filter-rule [[_ r]]
-  (vec r))
-
 (defn- compile-dynamic-entity-query [ctx entity-name query]
   (let [eq (i/expand-query
             entity-name
@@ -161,11 +158,14 @@
     {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
      :raw-query eq
      :filter (when fp
-               (rule/compile-rule-pattern
-                (let [rules (map process-query-filter-rule fp)]
-                  (if (= (count rules) 1)
-                    (first rules)
-                    `[:and ~@rules]))))}))
+               (let [rules (mapv
+                            (fn [[k v]]
+                              (rule/compile-rule-pattern
+                               k v))
+                            fp)]
+                 (if (> (count rules) 1)
+                   (fn [x] (u/all-true? rules x))
+                   (first rules))))}))
 
 (defn compile-query [ctx entity-name query]
   (let [q ((if (cn/dynamic-entity? entity-name)

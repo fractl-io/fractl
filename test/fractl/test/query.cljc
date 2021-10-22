@@ -215,7 +215,7 @@
                          :Y? [:< :Y 5]}})
      (dataflow :I255/Q2
                {:I255/E {:X? :I255/Q2.X
-                         :Y? [:or [:> :Y :X] [:= :Y :I255/Q2.Y]]}}))
+                         :Y? [:or [:> :X] [:= :I255/Q2.Y]]}}))
    (let [es [(cn/make-instance :I255/E {:X 10 :Y 4})
              (cn/make-instance :I255/E {:X 10 :Y 6})
              (cn/make-instance :I255/E {:X 10 :Y 3})
