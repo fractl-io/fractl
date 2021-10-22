@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2021-10-22
+
+-   Configurable expression compiler, custom parsers can be attached to tagged :expr attribute values.
+    Immediate use case is supporting declarative UI spec
+-   Bug fixes in query filtering for un-indexed attributes
+
 ## [0.2.0] - 2021-10-04
+
 -   First customer release!!!
 -   Resolver changes to support nested resolvers
 -   AWS Lambda support
@@ -57,7 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.2.1...HEAD
+
+[0.2.1]: https://github.com/fractl-io/fractl/compare/0.2.0...0.2.1
 
 [0.2.0]: https://github.com/fractl-io/fractl/compare/0.1.6...0.2.0
 
