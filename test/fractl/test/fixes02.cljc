@@ -279,10 +279,13 @@
          r1 (tu/first-result
              {:I379/Upsert_E
               {:Instance e}})
-         ;; r2 (tu/first-result
-         ;;     {:I379/Lookup_E
-         ;;      {:Id (:Id e)}})
-         ;; r3 (tu/first-result
-         ;;     {:I379/Q {:X 100}})
-         ]
-     (is (= (:Y r1) 130)))))
+         r2 (tu/first-result
+             {:I379/Lookup_E
+              {:Id (:Id e)}})
+         r3 (tu/first-result
+             {:I379/Q {:X 100}})]
+     (is (= (:Y r1) 130))
+     (is (cn/same-instance? r1 r2))
+     (is (= (:Y r2) 130))
+     (is (cn/same-instance? r1 r3))
+     (is (= (:Y r3) 130)))))

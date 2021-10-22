@@ -97,6 +97,7 @@
 (def create-table p/create-table)
 (def delete-by-id p/delete-by-id)
 (def query-by-id p/query-by-id)
+(def query-by-unique-keys p/query-by-unique-keys)
 (def query-all p/query-all)
 (def do-query p/do-query)
 (def compile-query p/compile-query)
