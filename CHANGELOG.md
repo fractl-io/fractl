@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.1] - 2021-10-22
 
+-   Configurable expression compiler, custom parsers can be attached to tagged :expr attribute values.
+    Immediate use case is supporting declarative UI spec
+-   Bug fixes in query filtering for un-indexed attributes
+
 ## [0.2.0] - 2021-10-04
 
 -   First customer release!!!
