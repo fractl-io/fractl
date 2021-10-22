@@ -296,8 +296,10 @@
   (when (seq result)
     (let [predic #(rule
                    (fn [x]
-                     (or (% x)
-                         (env/lookup-instance (env/bind-instance env %) x))))]
+                     (let [r (% x)]
+                       (if (nil? r)
+                         (env/lookup-instance (env/bind-instance env %) x)
+                         r))))]
       (filter predic result))))
 
 (defn- query-all [env store entity-name query]
