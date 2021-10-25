@@ -26,7 +26,11 @@
       :where [:= (first (:refs r)) ref-val]}
      [rec-name ref-val]]))
 
-(defn- enrich-environment-with-refs [env record-name inst]
+(defn- enrich-environment-with-refs
+  "Find all entity instances referenced (via :ref attribute property)
+  from this instance. Load them into the local environment so that
+  compound attributes of this instance do not see broken reference values."
+  [env record-name inst]
   (let [qs (mapv (fn [[k v]]
                    (make-query-for-ref
                     env (cn/find-attribute-schema v) (k inst)))
