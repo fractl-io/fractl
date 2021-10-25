@@ -319,9 +319,8 @@
   (flatten (map u/apply0 query-fns)))
 
 (defn- query-instances [entity-name query-fns]
-  (let [[id-key json-key] (su/make-result-keys entity-name)
-        results (raw-results query-fns)]
-    (su/results-as-instances entity-name id-key json-key results)))
+  (let [results (raw-results query-fns)]
+    (su/results-as-instances entity-name results)))
 
 (defn query-by-id
   ([query-by-id-statement datasource entity-name query-sql ids]
