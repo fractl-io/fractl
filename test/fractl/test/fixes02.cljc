@@ -251,3 +251,41 @@
          r (:result (first (e/eval-all-dataflows evt)))]
      (is (= 1 (count r)))
      (is (= (:Id (first r)) (:Id er3))))))
+
+(deftest issue-379-compound-query
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I379
+     (entity
+      :I379/P
+      {:A :Kernel/Int})
+     (entity
+      :I379/E
+      {:P {:ref :I379/P.Id}
+       :X {:type :Kernel/Int
+           :indexed true}
+       :Y {:expr '(+ 10 :X :P.A)}})
+     (dataflow
+      :I379/Q
+      {:I379/E {:X? :I379/Q.X}}))
+   (let [p (cn/make-instance
+            {:I379/P {:A 20}})
+         pr (tu/first-result
+             {:I379/Upsert_P {:Instance p}})
+         e (cn/make-instance
+            {:I379/E
+             {:P (:Id pr)
+              :X 100}})
+         r1 (tu/first-result
+             {:I379/Upsert_E
+              {:Instance e}})
+         r2 (tu/first-result
+             {:I379/Lookup_E
+              {:Id (:Id e)}})
+         r3 (tu/first-result
+             {:I379/Q {:X 100}})]
+     (is (= (:Y r1) 130))
+     (is (cn/same-instance? r1 r2))
+     (is (= (:Y r2) 130))
+     (is (cn/same-instance? r1 r3))
+     (is (= (:Y r3) 130)))))

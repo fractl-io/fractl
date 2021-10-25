@@ -105,16 +105,21 @@
                           :Id (str id))]
     (cn/make-instance entity-name parsed-obj)))
 
-(defn results-as-instances [entity-name id-key json-key results]
-  (doall (map (partial result-as-instance entity-name id-key json-key) results)))
-
 (defn make-result-keys [entity-name]
   #?(:clj
-     (let [cn (s/upper-case (name (first entity-name)))
+     (let [entity-name (li/split-path entity-name)
+           cn (s/upper-case (name (first entity-name)))
            e (s/upper-case (name (second entity-name)))]
        [(keyword (str cn "." e "/ID")) (keyword (str cn "." e "/INSTANCE_JSON"))])
      :cljs
      [:Id :instance_json]))
+
+(defn results-as-instances
+  ([entity-name id-key json-key results]
+   (mapv (partial result-as-instance entity-name id-key json-key) results))
+  ([entity-name results]
+   (let [[id-key json-key] (make-result-keys entity-name)]
+     (results-as-instances entity-name id-key json-key results))))
 
 (defn clj->json
   [data]

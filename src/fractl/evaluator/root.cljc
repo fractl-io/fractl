@@ -7,6 +7,7 @@
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.store :as store]
+            [fractl.store.util :as stu]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             [fractl.evaluator.parser :as parser]
@@ -18,6 +19,32 @@
             #?(:cljs [cljs.core.async :refer [<!]]))
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
+(defn- make-query-for-ref [env attr-schema ref-val]
+  (let [r (:ref attr-schema)
+        rec-name [(:component r) (:record r)]]
+    [{:from rec-name
+      :where [:= (first (:refs r)) ref-val]}
+     [rec-name ref-val]]))
+
+(defn- enrich-environment-with-refs
+  "Find all entity instances referenced (via :ref attribute property)
+  from this instance. Load them into the local environment so that
+  compound attributes of this instance do not see broken reference values."
+  [env record-name inst]
+  (let [qs (mapv (fn [[k v]]
+                   (make-query-for-ref
+                    env (cn/find-attribute-schema v) (k inst)))
+                 (cn/ref-attribute-schemas
+                  (cn/fetch-schema record-name)))
+        store (env/get-store env)]
+    (loop [qs qs, env env]
+      (if-let [q (first qs)]
+        (let [c (store/compile-query store (first q))
+              [rec-name ref-val] (second q)
+              rs (store/do-query store (:query c) [ref-val])]
+          (recur (rest qs) (env/bind-instances env (stu/results-as-instances rec-name rs))))
+        env))))
+
 (defn- assoc-fn-attributes [env raw-obj fns]
   (loop [fns fns, raw-obj raw-obj]
     (if-let [[a f] (first fns)]
@@ -25,7 +52,8 @@
       raw-obj)))
 
 (defn- assoc-computed-attributes [env record-name raw-obj]
-  (let [[efns qfns] (cn/all-computed-attribute-fns record-name)
+  (let [env (enrich-environment-with-refs env record-name raw-obj)
+        [efns qfns] (cn/all-computed-attribute-fns record-name)
         f (partial assoc-fn-attributes env)]
     (f (f raw-obj efns) qfns)))
 

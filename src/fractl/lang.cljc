@@ -474,6 +474,13 @@
      attrs :Id
      (cn/canonical-type-name :Id))))
 
+(defn- load-ref-pattern [evt-name evt-ref entity-name attr-name attr-schema]
+  (let [[c _] (li/split-path entity-name)
+        r (:ref attr-schema)]
+    {(li/make-path (:component r) (:record r))
+     {(keyword (str (name (first (:refs r))) "?"))
+      (keyword (str (name c) "/" (name evt-name) "." (name evt-ref) "." (name attr-name)))}}))
+
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
@@ -498,7 +505,13 @@
            entity-name
            (partial entity-event entity-name))
          (event-internal upevt inst-evattrs)
-         (cn/register-dataflow upevt [(crud-event-inst-accessor upevt)])
+         (let [ref-pats (mapv (fn [[k v]]
+                                (load-ref-pattern
+                                 upevt :Instance entity-name k
+                                 (cn/find-attribute-schema v)))
+                              (cn/ref-attribute-schemas
+                               (cn/fetch-schema entity-name)))]
+           (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
          (event-internal delevt id-evattrs)
          (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
          (event-internal lookupevt id-evattrs)
