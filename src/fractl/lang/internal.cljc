@@ -13,7 +13,7 @@
                   :context :expr}
                  :value)))
 
-(def cmpr-oprs [:= :< :> :<= :>=])
+(def cmpr-oprs [:= :< :> :<= :>= :<>])
 (def oprs (concat cmpr-oprs [:not :and :or :between :in]))
 
 (defn operator? [x]
@@ -402,8 +402,10 @@
     on
     (u/throw-ex (str "invalid :on clause - " on))))
 
+(def ^:private query-cmpr-oprs (conj cmpr-oprs :like))
+
 (defn- valid-where-clause? [c]
-  (and (some #{(first c)} cmpr-oprs)
+  (and (some #{(first c)} query-cmpr-oprs)
        (every? #(or (name? %)
                     (literal? %))
                (rest c))

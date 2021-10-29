@@ -21,6 +21,9 @@
   (let [c (compare a b)]
     (or (= c 0) (= c 1))))
 
+(defn neq [a b]
+  (not= 0 (compare a b)))
+
 (defn between [a b x]
   (and (gt x a)
        (lt x b)))
@@ -31,6 +34,7 @@
     :<= 'fractl.compiler.rule/lteq
     :> 'fractl.compiler.rule/gt
     :>= 'fractl.compiler.rule/gteq
+    :<> 'fractl.compiler.rule/neq
     :in 'fractl.compiler.rule/in
     :between 'fractl.compiler.rule/between
     (symbol (name x))))
