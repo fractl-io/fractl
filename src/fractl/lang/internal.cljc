@@ -14,16 +14,19 @@
                  :value)))
 
 (def cmpr-oprs [:= :< :> :<= :>= :<>])
-(def oprs (concat cmpr-oprs [:not :and :or :between :in]))
+(def query-cmpr-oprs (conj cmpr-oprs :like))
+(def oprs (concat query-cmpr-oprs [:not :and :or :between :in]))
 
 (defn operator? [x]
   (some #{x} oprs))
 
 (def ^:private special-form-names
-  #{:match :try :for-each :delete
-    :and :or := :< :<= :> :>=
-    :between :await :resolver
-    :pull :push :entity})
+  (set
+   (concat
+    oprs
+    #{:match :try :for-each :delete
+      :between :await :resolver
+      :pull :push :entity})))
 
 (def ^:private reserved-names
   (set (concat
@@ -401,8 +404,6 @@
           (every? name? on))
     on
     (u/throw-ex (str "invalid :on clause - " on))))
-
-(def ^:private query-cmpr-oprs (conj cmpr-oprs :like))
 
 (defn- valid-where-clause? [c]
   (and (some #{(first c)} query-cmpr-oprs)
