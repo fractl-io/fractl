@@ -309,3 +309,25 @@
     (doseq [r rs4]
       (let [y (:Y r)]
         (some #{y} #{10 11 20 100 101})))))
+
+(deftest like-operator
+  (defcomponent :LikeOpr
+    (entity
+     {:LikeOpr/E
+      {:X {:type :Kernel/String
+           :indexed true}}})
+    (dataflow
+     :LikeOpr/Q
+     {:LikeOpr/E
+      {:X? [:like :LikeOpr/Q.S]}}))
+  (let [e1 (cn/make-instance :LikeOpr/E {:X "hi"})
+        e2 (cn/make-instance :LikeOpr/E {:X "bye"})
+        e3 (cn/make-instance :LikeOpr/E {:X "hello"})
+        [r1 r2 r3] (mapv #(tu/first-result {:LikeOpr/Upsert_E {:Instance %}}) [e1 e2 e3])
+        qrs1 (tu/fresult (e/eval-all-dataflows {:LikeOpr/Q {:S "h%"}}))
+        qrs2 (tu/fresult (e/eval-all-dataflows {:LikeOpr/Q {:S "b%"}}))
+        qrs3 (tu/fresult (e/eval-all-dataflows {:LikeOpr/Q {:S "%ell%"}}))]
+    (doseq [r qrs1]
+      (is (or (cn/same-instance? r1 r) (cn/same-instance? r3 r))))
+    (is (cn/same-instance? (first qrs2) r2))
+    (is (cn/same-instance? (first qrs3) r3))))

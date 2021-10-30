@@ -22,15 +22,15 @@
         where-clause (:where query-pattern)]
     (if (= :* where-clause)
       {:query (str "SELECT * FROM " table)}
-      (let [and-clause (= :and (first where-clause))
-            norm-where-clause (if and-clause
+      (let [logical-clause (some #{(first where-clause)} [:and :or])
+            norm-where-clause (if logical-clause
                                 (rest where-clause)
                                 [where-clause])
             index-tables (set (map #(index-table-name-fn table (second %)) norm-where-clause))]
-        (when (and and-clause (> (count index-tables) 1))
+        (when (and logical-clause (> (count index-tables) 1))
           (u/throw-ex (str "cannot merge multiple indices under an `and` clause - " index-tables)))
         {:id-queries
-         (if and-clause
+         (if logical-clause
            [(select-from-index-table
              (first index-tables)
              (concat-where-clauses norm-where-clause))]
