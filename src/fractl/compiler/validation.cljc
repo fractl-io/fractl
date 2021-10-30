@@ -33,10 +33,7 @@
             (u/throw-ex (str "invalid reference - " [rec-name refs])))))))
   refs)
 
-(def ^:private where-oprs #{:= :< :<= :> :>= :and :or})
-
-(defn- where-opr? [k]
-  (some #{k} where-oprs))
+(def ^:private where-opr? li/operator?)
 
 (defn ensure-where-clause [clause]
   (if (vector? (first clause))
