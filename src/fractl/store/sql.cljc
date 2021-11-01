@@ -8,11 +8,16 @@
   (if (= :Id (keyword (second where-clause)))
     {:result (nth where-clause 2)}
     {:query
-     (hsql/format {:select [:*]
-                   :from [(keyword index-table-name)]
-                   :where (if (seqable? (first where-clause))
-                            (first where-clause)
-                            where-clause)})}))
+     (hsql/format
+      {:select [:*]
+       :from [(keyword index-table-name)]
+       :where
+       (let [f (first where-clause)]
+         (cond
+           (string? f)
+           [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
+           (seqable? f) f
+           :else where-clause))})}))
 
 (defn- concat-where-clauses [clauses]
   (reduce conj [:and] clauses))

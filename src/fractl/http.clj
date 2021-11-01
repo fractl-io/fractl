@@ -118,7 +118,7 @@
 
 (defn- do-query [evaluator query-fn request-obj data-fmt]
   (if-let [q (:Query request-obj)]
-    (let [result (query-fn (first q) (second q))]
+    (let [result (query-fn (li/split-path (:from q)) q)]
       (ok (first result) data-fmt))
     (bad-request (str "not a valid query request - " request-obj))))
 

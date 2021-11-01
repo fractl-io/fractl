@@ -127,7 +127,10 @@
   ([component entity-name]
    (some #{entity-name} (dynamic-entities component)))
   ([full-entity-name]
-   (apply dynamic-entity? (li/split-path full-entity-name))))
+   (let [[c e] (li/split-path full-entity-name)]
+     (if (and c e)
+       (dynamic-entity? c e)
+       (u/throw-ex (str "invalid entity name - " full-entity-name))))))
 
 (def ^:private dynamic-mark-key :-*-dynamic-entity-instance-*-)
 

@@ -3,7 +3,7 @@
 
 (component :Sample.Simple)
 
-(entity {:E1 {:X :Kernel/Int}})
+(entity {:E1 {:X {:type :Kernel/Int :indexed true}}})
 (entity {:E2 {:X :Kernel/Int}})
 
 (entity {:E3 {:A :Kernel/Int
