@@ -134,20 +134,26 @@
 
 (defn- preprocess-query [q]
   (if-let [f (:filters q)]
-    (assoc q :where (mapv filter-as-where-clause f))
+    (assoc
+     (dissoc q :filters)
+     :where
+     (let [r (mapv filter-as-where-clause f)]
+       (if (= 1 (count r))
+         (first r)
+         `[:and ~@r])))
     q))
 
-(defn- do-query [evaluator query-fn request-obj data-fmt]
+(defn do-query [query-fn request-obj data-fmt]
   (if-let [q (preprocess-query (:Query request-obj))]
     (let [result (query-fn (li/split-path (:from q)) q)]
       (ok (first result) data-fmt))
     (bad-request (str "not a valid query request - " request-obj))))
 
-(defn- process-query [evaluator query-fn request]
+(defn- process-query [_ query-fn request]
   (try
     (if-let [data-fmt (find-data-format request)]
       (do-query
-       evaluator query-fn
+       query-fn
        ((uh/decoder data-fmt) (String. (.bytes (:body request))))
        data-fmt)
       (bad-request
