@@ -116,8 +116,29 @@
       (process-dynamic-eval evaluator n request)
       (bad-request (str "Event not found - " n)))))
 
+(defn- like-pattern? [x]
+  ;; For patterns that include the `_` wildcard,
+  ;; the caller should provide an explicit where clause:
+  ;;  {:from :EntityName
+  ;;   :where [:like :AttributeName "pattern%"]}
+  (and (string? x)
+       (s/includes? x "%")))
+
+(defn- filter-as-where-clause [[k v]]
+  (let [n (u/string-as-keyword k)]
+    (cond
+      (vector? v) [(u/string-as-keyword (first v))
+                   n (second v)]
+      (like-pattern? v) [:like n v]
+      :else [:= n v])))
+
+(defn- preprocess-query [q]
+  (if-let [f (:filters q)]
+    (assoc q :where (mapv filter-as-where-clause f))
+    q))
+
 (defn- do-query [evaluator query-fn request-obj data-fmt]
-  (if-let [q (:Query request-obj)]
+  (if-let [q (preprocess-query (:Query request-obj))]
     (let [result (query-fn (li/split-path (:from q)) q)]
       (ok (first result) data-fmt))
     (bad-request (str "not a valid query request - " request-obj))))
