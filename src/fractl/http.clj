@@ -133,14 +133,16 @@
       :else [:= n v])))
 
 (defn- preprocess-query [q]
-  (if-let [f (:filters q)]
-    (assoc
-     (dissoc q :filters)
-     :where
-     (let [r (mapv filter-as-where-clause f)]
-       (if (= 1 (count r))
-         (first r)
-         `[:and ~@r])))
+  (if-let [fls (:filters q)]
+    (let [or-cond (:or fls)
+          f (or or-cond fls)]
+      (assoc
+       (dissoc q :filters)
+       :where
+       (let [r (mapv filter-as-where-clause f)]
+         (if (= 1 (count r))
+           (first r)
+           `[~(if or-cond :or :and) ~@r]))))
     q))
 
 (defn do-query [query-fn request-obj data-fmt]
