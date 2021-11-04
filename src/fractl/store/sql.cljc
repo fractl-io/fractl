@@ -72,13 +72,14 @@
                              "AND ")))
                s))))))
 
-(defn sql-index-type
+(defn attribute-to-sql-type
   ([max-varchar-length bool-type date-time-type attribute-type]
    (case attribute-type
      (:Kernel/String
       :Kernel/Keyword :Kernel/Email
       :Kernel/DateTime :Kernel/Date :Kernel/Time)
      (str "VARCHAR(" max-varchar-length ")")
+
      :Kernel/UUID "UUID"
      :Kernel/Int "INT"
      (:Kernel/Int64 :Kernel/Integer) "BIGINT"
@@ -86,11 +87,11 @@
      :Kernel/Double "DOUBLE"
      :Kernel/Decimal "DECIMAL"
      :Kernel/Boolean bool-type
-     (u/throw-ex (str "type cannot be indexed - " attribute-type))))
+     (u/throw-ex (str "no matching SQL type  - " attribute-type))))
   ([attribute-type]
    #?(:clj
       ;; For postgres
-      (sql-index-type "10485760" "BOOLEAN" "DATE" attribute-type)
-      ;(sql-index-type Integer/MAX_VALUE "BOOLEAN" "DATE" attribute-type)
-      :cljs (sql-index-type (.-MAX_SAFE_INTEGER js/Number) "BOOLEAN" "DATE" attribute-type))
+      (attribute-to-sql-type "10485760" "BOOLEAN" "DATE" attribute-type)
+      ;(attribute-to-sql-type Integer/MAX_VALUE "BOOLEAN" "DATE" attribute-type)
+      :cljs (attribute-to-sql-type (.-MAX_SAFE_INTEGER js/Number) "BOOLEAN" "DATE" attribute-type))
    ))

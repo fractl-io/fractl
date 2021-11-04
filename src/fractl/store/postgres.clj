@@ -136,9 +136,8 @@
          table-names-from-schema fetch-columns-sql
          fetch-pk-columns-sql type-lookup))
       (upsert-instance [_ entity-name instance]
-        (if (or (cn/has-dynamic-entity-flag? instance)
-                (cn/dynamic-entity? entity-name))
-          (db/upsert-dynamic-entity-instance
+        (if (cn/relational-schema?)
+          (db/upsert-relational-entity-instance
            @datasource entity-name instance)
           (db/upsert-instance
            pi/upsert-inst-statement pi/upsert-index-statement
@@ -156,13 +155,13 @@
          pi/query-by-id-statement @datasource
          entity-name unique-keys unique-values))
       (query-all [_ entity-name query]
-        (if (cn/dynamic-entity? entity-name)
-          (db/query-all-dynamic @datasource entity-name query)
+        (if (cn/relational-schema?)
+          (db/query-all-relational @datasource entity-name query)
           (db/query-all @datasource entity-name query)))
       (do-query [_ query params]
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]
-        (if (:dynamic query-pattern)
+        (if (:relational query-pattern)
           (db/compile-to-direct-query (:query query-pattern))
           (db/compile-to-indexed-query query-pattern)))
       (get-reference [_ path refs]))))

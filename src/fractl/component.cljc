@@ -70,8 +70,6 @@
 
 (declare intern-attribute intern-event)
 
-(def dynamic-entities-key :dynamic-entities)
-
 (defn create-component
   "Create a new component with the given name and references to
   the components in the imports list. If a component already exists with
@@ -96,8 +94,7 @@
       ;;              :java java-imports
       ;;              :v8 [v8-imports aliases]}}
       (assoc @components component
-             (merge {:resolver (:resolver spec)
-                     dynamic-entities-key (dynamic-entities-key spec)}
+             (merge {:resolver (:resolver spec)}
                     imports clj-imports java-imports v8-imports))))
   (intern-attribute [component :Id]
                     {:type :Kernel/UUID
@@ -120,30 +117,16 @@
 (defn component-definition [component]
   (find @components component))
 
-(defn dynamic-entities [component]
-  (dynamic-entities-key (second (component-definition component))))
+(def ^:private relational-schema-flag (u/make-cell true))
 
-(defn dynamic-entity?
-  ([component entity-name]
-   (some #{entity-name} (dynamic-entities component)))
-  ([full-entity-name]
-   (let [[c e] (li/split-path full-entity-name)]
-     (if (and c e)
-       (dynamic-entity? c e)
-       (u/throw-ex (str "invalid entity name - " full-entity-name))))))
+(defn document-schema []
+  (u/safe-set relational-schema-flag false))
 
-(def ^:private dynamic-mark-key :-*-dynamic-entity-instance-*-)
+(defn relational-schema []
+  (u/safe-set relational-schema-flag true))
 
-(defn flag-dynamic-entity [record-name instance]
-  (if (dynamic-entity? record-name)
-    (assoc instance dynamic-mark-key true)
-    instance))
-
-(defn has-dynamic-entity-flag? [instance]
-  (dynamic-mark-key instance))
-
-(defn remove-dynamic-entity-flag [instance]
-  (dissoc instance dynamic-mark-key))
+(defn relational-schema? []
+  @relational-schema-flag)
 
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)
@@ -330,7 +313,6 @@
   (when (an-instance? x)
     (dissoc
      x type-tag-key
-     dynamic-mark-key
      name-key dirty-key)))
 
 (defn instance-all-attributes [x]
@@ -1100,8 +1082,6 @@
 (defn- restore-flags [attrs orig-instance]
   (merge
    attrs
-   (when (dynamic-mark-key orig-instance)
-     {dynamic-mark-key true})
    (when (dirty-key orig-instance)
      {dirty-key true})))
 
@@ -1225,3 +1205,8 @@
   (let [ns (set (all-custom-compiled-records component))
         es (set (entity-names component))]
     (set/difference es ns)))
+
+(defn entity-schema-predefined? [entity-name]
+  ;; TODO: Check if entity belongs to a set of
+  ;; entities with manually defined database tables.
+  false)

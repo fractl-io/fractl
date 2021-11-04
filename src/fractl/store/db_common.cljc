@@ -37,6 +37,30 @@
 (def do-query-statement (:do-query-statement store-fns))
 (def validate-ref-statement (:validate-ref-statement store-fns))
 
+(def id-type (sql/attribute-to-sql-type :Kernel/UUID))
+
+(defn- create-relational-table-sql [table-name entity-schema
+                                    indexed-attributes unique-attributes]
+  (concat
+   [(str su/create-table-prefix " " table-name " (Id " id-type " PRIMARY KEY, "
+         (loop [attrs (remove #{:Id} (keys entity-schema)), cols ""]
+           (if-let [a (first attrs)]
+             (let [atype (cn/attribute-type entity-schema a)
+                   sql-type (sql/attribute-to-sql-type atype)
+                   uq (when (some #{a} unique-attributes) "NOT NULL UNIQUE")]
+               (recur
+                (rest attrs)
+                (str cols (name a) " " sql-type " " uq
+                     (when (seq (rest attrs))
+                       ", "))))
+             cols))
+         ")")]
+   (when (seq indexed-attributes)
+     (mapv (fn [attr]
+             (let [n (name attr)]
+               (str "CREATE INDEX " n "_Idx ON " table-name "(" n ")")))
+           indexed-attributes))))
+
 (defn- create-entity-table-sql
   "Given a database-type, entity-table-name and identity-attribute name,
   return the DML statement to create that table."
@@ -87,7 +111,7 @@
 (defn- create-index-table! [connection entity-schema entity-table-name attrname idxattr]
   (let [[tabsql idxsql] (create-index-table-sql
                          entity-table-name attrname
-                         (sql/sql-index-type (cn/attribute-type entity-schema idxattr))
+                         (sql/attribute-to-sql-type (cn/attribute-type entity-schema idxattr))
                          (cn/unique-attribute? entity-schema idxattr))]
     (when-not (and (execute-sql! connection tabsql)
                    (execute-sql! connection idxsql))
@@ -105,6 +129,16 @@
         (cit attrname idxattr)))
     entity-table-name))
 
+(defn- create-relational-table [connection entity-schema table-name
+                                indexed-attrs unique-attributes]
+  (let [sql (create-relational-table-sql
+             table-name entity-schema indexed-attrs
+             unique-attributes)]
+    (println "&&&&&&&&&&&&&&&&&&&&&&&" sql)
+    (if (execute-sql! connection sql)
+      table-name
+      (u/throw-ex (str "Failed to create table for " table-name)))))
+
 (defn- create-db-schema!
   "Create a new schema (a logical grouping of tables), if it does not already exist."
   [connection db-schema-name]
@@ -121,14 +155,23 @@
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
   (let [scmname (su/db-schema-for-component component-name)]
-    (execute-fn! datasource
-               (fn [txn]
-                 (create-db-schema! txn scmname)
-                 (doseq [ename (cn/entity-names component-name)]
-                   (let [tabname (su/table-for-entity ename)
-                         schema (su/find-entity-schema ename)
-                         indexed-attrs (cn/indexed-attributes schema)]
-                     (create-tables! txn schema tabname :Id indexed-attrs)))))
+    (execute-fn!
+     datasource
+     (fn [txn]
+       (create-db-schema! txn scmname)
+       (doseq [ename (cn/entity-names component-name)]
+         (when-not (cn/entity-schema-predefined? ename)
+           (let [tabname (su/table-for-entity ename)
+                 schema (su/find-entity-schema ename)
+                 indexed-attrs (cn/indexed-attributes schema)]
+             (if (cn/relational-schema?)
+               (create-relational-table
+                txn schema tabname
+                indexed-attrs
+                (cn/unique-attributes schema))
+               (create-tables!
+                txn schema tabname :Id
+                indexed-attrs)))))))
     component-name))
 
 (defn drop-schema
@@ -200,7 +243,7 @@
                     ", ")))
       s)))
 
-(defn upsert-dynamic-entity-instance [datasource entity-name instance]
+(defn upsert-relational-entity-instance [datasource entity-name instance]
   (let [tabname (name (second entity-name))
         id-attr (cn/identity-attribute-name entity-name)
         id-attr-nm (name id-attr)
@@ -224,10 +267,8 @@
 (defn upsert-instance
   ([upsert-inst-statement upsert-index-statement datasource
     entity-name instance update-unique-indices?]
-   (if (or (cn/has-dynamic-entity-flag? instance)
-           (cn/dynamic-entity? entity-name))
-     (upsert-dynamic-entity-instance
-      datasource entity-name instance)
+   (if (cn/relational-schema?)
+     (upsert-relational-entity-instance datasource entity-name instance)
      (let [tabname (su/table-for-entity entity-name)
            entity-schema (su/find-entity-schema entity-name)
            all-indexed-attrs (cn/indexed-attributes entity-schema)
@@ -246,13 +287,10 @@
                         upsert-index-statement)))
        instance)))
   ([datasource entity-name instance]
-   (if (or (cn/has-dynamic-entity-flag? instance)
-           (cn/dynamic-entity? entity-name))
-     (upsert-dynamic-entity-instance
-      datasource entity-name instance)
-     (upsert-instance
-      upsert-inst-statement upsert-index-statement
-      datasource entity-name instance true))))
+   (if (cn/relational-schema?)
+     (upsert-relational-entity-instance datasource entity-name instance)
+     (upsert-instance upsert-inst-statement upsert-index-statement
+                      datasource entity-name instance true))))
 
 (defn update-instance
   ([upsert-inst-statement upsert-index-statement datasource entity-name instance]
@@ -342,25 +380,25 @@
      (let [[pstmt params] (do-query-statement conn query-sql query-params)]
        (execute-stmt! conn pstmt params)))))
 
-(defn- row-as-dynamic-entity [entity-name row]
+(defn- row-as-relational-entity [entity-name row]
   (cn/make-instance
    entity-name
    (into {} (map (fn [[k v]] [(second (li/split-path k)) v]) row))))
 
-(defn- dynamic-query-instances [entity-name query-fns]
+(defn- relational-query-instances [entity-name query-fns]
   (let [results (raw-results query-fns)]
-    (mapv (partial row-as-dynamic-entity entity-name) results)))
+    (mapv (partial row-as-relational-entity entity-name) results)))
 
-(defn- query-dynamic-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
+(defn- query-relational-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
   (let [sql (sql/compile-to-direct-query (name (second entity-name)) (map name unique-keys))]
     (when-let [rows (seq (do-query datasource sql (map #(attribute-values %) unique-keys)))]
-      (row-as-dynamic-entity entity-name (first rows)))))
+      (row-as-relational-entity entity-name (first rows)))))
 
 (defn query-by-unique-keys
   "Query the instance by a unique-key value."
   ([query-by-id-statement datasource entity-name unique-keys attribute-values]
-   (if (cn/has-dynamic-entity-flag? attribute-values)
-     (query-dynamic-entity-by-unique-keys
+   (if (cn/relational-schema?)
+     (query-relational-entity-by-unique-keys
       datasource entity-name unique-keys attribute-values)
      (when-not (and (= 1 (count unique-keys)) (= :Id (first unique-keys)))
        (let [ks (filter #(not= :Id %) unique-keys)]
@@ -396,8 +434,8 @@
   ([datasource entity-name query-sql]
    (query-all datasource entity-name query-instances query-sql nil)))
 
-(defn query-all-dynamic [datasource entity-name query]
-  (query-all datasource entity-name dynamic-query-instances
+(defn query-all-relational [datasource entity-name query]
+  (query-all datasource entity-name relational-query-instances
    (first query) (second query)))
 
 (defn- query-pk-columns [conn table-name sql]

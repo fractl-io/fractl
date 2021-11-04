@@ -16,7 +16,7 @@
 
 (defn table-for-entity [entity-name]
   (let [[component-name r] (li/split-path entity-name)]
-    (if (cn/dynamic-entity? entity-name)
+    (if-not (cn/entity-schema-predefined? entity-name)
       (db-ident r)
       (str (db-schema-for-component component-name) "__" (db-ident r)))))
 

@@ -22,9 +22,7 @@
              (li/validate-imports %))
    :clj-import li/validate-clj-imports
    :java-import li/validate-java-imports
-   :v8-import li/validate-clj-imports
-   cn/dynamic-entities-key #(do (every? li/name? %)
-                                %)})
+   :v8-import li/validate-clj-imports})
 
 (defn- validate-component-spec [spec]
   (into
@@ -468,7 +466,7 @@
     (event-internal event-name attrs)))
 
 (defn- maybe-assoc-id [entity-name attrs]
-  (if (cn/dynamic-entity? entity-name)
+  (if (cn/entity-schema-predefined? entity-name)
     attrs
     (assoc
      attrs :Id
