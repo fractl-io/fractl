@@ -238,20 +238,22 @@
                       (= (:Y e) 3)))))))))
 
 (deftest test-unique-date-time
-  (defcomponent :Dt01
-    (entity {:Dt01/E {:Name :Kernel/String
-                      :LastAccountAccess {:type :Kernel/DateTime
-                                                      ;; Disable this for postgres
-                                                      ;:unique true
-                                          }}}))
-  (let [e (cn/make-instance :Dt01/E {:Name "Birkhe" :LastAccountAccess "2018-07-28T12:15:30"})
-        e1 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
-        id (:Id e1)
-        e2 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Lookup_E {:Id id}})))
-        laa (:LastAccountAccess e2)]
-    (is (cn/instance-of? :Dt01/E e2))
-    (is (cn/same-instance? e1 e2))
-    (is (= "2018-07-28T12:15:30" laa))))
+  #?(:clj
+     (do
+       (defcomponent :Dt01
+         (entity {:Dt01/E {:Name :Kernel/String
+                           :LastAccountAccess {:type :Kernel/DateTime
+                                               ;; Disable this for postgres
+                                        ;:unique true
+                                               }}}))
+       (let [e (cn/make-instance :Dt01/E {:Name "Birkhe" :LastAccountAccess "2018-07-28T12:15:30"})
+             e1 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
+             id (:Id e1)
+             e2 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Lookup_E {:Id id}})))
+             laa (:LastAccountAccess e2)]
+         (is (cn/instance-of? :Dt01/E e2))
+         (is (cn/same-instance? e1 e2))
+         (is (= "2018-07-28T12:15:30" laa))))))
 
 (deftest query-in-for-each
   (defcomponent :Qfe
