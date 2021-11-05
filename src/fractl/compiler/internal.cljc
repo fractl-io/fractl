@@ -196,7 +196,7 @@
      clause)))
 
 (defn expand-query [entity-name query-pattern]
-  (let [wildcard? (not query-pattern)
+  (let [wildcard? (not (seq query-pattern))
         qp (when-not wildcard? (mapv process-where-clause query-pattern))
         where-clause (if wildcard?
                        :*
