@@ -1,6 +1,7 @@
 (ns fractl.evaluator.root
   "The default evaluator implementation"
   (:require [clojure.walk :as w]
+            [clojure.set :as set]
             [fractl.env :as env]
             [fractl.async :as a]
             [fractl.component :as cn]
@@ -274,17 +275,21 @@
         (recur (rest rs) env (conj values r)))
       [values env])))
 
-(defn- evaluate-id-query [env store query params running-result]
+(defn- evaluate-id-query [env store query params running-result merge-operator]
   (let [[p env] (evaluate-id-result env params)
-        rs (store/do-query store query p)]
-    [(concat running-result (map su/first-val rs)) env]))
+        rs (store/do-query store query p)
+        all-ids (mapv su/first-val rs)]
+    (if (and (seq running-result) (= :and merge-operator))
+      [(set/intersection (set running-result) (set all-ids)) env]
+      [(concat running-result all-ids) env])))
 
 (defn- evaluate-id-queries
   "Evaluate unique IDs from queries into index tables. Each entry in the sequence id-queries will
    be a map with two possible keys - :result and :query. If there is a :result, that will be
    bound to an ID statically evaluated by the compiler. Otherwise, execute the query and find the ID.
-   Return the final sequence of IDs."
-  [env store id-queries]
+   Return the final sequence of IDs. Merge operator is either :and or :or. This is used to build intersections
+   or unions of ids."
+  [env store id-queries merge-operator]
   (loop [idqs id-queries, env env, result []]
     (if-let [idq (first idqs)]
       (if-let [r (:result idq)]
@@ -292,7 +297,7 @@
           (recur (rest idqs) env (conj result (first obj))))
         (let [query (:query idq)
               [q p] [(first query) (seq (rest query))]
-              [rs env] (evaluate-id-query env store q p result)]
+              [rs env] (evaluate-id-query env store q p result merge-operator)]
           (recur (rest idqs) env rs)))
       [result env])))
 
@@ -357,7 +362,7 @@
       (let [idqs (seq (:id-queries q))
             [id-results env]
             (if idqs
-              (evaluate-id-queries env store idqs)
+              (evaluate-id-queries env store idqs (:merge-opr q))
               [nil env])]
         [(if (seq id-results)
            (filter-results

@@ -239,11 +239,11 @@
 
 (deftest test-unique-date-time
   (defcomponent :Dt01
-    (entity {:Dt01/E {:Name :Kernel/String
-                      :LastAccountAccess {:type :Kernel/DateTime
+                (entity {:Dt01/E {:Name              :Kernel/String
+                                  :LastAccountAccess {:type :Kernel/DateTime
                                                       ;; Disable this for postgres
                                                       ;:unique true
-                                          }}}))
+                                                      }}}))
   (let [e (cn/make-instance :Dt01/E {:Name "Birkhe" :LastAccountAccess "2018-07-28T12:15:30"})
         e1 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
         id (:Id e1)

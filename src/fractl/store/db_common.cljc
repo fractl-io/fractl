@@ -316,11 +316,11 @@
                (map second namevals))]}))
 
 (defn- raw-results [query-fns]
-  (flatten (map u/apply0 query-fns)))
+  (flatten (mapv u/apply0 query-fns)))
 
 (defn- query-instances [entity-name query-fns]
-  (let [results (raw-results query-fns)]
-    (su/results-as-instances entity-name results)))
+   (let [results (raw-results query-fns)]
+     (su/results-as-instances entity-name results)))
 
 (defn query-by-id
   ([query-by-id-statement datasource entity-name query-sql ids]

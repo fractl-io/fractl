@@ -116,17 +116,46 @@
       (process-dynamic-eval evaluator n request)
       (bad-request (str "Event not found - " n)))))
 
-(defn- do-query [evaluator query-fn request-obj data-fmt]
-  (if-let [q (:Query request-obj)]
-    (let [result (query-fn (first q) (second q))]
+(defn- like-pattern? [x]
+  ;; For patterns that include the `_` wildcard,
+  ;; the caller should provide an explicit where clause:
+  ;;  {:from :EntityName
+  ;;   :where [:like :AttributeName "pattern%"]}
+  (and (string? x)
+       (s/includes? x "%")))
+
+(defn- filter-as-where-clause [[k v]]
+  (let [n (u/string-as-keyword k)]
+    (cond
+      (vector? v) [(u/string-as-keyword (first v))
+                   n (second v)]
+      (like-pattern? v) [:like n v]
+      :else [:= n v])))
+
+(defn- preprocess-query [q]
+  (if-let [fls (:filters q)]
+    (let [or-cond (:or fls)
+          f (or or-cond fls)]
+      (assoc
+       (dissoc q :filters)
+       :where
+       (let [r (mapv filter-as-where-clause f)]
+         (if (= 1 (count r))
+           (first r)
+           `[~(if or-cond :or :and) ~@r]))))
+    q))
+
+(defn do-query [query-fn request-obj data-fmt]
+  (if-let [q (preprocess-query (:Query request-obj))]
+    (let [result (query-fn (li/split-path (:from q)) q)]
       (ok (first result) data-fmt))
     (bad-request (str "not a valid query request - " request-obj))))
 
-(defn- process-query [evaluator query-fn request]
+(defn- process-query [_ query-fn request]
   (try
     (if-let [data-fmt (find-data-format request)]
       (do-query
-       evaluator query-fn
+       query-fn
        ((uh/decoder data-fmt) (String. (.bytes (:body request))))
        data-fmt)
       (bad-request

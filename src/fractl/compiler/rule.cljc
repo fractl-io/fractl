@@ -1,6 +1,7 @@
 (ns fractl.compiler.rule
   "Parsing and compilations of the embedded rule language"
-  (:require [fractl.util.logger :as log]
+  (:require [clojure.string :as s]
+            [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             #?(:cljs [cljs.js])))
 
@@ -28,6 +29,11 @@
   (and (gt x a)
        (lt x b)))
 
+(defn like [a b]
+  (let [pat (re-pattern
+             (s/replace b #"\%" "(.+)"))]
+    (re-matches pat a)))
+
 (defn- operator-name [x]
   (case x
     :< 'fractl.compiler.rule/lt
@@ -35,6 +41,7 @@
     :> 'fractl.compiler.rule/gt
     :>= 'fractl.compiler.rule/gteq
     :<> 'fractl.compiler.rule/neq
+    :like 'fractl.compiler.rule/like
     :in 'fractl.compiler.rule/in
     :between 'fractl.compiler.rule/between
     (symbol (name x))))
