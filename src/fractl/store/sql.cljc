@@ -4,20 +4,22 @@
             [honeysql.core :as hsql]
             [fractl.util :as u]))
 
-(defn- select-from-index-table [index-table-name where-clause]
+(defn format-sql [table-name where-clause]
   (if (= :Id (keyword (second where-clause)))
     {:result (nth where-clause 2)}
     {:query
      (hsql/format
-      {:select [:*]
-       :from [(keyword index-table-name)]
-       :where
-       (let [f (first where-clause)]
-         (cond
-           (string? f)
-           [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
-           (seqable? f) f
-           :else where-clause))})}))
+      (let [p {:select [:*]
+               :from [(keyword table-name)]}]
+        (if where-clause
+          (assoc p :where
+                 (let [f (first where-clause)]
+                   (cond
+                     (string? f)
+                     [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
+                     (seqable? f) f
+                     :else where-clause)))
+          p)))}))
 
 (defn- concat-where-clauses [clauses]
   (if (> (count clauses) 1)
@@ -42,7 +44,7 @@
         ;;   (u/throw-ex (str "cannot merge multiple indices under an `and` clause - " index-tables)))
         (let [qs (cond
                    (= (count index-tables) 1)
-                   [(select-from-index-table
+                   [(format-sql
                      (first index-tables)
                      (concat-where-clauses norm-where-clause))]
 
@@ -50,7 +52,7 @@
                    (u/throw-ex (str "cannot match where clause to index tables - " where-clause))
 
                    :else
-                   (mapv #(select-from-index-table %1 %2) index-tables norm-where-clause))]
+                   (mapv #(format-sql %1 %2) index-tables norm-where-clause))]
           {:id-queries qs
            :merge-opr
            (if logical-clause

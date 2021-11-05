@@ -26,7 +26,11 @@
 
 (defn do-query-statement
   ([conn query-sql query-params]
-   (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
+   (let [^PreparedStatement pstmt
+         (jdbc/prepare
+          conn (if (map? query-sql)
+                 (:query query-sql)
+                 [query-sql]))]
      [pstmt query-params]))
   ([conn query-sql]
    (jdbc/prepare conn [query-sql])))

@@ -259,7 +259,7 @@
   (first (filter #(= :Id (first %)) query-attrs)))
 
 (defn- evaluate-id-result [env rs]
-  (loop [rs rs, env env, values []]
+  (loop [rs (if (or (not (seqable? rs)) (string? rs)) [rs] rs), env env, values []]
     (if-let [r (first rs)]
       (if (fn? r)
         (let [x (r env nil)
@@ -340,10 +340,11 @@
     (store/query-all store entity-name query)
 
     :else
-    (store/query-all
-     store entity-name
-     (first query)
-     (mapv #(first (evaluate-id-result env %)) (second query)))))
+    (stu/results-as-instances
+     entity-name
+     (store/do-query
+      store (first query)
+      (first (evaluate-id-result env (second query)))))))
 
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)

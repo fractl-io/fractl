@@ -3,7 +3,6 @@
             [clojure.set :as set]
             [fractl.component :as cn]
             [fractl.util :as u]
-            [fractl.util.seq :as us]
             [fractl.lang.internal :as li]
             [fractl.store.util :as su]
             [fractl.store.sql :as sql]
@@ -58,7 +57,7 @@
    (when (seq indexed-attributes)
      (mapv (fn [attr]
              (let [n (name attr)]
-               (str "CREATE INDEX " n "_Idx ON " table-name "(" n ")")))
+               (str "CREATE INDEX IF NOT EXISTS " n "_Idx ON " table-name "(" n ")")))
            indexed-attributes))))
 
 (defn- create-entity-table-sql
@@ -131,13 +130,13 @@
 
 (defn- create-relational-table [connection entity-schema table-name
                                 indexed-attrs unique-attributes]
-  (let [sql (create-relational-table-sql
-             table-name entity-schema indexed-attrs
-             unique-attributes)]
-    (println "&&&&&&&&&&&&&&&&&&&&&&&" sql)
-    (if (execute-sql! connection sql)
-      table-name
-      (u/throw-ex (str "Failed to create table for " table-name)))))
+  (let [ss (create-relational-table-sql
+            table-name entity-schema indexed-attrs
+            unique-attributes)]
+    (doseq [sql ss]
+      (when-not (execute-sql! connection [sql])
+        (u/throw-ex (str "Failed to execute SQL - " sql))))
+    table-name))
 
 (defn- create-db-schema!
   "Create a new schema (a logical grouping of tables), if it does not already exist."
@@ -231,44 +230,22 @@
 
 (defn- remove-unique-attributes [indexed-attrs entity-schema]
   (if-let [uq-attrs (seq (cn/unique-attributes entity-schema))]
-    (clojure.set/difference (set indexed-attrs) (set uq-attrs))
+    (set/difference (set indexed-attrs) (set uq-attrs))
     indexed-attrs))
 
-(defn- set-excluded-columns [col-names]
-  (loop [cs col-names, s ""]
-    (if-let [c (first cs)]
-      (recur (rest cs)
-             (str s " " c " = EXCLUDED." c
-                  (when (seq (rest cs))
-                    ", ")))
-      s)))
-
-(defn upsert-relational-entity-instance [datasource entity-name instance]
-  (let [tabname (name (second entity-name))
-        id-attr (cn/identity-attribute-name entity-name)
-        id-attr-nm (name id-attr)
-        ks (keys (cn/instance-attributes instance))
-        col-names (map name ks)
-        col-vals (map #(% instance) ks)
-        sql (str "INSERT INTO " tabname "("
-                 (us/join-as-string col-names ", ")
-                 ") VALUES ("
-                 (us/join-as-string (mapv (constantly "?") col-vals) ", ")
-                 ")  ON CONFLICT (" id-attr-nm ") DO UPDATE SET"
-                 (set-excluded-columns
-                  (set/difference (set col-names) #{id-attr-nm})))]
+(defn upsert-relational-entity-instance [upsert-inst-statement datasource entity-name instance]
+  (let [tabname (su/table-for-entity entity-name)]
     (execute-fn!
      datasource
-     #(apply
-       execute-stmt! %
-       (do-query-statement % sql col-vals)))
+     #(let [[pstmt params] (upsert-inst-statement % tabname nil [entity-name instance])]
+        (execute-stmt! % pstmt params)))
     instance))
 
 (defn upsert-instance
   ([upsert-inst-statement upsert-index-statement datasource
     entity-name instance update-unique-indices?]
    (if (cn/relational-schema?)
-     (upsert-relational-entity-instance datasource entity-name instance)
+     (upsert-relational-entity-instance upsert-inst-statement datasource entity-name instance)
      (let [tabname (su/table-for-entity entity-name)
            entity-schema (su/find-entity-schema entity-name)
            all-indexed-attrs (cn/indexed-attributes entity-schema)
@@ -288,7 +265,8 @@
        instance)))
   ([datasource entity-name instance]
    (if (cn/relational-schema?)
-     (upsert-relational-entity-instance datasource entity-name instance)
+     (upsert-relational-entity-instance upsert-inst-statement
+                                        datasource entity-name instance)
      (upsert-instance upsert-inst-statement upsert-index-statement
                       datasource entity-name instance true))))
 
@@ -346,12 +324,17 @@
         namevals (if (= where-clause :*)
                    :*
                    (column-names-and-values where-clause))]
-    {:query [(sql/compile-to-direct-query
-              (name (second (:from query-pattern)))
-              (map first namevals))
+    {:query [(sql/format-sql
+              (su/table-for-entity (:from query-pattern))
+              (when-not (= :* where-clause) where-clause))
              (if (keyword? where-clause)
                where-clause
                (map second namevals))]}))
+
+(defn compile-query [query-pattern]
+  (if (:relational query-pattern)
+    (compile-to-direct-query (:query query-pattern))
+    (compile-to-indexed-query query-pattern)))
 
 (defn- raw-results [query-fns]
   (flatten (mapv u/apply0 query-fns)))
@@ -380,19 +363,13 @@
      (let [[pstmt params] (do-query-statement conn query-sql query-params)]
        (execute-stmt! conn pstmt params)))))
 
-(defn- row-as-relational-entity [entity-name row]
-  (cn/make-instance
-   entity-name
-   (into {} (map (fn [[k v]] [(second (li/split-path k)) v]) row))))
-
 (defn- relational-query-instances [entity-name query-fns]
-  (let [results (raw-results query-fns)]
-    (mapv (partial row-as-relational-entity entity-name) results)))
+  (su/results-as-instances (raw-results query-fns)))
 
 (defn- query-relational-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
-  (let [sql (sql/compile-to-direct-query (name (second entity-name)) (map name unique-keys))]
+  (let [sql (sql/compile-to-direct-query (su/table-for-entity entity-name) (map name unique-keys))]
     (when-let [rows (seq (do-query datasource sql (map #(attribute-values %) unique-keys)))]
-      (row-as-relational-entity entity-name (first rows)))))
+      (su/result-as-instance entity-name (first rows)))))
 
 (defn query-by-unique-keys
   "Query the instance by a unique-key value."

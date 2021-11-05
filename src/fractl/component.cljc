@@ -397,6 +397,9 @@
   (let [scm (find-entity-schema type-name)]
     (first (identity-attributes (:schema scm)))))
 
+(defn same-id? [a b]
+  (= (str (:Id a)) (str (:Id b))))
+
 (defn instance-eq?
   "Return true if both entity instances have the same identity."
   [a b]

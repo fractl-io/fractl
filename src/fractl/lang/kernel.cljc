@@ -41,7 +41,7 @@
      (dt/parse-time s)))
 
 (defn UUID? [s]
-  (if (u/uuid-from-string s) true false))
+  (or (u/uuid-from-string s) (uuid? s)))
 
 (def any-obj? (constantly true))
 

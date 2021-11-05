@@ -4,7 +4,7 @@
             [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
-            [fractl.util :as fu]))
+            [fractl.util :as u]))
 
 (defn db-ident [k]
   (if (keyword? k)
@@ -16,7 +16,7 @@
 
 (defn table-for-entity [entity-name]
   (let [[component-name r] (li/split-path entity-name)]
-    (if-not (cn/entity-schema-predefined? entity-name)
+    (if (cn/entity-schema-predefined? entity-name)
       (db-ident r)
       (str (db-schema-for-component component-name) "__" (db-ident r)))))
 
@@ -68,7 +68,7 @@
 (defn find-entity-schema [entity-name]
   (if-let [scm (cn/entity-schema entity-name)]
     scm
-    (fu/throw-ex (str "schema not found for entity - " entity-name))))
+    (u/throw-ex (str "schema not found for entity - " entity-name))))
 
 (defn table-name->entity
   [tabname] 
@@ -94,23 +94,40 @@
         attrmap (apply assoc {} (interleave attrs (map table-attr->entity-attr attrs)))]
     (set/rename-keys result attrmap)))
 
-(defn result-as-instance [entity-name id-key json-key result]
-  (let [nresult #?(:clj (normalize-result result)
-                   :cljs result)
-        id (id-key nresult)
-        json-str #?(:clj  (String. (json-key nresult))
-                    :cljs (json-key nresult))
-        parsed-obj (assoc #?(:clj (json/parse-string json-str true)
-                             :cljs (js->clj (.parse js/JSON json-str) :keywordize-keys true))
-                          :Id (str id))]
-    (cn/make-instance entity-name parsed-obj)))
+(defn result-as-instance
+  ([entity-name id-key json-key result]
+   (if id-key
+     (let [nresult #?(:clj (normalize-result result)
+                      :cljs result)
+           id (id-key nresult)
+           json-str #?(:clj  (String. (json-key nresult))
+                       :cljs (json-key nresult))
+           parsed-obj (assoc #?(:clj (json/parse-string json-str true)
+                                :cljs (js->clj (.parse js/JSON json-str) :keywordize-keys true))
+                             :Id (str id))]
+       (cn/make-instance entity-name parsed-obj))
+     (let [attr-names (keys (cn/fetch-schema entity-name))]
+       (loop [result-keys (keys result), obj {}]
+         (if-let [rk (first result-keys)]
+           (let [[_ f] (li/split-path rk)
+                 aname (first
+                        (filter
+                         #(= (s/upper-case (name %)) (s/upper-case (name f)))
+                         attr-names))]
+             (if aname
+               (recur (rest result-keys) (assoc obj aname (get result rk)))
+               (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
+           (cn/make-instance entity-name obj))))))
+  ([entity-name result]
+   (result-as-instance entity-name nil nil result)))
 
 (defn make-result-keys [entity-name]
   #?(:clj
      (let [entity-name (li/split-path entity-name)
            cn (s/upper-case (name (first entity-name)))
            e (s/upper-case (name (second entity-name)))]
-       [(keyword (str cn "." e "/ID")) (keyword (str cn "." e "/INSTANCE_JSON"))])
+       [(keyword (str cn "." e "/ID"))
+        (keyword (str cn "." e "/INSTANCE_JSON"))])
      :cljs
      [:Id :instance_json]))
 
@@ -118,7 +135,8 @@
   ([entity-name id-key json-key results]
    (mapv (partial result-as-instance entity-name id-key json-key) results))
   ([entity-name results]
-   (let [[id-key json-key] (make-result-keys entity-name)]
+   (let [[id-key json-key] (when-not (cn/relational-schema?)
+                             (make-result-keys entity-name))]
      (results-as-instances entity-name id-key json-key results))))
 
 (defn clj->json

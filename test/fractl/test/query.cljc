@@ -39,16 +39,19 @@
             (cn/make-instance :Q02/E {:X 9 :Y 3})]
         evts (map #(cn/make-instance :Q02/Upsert_E {:Instance %}) es)
         f (comp first #(:result (first (e/eval-all-dataflows %))))
-        insts (map f evts)
-        ids (map :Id insts)]
+        insts (mapv f evts)
+        ids (mapv :Id insts)]
     (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
     (let [r01 (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}}))
-          r (e/eval-all-dataflows {:Q02/QE02 {:X 10 :Y 100}})
-          r02 (tu/fresult r)]
+          r (e/eval-all-dataflows {:Q02/QE02 {:X 5 :Y 100}})
+          r02 (tu/fresult r)
+          fs01 (:from (:transition r01))
+          ts01 (:to (:transition r01))]
       (is (= 2 (count r01)))
-      (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r01))
+      (is (every? #(and (some #{(:X %)} [10 12]) (some #{(:Y %)} [4 6])) fs01))
+      (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) ts01))
       (is (= 2 (count r02)))
-      (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r02)))))
+      (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) r02)))))
 
 (deftest query-all
   (defcomponent :QueryAll
