@@ -47,7 +47,7 @@
                    [(format-sql
                      (first index-tables)
                      (concat-where-clauses norm-where-clause))]
-
+                   
                    (not= (count index-tables) (count norm-where-clause))
                    (u/throw-ex (str "cannot match where clause to index tables - " where-clause))
 
