@@ -252,7 +252,8 @@
 (deftest compound-attributes-with-default-events
   (defcomponent :CA
     (entity {:CA/E {:A :Kernel/Int
-                    :B {:expr '(* :A 10)}}}))
+                    :B {:type :Kernel/Int
+                        :expr '(* :A 10)}}}))
   (let [e (cn/make-instance :CA/E {:A 20})
         evt {:CA/Upsert_E {:Instance e}}
         r (e/eval-all-dataflows evt)
