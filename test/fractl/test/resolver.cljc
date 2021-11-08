@@ -115,7 +115,11 @@
            {:query
             {:handler
              (fn [arg]
-               (let [where-clause (:where (second arg))
+               (let [where (:where (second arg))
+                     where-clause (if (and (vector? where)
+                                           (= (first where) :and))
+                                    (second where)
+                                    where)
                      wild-card? (= where-clause :*)]
                  (if wild-card?
                    [(cn/make-instance :ResQueryAll/E {:X 1 :N "e01"})

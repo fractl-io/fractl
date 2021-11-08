@@ -259,9 +259,13 @@
   (first (filter #(= :Id (first %)) query-attrs)))
 
 (defn- evaluate-id-result [env rs]
-  (loop [rs (if (or (not (seqable? rs)) (string? rs)) [rs] rs), env env, values []]
+  (loop [rs (if (or (not (seqable? rs)) (string? rs))
+              [rs]
+              rs)
+         env env, values []]
     (if-let [r (first rs)]
-      (if (fn? r)
+      (cond
+        (fn? r)
         (let [x (r env nil)
               [v new-env]
               (if (vector? x)
@@ -271,6 +275,12 @@
            (rest rs)
            new-env
            (conj values v)))
+
+        (vector? r)
+        (let [[v new-env] (evaluate-id-result env r)]
+          (recur (rest rs) new-env (conj values v)))
+
+        :else
         (recur (rest rs) env (conj values r)))
       [values env])))
 
