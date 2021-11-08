@@ -105,7 +105,7 @@
            parsed-obj (assoc #?(:clj (json/parse-string json-str true)
                                 :cljs (js->clj (.parse js/JSON json-str) :keywordize-keys true))
                              :Id (str id))]
-       (cn/make-instance entity-name parsed-obj))
+       (cn/make-instance entity-name parsed-obj false))
      (let [attr-names (keys (cn/fetch-schema entity-name))]
        (loop [result-keys (keys result), obj {}]
          (if-let [rk (first result-keys)]
@@ -121,7 +121,8 @@
             entity-name
             (if-let [id (:Id obj)]
               (assoc obj :Id (str id))
-              obj)))))))
+              obj)
+            false))))))
   ([entity-name result]
    (result-as-instance entity-name nil nil result)))
 

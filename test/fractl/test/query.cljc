@@ -140,7 +140,9 @@
         evt (cn/make-instance
              {:QueryAliasInExpr/AllocateOrderLine
               {:BatchId batch-id :LineId line-id}})
-        r (first (tu/fresult (e/eval-all-dataflows evt)))]
+        r (get-in
+           (first (tu/fresult (e/eval-all-dataflows evt)))
+           [:transition :to])]
     (is (= (:AvailableQty r) 18))))
 
 (deftest idempotent-upsert

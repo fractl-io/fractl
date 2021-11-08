@@ -648,7 +648,11 @@
       (set-obj-attr env attr-name f))
 
     (do-intern-instance [self env [record-name alias]]
-      (let [[insts single? env] (pop-instance env record-name)]
+      (let [[insts single? env] (pop-instance env record-name)
+            scm (cn/ensure-schema record-name)]
+        (doseq [inst insts]
+          (cn/validate-record-attributes
+           record-name (cn/instance-attributes inst) scm))
         (cond
           (maybe-async-channel? insts)
           (i/ok insts env)

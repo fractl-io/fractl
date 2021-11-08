@@ -627,7 +627,7 @@
     (:schema rec)
     (throw-error (str "schema not found for " recname))))
 
-(defn- validate-record-attributes
+(defn validate-record-attributes
   ([recname recattrs schema]
    ;; The :inferred key will be added
    ;; only for inferred events. Do no validate

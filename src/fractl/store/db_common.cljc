@@ -234,6 +234,11 @@
     indexed-attrs))
 
 (defn upsert-relational-entity-instance [upsert-inst-statement datasource entity-name instance]
+  (when (= -1 (:AvailableQty instance))
+    (try
+      (throw (Exception. "ok"))
+      (catch Exception ex
+        (.printStackTrace ex))))
   (let [tabname (su/table-for-entity entity-name)]
     (execute-fn!
      datasource
