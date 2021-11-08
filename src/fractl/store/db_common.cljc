@@ -296,12 +296,13 @@
 
 (defn delete-by-id
   ([delete-by-id-statement delete-index-statement datasource entity-name id]
-   (let [tabname (su/table-for-entity entity-name)
-         entity-schema (su/find-entity-schema entity-name)
-         indexed-attrs (cn/indexed-attributes entity-schema)]
+   (let [tabname (su/table-for-entity entity-name)]
      (transact-fn! datasource
                    (fn [txn]
-                     (delete-indices! txn tabname indexed-attrs id delete-index-statement)
+                     (when-not (cn/relational-schema?)
+                       (let [entity-schema (su/find-entity-schema entity-name)
+                             indexed-attrs (cn/indexed-attributes entity-schema)]
+                         (delete-indices! txn tabname indexed-attrs id delete-index-statement)))
                      (delete-inst! txn tabname id delete-by-id-statement)))
      id))
   ([datasource entity-name id]
