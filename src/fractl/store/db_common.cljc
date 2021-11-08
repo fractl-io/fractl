@@ -1,6 +1,7 @@
 (ns fractl.store.db-common
   (:require [clojure.string :as s]
             [clojure.set :as set]
+            [clojure.walk :as w]
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
@@ -234,11 +235,6 @@
     indexed-attrs))
 
 (defn upsert-relational-entity-instance [upsert-inst-statement datasource entity-name instance]
-  (when (= -1 (:AvailableQty instance))
-    (try
-      (throw (Exception. "ok"))
-      (catch Exception ex
-        (.printStackTrace ex))))
   (let [tabname (su/table-for-entity entity-name)]
     (execute-fn!
      datasource
@@ -320,10 +316,16 @@
    su/index-table-name))
 
 (defn- column-names-and-values [where-clause]
-  (let [conds (if (= :and (first where-clause))
-                (rest where-clause)
-                [where-clause])]
-    (map (fn [c] [(name (second c)) (nth c 2)]) conds)))
+  (let [result (atom [])]
+    (w/prewalk
+     #(do
+        (when (vector? %)
+          (let [f (first %)]
+            (when-not (some #{f} [:and :or])
+              (swap! result conj [(name (second %)) (nth % 2)]))))
+        %)
+     where-clause)
+    @result))
 
 (defn compile-to-direct-query [query-pattern]
   (let [where-clause (:where query-pattern)
@@ -335,7 +337,7 @@
               (when-not (= :* where-clause) where-clause))
              (if (keyword? where-clause)
                where-clause
-               (map second namevals))]}))
+               (mapv second namevals))]}))
 
 (defn compile-query [query-pattern]
   (if (:relational query-pattern)
@@ -356,9 +358,9 @@
     (fn [conn]
       (query-instances
        entity-name
-       (map #(let [[pstmt params] (query-by-id-statement conn query-sql %)]
-               (fn [] (execute-stmt! conn pstmt params)))
-            (set ids))))))
+       (mapv #(let [[pstmt params] (query-by-id-statement conn query-sql %)]
+                (fn [] (execute-stmt! conn pstmt params)))
+             (set ids))))))
   ([datasource entity-name query-sql ids]
    (query-by-id query-by-id-statement datasource entity-name query-sql ids)))
 
@@ -373,8 +375,8 @@
   (su/results-as-instances (raw-results query-fns)))
 
 (defn- query-relational-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
-  (let [sql (sql/compile-to-direct-query (su/table-for-entity entity-name) (map name unique-keys))]
-    (when-let [rows (seq (do-query datasource sql (map #(attribute-values %) unique-keys)))]
+  (let [sql (sql/compile-to-direct-query (su/table-for-entity entity-name) (mapv name unique-keys))]
+    (when-let [rows (seq (do-query datasource sql (mapv #(attribute-values %) unique-keys)))]
       (su/result-as-instance entity-name (first rows)))))
 
 (defn query-by-unique-keys
@@ -388,7 +390,7 @@
          (first
           (filter
            identity
-           (map
+           (mapv
             (fn [k]
               (let [c (compile-to-indexed-query
                        {:from  entity-name
@@ -426,7 +428,7 @@
     (mapv :pg_attribute/attname (execute-stmt! conn pstmt nil))))
 
 (defn- mark-pks [pks schema]
-  (map
+  (mapv
    #(let [colname (:columns/column_name %)]
       (if (some #{colname} pks)
         (assoc % :columns/pk true)

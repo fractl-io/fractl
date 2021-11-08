@@ -651,8 +651,9 @@
       (let [[insts single? env] (pop-instance env record-name)
             scm (cn/ensure-schema record-name)]
         (doseq [inst insts]
-          (cn/validate-record-attributes
-           record-name (cn/instance-attributes inst) scm))
+          (when-let [attrs (cn/instance-attributes inst)]
+            (cn/validate-record-attributes
+             record-name attrs scm)))
         (cond
           (maybe-async-channel? insts)
           (i/ok insts env)
