@@ -225,7 +225,8 @@
     (entity {:Df04/E1 {:A :Kernel/Int}})
     (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
                        :X :Kernel/Int
-                       :Y {:expr '(* :X :AId.A)}}})
+                       :Y {:type :Kernel/Int
+                           :expr '(* :X :AId.A)}}})
     (event {:Df04/PostE2 {:E1 :Df04/E1}}))
   (dataflow :Df04/PostE2
             {:Df04/E2 {:AId :Df04/PostE2.E1.Id
@@ -611,7 +612,7 @@
         lookup-evt (cn/make-instance :Del/Lookup_E {:Id id})
         e02 (first (tu/fresult (e/eval-all-dataflows lookup-evt)))
         del-result (e/eval-all-dataflows {:Del/Delete_E {:Id id}})
-        r01 (second (tu/fresult del-result))
+        r01 (str (second (tu/fresult del-result)))
         r02 (e/eval-all-dataflows lookup-evt)]
     (is (cn/instance-of? :Del/E e01))
     (is (cn/same-instance? e01 e02))

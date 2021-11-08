@@ -117,7 +117,11 @@
              (if aname
                (recur (rest result-keys) (assoc obj aname (get result rk)))
                (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
-           (cn/make-instance entity-name obj))))))
+           (cn/make-instance
+            entity-name
+            (if-let [id (:Id obj)]
+              (assoc obj :Id (str id))
+              obj)))))))
   ([entity-name result]
    (result-as-instance entity-name nil nil result)))
 
