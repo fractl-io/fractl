@@ -2,7 +2,8 @@
   "Support for translating dataflow-query patterns to generic SQL."
   (:require [clojure.string :as str]
             [honeysql.core :as hsql]
-            [fractl.util :as u]))
+            [fractl.util :as u]
+            [fractl.lang.kernel :as k]))
 
 (defn format-sql [table-name where-clause]
   (if (= :Id (keyword (second where-clause)))
@@ -76,20 +77,24 @@
 
 (defn attribute-to-sql-type
   ([max-varchar-length bool-type date-time-type attribute-type]
-   (case attribute-type
-     (:Kernel/String
-      :Kernel/Keyword :Kernel/Email
-      :Kernel/DateTime :Kernel/Date :Kernel/Time)
-     (str "VARCHAR(" max-varchar-length ")")
+   (if-let [root-type (k/find-root-attribute-type attribute-type)]
+     (case root-type
+       (:Kernel/String
+        :Kernel/Keyword :Kernel/Email
+        :Kernel/DateTime :Kernel/Date :Kernel/Time
+        :Kernel/List)
+       (str "VARCHAR(" max-varchar-length ")")
 
-     :Kernel/UUID "UUID"
-     :Kernel/Int "INT"
-     (:Kernel/Int64 :Kernel/Integer) "BIGINT"
-     :Kernel/Float "REAL"
-     :Kernel/Double "DOUBLE"
-     :Kernel/Decimal "DECIMAL"
-     :Kernel/Boolean bool-type
-     (u/throw-ex (str "no matching SQL type  - " attribute-type))))
+       :Kernel/UUID "UUID"
+       :Kernel/Int "INT"
+       (:Kernel/Int64 :Kernel/Integer) "BIGINT"
+       :Kernel/Float "REAL"
+       :Kernel/Double "DOUBLE"
+       :Kernel/Decimal "DECIMAL"
+       :Kernel/Boolean bool-type
+       (u/throw-ex (str "SQL type mapping failed for " attribute-type
+                        ", root type is " root-type)))
+     (str "VARCHAR(" max-varchar-length ")")))
   ([attribute-type]
    #?(:clj
       ;; For postgres

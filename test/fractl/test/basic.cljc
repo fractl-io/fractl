@@ -267,7 +267,8 @@
   (defcomponent :Df041
     (record {:Df041/R {:A :Kernel/Int}})
     (entity {:Df041/E {:X :Kernel/Int
-                       :Y {:expr '(* :X 10)}}})
+                       :Y {:type :Kernel/Int
+                           :expr '(* :X 10)}}})
     (event {:Df041/PostE {:R :Df041/R}}))
   (dataflow :Df041/PostE
             {:Df041/E {:X :Df041/PostE.R.A}})
@@ -1008,12 +1009,12 @@
       :A :Kernel/Int})
     (entity
      :Itc/E
-     {:Values {:listof :Itc/Base}}))
+     {:Vals {:listof :Itc/Base}}))
   (let [v1 (cn/make-instance {:Itc/Child1 {:X 1 :Y 2}})
         v2 (cn/make-instance {:Itc/Child2 {:X 10 :Z 20}})
         v3 (cn/make-instance {:Itc/Child3 {:X 9 :Y 8 :A 7}})
         e (cn/make-instance {:Itc/E
-                             {:Values [v1 v2 v3]}})
+                             {:Vals [v1 v2 v3]}})
         result (first
                 (tu/fresult
                  (e/eval-all-dataflows
@@ -1024,8 +1025,8 @@
     (every? #(or (cn/instance-of? :Itc/Child1 %)
                  (cn/instance-of? :Itc/Child2 %)
                  (cn/instance-of? :Itc/Child3 %))
-            (:Values result))
-    (every? (partial cn/instance-of? :Itc/Base) (:Values result))))
+            (:Vals result))
+    (every? (partial cn/instance-of? :Itc/Base) (:Vals result))))
 
 #?(:clj
    (deftest check-wrong-reference-attribute-use

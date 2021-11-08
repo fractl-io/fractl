@@ -204,7 +204,8 @@
                      (let [[c tag] (fetch-expression-compiler expr)]
                        (when tag
                          (cn/register-custom-compiled-record tag recname))
-                       (attribute nm {:expr (c recname attrs k expr)}))
+                       (attribute nm {:type (:type v)
+                                      :expr (c recname attrs k expr)}))
                      (attribute nm v))))
                (list? v)
                (attribute (fqn (li/unq-name))

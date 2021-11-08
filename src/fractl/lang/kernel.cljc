@@ -107,6 +107,17 @@
 (defn kernel-type? [n]
   (some #{n} type-names))
 
+(defn find-root-attribute-type [n]
+  (if (kernel-type? n)
+    n
+    (when-let [ascm (cn/find-attribute-schema n)]
+      (if (:listof ascm)
+        :Kernel/List
+        (when-let [t (if (map? ascm) (:type ascm) ascm)]
+          (if (kernel-type? t)
+            t
+            (find-root-attribute-type t)))))))
+
 (def type-predicate first)
 (def type-default-value second)
 
