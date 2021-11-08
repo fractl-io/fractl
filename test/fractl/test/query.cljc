@@ -145,8 +145,6 @@
            [:transition :to])]
     (is (= (:AvailableQty r) 18))))
 
-;; TODO: Concurrent write issue in h2, debug and fix this.
-#_
 (deftest idempotent-upsert
   (defcomponent :IdUps
     (entity {:IdUps/E {:X {:type :Kernel/Int

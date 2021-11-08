@@ -27,8 +27,8 @@
           id-attr (cn/identity-attribute-name entity-name)
           id-attr-nm (name id-attr)
           ks (keys (cn/instance-attributes instance))
-          col-names (map name ks)
-          col-vals (map #(% instance) ks)
+          col-names (mapv name ks)
+          col-vals (mapv #(% instance) ks)
           sql (str "INSERT INTO " table-name "("
                  (us/join-as-string col-names ", ")
                  ") VALUES ("

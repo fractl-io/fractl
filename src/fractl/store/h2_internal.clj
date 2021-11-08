@@ -17,8 +17,8 @@
           uk-attrs (cn/unique-attributes (su/find-entity-schema entity-name))
           id-attr-nms (s/join "," (mapv name uk-attrs))
           ks (keys (cn/instance-attributes instance))
-          col-names (map name ks)
-          col-vals (map #(% instance) ks)
+          col-names (mapv name ks)
+          col-vals (mapv #(% instance) ks)
           sql (str "MERGE INTO " table-name "("
                    (us/join-as-string col-names ", ")
                    ") KEY (" id-attr-nms ") VALUES ("

@@ -42,8 +42,8 @@
   (let [t (:transition r)]
     (is t)
     (let [from (:from t), to (:to t)]
-      (is (= from-attr-vals (map #(% from) attr-names)))
-      (is (= to-attr-vals (map #(% to) attr-names))))))
+      (is (= from-attr-vals (mapv #(% from) attr-names)))
+      (is (= to-attr-vals (mapv #(% to) attr-names))))))
 
 (deftest issue-196
   (#?(:clj do
@@ -61,8 +61,8 @@
          evt3 (cn/make-instance {:I196/Upsert_E1 {:Instance e03}})
          e04 (cn/make-instance :I196/E1 {:A 20 :B 40 :C 70})
          evt4 (cn/make-instance {:I196/Upsert_E1 {:Instance e04}})
-         results (map #(first (tu/fresult (e/eval-all-dataflows %)))
-                      [evt1 evt2 evt3 evt4])]
+         results (mapv #(first (tu/fresult (e/eval-all-dataflows %)))
+                       [evt1 evt2 evt3 evt4])]
      (is (cn/instance-of?
           :I196/E1
           (first results)))
@@ -70,7 +70,7 @@
        (a [10 20 30] [10 40 30] (second results))
        (a [10 40 30] [10 60 30] (nth results 2)))
      (is (cn/instance-of? :I196/E1 (nth results 3)))
-     (is (= [20 40 70] (map #(% (nth results 3)) [:A :B :C]))))))
+     (is (= [20 40 70] (mapv #(% (nth results 3)) [:A :B :C]))))))
 
 (deftest issue-206
   (#?(:clj do
@@ -82,18 +82,18 @@
                         :meta {:unique [:A :C]}}}))
    (let [e01 (cn/make-instance :I206/E1 {:A 10 :B 20 :C 30})
          evt1 (cn/make-instance {:I206/Upsert_E1 {:Instance e01}})
-         e02 (cn/make-instance :I206/E1 {:A 10 :C 50} false)
+         e02 (cn/make-instance :I206/E1 {:A 10 :B 0 :C 50})
          evt2 (cn/make-instance {:I206/Upsert_E1 {:Instance e02}})
          e03 (cn/make-instance :I206/E1 {:A 20 :B 60 :C 30})
          evt3 (cn/make-instance {:I206/Upsert_E1 {:Instance e03}})
-         results (map #(first (tu/fresult (e/eval-all-dataflows %)))
-                      [evt1 evt2 evt3])]
+         results (mapv #(first (tu/fresult (e/eval-all-dataflows %)))
+                       [evt1 evt2 evt3])]
      (is (cn/instance-of?
           :I206/E1
           (first results)))
      (let [a (partial assert-transition [:A :B :C])]
-       (a [10 20 30] [10 20 30] (second results))
-       (a [10 20 30] [10 60 30] (nth results 2))))))
+       (a [10 20 30] [10 0 30] (second results))
+       (a [10 0 30] [10 60 30] (nth results 2))))))
 
 (deftest issue-185
   (#?(:clj do

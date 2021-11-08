@@ -62,18 +62,22 @@
            :query
            (str "SELECT * FROM " table " WHERE Id = ?")})))))
 
-(defn compile-to-direct-query [table-name col-names]
-  (let [sql (str "SELECT * FROM " table-name)]
-    (if (= :* col-names)
-      sql
-      (str sql " WHERE "
-           (loop [cs col-names, s ""]
-             (if-let [c (first cs)]
-               (recur (rest cs)
-                      (str s c " = ? "
-                           (when (seq (rest cs))
-                             "AND ")))
-               s))))))
+(defn compile-to-direct-query
+  ([table-name col-names log-opr-tag]
+   (let [sql (str "SELECT * FROM " table-name)
+         logopr (if (= log-opr-tag :and) "AND " "OR ")]
+     (if (= :* col-names)
+       sql
+       (str sql " WHERE "
+            (loop [cs col-names, s ""]
+              (if-let [c (first cs)]
+                (recur (rest cs)
+                       (str s c " = ? "
+                            (when (seq (rest cs))
+                              logopr)))
+                s))))))
+  ([table-name col-names]
+   (compile-to-direct-query table-name col-names :and)))
 
 (defn attribute-to-sql-type
   ([max-varchar-length bool-type date-time-type attribute-type]

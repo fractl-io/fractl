@@ -182,8 +182,8 @@
   (let [f (partial fire-conditional-event event-evaluator env store)]
     (filter
      identity
-     (map #(seq (map (fn [e] (f e %)) (cn/conditional-events %)))
-          insts))))
+     (mapv #(seq (mapv (fn [e] (f e %)) (cn/conditional-events %)))
+           insts))))
 
 (def ^:private inited-components (u/make-cell [:Kernel]))
 
@@ -424,8 +424,8 @@
       (if (maybe-async-channel? x)
         [x single? env]
         (let [objs (if single? [x] x)
-              final-objs (map #(assoc-computed-attributes env record-name %) objs)
-              insts (map (partial validated-instance record-name) final-objs)
+              final-objs (mapv #(assoc-computed-attributes env record-name %) objs)
+              insts (mapv (partial validated-instance record-name) final-objs)
               bindable (if single? (first insts) insts)]
           [bindable single? env])))
     [nil false env]))
@@ -437,8 +437,8 @@
   (if-let [xs (env/pop-obj env)]
     (let [[env single? [_ x]] xs
           objs (if single? [x] x)
-          final-objs (map #(assoc-computed-attributes env record-name %) objs)
-          insts (map (partial validated-instance record-name) final-objs)
+          final-objs (mapv #(assoc-computed-attributes env record-name %) objs)
+          insts (mapv (partial validated-instance record-name) final-objs)
           env (env/bind-instances env record-name insts)
           bindable (if single? (first insts) insts)
           final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]
@@ -558,7 +558,7 @@
    elements-opcode))
 
 (defn- set-flat-list [opcode-eval elements-opcode]
-  (loop [results (map opcode-eval elements-opcode), final-list []]
+  (loop [results (mapv opcode-eval elements-opcode), final-list []]
     (if-let [result (first results)]
       (if-let [r (ok-result result)]
         (recur (rest results) (conj final-list r))
@@ -566,10 +566,10 @@
       final-list)))
 
 (defn- normalize-transitions [xs]
-  (map #(if-let [t (:transition %)]
-          (:to t)
-          %)
-       xs))
+  (mapv #(if-let [t (:transition %)]
+           (:to t)
+           %)
+        xs))
 
 (defn- call-with-exception-as-error [f]
   (try
