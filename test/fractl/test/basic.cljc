@@ -776,7 +776,8 @@
   (defcomponent :EdnAttr
     (entity :EdnAttr/Form {:Title :Kernel/String
                            :X :Kernel/Int
-                           :Y {:expr '(+ :X 10)}
+                           :Y {:type :Kernel/Int
+                               :expr '(+ :X 10)}
                            :View :Kernel/Edn})
     (event :EdnAttr/RenderLoginForm {:Title :Kernel/String
                                      :X :Kernel/Int
@@ -1126,7 +1127,8 @@
        {:Name :Kernel/String
         :Age :Kernel/Int
         :Spec
-        {:expr spec}})
+        {:type :Kernel/Edn
+         :expr spec}})
       (dataflow
        :ExprCompile/ShowForm
        {:ExprCompile/Form
