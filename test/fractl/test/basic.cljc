@@ -212,12 +212,13 @@
     (is (= 300 (:Z result)))
     (let [id (:Id result)
           addevt (cn/make-instance :SelfRef/AddToX {:EId id :Y 10})
-          result (first (tu/fresult (e/eval-all-dataflows addevt)))]
-      (is (cn/instance-of? :SelfRef/E result))
-      (is (u/uuid-from-string (:Id result)))
-      (is (= 110 (:X result)))
-      (is (= 10 (:Y result)))
-      (is (= 1 (:Z result))))))
+          result (first (tu/fresult (e/eval-all-dataflows addevt)))
+          inst (or (get-in result [:transition :to]) result)]
+      (is (cn/instance-of? :SelfRef/E inst))
+      (is (u/uuid-from-string (:Id inst)))
+      (is (= 110 (:X inst)))
+      (is (= 10 (:Y inst)))
+      (is (= 1 (:Z inst))))))
 
 (deftest compound-attributes
   (defcomponent :Df04

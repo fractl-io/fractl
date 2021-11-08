@@ -47,12 +47,14 @@
      (str (random-uuid))))
 
 (defn uuid-from-string [string]
-  (try
-    #?(:clj
-       (java.util.UUID/fromString string)
-       :cljs
-       (uuid string))
-    (catch #?(:clj Exception :cljs :default) _ nil)))
+  (if (uuid? string)
+    string
+    (try
+      #?(:clj
+         (java.util.UUID/fromString string)
+         :cljs
+         (uuid string))
+      (catch #?(:clj Exception :cljs :default) _ nil))))
 
 (defn call-safe [f arg]
   (when f (f arg)))
