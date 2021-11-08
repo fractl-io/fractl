@@ -48,6 +48,6 @@
   (jdbc/execute! conn sql))
 
 (defn execute-stmt! [_ stmt params]
-  (if params
+  (if (and params (not= (first params) :*))
     (jdbc/execute! (jdbcp/set-parameters stmt params))
     (jdbc/execute! stmt)))
