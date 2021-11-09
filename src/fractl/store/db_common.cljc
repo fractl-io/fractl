@@ -319,7 +319,7 @@
   (let [where-clause (:where query-pattern)]
     (sql/format-sql
      (su/table-for-entity (:from query-pattern))
-     (when-not (= :* where-clause) where-clause))))
+     (when (not= :* where-clause) where-clause))))
 
 (defn compile-query [query-pattern]
   (if (cn/relational-schema?)

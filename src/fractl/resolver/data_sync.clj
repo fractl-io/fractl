@@ -125,8 +125,8 @@
         store (es/get-active-store)
         query (store/compile-query
                store
-               {:query {:from entity-name :where :*}})
-        rows (store/query-all store entity-name (:query query))
+               {:from entity-name :where :*})
+        rows (store/query-all store entity-name (first query))
         out-file (:FilePath spec)]
     (spit out-file (instances-to-csv spec rows))
     out-file))
