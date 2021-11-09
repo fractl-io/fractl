@@ -133,14 +133,12 @@
       :else [k (query-param-lookup v)])))
 
 (defn- compile-relational-entity-query [ctx entity-name query]
-  (let [eq (i/expand-query
-            entity-name
-            (mapv query-param-process query))]
+  (let [q (i/expand-query
+           entity-name
+           (mapv query-param-process query))]
     {:compiled-query
-     ((ctx/fetch-compile-query-fn ctx)
-      {:relational true
-       :query eq})
-     :raw-query eq}))
+     ((ctx/fetch-compile-query-fn ctx) q)
+     :raw-query q}))
 
 (defn- compile-entity-query [ctx entity-name query]
   (let [indexed-attrs (set

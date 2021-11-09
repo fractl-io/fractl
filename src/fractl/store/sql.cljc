@@ -6,21 +6,18 @@
             [fractl.lang.kernel :as k]))
 
 (defn format-sql [table-name where-clause]
-  (if (= :Id (keyword (second where-clause)))
-    {:result (nth where-clause 2)}
-    {:query
-     (hsql/format
-      (let [p {:select [:*]
-               :from [(keyword table-name)]}]
-        (if where-clause
-          (assoc p :where
-                 (let [f (first where-clause)]
-                   (cond
-                     (string? f)
-                     [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
-                     (seqable? f) f
-                     :else where-clause)))
-          p)))}))
+  (hsql/format
+   (let [p {:select [:*]
+            :from [(keyword table-name)]}]
+     (if where-clause
+       (assoc p :where
+              (let [f (first where-clause)]
+                (cond
+                  (string? f)
+                  [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
+                  (seqable? f) f
+                  :else where-clause)))
+       p))))
 
 (defn- concat-where-clauses [clauses]
   (if (> (count clauses) 1)

@@ -42,7 +42,7 @@
       (if-let [q (first qs)]
         (let [c (store/compile-query store (first q))
               [rec-name ref-val] (second q)
-              rs (store/do-query store (:query c) [ref-val])]
+              rs (store/do-query store (first c) [ref-val])]
           (recur (rest qs) (env/bind-instances env (stu/results-as-instances rec-name rs))))
         env))))
 
@@ -346,41 +346,46 @@
 
 (defn- query-all [env store entity-name query]
   (cond
+    (vector? query)
+    (let [[params env] (evaluate-id-result env (rest query))]
+      [(stu/results-as-instances
+        entity-name
+        (store/do-query store (first query) params))
+       env])
+
     (or (string? query) (map? query))
-    (store/query-all store entity-name query)
+    [(store/query-all store entity-name query) env]
 
     :else
-    (stu/results-as-instances
-     entity-name
-     (store/do-query
-      store (first query)
-      (first (evaluate-id-result env (second query)))))))
+    (u/throw-ex (str "invalid query object - " query))))
 
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)
-              (store/compile-query store full-query))
-        rule (:filter full-query)
-        filter-results
-        (if rule
-          (partial filter-query-result rule env)
-          identity)]
-    (if (:query-direct q)
-      [(filter-results
-        (store/do-query store (:raw-query full-query)
-                        {:lookup-fn-params [env nil]}))
-       env]
-      (let [idqs (seq (:id-queries q))
-            [id-results env]
-            (if idqs
-              (evaluate-id-queries env store idqs (:merge-opr q))
-              [nil env])]
-        [(if (seq id-results)
-           (filter-results
-            (store/query-by-id store entity-name (:query q) id-results))
-           (when-not idqs
-             (filter-results
-              (query-all env store entity-name (:query q)))))
-         env]))))
+              (store/compile-query store full-query))]
+    (if (cn/relational-schema?)
+      (query-all env store entity-name q)
+      (let [rule (:filter full-query)
+            filter-results
+            (if rule
+              (partial filter-query-result rule env)
+              identity)]
+        (if (:query-direct q)
+          [(filter-results
+            (store/do-query store (:raw-query full-query)
+                            {:lookup-fn-params [env nil]}))
+           env]
+          (let [idqs (seq (:id-queries q))
+                [id-results env]
+                (if idqs
+                  (evaluate-id-queries env store idqs (:merge-opr q))
+                  [nil env])]
+            [(if (seq id-results)
+               (filter-results
+                (store/query-by-id store entity-name (:query q) id-results))
+               (when-not idqs
+                 (filter-results
+                  (query-all env store entity-name (:query q)))))
+             env]))))))
 
 (defn- maybe-async-channel? [x]
   (and x (not (seqable? x))))

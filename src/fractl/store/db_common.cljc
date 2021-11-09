@@ -315,33 +315,15 @@
    su/table-for-entity
    su/index-table-name))
 
-(defn- column-names-and-values [where-clause]
-  (let [result (atom [])]
-    (w/prewalk
-     #(do
-        (when (vector? %)
-          (let [f (first %)]
-            (when-not (some #{f} [:and :or])
-              (swap! result conj [(name (second %)) (nth % 2)]))))
-        %)
-     where-clause)
-    @result))
-
 (defn compile-to-direct-query [query-pattern]
-  (let [where-clause (:where query-pattern)
-        namevals (if (= where-clause :*)
-                   :*
-                   (column-names-and-values where-clause))]
-    {:query [(sql/format-sql
-              (su/table-for-entity (:from query-pattern))
-              (when-not (= :* where-clause) where-clause))
-             (if (keyword? where-clause)
-               where-clause
-               (mapv second namevals))]}))
+  (let [where-clause (:where query-pattern)]
+    (sql/format-sql
+     (su/table-for-entity (:from query-pattern))
+     (when-not (= :* where-clause) where-clause))))
 
 (defn compile-query [query-pattern]
-  (if (:relational query-pattern)
-    (compile-to-direct-query (:query query-pattern))
+  (if (cn/relational-schema?)
+    (compile-to-direct-query query-pattern)
     (compile-to-indexed-query query-pattern)))
 
 (defn- raw-results [query-fns]

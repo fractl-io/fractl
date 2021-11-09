@@ -28,8 +28,11 @@
   ([conn query-sql query-params]
    (let [^PreparedStatement pstmt
          (jdbc/prepare
-          conn (if (map? query-sql)
+          conn (cond
+                 (map? query-sql)
                  (:query query-sql)
+
+                 :else
                  [query-sql]))]
      [pstmt query-params]))
   ([conn query-sql]
