@@ -111,7 +111,11 @@
 
 (defn lookup-instances-by-attributes [env rec-name query-attrs]
   (when-let [insts (seq (get-instances env rec-name))]
-    (filter #(every? (fn [[k v]] (= v (get % k))) query-attrs) insts)))
+    (filter #(every?
+              (fn [[k v]]
+                (= v (get % k)))
+              query-attrs)
+            insts)))
 
 (defn- objstack [env]
   (get env :objstack (list)))

@@ -264,7 +264,8 @@
       {:P {:ref :I379/P.Id}
        :X {:type :Kernel/Int
            :indexed true}
-       :Y {:expr '(+ 10 :X :P.A)}})
+       :Y {:type :Kernel/Int
+           :expr '(+ 10 :X :P.A)}})
      (dataflow
       :I379/Q
       {:I379/E {:X? :I379/Q.X}}))

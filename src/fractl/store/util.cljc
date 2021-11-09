@@ -119,9 +119,7 @@
                (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
            (cn/make-instance
             entity-name
-            (if-let [id (:Id obj)]
-              (assoc obj :Id (str id))
-              obj)
+            (into {} (mapv (fn [[k v]] [k (if (uuid? v) (str v) v)]) obj))
             false))))))
   ([entity-name result]
    (result-as-instance entity-name nil nil result)))
