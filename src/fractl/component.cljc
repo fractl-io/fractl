@@ -1136,8 +1136,9 @@
 
 (defn conditional-events
   "Return conditional events to fire for the given instance"
-  [instance]
-  (let [recname (li/split-path (instance-name instance))]
+  [obj]
+  (let [instance (if (an-instance? obj) obj (get-in obj [:transition :from]))
+        recname (li/split-path (instance-name instance))]
     (seq (get @trigger-store recname))))
 
 (defn fire-event? [event-info instances]

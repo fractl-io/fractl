@@ -163,18 +163,20 @@
 
 (defn- fire-conditional-event [event-evaluator env store event-info instance]
   (let [[_ event-name [where-clause records-to-load]] event-info
-        env (env/bind-instance env instance)
+        upserted-inst (if-let [t (:transition instance)]
+                        (:from t)
+                        instance)
+        new-inst (when-let [t (:transition instance)] (:to t))
+        env (env/bind-instance env (or new-inst upserted-inst))
         [all-insts env] (load-instances-for-conditional-event
                          env store where-clause
-                         records-to-load #{instance})]
+                         records-to-load #{new-inst})]
     (when (cn/fire-event? event-info all-insts)
-      (let [[_ n] (li/split-path (cn/instance-name instance))
-            upserted-inst (when-let [t (:transition instance)]
-                            (:from t))
+      (let [[_ n] (li/split-path (cn/instance-name upserted-inst))
             upserted-n (li/upserted-instance-attribute n)
             evt (cn/make-instance
                  event-name
-                 {n instance
+                 {n new-inst
                   upserted-n upserted-inst})]
         (event-evaluator env evt)))))
 
