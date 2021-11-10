@@ -136,16 +136,20 @@
          table-names-from-schema fetch-columns-sql
          fetch-pk-columns-sql type-lookup))
       (upsert-instance [_ entity-name instance]
-        (if (cn/relational-schema?)
-          (db/upsert-relational-entity-instance
-           @datasource entity-name instance)
-          (db/upsert-instance
-           pi/upsert-inst-statement pi/upsert-index-statement
-           @datasource entity-name instance true)))
+        (db/upsert-instance
+         pi/upsert-inst-statement
+         pi/upsert-inst-statement
+         @datasource entity-name instance true))        
       (update-instance [_ entity-name instance]
-        (db/update-instance pi/upsert-inst-statement pi/upsert-index-statement @datasource entity-name instance))
+        (db/update-instance
+         pi/upsert-inst-statement
+         pi/upsert-index-statement
+         @datasource entity-name instance))
       (delete-by-id [_ entity-name id]
-        (db/delete-by-id pi/delete-by-id-statement pi/delete-index-statement @datasource entity-name id))
+        (db/delete-by-id
+         pi/delete-by-id-statement
+         pi/delete-index-statement
+         @datasource entity-name id))
       (query-by-id [_ entity-name query ids]
         (db/query-by-id
          pi/query-by-id-statement
@@ -155,9 +159,7 @@
          pi/query-by-id-statement @datasource
          entity-name unique-keys unique-values))
       (query-all [_ entity-name query]
-        (if (cn/relational-schema?)
-          (db/query-all-relational @datasource entity-name query)
-          (db/query-all @datasource entity-name query)))
+        (db/query-all @datasource entity-name query))
       (do-query [_ query params]
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]

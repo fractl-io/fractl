@@ -401,10 +401,6 @@
   ([datasource entity-name query-sql]
    (query-all datasource entity-name query-instances query-sql nil)))
 
-(defn query-all-relational [datasource entity-name query]
-  (query-all datasource entity-name relational-query-instances
-   (first query) (second query)))
-
 (defn- query-pk-columns [conn table-name sql]
   (let [pstmt (do-query-statement conn (s/replace sql #"\?" table-name))]
     (mapv :pg_attribute/attname (execute-stmt! conn pstmt nil))))

@@ -1,5 +1,6 @@
 (ns fractl.store.postgres-internal
   (:require [next.jdbc :as jdbc]
+            [cheshire.core :as json]
             [clojure.set :as set]
             [fractl.util :as u]
             [fractl.util.seq :as us]
@@ -21,6 +22,17 @@
                     ", ")))
       s)))
 
+(defn- objects-as-string [xs]
+  (mapv #(cond
+           (and (seqable? %) (not (string? %)))
+           (json/generate-string %)
+
+           (or (keyword? %) (symbol? %))
+           (str %)
+
+           :else %)
+        xs))
+
 (defn upsert-inst-statement [conn table-name id obj]
   (if (cn/relational-schema?)
     (let [[entity-name instance] obj
@@ -28,7 +40,7 @@
           id-attr-nm (name id-attr)
           ks (keys (cn/instance-attributes instance))
           col-names (mapv name ks)
-          col-vals (mapv #(% instance) ks)
+          col-vals (objects-as-string (mapv #(% instance) ks))
           sql (str "INSERT INTO " table-name "("
                  (us/join-as-string col-names ", ")
                  ") VALUES ("
