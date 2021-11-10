@@ -200,7 +200,8 @@
         qp (when-not wildcard? (mapv process-where-clause query-pattern))
         where-clause (if wildcard?
                        :*
-                       (if (vector? (first qp))
+                       (if (and (vector? (first qp))
+                                (> (count qp) 1))
                          (su/vec-add-first :and qp)
                          (first qp)))]
     {:from entity-name
