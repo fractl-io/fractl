@@ -1,7 +1,8 @@
 (ns fractl.util
   (:require [clojure.string :as string])
   #?(:clj
-     (:require [net.cgrand.macrovich :as macros])
+     (:require [net.cgrand.macrovich :as macros]
+               [cheshire.core :as json])
      :cljs
      (:require-macros [net.cgrand.macrovich :as macros]
                       [fractl.util :refer [passthru]])))
@@ -230,3 +231,15 @@
   (if (string? x)
     (keyword x)
     x))
+
+(defn objects-as-string [xs]
+  (mapv #(cond
+           (and (seqable? %) (not (string? %)))
+           #?(:clj (json/generate-string %)
+              :cljs (str %))
+
+           (or (keyword? %) (symbol? %))
+           (str %)
+
+           :else %)
+        xs))

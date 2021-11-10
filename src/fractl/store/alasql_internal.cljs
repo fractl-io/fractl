@@ -2,6 +2,8 @@
   (:require [cljsjs.alasql]
             [clojure.string :as str]
             [fractl.util :as u]
+            [fractl.util.seq :as us]
+            [fractl.component :as cn]
             [fractl.store.sql :as sql]
             [fractl.store.util :as su]))
 
@@ -16,8 +18,19 @@
     [sql [id attrval]]))
 
 (defn upsert-inst-statement [_ table-name id obj]
-  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")]
-    [sql [id obj]]))
+  (if (cn/relational-schema?)
+    (let [[entity-name instance] obj
+          id-attr (cn/identity-attribute-name entity-name)
+          id-attr-nm (name id-attr)
+          ks (keys (cn/instance-attributes instance))
+          col-names (mapv name ks)
+          col-vals (u/objects-as-string (mapv #(% instance) ks))
+          sql (str "INSERT OR REPLACE INTO " table-name " "
+                   "VALUES ("
+                   (us/join-as-string (mapv (constantly "?") col-vals) ", ") ")")]
+      [sql col-vals])
+    (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")]
+      [sql [id obj]])))
 
 (defn delete-index-statement [_ table-name _ id]
   (let [sql (str "DELETE FROM " table-name " WHERE Id = ?")]
@@ -43,7 +56,7 @@
     [sql [ref]]))
 
 (defn do-query-statement [_ query-sql query-params]
-  [query-sql query-params])
+  [(if (map? query-sql) (:query query-sql) query-sql) query-params])
 
 (def compile-to-indexed-query (partial sql/compile-to-indexed-query
                                        su/table-for-entity
@@ -60,6 +73,6 @@
 
 (defn execute-stmt! [db stmt params]
   (let [result (if params
-            (.exec db stmt (clj->js params))
-            (.exec db stmt))]
+                 (.exec db stmt (clj->js params))
+                 (.exec db stmt))]
     (js->clj result :keywordize-keys true)))

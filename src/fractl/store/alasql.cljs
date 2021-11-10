@@ -48,5 +48,5 @@
       (do-query [_ query params]
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]
-        (db/compile-to-indexed-query query-pattern))
+        (db/compile-query query-pattern))
       (get-reference [_ path refs]))))

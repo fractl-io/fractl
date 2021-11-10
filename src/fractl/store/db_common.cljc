@@ -58,7 +58,10 @@
    (when (seq indexed-attributes)
      (mapv (fn [attr]
              (let [n (name attr)]
-               (str "CREATE INDEX IF NOT EXISTS " n "_Idx ON " table-name "(" n ")")))
+               (str "CREATE INDEX "
+                    #?(:clj "IF NOT EXISTS "
+                       :cljs "")
+                    n "_Idx ON " table-name "(" n ")")))
            indexed-attributes))))
 
 (defn- create-entity-table-sql
@@ -352,9 +355,6 @@
    (fn [conn]
      (let [[pstmt params] (do-query-statement conn query-sql query-params)]
        (execute-stmt! conn pstmt params)))))
-
-(defn- relational-query-instances [entity-name query-fns]
-  (su/results-as-instances (raw-results query-fns)))
 
 (defn- query-relational-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
   (let [sql (sql/compile-to-direct-query (su/table-for-entity entity-name) (mapv name unique-keys) :or)]
