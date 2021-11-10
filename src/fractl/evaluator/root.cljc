@@ -166,7 +166,7 @@
         upserted-inst (if-let [t (:transition instance)]
                         (:from t)
                         instance)
-        new-inst (when-let [t (:transition instance)] (:to t))
+        new-inst (if-let [t (:transition instance)] (:to t) upserted-inst)
         env (env/bind-instance env (or new-inst upserted-inst))
         [all-insts env] (load-instances-for-conditional-event
                          env store where-clause

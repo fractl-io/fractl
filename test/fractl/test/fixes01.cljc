@@ -174,12 +174,12 @@
                                   {:Id (:Id e1)
                                    :X 20}})
            r3 (tu/fresult (e/eval-all-dataflows evt))
-           e3 (first r3)
+           e3 (get-in (first r3) [:transition :to])
            evt (cn/make-instance {:I213/UpdateE2
                                   {:Id (:Id e2)
                                    :Y 200}})
            r4 (tu/fresult (e/eval-all-dataflows evt))
-           e4 (first r4)
+           e4 (get-in (first r4) [:transition :to])
            r5 (first (tu/embedded-results r4))]
        (is (cn/instance-of? :I213/E2 e2))
        (is (nil? (tu/embedded-results r1)))
