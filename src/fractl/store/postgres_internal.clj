@@ -29,7 +29,7 @@
           ks (keys (cn/instance-attributes instance))
           col-names (mapv name ks)
           col-vals (u/objects-as-string (mapv #(% instance) ks))
-          sql (str "INSERT INTO " table-name "("
+          sql (str "INSERT INTO " table-name " ("
                  (us/join-as-string col-names ", ")
                  ") VALUES ("
                  (us/join-as-string (mapv (constantly "?") col-vals) ", ")

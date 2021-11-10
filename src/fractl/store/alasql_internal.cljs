@@ -22,12 +22,15 @@
     (let [[entity-name instance] obj
           id-attr (cn/identity-attribute-name entity-name)
           id-attr-nm (name id-attr)
-          ks (keys (cn/instance-attributes instance))
+          attrs (cn/instance-attributes instance)
+          ks (keys attrs)
           col-names (mapv name ks)
           col-vals (u/objects-as-string (mapv #(% instance) ks))
-          sql (str "INSERT OR REPLACE INTO " table-name " "
-                   "VALUES ("
-                   (us/join-as-string (mapv (constantly "?") col-vals) ", ") ")")]
+          sql (str "INSERT INTO " table-name " ("
+                   (us/join-as-string col-names ", ")
+                   ") VALUES ("
+                   (us/join-as-string (mapv (constantly "?") col-vals) ", ")
+                   ")")]
       [sql col-vals])
     (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")]
       [sql [id obj]])))
