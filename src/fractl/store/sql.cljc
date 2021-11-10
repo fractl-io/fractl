@@ -81,7 +81,7 @@
    (if-let [root-type (k/find-root-attribute-type attribute-type)]
      (case root-type
        (:Kernel/String
-        :Kernel/Keyword :Kernel/Email
+        :Kernel/Keyword :Kernel/Email :Kernel/Password
         :Kernel/DateTime :Kernel/Date :Kernel/Time
         :Kernel/List :Kernel/Edn)
        (str "VARCHAR(" max-varchar-length ")")

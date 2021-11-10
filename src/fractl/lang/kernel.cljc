@@ -111,8 +111,14 @@
   (if (kernel-type? n)
     n
     (when-let [ascm (cn/find-attribute-schema n)]
-      (if (:listof ascm)
+      (cond
+        (:listof ascm)
         :Kernel/List
+
+        (:oneof ascm)
+        :Kernel/String
+
+        :else
         (when-let [t (if (map? ascm) (:type ascm) ascm)]
           (if (kernel-type? t)
             t
