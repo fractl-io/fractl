@@ -19,39 +19,40 @@
     (is (cn/instance-of? :Q01/E e2))
     (is (cn/same-instance? e1 e2))))
 
-(deftest q02
-  (defcomponent :Q02
-    (entity {:Q02/E {:X {:type :Kernel/Int
-                         :indexed true}
-                     :Y {:type :Kernel/Int
-                         :indexed true}}})
-    (event {:Q02/QE01 {:Y :Kernel/Int}})
-    (dataflow :Q02/QE01
-              {:Q02/E {:X? [:>= 10]
-                       :Y :Q02/QE01.Y}})
-    (event {:Q02/QE02 {:X :Kernel/Int
-                       :Y :Kernel/Int}})
-    (dataflow :Q02/QE02
-              {:Q02/E {:X? [:>= :Q02/QE02.X]
+#?(:clj
+   (deftest q02
+     (defcomponent :Q02
+       (entity {:Q02/E {:X {:type :Kernel/Int
+                            :indexed true}
+                        :Y {:type :Kernel/Int
+                            :indexed true}}})
+       (event {:Q02/QE01 {:Y :Kernel/Int}})
+       (dataflow :Q02/QE01
+                 {:Q02/E {:X? [:>= 10]
+                          :Y :Q02/QE01.Y}})
+       (event {:Q02/QE02 {:X :Kernel/Int
+                          :Y :Kernel/Int}})
+       (dataflow :Q02/QE02
+                 {:Q02/E {:X? [:>= :Q02/QE02.X]
                        :Y? :Q02/QE02.Y}}))
-  (let [es [(cn/make-instance :Q02/E {:X 10 :Y 4})
-            (cn/make-instance :Q02/E {:X 12 :Y 6})
-            (cn/make-instance :Q02/E {:X 9 :Y 3})]
-        evts (map #(cn/make-instance :Q02/Upsert_E {:Instance %}) es)
-        f (comp first #(:result (first (e/eval-all-dataflows %))))
-        insts (mapv f evts)
-        ids (mapv :Id insts)]
-    (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
-    (let [r01 (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}}))
-          r (e/eval-all-dataflows {:Q02/QE02 {:X 5 :Y 100}})
-          r02 (tu/fresult r)
-          fs01 (:from (:transition r01))
-          ts01 (:to (:transition r01))]
-      (is (= 2 (count r01)))
-      (is (every? #(and (some #{(:X %)} [10 12]) (some #{(:Y %)} [4 6])) fs01))
-      (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) ts01))
-      (is (= 2 (count r02)))
-      (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) r02)))))
+     (let [es [(cn/make-instance :Q02/E {:X 10 :Y 4})
+               (cn/make-instance :Q02/E {:X 12 :Y 6})
+               (cn/make-instance :Q02/E {:X 9 :Y 3})]
+           evts (map #(cn/make-instance :Q02/Upsert_E {:Instance %}) es)
+           f (comp first #(:result (first (e/eval-all-dataflows %))))
+           insts (mapv f evts)
+           ids (mapv :Id insts)]
+       (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
+       (let [r01 (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}}))
+             r (e/eval-all-dataflows {:Q02/QE02 {:X 5 :Y 100}})
+             r02 (tu/fresult r)
+             fs01 (:from (:transition r01))
+             ts01 (:to (:transition r01))]
+         (is (= 2 (count r01)))
+         (is (every? #(and (some #{(:X %)} [10 12]) (some #{(:Y %)} [4 6])) fs01))
+         (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) ts01))
+         (is (= 2 (count r02)))
+         (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) r02))))))
 
 (deftest query-all
   (defcomponent :QueryAll
@@ -91,79 +92,81 @@
       (is (let [n (:N r)]
             (some #{n} #{"e01" "e03"}))))))
 
-(deftest query-alias-in-expr
-  (defcomponent :QueryAliasInExpr
-    (entity {:QueryAliasInExpr/OrderLine
-             {:Title :Kernel/String
-              :Qty :Kernel/Int}})
-    (entity {:QueryAliasInExpr/ProductBatch
-             {:Title :Kernel/String
-              :AvailableQty {:type :Kernel/Int :check pos?}}})
-    (dataflow :QueryAliasInExpr/AllocateOrderLine
-              {:QueryAliasInExpr/OrderLine
-               {:Id? :QueryAliasInExpr/AllocateOrderLine.LineId}
-               :as :OL}
-              {:QueryAliasInExpr/ProductBatch
-               {:Id? :QueryAliasInExpr/AllocateOrderLine.BatchId
-                :AvailableQty '(- :AvailableQty :OL.Qty)}}))
-  (let [batch (cn/make-instance
-               {:QueryAliasInExpr/ProductBatch
-                {:Title "Table"
-                 :AvailableQty 20}})
-        evt (cn/make-instance
-             {:QueryAliasInExpr/Upsert_ProductBatch
+#?(:clj
+   (deftest query-alias-in-expr
+     (defcomponent :QueryAliasInExpr
+       (entity {:QueryAliasInExpr/OrderLine
+                {:Title :Kernel/String
+                 :Qty :Kernel/Int}})
+       (entity {:QueryAliasInExpr/ProductBatch
+                {:Title :Kernel/String
+                 :AvailableQty {:type :Kernel/Int :check pos?}}})
+       (dataflow :QueryAliasInExpr/AllocateOrderLine
+                 {:QueryAliasInExpr/OrderLine
+                  {:Id? :QueryAliasInExpr/AllocateOrderLine.LineId}
+                  :as :OL}
+                 {:QueryAliasInExpr/ProductBatch
+                  {:Id? :QueryAliasInExpr/AllocateOrderLine.BatchId
+                   :AvailableQty '(- :AvailableQty :OL.Qty)}}))
+     (let [batch (cn/make-instance
+                  {:QueryAliasInExpr/ProductBatch
+                   {:Title "Table"
+                    :AvailableQty 20}})
+           evt (cn/make-instance
+                {:QueryAliasInExpr/Upsert_ProductBatch
               {:Instance batch}})
-        r (first (tu/fresult (e/eval-all-dataflows evt)))
-        batch-id (:Id r)
-        order-line (cn/make-instance
-                    {:QueryAliasInExpr/OrderLine
-                     {:Title "Table"
-                      :Qty 21}})
-        evt (cn/make-instance
-             {:QueryAliasInExpr/Upsert_OrderLine
-              {:Instance order-line}})
-        r (first (tu/fresult (e/eval-all-dataflows evt)))
-        line-id (:Id r)
-        evt (cn/make-instance
-             {:QueryAliasInExpr/AllocateOrderLine
-              {:BatchId batch-id :LineId line-id}})
-        _ (tu/is-error #(doall (e/eval-all-dataflows evt)))
-        order-line (cn/make-instance
-                    {:QueryAliasInExpr/OrderLine
-                     {:Title "Table"
-                      :Qty 2}})
-        evt (cn/make-instance
-             {:QueryAliasInExpr/Upsert_OrderLine
-              {:Instance order-line}})
-        r (first (tu/fresult (e/eval-all-dataflows evt)))
-        line-id (:Id r)
-        evt (cn/make-instance
-             {:QueryAliasInExpr/AllocateOrderLine
-              {:BatchId batch-id :LineId line-id}})
-        r (get-in
-           (first (tu/fresult (e/eval-all-dataflows evt)))
-           [:transition :to])]
-    (is (= (:AvailableQty r) 18))))
+           r (first (tu/fresult (e/eval-all-dataflows evt)))
+           batch-id (:Id r)
+           order-line (cn/make-instance
+                       {:QueryAliasInExpr/OrderLine
+                        {:Title "Table"
+                         :Qty 21}})
+           evt (cn/make-instance
+                {:QueryAliasInExpr/Upsert_OrderLine
+                 {:Instance order-line}})
+           r (first (tu/fresult (e/eval-all-dataflows evt)))
+           line-id (:Id r)
+           evt (cn/make-instance
+                {:QueryAliasInExpr/AllocateOrderLine
+                 {:BatchId batch-id :LineId line-id}})
+           _ (tu/is-error #(doall (e/eval-all-dataflows evt)))
+           order-line (cn/make-instance
+                       {:QueryAliasInExpr/OrderLine
+                        {:Title "Table"
+                         :Qty 2}})
+           evt (cn/make-instance
+                {:QueryAliasInExpr/Upsert_OrderLine
+                 {:Instance order-line}})
+           r (first (tu/fresult (e/eval-all-dataflows evt)))
+           line-id (:Id r)
+           evt (cn/make-instance
+                {:QueryAliasInExpr/AllocateOrderLine
+                 {:BatchId batch-id :LineId line-id}})
+           r (get-in
+              (first (tu/fresult (e/eval-all-dataflows evt)))
+              [:transition :to])]
+       (is (= (:AvailableQty r) 18)))))
 
-(deftest idempotent-upsert
-  (defcomponent :IdUps
-    (entity {:IdUps/E {:X {:type :Kernel/Int
-                           :unique true
-                           :indexed true}
+#?(:clj
+   (deftest idempotent-upsert
+     (defcomponent :IdUps
+       (entity {:IdUps/E {:X {:type :Kernel/Int
+                              :unique true
+                              :indexed true}
                        :Y :Kernel/Int}})
-    (let [e1 (cn/make-instance :IdUps/E {:X 10 :Y 20})
-          r1 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e1}})))
-          id (:Id r1)
-          r2 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))
-          e2 (cn/make-instance :IdUps/E {:X 10 :Y 30})
-          r3 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e2}})))
-          r4 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))]
-      (is (= 20 (get-in r3 [:transition :from :Y])))
-      (is (= 30 (get-in r3 [:transition :to :Y])))
-      (is (= id (:Id r4)))
-      (is (= (:X r2) (:X r4)))
-      (is (= 20 (:Y r2)))
-      (is (= 30 (:Y r4))))))
+       (let [e1 (cn/make-instance :IdUps/E {:X 10 :Y 20})
+             r1 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e1}})))
+             id (:Id r1)
+             r2 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))
+             e2 (cn/make-instance :IdUps/E {:X 10 :Y 30})
+             r3 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e2}})))
+             r4 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))]
+         (is (= 20 (get-in r3 [:transition :from :Y])))
+         (is (= 30 (get-in r3 [:transition :to :Y])))
+         (is (= id (:Id r4)))
+         (is (= (:X r2) (:X r4)))
+         (is (= 20 (:Y r2)))
+         (is (= 30 (:Y r4)))))))
 
 (deftest query-by-id-and-delete
   (defcomponent :QIdDel
@@ -244,11 +247,12 @@
 
 (deftest test-unique-date-time
   (defcomponent :Dt01
-                (entity {:Dt01/E {:Name              :Kernel/String
-                                  :LastAccountAccess {:type :Kernel/DateTime
-                                                      ;; Disable this for postgres
-                                                      ;:unique true
-                                                      }}}))
+    (entity {:Dt01/E {:Name :Kernel/String
+                      :LastAccountAccess
+                      {:type :Kernel/DateTime
+                       ;; Disable this for postgres
+                                        ;:unique true
+                       }}}))
   (let [e (cn/make-instance :Dt01/E {:Name "Birkhe" :LastAccountAccess "2018-07-28T12:15:30"})
         e1 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
         id (:Id e1)

@@ -109,7 +109,8 @@
      (let [attr-names (keys (cn/fetch-schema entity-name))]
        (loop [result-keys (keys result), obj {}]
          (if-let [rk (first result-keys)]
-           (let [[_ f] (li/split-path rk)
+           (let [[_ b] (li/split-path rk)
+                 f (or b rk)
                  aname (first
                         (filter
                          #(= (s/upper-case (name %)) (s/upper-case (name f)))
