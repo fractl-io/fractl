@@ -21,13 +21,11 @@
   (let [[entity-name instance] obj
         id-attr (cn/identity-attribute-name entity-name)
         id-attr-nm (name id-attr)
-        attrs (cn/instance-attributes instance)
-        ks (keys attrs)
+        attrs (cn/fetch-schema (cn/instance-name instance))
+        ks (sort (keys attrs))
         col-names (mapv name ks)
-        col-vals (u/objects-as-string (mapv #(% instance) ks))
-        sql (str "INSERT INTO " table-name " ("
-                 (us/join-as-string col-names ", ")
-                 ") VALUES ("
+        col-vals (u/objects-as-string (mapv #(or (% instance) "") ks))
+        sql (str "INSERT OR REPLACE INTO " table-name " VALUES ("
                  (us/join-as-string (mapv (constantly "?") col-vals) ", ")
                  ")")]
     [sql col-vals]))

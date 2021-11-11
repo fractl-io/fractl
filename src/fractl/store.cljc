@@ -113,9 +113,8 @@
     false))
 
 (defn upsert-instances [store record-name insts]
-  (doall
-   (map
-    #(upsert-instance
-      store record-name
-      %)
-    insts)))
+  (mapv
+   #(upsert-instance
+     store record-name
+     %)
+   insts))

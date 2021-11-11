@@ -42,15 +42,17 @@
 (defn- create-relational-table-sql [table-name entity-schema
                                     indexed-attributes unique-attributes]
   (concat
-   [(str su/create-table-prefix " " table-name " (Id " id-type " PRIMARY KEY, "
-         (loop [attrs (remove #{:Id} (keys entity-schema)), cols ""]
+   [(str su/create-table-prefix " " table-name " ("
+         (loop [attrs (sort (keys entity-schema)), cols ""]
            (if-let [a (first attrs)]
              (let [atype (cn/attribute-type entity-schema a)
                    sql-type (sql/attribute-to-sql-type atype)
                    uq (when (some #{a} unique-attributes) "NOT NULL UNIQUE")]
                (recur
                 (rest attrs)
-                (str cols (name a) " " sql-type " " uq
+                (str cols (if (= :Id a)
+                            (str "Id " id-type " PRIMARY KEY")
+                            (str (name a) " " sql-type " " uq))
                      (when (seq (rest attrs))
                        ", "))))
              cols))
