@@ -117,17 +117,6 @@
 (defn component-definition [component]
   (find @components component))
 
-(def ^:private relational-schema-flag (u/make-cell true))
-
-(defn document-schema []
-  (u/safe-set relational-schema-flag false))
-
-(defn relational-schema []
-  (u/safe-set relational-schema-flag true))
-
-(defn relational-schema? []
-  @relational-schema-flag)
-
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)
     (get-in @components [component :alias alias-entry])

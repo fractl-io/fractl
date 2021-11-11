@@ -22,25 +22,20 @@
       s)))
 
 (defn upsert-inst-statement [conn table-name id obj]
-  (if (cn/relational-schema?)
-    (let [[entity-name instance] obj
-          id-attr (cn/identity-attribute-name entity-name)
-          id-attr-nm (name id-attr)
-          ks (keys (cn/instance-attributes instance))
-          col-names (mapv name ks)
-          col-vals (u/objects-as-string (mapv #(% instance) ks))
-          sql (str "INSERT INTO " table-name " ("
+  (let [[entity-name instance] obj
+        id-attr (cn/identity-attribute-name entity-name)
+        id-attr-nm (name id-attr)
+        ks (keys (cn/instance-attributes instance))
+        col-names (mapv name ks)
+        col-vals (u/objects-as-string (mapv #(% instance) ks))
+        sql (str "INSERT INTO " table-name " ("
                  (us/join-as-string col-names ", ")
                  ") VALUES ("
                  (us/join-as-string (mapv (constantly "?") col-vals) ", ")
                  ")  ON CONFLICT (" id-attr-nm ") DO UPDATE SET"
                  (set-excluded-columns
                   (set/difference (set col-names) #{id-attr-nm})))]
-      [(jdbc/prepare conn [sql]) col-vals])
-    (let [sql (str "INSERT INTO " table-name " (id, instance_json) VALUES (?, ?) "
-                   "ON CONFLICT (id) DO UPDATE SET instance_json = ?")
-          ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-      [pstmt [(u/uuid-from-string id) obj obj]])))
+    [(jdbc/prepare conn [sql]) col-vals]))
 
 (defn query-by-id-statement [conn query-sql id]
   (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]

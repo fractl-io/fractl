@@ -167,14 +167,10 @@
            (let [tabname (su/table-for-entity ename)
                  schema (su/find-entity-schema ename)
                  indexed-attrs (cn/indexed-attributes schema)]
-             (if (cn/relational-schema?)
-               (create-relational-table
-                txn schema tabname
-                indexed-attrs
-                (cn/unique-attributes schema))
-               (create-tables!
-                txn schema tabname :Id
-                indexed-attrs)))))))
+             (create-relational-table
+              txn schema tabname
+              indexed-attrs
+              (cn/unique-attributes schema)))))))
     component-name))
 
 (defn drop-schema
@@ -182,7 +178,7 @@
   [datasource component-name]
   (let [scmname (su/db-schema-for-component component-name)]
     (execute-fn! datasource
-               (fn [txn]
+                 (fn [txn]
                  (drop-db-schema! txn scmname)))
     component-name))
 
@@ -248,31 +244,12 @@
 (defn upsert-instance
   ([upsert-inst-statement upsert-index-statement datasource
     entity-name instance update-unique-indices?]
-   (if (cn/relational-schema?)
-     (upsert-relational-entity-instance upsert-inst-statement datasource entity-name instance)
-     (let [tabname (su/table-for-entity entity-name)
-           entity-schema (su/find-entity-schema entity-name)
-           all-indexed-attrs (cn/indexed-attributes entity-schema)
-           indexed-attrs (if update-unique-indices?
-                           all-indexed-attrs
-                           (remove-unique-attributes
-                            all-indexed-attrs entity-schema))
-           ref-attrs (cn/ref-attribute-schemas entity-schema)]
-       (transact-fn! datasource
-                     (fn [txn]
-                     (upsert-inst!
-                      txn tabname instance ref-attrs
-                      upsert-inst-statement)
-                       (upsert-indices!
-                        txn tabname indexed-attrs instance
-                        upsert-index-statement)))
-       instance)))
+   (upsert-relational-entity-instance
+    upsert-inst-statement datasource entity-name instance))
   ([datasource entity-name instance]
-   (if (cn/relational-schema?)
-     (upsert-relational-entity-instance upsert-inst-statement
-                                        datasource entity-name instance)
-     (upsert-instance upsert-inst-statement upsert-index-statement
-                      datasource entity-name instance true))))
+   (upsert-relational-entity-instance
+    upsert-inst-statement
+    datasource entity-name instance)))
 
 (defn update-instance
   ([upsert-inst-statement upsert-index-statement datasource entity-name instance]
@@ -301,13 +278,10 @@
 (defn delete-by-id
   ([delete-by-id-statement delete-index-statement datasource entity-name id]
    (let [tabname (su/table-for-entity entity-name)]
-     (transact-fn! datasource
-                   (fn [txn]
-                     (when-not (cn/relational-schema?)
-                       (let [entity-schema (su/find-entity-schema entity-name)
-                             indexed-attrs (cn/indexed-attributes entity-schema)]
-                         (delete-indices! txn tabname indexed-attrs id delete-index-statement)))
-                     (delete-inst! txn tabname id delete-by-id-statement)))
+     (transact-fn!
+      datasource
+      (fn [txn]
+        (delete-inst! txn tabname id delete-by-id-statement)))
      id))
   ([datasource entity-name id]
    (delete-by-id delete-by-id-statement delete-index-statement datasource entity-name id)))
@@ -318,16 +292,11 @@
    su/table-for-entity
    su/index-table-name))
 
-(defn compile-to-direct-query [query-pattern]
+(defn compile-query [query-pattern]
   (let [where-clause (:where query-pattern)]
     (sql/format-sql
      (su/table-for-entity (:from query-pattern))
      (when (not= :* where-clause) where-clause))))
-
-(defn compile-query [query-pattern]
-  (if (cn/relational-schema?)
-    (compile-to-direct-query query-pattern)
-    (compile-to-indexed-query query-pattern)))
 
 (defn- raw-results [query-fns]
   (flatten (mapv u/apply0 query-fns)))
@@ -364,28 +333,8 @@
 (defn query-by-unique-keys
   "Query the instance by a unique-key value."
   ([query-by-id-statement datasource entity-name unique-keys attribute-values]
-   (if (cn/relational-schema?)
-     (query-relational-entity-by-unique-keys
-      datasource entity-name unique-keys attribute-values)
-     (when-not (and (= 1 (count unique-keys)) (= :Id (first unique-keys)))
-       (let [ks (filter #(not= :Id %) unique-keys)]
-         (first
-          (filter
-           identity
-           (mapv
-            (fn [k]
-              (let [c (compile-to-indexed-query
-                       {:from  entity-name
-                        :where [:= k (get attribute-values k)]})
-                    id-query (:query (first (:id-queries c)))
-                    id-result (do-query datasource (first id-query) (rest id-query))]
-                (when (seq id-result)
-                  (let [id (second (first (filter (fn [[k _]] (= "ID" (s/upper-case (name k)))) (first id-result))))
-                        result (if query-by-id-statement
-                                 (query-by-id query-by-id-statement datasource entity-name (:query c) [id])
-                                 (query-by-id datasource entity-name (:query c) [id]))]
-                    (first result)))))
-            ks)))))))
+   (query-relational-entity-by-unique-keys
+    datasource entity-name unique-keys attribute-values))
   ([datasource entity-name unique-keys attribute-values]
    (query-by-unique-keys nil datasource entity-name unique-keys attribute-values)))
 

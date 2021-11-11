@@ -94,36 +94,23 @@
         attrmap (apply assoc {} (interleave attrs (map table-attr->entity-attr attrs)))]
     (set/rename-keys result attrmap)))
 
-(defn result-as-instance
-  ([entity-name id-key json-key result]
-   (if id-key
-     (let [nresult #?(:clj (normalize-result result)
-                      :cljs result)
-           id (id-key nresult)
-           json-str #?(:clj  (String. (json-key nresult))
-                       :cljs (json-key nresult))
-           parsed-obj (assoc #?(:clj (json/parse-string json-str true)
-                                :cljs (js->clj (.parse js/JSON json-str) :keywordize-keys true))
-                             :Id (str id))]
-       (cn/make-instance entity-name parsed-obj false))
-     (let [attr-names (keys (cn/fetch-schema entity-name))]
-       (loop [result-keys (keys result), obj {}]
-         (if-let [rk (first result-keys)]
-           (let [[_ b] (li/split-path rk)
-                 f (or b rk)
-                 aname (first
-                        (filter
-                         #(= (s/upper-case (name %)) (s/upper-case (name f)))
-                         attr-names))]
-             (if aname
-               (recur (rest result-keys) (assoc obj aname (get result rk)))
-               (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
-           (cn/make-instance
-            entity-name
-            (into {} (mapv (fn [[k v]] [k (if (uuid? v) (str v) v)]) obj))
-            false))))))
-  ([entity-name result]
-   (result-as-instance entity-name nil nil result)))
+(defn result-as-instance [entity-name result]
+  (let [attr-names (keys (cn/fetch-schema entity-name))]
+    (loop [result-keys (keys result), obj {}]
+      (if-let [rk (first result-keys)]
+        (let [[_ b] (li/split-path rk)
+              f (or b rk)
+              aname (first
+                     (filter
+                      #(= (s/upper-case (name %)) (s/upper-case (name f)))
+                      attr-names))]
+          (if aname
+            (recur (rest result-keys) (assoc obj aname (get result rk)))
+            (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
+        (cn/make-instance
+         entity-name
+         (into {} (mapv (fn [[k v]] [k (if (uuid? v) (str v) v)]) obj))
+         false)))))
 
 (defn make-result-keys [entity-name]
   #?(:clj
@@ -135,13 +122,8 @@
      :cljs
      [:Id :instance_json]))
 
-(defn results-as-instances
-  ([entity-name id-key json-key results]
-   (mapv (partial result-as-instance entity-name id-key json-key) results))
-  ([entity-name results]
-   (let [[id-key json-key] (when-not (cn/relational-schema?)
-                             (make-result-keys entity-name))]
-     (results-as-instances entity-name id-key json-key results))))
+(defn results-as-instances [entity-name results]
+  (mapv (partial result-as-instance entity-name) results))
 
 (defn clj->json
   [data]

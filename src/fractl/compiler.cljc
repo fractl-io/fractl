@@ -166,9 +166,7 @@
                    (first rules))))}))
 
 (defn compile-query [ctx entity-name query]
-  (let [q ((if (cn/relational-schema?)
-             compile-relational-entity-query
-             compile-entity-query)
+  (let [q (compile-relational-entity-query
            ctx entity-name query)]
     (ctx/put-fresh-record! ctx entity-name {})
     q))

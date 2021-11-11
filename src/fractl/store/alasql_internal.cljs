@@ -18,22 +18,19 @@
     [sql [id attrval]]))
 
 (defn upsert-inst-statement [_ table-name id obj]
-  (if (cn/relational-schema?)
-    (let [[entity-name instance] obj
-          id-attr (cn/identity-attribute-name entity-name)
-          id-attr-nm (name id-attr)
-          attrs (cn/instance-attributes instance)
-          ks (keys attrs)
-          col-names (mapv name ks)
-          col-vals (u/objects-as-string (mapv #(% instance) ks))
-          sql (str "INSERT INTO " table-name " ("
-                   (us/join-as-string col-names ", ")
-                   ") VALUES ("
-                   (us/join-as-string (mapv (constantly "?") col-vals) ", ")
-                   ")")]
-      [sql col-vals])
-    (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")]
-      [sql [id obj]])))
+  (let [[entity-name instance] obj
+        id-attr (cn/identity-attribute-name entity-name)
+        id-attr-nm (name id-attr)
+        attrs (cn/instance-attributes instance)
+        ks (keys attrs)
+        col-names (mapv name ks)
+        col-vals (u/objects-as-string (mapv #(% instance) ks))
+        sql (str "INSERT INTO " table-name " ("
+                 (us/join-as-string col-names ", ")
+                 ") VALUES ("
+                 (us/join-as-string (mapv (constantly "?") col-vals) ", ")
+                 ")")]
+    [sql col-vals]))
 
 (defn delete-index-statement [_ table-name _ id]
   (let [sql (str "DELETE FROM " table-name " WHERE Id = ?")]
@@ -48,11 +45,10 @@
       [stmt [id]]))
 
 (defn query-by-id [datasource entity-name query-sql ids]
-  (let [[id-key json-key] (su/make-result-keys entity-name)]
-    ((partial su/results-as-instances entity-name id-key json-key)
-     (flatten (map #(let [pstmt (query-by-id-statement datasource query-sql %)]
-                      pstmt
-                      (set ids)))))))
+  ((partial su/results-as-instances entity-name)
+   (flatten (map #(let [pstmt (query-by-id-statement datasource query-sql %)]
+                    pstmt
+                    (set ids))))))
 
 (defn validate-ref-statement [_ index-tabname colname ref]
   (let [sql (str "SELECT 1 FROM " index-tabname " WHERE " colname " = ?")]

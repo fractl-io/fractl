@@ -364,30 +364,7 @@
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)
               (store/compile-query store full-query))]
-    (if (cn/relational-schema?)
-      (query-all env store entity-name q)
-      (let [rule (:filter full-query)
-            filter-results
-            (if rule
-              (partial filter-query-result rule env)
-              identity)]
-        (if (:query-direct q)
-          [(filter-results
-            (store/do-query store (:raw-query full-query)
-                            {:lookup-fn-params [env nil]}))
-           env]
-          (let [idqs (seq (:id-queries q))
-                [id-results env]
-                (if idqs
-                  (evaluate-id-queries env store idqs (:merge-opr q))
-                  [nil env])]
-            [(if (seq id-results)
-               (filter-results
-                (store/query-by-id store entity-name (:query q) id-results))
-               (when-not idqs
-                 (filter-results
-                  (query-all env store entity-name (:query q)))))
-             env]))))))
+    (query-all env store entity-name q)))
 
 (defn- maybe-async-channel? [x]
   (and x (not (seqable? x))))
