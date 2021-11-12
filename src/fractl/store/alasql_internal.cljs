@@ -13,10 +13,6 @@
     (js/alasql (str "USE " name))
     db))
 
-(defn upsert-index-statement [_ table-name _ id attrval]
-  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES (?, ?)")]
-    [sql [id attrval]]))
-
 (defn upsert-inst-statement [_ table-name id obj]
   (let [[entity-name instance] obj
         id-attr (cn/identity-attribute-name entity-name)
