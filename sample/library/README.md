@@ -81,7 +81,7 @@ POST _e/Library.Identity/Upsert_Member
         "Password": "raskolnikov",
         "Email": "fdyo@v8.io",
         "DOB": "1868-01-02",
-        "Group": "life"
+        "Designation": "life"
                 ;; or "individual" or "family" or
                 ;; "remote" or "oversees" or "supported" or,
                 ;; "associate" or "temporary"
@@ -150,7 +150,7 @@ POST _e/Library.Ledger/CheckoutBook
     "Library.Ledger/CheckoutBook": {
         "Book": "{{book}}",
         "Member": "{{member}}",
-        "Group": "life",
+        "Designation": "life",
                 ;; or "individual" or "family" or
                 ;; "remote" or "oversees" or "supported" or,
                 ;; "associate" or "temporary"
@@ -175,7 +175,7 @@ POST _e/Library.Ledger/CheckinBook
     "Library.Ledger/CheckinBook": {
         "Book": "{{book}}",
         "Member": "{{member}}",
-        "Group": "life",
+        "Designation": "life",
                 ;; or "individual" or "family" or
                 ;; "remote" or "oversees" or "supported" or,
                 ;; "associate" or "temporary"
