@@ -52,7 +52,7 @@
                 (rest attrs)
                 (str cols (if (= :Id a)
                             (str "Id " id-type " PRIMARY KEY")
-                            (str (name a) " " sql-type " " uq))
+                            (str "" (name a) " " sql-type " " uq))
                      (when (seq (rest attrs))
                        ", "))))
              cols))
@@ -65,74 +65,6 @@
                        :cljs "")
                     n "_Idx ON " table-name "(" n ")")))
            indexed-attributes))))
-
-(defn- create-entity-table-sql
-  "Given a database-type, entity-table-name and identity-attribute name,
-  return the DML statement to create that table."
-  [tabname ident-attr]
-  [(str su/create-table-prefix " " tabname " "
-        (if ident-attr
-          (str "(" (su/db-ident ident-attr) " UUID PRIMARY KEY, ")
-          "(")
-        "instance_json VARCHAR)")])
-
-(defn- create-index-table-sql
-  "Given a database-type, entity-table-name and attribute-column name, return the
-  DML statements for creating an index table and the index for its 'id' column."
-  [entity-table-name colname coltype unique?]
-  (let [index-tabname (su/index-table-name entity-table-name colname)]
-    [[(str su/create-table-prefix " " index-tabname " "
-          ;; `id` is not a foreign key reference to the main table,
-          ;; because insert is fully controlled by the V8 runtime and
-          ;; we get an index for free.
-           "(Id UUID PRIMARY KEY, "
-          ;; Storage and search can be optimized by inferring a more appropriate
-          ;; SQL type for `colname`, see the issue https://ventur8.atlassian.net/browse/V8DML-117.
-           colname " " coltype
-           (if unique? (str ",UNIQUE(" colname "))") ")"))]
-     [(su/create-index-sql index-tabname colname unique?)]]))
-
-(defn create-identity-index-sql [entity-table-name colname]
-  [(str su/create-unique-index-prefix
-        " " (su/index-name entity-table-name)
-        " ON " entity-table-name "(" colname ")")])
-
-(defn- create-identity-index! [connection entity-table-name ident-attr]
-  (let [sql (create-identity-index-sql entity-table-name (su/db-ident ident-attr))]
-    (if (execute-sql! connection sql)
-      entity-table-name
-      (u/throw-ex (str "Failed to create index table for identity column - "
-                       [entity-table-name ident-attr])))))
-
-(defn- create-entity-table!
-  "Create a table to store instances of an entity. As 'identity-attribute' is
-  specified to be used as the primary-key in the table."
-  [connection tabname ident-attr]
-  (let [sql (create-entity-table-sql tabname ident-attr)]
-    (if (execute-sql! connection sql)
-      tabname
-      (u/throw-ex (str "Failed to create table for " tabname)))))
-
-(defn- create-index-table! [connection entity-schema entity-table-name attrname idxattr]
-  (let [[tabsql idxsql] (create-index-table-sql
-                         entity-table-name attrname
-                         (sql/attribute-to-sql-type (cn/attribute-type entity-schema idxattr))
-                         (cn/unique-attribute? entity-schema idxattr))]
-    (when-not (and (execute-sql! connection tabsql)
-                   (execute-sql! connection idxsql))
-      (u/throw-ex (str "Failed to create lookup table for " [entity-table-name attrname])))))
-
-(defn- create-tables!
-  "Create the main entity tables and lookup tables for the indexed attributes."
-  [connection entity-schema entity-table-name ident-attr indexed-attrs]
-  (create-entity-table! connection entity-table-name ident-attr)
-  (when ident-attr
-    (create-identity-index! connection entity-table-name ident-attr))
-  (let [cit (partial create-index-table! connection entity-schema entity-table-name)]
-    (doseq [idxattr indexed-attrs]
-      (let [attrname (su/db-ident idxattr)]
-        (cit attrname idxattr)))
-    entity-table-name))
 
 (defn- create-relational-table [connection entity-schema table-name
                                 indexed-attrs unique-attributes]
@@ -184,28 +116,6 @@
                  (drop-db-schema! txn scmname)))
     component-name))
 
-(defn create-table
-  "Create the table and indexes for the entity."
-  [datasource entity-name]
-  (execute-fn!
-   datasource
-   (fn [txn]
-     (let [tabname (su/table-for-entity entity-name)
-           schema (su/find-entity-schema entity-name)
-           indexed-attrs (cn/indexed-attributes schema)]
-       (create-tables! txn schema tabname :Id indexed-attrs))))
-  entity-name)
-
-(defn- upsert-indices!
-  "Insert or update new index entries relevant for an entity instance.
-  The index values are available in the `attrs` parameter."
-  [conn entity-table-name indexed-attrs instance upsert-index-statement]
-  (let [id (:Id instance)]
-    (doseq [[attrname tabname] (su/index-table-names entity-table-name indexed-attrs)]
-      (let [[pstmt params] (upsert-index-statement conn tabname (su/db-ident attrname)
-                                                   id (attrname instance))]
-        (execute-stmt! conn pstmt params)))))
-
 (defn- validate-references! [conn inst ref-attrs]
   (doseq [[aname scmname] ref-attrs]
     (let [p (cn/find-ref-path scmname)
@@ -218,17 +128,6 @@
           [stmt params] (validate-ref-statement conn index-tabname colname (get inst aname))]
       (when-not (seq (execute-stmt! conn stmt params))
         (u/throw-ex (str "Reference not found - " aname ", " p))))))
-
-(defn- upsert-inst!
-  "Insert or update an entity instance."
-  [conn table-name inst ref-attrs upsert-inst-statement]
-  (when (seq ref-attrs)
-    (validate-references! conn inst ref-attrs))
-  (let [attrs (cn/serializable-attributes inst)
-        id (:Id attrs)
-        obj (su/clj->json (dissoc attrs :Id))
-        [pstmt params] (upsert-inst-statement conn table-name id obj)]
-    (execute-stmt! conn pstmt params)))
 
 (defn- remove-unique-attributes [indexed-attrs entity-schema]
   (if-let [uq-attrs (seq (cn/unique-attributes entity-schema))]
@@ -261,16 +160,6 @@
    (upsert-instance upsert-inst-statement upsert-index-statement datasource
                     entity-name instance false)))
 
-(defn- delete-indices!
-  "Delete index entries relevant for an entity instance."
-  [conn entity-table-name indexed-attrs id delete-index-statement]
-  (let [index-tabnames (su/index-table-names entity-table-name indexed-attrs)]
-    (doseq [[attrname tabname] index-tabnames]
-      (let [[pstmt params] (delete-index-statement
-                            conn tabname
-                            (su/db-ident attrname) id)]
-        (execute-stmt! conn pstmt params)))))
-
 (defn- delete-inst!
   "Delete an entity instance."
   [conn tabname id delete-by-id-statement]
@@ -287,12 +176,6 @@
      id))
   ([datasource entity-name id]
    (delete-by-id delete-by-id-statement delete-index-statement datasource entity-name id)))
-
-(def compile-to-indexed-query
-  (partial
-   sql/compile-to-indexed-query
-   su/table-for-entity
-   su/index-table-name))
 
 (defn compile-query [query-pattern]
   (let [where-clause (:where query-pattern)]

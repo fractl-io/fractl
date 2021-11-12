@@ -14,11 +14,6 @@
     (.setString pstmt 1 (str id))
     [pstmt nil]))
 
-(defn delete-index-statement [conn table-name _ id]
-  (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
-        ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    [pstmt [id]]))
-
 (defn delete-by-id-statement [conn table-name id]
   (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]

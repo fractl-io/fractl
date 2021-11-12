@@ -24,41 +24,6 @@
     (reduce conj [:and] clauses)
     (first clauses)))
 
-(defn compile-to-indexed-query [table-name-fn index-table-name-fn query-pattern]
-  (let [table (table-name-fn (:from query-pattern))
-        where-clause (:where query-pattern)]
-    (if (= :* where-clause)
-      {:query (str "SELECT * FROM " table)}
-      (let [fc (first where-clause)
-            logical-clause (and (keyword? fc)
-                                (or (= fc :and) (= fc :or)))
-            norm-where-clause (if logical-clause
-                                (rest where-clause)
-                                (if (vector? (first where-clause))
-                                  where-clause
-                                  [where-clause]))
-            index-tables (distinct (mapv #(index-table-name-fn table (second %)) norm-where-clause))]
-        ;; (when (and logical-clause (> (count index-tables) 1))
-        ;;   (u/throw-ex (str "cannot merge multiple indices under an `and` clause - " index-tables)))
-        (let [qs (cond
-                   (= (count index-tables) 1)
-                   [(format-sql
-                     (first index-tables)
-                     (concat-where-clauses norm-where-clause))]
-                   
-                   (not= (count index-tables) (count norm-where-clause))
-                   (u/throw-ex (str "cannot match where clause to index tables - " where-clause))
-
-                   :else
-                   (mapv #(format-sql %1 %2) index-tables norm-where-clause))]
-          {:id-queries qs
-           :merge-opr
-           (if logical-clause
-             fc
-             :or)
-           :query
-           (str "SELECT * FROM " table " WHERE Id = ?")})))))
-
 (defn compile-to-direct-query
   ([table-name col-names log-opr-tag]
    (let [sql (str "SELECT * FROM " table-name)
