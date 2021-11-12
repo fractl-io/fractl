@@ -138,17 +138,14 @@
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance
          pi/upsert-inst-statement
-         pi/upsert-inst-statement
-         @datasource entity-name instance true))        
+         @datasource entity-name instance))
       (update-instance [_ entity-name instance]
-        (db/update-instance
+        (db/upsert-instance
          pi/upsert-inst-statement
-         pi/upsert-index-statement
          @datasource entity-name instance))
       (delete-by-id [_ entity-name id]
         (db/delete-by-id
          pi/delete-by-id-statement
-         pi/delete-index-statement
          @datasource entity-name id))
       (query-by-id [_ entity-name query ids]
         (db/query-by-id

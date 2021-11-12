@@ -30,12 +30,8 @@
                  ")")]
     [sql col-vals]))
 
-(defn delete-index-statement [_ table-name _ id]
-  (let [sql (str "DELETE FROM " table-name " WHERE Id = ?")]
-    [sql [id]]))
-
 (defn delete-by-id-statement [_ table-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE Id = ?")]
+  (let [sql (str "DELETE FROM " table-name " WHERE _Id = ?")]
     [sql [id]]))
 
 (defn query-by-id-statement [_ query-sql id]
@@ -49,15 +45,11 @@
                     (set ids))))))
 
 (defn validate-ref-statement [_ index-tabname colname ref]
-  (let [sql (str "SELECT 1 FROM " index-tabname " WHERE " colname " = ?")]
+  (let [sql (str "SELECT 1 FROM " index-tabname " WHERE _" colname " = ?")]
     [sql [ref]]))
 
 (defn do-query-statement [_ query-sql query-params]
   [(if (map? query-sql) (:query query-sql) query-sql) query-params])
-
-(def compile-to-indexed-query (partial sql/compile-to-indexed-query
-                                       su/table-for-entity
-                                       su/index-table-name))
 
 (defn execute-fn! [db f]
   (f db))

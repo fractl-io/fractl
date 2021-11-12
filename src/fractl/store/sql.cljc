@@ -1,13 +1,23 @@
 (ns fractl.store.sql
   "Support for translating dataflow-query patterns to generic SQL."
   (:require [clojure.string :as str]
+            [clojure.walk :as w]
             [honeysql.core :as hsql]
             [fractl.util :as u]
+            [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]))
+
+(defn- attach-column-name-prefixes [where-clause]
+  (w/prewalk
+   #(if (and (keyword? %) (not (li/operator? %)))
+      (keyword (str "_" (name %)))
+      %)
+   where-clause))
 
 (defn format-sql [table-name where-clause]
   (hsql/format
-   (let [p {:select [:*]
+   (let [where-clause (attach-column-name-prefixes where-clause)
+         p {:select [:*]
             :from [(keyword table-name)]}]
      (if where-clause
        (assoc p :where
@@ -34,7 +44,7 @@
             (loop [cs col-names, s ""]
               (if-let [c (first cs)]
                 (recur (rest cs)
-                       (str s c " = ? "
+                       (str s "_" c " = ? "
                             (when (seq (rest cs))
                               logopr)))
                 s))))))

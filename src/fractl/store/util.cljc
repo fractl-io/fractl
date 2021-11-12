@@ -94,15 +94,19 @@
         attrmap (apply assoc {} (interleave attrs (map table-attr->entity-attr attrs)))]
     (set/rename-keys result attrmap)))
 
+(defn- remove-prefix [n]
+  (let [s (str n)]
+    (subs s 2)))
+
 (defn result-as-instance [entity-name result]
   (let [attr-names (keys (cn/fetch-schema entity-name))]
     (loop [result-keys (keys result), obj {}]
       (if-let [rk (first result-keys)]
         (let [[_ b] (li/split-path rk)
-              f (or b rk)
+              f (remove-prefix (or b rk))
               aname (first
                      (filter
-                      #(= (s/upper-case (name %)) (s/upper-case (name f)))
+                      #(= (s/upper-case (name %)) (s/upper-case f))
                       attr-names))]
           (if aname
             (recur (rest result-keys) (assoc obj aname (get result rk)))
@@ -111,16 +115,6 @@
          entity-name
          (into {} (mapv (fn [[k v]] [k (if (uuid? v) (str v) v)]) obj))
          false)))))
-
-(defn make-result-keys [entity-name]
-  #?(:clj
-     (let [entity-name (li/split-path entity-name)
-           cn (s/upper-case (name (first entity-name)))
-           e (s/upper-case (name (second entity-name)))]
-       [(keyword (str cn "." e "/ID"))
-        (keyword (str cn "." e "/INSTANCE_JSON"))])
-     :cljs
-     [:Id :instance_json]))
 
 (defn results-as-instances [entity-name results]
   (mapv (partial result-as-instance entity-name) results))

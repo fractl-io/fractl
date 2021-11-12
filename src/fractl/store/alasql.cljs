@@ -34,7 +34,7 @@
       (fetch-schema [_]
         nil)
       (update-instance [_ entity-name instance]
-        (db/update-instance @datasource entity-name instance))
+        (db/upsert-instance @datasource entity-name instance))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance @datasource entity-name instance))
       (delete-by-id [_ entity-name id]

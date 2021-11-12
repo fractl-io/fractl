@@ -7,16 +7,16 @@
   (:import [java.sql PreparedStatement]))
 
 (defn upsert-index-statement [conn table-name _ id attrval]
-  (let [sql (str "MERGE INTO " table-name " KEY (id) VALUES (?, ?)")
+  (let [sql (str "MERGE INTO " table-name " KEY (_id) VALUES (?, ?)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id attrval]]))
 
 (defn upsert-inst-statement [conn table-name id obj]
   (let [[entity-name instance] obj
         uk-attrs (cn/unique-attributes (su/find-entity-schema entity-name))
-        id-attr-nms (s/join "," (mapv name uk-attrs))
+        id-attr-nms (s/join "," (mapv #(str "_" (name %)) uk-attrs))
         ks (keys (cn/instance-attributes instance))
-        col-names (mapv name ks)
+        col-names (mapv #(str "_" (name %)) ks)
         col-vals (mapv #(% instance) ks)
         sql (str "MERGE INTO " table-name "("
                  (us/join-as-string col-names ", ")

@@ -20,7 +20,6 @@
    :upsert-inst-statement #?(:clj h2i/upsert-inst-statement :cljs aqi/upsert-inst-statement)
    :upsert-index-statement #?(:clj h2i/upsert-index-statement :cljs aqi/upsert-index-statement)
    :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
-   :delete-index-statement #?(:clj ji/delete-index-statement :cljs aqi/delete-index-statement)
    :query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement)
    :do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement)
    :validate-ref-statement #?(:clj ji/validate-ref-statement :cljs aqi/validate-ref-statement)})
@@ -32,7 +31,6 @@
 (def upsert-inst-statement (:upsert-inst-statement store-fns))
 (def upsert-index-statement (:upsert-index-statement store-fns))
 (def delete-by-id-statement (:delete-by-id-statement store-fns))
-(def delete-index-statement (:delete-index-statement store-fns))
 (def query-by-id-statement (:query-by-id-statement store-fns))
 (def do-query-statement (:do-query-statement store-fns))
 (def validate-ref-statement (:validate-ref-statement store-fns))
@@ -51,8 +49,8 @@
                (recur
                 (rest attrs)
                 (str cols (if (= :Id a)
-                            (str "Id " id-type " PRIMARY KEY")
-                            (str "" (name a) " " sql-type " " uq))
+                            (str "_Id " id-type " PRIMARY KEY")
+                            (str "_" (name a) " " sql-type " " uq))
                      (when (seq (rest attrs))
                        ", "))))
              cols))
@@ -63,7 +61,7 @@
                (str "CREATE INDEX "
                     #?(:clj "IF NOT EXISTS "
                        :cljs "")
-                    n "_Idx ON " table-name "(" n ")")))
+                    n "_Idx ON " table-name "(_" n ")")))
            indexed-attributes))))
 
 (defn- create-relational-table [connection entity-schema table-name
@@ -143,22 +141,12 @@
     instance))
 
 (defn upsert-instance
-  ([upsert-inst-statement upsert-index-statement datasource
-    entity-name instance update-unique-indices?]
+  ([upsert-inst-statement datasource entity-name instance]
    (upsert-relational-entity-instance
     upsert-inst-statement datasource entity-name instance))
   ([datasource entity-name instance]
    (upsert-relational-entity-instance
-    upsert-inst-statement
-    datasource entity-name instance)))
-
-(defn update-instance
-  ([upsert-inst-statement upsert-index-statement datasource entity-name instance]
-   (upsert-instance upsert-inst-statement upsert-index-statement datasource
-                    entity-name instance false))
-  ([datasource entity-name instance]
-   (upsert-instance upsert-inst-statement upsert-index-statement datasource
-                    entity-name instance false)))
+    upsert-inst-statement datasource entity-name instance)))
 
 (defn- delete-inst!
   "Delete an entity instance."
@@ -167,7 +155,7 @@
     (execute-stmt! conn pstmt params)))
 
 (defn delete-by-id
-  ([delete-by-id-statement delete-index-statement datasource entity-name id]
+  ([delete-by-id-statement datasource entity-name id]
    (let [tabname (su/table-for-entity entity-name)]
      (transact-fn!
       datasource
@@ -175,7 +163,7 @@
         (delete-inst! txn tabname id delete-by-id-statement)))
      id))
   ([datasource entity-name id]
-   (delete-by-id delete-by-id-statement delete-index-statement datasource entity-name id)))
+   (delete-by-id delete-by-id-statement datasource entity-name id)))
 
 (defn compile-query [query-pattern]
   (let [where-clause (:where query-pattern)]
