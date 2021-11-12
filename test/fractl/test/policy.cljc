@@ -18,7 +18,7 @@
   (auth/auth-upsert
    (cn/make-instance
     {:Kernel/Authentication
-     {:Owner {:PolicyGroup group}}})))
+     {:Owner {:Group group}}})))
 
 (defn- ctx [auth]
   {:Auth (:Id auth)})
@@ -32,14 +32,14 @@
      (entity {:EVP/User
               {:UserName :Kernel/String
                :Password :Kernel/Password
-               :PolicyGroup {:oneof ["admin" "customer" "sales"]}}})
+               :Group {:oneof ["admin" "customer" "sales"]}}})
      (let [admin-auth (mkauth "admin")
            sales-auth (mkauth "sales")
            admin (cn/make-instance
                   {:EVP/User
                    {:UserName "admin"
                     :Password "kj6671"
-                    :PolicyGroup "admin"}})
+                    :Group "admin"}})
            r1 (tu/first-result
                (cn/make-instance
                 {:EVP/Upsert_User
@@ -50,7 +50,7 @@
                      :Resource ["EVP/Upsert_User"]
                      :Rule [:q#
                             [:when
-                             [:= "admin" :EventContext.Auth.Owner.PolicyGroup]]]}})
+                             [:= "admin" :EventContext.Auth.Owner.Group]]]}})
            r2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -63,7 +63,7 @@
                    {:EVP/User
                     {:UserName "akc"
                      :Password "998112kl"
-                     :PolicyGroup "customer"}})
+                     :Group "customer"}})
              r2 (tu/first-result
                  (cn/make-instance
                   {:EVP/Upsert_User
@@ -84,17 +84,17 @@
      (entity {:ENP/User
               {:UserName :Kernel/String
                :Password :Kernel/Password
-               :PolicyGroup {:oneof ["admin" "customer" "sales"]}}})
-     (event {:ENP/ChangeGroup {:UserId :Kernel/UUID :PolicyGroup :Kernel/String}})
+               :Group {:oneof ["admin" "customer" "sales"]}}})
+     (event {:ENP/ChangeGroup {:UserId :Kernel/UUID :Group :Kernel/String}})
      (dataflow :ENP/ChangeGroup
                {:ENP/User
                 {:Id? :ENP/ChangeGroup.UserId
-                 :PolicyGroup :ENP/ChangeGroup.PolicyGroup}})
+                 :Group :ENP/ChangeGroup.Group}})
      (let [admin (cn/make-instance
                   {:ENP/User
                    {:UserName "admin"
                     :Password "kj6671"
-                    :PolicyGroup "admin"}})
+                    :Group "admin"}})
            r1 (tu/first-result
                (cn/make-instance
                 {:ENP/Upsert_User
@@ -107,7 +107,7 @@
                             [[:Upsert :Lookup]
                              [:when
                               [:= "admin"
-                               :EventContext.Auth.Owner.PolicyGroup]]]]}})
+                               :EventContext.Auth.Owner.Group]]]]}})
            r2 (tu/first-result
                (cn/make-instance
                 {:Kernel/Upsert_Policy
@@ -122,7 +122,7 @@
                    {:ENP/User
                     {:UserName "akc"
                      :Password "998112kl"
-                     :PolicyGroup "customer"}})
+                     :Group "customer"}})
              r2 (tu/first-result
                  (cn/make-instance
                   {:ENP/Upsert_User
@@ -136,13 +136,13 @@
               {:Instance user
                :EventContext (ctx sales-auth)}})))
          (let [attrs {:UserId (:Id r2)
-                      :PolicyGroup "sales"
+                      :Group "sales"
                       :EventContext (ctx admin-auth)}
                evt (cn/make-instance
                     {:ENP/ChangeGroup attrs})
                r3 (get-in (tu/first-result evt) [:transition :to])]
            (is (cn/instance-of? :ENP/User r3))
-           (is (= "sales" (:PolicyGroup r3)))
+           (is (= "sales" (:Group r3)))
            (tu/is-error
             #(tu/first-result
               (cn/make-instance
