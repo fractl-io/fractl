@@ -38,4 +38,4 @@
           ;; Membership Types obtained from here.
           ;; https://www.londonlibrary.co.uk/join/types-of-membership
           :Designation {:oneof ["life" "individual" "family"
-                            "remote" "oversees" "supported" "associate" "temporary"]}}})
+                                "remote" "oversees" "supported" "associate" "temporary"]}}})

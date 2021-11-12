@@ -38,7 +38,7 @@ POST _e/Library.Identity/Upsert_User
     "Instance": {
       "Library.Identity/User": {
         "UserName": "publisher12",
-        "Group": "incharge", ;; or "general" or "intern"
+        "Designation": "incharge", ;; or "general" or "intern"
         "Password": "imightnotbehere23",
         "Email": "publisher12@v8.io"
       }
