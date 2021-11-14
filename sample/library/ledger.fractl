@@ -11,7 +11,7 @@
 (entity {:CheckoutLog
          {:Member       {:ref     :Sample.Library.Identity/Member.Id
                          :indexed true}
-          :Group        :Kernel/String
+          :Designation  :Kernel/String
           :Book         {:ref     :Sample.Library.Catalog/Book.Id
                          :indexed true}
           :IsCheckedout {:type    :Kernel/Boolean
@@ -39,7 +39,7 @@
 
 (event {:CheckoutBook
         {:Member   :Kernel/UUID
-         :Group    :Kernel/String
+         :Designation :Kernel/String
          :Book     :Kernel/UUID
          :Backend  :Kernel/String
          :Receiver :Kernel/String
@@ -49,7 +49,7 @@
 
 (dataflow :CheckoutBook
           {:CheckoutLog {:Member       :Sample.Library.Ledger/CheckoutBook.Member
-                         :Group        :Sample.Library.Ledger/CheckoutBook.Group
+                         :Designation  :Sample.Library.Ledger/CheckoutBook.Designation
                          :Book         :Sample.Library.Ledger/CheckoutBook.Book
                          :IsCheckedout true}}
           #_{:Email/Push {:Backend  :Sample.Library.Ledger/CheckoutBook.Backend
@@ -63,7 +63,7 @@
 
 (event {:CheckinBook
         {:Member   :Kernel/UUID
-         :Group    :Kernel/String
+         :Designation :Kernel/String
          :Book     :Kernel/UUID
          :Backend  :Kernel/String
          :Receiver :Kernel/String
@@ -73,7 +73,7 @@
 
 (dataflow :CheckinBook
           {:CheckoutLog {:Member       :Sample.Library.Ledger/CheckinBook.Member
-                         :Group        :Sample.Library.Ledger/CheckinBook.Group
+                         :Designation   :Sample.Library.Ledger/CheckinBook.Designation
                          :Book         :Sample.Library.Ledger/CheckinBook.Book
                          :IsCheckedout false}}
           #_{:Email/Push {:Backend  :Sample.Library.Ledger/CheckoutBook.Backend
@@ -112,7 +112,7 @@
                         [:when
                          [:in ["life" "individual" "family"
                                "remote" "oversees" "supported" "associate"]
-                          :EventContext.Auth.Owner.Group]]]}})
+                          :EventContext.Auth.Owner.Designation]]]}})
 
 (dataflow :UserCreationPolicy
           {:Kernel/Policy
@@ -120,7 +120,7 @@
             :Resource  ["Sample.Library.Identity/Upsert_User"]
             :Rule      [:q#
                         [:when
-                         [:= "incharge" :EventContext.Auth.Owner.Group]]]}})
+                         [:= "incharge" :EventContext.Auth.Owner.Designation]]]}})
 
 (dataflow :CheckoutPolicy
           {:Kernel/Policy
@@ -130,7 +130,7 @@
                         [:when
                          [:in ["life" "individual" "family"
                                "remote" "oversees" "supported" "associate"]
-                          :EventContext.Auth.Owner.Group]]]}})
+                          :EventContext.Auth.Owner.Designation]]]}})
 
 (dataflow :CheckinPolicy
           {:Kernel/Policy
@@ -140,7 +140,7 @@
                         [:when
                          [:in ["life" "individual" "family"
                                "remote" "oversees" "supported" "associate"]
-                          :EventContext.Auth.Owner.Group]]]}})
+                          :EventContext.Auth.Owner.Designation]]]}})
 
 (dataflow :RBACPolicyLogging
           {:Kernel/Policy

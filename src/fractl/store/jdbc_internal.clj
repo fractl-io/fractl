@@ -5,7 +5,7 @@
   (:import [java.sql PreparedStatement]))
 
 (defn validate-ref-statement [conn index-tabname colname ref]
-  (let [sql (str "SELECT 1 FROM " index-tabname " WHERE " colname " = ?")
+  (let [sql (str "SELECT 1 FROM " index-tabname " WHERE _" colname " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [(u/uuid-from-string ref)]]))
 
@@ -14,19 +14,21 @@
     (.setString pstmt 1 (str id))
     [pstmt nil]))
 
-(defn delete-index-statement [conn table-name _ id]
-  (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
-        ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    [pstmt [id]]))
-
 (defn delete-by-id-statement [conn table-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE id = ?")
+  (let [sql (str "DELETE FROM " table-name " WHERE _id = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 
 (defn do-query-statement
   ([conn query-sql query-params]
-   (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
+   (let [^PreparedStatement pstmt
+         (jdbc/prepare
+          conn (cond
+                 (map? query-sql)
+                 (:query query-sql)
+
+                 :else
+                 [query-sql]))]
      [pstmt query-params]))
   ([conn query-sql]
    (jdbc/prepare conn [query-sql])))
@@ -44,6 +46,6 @@
   (jdbc/execute! conn sql))
 
 (defn execute-stmt! [_ stmt params]
-  (if params
+  (if (and params (not= (first params) :*))
     (jdbc/execute! (jdbcp/set-parameters stmt params))
     (jdbc/execute! stmt)))

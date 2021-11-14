@@ -44,10 +44,8 @@
         (db/drop-schema @datasource component-name))
       (fetch-schema [_]
         nil)
-      (create-table [_ entity-name]
-        (db/create-table @datasource entity-name))
       (update-instance [_ entity-name instance]
-        (db/update-instance @datasource entity-name instance))
+        (db/upsert-instance @datasource entity-name instance))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance @datasource entity-name instance))
       (delete-by-id [_ entity-name id]
@@ -61,5 +59,5 @@
       (do-query [_ query params]
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]
-        (db/compile-to-indexed-query query-pattern))
+        (db/compile-query query-pattern))
       (get-reference [_ path refs]))))

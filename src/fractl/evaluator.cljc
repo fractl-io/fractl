@@ -157,7 +157,7 @@
                 eval-dataflow-with-logs evaluator
                 env event-instance log-info log-error hidden-attrs)]
         (when log-info (log-event hidden-attrs event-instance))
-        (doall (map ef dfs)))
+        (mapv ef dfs))
       (let [msg (str "no authorization to evaluate dataflows on event - "
                      (cn/instance-name event-instance))]
         (when log-warn
@@ -249,7 +249,7 @@
 (defn- filter-public-result [xs]
   (if (map? xs)
     (dissoc xs :env)
-    (doall (map filter-public-result xs))))
+    (mapv filter-public-result xs)))
 
 (defn public-evaluator [store-config with-query-support]
   (comp filter-public-result (evaluator store-config nil with-query-support)))

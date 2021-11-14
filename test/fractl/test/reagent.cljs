@@ -62,7 +62,7 @@
           (is (= :X (last cursor)))))))
 
 ; Test for alasql reagent
-(deftest store-test-alasql
+#_(deftest store-test-alasql
   (defcomponent :STA
     (entity {:STA/E {:X :Kernel/Int}})
 

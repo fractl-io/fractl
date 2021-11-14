@@ -2,6 +2,8 @@
   (:require [cljsjs.alasql]
             [clojure.string :as str]
             [fractl.util :as u]
+            [fractl.util.seq :as us]
+            [fractl.component :as cn]
             [fractl.store.sql :as sql]
             [fractl.store.util :as su]))
 
@@ -11,20 +13,21 @@
     (js/alasql (str "USE " name))
     db))
 
-(defn upsert-index-statement [_ table-name _ id attrval]
-  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES (?, ?)")]
-    [sql [id attrval]]))
-
 (defn upsert-inst-statement [_ table-name id obj]
-  (let [sql (str "INSERT OR REPLACE INTO " table-name " VALUES(?, ?)")]
-    [sql [id obj]]))
-
-(defn delete-index-statement [_ table-name _ id]
-  (let [sql (str "DELETE FROM " table-name " WHERE Id = ?")]
-    [sql [id]]))
+  (let [[entity-name instance] obj
+        id-attr (cn/identity-attribute-name entity-name)
+        id-attr-nm (name id-attr)
+        attrs (cn/fetch-schema (cn/instance-name instance))
+        ks (sort (keys attrs))
+        col-names (mapv name ks)
+        col-vals (u/objects-as-string (mapv #(or (% instance) "") ks))
+        sql (str "INSERT OR REPLACE INTO " table-name " VALUES ("
+                 (us/join-as-string (mapv (constantly "?") col-vals) ", ")
+                 ")")]
+    [sql col-vals]))
 
 (defn delete-by-id-statement [_ table-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE Id = ?")]
+  (let [sql (str "DELETE FROM " table-name " WHERE _Id = ?")]
     [sql [id]]))
 
 (defn query-by-id-statement [_ query-sql id]
@@ -32,22 +35,17 @@
       [stmt [id]]))
 
 (defn query-by-id [datasource entity-name query-sql ids]
-  (let [[id-key json-key] (su/make-result-keys entity-name)]
-    ((partial su/results-as-instances entity-name id-key json-key)
-     (flatten (map #(let [pstmt (query-by-id-statement datasource query-sql %)]
-                      pstmt
-                      (set ids)))))))
+  ((partial su/results-as-instances entity-name)
+   (flatten (map #(let [pstmt (query-by-id-statement datasource query-sql %)]
+                    pstmt
+                    (set ids))))))
 
 (defn validate-ref-statement [_ index-tabname colname ref]
-  (let [sql (str "SELECT 1 FROM " index-tabname " WHERE " colname " = ?")]
+  (let [sql (str "SELECT 1 FROM " index-tabname " WHERE _" colname " = ?")]
     [sql [ref]]))
 
 (defn do-query-statement [_ query-sql query-params]
-  [query-sql query-params])
-
-(def compile-to-indexed-query (partial sql/compile-to-indexed-query
-                                       su/table-for-entity
-                                       su/index-table-name))
+  [(if (map? query-sql) (:query query-sql) query-sql) query-params])
 
 (defn execute-fn! [db f]
   (f db))
@@ -60,6 +58,6 @@
 
 (defn execute-stmt! [db stmt params]
   (let [result (if params
-            (.exec db stmt (clj->js params))
-            (.exec db stmt))]
+                 (.exec db stmt (clj->js params))
+                 (.exec db stmt))]
     (js->clj result :keywordize-keys true)))

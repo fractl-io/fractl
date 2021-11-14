@@ -126,7 +126,7 @@
         query (store/compile-query
                store
                {:from entity-name :where :*})
-        rows (store/query-all store entity-name (:query query))
+        rows (store/query-all store entity-name (first query))
         out-file (:FilePath spec)]
     (spit out-file (instances-to-csv spec rows))
     out-file))

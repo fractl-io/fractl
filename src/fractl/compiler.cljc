@@ -132,15 +132,13 @@
       (seqable? v) (vec (param-process-seq-query k v))
       :else [k (query-param-lookup v)])))
 
-(defn- compile-dynamic-entity-query [ctx entity-name query]
-  (let [eq (i/expand-query
-            entity-name
-            (mapv query-param-process query))]
+(defn- compile-relational-entity-query [ctx entity-name query]
+  (let [q (i/expand-query
+           entity-name
+           (mapv query-param-process query))]
     {:compiled-query
-     ((ctx/fetch-compile-query-fn ctx)
-      {:dynamic true
-       :query eq})
-     :raw-query eq}))
+     ((ctx/fetch-compile-query-fn ctx) q)
+     :raw-query q}))
 
 (defn- compile-entity-query [ctx entity-name query]
   (let [indexed-attrs (set
@@ -168,9 +166,7 @@
                    (first rules))))}))
 
 (defn compile-query [ctx entity-name query]
-  (let [q ((if (cn/dynamic-entity? entity-name)
-             compile-dynamic-entity-query
-             compile-entity-query)
+  (let [q (compile-relational-entity-query
            ctx entity-name query)]
     (ctx/put-fresh-record! ctx entity-name {})
     q))

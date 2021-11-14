@@ -1,7 +1,8 @@
 (ns fractl.util
   (:require [clojure.string :as string])
   #?(:clj
-     (:require [net.cgrand.macrovich :as macros])
+     (:require [net.cgrand.macrovich :as macros]
+               [cheshire.core :as json])
      :cljs
      (:require-macros [net.cgrand.macrovich :as macros]
                       [fractl.util :refer [passthru]])))
@@ -47,12 +48,14 @@
      (str (random-uuid))))
 
 (defn uuid-from-string [string]
-  (try
-    #?(:clj
-       (java.util.UUID/fromString string)
-       :cljs
-       (uuid string))
-    (catch #?(:clj Exception :cljs :default) _ nil)))
+  (if (uuid? string)
+    string
+    (try
+      #?(:clj
+         (java.util.UUID/fromString string)
+         :cljs
+         (uuid string))
+      (catch #?(:clj Exception :cljs :default) _ nil))))
 
 (defn call-safe [f arg]
   (when f (f arg)))
@@ -228,3 +231,15 @@
   (if (string? x)
     (keyword x)
     x))
+
+(defn objects-as-string [xs]
+  (mapv #(cond
+           (and (seqable? %) (not (string? %)))
+           #?(:clj (json/generate-string %)
+              :cljs (str %))
+
+           (or (keyword? %) (symbol? %))
+           (str %)
+
+           :else %)
+        xs))

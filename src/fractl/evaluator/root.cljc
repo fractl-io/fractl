@@ -42,7 +42,7 @@
       (if-let [q (first qs)]
         (let [c (store/compile-query store (first q))
               [rec-name ref-val] (second q)
-              rs (store/do-query store (:query c) [ref-val])]
+              rs (store/do-query store (first c) [ref-val])]
           (recur (rest qs) (env/bind-instances env (stu/results-as-instances rec-name rs))))
         env))))
 
@@ -163,18 +163,20 @@
 
 (defn- fire-conditional-event [event-evaluator env store event-info instance]
   (let [[_ event-name [where-clause records-to-load]] event-info
-        env (env/bind-instance env instance)
+        upserted-inst (if-let [t (:transition instance)]
+                        (:from t)
+                        instance)
+        new-inst (if-let [t (:transition instance)] (:to t) upserted-inst)
+        env (env/bind-instance env (or new-inst upserted-inst))
         [all-insts env] (load-instances-for-conditional-event
                          env store where-clause
-                         records-to-load #{instance})]
+                         records-to-load #{new-inst})]
     (when (cn/fire-event? event-info all-insts)
-      (let [[_ n] (li/split-path (cn/instance-name instance))
-            upserted-inst (when-let [t (:transition instance)]
-                            (:from t))
+      (let [[_ n] (li/split-path (cn/instance-name upserted-inst))
             upserted-n (li/upserted-instance-attribute n)
             evt (cn/make-instance
                  event-name
-                 {n instance
+                 {n new-inst
                   upserted-n upserted-inst})]
         (event-evaluator env evt)))))
 
@@ -182,19 +184,18 @@
   (let [f (partial fire-conditional-event event-evaluator env store)]
     (filter
      identity
-     (map #(seq (map (fn [e] (f e %)) (cn/conditional-events %)))
-          insts))))
+     (mapv #(seq (mapv (fn [e] (f e %)) (cn/conditional-events %)))
+           insts))))
 
 (def ^:private inited-components (u/make-cell [:Kernel]))
 
 (defn- maybe-init-schema! [store component-name]
-  (when-not (cn/dynamic-entities component-name)
-    (when-not (some #{component-name} @inited-components)
-      (u/safe-set
-       inited-components
-       (do (store/create-schema store component-name)
-           (conj @inited-components component-name))
-       component-name))))
+  (when-not (some #{component-name} @inited-components)
+    (u/safe-set
+     inited-components
+     (do (store/create-schema store component-name)
+         (conj @inited-components component-name))
+     component-name)))
 
 (defn- perform-rbac! [env opr recname data]
   (when-let [f (env/rbac-check env)]
@@ -223,7 +224,7 @@
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
-    (when (and store (not (cn/dynamic-entity? record-name)))
+    (when store
       (maybe-init-schema! store (first record-name)))
     (if (env/any-dirty? env insts)
       (do
@@ -260,9 +261,13 @@
   (first (filter #(= :Id (first %)) query-attrs)))
 
 (defn- evaluate-id-result [env rs]
-  (loop [rs rs, env env, values []]
+  (loop [rs (if (or (not (seqable? rs)) (string? rs))
+              [rs]
+              rs)
+         env env, values []]
     (if-let [r (first rs)]
-      (if (fn? r)
+      (cond
+        (fn? r)
         (let [x (r env nil)
               [v new-env]
               (if (vector? x)
@@ -272,6 +277,12 @@
            (rest rs)
            new-env
            (conj values v)))
+
+        (vector? r)
+        (let [[v new-env] (evaluate-id-result env r)]
+          (recur (rest rs) new-env (conj values v)))
+
+        :else
         (recur (rest rs) env (conj values r)))
       [values env])))
 
@@ -337,40 +348,23 @@
 
 (defn- query-all [env store entity-name query]
   (cond
+    (vector? query)
+    (let [[params env] (evaluate-id-result env (rest query))]
+      [(stu/results-as-instances
+        entity-name
+        (store/do-query store (first query) params))
+       env])
+
     (or (string? query) (map? query))
-    (store/query-all store entity-name query)
+    [(store/query-all store entity-name query) env]
 
     :else
-    (store/query-all
-     store entity-name
-     (first query)
-     (mapv #(first (evaluate-id-result env %)) (second query)))))
+    (u/throw-ex (str "invalid query object - " query))))
 
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (:compiled-query full-query)
-              (store/compile-query store full-query))
-        rule (:filter full-query)
-        filter-results
-        (if rule
-          (partial filter-query-result rule env)
-          identity)]
-    (if (:query-direct q)
-      [(filter-results
-        (store/do-query store (:raw-query full-query)
-                        {:lookup-fn-params [env nil]}))
-       env]
-      (let [idqs (seq (:id-queries q))
-            [id-results env]
-            (if idqs
-              (evaluate-id-queries env store idqs (:merge-opr q))
-              [nil env])]
-        [(if (seq id-results)
-           (filter-results
-            (store/query-by-id store entity-name (:query q) id-results))
-           (when-not idqs
-             (filter-results
-              (query-all env store entity-name (:query q)))))
-         env]))))
+              (store/compile-query store full-query))]
+    (query-all env store entity-name q)))
 
 (defn- maybe-async-channel? [x]
   (and x (not (seqable? x))))
@@ -414,8 +408,8 @@
       (if (maybe-async-channel? x)
         [x single? env]
         (let [objs (if single? [x] x)
-              final-objs (map #(assoc-computed-attributes env record-name %) objs)
-              insts (map (partial validated-instance record-name) final-objs)
+              final-objs (mapv #(assoc-computed-attributes env record-name %) objs)
+              insts (mapv (partial validated-instance record-name) final-objs)
               bindable (if single? (first insts) insts)]
           [bindable single? env])))
     [nil false env]))
@@ -427,8 +421,8 @@
   (if-let [xs (env/pop-obj env)]
     (let [[env single? [_ x]] xs
           objs (if single? [x] x)
-          final-objs (map #(assoc-computed-attributes env record-name %) objs)
-          insts (map (partial validated-instance record-name) final-objs)
+          final-objs (mapv #(assoc-computed-attributes env record-name %) objs)
+          insts (mapv (partial validated-instance record-name) final-objs)
           env (env/bind-instances env record-name insts)
           bindable (if single? (first insts) insts)
           final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]
@@ -548,7 +542,7 @@
    elements-opcode))
 
 (defn- set-flat-list [opcode-eval elements-opcode]
-  (loop [results (map opcode-eval elements-opcode), final-list []]
+  (loop [results (mapv opcode-eval elements-opcode), final-list []]
     (if-let [result (first results)]
       (if-let [r (ok-result result)]
         (recur (rest results) (conj final-list r))
@@ -556,10 +550,10 @@
       final-list)))
 
 (defn- normalize-transitions [xs]
-  (map #(if-let [t (:transition %)]
-          (:to t)
-          %)
-       xs))
+  (mapv #(if-let [t (:transition %)]
+           (:to t)
+           %)
+        xs))
 
 (defn- call-with-exception-as-error [f]
   (try
@@ -648,7 +642,12 @@
       (set-obj-attr env attr-name f))
 
     (do-intern-instance [self env [record-name alias]]
-      (let [[insts single? env] (pop-instance env record-name)]
+      (let [[insts single? env] (pop-instance env record-name)
+            scm (cn/ensure-schema record-name)]
+        (doseq [inst insts]
+          (when-let [attrs (cn/instance-attributes inst)]
+            (cn/validate-record-attributes
+             record-name attrs scm)))
         (cond
           (maybe-async-channel? insts)
           (i/ok insts env)

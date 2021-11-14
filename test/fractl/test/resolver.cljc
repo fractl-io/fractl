@@ -110,18 +110,23 @@
     (is (not (persisted? :R02 e01)))))
 
 (defn- test-query-resolver [install-resolver resolver-name path]
-  (let [r (r/make-resolver resolver-name
-                           {:query
-                            {:handler
-                             (fn [arg]
-                               (let [where-clause (:where (second arg))
-                                     wild-card? (= where-clause :*)]
-                                 (if wild-card?
-                                   [(cn/make-instance :ResQueryAll/E {:X 1 :N "e01"})
-                                    (cn/make-instance :ResQueryAll/E {:X 2 :N "e02"})]
-                                   (when-let [id (nth where-clause 2)]
-                                     [(cn/make-instance :RQ/E {:X 1 :Id id})]))))}}
-                           #(e/eval-all-dataflows % store {}))]
+  (let [r (r/make-resolver
+           resolver-name
+           {:query
+            {:handler
+             (fn [arg]
+               (let [where (:where (second arg))
+                     where-clause (if (and (vector? where)
+                                           (= (first where) :and))
+                                    (second where)
+                                    where)
+                     wild-card? (= where-clause :*)]
+                 (if wild-card?
+                   [(cn/make-instance :ResQueryAll/E {:X 1 :N "e01"})
+                    (cn/make-instance :ResQueryAll/E {:X 2 :N "e02"})]
+                   (when-let [id (nth where-clause 2)]
+                     [(cn/make-instance :RQ/E {:X 1 :Id id})]))))}}
+           #(e/eval-all-dataflows % store {}))]
     (install-resolver path r)))
 
 (deftest query

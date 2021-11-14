@@ -72,8 +72,7 @@
 
 (defn upsert-instance [store record-name instance]
   (let [uq-attrs (cn/unique-attributes
-                  (su/find-entity-schema record-name))
-        instance (cn/flag-dynamic-entity record-name instance)]
+                  (su/find-entity-schema record-name))]
     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
                                (p/query-by-unique-keys store record-name uq-attrs instance))]
       (let [new-instance
@@ -114,9 +113,8 @@
     false))
 
 (defn upsert-instances [store record-name insts]
-  (doall
-   (map
-    #(upsert-instance
-      store record-name
-      %)
-    insts)))
+  (mapv
+   #(upsert-instance
+     store record-name
+     %)
+   insts))

@@ -136,17 +136,17 @@
          table-names-from-schema fetch-columns-sql
          fetch-pk-columns-sql type-lookup))
       (upsert-instance [_ entity-name instance]
-        (if (or (cn/has-dynamic-entity-flag? instance)
-                (cn/dynamic-entity? entity-name))
-          (db/upsert-dynamic-entity-instance
-           @datasource entity-name instance)
-          (db/upsert-instance
-           pi/upsert-inst-statement pi/upsert-index-statement
-           @datasource entity-name instance true)))
+        (db/upsert-instance
+         pi/upsert-inst-statement
+         @datasource entity-name instance))
       (update-instance [_ entity-name instance]
-        (db/update-instance pi/upsert-inst-statement pi/upsert-index-statement @datasource entity-name instance))
+        (db/upsert-instance
+         pi/upsert-inst-statement
+         @datasource entity-name instance))
       (delete-by-id [_ entity-name id]
-        (db/delete-by-id pi/delete-by-id-statement pi/delete-index-statement @datasource entity-name id))
+        (db/delete-by-id
+         pi/delete-by-id-statement
+         @datasource entity-name id))
       (query-by-id [_ entity-name query ids]
         (db/query-by-id
          pi/query-by-id-statement
@@ -156,13 +156,9 @@
          pi/query-by-id-statement @datasource
          entity-name unique-keys unique-values))
       (query-all [_ entity-name query]
-        (if (cn/dynamic-entity? entity-name)
-          (db/query-all-dynamic @datasource entity-name query)
-          (db/query-all @datasource entity-name query)))
+        (db/query-all @datasource entity-name query))
       (do-query [_ query params]
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]
-        (if (:dynamic query-pattern)
-          (db/compile-to-direct-query (:query query-pattern))
-          (db/compile-to-indexed-query query-pattern)))
+        (db/compile-query query-pattern))
       (get-reference [_ path refs]))))

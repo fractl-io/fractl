@@ -212,19 +212,21 @@
     (is (= 300 (:Z result)))
     (let [id (:Id result)
           addevt (cn/make-instance :SelfRef/AddToX {:EId id :Y 10})
-          result (first (tu/fresult (e/eval-all-dataflows addevt)))]
-      (is (cn/instance-of? :SelfRef/E result))
-      (is (u/uuid-from-string (:Id result)))
-      (is (= 110 (:X result)))
-      (is (= 10 (:Y result)))
-      (is (= 1 (:Z result))))))
+          result (first (tu/fresult (e/eval-all-dataflows addevt)))
+          inst (or (get-in result [:transition :to]) result)]
+      (is (cn/instance-of? :SelfRef/E inst))
+      (is (u/uuid-from-string (:Id inst)))
+      (is (= 110 (:X inst)))
+      (is (= 10 (:Y inst)))
+      (is (= 1 (:Z inst))))))
 
 (deftest compound-attributes
   (defcomponent :Df04
     (entity {:Df04/E1 {:A :Kernel/Int}})
     (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
                        :X :Kernel/Int
-                       :Y {:expr '(* :X :AId.A)}}})
+                       :Y {:type :Kernel/Int
+                           :expr '(* :X :AId.A)}}})
     (event {:Df04/PostE2 {:E1 :Df04/E1}}))
   (dataflow :Df04/PostE2
             {:Df04/E2 {:AId :Df04/PostE2.E1.Id
@@ -251,7 +253,8 @@
 (deftest compound-attributes-with-default-events
   (defcomponent :CA
     (entity {:CA/E {:A :Kernel/Int
-                    :B {:expr '(* :A 10)}}}))
+                    :B {:type :Kernel/Int
+                        :expr '(* :A 10)}}}))
   (let [e (cn/make-instance :CA/E {:A 20})
         evt {:CA/Upsert_E {:Instance e}}
         r (e/eval-all-dataflows evt)
@@ -267,7 +270,8 @@
   (defcomponent :Df041
     (record {:Df041/R {:A :Kernel/Int}})
     (entity {:Df041/E {:X :Kernel/Int
-                       :Y {:expr '(* :X 10)}}})
+                       :Y {:type :Kernel/Int
+                           :expr '(* :X 10)}}})
     (event {:Df041/PostE {:R :Df041/R}}))
   (dataflow :Df041/PostE
             {:Df041/E {:X :Df041/PostE.R.A}})
@@ -608,7 +612,7 @@
         lookup-evt (cn/make-instance :Del/Lookup_E {:Id id})
         e02 (first (tu/fresult (e/eval-all-dataflows lookup-evt)))
         del-result (e/eval-all-dataflows {:Del/Delete_E {:Id id}})
-        r01 (second (tu/fresult del-result))
+        r01 (str (second (tu/fresult del-result)))
         r02 (e/eval-all-dataflows lookup-evt)]
     (is (cn/instance-of? :Del/E e01))
     (is (cn/same-instance? e01 e02))
@@ -773,7 +777,8 @@
   (defcomponent :EdnAttr
     (entity :EdnAttr/Form {:Title :Kernel/String
                            :X :Kernel/Int
-                           :Y {:expr '(+ :X 10)}
+                           :Y {:type :Kernel/Int
+                               :expr '(+ :X 10)}
                            :View :Kernel/Edn})
     (event :EdnAttr/RenderLoginForm {:Title :Kernel/String
                                      :X :Kernel/Int
@@ -1008,12 +1013,12 @@
       :A :Kernel/Int})
     (entity
      :Itc/E
-     {:Values {:listof :Itc/Base}}))
+     {:Vals {:listof :Itc/Base}}))
   (let [v1 (cn/make-instance {:Itc/Child1 {:X 1 :Y 2}})
         v2 (cn/make-instance {:Itc/Child2 {:X 10 :Z 20}})
         v3 (cn/make-instance {:Itc/Child3 {:X 9 :Y 8 :A 7}})
         e (cn/make-instance {:Itc/E
-                             {:Values [v1 v2 v3]}})
+                             {:Vals [v1 v2 v3]}})
         result (first
                 (tu/fresult
                  (e/eval-all-dataflows
@@ -1024,8 +1029,8 @@
     (every? #(or (cn/instance-of? :Itc/Child1 %)
                  (cn/instance-of? :Itc/Child2 %)
                  (cn/instance-of? :Itc/Child3 %))
-            (:Values result))
-    (every? (partial cn/instance-of? :Itc/Base) (:Values result))))
+            (:Vals result))
+    (every? (partial cn/instance-of? :Itc/Base) (:Vals result))))
 
 #?(:clj
    (deftest check-wrong-reference-attribute-use
@@ -1061,6 +1066,7 @@
        (is (thrown-with-msg? Exception #"Reference cannot be found for"
                              (cn/instance-of? :UserAccount/Estimate
                                               (first (tu/fresult (e/eval-all-dataflows evt)))))))))
+
 #?(:clj
    (deftest ref-id-of-record
           (defcomponent :UserAccount
@@ -1123,7 +1129,8 @@
        {:Name :Kernel/String
         :Age :Kernel/Int
         :Spec
-        {:expr spec}})
+        {:type :Kernel/Edn
+         :expr spec}})
       (dataflow
        :ExprCompile/ShowForm
        {:ExprCompile/Form

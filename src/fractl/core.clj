@@ -127,21 +127,7 @@
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
-(defn- init-dynamic-entities! [component entity-names schema]
-  (let [s (filter (fn [r]
-                    (let [k (first (keys r))]
-                      (some #{k} entity-names)) schema)
-                  schema)]
-    (doseq [t s]
-      (ln/entity (li/make-path component (first (keys t)))
-                 (first (vals t))))))
-
 (defn- run-appinit-tasks! [evaluator store model components]
-  (when-let [schema (when (some cn/dynamic-entities components)
-                      (store/fetch-schema store))]
-    (doseq [c components]
-      (when-let [entity-names (cn/dynamic-entities c)]
-        (init-dynamic-entities! c entity-names schema))))
   (trigger-appinit-event! evaluator (:init-data model)))
 
 (defn- init-runtime [model components config]
