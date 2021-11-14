@@ -25,7 +25,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Identity/Upsert_User\": {\n        \"Instance\": {\n            \"Sample.Library.Identity/User\": {\n                \"UserName\": \"New Book Publisher\",\n                \"Group\": \"incharge\",\n                \"Password\": \"publishingnewbooks\",\n                \"Email\": \"book@publisher.io\"\n            }\n        }\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Identity/Upsert_User\": {\n        \"Instance\": {\n            \"Sample.Library.Identity/User\": {\n                \"UserName\": \"New Book Publisher\",\n                \"Designation\": \"incharge\",\n                \"Password\": \"publishingnewbooks\",\n                \"Email\": \"book@publisher.io\"\n            }\n        }\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -68,7 +68,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Catalog/Upsert_Book\": {\n        \"Instance\": {\n            \"Sample.Library.Catalog/Book\": {\n                \"Name\": \"The Godfather\",\n                \"Publisher\": \"1115d420-4659-4c46-844a-ae016b1cfbbf\"\n            }\n        }\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Catalog/Upsert_Book\": {\n        \"Instance\": {\n            \"Sample.Library.Catalog/Book\": {\n                \"Name\": \"The Godfather\",\n                \"Publisher\": \"4f0c3ab6-64e2-46c0-9778-a14373a2dc0d\"\n            }\n        }\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -111,7 +111,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Identity/Upsert_Member\": {\n        \"Instance\": {\n            \"Sample.Library.Identity/Member\": {\n                \"Name\": \"Leo Tolstoy\",\n                \"UserName\": \"lt\",\n                \"Password\": \"tolstoy123\",\n                \"Email\": \"leo@tolstoy.io\",\n                \"DOB\": \"1828-09-09\",\n                \"Group\": \"life\"\n            }\n        }\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Identity/Upsert_Member\": {\n        \"Instance\": {\n            \"Sample.Library.Identity/Member\": {\n                \"Name\": \"Leo Tolstoy\",\n                \"UserName\": \"lt\",\n                \"Password\": \"tolstoy123\",\n                \"Email\": \"leo@tolstoy.io\",\n                \"DOB\": \"1828-09-09\",\n                \"Designation\": \"life\"\n            }\n        }\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -154,7 +154,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Ledger/CheckoutBook\": {\n        \"Book\": \"e0df1ffc-3843-49fe-b20c-0a93b8361afe\",\n        \"Member\": \"1d22a804-7c9d-4134-a9d4-2ddf2a21e48e\",\n        \"Group\": \"life\",\n        \"Backend\": \"Postmark\",\n        \"Receiver\": \"test@test.io\",\n        \"Subject\": \"Book Checked out\",\n        \"Text\": \"You have checked out Crime and Punishment. Please return it after 2 weeks.\",\n        \"To\": \"+9779841XXXXXX\"\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Ledger/CheckoutBook\": {\n        \"Book\": \"e35f5d98-4bc4-4373-b1e0-92ad000df04d\",\n        \"Member\": \"15d84b19-ec0f-4549-8ede-f2d63155325e\",\n        \"Designation\": \"life\",\n        \"Backend\": \"Postmark\",\n        \"Receiver\": \"test@test.io\",\n        \"Subject\": \"Book Checked out\",\n        \"Text\": \"You have checked out Crime and Punishment. Please return it after 2 weeks.\",\n        \"To\": \"+9779841XXXXXX\"\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"

@@ -6,10 +6,10 @@ This model, once mature enough, should move to a dedicated repository.
 ### User Login Auth
 
 ```json
-POST _e/Library.Ledger/UserLogin
+POST _e/Sample.Library.Ledger/UserLogin
 
 {
-    "Library.Ledger/UserLogin": {
+    "Sample.Library.Ledger/UserLogin": {
         "UserName": "publisher12",
         "Password": "imightnotbehere23"
     }
@@ -18,10 +18,10 @@ POST _e/Library.Ledger/UserLogin
 
 ### Member Login Auth
 ```json
-POST /_e/Library.Ledger/MemberLogin
+POST /_e/Sample.Library.Ledger/MemberLogin
 
 {
-  "Library.Ledger/MemberLogin": {
+  "Sample.Library.Ledger/MemberLogin": {
     "UserName": "fdyo",
     "Password": "raskolnikov"
   }
@@ -31,14 +31,14 @@ POST /_e/Library.Ledger/MemberLogin
 ### Create user
 
 ```json
-POST _e/Library.Identity/Upsert_User
+POST _e/Sample.Library.Identity/Upsert_User
 
 {
-  "Library.Identity/Upsert_User": {
+  "Sample.Library.Identity/Upsert_User": {
     "Instance": {
-      "Library.Identity/User": {
+      "Sample.Library.Identity/User": {
         "UserName": "publisher12",
-        "Group": "incharge", ;; or "general" or "intern"
+        "Designation": "incharge", ;; or "general" or "intern"
         "Password": "imightnotbehere23",
         "Email": "publisher12@v8.io"
       }
@@ -53,12 +53,12 @@ POST _e/Library.Identity/Upsert_User
 ### Create Book
 
 ```json
-POST _e/Library.Catalog/Upsert_Book
+POST _e/Sample.Library.Catalog/Upsert_Book
 
 {
-    "Library.Catalog/Upsert_Book": {
+    "Sample.Library.Catalog/Upsert_Book": {
         "Instance": {
-            "Library.Catalog/Book": {
+            "Sample.Library.Catalog/Book": {
                 "Name": "The Godfather",
                 "Publisher": "{{publisher}}"
             }
@@ -70,18 +70,18 @@ POST _e/Library.Catalog/Upsert_Book
 ### Create Member
 
 ```json
-POST _e/Library.Identity/Upsert_Member
+POST _e/Sample.Library.Identity/Upsert_Member
 
 {
-  "Library.Identity/Upsert_Member": {
+  "Sample.Library.Identity/Upsert_Member": {
     "Instance": {
-      "Library.Identity/Member": {
+      "Sample.Library.Identity/Member": {
         "Name": "Fyodor Dyostovesky",
         "UserName": "fdyo",
         "Password": "raskolnikov",
         "Email": "fdyo@v8.io",
         "DOB": "1868-01-02",
-        "Group": "life"
+        "Designation": "life"
                 ;; or "individual" or "family" or
                 ;; "remote" or "oversees" or "supported" or,
                 ;; "associate" or "temporary"
@@ -98,59 +98,59 @@ POST _e/Library.Identity/Upsert_Member
 #### UserCreation Policy(For creating Users):
 
 ```json
-POST _e/Library.Ledger/UserCreationPolicy
+POST _e/Sample.Library.Ledger/UserCreationPolicy
 
 {
-  "Library.Ledger/UserCreationPolicy": {}
+  "Sample.Library.Ledger/UserCreationPolicy": {}
 }
 ```
 
 #### Service Policy (For creating members):
 ```json
-POST _e/Library.Ledger/ServicePolicy
+POST _e/Sample.Library.Ledger/ServicePolicy
 
 {
-    "Library.Ledger/ServicePolicy": {}
+    "Sample.Library.Ledger/ServicePolicy": {}
 }
 ```
 
 #### Checkout Policy (For Checkingout books):
 ```json
-POST _e/Library.Ledger/CheckoutPolicy
+POST _e/Sample.Library.Ledger/CheckoutPolicy
 
 {
-    "Library.Ledger/CheckoutPolicy": {}
+    "Sample.Library.Ledger/CheckoutPolicy": {}
 }
 ```
 
 #### Checkin Policy (For checkingIn books):
 ```json
-POST _e/Library.Ledger/CheckinPolicy
+POST _e/Sample.Library.Ledger/CheckinPolicy
 
 {
-  "Library.Ledger/CheckinPolicy": {}
+  "Sample.Library.Ledger/CheckinPolicy": {}
 }
 ```
 
 #### Logging Policy:
 ```json
-POST _e/Library.Ledger/RBACPolicyLogging
+POST _e/Sample.Library.Ledger/RBACPolicyLogging
 
 {
-    "Library.Ledger/RBACPolicyLogging": {}
+    "Sample.Library.Ledger/RBACPolicyLogging": {}
 }
 ```
 
 ### Checkout Book
 
 ```json
-POST _e/Library.Ledger/CheckoutBook
+POST _e/Sample.Library.Ledger/CheckoutBook
 
 {
-    "Library.Ledger/CheckoutBook": {
+    "Sample.Library.Ledger/CheckoutBook": {
         "Book": "{{book}}",
         "Member": "{{member}}",
-        "Group": "life",
+        "Designation": "life",
                 ;; or "individual" or "family" or
                 ;; "remote" or "oversees" or "supported" or,
                 ;; "associate" or "temporary"
@@ -169,13 +169,13 @@ POST _e/Library.Ledger/CheckoutBook
 ### Checkin Book
 
 ```json
-POST _e/Library.Ledger/CheckinBook
+POST _e/Sample.Library.Ledger/CheckinBook
 
 {
-    "Library.Ledger/CheckinBook": {
+    "Sample.Library.Ledger/CheckinBook": {
         "Book": "{{book}}",
         "Member": "{{member}}",
-        "Group": "life",
+        "Designation": "life",
                 ;; or "individual" or "family" or
                 ;; "remote" or "oversees" or "supported" or,
                 ;; "associate" or "temporary"
@@ -194,17 +194,17 @@ POST _e/Library.Ledger/CheckinBook
 ### List all checkouts
 
 ```json
-POST _e/Library.Ledger/AllCheckouts
+POST _e/Sample.Library.Ledger/AllCheckouts
 
 {
-    "Library.Ledger/AllCheckouts": {}
+    "Sample.Library.Ledger/AllCheckouts": {}
 }
 ```
 ### Fetch Books for a specific publisher
 
 ```json
-POST _e/Library.Catalog/ListBooks
+POST _e/Sample.Library.Catalog/ListBooks
 
-{"Library.Catalog/ListBooks":
+{"Sample.Library.Catalog/ListBooks":
   {"Publisher": "123e4567-e89b-12d3-a456-426614174000"}}
 ```

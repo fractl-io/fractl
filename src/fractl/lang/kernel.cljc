@@ -41,7 +41,7 @@
      (dt/parse-time s)))
 
 (defn UUID? [s]
-  (if (u/uuid-from-string s) true false))
+  (or (u/uuid-from-string s) (uuid? s)))
 
 (def any-obj? (constantly true))
 
@@ -106,6 +106,23 @@
 
 (defn kernel-type? [n]
   (some #{n} type-names))
+
+(defn find-root-attribute-type [n]
+  (if (kernel-type? n)
+    n
+    (when-let [ascm (cn/find-attribute-schema n)]
+      (cond
+        (:listof ascm)
+        :Kernel/List
+
+        (:oneof ascm)
+        :Kernel/String
+
+        :else
+        (when-let [t (if (map? ascm) (:type ascm) ascm)]
+          (if (kernel-type? t)
+            t
+            (find-root-attribute-type t)))))))
 
 (def type-predicate first)
 (def type-default-value second)

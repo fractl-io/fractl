@@ -38,7 +38,7 @@
     "Delete the instance with the given id. On success, return id.
      If the instance does not exist, return nil. On failure, raise an exception.")
   (query-by-id [store entity-name query-sql ids]
-    "Return the instances with the given :Id attributes. Return nil if the instances
+    "Return the instances with the given :Id values. Return nil if the instances
      does not exist. On failure, raise an exception.")
   (query-by-unique-keys [store entity-name unique-keys unique-values]
     "Return the instance with the given unique values, if no data found, return nil.")

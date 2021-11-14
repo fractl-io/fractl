@@ -14,7 +14,7 @@
          {:UserName    {:type   :Kernel/String
                         :check  user-name?
                         :unique true}
-          :Group       {:oneof ["incharge" "general" "intern"]}
+          :Designation {:oneof ["incharge" "general" "intern"]}
           :Password    {:type  :Kernel/Password
                         :check password?}
           :Email       {:type   :Kernel/Email
@@ -37,5 +37,5 @@
                         :default now}
           ;; Membership Types obtained from here.
           ;; https://www.londonlibrary.co.uk/join/types-of-membership
-          :Group {:oneof ["life" "individual" "family"
-                          "remote" "oversees" "supported" "associate" "temporary"]}}})
+          :Designation {:oneof ["life" "individual" "family"
+                                "remote" "oversees" "supported" "associate" "temporary"]}}})

@@ -61,7 +61,7 @@
  :Employee
  {:DeptNo {:type :Kernel/Int
            :indexed true}
-  :Group :Kernel/String
+  :Designation :Kernel/String
   :Salary :Kernel/Decimal})
 
 (entity
@@ -158,5 +158,5 @@
    :Rule [:q# [[:Upsert :Delete] [:allow-all]]]}}
  {:Employee
   {:DeptNo 101
-   :Group "admin"
+   :Designation "admin"
    :Salary 1000M}})

@@ -34,7 +34,7 @@
       (fetch-schema [_]
         nil)
       (update-instance [_ entity-name instance]
-        (db/update-instance @datasource entity-name instance))
+        (db/upsert-instance @datasource entity-name instance))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance @datasource entity-name instance))
       (delete-by-id [_ entity-name id]
@@ -48,5 +48,5 @@
       (do-query [_ query params]
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]
-        (db/compile-to-indexed-query query-pattern))
+        (db/compile-query query-pattern))
       (get-reference [_ path refs]))))

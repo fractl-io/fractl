@@ -39,16 +39,19 @@
             (cn/make-instance :Q02/E {:X 9 :Y 3})]
         evts (map #(cn/make-instance :Q02/Upsert_E {:Instance %}) es)
         f (comp first #(:result (first (e/eval-all-dataflows %))))
-        insts (map f evts)
-        ids (map :Id insts)]
+        insts (mapv f evts)
+        ids (mapv :Id insts)]
     (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
     (let [r01 (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}}))
-          r (e/eval-all-dataflows {:Q02/QE02 {:X 10 :Y 100}})
-          r02 (tu/fresult r)]
+          r (e/eval-all-dataflows {:Q02/QE02 {:X 5 :Y 100}})
+          r02 (tu/fresult r)
+          fs01 (:from (:transition r01))
+          ts01 (:to (:transition r01))]
       (is (= 2 (count r01)))
-      (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r01))
+      (is (every? #(and (some #{(:X %)} [10 12]) (some #{(:Y %)} [4 6])) fs01))
+      (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) ts01))
       (is (= 2 (count r02)))
-      (is (every? #(and (>= (:X %) 10) (= (:Y %) 100)) r02)))))
+      (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) r02)))))
 
 (deftest query-all
   (defcomponent :QueryAll
@@ -58,8 +61,8 @@
               :QueryAll/E?))
   (let [es [(cn/make-instance :QueryAll/E {:X 1 :N "e01"})
             (cn/make-instance :QueryAll/E {:X 2 :N "e02"})]
-        evts (map #(cn/make-instance :QueryAll/Upsert_E {:Instance %}) es)
-        _ (doall (map tu/fresult (map #(e/eval-all-dataflows %) evts)))
+        evts (mapv #(cn/make-instance :QueryAll/Upsert_E {:Instance %}) es)
+        _ (mapv tu/fresult (mapv #(e/eval-all-dataflows %) evts))
         result (tu/fresult (e/eval-all-dataflows {:QueryAll/AllE {}}))]
     (doseq [r result]
       (is (cn/instance-of? :QueryAll/E r))
@@ -116,9 +119,9 @@
                     {:QueryAliasInExpr/OrderLine
                      {:Title "Table"
                       :Qty 21}})
-        evt (cn/make-instance
-             {:QueryAliasInExpr/Upsert_OrderLine
-              {:Instance order-line}})
+           evt (cn/make-instance
+                {:QueryAliasInExpr/Upsert_OrderLine
+                 {:Instance order-line}})
         r (first (tu/fresult (e/eval-all-dataflows evt)))
         line-id (:Id r)
         evt (cn/make-instance
@@ -137,7 +140,9 @@
         evt (cn/make-instance
              {:QueryAliasInExpr/AllocateOrderLine
               {:BatchId batch-id :LineId line-id}})
-        r (first (tu/fresult (e/eval-all-dataflows evt)))]
+        r (get-in
+           (first (tu/fresult (e/eval-all-dataflows evt)))
+           [:transition :to])]
     (is (= (:AvailableQty r) 18))))
 
 (deftest idempotent-upsert
@@ -212,7 +217,7 @@
                        :Y :Kernel/Int}})
      (dataflow :I255/Q1
                {:I255/E {:X? :I255/Q1.X
-                         :Y? [:< :Y 5]}})
+                         :Y? [:< 5]}})
      (dataflow :I255/Q2
                {:I255/E {:X? :I255/Q2.X
                          :Y? [:or [:> :X] [:= :I255/Q2.Y]]}}))
@@ -231,7 +236,7 @@
          (is (and (= 10 (:X e))
                   (< (:Y e) 5)))))
      (let [r (tu/fresult (e/eval-all-dataflows {:I255/Q2 {:X 10 :Y 3}}))]
-       (is (= (count r) 2))
+       (is (= (count r) 1))
        (doseq [e r]
          (is (and (= 10 (:X e))
                   (or (> (:Y e) 10)
@@ -239,11 +244,12 @@
 
 (deftest test-unique-date-time
   (defcomponent :Dt01
-                (entity {:Dt01/E {:Name              :Kernel/String
-                                  :LastAccountAccess {:type :Kernel/DateTime
-                                                      ;; Disable this for postgres
-                                                      ;:unique true
-                                                      }}}))
+    (entity {:Dt01/E {:Name :Kernel/String
+                      :LastAccountAccess
+                      {:type :Kernel/DateTime
+                       ;; Disable this for postgres
+                                        ;:unique true
+                       }}}))
   (let [e (cn/make-instance :Dt01/E {:Name "Birkhe" :LastAccountAccess "2018-07-28T12:15:30"})
         e1 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
         id (:Id e1)

@@ -140,7 +140,7 @@
                       :EventContext (ctx admin-auth)}
                evt (cn/make-instance
                     {:ENP/ChangeGroup attrs})
-               r3 (tu/first-result evt)]
+               r3 (get-in (tu/first-result evt) [:transition :to])]
            (is (cn/instance-of? :ENP/User r3))
            (is (= "sales" (:Group r3)))
            (tu/is-error

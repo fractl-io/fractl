@@ -22,9 +22,7 @@
              (li/validate-imports %))
    :clj-import li/validate-clj-imports
    :java-import li/validate-java-imports
-   :v8-import li/validate-clj-imports
-   cn/dynamic-entities-key #(do (every? li/name? %)
-                                %)})
+   :v8-import li/validate-clj-imports})
 
 (defn- validate-component-spec [spec]
   (into
@@ -206,7 +204,8 @@
                      (let [[c tag] (fetch-expression-compiler expr)]
                        (when tag
                          (cn/register-custom-compiled-record tag recname))
-                       (attribute nm {:expr (c recname attrs k expr)}))
+                       (attribute nm {:type (:type v)
+                                      :expr (c recname attrs k expr)}))
                      (attribute nm v))))
                (list? v)
                (attribute (fqn (li/unq-name))
@@ -468,7 +467,7 @@
     (event-internal event-name attrs)))
 
 (defn- maybe-assoc-id [entity-name attrs]
-  (if (cn/dynamic-entity? entity-name)
+  (if (cn/entity-schema-predefined? entity-name)
     attrs
     (assoc
      attrs :Id
