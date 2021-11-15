@@ -166,10 +166,12 @@
    (delete-by-id delete-by-id-statement datasource entity-name id)))
 
 (defn compile-query [query-pattern]
-  (let [where-clause (:where query-pattern)]
-    (sql/format-sql
-     (su/table-for-entity (:from query-pattern))
-     (when (not= :* where-clause) where-clause))))
+  (sql/format-sql
+   (su/table-for-entity (:from query-pattern))
+   (if (> (count (keys query-pattern)) 2)
+     (dissoc query-pattern :from)
+     (let [where-clause (:where query-pattern)]
+       (when (not= :* where-clause) where-clause)))))
 
 (defn- raw-results [query-fns]
   (flatten (mapv u/apply0 query-fns)))

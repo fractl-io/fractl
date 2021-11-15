@@ -290,3 +290,38 @@
      (is (= (:Y r2) 130))
      (is (cn/same-instance? r1 r3))
      (is (= (:Y r3) 130)))))
+
+(deftest issue-391-complex-queries
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I391
+     (entity
+      :I391/E
+      {:X {:type :Kernel/Int
+           :indexed true}
+       :Y :Kernel/Int})
+     (dataflow
+      :I391/Query
+      {:I391/E?
+       {:where [:>= :X :I391/Query.X]
+        :order-by :Y}}))
+   (let [es (mapv
+             #(cn/make-instance
+               {:I391/E
+                {:X %1 :Y %2}})
+             [12 89 101 32 40]
+             [7 2 0 100 15])
+         insts (mapv
+                #(tu/first-result
+                  (cn/make-instance
+                   {:I391/Upsert_E
+                    {:Instance %}}))
+                es)
+         r (first
+            (e/eval-all-dataflows
+             (cn/make-instance
+              {:I391/Query
+               {:X 15}})))]
+     (is (every? (partial cn/instance-of? :I391/E) insts))
+     ;; TODO: fix test
+     )))

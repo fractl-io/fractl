@@ -105,6 +105,9 @@
          (query-instances
           [[entity-name query-attrs]]
           "Start initializing entity instances in env by first querying it from a persistent store.")
+         (entity-query
+          [[entity-name query]]
+          "Evaluate a complex query on the given entity.")
          (set-literal-attribute
           [[attr-name attr-value]]
           "Set the attribute in the instance that is being inited to the given value.")
