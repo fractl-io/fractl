@@ -295,7 +295,7 @@
            opc)))))
   ([ctx pat] (compile-pathname ctx pat nil)))
 
-(defn- process-direct-entity-query [v]
+(defn- process-direct-query [v]
   (if (li/name? v)
     (let [parts (li/path-parts v)]
       (if (seq (:refs parts))
@@ -303,27 +303,27 @@
         v))
     v))
 
-(defn- entity-query-pattern? [pat]
+(defn- direct-query-pattern? [pat]
   (let [ks (keys pat)]
     (and (= 1 (count ks))
          (s/ends-with? (str (first ks)) "?"))))
 
-(defn- emit-entity-query [ctx pat]
+(defn- emit-direct-query [ctx pat]
   (let [k (first (keys pat))
         n (keyword (subs (apply str (butlast (str k))) 1))]
     (when-not (cn/find-entity-schema n)
       (u/throw-ex (str "cannot query undefined entity - " n)))
     (let [q (k pat)
-          w (w/postwalk process-direct-entity-query (:where q))
+          w (w/postwalk process-direct-query (:where q))
           c {:compiled-query
              ((ctx/fetch-compile-query-fn ctx) (assoc q :from n :where w))
              :raw-query q}]
-      (op/entity-query [n c]))))
+      (op/direct-query [n c]))))
 
 (defn- compile-map [ctx pat]
   (cond
-    (entity-query-pattern? pat)
-    (emit-entity-query ctx pat)
+    (direct-query-pattern? pat)
+    (emit-direct-query ctx pat)
 
     (li/instance-pattern? pat)
     (let [full-nm (li/instance-pattern-name pat)

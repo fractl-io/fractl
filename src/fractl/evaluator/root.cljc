@@ -624,7 +624,7 @@
           (i/not-found entity-name env))
         (i/error (str "Invalid query request for " entity-name " - no store specified"))))
 
-    (do-entity-query [_ env [entity-name query]]
+    (do-direct-query [_ env [entity-name query]]
       nil)
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]

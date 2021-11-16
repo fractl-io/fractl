@@ -304,7 +304,7 @@
       :I391/Query
       {:I391/E?
        {:where [:>= :X :I391/Query.X]
-        :order-by :Y}}))
+        :order-by [:Y]}}))
    (let [es (mapv
              #(cn/make-instance
                {:I391/E
