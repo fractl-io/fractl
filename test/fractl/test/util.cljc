@@ -55,7 +55,7 @@
      (js/setTimeout f msec)))
 
 ;; To test postgres in CI, set to true
-(def test-with-postgres false)
+(def test-with-postgres true)
 
 (store/open-default-store
  #?(:clj (when test-with-postgres

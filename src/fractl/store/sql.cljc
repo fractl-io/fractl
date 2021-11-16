@@ -17,7 +17,9 @@
 (defn format-sql [table-name query]
   (let [final-pattern
         (if (map? query)
-          (merge {:select [:*] :from [(keyword table-name)]} query)
+          (merge
+           {:select [:*] :from [(keyword table-name)]}
+           (attach-column-name-prefixes query))
           (let [where-clause (attach-column-name-prefixes query)
                 p {:select [:*]
                    :from [(keyword table-name)]}]

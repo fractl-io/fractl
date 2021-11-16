@@ -317,11 +317,13 @@
                    {:I391/Upsert_E
                     {:Instance %}}))
                 es)
-         r (first
-            (e/eval-all-dataflows
-             (cn/make-instance
-              {:I391/Query
-               {:X 15}})))]
+         r (:result
+            (first
+             (e/eval-all-dataflows
+              (cn/make-instance
+               {:I391/Query
+                {:X 15}}))))]
      (is (every? (partial cn/instance-of? :I391/E) insts))
-     ;; TODO: fix test
-     )))
+     (is (= 4 (count r)))
+     (is (every? #(>= (:X %) 15) r))
+     (is (apply < (mapv :Y r))))))

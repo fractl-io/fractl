@@ -318,7 +318,7 @@
           c {:compiled-query
              ((ctx/fetch-compile-query-fn ctx) (assoc q :from n :where w))
              :raw-query q}]
-      (op/direct-query [n c]))))
+      (op/query-instances [(li/split-path n) c]))))
 
 (defn- compile-map [ctx pat]
   (cond
