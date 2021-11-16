@@ -301,10 +301,16 @@
            :indexed true}
        :Y :Kernel/Int})
      (dataflow
-      :I391/Query
+      :I391/Query01
       {:I391/E?
-       {:where [:>= :X :I391/Query.X]
-        :order-by [:Y]}}))
+       {:where [:>= :X :I391/Query01.X]
+        :order-by [:Y]}})
+     (dataflow
+      :I391/Query02
+      {:I391/E?
+       {:where [:>= :X :I391/Query02.X]
+        :order-by [:Y]
+        :limit 3}}))
    (let [es (mapv
              #(cn/make-instance
                {:I391/E
@@ -317,13 +323,22 @@
                    {:I391/Upsert_E
                     {:Instance %}}))
                 es)
-         r (:result
-            (first
-             (e/eval-all-dataflows
-              (cn/make-instance
-               {:I391/Query
-                {:X 15}}))))]
+         r1 (:result
+             (first
+              (e/eval-all-dataflows
+               (cn/make-instance
+                {:I391/Query01
+                 {:X 15}}))))
+         r2 (:result
+             (first
+              (e/eval-all-dataflows
+               (cn/make-instance
+                {:I391/Query02
+                 {:X 15}}))))]
      (is (every? (partial cn/instance-of? :I391/E) insts))
-     (is (= 4 (count r)))
-     (is (every? #(>= (:X %) 15) r))
-     (is (apply < (mapv :Y r))))))
+     (is (= 4 (count r1)))
+     (is (every? #(>= (:X %) 15) r1))
+     (is (apply < (mapv :Y r1)))
+     (is (= 3 (count r2)))
+     (is (every? #(>= (:X %) 15) r2))
+     (is (apply < (mapv :Y r2))))))
