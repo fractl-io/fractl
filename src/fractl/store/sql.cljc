@@ -14,20 +14,25 @@
       %)
    where-clause))
 
-(defn format-sql [table-name where-clause]
-  (hsql/format
-   (let [where-clause (attach-column-name-prefixes where-clause)
-         p {:select [:*]
-            :from [(keyword table-name)]}]
-     (if where-clause
-       (assoc p :where
-              (let [f (first where-clause)]
-                (cond
-                  (string? f)
-                  [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
-                  (seqable? f) f
-                  :else where-clause)))
-       p))))
+(defn format-sql [table-name query]
+  (let [final-pattern
+        (if (map? query)
+          (merge
+           {:select [:*] :from [(keyword table-name)]}
+           (attach-column-name-prefixes query))
+          (let [where-clause (attach-column-name-prefixes query)
+                p {:select [:*]
+                   :from [(keyword table-name)]}]
+            (if where-clause
+              (assoc p :where
+                     (let [f (first where-clause)]
+                       (cond
+                         (string? f)
+                         [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
+                         (seqable? f) f
+                         :else where-clause)))
+              p)))]
+    (hsql/format final-pattern)))
 
 (defn- concat-where-clauses [clauses]
   (if (> (count clauses) 1)

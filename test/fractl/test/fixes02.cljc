@@ -290,3 +290,55 @@
      (is (= (:Y r2) 130))
      (is (cn/same-instance? r1 r3))
      (is (= (:Y r3) 130)))))
+
+(deftest issue-391-complex-queries
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I391
+     (entity
+      :I391/E
+      {:X {:type :Kernel/Int
+           :indexed true}
+       :Y :Kernel/Int})
+     (dataflow
+      :I391/Query01
+      {:I391/E?
+       {:where [:>= :X :I391/Query01.X]
+        :order-by [:Y]}})
+     (dataflow
+      :I391/Query02
+      {:I391/E?
+       {:where [:>= :X :I391/Query02.X]
+        :order-by [:Y]
+        :limit 3}}))
+   (let [es (mapv
+             #(cn/make-instance
+               {:I391/E
+                {:X %1 :Y %2}})
+             [12 89 101 32 40]
+             [7 2 0 100 15])
+         insts (mapv
+                #(tu/first-result
+                  (cn/make-instance
+                   {:I391/Upsert_E
+                    {:Instance %}}))
+                es)
+         r1 (:result
+             (first
+              (e/eval-all-dataflows
+               (cn/make-instance
+                {:I391/Query01
+                 {:X 15}}))))
+         r2 (:result
+             (first
+              (e/eval-all-dataflows
+               (cn/make-instance
+                {:I391/Query02
+                 {:X 15}}))))]
+     (is (every? (partial cn/instance-of? :I391/E) insts))
+     (is (= 4 (count r1)))
+     (is (every? #(>= (:X %) 15) r1))
+     (is (apply < (mapv :Y r1)))
+     (is (= 3 (count r2)))
+     (is (every? #(>= (:X %) 15) r2))
+     (is (apply < (mapv :Y r2))))))

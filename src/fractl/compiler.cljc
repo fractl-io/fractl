@@ -1,6 +1,7 @@
 (ns fractl.compiler
   "Compile dataflow patterns to calls into the resolver protocol."
   (:require [clojure.walk :as w]
+            [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.graph :as ug]
             [fractl.util.seq :as us]
@@ -139,31 +140,6 @@
     {:compiled-query
      ((ctx/fetch-compile-query-fn ctx) q)
      :raw-query q}))
-
-(defn- compile-entity-query [ctx entity-name query]
-  (let [indexed-attrs (set
-                       (conj
-                        (cn/indexed-attributes
-                         (cn/fetch-schema entity-name))
-                        :Id))
-        predic #(us/contains-any % indexed-attrs)
-        qp (seq (filter predic query))
-        fp (seq (filter (complement predic) query))
-        eq (i/expand-query
-            entity-name
-            (when qp
-              (mapv query-param-process qp)))]
-    {:compiled-query ((ctx/fetch-compile-query-fn ctx) eq)
-     :raw-query eq
-     :filter (when fp
-               (let [rules (mapv
-                            (fn [[k v]]
-                              (rule/compile-rule-pattern
-                               k v))
-                            fp)]
-                 (if (> (count rules) 1)
-                   (fn [x] (u/all-true? rules x))
-                   (first rules))))}))
 
 (defn compile-query [ctx entity-name query]
   (let [q (compile-relational-entity-query
@@ -319,8 +295,37 @@
            opc)))))
   ([ctx pat] (compile-pathname ctx pat nil)))
 
+(defn- process-direct-query [v]
+  (if (li/name? v)
+    (let [parts (li/path-parts v)]
+      (if (seq (:refs parts))
+        (expr-as-fn (arg-lookup v))
+        v))
+    v))
+
+(defn- direct-query-pattern? [pat]
+  (let [ks (keys pat)]
+    (and (= 1 (count ks))
+         (s/ends-with? (str (first ks)) "?"))))
+
+(defn- emit-direct-query [ctx pat]
+  (let [k (first (keys pat))
+        n (keyword (subs (apply str (butlast (str k))) 1))]
+    (when-not (cn/find-entity-schema n)
+      (u/throw-ex (str "cannot query undefined entity - " n)))
+    (let [q (k pat)
+          w (w/postwalk process-direct-query (:where q))
+          c {:compiled-query
+             ((ctx/fetch-compile-query-fn ctx) (assoc q :from n :where w))
+             :raw-query q}]
+      (op/query-instances [(li/split-path n) c]))))
+
 (defn- compile-map [ctx pat]
-  (if (li/instance-pattern? pat)
+  (cond
+    (direct-query-pattern? pat)
+    (emit-direct-query ctx pat)
+
+    (li/instance-pattern? pat)
     (let [full-nm (li/instance-pattern-name pat)
           {component :component record :record} (li/path-parts full-nm)
           nm [component record]
@@ -338,6 +343,8 @@
         (when alias
           (ctx/add-alias! ctx nm alias))
         opc))
+
+    :else
     (emit-realize-map-literal ctx pat)))
 
 (defn- compile-user-macro [ctx pat]
