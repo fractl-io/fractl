@@ -15,7 +15,11 @@
 
 (def cmpr-oprs [:= :< :> :<= :>= :<>])
 (def query-cmpr-oprs (conj cmpr-oprs :like))
-(def oprs (concat query-cmpr-oprs [:not :and :or :between :in]))
+(def sql-keywords [:where :from :order-by
+                   :group-by :having :limit
+                   :offset :join :left-join
+                   :right-join])
+(def oprs (concat query-cmpr-oprs sql-keywords [:not :and :or :between :in]))
 
 (defn operator? [x]
   (some #{x} oprs))
