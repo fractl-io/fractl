@@ -337,3 +337,34 @@
       (is (or (cn/same-instance? r1 r) (cn/same-instance? r3 r))))
     (is (cn/same-instance? (first qrs2) r2))
     (is (cn/same-instance? (first qrs3) r3))))
+
+(deftest query-command
+  (defcomponent :QueryCommand
+    (entity
+     :QueryCommand/E
+     {:X {:type :Kernel/Int
+          :indexed true}
+      :Y :Kernel/Int})
+    (dataflow
+     :QueryCommand/FindE
+     [:query :QueryCommand/FindE.Q]))
+  (let [es (mapv
+            #(tu/first-result
+              (cn/make-instance
+               {:QueryCommand/Upsert_E
+                {:Instance
+                 (cn/make-instance
+                  {:QueryCommand/E
+                   {:X %1 :Y %2}})}}))
+            [10 20 30 40]
+            [9 7 12 1])
+        rs (:result
+            (first
+             (e/eval-all-dataflows
+              (cn/make-instance
+               {:QueryCommand/FindE
+                {:Q {:QueryCommand/E?
+                     {:where [:>= :X 20]
+                      :order-by [:Y]}}}}))))]
+    (is (every? #(>= (:X %) 20) rs))
+    (is (apply < (mapv :Y rs)))))

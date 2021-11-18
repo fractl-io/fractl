@@ -583,6 +583,9 @@
       (i/not-found entity-name env))
     (i/error (str "Invalid query request for " entity-name " - no store specified"))))
 
+(defn- find-reference [env record-name refs]
+  (second (env/instance-ref-path env record-name nil refs)))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -628,7 +631,9 @@
       (do-query-helper env entity-name queries))
 
     (do-evaluate-query [_ env fetch-query-fn]
-      (apply do-query-helper env (fetch-query-fn)))
+      (apply
+       do-query-helper
+       env (fetch-query-fn (partial find-reference env))))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))

@@ -486,8 +486,19 @@
   (let [[body handlers] (compile-construct-with-handlers ctx pat)]
     (emit-try body handlers)))
 
-(defn- compile-query-command [ctx pat]
-  (op/evaluate-query #(emit-direct-query ctx pat identity)))
+(defn- compile-query-command [ctx [pat]]
+  (when-not (or (map? pat) (li/name? pat))
+    (u/throw-ex (str "invalid query pattern - " pat)))
+  (op/evaluate-query
+   #(emit-direct-query
+     ctx
+     (if (map? pat)
+       pat
+       (let [{component :component
+              record :record refs :refs}
+             (li/path-parts pat)]
+         (% [component record] refs)))
+     identity)))
 
 (defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
