@@ -105,6 +105,10 @@
          (query-instances
           [[entity-name query-attrs]]
           "Start initializing entity instances in env by first querying it from a persistent store.")
+         (evaluate-query
+          [fetch-query-fn]
+          "Call the argument function to get a compiled query, execute it and return the result.
+          fetch-query-fn must return - [entity-name compiled-query]")
          (set-literal-attribute
           [[attr-name attr-value]]
           "Set the attribute in the instance that is being inited to the given value.")

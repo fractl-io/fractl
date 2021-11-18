@@ -308,17 +308,20 @@
     (and (= 1 (count ks))
          (s/ends-with? (str (first ks)) "?"))))
 
-(defn- emit-direct-query [ctx pat]
-  (let [k (first (keys pat))
-        n (keyword (subs (apply str (butlast (str k))) 1))]
-    (when-not (cn/find-entity-schema n)
-      (u/throw-ex (str "cannot query undefined entity - " n)))
-    (let [q (k pat)
-          w (w/postwalk process-direct-query (:where q))
-          c {:compiled-query
-             ((ctx/fetch-compile-query-fn ctx) (assoc q :from n :where w))
-             :raw-query q}]
-      (op/query-instances [(li/split-path n) c]))))
+(defn- emit-direct-query
+  ([ctx pat callback]
+   (let [k (first (keys pat))
+         n (keyword (subs (apply str (butlast (str k))) 1))]
+     (when-not (cn/find-entity-schema n)
+       (u/throw-ex (str "cannot query undefined entity - " n)))
+     (let [q (k pat)
+           w (w/postwalk process-direct-query (:where q))
+           c {:compiled-query
+              ((ctx/fetch-compile-query-fn ctx) (assoc q :from n :where w))
+              :raw-query q}]
+       (callback [(li/split-path n) c]))))
+  ([ctx pat]
+   (emit-direct-query ctx pat op/query-instances)))
 
 (defn- compile-map [ctx pat]
   (cond
@@ -483,6 +486,9 @@
   (let [[body handlers] (compile-construct-with-handlers ctx pat)]
     (emit-try body handlers)))
 
+(defn- compile-query-command [ctx pat]
+  (op/evaluate-query #(emit-direct-query ctx pat identity)))
+
 (defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
     (emit-delete (li/split-path recname) [id-pat-code])))
@@ -513,6 +519,7 @@
   {:match compile-match
    :try compile-try
    :for-each compile-for-each
+   :query compile-query-command
    :delete compile-delete
    :await compile-await
    :pull compile-pull
