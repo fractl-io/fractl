@@ -295,7 +295,7 @@
            opc)))))
   ([ctx pat] (compile-pathname ctx pat nil)))
 
-(defn- process-direct-query [v]
+(defn- process-complex-query [v]
   (if (li/name? v)
     (let [parts (li/path-parts v)]
       (if (seq (:refs parts))
@@ -303,27 +303,34 @@
         v))
     v))
 
-(defn- direct-query-pattern? [pat]
+(defn- complex-query-pattern? [pat]
   (let [ks (keys pat)]
     (and (= 1 (count ks))
          (s/ends-with? (str (first ks)) "?"))))
 
-(defn- emit-direct-query [ctx pat]
-  (let [k (first (keys pat))
-        n (keyword (subs (apply str (butlast (str k))) 1))]
-    (when-not (cn/find-entity-schema n)
-      (u/throw-ex (str "cannot query undefined entity - " n)))
-    (let [q (k pat)
-          w (w/postwalk process-direct-query (:where q))
-          c {:compiled-query
-             ((ctx/fetch-compile-query-fn ctx) (assoc q :from n :where w))
-             :raw-query q}]
-      (op/query-instances [(li/split-path n) c]))))
+(defn- compile-complex-query
+  "Compile a complex query. Invoke the callback
+  function with the compiled query as argument.
+  The default behavior is to pass the compiled query
+  to the query-instances opcode generator"
+  ([ctx pat callback]
+   (let [k (first (keys pat))
+         n (keyword (subs (apply str (butlast (str k))) 1))]
+     (when-not (cn/find-entity-schema n)
+       (u/throw-ex (str "cannot query undefined entity - " n)))
+     (let [q (k pat)
+           w (w/postwalk process-complex-query (:where q))
+           c {:compiled-query
+              ((ctx/fetch-compile-query-fn ctx) (assoc q :from n :where w))
+              :raw-query q}]
+       (callback [(li/split-path n) c]))))
+  ([ctx pat]
+   (compile-complex-query ctx pat op/query-instances)))
 
 (defn- compile-map [ctx pat]
   (cond
-    (direct-query-pattern? pat)
-    (emit-direct-query ctx pat)
+    (complex-query-pattern? pat)
+    (compile-complex-query ctx pat)
 
     (li/instance-pattern? pat)
     (let [full-nm (li/instance-pattern-name pat)
@@ -483,6 +490,36 @@
   (let [[body handlers] (compile-construct-with-handlers ctx pat)]
     (emit-try body handlers)))
 
+(defn- compile-query-command
+  "Compile the command [:query pattern :as result-alias].
+   `pattern` could be a query pattern or a reference, making
+  it possible to dynamically execute queries received via events.
+  If `result-alias` is provided, the query result is bound to that name
+  in the local environment"
+  [ctx pat]
+  (let [query-pat (first pat)
+        alias (when (= :as (second pat))
+                (nth pat 2))
+        [nm refs] (when (li/name? query-pat)
+                    (let [{component :component
+                           record :record refs :refs}
+                          (li/path-parts query-pat)]
+                      [[component record] refs]))]
+    (when-not (or (map? query-pat) (li/name? query-pat))
+      (u/throw-ex (str "invalid query pattern - " query-pat)))
+    (when alias
+      (when-not (li/name? alias)
+        (u/throw-ex (str "not a valid name - " alias)))
+      (ctx/add-alias! ctx nm alias))
+    (op/evaluate-query
+     [#(compile-complex-query
+        ctx
+        (if (map? query-pat)
+          query-pat
+          (% nm refs))
+        identity)
+      alias])))
+
 (defn- compile-delete [ctx [recname id-pat]]
   (let [id-pat-code (compile-pattern ctx id-pat)]
     (emit-delete (li/split-path recname) [id-pat-code])))
@@ -513,6 +550,7 @@
   {:match compile-match
    :try compile-try
    :for-each compile-for-each
+   :query compile-query-command
    :delete compile-delete
    :await compile-await
    :pull compile-pull

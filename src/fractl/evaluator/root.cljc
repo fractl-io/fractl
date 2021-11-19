@@ -496,7 +496,9 @@
     (env/bind-to-alias env elem-alias element)
 
     (cn/an-instance? element)
-    (env/bind-instance env (cn/instance-name element) element)
+    (env/bind-to-alias
+     (env/bind-instance env (cn/instance-name element) element)
+     :% element)
 
     :else
     (env/bind-to-alias env :% element)))
@@ -565,6 +567,31 @@
        (catch js/Error e
          (or (.-ex-data e) (i/error e))))))
 
+(defn- do-query-helper [env entity-name queries]
+  (if-let [store (env/get-store env)]
+    (if-let [[insts env]
+             (find-instances env store entity-name queries)]
+      (cond
+        (maybe-async-channel? insts)
+        (i/ok
+         insts
+         (env/push-obj env entity-name insts))
+
+        (seq insts)
+        (i/ok
+         insts
+         (env/mark-all-mint
+          (env/push-obj env entity-name insts)
+          insts))
+
+        :else
+        (i/not-found entity-name env))
+      (i/not-found entity-name env))
+    (i/error (str "Invalid query request for " entity-name " - no store specified"))))
+
+(defn- find-reference [env record-name refs]
+  (second (env/instance-ref-path env record-name nil refs)))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -607,22 +634,14 @@
         (i/ok record-name env)))
 
     (do-query-instances [_ env [entity-name queries]]
-      (if-let [store (env/get-store env)]
-        (if-let [[insts env] (find-instances env store entity-name queries)]
-          (do
-            (cond
-              (maybe-async-channel? insts)
-              (i/ok insts (env/push-obj env entity-name insts))
+      (do-query-helper env entity-name queries))
 
-              (seq insts)
-              (i/ok insts (env/mark-all-mint
-                           (env/push-obj env entity-name insts)
-                           insts))
-
-              :else
-              (i/not-found entity-name env)))
-          (i/not-found entity-name env))
-        (i/error (str "Invalid query request for " entity-name " - no store specified"))))
+    (do-evaluate-query [_ env [fetch-query-fn result-alias]]
+      (bind-result-to-alias
+       result-alias
+       (apply
+        do-query-helper
+        env (fetch-query-fn (partial find-reference env)))))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
