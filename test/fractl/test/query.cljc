@@ -337,3 +337,57 @@
       (is (or (cn/same-instance? r1 r) (cn/same-instance? r3 r))))
     (is (cn/same-instance? (first qrs2) r2))
     (is (cn/same-instance? (first qrs3) r3))))
+
+(deftest query-command
+  (defcomponent :QueryCommand
+    (entity
+     :QueryCommand/E
+     {:X {:type :Kernel/Int
+          :indexed true}
+      :Y :Kernel/Int})
+    (record
+     :QueryCommand/F
+     {:A :Kernel/Int
+      :B :Kernel/Int})
+    (dataflow
+     :QueryCommand/FindE
+     [:query :QueryCommand/FindE.Q])
+    (dataflow
+     :QueryCommand/EtoF
+     [:query :QueryCommand/EtoF.Q :as :R]
+     [:for-each
+      :R
+      {:QueryCommand/F
+       {:A :%.X
+        :B :%.Y}}]))
+  (let [es (mapv
+            #(tu/first-result
+              (cn/make-instance
+               {:QueryCommand/Upsert_E
+                {:Instance
+                 (cn/make-instance
+                  {:QueryCommand/E
+                   {:X %1 :Y %2}})}}))
+            [10 20 30 40]
+            [9 7 12 1])
+        rs01 (:result
+              (first
+               (e/eval-all-dataflows
+                (cn/make-instance
+                 {:QueryCommand/FindE
+                  {:Q {:QueryCommand/E?
+                       {:where [:>= :X 20]
+                        :order-by [:Y]}}}}))))
+        rs02 (:result
+              (first
+               (e/eval-all-dataflows
+                (cn/make-instance
+                 {:QueryCommand/EtoF
+                  {:Q {:QueryCommand/E?
+                       {:where [:>= :X 20]
+                        :order-by [:Y]}}}}))))]
+    (is (every? #(>= (:X %) 20) rs01))
+    (is (apply < (mapv :Y rs01)))
+    (is (every? (partial cn/instance-of? :QueryCommand/F) rs02))
+    (is (every? #(>= (:A %) 20) rs02))
+    (is (apply < (mapv :B rs02)))))

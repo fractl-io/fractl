@@ -29,7 +29,7 @@
    (concat
     oprs
     #{:match :try :for-each :delete
-      :between :await :resolver
+      :query :between :await :resolver
       :pull :push :entity})))
 
 (def ^:private reserved-names
