@@ -496,7 +496,9 @@
     (env/bind-to-alias env elem-alias element)
 
     (cn/an-instance? element)
-    (env/bind-instance env (cn/instance-name element) element)
+    (env/bind-to-alias
+     (env/bind-instance env (cn/instance-name element) element)
+     :% element)
 
     :else
     (env/bind-to-alias env :% element)))
@@ -630,10 +632,12 @@
     (do-query-instances [_ env [entity-name queries]]
       (do-query-helper env entity-name queries))
 
-    (do-evaluate-query [_ env fetch-query-fn]
-      (apply
-       do-query-helper
-       env (fetch-query-fn (partial find-reference env))))
+    (do-evaluate-query [_ env [fetch-query-fn result-alias]]
+      (bind-result-to-alias
+       result-alias
+       (apply
+        do-query-helper
+        env (fetch-query-fn (partial find-reference env)))))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))

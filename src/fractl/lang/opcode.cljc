@@ -106,7 +106,7 @@
           [[entity-name query-attrs]]
           "Start initializing entity instances in env by first querying it from a persistent store.")
          (evaluate-query
-          [fetch-query-fn]
+          [[fetch-query-fn result-alias]]
           "Call the argument function to get a compiled query, execute it and return the result.
           fetch-query-fn takes a reference-loader function as argument
           and must return - [entity-name compiled-query]")
