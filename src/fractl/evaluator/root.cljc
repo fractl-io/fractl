@@ -569,19 +569,23 @@
 
 (defn- do-query-helper [env entity-name queries]
   (if-let [store (env/get-store env)]
-    (if-let [[insts env] (find-instances env store entity-name queries)]
-      (do
-        (cond
-          (maybe-async-channel? insts)
-          (i/ok insts (env/push-obj env entity-name insts))
+    (if-let [[insts env]
+             (find-instances env store entity-name queries)]
+      (cond
+        (maybe-async-channel? insts)
+        (i/ok
+         insts
+         (env/push-obj env entity-name insts))
 
-          (seq insts)
-              (i/ok insts (env/mark-all-mint
-                           (env/push-obj env entity-name insts)
-                           insts))
+        (seq insts)
+        (i/ok
+         insts
+         (env/mark-all-mint
+          (env/push-obj env entity-name insts)
+          insts))
 
-              :else
-              (i/not-found entity-name env)))
+        :else
+        (i/not-found entity-name env))
       (i/not-found entity-name env))
     (i/error (str "Invalid query request for " entity-name " - no store specified"))))
 
