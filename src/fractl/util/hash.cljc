@@ -5,7 +5,8 @@
               [java.security.spec KeySpec]
               [javax.crypto SecretKeyFactory]
               [javax.crypto.spec PBEKeySpec]
-              [java.util Base64])))
+              [java.util Base64]
+              [org.mindrot.jbcrypt BCrypt])))
 
 (defn- salt []
   #?(:clj
@@ -18,6 +19,7 @@
 (def ^:private default-keylen 128)
 
 (def ^:private hash-prefix "_v8sh__")
+(def ^:private bcrypt-hash-prefix "_v8bsh__:")
 (def ^:private hash-start-offset (count hash-prefix))
 
 (defn salted-hash
@@ -42,12 +44,37 @@
   (and (string? x)
        (= 0 (string/index-of x hash-prefix))))
 
+(defn bcrypt-hash
+  "Generate a bcrypt hash of a string with optional argument
+  for number of iterations.
+
+  iters - number of iterations for the salt
+   Return the string - <bcrypt-hash-prefix><bcrypt-hash-of-s>  
+  "
+  ([s] #?(:clj (str bcrypt-hash-prefix (BCrypt/hashpw s (BCrypt/gensalt)))))
+  ([s iters] #?(:clj (str bcrypt-hash-prefix (BCrypt/hashpw s (BCrypt/gensalt iters))))))
+
+(defn bcrypt-hash? [x]
+  (and (string? x)
+       (= 0 (string/index-of x bcrypt-hash-prefix))))
+
 (defn- extract-salt [s-hash]
   #?(:clj
      (when-let [i (string/index-of s-hash \:)]
        (let [^String s (subs s-hash hash-start-offset i)]
          (.decode (Base64/getDecoder) s)))))
 
+(defn- extract-bcrypt-prefix [s-hash]
+  #?(:clj
+     (when-let [i (string/index-of s-hash \:)]
+       (subs s-hash (+ i 1)))))
+
+(defn bcrypt-hash-eq?
+  "Return true if the bcrypt hash for string `s` is a match for the hash `s-hash`"
+  ([s-hash s] #?(:clj
+                 (when-let [real-hash (extract-bcrypt-prefix s-hash)]
+                   (BCrypt/checkpw s real-hash)))))
+                       
 (defn hash-eq?
   "Return true if the hash for `s` is the same as salted-hash."
   ([^String s-hash ^String s iters keylen]
