@@ -126,6 +126,7 @@
       :ref (li/validate reference-exists? ":ref is invalid" v)
       :var (li/validate-bool :var v)
       :writer (li/validate fn? ":writer must be a function" v)
+      :secure-hash (li/validate-bool :secure-hash v)
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}
@@ -567,6 +568,9 @@
   (attribute (k/event-context-attribute-name)
              (k/event-context-attribute-schema))
 
+  (attribute :Kernel/Password
+             {:type :Kernel/String
+              :secure-hash true})
 
   (record :Kernel/Future
           {:Result :Kernel/Any
