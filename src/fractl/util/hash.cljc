@@ -4,7 +4,7 @@
      (:import [org.mindrot.jbcrypt BCrypt]
               [java.util Base64])))
 
-(def ^:private hash-prefix "_v8bsh__:")
+(def ^:private hash-prefix "_fractlbsh__:")
 (def ^:private fixed-salt "$2a$10$AaW/9iIw27WMW9C33n0aa.")
 
 (defn crypto-hash? [x]
