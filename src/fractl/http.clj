@@ -6,6 +6,7 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.http :as uh]
+            [fractl.util.hash :as hs]            
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
   (:use [compojure.core :only [routes POST GET]]
@@ -87,9 +88,13 @@
 (defn- process-dynamic-eval [evaluator event-name request]
   (if-let [data-fmt (find-data-format request)]
     (let [[obj err] (event-from-request request event-name data-fmt)]
-      (if err
-        (bad-request err data-fmt)
-        (evaluate evaluator obj data-fmt)))
+      (if err (bad-request err data-fmt)
+          (do
+            (if (contains? obj :Password)
+              ;; if the query contains a :Password key we need to hash it
+              ;; and send the hash to the database for comparison
+              (evaluate evaluator (update obj :Password hs/crypto-hash) data-fmt)
+              (evaluate evaluator obj data-fmt)))))
     (bad-request
      (str "unsupported content-type in request - "
           (request-content-type request)))))
