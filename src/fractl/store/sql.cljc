@@ -63,7 +63,7 @@
        (:Kernel/String
         :Kernel/Keyword :Kernel/Email :Kernel/Password
         :Kernel/DateTime :Kernel/Date :Kernel/Time
-        :Kernel/List :Kernel/Edn)
+        :Kernel/List :Kernel/Edn :Kernel/SimplePassword)
        (str "VARCHAR(" max-varchar-length ")")
 
        :Kernel/UUID "UUID"
