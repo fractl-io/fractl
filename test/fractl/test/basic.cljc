@@ -365,7 +365,7 @@
   (defcomponent :H
     (entity {:H/E {:A :Kernel/Int
                    :X {:type :Kernel/String
-                       :encryption :default
+                       :secure-hash true
                        :write-only true}}}))
   (let [x "this is a secret"
         e (cn/make-instance :H/E {:A 10 :X x})
@@ -373,7 +373,7 @@
         result (first (tu/fresult (e/eval-all-dataflows evt)))
         r2 (cn/dissoc-write-only result)]
     (is (cn/instance-of? :H/E result))
-    (is (sh/hash-eq? (:X result) x))
+    (is (sh/crypto-hash-eq? (:X result) x))
     (is (= 10 (:A result)))
     (is (cn/instance-of? :H/E r2))
     (is (not (:X r2)))
