@@ -81,7 +81,6 @@
 (def types
   {:Kernel/String kernel-string?
    :Kernel/Keyword keyword?
-   :Kernel/SimplePassword identity
    :Kernel/Path path?
    :Kernel/DateTime date-time?
    :Kernel/Date date?
