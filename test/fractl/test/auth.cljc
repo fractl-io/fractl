@@ -7,55 +7,60 @@
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.lang.datetime :as dt]
+            [fractl.util.hash :as h]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(deftest simple-auth
+(deftest password-auth
   (#?(:clj do
       :cljs cljs.core.async/go)
-   (defcomponent :SimpleAuth
-     (entity {:SimpleAuth/User
+   (defcomponent :PasswordAuth
+     (entity {:PasswordAuth/User
               {:UserName {:type :Kernel/String
                           :indexed true}
                :Password :Kernel/Password}})
+
+     (event :PasswordAuth/Login {:UserName :Kernel/String
+                                 :Password :Kernel/Password})     
      (dataflow
-      :SimpleAuth/Login
-      {:SimpleAuth/User
-       {:UserName? :SimpleAuth/Login.UserName}}
-      [:match :SimpleAuth/User.Password
-       :SimpleAuth/Login.Password {:Kernel/Authentication
-                                   {:Owner :SimpleAuth/User
-                                    :ExpirySeconds 5000}}])
-     (let [uname "abc"
-           pswd "gg677"
+      :PasswordAuth/Login
+      {:PasswordAuth/User
+       {:UserName? :PasswordAuth/Login.UserName}}
+      [:match :PasswordAuth/User.Password
+       :PasswordAuth/Login.Password {:Kernel/Authentication
+                                     {:Owner :PasswordAuth/User
+                                      :ExpirySeconds 5000}}])
+     (let [uname "manju"
+           pswd "uber123"
            user (tu/first-result
                  (cn/make-instance
-                  {:SimpleAuth/Upsert_User
+                  {:PasswordAuth/Upsert_User
                    {:Instance
-                    {:SimpleAuth/User
+                    {:PasswordAuth/User
                      {:UserName uname
                       :Password pswd}}}}))
            auth (tu/first-result
                  (cn/make-instance
-                  {:SimpleAuth/Login
+                  {:PasswordAuth/Login
                    {:UserName uname
-                    :Password pswd}}))]
+                    :Password pswd}}))
+           ]
        (is (cn/instance-of? :Kernel/Authentication auth))
        (is (= (:Id user) (:Id (:Owner auth))))
        (is (dt/parse-date-time (:Issued auth)))
        (is (= 5000 (:ExpirySeconds auth)))
        (let [user2 (tu/first-result
                     (cn/make-instance
-                     {:SimpleAuth/Upsert_User
+                     {:PasswordAuth/Upsert_User
                       {:Instance
-                       {:SimpleAuth/User
+                       {:PasswordAuth/User
                         {:UserName "hhh"
                          :Password "34sss"}}
                        :EventContext {:Auth (:Id auth)}}}))]
-         (is (cn/instance-of? :SimpleAuth/User user2)))
+         (is (cn/instance-of? :PasswordAuth/User user2)))
        (is (false? (tu/fresult
                     (e/eval-all-dataflows
                      (cn/make-instance
-                      {:SimpleAuth/Login
+                      {:PasswordAuth/Login
                        {:UserName uname
                         :Password "aaaa"}})))))))))

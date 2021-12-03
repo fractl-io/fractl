@@ -40,7 +40,7 @@
                  [tick "0.5.0-RC1"]]
 
   :java-source-paths ["src/java"]
-  :resource-paths ["lib/sfdc-enterprise.jar"]
+  :resource-paths ["lib/sfdc-enterprise.jar" "lib/jbcrypt.jar"]
   :main fractl.core
   :aot :all
 

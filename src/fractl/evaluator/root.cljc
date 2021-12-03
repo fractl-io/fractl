@@ -6,6 +6,7 @@
             [fractl.async :as a]
             [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.util.hash :as h]
             [fractl.util.seq :as su]
             [fractl.store :as store]
             [fractl.store.util :as stu]
@@ -461,6 +462,11 @@
           result))
       result)))
 
+(defn- match-object-to-result? [match-obj result]
+  (if (h/crypto-hash? match-obj)
+    (h/crypto-hash-eq? match-obj result)
+    (= result match-obj)))
+
 (defn- eval-cases [evaluator env eval-opcode match-obj cases-code alternative-code result-alias]
   (bind-result-to-alias
    result-alias
@@ -469,7 +475,7 @@
        (let [result (eval-opcode evaluator env condition)
              r (ok-result result)]
          (if (not (nil? r))
-           (if (= r match-obj)
+           (if (match-object-to-result? match-obj r)
              (eval-opcode-list evaluator (:env result) eval-opcode consequent)
              (recur (rest cases-code) (:env result)))
            result))
