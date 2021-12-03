@@ -19,6 +19,9 @@
               {:UserName {:type :Kernel/String
                           :indexed true}
                :Password :Kernel/Password}})
+
+     (event :PasswordAuth/Login {:UserName :Kernel/String
+                                 :Password :Kernel/Password})     
      (dataflow
       :PasswordAuth/Login
       {:PasswordAuth/User
@@ -40,7 +43,7 @@
                  (cn/make-instance
                   {:PasswordAuth/Login
                    {:UserName uname
-                    :Password (h/crypto-hash pswd)}}))
+                    :Password pswd}}))
            ]
        (is (cn/instance-of? :Kernel/Authentication auth))
        (is (= (:Id user) (:Id (:Owner auth))))
