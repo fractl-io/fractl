@@ -1,0 +1,85 @@
+(ns sample.mycar
+  (:use [fractl.lang]))
+
+(component :Sample.MyCar)
+
+(entity {:Car {:Model :Kernel/String
+               :Make :Kernel/String
+               :Year :Kernel/Int
+               :Regn {:type :Kernel/String
+                      :unique true}
+               :Fuel {:write-only true
+                      :oneof ["diesel", "petrol", "cng"]}
+               :Transmission {:write-only true
+                              :oneof ["manual", "automatic"]}
+               :Cost :Kernel/Decimal}})
+
+(entity {:User
+         {:UserName {:type :Kernel/String
+                     :indexed true}
+          :Password :Kernel/Password}})
+
+(entity {:Driver {:OwnCar :Kernel/Boolean
+                  :IdNumber {:type :Kernel/Int
+                             :unique true}
+                  :HourRate :Kernel/Decimal
+                  :UserRating :Kernel/Decimal
+                  :Name :Kernel/String}})
+
+
+(event :Login {:UserName :Kernel/String
+               :Password :Kernel/Password})
+
+(dataflow
+ :Login
+ {:User
+  {:UserName? :Login.UserName
+   :Password? :Login.Password}}
+ [:match :User.Password
+  :Login.Password {:Kernel/Authentication
+                   {:Owner :User
+                    :ExpirySeconds 5000}}])
+
+(dataflow :FindCar
+          {:Car {:Id? :FindCar.Car}})
+
+(dataflow :FindDriver
+          {:Driver {:Id? :FindDriver.Driver}})
+
+(dataflow :UpdateCar
+ {:Car {:Id? :UpdateCar.Id
+        :Year :UpdateCar.Year}})
+
+(dataflow
+ :Kernel/AppInit
+ {:Car
+  {:Model "Swift VXI"
+   :Make "Suzuki"
+   :Year 2007
+   :Regn "KA-03 MH-9267"
+   :Fuel "petrol"
+   :Transmission "manual"
+   :Cost 532000.00}}
+
+ {:Car
+  {:Model "Harrier XT+"
+   :Make "Tata"
+   :Year 2021
+   :Regn "KA-03 NJ-4452"
+   :Fuel "diesel"
+   :Transmission "manual"
+   :Cost 2100000.00}} 
+
+  {:User
+   {:UserName "manju"
+    :Password "uber123"}}
+
+  {:Driver
+   {:OwnCar true
+    :IdNumber 1
+    :HourRate 500.0
+    :UserRating 4.5
+    :Name "Manjunatha"}}
+   
+)
+   

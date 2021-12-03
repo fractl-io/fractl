@@ -364,7 +364,7 @@
   "Return the names of all attributes marked :indexed."
   (make-attributes-filter #(:indexed %)))
 
-(def encrypted-attriutes (make-attributes-filter #(:encryption %)))
+(def hashed-attributes (make-attributes-filter #(:secure-hash %)))
 
 (def write-only-attributes (make-attributes-filter #(:write-only %)))
 
@@ -684,9 +684,9 @@
 (defn- post-process-attributes
   "Apply any additional processing to attribute values, like encryption"
   [recname attrs schema]
-  (loop [encrypted (seq (encrypted-attriutes schema)), result attrs]
-    (if-let [k (first encrypted)]
-      (recur (rest encrypted) (assoc result k (sh/salted-hash (k result))))
+  (loop [hashed (seq (hashed-attributes schema)), result attrs]
+    (if-let [k (first hashed)]
+      (recur (rest hashed) (assoc result k (sh/crypto-hash (k result))))
       result)))
 
 (defn make-instance

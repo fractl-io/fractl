@@ -86,7 +86,6 @@
    :Kernel/Date date?
    :Kernel/Time time?
    :Kernel/UUID UUID?
-   :Kernel/Password identity
    :Kernel/Int int?
    :Kernel/Int64 int?
    :Kernel/BigInteger integer?
