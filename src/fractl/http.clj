@@ -6,7 +6,6 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.http :as uh]
-            [fractl.util.hash :as hs]            
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
   (:use [compojure.core :only [routes POST GET]]
@@ -90,7 +89,7 @@
     (let [[obj err] (event-from-request request event-name data-fmt)]
       (if err
         (bad-request err data-fmt)
-            (evaluate evaluator obj data-fmt)))
+        (evaluate evaluator obj data-fmt)))
     (bad-request
      (str "unsupported content-type in request - "
           (request-content-type request)))))
