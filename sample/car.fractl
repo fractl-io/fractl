@@ -26,6 +26,10 @@
                   :UserRating :Kernel/Decimal
                   :Name :Kernel/String}})
 
+
+(event :Login {:UserName :Kernel/String
+               :Password :Kernel/Password})
+
 (dataflow
  :Login
  {:User
@@ -76,5 +80,6 @@
     :HourRate 500.0
     :UserRating 4.5
     :Name "Manjunatha"}}
+   
 )
    
