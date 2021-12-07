@@ -329,3 +329,40 @@
      (doseq [e (:Es rs2)]
        (is (cn/instance-of? :LEnt/E e))
        (is (some #{(:X e)} xs*10))))))
+
+(deftest for-each-alias
+  (defcomponent :Fea
+                (entity
+                  :Fea/E
+                  {:X :Kernel/Int :Y :Kernel/Int})
+                (dataflow
+                  :Fea/Evt1
+                  [:for-each
+                   :Fea/Evt1.Ys
+                   {:Fea/E
+                    {:X 10 :Y :%}}])
+                (dataflow
+                  :Fea/Evt2
+                  [:for-each
+                   :Fea/Evt2.Es
+                   {:Fea/E
+                    {:X :%.X :Y :%.Y}}]))
+  (let [result1
+        (tu/fresult
+          (e/eval-all-dataflows
+            {:Fea/Evt1
+             {:Ys [20 3]}}))
+        result2
+        (tu/fresult
+          (e/eval-all-dataflows
+            {:Fea/Evt2
+             {:Es [{:X 1 :Y 3}
+                   {:X 2 :Y 4}]}}))]
+    (doseq [e result1]
+      (is (cn/instance-of? :Fea/E e))
+      (is (= 10 (:X e)))
+      (is (some #{(:Y e)} [20 3])))
+    (doseq [e result2]
+      (is (cn/instance-of? :Fea/E e))
+      (is (some #{(:X e)} [1 2]))
+      (is (some #{(:Y e)} [3 4])))))
