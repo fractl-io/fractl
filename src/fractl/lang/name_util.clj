@@ -89,22 +89,24 @@
 (defn- fq-generic
   "Update a data-literal in a component with fully-qualified names."
   [v is-recdef]
-  (if (li/quoted? v)
-    (w/prewalk
-     #(if (li/unquoted? %)
-        (fq-generic % is-recdef)
-        %)
-     v)
-    (cond
-      (li/name? v) (fq-name v)
-      (map? v) (if (looks-like-inst? v)
-                 (fq-inst-pat v is-recdef)
-                 (fq-map v is-recdef))
-      (su/list-or-cons? v) (if-not is-recdef
-                             (doall (reverse (into '() (mapv #(fq-generic % is-recdef) v))))
-                             v)
-      (vector? v) (mapv #(fq-generic % is-recdef) v)
-      :else v)))
+  (if (= :% v)
+    v
+    (if (li/quoted? v)
+      (w/prewalk
+        #(if (li/unquoted? %)
+           (fq-generic % is-recdef)
+           %)
+        v)
+      (cond
+        (li/name? v) (fq-name v)
+        (map? v) (if (looks-like-inst? v)
+                   (fq-inst-pat v is-recdef)
+                   (fq-map v is-recdef))
+        (su/list-or-cons? v) (if-not is-recdef
+                               (doall (reverse (into '() (mapv #(fq-generic % is-recdef) v))))
+                               v)
+        (vector? v) (mapv #(fq-generic % is-recdef) v)
+        :else v))))
 
 (defn- fq-map-entry [[k v] is-recdef]
   (if (= :meta k)
