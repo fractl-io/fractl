@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2021-12-08
+
+-   Dynamic query support, wildcard queries
+-   Relational schema mapping for entities
+-   `try` and `await` for asynchronous programming
+-   The :and operator made explicit in queries
+-   Meta API to return api information
+-   Query filter bug fix
+-   Secure passwords in the database by using bycrypt hashing
+-   Bug fix to prevent full-name qualifier for special character like: %
+    which is used inside `for-each`
+
 ## [0.2.1] - 2021-10-22
 
 -   Configurable expression compiler, custom parsers can be attached to tagged :expr attribute values.
@@ -64,7 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.2.1...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.2.2...HEAD
+
+[0.2.2]: https://github.com/fractl-io/fractl/compare/0.2.1...0.2.2
 
 [0.2.1]: https://github.com/fractl-io/fractl/compare/0.2.0...0.2.1
 
