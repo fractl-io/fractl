@@ -2,11 +2,12 @@
   "Authentication management"
   (:require [fractl.util :as u]
             [fractl.resolver.core :as r]
+            [fractl.component :as cn]
             [fractl.lang.datetime :as dt]))
 
 (def ^:private db (u/make-cell {}))
 
-(defn auth-upsert [inst]
+(defn- auth-kernel-auth-upsert [inst]
   (let [now (dt/now-raw)
         inst-with-issued
         (assoc inst :Issued now)]
@@ -16,6 +17,10 @@
        @db (:Id inst)
        inst-with-issued))
     (assoc inst :Issued (dt/as-string now))))
+
+(defn auth-upsert [inst]
+  (if (cn/instance-of? :Kernel/Authentication inst)
+    (auth-kernel-auth-upsert inst)))
 
 (defn- auth-delete [inst]
   (let [id (:Id inst)]
