@@ -31,7 +31,7 @@
                  [com.cognitect/transit-cljs "0.8.264"]
                  [com.amazonaws/aws-lambda-java-core "1.2.1"]
                  [com.amazonaws/aws-lambda-java-events "3.1.0"]
-                 [com.amazonaws/aws-lambda-java-log4j2 "1.2.0"]
+                 [com.amazonaws/aws-lambda-java-log4j2 "1.3.0"]
                  [camdez/sendgrid "0.2.0"]
                  [postmark "1.4.1"]
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
