@@ -586,6 +586,16 @@
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
+  ;; temporary entity till we complete the Oauth2 flow integration into platform
+  (entity {:Kernel/OAuth2Request
+           {:ClientID {:type :Kernel/String}
+            :ClientSecret {:type :Kernel/String}
+            :AuthDomain {:type :Kernel/String}
+            :AuthScope {:listof :Kernel/String}
+            :CallbackURL {:type :Kernel/String}
+            :Generated {:type :Kernel/DateTime :optional true}}})
+          
+  
   (entity {:Kernel/Policy
            {:Intercept :Kernel/String
             :Resource {:listof :Kernel/Path}
