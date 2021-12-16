@@ -133,10 +133,11 @@
     indexed-attrs))
 
 (defn upsert-relational-entity-instance [upsert-inst-statement datasource entity-name instance]
-  (let [tabname (su/table-for-entity entity-name)]
+  (let [tabname (su/table-for-entity entity-name)
+        inst (su/serialize-objects instance)]
     (execute-fn!
      datasource
-     #(let [[pstmt params] (upsert-inst-statement % tabname nil [entity-name instance])]
+     #(let [[pstmt params] (upsert-inst-statement % tabname nil [entity-name inst])]
         (execute-stmt! % pstmt params)))
     instance))
 

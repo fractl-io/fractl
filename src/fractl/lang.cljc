@@ -586,8 +586,8 @@
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
-  ;; temporary entity till we complete the Oauth2 flow integration into platform
-  (entity {:Kernel/OAuth2Request
+  ;; temporary record till we complete the Oauth2 flow integration into platform
+  (record {:Kernel/OAuth2Request
            {:ClientID {:type :Kernel/String}
             :ClientSecret {:type :Kernel/String}
             :AuthDomain {:type :Kernel/String}
