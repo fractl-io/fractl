@@ -93,28 +93,27 @@
                                                   :AuthScope :Auth0TestAuth/AuthRequest.AuthScope
                                                   :CallbackURL :Auth0TestAuth/AuthRequest.CallbackURL}}])
 
-     (let [clientId "xyz123"
-           clientSecret "xyzsecretsauce"
-           authDomain "client.us.auth0.com"
-           authScope "openid profile email"
-           callbackURL "http://localhost"
-           authReq (tu/first-result
-                    (cn/make-instance
-                     {:Auth0TestAuth/Upsert_AuthRequest
-                      {:Instance
-                       {:Auth0TestAuth/AuthRequest
-                        {:ClientID clientId
-                         :ClientSecret clientSecret
-                         :AuthDomain authDomain
-                         :AuthScope authScope
-                         :CallbackURL callbackURL}}}}))
-           authLogin (tu/first-result
-                      (cn/make-instance
-                       {:Auth0TestAuth/LoginRequest
-                        {:ClientID clientId
-                         :ClientSecret clientSecret}}))
-           ]
-       (is (cn/instance-of? :Kernel/OAuth2Request authLogin))
-       (is (dt/parse-date-time (:Generated authLogin)))
-       (is (not-empty (:AuthorizeURL authLogin)))
-       ))))
+     (let [client-id "xyz123"
+           client-secret "xyzsecretsauce"
+           auth-domain "client.us.auth0.com"
+           auth-scope "openid" "profile" "email"
+           callback-url "http://localhost"
+           auth-req (tu/first-result
+                     (cn/make-instance
+                      {:Auth0TestAuth/Upsert_AuthRequest
+                       {:Instance
+                        {:Auth0TestAuth/AuthRequest
+                         {:ClientID client-id
+                          :ClientSecret client-secret
+                          :AuthDomain auth-domain
+                          :AuthScope auth-scope
+                          :CallbackURL callback-url}}}}))
+           auth-login (tu/first-result
+                       (cn/make-instance
+                        {:Auth0TestAuth/LoginRequest
+                         {:ClientID client-id
+                          :ClientSecret client-secret}}))]
+       (is (cn/instance-of? :Kernel/OAuth2Request auth-login))
+       (is (dt/parse-date-time (:Generated auth-login)))
+       (is (not-empty (:AuthorizeURL auth-login)))))
+>>>>>>> 828ce135caad9bec0529cc449c27e9e6873574c5

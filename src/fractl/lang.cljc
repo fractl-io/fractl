@@ -586,7 +586,7 @@
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
-  (entity {:Kernel/OAuth2Request
+  (record {:Kernel/OAuth2Request
            {:ClientID {:type :Kernel/String}
             :ClientSecret {:type :Kernel/String}
             :AuthDomain {:type :Kernel/String}
