@@ -96,7 +96,7 @@
      (let [client-id "xyz123"
            client-secret "xyzsecretsauce"
            auth-domain "client.us.auth0.com"
-           auth-scope "openid" "profile" "email"
+           auth-scope "openid profile email"
            callback-url "http://localhost"
            auth-req (tu/first-result
                      (cn/make-instance
@@ -115,5 +115,4 @@
                           :ClientSecret client-secret}}))]
        (is (cn/instance-of? :Kernel/OAuth2Request auth-login))
        (is (dt/parse-date-time (:Generated auth-login)))
-       (is (not-empty (:AuthorizeURL auth-login)))))
->>>>>>> 828ce135caad9bec0529cc449c27e9e6873574c5
+       (is (not-empty (:AuthorizeURL auth-login)))))))
