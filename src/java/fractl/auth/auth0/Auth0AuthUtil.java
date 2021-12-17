@@ -12,7 +12,7 @@ public class Auth0AuthUtil {
         auth.setLoggingEnabled(true);
 
         String authUrl = auth.authorizeUrl(authCallbackUrl).withScope(scope).build();
-		//		System.out.println("Authorize URL => " + authUrl);
+
         return authUrl;
     }
 
