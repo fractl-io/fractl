@@ -586,12 +586,11 @@
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
-  ;; temporary record till we complete the Oauth2 flow integration into platform
   (record {:Kernel/OAuth2Request
            {:ClientID {:type :Kernel/String}
             :ClientSecret {:type :Kernel/String}
             :AuthDomain {:type :Kernel/String}
-            :AuthScope {:listof :Kernel/String}
+            :AuthScope {:type :Kernel/String}
             :CallbackURL {:type :Kernel/String}
             :Generated {:type :Kernel/DateTime :optional true}}})
           
@@ -656,6 +655,10 @@
           :type :auth
           :compose? false
           :paths [:Kernel/Authentication]}
+         {:name :auth
+          :type :auth
+          :compose? false
+          :paths [:Kernel/OAuth2Request]}
          {:name :timer
           :type :timer
           :compose? false

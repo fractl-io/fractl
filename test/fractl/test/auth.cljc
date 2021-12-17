@@ -73,13 +73,13 @@
               {:ClientID :Kernel/String
                :ClientSecret :Kernel/String
                :AuthDomain :Kernel/String
-               :AuthScope {:listof :Kernel/String}
+               :AuthScope :Kernel/String
                :CallbackURL :Kernel/String}})
 
      (event :Auth0TestAuth/Login {:ClientID :Kernel/String
                                   :ClientSecret :Kernel/String
                                   :AuthDomain :Kernel/String
-                                  :AuthScope {:listof :Kernel/String}
+                                  :AuthScope :Kernel/String
                                   :CallbackURL :Kernel/String})
      (dataflow
       :Auth0TestAuth/LoginRequest
@@ -96,7 +96,7 @@
      (let [client-id "xyz123"
            client-secret "xyzsecretsauce"
            auth-domain "client.us.auth0.com"
-           auth-scope ["openid" "profile" "email"]
+           auth-scope "openid profile email"
            callback-url "http://localhost"
            auth-req (tu/first-result
                      (cn/make-instance
@@ -113,4 +113,6 @@
                         {:Auth0TestAuth/LoginRequest
                          {:ClientID client-id
                           :ClientSecret client-secret}}))]
-       (is (cn/instance-of? :Kernel/OAuth2Request auth-login))))))
+       (is (cn/instance-of? :Kernel/OAuth2Request auth-login))
+       (is (dt/parse-date-time (:Generated auth-login)))
+       (is (not-empty (:AuthorizeURL auth-login)))))))
