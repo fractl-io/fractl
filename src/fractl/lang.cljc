@@ -587,11 +587,11 @@
             :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
   (record {:Kernel/OAuth2Request
-           {:ClientID {:type :Kernel/String}
-            :ClientSecret {:type :Kernel/String}
-            :AuthDomain {:type :Kernel/String}
-            :AuthScope {:type :Kernel/String}
-            :CallbackURL {:type :Kernel/String}
+           {:ClientID :Kernel/String
+            :ClientSecret :Kernel/String
+            :AuthDomain :Kernel/String
+            :AuthScope :Kernel/String
+            :CallbackURL :Kernel/String
             :Generated {:type :Kernel/DateTime :optional true}}})
           
   
