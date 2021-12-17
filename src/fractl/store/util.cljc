@@ -92,9 +92,11 @@
 (def ^:private obj-prefix-len (count obj-prefix))
 
 (defn- serialize-obj-entry [[k v]]
-  [k (if (and (seqable? v) (not (string? v)))
-       (str obj-prefix (str v))
-       v)])
+  (if (cn/meta-attribute-name? k)
+    [k v]
+    [k (if (and (seqable? v) (not (string? v)))
+         (str obj-prefix (str v))
+         v)]))
 
 (defn serialize-objects [instance]
   (into {} (mapv serialize-obj-entry instance)))
@@ -114,8 +116,9 @@
    (cond
      (uuid? v) (str v)
      (and (string? v) (s/starts-with? v obj-prefix))
-     (#?(:clj read-string :cljs identity)
-      (subs v obj-prefix-len))
+     (#?(:clj read-string :cljs clj->js)
+      (let [s (subs v obj-prefix-len)]
+        #?(:clj (if (seq s) s "nil") :cljs s)))
      :else v)])
 
 (defn result-as-instance [entity-name result]

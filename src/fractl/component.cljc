@@ -122,14 +122,16 @@
     (get-in @components [component :alias alias-entry])
     (log/error (str "Component " component " is not present!"))))
 
-(defn- meta-key [path]
-  (conj path :-*-meta-*-))
-
-(defn fetch-meta [path]
-  (get-in @components (meta-key (li/split-path path))))
-
+(def ^:private meta-key :-*-meta-*-)
 (def ^:private name-key :-*-name-*-)
 (def ^:private dirty-key :-*-dirty-*-)
+(def ^:private type-tag-key :type-*-tag-*-)
+
+(defn- add-meta-key [path]
+  (conj path meta-key))
+
+(defn fetch-meta [path]
+  (get-in @components (add-meta-key (li/split-path path))))
 
 (defn- component-intern
   "Add or replace a component entry.
@@ -146,7 +148,7 @@
      (u/call-and-set
       components
       #(assoc-in (if meta
-                   (assoc-in @components (meta-key k) meta)
+                   (assoc-in @components (add-meta-key k) meta)
                    @components)
                  intern-k typdef))
      typname))
@@ -179,8 +181,6 @@
   Returns the name of the attribute. If the component is non-existing, raise an exception."
   [attrname attrdef]
   (component-intern attrname attrdef :attributes))
-
-(def ^:private type-tag-key :type-*-tag-*-)
 
 (defn- normalize-recdef [recdef typetag]
   (let [recdef (if (:schema recdef)
@@ -1203,3 +1203,6 @@
   ;; TODO: Check if entity belongs to a set of
   ;; entities with manually defined database tables.
   false)
+
+(defn meta-attribute-name? [k]
+  (some #{k} [name-key type-tag-key dirty-key meta-key]))
