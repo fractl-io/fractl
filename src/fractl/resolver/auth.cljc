@@ -37,10 +37,9 @@
     (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorizeUrl)))
 
 (defn auth-upsert [inst]
-  (if (cn/instance-of? :Kernel/Authentication inst)
-    (auth-kernel-auth-upsert inst))
-  (if (cn/instance-of? :Kernel/OAuth2Request inst)
-    (auth-kernel-oauth2-upsert inst)))
+  (cond
+    (cn/instance-of? :Kernel/Authentication inst) (auth-kernel-auth-upsert inst)
+    (cn/instance-of? :Kernel/OAuth2Request inst) (auth-kernel-oauth2-upsert inst)))
 
 (defn- auth-delete [inst]
   (let [id (:Id inst)]
