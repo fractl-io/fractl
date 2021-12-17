@@ -4,37 +4,39 @@
             [fractl.resolver.core :as r]
             [fractl.component :as cn]
             [fractl.lang.datetime :as dt])
-  (:import [fractl.auth.auth0 Auth0AuthUtil])
+  #?(:clj (:import [fractl.auth.auth0 Auth0AuthUtil]))
   )
 
 (def ^:private db (u/make-cell {}))
 
 (defn- auth-kernel-auth-upsert [inst]
-  (let [now (dt/now-raw)
-        inst-with-issued
-        (assoc inst :Issued now)]
-    (u/call-and-set
-     db
-     #(assoc
-       @db (:Id inst)
-       inst-with-issued))
-    (assoc inst :Issued (dt/as-string now))))
+  #?(:clj
+     (let [now (dt/now-raw)
+           inst-with-issued
+           (assoc inst :Issued now)]
+       (u/call-and-set
+        db
+        #(assoc
+          @db (:Id inst)
+          inst-with-issued))
+       (assoc inst :Issued (dt/as-string now)))))
 
 (defn- auth-kernel-oauth2-upsert [inst]
-  (let [now (dt/now-raw)
-        authorizeUrl (Auth0AuthUtil/authorizeUrl (:ClientID inst)
-                                                 (:ClientSecret inst)
-                                                 (:AuthDomain inst)
-                                                 (:CallbackURL inst)
-                                                 (:AuthScope inst))        
-        inst-with-generated
-        (assoc inst :Generated now :AuthorizeURL authorizeUrl)]
-    (u/call-and-set
-     db
-     #(assoc
-       @db (:Id inst)
-       inst-with-generated))
-    (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorizeUrl)))
+  #?(:clj
+     (let [now (dt/now-raw)
+           authorizeUrl (Auth0AuthUtil/authorizeUrl (:ClientID inst)
+                                                    (:ClientSecret inst)
+                                                    (:AuthDomain inst)
+                                                    (:CallbackURL inst)
+                                                    (:AuthScope inst))        
+           inst-with-generated
+           (assoc inst :Generated now :AuthorizeURL authorizeUrl)]
+       (u/call-and-set
+        db
+        #(assoc
+          @db (:Id inst)
+          inst-with-generated))
+       (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorizeUrl))))
 
 (defn auth-upsert [inst]
   (cond
