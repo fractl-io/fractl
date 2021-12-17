@@ -391,3 +391,47 @@
     (is (every? (partial cn/instance-of? :QueryCommand/F) rs02))
     (is (every? #(>= (:A %) 20) rs02))
     (is (apply < (mapv :B rs02)))))
+
+(defn process [es]
+  (println "$$$$$$$$$$$$$$$$$$$$$$$" es)
+  (mapv
+   #(into
+     {}
+     (mapv
+      (fn [[k v]]
+        [(if (= k :X)
+           :A
+           k)
+         v])
+      %))
+   es))
+
+(deftest resultset-attribute
+  (defcomponent :RsltAttr
+    (entity
+     :RsltAttr/E
+     {:X {:type :Kernel/Int
+          :indexed true}
+      :Y :Kernel/Int})
+    (record
+     :RsltAttr/R
+     {:Es {:listof :RsltAttr/E}})
+    (dataflow
+     :RsltAttr/Evt
+     {:RsltAttr/E
+      {:X? :RsltAttr/Evt.X}
+      :as :Es}
+     {:RsltAttr/R
+      {:Es '(fractl.test.query/process :Es)}}))
+  (let [es (mapv
+            #(tu/first-result
+              {:RsltAttr/Upsert_E
+               {:Instance
+                {:RsltAttr/E
+                 {:X %, :Y (* % 100)}}}})
+            [1 2 1 1 3])
+        r (tu/first-result
+           {:RsltAttr/Evt
+            {:X 1}})]
+    (println "#######################" es)
+    (println "@@@@@@@@@@@@@@@@@@@@@@@" r)))
