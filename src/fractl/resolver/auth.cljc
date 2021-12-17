@@ -27,13 +27,13 @@
                                                  (:AuthDomain inst)
                                                  (:CallbackURL inst)
                                                  (:AuthScope inst))        
-        inst-with-issued
-        (assoc inst :Generated now)]
+        inst-with-generated
+        (assoc inst :Generated now :AuthorizeURL authorizeUrl)]
     (u/call-and-set
      db
      #(assoc
        @db (:Id inst)
-       inst-with-issued))
+       inst-with-generated))
     (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorizeUrl)))
 
 (defn auth-upsert [inst]
