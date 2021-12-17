@@ -4,8 +4,7 @@
             [fractl.resolver.core :as r]
             [fractl.component :as cn]
             [fractl.lang.datetime :as dt])
-  #?(:clj (:import [fractl.auth.auth0 Auth0AuthUtil]))
-  )
+  #?(:clj (:import [fractl.auth.auth0 Auth0AuthUtil])))
 
 (def ^:private db (u/make-cell {}))
 
