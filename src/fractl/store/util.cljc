@@ -92,9 +92,11 @@
 (def ^:private obj-prefix-len (count obj-prefix))
 
 (defn- serialize-obj-entry [[k v]]
-  [k (if (and (seqable? v) (not (string? v)))
-       (str obj-prefix (str v))
-       v)])
+  (if (cn/meta-attribute-name? k)
+    [k v]
+    [k (if (and (seqable? v) (not (string? v)))
+         (str obj-prefix (str v))
+         v)]))
 
 (defn serialize-objects [instance]
   (into {} (mapv serialize-obj-entry instance)))
