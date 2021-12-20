@@ -5,6 +5,23 @@ import com.auth0.client.auth.AuthorizeUrlBuilder;
 import com.auth0.json.auth.TokenHolder;
 import com.auth0.json.auth.CreatedUser;
 import com.auth0.exception.Auth0Exception;
+import com.auth0.json.auth.UserInfo;
+import java.util.Map;
+
+// For entity reference - remove later
+  // (entity {:Kernel/Authentication
+  //          {:Owner :Kernel/Any
+  //           :AuthType {:oneof [:Database :OAuth2Request :Auth0Database]}
+  //           :RequestObject :Kernel/Map ;; key-value pair 
+  //           :Issued {:type :Kernel/DateTime :optional true}
+  //           :ExpirySeconds {:type :Kernel/Int :default 300}}})
+
+  // (record {:Kernel/AuthResponse
+  //          {:AuthToken :Kernel/String
+  //           :IdToken :Kernel/String
+  //           :RefreshToken :Kernel/String
+  //           }})
+  
 
 public class Auth0AuthUtil {
 
@@ -26,11 +43,8 @@ public class Auth0AuthUtil {
         return authUrl;
     }
 
-	public static TokenHolder PasswordLogin(String clientId, String clientSecret, String authDomain,
-											String userNameOrEmail, String password, String scope) {
+	public static TokenHolder passwordLogin(AuthAPI auth, String userNameOrEmail, String password, String scope) {
 
-		AuthAPI auth = createAuthAPI(clientId, clientSecret, authDomain);
-		
 		try {
 			TokenHolder result = auth.login(userNameOrEmail, password.toCharArray()).setScope(scope).execute();
 			return result;
@@ -40,19 +54,26 @@ public class Auth0AuthUtil {
 		}
 	}
 
-	public static CreatedUser SignupUser(String clientId, String clientSecret, String authDomain,
-										 String userName, String userEmail, String password) {
+	public static CreatedUser signupUser(AuthAPI auth, String userName, String userEmail, String password,
+										 Map<String, String> customFields) {
 
-		AuthAPI auth = createAuthAPI(clientId, clientSecret, authDomain);
-		
 		try {
-			CreatedUser user = auth.signUp(userEmail, userName, password.toCharArray(), _dbConnection).execute();
+			CreatedUser user = auth.signUp(userEmail, userName, password.toCharArray(), _dbConnection).setCustomFields(customFields).execute();
 			return user;
 		} catch (Auth0Exception ex) {
 			ex.printStackTrace();
 			return null;
 		}		
 
+	}
+
+	public static UserInfo getUserInfo(AuthAPI auth, String accessToken) {
+		try {
+			return auth.userInfo(accessToken).execute();
+		} catch (Auth0Exception ex) {
+			ex.printStackTrace();
+			return null;
+		}		
 	}
 
 }
