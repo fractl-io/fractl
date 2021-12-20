@@ -88,6 +88,19 @@
       (assoc connection-info :password pswd))
     connection-info))
 
+(def ^:private obj-prefix "#clj-obj")
+(def ^:private obj-prefix-len (count obj-prefix))
+
+(defn- serialize-obj-entry [[k v]]
+  (if (cn/meta-attribute-name? k)
+    [k v]
+    [k (if (and (seqable? v) (not (string? v)))
+         (str obj-prefix (str v))
+         v)]))
+
+(defn serialize-objects [instance]
+  (into {} (mapv serialize-obj-entry instance)))
+
 (defn- normalize-result
   [result]
   (let [attrs (keys result)
@@ -97,6 +110,16 @@
 (defn- remove-prefix [n]
   (let [s (str n)]
     (subs s 2)))
+
+(defn- normalize-attribute [[k v]]
+  [k
+   (cond
+     (uuid? v) (str v)
+     (and (string? v) (s/starts-with? v obj-prefix))
+     (#?(:clj read-string :cljs clj->js)
+      (let [s (subs v obj-prefix-len)]
+        #?(:clj (if (seq s) s "nil") :cljs s)))
+     :else v)])
 
 (defn result-as-instance [entity-name result]
   (let [attr-names (keys (cn/fetch-schema entity-name))]
@@ -113,7 +136,7 @@
             (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
         (cn/make-instance
          entity-name
-         (into {} (mapv (fn [[k v]] [k (if (uuid? v) (str v) v)]) obj))
+         (into {} (mapv normalize-attribute obj))
          false)))))
 
 (defn results-as-instances [entity-name results]

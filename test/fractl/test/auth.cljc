@@ -64,3 +64,55 @@
                       {:PasswordAuth/Login
                        {:UserName uname
                         :Password "aaaa"}})))))))))
+
+(deftest auth0-auth
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :Auth0TestAuth
+     (entity {:Auth0TestAuth/AuthRequest
+              {:ClientID :Kernel/String
+               :ClientSecret :Kernel/String
+               :AuthDomain :Kernel/String
+               :AuthScope :Kernel/String
+               :CallbackURL :Kernel/String}})
+
+     (event :Auth0TestAuth/Login {:ClientID :Kernel/String
+                                  :ClientSecret :Kernel/String
+                                  :AuthDomain :Kernel/String
+                                  :AuthScope :Kernel/String
+                                  :CallbackURL :Kernel/String})
+     (dataflow
+      :Auth0TestAuth/LoginRequest
+      {:Auth0TestAuth/AuthRequest
+       {:ClientID? :Auth0TestAuth/LoginRequest.ClientID}}
+      [:match :Auth0TestAuth/AuthRequest.ClientSecret
+       :Auth0TestAuth/LoginRequest.ClientSecret {:Kernel/OAuth2Request
+                                                 {:ClientID :Auth0TestAuth/AuthRequest.ClientID
+                                                  :ClientSecret  :Auth0TestAuth/AuthRequest.ClientSecret
+                                                  :AuthDomain :Auth0TestAuth/AuthRequest.AuthDomain
+                                                  :AuthScope :Auth0TestAuth/AuthRequest.AuthScope
+                                                  :CallbackURL :Auth0TestAuth/AuthRequest.CallbackURL}}])
+
+     (let [client-id "xyz123"
+           client-secret "xyzsecretsauce"
+           auth-domain "client.us.auth0.com"
+           auth-scope "openid profile email"
+           callback-url "http://localhost"
+           auth-req (tu/first-result
+                     (cn/make-instance
+                      {:Auth0TestAuth/Upsert_AuthRequest
+                       {:Instance
+                        {:Auth0TestAuth/AuthRequest
+                         {:ClientID client-id
+                          :ClientSecret client-secret
+                          :AuthDomain auth-domain
+                          :AuthScope auth-scope
+                          :CallbackURL callback-url}}}}))
+           auth-login (tu/first-result
+                       (cn/make-instance
+                        {:Auth0TestAuth/LoginRequest
+                         {:ClientID client-id
+                          :ClientSecret client-secret}}))]
+       (is (cn/instance-of? :Kernel/OAuth2Request auth-login))
+       (is (dt/parse-date-time (:Generated auth-login)))
+       (is (not-empty (:AuthorizeURL auth-login)))))))
