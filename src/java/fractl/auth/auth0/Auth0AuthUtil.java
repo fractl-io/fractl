@@ -27,26 +27,21 @@ public class Auth0AuthUtil {
 
 	private static final String _dbConnection = "Username-Password-Authentication";
 		
-	private static AuthAPI createAuthAPI(String clientId, String clientSecret, String authDomain) {
-        AuthAPI auth = new AuthAPI(authDomain, clientId, clientSecret);
-        auth.setLoggingEnabled(true);
+	public static AuthAPI createAuthAPI(String clientId, String clientSecret, String authDomain) {
+        AuthAPI api = new AuthAPI(authDomain, clientId, clientSecret);
+        api.setLoggingEnabled(true);
 
-		return auth;
+		return api;
 	}
 	
-    public static String authorizeUrl(String clientId, String clientSecret, String authDomain,
-                                      String authCallbackUrl, String scope) {
-        
-		AuthAPI auth = createAuthAPI(clientId, clientSecret, authDomain);
-        String authUrl = auth.authorizeUrl(authCallbackUrl).withScope(scope).build();
-
-        return authUrl;
+    public static String authorizeUrl(AuthAPI api, String authCallbackUrl, String scope) {
+        return api.authorizeUrl(authCallbackUrl).withScope(scope).build();
     }
 
-	public static TokenHolder passwordLogin(AuthAPI auth, String userNameOrEmail, String password, String scope) {
+	public static TokenHolder passwordLogin(AuthAPI api, String userNameOrEmail, String password, String scope) {
 
 		try {
-			TokenHolder result = auth.login(userNameOrEmail, password.toCharArray()).setScope(scope).execute();
+			TokenHolder result = api.login(userNameOrEmail, password.toCharArray()).setScope(scope).execute();
 			return result;
 		} catch (Auth0Exception ex) {
 			ex.printStackTrace();
@@ -54,11 +49,11 @@ public class Auth0AuthUtil {
 		}
 	}
 
-	public static CreatedUser signupUser(AuthAPI auth, String userName, String userEmail, String password,
+	public static CreatedUser signupUser(AuthAPI api, String userName, String userEmail, String password,
 										 Map<String, String> customFields) {
 
 		try {
-			CreatedUser user = auth.signUp(userEmail, userName, password.toCharArray(), _dbConnection).setCustomFields(customFields).execute();
+			CreatedUser user = api.signUp(userEmail, userName, password.toCharArray(), _dbConnection).setCustomFields(customFields).execute();
 			return user;
 		} catch (Auth0Exception ex) {
 			ex.printStackTrace();
@@ -67,13 +62,22 @@ public class Auth0AuthUtil {
 
 	}
 
-	public static UserInfo getUserInfo(AuthAPI auth, String accessToken) {
+	public static UserInfo getUserInfo(AuthAPI api, String accessToken) {
 		try {
-			return auth.userInfo(accessToken).execute();
+			return api.userInfo(accessToken).execute();
 		} catch (Auth0Exception ex) {
 			ex.printStackTrace();
 			return null;
 		}		
 	}
+
+	public static UserInfo getUserInfo(AuthAPI api, TokenHolder tokenHolder) {
+		try {
+			return api.userInfo(tokenHolder.getAccessToken()).execute();
+		} catch (Auth0Exception ex) {
+			ex.printStackTrace();
+			return null;
+		}		
+	}	
 
 }

@@ -23,9 +23,10 @@
 (defn- auth-kernel-oauth2-upsert [inst]
   #?(:clj
      (let [now (dt/now-raw)
-           authorizeUrl (Auth0AuthUtil/authorizeUrl (:ClientID inst)
-                                                    (:ClientSecret inst)
-                                                    (:AuthDomain inst)
+           authApi (Auth0AuthUtil/createAuthAPI (:ClientID inst)
+                                                (:ClientSecret inst)
+                                                (:AuthDomain inst))
+           authorizeUrl (Auth0AuthUtil/authorizeUrl authApi
                                                     (:CallbackURL inst)
                                                     (:AuthScope inst))        
            inst-with-generated
