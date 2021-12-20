@@ -586,6 +586,15 @@
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
+  (record {:Kernel/OAuth2Request
+           {:ClientID :Kernel/String
+            :ClientSecret :Kernel/String
+            :AuthDomain :Kernel/String
+            :AuthScope :Kernel/String
+            :CallbackURL :Kernel/String
+            :Generated {:type :Kernel/DateTime :optional true}}})
+          
+  
   (entity {:Kernel/Policy
            {:Intercept :Kernel/String
             :Resource {:listof :Kernel/Path}
@@ -646,6 +655,10 @@
           :type :auth
           :compose? false
           :paths [:Kernel/Authentication]}
+         {:name :auth
+          :type :auth
+          :compose? false
+          :paths [:Kernel/OAuth2Request]}
          {:name :timer
           :type :timer
           :compose? false
