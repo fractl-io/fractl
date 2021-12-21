@@ -81,18 +81,16 @@
                                   :AuthDomain :Kernel/String
                                   :AuthScope :Kernel/String
                                   :CallbackURL :Kernel/String})
+
      (dataflow
       :Auth0TestAuth/LoginRequest
       {:Auth0TestAuth/AuthRequest
        {:ClientID? :Auth0TestAuth/LoginRequest.ClientID}}
       [:match :Auth0TestAuth/AuthRequest.ClientSecret
-       :Auth0TestAuth/LoginRequest.ClientSecret {:Kernel/OAuth2Request
-                                                 {:ClientID :Auth0TestAuth/AuthRequest.ClientID
-                                                  :ClientSecret  :Auth0TestAuth/AuthRequest.ClientSecret
-                                                  :AuthDomain :Auth0TestAuth/AuthRequest.AuthDomain
-                                                  :AuthScope :Auth0TestAuth/AuthRequest.AuthScope
-                                                  :CallbackURL :Auth0TestAuth/AuthRequest.CallbackURL}}])
-
+       :Auth0TestAuth/LoginRequest.ClientSecret {:Kernel/Authentication
+                                                 {:AuthType "OAuth2Request"
+                                                  :RequestObject :Auth0TestAuth/AuthRequest
+                                                  :ExpirySeconds 86400}}])
      (let [client-id "xyz123"
            client-secret "xyzsecretsauce"
            auth-domain "client.us.auth0.com"
@@ -113,6 +111,6 @@
                         {:Auth0TestAuth/LoginRequest
                          {:ClientID client-id
                           :ClientSecret client-secret}}))]
-       (is (cn/instance-of? :Kernel/OAuth2Request auth-login))
+       (is (cn/instance-of? :Kernel/Authentication auth-login))
        (is (dt/parse-date-time (:Generated auth-login)))
        (is (not-empty (:AuthorizeURL auth-login)))))))
