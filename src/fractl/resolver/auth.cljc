@@ -20,6 +20,35 @@
           inst-with-issued))
        (assoc inst :Issued (dt/as-string now)))))
 
+(defn- auth-kernel-auth0-auth-upsert [inst]
+  #?(:clj
+     (let [now (dt/now-raw)
+           request (:RequestObject inst)
+           username (:UserName request)
+           passwd (:Password request)
+           scope (:AuthScope request)
+           authApi (Auth0AuthUtil/createAuthAPI (:ClientID request)
+                                                (:ClientSecret request)
+                                                (:AuthDomain request))
+           
+           tokenHolder (Auth0AuthUtil/passwordLogin authApi username passwd scope)]
+       (if tokenHolder
+         (let [accessToken (.getAccessToken tokenHolder)
+               idToken (.getIdToken tokenHolder)
+               expiresIn (.getExpiresIn tokenHolder)
+               inst-with-attrs (assoc inst
+                                      :Issued (dt/now-raw)
+                                      :ExpirySeconds expiresIn
+                                      :AccessToken accessToken
+                                      :IdToken idToken)]
+                                      
+               (u/call-and-set
+                db
+                #(assoc
+                  @db (:Id inst)
+                  inst-with-attrs))
+               (assoc inst-with-attrs :Issued (dt/as-string (:Issued inst-with-attrs))))))))
+           
 (defn- auth-kernel-oauth2-upsert [inst]
   #?(:clj
      (let [now (dt/now-raw)
@@ -42,7 +71,8 @@
 (defn auth-upsert [inst]
   (cond
     (= (:AuthType inst) "Database") (auth-kernel-auth-upsert inst)
-    (= (:AuthType inst) "OAuth2Request") (auth-kernel-oauth2-upsert inst)))
+    (= (:AuthType inst) "OAuth2Request") (auth-kernel-oauth2-upsert inst)
+    (= (:AuthType inst) "Auth0Database") (auth-kernel-auth0-auth-upsert inst)))
 
 (defn- auth-delete [inst]
   (let [id (:Id inst)]
