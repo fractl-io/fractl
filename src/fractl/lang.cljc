@@ -582,19 +582,13 @@
             :Identifier {:check keyword? :unique true}}})
 
   (entity {:Kernel/Authentication
-           {:Owner :Kernel/Any
+           {:Owner {:type :Kernel/Any :optional true}
+            :AuthType {:oneof ["Database" "Auth0Database" "OAuth2Request"]
+                       :default "Database"}
+            :RequestObject {:type :Kernel/Map :optional true}
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
-  (record {:Kernel/OAuth2Request
-           {:ClientID :Kernel/String
-            :ClientSecret :Kernel/String
-            :AuthDomain :Kernel/String
-            :AuthScope :Kernel/String
-            :CallbackURL :Kernel/String
-            :Generated {:type :Kernel/DateTime :optional true}}})
-          
-  
   (entity {:Kernel/Policy
            {:Intercept :Kernel/String
             :Resource {:listof :Kernel/Path}
