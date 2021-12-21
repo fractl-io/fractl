@@ -23,12 +23,13 @@
 (defn- auth-kernel-oauth2-upsert [inst]
   #?(:clj
      (let [now (dt/now-raw)
-           authApi (Auth0AuthUtil/createAuthAPI (:ClientID inst)
-                                                (:ClientSecret inst)
-                                                (:AuthDomain inst))
+           request (:RequestObject inst)
+           authApi (Auth0AuthUtil/createAuthAPI (:ClientID request)
+                                                (:ClientSecret request)
+                                                (:AuthDomain request))
            authorizeUrl (Auth0AuthUtil/authorizeUrl authApi
-                                                    (:CallbackURL inst)
-                                                    (:AuthScope inst))        
+                                                    (:CallbackURL request)
+                                                    (:AuthScope request))        
            inst-with-generated
            (assoc inst :Generated now :AuthorizeURL authorizeUrl)]
        (u/call-and-set
@@ -40,8 +41,8 @@
 
 (defn auth-upsert [inst]
   (cond
-    (cn/instance-of? :Kernel/Authentication inst) (auth-kernel-auth-upsert inst)
-    (cn/instance-of? :Kernel/OAuth2Request inst) (auth-kernel-oauth2-upsert inst)))
+    (= (:AuthType inst) "Database") (auth-kernel-auth-upsert inst)
+    (= (:AuthType inst) "OAuth2Request") (auth-kernel-oauth2-upsert inst)))
 
 (defn- auth-delete [inst]
   (let [id (:Id inst)]
