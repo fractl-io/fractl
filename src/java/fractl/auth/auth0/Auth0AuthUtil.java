@@ -8,28 +8,13 @@ import com.auth0.exception.Auth0Exception;
 import com.auth0.json.auth.UserInfo;
 import java.util.Map;
 
-// For entity reference - remove later
-  // (entity {:Kernel/Authentication
-  //          {:Owner :Kernel/Any
-  //           :AuthType {:oneof [:Database :OAuth2Request :Auth0Database]}
-  //           :RequestObject :Kernel/Map ;; key-value pair 
-  //           :Issued {:type :Kernel/DateTime :optional true}
-  //           :ExpirySeconds {:type :Kernel/Int :default 300}}})
-
-  // (record {:Kernel/AuthResponse
-  //          {:AuthToken :Kernel/String
-  //           :IdToken :Kernel/String
-  //           :RefreshToken :Kernel/String
-  //           }})
-  
-
 public class Auth0AuthUtil {
 
 	private static final String _dbConnection = "Username-Password-Authentication";
 		
-	public static AuthAPI createAuthAPI(String clientId, String clientSecret, String authDomain) {
+	public static AuthAPI createAuthAPI(String clientId, String clientSecret, String authDomain, boolean loggingEnabled) {
         AuthAPI api = new AuthAPI(authDomain, clientId, clientSecret);
-        api.setLoggingEnabled(true);
+        api.setLoggingEnabled(loggingEnabled);
 
 		return api;
 	}
