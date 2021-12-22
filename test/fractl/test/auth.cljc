@@ -3,6 +3,7 @@
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.evaluator :as e]
             [fractl.component :as cn]
+            [cheshire.core :as json]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
@@ -168,9 +169,12 @@
                        (cn/make-instance
                         {:Auth0TestDbAuth/LoginRequest
                          {:ClientID client-id
-                          :ClientSecret client-secret}}))]
+                          :ClientSecret client-secret}}))
+           auth-response (:Kernel/AuthResponse auth-login)
+           ]
        (is (cn/instance-of? :Kernel/Authentication auth-login))
-       (is (dt/parse-date-time (:Issued auth-login)))       
-       (is (> (:ExpirySeconds auth-login) 0))
-       (is (not-empty (:AccessToken auth-login)))
-       (is (not-empty (:IdToken auth-login)))))))
+       (is (dt/parse-date-time (:Issued auth-response)))       
+       (is (> (:ExpirySeconds auth-response) 0))
+       (is (= (:TokenType auth-response) "Bearer"))
+       (is (not-empty (:AccessToken auth-response)))
+       (is (not-empty (:IdToken auth-response)))))))
