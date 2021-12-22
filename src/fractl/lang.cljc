@@ -589,6 +589,14 @@
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
+  (record {:Kernel/AuthResponse
+           {:AccessToken :Kernel/String
+            :IdToken :Kernel/String
+            :RefreshToken {:type :Kernel/String :optional true}
+            :TokenType :Kernel/String
+            :Issued {:type :Kernel/DateTime :optional true}
+            :ExpirySeconds {:type :Kernel/Int :default 86400}}})
+            
   (entity {:Kernel/Policy
            {:Intercept :Kernel/String
             :Resource {:listof :Kernel/Path}
