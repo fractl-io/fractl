@@ -105,13 +105,5 @@
     :UserRating 4.5
     :Name "Manjunatha"}}
 
-  {:Auth0DbRequest
-   {:ClientID "Zpd3u7saV3Y7tebdzJ1Vo0eFALWyxMnR"
-    :ClientSecret "DSiQSiVT7Sd0RJwxdQ4gCfjLUA495PjlVNKhkgB6yFgpH2rgt9kpRbxJLPOcAaXH"
-    :AuthDomain "fractl.us.auth0.com"
-    :AuthScope "openid profile email"
-    :UserName "test.user@ventur8.io"
-    :Password "P@s$w0rd123"
-    }}
 )
   
