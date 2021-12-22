@@ -46,6 +46,7 @@
                               {:AccessToken accessToken
                                :IdToken idToken
                                :TokenType tokenType
+                               :Owner username
                                :Issued (dt/as-string now)
                                :ExpirySeconds expiresIn}}]
                                       
@@ -104,6 +105,6 @@
    :query {:handler auth-query}})
 
 (defn make
-  "Create and return a policy resolver"
+  "Create and return an auth resolver"
   [resolver-name config]
   (r/make-resolver resolver-name resolver-fns))
