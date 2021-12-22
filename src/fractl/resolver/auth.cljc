@@ -29,25 +29,32 @@
            scope (:AuthScope request)
            authApi (Auth0AuthUtil/createAuthAPI (:ClientID request)
                                                 (:ClientSecret request)
-                                                (:AuthDomain request))
+                                                (:AuthDomain request)
+                                                true)
            
            tokenHolder (Auth0AuthUtil/passwordLogin authApi username passwd scope)]
        (if tokenHolder
          (let [accessToken (.getAccessToken tokenHolder)
                idToken (.getIdToken tokenHolder)
                expiresIn (.getExpiresIn tokenHolder)
+               tokenType (.getTokenType tokenHolder)
                inst-with-attrs (assoc inst
-                                      :Issued (dt/now-raw)
+                                      :Issued (dt/as-string now)
                                       :ExpirySeconds expiresIn
-                                      :AccessToken accessToken
-                                      :IdToken idToken)]
+                                      :AccessToken accessToken)               
+               auth-response {:Kernel/AuthResponse
+                              {:AccessToken accessToken
+                               :IdToken idToken
+                               :TokenType tokenType
+                               :Issued (dt/as-string now)
+                               :ExpirySeconds expiresIn}}]
                                       
                (u/call-and-set
                 db
                 #(assoc
                   @db (:Id inst)
                   inst-with-attrs))
-               (assoc inst-with-attrs :Issued (dt/as-string (:Issued inst-with-attrs))))))))
+               auth-response)))))
            
 (defn- auth-kernel-oauth2-upsert [inst]
   #?(:clj
@@ -55,7 +62,8 @@
            request (:RequestObject inst)
            authApi (Auth0AuthUtil/createAuthAPI (:ClientID request)
                                                 (:ClientSecret request)
-                                                (:AuthDomain request))
+                                                (:AuthDomain request)
+                                                true)
            authorizeUrl (Auth0AuthUtil/authorizeUrl authApi
                                                     (:CallbackURL request)
                                                     (:AuthScope request))        
