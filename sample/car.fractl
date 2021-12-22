@@ -26,10 +26,23 @@
                   :UserRating :Kernel/Decimal
                   :Name :Kernel/String}})
 
-
 (event :Login {:UserName :Kernel/String
                :Password :Kernel/Password})
 
+(entity {:Auth0DbRequest
+         {:ClientID :Kernel/String
+          :ClientSecret :Kernel/String
+          :AuthDomain :Kernel/String
+          :AuthScope :Kernel/String
+          :UserName {:type :Kernel/String :indexed true :unique true}
+          :Password :Kernel/String}})
+
+(event :Auth0DbLogin {:UserName :Kernel/String
+                      :Password :Kernel/String
+                      :ClientID :Kernel/String
+                      :ClientSecret :Kernel/String
+                      :AuthDomain :Kernel/String
+                      :AuthScope :Kernel/String})
 (dataflow
  :Login
  {:User
@@ -40,6 +53,17 @@
                    {:Owner :User
                     :ExpirySeconds 5000}}])
 
+(dataflow
+ :Auth0DbLogin
+ {:Auth0DbRequest
+  {:ClientID? :Auth0DbLogin.ClientID}}
+ [:match :Auth0DbRequest.ClientSecret
+  :Auth0DbLogin.ClientSecret {:Kernel/Authentication
+                              {:AuthType "Auth0Database"
+                               :RequestObject :Auth0DbRequest
+                               }}])
+   
+  
 (dataflow :FindCar
           {:Car {:Id? :FindCar.Car}})
 
@@ -80,6 +104,14 @@
     :HourRate 500.0
     :UserRating 4.5
     :Name "Manjunatha"}}
-   
+
+  {:Auth0DbRequest
+   {:ClientID "Zpd3u7saV3Y7tebdzJ1Vo0eFALWyxMnR"
+    :ClientSecret "DSiQSiVT7Sd0RJwxdQ4gCfjLUA495PjlVNKhkgB6yFgpH2rgt9kpRbxJLPOcAaXH"
+    :AuthDomain "fractl.us.auth0.com"
+    :AuthScope "openid profile email"
+    :UserName "test.user@ventur8.io"
+    :Password "P@s$w0rd123"
+    }}
 )
-   
+  
