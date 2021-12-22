@@ -176,5 +176,6 @@
        (is (dt/parse-date-time (:Issued auth-response)))       
        (is (> (:ExpirySeconds auth-response) 0))
        (is (= (:TokenType auth-response) "Bearer"))
+       (is (= (:Owner auth-response) username))
        (is (not-empty (:AccessToken auth-response)))
        (is (not-empty (:IdToken auth-response)))))))
