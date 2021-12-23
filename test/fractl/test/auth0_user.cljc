@@ -49,8 +49,8 @@
      (let [client-id "Zpd3u7saV3Y7tebdzJ1Vo0eFALWyxMnR"
            client-secret "DSiQSiVT7Sd0RJwxdQ4gCfjLUA495PjlVNKhkgB6yFgpH2rgt9kpRbxJLPOcAaXH"
            auth-domain "fractl.us.auth0.com"
-           email "random@ventur8.io"
-           username "fractl-test-user"
+           email (tu/rand-email "ventur8.io")
+           username (tu/rand-str)
            passwd "P@s$w0rd123"
            signup-req (tu/first-result
                        (cn/make-instance
@@ -69,4 +69,5 @@
                               {:Auth0TestDbSignupUser/SignupUserRequest
                                {:ClientID client-id
                                 :ClientSecret client-secret}}))]
+
        (is (cn/instance-of? :Kernel/Auth0User signup-user-resp))))))
