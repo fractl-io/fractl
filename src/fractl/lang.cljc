@@ -581,15 +581,9 @@
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
 
-  (entity {:Kernel/Auth0User
-           {:UserName :Kernel/String
-            :Email :Kernel/String
-            :Password :Kernel/String
-            :RequestObject {:type :Kernel/Map :optional true}}})
-                                                          
   (entity {:Kernel/Authentication
            {:Owner {:type :Kernel/Any :optional true}
-            :AuthType {:oneof ["Database" "Auth0Database" "OAuth2Request"]
+            :AuthType {:oneof ["Database" "Auth0Database" "OAuth2Request" "Auth0UserSignup"]
                        :default "Database"}
             :RequestObject {:type :Kernel/Map :optional true}
             :Issued {:type :Kernel/DateTime :optional true}
@@ -664,10 +658,6 @@
           :type :auth
           :compose? false
           :paths [:Kernel/Authentication]}
-         {:name :auth0-user
-          :type :auth0-user
-          :compose? false
-          :Paths [:Kernel/Auth0User]}
          {:name :timer
           :type :timer
           :compose? false
