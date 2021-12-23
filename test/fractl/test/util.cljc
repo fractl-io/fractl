@@ -54,6 +54,14 @@
      :cljs
      (js/setTimeout f msec)))
 
+(defn rand-str [len]
+  #?(:clj  
+     (apply str (take len (repeatedly #(char (+ (rand 26) 97)))))))
+
+(defn rand-email [domain]
+  #?(:clj  
+     (str (rand-str 12) "@" domain)))
+
 ;; To test postgres in CI, set to true
 (def test-with-postgres false)
 
