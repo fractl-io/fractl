@@ -179,3 +179,68 @@
        (is (= (:Owner auth-response) username))
        (is (not-empty (:AccessToken auth-response)))
        (is (not-empty (:IdToken auth-response)))))))
+
+;; commented out as this creates a random user in fractl auth0
+;; database everytime when run. Uncomment and run manually for testing.
+#_(deftest auth0-db-create-user
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :Auth0TestDbSignupUser
+     (entity {:Auth0TestDbSignupUser/SignupRequest
+              {:ClientID :Kernel/String
+               :ClientSecret :Kernel/String
+               :AuthDomain :Kernel/String
+               :Email :Kernel/String
+               :UserName :Kernel/String
+               :Password :Kernel/String
+               }})
+
+     (event :Auth0TestDbSignupUser/SignUp {:ClientID :Kernel/String
+                                           :ClientSecret :Kernel/String
+                                           :AuthDomain :Kernel/String
+                                           :Email :Kernel/String
+                                           :UserName :Kernel/String
+                                           :Password :Kernel/String
+                                           })
+
+     (dataflow
+      :Auth0TestDbSignupUser/SignupUserRequest
+      {:Auth0TestDbSignupUser/SignupRequest
+       {:ClientID? :Auth0TestDbSignupUser/SignupUserRequest.ClientID}}
+      [:match :Auth0TestDbSignupUser/SignupRequest.ClientSecret
+       :Auth0TestDbSignupUser/SignupUserRequest.ClientSecret {:Kernel/Authentication
+                                                              {:RequestObject :Auth0TestDbSignupUser/SignupRequest
+                                                               :AuthType "Auth0UserSignup"
+                                                               }}])
+
+     (let [client-id "Zpd3u7saV3Y7tebdzJ1Vo0eFALWyxMnR"
+           client-secret "DSiQSiVT7Sd0RJwxdQ4gCfjLUA495PjlVNKhkgB6yFgpH2rgt9kpRbxJLPOcAaXH"
+           auth-domain "fractl.us.auth0.com"
+           email (tu/rand-email "ventur8.io")
+           username (tu/rand-str 12)
+           passwd "P@s$w0rd123"
+           signup-req (tu/first-result
+                     (cn/make-instance
+                      {:Auth0TestDbSignupUser/Upsert_SignupRequest
+                       {:Instance
+                        {:Auth0TestDbSignupUser/SignupRequest
+                         {:ClientID client-id
+                          :ClientSecret client-secret
+                          :AuthDomain auth-domain
+                          :Email email
+                          :UserName username                          
+                          :Password passwd
+                          }}}}))
+                         
+           signup-user-resp (tu/first-result
+                             (cn/make-instance
+                              {:Auth0TestDbSignupUser/SignupUserRequest
+                               {:ClientID client-id
+                                :ClientSecret client-secret}}))
+           resp-obj (:Response signup-user-resp)
+           ]
+       (is (cn/instance-of? :Kernel/Authentication signup-user-resp))
+       (is (not-empty (:UserId resp-obj)))
+       (is (= (:UserEmail resp-obj) email))
+       (is (= (:UserName resp-obj) username))))))
+
