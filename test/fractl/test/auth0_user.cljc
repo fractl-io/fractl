@@ -69,7 +69,4 @@
                               {:Auth0TestDbSignupUser/SignupUserRequest
                                {:ClientID client-id
                                 :ClientSecret client-secret}}))]
-       ;;       (println "signup response" signup-user-resp)
-       ;;       (is (cn/instance-of? :Kernel/Auth0User signup-user-resp))))))
-       ))))
-
+       (is (cn/instance-of? :Kernel/Auth0User signup-user-resp))))))
