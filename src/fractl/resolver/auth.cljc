@@ -78,10 +78,11 @@
        (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorizeUrl))))
 
 (defn auth-upsert [inst]
-  (cond
-    (= (:AuthType inst) "Database") (auth-kernel-auth-upsert inst)
-    (= (:AuthType inst) "OAuth2Request") (auth-kernel-oauth2-upsert inst)
-    (= (:AuthType inst) "Auth0Database") (auth-kernel-auth0-auth-upsert inst)))
+  (case (keyword (:AuthType inst))
+    :Database (auth-kernel-auth-upsert inst)
+    :OAuth2Request (auth-kernel-oauth2-upsert inst)
+    :Auth0Database (auth-kernel-auth0-auth-upsert inst)
+    (u/throw-ex (str "invalid AuthType - " (:AuthType inst)))))
 
 (defn- auth-delete [inst]
   (let [id (:Id inst)]
