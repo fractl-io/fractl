@@ -70,28 +70,32 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :Auth0TestAuth
-     (entity {:Auth0TestAuth/AuthRequest
-              {:ClientID :Kernel/String
-               :ClientSecret :Kernel/String
-               :AuthDomain :Kernel/String
-               :AuthScope :Kernel/String
-               :CallbackURL :Kernel/String}})
+     (entity
+      {:Auth0TestAuth/AuthRequest
+       {:ClientID :Kernel/String
+        :ClientSecret :Kernel/String
+        :AuthDomain :Kernel/String
+        :AuthScope :Kernel/String
+        :CallbackURL :Kernel/String}})
 
-     (event :Auth0TestAuth/Login {:ClientID :Kernel/String
-                                  :ClientSecret :Kernel/String
-                                  :AuthDomain :Kernel/String
-                                  :AuthScope :Kernel/String
-                                  :CallbackURL :Kernel/String})
+     (event
+      :Auth0TestAuth/Login
+      {:ClientID :Kernel/String
+       :ClientSecret :Kernel/String
+       :AuthDomain :Kernel/String
+       :AuthScope :Kernel/String
+       :CallbackURL :Kernel/String})
 
      (dataflow
       :Auth0TestAuth/LoginRequest
       {:Auth0TestAuth/AuthRequest
        {:ClientID? :Auth0TestAuth/LoginRequest.ClientID}}
       [:match :Auth0TestAuth/AuthRequest.ClientSecret
-       :Auth0TestAuth/LoginRequest.ClientSecret {:Kernel/Authentication
-                                                 {:AuthType "OAuth2Request"
-                                                  :RequestObject :Auth0TestAuth/AuthRequest
-                                                  :ExpirySeconds 86400}}])
+       :Auth0TestAuth/LoginRequest.ClientSecret
+       {:Kernel/Authentication
+        {:AuthType "OAuth2Request"
+         :RequestObject :Auth0TestAuth/AuthRequest
+         :ExpirySeconds 86400}}])
      (let [client-id "xyz123"
            client-secret "xyzsecretsauce"
            auth-domain "client.us.auth0.com"
