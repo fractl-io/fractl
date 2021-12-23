@@ -63,13 +63,13 @@
      (str (rand-str 12) "@" domain)))
 
 ;; To test postgres in CI, set to true
-(def test-with-postgres true)
+(def test-with-postgres false)
 
 (store/open-default-store
  #?(:clj (when test-with-postgres
            {:type     :postgres
-            :host     "localhost" ;; (System/getenv "POSTGRES_HOST")
-            :dbname   "fractl"
-            :username "anand"
-            :password "anand123"})
+            :host     (System/getenv "POSTGRES_HOST")
+            :dbname   "postgres"
+            :username "postgres"
+            :password (System/getenv "POSTGRES_PASSWORD")})
     :cljs {:type :alasql}))
