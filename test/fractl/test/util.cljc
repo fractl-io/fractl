@@ -54,14 +54,22 @@
      :cljs
      (js/setTimeout f msec)))
 
+(defn rand-str [len]
+  #?(:clj  
+     (apply str (take len (repeatedly #(char (+ (rand 26) 97)))))))
+
+(defn rand-email [domain]
+  #?(:clj  
+     (str (rand-str 12) "@" domain)))
+
 ;; To test postgres in CI, set to true
-(def test-with-postgres false)
+(def test-with-postgres true)
 
 (store/open-default-store
  #?(:clj (when test-with-postgres
            {:type     :postgres
-            :host     (System/getenv "POSTGRES_HOST")
-            :dbname   "postgres"
-            :username "postgres"
-            :password (System/getenv "POSTGRES_PASSWORD")})
+            :host     "localhost" ;; (System/getenv "POSTGRES_HOST")
+            :dbname   "fractl"
+            :username "anand"
+            :password "anand123"})
     :cljs {:type :alasql}))
