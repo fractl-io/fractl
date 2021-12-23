@@ -6,11 +6,8 @@
             [fractl.lang.datetime :as dt])
   #?(:clj (:import [fractl.auth.auth0 Auth0AuthUtil])))
 
-(def ^:private db (u/make-cell {}))
-
 (defn auth0-user-upsert [inst]
   #?(:clj
-;;     (println "auth0-user-upsert")
      (let [username (:UserName inst)
            passwd (:Password inst)
            email (:Email inst)
@@ -23,18 +20,16 @@
            createdUser (Auth0AuthUtil/signupUser authApi username email passwd fields)]
        (if createdUser
          (let [userId (.getUserId createdUser)
-               inst-with-attrs (assoc inst :UserId userId)]
-           (u/call-and-set
-            db
-            #(assoc
-              @db (:Id inst)
-              inst-with-attrs)))))))
+               userEmail (.getEmail createdUser)
+               userName (.getUsername createdUser)
+               inst-with-attrs (assoc inst :UserId userId :UserName userName :UserEmail userEmail)]
+            inst-with-attrs)))))
          
 (defn auth0-user-delete [inst]
-  #?(:clj (println "auth0-user-delete")))
+  #?(:clj (u/throw-ex (str "No user delete API defined on auth0"))))
 
 (defn auth0-user-query [inst]
-  #?(:clj (println "auth0-user-query")))
+  #?(:clj (u/throw-ex (str "Auth0 user query API via ID lookup not defined"))))
 
 (def ^:private resolver-fns
   {:upsert {:handler auth0-user-upsert}
