@@ -666,7 +666,7 @@
           :paths [:Kernel/Authentication]}
          {:name :auth0-user
           :type :auth0-user
-          :compose? false
+          :compose? true
           :paths [:Kernel/Auth0User]}
          {:name :timer
           :type :timer
