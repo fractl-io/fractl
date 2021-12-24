@@ -27,28 +27,28 @@
            username (:UserName request)
            passwd (:Password request)
            scope (:AuthScope request)
-           authApi (Auth0AuthUtil/createAuthAPI (:ClientID request)
-                                                (:ClientSecret request)
-                                                (:AuthDomain request)
-                                                true)
+           auth-api (Auth0AuthUtil/createAuthAPI (:ClientID request)
+                                                 (:ClientSecret request)
+                                                 (:AuthDomain request)
+                                                 true)
            
-           tokenHolder (Auth0AuthUtil/passwordLogin authApi username passwd scope)]
-       (if tokenHolder
-         (let [accessToken (.getAccessToken tokenHolder)
-               idToken (.getIdToken tokenHolder)
-               expiresIn (.getExpiresIn tokenHolder)
-               tokenType (.getTokenType tokenHolder)
+           token-holder (Auth0AuthUtil/passwordLogin auth-api username passwd scope)]
+       (if token-holder
+         (let [access-token (.getAccessToken token-holder)
+               id-token (.getIdToken token-holder)
+               expires-in (.getExpiresIn token-holder)
+               token-type (.getTokenType token-holder)
                inst-with-attrs (assoc inst
                                       :Issued (dt/as-string now)
-                                      :ExpirySeconds expiresIn
-                                      :AccessToken accessToken)               
+                                      :ExpirySeconds expires-in
+                                      :AccessToken access-token)               
                auth-response {:Kernel/AuthResponse
-                              {:AccessToken accessToken
-                               :IdToken idToken
-                               :TokenType tokenType
+                              {:AccessToken access-token
+                               :IdToken id-token
+                               :TokenType token-type
                                :Owner username
                                :Issued (dt/as-string now)
-                               :ExpirySeconds expiresIn}}]
+                               :ExpirySeconds expires-in}}]
                                       
                (u/call-and-set
                 db
@@ -61,21 +61,21 @@
   #?(:clj
      (let [now (dt/now-raw)
            request (:RequestObject inst)
-           authApi (Auth0AuthUtil/createAuthAPI (:ClientID request)
-                                                (:ClientSecret request)
-                                                (:AuthDomain request)
-                                                true)
-           authorizeUrl (Auth0AuthUtil/authorizeUrl authApi
-                                                    (:CallbackURL request)
-                                                    (:AuthScope request))        
+           auth-api (Auth0AuthUtil/createAuthAPI (:ClientID request)
+                                                 (:ClientSecret request)
+                                                 (:AuthDomain request)
+                                                 true)
+           authorize-url (Auth0AuthUtil/authorizeUrl auth-api
+                                                     (:CallbackURL request)
+                                                     (:AuthScope request))        
            inst-with-generated
-           (assoc inst :Generated now :AuthorizeURL authorizeUrl)]
+           (assoc inst :Generated now :AuthorizeURL authorize-url)]
        (u/call-and-set
         db
         #(assoc
           @db (:Id inst)
           inst-with-generated))
-       (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorizeUrl))))
+       (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorize-url))))
 
 (defn auth-upsert [inst]
   (case (keyword (:AuthType inst))
