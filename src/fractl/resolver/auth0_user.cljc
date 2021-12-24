@@ -13,16 +13,16 @@
            email (:Email inst)
            fields (:Fields inst)
            request (:RequestObject inst)
-           authApi (Auth0AuthUtil/createAuthAPI (:ClientID request)
-                                                (:ClientSecret request)
-                                                (:AuthDomain request)
-                                                true)
-           createdUser (Auth0AuthUtil/signupUser authApi username email passwd fields)]
-       (if createdUser
-         (let [userId (.getUserId createdUser)
-               userEmail (.getEmail createdUser)
-               userName (.getUsername createdUser)
-               inst-with-attrs (assoc inst :UserId userId :UserName userName :UserEmail userEmail)]
+           auth-api (Auth0AuthUtil/createAuthAPI (:ClientID request)
+                                                 (:ClientSecret request)
+                                                 (:AuthDomain request)
+                                                 true)
+           created-user (Auth0AuthUtil/signupUser auth-api username email passwd fields)]
+       (if created-user
+         (let [user-id (.getUserId created-user)
+               user-email (.getEmail created-user)
+               user-name (.getUsername created-user)
+               inst-with-attrs (assoc inst :UserId user-id :UserName user-name :UserEmail user-email)]
             inst-with-attrs)))))
          
 (defn auth0-user-delete [inst]
