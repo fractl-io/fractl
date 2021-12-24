@@ -3,7 +3,6 @@
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.evaluator :as e]
             [fractl.component :as cn]
-            [cheshire.core :as json]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
