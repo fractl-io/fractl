@@ -3,7 +3,6 @@
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.evaluator :as e]
             [fractl.component :as cn]
-            [cheshire.core :as json]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
@@ -147,8 +146,7 @@
       [:match :Auth0TestDbAuth/AuthRequest.ClientSecret
        :Auth0TestDbAuth/LoginRequest.ClientSecret {:Kernel/Authentication
                                                    {:AuthType "Auth0Database"
-                                                    :RequestObject :Auth0TestDbAuth/AuthRequest
-                                                    }}])
+                                                    :RequestObject :Auth0TestDbAuth/AuthRequest}}])
 
      ;; this is a test that actually logs in a test user via the
      ;; auth0 database authentication API - there is no way to "mock" this
