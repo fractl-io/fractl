@@ -20,27 +20,69 @@
           inst-with-issued))
        (assoc inst :Issued (dt/as-string now)))))
 
+(defn- auth-kernel-auth0-auth-upsert [inst]
+  #?(:clj
+     (let [now (dt/now-raw)
+           request (:RequestObject inst)
+           username (:UserName request)
+           passwd (:Password request)
+           scope (:AuthScope request)
+           auth-api (Auth0AuthUtil/createAuthAPI (:ClientID request)
+                                                 (:ClientSecret request)
+                                                 (:AuthDomain request)
+                                                 true)
+           
+           token-holder (Auth0AuthUtil/passwordLogin auth-api username passwd scope)]
+       (if token-holder
+         (let [access-token (.getAccessToken token-holder)
+               id-token (.getIdToken token-holder)
+               expires-in (.getExpiresIn token-holder)
+               token-type (.getTokenType token-holder)
+               inst-with-attrs (assoc inst
+                                      :Issued (dt/as-string now)
+                                      :ExpirySeconds expires-in
+                                      :AccessToken access-token)               
+               auth-response {:Kernel/AuthResponse
+                              {:AccessToken access-token
+                               :IdToken id-token
+                               :TokenType token-type
+                               :Owner username
+                               :Issued (dt/as-string now)
+                               :ExpirySeconds expires-in}}]
+                                      
+               (u/call-and-set
+                db
+                #(assoc
+                  @db (:Id inst)
+                  inst-with-attrs))
+               auth-response)))))
+           
 (defn- auth-kernel-oauth2-upsert [inst]
   #?(:clj
      (let [now (dt/now-raw)
-           authorizeUrl (Auth0AuthUtil/authorizeUrl (:ClientID inst)
-                                                    (:ClientSecret inst)
-                                                    (:AuthDomain inst)
-                                                    (:CallbackURL inst)
-                                                    (:AuthScope inst))        
+           request (:RequestObject inst)
+           auth-api (Auth0AuthUtil/createAuthAPI (:ClientID request)
+                                                 (:ClientSecret request)
+                                                 (:AuthDomain request)
+                                                 true)
+           authorize-url (Auth0AuthUtil/authorizeUrl auth-api
+                                                     (:CallbackURL request)
+                                                     (:AuthScope request))        
            inst-with-generated
-           (assoc inst :Generated now :AuthorizeURL authorizeUrl)]
+           (assoc inst :Generated now :AuthorizeURL authorize-url)]
        (u/call-and-set
         db
         #(assoc
           @db (:Id inst)
           inst-with-generated))
-       (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorizeUrl))))
+       (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorize-url))))
 
 (defn auth-upsert [inst]
-  (cond
-    (cn/instance-of? :Kernel/Authentication inst) (auth-kernel-auth-upsert inst)
-    (cn/instance-of? :Kernel/OAuth2Request inst) (auth-kernel-oauth2-upsert inst)))
+  (case (keyword (:AuthType inst))
+    :Database (auth-kernel-auth-upsert inst)
+    :OAuth2Request (auth-kernel-oauth2-upsert inst)
+    :Auth0Database (auth-kernel-auth0-auth-upsert inst)
+    (u/throw-ex (str "invalid AuthType - " (:AuthType inst)))))
 
 (defn- auth-delete [inst]
   (let [id (:Id inst)]
@@ -64,6 +106,6 @@
    :query {:handler auth-query}})
 
 (defn make
-  "Create and return a policy resolver"
+  "Create and return an auth resolver"
   [resolver-name config]
   (r/make-resolver resolver-name resolver-fns))

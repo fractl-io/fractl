@@ -65,34 +65,36 @@
                        {:UserName uname
                         :Password "aaaa"}})))))))))
 
-(deftest auth0-auth
+(deftest auth0-oauth2
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :Auth0TestAuth
-     (entity {:Auth0TestAuth/AuthRequest
-              {:ClientID :Kernel/String
-               :ClientSecret :Kernel/String
-               :AuthDomain :Kernel/String
-               :AuthScope :Kernel/String
-               :CallbackURL :Kernel/String}})
+     (entity
+      {:Auth0TestAuth/AuthRequest
+       {:ClientID :Kernel/String
+        :ClientSecret :Kernel/String
+        :AuthDomain :Kernel/String
+        :AuthScope :Kernel/String
+        :CallbackURL :Kernel/String}})
 
-     (event :Auth0TestAuth/Login {:ClientID :Kernel/String
-                                  :ClientSecret :Kernel/String
-                                  :AuthDomain :Kernel/String
-                                  :AuthScope :Kernel/String
-                                  :CallbackURL :Kernel/String})
+     (event
+      :Auth0TestAuth/Login
+      {:ClientID :Kernel/String
+       :ClientSecret :Kernel/String
+       :AuthDomain :Kernel/String
+       :AuthScope :Kernel/String
+       :CallbackURL :Kernel/String})
+
      (dataflow
       :Auth0TestAuth/LoginRequest
       {:Auth0TestAuth/AuthRequest
        {:ClientID? :Auth0TestAuth/LoginRequest.ClientID}}
       [:match :Auth0TestAuth/AuthRequest.ClientSecret
-       :Auth0TestAuth/LoginRequest.ClientSecret {:Kernel/OAuth2Request
-                                                 {:ClientID :Auth0TestAuth/AuthRequest.ClientID
-                                                  :ClientSecret  :Auth0TestAuth/AuthRequest.ClientSecret
-                                                  :AuthDomain :Auth0TestAuth/AuthRequest.AuthDomain
-                                                  :AuthScope :Auth0TestAuth/AuthRequest.AuthScope
-                                                  :CallbackURL :Auth0TestAuth/AuthRequest.CallbackURL}}])
-
+       :Auth0TestAuth/LoginRequest.ClientSecret
+       {:Kernel/Authentication
+        {:AuthType "OAuth2Request"
+         :RequestObject :Auth0TestAuth/AuthRequest
+         :ExpirySeconds 86400}}])
      (let [client-id "xyz123"
            client-secret "xyzsecretsauce"
            auth-domain "client.us.auth0.com"
@@ -113,6 +115,69 @@
                         {:Auth0TestAuth/LoginRequest
                          {:ClientID client-id
                           :ClientSecret client-secret}}))]
-       (is (cn/instance-of? :Kernel/OAuth2Request auth-login))
+       (is (cn/instance-of? :Kernel/Authentication auth-login))
        (is (dt/parse-date-time (:Generated auth-login)))
        (is (not-empty (:AuthorizeURL auth-login)))))))
+
+
+(deftest auth0-db-auth
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :Auth0TestDbAuth
+     (entity {:Auth0TestDbAuth/AuthRequest
+              {:ClientID :Kernel/String
+               :ClientSecret :Kernel/String
+               :AuthDomain :Kernel/String
+               :AuthScope :Kernel/String
+               :UserName :Kernel/String
+               :Password :Kernel/String}})
+
+     (event :Auth0TestDbAuth/Login {:ClientID :Kernel/String
+                                    :ClientSecret :Kernel/String
+                                    :AuthDomain :Kernel/String
+                                    :AuthScope :Kernel/String
+                                    :UserName :Kernel/String
+                                    :Password :Kernel/String})
+
+     (dataflow
+      :Auth0TestDbAuth/LoginRequest
+      {:Auth0TestDbAuth/AuthRequest
+       {:ClientID? :Auth0TestDbAuth/LoginRequest.ClientID}}
+      [:match :Auth0TestDbAuth/AuthRequest.ClientSecret
+       :Auth0TestDbAuth/LoginRequest.ClientSecret {:Kernel/Authentication
+                                                   {:AuthType "Auth0Database"
+                                                    :RequestObject :Auth0TestDbAuth/AuthRequest}}])
+
+     ;; this is a test that actually logs in a test user via the
+     ;; auth0 database authentication API - there is no way to "mock" this
+     (let [client-id "Zpd3u7saV3Y7tebdzJ1Vo0eFALWyxMnR"
+           client-secret "DSiQSiVT7Sd0RJwxdQ4gCfjLUA495PjlVNKhkgB6yFgpH2rgt9kpRbxJLPOcAaXH"
+           auth-domain "fractl.us.auth0.com"
+           auth-scope "openid profile email"
+           username "test.user@ventur8.io"
+           passwd "P@s$w0rd123"
+           auth-req (tu/first-result
+                     (cn/make-instance
+                      {:Auth0TestDbAuth/Upsert_AuthRequest
+                       {:Instance
+                        {:Auth0TestDbAuth/AuthRequest
+                         {:ClientID client-id
+                          :ClientSecret client-secret
+                          :AuthDomain auth-domain
+                          :AuthScope auth-scope
+                          :UserName username
+                          :Password passwd}}}}))
+           auth-login (tu/first-result
+                       (cn/make-instance
+                        {:Auth0TestDbAuth/LoginRequest
+                         {:ClientID client-id
+                          :ClientSecret client-secret}}))
+           auth-response (:Kernel/AuthResponse auth-login)
+           ]
+       (is (cn/instance-of? :Kernel/Authentication auth-login))
+       (is (dt/parse-date-time (:Issued auth-response)))       
+       (is (> (:ExpirySeconds auth-response) 0))
+       (is (= (:TokenType auth-response) "Bearer"))
+       (is (= (:Owner auth-response) username))
+       (is (not-empty (:AccessToken auth-response)))
+       (is (not-empty (:IdToken auth-response)))))))

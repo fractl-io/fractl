@@ -581,20 +581,29 @@
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
 
+  (entity {:Kernel/Auth0User
+           {:UserName :Kernel/String
+            :Email :Kernel/String
+            :Password :Kernel/String
+            :RequestObject {:type :Kernel/Map :optional true}}})
+                                                          
   (entity {:Kernel/Authentication
-           {:Owner :Kernel/Any
+           {:Owner {:type :Kernel/Any :optional true}
+            :AuthType {:oneof ["Database" "Auth0Database" "OAuth2Request"]
+                       :default "Database"}
+            :RequestObject {:type :Kernel/Map :optional true}
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 300}}})
 
-  (record {:Kernel/OAuth2Request
-           {:ClientID :Kernel/String
-            :ClientSecret :Kernel/String
-            :AuthDomain :Kernel/String
-            :AuthScope :Kernel/String
-            :CallbackURL :Kernel/String
-            :Generated {:type :Kernel/DateTime :optional true}}})
-          
-  
+  (entity {:Kernel/AuthResponse
+           {:AccessToken :Kernel/String
+            :IdToken :Kernel/String
+            :RefreshToken {:type :Kernel/String :optional true}
+            :TokenType :Kernel/String
+            :Owner :Kernel/String
+            :Issued {:type :Kernel/DateTime :optional true}
+            :ExpirySeconds {:type :Kernel/Int :default 86400}}})
+
   (entity {:Kernel/Policy
            {:Intercept :Kernel/String
             :Resource {:listof :Kernel/Path}
@@ -655,10 +664,10 @@
           :type :auth
           :compose? false
           :paths [:Kernel/Authentication]}
-         {:name :auth
-          :type :auth
+         {:name :auth0-user
+          :type :auth0-user
           :compose? false
-          :paths [:Kernel/OAuth2Request]}
+          :paths [:Kernel/Auth0User]}
          {:name :timer
           :type :timer
           :compose? false
