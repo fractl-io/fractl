@@ -610,7 +610,7 @@
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
-        result [ec (doall (map c df-patterns))]]
+        result [ec (mapv c df-patterns)]]
     result))
 
 (defn- maybe-compile-dataflow [compile-query-fn zero-trust-rbac df]
@@ -625,9 +625,8 @@
   df)
 
 (defn compile-dataflows-for-event [compile-query-fn zero-trust-rbac event]
-  (doall
-   (map (partial maybe-compile-dataflow compile-query-fn zero-trust-rbac)
-        (cn/dataflows-for-event event))))
+  (mapv (partial maybe-compile-dataflow compile-query-fn zero-trust-rbac)
+        (cn/dataflows-for-event event)))
 
 (defn- reference-attributes [attrs refrec]
   (when-let [result (cn/all-reference-paths attrs)]
