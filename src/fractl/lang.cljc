@@ -103,6 +103,10 @@
   (or (= true x)
       (= :default x)))
 
+(defn- eval-block? [x]
+  (and (map? x)
+       (every? #(some #{%} #{:patterns :refresh-ms :timeout-ms}) (keys x))))
+
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
     (case k
@@ -115,6 +119,7 @@
                    (li/validate predic "invalid value for :default" v)))
       :type (li/validate attribute-type? "invalid :type" v)
       :expr (li/validate fn-or-name? ":expr has invalid value" v)
+      :eval (li/validate eval-block? ":eval has invalid value" v)
       :query (li/validate fn? ":query must be a compiled pattern" v)
       :format (li/validate string? ":format must be a textual pattern" v)
       :listof (li/validate attribute-type? ":listof has invalid type" v)
@@ -194,29 +199,43 @@
   (let [[[_ _] a] (li/ref-as-names n)]
     (if a true false)))
 
+(defn- compile-eval-block [recname attrs k evblock]
+  )
+
+(defn- normalize-compound-attr [recname attrs nm [k v]]
+  (if-let [ev (:eval v)]
+    (attribute
+     nm
+     {:type :Kernel/Any
+      :eval (compile-eval-block recname attrs k ev)})
+    (when-let [expr (:expr v)]
+      (let [[c tag] (fetch-expression-compiler expr)]
+        (when tag
+          (cn/register-custom-compiled-record tag recname))
+        (attribute nm {:type (:type v)
+                       :expr (c recname attrs k expr)})))))
+
 (defn- normalize-attr [recname attrs fqn [k v]]
-  (let [newv (cond
-               (map? v)
-               (let [nm (fqn (li/unq-name))]
-                 (if (query-pattern? v)
-                   (attribute nm {:query (query-eval-fn recname attrs k v)})
-                   (if-let [expr (:expr v)]
-                     (let [[c tag] (fetch-expression-compiler expr)]
-                       (when tag
-                         (cn/register-custom-compiled-record tag recname))
-                       (attribute nm {:type (:type v)
-                                      :expr (c recname attrs k expr)}))
-                     (attribute nm v))))
-               (list? v)
-               (attribute (fqn (li/unq-name))
-                          {:expr (c/compile-attribute-expression
-                                  recname attrs k v)})
-               :else
-               (let [fulln (fqn v)]
-                 (if (attref? fulln)
-                   (attribute (fqn (li/unq-name))
-                              {:ref fulln})
-                   fulln)))]
+  (let [newv
+        (cond
+          (map? v)
+          (let [nm (fqn (li/unq-name))]
+            (if (query-pattern? v)
+              (attribute nm {:query (query-eval-fn recname attrs k v)})
+              (or (normalize-compound-attr recname attrs nm [k v])
+                  (attribute nm v))))
+          (list? v)
+          (attribute
+           (fqn (li/unq-name))
+           {:expr (c/compile-attribute-expression
+                   recname attrs k v)})
+          :else
+          (let [fulln (fqn v)]
+            (if (attref? fulln)
+              (attribute
+               (fqn (li/unq-name))
+               {:ref fulln})
+              fulln)))]
     [k newv]))
 
 (defn- validated-canonical-type-name [n]
