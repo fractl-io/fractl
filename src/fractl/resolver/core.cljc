@@ -11,7 +11,7 @@
     (u/throw-ex (str "invalid resolver keys - " (keys fnmap))))
   (doseq [[k v] fnmap]
     (when-not (fn? (:handler v))
-      (u/throw-ex (str "resolver key " k " must be mapped to a function"))))
+      (u/throw-ex (str "resolver key [" k " :handler] must be mapped to a function"))))
   (assoc fnmap
          :name resolver-name
          :evt-handler eval-dataflow))

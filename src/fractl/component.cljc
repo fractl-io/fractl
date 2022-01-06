@@ -442,12 +442,12 @@
   (let [sks (set (keys schema))
         aks (set (keys attributes))]
     (when-let [ks (seq (set/difference aks sks))]
-      (throw-error (str "Error in " (when (get schema :EventContext) "event ")
-                        recname
-                        " Here is the error line: "
-                        (when (get schema :EventContext) "check this line in event: ")
-                        (conj {} (first schema))))
-      (log/error (str "invalid attribute(s) found" {:irritant ks})))
+      (log/warn (str "Error in " (when (get schema :EventContext) "event ")
+                     recname
+                     " Here is the error line: "
+                     (when (get schema :EventContext) "check this line in event: ")
+                     (conj {} (first schema))))
+      (throw-error (str recname - " invalid attribute(s) found - " ks)))
     true))
 
 (defn decimal-value? [x]
