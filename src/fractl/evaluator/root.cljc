@@ -47,17 +47,42 @@
           (recur (rest qs) (env/bind-instances env (stu/results-as-instances rec-name rs))))
         env))))
 
+(defn- process-eval-result [obj]
+  (if (= :ok (:status obj))
+    (let [r (:result obj)]
+      (if (seqable? r)
+        (if (or (map? r) (string? r))
+          r
+          (if (= 1 (count r))
+            (first r)
+            r))
+        r))
+    {:status (:status obj) :result (:result obj)}))
+
+(defn- assoc-evaled-attributes [env obj evattrs eval-opcode]
+  (loop [evs evattrs, obj obj]
+    (if-let [[k v] (first evs)]
+      (recur
+       (rest evs)
+       (assoc obj k (process-eval-result (eval-opcode env (:opcode v)))))
+      obj)))
+
 (defn- assoc-fn-attributes [env raw-obj fns]
   (loop [fns fns, raw-obj raw-obj]
     (if-let [[a f] (first fns)]
       (recur (rest fns) (assoc raw-obj a (f env raw-obj)))
       raw-obj)))
 
-(defn- assoc-computed-attributes [env record-name raw-obj]
+(defn- assoc-computed-attributes [env record-name raw-obj eval-opcode]
   (let [env (enrich-environment-with-refs env record-name raw-obj)
-        [efns qfns] (cn/all-computed-attribute-fns record-name)
-        f (partial assoc-fn-attributes env)]
-    (f (f raw-obj efns) qfns)))
+        [efns qfns evattrs] (cn/all-computed-attribute-fns record-name)
+        f (partial assoc-fn-attributes env)
+        interim-obj (f (f raw-obj efns) qfns)]
+    (if (seq evattrs)
+      (assoc-evaled-attributes
+       (env/bind-instance env (li/split-path record-name) interim-obj)
+       interim-obj evattrs eval-opcode)
+      interim-obj)))
 
 (defn- set-obj-attr [env attr-name attr-value]
   (if-let [xs (env/pop-obj env)]
@@ -403,13 +428,13 @@
 (defn- pop-instance
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
-  [env record-name]
+  [env record-name eval-opcode]
   (if-let [xs (env/pop-obj env)]
     (let [[env single? [_ x]] xs]
       (if (maybe-async-channel? x)
         [x single? env]
         (let [objs (if single? [x] x)
-              final-objs (mapv #(assoc-computed-attributes env record-name %) objs)
+              final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
               insts (mapv (partial validated-instance record-name) final-objs)
               bindable (if single? (first insts) insts)]
           [bindable single? env])))
@@ -418,11 +443,11 @@
 (defn- pop-and-intern-instance
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
-  [env record-name alias]
+  [env record-name alias eval-opcode]
   (if-let [xs (env/pop-obj env)]
     (let [[env single? [_ x]] xs
           objs (if single? [x] x)
-          final-objs (mapv #(assoc-computed-attributes env record-name %) objs)
+          final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
           insts (mapv (partial validated-instance record-name) final-objs)
           env (env/bind-instances env record-name insts)
           bindable (if single? (first insts) insts)
@@ -623,7 +648,8 @@
     (do-load-references [self env [[record-name alias] refs]]
       (if-let [[path v] (env/instance-ref-path env record-name alias refs)]
         (if (cn/an-instance? v)
-          (let [final-inst (assoc-computed-attributes env (cn/instance-name v) v)
+          (let [opcode-eval (partial eval-opcode self)
+                final-inst (assoc-computed-attributes env (cn/instance-name v) v opcode-eval)
                 event-evaluator (partial eval-event-dataflows self)
                 [env r]
                 (bind-and-persist env event-evaluator final-inst)]
@@ -667,7 +693,7 @@
       (set-obj-attr env attr-name f))
 
     (do-intern-instance [self env [record-name alias]]
-      (let [[insts single? env] (pop-instance env record-name)
+      (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self))
             scm (cn/ensure-schema record-name)]
         (doseq [inst insts]
           (when-let [attrs (cn/instance-attributes inst)]
@@ -693,7 +719,7 @@
           (i/not-found record-name env))))
 
     (do-intern-event-instance [self env [record-name alias timeout-ms]]
-      (let [[inst env] (pop-and-intern-instance env record-name alias)
+      (let [[inst env] (pop-and-intern-instance env record-name alias (partial eval-opcode self))
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
             eval-env (env/make (env/get-store env) (env/get-resolver env))

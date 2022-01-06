@@ -7,6 +7,7 @@
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
+            [fractl.compiler.context :as ctx]
             [fractl.resolver.registry :as r]))
 
 (defn- normalize-imports [imports]
@@ -87,11 +88,12 @@
     false))
 
 (defn- query-pattern? [a-map]
-  (let [ks (keys a-map)
-        k (first ks)]
-    (and (= 1 (count ks))
-         (li/name? k)
-         (map? (get a-map k)))))
+  (when-not (:eval a-map)
+    (let [ks (keys a-map)
+          k (first ks)]
+      (and (= 1 (count ks))
+           (li/name? k)
+           (map? (get a-map k))))))
 
 (defn- fn-or-name? [x]
   (or (fn? x) (li/name? x)))
@@ -105,7 +107,7 @@
 
 (defn- eval-block? [x]
   (and (map? x)
-       (every? #(some #{%} #{:patterns :refresh-ms :timeout-ms}) (keys x))))
+       (every? #(some #{%} #{:patterns :refresh-ms :timeout-ms :opcode}) (keys x))))
 
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
@@ -199,15 +201,21 @@
   (let [[[_ _] a] (li/ref-as-names n)]
     (if a true false)))
 
-(defn- compile-eval-block [recname attrs k evblock]
-  )
+(defn- compile-eval-block [recname attrs evblock]
+  (let [ctx (ctx/make)]
+    (ctx/put-record! ctx (li/split-path recname) attrs)
+    (if-let [opcode (mapv (partial c/compile-pattern ctx) (:patterns evblock))]
+      opcode
+      (u/throw-ex (str recname " - failed to compile eval-block")))))
 
 (defn- normalize-compound-attr [recname attrs nm [k v]]
   (if-let [ev (:eval v)]
     (attribute
      nm
-     {:type :Kernel/Any
-      :eval (compile-eval-block recname attrs k ev)})
+     (assoc
+      v
+      :eval (assoc ev :opcode (compile-eval-block recname attrs ev))
+      :optional true))
     (when-let [expr (:expr v)]
       (let [[c tag] (fetch-expression-compiler expr)]
         (when tag

@@ -39,7 +39,7 @@
                    (li/query-pattern? ak) :query
                    (or (const-value? v) (vector? v)) :computed
                    (or (li/name? v) (symbol? v)) :refs
-                   (seqable? v) :compound
+                   (or (:eval v) (seqable? v)) :compound
                    :else (u/throw-ex (str "not a valid attribute pattern - " a)))]
          (su/aconj result tag [k v])))
       result)))
@@ -50,13 +50,13 @@
   (log/warn s))
 
 (defn- name-in-context [ctx component rec refs]
-  (if (ctx/fetch-record ctx [component rec])
+  (if-let [obj (ctx/fetch-record ctx [component rec])]
     (when (seq refs)
       (let [p (li/make-path component rec)
             [_ scm] (cn/find-schema p)]
         ;; TODO: validate multi-level references.
         (when-not (cn/inferred-event-schema? scm)
-          (when-not (some #{(first refs)} (cn/attribute-names scm))
+          (when-not (some #{(first refs)} (or (cn/attribute-names scm) (keys obj)))
             (if (= (get scm :type-*-tag-*-) :event)
               (u/throw-ex (str "Error in: Event " p " no such attribute - " (first refs)))
               (u/throw-ex (str "Invalid reference - " [p refs])))))))
