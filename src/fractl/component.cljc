@@ -447,7 +447,7 @@
                      " Here is the error line: "
                      (when (get schema :EventContext) "check this line in event: ")
                      (conj {} (first schema))))
-      (throw-error (str recname - " invalid attribute(s) found - " ks)))
+      (throw-error (str recname " - invalid attribute(s) found - " ks)))
     true))
 
 (defn decimal-value? [x]
