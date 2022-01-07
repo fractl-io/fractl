@@ -61,23 +61,23 @@
 
 (defn- eval-result-wrapper [evattr eval-fn]
   (let [result (async/chan)
-        timeout-ms (get evattr :timeout-ms 2000)
+        timeout-ms (get evattr :timeout-ms 500)
         refresh-ms (:refresh-ms evattr)]
     (go
-      (>! result (eval-fn))
-      (when refresh-ms
-        (go-loop []
-          (<! (async/timeout refresh-ms))
-          (>! result (eval-fn))
-          (recur))))
-    (fn []
+      (let [r (eval-fn)]
+        (>! result r)
+        (when refresh-ms
+          (go-loop []
+            (<! (async/timeout refresh-ms))
+            (>! result (eval-fn))
+            (recur)))))
+    (fn [& args]
       (let [cell (atom nil)]
         (go
           (reset! cell (<! result)))
         (or @cell
-            (do #?(:clj (Thread/sleep timeout-ms)
-                   :cljs (js/setTimeout #(deref cell) timeout-ms))
-                @cell))))))
+            #?(:clj (do (Thread/sleep timeout-ms) @cell)
+               :cljs (js/setTimeout #((first args) (deref cell)) timeout-ms)))))))
 
 (defn- assoc-evaled-attributes [env obj evattrs eval-opcode]
   (loop [evs evattrs, obj obj]

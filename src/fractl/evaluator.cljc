@@ -260,8 +260,10 @@
 
 (def ^:private global-dataflow-handle (u/make-cell nil))
 
-(defn global-dataflow-eval []
-  (or @global-dataflow-handle
-      (u/safe-set
-       global-dataflow-handle
-       (public-evaluator {} nil))))
+(defn global-dataflow-eval
+  ([store-config]
+   (or @global-dataflow-handle
+       (u/safe-set
+        global-dataflow-handle
+        (public-evaluator store-config nil))))
+  ([] (global-dataflow-eval {})))

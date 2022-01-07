@@ -217,11 +217,13 @@
       :eval (assoc ev :opcode (compile-eval-block recname attrs ev))
       :optional true))
     (when-let [expr (:expr v)]
-      (let [[c tag] (fetch-expression-compiler expr)]
-        (when tag
-          (cn/register-custom-compiled-record tag recname))
-        (attribute nm {:type (:type v)
-                       :expr (c recname attrs k expr)})))))
+      (if (fn? expr)
+        (attribute nm v)
+        (let [[c tag] (fetch-expression-compiler expr)]
+          (when tag
+            (cn/register-custom-compiled-record tag recname))
+          (attribute nm {:type (:type v)
+                         :expr (c recname attrs k expr)}))))))
 
 (defn- normalize-attr [recname attrs fqn [k v]]
   (let [newv
