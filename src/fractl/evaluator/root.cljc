@@ -64,7 +64,7 @@
     (if-let [[k v] (first evs)]
       (recur
        (rest evs)
-       (assoc obj k (process-eval-result (eval-opcode env (:opcode v)))))
+       (assoc obj k #(process-eval-result (eval-opcode env (:opcode v)))))
       obj)))
 
 (defn- assoc-fn-attributes [env raw-obj fns]

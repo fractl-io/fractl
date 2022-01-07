@@ -29,7 +29,8 @@
             {:EvBlock/Upsert_E
              {:Instance
               {:EvBlock/E
-               {:X 5}}}})]
+               {:X 5}}}})
+         y ((:Y e))]
      (is (cn/instance-of? :EvBlock/E e))
-     (is (= 15 (get-in e [:Y :A])))
-     (is (= 100 (get-in e [:Y :B]))))))
+     (is (= 15 (:A y)))
+     (is (= 100 (:B y))))))
