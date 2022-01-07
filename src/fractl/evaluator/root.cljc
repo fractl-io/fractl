@@ -17,9 +17,9 @@
             [fractl.lang :as ln]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]
-            #?(:clj [clojure.core.async :refer [go <!]])
-            #?(:cljs [cljs.core.async :refer [<!]]))
-  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
+            #?(:clj [clojure.core.async :as async :refer [go <! >! go-loop]])
+            #?(:cljs [cljs.core.async :as async :refer [<! >!]]))
+  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go go-loop]])))
 
 (defn- make-query-for-ref [env attr-schema ref-val]
   (let [r (:ref attr-schema)
@@ -59,12 +59,35 @@
         r))
     {:status (:status obj) :result (:result obj)}))
 
+(defn- eval-result-wrapper [evattr eval-fn]
+  (let [result (async/chan)
+        timeout-ms (get evattr :timeout-ms 2000)
+        refresh-ms (:refresh-ms evattr)]
+    (go
+      (>! result (eval-fn))
+      (when refresh-ms
+        (go-loop []
+          (<! (async/timeout refresh-ms))
+          (>! result (eval-fn))
+          (recur))))
+    (fn []
+      (let [cell (atom nil)]
+        (go
+          (reset! cell (<! result)))
+        (or @cell
+            (do #?(:clj (Thread/sleep timeout-ms)
+                   :cljs (js/setTimeout #(deref cell) timeout-ms))
+                @cell))))))
+
 (defn- assoc-evaled-attributes [env obj evattrs eval-opcode]
   (loop [evs evattrs, obj obj]
     (if-let [[k v] (first evs)]
       (recur
        (rest evs)
-       (assoc obj k #(process-eval-result (eval-opcode env (:opcode v)))))
+       (assoc
+        obj k
+        (eval-result-wrapper
+         v #(process-eval-result (eval-opcode env (:opcode v))))))
       obj)))
 
 (defn- assoc-fn-attributes [env raw-obj fns]
@@ -214,14 +237,17 @@
            insts))))
 
 (def ^:private inited-components (u/make-cell []))
+(def ^:private store-schema-lock #?(:clj (Object.) :cljs nil))
 
 (defn- maybe-init-schema! [store component-name]
-  (when-not (some #{component-name} @inited-components)
-    (u/safe-set
-     inited-components
-     (do (store/create-schema store component-name)
-         (conj @inited-components component-name))
-     component-name)))
+  (#?(:clj locking :cljs do)
+   store-schema-lock
+   (when-not (some #{component-name} @inited-components)
+     (u/safe-set
+      inited-components
+      (do (store/create-schema store component-name)
+          (conj @inited-components component-name))
+      component-name))))
 
 (defn- perform-rbac! [env opr recname data]
   (when-let [f (env/rbac-check env)]
