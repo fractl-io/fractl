@@ -100,12 +100,14 @@
   (let [env (enrich-environment-with-refs env record-name raw-obj)
         [efns qfns evattrs] (cn/all-computed-attribute-fns record-name)
         f (partial assoc-fn-attributes env)
-        interim-obj (f (f raw-obj efns) qfns)]
-    (if (seq evattrs)
-      (assoc-evaled-attributes
-       (env/bind-instance env (li/split-path record-name) interim-obj)
-       interim-obj evattrs eval-opcode)
-      interim-obj)))
+        interim-obj (if (seq evattrs)
+                      (assoc-evaled-attributes
+                       (env/bind-instance
+                        env
+                        (li/split-path record-name) raw-obj)
+                       raw-obj evattrs eval-opcode)
+                      raw-obj)]
+    (f (f interim-obj efns) qfns)))
 
 (defn- set-obj-attr [env attr-name attr-value]
   (if-let [xs (env/pop-obj env)]

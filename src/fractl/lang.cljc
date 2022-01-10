@@ -202,7 +202,10 @@
     (if a true false)))
 
 (defn- compile-eval-block [recname attrs evblock]
-  (let [ctx (ctx/make)]
+  (let [evblock (if (and (map? evblock) (:patterns evblock))
+                  evblock
+                  {:patterns [evblock]})
+        ctx (ctx/make)]
     (ctx/put-record! ctx (li/split-path recname) attrs)
     (if-let [opcode (mapv (partial c/compile-pattern ctx) (:patterns evblock))]
       opcode
