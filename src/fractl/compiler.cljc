@@ -53,7 +53,7 @@
                         (first result#)))]
            (if-let [refs# '~(seq (:refs parts))]
              (get-in r# refs#)
-             r#)))
+             result#)))
 
       (seq (:refs parts))
       `(first (fractl.env/follow-reference ~runtime-env-var ~parts))

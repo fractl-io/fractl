@@ -20,6 +20,8 @@
   (li/make-path c n))
 
 (def ^:dynamic fq-name nil)
+(def ^ThreadLocal in-alias-def (ThreadLocal.))
+(def ^ThreadLocal alias-names (ThreadLocal.))
 
 (defn- make-fq-name
   "Return a function that returns the fully-qualified (component-name/n) name of `n`."
@@ -28,21 +30,29 @@
         mp (partial make-path component-name (:records declared-names))]
     (fn [n]
       (if (li/name? n)
-        (let [[prefix suffix] (li/split-path n)]
-          (if suffix
-            ;; Check whether the prefix matches the current component-name
-            ;; else lookup aliases from refs of component and return the value of
-            ;; alias.
-            (if (not= prefix component-name)
-              (if-let [alias (cn/extract-alias-of-component component-name prefix)]
-                (mp alias suffix)
-                n)
-              (mp (infer-component-with-ns prefix component-name) suffix))
-            (let [mname (infer-component-with-ns prefix component-name)]
-              (if-not (= mname prefix)
-                (mp mname prefix)
-                mname))))
-        n))))
+        (if (or (.get in-alias-def) (some #{n} (.get alias-names)))
+          (do (.set in-alias-def false)
+              (when-not (.get alias-names)
+                (.set alias-names []))
+              (.set alias-names (conj (.get alias-names) n))
+              n)
+          (let [[prefix suffix] (li/split-path n)]
+            (if suffix
+              ;; Check whether the prefix matches the current component-name
+              ;; else lookup aliases from refs of component and return the value of
+              ;; alias.
+              (if (not= prefix component-name)
+                (if-let [alias (cn/extract-alias-of-component component-name prefix)]
+                  (mp alias suffix)
+                  n)
+                (mp (infer-component-with-ns prefix component-name) suffix))
+              (let [mname (infer-component-with-ns prefix component-name)]
+                (if-not (= mname prefix)
+                  (mp mname prefix)
+                  mname)))))
+        (do (when (= :as n)
+              (.set in-alias-def true))
+            n)))))
 
 (defn- looks-like-inst? [x]
   (and (= 1 (count (keys x)))

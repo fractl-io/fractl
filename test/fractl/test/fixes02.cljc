@@ -382,7 +382,7 @@
      (dataflow
       :I427b/E
       {:I427b/A {:X? true} :as :R}
-      {:I427b/B {:Result :R}}))
+      {:I427b/B {:Result '(identity :R)}}))
    (let [xs (mapv #(tu/first-result
                     {:I427b/Upsert_A
                      {:Instance
