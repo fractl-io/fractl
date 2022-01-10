@@ -202,17 +202,20 @@
     (if a true false)))
 
 (defn- compile-eval-block [recname attrs evblock]
-  (let [evblock (if (and (map? evblock) (:patterns evblock))
-                  evblock
-                  {:patterns [evblock]})
-        ctx (ctx/make)]
+  (let [ctx (ctx/make)]
     (ctx/put-record! ctx (li/split-path recname) attrs)
     (if-let [opcode (mapv (partial c/compile-pattern ctx) (:patterns evblock))]
       opcode
       (u/throw-ex (str recname " - failed to compile eval-block")))))
 
+(defn- normalize-eval-block [evblock]
+  (when evblock
+    (if (and (map? evblock) (:patterns evblock))
+      evblock
+      {:patterns [evblock]})))
+
 (defn- normalize-compound-attr [recname attrs nm [k v]]
-  (if-let [ev (:eval v)]
+  (if-let [ev (normalize-eval-block (:eval v))]
     (attribute
      nm
      (assoc
