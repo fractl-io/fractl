@@ -304,7 +304,7 @@
     v))
 
 (defn- complex-query-pattern? [pat]
-  (let [ks (keys pat)]
+  (let [ks (keys (dissoc pat :as))]
     (and (= 1 (count ks))
          (s/ends-with? (str (first ks)) "?"))))
 
@@ -327,10 +327,17 @@
   ([ctx pat]
    (compile-complex-query ctx pat op/query-instances)))
 
+(defn- query-map->command [pat]
+  (if-let [alias (:as pat)]
+    [(dissoc pat :as) :as alias]
+    [pat]))
+
+(declare compile-query-command)
+
 (defn- compile-map [ctx pat]
   (cond
     (complex-query-pattern? pat)
-    (compile-complex-query ctx pat)
+    (compile-query-command ctx (query-map->command pat))
 
     (li/instance-pattern? pat)
     (let [full-nm (li/instance-pattern-name pat)
@@ -510,7 +517,7 @@
     (when alias
       (when-not (li/name? alias)
         (u/throw-ex (str "not a valid name - " alias)))
-      (ctx/add-alias! ctx nm alias))
+      (ctx/add-alias! ctx (or nm alias) alias))
     (op/evaluate-query
      [#(compile-complex-query
         ctx
