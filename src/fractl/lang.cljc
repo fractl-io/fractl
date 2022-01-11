@@ -619,6 +619,8 @@
   (entity {:Kernel/Auth0User
            {:UserName :Kernel/String
             :Email :Kernel/String
+            :UserEmail {:type :Kernel/String :optional true}
+            :UserId {:type :Kernel/String :optional true}            
             :Password :Kernel/String
             :RequestObject {:type :Kernel/Map :optional true}}})
                                                           
@@ -701,7 +703,7 @@
           :paths [:Kernel/Authentication]}
          {:name :auth0-user
           :type :auth0-user
-          :compose? false
+          :compose? true
           :paths [:Kernel/Auth0User]}
          {:name :timer
           :type :timer

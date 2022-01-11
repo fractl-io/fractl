@@ -19,12 +19,14 @@
 
 (defn- test-resolver [install-resolver resolver-name path]
   (let [f (fn [_ arg] arg)
-        r (r/make-resolver resolver-name {:upsert {:handler identity
-                                                   :xform {:in [f :EntityXformR01/EToEPrime]
-                                                           :out [f :EntityXformR01/EPrimeToE]}}
-                                          :delete {:handler identity
-                                                   :xform {:in [f]}}}
-                           e/eval-pure-dataflows)]
+        r (r/make-resolver
+           resolver-name
+           {:upsert {:handler identity
+                     :xform {:in [f :EntityXformR01/EToEPrime]
+                             :out [f :EntityXformR01/EPrimeToE]}}
+            :delete {:handler identity
+                     :xform {:in [f]}}}
+           e/eval-pure-dataflows)]
     (install-resolver path r)))
 
 (def compose-test-resolver (partial test-resolver rg/compose-resolver))
@@ -32,7 +34,9 @@
 
 (defn- persisted? [comp-name entity-instance]
   (let [id (:Id entity-instance)
-        evt (cn/make-instance (keyword (str (name comp-name) "/Lookup_E")) {:Id id})
+        evt (cn/make-instance
+             (keyword (str (name comp-name) "/Lookup_E"))
+             {:Id id})
         result (e/eval-all-dataflows evt)
         r (first result)]
     (when-not (= :not-found (:status r))
@@ -46,8 +50,9 @@
     (event {:EntityXformR01/EToEPrime
             {:Instance :Kernel/Entity}})
     (dataflow :EntityXformR01/EToEPrime
-              {:EntityXformR01/EPrime {:X :EntityXformR01/EToEPrime.Instance.X
-                                       :Id :EntityXformR01/EToEPrime.Instance.Id}})
+              {:EntityXformR01/EPrime
+               {:X :EntityXformR01/EToEPrime.Instance.X
+                :Id :EntityXformR01/EToEPrime.Instance.Id}})
     (event {:EntityXformR01/EPrimeToE
             {:Instance :Kernel/Entity}}))
   (defcomponent :R01
@@ -158,3 +163,30 @@
     (doseq [r result]
       (is (cn/instance-of? :ResQueryAll/E r))
       (is (= (if (= 1 (:X r)) "e01" "e02") (:N r))))))
+
+(defn- resolver-upsert [k inst]
+  (assoc inst k 123))
+
+(defn- make-resolver [n k]
+  (r/make-resolver
+   n {:upsert {:handler (partial resolver-upsert k)}}))
+
+(deftest compose-test
+  (defcomponent :CT
+    (entity {:CT/E1 {:X :Kernel/Int :N :Kernel/String}})
+    (entity {:CT/E2 {:X :Kernel/Int :N :Kernel/String}}))
+  (rg/compose-resolver :CT/E1 (make-resolver :CTR1 :X))
+  (rg/compose-resolver :CT/E2 (make-resolver :CTR2 :Y))
+  (let [result1 (tu/fresult
+                 (e/eval-all-dataflows
+                  {:CT/Upsert_E1
+                   {:Instance
+                    {:CT/E1 {:X 100 :N "hello"}}}}))]
+    (tu/is-error
+     #(tu/fresult
+       (e/eval-all-dataflows
+        {:CT/Upsert_E2
+         {:Instance
+          {:CT/E2 {:X 200 :N "bye"}}}})))
+    (is (cn/instance-of? :CT/E1 (first result1)))
+    (is (= 123 (:X (first result1))))))
