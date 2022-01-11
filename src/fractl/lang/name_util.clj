@@ -99,7 +99,7 @@
 (defn- fq-generic
   "Update a data-literal in a component with fully-qualified names."
   [v is-recdef]
-  (if (= :% v)
+  (if (and (keyword? v) (string/starts-with? (name v) ":%"))
     v
     (if (li/quoted? v)
       (w/prewalk
