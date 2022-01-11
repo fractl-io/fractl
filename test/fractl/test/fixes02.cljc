@@ -342,3 +342,55 @@
      (is (= 3 (count r2)))
      (is (every? #(>= (:X %) 15) r2))
      (is (apply < (mapv :Y r2))))))
+
+(deftest issue-427-all-query-alias
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I427
+     (entity
+      :I427/A
+      {:X :Kernel/Int})
+     (record
+      :I427/B
+      {:Result :Kernel/Any})
+     (dataflow
+      :I427/E
+      {:I427/A? {} :as :R}
+      {:I427/B {:Result :R}}))
+   (let [xs (mapv #(tu/first-result
+                    {:I427/Upsert_A
+                     {:Instance
+                      {:I427/A
+                       {:X %}}}})
+                  [1 2 3])
+         r (tu/first-result
+            {:I427/E {}})]
+     (is (every? (partial cn/instance-of? :I427/A) xs))
+     (is (every? (partial cn/instance-of? :I427/A) (:Result r)))
+     (is (= (sort (mapv :X xs)) (sort (mapv :X (:Result r))))))))
+
+(deftest issue-427-cond-query-alias
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I427b
+     (entity
+      :I427b/A
+      {:X :Kernel/Boolean})
+     (record
+      :I427b/B
+      {:Result :Kernel/Any})
+     (dataflow
+      :I427b/E
+      {:I427b/A {:X? true} :as :R}
+      {:I427b/B {:Result '(identity :R)}}))
+   (let [xs (mapv #(tu/first-result
+                    {:I427b/Upsert_A
+                     {:Instance
+                      {:I427b/A
+                       {:X %}}}})
+                  [true true false true])
+         r (e/eval-all-dataflows
+            {:I427b/E {}})
+         ys (:Result (first (:result (first r))))]
+     (is (= 3 (count ys)))
+     (is (every? #(true? (:X %)) ys)))))
