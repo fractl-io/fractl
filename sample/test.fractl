@@ -13,3 +13,12 @@
  {:HelloWorld
   {:Name :SayHello.Name
    :Message '(str "Hello World from " :SayHello.Name)}})
+
+(entity
+ :E
+ {:X :Kernel/Int})
+
+(dataflow
+ :FindEs
+ {:E? {} :as :R}
+ :R)
