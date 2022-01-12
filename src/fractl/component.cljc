@@ -975,6 +975,7 @@
                   schema)]
     (seq (su/nonils exps))))
 
+(def future-attrs (partial computed-attribute-fns :future))
 (def expr-fns (partial computed-attribute-fns :expr))
 (def query-fns (partial computed-attribute-fns :query))
 

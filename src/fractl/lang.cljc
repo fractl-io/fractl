@@ -7,6 +7,7 @@
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
+            [fractl.evaluator.state :as es]
             [fractl.resolver.registry :as r]))
 
 (defn- normalize-imports [imports]
@@ -103,6 +104,12 @@
   (or (= true x)
       (= :default x)))
 
+(defn- future-spec? [x]
+  (and (vector x)
+       (= 2 (count x))
+       (keyword? (first x))
+       (fn? (second x))))
+
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
     (case k
@@ -126,6 +133,7 @@
       :var (li/validate-bool :var v)
       :writer (li/validate fn? ":writer must be a function" v)
       :secure-hash (li/validate-bool :secure-hash v)
+      :future (li/validate future-spec? "invalid specification for :future" v)
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}
@@ -194,6 +202,27 @@
   (let [[[_ _] a] (li/ref-as-names n)]
     (if a true false)))
 
+(defn- make-future-event [recname k typ]
+  (let [[c n] (li/split-path recname)
+        evt-name (keyword (str (name c) "/On" (name n) "_" (name k)))]
+    (cn/intern-event evt-name {:Instance (or typ :Kernel/Any)})))
+
+(defn- make-future-fn [event-name]
+  (let [cell (u/make-cell)]
+    (fn [& args]
+      (if (seq args)
+        (let [v (first args)]
+          (reset! cell v)
+          ((es/get-active-evaluator) {event-name {:Instance v}}))
+        @cell))))
+
+(defn- process-futures [recname [k v]]
+  (if (and (map? v) (:future v))
+    (let [event-name (make-future-event recname k (:type v))]
+      (assoc v :future [event-name (make-future-fn event-name)]
+             :optional true))
+    v))
+
 (defn- normalize-attr [recname attrs fqn [k v]]
   (let [newv (cond
                (map? v)
@@ -206,7 +235,7 @@
                          (cn/register-custom-compiled-record tag recname))
                        (attribute nm {:type (:type v)
                                       :expr (c recname attrs k expr)}))
-                     (attribute nm v))))
+                     (attribute nm (process-futures recname [k v])))))
                (list? v)
                (attribute (fqn (li/unq-name))
                           {:expr (c/compile-attribute-expression
