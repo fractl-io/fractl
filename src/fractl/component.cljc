@@ -534,7 +534,7 @@
       (:listof ascm)
       (let [tp (:listof ascm)
             p (partial element-type-check tp (find-schema tp))]
-        (if (every? identity (map p aval))
+        (if (every? identity (mapv p aval))
           aval
           (throw-error (str "invalid list for " aname))))
 
@@ -545,7 +545,7 @@
                 p (partial element-type-check tp (find-schema tp))]
             (if (every? identity (map p aval))
               aval
-              (throw-error (str "invalid list for " aname)))))
+              (throw-error (str "invalid set for " aname)))))
 
       :else (check-format ascm aname aval))
     (let [dval (:default ascm)]
