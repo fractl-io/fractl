@@ -42,14 +42,22 @@
      :Fa/E
      {:X :Kernel/Int
       :Y {:type :Kernel/String
-          :future true}}))
+          :future true}})
+    (record
+     :Fa/R
+     {:K :Kernel/String})
+    (dataflow
+     [:on :Fa/E.Y]
+     {:Fa/R {:K :Fa/E.Y}}))
   (let [e (tu/first-result
            {:Fa/Upsert_E
             {:Instance
              {:Fa/E
               {:X 100}}}})]
     (is (cn/instance-of? :Fa/E e))
-    ((:Y e) "hi")
+    (let [r (first (:result (first ((:Y e) "hi"))))]
+      (is (cn/instance-of? :Fa/R r))
+      (is (= "hi" (:K r))))
     (is (= "hi" ((:Y e))))
     (tu/is-error #((:Y e) 100))
     (is (= "hi" ((:Y e))))

@@ -1,6 +1,7 @@
 (ns fractl.lang
   "The core constructs of the modeling language."
   (:require [clojure.set :as set]
+            [clojure.walk :as w]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
@@ -9,9 +10,7 @@
             [fractl.compiler.rule :as rl]
             [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
-            [fractl.resolver.registry :as r]
-            #?(:clj [clojure.core.async :as async :refer [go]]))
-  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
+            [fractl.resolver.registry :as r]))
 
 (defn- normalize-imports [imports]
   (let [imps (rest imports)]
@@ -215,10 +214,13 @@
   (let [[[_ _] a] (li/ref-as-names n)]
     (if a true false)))
 
+(defn- future-event-name [component record attr]
+  (keyword (str (name component) "/On" (name record) "_" (name attr))))
+
 (defn- make-future-event [recname k typ]
   (let [[c n] (li/split-path recname)
-        evt-name (keyword (str (name c) "/On" (name n) "_" (name k)))]
-    (cn/intern-event evt-name {:Instance (or typ :Kernel/Any)})))
+        evt-name (future-event-name c n k)]
+    (cn/intern-event evt-name {:Data (or typ :Kernel/Any)})))
 
 (defn- make-future-fn [event-name attr-name attr-scm]
   (let [cell (u/make-cell)]
@@ -228,7 +230,7 @@
                  attr-name (first args)
                  (dissoc attr-scm :future))]
           (u/safe-set cell v)
-          (go ((es/get-active-evaluator) {event-name {:Instance v}})))
+          ((es/get-active-evaluator) (cn/make-instance {event-name {:Data v}})))
         @cell))))
 
 (defn- process-futures [recname [k v]]
@@ -475,21 +477,47 @@
        event-name predic where rnames)
       evt-name)))
 
+(declare dataflow)
+
+(defn- dataflow-for-future-event [spec patterns]
+  (let [{component :component record :record
+         refs :refs :as src} (li/path-parts (second spec))]
+    (when-not component
+      (u/throw-ex (str "component name missing in " src)))
+    (when-not record
+      (u/throw-ex (str "record name is missing in " src)))
+    (when-not (seq refs)
+      (u/throw-ex (str "attribute reference required - " src)))
+    (when (> (count refs) 1)
+      (u/throw-ex (str "too many refs - " src)))
+    (let [data-ref (keyword (str (name component) "/" (name record) "." (name (first refs))))
+          event-name (future-event-name component record (first refs))
+          evt-ref (keyword (str (subs (str event-name) 1) ".Data"))]
+      (apply
+       dataflow event-name
+       (w/prewalk
+        #(if (and (keyword? %) (= % data-ref))
+           evt-ref
+           %)
+        patterns)))))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
   (ensure-dataflow-patterns! patterns)
-  (if (vector? match-pat)
-    (apply
-     dataflow
-     (install-event-trigger-pattern match-pat)
-     patterns)
-    (let [hd (:head match-pat)]
-      (if-let [mt (and hd (:on-entity-event hd))]
-        (cn/register-entity-dataflow mt hd patterns)
-        (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-          (do (ensure-event! event)
-              (cn/register-dataflow event hd patterns)))))))
+  (if (and (vector? match-pat) (= :on (first match-pat)))
+    (dataflow-for-future-event match-pat patterns)
+    (if (vector? match-pat)
+      (apply
+       dataflow
+       (install-event-trigger-pattern match-pat)
+       patterns)
+      (let [hd (:head match-pat)]
+        (if-let [mt (and hd (:on-entity-event hd))]
+          (cn/register-entity-dataflow mt hd patterns)
+          (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
+            (do (ensure-event! event)
+                (cn/register-dataflow event hd patterns))))))))
 
 (defn- crud-evname [entity-name evtname]
   (cn/canonical-type-name
