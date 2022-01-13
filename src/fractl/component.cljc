@@ -527,31 +527,33 @@
   try to return the default value for the attribute. Otherwise, raise an
   exception."
   [aname aval ascm]
-  (if-not (nil? aval)
-    (cond
-      (:type ascm)
-      (type-check aname aval ascm)
+  (if (:future ascm)
+    aval
+    (if-not (nil? aval)
+      (cond
+        (:type ascm)
+        (type-check aname aval ascm)
 
-      (:listof ascm)
-      (let [tp (:listof ascm)
-            p (partial element-type-check tp (find-schema tp))]
-        (if (every? identity (mapv p aval))
-          aval
-          (throw-error (str "invalid list for " aname))))
+        (:listof ascm)
+        (let [tp (:listof ascm)
+              p (partial element-type-check tp (find-schema tp))]
+          (if (every? identity (mapv p aval))
+            aval
+            (throw-error (str "invalid list for " aname))))
 
-      (:setof ascm)
-      (do (when-not (set? aval)
-            (throw-error (str "not a set - " aname)))
-          (let [tp (:setof ascm)
-                p (partial element-type-check tp (find-schema tp))]
-            (if (every? identity (map p aval))
-              aval
-              (throw-error (str "invalid set for " aname)))))
+        (:setof ascm)
+        (do (when-not (set? aval)
+              (throw-error (str "not a set - " aname)))
+            (let [tp (:setof ascm)
+                  p (partial element-type-check tp (find-schema tp))]
+              (if (every? identity (map p aval))
+                aval
+                (throw-error (str "invalid set for " aname)))))
 
-      :else (check-format ascm aname aval))
-    (let [dval (:default ascm)]
-      (when-not (nil? dval)
-        (if (fn? dval) (dval) dval)))))
+        :else (check-format ascm aname aval))
+      (let [dval (:default ascm)]
+        (when-not (nil? dval)
+          (if (fn? dval) (dval) dval))))))
 
 (defn- apply-attribute-validation [aname ascm attributes]
   (if (or (:expr ascm) (:query ascm))
@@ -970,13 +972,15 @@
   as a mapping of [[attrname fn], ...]"
   [prop schema]
   (let [schema (dissoc (or (:schema schema) schema) :meta)
-        exps (map (fn [[k v]]
-                    (when-let [f (prop (find-attribute-schema v))]
-                      [k f]))
-                  schema)]
+        exps (mapv (fn [[k v]]
+                     (when-let [f (prop (find-attribute-schema v))]
+                       [k f]))
+                   schema)]
     (seq (su/nonils exps))))
 
-(def future-attrs (partial computed-attribute-fns :future))
+(defn future-attrs [record-name]
+  (computed-attribute-fns :future (find-object-schema record-name)))
+
 (def expr-fns (partial computed-attribute-fns :expr))
 (def query-fns (partial computed-attribute-fns :query))
 (def eval-attrs (partial computed-attribute-fns :eval))

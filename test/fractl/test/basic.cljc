@@ -1142,18 +1142,3 @@
                 :Age 20}}))]
       (is (cn/instance-of? :ExprCompile/Form e))
       (is (= spec (:Spec e))))))
-
-(deftest future-attrs
-  (defcomponent :Fa
-    (entity
-     :Fa/E
-     {:X :Kernel/Int
-      :Y {:type :Kernel/String
-          :future true}}))
-  (let [e (tu/first-result
-           {:Fa/Upsert_E
-            {:Instance
-             {:Fa/E
-              {:X 100}}}})]
-    ;; TODO: test for :future evaluation.
-    (is (cn/instance-of? :Fa/E e))))

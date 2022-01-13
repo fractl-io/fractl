@@ -96,6 +96,13 @@
       (recur (rest fns) (assoc raw-obj a (f env raw-obj)))
       raw-obj)))
 
+(defn- assoc-futures [record-name obj]
+  (loop [fattrs (cn/future-attrs record-name), obj obj]
+    (if-let [[k v] (first fattrs)]
+      (recur (rest fattrs)
+             (assoc obj k (second v)))
+      obj)))
+
 (defn- assoc-computed-attributes [env record-name raw-obj eval-opcode]
   (let [env (enrich-environment-with-refs env record-name raw-obj)
         [efns qfns evattrs] (cn/all-computed-attribute-fns record-name)
@@ -107,7 +114,7 @@
                         (li/split-path record-name) raw-obj)
                        raw-obj evattrs eval-opcode)
                       raw-obj)]
-    (f (f interim-obj efns) qfns)))
+    (f (f (assoc-futures record-name interim-obj) efns) qfns)))
 
 (defn- set-obj-attr [env attr-name attr-value]
   (if-let [xs (env/pop-obj env)]

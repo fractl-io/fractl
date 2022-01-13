@@ -9,7 +9,9 @@
             [fractl.compiler.rule :as rl]
             [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
-            [fractl.resolver.registry :as r]))
+            [fractl.resolver.registry :as r]
+            #?(:clj [clojure.core.async :as async :refer [go]]))
+  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
 (defn- normalize-imports [imports]
   (let [imps (rest imports)]
@@ -218,19 +220,21 @@
         evt-name (keyword (str (name c) "/On" (name n) "_" (name k)))]
     (cn/intern-event evt-name {:Instance (or typ :Kernel/Any)})))
 
-(defn- make-future-fn [event-name]
+(defn- make-future-fn [event-name attr-name attr-scm]
   (let [cell (u/make-cell)]
     (fn [& args]
       (if (seq args)
-        (let [v (first args)]
-          (reset! cell v)
-          ((es/get-active-evaluator) {event-name {:Instance v}}))
+        (let [v (cn/valid-attribute-value
+                 attr-name (first args)
+                 (dissoc attr-scm :future))]
+          (u/safe-set cell v)
+          (go ((es/get-active-evaluator) {event-name {:Instance v}})))
         @cell))))
 
 (defn- process-futures [recname [k v]]
   (if (and (map? v) (:future v))
     (let [event-name (make-future-event recname k (:type v))]
-      (assoc v :future [event-name (make-future-fn event-name)]
+      (assoc v :future [event-name (make-future-fn event-name k v)]
              :optional true))
     v))
 

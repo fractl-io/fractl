@@ -34,3 +34,24 @@
      (is (cn/instance-of? :EvBlock/E e))
      (is (= 15 (:A y)))
      (is (= 100 (:B y))))))
+
+
+(deftest future-attrs
+  (defcomponent :Fa
+    (entity
+     :Fa/E
+     {:X :Kernel/Int
+      :Y {:type :Kernel/String
+          :future true}}))
+  (let [e (tu/first-result
+           {:Fa/Upsert_E
+            {:Instance
+             {:Fa/E
+              {:X 100}}}})]
+    (is (cn/instance-of? :Fa/E e))
+    ((:Y e) "hi")
+    (is (= "hi" ((:Y e))))
+    (tu/is-error #((:Y e) 100))
+    (is (= "hi" ((:Y e))))
+    ((:Y e) "bye")
+    (is (= "bye" ((:Y e))))))
