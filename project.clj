@@ -1,8 +1,8 @@
 (defproject fractl-io/fractl "0.2.2"
-  :dependencies [[org.clojure/clojure "1.10.1"]
-                 [org.clojure/clojurescript "1.10.773"
+  :dependencies [[org.clojure/clojure "1.10.3"]
+                 [org.clojure/clojurescript "1.10.891"
                   :exclusions [com.google.code.findbugs/jsr305]]
-                 [org.clojure/tools.cli "1.0.194"]
+                 [org.clojure/tools.cli "1.0.206"]
                  [org.clojure/data.xml "0.2.0-alpha5"]
                  [org.clojure/data.csv "1.0.0"]
                  [cheshire "5.9.0"]
@@ -35,7 +35,7 @@
                  [camdez/sendgrid "0.2.0"]
                  [postmark "1.4.1"]
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
-                 [lambdaisland/glogi "1.0.106"]
+                 [com.lambdaisland/glogi "1.1.144"]
                  [com.fzakaria/slf4j-timbre "0.3.21"]
                  [tick "0.5.0-RC1"]]
 
@@ -48,7 +48,7 @@
 
   :uberjar-exclusions [#"(?:^|/).fractl/" #"(?:^|/).db/" #"(?:^|/).json/"]
 
-  :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
+  :plugins [[lein-cljsbuild "1.1.8" :exclusions [[org.clojure/clojure]]]
             [s3-wagon-private "1.3.4"]
             [lein-doo "0.1.10"]
             [reifyhealth/lein-git-down "0.4.0"]]
@@ -66,7 +66,7 @@
                     ["url" "https://maven.pkg.github.com/fractl-io/fractl"]]]
 
   :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4" :exclusions [args4j]]
-                                  [com.bhauman/figwheel-main "0.2.12"
+                                  [com.bhauman/figwheel-main "0.2.15"
                                    :exclusions [args4j
                                                 com.google.code.findbugs/jsr305
                                                 org.clojure/java.classpath]]]
