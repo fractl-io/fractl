@@ -338,7 +338,8 @@
 (defn attribute-names
   "Return names of attributes from schema as a set."
   [schema]
-  (set (keys (:schema schema))))
+  (when-let [ks (seq (keys (:schema schema)))]
+    (set ks)))
 
 (def attributes :schema)
 
@@ -978,10 +979,11 @@
 (def future-attrs (partial computed-attribute-fns :future))
 (def expr-fns (partial computed-attribute-fns :expr))
 (def query-fns (partial computed-attribute-fns :query))
+(def eval-attrs (partial computed-attribute-fns :eval))
 
 (defn all-computed-attribute-fns [record-name]
   (when-let [scm (find-object-schema record-name)]
-    [(expr-fns scm) (query-fns scm)]))
+    [(expr-fns scm) (query-fns scm) (eval-attrs scm)]))
 
 (defn mark-dirty [inst]
   (assoc inst dirty-key true))

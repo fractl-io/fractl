@@ -9,6 +9,7 @@
             [fractl.lang.opcode :as op]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
+            [fractl.store :as store]
             [fractl.compiler.rule :as rule]
             [fractl.compiler.validation :as cv]
             [fractl.compiler.internal :as i]
@@ -133,12 +134,16 @@
       (seqable? v) (vec (param-process-seq-query k v))
       :else [k (query-param-lookup v)])))
 
+(defn- fetch-compile-query-fn [ctx]
+  (or (ctx/fetch-compile-query-fn ctx)
+      (store/get-default-compile-query)))
+
 (defn- compile-relational-entity-query [ctx entity-name query]
   (let [q (i/expand-query
            entity-name
            (mapv query-param-process query))]
     {:compiled-query
-     ((ctx/fetch-compile-query-fn ctx) q)
+     ((fetch-compile-query-fn ctx) q)
      :raw-query q}))
 
 (defn compile-query [ctx entity-name query]
@@ -321,7 +326,7 @@
      (let [q (k pat)
            w (w/postwalk process-complex-query (:where q))
            c {:compiled-query
-              ((ctx/fetch-compile-query-fn ctx) (assoc q :from n :where w))
+              ((fetch-compile-query-fn ctx) (assoc q :from n :where w))
               :raw-query q}]
        (callback [(li/split-path n) c]))))
   ([ctx pat]
@@ -617,7 +622,7 @@
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
-        result [ec (doall (map c df-patterns))]]
+        result [ec (mapv c df-patterns)]]
     result))
 
 (defn- maybe-compile-dataflow [compile-query-fn zero-trust-rbac df]
@@ -632,9 +637,8 @@
   df)
 
 (defn compile-dataflows-for-event [compile-query-fn zero-trust-rbac event]
-  (doall
-   (map (partial maybe-compile-dataflow compile-query-fn zero-trust-rbac)
-        (cn/dataflows-for-event event))))
+  (mapv (partial maybe-compile-dataflow compile-query-fn zero-trust-rbac)
+        (cn/dataflows-for-event event)))
 
 (defn- reference-attributes [attrs refrec]
   (when-let [result (cn/all-reference-paths attrs)]
