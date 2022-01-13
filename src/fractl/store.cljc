@@ -118,3 +118,7 @@
      store record-name
      %)
    insts))
+
+(defn get-default-compile-query []
+  (when-let [store @default-store]
+    (partial p/compile-query store)))

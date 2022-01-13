@@ -200,10 +200,8 @@
 
 
 (def path-sep
-  #?(:clj
-     java.io.File/separator
-     :cljs
-     "/"))
+  #?(:clj java.io.File/separator
+     :cljs "/"))
 
 (def line-sep
   #?(:clj (System/lineSeparator)
@@ -214,18 +212,6 @@
     (if-let [s (first ss)]
       (recur (rest ss) (str result line-sep s))
       result)))
-
-(def parse-string
-  #?(:clj read-string
-     :cljs cljs.reader/read-string))
-
-#?(:clj
-   (defn safe-close [obj]
-     (try
-       (.close obj)
-       true
-       (catch Exception ex
-         false))))
 
 (defn string-as-keyword [x]
   (if (string? x)
@@ -243,3 +229,16 @@
 
            :else %)
         xs))
+
+(def parse-string
+  #?(:clj read-string
+     :cljs cljs.reader/read-string))
+
+(defn safe-close [obj]
+  #?(:clj
+     (try
+       (.close obj)
+       true
+       (catch Exception ex
+         false))
+     :cljs true))

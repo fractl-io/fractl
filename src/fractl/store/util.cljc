@@ -94,7 +94,8 @@
 (defn- serialize-obj-entry [[k v]]
   (if (cn/meta-attribute-name? k)
     [k v]
-    [k (if (and (seqable? v) (not (string? v)))
+    [k (if (or (fn? v)
+               (and (seqable? v) (not (string? v))))
          (str obj-prefix (str v))
          v)]))
 
