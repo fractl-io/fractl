@@ -479,7 +479,9 @@
 
 (declare dataflow)
 
-(defn- dataflow-for-future-event [spec patterns]
+(defn- dataflow-for-future-event
+  "Dynamically generate dataflow to handle :future set event."
+  [spec patterns]
   (let [{component :component record :record
          refs :refs :as src} (li/path-parts (second spec))]
     (when-not component
