@@ -100,7 +100,7 @@
   (loop [fattrs (cn/future-attrs record-name), obj obj]
     (if-let [[k v] (first fattrs)]
       (recur (rest fattrs)
-             (assoc obj k (second v)))
+             (assoc obj k v))
       obj)))
 
 (defn- assoc-computed-attributes [env record-name raw-obj eval-opcode]
