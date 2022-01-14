@@ -217,26 +217,29 @@
   (let [[c n] (li/split-path entity-name)]
     (keyword (str (name c) "/OnSetAttributesOf" (name n)))))
 
-(defn set-attributes! [inst obj]
-  (let [inst-name (cn/instance-name inst)
-        scm (cn/fetch-schema inst-name)
-        update-event-name (on-set-attrs-event-name inst-name)]
-    (loop [obj obj, results []]
-      (if-let [[k v] (first obj)]
-        (let [attr-scm (cn/find-attribute-schema (k scm))
-              aval (cn/valid-attribute-value
-                    k v
-                    (dissoc attr-scm :future))]
-          (reset! (k inst) v)
-          (recur
-           (rest obj)
-           (conj
-            results
-            ((es/get-active-evaluator)
-             (cn/make-instance
-              {update-event-name
-               {:Instance inst}})))))
-        results))))
+(defn set-attributes!
+  ([inst-name inst value-map]
+   (let [scm (cn/fetch-schema inst-name)
+         update-event-name (on-set-attrs-event-name inst-name)]
+     (loop [obj value-map, results []]
+       (if-let [[k v] (first obj)]
+         (let [attr-scm (cn/find-attribute-schema (k scm))
+               aval (cn/valid-attribute-value
+                     k v
+                     (dissoc attr-scm :future))]
+           (reset! (k inst) v)
+           (recur
+            (rest obj)
+            (conj
+             results
+             (let [inst (cn/ensure-type-and-name inst inst-name :entity)]
+               ((es/get-active-evaluator)
+                (cn/make-instance
+                 {update-event-name
+                  {:Instance inst}}))))))
+         results))))
+  ([inst value-map]
+   (set-attributes! (cn/instance-name inst) inst value-map)))
 
 (defn- process-futures [recname [k v]]
   (if (and (map? v) (:future v))

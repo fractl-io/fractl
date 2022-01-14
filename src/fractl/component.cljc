@@ -265,6 +265,13 @@
 (defn instance-name [rec]
   (name-key rec))
 
+(defn ensure-type-and-name [inst type-name type-tag]
+  (assoc
+   (if (type-tag-key inst)
+     inst
+     (assoc inst type-tag-key type-tag))
+   name-key type-name))
+
 (defn parsed-instance-name [rec]
   (li/split-path (name-key rec)))
 
