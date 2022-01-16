@@ -19,14 +19,6 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :Auth0TestDbSignupUser
-     (entity
-      {:Auth0TestDbSignupUser/SignupRequest
-       {:ClientID :Kernel/String
-        :ClientSecret :Kernel/String
-        :AuthDomain :Kernel/String
-        :Email :Kernel/String
-        :UserName :Kernel/String
-        :Password :Kernel/String}})
 
      (event
       :Auth0TestDbSignupUser/SignUp
@@ -39,15 +31,15 @@
 
      (dataflow
       :Auth0TestDbSignupUser/SignupUserRequest
-      {:Auth0TestDbSignupUser/SignupRequest
+      {:Kernel/OAuthAnyRequest
        {:ClientID? :Auth0TestDbSignupUser/SignupUserRequest.ClientID}}
-      [:match :Auth0TestDbSignupUser/SignupRequest.ClientSecret
+      [:match :Kernel/OAuthAnyRequest.ClientSecret
        :Auth0TestDbSignupUser/SignupUserRequest.ClientSecret
        {:Kernel/Auth0User
-        {:RequestObject :Auth0TestDbSignupUser/SignupRequest
-         :UserName :Auth0TestDbSignupUser/SignupRequest.UserName
-         :Password :Auth0TestDbSignupUser/SignupRequest.Password
-         :Email :Auth0TestDbSignupUser/SignupRequest.Email}}])
+        {:RequestObject :Kernel/OAuthAnyRequest
+         :UserName :Kernel/OAuthAnyRequest.UserName
+         :Password :Kernel/OAuthAnyRequest.Password
+         :Email :Kernel/OAuthAnyRequest.Email}}])
 
      (let [client-id "Zpd3u7saV3Y7tebdzJ1Vo0eFALWyxMnR"
            client-secret "DSiQSiVT7Sd0RJwxdQ4gCfjLUA495PjlVNKhkgB6yFgpH2rgt9kpRbxJLPOcAaXH"
@@ -57,9 +49,9 @@
            passwd "P@s$w0rd123"
            signup-req (tu/first-result
                        (cn/make-instance
-                        {:Auth0TestDbSignupUser/Upsert_SignupRequest
+                        {:Kernel/Upsert_OAuthAnyRequest
                          {:Instance
-                          {:Auth0TestDbSignupUser/SignupRequest
+                          {:Kernel/OAuthAnyRequest
                            {:ClientID client-id
                             :ClientSecret client-secret
                             :AuthDomain auth-domain
@@ -76,3 +68,7 @@
        (is (not-empty (:UserId signup-user-resp)))
        (is (= (:UserEmail signup-user-resp) email))
        (is (= (:UserName signup-user-resp) username))))))
+;;       (let [evt (cn/make-instance :Kernel/Lookup_Auth0User (:Id signup-user-resp))
+;;             result (first (tu/fresult (e/eval-all-dataflows evt)))]
+;;         (println "result" result))))))
+
