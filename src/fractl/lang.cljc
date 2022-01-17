@@ -233,10 +233,12 @@
             (conj
              results
              (let [inst (cn/ensure-type-and-name inst inst-name :entity)]
-               ((es/get-active-evaluator)
-                (cn/make-instance
-                 {update-event-name
-                  {:Instance inst}}))))))
+               (:result
+                (first
+                 ((es/get-active-evaluator)
+                  (cn/make-instance
+                   {update-event-name
+                    {:Instance inst}}))))))))
          results))))
   ([inst value-map]
    (set-attributes! (cn/instance-name inst) inst value-map)))

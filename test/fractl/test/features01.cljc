@@ -54,7 +54,7 @@
              {:Fa/E
               {:X 100}}}})]
     (is (cn/instance-of? :Fa/E e))
-    (let [r (first (:result (ffirst (set-attributes! e {:Y "hi"}))))]
+    (let [r (ffirst (set-attributes! e {:Y "hi"}))]
       (is (cn/instance-of? :Fa/R r))
       (is (= "hi" @(:K r))))
     (is (= "hi" @(:Y e)))
