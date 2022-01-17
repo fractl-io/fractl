@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2022-01-17
+
+-   **Security fix** for log4j vulnerability
+-   New auth0-user resolver
+-   Auth0-user resolver to create (signup) a database user in fractl
+-   Auth0-user resolver to login the user
+-   Bug-fixes in compose of Auth0User entity to save the user to the database
+-   Proper alias support for queries and for-each
+-   Pattern evaluation can be attached to attributes via `:eval`
+-   Updated libraries
+
 ## [0.2.2] - 2021-12-08
 
 -   Dynamic query support, wildcard queries
@@ -76,7 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.2.2...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.2.3...HEAD
+
+[0.2.3]: https://github.com/fractl-io/fractl/compare/0.2.2...0.2.3
 
 [0.2.2]: https://github.com/fractl-io/fractl/compare/0.2.1...0.2.2
 
