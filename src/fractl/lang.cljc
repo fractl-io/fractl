@@ -1,6 +1,7 @@
 (ns fractl.lang
   "The core constructs of the modeling language."
   (:require [clojure.set :as set]
+            [clojure.string :as s]
             [clojure.walk :as w]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
@@ -215,7 +216,7 @@
 
 (defn- on-set-attrs-event-name [entity-name]
   (let [[c n] (li/split-path entity-name)]
-    (keyword (str (name c) "/OnSetAttributesOf" (name n)))))
+    (keyword (str (name c) "/" (name n) "_OnSetAttributes"))))
 
 (defn set-attributes!
   ([inst-name inst value-map]
@@ -488,21 +489,51 @@
        event-name predic where rnames)
       evt-name)))
 
+(defn- concat-refs [n refs]
+  (keyword (str (subs (str n) 1) "."
+                (s/join "." (mapv name refs)))))
+
+(defn- rewrite-on-event-patterns [pats recname evtname]
+  (let [sn (str recname)
+        refs-prefix [:Instance]]
+    (w/postwalk
+     #(if (and (keyword? %)
+               (s/starts-with? (str %) sn))
+        (if-let [refs (:refs (li/path-parts %))]
+          (concat-refs evtname (concat refs-prefix refs))
+          (concat-refs evtname refs-prefix))
+        %)
+     pats)))
+
+(defn- on-event-pattern? [x]
+  (and (vector? x) (= :on (first x))))
+
+(defn- translate-on-event-pattern [match-pat patterns]
+  (if (= :update (second match-pat))
+    (let [recname (nth match-pat 2)
+          evtname (on-set-attrs-event-name recname)]
+      [evtname (rewrite-on-event-patterns patterns recname evtname)])
+    (u/throw-ex (str "invalid event trigger - " (second match-pat)))))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
-  (ensure-dataflow-patterns! patterns)
-  (if (vector? match-pat)
-    (apply
-     dataflow
-     (install-event-trigger-pattern match-pat)
-     patterns)
-    (let [hd (:head match-pat)]
-      (if-let [mt (and hd (:on-entity-event hd))]
-        (cn/register-entity-dataflow mt hd patterns)
-        (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-          (do (ensure-event! event)
-              (cn/register-dataflow event hd patterns)))))))
+  (if (on-event-pattern? match-pat)
+    (let [[mp ps] (translate-on-event-pattern match-pat patterns)]
+      (apply dataflow mp ps))
+    (do
+      (ensure-dataflow-patterns! patterns)
+      (if (vector? match-pat)
+        (apply
+         dataflow
+         (install-event-trigger-pattern match-pat)
+         patterns)
+        (let [hd (:head match-pat)]
+          (if-let [mt (and hd (:on-entity-event hd))]
+            (cn/register-entity-dataflow mt hd patterns)
+            (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
+              (do (ensure-event! event)
+                  (cn/register-dataflow event hd patterns)))))))))
 
 (defn- crud-evname [entity-name evtname]
   (cn/canonical-type-name

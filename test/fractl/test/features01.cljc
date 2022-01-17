@@ -46,8 +46,8 @@
      :Fa/R
      {:K :Kernel/Any})
     (dataflow
-     :Fa/OnSetAttributesOfE
-     {:Fa/R {:K :Fa/OnSetAttributesOfE.Instance.Y}}))
+     [:on :update :Fa/E]
+     {:Fa/R {:K :Fa/E.Y}}))
   (let [e (tu/first-result
            {:Fa/Upsert_E
             {:Instance
