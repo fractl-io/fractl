@@ -4,7 +4,7 @@
             [fractl.component :as cn]
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record dataflow set-attributes!]]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -34,3 +34,31 @@
      (is (cn/instance-of? :EvBlock/E e))
      (is (= 15 (:A y)))
      (is (= 100 (:B y))))))
+
+(deftest future-attrs
+  (defcomponent :Fa
+    (entity
+     :Fa/E
+     {:X :Kernel/Int
+      :Y {:type :Kernel/String
+          :future true}})
+    (record
+     :Fa/R
+     {:K :Kernel/Any})
+    (dataflow
+     [:on :update :Fa/E]
+     {:Fa/R {:K :Fa/E.Y}}))
+  (let [e (tu/first-result
+           {:Fa/Upsert_E
+            {:Instance
+             {:Fa/E
+              {:X 100}}}})]
+    (is (cn/instance-of? :Fa/E e))
+    (let [r (ffirst (set-attributes! e {:Y "hi"}))]
+      (is (cn/instance-of? :Fa/R r))
+      (is (= "hi" @(:K r))))
+    (is (= "hi" @(:Y e)))
+    (tu/is-error #(set-attributes! e {:Y 100}))
+    (is (= "hi" @(:Y e)))
+    (set-attributes! e {:Y "bye"})
+    (is (= "bye" @(:Y e)))))

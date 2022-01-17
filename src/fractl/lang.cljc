@@ -1,14 +1,18 @@
 (ns fractl.lang
   "The core constructs of the modeling language."
   (:require [clojure.set :as set]
+            [clojure.string :as s]
+            [clojure.walk :as w]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
+            [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
-            [fractl.resolver.registry :as r]))
+            [fractl.resolver.registry :as r]
+            #?(:cljs [reagent.core :as reagent])))
 
 (defn- normalize-imports [imports]
   (let [imps (rest imports)]
@@ -105,9 +109,17 @@
   (or (= true x)
       (= :default x)))
 
+(defn- future-spec? [x]
+  #?(:clj (= clojure.lang.Atom (type x))
+     :cljs x))
+
+(def ^:private eval-block-keys #{:patterns :refresh-ms :timeout-ms :opcode})
+
 (defn- eval-block? [x]
   (and (map? x)
-       (every? #(some #{%} #{:patterns :refresh-ms :timeout-ms :opcode}) (keys x))))
+       (every?
+        #(some #{%} eval-block-keys)
+        (keys x))))
 
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
@@ -133,6 +145,7 @@
       :var (li/validate-bool :var v)
       :writer (li/validate fn? ":writer must be a function" v)
       :secure-hash (li/validate-bool :secure-hash v)
+      :future (li/validate future-spec? "invalid specification for :future" v)
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}
@@ -201,6 +214,44 @@
   (let [[[_ _] a] (li/ref-as-names n)]
     (if a true false)))
 
+(defn- on-set-attrs-event-name [entity-name]
+  (let [[c n] (li/split-path entity-name)]
+    (keyword (str (name c) "/" (name n) "_OnSetAttributes"))))
+
+(defn set-attributes!
+  ([inst-name inst value-map]
+   (let [scm (cn/fetch-schema inst-name)
+         update-event-name (on-set-attrs-event-name inst-name)]
+     (loop [obj value-map, results []]
+       (if-let [[k v] (first obj)]
+         (let [attr-scm (cn/find-attribute-schema (k scm))
+               aval (cn/valid-attribute-value
+                     k v
+                     (dissoc attr-scm :future))]
+           (reset! (k inst) v)
+           (recur
+            (rest obj)
+            (conj
+             results
+             (let [inst (cn/ensure-type-and-name inst inst-name :entity)]
+               (:result
+                (first
+                 ((es/get-active-evaluator)
+                  (cn/make-instance
+                   {update-event-name
+                    {:Instance inst}}))))))))
+         results))))
+  ([inst value-map]
+   (set-attributes! (cn/instance-name inst) inst value-map)))
+
+(defn- process-futures [recname [k v]]
+  (if (and (map? v) (:future v))
+    (let [d (:default v)]
+      (assoc
+       v :future #?(:clj (atom d) :cljs (reagent/atom d))
+       :optional true))
+    v))
+
 (defn- compile-eval-block [recname attrs evblock]
   (let [ctx (ctx/make)]
     (ctx/put-record! ctx (li/split-path recname) attrs)
@@ -239,7 +290,7 @@
             (if (query-pattern? v)
               (attribute nm {:query (query-eval-fn recname attrs k v)})
               (or (normalize-compound-attr recname attrs nm [k v])
-                  (attribute nm v))))
+                  (attribute nm (process-futures recname [k v])))))
           (list? v)
           (attribute
            (fqn (li/unq-name))
@@ -438,21 +489,56 @@
        event-name predic where rnames)
       evt-name)))
 
+(defn- concat-refs [n refs]
+  (keyword (str (subs (str n) 1) "."
+                (s/join "." (mapv name refs)))))
+
+(defn- rewrite-on-event-patterns [pats recname evtname]
+  (let [sn (li/split-path recname)
+        refs-prefix [:Instance]]
+    (w/postwalk
+     #(if (li/name? %)
+        (let [{c :component n :record
+               p :path r :refs} (li/path-parts %)
+              refs (seq r)
+              cn [c n]]
+          (if (or (= cn sn) (= sn (li/split-path p)))
+            (if (not refs)
+              (concat-refs evtname refs-prefix)
+              (concat-refs evtname (concat refs-prefix refs)))
+            %))
+        %)
+     pats)))
+
+(defn- on-event-pattern? [x]
+  (and (vector? x) (= :on (first x))))
+
+(defn- translate-on-event-pattern [match-pat patterns]
+  (if (= :update (second match-pat))
+    (let [recname (nth match-pat 2)
+          evtname (on-set-attrs-event-name recname)]
+      [evtname (rewrite-on-event-patterns patterns recname evtname)])
+    (u/throw-ex (str "invalid event trigger - " (second match-pat)))))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
-  (ensure-dataflow-patterns! patterns)
-  (if (vector? match-pat)
-    (apply
-     dataflow
-     (install-event-trigger-pattern match-pat)
-     patterns)
-    (let [hd (:head match-pat)]
-      (if-let [mt (and hd (:on-entity-event hd))]
-        (cn/register-entity-dataflow mt hd patterns)
-        (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-          (do (ensure-event! event)
-              (cn/register-dataflow event hd patterns)))))))
+  (if (on-event-pattern? match-pat)
+    (let [[mp ps] (translate-on-event-pattern match-pat patterns)]
+      (apply dataflow mp ps))
+    (do
+      (ensure-dataflow-patterns! patterns)
+      (if (vector? match-pat)
+        (apply
+         dataflow
+         (install-event-trigger-pattern match-pat)
+         patterns)
+        (let [hd (:head match-pat)]
+          (if-let [mt (and hd (:on-entity-event hd))]
+            (cn/register-entity-dataflow mt hd patterns)
+            (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
+              (do (ensure-event! event)
+                  (cn/register-dataflow event hd patterns)))))))))
 
 (defn- crud-evname [entity-name evtname]
   (cn/canonical-type-name
@@ -538,6 +624,9 @@
          (cn/for-each-entity-event-name
            entity-name
            (partial entity-event entity-name))
+         (event-internal
+          (on-set-attrs-event-name entity-name)
+          inst-evattrs)
          (event-internal upevt inst-evattrs)
          (let [ref-pats (mapv (fn [[k v]]
                                 (load-ref-pattern
