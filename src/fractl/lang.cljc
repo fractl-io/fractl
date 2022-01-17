@@ -494,14 +494,19 @@
                 (s/join "." (mapv name refs)))))
 
 (defn- rewrite-on-event-patterns [pats recname evtname]
-  (let [sn (str recname)
+  (let [sn (li/split-path recname)
         refs-prefix [:Instance]]
     (w/postwalk
-     #(if (and (keyword? %)
-               (s/starts-with? (str %) sn))
-        (if-let [refs (:refs (li/path-parts %))]
-          (concat-refs evtname (concat refs-prefix refs))
-          (concat-refs evtname refs-prefix))
+     #(if (li/name? %)
+        (let [{c :component n :record
+               p :path r :refs} (li/path-parts %)
+              refs (seq r)
+              cn [c n]]
+          (if (or (= cn sn) (= sn (li/split-path p)))
+            (if (not refs)
+              (concat-refs evtname refs-prefix)
+              (concat-refs evtname (concat refs-prefix refs)))
+            %))
         %)
      pats)))
 
