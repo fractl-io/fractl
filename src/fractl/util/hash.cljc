@@ -49,8 +49,10 @@
                  (when-let [real-hash (extract-prefix s-hash)]
                    (BCrypt/checkpw s real-hash))
                  :cljs (= s-hash s))))
-                       
+
 
 (defn gensalt
   "Handy short-cut to generate a salt for testing"
-  [] (BCrypt/gensalt))
+  []
+  #?(:clj (BCrypt/gensalt)
+     :cljs nil))

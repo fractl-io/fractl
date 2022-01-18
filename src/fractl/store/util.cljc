@@ -91,15 +91,19 @@
 (def ^:private obj-prefix "#clj-obj")
 (def ^:private obj-prefix-len (count obj-prefix))
 
-(defn- serialize-obj-entry [[k v]]
+(defn- serialize-obj-entry [non-serializable-attrs [k v]]
   (if (cn/meta-attribute-name? k)
     [k v]
-    [k (if (and (seqable? v) (not (string? v)))
+    [k (if (or
+            (or (fn? v)
+                (and (seqable? v) (not (string? v))))
+            (some #{k} non-serializable-attrs))
          (str obj-prefix (str v))
          v)]))
 
 (defn serialize-objects [instance]
-  (into {} (mapv serialize-obj-entry instance)))
+  (let [fattrs (mapv first (cn/future-attrs (cn/instance-name instance)))]
+    (into {} (mapv (partial serialize-obj-entry fattrs) instance))))
 
 (defn- normalize-result
   [result]

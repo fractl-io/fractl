@@ -118,3 +118,10 @@
      store record-name
      %)
    insts))
+
+(defn get-default-compile-query []
+  (when-let [store @default-store]
+    (partial p/compile-query store)))
+
+(defn lookup-by-id [store entity-name id]
+  (query-by-unique-keys store entity-name [:Id] {:Id id}))

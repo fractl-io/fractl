@@ -1,43 +1,45 @@
-(defproject fractl-io/fractl "0.2.2"
-  :dependencies [[org.clojure/clojure "1.10.1"]
-                 [org.clojure/clojurescript "1.10.773"
+(defproject fractl-io/fractl "0.2.3"
+  :dependencies [[org.clojure/clojure "1.10.3"]
+                 [org.clojure/clojurescript "1.10.896"
                   :exclusions [com.google.code.findbugs/jsr305]]
-                 [org.clojure/tools.cli "1.0.194"]
+                 [org.clojure/tools.cli "1.0.206"]
                  [org.clojure/data.xml "0.2.0-alpha5"]
                  [org.clojure/data.csv "1.0.0"]
-                 [cheshire "5.9.0"]
+                 [cheshire "5.10.1"]
                  ;; required for store/sfdc-metadata
                  [org.antlr/antlr-complete "3.5.2"]
                  [com.force.api/force-wsc "51.2.0"]
                  [com.force.api/force-metadata-api "51.2.0"]
                  [clj-jgit "1.0.1"]
-                 [com.taoensso/timbre "5.1.0"
+                 [com.taoensso/timbre "5.1.2"
                   :exclusions [org.clojure/tools.reader]]
-                 [seancorfield/next.jdbc "1.1.581"]
+                 [seancorfield/next.jdbc "1.2.659"]
                  [c3p0/c3p0 "0.9.1.2"]
                  [com.h2database/h2 "1.4.200"]
                  [org.mindrot/jbcrypt "0.4"]
-                 [honeysql "1.0.444"]
+                 [honeysql "1.0.461"]
                  [compojure "1.6.2"]
-                 [http-kit "2.5.0"]
+                 [http-kit "2.5.3"]
                  [cljs-http "0.1.46"]
                  [ring-cors "0.1.13"]
                  [net.cgrand/macrovich "0.2.1"]
-                 [reagent "1.0.0"]
                  [cljsjs/alasql "0.6.5-0"]
-                 [org.postgresql/postgresql "42.2.19"]
-                 [cljc.java-time "0.1.11"]
+                 [org.postgresql/postgresql "42.3.1"]
+                 [cljc.java-time "0.1.18"]
                  [com.cognitect/transit-clj "1.0.324"]
-                 [com.cognitect/transit-cljs "0.8.264"]
+                 [com.cognitect/transit-cljs "0.8.269"]
                  [com.amazonaws/aws-lambda-java-core "1.2.1"]
-                 [com.amazonaws/aws-lambda-java-events "3.1.0"]
-                 [com.amazonaws/aws-lambda-java-log4j2 "1.2.0"]
+                 [com.amazonaws/aws-lambda-java-events "3.11.0"]
+                 [com.amazonaws/aws-lambda-java-log4j2 "1.5.1"]
                  [camdez/sendgrid "0.2.0"]
                  [postmark "1.4.1"]
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
-                 [lambdaisland/glogi "1.0.106"]
+                 [com.lambdaisland/glogi "1.1.144"]
                  [com.fzakaria/slf4j-timbre "0.3.21"]
-                 [tick "0.5.0-RC1"]]
+                 [tick "0.5.0-RC1"]
+                 [reagent "1.1.0"]
+                 [cljsjs/react "17.0.2-0"]
+                 [cljsjs/react-dom "17.0.2-0"]]
 
   :java-source-paths ["src/java"]
   :resource-paths ["lib/sfdc-enterprise.jar" "lib/jbcrypt.jar" "lib/auth0-1.35.0-uber.jar"]
@@ -48,10 +50,11 @@
 
   :uberjar-exclusions [#"(?:^|/).fractl/" #"(?:^|/).db/" #"(?:^|/).json/"]
 
-  :plugins [[lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
+  :plugins [[lein-cljsbuild "1.1.8" :exclusions [[org.clojure/clojure]]]
             [s3-wagon-private "1.3.4"]
             [lein-doo "0.1.10"]
-            [reifyhealth/lein-git-down "0.4.0"]]
+            [reifyhealth/lein-git-down "0.4.0"]
+            [lein-ancient "1.0.0-RC3"]]
 
   :middleware [lein-git-down.plugin/inject-properties]
 
@@ -66,7 +69,7 @@
                     ["url" "https://maven.pkg.github.com/fractl-io/fractl"]]]
 
   :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4" :exclusions [args4j]]
-                                  [com.bhauman/figwheel-main "0.2.12"
+                                  [com.bhauman/figwheel-main "0.2.15"
                                    :exclusions [args4j
                                                 com.google.code.findbugs/jsr305
                                                 org.clojure/java.classpath]]]

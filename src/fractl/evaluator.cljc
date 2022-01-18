@@ -258,10 +258,6 @@
   ;; TODO: enrich the environment with rbac check fn
   (partial r/find-instances env/EMPTY store))
 
-(def ^:private global-dataflow-handle (u/make-cell nil))
-
 (defn global-dataflow-eval []
-  (or @global-dataflow-handle
-      (u/safe-set
-       global-dataflow-handle
-       (public-evaluator {} nil))))
+  (or (es/get-active-evaluator)
+      (public-evaluator {} nil)))

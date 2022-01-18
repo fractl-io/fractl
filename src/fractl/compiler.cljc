@@ -9,6 +9,7 @@
             [fractl.lang.opcode :as op]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
+            [fractl.store :as store]
             [fractl.compiler.rule :as rule]
             [fractl.compiler.validation :as cv]
             [fractl.compiler.internal :as i]
@@ -53,7 +54,7 @@
                         (first result#)))]
            (if-let [refs# '~(seq (:refs parts))]
              (get-in r# refs#)
-             r#)))
+             result#)))
 
       (seq (:refs parts))
       `(first (fractl.env/follow-reference ~runtime-env-var ~parts))
@@ -133,12 +134,16 @@
       (seqable? v) (vec (param-process-seq-query k v))
       :else [k (query-param-lookup v)])))
 
+(defn- fetch-compile-query-fn [ctx]
+  (or (ctx/fetch-compile-query-fn ctx)
+      (store/get-default-compile-query)))
+
 (defn- compile-relational-entity-query [ctx entity-name query]
   (let [q (i/expand-query
            entity-name
            (mapv query-param-process query))]
     {:compiled-query
-     ((ctx/fetch-compile-query-fn ctx) q)
+     ((fetch-compile-query-fn ctx) q)
      :raw-query q}))
 
 (defn compile-query [ctx entity-name query]
@@ -304,7 +309,7 @@
     v))
 
 (defn- complex-query-pattern? [pat]
-  (let [ks (keys pat)]
+  (let [ks (keys (dissoc pat :as))]
     (and (= 1 (count ks))
          (s/ends-with? (str (first ks)) "?"))))
 
@@ -321,16 +326,23 @@
      (let [q (k pat)
            w (w/postwalk process-complex-query (:where q))
            c {:compiled-query
-              ((ctx/fetch-compile-query-fn ctx) (assoc q :from n :where w))
+              ((fetch-compile-query-fn ctx) (assoc q :from n :where w))
               :raw-query q}]
        (callback [(li/split-path n) c]))))
   ([ctx pat]
    (compile-complex-query ctx pat op/query-instances)))
 
+(defn- query-map->command [pat]
+  (if-let [alias (:as pat)]
+    [(dissoc pat :as) :as alias]
+    [pat]))
+
+(declare compile-query-command)
+
 (defn- compile-map [ctx pat]
   (cond
     (complex-query-pattern? pat)
-    (compile-complex-query ctx pat)
+    (compile-query-command ctx (query-map->command pat))
 
     (li/instance-pattern? pat)
     (let [full-nm (li/instance-pattern-name pat)
@@ -510,7 +522,7 @@
     (when alias
       (when-not (li/name? alias)
         (u/throw-ex (str "not a valid name - " alias)))
-      (ctx/add-alias! ctx nm alias))
+      (ctx/add-alias! ctx (or nm alias) alias))
     (op/evaluate-query
      [#(compile-complex-query
         ctx
@@ -610,7 +622,7 @@
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
-        result [ec (doall (map c df-patterns))]]
+        result [ec (mapv c df-patterns)]]
     result))
 
 (defn- maybe-compile-dataflow [compile-query-fn zero-trust-rbac df]
@@ -625,9 +637,8 @@
   df)
 
 (defn compile-dataflows-for-event [compile-query-fn zero-trust-rbac event]
-  (doall
-   (map (partial maybe-compile-dataflow compile-query-fn zero-trust-rbac)
-        (cn/dataflows-for-event event))))
+  (mapv (partial maybe-compile-dataflow compile-query-fn zero-trust-rbac)
+        (cn/dataflows-for-event event)))
 
 (defn- reference-attributes [attrs refrec]
   (when-let [result (cn/all-reference-paths attrs)]

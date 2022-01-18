@@ -76,8 +76,10 @@
 (defn- find-instance-by-path-parts [env path-parts]
   (if-let [p (:path path-parts)] ; maybe an alias
     (get env p)
-    (let [recname [(:component path-parts) (:record path-parts)]]
-      (lookup-instance env recname))))
+    (if (= :% (:record path-parts))
+      (lookup-by-alias env :%)
+      (let [recname [(:component path-parts) (:record path-parts)]]
+        (lookup-instance env recname)))))
 
 (def bind-variable assoc)
 (def lookup-variable find)
