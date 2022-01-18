@@ -7,14 +7,14 @@
 
 (defn make-resolver
   ([resolver-name fnmap eval-dataflow]
-  (when-not (every? identity (map #(some #{%} valid-resolver-keys) (keys fnmap)))
-    (u/throw-ex (str "invalid resolver keys - " (keys fnmap))))
-  (doseq [[k v] fnmap]
-    (when-not (fn? (:handler v))
-      (u/throw-ex (str "resolver key [" k " :handler] must be mapped to a function"))))
-  (assoc fnmap
-         :name resolver-name
-         :evt-handler eval-dataflow))
+   (when-not (every? identity (mapv #(some #{%} valid-resolver-keys) (keys fnmap)))
+     (u/throw-ex (str "invalid resolver keys - " (keys fnmap))))
+   (doseq [[k v] fnmap]
+     (when-not (fn? (:handler v))
+       (u/throw-ex (str "resolver key [" k " :handler] must be mapped to a function"))))
+   (assoc fnmap
+          :name resolver-name
+          :evt-handler eval-dataflow))
   ([resolver-name fnmap]
    (make-resolver resolver-name fnmap nil)))
 
