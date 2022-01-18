@@ -21,6 +21,10 @@ public class Auth0AuthUtil {
 		return api;
 	}
 
+	// This requires a management API authtoken - right now we have to set this as part of the
+	// _requestobject of the kernel__auth0user record in the database in the field "ApiToken"
+	// The token can be obtained from
+	// https://manage.auth0.com/dashboard/undefined/fractl/apis/management/explorer
 	public static ManagementAPI createMgmtAPI(String authDomain, String accessToken, boolean loggingEnabled) {
 		ManagementAPI api = new ManagementAPI(authDomain, accessToken);
 		api.setLoggingEnabled(loggingEnabled);
@@ -56,18 +60,18 @@ public class Auth0AuthUtil {
 
 	}
 
-	public static UserInfo getUserInfo(AuthAPI api, String accessToken) {
+	public static Map<String, Object> getUserInfo(AuthAPI api, String accessToken) {
 		try {
-			return api.userInfo(accessToken).execute();
+			return api.userInfo(accessToken).execute().getValues();
 		} catch (Auth0Exception ex) {
 			ex.printStackTrace();
 			return null;
 		}		
 	}
 
-	public static UserInfo getUserInfo(AuthAPI api, TokenHolder tokenHolder) {
+	public static Map<String, Object> getUserInfo(AuthAPI api, TokenHolder tokenHolder) {
 		try {
-			return api.userInfo(tokenHolder.getAccessToken()).execute();
+			return api.userInfo(tokenHolder.getAccessToken()).execute().getValues();
 		} catch (Auth0Exception ex) {
 			ex.printStackTrace();
 			return null;
