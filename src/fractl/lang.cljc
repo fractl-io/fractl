@@ -720,6 +720,7 @@
             :UserEmail {:type :Kernel/String :optional true}
             :UserId {:type :Kernel/String :optional true}            
             :Password :Kernel/String
+            :UserInfo {:type :Kernel/Map :optional true}
             :RequestObject {:type :Kernel/OAuthAnyRequest :optional true}}})
                                                           
   (entity {:Kernel/Authentication
