@@ -222,25 +222,22 @@
   ([inst-name inst value-map]
    (let [scm (cn/fetch-schema inst-name)
          update-event-name (on-set-attrs-event-name inst-name)]
-     (loop [obj value-map, results []]
-       (if-let [[k v] (first obj)]
-         (let [attr-scm (cn/find-attribute-schema (k scm))
-               aval (cn/valid-attribute-value
-                     k v
-                     (dissoc attr-scm :future))]
-           (reset! (k inst) v)
-           (recur
-            (rest obj)
-            (conj
-             results
-             (let [inst (cn/ensure-type-and-name inst inst-name :entity)]
-               (:result
-                (first
-                 ((es/get-active-evaluator)
-                  (cn/make-instance
-                   {update-event-name
-                    {:Instance inst}}))))))))
-         results))))
+     (#?(:clj locking  :cljs do)
+      inst
+      (loop [obj value-map]
+        (if-let [[k v] (first obj)]
+          (let [attr-scm (cn/find-attribute-schema (k scm))
+                aval (cn/valid-attribute-value
+                      k v
+                      (dissoc attr-scm :future))]
+            (reset! (k inst) v)
+            (recur (rest obj)))
+          (let [inst (cn/ensure-type-and-name inst inst-name :entity)
+                r ((es/get-active-evaluator)
+                   (cn/make-instance
+                    {update-event-name
+                     {:Instance inst}}))]
+            (:result (first r))))))))
   ([inst value-map]
    (set-attributes! (cn/instance-name inst) inst value-map)))
 
