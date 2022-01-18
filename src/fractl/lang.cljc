@@ -700,18 +700,27 @@
            :TimeoutMillis {:type :Kernel/Int
                            :default 2000}})
 
+  (entity :Kernel/OAuthAnyRequest
+       {:ClientID :Kernel/String
+        :ClientSecret :Kernel/String
+        :ApiToken {:type :Kernel/String :optional true}
+        :AuthDomain :Kernel/String
+        :Email :Kernel/String
+        :UserName :Kernel/String
+        :Password :Kernel/String})
+  
   (entity {:Kernel/Resolver
            {:Type :Kernel/Keyword
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
-
+  
   (entity {:Kernel/Auth0User
            {:UserName :Kernel/String
             :Email :Kernel/String
             :UserEmail {:type :Kernel/String :optional true}
             :UserId {:type :Kernel/String :optional true}            
             :Password :Kernel/String
-            :RequestObject {:type :Kernel/Map :optional true}}})
+            :RequestObject {:type :Kernel/OAuthAnyRequest :optional true}}})
                                                           
   (entity {:Kernel/Authentication
            {:Owner {:type :Kernel/Any :optional true}
