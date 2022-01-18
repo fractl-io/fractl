@@ -274,8 +274,10 @@
         composed? (rg/composed? resolver)
         crud? (or (not resolver) composed?)
         resolver-result (when resolver
-                          (resolver-upsert resolver composed? insts))
-        resolved-insts (if resolver (first resolver-result) insts)
+                          (seq (filter identity (resolver-upsert resolver composed? insts))))
+        resolved-insts (if (and resolver resolver-result)
+                         (first resolver-result)
+                         insts)
         final-result (if (and crud? store-f
                               (or single-arg-path (need-storage? resolved-insts)))
                        (store-f resolved-insts)

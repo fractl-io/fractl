@@ -3,7 +3,7 @@
             [fractl.component :as cn]
             [fractl.lang.internal :as li]))
 
-(def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval})
+(def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval :invoke})
 
 (defn make-resolver
   ([resolver-name fnmap eval-dataflow]
@@ -23,6 +23,7 @@
 (def resolver-delete :delete)
 (def resolver-query :query)
 (def resolver-eval :eval)
+(def resolver-invoke :invoke)
 
 (defn- ok? [r] (= :ok (:status r)))
 
@@ -65,27 +66,38 @@
              (apply-xform xf eval-dataflow env arg))
       arg)))
 
-(defn- invoke-method [method resolver f env arg]
-  (if-let [in-xforms (get-in resolver [method :xform :in])]
-    (let [eval-dataflow (:evt-handler resolver)
-          final-arg (apply-xforms in-xforms eval-dataflow env arg)
-          result (f final-arg)]
-      (if-let [out-xforms (get-in resolver [method :xform :out])]
-        (apply-xforms out-xforms eval-dataflow env result)
-        result))
-    (let [eval-dataflow (:evt-handler resolver)
-          result (f arg)]
-      (if-let [out-xforms (get-in resolver [method :xform :out])]
-        (apply-xforms out-xforms eval-dataflow env result)
-        result))))
+(defn- invoke-method
+  ([method resolver handler handler-tag env arg]
+   (let [f (if (= :invoke method)
+             (partial handler handler-tag env)
+             handler)]
+     (if-let [in-xforms (get-in resolver [method :xform :in])]
+       (let [eval-dataflow (:evt-handler resolver)
+             final-arg (apply-xforms in-xforms eval-dataflow env arg)
+             result (f final-arg)]
+         (if-let [out-xforms (get-in resolver [method :xform :out])]
+           (apply-xforms out-xforms eval-dataflow env result)
+           result))
+       (let [eval-dataflow (:evt-handler resolver)
+             result (f arg)]
+         (if-let [out-xforms (get-in resolver [method :xform :out])]
+           (apply-xforms out-xforms eval-dataflow env result)
+           result)))))
+  ([method resolver handler env arg]
+   (invoke-method method resolver handler nil env arg)))
 
 (defn- wrap-result [method resolver env arg]
-  (when-let [m (get-in resolver [method :handler])]
+  (if-let [m (get-in resolver [method :handler])]
     {:resolver (:name resolver)
      :method method
-     :result (invoke-method method resolver m env arg)}))
+     :result (invoke-method method resolver m env arg)}
+    (when-let [m (get-in resolver [:invoke :handler])]
+      {:resolver (:name resolver)
+       :method method
+       :result (invoke-method :invoke resolver m method env arg)})))
 
 (def call-resolver-upsert (partial wrap-result :upsert))
 (def call-resolver-delete (partial wrap-result :delete))
 (def call-resolver-query (partial wrap-result :query))
 (def call-resolver-eval (partial wrap-result :eval))
+(def call-resolver-invoke (partial wrap-result :invoke))
