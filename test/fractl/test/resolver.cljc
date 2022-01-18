@@ -7,6 +7,7 @@
             [fractl.component :as cn]
             [fractl.store :as store]
             [fractl.evaluator :as e]
+            [fractl.env :as env]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
@@ -190,3 +191,57 @@
           {:CT/E2 {:X 200 :N "bye"}}}})))
     (is (cn/instance-of? :CT/E1 (first result1)))
     (is (= 123 (:X (first result1))))))
+
+(def ^:private invoke-query-flag (atom true))
+
+(defn- fetch-and-assert-id [env entity-name id]
+  (let [store (env/get-store env)
+        inst (store/lookup-by-id store entity-name id)]
+    (is (= id (:Id inst)))
+    nil))
+
+(defn- invoke-query [env arg]
+  (when @invoke-query-flag
+    (fetch-and-assert-id env (first arg) (nth (:where (second arg)) 2))))
+
+(defn- invoke-delete [env arg]
+  (apply fetch-and-assert-id env (first arg))
+  (reset! invoke-query-flag false)
+  nil)
+
+(defn- resolver-invoke [method env arg]
+  (case method
+    :query (invoke-query env arg)
+    :delete (invoke-delete env arg)
+    nil))
+
+(defn- make-resolver-for-invoke [n]
+  (r/make-resolver
+   n {:invoke {:handler resolver-invoke}}))
+
+(deftest invoke-test
+  (defcomponent :IT
+    (entity {:IT/E1 {:X :Kernel/Int :N :Kernel/String}}))
+  (rg/compose-resolver :IT/E1 (make-resolver-for-invoke :ITR1))
+  (let [r1 (first
+            (tu/fresult
+             (e/eval-all-dataflows
+              {:IT/Upsert_E1
+               {:Instance
+                {:IT/E1 {:X 100 :N "hello"}}}})))
+        id (:Id r1)
+        r2 (first
+            (tu/fresult
+             (e/eval-all-dataflows
+              {:IT/Lookup_E1
+               {:Id id}})))
+        r3 (tu/fresult
+            (e/eval-all-dataflows
+             {:IT/Delete_E1
+              {:Id id}}))
+        r4 (e/eval-all-dataflows
+            {:IT/Lookup_E1
+             {:Id id}})]
+    (is (= id (:Id r2)))
+    (is (= id (second r3)))
+    (is (= :not-found (:status (first r4))))))
