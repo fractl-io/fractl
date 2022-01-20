@@ -62,14 +62,17 @@
   #?(:clj  
      (str (rand-str 12) "@" domain)))
 
-;; To test postgres in CI, set to true
-(def test-with-postgres false)
+;; To test postgres in CI
+;; export POSTGRES_ENABLED=<something>
+;; To turn off
+;; unset POSTGRES_ENABLED
+(def test-with-postgres (System/getenv "POSTGRES_ENABLED"))
 
 (store/open-default-store
  #?(:clj (when test-with-postgres
            {:type     :postgres
-            :host     (System/getenv "POSTGRES_HOST")
-            :dbname   "postgres"
-            :username "postgres"
+            :host     (or (System/getenv "POSTGRES_HOST") "localhost")
+            :dbname   (or (System/getenv "POSTGRES_DB") "postgres")
+            :username (or (System/getenv "POSTGRES_USER") "postgres")
             :password (System/getenv "POSTGRES_PASSWORD")})
     :cljs {:type :alasql}))
