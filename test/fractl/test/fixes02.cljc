@@ -394,3 +394,28 @@
          ys (:Result (first (:result (first r))))]
      (is (= 3 (count ys)))
      (is (every? #(true? (:X %)) ys)))))
+
+(defn add-to-x [r n]
+  (+ (:X (cn/maybe-deref (first r))) n))
+
+(deftest issue-450-event-alias
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I450
+     (entity
+      :I450/E
+      {:X :Kernel/Int})
+     (event
+      :I450/Evt
+      {:Y :Kernel/Int})
+     (dataflow
+      :I450/Evt
+      {:I450/E {:X :I450/Evt.Y}})
+     (dataflow
+      :I450/Main
+      {:I450/Evt {:Y 100} :as :R}
+      {:I450/E {:X '(fractl.test.fixes02/add-to-x :R 5)}}))
+   (let [r (tu/first-result
+            {:I450/Main {}})]
+     (is (cn/instance-of? :I450/E r))
+     (is (= 105 (:X r))))))
