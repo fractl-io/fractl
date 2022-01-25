@@ -75,9 +75,9 @@
     (is (valid-opcode? opc/new-instance?
                        (first opcs) [:CompileTest :E1]))
     (is (valid-opcode? opc/set-literal-attribute?
-                       (second opcs) [:X 100]))
+                       (second opcs) [:X 100 nil]))
     (is (valid-opcode? opc/set-literal-attribute?
-                       (nth opcs 2) [:Y 200]))
+                       (nth opcs 2) [:Y 200 nil]))
     (is (valid-opcode? opc/intern-instance?
                        (nth opcs 3) [[:CompileTest :E1] nil]))))
 
@@ -98,7 +98,7 @@
     (let [opcs (c p1)]
       (is (valid-opcode-with-query? (first opcs) [:CompileTest :E1]))
       (is (valid-opcode? opc/set-literal-attribute?
-                         (second opcs) [:X 100]))
+                         (second opcs) [:X 100 nil]))
       (is (valid-opcode? opc/set-compound-attribute?
                          (nth opcs 2) (fn [[n f]]
                                         (and (= :Y n) (fn? f)))))

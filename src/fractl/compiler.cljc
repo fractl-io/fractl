@@ -204,10 +204,10 @@
 
 (declare compile-list-literal)
 
-(defn- set-literal-attribute [ctx [aname valpat :as attr]]
+(defn- set-literal-attribute [ctx fflag [aname valpat :as attr]]
   (if (vector? valpat)
-    (compile-list-literal ctx aname valpat)
-    (op/set-literal-attribute attr)))
+    (compile-list-literal ctx fflag aname valpat)
+    (op/set-literal-attribute (conj attr (fflag aname)))))
 
 (defn- build-record-for-upsert? [attrs]
   (or (seq (:compound attrs))
@@ -215,17 +215,18 @@
       (seq (:sorted attrs))))
 
 (defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
-  (let [future-attrs (cn/future-attributes (or (:schema schema) schema))]
+  (let [future-attrs (cn/future-attributes (or (:schema schema) schema))
+        fflag (fn [aname] (when (some #{aname} future-attrs) rec-name))]
     (concat [(begin-build-instance rec-name attrs)]
-            (mapv (partial set-literal-attribute ctx)
+            (mapv (partial set-literal-attribute ctx fflag)
                   (:computed attrs))
             (let [f (:compound set-attr-opcode-fns)]
-              (mapv #(f %) (:compound attrs)))
+              (mapv #(f (conj % (fflag (first %)))) (:compound attrs)))
             (mapv (fn [[k v]]
-                    ((k set-attr-opcode-fns) v))
+                    ((k set-attr-opcode-fns) (conj v (fflag k))))
                   (:sorted attrs))
             (mapv (fn [arg]
-                    (op/set-ref-attribute arg))
+                    (op/set-ref-attribute (conj arg (fflag (first arg)))))
                   (:refs attrs))
             [(if event?
                (op/intern-event-instance [rec-name alias timeout-ms])
@@ -579,19 +580,20 @@
     (h ctx (rest pat))
     (compile-user-macro ctx pat)))
 
-(defn- compile-list-literal [ctx attr-name pat]
+(defn- compile-list-literal [ctx fflag attr-name pat]
   (let [quoted? (li/quoted? pat)]
     (op/set-list-attribute
      [attr-name
       (if quoted?
         (compile-quoted-list ctx (second pat))
         (map #(list (compile-pattern ctx %)) pat))
-      quoted?])))
+      quoted?
+      (when fflag (fflag attr-name))])))
 
 (defn- compile-vector [ctx pat]
   (if (li/registered-macro? (first pat))
     (compile-special-form ctx pat)
-    (compile-list-literal ctx nil pat)))
+    (compile-list-literal ctx nil nil pat)))
 
 (defn- compile-literal [_ pat]
   (emit-load-literal pat))

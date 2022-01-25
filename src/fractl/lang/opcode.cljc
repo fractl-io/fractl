@@ -111,17 +111,17 @@
           fetch-query-fn takes a reference-loader function as argument
           and must return - [entity-name compiled-query]")
          (set-literal-attribute
-          [[attr-name attr-value]]
+          [[attr-name attr-value future-info]]
           "Set the attribute in the instance that is being inited to the given value.")
          (set-ref-attribute
-          [[attr-name attr-ref]]
+          [[attr-name attr-ref future-info]]
           "Set the attribute in the instance that is being inited by fetching a value from
            the reference.")
          (set-compound-attribute
-          [[attr-name f]]
+          [[attr-name f future-info]]
           "Set the attribute in the instance that is being inited by invoking the function.")
          (set-list-attribute
-          [[attr-name elements-opcodes quoted?]]
+          [[attr-name elements-opcodes quoted? future-info]]
           "Construct a list by evaluating each set of opcodes, set the result as an attribute of the current instance.")
          (intern-instance
           [[record-name alias]]

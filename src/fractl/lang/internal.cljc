@@ -429,3 +429,5 @@
     (if (every? valid-where-clause? wc)
       (map #(map pre-parse-name %) wc)
       (u/throw-ex (str "invalid :where clause - " wc)))))
+
+(def future-info-record-name identity)

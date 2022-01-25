@@ -75,13 +75,23 @@
      :Fsp/Evt
      {:Fsp/E
       {:Id? :Fsp/Evt.EId
-       :X 200}}))
-  (let [e (tu/first-result
+       :X 200
+       :Y 300}}))
+  (let [e1 (tu/first-result
            {:Fsp/Upsert_E
             {:Instance
              {:Fsp/E
-              {:X 100}}}})
-        r (tu/first-result
-           {:Fsp/Evt
-            {:EId (:Id e)}})]
-    true))
+              {:X 100}}}})]
+    (is (cn/instance-of? :Fsp/E e1))
+    (is (= 100 (:X e1)))
+    (is (= 0 @(:Y e1)))
+    (let [r (tu/first-result
+             {:Fsp/Evt
+              {:EId (:Id e1)}})
+          e2 (get-in r [:transition :to])]
+      (is (cn/instance-of? :Fsp/E e2))
+      (is (= (:Id e1) (:Id e2)))
+      (is (= 200 (:X e2)))
+      (is (= 100 (:X e1)))
+      (is (= 300 @(:Y e2)))
+      (is (= 300 @(:Y e1))))))

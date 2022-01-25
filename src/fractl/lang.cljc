@@ -229,7 +229,7 @@
                  aval (cn/valid-attribute-value
                        k v
                        (dissoc attr-scm :future))]
-             (reset! (k inst) v)
+             (reset! (k inst) aval)
              (recur (rest obj)))
            (let [inst (cn/ensure-type-and-name inst inst-name :entity)
                  r ((es/get-active-evaluator)

@@ -116,16 +116,28 @@
                       raw-obj)]
     (f (f (assoc-futures record-name interim-obj) efns) qfns)))
 
-(defn- set-obj-attr [env attr-name attr-value]
+(defn- update-attr [env attr-name attr-value finfo obj]
+  (if finfo
+    (let [recname (li/future-info-record-name finfo)
+          obj (assoc-futures recname obj)]
+      (ln/set-attributes!
+       recname
+       obj {attr-name attr-value})
+      obj)
+    (assoc
+     obj attr-name
+     (if (fn? attr-value)
+       (attr-value env obj)
+       attr-value))))
+
+(defn- set-obj-attr [env attr-name attr-value future-info]
   (if-let [xs (env/pop-obj env)]
     (let [[env single? [n x]] xs
           objs (if single? [x] x)
-          new-objs (map
-                    #(assoc
-                      % attr-name
-                      (if (fn? attr-value)
-                        (attr-value env %)
-                        attr-value))
+          new-objs (mapv
+                    (partial
+                     update-attr env attr-name
+                     attr-value future-info)
                     objs)
           elem (if single? (first new-objs) new-objs)
           env (env/push-obj env n elem)]
@@ -713,22 +725,22 @@
         do-query-helper
         env (fetch-query-fn (partial find-reference env)))))
 
-    (do-set-literal-attribute [_ env [attr-name attr-value]]
-      (set-obj-attr env attr-name attr-value))
+    (do-set-literal-attribute [_ env [attr-name attr-value future-info]]
+      (set-obj-attr env attr-name attr-value future-info))
 
-    (do-set-list-attribute [self env [attr-name elements-opcode quoted?]]
+    (do-set-list-attribute [self env [attr-name elements-opcode quoted? future-info]]
       (call-with-exception-as-error
        #(let [opcode-eval (partial eval-opcode self env)
               final-list ((if quoted? set-quoted-list set-flat-list)
                           opcode-eval elements-opcode)]
-          (set-obj-attr env attr-name final-list))))
+          (set-obj-attr env attr-name final-list future-info))))
 
-    (do-set-ref-attribute [_ env [attr-name attr-ref]]
+    (do-set-ref-attribute [_ env [attr-name attr-ref future-info]]
       (let [[obj env] (env/follow-reference env attr-ref)]
-        (set-obj-attr env attr-name obj)))
+        (set-obj-attr env attr-name obj future-info)))
 
-    (do-set-compound-attribute [_ env [attr-name f]]
-      (set-obj-attr env attr-name f))
+    (do-set-compound-attribute [_ env [attr-name f future-info]]
+      (set-obj-attr env attr-name f future-info))
 
     (do-intern-instance [self env [record-name alias]]
       (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self))
