@@ -91,18 +91,20 @@
 (def ^:private obj-prefix "#clj-obj")
 (def ^:private obj-prefix-len (count obj-prefix))
 
-(defn- serialize-obj-entry [non-serializable-attrs [k v]]
+(defn- serialize-obj-entry [future-attrs [k v]]
   (if (cn/meta-attribute-name? k)
     [k v]
-    [k (if (or
-            (or (fn? v)
-                (and (seqable? v) (not (string? v))))
-            (some #{k} non-serializable-attrs))
-         (str obj-prefix (str v))
-         v)]))
+    (if-let [x (seq (filter #(= (first %) k) future-attrs))]
+      (serialize-obj-entry nil [k (second (first x))])
+      [k (cond
+           (nil? v) v
+           (or (fn? v)
+               (and (seqable? v) (not (string? v))))
+           (str obj-prefix (str v))
+           :else v)])))
 
 (defn serialize-objects [instance]
-  (let [fattrs (mapv first (cn/future-attrs (cn/instance-name instance)))]
+  (let [fattrs (cn/future-defaults (cn/instance-name instance))]
     (into {} (mapv (partial serialize-obj-entry fattrs) instance))))
 
 (defn- normalize-result

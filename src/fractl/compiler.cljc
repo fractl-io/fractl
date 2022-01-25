@@ -192,9 +192,10 @@
     {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
      :deps deps-graph}))
 
-(def ^:private set-attr-opcode-fns {:computed op/set-literal-attribute
-                                    :refs op/set-ref-attribute
-                                    :compound op/set-compound-attribute})
+(def ^:private set-attr-opcode-fns
+  {:computed op/set-literal-attribute
+   :refs op/set-ref-attribute
+   :compound op/set-compound-attribute})
 
 (defn- begin-build-instance [rec-name attrs]
   (if-let [q (:query attrs)]
@@ -214,20 +215,21 @@
       (seq (:sorted attrs))))
 
 (defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
-  (concat [(begin-build-instance rec-name attrs)]
-          (mapv (partial set-literal-attribute ctx)
-                (:computed attrs))
-          (let [f (:compound set-attr-opcode-fns)]
-            (mapv #(f %) (:compound attrs)))
-          (mapv (fn [[k v]]
-                  ((k set-attr-opcode-fns) v))
-                (:sorted attrs))
-          (mapv (fn [arg]
-                  (op/set-ref-attribute arg))
-                (:refs attrs))
-          [(if event?
-             (op/intern-event-instance [rec-name alias timeout-ms])
-             (op/intern-instance [rec-name alias]))]))
+  (let [future-attrs (cn/future-attributes (or (:schema schema) schema))]
+    (concat [(begin-build-instance rec-name attrs)]
+            (mapv (partial set-literal-attribute ctx)
+                  (:computed attrs))
+            (let [f (:compound set-attr-opcode-fns)]
+              (mapv #(f %) (:compound attrs)))
+            (mapv (fn [[k v]]
+                    ((k set-attr-opcode-fns) v))
+                  (:sorted attrs))
+            (mapv (fn [arg]
+                    (op/set-ref-attribute arg))
+                  (:refs attrs))
+            [(if event?
+               (op/intern-event-instance [rec-name alias timeout-ms])
+               (op/intern-instance [rec-name alias]))])))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
   (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)

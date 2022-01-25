@@ -376,6 +376,8 @@
 
 (def write-only-attributes (make-attributes-filter #(:write-only %)))
 
+(def future-attributes (make-attributes-filter #(:future %)))
+
 (def ref-attribute-schemas
   "Return the names and schemas of all attributes which has a :ref."
   (partial filter-attribute-schemas #(:ref %)))
@@ -985,7 +987,7 @@
                    schema)]
     (seq (su/nonils exps))))
 
-(defn future-attrs [record-name]
+(defn future-fns [record-name]
   (computed-attribute-fns :future (find-object-schema record-name)))
 
 (def expr-fns (partial computed-attribute-fns :expr))
@@ -995,6 +997,15 @@
 (defn all-computed-attribute-fns [record-name]
   (when-let [scm (find-object-schema record-name)]
     [(expr-fns scm) (query-fns scm) (eval-attrs scm)]))
+
+(defn future-defaults [record-name]
+  (when-let [scm (:schema (find-object-schema record-name))]
+    (filter
+     identity
+     (mapv #(when-let [ascm (find-attribute-schema (second %))]
+              (when (:future ascm)
+                [(first %) (:default ascm)]))
+           scm))))
 
 (defn mark-dirty [inst]
   (assoc inst dirty-key true))

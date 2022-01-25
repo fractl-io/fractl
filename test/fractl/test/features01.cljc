@@ -62,3 +62,26 @@
     (is (= "hi" @(:Y e)))
     (set-attributes! e {:Y "bye"})
     (is (= "bye" @(:Y e)))))
+
+(deftest future-set-pattern
+  (defcomponent :Fsp
+    (entity
+     :Fsp/E
+     {:X :Kernel/Int
+      :Y {:type :Kernel/Int
+          :future true
+          :default 0}})
+    (dataflow
+     :Fsp/Evt
+     {:Fsp/E
+      {:Id? :Fsp/Evt.EId
+       :X 200}}))
+  (let [e (tu/first-result
+           {:Fsp/Upsert_E
+            {:Instance
+             {:Fsp/E
+              {:X 100}}}})
+        r (tu/first-result
+           {:Fsp/Evt
+            {:EId (:Id e)}})]
+    true))

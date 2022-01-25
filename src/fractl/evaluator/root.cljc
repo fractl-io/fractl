@@ -97,7 +97,7 @@
       raw-obj)))
 
 (defn- assoc-futures [record-name obj]
-  (loop [fattrs (cn/future-attrs record-name), obj obj]
+  (loop [fattrs (cn/future-fns record-name), obj obj]
     (if-let [[k v] (first fattrs)]
       (recur (rest fattrs)
              (assoc obj k v))
