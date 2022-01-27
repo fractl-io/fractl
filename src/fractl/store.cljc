@@ -123,5 +123,7 @@
   (when-let [store @default-store]
     (partial p/compile-query store)))
 
+(defn get-default-store [] @default-store)
+
 (defn lookup-by-id [store entity-name id]
   (query-by-unique-keys store entity-name [:Id] {:Id id}))

@@ -41,7 +41,7 @@
 
 (defn query-by-id
   [entity-name ids]
-  (remove nil? (flatten (map #(get-in @inst-store [entity-name %]) (set ids)))))
+  (remove nil? (flatten (map #(get-in @inst-store [(li/split-path entity-name) %]) (set ids)))))
 
 (defn query-all
   [entity-name _]
