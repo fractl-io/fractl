@@ -123,7 +123,12 @@
   (when-let [store @default-store]
     (partial p/compile-query store)))
 
-(defn get-default-store [] @default-store)
-
 (defn lookup-by-id [store entity-name id]
   (query-by-unique-keys store entity-name [:Id] {:Id id}))
+
+(defn access-attribute-by-id
+  ([store entity-name id attr-name]
+   (let [r (first (query-by-id store entity-name nil [id]))]
+     (attr-name r)))
+  ([entity-name id attr-name]
+   (access-attribute-by-id @default-store entity-name id attr-name)))
