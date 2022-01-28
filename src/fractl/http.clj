@@ -3,6 +3,7 @@
             [clojure.string :as s]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
+            [ring.util.codec :as codec]
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.http :as uh]
@@ -14,6 +15,7 @@
 (def entity-event-prefix "/_e/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
+(def callback-prefix "/_callback/")
 
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
@@ -94,6 +96,12 @@
      (str "unsupported content-type in request - "
           (request-content-type request)))))
 
+(defn- process-callback [request]
+  (let [params (w/keywordize-keys
+                (codec/form-decode (:query-string request)))]
+    ;; TODO implement handler for code - (:code params)
+    (ok [:pass params])))
+
 (defn- paths-info [component]
   (mapv (fn [n] {(subs (str n) 1)
                  {"post" {"parameters" (cn/event-schema n)}}})
@@ -170,6 +178,7 @@
            (POST (str entity-event-prefix ":component/:event") [] process-request)
            (POST query-prefix [] process-query)
            (POST dynamic-eval-prefix [] process-dynamic-eval)
+           (GET callback-prefix [] process-callback)
            (GET "/meta/:component" [] process-meta-request)
            (not-found "<p>Resource not found</p>"))]
     (cors/wrap-cors
