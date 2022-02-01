@@ -757,7 +757,7 @@
           (i/not-found record-name env))))
 
     (do-intern-event-instance [self env [record-name alias timeout-ms]]
-      (let [[inst env] (pop-and-intern-instance env record-name alias (partial eval-opcode self))
+      (let [[inst env] (pop-and-intern-instance env record-name nil (partial eval-opcode self))
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
             eval-env (env/make (env/get-store env) (env/get-resolver env))
@@ -768,8 +768,10 @@
                               (extract-local-result
                                (first (eval-event-dataflows self eval-env inst))))))
             resolver-results (when resolver
-                               (call-resolver-eval resolver composed? env inst))]
-        (i/ok (pack-results local-result resolver-results) env)))
+                               (call-resolver-eval resolver composed? env inst))
+            r (pack-results local-result resolver-results)
+            env (if alias (env/bind-instance-to-alias env alias r) env)]
+        (i/ok r env)))
 
     (do-delete-instance [self env [record-name id-pattern-code]]
       (let [result (eval-opcode self env id-pattern-code)]

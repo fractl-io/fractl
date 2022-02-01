@@ -216,7 +216,8 @@
 
 (defn make-path
   ([component obj-name]
-   (keyword (str (name component) "/" (name obj-name))))
+   (when (and component obj-name)
+     (keyword (str (name component) "/" (name obj-name)))))
   ([[component obj-name]]
    (make-path component obj-name)))
 

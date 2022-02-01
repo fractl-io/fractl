@@ -70,13 +70,21 @@
             (first (keys (dissoc @ctx :compile-query-fn :zero-trust-rbac)))))))
   true)
 
+(defn- refers-to-event? [n]
+  (let [{component :component rec :record} (li/path-parts n)
+        p (li/make-path component rec)]
+    (if (and p (cn/event-schema p))
+      true
+      false)))
+
 (declare reach-name)
 
 (defn- aliased-name-in-context [ctx schema n]
   (when-let [an (ctx/aliased-name ctx n)]
-    (if (= n an)
-      n
-      (reach-name ctx schema an))))
+    (cond
+      (refers-to-event? an) true
+      (= n an) n
+      :else (reach-name ctx schema an))))
 
 (defn- reach-name [ctx schema n]
   (let [{component :component rec :record refs :refs
