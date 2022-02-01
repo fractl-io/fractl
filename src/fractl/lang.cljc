@@ -109,10 +109,6 @@
   (or (= true x)
       (= :default x)))
 
-(defn- future-spec? [x]
-  #?(:clj (= clojure.lang.Atom (type x))
-     :cljs x))
-
 (def ^:private eval-block-keys #{:patterns :refresh-ms :timeout-ms :opcode})
 
 (defn- eval-block? [x]
@@ -145,7 +141,6 @@
       :var (li/validate-bool :var v)
       :writer (li/validate fn? ":writer must be a function" v)
       :secure-hash (li/validate-bool :secure-hash v)
-      :future (li/validate future-spec? "invalid specification for :future" v)
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}
@@ -214,40 +209,6 @@
   (let [[[_ _] a] (li/ref-as-names n)]
     (if a true false)))
 
-(defn- on-set-attrs-event-name [entity-name]
-  (let [[c n] (li/split-path entity-name)]
-    (keyword (str (name c) "/" (name n) "_OnSetAttributes"))))
-
-(defn set-attributes!
-  ([inst-name inst value-map]
-   (let [scm (cn/fetch-schema inst-name)
-         update-event-name (on-set-attrs-event-name inst-name)]
-     (locking inst
-       (loop [obj value-map]
-         (if-let [[k v] (first obj)]
-           (let [attr-scm (cn/find-attribute-schema (k scm))
-                 aval (cn/valid-attribute-value
-                       k v
-                       (dissoc attr-scm :future))]
-             (reset! (k inst) v)
-             (recur (rest obj)))
-           (let [inst (cn/ensure-type-and-name inst inst-name :entity)
-                 r ((es/get-active-evaluator)
-                    (cn/make-instance
-                     {update-event-name
-                      {:Instance inst}}))]
-             (:result (first r))))))))
-  ([inst value-map]
-   (set-attributes! (cn/instance-name inst) inst value-map)))
-
-(defn- process-futures [recname [k v]]
-  (if (and (map? v) (:future v))
-    (let [d (:default v)]
-      (assoc
-       v :future #?(:clj (atom d) :cljs (reagent/atom d))
-       :optional true))
-    v))
-
 (defn- compile-eval-block [recname attrs evblock]
   (let [ctx (ctx/make)]
     (ctx/put-record! ctx (li/split-path recname) attrs)
@@ -286,7 +247,7 @@
             (if (query-pattern? v)
               (attribute nm {:query (query-eval-fn recname attrs k v)})
               (or (normalize-compound-attr recname attrs nm [k v])
-                  (attribute nm (process-futures recname [k v])))))
+                  (attribute nm v))))
           (list? v)
           (attribute
            (fqn (li/unq-name))
@@ -506,13 +467,17 @@
         %)
      pats)))
 
+(defn- on-crud-event-name [entity-name opr]
+  (let [[c n] (li/split-path entity-name)]
+    (keyword (str (name c) "/" (name n) "_On_" (name opr)))))
+
 (defn- on-event-pattern? [x]
   (and (vector? x) (= :on (first x))))
 
 (defn- translate-on-event-pattern [match-pat patterns]
-  (if (= :update (second match-pat))
+  (if (some #{(second match-pat)} [:upsert :delete])
     (let [recname (nth match-pat 2)
-          evtname (on-set-attrs-event-name recname)]
+          evtname (on-crud-event-name recname (second match-pat))]
       [evtname (rewrite-on-event-patterns patterns recname evtname)])
     (u/throw-ex (str "invalid event trigger - " (second match-pat)))))
 
@@ -621,7 +586,10 @@
            entity-name
            (partial entity-event entity-name))
          (event-internal
-          (on-set-attrs-event-name entity-name)
+          (on-crud-event-name entity-name :upsert)
+          inst-evattrs)
+         (event-internal
+          (on-crud-event-name entity-name :delete)
           inst-evattrs)
          (event-internal upevt inst-evattrs)
          (let [ref-pats (mapv (fn [[k v]]
