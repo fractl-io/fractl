@@ -109,12 +109,14 @@
                         {:Auth0TestAuth/LoginRequest
                          {:ClientID client-id
                           :ClientSecret client-secret}}))
-           auth-req-id (:Id auth-req)]
+           auth-req-id (:Id auth-req)
+           ;; this is the authorize-url we should present to the user
+           ;; when we build the UI part of the auth flow.
+           authorize-url-mod (cs/replace  (:AuthorizeURL auth-login) #"auth_id" auth-req-id)]
        
        (is (cn/instance-of? :Kernel/Authentication auth-login))
        (is (dt/parse-date-time (:Generated auth-login)))
-       (println "authorize url" (cs/replace  (:AuthorizeURL auth-login) #"auth_id" auth-req-id))
-       (is (not-empty (:AuthorizeURL auth-login)))))))
+       (is (not-empty authorize-url-mod))))))
 
 
 (deftest auth0-db-auth
