@@ -8,6 +8,7 @@
                      entity record dataflow]]
             [fractl.lang.datetime :as dt]
             [fractl.util.hash :as h]
+            [clojure.string :as cs]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -69,13 +70,6 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :Auth0TestAuth
-     (entity
-      {:Auth0TestAuth/AuthRequest
-       {:ClientID :Kernel/String
-        :ClientSecret :Kernel/String
-        :AuthDomain :Kernel/String
-        :AuthScope :Kernel/String
-        :CallbackURL :Kernel/String}})
 
      (event
       :Auth0TestAuth/Login
@@ -87,24 +81,24 @@
 
      (dataflow
       :Auth0TestAuth/LoginRequest
-      {:Auth0TestAuth/AuthRequest
+      {:Kernel/OAuthAnyRequest
        {:ClientID? :Auth0TestAuth/LoginRequest.ClientID}}
-      [:match :Auth0TestAuth/AuthRequest.ClientSecret
+      [:match :Kernel/OAuthAnyRequest.ClientSecret
        :Auth0TestAuth/LoginRequest.ClientSecret
        {:Kernel/Authentication
         {:AuthType "OAuth2Request"
-         :RequestObject :Auth0TestAuth/AuthRequest
+         :RequestObject :Kernel/OAuthAnyRequest
          :ExpirySeconds 86400}}])
-     (let [client-id "xyz123"
-           client-secret "xyzsecretsauce"
-           auth-domain "client.us.auth0.com"
+     (let [client-id "Zpd3u7saV3Y7tebdzJ1Vo0eFALWyxMnR"
+           client-secret "DSiQSiVT7Sd0RJwxdQ4gCfjLUA495PjlVNKhkgB6yFgpH2rgt9kpRbxJLPOcAaXH"
+           auth-domain "fractl.us.auth0.com"
            auth-scope "openid profile email"
-           callback-url "http://localhost"
+           callback-url "http://localhost:8080/_callback/?tag=auth_id"
            auth-req (tu/first-result
                      (cn/make-instance
-                      {:Auth0TestAuth/Upsert_AuthRequest
+                      {:Kernel/Upsert_OAuthAnyRequest
                        {:Instance
-                        {:Auth0TestAuth/AuthRequest
+                        {:Kernel/OAuthAnyRequest
                          {:ClientID client-id
                           :ClientSecret client-secret
                           :AuthDomain auth-domain
@@ -114,9 +108,12 @@
                        (cn/make-instance
                         {:Auth0TestAuth/LoginRequest
                          {:ClientID client-id
-                          :ClientSecret client-secret}}))]
+                          :ClientSecret client-secret}}))
+           auth-req-id (:Id auth-req)]
+       
        (is (cn/instance-of? :Kernel/Authentication auth-login))
        (is (dt/parse-date-time (:Generated auth-login)))
+       (println "authorize url" (cs/replace  (:AuthorizeURL auth-login) #"auth_id" auth-req-id))
        (is (not-empty (:AuthorizeURL auth-login)))))))
 
 
