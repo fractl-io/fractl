@@ -123,14 +123,6 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :Auth0TestDbAuth
-     (entity {:Auth0TestDbAuth/AuthRequest
-              {:ClientID :Kernel/String
-               :ClientSecret :Kernel/String
-               :AuthDomain :Kernel/String
-               :AuthScope :Kernel/String
-               :UserName :Kernel/String
-               :Password :Kernel/String}})
-
      (event :Auth0TestDbAuth/Login {:ClientID :Kernel/String
                                     :ClientSecret :Kernel/String
                                     :AuthDomain :Kernel/String
@@ -140,12 +132,12 @@
 
      (dataflow
       :Auth0TestDbAuth/LoginRequest
-      {:Auth0TestDbAuth/AuthRequest
+      {:Kernel/OAuthAnyRequest
        {:ClientID? :Auth0TestDbAuth/LoginRequest.ClientID}}
-      [:match :Auth0TestDbAuth/AuthRequest.ClientSecret
+      [:match :Kernel/OAuthAnyRequest.ClientSecret
        :Auth0TestDbAuth/LoginRequest.ClientSecret {:Kernel/Authentication
                                                    {:AuthType "Auth0Database"
-                                                    :RequestObject :Auth0TestDbAuth/AuthRequest}}])
+                                                    :RequestObject :Kernel/OAuthAnyRequest}}])
 
      ;; this is a test that actually logs in a test user via the
      ;; auth0 database authentication API - there is no way to "mock" this
@@ -157,9 +149,9 @@
            passwd "P@s$w0rd123"
            auth-req (tu/first-result
                      (cn/make-instance
-                      {:Auth0TestDbAuth/Upsert_AuthRequest
+                      {:Kernel/Upsert_OAuthAnyRequest
                        {:Instance
-                        {:Auth0TestDbAuth/AuthRequest
+                        {:Kernel/OAuthAnyRequest
                          {:ClientID client-id
                           :ClientSecret client-secret
                           :AuthDomain auth-domain
