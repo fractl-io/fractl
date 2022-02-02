@@ -100,7 +100,6 @@
 (defn- process-callback [request]
   (let [params (w/keywordize-keys
                 (codec/form-decode (:query-string request)))]
-    ;; TODO implement handler for code - (:code params)
     (if (every? params [:tag :code])
       ;; oauth callback - send to auth processing
       (ua/complete-oauth-flow (:tag params) (:code params)))
