@@ -11,6 +11,9 @@
 
 (def ^:private default-store (u/make-cell))
 
+(defn get-default-store []
+  @default-store)
+
 (defn- make-default-store-config []
   #?(:clj {:dbname (str "./fractl.db." (System/currentTimeMillis))}
      :cljs {:dbname (str (gensym "fractl_db"))}))
