@@ -20,10 +20,8 @@
                         :ExpirySeconds expires-in
                         :Issued (dt/as-string (dt/now-raw))
                         :Owner owner}}]
-    (println "response" auth-response)
-    ;; everything good - except that this entity is not
-    ;; getting saved to db!
-    (print (cn/make-instance {:Kernel/Upsert_AuthResponse {:Instance auth-response}}))))
+    (s/upsert-instance store ":Kernel/AuthResponse"
+                       (cn/make-instance auth-response))))
 
 (defn complete-oauth-flow
   "Complete oauth authorization flow by
