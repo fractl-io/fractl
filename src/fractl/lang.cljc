@@ -712,21 +712,21 @@
         :Email {:type :Kernel/String :optional true}
         :UserName {:type :Kernel/String :optional true}
         :Password {:type :Kernel/String :optional true}})
-  
+
   (entity {:Kernel/Resolver
            {:Type :Kernel/Keyword
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
-  
+
   (entity {:Kernel/Auth0User
            {:UserName :Kernel/String
             :Email :Kernel/String
             :UserEmail {:type :Kernel/String :optional true}
-            :UserId {:type :Kernel/String :optional true}            
+            :UserId {:type :Kernel/String :optional true}
             :Password :Kernel/String
             :UserInfo {:type :Kernel/Map :optional true}
             :RequestObject {:type :Kernel/OAuthAnyRequest :optional true}}})
-                                                          
+
   (entity {:Kernel/Authentication
            {:Owner {:type :Kernel/Any :optional true}
             :AuthType {:oneof ["Database" "Auth0Database" "OAuth2Request"]
@@ -769,6 +769,7 @@
        (cn/create-component :Git {})
        (cn/create-component :Email {})
        (cn/create-component :Sms {})
+       (cn/create-component :Sns {})
 
        (event :Git/Push
               {:Path :Kernel/String})
@@ -782,6 +783,21 @@
        (event :Sms/Push
               {:To :Kernel/String
                :Body :Kernel/String})
+
+       (event :Sns/Push
+              {:Message     {:type :Kernel/String
+                             :optional true}
+               :Type        :Kernel/String
+               :TargetArn   {:type :Kernel/String
+                             :optional true}
+               :Token       {:type :Kernel/String
+                             :optional true}
+               :PhoneNumber {:type :Kernel/String
+                             :optional true}
+               :Title       {:type :Kernel/String
+                             :optional true}
+               :Body        {:type :Kernel/String
+                             :optional true}})
 
        (record :Kernel/DataSource
                {:Uri {:type :Kernel/String
@@ -837,7 +853,11 @@
          {:name :sms
           :type :sms
           :compose? false
-          :paths [:Sms/Push]}]))))
+          :paths [:Sms/Push]}
+         {:name :sns
+          :type :sns
+          :compose? false
+          :paths [:Sns/Push]}]))))
 
 (defn- initf []
   (when-not @kernel-inited
