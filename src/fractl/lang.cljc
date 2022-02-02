@@ -699,11 +699,13 @@
   (entity :Kernel/OAuthAnyRequest
        {:ClientID :Kernel/String
         :ClientSecret :Kernel/String
+        :AuthScope {:type :Kernel/String :optional true}
+        :CallbackURL {:type :Kernel/String :optional true}
         :ApiToken {:type :Kernel/String :optional true}
         :AuthDomain :Kernel/String
-        :Email :Kernel/String
-        :UserName :Kernel/String
-        :Password :Kernel/String})
+        :Email {:type :Kernel/String :optional true}
+        :UserName {:type :Kernel/String :optional true}
+        :Password {:type :Kernel/String :optional true}})
   
   (entity {:Kernel/Resolver
            {:Type :Kernel/Keyword
