@@ -7,6 +7,7 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.http :as uh]
+            [fractl.util.auth :as ua]
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
   (:use [compojure.core :only [routes POST GET]]
@@ -100,6 +101,9 @@
   (let [params (w/keywordize-keys
                 (codec/form-decode (:query-string request)))]
     ;; TODO implement handler for code - (:code params)
+    (if (every? params [:tag :code])
+      ;; oauth callback - send to auth processing
+      (ua/complete-oauth-flow (:tag params) (:code params)))
     (ok [:pass params])))
 
 (defn- paths-info [component]
