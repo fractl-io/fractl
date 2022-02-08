@@ -108,8 +108,11 @@
     (assoc m k v)))
 
 (defn list-or-cons? [x]
-  (or (= (type x) clojure.lang.Cons)
-      (list? x)))
+  #?(:clj
+     (or (= (type x) clojure.lang.Cons)
+         (list? x))
+     :cljs
+     (list? x)))
 
 (defn join-as-string [xs delim]
   (loop [xs xs, s ""]

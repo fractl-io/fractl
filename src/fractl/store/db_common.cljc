@@ -18,7 +18,7 @@
    :execute-sql! #?(:clj ji/execute-sql! :cljs aqi/execute-sql!)
    :execute-stmt! #?(:clj ji/execute-stmt! :cljs aqi/execute-stmt!)
    :upsert-inst-statement #?(:clj h2i/upsert-inst-statement :cljs aqi/upsert-inst-statement)
-   :upsert-index-statement #?(:clj h2i/upsert-index-statement :cljs aqi/upsert-index-statement)
+   :upsert-index-statement #?(:clj h2i/upsert-index-statement :cljs nil)
    :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
    :query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement)
    :do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement)

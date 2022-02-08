@@ -35,29 +35,34 @@
 (defn- delete-auth0-user
   "Delete an auth0 user using the management API"
   [user]
-  (let [request (:RequestObject user)
-        userId (:UserId user)
-        mgmt-api (Auth0AuthUtil/createMgmtAPI (:AuthDomain request)
-                                              (:ApiToken request)
-                                              true)]
-    (Auth0AuthUtil/deleteUser mgmt-api userId)) true)
+  #?(:clj
+     (let [request (:RequestObject user)
+           userId (:UserId user)
+           mgmt-api (Auth0AuthUtil/createMgmtAPI
+                     (:AuthDomain request)
+                     (:ApiToken request)
+                     true)]
+       (Auth0AuthUtil/deleteUser mgmt-api userId)
+       true)))
 
 (defn- get-user-info
   "Return the UserInfo for the given auth0-user"
   [user]
-  ;; login and get token
-  (let [username (:UserName user)
-        passwd (:Password user)
-        request (:RequestObject user)
-        scope "openid profile email"
-        auth-api (Auth0AuthUtil/createAuthAPI (:ClientID request)
-                                              (:ClientSecret request)
-                                              (:AuthDomain request)
-                                              true)
-        token-holder (Auth0AuthUtil/passwordLogin auth-api username passwd scope)]
-    (if token-holder
-      (Auth0AuthUtil/getUserInfo auth-api (.getAccessToken token-holder)))))
-            
+  #?(:clj
+     ;; login and get token
+     (let [username (:UserName user)
+           passwd (:Password user)
+           request (:RequestObject user)
+           scope "openid profile email"
+           auth-api (Auth0AuthUtil/createAuthAPI
+                     (:ClientID request)
+                     (:ClientSecret request)
+                     (:AuthDomain request)
+                     true)
+           token-holder (Auth0AuthUtil/passwordLogin auth-api username passwd scope)]
+       (if token-holder
+         (Auth0AuthUtil/getUserInfo auth-api (.getAccessToken token-holder))))))
+
 (defn auth0-user-delete [env arg]
   #?(:clj
      (let [store (env/get-store env)
