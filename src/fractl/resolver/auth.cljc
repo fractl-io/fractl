@@ -2,6 +2,7 @@
   "Authentication management"
   (:require [fractl.util :as u]
             [fractl.resolver.core :as r]
+            [fractl.store :as s]
             [fractl.component :as cn]
             [fractl.lang.datetime :as dt])
   #?(:clj (:import [fractl.auth.auth0 Auth0AuthUtil])))
@@ -55,6 +56,10 @@
                 #(assoc
                   @db (:Id inst)
                   inst-with-attrs))
+               (s/upsert-instance
+                (s/get-default-store)
+                 ":Kernel/AuthResponse"
+                 (cn/make-instance auth-response))
                auth-response)))))
            
 (defn- auth-kernel-oauth2-upsert [inst]
