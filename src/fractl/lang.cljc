@@ -82,7 +82,7 @@
   [attr-schema]
   (if-let [xs (seq (:oneof attr-schema))]
     (let [values (set (normalize-oneof-values xs))]
-      (assoc (dissoc (assoc-oneof-default attr-schema) :oneof)
+      (assoc (assoc-oneof-default attr-schema)
              :check (fn [x] (some #{x} values))))
     attr-schema))
 
@@ -141,6 +141,7 @@
       :var (li/validate-bool :var v)
       :writer (li/validate fn? ":writer must be a function" v)
       :secure-hash (li/validate-bool :secure-hash v)
+      :oneof v
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}
