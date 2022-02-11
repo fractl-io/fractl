@@ -3,6 +3,7 @@
             [fractl.lang.internal :as li]
             [fractl.resolver.remote :as remote]
             [fractl.resolver.policy :as policy]
+            [fractl.resolver.meta :as meta]
             [fractl.resolver.auth :as auth]
             [fractl.resolver.auth0-user :as auth0-user]            
             [fractl.resolver.timer :as timer]
@@ -69,6 +70,7 @@
 (def constructors
   (u/make-cell
    (merge {:remote remote/make
+           :meta meta/make
            :policy policy/make
            :auth auth/make
            :auth0-user auth0-user/make

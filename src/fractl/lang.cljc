@@ -665,6 +665,12 @@
            :TimeoutMillis {:type :Kernel/Int
                            :default 2000}})
 
+  (entity
+   :Kernel/Meta
+   {:Type {:oneof [:model :component :record
+                   :entity :event :dataflow]}
+    :Spec :Kernel/Edn})
+
   (entity :Kernel/OAuthAnyRequest
        {:ClientID :Kernel/String
         :ClientSecret :Kernel/String
@@ -759,7 +765,11 @@
                                 :optional true}})
 
        (r/register-resolvers
-        [{:name :policy
+        [{:name :meta
+          :type :meta
+          :compose? false
+          :paths [:Kernel/Meta]}
+         {:name :policy
           :type :policy
           :compose? false
           :paths [:Kernel/Policy]}
