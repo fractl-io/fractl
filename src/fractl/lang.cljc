@@ -768,6 +768,12 @@
         [{:name :meta
           :type :meta
           :compose? false
+          :config {:fractl-api
+                   {:component component
+                    :entity entity
+                    :event event
+                    :record record
+                    :dataflow dataflow}}
           :paths [:Kernel/Meta]}
          {:name :policy
           :type :policy
