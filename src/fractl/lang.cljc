@@ -668,8 +668,36 @@
   (entity
    :Kernel/Meta
    {:Type {:oneof [:model :component :record
-                   :entity :event :dataflow]}
+                   :entity :event :dataflow]
+           :indexed true}
+    ;; For records, entities etc :Parent
+    ;; should be a component name. For component,
+    ;; :Parent is a model. For model, :Parent need not
+    ;; be specified.
+    :Parent {:type :Kernel/String
+             :indexed true
+             :default ""}
     :Spec :Kernel/Edn})
+
+  (event
+   :Kernel/QueryMeta
+   {:Type :Kernel/String
+    :Parent :Kernel/String})
+
+  (dataflow
+   :Kernel/QueryMeta
+   {:Kernel/QueryMeta
+    {:Type :Kernel/QueryMeta.Type
+     :Parent :Kernel/QueryMeta.Parent}})
+
+  (event
+   :Kernel/LoadModelFromMeta
+   {:Model :Kernel/String})
+
+  (dataflow
+   :Kernel/LoadModelFromMeta
+   {:Kernel/LoadModelFromMeta
+    {:Model :Kernel/LoadModelFromMeta.Model}})
 
   (entity :Kernel/OAuthAnyRequest
        {:ClientID :Kernel/String
@@ -774,7 +802,7 @@
                     :event event
                     :record record
                     :dataflow dataflow}}
-          :paths [:Kernel/Meta]}
+          :paths [:Kernel/QueryMeta :Kernel/LoadModelFromMeta]}
          {:name :policy
           :type :policy
           :compose? false

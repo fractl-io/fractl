@@ -2,59 +2,39 @@
   "Dynamic model definition"
   (:require [fractl.util :as u]
             [fractl.component :as cn]
-            [fractl.resolver.core :as r])
-  #?(:clj (:import [java.io File])))
+            [fractl.store :as store]
+            [fractl.store.util :as su]
+            [fractl.resolver.core :as r]))
 
-(def ^:private models-root "models")
-(def ^:private model-spec-keys #{:name :components :config})
+(defn- query-meta [meta-type parent]
+  (let [store (store/get-default-store)
+        q (store/compile-query
+           store
+           {:from :Kernel/Meta
+            :where [:and
+                    [:= :Type meta-type]
+                    [:= :Parent parent]]})]
+    (su/results-as-instances
+     :Kernel/Meta
+     (store/do-query store (first q) (rest q)))))
 
-(defn- validate-model [spec]
-  (doseq [k (keys spec)]
-    (when-not (some #{k} model-spec-keys)
-      (u/throw-ex (str "invalid key in model spec - " k))))
-  spec)
+(defn- load-model-from-meta [model-name]
+  )
 
-(defn- init-model [spec]
-  (if-let [model-name (:name spec)]
-    (let [spec (validate-model spec)]
-      #?(:clj
-         (let [dir (str models-root File/separator (name model-name))]
-           (.mkdir (File. dir))
-           (spit (str dir File/separator u/model-script-name) spec)))
-      model-name)
-    (u/throw-ex "failed to init model, name missing")))
-
-(defn meta-upsert [fractl-api meta-inst]
-  (let [t (u/string-as-keyword (:Type meta-inst))
-        spec (:Spec meta-inst)]
-    (if (= t :model)
-      (init-model spec)
-      (let [f (t fractl-api)]
-        (if f
-          (if (= t :dataflow)
-            (apply f spec)
-            (f spec))
-          (u/throw-ex (str "upsert failed, invalid :Kernel/Meta.Type - " t)))))))
-
-(defn- meta-delete [fractl-api meta-inst]
-  ;; TODO: implement delete
-  (:Id meta-inst))
-
-(defn- meta-query [fractl-api query]
-  ;; TODO: implement fractl type lookup
-  nil)
+(defn- meta-eval [fractl-api event-instance]
+  (let [[c n] (cn/instance-name event-instance)]
+    (when (= c :Kernel)
+      (case n
+        :QueryMeta (query-meta (:Type event-instance) (:Parent event-instance))
+        :LoadModelFromMeta (load-model-from-meta (:Model event-instance))
+        nil))))
 
 (def ^:private resolver-fns
-  {:upsert {:handler meta-upsert}
-   :delete {:handler meta-delete}
-   :query {:handler meta-query}})
+  {:eval {:handler meta-eval}})
 
 (defn make
   "Create and return a policy resolver"
   [resolver-name config]
-  (let [fractl-api (:fractl-api config)]
-    (r/make-resolver
-     resolver-name
-     {:upsert {:handler (partial meta-upsert fractl-api)}
-      :delete {:handler (partial meta-delete fractl-api)}
-      :query {:handler (partial meta-query fractl-api)}})))
+  (r/make-resolver
+   resolver-name
+   {:eval {:handler (partial meta-eval (:fractl-api config))}}))
