@@ -12,6 +12,7 @@
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.store :as store]
+            [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.loader :as loader])
@@ -159,8 +160,10 @@
   (let [config-file (get options :config)
         config (when config-file
                  (read-string (slurp config-file)))
-        model (maybe-read-model args)]
-    [model (merge (:config model) config)]))
+        model (maybe-read-model args)
+        final-config (merge (:config model) config)]
+    (gs/set-config! final-config)
+    [model final-config]))
 
 (defn- read-model-from-resource [component-root]
   (if-let [model (read-string
@@ -208,6 +211,7 @@
               (do
                 (initialize)
                 (let [[config model components] (load-model-from-resource)]
+                  (gs/set-config! config)
                   (when-not (seq components)
                     (u/throw-ex (str "no components loaded from model " model)))
                   (first (init-runtime model components config)))))

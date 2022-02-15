@@ -4,6 +4,7 @@
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
             [ring.util.codec :as codec]
+            [fractl.global-state :as gs]
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.http :as uh]
@@ -23,8 +24,12 @@
    The map object will be encoded as JSON in the response.
    Also see: https://github.com/ring-clojure/ring/wiki/Creating-responses"
   [json-obj status data-fmt]
-  (let [r {:status status
-           :headers {"Content-Type" (uh/content-type data-fmt)}
+  (let [cfg (gs/fetch-config)
+        r {:status status
+           :headers {"Content-Type" (uh/content-type data-fmt)
+                     "Access-Control-Allow-Headers" (cfg [:cors :allow-headers] "*")
+                     "Access-Control-Allow-Origin"  (cfg [:cors :allow-origin] "*")
+                     "Access-Control-Allow-Methods" (cfg [:cors :allow-methods] "OPTIONS,POST,GET")}
            :body ((uh/encoder data-fmt) json-obj)}]
     r))
 
