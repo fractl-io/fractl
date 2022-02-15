@@ -6,14 +6,14 @@
             [fractl.store.util :as su]
             [fractl.resolver.core :as r]))
 
-(defn- query-meta [meta-type parent]
+(defn- query-meta [meta-type meta-name]
   (let [store (store/get-default-store)
         q (store/compile-query
            store
            {:from :Kernel/Meta
             :where [:and
                     [:= :Type meta-type]
-                    [:= :Parent parent]]})]
+                    [:= :Name meta-name]]})]
     (su/results-as-instances
      :Kernel/Meta
      (store/do-query store (first q) (rest q)))))
@@ -25,7 +25,7 @@
   (let [[c n] (cn/instance-name event-instance)]
     (when (= c :Kernel)
       (case n
-        :QueryMeta (query-meta (:Type event-instance) (:Parent event-instance))
+        :QueryMeta (query-meta (:Type event-instance) (:Name event-instance))
         :LoadModelFromMeta (load-model-from-meta (:Model event-instance))
         nil))))
 

@@ -670,25 +670,20 @@
    {:Type {:oneof [:model :component :record
                    :entity :event :dataflow]
            :indexed true}
-    ;; For records, entities etc :Parent
-    ;; should be a component name. For component,
-    ;; :Parent is a model. For model, :Parent need not
-    ;; be specified.
-    :Parent {:type :Kernel/String
-             :indexed true
-             :default ""}
+    :Name {:type :Kernel/String
+           :indexed true}
     :Spec :Kernel/Edn})
 
   (event
    :Kernel/QueryMeta
    {:Type :Kernel/String
-    :Parent :Kernel/String})
+    :Name :Kernel/String})
 
   (dataflow
    :Kernel/QueryMeta
    {:Kernel/QueryMeta
     {:Type :Kernel/QueryMeta.Type
-     :Parent :Kernel/QueryMeta.Parent}})
+     :Name :Kernel/QueryMeta.Name}})
 
   (event
    :Kernel/LoadModelFromMeta
