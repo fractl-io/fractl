@@ -150,7 +150,7 @@
   (:Id inst))
 
 (defn- policy-query [query]
-  ;; TODO: implement delete
+  ;; TODO: implement query
   nil)
 
 (def ^:private resolver-fns
