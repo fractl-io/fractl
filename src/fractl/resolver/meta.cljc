@@ -2,11 +2,11 @@
   "Dynamic model definition"
   (:require [fractl.util :as u]
             [fractl.component :as cn]
-            [fractl.store :as store]
-            [fractl.store.util :as su]
             [fractl.resolver.core :as r]))
 
 (defn- load-model-from-meta [model-name]
+  ;; TODO: implement model-loading from store
+  ;; See https://github.com/fractl-io/fractl/issues/471
   )
 
 (defn- meta-eval [fractl-api event-instance]
