@@ -482,25 +482,36 @@
       [evtname (rewrite-on-event-patterns patterns recname evtname)])
     (u/throw-ex (str "invalid event trigger - " (second match-pat)))))
 
+(defn- event-self-ref-pattern [event-name]
+  (if-let [scm (:schema (cn/find-event-schema event-name))]
+    (let [prefix (subs (str event-name) 1)
+          attrs (mapv (fn [[k _]]
+                        [k (keyword (str prefix "." (name k)))])
+                      scm)]
+      [{event-name (into {} attrs)}])
+    (u/throw-ex (str "cannot auto-generate dataflow patterns, event schema not found - " event-name))))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
-  (if (on-event-pattern? match-pat)
-    (let [[mp ps] (translate-on-event-pattern match-pat patterns)]
-      (apply dataflow mp ps))
-    (do
-      (ensure-dataflow-patterns! patterns)
-      (if (vector? match-pat)
-        (apply
-         dataflow
-         (install-event-trigger-pattern match-pat)
-         patterns)
-        (let [hd (:head match-pat)]
-          (if-let [mt (and hd (:on-entity-event hd))]
-            (cn/register-entity-dataflow mt hd patterns)
-            (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-              (do (ensure-event! event)
-                  (cn/register-dataflow event hd patterns)))))))))
+  (if (not (seq patterns))
+    (apply dataflow match-pat (event-self-ref-pattern match-pat))
+    (if (on-event-pattern? match-pat)
+      (let [[mp ps] (translate-on-event-pattern match-pat patterns)]
+        (apply dataflow mp ps))
+      (do
+        (ensure-dataflow-patterns! patterns)
+        (if (vector? match-pat)
+          (apply
+           dataflow
+           (install-event-trigger-pattern match-pat)
+           patterns)
+          (let [hd (:head match-pat)]
+            (if-let [mt (and hd (:on-entity-event hd))]
+              (cn/register-entity-dataflow mt hd patterns)
+              (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
+                (do (ensure-event! event)
+                    (cn/register-dataflow event hd patterns))))))))))
 
 (defn- crud-evname [entity-name evtname]
   (cn/canonical-type-name
@@ -681,18 +692,15 @@
 
   (dataflow
    :Kernel/QueryMeta
-   {:Kernel/QueryMeta
-    {:Type :Kernel/QueryMeta.Type
-     :Name :Kernel/QueryMeta.Name}})
+   {:Kernel/Meta
+    {:Type? :Kernel/QueryMeta.Type
+     :Name? [:like :Kernel/QueryMeta.Name]}})
 
   (event
    :Kernel/LoadModelFromMeta
    {:Model :Kernel/String})
 
-  (dataflow
-   :Kernel/LoadModelFromMeta
-   {:Kernel/LoadModelFromMeta
-    {:Model :Kernel/LoadModelFromMeta.Model}})
+  (dataflow :Kernel/LoadModelFromMeta)
 
   (entity :Kernel/OAuthAnyRequest
        {:ClientID :Kernel/String
@@ -797,7 +805,7 @@
                     :event event
                     :record record
                     :dataflow dataflow}}
-          :paths [:Kernel/QueryMeta :Kernel/LoadModelFromMeta]}
+          :paths [:Kernel/LoadModelFromMeta]}
          {:name :policy
           :type :policy
           :compose? false
