@@ -129,15 +129,18 @@
         i
         (recur (rest xs) (inc i))))))
 
-(defn keys-as-keywords [m]
+(defn- transform-keys [predic cast a-map]
   (let [r (mapv
            (fn [[k v]]
-             [(if (string? k)
-                (keyword k)
+             [(if (predic k)
+                (cast k)
                 k)
               (if (or (map? v)
                       #?(:clj (instance? java.util.Map v)))
-                (keys-as-keywords v)
+                (transform-keys predic cast v)
                 v)])
-           m)]
+           a-map)]
     (into {} r)))
+
+(def keys-as-keywords (partial transform-keys string? keyword))
+(def keyword-keys-as-strings (partial transform-keys keyword? #(subs (str %) 1)))
