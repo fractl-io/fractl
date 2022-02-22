@@ -212,7 +212,7 @@
                     (u/throw-ex (str "no components loaded from model " model)))
                   (first (init-runtime model components config)))))
         parsed-request (normalize-external-request request)]
-    [(h/process-request e parsed-request) e]))
+    [(json/generate-string (h/process-request e parsed-request)) e]))
 
 (defn -process_request [a b]
   (process_request a b))
