@@ -70,9 +70,12 @@
                  (String.
                   (.bytes body)
                   java.nio.charset.StandardCharsets/UTF_8)))
-          obj-name (li/split-path (u/string-as-keyword (first (keys obj))))]
+          obj-name (or (cn/instance-name obj)
+                       (li/split-path
+                        (u/string-as-keyword
+                         (first (keys obj)))))]
       (if (or (not event-name) (= obj-name event-name))
-        [(cn/make-event-instance obj-name (first (vals obj))) nil]
+        [(if (cn/an-instance? obj) obj (cn/make-event-instance obj-name (first (vals obj)))) nil]
         [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
     (catch Exception ex
       (log/exception ex)
