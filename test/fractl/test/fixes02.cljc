@@ -470,3 +470,61 @@
             {:I450/Main {}})]
      (is (cn/instance-of? :I450/E r))
      (is (= 105 (:X r))))))
+
+(deftest issue-479-idempotent-update
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I479
+     (entity
+      :I479/Bid
+      {:meta {:unique [:JobId :UserId]}
+       :JobId :Kernel/Int
+       :UserId :Kernel/Int
+       :StatusDate {:type :Kernel/DateTime
+                    :default dt/now}
+       :Status {:oneof ["default" "decline" "bid"]
+                :default "default"}})
+     (dataflow
+      :I479/BidForJob
+      {:I479/Bid {:JobId :I479/BidForJob.JobId
+                  :UserId :I479/BidForJob.UserId
+                  :Status :I479/BidForJob.Status}}))
+   (let [bid1 (tu/first-result
+               {:I479/Upsert_Bid
+                {:Instance
+                 {:I479/Bid
+                  {:JobId 1
+                   :UserId 101}}}})
+         bid2 (tu/first-result
+               {:I479/Upsert_Bid
+                {:Instance
+                 {:I479/Bid
+                  {:JobId 2
+                   :UserId 102}}}})
+         j1 (tu/first-result
+             {:I479/BidForJob
+              {:JobId 1
+               :UserId 101
+               :Status "bid"}})
+         j2 (tu/first-result
+             {:I479/BidForJob
+              {:JobId 2
+               :UserId 102
+               :Status "decline"}})
+         j3 (tu/first-result
+             {:I479/BidForJob
+              {:JobId 3
+               :UserId 103
+               :Status "default"}})
+         bid1b (get-in j1 [:transition :to])
+         bid2b (get-in j2 [:transition :to])]
+     (defn inplace-update? [b1 b2 b2-status]
+       (is (and (= (:Id b1) (:Id b2))
+                (= (:JobId b1) (:JobId b2))
+                (= (:UserId b1) (:UserId b2))
+                (= b2-status (:Status b2))
+                (= "default" (:Status b1)))))
+     (inplace-update? bid1 bid1b "bid")
+     (inplace-update? bid2 bid2b "decline")
+     (is (and (= (:JobId j3) 3) (= (:UserId j3) 103)
+              (= "default" (:Status j3)))))))

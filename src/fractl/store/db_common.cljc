@@ -202,7 +202,7 @@
        (execute-stmt! conn pstmt params)))))
 
 (defn- query-relational-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
-  (let [sql (sql/compile-to-direct-query (su/table-for-entity entity-name) (mapv name unique-keys) :or)]
+  (let [sql (sql/compile-to-direct-query (su/table-for-entity entity-name) (mapv name unique-keys) :and)]
     (when-let [rows (seq (do-query datasource sql (mapv #(attribute-values %) unique-keys)))]
       (su/result-as-instance entity-name (first rows)))))
 
