@@ -49,48 +49,47 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :I196
-     (entity {:I196/E1 {:A :Kernel/Int
-                        :B :Kernel/Int
-                        :C :Kernel/Int
-                        :meta {:unique [:A :C]}}}))
+     (entity
+      :I196/E1
+      {:A :Kernel/Int
+       :B :Kernel/Int
+       :C :Kernel/Int
+       :meta {:unique [:A :C]}}))
    (let [e01 (cn/make-instance :I196/E1 {:A 10 :B 20 :C 30})
          evt1 (cn/make-instance {:I196/Upsert_E1 {:Instance e01}})
-         e02 (cn/make-instance :I196/E1 {:A 10 :B 40 :C 50})
+         e02 (cn/make-instance :I196/E1 {:A 10 :B 40 :C 30})
          evt2 (cn/make-instance {:I196/Upsert_E1 {:Instance e02}})
-         e03 (cn/make-instance :I196/E1 {:A 20 :B 60 :C 30})
+         e03 (cn/make-instance :I196/E1 {:A 20 :B 60 :C 40})
          evt3 (cn/make-instance {:I196/Upsert_E1 {:Instance e03}})
-         e04 (cn/make-instance :I196/E1 {:A 20 :B 40 :C 70})
+         e04 (cn/make-instance :I196/E1 {:A 20 :B 40 :C 40})
          evt4 (cn/make-instance {:I196/Upsert_E1 {:Instance e04}})
          results (mapv #(first (tu/fresult (e/eval-all-dataflows %)))
                        [evt1 evt2 evt3 evt4])]
-     (is (cn/instance-of?
-          :I196/E1
-          (first results)))
+     (is (cn/instance-of? :I196/E1 (first results)))
+     (is (cn/instance-of? :I196/E1 (nth results 2)))
      (let [a (partial assert-transition [:A :B :C])]
        (a [10 20 30] [10 40 30] (second results))
-       (a [10 40 30] [10 60 30] (nth results 2)))
-     (is (cn/instance-of? :I196/E1 (nth results 3)))
-     (is (= [20 40 70] (mapv #(% (nth results 3)) [:A :B :C]))))))
+       (a [20 60 40] [20 40 40] (nth results 3))))))
 
 (deftest issue-206
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :I206
-     (entity {:I206/E1 {:A :Kernel/Int
-                        :B :Kernel/Int
-                        :C :Kernel/Int
-                        :meta {:unique [:A :C]}}}))
+     (entity
+      :I206/E1
+      {:A :Kernel/Int
+       :B :Kernel/Int
+       :C :Kernel/Int
+       :meta {:unique [:A :C]}}))
    (let [e01 (cn/make-instance :I206/E1 {:A 10 :B 20 :C 30})
          evt1 (cn/make-instance {:I206/Upsert_E1 {:Instance e01}})
-         e02 (cn/make-instance :I206/E1 {:A 10 :B 0 :C 50})
+         e02 (cn/make-instance :I206/E1 {:A 10 :B 0 :C 30})
          evt2 (cn/make-instance {:I206/Upsert_E1 {:Instance e02}})
-         e03 (cn/make-instance :I206/E1 {:A 20 :B 60 :C 30})
+         e03 (cn/make-instance :I206/E1 {:A 10 :B 60 :C 30})
          evt3 (cn/make-instance {:I206/Upsert_E1 {:Instance e03}})
          results (mapv #(first (tu/fresult (e/eval-all-dataflows %)))
                        [evt1 evt2 evt3])]
-     (is (cn/instance-of?
-          :I206/E1
-          (first results)))
+     (is (cn/instance-of? :I206/E1 (first results)))
      (let [a (partial assert-transition [:A :B :C])]
        (a [10 20 30] [10 0 30] (second results))
        (a [10 0 30] [10 60 30] (nth results 2))))))
