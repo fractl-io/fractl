@@ -1,0 +1,31 @@
+(ns sample.accounts
+  (:require [fractl.lang
+             :refer [component attribute event
+                     entity record dataflow]]
+            [fractl.lang.datetime :as dt]))
+
+(component :Acme.Accounting)
+
+(entity
+ :Acme.Accounting/Account
+ {:Title :Kernel/String})
+
+(entity
+ :Acme.Accounting/Transaction
+ {:Serial {:type :Kernel/Int
+           :unique true}
+  :Date {:type :Kernel/DateTime
+         :default dt/now
+         :indexed true}
+  :Head :Kernel/UUID ;{:ref :Acme.Accounting/Account.Id}
+  :Amount :Kernel/Decimal
+  :Type {:oneof [:Debit :Credit]}})
+
+(event
+ :Acme.Accounting/QueryTransaction
+ {:Q :Kernel/Decimal})
+
+(dataflow
+ :Acme.Accounting/QueryTransaction
+ {:Acme.Accounting/Transaction
+  {:Amount? [:>= :Acme.Accounting/QueryTransaction.Q]}})

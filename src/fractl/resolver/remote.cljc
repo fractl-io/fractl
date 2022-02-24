@@ -9,19 +9,22 @@
   (let [[component inst-name] (li/split-path (cn/instance-name inst))]
     (str (name component) "/" (name event-type) "_" (name inst-name))))
 
-(defn- response-handler [response]
-  (if (map? response)
-    (let [status (:status response)]
-      (if (< 199 status 299)
-        #?(:clj
-           ((uh/decoder format) (:body response))
-           :cljs (:body response))
-        (u/throw-ex (str "remote resolver error - " response))))
-    response))
+(defn- response-handler [callback response]
+  ((or callback identity)
+   (if (map? response)
+     (let [status (:status response)]
+       (if (< 199 status 299)
+         #?(:clj
+            ((uh/decoder format) (:body response))
+            :cljs (:body response))
+         (u/throw-ex (str "remote resolver error - " response))))
+     response)))
 
 (defn- do-post
   ([url options request-obj format]
-   (uh/do-post url options request-obj format response-handler))
+   (uh/do-post
+    url (dissoc options :callback)
+    request-obj format (partial response-handler (:callback options))))
   ([url options request-obj]
    (do-post url options request-obj :transit+json)))
 
