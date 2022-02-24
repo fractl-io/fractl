@@ -334,11 +334,7 @@
                            (required-attribute-names attrs))
         req-attrs (concat req-orig-attrs req-inherited-attrs)
         attrs-with-defaults (into {} (map (partial assoc-defaults req-attrs) attrs))
-        unique-attr-names (:unique meta)
-        attrs-with-uq-flags (if unique-attr-names
-                              (merge-unique-flags attrs-with-defaults unique-attr-names)
-                              attrs-with-defaults)
-        newattrs (map (partial normalize-attr recname attrs f) attrs-with-uq-flags)
+        newattrs (map (partial normalize-attr recname attrs f) attrs-with-defaults)
         final-attrs (into {} (validate-attributes newattrs))]
     (assoc final-attrs :meta (assoc meta :required-attributes req-attrs :record-type rectype))))
 

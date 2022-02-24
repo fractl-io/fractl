@@ -516,6 +516,10 @@
               {:JobId 3
                :UserId 103
                :Status "default"}})
+         j4 (tu/first-result
+             {:I479/BidForJob
+              {:JobId 1
+               :UserId 102}})
          bid1b (get-in j1 [:transition :to])
          bid2b (get-in j2 [:transition :to])]
      (defn inplace-update? [b1 b2 b2-status]
@@ -527,4 +531,6 @@
      (inplace-update? bid1 bid1b "bid")
      (inplace-update? bid2 bid2b "decline")
      (is (and (= (:JobId j3) 3) (= (:UserId j3) 103)
-              (= "default" (:Status j3)))))))
+              (= "default" (:Status j3))))
+     (is (and (= (:JobId j4) 1) (= (:UserId j4) 102)
+              (= "default" (:Status j4)))))))

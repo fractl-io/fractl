@@ -38,7 +38,8 @@
 (def id-type (sql/attribute-to-sql-type :Kernel/UUID))
 
 (defn- create-relational-table-sql [table-name entity-schema
-                                    indexed-attributes unique-attributes]
+                                    indexed-attributes unique-attributes
+                                    compound-unique-attributes]
   (concat
    [(str su/create-table-prefix " " table-name " ("
          (loop [attrs (sort (keys entity-schema)), cols ""]
@@ -62,13 +63,17 @@
                     #?(:clj "IF NOT EXISTS "
                        :cljs "")
                     n "_Idx ON " table-name "(_" n ")")))
-           indexed-attributes))))
+           indexed-attributes))
+   (when (seq compound-unique-attributes)
+     [(str "ALTER TABLE " table-name " ADD CONSTRAINT " table-name "_compound_uks UNIQUE "
+           "(" (s/join ", " (mapv #(str "_" (name %)) compound-unique-attributes)) ")")])))
 
 (defn- create-relational-table [connection entity-schema table-name
-                                indexed-attrs unique-attributes]
+                                indexed-attrs unique-attributes
+                                compound-unique-attributes]
   (let [ss (create-relational-table-sql
             table-name entity-schema indexed-attrs
-            unique-attributes)]
+            unique-attributes compound-unique-attributes)]
     (doseq [sql ss]
       (when-not (execute-sql! connection [sql])
         (u/throw-ex (str "Failed to execute SQL - " sql))))
@@ -97,12 +102,12 @@
        (doseq [ename (cn/entity-names component-name)]
          (when-not (cn/entity-schema-predefined? ename)
            (let [tabname (su/table-for-entity ename)
-                 schema (su/find-entity-schema ename)
-                 indexed-attrs (cn/indexed-attributes schema)]
+                 schema (su/find-entity-schema ename)]
              (create-relational-table
               txn schema tabname
-              indexed-attrs
-              (cn/unique-attributes schema)))))))
+              (cn/indexed-attributes schema)
+              (cn/unique-attributes schema)
+              (cn/compound-unique-attributes ename)))))))
     component-name))
 
 (defn drop-schema
