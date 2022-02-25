@@ -73,11 +73,19 @@
         (recur (rest ks) result))
       result)))
 
+(defn- maybe-remove-id [uq-attrs]
+  (if (> (count uq-attrs) 1)
+    (vec (filter #(not= % :Id) uq-attrs))
+    uq-attrs))
+
 (defn upsert-instance [store record-name instance]
-  (let [uq-attrs (cn/unique-attributes
-                  (su/find-entity-schema record-name))]
+  (let [uq-attrs (concat
+                  (cn/unique-attributes
+                   (su/find-entity-schema record-name))
+                  (cn/compound-unique-attributes record-name))]
     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
-                               (p/query-by-unique-keys store record-name uq-attrs instance))]
+                               (p/query-by-unique-keys
+                                store record-name (maybe-remove-id uq-attrs) instance))]
       (let [new-instance
             (cn/validate-instance
              (p/update-instance
