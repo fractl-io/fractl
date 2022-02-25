@@ -1220,3 +1220,6 @@
 
 (defn meta-attribute-name? [k]
   (some #{k} [name-key type-tag-key dirty-key meta-key]))
+
+(defn compound-unique-attributes [entity-name]
+  (:unique (fetch-meta entity-name)))
