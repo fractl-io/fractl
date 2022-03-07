@@ -784,20 +784,28 @@
               {:To :Kernel/String
                :Body :Kernel/String})
 
-       (event :Sns/Push
-              {:Message     {:type :Kernel/String
-                             :optional true}
-               :Type        :Kernel/String
-               :TargetArn   {:type :Kernel/String
-                             :optional true}
-               :Token       {:type :Kernel/String
-                             :optional true}
-               :PhoneNumber {:type :Kernel/String
-                             :optional true}
-               :Title       {:type :Kernel/String
-                             :optional true}
-               :Body        {:type :Kernel/String
-                             :optional true}})
+       (event :Sns/Message
+              {:Message                {:type     :Kernel/String
+                                        :optional true}
+               :Type                   :Kernel/String
+               :TargetArn              {:type     :Kernel/String
+                                        :optional true}
+               :Token                  {:type     :Kernel/String
+                                        :optional true}
+               :PhoneNumber            {:type     :Kernel/String
+                                        :optional true}
+               :Title                  {:type     :Kernel/String
+                                        :optional true}
+               :Body                   {:type     :Kernel/String
+                                        :optional true}
+               :Platform               {:oneof ["ADM" "APNS" "APNS_SANDBOX" "GCM"]}
+               :Attributes             {:listof {:type :Kernel/String}}
+               :PlatformApplicationArn {:type     :Kernel/String
+                                        :optional true}
+               :CustomUserData         {:type     :Kernel/String
+                                        :optional true}
+               :TopicArn               {:type     :Kernel/String
+                                        :optional true}})
 
        (record :Kernel/DataSource
                {:Uri {:type :Kernel/String
@@ -857,7 +865,7 @@
          {:name :sns
           :type :sns
           :compose? false
-          :paths [:Sns/Push]}]))))
+          :paths [:Sns/Message]}]))))
 
 (defn- initf []
   (when-not @kernel-inited
