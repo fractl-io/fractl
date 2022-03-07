@@ -784,6 +784,25 @@
               {:To :Kernel/String
                :Body :Kernel/String})
 
+       (record {:PlatformAttributes
+                {:PlatformCredential        :Kernel/String
+                 :PlatformPrincipal         {:type :Kernel/String
+                                             :optional true}
+                 :EventEndpointCreated      {:type :Kernel/String
+                                             :optional true}
+                 :EventEndpointDeleted      {:type :Kernel/String
+                                             :optional true}
+                 :EventEndpointUpdated      {:type :Kernel/String
+                                             :optional true}
+                 :EventDeliveryFailure      {:type :Kernel/String
+                                             :optional true}
+                 :SuccessFeedbackRoleArn    {:type :Kernel/String
+                                             :optional true}
+                 :FailureFeedbackRoleArn     {:type :Kernel/String
+                                              :optional true}
+                 :SuccessFeedbackSampleRate {:type :Kernel/String
+                                             :optional true}}})
+
        (event :Sns/Message
               {:Message                {:type     :Kernel/String
                                         :optional true}
@@ -799,7 +818,7 @@
                :Body                   {:type     :Kernel/String
                                         :optional true}
                :Platform               {:oneof ["ADM" "APNS" "APNS_SANDBOX" "GCM"]}
-               :Attributes             {:listof {:type :Kernel/String}}
+               :Attributes             {:listof :PlatformAttributes}
                :PlatformApplicationArn {:type     :Kernel/String
                                         :optional true}
                :CustomUserData         {:type     :Kernel/String
