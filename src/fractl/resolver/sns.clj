@@ -1,5 +1,5 @@
-(ns fractl.resolver.aws
-  "AWS Resolver"
+(ns fractl.resolver.sns
+  "SNS Resolver"
   (:require [fractl.util :as u]
             [fractl.resolver.core :as r]
             [cognitect.aws.client.api :as aws]

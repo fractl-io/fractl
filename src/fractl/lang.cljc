@@ -784,7 +784,7 @@
               {:To :Kernel/String
                :Body :Kernel/String})
 
-       (record {:PlatformAttributes
+       #_(record {:PlatformAttributes
                 {:PlatformCredential        :Kernel/String
                  :PlatformPrincipal         {:type :Kernel/String
                                              :optional true}
@@ -818,7 +818,7 @@
                :Body                   {:type     :Kernel/String
                                         :optional true}
                :Platform               {:oneof ["ADM" "APNS" "APNS_SANDBOX" "GCM"]}
-               :Attributes             {:listof :PlatformAttributes}
+               ;:Attributes             {:listof :PlatformAttributes}
                :PlatformApplicationArn {:type     :Kernel/String
                                         :optional true}
                :CustomUserData         {:type     :Kernel/String

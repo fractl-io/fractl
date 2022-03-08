@@ -11,7 +11,7 @@
             #?(:clj [fractl.resolver.git :as git])
             #?(:clj [fractl.resolver.email :as email])
             #?(:clj [fractl.resolver.sms :as sms])
-            #?(:clj [fractl.resolver.aws :as sns])))
+            #?(:clj [fractl.resolver.sns :as sns])))
 
 (def ^:private type-tag :-*-resolver-registry-*-)
 (def ^:private parent-tag :-*-parent-*-)
