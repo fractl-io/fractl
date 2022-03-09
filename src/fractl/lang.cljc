@@ -785,24 +785,24 @@
               {:To :Kernel/String
                :Body :Kernel/String})
 
-       #_(record {:PlatformAttributes
-                {:PlatformCredential        :Kernel/String
-                 :PlatformPrincipal         {:type :Kernel/String
-                                             :optional true}
-                 :EventEndpointCreated      {:type :Kernel/String
-                                             :optional true}
-                 :EventEndpointDeleted      {:type :Kernel/String
-                                             :optional true}
-                 :EventEndpointUpdated      {:type :Kernel/String
-                                             :optional true}
-                 :EventDeliveryFailure      {:type :Kernel/String
-                                             :optional true}
-                 :SuccessFeedbackRoleArn    {:type :Kernel/String
-                                             :optional true}
-                 :FailureFeedbackRoleArn     {:type :Kernel/String
-                                              :optional true}
-                 :SuccessFeedbackSampleRate {:type :Kernel/String
-                                             :optional true}}})
+       (record :Aws/PlatformAttributes
+               {:PlatformCredential        :Kernel/String
+                :PlatformPrincipal         {:type     :Kernel/String
+                                            :optional true}
+                :EventEndpointCreated      {:type     :Kernel/String
+                                            :optional true}
+                :EventEndpointDeleted      {:type     :Kernel/String
+                                            :optional true}
+                :EventEndpointUpdated      {:type     :Kernel/String
+                                            :optional true}
+                :EventDeliveryFailure      {:type     :Kernel/String
+                                            :optional true}
+                :SuccessFeedbackRoleArn    {:type     :Kernel/String
+                                            :optional true}
+                :FailureFeedbackRoleArn    {:type     :Kernel/String
+                                            :optional true}
+                :SuccessFeedbackSampleRate {:type     :Kernel/String
+                                            :optional true}})
 
        (event :Aws/Config
               {:Type                   :Kernel/String
@@ -810,7 +810,7 @@
                                         :optional true}
                :Platform               {:type     :Kernel/String
                                         :optional true}
-               :Attributes             {:type     :Kernel/String
+               :Attributes             {:listof :Aws/PlatformAttributes
                                         :optional true}
                :PlatformApplicationArn {:type     :Kernel/String
                                         :optional true}
