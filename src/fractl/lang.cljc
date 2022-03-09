@@ -769,6 +769,7 @@
        (cn/create-component :Git {})
        (cn/create-component :Email {})
        (cn/create-component :Sms {})
+       (cn/create-component :Aws {})
        (cn/create-component :Sns {})
 
        (event :Git/Push
