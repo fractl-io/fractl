@@ -11,6 +11,7 @@
             #?(:clj [fractl.resolver.git :as git])
             #?(:clj [fractl.resolver.email :as email])
             #?(:clj [fractl.resolver.sms :as sms])
+            #?(:clj [fractl.resolver.aws :as aws])
             #?(:clj [fractl.resolver.sns :as sns])))
 
 (def ^:private type-tag :-*-resolver-registry-*-)
@@ -80,6 +81,7 @@
           #?(:clj {:git git/make})
           #?(:clj {:email email/make})
           #?(:clj {:sms sms/make})
+          #?(:clj {:aws aws/make})
           #?(:clj {:sns sns/make}))))
 
 (defn register-resolver-type [type-name constructor]

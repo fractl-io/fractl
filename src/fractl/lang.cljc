@@ -803,6 +803,27 @@
                  :SuccessFeedbackSampleRate {:type :Kernel/String
                                              :optional true}}})
 
+       (event :Aws/Config
+              {:Type                   :Kernel/String
+               :Name                   {:type     :Kernel/String
+                                        :optional true}
+               :Platform               {:type     :Kernel/String
+                                        :optional true}
+               :Attributes             {:type     :Kernel/String
+                                        :optional true}
+               :PlatformApplicationArn {:type     :Kernel/String
+                                        :optional true}
+               :EndpointArn            {:type     :Kernel/String
+                                        :optional true}
+               :TopicArn               {:type     :Kernel/String
+                                        :optional true}
+               :Protocol               {:type     :Kernel/String
+                                        :optional true}
+               :Token                  {:type     :Kernel/String
+                                        :optional true}
+               :SubscriptionArn        {:type     :Kernel/String
+                                        :optional true}})
+
        (event :Sns/Message
               {:Message                {:type     :Kernel/String
                                         :optional true}
@@ -881,6 +902,10 @@
           :type :sms
           :compose? false
           :paths [:Sms/Push]}
+         {:name :aws
+          :type :aws
+          :compose? false
+          :paths [:Aws/Config]}
          {:name :sns
           :type :sns
           :compose? false
