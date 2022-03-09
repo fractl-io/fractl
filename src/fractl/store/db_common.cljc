@@ -65,8 +65,10 @@
                     n "_Idx ON " table-name "(_" n ")")))
            indexed-attributes))
    (when (seq compound-unique-attributes)
-     [(str "ALTER TABLE " table-name " ADD CONSTRAINT " table-name "_compound_uks UNIQUE "
-           "(" (s/join ", " (mapv #(str "_" (name %)) compound-unique-attributes)) ")")])))
+     (let [constraint-name (str table-name "_compound_uks")]
+       [(str "ALTER TABLE " table-name " DROP CONSTRAINT IF EXISTS " constraint-name)
+        (str "ALTER TABLE " table-name " ADD CONSTRAINT " constraint-name " UNIQUE "
+             "(" (s/join ", " (mapv #(str "_" (name %)) compound-unique-attributes)) ")")]))))
 
 (defn- create-relational-table [connection entity-schema table-name
                                 indexed-attrs unique-attributes

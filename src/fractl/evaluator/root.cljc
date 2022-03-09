@@ -249,14 +249,15 @@
 (def ^:private store-schema-lock #?(:clj (Object.) :cljs nil))
 
 (defn- maybe-init-schema! [store component-name]
-  (#?(:clj locking :cljs do)
-   store-schema-lock
-   (when-not (some #{component-name} @inited-components)
-     (u/safe-set
-      inited-components
-      (do (store/create-schema store component-name)
-          (conj @inited-components component-name))
-      component-name))))
+  (when-not (some #{component-name} @inited-components)
+    (#?(:clj locking :cljs do)
+     store-schema-lock
+     (when-not (some #{component-name} @inited-components)
+       (u/safe-set
+        inited-components
+        (do (store/create-schema store component-name)
+            (conj @inited-components component-name))
+        component-name)))))
 
 (defn- perform-rbac! [env opr recname data]
   (when-let [f (env/rbac-check env)]
