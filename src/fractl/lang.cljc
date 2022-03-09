@@ -831,19 +831,13 @@
                :Type                   :Kernel/String
                :TargetArn              {:type     :Kernel/String
                                         :optional true}
-               :Token                  {:type     :Kernel/String
-                                        :optional true}
                :PhoneNumber            {:type     :Kernel/String
                                         :optional true}
                :Title                  {:type     :Kernel/String
                                         :optional true}
                :Body                   {:type     :Kernel/String
                                         :optional true}
-               :Platform               {:oneof ["ADM" "APNS" "APNS_SANDBOX" "GCM"]}
-               ;:Attributes             {:listof :PlatformAttributes}
-               :PlatformApplicationArn {:type     :Kernel/String
-                                        :optional true}
-               :CustomUserData         {:type     :Kernel/String
+               :OTP                    {:type     :Kernel/String
                                         :optional true}
                :TopicArn               {:type     :Kernel/String
                                         :optional true}})
