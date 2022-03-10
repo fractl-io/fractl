@@ -55,6 +55,10 @@
                      (when (seq (rest attrs))
                        ", "))))
              cols))
+         (when (seq compound-unique-attributes)
+           (str ", CONSTRAINT " (str table-name "_compound_uks")
+                " UNIQUE "
+                "(" (s/join ", " (mapv #(str "_" (name %)) compound-unique-attributes)) ")"))
          ")")]
    (when (seq indexed-attributes)
      (mapv (fn [attr]
@@ -63,10 +67,7 @@
                     #?(:clj "IF NOT EXISTS "
                        :cljs "")
                     n "_Idx ON " table-name "(_" n ")")))
-           indexed-attributes))
-   (when (seq compound-unique-attributes)
-     [(str "ALTER TABLE " table-name " ADD CONSTRAINT " table-name "_compound_uks UNIQUE "
-           "(" (s/join ", " (mapv #(str "_" (name %)) compound-unique-attributes)) ")")])))
+           indexed-attributes))))
 
 (defn- create-relational-table [connection entity-schema table-name
                                 indexed-attrs unique-attributes
