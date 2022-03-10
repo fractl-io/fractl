@@ -100,7 +100,7 @@
   [inst]
   (let [id (:Id inst)
         platform-arn (:PlatformApplicationArn inst)
-        token (:Attributes inst)
+        token (:Token inst)
         platform-endpoint (create-platform-endpoint platform-arn token)]
     (update-in-inst id platform-endpoint :EndpointArn)))
 
