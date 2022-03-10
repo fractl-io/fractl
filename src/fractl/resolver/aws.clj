@@ -6,7 +6,8 @@
             [cognitect.aws.credentials :as credentials]
             [clojure.data.json :as json]
             [clojure.string :as string]
-            [clojure.walk :as walk]))
+            [clojure.walk :as walk]
+            [fractl.util.logger :as log]))
 
 (def ^:private db (u/make-cell {}))
 
@@ -73,19 +74,13 @@
                                                     :Token    token}})]
     (get subscribe :SubscriptionArn)))
 
-(defn- upsert-inst [id created inst]
+(defn- upsert-inst [id key handle inst]
   (u/call-and-set
     db
     #(assoc
        @db id
-           [created inst]))
-  inst)
-
-(defn- update-in-inst [id handle key]
-  (when-let [[created inst]
-             (get @db id)]
-    (upsert-inst
-      id created (assoc inst key handle))))
+           (assoc inst key handle)))
+  (assoc inst key handle))
 
 (defn upsert-platform-application
   [inst]
@@ -94,7 +89,7 @@
         platform (:Platform inst)
         attributes (:Attributes inst)
         platform-arn (create-platform-application name platform attributes)]
-    (update-in-inst id platform-arn :PlatformApplicationArn)))
+    (upsert-inst id :PlatformApplicationArn platform-arn inst)))
 
 (defn upsert-platform-endpoint
   [inst]
@@ -102,15 +97,14 @@
         platform-arn (:PlatformApplicationArn inst)
         token (:Token inst)
         platform-endpoint (create-platform-endpoint platform-arn token)]
-    (update-in-inst id platform-endpoint :EndpointArn)))
-
+    (upsert-inst id :EndpointArn platform-endpoint inst)))
 
 (defn upsert-topic
   [inst]
   (let [id (:Id inst)
         name (:Name inst)
         topic (create-topic name)]
-    (update-in-inst id topic :TopicArn)))
+    (upsert-inst id :TopicArn topic inst)))
 
 (defn upsert-subscription
   [inst]
@@ -118,7 +112,7 @@
         topic-arn (:TopicArn inst)
         protocol (:Protocol inst)
         subscription (create-subscription topic-arn protocol)]
-    (update-in-inst id subscription :SubscriptionArn)))
+    (upsert-inst id :SubscriptionArn subscription inst)))
 
 (defn upsert-confirm-subscription
   [inst]
@@ -126,9 +120,10 @@
         topic-arn (:TopicArn inst)
         token (:Token inst)
         c-subscription (confirm-created-subscription topic-arn token)]
-    (update-in-inst id c-subscription :SubscriptionArn)))
+    (upsert-inst id :SubscriptionArn c-subscription inst)))
 
 (defn upsert-functionalities [inst]
+  (log/info (str "Inst is: " inst))
   (case (keyword (:Type inst))
     :CreatePlatformApplication (upsert-platform-application inst)
     :CreatePlatformEndpoint (upsert-platform-endpoint inst)
