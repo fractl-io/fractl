@@ -1223,3 +1223,14 @@
 
 (defn compound-unique-attributes [entity-name]
   (:unique (fetch-meta entity-name)))
+
+(defn instance-str [instance]
+  (let [n (instance-name instance)]
+    (if-let [str-pat (:str (fetch-meta n))]
+      (if (keyword? str-pat)
+        (str (str-pat instance))
+        (apply str (mapv #(if (keyword? %)
+                            (% instance)
+                            %)
+                         str-pat)))
+      (str n))))

@@ -534,3 +534,31 @@
               (= "default" (:Status j3))))
      (is (and (= (:JobId j4) 1) (= (:UserId j4) 102)
               (= "default" (:Status j4)))))))
+
+(deftest
+  issue-485-meta-str
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I485
+     (entity
+      :I485/Account
+      {:Title :Kernel/String
+       :meta {:str :Title}})
+     (entity
+      :I485/User
+      {:FirstName :Kernel/String
+       :LastName :Kernel/String
+       :Email :Kernel/Email
+       :Age :Kernel/Int
+       :meta {:str [:FirstName " " :LastName " <" :Email ">"]}}))
+   (let [a1 (cn/make-instance
+             {:I485/Account
+              {:Title "ABC"}})
+         u1 (cn/make-instance
+             :I485/User
+             {:FirstName "K"
+              :LastName "J"
+              :Email "kj@gmail.com"
+              :Age 34})]
+     (is (= "ABC" (cn/instance-str a1)))
+     (is (= "K J <kj@gmail.com>" (cn/instance-str u1))))))
