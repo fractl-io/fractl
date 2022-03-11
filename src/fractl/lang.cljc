@@ -810,6 +810,8 @@
                                         :optional true}
                :Platform               {:type     :Kernel/String
                                         :optional true}
+               :Endpoint               {:type     :Kernel/String
+                                        :optional true}
                :Attributes             {:listof :Aws/PlatformAttributes
                                         :optional true}
                :PlatformApplicationArn {:type     :Kernel/String

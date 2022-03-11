@@ -61,10 +61,11 @@
      (get topic :TopicArn))))
 
 (defn create-subscription
-  [topic-arn protocol]
+  [topic-arn protocol endpoint]
   (let [subscribe (aws/invoke sns-client {:op      :Subscribe
                                           :request {:TopicArn topic-arn
-                                                    :Protocol protocol}})]
+                                                    :Protocol protocol
+                                                    :Endpoint endpoint}})]
     (get subscribe :SubscriptionArn)))
 
 (defn confirm-created-subscription
@@ -111,7 +112,8 @@
   (let [id (:Id inst)
         topic-arn (:TopicArn inst)
         protocol (:Protocol inst)
-        subscription (create-subscription topic-arn protocol)]
+        endpoint (:Endpoint inst)
+        subscription (create-subscription topic-arn protocol endpoint)]
     (upsert-inst id :SubscriptionArn subscription inst)))
 
 (defn upsert-confirm-subscription
