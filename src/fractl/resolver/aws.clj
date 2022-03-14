@@ -30,7 +30,8 @@
                        {:op      :CreatePlatformApplication
                         :request {:Name       name
                                   :Platform   platform
-                                  :Attributes [(walk/stringify-keys attributes)]}})]
+                                  ;; For FCM currently only use PlatformCredential
+                                  :Attributes (walk/stringify-keys {:PlatformCredential attributes})}})]
     (get platform-arn :PlatformApplicationArn)))
 
 (defn create-platform-endpoint
