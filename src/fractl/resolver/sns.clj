@@ -50,14 +50,8 @@
                              :request {:Message  (str message)
                                        :TopicArn single-topic-arn}}))))
 
-(defn push-notification
-  "Push notifications reads platform applications,
-  and currently assumes one platform application will be used for
-  multiple endpoints (which is the general convention).
-
-  After TargetARN is generated from validate-token-and-get-arn,
-  that should be passed onto this.
-
+(defn push-notification-to-endpoint
+  "Pushes notifications to platforms endpoint.
   Current assumption is GCM."
   [target-arn title body]
   (let [proper-data (read-string (apply str (filter #(not= % \:)
@@ -70,13 +64,29 @@
                                       :MessageStructure "json"}})
     (u/throw-ex "Platform application should be GCM (Firebase Cloud Messaging)")))
 
+(defn push-notification-to-topic
+  "Pushes notifications to topic.
+
+  Current assumption is GCM."
+  [topic-arn title body]
+  (let [proper-data (read-string (apply str (filter #(not= % \:)
+                                                    (json/write-str {:GCM {:notification
+                                                                           {:title (str title)
+                                                                            :body  (str body)}}}))))]
+    (aws/invoke sns-client {:op      :Publish
+                            :request {:Message          (json/write-str {"GCM" (json/write-str (get proper-data "GCM"))})
+                                      :TopicArn        (str topic-arn)
+                                      :MessageStructure "json"}})
+    (u/throw-ex "Platform application should be GCM (Firebase Cloud Messaging)")))
+
 (defn- sns-eval
   [inst]
   (let [message (:Message inst)]
     (case (keyword (:Type inst))
       :email (publish-message-email message (when (get inst :TopicArn) (:TopicArn inst)))
       :sms (publish-message-sms (:PhoneNumber inst) message)
-      :push-notification (push-notification (:TargetArn inst) (:Title inst) (:Body inst))
+      :push-notification-to-endpoint (push-notification-to-endpoint (:TargetArn inst) (:Title inst) (:Body inst))
+      :push-notification-to-topic (push-notification-to-topic (:TopicArn inst) (:Title inst) (:Body inst))
       :create-sandbox-number (create-sms-sandbox-phno (:PhoneNumber inst))
       :verify-sandbox-phone-number (verify-sms-sandbox-phno (:PhoneNumber inst) (:OTP inst))
       (u/throw-ex (str "invalid sns type - " (:Type inst))))))
