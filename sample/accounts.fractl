@@ -1,4 +1,4 @@
-(ns sample.accounts
+(ns fractl.design-studio.model.accounts
   (:require [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
@@ -8,24 +8,33 @@
 
 (entity
  :Acme.Accounting/Account
- {:Title :Kernel/String})
+ {:Title :Kernel/String
+  :meta
+  {:str :Title
+   :view {:fields [[:Title {:input :TextField :value "0"}]]
+          :navigation [:Acme.Accounting/Transaction]}}})
+
+(def acc-select-spec
+  {:input :Select
+   :fetch :Acme.Accounting/QueryAllAccounts
+   :value :Id :label :Title})
 
 (entity
  :Acme.Accounting/Transaction
- {:Serial {:type :Kernel/Int
-           :unique true}
-  :Date {:type :Kernel/DateTime
-         :default dt/now
-         :indexed true}
-  :Head :Kernel/UUID ;{:ref :Acme.Accounting/Account.Id}
+ {:Date {:type :Kernel/DateTime
+         :default dt/now}
+  :Debit {:ref :Acme.Accounting/Account.Id}
+  :Credit {:ref :Acme.Accounting/Account.Id}
   :Amount :Kernel/Decimal
-  :Type {:oneof [:Debit :Credit]}})
-
-(event
- :Acme.Accounting/QueryTransaction
- {:Q :Kernel/Decimal})
+  :meta
+  {:view
+   {:fields [[:Date {:hidden true}]
+             [:Debit acc-select-spec]
+             [:Credit acc-select-spec]
+             [:Amount {:input :TextField}]]
+    :list-all true
+    :navigation [:Acme.Accounting/Account]}}})
 
 (dataflow
- :Acme.Accounting/QueryTransaction
- {:Acme.Accounting/Transaction
-  {:Amount? [:>= :Acme.Accounting/QueryTransaction.Q]}})
+ :Acme.Accounting/QueryAllAccounts
+ {:Acme.Accounting/Account? {}})
