@@ -804,29 +804,42 @@
                 :SuccessFeedbackSampleRate {:type     :Kernel/String
                                             :optional true}})
 
-       (event :Aws/Config
+       (event :Aws/PlatformApplicationConfig
               {:Type                   :Kernel/String
-               :Name                   {:type     :Kernel/String
-                                        :optional true}
-               :Platform               {:type     :Kernel/String
-                                        :optional true}
-               :Endpoint               {:type     :Kernel/String
-                                        :optional true}
+               :Name                   :Kernel/String
+               :Platform               :Kernel/String
+               :PlatformCredential     :Kernel/String
                :Attributes             {:listof :Aws/PlatformAttributes
                                         :optional true}
                :PlatformApplicationArn {:type     :Kernel/String
-                                        :optional true}
+                                        :optional true}})
+
+       (event :Aws/PlatformEndpointConfig
+              {:Type                   :Kernel/String
+               :PlatformApplicationArn :Kernel/String
+               :Token                  :Kernel/String
                :EndpointArn            {:type     :Kernel/String
-                                        :optional true}
+                                        :optional true}})
+
+       (event :Aws/TopicConfig
+              {:Type                   :Kernel/String
+               :Name                   :Kernel/String
                :TopicArn               {:type     :Kernel/String
-                                        :optional true}
-               :Protocol               {:type     :Kernel/String
-                                        :optional true}
-               :Token                  {:type     :Kernel/String
-                                        :optional true}
+                                        :optional true}})
+
+       (event :Aws/SubscriptionConfig
+              {:Type                   :Kernel/String
+               :TopicArn               :Kernel/String
+               :Protocol               :Kernel/String
+               :Endpoint               :Kernel/String
                :SubscriptionArn        {:type     :Kernel/String
-                                        :optional true}
-               :PlatformCredential     {:type  :Kernel/String
+                                        :optional true}})
+
+       (event :Aws/ConfirmSubscriptionConfig
+              {:Type                   :Kernel/String
+               :TopicArn               :Kernel/String
+               :Token                  :Kernel/String
+               :SubscriptionArn        {:type     :Kernel/String
                                         :optional true}})
 
        (event :Sns/Message
@@ -904,7 +917,11 @@
          {:name :aws
           :type :aws
           :compose? false
-          :paths [:Aws/Config]}
+          :paths [:Aws/PlatformApplicationConfig
+                  :Aws/PlatformEndpointConfig
+                  :Aws/TopicConfig
+                  :Aws/SubscriptionConfig
+                  :Aws/ConfirmSubscriptionConfig]}
          {:name :sns
           :type :sns
           :compose? false
