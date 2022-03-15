@@ -825,6 +825,8 @@
                :Token                  {:type     :Kernel/String
                                         :optional true}
                :SubscriptionArn        {:type     :Kernel/String
+                                        :optional true}
+               :PlatformCredential     {:type  :Kernel/String
                                         :optional true}})
 
        (event :Sns/Message
