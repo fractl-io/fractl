@@ -89,7 +89,9 @@
   (let [id (:Id inst)
         name (:Name inst)
         platform (:Platform inst)
-        attributes (:Attributes inst)
+        ;; Currently take :PlatformCredential as attributes
+        ;attributes (:Attributes inst)
+        attributes (:PlatformCredential inst)
         platform-arn (create-platform-application name platform attributes)]
     (upsert-inst id :PlatformApplicationArn platform-arn inst)))
 
