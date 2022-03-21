@@ -708,21 +708,21 @@
         :Email {:type :Kernel/String :optional true}
         :UserName {:type :Kernel/String :optional true}
         :Password {:type :Kernel/String :optional true}})
-  
+
   (entity {:Kernel/Resolver
            {:Type :Kernel/Keyword
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
-  
+
   (entity {:Kernel/Auth0User
            {:UserName :Kernel/String
             :Email :Kernel/String
             :UserEmail {:type :Kernel/String :optional true}
-            :UserId {:type :Kernel/String :optional true}            
+            :UserId {:type :Kernel/String :optional true}
             :Password :Kernel/String
             :UserInfo {:type :Kernel/Map :optional true}
             :RequestObject {:type :Kernel/OAuthAnyRequest :optional true}}})
-                                                          
+
   (entity {:Kernel/Authentication
            {:Owner {:type :Kernel/Any :optional true}
             :AuthType {:oneof ["Database" "Auth0Database" "OAuth2Request"]
@@ -765,6 +765,8 @@
        (cn/create-component :Git {})
        (cn/create-component :Email {})
        (cn/create-component :Sms {})
+       (cn/create-component :Aws {})
+       (cn/create-component :Sns {})
 
        (event :Git/Push
               {:Path :Kernel/String})
@@ -778,6 +780,80 @@
        (event :Sms/Push
               {:To :Kernel/String
                :Body :Kernel/String})
+
+       (record :Aws/PlatformAttributes
+               {:PlatformCredential        :Kernel/String
+                :PlatformPrincipal         {:type     :Kernel/String
+                                            :optional true}
+                :EventEndpointCreated      {:type     :Kernel/String
+                                            :optional true}
+                :EventEndpointDeleted      {:type     :Kernel/String
+                                            :optional true}
+                :EventEndpointUpdated      {:type     :Kernel/String
+                                            :optional true}
+                :EventDeliveryFailure      {:type     :Kernel/String
+                                            :optional true}
+                :SuccessFeedbackRoleArn    {:type     :Kernel/String
+                                            :optional true}
+                :FailureFeedbackRoleArn    {:type     :Kernel/String
+                                            :optional true}
+                :SuccessFeedbackSampleRate {:type     :Kernel/String
+                                            :optional true}})
+
+       (event :Aws/PlatformApplicationConfig
+              {:Type                   :Kernel/String
+               :Name                   :Kernel/String
+               :Platform               :Kernel/String
+               :PlatformCredential     :Kernel/String
+               :Attributes             {:listof :Aws/PlatformAttributes
+                                        :optional true}
+               :PlatformApplicationArn {:type     :Kernel/String
+                                        :optional true}})
+
+       (event :Aws/PlatformEndpointConfig
+              {:Type                   :Kernel/String
+               :PlatformApplicationArn :Kernel/String
+               :Token                  :Kernel/String
+               :EndpointArn            {:type     :Kernel/String
+                                        :optional true}})
+
+       (event :Aws/TopicConfig
+              {:Type                   :Kernel/String
+               :Name                   :Kernel/String
+               :TopicArn               {:type     :Kernel/String
+                                        :optional true}})
+
+       (event :Aws/SubscriptionConfig
+              {:Type                   :Kernel/String
+               :TopicArn               :Kernel/String
+               :Protocol               :Kernel/String
+               :Endpoint               :Kernel/String
+               :SubscriptionArn        {:type     :Kernel/String
+                                        :optional true}})
+
+       (event :Aws/ConfirmSubscriptionConfig
+              {:Type                   :Kernel/String
+               :TopicArn               :Kernel/String
+               :Token                  :Kernel/String
+               :SubscriptionArn        {:type     :Kernel/String
+                                        :optional true}})
+
+       (event :Sns/Message
+              {:Message                {:type     :Kernel/String
+                                        :optional true}
+               :Type                   :Kernel/String
+               :TargetArn              {:type     :Kernel/String
+                                        :optional true}
+               :PhoneNumber            {:type     :Kernel/String
+                                        :optional true}
+               :Title                  {:type     :Kernel/String
+                                        :optional true}
+               :Body                   {:type     :Kernel/String
+                                        :optional true}
+               :OTP                    {:type     :Kernel/String
+                                        :optional true}
+               :TopicArn               {:type     :Kernel/String
+                                        :optional true}})
 
        (record :Kernel/DataSource
                {:Uri {:type :Kernel/String
@@ -833,7 +909,19 @@
          {:name :sms
           :type :sms
           :compose? false
-          :paths [:Sms/Push]}]))))
+          :paths [:Sms/Push]}
+         {:name :aws
+          :type :aws
+          :compose? false
+          :paths [:Aws/PlatformApplicationConfig
+                  :Aws/PlatformEndpointConfig
+                  :Aws/TopicConfig
+                  :Aws/SubscriptionConfig
+                  :Aws/ConfirmSubscriptionConfig]}
+         {:name :sns
+          :type :sns
+          :compose? false
+          :paths [:Sns/Message]}]))))
 
 (defn- initf []
   (when-not @kernel-inited
