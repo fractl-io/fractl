@@ -40,7 +40,12 @@
                  [reagent "1.1.0"]
                  [cljsjs/react "17.0.2-0"]
                  [cljsjs/react-dom "17.0.2-0"]
-                 [babashka/babashka.curl "0.1.1"]]
+                 [babashka/babashka.curl "0.1.1"]
+                 [com.cognitect.aws/api "0.8.539"]
+                 [com.cognitect.aws/endpoints "1.1.12.145"]
+                 [com.cognitect.aws/sns "811.2.959.0"]
+                 [com.cognitect.aws/kms "814.2.1008.0"]
+                 [org.clojure/data.json "2.4.0"]]
 
   :java-source-paths ["src/java"]
   :resource-paths ["lib/sfdc-enterprise.jar" "lib/jbcrypt.jar" "lib/auth0-1.35.0-uber.jar"]

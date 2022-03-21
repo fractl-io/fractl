@@ -5,12 +5,14 @@
             [fractl.resolver.policy :as policy]
             [fractl.resolver.meta :as meta]
             [fractl.resolver.auth :as auth]
-            [fractl.resolver.auth0-user :as auth0-user]            
+            [fractl.resolver.auth0-user :as auth0-user]
             [fractl.resolver.timer :as timer]
             #?(:clj [fractl.resolver.data-sync :as ds])
             #?(:clj [fractl.resolver.git :as git])
             #?(:clj [fractl.resolver.email :as email])
-            #?(:clj [fractl.resolver.sms :as sms])))
+            #?(:clj [fractl.resolver.sms :as sms])
+            #?(:clj [fractl.resolver.aws :as aws])
+            #?(:clj [fractl.resolver.sns :as sns])))
 
 (def ^:private type-tag :-*-resolver-registry-*-)
 (def ^:private parent-tag :-*-parent-*-)
@@ -78,7 +80,9 @@
           #?(:clj {:data-sync ds/make})
           #?(:clj {:git git/make})
           #?(:clj {:email email/make})
-          #?(:clj {:sms sms/make}))))
+          #?(:clj {:sms sms/make})
+          #?(:clj {:aws aws/make})
+          #?(:clj {:sns sns/make}))))
 
 (defn register-resolver-type [type-name constructor]
   (u/call-and-set
