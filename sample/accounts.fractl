@@ -1,4 +1,4 @@
-(ns fractl.design-studio.model.accounts
+(ns sample.accounts
   (:require [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
