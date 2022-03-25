@@ -51,7 +51,7 @@
       (first (:body response))
       response)))
 
-(defn- remote-eval [host options event-inst]
+(defn remote-eval [host options event-inst]
   (do-post (str host uh/dynamic-eval-prefix) options event-inst))
 
 (def ^:private resolver-fns
