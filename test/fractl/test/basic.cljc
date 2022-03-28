@@ -8,10 +8,11 @@
             [fractl.compiler :as c]
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record relationship dataflow]]
             [fractl.evaluator :as e]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
+            [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -1142,3 +1143,50 @@
                 :Age 20}}))]
       (is (cn/instance-of? :ExprCompile/Form e))
       (is (= spec (:Spec e))))))
+
+(deftest relationships
+  (defcomponent :Relationships
+    (entity
+     :Relationships/User
+     {:UserName :Kernel/String})
+    (entity
+     :Relationships/Book
+     {:Title :Kernel/String
+      :Author :Kernel/String})
+    (relationship
+     :Relationships/CheckoutBook
+     {:User {:ref :Relationships/User.Id}
+      :Book {:ref :Relationships/Book.Id}
+      :Date {:type :Kernel/DateTime
+             :default dt/now}
+      :meta
+      {:from :User
+       :to :Book
+       :cardinality
+       {:type :1-M
+        :exclusive true}}}))
+  (let [u1 (tu/first-result
+            {:Relationships/Upsert_User
+             {:Instance
+              {:Relationships/User
+               {:UserName "K R"}}}})
+        b1 (tu/first-result
+            {:Relationships/Upsert_Book
+             {:Instance
+              {:Relationships/Book
+               {:Title "ABC"
+                :Author "JJK"}}}})
+        r1 (tu/first-result
+            {:Relationships/Upsert_CheckoutBook
+             {:Instance
+              {:Relationships/CheckoutBook
+               {:User (:Id u1)
+                :Book (:Id b1)}}}})
+        r2 (tu/first-result
+            {:Relationships/Lookup_CheckoutBook
+             {:Id (:Id r1)}})]
+    ;; TODO: implement and test relationships API functions.
+    (is (cn/instance-of? :Relationships/User u1))
+    (is (cn/instance-of? :Relationships/Book b1))
+    (is (cn/instance-of? :Relationships/CheckoutBook r1))
+    (is (cn/same-instance? r1 r2))))

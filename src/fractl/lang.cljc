@@ -619,7 +619,6 @@
     (u/throw-ex (str "Not a serializable record type: " (name rectype)))))
 
 (def serializable-entity (partial serializable-record :entity))
-(def serializable-relationship (partial serializable-record :relationship))
 
 (defn entity
   "A record that can be persisted with a unique id."
@@ -627,11 +626,42 @@
    (serializable-entity n attrs))
   ([schema] (parse-and-define serializable-entity schema)))
 
+(defn- normalize-relation-attribute [attr-spec]
+  (if (keyword? attr-spec)
+    {:type attr-spec
+     :indexed true}
+    (assoc attr-spec :indexed true)))
+
+(defn- validate-cardinality! [cardinality]
+  (when-not (some #{(:type cardinality)} [:1-1 :1-M :M-M :M-1])
+    (u/throw-ex (str "Invalid cardinality type - " (:type cardinality))))
+  cardinality)
+
 (defn relationship
   ([relation-name attrs]
-   (serializable-relationship relation-name attrs))
+   (let [meta (:meta attrs)
+         from (:from meta)
+         to (:to meta)
+         cardinality (or (:cardinality meta)
+                         {:type :1-1 :exclusive false})]
+     (when-not (and from to)
+       (u/throw-ex (str "Direction of relationship (from, to) not defined in meta - " relation-name)))
+     (validate-cardinality! cardinality)
+     (let [fspec (from attrs)
+           tspec (to attrs)]
+       (when-not fspec
+         (u/throw-ex (str from " is not an attribute, cannot define relationship - " relation-name)))
+       (when-not tspec
+         (u/throw-ex (str to " is not an attribute, cannot define relationship - " relation-name)))
+       (serializable-entity
+        relation-name
+        (assoc
+         attrs
+         from (normalize-relation-attribute fspec)
+         to (normalize-relation-attribute tspec)
+         :meta (assoc meta :relationship true))))))
   ([schema]
-   (parse-and-define serializable-relationship schema)))
+   (parse-and-define serializable-entity schema)))
 
 (defn- resolver-for-entity [component ename spec]
   (if (cn/find-entity-schema ename)
