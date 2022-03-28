@@ -203,6 +203,7 @@
 
 (def intern-entity (partial intern-record :entity))
 (def intern-event (partial intern-record :event))
+(def intern-relationship (partial intern-record :relationship))
 
 (defn find-attribute-schema
   "Find and return an attribute schema by the given path.

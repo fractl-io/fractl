@@ -570,52 +570,68 @@
      {(keyword (str (name (first (:refs r))) "?"))
       (keyword (str (name c) "/" (name evt-name) "." (name evt-ref) "." (name attr-name)))}}))
 
+(def ^:private intern-rec-fns
+  {:entity cn/intern-entity
+   :relationship cn/intern-relationship})
+
+(defn- serializable-record [rectype n attrs]
+  (if-let [intern-rec (rectype intern-rec-fns)]
+    (if (map? attrs)
+      (let [rec-name (validated-canonical-type-name n)
+            [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
+            result (intern-rec
+                    rec-name
+                    (normalized-attributes
+                     rectype rec-name
+                     (maybe-assoc-id rec-name attrs)))
+            ev (partial crud-evname n)
+            ctx-aname (k/event-context-attribute-name)
+            inst-evattrs {:Instance n :EventContext ctx-aname}
+            id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
+        ;; Define CRUD events and dataflows:
+        (let [upevt (ev :Upsert)
+              delevt (ev :Delete)
+              lookupevt (ev :Lookup)]
+          (cn/for-each-entity-event-name
+           rec-name (partial entity-event rec-name))
+          (event-internal
+           (on-crud-event-name rec-name :upsert)
+           inst-evattrs)
+          (event-internal
+           (on-crud-event-name rec-name :delete)
+           inst-evattrs)
+          (event-internal upevt inst-evattrs)
+          (let [ref-pats (mapv (fn [[k v]]
+                                 (load-ref-pattern
+                                  upevt :Instance rec-name k
+                                  (cn/find-attribute-schema v)))
+                               (cn/ref-attribute-schemas
+                                (cn/fetch-schema rec-name)))]
+            (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
+          (event-internal delevt id-evattrs)
+          (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
+          (event-internal lookupevt id-evattrs)
+          (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)]))
+        ;; Install dataflows for implicit events.
+        (when dfexps (doall (map eval dfexps)))
+        result)
+      (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
+    (u/throw-ex (str "Not a serializable record type: " (name rectype)))))
+
+(def serializable-entity (partial serializable-record :entity))
+(def serializable-relationship (partial serializable-record :relationship))
+
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
-   (if (map? attrs)
-     (let [entity-name (validated-canonical-type-name n)
-           [attrs dfexps] (lift-implicit-entity-events entity-name attrs)
-           result (cn/intern-entity
-                    entity-name
-                    (normalized-attributes
-                      :entity
-                      entity-name
-                      (maybe-assoc-id entity-name attrs)))
-           ev (partial crud-evname n)
-           ctx-aname (k/event-context-attribute-name)
-           inst-evattrs {:Instance n :EventContext ctx-aname}
-           id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
-       ;; Define CRUD events and dataflows:
-       (let [upevt (ev :Upsert)
-             delevt (ev :Delete)
-             lookupevt (ev :Lookup)]
-         (cn/for-each-entity-event-name
-           entity-name
-           (partial entity-event entity-name))
-         (event-internal
-          (on-crud-event-name entity-name :upsert)
-          inst-evattrs)
-         (event-internal
-          (on-crud-event-name entity-name :delete)
-          inst-evattrs)
-         (event-internal upevt inst-evattrs)
-         (let [ref-pats (mapv (fn [[k v]]
-                                (load-ref-pattern
-                                 upevt :Instance entity-name k
-                                 (cn/find-attribute-schema v)))
-                              (cn/ref-attribute-schemas
-                               (cn/fetch-schema entity-name)))]
-           (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
-         (event-internal delevt id-evattrs)
-         (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
-         (event-internal lookupevt id-evattrs)
-         (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt entity-name)]))
-       ;; Install dataflows for implicit events.
-       (when dfexps (doall (map eval dfexps)))
-       result)
-     (u/throw-ex (str "Syntax error in entity. Check entity: " n))))
-  ([schema] (parse-and-define entity schema)))
+   (serializable-entity n attrs))
+  ([schema] (parse-and-define serializable-entity schema)))
+
+(defn relationship
+  ([relation-name attrs]
+   (serializable-relationship relation-name attrs))
+  ([schema]
+   (parse-and-define serializable-relationship schema)))
 
 (defn- resolver-for-entity [component ename spec]
   (if (cn/find-entity-schema ename)
