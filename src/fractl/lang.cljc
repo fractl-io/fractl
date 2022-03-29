@@ -626,11 +626,18 @@
    (serializable-entity n attrs))
   ([schema] (parse-and-define serializable-entity schema)))
 
-(defn- normalize-relation-attribute [attr-spec]
-  (if (keyword? attr-spec)
-    {:type attr-spec
-     :indexed true}
-    (assoc attr-spec :indexed true)))
+(defn- normalize-relation-attribute
+  ([attr-spec cardinality]
+   (let [new-spec
+         (if (keyword? attr-spec)
+           {:type attr-spec
+            :indexed true}
+           (assoc attr-spec :indexed true))]
+     (if (:exclusive cardinality)
+       (assoc new-spec :unique true)
+       new-spec)))
+  ([attr-spec]
+   (normalize-relation-attribute attr-spec nil)))
 
 (defn- validate-cardinality! [cardinality]
   (when-not (some #{(:type cardinality)} [:1-1 :1-M :M-M :M-1])
@@ -658,8 +665,8 @@
         (assoc
          attrs
          from (normalize-relation-attribute fspec)
-         to (normalize-relation-attribute tspec)
-         :meta (assoc meta :relationship true))))))
+         to (normalize-relation-attribute tspec cardinality)
+         :meta (assoc meta :relationship true :cardinality cardinality))))))
   ([schema]
    (parse-and-define serializable-entity schema)))
 

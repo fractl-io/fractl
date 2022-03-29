@@ -1188,6 +1188,11 @@
     (is (= (set [:Relationships/Book :Relationships/CheckoutBook :Relationships/User])
            (cn/entity-names :Relationships)))
     (is (= [:Relationships/CheckoutBook] (cn/relationship-names :Relationships)))
+    (let [scm (cn/fetch-schema :Relationships/CheckoutBook)
+          ascm-book (cn/find-attribute-schema (:Book scm))
+          ascm-user (cn/find-attribute-schema (:User scm))]
+      (is (and (:unique ascm-book) (:indexed ascm-book)))
+      (is (and (not (:unique ascm-user)) (:indexed ascm-user))))
     (is (cn/instance-of? :Relationships/User u1))
     (is (cn/instance-of? :Relationships/Book b1))
     (is (cn/instance-of? :Relationships/CheckoutBook r1))
