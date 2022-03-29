@@ -1185,7 +1185,9 @@
         r2 (tu/first-result
             {:Relationships/Lookup_CheckoutBook
              {:Id (:Id r1)}})]
-    ;; TODO: implement and test relationships API functions.
+    (is (= (set [:Relationships/Book :Relationships/CheckoutBook :Relationships/User])
+           (cn/entity-names :Relationships)))
+    (is (= [:Relationships/CheckoutBook] (cn/relationship-names :Relationships)))
     (is (cn/instance-of? :Relationships/User u1))
     (is (cn/instance-of? :Relationships/Book b1))
     (is (cn/instance-of? :Relationships/CheckoutBook r1))
