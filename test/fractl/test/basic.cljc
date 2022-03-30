@@ -10,6 +10,7 @@
              :refer [component attribute event
                      entity record relationship dataflow]]
             [fractl.evaluator :as e]
+            [fractl.relationship :as rel]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             [fractl.lang.datetime :as dt]
@@ -1191,7 +1192,7 @@
     (let [scm (cn/fetch-schema :Relationships/CheckoutBook)
           ascm-book (cn/find-attribute-schema (:Book scm))
           ascm-user (cn/find-attribute-schema (:User scm))
-          graph (cn/relationships :Relationships)
+          graph (rel/relationships :Relationships)
           roots (:roots graph)]
       (is (and (:unique ascm-book) (:indexed ascm-book)))
       (is (and (not (:unique ascm-user)) (:indexed ascm-user)))

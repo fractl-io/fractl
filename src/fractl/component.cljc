@@ -975,34 +975,6 @@
      (fetch-meta %))
    (record-names-by-type :entity component)))
 
-(defn- resolve-ref-for-relationship [schema attrname]
-  (if-let [rf (:ref (find-attribute-schema (attrname schema)))]
-    (let [p (if (map? rf) rf (li/path-parts rf))]
-      [(:component p) (:record p)])
-    (u/throw-ex (str "Unable to resolver relationship reference - " attrname))))
-
-(defn relationships [component]
-  (loop [ns (relationship-names component)
-         to-counts {}, result {}]
-    (if-let [n (first ns)]
-      (let [find-ref (partial
-                      resolve-ref-for-relationship
-                      (fetch-schema n))
-            meta (fetch-meta n)
-            from (:from meta)
-            to (:to meta)
-            fref (find-ref from)
-            tref (find-ref to)
-            rels (get result n [])
-            cf (get to-counts fref 0)
-            ct (get to-counts tref 0)]
-        (recur (rest ns) (assoc to-counts fref cf tref (inc ct))
-               (assoc result n (conj rels {:from [fref :via from]
-                                           :to [tref :via to]}))))
-      (let [roots (sort #(< (second %1) (second %2)) to-counts)]
-        {:graph result
-         :roots roots}))))
-
 (defn get-schema [getter recname]
   (:schema (getter recname)))
 
