@@ -1198,7 +1198,15 @@
       (is (and (not (:unique ascm-user)) (:indexed ascm-user)))
       (is (and (:graph graph) roots))
       (is (and (= (ffirst roots) [:Relationships :User])
-               (= (second (first roots)) 0))))
+               (= (second (first roots)) 0)))
+      (is (= [[:Relationships/CheckoutBook {:from :User, :to nil}]]
+             (mapv (fn [[k v]]
+                     [k (rel/participation v :Relationships/User)])
+                   (:graph graph))))
+      (is (= [[:Relationships/CheckoutBook {:from nil, :to :Book}]]
+             (mapv (fn [[k v]]
+                     [k (rel/participation v :Relationships/Book)])
+                   (:graph graph)))))
     (is (cn/instance-of? :Relationships/User u1))
     (is (cn/instance-of? :Relationships/Book b1))
     (is (cn/instance-of? :Relationships/CheckoutBook r1))
