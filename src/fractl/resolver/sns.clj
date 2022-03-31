@@ -61,8 +61,7 @@
     (aws/invoke sns-client {:op      :Publish
                             :request {:Message          (json/write-str {"GCM" (json/write-str (get proper-data "GCM"))})
                                       :TargetArn        (str target-arn)
-                                      :MessageStructure "json"}})
-    (u/throw-ex "Platform application should be GCM (Firebase Cloud Messaging)")))
+                                      :MessageStructure "json"}})))
 
 (defn push-notification-to-topic
   "Pushes notifications to topic.
@@ -75,9 +74,7 @@
                                                                             :body  (str body)}}}))))]
     (aws/invoke sns-client {:op      :Publish
                             :request {:Message          (json/write-str {"GCM" (json/write-str (get proper-data "GCM"))})
-                                      :TopicArn        (str topic-arn)
-                                      :MessageStructure "json"}})
-    (u/throw-ex "Platform application should be GCM (Firebase Cloud Messaging)")))
+                                      :TopicArn        (str topic-arn)}})))
 
 (defn- sns-eval
   [inst]
