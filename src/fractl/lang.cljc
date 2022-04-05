@@ -570,52 +570,105 @@
      {(keyword (str (name (first (:refs r))) "?"))
       (keyword (str (name c) "/" (name evt-name) "." (name evt-ref) "." (name attr-name)))}}))
 
+(def ^:private intern-rec-fns
+  {:entity cn/intern-entity
+   :relationship cn/intern-relationship})
+
+(defn- serializable-record [rectype n attrs]
+  (if-let [intern-rec (rectype intern-rec-fns)]
+    (if (map? attrs)
+      (let [rec-name (validated-canonical-type-name n)
+            [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
+            result (intern-rec
+                    rec-name
+                    (normalized-attributes
+                     rectype rec-name
+                     (maybe-assoc-id rec-name attrs)))
+            ev (partial crud-evname n)
+            ctx-aname (k/event-context-attribute-name)
+            inst-evattrs {:Instance n :EventContext ctx-aname}
+            id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
+        ;; Define CRUD events and dataflows:
+        (let [upevt (ev :Upsert)
+              delevt (ev :Delete)
+              lookupevt (ev :Lookup)]
+          (cn/for-each-entity-event-name
+           rec-name (partial entity-event rec-name))
+          (event-internal
+           (on-crud-event-name rec-name :upsert)
+           inst-evattrs)
+          (event-internal
+           (on-crud-event-name rec-name :delete)
+           inst-evattrs)
+          (event-internal upevt inst-evattrs)
+          (let [ref-pats (mapv (fn [[k v]]
+                                 (load-ref-pattern
+                                  upevt :Instance rec-name k
+                                  (cn/find-attribute-schema v)))
+                               (cn/ref-attribute-schemas
+                                (cn/fetch-schema rec-name)))]
+            (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
+          (event-internal delevt id-evattrs)
+          (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
+          (event-internal lookupevt id-evattrs)
+          (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)]))
+        ;; Install dataflows for implicit events.
+        (when dfexps (doall (map eval dfexps)))
+        result)
+      (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
+    (u/throw-ex (str "Not a serializable record type: " (name rectype)))))
+
+(def serializable-entity (partial serializable-record :entity))
+
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
-   (if (map? attrs)
-     (let [entity-name (validated-canonical-type-name n)
-           [attrs dfexps] (lift-implicit-entity-events entity-name attrs)
-           result (cn/intern-entity
-                    entity-name
-                    (normalized-attributes
-                      :entity
-                      entity-name
-                      (maybe-assoc-id entity-name attrs)))
-           ev (partial crud-evname n)
-           ctx-aname (k/event-context-attribute-name)
-           inst-evattrs {:Instance n :EventContext ctx-aname}
-           id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
-       ;; Define CRUD events and dataflows:
-       (let [upevt (ev :Upsert)
-             delevt (ev :Delete)
-             lookupevt (ev :Lookup)]
-         (cn/for-each-entity-event-name
-           entity-name
-           (partial entity-event entity-name))
-         (event-internal
-          (on-crud-event-name entity-name :upsert)
-          inst-evattrs)
-         (event-internal
-          (on-crud-event-name entity-name :delete)
-          inst-evattrs)
-         (event-internal upevt inst-evattrs)
-         (let [ref-pats (mapv (fn [[k v]]
-                                (load-ref-pattern
-                                 upevt :Instance entity-name k
-                                 (cn/find-attribute-schema v)))
-                              (cn/ref-attribute-schemas
-                               (cn/fetch-schema entity-name)))]
-           (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
-         (event-internal delevt id-evattrs)
-         (cn/register-dataflow delevt [(crud-event-delete-pattern delevt entity-name)])
-         (event-internal lookupevt id-evattrs)
-         (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt entity-name)]))
-       ;; Install dataflows for implicit events.
-       (when dfexps (doall (map eval dfexps)))
-       result)
-     (u/throw-ex (str "Syntax error in entity. Check entity: " n))))
-  ([schema] (parse-and-define entity schema)))
+   (serializable-entity n attrs))
+  ([schema] (parse-and-define serializable-entity schema)))
+
+(defn- normalize-relation-attribute
+  ([attr-spec cardinality]
+   (let [new-spec
+         (if (keyword? attr-spec)
+           {:type attr-spec
+            :indexed true}
+           (assoc attr-spec :indexed true))]
+     (if (:exclusive cardinality)
+       (assoc new-spec :unique true)
+       new-spec)))
+  ([attr-spec]
+   (normalize-relation-attribute attr-spec nil)))
+
+(defn- validate-cardinality! [cardinality]
+  (when-not (some #{(:type cardinality)} [:1-1 :1-M :M-M :M-1])
+    (u/throw-ex (str "Invalid cardinality type - " (:type cardinality))))
+  cardinality)
+
+(defn relationship
+  ([relation-name attrs]
+   (let [meta (:meta attrs)
+         from (:from meta)
+         to (:to meta)
+         cardinality (or (:cardinality meta)
+                         {:type :1-1 :exclusive false})]
+     (when-not (and from to)
+       (u/throw-ex (str "Direction of relationship (from, to) not defined in meta - " relation-name)))
+     (validate-cardinality! cardinality)
+     (let [fspec (from attrs)
+           tspec (to attrs)]
+       (when-not fspec
+         (u/throw-ex (str from " is not an attribute, cannot define relationship - " relation-name)))
+       (when-not tspec
+         (u/throw-ex (str to " is not an attribute, cannot define relationship - " relation-name)))
+       (serializable-entity
+        relation-name
+        (assoc
+         attrs
+         from (normalize-relation-attribute fspec)
+         to (normalize-relation-attribute tspec cardinality)
+         :meta (assoc meta :relationship true :cardinality cardinality))))))
+  ([schema]
+   (parse-and-define serializable-entity schema)))
 
 (defn- resolver-for-entity [component ename spec]
   (if (cn/find-entity-schema ename)
