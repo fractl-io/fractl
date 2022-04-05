@@ -65,10 +65,10 @@
 (defn drop-schema-sql [schema-name]
   (str "DROP SCHEMA IF EXISTS " schema-name))
 
-(defn find-entity-schema [entity-name]
-  (if-let [scm (cn/entity-schema entity-name)]
+(defn find-entity-schema [rec-name]
+  (if-let [scm (cn/entity-schema rec-name)]
     scm
-    (u/throw-ex (str "schema not found for entity - " entity-name))))
+    (u/throw-ex (str "schema not found for record - " rec-name))))
 
 (defn table-name->entity
   [tabname] 

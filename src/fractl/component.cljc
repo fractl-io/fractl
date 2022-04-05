@@ -203,6 +203,7 @@
 
 (def intern-entity (partial intern-record :entity))
 (def intern-event (partial intern-record :event))
+(def intern-relationship (partial intern-record :relationship))
 
 (defn find-attribute-schema
   "Find and return an attribute schema by the given path.
@@ -247,6 +248,9 @@
                     find-event-schema :event
                     find-record-schema :record]
                    [path]))
+
+(defn fetch-schema [some-type]
+  (:schema (second (find-schema some-type))))
 
 (defn find-object-schema [path]
   (or (find-entity-schema path)
@@ -956,13 +960,20 @@
   "Return a list of record-names, of the given type, interned in this component.
   The type argument `tp` could be one of - :record, :event or :entity."
   [tp component]
-  (let [evts (filter (fn [[_ v]] (= tp (type-tag-key v)))
-                     (:records (get @components component)))]
-    (set (map (partial full-name component) (keys evts)))))
+  (let [recs (filter
+              (fn [[_ v]] (= tp (type-tag-key v)))
+              (:records (get @components component)))]
+    (set (map (partial full-name component) (keys recs)))))
 
 (def record-names (partial record-names-by-type :record))
 (def entity-names (partial record-names-by-type :entity))
 (def event-names (partial record-names-by-type :event))
+
+(defn relationship-names [component]
+  (filter
+   #(:relationship
+     (fetch-meta %))
+   (record-names-by-type :entity component)))
 
 (defn get-schema [getter recname]
   (:schema (getter recname)))
@@ -970,9 +981,6 @@
 (def event-schema (partial get-schema find-event-schema))
 (def record-schema (partial get-schema find-record-schema))
 (def entity-schema (partial get-schema find-entity-schema))
-
-(defn fetch-schema [some-type]
-  (:schema (second (find-schema some-type))))
 
 (defn computed-attribute-fns
   "Return the expression or query functions attached to computed attributes
