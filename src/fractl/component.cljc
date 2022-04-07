@@ -349,7 +349,7 @@
 (defn attribute-names
   "Return names of attributes from schema as a set."
   [schema]
-  (when-let [ks (seq (keys (:schema schema)))]
+  (when-let [ks (seq (keys (or (:schema schema) schema)))]
     (set ks)))
 
 (def attributes :schema)
