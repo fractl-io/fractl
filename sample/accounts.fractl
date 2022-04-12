@@ -14,21 +14,21 @@
   :meta
   {:str :Title
    :views
-   {:input
-    {:Fractl.UI/CreateEntityForm
-     {:Fields [{:Title {:search-event :Acme.Accounting/QueryAccountsByTitle}}]}}
-    :list
-    {:Fractl.UI/Table
-     {:Source :Acme.Accounting/QueryAllAccounts
-      :Fields [:Title]}}
-    :search
-    {:Fractl.UI/SearchEntityForm
-     {:Fields [:Title]
-      :ResultView
-      {:Fractl.UI/Table
-       {:Source {:Acme.Accounting/QueryAccountsByTitle
-                 {:Title :Title}}
-        :Fields [:Title]}}}}}}})
+   {:input :Acme.Accounting/AccountInputForm
+    :list :Acme.Accounting/AccountsList}}})
+
+(dataflow
+ :Acme.Accounting/AccountInputForm
+ {:Fractl.UI/InputForm
+  {:Record "Acme.Accounting/Account"
+   :Fields ["Title"]}})
+
+(dataflow
+ :Acme.Accounting/AccountsList
+ {:Fractl.UI/Table
+  {:Record "Acme.Accounting/Account"
+   :Source "Acme.Accounting/QueryAllAccounts"
+   :Fields ["Title"]}})
 
 (dataflow
  :Acme.Accounting/QueryAllAccounts

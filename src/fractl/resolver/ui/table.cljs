@@ -4,6 +4,7 @@
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
+            [fractl.resolver.core :as rc]
             [fractl.resolver.ui.util :as vu]
             ["@material-ui/core"
              :refer [Card CardContent
@@ -13,20 +14,14 @@
                      TableRow TableHead
                      TableBody TableCell]]))
 
-(defn- fetch-table-spec [rec-name meta]
-  (if-let [spec (get-in meta [:views :list :Fractl.UI/Table])]
-    spec
-    (u/throw-ex (str "no :meta for table view - " rec-name))))
-
-(defn realize-ui [rec-name]
-  (let [meta (cn/fetch-meta rec-name)
-        table-spec (fetch-table-spec rec-name meta)
+(defn upsert-ui [instance]
+  (let [rec-name (u/string-as-keyword (:Record instance))
         source-event (cn/make-instance
-                      (:Source table-spec)
+                      (u/string-as-keyword (:Source instance))
                       {})
         [_ n] (li/split-path rec-name)
         id (str n "-table-view")
-        fields (:Fields table-spec)
+        fields (mapv u/string-as-keyword (:Fields instance))
         table-view [:div {:id id}]]        
     (vu/eval-event
      (fn [result]
@@ -52,4 +47,9 @@
                 (.getElementById id))))
          (println (str "failed to list " rec-name " - " result))))
      source-event)
-    table-view))
+    (assoc instance :View table-view)))
+
+(defn make [resolver-name _]
+  (rc/make-resolver
+   resolver-name
+   {:upsert {:handler upsert-ui}}))

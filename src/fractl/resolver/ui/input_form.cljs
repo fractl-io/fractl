@@ -4,8 +4,8 @@
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
+            [fractl.resolver.core :as rc]
             [fractl.resolver.ui.util :as vu]
-            [fractl.resolver.ui.table :as vt]
             ["@material-ui/core"
              :refer [TextField Card CardContent
                      Typography ButtonGroup Button
@@ -61,9 +61,9 @@
        (println (str "search error - " r))))
    search-event-instance))
 
-(defn- render-attribute-specs [rec-name schema input-view-meta
+(defn- render-attribute-specs [rec-name schema fields
                                get-state-value change-handler]
-  (let [fields (or (:Fields input-view-meta) (cn/attribute-names schema))]
+  (let [fields (or fields (cn/attribute-names schema))]
     (interpose
      [:> TableContainer
       [:> Table
@@ -97,14 +97,8 @@
                search-event))]]))
       fields))))
 
-(defn- fetch-input-spec [rec-name meta]
-  (if-let [spec (get-in meta [:views :input :Fractl.UI/CreateEntityForm])]
-    spec
-    (u/throw-ex (str "no :meta for :input :view - " rec-name))))
-
-(defn realize-ui [rec-name]
-  (let [meta (cn/fetch-meta rec-name)
-        input-spec (fetch-input-spec rec-name meta)
+(defn- upsert-ui [instance]
+  (let [rec-name (u/string-as-keyword (:Record instance))
         [_ r] (li/split-path rec-name)
         title (name r)
         inst-state (r/atom {})
@@ -112,23 +106,30 @@
         get-state-value (fn [k] (get @inst-state k))
         scm (cn/fetch-schema rec-name)
         transformer (vu/make-transformer rec-name)
-        table-view-id (str r "-table-view-container")]
-    `[:div {:class "view"}
-      [:div {:class "main"}
-       [:> ~Card {:variant "outlined"}
-        [:> ~CardContent
-         [:> ~Typography {:gutterBottom true :variant "h5" :component "div"}
-          ~title][:br]
-         ~@(render-attribute-specs
-            rec-name scm input-spec
-            get-state-value change-handler)
-         [:> ~Button
-          {:on-click
-           ~#(let [inst (transformer @inst-state)]
-               (vu/fire-upsert rec-name inst)
-               (rdom/render
-                [(fn [] (vt/realize-ui rec-name))]
-                (-> js/document
-                    (.getElementById table-view-id))))}
-          "Create"]]]
-       [:div {:id ~table-view-id}]]]))
+        table-view-id (str r "-table-view-container")
+        view
+        `[:div {:class "view"}
+          [:div {:class "main"}
+           [:> ~Card {:variant "outlined"}
+            [:> ~CardContent
+             [:> ~Typography {:gutterBottom true :variant "h5" :component "div"}
+              ~title][:br]
+             ~@(render-attribute-specs
+                rec-name scm (mapv u/string-as-keyword (:Fields instance))
+                get-state-value change-handler)
+             [:> ~Button
+              {:on-click
+               ~#(let [inst (transformer @inst-state)]
+                   (vu/fire-upsert rec-name inst)
+                   (rdom/render
+                    [(fn [] nil)]
+                    (-> js/document
+                        (.getElementById table-view-id))))}
+              "Create"]]]
+           [:div {:id ~table-view-id}]]]]
+    (assoc instance :View view)))
+
+(defn make [resolver-name _]
+  (rc/make-resolver
+   resolver-name
+   {:upsert {:handler upsert-ui}}))
