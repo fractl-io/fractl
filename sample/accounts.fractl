@@ -54,5 +54,23 @@
    :cardinality
    {:type :1-1
     :exclusive false}
-   :view
-   {:order [:Date :Debit :Credit :Amount]}}})
+   :views
+   {:input :Acme.Accounting/TransactionInputForm
+    :list :Acme.Accounting/TransactionsList}}})
+
+(dataflow
+ :Acme.Accounting/TransactionInputForm
+ {:Fractl.UI/InputForm
+  {:Record "Acme.Accounting/Transaction"
+   :Fields ["Date" "Debit" "Credit" "Amount"]}})
+
+(dataflow
+ :Acme.Accounting/TransactionsList
+ {:Fractl.UI/Table
+  {:Record "Acme.Accounting/Transaction"
+   :Source "Acme.Accounting/QueryTransactions"
+   :Fields ["Title"]}})
+
+(dataflow
+ :Acme.Accounting/QueryTransactions
+ {:Acme.Accounting/Transaction? {}}) ; TODO: filter by account-id

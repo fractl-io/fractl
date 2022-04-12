@@ -3,6 +3,7 @@
             [reagent.dom :as rdom]
             [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.relationship :as rel]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
             [fractl.resolver.ui.util :as vu]
@@ -105,9 +106,15 @@
          (.getElementById table-view-id)))
     (println (str "error: upsert failed for " rec-name " - " result))))
 
+(defn- filter-relationships-of [rec-name rel-graph]
+  (filter #(rel/participation % rec-name) rel-graph))
+
 (defn- upsert-ui [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
-        [_ r] (li/split-path rec-name)
+        [c r] (li/split-path rec-name)
+        rel-graph (:graph (rel/relationships c))
+        rels (filter-relationships-of rec-name rel-graph)
+        ;; TODO: use rels to build navigation
         title (name r)
         inst-state (r/atom {})
         change-handler (partial vu/assoc-input-value inst-state)

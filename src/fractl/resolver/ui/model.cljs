@@ -14,7 +14,7 @@
 (entity
  :Fractl.UI/Table
  {:Record :Kernel/Path
-  :Source :Kernel/Path
+  :Source :Kernel/Any
   :Fields {:listof :Kernel/String}
   :View {:type :Kernel/Any
          :optional true}})
