@@ -20,25 +20,11 @@
 (defn get-remote-api-host []
   @remote-api-host)
 
-(def ^:private remote-eval-results (r/atom {}))
-
-(defn get-remote-eval-results []
-  @remote-eval-results)
-
 (defn eval-result [result]
   (let [r (first result)]
     (if (= :ok (:status r))
       (:result r)
       (do (println "remote eval failed: " r) nil))))
-
-(defn remote-eval-callback
-  ([result-key result-proc result]
-   (swap!
-    remote-eval-results
-    assoc result-key
-    (or (result-proc (eval-result result)) :error)))
-  ([result-key result]
-   (remote-eval-callback result-key identity result)))
 
 (defn eval-event
   ([callback eval-local event-instance]
@@ -58,18 +44,20 @@
         ev-name (keyword (str "Upsert_" (name n)))]
     (li/make-path c ev-name)))
 
-(defn fire-upsert [entity-name object]
-  (let [event-name (upsert-event-name entity-name)]
-    (eval-event
-     (when @remote-api-host
-       (partial remote-eval-callback entity-name))
-     (cn/make-instance
-      {event-name
-       {:Instance
-        (if (cn/an-instance? object)
-          object
-          (cn/make-instance
-           {entity-name object}))}}))))
+(defn fire-upsert
+  ([entity-name object callback]
+   (let [event-name (upsert-event-name entity-name)]
+     (eval-event
+      callback
+      (cn/make-instance
+       {event-name
+        {:Instance
+         (if (cn/an-instance? object)
+           object
+           (cn/make-instance
+            {entity-name object}))}}))))
+  ([entity-name object]
+   (fire-upsert entity-name object identity)))
 
 (defn make-transformer
   ([recname schema]
@@ -97,3 +85,15 @@
 
 (defn call-with-value [evt callback]
   (callback (-> evt .-target .-value)))
+
+(defn render-view [rec-name tag]
+  (let [meta (cn/fetch-meta rec-name)
+        input-form-event
+        (cn/make-instance
+         (get-in meta [:views tag])
+         {})
+        r (eval-event nil true input-form-event)
+        v (first (eval-result r))]
+    (or (:View v)
+        (do (println (str "input form generation failed. " r))
+            [:div "failed to generate view for " [rec-name tag]]))))

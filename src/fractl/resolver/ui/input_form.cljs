@@ -97,6 +97,14 @@
                search-event))]]))
       fields))))
 
+(defn- upsert-callback [rec-name table-view-id result]
+  (if (vu/eval-result result)
+    (rdom/render
+     [(fn [] (vu/render-view rec-name :list))]
+     (-> js/document
+         (.getElementById table-view-id)))
+    (println (str "error: upsert failed for " rec-name " - " result))))
+
 (defn- upsert-ui [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
         [_ r] (li/split-path rec-name)
@@ -120,11 +128,9 @@
              [:> ~Button
               {:on-click
                ~#(let [inst (transformer @inst-state)]
-                   (vu/fire-upsert rec-name inst)
-                   (rdom/render
-                    [(fn [] nil)]
-                    (-> js/document
-                        (.getElementById table-view-id))))}
+                   (vu/fire-upsert
+                    rec-name inst
+                    (partial upsert-callback rec-name table-view-id)))}
               "Create"]]]
            [:div {:id ~table-view-id}]]]]
     (assoc instance :View view)))
