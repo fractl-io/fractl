@@ -1,25 +1,45 @@
 (ns sample.accounts
   (:require [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record relationship dataflow]]
             [fractl.lang.datetime :as dt]))
 
 (component :Acme.Accounting)
 
 (entity
  :Acme.Accounting/Account
- {:Title :Kernel/String
+ {:Title {:type :Kernel/String
+          :indexed true
+          :unique true}
   :meta
   {:str :Title
-   :view {:fields [[:Title {:input :TextField :value "0"}]]
-          :navigation [:Acme.Accounting/Transaction]}}})
+   :views
+   {:input
+    {:Fractl.UI/CreateEntityForm
+     {:Fields [{:Title {:search-event :Acme.Accounting/QueryAccountsByTitle}}]}}
+    :list
+    {:Fractl.UI/Table
+     {:Source :Acme.Accounting/QueryAllAccounts
+      :Fields [:Title]}}
+    :search
+    {:Fractl.UI/SearchEntityForm
+     {:Fields [:Title]
+      :ResultView
+      {:Fractl.UI/Table
+       {:Source {:Acme.Accounting/QueryAccountsByTitle
+                 {:Title :Title}}
+        :Fields [:Title]}}}}}}})
 
-(def acc-select-spec
-  {:input :Select
-   :fetch :Acme.Accounting/QueryAllAccounts
-   :value :Id :label :Title})
+(dataflow
+ :Acme.Accounting/QueryAllAccounts
+ {:Acme.Accounting/Account? {}})
 
-(entity
+(dataflow
+ :Acme.Accounting/QueryAccountsByTitle
+ {:Acme.Accounting/Account
+  {:Title? [:like :Acme.Accounting/QueryAccountsByTitle.S]}})
+
+(relationship
  :Acme.Accounting/Transaction
  {:Date {:type :Kernel/DateTime
          :default dt/now}
@@ -27,14 +47,12 @@
   :Credit {:ref :Acme.Accounting/Account.Id}
   :Amount :Kernel/Decimal
   :meta
-  {:view
-   {:fields [[:Date {:hidden true}]
-             [:Debit acc-select-spec]
-             [:Credit acc-select-spec]
-             [:Amount {:input :TextField}]]
-    :list-all true
-    :navigation [:Acme.Accounting/Account]}}})
-
-(dataflow
- :Acme.Accounting/QueryAllAccounts
- {:Acme.Accounting/Account? {}})
+  {:from :Debit
+   :to :Credit
+   :list {:Debit :Acme.Accounting/QueryAllAccounts
+          :Credit :Acme.Accounting/QueryAllAccounts}
+   :cardinality
+   {:type :1-1
+    :exclusive false}
+   :view
+   {:order [:Date :Debit :Credit :Amount]}}})
