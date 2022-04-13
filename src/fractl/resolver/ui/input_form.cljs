@@ -62,23 +62,45 @@
        (println (str "search error - " r))))
    search-event-instance))
 
+(defn- menu-items-from-rows [rows]
+  (mapv
+   (fn [r]
+     [:> MenuItem {:value (:Id r)} (cn/instance-str r)])
+   rows))
+
+(defn- select-from-search [event-name sel-id handler target-id]
+  ;; TODO: cache results of same search-event
+  (vu/eval-event
+   (fn [r]
+     (vu/render-view
+      (if-let [rows (vu/eval-result r)]
+        `[:> ~Select
+          {:label-id ~(str sel-id "-label-id")
+           :id ~sel-id
+           :label ~sel-id
+           :on-change ~handler}
+          ~@(menu-items-from-rows rows)]
+        (do (println "error: failed to load data for " sel-id " - " r)
+            [:span (str "failed to load data for " sel-id)]))
+      target-id))
+   (cn/make-instance
+    {event-name {}})))
+
 (defn- render-attribute-specs [rec-name schema fields
                                get-state-value change-handler]
-  (let [fields (or fields (cn/attribute-names schema))]
+  (let [fields (or fields (cn/attribute-names schema))
+        list-refs (:list (cn/fetch-meta rec-name))]
     (interpose
      [:> TableContainer
       [:> Table
        [:> TableBody
         [:> Divider]]]]
      (mapv
-      (fn [field]
-        (let [has-field-spec (map? field)
-              field-name (if has-field-spec (first (keys field)) field)
-              field-spec (when has-field-spec (field-name field))
-              search-event (:search-event field-spec)
+      (fn [arg]
+        (let [field-name arg
               n (name field-name)
               id n
-              attr-scm (cn/find-attribute-schema (field schema))
+              attr-scm (cn/find-attribute-schema (field-name schema))
               default-value (str
                              (when-let [d (:default attr-scm)]
                                (if (fn? d) (d) d)))
@@ -86,17 +108,16 @@
               h (partial change-handler k)]
           [:> TableRow
            [:> TableCell
-            [:> TextField
-             {:id id
-              :label n
-              :default-value default-value
-              :variant "standard"
-              :on-change h}]]
-           [:> TableCell
-            (when search-event
-              (make-find-button
-               id get-state-value k
-               search-event))]]))
+            (if-let [search-event (field-name list-refs)]
+              (let [div-id (str n "-select")]
+                (select-from-search search-event id h div-id)
+                [:div {:id div-id}])
+              [:> TextField
+               {:id id
+                :label n
+                :default-value default-value
+                :variant "standard"
+                :on-change h}])]]))
       fields))))
 
 (defn- upsert-callback [rec-name table-view-id result]

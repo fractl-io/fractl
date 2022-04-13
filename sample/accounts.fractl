@@ -69,7 +69,7 @@
  {:Fractl.UI/Table
   {:Record "Acme.Accounting/Transaction"
    :Source "Acme.Accounting/QueryTransactions"
-   :Fields ["Title"]}})
+   :Fields ["Date" "Debit" "Credit" "Amount"]}})
 
 (dataflow
  :Acme.Accounting/QueryTransactions
