@@ -31,6 +31,9 @@
         {:graph result
          :roots roots}))))
 
+(def relationship-name first)
+(def relationship-spec second)
+
 (def root-record first)
 (def root-rank second)
 

@@ -1,5 +1,6 @@
 (ns fractl.resolver.ui.util
   (:require [reagent.core :as r]
+            [reagent.dom :as rdom]
             [fractl.lang.kernel :as k]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
@@ -86,7 +87,7 @@
 (defn call-with-value [evt callback]
   (callback (-> evt .-target .-value)))
 
-(defn render-view [rec-name tag]
+(defn make-view [rec-name tag]
   (let [meta (cn/fetch-meta rec-name)
         input-form-event
         (cn/make-instance
@@ -97,3 +98,14 @@
     (or (:View v)
         (do (println (str "input form generation failed. " r))
             [:div "failed to generate view for " [rec-name tag]]))))
+
+(def main-view-id "main-view")
+
+(defn render-view
+  ([view-spec elem-id]
+   (rdom/render
+    [(fn [] view-spec)]
+    (-> js/document
+        (.getElementById elem-id))))
+  ([view-spec]
+   (render-view view-spec main-view-id)))

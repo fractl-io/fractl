@@ -89,6 +89,7 @@
             [:> TextField
              {:id id
               :label n
+              :default-value default-value
               :variant "standard"
               :on-change h}]]
            [:> TableCell
@@ -100,21 +101,42 @@
 
 (defn- upsert-callback [rec-name table-view-id result]
   (if (vu/eval-result result)
-    (rdom/render
-     [(fn [] (vu/render-view rec-name :list))]
-     (-> js/document
-         (.getElementById table-view-id)))
+    (vu/render-view
+     (vu/make-view rec-name :list)
+     table-view-id)
     (println (str "error: upsert failed for " rec-name " - " result))))
 
+(defn- navigation-buttons [rels prev-rec-name]
+  (mapv
+   (fn [rel]
+     (let [rname (rel/relationship-name rel)
+           [_ r] (li/split-path rname)
+           n (name r)]
+       [:> Button
+        {:on-click #(vu/render-view
+                     (vu/make-view rname :input))}
+        n]))
+   rels))
+
 (defn- filter-relationships-of [rec-name rel-graph]
-  (filter #(rel/participation % rec-name) rel-graph))
+  (filter #(rel/participation (rel/relationship-spec %) rec-name) rel-graph))
+
+(def ^:private view-stack (atom []))
+
+(defn- close-button []
+  (let [s @view-stack]
+    (when-let [v (peek s)]
+      (swap! view-stack pop)
+      [:> Button
+       {:on-click
+        #(vu/render-view v)}
+       "Close"])))
 
 (defn- upsert-ui [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
         [c r] (li/split-path rec-name)
         rel-graph (:graph (rel/relationships c))
         rels (filter-relationships-of rec-name rel-graph)
-        ;; TODO: use rels to build navigation
         title (name r)
         inst-state (r/atom {})
         change-handler (partial vu/assoc-input-value inst-state)
@@ -138,8 +160,11 @@
                    (vu/fire-upsert
                     rec-name inst
                     (partial upsert-callback rec-name table-view-id)))}
-              "Create"]]]
+              "Create"]
+             ~@(navigation-buttons rels rec-name)]
+            ~(close-button)]
            [:div {:id ~table-view-id}]]]]
+    (swap! view-stack conj view)
     (assoc instance :View view)))
 
 (defn make [resolver-name _]
