@@ -31,7 +31,7 @@
                                   `[:> ~TableRow
                                     ~@(mapv
                                        (fn [f]
-                                         [:> TableCell (str (get inst f))])
+                                         [:> TableCell (vu/decode-to-str (get inst f))])
                                        fields)])
                                 rows)]
            (rdom/render

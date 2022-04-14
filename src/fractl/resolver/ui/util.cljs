@@ -1,6 +1,7 @@
 (ns fractl.resolver.ui.util
   (:require [reagent.core :as r]
             [reagent.dom :as rdom]
+            [cognitect.transit :as t]
             [fractl.lang.kernel :as k]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
@@ -109,3 +110,8 @@
         (.getElementById elem-id))))
   ([view-spec]
    (render-view view-spec main-view-id)))
+
+(defn decode-to-str [x]
+  (if (t/tagged-value? x)
+    (.-rep x)
+    (str x)))
