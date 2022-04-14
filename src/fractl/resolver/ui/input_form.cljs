@@ -68,18 +68,20 @@
      [:> MenuItem {:value (:Id r)} (cn/instance-str r)])
    rows))
 
+(defn- result-rows-to-select [sel-id handler rows]
+  `[:> ~Select
+    {:label-id ~(str sel-id "-label-id")
+     :id ~sel-id
+     :label ~sel-id
+     :on-change ~handler}
+    ~@(menu-items-from-rows rows)])
+
 (defn- select-from-search [event-name sel-id handler target-id]
-  ;; TODO: cache results of same search-event
   (vu/eval-event
    (fn [r]
      (vu/render-view
       (if-let [rows (vu/eval-result r)]
-        `[:> ~Select
-          {:label-id ~(str sel-id "-label-id")
-           :id ~sel-id
-           :label ~sel-id
-           :on-change ~handler}
-          ~@(menu-items-from-rows rows)]
+        (result-rows-to-select sel-id handler rows)
         (do (println "error: failed to load data for " sel-id " - " r)
             [:span (str "failed to load data for " sel-id)]))
       target-id))
