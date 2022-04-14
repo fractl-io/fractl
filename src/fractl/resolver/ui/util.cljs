@@ -7,14 +7,7 @@
             [fractl.component :as cn]
             [fractl.evaluator :as ev]))
 
-(def ^:private global-render-view (atom nil))
 (def ^:private remote-api-host (atom nil))
-
-(defn set-global-render-view! [render-view]
-  (reset! global-render-view render-view))
-
-(defn get-global-render-view []
-  @global-render-view)
 
 (defn set-remote-api-host! [host]
   (reset! remote-api-host host))
@@ -115,3 +108,15 @@
   (if (t/tagged-value? x)
     (.-rep x)
     (str x)))
+
+(defn main-view
+  ([render-fn root-entity display-tag]
+   (let [[c _] (li/split-path root-entity)]
+     (render-fn
+      (fn []
+        [:div
+         [:b (str (subs (name c) 1) " / Dashboard")]
+         [:div {:id main-view-id}
+          (make-view root-entity display-tag)]]))))
+  ([render-fn root-entity]
+   (main-view render-fn root-entity :input)))
