@@ -73,9 +73,12 @@
   (let [insts (filter #(not= (:Id %) id) (get-instances env rec-name))]
     (assoc env rec-name insts)))
 
-(defn- find-instance-by-path-parts [env path-parts]
+(defn- find-instance-by-path-parts [env path-parts has-refs]
   (if-let [p (:path path-parts)] ; maybe an alias
-    (get env p)
+    (let [x (get env p)]
+      (if has-refs
+        (if (map? x) x (first x))
+        x))
     (if (= :% (:record path-parts))
       (lookup-by-alias env :%)
       (let [recname [(:component path-parts) (:record path-parts)]]
@@ -89,7 +92,7 @@
     (if (symbol? refs)
       [(second (lookup-variable env refs)) env]
       (loop [env env, refs refs
-             obj (find-instance-by-path-parts env path-parts)]
+             obj (find-instance-by-path-parts env path-parts (seq refs))]
         (if-let [r (first refs)]
           (let [x (get obj r)]
             (recur (if (cn/an-instance? x)
