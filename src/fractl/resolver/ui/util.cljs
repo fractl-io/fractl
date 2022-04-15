@@ -117,7 +117,7 @@
              (subs cn 1)
              cn)]
      [:div
-      [:b (str s " / Dashboard")]
+      [:b (str s " / ") [:a {:href "#"} "Home"]]
       [:div {:id main-view-id}
        (make-view root-entity display-tag)]]))
   ([root-entity]

@@ -40,6 +40,7 @@
                  [reagent "1.1.0"]
                  [cljsjs/react "17.0.2-0"]
                  [cljsjs/react-dom "17.0.2-0"]
+                 [secretary "1.2.3"]
                  [babashka/babashka.curl "0.1.1"]
                  [com.cognitect.aws/api "0.8.539"]
                  [com.cognitect.aws/endpoints "1.1.12.145"]
