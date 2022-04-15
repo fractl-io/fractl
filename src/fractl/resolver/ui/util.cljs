@@ -1,5 +1,6 @@
 (ns fractl.resolver.ui.util
-  (:require [reagent.core :as r]
+  (:require [clojure.string :as s]
+            [reagent.core :as r]
             [reagent.dom :as rdom]
             [cognitect.transit :as t]
             [fractl.lang.kernel :as k]
@@ -109,14 +110,26 @@
     (.-rep x)
     (str x)))
 
+(defn generate-view
+  ([component-name root-entity display-tag]
+   (let [cn (name component-name)
+         s (if (s/starts-with? cn ":")
+             (subs cn 1)
+             cn)]
+     [:div
+      [:b (str s " / Dashboard")]
+      [:div {:id main-view-id}
+       (make-view root-entity display-tag)]]))
+  ([root-entity]
+   (generate-view
+    (first (li/split-path root-entity))
+    root-entity :input)))
+
 (defn main-view
   ([render-fn root-entity display-tag]
    (let [[c _] (li/split-path root-entity)]
      (render-fn
       (fn []
-        [:div
-         [:b (str (subs (name c) 1) " / Dashboard")]
-         [:div {:id main-view-id}
-          (make-view root-entity display-tag)]]))))
+        (generate-view c root-entity display-tag)))))
   ([render-fn root-entity]
    (main-view render-fn root-entity :input)))
