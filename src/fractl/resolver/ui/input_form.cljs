@@ -59,7 +59,7 @@
                  {:on-click ~#(rdom/render [on-close-view] (target-elem))}
                  "Close"]])]
          (rdom/render [display-results] (target-elem)))
-       (println (str "search error - " r))))
+       (println (str "error: search failed - " r))))
    search-event-instance))
 
 (defn- menu-items-from-rows [rows]
@@ -68,30 +68,75 @@
      [:> MenuItem {:value (:Id r)} (cn/instance-str r)])
    rows))
 
-(defn- result-rows-to-select [sel-id handler rows]
+(defn- result-rows-to-select [sel-id value-cell handler rows]
   `[:> ~Select
     {:label-id ~(str sel-id "-label-id")
      :id ~sel-id
      :label ~sel-id
+     :value @value-cell
      :on-change ~handler}
     ~@(menu-items-from-rows rows)])
 
-(defn- select-from-search [event-name sel-id handler target-id]
+(defn- select-from-search [event-name value-cell sel-id handler target-id]
   (vu/eval-event
    (fn [r]
      (vu/render-view
       (if-let [rows (vu/eval-result r)]
-        (result-rows-to-select sel-id handler rows)
+        (result-rows-to-select sel-id value-cell handler rows)
         (do (println "error: failed to load data for " sel-id " - " r)
             [:span (str "failed to load data for " sel-id)]))
       target-id))
    (cn/make-instance
     {event-name {}})))
 
-(defn- render-attribute-specs [rec-name schema fields
+(defn- make-query-event [rec-name query-by query-value]
+  (let [[c n] (li/split-path rec-name)]
+    (if (= :Id query-by)
+      (cn/make-instance
+       (keyword (str (name c) "/Lookup_" (name n)))
+       {:Id query-value})
+      (cn/make-instance
+       (keyword (str (name c) "/Lookup" (name n) "By" (name query-by)))
+       {:S query-value}))))
+
+(def ^:private instance-cell (atom nil))
+
+(defn- query-instance [rec-name query-by query-value callback]
+  ;; TODO: debug query instance
+  (if-let [inst @instance-cell]
+    (callback inst)
+    (let [event-inst (make-query-event rec-name query-by query-value)]
+      (vu/eval-event
+       (fn [r]
+         (if-let [result (vu/eval-result r)]
+           (let [inst (first result)]
+             (reset! instance-cell inst)
+             (callback inst))
+           (do (println
+                (str "error: query-instance failed for "
+                     [rec-name query-by query-value]
+                     " - " r))
+               (callback nil))))
+       event-inst))))
+
+(defn- set-value-cell! [rec-name cell attr-name attr-scm query-spec]
+  (let [[query-by query-value] query-spec]
+    (if (and query-by query-value)
+      (attr-name
+       (query-instance
+        rec-name query-by query-value
+        (fn [inst] (reset! cell (attr-name inst)))))
+      (reset!
+       cell
+       (str
+        (when-let [d (:default attr-scm)]
+          (if (fn? d) (d) d)))))))
+
+(defn- render-attribute-specs [rec-name schema fields query-spec
                                get-state-value change-handler]
   (let [fields (or fields (cn/attribute-names schema))
         list-refs (:list (cn/fetch-meta rec-name))]
+    (reset! instance-cell nil)
     (interpose
      [:> TableContainer
       [:> Table
@@ -103,21 +148,20 @@
               n (name field-name)
               id n
               attr-scm (cn/find-attribute-schema (field-name schema))
-              default-value (str
-                             (when-let [d (:default attr-scm)]
-                               (if (fn? d) (d) d)))
+              value-cell (r/atom "")
               k field-name
               h (partial change-handler k)]
+          (set-value-cell! rec-name value-cell field-name attr-scm query-spec)
           [:> TableRow
            [:> TableCell
             (if-let [search-event (field-name list-refs)]
               (let [div-id (str n "-select")]
-                (select-from-search search-event id h div-id)
+                (select-from-search search-event value-cell id h div-id)
                 [:div {:id div-id}])
               [:> TextField
                {:id id
                 :label n
-                :default-value default-value
+                :default-value @value-cell
                 :variant "standard"
                 :on-change h}])]]))
       fields))))
@@ -175,7 +219,11 @@
              [:> ~Typography {:gutterBottom true :variant "h5" :component "div"}
               ~title][:br]
              ~@(render-attribute-specs
-                rec-name scm (mapv u/string-as-keyword (:Fields instance))
+                rec-name scm
+                (mapv
+                 u/string-as-keyword
+                 (:Fields instance))
+                [(:QueryBy instance) (:QueryValue instance)]
                 get-state-value change-handler)
              [:> ~Button
               {:on-click

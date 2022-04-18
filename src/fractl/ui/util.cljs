@@ -82,12 +82,19 @@
 (defn call-with-value [evt callback]
   (callback (-> evt .-target .-value)))
 
-(defn make-view [rec-name tag]
-  (let [meta (cn/fetch-meta rec-name)
+(defn make-view [entity-spec tag]
+  (let [is-spec (seqable? entity-spec)
+        rec-name (if is-spec
+                   (first entity-spec)
+                   entity-spec)
+        meta (cn/fetch-meta rec-name)
         input-form-event
         (cn/make-instance
          (get-in meta [:views tag])
-         {})
+         (if is-spec
+           {:QueryBy (second entity-spec)
+            :QueryValue (nth entity-spec 2)}
+           {}))
         r (eval-event nil true input-form-event)
         v (first (eval-result r))]
     (or (:View v)
@@ -105,13 +112,16 @@
   ([view-spec]
    (render-view view-spec main-view-id)))
 
+(defn render-app-view [view-spec]
+  (render-view view-spec "app"))
+
 (defn decode-to-str [x]
   (if (t/tagged-value? x)
     (.-rep x)
     (str x)))
 
 (defn generate-view
-  ([component-name root-entity display-tag]
+  ([component-name entity-spec display-tag]
    (let [cn (name component-name)
          s (if (s/starts-with? cn ":")
              (subs cn 1)
@@ -119,11 +129,16 @@
      [:div
       [:b (str s " / ") [:a {:href "#"} "Home"]]
       [:div {:id main-view-id}
-       (make-view root-entity display-tag)]]))
-  ([root-entity]
-   (generate-view
-    (first (li/split-path root-entity))
-    root-entity :input)))
+       (make-view entity-spec display-tag)]]))
+  ([entity-spec display-tag]
+   (let [en (if (keyword? entity-spec)
+              entity-spec
+              (first entity-spec))]
+     (generate-view
+      (first (li/split-path en))
+      entity-spec display-tag)))
+  ([entity-spec]
+   (generate-view entity-spec :input)))
 
 (defn main-view
   ([render-fn root-entity display-tag]

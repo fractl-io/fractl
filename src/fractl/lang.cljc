@@ -536,7 +536,7 @@
   lifted from the :on-entity-event property of an entity
   definition."
   [ename event-spec]
-  `(dataflow {:head {:on-entity-event {~ename {:Id 'aaaaid}}
+  `(dataflow {:head {:on-entity-event {~ename {:Id 'id}}
                      :when ~(:when event-spec)}}
              ~@(:do event-spec)))
 

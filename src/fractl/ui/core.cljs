@@ -14,8 +14,6 @@
   (:import goog.history.Html5History)
   (:require-macros [secretary.core :refer [defroute]]))
 
-(def app-state (r/atom {}))
-
 (defn hook-browser-navigation! []
   (doto (Html5History.)
     (events/listen
@@ -24,32 +22,31 @@
        (secretary/dispatch! (.-token event))))
     (.setEnabled true)))
 
-(defmulti current-page #(@app-state :page))
-
 (defn- app-routes [component]
   (secretary/set-config! :prefix "#")
-
-  (defroute "/" []
-    (swap! app-state assoc :page :home))
 
   (loop [ens (cn/entity-names component)
          home-links []]
     (if-let [en (first ens)]
       (let [[_ n] (li/split-path en)
-            s (s/lower-case (name n))]
+            s (s/lower-case (name n))
+            schema (cn/entity-schema en)]
         (defroute (str "/" s) []
-          (swap! app-state assoc :page en))
-        (defmethod current-page en []
-          [(fn [] (vu/generate-view en))])
+          (vu/render-app-view
+           (vu/generate-view en)))
+        (doseq [uq (cn/unique-attributes schema)]
+          (defroute (str "/" s "/" (name uq)) {:as params}
+            (vu/render-app-view
+             (vu/generate-view [en uq (get-in params [:query-params :s])] :display))))
         (recur
          (rest ens)
          (conj
           home-links
           [:a {:href (str "#/" s)} (str (name n) " | ")])))
-      (defmethod current-page :default []
-        [(fn []
-           `[:div [:h1 "Home Page"]
-             ~@home-links])])))
+      (defroute "/" []
+        (vu/render-app-view
+         `[:div [:h1 "Home Page"]
+           ~@home-links]))))
   (hook-browser-navigation!))
 
 (defn init-view [config]
@@ -61,5 +58,4 @@
   (rg/override-resolver
    [:Fractl.UI/Table]
    (vt/make :table nil))  
-  (app-routes (get-in config [:view :component]))
-  current-page)
+  (app-routes (get-in config [:view :component])))
