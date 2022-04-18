@@ -3,9 +3,9 @@
             [reagent.dom :as rdom]
             [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.ui.util :as vu]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
-            [fractl.resolver.ui.util :as vu]
             ["@material-ui/core"
              :refer [Card CardContent
                      Typography ButtonGroup Button

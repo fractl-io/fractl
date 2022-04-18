@@ -1,4 +1,4 @@
-(ns fractl.resolver.ui.util
+(ns fractl.ui.util
   (:require [clojure.string :as s]
             [reagent.core :as r]
             [reagent.dom :as rdom]

@@ -3,10 +3,10 @@
             [reagent.dom :as rdom]
             [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.ui.util :as vu]
             [fractl.relationship :as rel]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
-            [fractl.resolver.ui.util :as vu]
             ["@material-ui/core"
              :refer [TextField Card CardContent
                      Typography ButtonGroup Button
