@@ -7,7 +7,7 @@
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.resolver.registry :as rg]
-            [fractl.resolver.ui.model]
+            [fractl.ui.model]
             [fractl.ui.util :as vu]
             [fractl.resolver.ui.table :as vt]
             [fractl.resolver.ui.input-form :as vif])

@@ -1,4 +1,4 @@
-(ns fractl.resolver.ui.model
+(ns fractl.ui.model
   (:require [fractl.lang
              :refer [component entity]]))
 
