@@ -9,7 +9,11 @@
  {:Record :Kernel/Path
   :Fields {:listof :Kernel/String}
   :View {:type :Kernel/Any
-         :optional true}})
+         :optional true}
+  :QueryBy {:type :Kernel/Keyword
+            :optional true}
+  :QueryValue {:type :Kernel/String
+               :optional true}})
 
 (entity
  :Fractl.UI/Table
