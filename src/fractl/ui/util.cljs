@@ -101,6 +101,17 @@
         (do (println (str "input form generation failed. " r))
             [:div "failed to generate view for " [rec-name tag]]))))
 
+(def ^:private post-render-events (atom []))
+
+(defn add-post-render-event! [event-fn]
+  (swap! post-render-events conj event-fn))
+
+(defn run-post-render-events! []
+  (let [fns @post-render-events]
+    (reset! post-render-events [])
+    (doseq [f fns]
+      (f))))
+
 (def main-view-id "main-view")
 
 (defn render-view
@@ -108,7 +119,8 @@
    (rdom/render
     [(fn [] view-spec)]
     (-> js/document
-        (.getElementById elem-id))))
+        (.getElementById elem-id)))
+   (run-post-render-events!))
   ([view-spec]
    (render-view view-spec main-view-id)))
 

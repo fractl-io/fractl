@@ -15,6 +15,7 @@
   {:str :Title
    :views
    {:input :Acme.Accounting/AccountInputForm
+    :display :Acme.Accounting/AccountDisplayForm
     :list :Acme.Accounting/AccountsList}}})
 
 (dataflow
@@ -22,6 +23,14 @@
  {:Fractl.UI/InputForm
   {:Record "Acme.Accounting/Account"
    :Fields ["Title"]}})
+
+(dataflow
+ :Acme.Accounting/AccountDisplayForm
+ {:Fractl.UI/InputForm
+  {:Record "Acme.Accounting/Account"
+   :Fields ["Title"]
+   :QueryBy :Acme.Accounting/AccountDisplayForm.QueryBy
+   :QueryValue :Acme.Accounting/AccountDisplayForm.QueryValue}})
 
 (dataflow
  :Acme.Accounting/AccountsList
@@ -35,9 +44,9 @@
  {:Acme.Accounting/Account? {}})
 
 (dataflow
- :Acme.Accounting/QueryAccountsByTitle
+ :Acme.Accounting/LookupAccountByTitle
  {:Acme.Accounting/Account
-  {:Title? [:like :Acme.Accounting/QueryAccountsByTitle.S]}})
+  {:Title? [:like :Acme.Accounting/LookupAccountByTitle.S]}})
 
 (relationship
  :Acme.Accounting/Transaction
