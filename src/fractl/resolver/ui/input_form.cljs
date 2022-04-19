@@ -95,7 +95,7 @@
        (keyword (str (name c) "/Lookup_" (name n)))
        {:Id query-value})
       (cn/make-instance
-       (keyword (str (name c) "/Lookup" (name n) "By" (name query-by)))
+       (keyword (str (name c) "/" (name n) "LookupBy" (name query-by)))
        {:S query-value}))))
 
 (def ^:private instance-cell (atom nil))

@@ -13,40 +13,16 @@
           :unique true}
   :meta
   {:str :Title
-   :views
-   {:input :Acme.Accounting/AccountInputForm
-    :display :Acme.Accounting/AccountDisplayForm
-    :list :Acme.Accounting/AccountsList}}})
+   :order [:Title]}})
 
 (dataflow
- :Acme.Accounting/AccountInputForm
- {:Fractl.UI/InputForm
-  {:Record "Acme.Accounting/Account"
-   :Fields ["Title"]}})
-
-(dataflow
- :Acme.Accounting/AccountDisplayForm
- {:Fractl.UI/InputForm
-  {:Record "Acme.Accounting/Account"
-   :Fields ["Title"]
-   :QueryBy :Acme.Accounting/AccountDisplayForm.QueryBy
-   :QueryValue :Acme.Accounting/AccountDisplayForm.QueryValue}})
-
-(dataflow
- :Acme.Accounting/AccountsList
- {:Fractl.UI/Table
-  {:Record "Acme.Accounting/Account"
-   :Source "Acme.Accounting/QueryAllAccounts"
-   :Fields ["Title"]}})
-
-(dataflow
- :Acme.Accounting/QueryAllAccounts
+ :Acme.Accounting/AccountLookupAll
  {:Acme.Accounting/Account? {}})
 
 (dataflow
- :Acme.Accounting/LookupAccountByTitle
+ :Acme.Accounting/AccountLookupByTitle
  {:Acme.Accounting/Account
-  {:Title? [:like :Acme.Accounting/LookupAccountByTitle.S]}})
+  {:Title? [:like :Acme.Accounting/AccountLookupByTitle.S]}})
 
 (relationship
  :Acme.Accounting/Transaction
@@ -58,28 +34,13 @@
   :meta
   {:from :Debit
    :to :Credit
-   :list {:Debit :Acme.Accounting/QueryAllAccounts
-          :Credit :Acme.Accounting/QueryAllAccounts}
+   :list {:Debit :Acme.Accounting/AccountLookupAll
+          :Credit :Acme.Accounting/AccountLookupAll}
+   :order [:Date :Debit :Credit :Amount]
    :cardinality
    {:type :1-1
-    :exclusive false}
-   :views
-   {:input :Acme.Accounting/TransactionInputForm
-    :list :Acme.Accounting/TransactionsList}}})
+    :exclusive false}}})
 
 (dataflow
- :Acme.Accounting/TransactionInputForm
- {:Fractl.UI/InputForm
-  {:Record "Acme.Accounting/Transaction"
-   :Fields ["Date" "Debit" "Credit" "Amount"]}})
-
-(dataflow
- :Acme.Accounting/TransactionsList
- {:Fractl.UI/Table
-  {:Record "Acme.Accounting/Transaction"
-   :Source "Acme.Accounting/QueryTransactions"
-   :Fields ["Date" "Debit" "Credit" "Amount"]}})
-
-(dataflow
- :Acme.Accounting/QueryTransactions
+ :Acme.Accounting/TransactionLookupAll
  {:Acme.Accounting/Transaction? {}}) ; TODO: filter by account-id

@@ -82,6 +82,31 @@
 (defn call-with-value [evt callback]
   (callback (-> evt .-target .-value)))
 
+(defn- make-source [rec-name]
+  (let [[c n] (li/split-path rec-name)]
+    (keyword (str (name c) "/" (name n) "LookupAll"))))
+
+(def ^:private fallback-render-event-names
+  {:input :Fractl.UI/RenderGenericInputForm
+   :display :Fractl.UI/RenderGenericDisplayForm
+   :list :Fractl.UI/RenderGenericTable})
+
+(defn- make-render-event [rec-name entity-spec
+                          tag meta spec-has-query-info]
+  (let [qattrs (if spec-has-query-info
+                 {:QueryBy (second entity-spec)
+                  :QueryValue (nth entity-spec 2)}
+                 {})
+        tbl-attrs (when (= :list tag)
+                    {:Source (make-source rec-name)})]
+    (if-let [event-name (get-in meta [:views tag])]
+      (cn/make-instance event-name qattrs)
+      (let [attrs {:RecordName rec-name
+                   :Fields (:order meta)}]
+        (cn/make-instance
+         (tag fallback-render-event-names)
+         (merge attrs qattrs tbl-attrs))))))
+
 (defn make-view [entity-spec tag]
   (let [is-spec (seqable? entity-spec)
         rec-name (if is-spec
@@ -89,12 +114,8 @@
                    entity-spec)
         meta (cn/fetch-meta rec-name)
         input-form-event
-        (cn/make-instance
-         (get-in meta [:views tag])
-         (if is-spec
-           {:QueryBy (second entity-spec)
-            :QueryValue (nth entity-spec 2)}
-           {}))
+        (make-render-event
+         rec-name entity-spec tag meta is-spec)
         r (eval-event nil true input-form-event)
         v (first (eval-result r))]
     (or (:View v)
