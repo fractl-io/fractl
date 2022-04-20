@@ -39,6 +39,15 @@
        (-> js/document
            (.getElementById elem-id))))))
 
+(def ^:private interval-handle (atom nil))
+
+(defn- set-interval! [callback ms]
+  (when-let [h @interval-handle]
+    (js/clearInterval h))
+  (reset!
+   interval-handle
+   (js/setInterval callback ms)))
+
 ;; TODO: table-view should be created in input-form,
 ;; so that auto-update is available always,
 ;; or create table on input-form display itself - do not
@@ -65,7 +74,7 @@
              [:ui :data-refresh-ms rec-name])
             5000)]
     (data-refresh!)
-    (js/setInterval data-refresh! data-refresh-ms)
+    (set-interval! data-refresh! data-refresh-ms)
     (assoc instance :View table-view)))
 
 (defn make [resolver-name _]

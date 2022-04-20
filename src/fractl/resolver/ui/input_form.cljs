@@ -167,11 +167,14 @@
                 :on-change h}])]]))
       fields))))
 
+(defn- render-table [rec-name table-view-id]
+  (vu/render-view
+   (vu/make-view rec-name :list)
+   table-view-id))
+
 (defn- upsert-callback [rec-name table-view-id result]
   (if (vu/eval-result result)
-    (vu/render-view
-     (vu/make-view rec-name :list)
-     table-view-id)
+    (render-table rec-name table-view-id)
     (println (str "error: upsert failed for " rec-name " - " result))))
 
 (defn- navigation-buttons [rels prev-rec-name]

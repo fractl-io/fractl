@@ -35,6 +35,9 @@
         (defroute (str "/" s) []
           (vu/render-app-view
            (vu/generate-view en)))
+        (defroute (str "/" s "/list") []
+          (vu/render-app-view
+           (vu/generate-view en :list)))
         (doseq [uq (cn/unique-attributes schema)]
           (defroute (str "/" s "/" (name uq)) {:as params}
             (vu/render-app-view
