@@ -4,6 +4,7 @@
             [secretary.core :as secretary]
             [goog.events :as events]
             [goog.history.EventType :as EventType]
+            [fractl.global-state :as gs]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.resolver.registry :as rg]
@@ -49,13 +50,15 @@
            ~@home-links]))))
   (hook-browser-navigation!))
 
-(defn init-view [config]
-  (when-let [h (:remote-api-host config)]
-    (vu/set-remote-api-host! h))
-  (rg/override-resolver
-   [:Fractl.UI/InputForm]
-   (vif/make :input-form nil))
-  (rg/override-resolver
-   [:Fractl.UI/Table]
-   (vt/make :table nil))  
-  (app-routes (get-in config [:view :component])))
+(defn init-view
+  ([config]
+   (when-let [h (:remote-api-host config)]
+     (vu/set-remote-api-host! h))
+   (rg/override-resolver
+    [:Fractl.UI/InputForm]
+    (vif/make :input-form nil))
+   (rg/override-resolver
+    [:Fractl.UI/Table]
+    (vt/make :table nil))
+   (app-routes (get-in config [:view :component])))
+  ([] (init-view (gs/get-app-config))))

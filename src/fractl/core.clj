@@ -12,6 +12,7 @@
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.store :as store]
+            [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.loader :as loader])
@@ -141,9 +142,14 @@
        (or (nil? f) f)))
     [ev store]))
 
+(defn- finalize-config [model config]
+  (let [final-config (merge (:config model) config)]
+    (gs/merge-app-config! final-config)
+    final-config))
+
 (defn run-service [args [model config]]
   (let [[model model-root] (maybe-read-model args)
-        config (merge (:config model) config)
+        config (finalize-config model config)
         components (if model
                      (load-model model model-root nil config)
                      (load-components args (:component-root config) false))]

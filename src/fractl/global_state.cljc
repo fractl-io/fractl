@@ -1,6 +1,9 @@
-(ns fractl.global-state
-  (:require [fractl.evaluator :as e]
-            [fractl.store :as store]))
+(ns fractl.global-state)
 
-(defn init [config]
-  (e/global-dataflow-eval config))
+(def ^:private app-config (atom nil))
+
+(defn merge-app-config! [config]
+  (reset! app-config (merge @app-config config)))
+
+(defn get-app-config []
+  @app-config)

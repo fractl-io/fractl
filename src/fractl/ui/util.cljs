@@ -3,6 +3,7 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [cognitect.transit :as t]
+            [fractl.global-state :as gs]
             [fractl.lang.kernel :as k]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
@@ -98,13 +99,17 @@
                   :QueryValue (nth entity-spec 2)}
                  {})
         tbl-attrs (when (= :list tag)
-                    {:Source (make-source rec-name)})]
+                    {:Source (make-source rec-name)})
+        app-config (gs/get-app-config)]
     (if-let [event-name (get-in meta [:views tag])]
       (cn/make-instance event-name qattrs)
       (let [attrs {:RecordName rec-name
                    :Fields (:order meta)}]
         (cn/make-instance
-         (tag fallback-render-event-names)
+         (tag (or
+               (get-in app-config [:ui :render-events rec-name])
+               (get-in app-config [:ui :global-render-events])
+               fallback-render-event-names))
          (merge attrs qattrs tbl-attrs))))))
 
 (defn make-view [entity-spec tag]
