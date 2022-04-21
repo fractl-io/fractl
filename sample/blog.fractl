@@ -5,41 +5,57 @@
 (component :Sample.Blog)
 
 (entity
- {:User
-  {:UserName :Kernel/String
-   :Password :Kernel/Password
-   :DOB {:type :Kernel/String
-         :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}
-   :Sex {:oneof ["M" "F"]} 
-   :Email :Kernel/Email}})
+ :Sample.Blog/User
+ {:UserName {:type :Kernel/String
+             :indexed true}
+  :Password :Kernel/Password
+  :DOB {:type :Kernel/String
+        :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}
+  :Sex {:oneof ["M" "F"]}
+  :Email :Kernel/Email})
 
-(defn valid-comment [s]
+(record
+ :Sample.Blog/UserLogin
+ {:UserName :Kernel/String
+  :Password :Kernel/Password})
+
+(defn valid-blog-title? [s]
+  (and (string? s)
+       (< 10 (count s) 100)))
+
+(defn valid-blog-content? [s]
+  (and (string? s)
+       (< 10 (count s) 2000)))
+
+(entity
+ :Sample.Blog/BlogEntry
+ {:CreatedBy {:ref :Sample.Blog/User.Id
+              :indexed true}
+  :DateCreated {:type :Kernel/DateTime
+                :default now}
+  :Title {:check valid-blog-title?}
+  :Content {:check valid-blog-content?}})
+
+(defn valid-comment? [s]
   (and (string? s)
        (< 10 (count s) 500)))
 
-(record
- {:Comment
-  {:CreatedBy {:ref :User.Id}
-   :DateCreated {:type :Kernel/DateTime
-                 :default now}
-   :Content {:check valid-comment}}})
-
 (entity
- {:BlogEntry
-  {:CreatedBy {:ref :User.Id
-               :indexed true}
-   :DateCreated {:type :Kernel/DateTime
-                 :default now}
-   :Title :Kernel/String
-   :Content :Kernel/String
-   :Comments {:listof :Comment
-              :optional true}}})
-
-(event
- {:FindAllBlogEntries
-  {:User :Kernel/UUID}})
+ :Sample.Blog/Comment
+ {:CreatedBy {:ref :Sample.Blog/User.Id
+              :indexed true}
+  :BlogEntry {:ref :Sample.Blog/BlogEntry.Id
+              :indexed true}
+  :DateCreated {:type :Kernel/DateTime
+                :default now}
+  :Content {:check valid-comment?}})
 
 (dataflow
- :FindAllBlogEntries
- {:BlogEntry
-  {:CreatedBy? :Sample.Blog/FindAllBlogEntries.User}})
+ :Sample.Blog/BlogEntryLookupAll
+ {:Sample.Blog/BlogEntry
+  {:CreatedBy? :Sample.Blog/BlogEntryLookupAll.EventContext.User.Id}})
+
+(dataflow
+ :Sample.Blog/CommentLookupAll
+ {:Sample.Blog/Comment
+  {:BlogEntry? :Sample.Blog/CommentLookupAll.EventContext.BlogEntry.Id}})
