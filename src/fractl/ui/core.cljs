@@ -57,11 +57,12 @@
   ([config]
    (when-let [h (:remote-api-host config)]
      (vu/set-remote-api-host! h))
-   (rg/override-resolver
-    [:Fractl.UI/InputForm]
-    (vif/make :input-form nil))
-   (rg/override-resolver
-    [:Fractl.UI/Table]
-    (vt/make :table nil))
+   (when-not (get-in config [:view :use-local-resolvers])
+     (rg/override-resolver
+      [:Fractl.UI/InputForm]
+      (vif/make :input-form nil))
+     (rg/override-resolver
+      [:Fractl.UI/Table]
+      (vt/make :table nil)))
    (app-routes (get-in config [:view :component])))
   ([] (init-view (gs/get-app-config))))
