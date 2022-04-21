@@ -26,7 +26,7 @@
 (defn- app-routes [component]
   (secretary/set-config! :prefix "#")
 
-  (loop [ens (cn/entity-names component)
+  (loop [ens (cn/displayable-record-names component)
          home-links []]
     (if-let [en (first ens)]
       (let [[_ n] (li/split-path en)

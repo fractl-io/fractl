@@ -1242,3 +1242,9 @@
                             %)
                          str-pat)))
       (str n))))
+
+(defn- displayable-record-names [component]
+  (let [names (concat (entity-names component)
+                      (event-names component)
+                      (record-names component))]
+    (filter #(:order (fetch-meta %)) names)))
