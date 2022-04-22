@@ -1211,3 +1211,37 @@
     (is (cn/instance-of? :Relationships/Book b1))
     (is (cn/instance-of? :Relationships/CheckoutBook r1))
     (is (cn/same-instance? r1 r2))))
+
+(deftest password-match
+  (defcomponent :PM
+    (entity
+     :PM/User
+     {:UserName {:type :Kernel/String
+                 :indexed true}
+      :Password :Kernel/Password})
+    (event
+     :PM/UserLogin
+     {:UserName :Kernel/String
+      :Password :Kernel/Password})
+    (dataflow
+     :PM/UserLogin
+     {:PM/User
+      {:UserName? :PM/UserLogin.UserName}}
+     [:match :PM/UserLogin.Password
+      :PM/User.Password :PM/User]))
+  (let [u (tu/first-result
+           {:PM/Upsert_User
+            {:Instance
+             {:PM/User
+              {:UserName "admin"
+               :Password "admin"}}}})
+        r1 (e/eval-all-dataflows
+            {:PM/UserLogin
+             {:UserName "admin"
+              :Password "admin"}})
+        r2 (e/eval-all-dataflows
+            {:PM/UserLogin
+             {:UserName "admin"
+              :Password "kkkk"}})]
+    (is (cn/same-instance? u (:result (first r1))))
+    (is (not (:result (first r2))))))

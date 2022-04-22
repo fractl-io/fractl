@@ -26,8 +26,7 @@
 (defn- app-routes [component]
   (secretary/set-config! :prefix "#")
 
-  (loop [ens (cn/displayable-record-names component)
-         home-links []]
+  (loop [ens (cn/displayable-record-names component)]
     (if-let [en (first ens)]
       (let [[_ n] (li/split-path en)
             s (s/lower-case (name n))
@@ -42,15 +41,13 @@
           (defroute (str "/" s "/" (name uq)) {:as params}
             (vu/render-app-view
              (vu/generate-view [en uq (get-in params [:query-params :s])] :display))))
-        (recur
-         (rest ens)
-         (conj
-          home-links
-          [:a {:href (str "#/" s)} (str (name n) " | ")])))
+        (when (vu/meta-authorize? (cn/fetch-meta en))
+          (vu/set-authorization-required! en))
+        (vu/attach-home-link! [:a {:href (str "#/" s)} (str (name n) " | ")])
+        (recur (rest ens)))
       (defroute "/" []
         (vu/render-app-view
-         `[:div [:h1 "Home Page"]
-           ~@home-links]))))
+         (vu/make-home-view "Home Page")))))
   (hook-browser-navigation!))
 
 (defn init-view

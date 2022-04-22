@@ -134,10 +134,11 @@
         (when-let [d (:default attr-scm)]
           (if (fn? d) (d) d)))))))
 
-(defn- render-attribute-specs [rec-name schema fields query-spec
-                               get-state-value change-handler]
+(defn- render-attribute-specs [rec-name schema meta
+                               fields query-spec get-state-value
+                               change-handler]
   (let [fields (or fields (cn/attribute-names schema))
-        list-refs (:list (cn/fetch-meta rec-name))]
+        list-refs (:list meta)]
     (reset! instance-cell nil)
     (interpose
      [:> TableContainer
@@ -161,10 +162,13 @@
                 (select-from-search search-event id h div-id)
                 [:div {:id div-id}])
               [:> TextField
-               {:id id
-                :label n
-                :variant "standard"
-                :on-change h}])]]))
+               (merge
+                {:id id
+                 :label n
+                 :variant "standard"
+                 :on-change h}
+                (when (cn/hashed-attribute? attr-scm)
+                  {:type "password"}))])]]))
       fields))))
 
 (defn- render-table [rec-name table-view-id]
@@ -176,6 +180,24 @@
   (if (vu/eval-result result)
     (render-table rec-name table-view-id)
     (println (str "error: upsert failed for " rec-name " - " result))))
+
+(defn- eval-event-callback [event-name on-success result]
+  (if-let [r (vu/eval-result result)]
+    (on-success r)
+    (println (str "error: eval-event failed for " event-name " - " result))))
+
+(defn- make-eval-success-callback [event-name meta]
+  (if (vu/meta-authorize? meta)
+    (fn [r]
+      (if r
+        (do
+          (println (str event-name " success - " r))
+          (vu/authorized!)
+          (vu/render-app-view
+           (vu/make-home-view)))
+        (println (str event-name " failed - " r))))
+    (fn [r]
+      (println (str "eval result for " event-name " - " r)))))
 
 (defn- navigation-buttons [rels prev-rec-name]
   (mapv
@@ -215,6 +237,7 @@
         scm (cn/fetch-schema rec-name)
         transformer (vu/make-transformer rec-name)
         table-view-id (str r "-table-view-container")
+        meta (cn/fetch-meta rec-name)
         view
         `[:div {:class "view"}
           [:div {:class "main"}
@@ -223,7 +246,7 @@
              [:> ~Typography {:gutterBottom true :variant "h5" :component "div"}
               ~title][:br]
              ~@(render-attribute-specs
-                rec-name scm
+                rec-name scm meta
                 (mapv
                  u/string-as-keyword
                  (:Fields instance))
@@ -232,10 +255,16 @@
              [:> ~Button
               {:on-click
                ~#(let [inst (transformer @inst-state)]
-                   (vu/fire-upsert
-                    rec-name inst
-                    (partial upsert-callback rec-name table-view-id)))}
-              "Create"]
+                   (if (cn/event? rec-name)
+                     (vu/eval-event
+                      (partial
+                       eval-event-callback
+                       rec-name (make-eval-success-callback rec-name meta))
+                      inst)
+                     (vu/fire-upsert
+                      rec-name inst
+                      (partial upsert-callback rec-name table-view-id))))}
+              ~(or (get-in meta [:views :create-button :label]) "Create")]
              ~@(navigation-buttons rels rec-name)]
             ~(close-button)]
            [:div {:id ~table-view-id}]]]]

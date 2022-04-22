@@ -1,6 +1,8 @@
-(ns sample.blog
-  (:use [fractl.lang]
-        [fractl.lang.datetime]))
+(ns fractl.client.model.blog
+  (:require [fractl.lang :refer
+             [component entity
+              record event dataflow]]
+            [fractl.lang.datetime :refer [now]]))
 
 (component :Sample.Blog)
 
@@ -12,12 +14,28 @@
   :DOB {:type :Kernel/String
         :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}
   :Sex {:oneof ["M" "F"]}
-  :Email :Kernel/Email})
+  :Email :Kernel/Email
+  :meta
+  {:str :UserName
+   :order [:UserName :Password :Email :DOB :Sex]}})
 
-(record
+(event
  :Sample.Blog/UserLogin
  {:UserName :Kernel/String
-  :Password :Kernel/Password})
+  :Password :Kernel/Password
+  :meta
+  {:str :UserName
+   :order [:UserName :Password]
+   :views {:create-button
+           {:label "Login"
+            :on-success :authorize}}}})
+
+(dataflow
+ :Sample.Blog/UserLogin
+ {:Sample.Blog/User
+  {:UserName? :Sample.Blog/UserLogin.UserName}}
+ [:match :Sample.Blog/UserLogin.Password
+  :Sample.Blog/User.Password :Sample.Blog/User])
 
 (defn valid-blog-title? [s]
   (and (string? s)
@@ -34,7 +52,10 @@
   :DateCreated {:type :Kernel/DateTime
                 :default now}
   :Title {:check valid-blog-title?}
-  :Content {:check valid-blog-content?}})
+  :Content {:check valid-blog-content?}
+  :meta
+  {:str :Title
+   :order [:Title :Content :CreatedBy :DateCreated]}})
 
 (defn valid-comment? [s]
   (and (string? s)
@@ -48,7 +69,10 @@
               :indexed true}
   :DateCreated {:type :Kernel/DateTime
                 :default now}
-  :Content {:check valid-comment?}})
+  :Content {:check valid-comment?}
+  :meta
+  {:str :BlogEntry
+   :order [:BlogEntry :CreatedBy :DateCreated :Content]}})
 
 (dataflow
  :Sample.Blog/BlogEntryLookupAll
@@ -59,3 +83,12 @@
  :Sample.Blog/CommentLookupAll
  {:Sample.Blog/Comment
   {:BlogEntry? :Sample.Blog/CommentLookupAll.EventContext.BlogEntry.Id}})
+
+(dataflow
+ :Kernel/AppInit
+ {:Sample.Blog/User
+  {:UserName "admin"
+  :Password "admin"
+  :DOB "1970-01-01"
+  :Sex "M"
+  :Email "admin@blog.com"}})

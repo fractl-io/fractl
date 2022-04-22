@@ -10,6 +10,17 @@
             [fractl.evaluator :as ev]))
 
 (def ^:private remote-api-host (atom nil))
+(def ^:private auth-required (atom false))
+(def ^:private home-links (atom []))
+
+(defn set-authorization-required! [auth-rec-name]
+  (reset! auth-required auth-rec-name))
+
+(defn authorized! []
+  (reset! auth-required false))
+
+(defn attach-home-link! [s]
+  (swap! home-links conj s))
 
 (defn set-remote-api-host! [host]
   (reset! remote-api-host host))
@@ -113,7 +124,8 @@
          (merge attrs qattrs tbl-attrs))))))
 
 (defn make-view [entity-spec tag]
-  (let [is-spec (seqable? entity-spec)
+  (let [entity-spec (or @auth-required entity-spec)
+        is-spec (seqable? entity-spec)
         rec-name (if is-spec
                    (first entity-spec)
                    entity-spec)
@@ -186,3 +198,17 @@
         (generate-view c root-entity display-tag)))))
   ([render-fn root-entity]
    (main-view render-fn root-entity :input)))
+
+(defn meta-authorize? [meta]
+  (= :authorize
+     (get-in
+      meta
+      [:views :create-button :on-success])))
+
+(defn make-home-view
+  ([title]
+   (if-let [auth-rec-name @auth-required]
+     (generate-view auth-rec-name)
+     `[:div [:h1 ~title]
+       ~@(deref home-links)]))
+  ([] (make-home-view "Dashboard")))

@@ -700,7 +700,12 @@
   [recname attrs schema]
   (loop [hashed (seq (hashed-attributes schema)), result attrs]
     (if-let [k (first hashed)]
-      (recur (rest hashed) (assoc result k (sh/crypto-hash (k result))))
+      (let [v (k result)]
+        (recur
+         (rest hashed)
+         (if (sh/crypto-hash? v)
+           result
+           (assoc result k (sh/crypto-hash v)))))
       result)))
 
 (defn make-instance
@@ -1248,3 +1253,10 @@
                       (event-names component)
                       (record-names component))]
     (filter #(:order (fetch-meta %)) names)))
+
+(defn event? [recname]
+  (if (event-schema recname)
+    true
+    false))
+
+(def hashed-attribute? :secure-hash)
