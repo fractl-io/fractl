@@ -212,3 +212,25 @@
      `[:div [:h1 ~title]
        ~@(deref home-links)]))
   ([] (make-home-view "Dashboard")))
+
+(def ^:private view-stack (atom []))
+
+(defn pop-view-stack []
+  (when-let [v (peek @view-stack)]
+    (swap! view-stack pop)
+    v))
+
+(defn push-on-view-stack! [view]
+  (swap! view-stack conj view))
+
+(defn finalize-view [view event-instance]
+  (push-on-view-stack! view)
+  (assoc event-instance :View view))
+
+(def custom-view-fns :CustomViewFns)
+
+(defn assoc-custom-view-fns [instance attr-name f]
+  (let [cvfns (custom-view-fns instance)]
+    (assoc
+     instance custom-view-fns
+     (assoc cvfns attr-name f))))

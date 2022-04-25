@@ -135,7 +135,8 @@
           (if (fn? d) (d) d)))))))
 
 (defn- render-attribute-specs [rec-name schema meta
-                               fields query-spec get-state-value
+                               fields custom-view-fns
+                               query-spec get-state-value
                                change-handler]
   (let [fields (or fields (cn/attribute-names schema))
         list-refs (:list meta)]
@@ -157,18 +158,22 @@
            #(set-value-cell! rec-name id field-name attr-scm query-spec))
           [:> TableRow
            [:> TableCell
-            (if-let [search-event (field-name list-refs)]
-              (let [div-id (str n "-select")]
-                (select-from-search search-event id h div-id)
-                [:div {:id div-id}])
-              [:> TextField
-               (merge
-                {:id id
-                 :label n
-                 :variant "standard"
-                 :on-change h}
-                (when (cn/hashed-attribute? attr-scm)
-                  {:type "password"}))])]]))
+            (if-let [view-fn
+                     (when custom-view-fns
+                       (field-name custom-view-fns))]
+              (view-fn field-name attr-scm h)
+              (if-let [search-event (field-name list-refs)]
+                (let [div-id (str n "-select")]
+                  (select-from-search search-event id h div-id)
+                  [:div {:id div-id}])
+                [:> TextField
+                 (merge
+                  {:id id
+                   :label n
+                   :variant "standard"
+                   :on-change h}
+                  (when (cn/hashed-attribute? attr-scm)
+                    {:type "password"}))]))]]))
       fields))))
 
 (defn- render-table [rec-name table-view-id]
@@ -214,16 +219,12 @@
 (defn- filter-relationships-of [rec-name rel-graph]
   (filter #(rel/participation (rel/relationship-spec %) rec-name) rel-graph))
 
-(def ^:private view-stack (atom []))
-
 (defn- close-button []
-  (let [s @view-stack]
-    (when-let [v (peek s)]
-      (swap! view-stack pop)
-      [:> Button
-       {:on-click
-        #(vu/render-view v)}
-       "Close"])))
+  (when-let [v (vu/pop-view-stack)]
+    [:> Button
+     {:on-click
+      #(vu/render-view v)}
+     "Close"]))
 
 (defn- upsert-ui [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
@@ -250,6 +251,7 @@
                 (mapv
                  u/string-as-keyword
                  (:Fields instance))
+                (vu/custom-view-fns instance)
                 [(:QueryBy instance) (:QueryValue instance)]
                 get-state-value change-handler)
              [:> ~Button
@@ -268,8 +270,7 @@
              ~@(navigation-buttons rels rec-name)]
             ~(close-button)]
            [:div {:id ~table-view-id}]]]]
-    (swap! view-stack conj view)
-    (assoc instance :View view)))
+    (vu/finalize-view view instance)))
 
 (defn make [resolver-name _]
   (rc/make-resolver
