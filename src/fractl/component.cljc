@@ -454,10 +454,10 @@
   (let [sks (set (keys schema))
         aks (set (keys attributes))]
     (when-let [ks (seq (set/difference aks sks))]
-      (log/warn (str "Error in " (when (get schema :EventContext) "event ")
+      (log/warn (str "Error in " (when (get schema li/event-context) "event ")
                      recname
                      " Here is the error line: "
-                     (when (get schema :EventContext) "check this line in event: ")
+                     (when (get schema li/event-context) "check this line in event: ")
                      (conj {} (first schema))))
       (throw-error (str recname " - invalid attribute(s) found - " ks)))
     true))

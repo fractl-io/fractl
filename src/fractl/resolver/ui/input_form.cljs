@@ -4,6 +4,7 @@
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.ui.util :as vu]
+            [fractl.ui.context :as ctx]
             [fractl.relationship :as rel]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
@@ -117,6 +118,11 @@
                (callback nil))))
        event-inst))))
 
+(defn- maybe-load-ref-from-context [attr-scm]
+  (when-let [n (:ref attr-scm)]
+    (let [{c :component r :record rs :refs} n]
+      (ctx/lookup-ref [c r] rs))))
+
 (defn- set-value-cell! [rec-name field-id attr-name attr-scm query-spec]
   (let [[query-by query-value] query-spec
         elem (-> js/document
@@ -131,8 +137,9 @@
       (set!
        (.-value elem)
        (str
-        (when-let [d (:default attr-scm)]
-          (if (fn? d) (d) d)))))))
+        (if-let [d (:default attr-scm)]
+          (if (fn? d) (d) d)
+          (maybe-load-ref-from-context attr-scm)))))))
 
 (defn- render-attribute-specs [rec-name schema meta
                                fields custom-view-fns
@@ -196,8 +203,8 @@
     (fn [r]
       (if r
         (do
-          (println (str event-name " success - " r))
           (vu/authorized!)
+          (ctx/attach-to-context! r true)
           (vu/render-app-view
            (vu/make-home-view)))
         (println (str event-name " failed - " r))))

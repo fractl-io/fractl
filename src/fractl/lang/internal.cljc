@@ -44,6 +44,8 @@
           :import :clj-import :java-import
           :v8-import :resolver :Future :Error :DataflowResult})))
 
+(def event-context :EventContext)
+
 (defn- reserved? [x]
   (some #{x} reserved-names))
 

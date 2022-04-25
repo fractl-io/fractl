@@ -7,7 +7,8 @@
             [fractl.lang.kernel :as k]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
-            [fractl.evaluator :as ev]))
+            [fractl.evaluator :as ev]
+            [fractl.ui.context :as ctx]))
 
 (def ^:private remote-api-host (atom nil))
 (def ^:private auth-required (atom false))
@@ -36,9 +37,11 @@
 
 (defn eval-event
   ([callback eval-local event-instance]
-   (if-let [host (and (not eval-local) @remote-api-host)]
-     (do (ev/remote-evaluate host callback event-instance) nil)
-     ((or callback identity) ((ev/global-dataflow-eval) event-instance))))
+   (let [event-instance (assoc event-instance li/event-context
+                               (ctx/context-as-map))]
+     (if-let [host (and (not eval-local) @remote-api-host)]
+       (do (ev/remote-evaluate host callback event-instance) nil)
+       ((or callback identity) ((ev/global-dataflow-eval) event-instance)))))
   ([callback event-instance]
    (eval-event callback false event-instance))
   ([event-instance]

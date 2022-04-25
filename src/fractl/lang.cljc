@@ -365,15 +365,15 @@
    (event-internal n attrs false)))
 
 (defn- ensure-no-reserved-event-attrs! [attrs]
-  (when (some #(= :EventContext (first %)) attrs)
-    (u/throw-ex ":EventContext is a reserved attribute name")))
+  (when (some #(= li/event-context (first %)) attrs)
+    (u/throw-ex "li/event-context is a reserved attribute name")))
 
 (defn event
   "An event record with timestamp and other auto-generated meta fields."
   ([n attrs]
    (ensure-no-reserved-event-attrs! attrs)
    (event-internal
-    n (assoc attrs :EventContext (k/event-context-attribute-name))
+    n (assoc attrs li/event-context (k/event-context-attribute-name))
     true))
   ([schema]
    (parse-and-define event schema)))
@@ -586,8 +586,8 @@
                      (maybe-assoc-id rec-name attrs)))
             ev (partial crud-evname n)
             ctx-aname (k/event-context-attribute-name)
-            inst-evattrs {:Instance n :EventContext ctx-aname}
-            id-evattrs {:Id :Kernel/UUID :EventContext ctx-aname}]
+            inst-evattrs {:Instance n li/event-context ctx-aname}
+            id-evattrs {:Id :Kernel/UUID li/event-context ctx-aname}]
         ;; Define CRUD events and dataflows:
         (let [upevt (ev :Upsert)
               delevt (ev :Delete)
