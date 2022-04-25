@@ -161,7 +161,7 @@
             (if-let [view-fn
                      (when custom-view-fns
                        (field-name custom-view-fns))]
-              (view-fn field-name attr-scm h)
+              (view-fn field-name attr-scm id h)
               (if-let [search-event (field-name list-refs)]
                 (let [div-id (str n "-select")]
                   (select-from-search search-event id h div-id)
