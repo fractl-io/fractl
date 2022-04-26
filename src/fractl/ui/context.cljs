@@ -6,8 +6,8 @@
 
 (defn attach-to-context!
   ([obj is-auth-response]
-   (let [n (li/split-path (cn/instance-name obj))]
-     (swap! db assoc n obj)
+   (let [[c n :as k] (li/split-path (cn/instance-name obj))]
+     (swap! db assoc n obj k obj)
      (when is-auth-response
        (swap! db assoc :auth obj))))
   ([obj]
@@ -20,8 +20,17 @@
 (defn hard-reset-context! []
   (reset! db {}))
 
-(defn context-as-map []
-  (dissoc @db :auth))
+(defn context-as-map
+  ([keyword-names-only]
+   (let [c (dissoc @db :auth)]
+     (if keyword-names-only
+       (into
+        {}
+        (filter (fn [[k _]]
+                  (keyword? k))
+                c))
+       c)))
+  ([] (context-as-map true)))
 
 (defn lookup-ref [n path]
   (get-in @db (concat [n] path)))
