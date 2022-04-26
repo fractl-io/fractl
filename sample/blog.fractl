@@ -45,17 +45,28 @@
   (and (string? s)
        (< 10 (count s) 2000)))
 
+(def ^:private content-input-spec
+  [:> :TextareaAutosize
+   {:max-rows 20
+    :aria-label "maximum height"
+    :placeholder "Maximum 2000 characters"
+    :default-value "blog content"
+    :style {:width 200}}])
+
 (entity
  :Sample.Blog/BlogEntry
  {:CreatedBy {:ref :Sample.Blog/User.Id
               :indexed true}
-  :DateCreated {:type :Kernel/DateTime
+  :DateCreated {:type :Kernel/String
                 :default now}
   :Title {:check valid-blog-title?}
   :Content {:check valid-blog-content?}
   :meta
   {:str :Title
-   :order [:Title :Content :CreatedBy :DateCreated]}})
+   :order [:Title :Content :CreatedBy :DateCreated]
+   :views
+   {:attributes
+    {:Content {:input content-input-spec}}}}})
 
 (defn valid-comment? [s]
   (and (string? s)
@@ -67,7 +78,7 @@
               :indexed true}
   :BlogEntry {:ref :Sample.Blog/BlogEntry.Id
               :indexed true}
-  :DateCreated {:type :Kernel/DateTime
+  :DateCreated {:type :Kernel/String
                 :default now}
   :Content {:check valid-comment?}
   :meta

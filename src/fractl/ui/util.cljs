@@ -229,11 +229,3 @@
 (defn finalize-view [view event-instance]
   (push-on-view-stack! view)
   (assoc event-instance :View view))
-
-(def custom-view-fns :CustomViewFns)
-
-(defn assoc-custom-view-fns [instance attr-name f]
-  (let [cvfns (custom-view-fns instance)]
-    (assoc
-     instance custom-view-fns
-     (assoc cvfns attr-name f))))

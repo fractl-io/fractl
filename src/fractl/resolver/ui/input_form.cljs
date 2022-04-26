@@ -10,6 +10,7 @@
             [fractl.resolver.core :as rc]
             ["@material-ui/core"
              :refer [TextField Card CardContent
+                     TextareaAutosize
                      Typography ButtonGroup Button
                      InputLabel Divider Select MenuItem
                      TableContainer Table
@@ -60,7 +61,7 @@
                  {:on-click ~#(rdom/render [on-close-view] (target-elem))}
                  "Close"]])]
          (rdom/render [display-results] (target-elem)))
-       (println (str "error: search failed - " r))))
+       (u/throw-ex (str "error: search failed - " r))))
    search-event-instance))
 
 (defn- menu-items-from-rows [rows]
@@ -83,7 +84,7 @@
      (vu/render-view
       (if-let [rows (vu/eval-result r)]
         (result-rows-to-select sel-id handler rows)
-        (do (println "error: failed to load data for " sel-id " - " r)
+        (do (u/throw-ex (str "error: failed to load data for " sel-id " - " r))
             [:span (str "failed to load data for " sel-id)]))
       target-id))
    (cn/make-instance
@@ -111,7 +112,7 @@
            (let [inst (first result)]
              (reset! instance-cell inst)
              (callback inst))
-           (do (println
+           (do (u/throw-ex
                 (str "error: query-instance failed for "
                      [rec-name query-by query-value]
                      " - " r))
@@ -123,7 +124,8 @@
     (let [{c :component r :record rs :refs} n]
       (ctx/lookup-ref [c r] rs))))
 
-(defn- set-value-cell! [rec-name field-id attr-name attr-scm query-spec]
+(defn- set-value-cell! [rec-name field-id attr-name attr-scm query-spec
+                        set-state-value!]
   (let [[query-by query-value] query-spec
         elem (-> js/document
                  (.getElementById field-id))]
@@ -131,19 +133,34 @@
       (query-instance
        rec-name query-by query-value
        (fn [inst]
-         (set!
-          (.-value elem)
-          (str (attr-name inst)))))
-      (set!
-       (.-value elem)
-       (str
-        (if-let [d (:default attr-scm)]
-          (if (fn? d) (d) d)
-          (maybe-load-ref-from-context attr-scm)))))))
+         (let [v (str (attr-name inst))]
+           (set! (.-value elem) v)
+           (set-state-value! attr-name v))))
+      (let [v (str
+               (if-let [d (:default attr-scm)]
+                 (if (fn? d) (d) d)
+                 (maybe-load-ref-from-context attr-scm)))]
+        (set! (.-value elem) v)
+        (set-state-value! attr-name v)))))
+
+(defn- keyword-as-ui-component [k]
+  (case k
+    :TextField TextField
+    :TextareaAutosize TextareaAutosize
+    :Button Button
+    :InputLabel InputLabel
+    :Select Select
+    :MenuItem MenuItem
+    nil))
+
+(defn- process-attribute-view-spec [view-spec props]
+  (if-let [ui-comp (keyword-as-ui-component (second view-spec))]
+    [:> ui-comp (merge (nth view-spec 2) props)]
+    (u/throw-ex (str "no ui component for " (second view-spec)))))
 
 (defn- render-attribute-specs [rec-name schema meta
-                               fields custom-view-fns
-                               query-spec get-state-value
+                               fields query-spec
+                               set-state-value!
                                change-handler]
   (let [fields (or fields (cn/attribute-names schema))
         list-refs (:list meta)]
@@ -162,13 +179,13 @@
               k field-name
               h (partial change-handler k)]
           (vu/add-post-render-event!
-           #(set-value-cell! rec-name id field-name attr-scm query-spec))
+           #(set-value-cell!
+             rec-name id field-name attr-scm query-spec
+             set-state-value!))
           [:> TableRow
            [:> TableCell
-            (if-let [view-fn
-                     (when custom-view-fns
-                       (field-name custom-view-fns))]
-              (view-fn field-name attr-scm id h)
+            (if-let [view-spec (get-in meta [:views :attributes field-name :input])]
+              (process-attribute-view-spec view-spec {:id id :on-change h})
               (if-let [search-event (field-name list-refs)]
                 (let [div-id (str n "-select")]
                   (select-from-search search-event id h div-id)
@@ -191,12 +208,12 @@
 (defn- upsert-callback [rec-name table-view-id result]
   (if (vu/eval-result result)
     (render-table rec-name table-view-id)
-    (println (str "error: upsert failed for " rec-name " - " result))))
+    (u/throw-ex (str "error: upsert failed for " rec-name " - " result))))
 
 (defn- eval-event-callback [event-name on-success result]
   (if-let [r (vu/eval-result result)]
     (on-success r)
-    (println (str "error: eval-event failed for " event-name " - " result))))
+    (u/throw-ex (str "error: eval-event failed for " event-name " - " result))))
 
 (defn- make-eval-success-callback [event-name meta]
   (if (vu/meta-authorize? meta)
@@ -207,7 +224,7 @@
           (ctx/attach-to-context! r true)
           (vu/render-app-view
            (vu/make-home-view)))
-        (println (str event-name " failed - " r))))
+        (u/throw-ex (str event-name " failed - " r))))
     (fn [r]
       (println (str "eval result for " event-name " - " r)))))
 
@@ -242,6 +259,7 @@
         inst-state (r/atom {})
         change-handler (partial vu/assoc-input-value inst-state)
         get-state-value (fn [k] (get @inst-state k))
+        set-state-value! (fn [k v] (swap! inst-state assoc k v))
         scm (cn/fetch-schema rec-name)
         transformer (vu/make-transformer rec-name)
         table-view-id (str r "-table-view-container")
@@ -258,9 +276,8 @@
                 (mapv
                  u/string-as-keyword
                  (:Fields instance))
-                (vu/custom-view-fns instance)
                 [(:QueryBy instance) (:QueryValue instance)]
-                get-state-value change-handler)
+                set-state-value! change-handler)
              [:> ~Button
               {:on-click
                ~#(let [inst (transformer @inst-state)]
