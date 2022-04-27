@@ -8,24 +8,39 @@
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
             ["@material-ui/core"
-             :refer [Card CardContent
+             :refer [Card CardContent Link
                      Typography ButtonGroup Button
                      InputLabel Divider
                      TableContainer Table
                      TableRow TableHead
                      TableBody TableCell]]))
 
+(defn- render-instance [fields link-prefix inst]
+  (loop [fields fields, linked false, result []]
+    (if-let [f (first fields)]
+      (let [s (vu/decode-to-str (get inst f))]
+        (recur
+         (rest fields)
+         true
+         (conj
+          result
+          [:> TableCell
+           (if linked
+             s
+             [:> Link {:href (str link-prefix (:Id inst))} s])])))
+      (vec result))))
+
 (defn- render-rows [rows fields elem-id]
   (when (seq rows)
     (let [headers (mapv (fn [f] [:> TableCell (name f)]) fields)
+          n (name (second (li/split-path (cn/instance-name (first rows)))))
+          link (str "#/" n "?Id=")
+          r (partial render-instance fields link)
           table-rows
           (mapv
            (fn [inst]
              `[:> ~TableRow
-               ~@(mapv
-                  (fn [f]
-                    [:> TableCell (vu/decode-to-str (get inst f))])
-                  fields)])
+               ~@(r inst)])
            rows)]
       (rdom/render
        [(fn []
