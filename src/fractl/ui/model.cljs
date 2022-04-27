@@ -26,6 +26,12 @@
   :View {:type :Kernel/Any
          :optional true}})
 
+(entity
+ :Fractl.UI/Dashboard
+ {:Record :Kernel/Path
+  :View {:type :Kernel/Any
+         :optional true}})
+
 (dataflow
  :Fractl.UI/RenderGenericInputForm
  {:Fractl.UI/InputForm

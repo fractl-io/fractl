@@ -65,8 +65,14 @@
   {:str :Title
    :order [:Title :Content :CreatedBy :DateCreated]
    :views
-   {:attributes
+   {:dashboard :Sample.Blog/ShowDashboard
+    :attributes
     {:Content {:input content-input-spec}}}}})
+
+(dataflow
+ :Sample.Blog/ShowDashboard
+ {:Fractl.UI/Dashboard
+  {:Record "Sample.Blog/BlogEntry"}})
 
 (defn valid-comment? [s]
   (and (string? s)

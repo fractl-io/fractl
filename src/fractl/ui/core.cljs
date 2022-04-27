@@ -10,6 +10,7 @@
             [fractl.resolver.registry :as rg]
             [fractl.ui.model]
             [fractl.ui.util :as vu]
+            [fractl.ui.config :as cfg]
             [fractl.resolver.ui.table :as vt]
             [fractl.resolver.ui.input-form :as vif])
   (:import goog.history.Html5History)
@@ -23,10 +24,10 @@
        (secretary/dispatch! (.-token event))))
     (.setEnabled true)))
 
-(defn- app-routes [component]
+(defn- app-routes [config]
   (secretary/set-config! :prefix "#")
 
-  (loop [ens (cn/displayable-record-names component)]
+  (loop [ens (cn/displayable-record-names (cfg/component config))]
     (if-let [en (first ens)]
       (let [[_ n] (li/split-path en)
             s (s/lower-case (name n))
@@ -47,11 +48,13 @@
         (recur (rest ens)))
       (defroute "/" []
         (vu/render-app-view
-         (vu/make-home-view "Home Page")))))
+         (vu/make-home-view
+          "Home Page" (cfg/dashboard config))))))
   (hook-browser-navigation!))
 
 (defn init-view
   ([config]
+   (cfg/set-config! config)
    (when-let [h (:remote-api-host config)]
      (vu/set-remote-api-host! h))
    (when-not (get-in config [:view :use-local-resolvers])
@@ -61,5 +64,5 @@
      (rg/override-resolver
       [:Fractl.UI/Table]
       (vt/make :table nil)))
-   (app-routes (get-in config [:view :component])))
+   (app-routes config))
   ([] (init-view (gs/get-app-config))))

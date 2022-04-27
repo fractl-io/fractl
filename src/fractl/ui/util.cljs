@@ -8,6 +8,7 @@
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
+            [fractl.ui.config :as cfg]
             [fractl.ui.context :as ctx]))
 
 (def ^:private remote-api-host (atom nil))
@@ -97,14 +98,20 @@
 (defn call-with-value [evt callback]
   (callback (-> evt .-target .-value)))
 
-(defn- make-source [rec-name]
-  (let [[c n] (li/split-path rec-name)]
-    (keyword (str (name c) "/" (name n) "LookupAll"))))
+(def ^:private s-lookup-all "LookupAll")
+
+(defn lookupall-event-name [rec-name]
+  (keyword
+   (if (string? rec-name)
+     (str rec-name s-lookup-all)
+     (let [[c n] (li/split-path rec-name)]
+       (str (name c) "/" (name n) s-lookup-all)))))
 
 (def ^:private fallback-render-event-names
   {:input :Fractl.UI/RenderGenericInputForm
    :display :Fractl.UI/RenderGenericDisplayForm
-   :list :Fractl.UI/RenderGenericTable})
+   :list :Fractl.UI/RenderGenericTable
+   :dashboard :Fractl.UI/RenderGenericTable})
 
 (defn- make-render-event [rec-name entity-spec
                           tag meta spec-has-query-info]
@@ -112,11 +119,13 @@
                  {:QueryBy (second entity-spec)
                   :QueryValue (nth entity-spec 2)}
                  {})
-        tbl-attrs (when (= :list tag)
-                    {:Source (make-source rec-name)})
+        tbl-attrs (case tag
+                    (:list :dashboard)
+                    {:Source (lookupall-event-name rec-name)}
+                    nil)
         app-config (gs/get-app-config)]
     (if-let [event-name (get-in meta [:views tag])]
-      (cn/make-instance event-name qattrs)
+      (cn/make-instance event-name (merge qattrs tbl-attrs))
       (let [attrs {:RecordName rec-name
                    :Fields (:order meta)}]
         (cn/make-instance
@@ -127,7 +136,10 @@
          (merge attrs qattrs tbl-attrs))))))
 
 (defn make-view [entity-spec tag]
-  (let [entity-spec (or @auth-required entity-spec)
+  (let [entity-spec (or @auth-required
+                        (if (string? entity-spec)
+                          (keyword entity-spec)
+                          entity-spec))
         is-spec (seqable? entity-spec)
         rec-name (if is-spec
                    (first entity-spec)
@@ -193,15 +205,6 @@
   ([entity-spec]
    (generate-view entity-spec :input)))
 
-(defn main-view
-  ([render-fn root-entity display-tag]
-   (let [[c _] (li/split-path root-entity)]
-     (render-fn
-      (fn []
-        (generate-view c root-entity display-tag)))))
-  ([render-fn root-entity]
-   (main-view render-fn root-entity :input)))
-
 (defn meta-authorize? [meta]
   (= :authorize
      (get-in
@@ -209,12 +212,15 @@
       [:views :create-button :on-success])))
 
 (defn make-home-view
-  ([title]
+  ([title dashboard-entity]
    (if-let [auth-rec-name @auth-required]
      (generate-view auth-rec-name)
-     `[:div [:h1 ~title]
-       ~@(deref home-links)]))
-  ([] (make-home-view "Dashboard")))
+     (let [dv (generate-view dashboard-entity :dashboard)]
+       `[:div [:h1 ~title]
+         ~@(deref home-links)
+         [:div ~dv]])))
+  ([]
+   (make-home-view "Dashboard" (cfg/dashboard))))
 
 (def ^:private view-stack (atom []))
 
