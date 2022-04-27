@@ -251,6 +251,7 @@
      "Close"]))
 
 (defn- upsert-ui [instance]
+  (println "$$$$$$$$$$$$$$$$$$$$$$$" instance)
   (let [rec-name (u/string-as-keyword (:Record instance))
         [c r] (li/split-path rec-name)
         rel-graph (:graph (rel/relationships c))

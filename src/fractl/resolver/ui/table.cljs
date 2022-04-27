@@ -1,5 +1,6 @@
 (ns fractl.resolver.ui.table
-  (:require [reagent.core :as r]
+  (:require [clojure.string :as s]
+            [reagent.core :as r]
             [reagent.dom :as rdom]
             [fractl.util :as u]
             [fractl.component :as cn]
@@ -34,7 +35,7 @@
   (when (seq rows)
     (let [headers (mapv (fn [f] [:> TableCell (name f)]) fields)
           n (name (second (li/split-path (cn/instance-name (first rows)))))
-          link (str "#/" n "?Id=")
+          link (str "#/" (s/lower-case n) "/id?s=")
           r (partial render-instance fields link)
           table-rows
           (mapv

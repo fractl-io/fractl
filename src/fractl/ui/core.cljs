@@ -39,7 +39,7 @@
           (vu/render-app-view
            (vu/generate-view en :list)))
         (doseq [uq (cn/unique-attributes schema)]
-          (defroute (str "/" s "/" (name uq)) {:as params}
+          (defroute (str "/" s "/" (s/lower-case (name uq))) {:as params}
             (vu/render-app-view
              (vu/generate-view [en uq (get-in params [:query-params :s])] :display))))
         (when (vu/meta-authorize? (cn/fetch-meta en))
