@@ -165,6 +165,18 @@
     (doseq [f fns]
       (f))))
 
+(def ^:private interval-handle (atom nil))
+
+(defn clear-interval! []
+  (when-let [h @interval-handle]
+    (js/clearInterval h)))
+
+(defn set-interval! [callback ms]
+  (clear-interval!)
+  (reset!
+   interval-handle
+   (js/setInterval callback ms)))
+
 (def main-view-id "main-view")
 
 (defn render-view
