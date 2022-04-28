@@ -178,10 +178,12 @@
     (js/clearInterval h)))
 
 (defn set-interval! [callback ms]
-  (clear-interval!)
-  (reset!
-   interval-handle
-   (js/setInterval callback ms)))
+  (add-post-render-event!
+   (fn []
+     (clear-interval!)
+     (reset!
+      interval-handle
+      (js/setInterval callback ms)))))
 
 (defn reset-page-state! []
   (clear-interval!))
@@ -199,6 +201,7 @@
    (render-view view-spec main-view-id)))
 
 (defn render-app-view [view-spec]
+  (reset-page-state!)
   (render-view view-spec "app"))
 
 (defn decode-to-str [x]
