@@ -41,7 +41,7 @@
         (doseq [uq (cn/unique-attributes schema)]
           (defroute (str "/" s "/" (s/lower-case (name uq))) {:as params}
             (vu/render-app-view
-             (vu/generate-view [en uq (get-in params [:query-params :s])] :display))))
+             (vu/generate-view [en uq (get-in params [:query-params :s])] :instance))))
         (when (vu/meta-authorize? (cn/fetch-meta en))
           (vu/set-authorization-required! en))
         (vu/attach-home-link! [:a {:href (str "#/" s)} (str (name n) " | ")])

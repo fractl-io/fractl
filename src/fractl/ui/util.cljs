@@ -109,7 +109,7 @@
 
 (def ^:private fallback-render-event-names
   {:input :Fractl.UI/RenderGenericInputForm
-   :display :Fractl.UI/RenderGenericDisplayForm
+   :instance :Fractl.UI/RenderGenericDisplayForm
    :list :Fractl.UI/RenderGenericTable
    :dashboard :Fractl.UI/RenderGenericTable})
 
