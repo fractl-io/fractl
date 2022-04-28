@@ -66,6 +66,7 @@
    :order [:Title :Content :CreatedBy :DateCreated]
    :views
    {:dashboard :Sample.Blog/ShowDashboard
+    :instance :Sample.Blog/ShowBlogEntry
     :attributes
     {:Content {:input content-input-spec}}}}})
 

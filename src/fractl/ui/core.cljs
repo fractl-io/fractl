@@ -24,6 +24,11 @@
        (secretary/dispatch! (.-token event))))
     (.setEnabled true)))
 
+(defn make-home-link [rec-name link-text]
+  (let [s (str "#/" link-text)]
+    [:a {:href s}
+     (str (name rec-name) " | ")]))
+
 (defn- app-routes [config]
   (secretary/set-config! :prefix "#")
 
@@ -44,7 +49,7 @@
              (vu/generate-view [en uq (get-in params [:query-params :s])] :instance))))
         (when (vu/meta-authorize? (cn/fetch-meta en))
           (vu/set-authorization-required! en))
-        (vu/attach-home-link! [:a {:href (str "#/" s)} (str (name n) " | ")])
+        (vu/attach-home-link! (make-home-link n s))
         (recur (rest ens)))
       (defroute "/" []
         (vu/render-app-view

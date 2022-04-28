@@ -16,7 +16,7 @@
                      TableRow TableHead
                      TableBody TableCell]]))
 
-(defn- render-instance [fields link-prefix inst]
+(defn- render-instance [fields rec-name inst]
   (loop [fields fields, linked false, result []]
     (if-let [f (first fields)]
       (let [s (vu/decode-to-str (get inst f))]
@@ -28,32 +28,36 @@
           [:> TableCell
            (if linked
              s
-             [:> Link {:href (str link-prefix (:Id inst))} s])])))
+             [:> Link
+              {:component "button"
+               :variant "body2"
+               :on-click #(do (vu/reset-page-state!)
+                              (vu/render-view
+                               (vu/make-instance-view inst)))}
+              s])])))
       (vec result))))
 
 (defn- render-rows [rows fields elem-id]
   (when (seq rows)
     (let [headers (mapv (fn [f] [:> TableCell (name f)]) fields)
-          n (name (second (li/split-path (cn/instance-name (first rows)))))
-          link (str "#/" (s/lower-case n) "/id?s=")
-          r (partial render-instance fields link)
+          rec-name (cn/instance-name (first rows))
+          n (name (second (li/split-path rec-name)))
+          r (partial render-instance fields rec-name)
           table-rows
           (mapv
            (fn [inst]
              `[:> ~TableRow
                ~@(r inst)])
            rows)]
-      (rdom/render
-       [(fn []
-          `[:> ~TableContainer
-            [:> ~Table
-             [:> ~TableHead
-              [:> ~TableRow
-               ~@headers]]
-             [:> ~TableBody
-              ~@table-rows]]])]
-       (-> js/document
-           (.getElementById elem-id))))))
+      (vu/render-view
+       `[:> ~TableContainer
+         [:> ~Table
+          [:> ~TableHead
+           [:> ~TableRow
+            ~@headers]]
+          [:> ~TableBody
+           ~@table-rows]]]
+       elem-id))))
 
 ;; TODO: table-view should be created in input-form,
 ;; so that auto-update is available always,

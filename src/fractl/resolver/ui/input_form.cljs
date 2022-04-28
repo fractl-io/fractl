@@ -124,18 +124,24 @@
     (let [{c :component r :record rs :refs} n]
       (ctx/lookup-ref [c r] rs))))
 
-(defn- set-value-cell! [rec-name field-id attr-name attr-scm query-spec
-                        set-state-value!]
-  (let [[query-by query-value] query-spec
+(defn- set-value-cell! [rec-name field-id attr-name attr-scm
+                        query-spec-or-instance set-state-value!]
+  (let [inst (when (map? query-spec-or-instance) query-spec-or-instance)
+        [query-by query-value] (when-not inst query-spec-or-instance)
+        has-q (and query-by query-value)
         elem (-> js/document
-                 (.getElementById field-id))]
-    (if (and query-by query-value)
-      (query-instance
-       rec-name query-by query-value
-       (fn [inst]
-         (let [v (str (attr-name inst))]
-           (set! (.-value elem) v)
-           (set-state-value! attr-name v))))
+                 (.getElementById field-id))
+        cb (when (or inst has-q)
+             (fn [inst]
+               (let [v (str (attr-name inst))]
+                 (set! (.-value elem) v)
+                 (set-state-value! attr-name v))))]
+    (cond
+      inst (cb inst)
+      has-q (query-instance
+             rec-name query-by
+             query-value cb)
+      :else
       (let [v (str
                (if-let [d (:default attr-scm)]
                  (if (fn? d) (d) d)
@@ -159,7 +165,7 @@
     (u/throw-ex (str "no ui component for " (second view-spec)))))
 
 (defn- render-attribute-specs [rec-name schema meta
-                               fields query-spec
+                               fields query-spec-or-instance
                                set-state-value!
                                change-handler]
   (let [fields (or fields (cn/attribute-names schema))
@@ -180,7 +186,7 @@
               h (partial change-handler k)]
           (vu/add-post-render-event!
            #(set-value-cell!
-             rec-name id field-name attr-scm query-spec
+             rec-name id field-name attr-scm query-spec-or-instance
              set-state-value!))
           [:> TableRow
            [:> TableCell
@@ -202,7 +208,7 @@
 
 (defn- render-table [rec-name table-view-id]
   (vu/render-view
-   (vu/make-view rec-name :list)
+   (vu/make-list-view rec-name)
    table-view-id))
 
 (defn- upsert-callback [rec-name table-view-id result]
@@ -236,7 +242,7 @@
            n (name r)]
        [:> Button
         {:on-click #(vu/render-view
-                     (vu/make-view rname :input))}
+                     (vu/make-input-view rname))}
         n]))
    rels))
 
@@ -251,7 +257,6 @@
      "Close"]))
 
 (defn- upsert-ui [instance]
-  (println "$$$$$$$$$$$$$$$$$$$$$$$" instance)
   (let [rec-name (u/string-as-keyword (:Record instance))
         [c r] (li/split-path rec-name)
         rel-graph (:graph (rel/relationships c))
@@ -277,7 +282,7 @@
                 (mapv
                  u/string-as-keyword
                  (:Fields instance))
-                [(:QueryBy instance) (:QueryValue instance)]
+                (or (:Instance instance) [(:QueryBy instance) (:QueryValue instance)])
                 set-state-value! change-handler)
              [:> ~Button
               {:on-click

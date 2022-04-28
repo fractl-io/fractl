@@ -116,8 +116,10 @@
 (defn- make-render-event [rec-name entity-spec
                           tag meta spec-has-query-info]
   (let [qattrs (if spec-has-query-info
-                 {:QueryBy (second entity-spec)
-                  :QueryValue (nth entity-spec 2)}
+                 (if (map? entity-spec)
+                   {:Instance entity-spec}
+                   {:QueryBy (second entity-spec)
+                    :QueryValue (nth entity-spec 2)})
                  {})
         tbl-attrs (case tag
                     (:list :dashboard)
@@ -135,7 +137,7 @@
                fallback-render-event-names))
          (merge attrs qattrs tbl-attrs))))))
 
-(defn make-view [entity-spec tag]
+(defn- make-view [tag entity-spec]
   (let [entity-spec (or @auth-required
                         (if (string? entity-spec)
                           (keyword entity-spec)
@@ -153,6 +155,10 @@
     (or (:View v)
         (do (println (str "input form generation failed. " r))
             [:div "failed to generate view for " [rec-name tag]]))))
+
+(def make-instance-view (partial make-view :instance))
+(def make-list-view (partial make-view :list))
+(def make-input-view (partial make-view :input))
 
 (def ^:private post-render-events (atom []))
 
@@ -176,6 +182,9 @@
   (reset!
    interval-handle
    (js/setInterval callback ms)))
+
+(defn reset-page-state! []
+  (clear-interval!))
 
 (def main-view-id "main-view")
 
@@ -206,7 +215,7 @@
      [:div
       [:b (str s " / ") [:a {:href "#"} "Home"]]
       [:div {:id main-view-id}
-       (make-view entity-spec display-tag)]]))
+       (make-view display-tag entity-spec)]]))
   ([entity-spec display-tag]
    (let [en (if (keyword? entity-spec)
               entity-spec

@@ -13,6 +13,8 @@
   :Fields {:check fields?}
   :View {:type :Kernel/Any
          :optional true}
+  :Instance {:type :Kernel/Any
+             :optional true}
   :QueryBy {:type :Kernel/Keyword
             :optional true}
   :QueryValue {:type :Kernel/String
@@ -43,6 +45,7 @@
  {:Fractl.UI/InputForm
   {:Record :Fractl.UI/RenderGenericDisplayForm.RecordName
    :Fields :Fractl.UI/RenderGenericDisplayForm.Fields
+   :Instance :Fractl.UI/RenderGenericDisplayForm.Instance
    :QueryBy :Fractl.UI/RenderGenericDisplayForm.QueryBy
    :QueryValue :Fractl.UI/RenderGenericDisplayForm.QueryValue}})
 
