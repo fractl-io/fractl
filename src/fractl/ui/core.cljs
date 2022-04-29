@@ -31,6 +31,7 @@
 
 (defn- app-routes [config]
   (secretary/set-config! :prefix "#")
+  (vu/clear-home-links!)
 
   (loop [ens (cn/displayable-record-names (cfg/component config))]
     (if-let [en (first ens)]
@@ -58,16 +59,18 @@
   (hook-browser-navigation!))
 
 (defn init-view
-  ([config]
+  ([config post-init]
    (cfg/set-config! config)
    (when-let [h (:remote-api-host config)]
      (vu/set-remote-api-host! h))
-   (when-not (get-in config [:view :use-local-resolvers])
-     (rg/override-resolver
-      [:Fractl.UI/InputForm]
-      (vif/make :input-form nil))
-     (rg/override-resolver
-      [:Fractl.UI/Table]
-      (vt/make :table nil)))
+   (rg/override-resolver
+    [:Fractl.UI/InputForm :Fractl.UI/InstanceForm]
+    (vif/make :input-form nil))
+   (rg/override-resolver
+    [:Fractl.UI/Table]
+    (vt/make :table nil))
+   (when post-init
+     (post-init))
    (app-routes config))
-  ([] (init-view (gs/get-app-config))))
+  ([post-init] (init-view (gs/get-app-config) post-init))
+  ([] (init-view nil)))

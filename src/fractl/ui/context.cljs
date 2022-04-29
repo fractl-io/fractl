@@ -34,3 +34,11 @@
 
 (defn lookup-ref [n path]
   (get-in @db (concat [n] path)))
+
+(def ^:private active-inst-key :active-instance)
+
+(defn set-active-instance! [obj]
+  (swap! db assoc active-inst-key obj))
+
+(defn lookup-active-instance []
+  (get @db active-inst-key))

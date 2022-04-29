@@ -12,6 +12,13 @@
  {:Record :Kernel/Path
   :Fields {:check fields?}
   :View {:type :Kernel/Any
+         :optional true}})
+
+(entity
+ :Fractl.UI/InstanceForm
+ {:Record :Kernel/Path
+  :Fields {:check fields?}
+  :View {:type :Kernel/Any
          :optional true}
   :Instance {:type :Kernel/Any
              :optional true}
@@ -37,21 +44,21 @@
 (dataflow
  :Fractl.UI/RenderGenericInputForm
  {:Fractl.UI/InputForm
-  {:Record :Fractl.UI/RenderGenericInputForm.RecordName
+  {:Record :Fractl.UI/RenderGenericInputForm.Record
    :Fields :Fractl.UI/RenderGenericInputForm.Fields}})
 
 (dataflow
- :Fractl.UI/RenderGenericDisplayForm
- {:Fractl.UI/InputForm
-  {:Record :Fractl.UI/RenderGenericDisplayForm.RecordName
-   :Fields :Fractl.UI/RenderGenericDisplayForm.Fields
-   :Instance :Fractl.UI/RenderGenericDisplayForm.Instance
-   :QueryBy :Fractl.UI/RenderGenericDisplayForm.QueryBy
-   :QueryValue :Fractl.UI/RenderGenericDisplayForm.QueryValue}})
+ :Fractl.UI/RenderGenericInstanceForm
+ {:Fractl.UI/InstanceForm
+  {:Record :Fractl.UI/RenderGenericInstanceForm.Record
+   :Fields :Fractl.UI/RenderGenericInstanceForm.Fields
+   :Instance :Fractl.UI/RenderGenericInstanceForm.Instance
+   :QueryBy :Fractl.UI/RenderGenericInstanceForm.QueryBy
+   :QueryValue :Fractl.UI/RenderGenericInstanceForm.QueryValue}})
 
 (dataflow
  :Fractl.UI/RenderGenericTable
  {:Fractl.UI/Table
-  {:Record :Fractl.UI/RenderGenericTable.RecordName
+  {:Record :Fractl.UI/RenderGenericTable.Record
    :Source :Fractl.UI/RenderGenericTable.Source
    :Fields :Fractl.UI/RenderGenericTable.Fields}})

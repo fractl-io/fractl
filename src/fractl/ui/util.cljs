@@ -3,6 +3,7 @@
             [reagent.core :as r]
             [reagent.dom :as rdom]
             [cognitect.transit :as t]
+            [fractl.util :as u]
             [fractl.global-state :as gs]
             [fractl.lang.kernel :as k]
             [fractl.lang.internal :as li]
@@ -20,6 +21,9 @@
 
 (defn authorized! []
   (reset! auth-required false))
+
+(defn clear-home-links! []
+  (reset! home-links []))
 
 (defn attach-home-link! [s]
   (swap! home-links conj s))
@@ -109,18 +113,20 @@
 
 (def ^:private fallback-render-event-names
   {:input :Fractl.UI/RenderGenericInputForm
-   :instance :Fractl.UI/RenderGenericDisplayForm
+   :instance :Fractl.UI/RenderGenericInstanceForm
    :list :Fractl.UI/RenderGenericTable
    :dashboard :Fractl.UI/RenderGenericTable})
 
 (defn- make-render-event [rec-name entity-spec
-                          tag meta spec-has-query-info]
-  (let [qattrs (if spec-has-query-info
-                 (if (map? entity-spec)
-                   {:Instance entity-spec}
-                   {:QueryBy (second entity-spec)
-                    :QueryValue (nth entity-spec 2)})
-                 {})
+                          tag meta spec-has-query-info
+                          spec-is-instance]
+  (let [qattrs (cond
+                 spec-is-instance
+                 {:Instance entity-spec}
+                 spec-has-query-info
+                 {:QueryBy (second entity-spec)
+                  :QueryValue (nth entity-spec 2)}
+                 :else {})
         tbl-attrs (case tag
                     (:list :dashboard)
                     {:Source (lookupall-event-name rec-name)}
@@ -128,7 +134,7 @@
         app-config (gs/get-app-config)]
     (if-let [event-name (get-in meta [:views tag])]
       (cn/make-instance event-name (merge qattrs tbl-attrs))
-      (let [attrs {:RecordName rec-name
+      (let [attrs {:Record rec-name
                    :Fields (:order meta)}]
         (cn/make-instance
          (tag (or
@@ -142,14 +148,16 @@
                         (if (string? entity-spec)
                           (keyword entity-spec)
                           entity-spec))
-        is-spec (seqable? entity-spec)
-        rec-name (if is-spec
-                   (first entity-spec)
-                   entity-spec)
+        is-obj (map? entity-spec)
+        is-spec (and (not is-obj) (seqable? entity-spec))
+        rec-name (cond
+                   is-obj (cn/instance-name entity-spec)
+                   is-spec (first entity-spec)
+                   :else entity-spec)
         meta (cn/fetch-meta rec-name)
         input-form-event
         (make-render-event
-         rec-name entity-spec tag meta is-spec)
+         rec-name entity-spec tag meta is-spec is-obj)
         r (eval-event nil true input-form-event)
         v (first (eval-result r))]
     (or (:View v)
@@ -259,3 +267,34 @@
 (defn finalize-view [view event-instance]
   (push-on-view-stack! view)
   (assoc event-instance :View view))
+
+(defn- make-query-event [rec-name query-by query-value]
+  (let [[c n] (li/split-path rec-name)]
+    (if (= :Id query-by)
+      (cn/make-instance
+       (keyword (str (name c) "/Lookup_" (name n)))
+       {:Id query-value})
+      (cn/make-instance
+       (keyword (str (name c) "/" (name n) "LookupBy" (name query-by)))
+       {:S query-value}))))
+
+(defn query-instance
+  ([rec-name query-by query-value callback]
+   (let [event-inst (make-query-event rec-name query-by query-value)]
+     (eval-event
+      (fn [r]
+        (if-let [result (eval-result r)]
+          (let [inst (first result)]
+            (callback inst))
+          (do (u/throw-ex
+               (str "error: query-instance failed for "
+                    [rec-name query-by query-value]
+                    " - " r))
+              (callback nil))))
+      event-inst)))
+  ([trigger-inst callback]
+   (query-instance
+    (:Record trigger-inst)
+    (:QueryBy trigger-inst)
+    (:QueryValue trigger-inst)
+    callback)))

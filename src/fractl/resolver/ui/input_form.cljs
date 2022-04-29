@@ -17,107 +17,7 @@
                      TableRow TableHead
                      TableBody TableCell]]))
 
-(declare search-callback)
-
-(defn- make-find-button [field-id get-state-value state-key search-event]
-  (let [sid (str field-id "-search-pane")]
-    [:div {:id sid}
-     [:> Button
-      {:on-click
-       #(search-callback
-         (cn/make-instance
-          search-event
-          {:S (str (get-state-value state-key) "%")})
-         field-id sid
-         (fn [] (make-find-button field-id get-state-value state-key search-event)))}
-      "Find"]]))
-
-(defn- search-callback [search-event-instance field-id target-id on-close-view]
-  (vu/eval-event
-   (fn [r]
-     (if-let [results (vu/eval-result r)]
-       (let [id (str field-id "-search-results")
-             r (atom "")
-             h (fn [v] (let [elem (-> js/document
-                                      (.getElementById field-id))]
-                         (set! (.-value elem) (first v))))
-             target-elem #(-> js/document
-                              (.getElementById target-id))
-             rows (mapv (fn [inst]
-                          (let [s (cn/instance-str inst)]
-                            [:> MenuItem {:value [s (:Id inst)]} s]))
-                        results)
-             display-results
-             (constantly
-              `[:span
-                [:> ~InputLabel {:id ~(str id "-label")} "Search Results"]
-                [:> ~Select
-                 {:label-id ~id
-                  :id ~id
-                  :label ~id
-                  :on-change ~#(vu/call-with-value % h)}
-                 ~@rows]
-                [:> ~Button
-                 {:on-click ~#(rdom/render [on-close-view] (target-elem))}
-                 "Close"]])]
-         (rdom/render [display-results] (target-elem)))
-       (u/throw-ex (str "error: search failed - " r))))
-   search-event-instance))
-
-(defn- menu-items-from-rows [rows]
-  (mapv
-   (fn [r]
-     [:> MenuItem {:value (:Id r)} (cn/instance-str r)])
-   rows))
-
-(defn- result-rows-to-select [sel-id handler rows]
-  `[:> ~Select
-    {:label-id ~(str sel-id "-label-id")
-     :id ~sel-id
-     :label ~sel-id
-     :on-change ~handler}
-    ~@(menu-items-from-rows rows)])
-
-(defn- select-from-search [event-name sel-id handler target-id]
-  (vu/eval-event
-   (fn [r]
-     (vu/render-view
-      (if-let [rows (vu/eval-result r)]
-        (result-rows-to-select sel-id handler rows)
-        (do (u/throw-ex (str "error: failed to load data for " sel-id " - " r))
-            [:span (str "failed to load data for " sel-id)]))
-      target-id))
-   (cn/make-instance
-    {event-name {}})))
-
-(defn- make-query-event [rec-name query-by query-value]
-  (let [[c n] (li/split-path rec-name)]
-    (if (= :Id query-by)
-      (cn/make-instance
-       (keyword (str (name c) "/Lookup_" (name n)))
-       {:Id query-value})
-      (cn/make-instance
-       (keyword (str (name c) "/" (name n) "LookupBy" (name query-by)))
-       {:S query-value}))))
-
-(def ^:private instance-cell (atom nil))
-
-(defn- query-instance [rec-name query-by query-value callback]
-  (if-let [inst @instance-cell]
-    (callback inst)
-    (let [event-inst (make-query-event rec-name query-by query-value)]
-      (vu/eval-event
-       (fn [r]
-         (if-let [result (vu/eval-result r)]
-           (let [inst (first result)]
-             (reset! instance-cell inst)
-             (callback inst))
-           (do (u/throw-ex
-                (str "error: query-instance failed for "
-                     [rec-name query-by query-value]
-                     " - " r))
-               (callback nil))))
-       event-inst))))
+(def ^:private instance-cache (atom nil))
 
 (defn- maybe-load-ref-from-context [attr-scm]
   (when-let [n (:ref attr-scm)]
@@ -127,7 +27,8 @@
 (defn- set-value-cell! [rec-name field-id attr-name attr-scm
                         query-spec-or-instance set-state-value!]
   (let [inst (when (map? query-spec-or-instance) query-spec-or-instance)
-        [query-by query-value] (when-not inst query-spec-or-instance)
+        cached-inst (when-not inst @instance-cache)
+        [query-by query-value] (when-not cached-inst query-spec-or-instance)
         has-q (and query-by query-value)
         elem (-> js/document
                  (.getElementById field-id))
@@ -138,7 +39,8 @@
                  (set-state-value! attr-name v))))]
     (cond
       inst (cb inst)
-      has-q (query-instance
+      cached-inst (cb cached-inst)
+      has-q (vu/query-instance
              rec-name query-by
              query-value cb)
       :else
@@ -170,7 +72,7 @@
                                change-handler]
   (let [fields (or fields (cn/attribute-names schema))
         list-refs (:list meta)]
-    (reset! instance-cell nil)
+    (reset! instance-cache nil)
     (interpose
      [:> TableContainer
       [:> Table
@@ -192,18 +94,14 @@
            [:> TableCell
             (if-let [view-spec (get-in meta [:views :attributes field-name :input])]
               (process-attribute-view-spec view-spec {:id id :on-change h})
-              (if-let [search-event (field-name list-refs)]
-                (let [div-id (str n "-select")]
-                  (select-from-search search-event id h div-id)
-                  [:div {:id div-id}])
-                [:> TextField
-                 (merge
-                  {:id id
-                   :label n
-                   :variant "standard"
-                   :on-change h}
-                  (when (cn/hashed-attribute? attr-scm)
-                    {:type "password"}))]))]]))
+              [:> TextField
+               (merge
+                {:id id
+                 :label n
+                 :variant "standard"
+                 :on-change h}
+                (when (cn/hashed-attribute? attr-scm)
+                  {:type "password"}))])]]))
       fields))))
 
 (defn- render-table [rec-name table-view-id]
@@ -256,7 +154,7 @@
       #(vu/render-view v)}
      "Close"]))
 
-(defn- upsert-ui [instance]
+(defn upsert-ui [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
         [c r] (li/split-path rec-name)
         rel-graph (:graph (rel/relationships c))
