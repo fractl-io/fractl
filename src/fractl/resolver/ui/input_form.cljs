@@ -70,8 +70,7 @@
                                fields query-spec-or-instance
                                set-state-value!
                                change-handler]
-  (let [fields (or fields (cn/attribute-names schema))
-        list-refs (:list meta)]
+  (let [fields (or fields (cn/attribute-names schema))]
     (reset! instance-cache nil)
     (interpose
      [:> TableContainer
@@ -104,15 +103,14 @@
                   {:type "password"}))])]]))
       fields))))
 
-(defn- render-table [rec-name table-view-id]
-  (vu/render-view
-   (vu/make-list-view rec-name)
-   table-view-id))
-
-(defn- upsert-callback [rec-name table-view-id result]
-  (if (vu/eval-result result)
-    (render-table rec-name table-view-id)
-    (u/throw-ex (str "error: upsert failed for " rec-name " - " result))))
+(defn- upsert-callback [rec-name result]
+  (if-let [r (vu/eval-result result)]
+    (vu/render-view
+     (vu/make-instance-view (first r)))
+    (let [s (str "error: upsert failed for " rec-name)]
+      (vu/render-view
+       [:div s])
+      (u/throw-ex (str  s " - " result)))))
 
 (defn- eval-event-callback [event-name on-success result]
   (if-let [r (vu/eval-result result)]
@@ -166,7 +164,6 @@
         set-state-value! (fn [k v] (swap! inst-state assoc k v))
         scm (cn/fetch-schema rec-name)
         transformer (vu/make-transformer rec-name)
-        table-view-id (str r "-table-view-container")
         meta (cn/fetch-meta rec-name)
         view
         `[:div {:class "view"}
@@ -177,11 +174,11 @@
               ~title][:br]
              ~@(render-attribute-specs
                 rec-name scm meta
-                (mapv
-                 u/string-as-keyword
-                 (:Fields instance))
-                (or (:Instance instance) [(:QueryBy instance) (:QueryValue instance)])
-                set-state-value! change-handler)
+                 (mapv
+                  u/string-as-keyword
+                  (:Fields instance))
+                 (or (:Instance instance) [(:QueryBy instance) (:QueryValue instance)])
+                 set-state-value! change-handler)
              [:> ~Button
               {:on-click
                ~#(let [inst (transformer @inst-state)]
@@ -193,11 +190,10 @@
                       inst)
                      (vu/fire-upsert
                       rec-name inst
-                      (partial upsert-callback rec-name table-view-id))))}
+                      (partial upsert-callback rec-name))))}
               ~(or (get-in meta [:views :create-button :label]) "Create")]
              ~@(navigation-buttons rels rec-name)]
-            ~(close-button)]
-           [:div {:id ~table-view-id}]]]]
+            ~(close-button)]]]]
     (vu/finalize-view view instance)))
 
 (defn make [resolver-name _]
