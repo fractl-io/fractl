@@ -4,6 +4,12 @@
               record event dataflow]]
             [fractl.lang.datetime :refer [now]]))
 
+(ns fractl.client.model.blog
+  (:require [fractl.lang :refer
+             [component entity
+              record event dataflow]]
+            [fractl.lang.datetime :refer [now]]))
+
 (component :Sample.Blog)
 
 (entity
@@ -63,10 +69,10 @@
   :Content {:check valid-blog-content?}
   :meta
   {:str :Title
-   :order [:Title :Content :CreatedBy :DateCreated]
+   :order [:Id :Title :Content :CreatedBy :DateCreated]
    :views
    {:dashboard :Sample.Blog/ShowDashboard
-    :instance :Sample.Blog/ShowBlogEntry
+    :list-refs [:Sample.Blog/Comment]
     :attributes
     {:Content {:input content-input-spec}}}}})
 
@@ -74,6 +80,8 @@
  :Sample.Blog/ShowDashboard
  {:Fractl.UI/Dashboard
   {:Record "Sample.Blog/BlogEntry"}})
+
+(record :Sample.Blog/DisplayBlog {})
 
 (defn valid-comment? [s]
   (and (string? s)
@@ -91,6 +99,10 @@
   :meta
   {:str :BlogEntry
    :order [:BlogEntry :CreatedBy :DateCreated :Content]}})
+
+(dataflow
+ :Sample.Blog/CommentLookupByBlogEntry
+ {:Sample.Blog/Comment {:BlogEntry? :Sample.Blog/CommentLookupByBlogEntry.BlogEntry}})
 
 (dataflow
  :Sample.Blog/BlogEntryLookupAll

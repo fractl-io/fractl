@@ -65,9 +65,13 @@
 ;; wait for Create button event.
 (defn upsert-ui [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
-        source-event (cn/make-instance
-                      (u/string-as-keyword (:Source instance))
-                      {})
+        src (:Source instance)
+        has-source-event (map? src)
+        source-event (if has-source-event
+                       src
+                       (cn/make-instance
+                        (u/string-as-keyword src)
+                        {}))
         [_ n] (li/split-path rec-name)
         id (str n "-table-view")
         fields (mapv u/string-as-keyword (:Fields instance))

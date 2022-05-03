@@ -165,6 +165,7 @@
         scm (cn/fetch-schema rec-name)
         transformer (vu/make-transformer rec-name)
         meta (cn/fetch-meta rec-name)
+        embedded-inst (:Instance instance)
         view
         `[:div {:class "view"}
           [:div {:class "main"}
@@ -177,7 +178,7 @@
                  (mapv
                   u/string-as-keyword
                   (:Fields instance))
-                 (or (:Instance instance) [(:QueryBy instance) (:QueryValue instance)])
+                 (or embedded-inst [(:QueryBy instance) (:QueryValue instance)])
                  set-state-value! change-handler)
              [:> ~Button
               {:on-click
@@ -193,6 +194,8 @@
                       (partial upsert-callback rec-name))))}
               ~(or (get-in meta [:views :create-button :label]) "Create")]
              ~@(navigation-buttons rels rec-name)]
+            ~@(when embedded-inst
+                (vu/make-list-refs-view rec-name embedded-inst meta))
             ~(close-button)]]]]
     (vu/finalize-view view instance)))
 

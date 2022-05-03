@@ -117,19 +117,20 @@
    :list :Fractl.UI/RenderGenericTable
    :dashboard :Fractl.UI/RenderGenericTable})
 
-(defn- make-render-event [rec-name entity-spec
-                          tag meta spec-has-query-info
-                          spec-is-instance]
-  (let [qattrs (cond
-                 spec-is-instance
-                 {:Instance entity-spec}
-                 spec-has-query-info
-                 {:QueryBy (second entity-spec)
-                  :QueryValue (nth entity-spec 2)}
+(defn- make-render-event [rec-name entity-spec tag meta]
+  (let [spec-instance (:instance entity-spec)
+        qinfo (:query-info entity-spec)
+        qattrs (cond
+                 spec-instance
+                 {:Instance spec-instance}
+                 qinfo
+                 {:QueryBy (second qinfo)
+                  :QueryValue (nth qinfo 2)}
                  :else {})
         tbl-attrs (case tag
                     (:list :dashboard)
-                    {:Source (lookupall-event-name rec-name)}
+                    {:Source (or (:source entity-spec)
+                                 (lookupall-event-name rec-name))}
                     nil)
         app-config (gs/get-app-config)]
     (if-let [event-name (get-in meta [:views tag])]
@@ -143,21 +144,29 @@
                fallback-render-event-names))
          (merge attrs qattrs tbl-attrs))))))
 
-(defn- make-view [tag entity-spec]
-  (let [entity-spec (or @auth-required
-                        (if (string? entity-spec)
-                          (keyword entity-spec)
-                          entity-spec))
-        is-obj (map? entity-spec)
-        is-spec (and (not is-obj) (seqable? entity-spec))
-        rec-name (cond
-                   is-obj (cn/instance-name entity-spec)
-                   is-spec (first entity-spec)
-                   :else entity-spec)
+(defn- make-view [tag target-info]
+  (let [target-info (or @auth-required
+                        (if (string? target-info)
+                          (keyword target-info)
+                          target-info))
+        is-inst (cn/an-instance? target-info)
+        is-raw-spec (and (not is-inst) (map? target-info))
+        is-query-spec (and (not is-inst)
+                           (not is-raw-spec)
+                           (seqable? target-info))
+        [rec-name final-entity-spec]
+        (cond
+          is-inst [(cn/instance-name target-info)
+                   {:instance target-info}]
+          is-query-spec [(first target-info)
+                         {:query-info target-info}]
+          :else [(if is-raw-spec
+                   (:record target-info)
+                   target-info)
+                 (when is-raw-spec target-info)])
         meta (cn/fetch-meta rec-name)
         input-form-event
-        (make-render-event
-         rec-name entity-spec tag meta is-spec is-obj)
+        (make-render-event rec-name final-entity-spec tag meta)
         r (eval-event nil true input-form-event)
         v (first (eval-result r))]
     (or (:View v)
@@ -274,9 +283,10 @@
       (cn/make-instance
        (keyword (str (name c) "/Lookup_" (name n)))
        {:Id query-value})
-      (cn/make-instance
-       (keyword (str (name c) "/" (name n) "LookupBy" (name query-by)))
-       {:S query-value}))))
+      (let [s (name query-by)]
+        (cn/make-instance
+         (keyword (str (name c) "/" (name n) "LookupBy" s))
+         {query-by query-value})))))
 
 (defn query-instance
   ([rec-name query-by query-value callback]
@@ -298,3 +308,34 @@
     (:QueryBy trigger-inst)
     (:QueryValue trigger-inst)
     callback)))
+
+(defn- query-and-make-list-view [instance ref-rec-name
+                                 [ref-attr refs]]
+  (let [qevent (make-query-event ref-rec-name ref-attr (get-in instance refs))
+        target-id (str "list-" (name ref-rec-name))
+        v (make-list-view {:record ref-rec-name :source qevent})]
+    `[:div {:id ~target-id} ~v]))
+
+(defn- ref-to-record [rec-name attr-scms]
+  (let [n (li/split-path rec-name)]
+    (first
+     (filter
+      identity
+      (map
+       #(let [sname (second %)
+              parts (:ref (cn/find-attribute-schema sname))]
+          (when (and parts (= n [(:component parts) (:record parts)]))
+            [(first %) (:refs parts)]))
+       attr-scms)))))
+
+(defn make-list-refs-view
+  ([rec-name instance meta]
+   (when-let [lrs (seq (get-in meta [:views :list-refs]))]
+     (mapv
+      #(when-let [scms (seq (cn/ref-attribute-schemas (cn/fetch-schema %)))]
+         (when-let [r (ref-to-record rec-name scms)]
+           (query-and-make-list-view instance % r)))
+      lrs)))
+  ([instance]
+   (let [n (cn/instance-name instance)]
+     (make-list-refs-view n instance (cn/fetch-meta n)))))
