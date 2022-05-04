@@ -227,7 +227,7 @@
     (.-rep x)
     (str x)))
 
-(defn generate-view
+(defn- generate-view
   ([component-name entity-spec display-tag]
    (let [cn (name component-name)
          s (if (s/starts-with? cn ":")
@@ -272,6 +272,9 @@
   (push-on-view-stack! view)
   (assoc event-instance :View view))
 
+(defn- lookup-by-event-name [c n s]
+  (keyword (str (name c) "/" (name n) "LookupBy" s)))
+
 (defn- make-query-event [rec-name query-by query-value]
   (let [[c n] (li/split-path rec-name)]
     (if (= :Id query-by)
@@ -280,8 +283,18 @@
        {:Id query-value})
       (let [s (name query-by)]
         (cn/make-instance
-         (keyword (str (name c) "/" (name n) "LookupBy" s))
+         (lookup-by-event-name c n s)
          {query-by query-value})))))
+
+(defn make-multi-arg-query-event [rec-name params]
+  (let [[c n] (li/split-path rec-name)
+        sfx (s/join "And" (mapv name (take-nth 2 params)))
+        event-name (lookup-by-event-name c n sfx)]
+    (cn/make-instance event-name (apply hash-map params))))
+
+(defn make-multi-arg-query-event-spec [rec-name params]
+  {:record rec-name
+   :source (make-multi-arg-query-event rec-name params)})
 
 (defn query-instance
   ([rec-name query-by query-value callback]

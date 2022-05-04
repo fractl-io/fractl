@@ -4,12 +4,6 @@
               record event dataflow]]
             [fractl.lang.datetime :refer [now]]))
 
-(ns fractl.client.model.blog
-  (:require [fractl.lang :refer
-             [component entity
-              record event dataflow]]
-            [fractl.lang.datetime :refer [now]]))
-
 (component :Sample.Blog)
 
 (entity
@@ -103,6 +97,12 @@
 (dataflow
  :Sample.Blog/CommentLookupByBlogEntry
  {:Sample.Blog/Comment {:BlogEntry? :Sample.Blog/CommentLookupByBlogEntry.BlogEntry}})
+
+(dataflow
+ :Sample.Blog/CommentLookupByBlogEntryAndComment
+ {:Sample.Blog/Comment
+  {:BlogEntry? :Sample.Blog/CommentLookupByBlogEntryAndComment.BlogEntry
+   :Id? :Sample.Blog/CommentLookupByBlogEntryAndComment.Comment}})
 
 (dataflow
  :Sample.Blog/BlogEntryLookupAll

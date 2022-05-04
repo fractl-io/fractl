@@ -38,7 +38,8 @@
     (if-let [en (first ens)]
       (let [[_ n] (li/split-path en)
             s (s/lower-case (name n))
-            schema (cn/entity-schema en)]
+            schema (cn/entity-schema en)
+            meta (cn/fetch-meta en)]
         (defroute (str "/" s) []
           (vu/render-app-view
            (vu/generate-view en)))
@@ -49,7 +50,16 @@
           (defroute (str "/" s "/" (s/lower-case (name uq))) {:as params}
             (vu/render-app-view
              (vu/generate-view [en uq (get-in params [:query-params :s])] :instance))))
-        (when (mt/authorize? (cn/fetch-meta en))
+        (doseq [cnt (mt/contains meta)]
+          (let [[_ cn :as sn] (li/split-path cnt)
+                cs (s/lower-case (name cn))]
+            (defroute (str "/" s "/:id1/" cs "/:id2") {:as params}
+              (vu/render-app-view
+               (vu/generate-view
+                (vu/make-multi-arg-query-event-spec
+                 sn [n (:id1 params) cn (:id2 params)])
+                :list)))))
+        (when (mt/authorize? meta)
           (vu/set-authorization-required! en))
         (vu/attach-home-link! (make-home-link n s))
         (recur (rest ens)))
