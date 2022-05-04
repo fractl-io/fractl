@@ -72,7 +72,7 @@
    :order [:Id :Title :Content :CreatedBy :DateCreated]
    :views
    {:dashboard :Sample.Blog/ShowDashboard
-    :list-refs [:Sample.Blog/Comment]
+    :contains [:Sample.Blog/Comment]
     :attributes
     {:Content {:input content-input-spec}}}}})
 

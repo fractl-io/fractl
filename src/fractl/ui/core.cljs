@@ -9,6 +9,7 @@
             [fractl.lang.internal :as li]
             [fractl.resolver.registry :as rg]
             [fractl.ui.model]
+            [fractl.ui.meta :as mt]
             [fractl.ui.util :as vu]
             [fractl.ui.config :as cfg]
             [fractl.resolver.ui.table :as vt]
@@ -48,7 +49,7 @@
           (defroute (str "/" s "/" (s/lower-case (name uq))) {:as params}
             (vu/render-app-view
              (vu/generate-view [en uq (get-in params [:query-params :s])] :instance))))
-        (when (vu/meta-authorize? (cn/fetch-meta en))
+        (when (mt/authorize? (cn/fetch-meta en))
           (vu/set-authorization-required! en))
         (vu/attach-home-link! (make-home-link n s))
         (recur (rest ens)))

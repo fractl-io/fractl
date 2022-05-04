@@ -5,6 +5,7 @@
             [fractl.component :as cn]
             [fractl.ui.util :as vu]
             [fractl.ui.context :as ctx]
+            [fractl.ui.meta :as mt]
             [fractl.relationship :as rel]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
@@ -91,7 +92,7 @@
              set-state-value!))
           [:> TableRow
            [:> TableCell
-            (if-let [view-spec (get-in meta [:views :attributes field-name :input])]
+            (if-let [view-spec (mt/attribute-view-spec meta field-name)]
               (process-attribute-view-spec view-spec {:id id :on-change h})
               [:> TextField
                (merge
@@ -118,7 +119,7 @@
     (u/throw-ex (str "error: eval-event failed for " event-name " - " result))))
 
 (defn- make-eval-success-callback [event-name meta]
-  (if (vu/meta-authorize? meta)
+  (if (mt/authorize? meta)
     (fn [r]
       (if r
         (do
@@ -192,7 +193,7 @@
                      (vu/fire-upsert
                       rec-name inst
                       (partial upsert-callback rec-name))))}
-              ~(or (get-in meta [:views :create-button :label]) "Create")]
+              ~(or (mt/create-button-label meta) "Create")]
              ~@(navigation-buttons rels rec-name)]
             ~@(when embedded-inst
                 (vu/make-list-refs-view rec-name embedded-inst meta))

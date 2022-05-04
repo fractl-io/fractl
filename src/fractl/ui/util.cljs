@@ -9,6 +9,7 @@
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
+            [fractl.ui.meta :as mt]
             [fractl.ui.config :as cfg]
             [fractl.ui.context :as ctx]))
 
@@ -133,7 +134,7 @@
                                  (lookupall-event-name rec-name))}
                     nil)
         app-config (gs/get-app-config)]
-    (if-let [event-name (get-in meta [:views tag])]
+    (if-let [event-name (mt/view-event meta tag)]
       (cn/make-instance event-name (merge qattrs tbl-attrs))
       (let [attrs {:Record rec-name
                    :Fields (:order meta)}]
@@ -246,12 +247,6 @@
   ([entity-spec]
    (generate-view entity-spec :input)))
 
-(defn meta-authorize? [meta]
-  (= :authorize
-     (get-in
-      meta
-      [:views :create-button :on-success])))
-
 (defn make-home-view
   ([title dashboard-entity]
    (if-let [auth-rec-name @auth-required]
@@ -330,7 +325,7 @@
 
 (defn make-list-refs-view
   ([rec-name instance meta]
-   (when-let [lrs (seq (get-in meta [:views :list-refs]))]
+   (when-let [lrs (mt/contains meta)]
      (mapv
       #(when-let [scms (seq (cn/ref-attribute-schemas (cn/fetch-schema %)))]
          (when-let [r (ref-to-record rec-name scms)]
