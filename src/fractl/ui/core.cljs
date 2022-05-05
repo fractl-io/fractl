@@ -42,7 +42,7 @@
             meta (cn/fetch-meta en)]
         (defroute (str "/" s) []
           (vu/render-app-view
-           (vu/generate-input-view en)))
+           (vu/generate-dashboard-view en)))
         (defroute (str "/" s "/list") []
           (vu/render-app-view
            (vu/generate-list-view en)))
@@ -77,7 +77,7 @@
     [:Fractl.UI/InputForm :Fractl.UI/InstanceForm]
     (vif/make :input-form nil))
    (rg/override-resolver
-    [:Fractl.UI/Table]
+    [:Fractl.UI/Table :Fractl.UI/Dashboard]
     (vt/make :table nil))
    (when post-init
      (post-init))

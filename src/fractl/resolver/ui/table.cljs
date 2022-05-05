@@ -75,7 +75,12 @@
         [_ n] (li/split-path rec-name)
         id (str n "-table-view")
         fields (mapv u/string-as-keyword (:Fields instance))
-        table-view [:div {:id id}]
+        table-view [:div [:div {:id id}]
+                    (when (= :Dashboard (second (li/split-path (cn/instance-name instance))))
+                      [:> Button
+                       {:on-click #(vu/render-view
+                                    (vu/make-input-view rec-name))}
+                       (str "Create New " (name n))])]
         data-refresh!
         #(vu/eval-event
           (fn [result]

@@ -116,7 +116,7 @@
   {:input :Fractl.UI/RenderGenericInputForm
    :instance :Fractl.UI/RenderGenericInstanceForm
    :list :Fractl.UI/RenderGenericTable
-   :dashboard :Fractl.UI/RenderGenericTable})
+   :dashboard :Fractl.UI/RenderGenericDashboard})
 
 (defn- make-render-event [rec-name entity-spec tag meta]
   (let [spec-instance (:instance entity-spec)

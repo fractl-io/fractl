@@ -27,19 +27,15 @@
   :QueryValue {:type :Kernel/String
                :optional true}})
 
-(entity
- :Fractl.UI/Table
- {:Record :Kernel/Path
-  :Source :Kernel/Any
-  :Fields {:check fields?}
-  :View {:type :Kernel/Any
-         :optional true}})
+(def ^:private list-attrs
+  {:Record :Kernel/Path
+   :Source :Kernel/Any
+   :Fields {:check fields?}
+   :View {:type :Kernel/Any
+          :optional true}})
 
-(entity
- :Fractl.UI/Dashboard
- {:Record :Kernel/Path
-  :View {:type :Kernel/Any
-         :optional true}})
+(entity :Fractl.UI/Table list-attrs)
+(entity :Fractl.UI/Dashboard list-attrs)
 
 (dataflow
  :Fractl.UI/RenderGenericInputForm
@@ -62,3 +58,10 @@
   {:Record :Fractl.UI/RenderGenericTable.Record
    :Source :Fractl.UI/RenderGenericTable.Source
    :Fields :Fractl.UI/RenderGenericTable.Fields}})
+
+(dataflow
+ :Fractl.UI/RenderGenericDashboard
+ {:Fractl.UI/Dashboard
+  {:Record :Fractl.UI/RenderGenericDashboard.Record
+   :Source :Fractl.UI/RenderGenericDashboard.Source
+   :Fields :Fractl.UI/RenderGenericDashboard.Fields}})
