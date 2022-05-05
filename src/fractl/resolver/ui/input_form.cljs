@@ -25,6 +25,14 @@
     (let [{c :component r :record rs :refs} n]
       (ctx/lookup-ref [c r] rs))))
 
+(defn- fetch-local-value [set-state-value! attr-name attr-scm]
+  (let [v (str
+           (if-let [d (:default attr-scm)]
+             (if (fn? d) (d) d)
+             (maybe-load-ref-from-context attr-scm)))]
+    (set-state-value! attr-name v)
+    v))
+
 (defn- set-value-cell! [rec-name field-id attr-name attr-scm
                         query-spec-or-instance set-state-value!]
   (let [inst (when (map? query-spec-or-instance) query-spec-or-instance)
@@ -36,7 +44,7 @@
         cb (when (or inst has-q)
              (fn [inst]
                (let [v (str (attr-name inst))]
-                 (set! (.-value elem) v)
+                 (when elem (set! (.-value elem) v))
                  (set-state-value! attr-name v))))]
     (cond
       inst (cb inst)
@@ -45,12 +53,12 @@
              rec-name query-by
              query-value cb)
       :else
-      (let [v (str
-               (if-let [d (:default attr-scm)]
-                 (if (fn? d) (d) d)
-                 (maybe-load-ref-from-context attr-scm)))]
-        (set! (.-value elem) v)
-        (set-state-value! attr-name v)))))
+      (when elem
+        (set!
+         (.-value elem)
+         (fetch-local-value
+          set-state-value! attr-name
+          attr-scm))))))
 
 (defn- keyword-as-ui-component [k]
   (case k
@@ -85,7 +93,8 @@
               id (str "attribute-" n)
               attr-scm (cn/find-attribute-schema (field-name schema))
               k field-name
-              h (partial change-handler k)]
+              h (partial change-handler k)
+              local-val (fetch-local-value set-state-value! field-name attr-scm)]
           (vu/add-post-render-event!
            #(set-value-cell!
              rec-name id field-name attr-scm query-spec-or-instance
@@ -98,6 +107,7 @@
                (merge
                 {:id id
                  :label n
+                 :default-value (or local-val "")
                  :variant "standard"
                  :on-change h}
                 (when (cn/hashed-attribute? attr-scm)

@@ -6,6 +6,7 @@
             [fractl.component :as cn]
             [fractl.global-state :as gs]
             [fractl.ui.util :as vu]
+            [fractl.ui.context :as ctx]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
             ["@material-ui/core"
@@ -32,6 +33,7 @@
               {:component "button"
                :variant "body2"
                :on-click #(do (vu/reset-page-state!)
+                              (ctx/attach-to-context! inst)
                               (vu/render-view
                                (vu/make-instance-view inst)))}
               s])])))

@@ -180,6 +180,7 @@
 (def make-instance-view (partial make-view :instance))
 (def make-list-view (partial make-view :list))
 (def make-input-view (partial make-view :input))
+(def make-dashboard-view (partial make-view :dashboard))
 
 (def ^:private post-render-events (atom []))
 
@@ -324,11 +325,11 @@
     (:QueryValue trigger-inst)
     callback)))
 
-(defn- query-and-make-list-view [instance ref-rec-name
-                                 [ref-attr refs]]
+(defn- query-and-make-dashboard-view [instance ref-rec-name
+                                      [ref-attr refs]]
   (let [qevent (make-query-event ref-rec-name ref-attr (get-in instance refs))
         target-id (str "list-" (name ref-rec-name))
-        v (make-list-view {:record ref-rec-name :source qevent})]
+        v (make-dashboard-view {:record ref-rec-name :source qevent})]
     `[:div {:id ~target-id} ~v]))
 
 (defn- ref-to-record [rec-name attr-scms]
@@ -349,7 +350,7 @@
      (mapv
       #(when-let [scms (seq (cn/ref-attribute-schemas (cn/fetch-schema %)))]
          (when-let [r (ref-to-record rec-name scms)]
-           (query-and-make-list-view instance % r)))
+           (query-and-make-dashboard-view instance % r)))
       lrs)))
   ([instance]
    (let [n (cn/instance-name instance)]
