@@ -65,15 +65,9 @@
   {:str :Title
    :order [:Id :Title :Content :CreatedBy :DateCreated]
    :views
-   {:dashboard :Sample.Blog/ShowDashboard
-    :contains [:Sample.Blog/Comment]
+   {:contains [:Sample.Blog/Comment]
     :attributes
     {:Content {:input content-input-spec}}}}})
-
-(dataflow
- :Sample.Blog/ShowDashboard
- {:Fractl.UI/Dashboard
-  {:Record "Sample.Blog/BlogEntry"}})
 
 (record :Sample.Blog/DisplayBlog {})
 
