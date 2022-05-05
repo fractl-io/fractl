@@ -128,7 +128,8 @@
                  {:QueryBy (second qinfo)
                   :QueryValue (nth qinfo 2)}
                  :else {})
-        tbl-attrs (case tag
+        tag (if (seqable? tag) tag [tag])
+        tbl-attrs (case (first tag)
                     (:list :dashboard)
                     {:Source (or (:source entity-spec)
                                  (lookupall-event-name rec-name))}
@@ -139,10 +140,12 @@
       (let [attrs {:Record rec-name
                    :Fields (:order meta)}]
         (cn/make-instance
-         (tag (or
-               (get-in app-config [:ui :render-events rec-name])
-               (get-in app-config [:ui :global-render-events])
-               fallback-render-event-names))
+         (get-in
+          (or
+           (get-in app-config [:ui :render-events rec-name])
+           (get-in app-config [:ui :global-render-events])
+           fallback-render-event-names)
+          tag)
          (merge attrs qattrs tbl-attrs))))))
 
 (defn- make-view [tag target-info]

@@ -1,7 +1,7 @@
 (ns fractl.ui.meta)
 
 (defn view-event [meta tag]
-  (get-in meta [:views tag]))
+  (get-in meta (concat [:views] tag)))
 
 (defn authorize? [meta]
   (= :authorize
