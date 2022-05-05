@@ -228,7 +228,7 @@
     (str x)))
 
 (defn- generate-view
-  ([component-name entity-spec display-tag]
+  ([display-tag component-name entity-spec]
    (let [cn (name component-name)
          s (if (s/starts-with? cn ":")
              (subs cn 1)
@@ -237,21 +237,25 @@
       [:b (str s " / ") [:a {:href "#"} "Home"]]
       [:div {:id main-view-id}
        (make-view display-tag entity-spec)]]))
-  ([entity-spec display-tag]
+  ([display-tag entity-spec]
    (let [en (if (keyword? entity-spec)
               entity-spec
               (first entity-spec))]
      (generate-view
+      display-tag
       (first (li/split-path en))
-      entity-spec display-tag)))
-  ([entity-spec]
-   (generate-view entity-spec :input)))
+      entity-spec))))
+
+(def generate-input-view (partial generate-view :input))
+(def generate-list-view (partial generate-view :list))
+(def generate-instance-view (partial generate-view :instance))
+(def generate-dashboard-view (partial generate-view :dashboard))
 
 (defn make-home-view
   ([title dashboard-entity]
    (if-let [auth-rec-name @auth-required]
-     (generate-view auth-rec-name)
-     (let [dv (generate-view dashboard-entity :dashboard)]
+     (generate-input-view auth-rec-name)
+     (let [dv (generate-dashboard-view dashboard-entity)]
        `[:div [:h1 ~title]
          ~@(deref home-links)
          [:div ~dv]])))

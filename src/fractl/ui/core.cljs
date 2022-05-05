@@ -42,23 +42,22 @@
             meta (cn/fetch-meta en)]
         (defroute (str "/" s) []
           (vu/render-app-view
-           (vu/generate-view en)))
+           (vu/generate-input-view en)))
         (defroute (str "/" s "/list") []
           (vu/render-app-view
-           (vu/generate-view en :list)))
+           (vu/generate-list-view en)))
         (doseq [uq (cn/unique-attributes schema)]
           (defroute (str "/" s "/" (s/lower-case (name uq))) {:as params}
             (vu/render-app-view
-             (vu/generate-view [en uq (get-in params [:query-params :s])] :instance))))
+             (vu/generate-instance-view [en uq (get-in params [:query-params :s])]))))
         (doseq [cnt (mt/contains meta)]
           (let [[_ cn :as sn] (li/split-path cnt)
                 cs (s/lower-case (name cn))]
             (defroute (str "/" s "/:id1/" cs "/:id2") {:as params}
               (vu/render-app-view
-               (vu/generate-view
+               (vu/generate-list-view
                 (vu/make-multi-arg-query-event-spec
-                 sn [n (:id1 params) cn (:id2 params)])
-                :list)))))
+                 sn [n (:id1 params) cn (:id2 params)]))))))
         (when (mt/authorize? meta)
           (vu/set-authorization-required! en))
         (vu/attach-home-link! (make-home-link n s))
