@@ -19,6 +19,11 @@
   {:str :UserName
    :order [:UserName :Password :Email :DOB :Sex]}})
 
+(dataflow
+ :Sample.Blog/UserLookupAll
+ {:Sample.Blog/User
+  {:Id? :Sample.Blog/BlogEntryLookupAll.EventContext.User.Id}})
+
 (event
  :Sample.Blog/UserLogin
  {:UserName :Kernel/String

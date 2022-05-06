@@ -148,6 +148,8 @@
           tag)
          (merge attrs qattrs tbl-attrs))))))
 
+(declare make-input-view)
+
 (defn- make-view [tag target-info]
   (let [target-info (or @auth-required
                         (if (string? target-info)
@@ -168,14 +170,17 @@
                    (:record target-info)
                    target-info)
                  (when is-raw-spec target-info)])
-        meta (cn/fetch-meta rec-name)
-        input-form-event
-        (make-render-event rec-name final-entity-spec tag meta)
-        r (eval-event nil true input-form-event)
-        v (first (eval-result r))]
-    (or (:View v)
-        (do (println (str "input form generation failed. " r))
-            [:div "failed to generate view for " [rec-name tag]]))))
+        meta (cn/fetch-meta rec-name)]
+    (if (and (mt/authorize? meta) (not @auth-required))
+      (do (set-authorization-required! rec-name)
+          (make-input-view target-info))
+      (let [input-form-event
+            (make-render-event rec-name final-entity-spec tag meta)
+            r (eval-event nil true input-form-event)
+            v (first (eval-result r))]
+        (or (:View v)
+            (do (println (str "input form generation failed. " r))
+                [:div "failed to generate view for " [rec-name tag]]))))))
 
 (def make-instance-view (partial make-view :instance))
 (def make-list-view (partial make-view :list))
