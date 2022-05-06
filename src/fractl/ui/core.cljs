@@ -25,13 +25,14 @@
        (secretary/dispatch! (.-token event))))
     (.setEnabled true)))
 
-(defn make-home-link [meta rec-name link-text]
+(defn make-home-link [meta rec-name n link-text]
   (let [s (str "#/" link-text)]
-    [:a {:href s}
-     (str (if (mt/authorize? meta)
-            "Logout"
-            (name rec-name))
-          " | ")]))
+    [rec-name
+     [:a {:href s}
+      (str (if (mt/authorize? meta)
+             "Logout"
+             (name n))
+           " | ")]]))
 
 (defn- app-routes [config]
   (secretary/set-config! :prefix "#")
@@ -63,7 +64,9 @@
                  sn [n (:id1 params) cn (:id2 params)]))))))
         (when (mt/authorize? meta)
           (vu/set-authorization-required! en))
-        (vu/attach-home-link! (make-home-link meta n s))
+        (when-let [cns (mt/contains meta)]
+          (vu/ignore-in-home-links! cns))
+        (vu/attach-home-link! (make-home-link meta en n s))
         (recur (rest ens)))
       (defroute "/" []
         (vu/render-app-view

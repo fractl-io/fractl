@@ -16,6 +16,7 @@
 (def ^:private remote-api-host (atom nil))
 (def ^:private auth-required (atom false))
 (def ^:private home-links (atom []))
+(def ^:private ignore-in-home-links (atom []))
 
 (defn set-authorization-required! [auth-rec-name]
   (reset! auth-required auth-rec-name))
@@ -24,10 +25,23 @@
   (reset! auth-required false))
 
 (defn clear-home-links! []
+  (reset! ignore-in-home-links [])
   (reset! home-links []))
 
 (defn attach-home-link! [s]
   (swap! home-links conj s))
+
+(defn- fetch-home-links []
+  (let [ls @home-links
+        igns @ignore-in-home-links]
+    (mapv
+     second
+     (filter
+      #(not (some #{(first %)} igns))
+      ls))))
+
+(defn ignore-in-home-links! [xs]
+  (swap! ignore-in-home-links (comp set concat) xs))
 
 (defn set-remote-api-host! [host]
   (reset! remote-api-host host))
@@ -266,7 +280,7 @@
      (generate-input-view auth-rec-name)
      (let [dv (generate-dashboard-view dashboard-entity)]
        `[:div [:h1 ~title]
-         ~@(deref home-links)
+         ~@(fetch-home-links)
          [:div ~dv]])))
   ([]
    (make-home-view "Dashboard" (cfg/dashboard))))
