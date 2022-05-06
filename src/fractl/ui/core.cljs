@@ -51,9 +51,9 @@
           (vu/render-app-view
            (vu/generate-list-view en)))
         (doseq [uq (cn/unique-attributes schema)]
-          (defroute (str "/" s "/" (s/lower-case (name uq))) {:as params}
+          (defroute (str "/" s "/" (s/lower-case (name uq)) "/:s") {:as params}
             (vu/render-app-view
-             (vu/generate-instance-view [en uq (get-in params [:query-params :s])]))))
+             (vu/generate-instance-view [en uq (:s params)]))))
         (doseq [cnt (mt/contains meta)]
           (let [[_ cn :as sn] (li/split-path cnt)
                 cs (s/lower-case (name cn))]
