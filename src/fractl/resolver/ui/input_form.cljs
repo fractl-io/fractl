@@ -116,8 +116,10 @@
 
 (defn- upsert-callback [rec-name result]
   (if-let [r (vu/eval-result result)]
-    (vu/render-view
-     (vu/make-instance-view (first r)))
+    (let [inst (first r)]
+      (ctx/attach-to-context! inst)
+      (vu/render-view
+       (vu/make-instance-view inst)))
     (let [s (str "error: upsert failed for " rec-name)]
       (vu/render-view
        [:div s])
