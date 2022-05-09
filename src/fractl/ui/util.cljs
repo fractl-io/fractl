@@ -119,6 +119,17 @@
   ([entity-name object]
    (fire-upsert entity-name object identity)))
 
+(defn- delete-event-name [entity-name]
+  (let [[c n] (li/split-path entity-name)]
+    (str (name c) "/Delete_" (name n))))
+
+(defn fire-delete-instance [entity-name id]
+  (let [event-name (delete-event-name entity-name)]
+    (eval-event
+     #(println (str "delete " [entity-name id] " - " %))
+     (cn/make-instance
+      {event-name {:Id id}}))))
+
 (defn make-transformer
   ([recname schema]
    (fn [instance]

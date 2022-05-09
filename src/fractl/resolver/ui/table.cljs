@@ -1,8 +1,5 @@
 (ns fractl.resolver.ui.table
-  (:require [clojure.string :as s]
-            [reagent.core :as r]
-            [reagent.dom :as rdom]
-            [fractl.util :as u]
+  (:require [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.global-state :as gs]
             [fractl.ui.util :as vu]
@@ -17,6 +14,15 @@
                      TableContainer Table
                      TableRow TableHead
                      TableBody TableCell]]))
+
+(defn- delete-instance-button [rec-name id]
+  [:> TableCell
+   [:> Link
+    {:component "button"
+     :variant "body2"
+     :on-click
+     #(vu/fire-delete-instance rec-name id)}
+    "Delete"]])
 
 (defn- render-instance [fields rec-name inst]
   (loop [fields fields, linked false, result []]
@@ -38,7 +44,7 @@
                               (v/render-view
                                (v/make-instance-view inst)))}
               s])])))
-      (vec result))))
+      (vec (conj result (delete-instance-button rec-name (:Id inst)))))))
 
 (defn- render-rows [rows fields elem-id]
   (when (seq rows)
@@ -89,7 +95,9 @@
           (fn [result]
             (if-let [rows (vu/eval-result result)]
               (render-rows rows fields id)
-              (println (str "failed to list " rec-name " - " result))))
+              (if (= :not-found (:status (first result)))
+                (v/render-view [:div "not data"] id)
+                (println (str "failed to list " rec-name " - " result)))))
           source-event)
         data-refresh-ms
         (or (get-in
