@@ -16,4 +16,4 @@
   (get-in meta [:views :attributes field-name :input]))
 
 (defn create-button-label [meta]
-  (get-in meta [:views :input :create-button :label]))
+  (get-in meta [:views :create-button :label]))

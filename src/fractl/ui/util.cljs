@@ -43,6 +43,35 @@
 (defn ignore-in-home-links! [xs]
   (swap! ignore-in-home-links (comp set concat) xs))
 
+(defn- as-url-path-name [n]
+  (cond
+    (keyword? n) (s/lower-case (name n))
+    (string? n) n
+    :else (str n)))
+
+(def link-prefix "#")
+
+(defn make-link [route-fn & args]
+  (str link-prefix (apply route-fn args)))
+
+(defn make-dashboard-route [n]
+  (str "/" (as-url-path-name n)))
+
+(defn make-list-view-route [n]
+  (str "/" (as-url-path-name n) "/list"))
+
+(defn make-instance-view-route
+  ([n uq uv]
+   (str
+    "/" (as-url-path-name n) "/"
+    (as-url-path-name uq)
+    "/" (or uv ":s")))
+  ([n uq]
+   (make-instance-view-route n uq nil)))
+
+(defn make-contains-route [n cn]
+  (str "/" (as-url-path-name n) "/:id1/" (as-url-path-name cn) "/:id2"))
+
 (defn set-remote-api-host! [host]
   (reset! remote-api-host host))
 

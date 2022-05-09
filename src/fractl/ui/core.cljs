@@ -27,7 +27,7 @@
     (.setEnabled true)))
 
 (defn make-home-link [meta rec-name n link-text]
-  (let [s (str "#/" link-text)]
+  (let [s (str vu/link-prefix "/" link-text)]
     [rec-name
      [:a {:href s}
       (str (if (mt/authorize? meta)
@@ -36,7 +36,7 @@
            " | ")]]))
 
 (defn- app-routes [config]
-  (secretary/set-config! :prefix "#")
+  (secretary/set-config! :prefix vu/link-prefix)
   (vu/clear-home-links!)
 
   (loop [ens (cn/displayable-record-names (cfg/component config))]
@@ -45,20 +45,19 @@
             s (s/lower-case (name n))
             schema (cn/entity-schema en)
             meta (cn/fetch-meta en)]
-        (defroute (str "/" s) []
+        (defroute (vu/make-dashboard-route s) []
           (v/render-app-view
            (v/generate-dashboard-view en)))
-        (defroute (str "/" s "/list") []
+        (defroute (vu/make-list-view-route s) []
           (v/render-app-view
            (v/generate-list-view en)))
         (doseq [uq (cn/unique-attributes schema)]
-          (defroute (str "/" s "/" (s/lower-case (name uq)) "/:s") {:as params}
+          (defroute (vu/make-instance-view-route s uq) {:as params}
             (v/render-app-view
              (v/generate-instance-view [en uq (:s params)]))))
         (doseq [cnt (mt/contains meta)]
-          (let [[_ cn :as sn] (li/split-path cnt)
-                cs (s/lower-case (name cn))]
-            (defroute (str "/" s "/:id1/" cs "/:id2") {:as params}
+          (let [[_ cn :as sn] (li/split-path cnt)]
+            (defroute (vu/make-contains-route s cn) {:as params}
               (v/render-app-view
                (v/generate-list-view
                 (vu/make-multi-arg-query-event-spec

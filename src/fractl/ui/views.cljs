@@ -112,7 +112,8 @@
   ([]
    (make-home-view "Dashboard" (cfg/dashboard))))
 
-(defn- query-and-make-dashboard-view [instance ref-rec-name
+(defn- query-and-make-dashboard-view [instance rec-name
+                                      ref-rec-name
                                       [ref-attr refs]]
   (let [qevent (vu/make-query-event ref-rec-name ref-attr (get-in instance refs))
         target-id (str "list-" (name ref-rec-name))
@@ -125,7 +126,7 @@
      (mapv
       #(when-let [scms (seq (cn/ref-attribute-schemas (cn/fetch-schema %)))]
          (when-let [r (vu/ref-to-record rec-name scms)]
-           (query-and-make-dashboard-view instance % r)))
+           (query-and-make-dashboard-view instance rec-name % r)))
       lrs)))
   ([instance]
    (let [n (cn/instance-name instance)]
