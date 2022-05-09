@@ -11,6 +11,7 @@
             [fractl.ui.model]
             [fractl.ui.meta :as mt]
             [fractl.ui.util :as vu]
+            [fractl.ui.views :as v]
             [fractl.ui.config :as cfg]
             [fractl.resolver.ui.table :as vt]
             [fractl.resolver.ui.input-form :as vif])
@@ -45,21 +46,21 @@
             schema (cn/entity-schema en)
             meta (cn/fetch-meta en)]
         (defroute (str "/" s) []
-          (vu/render-app-view
-           (vu/generate-dashboard-view en)))
+          (v/render-app-view
+           (v/generate-dashboard-view en)))
         (defroute (str "/" s "/list") []
-          (vu/render-app-view
-           (vu/generate-list-view en)))
+          (v/render-app-view
+           (v/generate-list-view en)))
         (doseq [uq (cn/unique-attributes schema)]
           (defroute (str "/" s "/" (s/lower-case (name uq)) "/:s") {:as params}
-            (vu/render-app-view
-             (vu/generate-instance-view [en uq (:s params)]))))
+            (v/render-app-view
+             (v/generate-instance-view [en uq (:s params)]))))
         (doseq [cnt (mt/contains meta)]
           (let [[_ cn :as sn] (li/split-path cnt)
                 cs (s/lower-case (name cn))]
             (defroute (str "/" s "/:id1/" cs "/:id2") {:as params}
-              (vu/render-app-view
-               (vu/generate-list-view
+              (v/render-app-view
+               (v/generate-list-view
                 (vu/make-multi-arg-query-event-spec
                  sn [n (:id1 params) cn (:id2 params)]))))))
         (when (mt/authorize? meta)
@@ -69,8 +70,8 @@
         (vu/attach-home-link! (make-home-link meta en n s))
         (recur (rest ens)))
       (defroute "/" []
-        (vu/render-app-view
-         (vu/make-home-view
+        (v/render-app-view
+         (v/make-home-view
           "Home Page" (cfg/dashboard config))))))
   (hook-browser-navigation!))
 

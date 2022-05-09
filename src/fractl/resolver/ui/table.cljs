@@ -6,6 +6,7 @@
             [fractl.component :as cn]
             [fractl.global-state :as gs]
             [fractl.ui.util :as vu]
+            [fractl.ui.views :as v]
             [fractl.ui.context :as ctx]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
@@ -34,8 +35,8 @@
                :variant "body2"
                :on-click #(do (vu/reset-page-state!)
                               (ctx/attach-to-context! inst)
-                              (vu/render-view
-                               (vu/make-instance-view inst)))}
+                              (v/render-view
+                               (v/make-instance-view inst)))}
               s])])))
       (vec result))))
 
@@ -51,7 +52,7 @@
              `[:> ~TableRow
                ~@(r inst)])
            rows)]
-      (vu/render-view
+      (v/render-view
        `[:> ~TableContainer
          [:> ~Table
           [:> ~TableHead
@@ -80,8 +81,8 @@
         table-view [:div [:div {:id id}]
                     (when (= :Dashboard (second (li/split-path (cn/instance-name instance))))
                       [:> Button
-                       {:on-click #(vu/render-view
-                                    (vu/make-input-view rec-name))}
+                       {:on-click #(v/render-view
+                                    (v/make-input-view rec-name))}
                        (str "Create New " (name n))])]
         data-refresh!
         #(vu/eval-event

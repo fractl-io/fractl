@@ -4,6 +4,7 @@
             [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.ui.util :as vu]
+            [fractl.ui.views :as v]
             [fractl.ui.context :as ctx]
             [fractl.ui.meta :as mt]
             [fractl.relationship :as rel]
@@ -118,10 +119,10 @@
   (if-let [r (vu/eval-result result)]
     (let [inst (first r)]
       (ctx/attach-to-context! inst)
-      (vu/render-view
-       (vu/make-instance-view inst)))
+      (v/render-view
+       (v/make-instance-view inst)))
     (let [s (str "error: upsert failed for " rec-name)]
-      (vu/render-view
+      (v/render-view
        [:div s])
       (u/throw-ex (str  s " - " result)))))
 
@@ -137,8 +138,8 @@
         (do
           (vu/authorized!)
           (ctx/attach-to-context! r true)
-          (vu/render-app-view
-           (vu/make-home-view)))
+          (v/render-app-view
+           (v/make-home-view)))
         (u/throw-ex (str event-name " failed - " r))))
     (fn [r]
       (println (str "eval result for " event-name " - " r)))))
@@ -150,8 +151,8 @@
            [_ r] (li/split-path rname)
            n (name r)]
        [:> Button
-        {:on-click #(vu/render-view
-                     (vu/make-input-view rname))}
+        {:on-click #(v/render-view
+                     (v/make-input-view rname))}
         n]))
    rels))
 
@@ -159,10 +160,10 @@
   (filter #(rel/participation (rel/relationship-spec %) rec-name) rel-graph))
 
 (defn- close-button []
-  (when-let [v (vu/pop-view-stack)]
+  (when-let [v (v/pop-view-stack)]
     [:> Button
      {:on-click
-      #(vu/render-view v)}
+      #(v/render-view v)}
      "Close"]))
 
 (defn upsert-ui [instance]
@@ -208,9 +209,9 @@
               ~(or (mt/create-button-label meta) "Create")]
              ~@(navigation-buttons rels rec-name)]
             ~@(when embedded-inst
-                (vu/make-list-refs-view rec-name embedded-inst meta))
+                (v/make-list-refs-view rec-name embedded-inst meta))
             ~(close-button)]]]]
-    (vu/finalize-view view instance)))
+    (v/finalize-view view instance)))
 
 (defn make [resolver-name _]
   (rc/make-resolver
