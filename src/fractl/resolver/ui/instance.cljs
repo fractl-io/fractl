@@ -17,30 +17,45 @@
             nil)))
     (do (vu/query-instance event-inst cb) nil)))
 
-(defn- field-view [inst schema attr-name]
+(defn- field-view [inst schema nav-links attr-name]
   (let [attr-scm (cn/find-attribute-schema (attr-name schema))
-        rf-paths (when-let [rf (:ref attr-scm)] (li/path-parts rf))
+        rf-paths (:ref attr-scm)
         v (str (attr-name inst))]
-    [:p
-     (if rf-paths
-       [:a {:href (vu/make-link
-                   vu/make-instance-view-route
-                   (:record rf-paths) (first (:refs rf-paths))
-                   v)}
-        v]
-       v)]))    
+    (if rf-paths
+      (do (swap!
+           nav-links conj
+           [:a {:href (vu/make-link
+                       vu/make-instance-view-route
+                       (:record rf-paths) (first (:refs rf-paths))
+                       v)}
+            (name attr-name)])
+          nil)
+      [:p v])))
+
+(defn- make-menu [links]
+  (vec
+   (concat
+    [:div
+     (vec
+      (concat
+       [:p "[ "]
+       (interpose " | " links)
+       ["]"]))])))
 
 (defn- make-instance-view [inst]
   (let [n (cn/instance-name inst)
         schema (cn/fetch-schema n)
         meta (cn/fetch-meta n)
-        fields 
-        (mapv
-         (partial field-view inst schema)
-         (or (:Fields meta) (cn/attribute-names schema)))
+        nav (atom [])
+        fields
+        (filter
+         identity
+         (mapv
+          (partial field-view inst schema nav)
+          (or (:Fields meta) (cn/attribute-names schema))))
         contains
         (v/make-list-refs-view inst)]
-    (vec (concat [:div] fields contains))))
+    (vec (concat [:div] (make-menu @nav) fields contains))))
 
 (defn- render-instance [inst]
   (let [view (make-instance-view inst)]
@@ -63,7 +78,6 @@
     (upsert-with-embedded-instance inst instance)
     (upsert-with-lookup instance)))
 
-(defn make []
+(defn make [n _]
   (rc/make-resolver
-   :blog-instance
-   {:upsert {:handler upsert-ui}}))
+   n {:upsert {:handler upsert-ui}}))
