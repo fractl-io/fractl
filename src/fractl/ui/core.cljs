@@ -14,6 +14,7 @@
             [fractl.ui.views :as v]
             [fractl.ui.config :as cfg]
             [fractl.resolver.ui.table :as vt]
+            [fractl.resolver.ui.instance :as vi]
             [fractl.resolver.ui.input-form :as vif])
   (:import goog.history.Html5History)
   (:require-macros [secretary.core :refer [defroute]]))
@@ -80,8 +81,11 @@
    (when-let [h (:remote-api-host config)]
      (vu/set-remote-api-host! h))
    (rg/override-resolver
-    [:Fractl.UI/InputForm :Fractl.UI/InstanceForm]
+    [:Fractl.UI/InputForm]
     (vif/make :input-form nil))
+   (rg/override-resolver
+    [:Fractl.UI/InstanceForm]
+    (vi/make :instance nil))
    (rg/override-resolver
     [:Fractl.UI/Table :Fractl.UI/Dashboard]
     (vt/make :table nil))
