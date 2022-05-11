@@ -47,20 +47,20 @@
             schema (cn/entity-schema en)
             meta (cn/fetch-meta en)]
         (defroute (vu/make-dashboard-route s) []
-          (v/render-app-view
-           (v/generate-dashboard-view en)))
+          (v/render-main-view
+           (v/make-dashboard-view en)))
         (defroute (vu/make-list-view-route s) []
-          (v/render-app-view
-           (v/generate-list-view en)))
+          (v/render-main-view
+           (v/make-list-view en)))
         (doseq [uq (cn/unique-attributes schema)]
           (defroute (vu/make-instance-view-route s uq) {:as params}
-            (v/render-app-view
-             (v/generate-instance-view [en uq (:s params)]))))
+            (v/render-main-view
+             (v/make-instance-view [en uq (:s params)]))))
         (doseq [cnt (mt/contains meta)]
           (let [[_ cn :as sn] (li/split-path cnt)]
             (defroute (vu/make-contains-route s cn) {:as params}
-              (v/render-app-view
-               (v/generate-list-view
+              (v/render-main-view
+               (v/make-list-view
                 (vu/make-multi-arg-query-event-spec
                  sn [n (:id1 params) cn (:id2 params)]))))))
         (when (mt/authorize? meta)
@@ -70,9 +70,8 @@
         (vu/attach-home-link! (make-home-link meta en n s))
         (recur (rest ens)))
       (defroute "/" []
-        (v/render-app-view
-         (v/make-home-view
-          "Home Page" (cfg/dashboard config))))))
+        (v/render-home-view
+         "Home Page" (cfg/dashboard config)))))
   (hook-browser-navigation!))
 
 (defn init-view

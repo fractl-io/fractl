@@ -73,44 +73,26 @@
   ([view-spec]
    (render-view view-spec main-view-id)))
 
-(defn render-app-view [view-spec]
+(defn render-main-view [view-spec]
   (vu/reset-page-state!)
-  (render-view view-spec "app"))
+  (render-view view-spec))
 
-(defn- generate-view
-  ([display-tag component-name entity-spec]
-   (let [cn (name component-name)
-         s (if (s/starts-with? cn ":")
-             (subs cn 1)
-             cn)]
-     [:div
-      [:b (str s " / ") [:a {:href "#"} "Home"]]
-      [:div {:id main-view-id}
-       (make-view display-tag entity-spec)]]))
-  ([display-tag entity-spec]
-   (let [en (if (keyword? entity-spec)
-              entity-spec
-              (first entity-spec))]
-     (generate-view
-      display-tag
-      (first (li/split-path en))
-      entity-spec))))
+(defn- make-home-view [title dashboard-entity]
+  (if-let [auth-rec-name (vu/auth-rec-name)]
+    [:div {:id main-view-id} (make-input-view auth-rec-name)]
+    (let [dv (make-dashboard-view dashboard-entity)]
+      `[:div [:a {:href "#"} [:h1 ~title]]
+        ~@(vu/fetch-home-links)
+        [:div {:id ~main-view-id}
+         [:div ~dv]]])))
 
-(def generate-input-view (partial generate-view :input))
-(def generate-list-view (partial generate-view :list))
-(def generate-instance-view (partial generate-view :instance))
-(def generate-dashboard-view (partial generate-view :dashboard))
-
-(defn make-home-view
+(defn render-home-view
+  ([spec]
+   (vu/reset-page-state!)
+   (render-view spec "app"))
   ([title dashboard-entity]
-   (if-let [auth-rec-name (vu/auth-rec-name)]
-     (generate-input-view auth-rec-name)
-     (let [dv (generate-dashboard-view dashboard-entity)]
-       `[:div [:h1 ~title]
-         ~@(vu/fetch-home-links)
-         [:div ~dv]])))
-  ([]
-   (make-home-view "Dashboard" (cfg/dashboard))))
+   (render-home-view (make-home-view title dashboard-entity)))
+  ([] (render-home-view "Home" (cfg/dashboard))))
 
 (defn- query-and-make-dashboard-view [instance rec-name
                                       ref-rec-name

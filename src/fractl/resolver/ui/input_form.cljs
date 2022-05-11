@@ -138,9 +138,9 @@
         (do
           (vu/authorized!)
           (ctx/attach-to-context! r true)
-          (v/render-app-view
-           (v/make-home-view)))
-        (u/throw-ex (str event-name " failed - " r))))
+          (v/render-home-view))
+        (do (v/render-home-view [:div "login failed"])
+            (u/throw-ex (str event-name " failed - " r)))))
     (fn [r]
       (println (str "eval result for " event-name " - " r)))))
 
