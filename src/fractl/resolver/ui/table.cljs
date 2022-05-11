@@ -96,7 +96,7 @@
             (if-let [rows (vu/eval-result result)]
               (render-rows rows fields id)
               (if (= :not-found (:status (first result)))
-                (v/render-view [:div "not data"] id)
+                (v/render-view [:div (str (name rec-name) " - not found")] id)
                 (println (str "failed to list " rec-name " - " result)))))
           source-event)
         data-refresh-ms

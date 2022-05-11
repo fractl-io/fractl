@@ -35,12 +35,9 @@
 (defn- make-menu [links]
   (vec
    (concat
-    [:div
-     (vec
-      (concat
-       [:p "[ "]
-       (interpose " | " links)
-       ["]"]))])))
+    [:p "[ "]
+    (interpose " | " links)
+    ["]"])))
 
 (defn- make-instance-view [inst]
   (let [n (cn/instance-name inst)
@@ -55,7 +52,7 @@
           (or (:Fields meta) (cn/attribute-names schema))))
         contains
         (v/make-list-refs-view inst)]
-    (vec (concat [:div] (make-menu @nav) fields contains))))
+    (vec (concat [:div] [(make-menu @nav)] fields contains))))
 
 (defn- render-instance [inst]
   (let [view (make-instance-view inst)]
