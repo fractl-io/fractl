@@ -172,7 +172,7 @@
    :list :Fractl.UI/RenderGenericTable
    :dashboard :Fractl.UI/RenderGenericDashboard})
 
-(defn- make-render-event [rec-name entity-spec tag meta]
+(defn make-render-event [rec-name entity-spec tag meta]
   (let [spec-instance (:instance entity-spec)
         qinfo (:query-info entity-spec)
         qattrs (cond

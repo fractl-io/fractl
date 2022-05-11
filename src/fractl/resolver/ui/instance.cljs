@@ -5,7 +5,9 @@
             [fractl.lang.internal :as li]
             [fractl.ui.context :as ctx]
             [fractl.ui.util :as vu]
-            [fractl.ui.views :as v]))
+            [fractl.ui.views :as v]
+            ["@material-ui/core"
+             :refer [Button]]))
 
 (defn- fetch-entity-instance [event-inst cb]
   (if-let [obj (:Instance event-inst)]
@@ -51,8 +53,12 @@
           (partial field-view inst schema nav)
           (or (:Fields meta) (cn/attribute-names schema))))
         contains
-        (v/make-list-refs-view inst)]
-    (vec (concat [:div] [(make-menu @nav)] fields contains))))
+        (v/make-list-refs-view inst)
+        edit-btn [:> Button
+                  {:on-click #(v/render-view
+                               (v/make-input-view inst))}
+                  "Edit"]]
+    (vec (concat [:div] [(make-menu @nav)] fields [edit-btn] contains))))
 
 (defn- render-instance [inst]
   (let [view (make-instance-view inst)]

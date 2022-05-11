@@ -38,7 +38,7 @@
                         query-spec-or-instance set-state-value!]
   (let [inst (when (map? query-spec-or-instance) query-spec-or-instance)
         cached-inst (when-not inst @instance-cache)
-        [query-by query-value] (when-not cached-inst query-spec-or-instance)
+        [query-by query-value] (when-not (or cached-inst inst) query-spec-or-instance)
         has-q (and query-by query-value)
         elem (-> js/document
                  (.getElementById field-id))
@@ -80,7 +80,8 @@
                                fields query-spec-or-instance
                                set-state-value!
                                change-handler]
-  (let [fields (or fields (cn/attribute-names schema))]
+  (let [fields (or fields (cn/attribute-names schema))
+        inst (when (map? query-spec-or-instance) query-spec-or-instance)]
     (reset! instance-cache nil)
     (interpose
      [:> TableContainer
@@ -93,17 +94,21 @@
               n (name field-name)
               id (str "attribute-" n)
               attr-scm (cn/find-attribute-schema (field-name schema))
-              k field-name
-              h (partial change-handler k)
-              local-val (fetch-local-value set-state-value! field-name attr-scm)]
-          (vu/add-post-render-event!
-           #(set-value-cell!
-             rec-name id field-name attr-scm query-spec-or-instance
-             set-state-value!))
+              h (partial change-handler field-name)
+              local-val (or (field-name inst)
+                            (fetch-local-value set-state-value! field-name attr-scm))]
+          (when local-val
+            (set-state-value! field-name local-val))
+          (when-not inst
+            (vu/add-post-render-event!
+             #(set-value-cell!
+               rec-name id field-name attr-scm query-spec-or-instance
+               set-state-value!)))
           [:> TableRow
            [:> TableCell
             (if-let [view-spec (mt/attribute-view-spec meta field-name)]
-              (process-attribute-view-spec view-spec {:id id :on-change h})
+              (process-attribute-view-spec
+               view-spec {:id id :default-value local-val :on-change h})
               [:> TextField
                (merge
                 {:id id
@@ -115,12 +120,17 @@
                   {:type "password"}))])]]))
       fields))))
 
+(defn- fetch-upsert-result-inst [r]
+  (if-let [t (:transition r)]
+    (:to t)
+    r))
+
 (defn- upsert-callback [rec-name result]
   (if-let [r (vu/eval-result result)]
     (let [inst (first r)]
       (ctx/attach-to-context! inst)
       (v/render-view
-       (v/make-instance-view inst)))
+       (v/make-instance-view (fetch-upsert-result-inst inst))))
     (let [s (str "error: upsert failed for " rec-name)]
       (v/render-view
        [:div s])
@@ -206,7 +216,7 @@
                      (vu/fire-upsert
                       rec-name inst
                       (partial upsert-callback rec-name))))}
-              ~(or (mt/create-button-label meta) "Create")]
+              ~(if embedded-inst "Save" (or (mt/create-button-label meta) "Create"))]
              ~@(navigation-buttons rels rec-name)]
             ~@(when embedded-inst
                 (v/make-list-refs-view rec-name embedded-inst meta))

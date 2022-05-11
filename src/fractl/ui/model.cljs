@@ -7,25 +7,20 @@
 (defn fields? [xs]
   (every? #(or (string? %) (keyword? %)) xs))
 
-(entity
- :Fractl.UI/InputForm
- {:Record :Kernel/Path
-  :Fields {:check fields?}
-  :View {:type :Kernel/Any
-         :optional true}})
-
-(entity
- :Fractl.UI/InstanceForm
- {:Record :Kernel/Path
-  :Fields {:check fields?}
-  :View {:type :Kernel/Any
-         :optional true}
-  :Instance {:type :Kernel/Any
+(def ^:private display-inst-attrs
+  {:Record :Kernel/Path
+   :Fields {:check fields?}
+   :View {:type :Kernel/Any
+          :optional true}
+   :Instance {:type :Kernel/Any
+              :optional true}
+   :QueryBy {:type :Kernel/Keyword
              :optional true}
-  :QueryBy {:type :Kernel/Keyword
-            :optional true}
-  :QueryValue {:type :Kernel/String
-               :optional true}})
+   :QueryValue {:type :Kernel/String
+                :optional true}})
+
+(entity :Fractl.UI/InputForm display-inst-attrs)
+(entity :Fractl.UI/InstanceForm display-inst-attrs)
 
 (def ^:private list-attrs
   {:Record :Kernel/Path
@@ -41,7 +36,10 @@
  :Fractl.UI/RenderGenericInputForm
  {:Fractl.UI/InputForm
   {:Record :Fractl.UI/RenderGenericInputForm.Record
-   :Fields :Fractl.UI/RenderGenericInputForm.Fields}})
+   :Fields :Fractl.UI/RenderGenericInputForm.Fields
+   :Instance :Fractl.UI/RenderGenericInputForm.Instance
+   :QueryBy :Fractl.UI/RenderGenericInputForm.QueryBy
+   :QueryValue :Fractl.UI/RenderGenericInputForm.QueryValue}})
 
 (dataflow
  :Fractl.UI/RenderGenericInstanceForm
