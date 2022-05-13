@@ -605,6 +605,27 @@
     (is (cn/instance-of? :ForEachAlias/R secondE))
     (is (= 11 (:A secondE)))))
 
+
+(deftest destructuring-alias
+  (defcomponent :QueryAlias
+    (entity {:QueryAlias/E {:X {:type    :Kernel/Int
+                                :indexed true}
+                            :N :Kernel/String}})
+    (event {:QueryAlias/Evt {:X :Kernel/Int}})
+    (dataflow :QueryAlias/Evt
+      {:QueryAlias/E {:X? :QueryAlias/Evt.X} :as [:R1 :R2]}
+      :R2))
+  (let [es        [(cn/make-instance :QueryAlias/E {:X 1 :N "e01"})
+                   (cn/make-instance :QueryAlias/E {:X 2 :N "e02"})
+                   (cn/make-instance :QueryAlias/E {:X 1 :N "e03"})]
+        evts      (map #(cn/make-instance :QueryAlias/Upsert_E {:Instance %}) es)
+        es_result (doall (map (comp (comp first tu/fresult)
+                                #(e/eval-all-dataflows %))
+                           evts))
+        result    (tu/fresult (e/eval-all-dataflows {:QueryAlias/Evt {:X 1}}))]
+    (is (= 1 (:X result)))
+    (is (= "e03" (:N result)))))
+
 (deftest delete-insts
   (defcomponent :Del
     (entity {:Del/E {:X :Kernel/Int}}))

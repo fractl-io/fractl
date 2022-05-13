@@ -30,7 +30,7 @@
     oprs
     #{:match :try :for-each :delete
       :query :between :await :resolver
-      :pull :push :entity :as})))
+      :pull :push :entity :as :alias})))
 
 (def ^:private reserved-names
   (set (concat
@@ -42,7 +42,7 @@
           :encryption :type-in-store
           :ref :var :writer
           :import :clj-import :java-import
-          :v8-import :resolver :Future :Error :DataflowResult})))
+          :v8-import :resolver :Future :Error :DataflowResult :alias})))
 
 (defn- reserved? [x]
   (some #{x} reserved-names))

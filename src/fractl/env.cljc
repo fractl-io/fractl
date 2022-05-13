@@ -57,7 +57,17 @@
     env (li/split-path (cn/instance-name (first instances)))
     instances)))
 
-(def bind-instance-to-alias assoc)
+(defn bind-instance-to-alias [env alias result]
+  (if (vector? alias)
+    (let [alias-with-indexes (zipmap alias (range))]
+     (reduce (fn [env [alias-name idx]]
+               (case alias-name
+                 :_ env
+                 :& (assoc env (get alias (inc idx)) (subvec result (inc idx)))
+                 (assoc env alias-name (nth result idx nil))))
+             env alias-with-indexes))
+    (assoc env alias result)))
+
 (def bind-to-alias assoc)
 (def lookup-by-alias (comp cn/maybe-deref get))
 
