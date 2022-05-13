@@ -7,8 +7,18 @@
      (:require-macros [net.cgrand.macrovich :as macros]
                       [fractl.util :refer [passthru]])))
 
-(def script-extn ".fractl")
-(def model-script-name "model.fractl")
+(def ^:private script-extn (atom ".fractl"))
+
+(defn set-script-extn! [extn]
+  (reset! script-extn extn))
+
+(defn get-script-extn []
+  @script-extn)
+
+(def ^:private model-script-name (atom ""))
+
+(defn get-model-script-name []
+  (str "model" @script-extn))
 
 (defn throw-ex-info
   ([msg errobj]

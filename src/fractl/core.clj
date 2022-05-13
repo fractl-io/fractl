@@ -46,7 +46,7 @@
         (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
         (= \/ c) (recur (rest s) "" (conj result java.io.File/separator))
         :else (recur (rest s) sep (conj result c)))
-      (str (s/join result) u/script-extn))))
+      (str (s/join result) (u/get-script-extn)))))
 
 (defn- load-components [component-scripts model-root load-from-resource]
   (mapv
@@ -71,7 +71,7 @@
   (let [s (s/lower-case (name model-name))]
     (loop [mps model-paths]
       (if-let [mp (first mps)]
-        (let [p (str mp u/path-sep s u/path-sep u/model-script-name)]
+        (let [p (str mp u/path-sep s u/path-sep (u/get-model-script-name))]
           (if (.exists (java.io.File. p))
             (read-model p)
             (recur (rest mps))))
@@ -105,7 +105,7 @@
 
 (defn- maybe-read-model [args]
   (when (and (= (count args) 1)
-             (s/ends-with? (first args) u/model-script-name))
+             (s/ends-with? (first args) (u/get-model-script-name)))
     (read-model (first args))))
 
 (defn- log-app-init-result! [result]
@@ -164,15 +164,17 @@
 (defn read-model-and-config [args options]
   (let [config-file (get options :config)
         config (when config-file
-                 (read-string (slurp config-file)))
-        model (maybe-read-model args)]
-    [model (merge (:config model) config)]))
+                 (read-string (slurp config-file)))]
+    (when-let [extn (:script-extn config)]
+      (u/set-script-extn! extn))
+    (let [model (maybe-read-model args)]
+      [model (merge (:config model) config)])))
 
 (defn- read-model-from-resource [component-root]
   (if-let [model (read-string
                   (slurp
                    (io/resource
-                    (str "model/" component-root "/" u/model-script-name))))]
+                    (str "model/" component-root "/" (u/get-model-script-name)))))]
     model
     (u/throw-ex (str "failed to load model from " component-root))))
 
