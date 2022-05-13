@@ -83,10 +83,9 @@
   (let [nm (s/lower-case (name (:name model)))
         model-paths (find-model-paths model model-paths config)
         rmp (partial read-model-from-paths model-paths)]
-    (mapv
-     #(let [[m mr] (rmp %)]
-        (load-model m mr model-paths config))
-     (:dependencies model))
+    (doseq [d (:dependencies model)]
+      (let [[m mr] (rmp d)]
+        (load-model m mr model-paths config)))
     (load-components-from-model
      model model-root
      (:load-model-from-resource config))))
@@ -147,9 +146,8 @@
     (gs/merge-app-config! final-config)
     final-config))
 
-(defn run-service [args [model config]]
-  (let [[model model-root] (maybe-read-model args)
-        config (finalize-config model config)
+(defn run-service [args [[model model-root] config]]
+  (let [config (finalize-config model config)
         components (if model
                      (load-model model model-root nil config)
                      (load-components args (:component-root config) false))]
@@ -167,8 +165,8 @@
                  (read-string (slurp config-file)))]
     (when-let [extn (:script-extn config)]
       (u/set-script-extn! extn))
-    (let [model (maybe-read-model args)]
-      [model (merge (:config model) config)])))
+    (let [[model _ :as m] (maybe-read-model args)]
+      [m (merge (:config model) config)])))
 
 (defn- read-model-from-resource [component-root]
   (if-let [model (read-string
