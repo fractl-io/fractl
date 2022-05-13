@@ -61,11 +61,12 @@
   (if (vector? alias)
     (let [alias-with-indexes (zipmap alias (range))]
      (reduce (fn [env [alias-name idx]]
-               (case alias-name
-                 :_ env
-                 :& (assoc env (get alias (inc idx)) (subvec result (inc idx)))
-                 (assoc env alias-name (nth result idx nil))))
-             env alias-with-indexes))
+               (cond
+                 (= alias-name :_) env
+                 (= alias-name :&) env
+                 (= :& (get alias (dec idx))) (assoc env (get alias idx) (subvec result (dec idx)))
+                 :else (assoc env alias-name (nth result idx nil))))
+       env alias-with-indexes))
     (assoc env alias result)))
 
 (def bind-to-alias assoc)
