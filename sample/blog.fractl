@@ -91,7 +91,25 @@
   :Content {:check valid-comment?}
   :meta
   {:str :BlogEntry
-   :order [:BlogEntry :CreatedBy :DateCreated :Content]}})
+   :order [:BlogEntry :CreatedBy :DateCreated :Content]
+   :views {:contains [:Sample.Blog/CommentModerate]}}})
+
+(entity
+ :Sample.Blog/CommentModerate
+ {:Comment {:ref :Sample.Blog/Comment.Id
+            :indexed true}
+  :Status :Kernel/String
+  :meta {:order [:Comment :Status]}})
+
+(dataflow
+ :Sample.Blog/CommentModerateLookupByComment
+ {:Sample.Blog/CommentModerate
+  {:Comment? :Sample.Blog/CommentModerateLookupByComment.Comment}})
+
+(dataflow
+ :Sample.Blog/CommentModerateLookupAll
+ {:Sample.Blog/CommentModerate
+  {:Comment? :Sample.Blog/CommentModerateLookupAll.EventContext.Comment.Id}})
 
 (dataflow
  :Sample.Blog/CommentLookupByBlogEntry
