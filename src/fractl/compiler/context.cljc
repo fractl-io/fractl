@@ -51,13 +51,14 @@
       (let [aliases (or (second (fetch-variable ctx :aliases)) {})]
            (bind-variable! ctx :aliases (assoc aliases alias [:alias target (partial nth 1)]))))
 
-;;replace ALIASNO1 with a dynamic val, or :as
+(defn alias-name [alias]
+  (if (vector? alias) (keyword (clojure.string/join  "-" alias)) alias))
+
 (defn add-alias! [ctx nm alias]
-      (let [alias-name (if (vector? alias) :ALIASNO1 alias)
-            aliases (or (second (fetch-variable ctx :aliases)) {})
+      (let [aliases (or (second (fetch-variable ctx :aliases)) {})
             v (cond (li/parsed-path? nm) (li/make-path nm)
                 :else nm)]
-    (bind-variable! ctx :aliases (assoc aliases alias-name v))))
+    (bind-variable! ctx :aliases (assoc aliases alias v))))
 
 (defn aliased-name [ctx k]
   (let [[n r] (li/split-ref k)
