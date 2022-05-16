@@ -612,9 +612,12 @@
                                 :indexed true}
                             :N :Kernel/String}})
     (event {:QueryAlias/Evt {:X :Kernel/Int}})
-    (dataflow :QueryAlias/Evt
+     (dataflow :QueryAlias/Evt
       {:QueryAlias/E {:X? :QueryAlias/Evt.X} :as [:_ :& :R2]}
-      :R2))
+      :R2)
+    (dataflow :QueryAlias/Evt2
+      {:QueryAlias/E {:X? :QueryAlias/Evt2.X} :as [:R1 :& :R2]}
+      :R1))
   (let [es        [(cn/make-instance :QueryAlias/E {:X 1 :N "e01"})
                    (cn/make-instance :QueryAlias/E {:X 2 :N "e02"})
                    (cn/make-instance :QueryAlias/E {:X 1 :N "e03"})]
@@ -623,9 +626,12 @@
                                 #(e/eval-all-dataflows %))
                            evts))
 
-        result    (first (tu/fresult (e/eval-all-dataflows {:QueryAlias/Evt {:X 1}})))]
-    (is (= 1 (:X result)))
-    (is (= "e03" (:N result)))))
+        result1    (first (tu/fresult (e/eval-all-dataflows {:QueryAlias/Evt {:X 1}})))
+        result2    (tu/fresult (e/eval-all-dataflows {:QueryAlias/Evt2 {:X 2}}))]
+    (is (= 1 (:X result1)))
+    (is (= "e03" (:N result1)))
+    (is (= 2 (:X result2)))
+    (is (= "e02" (:N result2)))))
 
 (deftest delete-insts
   (defcomponent :Del
