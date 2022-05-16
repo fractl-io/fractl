@@ -166,6 +166,10 @@
      (let [[c n] (li/split-path rec-name)]
        (str (name c) "/" (name n) s-lookup-all)))))
 
+(defn- fetch-fields [rec-name meta]
+  (or (seq (:order meta))
+      (cn/attribute-names (cn/fetch-schema rec-name))))
+
 (def ^:private fallback-render-event-names
   {:input :Fractl.UI/RenderGenericInputForm
    :instance :Fractl.UI/RenderGenericInstanceForm
@@ -192,7 +196,7 @@
     (if-let [event-name (mt/view-event meta tag)]
       (cn/make-instance event-name (merge qattrs tbl-attrs))
       (let [attrs {:Record rec-name
-                   :Fields (:order meta)}]
+                   :Fields (fetch-fields rec-name meta)}]
         (cn/make-instance
          (get-in
           (or

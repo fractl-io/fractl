@@ -49,7 +49,7 @@
      (try
        (loop [exp (rdf), exps nil]
          (if (= exp :done)
-           exps
+           (reverse exps)
            (recur (rdf) (conj exps (eval (fqn exp))))))
        (finally
          (u/safe-close reader)))))
@@ -60,29 +60,30 @@
 
 (defn load-script
   "Load, complile and intern the component from a script file."
-  [^String component-root-path file-name-or-input-stream]
-  (log/info (str "Component root path: " component-root-path))
-  (log/info (str "File name: " file-name-or-input-stream))
-  (let [crp (or component-root-path "./")
-        input-reader? (not (string? file-name-or-input-stream))
+  ([^String component-root-path file-name-or-input-stream]
+   (log/info (str "Component root path: " component-root-path))
+   (log/info (str "File name: " file-name-or-input-stream))
+   (let [input-reader? (not (string? file-name-or-input-stream))
         file-ident
-        (if input-reader?
-          (InputStreamReader. (io/input-stream file-name-or-input-stream))
-          (if (and
-               component-root-path
-               (not (.startsWith
-                     file-name-or-input-stream
-                     component-root-path)))
-            (str component-root-path u/path-sep file-name-or-input-stream)
-            file-name-or-input-stream))
-        names (fetch-declared-names file-ident)
-        component-name (:component names)]
-    (when component-name
-      (cn/remove-component component-name))
-    (binding [*ns* *ns*]
-      (read-expressions (if input-reader? file-name-or-input-stream file-ident) names))
-    (when (and component-name (cn/component-exists? component-name))
-      component-name)))
+         (if input-reader?
+           (InputStreamReader. (io/input-stream file-name-or-input-stream))
+           (if (and
+                component-root-path
+                (not (.startsWith
+                      file-name-or-input-stream
+                      component-root-path)))
+             (str component-root-path u/path-sep file-name-or-input-stream)
+             file-name-or-input-stream))
+         names (fetch-declared-names file-ident)
+         component-name (:component names)]
+     (when component-name
+       (cn/remove-component component-name))
+     (binding [*ns* *ns*]
+       (read-expressions (if input-reader? file-name-or-input-stream file-ident) names))
+     (when (and component-name (cn/component-exists? component-name))
+       component-name)))
+  ([file-name-or-input-stream]
+   (load-script nil file-name-or-input-stream)))
 
 (defn load-expressions
   "Load, complile and intern the component from a namespace expressions."

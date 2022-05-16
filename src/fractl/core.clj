@@ -63,9 +63,9 @@
    model-root load-from-resource))
 
 (defn read-model [model-file]
-  [(read-string (slurp model-file))
-   (.getParent
-    (java.io.File. (.getParent (java.io.File. model-file))))])
+  (let [model (last (loader/read-expressions model-file))
+        root (java.io.File. (.getParent (java.io.File. model-file)))]
+    [model (str root)]))
 
 (defn- read-model-from-paths [model-paths model-name]
   (let [s (s/lower-case (name model-name))]
