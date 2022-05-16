@@ -1,19 +1,12 @@
-(ns fractl.ui.config)
-
-(def ^:private config (atom {}))
-
-(defn set-config! [cfg]
-  (reset! config cfg))
-
-(defn get-config []
-  @config)
+(ns fractl.ui.config
+  (:require [fractl.global-state :as gs]))
 
 (defn dashboard
   ([config]
    (get-in config [:view :dashboard]))
-  ([] (dashboard @config)))
+  ([] (dashboard (gs/get-app-config))))
 
 (defn component
   ([config]
    (get-in config [:view :component]))
-  ([] (component @config)))
+  ([] (component (gs/get-app-config))))

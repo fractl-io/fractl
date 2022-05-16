@@ -1248,10 +1248,27 @@
                          str-pat)))
       (str n))))
 
-(defn- displayable-record-names [component]
-  (let [names (concat (entity-names component)
-                      (event-names component)
-                      (record-names component))]
+(defn- displayable-record-names [component-info]
+  (let [components
+        (cond
+          (keyword? component-info)
+          [component-info]
+
+          (vector? component-info)
+          component-info
+
+          :else
+          (u/throw-ex
+           (str "invalid component-info - " component-info)))
+        names (set
+               (apply
+                concat
+                (mapv
+                 #(concat
+                   (entity-names %)
+                   (event-names %)
+                   (record-names %))
+                 components)))]
     (filter #(:order (fetch-meta %)) names)))
 
 (defn event? [recname]

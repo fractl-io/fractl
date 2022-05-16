@@ -76,12 +76,12 @@
 
 (defn init-view
   ([config post-init]
-   (cfg/set-config! config)
+   (gs/merge-app-config! config)
    (when-let [h (:remote-api-host config)]
      (vu/set-remote-api-host! h))
    (rg/override-resolver
     [:Fractl.UI/InputForm]
-    (vif/make :input-form nil))
+   (vif/make :input-form nil))
    (rg/override-resolver
     [:Fractl.UI/InstanceForm]
     (vi/make :instance nil))
@@ -91,5 +91,5 @@
    (when post-init
      (post-init))
    (app-routes config))
-  ([post-init] (init-view (gs/get-app-config) post-init))
-  ([] (init-view nil)))
+  ([post-init]
+   (init-view nil post-init)))

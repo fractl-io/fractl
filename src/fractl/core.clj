@@ -44,7 +44,7 @@
     (if-let [c (first s)]
       (cond
         (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
-        (= \/ c) (recur (rest s) "" (conj result java.io.File/separator))
+        (or (= \/ c) (= \. c)) (recur (rest s) "" (conj result java.io.File/separator))
         :else (recur (rest s) sep (conj result c)))
       (str (s/join result) (u/get-script-extn)))))
 
