@@ -67,7 +67,6 @@
   (let [[n r] (li/split-ref k)
         aliases (second (fetch-variable ctx :aliases))]
     (when-let [a (get aliases n)]
-                     (cond r (keyword (subs (str a "." (name r)) 1))
-                       (and (vector? a)
-                                (= :alias (first a))) k
-                           :else a))))
+      (cond r (keyword (subs (str a "." (name r)) 1))
+        (and (vector? a) (= :alias (first a))) k
+        :else a))))

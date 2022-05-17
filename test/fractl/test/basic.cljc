@@ -607,27 +607,27 @@
 
 
 (deftest destructuring-alias
-  (defcomponent :QueryAlias
-    (entity {:QueryAlias/E {:X {:type    :Kernel/Int
+  (defcomponent :DestructuringAlias
+    (entity {:DestructuringAlias/E {:X {:type    :Kernel/Int
                                 :indexed true}
                             :N :Kernel/String}})
     (record {:Result {:Values :Kernel/Any}})
-    (event {:QueryAlias/Evt {:X :Kernel/Int}})
-     (dataflow :QueryAlias/Evt
-      {:QueryAlias/E {:X? :QueryAlias/Evt.X} :as [:R1 :R2 :_ :R4 :& :RS]}
-      {:QueryAlias/Result {:Values [:R1 :R2 :R4 :RS]}}))
-  (let [es [(cn/make-instance :QueryAlias/E {:X 1 :N "e01"})
-            (cn/make-instance :QueryAlias/E {:X 2 :N "e02"})
-            (cn/make-instance :QueryAlias/E {:X 1 :N "e03"})
-            (cn/make-instance :QueryAlias/E {:X 1 :N "e04"})
-            (cn/make-instance :QueryAlias/E {:X 1 :N "e05"})
-            (cn/make-instance :QueryAlias/E {:X 1 :N "e06"})
-            (cn/make-instance :QueryAlias/E {:X 1 :N "e07"})]
-        evts (map #(cn/make-instance :QueryAlias/Upsert_E {:Instance %}) es)
+    (event {:DestructuringAlias/Evt {:X :Kernel/Int}})
+     (dataflow :DestructuringAlias/Evt
+      {:DestructuringAlias/E {:X? :DestructuringAlias/Evt.X} :as [:R1 :R2 :_ :R4 :& :RS]}
+      {:DestructuringAlias/Result {:Values [:R1 :R2 :R4 :RS]}}))
+  (let [es [(cn/make-instance :DestructuringAlias/E {:X 1 :N "e01"})
+            (cn/make-instance :DestructuringAlias/E {:X 2 :N "e02"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e03"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e04"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e05"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e06"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e07"})]
+        evts (map #(cn/make-instance :DestructuringAlias/Upsert_E {:Instance %}) es)
         _    (doall (map (comp (comp first tu/fresult)
                            #(e/eval-all-dataflows %))
                       evts))
-        result (:Values (first (tu/fresult (e/eval-all-dataflows {:QueryAlias/Evt {:X 1}}))))]
+        result (:Values (first (tu/fresult (e/eval-all-dataflows {:DestructuringAlias/Evt {:X 1}}))))]
     (is (and (= "e01" (:N (first result)))
           (= 1 (:X (first result)))))
     (is (= "e03" (:N (nth result 1))))

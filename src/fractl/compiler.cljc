@@ -504,9 +504,9 @@
     (emit-try body handlers)))
 
 (defn- valid-alias-name? [alias]
-       (if (vector? alias)
-         (every? li/name? alias)
-         (li/name? alias)))
+  (if (vector? alias)
+    (every? li/name? alias)
+    (li/name? alias)))
 
 (defn- compile-query-command
   "Compile the command [:query pattern :as result-alias].
