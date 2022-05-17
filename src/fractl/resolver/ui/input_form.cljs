@@ -136,10 +136,8 @@
        [:div s])
       (u/throw-ex (str  s " - " result)))))
 
-(defn- eval-event-callback [event-name on-success result]
-  (if-let [r (vu/eval-result result)]
-    (on-success r)
-    (u/throw-ex (str "error: eval-event failed for " event-name " - " result))))
+(defn- eval-event-callback [event-name callback result]
+  (callback (vu/eval-result result)))
 
 (defn- make-eval-success-callback [event-name meta]
   (if (mt/authorize? meta)
