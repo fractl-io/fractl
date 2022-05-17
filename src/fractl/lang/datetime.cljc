@@ -27,20 +27,15 @@
 (defn- try-parse-time [formatter s]
   (valid-format? lt/parse formatter s))
 
-#?(:clj
-   (def date-time-formatters
-     (concat
-      [format/iso-local-date-time]                    ; 2011-12-03T10:15:30
-      (mapv
-       format/of-pattern
-       ["yyyy-MM-dd HH:mm:ss"                        ; 2021-01-08 04:05:06
-        "yyyy-MM-dd HH:mm:ss.SSS"                    ; 2021-01-08 04:05:06.789
-        "yyyyMMddHHmmss"                             ; 20210108040506
-        "yyyy-MM-dd HH:mm:ss z"])))                  ; 2021-01-08 04:05:06 PST or America/New_York
-  :cljs
-   (defn date-time-formatters [s]
-     (t/formatter :iso-local-date-time s)))
-
+(def date-time-formatters
+  (concat
+   [format/iso-local-date-time]  ; 2011-12-03T10:15:30
+   (mapv
+    format/of-pattern
+    ["yyyy-MM-dd HH:mm:ss"       ; 2021-01-08 04:05:06
+     "yyyy-MM-dd HH:mm:ss.SSS"   ; 2021-01-08 04:05:06.789
+     "yyyyMMddHHmmss"            ; 20210108040506
+     "yyyy-MM-dd HH:mm:ss z"]))) ; 2021-01-08 04:05:06 PST or America/New_York
 
 (def ^:private date-formatters
   (map
@@ -68,11 +63,21 @@
 (defn find-format [try-parse-fn formatters s]
   (some #(try-parse-fn % s) formatters))
 
+#?(:cljs
+   (defn- js-parse-date [s]
+     (j/date (j/instance s))))
+
 (defn parse-date-time [s]
-  (find-format try-parse-date-time date-time-formatters s))
+  #?(:clj
+     (find-format try-parse-date-time date-time-formatters s)
+     :cljs
+     (js-parse-date s)))
 
 (defn parse-date [s]
-  (find-format try-parse-date date-formatters s))
+  #?(:clj
+     (find-format try-parse-date date-formatters s)
+     :cljs
+     (js-parse-date s)))
 
 (defn- am-pm? [s]
   (let [s (str/lower-case s)]
@@ -89,8 +94,11 @@
              (<= 0 h 12) (<= 0 m 59))))))
 
 (defn parse-time [s]
-  (or (find-format try-parse-time time-formatters s)
-      (parse-12hr-time s)))
+  #?(:clj
+     (or (find-format try-parse-time time-formatters s)
+         (parse-12hr-time s))
+     :cljs
+     (t/time s)))
 
 (defn as-string
   ([dt pat]
