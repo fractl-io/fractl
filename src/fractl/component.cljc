@@ -497,13 +497,16 @@
       r)))
 
 (defn- check-format [ascm aname aval]
-  (when-let [p (:check ascm)]
-    (when-not (p aval)
-      (throw-error (str "check failed, invalid value " aval " for " aname))))
-  (when-let [fmt (:format ascm)]
-    (when-not (fmt aval)
-      (throw-error (str "format mismatch - " aname))))
-  aval)
+  (if (and (:optional ascm) (u/empty-string? aval))
+    aval
+    (do
+      (when-let [p (:check ascm)]
+        (when-not (p aval)
+          (throw-error (str "check failed, invalid value " aval " for " aname))))
+      (when-let [fmt (:format ascm)]
+        (when-not (fmt aval)
+          (throw-error (str "format mismatch - " aname))))
+      aval)))
 
 (defn- instantiable-map? [x]
   (and (map? x)
