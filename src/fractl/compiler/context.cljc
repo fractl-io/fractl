@@ -48,8 +48,8 @@
   (second (fetch-variable ctx :compile-query-fn)))
 
 (defn add-sub-alias! [ctx alias target]
-      (let [aliases (or (second (fetch-variable ctx :aliases)) {})]
-           (bind-variable! ctx :aliases (assoc aliases alias [:alias target]))))
+  (let [aliases (or (second (fetch-variable ctx :aliases)) {})]
+    (bind-variable! ctx :aliases (assoc aliases alias [:alias target]))))
 
 (defn alias-name [alias]
   (if (vector? alias) (keyword (clojure.string/join  "-" alias)) alias))
