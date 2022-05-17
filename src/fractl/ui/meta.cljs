@@ -17,3 +17,6 @@
 
 (defn create-button-label [meta]
   (get-in meta [:views :create-button :label]))
+
+(def upsert-event :upsert-event)
+(def delete-event :delete-event)

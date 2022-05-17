@@ -104,27 +104,24 @@
         ev-name (keyword (str "Upsert_" (name n)))]
     (li/make-path c ev-name)))
 
-(defn fire-upsert
-  ([entity-name object callback]
-   (let [event-name (upsert-event-name entity-name)]
-     (eval-event
-      callback
-      (cn/make-instance
-       {event-name
-        {:Instance
-         (if (cn/an-instance? object)
-           object
-           (cn/make-instance
-            {entity-name object}))}}))))
-  ([entity-name object]
-   (fire-upsert entity-name object identity)))
+(defn fire-upsert [entity-name object upsert-event callback]
+  (let [event-name (or upsert-event (upsert-event-name entity-name))]
+    (eval-event
+     callback
+     (cn/make-instance
+      {event-name
+       {:Instance
+        (if (cn/an-instance? object)
+          object
+          (cn/make-instance
+           {entity-name object}))}}))))
 
 (defn- delete-event-name [entity-name]
   (let [[c n] (li/split-path entity-name)]
     (str (name c) "/Delete_" (name n))))
 
-(defn fire-delete-instance [entity-name id]
-  (let [event-name (delete-event-name entity-name)]
+(defn fire-delete-instance [entity-name id delete-event]
+  (let [event-name (or delete-event (delete-event-name entity-name))]
     (eval-event
      #(println (str "delete " [entity-name id] " - " %))
      (cn/make-instance

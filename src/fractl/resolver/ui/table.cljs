@@ -5,6 +5,7 @@
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.context :as ctx]
+            [fractl.ui.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
             ["@material-ui/core"
@@ -21,7 +22,9 @@
     {:component "button"
      :variant "body2"
      :on-click
-     #(vu/fire-delete-instance rec-name id)}
+     #(vu/fire-delete-instance
+       rec-name id
+       (mt/delete-event (cn/fetch-meta rec-name)))}
     "Delete"]])
 
 (defn- render-instance [fields rec-name inst]

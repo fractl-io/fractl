@@ -212,7 +212,7 @@
                        rec-name (make-eval-success-callback rec-name meta))
                       inst)
                      (vu/fire-upsert
-                      rec-name inst
+                      rec-name inst (mt/upsert-event meta)
                       (partial upsert-callback rec-name))))}
               ~(if embedded-inst "Save" (or (mt/create-button-label meta) "Create"))]
              ~@(navigation-buttons rels rec-name)]
