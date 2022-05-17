@@ -360,11 +360,8 @@
             opc (apply c ctx nm attrs scm (if timeout-ms [alias timeout-ms] [alias]))]
         (ctx/put-record! ctx nm pat)
         (when alias
-
           (let [alias-name (ctx/alias-name alias)]
-            (ctx/add-alias! ctx (or nm alias-name) alias-name)
-            (when (vector? alias)
-              (doall (map #(ctx/add-sub-alias! ctx % alias-name) alias)))))
+            (ctx/add-alias! ctx (or nm alias-name) alias)))
         opc))
 
     :else
@@ -532,9 +529,7 @@
       (when-not (valid-alias-name? alias)
         (u/throw-ex (str "not a valid name - " alias)))
       (let [alias-name (ctx/alias-name alias)]
-        (ctx/add-alias! ctx (or nm alias-name) alias-name)
-        (when (vector? alias)
-          (doall (map #(ctx/add-sub-alias! ctx % alias-name) alias)))))
+        (ctx/add-alias! ctx (or nm alias-name) alias)))
     (op/evaluate-query
      [#(compile-complex-query
         ctx
