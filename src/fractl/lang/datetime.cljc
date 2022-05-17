@@ -65,7 +65,10 @@
 
 #?(:cljs
    (defn- js-parse-date [s]
-     (j/date (j/instance s))))
+     ;; TODO: Implement proper date-time parsing in cljs
+     (if t/date-time
+       (t/date-time s)
+       s)))
 
 (defn parse-date-time [s]
   #?(:clj
@@ -98,7 +101,10 @@
      (or (find-format try-parse-time time-formatters s)
          (parse-12hr-time s))
      :cljs
-     (t/time s)))
+     ;; TODO: Implement proper date-time parsing in cljs
+     (if t/time
+       (t/time s)
+       s)))
 
 (defn as-string
   ([dt pat]
