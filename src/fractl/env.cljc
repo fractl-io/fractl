@@ -62,8 +62,7 @@
     (let [alias-with-indexes (zipmap alias (range))]
      (reduce (fn [env [alias-name idx]]
                (cond
-                 (= alias-name :_) env
-                 (= alias-name :&) env
+                 (#{:_ :&} alias-name) env
                  (= :& (get alias (dec idx))) (assoc env (get alias idx) (subvec result (dec idx)))
                  :else (assoc env alias-name (nth result idx nil))))
        env alias-with-indexes))
