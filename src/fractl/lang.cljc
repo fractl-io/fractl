@@ -976,6 +976,11 @@
           :compose? false
           :paths [:Sns/Message]}]))))
 
+(defn kernel-auth-name? [n]
+  (= n [:Kernel :Authentication]))
+
+(def auth-owner :Owner)
+
 (defn- initf []
   (when-not @kernel-inited
     (do-init-kernel)

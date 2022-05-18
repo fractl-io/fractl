@@ -1,21 +1,36 @@
 (ns fractl.ui.context
   (:require [fractl.component :as cn]
+            [fractl.lang :as l]
             [fractl.lang.internal :as li]))
 
 (def ^:private db (atom {}))
 
+(defn- owner
+  ([k obj]
+   (when (l/kernel-auth-name? k)
+     (l/auth-owner obj)))
+  ([obj]
+   (owner (li/split-path (cn/instance-name obj)) obj)))
+
+(defn- assoc-to-context! [obj]
+  (when obj
+    (let [[c n :as k] (li/split-path (cn/instance-name obj))]
+      (swap! db assoc n obj k obj))))
+
 (defn attach-to-context!
   ([obj is-auth-response]
-   (let [[c n :as k] (li/split-path (cn/instance-name obj))]
-     (swap! db assoc n obj k obj)
-     (when is-auth-response
-       (swap! db assoc :auth obj))))
+   (assoc-to-context! obj)
+   (when is-auth-response
+     (assoc-to-context! (owner obj))
+     (swap! db assoc :auth obj)))
   ([obj]
    (attach-to-context! obj false)))
 
 (defn reset-context! []
   (let [auth (:auth @db)]
-    (reset! db {:auth auth})))
+    (reset! db {:auth auth})
+    (assoc-to-context! auth)
+    (assoc-to-context! (owner auth))))
 
 (defn hard-reset-context! []
   (reset! db {}))

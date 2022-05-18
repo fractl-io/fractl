@@ -145,7 +145,7 @@
       (if r
         (do
           (vu/authorized!)
-          (ctx/attach-to-context! r true)
+          (ctx/attach-to-context! (first r) true)
           (v/render-home-view))
         (do (v/render-home-view [:div "login failed"])
             (u/throw-ex (str event-name " failed - " r)))))
