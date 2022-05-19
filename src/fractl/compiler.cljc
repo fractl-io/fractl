@@ -360,7 +360,8 @@
             opc (apply c ctx nm attrs scm (if timeout-ms [alias timeout-ms] [alias]))]
         (ctx/put-record! ctx nm pat)
         (when alias
-          (ctx/add-alias! ctx nm alias))
+          (let [alias-name (ctx/alias-name alias)]
+            (ctx/add-alias! ctx (or nm alias-name) alias)))
         opc))
 
     :else
@@ -502,6 +503,11 @@
   (let [[body handlers] (compile-construct-with-handlers ctx pat)]
     (emit-try body handlers)))
 
+(defn- valid-alias-name? [alias]
+  (if (vector? alias)
+    (every? li/name? alias)
+    (li/name? alias)))
+
 (defn- compile-query-command
   "Compile the command [:query pattern :as result-alias].
    `pattern` could be a query pattern or a reference, making
@@ -520,9 +526,10 @@
     (when-not (or (map? query-pat) (li/name? query-pat))
       (u/throw-ex (str "invalid query pattern - " query-pat)))
     (when alias
-      (when-not (li/name? alias)
+      (when-not (valid-alias-name? alias)
         (u/throw-ex (str "not a valid name - " alias)))
-      (ctx/add-alias! ctx (or nm alias) alias))
+      (let [alias-name (ctx/alias-name alias)]
+        (ctx/add-alias! ctx (or nm alias-name) alias)))
     (op/evaluate-query
      [#(compile-complex-query
         ctx
