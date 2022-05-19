@@ -47,15 +47,26 @@
 (defn fetch-compile-query-fn [ctx]
   (second (fetch-variable ctx :compile-query-fn)))
 
+(defn add-sub-alias! [ctx alias target]
+  (let [aliases (or (second (fetch-variable ctx :aliases)) {})]
+    (bind-variable! ctx :aliases (assoc aliases alias [:alias target]))))
+
+(defn alias-name [alias]
+  (if (vector? alias) (keyword (clojure.string/join  "-" alias)) alias))
+
 (defn add-alias! [ctx nm alias]
-  (let [aliases (or (second (fetch-variable ctx :aliases)) {})
-        v (if (li/parsed-path? nm) (li/make-path nm) nm)]
-    (bind-variable! ctx :aliases (assoc aliases alias v))))
+  (let [alias-name (alias-name alias)
+        aliases (or (second (fetch-variable ctx :aliases)) {})
+        v (cond (li/parsed-path? nm) (li/make-path nm)
+            :else nm)]
+    (bind-variable! ctx :aliases (assoc aliases alias-name v))
+    (when (vector? alias)
+      (doall (map #(add-sub-alias! ctx % alias-name) alias)))))
 
 (defn aliased-name [ctx k]
   (let [[n r] (li/split-ref k)
         aliases (second (fetch-variable ctx :aliases))]
     (when-let [a (get aliases n)]
-      (if r
-        (keyword (subs (str a "." (name r)) 1))
-        a))))
+      (cond r (keyword (subs (str a "." (name r)) 1))
+        (and (vector? a) (= :alias (first a))) k
+        :else a))))

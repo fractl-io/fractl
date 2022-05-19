@@ -79,9 +79,14 @@
 
 (declare reach-name)
 
+(defn- alias-descriptor? [an]
+  (and (vector? an)
+    (= (first an) :alias)))
+
 (defn- aliased-name-in-context [ctx schema n]
   (when-let [an (ctx/aliased-name ctx n)]
     (cond
+      (alias-descriptor? an) true
       (refers-to-event? an) true
       (= n an) n
       :else (reach-name ctx schema an))))
