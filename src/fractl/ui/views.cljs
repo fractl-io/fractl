@@ -6,7 +6,9 @@
             [fractl.lang.internal :as li]
             [fractl.ui.config :as cfg]
             [fractl.ui.util :as vu]
-            [fractl.ui.meta :as mt]))
+            [fractl.ui.meta :as mt]
+            ["@material-ui/core"
+             :refer [Button]]))
 
 (def ^:private view-stack (atom []))
 
@@ -106,9 +108,13 @@
   ([rec-name instance meta]
    (when-let [lrs (mt/contains meta)]
      (mapv
-      #(when-let [scms (seq (cn/ref-attribute-schemas (cn/fetch-schema %)))]
-         (when-let [r (vu/ref-to-record rec-name scms)]
-           (query-and-make-dashboard-view instance rec-name % r)))
+      #(if (cn/event? %)
+         [:> Button
+          {:on-click (fn [] (render-view (make-input-view %)))}
+          (vu/display-name %)]
+         (when-let [scms (seq (cn/ref-attribute-schemas (cn/fetch-schema %)))]
+           (when-let [r (vu/ref-to-record rec-name scms)]
+             (query-and-make-dashboard-view instance rec-name % r))))
       lrs)))
   ([instance]
    (let [n (cn/instance-name instance)]

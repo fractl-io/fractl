@@ -293,3 +293,6 @@
             [(first %) (:refs parts)]))
        attr-scms)))))
 
+(defn display-name [k]
+  (let [s (name k)]
+    (s/join " " (s/split s #"(?=[A-Z])"))))

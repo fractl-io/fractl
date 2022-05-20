@@ -13,8 +13,9 @@
             ["@material-ui/core"
              :refer [TextField Card CardContent
                      TextareaAutosize
-                     Typography ButtonGroup Button
-                     InputLabel Divider Select MenuItem
+                     Typography Button
+                     InputLabel Divider
+                     Select MenuItem
                      TableContainer Table
                      TableRow TableHead
                      TableBody TableCell]]))
@@ -91,7 +92,7 @@
      (mapv
       (fn [arg]
         (let [field-name arg
-              n (name field-name)
+              n (vu/display-name field-name)
               id (str "attribute-" n)
               attr-scm (cn/find-attribute-schema (field-name schema))
               h (partial change-handler field-name)
@@ -150,14 +151,17 @@
         (do (v/render-home-view [:div "login failed"])
             (u/throw-ex (str event-name " failed - " r)))))
     (fn [r]
-      (println (str "eval result for " event-name " - " r)))))
+      (v/render-view
+       (v/make-list-view
+        {:record (cn/instance-name (first r))
+         :source (vec r)})))))
 
 (defn- navigation-buttons [rels prev-rec-name]
   (mapv
    (fn [rel]
      (let [rname (rel/relationship-name rel)
            [_ r] (li/split-path rname)
-           n (name r)]
+           n (vu/display-name r)]
        [:> Button
         {:on-click #(v/render-view
                      (v/make-input-view rname))}
@@ -179,7 +183,7 @@
         [c r] (li/split-path rec-name)
         rel-graph (:graph (rel/relationships c))
         rels (filter-relationships-of rec-name rel-graph)
-        title (name r)
+        title (vu/display-name r)
         inst-state (r/atom {})
         change-handler (partial vu/assoc-input-value inst-state)
         get-state-value (fn [k] (get @inst-state k))

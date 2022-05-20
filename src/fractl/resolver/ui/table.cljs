@@ -9,9 +9,7 @@
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
             ["@material-ui/core"
-             :refer [Card CardContent Link
-                     Typography ButtonGroup Button
-                     InputLabel Divider
+             :refer [Link Button
                      TableContainer Table
                      TableRow TableHead
                      TableBody TableCell]]))
@@ -49,8 +47,8 @@
               s])])))
       (vec (conj result (delete-instance-button rec-name (:Id inst)))))))
 
-(defn- render-rows [rows fields elem-id]
-  (when (seq rows)
+(defn- make-rows-view [rows fields]
+  (if (seq rows)
     (let [headers (mapv (fn [f] [:> TableCell (name f)]) fields)
           rec-name (cn/instance-name (first rows))
           n (name (second (li/split-path rec-name)))
@@ -61,55 +59,63 @@
              `[:> ~TableRow
                ~@(r inst)])
            rows)]
-      (v/render-view
-       `[:> ~TableContainer
-         [:> ~Table
-          [:> ~TableHead
-           [:> ~TableRow
-            ~@headers]]
-          [:> ~TableBody
-           ~@table-rows]]]
-       elem-id))))
+      `[:> ~TableContainer
+        [:> ~Table
+         [:> ~TableHead
+          [:> ~TableRow
+           ~@headers]]
+         [:> ~TableBody
+          ~@table-rows]]])
+    [:div "no data"]))
+
+(defn- render-rows [rows fields elem-id]
+  (v/render-view
+   (make-rows-view rows fields)
+   elem-id))
 
 ;; TODO: table-view should be created in input-form,
 ;; so that auto-update is available always,
 ;; or create table on input-form display itself - do not
 ;; wait for Create button event.
 (defn upsert-ui [instance]
-  (let [rec-name (u/string-as-keyword (:Record instance))
-        src (:Source instance)
-        has-source-event (map? src)
-        source-event (if has-source-event
-                       src
-                       (cn/make-instance
-                        (u/string-as-keyword src)
-                        {}))
-        [_ n] (li/split-path rec-name)
-        id (str n "-table-view")
-        fields (mapv u/string-as-keyword (:Fields instance))
-        table-view [:div [:div {:id id}]
-                    (when (= :Dashboard (second (li/split-path (cn/instance-name instance))))
-                      [:> Button
-                       {:on-click #(v/render-view
-                                    (v/make-input-view rec-name))}
-                       (str "Create New " (name n))])]
-        data-refresh!
-        #(vu/eval-event
-          (fn [result]
-            (if-let [rows (vu/eval-result result)]
-              (render-rows rows fields id)
-              (if (= :not-found (:status (first result)))
-                (v/render-view [:div (str (name rec-name) " - not found")] id)
-                (println (str "failed to list " rec-name " - " result)))))
-          source-event)
-        data-refresh-ms
-        (or (get-in
-             (gs/get-app-config)
-             [:ui :data-refresh-ms rec-name])
-            5000)]
-    (data-refresh!)
-    (vu/set-interval! data-refresh! data-refresh-ms)
-    (assoc instance :View table-view)))
+  (assoc
+   instance :View
+   (let [rec-name (u/string-as-keyword (:Record instance))
+         [_ n] (li/split-path rec-name)
+         id (str n "-table-view")
+         fields (mapv u/string-as-keyword (:Fields instance))
+         src (:Source instance)]
+     (if (vector? src)
+       [:div (make-rows-view src fields)]
+       (let [has-source-event (map? src)
+             source-event (if has-source-event
+                            src
+                            (cn/make-instance
+                             (u/string-as-keyword src)
+                             {}))
+             table-view [:div [:div {:id id}]
+                         (when (= :Dashboard (second (li/split-path (cn/instance-name instance))))
+                           [:> Button
+                            {:on-click #(v/render-view
+                                         (v/make-input-view rec-name))}
+                            (str "Create New " (name n))])]
+             data-refresh!
+             #(vu/eval-event
+               (fn [result]
+                 (if-let [rows (vu/eval-result result)]
+                   (render-rows rows fields id)
+                   (if (= :not-found (:status (first result)))
+                     (v/render-view [:div (str (name rec-name) " - not found")] id)
+                     (println (str "failed to list " rec-name " - " result)))))
+               source-event)
+             data-refresh-ms
+             (or (get-in
+                  (gs/get-app-config)
+                  [:ui :data-refresh-ms rec-name])
+                 5000)]
+         (data-refresh!)
+         (vu/set-interval! data-refresh! data-refresh-ms)
+         table-view)))))
 
 (defn make [resolver-name _]
   (rc/make-resolver

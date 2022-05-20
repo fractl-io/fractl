@@ -43,7 +43,7 @@
   (loop [ens (cn/displayable-record-names (cfg/component config))]
     (if-let [en (first ens)]
       (let [[_ n] (li/split-path en)
-            s (s/lower-case (name n))
+            s (s/lower-case (vu/display-name n))
             schema (cn/entity-schema en)
             meta (cn/fetch-meta en)]
         (defroute (vu/make-dashboard-route s) []
