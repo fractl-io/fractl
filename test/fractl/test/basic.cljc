@@ -605,6 +605,38 @@
     (is (cn/instance-of? :ForEachAlias/R secondE))
     (is (= 11 (:A secondE)))))
 
+
+(deftest destructuring-alias
+  (defcomponent :DestructuringAlias
+    (entity {:DestructuringAlias/E {:X {:type    :Kernel/Int
+                                :indexed true}
+                            :N :Kernel/String}})
+    (record {:Result {:Values :Kernel/Any}})
+    (event {:DestructuringAlias/Evt {:X :Kernel/Int}})
+     (dataflow :DestructuringAlias/Evt
+      {:DestructuringAlias/E {:X? :DestructuringAlias/Evt.X} :as [:R1 :R2 :_ :R4 :& :RS]}
+      {:DestructuringAlias/Result {:Values [:R1 :R2 :R4 :RS]}}))
+  (let [es [(cn/make-instance :DestructuringAlias/E {:X 1 :N "e01"})
+            (cn/make-instance :DestructuringAlias/E {:X 2 :N "e02"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e03"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e04"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e05"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e06"})
+            (cn/make-instance :DestructuringAlias/E {:X 1 :N "e07"})]
+        evts (map #(cn/make-instance :DestructuringAlias/Upsert_E {:Instance %}) es)
+        _    (doall (map (comp (comp first tu/fresult)
+                           #(e/eval-all-dataflows %))
+                      evts))
+        result (:Values (first (tu/fresult (e/eval-all-dataflows {:DestructuringAlias/Evt {:X 1}}))))]
+    (is (and (= "e01" (:N (first result)))
+          (= 1 (:X (first result)))))
+    (is (= "e03" (:N (nth result 1))))
+    (is (= 1 (:X (nth result 1))))
+    (is (= "e05" (:N (nth result 2))))
+    (is (= 1 (:X (nth result 2))))
+    (is (= ["e06" "e07"] (map :N (last result))))
+    (is (= [1 1] (map :X (last result))))))
+
 (deftest delete-insts
   (defcomponent :Del
     (entity {:Del/E {:X :Kernel/Int}}))
