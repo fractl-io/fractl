@@ -705,7 +705,6 @@
         (i/ok record-name env)))
 
     (do-query-instances [_ env [entity-name queries]]
-      (prn "IN queries ->" entity-name queries)
       (do-query-helper env entity-name queries))
 
     (do-evaluate-query [_ env [fetch-query-fn result-alias]]
@@ -776,7 +775,6 @@
         (i/ok r env)))
 
     (do-delete-instance [self env [record-name queries]]
-      (prn " in do delete -->" record-name queries)
       (if-let [store (env/get-store env)]
         (if-let [[insts env]
                  (find-instances env store record-name queries)]

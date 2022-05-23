@@ -172,7 +172,7 @@
     (event {:QIdDel/FindByIdAndDel
             {:EId :Kernel/UUID}})
     (dataflow :QIdDel/FindByIdAndDel
-              [:delete :QIdDel/E :QIdDel/FindByIdAndDel.EId]))
+              [:delete :QIdDel/E :Id :QIdDel/FindByIdAndDel.EId]))
   (let [e (cn/make-instance :QIdDel/E {:X 100})
         e01 (first (tu/fresult (e/eval-all-dataflows {:QIdDel/Upsert_E {:Instance e}})))
         id (:Id e01)
@@ -190,9 +190,9 @@
             {:X :Kernel/Int}})
     (dataflow :QDel/FindAndDel
               {:QDel/E {:X? :QDel/FindAndDel.X}}
-              [:delete :QDel/E :QDel/E.Id])
+              [:delete :QDel/E :Id :QDel/E.Id])
     (dataflow :QDel/DeleteById
-              [:delete :QDel/E :QDel/DeleteById.EId]))
+              [:delete :QDel/E :Id :QDel/DeleteById.EId]))
   (let [e (cn/make-instance :QDel/E {:X 100})
         e01 (first (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e}})))
         id (:Id e01)
