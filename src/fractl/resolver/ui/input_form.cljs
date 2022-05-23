@@ -7,6 +7,7 @@
             [fractl.ui.views :as v]
             [fractl.ui.context :as ctx]
             [fractl.ui.meta :as mt]
+            [fractl.ui.style :as style]
             [fractl.relationship :as rel]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
@@ -192,12 +193,13 @@
         transformer (vu/make-transformer rec-name)
         meta (cn/fetch-meta rec-name)
         embedded-inst (:Instance instance)
+        styles (mt/styles meta)
         view
         `[:div {:class "view"}
           [:div {:class "main"}
-           [:> ~Card {:variant "outlined"}
+           [:> ~Card ~(style/input-form-card styles)
             [:> ~CardContent
-             [:> ~Typography {:gutterBottom true :variant "h5" :component "div"}
+             [:> ~Typography ~(style/input-form-title styles)
               ~title][:br]
              ~@(render-attribute-specs
                 rec-name scm meta

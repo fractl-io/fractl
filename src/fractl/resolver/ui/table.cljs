@@ -6,6 +6,7 @@
             [fractl.ui.views :as v]
             [fractl.ui.context :as ctx]
             [fractl.ui.meta :as mt]
+            [fractl.ui.style :as style]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
             ["@material-ui/core"
@@ -53,6 +54,7 @@
           rec-name (cn/instance-name (first rows))
           n (name (second (li/split-path rec-name)))
           r (partial render-instance fields rec-name)
+          table-style (style/table (mt/styles (cn/fetch-meta rec-name)))
           table-rows
           (mapv
            (fn [inst]
@@ -60,7 +62,7 @@
                ~@(r inst)])
            rows)]
       `[:> ~TableContainer
-        [:> ~Table
+        [:> ~Table ~table-style
          [:> ~TableHead
           [:> ~TableRow
            ~@headers]]

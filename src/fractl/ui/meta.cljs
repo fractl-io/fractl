@@ -20,3 +20,7 @@
 
 (def upsert-event :upsert-event)
 (def delete-event :delete-event)
+(def order :order)
+
+(defn styles [meta]
+  (get-in meta [:views :styles]))

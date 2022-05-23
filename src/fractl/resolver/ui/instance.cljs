@@ -6,6 +6,8 @@
             [fractl.ui.context :as ctx]
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
+            [fractl.ui.meta :as mt]
+            [fractl.ui.style :as style]
             ["@material-ui/core"
              :refer [Card CardActions CardContent
                      Typography Button]]))
@@ -43,15 +45,17 @@
     (interpose " | " links)
     ["]"])))
 
-(defn- make-card-view [title fields navigation-links]
-  (let [fs (mapv (fn [[lbl val]]
-                   [:> Typography {:style {:font-size 14}
-                                   :color "text.secondary"}
+(defn- make-card-view [styles title fields navigation-links]
+  (let [entry-style (style/instance-entry styles)
+        card-style (style/instance-card styles)
+        title-style (style/instance-title styles)
+        fs (mapv (fn [[lbl val]]
+                   [:> Typography entry-style
                     (str lbl ": " val)])
                  fields)]
-    `[:> ~Card {:style {:min-width 275}}
+    `[:> ~Card ~card-style
       [:> ~CardContent
-       [:> ~Typography {:variant "h5" :component "div"} ~title]
+       [:> ~Typography ~title-style ~title]
        ~@fs]
       [:> ~CardActions ~(make-menu navigation-links)]]))
 
@@ -65,7 +69,7 @@
          identity
          (mapv
           (partial field-view inst schema nav)
-          (or (:Fields meta) (cn/attribute-names schema))))
+          (or (mt/order meta) (cn/attribute-names schema))))
         contains
         (v/make-list-refs-view inst)
         edit-btn [:> Button
@@ -73,7 +77,9 @@
                                (v/make-input-view inst))}
                   "Edit"]]
     `[:div
-      ~(make-card-view (cn/instance-str inst) fields @nav)
+      ~(make-card-view
+        (mt/styles meta) (cn/instance-str inst)
+        fields @nav)
       ~edit-btn
       ~@contains]))
 
