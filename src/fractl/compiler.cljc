@@ -539,9 +539,17 @@
         identity)
       alias])))
 
-(defn- compile-delete [ctx [recname id-pat]]
-  (let [id-pat-code (compile-pattern ctx id-pat)]
-    (emit-delete (li/split-path recname) [id-pat-code])))
+(defn- compile-delete [ctx [recname & id-pat]]
+  (prn "compile delete-->" recname id-pat)
+  (let [[attr value _ alias] id-pat
+        q (compile-query ctx recname [[attr value]])
+        _ (prn "q is ->" q)
+
+        ;id-pat-code (compile-pattern ctx (into [] id-pat))
+        #__ #_(prn "pattern ->" id-pat-code)]
+    (when alias
+      (ctx/add-alias! ctx recname alias))
+    (emit-delete (li/split-path recname) (merge q {:alias alias}))))
 
 (defn- compile-quoted-expression [ctx exp]
   (if (li/unquoted? exp)
@@ -580,6 +588,7 @@
   "Compile built-in special-forms (or macros) for performing basic
   conditional and iterative operations."
   [ctx pat]
+  (prn "csp-->" pat)
   (if-let [h ((first pat) special-form-handlers)]
     (h ctx (rest pat))
     (compile-user-macro ctx pat)))

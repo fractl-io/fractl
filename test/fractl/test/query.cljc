@@ -208,6 +208,39 @@
     (is (= :ok (:status (first del-result2))))
     (is (= :not-found (:status (first lookup-result))))))
 
+(deftest delete-by-attribute
+  (defcomponent :QDel
+    (entity {:QDel/E {:X {:type :Kernel/Int
+                          :indexed true}}})
+    (dataflow :QDel/DeleteByAttr
+      [:delete :QDel/E :X 50])
+    (dataflow :QDel/DeleteWithAlias
+      [:delete :QDel/E :X 100 :as [:DELRES]]
+      :DELRES)
+    (dataflow :QDel/find1
+      {:QDel/E {:X? 100}})
+    (dataflow :QDel/find2
+      {:QDel/E {:X? 50}}))
+  (let [e (cn/make-instance :QDel/E {:X 100})
+        e1                       (cn/make-instance :QDel/E {:X 50})
+        _                        (first (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e}})))
+        _                        (first (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e1}})))
+
+        devt                     (cn/make-instance :QDel/DeleteByAttr {})
+        delete-result            (doall (e/eval-all-dataflows devt))
+        devt                     (cn/make-instance :QDel/DeleteWithAlias {})
+        delete-with-alias-result (doall (e/eval-all-dataflows devt))
+        devt                     (cn/make-instance :QDel/find1 {})
+        find-result-1            (doall (e/eval-all-dataflows devt))
+        devt                     (cn/make-instance :QDel/find2 {})
+        find-result-2            (doall (e/eval-all-dataflows devt))]
+    (is (= :ok (:status (first delete-result))))
+    (is (= 50 (get-in (first delete-result) [:result 0 :X])))
+    (is (= :ok (:status (first delete-with-alias-result))))
+    (is (= 100 (get-in (first delete-with-alias-result) [:result :X])))
+    (is (= :not-found (:status (first find-result-1))))
+    (is (= :not-found (:status (first find-result-2))))))
+
 (deftest issue-255-query-non-indexed
   (#?(:clj do
       :cljs cljs.core.async/go)

@@ -705,6 +705,7 @@
         (i/ok record-name env)))
 
     (do-query-instances [_ env [entity-name queries]]
+      (prn "IN queries ->" entity-name queries)
       (do-query-helper env entity-name queries))
 
     (do-evaluate-query [_ env [fetch-query-fn result-alias]]
@@ -774,13 +775,21 @@
             env (if alias (env/bind-instance-to-alias env alias r) env)]
         (i/ok r env)))
 
-    (do-delete-instance [self env [record-name id-pattern-code]]
-      (let [result (eval-opcode self env id-pattern-code)]
-        (if-let [id (ok-result result)]
-          (let [local-result (chained-delete env record-name id)]
-            (i/ok local-result
-                  (env/purge-instance env record-name id)))
-          result)))
+    (do-delete-instance [self env [record-name queries]]
+      (prn " in do delete -->" record-name queries)
+      (if-let [store (env/get-store env)]
+        (if-let [[insts env]
+                 (find-instances env store record-name queries)]
+
+          (let [alias (:alias queries)
+                env (if alias (env/bind-instance-to-alias env alias insts) env)]
+            (i/ok insts (reduce (fn [env instance]
+                                 (chained-delete env record-name (:Id instance))
+                                 (env/purge-instance env record-name (:Id instance)))
+                         env insts)))
+
+          (i/not-found record-name env))
+        ))
 
     (do-call-function [_ env fnobj]
       (call-function env fnobj))
