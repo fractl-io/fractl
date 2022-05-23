@@ -7,7 +7,8 @@
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             ["@material-ui/core"
-             :refer [Button]]))
+             :refer [Card CardActions CardContent
+                     Typography Button]]))
 
 (defn- fetch-entity-instance [event-inst cb]
   (if-let [obj (:Instance event-inst)]
@@ -22,7 +23,8 @@
 (defn- field-view [inst schema nav-links attr-name]
   (let [attr-scm (cn/find-attribute-schema (attr-name schema))
         rf-paths (:ref attr-scm)
-        v (str (attr-name inst))]
+        v (str (attr-name inst))
+        label (name attr-name)]
     (if rf-paths
       (do (swap!
            nav-links conj
@@ -30,16 +32,28 @@
                        vu/make-instance-view-route
                        (:record rf-paths) (first (:refs rf-paths))
                        v)}
-            (name attr-name)])
+            label])
           nil)
-      [:p v])))
+      [label v])))
 
 (defn- make-menu [links]
   (vec
    (concat
-    [:p "[ "]
+    [:span "[ "]
     (interpose " | " links)
     ["]"])))
+
+(defn- make-card-view [title fields navigation-links]
+  (let [fs (mapv (fn [[lbl val]]
+                   [:> Typography {:style {:font-size 14}
+                                   :color "text.secondary"}
+                    (str lbl ": " val)])
+                 fields)]
+    `[:> ~Card {:style {:min-width 275}}
+      [:> ~CardContent
+       [:> ~Typography {:variant "h5" :component "div"} ~title]
+       ~@fs]
+      [:> ~CardActions ~(make-menu navigation-links)]]))
 
 (defn- make-instance-view [inst]
   (let [n (cn/instance-name inst)
@@ -58,7 +72,10 @@
                   {:on-click #(v/render-view
                                (v/make-input-view inst))}
                   "Edit"]]
-    (vec (concat [:div] [(make-menu @nav)] fields [edit-btn] contains))))
+    `[:div
+      ~(make-card-view (cn/instance-str inst) fields @nav)
+      ~edit-btn
+      ~@contains]))
 
 (defn- render-instance [inst]
   (let [view (make-instance-view inst)]

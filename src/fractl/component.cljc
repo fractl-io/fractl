@@ -1240,6 +1240,11 @@
 (defn compound-unique-attributes [entity-name]
   (:unique (fetch-meta entity-name)))
 
+(defn- instance-name-str [n]
+  (if (keyword? n)
+    (name n)
+    (str (name (first n)) "/" (name (second n)))))
+
 (defn instance-str [instance]
   (let [n (instance-name instance)]
     (if-let [str-pat (:str (fetch-meta n))]
@@ -1249,7 +1254,7 @@
                             (% instance)
                             %)
                          str-pat)))
-      (str n))))
+      (instance-name-str n))))
 
 (defn- displayable-record-names [component-info]
   (let [components
