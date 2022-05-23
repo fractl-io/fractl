@@ -26,7 +26,7 @@
        (mt/delete-event (cn/fetch-meta rec-name)))}
     "Delete"]])
 
-(defn- render-instance [fields rec-name inst]
+(defn- render-instance [cell-style fields rec-name inst]
   (loop [fields fields, linked false, result []]
     (if-let [f (first fields)]
       (let [s (vu/decode-to-str (get inst f))]
@@ -35,7 +35,7 @@
          true
          (conj
           result
-          [:> TableCell
+          [:> TableCell cell-style
            (if linked
              s
              [:> Link
@@ -50,23 +50,25 @@
 
 (defn- make-rows-view [rows fields]
   (if (seq rows)
-    (let [headers (mapv (fn [f] [:> TableCell (name f)]) fields)
-          rec-name (cn/instance-name (first rows))
+    (let [rec-name (cn/instance-name (first rows))
+          styles (mt/styles (cn/fetch-meta rec-name))
+          table-head-cell-style (style/table-head-cell styles)
+          headers (mapv (fn [f] [:> TableCell table-head-cell-style (name f)]) fields)
           n (name (second (li/split-path rec-name)))
-          r (partial render-instance fields rec-name)
-          table-style (style/table (mt/styles (cn/fetch-meta rec-name)))
+          r (partial render-instance (style/table-body-cell styles) fields rec-name)
+          table-body-row-style (style/table-body-row styles)
           table-rows
           (mapv
            (fn [inst]
-             `[:> ~TableRow
+             `[:> ~TableRow ~table-body-row-style
                ~@(r inst)])
            rows)]
       `[:> ~TableContainer
-        [:> ~Table ~table-style
-         [:> ~TableHead
-          [:> ~TableRow
+        [:> ~Table ~(style/table styles)
+         [:> ~TableHead ~(style/table-head styles)
+          [:> ~TableRow ~(style/table-head-row styles)
            ~@headers]]
-         [:> ~TableBody
+         [:> ~TableBody ~(style/table-body styles)
           ~@table-rows]]])
     [:div "no data"]))
 

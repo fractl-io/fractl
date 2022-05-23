@@ -25,4 +25,10 @@
 (def input-form-card (partial fetch-style [:input-form :card]))
 (def input-form-title (partial fetch-style [:input-form :title]))
 
-(def table (partial fetch-style [:table]))
+(def table (partial fetch-style [:table :main]))
+(def table-head (partial fetch-style [:table :head]))
+(def table-head-row (partial fetch-style [:table :head-row]))
+(def table-head-cell (partial fetch-style [:table :head-cell]))
+(def table-body (partial fetch-style [:table :body]))
+(def table-body-row (partial fetch-style [:table :body-row]))
+(def table-body-cell (partial fetch-style [:table :body-cell]))
