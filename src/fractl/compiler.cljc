@@ -540,7 +540,9 @@
       alias])))
 
 (defn- compile-delete [ctx [recname & id-pat]]
-  (let [[attr value _ alias] id-pat
+  (let [[attr value _ alias] (if (= 1 (count id-pat))
+                                 [:Id (first id-pat)]
+                                 id-pat)
         q (compile-query ctx recname [[attr value]])]
     (when alias
       (ctx/add-alias! ctx recname alias))
