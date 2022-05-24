@@ -75,14 +75,14 @@
                 PRE-EVAL
                 stg)
         intercept (keyword (:Intercept policy))
-        add-rule (if crud-rule concat conj)]
+        add-rule (if crud-rule concat conj)
+        cf (compile-rule intercept)
+        compiled-rule (if cf (cf rule crud-rule) rule)]
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
         (let [r (li/split-path r)
               k [r stage]
-              rls (get db k [])
-              cf (compile-rule intercept)
-              compiled-rule (if cf (cf rule crud-rule) rule)]
+              rls (get db k [])]
           (recur
            (assoc db k (add-rule rls compiled-rule))
            (rest rs)))
