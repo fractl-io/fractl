@@ -1244,7 +1244,6 @@
     (is (cn/instance-of? :Relationships/CheckoutBook r1))
     (is (cn/same-instance? r1 r2))))
 
-
 (deftest password-match
   (defcomponent :PM
     (entity
@@ -1279,320 +1278,320 @@
     (is (cn/same-instance? u (:result (first r1))))
     (is (not (:result (first r2))))))
 
-(deftest data-generation-and-validation-for-listof []
- (testing "list-of"
-   (testing "string"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/String}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? string? %) (map :RefCheck/E3.AIdId data)))
-       (is (every? uuid? (map :RefCheck/E3.Id data)))))
-
-   (testing "unique string"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/String}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? string? %) (map :RefCheck/E3.AIdId data)))
-       (is (every? uuid? (map :RefCheck/E3.Id data)))))
-
-   (testing "int"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Int}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? int? %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "keyword"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Keyword}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? keyword? %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "path"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Path}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? (fn [val]
-                     (every? #(or (keyword? %) (string? %)) val))
-                   (map :RefCheck/E3.AIdId data)))))
-
-   (testing "float"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Float}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? float? %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "double"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Double}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? double? %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "decimal"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Decimal}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? decimal? %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "boolean"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Boolean}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? boolean? %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "any"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Any}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? any? %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "map"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Map}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? #(every? map? %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "date"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Date}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? (fn [val]
-                     (every? #(instance? java.time.LocalDate %) val))
-                   (map :RefCheck/E3.AIdId data)))))
-
-   (testing "date-time"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/DateTime}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? (fn [val]
-                     (every? #(instance? java.time.LocalDateTime %) val))
-                   (map :RefCheck/E3.AIdId data)))))
-
-   (testing "time"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Time}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? coll? (map :RefCheck/E3.AIdId data)))
-       (is (every? (fn [val]
-                     (every? #(instance? java.time.LocalTime %) val))
-                   (map :RefCheck/E3.AIdId data)))))))
-
-(deftest data-generation-and-validation-for-fractl-types []
- (testing "fractl type"
-   (testing "entity"
-     (defcomponent :Df01
-                   (entity {:Df01/E
-                            {:X :Kernel/Int
-                             :Y :Kernel/Int}}))
-
-     (let [data (tu/generate-data :Df01/E)]
-       (is (seq? data))
-       (is (every? #(int? (:Df01/E.X %)) data))
-       (is (every? #(int? (:Df01/E.Y %)) data))
-       (is (every? #(uuid? (:Df01/E.Id %)) data))))
-
-   (testing "record"
-     (defcomponent :Df01
-                   (record {:Df01/E
-                            {:X :Kernel/Int
-                             :Y :Kernel/Int}}))
-
-     (let [data (tu/generate-data :Df01/E)]
-       (is (seq? data))
-       (is (every? #(int? (:Df01/E.X %)) data))
-       (is (every? #(int? (:Df01/E.Y %)) data))
-       (is (every? #(nil? (:Df01/E.Id %)) data))))
-
-   (testing "Reference to an entity's attribute"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E1 {:A :Kernel/Int}})
-                   (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
-                                          :X :Kernel/Int}})
-                   (entity {:RefCheck/E3 {:AIdId {:ref :RefCheck/E2.AId}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(uuid? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "Reference to an entity"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E1 {:A :Kernel/Int}})
-                   (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
-                                          :X :Kernel/Int}})
-                   (entity {:RefCheck/E3 {:AIdId {:type :RefCheck/E1}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(instance? clojure.lang.PersistentArrayMap (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "Reference to a record"
-     (defcomponent :RefCheck
-                   (record {:RefCheck/E1 {:A :Kernel/Int}})
-                   (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.A}
-                                          :X :Kernel/Int}})
-                   (entity {:RefCheck/E3 {:AIdId {:type :RefCheck/E1}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(instance? clojure.lang.PersistentArrayMap (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "oneof"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:oneof ["diesel", "petrol", "cng"]}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(string? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "string without format"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/String}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(string? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "keyword"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Keyword}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(keyword? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "path"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Path}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(or (keyword? %) (string? %)) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "int64"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Int64}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(int? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "bigInteger"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/BigInteger}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(integer? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "float"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Float}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(float? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "double"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Double}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(double? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "decimal"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Decimal}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(decimal? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "boolean"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Boolean}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(boolean? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "date"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Date}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(instance? java.time.LocalDate %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "dateTime"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/DateTime}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(instance? java.time.LocalDateTime %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "time"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Time}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(instance? java.time.LocalTime %) (map :RefCheck/E3.AIdId data)))))
-
-   (testing "any"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Any}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(any? (:RefCheck/E3.AIdId %)) data))))
-
-   (testing "map"
-     (defcomponent :RefCheck
-                   (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Map}}}))
-
-     (let [data (tu/generate-data :RefCheck/E3)]
-       (is (seq? data))
-       (is (every? #(map? (:RefCheck/E3.AIdId %)) data))))))
-
+#?(:clj
+   (deftest data-generation-and-validation-for-listof []
+    (testing "list-of"
+      (testing "string"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/String}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? string? %) (map :RefCheck/E3.AIdId data)))
+          (is (every? uuid? (map :RefCheck/E3.Id data)))))
+
+      (testing "unique string"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/String}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? string? %) (map :RefCheck/E3.AIdId data)))
+          (is (every? uuid? (map :RefCheck/E3.Id data)))))
+
+      (testing "int"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Int}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? int? %) (map :RefCheck/E3.AIdId data)))))
+
+      (testing "keyword"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Keyword}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? keyword? %) (map :RefCheck/E3.AIdId data)))))
+
+      (testing "path"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Path}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? (fn [val]
+                        (every? #(or (keyword? %) (string? %)) val))
+                      (map :RefCheck/E3.AIdId data)))))
+
+      (testing "float"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Float}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? float? %) (map :RefCheck/E3.AIdId data)))))
+
+      (testing "double"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Double}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? double? %) (map :RefCheck/E3.AIdId data)))))
+
+      (testing "decimal"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Decimal}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? decimal? %) (map :RefCheck/E3.AIdId data)))))
+
+      (testing "boolean"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Boolean}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? boolean? %) (map :RefCheck/E3.AIdId data)))))
+
+      (testing "any"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Any}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? any? %) (map :RefCheck/E3.AIdId data)))))
+
+      (testing "map"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Map}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? #(every? map? %) (map :RefCheck/E3.AIdId data)))))
+
+      (testing "date"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Date}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? (fn [val]
+                        (every? #(instance? java.time.LocalDate %) val))
+                      (map :RefCheck/E3.AIdId data)))))
+
+      (testing "date-time"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/DateTime}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? (fn [val]
+                        (every? #(instance? java.time.LocalDateTime %) val))
+                      (map :RefCheck/E3.AIdId data)))))
+
+      (testing "time"
+        (defcomponent :RefCheck
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Time}}}))
+
+        (let [data (tu/generate-data :RefCheck/E3)]
+          (is (seq? data))
+          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? (fn [val]
+                        (every? #(instance? java.time.LocalTime %) val))
+                      (map :RefCheck/E3.AIdId data))))))))
+
+#?(:clj
+   (deftest data-generation-and-validation-for-fractl-types []
+      (testing "fractl type"
+        (testing "entity"
+          (defcomponent :Df01
+                        (entity {:Df01/E
+                                 {:X :Kernel/Int
+                                  :Y :Kernel/Int}}))
+
+          (let [data (tu/generate-data :Df01/E)]
+            (is (seq? data))
+            (is (every? #(int? (:Df01/E.X %)) data))
+            (is (every? #(int? (:Df01/E.Y %)) data))
+            (is (every? #(uuid? (:Df01/E.Id %)) data))))
+
+        (testing "record"
+          (defcomponent :Df01
+                        (record {:Df01/E
+                                 {:X :Kernel/Int
+                                  :Y :Kernel/Int}}))
+
+          (let [data (tu/generate-data :Df01/E)]
+            (is (seq? data))
+            (is (every? #(int? (:Df01/E.X %)) data))
+            (is (every? #(int? (:Df01/E.Y %)) data))
+            (is (every? #(nil? (:Df01/E.Id %)) data))))
+
+        (testing "Reference to an entity's attribute"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E1 {:A :Kernel/Int}})
+                        (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
+                                               :X :Kernel/Int}})
+                        (entity {:RefCheck/E3 {:AIdId {:ref :RefCheck/E2.AId}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(uuid? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "Reference to an entity"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E1 {:A :Kernel/Int}})
+                        (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
+                                               :X :Kernel/Int}})
+                        (entity {:RefCheck/E3 {:AIdId {:type :RefCheck/E1}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(instance? clojure.lang.PersistentArrayMap (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "Reference to a record"
+          (defcomponent :RefCheck
+                        (record {:RefCheck/E1 {:A :Kernel/Int}})
+                        (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.A}
+                                               :X :Kernel/Int}})
+                        (entity {:RefCheck/E3 {:AIdId {:type :RefCheck/E1}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(instance? clojure.lang.PersistentArrayMap (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "oneof"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:oneof ["diesel", "petrol", "cng"]}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(string? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "string without format"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/String}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(string? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "keyword"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Keyword}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(keyword? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "path"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Path}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(or (keyword? %) (string? %)) (map :RefCheck/E3.AIdId data)))))
+
+        (testing "int64"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Int64}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(int? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "bigInteger"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/BigInteger}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(integer? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "float"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Float}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(float? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "double"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Double}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(double? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "decimal"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Decimal}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(decimal? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "boolean"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Boolean}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(boolean? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "date"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Date}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(instance? java.time.LocalDate %) (map :RefCheck/E3.AIdId data)))))
+
+        (testing "dateTime"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/DateTime}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(instance? java.time.LocalDateTime %) (map :RefCheck/E3.AIdId data)))))
+
+        (testing "time"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Time}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(instance? java.time.LocalTime %) (map :RefCheck/E3.AIdId data)))))
+
+        (testing "any"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Any}}}))
+
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(any? (:RefCheck/E3.AIdId %)) data))))
+
+        (testing "map"
+          (defcomponent :RefCheck
+                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Map}}}))
+          (let [data (tu/generate-data :RefCheck/E3)]
+            (is (seq? data))
+            (is (every? #(map? (:RefCheck/E3.AIdId %)) data)))))))

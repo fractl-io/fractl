@@ -8,6 +8,7 @@
             [cljc.java-time.local-date-time :as local-date-time]
             [cljc.java-time.local-date :as local-date]
             [cljc.java-time.local-time :as local-time]
+            [cljc.java-time.zone-offset :refer [utc]]
             [cljc.java-time.month :as month]))
 
 (defn- report-expected-ex [ex]
@@ -83,8 +84,8 @@
             :password (System/getenv "POSTGRES_PASSWORD")})
     :cljs {:type :alasql}))
 
-(s/def ::past-and-future-date-time (s/int-in (local-date-time/to-epoch-second (local-date-time/of 2011 month/january 1 0 00 00) java.time.ZoneOffset/UTC)
-                                             (local-date-time/to-epoch-second (local-date-time/of 2030 month/december 31 23 59 59) java.time.ZoneOffset/UTC)))
+(s/def ::past-and-future-date-time (s/int-in (local-date-time/to-epoch-second (local-date-time/of 2011 month/january 1 0 00 00) utc)
+                                             (local-date-time/to-epoch-second (local-date-time/of 2030 month/december 31 23 59 59) utc)))
 
 (s/def ::past-and-future-date (s/int-in (local-date/to-epoch-day (local-date/of 2011 month/january 1))
                                         (local-date/to-epoch-day (local-date/of 2030 month/december 31))))
@@ -104,7 +105,8 @@
    :Kernel/BigInteger integer?
    :Kernel/Float float?
    :Kernel/Double double?
-   :Kernel/Decimal decimal?
+   :Kernel/Decimal #?(:clj decimal?
+                      :cljs float?)
    :Kernel/Boolean boolean?
    :Kernel/Any any?
    :Kernel/Map map?
@@ -131,7 +133,7 @@
                                  (s/gen ::time)))
    :Kernel/DateTime (list `s/with-gen (partial instance? java.time.LocalDateTime)
                           #(gen/fmap (fn [ms]
-                                       (local-date-time/of-epoch-second ms 0 java.time.ZoneOffset/UTC))
+                                       (local-date-time/of-epoch-second ms 0 utc))
                                      (s/gen ::past-and-future-date-time)))})
 
 (defn get-spec-namespace [component-name entity-name]
@@ -236,8 +238,9 @@
               (construct-spec deep-ref-type)))]
     (define-spec-and-eval component-name entity-name entity-schema component-meta)))
 
-(defn generate-data [component]
-  (let [_ (construct-spec component)
-        [component-name entity-name] (fractl.lang.internal/split-path component)
-        spec-name-space (get-spec-namespace component-name entity-name)]
-    (gen/sample (s/gen spec-name-space))))
+#?(:clj
+   (defn generate-data [component]
+     (let [_ (construct-spec component)
+           [component-name entity-name] (fractl.lang.internal/split-path component)
+           spec-name-space (get-spec-namespace component-name entity-name)]
+       (gen/sample (s/gen spec-name-space)))))
