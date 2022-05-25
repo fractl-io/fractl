@@ -12,6 +12,7 @@
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.store :as store]
+            [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.loader :as loader])
@@ -43,9 +44,9 @@
     (if-let [c (first s)]
       (cond
         (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
-        (= \/ c) (recur (rest s) "" (conj result java.io.File/separator))
+        (or (= \/ c) (= \. c)) (recur (rest s) "" (conj result java.io.File/separator))
         :else (recur (rest s) sep (conj result c)))
-      (str (s/join result) u/script-extn))))
+      (str (s/join result) (u/get-script-extn)))))
 
 (defn- load-components [component-scripts model-root load-from-resource]
   (mapv
@@ -62,15 +63,15 @@
    model-root load-from-resource))
 
 (defn read-model [model-file]
-  [(read-string (slurp model-file))
-   (.getParent
-    (java.io.File. (.getParent (java.io.File. model-file))))])
+  (let [model (last (loader/read-expressions model-file))
+        root (java.io.File. (.getParent (java.io.File. model-file)))]
+    [model (str root)]))
 
 (defn- read-model-from-paths [model-paths model-name]
   (let [s (s/lower-case (name model-name))]
     (loop [mps model-paths]
       (if-let [mp (first mps)]
-        (let [p (str mp u/path-sep s u/path-sep u/model-script-name)]
+        (let [p (str mp u/path-sep s u/path-sep (u/get-model-script-name))]
           (if (.exists (java.io.File. p))
             (read-model p)
             (recur (rest mps))))
@@ -82,10 +83,9 @@
   (let [nm (s/lower-case (name (:name model)))
         model-paths (find-model-paths model model-paths config)
         rmp (partial read-model-from-paths model-paths)]
-    (mapv
-     #(let [[m mr] (rmp %)]
-        (load-model m mr model-paths config))
-     (:dependencies model))
+    (doseq [d (:dependencies model)]
+      (let [[m mr] (rmp d)]
+        (load-model m mr model-paths config)))
     (load-components-from-model
      model model-root
      (:load-model-from-resource config))))
@@ -104,7 +104,7 @@
 
 (defn- maybe-read-model [args]
   (when (and (= (count args) 1)
-             (s/ends-with? (first args) u/model-script-name))
+             (s/ends-with? (first args) (u/get-model-script-name)))
     (read-model (first args))))
 
 (defn- log-app-init-result! [result]
@@ -141,9 +141,13 @@
        (or (nil? f) f)))
     [ev store]))
 
-(defn run-service [args [model config]]
-  (let [[model model-root] (maybe-read-model args)
-        config (merge (:config model) config)
+(defn- finalize-config [model config]
+  (let [final-config (merge (:config model) config)]
+    (gs/merge-app-config! final-config)
+    final-config))
+
+(defn run-service [args [[model model-root] config]]
+  (let [config (finalize-config model config)
         components (if model
                      (load-model model model-root nil config)
                      (load-components args (:component-root config) false))]
@@ -158,15 +162,17 @@
 (defn read-model-and-config [args options]
   (let [config-file (get options :config)
         config (when config-file
-                 (read-string (slurp config-file)))
-        model (maybe-read-model args)]
-    [model (merge (:config model) config)]))
+                 (read-string (slurp config-file)))]
+    (when-let [extn (:script-extn config)]
+      (u/set-script-extn! extn))
+    (let [[model _ :as m] (maybe-read-model args)]
+      [m (merge (:config model) config)])))
 
 (defn- read-model-from-resource [component-root]
   (if-let [model (read-string
                   (slurp
                    (io/resource
-                    (str "model/" component-root "/" u/model-script-name))))]
+                    (str "model/" component-root "/" (u/get-model-script-name)))))]
     model
     (u/throw-ex (str "failed to load model from " component-root))))
 

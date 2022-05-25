@@ -126,15 +126,15 @@
 
 (defn- enrich-with-auth-owner
   "Query the :Authentication object using the :Id bound to
-  :EventContext/Auth and using the information stored in that auth,
-  load the :Owner object. Bind this object to :EventContext/Auth/Owner
+  li/event-context/Auth and using the information stored in that auth,
+  load the :Owner object. Bind this object to li/event-context/Auth/Owner
   and return the updated event-instance."
   [event-instance]
-  (if-let [auth-id (get-in event-instance [:EventContext :Auth])]
+  (if-let [auth-id (get-in event-instance [li/event-context :Auth])]
     (if-let [auth (auth/query auth-id)]
-      (let [ctx (dissoc (:EventContext event-instance) :Auth)
+      (let [ctx (dissoc (li/event-context event-instance) :Auth)
             new-ctx (assoc-in ctx [:Auth :Owner] (:Owner auth))]
-        (assoc event-instance :EventContext new-ctx))
+        (assoc event-instance li/event-context new-ctx))
       (u/throw-ex (str "no authorization bound to " auth-id)))
     event-instance))
 

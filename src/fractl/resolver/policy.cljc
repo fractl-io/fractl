@@ -75,18 +75,16 @@
                 PRE-EVAL
                 stg)
         intercept (keyword (:Intercept policy))
-        add-rule (if crud-rule concat conj)]
+        add-rule (if crud-rule concat conj)
+        cf (compile-rule intercept)
+        compiled-rule (if cf (cf rule crud-rule) rule)]
     (loop [db db, rs (:Resource policy)]
       (if-let [r (first rs)]
         (let [r (li/split-path r)
               k [r stage]
               rls (get db k [])]
           (recur
-           (assoc
-            db k
-            (add-rule
-             rls
-             ((compile-rule intercept) rule crud-rule)))
+           (assoc db k (add-rule rls compiled-rule))
            (rest rs)))
         db))))
 
@@ -163,8 +161,8 @@
   [resolver-name config]
   (r/make-resolver resolver-name resolver-fns))
 
-(defn eval-rules
-  "Return the RBAC polices stored at the key provided.
+(defn fetch-rules
+  "Return the polices stored at the key provided.
   Key should be a path."
   [intercept stage k]
   (let [pk [(li/split-path k) stage]]
@@ -174,5 +172,5 @@
             (get db pk)))
        :cljs (get-in @policy-db [intercept pk]))))
 
-(def rbac-eval-rules (partial eval-rules :RBAC PRE-EVAL))
-(def logging-eval-rules (partial eval-rules :Logging PRE-EVAL))
+(def rbac-rules (partial fetch-rules :RBAC PRE-EVAL))
+(def logging-rules (partial fetch-rules :Logging PRE-EVAL))

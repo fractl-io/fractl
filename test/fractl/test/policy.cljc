@@ -191,11 +191,11 @@
        (is (= [{:Disable [:INFO], :PagerThreshold
                 {:WARN {:count 5, :duration-minutes 10}
                  :ERROR {:count 3, :duration-minutes 5}}}]
-              (rp/logging-eval-rules [:LP :Upsert_User])))
+              (rp/logging-rules [:LP :Upsert_User])))
        (is (= [[:Upsert :Lookup]
                {:HideAttributes
                 [:LP/User.Password :LP/Upsert_User.Instance.Password]}]
-              (rp/logging-eval-rules [:LP :User])))
+              (rp/logging-rules [:LP :User])))
        (tu/is-error
         #(tu/first-result
           (cn/make-instance

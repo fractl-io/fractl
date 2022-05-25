@@ -21,24 +21,9 @@
      :cljs
      (float? x)))
 
-#?(:clj (def date-time? dt/parse-date-time)
-   :cljs
-   (defn date-time? [s]
-     ;(dt/parse-date-time s)
-     #_(some #(dt/try-parse-date-time (dt/date-time-formatters %) %) s)
-     (if (dt/try-parse-date-time (dt/date-time-formatters s) s)
-       true
-       false)))
-
-#?(:clj (def date? dt/parse-date)
-   :cljs
-   (defn date? [s]
-     (dt/parse-date s)))
-
-#?(:clj (def time? dt/parse-time)
-   :cljs
-   (defn time? [s]
-     (dt/parse-time s)))
+(def date-time? dt/parse-date-time)
+(def date? dt/parse-date)
+(def time? dt/parse-time)
 
 (defn UUID? [s]
   (or (u/uuid-from-string s) (uuid? s)))

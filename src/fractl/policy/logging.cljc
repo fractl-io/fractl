@@ -5,7 +5,7 @@
             [fractl.resolver.policy :as rp]))
 
 (defn rules [event-instance]
-  (rp/logging-eval-rules
+  (rp/logging-rules
    (cn/instance-name event-instance)))
 
 (defn- rules-with-key [rules k]

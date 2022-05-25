@@ -26,7 +26,7 @@
                   :cljs s)))
 
 (defn crypto-hash-dynamic
-  "Generate a (varyiable) cryptographic hash of a string. Algorithm used is bcrypt.
+  "Generate a (variable) cryptographic hash of a string. Algorithm used is bcrypt.
   Return the string - <hash-prefix><bcrypt-hash-of-s>
 
   Note: This uses a dynamic (variable) salt.

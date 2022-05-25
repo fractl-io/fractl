@@ -1,5 +1,6 @@
 {;; :component-root "./sample"
  ;; :store {:type :sfdc-metadata}
  ;; :store {:type :postgres}
+ :script-extn ".cljs"
  :zero-trust-rbac false
  :service {:port 8080}}

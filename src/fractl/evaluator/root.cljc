@@ -526,9 +526,12 @@
       result)))
 
 (defn- match-object-to-result? [match-obj result]
-  (if (h/crypto-hash? match-obj)
-    (h/crypto-hash-eq? match-obj result)
-    (= result match-obj)))
+  (let [[a b] [(h/crypto-hash? match-obj) (h/crypto-hash? result)]]
+    (cond
+      (and a b) (= match-obj result)
+      a (h/crypto-hash-eq? match-obj result)
+      b (h/crypto-hash-eq? result match-obj)
+      :else (= match-obj result))))
 
 (defn- eval-cases [evaluator env eval-opcode match-obj cases-code alternative-code result-alias]
   (bind-result-to-alias

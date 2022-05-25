@@ -1,25 +1,30 @@
 (ns sample.accounts
   (:require [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record relationship dataflow]]
             [fractl.lang.datetime :as dt]))
 
 (component :Acme.Accounting)
 
 (entity
  :Acme.Accounting/Account
- {:Title :Kernel/String
+ {:Title {:type :Kernel/String
+          :indexed true
+          :unique true}
   :meta
   {:str :Title
-   :view {:fields [[:Title {:input :TextField :value "0"}]]
-          :navigation [:Acme.Accounting/Transaction]}}})
+   :order [:Title]}})
 
-(def acc-select-spec
-  {:input :Select
-   :fetch :Acme.Accounting/QueryAllAccounts
-   :value :Id :label :Title})
+(dataflow
+ :Acme.Accounting/AccountLookupAll
+ {:Acme.Accounting/Account? {}})
 
-(entity
+(dataflow
+ :Acme.Accounting/AccountLookupByTitle
+ {:Acme.Accounting/Account
+  {:Title? [:like :Acme.Accounting/AccountLookupByTitle.S]}})
+
+(relationship
  :Acme.Accounting/Transaction
  {:Date {:type :Kernel/DateTime
          :default dt/now}
@@ -27,14 +32,15 @@
   :Credit {:ref :Acme.Accounting/Account.Id}
   :Amount :Kernel/Decimal
   :meta
-  {:view
-   {:fields [[:Date {:hidden true}]
-             [:Debit acc-select-spec]
-             [:Credit acc-select-spec]
-             [:Amount {:input :TextField}]]
-    :list-all true
-    :navigation [:Acme.Accounting/Account]}}})
+  {:from :Debit
+   :to :Credit
+   :list {:Debit :Acme.Accounting/AccountLookupAll
+          :Credit :Acme.Accounting/AccountLookupAll}
+   :order [:Date :Debit :Credit :Amount]
+   :cardinality
+   {:type :1-1
+    :exclusive false}}})
 
 (dataflow
- :Acme.Accounting/QueryAllAccounts
- {:Acme.Accounting/Account? {}})
+ :Acme.Accounting/TransactionLookupAll
+ {:Acme.Accounting/Transaction? {}}) ; TODO: filter by account-id
