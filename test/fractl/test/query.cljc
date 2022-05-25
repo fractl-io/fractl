@@ -391,3 +391,21 @@
     (is (every? (partial cn/instance-of? :QueryCommand/F) rs02))
     (is (every? #(>= (:A %) 20) rs02))
     (is (apply < (mapv :B rs02)))))
+
+(deftest ref-first-result
+  (defcomponent :Rfr
+    (record {:Rfr/R {:A :Kernel/Int :B :Kernel/Int}})
+    (entity {:Rfr/E {:N {:type :Kernel/String :indexed true} :X :Kernel/Int}})
+    (dataflow
+     :Rfr/J
+     {:Rfr/E {:N? :Rfr/J.N1} :as :E1}
+     {:Rfr/E {:N? :Rfr/J.N2} :as :E2}
+     {:Rfr/R {:A :E1.X :B :E2.X}}))
+  (let [e1 (cn/make-instance :Rfr/E {:N "ABC" :X 10})
+        e2 (cn/make-instance :Rfr/E {:N "EFG" :X 20})
+        r1 (first (tu/fresult (e/eval-all-dataflows {:Rfr/Upsert_E {:Instance e1}})))
+        r2 (first (tu/fresult (e/eval-all-dataflows {:Rfr/Upsert_E {:Instance e2}})))
+        k1 (first (tu/fresult (e/eval-all-dataflows {:Rfr/J {:N1 "EFG" :N2 "ABC"}})))]
+    (is (cn/instance-of? :Rfr/R k1))
+    (is (= 20 (:A k1)))
+    (is (= 10 (:B k1)))))

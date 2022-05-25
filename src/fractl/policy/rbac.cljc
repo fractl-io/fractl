@@ -1,6 +1,7 @@
 (ns fractl.policy.rbac
   (:require [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.lang.internal :as li]
             [fractl.resolver.policy :as rp]))
 
 (def ^:private rbac-inited (u/make-cell false))
@@ -14,7 +15,7 @@
   false."
   [event-instance zero-trust-rbac]
   (if @rbac-inited
-    (if-let [rules (rp/rbac-eval-rules
+    (if-let [rules (rp/rbac-rules
                     (cn/instance-name event-instance))]
       (every? #(% event-instance) rules)
       ;; if no rules are set, allow the evaluation.
@@ -26,8 +27,8 @@
   CRUD action on an entity."
   [event-instance zero-trust-rbac action rec-name caller-data]
   (if (and @rbac-inited (cn/find-entity-schema rec-name))
-    (let [evt (assoc-in event-instance [:EventContext :Data] caller-data)]
-      (if-let [rules (seq (rp/rbac-eval-rules rec-name))]
+    (let [evt (assoc-in event-instance [li/event-context :Data] caller-data)]
+      (if-let [rules (seq (rp/rbac-rules rec-name))]
         (loop [rules rules, result false]
           (if-let [rule (first rules)]
             (if (some #{action} (first rule))

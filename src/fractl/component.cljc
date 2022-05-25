@@ -349,7 +349,7 @@
 (defn attribute-names
   "Return names of attributes from schema as a set."
   [schema]
-  (when-let [ks (seq (keys (:schema schema)))]
+  (when-let [ks (seq (keys (or (:schema schema) schema)))]
     (set ks)))
 
 (def attributes :schema)
@@ -454,10 +454,10 @@
   (let [sks (set (keys schema))
         aks (set (keys attributes))]
     (when-let [ks (seq (set/difference aks sks))]
-      (log/warn (str "Error in " (when (get schema :EventContext) "event ")
+      (log/warn (str "Error in " (when (get schema li/event-context) "event ")
                      recname
                      " Here is the error line: "
-                     (when (get schema :EventContext) "check this line in event: ")
+                     (when (get schema li/event-context) "check this line in event: ")
                      (conj {} (first schema))))
       (throw-error (str recname " - invalid attribute(s) found - " ks)))
     true))
@@ -497,13 +497,16 @@
       r)))
 
 (defn- check-format [ascm aname aval]
-  (when-let [p (:check ascm)]
-    (when-not (p aval)
-      (throw-error (str "check failed, invalid value " aval " for " aname))))
-  (when-let [fmt (:format ascm)]
-    (when-not (fmt aval)
-      (throw-error (str "format mismatch - " aname))))
-  aval)
+  (if (and (:optional ascm) (u/empty-string? aval))
+    aval
+    (do
+      (when-let [p (:check ascm)]
+        (when-not (p aval)
+          (throw-error (str "check failed, invalid value " aval " for " aname))))
+      (when-let [fmt (:format ascm)]
+        (when-not (fmt aval)
+          (throw-error (str "format mismatch - " aname))))
+      aval)))
 
 (defn- instantiable-map? [x]
   (and (map? x)
@@ -700,7 +703,12 @@
   [recname attrs schema]
   (loop [hashed (seq (hashed-attributes schema)), result attrs]
     (if-let [k (first hashed)]
-      (recur (rest hashed) (assoc result k (sh/crypto-hash (k result))))
+      (let [v (k result)]
+        (recur
+         (rest hashed)
+         (if (sh/crypto-hash? v)
+           result
+           (assoc result k (sh/crypto-hash v)))))
       result)))
 
 (defn make-instance
@@ -1232,6 +1240,11 @@
 (defn compound-unique-attributes [entity-name]
   (:unique (fetch-meta entity-name)))
 
+(defn- instance-name-str [n]
+  (if (keyword? n)
+    (name n)
+    (str (name (first n)) "/" (name (second n)))))
+
 (defn instance-str [instance]
   (let [n (instance-name instance)]
     (if-let [str-pat (:str (fetch-meta n))]
@@ -1241,4 +1254,34 @@
                             (% instance)
                             %)
                          str-pat)))
-      (str n))))
+      (instance-name-str n))))
+
+(defn- displayable-record-names [component-info]
+  (let [components
+        (cond
+          (keyword? component-info)
+          [component-info]
+
+          (vector? component-info)
+          component-info
+
+          :else
+          (u/throw-ex
+           (str "invalid component-info - " component-info)))
+        names (set
+               (apply
+                concat
+                (mapv
+                 #(concat
+                   (entity-names %)
+                   (event-names %)
+                   (record-names %))
+                 components)))]
+    (filter #(:order (fetch-meta %)) names)))
+
+(defn event? [recname]
+  (if (event-schema recname)
+    true
+    false))
+
+(def hashed-attribute? :secure-hash)
