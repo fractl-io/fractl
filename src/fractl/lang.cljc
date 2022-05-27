@@ -793,13 +793,23 @@
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 86400}}})
 
+  (entity
+   :Kernel/Role
+   {:Name {:type :Kernel/String
+           :unique true}})
+
+  (event
+   :Kernel/AssignRole
+   {:Role {:ref :Kernel/Role.Name}
+    :To :Kernel/Entity})
+
   (entity {:Kernel/Policy
            {:Intercept :Kernel/String
             :Resource {:listof :Kernel/Path}
-            :Rule :Kernel/Any
-            :Trigger {:type :Kernel/Path :optional true}
-            :InterceptStage {:oneof [:PreEval :PostEval :Default]
-                             :default :Default}}})
+            :Spec :Kernel/Edn
+            :InterceptStage
+            {:oneof [:PreEval :PostEval :Default]
+             :default :Default}}})
 
   (entity {:Kernel/Timer
            {:Expiry :Kernel/Int

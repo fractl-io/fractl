@@ -69,7 +69,7 @@
   "Add a policy to the store. The policy rules are compiled with the
   help of the rule engine."
   [db policy crud-rule]
-  (let [rule (:Rule policy)
+  (let [rule (:Spec policy)
         stg (keyword (:InterceptStage policy))
         stage (if (= stg :Default)
                 PRE-EVAL
@@ -101,7 +101,7 @@
 (defn- save-any-policy [db policy]
   (install-policy
    db policy
-   (crud-rule? (:Rule policy))))
+   (crud-rule? (:Spec policy))))
 
 (def ^:private save-policy
   {:RBAC save-any-policy
@@ -109,9 +109,9 @@
 
 (defn- normalize-policy [inst]
   ;; Remove the :q# (quote) prefix from rule.
-  (let [rule (:Rule inst)]
+  (let [rule (:Spec inst)]
     (if (li/quoted? rule)
-      (assoc inst :Rule (second rule))
+      (assoc inst :Spec (second rule))
       inst)))
 
 (defn- intercept-db [k]

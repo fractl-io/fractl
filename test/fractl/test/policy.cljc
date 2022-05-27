@@ -48,7 +48,7 @@
                    {:Kernel/Policy
                     {:Intercept "RBAC"
                      :Resource ["EVP/Upsert_User"]
-                     :Rule [:q#
+                     :Spec [:q#
                             [:when
                              [:= "admin" :EventContext.Auth.Owner.Group]]]}})
            r2 (tu/first-result
@@ -103,7 +103,7 @@
                    {:Kernel/Policy
                     {:Intercept "RBAC"
                      :Resource ["ENP/User"]
-                     :Rule [:q#
+                     :Spec [:q#
                             [[:Upsert :Lookup]
                              [:when
                               [:= "admin"
@@ -164,7 +164,7 @@
                    {:Kernel/Policy
                     {:Intercept "Logging"
                      :Resource [:LP/Upsert_User :LP/Lookup_User]
-                     :Rule [:q#
+                     :Spec [:q#
                             {:Disable :INFO
                              :PagerThreshold
                              {:WARN
@@ -181,7 +181,7 @@
                    {:Kernel/Policy
                     {:Intercept "Logging"
                      :Resource ["LP/User"]
-                     :Rule [:q#
+                     :Spec [:q#
                             [[:Upsert :Lookup]
                              {:HideAttributes
                               [:LP/User.Password
@@ -205,7 +205,7 @@
               {:Kernel/Policy
                {:Intercept "Logging"
                 :Resource ["LP/User"]
-                :Rule [:q#
+                :Spec [:q#
                        [[:Upsert :Lookup]
                         {:InvalidPolicyKey 123}]]}})}})))
        (let [user (cn/make-instance
@@ -231,7 +231,7 @@
                {:Kernel/Policy
                 {:Intercept "RBAC"
                  :Resource ["ZtRbac/Evt2"]
-                 :Rule [:q# [:allow-all]]}})
+                 :Spec [:q# [:allow-all]]}})
      (let [p (tu/first-result
               (cn/make-instance
                {:ZtRbac/Evt2Policy {}}))
