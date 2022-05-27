@@ -265,3 +265,9 @@
 
 (defn remote-evaluate [host callback event-instance]
   (rt/remote-eval host {:callback callback} event-instance))
+
+(defn ok-result [result]
+  (let [f (first result)]
+    (if (= :ok (:status f))
+      (:result f)
+      (u/throw-ex (str "unexpected result: " result)))))

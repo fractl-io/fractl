@@ -763,7 +763,7 @@
         :Password {:type :Kernel/String :optional true}})
 
   (entity {:Kernel/Resolver
-           {:Type :Kernel/Keyword
+           {:Type :Kernel/String
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
 
@@ -803,13 +803,16 @@
    {:Role {:ref :Kernel/Role.Name}
     :To :Kernel/Entity})
 
-  (entity {:Kernel/Policy
-           {:Intercept :Kernel/String
-            :Resource {:listof :Kernel/Path}
-            :Spec :Kernel/Edn
-            :InterceptStage
-            {:oneof [:PreEval :PostEval :Default]
-             :default :Default}}})
+  (entity
+   :Kernel/Policy
+   {:Intercept {:type :Kernel/Keyword
+                :indexed true}
+    :Resource {:type :Kernel/Path
+               :indexed true}
+    :Spec :Kernel/Edn
+    :InterceptStage
+    {:oneof [:PreEval :PostEval :Default]
+     :default :Default}})
 
   (entity {:Kernel/Timer
            {:Expiry :Kernel/Int
@@ -921,7 +924,7 @@
        (record :Kernel/DataSource
                {:Uri {:type :Kernel/String
                       :optional true} ;; defaults to currently active store
-                :Entity :Kernel/Path ;; name of an entity
+                :Entity :Kernel/String ;; name of an entity
                 :AttributeMapping {:type :Kernel/Map
                                    :optional true}})
 
@@ -941,10 +944,6 @@
                     :record record
                     :dataflow dataflow}}
           :paths [:Kernel/LoadModelFromMeta]}
-         {:name :policy
-          :type :policy
-          :compose? false
-          :paths [:Kernel/Policy]}
          {:name :auth
           :type :auth
           :compose? false

@@ -243,14 +243,17 @@
 (def find-event-schema (partial find-record-schema-by-type :event))
 
 (defn find-schema [path]
-  (u/first-applied [find-attribute-schema :attribute
-                    find-entity-schema :entity
+  (u/first-applied [find-entity-schema :entity
                     find-event-schema :event
-                    find-record-schema :record]
+                    find-record-schema :record
+                    find-attribute-schema :attribute]
                    [path]))
 
 (defn fetch-schema [some-type]
   (:schema (second (find-schema some-type))))
+
+(defn fetch-entity-schema [entity-name]
+  (:schema (find-entity-schema entity-name)))
 
 (defn find-object-schema [path]
   (or (find-entity-schema path)

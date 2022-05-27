@@ -3,6 +3,7 @@
             [clojure.set :as set]
             [clojure.string :as s]
             [fractl.component :as cn]
+            [fractl.lang.kernel :as lk]
             [fractl.lang.internal :as li]
             [fractl.util :as u]))
 
@@ -115,9 +116,10 @@
   (let [s (str n)]
     (subs s 2)))
 
-(defn- normalize-attribute [[k v]]
+(defn- normalize-attribute [schema [k v]]
   [k
    (cond
+     (lk/keyword-type? (cn/attribute-type schema k)) (keyword v)
      (uuid? v) (str v)
      (and (string? v) (s/starts-with? v obj-prefix))
      (#?(:clj read-string :cljs clj->js)
@@ -140,7 +142,7 @@
             (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
         (cn/make-instance
          entity-name
-         (into {} (mapv normalize-attribute obj))
+         (into {} (mapv (partial normalize-attribute (cn/fetch-entity-schema entity-name)) obj))
          false)))))
 
 (defn results-as-instances [entity-name results]

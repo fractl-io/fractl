@@ -228,6 +228,11 @@
     (keyword x)
     x))
 
+(defn keyword-as-string [x]
+  (if (keyword? x)
+    (subs (str x) 1)
+    x))
+
 (defn objects-as-string [xs]
   (mapv #(cond
            (and (seqable? %) (not (string? %)))
