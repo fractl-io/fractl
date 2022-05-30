@@ -7,11 +7,12 @@
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.rbac.policy :as policy]
+            [fractl.rbac.role-assignment :as ra]
             [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(deftest issue-506-policy-persistence
+(deftest issue-506-policy-management
   (#?(:clj do
       :cljs cljs.core.async/go)
    (let [all-actions [:Upsert :Delete :Lookup]]
@@ -55,3 +56,47 @@
      (is (= 2 (count r2)))
      (doseq [r r2]
        (is (= :I556PP/E1 (:Resource r)))))))
+
+(deftest issue-506-role-management
+  (#?(:clj do
+      :cljs cljs.core.async/go)
+   (defcomponent :I506RM
+     (entity
+      :I506RM/User
+      {:Username :Kernel/String})
+     (record
+      :I506RM/Result
+      {:Data :Kernel/Any})
+     (dataflow
+      :I506RM/MakeUsers
+      {:I506RM/User
+       {:Username "abc"} :as :U1}
+      {:I506RM/User
+       {:Username "xyz"} :as :U2}
+      {:I506RM/Result
+       {:Data [:U1 :U2]}})
+     (dataflow
+      :I506RM/AssignRoles
+      {:Kernel/Role
+       {:Name "supervisor"} :as :R1}
+      {:Kernel/Role
+       {:Name "officer"} :as :R2}
+      {:I506RM/User {:Username? "abc"} :as [:U1 :& :_]}
+      {:I506RM/User {:Username? "xyz"} :as [:U2 :& :_]}
+      {:Kernel/RoleAssignment
+       {:Role :R1
+        :Assignee :U1} :as :RA1}
+      {:Kernel/RoleAssignment
+       {:Role :R2
+        :Assignee :U2} :as :RA2}
+      {:I506RM/Result
+       {:Data [:RA1 :RA2]}}))
+   (let [r1 (tu/first-result
+             {:I506RM/MakeUsers {}})
+         r2 (tu/first-result
+             {:I506RM/AssignRoles {}})
+         users (:Data r1)
+         u1 (get-in (first users) [:transition :to])
+         u2 (get-in (second users) [:transition :to])]
+     (is (= "supervisor" (first (ra/find-assigned-roles (:Id u1)))))
+     (is (= "officer" (first (ra/find-assigned-roles (:Id u2))))))))

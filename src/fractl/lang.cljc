@@ -800,7 +800,7 @@
 
   (event
    :Kernel/RoleAssignment
-   {:Role {:ref :Kernel/Role.Name}
+   {:Role :Kernel/Role
     :Assignee :Kernel/Entity})
 
   (entity

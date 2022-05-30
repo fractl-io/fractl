@@ -1,7 +1,7 @@
 (ns fractl.rbac.role-assignment
   "Policy management"
   (:require [fractl.lang :as f]
-            [fractl.component :as cn]))
+            [fractl.evaluator :as ev]))
 
 (f/component :Kernel.Role)
 
@@ -14,9 +14,9 @@
 (f/dataflow
  :Kernel/RoleAssignment
  {:Kernel.Role/Assignment
-  {:Role :Kernel/RoleAssignment.Role
+  {:Role :Kernel/RoleAssignment.Role.Name
    :AssigneeId :Kernel/RoleAssignment.Assignee.Id
-   :AssigneeType '(cn/instance-type :Kernel/RoleAssignment.Assignee)}})
+   :AssigneeType '(fractl.component/instance-type :Kernel/RoleAssignment.Assignee)}})
 
 (f/dataflow
  :Kernel.Role/FindAssignedRoles
@@ -24,3 +24,9 @@
   {:AssigneeId? :Kernel.Role/FindAssignedRoles.AssigneeId}
   :as :A}
  [:for-each :A '(:Role :%)])
+
+(defn find-assigned-roles [assignee-id]
+  (let [result (ev/eval-all-dataflows
+                {:Kernel.Role/FindAssignedRoles
+                 {:AssigneeId assignee-id}})]
+    (ev/ok-result result)))
