@@ -14,7 +14,7 @@
 
 (defn- intern-instance!
   [inst]
-  (let [entity-name (cn/instance-name inst)
+  (let [entity-name (cn/instance-type inst)
         parsed-entity (li/split-path entity-name)
         id (:Id inst)]
     (swap! inst-store assoc-in [parsed-entity id] inst))

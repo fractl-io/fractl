@@ -17,7 +17,7 @@
   (let [[entity-name instance] obj
         id-attr (cn/identity-attribute-name entity-name)
         id-attr-nm (name id-attr)
-        attrs (cn/fetch-schema (cn/instance-name instance))
+        attrs (cn/fetch-schema (cn/instance-type instance))
         ks (sort (keys attrs))
         col-names (mapv name ks)
         col-vals (u/objects-as-string (mapv #(or (% instance) "") ks))

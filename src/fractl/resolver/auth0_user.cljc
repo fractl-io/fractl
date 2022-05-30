@@ -68,7 +68,7 @@
      (let [store (env/get-store env)
            [entity-name entity-id] (first arg)
            inst (s/lookup-by-id store entity-name entity-id)]
-     (case (cn/instance-name inst)
+     (case (cn/instance-type inst)
        [:Kernel :Auth0User]
        (if (delete-auth0-user inst)
          (s/delete-by-id store entity-name entity-id) nil)))))
@@ -80,7 +80,7 @@
            entity-id (nth (:where (second arg)) 2)
            inst (s/lookup-by-id store entity-name entity-id)]
        
-       (case (cn/instance-name inst)
+       (case (cn/instance-type inst)
          [:Kernel :Auth0User]
          (let [user-map (get-user-info inst)
                user-hash (into {} user-map)

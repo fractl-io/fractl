@@ -50,7 +50,7 @@
 
 (defn- make-rows-view [rows fields]
   (if (seq rows)
-    (let [rec-name (cn/instance-name (first rows))
+    (let [rec-name (cn/instance-type (first rows))
           styles (mt/styles (cn/fetch-meta rec-name))
           table-head-cell-style (style/table-head-cell styles)
           headers (mapv (fn [f] [:> TableCell table-head-cell-style (name f)]) fields)
@@ -98,7 +98,7 @@
                              (u/string-as-keyword src)
                              {}))
              table-view [:div [:div {:id id}]
-                         (when (= :Dashboard (second (li/split-path (cn/instance-name instance))))
+                         (when (= :Dashboard (second (li/split-path (cn/instance-type instance))))
                            [:> Button
                             {:on-click #(v/render-view
                                          (v/make-input-view rec-name))}

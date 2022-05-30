@@ -60,7 +60,7 @@
 
 (defn- upsert-instances [insts]
   (let [ev (es/get-active-evaluator)
-        [component entity-name] (li/split-path (cn/instance-name (first insts)))
+        [component entity-name] (li/split-path (cn/instance-type (first insts)))
         event-name (li/make-path
                     [component
                      (keyword (str "Upsert_" (subs (str entity-name) 1)))])]
@@ -157,11 +157,11 @@
          "destination required for data-sync")))))
 
 (defn- data-sync-eval [inst]
-  (case (cn/instance-name inst)
+  (case (cn/instance-type inst)
     [:Kernel :DataSync] (data-sync inst)
     (u/throw-ex
      (str "data-sync resolver cannot handle "
-          (cn/instance-name inst)))))
+          (cn/instance-type inst)))))
 
 (def ^:private resolver-fns
   {:eval {:handler data-sync-eval}})

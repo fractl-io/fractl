@@ -1,9 +1,8 @@
 (ns fractl.resolver.role-assignment
   "Policy management"
-  (:require [fractl.lang :as f]
-            [fractl.util :as u]
-            [fractl.evaluator :as ev]
+  (:require [fractl.evaluator :as ev]
             [fractl.component :as cn]
+            [fractl.resolver.core :as r]
             [fractl.rbac.role-assignment]))
 
 (defn ra-upsert [inst]

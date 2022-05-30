@@ -70,7 +70,7 @@
                  (String.
                   (.bytes body)
                   java.nio.charset.StandardCharsets/UTF_8)))
-          obj-name (or (cn/instance-name obj)
+          obj-name (or (cn/instance-type obj)
                        (li/split-path
                         (u/string-as-keyword
                          (first (keys obj)))))]

@@ -38,7 +38,7 @@
                            (seqable? target-info))
         [rec-name final-entity-spec]
         (cond
-          is-inst [(cn/instance-name target-info)
+          is-inst [(cn/instance-type target-info)
                    {:instance target-info}]
           is-query-spec [(first target-info)
                          {:query-info target-info}]
@@ -117,5 +117,5 @@
              (query-and-make-dashboard-view instance rec-name % r))))
       lrs)))
   ([instance]
-   (let [n (cn/instance-name instance)]
+   (let [n (cn/instance-type instance)]
      (make-list-refs-view n instance (cn/fetch-meta n)))))

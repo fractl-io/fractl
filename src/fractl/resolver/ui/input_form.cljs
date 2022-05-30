@@ -154,7 +154,7 @@
     (fn [r]
       (v/render-view
        (v/make-list-view
-        {:record (cn/instance-name (first r))
+        {:record (cn/instance-type (first r))
          :source (vec r)})))))
 
 (defn- navigation-buttons [rels prev-rec-name]

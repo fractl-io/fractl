@@ -60,7 +60,7 @@
       [:> ~CardActions ~(make-menu navigation-links)]]))
 
 (defn- make-instance-view [inst]
-  (let [n (cn/instance-name inst)
+  (let [n (cn/instance-type inst)
         schema (cn/fetch-schema n)
         meta (cn/fetch-meta n)
         nav (atom [])

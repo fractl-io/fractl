@@ -6,7 +6,7 @@
             [fractl.resolver.core :as r]))
 
 (defn- event-name [event-type inst]
-  (let [[component inst-name] (li/split-path (cn/instance-name inst))]
+  (let [[component inst-name] (li/split-path (cn/instance-type inst))]
     (str (name component) "/" (name event-type) "_" (name inst-name))))
 
 (defn- response-handler [callback response]

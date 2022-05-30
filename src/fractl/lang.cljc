@@ -798,7 +798,7 @@
    {:Name {:type :Kernel/String
            :unique true}})
 
-  (entity
+  (event
    :Kernel/RoleAssignment
    {:Role {:ref :Kernel/Role.Name}
     :Assignee :Kernel/Entity})
@@ -952,10 +952,6 @@
           :type :auth0-user
           :compose? true
           :paths [:Kernel/Auth0User]}
-         {:name :role-assignment
-          :type :role-assignment
-          :compose? false
-          :paths [:Kernel/RoleAssignment]}
          {:name :timer
           :type :timer
           :compose? false

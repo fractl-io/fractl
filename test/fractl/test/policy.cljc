@@ -6,7 +6,7 @@
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
-            [fractl.policy :as policy]
+            [fractl.rbac.policy :as policy]
             [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))

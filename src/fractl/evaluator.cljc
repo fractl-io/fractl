@@ -69,7 +69,7 @@
                   rbac/evaluate-opcode?
                   event-instance
                   @zero-trust-rbac-flag))
-                (li/split-path (cn/instance-name event-instance))
+                (li/split-path (cn/instance-type event-instance))
                 event-instance)
                env)
          [_ dc] (cn/dataflow-opcode df)
@@ -105,7 +105,7 @@
 
 (defn- log-result-object [hidden-attrs event-instance obj]
   (log/info
-   (str "dataflow result for " (cn/instance-name event-instance)
+   (str "dataflow result for " (cn/instance-type event-instance)
         " - " (remove-hidden-attributes hidden-attrs obj))))
 
 (defn- eval-dataflow-with-logs [evaluator env event-instance
@@ -120,7 +120,7 @@
       (do (when log-error
             (log/error
              (str "error in dataflow for "
-                  (cn/instance-name event-instance)
+                  (cn/instance-type event-instance)
                   " - " #?(:clj (.getMessage ex) :cljs ex))))
           (throw ex)))))
 
@@ -160,7 +160,7 @@
         (when log-info (log-event hidden-attrs event-instance))
         (mapv ef dfs))
       (let [msg (str "no authorization to evaluate dataflows on event - "
-                     (cn/instance-name event-instance))]
+                     (cn/instance-type event-instance))]
         (when log-warn
           (log/warn msg))
         (u/throw-ex msg)))))

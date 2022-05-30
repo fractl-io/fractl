@@ -16,7 +16,7 @@
   [event-instance zero-trust-rbac]
   (if @rbac-inited
     (if-let [rules (rp/rbac-rules
-                    (cn/instance-name event-instance))]
+                    (cn/instance-type event-instance))]
       (every? #(% event-instance) rules)
       ;; if no rules are set, allow the evaluation.
       (not zero-trust-rbac))

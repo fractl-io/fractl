@@ -123,7 +123,7 @@
     (log/error (str "Component " component " is not present!"))))
 
 (def ^:private meta-key :-*-meta-*-)
-(def ^:private name-key :-*-name-*-)
+(def ^:private type-key :-*-type-*-)
 (def ^:private dirty-key :-*-dirty-*-)
 (def ^:private type-tag-key :type-*-tag-*-)
 
@@ -143,7 +143,7 @@
      (when-not (component-exists? component)
        (u/throw-ex-info
         (str "component not found - " component)
-        {name-key typname
+        {type-key typname
          :tag typtag}))
      (u/call-and-set
       components
@@ -262,25 +262,25 @@
 
 (defn make-record-instance [type-tag full-name attributes]
   (into {} (concat {type-tag-key type-tag
-                    name-key full-name} attributes)))
+                    type-key full-name} attributes)))
 
 (def instance->map identity)
 
 (defn instance-type-tag [rec]
   (type-tag-key rec))
 
-(defn instance-name [rec]
-  (name-key rec))
+(defn instance-type [rec]
+  (type-key rec))
 
 (defn ensure-type-and-name [inst type-name type-tag]
   (assoc
    (if (type-tag-key inst)
      inst
      (assoc inst type-tag-key type-tag))
-   name-key type-name))
+   type-key type-name))
 
-(defn parsed-instance-name [rec]
-  (li/split-path (name-key rec)))
+(defn parsed-instance-type [rec]
+  (li/split-path (type-key rec)))
 
 (defn record-instance? [rec]
   (= :record (instance-type-tag rec)))
@@ -309,14 +309,14 @@
   "Return true if the fully-qualified name is the same as that of the instance."
   [nm inst]
   (or (= (li/split-path nm)
-         (parsed-instance-name inst))
-      (inherits? nm (instance-name inst))))
+         (parsed-instance-type inst))
+      (inherits? nm (instance-type inst))))
 
 (defn instance-attributes [x]
   (when (an-instance? x)
     (dissoc
      x type-tag-key
-     name-key dirty-key)))
+     type-key dirty-key)))
 
 (defn instance-all-attributes [x]
   (when (an-instance? x)
@@ -327,7 +327,7 @@
    Excludes :Id in its return"
   [inst]
   (when (an-instance? inst)
-    (dissoc inst type-tag-key :Id name-key dirty-key)))
+    (dissoc inst type-tag-key :Id type-key dirty-key)))
 
 (def set-attribute-value assoc)
 
@@ -337,8 +337,8 @@
 (defn same-record-type?
   "Return true if both instances have the same name and type."
   [inst-a inst-b]
-  (and (= (instance-name inst-a)
-          (instance-name inst-b))
+  (and (= (instance-type inst-a)
+          (instance-type inst-b))
        (= (instance-type-tag inst-a)
           (instance-type-tag inst-b))))
 
@@ -346,7 +346,7 @@
   "Make a copy of the given instance and set the new attributes."
   [inst newattrs]
   (make-record-instance (instance-type-tag inst)
-                        (instance-name inst)
+                        (instance-type inst)
                         newattrs))
 
 (defn attribute-names
@@ -409,7 +409,7 @@
   [a b]
   (or (identical? a b)
       (if (every? entity-instance? [a b])
-        (let [instname (parsed-instance-name a)]
+        (let [instname (parsed-instance-type a)]
           (and (instance-of? instname b)
                (when-let [idattr (identity-attribute-name instname)]
                  (= (idattr (instance-attributes a))
@@ -425,8 +425,8 @@
 (defn same-type? [inst1 inst2]
   (and (= (instance-type-tag inst1)
           (instance-type-tag inst2))
-       (= (parsed-instance-name inst1)
-          (parsed-instance-name inst2))))
+       (= (parsed-instance-type inst1)
+          (parsed-instance-type inst2))))
 
 (defn same-instance? [a b]
   (and (instance-eq? a b) (attributes-eq? a b)))
@@ -651,10 +651,10 @@
   (type-tag-key (find-record-schema recname)))
 
 (defn- serialized-instance? [x]
-  (and (type-tag-key x) (name-key x)))
+  (and (type-tag-key x) (type-key x)))
 
 (defn- deserialize-name [x]
-  (let [n (name-key x)]
+  (let [n (type-key x)]
     (cond
       (keyword? n) n
       (string? n) (keyword n)
@@ -664,7 +664,7 @@
 (defn- deserialize-instance [x]
   (let [tp (keyword (type-tag-key x))
         nm (deserialize-name x)]
-    (assoc x type-tag-key tp name-key nm)))
+    (assoc x type-tag-key tp type-key nm)))
 
 (declare make-instance)
 
@@ -770,7 +770,7 @@
 (defn entity-event? [x]
   (let [n (if (keyword? x)
             (str x)
-            (str (instance-name x)))]
+            (str (instance-type x)))]
     (some (partial s/ends-with? n)
           entity-event-name-suffixes)))
 
@@ -779,7 +779,7 @@
 
 (defn kernel-crud-event [event-type trig-type inst oldinst]
   (let [evtname (make-entity-event-name
-                 (instance-name inst)
+                 (instance-type inst)
                  event-type trig-type)]
     (make-event-instance
      evtname
@@ -801,14 +801,14 @@
    A new instance of this type is returned with the attributes of `b` merged into `a`."
   [a b]
   (let [newattrs (validate-record-attributes
-                  (instance-name a)
+                  (instance-type a)
                   (merge (instance-attributes a) (instance-attributes b)))]
     (make-with-attributes a newattrs)))
 
 (defn- event-name [e]
   (cond
     (keyword? e) e
-    (event-instance? e) (instance-name e)
+    (event-instance? e) (instance-type e)
     (map? e) (let [n (first (keys e))]
                (if (keyword? n)
                  n
@@ -1040,7 +1040,7 @@
 
 (defn serializable-attributes [inst]
   (let [attrs (instance-attributes inst)
-        schema (entity-schema (name-key inst))
+        schema (entity-schema (type-key inst))
         new-attrs (map (fn [[k v]]
                          (let [ascm (find-attribute-schema v)]
                            (when-not (computed? ascm)
@@ -1052,7 +1052,7 @@
   (= :Kernel/Resolver n))
 
 (defn tag? [k]
-  (or (= k name-key)
+  (or (= k type-key)
       (= k type-tag-key)))
 
 (defn attribute-unique-reference-path [[attr-name attr-spec]]
@@ -1078,7 +1078,7 @@
   (:ref (find-attribute-schema attr-schema-name)))
 
 (defn dissoc-write-only [instance]
-  (let [schema (ensure-schema (instance-name instance))]
+  (let [schema (ensure-schema (instance-type instance))]
     (if-let [wo-attrs (seq (write-only-attributes schema))]
       (into {} (filter (fn [[k _]]
                          (not (some #{k} wo-attrs)))
@@ -1111,7 +1111,7 @@
      {dirty-key true})))
 
 (defn validate-instance [inst]
-  (let [n (instance-name inst)
+  (let [n (instance-type inst)
         schema (ensure-schema n)
         attrs (validate-record-attributes
                n (instance-attributes inst) schema)]
@@ -1122,7 +1122,7 @@
        inst))))
 
 (defn tag-record [recname attrs]
-  (assoc attrs name-key recname type-tag-key :record))
+  (assoc attrs type-key recname type-tag-key :record))
 
 (def ^:private trigger-store
   #?(:clj  (ref {})
@@ -1160,16 +1160,16 @@
   "Return conditional events to fire for the given instance"
   [obj]
   (let [instance (if (an-instance? obj) obj (get-in obj [:transition :from]))
-        recname (li/split-path (instance-name instance))]
+        recname (li/split-path (instance-type instance))]
     (seq (get @trigger-store recname))))
 
 (defn fire-event? [event-info instances]
-  (let [args (map (fn [inst] [(li/split-path (instance-name inst)) inst]) instances)]
+  (let [args (map (fn [inst] [(li/split-path (instance-type inst)) inst]) instances)]
     (when ((first event-info) (into {} args))
       true)))
 
 (defn- replace-referenced-value [loaded-instances [[c n] r :as term]]
-  (if-let [inst (first (filter #(= (li/split-path (instance-name %)) [c n]) loaded-instances))]
+  (if-let [inst (first (filter #(= (li/split-path (instance-type %)) [c n]) loaded-instances))]
     (if-let [v (get inst r)]
       v
       (u/throw-ex (str "failed to load reference - " term)))
@@ -1238,18 +1238,18 @@
   false)
 
 (defn meta-attribute-name? [k]
-  (some #{k} [name-key type-tag-key dirty-key meta-key]))
+  (some #{k} [type-key type-tag-key dirty-key meta-key]))
 
 (defn compound-unique-attributes [entity-name]
   (:unique (fetch-meta entity-name)))
 
-(defn- instance-name-str [n]
+(defn- instance-type-str [n]
   (if (keyword? n)
     (name n)
     (str (name (first n)) "/" (name (second n)))))
 
 (defn instance-str [instance]
-  (let [n (instance-name instance)]
+  (let [n (instance-type instance)]
     (if-let [str-pat (:str (fetch-meta n))]
       (if (keyword? str-pat)
         (str (str-pat instance))
@@ -1257,7 +1257,7 @@
                             (% instance)
                             %)
                          str-pat)))
-      (instance-name-str n))))
+      (instance-type-str n))))
 
 (defn- displayable-record-names [component-info]
   (let [components

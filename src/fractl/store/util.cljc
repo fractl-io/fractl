@@ -103,7 +103,7 @@
          v)]))
 
 (defn serialize-objects [instance]
-  (let [fattrs (mapv first (cn/future-attrs (cn/instance-name instance)))]
+  (let [fattrs (mapv first (cn/future-attrs (cn/instance-type instance)))]
     (into {} (mapv (partial serialize-obj-entry fattrs) instance))))
 
 (defn- normalize-result
