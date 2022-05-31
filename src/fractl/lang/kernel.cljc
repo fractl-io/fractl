@@ -128,7 +128,3 @@
 
 (defn event-context-attribute-schema []
   (second event-context-type))
-
-(defn keyword-type? [x]
-  (or (= x :Kernel/Keyword)
-      (= x :Kernel/Path)))

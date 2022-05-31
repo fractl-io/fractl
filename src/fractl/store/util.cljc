@@ -3,7 +3,6 @@
             [clojure.set :as set]
             [clojure.string :as s]
             [fractl.component :as cn]
-            [fractl.lang.kernel :as lk]
             [fractl.lang.internal :as li]
             [fractl.util :as u]))
 
@@ -119,7 +118,7 @@
 (defn- normalize-attribute [schema [k v]]
   [k
    (cond
-     (lk/keyword-type? (cn/attribute-type schema k)) (keyword v)
+     (li/keyword-type? (cn/attribute-type schema k)) (keyword v)
      (uuid? v) (str v)
      (and (string? v) (s/starts-with? v obj-prefix))
      (#?(:clj read-string :cljs clj->js)

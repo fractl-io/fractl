@@ -28,22 +28,22 @@
         {:Kernel/Role
          {:Name "role-1"} :as :R1}
         {:Kernel/Policy
-         {:Intercept :RBAC
-          :Resource :I556PP/E1
+         {:Intercept "RBAC"
+          :Resource "I556PP/E1"
           :Spec [:q#
                  {:actions all-actions
                   :role :R1}]}}
         {:Kernel/Role
          {:Name "role-2"} :as :R2}
         {:Kernel/Policy
-         {:Intercept :RBAC
-          :Resource :I556PP/E1
+         {:Intercept "RBAC"
+          :Resource "I556PP/E1"
           :Spec [:q#
                  {:actions [:Lookup]
                   :role :R2}]}}
         {:Kernel/Policy
-         {:Intercept :RBAC
-          :Resource :I556PP/E2
+         {:Intercept "RBAC"
+          :Resource "I556PP/E2"
           :Spec [:q#
                  {:actions all-actions
                   :role :R1}]}})))

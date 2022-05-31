@@ -731,8 +731,8 @@
    full-record-name must be in the form - :ComponentName/RecordName.
    Return the new record on success, return an :error record on failure."
   ([record-name attributes validate?]
-   (let [attrs-with-insts (maps-to-insts attributes validate?)
-         schema (ensure-schema record-name)
+   (let [schema (ensure-schema record-name)
+         attrs-with-insts (maps-to-insts attributes validate?)
          validated-attrs (if validate?
                            (validate-record-attributes record-name attrs-with-insts schema)
                            attrs-with-insts)

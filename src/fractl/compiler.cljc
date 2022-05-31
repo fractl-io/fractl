@@ -7,7 +7,6 @@
             [fractl.util.seq :as us]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
-            [fractl.lang.kernel :as lk]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.store :as store]
@@ -338,17 +337,6 @@
     [(dissoc pat :as) :as alias]
     [pat]))
 
-(defn- preprocess-keywords [schema attrs]
-  (let [r (mapv (fn [[k v]]
-                  [k (if (and
-                          (lk/keyword-type?
-                           (cn/attribute-type schema k))
-                          (keyword? v))
-                       (subs (str v) 1)
-                       v)])
-                attrs)]
-    (into {} r)))
-
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -360,11 +348,10 @@
     (let [full-nm (li/instance-pattern-name pat)
           {component :component record :record} (li/path-parts full-nm)
           nm [component record]
-          [tag scm] (cv/find-schema nm full-nm)
-          plain-scm (or (:schema scm) scm)
-          attrs (preprocess-keywords plain-scm (li/instance-pattern-attrs pat))
+          attrs (li/instance-pattern-attrs pat)
           alias (:as pat)
-          timeout-ms (:timeout-ms pat)]
+          timeout-ms (:timeout-ms pat)
+          [tag scm] (cv/find-schema nm full-nm)]
       (let [c (case tag
                 :entity emit-realize-entity-instance
                 :record emit-realize-record-instance
