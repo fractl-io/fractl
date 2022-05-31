@@ -2,34 +2,35 @@
   (:require [fractl.policy :as policy]
             [fractl.component :as cn]))
 
-(def ^:private views-key :views)
+(def ^:private views-tag :views)
 
-(defn- views [meta]
-  (or (views-key meta)
-      (let [rec-name (cn/meta-of meta)]
-        (policy/lookup-policies views-key rec-name))))
+(defn- views-meta [meta]
+  (if (views-tag meta)
+    meta
+    (let [rec-name (cn/meta-of meta)]
+      {views-tag (policy/lookup-policies views-tag rec-name)})))
 
 (defn view-event [meta tag]
-  (tag (views meta)))
+  (get-in meta (concat [views-tag] tag)))
 
 (defn authorize? [meta]
   (= :authorize
      (get-in
-      (views meta)
-      [:create-button :on-success])))
+      meta
+      [views-tag :create-button :on-success])))
 
 (defn contains [meta]
-  (seq (:contains (views meta))))
+  (seq (get-in meta [views-tag :contains])))
 
 (defn attribute-view-spec [meta field-name]
-  (get-in (views meta) [:attributes field-name :input]))
+  (get-in meta [views-tag :attributes field-name :input]))
 
 (defn create-button-label [meta]
-  (get-in (views meta) [:create-button :label]))
+  (get-in meta [views-tag :create-button :label]))
 
 (def upsert-event :upsert-event)
 (def delete-event :delete-event)
 (def order :order)
 
 (defn styles [meta]
-  (:styles (views meta)))
+  (get-in meta [views-tag :styles]))

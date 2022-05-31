@@ -19,4 +19,4 @@
           {:Kernel.Policy/LoadPolicies
            {:Intercept (u/keyword-as-string intercept)
             :Resource (u/keyword-as-string resource)}}))]
-    (ev/ok-result result)))
+    (ev/ok-result result true)))
