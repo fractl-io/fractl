@@ -123,6 +123,7 @@
     (log/error (str "Component " component " is not present!"))))
 
 (def ^:private meta-key :-*-meta-*-)
+(def ^:private meta-of-key :-*-meta-of-*-)
 (def ^:private type-key :-*-type-*-)
 (def ^:private dirty-key :-*-dirty-*-)
 (def ^:private type-tag-key :type-*-tag-*-)
@@ -131,7 +132,17 @@
   (conj path meta-key))
 
 (defn fetch-meta [path]
-  (get-in @components (add-meta-key (li/split-path path))))
+  (let [p (if (string? path)
+            (keyword path)
+            path)]
+    (assoc
+     (get-in @components (add-meta-key (li/split-path p)))
+     meta-of-key
+     (if (keyword? p)
+       p
+       (li/make-path p)))))
+
+(def meta-of meta-of-key)
 
 (defn- component-intern
   "Add or replace a component entry.
