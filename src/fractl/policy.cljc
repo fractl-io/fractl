@@ -1,4 +1,4 @@
-(ns fractl.rbac.policy
+(ns fractl.policy
   (:require [fractl.lang :as f]
             [fractl.util :as u]
             [fractl.component :as cn]
