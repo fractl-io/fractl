@@ -5,9 +5,11 @@
             [goog.events :as events]
             [goog.history.EventType :as EventType]
             [fractl.global-state :as gs]
+            [fractl.evaluator :as e]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.resolver.registry :as rg]
+            [fractl.util.logger :as log]
             [fractl.ui.model]
             [fractl.ui.meta :as mt]
             [fractl.ui.util :as vu]
@@ -74,6 +76,12 @@
          "Home Page" (cfg/dashboard config)))))
   (hook-browser-navigation!))
 
+(defn- process-post-init-result [r]
+  (let [fr (if (cn/event-instance? r)
+             (e/ok-result (e/eval-all-dataflows r))
+             r)]
+    (log/info (str "UI post-init - " fr))))
+
 (defn init-view
   ([config post-init]
    (gs/merge-app-config! config)
@@ -89,7 +97,7 @@
     [:Fractl.UI/Table :Fractl.UI/Dashboard]
     (vt/make :table nil))
    (when post-init
-     (post-init))
+     (process-post-init-result (post-init)))
    (app-routes config))
   ([post-init]
    (init-view nil post-init)))
