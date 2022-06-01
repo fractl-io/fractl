@@ -3,10 +3,10 @@
             [reagent.dom :as rdom]
             [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.meta :as mt]
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.context :as ctx]
-            [fractl.ui.meta :as mt]
             [fractl.ui.style :as style]
             [fractl.relationship :as rel]
             [fractl.lang.internal :as li]
@@ -108,7 +108,7 @@
                set-state-value!)))
           [:> TableRow
            [:> TableCell
-            (if-let [view-spec (mt/attribute-view-spec meta field-name)]
+            (if-let [view-spec (mt/views-attribute-view-spec meta field-name)]
               (process-attribute-view-spec
                view-spec {:id id :default-value local-val :on-change h})
               [:> TextField
@@ -142,7 +142,7 @@
   (callback (vu/eval-result result)))
 
 (defn- make-eval-success-callback [event-name meta]
-  (if (mt/authorize? meta)
+  (if (mt/views-authorize? meta)
     (fn [r]
       (if r
         (do
@@ -193,7 +193,7 @@
         transformer (vu/make-transformer rec-name)
         meta (cn/fetch-meta rec-name)
         embedded-inst (:Instance instance)
-        styles (mt/styles meta)
+        styles (mt/views-styles meta)
         view
         `[:div {:class "view"}
           [:div {:class "main"}
@@ -220,7 +220,7 @@
                      (vu/fire-upsert
                       rec-name inst (mt/upsert-event meta)
                       (partial upsert-callback rec-name))))}
-              ~(if embedded-inst "Save" (or (mt/create-button-label meta) "Create"))]
+              ~(if embedded-inst "Save" (or (mt/views-create-button-label meta) "Create"))]
              ~@(navigation-buttons rels rec-name)]
             ~@(when embedded-inst
                 (v/make-list-refs-view rec-name embedded-inst meta))

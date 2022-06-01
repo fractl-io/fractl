@@ -2,10 +2,10 @@
   (:require [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.global-state :as gs]
+            [fractl.meta :as mt]
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.context :as ctx]
-            [fractl.ui.meta :as mt]
             [fractl.ui.style :as style]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
@@ -51,7 +51,7 @@
 (defn- make-rows-view [rows fields]
   (if (seq rows)
     (let [rec-name (cn/instance-type (first rows))
-          styles (mt/styles (cn/fetch-meta rec-name))
+          styles (mt/views-styles (cn/fetch-meta rec-name))
           table-head-cell-style (style/table-head-cell styles)
           headers (mapv (fn [f] [:> TableCell table-head-cell-style (name f)]) fields)
           n (name (second (li/split-path rec-name)))

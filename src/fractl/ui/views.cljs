@@ -3,10 +3,10 @@
             [reagent.dom :as rdom]
             [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.ui.config :as cfg]
             [fractl.ui.util :as vu]
-            [fractl.ui.meta :as mt]
             ["@material-ui/core"
              :refer [Button]]))
 
@@ -47,7 +47,7 @@
                    target-info)
                  (when is-raw-spec target-info)])
         meta (cn/fetch-meta rec-name)]
-    (if (and (mt/authorize? meta) (not (vu/auth-required?)))
+    (if (and (mt/views-authorize? meta) (not (vu/auth-required?)))
       (do (vu/set-authorization-required! rec-name)
           (make-input-view target-info))
       (let [input-form-event

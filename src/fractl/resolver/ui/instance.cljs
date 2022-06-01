@@ -2,11 +2,11 @@
   (:require [fractl.resolver.core :as rc]
             [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.ui.context :as ctx]
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
-            [fractl.ui.meta :as mt]
             [fractl.ui.style :as style]
             ["@material-ui/core"
              :refer [Card CardActions CardContent
@@ -78,7 +78,7 @@
                   "Edit"]]
     `[:div
       ~(make-card-view
-        (mt/styles meta) (cn/instance-str inst)
+        (mt/views-styles meta) (cn/instance-str inst)
         fields @nav)
       ~edit-btn
       ~@contains]))

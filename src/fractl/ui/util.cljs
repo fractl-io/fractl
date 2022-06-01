@@ -7,7 +7,7 @@
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
-            [fractl.ui.meta :as mt]
+            [fractl.meta :as mt]
             [fractl.ui.context :as ctx]))
 
 (def ^:private remote-api-host (atom nil))
@@ -190,7 +190,7 @@
                                  (lookupall-event-name rec-name))}
                     nil)
         app-config (gs/get-app-config)]
-    (if-let [event-name (mt/view-event meta tag)]
+    (if-let [event-name (mt/views-event meta tag)]
       (cn/make-instance event-name (merge qattrs tbl-attrs))
       (let [attrs {:Record rec-name
                    :Fields (fetch-fields rec-name meta)}]

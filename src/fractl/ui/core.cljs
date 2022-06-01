@@ -10,8 +10,8 @@
             [fractl.lang.internal :as li]
             [fractl.resolver.registry :as rg]
             [fractl.util.logger :as log]
+            [fractl.meta :as mt]
             [fractl.ui.model]
-            [fractl.ui.meta :as mt]
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.config :as cfg]
@@ -33,7 +33,7 @@
   (let [s (str vu/link-prefix "/" link-text)]
     [rec-name
      [:a {:href s}
-      (str (if (mt/authorize? meta)
+      (str (if (mt/views-authorize? meta)
              "Logout"
              (name n))
            " | ")]]))
@@ -65,7 +65,7 @@
                (v/make-list-view
                 (vu/make-multi-arg-query-event-spec
                  sn [n (:id1 params) cn (:id2 params)]))))))
-        (when (mt/authorize? meta)
+        (when (mt/views-authorize? meta)
           (vu/set-authorization-required! en))
         (when-let [cns (mt/contains meta)]
           (vu/ignore-in-home-links! cns))

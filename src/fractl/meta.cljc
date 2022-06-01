@@ -1,4 +1,4 @@
-(ns fractl.ui.meta
+(ns fractl.meta
   (:require [fractl.policy :as policy]
             [fractl.component :as cn]))
 
@@ -10,10 +10,10 @@
     (let [rec-name (cn/meta-of meta)]
       (policy/spec (first (policy/lookup-policies views-tag rec-name))))))
 
-(defn view-event [meta tag]
+(defn views-event [meta tag]
   (get (views-spec meta) tag))
 
-(defn authorize? [meta]
+(defn views-authorize? [meta]
   (= :authorize
      (get-in
       (views-spec meta)
@@ -22,15 +22,15 @@
 (defn contains [meta]
   (seq (get (views-spec meta) :contains)))
 
-(defn attribute-view-spec [meta field-name]
+(defn views-attribute-view-spec [meta field-name]
   (get-in (views-spec meta) [:attributes field-name :input]))
 
-(defn create-button-label [meta]
+(defn views-create-button-label [meta]
   (get-in (views-spec meta) [:create-button :label]))
 
 (def upsert-event :upsert-event)
 (def delete-event :delete-event)
 (def order :order)
 
-(defn styles [meta]
+(defn views-styles [meta]
   (get (views-spec meta) :styles))
