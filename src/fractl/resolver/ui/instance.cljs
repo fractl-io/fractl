@@ -8,6 +8,7 @@
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.style :as style]
+            [fractl.ui.config :as cfg]
             ["@material-ui/core"
              :refer [Card CardActions CardContent
                      Typography Button]]))
@@ -78,7 +79,7 @@
                   "Edit"]]
     `[:div
       ~(make-card-view
-        (mt/views-styles meta) (cn/instance-str inst)
+        (cfg/views-styles n) (cn/instance-str inst)
         fields @nav)
       ~edit-btn
       ~@contains]))

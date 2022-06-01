@@ -209,6 +209,14 @@
     (or (nil? x) (nil? s))))
 
 
+(def ^:private upsert-policy-fn (atom nil))
+
+(defn set-upsert-policy-fn! [f]
+  (reset! upsert-policy-fn f))
+
+(defn get-upsert-policy-fn []
+  (deref upsert-policy-fn))
+
 (def path-sep
   #?(:clj java.io.File/separator
      :cljs "/"))

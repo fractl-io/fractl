@@ -1,36 +1,20 @@
-(ns fractl.meta
-  (:require [fractl.policy :as policy]
-            [fractl.component :as cn]))
+(ns fractl.meta)
 
-(def ^:private views-tag :views)
+(def meta-key :-*-meta-*-)
+(def meta-of-key :-*-meta-of-*-)
+(def views-tag :views)
+(def ^:private policy-tags [views-tag])
 
-(defn- views-spec [meta]
-  (if-let [spec (views-tag meta)]
-    spec
-    (let [rec-name (cn/meta-of meta)]
-      (policy/spec (first (policy/lookup-policies views-tag rec-name))))))
-
-(defn views-event [meta tag]
-  (get (views-spec meta) tag))
-
-(defn views-authorize? [meta]
-  (= :authorize
-     (get-in
-      (views-spec meta)
-      [:create-button :on-success])))
-
-(defn contains [meta]
-  (seq (get (views-spec meta) :contains)))
-
-(defn views-attribute-view-spec [meta field-name]
-  (get-in (views-spec meta) [:attributes field-name :input]))
-
-(defn views-create-button-label [meta]
-  (get-in (views-spec meta) [:create-button :label]))
+(defn meta-as-policies [rec-name meta]
+  (seq
+   (filter
+    identity
+    (mapv (fn [[k v]]
+            (when (some #{k} policy-tags)
+              [k rec-name v]))
+          meta))))
 
 (def upsert-event :upsert-event)
 (def delete-event :delete-event)
 (def order :order)
-
-(defn views-styles [meta]
-  (get (views-spec meta) :styles))
+(def contains :contains)

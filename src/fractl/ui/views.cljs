@@ -45,13 +45,12 @@
           :else [(if is-raw-spec
                    (:record target-info)
                    target-info)
-                 (when is-raw-spec target-info)])
-        meta (cn/fetch-meta rec-name)]
-    (if (and (mt/views-authorize? meta) (not (vu/auth-required?)))
+                 (when is-raw-spec target-info)])]
+    (if (and (cfg/views-authorize? rec-name) (not (vu/auth-required?)))
       (do (vu/set-authorization-required! rec-name)
           (make-input-view target-info))
       (let [input-form-event
-            (vu/make-render-event rec-name final-entity-spec tag meta)
+            (vu/make-render-event rec-name final-entity-spec tag)
             r (vu/eval-event nil true input-form-event)
             v (first (vu/eval-result r))]
         (or (:View v)

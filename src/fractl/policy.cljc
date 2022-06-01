@@ -1,24 +1,30 @@
 (ns fractl.policy
-  (:require [fractl.lang :as f]
-            [fractl.util :as u]
-            [fractl.component :as cn]
-            [fractl.evaluator :as ev]))
-
-(f/component :Kernel.Policy)
-
-(f/dataflow
- :Kernel.Policy/LoadPolicies
- {:Kernel/Policy
-  {:Intercept? :Kernel.Policy/LoadPolicies.Intercept
-   :Resource? :Kernel.Policy/LoadPolicies.Resource}})
+  (:require [fractl.util :as u]
+            [fractl.evaluator :as ev]
+            #?(:cljs [fractl.ui.policy-resolver :as uip])))
 
 (defn lookup-policies [intercept resource]
+  #?(:cljs
+     (uip/lookup-policies intercept resource)
+     :clj
+     (let [result
+           (ev/eval-all-dataflows
+            {:Kernel/LoadPolicies
+             {:Intercept (u/keyword-as-string intercept)
+              :Resource (u/keyword-as-string resource)}})]
+       (ev/ok-result result true))))
+
+(defn upsert-policy [intercept resource spec]
   (let [result
         (ev/eval-all-dataflows
-         (cn/make-instance
-          {:Kernel.Policy/LoadPolicies
-           {:Intercept (u/keyword-as-string intercept)
-            :Resource (u/keyword-as-string resource)}}))]
-    (ev/ok-result result true)))
+         {:Kernel/Upsert_Policy
+          {:Instance
+           {:Kernel/Policy
+            {:Intercept (u/keyword-as-string intercept)
+             :Resource (u/keyword-as-string resource)
+             :Spec [:q# spec]}}}})]
+    (ev/ok-result result)))
 
 (def spec :Spec)
+
+(u/set-upsert-policy-fn! upsert-policy)

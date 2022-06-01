@@ -11,8 +11,7 @@
             [fractl.compiler.rule :as rl]
             [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
-            [fractl.resolver.registry :as r]
-            #?(:cljs [reagent.core :as reagent])))
+            [fractl.resolver.registry :as r]))
 
 (defn- normalize-imports [imports]
   (let [imps (rest imports)]
@@ -822,6 +821,12 @@
             ;; :TaskHandle is set by the runtime, represents the
             ;; thread that execute the event after timer expiry.
             :TaskHandle {:type :Kernel/Any :optional true}}})
+
+  (dataflow
+   :Kernel/LoadPolicies
+   {:Kernel/Policy
+    {:Intercept? :Kernel/LoadPolicies.Intercept
+     :Resource? :Kernel/LoadPolicies.Resource}})
 
   (event :Kernel/AppInit
          {:Data :Kernel/Map})

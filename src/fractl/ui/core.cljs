@@ -9,8 +9,9 @@
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.resolver.registry :as rg]
-            [fractl.util.logger :as log]
             [fractl.meta :as mt]
+            [fractl.util.logger :as log]
+            [fractl.policy]
             [fractl.ui.model]
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
@@ -29,11 +30,11 @@
        (secretary/dispatch! (.-token event))))
     (.setEnabled true)))
 
-(defn make-home-link [meta rec-name n link-text]
+(defn make-home-link [rec-name n link-text]
   (let [s (str vu/link-prefix "/" link-text)]
     [rec-name
      [:a {:href s}
-      (str (if (mt/views-authorize? meta)
+      (str (if (cfg/views-authorize? rec-name)
              "Logout"
              (name n))
            " | ")]]))
@@ -65,11 +66,11 @@
                (v/make-list-view
                 (vu/make-multi-arg-query-event-spec
                  sn [n (:id1 params) cn (:id2 params)]))))))
-        (when (mt/views-authorize? meta)
+        (when (cfg/views-authorize? en)
           (vu/set-authorization-required! en))
-        (when-let [cns (mt/contains meta)]
+        (when-let [cns (seq (mt/contains meta))]
           (vu/ignore-in-home-links! cns))
-        (vu/attach-home-link! (make-home-link meta en n s))
+        (vu/attach-home-link! (make-home-link en n s))
         (recur (rest ens)))
       (defroute "/" []
         (v/render-home-view

@@ -44,7 +44,7 @@
   (remove nil? (flatten (map #(get-in @inst-store [entity-name %]) (set ids)))))
 
 (defn query-all
-  [entity-name _]
+  [entity-name params]
   (vals (get @inst-store entity-name)))
 
 (defn delete-by-id

@@ -7,6 +7,7 @@
             [fractl.ui.views :as v]
             [fractl.ui.context :as ctx]
             [fractl.ui.style :as style]
+            [fractl.ui.config :as cfg]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
             ["@material-ui/core"
@@ -51,7 +52,7 @@
 (defn- make-rows-view [rows fields]
   (if (seq rows)
     (let [rec-name (cn/instance-type (first rows))
-          styles (mt/views-styles (cn/fetch-meta rec-name))
+          styles (cfg/views-styles rec-name)
           table-head-cell-style (style/table-head-cell styles)
           headers (mapv (fn [f] [:> TableCell table-head-cell-style (name f)]) fields)
           n (name (second (li/split-path rec-name)))

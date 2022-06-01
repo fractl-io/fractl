@@ -9,6 +9,7 @@
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
             [fractl.policy.rbac :as rbac]
+            [fractl.policy]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.store :as store]

@@ -2,6 +2,7 @@
   "Components of a model."
   (:require [clojure.set :as set]
             [clojure.string :as s]
+            [fractl.meta :as mt]
             [fractl.util :as u]
             [fractl.util.hash :as sh]
             [fractl.util.seq :as su]
@@ -122,27 +123,46 @@
     (get-in @components [component :alias alias-entry])
     (log/error (str "Component " component " is not present!"))))
 
-(def ^:private meta-key :-*-meta-*-)
-(def ^:private meta-of-key :-*-meta-of-*-)
 (def ^:private type-key :-*-type-*-)
 (def ^:private dirty-key :-*-dirty-*-)
 (def ^:private type-tag-key :type-*-tag-*-)
+(def ^:private containers-key :-*-containers-*-)
 
-(defn- add-meta-key [path]
-  (conj path meta-key))
+(defn- conj-meta-key [path]
+  (conj path mt/meta-key))
 
 (defn fetch-meta [path]
   (let [p (if (string? path)
             (keyword path)
             path)]
     (assoc
-     (get-in @components (add-meta-key (li/split-path p)))
-     meta-of-key
+     (get-in @components (conj-meta-key (li/split-path p)))
+     mt/meta-of-key
      (if (keyword? p)
        p
        (li/make-path p)))))
 
-(def meta-of meta-of-key)
+(def meta-of mt/meta-of-key)
+
+(defn- intern-contains [components rec-name contains]
+  (loop [containers (containers-key components)
+         contains contains]
+    (if-let [f (li/split-path (first contains))]
+      (recur (assoc containers f (conj (get containers f #{}) rec-name))
+             (rest contains))
+      (assoc components containers-key containers))))
+
+(defn- upsert-policies! [rec-name meta]
+  (when-let [mps (mt/meta-as-policies rec-name meta)]
+    (let [f (u/get-upsert-policy-fn)]
+      (doseq [mp mps]
+        (apply f mp)))))
+
+(defn- intern-meta [components rec-name meta]
+  (let [cs (if-let [cnts (mt/contains meta)]
+             (intern-contains components rec-name cnts)
+             components)]
+    (assoc-in cs (conj-meta-key rec-name) meta)))
 
 (defn- component-intern
   "Add or replace a component entry.
@@ -156,15 +176,20 @@
         (str "component not found - " component)
         {type-key typname
          :tag typtag}))
+     (upsert-policies! k meta)
      (u/call-and-set
       components
       #(assoc-in (if meta
-                   (assoc-in @components (add-meta-key k) meta)
+                   (intern-meta @components k meta)
                    @components)
                  intern-k typdef))
      typname))
   ([typname typdef typtag]
    (component-intern typname typdef typtag nil)))
+
+(defn fetch-contains [rec-name]
+  (let [containers (get containers-key @components)]
+    (get containers (li/split-path rec-name))))
 
 (defn- component-find [path]
   (get-in @components path))
@@ -1249,7 +1274,7 @@
   false)
 
 (defn meta-attribute-name? [k]
-  (some #{k} [type-key type-tag-key dirty-key meta-key]))
+  (some #{k} [type-key type-tag-key dirty-key mt/meta-key]))
 
 (defn compound-unique-attributes [entity-name]
   (:unique (fetch-meta entity-name)))
