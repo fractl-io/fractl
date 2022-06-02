@@ -152,12 +152,6 @@
              (rest contains))
       (assoc components containers-key containers))))
 
-(defn- upsert-policies! [rec-name meta]
-  (when-let [mps (mt/meta-as-policies rec-name meta)]
-    (let [f (u/get-upsert-policy-fn)]
-      (doseq [mp mps]
-        (apply f mp)))))
-
 (defn- intern-meta [components rec-name meta]
   (let [cs (if-let [cnts (mt/contains meta)]
              (intern-contains components rec-name cnts)
@@ -176,7 +170,8 @@
         (str "component not found - " component)
         {type-key typname
          :tag typtag}))
-     (upsert-policies! k meta)
+     (log/debug (str "custom parse policies for " typname " - "
+                     (mt/apply-policy-parsers k meta)))
      (u/call-and-set
       components
       #(assoc-in (if meta

@@ -26,5 +26,3 @@
     (ev/ok-result result)))
 
 (def spec :Spec)
-
-(u/set-upsert-policy-fn! upsert-policy)

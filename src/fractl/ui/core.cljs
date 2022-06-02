@@ -11,7 +11,6 @@
             [fractl.resolver.registry :as rg]
             [fractl.meta :as mt]
             [fractl.util.logger :as log]
-            [fractl.policy]
             [fractl.ui.model]
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
