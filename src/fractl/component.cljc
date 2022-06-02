@@ -147,9 +147,10 @@
 (defn- intern-contains [components rec-name contains]
   (loop [containers (containers-key components)
          contains contains]
-    (if-let [f (li/split-path (first contains))]
-      (recur (assoc containers f (conj (get containers f #{}) rec-name))
-             (rest contains))
+    (if-let [f (first contains)]
+      (let [p (li/split-path f)]
+        (recur (assoc containers p (conj (get containers p #{}) rec-name))
+               (rest contains)))
       (assoc components containers-key containers))))
 
 (defn- intern-meta [components rec-name meta]

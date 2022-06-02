@@ -41,7 +41,6 @@
 (defn- app-routes [config]
   (secretary/set-config! :prefix vu/link-prefix)
   (vu/clear-home-links!)
-
   (loop [ens (cn/displayable-record-names (cfg/component config))]
     (if-let [en (first ens)]
       (let [[_ n] (li/split-path en)
