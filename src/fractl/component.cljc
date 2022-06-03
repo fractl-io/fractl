@@ -184,7 +184,7 @@
   ([typname typdef typtag]
    (component-intern typname typdef typtag nil)))
 
-(defn fetch-containers [rec-name]
+(defn fetch-container [rec-name]
   (let [containers (get containers-key @components)]
     (get containers (li/split-path rec-name))))
 
