@@ -149,8 +149,9 @@
          contains contains]
     (if-let [f (first contains)]
       (let [p (li/split-path f)]
-        (recur (assoc containers p (conj (get containers p #{}) rec-name))
-               (rest contains)))
+        (when-let [c (get containers p)]
+          (u/throw-ex (str c " already contains " f ", only one :contains relatonship is allowed")))
+        (recur (assoc containers p rec-name) (rest contains)))
       (assoc components containers-key containers))))
 
 (defn- intern-meta [components rec-name meta]
@@ -183,7 +184,7 @@
   ([typname typdef typtag]
    (component-intern typname typdef typtag nil)))
 
-(defn fetch-contains [rec-name]
+(defn fetch-containers [rec-name]
   (let [containers (get containers-key @components)]
     (get containers (li/split-path rec-name))))
 
