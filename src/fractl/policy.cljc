@@ -2,7 +2,13 @@
   (:require [fractl.util :as u]
             [fractl.evaluator :as ev]
             [fractl.component :as cn]
+            [fractl.lang.internal :as li]
             #?(:cljs [fractl.ui.policy-resolver :as uip])))
+
+(defn- normalize-path [p]
+  (if (li/parsed-path? p)
+    (li/make-path p)
+    p))
 
 (declare lookup-container-policies)
 
@@ -15,7 +21,7 @@
             (ev/eval-all-dataflows
              {:Kernel/LoadPolicies
               {:Intercept (u/keyword-as-string intercept)
-               :Resource (u/keyword-as-string resource)}})]
+               :Resource (u/keyword-as-string (normalize-path resource))}})]
         (ev/ok-result result true)))
    (lookup-container-policies intercept resource)))
 
@@ -30,7 +36,7 @@
           {:Instance
            {:Kernel/Policy
             {:Intercept (u/keyword-as-string intercept)
-             :Resource (u/keyword-as-string resource)
+             :Resource (u/keyword-as-string (normalize-path resource))
              :Spec [:q# spec]}}}})]
     (ev/ok-result result)))
 
