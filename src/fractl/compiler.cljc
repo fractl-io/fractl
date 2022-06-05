@@ -539,9 +539,14 @@
         identity)
       alias])))
 
-(defn- compile-delete [ctx [recname id-pat]]
-  (let [id-pat-code (compile-pattern ctx id-pat)]
-    (emit-delete (li/split-path recname) [id-pat-code])))
+(defn- compile-delete [ctx [recname & id-pat]]
+  (let [[attr value _ alias] (if (= 1 (count id-pat))
+                                 [:Id (first id-pat)]
+                                 id-pat)
+        q (compile-query ctx recname [[attr value]])]
+    (when alias
+      (ctx/add-alias! ctx recname alias))
+    (emit-delete (li/split-path recname) (merge q {:alias alias}))))
 
 (defn- compile-quoted-expression [ctx exp]
   (if (li/unquoted? exp)

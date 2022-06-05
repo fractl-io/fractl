@@ -74,8 +74,8 @@
     (is (cn/instance-of? :R01/E e01))
     (is (persisted? :R01 e01))
     (let [id (:Id e01)
-          result (tu/fresult (e/eval-all-dataflows {:R01/Delete_E {:Id id}}))]
-      (is (= result [[:R01 :E] id])))))
+          result (first (tu/fresult (e/eval-all-dataflows {:R01/Delete_E {:Id id}})))]
+      (is (= (:Id result) id)))))
 
 (defn- test-resolver-r02 [install-resolver resolver-name path]
   (let [f (fn [_ arg] arg)
@@ -235,13 +235,13 @@
              (e/eval-all-dataflows
               {:IT/Lookup_E1
                {:Id id}})))
-        r3 (tu/fresult
-            (e/eval-all-dataflows
-             {:IT/Delete_E1
-              {:Id id}}))
+        r3 (first (tu/fresult
+                  (e/eval-all-dataflows
+                    {:IT/Delete_E1
+                    {:Id id}})))
         r4 (e/eval-all-dataflows
             {:IT/Lookup_E1
              {:Id id}})]
     (is (= id (:Id r2)))
-    (is (= id (second r3)))
+    (is (= id (:Id r3)))
     (is (= :not-found (:status (first r4))))))
