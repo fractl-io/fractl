@@ -146,7 +146,7 @@
   (merge
    {:unique false :immutable false}
    (if-let [fmt (:format scm)]
-     (assoc scm :format (partial re-matches (re-pattern fmt)))
+     (assoc scm :format (partial re-matches (re-pattern fmt)) :format-str fmt)
      scm)))
 
 (defn- find-ref-type [path]
