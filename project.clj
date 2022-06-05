@@ -46,7 +46,8 @@
                  [com.cognitect.aws/endpoints "1.1.12.145"]
                  [com.cognitect.aws/sns "811.2.959.0"]
                  [com.cognitect.aws/kms "814.2.1008.0"]
-                 [org.clojure/data.json "2.4.0"]]
+                 [org.clojure/data.json "2.4.0"]
+                 [spec-provider "0.4.14"]]
 
   :java-source-paths ["src/java"]
   :resource-paths ["lib/sfdc-enterprise.jar" "lib/jbcrypt.jar" "lib/auth0-1.35.0-uber.jar"]
