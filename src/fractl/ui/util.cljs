@@ -12,18 +12,17 @@
             [fractl.ui.context :as ctx]))
 
 (def ^:private remote-api-host (atom nil))
-(def ^:private auth-required (atom false))
+(def ^:private auth-rec-name (atom false))
 (def ^:private home-links (atom []))
 (def ^:private ignore-in-home-links (atom []))
 
-(defn set-authorization-required! [auth-rec-name]
-  (reset! auth-required auth-rec-name))
+(defn set-authorization-record-name! [n]
+  (reset! auth-rec-name n))
 
 (defn authorized! []
-  (reset! auth-required false))
+  (reset! auth-rec-name false))
 
-(defn auth-required? [] @auth-required)
-(defn auth-rec-name [] @auth-required)
+(defn authorization-record-name [] @auth-rec-name)
 
 (defn clear-home-links! []
   (reset! ignore-in-home-links [])

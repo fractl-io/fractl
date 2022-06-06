@@ -29,8 +29,8 @@
        (secretary/dispatch! (.-token event))))
     (.setEnabled true)))
 
-(defn make-home-link [rec-name n link-text]
-  (let [s (str vu/link-prefix "/" link-text)]
+(defn make-home-link [rec-name n]
+  (let [s (vu/make-dashboard-route n)]
     [rec-name
      [:a {:href s}
       (str (if (cfg/views-authorize? rec-name)
@@ -44,31 +44,30 @@
   (loop [ens (cn/displayable-record-names (cfg/component config))]
     (if-let [en (first ens)]
       (let [[_ n] (li/split-path en)
-            s (s/lower-case (vu/display-name n))
             schema (cn/entity-schema en)
             meta (cn/fetch-meta en)]
-        (defroute (vu/make-dashboard-route s) []
+        (defroute (vu/make-dashboard-route n) []
           (v/render-main-view
            (v/make-dashboard-view en)))
-        (defroute (vu/make-list-view-route s) []
+        (defroute (vu/make-list-view-route n) []
           (v/render-main-view
            (v/make-list-view en)))
         (doseq [uq (cn/unique-attributes schema)]
-          (defroute (vu/make-instance-view-route s uq) {:as params}
+          (defroute (vu/make-instance-view-route n uq) {:as params}
             (v/render-main-view
              (v/make-instance-view [en uq (:s params)]))))
         (doseq [cnt (mt/contains meta)]
           (let [[_ cn :as sn] (li/split-path cnt)]
-            (defroute (vu/make-contains-route s cn) {:as params}
+            (defroute (vu/make-contains-route n cn) {:as params}
               (v/render-main-view
                (v/make-list-view
                 (vu/make-multi-arg-query-event-spec
                  sn [n (:id1 params) cn (:id2 params)]))))))
         (when (cfg/views-authorize? en)
-          (vu/set-authorization-required! en))
+          (vu/set-authorization-record-name! en))
         (when-let [cns (seq (mt/contains meta))]
           (vu/ignore-in-home-links! cns))
-        (vu/attach-home-link! (make-home-link en n s))
+        (vu/attach-home-link! (make-home-link en n))
         (recur (rest ens)))
       (defroute "/" []
         (v/render-home-view

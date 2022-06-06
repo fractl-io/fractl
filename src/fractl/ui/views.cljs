@@ -27,7 +27,8 @@
 (declare make-input-view)
 
 (defn- make-view [tag target-info]
-  (let [target-info (or (vu/auth-required?)
+  (let [auth-rec-name (vu/authorization-record-name)
+        target-info (or auth-rec-name
                         (if (string? target-info)
                           (keyword target-info)
                           target-info))
@@ -46,8 +47,8 @@
                    (:record target-info)
                    target-info)
                  (when is-raw-spec target-info)])]
-    (if (and (cfg/views-authorize? rec-name) (not (vu/auth-required?)))
-      (do (vu/set-authorization-required! rec-name)
+    (if (and (cfg/views-authorize? rec-name) (not auth-rec-name))
+      (do (vu/set-authorization-record-name! rec-name)
           (make-input-view target-info))
       (let [input-form-event
             (vu/make-render-event rec-name final-entity-spec tag)
@@ -79,7 +80,7 @@
   (render-view view-spec))
 
 (defn- make-home-view [title dashboard-entity]
-  (if-let [auth-rec-name (vu/auth-rec-name)]
+  (if-let [auth-rec-name (vu/authorization-record-name)]
     [:div {:id main-view-id} (make-input-view auth-rec-name)]
     (let [dv (make-dashboard-view dashboard-entity)]
       `[:div [:a {:href "#"} [:h1 ~title]]
