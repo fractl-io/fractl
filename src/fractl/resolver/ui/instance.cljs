@@ -95,10 +95,10 @@
                (v/render-view [:div "error: failed to load instance"])))
         obj (fetch-entity-instance instance cb)
         view (when obj (make-instance-view obj))]
-    (v/finalize-view (or view [:div "loading instance ..."]) instance)))
+    (vu/finalize-view (or view [:div "loading instance ..."]) instance)))
 
 (defn- upsert-with-embedded-instance [einst instance]
-  (v/finalize-view (make-instance-view einst)  instance))
+  (vu/finalize-view (make-instance-view einst) instance))
 
 (defn- upsert-ui [instance]
   (if-let [inst (:Instance instance)]

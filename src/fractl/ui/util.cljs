@@ -16,7 +16,22 @@
 (def ^:private home-links (atom []))
 (def ^:private ignore-in-home-links (atom []))
 
+(def ^:private view-stack (atom []))
+
+(defn pop-view-stack []
+  (when-let [v (peek @view-stack)]
+    (swap! view-stack pop)
+    v))
+
+(defn push-on-view-stack! [view]
+  (swap! view-stack conj view))
+
+(defn finalize-view [view event-instance]
+  (push-on-view-stack! view)
+  (assoc event-instance :View view))
+
 (defn set-authorization-record-name! [n]
+  (reset! view-stack [])
   (reset! auth-rec-name n))
 
 (defn authorized! []

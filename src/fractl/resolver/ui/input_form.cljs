@@ -174,7 +174,7 @@
   (filter #(rel/participation (rel/relationship-spec %) rec-name) rel-graph))
 
 (defn- close-button []
-  (when-let [v (v/pop-view-stack)]
+  (when-let [v (vu/pop-view-stack)]
     [:> Button
      {:on-click
       #(v/render-view v)}
@@ -226,7 +226,7 @@
             ~@(when embedded-inst
                 (v/make-list-refs-view rec-name embedded-inst meta))
             ~(close-button)]]]]
-    (v/finalize-view view instance)))
+    (vu/finalize-view view instance)))
 
 (defn make [resolver-name _]
   (rc/make-resolver

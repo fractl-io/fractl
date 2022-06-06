@@ -10,20 +10,6 @@
             ["@material-ui/core"
              :refer [Button]]))
 
-(def ^:private view-stack (atom []))
-
-(defn pop-view-stack []
-  (when-let [v (peek @view-stack)]
-    (swap! view-stack pop)
-    v))
-
-(defn push-on-view-stack! [view]
-  (swap! view-stack conj view))
-
-(defn finalize-view [view event-instance]
-  (push-on-view-stack! view)
-  (assoc event-instance :View view))
-
 (declare make-input-view)
 
 (defn- make-view [tag target-info]

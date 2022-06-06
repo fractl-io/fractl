@@ -78,49 +78,46 @@
    (make-rows-view rows fields)
    elem-id))
 
-;; TODO: table-view should be created in input-form,
-;; so that auto-update is available always,
-;; or create table on input-form display itself - do not
-;; wait for Create button event.
+(defn- make-view [instance]
+  (let [rec-name (u/string-as-keyword (:Record instance))
+        [_ n] (li/split-path rec-name)
+        id (str n "-table-view")
+        fields (mapv u/string-as-keyword (:Fields instance))
+        src (:Source instance)]
+    (if (vector? src)
+      [:div (make-rows-view src fields)]
+      (let [has-source-event (map? src)
+            source-event (if has-source-event
+                           src
+                           (cn/make-instance
+                            (u/string-as-keyword src)
+                            {}))
+            table-view [:div [:div {:id id}]
+                        (when (= :Dashboard (second (li/split-path (cn/instance-type instance))))
+                          [:> Button
+                           {:on-click #(v/render-view
+                                        (v/make-input-view rec-name))}
+                           (str "Create New " (name n))])]
+            data-refresh!
+            #(vu/eval-event
+              (fn [result]
+                (if-let [rows (vu/eval-result result)]
+                  (render-rows rows fields id)
+                  (if (= :not-found (:status (first result)))
+                    (v/render-view [:div (str (name rec-name) " - not found")] id)
+                    (println (str "failed to list " rec-name " - " result)))))
+              source-event)
+            data-refresh-ms
+            (or (get-in
+                 (gs/get-app-config)
+                 [:ui :data-refresh-ms rec-name])
+                5000)]
+        (data-refresh!)
+        (vu/set-interval! data-refresh! data-refresh-ms)
+        table-view))))
+
 (defn upsert-ui [instance]
-  (assoc
-   instance :View
-   (let [rec-name (u/string-as-keyword (:Record instance))
-         [_ n] (li/split-path rec-name)
-         id (str n "-table-view")
-         fields (mapv u/string-as-keyword (:Fields instance))
-         src (:Source instance)]
-     (if (vector? src)
-       [:div (make-rows-view src fields)]
-       (let [has-source-event (map? src)
-             source-event (if has-source-event
-                            src
-                            (cn/make-instance
-                             (u/string-as-keyword src)
-                             {}))
-             table-view [:div [:div {:id id}]
-                         (when (= :Dashboard (second (li/split-path (cn/instance-type instance))))
-                           [:> Button
-                            {:on-click #(v/render-view
-                                         (v/make-input-view rec-name))}
-                            (str "Create New " (name n))])]
-             data-refresh!
-             #(vu/eval-event
-               (fn [result]
-                 (if-let [rows (vu/eval-result result)]
-                   (render-rows rows fields id)
-                   (if (= :not-found (:status (first result)))
-                     (v/render-view [:div (str (name rec-name) " - not found")] id)
-                     (println (str "failed to list " rec-name " - " result)))))
-               source-event)
-             data-refresh-ms
-             (or (get-in
-                  (gs/get-app-config)
-                  [:ui :data-refresh-ms rec-name])
-                 5000)]
-         (data-refresh!)
-         (vu/set-interval! data-refresh! data-refresh-ms)
-         table-view)))))
+  (vu/finalize-view (make-view instance) instance))
 
 (defn make [resolver-name _]
   (rc/make-resolver
