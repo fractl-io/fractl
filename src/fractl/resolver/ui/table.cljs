@@ -10,6 +10,8 @@
             [fractl.ui.config :as cfg]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
+            [reagent-mui.x.data-grid :refer [data-grid]]
+            [reagent-mui.util :refer [wrap-clj-function]]
             ["@material-ui/core"
              :refer [Link Button
                      TableContainer Table
@@ -49,28 +51,79 @@
               s])])))
       (vec (conj result (delete-instance-button rec-name (:Id inst)))))))
 
+(defn- make-table-header [field]
+  (let [n (name field)]
+    {:field n
+     :headerName n
+     :width 150}))
+
+;; example data-grid data, remove after testing
+(def sample-columns
+  [{:field      :id
+    :headerName "ID"
+    :width      90}
+   {:field      :first-name
+    :headerName "First name"
+    :width      150
+    :editable   true}
+   {:field      :last-name
+    :headerName "Last name"
+    :width      150
+    :editable   true}
+   {:field      :age
+    :headerName "Age"
+    :type       :number
+    :width      110
+    :editable   true}
+   {:field       :full-name
+    :headerName  "Full name"
+    :description "This column has a value getter and is not sortable."
+    :sortable    false
+    :width       160
+    :valueGetter (wrap-clj-function
+                  (fn [params]
+                    (str (get-in params [:row :first-name] "") " " (get-in params [:row :last-name] ""))))}])
+
+(def sample-rows [{:id 1 :last-name "Snow" :first-name "Jon" :age 35}
+                  {:id 2 :last-name "Lannister" :first-name "Cersei" :age 42}
+                  {:id 3 :last-name "Lannister" :first-name "Jaime" :age 45}
+                  {:id 4 :last-name "Stark" :first-name "Arya" :age 16}
+                  {:id 5 :last-name "Targaryen" :first-name "Daenerys" :age nil}
+                  {:id 6 :last-name "Melisandre" :first-name nil :age 150}
+                  {:id 7 :last-name "Clifford" :first-name "Ferrara" :age 44}
+                  {:id 8 :last-name "Frances" :first-name "Rossini" :age 36}
+                  {:id 9 :last-name "Roxie" :first-name "Harvey" :age 65}])
+
 (defn- make-rows-view [rows fields]
   (if (seq rows)
     (let [rec-name (cn/instance-type (first rows))
           styles (cfg/views-styles rec-name)
           table-head-cell-style (style/table-head-cell styles)
-          headers (mapv (fn [f] [:> TableCell table-head-cell-style (name f)]) fields)
+          headers; (mapv (fn [f] [:> TableCell table-head-cell-style (name f)]) fields)
+          (mapv #(make-table-header %) fields)
           n (name (second (li/split-path rec-name)))
           r (partial render-instance (style/table-body-cell styles) fields rec-name)
           table-body-row-style (style/table-body-row styles)
           table-rows
-          (mapv
-           (fn [inst]
-             `[:> ~TableRow ~table-body-row-style
-               ~@(r inst)])
-           rows)]
-      `[:> ~TableContainer
-        [:> ~Table ~(style/table styles)
-         [:> ~TableHead ~(style/table-head styles)
-          [:> ~TableRow ~(style/table-head-row styles)
-           ~@headers]]
-         [:> ~TableBody ~(style/table-body styles)
-          ~@table-rows]]])
+          (mapv #(select-keys % fields) rows)
+          #_(mapv
+             (fn [inst]
+               `[:> ~TableRow ~table-body-row-style
+                 ~@(r inst)])
+             rows)]
+      [:div {:style {:height 400 :width "100%"}}
+       [:> data-grid
+        {:rows sample-rows ;table-rows
+         :columns sample-columns ;headers
+         :page-size 5
+         :rows-per-page-options [5]}]]
+      #_`[:> ~TableContainer
+          [:> ~Table ~(style/table styles)
+           [:> ~TableHead ~(style/table-head styles)
+            [:> ~TableRow ~(style/table-head-row styles)
+             ~@headers]]
+           [:> ~TableBody ~(style/table-body styles)
+            ~@table-rows]]])
     [:div "no data"]))
 
 (defn- render-rows [rows fields elem-id]
