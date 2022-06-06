@@ -77,12 +77,12 @@
            :auth auth/make
            :auth0-user auth0-user/make
            :timer timer/make}
-          #?(:clj {:data-sync ds/make})
-          #?(:clj {:git git/make})
-          #?(:clj {:email email/make})
-          #?(:clj {:sms sms/make})
-          #?(:clj {:aws aws/make})
-          #?(:clj {:sns sns/make}))))
+          #?(:clj {:data-sync ds/make
+                   :git git/make
+                   :email email/make
+                   :sms sms/make
+                   :aws aws/make
+                   :sns sns/make}))))
 
 (defn register-resolver-type [type-name constructor]
   (u/call-and-set

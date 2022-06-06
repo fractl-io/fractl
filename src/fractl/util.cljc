@@ -208,7 +208,6 @@
             x)]
     (or (nil? x) (nil? s))))
 
-
 (def path-sep
   #?(:clj java.io.File/separator
      :cljs "/"))
@@ -226,6 +225,11 @@
 (defn string-as-keyword [x]
   (if (string? x)
     (keyword x)
+    x))
+
+(defn keyword-as-string [x]
+  (if (keyword? x)
+    (subs (str x) 1)
     x))
 
 (defn objects-as-string [xs]

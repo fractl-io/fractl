@@ -14,7 +14,7 @@
 
 (defn- intern-instance!
   [inst]
-  (let [entity-name (cn/instance-name inst)
+  (let [entity-name (cn/instance-type inst)
         parsed-entity (li/split-path entity-name)
         id (:Id inst)]
     (swap! inst-store assoc-in [parsed-entity id] inst))
@@ -44,7 +44,7 @@
   (remove nil? (flatten (map #(get-in @inst-store [entity-name %]) (set ids)))))
 
 (defn query-all
-  [entity-name _]
+  [entity-name params]
   (vals (get @inst-store entity-name)))
 
 (defn delete-by-id

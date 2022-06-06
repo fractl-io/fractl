@@ -431,3 +431,7 @@
     (if (every? valid-where-clause? wc)
       (map #(map pre-parse-name %) wc)
       (u/throw-ex (str "invalid :where clause - " wc)))))
+
+(defn keyword-type? [x]
+  (or (= x :Kernel/Keyword)
+      (= x :Kernel/Path)))

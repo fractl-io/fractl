@@ -24,7 +24,7 @@
           result-env)))))
 
 (defn match-pattern [env pattern instance]
-  (let [n (li/split-path (cn/instance-name instance))
+  (let [n (li/split-path (cn/instance-type instance))
         updated-env (if (= n pattern)
                       env
                       (match-structure env n pattern instance))]

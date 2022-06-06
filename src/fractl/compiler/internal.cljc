@@ -5,6 +5,7 @@
             [fractl.util.logger :as log]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
+            [fractl.lang.kernel :as lk]
             [fractl.compiler.context :as ctx]
             [fractl.compiler.validation :as cv]))
 
@@ -137,7 +138,8 @@
     g))
 
 (defn build-dependency-graph [pat-attrs ctx schema graph]
-  (let [p (partial valid-dependency ctx schema)
+  (let [schema (or (:schema schema) schema)
+        p (partial valid-dependency ctx schema)
         g (loop [attrs pat-attrs, g graph]
             (if-let [[k v] (first attrs)]
               (let [g2 (if-let [[d mult?] (p v)]

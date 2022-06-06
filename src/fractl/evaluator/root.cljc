@@ -146,7 +146,7 @@
   (on-inst cn/entity-instance? xs))
 
 (defn- resolver-for-instance [resolver insts]
-  (let [path (on-inst cn/instance-name insts)]
+  (let [path (on-inst cn/instance-type insts)]
     (rg/resolver-for-path resolver path)))
 
 (def ^:private async-result-key :-*async-result*-)
@@ -230,7 +230,7 @@
                          env store where-clause
                          records-to-load #{new-inst})]
     (when (cn/fire-event? event-info all-insts)
-      (let [[_ n] (li/split-path (cn/instance-name upserted-inst))
+      (let [[_ n] (li/split-path (cn/instance-type upserted-inst))
             upserted-n (li/upserted-instance-attribute n)
             evt (cn/make-instance
                  event-name
@@ -316,7 +316,7 @@
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
-    (let [n (li/split-path (cn/instance-name x))
+    (let [n (li/split-path (cn/instance-type x))
           r (chained-upsert env event-evaluator n x)]
       [(env/bind-instance env n x) r])
     [env nil]))
@@ -569,7 +569,7 @@
 
     (cn/an-instance? element)
     (env/bind-to-alias
-     (env/bind-instance env (cn/instance-name element) element)
+     (env/bind-instance env (cn/instance-type element) element)
      :% element)
 
     :else
@@ -691,7 +691,7 @@
       (if-let [[path v] (env/instance-ref-path env record-name alias refs)]
         (if (cn/an-instance? v)
           (let [opcode-eval (partial eval-opcode self)
-                final-inst (assoc-computed-attributes env (cn/instance-name v) v opcode-eval)
+                final-inst (assoc-computed-attributes env (cn/instance-type v) v opcode-eval)
                 event-evaluator (partial eval-event-dataflows self)
                 [env r]
                 (bind-and-persist env event-evaluator final-inst)]

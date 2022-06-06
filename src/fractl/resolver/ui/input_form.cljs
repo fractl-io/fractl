@@ -3,11 +3,12 @@
             [reagent.dom :as rdom]
             [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.meta :as mt]
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.context :as ctx]
-            [fractl.ui.meta :as mt]
             [fractl.ui.style :as style]
+            [fractl.ui.config :as cfg]
             [fractl.relationship :as rel]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
@@ -78,7 +79,7 @@
     [:> ui-comp (merge (nth view-spec 2) props)]
     (u/throw-ex (str "no ui component for " (second view-spec)))))
 
-(defn- render-attribute-specs [rec-name schema meta
+(defn- render-attribute-specs [rec-name schema
                                fields query-spec-or-instance
                                set-state-value!
                                change-handler]
@@ -108,7 +109,7 @@
                set-state-value!)))
           [:> TableRow
            [:> TableCell
-            (if-let [view-spec (mt/attribute-view-spec meta field-name)]
+            (if-let [view-spec (cfg/views-attribute-view-spec rec-name field-name)]
               (process-attribute-view-spec
                view-spec {:id id :default-value local-val :on-change h})
               [:> TextField
@@ -141,8 +142,8 @@
 (defn- eval-event-callback [event-name callback result]
   (callback (vu/eval-result result)))
 
-(defn- make-eval-success-callback [event-name meta]
-  (if (mt/authorize? meta)
+(defn- make-eval-success-callback [event-name]
+  (if (cfg/views-authorize? event-name)
     (fn [r]
       (if r
         (do
@@ -154,7 +155,7 @@
     (fn [r]
       (v/render-view
        (v/make-list-view
-        {:record (cn/instance-name (first r))
+        {:record (cn/instance-type (first r))
          :source (vec r)})))))
 
 (defn- navigation-buttons [rels prev-rec-name]
@@ -193,7 +194,7 @@
         transformer (vu/make-transformer rec-name)
         meta (cn/fetch-meta rec-name)
         embedded-inst (:Instance instance)
-        styles (mt/styles meta)
+        styles (cfg/views-styles rec-name)
         view
         `[:div {:class "view"}
           [:div {:class "main"}
@@ -202,7 +203,7 @@
              [:> ~Typography ~(style/input-form-title styles)
               ~title][:br]
              ~@(render-attribute-specs
-                rec-name scm meta
+                rec-name scm
                  (mapv
                   u/string-as-keyword
                   (:Fields instance))
@@ -215,12 +216,12 @@
                      (vu/eval-event
                       (partial
                        eval-event-callback
-                       rec-name (make-eval-success-callback rec-name meta))
+                       rec-name (make-eval-success-callback rec-name))
                       inst)
                      (vu/fire-upsert
                       rec-name inst (mt/upsert-event meta)
                       (partial upsert-callback rec-name))))}
-              ~(if embedded-inst "Save" (or (mt/create-button-label meta) "Create"))]
+              ~(if embedded-inst "Save" (or (cfg/views-create-button-label rec-name) "Create"))]
              ~@(navigation-buttons rels rec-name)]
             ~@(when embedded-inst
                 (v/make-list-refs-view rec-name embedded-inst meta))

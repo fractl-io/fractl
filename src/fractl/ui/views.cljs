@@ -3,10 +3,10 @@
             [reagent.dom :as rdom]
             [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.ui.config :as cfg]
             [fractl.ui.util :as vu]
-            [fractl.ui.meta :as mt]
             ["@material-ui/core"
              :refer [Button]]))
 
@@ -38,20 +38,19 @@
                            (seqable? target-info))
         [rec-name final-entity-spec]
         (cond
-          is-inst [(cn/instance-name target-info)
+          is-inst [(cn/instance-type target-info)
                    {:instance target-info}]
           is-query-spec [(first target-info)
                          {:query-info target-info}]
           :else [(if is-raw-spec
                    (:record target-info)
                    target-info)
-                 (when is-raw-spec target-info)])
-        meta (cn/fetch-meta rec-name)]
-    (if (and (mt/authorize? meta) (not (vu/auth-required?)))
+                 (when is-raw-spec target-info)])]
+    (if (and (cfg/views-authorize? rec-name) (not (vu/auth-required?)))
       (do (vu/set-authorization-required! rec-name)
           (make-input-view target-info))
       (let [input-form-event
-            (vu/make-render-event rec-name final-entity-spec tag meta)
+            (vu/make-render-event rec-name final-entity-spec tag)
             r (vu/eval-event nil true input-form-event)
             v (first (vu/eval-result r))]
         (or (:View v)
@@ -117,5 +116,5 @@
              (query-and-make-dashboard-view instance rec-name % r))))
       lrs)))
   ([instance]
-   (let [n (cn/instance-name instance)]
+   (let [n (cn/instance-type instance)]
      (make-list-refs-view n instance (cn/fetch-meta n)))))

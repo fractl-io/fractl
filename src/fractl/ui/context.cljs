@@ -10,11 +10,11 @@
    (when (l/kernel-auth-name? k)
      (l/auth-owner obj)))
   ([obj]
-   (owner (li/split-path (cn/instance-name obj)) obj)))
+   (owner (li/split-path (cn/instance-type obj)) obj)))
 
 (defn- assoc-to-context! [obj]
   (when obj
-    (let [[c n :as k] (li/split-path (cn/instance-name obj))]
+    (let [[c n :as k] (li/split-path (cn/instance-type obj))]
       (swap! db assoc n obj k obj))))
 
 (defn attach-to-context!
