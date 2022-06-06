@@ -65,7 +65,7 @@
 
 (def types
   {:Kernel/String kernel-string?
-   :Kernel/Keyword keyword?
+   :Kernel/Keyword #(or (keyword? %) (string? %))
    :Kernel/Path path?
    :Kernel/DateTime date-time?
    :Kernel/Date date?

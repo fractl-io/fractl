@@ -6,256 +6,127 @@
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
-            [fractl.resolver.policy :as rp]
-            [fractl.resolver.auth :as auth]
-            [fractl.policy.logging :as pl]
-            [fractl.policy.rbac :as rbac]
+            [fractl.meta :as mt]
+            [fractl.policy :as policy]
+            [fractl.rbac.role-assignment :as ra]
             [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(defn- mkauth [group]
-  (auth/auth-upsert
-   (cn/make-instance
-    {:Kernel/Authentication
-     {:Owner {:Group group}}})))
-
-(defn- ctx [auth]
-  {:Auth (:Id auth)})
-
-(rbac/init!)
-
-(deftest event-rbac-policies
+(deftest issue-506-policy-management
   (#?(:clj do
       :cljs cljs.core.async/go)
-   (defcomponent :EVP
-     (entity {:EVP/User
-              {:UserName :Kernel/String
-               :Password :Kernel/Password
-               :Group {:oneof ["admin" "customer" "sales"]}}})
-     (let [admin-auth (mkauth "admin")
-           sales-auth (mkauth "sales")
-           admin (cn/make-instance
-                  {:EVP/User
-                   {:UserName "admin"
-                    :Password "kj6671"
-                    :Group "admin"}})
-           r1 (tu/first-result
-               (cn/make-instance
-                {:EVP/Upsert_User
-                 {:Instance admin}}))
-           policy (cn/make-instance
-                   {:Kernel/Policy
-                    {:Intercept "RBAC"
-                     :Resource ["EVP/Upsert_User"]
-                     :Rule [:q#
-                            [:when
-                             [:= "admin" :EventContext.Auth.Owner.Group]]]}})
-           r2 (tu/first-result
-               (cn/make-instance
-                {:Kernel/Upsert_Policy
-                 {:Instance policy}}))]
-       (is (cn/instance-of? :EVP/User r1))
-       (is (cn/instance-of? :Kernel/Policy r2))
-       (is (:Id r2))
-       (is (= :Default (keyword (:InterceptStage r2))))
-       (let [user (cn/make-instance
-                   {:EVP/User
-                    {:UserName "akc"
-                     :Password "998112kl"
-                     :Group "customer"}})
-             r2 (tu/first-result
-                 (cn/make-instance
-                  {:EVP/Upsert_User
-                   {:Instance user
-                    :EventContext (ctx admin-auth)}}))]
-         (is (cn/instance-of? :EVP/User r2))
-         (tu/is-error
-          #(tu/first-result
-            (cn/make-instance
-             {:EVP/Upsert_User
-              {:Instance user
-               :EventContext (ctx sales-auth)}}))))))))
-
-(deftest entity-rbac-policies
-  (#?(:clj do
-      :cljs cljs.core.async/go)
-   (defcomponent :ENP
-     (entity {:ENP/User
-              {:UserName :Kernel/String
-               :Password :Kernel/Password
-               :Group {:oneof ["admin" "customer" "sales"]}}})
-     (event {:ENP/ChangeGroup {:UserId :Kernel/UUID :Group :Kernel/String}})
-     (dataflow :ENP/ChangeGroup
-               {:ENP/User
-                {:Id? :ENP/ChangeGroup.UserId
-                 :Group :ENP/ChangeGroup.Group}})
-     (let [admin (cn/make-instance
-                  {:ENP/User
-                   {:UserName "admin"
-                    :Password "kj6671"
-                    :Group "admin"}})
-           r1 (tu/first-result
-               (cn/make-instance
-                {:ENP/Upsert_User
-                 {:Instance admin}}))
-           policy (cn/make-instance
-                   {:Kernel/Policy
-                    {:Intercept "RBAC"
-                     :Resource ["ENP/User"]
-                     :Rule [:q#
-                            [[:Upsert :Lookup]
-                             [:when
-                              [:= "admin"
-                               :EventContext.Auth.Owner.Group]]]]}})
-           r2 (tu/first-result
-               (cn/make-instance
-                {:Kernel/Upsert_Policy
-                 {:Instance policy}}))]
-       (is (cn/instance-of? :ENP/User r1))
-       (is (cn/instance-of? :Kernel/Policy r2))
-       (is (:Id r2))
-       (is (= :Default (keyword (:InterceptStage r2))))
-       (let [admin-auth (mkauth "admin")
-             sales-auth (mkauth "sales")
-             user (cn/make-instance
-                   {:ENP/User
-                    {:UserName "akc"
-                     :Password "998112kl"
-                     :Group "customer"}})
-             r2 (tu/first-result
-                 (cn/make-instance
-                  {:ENP/Upsert_User
-                   {:Instance user
-                    :EventContext (ctx admin-auth)}}))]
-         (is (cn/instance-of? :ENP/User r2))
-         (tu/is-error
-          #(tu/first-result
-            (cn/make-instance
-             {:ENP/Upsert_User
-              {:Instance user
-               :EventContext (ctx sales-auth)}})))
-         (let [attrs {:UserId (:Id r2)
-                      :Group "sales"
-                      :EventContext (ctx admin-auth)}
-               evt (cn/make-instance
-                    {:ENP/ChangeGroup attrs})
-               r3 (get-in (tu/first-result evt) [:transition :to])]
-           (is (cn/instance-of? :ENP/User r3))
-           (is (= "sales" (:Group r3)))
-           (tu/is-error
-            #(tu/first-result
+   (let [all-actions [:Upsert :Delete :Lookup]]
+     (defcomponent :I506PP
+       (entity
+        :I506PP/E1
+        {:X :Kernel/Int})
+       (entity
+        :I506PP/E2
+        {:Y :Kernel/Int})
+       (dataflow
+        :I506PP/DefPolicies
+        {:Kernel/Role
+         {:Name "role-1"} :as :R1}
+        {:Kernel/Policy
+         {:Intercept "RBAC"
+          :Resource "I506PP/E1"
+          :Spec [:q#
+                 {:actions all-actions
+                  :role :R1}]}}
+        {:Kernel/Role
+         {:Name "role-2"} :as :R2}
+        {:Kernel/Policy
+         {:Intercept "RBAC"
+          :Resource "I506PP/E1"
+          :Spec [:q#
+                 {:actions [:Lookup]
+                  :role :R2}]}}
+        {:Kernel/Policy
+         {:Intercept "RBAC"
+          :Resource "I506PP/E2"
+          :Spec [:q#
+                 {:actions all-actions
+                  :role :R1}]}})))
+   (let [r1 (tu/fresult
+             (e/eval-all-dataflows
               (cn/make-instance
-               {:ENP/ChangeGroup
-                (assoc attrs :EventContext (ctx sales-auth))})))))))))
+               {:I506PP/DefPolicies {}})))
+         r2 (policy/lookup-policies :RBAC :I506PP/E1)]
+     (is (cn/instance-of? :Kernel/Policy (first r1)))
+     (is (= 2 (count r2)))
+     (doseq [r r2]
+       (is (= :I506PP/E1 (:Resource r)))))))
 
-(deftest logging-policies
+(deftest issue-506-role-management
   (#?(:clj do
       :cljs cljs.core.async/go)
-   (defcomponent :LP
-     (entity {:LP/User {:UserName :Kernel/String
-                        :Password :Kernel/Password
-                        :DOB :Kernel/DateTime}})
-     (let [p1 (tu/first-result
-               (cn/make-instance
-                {:Kernel/Upsert_Policy
-                 {:Instance
-                  (cn/make-instance
-                   {:Kernel/Policy
-                    {:Intercept "Logging"
-                     :Resource [:LP/Upsert_User :LP/Lookup_User]
-                     :Rule [:q#
-                            {:Disable :INFO
-                             :PagerThreshold
-                             {:WARN
-                              {:count 5
-                               :duration-minutes 10}
-                              :ERROR
-                              {:count 3
-                               :duration-minutes 5}}}]}})}}))
-           p2 (tu/first-result
-               (cn/make-instance
-                {:Kernel/Upsert_Policy
-                 {:Instance
-                  (cn/make-instance
-                   {:Kernel/Policy
-                    {:Intercept "Logging"
-                     :Resource ["LP/User"]
-                     :Rule [:q#
-                            [[:Upsert :Lookup]
-                             {:HideAttributes
-                              [:LP/User.Password
-                               :LP/Upsert_User.Instance.Password]}]]}})}}))]
-       (is (cn/instance-of? :Kernel/Policy p1))
-       (is (cn/instance-of? :Kernel/Policy p2))
-       (is (= [{:Disable [:INFO], :PagerThreshold
-                {:WARN {:count 5, :duration-minutes 10}
-                 :ERROR {:count 3, :duration-minutes 5}}}]
-              (rp/logging-rules [:LP :Upsert_User])))
-       (is (= [[:Upsert :Lookup]
-               {:HideAttributes
-                [:LP/User.Password :LP/Upsert_User.Instance.Password]}]
-              (rp/logging-rules [:LP :User])))
-       (tu/is-error
-        #(tu/first-result
-          (cn/make-instance
-           {:Kernel/Upsert_Policy
-            {:Instance
-             (cn/make-instance
-              {:Kernel/Policy
-               {:Intercept "Logging"
-                :Resource ["LP/User"]
-                :Rule [:q#
-                       [[:Upsert :Lookup]
-                        {:InvalidPolicyKey 123}]]}})}})))
-       (let [user (cn/make-instance
-                   {:LP/User
-                    {:UserName "abc"
-                     :Password "abc123"
-                     :DOB "2000-03-20T00:00:00.000000"}})
-             rules (pl/rules user)]
-         (is (= [:LP/User.Password :LP/Upsert_User.Instance.Password]
-                (pl/hidden-attributes rules)))
-         (is (= #{:WARN :ERROR :DEBUG :INFO} (pl/log-levels rules))))))))
+   (defcomponent :I506RM
+     (entity
+      :I506RM/User
+      {:Username :Kernel/String})
+     (record
+      :I506RM/Result
+      {:Data :Kernel/Any})
+     (dataflow
+      :I506RM/MakeUsers
+      {:I506RM/User
+       {:Username "abc"} :as :U1}
+      {:I506RM/User
+       {:Username "xyz"} :as :U2}
+      {:I506RM/Result
+       {:Data [:U1 :U2]}})
+     (dataflow
+      :I506RM/AssignRoles
+      {:Kernel/Role
+       {:Name "supervisor"} :as :R1}
+      {:Kernel/Role
+       {:Name "officer"} :as :R2}
+      {:I506RM/User {:Username? "abc"} :as [:U1 :& :_]}
+      {:I506RM/User {:Username? "xyz"} :as [:U2 :& :_]}
+      {:Kernel/RoleAssignment
+       {:Role :R1
+        :Assignee :U1} :as :RA1}
+      {:Kernel/RoleAssignment
+       {:Role :R2
+        :Assignee :U2} :as :RA2}
+      {:I506RM/Result
+       {:Data [:RA1 :RA2]}}))
+   (let [r1 (tu/first-result
+             {:I506RM/MakeUsers {}})
+         r2 (tu/first-result
+             {:I506RM/AssignRoles {}})
+         users (:Data r1)
+         u1 (get-in (first users) [:transition :to])
+         u2 (get-in (second users) [:transition :to])]
+     (is (= "supervisor" (first (ra/find-assigned-roles (:Id u1)))))
+     (is (= "officer" (first (ra/find-assigned-roles (:Id u2))))))))
 
-(deftest zero-trust-rbac
+(defn- fetch-spec [x]
+  (second (policy/spec (first x))))
+
+(deftest issue-506-policy-inheritance
   (#?(:clj do
       :cljs cljs.core.async/go)
-   (defcomponent :ZtRbac
-     (record {:ZtRbac/R {:X :Kernel/Int}})
-     (dataflow :ZtRbac/Evt1
-               {:ZtRbac/R {:X :ZtRbac/Evt1.X}})
-     (dataflow :ZtRbac/Evt2
-               {:ZtRbac/R {:X :ZtRbac/Evt2.X}})
-     (dataflow :ZtRbac/Evt2Policy
-               {:Kernel/Policy
-                {:Intercept "RBAC"
-                 :Resource ["ZtRbac/Evt2"]
-                 :Rule [:q# [:allow-all]]}})
-     (let [p (tu/first-result
-              (cn/make-instance
-               {:ZtRbac/Evt2Policy {}}))
-           r1 (tu/first-result
-               (cn/make-instance
-                {:ZtRbac/Evt1 {:X 10}}))
-           r2 (tu/first-result
-               (cn/make-instance
-                {:ZtRbac/Evt2 {:X 20}}))]
-       (is (cn/instance-of? :Kernel/Policy p))
-       (is (cn/instance-of? :ZtRbac/R r1))
-       (is (= 10 (:X r1)))
-       (is (cn/instance-of? :ZtRbac/R r2))
-       (is (= 20 (:X r2))))
-     ;; Setting zero-trust-rbac to true will cause other tests to fail,
-     ;; if they are running parallely and trying to evaluate dataflows.
-     (e/zero-trust-rbac! true)
-     (tu/is-error
-      #(e/eval-all-dataflows
-        (cn/make-instance
-         {:ZtRbac/Evt1 {:X 10}})))
-     (let [r (tu/first-result
-              (cn/make-instance
-               {:ZtRbac/Evt2 {:X 30}}))]
-       (is (cn/instance-of? :ZtRbac/R r))
-       (is (= 30 (:X r))))
-     (e/zero-trust-rbac! false))))
+   (mt/set-policy-parser! mt/views-tag policy/upsert-policy)
+   (defcomponent :I506PI
+     (entity
+      :I506PI/E1
+      {:X :Kernel/Int
+       :meta
+       {:views {:style {:background :red}}}})
+     (entity
+      :I506PI/E2
+      {:Y :Kernel/Int})
+     (entity
+      :I506PI/E3
+      {:Z :Kernel/Int
+       :meta
+       {:contains [:I506PI/E1 :I506PI/E2]
+        :views {:style {:background :white}}}}))
+   (let [p1 (policy/lookup-policies :views :I506PI/E1)
+         p2 (policy/lookup-policies :views :I506PI/E2)
+         p3 (policy/lookup-policies :views :I506PI/E3)
+         path [:style :background]]
+     (is (= :red (get-in (fetch-spec p1) path)))
+     (is (= (fetch-spec p2) (fetch-spec p3))))))

@@ -45,7 +45,7 @@
      (assoc env rec-name (conj insts instance))))
   ([env instance]
    (bind-instance
-    env (li/split-path (cn/instance-name instance))
+    env (li/split-path (cn/instance-type instance))
     instance)))
 
 (defn bind-instances
@@ -54,7 +54,7 @@
      (su/move-all instances env #(bind-instance %1 rec-name %2))))
   ([env instances]
    (bind-instances
-    env (li/split-path (cn/instance-name (first instances)))
+    env (li/split-path (cn/instance-type (first instances)))
     instances)))
 
 (defn bind-instance-to-alias [env alias result]
@@ -106,7 +106,7 @@
         (if-let [r (first refs)]
           (let [x (get obj r)]
             (recur (if (cn/an-instance? x)
-                     (bind-instance env (cn/parsed-instance-name x) x)
+                     (bind-instance env (cn/parsed-instance-type x) x)
                      env)
                    (rest refs) x))
           [obj env])))))
@@ -155,7 +155,7 @@
        (map? obj) x])))
 
 (defn- identity-attribute [inst]
-  (or (cn/identity-attribute-name (cn/instance-name inst))
+  (or (cn/identity-attribute-name (cn/instance-type inst))
       :Id))
 
 (defn- dirty-flag-switch

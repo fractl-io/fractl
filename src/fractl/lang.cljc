@@ -11,8 +11,7 @@
             [fractl.compiler.rule :as rl]
             [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
-            [fractl.resolver.registry :as r]
-            #?(:cljs [reagent.core :as reagent])))
+            [fractl.resolver.registry :as r]))
 
 (defn- normalize-imports [imports]
   (let [imps (rest imports)]
@@ -763,7 +762,7 @@
         :Password {:type :Kernel/String :optional true}})
 
   (entity {:Kernel/Resolver
-           {:Type :Kernel/Keyword
+           {:Type :Kernel/String
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
 
@@ -793,13 +792,26 @@
             :Issued {:type :Kernel/DateTime :optional true}
             :ExpirySeconds {:type :Kernel/Int :default 86400}}})
 
-  (entity {:Kernel/Policy
-           {:Intercept :Kernel/String
-            :Resource {:listof :Kernel/Path}
-            :Rule :Kernel/Any
-            :Trigger {:type :Kernel/Path :optional true}
-            :InterceptStage {:oneof [:PreEval :PostEval :Default]
-                             :default :Default}}})
+  (entity
+   :Kernel/Role
+   {:Name {:type :Kernel/String
+           :unique true}})
+
+  (event
+   :Kernel/RoleAssignment
+   {:Role :Kernel/Role
+    :Assignee :Kernel/Entity})
+
+  (entity
+   :Kernel/Policy
+   {:Intercept {:type :Kernel/Keyword
+                :indexed true}
+    :Resource {:type :Kernel/Path
+               :indexed true}
+    :Spec :Kernel/Edn
+    :InterceptStage
+    {:oneof [:PreEval :PostEval :Default]
+     :default :Default}})
 
   (entity {:Kernel/Timer
            {:Expiry :Kernel/Int
@@ -809,6 +821,12 @@
             ;; :TaskHandle is set by the runtime, represents the
             ;; thread that execute the event after timer expiry.
             :TaskHandle {:type :Kernel/Any :optional true}}})
+
+  (dataflow
+   :Kernel/LoadPolicies
+   {:Kernel/Policy
+    {:Intercept? :Kernel/LoadPolicies.Intercept
+     :Resource? :Kernel/LoadPolicies.Resource}})
 
   (event :Kernel/AppInit
          {:Data :Kernel/Map})
@@ -911,7 +929,7 @@
        (record :Kernel/DataSource
                {:Uri {:type :Kernel/String
                       :optional true} ;; defaults to currently active store
-                :Entity :Kernel/Path ;; name of an entity
+                :Entity :Kernel/String ;; name of an entity
                 :AttributeMapping {:type :Kernel/Map
                                    :optional true}})
 
@@ -931,10 +949,6 @@
                     :record record
                     :dataflow dataflow}}
           :paths [:Kernel/LoadModelFromMeta]}
-         {:name :policy
-          :type :policy
-          :compose? false
-          :paths [:Kernel/Policy]}
          {:name :auth
           :type :auth
           :compose? false

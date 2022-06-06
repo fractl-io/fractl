@@ -6,7 +6,7 @@
 
 (defn rules [event-instance]
   (rp/logging-rules
-   (cn/instance-name event-instance)))
+   (cn/instance-type event-instance)))
 
 (defn- rules-with-key [rules k]
   (filter
