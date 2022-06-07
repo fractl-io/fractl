@@ -49,34 +49,49 @@
               s])])))
       (vec (conj result (delete-instance-button rec-name (:Id inst)))))))
 
-(defn- make-rows-view [rows fields]
-  (if (seq rows)
-    (let [rec-name (cn/instance-type (first rows))
-          styles (cfg/views-styles rec-name)
-          table-head-cell-style (style/table-head-cell styles)
-          headers (mapv (fn [f] [:> TableCell table-head-cell-style (name f)]) fields)
-          n (name (second (li/split-path rec-name)))
-          r (partial render-instance (style/table-body-cell styles) fields rec-name)
-          table-body-row-style (style/table-body-row styles)
-          table-rows
-          (mapv
-           (fn [inst]
-             `[:> ~TableRow ~table-body-row-style
-               ~@(r inst)])
-           rows)]
-      `[:> ~TableContainer
-        [:> ~Table ~(style/table styles)
-         [:> ~TableHead ~(style/table-head styles)
-          [:> ~TableRow ~(style/table-head-row styles)
-           ~@headers]]
-         [:> ~TableBody ~(style/table-body styles)
-          ~@table-rows]]])
-    [:div "no data"]))
+(defn- make-rows-view [pages fields elem-id]
+  (when-let [rows (first @pages)]
+    (if (seq rows)
+      (let [rec-name (cn/instance-type (first rows))
+            styles (cfg/views-styles rec-name)
+            table-head-cell-style (style/table-head-cell styles)
+            headers (mapv (fn [f] [:> TableCell table-head-cell-style (name f)]) fields)
+            n (name (second (li/split-path rec-name)))
+            r (partial render-instance (style/table-body-cell styles) fields rec-name)
+            table-body-row-style (style/table-body-row styles)
+            table-rows
+            (mapv
+             (fn [inst]
+               `[:> ~TableRow ~table-body-row-style
+                 ~@(r inst)])
+             rows)]
+        `[:div
+          [:> ~TableContainer
+           [:> ~Table ~(style/table styles)
+            [:> ~TableHead ~(style/table-head styles)
+             [:> ~TableRow ~(style/table-head-row styles)
+              ~@headers]]
+            [:> ~TableBody ~(style/table-body styles)
+             ~@table-rows]]]
+          [:> ~Button
+           {:on-click ~(fn []
+                         (reset! pages (rest @pages))
+                         (v/render-view
+                          (make-rows-view pages fields elem-id)
+                          elem-id))}
+           "Next page"]])
+      [:div "no data"])))
+
+;; TODO: fetch page-count from config.
+;;       implement forward and backward page navigation
+(defn- paginate [rows]
+  (atom (partition 3 rows)))
 
 (defn- render-rows [rows fields elem-id]
-  (v/render-view
-   (make-rows-view rows fields)
-   elem-id))
+  (let [pages (paginate rows)]
+    (v/render-view
+     (make-rows-view pages fields elem-id)
+     elem-id)))
 
 (defn- make-view [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
@@ -85,7 +100,7 @@
         fields (mapv u/string-as-keyword (:Fields instance))
         src (:Source instance)]
     (if (vector? src)
-      [:div (make-rows-view src fields)]
+      [:div (make-rows-view (paginate src) fields id)]
       (let [has-source-event (map? src)
             source-event (if has-source-event
                            src
