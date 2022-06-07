@@ -17,7 +17,8 @@
             [fractl.ui.config :as cfg]
             [fractl.resolver.ui.table :as vt]
             [fractl.resolver.ui.instance :as vi]
-            [fractl.resolver.ui.input-form :as vif])
+            [fractl.resolver.ui.input-form :as vif]
+            ["@material-ui/core" :refer [Link]])
   (:import goog.history.Html5History)
   (:require-macros [secretary.core :refer [defroute]]))
 
@@ -30,13 +31,16 @@
     (.setEnabled true)))
 
 (defn make-home-link [rec-name n]
-  (let [s (vu/make-dashboard-route n)]
-    [rec-name
-     [:a {:href s}
-      (str (if (cfg/views-authorize? rec-name)
-             "Logout"
-             (name n))
-           " | ")]]))
+  [rec-name
+   [:> Link
+    {:component "button"
+     :variant "body2"
+     :on-click #(v/render-main-view
+                 (v/make-dashboard-view rec-name))}
+    (str (if (cfg/views-authorize? rec-name)
+           "Logout"
+           (name n))
+         " | ")]])
 
 (defn- app-routes [config]
   (secretary/set-config! :prefix vu/link-prefix)

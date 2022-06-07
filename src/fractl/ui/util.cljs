@@ -64,7 +64,7 @@
     (string? n) n
     :else (str n)))
 
-(def link-prefix "#")
+(def link-prefix "")
 
 (defn make-link [route-fn & args]
   (str link-prefix (apply route-fn args)))
