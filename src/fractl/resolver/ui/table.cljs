@@ -49,8 +49,23 @@
               s])])))
       (vec (conj result (delete-instance-button rec-name (:Id inst)))))))
 
+(declare make-rows-view)
+
+(defn- page-nav-button [pages all-rows fields elem-id label offset]
+  [:> Button
+   {:on-click
+    (fn []
+      (reset! pages [offset all-rows])
+      (v/render-view
+       (make-rows-view pages fields elem-id)
+       elem-id))}
+   label])
+
 (defn- make-rows-view [pages fields elem-id]
-  (when-let [rows (first @pages)]
+  (let [ps @pages
+        all-rows (second ps)
+        offset (first ps)
+        rows (if offset (nth all-rows offset) all-rows)]
     (if (seq rows)
       (let [rec-name (cn/instance-type (first rows))
             styles (cfg/views-styles rec-name)
@@ -64,7 +79,13 @@
              (fn [inst]
                `[:> ~TableRow ~table-body-row-style
                  ~@(r inst)])
-             rows)]
+             rows)
+            n-all-rows (count all-rows)
+            mkbtn (partial page-nav-button pages all-rows fields elem-id)
+            next-btn (when (and offset (< offset (dec n-all-rows)))
+                       (mkbtn "Next" (inc offset)))
+            back-btn (when (and offset (> offset 0))
+                       (mkbtn "Prev" (dec offset)))]
         `[:div
           [:> ~TableContainer
            [:> ~Table ~(style/table styles)
@@ -73,34 +94,31 @@
               ~@headers]]
             [:> ~TableBody ~(style/table-body styles)
              ~@table-rows]]]
-          [:> ~Button
-           {:on-click ~(fn []
-                         (reset! pages (rest @pages))
-                         (v/render-view
-                          (make-rows-view pages fields elem-id)
-                          elem-id))}
-           "Next page"]])
+          [:div ~back-btn ~next-btn]])
       [:div "no data"])))
 
-;; TODO: fetch page-count from config.
-;;       implement forward and backward page navigation
-(defn- paginate [rows]
-  (atom (partition 3 rows)))
+(defn- paginate [rows rows-per-page]
+  (atom
+   (if rows-per-page
+     [0 (partition rows-per-page rows)]
+     [nil rows])))
 
-(defn- render-rows [rows fields elem-id]
-  (let [pages (paginate rows)]
-    (v/render-view
-     (make-rows-view pages fields elem-id)
-     elem-id)))
+(defn- render-rows [rows fields rows-per-page elem-id]
+  (v/render-view
+   (make-rows-view (paginate rows rows-per-page) fields elem-id)
+   elem-id))
 
 (defn- make-view [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
         [_ n] (li/split-path rec-name)
         id (str n "-table-view")
         fields (mapv u/string-as-keyword (:Fields instance))
-        src (:Source instance)]
+        src (:Source instance)
+        rows-per-page (get-in
+                       (gs/get-app-config)
+                       [:ui :dashboard :rows-per-page rec-name])]
     (if (vector? src)
-      [:div (make-rows-view (paginate src) fields id)]
+      [:div (make-rows-view (paginate src rows-per-page) fields id)]
       (let [has-source-event (map? src)
             source-event (if has-source-event
                            src
@@ -117,18 +135,20 @@
             #(vu/eval-event
               (fn [result]
                 (if-let [rows (vu/eval-result result)]
-                  (render-rows rows fields id)
+                  (render-rows rows fields rows-per-page id)
                   (if (= :not-found (:status (first result)))
                     (v/render-view [:div (str (name rec-name) " - not found")] id)
                     (println (str "failed to list " rec-name " - " result)))))
               source-event)
             data-refresh-ms
-            (or (get-in
-                 (gs/get-app-config)
-                 [:ui :data-refresh-ms rec-name])
-                5000)]
+            (when-not rows-per-page
+              (or (get-in
+                   (gs/get-app-config)
+                   [:ui :dashboard :data-refresh-ms rec-name])
+                  5000))]
         (data-refresh!)
-        (vu/set-interval! data-refresh! data-refresh-ms)
+        (when data-refresh-ms
+          (vu/set-interval! data-refresh! data-refresh-ms))
         table-view))))
 
 (defn upsert-ui [instance]
