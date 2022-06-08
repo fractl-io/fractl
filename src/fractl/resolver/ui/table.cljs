@@ -108,15 +108,21 @@
    (make-rows-view (paginate rows rows-per-page) fields elem-id)
    elem-id))
 
+(defn- get-config [rec-name k]
+  (get-in
+   (gs/get-app-config)
+   [:ui :dashboard rec-name k]))
+
 (defn- make-view [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
         [_ n] (li/split-path rec-name)
         id (str n "-table-view")
-        fields (mapv u/string-as-keyword (:Fields instance))
+        cfg (partial get-config rec-name)
+        fields (or
+                (cfg :order)
+                (mapv u/string-as-keyword (:Fields instance)))
         src (:Source instance)
-        rows-per-page (get-in
-                       (gs/get-app-config)
-                       [:ui :dashboard :rows-per-page rec-name])]
+        rows-per-page (cfg :rows-per-page)]
     (if (vector? src)
       [:div (make-rows-view (paginate src rows-per-page) fields id)]
       (let [has-source-event (map? src)
@@ -142,10 +148,7 @@
               source-event)
             data-refresh-ms
             (when-not rows-per-page
-              (or (get-in
-                   (gs/get-app-config)
-                   [:ui :dashboard :data-refresh-ms rec-name])
-                  5000))]
+              (or (cfg :data-refresh-ms) 5000))]
         (data-refresh!)
         (when data-refresh-ms
           (vu/set-interval! data-refresh! data-refresh-ms))
