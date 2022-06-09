@@ -8,17 +8,11 @@
             [fractl.evaluator :as e]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
-            [fractl.resolver.registry :as rg]
             [fractl.meta :as mt]
             [fractl.util.logger :as log]
-            [fractl.ui.model]
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.config :as cfg]
-            [fractl.resolver.ui.application :as vapp]
-            [fractl.resolver.ui.table :as vt]
-            [fractl.resolver.ui.instance :as vi]
-            [fractl.resolver.ui.input-form :as vif]
             ["@material-ui/core" :refer [Link]])
   (:import goog.history.Html5History)
   (:require-macros [secretary.core :refer [defroute]]))
@@ -88,25 +82,20 @@
              r)]
     (log/info (str "UI post-init - " fr))))
 
+(defn- post-init [post-init-event]
+  ;; Do fractl post-init stuff here,
+  ;; e.g register custom UI resolvers.
+  (cn/make-instance
+   {post-init-event {}}))
+
 (defn init-view
-  ([config post-init]
+  ([config post-init-event]
    (gs/merge-app-config! config)
    (when-let [h (:remote-api-host config)]
      (vu/set-remote-api-host! h))
-   (rg/override-resolver
-    [:Fractl.UI/Application]
-    (vapp/make :application-view))
-   (rg/override-resolver
-    [:Fractl.UI/InputForm]
-    (vif/make :input-form))
-   (rg/override-resolver
-    [:Fractl.UI/InstanceForm]
-    (vi/make :instance))
-   (rg/override-resolver
-    [:Fractl.UI/Table :Fractl.UI/Dashboard]
-    (vt/make :table))
-   (when post-init
-     (process-post-init-result (post-init)))
+   (when post-init-event
+     (process-post-init-result
+      (post-init post-init-event)))
    (app-routes config))
   ([post-init]
    (init-view nil post-init)))

@@ -68,6 +68,21 @@
  :Fractl.UI/Application
  {:Name :Kernel/String
   :Title :Kernel/String
+  :Version :Kernel/String
   :LogoLocation :Kernel/String
   :DashboardRecord :Kernel/Path
-  :Components {:listof :Kernel/Path}})
+  :Components {:listof :Kernel/Path}
+  :Config :Kernel/Map
+  :PostInitEvent :Kernel/Path})
+
+(dataflow
+ :Fractl.UI/RenderApplication
+ {:Fractl.UI/Application
+  {:Name :Fractl.UI/RenderApplication.Name
+   :Title :Fractl.UI/RenderApplication.Title
+   :Version :Fractl.UI/RenderApplication.Version
+   :LogoLocation :Fractl.UI/RenderApplication.LogoLocation
+   :DashboardRecord :Fractl.UI/RenderApplication.DashboardRecord
+   :Components :Fractl.UI/RenderApplication.Components
+   :Config :Fractl.UI/RenderApplication.Config
+   :PostInitEvent :Fractl.UI/RenderApplication.PostInitEvent}})
