@@ -63,3 +63,11 @@
   {:Record :Fractl.UI/RenderGenericDashboard.Record
    :Source :Fractl.UI/RenderGenericDashboard.Source
    :Fields :Fractl.UI/RenderGenericDashboard.Fields}})
+
+(entity
+ :Fractl.UI/Application
+ {:Name :Kernel/String
+  :Title :Kernel/String
+  :LogoLocation :Kernel/String
+  :DashboardRecord :Kernel/Path
+  :Components {:listof :Kernel/Path}})

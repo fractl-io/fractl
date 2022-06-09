@@ -157,7 +157,7 @@
 (defn upsert-ui [instance]
   (vu/finalize-view (make-view instance) instance))
 
-(defn make [resolver-name _]
+(defn make [resolver-name]
   (rc/make-resolver
    resolver-name
    {:upsert {:handler upsert-ui}}))

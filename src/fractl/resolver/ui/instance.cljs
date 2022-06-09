@@ -105,6 +105,6 @@
     (upsert-with-embedded-instance inst instance)
     (upsert-with-lookup instance)))
 
-(defn make [n _]
+(defn make [n]
   (rc/make-resolver
    n {:upsert {:handler upsert-ui}}))

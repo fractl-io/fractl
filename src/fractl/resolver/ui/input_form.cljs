@@ -223,7 +223,6 @@
                   (:Fields instance))
                  (or embedded-inst [(:QueryBy instance) (:QueryValue instance)])
                  set-state-value! change-handler)
-             [:div "(* = required)"]
              [:> ~Button
               {:on-click
                ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
@@ -238,12 +237,13 @@
                       (partial upsert-callback rec-name))))}
               ~(if embedded-inst "Save" (or (cfg/views-create-button-label rec-name) "Create"))]
              ~@(navigation-buttons rels rec-name)]
+            [:div "(* = required)"]
             ~@(when embedded-inst
                 (v/make-list-refs-view rec-name embedded-inst meta))
             ~(close-button)]]]]
     (vu/finalize-view view instance)))
 
-(defn make [resolver-name _]
+(defn make [resolver-name]
   (rc/make-resolver
    resolver-name
    {:upsert {:handler upsert-ui}}))

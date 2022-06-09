@@ -15,6 +15,7 @@
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.config :as cfg]
+            [fractl.resolver.ui.application :as vapp]
             [fractl.resolver.ui.table :as vt]
             [fractl.resolver.ui.instance :as vi]
             [fractl.resolver.ui.input-form :as vif]
@@ -31,16 +32,19 @@
     (.setEnabled true)))
 
 (defn make-home-link [rec-name n]
-  [rec-name
-   [:> Link
-    {:component "button"
-     :variant "body2"
-     :on-click #(v/render-main-view
-                 (v/make-dashboard-view rec-name))}
-    (str (if (cfg/views-authorize? rec-name)
-           "Logout"
-           (name n))
-         " | ")]])
+  (let [is-auth-rec (cfg/views-authorize? rec-name)]
+    [rec-name
+     [:> Link
+      {:component "button"
+       :variant "body2"
+       :on-click #(do (when is-auth-rec
+                        (vu/clear-authorization!))
+                      (v/render-main-view
+                       (v/make-dashboard-view rec-name)))}
+      (str (if is-auth-rec
+             "Logout"
+             (name n))
+           " | ")]]))
 
 (defn- app-routes [config]
   (secretary/set-config! :prefix vu/link-prefix)
@@ -90,14 +94,17 @@
    (when-let [h (:remote-api-host config)]
      (vu/set-remote-api-host! h))
    (rg/override-resolver
+    [:Fractl.UI/Application]
+    (vapp/make :application-view))
+   (rg/override-resolver
     [:Fractl.UI/InputForm]
-   (vif/make :input-form nil))
+    (vif/make :input-form))
    (rg/override-resolver
     [:Fractl.UI/InstanceForm]
-    (vi/make :instance nil))
+    (vi/make :instance))
    (rg/override-resolver
     [:Fractl.UI/Table :Fractl.UI/Dashboard]
-    (vt/make :table nil))
+    (vt/make :table))
    (when post-init
      (process-post-init-result (post-init)))
    (app-routes config))
