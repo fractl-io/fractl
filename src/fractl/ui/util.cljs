@@ -12,18 +12,32 @@
             [fractl.ui.context :as ctx]))
 
 (def ^:private remote-api-host (atom nil))
-(def ^:private auth-required (atom false))
+(def ^:private auth-rec-name (atom false))
 (def ^:private home-links (atom []))
 (def ^:private ignore-in-home-links (atom []))
 
-(defn set-authorization-required! [auth-rec-name]
-  (reset! auth-required auth-rec-name))
+(def ^:private view-stack (atom []))
+
+(defn pop-view-stack []
+  (when-let [v (peek @view-stack)]
+    (swap! view-stack pop)
+    v))
+
+(defn push-on-view-stack! [view]
+  (swap! view-stack conj view))
+
+(defn finalize-view [view event-instance]
+  (push-on-view-stack! view)
+  (assoc event-instance :View view))
+
+(defn set-authorization-record-name! [n]
+  (reset! view-stack [])
+  (reset! auth-rec-name n))
 
 (defn authorized! []
-  (reset! auth-required false))
+  (reset! auth-rec-name false))
 
-(defn auth-required? [] @auth-required)
-(defn auth-rec-name [] @auth-required)
+(defn authorization-record-name [] @auth-rec-name)
 
 (defn clear-home-links! []
   (reset! ignore-in-home-links [])
@@ -50,7 +64,7 @@
     (string? n) n
     :else (str n)))
 
-(def link-prefix "#")
+(def link-prefix "")
 
 (defn make-link [route-fn & args]
   (str link-prefix (apply route-fn args)))
