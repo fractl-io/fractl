@@ -99,7 +99,8 @@
               attr-scm (cn/find-attribute-schema (field-name schema))
               h (partial change-handler field-name)
               local-val (or (field-name inst)
-                            (fetch-local-value set-state-value! field-name attr-scm))]
+                            (fetch-local-value set-state-value! field-name attr-scm))
+              is-required (not (:optional attr-scm))]
           (when local-val
             (set-state-value! field-name local-val))
           (when-not inst
@@ -115,7 +116,7 @@
               [:> TextField
                (merge
                 {:id id
-                 :label n
+                 :label (if is-required (str n " *") n)
                  :default-value (or local-val "")
                  :variant "standard"
                  :on-change h}
@@ -180,6 +181,19 @@
       #(v/render-view v)}
      "Close"]))
 
+(def ^:private error-msg-id "error-msg")
+
+(defn- validate-inst-state [inst-state schema]
+  (let [anames (cn/attribute-names schema)]
+    (doseq [n anames]
+      (let [ascm (cn/find-attribute-schema (n schema))]
+        (when-not (:optional ascm)
+          (when-not (seq (n inst-state))
+            (let [msg (str (name n) " is required")]
+              (js/alert msg)
+              (u/throw-ex msg))))))
+    inst-state))
+
 (defn upsert-ui [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
         [c r] (li/split-path rec-name)
@@ -209,9 +223,10 @@
                   (:Fields instance))
                  (or embedded-inst [(:QueryBy instance) (:QueryValue instance)])
                  set-state-value! change-handler)
+             [:div "(* = required)"]
              [:> ~Button
               {:on-click
-               ~#(let [inst (transformer @inst-state)]
+               ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
                    (if (cn/event? rec-name)
                      (vu/eval-event
                       (partial
