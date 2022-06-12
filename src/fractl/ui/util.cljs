@@ -3,6 +3,7 @@
             [cognitect.transit :as t]
             [fractl.util :as u]
             [fractl.global-state :as gs]
+            [fractl.lang.datetime :as dt]
             [fractl.lang.kernel :as k]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
@@ -312,3 +313,11 @@
 (defn display-name [k]
   (let [s (name k)]
     (s/join " " (s/split s #"(?=[A-Z])"))))
+
+(defn attr-val-display [inst schema aname]
+  (let [attr-scm (cn/find-attribute-schema (aname schema))
+        attr-val (aname inst)]
+    (case (:type attr-scm)
+      :Kernel/DateTime (dt/as-format attr-val "yyyy-MM-dd HH:mm")
+      (str attr-val))))
+
