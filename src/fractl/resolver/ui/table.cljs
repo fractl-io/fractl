@@ -28,26 +28,28 @@
     "Delete"]])
 
 (defn- render-instance [cell-style fields rec-name inst]
-  (loop [fields fields, linked false, result []]
-    (if-let [f (first fields)]
-      (let [s (vu/decode-to-str (get inst f))]
-        (recur
-         (rest fields)
-         true
-         (conj
-          result
-          [:> TableCell cell-style
-           (if linked
-             s
-             [:> Link
-              {:component "button"
-               :variant "body2"
-               :on-click #(do (vu/reset-page-state!)
-                              (ctx/attach-to-context! inst)
-                              (v/render-view
-                               (v/make-instance-view inst)))}
-              s])])))
-      (vec (conj result (delete-instance-button rec-name (:Id inst)))))))
+  (let [n (cn/instance-type inst)
+        schema (cn/fetch-schema n)]
+    (loop [fields fields, linked false, result []]
+      (if-let [f (first fields)]
+        (let [disp-v (vu/attr-val-display inst schema f)]
+          (recur
+           (rest fields)
+           true
+           (conj
+            result
+            [:> TableCell cell-style
+             (if linked
+               disp-v
+               [:> Link
+                {:component "button"
+                 :variant "body2"
+                 :on-click #(do (vu/reset-page-state!)
+                                (ctx/attach-to-context! inst)
+                                (v/render-view
+                                 (v/make-instance-view inst)))}
+                disp-v])])))
+        (vec (conj result (delete-instance-button rec-name (:Id inst))))))))
 
 (declare make-rows-view)
 
