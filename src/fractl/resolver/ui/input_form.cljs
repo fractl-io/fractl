@@ -22,8 +22,6 @@
                      TableRow TableHead
                      TableBody TableCell]]))
 
-(def ^:private instance-cache (atom nil))
-
 (defn- maybe-load-ref-from-context [attr-scm]
   (when-let [n (:ref attr-scm)]
     (let [{c :component r :record rs :refs} n
@@ -41,8 +39,7 @@
 (defn- set-value-cell! [rec-name field-id attr-name attr-scm
                         query-spec-or-instance set-state-value!]
   (let [inst (when (map? query-spec-or-instance) query-spec-or-instance)
-        cached-inst (when-not inst @instance-cache)
-        [query-by query-value] (when-not (or cached-inst inst) query-spec-or-instance)
+        [query-by query-value] (when-not inst query-spec-or-instance)
         has-q (and query-by query-value)
         elem (-> js/document
                  (.getElementById field-id))
@@ -53,7 +50,6 @@
                  (set-state-value! attr-name v))))]
     (cond
       inst (cb inst)
-      cached-inst (cb cached-inst)
       has-q (vu/query-instance
              rec-name query-by
              query-value cb)
@@ -86,7 +82,6 @@
                                change-handler]
   (let [fields (or fields (cn/attribute-names schema))
         inst (when (map? query-spec-or-instance) query-spec-or-instance)]
-    (reset! instance-cache nil)
     (interpose
      [:> TableContainer
       [:> Table

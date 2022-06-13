@@ -1,5 +1,6 @@
 (ns fractl.ui.context
-  (:require [fractl.component :as cn]
+  (:require [goog.net.cookies :as cookies]
+            [fractl.component :as cn]
             [fractl.lang :as l]
             [fractl.lang.internal :as li]))
 
@@ -11,21 +12,29 @@
    (owner (li/split-path (cn/instance-type obj)) obj)))
 
 (def ^:private db-key "fractl-ui-context")
+(def ^:private has-local-storage (.-localStorage js/window))
 
 (defn- fetch-db []
   (cljs.reader/read-string
-   (or (.getItem (.-localStorage js/window) db-key) {})))
+   (or
+    (if has-local-storage
+      (.getItem (.-localStorage js/window) db-key)
+      (cookies/get db-key))
+    {})))
 
 (defn- spit-db! [db]
-  (.setItem (.-localStorage js/window) db-key (str db)))
+  (if has-local-storage
+    (.setItem (.-localStorage js/window) db-key (str db))
+    (cookies/set db-key (str db))))
 
 (defn- assoc-to-context [db obj]
   (if obj
     (let [obj1 (if-let [t (:transition obj)]
                  (:to t)
                  obj)
-          [c n :as k] (li/split-path (cn/instance-type obj1))]
-      (assoc db n obj1 k obj1))
+          [c n :as k] (li/split-path (cn/instance-type obj1))
+          obj2 (if has-local-storage obj1 (cn/compact-instance obj1))]
+      (assoc db n obj2 k obj2))
     db))
 
 (defn attach-to-context!
@@ -56,6 +65,10 @@
 
 (defn lookup-by-name [n]
   (get (fetch-db) n))
+
+(defn remove-by-name [n]
+  (let [db (fetch-db)]
+    (spit-db! (dissoc db n))))
 
 (def ^:private active-inst-key :active-instance)
 
