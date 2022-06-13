@@ -49,7 +49,8 @@
   ([n] (component n nil)))
 
 (defn- attribute-type? [nm]
-  (or (cn/find-attribute-schema nm)
+  (or (k/kernel-type? nm)
+      (cn/find-attribute-schema nm)
       (cn/find-record-schema nm)))
 
 (defn- rewrite-ref-path [scm]
@@ -710,7 +711,8 @@
 (defn- do-init-kernel []
   (cn/create-component :Kernel {})
   (doseq [[type-name type-def] k/types]
-    (attribute type-name type-def))
+    (attribute type-name {:check type-def
+                          :type type-name}))
 
   (attribute (k/event-context-attribute-name)
              (k/event-context-attribute-schema))

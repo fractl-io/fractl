@@ -33,6 +33,7 @@
    (mapv
     format/of-pattern
     ["yyyy-MM-dd HH:mm:ss"       ; 2021-01-08 04:05:06
+     "yyyy-MM-dd HH:mm"          ; 2021-01-08 04:05
      "yyyy-MM-dd HH:mm:ss.SSS"   ; 2021-01-08 04:05:06.789
      "yyyyMMddHHmmss"            ; 20210108040506
      "yyyy-MM-dd HH:mm:ss z"]))) ; 2021-01-08 04:05:06 PST or America/New_York
@@ -114,6 +115,14 @@
       format/iso-local-date-time)
     dt))
   ([dt] (as-string dt nil)))
+
+(defn as-format
+  [dt pat]
+  (format/format
+   (if pat
+     (format/of-pattern pat)
+     format/iso-local-date-time)
+   (ldt/parse dt)))
 
 (defn now []
   (as-string (ldt/now)))

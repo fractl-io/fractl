@@ -26,7 +26,7 @@
 (defn- field-view [inst schema nav-links attr-name]
   (let [attr-scm (cn/find-attribute-schema (attr-name schema))
         rf-paths (:ref attr-scm)
-        v (str (attr-name inst))
+        disp-v (vu/attr-val-display inst schema attr-name)
         label (name attr-name)]
     (if rf-paths
       (do (swap!
@@ -34,10 +34,10 @@
            [:a {:href (vu/make-link
                        vu/make-instance-view-route
                        (:record rf-paths) (first (:refs rf-paths))
-                       v)}
+                       disp-v)}
             label])
           nil)
-      [label v])))
+      [label disp-v])))
 
 (defn- make-menu [links]
   (vec
