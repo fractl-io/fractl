@@ -149,9 +149,10 @@
          contains contains]
     (if-let [f (first contains)]
       (let [p (li/split-path f)]
-        (when-let [c (get containers p)]
-          (u/throw-ex (str c " already contains " f ", only one :contains relatonship is allowed")))
-        (recur (assoc containers p rec-name) (rest contains)))
+        (if-let [c (get containers p)]
+          (do (log/warn (str c " already contains " f ", only one :contains relatonship is allowed"))
+              (recur containers (rest contains)))
+          (recur (assoc containers p rec-name) (rest contains))))
       (assoc components containers-key containers))))
 
 (defn- intern-meta [components rec-name meta]
