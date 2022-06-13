@@ -3,8 +3,6 @@
             [fractl.lang :as l]
             [fractl.lang.internal :as li]))
 
-(def ^:private db (atom {}))
-
 (defn- owner
   ([k obj]
    (when (l/kernel-auth-name? k)
@@ -12,32 +10,41 @@
   ([obj]
    (owner (li/split-path (cn/instance-type obj)) obj)))
 
-(defn- assoc-to-context! [obj]
-  (when obj
-    (let [[c n :as k] (li/split-path (cn/instance-type obj))]
-      (swap! db assoc n obj k obj))))
+(def ^:private db-key "fractl-ui-context")
+
+(defn- fetch-db []
+  (cljs.reader/read-string
+   (or (.getItem (.-localStorage js/window) db-key) {})))
+
+(defn- spit-db! [db]
+  (.setItem (.-localStorage js/window) db-key (str db)))
+
+(defn- assoc-to-context [db obj]
+  (if obj
+    (let [obj1 (if-let [t (:transition obj)]
+                 (:to t)
+                 obj)
+          [c n :as k] (li/split-path (cn/instance-type obj1))]
+      (assoc db n obj1 k obj1))
+    db))
 
 (defn attach-to-context!
   ([obj is-auth-response]
-   (assoc-to-context! obj)
-   (when is-auth-response
-     (assoc-to-context! (owner obj))
-     (swap! db assoc :auth obj)))
+   (let [db1 (assoc-to-context (fetch-db) obj)
+         db2 (if is-auth-response
+               (assoc-to-context (assoc db1 :auth obj) (owner obj))
+               db1)]
+     (spit-db! db2)))
   ([obj]
    (attach-to-context! obj false)))
 
-(defn reset-context! []
-  (let [auth (:auth @db)]
-    (reset! db {:auth auth})
-    (assoc-to-context! auth)
-    (assoc-to-context! (owner auth))))
-
 (defn hard-reset-context! []
-  (reset! db {}))
+  (spit-db! {}))
 
 (defn context-as-map
   ([keyword-names-only]
-   (let [c (dissoc @db :auth)]
+   (let [db (fetch-db)
+         c (dissoc db :auth)]
      (if keyword-names-only
        (into
         {}
@@ -47,13 +54,14 @@
        c)))
   ([] (context-as-map true)))
 
-(defn lookup-ref [n path]
-  (get-in @db (concat [n] path)))
+(defn lookup-by-name [n]
+  (get (fetch-db) n))
 
 (def ^:private active-inst-key :active-instance)
 
 (defn set-active-instance! [obj]
-  (swap! db assoc active-inst-key obj))
+  (let [db (fetch-db)]
+    (spit-db! (assoc db active-inst-key obj))))
 
 (defn lookup-active-instance []
-  (get @db active-inst-key))
+  (get (fetch-db) active-inst-key))

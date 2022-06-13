@@ -39,6 +39,7 @@
         curr-millis (.now js/Date)]
     (when (>= (- curr-millis last-auth) (* (cfg/session-timeout-secs) 1000))
       (cookies/remove auth-key)
+      (ctx/hard-reset-context!)
       (reset! view-stack [])
       (reset! auth-rec-name n))))
 
@@ -47,7 +48,8 @@
   (reset! auth-rec-name false))
 
 (defn clear-authorization! []
-  (cookies/remove auth-key))
+  (cookies/remove auth-key)
+  (ctx/hard-reset-context!))
 
 (defn authorization-record-name [] @auth-rec-name)
 

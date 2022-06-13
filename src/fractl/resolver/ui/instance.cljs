@@ -75,7 +75,7 @@
         (v/make-list-refs-view inst)
         edit-btn [:> Button
                   {:on-click #(v/render-view
-                               (v/make-input-view inst))}
+                                   (v/make-input-view inst))}
                   "Edit"]]
     `[:div
       ~(make-card-view

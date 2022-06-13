@@ -1293,6 +1293,12 @@
                          str-pat)))
       (instance-type-str n))))
 
+(defn compact-instance [inst]
+  {:Id (:Id inst)
+   :str (instance-str inst)
+   type-tag-key (instance-type-tag inst)
+   type-key (instance-type inst)})
+
 (defn- displayable-record-names [component-info]
   (let [components
         (cond
