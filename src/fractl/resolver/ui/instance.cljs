@@ -75,7 +75,7 @@
         (v/make-list-refs-view inst)
         edit-btn [:> Button
                   {:on-click #(v/render-view
-                               (v/make-input-view inst))}
+                                   (v/make-input-view inst))}
                   "Edit"]]
     `[:div
       ~(make-card-view
@@ -105,6 +105,6 @@
     (upsert-with-embedded-instance inst instance)
     (upsert-with-lookup instance)))
 
-(defn make [n _]
+(defn make [n]
   (rc/make-resolver
    n {:upsert {:handler upsert-ui}}))

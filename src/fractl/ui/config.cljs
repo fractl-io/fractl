@@ -35,5 +35,12 @@
 
 (defn component
   ([config]
-   (get-in config [:view :component]))
+   (get-in config [:view :components]))
   ([] (component (gs/get-app-config))))
+
+(def ^:private default-session-timeout-secs (* 5 60)) ; 5mins
+
+(defn session-timeout-secs
+  ([config]
+   (get config :session-timeout-secs default-session-timeout-secs))
+  ([] (session-timeout-secs (gs/get-app-config))))

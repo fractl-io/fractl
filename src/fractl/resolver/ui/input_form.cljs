@@ -22,37 +22,34 @@
                      TableRow TableHead
                      TableBody TableCell]]))
 
-(def ^:private instance-cache (atom nil))
-
 (defn- maybe-load-ref-from-context [attr-scm]
   (when-let [n (:ref attr-scm)]
-    (let [{c :component r :record rs :refs} n]
-      (ctx/lookup-ref [c r] rs))))
+    (let [{c :component r :record rs :refs} n
+          inst (ctx/lookup-by-name [c r])]
+      (when inst
+        (if (= rs [:Id])
+          [(:Id inst) (cn/instance-str inst)]
+          [(get-in inst rs) nil])))))
 
-(defn- fetch-local-value [set-state-value! attr-name attr-scm]
-  (let [v (str
-           (if-let [d (:default attr-scm)]
-             (if (fn? d) (d) d)
-             (maybe-load-ref-from-context attr-scm)))]
-    (set-state-value! attr-name v)
-    v))
+(defn- fetch-local-value [attr-scm]
+  (if-let [d (:default attr-scm)]
+    [(if (fn? d) (d) d) nil]
+    (maybe-load-ref-from-context attr-scm)))
 
 (defn- set-value-cell! [rec-name field-id attr-name attr-scm
                         query-spec-or-instance set-state-value!]
   (let [inst (when (map? query-spec-or-instance) query-spec-or-instance)
-        cached-inst (when-not inst @instance-cache)
-        [query-by query-value] (when-not (or cached-inst inst) query-spec-or-instance)
+        [query-by query-value] (when-not inst query-spec-or-instance)
         has-q (and query-by query-value)
         elem (-> js/document
                  (.getElementById field-id))
         cb (when (or inst has-q)
              (fn [inst]
-               (let [v (str (attr-name inst))]
-                 (when elem (set! (.-value elem) v))
+               (let [v (attr-name inst)]
+                 (when elem (set! (.-value elem) (str v)))
                  (set-state-value! attr-name v))))]
     (cond
       inst (cb inst)
-      cached-inst (cb cached-inst)
       has-q (vu/query-instance
              rec-name query-by
              query-value cb)
@@ -60,9 +57,9 @@
       (when elem
         (set!
          (.-value elem)
-         (fetch-local-value
-          set-state-value! attr-name
-          attr-scm))))))
+         (let [[v s] (fetch-local-value attr-scm)]
+           (set-state-value! attr-name v)
+           s))))))
 
 (defn- keyword-as-ui-component [k]
   (case k
@@ -85,7 +82,6 @@
                                change-handler]
   (let [fields (or fields (cn/attribute-names schema))
         inst (when (map? query-spec-or-instance) query-spec-or-instance)]
-    (reset! instance-cache nil)
     (interpose
      [:> TableContainer
       [:> Table
@@ -98,8 +94,11 @@
               id (str "attribute-" n)
               attr-scm (cn/find-attribute-schema (field-name schema))
               h (partial change-handler field-name)
-              local-val (or (field-name inst)
-                            (fetch-local-value set-state-value! field-name attr-scm))
+              [local-val s] (if-let [v (field-name inst)]
+                              [(if (= :Id field-name)
+                                 (cn/instance-str inst)
+                                 v) nil]
+                              (fetch-local-value attr-scm))
               is-required (not (:optional attr-scm))]
           (when local-val
             (set-state-value! field-name local-val))
@@ -117,9 +116,11 @@
                (merge
                 {:id id
                  :label (if is-required (str n " *") n)
-                 :default-value (or local-val "")
+                 :default-value (or (or s local-val) "")
                  :variant "standard"
                  :on-change h}
+                (when (or s (= :Id field-name))
+                  {:disabled true})
                 (when (cn/hashed-attribute? attr-scm)
                   {:type "password"}))])]]))
       fields))))
@@ -203,7 +204,7 @@
         inst-state (r/atom {})
         change-handler (partial vu/assoc-input-value inst-state)
         get-state-value (fn [k] (get @inst-state k))
-        set-state-value! (fn [k v] (swap! inst-state assoc k v))
+        set-state-value! (fn [k v] (swap! inst-state assoc k (str v)))
         scm (cn/fetch-schema rec-name)
         transformer (vu/make-transformer rec-name)
         meta (cn/fetch-meta rec-name)
@@ -223,7 +224,6 @@
                   (:Fields instance))
                  (or embedded-inst [(:QueryBy instance) (:QueryValue instance)])
                  set-state-value! change-handler)
-             [:div "(* = required)"]
              [:> ~Button
               {:on-click
                ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
@@ -238,12 +238,13 @@
                       (partial upsert-callback rec-name))))}
               ~(if embedded-inst "Save" (or (cfg/views-create-button-label rec-name) "Create"))]
              ~@(navigation-buttons rels rec-name)]
+            [:div "(* = required)"]
             ~@(when embedded-inst
                 (v/make-list-refs-view rec-name embedded-inst meta))
             ~(close-button)]]]]
     (vu/finalize-view view instance)))
 
-(defn make [resolver-name _]
+(defn make [resolver-name]
   (rc/make-resolver
    resolver-name
    {:upsert {:handler upsert-ui}}))
