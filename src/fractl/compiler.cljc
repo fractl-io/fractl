@@ -422,7 +422,7 @@
 
 (defn- compile-maybe-pattern-list [ctx pat]
   (if (vector? pat)
-    (map #(compile-pattern ctx %) pat)
+    (mapv #(compile-pattern ctx %) pat)
     (compile-pattern ctx pat)))
 
 (defn- compile-match-cases [ctx cases]
