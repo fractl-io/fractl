@@ -149,9 +149,10 @@
          contains contains]
     (if-let [f (first contains)]
       (let [p (li/split-path f)]
-        (when-let [c (get containers p)]
-          (u/throw-ex (str c " already contains " f ", only one :contains relatonship is allowed")))
-        (recur (assoc containers p rec-name) (rest contains)))
+        (if-let [c (get containers p)]
+          (do (log/warn (str c " already contains " f ", only one :contains relatonship is allowed"))
+              (recur containers (rest contains)))
+          (recur (assoc containers p rec-name) (rest contains))))
       (assoc components containers-key containers))))
 
 (defn- intern-meta [components rec-name meta]
@@ -1291,6 +1292,12 @@
                             %)
                          str-pat)))
       (instance-type-str n))))
+
+(defn compact-instance [inst]
+  {:Id (:Id inst)
+   :str (instance-str inst)
+   type-tag-key (instance-type-tag inst)
+   type-key (instance-type inst)})
 
 (defn- displayable-record-names [component-info]
   (let [components

@@ -1,6 +1,7 @@
 (ns fractl.ui.util
   (:require [clojure.string :as s]
             [cognitect.transit :as t]
+            [goog.net.cookies :as cookies]
             [fractl.util :as u]
             [fractl.global-state :as gs]
             [fractl.lang.datetime :as dt]
@@ -31,12 +32,24 @@
   (push-on-view-stack! view)
   (assoc event-instance :View view))
 
+(def ^:private auth-key "fractl-auth")
+
 (defn set-authorization-record-name! [n]
-  (reset! view-stack [])
-  (reset! auth-rec-name n))
+  (let [last-auth (js/parseInt (or (cookies/get auth-key) "0"))
+        curr-millis (.now js/Date)]
+    (when (>= (- curr-millis last-auth) (* (cfg/session-timeout-secs) 1000))
+      (cookies/remove auth-key)
+      (ctx/hard-reset-context!)
+      (reset! view-stack [])
+      (reset! auth-rec-name n))))
 
 (defn authorized! []
+  (cookies/set auth-key (str (.now js/Date)))
   (reset! auth-rec-name false))
+
+(defn clear-authorization! []
+  (cookies/remove auth-key)
+  (ctx/hard-reset-context!))
 
 (defn authorization-record-name [] @auth-rec-name)
 
@@ -65,7 +78,7 @@
     (string? n) n
     :else (str n)))
 
-(def link-prefix "")
+(def link-prefix "#")
 
 (defn make-link [route-fn & args]
   (str link-prefix (apply route-fn args)))
