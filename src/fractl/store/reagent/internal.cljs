@@ -55,6 +55,14 @@
      #(update-in @inst-store [parsed-entity] dissoc id))
     id))
 
+(defn delete-all
+  [entity-name]
+  (let [parsed-entity (li/split-path entity-name)]
+    (u/call-and-set
+     inst-store
+     #(dissoc @inst-store parsed-entity))
+    entity-name))
+
 (defn get-reference
   [[entity-name id] refs]
   (let [tag (if (= (last refs) view-tag)
