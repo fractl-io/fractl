@@ -134,7 +134,8 @@
                             (u/string-as-keyword src)
                             {}))
             table-view [:div [:div {:id id}]
-                        (when (= :Dashboard (second (li/split-path (cn/instance-type instance))))
+                        (when (and (= :Dashboard (second (li/split-path (cn/instance-type instance))))
+                                   (not= (cfg :create-new-button) :none))
                           [:> Button
                            {:on-click #(v/render-view
                                         (v/make-input-view rec-name))}
