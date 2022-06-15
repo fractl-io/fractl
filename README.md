@@ -5,8 +5,8 @@
 
 Fractl is a low-code, declarative programming abstraction. Our goal is to bring the best of traditional development and LCNC tools together.
 
-![Fractl goals](https://user-images.githubusercontent.com/13515894/173898306-fae84d41-37dc-439a-804f-26903c139402.png#gh-dark-mode-only)
-![Fractl goals](https://user-images.githubusercontent.com/13515894/173896766-f0eca24b-a44a-4d41-b06f-58b480a50a6b.png#gh-light-mode-only)
+![Fractl goals](https://user-images.githubusercontent.com/13515894/173900814-8486c876-b8b4-4621-a406-5f1a626b1539.png#gh-dark-mode-only)
+![Fractl goals](https://user-images.githubusercontent.com/13515894/173900724-16b83469-f526-4858-9259-e6b59cba9ae2.png#gh-light-mode-only)
 
 A Fractl model can be compiled to a production grade application. Fractl is not just a very high-level language, it's also a low-code platform. A compiled model can be deployed as a distributed service to the Fractl platform.
 
