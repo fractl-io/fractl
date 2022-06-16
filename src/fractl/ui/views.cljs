@@ -96,10 +96,9 @@
    (when-let [lrs (mt/contains meta)]
      (mapv
       #(if (cn/event? %)
-         (when (ctx/admin-auth?)
-           [:> Button
-            {:on-click (fn [] (render-view (make-input-view %)))}
-            (vu/display-name %)])
+         [:> Button
+          {:on-click (fn [] (render-view (make-input-view %)))}
+          (vu/display-name %)]
          (when-let [scms (seq (cn/ref-attribute-schemas (cn/fetch-schema %)))]
            (when-let [r (vu/ref-to-record rec-name scms)]
              (query-and-make-dashboard-view instance rec-name % r))))

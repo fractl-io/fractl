@@ -78,9 +78,3 @@
 
 (defn lookup-active-instance []
   (get (fetch-db) active-inst-key))
-
-(defn lookup-auth []
-  (:auth (fetch-db)))
-
-(defn admin-auth? []
-  (= "admin" (get-in (lookup-auth) [:Owner :Name])))
