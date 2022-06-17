@@ -86,7 +86,7 @@
         result))))
 
 (defn timer-upsert [inst]
-  (let [id (:Id inst)]
+  (let [id (cn/id-attr inst)]
     (upsert-timer-inst id (dt/now-raw) inst)
     (let [callback (make-callback id inst)
           handle #?(:clj

@@ -34,10 +34,10 @@
 (def override-test-resolver (partial test-resolver rg/override-resolver))
 
 (defn- persisted? [comp-name entity-instance]
-  (let [id (:Id entity-instance)
+  (let [id (cn/id-attr entity-instance)
         evt (cn/make-instance
              (keyword (str (name comp-name) "/Lookup_E"))
-             {:Id id})
+             {cn/id-attr id})
         result (e/eval-all-dataflows evt)
         r (first result)]
     (when-not (= :not-found (:status r))
@@ -53,14 +53,14 @@
     (dataflow :EntityXformR01/EToEPrime
               {:EntityXformR01/EPrime
                {:X :EntityXformR01/EToEPrime.Instance.X
-                :Id :EntityXformR01/EToEPrime.Instance.Id}})
+                cn/id-attr :EntityXformR01/EToEPrime.Instance.Id}})
     (event {:EntityXformR01/EPrimeToE
             {:Instance :Kernel/Entity}}))
   (defcomponent :R01
     (entity {:R01/E {:X :Kernel/Int}}))
   (dataflow :EntityXformR01/EPrimeToE
             {:R01/E {:X :EntityXformR01/EPrimeToE.Instance.X
-                     :Id :EntityXformR01/EPrimeToE.Instance.Id}})
+                     cn/id-attr :EntityXformR01/EPrimeToE.Instance.Id}})
   (let [e (cn/make-instance :R01/E {:X 10})
         result (tu/fresult (e/eval-all-dataflows {:R01/Upsert_E {:Instance e}}))
         e01 (first result)]
@@ -73,9 +73,9 @@
         e01 (first result)]
     (is (cn/instance-of? :R01/E e01))
     (is (persisted? :R01 e01))
-    (let [id (:Id e01)
-          result (first (tu/fresult (e/eval-all-dataflows {:R01/Delete_E {:Id id}})))]
-      (is (= (:Id result) id)))))
+    (let [id (cn/id-attr e01)
+          result (first (tu/fresult (e/eval-all-dataflows {:R01/Delete_E {cn/id-attr id}})))]
+      (is (= (cn/id-attr result) id)))))
 
 (defn- test-resolver-r02 [install-resolver resolver-name path]
   (let [f (fn [_ arg] arg)
@@ -99,15 +99,15 @@
     (dataflow :EntityXformR02/EToE
               {:EntityXformR02/E
                {:X :EntityXformR02/EToE.Instance.X
-                :Id :EntityXformR02/EToE.Instance.Id}})
+                cn/id-attr :EntityXformR02/EToE.Instance.Id}})
     (event {:EntityXformR02/EToK
             {:Instance :Kernel/Entity}}))
   (defcomponent :R02
     (entity {:R02/E {:X :Kernel/Int}})
-    (record {:R02/K {:X :Kernel/Int :Id :Kernel/UUID}}))
+    (record {:R02/K {:X :Kernel/Int cn/id-attr :Kernel/UUID}}))
   (dataflow :EntityXformR02/EToK
             {:R02/K {:X :EntityXformR02/EToK.Instance.X
-                     :Id :EntityXformR02/EToK.Instance.Id}})
+                     cn/id-attr :EntityXformR02/EToK.Instance.Id}})
   (override-test-resolver-r02 :TestResolver02 :R02/E)
   (let [e (cn/make-instance :R02/E {:X 10})
         result (tu/fresult (e/eval-all-dataflows {:R02/Upsert_E {:Instance e}}))
@@ -131,7 +131,7 @@
                    [(cn/make-instance :ResQueryAll/E {:X 1 :N "e01"})
                     (cn/make-instance :ResQueryAll/E {:X 2 :N "e02"})]
                    (when-let [id (nth where-clause 2)]
-                     [(cn/make-instance :RQ/E {:X 1 :Id id})]))))}}
+                     [(cn/make-instance :RQ/E {:X 1 cn/id-attr id})]))))}}
            #(e/eval-all-dataflows % store {}))]
     (install-resolver path r)))
 
@@ -143,10 +143,10 @@
         e01 (first (tu/fresult (e/eval-all-dataflows {:RQ/Upsert_E {:Instance e}})))]
     (is (cn/instance-of? :RQ/E e01))
     (is (= 10 (:X e01)))
-    (let [id (:Id e01)
-          e02 (first (tu/fresult (e/eval-all-dataflows {:RQ/Lookup_E {:Id id}})))]
+    (let [id (cn/id-attr e01)
+          e02 (first (tu/fresult (e/eval-all-dataflows {:RQ/Lookup_E {cn/id-attr id}})))]
       (is (cn/instance-of? :RQ/E e02))
-      ;(is (= id (:Id e02)))
+      ;(is (= id (cn/id-attr e02)))
       (is (= 1 (:X e02))))))
 
 (deftest query-all
@@ -197,7 +197,7 @@
 (defn- fetch-and-assert-id [env entity-name id]
   (let [store (env/get-store env)
         inst (store/lookup-by-id store entity-name id)]
-    (is (= id (:Id inst)))
+    (is (= id (cn/id-attr inst)))
     nil))
 
 (defn- invoke-query [env arg]
@@ -229,19 +229,19 @@
               {:IT/Upsert_E1
                {:Instance
                 {:IT/E1 {:X 100 :N "hello"}}}})))
-        id (:Id r1)
+        id (cn/id-attr r1)
         r2 (first
             (tu/fresult
              (e/eval-all-dataflows
               {:IT/Lookup_E1
-               {:Id id}})))
+               {cn/id-attr id}})))
         r3 (first (tu/fresult
                   (e/eval-all-dataflows
                     {:IT/Delete_E1
-                    {:Id id}})))
+                    {cn/id-attr id}})))
         r4 (e/eval-all-dataflows
             {:IT/Lookup_E1
-             {:Id id}})]
-    (is (= id (:Id r2)))
-    (is (= id (:Id r3)))
+             {cn/id-attr id}})]
+    (is (= id (cn/id-attr r2)))
+    (is (= id (cn/id-attr r3)))
     (is (= :not-found (:status (first r4))))))

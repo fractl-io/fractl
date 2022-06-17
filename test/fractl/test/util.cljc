@@ -1,5 +1,6 @@
 (ns fractl.test.util
   (:require [fractl.evaluator :as e]
+            [fractl.component :as cn]
             #?(:clj  [clojure.test :refer [is]]
                :cljs [cljs.test :refer-macros [is]])
             [fractl.store :as store]
@@ -213,8 +214,8 @@
              {} entity-schema))
 
 (defn maybe-assoc-id [schema]
-  (if (:Id schema)
-    (assoc schema :Id :Kernel/UUID)
+  (if (cn/id-attr schema)
+    (assoc schema cn/id-attr :Kernel/UUID)
     schema))
 
 (defn get-deep-ref [prop-details component-name]

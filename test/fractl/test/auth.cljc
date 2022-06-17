@@ -47,7 +47,7 @@
                     :Password pswd}}))
            ]
        (is (cn/instance-of? :Kernel/Authentication auth))
-       (is (= (:Id user) (:Id (:Owner auth))))
+       (is (= (cn/id-attr user) (cn/id-attr (:Owner auth))))
        (is (dt/parse-date-time (:Issued auth)))
        (is (= 5000 (:ExpirySeconds auth)))
        (let [user2 (tu/first-result
@@ -57,7 +57,7 @@
                        {:PasswordAuth/User
                         {:UserName "hhh"
                          :Password "34sss"}}
-                       :EventContext {:Auth (:Id auth)}}}))]
+                       :EventContext {:Auth (cn/id-attr auth)}}}))]
          (is (cn/instance-of? :PasswordAuth/User user2)))
        (is (false? (tu/fresult
                     (e/eval-all-dataflows
@@ -109,7 +109,7 @@
                         {:Auth0TestAuth/LoginRequest
                          {:ClientID client-id
                           :ClientSecret client-secret}}))
-           auth-req-id (:Id auth-req)
+           auth-req-id (cn/id-attr auth-req)
            ;; this is the authorize-url we should present to the user
            ;; when we build the UI part of the auth flow.
            authorize-url-mod (cs/replace  (:AuthorizeURL auth-login) #"auth_id" auth-req-id)]

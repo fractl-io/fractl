@@ -154,7 +154,7 @@
     (eval-event
      #(println (str "delete " [entity-name id] " - " %))
      (cn/make-instance
-      {event-name {:Id id}}))))
+      {event-name {cn/id-attr id}}))))
 
 (defn make-transformer
   ([recname schema]
@@ -271,10 +271,10 @@
 
 (defn make-query-event [rec-name query-by query-value]
   (let [[c n] (li/split-path rec-name)]
-    (if (= :Id query-by)
+    (if (= cn/id-attr query-by)
       (cn/make-instance
        (keyword (str (name c) "/Lookup_" (name n)))
-       {:Id query-value})
+       {cn/id-attr query-value})
       (let [s (name query-by)]
         (cn/make-instance
          (lookup-by-event-name c n s)

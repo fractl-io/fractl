@@ -14,8 +14,8 @@
     (entity {:Q01/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :Q01/E {:X 10})
         e1 (first (tu/fresult (e/eval-all-dataflows {:Q01/Upsert_E {:Instance e}})))
-        id (:Id e1)
-        e2 (first (tu/fresult (e/eval-all-dataflows {:Q01/Lookup_E {:Id id}})))]
+        id (cn/id-attr e1)
+        e2 (first (tu/fresult (e/eval-all-dataflows {:Q01/Lookup_E {cn/id-attr id}})))]
     (is (cn/instance-of? :Q01/E e2))
     (is (cn/same-instance? e1 e2))))
 
@@ -40,7 +40,7 @@
         evts (map #(cn/make-instance :Q02/Upsert_E {:Instance %}) es)
         f (comp first #(:result (first (e/eval-all-dataflows %))))
         insts (mapv f evts)
-        ids (mapv :Id insts)]
+        ids (mapv cn/id-attr insts)]
     (is (every? true? (map #(cn/instance-of? :Q02/E %) insts)))
     (let [r01 (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}}))
           r (e/eval-all-dataflows {:Q02/QE02 {:X 5 :Y 100}})
@@ -101,10 +101,10 @@
               :AvailableQty {:type :Kernel/Int :check pos?}}})
     (dataflow :QueryAliasInExpr/AllocateOrderLine
               {:QueryAliasInExpr/OrderLine
-               {:Id? :QueryAliasInExpr/AllocateOrderLine.LineId}
+               {cn/q-id-attr :QueryAliasInExpr/AllocateOrderLine.LineId}
                :as :OL}
               {:QueryAliasInExpr/ProductBatch
-               {:Id? :QueryAliasInExpr/AllocateOrderLine.BatchId
+               {cn/q-id-attr :QueryAliasInExpr/AllocateOrderLine.BatchId
                 :AvailableQty '(- :AvailableQty :OL.Qty)}}))
   (let [batch (cn/make-instance
                {:QueryAliasInExpr/ProductBatch
@@ -114,7 +114,7 @@
              {:QueryAliasInExpr/Upsert_ProductBatch
               {:Instance batch}})
         r (first (tu/fresult (e/eval-all-dataflows evt)))
-        batch-id (:Id r)
+        batch-id (cn/id-attr r)
         order-line (cn/make-instance
                     {:QueryAliasInExpr/OrderLine
                      {:Title "Table"
@@ -123,7 +123,7 @@
                 {:QueryAliasInExpr/Upsert_OrderLine
                  {:Instance order-line}})
         r (first (tu/fresult (e/eval-all-dataflows evt)))
-        line-id (:Id r)
+        line-id (cn/id-attr r)
         evt (cn/make-instance
              {:QueryAliasInExpr/AllocateOrderLine
               {:BatchId batch-id :LineId line-id}})
@@ -136,7 +136,7 @@
              {:QueryAliasInExpr/Upsert_OrderLine
               {:Instance order-line}})
         r (first (tu/fresult (e/eval-all-dataflows evt)))
-        line-id (:Id r)
+        line-id (cn/id-attr r)
         evt (cn/make-instance
              {:QueryAliasInExpr/AllocateOrderLine
               {:BatchId batch-id :LineId line-id}})
@@ -146,21 +146,21 @@
     (is (= (:AvailableQty r) 18))))
 
 (deftest idempotent-upsert
-  (defcomponent :IdUps
-    (entity {:IdUps/E {:X {:type :Kernel/Int
-                           :unique true
-                           :indexed true}
-                       :Y :Kernel/Int}})
-    (let [e1 (cn/make-instance :IdUps/E {:X 10 :Y 20})
-          r1 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e1}})))
-          id (:Id r1)
-          r2 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))
-          e2 (cn/make-instance :IdUps/E {:X 10 :Y 30})
-          r3 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Upsert_E {:Instance e2}})))
-          r4 (first (tu/fresult (e/eval-all-dataflows {:IdUps/Lookup_E {:Id id}})))]
+  (defcomponent :IdempUps
+    (entity {:IdempUps/E {:X {:type :Kernel/Int
+                              :unique true
+                              :indexed true}
+                          :Y :Kernel/Int}})
+    (let [e1 (cn/make-instance :IdempUps/E {:X 10 :Y 20})
+          r1 (first (tu/fresult (e/eval-all-dataflows {:IdempUps/Upsert_E {:Instance e1}})))
+          id (cn/id-attr r1)
+          r2 (first (tu/fresult (e/eval-all-dataflows {:IdempUps/Lookup_E {cn/id-attr id}})))
+          e2 (cn/make-instance :IdempUps/E {:X 10 :Y 30})
+          r3 (first (tu/fresult (e/eval-all-dataflows {:IdempUps/Upsert_E {:Instance e2}})))
+          r4 (first (tu/fresult (e/eval-all-dataflows {:IdempUps/Lookup_E {cn/id-attr id}})))]
       (is (= 20 (get-in r3 [:transition :from :Y])))
       (is (= 30 (get-in r3 [:transition :to :Y])))
-      (is (= id (:Id r4)))
+      (is (= id (cn/id-attr r4)))
       (is (= (:X r2) (:X r4)))
       (is (= 20 (:Y r2)))
       (is (= 30 (:Y r4))))))
@@ -172,13 +172,13 @@
     (event {:QIdDel/FindByIdAndDel
             {:EId :Kernel/UUID}})
     (dataflow :QIdDel/FindByIdAndDel
-              [:delete :QIdDel/E :Id :QIdDel/FindByIdAndDel.EId]))
+              [:delete :QIdDel/E cn/id-attr :QIdDel/FindByIdAndDel.EId]))
   (let [e (cn/make-instance :QIdDel/E {:X 100})
         e01 (first (tu/fresult (e/eval-all-dataflows {:QIdDel/Upsert_E {:Instance e}})))
-        id (:Id e01)
-        devt (cn/make-instance :QIdDel/FindByIdAndDel {:EId (:Id e01)})
+        id (cn/id-attr e01)
+        devt (cn/make-instance :QIdDel/FindByIdAndDel {:EId (cn/id-attr e01)})
         _ (doall (e/eval-all-dataflows devt))
-        levt (cn/make-instance :QIdDel/Lookup_E {:Id id})
+        levt (cn/make-instance :QIdDel/Lookup_E {cn/id-attr id})
         lookup-result (doall (e/eval-all-dataflows levt))]
     (is (= :not-found (:status (first lookup-result))))))
 
@@ -190,15 +190,15 @@
             {:X :Kernel/Int}})
     (dataflow :QDel/FindAndDel
               {:QDel/E {:X? :QDel/FindAndDel.X}}
-              [:delete :QDel/E :Id :QDel/E.Id])
+              [:delete :QDel/E cn/id-attr :QDel/E.Id])
     (dataflow :QDel/DeleteById
-              [:delete :QDel/E :Id :QDel/DeleteById.EId]))
+              [:delete :QDel/E cn/id-attr :QDel/DeleteById.EId]))
   (let [e (cn/make-instance :QDel/E {:X 100})
         e01 (first (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e}})))
-        id (:Id e01)
+        id (cn/id-attr e01)
         devt (cn/make-instance :QDel/FindAndDel {:X 100})
         _ (doall (e/eval-all-dataflows devt))
-        levt (cn/make-instance :QDel/Lookup_E {:Id id})
+        levt (cn/make-instance :QDel/Lookup_E {cn/id-attr id})
         lookup-result (doall (e/eval-all-dataflows levt))
         devt (cn/make-instance :QDel/FindAndDel {:X 100})
         del-result1 (doall (e/eval-all-dataflows devt))
@@ -285,8 +285,8 @@
                        }}}))
   (let [e (cn/make-instance :Dt01/E {:Name "Birkhe" :LastAccountAccess "2018-07-28T12:15:30"})
         e1 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
-        id (:Id e1)
-        e2 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Lookup_E {:Id id}})))
+        id (cn/id-attr e1)
+        e2 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Lookup_E {cn/id-attr id}})))
         laa (:LastAccountAccess e2)]
     (is (cn/instance-of? :Dt01/E e2))
     (is (cn/same-instance? e1 e2))

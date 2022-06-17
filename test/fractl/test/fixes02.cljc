@@ -91,7 +91,7 @@
                  :B "14:24:30"}}}})
          r2 (tu/first-result
              {:I352Dtu/Lookup_E
-              {:Id (:Id r1)}})]
+              {cn/id-attr (cn/id-attr r1)}})]
      (is (cn/same-instance? r1 r2)))))
 
 #?(:clj
@@ -133,10 +133,10 @@
        (is (every?
             (partial cn/instance-of? :I358Csv01/Employee)
             (:result result)))
-       (let [id (:Id (first (:result result)))
+       (let [id (cn/id-attr (first (:result result)))
              r (tu/first-result
                 {:I358Csv01/Lookup_Employee
-                 {:Id id}})]
+                 {cn/id-attr id}})]
          (is (cn/same-instance? r (first (:result result)))))
        (let [r (first
                 (e/eval-all-dataflows
@@ -250,7 +250,7 @@
                 :SiteLocation "b"}})
          r (:result (first (e/eval-all-dataflows evt)))]
      (is (= 1 (count r)))
-     (is (= (:Id (first r)) (:Id er3))))))
+     (is (= (cn/id-attr (first r)) (cn/id-attr er3))))))
 
 (deftest issue-379-compound-query
   (#?(:clj do
@@ -275,14 +275,14 @@
              {:I379/Upsert_P {:Instance p}})
          e (cn/make-instance
             {:I379/E
-             {:P (:Id pr)
+             {:P (cn/id-attr pr)
               :X 100}})
          r1 (tu/first-result
              {:I379/Upsert_E
               {:Instance e}})
          r2 (tu/first-result
              {:I379/Lookup_E
-              {:Id (:Id e)}})
+              {cn/id-attr (cn/id-attr e)}})
          r3 (tu/first-result
              {:I379/Q {:X 100}})]
      (is (= (:Y r1) 130))
@@ -407,7 +407,7 @@
   {:ApiToken api-token,
    :Email "testuser@ventur8.io",
    :AuthDomain "fractl.us.auth0.com",
-   :Id "8dd4b088-1e51-4efe-9385-018783b96eb4"
+   cn/id-attr "8dd4b088-1e51-4efe-9385-018783b96eb4"
    :-*-name-*- [:Kernel :OAuthAnyRequest],
    :UserName "testuser",
    :Password "P@s$w0rd123",
@@ -434,7 +434,7 @@
                  :Z 20}}}})
          e2 (tu/first-result
              {:I442/Lookup_E
-              {:Id (:Id e1)}})]
+              {cn/id-attr (cn/id-attr e1)}})]
      (is (= 10 (:X e1) (:X e2)))
      (let [y1 (:Y e1) y2 (:Y e2)]
        (is (= api-token (:ApiToken y1) (:ApiToken y2)))
@@ -442,7 +442,7 @@
             true?
             (mapv
              #(and (% y1) (% y2) true)
-             [:Email :Id :AuthDomain :UserName
+             [:Email cn/id-attr :AuthDomain :UserName
               :Password :ClientID :ClientSecret]))))
      (is (= 20 (:Z e1) (:Z e2))))))
 
@@ -523,7 +523,7 @@
          bid1b (get-in j1 [:transition :to])
          bid2b (get-in j2 [:transition :to])]
      (defn inplace-update? [b1 b2 b2-status]
-       (is (and (= (:Id b1) (:Id b2))
+       (is (and (= (cn/id-attr b1) (cn/id-attr b2))
                 (= (:JobId b1) (:JobId b2))
                 (= (:UserId b1) (:UserId b2))
                 (= b2-status (:Status b2))

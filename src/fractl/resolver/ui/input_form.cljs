@@ -27,8 +27,8 @@
     (let [{c :component r :record rs :refs} n
           inst (ctx/lookup-by-name [c r])]
       (when inst
-        (if (= rs [:Id])
-          [(:Id inst) (cn/instance-str inst)]
+        (if (= rs [cn/id-attr])
+          [(cn/id-attr inst) (cn/instance-str inst)]
           [(get-in inst rs) nil])))))
 
 (defn- fetch-local-value [attr-scm]
@@ -95,7 +95,7 @@
               attr-scm (cn/find-attribute-schema (field-name schema))
               h (partial change-handler field-name)
               [local-val s] (if-let [v (field-name inst)]
-                              [(if (= :Id field-name)
+                              [(if (= cn/id-attr field-name)
                                  (cn/instance-str inst)
                                  v) nil]
                               (fetch-local-value attr-scm))
@@ -119,7 +119,7 @@
                  :default-value (or (or s local-val) "")
                  :variant "standard"
                  :on-change h}
-                (when (or s (= :Id field-name))
+                (when (or s (= cn/id-attr field-name))
                   {:disabled true})
                 (when (cn/hashed-attribute? attr-scm)
                   {:type "password"}))])]]))
