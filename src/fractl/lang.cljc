@@ -519,11 +519,11 @@
 
 (defn- id-accessor [evtname]
   (cn/canonical-type-name
-   (keyword (str (name evtname) ".Instance.Id"))))
+   (keyword (str (name evtname) ".Instance." cn/s-id-attr))))
 
 (defn- direct-id-accessor [evtname]
   (cn/canonical-type-name
-   (keyword (str (name evtname) ".Id"))))
+   (keyword (str (name evtname) "." cn/s-id-attr))))
 
 (defn- crud-event-delete-pattern [evtname entity-name]
   [:delete entity-name (direct-id-accessor evtname)])

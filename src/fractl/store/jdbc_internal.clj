@@ -1,6 +1,7 @@
 (ns fractl.store.jdbc-internal
   (:require [next.jdbc :as jdbc]
             [next.jdbc.prepare :as jdbcp]
+            [fractl.component :as cn]
             [fractl.util :as u])
   (:import [java.sql PreparedStatement]))
 
@@ -15,7 +16,7 @@
     [pstmt nil]))
 
 (defn delete-by-id-statement [conn table-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE _id = ?")
+  (let [sql (str "DELETE FROM " table-name " WHERE _" cn/slc-id-attr " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 

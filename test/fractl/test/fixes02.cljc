@@ -261,7 +261,7 @@
       {:A :Kernel/Int})
      (entity
       :I379/E
-      {:P {:ref :I379/P.Id}
+      {:P {:ref :I379/P.__Id__}
        :X {:type :Kernel/Int
            :indexed true}
        :Y {:type :Kernel/Int

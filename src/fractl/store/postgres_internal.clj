@@ -37,11 +37,11 @@
     [pstmt nil]))
 
 (defn delete-index-statement [conn table-name _ id]
-  (let [sql (str "DELETE FROM " table-name " WHERE _id = ?")
+  (let [sql (str "DELETE FROM " table-name " WHERE _" cn/slc-id-attr " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [(u/uuid-from-string id)]]))
 
 (defn delete-by-id-statement [conn table-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE _id = ?")
+  (let [sql (str "DELETE FROM " table-name " WHERE _" cn/slc-id-attr " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [(u/uuid-from-string id)]]))

@@ -9,8 +9,9 @@
             [fractl.util.logger :as log]
             [fractl.lang.internal :as li]))
 
-(def id-attr :Id)
+(def id-attr li/id-attr)
 (def s-id-attr (name id-attr))
+(def slc-id-attr (s/lower-case s-id-attr))
 (def q-id-attr (keyword (str s-id-attr "?")))
 
 (def ^:private components
@@ -101,11 +102,12 @@
       (assoc @components component
              (merge {:resolver (:resolver spec)}
                     imports clj-imports java-imports v8-imports))))
-  (intern-attribute [component id-attr]
-                    {:type :Kernel/UUID
-                     :unique true
-                     :immutable true
-                     :default u/uuid-string})
+  (intern-attribute
+   [component id-attr]
+   {:type :Kernel/UUID
+    :unique true
+    :immutable true
+    :default u/uuid-string})
   (intern-event [component (component-init-event-name component)]
                 {:ComponentName :Kernel/Keyword})
   (set-current-component component)
@@ -303,12 +305,9 @@
                     type-key full-name} attributes)))
 
 (def instance->map identity)
-
-(defn instance-type-tag [rec]
-  (type-tag-key rec))
-
-(defn instance-type [rec]
-  (type-key rec))
+(def instance-type-tag type-tag-key)
+(def schema-type-tag type-tag-key)
+(def instance-type type-key)
 
 (defn ensure-type-and-name [inst type-name type-tag]
   (assoc
@@ -1332,3 +1331,6 @@
     false))
 
 (def hashed-attribute? :secure-hash)
+
+(defn append-id [path]
+  (keyword (str (subs (str path) 1) "." s-id-attr)))

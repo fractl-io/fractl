@@ -190,7 +190,7 @@
             {:X :Kernel/Int}})
     (dataflow :QDel/FindAndDel
               {:QDel/E {:X? :QDel/FindAndDel.X}}
-              [:delete :QDel/E cn/id-attr :QDel/E.Id])
+              [:delete :QDel/E cn/id-attr (tu/append-id :QDel/E)])
     (dataflow :QDel/DeleteById
               [:delete :QDel/E cn/id-attr :QDel/DeleteById.EId]))
   (let [e (cn/make-instance :QDel/E {:X 100})

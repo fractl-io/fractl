@@ -21,8 +21,8 @@
 (defn is-error [f]
   (is (try
         (do (f) false)
-        #?(:clj  (catch Exception ex
-                   (report-expected-ex ex))
+        #?(:clj (catch Exception ex
+                  (report-expected-ex ex))
            :cljs (catch js/Error e
                    (report-expected-ex e))))))
 
@@ -245,3 +245,5 @@
            [component-name entity-name] (fractl.lang.internal/split-path component)
            spec-name-space (get-spec-namespace component-name entity-name)]
        (gen/sample (s/gen spec-name-space)))))
+
+(def append-id cn/append-id)

@@ -99,7 +99,7 @@
     (dataflow :EntityXformR02/EToE
               {:EntityXformR02/E
                {:X :EntityXformR02/EToE.Instance.X
-                cn/id-attr :EntityXformR02/EToE.Instance.Id}})
+                cn/id-attr (tu/append-id :EntityXformR02/EToE.Instance)}})
     (event {:EntityXformR02/EToK
             {:Instance :Kernel/Entity}}))
   (defcomponent :R02
@@ -107,7 +107,7 @@
     (record {:R02/K {:X :Kernel/Int cn/id-attr :Kernel/UUID}}))
   (dataflow :EntityXformR02/EToK
             {:R02/K {:X :EntityXformR02/EToK.Instance.X
-                     cn/id-attr :EntityXformR02/EToK.Instance.Id}})
+                     cn/id-attr (tu/append-id :EntityXformR02/EToK.Instance)}})
   (override-test-resolver-r02 :TestResolver02 :R02/E)
   (let [e (cn/make-instance :R02/E {:X 10})
         result (tu/fresult (e/eval-all-dataflows {:R02/Upsert_E {:Instance e}}))

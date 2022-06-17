@@ -225,13 +225,13 @@
 (deftest compound-attributes
   (defcomponent :Df04
     (entity {:Df04/E1 {:A :Kernel/Int}})
-    (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
+    (entity {:Df04/E2 {:AId {:ref (tu/append-id :Df04/E1)}
                        :X :Kernel/Int
                        :Y {:type :Kernel/Int
                            :expr '(* :X :AId.A)}}})
     (event {:Df04/PostE2 {:E1 :Df04/E1}}))
   (dataflow :Df04/PostE2
-            {:Df04/E2 {:AId :Df04/PostE2.E1.Id
+            {:Df04/E2 {:AId (tu/append-id :Df04/PostE2.E1)
                        :X 500}})
   (let [e (cn/make-instance :Df04/E1 {:A 100})
         evt (cn/make-instance :Df04/Upsert_E1 {:Instance e})
@@ -305,7 +305,7 @@
 (deftest refcheck
   (defcomponent :RefCheck
     (entity {:RefCheck/E1 {:A :Kernel/Int}})
-    (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
+    (entity {:RefCheck/E2 {:AId {:ref (tu/append-id :RefCheck/E1)}
                            :X :Kernel/Int}}))
   (let [e (cn/make-instance :RefCheck/E1 {:A 100})
         id (cn/id-attr e)
@@ -1112,7 +1112,7 @@
                                                                      :default "167d0b04-fa75-11eb-9a03-0242ac130003"}
                                                            :Balance :UserAccount/Total}}))
           (dataflow :UserAccount/IncreaseLoan
-                    {:UserAccount/Estimate {cn/q-id-attr :UserAccount/IncreaseLoan.Id}}
+                    {:UserAccount/Estimate {cn/q-id-attr (tu/append-id :UserAccount/IncreaseLoan)}}
                     {:UserAccount/Estimate {:Balance :UserAccount/IncreaseLoan.Balance.Total
                                             :Loan    '(+ :Balance 10000)}})
           (let [r (cn/make-instance :UserAccount/Total {:Total 100000})
@@ -1188,8 +1188,8 @@
       :Author :Kernel/String})
     (relationship
      :Relationships/CheckoutBook
-     {:User {:ref :Relationships/User.Id}
-      :Book {:ref :Relationships/Book.Id}
+     {:User {:ref (tu/append-id :Relationships/User)}
+      :Book {:ref (tu/append-id :Relationships/Book)}
       :Date {:type :Kernel/DateTime
              :default dt/now}
       :meta
@@ -1287,9 +1287,9 @@
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
-          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? coll? (mapv :RefCheck/E3.AIdId data)))
           (is (every? #(every? string? %) (map :RefCheck/E3.AIdId data)))
-          (is (every? uuid? (map :RefCheck/E3.Id data)))))
+          (is (every? uuid? (mapv (tu/append-id :RefCheck/E3) data)))))
 
       (testing "unique string"
         (defcomponent :RefCheck
@@ -1297,9 +1297,9 @@
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
-          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? coll? (mapv :RefCheck/E3.AIdId data)))
           (is (every? #(every? string? %) (map :RefCheck/E3.AIdId data)))
-          (is (every? uuid? (map :RefCheck/E3.Id data)))))
+          (is (every? uuid? (mapv (tu/append-id :RefCheck/E3) data)))))
 
       (testing "int"
         (defcomponent :RefCheck
@@ -1430,7 +1430,7 @@
             (is (seq? data))
             (is (every? #(int? (:Df01/E.X %)) data))
             (is (every? #(int? (:Df01/E.Y %)) data))
-            (is (every? #(uuid? (:Df01/E.Id %)) data))))
+            (is (every? #(uuid? ((tu/append-id :Df01/E) %)) data))))
 
         (testing "record"
           (defcomponent :Df01
@@ -1442,12 +1442,12 @@
             (is (seq? data))
             (is (every? #(int? (:Df01/E.X %)) data))
             (is (every? #(int? (:Df01/E.Y %)) data))
-            (is (every? #(nil? (:Df01/E.Id %)) data))))
+            (is (every? #(nil? ((tu/append-id :Df01/E) %)) data))))
 
         (testing "Reference to an entity's attribute"
           (defcomponent :RefCheck
                         (entity {:RefCheck/E1 {:A :Kernel/Int}})
-                        (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
+                        (entity {:RefCheck/E2 {:AId {:ref (tu/append-id :RefCheck/E1)}
                                                :X :Kernel/Int}})
                         (entity {:RefCheck/E3 {:AIdId {:ref :RefCheck/E2.AId}}}))
 
@@ -1458,7 +1458,7 @@
         (testing "Reference to an entity"
           (defcomponent :RefCheck
                         (entity {:RefCheck/E1 {:A :Kernel/Int}})
-                        (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
+                        (entity {:RefCheck/E2 {:AId {:ref (tu/append-id :RefCheck/E1)}
                                                :X :Kernel/Int}})
                         (entity {:RefCheck/E3 {:AIdId {:type :RefCheck/E1}}}))
 
