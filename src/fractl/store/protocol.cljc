@@ -37,6 +37,8 @@
   (delete-by-id [store entity-name id]
     "Delete the instance with the given id. On success, return id.
      If the instance does not exist, return nil. On failure, raise an exception.")
+  (delete-all [store entity-name]
+    "Delete all instances.")
   (query-by-id [store entity-name query-sql ids]
     "Return the instances with the given :Id values. Return nil if the instances
      does not exist. On failure, raise an exception.")

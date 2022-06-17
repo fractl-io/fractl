@@ -7,6 +7,7 @@
             [fractl.lang.internal :as li]
             [fractl.ui.config :as cfg]
             [fractl.ui.util :as vu]
+            [fractl.ui.context :as ctx]
             ["@material-ui/core"
              :refer [Button]]))
 

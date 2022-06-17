@@ -30,6 +30,9 @@
   (let [sql (str "DELETE FROM " table-name " WHERE _Id = ?")]
     [sql [id]]))
 
+(defn delete-all-statement [_ table-name]
+  (str "DELETE FROM " table-name))
+
 (defn query-by-id-statement [_ query-sql id]
     (let [stmt (str query-sql)]
       [stmt [id]]))

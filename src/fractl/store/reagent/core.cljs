@@ -26,6 +26,8 @@
         (i/upsert-instance entity-name instance))
       (delete-by-id [_ entity-name id]
         (i/delete-by-id entity-name id))
+      (delete-all [_ entity-name]
+        (i/delete-all entity-name))
       (query-by-id [_ entity-name query ids]
         (i/query-by-id entity-name ids))
       (query-by-unique-keys [_ entity-name unique-keys unique-values]

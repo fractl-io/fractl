@@ -33,8 +33,11 @@
        :variant "body2"
        :on-click #(do (when is-auth-rec
                         (vu/clear-authorization!))
-                      (v/render-main-view
-                       (v/make-dashboard-view rec-name)))}
+                      (if (cn/event? rec-name)
+                        (v/render-view
+                         (v/make-input-view rec-name))
+                        (v/render-main-view
+                         v/make-dashboard-view)))}
       (str (if is-auth-rec
              "Logout"
              (name n))
