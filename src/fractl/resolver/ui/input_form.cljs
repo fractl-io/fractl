@@ -32,9 +32,9 @@
           [(get-in inst rs) nil])))))
 
 (defn- fetch-local-value [attr-scm]
-  (if-let [d (:default attr-scm)]
-    [(if (fn? d) (d) d) nil]
-    (maybe-load-ref-from-context attr-scm)))
+  (or (maybe-load-ref-from-context attr-scm)
+      (when-let [d (:default attr-scm)]
+        [(if (fn? d) (d) d) nil])))
 
 (defn- set-value-cell! [rec-name field-id attr-name attr-scm
                         query-spec-or-instance set-state-value!]
