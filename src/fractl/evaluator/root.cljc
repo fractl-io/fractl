@@ -779,15 +779,18 @@
 
     (do-delete-instance [self env [record-name queries]]
       (if-let [store (env/get-store env)]
-        (if-let [[insts env]
-                 (find-instances env store record-name queries)]
-          (let [alias (:alias queries)
-                env (if alias (env/bind-instance-to-alias env alias insts) env)]
-            (i/ok insts (reduce (fn [env instance]
-                                 (chained-delete env record-name (:Id instance))
-                                 (env/purge-instance env record-name (:Id instance)))
-                         env insts)))
-            (i/not-found record-name env))))
+        (if (= queries :*)
+          (i/ok [(store/delete-all store record-name)] env)
+          (if-let [[insts env]
+                   (find-instances env store record-name queries)]
+            (let [alias (:alias queries)
+                  env (if alias (env/bind-instance-to-alias env alias insts) env)]
+              (i/ok insts (reduce (fn [env instance]
+                                    (chained-delete env record-name (:Id instance))
+                                    (env/purge-instance env record-name (:Id instance)))
+                                  env insts)))
+            (i/not-found record-name env)))
+        (i/error (str "no active store, cannot delete " record-name " instance"))))
 
     (do-call-function [_ env fnobj]
       (call-function env fnobj))

@@ -19,6 +19,10 @@
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 
+(defn delete-all-statement [conn table-name]
+  (let [sql (str "DELETE FROM " table-name)]
+    (jdbc/prepare conn [sql])))
+
 (defn do-query-statement
   ([conn query-sql query-params]
    (let [^PreparedStatement pstmt

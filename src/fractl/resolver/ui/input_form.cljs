@@ -155,10 +155,11 @@
         (do (v/render-home-view [:div "login failed"])
             (u/throw-ex (str event-name " failed - " r)))))
     (fn [r]
-      (v/render-view
-       (v/make-list-view
-        {:record (cn/instance-type (first r))
-         :source (vec r)})))))
+      (let [rs (mapv fetch-upsert-result-inst r)]
+        (v/render-view
+         (v/make-list-view
+          {:record (cn/instance-type (first rs))
+           :source rs}))))))
 
 (defn- navigation-buttons [rels prev-rec-name]
   (mapv

@@ -147,6 +147,8 @@
         (db/delete-by-id
          pi/delete-by-id-statement
          @datasource entity-name id))
+      (delete-all [_ entity-name]
+        (db/delete-all @datasource entity-name))
       (query-by-id [_ entity-name query ids]
         (db/query-by-id
          pi/query-by-id-statement

@@ -20,6 +20,7 @@
    :upsert-inst-statement #?(:clj h2i/upsert-inst-statement :cljs aqi/upsert-inst-statement)
    :upsert-index-statement #?(:clj h2i/upsert-index-statement :cljs nil)
    :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
+   :delete-all-statement #?(:clj ji/delete-all-statement :cljs aqi/delete-all-statement)
    :query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement)
    :do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement)
    :validate-ref-statement #?(:clj ji/validate-ref-statement :cljs aqi/validate-ref-statement)})
@@ -31,6 +32,7 @@
 (def upsert-inst-statement (:upsert-inst-statement store-fns))
 (def upsert-index-statement (:upsert-index-statement store-fns))
 (def delete-by-id-statement (:delete-by-id-statement store-fns))
+(def delete-all-statement (:delete-all-statement store-fns))
 (def query-by-id-statement (:query-by-id-statement store-fns))
 (def do-query-statement (:do-query-statement store-fns))
 (def validate-ref-statement (:validate-ref-statement store-fns))
@@ -171,6 +173,15 @@
      id))
   ([datasource entity-name id]
    (delete-by-id delete-by-id-statement datasource entity-name id)))
+
+(defn delete-all [datasource entity-name]
+  (let [tabname (su/table-for-entity entity-name)]
+    (transact-fn!
+     datasource
+     (fn [txn]
+       (let [pstmt (delete-all-statement txn tabname)]
+         (execute-stmt! txn pstmt nil))))
+    entity-name))
 
 (defn compile-query [query-pattern]
   (sql/format-sql
