@@ -9,10 +9,10 @@
 (component :Sample.Library.Ledger)
 
 (entity {:CheckoutLog
-         {:Member       {:ref     :Sample.Library.Identity/Member.Id
+         {:Member       {:ref     (cn/append-id :Sample.Library.Identity/Member)
                          :indexed true}
           :Designation  :Kernel/String
-          :Book         {:ref     :Sample.Library.Catalog/Book.Id
+          :Book         {:ref     (cn/append-id :Sample.Library.Catalog/Book)
                          :indexed true}
           :IsCheckedout {:type    :Kernel/Boolean
                          :default true}

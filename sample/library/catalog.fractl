@@ -3,7 +3,8 @@
   (:use [fractl.lang]
         [fractl.lang.datetime]
         [fractl.lang.string]
-        [fractl.lang.b64]))
+        [fractl.lang.b64])
+  (:require [fractl.component :as cn]))
 
 (component :Sample.Library.Catalog)
 
@@ -13,7 +14,7 @@
 
 (entity {:Book
          {:Name {:check app-name?}
-          :Publisher {:ref :Sample.Library.Identity/User.Id
+          :Publisher {:ref (cn/append-id :Sample.Library.Identity/User)
                       :indexed true}
           :PublishDate {:type :Kernel/DateTime
                         :immutable true
