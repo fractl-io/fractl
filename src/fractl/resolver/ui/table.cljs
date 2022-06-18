@@ -49,7 +49,7 @@
                                 (v/render-view
                                  (v/make-instance-view inst)))}
                 disp-v])])))
-        (vec (conj result (delete-instance-button rec-name (:Id inst))))))))
+        (vec (conj result (delete-instance-button rec-name (cn/id-attr inst))))))))
 
 (declare make-rows-view)
 

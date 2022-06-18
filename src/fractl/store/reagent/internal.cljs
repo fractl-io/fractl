@@ -16,7 +16,7 @@
   [inst]
   (let [entity-name (cn/instance-type inst)
         parsed-entity (li/split-path entity-name)
-        id (:Id inst)]
+        id (cn/id-attr inst)]
     (swap! inst-store assoc-in [parsed-entity id] inst))
   inst)
 

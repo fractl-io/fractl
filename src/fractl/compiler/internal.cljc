@@ -59,7 +59,7 @@
           ;; TODO: validate multi-level references.
           (when-not (cn/inferred-event-schema? scm)
             (when-not (some #{(first refs)} (or (cn/attribute-names scm) (keys obj)))
-              (if (= (get scm :type-*-tag-*-) :event)
+              (if (= (cn/schema-type-tag scm) :event)
                 (u/throw-ex (str "Error in: Event " p " no such attribute - " (first refs)))
                 (u/throw-ex (str "Invalid reference - " [p refs])))))))
       ((if (ctx/fetch-variable ctx conditional-dataflow-tag)

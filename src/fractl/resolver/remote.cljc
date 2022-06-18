@@ -37,7 +37,7 @@
     (do-post url options request-obj)))
 
 (defn- mk-lookup-obj [inst]
-  {:Id (:Id inst)})
+  {cn/id-attr (cn/id-attr inst)})
 
 (def ^:private remote-upsert (partial remote-request :Upsert nil))
 (def ^:private remote-delete (partial remote-request :Delete nil))

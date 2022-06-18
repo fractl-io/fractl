@@ -519,24 +519,24 @@
 
 (defn- id-accessor [evtname]
   (cn/canonical-type-name
-   (keyword (str (name evtname) ".Instance.Id"))))
+   (keyword (str (name evtname) ".Instance." cn/s-id-attr))))
 
 (defn- direct-id-accessor [evtname]
   (cn/canonical-type-name
-   (keyword (str (name evtname) ".Id"))))
+   (keyword (str (name evtname) "." cn/s-id-attr))))
 
 (defn- crud-event-delete-pattern [evtname entity-name]
   [:delete entity-name (direct-id-accessor evtname)])
 
 (defn- crud-event-lookup-pattern [evtname entity-name]
-  {entity-name {:Id? (direct-id-accessor evtname)}})
+  {entity-name {cn/q-id-attr (direct-id-accessor evtname)}})
 
 (defn- implicit-entity-event-dfexp
   "Construct a dataflow expressions for an implicit dataflow
   lifted from the :on-entity-event property of an entity
   definition."
   [ename event-spec]
-  `(dataflow {:head {:on-entity-event {~ename {:Id 'id}}
+  `(dataflow {:head {:on-entity-event {~ename {cn/id-attr 'id}}
                      :when ~(:when event-spec)}}
              ~@(:do event-spec)))
 
@@ -560,8 +560,8 @@
   (if (cn/entity-schema-predefined? entity-name)
     attrs
     (assoc
-     attrs :Id
-     (cn/canonical-type-name :Id))))
+     attrs cn/id-attr
+     (cn/canonical-type-name cn/id-attr))))
 
 (defn- load-ref-pattern [evt-name evt-ref entity-name attr-name attr-schema]
   (let [[c _] (li/split-path entity-name)
@@ -587,7 +587,7 @@
             ev (partial crud-evname n)
             ctx-aname (k/event-context-attribute-name)
             inst-evattrs {:Instance n li/event-context ctx-aname}
-            id-evattrs {:Id :Kernel/UUID li/event-context ctx-aname}]
+            id-evattrs {cn/id-attr :Kernel/UUID li/event-context ctx-aname}]
         ;; Define CRUD events and dataflows:
         (let [upevt (ev :Upsert)
               delevt (ev :Delete)

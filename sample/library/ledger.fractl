@@ -8,11 +8,11 @@
 
 (component :Sample.Library.Ledger)
 
-(entity {:CheckoutLog
-         {:Member       {:ref     :Sample.Library.Identity/Member.Id
+(entity {:Sample.Library.Ledger/CheckoutLog
+         {:Member       {:ref     (cn/append-id :Sample.Library.Identity/Member)
                          :indexed true}
           :Designation  :Kernel/String
-          :Book         {:ref     :Sample.Library.Catalog/Book.Id
+          :Book         {:ref     (cn/append-id :Sample.Library.Catalog/Book)
                          :indexed true}
           :IsCheckedout {:type    :Kernel/Boolean
                          :default true}
@@ -37,7 +37,7 @@
           [:match :Sample.Library.Identity/User.Password
            :Sample.Library.Ledger/UserLogin.Password  {:Kernel/Authentication {:Owner :Sample.Library.Identity/User}}])
 
-(event {:CheckoutBook
+(event {:Sample.Library.Ledger/CheckoutBook
         {:Member   :Kernel/UUID
          :Designation :Kernel/String
          :Book     :Kernel/UUID
@@ -47,21 +47,21 @@
          :Text     :Kernel/String
          :To       :Kernel/String}})
 
-(dataflow :CheckoutBook
-          {:CheckoutLog {:Member       :Sample.Library.Ledger/CheckoutBook.Member
-                         :Designation  :Sample.Library.Ledger/CheckoutBook.Designation
-                         :Book         :Sample.Library.Ledger/CheckoutBook.Book
-                         :IsCheckedout true}}
+(dataflow :Sample.Library.Ledger/CheckoutBook
+          {:Sample.Library.Ledger/CheckoutLog {:Member       :Sample.Library.Ledger/CheckoutBook.Member
+                                               :Designation  :Sample.Library.Ledger/CheckoutBook.Designation
+                                               :Book         :Sample.Library.Ledger/CheckoutBook.Book
+                                               :IsCheckedout true}}
           #_{:Email/Push {:Backend  :Sample.Library.Ledger/CheckoutBook.Backend
-                        :Receiver :Sample.Library.Ledger/CheckoutBook.Receiver
-                        :Subject  :Sample.Library.Ledger/CheckoutBook.Subject
-                        :Text     :Sample.Library.Ledger/CheckoutBook.Text}}
+                          :Receiver :Sample.Library.Ledger/CheckoutBook.Receiver
+                          :Subject  :Sample.Library.Ledger/CheckoutBook.Subject
+                          :Text     :Sample.Library.Ledger/CheckoutBook.Text}}
           #_{:Sms/Push {:To   :Sample.Library.Ledger/CheckoutBook.To
-                      :Body :Sample.Library.Ledger/CheckoutBook.Text}}
-          {:CheckoutLog {:Member? :Sample.Library.Ledger/CheckoutBook.Member
-                         :Book?   :Sample.Library.Ledger/CheckoutBook.Book}})
+                        :Body :Sample.Library.Ledger/CheckoutBook.Text}}
+          {:Sample.Library.Ledger/CheckoutLog {:Member? :Sample.Library.Ledger/CheckoutBook.Member
+                                               :Book?   :Sample.Library.Ledger/CheckoutBook.Book}})
 
-(event {:CheckinBook
+(event {:Sample.Library.Ledger/CheckinBook
         {:Member   :Kernel/UUID
          :Designation :Kernel/String
          :Book     :Kernel/UUID
@@ -71,11 +71,11 @@
          :Text     :Kernel/String
          :To       :Kernel/String}})
 
-(dataflow :CheckinBook
-          {:CheckoutLog {:Member       :Sample.Library.Ledger/CheckinBook.Member
-                         :Designation   :Sample.Library.Ledger/CheckinBook.Designation
-                         :Book         :Sample.Library.Ledger/CheckinBook.Book
-                         :IsCheckedout false}}
+(dataflow :Sample.Library.Ledger/CheckinBook
+          {:Sample.Library.Ledger/CheckoutLog {:Member       :Sample.Library.Ledger/CheckinBook.Member
+                                               :Designation   :Sample.Library.Ledger/CheckinBook.Designation
+                                               :Book         :Sample.Library.Ledger/CheckinBook.Book
+                                               :IsCheckedout false}}
           #_{:Email/Push {:Backend  :Sample.Library.Ledger/CheckoutBook.Backend
                         :Receiver :Sample.Library.Ledger/CheckoutBook.Receiver
                         :Subject  :Sample.Library.Ledger/CheckoutBook.Subject

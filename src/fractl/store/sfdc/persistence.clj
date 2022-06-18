@@ -34,7 +34,7 @@
                           (str type-name "s")
                           type-name))
       :file-name #(str (:FullName %) extn)
-      :meta-dissoc #(dissoc % :Id :FullName)
+      :meta-dissoc #(dissoc % cn/id-attr :FullName)
       :parser parser}))
   ([type-name parser]
    (generic-io-config type-name true parser)))
@@ -270,7 +270,7 @@
 
 (defn create-custom-type [connection sfdc-namespace entity-name attrs]
   (let [[_ type-name] (li/split-path entity-name)
-        sfdc-attrs (dissoc attrs :Id :Name)
+        sfdc-attrs (dissoc attrs cn/id-attr :Name)
         fields (attributes-as-fields sfdc-attrs)
         obj-name (name type-name)
         name-cf (doto (CustomField.)
@@ -315,7 +315,7 @@
               "Content-Type" "application/json"}
         results (map #(let [attrs (custom-names
                                    sfdc-namespace
-                                   (dissoc (cn/instance-attributes %) :Id))
+                                   (dissoc (cn/instance-attributes %) cn/id-attr))
                             opts {:body (json/generate-string attrs)
                                   :headers hdrs}]
                         (http/post url opts))

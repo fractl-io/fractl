@@ -12,7 +12,7 @@
         id-token (get response "id_token")
         token-type (get response "token_type")
         expires-in (get response "expires_in")
-        owner (:Id auth-req)
+        owner (cn/id-attr auth-req)
         auth-response {:Kernel/AuthResponse
                        {:AccessToken access-token
                         :IdToken id-token

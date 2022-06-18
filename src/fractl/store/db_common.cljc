@@ -51,8 +51,8 @@
                    uq (when (some #{a} unique-attributes) "NOT NULL UNIQUE")]
                (recur
                 (rest attrs)
-                (str cols (if (= :Id a)
-                            (str "_Id " id-type " PRIMARY KEY")
+                (str cols (if (= cn/id-attr a)
+                            (str "_" cn/s-id-attr " " id-type " PRIMARY KEY")
                             (str "_" (name a) " " sql-type " " uq))
                      (when (seq (rest attrs))
                        ", "))))
@@ -130,7 +130,7 @@
           tabname (su/table-for-entity [component entity-name])
           rattr (first (:refs p))
           colname (name rattr)
-          index-tabname (if (= rattr :Id) tabname (su/index-table-name tabname colname))
+          index-tabname (if (= rattr cn/id-attr) tabname (su/index-table-name tabname colname))
           [stmt params] (validate-ref-statement conn index-tabname colname (get inst aname))]
       (when-not (seq (execute-stmt! conn stmt params))
         (u/throw-ex (str "Reference not found - " aname ", " p))))))

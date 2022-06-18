@@ -8,20 +8,20 @@
 (defn ra-upsert [inst]
   (let [r (:Role inst)
         a (:Assignee inst)
-        aid (:Id a)
+        aid (cn/id-attr a)
         atype (cn/instance-type a)
         evt (cn/make-instance
              {:Kernel.Role/Upsert_Assignment
               {:Role r :AssigneeId aid :AssigneeType atype}})
         result (ev/eval-all-dataflows evt)]
     (when-let [r (ev/ok-result result)]
-      (assoc inst :Id (:Id r)))))
+      (assoc inst cn/id-attr (cn/id-attr r)))))
 
 (defn- ra-delete [inst]
-  (let [id (:Id inst)
+  (let [id (cn/id-attr inst)
         evt (cn/make-instance
              {:Kernel.Role/Delete_Assignment
-              {:Id id}})
+              {cn/id-attr id}})
         result (ev/eval-all-dataflows evt)]
     (when (ev/ok-result result)
       id)))

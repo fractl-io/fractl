@@ -1,5 +1,6 @@
 (ns fractl.test.util
   (:require [fractl.evaluator :as e]
+            [fractl.component :as cn]
             #?(:clj  [clojure.test :refer [is]]
                :cljs [cljs.test :refer-macros [is]])
             [fractl.store :as store]
@@ -20,8 +21,8 @@
 (defn is-error [f]
   (is (try
         (do (f) false)
-        #?(:clj  (catch Exception ex
-                   (report-expected-ex ex))
+        #?(:clj (catch Exception ex
+                  (report-expected-ex ex))
            :cljs (catch js/Error e
                    (report-expected-ex e))))))
 
@@ -213,8 +214,8 @@
              {} entity-schema))
 
 (defn maybe-assoc-id [schema]
-  (if (:Id schema)
-    (assoc schema :Id :Kernel/UUID)
+  (if (cn/id-attr schema)
+    (assoc schema cn/id-attr :Kernel/UUID)
     schema))
 
 (defn get-deep-ref [prop-details component-name]
@@ -244,3 +245,5 @@
            [component-name entity-name] (fractl.lang.internal/split-path component)
            spec-name-space (get-spec-namespace component-name entity-name)]
        (gen/sample (s/gen spec-name-space)))))
+
+(def append-id cn/append-id)

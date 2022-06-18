@@ -50,7 +50,7 @@
   "Convert a record instance to XML"
   [record-name inst]
   (let [elems (attributes-as-xml
-               (dissoc (cn/instance-attributes inst) :Id))]
+               (dissoc (cn/instance-attributes inst) cn/id-attr))]
     (str (generate-xml-prefix record-name)
          elems
          (generate-xml-suffix record-name))))

@@ -20,8 +20,8 @@
 (def override-test-resolver (partial test-resolver rg/override-resolver))
 
 (defn- persisted? [comp-name entity-instance]
-  (let [id (:Id entity-instance)
-        evt (cn/make-instance (keyword (str (name comp-name) "/Lookup_E")) {:Id id})
+  (let [id (cn/id-attr entity-instance)
+        evt (cn/make-instance (keyword (str (name comp-name) "/Lookup_E")) {cn/id-attr id})
         result (e/eval-all-dataflows evt store nil)
         r (first result)]
     (when-not (= :not-found (:status r))

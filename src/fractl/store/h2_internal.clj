@@ -7,7 +7,7 @@
   (:import [java.sql PreparedStatement]))
 
 (defn upsert-index-statement [conn table-name _ id attrval]
-  (let [sql (str "MERGE INTO " table-name " KEY (_id) VALUES (?, ?)")
+  (let [sql (str "MERGE INTO " table-name " KEY (_" cn/slc-id-attr ") VALUES (?, ?)")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id attrval]]))
 
