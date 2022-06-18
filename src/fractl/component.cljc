@@ -9,6 +9,11 @@
             [fractl.util.logger :as log]
             [fractl.lang.internal :as li]))
 
+(def id-attr li/id-attr)
+(def s-id-attr (name id-attr))
+(def slc-id-attr (s/lower-case s-id-attr))
+(def q-id-attr (keyword (str s-id-attr "?")))
+
 (def ^:private components
   "Table that maps component names to their definitions."
   #?(:clj  (ref {})
@@ -97,11 +102,12 @@
       (assoc @components component
              (merge {:resolver (:resolver spec)}
                     imports clj-imports java-imports v8-imports))))
-  (intern-attribute [component :Id]
-                    {:type :Kernel/UUID
-                     :unique true
-                     :immutable true
-                     :default u/uuid-string})
+  (intern-attribute
+   [component id-attr]
+   {:type :Kernel/UUID
+    :unique true
+    :immutable true
+    :default u/uuid-string})
   (intern-event [component (component-init-event-name component)]
                 {:ComponentName :Kernel/Keyword})
   (set-current-component component)
@@ -299,12 +305,9 @@
                     type-key full-name} attributes)))
 
 (def instance->map identity)
-
-(defn instance-type-tag [rec]
-  (type-tag-key rec))
-
-(defn instance-type [rec]
-  (type-key rec))
+(def instance-type-tag type-tag-key)
+(def schema-type-tag type-tag-key)
+(def instance-type type-key)
 
 (defn ensure-type-and-name [inst type-name type-tag]
   (assoc
@@ -358,10 +361,10 @@
 
 (defn instance-user-attributes
   "Returns only the user assigned attributes.
-   Excludes :Id in its return"
+   Excludes id-attr in its return"
   [inst]
   (when (an-instance? inst)
-    (dissoc inst type-tag-key :Id type-key dirty-key)))
+    (dissoc inst type-tag-key id-attr type-key dirty-key)))
 
 (def set-attribute-value assoc)
 
@@ -436,7 +439,7 @@
     (first (identity-attributes (:schema scm)))))
 
 (defn same-id? [a b]
-  (= (str (:Id a)) (str (:Id b))))
+  (= (str (id-attr a)) (str (id-attr b))))
 
 (defn instance-eq?
   "Return true if both entity instances have the same identity."
@@ -1294,7 +1297,7 @@
       (instance-type-str n))))
 
 (defn compact-instance [inst]
-  {:Id (:Id inst)
+  {id-attr (id-attr inst)
    :str (instance-str inst)
    type-tag-key (instance-type-tag inst)
    type-key (instance-type inst)})
@@ -1328,3 +1331,6 @@
     false))
 
 (def hashed-attribute? :secure-hash)
+
+(defn append-id [path]
+  (keyword (str (subs (str path) 1) "." s-id-attr)))

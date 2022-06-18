@@ -21,7 +21,7 @@
       (str (db-schema-for-component component-name) "__" (db-ident r)))))
 
 (defn indexed-attributes [entity-schema]
-  (set (remove #{:Id} (cn/indexed-attributes entity-schema))))
+  (set (remove #{cn/id-attr} (cn/indexed-attributes entity-schema))))
 
 (defn index-table-name
   "Construct the lookup table-name for the attribute, from the main entity

@@ -86,7 +86,7 @@
 (deftest compile-pattern-02
   (let [[ctx c] (pattern-compiler)
         p1 {:CompileTest/E1
-            {:Id? 'id
+            {cn/q-id-attr 'id
              :X 100
              :Y '(+ :X 10)}}
         uuid (u/uuid-string)]
@@ -110,7 +110,7 @@
 (deftest circular-dependency
   (let [[ctx c] (pattern-compiler)
         p1 {:CompileTest/E1
-            {:Id? 'id
+            {cn/q-id-attr 'id
              :X '(+ :Y 20)
              :Y '(+ :X 10)}}
         uuid (u/uuid-string)]
@@ -142,7 +142,7 @@
         evt (cn/make-instance :Df02/PostE {:R r})
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Df02/E result))
-    (is (u/uuid-from-string (:Id result)))
+    (is (u/uuid-from-string (cn/id-attr result)))
     (is (= 100 (:X result)))
     (is (= 1000 (:Y result)))))
 
@@ -161,7 +161,7 @@
         evt {:Df03/PostE {:R r}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Df03/E result))
-    (is (u/uuid-from-string (:Id result)))
+    (is (u/uuid-from-string (cn/id-attr result)))
     (is (= 100 (:X result)))
     (is (= 1000 (:Y result)))
     (is (= 1100 (:Z result)))))
@@ -181,13 +181,13 @@
   (let [evt (cn/make-instance :Bool/PostE1 {:B true})
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Bool/E result))
-    (is (u/uuid-from-string (:Id result)))
+    (is (u/uuid-from-string (cn/id-attr result)))
     (is (= true (:X result)))
     (is (= true (:Y result))))
   (let [evt (cn/make-instance :Bool/PostE2 {:B false})
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Bool/E result))
-    (is (u/uuid-from-string (:Id result)))
+    (is (u/uuid-from-string (cn/id-attr result)))
     (is (= false (:X result)))
     (is (= false (:Y result)))))
 
@@ -200,7 +200,7 @@
     (event {:SelfRef/AddToX {:EId :Kernel/UUID
                              :Y :Kernel/Int}}))
   (dataflow :SelfRef/AddToX
-            {:SelfRef/E {:Id? :SelfRef/AddToX.EId
+            {:SelfRef/E {cn/q-id-attr :SelfRef/AddToX.EId
                          :X '(+ :X :SelfRef/AddToX.Y)
                          :Y :SelfRef/AddToX.Y
                          :Z 1}})
@@ -208,16 +208,16 @@
         evt (cn/make-instance :SelfRef/Upsert_E {:Instance e})
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :SelfRef/E result))
-    (is (u/uuid-from-string (:Id result)))
+    (is (u/uuid-from-string (cn/id-attr result)))
     (is (= 100 (:X result)))
     (is (= 200 (:Y result)))
     (is (= 300 (:Z result)))
-    (let [id (:Id result)
+    (let [id (cn/id-attr result)
           addevt (cn/make-instance :SelfRef/AddToX {:EId id :Y 10})
           result (first (tu/fresult (e/eval-all-dataflows addevt)))
           inst (or (get-in result [:transition :to]) result)]
       (is (cn/instance-of? :SelfRef/E inst))
-      (is (u/uuid-from-string (:Id inst)))
+      (is (u/uuid-from-string (cn/id-attr inst)))
       (is (= 110 (:X inst)))
       (is (= 10 (:Y inst)))
       (is (= 1 (:Z inst))))))
@@ -225,24 +225,24 @@
 (deftest compound-attributes
   (defcomponent :Df04
     (entity {:Df04/E1 {:A :Kernel/Int}})
-    (entity {:Df04/E2 {:AId {:ref :Df04/E1.Id}
+    (entity {:Df04/E2 {:AId {:ref (tu/append-id :Df04/E1)}
                        :X :Kernel/Int
                        :Y {:type :Kernel/Int
                            :expr '(* :X :AId.A)}}})
     (event {:Df04/PostE2 {:E1 :Df04/E1}}))
   (dataflow :Df04/PostE2
-            {:Df04/E2 {:AId :Df04/PostE2.E1.Id
+            {:Df04/E2 {:AId (tu/append-id :Df04/PostE2.E1)
                        :X 500}})
   (let [e (cn/make-instance :Df04/E1 {:A 100})
         evt (cn/make-instance :Df04/Upsert_E1 {:Instance e})
         e1 (first (tu/fresult (e/eval-all-dataflows evt)))
-        id (:Id e1)
-        e2 (cn/make-instance :Df04/E2 {:AId (:Id e1)
+        id (cn/id-attr e1)
+        e2 (cn/make-instance :Df04/E2 {:AId (cn/id-attr e1)
                                        :X 20})
         evt (cn/make-instance :Df04/PostE2 {:E1 e1})
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Df04/E2 result))
-    (is (u/uuid-from-string (:Id result)))
+    (is (u/uuid-from-string (cn/id-attr result)))
     (is (= (:AId result) id))
     (is (= (:X result) 500))
     (is (= (:Y result) 50000))))
@@ -262,8 +262,8 @@
         r (e/eval-all-dataflows evt)
         result (first (tu/fresult r))]
     (assert-ca-e! result)
-    (let [id (:Id result)
-          evt {:CA/Lookup_E {:Id id}}
+    (let [id (cn/id-attr result)
+          evt {:CA/Lookup_E {cn/id-attr id}}
           r (e/eval-all-dataflows evt)
           result (first (tu/fresult r))]
       (assert-ca-e! result))))
@@ -305,18 +305,18 @@
 (deftest refcheck
   (defcomponent :RefCheck
     (entity {:RefCheck/E1 {:A :Kernel/Int}})
-    (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
+    (entity {:RefCheck/E2 {:AId {:ref (tu/append-id :RefCheck/E1)}
                            :X :Kernel/Int}}))
   (let [e (cn/make-instance :RefCheck/E1 {:A 100})
-        id (:Id e)
-        e2 (cn/make-instance :RefCheck/E2 {:AId (:Id e) :X 20})
+        id (cn/id-attr e)
+        e2 (cn/make-instance :RefCheck/E2 {:AId (cn/id-attr e) :X 20})
         evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})]
     (tu/is-error
      #(tu/fresult (e/eval-all-dataflows evt)))
     (let [evt (cn/make-instance :RefCheck/Upsert_E1 {:Instance e})
           e1 (first (tu/fresult (e/eval-all-dataflows evt)))
-          id (:Id e1)
-          e2 (cn/make-instance :RefCheck/E2 {:AId (:Id e1) :X 20})
+          id (cn/id-attr e1)
+          e2 (cn/make-instance :RefCheck/E2 {:AId (cn/id-attr e1) :X 20})
           evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})
           inst (first (tu/fresult (e/eval-all-dataflows evt)))]
       (is (cn/instance-of? :RefCheck/E2 inst))
@@ -359,7 +359,7 @@
   (let [evt {:RecordEnt/PostE {:RA 10}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :RecordEnt/E result))
-    (is (u/uuid-from-string (:Id result)))
+    (is (u/uuid-from-string (cn/id-attr result)))
     (is (= 100 (:Q result)))
     (is (= 10 (:A (:R result))))))
 
@@ -642,11 +642,11 @@
     (entity {:Del/E {:X :Kernel/Int}}))
   (let [e (cn/make-instance :Del/E {:X 100})
         e01 (first (tu/fresult (e/eval-all-dataflows {:Del/Upsert_E {:Instance e}})))
-        id (:Id e01)
-        lookup-evt (cn/make-instance :Del/Lookup_E {:Id id})
+        id (cn/id-attr e01)
+        lookup-evt (cn/make-instance :Del/Lookup_E {cn/id-attr id})
         e02 (first (tu/fresult (e/eval-all-dataflows lookup-evt)))
-        del-result (e/eval-all-dataflows {:Del/Delete_E {:Id id}})
-        r01 (str (:Id (first (tu/fresult del-result))))
+        del-result (e/eval-all-dataflows {:Del/Delete_E {cn/id-attr id}})
+        r01 (str (cn/id-attr (first (tu/fresult del-result))))
         r02 (e/eval-all-dataflows lookup-evt)]
     (is (cn/instance-of? :Del/E e01))
     (is (cn/same-instance? e01 e02))
@@ -656,7 +656,7 @@
 (defn- assert-le
   ([n obj xs y]
    (is (cn/instance-of? n obj))
-   (is (:Id obj))
+   (is (cn/id-attr obj))
    (is (= xs (:Xs obj)))
    (is (= y (:Y obj))))
   ([obj xs y] (assert-le :L/E obj xs y)))
@@ -735,7 +735,7 @@
   (let [evt {:OptRecAttr/PostE {:Q 10}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :OptRecAttr/E result))
-    (is (u/uuid-from-string (:Id result)))
+    (is (u/uuid-from-string (cn/id-attr result)))
     (is (= 10 (:Q result)))))
 
 (deftest inherits
@@ -857,7 +857,7 @@
     (dataflow :PA/AddButton
               {:PA/Button {:Title :PA/AddButton.Title
                            :Position :PA/AddButton.Position
-                           :OnClick {:PA/OnClickEvent {:Source :Id}}}}))
+                           :OnClick {:PA/OnClickEvent {:Source cn/id-attr}}}}))
   (let [pos (cn/make-instance {:PA/Position {:X 10 :Y 10 :W 100 :H 50}})
         add-btn (cn/make-instance {:PA/AddButton {:Title "OK" :Position pos}})
         result (first (tu/fresult (e/eval-all-dataflows add-btn)))]
@@ -1108,11 +1108,11 @@
                                  {:Balance :Kernel/Float
                                   :Loan    :Kernel/Float}})
                         (record {:UserAccount/Total {:Total :Kernel/Float}})
-                        (event {:UserAccount/IncreaseLoan {:Id      {:type    :Kernel/UUID
+                        (event {:UserAccount/IncreaseLoan {cn/id-attr      {:type    :Kernel/UUID
                                                                      :default "167d0b04-fa75-11eb-9a03-0242ac130003"}
                                                            :Balance :UserAccount/Total}}))
           (dataflow :UserAccount/IncreaseLoan
-                    {:UserAccount/Estimate {:Id? :UserAccount/IncreaseLoan.Id}}
+                    {:UserAccount/Estimate {cn/q-id-attr (tu/append-id :UserAccount/IncreaseLoan)}}
                     {:UserAccount/Estimate {:Balance :UserAccount/IncreaseLoan.Balance.Total
                                             :Loan    '(+ :Balance 10000)}})
           (let [r (cn/make-instance :UserAccount/Total {:Total 100000})
@@ -1188,8 +1188,8 @@
       :Author :Kernel/String})
     (relationship
      :Relationships/CheckoutBook
-     {:User {:ref :Relationships/User.Id}
-      :Book {:ref :Relationships/Book.Id}
+     {:User {:ref (tu/append-id :Relationships/User)}
+      :Book {:ref (tu/append-id :Relationships/Book)}
       :Date {:type :Kernel/DateTime
              :default dt/now}
       :meta
@@ -1213,11 +1213,11 @@
             {:Relationships/Upsert_CheckoutBook
              {:Instance
               {:Relationships/CheckoutBook
-               {:User (:Id u1)
-                :Book (:Id b1)}}}})
+               {:User (cn/id-attr u1)
+                :Book (cn/id-attr b1)}}}})
         r2 (tu/first-result
             {:Relationships/Lookup_CheckoutBook
-             {:Id (:Id r1)}})]
+             {cn/id-attr (cn/id-attr r1)}})]
     (is (= (set [:Relationships/Book :Relationships/CheckoutBook :Relationships/User])
            (cn/entity-names :Relationships)))
     (is (= [:Relationships/CheckoutBook] (cn/relationship-names :Relationships)))
@@ -1287,9 +1287,9 @@
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
-          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? coll? (mapv :RefCheck/E3.AIdId data)))
           (is (every? #(every? string? %) (map :RefCheck/E3.AIdId data)))
-          (is (every? uuid? (map :RefCheck/E3.Id data)))))
+          (is (every? uuid? (mapv (tu/append-id :RefCheck/E3) data)))))
 
       (testing "unique string"
         (defcomponent :RefCheck
@@ -1297,9 +1297,9 @@
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
-          (is (every? coll? (map :RefCheck/E3.AIdId data)))
+          (is (every? coll? (mapv :RefCheck/E3.AIdId data)))
           (is (every? #(every? string? %) (map :RefCheck/E3.AIdId data)))
-          (is (every? uuid? (map :RefCheck/E3.Id data)))))
+          (is (every? uuid? (mapv (tu/append-id :RefCheck/E3) data)))))
 
       (testing "int"
         (defcomponent :RefCheck
@@ -1430,7 +1430,7 @@
             (is (seq? data))
             (is (every? #(int? (:Df01/E.X %)) data))
             (is (every? #(int? (:Df01/E.Y %)) data))
-            (is (every? #(uuid? (:Df01/E.Id %)) data))))
+            (is (every? #(uuid? ((tu/append-id :Df01/E) %)) data))))
 
         (testing "record"
           (defcomponent :Df01
@@ -1442,12 +1442,12 @@
             (is (seq? data))
             (is (every? #(int? (:Df01/E.X %)) data))
             (is (every? #(int? (:Df01/E.Y %)) data))
-            (is (every? #(nil? (:Df01/E.Id %)) data))))
+            (is (every? #(nil? ((tu/append-id :Df01/E) %)) data))))
 
         (testing "Reference to an entity's attribute"
           (defcomponent :RefCheck
                         (entity {:RefCheck/E1 {:A :Kernel/Int}})
-                        (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
+                        (entity {:RefCheck/E2 {:AId {:ref (tu/append-id :RefCheck/E1)}
                                                :X :Kernel/Int}})
                         (entity {:RefCheck/E3 {:AIdId {:ref :RefCheck/E2.AId}}}))
 
@@ -1458,7 +1458,7 @@
         (testing "Reference to an entity"
           (defcomponent :RefCheck
                         (entity {:RefCheck/E1 {:A :Kernel/Int}})
-                        (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.Id}
+                        (entity {:RefCheck/E2 {:AId {:ref (tu/append-id :RefCheck/E1)}
                                                :X :Kernel/Int}})
                         (entity {:RefCheck/E3 {:AIdId {:type :RefCheck/E1}}}))
 

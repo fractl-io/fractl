@@ -322,7 +322,7 @@
     [env nil]))
 
 (defn- id-attribute [query-attrs]
-  (first (filter #(= :Id (first %)) query-attrs)))
+  (first (filter #(= cn/id-attr (first %)) query-attrs)))
 
 (defn- evaluate-id-result [env rs]
   (loop [rs (if (or (not (seqable? rs)) (string? rs))
@@ -786,8 +786,8 @@
             (let [alias (:alias queries)
                   env (if alias (env/bind-instance-to-alias env alias insts) env)]
               (i/ok insts (reduce (fn [env instance]
-                                    (chained-delete env record-name (:Id instance))
-                                    (env/purge-instance env record-name (:Id instance)))
+                                    (chained-delete env record-name (cn/id-attr instance))
+                                    (env/purge-instance env record-name (cn/id-attr instance)))
                                   env insts)))
             (i/not-found record-name env)))
         (i/error (str "no active store, cannot delete " record-name " instance"))))

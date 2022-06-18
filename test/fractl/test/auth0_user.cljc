@@ -68,7 +68,7 @@
        (is (not-empty (:UserId signup-user-resp)))
        (is (= (:UserEmail signup-user-resp) email))
        (is (= (:UserName signup-user-resp) username))))))
-;;       (let [evt (cn/make-instance :Kernel/Lookup_Auth0User (:Id signup-user-resp))
+;;       (let [evt (cn/make-instance :Kernel/Lookup_Auth0User (cn/id-attr signup-user-resp))
 ;;             result (first (tu/fresult (e/eval-all-dataflows evt)))]
 ;;         (println "result" result))))))
 

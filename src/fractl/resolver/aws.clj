@@ -1,6 +1,7 @@
 (ns fractl.resolver.aws
   "AWS Resolver"
   (:require [fractl.util :as u]
+            [fractl.component :as cn]
             [fractl.resolver.core :as r]
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as credentials]
@@ -86,7 +87,7 @@
 
 (defn upsert-platform-application
   [inst]
-  (let [id (:Id inst)
+  (let [id (cn/id-attr inst)
         name (:Name inst)
         platform (:Platform inst)
         ;; Currently take :PlatformCredential as attributes
@@ -97,7 +98,7 @@
 
 (defn upsert-platform-endpoint
   [inst]
-  (let [id (:Id inst)
+  (let [id (cn/id-attr inst)
         platform-arn (:PlatformApplicationArn inst)
         token (:Token inst)
         platform-endpoint (create-platform-endpoint platform-arn token)]
@@ -105,14 +106,14 @@
 
 (defn upsert-topic
   [inst]
-  (let [id (:Id inst)
+  (let [id (cn/id-attr inst)
         name (:Name inst)
         topic (create-topic name)]
     (upsert-inst id :TopicArn topic inst)))
 
 (defn upsert-subscription
   [inst]
-  (let [id (:Id inst)
+  (let [id (cn/id-attr inst)
         topic-arn (:TopicArn inst)
         protocol (:Protocol inst)
         endpoint (:Endpoint inst)
@@ -121,7 +122,7 @@
 
 (defn upsert-confirm-subscription
   [inst]
-  (let [id (:Id inst)
+  (let [id (cn/id-attr inst)
         topic-arn (:TopicArn inst)
         token (:Token inst)
         c-subscription (confirm-created-subscription topic-arn token)]

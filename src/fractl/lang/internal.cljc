@@ -5,6 +5,8 @@
             #?(:cljs
                [cljs.js :refer [eval empty-state js-eval]])))
 
+(def id-attr :__Id__)
+
 (defn evaluate [form]
   #?(:clj (eval form)
      :cljs (eval (empty-state)
@@ -65,11 +67,12 @@
 
 (defn name?
   ([char-predic x]
-   (and (keyword? x)
-        (not (reserved? x))
-        (not (operator? x))
-        (let [s (subs (str x) 1)]
-          (char-predic s))))
+   (or (= id-attr x)
+       (and (keyword? x)
+            (not (reserved? x))
+            (not (operator? x))
+            (let [s (subs (str x) 1)]
+              (char-predic s)))))
   ([x] (name? no-invalid-chars? x)))
 
 (defn wildcard? [x]

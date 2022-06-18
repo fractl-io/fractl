@@ -145,7 +145,7 @@
 
 (defn- policy-delete [inst]
   ;; TODO: implement delete
-  (:Id inst))
+  (cn/id-attr inst))
 
 (defn- policy-query [query]
   ;; TODO: implement query

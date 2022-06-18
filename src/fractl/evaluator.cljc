@@ -125,7 +125,7 @@
           (throw ex)))))
 
 (defn- enrich-with-auth-owner
-  "Query the :Authentication object using the :Id bound to
+  "Query the :Authentication object using the cn/id-attr bound to
   li/event-context/Auth and using the information stored in that auth,
   load the :Owner object. Bind this object to li/event-context/Auth/Owner
   and return the updated event-instance."

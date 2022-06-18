@@ -99,8 +99,8 @@
          users (:Data r1)
          u1 (get-in (first users) [:transition :to])
          u2 (get-in (second users) [:transition :to])]
-     (is (= "supervisor" (first (ra/find-assigned-roles (:Id u1)))))
-     (is (= "officer" (first (ra/find-assigned-roles (:Id u2))))))))
+     (is (= "supervisor" (first (ra/find-assigned-roles (cn/id-attr u1)))))
+     (is (= "officer" (first (ra/find-assigned-roles (cn/id-attr u2))))))))
 
 (defn- fetch-spec [x]
   (second (policy/spec (first x))))

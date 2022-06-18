@@ -75,7 +75,7 @@
 
 (defn- maybe-remove-id [uq-attrs]
   (if (> (count uq-attrs) 1)
-    (vec (filter #(not= % :Id) uq-attrs))
+    (vec (filter #(not= % cn/id-attr) uq-attrs))
     uq-attrs))
 
 (defn upsert-instance [store record-name instance]
@@ -136,4 +136,4 @@
     (partial p/compile-query store)))
 
 (defn lookup-by-id [store entity-name id]
-  (query-by-unique-keys store entity-name [:Id] {:Id id}))
+  (query-by-unique-keys store entity-name [cn/id-attr] {cn/id-attr id}))

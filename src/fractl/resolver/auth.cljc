@@ -17,7 +17,7 @@
        (u/call-and-set
         db
         #(assoc
-          @db (:Id inst)
+          @db (cn/id-attr inst)
           inst-with-issued))
        (assoc inst :Issued (dt/as-string now)))))
 
@@ -54,7 +54,7 @@
                (u/call-and-set
                 db
                 #(assoc
-                  @db (:Id inst)
+                  @db (cn/id-attr inst)
                   inst-with-attrs))
                (s/upsert-instance
                 (s/get-default-store)
@@ -78,7 +78,7 @@
        (u/call-and-set
         db
         #(assoc
-          @db (:Id inst)
+          @db (cn/id-attr inst)
           inst-with-generated))
        (assoc inst :Generated (dt/as-string now) :AuthorizeURL authorize-url))))
 
@@ -90,7 +90,7 @@
     (u/throw-ex (str "invalid AuthType - " (:AuthType inst)))))
 
 (defn- auth-delete [inst]
-  (let [id (:Id inst)]
+  (let [id (cn/id-attr inst)]
     (u/call-and-set
      db
      #(dissoc @db id))
@@ -102,7 +102,7 @@
            (dt/difference-in-seconds
             (:Issued inst) (dt/now-raw)))
       inst
-      (do (auth-delete {:Id id})
+      (do (auth-delete {cn/id-attr id})
           nil))))
 
 (def ^:private resolver-fns

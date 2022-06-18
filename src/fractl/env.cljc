@@ -80,7 +80,7 @@
   (cn/maybe-deref (peek (get-instances env rec-name))))
 
 (defn purge-instance [env rec-name id]
-  (let [insts (filter #(not= (:Id %) id) (get-instances env rec-name))]
+  (let [insts (filter #(not= (cn/id-attr %) id) (get-instances env rec-name))]
     (assoc env rec-name insts)))
 
 (defn- find-instance-by-path-parts [env path-parts has-refs]
@@ -118,7 +118,7 @@
   (let [inst (if alias
                (lookup-by-alias env alias)
                (lookup-instance env record-name))
-        inst-id (:Id inst)
+        inst-id (cn/id-attr inst)
         path [record-name inst-id]]
     (if (seq refs)
       [path (get-in (cn/instance-attributes inst) refs)]
@@ -156,7 +156,7 @@
 
 (defn- identity-attribute [inst]
   (or (cn/identity-attribute-name (cn/instance-type inst))
-      :Id))
+      cn/id-attr))
 
 (defn- dirty-flag-switch
   "Turn on or off the `dirty` flag for the given instances.

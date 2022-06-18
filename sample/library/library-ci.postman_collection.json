@@ -68,7 +68,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Catalog/Upsert_Book\": {\n        \"Instance\": {\n            \"Sample.Library.Catalog/Book\": {\n                \"Name\": \"The Godfather\",\n                \"Publisher\": \"4f0c3ab6-64e2-46c0-9778-a14373a2dc0d\"\n            }\n        }\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Catalog/Upsert_Book\": {\n        \"Instance\": {\n            \"Sample.Library.Catalog/Book\": {\n                \"Name\": \"The Godfather\",\n                \"Publisher\": \"8f2ab3a1-0380-4bbb-8a7e-acca38b1d389\"\n            }\n        }\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -154,7 +154,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Ledger/CheckoutBook\": {\n        \"Book\": \"e35f5d98-4bc4-4373-b1e0-92ad000df04d\",\n        \"Member\": \"15d84b19-ec0f-4549-8ede-f2d63155325e\",\n        \"Designation\": \"life\",\n        \"Backend\": \"Postmark\",\n        \"Receiver\": \"test@test.io\",\n        \"Subject\": \"Book Checked out\",\n        \"Text\": \"You have checked out Crime and Punishment. Please return it after 2 weeks.\",\n        \"To\": \"+9779841XXXXXX\"\n    }\n}",
+					"raw": "{\n    \"Sample.Library.Ledger/CheckoutBook\": {\n        \"Book\": \"a52dba91-a3b3-451c-ae58-42d4668d7787\",\n        \"Member\": \"5f8cad32-6b57-47cf-a6f0-53d67256f3d1\",\n        \"Designation\": \"life\",\n        \"Backend\": \"Postmark\",\n        \"Receiver\": \"test@test.io\",\n        \"Subject\": \"Book Checked out\",\n        \"Text\": \"You have checked out Crime and Punishment. Please return it after 2 weeks.\",\n        \"To\": \"+9779841XXXXXX\"\n    }\n}",
 					"options": {
 						"raw": {
 							"language": "json"

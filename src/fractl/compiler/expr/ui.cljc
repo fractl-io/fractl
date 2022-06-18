@@ -114,7 +114,7 @@
 
 (defn state-refer
   ([instance update]
-   (let [k (or (:Id instance) instance)
+   (let [k (or (cn/id-attr instance) instance)
          old-cell (get @state-db k)
          cell (or old-cell (#?(:cljs r/atom :clj atom) instance))]
      (when (or update (not old-cell))

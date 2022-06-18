@@ -101,7 +101,7 @@
      (entity {:I185/E {:X :Kernel/Int :Y :Kernel/Int}})
      (record {:I185/R {:Y :Kernel/Int}})
      (dataflow :I185/UpdateE
-               {:I185/E {:Id? :I185/UpdateE.Id
+               {:I185/E {cn/q-id-attr (tu/append-id :I185/UpdateE)
                          :X :I185/UpdateE.X
                          :Y :I185/UpdateE.Y}})
      (dataflow [:I185/OnXGt10 :when [:and
@@ -112,14 +112,14 @@
          evt (cn/make-instance {:I185/Upsert_E {:Instance e}})
          r (tu/fresult (e/eval-all-dataflows evt))
          r1 (first r)
-         id (:Id r1)
-         evt (cn/make-instance {:I185/UpdateE {:Id id :X 20 :Y 100}})
+         id (cn/id-attr r1)
+         evt (cn/make-instance {:I185/UpdateE {cn/id-attr id :X 20 :Y 100}})
          r2 (tu/fresult (e/eval-all-dataflows evt))
          r3 (first (tu/embedded-results r2))
-         evt (cn/make-instance {:I185/UpdateE {:Id id :X 11 :Y 200}})
+         evt (cn/make-instance {:I185/UpdateE {cn/id-attr id :X 11 :Y 200}})
          r4 (tu/fresult (e/eval-all-dataflows evt))
          r5 (first (tu/embedded-results r4))
-         evt (cn/make-instance {:I185/Lookup_E {:Id id}})
+         evt (cn/make-instance {:I185/Lookup_E {cn/id-attr id}})
          r6 (first (tu/fresult (e/eval-all-dataflows evt)))]
      (is (nil? (tu/embedded-results r)))
      (is (cn/instance-of? :I185/E r1))
@@ -144,38 +144,38 @@
       :cljs cljs.core.async/go)
    (defcomponent :I213
      (entity {:I213/E1 {:X :Kernel/Int}})
-     (entity {:I213/E2 {:E1 {:ref :I213/E1.Id}
+     (entity {:I213/E2 {:E1 {:ref (tu/append-id :I213/E1)}
                         :Y :Kernel/Int}})
      (record {:I213/R {:Y :Kernel/Int :Z :Kernel/Int}})
      (dataflow :I213/UpdateE1
-               {:I213/E1 {:Id? :I213/UpdateE1.Id
+               {:I213/E1 {cn/q-id-attr (tu/append-id :I213/UpdateE1)
                           :X :I213/UpdateE1.X}})
      (dataflow :I213/UpdateE2
-               {:I213/E2 {:Id? :I213/UpdateE2.Id
+               {:I213/E2 {cn/q-id-attr (tu/append-id :I213/UpdateE2)
                           :Y :I213/UpdateE2.Y}})
      (dataflow [:I213/CrossCond
                 :when [:and
                        [:> :I213/E1.X 10]
                        [:= :I213/E2.Y 200]]
                 :on :I213/E2
-                :where [:= :I213/E2.E1 :I213/E1.Id]]
+                :where [:= :I213/E2.E1 (tu/append-id :I213/E1)]]
                {:I213/R {:Y '(* :I213/E2.Y :I213/E1.X) :Z 1}})
      (let [e1 (cn/make-instance {:I213/E1 {:X 10}})
            evt (cn/make-instance {:I213/Upsert_E1 {:Instance e1}})
            r1 (tu/fresult (e/eval-all-dataflows evt))
            e1 (first r1)
-           e2 (cn/make-instance {:I213/E2 {:E1 (:Id e1)
+           e2 (cn/make-instance {:I213/E2 {:E1 (cn/id-attr e1)
                                            :Y 20}})
            evt (cn/make-instance {:I213/Upsert_E2 {:Instance e2}})
            r2 (tu/fresult (e/eval-all-dataflows evt))
            e2 (first r2)
            evt (cn/make-instance {:I213/UpdateE1
-                                  {:Id (:Id e1)
+                                  {cn/id-attr (cn/id-attr e1)
                                    :X 20}})
            r3 (tu/fresult (e/eval-all-dataflows evt))
            e3 (get-in (first r3) [:transition :to])
            evt (cn/make-instance {:I213/UpdateE2
-                                  {:Id (:Id e2)
+                                  {cn/id-attr (cn/id-attr e2)
                                    :Y 200}})
            r4 (tu/fresult (e/eval-all-dataflows evt))
            e4 (get-in (first r4) [:transition :to])
