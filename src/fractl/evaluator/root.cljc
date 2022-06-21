@@ -17,6 +17,7 @@
             [fractl.lang :as ln]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]
+            [fractl.rbac.model]
             #?(:clj [clojure.core.async :as async :refer [go <! >! go-loop]])
             #?(:cljs [cljs.core.async :as async :refer [<! >!]]))
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go go-loop]])))
