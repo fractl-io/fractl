@@ -259,14 +259,6 @@
             (conj @inited-components component-name))
         component-name)))))
 
-(defn- perform-rbac! [env opr recname data]
-  (when-let [f (env/rbac-check env)]
-    (when-not (f opr recname
-                 (if (or (map? data) (string? data))
-                   data
-                   (first data)))
-      (u/throw-ex (str "no permission to execute " opr " on " recname)))))
-
 (defn- chained-crud [store-f res resolver-upsert single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
@@ -291,23 +283,20 @@
     (when store
       (maybe-init-schema! store (first record-name)))
     (if (env/any-dirty? env insts)
-      (do
-        (perform-rbac! env :Upsert record-name insts)
-        (let [result
-              (chained-crud
-               (when store (partial store/upsert-instances store record-name))
-               resolver (partial resolver-upsert env) nil insts)
-              conditional-event-results
-              (fire-all-conditional-events
-               event-evaluator env store result)]
-          (concat result conditional-event-results)))
+      (let [result
+            (chained-crud
+             (when store (partial store/upsert-instances store record-name))
+             resolver (partial resolver-upsert env) nil insts)
+            conditional-event-results
+            (fire-all-conditional-events
+             event-evaluator env store result)]
+        (concat result conditional-event-results))
       insts)))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
 
 (defn- chained-delete [env record-name id]
-  (perform-rbac! env :Delete record-name id)
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (chained-crud
@@ -443,9 +432,7 @@
                        (find-instances-in-store env store entity-name full-query))]
     (if ch?
       [result env]
-      (do
-        (perform-rbac! env :Lookup entity-name result)
-        [result (env/bind-instances env entity-name result)]))))
+      [result (env/bind-instances env entity-name result)])))
 
 (defn- require-validation? [n]
   (if (or (cn/find-entity-schema n)

@@ -11,16 +11,12 @@
             [fractl.resolver.registry :as rr]
             [fractl.resolver.remote :as rt]
             [fractl.auth :as auth]
-            [fractl.policy.rbac :as rbac]
             [fractl.policy.logging :as logging]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
             [fractl.evaluator.state :as es]
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.root :as r]))
-
-(def ^:private zero-trust-rbac-flag (u/make-cell false))
-(def zero-trust-rbac! (partial u/safe-set zero-trust-rbac-flag))
 
 (defn- dispatch-an-opcode [evaluator env opcode]
   (((opc/op opcode) i/dispatch-table)
@@ -63,13 +59,7 @@
   ([evaluator env event-instance df]
    (let [env (if event-instance
                (env/bind-instance
-                (env/bind-rbac-check
-                 env
-                 (partial
-                  rbac/evaluate-opcode?
-                  event-instance
-                  @zero-trust-rbac-flag))
-                (li/split-path (cn/instance-type event-instance))
+                env (li/split-path (cn/instance-type event-instance))
                 event-instance)
                env)
          [_ dc] (cn/dataflow-opcode df)
@@ -145,25 +135,18 @@
   [compile-query-fn evaluator env event-instance]
   (let [event-instance (enrich-with-auth-owner event-instance)
         dfs (c/compile-dataflows-for-event
-             compile-query-fn @zero-trust-rbac-flag
-             event-instance)
+             compile-query-fn event-instance)
         logging-rules (logging/rules event-instance)
         log-levels (logging/log-levels logging-rules)
         log-warn (some #{:WARN} log-levels)]
-    (if (rbac/evaluate-dataflow? event-instance @zero-trust-rbac-flag)
-      (let [log-info (some #{:INFO} log-levels)
-            log-error (some #{:ERROR} log-levels)
-            hidden-attrs (logging/hidden-attributes logging-rules)
-            ef (partial
-                eval-dataflow-with-logs evaluator
-                env event-instance log-info log-error hidden-attrs)]
-        (when log-info (log-event hidden-attrs event-instance))
-        (mapv ef dfs))
-      (let [msg (str "no authorization to evaluate dataflows on event - "
-                     (cn/instance-type event-instance))]
-        (when log-warn
-          (log/warn msg))
-        (u/throw-ex msg)))))
+    (let [log-info (some #{:INFO} log-levels)
+          log-error (some #{:ERROR} log-levels)
+          hidden-attrs (logging/hidden-attributes logging-rules)
+          ef (partial
+              eval-dataflow-with-logs evaluator
+              env event-instance log-info log-error hidden-attrs)]
+      (when log-info (log-event hidden-attrs event-instance))
+      (mapv ef dfs))))
 
 (defn- make
   "Use the given store to create a query compiler and pattern evaluator.
@@ -256,7 +239,6 @@
   (comp filter-public-result (evaluator store-config nil with-query-support)))
 
 (defn query-fn [store]
-  ;; TODO: enrich the environment with rbac check fn
   (partial r/find-instances env/EMPTY store))
 
 (defn global-dataflow-eval []

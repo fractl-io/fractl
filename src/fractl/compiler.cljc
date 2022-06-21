@@ -639,19 +639,18 @@
         result [ec (mapv c df-patterns)]]
     result))
 
-(defn- maybe-compile-dataflow [compile-query-fn zero-trust-rbac df]
+(defn- maybe-compile-dataflow [compile-query-fn df]
   (when-not (cn/dataflow-opcode df)
     (let [ctx (make-context)]
       (ctx/bind-compile-query-fn! ctx compile-query-fn)
-      (ctx/bind-variable! ctx :zero-trust-rbac zero-trust-rbac)
       (cn/set-dataflow-opcode!
        df (compile-dataflow
            ctx (cn/dataflow-event-pattern df)
            (cn/dataflow-patterns df)))))
   df)
 
-(defn compile-dataflows-for-event [compile-query-fn zero-trust-rbac event]
-  (mapv (partial maybe-compile-dataflow compile-query-fn zero-trust-rbac)
+(defn compile-dataflows-for-event [compile-query-fn event]
+  (mapv (partial maybe-compile-dataflow compile-query-fn)
         (cn/dataflows-for-event event)))
 
 (defn- reference-attributes [attrs refrec]

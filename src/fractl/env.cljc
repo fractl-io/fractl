@@ -71,11 +71,6 @@
 (def bind-to-alias assoc)
 (def lookup-by-alias (comp cn/maybe-deref get))
 
-(def rbac-check :*rbac-check*)
-
-(defn bind-rbac-check [env f]
-  (bind-to-alias env rbac-check f))
-
 (defn lookup-instance [env rec-name]
   (cn/maybe-deref (peek (get-instances env rec-name))))
 

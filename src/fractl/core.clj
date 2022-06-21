@@ -8,7 +8,6 @@
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
-            [fractl.policy.rbac :as rbac]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.store :as store]
@@ -135,10 +134,6 @@
   (let [store (e/store-from-config (:store config))
         ev (e/public-evaluator store true)]
     (run-appinit-tasks! ev store model components)
-    (rbac/init!)
-    (e/zero-trust-rbac!
-     (let [f (:zero-trust-rbac config)]
-       (or (nil? f) f)))
     [ev store]))
 
 (defn- finalize-config [model config]

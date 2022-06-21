@@ -15,7 +15,7 @@
 
 (def ^:private policy-db
   #?(:clj (java.util.HashMap.)
-     :cljs (u/make-cell {:RBAC {} :Logging {}})))
+     :cljs (u/make-cell {:Logging {}})))
 
 (defn- with-lock [f]
   #?(:clj
@@ -31,33 +31,8 @@
 
 (def ^:private allow-all (constantly true))
 
-(declare compile-rbac-rule)
-
-(defn- compile-crud-rules [rs]
-  (loop [rs rs, result []]
-    (if-let [hd (first rs)]
-      (recur (nthrest rs 2)
-             (conj
-              result
-              [(vec hd)
-               (compile-rbac-rule (second rs) false)]))
-      result)))
-
-(defn- compile-rbac-rule [rs crud-rule]
-  (if crud-rule
-    (compile-crud-rules rs)
-    (case (first rs)
-      :when
-      (rl/compile-rule-pattern (second rs))
-      :allow-all
-      (if (= 1 (count rs))
-        allow-all
-        (u/throw-ex (str "invalid rule " rs)))
-      (u/throw-ex (str "invalid clause " (first rs) " in rule - " rs)))))
-
 (def ^:private compile-rule
-  {:RBAC compile-rbac-rule
-   :Logging lu/compile-logging-rule})
+  {:Logging lu/compile-logging-rule})
 
 (defn- make-default-event-names
   "Return the default event names for the given entity"
@@ -104,8 +79,7 @@
    (crud-rule? (:Spec policy))))
 
 (def ^:private save-policy
-  {:RBAC save-any-policy
-   :Logging save-any-policy})
+  {:Logging save-any-policy})
 
 (defn- normalize-policy [inst]
   ;; Remove the :q# (quote) prefix from rule.
@@ -172,5 +146,4 @@
             (get db pk)))
        :cljs (get-in @policy-db [intercept pk]))))
 
-(def rbac-rules (partial fetch-rules :RBAC PRE-EVAL))
 (def logging-rules (partial fetch-rules :Logging PRE-EVAL))
