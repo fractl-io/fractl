@@ -9,6 +9,7 @@
             [fractl.util.http :as uh]
             [fractl.util.auth :as ua]
             [fractl.component :as cn]
+            [fractl.rbac.core :as rbac]
             [fractl.lang.internal :as li])
   (:use [compojure.core :only [routes POST GET]]
         [compojure.route :only [not-found]]))
@@ -52,17 +53,25 @@
 (defn- remove-all-read-only-attributes [obj]
   (w/prewalk maybe-remove-read-only-attributes obj))
 
-(defn- evaluate [evaluator event-instance data-fmt]
+(defn- require-superuser-privilege? [event-instance]
   (let [[c _] (li/split-path (cn/instance-type event-instance))]
-    (if (s/starts-with? (str c) ":Kernel")
-      (bad-request "cannot invoke kernel event")
-      (try
-        (let [result (remove-all-read-only-attributes
-                      (evaluator event-instance))]
-          (ok result data-fmt))
-        (catch Exception ex
-          (log/exception ex)
-          (internal-error (.getMessage ex) data-fmt))))))
+    (s/starts-with? (str c) ":Kernel")))
+
+(defn- has-superuser-privilege? [event-instance]
+  (rbac/superuser-id?
+   (get-in event-instance [li/event-context :UserId])))
+
+(defn- evaluate [evaluator event-instance data-fmt]
+  (if (and (require-superuser-privilege? event-instance)
+           (not (has-superuser-privilege? event-instance)))
+    (bad-request "cannot invoke kernel event")
+    (try
+      (let [result (remove-all-read-only-attributes
+                    (evaluator event-instance))]
+        (ok result data-fmt))
+      (catch Exception ex
+        (log/exception ex)
+        (internal-error (.getMessage ex) data-fmt)))))
 
 (defn- event-from-request [request event-name data-fmt]
   (try
