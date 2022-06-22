@@ -313,6 +313,11 @@
 (defn- id-attribute [query-attrs]
   (first (filter #(= cn/id-attr (first %)) query-attrs)))
 
+(defn- result-with-env? [x]
+  (and (vector? x)
+       (= (count x) 2)
+       (env/env? (second x))))
+
 (defn- evaluate-id-result [env rs]
   (loop [rs (if (or (not (seqable? rs)) (string? rs))
               [rs]
@@ -323,7 +328,7 @@
         (fn? r)
         (let [x (r env nil)
               [v new-env]
-              (if (vector? x)
+              (if (result-with-env? x)
                 x
                 [x env])]
           (recur

@@ -6,13 +6,19 @@
             [fractl.lang.internal :as li]
             [fractl.component :as cn]))
 
-(def EMPTY {})
+(def ^:private env-tag :-*-env-*-)
+
+(def EMPTY {env-tag true})
 
 (defn make
   [store resolver]
   (assoc EMPTY
          :store store
          :resolver resolver))
+
+(defn env? [x]
+  (and (map? x)
+       (env-tag x)))
 
 (defn get-store
   [self]

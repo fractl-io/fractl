@@ -442,3 +442,30 @@
     (is (cn/instance-of? :Rfr/R k1))
     (is (= 20 (:A k1)))
     (is (= 10 (:B k1)))))
+
+(deftest select-all
+  (defcomponent :SelAll
+    (entity
+     {:SelAll/E
+      {:X {:type :Kernel/Int
+           :indexed true}}})
+    (dataflow
+     :SelAll/FindE
+     {:SelAll/E?
+      {:where [:in :X [2 1 4]]}}));; TODO - fix reference - :SelAll/FindE.Xs]}}))
+  (let [es (mapv #(cn/make-instance
+                   {:SelAll/E
+                    {:X %}})
+                 (range 5))
+        _ (mapv #(tu/first-result
+                  (cn/make-instance
+                   {:SelAll/Upsert_E
+                    {:Instance %}}))
+                es)
+        rs (tu/fresult
+            (e/eval-all-dataflows
+             (cn/make-instance
+              {:SelAll/FindE
+               {:Xs [2 1 4]}})))]
+    (is (= 3 (count rs)))
+    (is (every? (fn [r] (some #{(:X r)} [2 1 4])) rs))))

@@ -31,7 +31,7 @@
     true))
 
 (defn superuser? [user]
-  (cn/same-id? user @superuser))
+  (cn/same-instance? user @superuser))
 
 (defn superuser-id? [id]
   (= id (cn/id-attr @superuser)))
