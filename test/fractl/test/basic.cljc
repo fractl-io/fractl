@@ -247,6 +247,32 @@
     (is (= (:X result) 500))
     (is (= (:Y result) 50000))))
 
+(deftest compound-attributes-non-id
+  (defcomponent :Df04NID
+    (entity {:Df04NID/E1 {:A :Kernel/Int
+                          :Name {:type :Kernel/String
+                                 :unique true}}})
+    (entity {:Df04NID/E2 {:E1 {:ref :Df04NID/E1.Name}
+                          :X :Kernel/Int
+                          :Y {:type :Kernel/Int
+                              :expr '(* :X :E1.A)}}})
+    (event {:Df04NID/PostE2 {:E1Name :Kernel/String}}))
+  (dataflow :Df04NID/PostE2
+            {:Df04NID/E2 {:E1 :Df04NID/PostE2.E1Name
+                          :X 500}})
+  (let [e (cn/make-instance :Df04NID/E1 {:A 100
+                                         :Name "E1-A"})
+        evt (cn/make-instance :Df04NID/Upsert_E1 {:Instance e})
+        e1 (first (tu/fresult (e/eval-all-dataflows evt)))
+        e1-name (:Name e1)
+        evt (cn/make-instance :Df04NID/PostE2 {:E1Name e1-name})
+        result (first (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :Df04NID/E2 result))
+    (is (u/uuid-from-string (cn/id-attr result)))
+    (is (= (:E1 result) e1-name))
+    (is (= (:X result) 500))
+    (is (= (:Y result) 50000))))
+
 (defn- assert-ca-e! [result]
   (is (cn/instance-of? :CA/E result))
   (is (= 20 (:A result)))
