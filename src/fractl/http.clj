@@ -53,13 +53,16 @@
   (w/prewalk maybe-remove-read-only-attributes obj))
 
 (defn- evaluate [evaluator event-instance data-fmt]
-  (try
-    (let [result (remove-all-read-only-attributes
-                  (evaluator event-instance))]
-      (ok result data-fmt))
-    (catch Exception ex
-      (log/exception ex)
-      (internal-error (.getMessage ex) data-fmt))))
+  (let [[c _] (li/split-path (cn/instance-type event-instance))]
+    (if (s/starts-with? (str c) ":Kernel")
+      (bad-request "cannot invoke kernel event")
+      (try
+        (let [result (remove-all-read-only-attributes
+                      (evaluator event-instance))]
+          (ok result data-fmt))
+        (catch Exception ex
+          (log/exception ex)
+          (internal-error (.getMessage ex) data-fmt))))))
 
 (defn- event-from-request [request event-name data-fmt]
   (try

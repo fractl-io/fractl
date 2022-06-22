@@ -1,6 +1,6 @@
 (ns fractl.rbac.model
   (:require [fractl.lang
-             :refer [component event entity]]))
+             :refer [component event entity dataflow]]))
 
 (component :Kernel.RBAC)
 
@@ -50,3 +50,8 @@
   :Child {:ref :Kernel.RBAC/Role.Name
           :indexed true
           :unique true}})
+
+(dataflow
+ :Kernel.RBAC/FindUser
+ {:Kernel.RBAC/User
+  {:Name? :Kernel.RBAC/FindUser.Name}})

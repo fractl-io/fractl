@@ -107,12 +107,12 @@
         (log-result-object hidden-attrs event-instance r))
       r)
     (catch #?(:clj Exception :cljs :default) ex
-      (do (when log-error
-            (log/error
-             (str "error in dataflow for "
-                  (cn/instance-type event-instance)
-                  " - " #?(:clj (.getMessage ex) :cljs ex))))
-          (throw ex)))))
+      (let [msg (str "error in dataflow for "
+                     (cn/instance-type event-instance)
+                     " - " #?(:clj (.getMessage ex) :cljs ex))]
+        (when log-error
+          (log/error msg))
+        (i/error msg)))))
 
 (defn- enrich-with-auth-owner
   "Query the :Authentication object using the cn/id-attr bound to
@@ -258,3 +258,6 @@
            (do (log/warn msg) nil)
            (u/throw-ex msg))))))
   ([result] (ok-result result false)))
+
+(defn safe-ok-result [result]
+  (ok-result result true))

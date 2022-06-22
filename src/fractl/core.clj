@@ -14,7 +14,8 @@
             [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
-            [fractl.lang.loader :as loader])
+            [fractl.lang.loader :as loader]
+            [fractl.rbac.core :as rbac])
   (:import [java.util Properties]
            [java.net URL]
            [java.io File])
@@ -134,7 +135,8 @@
   (let [store (e/store-from-config (:store config))
         ev (e/public-evaluator store true)]
     (run-appinit-tasks! ev store model components)
-    [ev store]))
+    (when (rbac/init)
+      [ev store])))
 
 (defn- finalize-config [model config]
   (let [final-config (merge (:config model) config)]
