@@ -37,7 +37,7 @@
                         (v/render-view
                          (v/make-input-view rec-name))
                         (v/render-main-view
-                         v/make-dashboard-view)))}
+                         (v/make-dashboard-view rec-name))))}
       (str (if is-auth-rec
              "Logout"
              (name n))
