@@ -185,7 +185,7 @@
 
 (def ^:private s-lookup-all "LookupAll")
 
-(defn lookupall-event-name [rec-name]
+(defn- lookupall-event-name [rec-name]
   (keyword
    (if (string? rec-name)
      (str rec-name s-lookup-all)
