@@ -35,3 +35,14 @@
 
 (defn superuser-id? [id]
   (= id (cn/id-attr @superuser)))
+
+(defn privileges [user-name]
+  (when-let [rs (ev/safe-eval
+                 {:Kernel.RBAC/FindRoleAssignments
+                  {:Assignee user-name}})]
+    (let [ps (ev/safe-eval
+              {:Kernel.RBAC/FindPrivilegeAssignments
+               {:RoleNames (mapv :Role rs)}})]
+      (ev/safe-eval
+       {:Kernel.RBAC/FindPrivileges
+        {:Names (mapv :Privilege ps)}}))))

@@ -261,3 +261,8 @@
 
 (defn safe-ok-result [result]
   (ok-result result true))
+
+(defn safe-eval [event-obj]
+  (safe-ok-result
+   (eval-all-dataflows
+    (cn/make-instance event-obj))))

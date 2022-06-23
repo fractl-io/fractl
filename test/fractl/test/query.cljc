@@ -4,7 +4,6 @@
             [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
-            [fractl.env :as env]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
@@ -448,13 +447,10 @@
 
 (deftest select-all
   (defn- make-query [env]
-    (let [xs (env/lookup env :SelAll/FindE.Xs)]
-      (vec
-       (concat
-        [(str "SELECT * FROM " (stu/entity-table-name :SelAll/E)
-              " WHERE (" (stu/attribute-column-name :X) " in ("
-              (s/join "," (repeat (count xs) "?")) "))")]
-        xs))))
+    (let [xs (env :SelAll/FindE.Xs)]
+      (str "SELECT * FROM " (stu/entity-table-name :SelAll/E)
+           " WHERE (" (stu/attribute-column-name :X) " in ("
+           (s/join "," (map str xs)) "))")))
   (defcomponent :SelAll
     (entity
      {:SelAll/E

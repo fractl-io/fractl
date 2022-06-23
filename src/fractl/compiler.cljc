@@ -9,6 +9,7 @@
             [fractl.lang.opcode :as op]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
+            [fractl.env :as env]
             [fractl.store :as store]
             [fractl.store.util :as stu]
             [fractl.compiler.rule :as rule]
@@ -552,8 +553,11 @@
                 (nth pat 2))]
     (if-let [[entity-name qfn] (query-by-function query-pat)]
       (op/evaluate-query [(fn [env _]
-                            [(li/split-path entity-name)
-                             (stu/package-query (qfn env))])
+                            (let [q (stu/package-query (qfn (partial env/lookup env)))]
+                              [(li/split-path entity-name)
+                               (if (string? q)
+                                 [q]
+                                 q)]))
                           alias])
       (compile-query-pattern ctx query-pat alias))))
 

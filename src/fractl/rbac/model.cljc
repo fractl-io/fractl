@@ -1,6 +1,9 @@
 (ns fractl.rbac.model
-  (:require [fractl.lang
-             :refer [component event entity dataflow]]))
+  (:require [clojure.string :as s]
+            [fractl.lang
+             :refer [component event entity dataflow]]
+            [fractl.store.util :as stu]
+            [fractl.evaluator :as ev]))
 
 (component :Kernel.RBAC)
 
@@ -62,3 +65,23 @@
  :Kernel.RBAC/FindRoleAssignments
  {:Kernel.RBAC/RoleAssignment
   {:Assignee? :Kernel.RBAC/FindRoleAssignments.Assignee}})
+
+(defn- priv-assigns-query [env]
+  (let [role-names (env :Kernel.RBAC/FindPrivilegeAssignments.RoleNames)]
+    (str "SELECT * FROM " (stu/entity-table-name :Kernel.RBAC/PrivilegeAssignment)
+         " WHERE (" (stu/attribute-column-name :Role) " in ("
+         (s/join "," (map #(str "'" (str %) "'") role-names)) "))")))
+
+(dataflow
+ :Kernel.RBAC/FindPrivilegeAssignments
+ [:query {:Kernel.RBAC/PrivilegeAssignment? priv-assigns-query}])
+
+(defn- privileges-query [env]
+  (let [names (env :Kernel.RBAC/FindPrivileges.Names)]
+    (str "SELECT * FROM " (stu/entity-table-name :Kernel.RBAC/Privilege)
+         " WHERE (" (stu/attribute-column-name :Name) " in ("
+         (s/join "," (map #(str "'" (str %) "'") names)) "))")))
+
+(dataflow
+ :Kernel.RBAC/FindPrivileges
+ [:query {:Kernel.RBAC/Privilege? privileges-query}])

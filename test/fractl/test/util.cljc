@@ -49,10 +49,12 @@
      :cljs
      (str (random-uuid))))
 
+(defn result [evt]
+  (fresult
+   (e/eval-all-dataflows evt)))
+
 (defn first-result [evt]
-  (first
-   (fresult
-    (e/eval-all-dataflows evt))))
+  (first (result evt)))
 
 (defn sleep [msec f]
   #?(:clj
