@@ -1,11 +1,14 @@
 (ns fractl.test.query
   (:require #?(:clj  [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
+            [fractl.env :as env]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
+            [fractl.store.util :as stu]
             #?(:clj  [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -444,6 +447,14 @@
     (is (= 10 (:B k1)))))
 
 (deftest select-all
+  (defn- make-query [env]
+    (let [xs (env/lookup env :SelAll/FindE.Xs)]
+      (vec
+       (concat
+        [(str "SELECT * FROM " (stu/entity-table-name :SelAll/E)
+              " WHERE (" (stu/attribute-column-name :X) " in ("
+              (s/join "," (repeat (count xs) "?")) "))")]
+        xs))))
   (defcomponent :SelAll
     (entity
      {:SelAll/E
@@ -451,8 +462,7 @@
            :indexed true}}})
     (dataflow
      :SelAll/FindE
-     {:SelAll/E?
-      {:where [:in :X [2 1 4]]}}));; TODO - fix reference - :SelAll/FindE.Xs]}}))
+     [:query {:SelAll/E? make-query}]))
   (let [es (mapv #(cn/make-instance
                    {:SelAll/E
                     {:X %}})

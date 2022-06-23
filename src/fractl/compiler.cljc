@@ -10,6 +10,7 @@
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.store :as store]
+            [fractl.store.util :as stu]
             [fractl.compiler.rule :as rule]
             [fractl.compiler.validation :as cv]
             [fractl.compiler.internal :as i]
@@ -142,9 +143,7 @@
   (let [q (i/expand-query
            entity-name
            (mapv query-param-process query))]
-    {:compiled-query
-     ((fetch-compile-query-fn ctx) q)
-     :raw-query q}))
+    (stu/package-query q ((fetch-compile-query-fn ctx) q))))
 
 (defn compile-query [ctx entity-name query]
   (let [q (compile-relational-entity-query
@@ -313,6 +312,12 @@
     (and (= 1 (count ks))
          (s/ends-with? (str (first ks)) "?"))))
 
+(defn- query-entity-name [k]
+  (let [sk (str k)]
+    (when-not (s/ends-with? sk "?")
+      (u/throw-ex (str "queried entity-name must end with a `?` - " k)))
+    (keyword (subs (apply str (butlast sk)) 1))))
+
 (defn- compile-complex-query
   "Compile a complex query. Invoke the callback
   function with the compiled query as argument.
@@ -320,14 +325,12 @@
   to the query-instances opcode generator"
   ([ctx pat callback]
    (let [k (first (keys pat))
-         n (keyword (subs (apply str (butlast (str k))) 1))]
+         n (query-entity-name k)]
      (when-not (cn/find-entity-schema n)
        (u/throw-ex (str "cannot query undefined entity - " n)))
      (let [q (k pat)
            w (w/postwalk process-complex-query (:where q))
-           c {:compiled-query
-              ((fetch-compile-query-fn ctx) (assoc q :from n :where w))
-              :raw-query q}]
+           c (stu/package-query q ((fetch-compile-query-fn ctx) (assoc q :from n :where w)))]
        (callback [(li/split-path n) c]))))
   ([ctx pat]
    (compile-complex-query ctx pat op/query-instances)))
@@ -508,17 +511,8 @@
     (every? li/name? alias)
     (li/name? alias)))
 
-(defn- compile-query-command
-  "Compile the command [:query pattern :as result-alias].
-   `pattern` could be a query pattern or a reference, making
-  it possible to dynamically execute queries received via events.
-  If `result-alias` is provided, the query result is bound to that name
-  in the local environment"
-  [ctx pat]
-  (let [query-pat (first pat)
-        alias (when (= :as (second pat))
-                (nth pat 2))
-        [nm refs] (when (li/name? query-pat)
+(defn- compile-query-pattern [ctx query-pat alias]
+  (let [[nm refs] (when (li/name? query-pat)
                     (let [{component :component
                            record :record refs :refs}
                           (li/path-parts query-pat)]
@@ -535,9 +529,33 @@
         ctx
         (if (map? query-pat)
           query-pat
-          (% nm refs))
+          (%2 nm refs))
         identity)
       alias])))
+
+(defn- query-by-function [query-pat]
+  (when (map? query-pat)
+    (let [k (query-entity-name (first (keys query-pat)))
+          f (first (vals query-pat))]
+      (when (and (li/name? k) (fn? f))
+        [k f]))))
+
+(defn- compile-query-command
+  "Compile the command [:query pattern :as result-alias].
+   `pattern` could be a query pattern or a reference, making
+  it possible to dynamically execute queries received via events.
+  If `result-alias` is provided, the query result is bound to that name
+  in the local environment"
+  [ctx pat]
+  (let [query-pat (first pat)
+        alias (when (= :as (second pat))
+                (nth pat 2))]
+    (if-let [[entity-name qfn] (query-by-function query-pat)]
+      (op/evaluate-query [(fn [env _]
+                            [(li/split-path entity-name)
+                             (stu/package-query (qfn env))])
+                          alias])
+      (compile-query-pattern ctx query-pat alias))))
 
 (defn- compile-delete [ctx [recname & id-pat]]
   (if (= (vec id-pat) [:*])

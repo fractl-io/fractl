@@ -4,13 +4,14 @@
             [clojure.walk :as w]
             [honeysql.core :as hsql]
             [fractl.util :as u]
+            [fractl.store.util :as su]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]))
 
 (defn- attach-column-name-prefixes [where-clause]
   (w/prewalk
    #(if (and (keyword? %) (not (li/operator? %)))
-      (keyword (str "_" (name %)))
+      (keyword (su/attribute-column-name %))
       %)
    where-clause))
 
@@ -32,7 +33,8 @@
                          (seqable? f) f
                          :else where-clause)))
               p)))]
-    (hsql/format final-pattern)))
+    (let [sql (hsql/format final-pattern)]
+      sql)))
 
 (defn- concat-where-clauses [clauses]
   (if (> (count clauses) 1)

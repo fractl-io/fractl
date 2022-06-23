@@ -112,6 +112,17 @@
                    (rest refs) x))
           [obj env])))))
 
+(defn lookup [env path]
+  (let [parts (li/path-parts path)
+        p (:path parts)]
+    (cond
+      p (lookup-by-alias env p)
+
+      (seq (:refs parts))
+      (first (follow-reference env parts))
+
+      :else (lookup-instance env [(:component parts) (:record parts)]))))
+
 (defn instance-ref-path
   "Returns a path to the record in the format of [record-name inst-id]
    along with values of any refs"

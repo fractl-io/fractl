@@ -388,7 +388,7 @@
 
 (defn- find-instances-via-resolvers [env entity-name full-query]
   (if-let [resolver (rg/resolver-for-path entity-name)]
-    (let [[q env] (normalize-raw-query env (:raw-query full-query))]
+    (let [[q env] (normalize-raw-query env (stu/raw-query full-query))]
       (if (rg/composed? resolver)
         (find-instances-via-composed-resolvers env entity-name q resolver)
         [(r/call-resolver-query resolver env [entity-name q]) env]))
@@ -420,7 +420,7 @@
     (u/throw-ex (str "invalid query object - " query))))
 
 (defn- find-instances-in-store [env store entity-name full-query]
-  (let [q (or (:compiled-query full-query)
+  (let [q (or (stu/compiled-query full-query)
               (store/compile-query store full-query))]
     (query-all env store entity-name q)))
 
@@ -707,7 +707,7 @@
        result-alias
        (apply
         do-query-helper
-        env (fetch-query-fn (partial find-reference env)))))
+        env (fetch-query-fn env (partial find-reference env)))))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
