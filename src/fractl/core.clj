@@ -10,6 +10,7 @@
             [fractl.resolver.registry :as rr]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
+            [fractl.evaluator.intercept :as ei]
             [fractl.store :as store]
             [fractl.global-state :as gs]
             [fractl.lang :as ln]
@@ -136,6 +137,7 @@
         ev (e/public-evaluator store true)]
     (run-appinit-tasks! ev store model components)
     (when (rbac/init)
+      (ei/init-interceptors (:interceptors config))
       [ev store])))
 
 (defn- finalize-config [model config]

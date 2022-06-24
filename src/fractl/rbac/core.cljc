@@ -13,7 +13,7 @@
     {:Name "superuser"}}))
 
 (defn- lookup-superuser []
-  (when-let [r (ev/safe-ok-result (ev/eval-all-dataflows find-su-event))]
+  (when-let [r (ev/safe-eval find-su-event)]
     (first r)))
 
 (defn- upsert-superuser []
@@ -23,8 +23,7 @@
                {:Kernel.RBAC/User
                 {:Name "superuser"}}}})]
     (first
-     (ev/ok-result
-      (ev/eval-all-dataflows evt)))))
+     (ev/safe-eval evt))))
 
 (defn init []
   (let [su (or (lookup-superuser)

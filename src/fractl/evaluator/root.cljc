@@ -29,6 +29,16 @@
       :where [:= (first (:refs r)) ref-val]}
      [rec-name ref-val]]))
 
+(defn- intercept-opr [intercept-fn env data]
+  (intercept-fn
+   (cn/event-context-user (env/active-event env))
+   data))
+
+(def ^:private intercept-upsert (partial intercept-opr interceptors/upsert-operation))
+(def ^:private intercept-delete (partial intercept-opr interceptors/delete-operation))
+(def ^:private intercept-read (partial intercept-opr interceptors/read-operation))
+(def ^:private intercept-eval (partial intercept-opr interceptors/eval-operation))
+
 (defn- enrich-environment-with-refs
   "Find all entity instances referenced (via :ref attribute property)
   from this instance. Load them into the local environment so that
@@ -279,7 +289,8 @@
     final-result))
 
 (defn- chained-upsert [env event-evaluator record-name insts]
-  (let [store (env/get-store env)
+  (let [insts (intercept-upsert env insts)
+        store (env/get-store env)
         resolver (env/get-resolver env)]
     (when store
       (maybe-init-schema! store (first record-name)))
@@ -298,7 +309,8 @@
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
 
 (defn- chained-delete [env record-name id]
-  (let [store (env/get-store env)
+  (let [record-name (intercept-delete env record-name)
+        store (env/get-store env)
         resolver (env/get-resolver env)]
     (chained-crud
      (when store (partial delete-by-id store record-name))
@@ -637,9 +649,7 @@
   (if-let [[insts env]
            (find-instances
             env (env/get-store env)
-            (interceptors/read-operation
-             (cn/event-context-user (env/active-event env))
-             entity-name)
+            (intercept-read env entity-name)
             queries)]
     (cond
       (maybe-async-channel? insts)
@@ -757,7 +767,9 @@
           (i/not-found record-name env))))
 
     (do-intern-event-instance [self env [record-name alias timeout-ms]]
-      (let [[inst env] (pop-and-intern-instance env record-name nil (partial eval-opcode self))
+      (let [[inst env] (pop-and-intern-instance
+                        env (intercept-eval env record-name)
+                        nil (partial eval-opcode self))
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
             eval-env (env/make (env/get-store env) (env/get-resolver env))
@@ -776,7 +788,7 @@
     (do-delete-instance [self env [record-name queries]]
       (if-let [store (env/get-store env)]
         (if (= queries :*)
-          (i/ok [(store/delete-all store record-name)] env)
+          (i/ok [(store/delete-all store (intercept-delete env record-name))] env)
           (if-let [[insts env]
                    (find-instances env store record-name queries)]
             (let [alias (:alias queries)
