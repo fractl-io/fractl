@@ -1,5 +1,7 @@
 (ns fractl.evaluator.intercept.core
   (:require [fractl.util :as u]
+            [fractl.component :as cn]
+            [fractl.env :as env]
             [fractl.evaluator.intercept.internal :as ii]))
 
 ;; Manages a pipeline of interceptors.
@@ -51,3 +53,8 @@
 (def upsert-operation (partial do-operation :upsert))
 (def delete-operation (partial do-operation :delete))
 (def eval-operation (partial do-operation :eval))
+
+(defn do-intercept-opr [intercept-fn env data]
+  (intercept-fn
+   (cn/event-context-user (env/active-event env))
+   data))

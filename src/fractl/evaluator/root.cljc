@@ -29,10 +29,7 @@
       :where [:= (first (:refs r)) ref-val]}
      [rec-name ref-val]]))
 
-(defn- intercept-opr [intercept-fn env data]
-  (intercept-fn
-   (cn/event-context-user (env/active-event env))
-   data))
+(def ^:private intercept-opr interceptors/do-intercept-opr)
 
 (def ^:private intercept-upsert (partial intercept-opr interceptors/upsert-operation))
 (def ^:private intercept-delete (partial intercept-opr interceptors/delete-operation))

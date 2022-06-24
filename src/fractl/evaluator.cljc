@@ -16,7 +16,8 @@
             [fractl.lang.opcode :as opc]
             [fractl.evaluator.state :as es]
             [fractl.evaluator.internal :as i]
-            [fractl.evaluator.root :as r]))
+            [fractl.evaluator.root :as r]
+            [fractl.evaluator.intercept.core :as interceptors]))
 
 (defn- dispatch-an-opcode [evaluator env opcode]
   (((opc/op opcode) i/dispatch-table)
@@ -63,11 +64,13 @@
                  env (li/split-path (cn/instance-type event-instance))
                  event-instance)
                 env)
-               env)
-         [_ dc] (cn/dataflow-opcode df)
-         result (deref-futures
-                 (dispatch-opcodes evaluator env dc))]
-     result))
+               env)]
+     (interceptors/do-intercept-opr
+      interceptors/eval-operation env event-instance)
+     (let [[_ dc] (cn/dataflow-opcode df)
+           result (deref-futures
+                   (dispatch-opcodes evaluator env dc))]
+       result)))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 
