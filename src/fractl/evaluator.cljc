@@ -58,9 +58,11 @@
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
    (let [env (if event-instance
-               (env/bind-instance
-                env (li/split-path (cn/instance-type event-instance))
-                event-instance)
+               (env/assoc-active-event
+                (env/bind-instance
+                 env (li/split-path (cn/instance-type event-instance))
+                 event-instance)
+                env)
                env)
          [_ dc] (cn/dataflow-opcode df)
          result (deref-futures

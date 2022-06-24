@@ -2,7 +2,8 @@
   (:require [clojure.core.memoize :as mem]
             [fractl.rbac.model]
             [fractl.component :as cn]
-            [fractl.evaluator :as ev]))
+            [fractl.evaluator :as ev]
+            [fractl.lang.internal :as li]))
 
 (def ^:private superuser (atom nil))
 
@@ -52,3 +53,18 @@
           {:Kernel.RBAC/FindPrivileges
            {:Names (mapv :Privilege ps)}}))))
    :lu/threshold cache-threshold))
+
+(defn- has-priv? [action user-name resource]
+  (let [r (if (keyword? resource)
+            resource
+            (li/make-path resource))]
+    (filter
+     (fn [p]
+       (and (some #{r} (:Resource p))
+            (some #{action} (:Actions p))))
+     (privileges user-name))))
+
+(def can-read? (partial has-priv? :read))
+(def can-upsert? (partial has-priv? :upsert))
+(def can-delete? (partial has-priv? :delete))
+(def can-eval? (partial has-priv? :eval))

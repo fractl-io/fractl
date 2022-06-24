@@ -202,3 +202,10 @@
     true))
 
 (def as-map identity)
+
+(def ^:private active-event-key :-*-active-event-*-)
+
+(defn assoc-active-event [env event-instance]
+  (assoc env active-event-key event-instance))
+
+(def active-event active-event-key)

@@ -14,6 +14,7 @@
             [fractl.resolver.registry :as rg]
             [fractl.evaluator.parser :as parser]
             [fractl.evaluator.internal :as i]
+            [fractl.evaluator.intercept.core :as interceptors]
             [fractl.lang :as ln]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]
@@ -633,26 +634,29 @@
          (or (.-ex-data e) (i/error e))))))
 
 (defn- do-query-helper [env entity-name queries]
-  (if-let [store (env/get-store env)]
-    (if-let [[insts env]
-             (find-instances env store entity-name queries)]
-      (cond
-        (maybe-async-channel? insts)
-        (i/ok
-         insts
-         (env/push-obj env entity-name insts))
+  (if-let [[insts env]
+           (find-instances
+            env (env/get-store env)
+            (interceptors/read-operation
+             (cn/event-context-user (env/active-event env))
+             entity-name)
+            queries)]
+    (cond
+      (maybe-async-channel? insts)
+      (i/ok
+       insts
+       (env/push-obj env entity-name insts))
 
-        (seq insts)
-        (i/ok
-         insts
-         (env/mark-all-mint
-          (env/push-obj env entity-name insts)
-          insts))
+      (seq insts)
+      (i/ok
+       insts
+       (env/mark-all-mint
+        (env/push-obj env entity-name insts)
+        insts))
 
-        :else
-        (i/not-found entity-name env))
+      :else
       (i/not-found entity-name env))
-    (i/error (str "Invalid query request for " entity-name " - no store specified"))))
+    (i/not-found entity-name env)))
 
 (defn- find-reference [env record-name refs]
   (second (env/instance-ref-path env record-name nil refs)))
