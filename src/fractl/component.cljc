@@ -1334,3 +1334,9 @@
 
 (defn append-id [path]
   (keyword (str (subs (str path) 1) "." s-id-attr)))
+
+(defn event-context-value [k event-instance]
+  (get-in event-instance [li/event-context k]))
+
+(def event-context-user (partial event-context-value :User))
+(def event-context-user-id (partial event-context-value :UserId))

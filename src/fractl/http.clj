@@ -58,8 +58,7 @@
     (s/starts-with? (str c) ":Kernel")))
 
 (defn- has-superuser-privilege? [event-instance]
-  (rbac/superuser-id?
-   (get-in event-instance [li/event-context :UserId])))
+  (rbac/superuser-id? (cn/event-context-user-id event-instance)))
 
 (defn- evaluate [evaluator event-instance data-fmt]
   (if (and (require-superuser-privilege? event-instance)

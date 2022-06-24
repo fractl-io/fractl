@@ -1,5 +1,6 @@
 (ns fractl.rbac.core
-  (:require [fractl.rbac.model]
+  (:require [clojure.core.memoize :as mem]
+            [fractl.rbac.model]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]))
 
@@ -36,13 +37,18 @@
 (defn superuser-id? [id]
   (= id (cn/id-attr @superuser)))
 
-(defn privileges [user-name]
-  (when-let [rs (ev/safe-eval
-                 {:Kernel.RBAC/FindRoleAssignments
-                  {:Assignee user-name}})]
-    (let [ps (ev/safe-eval
-              {:Kernel.RBAC/FindPrivilegeAssignments
-               {:RoleNames (mapv :Role rs)}})]
-      (ev/safe-eval
-       {:Kernel.RBAC/FindPrivileges
-        {:Names (mapv :Privilege ps)}}))))
+(def ^:private cache-threshold 1000)
+
+(def privileges
+  (mem/lu
+   (fn [user-name]
+     (when-let [rs (ev/safe-eval
+                    {:Kernel.RBAC/FindRoleAssignments
+                     {:Assignee user-name}})]
+       (let [ps (ev/safe-eval
+                 {:Kernel.RBAC/FindPrivilegeAssignments
+                  {:RoleNames (mapv :Role rs)}})]
+         (ev/safe-eval
+          {:Kernel.RBAC/FindPrivileges
+           {:Names (mapv :Privilege ps)}}))))
+   :lu/threshold cache-threshold))
