@@ -37,6 +37,9 @@
 (defn superuser-id? [id]
   (= id (cn/id-attr @superuser)))
 
+(defn superuser-name? [user-name]
+  (= user-name (:Name @superuser)))
+
 (def ^:private cache-threshold 1000)
 
 (def privileges
@@ -54,15 +57,17 @@
    :lu/threshold cache-threshold))
 
 (defn- has-priv? [action user-name resource]
-  (let [r (if (keyword? resource)
-            resource
-            (li/make-path resource))]
-    (seq
-     (filter
-      (fn [p]
-        (and (some #{r} (:Resource p))
-             (some #{action} (:Actions p))))
-      (privileges user-name)))))
+  (if (superuser-name? user-name)
+    true
+    (let [r (if (keyword? resource)
+              resource
+              (li/make-path resource))]
+      (seq
+       (filter
+        (fn [p]
+          (and (some #{r} (:Resource p))
+               (some #{action} (:Actions p))))
+        (privileges user-name))))))
 
 (def can-read? (partial has-priv? :read))
 (def can-upsert? (partial has-priv? :upsert))

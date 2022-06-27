@@ -49,12 +49,18 @@
      :cljs
      (str (random-uuid))))
 
+(defn- maybe-as-map [evt]
+  (if (keyword? evt)
+    {evt {}}
+    evt))
+
 (defn result [evt]
   (fresult
-   (e/eval-all-dataflows evt)))
+   (e/eval-all-dataflows
+    (maybe-as-map evt))))
 
 (defn first-result [evt]
-  (first (result evt)))
+  (first (result (maybe-as-map evt))))
 
 (defn sleep [msec f]
   #?(:clj

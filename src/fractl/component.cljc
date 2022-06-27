@@ -1339,4 +1339,8 @@
   (get-in event-instance [li/event-context k]))
 
 (def event-context-user (partial event-context-value :User))
-(def event-context-user-id (partial event-context-value :UserId))
+
+(defn assoc-event-context-value [k v event-instance]
+  (assoc-in event-instance [li/event-context k] v))
+
+(def assoc-event-context-user (partial assoc-event-context-value :User))

@@ -15,3 +15,5 @@
    #(interceptors/add-interceptor!
      (make-interceptor %))
    interceptor-names))
+
+(def reset-interceptors! interceptors/reset-interceptors!)

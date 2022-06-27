@@ -28,7 +28,8 @@
 
 (defn- run [opr arg]
   (if-let [f (opr actions)]
-    (when (f (ii/user arg) (ii/data arg))
+    (when (f (cn/event-context-user (ii/event arg))
+             (ii/data arg))
       arg)
     arg))
 

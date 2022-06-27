@@ -6,8 +6,8 @@
 (defn make-interceptor [name fn]
   {iname :rbac ifn fn})
 
-(def user :user)
+(def event :event)
 (def data :data)
 
-(defn encode-arg [usr dt]
-  {user usr data dt})
+(defn encode-arg [evt dt]
+  {event evt data dt})

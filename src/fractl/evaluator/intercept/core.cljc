@@ -32,18 +32,22 @@
 (defn add-interceptor! [spec]
   (let [n (ii/iname spec) f (ii/ifn spec)]
     (if (and n f)
-      (u/call-and-set
-       interceptors
-       (fn []
-         (let [ins @interceptors]
-           (if-not (some #{n} (mapv ii/iname ins))
-             (conj ins spec)
-             (u/throw-ex (str "duplicate interceptor - " n))))))
+      (do (u/call-and-set
+           interceptors
+           (fn []
+             (let [ins @interceptors]
+               (if-not (some #{n} (mapv ii/iname ins))
+                 (conj ins spec)
+                 (u/throw-ex (str "duplicate interceptor - " n))))))
+          (ii/iname spec))
       (u/throw-ex (str ii/iname " and " ii/ifn " required in interceptor spec - " spec)))))
 
-(defn do-operation [opr user data]
+(defn reset-interceptors! []
+  (u/safe-set interceptors []))
+
+(defn do-operation [opr event-instance data]
   (loop [ins @interceptors
-         result (ii/encode-arg user data)]
+         result (ii/encode-arg event-instance data)]
     (if-let [i (first ins)]
       (if-let [r ((ii/ifn i) opr result)]
         (recur (rest ins) r)
@@ -58,6 +62,4 @@
 (defn do-intercept-opr [intercept-fn env data]
   (if (env/interceptors-blocked? env)
     data
-    (intercept-fn
-     (cn/event-context-user (env/active-event env))
-     data)))
+    (intercept-fn (env/active-event env) data)))

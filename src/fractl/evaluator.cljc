@@ -77,7 +77,7 @@
                           event-instance)
          env0 (if is-internal
                 (env/block-interceptors env)
-                env)
+                (env/assoc-active-event env event-instance))
          event-instance (interceptors/do-intercept-opr
                          interceptors/eval-operation
                          env0 event-instance)
@@ -86,7 +86,7 @@
                 (env/bind-instance
                  env0 (li/split-path (cn/instance-type event-instance))
                  event-instance)
-                env0)
+                event-instance)
                env0)]
      (let [[_ dc] (cn/dataflow-opcode df)
            result (deref-futures
