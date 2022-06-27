@@ -209,3 +209,10 @@
   (assoc env active-event-key event-instance))
 
 (def active-event active-event-key)
+
+(def ^:private interceptors-blocked-key :-*-interceptors-blocked-*-)
+
+(defn block-interceptors [env]
+  (assoc env interceptors-blocked-key true))
+
+(def interceptors-blocked? interceptors-blocked-key)

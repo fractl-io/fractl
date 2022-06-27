@@ -33,4 +33,4 @@
     arg))
 
 (defn make []
-  {:name :rbac :fn run})
+  (ii/make-interceptor :rbac run))

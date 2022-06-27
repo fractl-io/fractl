@@ -42,13 +42,13 @@
 (def privileges
   (mem/lu
    (fn [user-name]
-     (when-let [rs (ev/safe-eval
+     (when-let [rs (ev/safe-eval-internal
                     {:Kernel.RBAC/FindRoleAssignments
                      {:Assignee user-name}})]
-       (let [ps (ev/safe-eval
+       (let [ps (ev/safe-eval-internal
                  {:Kernel.RBAC/FindPrivilegeAssignments
                   {:RoleNames (mapv :Role rs)}})]
-         (ev/safe-eval
+         (ev/safe-eval-internal
           {:Kernel.RBAC/FindPrivileges
            {:Names (mapv :Privilege ps)}}))))
    :lu/threshold cache-threshold))
@@ -57,11 +57,12 @@
   (let [r (if (keyword? resource)
             resource
             (li/make-path resource))]
-    (filter
-     (fn [p]
-       (and (some #{r} (:Resource p))
-            (some #{action} (:Actions p))))
-     (privileges user-name))))
+    (seq
+     (filter
+      (fn [p]
+        (and (some #{r} (:Resource p))
+             (some #{action} (:Actions p))))
+      (privileges user-name)))))
 
 (def can-read? (partial has-priv? :read))
 (def can-upsert? (partial has-priv? :upsert))

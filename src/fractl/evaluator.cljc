@@ -53,18 +53,38 @@
       %)
    result))
 
+(def ^:private internal-event-flag
+  #?(:clj (Object.)
+     :cljs {:internal-event true}))
+
+(def ^:private internal-event-key :-*-internal-event-*-)
+
+(defn mark-internal [event-instance]
+  (assoc event-instance internal-event-key internal-event-flag))
+
+(defn internal-event? [event-instance]
+  (when (identical? internal-event-flag (internal-event-key event-instance))
+    true))
+
 (defn eval-dataflow
   "Evaluate a compiled dataflow, triggered by event-instance, within the context
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (let [env (if event-instance
+   (let [internal? (internal-event? event-instance)
+         event-instance (if internal?
+                          (dissoc event-instance internal-event-key)
+                          event-instance)
+         env0 (if internal?
+                (env/block-interceptors env)
+                env)
+         env (if event-instance
                (env/assoc-active-event
                 (env/bind-instance
-                 env (li/split-path (cn/instance-type event-instance))
+                 env0 (li/split-path (cn/instance-type event-instance))
                  event-instance)
-                env)
-               env)]
+                env0)
+               env0)]
      (interceptors/do-intercept-opr
       interceptors/eval-operation env event-instance)
      (let [[_ dc] (cn/dataflow-opcode df)
@@ -115,8 +135,9 @@
       (let [msg (str "error in dataflow for "
                      (cn/instance-type event-instance)
                      " - " #?(:clj (.getMessage ex) :cljs ex))]
+        (log/warn msg)
         (when log-error
-          (log/error msg))
+          (log/exception ex))
         (i/error msg)))))
 
 (defn- enrich-with-auth-owner
@@ -271,3 +292,9 @@
   (safe-ok-result
    (eval-all-dataflows
     (cn/make-instance event-obj))))
+
+(defn safe-eval-internal [event-obj]
+  (safe-ok-result
+   (eval-all-dataflows
+    (mark-internal
+     (cn/make-instance event-obj)))))

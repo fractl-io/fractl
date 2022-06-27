@@ -30,23 +30,24 @@
 (def ^:private interceptors (u/make-cell []))
 
 (defn add-interceptor! [spec]
-  (let [n (:name spec) f (:fn spec)]
+  (let [n (ii/iname spec) f (ii/ifn spec)]
     (if (and n f)
       (u/call-and-set
        interceptors
        (fn []
-         (if-not (some #{n} (mapv :name @interceptors))
-           spec
-           (u/throw-ex (str "duplicate interceptor - " n)))))
-      (u/throw-ex (str ":name and :fn required in interceptor spec - " spec)))))
+         (let [ins @interceptors]
+           (if-not (some #{n} (mapv ii/iname ins))
+             (conj ins spec)
+             (u/throw-ex (str "duplicate interceptor - " n))))))
+      (u/throw-ex (str ii/iname " and " ii/ifn " required in interceptor spec - " spec)))))
 
 (defn do-operation [opr user data]
   (loop [ins @interceptors
          result (ii/encode-arg user data)]
     (if-let [i (first ins)]
-      (if-let [r ((:fn i) opr result)]
+      (if-let [r ((ii/ifn i) opr result)]
         (recur (rest ins) r)
-        (u/throw-ex (str "operation " opr " blocked by interceptor " (:name i))))
+        (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/iname i))))
       (ii/data result))))
 
 (def read-operation (partial do-operation :read))
@@ -55,6 +56,7 @@
 (def eval-operation (partial do-operation :eval))
 
 (defn do-intercept-opr [intercept-fn env data]
-  (intercept-fn
-   (cn/event-context-user (env/active-event env))
-   data))
+  (or (env/interceptors-blocked? env)
+      (intercept-fn
+       (cn/event-context-user (env/active-event env))
+       data)))
