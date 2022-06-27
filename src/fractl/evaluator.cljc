@@ -71,13 +71,16 @@
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (let [internal? (internal-event? event-instance)
-         event-instance (if internal?
+   (let [is-internal (internal-event? event-instance)
+         event-instance (if is-internal
                           (dissoc event-instance internal-event-key)
                           event-instance)
-         env0 (if internal?
+         env0 (if is-internal
                 (env/block-interceptors env)
                 env)
+         event-instance (interceptors/do-intercept-opr
+                         interceptors/eval-operation
+                         env0 event-instance)
          env (if event-instance
                (env/assoc-active-event
                 (env/bind-instance
@@ -85,8 +88,6 @@
                  event-instance)
                 env0)
                env0)]
-     (interceptors/do-intercept-opr
-      interceptors/eval-operation env event-instance)
      (let [[_ dc] (cn/dataflow-opcode df)
            result (deref-futures
                    (dispatch-opcodes evaluator env dc))]

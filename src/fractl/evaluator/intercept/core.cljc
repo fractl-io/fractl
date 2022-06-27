@@ -56,7 +56,8 @@
 (def eval-operation (partial do-operation :eval))
 
 (defn do-intercept-opr [intercept-fn env data]
-  (or (env/interceptors-blocked? env)
-      (intercept-fn
-       (cn/event-context-user (env/active-event env))
-       data)))
+  (if (env/interceptors-blocked? env)
+    data
+    (intercept-fn
+     (cn/event-context-user (env/active-event env))
+     data)))
