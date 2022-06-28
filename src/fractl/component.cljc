@@ -1326,9 +1326,10 @@
     (filter #(:order (fetch-meta %)) names)))
 
 (defn event? [recname]
-  (if (event-schema recname)
-    true
-    false))
+  (and (event-schema recname) true))
+
+(defn entity? [recname]
+  (and (entity-schema recname) true))
 
 (def hashed-attribute? :secure-hash)
 

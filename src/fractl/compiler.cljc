@@ -209,9 +209,10 @@
     (op/set-literal-attribute attr)))
 
 (defn- build-record-for-upsert? [attrs]
-  (or (seq (:compound attrs))
-      (seq (:computed attrs))
-      (seq (:sorted attrs))))
+  (when (or (seq (:compound attrs))
+            (seq (:computed attrs))
+            (seq (:sorted attrs)))
+    true))
 
 (defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
   (concat [(begin-build-instance rec-name attrs)]
@@ -227,7 +228,9 @@
                 (:refs attrs))
           [(if event?
              (op/intern-event-instance [rec-name alias timeout-ms])
-             (op/intern-instance [rec-name alias]))]))
+             (op/intern-instance [rec-name alias
+                                  (and (cn/entity? rec-name)
+                                       (build-record-for-upsert? attrs))]))]))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
   (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)

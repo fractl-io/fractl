@@ -1,6 +1,7 @@
 (ns fractl.evaluator.intercept.rbac
   (:require [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.lang.internal :as li]
             [fractl.rbac.core :as rbac]
             [fractl.evaluator.intercept.internal :as ii]))
 
@@ -9,11 +10,13 @@
         entity-name
         (cond
           (keyword? data) data
-          (cn/an-instance? data) (cn/instance-type data))]
+          (cn/an-instance? data) (cn/instance-type data)
+          (li/parsed-path? data) (li/make-path data)
+          :else (u/throw-ex (str "invalid argument for rbac interceptor - " data)))]
     (if entity-name
       (p entity-name)
       (let [rs (set (map cn/instance-type data))]
-        (every? identity (map #(p user %) rs))))))
+        (every? identity (map #(p %) rs))))))
 
 (def ^:private apply-upsert-rules (partial has-priv? rbac/can-upsert?))
 (def ^:private apply-read-rules (partial has-priv? rbac/can-read?))
@@ -22,7 +25,7 @@
 
 (def ^:private actions
   {:upsert apply-upsert-rules
-   :lookup apply-read-rules
+   :read apply-read-rules
    :delete apply-delete-rules
    :eval apply-eval-rules})
 

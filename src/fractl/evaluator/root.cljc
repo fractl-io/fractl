@@ -723,10 +723,10 @@
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
 
-    (do-set-list-attribute [self env [attr-name elements-opcode quoted?]]
+    (do-set-list-attribute [self env [attr-name elements-opcode quoted]]
       (call-with-exception-as-error
        #(let [opcode-eval (partial eval-opcode self env)
-              final-list ((if quoted? set-quoted-list set-flat-list)
+              final-list ((if quoted set-quoted-list set-flat-list)
                           opcode-eval elements-opcode)]
           (set-obj-attr env attr-name final-list))))
 
@@ -737,20 +737,22 @@
     (do-set-compound-attribute [_ env [attr-name f]]
       (set-obj-attr env attr-name f))
 
-    (do-intern-instance [self env [record-name alias]]
+    (do-intern-instance [self env [record-name alias upsert-required]]
       (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self))
             scm (cn/ensure-schema record-name)]
         (doseq [inst insts]
           (when-let [attrs (cn/instance-attributes inst)]
-            (cn/validate-record-attributes
-             record-name attrs scm)))
+            (cn/validate-record-attributes record-name attrs scm)))
         (cond
           (maybe-async-channel? insts)
           (i/ok insts env)
 
           insts
-          (let [event-eval (partial eval-event-dataflows self)
-                local-result (chained-upsert env event-eval record-name insts)
+          (let [local-result (if upsert-required
+                               (chained-upsert
+                                env (partial eval-event-dataflows self)
+                                record-name insts)
+                               (if single? (seq [insts]) insts))
                 lr (normalize-transitions local-result)]
             (if-let [bindable (if single? (first lr) lr)]
               (let [env-with-inst (env/bind-instances env record-name lr)

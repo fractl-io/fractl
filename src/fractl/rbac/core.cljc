@@ -59,15 +59,12 @@
 (defn- has-priv? [action user-name resource]
   (if (superuser-name? user-name)
     true
-    (let [r (if (keyword? resource)
-              resource
-              (li/make-path resource))]
-      (seq
-       (filter
-        (fn [p]
-          (and (some #{r} (:Resource p))
-               (some #{action} (:Actions p))))
-        (privileges user-name))))))
+    (seq
+     (filter
+      (fn [p]
+        (and (some #{resource} (:Resource p))
+             (some #{action} (:Actions p))))
+      (privileges user-name)))))
 
 (def can-read? (partial has-priv? :read))
 (def can-upsert? (partial has-priv? :upsert))
