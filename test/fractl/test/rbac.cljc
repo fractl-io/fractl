@@ -109,12 +109,18 @@
       {:Name "p33"
        :Actions [:q# [:read]]
        :Resource [:q# [:PrivTest/E]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "p44"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:PrivTest/Lookup_E]]}}
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "r11" :Privilege "p11"}}
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "r11" :Privilege "p22"}}
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "r22" :Privilege "p33"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "r22" :Privilege "p44"}}
      {:Kernel.RBAC/RoleAssignment
       {:Role "r11" :Assignee "u11"}}
      {:Kernel.RBAC/RoleAssignment
@@ -149,14 +155,23 @@
           {:Instance
            {:PrivTest/E
             {:X 200}}}})))
-    (is (cn/instance-of?
-         :PrivTest/E
-         (first
-          (tu/result
-           (with-user
-             "u11"
-             {:PrivTest/Upsert_E
-              {:Instance
-               {:PrivTest/E
-                {:X 100}}}})))))
+    (let [inst (first
+                (tu/result
+                 (with-user
+                   "u11"
+                   {:PrivTest/Upsert_E
+                    {:Instance
+                     {:PrivTest/E
+                      {:X 100}}}})))
+          id (cn/id-attr inst)
+          lookup {:PrivTest/Lookup_E
+                  {cn/id-attr id}}]
+      (is (cn/instance-of? :PrivTest/E inst))
+      (tu/is-error
+       #(ev/eval-all-dataflows
+         (with-user "u11" lookup)))
+      (let [inst2 (first
+                   (tu/result
+                    (with-user "u22" lookup)))]
+        (cn/same-instance? inst inst2)))
     (ei/reset-interceptors!)))
