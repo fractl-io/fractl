@@ -46,13 +46,15 @@
   (u/safe-set interceptors []))
 
 (defn do-operation [opr event-instance direction data]
-  (loop [ins @interceptors
-         result (ii/encode-arg event-instance direction data)]
-    (if-let [i (first ins)]
-      (if-let [r ((ii/intercept-fn i) opr result)]
-        (recur (rest ins) r)
-        (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i))))
-      (ii/data result))))
+  (if-let [ins (seq @interceptors)]
+    (loop [ins ins
+           result (ii/encode-arg event-instance direction data)]
+      (if-let [i (first ins)]
+        (if-let [r ((ii/intercept-fn i) opr result)]
+          (recur (rest ins) r)
+          (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i))))
+        (ii/data result)))
+    data))
 
 (def ^:private read-operation (partial do-operation :read))
 (def ^:private upsert-operation (partial do-operation :upsert))

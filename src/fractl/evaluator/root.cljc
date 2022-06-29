@@ -30,9 +30,11 @@
      [rec-name ref-val]]))
 
 (def ^:private intercept-upsert interceptors/upsert-intercept)
+(def ^:private intercept-upsert-result interceptors/upsert-result-intercept)
 (def ^:private intercept-delete interceptors/delete-intercept)
+(def ^:private intercept-delete-result interceptors/delete-result-intercept)
 (def ^:private intercept-read interceptors/read-intercept)
-(def ^:private intercept-eval interceptors/eval-intercept)
+(def ^:private intercept-read-result interceptors/read-result-intercept)
 
 (defn- enrich-environment-with-refs
   "Find all entity instances referenced (via :ref attribute property)
@@ -291,9 +293,11 @@
       (maybe-init-schema! store (first record-name)))
     (if (env/any-dirty? env insts)
       (let [result
-            (chained-crud
-             (when store (partial store/upsert-instances store record-name))
-             resolver (partial resolver-upsert env) nil insts)
+            (intercept-upsert-result
+             env
+             (chained-crud
+              (when store (partial store/upsert-instances store record-name))
+              resolver (partial resolver-upsert env) nil insts))
             conditional-event-results
             (fire-all-conditional-events
              event-evaluator env store result)]
@@ -307,9 +311,11 @@
   (let [record-name (intercept-delete env record-name)
         store (env/get-store env)
         resolver (env/get-resolver env)]
-    (chained-crud
-     (when store (partial delete-by-id store record-name))
-     resolver (partial resolver-delete env) record-name [[record-name id]])))
+    (intercept-delete
+     env
+     (chained-crud
+      (when store (partial delete-by-id store record-name))
+      resolver (partial resolver-delete env) record-name [[record-name id]]))))
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
@@ -641,26 +647,27 @@
          (or (.-ex-data e) (i/error e))))))
 
 (defn- do-query-helper [env entity-name queries]
-  (if-let [[insts env]
+  (if-let [[orig-insts env]
            (find-instances
             env (env/get-store env)
             (intercept-read env entity-name)
             queries)]
-    (cond
-      (maybe-async-channel? insts)
-      (i/ok
-       insts
-       (env/push-obj env entity-name insts))
+    (let [insts (intercept-read-result env orig-insts)]
+      (cond
+        (maybe-async-channel? insts)
+        (i/ok
+         insts
+         (env/push-obj env entity-name insts))
 
-      (seq insts)
-      (i/ok
-       insts
-       (env/mark-all-mint
-        (env/push-obj env entity-name insts)
-        insts))
+        (seq insts)
+        (i/ok
+         insts
+         (env/mark-all-mint
+          (env/push-obj env entity-name insts)
+          insts))
 
-      :else
-      (i/not-found entity-name env))
+        :else
+        (i/not-found entity-name env)))
     (i/not-found entity-name env)))
 
 (defn- find-reference [env record-name refs]
@@ -765,7 +772,7 @@
 
     (do-intern-event-instance [self env [record-name alias timeout-ms]]
       (let [[inst env] (pop-and-intern-instance
-                        env (intercept-eval env record-name)
+                        env record-name
                         nil (partial eval-opcode self))
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)

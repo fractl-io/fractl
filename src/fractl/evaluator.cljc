@@ -89,7 +89,9 @@
      (let [[_ dc] (cn/dataflow-opcode df)
            result (deref-futures
                    (dispatch-opcodes evaluator env dc))]
-       result)))
+       (if is-internal
+         result
+         (interceptors/eval-result-intercept env result)))))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 
