@@ -36,7 +36,8 @@
  :Kernel.RBAC/PrivilegeAssignment
  {:Role {:ref :Kernel.RBAC/Role.Name
          :indexed true}
-  :Privilege {:ref :Kernel.RBAC/Privilege.Name}})
+  :Privilege {:ref :Kernel.RBAC/Privilege.Name}
+  :meta {:unique [:Role :Privilege]}})
 
 (entity
  :Kernel.RBAC/RoleAssignment
