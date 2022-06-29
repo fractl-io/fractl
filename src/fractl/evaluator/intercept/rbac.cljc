@@ -30,9 +30,11 @@
    :eval apply-eval-rules})
 
 (defn- run [opr arg]
-  (if-let [f (opr actions)]
-    (when (f (cn/event-context-user (ii/event arg))
-             (ii/data arg))
+  (if (ii/data-input? arg)
+    (if-let [f (opr actions)]
+      (when (f (cn/event-context-user (ii/event arg))
+               (ii/data arg))
+        arg)
       arg)
     arg))
 

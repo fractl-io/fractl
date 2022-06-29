@@ -11,6 +11,21 @@
 
 (def event :event)
 (def data :data)
+(def direction :direction)
 
-(defn encode-arg [evt dt]
-  {event evt data dt})
+(defn encode-arg [evt dir dt]
+  {event evt
+   data dt
+   direction dir})
+
+(def input :input)
+(def output :output)
+
+(defn valid-direction? [d]
+  (or (= d input) (= d output)))
+
+(defn data-input? [obj]
+  (= input (direction obj)))
+
+(defn data-output? [obj]
+  (= output (direction obj)))
