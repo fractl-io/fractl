@@ -1,10 +1,13 @@
 (ns fractl.evaluator.intercept.internal)
 
-(def iname :name)
-(def ifn :fn)
+(def ^:private name-tag :name)
+(def ^:private fn-tag :fn)
 
-(defn make-interceptor [name fn]
-  {iname :rbac ifn fn})
+(defn make-interceptor [n fn]
+  {name-tag n fn-tag fn})
+
+(def intercept-name name-tag)
+(def intercept-fn fn-tag)
 
 (def event :event)
 (def data :data)

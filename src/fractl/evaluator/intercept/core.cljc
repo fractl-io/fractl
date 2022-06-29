@@ -30,17 +30,17 @@
 (def ^:private interceptors (u/make-cell []))
 
 (defn add-interceptor! [spec]
-  (let [n (ii/iname spec) f (ii/ifn spec)]
+  (let [n (ii/intercept-name spec) f (ii/intercept-fn spec)]
     (if (and n f)
       (do (u/call-and-set
            interceptors
            (fn []
              (let [ins @interceptors]
-               (if-not (some #{n} (mapv ii/iname ins))
+               (if-not (some #{n} (mapv ii/intercept-name ins))
                  (conj ins spec)
                  (u/throw-ex (str "duplicate interceptor - " n))))))
-          (ii/iname spec))
-      (u/throw-ex (str ii/iname " and " ii/ifn " required in interceptor spec - " spec)))))
+          (ii/intercept-name spec))
+      (u/throw-ex (str ii/intercept-name " and " ii/intercept-fn " required in interceptor spec - " spec)))))
 
 (defn reset-interceptors! []
   (u/safe-set interceptors []))
@@ -49,9 +49,9 @@
   (loop [ins @interceptors
          result (ii/encode-arg event-instance data)]
     (if-let [i (first ins)]
-      (if-let [r ((ii/ifn i) opr result)]
+      (if-let [r ((ii/intercept-fn i) opr result)]
         (recur (rest ins) r)
-        (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/iname i))))
+        (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i))))
       (ii/data result))))
 
 (def read-operation (partial do-operation :read))
