@@ -54,12 +54,17 @@
         (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i))))
       (ii/data result))))
 
-(def read-operation (partial do-operation :read))
-(def upsert-operation (partial do-operation :upsert))
-(def delete-operation (partial do-operation :delete))
-(def eval-operation (partial do-operation :eval))
+(def ^:private read-operation (partial do-operation :read))
+(def ^:private upsert-operation (partial do-operation :upsert))
+(def ^:private delete-operation (partial do-operation :delete))
+(def ^:private eval-operation (partial do-operation :eval))
 
-(defn do-intercept-opr [intercept-fn env data]
+(defn- do-intercept-opr [intercept-fn env data]
   (if (env/interceptors-blocked? env)
     data
     (intercept-fn (env/active-event env) data)))
+
+(def read-intercept (partial do-intercept-opr read-operation))
+(def upsert-intercept (partial do-intercept-opr upsert-operation))
+(def delete-intercept (partial do-intercept-opr delete-operation))
+(def eval-intercept (partial do-intercept-opr eval-operation))

@@ -78,9 +78,7 @@
          env0 (if is-internal
                 (env/block-interceptors env)
                 (env/assoc-active-event env event-instance))
-         event-instance (interceptors/do-intercept-opr
-                         interceptors/eval-operation
-                         env0 event-instance)
+         event-instance (interceptors/eval-intercept env0 event-instance)
          env (if event-instance
                (env/assoc-active-event
                 (env/bind-instance

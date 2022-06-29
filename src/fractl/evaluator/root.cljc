@@ -29,12 +29,10 @@
       :where [:= (first (:refs r)) ref-val]}
      [rec-name ref-val]]))
 
-(def ^:private intercept-opr interceptors/do-intercept-opr)
-
-(def ^:private intercept-upsert (partial intercept-opr interceptors/upsert-operation))
-(def ^:private intercept-delete (partial intercept-opr interceptors/delete-operation))
-(def ^:private intercept-read (partial intercept-opr interceptors/read-operation))
-(def ^:private intercept-eval (partial intercept-opr interceptors/eval-operation))
+(def ^:private intercept-upsert interceptors/upsert-intercept)
+(def ^:private intercept-delete interceptors/delete-intercept)
+(def ^:private intercept-read interceptors/read-intercept)
+(def ^:private intercept-eval interceptors/eval-intercept)
 
 (defn- enrich-environment-with-refs
   "Find all entity instances referenced (via :ref attribute property)
