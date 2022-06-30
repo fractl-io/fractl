@@ -11,21 +11,12 @@
 
 (def event :event)
 (def data :data)
-(def direction :direction)
+(def continuation :continuation)
 
-(defn encode-arg [evt dir dt]
+(defn encode-arg [evt dt cont]
   {event evt
    data dt
-   direction dir})
+   continuation cont})
 
-(def input :input)
-(def output :output)
-
-(defn valid-direction? [d]
-  (or (= d input) (= d output)))
-
-(defn data-input? [obj]
-  (= input (direction obj)))
-
-(defn data-output? [obj]
-  (= output (direction obj)))
+(defn assoc-data [arg dt]
+  (assoc arg data dt))

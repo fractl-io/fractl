@@ -29,12 +29,9 @@
       :where [:= (first (:refs r)) ref-val]}
      [rec-name ref-val]]))
 
-(def ^:private intercept-upsert interceptors/upsert-intercept)
-(def ^:private intercept-upsert-result interceptors/upsert-result-intercept)
-(def ^:private intercept-delete interceptors/delete-intercept)
-(def ^:private intercept-delete-result interceptors/delete-result-intercept)
-(def ^:private intercept-read interceptors/read-intercept)
-(def ^:private intercept-read-result interceptors/read-result-intercept)
+(def ^:private upsert-intercept interceptors/upsert-intercept)
+(def ^:private delete-intercept interceptors/delete-intercept)
+(def ^:private read-intercept interceptors/read-intercept)
 
 (defn- enrich-environment-with-refs
   "Find all entity instances referenced (via :ref attribute property)
@@ -286,36 +283,36 @@
     final-result))
 
 (defn- chained-upsert [env event-evaluator record-name insts]
-  (let [insts (intercept-upsert env insts)
-        store (env/get-store env)
+  (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (when store
       (maybe-init-schema! store (first record-name)))
-    (if (env/any-dirty? env insts)
-      (let [result
-            (intercept-upsert-result
-             env
-             (chained-crud
-              (when store (partial store/upsert-instances store record-name))
-              resolver (partial resolver-upsert env) nil insts))
-            conditional-event-results
-            (fire-all-conditional-events
-             event-evaluator env store result)]
-        (concat result conditional-event-results))
-      insts)))
+    (upsert-intercept
+     env insts
+     (fn [insts]
+       (if (env/any-dirty? env insts)
+         (let [result
+               (chained-crud
+                (when store (partial store/upsert-instances store record-name))
+                resolver (partial resolver-upsert env) nil insts)
+               conditional-event-results
+               (fire-all-conditional-events
+                event-evaluator env store result)]
+           (concat result conditional-event-results))
+         insts)))))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
 
 (defn- chained-delete [env record-name id]
-  (let [record-name (intercept-delete env record-name)
-        store (env/get-store env)
+  (let [store (env/get-store env)
         resolver (env/get-resolver env)]
-    (intercept-delete
-     env
-     (chained-crud
-      (when store (partial delete-by-id store record-name))
-      resolver (partial resolver-delete env) record-name [[record-name id]]))))
+    (delete-intercept
+     env record-name
+     (fn [record-name]
+       (chained-crud
+        (when store (partial delete-by-id store record-name))
+        resolver (partial resolver-delete env) record-name [[record-name id]])))))
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
@@ -647,27 +644,28 @@
          (or (.-ex-data e) (i/error e))))))
 
 (defn- do-query-helper [env entity-name queries]
-  (if-let [[orig-insts env]
-           (find-instances
-            env (env/get-store env)
-            (intercept-read env entity-name)
-            queries)]
-    (let [insts (intercept-read-result env orig-insts)]
-      (cond
-        (maybe-async-channel? insts)
-        (i/ok
-         insts
-         (env/push-obj env entity-name insts))
+  (if-let [[insts env]
+           (read-intercept
+            env entity-name
+            (fn [entity-name]
+              (find-instances
+               env (env/get-store env)
+               entity-name queries)))]
+    (cond
+      (maybe-async-channel? insts)
+      (i/ok
+       insts
+       (env/push-obj env entity-name insts))
 
-        (seq insts)
-        (i/ok
-         insts
-         (env/mark-all-mint
-          (env/push-obj env entity-name insts)
-          insts))
+      (seq insts)
+      (i/ok
+       insts
+       (env/mark-all-mint
+        (env/push-obj env entity-name insts)
+        insts))
 
-        :else
-        (i/not-found entity-name env)))
+      :else
+      (i/not-found entity-name env))
     (i/not-found entity-name env)))
 
 (defn- find-reference [env record-name refs]
@@ -792,7 +790,10 @@
     (do-delete-instance [self env [record-name queries]]
       (if-let [store (env/get-store env)]
         (if (= queries :*)
-          (i/ok [(store/delete-all store (intercept-delete env record-name))] env)
+          (i/ok [(delete-intercept
+                  env record-name
+                  (fn [record-name] (store/delete-all store record-name)))]
+                env)
           (if-let [[insts env]
                    (find-instances env store record-name queries)]
             (let [alias (:alias queries)

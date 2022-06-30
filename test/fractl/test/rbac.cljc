@@ -67,6 +67,13 @@
       {event {}}
       event))))
 
+(defn- call-with-rbac [f]
+  (is (rbac/init))
+  (try
+    (f)
+    (finally
+      (ei/reset-interceptors!))))
+
 (deftest rbac-application
   (defcomponent :PrivTest
     (entity
@@ -125,53 +132,53 @@
       {:Role "r11" :Assignee "u11"}}
      {:Kernel.RBAC/RoleAssignment
       {:Role "r22" :Assignee "u22"}}))
-  (is (rbac/init))
-  (let [su (first (tu/result :PrivTest/CreateSuperUser))]
-    (is (cn/instance-of? :PrivTest/User su))
-    (is (= "superuser" (:User su)))
-    (is (= [:rbac] (ei/init-interceptors [:rbac])))
-    (let [u2 (first
-              (tu/result
-               (with-user "superuser" :PrivTest/CreateUsers)))]
-      (is (cn/instance-of? :PrivTest/User u2))
-      (is (= "u22" (:User u2))))
-    (let [r2 (first
-              (tu/result
-               (with-user "superuser" :PrivTest/CreatePrivileges)))]
-      (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r2))
-      (is (and (= "r22" (:Role r2)) (= "u22" (:Assignee r2)))))
-    (tu/is-error
-     #(ev/eval-all-dataflows
-       (cn/make-instance
-        {:PrivTest/Upsert_E
-         {:Instance
-          {:PrivTest/E
-           {:X 100}}}})))
-    (tu/is-error
-     #(ev/eval-all-dataflows
-       (with-user
-         "u22"
-         {:PrivTest/Upsert_E
-          {:Instance
-           {:PrivTest/E
-            {:X 200}}}})))
-    (let [inst (first
-                (tu/result
-                 (with-user
-                   "u11"
-                   {:PrivTest/Upsert_E
-                    {:Instance
-                     {:PrivTest/E
-                      {:X 100}}}})))
-          id (cn/id-attr inst)
-          lookup {:PrivTest/Lookup_E
-                  {cn/id-attr id}}]
-      (is (cn/instance-of? :PrivTest/E inst))
-      (tu/is-error
-       #(ev/eval-all-dataflows
-         (with-user "u11" lookup)))
-      (let [inst2 (first
+  (call-with-rbac
+   (fn []
+     (let [su (first (tu/result :PrivTest/CreateSuperUser))]
+       (is (cn/instance-of? :PrivTest/User su))
+       (is (= "superuser" (:User su)))
+       (is (= [:rbac] (ei/init-interceptors [:rbac])))
+       (let [u2 (first
+                 (tu/result
+                  (with-user "superuser" :PrivTest/CreateUsers)))]
+         (is (cn/instance-of? :PrivTest/User u2))
+         (is (= "u22" (:User u2))))
+       (let [r2 (first
+                 (tu/result
+                  (with-user "superuser" :PrivTest/CreatePrivileges)))]
+         (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r2))
+         (is (and (= "r22" (:Role r2)) (= "u22" (:Assignee r2)))))
+       (tu/is-error
+        #(ev/eval-all-dataflows
+          (cn/make-instance
+           {:PrivTest/Upsert_E
+            {:Instance
+             {:PrivTest/E
+              {:X 100}}}})))
+       (tu/is-error
+        #(ev/eval-all-dataflows
+          (with-user
+            "u22"
+            {:PrivTest/Upsert_E
+             {:Instance
+              {:PrivTest/E
+               {:X 200}}}})))
+       (let [inst (first
                    (tu/result
-                    (with-user "u22" lookup)))]
-        (cn/same-instance? inst inst2)))
-    (ei/reset-interceptors!)))
+                    (with-user
+                      "u11"
+                      {:PrivTest/Upsert_E
+                       {:Instance
+                        {:PrivTest/E
+                         {:X 100}}}})))
+             id (cn/id-attr inst)
+             lookup {:PrivTest/Lookup_E
+                     {cn/id-attr id}}]
+         (is (cn/instance-of? :PrivTest/E inst))
+         (tu/is-error
+          #(ev/eval-all-dataflows
+            (with-user "u11" lookup)))
+         (let [inst2 (first
+                      (tu/result
+                       (with-user "u22" lookup)))]
+           (cn/same-instance? inst inst2)))))))

@@ -45,35 +45,28 @@
 (defn reset-interceptors! []
   (u/safe-set interceptors []))
 
-(defn do-operation [opr event-instance direction data]
+(defn do-operation [opr event-instance data continuation]
   (if-let [ins (seq @interceptors)]
     (loop [ins ins
-           result (ii/encode-arg event-instance direction data)]
+           result (ii/encode-arg event-instance data continuation)]
       (if-let [i (first ins)]
         (if-let [r ((ii/intercept-fn i) opr result)]
           (recur (rest ins) r)
           (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i))))
         (ii/data result)))
-    data))
+    (continuation data)))
 
 (def ^:private read-operation (partial do-operation :read))
 (def ^:private upsert-operation (partial do-operation :upsert))
 (def ^:private delete-operation (partial do-operation :delete))
 (def ^:private eval-operation (partial do-operation :eval))
 
-(defn- do-intercept-opr [intercept-fn direction env data]
-  (if (ii/valid-direction? direction)
-    (if (env/interceptors-blocked? env)
-      data
-      (intercept-fn (env/active-event env) direction data))
-    (u/throw-ex (str "invalid direction - " direction))))
+(defn- do-intercept-opr [intercept-fn env data continuation]
+  (if (env/interceptors-blocked? env)
+    (continuation data)
+    (intercept-fn (env/active-event env) data continuation)))
 
-(def read-intercept (partial do-intercept-opr read-operation ii/input))
-(def upsert-intercept (partial do-intercept-opr upsert-operation ii/input))
-(def delete-intercept (partial do-intercept-opr delete-operation ii/input))
-(def eval-intercept (partial do-intercept-opr eval-operation ii/input))
-
-(def read-result-intercept (partial do-intercept-opr read-operation ii/output))
-(def upsert-result-intercept (partial do-intercept-opr upsert-operation ii/output))
-(def delete-result-intercept (partial do-intercept-opr delete-operation ii/output))
-(def eval-result-intercept (partial do-intercept-opr eval-operation ii/output))
+(def read-intercept (partial do-intercept-opr read-operation))
+(def upsert-intercept (partial do-intercept-opr upsert-operation))
+(def delete-intercept (partial do-intercept-opr delete-operation))
+(def eval-intercept (partial do-intercept-opr eval-operation))

@@ -78,20 +78,17 @@
          env0 (if is-internal
                 (env/block-interceptors env)
                 (env/assoc-active-event env event-instance))
-         event-instance (interceptors/eval-intercept env0 event-instance)
-         env (if event-instance
-               (env/assoc-active-event
-                (env/bind-instance
-                 env0 (li/split-path (cn/instance-type event-instance))
-                 event-instance)
-                event-instance)
-               env0)]
-     (let [[_ dc] (cn/dataflow-opcode df)
-           result (deref-futures
-                   (dispatch-opcodes evaluator env dc))]
-       (if is-internal
-         result
-         (interceptors/eval-result-intercept env result)))))
+         continuation (fn [event-instance]
+                        (let [env (if event-instance
+                                    (env/assoc-active-event
+                                     (env/bind-instance
+                                      env0 (li/split-path (cn/instance-type event-instance))
+                                      event-instance)
+                                     event-instance)
+                                    env0)
+                              [_ dc] (cn/dataflow-opcode df)]
+                          (deref-futures (dispatch-opcodes evaluator env dc))))]
+     (interceptors/eval-intercept env0 event-instance continuation)))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 

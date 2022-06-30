@@ -7,14 +7,14 @@
 
 (defn- has-priv? [rbac-predic user data]
   (let [p (partial rbac-predic user)
-        entity-name
+        rec-name
         (cond
           (keyword? data) data
           (cn/an-instance? data) (cn/instance-type data)
           (li/parsed-path? data) (li/make-path data)
           :else (u/throw-ex (str "invalid argument for rbac interceptor - " data)))]
-    (if entity-name
-      (p entity-name)
+    (if rec-name
+      (p rec-name)
       (let [rs (set (map cn/instance-type data))]
         (every? identity (map #(p %) rs))))))
 
@@ -30,12 +30,13 @@
    :eval apply-eval-rules})
 
 (defn- run [opr arg]
-  (if (ii/data-input? arg)
-    (if-let [f (opr actions)]
+  (if-let [f (opr actions)]
+    (let [data (ii/data arg)]
       (when (f (cn/event-context-user (ii/event arg))
-               (ii/data arg))
-        arg)
-      arg)
+               data)
+        (ii/assoc-data
+         arg
+         ((ii/continuation arg) data))))
     arg))
 
 (defn make []
