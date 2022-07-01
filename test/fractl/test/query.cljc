@@ -1,11 +1,13 @@
 (ns fractl.test.query
   (:require #?(:clj  [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
+            [fractl.store.util :as stu]
             #?(:clj  [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -442,3 +444,34 @@
     (is (cn/instance-of? :Rfr/R k1))
     (is (= 20 (:A k1)))
     (is (= 10 (:B k1)))))
+
+(deftest select-all
+  (defn- make-query [env]
+    (let [xs (env :SelAll/FindE.Xs)]
+      (str "SELECT * FROM " (stu/entity-table-name :SelAll/E)
+           " WHERE (" (stu/attribute-column-name :X) " in ("
+           (s/join "," (map str xs)) "))")))
+  (defcomponent :SelAll
+    (entity
+     {:SelAll/E
+      {:X {:type :Kernel/Int
+           :indexed true}}})
+    (dataflow
+     :SelAll/FindE
+     [:query {:SelAll/E? make-query}]))
+  (let [es (mapv #(cn/make-instance
+                   {:SelAll/E
+                    {:X %}})
+                 (range 5))
+        _ (mapv #(tu/first-result
+                  (cn/make-instance
+                   {:SelAll/Upsert_E
+                    {:Instance %}}))
+                es)
+        rs (tu/fresult
+            (e/eval-all-dataflows
+             (cn/make-instance
+              {:SelAll/FindE
+               {:Xs [2 1 4]}})))]
+    (is (= 3 (count rs)))
+    (is (every? (fn [r] (some #{(:X r)} [2 1 4])) rs))))

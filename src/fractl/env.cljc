@@ -6,13 +6,19 @@
             [fractl.lang.internal :as li]
             [fractl.component :as cn]))
 
-(def EMPTY {})
+(def ^:private env-tag :-*-env-*-)
+
+(def EMPTY {env-tag true})
 
 (defn make
   [store resolver]
   (assoc EMPTY
          :store store
          :resolver resolver))
+
+(defn env? [x]
+  (and (map? x)
+       (env-tag x)))
 
 (defn get-store
   [self]
@@ -71,11 +77,6 @@
 (def bind-to-alias assoc)
 (def lookup-by-alias (comp cn/maybe-deref get))
 
-(def rbac-check :*rbac-check*)
-
-(defn bind-rbac-check [env f]
-  (bind-to-alias env rbac-check f))
-
 (defn lookup-instance [env rec-name]
   (cn/maybe-deref (peek (get-instances env rec-name))))
 
@@ -110,6 +111,17 @@
                      env)
                    (rest refs) x))
           [obj env])))))
+
+(defn lookup [env path]
+  (let [parts (li/path-parts path)
+        p (:path parts)]
+    (cond
+      p (lookup-by-alias env p)
+
+      (seq (:refs parts))
+      (first (follow-reference env parts))
+
+      :else (lookup-instance env [(:component parts) (:record parts)]))))
 
 (defn instance-ref-path
   "Returns a path to the record in the format of [record-name inst-id]
@@ -190,3 +202,17 @@
     true))
 
 (def as-map identity)
+
+(def ^:private active-event-key :-*-active-event-*-)
+
+(defn assoc-active-event [env event-instance]
+  (assoc env active-event-key event-instance))
+
+(def active-event active-event-key)
+
+(def ^:private interceptors-blocked-key :-*-interceptors-blocked-*-)
+
+(defn block-interceptors [env]
+  (assoc env interceptors-blocked-key true))
+
+(def interceptors-blocked? interceptors-blocked-key)

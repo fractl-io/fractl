@@ -1326,11 +1326,22 @@
     (filter #(:order (fetch-meta %)) names)))
 
 (defn event? [recname]
-  (if (event-schema recname)
-    true
-    false))
+  (and (event-schema recname) true))
+
+(defn entity? [recname]
+  (and (entity-schema recname) true))
 
 (def hashed-attribute? :secure-hash)
 
 (defn append-id [path]
   (keyword (str (subs (str path) 1) "." s-id-attr)))
+
+(defn event-context-value [k event-instance]
+  (get-in event-instance [li/event-context k]))
+
+(def event-context-user (partial event-context-value :User))
+
+(defn assoc-event-context-value [k v event-instance]
+  (assoc-in event-instance [li/event-context k] v))
+
+(def assoc-event-context-user (partial assoc-event-context-value :User))

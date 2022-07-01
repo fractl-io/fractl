@@ -8,14 +8,15 @@
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
-            [fractl.policy.rbac :as rbac]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
+            [fractl.evaluator.intercept :as ei]
             [fractl.store :as store]
             [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
-            [fractl.lang.loader :as loader])
+            [fractl.lang.loader :as loader]
+            [fractl.rbac.core :as rbac])
   (:import [java.util Properties]
            [java.net URL]
            [java.io File])
@@ -135,11 +136,9 @@
   (let [store (e/store-from-config (:store config))
         ev (e/public-evaluator store true)]
     (run-appinit-tasks! ev store model components)
-    (rbac/init!)
-    (e/zero-trust-rbac!
-     (let [f (:zero-trust-rbac config)]
-       (or (nil? f) f)))
-    [ev store]))
+    (when (rbac/init)
+      (ei/init-interceptors (:interceptors config))
+      [ev store])))
 
 (defn- finalize-config [model config]
   (let [final-config (merge (:config model) config)]

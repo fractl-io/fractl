@@ -68,7 +68,7 @@
        (str "Reference cannot be found for "
             rec
             " Did you mean one of: "
-            (first (keys (dissoc @ctx :compile-query-fn :zero-trust-rbac)))))))
+            (first (keys (dissoc @ctx :compile-query-fn)))))))
   true)
 
 (defn- refers-to-event? [n]

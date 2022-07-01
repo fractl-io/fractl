@@ -184,7 +184,7 @@
   ([fns args] (apply-> identity fns args)))
 
 (defn map-when [f xs]
-  (map #(when % (f %)) xs))
+  (mapv #(when % (f %)) xs))
 
 (defn apply0 [f] (f))
 

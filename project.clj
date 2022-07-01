@@ -2,6 +2,7 @@
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [org.clojure/clojurescript "1.10.896"
                   :exclusions [com.google.code.findbugs/jsr305]]
+                 [org.clojure/core.memoize "1.0.257"]
                  [org.clojure/tools.cli "1.0.206"]
                  [org.clojure/data.xml "0.2.0-alpha5"]
                  [org.clojure/data.csv "1.0.0"]

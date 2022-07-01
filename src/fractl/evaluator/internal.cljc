@@ -20,7 +20,11 @@
 (defn error [message]
   (make-result opc/error-tag nil nil message))
 
-(defn ok? [r] (= opc/ok-tag (opc/result-status r)))
+(defn- tag-eq? [tag r]
+  (= tag (opc/result-status r)))
+
+(def ok? (partial tag-eq? opc/ok-tag))
+(def error? (partial tag-eq? opc/error-tag))
 
 (defn dummy-result [env]
   {opc/result-status-tag opc/ok-tag :env env})
