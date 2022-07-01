@@ -45,21 +45,21 @@
 (defn reset-interceptors! []
   (u/safe-set interceptors []))
 
-(defn do-operation [opr event-instance data continuation]
+(defn invoke-interceptors [opr event-instance data continuation]
   (if-let [ins (seq @interceptors)]
     (loop [ins ins
-           result (ii/encode-arg event-instance data continuation)]
+           result (ii/encode-arg event-instance data nil continuation)]
       (if-let [i (first ins)]
         (if-let [r ((ii/intercept-fn i) opr result)]
           (recur (rest ins) r)
           (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i))))
-        (ii/data result)))
+        (ii/data-output result)))
     (continuation data)))
 
-(def ^:private read-operation (partial do-operation :read))
-(def ^:private upsert-operation (partial do-operation :upsert))
-(def ^:private delete-operation (partial do-operation :delete))
-(def ^:private eval-operation (partial do-operation :eval))
+(def ^:private read-operation (partial invoke-interceptors :read))
+(def ^:private upsert-operation (partial invoke-interceptors :upsert))
+(def ^:private delete-operation (partial invoke-interceptors :delete))
+(def ^:private eval-operation (partial invoke-interceptors :eval))
 
 (defn- do-intercept-opr [intercept-fn env data continuation]
   (if (env/interceptors-blocked? env)

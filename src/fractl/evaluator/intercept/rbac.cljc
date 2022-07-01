@@ -31,10 +31,10 @@
 
 (defn- run [opr arg]
   (if-let [f (opr actions)]
-    (let [data (ii/data arg)]
+    (let [data (ii/data-input arg)]
       (when (f (cn/event-context-user (ii/event arg))
                data)
-        (ii/assoc-data
+        (ii/assoc-data-output
          arg
          ((ii/continuation arg) data))))
     arg))

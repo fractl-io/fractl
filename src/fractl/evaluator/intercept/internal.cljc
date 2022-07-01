@@ -10,13 +10,15 @@
 (def intercept-fn fn-tag)
 
 (def event :event)
-(def data :data)
 (def continuation :continuation)
+(def data-input :input)
+(def data-output :output)
 
-(defn encode-arg [evt dt cont]
+(defn encode-arg [evt input output cont]
   {event evt
-   data dt
+   data-input input
+   data-output output
    continuation cont})
 
-(defn assoc-data [arg dt]
-  (assoc arg data dt))
+(defn assoc-data-output [arg dt]
+  (assoc arg data-output dt))
