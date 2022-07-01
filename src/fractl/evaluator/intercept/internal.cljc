@@ -20,5 +20,9 @@
    data-output output
    continuation cont})
 
-(defn assoc-data-output [arg dt]
-  (assoc arg data-output dt))
+(defn- assoc-arg-value [k arg dt]
+  (assoc arg k dt))
+
+(def assoc-continuation (partial assoc-arg-value continuation))
+(def assoc-data-input (partial assoc-arg-value data-input))
+(def assoc-data-output (partial assoc-arg-value data-output))
