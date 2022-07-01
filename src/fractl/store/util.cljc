@@ -14,11 +14,14 @@
 (defn db-schema-for-component [component-name]
   (s/replace (name component-name) #"\." "_"))
 
-(defn table-for-entity [entity-name]
+(defn entity-table-name [entity-name]
   (let [[component-name r] (li/split-path entity-name)]
     (if (cn/entity-schema-predefined? entity-name)
       (db-ident r)
       (str (db-schema-for-component component-name) "__" (db-ident r)))))
+
+(defn attribute-column-name [aname]
+  (str "_" (name aname)))
 
 (defn indexed-attributes [entity-schema]
   (set (remove #{cn/id-attr} (cn/indexed-attributes entity-schema))))
@@ -38,8 +41,8 @@
 (defn index-table-names
   "Given an entity table-name and its indexed attributes, return a sequence of
   all index table names."
-  [entity-table-name indexed-attrs]
-  (let [tabnames (map #(index-table-name entity-table-name %) indexed-attrs)]
+  [table-name indexed-attrs]
+  (let [tabnames (map #(index-table-name table-name %) indexed-attrs)]
     (into {} (map vector indexed-attrs tabnames))))
 
 (def create-table-prefix "CREATE TABLE IF NOT EXISTS")
@@ -151,3 +154,13 @@
   [data]
   #?(:clj (json/generate-string data)
      :cljs (.stringify js/JSON (clj->js data))))
+
+(def compiled-query :compiled-query)
+(def raw-query :raw-query)
+
+(defn package-query
+  ([q cq]
+   {compiled-query cq
+    raw-query q})
+  ([cq]
+   (package-query nil cq)))

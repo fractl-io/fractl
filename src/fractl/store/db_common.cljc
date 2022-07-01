@@ -104,7 +104,7 @@
        (create-db-schema! txn scmname)
        (doseq [ename (cn/entity-names component-name)]
          (when-not (cn/entity-schema-predefined? ename)
-           (let [tabname (su/table-for-entity ename)
+           (let [tabname (su/entity-table-name ename)
                  schema (su/find-entity-schema ename)]
              (create-relational-table
               txn schema tabname
@@ -127,7 +127,7 @@
     (let [p (cn/find-ref-path scmname)
           component (:component p)
           entity-name (:record p)
-          tabname (su/table-for-entity [component entity-name])
+          tabname (su/entity-table-name [component entity-name])
           rattr (first (:refs p))
           colname (name rattr)
           index-tabname (if (= rattr cn/id-attr) tabname (su/index-table-name tabname colname))
@@ -141,7 +141,7 @@
     indexed-attrs))
 
 (defn upsert-relational-entity-instance [upsert-inst-statement datasource entity-name instance]
-  (let [tabname (su/table-for-entity entity-name)
+  (let [tabname (su/entity-table-name entity-name)
         inst (su/serialize-objects instance)]
     (execute-fn!
      datasource
@@ -165,7 +165,7 @@
 
 (defn delete-by-id
   ([delete-by-id-statement datasource entity-name id]
-   (let [tabname (su/table-for-entity entity-name)]
+   (let [tabname (su/entity-table-name entity-name)]
      (transact-fn!
       datasource
       (fn [txn]
@@ -175,7 +175,7 @@
    (delete-by-id delete-by-id-statement datasource entity-name id)))
 
 (defn delete-all [datasource entity-name]
-  (let [tabname (su/table-for-entity entity-name)]
+  (let [tabname (su/entity-table-name entity-name)]
     (transact-fn!
      datasource
      (fn [txn]
@@ -185,7 +185,7 @@
 
 (defn compile-query [query-pattern]
   (sql/format-sql
-   (su/table-for-entity (:from query-pattern))
+   (su/entity-table-name (:from query-pattern))
    (if (> (count (keys query-pattern)) 2)
      (dissoc query-pattern :from)
      (let [where-clause (:where query-pattern)]
@@ -219,7 +219,7 @@
        (execute-stmt! conn pstmt params)))))
 
 (defn- query-relational-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
-  (let [sql (sql/compile-to-direct-query (su/table-for-entity entity-name) (mapv name unique-keys) :and)]
+  (let [sql (sql/compile-to-direct-query (su/entity-table-name entity-name) (mapv name unique-keys) :and)]
     (when-let [rows (seq (do-query datasource sql (mapv #(attribute-values %) unique-keys)))]
       (su/result-as-instance entity-name (first rows)))))
 

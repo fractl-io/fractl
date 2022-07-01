@@ -14,6 +14,7 @@
             [fractl.resolver.registry :as rg]
             [fractl.evaluator.parser :as parser]
             [fractl.evaluator.internal :as i]
+            [fractl.evaluator.intercept.core :as interceptors]
             [fractl.lang :as ln]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]
@@ -27,6 +28,10 @@
     [{:from rec-name
       :where [:= (first (:refs r)) ref-val]}
      [rec-name ref-val]]))
+
+(def ^:private upsert-intercept interceptors/upsert-intercept)
+(def ^:private delete-intercept interceptors/delete-intercept)
+(def ^:private read-intercept interceptors/read-intercept)
 
 (defn- enrich-environment-with-refs
   "Find all entity instances referenced (via :ref attribute property)
@@ -259,14 +264,6 @@
             (conj @inited-components component-name))
         component-name)))))
 
-(defn- perform-rbac! [env opr recname data]
-  (when-let [f (env/rbac-check env)]
-    (when-not (f opr recname
-                 (if (or (map? data) (string? data))
-                   data
-                   (first data)))
-      (u/throw-ex (str "no permission to execute " opr " on " recname)))))
-
 (defn- chained-crud [store-f res resolver-upsert single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
@@ -290,29 +287,32 @@
         resolver (env/get-resolver env)]
     (when store
       (maybe-init-schema! store (first record-name)))
-    (if (env/any-dirty? env insts)
-      (do
-        (perform-rbac! env :Upsert record-name insts)
-        (let [result
-              (chained-crud
-               (when store (partial store/upsert-instances store record-name))
-               resolver (partial resolver-upsert env) nil insts)
-              conditional-event-results
-              (fire-all-conditional-events
-               event-evaluator env store result)]
-          (concat result conditional-event-results)))
-      insts)))
+    (upsert-intercept
+     env insts
+     (fn [insts]
+       (if (env/any-dirty? env insts)
+         (let [result
+               (chained-crud
+                (when store (partial store/upsert-instances store record-name))
+                resolver (partial resolver-upsert env) nil insts)
+               conditional-event-results
+               (fire-all-conditional-events
+                event-evaluator env store result)]
+           (concat result conditional-event-results))
+         insts)))))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
 
 (defn- chained-delete [env record-name id]
-  (perform-rbac! env :Delete record-name id)
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
-    (chained-crud
-     (when store (partial delete-by-id store record-name))
-     resolver (partial resolver-delete env) record-name [[record-name id]])))
+    (delete-intercept
+     env record-name
+     (fn [record-name]
+       (chained-crud
+        (when store (partial delete-by-id store record-name))
+        resolver (partial resolver-delete env) record-name [[record-name id]])))))
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
@@ -324,6 +324,11 @@
 (defn- id-attribute [query-attrs]
   (first (filter #(= cn/id-attr (first %)) query-attrs)))
 
+(defn- result-with-env? [x]
+  (and (vector? x)
+       (= (count x) 2)
+       (env/env? (second x))))
+
 (defn- evaluate-id-result [env rs]
   (loop [rs (if (or (not (seqable? rs)) (string? rs))
               [rs]
@@ -334,7 +339,7 @@
         (fn? r)
         (let [x (r env nil)
               [v new-env]
-              (if (vector? x)
+              (if (result-with-env? x)
                 x
                 [x env])]
           (recur
@@ -394,7 +399,7 @@
 
 (defn- find-instances-via-resolvers [env entity-name full-query]
   (if-let [resolver (rg/resolver-for-path entity-name)]
-    (let [[q env] (normalize-raw-query env (:raw-query full-query))]
+    (let [[q env] (normalize-raw-query env (stu/raw-query full-query))]
       (if (rg/composed? resolver)
         (find-instances-via-composed-resolvers env entity-name q resolver)
         [(r/call-resolver-query resolver env [entity-name q]) env]))
@@ -426,7 +431,7 @@
     (u/throw-ex (str "invalid query object - " query))))
 
 (defn- find-instances-in-store [env store entity-name full-query]
-  (let [q (or (:compiled-query full-query)
+  (let [q (or (stu/compiled-query full-query)
               (store/compile-query store full-query))]
     (query-all env store entity-name q)))
 
@@ -443,9 +448,7 @@
                        (find-instances-in-store env store entity-name full-query))]
     (if ch?
       [result env]
-      (do
-        (perform-rbac! env :Lookup entity-name result)
-        [result (env/bind-instances env entity-name result)]))))
+      [result (env/bind-instances env entity-name result)])))
 
 (defn- require-validation? [n]
   (if (or (cn/find-entity-schema n)
@@ -641,26 +644,29 @@
          (or (.-ex-data e) (i/error e))))))
 
 (defn- do-query-helper [env entity-name queries]
-  (if-let [store (env/get-store env)]
-    (if-let [[insts env]
-             (find-instances env store entity-name queries)]
-      (cond
-        (maybe-async-channel? insts)
-        (i/ok
-         insts
-         (env/push-obj env entity-name insts))
+  (if-let [[insts env]
+           (read-intercept
+            env entity-name
+            (fn [entity-name]
+              (find-instances
+               env (env/get-store env)
+               entity-name queries)))]
+    (cond
+      (maybe-async-channel? insts)
+      (i/ok
+       insts
+       (env/push-obj env entity-name insts))
 
-        (seq insts)
-        (i/ok
-         insts
-         (env/mark-all-mint
-          (env/push-obj env entity-name insts)
-          insts))
+      (seq insts)
+      (i/ok
+       insts
+       (env/mark-all-mint
+        (env/push-obj env entity-name insts)
+        insts))
 
-        :else
-        (i/not-found entity-name env))
+      :else
       (i/not-found entity-name env))
-    (i/error (str "Invalid query request for " entity-name " - no store specified"))))
+    (i/not-found entity-name env)))
 
 (defn- find-reference [env record-name refs]
   (second (env/instance-ref-path env record-name nil refs)))
@@ -715,15 +721,15 @@
        result-alias
        (apply
         do-query-helper
-        env (fetch-query-fn (partial find-reference env)))))
+        env (fetch-query-fn env (partial find-reference env)))))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
       (set-obj-attr env attr-name attr-value))
 
-    (do-set-list-attribute [self env [attr-name elements-opcode quoted?]]
+    (do-set-list-attribute [self env [attr-name elements-opcode quoted]]
       (call-with-exception-as-error
        #(let [opcode-eval (partial eval-opcode self env)
-              final-list ((if quoted? set-quoted-list set-flat-list)
+              final-list ((if quoted set-quoted-list set-flat-list)
                           opcode-eval elements-opcode)]
           (set-obj-attr env attr-name final-list))))
 
@@ -734,20 +740,22 @@
     (do-set-compound-attribute [_ env [attr-name f]]
       (set-obj-attr env attr-name f))
 
-    (do-intern-instance [self env [record-name alias]]
+    (do-intern-instance [self env [record-name alias upsert-required]]
       (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self))
             scm (cn/ensure-schema record-name)]
         (doseq [inst insts]
           (when-let [attrs (cn/instance-attributes inst)]
-            (cn/validate-record-attributes
-             record-name attrs scm)))
+            (cn/validate-record-attributes record-name attrs scm)))
         (cond
           (maybe-async-channel? insts)
           (i/ok insts env)
 
           insts
-          (let [event-eval (partial eval-event-dataflows self)
-                local-result (chained-upsert env event-eval record-name insts)
+          (let [local-result (if upsert-required
+                               (chained-upsert
+                                env (partial eval-event-dataflows self)
+                                record-name insts)
+                               (if single? (seq [insts]) insts))
                 lr (normalize-transitions local-result)]
             (if-let [bindable (if single? (first lr) lr)]
               (let [env-with-inst (env/bind-instances env record-name lr)
@@ -761,7 +769,9 @@
           (i/not-found record-name env))))
 
     (do-intern-event-instance [self env [record-name alias timeout-ms]]
-      (let [[inst env] (pop-and-intern-instance env record-name nil (partial eval-opcode self))
+      (let [[inst env] (pop-and-intern-instance
+                        env record-name
+                        nil (partial eval-opcode self))
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
             eval-env (env/make (env/get-store env) (env/get-resolver env))
@@ -780,7 +790,10 @@
     (do-delete-instance [self env [record-name queries]]
       (if-let [store (env/get-store env)]
         (if (= queries :*)
-          (i/ok [(store/delete-all store record-name)] env)
+          (i/ok [(delete-intercept
+                  env record-name
+                  (fn [record-name] (store/delete-all store record-name)))]
+                env)
           (if-let [[insts env]
                    (find-instances env store record-name queries)]
             (let [alias (:alias queries)

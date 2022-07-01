@@ -2,6 +2,7 @@
   (:require [fractl.lang :refer
              [component entity
               record event dataflow]]
+            [fractl.component :as cn]
             [fractl.lang.datetime :refer [now]]))
 
 (component :Sample.Blog)
@@ -22,7 +23,7 @@
 (dataflow
  :Sample.Blog/UserLookupAll
  {:Sample.Blog/User
-  {:Id? :Sample.Blog/BlogEntryLookupAll.EventContext.User.Id}})
+  {cn/q-id-attr (cn/append-id :Sample.Blog/BlogEntryLookupAll.EventContext.User)}})
 
 (event
  :Sample.Blog/UserLogin
@@ -60,7 +61,7 @@
 
 (entity
  :Sample.Blog/BlogEntry
- {:CreatedBy {:ref :Sample.Blog/User.Id
+ {:CreatedBy {:ref (cn/append-id :Sample.Blog/User)
               :indexed true}
   :DateCreated {:type :Kernel/String
                 :default now}
@@ -68,7 +69,7 @@
   :Content {:check valid-blog-content?}
   :meta
   {:str :Title
-   :order [:Id :Title :Content :CreatedBy :DateCreated]
+   :order [cn/id-attr :Title :Content :CreatedBy :DateCreated]
    :views
    {:contains [:Sample.Blog/Comment]
     :attributes
@@ -82,9 +83,9 @@
 
 (entity
  :Sample.Blog/Comment
- {:CreatedBy {:ref :Sample.Blog/User.Id
+ {:CreatedBy {:ref (cn/append-id :Sample.Blog/User)
               :indexed true}
-  :BlogEntry {:ref :Sample.Blog/BlogEntry.Id
+  :BlogEntry {:ref (cn/append-id :Sample.Blog/BlogEntry)
               :indexed true}
   :DateCreated {:type :Kernel/String
                 :default now}
@@ -96,7 +97,7 @@
 
 (entity
  :Sample.Blog/CommentModerate
- {:Comment {:ref :Sample.Blog/Comment.Id
+ {:Comment {:ref (cn/append-id :Sample.Blog/Comment)
             :indexed true}
   :Status :Kernel/String
   :meta {:order [:Comment :Status]}})
@@ -109,7 +110,7 @@
 (dataflow
  :Sample.Blog/CommentModerateLookupAll
  {:Sample.Blog/CommentModerate
-  {:Comment? :Sample.Blog/CommentModerateLookupAll.EventContext.Comment.Id}})
+  {:Comment? (cn/append-id :Sample.Blog/CommentModerateLookupAll.EventContext.Comment)}})
 
 (dataflow
  :Sample.Blog/CommentLookupByBlogEntry
@@ -119,17 +120,17 @@
  :Sample.Blog/CommentLookupByBlogEntryAndComment
  {:Sample.Blog/Comment
   {:BlogEntry? :Sample.Blog/CommentLookupByBlogEntryAndComment.BlogEntry
-   :Id? :Sample.Blog/CommentLookupByBlogEntryAndComment.Comment}})
+   cn/q-id-attr :Sample.Blog/CommentLookupByBlogEntryAndComment.Comment}})
 
 (dataflow
  :Sample.Blog/BlogEntryLookupAll
  {:Sample.Blog/BlogEntry
-  {:CreatedBy? :Sample.Blog/BlogEntryLookupAll.EventContext.User.Id}})
+  {:CreatedBy? (cn/append-id :Sample.Blog/BlogEntryLookupAll.EventContext.User)}})
 
 (dataflow
  :Sample.Blog/CommentLookupAll
  {:Sample.Blog/Comment
-  {:BlogEntry? :Sample.Blog/CommentLookupAll.EventContext.BlogEntry.Id}})
+  {:BlogEntry? (cn/append-id :Sample.Blog/CommentLookupAll.EventContext.BlogEntry)}})
 
 (dataflow
  :Kernel/AppInit

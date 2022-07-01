@@ -11,16 +11,13 @@
             [fractl.resolver.registry :as rr]
             [fractl.resolver.remote :as rt]
             [fractl.auth :as auth]
-            [fractl.policy.rbac :as rbac]
             [fractl.policy.logging :as logging]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
             [fractl.evaluator.state :as es]
             [fractl.evaluator.internal :as i]
-            [fractl.evaluator.root :as r]))
-
-(def ^:private zero-trust-rbac-flag (u/make-cell false))
-(def zero-trust-rbac! (partial u/safe-set zero-trust-rbac-flag))
+            [fractl.evaluator.root :as r]
+            [fractl.evaluator.intercept.core :as interceptors]))
 
 (defn- dispatch-an-opcode [evaluator env opcode]
   (((opc/op opcode) i/dispatch-table)
@@ -56,26 +53,42 @@
       %)
    result))
 
+(def ^:private internal-event-flag
+  #?(:clj (Object.)
+     :cljs {:internal-event true}))
+
+(def ^:private internal-event-key :-*-internal-event-*-)
+
+(defn mark-internal [event-instance]
+  (assoc event-instance internal-event-key internal-event-flag))
+
+(defn internal-event? [event-instance]
+  (when (identical? internal-event-flag (internal-event-key event-instance))
+    true))
+
 (defn eval-dataflow
   "Evaluate a compiled dataflow, triggered by event-instance, within the context
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (let [env (if event-instance
-               (env/bind-instance
-                (env/bind-rbac-check
-                 env
-                 (partial
-                  rbac/evaluate-opcode?
-                  event-instance
-                  @zero-trust-rbac-flag))
-                (li/split-path (cn/instance-type event-instance))
-                event-instance)
-               env)
-         [_ dc] (cn/dataflow-opcode df)
-         result (deref-futures
-                 (dispatch-opcodes evaluator env dc))]
-     result))
+   (let [is-internal (internal-event? event-instance)
+         event-instance (if is-internal
+                          (dissoc event-instance internal-event-key)
+                          event-instance)
+         env0 (if is-internal
+                (env/block-interceptors env)
+                (env/assoc-active-event env event-instance))
+         continuation (fn [event-instance]
+                        (let [env (if event-instance
+                                    (env/assoc-active-event
+                                     (env/bind-instance
+                                      env0 (li/split-path (cn/instance-type event-instance))
+                                      event-instance)
+                                     event-instance)
+                                    env0)
+                              [_ dc] (cn/dataflow-opcode df)]
+                          (deref-futures (dispatch-opcodes evaluator env dc))))]
+     (interceptors/eval-intercept env0 event-instance continuation)))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 
@@ -117,12 +130,13 @@
         (log-result-object hidden-attrs event-instance r))
       r)
     (catch #?(:clj Exception :cljs :default) ex
-      (do (when log-error
-            (log/error
-             (str "error in dataflow for "
-                  (cn/instance-type event-instance)
-                  " - " #?(:clj (.getMessage ex) :cljs ex))))
-          (throw ex)))))
+      (let [msg (str "error in dataflow for "
+                     (cn/instance-type event-instance)
+                     " - " #?(:clj (.getMessage ex) :cljs ex))]
+        (log/warn msg)
+        (when log-error
+          (log/exception ex))
+        (i/error msg)))))
 
 (defn- enrich-with-auth-owner
   "Query the :Authentication object using the cn/id-attr bound to
@@ -145,25 +159,18 @@
   [compile-query-fn evaluator env event-instance]
   (let [event-instance (enrich-with-auth-owner event-instance)
         dfs (c/compile-dataflows-for-event
-             compile-query-fn @zero-trust-rbac-flag
-             event-instance)
+             compile-query-fn event-instance)
         logging-rules (logging/rules event-instance)
         log-levels (logging/log-levels logging-rules)
         log-warn (some #{:WARN} log-levels)]
-    (if (rbac/evaluate-dataflow? event-instance @zero-trust-rbac-flag)
-      (let [log-info (some #{:INFO} log-levels)
-            log-error (some #{:ERROR} log-levels)
-            hidden-attrs (logging/hidden-attributes logging-rules)
-            ef (partial
-                eval-dataflow-with-logs evaluator
-                env event-instance log-info log-error hidden-attrs)]
-        (when log-info (log-event hidden-attrs event-instance))
-        (mapv ef dfs))
-      (let [msg (str "no authorization to evaluate dataflows on event - "
-                     (cn/instance-type event-instance))]
-        (when log-warn
-          (log/warn msg))
-        (u/throw-ex msg)))))
+    (let [log-info (some #{:INFO} log-levels)
+          log-error (some #{:ERROR} log-levels)
+          hidden-attrs (logging/hidden-attributes logging-rules)
+          ef (partial
+              eval-dataflow-with-logs evaluator
+              env event-instance log-info log-error hidden-attrs)]
+      (when log-info (log-event hidden-attrs event-instance))
+      (mapv ef dfs))))
 
 (defn- make
   "Use the given store to create a query compiler and pattern evaluator.
@@ -256,7 +263,6 @@
   (comp filter-public-result (evaluator store-config nil with-query-support)))
 
 (defn query-fn [store]
-  ;; TODO: enrich the environment with rbac check fn
   (partial r/find-instances env/EMPTY store))
 
 (defn global-dataflow-eval []
@@ -276,3 +282,17 @@
            (do (log/warn msg) nil)
            (u/throw-ex msg))))))
   ([result] (ok-result result false)))
+
+(defn safe-ok-result [result]
+  (ok-result result true))
+
+(defn safe-eval [event-obj]
+  (safe-ok-result
+   (eval-all-dataflows
+    (cn/make-instance event-obj))))
+
+(defn safe-eval-internal [event-obj]
+  (safe-ok-result
+   (eval-all-dataflows
+    (mark-internal
+     (cn/make-instance event-obj)))))

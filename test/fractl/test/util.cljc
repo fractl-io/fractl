@@ -1,5 +1,6 @@
 (ns fractl.test.util
   (:require [fractl.evaluator :as e]
+            [fractl.evaluator.internal :as ei]
             [fractl.component :as cn]
             #?(:clj  [clojure.test :refer [is]]
                :cljs [cljs.test :refer-macros [is]])
@@ -20,7 +21,9 @@
 
 (defn is-error [f]
   (is (try
-        (do (f) false)
+        (if-let [r (f)]
+          (ei/error? (if (map? r) r (first r)))
+          true)
         #?(:clj (catch Exception ex
                   (report-expected-ex ex))
            :cljs (catch js/Error e
@@ -46,10 +49,18 @@
      :cljs
      (str (random-uuid))))
 
+(defn- maybe-as-map [evt]
+  (if (keyword? evt)
+    {evt {}}
+    evt))
+
+(defn result [evt]
+  (fresult
+   (e/eval-all-dataflows
+    (maybe-as-map evt))))
+
 (defn first-result [evt]
-  (first
-   (fresult
-    (e/eval-all-dataflows evt))))
+  (first (result (maybe-as-map evt))))
 
 (defn sleep [msec f]
   #?(:clj
