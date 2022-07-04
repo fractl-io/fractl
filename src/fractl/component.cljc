@@ -1357,9 +1357,8 @@
 (defn meta-entity-name [[component entity-name]]
   (keyword (str (name component) "/" (name entity-name) "Meta")))
 
-(defn meta-entity-attributes [[component entity-name]]
+(defn meta-entity-attributes [component]
   {id-attr (canonical-type-name component id-attr)
-   entity-name {:ref (keyword (str (name component) "/" (name entity-name) "." s-id-attr))}
    :Owner {:type :Kernel/String
            :immutable true}
    :Created {:type :Kernel/DateTime
@@ -1372,13 +1371,13 @@
 
 (defn make-meta-instance
   ([inst user user-data]
-   (let [[component entity-name :as ename] (li/split-path (instance-type inst))
+   (let [ename (li/split-path (instance-type inst))
          mname (meta-entity-name ename)
          entity-id (id-attr inst)]
      [mname
       (make-instance
        mname
-       (merge {entity-name entity-id
+       (merge {id-attr entity-id
                :Owner user :LastUpdatedBy user}
               (when user-data
                 {:UserData user-data})))]))

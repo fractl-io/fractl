@@ -625,7 +625,7 @@
         n (cn/meta-entity-name en)]
     (serializable-entity
      n
-     (cn/meta-entity-attributes en))))
+     (cn/meta-entity-attributes c))))
 
 (defn entity
   "A record that can be persisted with a unique id."

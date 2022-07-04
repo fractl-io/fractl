@@ -332,12 +332,26 @@
            (concat result conditional-event-results))
          insts)))))
 
+(defn- delete-meta [record-name id store-delete-fn]
+  (try
+    (store-delete-fn (cn/make-meta-instance record-name id))
+    #?(:clj
+       (catch Exception e
+         (log/error (str "delete meta error " [record-name id]
+                         " - " (or (ex-data e) (.getMessage e)))))
+       :cljs
+       (catch js/Error e
+         (log/error (str "delete meta error " [record-name id]
+                         " - " (or (.-ex-data e) (i/error e))))))))
+
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
 
 (defn- chained-delete [env record-name id]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
+    (when-not (delete-meta record-name id (partial store/delete-by-id store))
+      (log/warn (str "failed to delete meta for " [record-name id])))
     (delete-intercept
      env record-name
      (fn [record-name]
