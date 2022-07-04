@@ -8,6 +8,7 @@
             [fractl.util :as u]
             [fractl.util.hash :as h]
             [fractl.util.seq :as su]
+            [fractl.util.logger :as log]
             [fractl.store :as store]
             [fractl.store.util :as stu]
             [fractl.resolver.core :as r]
@@ -282,6 +283,20 @@
                        resolved-insts)]
     final-result))
 
+(defn- upsert-meta [env upsert-store-fn meta-record-name entity-instances]
+  (try
+    entity-instances
+    #?(:clj
+       (catch Exception e
+         (log/error (str "failed to upsert meta-data for "
+                         (cn/instance-type (first entity-instances))
+                         " - " (or (ex-data e) (.getMessage e)))))
+       :cljs
+       (catch js/Error e
+         (log/error (str "failed to upsert meta-data for "
+                         (cn/instance-type (first entity-instances))
+                         " - " (or (.-ex-data e) (i/error e))))))))
+
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
@@ -291,10 +306,14 @@
      env insts
      (fn [insts]
        (if (env/any-dirty? env insts)
-         (let [result
-               (chained-crud
-                (when store (partial store/upsert-instances store record-name))
-                resolver (partial resolver-upsert env) nil insts)
+         (let [meta-record-name (cn/meta-entity-name record-name)
+               result
+               (upsert-meta
+                env (partial store/upsert-instances store meta-record-name)
+                meta-record-name
+                (chained-crud
+                 (when store (partial store/upsert-instances store record-name))
+                 resolver (partial resolver-upsert env) nil insts))
                conditional-event-results
                (fire-all-conditional-events
                 event-evaluator env store result)]

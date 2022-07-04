@@ -631,9 +631,9 @@
   "A record that can be persisted with a unique id."
   ([n attrs]
    (when-let [r (serializable-entity n attrs)]
-     (meta-entity n)
-     r))
-  ([schema] (parse-and-define serializable-entity schema)))
+     (and (meta-entity n) r)))
+  ([schema]
+   (parse-and-define entity schema)))
 
 (defn- normalize-relation-attribute
   ([attr-spec cardinality]
