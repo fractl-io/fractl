@@ -599,7 +599,7 @@
         (:listof ascm)
         (let [tp (:listof ascm)
               p (partial element-type-check tp (find-schema tp))]
-          (if (every? identity (mapv p aval))
+          (if (su/all-true? (mapv p aval))
             aval
             (throw-error (str "invalid list for " aname))))
 
@@ -608,7 +608,7 @@
               (throw-error (str "not a set - " aname)))
             (let [tp (:setof ascm)
                   p (partial element-type-check tp (find-schema tp))]
-              (if (every? identity (map p aval))
+              (if (su/all-true? (map p aval))
                 aval
                 (throw-error (str "invalid set for " aname)))))
 
@@ -1369,3 +1369,18 @@
                  :default dt/now}
    :LastUpdatedBy :Kernel/String
    :UserData {:type :Kernel/Map :optional true}})
+
+(defn make-meta-instance
+  ([inst user user-data]
+   (let [[component entity-name :as ename] (li/split-path (instance-type inst))
+         mname (meta-entity-name ename)
+         entity-id (id-attr inst)]
+     [mname
+      (make-instance
+       mname
+       (merge {entity-name entity-id
+               :Owner user :LastUpdatedBy user}
+              (when user-data
+                {:UserData user-data})))]))
+  ([inst user]
+   (make-meta-instance inst user nil)))
