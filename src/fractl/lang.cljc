@@ -620,10 +620,19 @@
 
 (def serializable-entity (partial serializable-record :entity))
 
+(defn- meta-entity [entity-name]
+  (let [[c n :as en] (li/split-path entity-name)
+        n (cn/meta-entity-name en)]
+    (serializable-entity
+     n
+     (cn/meta-entity-attributes en))))
+
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
-   (serializable-entity n attrs))
+   (when-let [r (serializable-entity n attrs)]
+     (meta-entity n)
+     r))
   ([schema] (parse-and-define serializable-entity schema)))
 
 (defn- normalize-relation-attribute
@@ -725,32 +734,6 @@
           {:Result :Kernel/Any
            :TimeoutMillis {:type :Kernel/Int
                            :default 2000}})
-
-  (entity
-   :Kernel/Meta
-   {:Type {:oneof [:model :component :record
-                   :entity :event :dataflow]
-           :indexed true}
-    :Name {:type :Kernel/String
-           :indexed true}
-    :Spec :Kernel/Edn})
-
-  (event
-   :Kernel/QueryMeta
-   {:Type :Kernel/String
-    :Name :Kernel/String})
-
-  (dataflow
-   :Kernel/QueryMeta
-   {:Kernel/Meta
-    {:Type? :Kernel/QueryMeta.Type
-     :Name? [:like :Kernel/QueryMeta.Name]}})
-
-  (event
-   :Kernel/LoadModelFromMeta
-   {:Model :Kernel/String})
-
-  (dataflow :Kernel/LoadModelFromMeta)
 
   (entity :Kernel/OAuthAnyRequest
        {:ClientID :Kernel/String

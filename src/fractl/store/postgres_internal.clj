@@ -3,6 +3,7 @@
             [clojure.set :as set]
             [fractl.util :as u]
             [fractl.util.seq :as us]
+            [fractl.store.util :as su]
             [fractl.component :as cn])
   (:import [java.sql PreparedStatement]))
 
@@ -17,8 +18,13 @@
 
 (defn upsert-inst-statement [conn table-name id obj]
   (let [[entity-name instance] obj
-        id-attr (cn/identity-attribute-name entity-name)
-        id-attr-nm (str "_" (name id-attr))
+        scm (:schema (cn/find-entity-schema entity-name))
+        id-attrs (cn/identity-attributes scm)
+        immutable-attrs (cn/immutable-attributes scm)
+        ignore-attrs (set/intersection
+                      (set (mapv su/attribute-column-name id-attrs))
+                      (set (mapv su/attribute-column-name immutable-attrs)))
+        id-attr-nm (su/attribute-column-name (first id-attrs))
         ks (keys (cn/instance-attributes instance))
         col-names (mapv #(str "_" (name %)) ks)
         col-vals (u/objects-as-string (mapv #(% instance) ks))
@@ -28,7 +34,7 @@
                  (us/join-as-string (mapv (constantly "?") col-vals) ", ")
                  ")  ON CONFLICT (" id-attr-nm ") DO UPDATE SET"
                  (set-excluded-columns
-                  (set/difference (set col-names) #{id-attr-nm})))]
+                  (set/difference (set col-names) ignore-attrs)))]
     [(jdbc/prepare conn [sql]) col-vals]))
 
 (defn query-by-id-statement [conn query-sql id]
