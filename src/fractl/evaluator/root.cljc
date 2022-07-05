@@ -8,7 +8,6 @@
             [fractl.util :as u]
             [fractl.util.hash :as h]
             [fractl.util.seq :as su]
-            [fractl.util.logger :as log]
             [fractl.store :as store]
             [fractl.store.util :as stu]
             [fractl.resolver.core :as r]
@@ -283,34 +282,6 @@
                        resolved-insts)]
     final-result))
 
-(defn- upsert-meta-failed-msg [entity-instances]
-  (str "failed to upsert meta-data for "
-       (cn/instance-type (first entity-instances))))
-
-(defn- upsert-meta [env upsert-store-fn entity-instances]
-  (if-let [user (cn/event-context-user (env/active-event env))]
-    (try
-      (let [meta-infos (group-by
-                        first
-                        (mapv #(cn/make-meta-instance % user) entity-instances))
-            ks (keys meta-infos)
-            rs (mapv (fn [k]
-                       (let [rows (mapv second (meta-infos k))]
-                         (upsert-store-fn (li/split-path k) rows)))
-                     ks)]
-        (if (and (su/all-true? rs) (= (count rs) (count entity-instances)))
-          entity-instances
-          (log/error (upsert-meta-failed-msg entity-instances))))
-      #?(:clj
-         (catch Exception e
-           (log/error (str (upsert-meta-failed-msg entity-instances)
-                           " - " (or (ex-data e) (.getMessage e)))))
-         :cljs
-         (catch js/Error e
-           (log/error (str (upsert-meta-failed-msg entity-instances)
-                           " - " (or (.-ex-data e) (i/error e)))))))
-    entity-instances))
-
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
@@ -321,28 +292,14 @@
      (fn [insts]
        (if (env/any-dirty? env insts)
          (let [result
-               (upsert-meta
-                env (partial store/upsert-instances store)
-                (chained-crud
-                 (when store (partial store/upsert-instances store record-name))
-                 resolver (partial resolver-upsert env) nil insts))
+               (chained-crud
+                (when store (partial store/upsert-instances store record-name))
+                resolver (partial resolver-upsert env) nil insts)
                conditional-event-results
                (fire-all-conditional-events
                 event-evaluator env store result)]
            (concat result conditional-event-results))
          insts)))))
-
-(defn- delete-meta [record-name id store-delete-fn]
-  (try
-    (store-delete-fn (cn/make-meta-instance record-name id))
-    #?(:clj
-       (catch Exception e
-         (log/error (str "delete meta error " [record-name id]
-                         " - " (or (ex-data e) (.getMessage e)))))
-       :cljs
-       (catch js/Error e
-         (log/error (str "delete meta error " [record-name id]
-                         " - " (or (.-ex-data e) (i/error e))))))))
 
 (defn- delete-by-id [store record-name del-list]
   [record-name (store/delete-by-id store record-name (second (first del-list)))])
@@ -350,8 +307,6 @@
 (defn- chained-delete [env record-name id]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
-    (when-not (delete-meta record-name id (partial store/delete-by-id store))
-      (log/warn (str "failed to delete meta for " [record-name id])))
     (delete-intercept
      env record-name
      (fn [record-name]

@@ -30,14 +30,11 @@
    :delete apply-delete-rules
    :eval apply-eval-rules})
 
-(defn- run [opr arg]
-  (if-let [f (opr actions)]
-    (let [data (ii/data-input arg)]
-      (when (f (cn/event-context-user (ii/event arg))
-               data)
-        (ii/assoc-data-output
-         arg
-         ((ii/continuation arg) data))))
+(defn- run [_ opr arg]
+  (if-let [data (ii/data-input arg)]
+    (when ((opr actions) (cn/event-context-user (ii/event arg))
+           data)
+      arg)
     arg))
 
 (defn make []
