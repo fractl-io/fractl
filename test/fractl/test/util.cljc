@@ -59,6 +59,8 @@
    (e/eval-all-dataflows
     (maybe-as-map evt))))
 
+(def eval-all-dataflows e/eval-all-dataflows)
+
 (defn first-result [evt]
   (first (result (maybe-as-map evt))))
 
