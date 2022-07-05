@@ -1354,8 +1354,9 @@
 
 (def assoc-event-context-user (partial assoc-event-context-value :User))
 
-(defn meta-entity-name [[component entity-name]]
-  (keyword (str (name component) "/" (name entity-name) "Meta")))
+(defn meta-entity-name [n]
+  (let [[component entity-name] (if (keyword? n) (li/split-path n) n)]
+    (keyword (str (name component) "/" (name entity-name) "Meta"))))
 
 (defn meta-entity-attributes [component]
   {id-attr (canonical-type-name component id-attr)
@@ -1383,3 +1384,9 @@
                 {:UserData user-data})))]))
   ([inst user]
    (make-meta-instance inst user nil)))
+
+(defn instance-meta-lookup-event [entity-name id]
+  (let [[component ename] (li/split-path entity-name)]
+    (make-instance
+     {(keyword (str (name component) "/Lookup_" (name entity-name) "Meta"))
+      {id-attr id}})))

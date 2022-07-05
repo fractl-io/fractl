@@ -7,6 +7,13 @@
             [fractl.lang.internal :as li]
             [fractl.evaluator.intercept.internal :as ii]))
 
+(defn- normalize-upsert-result [rows]
+  (mapv
+   #(if-let [t (:transition %)]
+      (:to t)
+      %)
+   rows))
+
 (defn- upsert-meta-failed-msg [entity-instances]
   (str "failed to upsert meta-data for "
        (cn/instance-type (first entity-instances))))
@@ -16,18 +23,20 @@
         entity-instances (ii/data-output arg)]
     (if (and user entity-instances)
       (try
-        (let [meta-infos (group-by
-                        first
-                        (mapv #(cn/make-meta-instance % user) entity-instances))
+        (let [entity-instances (normalize-upsert-result entity-instances)
+              meta-infos (group-by
+                          first
+                          (mapv #(cn/make-meta-instance % user) entity-instances))
               ks (keys meta-infos)
-              rs (mapv (fn [k]
-                         (let [rows (mapv second (meta-infos k))]
-                           (store/upsert-instances
-                            (env/get-store env)
-                            (li/split-path k) rows)))
-                       ks)]
+              rs (flatten
+                  (mapv (fn [k]
+                          (let [rows (mapv second (meta-infos k))]
+                            (store/upsert-instances
+                             (env/get-store env)
+                             (li/split-path k) rows)))
+                        ks))]
           (if (and (su/all-true? rs) (= (count rs) (count entity-instances)))
-            entity-instances
+            arg
             (log/error (upsert-meta-failed-msg entity-instances))))
         #?(:clj
            (catch Exception e
@@ -37,7 +46,7 @@
            (catch js/Error e
              (log/error (str (upsert-meta-failed-msg entity-instances)
                              " - " (or (.-ex-data e) (i/error e)))))))
-      entity-instances)))
+      arg)))
 
 (defn- delete-meta [env arg]
   (if-let [[record-name id] (ii/data-output arg)]
@@ -61,7 +70,7 @@
 
 (defn- run [env opr arg]
   (if-let [f (opr actions)]
-    (when (f env arg) arg)
+    (or (f env arg) arg)
     arg))
 
 (defn make []

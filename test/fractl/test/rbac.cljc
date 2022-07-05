@@ -67,12 +67,12 @@
       {event {}}
       event))))
 
-(defn- call-with-rbac [f]
+(defn- call-with-rbac [f finalize]
   (is (rbac/init))
   (try
     (f)
     (finally
-      (ei/reset-interceptors!))))
+      (finalize))))
 
 (deftest rbac-application
   (defcomponent :PrivTest
@@ -181,4 +181,5 @@
          (let [inst2 (first
                       (tu/result
                        (with-user "u22" lookup)))]
-           (cn/same-instance? inst inst2)))))))
+           (cn/same-instance? inst inst2)))))
+   #(ei/reset-interceptors!)))
