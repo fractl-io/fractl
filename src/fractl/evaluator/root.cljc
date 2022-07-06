@@ -308,11 +308,11 @@
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (delete-intercept
-     env record-name
-     (fn [record-name]
+     env [record-name id]
+     (fn [[record-name id :as arg]]
        (chained-crud
         (when store (partial delete-by-id store record-name))
-        resolver (partial resolver-delete env) record-name [[record-name id]])))))
+        resolver (partial resolver-delete env) record-name [arg])))))
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
@@ -791,8 +791,8 @@
       (if-let [store (env/get-store env)]
         (if (= queries :*)
           (i/ok [(delete-intercept
-                  env record-name
-                  (fn [record-name] (store/delete-all store record-name)))]
+                  env [record-name nil]
+                  (fn [[record-name _]] (store/delete-all store record-name)))]
                 env)
           (if-let [[insts env]
                    (find-instances env store record-name queries)]

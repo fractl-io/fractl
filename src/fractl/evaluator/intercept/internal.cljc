@@ -12,17 +12,23 @@
 (def event :event)
 (def data-input :input)
 (def data-output :output)
+(def interceptors :interceptors)
 
-(defn encode-input-arg [evt data]
+(defn encode-input-arg [evt data ins]
   {event evt
-   data-input data})
+   data-input data
+   interceptors (mapv name-tag ins)})
 
-(defn encode-output-arg [evt data]
+(defn encode-output-arg [evt data ins]
   {event evt
-   data-output data})
+   data-output data
+   interceptors (mapv name-tag ins)})
 
 (defn- assoc-arg-value [k arg dt]
   (assoc arg k dt))
 
 (def assoc-data-input (partial assoc-arg-value data-input))
 (def assoc-data-output (partial assoc-arg-value data-output))
+
+(defn has-instance-meta? [arg]
+  (some #{:instance-meta} (interceptors arg)))

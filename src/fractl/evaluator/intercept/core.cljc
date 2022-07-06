@@ -28,7 +28,7 @@
 ;; in the pipeline. An interceptor may terminate the pipeline by
 ;; returning nil
 (def ^:private interceptors (u/make-cell []))
-(def ^:private system-interceptors #{:instance-meta})
+(def ^:private system-interceptors #{:instance-meta :rbac})
 
 (defn- system-interceptor? [interceptor]
   (some #{(ii/intercept-name interceptor)} system-interceptors))
@@ -51,7 +51,7 @@
 
 (defn- invoke-for-output [opr env event-instance data]
   (loop [ins @interceptors
-         result (ii/encode-output-arg event-instance data)]
+         result (ii/encode-output-arg event-instance data ins)]
     (if-let [i (first ins)]
       (if-let [r ((ii/intercept-fn i)
                   (when (system-interceptor? i) env) opr result)]
@@ -63,7 +63,7 @@
   (if-let [ins (seq @interceptors)]
     (let [event-instance (env/active-event env)]
       (loop [ins ins
-             result (ii/encode-input-arg event-instance data)]
+             result (ii/encode-input-arg event-instance data ins)]
         (if-let [i (first ins)]
           (if-let [r ((ii/intercept-fn i)
                       (when (system-interceptor? i) env) opr result)]

@@ -74,7 +74,7 @@
     (finally
       (finalize))))
 
-(deftest rbac-application
+(defn- rbac-application []
   (defcomponent :PrivTest
     (entity
      :PrivTest/User
@@ -183,3 +183,122 @@
                        (with-user "u22" lookup)))]
            (cn/same-instance? inst inst2)))))
    #(ei/reset-interceptors!)))
+
+(defn- rbac-with-owner []
+  (is (= [:instance-meta] (ei/init-interceptors [:instance-meta])))
+  (defcomponent :RbacOwner
+    (entity
+     :RbacOwner/User
+     {:User {:ref :Kernel.RBAC/User.Name}
+      :Password :Kernel/Password})
+    (entity
+     :RbacOwner/E
+     {:X :Kernel/Int})
+    (dataflow
+     :RbacOwner/CreateSuperUser
+     {:RbacOwner/User
+      {:User "superuser"
+       :Password "xyz123"}})
+    (dataflow
+     :RbacOwner/CreateUsers
+     {:Kernel.RBAC/User
+      {:Name "uu11"}}
+     {:Kernel.RBAC/User
+      {:Name "uu22"}}
+     {:RbacOwner/User
+      {:User "uu11"
+       :Password "kkklll"}}
+     {:RbacOwner/User
+      {:User "uu22"
+       :Password "yyyduud"}})
+    (dataflow
+     :RbacOwner/CreatePrivileges
+     {:Kernel.RBAC/Role {:Name "rr11"}}
+     {:Kernel.RBAC/Privilege
+      {:Name "pp11"
+       :Actions [:q# [:read :upsert]]
+       :Resource [:q# [:RbacOwner/E]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "pp22"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:RbacOwner/Upsert_E
+                       :RbacOwner/Lookup_E
+                       :RbacOwner/Delete_E]]}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "rr11" :Privilege "pp11"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "rr11" :Privilege "pp22"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "rr11" :Assignee "uu11"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "rr11" :Assignee "uu22"}}))
+  (call-with-rbac
+   (fn []
+     (let [su (first (tu/result :RbacOwner/CreateSuperUser))]
+       (is (cn/instance-of? :RbacOwner/User su))
+       (is (= "superuser" (:User su)))
+       (is (= [:rbac] (ei/init-interceptors [:rbac])))
+       (let [u2 (first
+                 (tu/result
+                  (with-user "superuser" :RbacOwner/CreateUsers)))]
+         (is (cn/instance-of? :RbacOwner/User u2))
+         (is (= "uu22" (:User u2))))
+       (let [r1 (first
+                 (tu/result
+                  (with-user "superuser" :RbacOwner/CreatePrivileges)))]
+         (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r1))
+         (is (and (= "rr11" (:Role r1)) (= "uu22" (:Assignee r1)))))
+       (let [e1 (first
+                 (tu/result
+                  (with-user
+                    "uu11"
+                    {:RbacOwner/Upsert_E
+                     {:Instance
+                      {:RbacOwner/E
+                       {:X 100}}}})))
+             e2 (first
+                 (tu/result
+                  (with-user
+                    "uu22"
+                    {:RbacOwner/Upsert_E
+                     {:Instance
+                      {:RbacOwner/E
+                       {:X 200}}}})))
+             id1 (cn/id-attr e1)
+             id2 (cn/id-attr e2)
+             lookup (fn [id] {:RbacOwner/Lookup_E
+                              {cn/id-attr id}})
+             delete (fn [id] {:RbacOwner/Delete_E
+                              {cn/id-attr id}})]
+         (is (cn/instance-of? :RbacOwner/E e1))
+         (is (cn/instance-of? :RbacOwner/E e2))
+         (is (cn/same-instance?
+              e2
+              (first
+               (tu/result
+                (with-user "uu11" (lookup id2))))))
+         (is (cn/same-instance?
+              e1
+              (first
+               (tu/result
+                (with-user "uu22" (lookup id1))))))
+         (is (cn/same-instance?
+              e1
+              (first
+               (tu/result
+                (with-user "uu11" (delete id1))))))
+         (is (= :error
+                (:status
+                 (first
+                  (tu/eval-all-dataflows
+                   (with-user "uu11" (delete id2)))))))
+         (is (cn/same-instance?
+              e2
+              (first
+               (tu/result
+                (with-user "uu22" (delete id2)))))))))
+   #(ei/reset-interceptors!)))
+
+(deftest rbac
+  (rbac-application)
+  (rbac-with-owner))

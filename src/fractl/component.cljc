@@ -1390,3 +1390,5 @@
     (make-instance
      {(keyword (str (name component) "/Lookup_" (name entity-name) "Meta"))
       {id-attr id}})))
+
+(def instance-meta-owner :Owner)
