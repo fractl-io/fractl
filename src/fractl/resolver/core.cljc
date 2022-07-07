@@ -1,13 +1,14 @@
 (ns fractl.resolver.core
   (:require [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.util.seq :as su]
             [fractl.lang.internal :as li]))
 
 (def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval :invoke})
 
 (defn make-resolver
   ([resolver-name fnmap eval-dataflow]
-   (when-not (every? identity (mapv #(some #{%} valid-resolver-keys) (keys fnmap)))
+   (when-not (su/all-true? (mapv #(some #{%} valid-resolver-keys) (keys fnmap)))
      (u/throw-ex (str "invalid resolver keys - " (keys fnmap))))
    (doseq [[k v] fnmap]
      (when-not (fn? (:handler v))

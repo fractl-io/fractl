@@ -59,6 +59,9 @@
 (defn nonils [xs]
   (filter identity xs))
 
+(defn all-true? [xs]
+  (every? identity xs))
+
 (defn conj-if [xs x]
   (if x (conj xs x) xs))
 
