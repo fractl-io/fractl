@@ -28,6 +28,10 @@
 ;; in the pipeline. An interceptor may terminate the pipeline by
 ;; returning nil
 (def ^:private interceptors (u/make-cell []))
+(def ^:private system-interceptors #{:instance-meta :rbac})
+
+(defn- system-interceptor? [interceptor]
+  (some #{(ii/intercept-name interceptor)} system-interceptors))
 
 (defn add-interceptor! [spec]
   (let [n (ii/intercept-name spec) f (ii/intercept-fn spec)]
@@ -45,15 +49,27 @@
 (defn reset-interceptors! []
   (u/safe-set interceptors []))
 
-(defn invoke-interceptors [opr event-instance data continuation]
+(defn- invoke-for-output [opr env event-instance data]
+  (loop [ins @interceptors
+         result (ii/encode-output-arg event-instance data ins)]
+    (if-let [i (first ins)]
+      (if-let [r ((ii/intercept-fn i)
+                  (when (system-interceptor? i) env) opr result)]
+        (recur (rest ins) r)
+        (u/throw-ex (str "operation " opr " blocked by interceptor for output " (ii/intercept-name i))))
+      (ii/data-output result))))
+
+(defn invoke-interceptors [opr env data continuation]
   (if-let [ins (seq @interceptors)]
-    (loop [ins ins
-           result (ii/encode-arg event-instance data nil continuation)]
-      (if-let [i (first ins)]
-        (if-let [r ((ii/intercept-fn i) opr result)]
-          (recur (rest ins) r)
-          (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i))))
-        (ii/data-output result)))
+    (let [event-instance (env/active-event env)]
+      (loop [ins ins
+             result (ii/encode-input-arg event-instance data ins)]
+        (if-let [i (first ins)]
+          (if-let [r ((ii/intercept-fn i)
+                      (when (system-interceptor? i) env) opr result)]
+            (recur (rest ins) r)
+            (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i))))
+          (invoke-for-output opr env event-instance (continuation (ii/data-input result))))))
     (continuation data)))
 
 (def ^:private read-operation (partial invoke-interceptors :read))
@@ -64,7 +80,7 @@
 (defn- do-intercept-opr [intercept-fn env data continuation]
   (if (env/interceptors-blocked? env)
     (continuation data)
-    (intercept-fn (env/active-event env) data continuation)))
+    (intercept-fn env data continuation)))
 
 (def read-intercept (partial do-intercept-opr read-operation))
 (def upsert-intercept (partial do-intercept-opr upsert-operation))

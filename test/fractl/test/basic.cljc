@@ -1244,7 +1244,9 @@
         r2 (tu/first-result
             {:Relationships/Lookup_CheckoutBook
              {cn/id-attr (cn/id-attr r1)}})]
-    (is (= (set [:Relationships/Book :Relationships/CheckoutBook :Relationships/User])
+    (is (= (set [:Relationships/Book :Relationships/BookMeta
+                 :Relationships/CheckoutBook
+                 :Relationships/User :Relationships/UserMeta])
            (cn/entity-names :Relationships)))
     (is (= [:Relationships/CheckoutBook] (cn/relationship-names :Relationships)))
     (let [scm (cn/fetch-schema :Relationships/CheckoutBook)

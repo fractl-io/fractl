@@ -79,9 +79,9 @@
     uq-attrs))
 
 (defn upsert-instance [store record-name instance]
-  (let [uq-attrs (concat
-                  (cn/unique-attributes
-                   (su/find-entity-schema record-name))
+  (let [scm (su/find-entity-schema record-name)
+        uq-attrs (concat
+                  (cn/unique-attributes scm)
                   (cn/compound-unique-attributes record-name))]
     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
                                (p/query-by-unique-keys
@@ -90,7 +90,9 @@
             (cn/validate-instance
              (p/update-instance
               store record-name
-              (merge-non-unique old-instance instance uq-attrs)))]
+              (merge-non-unique
+               old-instance instance
+               (set (concat (cn/immutable-attributes scm) uq-attrs)))))]
         {:transition
          {:from old-instance
           :to new-instance}})

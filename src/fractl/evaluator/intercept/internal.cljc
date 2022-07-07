@@ -10,19 +10,25 @@
 (def intercept-fn fn-tag)
 
 (def event :event)
-(def continuation :continuation)
 (def data-input :input)
 (def data-output :output)
+(def interceptors :interceptors)
 
-(defn encode-arg [evt input output cont]
+(defn encode-input-arg [evt data ins]
   {event evt
-   data-input input
-   data-output output
-   continuation cont})
+   data-input data
+   interceptors (mapv name-tag ins)})
+
+(defn encode-output-arg [evt data ins]
+  {event evt
+   data-output data
+   interceptors (mapv name-tag ins)})
 
 (defn- assoc-arg-value [k arg dt]
   (assoc arg k dt))
 
-(def assoc-continuation (partial assoc-arg-value continuation))
 (def assoc-data-input (partial assoc-arg-value data-input))
 (def assoc-data-output (partial assoc-arg-value data-output))
+
+(defn has-instance-meta? [arg]
+  (some #{:instance-meta} (interceptors arg)))

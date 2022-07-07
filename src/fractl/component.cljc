@@ -7,7 +7,8 @@
             [fractl.util.hash :as sh]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            [fractl.lang.datetime :as dt]))
 
 (def id-attr li/id-attr)
 (def s-id-attr (name id-attr))
@@ -414,29 +415,36 @@
 
 (def indexed-attributes
   "Return the names of all attributes marked :indexed."
-  (make-attributes-filter #(:indexed %)))
+  (make-attributes-filter :indexed))
 
-(def hashed-attributes (make-attributes-filter #(:secure-hash %)))
+(def hashed-attributes (make-attributes-filter :secure-hash))
 
-(def write-only-attributes (make-attributes-filter #(:write-only %)))
+(def write-only-attributes (make-attributes-filter :write-only))
 
 (def ref-attribute-schemas
   "Return the names and schemas of all attributes which has a :ref."
-  (partial filter-attribute-schemas #(:ref %)))
+  (partial filter-attribute-schemas :ref))
 
 (def unique-attributes
   "Return the names of all unique attributes."
-  (make-attributes-filter #(:unique %)))
+  (make-attributes-filter :unique))
 
 (def identity-attributes
   "Return the names of all identity attributes in the schema."
-  (make-attributes-filter #(and (:unique %) (:immutable %))))
+  (make-attributes-filter (every-pred :unique :immutable)))
 
-(defn identity-attribute-name
+(def immutable-attributes
+  "Return the names of all immutable attributes in the schema."
+  (make-attributes-filter :immutable))
+
+(defn identity-attribute-names
   "Return the name of any one of the identity attributes of the given entity."
   [type-name]
   (let [scm (find-entity-schema type-name)]
-    (first (identity-attributes (:schema scm)))))
+    (identity-attributes (:schema scm))))
+
+(defn identity-attribute-name [type-name]
+  (first (identity-attribute-names type-name)))
 
 (defn same-id? [a b]
   (= (str (id-attr a)) (str (id-attr b))))
@@ -448,7 +456,7 @@
       (if (every? entity-instance? [a b])
         (let [instname (parsed-instance-type a)]
           (and (instance-of? instname b)
-               (when-let [idattr (identity-attribute-name instname)]
+               (when-let [idattr (first (identity-attribute-names instname))]
                  (= (idattr (instance-attributes a))
                     (idattr (instance-attributes b))))))
         (= a b))))
@@ -591,7 +599,7 @@
         (:listof ascm)
         (let [tp (:listof ascm)
               p (partial element-type-check tp (find-schema tp))]
-          (if (every? identity (mapv p aval))
+          (if (su/all-true? (mapv p aval))
             aval
             (throw-error (str "invalid list for " aname))))
 
@@ -600,7 +608,7 @@
               (throw-error (str "not a set - " aname)))
             (let [tp (:setof ascm)
                   p (partial element-type-check tp (find-schema tp))]
-              (if (every? identity (map p aval))
+              (if (su/all-true? (map p aval))
                 aval
                 (throw-error (str "invalid set for " aname)))))
 
@@ -1345,3 +1353,42 @@
   (assoc-in event-instance [li/event-context k] v))
 
 (def assoc-event-context-user (partial assoc-event-context-value :User))
+
+(defn meta-entity-name [n]
+  (let [[component entity-name] (if (keyword? n) (li/split-path n) n)]
+    (keyword (str (name component) "/" (name entity-name) "Meta"))))
+
+(defn meta-entity-attributes [component]
+  {id-attr (canonical-type-name component id-attr)
+   :Owner {:type :Kernel/String
+           :immutable true}
+   :Created {:type :Kernel/DateTime
+             :default dt/now
+             :immutable true}
+   :LastUpdated {:type :Kernel/DateTime
+                 :default dt/now}
+   :LastUpdatedBy :Kernel/String
+   :UserData {:type :Kernel/Map :optional true}})
+
+(defn make-meta-instance
+  ([inst user user-data]
+   (let [ename (li/split-path (instance-type inst))
+         mname (meta-entity-name ename)
+         entity-id (id-attr inst)]
+     [mname
+      (make-instance
+       mname
+       (merge {id-attr entity-id
+               :Owner user :LastUpdatedBy user}
+              (when user-data
+                {:UserData user-data})))]))
+  ([inst user]
+   (make-meta-instance inst user nil)))
+
+(defn instance-meta-lookup-event [entity-name id]
+  (let [[component ename] (li/split-path entity-name)]
+    (make-instance
+     {(keyword (str (name component) "/Lookup_" (name entity-name) "Meta"))
+      {id-attr id}})))
+
+(def instance-meta-owner :Owner)
