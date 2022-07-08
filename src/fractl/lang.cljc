@@ -237,8 +237,12 @@
         (let [[c tag] (fetch-expression-compiler expr)]
           (when tag
             (cn/register-custom-compiled-record tag recname))
-          (attribute nm {:type (:type v)
-                         :expr (c recname attrs k expr)}))))))
+          (attribute
+           nm
+           (merge (if-let [t (:type v)]
+                    {:type t}
+                    (u/throw-ex (str ":type is required for attribute " k " with compound expression")))
+                  {:expr (c recname attrs k expr)})))))))
 
 (defn- normalize-attr [recname attrs fqn [k v]]
   (let [newv
