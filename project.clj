@@ -37,6 +37,8 @@
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
                  [com.lambdaisland/glogi "1.1.144"]
                  [com.fzakaria/slf4j-timbre "0.3.21"]
+                 [buddy/buddy-auth "3.0.323"]
+                 [keycloak-clojure "1.28.3"]
                  [tick "0.5.0-RC1"]
                  [reagent "1.1.0"]
                  [cljsjs/react "17.0.2-0"]
