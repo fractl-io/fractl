@@ -11,7 +11,15 @@
  :Kernel.RBAC/User
  {:Name {:type :Kernel/String
          :indexed true
-         :unique true}})
+         :unique true}
+  :Password {:type :Kernel/Password
+             :optional true} ; may use social-login
+  :FirstName {:type :Kernel/String
+              :optional true}
+  :LastName {:type :Kernel/String
+             :optional true}
+  :Email {:type :Kernel/Email
+          :optional true}})
 
 (entity
  :Kernel.RBAC/Role
