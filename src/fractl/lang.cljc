@@ -739,47 +739,10 @@
            :TimeoutMillis {:type :Kernel/Int
                            :default 2000}})
 
-  (entity :Kernel/OAuthAnyRequest
-       {:ClientID :Kernel/String
-        :ClientSecret :Kernel/String
-        :AuthScope {:type :Kernel/String :optional true}
-        :CallbackURL {:type :Kernel/String :optional true}
-        :ApiToken {:type :Kernel/String :optional true}
-        :AuthDomain :Kernel/String
-        :Email {:type :Kernel/String :optional true}
-        :UserName {:type :Kernel/String :optional true}
-        :Password {:type :Kernel/String :optional true}})
-
   (entity {:Kernel/Resolver
            {:Type :Kernel/String
             :Configuration :Kernel/Map
             :Identifier {:check keyword? :unique true}}})
-
-  (entity {:Kernel/Auth0User
-           {:UserName :Kernel/String
-            :Email :Kernel/String
-            :UserEmail {:type :Kernel/String :optional true}
-            :UserId {:type :Kernel/String :optional true}
-            :Password :Kernel/String
-            :UserInfo {:type :Kernel/Map :optional true}
-            :RequestObject {:type :Kernel/OAuthAnyRequest :optional true}}})
-
-  (entity {:Kernel/Authentication
-           {:Owner {:type :Kernel/Any :optional true}
-            :AuthType {:oneof ["Database" "Auth0Database" "OAuth2Request"]
-                       :default "Database"}
-            :RequestObject {:type :Kernel/Map :optional true}
-            :Issued {:type :Kernel/DateTime :optional true}
-            :ExpirySeconds {:type :Kernel/Int :default 300}}})
-
-  (entity {:Kernel/AuthResponse
-           {:AccessToken :Kernel/String
-            :IdToken :Kernel/String
-            :RefreshToken {:type :Kernel/String :optional true}
-            :TokenType :Kernel/String
-            :Owner :Kernel/String
-            :Issued {:type :Kernel/DateTime :optional true}
-            :ExpirySeconds {:type :Kernel/Int :default 86400}}})
 
   (entity
    :Kernel/Role
@@ -938,14 +901,6 @@
                     :record record
                     :dataflow dataflow}}
           :paths [:Kernel/LoadModelFromMeta]}
-         {:name :auth
-          :type :auth
-          :compose? false
-          :paths [:Kernel/Authentication]}
-         {:name :auth0-user
-          :type :auth0-user
-          :compose? true
-          :paths [:Kernel/Auth0User]}
          {:name :timer
           :type :timer
           :compose? false
