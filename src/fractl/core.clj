@@ -16,6 +16,7 @@
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.loader :as loader]
+            [fractl.auth :as auth]
             [fractl.rbac.core :as rbac])
   (:import [java.util Properties]
            [java.net URL]
@@ -99,9 +100,13 @@
           (recur cs " " s)
           (log/info s))))))
 
-(defn- register-resolvers! [resolver-specs]
-  (when-let [rns (rr/register-resolvers resolver-specs)]
-    (log-seq! "Resolvers" rns)))
+(defn- register-resolvers! [config]
+  (when-let [resolver-specs (:resolvers config)]
+    (when-let [rns (rr/register-resolvers resolver-specs)]
+      (log-seq! "Resolvers" rns)))
+  (when-let [auth-config (:authorization config)]
+    (when (auth/setup-resolver auth-config)
+      (log/info "authorization resolver inited"))))
 
 (defn- maybe-read-model [args]
   (when (and (= (count args) 1)
@@ -132,7 +137,7 @@
   (trigger-appinit-event! evaluator (:init-data model)))
 
 (defn- init-runtime [model components config]
-  (register-resolvers! (:resolvers config))
+  (register-resolvers! config)
   (let [store (e/store-from-config (:store config))
         ev (e/public-evaluator store true)]
     (run-appinit-tasks! ev store model components)

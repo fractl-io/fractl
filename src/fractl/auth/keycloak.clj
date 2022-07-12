@@ -1,7 +1,7 @@
 (ns fractl.auth.keycloak
   (:require [keycloak.deployment :as kd]
             [keycloak.user :as ku]
-            [fractl.auth.core :as auth]))
+            [fractl.auth.internal :as i]))
 
 (def ^:private tag :keycloak)
 
@@ -11,7 +11,7 @@
 ;;  :client-id "admin-cli"
 ;;  :admin "admin"
 ;;  :admin-password "secretadmin"}
-(defmethod auth/make-client tag [config]
+(defmethod i/make-client tag [config]
   (let [admin (:admin config)
         pswd (:admin-password config)]
     (-> (kd/client-conf (dissoc config :service :admin :admin-password))
@@ -24,15 +24,15 @@
    :password (:Password inst)
    :email (:Email inst)})
 
-(defmethod auth/upsert-user tag [{kc-client auth/client-key
-                                  realm :realm
-                                  inst auth/instance-key}]
+(defmethod i/upsert-user tag [{kc-client i/client-key
+                               realm :realm
+                               inst i/instance-key}]
   (let [obj (user-properties inst)]
     (ku/create-or-update-user! kc-client realm obj nil nil)
     inst))
 
-(defmethod auth/delete-user tag [{kc-client auth/client-key
-                                  realm :realm
-                                  inst auth/instance-key}]
+(defmethod i/delete-user tag [{kc-client i/client-key
+                               realm :realm
+                               inst i/instance-key}]
   (ku/delete-user! kc-client realm (:Name inst))
   inst)

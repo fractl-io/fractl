@@ -1,4 +1,4 @@
-(ns fractl.auth.core)
+(ns fractl.auth.internal)
 
 (def service-tag :service)
 

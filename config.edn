@@ -3,4 +3,10 @@
  ;; :store {:type :postgres}
  ;; :script-extn ".cljs"
  ;; :interceptors [:rbac]
- :service {:port 8080}}
+ :authorization {:service :keycloak
+                 :auth-server-url "http://localhost:8090/auth"
+                 :realm "fractl-dev"
+                 :client-id "fractl-dev"
+                 :admin "admin"
+                 :admin-password "admin"}
+ :service {:port 8000}}
