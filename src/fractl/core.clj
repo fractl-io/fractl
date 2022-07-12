@@ -139,11 +139,14 @@
 (defn- init-runtime [model components config]
   (register-resolvers! config)
   (let [store (e/store-from-config (:store config))
-        ev (e/public-evaluator store true)]
+        ev (e/public-evaluator store true)
+        ins (:interceptors config)]
     (run-appinit-tasks! ev store model components)
-    (when (rbac/init)
-      (ei/init-interceptors (:interceptors config))
-      [ev store])))
+    (when (some #{:rbac} ins)
+      (when-not (rbac/init)
+        (log/error "failed to initialize rbac")))
+    (ei/init-interceptors ins)
+    [ev store]))
 
 (defn- finalize-config [model config]
   (let [final-config (merge (:config model) config)]

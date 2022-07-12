@@ -4,9 +4,10 @@
  ;; :script-extn ".cljs"
  ;; :interceptors [:rbac]
  :authorization {:service :keycloak
-                 :auth-server-url "http://localhost:8090/auth"
-                 :realm "fractl-dev"
-                 :client-id "fractl-dev"
+                 :auth-server-url "http://localhost:8080"
+                 :realm "master"
+                 :user-realm "fractl-dev"
+                 :client-id "admin-cli"
                  :admin "admin"
-                 :admin-password "admin"}
+                 :admin-password "admin123"}
  :service {:port 8000}}

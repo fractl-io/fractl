@@ -45,6 +45,7 @@
                  [cljsjs/react-dom "17.0.2-0"]
                  [clj-commons/secretary "1.2.4"]
                  [babashka/babashka.curl "0.1.1"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.13.3"]
                  [com.cognitect.aws/api "0.8.539"]
                  [com.cognitect.aws/endpoints "1.1.12.145"]
                  [com.cognitect.aws/sns "811.2.959.0"]
