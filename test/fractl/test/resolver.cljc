@@ -205,7 +205,7 @@
     (fetch-and-assert-id env (first arg) (nth (:where (second arg)) 2))))
 
 (defn- invoke-delete [env arg]
-  (apply fetch-and-assert-id env (first arg))
+  (apply fetch-and-assert-id env arg)
   (reset! invoke-query-flag false)
   nil)
 

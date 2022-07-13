@@ -264,7 +264,7 @@
             (conj @inited-components component-name))
         component-name)))))
 
-(defn- chained-crud [store-f res resolver-upsert single-arg-path insts]
+(defn- chained-crud [store-f res resolver-f single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
                    (rg/resolver-for-path res single-arg-path)
@@ -272,7 +272,7 @@
         composed? (rg/composed? resolver)
         crud? (or (not resolver) composed?)
         resolver-result (when resolver
-                          (seq (filter identity (resolver-upsert resolver composed? insts))))
+                          (seq (filter identity (resolver-f resolver composed? insts))))
         resolved-insts (if (and resolver resolver-result)
                          (first resolver-result)
                          insts)
@@ -302,7 +302,7 @@
          insts)))))
 
 (defn- delete-by-id [store record-name del-list]
-  [record-name (store/delete-by-id store record-name (second (first del-list)))])
+  [record-name (store/delete-by-id store record-name (second del-list))])
 
 (defn- chained-delete [env record-name id]
   (let [store (env/get-store env)
@@ -312,7 +312,7 @@
      (fn [[record-name id :as arg]]
        (chained-crud
         (when store (partial delete-by-id store record-name))
-        resolver (partial resolver-delete env) record-name [arg])))))
+        resolver (partial resolver-delete env) record-name arg)))))
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
