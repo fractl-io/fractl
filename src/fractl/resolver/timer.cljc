@@ -96,8 +96,8 @@
       (update-task-handle! id handle)
       inst)))
 
-(defn- timer-delete [inst]
-  (let [[_ id] (first inst)]
+(defn- timer-delete [arg]
+  (let [id (r/id-to-delete arg)]
     (cancel-task! id)))
 
 (def ^:private resolver-fns

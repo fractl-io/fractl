@@ -193,15 +193,17 @@
 (defn- call-resolver-upsert [f env resolver composed? data]
   (let [rs (if composed? resolver [resolver])
         insts (if (map? data) [data] data)]
-    (mapv (fn [r]
-            (mapv (partial process-resolver-upsert r f env) insts))
-          rs)))
+    (reduce
+     (fn [arg r]
+       (mapv (partial process-resolver-upsert r f env) arg))
+     insts rs)))
 
-(defn- call-resolver-delete [f env resolver composed? insts]
+(defn- call-resolver-delete [f env resolver composed? inst]
   (let [rs (if composed? resolver [resolver])]
-    (mapv (fn [r]
-            (:result (f r env insts)))
-          rs)))
+    (reduce
+     (fn [arg r]
+       (:result (f r env arg)))
+     inst rs)))
 
 (defn- async-invoke [timeout-ms f]
   (cn/make-future (a/async-invoke f) timeout-ms))
@@ -271,11 +273,10 @@
                    (resolver-for-instance res insts))
         composed? (rg/composed? resolver)
         crud? (or (not resolver) composed?)
-        resolver-result (when resolver
+        resolved-insts (or
+                        (when resolver
                           (seq (filter identity (resolver-f resolver composed? insts))))
-        resolved-insts (if (and resolver resolver-result)
-                         (first resolver-result)
-                         insts)
+                        insts)
         final-result (if (and crud? store-f
                               (or single-arg-path (need-storage? resolved-insts)))
                        (store-f resolved-insts)
@@ -301,18 +302,18 @@
            (concat result conditional-event-results))
          insts)))))
 
-(defn- delete-by-id [store record-name del-list]
-  [record-name (store/delete-by-id store record-name (second del-list))])
+(defn- delete-by-id [store record-name inst]
+  [record-name (store/delete-by-id store record-name (cn/id-attr inst))])
 
-(defn- chained-delete [env record-name id]
+(defn- chained-delete [env record-name instance]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (delete-intercept
-     env [record-name id]
-     (fn [[record-name id :as arg]]
+     env [record-name instance]
+     (fn [[record-name instance]]
        (chained-crud
         (when store (partial delete-by-id store record-name))
-        resolver (partial resolver-delete env) record-name arg)))))
+        resolver (partial resolver-delete env) record-name instance)))))
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
@@ -799,7 +800,7 @@
             (let [alias (:alias queries)
                   env (if alias (env/bind-instance-to-alias env alias insts) env)]
               (i/ok insts (reduce (fn [env instance]
-                                    (chained-delete env record-name (cn/id-attr instance))
+                                    (chained-delete env record-name instance)
                                     (env/purge-instance env record-name (cn/id-attr instance)))
                                   env insts)))
             (i/not-found record-name env)))

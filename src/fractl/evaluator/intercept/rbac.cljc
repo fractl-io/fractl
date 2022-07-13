@@ -32,30 +32,28 @@
    :delete apply-delete-rules
    :eval apply-eval-rules})
 
-(defn- user-is-owner? [user env is-delete data]
-  (let [is-an-instance (and (map? data)
-                            (cn/entity-instance? data))]
-    (when (or is-an-instance is-delete)
-      (let [[inst-type id] (if is-delete
-                             data
-                             [(cn/instance-type data)
-                              (cn/id-attr data)])]
-        (when (and inst-type id)
-          (when-let [meta (store/lookup-by-id
-                           (env/get-store env)
-                           (cn/meta-entity-name inst-type)
-                           id)]
-            (= (cn/instance-meta-owner meta) user)))))))
+(defn- user-is-owner? [user env data]
+  (when (cn/entity-instance? data)
+    (let [[inst-type id] [(cn/instance-type data)
+                          (cn/id-attr data)]]
+      (when (and inst-type id)
+        (when-let [meta (store/lookup-by-id
+                         (env/get-store env)
+                         (cn/meta-entity-name inst-type)
+                         id)]
+          (= (cn/instance-meta-owner meta) user))))))
 
 (defn- run [env opr arg]
-  (let [is-delete (= :delete opr)]
-    (if-let [data (ii/data-input arg)]
-      (let [user (cn/event-context-user (ii/event arg))]
-        (when (or (and (ii/has-instance-meta? arg)
-                       (user-is-owner? user env is-delete data))
-                  ((opr actions) user (if is-delete (first data) data)))
-          arg))
-      arg)))
+  (if-let [data (ii/data-input arg)]
+    (let [is-delete (= :delete opr)
+          user (cn/event-context-user (ii/event arg))
+          inst (if is-delete (second data) data)
+          check-on (if is-delete (first data) data)]
+      (when (or (and (ii/has-instance-meta? arg)
+                     (user-is-owner? user env inst))
+                ((opr actions) user check-on))
+        arg))
+    arg))
 
 (defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))

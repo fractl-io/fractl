@@ -35,6 +35,6 @@
 
 (defmethod i/delete-user tag [{kc-client i/client-key
                                realm :user-realm
-                               data i/instance-key}]
-  (ku/delete-user! kc-client realm (second (first data)))
-  data)
+                               inst i/instance-key}]
+  (ku/delete-user! kc-client realm (:Name inst))
+  inst)

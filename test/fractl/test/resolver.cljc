@@ -205,7 +205,8 @@
     (fetch-and-assert-id env (first arg) (nth (:where (second arg)) 2))))
 
 (defn- invoke-delete [env arg]
-  (apply fetch-and-assert-id env arg)
+  (when-not (cn/an-instance? arg)
+    (apply fetch-and-assert-id env arg))
   (reset! invoke-query-flag false)
   nil)
 
@@ -235,10 +236,11 @@
              (e/eval-all-dataflows
               {:IT/Lookup_E1
                {cn/id-attr id}})))
-        r3 (first (tu/fresult
-                  (e/eval-all-dataflows
-                    {:IT/Delete_E1
-                    {cn/id-attr id}})))
+        r3 (first
+            (tu/fresult
+             (e/eval-all-dataflows
+              {:IT/Delete_E1
+               {cn/id-attr id}})))
         r4 (e/eval-all-dataflows
             {:IT/Lookup_E1
              {cn/id-attr id}})]

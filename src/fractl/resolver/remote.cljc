@@ -40,8 +40,14 @@
   {cn/id-attr (cn/id-attr inst)})
 
 (def ^:private remote-upsert (partial remote-request :Upsert nil))
-(def ^:private remote-delete (partial remote-request :Delete nil))
 (def ^:private remote-get (partial remote-request :Lookup mk-lookup-obj))
+
+(defn- remote-delete [host options arg]
+  (remote-request
+   :Delete nil host options
+   (if (map? arg)
+     [(cn/instance-type arg) (cn/id-attr arg)]
+     arg)))
 
 (defn- remote-query [host options query]
   (let [response (do-post
