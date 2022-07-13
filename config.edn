@@ -2,7 +2,7 @@
  ;; :store {:type :sfdc-metadata}
  ;; :store {:type :postgres}
  ;; :script-extn ".cljs"
- ;; :interceptors [:rbac]
+ ;; :interceptors {:rbac {:superuser-password "su123"}}
  :authorization {:service :keycloak
                  :auth-server-url "http://localhost:8080"
                  :realm "master"

@@ -57,5 +57,5 @@
           arg))
       arg)))
 
-(defn make []
+(defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))

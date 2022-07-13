@@ -7,15 +7,15 @@
 (def ^:private makers {:rbac irbac/make
                        :instance-meta imeta/make})
 
-(defn- make-interceptor [n]
+(defn- make-interceptor [[n config]]
   (when-let [make (makers n)]
     (log/info (str "initializing interceptor - " (name n)))
-    (make)))
+    (make config)))
 
-(defn init-interceptors [interceptor-names]
+(defn init-interceptors [interceptor-config]
   (mapv
    #(interceptors/add-interceptor!
      (make-interceptor %))
-   interceptor-names))
+   interceptor-config))
 
 (def reset-interceptors! interceptors/reset-interceptors!)

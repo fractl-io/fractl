@@ -142,8 +142,8 @@
         ev (e/public-evaluator store true)
         ins (:interceptors config)]
     (run-appinit-tasks! ev store model components)
-    (when (some #{:rbac} ins)
-      (when-not (rbac/init)
+    (when (some #{:rbac} (keys ins))
+      (when-not (rbac/init (:rbac ins))
         (log/error "failed to initialize rbac")))
     (ei/init-interceptors ins)
     [ev store]))
