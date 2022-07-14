@@ -16,8 +16,8 @@
   (defcomponent :RoleMgmt
     (dataflow
      :RoleMgmt/CreateUsers
-     {:Kernel.RBAC/User {:Name "abc"}}
-     {:Kernel.RBAC/User {:Name "xyz"}})
+     {:Kernel.Identity/User {:Name "abc"}}
+     {:Kernel.Identity/User {:Name "xyz"}})
     (dataflow
      :RoleMgmt/CreateRoles
      {:Kernel.RBAC/Role {:Name "role1"}}
@@ -47,7 +47,7 @@
   (let [[r1 r2 r3 r4]
         (mapv tu/result [:RoleMgmt/CreateUsers :RoleMgmt/CreateRoles
                          :RoleMgmt/AssignPrivileges :RoleMgmt/AssignRoles])]
-    (is (cn/instance-of? :Kernel.RBAC/User (first r1)))
+    (is (cn/instance-of? :Kernel.Identity/User (first r1)))
     (is (cn/instance-of? :Kernel.RBAC/Role (first r2)))
     (is (cn/instance-of? :Kernel.RBAC/PrivilegeAssignment (first r3)))
     (is (cn/instance-of? :Kernel.RBAC/RoleAssignment (first r4)))
@@ -78,7 +78,7 @@
   (defcomponent :PrivTest
     (entity
      :PrivTest/User
-     {:User {:ref :Kernel.RBAC/User.Name}})
+     {:User {:ref :Kernel.Identity/User.Name}})
     (entity
      :PrivTest/E
      {:X :Kernel/Int})
@@ -88,9 +88,9 @@
       {:User rbac/default-superuser-name}})
     (dataflow
      :PrivTest/CreateUsers
-     {:Kernel.RBAC/User
+     {:Kernel.Identity/User
       {:Name "u11"}}
-     {:Kernel.RBAC/User
+     {:Kernel.Identity/User
       {:Name "u22"}}
      {:PrivTest/User
       {:User "u11"}}
@@ -185,7 +185,7 @@
   (defcomponent :RbacOwner
     (entity
      :RbacOwner/User
-     {:User {:ref :Kernel.RBAC/User.Name}})
+     {:User {:ref :Kernel.Identity/User.Name}})
     (entity
      :RbacOwner/E
      {:X :Kernel/Int})
@@ -195,9 +195,9 @@
       {:User rbac/default-superuser-name}})
     (dataflow
      :RbacOwner/CreateUsers
-     {:Kernel.RBAC/User
+     {:Kernel.Identity/User
       {:Name "uu11"}}
-     {:Kernel.RBAC/User
+     {:Kernel.Identity/User
       {:Name "uu22"}}
      {:RbacOwner/User
       {:User "uu11"}}

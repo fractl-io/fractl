@@ -5,10 +5,10 @@
             [fractl.store.util :as stu]
             [fractl.evaluator :as ev]))
 
-(component :Kernel.RBAC)
+(component :Kernel.Identity)
 
 (entity
- :Kernel.RBAC/User
+ :Kernel.Identity/User
  {:Name {:type :Kernel/String
          :indexed true
          :unique true}
@@ -20,6 +20,24 @@
              :optional true}
   :Email {:type :Kernel/Email
           :optional true}})
+
+(event
+ :Kernel.Identity/UserLogin
+ {:Username :Kernel/String
+  :Password :Kernel/Password})
+
+(dataflow
+ :Kernel.Identity/DoUserLogin
+ {:Kernel.Identity/UserLogin
+  {:Username :Kernel.Identity/DoUserLogin.Username
+   :Password :Kernel.Identity/DoUserLogin.Password}})
+
+(dataflow
+ :Kernel.Identity/FindUser
+ {:Kernel.Identity/User
+  {:Name? :Kernel.Identity/FindUser.Name}})
+
+(component :Kernel.RBAC)
 
 (entity
  :Kernel.RBAC/Role
@@ -51,7 +69,7 @@
  :Kernel.RBAC/RoleAssignment
  {:Role {:ref :Kernel.RBAC/Role.Name
          :indexed true}
-  :Assignee {:ref :Kernel.RBAC/User.Name
+  :Assignee {:ref :Kernel.Identity/User.Name
              :indexed true}
   :meta
   {:unique [:Role :Assignee]}})
@@ -64,11 +82,6 @@
           :indexed true}
   :meta
   {:unique [:Parent :Child]}})
-
-(dataflow
- :Kernel.RBAC/FindUser
- {:Kernel.RBAC/User
-  {:Name? :Kernel.RBAC/FindUser.Name}})
 
 (dataflow
  :Kernel.RBAC/FindRoleAssignments
