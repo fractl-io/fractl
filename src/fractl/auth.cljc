@@ -1,4 +1,8 @@
 (ns fractl.auth
-  (:require [fractl.resolver.auth :as a]))
+  (:require [fractl.auth.keycloak]
+            [fractl.resolver.registry :as rr]
+            [fractl.resolver.authentication :as authn]))
 
-(def query a/auth-query)
+(defn setup-resolver [config]
+  (let [resolver (authn/make :authentication config)]
+    (rr/compose-resolver [:Kernel.RBAC/User] resolver)))

@@ -2,5 +2,12 @@
  ;; :store {:type :sfdc-metadata}
  ;; :store {:type :postgres}
  ;; :script-extn ".cljs"
- ;; :interceptors [:rbac]
- :service {:port 8080}}
+ ;; :interceptors {:rbac {:superuser-password "su123"}}
+ ;; :authentication {:service :keycloak
+ ;;                  :auth-server-url "http://localhost:8080"
+ ;;                  :realm "master"
+ ;;                  :user-realm "fractl-dev"
+ ;;                  :client-id "admin-cli"
+ ;;                  :admin "admin"
+ ;;                  :admin-password "admin123"}
+ :service {:port 8000}}

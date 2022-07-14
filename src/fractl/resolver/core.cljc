@@ -111,3 +111,8 @@
 (def dispatch-query (partial dispatch-method-call call-resolver-query))
 (def dispatch-eval (partial dispatch-method-call call-resolver-eval))
 (def dispatch-invoke (partial dispatch-method-call call-resolver-invoke))
+
+(defn id-to-delete [arg]
+  (if (map? arg)
+    (cn/id-attr arg)
+    (second arg)))
