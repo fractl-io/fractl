@@ -1,4 +1,4 @@
-(ns fractl.resolver.authorization
+(ns fractl.resolver.authentication
   (:require [fractl.util :as u]
             [fractl.resolver.core :as r]
             [fractl.auth.internal :as i]))

@@ -104,9 +104,9 @@
   (when-let [resolver-specs (:resolvers config)]
     (when-let [rns (rr/register-resolvers resolver-specs)]
       (log-seq! "Resolvers" rns)))
-  (when-let [auth-config (:authorization config)]
+  (when-let [auth-config (:authentication config)]
     (when (auth/setup-resolver auth-config)
-      (log/info "authorization resolver inited"))))
+      (log/info "authentication resolver inited"))))
 
 (defn- maybe-read-model [args]
   (when (and (= (count args) 1)

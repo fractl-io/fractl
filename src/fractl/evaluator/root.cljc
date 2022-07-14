@@ -275,13 +275,15 @@
         crud? (or (not resolver) composed?)
         resolved-insts (or
                         (when resolver
-                          (seq (filter identity (resolver-f resolver composed? insts))))
-                        insts)
-        final-result (if (and crud? store-f
-                              (or single-arg-path (need-storage? resolved-insts)))
-                       (store-f resolved-insts)
-                       resolved-insts)]
-    final-result))
+                          (let [r (resolver-f resolver composed? insts)]
+                            (if (map? r)
+                              r
+                              (seq (filter identity r)))))
+                        insts)]
+    (if (and crud? store-f
+             (or single-arg-path (need-storage? resolved-insts)))
+      (store-f resolved-insts)
+      resolved-insts)))
 
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
