@@ -3,6 +3,8 @@
 (def service-tag :service)
 
 (defmulti make-client service-tag)
+(defmulti make-authfn service-tag)
+(defmulti user-login service-tag)
 (defmulti upsert-user service-tag)
 (defmulti delete-user service-tag)
 

@@ -1,41 +1,9 @@
 (ns fractl.rbac.model
   (:require [clojure.string :as s]
+            [fractl.auth.model]
             [fractl.lang
              :refer [component event entity dataflow]]
-            [fractl.store.util :as stu]
-            [fractl.evaluator :as ev]))
-
-(component :Kernel.Identity)
-
-(entity
- :Kernel.Identity/User
- {:Name {:type :Kernel/String
-         :indexed true
-         :unique true}
-  :Password {:type :Kernel/Password
-             :optional true} ; may use social-login
-  :FirstName {:type :Kernel/String
-              :optional true}
-  :LastName {:type :Kernel/String
-             :optional true}
-  :Email {:type :Kernel/Email
-          :optional true}})
-
-(event
- :Kernel.Identity/UserLogin
- {:Username :Kernel/String
-  :Password :Kernel/Password})
-
-(dataflow
- :Kernel.Identity/DoUserLogin
- {:Kernel.Identity/UserLogin
-  {:Username :Kernel.Identity/DoUserLogin.Username
-   :Password :Kernel.Identity/DoUserLogin.Password}})
-
-(dataflow
- :Kernel.Identity/FindUser
- {:Kernel.Identity/User
-  {:Name? :Kernel.Identity/FindUser.Name}})
+            [fractl.store.util :as stu]))
 
 (component :Kernel.RBAC)
 

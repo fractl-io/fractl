@@ -153,6 +153,10 @@
     (gs/merge-app-config! final-config)
     final-config))
 
+(defn- make-server-config [app-config]
+  (assoc (:service app-config) :authentication
+         (:authentication app-config)))
+
 (defn run-service [args [[model model-root] config]]
   (let [config (finalize-config model config)
         components (if model
@@ -160,7 +164,7 @@
                      (load-components args (:component-root config) false))]
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
-      (when-let [server-cfg (:service config)]
+      (when-let [server-cfg (make-server-config config)]
         (let [[evaluator store] (init-runtime model components config)
               query-fn (e/query-fn store)]
           (log/info (str "Server config - " server-cfg))

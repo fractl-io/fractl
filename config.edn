@@ -8,6 +8,7 @@
  ;;                  :realm "master"
  ;;                  :user-realm "fractl-dev"
  ;;                  :client-id "admin-cli"
+ ;;                  :user-client-id "fractl-dev"
  ;;                  :admin "admin"
  ;;                  :admin-password "admin123"}
  :service {:port 8000}}
