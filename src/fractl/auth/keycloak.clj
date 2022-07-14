@@ -49,13 +49,10 @@
    :scope "openid"})
 
 (defn authenticate [auth-server-url realm client-id username password]
-  (println "***********************" (oidc-connect-url auth-server-url realm)
-           (client-credentials client-id username password))
   (let [r @(http/post
             (oidc-connect-url auth-server-url realm)
             {:form-params (client-credentials client-id username password)
              :headers {"Content-Type" "application/x-www-form-urlencoded"}})]
-    (println "#######################" r)
     (json/parse-string (:body r) true)))
 
 (defmethod i/user-login tag [{url :auth-server-url
