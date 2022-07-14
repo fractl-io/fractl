@@ -16,6 +16,7 @@
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.loader :as loader]
+            [fractl.auth :as auth]
             [fractl.rbac.core :as rbac])
   (:import [java.util Properties]
            [java.net URL]
@@ -99,9 +100,13 @@
           (recur cs " " s)
           (log/info s))))))
 
-(defn- register-resolvers! [resolver-specs]
-  (when-let [rns (rr/register-resolvers resolver-specs)]
-    (log-seq! "Resolvers" rns)))
+(defn- register-resolvers! [config]
+  (when-let [resolver-specs (:resolvers config)]
+    (when-let [rns (rr/register-resolvers resolver-specs)]
+      (log-seq! "Resolvers" rns)))
+  (when-let [auth-config (:authentication config)]
+    (when (auth/setup-resolver auth-config)
+      (log/info "authentication resolver inited"))))
 
 (defn- maybe-read-model [args]
   (when (and (= (count args) 1)
@@ -132,13 +137,16 @@
   (trigger-appinit-event! evaluator (:init-data model)))
 
 (defn- init-runtime [model components config]
-  (register-resolvers! (:resolvers config))
+  (register-resolvers! config)
   (let [store (e/store-from-config (:store config))
-        ev (e/public-evaluator store true)]
+        ev (e/public-evaluator store true)
+        ins (:interceptors config)]
     (run-appinit-tasks! ev store model components)
-    (when (rbac/init)
-      (ei/init-interceptors (:interceptors config))
-      [ev store])))
+    (when (some #{:rbac} (keys ins))
+      (when-not (rbac/init (:rbac ins))
+        (log/error "failed to initialize rbac")))
+    (ei/init-interceptors ins)
+    [ev store]))
 
 (defn- finalize-config [model config]
   (let [final-config (merge (:config model) config)]

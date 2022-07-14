@@ -193,15 +193,17 @@
 (defn- call-resolver-upsert [f env resolver composed? data]
   (let [rs (if composed? resolver [resolver])
         insts (if (map? data) [data] data)]
-    (mapv (fn [r]
-            (mapv (partial process-resolver-upsert r f env) insts))
-          rs)))
+    (reduce
+     (fn [arg r]
+       (mapv (partial process-resolver-upsert r f env) arg))
+     insts rs)))
 
-(defn- call-resolver-delete [f env resolver composed? insts]
+(defn- call-resolver-delete [f env resolver composed? inst]
   (let [rs (if composed? resolver [resolver])]
-    (mapv (fn [r]
-            (:result (f r env insts)))
-          rs)))
+    (reduce
+     (fn [arg r]
+       (:result (f r env arg)))
+     inst rs)))
 
 (defn- async-invoke [timeout-ms f]
   (cn/make-future (a/async-invoke f) timeout-ms))
@@ -264,23 +266,24 @@
             (conj @inited-components component-name))
         component-name)))))
 
-(defn- chained-crud [store-f res resolver-upsert single-arg-path insts]
+(defn- chained-crud [store-f res resolver-f single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
                    (rg/resolver-for-path res single-arg-path)
                    (resolver-for-instance res insts))
         composed? (rg/composed? resolver)
         crud? (or (not resolver) composed?)
-        resolver-result (when resolver
-                          (seq (filter identity (resolver-upsert resolver composed? insts))))
-        resolved-insts (if (and resolver resolver-result)
-                         (first resolver-result)
-                         insts)
-        final-result (if (and crud? store-f
-                              (or single-arg-path (need-storage? resolved-insts)))
-                       (store-f resolved-insts)
-                       resolved-insts)]
-    final-result))
+        resolved-insts (or
+                        (when resolver
+                          (let [r (resolver-f resolver composed? insts)]
+                            (if (map? r)
+                              r
+                              (seq (filter identity r)))))
+                        insts)]
+    (if (and crud? store-f
+             (or single-arg-path (need-storage? resolved-insts)))
+      (store-f resolved-insts)
+      resolved-insts)))
 
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
@@ -301,18 +304,18 @@
            (concat result conditional-event-results))
          insts)))))
 
-(defn- delete-by-id [store record-name del-list]
-  [record-name (store/delete-by-id store record-name (second (first del-list)))])
+(defn- delete-by-id [store record-name inst]
+  [record-name (store/delete-by-id store record-name (cn/id-attr inst))])
 
-(defn- chained-delete [env record-name id]
+(defn- chained-delete [env record-name instance]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (delete-intercept
-     env [record-name id]
-     (fn [[record-name id :as arg]]
+     env [record-name instance]
+     (fn [[record-name instance]]
        (chained-crud
         (when store (partial delete-by-id store record-name))
-        resolver (partial resolver-delete env) record-name [arg])))))
+        resolver (partial resolver-delete env) record-name instance)))))
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
@@ -799,7 +802,7 @@
             (let [alias (:alias queries)
                   env (if alias (env/bind-instance-to-alias env alias insts) env)]
               (i/ok insts (reduce (fn [env instance]
-                                    (chained-delete env record-name (cn/id-attr instance))
+                                    (chained-delete env record-name instance)
                                     (env/purge-instance env record-name (cn/id-attr instance)))
                                   env insts)))
             (i/not-found record-name env)))
