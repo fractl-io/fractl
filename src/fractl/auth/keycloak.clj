@@ -1,10 +1,12 @@
 (ns fractl.auth.keycloak
-  (:require [keycloak.deployment :as kd]
+  (:require [clojure.string :as s]
+            [keycloak.deployment :as kd]
             [keycloak.backend :as kb]
             [keycloak.user :as ku]
             [keycloak.authn :as ka]
             [cheshire.core :as json]
             [org.httpkit.client :as http]
+            [fractl.auth.jwt :as jwt]
             [fractl.auth.internal :as i]))
 
 (def ^:private tag :keycloak)
@@ -81,3 +83,10 @@
                                inst i/instance-key}]
   (ku/delete-user! kc-client realm (:Name inst))
   inst)
+
+(def ^:private space-pat #" ")
+
+(defmethod i/session-user tag [{request :request}]
+  (when-let [auths (get-in request [:headers "authorization"])]
+    (let [token (second (s/split auths space-pat))]
+      (:preferred_username (jwt/decode token)))))

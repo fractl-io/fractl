@@ -7,6 +7,7 @@
 (defmulti user-login service-tag)
 (defmulti upsert-user service-tag)
 (defmulti delete-user service-tag)
+(defmulti session-user service-tag)
 
 (def client-key :client)
 (def instance-key :instance)

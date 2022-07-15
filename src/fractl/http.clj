@@ -73,9 +73,12 @@
       (log/exception ex)
       (internal-error (.getMessage ex) data-fmt))))
 
-(defn- event-from-request [request event-name data-fmt]
+(defn- event-from-request [request event-name data-fmt auth-config]
   (try
-    (let [body (:body request)
+    (let [user (when auth-config
+                 (ai/session-user
+                  (assoc auth-config :request request)))
+          body (:body request)
           obj (if (map? body)
                 body
                 ((uh/decoder data-fmt)
@@ -87,7 +90,12 @@
                         (u/string-as-keyword
                          (first (keys obj)))))]
       (if (or (not event-name) (= obj-name event-name))
-        [(if (cn/an-instance? obj) obj (cn/make-event-instance obj-name (first (vals obj)))) nil]
+        [(cn/assoc-event-context-user
+          user
+          (if (cn/an-instance? obj)
+            obj
+            (cn/make-event-instance obj-name (first (vals obj)))))
+         nil]
         [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
     (catch Exception ex
       (log/exception ex)
@@ -102,10 +110,10 @@
   (let [ct (request-content-type request)]
     (uh/content-types ct)))
 
-(defn- process-dynamic-eval [evaluator handle-unauth event-name request]
+(defn- process-dynamic-eval [evaluator [auth-config handle-unauth] event-name request]
   (or (handle-unauth request)
       (if-let [data-fmt (find-data-format request)]
-        (let [[obj err] (event-from-request request event-name data-fmt)]
+        (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
           (if err
             (bad-request err data-fmt)
             (evaluate evaluator obj data-fmt)))
@@ -127,13 +135,13 @@
       (let [c (keyword (get-in request [:params :component]))]
         (ok {:paths (paths-info c) :schemas (schemas-info c)}))))
 
-(defn process-request [evaluator handle-unauth request]
+(defn process-request [evaluator auth request]
   (let [params (:params request)
         component (keyword (:component params))
         event (keyword (:event params))
         n [component event]]
     (if (cn/find-event-schema n)
-      (process-dynamic-eval evaluator handle-unauth n request)
+      (process-dynamic-eval evaluator auth n request)
       (bad-request (str "Event not found - " n)))))
 
 (defn- like-pattern? [x]
@@ -171,7 +179,7 @@
       (ok (first result) data-fmt))
     (bad-request (str "not a valid query request - " request-obj))))
 
-(defn- process-query [_ handle-unauth query-fn request]
+(defn- process-query [_ [_ handle-unauth] query-fn request]
   (or (handle-unauth request)
       (try
         (if-let [data-fmt (find-data-format request)]
@@ -190,7 +198,7 @@
 
 (defn- process-login [auth-config request]
   (if-let [data-fmt (find-data-format request)]
-    (let [[obj err] (event-from-request request login-event-name data-fmt)]
+    (let [[obj err] (event-from-request request login-event-name data-fmt nil)]
       (if err
         (bad-request err data-fmt)
         (try
@@ -245,14 +253,15 @@
 (defn run-server
   ([[evaluator query-fn] config]
    (let [auth (:authentication config)
-         auth-check (if auth handle-request-auth (constantly false))]
+         auth-check (if auth handle-request-auth (constantly false))
+         auth-info [auth auth-check]]
      (if (or (not auth) (auth-service-supported? auth))
        (h/run-server
         (make-routes
          auth
-         (partial process-request evaluator auth-check)
-         (partial process-query evaluator auth-check query-fn)
-         (partial process-dynamic-eval evaluator auth-check nil))
+         (partial process-request evaluator auth-info)
+         (partial process-query evaluator auth-info query-fn)
+         (partial process-dynamic-eval evaluator auth-info nil))
         (if (:thread config)
           config
           (assoc config :thread (+ 1 (u/n-cpu)))))
