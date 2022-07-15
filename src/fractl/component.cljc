@@ -869,7 +869,7 @@
            currpats (get-in ms path [])
            newpats (conj currpats [event {:head head
                                           :event-pattern event
-                                         :patterns patterns
+                                          :patterns patterns
                                           :opcode (u/make-cell nil)}])]
        (assoc-in ms path newpats)))
    event)
@@ -1390,3 +1390,6 @@
       {id-attr id}})))
 
 (def instance-meta-owner :Owner)
+
+(defn kernel-inited? []
+  (:Kernel @components))

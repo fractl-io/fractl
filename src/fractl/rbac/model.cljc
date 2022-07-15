@@ -1,6 +1,5 @@
 (ns fractl.rbac.model
   (:require [clojure.string :as s]
-            [fractl.auth.model]
             [fractl.lang
              :refer [component event entity dataflow]]
             [fractl.store.util :as stu]))
@@ -37,7 +36,7 @@
  :Kernel.RBAC/RoleAssignment
  {:Role {:ref :Kernel.RBAC/Role.Name
          :indexed true}
-  :Assignee {:ref :Kernel.Identity/User.Name
+  :Assignee {:type :Kernel/String ; usually a :Kernel.Identity/User.Name
              :indexed true}
   :meta
   {:unique [:Role :Assignee]}})

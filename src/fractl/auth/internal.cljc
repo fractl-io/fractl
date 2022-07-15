@@ -1,4 +1,5 @@
-(ns fractl.auth.internal)
+(ns fractl.auth.internal
+  (:require [fractl.auth.model]))
 
 (def service-tag :service)
 

@@ -8,13 +8,13 @@
 (def default-superuser-name "superuser")
 (def ^:private superuser (atom nil))
 
-(def ^:private find-su-event
+(defn- find-su-event []
   (cn/make-instance
    {:Kernel.Identity/FindUser
     {:Name default-superuser-name}}))
 
 (defn- lookup-superuser []
-  (when-let [r (ev/safe-eval find-su-event)]
+  (when-let [r (ev/safe-eval (find-su-event))]
     (first r)))
 
 (defn- upsert-superuser [pswd]

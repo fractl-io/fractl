@@ -28,6 +28,10 @@
 (def login-username :Username)
 (def login-password :Password)
 
+(event
+ :Kernel.Identity/FindUser
+ {:Name :Kernel/String})
+
 (dataflow
  :Kernel.Identity/FindUser
  {:Kernel.Identity/User
