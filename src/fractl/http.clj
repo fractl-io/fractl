@@ -21,6 +21,7 @@
 
 (def entity-event-prefix "/_e/")
 (def login-prefix "/_login/")
+(def logout-prefix "/_logout/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
 (def callback-prefix "/_callback/")
@@ -215,12 +216,31 @@
      (str "unsupported content-type in request - "
           (request-content-type request)))))
 
-(defn- make-routes [auth-config process-request process-query process-dynamic-eval]
+(defn- process-logout [evaluator auth-config request]
+  (if-let [data-fmt (find-data-format request)]
+    (try
+      (let [sub (ai/session-sub
+                 (assoc auth-config :request request))
+            result (ai/user-logout
+                    (assoc
+                     auth-config
+                     :sub sub))]
+        (ok {:result result} data-fmt))
+      (catch Exception ex
+        (log/warn ex)
+        (unauthorized "logout failed" data-fmt)))
+    (bad-request
+     (str "unsupported content-type in request - "
+          (request-content-type request)))))
+
+(defn- make-routes [auth-config handlers]
   (let [r (routes
-           (POST login-prefix [] (partial process-login auth-config))
-           (POST (str entity-event-prefix ":component/:event") [] process-request)
-           (POST query-prefix [] process-query)
-           (POST dynamic-eval-prefix [] process-dynamic-eval)
+           (POST login-prefix [] (:login handlers))
+           (POST logout-prefix [] (:logout handlers))
+           (POST (str entity-event-prefix ":component/:event") []
+                 (:request handlers))
+           (POST query-prefix [] (:query handlers))
+           (POST dynamic-eval-prefix [] (:eval handlers))
            (GET "/meta/:component" [] process-meta-request)
            (not-found "<p>Resource not found</p>"))
         r-with-cors
@@ -259,9 +279,11 @@
        (h/run-server
         (make-routes
          auth
-         (partial process-request evaluator auth-info)
-         (partial process-query evaluator auth-info query-fn)
-         (partial process-dynamic-eval evaluator auth-info nil))
+         {:login (partial process-login auth)
+          :logout (partial process-logout evaluator auth)
+          :request (partial process-request evaluator auth-info)
+          :query (partial process-query evaluator auth-info query-fn)
+          :eval (partial process-dynamic-eval evaluator auth-info nil)})
         (if (:thread config)
           config
           (assoc config :thread (+ 1 (u/n-cpu)))))

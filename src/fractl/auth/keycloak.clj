@@ -10,7 +10,10 @@
             [fractl.auth.internal :as i]))
 
 (def ^:private tag :keycloak)
-(def ^:private non-client-keys [:user-realm :user-client-id :service :admin :admin-password])
+(def ^:private non-client-keys [:user-realm :user-client-id
+                                :sub :service :admin :admin-password])
+
+(def ^:private client (atom nil))
 
 ;; Return a keycloak client. An is,
 ;; {:auth-server-url "http://localhost:8090/auth"
@@ -20,10 +23,13 @@
 ;;  :admin "admin"
 ;;  :admin-password "secretadmin"}
 (defmethod i/make-client tag [config]
-  (let [admin (:admin config)
-        pswd (:admin-password config)]
-    (-> (kd/client-conf (apply dissoc config non-client-keys))
-        (kd/keycloak-client admin pswd))))
+  (or @client
+      (let [c (let [admin (:admin config)
+                    pswd (:admin-password config)]
+                (-> (kd/client-conf (apply dissoc config non-client-keys))
+                    (kd/keycloak-client admin pswd)))]
+        (reset! client c)
+        c)))
 
 (defn- config-as-client-conf [config]
   {:auth-server-url (:auth-server-url config)
@@ -84,9 +90,21 @@
   (ku/delete-user! kc-client realm (:Name inst))
   inst)
 
+(defmethod i/user-logout tag [{realm :user-realm
+                               sub :sub :as arg}]
+  (let [kc-client (i/make-client arg)]
+    (ku/logout-user! kc-client realm sub)
+    :bye))
+
 (def ^:private space-pat #" ")
 
-(defmethod i/session-user tag [{request :request}]
+(defn- get-session-value [request k]
   (when-let [auths (get-in request [:headers "authorization"])]
     (let [token (second (s/split auths space-pat))]
-      (:preferred_username (jwt/decode token)))))
+      (k (jwt/decode token)))))
+
+(defmethod i/session-user tag [{request :request}]
+  (get-session-value request :preferred_username))
+
+(defmethod i/session-sub tag [{request :request}]
+  (get-session-value request :sub))

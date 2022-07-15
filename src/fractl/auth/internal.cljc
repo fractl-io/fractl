@@ -5,9 +5,11 @@
 (defmulti make-client service-tag)
 (defmulti make-authfn service-tag)
 (defmulti user-login service-tag)
+(defmulti session-user service-tag)
+(defmulti session-sub service-tag)
+(defmulti user-logout service-tag)
 (defmulti upsert-user service-tag)
 (defmulti delete-user service-tag)
-(defmulti session-user service-tag)
 
 (def client-key :client)
 (def instance-key :instance)
