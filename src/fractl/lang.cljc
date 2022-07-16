@@ -19,8 +19,6 @@
       [imps]
       imps)))
 
-(declare init)
-
 (def ^:private component-spec-validators
   {:import #(normalize-imports
              (li/validate-imports %))
@@ -37,6 +35,8 @@
                    identity)]
         [k (vf v)]))
     spec)))
+
+(declare init)
 
 (defn component
   "Create and activate a new component with the given name."
@@ -715,12 +715,6 @@
       (resolver-for-entity a b spec)
       (resolver-for-component target spec))))
 
-(def ^:private kernel-inited
-  #?(:clj
-     (ref false)
-     :cljs
-     (atom false)))
-
 (defn- do-init-kernel []
   (cn/create-component :Kernel {})
   (doseq [[type-name type-def] k/types]
@@ -939,10 +933,6 @@
 
 (def auth-owner :Owner)
 
-(defn- initf []
-  (when-not @kernel-inited
-    (do-init-kernel)
-    true))
-
 (defn init []
-  (u/safe-set-truth kernel-inited initf))
+  (when-not (cn/kernel-inited?)
+    (do-init-kernel)))

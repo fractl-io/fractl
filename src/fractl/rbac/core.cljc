@@ -8,20 +8,20 @@
 (def default-superuser-name "superuser")
 (def ^:private superuser (atom nil))
 
-(def ^:private find-su-event
+(defn- find-su-event []
   (cn/make-instance
-   {:Kernel.RBAC/FindUser
+   {:Kernel.Identity/FindUser
     {:Name default-superuser-name}}))
 
 (defn- lookup-superuser []
-  (when-let [r (ev/safe-eval find-su-event)]
+  (when-let [r (ev/safe-eval (find-su-event))]
     (first r)))
 
 (defn- upsert-superuser [pswd]
   (let [evt (cn/make-instance
-             {:Kernel.RBAC/Upsert_User
+             {:Kernel.Identity/Upsert_User
               {:Instance
-               {:Kernel.RBAC/User
+               {:Kernel.Identity/User
                 (merge {:Name default-superuser-name}
                        (when pswd
                          {:Password pswd}))}}})]

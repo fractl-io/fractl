@@ -39,6 +39,7 @@
                  [com.fzakaria/slf4j-timbre "0.3.21"]
                  [buddy/buddy-auth "3.0.323"]
                  [keycloak-clojure "1.28.3"]
+                 [org.bitbucket.b_c/jose4j "0.7.12"]
                  [tick "0.5.0-RC1"]
                  [reagent "1.1.0"]
                  [cljsjs/react "17.0.2-0"]

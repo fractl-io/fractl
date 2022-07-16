@@ -1,18 +1,27 @@
 (ns fractl.http
   (:require [clojure.walk :as w]
             [clojure.string :as s]
+            [cheshire.core :as json]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
             [ring.util.codec :as codec]
+            [buddy.auth :as buddy]
+            [buddy.auth.backends :as buddy-back]
+            [buddy.auth.middleware :as buddy-midd
+             :refer [wrap-authentication]]
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.http :as uh]
+            [fractl.auth.internal :as ai]
+            [fractl.auth.model :as am]
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
   (:use [compojure.core :only [routes POST GET]]
         [compojure.route :only [not-found]]))
 
 (def entity-event-prefix "/_e/")
+(def login-prefix "/_login/")
+(def logout-prefix "/_logout/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
 (def callback-prefix "/_callback/")
@@ -22,10 +31,15 @@
    The map object will be encoded as JSON in the response.
    Also see: https://github.com/ring-clojure/ring/wiki/Creating-responses"
   [json-obj status data-fmt]
-  (let [r {:status status
-           :headers {"Content-Type" (uh/content-type data-fmt)}
-           :body ((uh/encoder data-fmt) json-obj)}]
-    r))
+  {:status status
+   :headers {"Content-Type" (uh/content-type data-fmt)}
+   :body ((uh/encoder data-fmt) json-obj)})
+
+(defn- unauthorized
+  ([msg data-fmt]
+   (response {:reason msg} 401 data-fmt))
+  ([data-fmt]
+   (unauthorized "not authorized to access this resource" data-fmt)))
 
 (defn- bad-request
   ([s data-fmt]
@@ -60,9 +74,12 @@
       (log/exception ex)
       (internal-error (.getMessage ex) data-fmt))))
 
-(defn- event-from-request [request event-name data-fmt]
+(defn- event-from-request [request event-name data-fmt auth-config]
   (try
-    (let [body (:body request)
+    (let [user (when auth-config
+                 (ai/session-user
+                  (assoc auth-config :request request)))
+          body (:body request)
           obj (if (map? body)
                 body
                 ((uh/decoder data-fmt)
@@ -74,7 +91,12 @@
                         (u/string-as-keyword
                          (first (keys obj)))))]
       (if (or (not event-name) (= obj-name event-name))
-        [(if (cn/an-instance? obj) obj (cn/make-event-instance obj-name (first (vals obj)))) nil]
+        [(cn/assoc-event-context-user
+          user
+          (if (cn/an-instance? obj)
+            obj
+            (cn/make-event-instance obj-name (first (vals obj)))))
+         nil]
         [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
     (catch Exception ex
       (log/exception ex)
@@ -89,15 +111,16 @@
   (let [ct (request-content-type request)]
     (uh/content-types ct)))
 
-(defn- process-dynamic-eval [evaluator event-name request]
-  (if-let [data-fmt (find-data-format request)]
-    (let [[obj err] (event-from-request request event-name data-fmt)]
-      (if err
-        (bad-request err data-fmt)
-        (evaluate evaluator obj data-fmt)))
-    (bad-request
-     (str "unsupported content-type in request - "
-          (request-content-type request)))))
+(defn- process-dynamic-eval [evaluator [auth-config handle-unauth] event-name request]
+  (or (handle-unauth request)
+      (if-let [data-fmt (find-data-format request)]
+        (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
+          (if err
+            (bad-request err data-fmt)
+            (evaluate evaluator obj data-fmt)))
+        (bad-request
+         (str "unsupported content-type in request - "
+              (request-content-type request))))))
 
 (defn- paths-info [component]
   (mapv (fn [n] {(subs (str n) 1)
@@ -108,17 +131,18 @@
   (mapv (fn [n] {n (cn/entity-schema n)})
         (cn/entity-names component)))
 
-(defn- process-meta-request [request]
-  (let [c (keyword (get-in request [:params :component]))]
-    (ok {:paths (paths-info c) :schemas (schemas-info c)})))
+(defn- process-meta-request [handle-unauth request]
+  (or (handle-unauth request)
+      (let [c (keyword (get-in request [:params :component]))]
+        (ok {:paths (paths-info c) :schemas (schemas-info c)}))))
 
-(defn process-request [evaluator request]
+(defn process-request [evaluator auth request]
   (let [params (:params request)
         component (keyword (:component params))
         event (keyword (:event params))
         n [component event]]
     (if (cn/find-event-schema n)
-      (process-dynamic-eval evaluator n request)
+      (process-dynamic-eval evaluator auth n request)
       (bad-request (str "Event not found - " n)))))
 
 (defn- like-pattern? [x]
@@ -156,43 +180,113 @@
       (ok (first result) data-fmt))
     (bad-request (str "not a valid query request - " request-obj))))
 
-(defn- process-query [_ query-fn request]
-  (try
-    (if-let [data-fmt (find-data-format request)]
-      (do-query
-       query-fn
-       ((uh/decoder data-fmt) (String. (.bytes (:body request))))
-       data-fmt)
-      (bad-request
-       (str "unsupported content-type in request - "
-            (request-content-type request))))
-    (catch Exception ex
-      (log/exception ex)
-      (internal-error (str "Failed to process query request - " (.getMessage ex))))))
+(defn- process-query [_ [_ handle-unauth] query-fn request]
+  (or (handle-unauth request)
+      (try
+        (if-let [data-fmt (find-data-format request)]
+          (do-query
+           query-fn
+           ((uh/decoder data-fmt) (String. (.bytes (:body request))))
+           data-fmt)
+          (bad-request
+           (str "unsupported content-type in request - "
+                (request-content-type request))))
+        (catch Exception ex
+          (log/exception ex)
+          (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
-(defn- make-routes [process-request process-query process-dynamic-eval]
+(def ^:private login-event-name (li/split-path am/login-event-name))
+
+(defn- process-login [auth-config request]
+  (if-let [data-fmt (find-data-format request)]
+    (let [[obj err] (event-from-request request login-event-name data-fmt nil)]
+      (if err
+        (bad-request err data-fmt)
+        (try
+          (let [result (ai/user-login
+                        (assoc
+                         auth-config
+                         :username (am/login-username obj)
+                         :password (am/login-password obj)))]
+            (ok result data-fmt))
+          (catch Exception ex
+            (log/warn ex)
+            (unauthorized "login failed" data-fmt)))))
+    (bad-request
+     (str "unsupported content-type in request - "
+          (request-content-type request)))))
+
+(defn- process-logout [evaluator auth-config request]
+  (if-let [data-fmt (find-data-format request)]
+    (try
+      (let [sub (ai/session-sub
+                 (assoc auth-config :request request))
+            result (ai/user-logout
+                    (assoc
+                     auth-config
+                     :sub sub))]
+        (ok {:result result} data-fmt))
+      (catch Exception ex
+        (log/warn ex)
+        (unauthorized "logout failed" data-fmt)))
+    (bad-request
+     (str "unsupported content-type in request - "
+          (request-content-type request)))))
+
+(defn- make-routes [auth-config handlers]
   (let [r (routes
-           (POST (str entity-event-prefix ":component/:event") [] process-request)
-           (POST query-prefix [] process-query)
-           (POST dynamic-eval-prefix [] process-dynamic-eval)
+           (POST login-prefix [] (:login handlers))
+           (POST logout-prefix [] (:logout handlers))
+           (POST (str entity-event-prefix ":component/:event") []
+                 (:request handlers))
+           (POST query-prefix [] (:query handlers))
+           (POST dynamic-eval-prefix [] (:eval handlers))
            (GET "/meta/:component" [] process-meta-request)
-           (not-found "<p>Resource not found</p>"))]
-    (cors/wrap-cors
-     r
-     :access-control-allow-origin [#".*"]
-     :access-control-allow-headers ["Content-Type"]
-     :access-control-allow-credentials true
-     :access-control-allow-methods [:post])))
+           (not-found "<p>Resource not found</p>"))
+        r-with-cors
+        (cors/wrap-cors
+         r
+         :access-control-allow-origin [#".*"]
+         :access-control-allow-headers ["Content-Type"]
+         :access-control-allow-credentials true
+         :access-control-allow-methods [:post])]
+    (if auth-config
+      (-> r-with-cors
+          (wrap-authentication
+           (buddy-back/token
+            {:authfn (ai/make-authfn auth-config)
+             :token-name "Bearer"})))
+      r-with-cors)))
+
+(defn- handle-request-auth [request]
+  (try
+    (when-not (buddy/authenticated? request)
+      (log/info (str "unauthorized request - " request))
+      (unauthorized (find-data-format request)))
+    (catch Exception ex
+      (log/warn ex)
+      (bad-request "invalid auth data" (find-data-format request)))))
+
+(defn- auth-service-supported? [auth]
+  (= (:service auth) :keycloak))
 
 (defn run-server
   ([[evaluator query-fn] config]
-   (h/run-server
-    (make-routes
-     (partial process-request evaluator)
-     (partial process-query evaluator query-fn)
-     (partial process-dynamic-eval evaluator nil))
-    (if (:thread config)
-      config
-      (assoc config :thread (+ 1 (u/n-cpu))))))
+   (let [auth (:authentication config)
+         auth-check (if auth handle-request-auth (constantly false))
+         auth-info [auth auth-check]]
+     (if (or (not auth) (auth-service-supported? auth))
+       (h/run-server
+        (make-routes
+         auth
+         {:login (partial process-login auth)
+          :logout (partial process-logout evaluator auth)
+          :request (partial process-request evaluator auth-info)
+          :query (partial process-query evaluator auth-info query-fn)
+          :eval (partial process-dynamic-eval evaluator auth-info nil)})
+        (if (:thread config)
+          config
+          (assoc config :thread (+ 1 (u/n-cpu)))))
+       (u/throw-ex (str "authentication service not supported - " (:service auth))))))
   ([eval-context]
    (run-server eval-context {:port 8080})))
