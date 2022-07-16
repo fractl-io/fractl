@@ -746,8 +746,7 @@
                   [k (maybe-instance v validate?)])
                 attrs)))
 
-(defn- post-process-attributes
-  "Apply any additional processing to attribute values, like encryption"
+(defn secure-attributes
   [recname attrs schema]
   (loop [hashed (seq (hashed-attributes schema)), result attrs]
     (if-let [k (first hashed)]
@@ -767,10 +766,9 @@
   ([record-name attributes validate?]
    (let [schema (ensure-schema record-name)
          attrs-with-insts (maps-to-insts attributes validate?)
-         validated-attrs (if validate?
-                           (validate-record-attributes record-name attrs-with-insts schema)
-                           attrs-with-insts)
-         attrs (post-process-attributes record-name validated-attrs schema)]
+         attrs (if validate?
+                 (validate-record-attributes record-name attrs-with-insts schema)
+                 attrs-with-insts)]
      (if (error? attrs)
        attrs
        (make-record-instance (type-tag-of record-name) record-name attrs))))
@@ -871,7 +869,7 @@
            currpats (get-in ms path [])
            newpats (conj currpats [event {:head head
                                           :event-pattern event
-                                         :patterns patterns
+                                          :patterns patterns
                                           :opcode (u/make-cell nil)}])]
        (assoc-in ms path newpats)))
    event)
@@ -1392,3 +1390,6 @@
       {id-attr id}})))
 
 (def instance-meta-owner :Owner)
+
+(defn kernel-inited? []
+  (:Kernel @components))

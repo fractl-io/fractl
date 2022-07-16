@@ -1,8 +1,14 @@
-(ns fractl.auth.internal)
+(ns fractl.auth.internal
+  (:require [fractl.auth.model]))
 
 (def service-tag :service)
 
 (defmulti make-client service-tag)
+(defmulti make-authfn service-tag)
+(defmulti user-login service-tag)
+(defmulti session-user service-tag)
+(defmulti session-sub service-tag)
+(defmulti user-logout service-tag)
 (defmulti upsert-user service-tag)
 (defmulti delete-user service-tag)
 
