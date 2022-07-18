@@ -9,6 +9,7 @@
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
+            [fractl.util.remote :as ur]
             [fractl.meta :as mt]
             [fractl.ui.config :as cfg]
             [fractl.ui.context :as ctx]))
@@ -113,17 +114,25 @@
       (:result r)
       (do (println "remote eval failed: " r) nil))))
 
+(defn- remote-invoke-event [host callback is-auth-event event-instance]
+  ((if is-auth-event
+     ur/remote-login
+     ur/remote-evaluate)
+   host callback event-instance))
+
 (defn eval-event
-  ([callback eval-local event-instance]
+  ([callback eval-local is-auth-event event-instance]
    (let [event-instance (assoc event-instance li/event-context
                                (ctx/context-as-map))]
      (if-let [host (and (not eval-local) @remote-api-host)]
-       (do (ev/remote-evaluate host callback event-instance) nil)
+       (remote-invoke-event host callback is-auth-event event-instance)
        ((or callback identity) ((ev/global-dataflow-eval) event-instance)))))
+  ([callback is-auth-event event-instance]
+   (eval-event callback false is-auth-event event-instance))
   ([callback event-instance]
-   (eval-event callback false event-instance))
+   (eval-event callback false false event-instance))
   ([event-instance]
-   (eval-event identity event-instance)))
+   (eval-event identity false false event-instance)))
 
 (defn eval-local-event [event-instance]
   (eval-event identity true event-instance))
@@ -333,4 +342,3 @@
     (case (:type attr-scm)
       :Kernel/DateTime (dt/as-format attr-val "yyyy-MM-dd HH:mm")
       (str attr-val))))
-

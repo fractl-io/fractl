@@ -1,6 +1,7 @@
 (ns fractl.auth.model
   (:require [fractl.lang
-             :refer [component event entity dataflow]]))
+             :refer [component event entity dataflow]]
+            [fractl.util.auth :as au]))
 
 (component :Kernel.Identity)
 
@@ -18,15 +19,10 @@
   :Email {:type :Kernel/Email
           :optional true}})
 
-(def login-event-name :Kernel.Identity/UserLogin)
-
 (event
- login-event-name
- {:Username :Kernel/String
-  :Password :Kernel/Password})
-
-(def login-username :Username)
-(def login-password :Password)
+ au/login-event-name
+ {au/login-username :Kernel/String
+  au/login-password :Kernel/Password})
 
 (event
  :Kernel.Identity/FindUser

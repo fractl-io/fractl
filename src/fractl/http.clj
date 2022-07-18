@@ -12,19 +12,12 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.http :as uh]
+            [fractl.util.auth :as au]
             [fractl.auth.internal :as ai]
-            [fractl.auth.model :as am]
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
   (:use [compojure.core :only [routes POST GET]]
         [compojure.route :only [not-found]]))
-
-(def entity-event-prefix "/_e/")
-(def login-prefix "/_login/")
-(def logout-prefix "/_logout/")
-(def query-prefix "/_q/")
-(def dynamic-eval-prefix "/_dynamic/")
-(def callback-prefix "/_callback/")
 
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
@@ -195,19 +188,17 @@
           (log/exception ex)
           (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
-(def ^:private login-event-name (li/split-path am/login-event-name))
-
 (defn- process-login [auth-config request]
   (if-let [data-fmt (find-data-format request)]
-    (let [[obj err] (event-from-request request login-event-name data-fmt nil)]
+    (let [[obj err] (event-from-request request au/parsed-login-event-name data-fmt nil)]
       (if err
         (bad-request err data-fmt)
         (try
           (let [result (ai/user-login
                         (assoc
                          auth-config
-                         :username (am/login-username obj)
-                         :password (am/login-password obj)))]
+                         :username (au/login-username obj)
+                         :password (au/login-password obj)))]
             (ok result data-fmt))
           (catch Exception ex
             (log/warn ex)
@@ -235,12 +226,12 @@
 
 (defn- make-routes [auth-config handlers]
   (let [r (routes
-           (POST login-prefix [] (:login handlers))
-           (POST logout-prefix [] (:logout handlers))
-           (POST (str entity-event-prefix ":component/:event") []
+           (POST uh/login-prefix [] (:login handlers))
+           (POST uh/logout-prefix [] (:logout handlers))
+           (POST (str uh/entity-event-prefix ":component/:event") []
                  (:request handlers))
-           (POST query-prefix [] (:query handlers))
-           (POST dynamic-eval-prefix [] (:eval handlers))
+           (POST uh/query-prefix [] (:query handlers))
+           (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (GET "/meta/:component" [] process-meta-request)
            (not-found "<p>Resource not found</p>"))
         r-with-cors

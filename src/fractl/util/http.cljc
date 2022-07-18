@@ -2,6 +2,7 @@
   (:require #?(:clj [org.httpkit.client :as http]
                :cljs [cljs-http.client :as http])
             #?(:clj [cheshire.core :as json])
+            [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.datafmt.transit :as t]
             #?(:cljs [cljs.core.async :refer [<!]]))
@@ -31,8 +32,22 @@
 (def content-type (partial get datafmt-content-types))
 
 (def entity-event-prefix "/_e/")
+(def login-prefix "/_login/")
+(def logout-prefix "/_logout/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
+(def callback-prefix "/_callback/")
+
+(defn- response-handler [callback response]
+  ((or callback identity)
+   (if (map? response)
+     (let [status (:status response)]
+       (if (< 199 status 299)
+         #?(:clj
+            ((decoder format) (:body response))
+            :cljs (:body response))
+         (u/throw-ex (str "remote resolver error - " response))))
+     response)))
 
 (defn do-post
   ([url options request-obj format response-handler]
@@ -45,3 +60,14 @@
                   (response-handler (<! (http/post url {k body}))))))))
   ([url options request-obj]
    (do-post url options request-obj :json identity)))
+
+(defn POST
+  ([url options request-obj format]
+   (do-post
+    url (dissoc options :callback)
+    request-obj format (partial response-handler (:callback options))))
+  ([url options request-obj]
+   (POST url options request-obj :transit+json)))
+
+(defn normalize-post-options [arg]
+  (if (fn? arg) {:callback arg} arg))

@@ -7,9 +7,9 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.seq :as su]
+            [fractl.util.http :as uh]
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
-            [fractl.resolver.remote :as rt]
             [fractl.policy.logging :as logging]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
@@ -252,9 +252,6 @@
 (defn global-dataflow-eval []
   (or (es/get-active-evaluator)
       (public-evaluator {} nil)))
-
-(defn remote-evaluate [host callback event-instance]
-  (rt/remote-eval host {:callback callback} event-instance))
 
 (defn ok-result
   ([result safe]

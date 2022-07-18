@@ -144,8 +144,8 @@
 (defn- eval-event-callback [event-name callback result]
   (callback (vu/eval-result result)))
 
-(defn- make-eval-success-callback [event-name]
-  (if (cn/authentication-event? event-name)
+(defn- make-eval-success-callback [event-name is-auth-event]
+  (if is-auth-event
     (fn [r]
       (if r
         (do
@@ -229,11 +229,12 @@
               {:on-click
                ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
                    (if (cn/event? rec-name)
-                     (vu/eval-event
-                      (partial
-                       eval-event-callback
-                       rec-name (make-eval-success-callback rec-name))
-                      inst)
+                     (let [is-auth-event (cn/authentication-event? rec-name)]
+                       (vu/eval-event
+                        (partial
+                         eval-event-callback
+                         rec-name (make-eval-success-callback rec-name is-auth-event))
+                        is-auth-event inst))
                      (vu/fire-upsert
                       rec-name inst (mt/upsert-event meta)
                       (partial upsert-callback rec-name))))}

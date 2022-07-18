@@ -1,5 +1,8 @@
 (ns fractl.auth
-  (:require [fractl.auth.keycloak]
+  (:require [fractl.component :as cn]
+            [fractl.lang.internal :as li]
+            [fractl.auth.keycloak]
+            [fractl.auth.model :as am]
             [fractl.resolver.registry :as rr]
             [fractl.resolver.authentication :as authn]))
 
