@@ -117,7 +117,7 @@
 (defn- remote-invoke-event [host callback is-auth-event event-instance]
   ((if is-auth-event
      ur/remote-login
-     ur/remote-evaluate)
+     ur/remote-eval)
    host callback event-instance))
 
 (defn eval-event
@@ -135,7 +135,7 @@
    (eval-event identity false false event-instance)))
 
 (defn eval-local-event [event-instance]
-  (eval-event identity true event-instance))
+  (eval-event identity true false event-instance))
 
 (defn- upsert-event-name [entity-name]
   (let [[c n] (li/split-path entity-name)

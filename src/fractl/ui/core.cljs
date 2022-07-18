@@ -13,6 +13,7 @@
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.config :as cfg]
+            [fractl.auth.model]
             ["@material-ui/core" :refer [Link]])
   (:import goog.history.Html5History)
   (:require-macros [secretary.core :refer [defroute]]))

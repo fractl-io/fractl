@@ -53,7 +53,7 @@
   ([host callback event-inst]
    (if (au/login-event-instance? event-inst)
      (remote-eval host uh/login-prefix callback event-inst)
-     (if-let [ord (cn/display-order event-inst)]
+     (if-let [ord (cn/display-order (cn/instance-type event-inst))]
        (remote-login host callback ((first ord) event-inst)
                      ((second ord) event-inst))
        (u/throw-ex

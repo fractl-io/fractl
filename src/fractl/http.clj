@@ -79,8 +79,8 @@
                  (String.
                   (.bytes body)
                   java.nio.charset.StandardCharsets/UTF_8)))
-          obj-name (or (cn/instance-type obj)
-                       (li/split-path
+          obj-name (li/split-path
+                    (or (cn/instance-type obj)
                         (u/string-as-keyword
                          (first (keys obj)))))]
       (if (or (not event-name) (= obj-name event-name))

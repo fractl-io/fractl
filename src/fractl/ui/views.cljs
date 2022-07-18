@@ -39,7 +39,7 @@
           (make-input-view target-info))
       (let [input-form-event
             (vu/make-render-event rec-name final-entity-spec tag)
-            r (vu/eval-event nil true input-form-event)
+            r (vu/eval-event nil true false input-form-event)
             v (first (vu/eval-result r))]
         (or (:View v)
             (do (println (str "input form generation failed. " r))
