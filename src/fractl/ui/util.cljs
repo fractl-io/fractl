@@ -14,7 +14,7 @@
             [fractl.ui.context :as ctx]))
 
 (def ^:private remote-api-host (atom nil))
-(def ^:private auth-rec-name (atom false))
+(def ^:private auth-event-name (atom false))
 (def ^:private home-links (atom []))
 (def ^:private ignore-in-home-links (atom []))
 
@@ -34,24 +34,24 @@
 
 (def ^:private auth-key "fractl-auth")
 
-(defn set-authorization-record-name! [n]
+(defn set-authentication-event-name! [n]
   (let [last-auth (js/parseInt (or (cookies/get auth-key) "0"))
         curr-millis (.now js/Date)]
     (when (>= (- curr-millis last-auth) (* (cfg/session-timeout-secs) 1000))
       (cookies/remove auth-key)
       (ctx/hard-reset-context!)
       (reset! view-stack [])
-      (reset! auth-rec-name n))))
+      (reset! auth-event-name n))))
 
-(defn authorized! []
+(defn authenticated! []
   (cookies/set auth-key (str (.now js/Date)))
-  (reset! auth-rec-name false))
+  (reset! auth-event-name false))
 
-(defn clear-authorization! []
+(defn clear-authentication! []
   (cookies/remove auth-key)
   (ctx/hard-reset-context!))
 
-(defn authorization-record-name [] @auth-rec-name)
+(defn authentication-event-name [] @auth-event-name)
 
 (defn clear-home-links! []
   (reset! ignore-in-home-links [])

@@ -145,11 +145,11 @@
   (callback (vu/eval-result result)))
 
 (defn- make-eval-success-callback [event-name]
-  (if (cfg/views-authorize? event-name)
+  (if (cn/authentication-event? event-name)
     (fn [r]
       (if r
         (do
-          (vu/authorized!)
+          (vu/authenticated!)
           (ctx/attach-to-context! (first r) true)
           (v/render-home-view))
         (do (v/render-home-view [:div "login failed"])

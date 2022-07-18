@@ -1337,6 +1337,10 @@
 (defn entity? [recname]
   (and (entity-schema recname) true))
 
+(defn authentication-event? [rec-name]
+  (and (event? rec-name)
+       (:authenticate (fetch-meta rec-name))))
+
 (def hashed-attribute? :secure-hash)
 
 (defn append-id [path]
