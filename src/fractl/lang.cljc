@@ -928,11 +928,6 @@
           :compose? false
           :paths [:Sns/Message]}]))))
 
-(defn kernel-auth-name? [n]
-  (= n [:Kernel :Authentication]))
-
-(def auth-owner :Owner)
-
 (defn init []
   (when-not (cn/kernel-inited?)
     (do-init-kernel)))

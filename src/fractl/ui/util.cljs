@@ -118,15 +118,13 @@
   ((if is-auth-event
      ur/remote-login
      ur/remote-eval)
-   host callback event-instance))
+   host {:callback callback :auth-token (ctx/auth-token)} event-instance))
 
 (defn eval-event
   ([callback eval-local is-auth-event event-instance]
-   (let [event-instance (assoc event-instance li/event-context
-                               (ctx/context-as-map))]
-     (if-let [host (and (not eval-local) @remote-api-host)]
-       (remote-invoke-event host callback is-auth-event event-instance)
-       ((or callback identity) ((ev/global-dataflow-eval) event-instance)))))
+   (if-let [host (and (not eval-local) @remote-api-host)]
+     (remote-invoke-event host callback is-auth-event event-instance)
+     ((or callback identity) ((ev/global-dataflow-eval) event-instance))))
   ([callback is-auth-event event-instance]
    (eval-event callback false is-auth-event event-instance))
   ([callback event-instance]

@@ -43,7 +43,7 @@
    (uh/POST (str host res)
             (uh/normalize-post-options arg) event-inst))
   ([host arg event-inst]
-   (remote-eval uh/dynamic-eval-prefix arg event-inst)))
+   (remote-eval host uh/dynamic-eval-prefix arg event-inst)))
 
 (defn remote-login
   ([host callback username password]

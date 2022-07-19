@@ -141,19 +141,19 @@
        [:div s])
       (u/throw-ex (str  s " - " result)))))
 
-(defn- eval-event-callback [event-name callback result]
-  (callback (vu/eval-result result)))
+(defn- eval-event-callback [is-auth-event event-name callback result]
+  (callback (if is-auth-event result (vu/eval-result result))))
 
 (defn- make-eval-success-callback [event-name is-auth-event]
   (if is-auth-event
     (fn [r]
-      (if r
-        (do
-          (vu/authenticated!)
-          (ctx/attach-to-context! (first r) true)
-          (v/render-home-view))
-        (do (v/render-home-view [:div "login failed"])
-            (u/throw-ex (str event-name " failed - " r)))))
+      (let [status (:status r) result (:body r)]
+        (if (= status 200)
+          (do (vu/authenticated!)
+              (ctx/attach-to-context! result true)
+              (v/render-home-view))
+          (do (v/render-home-view [:div "login failed"])
+              (u/throw-ex (str "login failed with status " status))))))
     (fn [r]
       (let [rs (mapv fetch-upsert-result-inst r)]
         (v/render-view
@@ -232,7 +232,7 @@
                      (let [is-auth-event (cn/authentication-event? rec-name)]
                        (vu/eval-event
                         (partial
-                         eval-event-callback
+                         eval-event-callback is-auth-event
                          rec-name (make-eval-success-callback rec-name is-auth-event))
                         is-auth-event inst))
                      (vu/fire-upsert

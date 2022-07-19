@@ -192,13 +192,15 @@
   (if-let [data-fmt (find-data-format request)]
     (let [[obj err] (event-from-request request au/parsed-login-event-name data-fmt nil)]
       (if err
-        (bad-request err data-fmt)
+        (do (log/warn (str "bad login request - " obj)) (bad-request err data-fmt))
         (try
-          (let [result (ai/user-login
+          (let [username (au/login-username obj)
+                result (ai/user-login
                         (assoc
                          auth-config
-                         :username (au/login-username obj)
+                         :username username
                          :password (au/login-password obj)))]
+            (log/info (str "login success for " username))
             (ok result data-fmt))
           (catch Exception ex
             (log/warn ex)

@@ -38,7 +38,7 @@
 (def dynamic-eval-prefix "/_dynamic/")
 (def callback-prefix "/_callback/")
 
-(defn- response-handler [callback response]
+(defn- response-handler [format callback response]
   ((or callback identity)
    (if (map? response)
      (let [status (:status response)]
@@ -49,15 +49,34 @@
          (u/throw-ex (str "remote resolver error - " response))))
      response)))
 
+(defn- fetch-auth-token [options]
+  (if-let [t (:auth-token options)]
+    [t (dissoc options :auth-token)]
+    [nil options]))
+
+#?(:cljs
+   (defn make-http-request [format body token]
+     (merge {format body}
+            (when token {:with-credentials? false
+                         :oauth-token token}))))
+
 (defn do-post
   ([url options request-obj format response-handler]
-   (let [headers (assoc (:headers options) "Content-Type" (content-type format))
-         options (assoc options :headers headers)
+   (let [[token options] (fetch-auth-token options)
          body ((encoder format) request-obj)]
-     #?(:clj (response-handler @(http/post url (assoc options :body body)))
+     #?(:clj
+        (let [headers (apply
+                       assoc
+                       (:headers options)
+                       "Content-Type" (content-type format)
+                       (when token
+                         ["Authorization" (str "Bearer " token)]))
+              options (assoc options :headers headers)]
+          (response-handler @(http/post url (assoc options :body body))))
         :cljs (go
                 (let [k (if (= format :transit+json) :transit-params :json-params)]
-                  (response-handler (<! (http/post url {k body}))))))))
+                  (response-handler
+                   (<! (http/post url (make-http-request k body token)))))))))
   ([url options request-obj]
    (do-post url options request-obj :json identity)))
 
@@ -65,7 +84,7 @@
   ([url options request-obj format]
    (do-post
     url (dissoc options :callback)
-    request-obj format (partial response-handler (:callback options))))
+    request-obj format (partial response-handler format (:callback options))))
   ([url options request-obj]
    (POST url options request-obj :transit+json)))
 
