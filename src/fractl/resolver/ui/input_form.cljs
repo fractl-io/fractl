@@ -213,10 +213,9 @@
         styles (cfg/views-styles rec-name)
         view
         `[:div {:class "view"}
-          [:div {:class "main"}
            [:> ~Card ~(style/input-form-card styles)
-            [:> ~CardContent
-             [:> ~Typography ~(style/input-form-title styles)
+            [:> ~CardContent {:style {:padding "20px" :text-align "center"}}
+             [:> ~Typography  ~(style/input-form-title styles)
               ~title][:br]
              ~@(render-attribute-specs
                 rec-name scm
@@ -226,7 +225,9 @@
                  (or embedded-inst [(:QueryBy instance) (:QueryValue instance)])
                  set-state-value! change-handler)
              [:> ~Button
-              {:on-click
+              {:variant "contained"
+                  :style {:margin-top "10px" :background "lightblue" }
+                :on-click
                ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
                    (if (cn/event? rec-name)
                      (vu/eval-event
@@ -239,10 +240,10 @@
                       (partial upsert-callback rec-name))))}
               ~(if embedded-inst "Save" (or (cfg/views-create-button-label rec-name) "Create"))]
              ~@(navigation-buttons rels rec-name)]
-            [:div "(* = required)"]
+            ;; [:div "(* = required)"]
             ~@(when embedded-inst
                 (v/make-list-refs-view rec-name embedded-inst meta))
-            ~(close-button)]]]]
+            ~(close-button)]]]
     (vu/finalize-view view instance)))
 
 (defn make [resolver-name]

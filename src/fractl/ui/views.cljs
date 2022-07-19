@@ -70,8 +70,10 @@
   (if-let [auth-rec-name (vu/authorization-record-name)]
     [:div {:id main-view-id} (make-input-view auth-rec-name)]
     (let [dv (make-dashboard-view dashboard-entity)]
-      `[:div [:a {:href "#"} [:h1 ~title]]
-        ~@(vu/fetch-home-links)
+      `[:div {:style {:background "pink"}}
+        [:div {:id "navbar" :style {:background "lightblue" :padding "20px" :display "flex" :justify-content "space-between"}}
+         [:a {:href "#" } [:h1 {:style {:display "inline" :margin-right "0.5rem"}} ~title]]
+         [:div ~@(vu/fetch-home-links)]]
         [:div {:id ~main-view-id}
          [:div ~dv]]])))
 

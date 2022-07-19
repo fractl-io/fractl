@@ -5,11 +5,11 @@
    {:instance
     {:card {:style {:min-width 275}}
      :title {:variant "h5" :component "div"}
-     :entry {:style {:font-size 14}
+     :entry {:style {:font-size 20}
              :color "text.secondary"}}
     :input-form
-    {:card {:variant "outlined"}
-     :title {:gutterBottom true :variant "h5" :component "div"}}}))
+    {:card {:variant "" :padding "20px" }
+     :title {:gutterBottom true :variant "h5" :component "div" :style {:text-align "center"}}}}))
 
 (defn set-user-style! [path style]
   (swap! styles-db assoc-in path style))

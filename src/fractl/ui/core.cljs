@@ -31,6 +31,7 @@
      [:> Link
       {:component "button"
        :variant "body2"
+       :style {:margin-right "0.5rem" }
        :on-click #(do (when is-auth-rec
                         (vu/clear-authorization!))
                       (if (cn/event? rec-name)
@@ -40,43 +41,44 @@
                          (v/make-dashboard-view rec-name))))}
       (str (if is-auth-rec
              "Logout"
-             (name n))
-           " | ")]]))
+             (name n)))]]))
 
 (defn- app-routes [config]
   (secretary/set-config! :prefix vu/link-prefix)
   (vu/clear-home-links!)
-  (loop [ens (cn/displayable-record-names (cfg/component config))]
-    (if-let [en (first ens)]
-      (let [[_ n] (li/split-path en)
-            schema (cn/entity-schema en)
-            meta (cn/fetch-meta en)]
-        (defroute (vu/make-dashboard-route n) []
-          (v/render-main-view
-           (v/make-dashboard-view en)))
-        (defroute (vu/make-list-view-route n) []
-          (v/render-main-view
-           (v/make-list-view en)))
-        (doseq [uq (cn/unique-attributes schema)]
-          (defroute (vu/make-instance-view-route n uq) {:as params}
-            (v/render-main-view
-             (v/make-instance-view [en uq (:s params)]))))
-        (doseq [cnt (mt/contains meta)]
-          (let [[_ cn :as sn] (li/split-path cnt)]
-            (defroute (vu/make-contains-route n cn) {:as params}
-              (v/render-main-view
-               (v/make-list-view
-                (vu/make-multi-arg-query-event-spec
-                 sn [n (:id1 params) cn (:id2 params)]))))))
-        (when (cfg/views-authorize? en)
-          (vu/set-authorization-record-name! en))
-        (when-let [cns (seq (mt/contains meta))]
-          (vu/ignore-in-home-links! cns))
-        (vu/attach-home-link! (make-home-link en n))
-        (recur (rest ens)))
-      (defroute "/" []
-        (v/render-home-view
-         "Home Page" (cfg/dashboard config)))))
+  [:div {:style {:color "red"}}
+   (loop [ens (cn/displayable-record-names (cfg/component config))]
+     (if-let [en (first ens)]
+       (let [[_ n] (li/split-path en)
+             schema (cn/entity-schema en)
+             meta (cn/fetch-meta en)]
+         (defroute (vu/make-dashboard-route n) []
+           (v/render-main-view
+            (v/make-dashboard-view en)))
+         (defroute (vu/make-list-view-route n) []
+           (v/render-main-view
+            (v/make-list-view en)))
+         (doseq [uq (cn/unique-attributes schema)]
+           (defroute (vu/make-instance-view-route n uq) {:as params}
+             (v/render-main-view
+              (v/make-instance-view [en uq (:s params)]))))
+         (doseq [cnt (mt/contains meta)]
+           (let [[_ cn :as sn] (li/split-path cnt)]
+             (defroute (vu/make-contains-route n cn) {:as params}
+               (v/render-main-view
+                (v/make-list-view
+                 (vu/make-multi-arg-query-event-spec
+                  sn [n (:id1 params) cn (:id2 params)]))))))
+         (when (cfg/views-authorize? en)
+           (vu/set-authorization-record-name! en))
+         (when-let [cns (seq (mt/contains meta))]
+           (vu/ignore-in-home-links! cns))
+         (vu/attach-home-link! (make-home-link en n))
+         (recur (rest ens)))
+       (defroute "/" []
+         (v/render-home-view
+          "Home Page" (cfg/dashboard config)))))]
+
   (hook-browser-navigation!))
 
 (defn- process-post-init-result [r]

@@ -18,9 +18,10 @@
 
 (defn- delete-instance-button [rec-name id]
   [:> TableCell
-   [:> Link
+   [:> Button
     {:component "button"
-     :variant "body2"
+     :variant "contained"
+      :style {:backgroud-color "#800000"}
      :on-click
      #(vu/fire-delete-instance
        rec-name id
