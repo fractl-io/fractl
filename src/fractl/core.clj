@@ -55,7 +55,7 @@
    #(loader/load-script
      model-root
      (if load-from-resource
-       (io/resource (str "model/" %))
+       (io/resource (str "model/" model-root "/" %))
        %))
    component-scripts))
 
@@ -64,8 +64,15 @@
    (mapv script-name-from-component-name (:components model))
    model-root load-from-resource))
 
+(defn- read-model-expressions [model-file]
+  (try
+    (binding [*ns* *ns*]
+      (last (loader/read-expressions model-file nil)))
+    (catch Exception ex
+      (.printStackTrace ex))))
+
 (defn read-model [model-file]
-  (let [model (last (loader/read-expressions model-file))
+  (let [model (read-model-expressions model-file)
         root (java.io.File. (.getParent (java.io.File. model-file)))]
     [model (str root)]))
 
@@ -82,15 +89,15 @@
               model-paths))))))
 
 (defn load-model [model model-root model-paths config]
-  (let [nm (s/lower-case (name (:name model)))
-        model-paths (find-model-paths model model-paths config)
-        rmp (partial read-model-from-paths model-paths)]
-    (doseq [d (:dependencies model)]
-      (let [[m mr] (rmp d)]
-        (load-model m mr model-paths config)))
-    (load-components-from-model
-     model model-root
-     (:load-model-from-resource config))))
+  (when-let [deps (:dependencies model)]
+    (let [model-paths (find-model-paths model model-paths config)
+          rmp (partial read-model-from-paths model-paths)]
+      (doseq [d deps]
+        (let [[m mr] (rmp d)]
+          (load-model m mr model-paths config)))))
+  (load-components-from-model
+   model model-root
+   (:load-model-from-resource config)))
 
 (defn- log-seq! [prefix xs]
   (loop [xs xs, sep "", s (str prefix " - ")]
@@ -180,16 +187,20 @@
       [m (merge (:config model) config)])))
 
 (defn- read-model-from-resource [component-root]
-  (if-let [model (read-string
-                  (slurp
+  (let [^String s (slurp
                    (io/resource
-                    (str "model/" component-root "/" (u/get-model-script-name)))))]
-    model
-    (u/throw-ex (str "failed to load model from " component-root))))
+                    (str "model/" component-root "/" (u/get-model-script-name))))]
+    (if-let [model (read-model-expressions (io/input-stream (.getBytes s)))]
+      model
+      (u/throw-ex (str "failed to load model from " component-root)))))
+
+(def ^:private resource-cache (atom nil))
 
 (defn load-model-from-resource []
   (when-let [cfgres (io/resource "config.edn")]
     (let [config (read-string (slurp cfgres))]
+      (when-let [extn (:script-extn config)]
+        (u/set-script-extn! extn))
       (if-let [component-root (:component-root config)]
         (let [model (read-model-from-resource component-root)
               config (merge (:config model) config)
@@ -198,7 +209,8 @@
                           (assoc config :load-model-from-resource true))]
           (when (seq components)
             (log-seq! "Components loaded from resources" components)
-            [config model components]))
+            (let [r [config model components]]
+              (reset! resource-cache r) r)))
         (u/throw-ex "component-root not defined in config")))))
 
 (defn initialize []
@@ -224,12 +236,14 @@
   (let [e (or evaluator
               (do
                 (initialize)
-                (let [[config model components] (load-model-from-resource)]
+                (let [[config model components]
+                      (or @resource-cache (load-model-from-resource))]
                   (when-not (seq components)
                     (u/throw-ex (str "no components loaded from model " model)))
                   (first (init-runtime model components config)))))
-        parsed-request (normalize-external-request request)]
-    [(json/generate-string (h/process-request e parsed-request)) e]))
+        parsed-request (normalize-external-request request)
+        auth (h/make-auth-handler (first @resource-cache))]
+    [(json/generate-string (h/process-request e auth parsed-request)) e]))
 
 (defn -process_request [a b]
   (process_request a b))
