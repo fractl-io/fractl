@@ -66,16 +66,27 @@
   (vu/reset-page-state!)
   (render-view view-spec))
 
+
 (defn- make-home-view [title dashboard-entity]
   (if-let [auth-rec-name (vu/authorization-record-name)]
     [:div {:id main-view-id} (make-input-view auth-rec-name)]
     (let [dv (make-dashboard-view dashboard-entity)]
-      `[:div {:style {:background "pink"}}
-        [:div {:id "navbar" :style {:background "lightblue" :padding "20px" :display "flex" :justify-content "space-between"}}
-         [:a {:href "#" } [:h1 {:style {:display "inline" :margin-right "0.5rem"}} ~title]]
+      `[:div {:style {:display "flex"}}
+        [:div {:id "sidebar" :style {:background "#111827 
+        " :padding-left "20px" :padding-top "50px" :padding-right "50px" :height "100vh" :flex "1"}}
+         [:div {:style {:background "rgba(255, 255, 255, 0.04)" :padding-left "24px" :padding-top "20px" :padding-bottom "20px" :border-radius "8px" :color "white"}}
+           "Fractl Inc" ]
+         [:a {:href "#"} [:h3
+                          {:style {:padding-left "20px"
+                            :margin-top "10px"
+                                  :display "white"
+                                   :color "lightgrey"
+                                   :text-decoration "none"}} ~title]]
          [:div ~@(vu/fetch-home-links)]]
-        [:div {:id ~main-view-id}
-         [:div ~dv]]])))
+         [:div {:id ~main-view-id :style {:flex "8"}}
+         [:div ~dv]]
+        
+         ])))
 
 (defn render-home-view
   ([spec]

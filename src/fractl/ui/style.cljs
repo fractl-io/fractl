@@ -2,13 +2,16 @@
 
 (def ^:private styles-db
   (atom
+   {:table {
+    :head-row {:style {:background "rgb(17, 24, 39)" :border-radius "8px"}}
+   }}
    {:instance
     {:card {:style {:min-width 275}}
      :title {:variant "h5" :component "div"}
      :entry {:style {:font-size 20}
              :color "text.secondary"}}
     :input-form
-    {:card {:variant "" :padding "20px" }
+    {:card {:variant "" :padding "20px" :style {:margin-top "20px" :background "lightgrey"  :width "400px"} }
      :title {:gutterBottom true :variant "h5" :component "div" :style {:text-align "center"}}}}))
 
 (defn set-user-style! [path style]

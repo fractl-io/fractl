@@ -213,7 +213,7 @@
         styles (cfg/views-styles rec-name)
         view
         `[:div {:class "view"}
-           [:> ~Card ~(style/input-form-card styles)
+           [:> ~Card ~(style/input-form-card styles) 
             [:> ~CardContent {:style {:padding "20px" :text-align "center"}}
              [:> ~Typography  ~(style/input-form-title styles)
               ~title][:br]
@@ -226,7 +226,7 @@
                  set-state-value! change-handler)
              [:> ~Button
               {:variant "contained"
-                  :style {:margin-top "10px" :background "lightblue" }
+                  :style {:margin-top "10px" :background "#5048E5" :color "white" }
                 :on-click
                ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
                    (if (cn/event? rec-name)

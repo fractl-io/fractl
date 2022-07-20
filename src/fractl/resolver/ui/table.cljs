@@ -11,7 +11,7 @@
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
             ["@material-ui/core"
-             :refer [Link Button
+             :refer [Link Button Paper
                      TableContainer Table
                      TableRow TableHead
                      TableBody TableCell]]))
@@ -89,10 +89,10 @@
                        (mkbtn "Next" (inc offset)))
             back-btn (when (and offset (> offset 0))
                        (mkbtn "Prev" (dec offset)))]
-        `[:div
-          [:> ~TableContainer
+        `[:div {:style { :width "1200px" :overflow-x "auto" }}
+          [:> ~TableContainer {:component "Paper"  }
            [:> ~Table ~(style/table styles)
-            [:> ~TableHead ~(style/table-head styles)
+            [:> ~TableHead ~(style/table-head styles) 
              [:> ~TableRow ~(style/table-head-row styles)
               ~@headers]]
             [:> ~TableBody ~(style/table-body styles)
@@ -134,11 +134,13 @@
                            (cn/make-instance
                             (u/string-as-keyword src)
                             {}))
-            table-view [:div [:div {:id id}]
+            table-view [:div [:div {:id id :style {:padding "20px" :display "flex" :justify-content "center"}}
+            ]
                         (when (and (= :Dashboard (second (li/split-path (cn/instance-type instance))))
                                    (not= (cfg :create-new-button) :none))
                           [:> Button
-                           {:on-click #(v/render-view
+                           {:style {:background "rgb(17, 24, 39)" :color "white"}
+                            :on-click #(v/render-view
                                         (v/make-input-view rec-name))}
                            (str "Create New " (name n))])]
             data-refresh!
