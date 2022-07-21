@@ -78,6 +78,7 @@
           :background "rgba(255, 255, 255, 0.04)" 
           :padding-left "24px" 
           :padding-top "20px" 
+          :font-size "20px"
           :padding-bottom "20px"
           :margin-top "50px" 
           :border-radius "8px" 

@@ -32,7 +32,6 @@
       [:> Link
        {:component "button"
         :variant "body2"
-        :class {:hover {:background-color "red"}}
         :style {:color "white" :padding-left "20px"}
         :on-click #(do (when is-auth-rec
                          (vu/clear-authorization!))

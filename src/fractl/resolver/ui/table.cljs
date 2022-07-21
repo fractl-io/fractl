@@ -21,7 +21,7 @@
    [:> Button
     {:component "button"
      :variant "contained"
-      :style {:backgroud-color "#800000"}
+      :style {:backgroud "#800000"}
      :on-click
      #(vu/fire-delete-instance
        rec-name id
