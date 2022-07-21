@@ -13,3 +13,11 @@ E.g:
  mvn clean package
  mvn azure-functions:run
 ```
+
+Deploy
+======
+
+```shell
+ az login
+ mvn azure-functions:deploy
+```
