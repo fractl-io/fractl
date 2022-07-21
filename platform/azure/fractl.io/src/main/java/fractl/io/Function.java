@@ -21,11 +21,10 @@ public class Function {
 
     static private AtomicReference evaluator = new AtomicReference();
     /**
-     * This function listens at endpoint "/api/HttpExample". Two ways to invoke it using "curl" command in bash:
-     * 1. curl -d "HTTP Body" {your host}/api/HttpExample
-     * 2. curl "{your host}/api/HttpExample?name=HTTP%20Query"
+     * This function listens at endpoint "/api/fractl". Two ways to invoke it using "curl" command in bash:
+     *   curl -d "HTTP Body" {your host}/api/fractl
      */
-    @FunctionName("HttpExample")
+    @FunctionName("fractl")
     public HttpResponseMessage run(
             @HttpTrigger(
                 name = "req",
