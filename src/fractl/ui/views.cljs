@@ -73,8 +73,15 @@
     (let [dv (make-dashboard-view dashboard-entity)]
       `[:div {:style {:display "flex"}}
         [:div {:id "sidebar" :style {:background "#111827 
-        " :padding-left "20px" :padding-top "50px" :padding-right "50px" :height "100vh" :flex "1"}}
-         [:div {:style {:background "rgba(255, 255, 255, 0.04)" :padding-left "24px" :padding-top "20px" :padding-bottom "20px" :border-radius "8px" :color "white"}}
+        " :padding-left "20px"  :padding-right "50px" :height "100vh" :flex "1"}} 
+        [:div {:style {
+          :background "rgba(255, 255, 255, 0.04)" 
+          :padding-left "24px" 
+          :padding-top "20px" 
+          :padding-bottom "20px"
+          :margin-top "50px" 
+          :border-radius "8px" 
+          :color "white"}}
            "Fractl Inc" ]
          [:a {:href "#"} [:h3
                           {:style {:padding-left "20px"

@@ -13,8 +13,7 @@
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.config :as cfg]
-            ["@material-ui/core" :refer [Link]]
-            ["@material-ui/icons" :refer [LineStyle]])
+            ["@material-ui/core" :refer [Link]])
   (:import goog.history.Html5History)
   (:require-macros [secretary.core :refer [defroute]]))
 
@@ -29,24 +28,23 @@
 (defn make-home-link [rec-name n]
   (let [is-auth-rec (cfg/views-authorize? rec-name)]
     [rec-name
-    [:div {:style {:display "flex" :align-items "center" :margin-top "10px" :margin-bottom "10px"  }}
-    ;; [:> LineStyle] 
-    [:> Link
-      {:component "button"
-       :variant "body2"
+     [:div {:style {:display "flex" :align-items "center" :margin-top "10px" :margin-bottom "10px"}}
+      [:> Link
+       {:component "button"
+        :variant "body2"
         :class {:hover {:background-color "red"}}
-       :style {:color "white" :padding-left "20px"}
-       :on-click #(do (when is-auth-rec
-                        (vu/clear-authorization!))
-                      (if (cn/event? rec-name)
-                        (v/render-view
-                         (v/make-input-view rec-name))
-                        (v/render-main-view
-                         (v/make-dashboard-view rec-name))))}
-       
-      (str (if is-auth-rec
-             "Logout"
-             (name n)))]]]))
+        :style {:color "white" :padding-left "20px"}
+        :on-click #(do (when is-auth-rec
+                         (vu/clear-authorization!))
+                       (if (cn/event? rec-name)
+                         (v/render-view
+                          (v/make-input-view rec-name))
+                         (v/render-main-view
+                          (v/make-dashboard-view rec-name))))}
+
+       (str (if is-auth-rec
+              "Logout"
+              (name n)))]]]))
 
 (defn- app-routes [config]
   (secretary/set-config! :prefix vu/link-prefix)

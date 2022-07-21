@@ -89,8 +89,8 @@
                        (mkbtn "Next" (inc offset)))
             back-btn (when (and offset (> offset 0))
                        (mkbtn "Prev" (dec offset)))]
-        `[:div {:style { :width "1200px" :overflow-x "auto" }}
-          [:> ~TableContainer {:component "Paper"  }
+        `[:div {:style { :width "1200px" :overflow-x "auto" :height "800px"}}
+          [:> ~TableContainer {:component "Paper" }
            [:> ~Table ~(style/table styles)
             [:> ~TableHead ~(style/table-head styles) 
              [:> ~TableRow ~(style/table-head-row styles)
@@ -134,7 +134,7 @@
                            (cn/make-instance
                             (u/string-as-keyword src)
                             {}))
-            table-view [:div [:div {:id id :style {:padding "20px" :display "flex" :justify-content "center"}}
+            table-view [:div {:style {:text-align "center"}} [:div {:id id :style {:padding "20px" :display "flex" :justify-content "center"}}
             ]
                         (when (and (= :Dashboard (second (li/split-path (cn/instance-type instance))))
                                    (not= (cfg :create-new-button) :none))
