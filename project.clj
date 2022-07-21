@@ -99,5 +99,5 @@
                               "fig:ci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.test-runner"]
                               "fig:rci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.reagent-test-runner"]}
                    :clean-targets  ^{:protect false} ["target" "out"]}
-             :aws-lambda {:javac-options ["-target" "11" "-source" "11" "-Xlint:-options"]
+             :with-model {:javac-options ["-target" "11" "-source" "11" "-Xlint:-options"]
                           :resource-paths ["app"]}})

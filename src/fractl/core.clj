@@ -222,7 +222,9 @@
 (defn- attach-params [request]
   (if (:params request)
     request
-    (let [inst (json/parse-string (:body request) true)
+    (let [inst (if-let [b (:body request)]
+                 (json/parse-string b true)
+                 request)
           [c n] (li/split-path (first (keys inst)))]
       (assoc request :body inst :params {:component c :event n}))))
 
