@@ -2,9 +2,7 @@
 
 (def ^:private styles-db
   (atom
-   {:table {
-    :head-row {:style {:background "rgb(17, 24, 39)" :border-radius "8px"}}
-   }}
+   
    {:instance
     {:card {:style {:min-width 275}}
      :title {:variant "h5" :component "div"}

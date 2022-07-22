@@ -28,22 +28,18 @@
 (defn make-home-link [rec-name n]
   (let [is-auth-rec (cfg/views-authorize? rec-name)]
     [rec-name
-     [:div {:style {:display "flex" :align-items "center" :margin-top "10px" :margin-bottom "10px"}}
-      [:> Link
-       {:component "button"
-        :variant "body2"
-        :style {:color "white" :padding-left "20px"}
-        :on-click #(do (when is-auth-rec
-                         (vu/clear-authorization!))
-                       (if (cn/event? rec-name)
-                         (v/render-view
-                          (v/make-input-view rec-name))
-                         (v/render-main-view
-                          (v/make-dashboard-view rec-name))))}
+     [:li [:a
+           {:on-click #(do (when is-auth-rec
+                             (vu/clear-authorization!))
+                           (if (cn/event? rec-name)
+                             (v/render-view
+                              (v/make-input-view rec-name))
+                             (v/render-main-view
+                              (v/make-dashboard-view rec-name))))}
 
-       (str (if is-auth-rec
-              "Logout"
-              (name n)))]]]))
+           (str (if is-auth-rec
+                  "Logout"
+                  (name n)))]]]))
 
 (defn- app-routes [config]
   (secretary/set-config! :prefix vu/link-prefix)
