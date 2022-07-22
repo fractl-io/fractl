@@ -188,12 +188,13 @@
 (defn- validate-inst-state [inst-state schema]
   (let [anames (cn/attribute-names schema)]
     (doseq [n anames]
-      (let [ascm (cn/find-attribute-schema (n schema))]
-        (when-not (:optional ascm)
-          (when-not (seq (n inst-state))
-            (let [msg (str (name n) " is required")]
-              (js/alert msg)
-              (u/throw-ex msg))))))
+      (when (not= n cn/id-attr)
+        (let [ascm (cn/find-attribute-schema (n schema))]
+          (when-not (:optional ascm)
+            (when-not (seq (n inst-state))
+              (let [msg (str (name n) " is required")]
+                (js/alert msg)
+                (u/throw-ex msg)))))))
     inst-state))
 
 (defn upsert-ui [instance]

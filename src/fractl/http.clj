@@ -236,20 +236,17 @@
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (GET "/meta/:component" [] process-meta-request)
            (not-found "<p>Resource not found</p>"))
-        r-with-cors
-        (cors/wrap-cors
-         r
-         :access-control-allow-origin [#".*"]
-         :access-control-allow-headers ["Content-Type"]
-         :access-control-allow-credentials true
-         :access-control-allow-methods [:post])]
-    (if auth-config
-      (-> r-with-cors
-          (wrap-authentication
-           (buddy-back/token
-            {:authfn (ai/make-authfn auth-config)
-             :token-name "Bearer"})))
-      r-with-cors)))
+        r-with-auth (if auth-config
+                      (wrap-authentication
+                       r (buddy-back/token
+                          {:authfn (ai/make-authfn auth-config)
+                           :token-name "Bearer"}))
+                      r)]
+    (cors/wrap-cors
+     r-with-auth
+     :access-control-allow-origin [#".*"]
+     :access-control-allow-credentials true
+     :access-control-allow-methods [:post])))
 
 (defn- handle-request-auth [request]
   (try
