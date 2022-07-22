@@ -21,7 +21,7 @@
    [:> Button
     {:component "button"
      :variant "contained"
-      :style {:background "#800000" :color "white"}
+     :style {:background "#800000" :color "white"}
      :on-click
      #(vu/fire-delete-instance
        rec-name id
@@ -73,7 +73,7 @@
       (let [rec-name (cn/instance-type (first rows))
             styles (cfg/views-styles rec-name)
             table-head-cell-style (style/table-head-cell styles)
-            headers (mapv (fn [f] [:> TableCell table-head-cell-style (name f)]) fields)
+            headers (mapv (fn [f] [:> TableCell {:style {:text-transform "uppercase" :text-align (when (= f "Delete") "center")}}  (name f)]) (conj fields "Delete"))
             n (name (second (li/split-path rec-name)))
             r (partial render-instance (style/table-body-cell styles) fields rec-name)
             table-body-row-style (style/table-body-row styles)
@@ -89,14 +89,14 @@
                        (mkbtn "Next" (inc offset)))
             back-btn (when (and offset (> offset 0))
                        (mkbtn "Prev" (dec offset)))]
-        `[:div {:style { :width "1200px" :overflow-x "auto" :height "750px"}}
-          [:> ~TableContainer { :sx {:background-color "white"} }
-           [:> ~Table 
-            [:> ~TableHead 
-             [:> ~TableRow 
-              ~@headers]]
-            [:> ~TableBody ~(style/table-body styles)
-             ~@table-rows]]]
+        `[:div {:style {:width "1200px" :overflow-x "auto" :height "750px" :text-align "center"}}
+          [:> ~Paper  [:> ~TableContainer
+                       [:> ~Table
+                        [:> ~TableHead
+                         [:> ~TableRow 
+                          ~@headers]]
+                        [:> ~TableBody 
+                         ~@table-rows]]]]
           [:div ~back-btn ~next-btn]])
       [:div "no data"])))
 
@@ -134,12 +134,11 @@
                            (cn/make-instance
                             (u/string-as-keyword src)
                             {}))
-            table-view [:div {:style {:text-align "center"}} [:div {:id id :style {:padding "30px 0px" :display "flex" :justify-content "center"}}
-            ]
+            table-view [:div {:style {:text-align "center"}} [:div {:id id :style {:padding "30px 0px" :display "flex" :justify-content "center"}}]
                         (when (and (= :Dashboard (second (li/split-path (cn/instance-type instance))))
                                    (not= (cfg :create-new-button) :none))
                           [:> Button
-                           {:style {:background "rgb(17, 24, 39)" :color "white" }
+                           {:style {:background "#24252a" :color "white"}
                             :on-click #(v/render-view
                                         (v/make-input-view rec-name))}
                            (str "Create New " (name n))])]

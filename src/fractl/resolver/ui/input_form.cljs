@@ -226,7 +226,7 @@
                  set-state-value! change-handler)
              [:> ~Button
               {:variant "contained"
-                  :style {:margin-top "10px" :background "#55adde" :color "white"  }
+                  :style {:margin-top "10px" :background "#24252a" :color "white"  }
                 :on-click
                ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
                    (if (cn/event? rec-name)

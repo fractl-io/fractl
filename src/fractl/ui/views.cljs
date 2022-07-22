@@ -8,6 +8,7 @@
             [fractl.ui.config :as cfg]
             [fractl.ui.util :as vu]
             [fractl.ui.context :as ctx]
+            ["@material-ui/icons" :refer [DensityMediumIcon]]
             ["@material-ui/core"
              :refer [Button]]))
 
@@ -71,13 +72,14 @@
     [:div {:id main-view-id} (make-input-view auth-rec-name)]
     (let [dv (make-dashboard-view dashboard-entity)]
       `[:div
-        [:header [:div {:class "logo"} "Fractl"]
-         [:nav
-          [:ul {:class "nav__links"}
-           [:li [:a {:href "#"} ~title]]
-           ~@(vu/fetch-home-links)]]]
-          
-        
+        [:nav
+         [:input {:type "checkbox" :id "check"}]
+         [:label  {:for "check" :class "checkbtn"} "Show"]
+         [:label {:class "logo"} "Fractl"]
+         [:ul {:class "nav__links"}
+          [:li [:a {:href "#"} ~title]]
+          ~@(vu/fetch-home-links)]]
+
         [:div {:id ~main-view-id}
          [:div ~dv]]])))
 
