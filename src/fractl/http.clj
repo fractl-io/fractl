@@ -111,8 +111,8 @@
   (let [ct (request-content-type request)]
     (uh/content-types ct)))
 
-(defn- process-dynamic-eval [evaluator [auth-config handle-unauth] event-name request]
-  (or (handle-unauth request)
+(defn- process-dynamic-eval [evaluator [auth-config maybe-unauth] event-name request]
+  (or (maybe-unauth request)
       (if-let [data-fmt (find-data-format request)]
         (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
           (if err
@@ -131,8 +131,8 @@
   (mapv (fn [n] {n (cn/entity-schema n)})
         (cn/entity-names component)))
 
-(defn- process-meta-request [handle-unauth request]
-  (or (handle-unauth request)
+(defn- process-meta-request [maybe-unauth request]
+  (or (maybe-unauth request)
       (let [c (keyword (get-in request [:params :component]))]
         (ok {:paths (paths-info c) :schemas (schemas-info c)}))))
 
@@ -180,8 +180,8 @@
       (ok (first result) data-fmt))
     (bad-request (str "not a valid query request - " request-obj))))
 
-(defn- process-query [_ [_ handle-unauth] query-fn request]
-  (or (handle-unauth request)
+(defn- process-query [_ [_ maybe-unauth] query-fn request]
+  (or (maybe-unauth request)
       (try
         (if-let [data-fmt (find-data-format request)]
           (do-query
@@ -270,11 +270,14 @@
 (defn- auth-service-supported? [auth]
   (= (:service auth) :keycloak))
 
+(defn make-auth-handler [config]
+  (let [auth (:authentication config)
+        auth-check (if auth handle-request-auth (constantly false))]
+    [auth auth-check]))
+
 (defn run-server
   ([[evaluator query-fn] config]
-   (let [auth (:authentication config)
-         auth-check (if auth handle-request-auth (constantly false))
-         auth-info [auth auth-check]]
+   (let [[auth _ :as auth-info] (make-auth-handler config)]
      (if (or (not auth) (auth-service-supported? auth))
        (h/run-server
         (make-routes

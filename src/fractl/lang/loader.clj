@@ -45,7 +45,9 @@
                     (FileInputStream. file-name-or-input-stream)
                     (io/input-stream file-name-or-input-stream))))
          rdf #(read reader nil :done)
-         fqn (partial nu/fully-qualified-names declared-names)]
+         fqn (if declared-names
+               (partial nu/fully-qualified-names declared-names)
+               identity)]
      (try
        (loop [exp (rdf), exps nil]
          (if (= exp :done)
