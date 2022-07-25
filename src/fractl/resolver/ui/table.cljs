@@ -93,9 +93,9 @@
           [:> ~Paper  [:> ~TableContainer
                        [:> ~Table
                         [:> ~TableHead
-                         [:> ~TableRow 
+                         [:> ~TableRow
                           ~@headers]]
-                        [:> ~TableBody 
+                        [:> ~TableBody
                          ~@table-rows]]]]
           [:div ~back-btn ~next-btn]])
       [:div "no data"])))
@@ -122,10 +122,11 @@
         id (str n "-table-view")
         cfg (partial get-config rec-name)
         fields (or
-                (cfg :order)
-                (mapv u/string-as-keyword (:Fields instance)))
+                 (cfg :order)
+                (mapv u/string-as-keyword (:list (:Fields instance))))
         src (:Source instance)
         rows-per-page (cfg :rows-per-page)]
+      (js/console.log (clj->js (:list (:Fields instance))))
     (if (vector? src)
       [:div (make-rows-view (paginate src rows-per-page) fields id)]
       (let [has-source-event (map? src)

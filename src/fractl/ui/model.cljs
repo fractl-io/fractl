@@ -9,7 +9,7 @@
 
 (def ^:private display-inst-attrs
   {:Record :Kernel/Path
-   :Fields {:check fields?}
+   :Fields {:type :Kernel/Any}
    :View {:type :Kernel/Any
           :optional true}
    :Instance {:type :Kernel/Any
@@ -25,7 +25,7 @@
 (def ^:private list-attrs
   {:Record :Kernel/Path
    :Source :Kernel/Any
-   :Fields {:check fields?}
+   :Fields {:type :Kernel/Any}
    :View {:type :Kernel/Any
           :optional true}})
 
@@ -62,7 +62,8 @@
  {:Fractl.UI/Dashboard
   {:Record :Fractl.UI/RenderGenericDashboard.Record
    :Source :Fractl.UI/RenderGenericDashboard.Source
-   :Fields :Fractl.UI/RenderGenericDashboard.Fields}})
+   :Fields :Fractl.UI/RenderGenericDashboard.Fields
+   }})
 
 (entity
  :Fractl.UI/Application

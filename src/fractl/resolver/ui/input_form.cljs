@@ -221,7 +221,7 @@
                 rec-name scm
                  (mapv
                   u/string-as-keyword
-                  (:Fields instance))
+                  (:input-form (:Fields instance)))
                  (or embedded-inst [(:QueryBy instance) (:QueryValue instance)])
                  set-state-value! change-handler)
              [:> ~Button

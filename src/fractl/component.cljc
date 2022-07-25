@@ -495,7 +495,7 @@
   ex-info and raise it as an exception."
   ([msg attributes]
    (u/throw-ex-info (str "component/error: " msg)
-                       {:error (make-error msg attributes)}))
+                    {:error (make-error msg attributes)}))
   ([msg] (throw-error msg nil)))
 
 (defn- check-attribute-names [recname schema attributes]
@@ -581,7 +581,7 @@
         (valid-attribute-value
          attr-name (check-format ascm attr-name obj)
          (merge-attr-schema attr-scm ascm))
-      (throw-error (str "no schema defined for " tp))))))
+        (throw-error (str "no schema defined for " tp))))))
 
 (defn valid-attribute-value
   "Check against the attribute schema, if the provided value (v)
@@ -871,7 +871,7 @@
            currpats (get-in ms path [])
            newpats (conj currpats [event {:head head
                                           :event-pattern event
-                                         :patterns patterns
+                                          :patterns patterns
                                           :opcode (u/make-cell nil)}])]
        (assoc-in ms path newpats)))
    event)
@@ -1187,11 +1187,11 @@
        trigger-store
        (let [trigs (get ts rn)
              rs (set (map li/split-path records-to-load))]
-           (assoc
-            ts rn
-            (conj
-             trigs
-             [predicate event-name [where-clause rs]]))))))
+         (assoc
+          ts rn
+          (conj
+           trigs
+           [predicate event-name [where-clause rs]]))))))
   (u/call-and-set
    trigger-store
    #(assoc
