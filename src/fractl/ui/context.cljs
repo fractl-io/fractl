@@ -4,13 +4,6 @@
             [fractl.lang :as l]
             [fractl.lang.internal :as li]))
 
-(defn- owner
-  ([k obj]
-   (when (l/kernel-auth-name? k)
-     (l/auth-owner obj)))
-  ([obj]
-   (owner (li/split-path (cn/instance-type obj)) obj)))
-
 (def ^:private db-key "fractl-ui-context")
 (def ^:private has-local-storage (.-localStorage js/window))
 
@@ -27,25 +20,30 @@
     (.setItem (.-localStorage js/window) db-key (str db))
     (cookies/set db-key (str db))))
 
-(defn- assoc-to-context [db obj]
-  (if obj
-    (let [obj1 (if-let [t (:transition obj)]
-                 (:to t)
-                 obj)
-          [c n :as k] (li/split-path (cn/instance-type obj1))
-          obj2 (if has-local-storage obj1 (cn/compact-instance obj1))]
-      (assoc db n obj2 k obj2))
-    db))
+(defn- assoc-to-context
+  ([db obj]
+   (if obj
+     (let [obj1 (if-let [t (:transition obj)]
+                  (:to t)
+                  obj)
+           [c n :as k] (li/split-path (cn/instance-type obj1))
+           obj2 (if has-local-storage obj1 (cn/compact-instance obj1))]
+       (assoc db n obj2 k obj2))
+     db))
+  ([db k v] (assoc db k v)))
 
 (defn attach-to-context!
   ([obj is-auth-response]
-   (let [db1 (assoc-to-context (fetch-db) obj)
-         db2 (if is-auth-response
-               (assoc-to-context (assoc db1 :auth obj) (owner obj))
-               db1)]
-     (spit-db! db2)))
+   (let [db
+         (if is-auth-response
+           (assoc-to-context (fetch-db) :auth obj)
+           (assoc-to-context (fetch-db) obj))]
+     (spit-db! db)))
   ([obj]
    (attach-to-context! obj false)))
+
+(defn auth-token []
+  (get-in (fetch-db) [:auth :access_token]))
 
 (defn hard-reset-context! []
   (spit-db! {}))

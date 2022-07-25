@@ -14,8 +14,8 @@
 (declare make-input-view)
 
 (defn- make-view [tag target-info]
-  (let [auth-rec-name (vu/authorization-record-name)
-        target-info (or auth-rec-name
+  (let [auth-event-name (vu/authentication-event-name)
+        target-info (or auth-event-name
                         (if (string? target-info)
                           (keyword target-info)
                           target-info))
@@ -34,12 +34,12 @@
                    (:record target-info)
                    target-info)
                  (when is-raw-spec target-info)])]
-    (if (and (cfg/views-authorize? rec-name) (not auth-rec-name))
-      (do (vu/set-authorization-record-name! rec-name)
+    (if (and (cn/authentication-event? rec-name) (not auth-event-name))
+      (do (vu/set-authentication-event-name! rec-name)
           (make-input-view target-info))
       (let [input-form-event
             (vu/make-render-event rec-name final-entity-spec tag)
-            r (vu/eval-event nil true input-form-event)
+            r (vu/eval-event nil true false input-form-event)
             v (first (vu/eval-result r))]
         (or (:View v)
             (do (println (str "input form generation failed. " r))
@@ -67,8 +67,8 @@
   (render-view view-spec))
 
 (defn- make-home-view [title dashboard-entity]
-  (if-let [auth-rec-name (vu/authorization-record-name)]
-    [:div {:id main-view-id} (make-input-view auth-rec-name)]
+  (if-let [auth-event-name (vu/authentication-event-name)]
+    [:div {:id main-view-id} (make-input-view auth-event-name)]
     (let [dv (make-dashboard-view dashboard-entity)]
       `[:div [:a {:href "#"} [:h1 ~title]]
         ~@(vu/fetch-home-links)
