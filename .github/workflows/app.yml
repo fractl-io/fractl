@@ -36,26 +36,26 @@ jobs:
         env:
           API_HOST: 127.0.0.1:8000
           CI: true
-      # - name: Slack Notification
-      #   if: ${{ success() }}
-      #   uses: rtCamp/action-slack-notify@v2.1.0
-      #   env:
-      #     SLACK_CHANNEL: ci
-      #     SLACK_FOOTER: Fractl app runner
-      #     SLACK_TITLE: 'Awesome! Ran successfully with library app!'
-      #     SLACK_MESSAGE: 'App responded with response code: 200 :dancer:'
-      #     SLACK_ICON_EMOJI: ':white_check_mark:'
-      #     SLACK_USERNAME: Cookie Monster
-      #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      # - name: Slack Notification
-      #   if: ${{ failure() }}
-      #   uses: rtCamp/action-slack-notify@v2.1.0
-      #   env:
-      #     SLACK_CHANNEL: ci
-      #     SLACK_FOOTER: Fractl app runner
-      #     SLACK_TITLE: 'Oh no! It failed. You introduced a regression!'
-      #     SLACK_MESSAGE: 'Regression for library app which was running! :boom:'
-      #     SLACK_COLOR: '#ff1100'
-      #     SLACK_ICON_EMOJI: ':crossed_fingers:'
-      #     SLACK_USERNAME: Cookie Monster
-      #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      - name: Slack Notification
+        if: ${{ success() }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_CHANNEL: ci
+          SLACK_FOOTER: Fractl app runner
+          SLACK_TITLE: 'Awesome! Ran successfully with library app!'
+          SLACK_MESSAGE: 'App responded with response code: 200 :dancer:'
+          SLACK_ICON_EMOJI: ':white_check_mark:'
+          SLACK_USERNAME: Cookie Monster
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      - name: Slack Notification
+        if: ${{ failure() }}
+        uses: rtCamp/action-slack-notify@v2.1.0
+        env:
+          SLACK_CHANNEL: ci
+          SLACK_FOOTER: Fractl app runner
+          SLACK_TITLE: 'Oh no! It failed. You introduced a regression!'
+          SLACK_MESSAGE: 'Regression for library app which was running! :boom:'
+          SLACK_COLOR: '#ff1100'
+          SLACK_ICON_EMOJI: ':crossed_fingers:'
+          SLACK_USERNAME: Cookie Monster
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
