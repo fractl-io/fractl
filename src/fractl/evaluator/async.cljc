@@ -1,4 +1,4 @@
-(ns fractl.async
+(ns fractl.evaluator.async
   #?(:clj
      (:import [java.util.concurrent ExecutorService Executors])))
 
