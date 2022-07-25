@@ -9,12 +9,13 @@
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
+            [fractl.util.remote :as ur]
             [fractl.meta :as mt]
             [fractl.ui.config :as cfg]
             [fractl.ui.context :as ctx]))
 
 (def ^:private remote-api-host (atom nil))
-(def ^:private auth-rec-name (atom false))
+(def ^:private auth-event-name (atom false))
 (def ^:private home-links (atom []))
 (def ^:private ignore-in-home-links (atom []))
 
@@ -34,24 +35,24 @@
 
 (def ^:private auth-key "fractl-auth")
 
-(defn set-authorization-record-name! [n]
+(defn set-authentication-event-name! [n]
   (let [last-auth (js/parseInt (or (cookies/get auth-key) "0"))
         curr-millis (.now js/Date)]
     (when (>= (- curr-millis last-auth) (* (cfg/session-timeout-secs) 1000))
       (cookies/remove auth-key)
       (ctx/hard-reset-context!)
       (reset! view-stack [])
-      (reset! auth-rec-name n))))
+      (reset! auth-event-name n))))
 
-(defn authorized! []
+(defn authenticated! []
   (cookies/set auth-key (str (.now js/Date)))
-  (reset! auth-rec-name false))
+  (reset! auth-event-name false))
 
-(defn clear-authorization! []
+(defn clear-authentication! []
   (cookies/remove auth-key)
   (ctx/hard-reset-context!))
 
-(defn authorization-record-name [] @auth-rec-name)
+(defn authentication-event-name [] @auth-event-name)
 
 (defn clear-home-links! []
   (reset! ignore-in-home-links [])
@@ -113,20 +114,26 @@
       (:result r)
       (do (println "remote eval failed: " r) nil))))
 
+(defn- remote-invoke-event [host callback is-auth-event event-instance]
+  ((if is-auth-event
+     ur/remote-login
+     ur/remote-eval)
+   host {:callback callback :auth-token (ctx/auth-token)} event-instance))
+
 (defn eval-event
-  ([callback eval-local event-instance]
-   (let [event-instance (assoc event-instance li/event-context
-                               (ctx/context-as-map))]
-     (if-let [host (and (not eval-local) @remote-api-host)]
-       (do (ev/remote-evaluate host callback event-instance) nil)
-       ((or callback identity) ((ev/global-dataflow-eval) event-instance)))))
+  ([callback eval-local is-auth-event event-instance]
+   (if-let [host (and (not eval-local) @remote-api-host)]
+     (remote-invoke-event host callback is-auth-event event-instance)
+     ((or callback identity) ((ev/global-dataflow-eval) event-instance))))
+  ([callback is-auth-event event-instance]
+   (eval-event callback false is-auth-event event-instance))
   ([callback event-instance]
-   (eval-event callback false event-instance))
+   (eval-event callback false false event-instance))
   ([event-instance]
-   (eval-event identity event-instance)))
+   (eval-event identity false false event-instance)))
 
 (defn eval-local-event [event-instance]
-  (eval-event identity true event-instance))
+  (eval-event identity true false event-instance))
 
 (defn- upsert-event-name [entity-name]
   (let [[c n] (li/split-path entity-name)
@@ -333,4 +340,3 @@
     (case (:type attr-scm)
       :Kernel/DateTime (dt/as-format attr-val "yyyy-MM-dd HH:mm")
       (str attr-val))))
-

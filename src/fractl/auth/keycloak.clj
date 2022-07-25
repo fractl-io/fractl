@@ -61,7 +61,8 @@
             (oidc-connect-url auth-server-url realm)
             {:form-params (client-credentials client-id username password)
              :headers {"Content-Type" "application/x-www-form-urlencoded"}})]
-    (json/parse-string (:body r) true)))
+    {:status (:status r)
+     :body (json/parse-string (:body r) true)}))
 
 (defmethod i/user-login tag [{url :auth-server-url
                               realm :user-realm
