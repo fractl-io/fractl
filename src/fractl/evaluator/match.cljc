@@ -1,4 +1,4 @@
-(ns fractl.evaluator.parser
+(ns fractl.evaluator.match
   "Parsing and pattern matching during runtime."
   (:require [fractl.component :as cn]
             [fractl.lang.internal :as li]
