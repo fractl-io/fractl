@@ -1,4 +1,15 @@
-{:script-extn ".cljs"
- :zero-trust-rbac false
- :service {:port 8080}}
 
+{;; :component-root "./sample"
+ ;; :store {:type :sfdc-metadata}
+ ;; :store {:type :postgres}
+ :script-extn ".cljs"
+ ;; :interceptors {:rbac {:superuser-password "su123"}}
+ ;; :authentication {:service :keycloak
+ ;;                  :auth-server-url "http://localhost:8080"
+ ;;                  :realm "master"
+ ;;                  :user-realm "fractl-dev"
+ ;;                  :client-id "admin-cli"
+ ;;                  :user-client-id "fractl-dev"
+ ;;                  :admin "admin"
+ ;;                  :admin-password "admin123"}
+ :service {:port 8000}}
