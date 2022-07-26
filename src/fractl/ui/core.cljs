@@ -13,6 +13,7 @@
             [fractl.ui.util :as vu]
             [fractl.ui.views :as v]
             [fractl.ui.config :as cfg]
+            [fractl.auth.model]
             ["@material-ui/core" :refer [Link]])
   (:import goog.history.Html5History)
   (:require-macros [secretary.core :refer [defroute]]))
@@ -26,7 +27,7 @@
     (.setEnabled true)))
 
 (defn make-home-link [rec-name n]
-  (let [is-auth-rec (cfg/views-authorize? rec-name)]
+  (let [is-auth-rec (cn/authentication-event? rec-name)]
     [rec-name
      [:li [:a
            {:on-click #(do (when is-auth-rec
@@ -40,6 +41,7 @@
            (str (if is-auth-rec
                   "Logout"
                   (name n)))]]]))
+
 
 (defn- app-routes [config]
   (secretary/set-config! :prefix vu/link-prefix)

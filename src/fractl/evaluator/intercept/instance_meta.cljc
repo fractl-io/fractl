@@ -73,5 +73,5 @@
     (or (f env arg) arg)
     arg))
 
-(defn make []
+(defn make [_] ; config is not used
   (ii/make-interceptor :instance-meta run))

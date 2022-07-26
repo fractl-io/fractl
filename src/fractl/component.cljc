@@ -746,8 +746,7 @@
                   [k (maybe-instance v validate?)])
                 attrs)))
 
-(defn- post-process-attributes
-  "Apply any additional processing to attribute values, like encryption"
+(defn secure-attributes
   [recname attrs schema]
   (loop [hashed (seq (hashed-attributes schema)), result attrs]
     (if-let [k (first hashed)]
@@ -767,10 +766,9 @@
   ([record-name attributes validate?]
    (let [schema (ensure-schema record-name)
          attrs-with-insts (maps-to-insts attributes validate?)
-         validated-attrs (if validate?
-                           (validate-record-attributes record-name attrs-with-insts schema)
-                           attrs-with-insts)
-         attrs (post-process-attributes record-name validated-attrs schema)]
+         attrs (if validate?
+                 (validate-record-attributes record-name attrs-with-insts schema)
+                 attrs-with-insts)]
      (if (error? attrs)
        attrs
        (make-record-instance (type-tag-of record-name) record-name attrs))))
@@ -1339,6 +1337,13 @@
 (defn entity? [recname]
   (and (entity-schema recname) true))
 
+(defn authentication-event? [rec-name]
+  (and (event? rec-name)
+       (:authenticate (fetch-meta rec-name))))
+
+(defn display-order [rec-name]
+  (:order (fetch-meta rec-name)))
+
 (def hashed-attribute? :secure-hash)
 
 (defn append-id [path]
@@ -1392,3 +1397,6 @@
       {id-attr id}})))
 
 (def instance-meta-owner :Owner)
+
+(defn kernel-inited? []
+  (:Kernel @components))

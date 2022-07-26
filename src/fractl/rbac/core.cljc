@@ -5,31 +5,36 @@
             [fractl.evaluator :as ev]
             [fractl.lang.internal :as li]))
 
+(def default-superuser-name "superuser")
 (def ^:private superuser (atom nil))
 
-(def ^:private find-su-event
+(defn- find-su-event []
   (cn/make-instance
-   {:Kernel.RBAC/FindUser
-    {:Name "superuser"}}))
+   {:Kernel.Identity/FindUser
+    {:Name default-superuser-name}}))
 
 (defn- lookup-superuser []
-  (when-let [r (ev/safe-eval find-su-event)]
+  (when-let [r (ev/safe-eval (find-su-event))]
     (first r)))
 
-(defn- upsert-superuser []
+(defn- upsert-superuser [pswd]
   (let [evt (cn/make-instance
-             {:Kernel.RBAC/Upsert_User
+             {:Kernel.Identity/Upsert_User
               {:Instance
-               {:Kernel.RBAC/User
-                {:Name "superuser"}}}})]
+               {:Kernel.Identity/User
+                (merge {:Name default-superuser-name}
+                       (when pswd
+                         {:Password pswd}))}}})]
     (first
      (ev/safe-eval evt))))
 
-(defn init []
-  (let [su (or (lookup-superuser)
-               (upsert-superuser))]
-    (reset! superuser su)
-    true))
+(defn init
+  ([config]
+   (let [su (or (lookup-superuser)
+                (upsert-superuser (:superuser-password config)))]
+     (reset! superuser su)
+     true))
+  ([] (init nil)))
 
 (defn superuser? [user]
   (cn/same-instance? user @superuser))

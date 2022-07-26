@@ -2,16 +2,9 @@
   (:require [clojure.string :as s]
             [fractl.lang
              :refer [component event entity dataflow]]
-            [fractl.store.util :as stu]
-            [fractl.evaluator :as ev]))
+            [fractl.store.util :as stu]))
 
 (component :Kernel.RBAC)
-
-(entity
- :Kernel.RBAC/User
- {:Name {:type :Kernel/String
-         :indexed true
-         :unique true}})
 
 (entity
  :Kernel.RBAC/Role
@@ -43,7 +36,7 @@
  :Kernel.RBAC/RoleAssignment
  {:Role {:ref :Kernel.RBAC/Role.Name
          :indexed true}
-  :Assignee {:ref :Kernel.RBAC/User.Name
+  :Assignee {:type :Kernel/String ; usually a :Kernel.Identity/User.Name
              :indexed true}
   :meta
   {:unique [:Role :Assignee]}})
@@ -56,11 +49,6 @@
           :indexed true}
   :meta
   {:unique [:Parent :Child]}})
-
-(dataflow
- :Kernel.RBAC/FindUser
- {:Kernel.RBAC/User
-  {:Name? :Kernel.RBAC/FindUser.Name}})
 
 (dataflow
  :Kernel.RBAC/FindRoleAssignments

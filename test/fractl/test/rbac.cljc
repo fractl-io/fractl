@@ -16,8 +16,8 @@
   (defcomponent :RoleMgmt
     (dataflow
      :RoleMgmt/CreateUsers
-     {:Kernel.RBAC/User {:Name "abc"}}
-     {:Kernel.RBAC/User {:Name "xyz"}})
+     {:Kernel.Identity/User {:Name "abc"}}
+     {:Kernel.Identity/User {:Name "xyz"}})
     (dataflow
      :RoleMgmt/CreateRoles
      {:Kernel.RBAC/Role {:Name "role1"}}
@@ -47,7 +47,7 @@
   (let [[r1 r2 r3 r4]
         (mapv tu/result [:RoleMgmt/CreateUsers :RoleMgmt/CreateRoles
                          :RoleMgmt/AssignPrivileges :RoleMgmt/AssignRoles])]
-    (is (cn/instance-of? :Kernel.RBAC/User (first r1)))
+    (is (cn/instance-of? :Kernel.Identity/User (first r1)))
     (is (cn/instance-of? :Kernel.RBAC/Role (first r2)))
     (is (cn/instance-of? :Kernel.RBAC/PrivilegeAssignment (first r3)))
     (is (cn/instance-of? :Kernel.RBAC/RoleAssignment (first r4)))
@@ -78,28 +78,24 @@
   (defcomponent :PrivTest
     (entity
      :PrivTest/User
-     {:User {:ref :Kernel.RBAC/User.Name}
-      :Password :Kernel/Password})
+     {:User {:ref :Kernel.Identity/User.Name}})
     (entity
      :PrivTest/E
      {:X :Kernel/Int})
     (dataflow
      :PrivTest/CreateSuperUser
      {:PrivTest/User
-      {:User "superuser"
-       :Password "xyz123"}})
+      {:User rbac/default-superuser-name}})
     (dataflow
      :PrivTest/CreateUsers
-     {:Kernel.RBAC/User
+     {:Kernel.Identity/User
       {:Name "u11"}}
-     {:Kernel.RBAC/User
+     {:Kernel.Identity/User
       {:Name "u22"}}
      {:PrivTest/User
-      {:User "u11"
-       :Password "kkklll"}}
+      {:User "u11"}}
      {:PrivTest/User
-      {:User "u22"
-       :Password "yyyduud"}})
+      {:User "u22"}})
     (dataflow
      :PrivTest/CreatePrivileges
      {:Kernel.RBAC/Role {:Name "r11"}}
@@ -136,16 +132,16 @@
    (fn []
      (let [su (first (tu/result :PrivTest/CreateSuperUser))]
        (is (cn/instance-of? :PrivTest/User su))
-       (is (= "superuser" (:User su)))
+       (is (= rbac/default-superuser-name (:User su)))
        (is (= [:rbac] (ei/init-interceptors [:rbac])))
        (let [u2 (first
                  (tu/result
-                  (with-user "superuser" :PrivTest/CreateUsers)))]
+                  (with-user rbac/default-superuser-name :PrivTest/CreateUsers)))]
          (is (cn/instance-of? :PrivTest/User u2))
          (is (= "u22" (:User u2))))
        (let [r2 (first
                  (tu/result
-                  (with-user "superuser" :PrivTest/CreatePrivileges)))]
+                  (with-user rbac/default-superuser-name :PrivTest/CreatePrivileges)))]
          (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r2))
          (is (and (= "r22" (:Role r2)) (= "u22" (:Assignee r2)))))
        (tu/is-error
@@ -189,28 +185,24 @@
   (defcomponent :RbacOwner
     (entity
      :RbacOwner/User
-     {:User {:ref :Kernel.RBAC/User.Name}
-      :Password :Kernel/Password})
+     {:User {:ref :Kernel.Identity/User.Name}})
     (entity
      :RbacOwner/E
      {:X :Kernel/Int})
     (dataflow
      :RbacOwner/CreateSuperUser
      {:RbacOwner/User
-      {:User "superuser"
-       :Password "xyz123"}})
+      {:User rbac/default-superuser-name}})
     (dataflow
      :RbacOwner/CreateUsers
-     {:Kernel.RBAC/User
+     {:Kernel.Identity/User
       {:Name "uu11"}}
-     {:Kernel.RBAC/User
+     {:Kernel.Identity/User
       {:Name "uu22"}}
      {:RbacOwner/User
-      {:User "uu11"
-       :Password "kkklll"}}
+      {:User "uu11"}}
      {:RbacOwner/User
-      {:User "uu22"
-       :Password "yyyduud"}})
+      {:User "uu22"}})
     (dataflow
      :RbacOwner/CreatePrivileges
      {:Kernel.RBAC/Role {:Name "rr11"}}
@@ -236,16 +228,16 @@
    (fn []
      (let [su (first (tu/result :RbacOwner/CreateSuperUser))]
        (is (cn/instance-of? :RbacOwner/User su))
-       (is (= "superuser" (:User su)))
+       (is (= rbac/default-superuser-name (:User su)))
        (is (= [:rbac] (ei/init-interceptors [:rbac])))
        (let [u2 (first
                  (tu/result
-                  (with-user "superuser" :RbacOwner/CreateUsers)))]
+                  (with-user rbac/default-superuser-name :RbacOwner/CreateUsers)))]
          (is (cn/instance-of? :RbacOwner/User u2))
          (is (= "uu22" (:User u2))))
        (let [r1 (first
                  (tu/result
-                  (with-user "superuser" :RbacOwner/CreatePrivileges)))]
+                  (with-user rbac/default-superuser-name :RbacOwner/CreatePrivileges)))]
          (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r1))
          (is (and (= "rr11" (:Role r1)) (= "uu22" (:Assignee r1)))))
        (let [e1 (first

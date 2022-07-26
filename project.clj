@@ -37,12 +37,16 @@
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
                  [com.lambdaisland/glogi "1.1.144"]
                  [com.fzakaria/slf4j-timbre "0.3.21"]
+                 [buddy/buddy-auth "3.0.323"]
+                 [keycloak-clojure "1.28.3"]
+                 [org.bitbucket.b_c/jose4j "0.7.12"]
                  [tick "0.5.0-RC1"]
                  [reagent "1.1.0"]
                  [cljsjs/react "17.0.2-0"]
                  [cljsjs/react-dom "17.0.2-0"]
                  [clj-commons/secretary "1.2.4"]
                  [babashka/babashka.curl "0.1.1"]
+                 [com.fasterxml.jackson.core/jackson-databind "2.13.3"]
                  [com.cognitect.aws/api "0.8.539"]
                  [com.cognitect.aws/endpoints "1.1.12.145"]
                  [com.cognitect.aws/sns "811.2.959.0"]
@@ -95,5 +99,5 @@
                               "fig:ci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.test-runner"]
                               "fig:rci"  ["run" "-m" "figwheel.main" "-co" "ci.cljs.edn" "-m" "fractl.reagent-test-runner"]}
                    :clean-targets  ^{:protect false} ["target" "out"]}
-             :aws-lambda {:javac-options ["-target" "11" "-source" "11" "-Xlint:-options"]
+             :with-model {:javac-options ["-target" "11" "-source" "11" "-Xlint:-options"]
                           :resource-paths ["app"]}})

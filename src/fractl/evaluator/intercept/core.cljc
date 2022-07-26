@@ -18,7 +18,7 @@
 ;; argument identifies the operation, which should be
 ;; one of - `[:read :upsert :delete :eval]`. The second argument
 ;; must be a map with at least two keys - `:user` and `:data`.
-;; `:user` is the name of the currently logged-in `:Kernel.RBAC/User`
+;; `:user` is the name of the currently logged-in `:Kernel.Identity/User`
 ;; and data could be an entity instance, a list of entity instances
 ;; or the name of an entity.
 ;;

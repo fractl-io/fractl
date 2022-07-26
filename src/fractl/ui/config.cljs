@@ -13,12 +13,6 @@
 (defn views-event [rec-name tag]
   (get (views-spec rec-name) tag))
 
-(defn views-authorize? [rec-name]
-  (= :authorize
-     (get-in
-      (views-spec rec-name)
-      [:create-button :on-success])))
-
 (defn views-attribute-view-spec [rec-name field-name]
   (get-in (views-spec rec-name) [:attributes field-name :input]))
 

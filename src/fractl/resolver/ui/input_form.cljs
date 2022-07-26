@@ -141,19 +141,19 @@
        [:div s])
       (u/throw-ex (str  s " - " result)))))
 
-(defn- eval-event-callback [event-name callback result]
-  (callback (vu/eval-result result)))
+(defn- eval-event-callback [is-auth-event event-name callback result]
+  (callback (if is-auth-event result (vu/eval-result result))))
 
-(defn- make-eval-success-callback [event-name]
-  (if (cfg/views-authorize? event-name)
+(defn- make-eval-success-callback [event-name is-auth-event]
+  (if is-auth-event
     (fn [r]
-      (if r
-        (do
-          (vu/authorized!)
-          (ctx/attach-to-context! (first r) true)
-          (v/render-home-view))
-        (do (v/render-home-view [:div "login failed"])
-            (u/throw-ex (str event-name " failed - " r)))))
+      (let [status (:status r) result (:body r)]
+        (if (= status 200)
+          (do (vu/authenticated!)
+              (ctx/attach-to-context! result true)
+              (v/render-home-view))
+          (do (v/render-home-view [:div "login failed"])
+              (u/throw-ex (str "login failed with status " status))))))
     (fn [r]
       (let [rs (mapv fetch-upsert-result-inst r)]
         (v/render-view
@@ -188,12 +188,13 @@
 (defn- validate-inst-state [inst-state schema]
   (let [anames (cn/attribute-names schema)]
     (doseq [n anames]
-      (let [ascm (cn/find-attribute-schema (n schema))]
-        (when-not (:optional ascm)
-          (when-not (seq (n inst-state))
-            (let [msg (str (name n) " is required")]
-              (js/alert msg)
-              (u/throw-ex msg))))))
+      (when (not= n cn/id-attr)
+        (let [ascm (cn/find-attribute-schema (n schema))]
+          (when-not (:optional ascm)
+            (when-not (seq (n inst-state))
+              (let [msg (str (name n) " is required")]
+                (js/alert msg)
+                (u/throw-ex msg)))))))
     inst-state))
 
 (defn upsert-ui [instance]
@@ -230,11 +231,12 @@
                 :on-click
                ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
                    (if (cn/event? rec-name)
-                     (vu/eval-event
-                      (partial
-                       eval-event-callback
-                       rec-name (make-eval-success-callback rec-name))
-                      inst)
+                     (let [is-auth-event (cn/authentication-event? rec-name)]
+                       (vu/eval-event
+                        (partial
+                         eval-event-callback is-auth-event
+                         rec-name (make-eval-success-callback rec-name is-auth-event))
+                        is-auth-event inst))
                      (vu/fire-upsert
                       rec-name inst (mt/upsert-event meta)
                       (partial upsert-callback rec-name))))}
