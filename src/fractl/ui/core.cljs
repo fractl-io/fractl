@@ -31,7 +31,7 @@
     [rec-name
      [:li [:a
            {:on-click #(do (when is-auth-rec
-                             (vu/clear-authorization!))
+                             (vu/clear-authentication!))
                            (if (cn/event? rec-name)
                              (v/render-view
                               (v/make-input-view rec-name))
@@ -69,8 +69,8 @@
                 (v/make-list-view
                  (vu/make-multi-arg-query-event-spec
                   sn [n (:id1 params) cn (:id2 params)]))))))
-         (when (cfg/views-authorize? en)
-           (vu/set-authorization-record-name! en))
+         (when (cn/authentication-event? en)
+           (vu/set-authentication-event-name! en))
          (when-let [cns (seq (mt/contains meta))]
            (vu/ignore-in-home-links! cns))
          (vu/attach-home-link! (make-home-link en n))
