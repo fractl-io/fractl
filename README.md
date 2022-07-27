@@ -12,4 +12,4 @@ A Fractl model can be compiled to a production grade application. Fractl is not 
 
 # Getting started with Fractl
 
-Please refer to the wiki
+Please refer to the [wiki](https://github.com/fractl-io/fractl/wiki)
