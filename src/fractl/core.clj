@@ -27,6 +27,7 @@
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
+   ["-p" "--package" "Package a model into a standalone jar"]
    ["-h" "--help"]])
 
 (defn- find-model-paths [model current-model-paths config]
@@ -250,6 +251,9 @@
 (defn -process_request [a b]
   (process_request a b))
 
+(defn- build-package [model-and-config]
+  (println model-and-config))
+
 (defn -main [& args]
   (initialize)
   (let [{options :options args :arguments
@@ -257,4 +261,5 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
+      (:package options) (build-package (read-model-and-config args options))
       :else (run-service args (read-model-and-config args options)))))

@@ -1,7 +1,6 @@
 (ns fractl.resolver.registry
   (:require [fractl.util :as u]
             [fractl.lang.internal :as li]
-            [fractl.resolver.remote :as remote]
             [fractl.resolver.policy :as policy]
             [fractl.resolver.meta :as meta]
             [fractl.resolver.timer :as timer]
@@ -69,8 +68,7 @@
 
 (def constructors
   (u/make-cell
-   (merge {:remote remote/make
-           :meta meta/make
+   (merge {:meta meta/make
            :policy policy/make
            :timer timer/make}
           #?(:clj {:data-sync ds/make
@@ -83,7 +81,12 @@
 (defn register-resolver-type [type-name constructor]
   (u/call-and-set
    constructors
-   #(assoc @constructors type-name constructor)))
+   #(assoc @constructors type-name constructor))
+  constructor)
+
+(defmacro defmake [resolver-name constructor]
+  `(def ~(symbol "make")
+     (register-resolver-type ~resolver-name ~constructor)))
 
 (defn register-resolver [{n :name t :type
                           compose? :compose?
