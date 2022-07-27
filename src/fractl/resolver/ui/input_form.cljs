@@ -147,8 +147,9 @@
 (defn- make-eval-success-callback [event-name is-auth-event]
   (if is-auth-event
     (fn [r]
-      (let [status (:status r) result (:body r)]
-        (if (= status 200)
+      (let [r (if (map? r) r (first r))
+            status (:status r) result (or (:body r) (:result r))]
+        (if (or (= status 200) (= status :ok))
           (do (vu/authenticated!)
               (ctx/attach-to-context! result true)
               (v/render-home-view))
@@ -214,38 +215,38 @@
         styles (cfg/views-styles rec-name)
         view
         `[:div {:class "view"}
-           [:> ~Card {:style {:margin-top "20px"  :overflow-y "auto"}}
-            [:> ~CardContent {:style {:padding "20px" :text-align "center" }}
-             [:> ~Typography  ~(style/input-form-title styles)
-              ~title][:br]
-             ~@(render-attribute-specs
-                rec-name scm
-                 (mapv
-                  u/string-as-keyword
-                  (:input-form (:Fields instance)))
-                 (or embedded-inst [(:QueryBy instance) (:QueryValue instance)])
-                 set-state-value! change-handler)
-             [:> ~Button
-              {:variant "contained"
-                  :style {:margin-top "10px" :background "#24252a" :color "white"  }
-                :on-click
-               ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
-                   (if (cn/event? rec-name)
-                     (let [is-auth-event (cn/authentication-event? rec-name)]
-                       (vu/eval-event
-                        (partial
-                         eval-event-callback is-auth-event
-                         rec-name (make-eval-success-callback rec-name is-auth-event))
-                        is-auth-event inst))
-                     (vu/fire-upsert
-                      rec-name inst (mt/upsert-event meta)
-                      (partial upsert-callback rec-name))))}
-              ~(if embedded-inst "Save" (or (cfg/views-create-button-label rec-name) "Create"))]
-             ~@(navigation-buttons rels rec-name)]
+          [:> ~Card {:style {:margin-top "20px"  :overflow-y "auto"}}
+           [:> ~CardContent {:style {:padding "20px" :text-align "center"}}
+            [:> ~Typography  ~(style/input-form-title styles)
+             ~title] [:br]
+            ~@(render-attribute-specs
+               rec-name scm
+               (mapv
+                u/string-as-keyword
+                (:Fields instance))
+               (or embedded-inst [(:QueryBy instance) (:QueryValue instance)])
+               set-state-value! change-handler)
+            [:> ~Button
+             {:variant "contained"
+              :style {:margin-top "10px" :background "#24252a" :color "white"}
+              :on-click
+              ~#(let [inst (transformer (validate-inst-state @inst-state scm))]
+                  (if (cn/event? rec-name)
+                    (let [is-auth-event (cn/authentication-event? rec-name)]
+                      (vu/eval-event
+                       (partial
+                        eval-event-callback is-auth-event
+                        rec-name (make-eval-success-callback rec-name is-auth-event))
+                       is-auth-event inst))
+                    (vu/fire-upsert
+                     rec-name inst (mt/upsert-event meta)
+                     (partial upsert-callback rec-name))))}
+             ~(if embedded-inst "Save" (or (cfg/views-create-button-label rec-name) "Create"))]
+            ~@(navigation-buttons rels rec-name)]
             ;; [:div "(* = required)"]
-            ~@(when embedded-inst
-                (v/make-list-refs-view rec-name embedded-inst meta))
-            ~(close-button)]]]
+           ~@(when embedded-inst
+               (v/make-list-refs-view rec-name embedded-inst meta))
+           ~(close-button)]]]
     (vu/finalize-view view instance)))
 
 (defn make [resolver-name]
