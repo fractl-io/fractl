@@ -104,16 +104,19 @@
   (let [ct (request-content-type request)]
     (uh/content-types ct)))
 
-(defn- process-dynamic-eval [evaluator [auth-config maybe-unauth] event-name request]
-  (or (maybe-unauth request)
-      (if-let [data-fmt (find-data-format request)]
-        (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
-          (if err
-            (bad-request err data-fmt)
-            (evaluate evaluator obj data-fmt)))
-        (bad-request
-         (str "unsupported content-type in request - "
-              (request-content-type request))))))
+(defn- process-dynamic-eval
+  ([evaluator [auth-config maybe-unauth] event-name request]
+   (or (maybe-unauth request)
+       (if-let [data-fmt (find-data-format request)]
+         (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
+           (if err
+             (bad-request err data-fmt)
+             (evaluate evaluator obj data-fmt)))
+         (bad-request
+          (str "unsupported content-type in request - "
+               (request-content-type request))))))
+  ([evaluator auth-info request]
+   (process-dynamic-eval evaluator auth-info nil request)))
 
 (defn- paths-info [component]
   (mapv (fn [n] {(subs (str n) 1)
@@ -188,40 +191,44 @@
           (log/exception ex)
           (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
-(defn- process-login [auth-config request]
-  (if-let [data-fmt (find-data-format request)]
-    (let [[obj err] (event-from-request request au/parsed-login-event-name data-fmt nil)]
-      (if err
-        (do (log/warn (str "bad login request - " obj)) (bad-request err data-fmt))
-        (try
-          (let [username (au/login-username obj)
-                result (ai/user-login
-                        (assoc
-                         auth-config
-                         :username username
-                         :password (au/login-password obj)))]
-            (log/info (str "login success for " username))
-            (ok result data-fmt))
-          (catch Exception ex
-            (log/warn ex)
-            (unauthorized "login failed" data-fmt)))))
-    (bad-request
-     (str "unsupported content-type in request - "
-          (request-content-type request)))))
+(defn- process-login [evaluator [auth-config _ :as auth-info] request]
+  (if-not auth-config
+    (process-dynamic-eval evaluator auth-info request)
+    (if-let [data-fmt (find-data-format request)]
+      (let [[obj err] (event-from-request request au/parsed-login-event-name data-fmt nil)]
+        (if err
+          (do (log/warn (str "bad login request - " obj)) (bad-request err data-fmt))
+          (try
+            (let [username (au/login-username obj)
+                  result (ai/user-login
+                          (assoc
+                           auth-config
+                           :username username
+                           :password (au/login-password obj)))]
+              (log/info (str "login success for " username))
+              (ok result data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized "login failed" data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
 
-(defn- process-logout [evaluator auth-config request]
+(defn- process-logout [auth-config request]
   (if-let [data-fmt (find-data-format request)]
-    (try
-      (let [sub (ai/session-sub
-                 (assoc auth-config :request request))
-            result (ai/user-logout
-                    (assoc
-                     auth-config
-                     :sub sub))]
-        (ok {:result result} data-fmt))
-      (catch Exception ex
-        (log/warn ex)
-        (unauthorized "logout failed" data-fmt)))
+    (if auth-config
+      (try
+        (let [sub (ai/session-sub
+                   (assoc auth-config :request request))
+              result (ai/user-logout
+                      (assoc
+                       auth-config
+                       :sub sub))]
+          (ok {:result result} data-fmt))
+        (catch Exception ex
+          (log/warn ex)
+          (unauthorized "logout failed" data-fmt)))
+      (ok {:result :bye} data-fmt))
     (bad-request
      (str "unsupported content-type in request - "
           (request-content-type request)))))
@@ -272,8 +279,8 @@
        (h/run-server
         (make-routes
          auth
-         {:login (partial process-login auth)
-          :logout (partial process-logout evaluator auth)
+         {:login (partial process-login evaluator auth-info)
+          :logout (partial process-logout auth)
           :request (partial process-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)})
