@@ -147,8 +147,9 @@
 (defn- make-eval-success-callback [event-name is-auth-event]
   (if is-auth-event
     (fn [r]
-      (let [status (:status r) result (:body r)]
-        (if (= status 200)
+      (let [r (if (map? r) r (first r))
+            status (:status r) result (or (:body r) (:result r))]
+        (if (or (= status 200) (= status :ok))
           (do (vu/authenticated!)
               (ctx/attach-to-context! result true)
               (v/render-home-view))
