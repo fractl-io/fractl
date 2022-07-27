@@ -12,6 +12,7 @@
             [fractl.relationship :as rel]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
+            [fractl.resolver.registry :refer [defmake]]
             ["@material-ui/core"
              :refer [TextField Card CardContent
                      TextareaAutosize
@@ -248,7 +249,8 @@
             ~(close-button)]]]]
     (vu/finalize-view view instance)))
 
-(defn make [resolver-name]
-  (rc/make-resolver
-   resolver-name
-   {:upsert {:handler upsert-ui}}))
+(defmake :ui-input-form
+  (fn [resolver-name _]
+    (rc/make-resolver
+     resolver-name
+     {:upsert {:handler upsert-ui}})))

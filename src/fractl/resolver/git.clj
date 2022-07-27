@@ -1,5 +1,6 @@
 (ns fractl.resolver.git
   (:require [fractl.resolver.core :as r]
+            [fractl.resolver.registry :refer [defmake]]
             [fractl.git :as git]))
 
 (defn- git-eval [inst]
@@ -11,5 +12,6 @@
 (def ^:private resolver-fns
   {:eval {:handler git-eval}})
 
-(defn make [resolver-name config]
-  (r/make-resolver resolver-name resolver-fns))
+(defmake :git
+  (fn [resolver-name config]
+    (r/make-resolver resolver-name resolver-fns)))

@@ -3,6 +3,7 @@
   (:require [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
+            [fractl.resolver.registry :refer [defmake]]
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as credentials]
             [clojure.data.json :as json]
@@ -141,7 +142,6 @@
 (def ^:private resolver-fns
   {:upsert {:handler upsert-functionalities}})
 
-(defn make
-  "Create and return an aws resolver"
-  [resolver-name config]
-  (r/make-resolver resolver-name resolver-fns))
+(defmake :aws
+  (fn [resolver-name config]
+    (r/make-resolver resolver-name resolver-fns)))

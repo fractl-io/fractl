@@ -2,8 +2,9 @@
   "Fractl resolver to send email."
   (:require [sendgrid.core :as sendgrid]
             [postmark.core :as postmark]
+            [fractl.util :as u]
             [fractl.resolver.core :as r]
-            [fractl.util :as u]))
+            [fractl.resolver.registry :refer [defmake]]))
 
 (defn send-email
   "Simple send email using simple HTML.
@@ -34,5 +35,6 @@
 (def ^:private resolver-fns
   {:eval {:handler email}})
 
-(defn make [resolver-name config]
-  (r/make-resolver resolver-name resolver-fns))
+(defmake :email
+  (fn [resolver-name config]
+    (r/make-resolver resolver-name resolver-fns)))

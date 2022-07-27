@@ -1,5 +1,6 @@
 (ns fractl.resolver.sms
   (:require [fractl.resolver.core :as r]
+            [fractl.resolver.registry :refer [defmake]]
             [fractl.sms :as sms]
             [fractl.util :as u]))
 
@@ -14,5 +15,6 @@
 (def ^:private resolver-fns
   {:eval {:handler sms-eval}})
 
-(defn make [resolver-name config]
-  (r/make-resolver resolver-name resolver-fns))
+(defmake :sms
+  (fn [resolver-name config]
+    (r/make-resolver resolver-name resolver-fns)))

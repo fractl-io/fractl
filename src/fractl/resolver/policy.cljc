@@ -5,6 +5,7 @@
             [fractl.compiler.rule :as rl]
             [fractl.lang.internal :as li]
             [fractl.policy.logging-util :as lu]
+            [fractl.resolver.registry :refer [defmake]]
             [fractl.resolver.core :as r]))
 
 (def PRE-EVAL :PreEval)
@@ -130,10 +131,9 @@
    :delete {:handler policy-delete}
    :query {:handler policy-query}})
 
-(defn make
-  "Create and return a policy resolver"
-  [resolver-name config]
-  (r/make-resolver resolver-name resolver-fns))
+(defmake :policy
+  (fn [resolver-name config]
+    (r/make-resolver resolver-name resolver-fns)))
 
 (defn fetch-rules
   "Return the polices stored at the key provided.

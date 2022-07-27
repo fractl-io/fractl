@@ -2,6 +2,7 @@
   "SNS Resolver"
   (:require [fractl.util :as u]
             [fractl.resolver.core :as r]
+            [fractl.resolver.registry :refer [defmake]]
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as credentials]
             [clojure.data.json :as json]
@@ -91,5 +92,6 @@
 (def ^:private resolver-fns
   {:eval {:handler sns-eval}})
 
-(defn make [resolver-name config]
-  (r/make-resolver resolver-name resolver-fns))
+(defmake :sns
+  (fn [resolver-name config]
+    (r/make-resolver resolver-name resolver-fns)))

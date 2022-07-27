@@ -1,15 +1,6 @@
 (ns fractl.resolver.registry
   (:require [fractl.util :as u]
-            [fractl.lang.internal :as li]
-            [fractl.resolver.policy :as policy]
-            [fractl.resolver.meta :as meta]
-            [fractl.resolver.timer :as timer]
-            #?(:clj [fractl.resolver.data-sync :as ds])
-            #?(:clj [fractl.resolver.git :as git])
-            #?(:clj [fractl.resolver.email :as email])
-            #?(:clj [fractl.resolver.sms :as sms])
-            #?(:clj [fractl.resolver.aws :as aws])
-            #?(:clj [fractl.resolver.sns :as sns])))
+            [fractl.lang.internal :as li]))
 
 (def ^:private type-tag :-*-resolver-registry-*-)
 (def ^:private parent-tag :-*-parent-*-)
@@ -66,17 +57,7 @@
 (def composed? (complement map?))
 (def override? map?)
 
-(def constructors
-  (u/make-cell
-   (merge {:meta meta/make
-           :policy policy/make
-           :timer timer/make}
-          #?(:clj {:data-sync ds/make
-                   :git git/make
-                   :email email/make
-                   :sms sms/make
-                   :aws aws/make
-                   :sns sns/make}))))
+(def constructors (u/make-cell {}))
 
 (defn register-resolver-type [type-name constructor]
   (u/call-and-set
@@ -84,9 +65,9 @@
    #(assoc @constructors type-name constructor))
   constructor)
 
-(defmacro defmake [resolver-name constructor]
+(defmacro defmake [type-name constructor]
   `(def ~(symbol "make")
-     (register-resolver-type ~resolver-name ~constructor)))
+     (register-resolver-type ~type-name ~constructor)))
 
 (defn register-resolver [{n :name t :type
                           compose? :compose?

@@ -2,6 +2,7 @@
   "Dynamic model definition"
   (:require [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.resolver.registry :refer [defmake]]
             [fractl.resolver.core :as r]))
 
 (defn- load-model-from-meta [model-name]
@@ -19,9 +20,8 @@
 (def ^:private resolver-fns
   {:eval {:handler meta-eval}})
 
-(defn make
-  "Create and return a policy resolver"
-  [resolver-name config]
-  (r/make-resolver
-   resolver-name
-   {:eval {:handler (partial meta-eval (:fractl-api config))}}))
+(defmake :meta
+  (fn [resolver-name config]
+    (r/make-resolver
+     resolver-name
+     {:eval {:handler (partial meta-eval (:fractl-api config))}})))

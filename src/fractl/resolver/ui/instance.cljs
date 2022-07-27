@@ -1,5 +1,6 @@
 (ns fractl.resolver.ui.instance
   (:require [fractl.resolver.core :as rc]
+            [fractl.resolver.registry :refer [defmake]]
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.meta :as mt]
@@ -105,6 +106,7 @@
     (upsert-with-embedded-instance inst instance)
     (upsert-with-lookup instance)))
 
-(defn make [n]
-  (rc/make-resolver
-   n {:upsert {:handler upsert-ui}}))
+(defmake :ui-instance
+  (fn [n _]
+    (rc/make-resolver
+     n {:upsert {:handler upsert-ui}})))

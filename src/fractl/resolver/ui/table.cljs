@@ -10,6 +10,7 @@
             [fractl.ui.config :as cfg]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
+            [fractl.resolver.registry :refer [defmake]]
             ["@material-ui/core"
              :refer [Link Button
                      TableContainer Table
@@ -160,7 +161,8 @@
 (defn upsert-ui [instance]
   (vu/finalize-view (make-view instance) instance))
 
-(defn make [resolver-name]
-  (rc/make-resolver
-   resolver-name
-   {:upsert {:handler upsert-ui}}))
+(defmake :ui-table
+  (fn [resolver-name _]
+    (rc/make-resolver
+     resolver-name
+     {:upsert {:handler upsert-ui}})))

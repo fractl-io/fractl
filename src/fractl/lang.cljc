@@ -11,7 +11,8 @@
             [fractl.compiler.rule :as rl]
             [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
-            [fractl.resolver.registry :as r]))
+            [fractl.resolver.registry :as r]
+            [fractl.resolvers]))
 
 (defn- normalize-imports [imports]
   (let [imps (rest imports)]
