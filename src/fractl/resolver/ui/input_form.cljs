@@ -213,6 +213,7 @@
         meta (cn/fetch-meta rec-name)
         embedded-inst (:Instance instance)
         styles (cfg/views-styles rec-name)
+      fields (if (= title "User Login")(:Fields instance) (:input-form (:Fields instance)) )
         view
         `[:div {:class "view"}
           [:> ~Card {:style {:margin-top "20px"  :overflow-y "auto"}}
@@ -223,7 +224,7 @@
                rec-name scm
                (mapv
                 u/string-as-keyword
-                (:Fields instance))
+                fields)
                (or embedded-inst [(:QueryBy instance) (:QueryValue instance)])
                set-state-value! change-handler)
             [:> ~Button
