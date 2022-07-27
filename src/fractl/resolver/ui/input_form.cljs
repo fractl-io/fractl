@@ -214,12 +214,13 @@
         embedded-inst (:Instance instance)
         styles (cfg/views-styles rec-name)
       fields (if (= title "User Login")(:Fields instance) (:input-form (:Fields instance)) )
+      card-height (if (= title "Detail") "500px" "")
         view
         `[:div {:class "view"}
-          [:> ~Card {:style {:margin-top "20px"  :overflow-y "auto"}}
+          [:> ~Card {:style {:margin-top "20px"  :overflow-y "auto" :height ~card-height}}
            [:> ~CardContent {:style {:padding "20px" :text-align "center"}}
             [:> ~Typography  ~(style/input-form-title styles)
-             ~title] [:br]
+             ~title ] [:br]
             ~@(render-attribute-specs
                rec-name scm
                (mapv
