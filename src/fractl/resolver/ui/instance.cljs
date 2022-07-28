@@ -1,6 +1,6 @@
 (ns fractl.resolver.ui.instance
   (:require [fractl.resolver.core :as rc]
-            [fractl.resolver.registry :refer [defmake]]
+            [fractl.resolver.registry :refer-macros [defmake]]
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.meta :as mt]

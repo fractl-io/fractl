@@ -1,7 +1,9 @@
 (ns fractl.resolver.remote
   (:require [fractl.util.remote :as ur]
             [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]))
+            [fractl.resolver.registry
+             #?(:clj :refer :cljs :refer-macros)
+             [defmake]]))
 
 (def ^:private resolver-fns
   {:upsert {:handler ur/remote-upsert}

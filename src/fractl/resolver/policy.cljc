@@ -5,7 +5,9 @@
             [fractl.compiler.rule :as rl]
             [fractl.lang.internal :as li]
             [fractl.policy.logging-util :as lu]
-            [fractl.resolver.registry :refer [defmake]]
+            [fractl.resolver.registry
+             #?(:clj :refer :cljs :refer-macros)
+             [defmake]]
             [fractl.resolver.core :as r]))
 
 (def PRE-EVAL :PreEval)

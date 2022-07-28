@@ -10,7 +10,7 @@
             [fractl.ui.config :as cfg]
             [fractl.lang.internal :as li]
             [fractl.resolver.core :as rc]
-            [fractl.resolver.registry :refer [defmake]]
+            [fractl.resolver.registry :refer-macros [defmake]]
             ["@material-ui/core"
              :refer [Link Button
                      TableContainer Table

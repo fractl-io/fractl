@@ -2,7 +2,9 @@
   "Dynamic model definition"
   (:require [fractl.util :as u]
             [fractl.component :as cn]
-            [fractl.resolver.registry :refer [defmake]]
+            [fractl.resolver.registry
+             #?(:clj :refer :cljs :refer-macros)
+             [defmake]]
             [fractl.resolver.core :as r]))
 
 (defn- load-model-from-meta [model-name]

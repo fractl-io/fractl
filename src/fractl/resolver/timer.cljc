@@ -3,7 +3,9 @@
             [fractl.util.logger :as log]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
+            [fractl.resolver.registry
+             #?(:clj :refer :cljs :refer-macros)
+             [defmake]]
             [fractl.evaluator.state :as es]
             [fractl.lang.datetime :as dt])
   #?(:clj
