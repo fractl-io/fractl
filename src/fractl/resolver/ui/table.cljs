@@ -73,7 +73,7 @@
       (let [rec-name (cn/instance-type (first rows))
             styles (cfg/views-styles rec-name)
             table-head-cell-style (style/table-head-cell styles)
-            headers (mapv (fn [f] [:> TableCell {:style {:text-transform "uppercase" :text-align (when (= f "Delete") "center")}}  (name f)]) (conj fields "Delete"))
+            headers (mapv (fn [f] [:> TableCell {:style {:text-transform "uppercase" :text-align (when (= f "Delete") "center")}}  (name f)]) (conj (vec fields) "Delete"))
             n (name (second (li/split-path rec-name)))
             r (partial render-instance (style/table-body-cell styles) fields rec-name)
             table-body-row-style (style/table-body-row styles)
@@ -89,6 +89,7 @@
                        (mkbtn "Next" (inc offset)))
             back-btn (when (and offset (> offset 0))
                        (mkbtn "Prev" (dec offset)))]
+
         `[:div {:style {:width "1200px" :overflow-x "auto" :height "750px" :text-align "center"}}
           [:> ~Paper  [:> ~TableContainer
                        [:> ~Table
@@ -122,11 +123,10 @@
         id (str n "-table-view")
         cfg (partial get-config rec-name)
         fields (or
-                 (cfg :order)
-                (mapv u/string-as-keyword (:list (:Fields instance))))
+                (cfg :order)
+                (take 6 (mapv u/string-as-keyword (:Fields instance))))
         src (:Source instance)
         rows-per-page (cfg :rows-per-page)]
-      (js/console.log (clj->js (:list (:Fields instance))))
     (if (vector? src)
       [:div (make-rows-view (paginate src rows-per-page) fields id)]
       (let [has-source-event (map? src)

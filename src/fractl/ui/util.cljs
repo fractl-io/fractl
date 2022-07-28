@@ -230,8 +230,7 @@
       (cn/make-instance event-name (merge qattrs tbl-attrs))
       (let [meta (cn/fetch-meta rec-name)
             attrs {:Record rec-name
-                   :Fields (if (= (clj->js rec-name) "Detail") (:order meta) (fetch-fields rec-name meta))}]
-                  (js/console.log "name" (clj->js rec-name))
+                   :Fields (fetch-fields rec-name meta)}]
         (cn/make-instance
          (get-in
           (or

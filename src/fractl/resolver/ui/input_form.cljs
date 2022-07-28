@@ -213,7 +213,7 @@
         meta (cn/fetch-meta rec-name)
         embedded-inst (:Instance instance)
         styles (cfg/views-styles rec-name)
-      fields (if (= title "User Login")(:Fields instance) (:input-form (:Fields instance)) )
+      fields (:Fields instance) 
       card-height (if (= title "Detail") "500px" "")
         view
         `[:div {:class "view"}
