@@ -30,12 +30,9 @@
                  [buddy/buddy-auth "3.0.323"]
                  [keycloak-clojure "1.28.3"]
                  [org.bitbucket.b_c/jose4j "0.7.12"]
-                 [tick "0.5.0-RC1"]
                  [reagent "1.1.0"]
                  [cljsjs/react "17.0.2-0"]
-                 [cljsjs/react-dom "17.0.2-0"]
-                 [clj-commons/secretary "1.2.4"]
-                 [babashka/babashka.curl "0.1.1"]
+                 [tick "0.5.0-RC1"]
                  [spec-provider "0.4.14"]]
 
   :java-source-paths ["src/java"]

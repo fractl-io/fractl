@@ -260,6 +260,8 @@
 
 (defn pretty-spit
   [file-name edn]
-  (spit file-name
-        (with-out-str
-          (pp/write edn :dispatch pp/code-dispatch))))
+  #?(:clj
+     (spit file-name
+           (with-out-str
+             (pp/write edn :dispatch pp/code-dispatch)))
+     :cljs edn))
