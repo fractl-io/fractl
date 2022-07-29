@@ -54,8 +54,8 @@
                    [:> Typography entry-style
                     (str lbl ": " val)])
                  fields)]
-    `[:> ~Card ~card-style
-      [:> ~CardContent
+    `[:> ~Card 
+      [:> ~CardContent 
        [:> ~Typography ~title-style ~title]
        ~@fs]
       [:> ~CardActions ~(make-menu navigation-links)]]))

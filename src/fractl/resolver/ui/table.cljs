@@ -1,5 +1,6 @@
 (ns fractl.resolver.ui.table
-  (:require [fractl.util :as u]
+  (:require [reagent.core :as r]
+            [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.global-state :as gs]
             [fractl.meta :as mt]
@@ -117,6 +118,8 @@
    (gs/get-app-config)
    [:ui :dashboard rec-name k]))
 
+(def data (r/atom nil))
+
 (defn- make-view [instance]
   (let [rec-name (u/string-as-keyword (:Record instance))
         [_ n] (li/split-path rec-name)
@@ -147,7 +150,10 @@
             #(vu/eval-event
               (fn [result]
                 (if-let [rows (vu/eval-result result)]
-                  (render-rows rows fields rows-per-page id)
+                    (when (not= @data rows)
+                      (reset! data rows)
+                      (render-rows rows fields rows-per-page id))
+
                   (if (= :not-found (:status (first result)))
                     (v/render-view [:div (str (name rec-name) " - not found")] id)
                     (println (str "failed to list " rec-name " - " result)))))
