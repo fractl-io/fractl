@@ -14,6 +14,10 @@
          "0.1-SNAPSHOT")
 
     :main ~(symbol "fractl.core")
+
+    :repositories [["public-github" {:url "git://github.com"}]
+                   ["private-github" {:url "git://github.com" :protocol :ssh}]]
+
     ~@(when-let [deps (:clj-dependencies model)]
         [:dependencies deps])))
 
