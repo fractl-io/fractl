@@ -62,7 +62,7 @@
       `(first (fractl.env/follow-reference ~runtime-env-var ~parts))
 
       :else
-      `(fractl.env/lookup-instance ~runtime-env-var [(:component parts) (:record parts)]))))
+      `(fractl.env/lookup-instance ~runtime-env-var [(:component ~parts) (:record ~parts)]))))
 
 (defn- arg-lookup [arg]
   (cond
