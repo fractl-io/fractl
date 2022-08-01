@@ -268,10 +268,7 @@
 (defn reset-page-state! []
   (clear-interval!))
 
-(defn decode-to-str [x]
-  (if (t/tagged-value? x)
-    (.-rep x)
-    (str x)))
+
 
 (defn- lookup-by-event-name [c n s]
   (keyword (str (name c) "/" (name n) "LookupBy" s)))

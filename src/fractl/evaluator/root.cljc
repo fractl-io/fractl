@@ -644,7 +644,7 @@
          (or (ex-data e) (i/error (.getMessage e))))
        :cljs
        (catch js/Error e
-         (or (.-ex-data e) (i/error e))))))
+         (or (ex-data e)  (i/error e))))))
 
 (defn- do-query-helper [env entity-name queries]
   (if-let [[insts env]

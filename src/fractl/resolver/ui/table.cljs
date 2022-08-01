@@ -91,7 +91,7 @@
             back-btn (when (and offset (> offset 0))
                        (mkbtn "Prev" (dec offset)))]
 
-        `[:div {:style {:width "1200px" :overflow-x "auto" :height "750px" :text-align "center"}}
+        `[:div {:style {:overflow-x "auto" :height "750px" :text-align "center"}}
           [:> ~Paper  [:> ~TableContainer
                        [:> ~Table
                         [:> ~TableHead
@@ -100,7 +100,7 @@
                         [:> ~TableBody
                          ~@table-rows]]]]
           [:div ~back-btn ~next-btn]])
-      [:div "no data"])))
+      [:div "No data available"])))
 
 (defn- paginate [rows rows-per-page]
   (atom
@@ -108,20 +108,58 @@
      [0 (partition rows-per-page rows)]
      [nil rows])))
 
-(defn- render-rows [rows fields rows-per-page elem-id]
-  (v/render-view
-   (make-rows-view (paginate rows rows-per-page) fields elem-id)
-   elem-id))
-
 (defn- get-config [rec-name k]
   (get-in
    (gs/get-app-config)
    [:ui :dashboard rec-name k]))
 
-(def data (r/atom nil))
+(defn table-view [rows-data instance]
+  (let [rec-name (u/string-as-keyword (:Record instance))
+        [_ n] (li/split-path rec-name)
+        id (str n "-table-view")
+        cfg (partial get-config rec-name)
+        rows-per-page (cfg :rows-per-page)
+        fields (or
+                (cfg :order)
+                (take 6 (mapv u/string-as-keyword (:Fields instance))))]
+    [:div {:style {:padding "20px" :text-align "center"}}
+     [:div  (make-rows-view (paginate @rows-data rows-per-page) fields id)]
+     (when (and (= :Dashboard (second (li/split-path (cn/instance-type instance))))
+                (not= (cfg :create-new-button) :none))
+       [:> Button
+        {:style {:background-color "#24252a" :color "white" :margin-top "20px"}
+         :on-click #(v/render-view
+                     (v/make-input-view rec-name))}
+        (str "Create New " (name n))])]))
+
+(defn table-data-refresh [rec-name src rows-data]
+  (let [cfg (partial get-config rec-name)
+        rows-per-page (cfg :rows-per-page)
+      
+        has-source-event (map? src)
+        source-event (if has-source-event
+                       src
+                       (cn/make-instance
+                        (u/string-as-keyword src)
+                        {}))
+        data-refresh! #(vu/eval-event
+                        (fn [result]
+                          (if-let [rows (vu/eval-result result)]
+                            (reset! rows-data rows)
+                            (if (= :not-found (:status (first result)))
+                              (reset! rows-data nil)
+                              (println (str "failed to list " rec-name " - " result)))))
+                        source-event)
+        data-refresh-ms
+        (when-not rows-per-page
+          (or (cfg :data-refresh-ms) 5000))]
+    (data-refresh!)
+    (when data-refresh-ms
+      (vu/set-interval! data-refresh! data-refresh-ms))))
 
 (defn- make-view [instance]
-  (let [rec-name (u/string-as-keyword (:Record instance))
+  (let [rows-data (r/atom nil)
+        rec-name (u/string-as-keyword (:Record instance))
         [_ n] (li/split-path rec-name)
         id (str n "-table-view")
         cfg (partial get-config rec-name)
@@ -132,39 +170,9 @@
         rows-per-page (cfg :rows-per-page)]
     (if (vector? src)
       [:div (make-rows-view (paginate src rows-per-page) fields id)]
-      (let [has-source-event (map? src)
-            source-event (if has-source-event
-                           src
-                           (cn/make-instance
-                            (u/string-as-keyword src)
-                            {}))
-            table-view [:div {:style {:text-align "center"}} [:div {:id id :style {:padding "30px 0px" :display "flex" :justify-content "center"}}]
-                        (when (and (= :Dashboard (second (li/split-path (cn/instance-type instance))))
-                                   (not= (cfg :create-new-button) :none))
-                          [:> Button
-                           {:style {:background "#24252a" :color "white"}
-                            :on-click #(v/render-view
-                                        (v/make-input-view rec-name))}
-                           (str "Create New " (name n))])]
-            data-refresh!
-            #(vu/eval-event
-              (fn [result]
-                (if-let [rows (vu/eval-result result)]
-                    (when (not= @data rows)
-                      (reset! data rows)
-                      (render-rows rows fields rows-per-page id))
-
-                  (if (= :not-found (:status (first result)))
-                    (v/render-view [:div (str (name rec-name) " - not found")] id)
-                    (println (str "failed to list " rec-name " - " result)))))
-              source-event)
-            data-refresh-ms
-            (when-not rows-per-page
-              (or (cfg :data-refresh-ms) 5000))]
-        (data-refresh!)
-        (when data-refresh-ms
-          (vu/set-interval! data-refresh! data-refresh-ms))
-        table-view))))
+      [(fn []
+         (table-data-refresh rec-name src rows-data)
+         (table-view rows-data instance))])))
 
 (defn upsert-ui [instance]
   (vu/finalize-view (make-view instance) instance))
