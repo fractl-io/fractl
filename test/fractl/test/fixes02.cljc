@@ -583,3 +583,16 @@
     (is (cn/instance-of? :I565/E result))
     (is (cn/instance-of? :I565/R2 (:R2 result)))
     (is (every? #(cn/instance-of? :I565/R1 %) (get-in [:R2 :R1] result)))))
+
+(deftest issue-568-arg-compilation
+  (defcomponent :I568
+    (record {:I568/R
+             {:K :Kernel/Any}})
+    (dataflow
+     :I568/D
+     {:I568/R {:K '(identity :I568/D)}}))
+  (let [evt (cn/make-instance :I568/D {:I 100})
+        result (first (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :I568/R result))
+    (is (cn/instance-of? :I568/D (:K result)))
+    (is (= 100 (get-in result [:K :I])))))
