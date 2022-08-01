@@ -562,3 +562,24 @@
               :Age 34})]
      (is (= "ABC" (cn/instance-str a1)))
      (is (= "K J <kj@gmail.com>" (cn/instance-str u1))))))
+
+(deftest issue-565-list-bug
+  (defcomponent :I565
+    (record {:I565/R1
+             {:X :Kernel/Int}})
+    (record {:I565/R2
+             {:R1 {:listof :I565/R1}}})
+    (entity {:I565/E
+             {:R2 :I565/R2}})
+    (dataflow
+     :I565/D
+     {:I565/E
+      {:R2
+       {:I565/R2
+        {:R1 [{:I565/R1 {:X 100}}
+              {:I565/R1 {:X 200}}]}}}}))
+  (let [evt (cn/make-instance :I565/D {})
+        result (first (tu/fresult (e/eval-all-dataflows evt)))]
+    (is (cn/instance-of? :I565/E result))
+    (is (cn/instance-of? :I565/R2 (:R2 result)))
+    (is (every? #(cn/instance-of? :I565/R1 %) (get-in [:R2 :R1] result)))))
