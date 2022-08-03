@@ -31,3 +31,4 @@ fractl.log.*
 !sample/library/*.db
 app
 /platform/aws/lambda/target/
+.calva/

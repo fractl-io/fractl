@@ -1,4 +1,4 @@
-(ns fractl.client.model.hello
+(ns hello
   (:require [fractl.lang :refer
              [component record dataflow event entity]]
             [fractl.lang.datetime :refer [now]]))
