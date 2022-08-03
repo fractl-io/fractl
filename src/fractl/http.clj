@@ -1,7 +1,6 @@
 (ns fractl.http
   (:require [clojure.walk :as w]
             [clojure.string :as s]
-            [cheshire.core :as json]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
             [ring.util.codec :as codec]
