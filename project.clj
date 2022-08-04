@@ -7,11 +7,6 @@
                  [org.clojure/data.xml "0.2.0-alpha5"]
                  [org.clojure/data.csv "1.0.0"]
                  [cheshire "5.10.1"]
-                 ;; required for store/sfdc-metadata
-                 [org.antlr/antlr-complete "3.5.2"]
-                 [com.force.api/force-wsc "51.2.0"]
-                 [com.force.api/force-metadata-api "51.2.0"]
-                 [clj-jgit "1.0.1"]
                  [com.taoensso/timbre "5.1.2"
                   :exclusions [org.clojure/tools.reader]]
                  [seancorfield/next.jdbc "1.2.659"]
@@ -29,33 +24,21 @@
                  [cljc.java-time "0.1.18"]
                  [com.cognitect/transit-clj "1.0.324"]
                  [com.cognitect/transit-cljs "0.8.269"]
-                 [com.amazonaws/aws-lambda-java-core "1.2.1"]
-                 [com.amazonaws/aws-lambda-java-events "3.11.0"]
-                 [com.amazonaws/aws-lambda-java-log4j2 "1.5.1"]
-                 [camdez/sendgrid "0.2.0"]
-                 [postmark "1.4.1"]
                  [de.active-group/active-logger "b69b2f5324466648e1acd388b6aa952f101dfd99"]
                  [com.lambdaisland/glogi "1.1.144"]
                  [com.fzakaria/slf4j-timbre "0.3.21"]
                  [buddy/buddy-auth "3.0.323"]
                  [keycloak-clojure "1.28.3"]
                  [org.bitbucket.b_c/jose4j "0.7.12"]
-                 [tick "0.5.0-RC1"]
                  [reagent "1.1.0"]
                  [cljsjs/react "17.0.2-0"]
-                 [cljsjs/react-dom "17.0.2-0"]
-                 [clj-commons/secretary "1.2.4"]
-                 [babashka/babashka.curl "0.1.1"]
-                 [com.fasterxml.jackson.core/jackson-databind "2.13.3"]
-                 [com.cognitect.aws/api "0.8.539"]
-                 [com.cognitect.aws/endpoints "1.1.12.145"]
-                 [com.cognitect.aws/sns "811.2.959.0"]
-                 [com.cognitect.aws/kms "814.2.1008.0"]
-                 [org.clojure/data.json "2.4.0"]
+                 [tick "0.5.0-RC1"]
                  [spec-provider "0.4.14"]]
 
   :java-source-paths ["src/java"]
-  :resource-paths ["lib/sfdc-enterprise.jar" "lib/jbcrypt.jar" "lib/auth0-1.35.0-uber.jar"]
+
+  ;:resource-paths ["lib/sfdc-enterprise.jar" "lib/jbcrypt.jar" "lib/auth0-1.35.0-uber.jar"]
+
   :main fractl.core
   :aot :all
 

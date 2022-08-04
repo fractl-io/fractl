@@ -116,7 +116,7 @@
         (remove-hidden-attributes hidden-attrs event-instance))))
 
 (defn- log-result-object [hidden-attrs event-instance obj]
-  (log/info
+  (log/debug
    (str "dataflow result for " (cn/instance-type event-instance)
         " - " (remove-hidden-attributes hidden-attrs obj))))
 

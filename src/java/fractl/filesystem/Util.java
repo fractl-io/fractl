@@ -2,6 +2,8 @@ package fractl.filesystem;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.regex.*;
 
@@ -26,13 +28,29 @@ public final class Util {
     }
 
     private static boolean _forceDeleteDirectory(File directoryToBeDeleted) {
-	File[] allContents = directoryToBeDeleted.listFiles();
-	if (allContents != null) {
-	    for (File file : allContents) {
-		_forceDeleteDirectory(file);
+	if (directoryToBeDeleted.exists()) {
+	    File[] allContents = directoryToBeDeleted.listFiles();
+	    if (allContents != null) {
+		for (File file : allContents) {
+		    _forceDeleteDirectory(file);
+		}
 	    }
-	}
-	return directoryToBeDeleted.delete();
+	    return directoryToBeDeleted.delete();
+	} else return true;
+    }
+
+    public static void copyDirectory(String src, String dest)
+	throws IOException {
+	Files.walk(Paths.get(src))
+	    .forEach(source -> {
+		    Path destination =
+			Paths.get(dest, source.toString().substring(src.length()));
+		    try {
+			Files.copy(source, destination);
+		    } catch (IOException e) {
+			e.printStackTrace();
+		    }
+		});
     }
 
     public static boolean deleteFile(String fileName) {

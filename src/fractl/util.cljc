@@ -1,5 +1,6 @@
 (ns fractl.util
-  (:require [clojure.string :as string])
+  (:require [clojure.string :as string]
+            [clojure.pprint :as pp])
   #?(:clj
      (:require [net.cgrand.macrovich :as macros]
                [cheshire.core :as json])
@@ -256,3 +257,11 @@
        (catch Exception ex
          false))
      :cljs true))
+
+(defn pretty-spit
+  [file-name edn]
+  #?(:clj
+     (spit file-name
+           (with-out-str
+             (pp/write edn :dispatch pp/code-dispatch)))
+     :cljs edn))
