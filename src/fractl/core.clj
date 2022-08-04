@@ -9,6 +9,7 @@
             [fractl.http :as h]
             [fractl.package :as pkg]
             [fractl.resolver.registry :as rr]
+            [fractl.compiler :as c]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.evaluator.intercept :as ei]
@@ -52,19 +53,29 @@
         :else (recur (rest s) sep (conj result c)))
       (str (s/join result) (u/get-script-extn)))))
 
-(defn- load-components [component-scripts model-root load-from-resource]
-  (mapv
-   #(loader/load-script
-     model-root
-     (if load-from-resource
-       (io/resource (str "model/" model-root "/" %))
-       %))
-   component-scripts))
+(defn- store-from-config [config]
+  (or (:store-handle config)
+      (e/store-from-config (:store config))))
 
-(defn- load-components-from-model [model model-root load-from-resource]
+(defn- load-components [component-scripts model-root config]
+  (let [load-from-resource (:load-model-from-resource config)]
+    (when-let [store (store-from-config config)]
+      (cn/set-aot-dataflow-compiler!
+       (partial
+        c/maybe-compile-dataflow
+        (partial store/compile-query store))))
+    (mapv
+     #(loader/load-script
+       model-root
+       (if load-from-resource
+         (io/resource (str "model/" model-root "/" %))
+         %))
+     component-scripts)))
+
+(defn- load-components-from-model [model model-root config]
   (load-components
    (mapv script-name-from-component-name (:components model))
-   model-root load-from-resource))
+   model-root config))
 
 (defn- read-model-expressions [model-file]
   (try
@@ -97,9 +108,7 @@
       (doseq [d deps]
         (let [[m mr] (rmp d)]
           (load-model m mr model-paths config)))))
-  (load-components-from-model
-   model model-root
-   (:load-model-from-resource config)))
+  (load-components-from-model model model-root config))
 
 (defn- log-seq! [prefix xs]
   (loop [xs xs, sep "", s (str prefix " - ")]
@@ -152,7 +161,7 @@
 
 (defn- init-runtime [model components config]
   (register-resolvers! config)
-  (let [store (e/store-from-config (:store config))
+  (let [store (store-from-config config)
         ev (e/public-evaluator store true)
         ins (:interceptors config)]
     (run-appinit-tasks! ev store model components)
@@ -173,9 +182,11 @@
 
 (defn run-service [args [[model model-root] config]]
   (let [config (finalize-config model config)
+        store (e/store-from-config config)
+        config (assoc config :store-handle store)
         components (if model
                      (load-model model model-root nil config)
-                     (load-components args (:component-root config) false))]
+                     (load-components args (:component-root config) config))]
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components)
       (when-let [server-cfg (make-server-config config)]
