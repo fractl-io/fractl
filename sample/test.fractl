@@ -4,15 +4,15 @@
 (component :Sample.Test)
 
 (record
- :HelloWorld
+ :Sample.Test/HelloWorld
  {:Name :Kernel/String
   :Message :Kernel/String})
 
 (dataflow
- :SayHello
- {:HelloWorld
-  {:Name :SayHello.Name
-   :Message '(str "Hello World from " :SayHello.Name)}})
+ :Sample.Test/SayHello
+ {:Sample.Test/HelloWorld
+  {:Name :Sample.Test/SayHello.Name
+   :Message '(str "Hello World from " :Sample.Test/SayHello.Name)}})
 
 (entity
  :Sample.Test/SalaryInfo

@@ -8,8 +8,8 @@
             [fractl.test.util :as tu]))
 
 (deftest test-load-script
-  (is :Sample.Simple (loader/load-script nil "sample/simple.fractl"))
-  (is (nil? (loader/load-script "sample/dependencies" "model1/model.fractl"))))
+  (is (= [:Sample.Simple] (vec (loader/load-script nil "sample/simple.fractl"))))
+  (is (nil? (seq (loader/load-script "sample/dependencies" "model1/model.fractl")))))
 
 (deftest test-read-expressions
   (is :Sample.Simple/LoggingPolicy (first (loader/read-expressions "sample/simple.fractl")))
@@ -20,12 +20,12 @@
 
 (deftest test-load-dependencies
   (let [[model model-root] (fc/read-model "sample/dependencies/model1/model.fractl")]
-    (is (= [:Model1.C1] (fc/load-model model model-root [] nil)))
+    (is (= [:Model1.C1] (vec (fc/load-model model model-root [] nil))))
     (is (cn/component-exists? :Model1.C1))
     (is (cn/component-exists? :Model2.C1))))
 
 (deftest issue-321
-  (is :Sample.Test (loader/load-script nil "sample/test.fractl"))
+  (is [:Sample.Test] (vec (loader/load-script nil "sample/test.fractl")))
   (let [evt (cn/make-instance {:Sample.Test/SayHello {:Name "Clojure"}})
         r (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Sample.Test/HelloWorld r))

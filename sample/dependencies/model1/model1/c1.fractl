@@ -4,6 +4,6 @@
 (component :Model1.C1)
 
 (dataflow
- :E1
+ :Model1.C1/E1
  {:Model2.C1/E
   {:X '(+ 10 :Model1.C1/E1.X)}})

@@ -3,160 +3,22 @@
 
 (component :Sample.Simple)
 
-(entity {:E1 {:X {:type :Kernel/Int :indexed true}
-              :S {:type :Kernel/String :indexed true}}})
+(entity {:Sample.Simple/E1 {:X {:type :Kernel/Int :indexed true}
+                            :S {:type :Kernel/String :indexed true}}})
 
-(entity {:E2 {:X :Kernel/Int}})
+(entity {:Sample.Simple/E2 {:X :Kernel/Int}})
 
-(entity {:E3 {:A :Kernel/Int
-              :B :Kernel/Int
-              :C :Kernel/Int
-              :X {:type :Kernel/String
-                  :write-only true}
-              :Y :Kernel/DateTime}})
-
-(dataflow
- :K
- {:E3 {:A '(+ 5 :B)
-       :B 10
-       :C '(+ 10 :A)
-       :X "secret"
-       :Y '(fractl.lang.datetime/now)}})
-
-(entity {:E4 {:Y :Kernel/DateTime}})
-
-(record {:StringField
-         {:Question {:type :Kernel/String}
-          :Value {:type :Kernel/String
-                  :optional true}}})
-
-(defn valid-name? [s]
-  (and (string? s)
-       (<= 3 (count s) 50)))
-
-(entity {:Survey
-         {:Name {:check valid-name?}
-          :Field {:type :StringField}}})
-
-(dataflow :KK {:E4 {:Y '(fractl.lang.datetime/now)}})
+(entity {:Sample.Simple/E3 {:A :Kernel/Int
+                            :B :Kernel/Int
+                            :C :Kernel/Int
+                            :X {:type :Kernel/String
+                                :write-only true}
+                            :Y :Kernel/DateTime}})
 
 (dataflow
- :RBACPolicy
- {:Kernel/Policy
-  {:Intercept "RBAC"
-   :Resource ["Sample.Simple/Upsert_E4"]
-   :Rule [:q#
-          [:when
-           [:= "life" :EventContext.Auth.Owner.Group]]]}})
-
-(dataflow
- :LoggingPolicy
- {:Kernel/Policy
-  {:Intercept "Logging"
-   :Resource ["Sample.Simple/Upsert_E1"]
-   :Rule [:q#
-          {:Disable :INFO}]}})
-
-(entity
- :Employee
- {:DeptNo {:type :Kernel/Int
-           :indexed true}
-  :Designation :Kernel/String
-  :Salary :Kernel/Decimal})
-
-(entity
- :Contractor
- {:Name :Kernel/String})
-
-(event
- :FindAllEmployeesInDepartment
- {:Dept :Kernel/Int})
-
-(dataflow
- :FindAllEmployeesInDepartment
- {:Employee
-  {:DeptNo? :Sample.Simple/FindAllEmployeesInDepartment.Dept}})
-
-(dataflow
- :SalaryIncrement
- {:Employee
-  {:DeptNo? :Sample.Simple/SalaryIncrement.Dept
-   :Salary '(+ :Salary (* :Salary :Sample.Simple/SalaryIncrement.Percentage))}})
-
-(dataflow
- :EmployeeLogin
- {:Employee {:Id? :Sample.Simple/EmployeeLogin.Employee}}
- {:Kernel/Authentication
-  {:Owner :Sample.Simple/Employee}})
-
-(def admin-rule [:when
-                 [:= "admin" :EventContext.Auth.Owner.Group]])
-
-(def self-or-admin-rule
-  [:when
-   [:or
-    [:= [:Sample.Simple :EmployeeLogin] :name]
-    [:= "admin" :EventContext.Auth.Owner.Group]
-    [:= :EventContext.Auth.Owner.Id :EventContext.Data.Id]]])
-
-(dataflow
- :EmployeeLoginPolicy
- {:Kernel/Policy
-  {:Intercept "RBAC"
-   :Resource ["Sample.Simple/EmployeeLogin"]
-   :Rule [:q# [:allow-all]]}})
-
-(dataflow
- :EmployeePolicy
- {:Kernel/Policy
-  {:Intercept "RBAC"
-   :Resource ["Sample.Simple/Upsert_Employee"]
-   :Rule [:q# admin-rule]}}
- {:Kernel/Policy
-  {:Intercept "RBAC"
-   :Resource ["Sample.Simple/Lookup_Employee"]
-   :Rule [:q# [:allow-all]]}}
- {:Kernel/Policy
-  {:Intercept "RBAC"
-   :Resource ["Sample.Simple/Employee"]
-   :Rule [:q# [[:Lookup]
-               self-or-admin-rule
-               [:Upsert]
-               admin-rule]]}})
-
-(event :FindContractor {:Contractor :Kernel/UUID})
-
-(dataflow
- :FindContractor
- {:Contractor {:Id? :Sample.Simple/FindContractor.Contractor}})
-
-(dataflow
- :ContractorPolicy
- {:Kernel/Policy
-  {:Intercept "RBAC"
-   :Resource ["Sample.Simple/Upsert_Contractor"]
-   :Rule [:q# admin-rule]}}
- {:Kernel/Policy
-  {:Intercept "RBAC"
-   :Resource ["Sample.Simple/Contractor"]
-   :Rule [:q# [[:Upsert]
-               admin-rule]]}}
- {:Kernel/Policy
-  {:Intercept "RBAC"
-   :Resource ["Sample.Simple/FindContractor"]
-   :Rule [:q# admin-rule]}})
-
-(dataflow
- :Kernel/AppInit
- {:LoggingPolicy {}}
- {:EmployeeLoginPolicy {}}
- {:EmployeePolicy {}}
- {:ContractorPolicy {}}
- {:Kernel/Policy
-  {:Intercept "RBAC"
-   :Resource ["Kernel/Authentication"]
-   :Rule [:q# [[:Upsert :Delete] [:allow-all]]]}}
- {:Employee
-  {:DeptNo 101
-   :Designation "admin"
-   :Salary 1000M}})
+ :Sample.Simple/K
+ {:Sample.Simple/E3 {:A '(+ 5 :B)
+                     :B 10
+                     :C '(+ 10 :A)
+                     :X "secret"
+                     :Y '(fractl.lang.datetime/now)}})

@@ -34,6 +34,16 @@
            result)))
       result)))
 
+(defn- fetch-component-names [script-file]
+  (let [exps (read-string (str "(do" (slurp script-file) ")"))]
+    (filter
+     identity
+     (mapv
+      #(when (and (seqable? %)
+                  (= 'component (first %)))
+         (second %))
+      exps))))
+
 (defn read-expressions
   "Read expressions in sequence from a fractl component file. Each expression read
    is preprocessed to add component-name prefixes to names. Then the expression is evaluated.
@@ -52,13 +62,13 @@
        (loop [exp (rdf), exps nil]
          (if (= exp :done)
            (reverse exps)
-           (recur (rdf) (conj exps (eval (fqn exp))))))
+           (let [r (eval (fqn exp))]
+             (recur (rdf) (if r (conj exps r) exps)))))
        (finally
          (u/safe-close reader)))))
   ([file-name-or-input-stream]
    (read-expressions
-    file-name-or-input-stream
-    (fetch-declared-names file-name-or-input-stream))))
+    file-name-or-input-stream nil)))
 
 (defn load-script
   "Load, complile and intern the component from a script file."
@@ -76,14 +86,13 @@
                       component-root-path)))
              (str component-root-path u/path-sep file-name-or-input-stream)
              file-name-or-input-stream))
-         names (fetch-declared-names file-ident)
-         component-name (:component names)]
-     (when component-name
-       (cn/remove-component component-name))
+         component-names (fetch-component-names file-ident)]
+     (doseq [cn component-names]
+       (cn/remove-component cn))
      (binding [*ns* *ns*]
-       (read-expressions (if input-reader? file-name-or-input-stream file-ident) names))
-     (when (and component-name (cn/component-exists? component-name))
-       component-name)))
+       (read-expressions (if input-reader? file-name-or-input-stream file-ident)))
+     (when (every? cn/component-exists? component-names)
+       component-names)))
   ([file-name-or-input-stream]
    (load-script nil file-name-or-input-stream)))
 

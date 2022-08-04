@@ -53,13 +53,14 @@
       (str (s/join result) (u/get-script-extn)))))
 
 (defn- load-components [component-scripts model-root load-from-resource]
-  (mapv
-   #(loader/load-script
-     model-root
-     (if load-from-resource
-       (io/resource (str "model/" model-root "/" %))
-       %))
-   component-scripts))
+  (flatten
+   (mapv
+    #(loader/load-script
+      model-root
+      (if load-from-resource
+        (io/resource (str "model/" model-root "/" %))
+        %))
+    component-scripts)))
 
 (defn- load-components-from-model [model model-root load-from-resource]
   (load-components

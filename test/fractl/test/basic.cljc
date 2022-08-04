@@ -152,11 +152,11 @@
     (entity {:Df03/E {:X :Kernel/Int
                       :Y :Kernel/Int
                       :Z :Kernel/Int}})
-    (event {:Df03/PostE {:R :Df03/R}}))
-  (dataflow :Df03/PostE
-            {:Df03/E {:X :Df03/PostE.R.A
-                      :Z '(+ :X :Y)
-                      :Y '(* :X 10)}})
+    (event {:Df03/PostE {:R :Df03/R}})
+    (dataflow :Df03/PostE
+              {:Df03/E {:X :Df03/PostE.R.A
+                        :Z '(+ :X :Y)
+                        :Y '(* :X 10)}}))
   (let [r (cn/make-instance :Df03/R {:A 100})
         evt {:Df03/PostE {:R r}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
