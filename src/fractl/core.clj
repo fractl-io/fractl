@@ -7,6 +7,7 @@
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.http :as h]
+            [fractl.package :as pkg]
             [fractl.resolver.registry :as rr]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
@@ -27,6 +28,7 @@
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
+   ["-p" "--package" "Package a model into a standalone jar"]
    ["-h" "--help"]])
 
 (defn- find-model-paths [model current-model-paths config]
@@ -115,10 +117,15 @@
     (when (auth/setup-resolver auth-config)
       (log/info "authentication resolver inited"))))
 
+(defn- model-name-from-args [args]
+  (and (= (count args) 1)
+       (let [f (first args)]
+         (and (s/ends-with? f (u/get-model-script-name))
+              f))))
+
 (defn- maybe-read-model [args]
-  (when (and (= (count args) 1)
-             (s/ends-with? (first args) (u/get-model-script-name)))
-    (read-model (first args))))
+  (when-let [n (model-name-from-args args)]
+    (read-model n)))
 
 (defn- log-app-init-result! [result]
   (cond
@@ -177,13 +184,17 @@
           (log/info (str "Server config - " server-cfg))
           (h/run-server [evaluator query-fn] server-cfg))))))
 
+(defn- find-model-to-read [args config]
+  (or (seq args)
+      [(:full-model-path config)]))
+
 (defn read-model-and-config [args options]
   (let [config-file (get options :config)
         config (when config-file
                  (read-string (slurp config-file)))]
     (when-let [extn (:script-extn config)]
       (u/set-script-extn! extn))
-    (let [[model _ :as m] (maybe-read-model args)]
+    (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))]
       [m (merge (:config model) config)])))
 
 (defn- read-model-from-resource [component-root]
@@ -257,4 +268,5 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
+      (:package options) (println (pkg/build (first args) (read-model-and-config args options)))
       :else (run-service args (read-model-and-config args options)))))

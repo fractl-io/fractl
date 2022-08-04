@@ -3,6 +3,9 @@
             [fractl.util.logger :as log]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
+            [fractl.resolver.registry
+             #?(:clj :refer :cljs :refer-macros)
+             [defmake]]
             [fractl.evaluator.state :as es]
             [fractl.lang.datetime :as dt])
   #?(:clj
@@ -104,7 +107,6 @@
   {:upsert {:handler timer-upsert}
    :delete {:handler timer-delete}})
 
-(defn make
-  "Create and return a policy resolver"
-  [_ _]
-  (r/make-resolver :timer resolver-fns))
+(defmake :timer
+  (fn [_ _]
+    (r/make-resolver :timer resolver-fns)))

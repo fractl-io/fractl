@@ -1,5 +1,6 @@
 (ns fractl.resolver.data-sync
   (:require [fractl.resolver.core :as r]
+            [fractl.resolver.registry :refer [defmake]]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.component :as cn]
@@ -166,5 +167,6 @@
 (def ^:private resolver-fns
   {:eval {:handler data-sync-eval}})
 
-(defn make [resolver-name config]
-  (r/make-resolver resolver-name resolver-fns))
+(defmake :data-sync
+  (fn [resolver-name _]
+    (r/make-resolver resolver-name resolver-fns)))

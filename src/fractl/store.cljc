@@ -2,7 +2,6 @@
   (:require #?(:clj [fractl.store.h2 :as h2]
                :cljs [fractl.store.alasql :as alasql])
             #?(:clj [fractl.store.postgres :as postgres])
-            #?(:clj [fractl.store.sfdc.metadata :as sfdc-metadata])
             #?(:cljs [fractl.store.reagent.core :as reagent])
             [fractl.component :as cn]
             [fractl.store.util :as su]
@@ -31,17 +30,22 @@
        store)))
 
 (def ^:private store-constructors
-  #?(:clj
-     {:h2 h2/make
-      :postgres postgres/make
-      :sfdc-metadata sfdc-metadata/make}
-     :cljs
-     {:alasql alasql/make
-      :reagent reagent/make}))
+  (u/make-cell
+   #?(:clj
+      {:h2 h2/make
+       :postgres postgres/make}
+      :cljs
+      {:alasql alasql/make
+       :reagent reagent/make})))
+
+(defn register-store [store-name constructor]
+  (u/call-and-set
+   store-constructors
+   #(assoc @store-constructors store-name constructor)))
 
 (defn- store-cons [config]
   (if-let [t (:type config)]
-    (t store-constructors)
+    (t @store-constructors)
     #?(:clj h2/make
        :cljs reagent/make)))
 

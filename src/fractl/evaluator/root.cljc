@@ -3,7 +3,6 @@
   (:require [clojure.walk :as w]
             [clojure.set :as set]
             [fractl.env :as env]
-            [fractl.async :as a]
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.hash :as h]
@@ -12,7 +11,8 @@
             [fractl.store.util :as stu]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
-            [fractl.evaluator.parser :as parser]
+            [fractl.evaluator.async :as a]
+            [fractl.evaluator.match :as m]
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.intercept.core :as interceptors]
             [fractl.lang :as ln]
@@ -682,7 +682,7 @@
   [eval-event-dataflows eval-opcode eval-dataflow]
   (reify opc/VM
     (do-match-instance [_ env [pattern instance]]
-      (if-let [updated-env (parser/match-pattern env pattern instance)]
+      (if-let [updated-env (m/match-pattern env pattern instance)]
         (i/ok true updated-env)
         (i/ok false env)))
 

@@ -11,7 +11,8 @@
             [fractl.compiler.rule :as rl]
             [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
-            [fractl.resolver.registry :as r]))
+            [fractl.resolver.registry :as r]
+            [fractl.resolvers]))
 
 (defn- normalize-imports [imports]
   (let [imps (rest imports)]
@@ -779,99 +780,6 @@
 
   #?(:clj
      (do
-       (cn/create-component :Git {})
-       (cn/create-component :Email {})
-       (cn/create-component :Sms {})
-       (cn/create-component :Aws {})
-       (cn/create-component :Sns {})
-
-       (event :Git/Push
-              {:Path :Kernel/String})
-
-       (event :Email/Push
-              {:Backend :Kernel/String
-               :Receiver :Kernel/Email
-               :Subject :Kernel/String
-               :Text :Kernel/String})
-
-       (event :Sms/Push
-              {:To :Kernel/String
-               :Body :Kernel/String})
-
-       (record :Aws/PlatformAttributes
-               {:PlatformCredential        :Kernel/String
-                :PlatformPrincipal         {:type     :Kernel/String
-                                            :optional true}
-                :EventEndpointCreated      {:type     :Kernel/String
-                                            :optional true}
-                :EventEndpointDeleted      {:type     :Kernel/String
-                                            :optional true}
-                :EventEndpointUpdated      {:type     :Kernel/String
-                                            :optional true}
-                :EventDeliveryFailure      {:type     :Kernel/String
-                                            :optional true}
-                :SuccessFeedbackRoleArn    {:type     :Kernel/String
-                                            :optional true}
-                :FailureFeedbackRoleArn    {:type     :Kernel/String
-                                            :optional true}
-                :SuccessFeedbackSampleRate {:type     :Kernel/String
-                                            :optional true}})
-
-       (event :Aws/PlatformApplicationConfig
-              {:Type                   :Kernel/String
-               :Name                   :Kernel/String
-               :Platform               :Kernel/String
-               :PlatformCredential     :Kernel/String
-               :Attributes             {:listof :Aws/PlatformAttributes
-                                        :optional true}
-               :PlatformApplicationArn {:type     :Kernel/String
-                                        :optional true}})
-
-       (event :Aws/PlatformEndpointConfig
-              {:Type                   :Kernel/String
-               :PlatformApplicationArn :Kernel/String
-               :Token                  :Kernel/String
-               :EndpointArn            {:type     :Kernel/String
-                                        :optional true}})
-
-       (event :Aws/TopicConfig
-              {:Type                   :Kernel/String
-               :Name                   :Kernel/String
-               :TopicArn               {:type     :Kernel/String
-                                        :optional true}})
-
-       (event :Aws/SubscriptionConfig
-              {:Type                   :Kernel/String
-               :TopicArn               :Kernel/String
-               :Protocol               :Kernel/String
-               :Endpoint               :Kernel/String
-               :SubscriptionArn        {:type     :Kernel/String
-                                        :optional true}})
-
-       (event :Aws/ConfirmSubscriptionConfig
-              {:Type                   :Kernel/String
-               :TopicArn               :Kernel/String
-               :Token                  :Kernel/String
-               :SubscriptionArn        {:type     :Kernel/String
-                                        :optional true}})
-
-       (event :Sns/Message
-              {:Message                {:type     :Kernel/String
-                                        :optional true}
-               :Type                   :Kernel/String
-               :TargetArn              {:type     :Kernel/String
-                                        :optional true}
-               :PhoneNumber            {:type     :Kernel/String
-                                        :optional true}
-               :Title                  {:type     :Kernel/String
-                                        :optional true}
-               :Body                   {:type     :Kernel/String
-                                        :optional true}
-               :OTP                    {:type     :Kernel/String
-                                        :optional true}
-               :TopicArn               {:type     :Kernel/String
-                                        :optional true}})
-
        (record :Kernel/DataSource
                {:Uri {:type :Kernel/String
                       :optional true} ;; defaults to currently active store
@@ -899,34 +807,10 @@
           :type :timer
           :compose? false
           :paths [:Kernel/Timer]}
-         {:name :git
-          :type :git
-          :compose? false
-          :paths [:Git/Push]}
          {:name :data-sync
           :type :data-sync
           :compose? false
-          :paths [:Kernel/DataSync]}
-         {:name :email
-          :type :email
-          :compose? false
-          :paths [:Email/Push]}
-         {:name :sms
-          :type :sms
-          :compose? false
-          :paths [:Sms/Push]}
-         {:name :aws
-          :type :aws
-          :compose? false
-          :paths [:Aws/PlatformApplicationConfig
-                  :Aws/PlatformEndpointConfig
-                  :Aws/TopicConfig
-                  :Aws/SubscriptionConfig
-                  :Aws/ConfirmSubscriptionConfig]}
-         {:name :sns
-          :type :sns
-          :compose? false
-          :paths [:Sns/Message]}]))))
+          :paths [:Kernel/DataSync]}]))))
 
 (defn init []
   (when-not (cn/kernel-inited?)
