@@ -1,8 +1,10 @@
 (ns fractl.ui.views
-  (:require [clojure.string :as s]
+  (:require [reagent.core :as r]
+            [clojure.string :as s]
             [reagent.dom :as rdom]
             [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.global-state :as gs]
             [fractl.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.ui.config :as cfg]
@@ -14,8 +16,40 @@
 
 (declare make-input-view)
 
+(defn- get-config [rec-name k]
+  (get-in
+   (gs/get-app-config)
+   [:ui :dashboard rec-name k]))
+
+(defn data-refresh-handler [rec-name src rows-data]
+  (let [cfg (partial get-config rec-name)
+        rows-per-page (cfg :rows-per-page)
+
+        has-source-event (map? src)
+        source-event (if has-source-event
+                       src
+                       (cn/make-instance
+                        (u/string-as-keyword src)
+                        {}))
+        data-refresh! #(vu/eval-event
+                        (fn [result]
+                          (if-let [rows (vu/eval-result result)]
+                            (reset! rows-data rows)
+                            (if (= :not-found (:status (first result)))
+                              (reset! rows-data nil)
+                              (println (str "failed to list " rec-name " - " result)))))
+                        source-event)
+        data-refresh-ms
+        (when-not rows-per-page
+          (or (cfg :data-refresh-ms) 5000))]
+    (data-refresh!)
+    
+    (when data-refresh-ms
+      (vu/set-interval! data-refresh! data-refresh-ms))))
+
 (defn- make-view [tag target-info]
-  (let [auth-event-name (vu/authentication-event-name)
+  (let [rows-data (r/atom nil)
+        auth-event-name (vu/authentication-event-name)
         target-info (or auth-event-name
                         (if (string? target-info)
                           (keyword target-info)
@@ -42,9 +76,14 @@
             (vu/make-render-event rec-name final-entity-spec tag)
             r (vu/eval-event nil true false input-form-event)
             v (first (vu/eval-result r))]
+        (data-refresh-handler (clj->js (:Record input-form-event)) (clj->js (:Source input-form-event)) rows-data)
+        (println "input-form-event Soruce" (clj->js (:Source input-form-event)) "Record" (clj->js (:Record input-form-event)) )
+        (println "rows-data" @rows-data)
+        (println "fractl.ui.view - tag: " tag " target-info: " target-info)
         (or (:View v)
             (do (println (str "input form generation failed. " r))
-                [:div "failed to generate view for " [rec-name tag]]))))))
+                [:div "failed to generate view for " [rec-name tag]]))
+                ))))
 
 (def make-instance-view (partial make-view :instance))
 (def make-list-view (partial make-view :list))

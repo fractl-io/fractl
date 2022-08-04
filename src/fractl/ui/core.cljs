@@ -46,7 +46,7 @@
 (defn- app-routes [config]
   (secretary/set-config! :prefix vu/link-prefix)
   (vu/clear-home-links!)
-  [:div {:style {:color "red"}}
+  [:div 
    (loop [ens (cn/displayable-record-names (cfg/component config))]
      (if-let [en (first ens)]
        (let [[_ n] (li/split-path en)
@@ -77,7 +77,7 @@
          (recur (rest ens)))
        (defroute "/" []
          (v/render-home-view
-          "Home Page" (cfg/dashboard config)))))]
+          "Home" (cfg/dashboard config)))))]
 
   (hook-browser-navigation!))
 

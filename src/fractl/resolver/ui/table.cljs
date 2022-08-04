@@ -168,11 +168,15 @@
                 (take 6 (mapv u/string-as-keyword (:Fields instance))))
         src (:Source instance)
         rows-per-page (cfg :rows-per-page)]
-    (if (vector? src)
-      [:div (make-rows-view (paginate src rows-per-page) fields id)]
-      [(fn []
-         (table-data-refresh rec-name src rows-data)
-         (table-view rows-data instance))])))
+      (do 
+        (js/console.log "Instance from table-view" (clj->js instance))
+        (if (vector? src)
+        [:div (make-rows-view (paginate src rows-per-page) fields id)]
+        [(fn []
+           (table-data-refresh rec-name src rows-data)
+           (table-view rows-data instance))])
+        )
+   ))
 
 (defn upsert-ui [instance]
   (vu/finalize-view (make-view instance) instance))

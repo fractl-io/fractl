@@ -230,15 +230,17 @@
       (cn/make-instance event-name (merge qattrs tbl-attrs))
       (let [meta (cn/fetch-meta rec-name)
             attrs {:Record rec-name
-                   :Fields (fetch-fields rec-name meta)}]
-        (cn/make-instance
-         (get-in
-          (or
-           (get-in app-config [:ui :render-events rec-name])
-           (get-in app-config [:ui :global-render-events])
-           fallback-render-event-names)
-          tag)
-         (merge attrs qattrs tbl-attrs))))))
+                   :Fields (fetch-fields rec-name meta)}
+            instance (cn/make-instance
+                      (get-in
+                       (or
+                        (get-in app-config [:ui :render-events rec-name])
+                        (get-in app-config [:ui :global-render-events])
+                        fallback-render-event-names)
+                       tag)
+                      (merge attrs qattrs tbl-attrs))]
+        (js/console.log "instance from util" (clj->js instance))
+        instance))))
 
 (def ^:private post-render-events (atom []))
 
@@ -267,8 +269,6 @@
 
 (defn reset-page-state! []
   (clear-interval!))
-
-
 
 (defn- lookup-by-event-name [c n s]
   (keyword (str (name c) "/" (name n) "LookupBy" s)))
