@@ -30,10 +30,10 @@
         {:Publisher :Kernel/UUID}})
 
 (dataflow :ListBooks
-          {:Book {:Publisher? :Sample.Library.Catalog/ListBooks.Publisher}})
+          {:Sample.Library.Catalog/Book {:Publisher? :Sample.Library.Catalog/ListBooks.Publisher}})
 
 (event {:ListAllBooks
         {}})
 
 (dataflow :ListAllBooks
-          :Book?)
+          :Sample.Library.Catalog/Book?)
