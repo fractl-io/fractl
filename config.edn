@@ -1,7 +1,7 @@
 {;; :component-root "./sample"
  ;; :store {:type :sfdc-metadata}
  ;; :store {:type :postgres}
- :script-extn ".cljs"
+ ;; :script-extn ".cljs"
  ;; :interceptors {:rbac {:superuser-password "su123"}}
  ;; :authentication {:service :keycloak
  ;;                  :auth-server-url "http://localhost:8080"
