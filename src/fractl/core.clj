@@ -188,10 +188,25 @@
   (or (seq args)
       [(:full-model-path config)]))
 
+(defn- read-env-var [x]
+  (cond
+    (symbol? x)
+    (when-let [v (System/getenv (name x))]
+      (read-string v))
+
+    (vector? x)
+    (first (su/nonils (mapv read-env-var x)))
+
+    :else x))
+
+(defn- read-config-file [config-file]
+  (binding [*data-readers* {'$ read-env-var}]
+    (read-string (slurp config-file))))
+
 (defn read-model-and-config [args options]
   (let [config-file (get options :config)
         config (when config-file
-                 (read-string (slurp config-file)))]
+                 (read-config-file config-file))]
     (when-let [extn (:script-extn config)]
       (u/set-script-extn! extn))
     (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))]
