@@ -8,51 +8,26 @@
             [fractl.lang.kernel :as k]
             [fractl.lang.internal :as li]))
 
-(defn- infer-component-with-ns [n component-name]
-  (if (k/kernel-binding? n)
-    :Kernel
-    component-name))
-
-(defn- make-path [component-name rec-names c n]
-  (when-let [r (:record (li/path-parts n))]
-    (when-not (some #{r} rec-names)
-      (log/warn (str r " not defined in " component-name))))
-  (li/make-path c n))
+(defn- normalize-path [path]
+  (let [s (str path)]
+    (if (string/ends-with? s "?")
+      (keyword (subs s 1 (dec (count s))))
+      path)))
 
 (def ^:dynamic fq-name nil)
-(def ^ThreadLocal in-alias-def (ThreadLocal.))
-(def ^ThreadLocal alias-names (ThreadLocal.))
 
 (defn- make-fq-name
   "Return a function that returns the fully-qualified (component-name/n) name of `n`."
   [declared-names]
   (let [component-name (:component declared-names)
-        mp (partial make-path component-name (:records declared-names))]
+        recs (:records declared-names)]
     (fn [n]
       (if (li/name? n)
-        (if (or (.get in-alias-def) (some #{n} (.get alias-names)))
-          (do (.set in-alias-def false)
-              (when-not (.get alias-names)
-                (.set alias-names []))
-              (.set alias-names (conj (.get alias-names) n))
-              n)
-          (let [[prefix suffix] (li/split-path n)]
-            (if suffix
-              ;; Check whether the prefix matches the current component-name
-              ;; else lookup aliases from refs of component and return the value of
-              ;; alias.
-              (if (not= prefix component-name)
-                (if-let [alias (cn/extract-alias-of-component component-name prefix)]
-                  (mp alias suffix)
-                  n)
-                (mp (infer-component-with-ns prefix component-name) suffix))
-              (let [mname (infer-component-with-ns prefix component-name)]
-                (if-not (= mname prefix)
-                  (mp mname prefix)
-                  mname)))))
-        (do (when (= :as n)
-              (.set in-alias-def true))
-            n)))))
+        (let [path (:path (li/path-parts n))]
+          (if (and path (some #{(normalize-path path)} recs))
+            (li/make-path component-name n)
+            n))
+        n))))
 
 (defn- looks-like-inst? [x]
   (and (= 1 (count (keys x)))

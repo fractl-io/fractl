@@ -13,7 +13,7 @@
 
 (deftest test-read-expressions
   (is :Sample.Simple/LoggingPolicy (first (loader/read-expressions "sample/simple.fractl")))
-  (is (some #{:Sample.Simple/E3} (loader/read-expressions "sample/simple.fractl")))
+  (is (some #{:Sample.Simple/E2} (loader/read-expressions "sample/simple.fractl")))
   (let [exp (first (loader/read-expressions "sample/dependencies/model1/model.fractl"))]
     (is [:Model1.C1] (:components exp))
     (is [:Model2] (:dependencies exp))))
