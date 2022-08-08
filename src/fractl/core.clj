@@ -182,7 +182,7 @@
 
 (defn run-service [args [[model model-root] config]]
   (let [config (finalize-config model config)
-        store (e/store-from-config config)
+        store (e/store-from-config (:store config))
         config (assoc config :store-handle store)
         components (if model
                      (load-model model model-root nil config)
