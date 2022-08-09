@@ -608,8 +608,7 @@
              :optional true}}})
     (dataflow
      :I584/Evt
-     [:try
-      {:I584/E1? {}}
+     [:try :I584/E1?
       [:error :not-found] []
       :as :Result]
      {:I584/E2 {:E1s :Result}}))
