@@ -596,3 +596,37 @@
     (is (cn/instance-of? :I568/R result))
     (is (cn/instance-of? :I568/D (:K result)))
     (is (= 100 (get-in result [:K :I])))))
+
+(deftest issue-584-no-results
+  (defcomponent :I584
+    (entity
+     {:I584/E1
+      {:X :Kernel/Int}})
+    (entity
+     {:I584/E2
+      {:E1s {:listof :I584/E1
+             :optional true}}})
+    (dataflow
+     :I584/Evt
+     [:try
+      {:I584/E1? {}}
+      [:error :not-found] []
+      :as :Result]
+     {:I584/E2 {:E1s :Result}}))
+  (let [r1 (tu/first-result
+            {:I584/Evt {}})
+        xs [1 2 3]
+        es (mapv
+            #(tu/first-result
+              {:I584/Upsert_E1
+               {:Instance
+                {:I584/E1
+                 {:X %}}}})
+            xs)
+        r2 (tu/first-result
+            {:I584/Evt {}})]
+    (is (not (seq (:E1s r1))))
+    (let [es (:E1s r2)]
+      (is (= (count es) 3))
+      (is (= (apply + xs)
+             (apply + (mapv :X es)))))))

@@ -140,7 +140,7 @@
           [[match-pattern-code cases-code alternative-code result-alias]]
           "Execute code for each part of conditional evaluation based on the :match construct.")
          (try_
-          [[body handlers]]
+          [[body handlers alias-name]]
           "Evaluate body, branch to a handler based on the result")
          (for-each
           [[bind-pattern-code match-alias body-code result-alias]]
