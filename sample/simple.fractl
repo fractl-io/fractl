@@ -18,6 +18,10 @@
        :X "secret"
        :Y '(fractl.lang.datetime/now)}})
 
+(dataflow
+ :Q
+ {:E1? {}})
+
 (record
  {:Result
   {:Data :Kernel/Any}})

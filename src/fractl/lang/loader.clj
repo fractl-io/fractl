@@ -5,13 +5,16 @@
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang.name-util :as nu]
+            [fractl.lang.internal :as li]
             [fractl.component :as cn])
   (:import [java.io FileInputStream InputStreamReader PushbackReader]))
 
 (defn- record-name [obj]
-  (if (keyword? obj)
-    obj
-    (first (keys obj))))
+  (let [n (if (keyword? obj)
+            obj
+            (first (keys obj)))
+        [a b] (li/split-path n)]
+    (or b a)))
 
 (defn- fetch-declared-names [script-file]
   (loop [exps (read-string (str "(do" (slurp script-file) ")"))
