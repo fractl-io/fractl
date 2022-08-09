@@ -667,7 +667,7 @@
         result [ec (mapv c df-patterns)]]
     result))
 
-(defn- maybe-compile-dataflow [compile-query-fn df]
+(defn maybe-compile-dataflow [compile-query-fn df]
   (when-not (cn/dataflow-opcode df)
     (let [ctx (make-context)]
       (ctx/bind-compile-query-fn! ctx compile-query-fn)

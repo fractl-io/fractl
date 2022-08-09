@@ -26,14 +26,10 @@
           :LastCheckout {:type :Kernel/UUID
                          :optional true}}})
 
-(event {:ListBooks
-        {:Publisher :Kernel/UUID}})
+(event {:ListBooks {:Publisher :Kernel/UUID}})
 
-(dataflow :ListBooks
-          {:Book {:Publisher? :Sample.Library.Catalog/ListBooks.Publisher}})
+(dataflow :ListBooks {:Book {:Publisher? :ListBooks.Publisher}})
 
-(event {:ListAllBooks
-        {}})
+(event {:ListAllBooks {}})
 
-(dataflow :ListAllBooks
-          :Book?)
+(dataflow :ListAllBooks :Book?)

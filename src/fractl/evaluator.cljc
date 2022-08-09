@@ -243,8 +243,8 @@
     (dissoc xs :env)
     (mapv filter-public-result xs)))
 
-(defn public-evaluator [store-config with-query-support]
-  (comp filter-public-result (evaluator store-config nil with-query-support)))
+(defn public-evaluator [store-or-config with-query-support]
+  (comp filter-public-result (evaluator store-or-config nil with-query-support)))
 
 (defn query-fn [store]
   (partial r/find-instances env/EMPTY store))

@@ -108,7 +108,7 @@
           {:Kernel/Policy
            {:Intercept "RBAC"
             :Resource  ["Sample.Library.Identity/Upsert_Member"]
-            :Rule      [:q#
+            :Spec      [:q#
                         [:when
                          [:in ["life" "individual" "family"
                                "remote" "oversees" "supported" "associate"]
@@ -118,7 +118,7 @@
           {:Kernel/Policy
            {:Intercept "RBAC"
             :Resource  ["Sample.Library.Identity/Upsert_User"]
-            :Rule      [:q#
+            :Spec      [:q#
                         [:when
                          [:= "incharge" :EventContext.Auth.Owner.Designation]]]}})
 
@@ -126,7 +126,7 @@
           {:Kernel/Policy
            {:Intercept "RBAC"
             :Resource  ["Sample.Library.Ledger/CheckoutBook"]
-            :Rule      [:q#
+            :Spec      [:q#
                         [:when
                          [:in ["life" "individual" "family"
                                "remote" "oversees" "supported" "associate"]
@@ -136,7 +136,7 @@
           {:Kernel/Policy
            {:Intercept "RBAC"
             :Resource  ["Sample.Library.Ledger/CheckinBook"]
-            :Rule      [:q#
+            :Spec      [:q#
                         [:when
                          [:in ["life" "individual" "family"
                                "remote" "oversees" "supported" "associate"]
@@ -149,7 +149,7 @@
                         "Sample.Library.Ledger/CheckinBook"
                         "Sample.Library.Identity/Upsert_Member"
                         "Sample.Library.Identity/Upsert_User"]
-            :Rule      [:q# {:Disable        :INFO
+            :Spec      [:q# {:Disable        :INFO
                              :PagerThreshold {:WARN  {:count            5
                                                       :duration-minutes 10}
                                               :ERROR {:count            3

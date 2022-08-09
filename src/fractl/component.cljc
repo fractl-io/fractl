@@ -858,6 +858,14 @@
                  (u/throw-ex (str "not a valid event name - " n))))
     :else (u/throw-ex (str "invalid event pattern - " e))))
 
+(def ^:private aot-dataflow-compiler (atom nil))
+
+(defn set-aot-dataflow-compiler! [f]
+  (reset! aot-dataflow-compiler f))
+
+(defn maybe-aot-compile-dataflow [df]
+  ((or @aot-dataflow-compiler identity) df))
+
 (defn register-dataflow
   "Attach a dataflow to the event."
   ([event head patterns component]
@@ -867,10 +875,14 @@
            ename (normalize-type-name (event-name event))
            path [component :events ename]
            currpats (get-in ms path [])
-           newpats (conj currpats [event {:head head
-                                          :event-pattern event
-                                          :patterns patterns
-                                          :opcode (u/make-cell nil)}])]
+           newpats (conj
+                    currpats
+                    (maybe-aot-compile-dataflow
+                     [event
+                      {:head head
+                       :event-pattern event
+                       :patterns patterns
+                       :opcode (u/make-cell nil)}]))]
        (assoc-in ms path newpats)))
    event)
   ([event head patterns]
