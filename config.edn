@@ -11,4 +11,4 @@
  ;;                  :user-client-id "fractl-dev"
  ;;                  :admin "admin"
  ;;                  :admin-password "admin123"}
- :service {:port 8000}}
+ :service {:port #$ [FRACTL_HTTP_PORT 8000]}}
