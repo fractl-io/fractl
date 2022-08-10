@@ -604,8 +604,7 @@
       {:X :Kernel/Int}})
     (entity
      {:I584/E2
-      {:E1s {:listof :I584/E1
-             :optional true}}})
+      {:E1s {:listof :I584/E1}}})
     (dataflow
      :I584/Evt
      [:try :I584/E1?
