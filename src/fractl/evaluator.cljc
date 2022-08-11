@@ -13,6 +13,7 @@
             [fractl.policy.logging :as logging]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
+            [fractl.global-state :as gs]
             [fractl.evaluator.state :as es]
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.root :as r]
@@ -70,24 +71,25 @@
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (let [is-internal (internal-event? event-instance)
-         event-instance (if is-internal
-                          (dissoc event-instance internal-event-key)
-                          event-instance)
-         env0 (if is-internal
-                (env/block-interceptors env)
-                (env/assoc-active-event env event-instance))
-         continuation (fn [event-instance]
-                        (let [env (if event-instance
-                                    (env/assoc-active-event
-                                     (env/bind-instance
-                                      env0 (li/split-path (cn/instance-type event-instance))
-                                      event-instance)
-                                     event-instance)
-                                    env0)
-                              [_ dc] (cn/dataflow-opcode df)]
-                          (deref-futures (dispatch-opcodes evaluator env dc))))]
-     (interceptors/eval-intercept env0 event-instance continuation)))
+   (binding [gs/active-event-context (li/event-context event-instance)]
+     (let [is-internal (internal-event? event-instance)
+           event-instance (if is-internal
+                            (dissoc event-instance internal-event-key)
+                            event-instance)
+           env0 (if is-internal
+                  (env/block-interceptors env)
+                  (env/assoc-active-event env event-instance))
+           continuation (fn [event-instance]
+                          (let [env (if event-instance
+                                      (env/assoc-active-event
+                                       (env/bind-instance
+                                        env0 (li/split-path (cn/instance-type event-instance))
+                                        event-instance)
+                                       event-instance)
+                                      env0)
+                                [_ dc] (cn/dataflow-opcode df)]
+                            (deref-futures (dispatch-opcodes evaluator env dc))))]
+       (interceptors/eval-intercept env0 event-instance continuation))))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 
