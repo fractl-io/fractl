@@ -670,8 +670,8 @@
         insts))
 
       :else
-      (i/not-found entity-name env))
-    (i/not-found entity-name env)))
+      (i/ok [] env))
+    (i/error (str "query failed for " entity-name))))
 
 (defn- find-reference [env record-name refs]
   (second (env/instance-ref-path env record-name nil refs)))

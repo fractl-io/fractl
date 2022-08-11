@@ -4,6 +4,7 @@
             #?(:clj [fractl.store.postgres :as postgres])
             #?(:cljs [fractl.store.reagent.core :as reagent])
             [fractl.component :as cn]
+            [fractl.util.logger :as log]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p]
             [fractl.util :as u]))
@@ -114,10 +115,35 @@
 (def create-table p/create-table)
 (def delete-by-id p/delete-by-id)
 (def delete-all p/delete-all)
-(def query-by-id p/query-by-id)
-(def query-by-unique-keys p/query-by-unique-keys)
-(def query-all p/query-all)
-(def do-query p/do-query)
+
+(defn- empty-result-on-error [f]
+  (try
+    (f)
+    #?(:clj
+       (catch Exception e
+         (log/error e)
+         [])
+       :cljs
+       (catch js/Error e
+         (log/error e)
+         []))))
+
+(defn query-by-id [store entity-name query-sql ids]
+  (empty-result-on-error
+   #(p/query-by-id store entity-name query-sql ids)))
+
+(defn query-by-unique-keys [store entity-name unique-keys unique-values]
+  (empty-result-on-error
+   #(p/query-by-unique-keys store entity-name unique-keys unique-values)))
+
+(defn query-all [store entity-name query-sql]
+  (empty-result-on-error
+   #(p/query-all store entity-name query-sql)))
+
+(defn do-query [store query query-params]
+  (empty-result-on-error
+   #(p/do-query store query query-params)))
+
 (def compile-query p/compile-query)
 (def get-reference p/get-reference)
 (def pull p/pull)

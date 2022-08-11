@@ -337,8 +337,7 @@
         id (cn/id-attr e)
         e2 (cn/make-instance :RefCheck/E2 {:AId (cn/id-attr e) :X 20})
         evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})]
-    (tu/is-error
-     #(tu/fresult (e/eval-all-dataflows evt)))
+    (is (= :not-found (:status (first (e/eval-all-dataflows evt)))))
     (let [evt (cn/make-instance :RefCheck/Upsert_E1 {:Instance e})
           e1 (first (tu/fresult (e/eval-all-dataflows evt)))
           id (cn/id-attr e1)
