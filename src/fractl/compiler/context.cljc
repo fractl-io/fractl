@@ -54,14 +54,17 @@
 (defn alias-name [alias]
   (if (vector? alias) (keyword (clojure.string/join  "-" alias)) alias))
 
-(defn add-alias! [ctx nm alias]
-  (let [alias-name (alias-name alias)
-        aliases (or (second (fetch-variable ctx :aliases)) {})
-        v (cond (li/parsed-path? nm) (li/make-path nm)
-            :else nm)]
-    (bind-variable! ctx :aliases (assoc aliases alias-name v))
-    (when (vector? alias)
-      (doall (map #(add-sub-alias! ctx % alias-name) alias)))))
+(defn add-alias!
+  ([ctx nm alias]
+   (let [alias-name (alias-name alias)
+         aliases (or (second (fetch-variable ctx :aliases)) {})
+         v (cond (li/parsed-path? nm) (li/make-path nm)
+                 :else nm)]
+     (bind-variable! ctx :aliases (assoc aliases alias-name v))
+     (when (vector? alias)
+       (doall (map #(add-sub-alias! ctx % alias-name) alias)))))
+  ([ctx alias]
+   (add-alias! ctx (alias-name alias) alias)))
 
 (defn aliased-name [ctx k]
   (let [[n r] (li/split-ref k)

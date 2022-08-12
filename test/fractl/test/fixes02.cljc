@@ -596,3 +596,50 @@
     (is (cn/instance-of? :I568/R result))
     (is (cn/instance-of? :I568/D (:K result)))
     (is (= 100 (get-in result [:K :I])))))
+
+(deftest issue-584-no-results
+  (defcomponent :I584
+    (entity
+     {:I584/E1
+      {:X :Kernel/Int}})
+    (entity
+     {:I584/E2
+      {:E1s {:listof :I584/E1}}})
+    (entity
+     {:I584/E3
+      {:E1s
+       {:check
+        #(and
+          (pos? (count %))
+          (every? (fn [x] (cn/instance-of? :I584/E1 x)) %))}}})
+    (dataflow
+     :I584/Evt1
+     {:I584/E1? {} :as :Result}
+     {:I584/E2 {:E1s :Result}})
+    (dataflow
+     :I584/Evt2
+     {:I584/E1? {} :as :Result}
+     {:I584/E3 {:E1s :Result}}))
+  (let [r1 (tu/first-result
+            {:I584/Evt1 {}})
+        r2 (e/eval-all-dataflows
+            {:I584/Evt2 {}})
+        xs [1 2 3]
+        es (mapv
+            #(tu/first-result
+              {:I584/Upsert_E1
+               {:Instance
+                {:I584/E1
+                 {:X %}}}})
+            xs)
+        r3 (tu/first-result
+            {:I584/Evt1 {}})
+        r4 (tu/first-result
+            {:I584/Evt2 {}})]
+    (tu/is-error (constantly r2))
+    (is (not (seq (:E1s r1))))
+    (let [es (:E1s r3)]
+      (is (= (count es) 3))
+      (is (= (apply + xs)
+             (apply + (mapv :X es)))))
+    (is (= (:E1s r3) (:E1s r4)))))

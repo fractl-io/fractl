@@ -35,8 +35,8 @@
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
 
-(defn- emit-try [body handlers]
-  (op/try_ [body handlers]))
+(defn- emit-try [body handlers alias-name]
+  (op/try_ [body handlers alias-name]))
 
 (def ^:private runtime-env-var '--env--)
 (def ^:private current-instance-var '--inst--)
@@ -408,7 +408,7 @@
 (defn- compile-for-each-match-pattern [ctx pat]
   (let [[pat alias] (parse-for-each-match-pattern pat)]
     (when alias
-      (ctx/add-alias! ctx alias alias))
+      (ctx/add-alias! ctx alias))
     [(compile-pattern ctx pat) alias]))
 
 (defn- compile-for-each [ctx pat]
@@ -417,7 +417,7 @@
         [body-pats alias] (special-form-alias (rest pat))
         body-code (compile-for-each-body ctx body-pats)]
     (when alias
-      (ctx/add-alias! ctx alias alias))
+      (ctx/add-alias! ctx alias))
     (emit-for-each bind-pat-code elem-alias body-code alias)))
 
 (defn- extract-match-clauses [pat]
@@ -472,7 +472,7 @@
   (let [[pat alias] (special-form-alias pat)
         code (generate-cond-code ctx pat)]
     (when alias
-      (ctx/add-alias! ctx alias alias))
+      (ctx/add-alias! ctx alias))
     (emit-match nil (:clauses code) (:else code) alias)))
 
 (defn- compile-match [ctx pat]
@@ -482,7 +482,7 @@
           cases-code (compile-match-cases ctx cases)
           alt-code (when alternative (compile-maybe-pattern-list ctx alternative))]
       (when alias
-        (ctx/add-alias! ctx alias alias))
+        (ctx/add-alias! ctx alias))
       (emit-match [match-pat-code] cases-code [alt-code] alias))
     (compile-match-cond ctx pat)))
 
@@ -504,14 +504,23 @@
   (let [body (compile-pattern ctx (first pat))
         handler-pats (distribute-handler-keys
                       (into {} (map vec (partition 2 (rest pat)))))
-        handlers (map (partial compile-try-handler ctx) handler-pats)]
+        handlers (mapv (partial compile-try-handler ctx) handler-pats)]
     (when-not (seq handlers)
       (u/throw-ex "proper handlers are required for :try"))
     [body (into {} handlers)]))
 
+(defn- try-alias [pat]
+  (let [rpat (reverse pat)]
+    (if (= :as (second rpat))
+      [(vec (reverse (nthrest rpat 2))) (first rpat)]
+      [pat nil])))
+
 (defn- compile-try [ctx pat]
-  (let [[body handlers] (compile-construct-with-handlers ctx pat)]
-    (emit-try body handlers)))
+  (let [[pat alias-name] (try-alias pat)
+        [body handlers] (compile-construct-with-handlers ctx pat)]
+    (when alias-name
+      (ctx/add-alias! ctx alias-name))
+    (emit-try body handlers alias-name)))
 
 (defn- valid-alias-name? [alias]
   (if (vector? alias)
@@ -625,7 +634,7 @@
      [attr-name
       (if quoted?
         (compile-quoted-list ctx (second pat))
-        (map #(list (compile-pattern ctx %)) pat))
+        (mapv #(compile-pattern ctx %) pat))
       quoted?])))
 
 (defn- compile-vector [ctx pat]

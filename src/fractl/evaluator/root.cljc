@@ -122,20 +122,22 @@
     (f (f (assoc-futures record-name interim-obj) efns) qfns)))
 
 (defn- set-obj-attr [env attr-name attr-value]
-  (if-let [xs (env/pop-obj env)]
-    (let [[env single? [n x]] xs
-          objs (if single? [x] x)
-          new-objs (map
-                    #(assoc
-                      % attr-name
-                      (if (fn? attr-value)
-                        (attr-value env %)
-                        attr-value))
-                    objs)
-          elem (if single? (first new-objs) new-objs)
-          env (env/push-obj env n elem)]
-      (i/ok elem (env/mark-all-dirty env new-objs)))
-    (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value]))))
+  (if attr-name
+    (if-let [xs (env/pop-obj env)]
+      (let [[env single? [n x]] xs
+            objs (if single? [x] x)
+            new-objs (map
+                      #(assoc
+                        % attr-name
+                        (if (fn? attr-value)
+                          (attr-value env %)
+                          attr-value))
+                      objs)
+            elem (if single? (first new-objs) new-objs)
+            env (env/push-obj env n elem)]
+        (i/ok elem (env/mark-all-dirty env new-objs)))
+      (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value])))
+    (i/ok attr-value env)))
 
 (defn- call-function [env f]
   (if-let [xs (env/pop-obj env)]
@@ -668,8 +670,8 @@
         insts))
 
       :else
-      (i/not-found entity-name env))
-    (i/not-found entity-name env)))
+      (i/ok [] env))
+    (i/error (str "query failed for " entity-name))))
 
 (defn- find-reference [env record-name refs]
   (second (env/instance-ref-path env record-name nil refs)))
@@ -820,13 +822,15 @@
             (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)))
         (eval-condition self env eval-opcode cases-code alternative-code result-alias)))
 
-    (do-try_ [self env [body handlers]]
+    (do-try_ [self env [body handlers alias-name]]
       (let [result (call-with-exception-as-error
                     #(eval-opcode self env body))
             h ((:status result) handlers)]
-        (if h
-          (eval-opcode self (or (:env result) env) h)
-          result)))
+        (bind-result-to-alias
+         alias-name
+         (if h
+           (eval-opcode self (or (:env result) env) h)
+           result))))
 
     (do-await_ [self env [body continuation]]
       (do
