@@ -524,7 +524,10 @@
 
 (defn- valid-alias-name? [alias]
   (if (vector? alias)
-    (every? li/name? alias)
+    (every? #(if (vector? %)
+               (every? li/name? %)
+               (li/name? %))
+            alias)
     (li/name? alias)))
 
 (defn- compile-query-pattern [ctx query-pat alias]
