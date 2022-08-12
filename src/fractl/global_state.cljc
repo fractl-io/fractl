@@ -7,3 +7,5 @@
 
 (defn get-app-config []
   @app-config)
+
+(def ^:dynamic active-event-context)
