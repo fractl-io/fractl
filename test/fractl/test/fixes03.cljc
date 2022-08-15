@@ -5,7 +5,6 @@
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
-            [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -45,3 +44,57 @@
     (is (= 5 (:B r)))
     (is (every? e? (:C r)))
     (is (= 6 (count (:C r))))))
+
+(deftest issue-585-eval
+  (defcomponent :I585
+    (entity
+     :I585/E
+     {:K {:type :Kernel/String
+          :indexed true}
+      :X :Kernel/Int})
+    (record
+     :I585/R
+     {:Y :Kernel/Int})
+    (defn i585-f1 [e]
+      (cn/make-instance
+       :I585/R
+       {:Y (* (:X e) 200)}))
+    (defn i585-f2 [e]
+      [(cn/make-instance
+        :I585/R
+        {:Y (* (:X e) 10)})])
+    (defn i585-seq-of-r? [xs]
+      (every? (partial cn/instance-of? :I585/R) xs))
+    (dataflow
+     :I585/Evt1
+     {:I585/E {:K? :I585/Evt1.K}}
+     [:eval '(fractl.test.fixes03/i585-f1 :I585/E)
+      :returns :I585/R :as :Result]
+     {:I585/E {:K "result" :X :Result.Y}})
+    (dataflow
+     :I585/Evt2
+     {:I585/E {:K? :I585/Evt2.K}}
+     [:eval '(fractl.test.fixes03/i585-f2 :I585/E)
+      :returns fractl.test.fixes03/i585-seq-of-r? :as [:R1]]
+     {:I585/E {:K "result" :X :R1.Y}})
+    (dataflow
+     :I585/Evt3
+     {:I585/E {:K? :I585/Evt3.K}}
+     [:eval '(fractl.test.fixes03/i585-f1 :I585/E)]))
+  (let [e1 (tu/first-result
+            {:I585/Upsert_E
+             {:Instance
+              {:I585/E {:K "abc" :X 10}}}})
+        r1 (tu/first-result
+            {:I585/Evt1 {:K "abc"}})
+        r2 (tu/first-result
+            {:I585/Evt2 {:K "abc"}})
+        r3 (tu/fresult
+            (tu/eval-all-dataflows
+             {:I585/Evt3 {:K "abc"}}))]
+    (is (cn/instance-of? :I585/E r1))
+    (is (= 2000 (:X r1)))
+    (is (cn/instance-of? :I585/E r2))
+    (is (= 100 (:X r2)))
+    (is (cn/instance-of? :I585/R r3))
+    (is (= 2000 (:Y r3)))))

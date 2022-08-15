@@ -619,10 +619,14 @@
   (op/entity-def (first pat)))
 
 (defn- compile-eval [ctx pat]
-  (let [m (us/split-to-map pat)]
+  (let [m (us/split-to-map (rest pat))
+        ret-type (:returns m)
+        result-alias (:as m)]
+    (when result-alias
+      (ctx/add-alias! ctx (or ret-type result-alias) result-alias))
     (op/eval_
-     [(expr-as-fn true (expr-with-arg-lookups (:eval m)))
-      (:returns m) (:as m)])))
+     [(expr-as-fn true (expr-with-arg-lookups (first pat)))
+      ret-type result-alias])))
 
 (def ^:private special-form-handlers
   {:match compile-match
