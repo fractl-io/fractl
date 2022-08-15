@@ -48,11 +48,22 @@
   (second (fetch-variable ctx :compile-query-fn)))
 
 (defn add-sub-alias! [ctx alias target]
-  (let [aliases (or (second (fetch-variable ctx :aliases)) {})]
-    (bind-variable! ctx :aliases (assoc aliases alias [:alias target]))))
+  (cond
+    (vector? alias)
+    (doseq [a alias]
+      (add-sub-alias! ctx a target))
+
+    (keyword? alias)
+    (let [aliases (or (second (fetch-variable ctx :aliases)) {})]
+      (bind-variable! ctx :aliases (assoc aliases alias [:alias target])))
+
+    :else
+    (u/throw-ex (str "invalid alias identifier - " alias))))
 
 (defn alias-name [alias]
-  (if (vector? alias) (keyword (clojure.string/join  "-" alias)) alias))
+  (if (vector? alias)
+    (keyword (str "A" (hash alias)))
+    alias))
 
 (defn add-alias!
   ([ctx nm alias]
@@ -62,7 +73,8 @@
                  :else nm)]
      (bind-variable! ctx :aliases (assoc aliases alias-name v))
      (when (vector? alias)
-       (doall (map #(add-sub-alias! ctx % alias-name) alias)))))
+       (doseq [a alias]
+         (add-sub-alias! ctx a alias-name)))))
   ([ctx alias]
    (add-alias! ctx (alias-name alias) alias)))
 
@@ -70,6 +82,7 @@
   (let [[n r] (li/split-ref k)
         aliases (second (fetch-variable ctx :aliases))]
     (when-let [a (get aliases n)]
-      (cond r (keyword (subs (str a "." (name r)) 1))
+      (cond
+        r k
         (and (vector? a) (= :alias (first a))) k
         :else a))))
