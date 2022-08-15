@@ -813,6 +813,16 @@
     (do-call-function [_ env fnobj]
       (call-function env fnobj))
 
+    (do-eval_ [_ env [fnobj return-type result-alias]]
+      (let [r (fnobj env)
+            ok-typ (if (fn? return-type)
+                     (return-type r)
+                     (cn/instance-of? return-type r))]
+        (if ok-typ
+          (let [new-env (env/bind-instance-to-alias env result-alias r)]
+            (i/ok r (if (map? r) (env/bind-instance new-env r) (env/bind-instances new-env r)))
+            (i/error (str ":eval failed - result is not of type " return-type))))))
+
     (do-match [self env [match-pattern-code cases-code alternative-code result-alias]]
       (if match-pattern-code
         (let [result (eval-opcode self env match-pattern-code)

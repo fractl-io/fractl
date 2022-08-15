@@ -107,8 +107,14 @@
       `(~(first expr) ~@final-args))
     :else (arg-lookup expr)))
 
-(defn- expr-as-fn [expr]
-  (li/evaluate `(fn [~runtime-env-var ~current-instance-var] ~expr)))
+(defn- expr-as-fn
+  ([only-env-as-arg expr]
+   (li/evaluate
+    `(fn ~(if only-env-as-arg
+            [runtime-env-var]
+            [runtime-env-var current-instance-var])
+       ~expr)))
+  ([expr] (expr-as-fn false expr)))
 
 (defn- query-param-lookup [p]
   (let [r (arg-lookup p)]
@@ -609,6 +615,12 @@
 (defn- compile-entity-definition [_ pat]
   (op/entity-def (first pat)))
 
+(defn- compile-eval [ctx pat]
+  (let [m (us/split-to-map pat)]
+    (op/eval_
+     [(expr-as-fn true (expr-with-arg-lookups (:eval m)))
+      (:returns m) (:as m)])))
+
 (def ^:private special-form-handlers
   {:match compile-match
    :try compile-try
@@ -618,6 +630,7 @@
    :await compile-await
    :pull compile-pull
    :push compile-push
+   :eval compile-eval
    :entity compile-entity-definition})
 
 (defn- compile-special-form
