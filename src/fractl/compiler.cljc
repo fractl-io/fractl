@@ -614,7 +614,7 @@
 
 (defn- compile-eval [ctx pat]
   (let [m (us/split-to-map (rest pat))
-        ret-type (:returns m)
+        ret-type (:check m)
         result-alias (:as m)]
     (when result-alias
       (ctx/add-alias! ctx (or ret-type result-alias) result-alias))

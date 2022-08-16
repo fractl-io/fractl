@@ -69,13 +69,13 @@
      :I585/Evt1
      {:I585/E {:K? :I585/Evt1.K}}
      [:eval '(fractl.test.fixes03/i585-f1 :I585/E)
-      :returns :I585/R :as :Result]
+      :check :I585/R :as :Result]
      {:I585/E {:K "result" :X :Result.Y}})
     (dataflow
      :I585/Evt2
      {:I585/E {:K? :I585/Evt2.K}}
      [:eval '(fractl.test.fixes03/i585-f2 :I585/E)
-      :returns fractl.test.fixes03/i585-seq-of-r? :as [:R1]]
+      :check fractl.test.fixes03/i585-seq-of-r? :as [:R1]]
      {:I585/E {:K "result" :X :R1.Y}})
     (dataflow
      :I585/Evt3
