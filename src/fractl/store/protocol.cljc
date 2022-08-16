@@ -56,14 +56,6 @@
   (get-reference [store path refs]
     "Get reference to instances stored in the store. This is useful for
      tracking instances in reactive store")
-  (pull [store options]
-    "Pull data to local storage, based on options.
-     The spec for options is implementation specific"
-    (not-implemented :pull))
   (commit [store msg]
     "Commit local changes, return the version number"
-    (not-implemented :commit))
-  (push [store options]
-    "Push all current local commits to the remote store.
-     The spec for options is implementation specific"
-    (not-implemented :push)))
+    (not-implemented :commit)))

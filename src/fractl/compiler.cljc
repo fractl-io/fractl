@@ -609,12 +609,6 @@
 (defn- compile-await [ctx pat]
   (op/await_ (compile-construct-with-handlers ctx pat)))
 
-(defn- compile-pull [_ pat]
-  (op/pull pat))
-
-(defn- compile-push [_ pat]
-  (op/push pat))
-
 (defn- compile-entity-definition [_ pat]
   (op/entity-def (first pat)))
 
@@ -635,8 +629,6 @@
    :query compile-query-command
    :delete compile-delete
    :await compile-await
-   :pull compile-pull
-   :push compile-push
    :eval compile-eval
    :entity compile-entity-definition})
 
