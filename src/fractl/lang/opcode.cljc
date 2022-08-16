@@ -151,10 +151,4 @@
            continuation based on the result, in an updated env")
          (entity-def
           [schema]
-          "Define a new entity.")
-         (pull
-          [options]
-          "Execute a data pull call on the current store.")
-         (push
-          [options]
-          "Execute a data push on the current store.")]))
+          "Define a new entity.")]))
