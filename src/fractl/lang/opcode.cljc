@@ -136,6 +136,9 @@
          (call-function
           [fnobj]
           "Call the function with the current environment and instance being inited as arguments. Return the result.")
+         (eval_
+          [[fnobj return-type alias-name]]
+          "Call the function with the current environment as argument. Intern the result.")
          (match
           [[match-pattern-code cases-code alternative-code result-alias]]
           "Execute code for each part of conditional evaluation based on the :match construct.")

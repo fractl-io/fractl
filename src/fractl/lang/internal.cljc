@@ -32,7 +32,7 @@
     oprs
     #{:match :try :for-each :delete
       :query :between :await :resolver
-      :pull :push :entity :as :alias})))
+      :pull :push :entity :as :alias :eval})))
 
 (def ^:private reserved-names
   (set (concat
