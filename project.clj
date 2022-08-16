@@ -1,4 +1,4 @@
-(defproject fractl-io/fractl "0.2.3"
+(defproject fractl-io/fractl "0.2.4"
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [org.clojure/clojurescript "1.10.896"
                   :exclusions [com.google.code.findbugs/jsr305]]
@@ -41,6 +41,7 @@
 
   :main fractl.core
   :aot :all
+  :omit-source true
 
   :jar-exclusions [#"(?:^|/).fractl/" #"(?:^|/).db/" #"(?:^|/).json/"]
 
