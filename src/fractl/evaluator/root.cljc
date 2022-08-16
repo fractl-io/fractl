@@ -627,8 +627,7 @@
   (loop [results (mapv opcode-eval elements-opcode), final-list []]
     (if-let [result (first results)]
       (if-let [r (ok-result result)]
-        (let [r (if (and (seqable? r) (= 1 (count r))) (first r) r)]
-          (recur (rest results) (conj final-list r)))
+        (recur (rest results) (conj final-list r))
         result)
       final-list)))
 

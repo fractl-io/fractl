@@ -159,11 +159,25 @@
 (defn- run-appinit-tasks! [evaluator store model components]
   (trigger-appinit-event! evaluator (:init-data model)))
 
+(defn- run-initconfig [evaluator]
+  (let [result (evaluator
+                (cn/make-instance
+                 {:Kernel/InitConfig {}}))
+        configs (first (mapv :Data (:result (first result))))
+        resolver-configs (mapv :resolvers configs)
+        other-configs (mapv #(dissoc % :resolvers) configs)]
+    (assoc
+     (apply merge other-configs)
+     :resolvers (vec (apply concat resolver-configs)))))
+
 (defn- init-runtime [model components config]
   (register-resolvers! config)
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
         ins (:interceptors config)]
+    ;; Register additional resolvers with remote configuration.
+    (when-let [resolved-config (run-initconfig ev)]
+      (register-resolvers! resolved-config))
     (run-appinit-tasks! ev store model components)
     (when (some #{:rbac} (keys ins))
       (when-not (rbac/init (:rbac ins))

@@ -169,7 +169,7 @@
   (expr-as-fn (expr-with-arg-lookups expr)))
 
 (defn- build-dependency-graph [attr-pats ctx schema graph]
-  ;; makes parser/build-dependency-graph callable from util/apply->
+  ;; make parser/build-dependency-graph callable from util/apply->
   (let [result-graph (i/build-dependency-graph attr-pats ctx schema graph)]
     [ctx schema result-graph]))
 
