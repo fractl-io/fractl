@@ -47,8 +47,8 @@
 (defn key-vals [m]
   [(keys m) (vals m)])
 
-(defn unflat-map [xs]
-  (into {} (map vec (partition 2 xs))))
+(defn split-to-map [xs]
+  (into {} (mapv vec (partition 2 xs))))
 
 (defn aconj [m tag x]
   (assoc m tag (conj (get m tag []) x)))
