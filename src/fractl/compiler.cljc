@@ -107,14 +107,10 @@
       `(~(first expr) ~@final-args))
     :else (arg-lookup expr)))
 
-(defn- expr-as-fn
-  ([only-env-as-arg expr]
+(defn- expr-as-fn [expr]
    (li/evaluate
-    `(fn ~(if only-env-as-arg
-            [runtime-env-var]
-            [runtime-env-var current-instance-var])
+    `(fn ~[runtime-env-var current-instance-var]
        ~expr)))
-  ([expr] (expr-as-fn false expr)))
 
 (defn- query-param-lookup [p]
   (let [r (arg-lookup p)]
@@ -619,7 +615,7 @@
     (when result-alias
       (ctx/add-alias! ctx (or ret-type result-alias) result-alias))
     (op/eval_
-     [(expr-as-fn true (expr-with-arg-lookups (first pat)))
+     [(expr-as-fn (expr-with-arg-lookups (first pat)))
       ret-type result-alias])))
 
 (def ^:private special-form-handlers

@@ -813,7 +813,7 @@
       (call-function env fnobj))
 
     (do-eval_ [_ env [fnobj return-type result-alias]]
-      (let [r (fnobj env)
+      (let [r (fnobj env nil)
             typ-ok (if return-type
                      (if (fn? return-type)
                        (return-type r)
