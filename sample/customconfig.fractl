@@ -1,0 +1,32 @@
+(ns sample.simple
+  (:use [fractl.lang]))
+
+(component :Sample.CustomConfig)
+
+;;;; Test for custom config resolution
+
+(record
+ :Config1
+ {:Data :Kernel/Map})
+
+(record
+ :Config2
+ {:Data :Kernel/Map})
+
+(dataflow
+ :Kernel/InitConfig
+ {:Config1
+  {:Data
+   [:q#
+    {:custom-value 1234
+     :resolvers
+     [{:name :abc :config {:x 10 :y 20}}
+      {:name :xyz :config {:k 199}}]}]}}
+ {:Config2
+  {:Data
+   [:q#
+    {:some-config [1 2 3 4]
+     :resolvers
+     [{:name :ghi :config {:m "hello"}}]}]}}
+ {:Kernel/InitConfigResult
+  {:Data [:Config1.Data :Config2.Data]}})
