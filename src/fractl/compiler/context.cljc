@@ -69,8 +69,7 @@
   ([ctx nm alias]
    (let [alias-name (alias-name alias)
          aliases (or (second (fetch-variable ctx :aliases)) {})
-         v (cond (li/parsed-path? nm) (li/make-path nm)
-                 :else nm)]
+         v (if (li/parsed-path? nm) (li/make-path nm) nm)]
      (bind-variable! ctx :aliases (assoc aliases alias-name v))
      (when (vector? alias)
        (doseq [a alias]
@@ -78,11 +77,16 @@
   ([ctx alias]
    (add-alias! ctx (alias-name alias) alias)))
 
-(defn aliased-name [ctx k]
-  (let [[n r] (li/split-ref k)
-        aliases (second (fetch-variable ctx :aliases))]
-    (when-let [a (get aliases n)]
-      (cond
-        r k
-        (and (vector? a) (= :alias (first a))) k
-        :else a))))
+(defn redirect? [a]
+  (and (vector? a) (= :alias (first a))))
+
+(def ^:private redirect-tag second)
+
+(defn aliased-name
+  ([ctx k follow-redirect]
+   (let [aliases (second (fetch-variable ctx :aliases))]
+     (when-let [a (get aliases k)]
+       (if (and (redirect? a) follow-redirect)
+         (aliased-name ctx (redirect-tag a))
+         a))))
+  ([ctx k] (aliased-name ctx k true)))
