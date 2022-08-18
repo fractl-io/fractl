@@ -325,8 +325,11 @@
   (keyword (gensym)))
 
 (defn instance-pattern? [pat]
-  (let [ks (keys pat)]
-    (name? (first ks))))
+  (let [ks (keys (dissoc pat :as))]
+    (and (= 1 (count ks))
+         (let [k (first ks)]
+           (and (name? k)
+                (map? (get pat k)))))))
 
 (defn instance-pattern-name [pat]
   (first (keys pat)))

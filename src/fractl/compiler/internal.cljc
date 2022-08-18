@@ -104,9 +104,11 @@
       (name-in-context ctx component rec refs))))
 
 (defn- map->seqable [m]
-  (map second (if (li/instance-pattern? m)
-                (li/instance-pattern-attrs m)
-                m)))
+  (mapv
+   second
+   (if (li/instance-pattern? m)
+     (li/instance-pattern-attrs m)
+     m)))
 
 (defn- valid-dependency
   ([ctx schema v vals-of-map?]

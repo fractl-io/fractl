@@ -775,8 +775,17 @@
     {:Intercept? :Kernel/LoadPolicies.Intercept
      :Resource? :Kernel/LoadPolicies.Resource}})
 
-  (event :Kernel/AppInit
-         {:Data :Kernel/Map})
+  (event
+   :Kernel/AppInit
+   {:Data :Kernel/Map})
+
+  (event
+   :Kernel/InitConfig
+   {})
+
+  (record
+   :Kernel/InitConfigResult
+   {:Data {:listof :Kernel/Map}})
 
   #?(:clj
      (do

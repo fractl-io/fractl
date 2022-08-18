@@ -72,7 +72,7 @@
 (defn register-resolver [{n :name t :type
                           compose? :compose?
                           paths :paths config :config}]
-  (if-let [c (t @constructors)]
+  (if-let [c (and t (t @constructors))]
     (let [resolver (c n config)
           rf (if compose? compose-resolver override-resolver)]
       (doseq [p paths] (rf p resolver))
