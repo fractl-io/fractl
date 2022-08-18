@@ -2,9 +2,11 @@
   "Compile dataflow patterns to calls into the resolver protocol."
   (:require [clojure.walk :as w]
             [clojure.string :as s]
+            [clojure.pprint :as pp]
             [fractl.util :as u]
             [fractl.util.graph :as ug]
             [fractl.util.seq :as us]
+            [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
             [fractl.compiler.context :as ctx]
@@ -673,6 +675,37 @@
       (ctx/bind-variable! ctx i/conditional-dataflow-tag true)))
   ctx)
 
+(defn- error-pattern-as-string [pat]
+  (with-out-str (pp/pprint pat)))
+
+(def ^:private error-marker (keyword "-^--- ERROR in pattern"))
+
+(defn- report-compiler-error [all-patterns pattern-index ex]
+  (loop [pats all-patterns, n pattern-index,
+         marker-set false, result []]
+    (if-let [p (first pats)]
+      (let [f (neg? n)]
+        (recur (rest pats)
+               (dec n)
+               f (if f
+                   (conj result error-marker p)
+                   (conj result p))))
+      (let [err-pat (if marker-set result (conj result error-marker))]
+        (log/error (str "error in expression " ex))
+        (log/error (error-pattern-as-string err-pat))
+        (throw ex)))))
+
+(defn- compile-with-error-report [all-patterns compile-fn
+                                  pattern-to-compile n]
+  (try
+    (compile-fn pattern-to-compile)
+    #?(:clj
+       (catch Exception e
+         (report-compiler-error all-patterns n e))
+       :cljs
+       (catch js/Error e
+         (report-compiler-error all-patterns n e)))))
+
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
            compile-pattern
@@ -681,7 +714,8 @@
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
-        result [ec (mapv c df-patterns)]]
+        safe-compile (partial compile-with-error-report df-patterns c)
+        result [ec (mapv safe-compile df-patterns (range (count df-patterns)))]]
     result))
 
 (defn maybe-compile-dataflow [compile-query-fn df]
