@@ -11,7 +11,7 @@
 .cpcache
 /target/
 /out/
-figwheel_server.log
+*.log
 .rebel_readline_history
 /logs/
 .idea/
@@ -26,8 +26,6 @@ out/
 .clj-kondo/
 .lsp/
 /platform/*.db*
-fractl.log
-fractl.log.*
 !sample/library/*.db
 app
 /platform/aws/lambda/target/
