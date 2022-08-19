@@ -98,3 +98,32 @@
     (is (= 100 (:X r2)))
     (is (cn/instance-of? :I585/R r3))
     (is (= 2000 (:Y r3)))))
+
+(deftest issue-599-uq-error
+  (defcomponent :I599
+    (entity
+     :I599/E
+     {:N {:type :Kernel/Int :indexed true}
+      :X :Kernel/Int})
+    (record
+     :I599/R
+     {:Data :Kernel/Map})
+    (dataflow
+     :I599/Evt
+     {:I599/E {:N? 1} :as [:A :& :_]}
+     {:I599/R
+      {:Data
+       [:q#
+        {:custom-value 1234
+         :resolvers
+         [{:name :abc
+           :config {:x [:uq# :A.X] :y 20}}]}]}}))
+  (let [e (tu/first-result
+           {:I599/Upsert_E
+            {:Instance
+             {:I599/E {:N 1 :X 10}}}})
+        r (tu/first-result
+           {:I599/Evt {}})]
+    (is (cn/instance-of? :I599/R r))
+    (let [{x :x y :y} (:config (first (get-in r [:Data :resolvers])))]
+      (is (and (= 10 x) (= 20 y))))))
