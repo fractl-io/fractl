@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<configuration>
+  <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>logs/fractl.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>logs/fractl-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <maxFileSize>20MB</maxFileSize>    
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>    
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="ROLLING" />     
+  </root>
+</configuration>
