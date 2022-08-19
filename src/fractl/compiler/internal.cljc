@@ -80,17 +80,13 @@
 
 (declare reach-name)
 
-(defn- alias-descriptor? [an]
-  (and (vector? an)
-    (= (first an) :alias)))
-
 (defn- aliased-name-in-context [ctx schema n]
-  (when-let [an (ctx/aliased-name ctx n)]
-    (cond
-      (alias-descriptor? an) true
-      (refers-to-event? an) true
-      (= n an) n
-      :else (reach-name ctx schema an))))
+  (let [p (:path (li/path-parts n))]
+    (when-let [an (and p (ctx/aliased-name ctx p false))]
+      (or (= an p)
+          (ctx/redirect? an)
+          (refers-to-event? an)
+          (reach-name ctx schema an)))))
 
 (defn- reach-name [ctx schema n]
   (let [{component :component rec :record refs :refs

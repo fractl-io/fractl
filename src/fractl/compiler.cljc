@@ -295,8 +295,8 @@
             path :path :as parts} (if (map? pat) pat (li/path-parts pat))]
        (if path
          (if-let [p (ctx/aliased-name ctx path)]
-           (if (= p path)
-             (emit-load-instance-by-name [p p])
+           (if (= path pat)
+             (emit-load-instance-by-name [path path])
              (compile-pathname ctx (assoc (li/path-parts p) :refs refs) path))
            (if (= path pat)
              (u/throw-ex (str "ambiguous reference - " pat))
@@ -614,6 +614,8 @@
   (let [m (us/split-to-map (rest pat))
         ret-type (:check m)
         result-alias (:as m)]
+    (when (keyword? ret-type)
+      (ctx/put-fresh-record! ctx (li/split-path ret-type) {}))
     (when result-alias
       (ctx/add-alias! ctx (or ret-type result-alias) result-alias))
     (op/eval_
