@@ -12,9 +12,6 @@
 
 (def id-attr li/id-attr)
 (def id-attr-type :Kernel/UUID)
-(def s-id-attr (name id-attr))
-(def slc-id-attr (s/lower-case s-id-attr))
-(def q-id-attr (keyword (str s-id-attr "?")))
 
 (def ^:private components
   "Table that maps component names to their definitions."
@@ -1128,6 +1125,12 @@
     (or (:type (find-attribute-schema ascm))
         ascm)))
 
+(def identity-attribute? :identity)
+
+(defn attribute-is-identity? [entity-schema attr]
+  (let [ascm (get entity-schema attr)]
+    (identity-attribute? (find-attribute-schema ascm))))
+
 (defn type-any? [entity-schema attr]
   (= :Kernel/Any (attribute-type entity-schema attr)))
 
@@ -1360,9 +1363,6 @@
 
 (def hashed-attribute? :secure-hash)
 
-(defn append-id [path]
-  (keyword (str (subs (str path) 1) "." s-id-attr)))
-
 (defn event-context-value [k event-instance]
   (get-in event-instance [li/event-context k]))
 
@@ -1414,5 +1414,3 @@
 
 (defn kernel-inited? []
   (:Kernel @components))
-
-(def identity-attribute? :identity)

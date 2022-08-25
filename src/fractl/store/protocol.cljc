@@ -40,7 +40,7 @@
   (delete-all [store entity-name]
     "Delete all instances.")
   (query-by-id [store entity-name query-sql ids]
-    "Return the instances with the given cn/id-attr values. Return nil if the instances
+    "Return the instances with the given id-attr values. Return nil if the instances
      does not exist. On failure, raise an exception.")
   (query-by-unique-keys [store entity-name unique-keys unique-values]
     "Return the instance with the given unique values, if no data found, return nil.")
