@@ -34,7 +34,7 @@
      On failure, raise an exception.")
   (update-instance [store entity-name instance]
     "Update the instance without violating unique-key constraints.")
-  (delete-by-id [store entity-name id]
+  (delete-by-id [store entity-name id-attr-name id]
     "Delete the instance with the given id. On success, return id.
      If the instance does not exist, return nil. On failure, raise an exception.")
   (delete-all [store entity-name]

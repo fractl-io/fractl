@@ -11,6 +11,7 @@
             [fractl.lang.datetime :as dt]))
 
 (def id-attr li/id-attr)
+(def id-attr-type :Kernel/UUID)
 (def s-id-attr (name id-attr))
 (def slc-id-attr (s/lower-case s-id-attr))
 (def q-id-attr (keyword (str s-id-attr "?")))
@@ -108,6 +109,7 @@
    {:type :Kernel/UUID
     :unique true
     :immutable true
+    :identity true
     :default u/uuid-string})
   (intern-event [component (component-init-event-name component)]
                 {:ComponentName :Kernel/Keyword})
@@ -431,7 +433,7 @@
 
 (def identity-attributes
   "Return the names of all identity attributes in the schema."
-  (make-attributes-filter (every-pred :unique :immutable)))
+  (make-attributes-filter :identity))
 
 (def immutable-attributes
   "Return the names of all immutable attributes in the schema."
@@ -456,7 +458,7 @@
       (if (every? entity-instance? [a b])
         (let [instname (parsed-instance-type a)]
           (and (instance-of? instname b)
-               (when-let [idattr (first (identity-attribute-names instname))]
+               (when-let [idattr (identity-attribute-name instname)]
                  (= (idattr (instance-attributes a))
                     (idattr (instance-attributes b))))))
         (= a b))))
@@ -1412,3 +1414,5 @@
 
 (defn kernel-inited? []
   (:Kernel @components))
+
+(def identity-attribute? :identity)

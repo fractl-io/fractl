@@ -159,20 +159,20 @@
 
 (defn- delete-inst!
   "Delete an entity instance."
-  [conn tabname id delete-by-id-statement]
-  (let [[pstmt params] (delete-by-id-statement conn tabname id)]
+  [conn tabname id-attr-name id delete-by-id-statement]
+  (let [[pstmt params] (delete-by-id-statement conn tabname id-attr-name id)]
     (execute-stmt! conn pstmt params)))
 
 (defn delete-by-id
-  ([delete-by-id-statement datasource entity-name id]
+  ([delete-by-id-statement datasource entity-name id-attr-name id]
    (let [tabname (su/entity-table-name entity-name)]
      (transact-fn!
       datasource
       (fn [txn]
-        (delete-inst! txn tabname id delete-by-id-statement)))
+        (delete-inst! txn tabname id-attr-name id delete-by-id-statement)))
      id))
-  ([datasource entity-name id]
-   (delete-by-id delete-by-id-statement datasource entity-name id)))
+  ([datasource entity-name id-attr-name id]
+   (delete-by-id delete-by-id-statement datasource entity-name id-attr-name id)))
 
 (defn delete-all [datasource entity-name]
   (let [tabname (su/entity-table-name entity-name)]
