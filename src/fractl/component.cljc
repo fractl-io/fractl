@@ -766,9 +766,10 @@
   ([record-name attributes validate?]
    (let [schema (ensure-schema record-name)
          attrs-with-insts (maps-to-insts attributes validate?)
-         attrs (if validate?
-                 (validate-record-attributes record-name attrs-with-insts schema)
-                 attrs-with-insts)]
+         attrs0 (if validate?
+                  (validate-record-attributes record-name attrs-with-insts schema)
+                  attrs-with-insts)
+         attrs (secure-attributes record-name attrs0 schema)]
      (if (error? attrs)
        attrs
        (make-record-instance (type-tag-of record-name) record-name attrs))))
