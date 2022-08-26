@@ -2,9 +2,10 @@
   (:require [clojure.string :as s]
             [fractl.util :as u])
   (:import [java.io File]
+           [java.util.regex Pattern]
            [fractl.filesystem Util]))
 
-(def ^:private path-split-pat (re-pattern u/path-sep))
+(def ^:private path-split-pat (re-pattern (Pattern/quote u/path-sep)))
 (def ^:private model-resource-root "app")
 
 (defn- project-spec [project-name model]
