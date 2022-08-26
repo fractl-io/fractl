@@ -307,7 +307,8 @@
          insts)))))
 
 (defn- delete-by-id [store record-name inst]
-  [record-name (store/delete-by-id store record-name (cn/id-attr inst))])
+  (let [id-attr (cn/identity-attribute-name record-name)]
+    [record-name (store/delete-by-id store record-name id-attr (id-attr inst))]))
 
 (defn- chained-delete [env record-name instance]
   (let [store (env/get-store env)

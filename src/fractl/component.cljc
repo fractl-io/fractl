@@ -11,9 +11,7 @@
             [fractl.lang.datetime :as dt]))
 
 (def id-attr li/id-attr)
-(def s-id-attr (name id-attr))
-(def slc-id-attr (s/lower-case s-id-attr))
-(def q-id-attr (keyword (str s-id-attr "?")))
+(def id-attr-type :Kernel/UUID)
 
 (def ^:private components
   "Table that maps component names to their definitions."
@@ -108,6 +106,7 @@
    {:type :Kernel/UUID
     :unique true
     :immutable true
+    :identity true
     :default u/uuid-string})
   (intern-event [component (component-init-event-name component)]
                 {:ComponentName :Kernel/Keyword})
@@ -431,7 +430,7 @@
 
 (def identity-attributes
   "Return the names of all identity attributes in the schema."
-  (make-attributes-filter (every-pred :unique :immutable)))
+  (make-attributes-filter :identity))
 
 (def immutable-attributes
   "Return the names of all immutable attributes in the schema."
@@ -456,7 +455,7 @@
       (if (every? entity-instance? [a b])
         (let [instname (parsed-instance-type a)]
           (and (instance-of? instname b)
-               (when-let [idattr (first (identity-attribute-names instname))]
+               (when-let [idattr (identity-attribute-name instname)]
                  (= (idattr (instance-attributes a))
                     (idattr (instance-attributes b))))))
         (= a b))))
@@ -1127,6 +1126,12 @@
     (or (:type (find-attribute-schema ascm))
         ascm)))
 
+(def identity-attribute? :identity)
+
+(defn attribute-is-identity? [entity-schema attr]
+  (let [ascm (get entity-schema attr)]
+    (identity-attribute? (find-attribute-schema ascm))))
+
 (defn type-any? [entity-schema attr]
   (= :Kernel/Any (attribute-type entity-schema attr)))
 
@@ -1359,9 +1364,6 @@
 
 (def hashed-attribute? :secure-hash)
 
-(defn append-id [path]
-  (keyword (str (subs (str path) 1) "." s-id-attr)))
-
 (defn event-context-value [k event-instance]
   (get-in event-instance [li/event-context k]))
 
@@ -1413,3 +1415,11 @@
 
 (defn kernel-inited? []
   (:Kernel @components))
+
+(defn append-id
+  ([path id-attr]
+   (keyword (str (subs (str path) 1) "." (name id-attr))))
+  ([path]
+   (let [{c :component r :record} (li/path-parts path)
+         id (when (and c r) (identity-attribute-name [c r]))]
+     (append-id path (or id id-attr)))))

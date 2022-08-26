@@ -86,7 +86,7 @@
 (deftest compile-pattern-02
   (let [[ctx c] (pattern-compiler)
         p1 {:CompileTest/E1
-            {cn/q-id-attr 'id
+            {tu/q-id-attr 'id
              :X 100
              :Y '(+ :X 10)}}
         uuid (u/uuid-string)]
@@ -110,7 +110,7 @@
 (deftest circular-dependency
   (let [[ctx c] (pattern-compiler)
         p1 {:CompileTest/E1
-            {cn/q-id-attr 'id
+            {tu/q-id-attr 'id
              :X '(+ :Y 20)
              :Y '(+ :X 10)}}
         uuid (u/uuid-string)]
@@ -200,7 +200,7 @@
     (event {:SelfRef/AddToX {:EId :Kernel/UUID
                              :Y :Kernel/Int}}))
   (dataflow :SelfRef/AddToX
-            {:SelfRef/E {cn/q-id-attr :SelfRef/AddToX.EId
+            {:SelfRef/E {tu/q-id-attr :SelfRef/AddToX.EId
                          :X '(+ :X :SelfRef/AddToX.Y)
                          :Y :SelfRef/AddToX.Y
                          :Z 1}})
@@ -1137,10 +1137,10 @@
                                                                      :default "167d0b04-fa75-11eb-9a03-0242ac130003"}
                                                            :Balance :UserAccount/Total}}))
           (dataflow :UserAccount/IncreaseLoan
-                    {:UserAccount/Estimate {cn/q-id-attr (tu/append-id :UserAccount/IncreaseLoan)}}
+                    {:UserAccount/Estimate {tu/q-id-attr (tu/append-id :UserAccount/IncreaseLoan)}}
                     {:UserAccount/Estimate {:Balance :UserAccount/IncreaseLoan.Balance.Total
                                             :Loan    '(+ :Balance 10000)}})
-          (let [r (cn/make-instance :UserAccount/Total {:Total 100000})
+     (let [r (cn/make-instance :UserAccount/Total {:Total 100000})
                 evt (cn/make-instance :UserAccount/IncreaseLoan {:Balance r})]
             (is (thrown? Exception (cn/instance-of? :UserAccount/Estimate (first (tu/fresult (e/eval-all-dataflows evt)))))))))
 

@@ -25,7 +25,7 @@
     (dataflow
      :MetaDataCrud/Update
      {:MetaDataCrud/E
-      {cn/q-id-attr :MetaDataCrud/Update.E
+      {tu/q-id-attr :MetaDataCrud/Update.E
        :X 200}}))       
   (finally-reset-interceptors
    #(let [e1 (first

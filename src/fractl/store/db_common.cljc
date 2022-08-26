@@ -18,7 +18,6 @@
    :execute-sql! #?(:clj ji/execute-sql! :cljs aqi/execute-sql!)
    :execute-stmt! #?(:clj ji/execute-stmt! :cljs aqi/execute-stmt!)
    :upsert-inst-statement #?(:clj h2i/upsert-inst-statement :cljs aqi/upsert-inst-statement)
-   :upsert-index-statement #?(:clj h2i/upsert-index-statement :cljs nil)
    :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
    :delete-all-statement #?(:clj ji/delete-all-statement :cljs aqi/delete-all-statement)
    :query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement)
@@ -30,7 +29,6 @@
 (def execute-sql! (:execute-sql! store-fns))
 (def execute-stmt! (:execute-stmt! store-fns))
 (def upsert-inst-statement (:upsert-inst-statement store-fns))
-(def upsert-index-statement (:upsert-index-statement store-fns))
 (def delete-by-id-statement (:delete-by-id-statement store-fns))
 (def delete-all-statement (:delete-all-statement store-fns))
 (def query-by-id-statement (:query-by-id-statement store-fns))
@@ -48,12 +46,14 @@
            (if-let [a (first attrs)]
              (let [atype (cn/attribute-type entity-schema a)
                    sql-type (sql/attribute-to-sql-type atype)
-                   uq (when (some #{a} unique-attributes) "NOT NULL UNIQUE")]
+                   is-ident (cn/attribute-is-identity? entity-schema a)
+                   uq (if is-ident
+                        "PRIMARY KEY"
+                        (when (some #{a} unique-attributes)
+                          "NOT NULL UNIQUE"))]
                (recur
                 (rest attrs)
-                (str cols (if (= cn/id-attr a)
-                            (str "_" cn/s-id-attr " " id-type " PRIMARY KEY")
-                            (str "_" (name a) " " sql-type " " uq))
+                (str cols (str "_" (name a) " " sql-type " " uq)
                      (when (seq (rest attrs))
                        ", "))))
              cols))
@@ -122,19 +122,6 @@
                  (drop-db-schema! txn scmname)))
     component-name))
 
-(defn- validate-references! [conn inst ref-attrs]
-  (doseq [[aname scmname] ref-attrs]
-    (let [p (cn/find-ref-path scmname)
-          component (:component p)
-          entity-name (:record p)
-          tabname (su/entity-table-name [component entity-name])
-          rattr (first (:refs p))
-          colname (name rattr)
-          index-tabname (if (= rattr cn/id-attr) tabname (su/index-table-name tabname colname))
-          [stmt params] (validate-ref-statement conn index-tabname colname (get inst aname))]
-      (when-not (seq (execute-stmt! conn stmt params))
-        (u/throw-ex (str "Reference not found - " aname ", " p))))))
-
 (defn- remove-unique-attributes [indexed-attrs entity-schema]
   (if-let [uq-attrs (seq (cn/unique-attributes entity-schema))]
     (set/difference (set indexed-attrs) (set uq-attrs))
@@ -159,20 +146,20 @@
 
 (defn- delete-inst!
   "Delete an entity instance."
-  [conn tabname id delete-by-id-statement]
-  (let [[pstmt params] (delete-by-id-statement conn tabname id)]
+  [conn tabname id-attr-name id delete-by-id-statement]
+  (let [[pstmt params] (delete-by-id-statement conn tabname id-attr-name id)]
     (execute-stmt! conn pstmt params)))
 
 (defn delete-by-id
-  ([delete-by-id-statement datasource entity-name id]
+  ([delete-by-id-statement datasource entity-name id-attr-name id]
    (let [tabname (su/entity-table-name entity-name)]
      (transact-fn!
       datasource
       (fn [txn]
-        (delete-inst! txn tabname id delete-by-id-statement)))
+        (delete-inst! txn tabname id-attr-name id delete-by-id-statement)))
      id))
-  ([datasource entity-name id]
-   (delete-by-id delete-by-id-statement datasource entity-name id)))
+  ([datasource entity-name id-attr-name id]
+   (delete-by-id delete-by-id-statement datasource entity-name id-attr-name id)))
 
 (defn delete-all [datasource entity-name]
   (let [tabname (su/entity-table-name entity-name)]

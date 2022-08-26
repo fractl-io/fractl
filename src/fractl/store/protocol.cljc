@@ -34,13 +34,13 @@
      On failure, raise an exception.")
   (update-instance [store entity-name instance]
     "Update the instance without violating unique-key constraints.")
-  (delete-by-id [store entity-name id]
+  (delete-by-id [store entity-name id-attr-name id]
     "Delete the instance with the given id. On success, return id.
      If the instance does not exist, return nil. On failure, raise an exception.")
   (delete-all [store entity-name]
     "Delete all instances.")
   (query-by-id [store entity-name query-sql ids]
-    "Return the instances with the given cn/id-attr values. Return nil if the instances
+    "Return the instances with the given id-attr values. Return nil if the instances
      does not exist. On failure, raise an exception.")
   (query-by-unique-keys [store entity-name unique-keys unique-values]
     "Return the instance with the given unique values, if no data found, return nil.")

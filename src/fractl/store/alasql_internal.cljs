@@ -26,8 +26,8 @@
                  ")")]
     [sql col-vals]))
 
-(defn delete-by-id-statement [_ table-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE _" cn/s-id-attr " = ?")]
+(defn delete-by-id-statement [_ table-name id-attr-name id]
+  (let [sql (str "DELETE FROM " table-name " WHERE _" (name id-attr-name) " = ?")]
     [sql [id]]))
 
 (defn delete-all-statement [_ table-name]

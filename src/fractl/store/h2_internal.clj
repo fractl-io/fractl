@@ -6,11 +6,6 @@
             [fractl.store.util :as su])
   (:import [java.sql PreparedStatement]))
 
-(defn upsert-index-statement [conn table-name _ id attrval]
-  (let [sql (str "MERGE INTO " table-name " KEY (_" cn/slc-id-attr ") VALUES (?, ?)")
-        ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    [pstmt [id attrval]]))
-
 (defn upsert-inst-statement [conn table-name id obj]
   (let [[entity-name instance] obj
         uk-attrs (cn/unique-attributes (su/find-entity-schema entity-name))

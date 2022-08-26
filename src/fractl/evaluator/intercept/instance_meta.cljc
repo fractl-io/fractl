@@ -53,7 +53,8 @@
     (try
       (store/delete-by-id
        (env/get-store env)
-       (cn/meta-entity-name (li/split-path record-name)) id)
+       (cn/meta-entity-name (li/split-path record-name))
+       cn/id-attr id)
       #?(:clj
          (catch Exception e
            (log/error (str "delete meta error " [record-name id]
