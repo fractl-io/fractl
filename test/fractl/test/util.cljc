@@ -259,7 +259,6 @@
            spec-name-space (get-spec-namespace component-name entity-name)]
        (gen/sample (s/gen spec-name-space)))))
 
-(defn append-id [path]
-  (keyword (str (subs (str path) 1) "." (name cn/id-attr))))
+(def append-id cn/append-id)
 
 (def q-id-attr (keyword (str (name cn/id-attr) "?")))

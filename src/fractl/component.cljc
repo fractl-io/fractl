@@ -1415,3 +1415,11 @@
 
 (defn kernel-inited? []
   (:Kernel @components))
+
+(defn append-id
+  ([path id-attr]
+   (keyword (str (subs (str path) 1) "." (name id-attr))))
+  ([path]
+   (let [{c :component r :record} (li/path-parts path)
+         id (when (and c r) (identity-attribute-name [c r]))]
+     (append-id path (or id id-attr)))))
