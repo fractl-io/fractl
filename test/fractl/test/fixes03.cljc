@@ -2,6 +2,9 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
+            [fractl.resolver.core :as r]
+            [fractl.resolver.registry :as rg]
+            [fractl.util.hash :as sh]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
@@ -127,3 +130,30 @@
     (is (cn/instance-of? :I599/R r))
     (let [{x :x y :y} (:config (first (get-in r [:Data :resolvers])))]
       (is (and (= 10 x) (= 20 y))))))
+
+(defn- make-test-607-resolver []
+  (r/make-resolver
+   :I607
+   {:upsert
+    {:handler
+     (fn [inst]
+       (is (sh/crypto-hash? (:Y inst)))
+       inst)}}))
+
+(deftest issue-607-password-hash
+  (defcomponent :I607
+    (entity
+     :I607/E
+     {:X :Kernel/Int
+      :Y :Kernel/Password}))
+  (rg/compose-resolver :I607/E (make-test-607-resolver))
+  (let [e1 (tu/first-result
+            {:I607/Upsert_E
+             {:Instance
+              {:I607/E {:X 10 :Y "hello123"}}}})
+        e2 (tu/first-result
+            {:I607/Lookup_E
+             {cn/id-attr (cn/id-attr e1)}})]
+    (is (= (:Y e1) (:Y e2)))
+    (is (sh/crypto-hash? (:Y e1)))
+    (is (sh/crypto-hash? (:Y e2)))))

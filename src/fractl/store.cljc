@@ -86,7 +86,6 @@
 
 (defn upsert-instance [store record-name instance]
   (let [scm (su/find-entity-schema record-name)
-        instance (cn/secure-attributes record-name instance scm)
         uq-attrs (concat
                   (cn/unique-attributes scm)
                   (cn/compound-unique-attributes record-name))]
