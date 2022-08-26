@@ -23,9 +23,6 @@
 (defn attribute-column-name [aname]
   (str "_" (name aname)))
 
-(defn indexed-attributes [entity-schema]
-  (set (remove #{cn/id-attr} (cn/indexed-attributes entity-schema))))
-
 (defn index-table-name
   "Construct the lookup table-name for the attribute, from the main entity
   table-name and attribute-name."

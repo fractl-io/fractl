@@ -129,6 +129,7 @@
                  (when-let [predic (:check scm)]
                    (li/validate predic "invalid value for :default" v)))
       :type (li/validate attribute-type? "invalid :type" v)
+      :identity (li/validate-bool :identity v)
       :expr (li/validate fn-or-name? ":expr has invalid value" v)
       :eval (li/validate eval-block? ":eval has invalid value" v)
       :query (li/validate fn? ":query must be a compiled pattern" v)
@@ -168,9 +169,14 @@
 (defn- validate-attribute-schema-map-keys [scm]
   (let [newscm (maybe-assoc-ref-type
                 (finalize-raw-attribute-schema (oneof-as-check scm)))]
-    (if (:unique newscm)
+    (cond
+      (:unique newscm)
       (assoc newscm :indexed true)
-      newscm)))
+
+      (:identity newscm)
+      (assoc newscm :indexed true :unique true)
+
+      :else newscm)))
 
 (defn- validate-attribute-schema [n scm]
   (if (fn? scm)
@@ -522,19 +528,34 @@
   (cn/canonical-type-name
    (keyword (str (name evtname) ".Instance"))))
 
-(defn- id-accessor [evtname]
+(defn- direct-id-accessor [evtname id-attr]
   (cn/canonical-type-name
-   (keyword (str (name evtname) ".Instance." cn/s-id-attr))))
+   (keyword (str (name evtname) "." (name id-attr)))))
 
-(defn- direct-id-accessor [evtname]
-  (cn/canonical-type-name
-   (keyword (str (name evtname) "." cn/s-id-attr))))
+(defn- identity-attribute-name [recname]
+  (or (cn/identity-attribute-name recname)
+      cn/id-attr))
+
+(defn- identity-attribute-type [attr-name attrs]
+  (if (= attr-name cn/id-attr)
+    cn/id-attr-type
+    (let [t (attr-name attrs)]
+      (if (keyword? t)
+        (if-let [ascm (cn/find-attribute-schema t)]
+          (:type ascm)
+          t)
+        (:type t)))))
 
 (defn- crud-event-delete-pattern [evtname entity-name]
-  [:delete entity-name (direct-id-accessor evtname)])
+  (let [id-attr (identity-attribute-name entity-name)]
+    [:delete entity-name
+     id-attr (direct-id-accessor evtname id-attr)]))
 
 (defn- crud-event-lookup-pattern [evtname entity-name]
-  {entity-name {cn/q-id-attr (direct-id-accessor evtname)}})
+  (let [id-attr (identity-attribute-name entity-name)]
+    {entity-name
+     {(keyword (str (name id-attr) "?"))
+      (direct-id-accessor evtname id-attr)}}))
 
 (defn- implicit-entity-event-dfexp
   "Construct a dataflow expressions for an implicit dataflow
@@ -561,8 +582,17 @@
                  :OldInstance entity-name})]
     (event-internal event-name attrs)))
 
+(defn- has-identity-attribute? [attrs]
+  (some (fn [[_ v]]
+          (cn/identity-attribute?
+           (if (keyword? v)
+             (cn/find-attribute-schema v)
+             v)))
+        attrs))
+
 (defn- maybe-assoc-id [entity-name attrs]
-  (if (cn/entity-schema-predefined? entity-name)
+  (if (or (cn/entity-schema-predefined? entity-name)
+          (has-identity-attribute? attrs))
     attrs
     (assoc
      attrs cn/id-attr
@@ -592,7 +622,11 @@
             ev (partial crud-evname n)
             ctx-aname (k/event-context-attribute-name)
             inst-evattrs {:Instance n li/event-context ctx-aname}
-            id-evattrs {cn/id-attr :Kernel/UUID li/event-context ctx-aname}]
+            id-attr (identity-attribute-name rec-name)
+            id-attr-type (or (identity-attribute-type id-attr attrs)
+                             :Kernel/Any)
+            id-evattrs {id-attr id-attr-type
+                        li/event-context ctx-aname}]
         ;; Define CRUD events and dataflows:
         (let [upevt (ev :Upsert)
               delevt (ev :Delete)

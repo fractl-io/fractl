@@ -260,3 +260,5 @@
        (gen/sample (s/gen spec-name-space)))))
 
 (def append-id cn/append-id)
+
+(def q-id-attr (keyword (str (name cn/id-attr) "?")))

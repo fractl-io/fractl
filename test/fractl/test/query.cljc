@@ -103,10 +103,10 @@
               :AvailableQty {:type :Kernel/Int :check pos?}}})
     (dataflow :QueryAliasInExpr/AllocateOrderLine
               {:QueryAliasInExpr/OrderLine
-               {cn/q-id-attr :QueryAliasInExpr/AllocateOrderLine.LineId}
+               {tu/q-id-attr :QueryAliasInExpr/AllocateOrderLine.LineId}
                :as :OL}
               {:QueryAliasInExpr/ProductBatch
-               {cn/q-id-attr :QueryAliasInExpr/AllocateOrderLine.BatchId
+               {tu/q-id-attr :QueryAliasInExpr/AllocateOrderLine.BatchId
                 :AvailableQty '(- :AvailableQty :OL.Qty)}}))
   (let [batch (cn/make-instance
                {:QueryAliasInExpr/ProductBatch

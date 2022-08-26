@@ -78,9 +78,10 @@
         (recur (rest ks) result))
       result)))
 
-(defn- maybe-remove-id [uq-attrs]
+(defn- maybe-remove-id [record-name uq-attrs]
   (if (> (count uq-attrs) 1)
-    (vec (filter #(not= % cn/id-attr) uq-attrs))
+    (let [id-attr (cn/identity-attribute-name record-name)]
+      (vec (filter #(not= % id-attr) uq-attrs)))
     uq-attrs))
 
 (defn upsert-instance [store record-name instance]
@@ -90,7 +91,7 @@
                   (cn/compound-unique-attributes record-name))]
     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
                                (p/query-by-unique-keys
-                                store record-name (maybe-remove-id uq-attrs) instance))]
+                                store record-name (maybe-remove-id record-name uq-attrs) instance))]
       (let [new-instance
             (cn/validate-instance
              (p/update-instance
@@ -165,5 +166,8 @@
   (when-let [store @default-store]
     (partial p/compile-query store)))
 
-(defn lookup-by-id [store entity-name id]
-  (query-by-unique-keys store entity-name [cn/id-attr] {cn/id-attr id}))
+(defn lookup-by-id
+  ([store entity-name id-attr-name id]
+   (query-by-unique-keys store entity-name [id-attr-name] {id-attr-name id}))
+  ([store entity-name id]
+   (lookup-by-id store entity-name cn/id-attr id)))

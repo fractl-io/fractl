@@ -1,6 +1,7 @@
 (ns fractl.store.postgres-internal
   (:require [next.jdbc :as jdbc]
             [clojure.set :as set]
+            [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.store.util :as su]
@@ -42,12 +43,7 @@
     (.setObject pstmt 1 id)
     [pstmt nil]))
 
-(defn delete-index-statement [conn table-name _ id]
-  (let [sql (str "DELETE FROM " table-name " WHERE _" cn/slc-id-attr " = ?")
-        ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    [pstmt [(u/uuid-from-string id)]]))
-
-(defn delete-by-id-statement [conn table-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE _" cn/slc-id-attr " = ?")
+(defn delete-by-id-statement [id-attr-name conn table-name id]
+  (let [sql (str "DELETE FROM " table-name " WHERE _" (s/lower-case (name id-attr-name)) " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [(u/uuid-from-string id)]]))

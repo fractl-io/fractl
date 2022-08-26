@@ -143,10 +143,10 @@
         (db/upsert-instance
          pi/upsert-inst-statement
          @datasource entity-name instance))
-      (delete-by-id [_ entity-name id]
+      (delete-by-id [_ entity-name id-attr-name id]
         (db/delete-by-id
-         pi/delete-by-id-statement
-         @datasource entity-name id))
+         (partial pi/delete-by-id-statement id-attr-name)
+         @datasource entity-name id-attr-name id))
       (delete-all [_ entity-name]
         (db/delete-all @datasource entity-name))
       (query-by-id [_ entity-name query ids]

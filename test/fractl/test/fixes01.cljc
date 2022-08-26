@@ -101,7 +101,7 @@
      (entity {:I185/E {:X :Kernel/Int :Y :Kernel/Int}})
      (record {:I185/R {:Y :Kernel/Int}})
      (dataflow :I185/UpdateE
-               {:I185/E {cn/q-id-attr (tu/append-id :I185/UpdateE)
+               {:I185/E {tu/q-id-attr (tu/append-id :I185/UpdateE)
                          :X :I185/UpdateE.X
                          :Y :I185/UpdateE.Y}})
      (dataflow [:I185/OnXGt10 :when [:and
@@ -148,10 +148,10 @@
                         :Y :Kernel/Int}})
      (record {:I213/R {:Y :Kernel/Int :Z :Kernel/Int}})
      (dataflow :I213/UpdateE1
-               {:I213/E1 {cn/q-id-attr (tu/append-id :I213/UpdateE1)
+               {:I213/E1 {tu/q-id-attr (tu/append-id :I213/UpdateE1)
                           :X :I213/UpdateE1.X}})
      (dataflow :I213/UpdateE2
-               {:I213/E2 {cn/q-id-attr (tu/append-id :I213/UpdateE2)
+               {:I213/E2 {tu/q-id-attr (tu/append-id :I213/UpdateE2)
                           :Y :I213/UpdateE2.Y}})
      (dataflow [:I213/CrossCond
                 :when [:and
