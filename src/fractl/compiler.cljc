@@ -340,7 +340,7 @@
      (when-not (cn/find-entity-schema n)
        (u/throw-ex (str "cannot query undefined entity - " n)))
      (let [q (k pat)
-           w (w/postwalk process-complex-query (:where q))
+           w (when (seq (:where q)) (w/postwalk process-complex-query (:where q)))
            c (stu/package-query q ((fetch-compile-query-fn ctx) (assoc q :from n :where w)))]
        (callback [(li/split-path n) c]))))
   ([ctx pat]
