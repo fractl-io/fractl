@@ -190,15 +190,23 @@
           (log/exception ex)
           (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
+(defn- as-login-event [event-inst]
+   (if (au/login-event-instance? event-inst)
+     event-inst
+     (if-let [ord (cn/display-order (cn/instance-type event-inst))]
+       (au/make-login-event ((first ord) event-inst) ((second ord) event-inst))
+       (u/throw-ex (str "failed to convert " (cn/instance-type event-inst) " to login event")))))
+
 (defn- process-login [evaluator [auth-config _ :as auth-info] request]
   (if-not auth-config
     (process-dynamic-eval evaluator auth-info request)
     (if-let [data-fmt (find-data-format request)]
-      (let [[obj err] (event-from-request request au/parsed-login-event-name data-fmt nil)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (if err
-          (do (log/warn (str "bad login request - " obj)) (bad-request err data-fmt))
+          (do (log/warn (str "bad login request - " evobj)) (bad-request err data-fmt))
           (try
-            (let [username (au/login-username obj)
+            (let [obj (as-login-event evobj)
+                  username (au/login-username obj)
                   result (ai/user-login
                           (assoc
                            auth-config
