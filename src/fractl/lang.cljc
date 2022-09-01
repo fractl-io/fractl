@@ -118,6 +118,16 @@
         #(some #{%} eval-block-keys)
         (keys x))))
 
+(defn- listof-spec? [x]
+  (cond
+    (keyword? x)
+    (attribute-type? x)
+
+    (map? x)
+    (reference-exists? (:ref x))
+
+    :else (u/throw-ex (str "invalid :listof specification - " x))))
+
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
     (case k
@@ -134,7 +144,7 @@
       :eval (li/validate eval-block? ":eval has invalid value" v)
       :query (li/validate fn? ":query must be a compiled pattern" v)
       :format (li/validate string? ":format must be a textual pattern" v)
-      :listof (li/validate attribute-type? ":listof has invalid type" v)
+      :listof (li/validate listof-spec? ":listof has invalid type" v)
       :setof (li/validate attribute-type? ":setof has invalid type" v)
       :indexed (li/validate-bool :indexed v)
       :write-only (li/validate-bool :write-only v)
