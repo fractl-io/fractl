@@ -391,8 +391,8 @@
                 (referenced-record-names p))
 
                (name? p)
-               (let [[n _] (split-ref p)]
-                 (conj recnames n))
+               (let [pp (path-parts p)]
+                 (conj recnames (make-path [(:component pp) (:record pp)])))
 
                :else recnames))
       (set recnames))))

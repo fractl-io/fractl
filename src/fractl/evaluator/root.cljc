@@ -287,6 +287,13 @@
       (store-f resolved-insts)
       resolved-insts)))
 
+(defn- cleanup-conditional-results [res]
+  (w/prewalk
+   #(if (and (map? %) (:status %))
+      (dissoc % :env)
+      %)
+   res))
+
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
@@ -301,9 +308,13 @@
                 (when store (partial store/upsert-instances store record-name))
                 resolver (partial resolver-upsert env) nil insts)
                conditional-event-results
-               (fire-all-conditional-events
-                event-evaluator env store result)]
-           (concat result conditional-event-results))
+               (seq
+                (fire-all-conditional-events
+                 event-evaluator env store result))]
+           (concat
+            result
+            (when conditional-event-results
+              (cleanup-conditional-results conditional-event-results))))
          insts)))))
 
 (defn- delete-by-id [store record-name inst]
