@@ -1,5 +1,6 @@
 (ns fractl.util.auth
-  (:require [fractl.component :as cn]
+  (:require [clojure.string :as s]
+            [fractl.component :as cn]
             [fractl.lang.internal :as li]))
 
 (def login-event-name :Kernel.Identity/UserLogin)
@@ -17,3 +18,15 @@
 (defn login-event-instance? [inst]
   (= parsed-login-event-name
      (li/split-path (cn/instance-type inst))))
+
+(defn as-login-event [generic-event-inst]
+  (if (login-event-instance? generic-event-inst)
+    generic-event-inst
+    (when-let [ord (cn/display-order (cn/instance-type generic-event-inst))]
+      (make-login-event ((first ord) generic-event-inst) ((second ord) generic-event-inst)))))
+
+(def ^:private space-pat #" ")
+
+(defn bearer-token [request]
+  (when-let [auths (get-in request [:headers "authorization"])]
+    (second (s/split auths space-pat))))

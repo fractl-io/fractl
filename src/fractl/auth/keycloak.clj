@@ -1,11 +1,13 @@
 (ns fractl.auth.keycloak
-  (:require [clojure.string :as s]
-            [keycloak.deployment :as kd]
+  (:require [keycloak.deployment :as kd]
             [keycloak.backend :as kb]
             [keycloak.user :as ku]
             [keycloak.authn :as ka]
             [cheshire.core :as json]
             [org.httpkit.client :as http]
+            [fractl.component :as cn]
+            [fractl.util :as u]
+            [fractl.util.auth :as au]
             [fractl.auth.jwt :as jwt]
             [fractl.auth.internal :as i]))
 
@@ -67,9 +69,12 @@
 (defmethod i/user-login tag [{url :auth-server-url
                               realm :user-realm
                               client-id :user-client-id
-                              username :username
-                              password :password}]
-  (authenticate url realm client-id username password))
+                              event-inst :event}]
+  (if-let [obj (au/as-login-event event-inst)]
+    (authenticate
+     url realm client-id
+     (au/login-username obj) (au/login-password obj))
+    (u/throw-ex (str "failed to convert to login event: " (cn/instance-type event-inst)))))
 
 (defn- user-properties [inst]
   {:username (:Name inst)
@@ -97,12 +102,9 @@
     (ku/logout-user! kc-client realm sub)
     :bye))
 
-(def ^:private space-pat #" ")
-
 (defn- get-session-value [request k]
-  (when-let [auths (get-in request [:headers "authorization"])]
-    (let [token (second (s/split auths space-pat))]
-      (k (jwt/decode token)))))
+  (let [token (au/bearer-token request)]
+    (k (jwt/decode token))))
 
 (defmethod i/session-user tag [{request :request}]
   (get-session-value request :preferred_username))
