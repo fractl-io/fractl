@@ -49,7 +49,7 @@
   (vals (get @inst-store entity-name)))
 
 (defn delete-by-id
-  [entity-name id]
+  [entity-name _ id]
   (let [parsed-entity (li/split-path entity-name)]
     (u/call-and-set
      inst-store

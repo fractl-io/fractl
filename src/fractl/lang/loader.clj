@@ -10,9 +10,15 @@
   (:import [java.io FileInputStream InputStreamReader PushbackReader]))
 
 (defn- record-name [obj]
-  (let [n (if (keyword? obj)
+  (let [n (cond
+            (keyword? obj)
             obj
-            (first (keys obj)))
+
+            (map? obj)
+            (first (keys obj))
+
+            :else
+            (first obj))
         [a b] (li/split-path n)]
     (or b a)))
 

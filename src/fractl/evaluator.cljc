@@ -122,21 +122,17 @@
    (str "dataflow result for " (cn/instance-type event-instance)
         " - " (remove-hidden-attributes hidden-attrs obj))))
 
-(defn- eval-dataflow-with-logs [evaluator env event-instance
-                                log-info log-error hidden-attrs
-                                df]
+(defn- eval-dataflow-with-logs [evaluator env event-instance hidden-attrs df]
   (try
     (let [r (eval-dataflow evaluator env event-instance df)]
-      (when log-info
-        (log-result-object hidden-attrs event-instance r))
+      (log-result-object hidden-attrs event-instance r)
       r)
     (catch #?(:clj Exception :cljs :default) ex
       (let [msg (str "error in dataflow for "
                      (cn/instance-type event-instance)
                      " - " #?(:clj (.getMessage ex) :cljs ex))]
         (log/warn msg)
-        (when log-error
-          (log/exception ex))
+        (log/exception ex)
         (i/error msg)))))
 
 (defn- run-dataflows
@@ -147,16 +143,12 @@
   (let [dfs (c/compile-dataflows-for-event
              compile-query-fn event-instance)
         logging-rules (logging/rules event-instance)
-        log-levels (logging/log-levels logging-rules)
-        log-warn (some #{:WARN} log-levels)]
-    (let [log-info (some #{:INFO} log-levels)
-          log-error (some #{:ERROR} log-levels)
-          hidden-attrs (logging/hidden-attributes logging-rules)
-          ef (partial
-              eval-dataflow-with-logs evaluator
-              env event-instance log-info log-error hidden-attrs)]
-      (when log-info (log-event hidden-attrs event-instance))
-      (mapv ef dfs))))
+        hidden-attrs (logging/hidden-attributes logging-rules)
+        ef (partial
+            eval-dataflow-with-logs evaluator
+            env event-instance hidden-attrs)]
+    (log-event hidden-attrs event-instance)
+    (mapv ef dfs)))
 
 (defn- make
   "Use the given store to create a query compiler and pattern evaluator.
