@@ -94,12 +94,16 @@
 (defn- serialize-obj-entry [non-serializable-attrs [k v]]
   (if (cn/meta-attribute-name? k)
     [k v]
-    [k (if (or
-            (or (fn? v)
-                (and (seqable? v) (not (string? v))))
-            (some #{k} non-serializable-attrs))
+    [k (cond
+         (or
+          (or (fn? v)
+              (and (seqable? v) (not (string? v))))
+          (some #{k} non-serializable-attrs))
          (str obj-prefix (str v))
-         v)]))
+
+         (keyword? v) (subs (str v) 1)
+
+         :else v)]))
 
 (defn serialize-objects [instance]
   (let [fattrs (mapv first (cn/future-attrs (cn/instance-type instance)))]
@@ -118,7 +122,6 @@
 (defn- normalize-attribute [schema [k v]]
   [k
    (cond
-     (li/keyword-type? (cn/attribute-type schema k)) (keyword v)
      (uuid? v) (str v)
      (and (string? v) (s/starts-with? v obj-prefix))
      (#?(:clj read-string :cljs clj->js)
