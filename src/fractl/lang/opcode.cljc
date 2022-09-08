@@ -148,6 +148,9 @@
          (for-each
           [[bind-pattern-code match-alias body-code result-alias]]
           "Execute code for the binding pattern and the iteration.")
+         (instance-from
+          [[record-name data-opcode alias-name]]
+          "Execute the opcode to get attributes map, construct a record instance")
          (await_
           [[body continuation]]
           "Evaluate body asynchronously and then evaluate the proper handler in the 

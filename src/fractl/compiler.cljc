@@ -351,12 +351,43 @@
     [(dissoc pat :as) :as alias]
     [pat]))
 
+(defn- from-pattern-typename [pat]
+  (first (keys (dissoc pat :from :as))))
+
+(defn- from-pattern? [pat]
+  (and (:from pat)
+       (= {} ((from-pattern-typename pat) pat))))
+
+(declare compile-map)
+
+(defn- compile-from-pattern [ctx pat]
+  (let [typ (from-pattern-typename pat)]
+    (when-not (cn/find-object-schema typ)
+      (u/throw-ex (str "undefined type " typ " in " pat)))
+    (let [f (:from pat)
+          inst-alias (:as pat)
+          opcode (cond
+                   (li/pathname? f)
+                   (compile-pathname ctx f)
+
+                   (map? f)
+                   (compile-map ctx f)
+
+                   :else (u/throw-ex (str "invalid :from specification " f)))]
+      (when inst-alias
+        (let [alias-name (ctx/alias-name inst-alias)]
+          (ctx/add-alias! ctx (or typ alias-name) inst-alias)))
+      (op/instance-from [typ opcode inst-alias]))))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
   (cond
     (complex-query-pattern? pat)
     (compile-query-command ctx (query-map->command pat))
+
+    (from-pattern? pat)
+    (compile-from-pattern ctx pat)
 
     (li/instance-pattern? pat)
     (let [full-nm (li/instance-pattern-name pat)

@@ -756,7 +756,7 @@
     (do-set-compound-attribute [_ env [attr-name f]]
       (set-obj-attr env attr-name f))
 
-    (do-intern-instance [self env [record-name alias upsert-required]]
+    (do-intern-instance [self env [record-name inst-alias upsert-required]]
       (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self))
             scm (cn/ensure-schema record-name)]
         (doseq [inst insts]
@@ -775,8 +775,8 @@
                 lr (normalize-transitions local-result)]
             (if-let [bindable (if single? (first lr) lr)]
               (let [env-with-inst (env/bind-instances env record-name lr)
-                    final-env (if alias
-                                (env/bind-instance-to-alias env-with-inst alias bindable)
+                    final-env (if inst-alias
+                                (env/bind-instance-to-alias env-with-inst inst-alias bindable)
                                 env-with-inst)]
                 (i/ok local-result final-env))
               (i/ok local-result env)))
@@ -872,6 +872,26 @@
       (let [result (eval-opcode self env bind-pattern-code)]
         (if-let [r (ok-result result)]
           (eval-for-each self (:env result) eval-opcode r body-code elem-alias result-alias)
+          result)))
+
+    (do-instance-from [self env [record-name data-opcode inst-alias]]
+      (let [result (eval-opcode self env data-opcode)
+            r (ok-result result)
+            env (:env result)]
+        (if (map? r)
+          (let [inst (cn/make-instance record-name r)
+                upsert-required (cn/fetch-entity-schema record-name)
+                ups-result
+                (if upsert-required
+                  (first
+                   (chained-upsert
+                    env (partial eval-event-dataflows self)
+                    record-name [inst]))
+                  inst)
+                final-env (if inst-alias
+                            (env/bind-instance-to-alias env inst-alias ups-result)
+                            env)]
+            (i/ok ups-result final-env))
           result)))
 
     (do-entity-def [_ env schema]
