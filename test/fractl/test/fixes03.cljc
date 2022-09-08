@@ -130,3 +130,86 @@
     (is (cn/instance-of? :I599/R r))
     (let [{x :x y :y} (:config (first (get-in r [:Data :resolvers])))]
       (is (and (= 10 x) (= 20 y))))))
+
+(deftest issue-621-ref-as-hex
+  (defcomponent :I621
+    (entity
+     :I621/Model
+     {:Name {:type :Kernel/Path
+             :unique true}
+      :Version :Kernel/String
+      :Config {:type :Kernel/Map
+               :optional true}
+      :ClojureImports {:listof :Kernel/Any
+                       :optional true}})
+    (entity
+     :I621/Component
+     {:Name :Kernel/Path
+      :Model {:ref :I621/Model.Name}
+      :ClojureImports {:listof :Kernel/Any
+                       :optional true}
+      :meta {:unique [:Model :Name]}})
+
+    (entity
+     :I621/Record
+     {:Name :Kernel/Path
+      :Model {:ref :I621/Model.Name}
+      :Component :Kernel/Path
+      :Attributes :Kernel/Map
+      :meta {:unique [:Model :Component :Name]}
+      :Meta {:type :Kernel/Map
+             :optional true}})
+
+    (event
+     :I621/CreateRecord
+     {:Name :Kernel/Path
+      :Model :Kernel/Path
+      :Component :Kernel/Path
+      :Attributes :Kernel/Map
+      :Meta {:type :Kernel/Map
+             :optional true}})
+
+    (dataflow
+     :I621/CreateRecord
+     {:I621/Component {:Name? :I621/CreateRecord.Component
+                       :Model? :I621/CreateRecord.Model} :as :C}
+     {:I621/Record {:Name :I621/CreateRecord.Name
+                    :Model :C.Model
+                    :Component :C.Name
+                    :Attributes :I621/CreateRecord.Attributes
+                    :Meta :I621/CreateRecord.Meta}}))
+
+  (let [m (tu/first-result
+           {:I621/Upsert_Model
+            {:Instance
+             {:I621/Model
+              {:Name "m" :Version "1.0"}}}})
+        c (tu/first-result
+           {:I621/Upsert_Component
+            {:Instance
+             {:I621/Component
+              {:Name "c" :Model "m"}}}})
+        attrs {:a 1 :b false :c 3}
+        r (tu/first-result
+           {:I621/CreateRecord
+            {:Name "r1"
+             :Model "m"
+             :Component "c"
+             :Attributes attrs}})
+        m1 (tu/first-result
+            {:I621/Lookup_Model
+             {cn/id-attr (cn/id-attr m)}})
+        c1 (tu/first-result
+            {:I621/Lookup_Component
+             {cn/id-attr (cn/id-attr c)}})
+        r1 (tu/first-result
+            {:I621/Lookup_Record
+             {cn/id-attr (cn/id-attr r)}})]
+    (defn same-instance? [a b ks]
+      (every? #(= (% a) (% b)) ks))
+    (is (same-instance? m m1 [cn/id-attr :Name :Version]))
+    (is (same-instance? c c1 [cn/id-attr :Name :Model]))
+    (is (same-instance? r r1 [cn/id-attr :Name :Model :Component]))
+    (is (= (:Model r1) "m"))
+    (is (= (:Component r1) "c"))
+    (is (= (:Attributes r1) attrs))))
