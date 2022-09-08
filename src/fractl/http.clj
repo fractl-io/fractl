@@ -11,7 +11,6 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.http :as uh]
-            [fractl.util.auth :as au]
             [fractl.auth.internal :as ai]
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
@@ -192,19 +191,18 @@
 
 (defn- process-login [evaluator [auth-config _ :as auth-info] request]
   (if-not auth-config
-    (process-dynamic-eval evaluator auth-info request)
+    (internal-error "cannot process login - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
-      (let [[obj err] (event-from-request request au/parsed-login-event-name data-fmt nil)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (if err
-          (do (log/warn (str "bad login request - " obj)) (bad-request err data-fmt))
+          (do (log/warn (str "bad login request - " err))
+              (bad-request err data-fmt))
           (try
-            (let [username (au/login-username obj)
-                  result (ai/user-login
+            (let [result (ai/user-login
                           (assoc
                            auth-config
-                           :username username
-                           :password (au/login-password obj)))]
-              (log/info (str "login success for " username))
+                           :event evobj
+                           :eval evaluator))]
               (ok result data-fmt))
             (catch Exception ex
               (log/warn ex)
@@ -264,7 +262,7 @@
       (bad-request "invalid auth data" (find-data-format request)))))
 
 (defn- auth-service-supported? [auth]
-  (= (:service auth) :keycloak))
+  (some #{(:service auth)} [:keycloak :dataflow]))
 
 (defn make-auth-handler [config]
   (let [auth (:authentication config)

@@ -45,17 +45,6 @@
   ([host arg event-inst]
    (remote-eval host uh/dynamic-eval-prefix arg event-inst)))
 
-(defn remote-login
-  ([host callback username password]
-   (remote-eval
-    host uh/login-prefix callback
-    (au/make-login-event username password)))
-  ([host callback event-inst]
-   (if (au/login-event-instance? event-inst)
-     (remote-eval host uh/login-prefix callback event-inst)
-     (if-let [ord (cn/display-order (cn/instance-type event-inst))]
-       (remote-login host callback ((first ord) event-inst)
-                     ((second ord) event-inst))
-       (u/throw-ex
-        (str "cannot derive login event from "
-             (cn/instance-type event-inst)))))))
+(defn remote-login [host callback event-inst]
+  (remote-eval
+   host uh/login-prefix callback event-inst))

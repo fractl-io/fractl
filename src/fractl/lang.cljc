@@ -118,6 +118,16 @@
         #(some #{%} eval-block-keys)
         (keys x))))
 
+(defn- listof-spec? [x]
+  (cond
+    (keyword? x)
+    (attribute-type? x)
+
+    (map? x)
+    (reference-exists? (:ref x))
+
+    :else (u/throw-ex (str "invalid :listof specification - " x))))
+
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
     (case k
@@ -134,7 +144,7 @@
       :eval (li/validate eval-block? ":eval has invalid value" v)
       :query (li/validate fn? ":query must be a compiled pattern" v)
       :format (li/validate string? ":format must be a textual pattern" v)
-      :listof (li/validate attribute-type? ":listof has invalid type" v)
+      :listof (li/validate listof-spec? ":listof has invalid type" v)
       :setof (li/validate attribute-type? ":setof has invalid type" v)
       :indexed (li/validate-bool :indexed v)
       :write-only (li/validate-bool :write-only v)
@@ -475,20 +485,6 @@
         %)
      pats)))
 
-(defn- on-crud-event-name [entity-name opr]
-  (let [[c n] (li/split-path entity-name)]
-    (keyword (str (name c) "/" (name n) "_On_" (name opr)))))
-
-(defn- on-event-pattern? [x]
-  (and (vector? x) (= :on (first x))))
-
-(defn- translate-on-event-pattern [match-pat patterns]
-  (if (some #{(second match-pat)} [:upsert :delete])
-    (let [recname (nth match-pat 2)
-          evtname (on-crud-event-name recname (second match-pat))]
-      [evtname (rewrite-on-event-patterns patterns recname evtname)])
-    (u/throw-ex (str "invalid event trigger - " (second match-pat)))))
-
 (defn- event-self-ref-pattern [event-name]
   (if-let [scm (:schema (cn/find-event-schema event-name))]
     (let [prefix (subs (str event-name) 1)
@@ -503,22 +499,19 @@
   [match-pat & patterns]
   (if (not (seq patterns))
     (apply dataflow match-pat (event-self-ref-pattern match-pat))
-    (if (on-event-pattern? match-pat)
-      (let [[mp ps] (translate-on-event-pattern match-pat patterns)]
-        (apply dataflow mp ps))
-      (do
-        (ensure-dataflow-patterns! patterns)
-        (if (vector? match-pat)
-          (apply
-           dataflow
-           (install-event-trigger-pattern match-pat)
-           patterns)
-          (let [hd (:head match-pat)]
-            (if-let [mt (and hd (:on-entity-event hd))]
-              (cn/register-entity-dataflow mt hd patterns)
-              (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-                (do (ensure-event! event)
-                    (cn/register-dataflow event hd patterns))))))))))
+    (do
+      (ensure-dataflow-patterns! patterns)
+      (if (vector? match-pat)
+        (apply
+         dataflow
+         (install-event-trigger-pattern match-pat)
+         patterns)
+        (let [hd (:head match-pat)]
+          (if-let [mt (and hd (:on-entity-event hd))]
+            (cn/register-entity-dataflow mt hd patterns)
+            (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
+              (do (ensure-event! event)
+                  (cn/register-dataflow event hd patterns)))))))))
 
 (defn- crud-evname [entity-name evtname]
   (cn/canonical-type-name
@@ -633,12 +626,6 @@
               lookupevt (ev :Lookup)]
           (cn/for-each-entity-event-name
            rec-name (partial entity-event rec-name))
-          (event-internal
-           (on-crud-event-name rec-name :upsert)
-           inst-evattrs)
-          (event-internal
-           (on-crud-event-name rec-name :delete)
-           inst-evattrs)
           (event-internal upevt inst-evattrs)
           (let [ref-pats (mapv (fn [[k v]]
                                  (load-ref-pattern
