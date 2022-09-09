@@ -316,18 +316,21 @@
 (defn unq-name []
   (keyword (gensym)))
 
+(defn normalize-instance-pattern [pat]
+  (dissoc pat :as :with-types))
+
 (defn instance-pattern? [pat]
-  (let [ks (keys (dissoc pat :as))]
+  (let [ks (keys (normalize-instance-pattern pat))]
     (and (= 1 (count ks))
          (let [k (first ks)]
            (and (name? k)
                 (map? (get pat k)))))))
 
 (defn instance-pattern-name [pat]
-  (first (keys pat)))
+  (first (keys (normalize-instance-pattern pat))))
 
 (defn instance-pattern-attrs [pat]
-  (first (vals (dissoc pat :as :with-types))))
+  (first (vals (normalize-instance-pattern pat))))
 
 (def kw "Convert non-nil strings to keywords"
   (partial u/map-when keyword))
