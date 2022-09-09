@@ -31,20 +31,12 @@
    (concat
     oprs
     #{:match :try :for-each :delete
-      :query :between :await :resolver
-      :pull :push :entity :as :alias :eval})))
+      :query :await :entity :eval})))
 
 (def ^:private reserved-names
   (set (concat
         special-form-names
-        #{:type :check :unique
-          :immutable :optional :default
-          :expr :query :format :listof
-          :setof :oneof :indexed :write-only
-          :encryption :type-in-store
-          :ref :var :writer
-          :import :clj-import :java-import
-          :v8-import :resolver :Future :Error :DataflowResult :alias})))
+        #{:with-types :as :resolver})))
 
 (def event-context :EventContext)
 
@@ -335,7 +327,7 @@
   (first (keys pat)))
 
 (defn instance-pattern-attrs [pat]
-  (first (vals pat)))
+  (first (vals (dissoc pat :as :with-types))))
 
 (def kw "Convert non-nil strings to keywords"
   (partial u/map-when keyword))

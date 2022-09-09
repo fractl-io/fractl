@@ -784,7 +784,7 @@
           :else
           (i/not-found record-name env))))
 
-    (do-intern-event-instance [self env [record-name alias timeout-ms]]
+    (do-intern-event-instance [self env [record-name alias with-types timeout-ms]]
       (let [[inst env] (pop-and-intern-instance
                         env record-name
                         nil (partial eval-opcode self))
@@ -796,7 +796,11 @@
                             timeout-ms
                             #(doall
                               (extract-local-result
-                               (first (eval-event-dataflows self eval-env inst))))))
+                               (first (eval-event-dataflows
+                                       self eval-env
+                                       (if with-types
+                                         (assoc inst :with-types with-types)
+                                         inst)))))))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? env inst))
             r (pack-results local-result resolver-results)

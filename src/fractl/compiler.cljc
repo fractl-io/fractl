@@ -234,7 +234,9 @@
                   (op/set-ref-attribute arg))
                 (:refs attrs))
           [(if event?
-             (op/intern-event-instance [rec-name alias timeout-ms])
+             (op/intern-event-instance
+              [rec-name alias (ctx/fetch-variable ctx :with-types)
+               timeout-ms])
              (op/intern-instance [rec-name alias
                                   (and (cn/entity? rec-name)
                                        (build-record-for-upsert? attrs))]))]))
@@ -369,7 +371,10 @@
       (let [c (case tag
                 :entity emit-realize-entity-instance
                 :record emit-realize-record-instance
-                :event emit-realize-event-instance
+                :event (do
+                         (when-let [wt (:with-types pat)]
+                           (ctx/bind-variable! ctx :with-types wt))
+                         emit-realize-event-instance)
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
             opc (apply c ctx nm attrs scm (if timeout-ms [alias timeout-ms] [alias]))]
         (ctx/put-record! ctx nm pat)
