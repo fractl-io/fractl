@@ -353,6 +353,18 @@
     [(dissoc pat :as) :as alias]
     [pat]))
 
+(defn- fetch-with-types [pat]
+  (when-let [wt (:with-types pat)]
+    (when-not (map? wt)
+      (u/throw-ex (str ":with-types expects a map " - wt)))
+    (doseq [[base-type subtype] wt]
+      (when-not (cn/inherits? base-type subtype)
+        (u/throw-ex
+         (str "error in :with-types - "
+              subtype " is not a subtype of "
+              base-type " in " wt))))
+    wt))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -372,7 +384,7 @@
                 :entity emit-realize-entity-instance
                 :record emit-realize-record-instance
                 :event (do
-                         (when-let [wt (:with-types pat)]
+                         (when-let [wt (fetch-with-types pat)]
                            (ctx/bind-variable! ctx :with-types wt))
                          emit-realize-event-instance)
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
