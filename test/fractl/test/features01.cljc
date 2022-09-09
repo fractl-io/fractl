@@ -79,3 +79,26 @@
         (is (= 1 (:SeqNo d1)))
         (is (= :not-found (:status (first r3))))
         (is (= 2 (:SeqNo r4)))))))
+
+(deftest issue-624-instances-from-map
+  (defcomponent :I624
+    (entity
+     :I624/E
+     {:X :Kernel/Int
+      :Y :Kernel/Int})
+    (record
+     :I624/R
+     {:A :Kernel/Int
+      :B :I624/E})
+    (dataflow
+     :I624/MakeE
+     {:I624/E {}
+      :from :I624/MakeE.Data
+      :as :E}
+     {:I624/R {:A '(+ :E.X :E.Y)
+               :B :E}}))
+  (let [r (tu/first-result
+           {:I624/MakeE {:Data {:X 10 :Y 4}}})]
+    (is (cn/instance-of? :I624/R r))
+    (is (cn/instance-of? :I624/E (:B r)))
+    (is (= (:A r) (+ (get-in r [:B :X]) (get-in r [:B :Y]))))))

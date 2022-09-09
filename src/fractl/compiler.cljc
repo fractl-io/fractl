@@ -358,26 +358,18 @@
   (and (:from pat)
        (= {} ((from-pattern-typename pat) pat))))
 
-(declare compile-map)
-
 (defn- compile-from-pattern [ctx pat]
   (let [typ (from-pattern-typename pat)]
     (when-not (cn/find-object-schema typ)
       (u/throw-ex (str "undefined type " typ " in " pat)))
     (let [f (:from pat)
           inst-alias (:as pat)
-          opcode (cond
-                   (li/pathname? f)
-                   (compile-pathname ctx f)
-
-                   (map? f)
-                   (compile-map ctx f)
-
-                   :else (u/throw-ex (str "invalid :from specification " f)))]
+          opcode (if (or (li/pathname? f) (map? f))
+                   (compile-pattern ctx f)
+                   (u/throw-ex (str "invalid :from specification " f)))]
       (when inst-alias
-        (let [alias-name (ctx/alias-name inst-alias)]
-          (ctx/add-alias! ctx (or typ alias-name) inst-alias)))
-      (op/instance-from [typ opcode inst-alias]))))
+        (ctx/add-alias! ctx inst-alias))
+      (op/instance-from [(li/split-path typ) opcode inst-alias]))))
 
 (declare compile-query-command)
 
