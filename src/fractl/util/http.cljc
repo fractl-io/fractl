@@ -9,8 +9,10 @@
             #?(:cljs [cljs.core.async :refer [<!]]))
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
+(def ^:private space-pat #"\s")
+
 (defn keywordify [k]
-  (if (and (string? k) (not (s/includes? k " ")))
+  (if (and (string? k) (not (re-find space-pat k)))
     (keyword k)
     k))
 
