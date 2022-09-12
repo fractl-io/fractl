@@ -85,7 +85,8 @@
     (entity
      :I624/E
      {:X :Kernel/Int
-      :Y :Kernel/Int})
+      :Y :Kernel/Int
+      :Z {:type :Kernel/Int :default 24}})
     (record
      :I624/R
      {:A :Kernel/Int
@@ -96,9 +97,23 @@
       :from :I624/MakeE.Data
       :as :E}
      {:I624/R {:A '(+ :E.X :E.Y)
+               :B :E}})
+    (dataflow
+     :I624/MakeE2
+     {:I624/E {:Z 200}
+      :from :I624/MakeE2.Data
+      :as :E}
+     {:I624/R {:A '(+ :E.X :E.Y)
                :B :E}}))
   (let [r (tu/first-result
            {:I624/MakeE {:Data {:X 10 :Y 4}}})]
     (is (cn/instance-of? :I624/R r))
     (is (cn/instance-of? :I624/E (:B r)))
+    (is (= 24 (get-in r [:B :Z])))
+    (is (= (:A r) (+ (get-in r [:B :X]) (get-in r [:B :Y])))))
+  (let [r (tu/first-result
+           {:I624/MakeE2 {:Data {:X 10 :Y 4}}})]
+    (is (cn/instance-of? :I624/R r))
+    (is (cn/instance-of? :I624/E (:B r)))
+    (is (= 200 (get-in r [:B :Z])))
     (is (= (:A r) (+ (get-in r [:B :X]) (get-in r [:B :Y]))))))

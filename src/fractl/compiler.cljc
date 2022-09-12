@@ -235,9 +235,14 @@
                 (:refs attrs))
           [(if event?
              (op/intern-event-instance [rec-name alias timeout-ms])
-             (op/intern-instance [rec-name alias
-                                  (and (cn/entity? rec-name)
-                                       (build-record-for-upsert? attrs))]))]))
+             (op/intern-instance
+              (vec
+               (concat
+                [rec-name alias]
+                (if (ctx/build-partial-instance? ctx)
+                  [false false]
+                  [true (and (cn/entity? rec-name)
+                             (build-record-for-upsert? attrs))])))))]))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
   (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)
@@ -351,12 +356,15 @@
     [(dissoc pat :as) :as alias]
     [pat]))
 
+(defn- normalize-from-pattern [pat]
+  (dissoc pat :from :as))
+
 (defn- from-pattern-typename [pat]
-  (first (keys (dissoc pat :from :as))))
+  (first (keys (normalize-from-pattern pat))))
 
 (defn- from-pattern? [pat]
   (and (:from pat)
-       (= {} ((from-pattern-typename pat) pat))))
+       (map? ((from-pattern-typename pat) pat))))
 
 (defn- compile-from-pattern [ctx pat]
   (let [typ (from-pattern-typename pat)]
@@ -369,7 +377,15 @@
                    (u/throw-ex (str "invalid :from specification " f)))]
       (when inst-alias
         (ctx/add-alias! ctx inst-alias))
-      (op/instance-from [(li/split-path typ) opcode inst-alias]))))
+      (op/instance-from
+       [(li/split-path typ)
+        (let [np (normalize-from-pattern pat)]
+          (when-let [p (seq (first (vals np)))]
+            (ctx/build-partial-instance! ctx)
+            (let [cp (compile-pattern ctx np)]
+              (ctx/clear-build-partial-instance! ctx)
+              cp)))
+        opcode inst-alias]))))
 
 (declare compile-query-command)
 

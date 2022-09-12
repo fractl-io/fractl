@@ -486,17 +486,21 @@
 (defn- pop-instance
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
-  [env record-name eval-opcode]
-  (if-let [xs (env/pop-obj env)]
-    (let [[env single? [_ x]] xs]
-      (if (maybe-async-channel? x)
-        [x single? env]
-        (let [objs (if single? [x] x)
-              final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
-              insts (mapv (partial validated-instance record-name) final-objs)
-              bindable (if single? (first insts) insts)]
-          [bindable single? env])))
-    [nil false env]))
+  ([env record-name eval-opcode validation-required]
+   (if-let [xs (env/pop-obj env)]
+     (let [[env single? [_ x]] xs]
+       (if (maybe-async-channel? x)
+         [x single? env]
+         (let [objs (if single? [x] x)
+               final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
+               insts (if validation-required
+                       (mapv (partial validated-instance record-name) final-objs)
+                       final-objs)
+               bindable (if single? (first insts) insts)]
+           [bindable single? env])))
+     [nil false env]))
+  ([env record-name eval-opcode]
+   (pop-instance env record-name eval-opcode true)))
 
 (defn- pop-and-intern-instance
   "An instance is built in stages, the partial object is stored in a stack.
@@ -756,12 +760,13 @@
     (do-set-compound-attribute [_ env [attr-name f]]
       (set-obj-attr env attr-name f))
 
-    (do-intern-instance [self env [record-name inst-alias upsert-required]]
-      (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self))
+    (do-intern-instance [self env [record-name inst-alias validation-required upsert-required]]
+      (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self) validation-required)
             scm (cn/ensure-schema record-name)]
-        (doseq [inst insts]
-          (when-let [attrs (cn/instance-attributes inst)]
-            (cn/validate-record-attributes record-name attrs scm)))
+        (when validation-required
+          (doseq [inst insts]
+            (when-let [attrs (cn/instance-attributes inst)]
+              (cn/validate-record-attributes record-name attrs scm))))
         (cond
           (maybe-async-channel? insts)
           (i/ok insts env)
@@ -874,25 +879,33 @@
           (eval-for-each self (:env result) eval-opcode r body-code elem-alias result-alias)
           result)))
 
-    (do-instance-from [self env [record-name data-opcode inst-alias]]
-      (let [result (eval-opcode self env data-opcode)
-            r (ok-result result)
-            env (:env result)]
-        (if (map? r)
-          (let [inst (cn/make-instance record-name r)
-                upsert-required (cn/fetch-entity-schema record-name)
-                ups-result
-                (if upsert-required
-                  (first
-                   (chained-upsert
-                    env (partial eval-event-dataflows self)
-                    record-name [inst]))
-                  inst)
-                final-env (if inst-alias
-                            (env/bind-instance-to-alias env inst-alias ups-result)
-                            env)]
-            (i/ok ups-result final-env))
-          result)))
+    (do-instance-from [self env [record-name inst-opcode data-opcode inst-alias]]
+      (let [[inst-result inst-err]
+            (when inst-opcode
+              (let [result (eval-opcode self env inst-opcode)
+                    r (first (ok-result result))]
+                (if (map? r)
+                  [r nil]
+                  [nil result])))]
+        (or inst-err
+            (let [result (eval-opcode self env data-opcode)
+                  r (ok-result result)
+                  env (:env result)]
+              (if (map? r)
+                (let [inst (cn/make-instance record-name (if inst-result (merge r inst-result) r))
+                      upsert-required (cn/fetch-entity-schema record-name)
+                      ups-result
+                      (if upsert-required
+                        (first
+                         (chained-upsert
+                          env (partial eval-event-dataflows self)
+                          record-name [inst]))
+                        inst)
+                      final-env (if inst-alias
+                                  (env/bind-instance-to-alias env inst-alias ups-result)
+                                  env)]
+                  (i/ok ups-result final-env))
+                result)))))
 
     (do-entity-def [_ env schema]
       (let [n (li/record-name schema)
