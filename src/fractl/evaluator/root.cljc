@@ -486,17 +486,21 @@
 (defn- pop-instance
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
-  [env record-name eval-opcode]
-  (if-let [xs (env/pop-obj env)]
-    (let [[env single? [_ x]] xs]
-      (if (maybe-async-channel? x)
-        [x single? env]
-        (let [objs (if single? [x] x)
-              final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
-              insts (mapv (partial validated-instance record-name) final-objs)
-              bindable (if single? (first insts) insts)]
-          [bindable single? env])))
-    [nil false env]))
+  ([env record-name eval-opcode validation-required]
+   (if-let [xs (env/pop-obj env)]
+     (let [[env single? [_ x]] xs]
+       (if (maybe-async-channel? x)
+         [x single? env]
+         (let [objs (if single? [x] x)
+               final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
+               insts (if validation-required
+                       (mapv (partial validated-instance record-name) final-objs)
+                       final-objs)
+               bindable (if single? (first insts) insts)]
+           [bindable single? env])))
+     [nil false env]))
+  ([env record-name eval-opcode]
+   (pop-instance env record-name eval-opcode true)))
 
 (defn- pop-and-intern-instance
   "An instance is built in stages, the partial object is stored in a stack.
@@ -687,6 +691,36 @@
 (defn- find-reference [env record-name refs]
   (second (env/instance-ref-path env record-name nil refs)))
 
+(defn- intern-instance [self env eval-opcode eval-event-dataflows
+                        record-name inst-alias validation-required upsert-required]
+  (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self) validation-required)
+        scm (cn/ensure-schema record-name)]
+    (when validation-required
+      (doseq [inst insts]
+        (when-let [attrs (cn/instance-attributes inst)]
+          (cn/validate-record-attributes record-name attrs scm))))
+    (cond
+      (maybe-async-channel? insts)
+      (i/ok insts env)
+
+      insts
+      (let [local-result (if upsert-required
+                           (chained-upsert
+                            env (partial eval-event-dataflows self)
+                            record-name insts)
+                           (if single? (seq [insts]) insts))
+            lr (normalize-transitions local-result)]
+        (if-let [bindable (if single? (first lr) lr)]
+          (let [env-with-inst (env/bind-instances env record-name lr)
+                final-env (if inst-alias
+                            (env/bind-instance-to-alias env-with-inst inst-alias bindable)
+                            env-with-inst)]
+            (i/ok local-result final-env))
+          (i/ok local-result env)))
+
+      :else
+      (i/not-found record-name env))))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -756,33 +790,10 @@
     (do-set-compound-attribute [_ env [attr-name f]]
       (set-obj-attr env attr-name f))
 
-    (do-intern-instance [self env [record-name alias upsert-required]]
-      (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self))
-            scm (cn/ensure-schema record-name)]
-        (doseq [inst insts]
-          (when-let [attrs (cn/instance-attributes inst)]
-            (cn/validate-record-attributes record-name attrs scm)))
-        (cond
-          (maybe-async-channel? insts)
-          (i/ok insts env)
-
-          insts
-          (let [local-result (if upsert-required
-                               (chained-upsert
-                                env (partial eval-event-dataflows self)
-                                record-name insts)
-                               (if single? (seq [insts]) insts))
-                lr (normalize-transitions local-result)]
-            (if-let [bindable (if single? (first lr) lr)]
-              (let [env-with-inst (env/bind-instances env record-name lr)
-                    final-env (if alias
-                                (env/bind-instance-to-alias env-with-inst alias bindable)
-                                env-with-inst)]
-                (i/ok local-result final-env))
-              (i/ok local-result env)))
-
-          :else
-          (i/not-found record-name env))))
+    (do-intern-instance [self env [record-name inst-alias validation-required upsert-required]]
+      (intern-instance
+       self env eval-opcode eval-event-dataflows
+       record-name inst-alias validation-required upsert-required))
 
     (do-intern-event-instance [self env [record-name alias timeout-ms]]
       (let [[inst env] (pop-and-intern-instance
@@ -873,6 +884,27 @@
         (if-let [r (ok-result result)]
           (eval-for-each self (:env result) eval-opcode r body-code elem-alias result-alias)
           result)))
+
+    (do-instance-from [self env [record-name inst-opcode data-opcode inst-alias]]
+      (let [[inst-result inst-err]
+            (when inst-opcode
+              (let [result (eval-opcode self env inst-opcode)
+                    r (first (ok-result result))]
+                (if (map? r)
+                  [r nil]
+                  [nil result])))]
+        (or inst-err
+            (let [result (eval-opcode self env data-opcode)
+                  r (ok-result result)
+                  env (:env result)]
+              (if (map? r)
+                (let [inst (cn/make-instance record-name (if inst-result (merge r inst-result) r))
+                      upsert-required (cn/fetch-entity-schema record-name)]
+                  (intern-instance
+                   self (env/push-obj env record-name inst)
+                   eval-opcode eval-event-dataflows
+                   record-name inst-alias true upsert-required))
+                result)))))
 
     (do-entity-def [_ env schema]
       (let [n (li/record-name schema)
