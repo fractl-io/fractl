@@ -81,7 +81,7 @@
     (is (valid-opcode? opc/set-literal-attribute?
                        (nth opcs 2) [:Y 200]))
     (is (valid-opcode? opc/intern-instance?
-                       (nth opcs 3) [[:CompileTest :E1] nil true]))))
+                       (nth opcs 3) [[:CompileTest :E1] nil true true]))))
 
 (deftest compile-pattern-02
   (let [[ctx c] (pattern-compiler)
@@ -105,7 +105,7 @@
                          (nth opcs 2) (fn [[n f]]
                                         (and (= :Y n) (fn? f)))))
       (is (valid-opcode? opc/intern-instance?
-                         (nth opcs 3) [[:CompileTest :E1] nil true])))))
+                         (nth opcs 3) [[:CompileTest :E1] nil true true])))))
 
 (deftest circular-dependency
   (let [[ctx c] (pattern-compiler)

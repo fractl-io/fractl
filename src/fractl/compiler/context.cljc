@@ -90,3 +90,12 @@
          (aliased-name ctx (redirect-tag a))
          a))))
   ([ctx k] (aliased-name ctx k true)))
+
+(defn build-partial-instance! [ctx]
+  (bind-variable! ctx :partial-instance? true))
+
+(defn build-partial-instance? [ctx]
+  (fetch-variable ctx :partial-instance?))
+
+(defn clear-build-partial-instance! [ctx]
+  (unbind-variable! ctx :partial-instance?))
