@@ -791,13 +791,16 @@
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
             eval-env (env/make (env/get-store env) (env/get-resolver env))
+            with-types (merge (env/with-types env) with-types)
             local-result (when (or (not resolver) composed?)
                            (async-invoke
                             timeout-ms
                             #(doall
                               (extract-local-result
                                (first (eval-event-dataflows
-                                       self eval-env
+                                       self (if with-types
+                                              (env/bind-with-types eval-env with-types)
+                                              eval-env)
                                        (if with-types
                                          (assoc inst :with-types with-types)
                                          inst)))))))
