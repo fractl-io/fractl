@@ -124,7 +124,7 @@
           [[attr-name elements-opcodes quoted]]
           "Construct a list by evaluating each set of opcodes, set the result as an attribute of the current instance.")
          (intern-instance
-          [[record-name alias upsert-required]]
+          [[record-name alias validation-required upsert-required]]
           "Finish the instance initialization by inserting that in env.")
          (intern-event-instance
           [[record-name alias with-types timeout-ms]]
@@ -148,6 +148,9 @@
          (for-each
           [[bind-pattern-code match-alias body-code result-alias]]
           "Execute code for the binding pattern and the iteration.")
+         (instance-from
+          [[record-name inst-opcode data-opcode alias-name]]
+          "Execute the opcode to get attributes map, construct a record instance")
          (await_
           [[body continuation]]
           "Evaluate body asynchronously and then evaluate the proper handler in the 

@@ -6,6 +6,7 @@
                [cljs.js :refer [eval empty-state js-eval]])))
 
 (def id-attr :__Id__)
+(def with-types-tag :with-types)
 
 (defn evaluate [form]
   #?(:clj (eval form)
@@ -36,7 +37,7 @@
 (def ^:private reserved-names
   (set (concat
         special-form-names
-        #{:with-types :as :resolver})))
+        #{with-types-tag :as :resolver})))
 
 (def event-context :EventContext)
 

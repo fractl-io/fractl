@@ -235,11 +235,16 @@
                 (:refs attrs))
           [(if event?
              (op/intern-event-instance
-              [rec-name alias (ctx/fetch-variable ctx :with-types)
+              [rec-name alias (ctx/fetch-with-types ctx)
                timeout-ms])
-             (op/intern-instance [rec-name alias
-                                  (and (cn/entity? rec-name)
-                                       (build-record-for-upsert? attrs))]))]))
+             (op/intern-instance
+              (vec
+               (concat
+                [rec-name alias]
+                (if (ctx/build-partial-instance? ctx)
+                  [false false]
+                  [true (and (cn/entity? rec-name)
+                             (build-record-for-upsert? attrs))])))))]))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
   (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)
@@ -354,16 +359,47 @@
     [pat]))
 
 (defn- fetch-with-types [pat]
-  (when-let [wt (:with-types pat)]
+  (when-let [wt (ctx/with-types-tag pat)]
     (when-not (map? wt)
-      (u/throw-ex (str ":with-types expects a map " - wt)))
+      (u/throw-ex (str "with-types expects a map " - wt)))
     (doseq [[base-type subtype] wt]
       (when-not (cn/inherits? base-type subtype)
         (u/throw-ex
-         (str "error in :with-types - "
+         (str "error in with-types - "
               subtype " is not a subtype of "
               base-type " in " wt))))
     wt))
+
+(defn- normalize-from-pattern [pat]
+  (dissoc pat :from :as))
+
+(defn- from-pattern-typename [pat]
+  (first (keys (normalize-from-pattern pat))))
+
+(defn- from-pattern? [pat]
+  (and (:from pat)
+       (map? ((from-pattern-typename pat) pat))))
+
+(defn- compile-from-pattern [ctx pat]
+  (let [typ (from-pattern-typename pat)]
+    (when-not (cn/find-object-schema typ)
+      (u/throw-ex (str "undefined type " typ " in " pat)))
+    (let [f (:from pat)
+          inst-alias (:as pat)
+          opcode (if (or (li/pathname? f) (map? f))
+                   (compile-pattern ctx f)
+                   (u/throw-ex (str "invalid :from specification " f)))]
+      (when inst-alias
+        (ctx/add-alias! ctx inst-alias))
+      (op/instance-from
+       [(li/split-path (ctx/dynamic-type ctx typ))
+        (let [np (normalize-from-pattern pat)]
+          (when-let [p (seq (first (vals np)))]
+            (ctx/build-partial-instance! ctx)
+            (let [cp (compile-pattern ctx np)]
+              (ctx/clear-build-partial-instance! ctx)
+              cp)))
+        opcode inst-alias]))))
 
 (declare compile-query-command)
 
@@ -371,6 +407,9 @@
   (cond
     (complex-query-pattern? pat)
     (compile-query-command ctx (query-map->command pat))
+
+    (from-pattern? pat)
+    (compile-from-pattern ctx pat)
 
     (li/instance-pattern? pat)
     (let [full-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
@@ -385,7 +424,7 @@
                 :record emit-realize-record-instance
                 :event (do
                          (when-let [wt (fetch-with-types pat)]
-                           (ctx/bind-variable! ctx :with-types wt))
+                           (ctx/bind-with-types! ctx wt))
                          emit-realize-event-instance)
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
             opc (apply c ctx nm attrs scm (if timeout-ms [alias timeout-ms] [alias]))]
@@ -745,16 +784,17 @@
        (cn/set-dataflow-opcode!
         df (compile-dataflow
             ctx (cn/dataflow-event-pattern df)
-            (cn/dataflow-patterns df)))))
+            (cn/dataflow-patterns df))
+        with-types)))
    df)
   ([compile-query-fn df]
    (maybe-compile-dataflow compile-query-fn cn/with-default-types df)))
 
 (defn compile-dataflows-for-event [compile-query-fn event]
-  (let [event (dissoc event :with-types)
-        wt (get event :with-types cn/with-default-types)]
+  (let [evt (dissoc event ctx/with-types-tag)
+        wt (get event ctx/with-types-tag cn/with-default-types)]
     (mapv (partial maybe-compile-dataflow compile-query-fn wt)
-          (cn/dataflows-for-event event))))
+          (cn/dataflows-for-event evt))))
 
 (defn- reference-attributes [attrs refrec]
   (when-let [result (cn/all-reference-paths attrs)]

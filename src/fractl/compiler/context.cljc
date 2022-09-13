@@ -96,10 +96,27 @@
          a))))
   ([ctx k] (aliased-name ctx k true)))
 
+(def with-types-tag li/with-types-tag)
+
+(defn bind-with-types! [ctx types]
+  (bind-variable! ctx with-types-tag types))
+
+(defn fetch-with-types [ctx]
+  (second (fetch-variable ctx with-types-tag)))
+
 (defn dynamic-type [ctx rec-name]
-  (if-let [wt (:with-types @ctx)]
+  (if-let [wt (with-types-tag @ctx)]
     (let [k (if (keyword? rec-name)
               rec-name
               (li/make-path rec-name))]
       (get wt k rec-name))
     rec-name))
+
+(defn build-partial-instance! [ctx]
+  (bind-variable! ctx :partial-instance? true))
+
+(defn build-partial-instance? [ctx]
+  (fetch-variable ctx :partial-instance?))
+
+(defn clear-build-partial-instance! [ctx]
+  (unbind-variable! ctx :partial-instance?))

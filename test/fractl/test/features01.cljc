@@ -79,3 +79,83 @@
         (is (= 1 (:SeqNo d1)))
         (is (= :not-found (:status (first r3))))
         (is (= 2 (:SeqNo r4)))))))
+
+(deftest issue-624-instances-from-map
+  (defcomponent :I624
+    (entity
+     :I624/E
+     {:X :Kernel/Int
+      :Y :Kernel/Int
+      :Z {:type :Kernel/Int :default 24}})
+    (record
+     :I624/R
+     {:A :Kernel/Int
+      :B :I624/E})
+    (dataflow
+     :I624/MakeE
+     {:I624/E {}
+      :from :I624/MakeE.Data
+      :as :E}
+     {:I624/R {:A '(+ :E.X :E.Y)
+               :B :E}})
+    (dataflow
+     :I624/MakeE2
+     {:I624/E {:Z 200 :X 5}
+      :from :I624/MakeE2.Data
+      :as :E}
+     {:I624/R {:A '(+ :E.X :E.Y)
+               :B :E}}))
+  (let [r (tu/first-result
+           {:I624/MakeE {:Data {:X 10 :Y 4}}})]
+    (is (cn/instance-of? :I624/R r))
+    (is (cn/instance-of? :I624/E (:B r)))
+    (is (= 24 (get-in r [:B :Z])))
+    (is (= (:A r) 14 (+ (get-in r [:B :X]) (get-in r [:B :Y]))))
+    (let [e (tu/first-result
+             {:I624/Lookup_E {cn/id-attr (get-in r [:B cn/id-attr])}})]
+      (is (and (= (:X e) 10) (= (:Y e) 4) (= (:Z e) 24)))))
+  (let [r (tu/first-result
+           {:I624/MakeE2 {:Data {:X 10 :Y 4}}})]
+    (is (cn/instance-of? :I624/R r))
+    (is (cn/instance-of? :I624/E (:B r)))
+    (is (= 200 (get-in r [:B :Z])))
+    (is (= 5 (get-in r [:B :X])))
+    (is (= (:A r) 9 (+ (get-in r [:B :X]) (get-in r [:B :Y]))))
+    (let [e (tu/first-result
+             {:I624/Lookup_E {cn/id-attr (get-in r [:B cn/id-attr])}})]
+      (is (and (= (:X e) 5) (= (:Y e) 4) (= (:Z e) 200))))))
+
+(deftest issue-625-upsert-subtype
+  (defcomponent :I625Ups
+    (entity
+     :I625Ups/P
+     {:X {:type :Kernel/Int
+          :indexed true}})
+    (event
+     :I625Ups/MakeP
+     {:Data :Kernel/Map})
+
+    (dataflow
+     :I625Ups/MakeP
+     {:I625Ups/P {} :from :I625Ups/MakeP.Data})
+
+    (entity
+     :I625Ups/C
+     {:meta {:inherits :I625Ups/P}
+      :Y :Kernel/Int})
+
+    (dataflow
+     :I625Ups/MakeC
+     {:I625Ups/MakeP
+      {:Data [:q# {:X 10 :Y 20}]}
+      :with-types {:I625Ups/P :I625Ups/C}}))
+
+  (let [c (tu/first-result
+           {:I625Ups/MakeC {}})
+        p (tu/first-result
+           {:I625Ups/MakeP
+            {:Data {:X 100}}})]
+    (is (cn/instance-of? :I625Ups/C c))
+    (is (and (= 10 (:X c)) (= 20 (:Y c))))
+    (is (cn/instance-of? :I625Ups/P p))
+    (is (= 100 (:X p)))))

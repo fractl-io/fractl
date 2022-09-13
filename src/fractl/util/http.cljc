@@ -2,14 +2,22 @@
   (:require #?(:clj [org.httpkit.client :as http]
                :cljs [cljs-http.client :as http])
             #?(:clj [cheshire.core :as json])
+            [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.datafmt.transit :as t]
             #?(:cljs [cljs.core.async :refer [<!]]))
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
+(def ^:private space-pat #"\s")
+
+(defn keywordify [k]
+  (if (and (string? k) (not (re-find space-pat k)))
+    (keyword k)
+    k))
+
 (defn- json-parse-string [s]
-  #?(:clj (json/parse-string s true)
+  #?(:clj (json/parse-string s keywordify)
      :cljs identity))
 
 (def ^:private enc-dec

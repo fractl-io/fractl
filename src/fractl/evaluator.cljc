@@ -87,7 +87,9 @@
                                         event-instance)
                                        event-instance)
                                       env0)
-                                [_ dc] (cn/dataflow-opcode df)]
+                                [_ dc] (cn/dataflow-opcode
+                                        df (or (env/with-types env)
+                                               cn/with-default-types))]
                             (deref-futures (dispatch-opcodes evaluator env dc))))]
        (interceptors/eval-intercept env0 event-instance continuation))))
   ([evaluator event-instance df]

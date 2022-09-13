@@ -971,21 +971,15 @@
 
 (def with-default-types :default)
 
-(defn dataflow-opcode
-  ([df]
-   (dataflow-opcode df with-default-types))
-  ([df target]
-   (let [opc @(:opcode (dataflow-spec df))]
-     (get opc target))))
+(defn dataflow-opcode [df target]
+  (let [opc @(:opcode (dataflow-spec df))]
+    (get opc target)))
 
-(defn set-dataflow-opcode!
-  ([df opc target]
-   (let [old-opc (:opcode (dataflow-spec df))]
-     (u/safe-set
-      old-opc
-      (assoc @old-opc target opc))))
-  ([df opc]
-   (set-dataflow-opcode! df opc with-default-types)))
+(defn set-dataflow-opcode! [df opc target]
+  (let [old-opc (:opcode (dataflow-spec df))]
+    (u/safe-set
+     old-opc
+     (assoc @old-opc target opc))))
 
 (defn dataflow-on-entity [df]
   (get-in (dataflow-spec df) [:head :on-entity-event]))
