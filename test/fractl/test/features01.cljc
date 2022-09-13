@@ -158,4 +158,104 @@
     (is (cn/instance-of? :I625Ups/C c))
     (is (and (= 10 (:X c)) (= 20 (:Y c))))
     (is (cn/instance-of? :I625Ups/P p))
-    (is (= 100 (:X p)))))
+    (is (= 100 (:X p)))
+    (let [id (cn/id-attr c)
+          r (tu/first-result
+             {:I625Ups/Lookup_C
+              {cn/id-attr id}})]
+      (is (cn/same-instance? c r)))))
+
+(deftest issue-625-subtype-ref
+  (defcomponent :I625Sr
+    (entity
+     :I625Sr/P
+     {:X {:type :Kernel/Int
+          :indexed true}
+      :Y :Kernel/Int})
+    (entity
+     :I625Sr/C
+     {:meta {:inherits :I625Sr/P}
+      :Z :Kernel/Int})
+    (event
+     :I625Sr/Evt
+     {:P :I625Sr/P})
+    (dataflow
+     :I625Sr/Evt
+     {:I625Sr/P {:X? :I625Sr/Evt.P.X}}))
+  (let [p (tu/first-result
+           {:I625Sr/Upsert_P
+            {:Instance
+             {:I625Sr/P
+              {:X 1 :Y 100}}}})
+        c (tu/first-result
+           {:I625Sr/Upsert_C
+            {:Instance
+             {:I625Sr/C
+              {:X 1 :Y 2 :Z 3}}}})
+        p2 (tu/first-result
+            {:I625Sr/Evt
+             {:P c}})]
+    (is (cn/instance-of? :I625Sr/P p))
+    (is (and (= (:X p) 1) (= (:Y p) 100)))
+    (is (cn/instance-of? :I625Sr/C c))
+    (is (and (= (:X c) 1) (= (:Y c) 2) (= (:Z c) 3)))
+    (is (cn/same-instance? p p2))))
+
+(deftest issue-625-with-event-type
+  (defcomponent :I625Wevt
+    (record
+     :I625Wevt/R1
+     {})
+    (event
+     :I625Wevt/P
+     {})
+    (dataflow
+     :I625Wevt/P
+     {:I625Wevt/R1 {}})
+    (record
+     :I625Wevt/R2
+     {})
+    (event
+     :I625Wevt/C
+     {:meta {:inherits :I625Wevt/P}})
+    (dataflow
+     :I625Wevt/C
+     {:I625Wevt/R2 {}})
+    (dataflow
+     :I625Wevt/Evt1
+     {:I625Wevt/P {}})
+    (dataflow
+     :I625Wevt/Evt2
+     {:I625Wevt/Evt1 {}
+      :with-types {:I625Wevt/P :I625Wevt/C}}))
+  (let [r1 (tu/first-result
+            {:I625Wevt/Evt1 {}})
+        r2 (tu/first-result
+            {:I625Wevt/Evt2 {}})]
+    (is (cn/instance-of? :I625Wevt/R1 r1))
+    (is (cn/instance-of? :I625Wevt/R2 r2))))
+
+(deftest issue-625-with-types-bubble-up
+  (defcomponent :I625Wtb
+    (record
+     :I625Wtb/P
+     {})
+    (record
+     :I625Wtb/C
+     {:meta {:inherits :I625Wtb/P}})
+    (dataflow
+     :I625Wtb/Evt1
+     {:I625Wtb/P {}})
+    (dataflow
+     :I625Wtb/Evt2
+     {:I625Wtb/Evt1 {}})
+    (dataflow
+     :I625Wtb/Evt3
+     {:I625Wtb/Evt2 {}
+      :with-types {:I625Wtb/P :I625Wtb/C}}))
+  (let [p1 (tu/first-result
+            {:I625Wtb/Evt2 {}})
+        p2 (tu/first-result
+            {:I625Wtb/Evt3 {}})]
+    (is (cn/instance-of? :I625Wtb/P p1))
+    (is (cn/instance-of? :I625Wtb/C p2))))
