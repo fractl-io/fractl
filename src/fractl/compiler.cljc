@@ -279,6 +279,14 @@
   ([ctx pat-name pat-attrs schema alias]
    (emit-realize-event-instance ctx pat-name pat-attrs schema alias nil)))
 
+(declare compile-pattern)
+
+(defn- emit-dynamic-upsert [ctx pat-name pat-attrs _ alias-name]
+  (op/dynamic-upsert
+   [(li/path-parts pat-name) pat-attrs
+    (partial compile-pattern ctx)
+    alias-name]))
+
 (defn- emit-realize-map-literal [ctx pat]
   ;; TODO: implement support for map literals.
   (u/throw-ex (str "cannot compile map literal " pat)))
@@ -291,8 +299,6 @@
   (let [entity-name (li/split-path (li/query-target-name pat))
         q (compile-query ctx entity-name nil)]
     (op/query-instances [entity-name q])))
-
-(declare compile-pattern)
 
 (defn- compile-pathname
   ([ctx pat alias]
@@ -413,12 +419,12 @@
 
     (li/instance-pattern? pat)
     (let [full-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
-          {component :component record :record} (li/path-parts full-nm)
-          nm [component record]
+          {component :component record :record path :path} (li/path-parts full-nm)
+          nm (if (and component record) [component record] path)
           attrs (li/instance-pattern-attrs pat)
           alias (:as pat)
           timeout-ms (:timeout-ms pat)
-          [tag scm] (cv/find-schema nm full-nm)]
+          [tag scm] (cv/find-schema nm full-nm [:dynamic-upsert nil])]
       (let [c (case tag
                 :entity emit-realize-entity-instance
                 :record emit-realize-record-instance
@@ -426,6 +432,7 @@
                          (when-let [wt (fetch-with-types pat)]
                            (ctx/bind-with-types! ctx wt))
                          emit-realize-event-instance)
+                :dynamic-upsert emit-dynamic-upsert
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
             opc (apply c ctx nm attrs scm (if timeout-ms [alias timeout-ms] [alias]))]
         (ctx/put-record! ctx nm pat)

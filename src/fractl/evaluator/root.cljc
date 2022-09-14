@@ -913,6 +913,28 @@
                    record-name inst-alias true upsert-required))
                 result)))))
 
+    (do-dynamic-upsert [self env [path-parts attrs inst-compiler alias-name]]
+      (let [inst (if-let [p (:path path-parts)]
+                   (env/lookup-by-alias env p)
+                   (first (env/follow-reference env path-parts)))
+            inst-type (cn/instance-type inst)
+            scm (cn/find-entity-schema inst-type)]
+        (when-not scm
+          (u/throw-ex (str path-parts " is not bound to an entity-instance - " inst)))
+        (let [opc (inst-compiler {(if (keyword? inst-type)
+                                    inst-type
+                                    (li/make-path inst-type))
+                                  (merge (cn/instance-attributes inst) attrs)})
+              result (eval-opcode self env opc)
+              r (ok-result result)
+              env (:env result)]
+          (if (map? r)
+            (intern-instance
+             self (env/push-obj env inst-type (merge inst r))
+             eval-opcode eval-event-dataflows
+             inst-type alias-name true true)
+            result))))
+
     (do-entity-def [_ env schema]
       (let [n (li/record-name schema)
             [c _] (li/split-path n)

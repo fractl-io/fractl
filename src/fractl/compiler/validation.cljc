@@ -6,10 +6,11 @@
             [fractl.component :as cn]))
 
 (defn find-schema
-  ([path orig-name]
+  ([path orig-name default]
    (if-let [tag-scm (cn/find-schema path)]
      tag-scm
-     (u/throw-ex (str "schema not found - " [path orig-name]))))
+     (or default (u/throw-ex (str "schema not found - " [path orig-name])))))
+  ([path orig-name] (find-schema path orig-name nil))
   ([path] (find-schema path path)))
 
 (defn invalid-attributes

@@ -259,3 +259,37 @@
             {:I625Wtb/Evt3 {}})]
     (is (cn/instance-of? :I625Wtb/P p1))
     (is (cn/instance-of? :I625Wtb/C p2))))
+
+(deftest issue-630-upsert-with-value-pattern
+  (defcomponent :I630
+    (entity
+     :I630/E
+     {:id {:type :Kernel/Int
+           :identity true}
+      :X :Kernel/Int})
+    (dataflow
+     :I630/FindE
+     {:I630/E {:id? :I630/FindE.E}})
+    (dataflow
+     :I630/Evt
+     {:I630/E
+      {:id? :I630/Evt.E}
+      :as [:R]}
+     {:R {:X 200}}))
+  (let [e (tu/first-result
+           {:I630/Upsert_E
+            {:Instance
+             {:I630/E
+              {:id 1 :X 10}}}})
+        r0 (tu/first-result
+            {:I630/FindE {:E 1}})
+        r1 (:transition
+            (tu/first-result
+             {:I630/Evt
+              {:E 1}}))
+        r2 (tu/first-result
+            {:I630/FindE {:E 1}})]
+    (is (cn/same-instance? e r0))
+    (is (cn/same-instance? e (:from r1)))
+    (is (= 200 (:X (:to r1))))
+    (is (cn/same-instance? (:to r1) r2))))
