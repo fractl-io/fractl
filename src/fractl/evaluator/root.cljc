@@ -924,16 +924,8 @@
         (let [opc (inst-compiler {(if (keyword? inst-type)
                                     inst-type
                                     (li/make-path inst-type))
-                                  (merge (cn/instance-attributes inst) attrs)})
-              result (eval-opcode self env opc)
-              r (ok-result result)
-              env (:env result)]
-          (if (map? r)
-            (intern-instance
-             self (env/push-obj env inst-type (merge inst r))
-             eval-opcode eval-event-dataflows
-             inst-type alias-name true true)
-            result))))
+                                  (merge (cn/instance-attributes inst) attrs)})]
+          (eval-opcode self env opc))))
 
     (do-entity-def [_ env schema]
       (let [n (li/record-name schema)
