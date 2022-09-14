@@ -283,9 +283,7 @@
 
 (defn- emit-dynamic-upsert [ctx pat-name pat-attrs _ alias-name]
   (op/dynamic-upsert
-   [(li/path-parts pat-name) pat-attrs
-    (partial compile-pattern ctx)
-    alias-name]))
+   [pat-name pat-attrs (partial compile-pattern ctx) alias-name]))
 
 (defn- emit-realize-map-literal [ctx pat]
   ;; TODO: implement support for map literals.
@@ -419,12 +417,18 @@
 
     (li/instance-pattern? pat)
     (let [full-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
-          {component :component record :record path :path} (li/path-parts full-nm)
-          nm (if (and component record) [component record] path)
+          {component :component record :record
+           path :path refs :refs :as parts} (li/path-parts full-nm)
+          refs (seq refs)
+          nm (if (or path refs)
+               parts
+               [component record])
           attrs (li/instance-pattern-attrs pat)
           alias (:as pat)
           timeout-ms (:timeout-ms pat)
-          [tag scm] (cv/find-schema nm full-nm [:dynamic-upsert nil])]
+          [tag scm] (if (or path refs)
+                      [:dynamic-upsert nil]
+                      (cv/find-schema nm full-nm))]
       (let [c (case tag
                 :entity emit-realize-entity-instance
                 :record emit-realize-record-instance

@@ -271,11 +271,14 @@
      :I630/FindE
      {:I630/E {:id? :I630/FindE.E}})
     (dataflow
-     :I630/Evt
+     :I630/Evt1
      {:I630/E
-      {:id? :I630/Evt.E}
+      {:id? :I630/Evt1.E}
       :as [:R]}
-     {:R {:X 200}}))
+     {:R {:X 200}})
+    (dataflow
+     :I630/Evt2
+     {:I630/Evt2.E {:X 300}}))
   (let [e (tu/first-result
            {:I630/Upsert_E
             {:Instance
@@ -285,11 +288,20 @@
             {:I630/FindE {:E 1}})
         r1 (:transition
             (tu/first-result
-             {:I630/Evt
+             {:I630/Evt1
               {:E 1}}))
         r2 (tu/first-result
+            {:I630/FindE {:E 1}})
+        r3 (:transition
+            (tu/first-result
+             {:I630/Evt2
+              {:E e}}))
+        r4 (tu/first-result
             {:I630/FindE {:E 1}})]
     (is (cn/same-instance? e r0))
     (is (cn/same-instance? e (:from r1)))
     (is (= 200 (:X (:to r1))))
-    (is (cn/same-instance? (:to r1) r2))))
+    (is (cn/same-instance? (:to r1) r2))
+    (is (cn/same-instance? (:to r1) (:from r3)))
+    (is (= 300 (:X (:to r3))))
+    (is (cn/same-instance? r4 (:to r3)))))
