@@ -219,3 +219,8 @@
   (assoc env interceptors-blocked-key true))
 
 (def interceptors-blocked? interceptors-blocked-key)
+
+(def with-types :with-types)
+
+(defn bind-with-types [env types]
+  (assoc env with-types types))

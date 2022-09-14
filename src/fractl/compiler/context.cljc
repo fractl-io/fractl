@@ -3,8 +3,13 @@
   (:require [fractl.util :as u]
             [fractl.lang.internal :as li]))
 
-(defn make []
-  (u/make-cell {}))
+(defn make
+  ([with-types]
+   (u/make-cell
+    (if (map? with-types)
+      {:with-types with-types}
+      {})))
+  ([] (make nil)))
 
 (defn put-record!
   "A record/entity/event encounterd during the compilation
@@ -90,6 +95,22 @@
          (aliased-name ctx (redirect-tag a))
          a))))
   ([ctx k] (aliased-name ctx k true)))
+
+(def with-types-tag li/with-types-tag)
+
+(defn bind-with-types! [ctx types]
+  (bind-variable! ctx with-types-tag types))
+
+(defn fetch-with-types [ctx]
+  (second (fetch-variable ctx with-types-tag)))
+
+(defn dynamic-type [ctx rec-name]
+  (if-let [wt (with-types-tag @ctx)]
+    (let [k (if (keyword? rec-name)
+              rec-name
+              (li/make-path rec-name))]
+      (get wt k rec-name))
+    rec-name))
 
 (defn build-partial-instance! [ctx]
   (bind-variable! ctx :partial-instance? true))

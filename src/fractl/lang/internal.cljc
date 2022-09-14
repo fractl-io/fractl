@@ -6,6 +6,7 @@
                [cljs.js :refer [eval empty-state js-eval]])))
 
 (def id-attr :__Id__)
+(def with-types-tag :with-types)
 
 (defn evaluate [form]
   #?(:clj (eval form)
@@ -31,20 +32,12 @@
    (concat
     oprs
     #{:match :try :for-each :delete
-      :query :between :await :resolver
-      :pull :push :entity :as :alias :eval})))
+      :query :await :entity :eval})))
 
 (def ^:private reserved-names
   (set (concat
         special-form-names
-        #{:type :check :unique
-          :immutable :optional :default
-          :expr :query :format :listof
-          :setof :oneof :indexed :write-only
-          :encryption :type-in-store
-          :ref :var :writer
-          :import :clj-import :java-import
-          :v8-import :resolver :Future :Error :DataflowResult :alias})))
+        #{with-types-tag :as :resolver})))
 
 (def event-context :EventContext)
 
@@ -324,18 +317,21 @@
 (defn unq-name []
   (keyword (gensym)))
 
+(defn normalize-instance-pattern [pat]
+  (dissoc pat :as :with-types))
+
 (defn instance-pattern? [pat]
-  (let [ks (keys (dissoc pat :as))]
+  (let [ks (keys (normalize-instance-pattern pat))]
     (and (= 1 (count ks))
          (let [k (first ks)]
            (and (name? k)
                 (map? (get pat k)))))))
 
 (defn instance-pattern-name [pat]
-  (first (keys pat)))
+  (first (keys (normalize-instance-pattern pat))))
 
 (defn instance-pattern-attrs [pat]
-  (first (vals pat)))
+  (first (vals (normalize-instance-pattern pat))))
 
 (def kw "Convert non-nil strings to keywords"
   (partial u/map-when keyword))
