@@ -87,7 +87,9 @@
                                         event-instance)
                                        event-instance)
                                       env0)
-                                [_ dc] (cn/dataflow-opcode df)]
+                                [_ dc] (cn/dataflow-opcode
+                                        df (or (env/with-types env)
+                                               cn/with-default-types))]
                             (deref-futures (dispatch-opcodes evaluator env dc))))]
        (interceptors/eval-intercept env0 event-instance continuation))))
   ([evaluator event-instance df]
@@ -140,8 +142,8 @@
    and evaluator returned by a previous call to evaluator/make may be passed as
    the first two arguments."
   [compile-query-fn evaluator env event-instance]
-  (let [dfs (c/compile-dataflows-for-event
-             compile-query-fn event-instance)
+  (let [ dfs (c/compile-dataflows-for-event
+              compile-query-fn event-instance)
         logging-rules (logging/rules event-instance)
         hidden-attrs (logging/hidden-attributes logging-rules)
         ef (partial

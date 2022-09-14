@@ -795,23 +795,30 @@
        self env eval-opcode eval-event-dataflows
        record-name inst-alias validation-required upsert-required))
 
-    (do-intern-event-instance [self env [record-name alias timeout-ms]]
+    (do-intern-event-instance [self env [record-name alias-name with-types timeout-ms]]
       (let [[inst env] (pop-and-intern-instance
                         env record-name
                         nil (partial eval-opcode self))
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
             eval-env (env/make (env/get-store env) (env/get-resolver env))
+            with-types (merge (env/with-types env) with-types)
             local-result (when (or (not resolver) composed?)
                            (async-invoke
                             timeout-ms
                             #(doall
                               (extract-local-result
-                               (first (eval-event-dataflows self eval-env inst))))))
+                               (first (eval-event-dataflows
+                                       self (if with-types
+                                              (env/bind-with-types eval-env with-types)
+                                              eval-env)
+                                       (if with-types
+                                         (assoc inst li/with-types-tag with-types)
+                                         inst)))))))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? env inst))
             r (pack-results local-result resolver-results)
-            env (if alias (env/bind-instance-to-alias env alias r) env)]
+            env (if alias-name (env/bind-instance-to-alias env alias-name r) env)]
         (i/ok r env)))
 
     (do-delete-instance [self env [record-name queries]]

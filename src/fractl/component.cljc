@@ -881,7 +881,7 @@
                       {:head head
                        :event-pattern event
                        :patterns patterns
-                       :opcode (u/make-cell nil)}]))]
+                       :opcode (u/make-cell {})}]))]
        (assoc-in ms path newpats)))
    event)
   ([event head patterns]
@@ -969,13 +969,17 @@
 (defn dataflow-patterns [df]
   (:patterns (dataflow-spec df)))
 
-(defn dataflow-opcode [df]
-  @(:opcode (dataflow-spec df)))
+(def with-default-types :default)
 
-(defn set-dataflow-opcode! [df opc]
-  (u/safe-set
-   (:opcode (dataflow-spec df))
-   opc))
+(defn dataflow-opcode [df target]
+  (let [opc @(:opcode (dataflow-spec df))]
+    (get opc target)))
+
+(defn set-dataflow-opcode! [df opc target]
+  (let [old-opc (:opcode (dataflow-spec df))]
+    (u/safe-set
+     old-opc
+     (assoc @old-opc target opc))))
 
 (defn dataflow-on-entity [df]
   (get-in (dataflow-spec df) [:head :on-entity-event]))
