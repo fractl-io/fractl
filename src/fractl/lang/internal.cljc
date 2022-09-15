@@ -318,7 +318,7 @@
   (keyword (gensym)))
 
 (defn normalize-instance-pattern [pat]
-  (dissoc pat :as :with-types))
+  (dissoc pat :as :with-types :timeout-ms))
 
 (defn instance-pattern? [pat]
   (let [ks (keys (normalize-instance-pattern pat))]

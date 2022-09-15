@@ -151,6 +151,9 @@
          (instance-from
           [[record-name inst-opcode data-opcode alias-name]]
           "Execute the opcode to get attributes map, construct a record instance")
+         (dynamic-upsert
+          [[path-parts changed-attrs instance-compiler alias-name]]
+          "Fetch the entity-instance bound to varname, merge the new attributes and do an upsert")
          (await_
           [[body continuation]]
           "Evaluate body asynchronously and then evaluate the proper handler in the 
