@@ -653,10 +653,19 @@
 (defn- compile-delete [ctx [recname & id-pat]]
   (if (= (vec id-pat) [:*])
     (emit-delete (li/split-path recname) :*)
-    (let [[attr value _ alias] (if (= 1 (count id-pat))
-                                 [cn/id-attr (first id-pat)]
-                                 id-pat)
-          q (compile-query ctx recname [[attr value]])]
+    (let [p (first id-pat)
+          qpat (if (map? p)
+                 p
+                 [[(cn/identity-attribute-name recname) p]])
+          alias (when (> (count id-pat) 1)
+                  (if (= :as (second id-pat))
+                    (nth id-pat 2)
+                    (u/throw-ex (str "expected alias declaration, found " (second id-pat)))))
+          q (compile-query
+             ctx recname
+             (if (map? qpat)
+               (into [] qpat)
+               qpat))]
       (when alias
         (ctx/add-alias! ctx recname alias))
       (emit-delete (li/split-path recname) (merge q {:alias alias})))))
