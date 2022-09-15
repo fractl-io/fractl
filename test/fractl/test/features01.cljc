@@ -305,3 +305,45 @@
     (is (cn/same-instance? (:to r1) (:from r3)))
     (is (= 300 (:X (:to r3))))
     (is (cn/same-instance? r4 (:to r3)))))
+
+(deftest issue-630-upsert-multiple
+  (defcomponent :I630M
+    (entity
+     :I630M/E
+     {:X {:type :Kernel/Int
+          :indexed true}
+      :Y {:type :Kernel/Int
+          :expr '(* :X 2)}})
+    (dataflow
+     :I630M/FindE
+     :I630M/E?)
+    (dataflow
+     :I630M/Evt1
+     {:I630M/E? {} :as :R}
+     {:R {:X '(* :Y 10)}}))
+  (let [sum #(apply + (mapv %1 %2))
+        sum-xs (partial sum :X)
+        sum-ys (partial sum :Y)
+        xs [1 2 3 4 5]
+        ys (mapv (partial * 2) xs)
+        ys10 (mapv (partial * 10) ys)
+        es (mapv
+            #(tu/first-result
+              {:I630M/Upsert_E
+               {:Instance
+                {:I630M/E
+                 {:X %}}}})
+            xs)
+        r0 (tu/result
+            {:I630M/FindE {}})
+        r1 (tu/result
+            {:I630M/Evt1 {}})
+        r2 (tu/result
+            {:I630M/FindE {}})]
+    (is (= (sum-xs r0) (sum-xs es) (apply + xs)))
+    (is (= (sum-ys r0) (sum-ys es) (apply + ys)))
+    (let [tos (mapv #(:to (:transition %)) r1)]
+      (is (= (sum-xs tos) (sum-xs tos) (apply + ys10)))
+      (is (= (sum-ys tos) (* 2 (sum-xs tos)))))
+    (is (= (sum-xs r2) (apply + ys10)))
+    (is (= (sum-ys r2) (* 2 (sum-xs r2))))))
