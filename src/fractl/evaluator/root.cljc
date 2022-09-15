@@ -721,6 +721,14 @@
       :else
       (i/not-found record-name env))))
 
+(defn- dispatch-dynamic-upsert [self env inst-compiler eval-opcode
+                                inst-type attrs inst]
+  (let [opc (inst-compiler {(if (keyword? inst-type)
+                              inst-type
+                              (li/make-path inst-type))
+                            (merge (cn/instance-attributes inst) attrs)})]
+    (eval-opcode self env opc)))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -912,6 +920,29 @@
                    eval-opcode eval-event-dataflows
                    record-name inst-alias true upsert-required))
                 result)))))
+
+    (do-dynamic-upsert [self env [path-parts attrs inst-compiler alias-name]]
+      (let [rs (if-let [p (:path path-parts)]
+                 (env/lookup-by-alias env p)
+                 (first (env/follow-reference env path-parts)))
+            single? (map? rs)
+            inst-type (cn/instance-type (if single? rs (first rs)))
+            scm (cn/find-entity-schema inst-type)]
+        (when-not scm
+          (u/throw-ex (str path-parts " is not bound to an entity-instance")))
+        (let [dispatch (partial
+                        dispatch-dynamic-upsert
+                        self env inst-compiler eval-opcode inst-type attrs)]
+          (if single?
+            (dispatch rs)
+            (loop [env env, rs rs, result []]
+              (if-let [inst (first rs)]
+                (let [r (dispatch inst)
+                      okr (ok-result r)]
+                  (if okr
+                    (recur (:env r) (rest rs) (concat result okr))
+                    r))
+                (i/ok result env)))))))
 
     (do-entity-def [_ env schema]
       (let [n (li/record-name schema)

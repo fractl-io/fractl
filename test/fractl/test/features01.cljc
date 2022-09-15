@@ -259,3 +259,91 @@
             {:I625Wtb/Evt3 {}})]
     (is (cn/instance-of? :I625Wtb/P p1))
     (is (cn/instance-of? :I625Wtb/C p2))))
+
+(deftest issue-630-upsert-with-value-pattern
+  (defcomponent :I630
+    (entity
+     :I630/E
+     {:id {:type :Kernel/Int
+           :identity true}
+      :X :Kernel/Int})
+    (dataflow
+     :I630/FindE
+     {:I630/E {:id? :I630/FindE.E}})
+    (dataflow
+     :I630/Evt1
+     {:I630/E
+      {:id? :I630/Evt1.E}
+      :as [:R]}
+     {:R {:X 200}})
+    (dataflow
+     :I630/Evt2
+     {:I630/Evt2.E {:X 300}}))
+  (let [e (tu/first-result
+           {:I630/Upsert_E
+            {:Instance
+             {:I630/E
+              {:id 1 :X 10}}}})
+        r0 (tu/first-result
+            {:I630/FindE {:E 1}})
+        r1 (:transition
+            (tu/first-result
+             {:I630/Evt1
+              {:E 1}}))
+        r2 (tu/first-result
+            {:I630/FindE {:E 1}})
+        r3 (:transition
+            (tu/first-result
+             {:I630/Evt2
+              {:E e}}))
+        r4 (tu/first-result
+            {:I630/FindE {:E 1}})]
+    (is (cn/same-instance? e r0))
+    (is (cn/same-instance? e (:from r1)))
+    (is (= 200 (:X (:to r1))))
+    (is (cn/same-instance? (:to r1) r2))
+    (is (cn/same-instance? (:to r1) (:from r3)))
+    (is (= 300 (:X (:to r3))))
+    (is (cn/same-instance? r4 (:to r3)))))
+
+(deftest issue-630-upsert-multiple
+  (defcomponent :I630M
+    (entity
+     :I630M/E
+     {:X {:type :Kernel/Int
+          :indexed true}
+      :Y {:type :Kernel/Int
+          :expr '(* :X 2)}})
+    (dataflow
+     :I630M/FindE
+     :I630M/E?)
+    (dataflow
+     :I630M/Evt1
+     {:I630M/E? {} :as :R}
+     {:R {:X '(* :Y 10)}}))
+  (let [sum #(apply + (mapv %1 %2))
+        sum-xs (partial sum :X)
+        sum-ys (partial sum :Y)
+        xs [1 2 3 4 5]
+        ys (mapv (partial * 2) xs)
+        ys10 (mapv (partial * 10) ys)
+        es (mapv
+            #(tu/first-result
+              {:I630M/Upsert_E
+               {:Instance
+                {:I630M/E
+                 {:X %}}}})
+            xs)
+        r0 (tu/result
+            {:I630M/FindE {}})
+        r1 (tu/result
+            {:I630M/Evt1 {}})
+        r2 (tu/result
+            {:I630M/FindE {}})]
+    (is (= (sum-xs r0) (sum-xs es) (apply + xs)))
+    (is (= (sum-ys r0) (sum-ys es) (apply + ys)))
+    (let [tos (mapv #(:to (:transition %)) r1)]
+      (is (= (sum-xs tos) (sum-xs tos) (apply + ys10)))
+      (is (= (sum-ys tos) (* 2 (sum-xs tos)))))
+    (is (= (sum-xs r2) (apply + ys10)))
+    (is (= (sum-ys r2) (* 2 (sum-xs r2))))))
