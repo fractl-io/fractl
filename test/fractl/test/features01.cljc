@@ -347,3 +347,44 @@
       (is (= (sum-ys tos) (* 2 (sum-xs tos)))))
     (is (= (sum-xs r2) (apply + ys10)))
     (is (= (sum-ys r2) (* 2 (sum-xs r2))))))
+
+(deftest delete-by-multiple-attributes
+  (defcomponent :DelMulti
+    (entity
+     :DelMulti/E
+     {:X {:type :Kernel/Int
+          :indexed true}
+      :Y {:type :Kernel/Int
+          :indexed true}})
+    (dataflow
+     :DelMulti/Del
+     [:delete :DelMulti/E {:X :DelMulti/Del.X
+                           :Y :DelMulti/Del.Y}])
+    (dataflow
+     :DelMulti/FindAll
+     :DelMulti/E?)
+    (dataflow
+     :DelMulti/Find
+     {:DelMulti/E {:X? :DelMulti/Find.X
+                   :Y? :DelMulti/Find.Y}}))
+  (let [_ (mapv #(tu/first-result
+                  {:DelMulti/Upsert_E
+                   {:Instance
+                    {:DelMulti/E
+                     {:X %1 :Y %2}}}})
+                [1 1 1 2] [10 20 10 20])
+        find {:DelMulti/Find {:X 1 :Y 10}}
+        r0 (tu/result find)
+        r1 (tu/result
+            {:DelMulti/FindAll {}})
+        r2 (tu/result
+            {:DelMulti/Del
+             {:X 1 :Y 10}})
+        r3 (tu/eval-all-dataflows find)]
+    (is (= 2 (count r0)))
+    (is (= 4 (count r1)))
+    (is (= 2 (count r2)))
+    (let [ids0 (mapv cn/id-attr r0)
+          ids2 (mapv cn/id-attr r2)]
+      (= (sort ids0) (sort ids2)))
+    (= :not-found (:status (first r3)))))

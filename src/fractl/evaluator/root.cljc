@@ -839,10 +839,11 @@
           (if-let [[insts env]
                    (find-instances env store record-name queries)]
             (let [alias (:alias queries)
-                  env (if alias (env/bind-instance-to-alias env alias insts) env)]
+                  env (if alias (env/bind-instance-to-alias env alias insts) env)
+                  id-attr (cn/identity-attribute-name record-name)]
               (i/ok insts (reduce (fn [env instance]
                                     (chained-delete env record-name instance)
-                                    (env/purge-instance env record-name (cn/id-attr instance)))
+                                    (env/purge-instance env record-name id-attr (id-attr instance)))
                                   env insts)))
             (i/not-found record-name env)))
         (i/error (str "no active store, cannot delete " record-name " instance"))))

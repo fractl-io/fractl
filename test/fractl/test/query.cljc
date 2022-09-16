@@ -174,7 +174,7 @@
     (event {:QIdDel/FindByIdAndDel
             {:EId :Kernel/UUID}})
     (dataflow :QIdDel/FindByIdAndDel
-              [:delete :QIdDel/E cn/id-attr :QIdDel/FindByIdAndDel.EId]))
+              [:delete :QIdDel/E {cn/id-attr :QIdDel/FindByIdAndDel.EId}]))
   (let [e (cn/make-instance :QIdDel/E {:X 100})
         e01 (first (tu/fresult (e/eval-all-dataflows {:QIdDel/Upsert_E {:Instance e}})))
         id (cn/id-attr e01)
@@ -192,9 +192,9 @@
             {:X :Kernel/Int}})
     (dataflow :QDel/FindAndDel
               {:QDel/E {:X? :QDel/FindAndDel.X}}
-              [:delete :QDel/E cn/id-attr (tu/append-id :QDel/E)])
+              [:delete :QDel/E {cn/id-attr (tu/append-id :QDel/E)}])
     (dataflow :QDel/DeleteById
-              [:delete :QDel/E cn/id-attr :QDel/DeleteById.EId]))
+              [:delete :QDel/E {cn/id-attr :QDel/DeleteById.EId}]))
   (let [e (cn/make-instance :QDel/E {:X 100})
         e01 (first (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e}})))
         id (cn/id-attr e01)
@@ -215,9 +215,9 @@
     (entity {:QDel/E {:X {:type :Kernel/Int
                           :indexed true}}})
     (dataflow :QDel/DeleteByAttr
-      [:delete :QDel/E :X 50])
+      [:delete :QDel/E {:X 50}])
     (dataflow :QDel/DeleteWithAlias
-      [:delete :QDel/E :X 100 :as [:DELRES]]
+      [:delete :QDel/E {:X 100} :as [:DELRES]]
       :DELRES)
     (dataflow :QDel/find1
       {:QDel/E {:X? 100}})

@@ -83,8 +83,8 @@
 (defn lookup-instance [env rec-name]
   (cn/maybe-deref (peek (get-instances env rec-name))))
 
-(defn purge-instance [env rec-name id]
-  (let [insts (filter #(not= (cn/id-attr %) id) (get-instances env rec-name))]
+(defn purge-instance [env rec-name id-attr-name id]
+  (let [insts (filter #(not= (id-attr-name %) id) (get-instances env rec-name))]
     (assoc env rec-name insts)))
 
 (defn- find-instance-by-path-parts [env path-parts has-refs]
