@@ -542,7 +542,7 @@
 (defn- crud-event-delete-pattern [evtname entity-name]
   (let [id-attr (identity-attribute-name entity-name)]
     [:delete entity-name
-     id-attr (direct-id-accessor evtname id-attr)]))
+     {id-attr (direct-id-accessor evtname id-attr)}]))
 
 (defn- crud-event-lookup-pattern [evtname entity-name]
   (let [id-attr (identity-attribute-name entity-name)]
