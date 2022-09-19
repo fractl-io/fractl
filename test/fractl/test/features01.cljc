@@ -5,6 +5,7 @@
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]
+            [fractl.lang.syntax :as ls]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -388,3 +389,10 @@
           ids2 (mapv cn/id-attr r2)]
       (= (sort ids0) (sort ids2)))
     (= :not-found (:status (first r3)))))
+
+(deftest issue-636-syntax-01
+  (let [es01 (ls/compound-exp {:fn 'abc :args [:X 10 "hello"]})]
+    (is (= :exp (ls/tag es01)))
+    (is (= 'abc (ls/exp-fn es01)))
+    (is (= [:X 10 "hello"] (ls/exp-args es01)))
+    (is (= (ls/raw es01) '(abc :X 10 "hello")))))
