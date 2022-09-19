@@ -390,9 +390,13 @@
       (= (sort ids0) (sort ids2)))
     (= :not-found (:status (first r3)))))
 
-(deftest issue-636-syntax-01
-  (let [es01 (ls/compound-exp {:fn 'abc :args [:X 10 "hello"]})]
+(deftest issue-636-syntax-exp
+  (let [es01 (ls/exp {:fn 'abc :args [:X 10 "hello"]})]
     (is (= :exp (ls/tag es01)))
     (is (= 'abc (ls/exp-fn es01)))
     (is (= [:X 10 "hello"] (ls/exp-args es01)))
-    (is (= (ls/raw es01) '(abc :X 10 "hello")))))
+    (is (= (ls/raw es01) `'(~'abc :X 10 "hello"))))
+  (let [es02 (ls/introspect '(+ :X :Y 100))]
+    (is (= :exp (ls/tag es02)))
+    (is (= '+ (ls/exp-fn es02)))
+    (is (= [:X :Y 100] (ls/exp-args es02)))))

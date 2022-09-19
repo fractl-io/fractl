@@ -19,25 +19,40 @@
 (defn- valid-arg? [x]
   (or (li/name? x) (li/literal? x)))
 
-(defn compound-exp
+(defn exp
   "Return the intermediate representation (ir)
   for a compound expression - required keys are -
    :fn - function name, a symbol like '+
    :args - function arguments, a vector of attribute names,
            constant values etc"  
-  [spec]
-  (when (not= 2 (count spec))
-    (u/throw-ex (str "invalid compound-expression spec " spec)))
-  (let [fnname ($fn spec)
-        args ($args spec)]
-    (when-not (symbol? fnname)
-      (u/throw-ex (str "fn-name must be a symbol - " fnname)))
-    (when-not (every? valid-arg? args)
-      (u/throw-ex (str "invalid argument in " args)))
-    (merge {tag :exp} spec)))
+  ([spec]
+   (when (not= 2 (count spec))
+     (u/throw-ex (str "invalid compound-expression spec " spec)))
+   (exp ($fn spec) ($args spec)))
+  ([fnname args]
+   (when-not (symbol? fnname)
+     (u/throw-ex (str "fn-name must be a symbol - " fnname)))
+   (when-not (every? valid-arg? args)
+     (u/throw-ex (str "invalid argument in " args)))
+   {tag :exp exp-fn fnname exp-args args}))
 
 (defn- raw-exp [ir]
-  `(~(exp-fn ir) ~@(:args ir)))
+  `'(~(exp-fn ir) ~@(:args ir)))
+
+(defn- introspect-exp [pattern]
+  (let [p (if (= 'quote (first pattern))
+            (second pattern)
+            pattern)]
+    (exp (first p) (vec (rest p)))))
+
+(defn introspect [pattern]
+  (if (seqable? pattern)
+    (cond
+      (list? pattern)
+      (introspect-exp pattern)
+
+      :else
+      (u/throw-ex (str "invalid pattern " pattern)))))
 
 (defn raw
   "Consume an intermediate representation object,
