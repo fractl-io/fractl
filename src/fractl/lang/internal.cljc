@@ -437,3 +437,6 @@
 (defn keyword-type? [x]
   (or (= x :Kernel/Keyword)
       (= x :Kernel/Path)))
+
+(defn normalize-upsert-pattern [pat]
+  (dissoc pat :from :as))

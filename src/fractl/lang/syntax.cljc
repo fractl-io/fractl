@@ -59,24 +59,25 @@
            (li/literal? v)
            (exp-object? v))))
 
-(defn upsert [spec]
-  (let [cnt (count spec)]
-    (when (or (< cnt 2) (> cnt 3))
-      (u/throw-ex (str "invalid upsert spec - " spec))))
-  (let [recname ($record spec)
-        ats ($attrs spec)
-        als (alias-name spec)]
-    (when-not (li/name? recname)
-      (u/throw-ex (str "invalid record name - " recname)))
-    ;; TODO: check if recname is query - if so raise error
-    (when-not (and (map? ats) (every? valid-attr-spec? ats))
-      (u/throw-ex (str "invalid attribute spec - " ats)))
-    (when als
-      (when-not (li/name? als)
-        (u/throw-ex (str "invalid alias - " als))))
-    ;; TODO: if any name in ats is query, make tag :`query-upsert
-    ;; if all names in ats are queries, raise error
-    (merge {tag :upsert} spec)))
+(defn upsert
+  ([spec]
+   (let [cnt (count spec)]
+     (when (or (< cnt 2) (> cnt 3))
+       (u/throw-ex (str "invalid upsert spec - " spec))))
+   (upsert ($record spec) ($attrs spec) (alias-name spec)))
+  ([recname rec-attrs rec-alias]
+   (when-not (li/name? recname)
+     (u/throw-ex (str "invalid record name - " recname)))
+   (when (li/query-pattern? recname)
+     (u/throw-ex (str "looks like a query-only pattern - " recname)))
+   (when-not (and (map? rec-attrs) (every? valid-attr-spec? rec-attrs))
+     (u/throw-ex (str "invalid attribute spec - " rec-attrs)))
+   (when (some li/query-pattern? (keys rec-attrs))
+     (u/throw-ex (str "query attributes cannot be specified in upsert - " rec-attrs)))
+   (when rec-alias
+     (when-not (li/name? rec-alias)
+       (u/throw-ex (str "invalid alias - " rec-alias))))
+   {tag :upsert record recname attrs rec-attrs alias-name rec-alias}))
 
 (defn- raw-upsert [ir]
   (merge
@@ -85,13 +86,38 @@
    (when-let [als (alias-name ir)]
      {:alias als})))
 
+(defn query
+  ([spec]
+   (let [cnt (count spec)]
+     (when (or (< cnt 2) (> cnt 3))
+       (u/throw-ex (str "invalid query spec - " spec))))
+   (query ($record spec) ($attrs spec) (alias-name spec)))
+  ([recname rec-attrs alias-name]
+   ;; TODO: query parsing
+   ))
+
+(defn- introspect-query-upsert [pattern]
+  (let [pat (li/normalize-upsert-pattern pattern)
+        recname (first (keys pat))
+        ats (recname pat)]
+    (when-not (li/name? recname)
+      (u/throw-ex (str "invalid record name - " recname)))
+    (when-not (map? ats)
+      (u/throw-ex (str "attributes must be a map - " ats)))
+    ((if (or (li/query-pattern? recname)
+             (some li/query-pattern? (keys ats)))
+       query upsert)
+     recname ats (alias-name pattern))))
+
 (defn introspect [pattern]
   (if (seqable? pattern)
     (cond
       (list? pattern)
       (introspect-exp pattern)
 
-      ;; TODO: upsert query-upsert introspection
+      (map? pattern)
+      (introspect-query-upsert pattern)
+
       :else
       (u/throw-ex (str "invalid pattern " pattern)))))
 
