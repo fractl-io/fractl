@@ -88,7 +88,7 @@
    {($record ir)
     (into {} ($attrs ir))}
    (when-let [als (alias-name ir)]
-     {:alias als})))
+     {alias-name als})))
 
 (defn- query-attrs? [obj]
   (if-let [attrs (attributes obj)]
@@ -102,7 +102,7 @@
        (u/throw-ex (str "invalid query spec - " spec))))
    (let [attrs (attributes spec)
          query-pat (when-not attrs (query-pattern spec))]
-     (when-not (and attrs query-pat)
+     (when-not (or attrs query-pat)
        (u/throw-ex (str "no valid query-pattern or attributes - " spec)))
      (query
       ($record spec)
@@ -114,7 +114,7 @@
    (when-not (or (li/query-pattern? recname)
                  (query-attrs? attrs-or-query-pat))
      (u/throw-ex
-      (str "not a valid query pattern - " [recname attrs-or-query-pat])))
+      (str "not a valid query pattern - " {recname attrs-or-query-pat})))
    (when (and rec-alias (not (li/name? rec-alias)))
      (u/throw-ex (str "invalid alias - " rec-alias)))
    (merge
@@ -124,6 +124,17 @@
     (when rec-alias
       {alias-name rec-alias}))))
 
+(defn- raw-query [ir]
+  (let [obj (or (attributes ir)
+                (query-pattern ir))]
+    (when-not obj
+      (u/throw-ex (str "expected query attributes or pattern not found - " ir)))
+    (merge
+     {($record ir)
+      (into {} obj)}
+     (when-let [als (alias-name ir)]
+       {alias-name als}))))
+
 (defn- introspect-query-upsert [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
         recname (first (keys pat))
@@ -132,11 +143,17 @@
       (u/throw-ex (str "invalid record name - " recname)))
     (when-not (map? attrs)
       (u/throw-ex (str "attributes must be a map - " attrs)))
-    ((if (or (li/query-pattern? recname)
-             (some li/query-pattern? (keys attrs))
-             (:where attrs))
-       query upsert)
-     recname attrs (alias-name pattern))))
+    (let [is-where-clause (:where attrs)
+          qpat (or is-where-clause
+                   (li/query-pattern? recname)
+                   (some li/query-pattern? (keys attrs)))
+          formatted-attrs
+          (cond
+            is-where-clause {query-pattern attrs}
+            qpat {attributes attrs}
+            :else attrs)]
+      ((if qpat query upsert)
+       recname formatted-attrs (alias-name pattern)))))
 
 (defn introspect [pattern]
   (if (seqable? pattern)
@@ -157,4 +174,5 @@
   (case ($tag ir)
     :exp (raw-exp ir)
     :upsert (raw-upsert ir)
+    :query (raw-query ir)
     (u/throw-ex (str "invalid expression tag - " (:tag ir)))))

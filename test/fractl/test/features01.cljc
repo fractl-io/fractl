@@ -400,3 +400,53 @@
     (is (= :exp (ls/tag es02)))
     (is (= '+ (ls/exp-fn es02)))
     (is (= [:X :Y 100] (ls/exp-args es02)))))
+
+(deftest issue-636-syntax-upsert
+  (let [attrs {:FirstName "Mat"
+               :LastName "K"
+               :Age 23}
+        es01 (ls/upsert {:record :Acme/Person
+                         :attrs attrs
+                         :alias :P})
+        pat01 (ls/raw es01)
+        p (dissoc pat01 :alias)
+        ir01 (ls/introspect pat01)]
+    (is (= (ls/tag es01) :upsert))
+    (is (= (ls/record es01) :Acme/Person))
+    (is (= (ls/attributes es01) attrs))
+    (is (= (ls/alias-name es01) :P))
+    (is (= :P (:alias pat01)))
+    (is (= :Acme/Person (first (keys p))))
+    (is (= attrs (:Acme/Person p)))
+    (is (= ir01 es01))))
+
+(deftest issue-636-syntax-query
+  (let [attrs {:id? "abc123"
+               :Age 23}
+        es01 (ls/query {:record :Acme/Person
+                        :attrs attrs
+                        :alias :P})
+        pat01 (ls/raw es01)
+        p (dissoc pat01 :alias)]
+    (is (= (ls/tag es01) :query))
+    (is (= (ls/record es01) :Acme/Person))
+    (is (= (ls/attributes es01) attrs))
+    (is (= (ls/alias-name es01) :P))
+    (is (= :P (:alias pat01)))
+    (is (= :Acme/Person (first (keys p))))
+    (is (= attrs (:Acme/Person p)))
+    (is (= (ls/introspect pat01) es01)))
+  (let [where {:where [:or [:>= :Age 20] [:= :Salary 1000]]}
+        es02 (ls/query {:record :Acme/Employee
+                        :query where
+                        :alias :R})
+        pat02 (ls/raw es02)
+        p (dissoc pat02 :alias)]
+    (is (= (ls/tag es02) :query))
+    (is (= (ls/record es02) :Acme/Employee))
+    (is (= (ls/query-pattern es02) where))
+    (is (= (ls/alias-name es02) :R))
+    (is (= :Acme/Employee (first (keys p))))
+    (is (= where (:Acme/Employee p)))
+    (is (= :R (:alias pat02)))
+    (is (= es02 (ls/introspect pat02)))))
