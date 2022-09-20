@@ -1,5 +1,6 @@
 (ns fractl.lang.syntax
-  (:require [fractl.util :as u]
+  (:require [clojure.walk :as w]
+            [fractl.util :as u]
             [fractl.lang.internal :as li]))
 
 (defn- get-spec-val [k spec]
@@ -8,6 +9,7 @@
       (u/throw-ex (str "required key " k " not found"))
       v)))
 
+(def syntax-object-tag :-*-syntax-*-)
 (def tag :tag)
 (def exp-fn :fn)
 (def exp-args :args)
@@ -21,6 +23,10 @@
 (def ^:private $tag (partial get-spec-val tag))
 (def ^:private $record (partial get-spec-val record))
 (def ^:private $attrs (partial get-spec-val attributes))
+
+(defn syntax-object? [obj]
+  (when (map? obj)
+    (syntax-object-tag obj)))
 
 (defn- valid-arg? [x]
   (or (li/name? x) (li/literal? x)))
@@ -40,13 +46,21 @@
      (u/throw-ex (str "fn-name must be a symbol - " fnname)))
    (when-not (every? valid-arg? args)
      (u/throw-ex (str "invalid argument in " args)))
-   {tag :exp exp-fn fnname exp-args args}))
+   {tag :exp
+    syntax-object-tag true
+    exp-fn fnname
+    exp-args args}))
 
 (defn exp-object? [x]
   (and (map? x) (= :exp (tag x))))
 
 (defn- raw-exp [ir]
   `'(~(exp-fn ir) ~@(:args ir)))
+
+(declare raw)
+
+(defn- raw-walk [obj]
+  (w/postwalk raw obj))
 
 (defn- introspect-exp [pattern]
   (let [p (if (= 'quote (first pattern))
@@ -77,16 +91,18 @@
      (u/throw-ex (str "query attributes cannot be specified in upsert - " rec-attrs)))
    (when (and rec-alias (not (li/name? rec-alias)))
      (u/throw-ex (str "invalid alias - " rec-alias)))
-   (merge
-    {tag :upsert record recname
-     attributes rec-attrs}
-    (when rec-alias
-      {alias-name rec-alias}))))
+    (merge
+     {tag :upsert
+      syntax-object-tag true
+      record recname
+      attributes rec-attrs}
+     (when rec-alias
+       {alias-name rec-alias}))))
 
 (defn- raw-upsert [ir]
   (merge
    {($record ir)
-    (into {} ($attrs ir))}
+    (raw-walk ($attrs ir))}
    (when-let [als (alias-name ir)]
      {alias-name als})))
 
@@ -119,6 +135,7 @@
      (u/throw-ex (str "invalid alias - " rec-alias)))
    (merge
     {tag :query
+     syntax-object-tag true
      record recname}
     attrs-or-query-pat
     (when rec-alias
@@ -131,7 +148,7 @@
       (u/throw-ex (str "expected query attributes or pattern not found - " ir)))
     (merge
      {($record ir)
-      (into {} obj)}
+      (raw-walk obj)}
      (when-let [als (alias-name ir)]
        {alias-name als}))))
 
@@ -171,8 +188,10 @@
   "Consume an intermediate representation object,
   return raw fractl syntax"
   [ir]
-  (case ($tag ir)
-    :exp (raw-exp ir)
-    :upsert (raw-upsert ir)
-    :query (raw-query ir)
-    (u/throw-ex (str "invalid expression tag - " (:tag ir)))))
+  (if (syntax-object? ir)
+    (case ($tag ir)
+      :exp (raw-exp ir)
+      :upsert (raw-upsert ir)
+      :query (raw-query ir)
+      (u/throw-ex (str "invalid syntax-object tag - " (tag ir))))
+    ir))

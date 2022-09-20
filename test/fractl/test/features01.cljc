@@ -392,6 +392,7 @@
 
 (deftest issue-636-syntax-exp
   (let [es01 (ls/exp {:fn 'abc :args [:X 10 "hello"]})]
+    (is (ls/syntax-object? es01))
     (is (= :exp (ls/tag es01)))
     (is (= 'abc (ls/exp-fn es01)))
     (is (= [:X 10 "hello"] (ls/exp-args es01)))
@@ -411,6 +412,7 @@
         pat01 (ls/raw es01)
         p (dissoc pat01 :alias)
         ir01 (ls/introspect pat01)]
+    (is (ls/syntax-object? es01))
     (is (= (ls/tag es01) :upsert))
     (is (= (ls/record es01) :Acme/Person))
     (is (= (ls/attributes es01) attrs))
@@ -428,6 +430,7 @@
                         :alias :P})
         pat01 (ls/raw es01)
         p (dissoc pat01 :alias)]
+    (is (ls/syntax-object? es01))
     (is (= (ls/tag es01) :query))
     (is (= (ls/record es01) :Acme/Person))
     (is (= (ls/attributes es01) attrs))
@@ -442,6 +445,7 @@
                         :alias :R})
         pat02 (ls/raw es02)
         p (dissoc pat02 :alias)]
+    (is (ls/syntax-object? es02))
     (is (= (ls/tag es02) :query))
     (is (= (ls/record es02) :Acme/Employee))
     (is (= (ls/query-pattern es02) where))
