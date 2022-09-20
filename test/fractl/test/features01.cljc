@@ -406,8 +406,9 @@
   (let [attrs {:FirstName "Mat"
                :LastName "K"
                :Age 23}
+        exp (ls/exp {:fn 'abc :args [:Age 10]})
         es01 (ls/upsert {:record :Acme/Person
-                         :attrs attrs
+                         :attrs (assoc attrs :X exp)
                          :alias :P})
         pat01 (ls/raw es01)
         p (dissoc pat01 :alias)
@@ -415,11 +416,11 @@
     (is (ls/syntax-object? es01))
     (is (= (ls/tag es01) :upsert))
     (is (= (ls/record es01) :Acme/Person))
-    (is (= (ls/attributes es01) attrs))
+    (is (= (dissoc (ls/attributes es01) :X) attrs))
     (is (= (ls/alias-name es01) :P))
     (is (= :P (:alias pat01)))
     (is (= :Acme/Person (first (keys p))))
-    (is (= attrs (:Acme/Person p)))
+    (is (= attrs (dissoc (:Acme/Person p) :X)))
     (is (= ir01 es01))))
 
 (deftest issue-636-syntax-query

@@ -74,6 +74,8 @@
            (li/literal? v)
            (exp-object? v))))
 
+(declare introspect-attrs)
+
 (defn upsert
   ([spec]
    (let [cnt (count spec)]
@@ -95,7 +97,7 @@
      {tag :upsert
       syntax-object-tag true
       record recname
-      attributes rec-attrs}
+      attributes (introspect-attrs rec-attrs)}
      (when rec-alias
        {alias-name rec-alias}))))
 
@@ -137,7 +139,9 @@
     {tag :query
      syntax-object-tag true
      record recname}
-    attrs-or-query-pat
+    (if-let [attrs (attributes attrs-or-query-pat)]
+      {attributes (introspect-attrs attrs)}
+      attrs-or-query-pat)
     (when rec-alias
       {alias-name rec-alias}))))
 
@@ -170,19 +174,28 @@
             qpat {attributes attrs}
             :else attrs)]
       ((if qpat query upsert)
-       recname formatted-attrs (alias-name pattern)))))
+       recname formatted-attrs
+       (alias-name pattern)))))
 
 (defn introspect [pattern]
-  (if (seqable? pattern)
+  (cond
+    (syntax-object? pattern) pattern
+    (seqable? pattern)
     (cond
-      (list? pattern)
+      (or (list? pattern) (= 'quote (first pattern)))
       (introspect-exp pattern)
 
       (map? pattern)
       (introspect-query-upsert pattern)
 
-      :else
-      (u/throw-ex (str "invalid pattern " pattern)))))
+      :else pattern)
+    :else pattern))
+
+(defn- introspect-attrs [attrs]
+  (let [rs (mapv (fn [[k v]]
+                   [k (introspect v)])
+                 attrs)]
+    (into {} rs)))
 
 (defn raw
   "Consume an intermediate representation object,
