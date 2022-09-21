@@ -19,12 +19,17 @@
 (def attributes :attrs)
 (def query-pattern :query)
 (def alias-name :alias)
+(def cases :cases)
 
 (def ^:private $fn (partial get-spec-val exp-fn))
 (def ^:private $args (partial get-spec-val exp-args))
 (def ^:private $tag (partial get-spec-val tag))
 (def ^:private $record (partial get-spec-val record))
 (def ^:private $attrs (partial get-spec-val attributes))
+(def ^:private $cases (partial get-spec-val cases))
+
+(defn as-syntax-object [tg obj]
+  (assoc obj tag tg syntax-object-tag true))
 
 (defn syntax-object? [obj]
   (when (map? obj)
@@ -32,6 +37,9 @@
 
 (defn- valid-arg? [x]
   (or (li/name? x) (li/literal? x)))
+
+(defn- alias? [x]
+  (or (li/name? x) (every? li/name? x)))
 
 (defn exp
   "Return the intermediate representation (ir)
@@ -48,10 +56,10 @@
      (u/throw-ex (str "fn-name must be a symbol - " fnname)))
    (when-not (every? valid-arg? args)
      (u/throw-ex (str "invalid argument in " args)))
-   {tag :exp
-    syntax-object-tag true
-    exp-fn fnname
-    exp-args args}))
+   (as-syntax-object
+    :exp
+    {exp-fn fnname
+     exp-args args})))
 
 (defn exp-object? [x]
   (and (map? x) (= :exp (tag x))))
@@ -93,15 +101,15 @@
      (u/throw-ex (str "invalid attribute spec - " rec-attrs)))
    (when (some li/query-pattern? (keys rec-attrs))
      (u/throw-ex (str "query attributes cannot be specified in upsert - " rec-attrs)))
-   (when (and rec-alias (not (li/name? rec-alias)))
+   (when (and rec-alias (not (alias? rec-alias)))
      (u/throw-ex (str "invalid alias - " rec-alias)))
+   (as-syntax-object
+    :upsert
     (merge
-     {tag :upsert
-      syntax-object-tag true
-      record recname
+     {record recname
       attributes (introspect-attrs rec-attrs)}
      (when rec-alias
-       {alias-name rec-alias}))))
+       {alias-name rec-alias})))))
 
 (defn- raw-upsert [ir]
   (merge
@@ -149,19 +157,19 @@
                    (query-attrs? attrs-or-query-pat))
        (u/throw-ex
         (str "not a valid query pattern - " {recname attrs-or-query-pat})))
-     (when (and rec-alias (not (li/name? rec-alias)))
+     (when (and rec-alias (not (alias? rec-alias)))
        (u/throw-ex (str "invalid alias - " rec-alias)))
-     (merge
-      {tag :query
-       syntax-object-tag true
-       record (if (query-pattern attrs-or-query-pat)
-                (query-record-name recname)
-                recname)}
-      (if-let [attrs (attributes attrs-or-query-pat)]
-        {attributes (introspect-attrs attrs)}
-        attrs-or-query-pat)
-      (when rec-alias
-        {alias-name rec-alias})))))
+     (as-syntax-object
+      :query
+      (merge
+       {record (if (query-pattern attrs-or-query-pat)
+                 (query-record-name recname)
+                 recname)}
+       (if-let [attrs (attributes attrs-or-query-pat)]
+         {attributes (introspect-attrs attrs)}
+         attrs-or-query-pat)
+       (when rec-alias
+         {alias-name rec-alias}))))))
 
 (defn- raw-query [ir]
   (let [obj (or (attributes ir)
@@ -194,6 +202,69 @@
       ((if qpat query upsert)
        recname formatted-attrs
        (alias-name pattern)))))
+
+(defn- verify-cases! [cs]
+  (loop [cs cs]
+    (when-let [[k v :as c] (first cs)]
+      (when (and (nil? v) (not (seq (rest cs))))
+        (u/throw-ex (str "default case must be the last entry - " k)))
+      (when (and v (not (or (li/name? k) (li/literal? k))))
+        (u/throw-ex (str "invalid key " k " in " c)))
+      (recur (rest cs)))))
+
+(defn- introspect-case-vals [cs]
+  (mapv (fn [[k v]]
+          (if (nil? v)
+            [(introspect k)]
+            [k (introspect v)]))
+        cs))
+
+(defn _match [spec]
+  (let [cs ($cases spec)]
+    (verify-cases! cs)
+    (as-syntax-object
+     :match
+     {cases (introspect-case-vals cs)})))
+
+(defn _for-each
+  "{:header <introspectable-pattern>
+    :body <introspectable-pattern>
+    :alias alias?}"
+  [spec]
+  )
+
+(defn _try
+  "{:body <introspectable-pattern>
+    :cases <same-as-match-cases>
+    :alias alias?}"
+  [spec]
+  )
+
+(defn _delete
+  "{:record name?
+    :attrs map-of-names
+    :alias alias?}"
+  [spec]
+  )
+
+(defn _query
+  "{:query name-or-where-query-pattern
+    :alias alias?}"
+  [spec]
+  )
+
+(defn _eval
+  "{:exp syntax-object-exp
+    :check name?
+    :alias alias?}"
+  [spec]
+  )
+
+(defn _await [spec]
+  )
+
+(defn _entity [spec]
+  )
 
 (defn- introspect-attrs [attrs]
   (let [rs (mapv (fn [[k v]]
