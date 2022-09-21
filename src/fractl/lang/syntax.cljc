@@ -1,7 +1,9 @@
 (ns fractl.lang.syntax
-  (:require [clojure.walk :as w]
+  (:require [cheshire.core :as json]
+            [clojure.walk :as w]
             [fractl.util :as u]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            [fractl.datafmt.transit :as t]))
 
 (defn- get-spec-val [k spec]
   (let [v (get spec k :not-found)]
@@ -74,7 +76,7 @@
            (li/literal? v)
            (exp-object? v))))
 
-(declare introspect-attrs)
+(declare introspect introspect-attrs)
 
 (defn upsert
   ([spec]
@@ -177,6 +179,12 @@
        recname formatted-attrs
        (alias-name pattern)))))
 
+(defn- introspect-attrs [attrs]
+  (let [rs (mapv (fn [[k v]]
+                   [k (introspect v)])
+                 attrs)]
+    (into {} rs)))
+
 (defn introspect [pattern]
   (cond
     (syntax-object? pattern) pattern
@@ -191,11 +199,11 @@
       :else pattern)
     :else pattern))
 
-(defn- introspect-attrs [attrs]
-  (let [rs (mapv (fn [[k v]]
-                   [k (introspect v)])
-                 attrs)]
-    (into {} rs)))
+(defn introspect-json [s]
+  (introspect
+   (json/parse-string s true)))
+
+(def introspect-transit (comp introspect t/decode))
 
 (defn raw
   "Consume an intermediate representation object,
@@ -208,3 +216,8 @@
       :query (raw-query ir)
       (u/throw-ex (str "invalid syntax-object tag - " (tag ir))))
     ir))
+
+(defn raw-json [ir]
+  (json/generate-string (raw ir)))
+
+(def raw-transit (comp t/encode raw))
