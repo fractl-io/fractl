@@ -374,11 +374,8 @@
               base-type " in " wt))))
     wt))
 
-(defn- normalize-from-pattern [pat]
-  (dissoc pat :from :as))
-
 (defn- from-pattern-typename [pat]
-  (first (keys (normalize-from-pattern pat))))
+  (first (keys (li/normalize-upsert-pattern pat))))
 
 (defn- from-pattern? [pat]
   (and (:from pat)
@@ -397,7 +394,7 @@
         (ctx/add-alias! ctx inst-alias))
       (op/instance-from
        [(li/split-path (ctx/dynamic-type ctx typ))
-        (let [np (normalize-from-pattern pat)]
+        (let [np (li/normalize-upsert-pattern pat)]
           (when-let [p (seq (first (vals np)))]
             (ctx/build-partial-instance! ctx)
             (let [cp (compile-pattern ctx np)]

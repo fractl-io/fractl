@@ -360,6 +360,9 @@
 (defn query-pattern? [a]
   (and (keyword? a) (string/ends-with? (name a) "?")))
 
+(defn name-as-query-pattern [n]
+  (keyword (str (subs (str n) 1) "?")))
+
 (defn query-target-name [q]
   (keyword (let [s (subs (str q) 1)] (subs s 0 (dec (count s))))))
 
@@ -437,3 +440,6 @@
 (defn keyword-type? [x]
   (or (= x :Kernel/Keyword)
       (= x :Kernel/Path)))
+
+(defn normalize-upsert-pattern [pat]
+  (dissoc pat :from :as))
