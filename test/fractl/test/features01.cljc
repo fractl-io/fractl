@@ -448,10 +448,10 @@
         p (dissoc pat02 :alias)]
     (is (ls/syntax-object? es02))
     (is (= (ls/tag es02) :query))
-    (is (= (ls/record es02) :Acme/Employee))
+    (is (= (ls/record es02) :Acme/Employee?))
     (is (= (ls/query-pattern es02) where))
     (is (= (ls/alias-name es02) :R))
-    (is (= :Acme/Employee (first (keys p))))
-    (is (= where (:Acme/Employee p)))
+    (is (= :Acme/Employee? (first (keys p))))
+    (is (= where (:Acme/Employee? p)))
     (is (= :R (:alias pat02)))
     (is (= es02 (ls/introspect pat02)))))

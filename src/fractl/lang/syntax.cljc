@@ -115,6 +115,19 @@
     (some li/query-pattern? (keys attrs))
     (:where (query-pattern obj))))
 
+(defn- normalize-query-attrs [attrs]
+  (cond
+    (or (attributes attrs) (query-pattern attrs))
+    attrs
+
+    (:where attrs) {query-pattern attrs}
+    :else {attributes attrs}))
+
+(defn- query-record-name [recname]
+  (if (li/query-pattern? recname)
+    recname
+    (li/name-as-query-pattern recname)))
+
 (defn query
   ([spec]
    (let [cnt (count spec)]
@@ -131,21 +144,24 @@
         {query-pattern query-pat})
       (alias-name spec))))
   ([recname attrs-or-query-pat rec-alias]
-   (when-not (or (li/query-pattern? recname)
-                 (query-attrs? attrs-or-query-pat))
-     (u/throw-ex
-      (str "not a valid query pattern - " {recname attrs-or-query-pat})))
-   (when (and rec-alias (not (li/name? rec-alias)))
-     (u/throw-ex (str "invalid alias - " rec-alias)))
-   (merge
-    {tag :query
-     syntax-object-tag true
-     record recname}
-    (if-let [attrs (attributes attrs-or-query-pat)]
-      {attributes (introspect-attrs attrs)}
-      attrs-or-query-pat)
-    (when rec-alias
-      {alias-name rec-alias}))))
+   (let [attrs-or-query-pat (normalize-query-attrs attrs-or-query-pat)]
+     (when-not (or (li/query-pattern? recname)
+                   (query-attrs? attrs-or-query-pat))
+       (u/throw-ex
+        (str "not a valid query pattern - " {recname attrs-or-query-pat})))
+     (when (and rec-alias (not (li/name? rec-alias)))
+       (u/throw-ex (str "invalid alias - " rec-alias)))
+     (merge
+      {tag :query
+       syntax-object-tag true
+       record (if (query-pattern attrs-or-query-pat)
+                (query-record-name recname)
+                recname)}
+      (if-let [attrs (attributes attrs-or-query-pat)]
+        {attributes (introspect-attrs attrs)}
+        attrs-or-query-pat)
+      (when rec-alias
+        {alias-name rec-alias})))))
 
 (defn- raw-query [ir]
   (let [obj (or (attributes ir)
