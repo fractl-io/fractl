@@ -2,7 +2,7 @@
   (:require [clojure.tools.cli :refer [parse-opts]]
             [clojure.java.io :as io]
             [clojure.string :as s]
-            [cheshire.core :as json]
+            [fractl.datafmt.json :as json]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
@@ -293,7 +293,7 @@
   (if (:params request)
     request
     (let [inst (if-let [b (:body request)]
-                 (json/parse-string b true)
+                 (json/decode b)
                  request)
           [c n] (li/split-path (first (keys inst)))]
       (assoc request :body inst :params {:component c :event n}))))
@@ -301,7 +301,7 @@
 (defn- normalize-external-request [request]
   (attach-params
    (if (string? request)
-     (json/parse-string request true)
+     (json/decode request)
      (su/keys-as-keywords request))))
 
 (defn process_request [evaluator request]
@@ -315,7 +315,7 @@
                   (first (init-runtime model components config)))))
         parsed-request (normalize-external-request request)
         auth (h/make-auth-handler (first @resource-cache))]
-    [(json/generate-string (h/process-request e auth parsed-request)) e]))
+    [(json/encode (h/process-request e auth parsed-request)) e]))
 
 (defn -process_request [a b]
   (process_request a b))
