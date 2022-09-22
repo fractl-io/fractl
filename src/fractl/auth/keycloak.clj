@@ -3,9 +3,9 @@
             [keycloak.backend :as kb]
             [keycloak.user :as ku]
             [keycloak.authn :as ka]
-            [cheshire.core :as json]
             [org.httpkit.client :as http]
             [fractl.component :as cn]
+            [fractl.datafmt.json :as json]
             [fractl.util :as u]
             [fractl.util.auth :as au]
             [fractl.auth.jwt :as jwt]
@@ -64,7 +64,7 @@
             {:form-params (client-credentials client-id username password)
              :headers {"Content-Type" "application/x-www-form-urlencoded"}})]
     {:status (:status r)
-     :body (json/parse-string (:body r) true)}))
+     :body (json/decode (:body r))}))
 
 (defmethod i/user-login tag [{url :auth-server-url
                               realm :user-realm

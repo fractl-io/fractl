@@ -1,9 +1,9 @@
 (ns fractl.util
   (:require [clojure.string :as string]
-            [clojure.pprint :as pp])
+            [clojure.pprint :as pp]
+            [fractl.datafmt.json :as json])
   #?(:clj
-     (:require [net.cgrand.macrovich :as macros]
-               [cheshire.core :as json])
+     (:require [net.cgrand.macrovich :as macros])
      :cljs
      (:require-macros [net.cgrand.macrovich :as macros]
                       [fractl.util :refer [passthru]])))
@@ -236,8 +236,7 @@
 (defn objects-as-string [xs]
   (mapv #(cond
            (and (seqable? %) (not (string? %)))
-           #?(:clj (json/generate-string %)
-              :cljs (str %))
+           (json/encode %)
 
            (or (keyword? %) (symbol? %))
            (str %)

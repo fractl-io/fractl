@@ -1,8 +1,8 @@
 (ns fractl.lang.syntax
-  (:require [cheshire.core :as json]
-            [clojure.walk :as w]
+  (:require [clojure.walk :as w]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
+            [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]))
 
 (defn- get-spec-val [k spec]
@@ -286,10 +286,7 @@
       :else pattern)
     :else pattern))
 
-(defn introspect-json [s]
-  (introspect
-   (json/parse-string s true)))
-
+(def introspect-json (comp introspect json/decode))
 (def introspect-transit (comp introspect t/decode))
 
 (defn raw
@@ -304,7 +301,5 @@
       (u/throw-ex (str "invalid syntax-object tag - " (tag ir))))
     ir))
 
-(defn raw-json [ir]
-  (json/generate-string (raw ir)))
-
+(def raw-json (comp json/encode raw))
 (def raw-transit (comp t/encode raw))
