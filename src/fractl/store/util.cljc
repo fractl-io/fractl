@@ -1,6 +1,5 @@
 (ns fractl.store.util
-  (:require #?(:clj [cheshire.core :as json])
-            [clojure.set :as set]
+  (:require [clojure.set :as set]
             [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
@@ -149,11 +148,6 @@
 
 (defn results-as-instances [entity-name results]
   (mapv (partial result-as-instance entity-name) results))
-
-(defn clj->json
-  [data]
-  #?(:clj (json/generate-string data)
-     :cljs (.stringify js/JSON (clj->js data))))
 
 (def compiled-query :compiled-query)
 (def raw-query :raw-query)

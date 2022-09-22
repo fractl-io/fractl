@@ -1,5 +1,5 @@
 (ns fractl.auth.jwt
-  (:require [cheshire.core :as json])
+  (:require [fractl.datafmt.json :as json])
   #?(:clj (:import [org.jose4j.jwt JwtClaims]
                    [org.jose4j.jwt.consumer JwtConsumer JwtConsumerBuilder])))
 
@@ -11,4 +11,4 @@
                                      (.setSkipSignatureVerification)
                                      (.build))
            ^JwtClaims claims (.processToClaims consumer token)]
-       (json/parse-string (.getRawJson claims) true))))
+       (json/decode (.getRawJson claims)))))
