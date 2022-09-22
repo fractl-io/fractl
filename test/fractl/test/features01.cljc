@@ -426,13 +426,13 @@
 (deftest issue-636-syntax-query
   (let [attrs {:id? "abc123"
                :Age 23}
-        es01 (ls/query {:record :Acme/Person
-                        :attrs attrs
-                        :alias :P})
+        es01 (ls/query-upsert {:record :Acme/Person
+                               :attrs attrs
+                               :alias :P})
         pat01 (ls/raw es01)
         p (dissoc pat01 :alias)]
     (is (ls/syntax-object? es01))
-    (is (= (ls/tag es01) :query))
+    (is (= (ls/tag es01) :query-upsert))
     (is (= (ls/record es01) :Acme/Person))
     (is (= (ls/attributes es01) attrs))
     (is (= (ls/alias-name es01) :P))
@@ -441,13 +441,13 @@
     (is (= attrs (:Acme/Person p)))
     (is (= (ls/introspect pat01) es01)))
   (let [where {:where [:or [:>= :Age 20] [:= :Salary 1000]]}
-        es02 (ls/query {:record :Acme/Employee
-                        :query where
-                        :alias :R})
+        es02 (ls/query-upsert {:record :Acme/Employee
+                               :query where
+                               :alias :R})
         pat02 (ls/raw es02)
         p (dissoc pat02 :alias)]
     (is (ls/syntax-object? es02))
-    (is (= (ls/tag es02) :query))
+    (is (= (ls/tag es02) :query-upsert))
     (is (= (ls/record es02) :Acme/Employee?))
     (is (= (ls/query-pattern es02) where))
     (is (= (ls/alias-name es02) :R))
