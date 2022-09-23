@@ -17,7 +17,7 @@
 (def exp-args-tag :args)
 (def record-tag :record)
 (def attrs-tag :attrs)
-(def query-pattern-tag :query)
+(def query-tag :query)
 (def alias-tag :alias)
 (def value-tag :value)
 (def cases-tag :cases)
@@ -25,7 +25,7 @@
 (def check-tag :check)
 
 (def attributes attrs-tag)
-(def query-pattern query-pattern-tag)
+(def query-pattern query-tag)
 
 (def ^:private $fn (partial get-spec-val exp-fn-tag))
 (def ^:private $args (partial get-spec-val exp-args-tag))
@@ -35,7 +35,7 @@
 (def ^:private $value (partial get-spec-val value-tag))
 (def ^:private $cases (partial get-spec-val cases-tag))
 (def ^:private $body (partial get-spec-val body-tag))
-(def ^:private $query (partial get-spec-val query-pattern-tag))
+(def ^:private $query (partial get-spec-val query-tag))
 
 (defn as-syntax-object [t obj]
   (assoc obj type-tag t syntax-object-tag true))
@@ -296,9 +296,6 @@
   (or (map? x) (li/name? x)))
 
 (defn for-each
-  "{:header <introspectable-pattern>
-    :body <introspectable-pattern>
-    :alias alias?}"
   ([spec]
    (for-each ($value spec) ($body spec) (alias-tag spec)))
   ([valpat body val-alias]
@@ -341,9 +338,6 @@
         cases))
 
 (defn _try
-  "{:body <introspectable-pattern>
-    :cases <same-as-match-cases>
-    :alias alias?}"
   ([spec]
    (_try ($body spec) ($cases spec) (alias-tag spec)))
   ([body cases val-alias]
@@ -372,9 +366,6 @@
      ~@(apply concat (mapv (fn [[k v]] [k (raw-walk v)]) ($cases ir)))]))
 
 (defn delete
-  "{:record name?
-    :attrs map-of-names
-    :alias alias?}"
   ([spec]
    (delete ($record spec) ($attrs spec) (alias-tag spec)))
   ([recname attrs result-alias]
@@ -403,8 +394,6 @@
     (raw-walk ($attrs ir))]))
 
 (defn query
-  "{:query name-or-where-query-pattern
-    :alias alias?}"
   ([spec]
    (query ($query spec) (alias-tag spec)))
   ([query-pat result-alias]
@@ -413,10 +402,14 @@
    (validate-alias! result-alias)
    (as-syntax-object
     :query
-    {query-pattern-tag (if (map? query-pat)
-                         (let [recname (first (keys query-pat))]
-                           (query-upsert recname (recname query-pat) nil))
-                         query-pat)
+    {query-tag
+     (cond
+       (query-upsert? query-pat) query-pat
+       (map? query-pat)
+       (let [recname (first (keys query-pat))]
+         (query-upsert recname (recname query-pat) nil))
+       :else
+       query-pat)
      alias-tag result-alias})))
 
 (def query? (partial has-type? :query))
@@ -431,9 +424,6 @@
     (raw-walk ($query ir))]))
 
 (defn _eval
-  "{:fn syntax-object-exp
-    :check name?
-    :alias alias?}"
   ([spec]
    (_eval ($fn spec) (check-tag spec) (alias-tag spec)))
   ([exp-fn check result-alias]

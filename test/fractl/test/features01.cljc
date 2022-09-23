@@ -442,7 +442,7 @@
     (is (= (ls/introspect pat01) es01)))
   (let [where {:where [:or [:>= :Age 20] [:= :Salary 1000]]}
         es02 (ls/query-upsert {ls/record-tag :Acme/Employee
-                               ls/query-pattern-tag where
+                               ls/query-tag where
                                ls/alias-tag :R})
         pat02 (ls/raw es02)
         p (dissoc pat02 :alias)]
@@ -456,7 +456,7 @@
     (is (= :R (:alias pat02)))
     (is (= es02 (ls/introspect pat02)))))
 
-(deftest issue-637-special-forms-1
+(deftest issue-637-match-for-each
   (let [m (ls/match {ls/value-tag :A.X
                      ls/cases-tag [[1 :B] [2 {:C {:X 100}}] [{:D {:Y 20}}]]
                      ls/alias-tag :R})]
@@ -484,7 +484,7 @@
                 :as :R]))
       (is (= fe (ls/introspect r))))))
 
-(deftest issue-637-special-forms-2
+(deftest issue-637-try
   (let [t (ls/_try {ls/body-tag {:E {:X? :Find.X}}
                     ls/cases-tag [[:ok {:R {:Y true}}]
                                   [[:error :not-found]
@@ -504,3 +504,26 @@
                 [:error :not-found] {:R {:Y false}}
                 :as :K]))
       (is (= t (ls/introspect r))))))
+
+(deftest issue-637-query
+  (let [p (ls/query-upsert {ls/record-tag :E?
+                            ls/query-tag {:where [:>= :X 20]
+                                          :order-by [:Y]}})
+        q (ls/query {ls/query-tag p ls/alias-tag :R})]
+    (is (ls/query? q))
+    (is (= p (ls/query-tag q)))
+    (is (= :R (ls/alias-tag q)))
+    (let [r (ls/raw q)]
+      (is (= r [:query
+                {:E? {:where [:>= :X 20] :order-by [:Y]}}
+                :as :R]))
+      (is (= q (ls/introspect r))))))
+
+(deftest issue-637-delete
+  #_[:delete :QIdDel/E {cn/id-attr :QIdDel/FindByIdAndDel.EId}]
+  )
+
+(deftest issue-637-eval
+  #_[:eval '(fractl.test.fixes03/i585-f1 :I585/E)
+     :check :I585/R :as :Result]
+  )
