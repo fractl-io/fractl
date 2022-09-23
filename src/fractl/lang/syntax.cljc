@@ -15,6 +15,7 @@
 (def type-tag :type)
 (def exp-fn-tag :fn)
 (def exp-args-tag :args)
+(def exp-tag :exp)
 (def record-tag :record)
 (def attrs-tag :attrs)
 (def query-tag :query)
@@ -29,6 +30,7 @@
 
 (def ^:private $fn (partial get-spec-val exp-fn-tag))
 (def ^:private $args (partial get-spec-val exp-args-tag))
+(def ^:private $exp (partial get-spec-val exp-tag))
 (def ^:private $type (partial get-spec-val type-tag))
 (def ^:private $record (partial get-spec-val record-tag))
 (def ^:private $attrs (partial get-spec-val attrs-tag))
@@ -425,14 +427,14 @@
 
 (defn _eval
   ([spec]
-   (_eval ($fn spec) (check-tag spec) (alias-tag spec)))
-  ([exp-fn check result-alias]
+   (_eval ($exp spec) (check-tag spec) (alias-tag spec)))
+  ([exp check result-alias]
    (when-not (li/name? check)
      (u/throw-ex (str "invalid value for check - " check)))
    (validate-alias! result-alias)
    (as-syntax-object
     :eval
-    {exp-fn-tag (introspect exp-fn)
+    {exp-tag (introspect exp)
      check-tag check
      alias-tag result-alias})))
 
@@ -442,7 +444,7 @@
 
 (defn- introspect-eval [obj]
   (_eval (second obj)
-         (second (take-while not-check obj))
+         (second (drop-while not-check obj))
          (special-form-alias obj)))
 
 (defn- raw-eval [ir]
@@ -450,7 +452,7 @@
    ir
    (vec
     (concat
-     [:eval (raw ($fn ir))]
+     [:eval (raw ($exp ir))]
      (when-let [c (check-tag ir)]
        [:check c])))))
 

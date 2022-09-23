@@ -520,10 +520,27 @@
       (is (= q (ls/introspect r))))))
 
 (deftest issue-637-delete
-  #_[:delete :QIdDel/E {cn/id-attr :QIdDel/FindByIdAndDel.EId}]
-  )
+  (let [d (ls/delete {ls/record-tag :E
+                      ls/attrs-tag {:id :Find:E}
+                      ls/alias-tag :R})
+        r (ls/raw d)]
+    (is (ls/delete? d))
+    (is (= :R (ls/alias-tag d)))
+    (is (= r [:delete :E {:id :Find:E} :as :R]))
+    (is (= d (ls/introspect r)))))
 
 (deftest issue-637-eval
   #_[:eval '(fractl.test.fixes03/i585-f1 :I585/E)
      :check :I585/R :as :Result]
-  )
+  (let [f (ls/introspect '(f :E))
+        e (ls/_eval {ls/exp-tag f
+                     ls/check-tag :K
+                     ls/alias-tag :R})]
+    (is (ls/eval? e))
+    (is (ls/exp? (ls/exp-tag e)))
+    (is (= f (ls/exp-tag e)))
+    (is (= :K (ls/check-tag e)))
+    (is (= :R (ls/alias-tag e)))
+    (let [r (ls/raw e)]
+      (is (= r [:eval '(quote (f :E)) :check :K :as :R]))
+      (is (= e (ls/introspect r))))))
