@@ -361,7 +361,7 @@
 (defn- introspect-try [obj]
   (let [exps (rest obj)]
     (_try (first exps)
-          (partition-all (upto-alias (rest exps)))
+          (partition-all 2 (upto-alias (rest exps)))
           (special-form-alias (rest exps)))))
 
 (defn- raw-try [ir]
@@ -369,7 +369,7 @@
    ir
    `[:try
      ~(raw-walk ($body ir))
-     ~@(flatten (mapv (fn [[k v]] [k (raw-walk v)]) ($cases ir)))]))
+     ~@(apply concat (mapv (fn [[k v]] [k (raw-walk v)]) ($cases ir)))]))
 
 (defn delete
   "{:record name?

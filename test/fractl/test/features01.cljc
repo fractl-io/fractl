@@ -483,3 +483,24 @@
                 {:Acme/R {:A :Acme/E.X}}
                 :as :R]))
       (is (= fe (ls/introspect r))))))
+
+(deftest issue-637-special-forms-2
+  (let [t (ls/_try {ls/body-tag {:E {:X? :Find.X}}
+                    ls/cases-tag [[:ok {:R {:Y true}}]
+                                  [[:error :not-found]
+                                   {:R {:Y false}}]]
+                    ls/alias-tag :K})
+        cases (ls/cases-tag t)]
+    (is (ls/try? t))
+    (is (ls/query-upsert? (ls/body-tag t)))
+    (is (= :ok (ffirst cases)))
+    (is (ls/upsert? (second (first cases))))
+    (is (= [:error :not-found] (first (second cases))))
+    (is (ls/upsert? (second (second cases))))
+    (is (= :K (ls/alias-tag t)))
+    (let [r (ls/raw t)]
+      (is (= r [:try {:E {:X? :Find.X}}
+                :ok {:R {:Y true}}
+                [:error :not-found] {:R {:Y false}}
+                :as :K]))
+      (is (= t (ls/introspect r))))))
