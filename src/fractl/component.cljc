@@ -161,8 +161,9 @@
           (recur (assoc containers p rec-name) (rest contains))))
       (assoc components containers-key containers))))
 
-(defn- intern-meta [components rec-name meta]
-  (let [cs (if-let [cnts (mt/contains meta)]
+(defn- intern-meta [typtag components rec-name meta]
+  (let [cs (if-let [cnts (and (not (:relationship meta))
+                              (mt/contains meta))]
              (intern-contains components rec-name cnts)
              components)]
     (assoc-in cs (conj-meta-key rec-name) meta)))
@@ -184,7 +185,7 @@
      (u/call-and-set
       components
       #(assoc-in (if meta
-                   (intern-meta @components k meta)
+                   (intern-meta typtag @components k meta)
                    @components)
                  intern-k typdef))
      typname))
@@ -195,8 +196,12 @@
   (let [containers (get @components containers-key)]
     (get containers (li/split-path rec-name))))
 
-(defn- component-find [path]
-  (get-in @components path))
+(defn- component-find
+  ([path]
+   (get-in @components path))
+  ([typetag recname]
+   (let [[c n] (li/split-path recname)]
+     (component-find [c typetag n]))))
 
 (defn component-resolvers [component]
   (component-find [component :resolvers :component-level]))
@@ -245,6 +250,16 @@
 (def intern-event (partial intern-record :event))
 (def intern-relationship (partial intern-record :relationship))
 
+(defn find-relationships [recname]
+  (or (component-find :entity-relationship recname) #{}))
+
+(defn- intern-entity-rel [relationship-name recname]
+  (let [rels (find-relationships recname)]
+    (component-intern recname (conj rels relationship-name) :entity-relationship)))
+
+(defn register-relationship [recs-in-relationship relationship-name]
+  (mapv (partial intern-entity-rel relationship-name) recs-in-relationship))
+
 (defn find-attribute-schema
   "Find and return an attribute schema by the given path.
   Path should be in one of the following forms:
@@ -265,14 +280,7 @@
 (defn all-attributes [component]
   (component-find [component :attributes]))
 
-(defn find-record-schema
-  "Find and return an record schema by the given path.
-   Path should be of the form - :ComponentName/RecordName.
-   If the lookup succeeds, return the record schema as a map.
-   Return `nil` on lookup failure."
-  [path]
-  (let [[component recname] (li/split-path path)]
-    (component-find [component :records recname])))
+(def find-record-schema (partial component-find :records))
 
 (defn- find-record-schema-by-type [typ path]
   (when-let [scm (find-record-schema path)]
@@ -1028,9 +1036,8 @@
 (defn dataflows-for-event
   "Return all dataflows attached to the event."
   [event]
-  (let [[component ename] (li/split-path (event-name event))
-        path [component :events ename]]
-    (filter-by-conditional-events event (component-find path))))
+  (let [evts (component-find :events (event-name event))]
+    (filter-by-conditional-events event evts)))
 
 (defn evalable-dataflow [[k dfspec :as df]]
   [k (dataflow-patterns df)])

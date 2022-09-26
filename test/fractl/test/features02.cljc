@@ -29,7 +29,10 @@
                   :indexed true}}))
   (let [rscm (cn/fetch-schema :I59401/WorksFor)
         r1 (:ref (cn/find-attribute-schema (:Dept rscm)))
-        r2 (:ref (cn/find-attribute-schema (:Employee rscm)))]
+        r2 (:ref (cn/find-attribute-schema (:Employee rscm)))
+        rels #{:I59401/WorksFor}]
+    (is (= rels (cn/find-relationships :I59401/Dept)))
+    (is (= rels (cn/find-relationships :I59401/Employee)))
     (is (and (= (:component r1) :I59401)
              (= (:record r1) :Dept)
              (= (first (:refs r1)) :No)))

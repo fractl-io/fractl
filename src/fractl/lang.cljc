@@ -690,17 +690,19 @@
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
-         contains (:contains meta)
-         between (when-not contains (:between meta))]
-     (when-not (or contains between)
+         elems (or (:contains meta)
+                   (:between meta))]
+     (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
-     (let [attrs (assoc-relationship-attributes attrs (or contains between))]
-       (serializable-entity
-        relation-name
-        (assoc
-         attrs
-         :meta (assoc meta :relationship true))))))
+     (let [attrs (assoc-relationship-attributes attrs elems)
+           r (serializable-entity
+              relation-name
+              (assoc
+               attrs
+               :meta (assoc meta :relationship true)))]
+       (when (cn/register-relationship elems relation-name)
+         r))))
   ([schema]
    (parse-and-define serializable-entity schema)))
 
