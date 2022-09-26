@@ -220,7 +220,7 @@
    (make-path component obj-name)))
 
 (defn make-ref [recname attrname]
-  (keyword (str (name recname) "." (name attrname))))
+  (keyword (str (subs (str recname) 1) "." (name attrname))))
 
 (defn has-modpath? [path]
   (some #{\/} (str path)))

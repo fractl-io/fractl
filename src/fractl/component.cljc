@@ -438,12 +438,19 @@
 
 (defn identity-attribute-names
   "Return the name of any one of the identity attributes of the given entity."
-  [type-name]
-  (let [scm (find-entity-schema type-name)]
-    (identity-attributes (:schema scm))))
+  [type-name-or-scm]
+  (let [scm (if (map? type-name-or-scm)
+              type-name-or-scm
+              (fetch-entity-schema type-name-or-scm))]
+    (identity-attributes scm)))
 
-(defn identity-attribute-name [type-name]
-  (first (identity-attribute-names type-name)))
+(defn identity-attribute-name [type-name-or-scm]
+  (first (identity-attribute-names type-name-or-scm)))
+
+(defn ensure-identity-attribute-name [type-name-or-scm]
+  (if-let [id (identity-attribute-name type-name-or-scm)]
+    id
+    (u/throw-ex (str "no identity attribute for - " type-name-or-scm))))
 
 (defn same-id? [a b]
   (= (str (id-attr a)) (str (id-attr b))))
@@ -679,6 +686,11 @@
   (if-let [rec (find-record-schema recname)]
     (:schema rec)
     (throw-error (str "schema not found for " recname))))
+
+(defn ensure-entity-schema [recname]
+  (if-let [scm (fetch-entity-schema recname)]
+    scm
+    (throw-error (str "schema not found for entity - " recname))))
 
 (defn validate-record-attributes
   ([recname recattrs schema]
