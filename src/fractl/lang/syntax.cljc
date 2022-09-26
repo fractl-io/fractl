@@ -53,6 +53,10 @@
 (defn- valid-arg? [x]
   (or (li/name? x) (li/literal? x)))
 
+(defn- invalid-arg [x]
+  (when-not (valid-arg? x)
+    x))
+
 (defn- maybe-alias? [x]
   (if-not x
     true
@@ -61,6 +65,17 @@
 (defn- validate-alias! [x]
   (when-not (maybe-alias? x)
     (u/throw-ex (str "invalid alias - " x))))
+
+(defn- mark [x]
+  ['--> x '<--])
+
+(defn- mark-exp-error [fnname args mark-at]
+  (loop [exp `(~fnname ~@args), result []]
+    (if-let [x (first exp)]
+      (if (= x mark-at)
+        (concat result [(mark x)] (rest exp))
+        (recur (rest exp) (conj result x)))
+      (seq result))))
 
 (defn exp
   "Return the intermediate representation (ir)
@@ -74,9 +89,15 @@
    (exp ($fn spec) ($args spec)))
   ([fnname args]
    (when-not (symbol? fnname)
-     (u/throw-ex (str "fn-name must be a symbol - " fnname)))
-   (when-not (every? valid-arg? args)
-     (u/throw-ex (str "invalid argument in " args)))
+     (u/throw-ex
+      (str
+       "fn-name must be a symbol - "
+       (mark-exp-error fnname args fnname))))
+   (when-let [invarg (some invalid-arg args)]
+     (u/throw-ex
+      (str
+       "invalid argument in "
+       (mark-exp-error args))))
    (as-syntax-object
     :exp
     {exp-fn-tag fnname
@@ -104,6 +125,19 @@
            (li/literal? v)
            (exp? v))))
 
+(defn- query-attr-name [n]
+  (when (li/query-pattern? n)
+    n))
+
+(defn- mark-attr-name [attrs name-to-mark]
+  (let [rs (mapv (fn [[k v]]
+                   [(if (= k name-to-mark)
+                      (mark k)
+                      k)
+                    v])
+                 attrs)]
+    (into {} rs)))
+
 (declare introspect introspect-attrs)
 
 (defn upsert
@@ -119,8 +153,10 @@
      (u/throw-ex (str "looks like a query-only pattern - " recname)))
    (when-not (and (map? rec-attrs) (every? valid-attr-spec? rec-attrs))
      (u/throw-ex (str "invalid attribute spec - " rec-attrs)))
-   (when (some li/query-pattern? (keys rec-attrs))
-     (u/throw-ex (str "query attributes cannot be specified in upsert - " rec-attrs)))
+   (when-let [aname (some query-attr-name (keys rec-attrs))]
+     (u/throw-ex
+      (str "query attributes cannot be specified in upsert - "
+           (mark-attr-name rec-attrs aname))))
    (validate-alias! rec-alias)
    (as-syntax-object
     :upsert
