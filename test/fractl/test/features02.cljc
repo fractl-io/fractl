@@ -26,13 +26,18 @@
      {:meta
       {:contains [:I59401/Dept :I59401/Employee]}
       :StartDate {:type :Kernel/DateTime
-                  :indexed true}}))
+                  :indexed true}})
+    (relationship
+     :I59401/Spouse
+     {:meta
+      {:between [:I59401/Employee :I59401/Employee]}}))
   (let [rscm (cn/fetch-schema :I59401/WorksFor)
         r1 (:ref (cn/find-attribute-schema (:Dept rscm)))
         r2 (:ref (cn/find-attribute-schema (:Employee rscm)))
         rels #{:I59401/WorksFor}]
     (is (= rels (cn/find-relationships :I59401/Dept)))
-    (is (= rels (cn/find-relationships :I59401/Employee)))
+    (is (= (conj rels :I59401/Spouse)
+           (cn/find-relationships :I59401/Employee)))
     (is (and (= (:component r1) :I59401)
              (= (:record r1) :Dept)
              (= (first (:refs r1)) :No)))

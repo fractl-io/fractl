@@ -674,28 +674,31 @@
   ([attr-spec]
    (normalize-relation-attribute attr-spec nil)))
 
-(defn- assoc-relationship-attributes [attrs [rec-a rec-b :as recs]]
+(defn- assoc-relationship-attributes [attrs is-contains [rec-a rec-b :as recs]]
   (when-not (or (li/name? rec-a) (li/name? rec-b))
     (u/throw-ex (str "invalid relationship elements - " recs)))
   (let [scm-a (cn/ensure-entity-schema rec-a)
-        scm-b (cn/ensure-entity-schema rec-b)
+        scm-b (when-not (= rec-a rec-b) (cn/ensure-entity-schema rec-b))
         ida (cn/ensure-identity-attribute-name scm-a)
-        idb (cn/ensure-identity-attribute-name scm-b)
+        idb (if scm-b (cn/ensure-identity-attribute-name scm-b) ida)
         [_ a] (li/split-path rec-a)
         [_ b] (li/split-path rec-b)
-        id-attrs {a {:ref (li/make-ref rec-a ida)}
-                  b {:ref (li/make-ref rec-b idb)}}]
+        [a1 b1] (if (= a b)
+                  [(u/keyword-append a 1) (u/keyword-append b 2)]
+                  [a b])
+        id-attrs {a1 {:ref (li/make-ref rec-a ida)}
+                  b1 {:ref (li/make-ref rec-b idb)}}]
     (merge attrs id-attrs)))
 
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
-         elems (or (:contains meta)
-                   (:between meta))]
+         contains (:contains meta)
+         elems (or contains (:between meta))]
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
-     (let [attrs (assoc-relationship-attributes attrs elems)
+     (let [attrs (assoc-relationship-attributes attrs contains elems)
            r (serializable-entity
               relation-name
               (assoc
