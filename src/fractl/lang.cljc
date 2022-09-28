@@ -4,6 +4,7 @@
             [clojure.string :as s]
             [clojure.walk :as w]
             [fractl.util :as u]
+            [fractl.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
             [fractl.component :as cn]
@@ -681,20 +682,16 @@
         scm-b (when-not (= rec-a rec-b) (cn/ensure-entity-schema rec-b))
         ida (cn/ensure-identity-attribute-name scm-a)
         idb (if scm-b (cn/ensure-identity-attribute-name scm-b) ida)
-        [_ a] (li/split-path rec-a)
-        [_ b] (li/split-path rec-b)
-        [a1 b1] (if (= a b)
-                  [(u/keyword-append a 1) (u/keyword-append b 2)]
-                  [a b])
-        id-attrs {a1 {:ref (li/make-ref rec-a ida)}
-                  b1 {:ref (li/make-ref rec-b idb)}}]
+        [a b] (cn/relationship-attribute-names rec-a rec-b)
+        id-attrs {a {:ref (li/make-ref rec-a ida)}
+                  b {:ref (li/make-ref rec-b idb)}}]
     (merge attrs id-attrs)))
 
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
-         contains (:contains meta)
-         elems (or contains (:between meta))]
+         contains (mt/contains meta)
+         elems (or contains (mt/between meta))]
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))

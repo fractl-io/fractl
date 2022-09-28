@@ -404,13 +404,17 @@
         opcode inst-alias]))))
 
 (defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
-  (let [n (first pat)]
+  (let [rel (first pat)
+        is-obj (map? rel)
+        n (if is-obj
+            (first (keys rel))
+            rel)]
     (when-not (cn/fetch-relationship-schema n)
       (u/throw-ex (str "relationship " n " not found")))
     (when-not (some #{n} (cn/find-relationships recname))
       (u/throw-ex (str "relationship " n " not found for " recname)))
     (op/intern-relationship-instance
-     n intern-rec-opc
+     [rel n is-obj] intern-rec-opc
      (compile-pattern ctx (second pat)))))
 
 (declare compile-query-command)

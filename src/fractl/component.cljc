@@ -134,6 +134,11 @@
 (def ^:private type-tag-key :type-*-tag-*-)
 (def ^:private containers-key :-*-containers-*-)
 
+(def instance->map identity)
+(def instance-type-tag type-tag-key)
+(def schema-type-tag type-tag-key)
+(def instance-type type-key)
+
 (defn- conj-meta-key [path]
   (conj path mt/meta-key))
 
@@ -250,31 +255,6 @@
 (def intern-event (partial intern-record :event))
 (def intern-relationship intern-entity)
 
-(defn find-relationships [recname]
-  (or (component-find :entity-relationship recname) #{}))
-
-(defn- init-contains-relationship [rel-name [parent-type child-type]
-                                   child parent]
-  )
-
-(defn- init-between-relationship [rel-name [atype btype] a b]
-  )
-
-(defn init-relationship-instance [rel-name src-inst target-inst]
-  (let [meta (fetch-meta rel-name)
-        contains (mt/contains meta)
-        between (when-not contains (mt/between meta))]
-    (if contains
-      (init-contains-relationship rel-name contains src-inst target-inst)
-      (init-between-relationship rel-name between src-inst target-inst))))
-
-(defn- intern-entity-rel [relationship-name recname]
-  (let [rels (find-relationships recname)]
-    (component-intern recname (conj rels relationship-name) :entity-relationship)))
-
-(defn register-relationship [recs-in-relationship relationship-name]
-  (mapv (partial intern-entity-rel relationship-name) recs-in-relationship))
-
 (defn find-attribute-schema
   "Find and return an attribute schema by the given path.
   Path should be in one of the following forms:
@@ -331,11 +311,6 @@
 (defn make-record-instance [type-tag full-name attributes]
   (into {} (concat {type-tag-key type-tag
                     type-key full-name} attributes)))
-
-(def instance->map identity)
-(def instance-type-tag type-tag-key)
-(def schema-type-tag type-tag-key)
-(def instance-type type-key)
 
 (defn ensure-type-and-name [inst type-name type-tag]
   (assoc
@@ -1465,3 +1440,39 @@
    (let [{c :component r :record} (li/path-parts path)
          id (when (and c r) (identity-attribute-name [c r]))]
      (append-id path (or id id-attr)))))
+
+(defn find-relationships [recname]
+  (or (component-find :entity-relationship recname) #{}))
+
+(defn- intern-entity-rel [relationship-name recname]
+  (let [rels (find-relationships recname)]
+    (component-intern recname (conj rels relationship-name) :entity-relationship)))
+
+(defn register-relationship [recs-in-relationship relationship-name]
+  (mapv (partial intern-entity-rel relationship-name) recs-in-relationship))
+
+(defn relationship-attribute-names [rec-a rec-b]
+  (let [[_ a] (li/split-path rec-a)
+        [_ b] (li/split-path rec-b)]
+    (if (= a b)
+      [(u/keyword-append a 1) (u/keyword-append b 2)]
+      [a b])))
+
+(defn init-relationship-instance [rel-name rel-attrs src-inst target-inst]
+  (let [meta (fetch-meta rel-name)
+        contains (mt/contains meta)
+        between (when-not contains (mt/between meta))
+        srctype (instance-type src-inst)
+        types [srctype (instance-type target-inst)]
+        elems (or contains between)]
+    (when (not= (set elems) (set types))
+      (u/throw-ex (str "relationship elements expected - " elems ", found - " types)))
+    (let [[a1 a2] (apply relationship-attribute-names elems)
+          [e1 e2] (if (= srctype (first elems))
+                    [src-inst target-inst]
+                    [target-inst src-inst])
+          id1 ((identity-attribute-name (first elems)) e1)
+          id2 ((identity-attribute-name (second elems)) e2)]
+      (make-instance
+       rel-name
+       (merge rel-attrs {a1 id1 a2 id2})))))

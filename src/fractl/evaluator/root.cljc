@@ -803,7 +803,7 @@
        self env eval-opcode eval-event-dataflows
        record-name inst-alias validation-required upsert-required))
 
-    (do-intern-relationship-instance [self env [rel-name src-opcode target-opcode]]
+    (do-intern-relationship-instance [self env [[rel rel-name is-obj] src-opcode target-opcode]]
       (let [r1 (eval-opcode self env src-opcode)
             src (ok-result r1)]
         (if src
@@ -815,7 +815,8 @@
                self (env/push-obj
                      env rel-name
                      (cn/init-relationship-instance
-                      rel-name src target))
+                      rel-name (when is-obj (first (vals rel)))
+                      src target))
                eval-opcode eval-event-dataflows
                rel-name nil true true)
               r2))
