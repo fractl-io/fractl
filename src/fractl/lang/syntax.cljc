@@ -264,6 +264,12 @@
        recname formatted-attrs
        (alias-tag pattern)))))
 
+(def as-query-object (partial as-syntax-object :query-object))
+(def query-object? (partial has-type? :query-object))
+(def query-object (comp as-query-object query-upsert))
+(def raw-query-object raw-query-upsert)
+(def introspect-query-object (partial as-query-object introspect-query-upsert))
+
 (defn- verify-cases! [cs]
   (loop [cs cs]
     (when-let [[k v :as c] (first cs)]
@@ -445,10 +451,11 @@
     :query
     {query-tag
      (cond
+       (query-object? query-pat) query-pat
        (query-upsert? query-pat) query-pat
        (map? query-pat)
        (let [recname (first (keys query-pat))]
-         (query-upsert recname (recname query-pat) nil))
+         (query-object recname (recname query-pat) nil))
        :else
        query-pat)
      alias-tag result-alias})))
@@ -552,6 +559,7 @@
   {:exp raw-exp
    :upsert raw-upsert
    :query-upsert raw-query-upsert
+   :query-object raw-query-object
    :match raw-match
    :for-each raw-for-each
    :try raw-try

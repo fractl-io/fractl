@@ -506,7 +506,7 @@
       (is (= t (ls/introspect r))))))
 
 (deftest issue-637-query
-  (let [p (ls/query-upsert {ls/record-tag :E?
+  (let [p (ls/query-object {ls/record-tag :E?
                             ls/query-tag {:where [:>= :X 20]
                                           :order-by [:Y]}})
         q (ls/query {ls/query-tag p ls/alias-tag :R})]
