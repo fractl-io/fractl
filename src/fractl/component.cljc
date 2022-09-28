@@ -248,10 +248,25 @@
 
 (def intern-entity (partial intern-record :entity))
 (def intern-event (partial intern-record :event))
-(def intern-relationship (partial intern-record :relationship))
+(def intern-relationship intern-entity)
 
 (defn find-relationships [recname]
   (or (component-find :entity-relationship recname) #{}))
+
+(defn- init-contains-relationship [rel-name [parent-type child-type]
+                                   child parent]
+  )
+
+(defn- init-between-relationship [rel-name [atype btype] a b]
+  )
+
+(defn init-relationship-instance [rel-name src-inst target-inst]
+  (let [meta (fetch-meta rel-name)
+        contains (mt/contains meta)
+        between (when-not contains (mt/between meta))]
+    (if contains
+      (init-contains-relationship rel-name contains src-inst target-inst)
+      (init-between-relationship rel-name between src-inst target-inst))))
 
 (defn- intern-entity-rel [relationship-name recname]
   (let [rels (find-relationships recname)]
@@ -302,6 +317,11 @@
 
 (defn fetch-entity-schema [entity-name]
   (:schema (find-entity-schema entity-name)))
+
+(defn fetch-relationship-schema [rel-name]
+  (when-let [scm (fetch-entity-schema rel-name)]
+    (when (mt/relationship? (fetch-meta rel-name))
+      scm)))
 
 (defn find-object-schema [path]
   (or (find-entity-schema path)

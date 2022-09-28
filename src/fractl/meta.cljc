@@ -8,6 +8,8 @@
 (def delete-event :delete-event)
 (def order :order)
 (def contains :contains)
+(def between :between)
+(def relationship? :relationship)
 
 (def ^:private custom-parsers (atom {}))
 

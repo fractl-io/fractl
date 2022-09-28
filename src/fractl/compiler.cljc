@@ -9,6 +9,7 @@
             [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
+            [fractl.lang.syntax :as syn]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.env :as env]
@@ -402,6 +403,16 @@
               cp)))
         opcode inst-alias]))))
 
+(defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
+  (let [n (first pat)]
+    (when-not (cn/fetch-relationship-schema n)
+      (u/throw-ex (str "relationship " n " not found")))
+    (when-not (some #{n} (cn/find-relationships recname))
+      (u/throw-ex (str "relationship " n " not found for " recname)))
+    (op/intern-relationship-instance
+     n intern-rec-opc
+     (compile-pattern ctx (second pat)))))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -422,10 +433,11 @@
                [component record])
           attrs (li/instance-pattern-attrs pat)
           alias (:as pat)
-          timeout-ms (:timeout-ms pat)
+          timeout-ms (syn/timeout-ms-tag pat)
           [tag scm] (if (or path refs)
                       [:dynamic-upsert nil]
-                      (cv/find-schema nm full-nm))]
+                      (cv/find-schema nm full-nm))
+          relpat (syn/rel-tag pat)]
       (let [c (case tag
                 :entity emit-realize-entity-instance
                 :record emit-realize-record-instance
@@ -440,7 +452,9 @@
         (when alias
           (let [alias-name (ctx/alias-name alias)]
             (ctx/add-alias! ctx (or nm alias-name) alias)))
-        opc))
+        (if relpat
+          (compile-relationship-pattern ctx nm opc relpat)
+          opc)))
 
     :else
     (emit-realize-map-literal ctx pat)))
@@ -665,7 +679,7 @@
                qpat))]
       (when alias
         (ctx/add-alias! ctx recname alias))
-      (emit-delete (li/split-path recname) (merge q {:alias alias})))))
+      (emit-delete (li/split-path recname) (merge q {syn/alias-tag alias})))))
 
 (defn- compile-quoted-expression [ctx exp]
   (if (li/unquoted? exp)

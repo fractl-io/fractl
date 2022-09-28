@@ -803,6 +803,24 @@
        self env eval-opcode eval-event-dataflows
        record-name inst-alias validation-required upsert-required))
 
+    (do-intern-relationship-instance [self env [rel-name src-opcode target-opcode]]
+      (let [r1 (eval-opcode self env src-opcode)
+            src (ok-result r1)]
+        (if src
+          (let [r2 (eval-opcode self (:env r1) target-opcode)
+                target (ok-result r2)
+                env (:env r2)]
+            (if target
+              (intern-instance
+               self (env/push-obj
+                     env rel-name
+                     (cn/init-relationship-instance
+                      rel-name src target))
+               eval-opcode eval-event-dataflows
+               rel-name nil true true)
+              r2))
+          r1)))
+
     (do-intern-event-instance [self env [record-name alias-name with-types timeout-ms]]
       (let [[inst env] (pop-and-intern-instance
                         env record-name
