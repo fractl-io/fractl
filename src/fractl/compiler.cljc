@@ -403,6 +403,11 @@
               cp)))
         opcode inst-alias]))))
 
+(defn- package-opcode [code]
+  (if (and (map? code) (:opcode code))
+    code
+    {:opcode code}))
+
 (defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
   (let [rel (first pat)
         is-obj (map? rel)
@@ -414,8 +419,8 @@
     (when-not (some #{n} (cn/find-relationships recname))
       (u/throw-ex (str "relationship " n " not found for " recname)))
     (op/intern-relationship-instance
-     [rel n is-obj] intern-rec-opc
-     (compile-pattern ctx (second pat)))))
+     [[rel (li/split-path n) is-obj] (package-opcode intern-rec-opc)
+      (compile-pattern ctx (second pat))])))
 
 (declare compile-query-command)
 
@@ -759,7 +764,7 @@
                (i/const-value? pat) compile-literal
                (seqable? pat) compile-fncall-expression)]
     (let [code (c ctx pat)]
-      {:opcode code})
+      (package-opcode code))
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
 (defn- maybe-mark-conditional-df [ctx evt-pattern]

@@ -1463,8 +1463,8 @@
         contains (mt/contains meta)
         between (when-not contains (mt/between meta))
         srctype (instance-type src-inst)
-        types [srctype (instance-type target-inst)]
-        elems (or contains between)]
+        types (mapv li/split-path [srctype (instance-type target-inst)])
+        elems (mapv li/split-path (or contains between))]
     (when (not= (set elems) (set types))
       (u/throw-ex (str "relationship elements expected - " elems ", found - " types)))
     (let [[a1 a2] (apply relationship-attribute-names elems)

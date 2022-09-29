@@ -19,14 +19,22 @@
       :Name :Kernel/String})
     (entity
      :I59401/Employee
-     {:Name :Kernel/String
+     {:Name {:type :Kernel/String
+             :identity true}
       :Salary :Kernel/Decimal})
     (relationship
      :I59401/WorksFor
      {:meta
       {:contains [:I59401/Dept :I59401/Employee]}
-      :StartDate {:type :Kernel/DateTime
-                  :indexed true}})
+      :Location {:type :Kernel/String :indexed true}})
+    (dataflow
+     :I59401/CreateEmployee
+     {:I59401/Dept {:No? :I59401/CreateEmployee.Dept}
+      :as [:D]}
+     {:I59401/Employee
+      {:Name :I59401/CreateEmployee.Name
+       :Salary :I59401/CreateEmployee.Salary}
+      :-> [{:I59401/WorksFor {:Location "ddd"}} :D]})
     (relationship
      :I59401/Spouse
      {:meta
@@ -43,4 +51,18 @@
              (= (first (:refs r1)) :No)))
     (is (and (= (:component r2) :I59401)
              (= (:record r2) :Employee)
-             (= (first (:refs r2)) cn/id-attr)))))
+             (= (first (:refs r2)) :Name))))
+  (let [dept (tu/first-result
+              {:I59401/Upsert_Dept
+               {:Instance
+                {:I59401/Dept
+                 {:No 101 :Name "abc"}}}})
+        r (tu/result
+           {:I59401/CreateEmployee
+            {:Name "xyz" :Salary 1300M :Dept 101}})]
+    (is (cn/instance-of? :I59401/Dept dept))
+    (is (cn/instance-of? :I59401/Employee (:source r)))
+    (is (cn/same-instance? dept (:target r)))
+    (is (cn/instance-of? :I59401/WorksFor (:-> r)))
+    (is (= (:No dept) (:Dept (:-> r))))
+    (is (= (:Name (:source r)) (:Employee (:-> r))))))

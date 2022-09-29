@@ -804,21 +804,21 @@
        record-name inst-alias validation-required upsert-required))
 
     (do-intern-relationship-instance [self env [[rel rel-name is-obj] src-opcode target-opcode]]
-      (let [r1 (eval-opcode self env src-opcode)
-            src (ok-result r1)]
-        (if src
-          (let [r2 (eval-opcode self (:env r1) target-opcode)
-                target (ok-result r2)
-                env (:env r2)]
-            (if target
-              (intern-instance
-               self (env/push-obj
-                     env rel-name
-                     (cn/init-relationship-instance
-                      rel-name (when is-obj (first (vals rel)))
-                      src target))
-               eval-opcode eval-event-dataflows
-               rel-name nil true true)
+      (let [r1 (eval-opcode self env src-opcode)]
+        (if-let [src (first (ok-result r1))]
+          (let [r2 (eval-opcode self (:env r1) target-opcode)]
+            (if-let [target (ok-result r2)]
+              (let [r3 (intern-instance
+                        self (env/push-obj
+                              (:env r2) rel-name
+                              (cn/init-relationship-instance
+                               rel-name (when is-obj (first (vals rel)))
+                               src target))
+                        eval-opcode eval-event-dataflows
+                        rel-name nil true true)]
+                (if-let [rel (first (ok-result r3))]
+                  (i/ok {:source src :target target :-> rel} (:env r3))
+                  r3))
               r2))
           r1)))
 
