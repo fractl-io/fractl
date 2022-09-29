@@ -441,13 +441,13 @@
     (is (= attrs (:Acme/Person p)))
     (is (= (ls/introspect pat01) es01)))
   (let [where {:where [:or [:>= :Age 20] [:= :Salary 1000]]}
-        es02 (ls/query-upsert {ls/record-tag :Acme/Employee
+        es02 (ls/query-object {ls/record-tag :Acme/Employee?
                                ls/query-tag where
                                ls/alias-tag :R})
         pat02 (ls/raw es02)
         p (dissoc pat02 :alias)]
     (is (ls/syntax-object? es02))
-    (is (ls/query-upsert? es02))
+    (is (ls/query-object? es02))
     (is (= (ls/record-tag es02) :Acme/Employee?))
     (is (= (ls/query-pattern es02) where))
     (is (= (ls/alias-tag es02) :R))
