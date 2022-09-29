@@ -222,30 +222,33 @@
             (seq (:sorted attrs)))
     true))
 
-(defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
-  (concat [(begin-build-instance rec-name attrs)]
-          (mapv (partial set-literal-attribute ctx)
-                (:computed attrs))
-          (let [f (:compound set-attr-opcode-fns)]
-            (mapv #(f %) (:compound attrs)))
-          (mapv (fn [[k v]]
-                  ((k set-attr-opcode-fns) v))
-                (:sorted attrs))
-          (mapv (fn [arg]
-                  (op/set-ref-attribute arg))
-                (:refs attrs))
-          [(if event?
-             (op/intern-event-instance
-              [rec-name alias (ctx/fetch-with-types ctx)
-               timeout-ms])
-             (op/intern-instance
-              (vec
-               (concat
-                [rec-name alias]
-                (if (ctx/build-partial-instance? ctx)
-                  [false false]
-                  [true (and (cn/entity? rec-name)
-                             (build-record-for-upsert? attrs))])))))]))
+(defn- emit-build-record-instance [ctx rec-name attrs schema args]
+  (let [alias (:alias args)
+        event? (:event? args)
+        timeout-ms (:timeout-ms args)]
+    (concat [(begin-build-instance rec-name attrs)]
+            (mapv (partial set-literal-attribute ctx)
+                  (:computed attrs))
+            (let [f (:compound set-attr-opcode-fns)]
+              (mapv #(f %) (:compound attrs)))
+            (mapv (fn [[k v]]
+                    ((k set-attr-opcode-fns) v))
+                  (:sorted attrs))
+            (mapv (fn [arg]
+                    (op/set-ref-attribute arg))
+                  (:refs attrs))
+            [(if event?
+               (op/intern-event-instance
+                [rec-name alias (ctx/fetch-with-types ctx)
+                 timeout-ms])
+               (op/intern-instance
+                (vec
+                 (concat
+                  [rec-name alias]
+                  (if (ctx/build-partial-instance? ctx)
+                    [false false]
+                    [true (and (cn/entity? rec-name)
+                               (build-record-for-upsert? attrs))])))))])))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
   (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)
@@ -256,35 +259,22 @@
   "Emit opcode for realizing a fully-built instance of a record, entity or event.
   It is assumed that the opcodes for setting the individual attributes were emitted
   prior to this."
-  ([ctx pat-name pat-attrs schema alias event? timeout-ms]
-   (when-let [xs (cv/invalid-attributes pat-attrs schema)]
-     (if (= (first xs) cn/id-attr)
-       (if (= (get schema :type-*-tag-*-) :record)
-         (u/throw-ex (str "Invalid attribute " cn/id-attr " for type record: " pat-name))
-         (u/throw-ex (str "Wrong reference of id in line: " pat-attrs "of " pat-name)))
-       (u/throw-ex (str "Invalid attributes in pattern - " xs))))
-   (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
-         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
-     (emit-build-record-instance ctx pat-name sorted-attrs schema alias event? timeout-ms)))
-  ([ctx pat-name pat-attrs schema alias event?]
-   (emit-realize-instance ctx pat-name pat-attrs schema alias event? nil)))
-
-(defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema alias]
-  (emit-realize-instance ctx pat-name pat-attrs schema alias false))
-
-(def ^:private emit-realize-record-instance emit-realize-entity-instance)
-
-(defn- emit-realize-event-instance
-  ([ctx pat-name pat-attrs schema alias timeout-ms]
-   (emit-realize-instance ctx pat-name pat-attrs schema alias true timeout-ms))
-  ([ctx pat-name pat-attrs schema alias]
-   (emit-realize-event-instance ctx pat-name pat-attrs schema alias nil)))
+  [ctx pat-name pat-attrs schema args]
+  (when-let [xs (cv/invalid-attributes pat-attrs schema)]
+    (if (= (first xs) cn/id-attr)
+      (if (= (get schema :type-*-tag-*-) :record)
+        (u/throw-ex (str "Invalid attribute " cn/id-attr " for type record: " pat-name))
+        (u/throw-ex (str "Wrong reference of id in line: " pat-attrs "of " pat-name)))
+      (u/throw-ex (str "Invalid attributes in pattern - " xs))))
+  (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
+        sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
+    (emit-build-record-instance ctx pat-name sorted-attrs schema args)))
 
 (declare compile-pattern)
 
-(defn- emit-dynamic-upsert [ctx pat-name pat-attrs _ alias-name]
+(defn- emit-dynamic-upsert [ctx pat-name pat-attrs _ args]
   (op/dynamic-upsert
-   [pat-name pat-attrs (partial compile-pattern ctx) alias-name]))
+   [pat-name pat-attrs (partial compile-pattern ctx) (:alias args)]))
 
 (defn- emit-realize-map-literal [ctx pat]
   ;; TODO: implement support for map literals.
@@ -479,19 +469,22 @@
       (when is-relq
         (ensure-relationship-query relpat))
       (let [c (case tag
-                :entity emit-realize-entity-instance
-                :record emit-realize-record-instance
+                (:entity :record) emit-realize-instance
                 :event (do
                          (when-let [wt (fetch-with-types pat)]
                            (ctx/bind-with-types! ctx wt))
-                         emit-realize-event-instance)
+                         emit-realize-instance)
                 :dynamic-upsert emit-dynamic-upsert
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
-            args (if timeout-ms
-                   [alias timeout-ms]
-                   [alias])
-            relq-opc (when is-relq (compile-query-relationship ctx relpat))
-            opc (apply c ctx nm attrs scm args)]
+            args0 (merge {:alias alias :event? (= tag :event)}
+                         (when timeout-ms
+                           {:timeout-ms timeout-ms}))
+            args (if is-relq
+                   (assoc
+                    args0 :query-filter
+                    (compile-query-relationship ctx relpat))
+                   args0)
+            opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias
           (let [alias-name (ctx/alias-name alias)]
