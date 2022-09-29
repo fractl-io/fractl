@@ -408,19 +408,46 @@
     code
     {:opcode code}))
 
+(defn- ensure-relationship-name [n]
+  (when-not (cn/fetch-relationship-schema n)
+    (u/throw-ex (str "relationship " n " not found")))
+  n)
+
 (defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
   (let [rel (first pat)
         is-obj (map? rel)
         n (if is-obj
             (first (keys rel))
             rel)]
-    (when-not (cn/fetch-relationship-schema n)
-      (u/throw-ex (str "relationship " n " not found")))
+    (ensure-relationship-name n)
     (when-not (some #{n} (cn/find-relationships recname))
       (u/throw-ex (str "relationship " n " not found for " recname)))
     (op/intern-relationship-instance
      [[rel (li/split-path n) is-obj] (package-opcode intern-rec-opc)
       (compile-pattern ctx (second pat))])))
+
+(defn- ensure-relationship-full-query [x]
+  (when-not (and (li/query-pattern? x)
+                 (ensure-relationship-name (li/query-target-name x)))
+    (u/throw-ex (str "not a relationship query - " x)))
+  x)
+
+(defn- ensure-some-query-attrs [attrs]
+  (when-not (some li/query-pattern? (keys attrs))
+    (u/throw-ex (str "no query pattern in relationship - " attrs)))
+  attrs)
+
+(defn- ensure-relationship-query [pat]
+  (let [relq (first pat)]
+    (cond
+      (keyword? relq) (ensure-relationship-full-query relq)
+      (map? relq) (and (ensure-relationship-name (first (keys relq)))
+                       (ensure-some-query-attrs (first (vals relq))))
+      :else (u/throw-ex (str "invalid relationship query pattern - " relq))))
+  pat)
+
+(defn- compile-query-relationship [ctx pat]
+  [(first pat) (compile-pattern ctx (second pat))])
 
 (declare compile-query-command)
 
@@ -446,7 +473,11 @@
           [tag scm] (if (or path refs)
                       [:dynamic-upsert nil]
                       (cv/find-schema nm full-nm))
-          relpat (syn/rel-tag pat)]
+          relpat (syn/rel-tag pat)
+          is-query-upsert (some li/query-pattern? (keys attrs))
+          is-relq (and relpat is-query-upsert)]
+      (when is-relq
+        (ensure-relationship-query relpat))
       (let [c (case tag
                 :entity emit-realize-entity-instance
                 :record emit-realize-record-instance
@@ -456,12 +487,16 @@
                          emit-realize-event-instance)
                 :dynamic-upsert emit-dynamic-upsert
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
-            opc (apply c ctx nm attrs scm (if timeout-ms [alias timeout-ms] [alias]))]
+            args (if timeout-ms
+                   [alias timeout-ms]
+                   [alias])
+            relq-opc (when is-relq (compile-query-relationship ctx relpat))
+            opc (apply c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias
           (let [alias-name (ctx/alias-name alias)]
             (ctx/add-alias! ctx (or nm alias-name) alias)))
-        (if relpat
+        (if (and relpat (not is-relq))
           (compile-relationship-pattern ctx nm opc relpat)
           opc)))
 

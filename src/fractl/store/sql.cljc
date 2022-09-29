@@ -33,8 +33,7 @@
                          (seqable? f) f
                          :else where-clause)))
               p)))]
-    (let [sql (hsql/format final-pattern)]
-      sql)))
+    (hsql/format final-pattern)))
 
 (defn- concat-where-clauses [clauses]
   (if (> (count clauses) 1)
