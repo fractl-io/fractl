@@ -148,15 +148,47 @@
   (or (ctx/fetch-compile-query-fn ctx)
       (store/get-default-compile-query)))
 
-(defn- compile-relational-entity-query [ctx entity-name query]
+(defn- recname-from-opcode [opc]
+  (first (:arg (first (:opcode opc)))))
+
+(defn- compiled-query-from-opcode [opc]
+  (stu/compiled-query (second (:arg (first (:opcode opc))))))
+
+(defn- merge-queries [main-entity-name main-query filters-opcode]
+  (let [rel-name (recname-from-opcode (first filters-opcode))
+        node-entity-name (recname-from-opcode (second filters-opcode))]
+    (when-not (cn/in-relationship? main-entity-name rel-name)
+      (u/throw-ex (str main-entity-name " not in relationship - " rel-name)))
+    (when-not (cn/in-relationship? node-entity-name rel-name)
+      (u/throw-ex (str node-entity-name " not in relationship - " rel-name)))
+    (let [rel-scm (cn/fetch-relationship-schema rel-name)
+          ent-scm (cn/fetch-entity-schema node-entity-name)
+          [mattr nattr] (cn/relationship-attribute-names
+                         main-entity-name node-entity-name)
+          rel-q (compiled-query-from-opcode (first filters-opcode))
+          node-q (compiled-query-from-opcode (second filters-opcode))]
+      [(str (first main-query) " AND " (stu/attribute-column-name mattr)
+            " IN (" (first rel-q) " AND " (stu/attribute-column-name nattr)
+            " IN (" (first node-q) "))")
+       (apply concat (mapv rest [main-query rel-q node-q]))])))
+      
+(declare compile-pattern)
+
+(defn- compile-relational-entity-query [ctx entity-name query query-filter]
   (let [q (i/expand-query
            entity-name
-           (mapv query-param-process query))]
-    (stu/package-query q ((fetch-compile-query-fn ctx) q))))
+           (mapv query-param-process query))
+        cq ((fetch-compile-query-fn ctx) q)
+        final-cq (if query-filter
+                   (merge-queries
+                    entity-name cq
+                    (mapv (partial compile-pattern ctx) query-filter))
+                   cq)]
+    (stu/package-query q cq)))
 
-(defn compile-query [ctx entity-name query]
+(defn compile-query [ctx entity-name query query-filter]
   (let [q (compile-relational-entity-query
-           ctx entity-name query)]
+           ctx entity-name query query-filter)]
     (ctx/put-fresh-record! ctx entity-name {})
     q))
 
@@ -185,7 +217,7 @@
 
     A graph of dependencies is prepared for each attribute. If there is a cycle in the graph,
     raise an error. Otherwise return a map with each attribute group and their attached graphs."
-  [ctx pat-name pat-attrs schema]
+  [ctx pat-name pat-attrs schema args]
   (let [{computed :computed refs :refs
          compound :compound query :query
          :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
@@ -193,7 +225,7 @@
         deps-graph (appl fs [ctx schema ug/EMPTY])
         compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
         parsed-refs (map (fn [[k v]] [k (if (symbol? v) {:refs v} (li/path-parts v))]) refs)
-        compiled-query (when query (compile-query ctx pat-name query))
+        compiled-query (when query (compile-query ctx pat-name query (:query-filter args)))
         final-attrs (if (seq compiled-query)
                       (assoc cls-attrs :query compiled-query)
                       cls-attrs)]
@@ -266,11 +298,9 @@
         (u/throw-ex (str "Invalid attribute " cn/id-attr " for type record: " pat-name))
         (u/throw-ex (str "Wrong reference of id in line: " pat-attrs "of " pat-name)))
       (u/throw-ex (str "Invalid attributes in pattern - " xs))))
-  (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
+  (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema args)
         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
     (emit-build-record-instance ctx pat-name sorted-attrs schema args)))
-
-(declare compile-pattern)
 
 (defn- emit-dynamic-upsert [ctx pat-name pat-attrs _ args]
   (op/dynamic-upsert
@@ -436,9 +466,6 @@
       :else (u/throw-ex (str "invalid relationship query pattern - " relq))))
   pat)
 
-(defn- compile-query-relationship [ctx pat]
-  [(first pat) (compile-pattern ctx (second pat))])
-
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -481,9 +508,9 @@
                            {:timeout-ms timeout-ms}))
             args (if is-relq
                    (assoc
-                    args0 :query-filter
-                    (compile-query-relationship ctx relpat))
+                    args0 :query-filter relpat)
                    args0)
+            _ (when is-relq (println "%" args))
             opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias

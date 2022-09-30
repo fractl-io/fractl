@@ -1444,6 +1444,12 @@
 (defn find-relationships [recname]
   (or (component-find :entity-relationship recname) #{}))
 
+(defn in-relationship? [recname relname]
+  (let [n (if (keyword? relname)
+            relname
+            (li/make-path relname))]
+    (some #{n} (find-relationships recname))))
+
 (defn- intern-entity-rel [relationship-name recname]
   (let [rels (find-relationships recname)]
     (component-intern recname (conj rels relationship-name) :entity-relationship)))

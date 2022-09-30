@@ -664,7 +664,7 @@
        (catch js/Error e
          (or (.-ex-data e) (i/error e))))))
 
-(defn- do-query-helper [env entity-name queries]
+(defn- query-helper [env entity-name queries]
   (if-let [[insts env]
            (read-intercept
             env entity-name
@@ -773,13 +773,13 @@
         (i/ok record-name env)))
 
     (do-query-instances [_ env [entity-name queries]]
-      (do-query-helper env entity-name queries))
+      (query-helper env entity-name queries))
 
     (do-evaluate-query [_ env [fetch-query-fn result-alias]]
       (bind-result-to-alias
        result-alias
        (apply
-        do-query-helper
+        query-helper
         env (fetch-query-fn env (partial find-reference env)))))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]

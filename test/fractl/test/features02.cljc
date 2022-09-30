@@ -36,6 +36,12 @@
       {:Name :I59401/CreateEmployee.Name
        :Salary :I59401/CreateEmployee.Salary}
       :-> [{:I59401/WorksFor {:Location "ddd"}} :D]})
+    (dataflow
+     :I59401/FindEmployees
+     {:I59401/Employee
+      {:Salary? [:>= 1300M]}
+      :-> [{:I59401/WorksFor {:Location? "ddd"}}
+           {:I59401/Dept {:No? :I59401/FindEmployees.Dept}}]})
     (relationship
      :I59401/Spouse
      {:meta
@@ -65,4 +71,8 @@
     (is (cn/instance-of? :I59401/Employee r))
     (is (cn/instance-of? :I59401/WorksFor (ls/rel-tag r)))
     (is (= (:No dept) (:Dept (ls/rel-tag r))))
-    (is (= (:Name r) (:Employee (ls/rel-tag r))))))
+    (is (= (:Name r) (:Employee (ls/rel-tag r)))))
+  (let [emps (tu/result
+              {:I59401/FindEmployees
+               {:Dept 101}})]
+    (println emps)))
