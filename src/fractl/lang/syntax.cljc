@@ -178,18 +178,8 @@
    (when-let [als (alias-tag ir)]
      {alias-tag als})))
 
-(defn- query-attrs? [obj]
-  (if-let [attrs (attributes obj)]
-    (some li/query-pattern? (keys attrs))
-    (:where (query-pattern obj))))
-
-(defn- normalize-query-attrs [attrs]
-  (cond
-    (or (attributes attrs) (query-pattern attrs))
-    attrs
-
-    (:where attrs) {query-pattern attrs}
-    :else {attributes attrs}))
+(defn- query-attrs? [attrs]
+  (some li/query-pattern? (keys attrs)))
 
 (defn- query-record-name [recname]
   (if (li/query-pattern? recname)
@@ -200,43 +190,31 @@
   ([spec]
    (let [cnt (count spec)]
      (when (or (< cnt 2) (> cnt 3))
-       (u/throw-ex (str "invalid query spec - " spec))))
-   (let [attrs (attributes spec)
-         query-pat (when-not attrs (query-pattern spec))]
-     (when-not (or attrs query-pat)
-       (u/throw-ex (str "no valid query-pattern or attributes - " spec)))
-     (query-upsert
-      ($record spec)
-      (if attrs
-        {attributes attrs}
-        {query-pattern query-pat})
-      (alias-tag spec))))
-  ([recname attrs-or-query-pat rec-alias]
-   (let [attrs-or-query-pat (normalize-query-attrs attrs-or-query-pat)]
-     (when-not (or (li/query-pattern? recname)
-                   (query-attrs? attrs-or-query-pat))
-       (u/throw-ex
-        (str "not a valid query pattern - " {recname attrs-or-query-pat})))
-     (validate-alias! rec-alias)
-     (as-syntax-object
-      :query-upsert
-      (merge
-       {record-tag (if (query-pattern attrs-or-query-pat)
-                     (query-record-name recname)
-                     recname)}
-       (if-let [attrs (attributes attrs-or-query-pat)]
-         {attrs-tag (introspect-attrs attrs)}
-         attrs-or-query-pat)
-       (when rec-alias
-         {alias-tag rec-alias}))))))
+       (u/throw-ex (str "invalid query-upsert spec - " spec))))
+   (let [attrs (attributes spec)]
+     (when-not (seq attrs)
+       (u/throw-ex (str "no valid attributes found - " spec)))
+     (query-upsert ($record spec) attrs (alias-tag spec))))
+  ([recname attrs rec-alias]
+   (when-not (or (li/query-pattern? recname)
+                 (query-attrs? attrs))
+     (u/throw-ex
+      (str "not a valid query-upsert pattern - " {recname attrs})))
+   (validate-alias! rec-alias)
+   (as-syntax-object
+    :query-upsert
+    (merge
+     {record-tag recname
+      attrs-tag (introspect-attrs attrs)}
+     (when rec-alias
+       {alias-tag rec-alias})))))
 
 (def query-upsert? (partial has-type? :query-upsert))
 
 (defn- raw-query-upsert [ir]
-  (let [obj (or (attributes ir)
-                (query-pattern ir))]
+  (let [obj (attributes ir)]
     (when-not obj
-      (u/throw-ex (str "expected query attributes or pattern not found - " ir)))
+      (u/throw-ex (str "expected query-upsert attributes not found - " ir)))
     (merge
      {($record ir)
       (raw-walk obj)}
@@ -251,24 +229,56 @@
       (u/throw-ex (str "invalid record name - " recname)))
     (when-not (map? attrs)
       (u/throw-ex (str "attributes must be a map - " attrs)))
-    (let [is-where-clause (:where attrs)
-          qpat (or is-where-clause
-                   (li/query-pattern? recname)
-                   (some li/query-pattern? (keys attrs)))
-          formatted-attrs
-          (cond
-            is-where-clause {query-pattern attrs}
-            qpat {attributes attrs}
-            :else attrs)]
+    (let [qpat (some li/query-pattern? (keys attrs))]
       ((if qpat query-upsert upsert)
-       recname formatted-attrs
+       recname attrs
        (alias-tag pattern)))))
 
-(def as-query-object (partial as-syntax-object :query-object))
+(defn query-object
+  ([spec]
+   (let [cnt (count spec)]
+     (when (or (< cnt 2) (> cnt 3))
+       (u/throw-ex (str "invalid query spec - " spec))))
+   (if-let [query-pat (query-pattern spec)]
+     (query-object ($record spec) query-pat (alias-tag spec))
+     (u/throw-ex (str "no valid query-pattern found - " spec))))
+  ([recname query-pat rec-alias]
+   (when-not (or (li/query-pattern? recname)
+                 (:where query-pat))
+     (u/throw-ex
+      (str "not a valid query pattern - " {recname query-pat})))
+   (validate-alias! rec-alias)
+   (as-syntax-object
+    :query-object
+    (merge
+     {record-tag recname
+      query-tag query-pat}
+     (when rec-alias
+       {alias-tag rec-alias})))))
+
 (def query-object? (partial has-type? :query-object))
-(def query-object (comp as-query-object query-upsert))
-(def raw-query-object raw-query-upsert)
-(def introspect-query-object (partial as-query-object introspect-query-upsert))
+
+(defn- raw-query-object [ir]
+  (let [obj (query-pattern ir)]
+    (when-not obj
+      (u/throw-ex (str "expected query pattern not found - " ir)))
+    (merge
+     {($record ir)
+      (raw-walk obj)}
+     (when-let [als (alias-tag ir)]
+       {alias-tag als}))))
+
+(defn- introspect-query-object [pattern]
+  (let [pat (li/normalize-upsert-pattern pattern)
+        recname (first (keys pat))
+        qpat (recname pat)]
+    (when-not (li/name? recname)
+      (u/throw-ex (str "invalid record name - " recname)))
+    (when-not (:where qpat)
+      (u/throw-ex (str "invalid query pattern - " qpat)))
+    (query-object
+     recname qpat
+     (alias-tag pattern))))
 
 (defn- verify-cases! [cs]
   (loop [cs cs]
@@ -535,6 +545,11 @@
     (h pat)
     pat))
 
+(defn- pure-query-map? [obj]
+  (let [pat (li/normalize-upsert-pattern obj)
+        attrs ((first (keys pat)) pat)]
+    (and (map? attrs) (:where attrs))))
+
 (defn introspect [pattern]
   (cond
     (syntax-object? pattern) pattern
@@ -544,7 +559,9 @@
       (introspect-exp pattern)
 
       (map? pattern)
-      (introspect-query-upsert pattern)
+      (if (pure-query-map? pattern)
+        (introspect-query-object pattern)
+        (introspect-query-upsert pattern))
 
       (vector? pattern)
       (introspect-special-form pattern)
