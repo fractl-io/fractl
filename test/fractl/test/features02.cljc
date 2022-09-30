@@ -6,6 +6,7 @@
              :refer [component attribute event
                      entity record relationship
                      dataflow]]
+            [fractl.lang.syntax :as ls]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -61,8 +62,7 @@
            {:I59401/CreateEmployee
             {:Name "xyz" :Salary 1300M :Dept 101}})]
     (is (cn/instance-of? :I59401/Dept dept))
-    (is (cn/instance-of? :I59401/Employee (:source r)))
-    (is (cn/same-instance? dept (:target r)))
-    (is (cn/instance-of? :I59401/WorksFor (:-> r)))
-    (is (= (:No dept) (:Dept (:-> r))))
-    (is (= (:Name (:source r)) (:Employee (:-> r))))))
+    (is (cn/instance-of? :I59401/Employee r))
+    (is (cn/instance-of? :I59401/WorksFor (ls/rel-tag r)))
+    (is (= (:No dept) (:Dept (ls/rel-tag r))))
+    (is (= (:Name r) (:Employee (ls/rel-tag r))))))

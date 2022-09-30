@@ -16,6 +16,7 @@
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.intercept.core :as interceptors]
             [fractl.lang :as ln]
+            [fractl.lang.syntax :as ls]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]
             #?(:clj [clojure.core.async :as async :refer [go <! >! go-loop]])
@@ -817,7 +818,7 @@
                         eval-opcode eval-event-dataflows
                         rel-name nil true true)]
                 (if-let [rel (first (ok-result r3))]
-                  (i/ok {:source src :target target :-> rel} (:env r3))
+                  (i/ok (assoc src ls/rel-tag rel) (:env r3))
                   r3))
               r2))
           r1)))
