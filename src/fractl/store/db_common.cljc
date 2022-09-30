@@ -170,13 +170,38 @@
          (execute-stmt! txn pstmt nil))))
     entity-name))
 
+(defn- merge-queries-with-in-clause [[compiled-queries attr-names]]
+  (let [qp (first compiled-queries)]
+    (loop [cqs (rest compiled-queries)
+           attrs (rest attr-names)
+           sql (str (first qp) " AND " (su/attribute-column-name (first attr-names)) " IN (")
+           params (rest qp)]
+      (if-let [qp (first cqs)]
+        (let [a1 (first attrs)
+              a2 (second attrs)]
+          (recur (rest cqs) (rest attrs)
+                 (str
+                  sql (if a1
+                        (s/replace (first qp) "*" (su/attribute-column-name a1))
+                        (first qp))
+                  (when a2
+                    (str " AND " (su/attribute-column-name a2)
+                         " IN (")))
+                 (concat params (rest qp))))
+        (vec
+         (concat
+          [(str sql (s/join (repeat (dec (count attr-names)) \))))]
+          params))))))
+
 (defn compile-query [query-pattern]
-  (sql/format-sql
-   (su/entity-table-name (:from query-pattern))
-   (if (> (count (keys query-pattern)) 2)
-     (dissoc query-pattern :from)
-     (let [where-clause (:where query-pattern)]
-       (when (not= :* where-clause) where-clause)))))
+  (if-let [query-seq (:filter-in-sequence query-pattern)]
+    (merge-queries-with-in-clause query-seq)
+    (sql/format-sql
+     (su/entity-table-name (:from query-pattern))
+     (if (> (count (keys query-pattern)) 2)
+       (dissoc query-pattern :from)
+       (let [where-clause (:where query-pattern)]
+         (when (not= :* where-clause) where-clause))))))
 
 (defn- raw-results [query-fns]
   (flatten (mapv u/apply0 query-fns)))

@@ -154,7 +154,7 @@
 (defn- compiled-query-from-opcode [opc]
   (stu/compiled-query (second (:arg (first (:opcode opc))))))
 
-(defn- merge-queries [main-entity-name main-query filters-opcode]
+(defn- merge-queries [ctx main-entity-name main-query filters-opcode]
   (let [rel-name (recname-from-opcode (first filters-opcode))
         node-entity-name (recname-from-opcode (second filters-opcode))]
     (when-not (cn/in-relationship? main-entity-name rel-name)
@@ -163,15 +163,15 @@
       (u/throw-ex (str node-entity-name " not in relationship - " rel-name)))
     (let [rel-scm (cn/fetch-relationship-schema rel-name)
           ent-scm (cn/fetch-entity-schema node-entity-name)
-          [mattr nattr] (cn/relationship-attribute-names
-                         main-entity-name node-entity-name)
+          attrs (concat
+                 [(cn/identity-attribute-name main-entity-name)]
+                 (cn/relationship-attribute-names
+                  main-entity-name node-entity-name))
           rel-q (compiled-query-from-opcode (first filters-opcode))
           node-q (compiled-query-from-opcode (second filters-opcode))]
-      [(str (first main-query) " AND " (stu/attribute-column-name mattr)
-            " IN (" (first rel-q) " AND " (stu/attribute-column-name nattr)
-            " IN (" (first node-q) "))")
-       (apply concat (mapv rest [main-query rel-q node-q]))])))
-      
+      ((fetch-compile-query-fn ctx)
+       {:filter-in-sequence [[main-query rel-q node-q] attrs]}))))
+
 (declare compile-pattern)
 
 (defn- compile-relational-entity-query [ctx entity-name query query-filter]
@@ -181,10 +181,10 @@
         cq ((fetch-compile-query-fn ctx) q)
         final-cq (if query-filter
                    (merge-queries
-                    entity-name cq
+                    ctx entity-name cq
                     (mapv (partial compile-pattern ctx) query-filter))
                    cq)]
-    (stu/package-query q cq)))
+    (stu/package-query q final-cq)))
 
 (defn compile-query [ctx entity-name query query-filter]
   (let [q (compile-relational-entity-query
@@ -316,7 +316,7 @@
   a `SELECT * FROM entity_table`."
   [ctx pat]
   (let [entity-name (li/split-path (li/query-target-name pat))
-        q (compile-query ctx entity-name nil)]
+        q (compile-query ctx entity-name nil nil)]
     (op/query-instances [entity-name q])))
 
 (defn- compile-pathname
@@ -510,7 +510,6 @@
                    (assoc
                     args0 :query-filter relpat)
                    args0)
-            _ (when is-relq (println "%" args))
             opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias
@@ -740,7 +739,7 @@
              ctx recname
              (if (map? qpat)
                (into [] qpat)
-               qpat))]
+               qpat) nil)]
       (when alias
         (ctx/add-alias! ctx recname alias))
       (emit-delete (li/split-path recname) (merge q {syn/alias-tag alias})))))

@@ -354,9 +354,10 @@
 
 (defn instance-attributes [x]
   (when (an-instance? x)
-    (dissoc
-     x type-tag-key
-     type-key dirty-key)))
+    (li/normalize-instance-pattern
+     (dissoc
+      x type-tag-key
+      type-key dirty-key))))
 
 (defn instance-all-attributes [x]
   (when (an-instance? x)

@@ -71,8 +71,8 @@
     (is (cn/instance-of? :I59401/Employee r))
     (is (cn/instance-of? :I59401/WorksFor (ls/rel-tag r)))
     (is (= (:No dept) (:Dept (ls/rel-tag r))))
-    (is (= (:Name r) (:Employee (ls/rel-tag r)))))
-  (let [emps (tu/result
-              {:I59401/FindEmployees
-               {:Dept 101}})]
-    (println emps)))
+    (is (= (:Name r) (:Employee (ls/rel-tag r))))
+    (let [emps (tu/result
+                {:I59401/FindEmployees
+                 {:Dept 101}})]
+      (is (cn/same-instance? r (first emps))))))
