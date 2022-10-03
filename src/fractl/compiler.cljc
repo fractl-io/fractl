@@ -149,14 +149,24 @@
       (store/get-default-compile-query)))
 
 (defn- recname-from-opcode [opc]
-  (first (:arg (first (:opcode opc)))))
+  (first (:arg opc)))
 
 (defn- compiled-query-from-opcode [opc]
-  (stu/compiled-query (second (:arg (first (:opcode opc))))))
+  (stu/compiled-query (second (:arg opc))))
+
+(defn- as-opcode-map [opc]
+  (let [r (if (map? opc)
+            (:opcode opc)
+            (:opcode (first opc)))]
+    (if (map? r)
+      r
+      (first r))))
 
 (defn- merge-queries [ctx main-entity-name main-query filters-opcode]
-  (let [rel-name (recname-from-opcode (first filters-opcode))
-        node-entity-name (recname-from-opcode (second filters-opcode))]
+  (let [fopcode (as-opcode-map (first filters-opcode))
+        sopcode (as-opcode-map (second filters-opcode))
+        rel-name (recname-from-opcode fopcode)
+        node-entity-name (recname-from-opcode sopcode)]
     (when-not (cn/in-relationship? main-entity-name rel-name)
       (u/throw-ex (str main-entity-name " not in relationship - " rel-name)))
     (when-not (cn/in-relationship? node-entity-name rel-name)
@@ -167,8 +177,8 @@
                  [(cn/identity-attribute-name main-entity-name)]
                  (cn/relationship-attribute-names
                   main-entity-name node-entity-name))
-          rel-q (compiled-query-from-opcode (first filters-opcode))
-          node-q (compiled-query-from-opcode (second filters-opcode))]
+          rel-q (compiled-query-from-opcode fopcode)
+          node-q (compiled-query-from-opcode sopcode)]
       ((fetch-compile-query-fn ctx)
        {:filter-in-sequence [[main-query rel-q node-q] attrs]}))))
 
@@ -218,19 +228,21 @@
     A graph of dependencies is prepared for each attribute. If there is a cycle in the graph,
     raise an error. Otherwise return a map with each attribute group and their attached graphs."
   [ctx pat-name pat-attrs schema args]
-  (let [{computed :computed refs :refs
-         compound :compound query :query
-         :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
-        fs (map #(partial build-dependency-graph %) [refs compound query])
-        deps-graph (appl fs [ctx schema ug/EMPTY])
-        compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
-        parsed-refs (map (fn [[k v]] [k (if (symbol? v) {:refs v} (li/path-parts v))]) refs)
-        compiled-query (when query (compile-query ctx pat-name query (:query-filter args)))
-        final-attrs (if (seq compiled-query)
-                      (assoc cls-attrs :query compiled-query)
-                      cls-attrs)]
-    {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
-     :deps deps-graph}))
+  (if (:full-query? args)
+    {:attrs (assoc pat-attrs :query (compile-query ctx pat-name pat-attrs (:query-filter args)))}
+    (let [{computed :computed refs :refs
+           compound :compound query :query
+           :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
+          fs (map #(partial build-dependency-graph %) [refs compound query])
+          deps-graph (appl fs [ctx schema ug/EMPTY])
+          compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
+          parsed-refs (map (fn [[k v]] [k (if (symbol? v) {:refs v} (li/path-parts v))]) refs)
+          compiled-query (when query (compile-query ctx pat-name query (:query-filter args)))
+          final-attrs (if (seq compiled-query)
+                        (assoc cls-attrs :query compiled-query)
+                        cls-attrs)]
+      {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
+       :deps deps-graph})))
 
 (def ^:private set-attr-opcode-fns {:computed op/set-literal-attribute
                                     :refs op/set-ref-attribute
@@ -256,7 +268,7 @@
 
 (defn- emit-build-record-instance [ctx rec-name attrs schema args]
   (let [alias (:alias args)
-        event? (:event? args)
+        event? (= (cn/type-tag-key args) :event)
         timeout-ms (:timeout-ms args)]
     (concat [(begin-build-instance rec-name attrs)]
             (mapv (partial set-literal-attribute ctx)
@@ -294,7 +306,7 @@
   [ctx pat-name pat-attrs schema args]
   (when-let [xs (cv/invalid-attributes pat-attrs schema)]
     (if (= (first xs) cn/id-attr)
-      (if (= (get schema :type-*-tag-*-) :record)
+      (if (= (get schema cn/type-tag-key) :record)
         (u/throw-ex (str "Invalid attribute " cn/id-attr " for type record: " pat-name))
         (u/throw-ex (str "Wrong reference of id in line: " pat-attrs "of " pat-name)))
       (u/throw-ex (str "Invalid attributes in pattern - " xs))))
@@ -351,9 +363,10 @@
     v))
 
 (defn- complex-query-pattern? [pat]
-  (let [ks (keys (dissoc pat :as))]
-    (and (= 1 (count ks))
-         (s/ends-with? (str (first ks)) "?"))))
+  (when-not (syn/rel-tag pat)
+    (let [ks (keys (li/normalize-instance-pattern pat))]
+      (and (= 1 (count ks))
+           (s/ends-with? (str (first ks)) "?")))))
 
 (defn- query-entity-name [k]
   (let [sk (str k)]
@@ -429,16 +442,22 @@
     {:opcode code}))
 
 (defn- ensure-relationship-name [n]
-  (when-not (cn/fetch-relationship-schema n)
+  (when-not (cn/fetch-relationship-schema (li/normalize-name n))
     (u/throw-ex (str "relationship " n " not found")))
   n)
+
+(defn normalize-recname-in-relationship [n]
+  (if (li/parsed-path? n)
+    n
+    (li/normalize-name (or (and (map? n) (:path n)) n))))
 
 (defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
   (let [rel (first pat)
         is-obj (map? rel)
         n (if is-obj
             (first (keys rel))
-            rel)]
+            rel)
+        recname (normalize-recname-in-relationship recname)]
     (ensure-relationship-name n)
     (when-not (some #{n} (cn/find-relationships recname))
       (u/throw-ex (str "relationship " n " not found for " recname)))
@@ -448,7 +467,8 @@
 
 (defn- ensure-relationship-full-query [x]
   (when-not (and (li/query-pattern? x)
-                 (ensure-relationship-name (li/query-target-name x)))
+                 (ensure-relationship-name
+                  (li/query-target-name x)))
     (u/throw-ex (str "not a relationship query - " x)))
   x)
 
@@ -477,7 +497,10 @@
     (compile-from-pattern ctx pat)
 
     (li/instance-pattern? pat)
-    (let [full-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
+    (let [orig-nm (ctx/dynamic-type
+                   ctx
+                   (li/instance-pattern-name pat))
+          full-nm (li/normalize-name orig-nm)
           {component :component record :record
            path :path refs :refs :as parts} (li/path-parts full-nm)
           refs (seq refs)
@@ -491,7 +514,8 @@
                       [:dynamic-upsert nil]
                       (cv/find-schema nm full-nm))
           relpat (syn/rel-tag pat)
-          is-query-upsert (some li/query-pattern? (keys attrs))
+          is-query-upsert (or (li/query-pattern? orig-nm)
+                              (some li/query-pattern? (keys attrs)))
           is-relq (and relpat is-query-upsert)]
       (when is-relq
         (ensure-relationship-query relpat))
@@ -503,7 +527,9 @@
                          emit-realize-instance)
                 :dynamic-upsert emit-dynamic-upsert
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
-            args0 (merge {:alias alias :event? (= tag :event)}
+            args0 (merge {:alias alias cn/type-tag-key tag
+                          :full-query? (and (= tag :entity)
+                                            (li/query-pattern? orig-nm))}
                          (when timeout-ms
                            {:timeout-ms timeout-ms}))
             args (if is-relq

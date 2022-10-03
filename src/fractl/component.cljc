@@ -131,7 +131,7 @@
 
 (def ^:private type-key :-*-type-*-)
 (def ^:private dirty-key :-*-dirty-*-)
-(def ^:private type-tag-key :type-*-tag-*-)
+(def type-tag-key :type-*-tag-*-)
 (def ^:private containers-key :-*-containers-*-)
 
 (def instance->map identity)

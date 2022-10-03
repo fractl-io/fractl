@@ -170,13 +170,22 @@
          (execute-stmt! txn pstmt nil))))
     entity-name))
 
+(defn- maybe-with-where-clause [q]
+  (when q
+    (let [sql (first q)]
+      (concat
+       [(if (s/index-of (s/lower-case sql) "where")
+          sql
+          (str sql " WHERE 1=1"))]
+       (rest q)))))
+
 (defn- merge-queries-with-in-clause [[compiled-queries attr-names]]
-  (let [qp (first compiled-queries)]
+  (let [qp (maybe-with-where-clause (first compiled-queries))]
     (loop [cqs (rest compiled-queries)
            attrs (rest attr-names)
            sql (str (first qp) " AND " (su/attribute-column-name (first attr-names)) " IN (")
            params (rest qp)]
-      (if-let [qp (first cqs)]
+      (if-let [qp (maybe-with-where-clause (first cqs))]
         (let [a1 (first attrs)
               a2 (second attrs)]
           (recur (rest cqs) (rest attrs)

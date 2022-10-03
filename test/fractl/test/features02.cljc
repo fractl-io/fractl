@@ -11,68 +11,146 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(deftest issue-594-relationship-01
-  (defcomponent :I59401
+(deftest issue-594-basic-relationships
+  (defcomponent :I594B
     (entity
-     :I59401/Dept
+     :I594B/Dept
      {:No {:type :Kernel/Int
            :identity true}
       :Name :Kernel/String})
     (entity
-     :I59401/Employee
+     :I594B/Employee
      {:Name {:type :Kernel/String
              :identity true}
       :Salary :Kernel/Decimal})
     (relationship
-     :I59401/WorksFor
+     :I594B/WorksFor
      {:meta
-      {:contains [:I59401/Dept :I59401/Employee]}
+      {:contains [:I594B/Dept :I594B/Employee]}
       :Location {:type :Kernel/String :indexed true}})
     (dataflow
-     :I59401/CreateEmployee
-     {:I59401/Dept {:No? :I59401/CreateEmployee.Dept}
+     :I594B/CreateEmployee
+     {:I594B/Dept {:No? :I594B/CreateEmployee.Dept}
       :as [:D]}
-     {:I59401/Employee
-      {:Name :I59401/CreateEmployee.Name
-       :Salary :I59401/CreateEmployee.Salary}
-      :-> [{:I59401/WorksFor {:Location "ddd"}} :D]})
+     {:I594B/Employee
+      {:Name :I594B/CreateEmployee.Name
+       :Salary :I594B/CreateEmployee.Salary}
+      :-> [{:I594B/WorksFor {:Location "ddd"}} :D]})
     (dataflow
-     :I59401/FindEmployees
-     {:I59401/Employee
+     :I594B/FindEmployees
+     {:I594B/Employee
       {:Salary? [:>= 1300M]}
-      :-> [{:I59401/WorksFor {:Location? "ddd"}}
-           {:I59401/Dept {:No? :I59401/FindEmployees.Dept}}]})
+      :-> [{:I594B/WorksFor {:Location? "ddd"}}
+           {:I594B/Dept {:No? :I594B/FindEmployees.Dept}}]})
     (relationship
-     :I59401/Spouse
+     :I594B/Spouse
      {:meta
-      {:between [:I59401/Employee :I59401/Employee]}}))
-  (let [rscm (cn/fetch-schema :I59401/WorksFor)
+      {:between [:I594B/Employee :I594B/Employee]}}))
+  (let [rscm (cn/fetch-schema :I594B/WorksFor)
         r1 (:ref (cn/find-attribute-schema (:Dept rscm)))
         r2 (:ref (cn/find-attribute-schema (:Employee rscm)))
-        rels #{:I59401/WorksFor}]
-    (is (= rels (cn/find-relationships :I59401/Dept)))
-    (is (= (conj rels :I59401/Spouse)
-           (cn/find-relationships :I59401/Employee)))
-    (is (and (= (:component r1) :I59401)
+        rels #{:I594B/WorksFor}]
+    (is (= rels (cn/find-relationships :I594B/Dept)))
+    (is (= (conj rels :I594B/Spouse)
+           (cn/find-relationships :I594B/Employee)))
+    (is (and (= (:component r1) :I594B)
              (= (:record r1) :Dept)
              (= (first (:refs r1)) :No)))
-    (is (and (= (:component r2) :I59401)
+    (is (and (= (:component r2) :I594B)
              (= (:record r2) :Employee)
              (= (first (:refs r2)) :Name))))
   (let [dept (tu/first-result
-              {:I59401/Upsert_Dept
+              {:I594B/Upsert_Dept
                {:Instance
-                {:I59401/Dept
+                {:I594B/Dept
                  {:No 101 :Name "abc"}}}})
         r (tu/result
-           {:I59401/CreateEmployee
+           {:I594B/CreateEmployee
             {:Name "xyz" :Salary 1300M :Dept 101}})]
-    (is (cn/instance-of? :I59401/Dept dept))
-    (is (cn/instance-of? :I59401/Employee r))
-    (is (cn/instance-of? :I59401/WorksFor (ls/rel-tag r)))
+    (is (cn/instance-of? :I594B/Dept dept))
+    (is (cn/instance-of? :I594B/Employee r))
+    (is (cn/instance-of? :I594B/WorksFor (ls/rel-tag r)))
     (is (= (:No dept) (:Dept (ls/rel-tag r))))
     (is (= (:Name r) (:Employee (ls/rel-tag r))))
     (let [emps (tu/result
-                {:I59401/FindEmployees
+                {:I594B/FindEmployees
                  {:Dept 101}})]
       (is (cn/same-instance? r (first emps))))))
+
+(deftest issue-594-multi-level-relationships
+  (defcomponent :I594ML
+    (entity
+     :I594ML/Company
+     {:Name {:type :Kernel/String
+             :identity true}})
+    (entity
+     :I594ML/Dept
+     {:Name {:type :Kernel/String
+             :identity true}
+      :Location :Kernel/String})
+    (entity
+     :I594ML/Employee
+     {:Name {:type :Kernel/String
+             :identity true}
+      :Salary :Kernel/Decimal})
+    (relationship
+     :I594ML/PartOf
+     {:meta
+      {:contains [:I594ML/Company :I594ML/Dept]}})
+    (relationship
+     :I594ML/WorksFor
+     {:meta
+      {:contains [:I594ML/Dept :I594ML/Employee]}})
+    (dataflow
+     :I594ML/CreateDept
+     {:I594ML/Company
+      {:Name? :I594ML/CreateDept.Company}
+      :as [:C]}
+     {:I594ML/Dept
+      {:Name :I594ML/CreateDept.Dept
+       :Location :I594ML/CreateDept.Location}
+      :-> [{:I594ML/PartOf {}} :C]})
+    (dataflow
+     :I594ML/CreateEmployee
+     {:I594ML/Dept {:Name? :I594ML/CreateEmployee.Dept}
+      :as [:D]}
+     {:I594ML/Employee
+      {:Name :I594ML/CreateEmployee.Emp
+       :Salary :I594ML/CreateEmployee.Salary}
+      :-> [{:I594ML/WorksFor {}} :D]})
+    (dataflow
+     :I594ML/LookupEmployees
+     {:I594ML/Employee?
+      {}
+      :-> [:I594ML/WorksFor?
+           {:I594ML/Dept {:Name? :I594ML/LookupEmployees.Dept}
+            :-> [:I594ML/PartOf?
+                 {:I594ML/Company {:Name? :I594ML/LookupEmployees.Company}}]}]}))
+  (let [c (tu/first-result
+           {:I594ML/Upsert_Company
+            {:Instance
+             {:I594ML/Company {:Name "acme"}}}})
+        d (tu/result
+           {:I594ML/CreateDept
+            {:Company "acme"
+             :Dept "101"
+             :Location "west"}})
+        e (tu/result
+           {:I594ML/CreateEmployee
+            {:Dept "101"
+             :Emp "steve"
+             :Salary 5600}})
+        r (tu/first-result
+           {:I594ML/LookupEmployees
+            {:Company "acme" :Dept "101"}})]
+    (is (cn/instance-of? :I594ML/Company c))
+    (is (cn/instance-of? :I594ML/Dept d))
+    (is (cn/instance-of? :I594ML/PartOf (ls/rel-tag d)))
+    (is (= "acme" (:Company (ls/rel-tag d))))
+    (is (= "101" (:Dept (ls/rel-tag d))))
+    (is (cn/instance-of? :I594ML/Employee e))
+    (is (cn/instance-of? :I594ML/WorksFor (ls/rel-tag e)))
+    (is (= "101" (:Dept (ls/rel-tag e))))
+    (is (= "steve" (:Employee (ls/rel-tag e))))
+    (is (cn/instance-of? :I594ML/Employee r))
+    (is (cn/same-instance? e r))))
