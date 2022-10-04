@@ -7,6 +7,7 @@
             [fractl.lang.internal :as li]
             [fractl.store.util :as su]
             [fractl.store.sql :as sql]
+            [fractl.util.seq :as us]
             #?(:clj [fractl.store.jdbc-internal :as ji])
             #?(:clj [fractl.store.postgres-internal :as pi])
             #?(:clj [fractl.store.h2-internal :as h2i]
@@ -202,15 +203,27 @@
           [(str sql (s/join (repeat (dec (count attr-names)) \))))]
           params))))))
 
+(defn- merge-as-union-query [queries]
+  (vec
+   (flatten
+    (reduce (fn [a b]
+              [(if (seq (first a))
+                 (str (first a) " UNION " (first b)) (first b))
+               (concat (second a) (rest b))])
+            ["" []] queries))))
+
 (defn compile-query [query-pattern]
-  (if-let [query-seq (:filter-in-sequence query-pattern)]
-    (merge-queries-with-in-clause query-seq)
-    (sql/format-sql
-     (su/entity-table-name (:from query-pattern))
-     (if (> (count (keys query-pattern)) 2)
-       (dissoc query-pattern :from)
-       (let [where-clause (:where query-pattern)]
-         (when (not= :* where-clause) where-clause))))))
+  (us/case-keys
+   query-pattern
+   :filter-in-sequence merge-queries-with-in-clause
+   :union merge-as-union-query
+   (fn [query-pattern]
+     (sql/format-sql
+      (su/entity-table-name (:from query-pattern))
+      (if (> (count (keys query-pattern)) 2)
+        (dissoc query-pattern :from)
+        (let [where-clause (:where query-pattern)]
+          (when (not= :* where-clause) where-clause)))))))
 
 (defn- raw-results [query-fns]
   (flatten (mapv u/apply0 query-fns)))

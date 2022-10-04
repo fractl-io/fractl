@@ -189,10 +189,16 @@
            entity-name
            (mapv query-param-process query))
         cq ((fetch-compile-query-fn ctx) q)
+        mfn (fn [query-filter]
+              (merge-queries
+               ctx entity-name cq
+               (mapv (partial compile-pattern ctx) query-filter)))
+        union-query-filter (vector? (first query-filter))
         final-cq (if query-filter
-                   (merge-queries
-                    ctx entity-name cq
-                    (mapv (partial compile-pattern ctx) query-filter))
+                   (if union-query-filter
+                     ((fetch-compile-query-fn ctx)
+                      {:union (mapv mfn query-filter)})
+                     (mfn query-filter))
                    cq)]
     (stu/package-query q final-cq)))
 
@@ -484,12 +490,15 @@
   attrs)
 
 (defn- ensure-relationship-query [pat]
-  (let [relq (first pat)]
-    (cond
-      (keyword? relq) (ensure-relationship-full-query relq)
-      (map? relq) (and (ensure-relationship-name (first (keys relq)))
-                       (ensure-some-query-attrs (first (vals relq))))
-      :else (u/throw-ex (str "invalid relationship query pattern - " relq))))
+  (if (vector? (first pat))
+    (doseq [p pat]
+      (ensure-relationship-query p))
+    (let [relq (first pat)]
+      (cond
+        (keyword? relq) (ensure-relationship-full-query relq)
+        (map? relq) (and (ensure-relationship-name (first (keys relq)))
+                         (ensure-some-query-attrs (first (vals relq))))
+        :else (u/throw-ex (str "invalid relationship query pattern - " relq)))))
   pat)
 
 (declare compile-query-command)

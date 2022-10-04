@@ -1,5 +1,6 @@
 (ns fractl.util.seq
-  "Utilities for sequences.")
+  "Utilities for sequences."
+  (:require [fractl.util :as u]))
 
 (defn truths
   "Return all truth values returned by f when applied to each element of xs."
@@ -147,3 +148,16 @@
 
 (def keys-as-keywords (partial transform-keys string? keyword))
 (def keyword-keys-as-strings (partial transform-keys keyword? #(subs (str %) 1)))
+
+(defn case-keys [m & options]
+  (loop [opts options]
+    (let [k (first opts) f (first (rest opts))]
+      (cond
+        (and k f)
+        (if-let [v (k m)]
+          (f v)
+          (recur (rest (rest opts))))
+
+        k (k m)
+
+        :else (u/throw-ex "no default specified for case-keys")))))

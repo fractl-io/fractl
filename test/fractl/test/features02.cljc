@@ -185,7 +185,12 @@
      {:I594MR/A
       {:X :I594MR/CreateA.X}
       :-> [[{:I594MR/R1 {}} {:I594MR/B {:Y? :I594MR/CreateA.B}}]
-           [{:I594MR/R2 {}} {:I594MR/C {:Z? :I594MR/CreateA.C}}]]}))
+           [{:I594MR/R2 {}} {:I594MR/C {:Z? :I594MR/CreateA.C}}]]})
+    (dataflow
+     :I594MR/FindA
+     {:I594MR/A? {}
+      :-> [[:I594MR/R1? {:I594MR/B {:Y? :I594MR/FindA.B}}]
+           [:I594MR/R2? {:I594MR/C {:Z? :I594MR/FindA.C}}]]}))
   (let [b (tu/first-result
            {:I594MR/Upsert_B
             {:Instance
@@ -196,11 +201,15 @@
              {:I594MR/C {:Z 200}}}})
         a (tu/result
            {:I594MR/CreateA
-            {:X 1 :B 100 :C 200}})]
+            {:X 1 :B 100 :C 200}})
+        r (tu/first-result
+           {:I594MR/FindA
+            {:B 100 :C 200}})]
     (is (cn/instance-of? :I594MR/B b))
     (is (cn/instance-of? :I594MR/C c))
     (is (cn/instance-of? :I594MR/A a))
     (is (= 2 (count (ls/rel-tag a))))
     (every? #(or (cn/instance-of? :I594MR/R1 %)
                  (cn/instance-of? :I594MR/R2 %))
-            (ls/rel-tag a))))
+            (ls/rel-tag a))
+    (is (cn/same-instance? r a))))
