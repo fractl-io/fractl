@@ -9,7 +9,7 @@
             [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
-            [fractl.lang.syntax :as syn]
+            [fractl.lang.syntax :as ls]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.env :as env]
@@ -363,7 +363,7 @@
     v))
 
 (defn- complex-query-pattern? [pat]
-  (when-not (syn/rel-tag pat)
+  (when-not (ls/rel-tag pat)
     (let [ks (keys (li/normalize-instance-pattern pat))]
       (and (= 1 (count ks))
            (s/ends-with? (str (first ks)) "?")))))
@@ -451,7 +451,7 @@
     n
     (li/normalize-name (or (and (map? n) (:path n)) n))))
 
-(defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
+(defn- compile-intern-relationship [ctx recname pat]
   (let [rel (first pat)
         is-obj (map? rel)
         n (if is-obj
@@ -461,9 +461,15 @@
     (ensure-relationship-name n)
     (when-not (some #{n} (cn/find-relationships recname))
       (u/throw-ex (str "relationship " n " not found for " recname)))
+    [[rel (li/split-path n) is-obj] (compile-pattern ctx (second pat))]))
+
+(defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
+  (let [c (partial compile-intern-relationship ctx recname)
+        rel-opcs (if (vector? (first pat))
+                   (mapv c pat)
+                   [(c pat)])]
     (op/intern-relationship-instance
-     [[rel (li/split-path n) is-obj] (package-opcode intern-rec-opc)
-      (compile-pattern ctx (second pat))])))
+     [(package-opcode intern-rec-opc) rel-opcs])))
 
 (defn- ensure-relationship-full-query [x]
   (when-not (and (li/query-pattern? x)
@@ -509,11 +515,11 @@
                [component record])
           attrs (li/instance-pattern-attrs pat)
           alias (:as pat)
-          timeout-ms (syn/timeout-ms-tag pat)
+          timeout-ms (ls/timeout-ms-tag pat)
           [tag scm] (if (or path refs)
                       [:dynamic-upsert nil]
                       (cv/find-schema nm full-nm))
-          relpat (syn/rel-tag pat)
+          relpat (ls/rel-tag pat)
           is-query-upsert (or (li/query-pattern? orig-nm)
                               (some li/query-pattern? (keys attrs)))
           is-relq (and relpat is-query-upsert)]
@@ -768,7 +774,7 @@
                qpat) nil)]
       (when alias
         (ctx/add-alias! ctx recname alias))
-      (emit-delete (li/split-path recname) (merge q {syn/alias-tag alias})))))
+      (emit-delete (li/split-path recname) (merge q {ls/alias-tag alias})))))
 
 (defn- compile-quoted-expression [ctx exp]
   (if (li/unquoted? exp)

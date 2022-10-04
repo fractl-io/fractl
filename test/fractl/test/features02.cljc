@@ -69,9 +69,10 @@
             {:Name "xyz" :Salary 1300M :Dept 101}})]
     (is (cn/instance-of? :I594B/Dept dept))
     (is (cn/instance-of? :I594B/Employee r))
-    (is (cn/instance-of? :I594B/WorksFor (ls/rel-tag r)))
-    (is (= (:No dept) (:Dept (ls/rel-tag r))))
-    (is (= (:Name r) (:Employee (ls/rel-tag r))))
+    (let [rel (first (ls/rel-tag r))]
+      (is (cn/instance-of? :I594B/WorksFor rel))
+      (is (= (:No dept) (:Dept rel)))
+      (is (= (:Name r) (:Employee rel))))
     (let [emps (tu/result
                 {:I594B/FindEmployees
                  {:Dept 101}})]
@@ -145,12 +146,61 @@
             {:Company "acme" :Dept "101"}})]
     (is (cn/instance-of? :I594ML/Company c))
     (is (cn/instance-of? :I594ML/Dept d))
-    (is (cn/instance-of? :I594ML/PartOf (ls/rel-tag d)))
-    (is (= "acme" (:Company (ls/rel-tag d))))
-    (is (= "101" (:Dept (ls/rel-tag d))))
+    (let [rel (first (ls/rel-tag d))]
+      (is (cn/instance-of? :I594ML/PartOf rel))
+      (is (= "acme" (:Company rel)))
+      (is (= "101" (:Dept rel))))
     (is (cn/instance-of? :I594ML/Employee e))
-    (is (cn/instance-of? :I594ML/WorksFor (ls/rel-tag e)))
-    (is (= "101" (:Dept (ls/rel-tag e))))
-    (is (= "steve" (:Employee (ls/rel-tag e))))
+    (let [rel (first (ls/rel-tag e))]
+      (is (cn/instance-of? :I594ML/WorksFor rel))
+      (is (= "101" (:Dept rel)))
+      (is (= "steve" (:Employee rel))))
     (is (cn/instance-of? :I594ML/Employee r))
     (is (cn/same-instance? e r))))
+
+(deftest issue-594-multi-relationships
+  (defcomponent :I594MR
+    (entity
+     :I594MR/A
+     {:X {:type :Kernel/Int
+          :identity true}})
+    (entity
+     :I594MR/B
+     {:Y {:type :Kernel/Int
+          :identity true}})
+    (entity
+     :I594MR/C
+     {:Z {:type :Kernel/Int
+          :identity true}})
+    (relationship
+     :I594MR/R1
+     {:meta
+      {:contains [:I594MR/B :I594MR/A]}})
+    (relationship
+     :I594MR/R2
+     {:meta
+      {:contains [:I594MR/C :I594MR/A]}})
+    (dataflow
+     :I594MR/CreateA
+     {:I594MR/A
+      {:X :I594MR/CreateA.X}
+      :-> [[{:I594MR/R1 {}} {:I594MR/B {:Y? :I594MR/CreateA.B}}]
+           [{:I594MR/R2 {}} {:I594MR/C {:Z? :I594MR/CreateA.C}}]]}))
+  (let [b (tu/first-result
+           {:I594MR/Upsert_B
+            {:Instance
+             {:I594MR/B {:Y 100}}}})
+        c (tu/first-result
+           {:I594MR/Upsert_C
+            {:Instance
+             {:I594MR/C {:Z 200}}}})
+        a (tu/result
+           {:I594MR/CreateA
+            {:X 1 :B 100 :C 200}})]
+    (is (cn/instance-of? :I594MR/B b))
+    (is (cn/instance-of? :I594MR/C c))
+    (is (cn/instance-of? :I594MR/A a))
+    (is (= 2 (count (ls/rel-tag a))))
+    (every? #(or (cn/instance-of? :I594MR/R1 %)
+                 (cn/instance-of? :I594MR/R2 %))
+            (ls/rel-tag a))))

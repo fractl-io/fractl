@@ -730,6 +730,24 @@
                             (merge (cn/instance-attributes inst) attrs)})]
     (eval-opcode self env opc)))
 
+(defn- normalize-rel-target [obj]
+  (if (map? obj)
+    obj
+    (first obj)))
+
+(defn- intern-relationship [vm env eval-opcode eval-event-dataflows
+                            rel-name rel-attrs src-inst opc]
+  (let [r (eval-opcode vm env opc)]
+    (when-let [target (normalize-rel-target (ok-result r))]
+      (intern-instance
+       vm (env/push-obj
+           (:env r) rel-name
+           (cn/init-relationship-instance
+            rel-name rel-attrs
+            src-inst target))
+       eval-opcode eval-event-dataflows
+       rel-name nil true true))))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -804,23 +822,20 @@
        self env eval-opcode eval-event-dataflows
        record-name inst-alias validation-required upsert-required))
 
-    (do-intern-relationship-instance [self env [[rel rel-name is-obj] src-opcode target-opcode]]
+    (do-intern-relationship-instance [self env [src-opcode rel-info-and-target-opcode]]
       (let [r1 (eval-opcode self env src-opcode)]
         (if-let [src (first (ok-result r1))]
-          (let [r2 (eval-opcode self (:env r1) target-opcode)]
-            (if-let [target (ok-result r2)]
-              (let [r3 (intern-instance
-                        self (env/push-obj
-                              (:env r2) rel-name
-                              (cn/init-relationship-instance
-                               rel-name (when is-obj (first (vals rel)))
-                               src target))
+          (loop [topc rel-info-and-target-opcode, env (:env r1), rels []]
+            (if-let [[[rel rel-name is-obj] target-opcode] (first topc)]
+              (let [r2 (intern-relationship
+                        self env
                         eval-opcode eval-event-dataflows
-                        rel-name nil true true)]
-                (if-let [rel (first (ok-result r3))]
-                  (i/ok (assoc src ls/rel-tag rel) (:env r3))
-                  r3))
-              r2))
+                        rel-name (when is-obj (first (vals rel)))
+                        src target-opcode)]
+                (if-let [rel (first (ok-result r2))]
+                  (recur (rest topc) (:env r2) (conj rels rel))
+                  r2))
+              (i/ok (assoc src ls/rel-tag rels) env)))
           r1)))
 
     (do-intern-event-instance [self env [record-name alias-name with-types timeout-ms]]

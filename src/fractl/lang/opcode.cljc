@@ -130,7 +130,7 @@
           [[record-name alias with-types timeout-ms]]
           "Finish the instance initialization of an event, evaluate attached dataflows.")
          (intern-relationship-instance
-          [[rel-name src-opcode target-opcode]]
+          [[src-opcode relationship-info-and-target-opcode]]
           "Fetch the src and target and create the relationship.")
          (delete-instance
           [[record-name id-pattern-code]]
