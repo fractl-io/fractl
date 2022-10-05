@@ -319,8 +319,13 @@
 (defn unq-name []
   (keyword (gensym)))
 
+(def rel-tag :->)
+(def timeout-ms-tag :timeout-ms)
+
+(def ^:private instance-meta-keys [:as :with-types timeout-ms-tag rel-tag])
+
 (defn normalize-instance-pattern [pat]
-  (dissoc pat :as :with-types :timeout-ms :->))
+  (apply dissoc pat instance-meta-keys))
 
 (defn instance-pattern? [pat]
   (let [ks (keys (normalize-instance-pattern pat))]
