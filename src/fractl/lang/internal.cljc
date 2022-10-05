@@ -74,7 +74,9 @@
 
 (def varname? symbol?)
 (def pathname? name?)
-(def parsed-path? coll?)
+
+(defn parsed-path? [x]
+  (and (coll? x) (not (map? x))))
 
 (def ^:private quote-tag :q#)
 (def ^:private unquote-tag :uq#)
@@ -220,7 +222,7 @@
    (make-path component obj-name)))
 
 (defn make-ref [recname attrname]
-  (keyword (str (name recname) "." (name attrname))))
+  (keyword (str (subs (str recname) 1) "." (name attrname))))
 
 (defn has-modpath? [path]
   (some #{\/} (str path)))
@@ -318,7 +320,7 @@
   (keyword (gensym)))
 
 (defn normalize-instance-pattern [pat]
-  (dissoc pat :as :with-types :timeout-ms))
+  (dissoc pat :as :with-types :timeout-ms :->))
 
 (defn instance-pattern? [pat]
   (let [ks (keys (normalize-instance-pattern pat))]
@@ -366,10 +368,10 @@
 (defn query-target-name [q]
   (keyword (let [s (subs (str q) 1)] (subs s 0 (dec (count s))))))
 
-(defn normalize-attr-name [a]
-  (let [n (name a)]
+(defn normalize-name [a]
+  (let [n (str a)]
     (if (string/ends-with? n "?")
-      (keyword (subs n 0 (dec (count n))))
+      (keyword (subs n 1 (dec (count n))))
       a)))
 
 (defn macro-name? [x]

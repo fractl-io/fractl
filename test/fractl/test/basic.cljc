@@ -8,9 +8,8 @@
             [fractl.compiler :as c]
             [fractl.lang
              :refer [component attribute event
-                     entity record relationship dataflow]]
+                     entity record dataflow]]
             [fractl.evaluator :as e]
-            [fractl.relationship :as rel]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
             [fractl.lang.datetime :as dt]
@@ -1201,75 +1200,6 @@
                 :Age 20}}))]
       (is (cn/instance-of? :ExprCompile/Form e))
       (is (= spec (:Spec e))))))
-
-(deftest relationships
-  (defcomponent :Relationships
-    (entity
-     :Relationships/User
-     {:UserName :Kernel/String})
-    (entity
-     :Relationships/Book
-     {:Title :Kernel/String
-      :Author :Kernel/String})
-    (relationship
-     :Relationships/CheckoutBook
-     {:User {:ref (tu/append-id :Relationships/User)}
-      :Book {:ref (tu/append-id :Relationships/Book)}
-      :Date {:type :Kernel/DateTime
-             :default dt/now}
-      :meta
-      {:from :User
-       :to :Book
-       :cardinality
-       {:type :1-M
-        :exclusive true}}}))
-  (let [u1 (tu/first-result
-            {:Relationships/Upsert_User
-             {:Instance
-              {:Relationships/User
-               {:UserName "K R"}}}})
-        b1 (tu/first-result
-            {:Relationships/Upsert_Book
-             {:Instance
-              {:Relationships/Book
-               {:Title "ABC"
-                :Author "JJK"}}}})
-        r1 (tu/first-result
-            {:Relationships/Upsert_CheckoutBook
-             {:Instance
-              {:Relationships/CheckoutBook
-               {:User (cn/id-attr u1)
-                :Book (cn/id-attr b1)}}}})
-        r2 (tu/first-result
-            {:Relationships/Lookup_CheckoutBook
-             {cn/id-attr (cn/id-attr r1)}})]
-    (is (= (set [:Relationships/Book :Relationships/BookMeta
-                 :Relationships/CheckoutBook
-                 :Relationships/User :Relationships/UserMeta])
-           (cn/entity-names :Relationships)))
-    (is (= [:Relationships/CheckoutBook] (cn/relationship-names :Relationships)))
-    (let [scm (cn/fetch-schema :Relationships/CheckoutBook)
-          ascm-book (cn/find-attribute-schema (:Book scm))
-          ascm-user (cn/find-attribute-schema (:User scm))
-          graph (rel/relationships :Relationships)
-          roots (:roots graph)]
-      (is (and (:unique ascm-book) (:indexed ascm-book)))
-      (is (and (not (:unique ascm-user)) (:indexed ascm-user)))
-      (is (and (:graph graph) roots))
-      (is (and (= (ffirst roots) [:Relationships :User])
-               (= (second (first roots)) 0)))
-      (is (= [[:Relationships/CheckoutBook {:from :User, :to nil}]]
-             (mapv (fn [[k v]]
-                     [k (rel/participation v :Relationships/User)])
-                   (:graph graph))))
-      (is (= [[:Relationships/CheckoutBook {:from nil, :to :Book}]]
-             (mapv (fn [[k v]]
-                     [k (rel/participation v :Relationships/Book)])
-                   (:graph graph)))))
-    (is (cn/instance-of? :Relationships/User u1))
-    (is (cn/instance-of? :Relationships/Book b1))
-    (is (cn/instance-of? :Relationships/CheckoutBook r1))
-    (is (cn/same-instance? r1 r2))))
 
 (deftest password-match
   (defcomponent :PM

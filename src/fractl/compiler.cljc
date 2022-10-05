@@ -9,6 +9,7 @@
             [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
+            [fractl.lang.syntax :as ls]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.env :as env]
@@ -147,15 +148,63 @@
   (or (ctx/fetch-compile-query-fn ctx)
       (store/get-default-compile-query)))
 
-(defn- compile-relational-entity-query [ctx entity-name query]
+(defn- recname-from-opcode [opc]
+  (first (:arg opc)))
+
+(defn- compiled-query-from-opcode [opc]
+  (stu/compiled-query (second (:arg opc))))
+
+(defn- as-opcode-map [opc]
+  (let [r (if (map? opc)
+            (:opcode opc)
+            (:opcode (first opc)))]
+    (if (map? r)
+      r
+      (first r))))
+
+(defn- merge-queries [ctx main-entity-name main-query filters-opcode]
+  (let [fopcode (as-opcode-map (first filters-opcode))
+        sopcode (as-opcode-map (second filters-opcode))
+        rel-name (recname-from-opcode fopcode)
+        node-entity-name (recname-from-opcode sopcode)]
+    (when-not (cn/in-relationship? main-entity-name rel-name)
+      (u/throw-ex (str main-entity-name " not in relationship - " rel-name)))
+    (when-not (cn/in-relationship? node-entity-name rel-name)
+      (u/throw-ex (str node-entity-name " not in relationship - " rel-name)))
+    (let [rel-scm (cn/fetch-relationship-schema rel-name)
+          ent-scm (cn/fetch-entity-schema node-entity-name)
+          attrs (concat
+                 [(cn/identity-attribute-name main-entity-name)]
+                 (cn/relationship-attribute-names
+                  main-entity-name node-entity-name))
+          rel-q (compiled-query-from-opcode fopcode)
+          node-q (compiled-query-from-opcode sopcode)]
+      ((fetch-compile-query-fn ctx)
+       {:filter-in-sequence [[main-query rel-q node-q] attrs]}))))
+
+(declare compile-pattern)
+
+(defn- compile-relational-entity-query [ctx entity-name query query-filter]
   (let [q (i/expand-query
            entity-name
-           (mapv query-param-process query))]
-    (stu/package-query q ((fetch-compile-query-fn ctx) q))))
+           (mapv query-param-process query))
+        cq ((fetch-compile-query-fn ctx) q)
+        mfn (fn [query-filter]
+              (merge-queries
+               ctx entity-name cq
+               (mapv (partial compile-pattern ctx) query-filter)))
+        union-query-filter (vector? (first query-filter))
+        final-cq (if query-filter
+                   (if union-query-filter
+                     ((fetch-compile-query-fn ctx)
+                      {:union (mapv mfn query-filter)})
+                     (mfn query-filter))
+                   cq)]
+    (stu/package-query q final-cq)))
 
-(defn compile-query [ctx entity-name query]
+(defn compile-query [ctx entity-name query query-filter]
   (let [q (compile-relational-entity-query
-           ctx entity-name query)]
+           ctx entity-name query query-filter)]
     (ctx/put-fresh-record! ctx entity-name {})
     q))
 
@@ -184,20 +233,22 @@
 
     A graph of dependencies is prepared for each attribute. If there is a cycle in the graph,
     raise an error. Otherwise return a map with each attribute group and their attached graphs."
-  [ctx pat-name pat-attrs schema]
-  (let [{computed :computed refs :refs
-         compound :compound query :query
-         :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
-        fs (map #(partial build-dependency-graph %) [refs compound query])
-        deps-graph (appl fs [ctx schema ug/EMPTY])
-        compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
-        parsed-refs (map (fn [[k v]] [k (if (symbol? v) {:refs v} (li/path-parts v))]) refs)
-        compiled-query (when query (compile-query ctx pat-name query))
-        final-attrs (if (seq compiled-query)
-                      (assoc cls-attrs :query compiled-query)
-                      cls-attrs)]
-    {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
-     :deps deps-graph}))
+  [ctx pat-name pat-attrs schema args]
+  (if (:full-query? args)
+    {:attrs (assoc pat-attrs :query (compile-query ctx pat-name pat-attrs (:query-filter args)))}
+    (let [{computed :computed refs :refs
+           compound :compound query :query
+           :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
+          fs (map #(partial build-dependency-graph %) [refs compound query])
+          deps-graph (appl fs [ctx schema ug/EMPTY])
+          compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
+          parsed-refs (map (fn [[k v]] [k (if (symbol? v) {:refs v} (li/path-parts v))]) refs)
+          compiled-query (when query (compile-query ctx pat-name query (:query-filter args)))
+          final-attrs (if (seq compiled-query)
+                        (assoc cls-attrs :query compiled-query)
+                        cls-attrs)]
+      {:attrs (assoc final-attrs :compound compound-exprs :refs parsed-refs)
+       :deps deps-graph})))
 
 (def ^:private set-attr-opcode-fns {:computed op/set-literal-attribute
                                     :refs op/set-ref-attribute
@@ -221,30 +272,33 @@
             (seq (:sorted attrs)))
     true))
 
-(defn- emit-build-record-instance [ctx rec-name attrs schema alias event? timeout-ms]
-  (concat [(begin-build-instance rec-name attrs)]
-          (mapv (partial set-literal-attribute ctx)
-                (:computed attrs))
-          (let [f (:compound set-attr-opcode-fns)]
-            (mapv #(f %) (:compound attrs)))
-          (mapv (fn [[k v]]
-                  ((k set-attr-opcode-fns) v))
-                (:sorted attrs))
-          (mapv (fn [arg]
-                  (op/set-ref-attribute arg))
-                (:refs attrs))
-          [(if event?
-             (op/intern-event-instance
-              [rec-name alias (ctx/fetch-with-types ctx)
-               timeout-ms])
-             (op/intern-instance
-              (vec
-               (concat
-                [rec-name alias]
-                (if (ctx/build-partial-instance? ctx)
-                  [false false]
-                  [true (and (cn/entity? rec-name)
-                             (build-record-for-upsert? attrs))])))))]))
+(defn- emit-build-record-instance [ctx rec-name attrs schema args]
+  (let [alias (:alias args)
+        event? (= (cn/type-tag-key args) :event)
+        timeout-ms (:timeout-ms args)]
+    (concat [(begin-build-instance rec-name attrs)]
+            (mapv (partial set-literal-attribute ctx)
+                  (:computed attrs))
+            (let [f (:compound set-attr-opcode-fns)]
+              (mapv #(f %) (:compound attrs)))
+            (mapv (fn [[k v]]
+                    ((k set-attr-opcode-fns) v))
+                  (:sorted attrs))
+            (mapv (fn [arg]
+                    (op/set-ref-attribute arg))
+                  (:refs attrs))
+            [(if event?
+               (op/intern-event-instance
+                [rec-name alias (ctx/fetch-with-types ctx)
+                 timeout-ms])
+               (op/intern-instance
+                (vec
+                 (concat
+                  [rec-name alias]
+                  (if (ctx/build-partial-instance? ctx)
+                    [false false]
+                    [true (and (cn/entity? rec-name)
+                               (build-record-for-upsert? attrs))])))))])))
 
 (defn- sort-attributes-by-dependency [attrs deps-graph]
   (let [sorted (i/sort-attributes-by-dependency attrs deps-graph)
@@ -255,35 +309,20 @@
   "Emit opcode for realizing a fully-built instance of a record, entity or event.
   It is assumed that the opcodes for setting the individual attributes were emitted
   prior to this."
-  ([ctx pat-name pat-attrs schema alias event? timeout-ms]
-   (when-let [xs (cv/invalid-attributes pat-attrs schema)]
-     (if (= (first xs) cn/id-attr)
-       (if (= (get schema :type-*-tag-*-) :record)
-         (u/throw-ex (str "Invalid attribute " cn/id-attr " for type record: " pat-name))
-         (u/throw-ex (str "Wrong reference of id in line: " pat-attrs "of " pat-name)))
-       (u/throw-ex (str "Invalid attributes in pattern - " xs))))
-   (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema)
-         sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
-     (emit-build-record-instance ctx pat-name sorted-attrs schema alias event? timeout-ms)))
-  ([ctx pat-name pat-attrs schema alias event?]
-   (emit-realize-instance ctx pat-name pat-attrs schema alias event? nil)))
+  [ctx pat-name pat-attrs schema args]
+  (when-let [xs (cv/invalid-attributes pat-attrs schema)]
+    (if (= (first xs) cn/id-attr)
+      (if (= (get schema cn/type-tag-key) :record)
+        (u/throw-ex (str "Invalid attribute " cn/id-attr " for type record: " pat-name))
+        (u/throw-ex (str "Wrong reference of id in line: " pat-attrs "of " pat-name)))
+      (u/throw-ex (str "Invalid attributes in pattern - " xs))))
+  (let [{attrs :attrs deps-graph :deps} (parse-attributes ctx pat-name pat-attrs schema args)
+        sorted-attrs (sort-attributes-by-dependency attrs deps-graph)]
+    (emit-build-record-instance ctx pat-name sorted-attrs schema args)))
 
-(defn- emit-realize-entity-instance [ctx pat-name pat-attrs schema alias]
-  (emit-realize-instance ctx pat-name pat-attrs schema alias false))
-
-(def ^:private emit-realize-record-instance emit-realize-entity-instance)
-
-(defn- emit-realize-event-instance
-  ([ctx pat-name pat-attrs schema alias timeout-ms]
-   (emit-realize-instance ctx pat-name pat-attrs schema alias true timeout-ms))
-  ([ctx pat-name pat-attrs schema alias]
-   (emit-realize-event-instance ctx pat-name pat-attrs schema alias nil)))
-
-(declare compile-pattern)
-
-(defn- emit-dynamic-upsert [ctx pat-name pat-attrs _ alias-name]
+(defn- emit-dynamic-upsert [ctx pat-name pat-attrs _ args]
   (op/dynamic-upsert
-   [pat-name pat-attrs (partial compile-pattern ctx) alias-name]))
+   [pat-name pat-attrs (partial compile-pattern ctx) (:alias args)]))
 
 (defn- emit-realize-map-literal [ctx pat]
   ;; TODO: implement support for map literals.
@@ -295,7 +334,7 @@
   a `SELECT * FROM entity_table`."
   [ctx pat]
   (let [entity-name (li/split-path (li/query-target-name pat))
-        q (compile-query ctx entity-name nil)]
+        q (compile-query ctx entity-name nil nil)]
     (op/query-instances [entity-name q])))
 
 (defn- compile-pathname
@@ -330,9 +369,10 @@
     v))
 
 (defn- complex-query-pattern? [pat]
-  (let [ks (keys (dissoc pat :as))]
-    (and (= 1 (count ks))
-         (s/ends-with? (str (first ks)) "?"))))
+  (when-not (ls/rel-tag pat)
+    (let [ks (keys (li/normalize-instance-pattern pat))]
+      (and (= 1 (count ks))
+           (s/ends-with? (str (first ks)) "?")))))
 
 (defn- query-entity-name [k]
   (let [sk (str k)]
@@ -402,6 +442,65 @@
               cp)))
         opcode inst-alias]))))
 
+(defn- package-opcode [code]
+  (if (and (map? code) (:opcode code))
+    code
+    {:opcode code}))
+
+(defn- ensure-relationship-name [n]
+  (when-not (cn/fetch-relationship-schema (li/normalize-name n))
+    (u/throw-ex (str "relationship " n " not found")))
+  n)
+
+(defn normalize-recname-in-relationship [n]
+  (if (li/parsed-path? n)
+    n
+    (li/normalize-name (or (and (map? n) (:path n)) n))))
+
+(defn- compile-intern-relationship [ctx recname pat]
+  (let [rel (first pat)
+        is-obj (map? rel)
+        n (if is-obj
+            (first (keys rel))
+            rel)
+        recname (normalize-recname-in-relationship recname)]
+    (ensure-relationship-name n)
+    (when-not (some #{n} (cn/find-relationships recname))
+      (u/throw-ex (str "relationship " n " not found for " recname)))
+    [[rel (li/split-path n) is-obj] (compile-pattern ctx (second pat))]))
+
+(defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
+  (let [c (partial compile-intern-relationship ctx recname)
+        rel-opcs (if (vector? (first pat))
+                   (mapv c pat)
+                   [(c pat)])]
+    (op/intern-relationship-instance
+     [(package-opcode intern-rec-opc) rel-opcs])))
+
+(defn- ensure-relationship-full-query [x]
+  (when-not (and (li/query-pattern? x)
+                 (ensure-relationship-name
+                  (li/query-target-name x)))
+    (u/throw-ex (str "not a relationship query - " x)))
+  x)
+
+(defn- ensure-some-query-attrs [attrs]
+  (when-not (some li/query-pattern? (keys attrs))
+    (u/throw-ex (str "no query pattern in relationship - " attrs)))
+  attrs)
+
+(defn- ensure-relationship-query [pat]
+  (if (vector? (first pat))
+    (doseq [p pat]
+      (ensure-relationship-query p))
+    (let [relq (first pat)]
+      (cond
+        (keyword? relq) (ensure-relationship-full-query relq)
+        (map? relq) (and (ensure-relationship-name (first (keys relq)))
+                         (ensure-some-query-attrs (first (vals relq))))
+        :else (u/throw-ex (str "invalid relationship query pattern - " relq)))))
+  pat)
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -413,7 +512,10 @@
     (compile-from-pattern ctx pat)
 
     (li/instance-pattern? pat)
-    (let [full-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
+    (let [orig-nm (ctx/dynamic-type
+                   ctx
+                   (li/instance-pattern-name pat))
+          full-nm (li/normalize-name orig-nm)
           {component :component record :record
            path :path refs :refs :as parts} (li/path-parts full-nm)
           refs (seq refs)
@@ -422,25 +524,41 @@
                [component record])
           attrs (li/instance-pattern-attrs pat)
           alias (:as pat)
-          timeout-ms (:timeout-ms pat)
+          timeout-ms (ls/timeout-ms-tag pat)
           [tag scm] (if (or path refs)
                       [:dynamic-upsert nil]
-                      (cv/find-schema nm full-nm))]
+                      (cv/find-schema nm full-nm))
+          relpat (ls/rel-tag pat)
+          is-query-upsert (or (li/query-pattern? orig-nm)
+                              (some li/query-pattern? (keys attrs)))
+          is-relq (and relpat is-query-upsert)]
+      (when is-relq
+        (ensure-relationship-query relpat))
       (let [c (case tag
-                :entity emit-realize-entity-instance
-                :record emit-realize-record-instance
+                (:entity :record) emit-realize-instance
                 :event (do
                          (when-let [wt (fetch-with-types pat)]
                            (ctx/bind-with-types! ctx wt))
-                         emit-realize-event-instance)
+                         emit-realize-instance)
                 :dynamic-upsert emit-dynamic-upsert
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
-            opc (apply c ctx nm attrs scm (if timeout-ms [alias timeout-ms] [alias]))]
+            args0 (merge {:alias alias cn/type-tag-key tag
+                          :full-query? (and (= tag :entity)
+                                            (li/query-pattern? orig-nm))}
+                         (when timeout-ms
+                           {:timeout-ms timeout-ms}))
+            args (if is-relq
+                   (assoc
+                    args0 :query-filter relpat)
+                   args0)
+            opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias
           (let [alias-name (ctx/alias-name alias)]
             (ctx/add-alias! ctx (or nm alias-name) alias)))
-        opc))
+        (if (and relpat (not is-relq))
+          (compile-relationship-pattern ctx nm opc relpat)
+          opc)))
 
     :else
     (emit-realize-map-literal ctx pat)))
@@ -662,10 +780,10 @@
              ctx recname
              (if (map? qpat)
                (into [] qpat)
-               qpat))]
+               qpat) nil)]
       (when alias
         (ctx/add-alias! ctx recname alias))
-      (emit-delete (li/split-path recname) (merge q {:alias alias})))))
+      (emit-delete (li/split-path recname) (merge q {ls/alias-tag alias})))))
 
 (defn- compile-quoted-expression [ctx exp]
   (if (li/unquoted? exp)
@@ -741,7 +859,7 @@
                (i/const-value? pat) compile-literal
                (seqable? pat) compile-fncall-expression)]
     (let [code (c ctx pat)]
-      {:opcode code})
+      (package-opcode code))
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
 (defn- maybe-mark-conditional-df [ctx evt-pattern]

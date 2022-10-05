@@ -4,6 +4,7 @@
             [clojure.string :as s]
             [clojure.walk :as w]
             [fractl.util :as u]
+            [fractl.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
             [fractl.component :as cn]
@@ -674,34 +675,34 @@
   ([attr-spec]
    (normalize-relation-attribute attr-spec nil)))
 
-(defn- validate-cardinality! [cardinality]
-  (when-not (some #{(:type cardinality)} [:1-1 :1-M :M-M :M-1])
-    (u/throw-ex (str "Invalid cardinality type - " (:type cardinality))))
-  cardinality)
+(defn- assoc-relationship-attributes [attrs is-contains [rec-a rec-b :as recs]]
+  (when-not (or (li/name? rec-a) (li/name? rec-b))
+    (u/throw-ex (str "invalid relationship elements - " recs)))
+  (let [scm-a (cn/ensure-entity-schema rec-a)
+        scm-b (when-not (= rec-a rec-b) (cn/ensure-entity-schema rec-b))
+        ida (cn/ensure-identity-attribute-name scm-a)
+        idb (if scm-b (cn/ensure-identity-attribute-name scm-b) ida)
+        [a b] (cn/relationship-attribute-names rec-a rec-b)
+        id-attrs {a {:ref (li/make-ref rec-a ida)}
+                  b {:ref (li/make-ref rec-b idb)}}]
+    (merge attrs id-attrs)))
 
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
-         from (:from meta)
-         to (:to meta)
-         cardinality (or (:cardinality meta)
-                         {:type :1-1 :exclusive false})]
-     (when-not (and from to)
-       (u/throw-ex (str "Direction of relationship (from, to) not defined in meta - " relation-name)))
-     (validate-cardinality! cardinality)
-     (let [fspec (from attrs)
-           tspec (to attrs)]
-       (when-not fspec
-         (u/throw-ex (str from " is not an attribute, cannot define relationship - " relation-name)))
-       (when-not tspec
-         (u/throw-ex (str to " is not an attribute, cannot define relationship - " relation-name)))
-       (serializable-entity
-        relation-name
-        (assoc
-         attrs
-         from (normalize-relation-attribute fspec)
-         to (normalize-relation-attribute tspec cardinality)
-         :meta (assoc meta :relationship true :cardinality cardinality))))))
+         contains (mt/contains meta)
+         elems (or contains (mt/between meta))]
+     (when-not elems
+       (u/throw-ex
+        (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
+     (let [attrs (assoc-relationship-attributes attrs contains elems)
+           r (serializable-entity
+              relation-name
+              (assoc
+               attrs
+               :meta (assoc meta :relationship true)))]
+       (when (cn/register-relationship elems relation-name)
+         r))))
   ([schema]
    (parse-and-define serializable-entity schema)))
 
