@@ -25,8 +25,8 @@
 (def body-tag :body)
 (def check-tag :check)
 
-(def rel-tag :->)
-(def timeout-ms-tag :timeout-ms)
+(def rel-tag li/rel-tag)
+(def timeout-ms-tag li/timeout-ms-tag)
 
 (def attributes attrs-tag)
 (def query-pattern query-tag)
