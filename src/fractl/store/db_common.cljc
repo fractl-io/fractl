@@ -7,6 +7,7 @@
             [fractl.lang.internal :as li]
             [fractl.store.util :as su]
             [fractl.store.sql :as sql]
+            [fractl.util.seq :as us]
             #?(:clj [fractl.store.jdbc-internal :as ji])
             #?(:clj [fractl.store.postgres-internal :as pi])
             #?(:clj [fractl.store.h2-internal :as h2i]
@@ -170,13 +171,59 @@
          (execute-stmt! txn pstmt nil))))
     entity-name))
 
+(defn- maybe-with-where-clause [q]
+  (when q
+    (let [sql (first q)]
+      (concat
+       [(if (s/index-of (s/lower-case sql) "where")
+          sql
+          (str sql " WHERE 1=1"))]
+       (rest q)))))
+
+(defn- merge-queries-with-in-clause [[compiled-queries attr-names]]
+  (let [qp (maybe-with-where-clause (first compiled-queries))]
+    (loop [cqs (rest compiled-queries)
+           attrs (rest attr-names)
+           sql (str (first qp) " AND " (su/attribute-column-name (first attr-names)) " IN (")
+           params (rest qp)]
+      (if-let [qp (maybe-with-where-clause (first cqs))]
+        (let [a1 (first attrs)
+              a2 (second attrs)]
+          (recur (rest cqs) (rest attrs)
+                 (str
+                  sql (if a1
+                        (s/replace (first qp) "*" (su/attribute-column-name a1))
+                        (first qp))
+                  (when a2
+                    (str " AND " (su/attribute-column-name a2)
+                         " IN (")))
+                 (concat params (rest qp))))
+        (vec
+         (concat
+          [(str sql (s/join (repeat (dec (count attr-names)) \))))]
+          params))))))
+
+(defn- merge-as-union-query [queries]
+  (vec
+   (flatten
+    (reduce (fn [a b]
+              [(if (seq (first a))
+                 (str (first a) " UNION " (first b)) (first b))
+               (concat (second a) (rest b))])
+            ["" []] queries))))
+
 (defn compile-query [query-pattern]
-  (sql/format-sql
-   (su/entity-table-name (:from query-pattern))
-   (if (> (count (keys query-pattern)) 2)
-     (dissoc query-pattern :from)
-     (let [where-clause (:where query-pattern)]
-       (when (not= :* where-clause) where-clause)))))
+  (us/case-keys
+   query-pattern
+   :filter-in-sequence merge-queries-with-in-clause
+   :union merge-as-union-query
+   (fn [query-pattern]
+     (sql/format-sql
+      (su/entity-table-name (:from query-pattern))
+      (if (> (count (keys query-pattern)) 2)
+        (dissoc query-pattern :from)
+        (let [where-clause (:where query-pattern)]
+          (when (not= :* where-clause) where-clause)))))))
 
 (defn- raw-results [query-fns]
   (flatten (mapv u/apply0 query-fns)))

@@ -16,6 +16,7 @@
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.intercept.core :as interceptors]
             [fractl.lang :as ln]
+            [fractl.lang.syntax :as ls]
             [fractl.lang.opcode :as opc]
             [fractl.lang.internal :as li]
             #?(:clj [clojure.core.async :as async :refer [go <! >! go-loop]])
@@ -663,7 +664,7 @@
        (catch js/Error e
          (or (.-ex-data e) (i/error e))))))
 
-(defn- do-query-helper [env entity-name queries]
+(defn- query-helper [env entity-name queries]
   (if-let [[insts env]
            (read-intercept
             env entity-name
@@ -729,6 +730,24 @@
                             (merge (cn/instance-attributes inst) attrs)})]
     (eval-opcode self env opc)))
 
+(defn- normalize-rel-target [obj]
+  (if (map? obj)
+    obj
+    (first obj)))
+
+(defn- intern-relationship [vm env eval-opcode eval-event-dataflows
+                            rel-name rel-attrs src-inst opc]
+  (let [r (eval-opcode vm env opc)]
+    (when-let [target (normalize-rel-target (ok-result r))]
+      (intern-instance
+       vm (env/push-obj
+           (:env r) rel-name
+           (cn/init-relationship-instance
+            rel-name rel-attrs
+            src-inst target))
+       eval-opcode eval-event-dataflows
+       rel-name nil true true))))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -772,13 +791,13 @@
         (i/ok record-name env)))
 
     (do-query-instances [_ env [entity-name queries]]
-      (do-query-helper env entity-name queries))
+      (query-helper env entity-name queries))
 
     (do-evaluate-query [_ env [fetch-query-fn result-alias]]
       (bind-result-to-alias
        result-alias
        (apply
-        do-query-helper
+        query-helper
         env (fetch-query-fn env (partial find-reference env)))))
 
     (do-set-literal-attribute [_ env [attr-name attr-value]]
@@ -802,6 +821,22 @@
       (intern-instance
        self env eval-opcode eval-event-dataflows
        record-name inst-alias validation-required upsert-required))
+
+    (do-intern-relationship-instance [self env [src-opcode rel-info-and-target-opcode]]
+      (let [r1 (eval-opcode self env src-opcode)]
+        (if-let [src (first (ok-result r1))]
+          (loop [topc rel-info-and-target-opcode, env (:env r1), rels []]
+            (if-let [[[rel rel-name is-obj] target-opcode] (first topc)]
+              (let [r2 (intern-relationship
+                        self env
+                        eval-opcode eval-event-dataflows
+                        rel-name (when is-obj (first (vals rel)))
+                        src target-opcode)]
+                (if-let [rel (first (ok-result r2))]
+                  (recur (rest topc) (:env r2) (conj rels rel))
+                  r2))
+              (i/ok (assoc src ls/rel-tag rels) env)))
+          r1)))
 
     (do-intern-event-instance [self env [record-name alias-name with-types timeout-ms]]
       (let [[inst env] (pop-and-intern-instance

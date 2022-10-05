@@ -233,6 +233,9 @@
     (subs (str x) 1)
     x))
 
+(defn keyword-append [k x]
+  (keyword (str (subs (str k) 1) x)))
+
 (defn objects-as-string [xs]
   (mapv #(cond
            (and (seqable? %) (not (string? %)))

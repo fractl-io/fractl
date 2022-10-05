@@ -34,7 +34,7 @@
     (if-let [[ak av :as a] (first ps)]
       (recur
        (rest ps)
-       (let [k (li/normalize-attr-name ak)
+       (let [k (li/normalize-name ak)
              v (valid-attr-value ctx k av schema)
              tag (cond
                    (li/query-pattern? ak) :query
