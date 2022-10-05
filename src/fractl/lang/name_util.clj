@@ -29,10 +29,6 @@
             n))
         n))))
 
-(defn- looks-like-inst? [x]
-  (and (= 1 (count (keys x)))
-       (map? (first (vals x)))))
-
 (declare map-with-fq-names fq-generic)
 
 (defn- sanitized? [v]
@@ -53,14 +49,35 @@
          (let [qv (str "(quote " v ")")]
            {k (eval (read-string qv))}))))))
 
+(defn- maybe-merge-non-attrs [fq-inst orig-inst]
+  (let [rels (when-let [rels (li/rel-tag orig-inst)]
+               (fq-generic rels false))
+        alias-def (:as orig-inst)
+        with-types (when-let [tps (li/with-types-tag orig-inst)]
+                     (fq-generic tps false))
+        toms (li/timeout-ms-tag orig-inst)]
+    (merge
+     fq-inst
+     (when rels
+       {li/rel-tag rels})
+     (when alias-def
+       {:as alias-def})
+     (when with-types
+       {li/with-types-tag with-types})
+     (when toms
+       {li/timeout-ms-tag toms}))))
+
 (defn- fq-inst-pat
   "Update the keys and values in an instance pattern with
    component-qualified names."
-  [x is-recdef]
-  (let [n (first (keys x))
+  [inst is-recdef]
+  (let [x (li/normalize-instance-pattern inst)
+        n (first (keys x))
         attrs (first (vals x))
         mvs (vals-sanitizer attrs)]
-    {(fq-name n) (map-with-fq-names mvs is-recdef)}))
+    (maybe-merge-non-attrs
+     {(fq-name n) (map-with-fq-names mvs is-recdef)}
+     inst)))
 
 (defn- fq-map
   "Update the keys and values in a map literal with
@@ -84,7 +101,7 @@
         v)
       (cond
         (li/name? v) (fq-name v)
-        (map? v) (if (looks-like-inst? v)
+        (map? v) (if (li/instance-pattern? v)
                    (fq-inst-pat v is-recdef)
                    (fq-map v is-recdef))
         (su/list-or-cons? v) (if-not is-recdef
