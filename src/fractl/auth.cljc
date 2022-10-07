@@ -9,4 +9,6 @@
 
 (defn setup-resolver [config]
   (let [resolver (authn/make :authentication config)]
-    (rr/compose-resolver [:Kernel.Identity/User] resolver)))
+    (rr/compose-resolver
+     (vec (concat [:Kernel.Identity/User] [(:auth-user-type config)]))
+     resolver)))
