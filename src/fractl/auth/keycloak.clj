@@ -13,7 +13,8 @@
 
 (def ^:private tag :keycloak)
 (def ^:private non-client-keys [:user-realm :user-client-id
-                                :sub :service :admin :admin-password])
+                                :sub :service :admin :admin-password
+                                :auth-user-type])
 
 (def ^:private client (atom nil))
 
