@@ -37,3 +37,9 @@
 (defn attribute-ref? [path]
   (and (keyword? path)
        (seq (:refs (li/path-parts path)))))
+
+(defn wrap-attribute [record-name attr-name]
+  (let [p (if (keyword? record-name)
+            record-name
+            (li/make-path record-name))]
+    (li/make-ref p attr-name)))

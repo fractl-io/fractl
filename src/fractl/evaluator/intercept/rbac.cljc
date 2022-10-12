@@ -1,5 +1,6 @@
 (ns fractl.evaluator.intercept.rbac
-  (:require [fractl.component :as cn]
+  (:require [clojure.set :as set]
+            [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.store :as store]
@@ -32,6 +33,21 @@
    :delete apply-delete-rules
    :eval apply-eval-rules})
 
+(defn- apply-read-attribute-rules [user arg]
+  (let [data (first (ii/data-output arg))
+        inst (first data)
+        attr-names (keys (cn/instance-attributes inst))
+        inst-type (cn/instance-type inst)
+        res-names (mapv (partial ii/wrap-attribute inst-type) attr-names)
+        readable-attrs (or (seq
+                            (mapv
+                             #(first (:refs (li/path-parts %)))
+                             (filter (partial apply-read-rules user) res-names)))
+                           attr-names)
+        hidden-attrs (set/difference (set attr-names) (set readable-attrs))
+        new-insts (mapv #(apply dissoc % hidden-attrs) data)]
+    (ii/assoc-data-output arg (concat [new-insts] (rest (ii/data-output arg))))))
+
 (defn- user-is-owner? [user env data]
   (when (cn/entity-instance? data)
     (let [[inst-type id] [(cn/instance-type data)
@@ -53,7 +69,15 @@
                      (user-is-owner? user env inst))
                 ((opr actions) user check-on))
         arg))
-    arg))
+    (if-let [data (seq (ii/data-output arg))]
+      (if (= :read opr)
+        (let [user (cn/event-context-user (ii/event arg))]
+          (if (and (ii/has-instance-meta? arg)
+                   (every? (partial user-is-owner? user env) (first data)))
+            arg
+            (apply-read-attribute-rules user arg)))
+        arg)
+      arg)))
 
 (defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))
