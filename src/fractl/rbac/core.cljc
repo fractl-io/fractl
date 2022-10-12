@@ -3,7 +3,8 @@
             [fractl.rbac.model]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            [fractl.evaluator.intercept.internal :as ii]))
 
 (def default-superuser-name "superuser")
 (def ^:private superuser (atom nil))
@@ -60,7 +61,8 @@
 
 (defn- has-priv-on-resource? [resource priv-resource]
   (if (or (= :* priv-resource)
-          (= resource priv-resource))
+          (= resource priv-resource)
+          (ii/attribute-ref? resource))
     true
     (let [[rc rn :as r] (li/split-path resource)
           [prc prn :as pr] (li/split-path priv-resource)]

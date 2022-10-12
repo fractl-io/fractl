@@ -6,6 +6,7 @@
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
             [fractl.evaluator.intercept :as ei]
+            [fractl.auth]
             [fractl.lang
              :refer [component attribute event
                      entity record dataflow]]

@@ -9,19 +9,17 @@
             [fractl.evaluator.intercept.internal :as ii]))
 
 (defn- has-priv? [rbac-predic user data]
-  (if (ii/apply-to-attribute? data)
-    true ;; TODO: implement attribute-level checks
-    (let [p (partial rbac-predic user)
-          rec-name
-          (cond
-            (keyword? data) data
-            (cn/an-instance? data) (cn/instance-type data)
-            (li/parsed-path? data) (li/make-path data)
-            :else (u/throw-ex (str "invalid argument for rbac interceptor - " data)))]
-      (if rec-name
-        (p rec-name)
-        (let [rs (set (map cn/instance-type data))]
-          (su/all-true? (map #(p %) rs)))))))
+  (let [p (partial rbac-predic user)
+        rec-name
+        (cond
+          (keyword? data) data
+          (cn/an-instance? data) (cn/instance-type data)
+          (li/parsed-path? data) (li/make-path data)
+          :else (u/throw-ex (str "invalid argument for rbac interceptor - " data)))]
+    (if rec-name
+      (p rec-name)
+      (let [rs (set (map cn/instance-type data))]
+        (su/all-true? (map #(p %) rs))))))
 
 (def ^:private apply-upsert-rules (partial has-priv? rbac/can-upsert?))
 (def ^:private apply-read-rules (partial has-priv? rbac/can-read?))

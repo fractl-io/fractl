@@ -128,11 +128,10 @@
       (let [[env single? [n x]] xs
             objs (if single? [x] x)]
         (upsert-intercept
-         env (interceptors/wrap-attribute
-              (cn/instance-type (first objs))
-              attr-name attr-value)
+         env
+         (interceptors/wrap-attribute n attr-name)
          (fn [_]
-           (let [new-objs (map
+           (let [new-objs (mapv
                            #(assoc
                              % attr-name
                              (if (fn? attr-value)

@@ -2,6 +2,7 @@
   (:require [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.env :as env]
+            [fractl.lang.internal :as li]
             [fractl.evaluator.intercept.internal :as ii]))
 
 ;; Manages a pipeline of interceptors.
@@ -87,4 +88,8 @@
 (def delete-intercept (partial do-intercept-opr delete-operation))
 (def eval-intercept (partial do-intercept-opr eval-operation))
 
-(def wrap-attribute ii/apply-to-attribute)
+(defn wrap-attribute [record-name attr-name]
+  (let [p (if (keyword? record-name)
+            record-name
+            (li/make-path record-name))]
+    (li/make-ref p attr-name)))

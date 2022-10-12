@@ -22,7 +22,7 @@
   (let [user (cn/event-context-user (ii/event arg))
         entity-instances (ii/data-output arg)]
     (cond
-      (ii/apply-to-attribute? entity-instances) arg
+      (ii/attribute-ref? entity-instances) arg
       (and user entity-instances)
       (try
         (let [entity-instances (normalize-upsert-result entity-instances)

@@ -1,4 +1,5 @@
-(ns fractl.evaluator.intercept.internal)
+(ns fractl.evaluator.intercept.internal
+  (:require [fractl.lang.internal :as li]))
 
 (def ^:private name-tag :name)
 (def ^:private fn-tag :fn)
@@ -33,15 +34,6 @@
 (defn has-instance-meta? [arg]
   (some #{:instance-meta} (interceptors arg)))
 
-(defn apply-to-attribute [inst-type attr-name attr-value]
-  {:attribute true
-   :record inst-type
-   :name attr-name
-   :value attr-value})
-
-(defn apply-to-attribute? [obj]
-  (and (map? obj) (:attribute obj)))
-
-(def attribute-record-type :record)
-(def attribute-name :name)
-(def attribute-value :value)
+(defn attribute-ref? [path]
+  (and (keyword? path)
+       (seq (:refs (li/path-parts path)))))
