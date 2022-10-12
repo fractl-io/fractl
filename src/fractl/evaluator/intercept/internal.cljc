@@ -32,3 +32,16 @@
 
 (defn has-instance-meta? [arg]
   (some #{:instance-meta} (interceptors arg)))
+
+(defn apply-to-attribute [inst-type attr-name attr-value]
+  {:attribute true
+   :record inst-type
+   :name attr-name
+   :value attr-value})
+
+(defn apply-to-attribute? [obj]
+  (and (map? obj) (:attribute obj)))
+
+(def attribute-record-type :record)
+(def attribute-name :name)
+(def attribute-value :value)

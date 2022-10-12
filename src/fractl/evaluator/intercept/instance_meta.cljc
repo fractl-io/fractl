@@ -21,7 +21,9 @@
 (defn- upsert-meta [env arg]
   (let [user (cn/event-context-user (ii/event arg))
         entity-instances (ii/data-output arg)]
-    (if (and user entity-instances)
+    (cond
+      (ii/apply-to-attribute? entity-instances) arg
+      (and user entity-instances)
       (try
         (let [entity-instances (normalize-upsert-result entity-instances)
               meta-infos (group-by
@@ -46,7 +48,7 @@
            (catch js/Error e
              (log/error (str (upsert-meta-failed-msg entity-instances)
                              " - " (or (.-ex-data e) (i/error e)))))))
-      arg)))
+      :else arg)))
 
 (defn- delete-meta [env arg]
   (if-let [[record-name id] (ii/data-output arg)]

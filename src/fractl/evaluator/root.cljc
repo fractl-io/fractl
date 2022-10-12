@@ -126,18 +126,26 @@
   (if attr-name
     (if-let [xs (env/pop-obj env)]
       (let [[env single? [n x]] xs
-            objs (if single? [x] x)
-            new-objs (map
-                      #(assoc
-                        % attr-name
-                        (if (fn? attr-value)
-                          (attr-value env %)
-                          attr-value))
-                      objs)
-            elem (if single? (first new-objs) new-objs)
-            env (env/push-obj env n elem)]
-        (i/ok elem (env/mark-all-dirty env new-objs)))
-      (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value])))
+            objs (if single? [x] x)]
+        (upsert-intercept
+         env (interceptors/wrap-attribute
+              (cn/instance-type (first objs))
+              attr-name attr-value)
+         (fn [_]
+           (let [new-objs (map
+                           #(assoc
+                             % attr-name
+                             (if (fn? attr-value)
+                               (attr-value env %)
+                               attr-value))
+                           objs)
+                 elem (if single? (first new-objs) new-objs)
+                 env (env/push-obj env n elem)]
+             (i/ok elem (env/mark-all-dirty env new-objs))))))
+      (i/error
+       (str
+        "cannot set attribute value, invalid object state - "
+        [attr-name attr-value])))
     (i/ok attr-value env)))
 
 (defn- call-function [env f]
