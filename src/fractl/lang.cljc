@@ -588,9 +588,14 @@
   (if (or (cn/entity-schema-predefined? entity-name)
           (has-identity-attribute? attrs))
     attrs
-    (assoc
-     attrs cn/id-attr
-     (cn/canonical-type-name cn/id-attr))))
+    (let [attrs (assoc
+                 attrs cn/id-attr
+                 (cn/canonical-type-name cn/id-attr))
+          meta (:meta attrs)
+          req-attrs (:required-attributes meta)]
+      (assoc attrs :meta
+             (assoc meta :required-attributes
+                    (set (conj req-attrs cn/id-attr)))))))
 
 (defn- load-ref-pattern [evt-name evt-ref entity-name attr-name attr-schema]
   (let [[c _] (li/split-path entity-name)
@@ -610,9 +615,10 @@
             [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
             result (intern-rec
                     rec-name
-                    (normalized-attributes
-                     rectype rec-name
-                     (maybe-assoc-id rec-name attrs)))
+                    (maybe-assoc-id
+                     rec-name
+                     (normalized-attributes
+                      rectype rec-name attrs)))
             ev (partial crud-evname n)
             ctx-aname (k/event-context-attribute-name)
             inst-evattrs {:Instance n li/event-context ctx-aname}

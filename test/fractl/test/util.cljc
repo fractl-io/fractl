@@ -2,6 +2,7 @@
   (:require [fractl.evaluator :as e]
             [fractl.evaluator.internal :as ei]
             [fractl.component :as cn]
+            [fractl.lang.internal :as li]
             #?(:clj  [clojure.test :refer [is]]
                :cljs [cljs.test :refer-macros [is]])
             [fractl.store :as store]
@@ -219,17 +220,12 @@
 (defn resolve-properties [entity-schema component-name]
   (reduce-kv (fn [r k v]
                (let [v-namespace (-> v namespace keyword)
-                     attr-schema (fractl.component/find-attribute-schema v)
+                     attr-schema (cn/find-attribute-schema v)
                      new-v (if (= v-namespace component-name)
                              (fill-property-attributes attr-schema)
                              {:type v})]
                  (assoc r k new-v)))
              {} entity-schema))
-
-(defn maybe-assoc-id [schema]
-  (if (cn/id-attr schema)
-    (assoc schema cn/id-attr :Kernel/UUID)
-    schema))
 
 (defn get-deep-ref [prop-details component-name]
   (let [prop-type (if (-> prop-details :type (= :listof))
@@ -241,11 +237,10 @@
       prop-type)))
 
 (defn construct-spec [component]
-  (let [[component-name entity-name] (fractl.lang.internal/split-path component)
-        component-meta (fractl.component/fetch-meta component)
+  (let [[component-name entity-name] (li/split-path component)
+        component-meta (cn/fetch-meta component)
         entity-schema (some-> component
-                              fractl.component/fetch-schema
-                              maybe-assoc-id
+                              cn/fetch-schema
                               (resolve-properties component-name))
         _ (doseq [[_ prop-details] entity-schema]
             (when-let [deep-ref-type (get-deep-ref prop-details component-name)]
@@ -255,7 +250,7 @@
 #?(:clj
    (defn generate-data [component]
      (let [_ (construct-spec component)
-           [component-name entity-name] (fractl.lang.internal/split-path component)
+           [component-name entity-name] (li/split-path component)
            spec-name-space (get-spec-namespace component-name entity-name)]
        (gen/sample (s/gen spec-name-space)))))
 

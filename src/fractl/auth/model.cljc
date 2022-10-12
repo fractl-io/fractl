@@ -8,8 +8,7 @@
 (entity
  :Kernel.Identity/User
  {:Name {:type :Kernel/String
-         :indexed true
-         :unique true}
+         :identity true}
   :Password {:type :Kernel/Password
              :optional true} ; may use social-login
   :FirstName {:type :Kernel/String
