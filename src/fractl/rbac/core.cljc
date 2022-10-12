@@ -39,9 +39,6 @@
 (defn superuser? [user]
   (cn/same-instance? user @superuser))
 
-(defn superuser-id? [id]
-  (= id (cn/id-attr @superuser)))
-
 (defn superuser-name? [user-name]
   (= user-name (:Name @superuser)))
 
@@ -61,14 +58,27 @@
            {:Names (mapv :Privilege ps)}}))))
    :lu/threshold cache-threshold))
 
+(defn- has-priv-on-resource? [resource priv-resource]
+  (if (or (= :* priv-resource)
+          (= resource priv-resource))
+    true
+    (let [[rc rn :as r] (li/split-path resource)
+          [prc prn :as pr] (li/split-path priv-resource)]
+      (cond
+        (= r pr) true
+        (and (= rc prc)
+             (= prn :*)) true
+        :else false))))
+
 (defn- has-priv? [action user-name resource]
   (if (superuser-name? user-name)
     true
     (seq
      (filter
       (fn [p]
-        (and (some #{resource} (:Resource p))
-             (some #{action} (:Actions p))))
+        (and (some (partial has-priv-on-resource? resource)
+                   (:Resource p))
+             (some #{action :*} (:Actions p))))
       (privileges user-name)))))
 
 (def can-read? (partial has-priv? :read))
