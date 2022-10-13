@@ -61,9 +61,7 @@
 
 (defn- has-priv-on-resource? [resource priv-resource]
   (if (or (= :* priv-resource)
-          (= resource priv-resource)
-          ;; TODO move the attribute-ref? check to has-priv?
-          (ii/attribute-ref? resource))
+          (= resource priv-resource))
     true
     (let [[rc rn :as r] (li/split-path resource)
           [prc prn :as pr] (li/split-path priv-resource)]
@@ -73,22 +71,25 @@
              (= prn :*)) true
         :else false))))
 
-(defn- has-priv? [action user-name resource]
+(defn- filter-privs [privs action ignore-refs resource]
+  (seq
+   (filter
+    (fn [p]
+      (and (some (partial has-priv-on-resource? resource)
+                 (mapv #(if ignore-refs (li/root-path %) %) (:Resource p)))
+           (some #{action :*} (:Actions p))))
+    privs)))
+
+(defn- has-priv? [action user-name arg]
   (if (superuser-name? user-name)
     true
-    ;; TODO:
-    ;;   1. `(privileges user-name)` should return privileges relevant only to `resource`
-    ;;   2. if `resource` is a path to an attribute, check if the privilege is available for the
-    ;;      resource (e.g :A/C), then for a subset of its attributes (:A/C.X :A/C.Y). Return true if
-    ;;      resource match a path in the set or if the subset is not defined, otherwise return false.
-    ;;   3. if resource is not a path to an attribute, execute the following (current) logic
-    (seq
-     (filter
-      (fn [p]
-        (and (some (partial has-priv-on-resource? resource)
-                   (:Resource p))
-             (some #{action :*} (:Actions p))))
-      (privileges user-name)))))
+    (let [resource (:data arg)
+          privs (privileges user-name)
+          predic (partial filter-privs privs action (:ignore-refs arg))]
+      (if (ii/attribute-ref? resource)
+        (or (predic (li/root-path resource))
+            (predic resource))
+        (predic resource)))))
 
 (def can-read? (partial has-priv? :read))
 (def can-upsert? (partial has-priv? :upsert))

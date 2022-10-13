@@ -82,7 +82,8 @@
      {:User {:ref :Kernel.Identity/User.Name}})
     (entity
      :PrivTest/E
-     {:X :Kernel/Int})
+     {:X :Kernel/Int
+      :Y {:type :Kernel/Int :optional true}})
     (dataflow
      :PrivTest/CreateSuperUser
      {:PrivTest/User
@@ -92,14 +93,19 @@
      {:Kernel.Identity/User
       {:Name "u11"}}
      {:Kernel.Identity/User
+      {:Name "u33"}}
+     {:Kernel.Identity/User
       {:Name "u22"}}
      {:PrivTest/User
       {:User "u11"}}
+     {:PrivTest/User
+      {:User "u33"}}
      {:PrivTest/User
       {:User "u22"}})
     (dataflow
      :PrivTest/CreatePrivileges
      {:Kernel.RBAC/Role {:Name "r11"}}
+     {:Kernel.RBAC/Role {:Name "r33"}}
      {:Kernel.RBAC/Role {:Name "r22"}}
      {:Kernel.RBAC/Privilege
       {:Name "p11"
@@ -108,7 +114,9 @@
      {:Kernel.RBAC/Privilege
       {:Name "p22"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:PrivTest/Upsert_E]]}}
+       :Resource [:q# [:PrivTest/Upsert_E
+                       :PrivTest/UpdateE
+                       :PrivTest/UpdateEX]]}}
      {:Kernel.RBAC/Privilege
       {:Name "p33"
        :Actions [:q# [:read]]
@@ -117,6 +125,10 @@
       {:Name "p44"
        :Actions [:q# [:eval]]
        :Resource [:q# [:PrivTest/Lookup_E]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "p55"
+       :Actions [:q# [:read :upsert]]
+       :Resource [:q# [:PrivTest/E.X (tu/append-id :PrivTest/E)]]}}
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "r11" :Privilege "p11"}}
      {:Kernel.RBAC/PrivilegeAssignment
@@ -125,10 +137,31 @@
       {:Role "r22" :Privilege "p33"}}
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "r22" :Privilege "p44"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "r22" :Privilege "p44"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "r33" :Privilege "p22"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "r33" :Privilege "p44"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "r33" :Privilege "p55"}}
      {:Kernel.RBAC/RoleAssignment
       {:Role "r11" :Assignee "u11"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "r22" :Assignee "u22"}}))
+      {:Role "r33" :Assignee "u33"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "r22" :Assignee "u22"}})
+    (dataflow
+     :PrivTest/UpdateE
+     {:PrivTest/E
+      {tu/q-id-attr :PrivTest/UpdateE.E
+       :X :PrivTest/UpdateE.X
+       :Y :PrivTest/UpdateE.Y}})
+    (dataflow
+     :PrivTest/UpdateEX
+     {:PrivTest/E
+      {tu/q-id-attr :PrivTest/UpdateEX.E
+       :X :PrivTest/UpdateEX.X}}))
   (call-with-rbac
    (fn []
      (let [su (first (tu/result :PrivTest/CreateSuperUser))]
@@ -151,7 +184,7 @@
            {:PrivTest/Upsert_E
             {:Instance
              {:PrivTest/E
-              {:X 100}}}})))
+              {:X 100 :Y 10}}}})))
        (tu/is-error
         #(ev/eval-all-dataflows
           (with-user
@@ -159,7 +192,7 @@
             {:PrivTest/Upsert_E
              {:Instance
               {:PrivTest/E
-               {:X 200}}}})))
+               {:X 200 :Y 20}}}})))
        (let [inst (first
                    (tu/result
                     (with-user
@@ -167,7 +200,7 @@
                       {:PrivTest/Upsert_E
                        {:Instance
                         {:PrivTest/E
-                         {:X 100}}}})))
+                         {:X 100 :Y 10}}}})))
              id (cn/id-attr inst)
              lookup {:PrivTest/Lookup_E
                      {cn/id-attr id}}]
@@ -175,10 +208,38 @@
          (tu/is-error
           #(ev/eval-all-dataflows
             (with-user "u11" lookup)))
+         (let [partial-inst?
+               (fn [x y inst]
+                 (is (cn/instance-of? :PrivTest/E inst))
+                 (is (= id (cn/id-attr inst)))
+                 (is (= y (:Y inst)))
+                 (is (= x (:X inst))))]
+           (partial-inst?
+            100 nil
+            (tu/first-result
+             (with-user "u33" lookup)))
+           (tu/is-error
+            #(ev/eval-all-dataflows
+              (with-user
+                "u33"
+                {:PrivTest/UpdateE
+                 {:E id :X 1000 :Y 2000}})))
+           (partial-inst?
+            1000 10
+            (get-in
+             (tu/first-result
+              (with-user
+                "u33"
+                {:PrivTest/UpdateEX
+                 {:E id :X 1000 :Y 2000}}))
+             [:transition :to])))
          (let [inst2 (first
                       (tu/result
                        (with-user "u22" lookup)))]
-           (cn/same-instance? inst inst2)))))
+           (is (cn/instance-of? :PrivTest/E inst2))
+           (is (= id (cn/id-attr inst2)))
+           (is (= 1000 (:X inst2)))
+           (is (= 10 (:Y inst2)))))))
    #(ei/reset-interceptors!)))
 
 (defn- rbac-with-owner []
