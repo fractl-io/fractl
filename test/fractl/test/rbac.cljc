@@ -212,6 +212,7 @@
                (fn [x y inst]
                  (is (cn/instance-of? :PrivTest/E inst))
                  (is (= id (cn/id-attr inst)))
+                 ;; TODO: :Y should be nil once upsert intercept is fixed
                  (is (= y (:Y inst)))
                  (is (= x (:X inst))))]
            (partial-inst?

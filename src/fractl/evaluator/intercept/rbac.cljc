@@ -40,8 +40,11 @@
    :delete apply-delete-rules
    :eval apply-eval-rules})
 
-(defn- apply-read-attribute-rules [opr user arg]
-  (let [data (first (ii/data-output arg))
+(defn- apply-read-attribute-rules [user arg]
+  (let [r (ii/data-output arg)
+        data (if (cn/an-instance? (first r))
+               r
+               (first r))
         inst (first data)
         attr-names (keys (cn/instance-attributes inst))
         inst-type (cn/instance-type inst)
@@ -76,27 +79,34 @@
 
 (defn- run [env opr arg]
   (if-let [data (ii/data-input arg)]
-    (let [is-delete (= :delete opr)
-          user (cn/event-context-user (ii/event arg))
-          resource (if is-delete (second data) (first-instance data))
-          check-on (if is-delete (first data) resource)
-          ign-refs (and (not is-delete)
-                        (not (ii/attribute-ref? resource))
-                        (or (= :read opr) (= :upsert opr)))]
-      (when (or (and (ii/has-instance-meta? arg)
-                     (user-is-owner? user env resource))
-                ((opr actions)
-                 user
-                 {:data check-on
-                  :ignore-refs ign-refs}))
-        arg))
+    (if (and (= :read opr)
+             (seqable? data)
+             (cn/an-instance? (first data)))
+      arg ; push checking to output-intercept
+      (let [is-delete (= :delete opr)
+            user (cn/event-context-user (ii/event arg))
+            resource (if is-delete (second data) (first-instance data))
+            check-on (if is-delete (first data) resource)
+            ign-refs (and (not is-delete)
+                          (not (ii/attribute-ref? resource))
+                          (or (= :read opr) (= :upsert opr)))]
+        (when (or (and (ii/has-instance-meta? arg)
+                       (user-is-owner? user env resource))
+                  ((opr actions)
+                   user
+                   {:data check-on
+                    :ignore-refs ign-refs}))
+          arg)))
     (if-let [data (seq (ii/data-output arg))]
       (if (= :read opr)
         (let [user (cn/event-context-user (ii/event arg))]
           (if (and (ii/has-instance-meta? arg)
-                   (every? (partial user-is-owner? user env) (first data)))
+                   (every? (partial user-is-owner? user env)
+                           (if (cn/an-instance? (first data))
+                             data
+                             (first data))))
             arg
-            (apply-read-attribute-rules opr user arg)))
+            (apply-read-attribute-rules user arg)))
         arg)
       arg)))
 

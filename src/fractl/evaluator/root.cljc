@@ -302,28 +302,64 @@
       %)
    res))
 
+(defn- format-upsert-result-for-read-intercept [result]
+  (flatten
+   (mapv #(if-let [t (:transition %)]
+            [(:from t) (:to t)]
+            %)
+         result)))
+
+(defn- revert-upsert-result [orig-result insts]
+  (loop [rslt orig-result, insts insts, result []]
+    (if-let [r (first rslt)]
+      (if (:transition r)
+        (recur (rest orig-result)
+               (rest (rest insts))
+               (conj result {:transition {:from (first insts)
+                                          :to (second insts)}}))
+        (recur (rest orig-result)
+               (rest insts)
+               (conj result (first insts))))
+      result)))
+
+(defn- intercept-upsert-result [result]
+  ;; TODO: intercept-read for upsert results, including transitions
+  ;;       (also see TODO in test/rbac)
+  
+  ;; (let [r (read-intercept
+  ;;          env (format-upsert-result-for-read-intercept result)
+  ;;          #(revert-upsert-result result %))
+  ;;       f (first r)]
+  ;;   (if (or (cn/an-instance? f)
+  ;;           (and (map? f) (:transition f)))
+  ;;     r
+  ;;     (first r))))
+  result)
+
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (when store
       (maybe-init-schema! store (first record-name)))
-    (upsert-intercept
-     env insts
-     (fn [insts]
-       (if (env/any-dirty? env insts)
-         (let [result
-               (chained-crud
-                (when store (partial store/upsert-instances store record-name))
-                resolver (partial resolver-upsert env) nil insts)
-               conditional-event-results
-               (seq
-                (fire-all-conditional-events
-                 event-evaluator env store result))]
-           (concat
-            result
-            (when conditional-event-results
-              (cleanup-conditional-results conditional-event-results))))
-         insts)))))
+    (let [result
+          (upsert-intercept
+           env insts
+           (fn [insts]
+             (if (env/any-dirty? env insts)
+               (let [result
+                     (chained-crud
+                      (when store (partial store/upsert-instances store record-name))
+                      resolver (partial resolver-upsert env) nil insts)
+                     conditional-event-results
+                     (seq
+                      (fire-all-conditional-events
+                       event-evaluator env store result))]
+                 (concat
+                  result
+                  (when conditional-event-results
+                    (cleanup-conditional-results conditional-event-results))))
+               insts)))]
+      (intercept-upsert-result result))))
 
 (defn- delete-by-id [store record-name inst]
   (let [id-attr (cn/identity-attribute-name record-name)]
