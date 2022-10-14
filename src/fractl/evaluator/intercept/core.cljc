@@ -88,3 +88,5 @@
 (def eval-intercept (partial do-intercept-opr eval-operation))
 
 (def wrap-attribute ii/wrap-attribute)
+(def skip-for-input ii/skip-for-input)
+(def skip-for-output ii/skip-for-output)

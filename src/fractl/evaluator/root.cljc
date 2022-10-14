@@ -303,38 +303,40 @@
    res))
 
 (defn- format-upsert-result-for-read-intercept [result]
-  (flatten
-   (mapv #(if-let [t (:transition %)]
-            [(:from t) (:to t)]
-            %)
-         result)))
+  (su/nonils
+   (flatten
+    (mapv #(if-let [t (:transition %)]
+             [(:from t) (:to t)]
+             (when (cn/an-instance? %)
+               %))
+          result))))
 
 (defn- revert-upsert-result [orig-result insts]
   (loop [rslt orig-result, insts insts, result []]
     (if-let [r (first rslt)]
-      (if (:transition r)
-        (recur (rest orig-result)
-               (rest (rest insts))
-               (conj result {:transition {:from (first insts)
-                                          :to (second insts)}}))
-        (recur (rest orig-result)
-               (rest insts)
-               (conj result (first insts))))
+      (if (map? r)
+        (if (:transition r)
+          (recur (rest rslt)
+                 (rest (rest insts))
+                 (conj result {:transition {:from (first insts)
+                                            :to (second insts)}}))
+          (recur (rest rslt)
+                 (rest insts)
+                 (conj result (first insts))))
+        (recur (rest rslt)
+               insts (conj result r)))
       result)))
 
-(defn- intercept-upsert-result [result]
-  ;; TODO: intercept-read for upsert results, including transitions
-  ;;       (also see TODO in test/rbac)
-  
-  ;; (let [r (read-intercept
-  ;;          env (format-upsert-result-for-read-intercept result)
-  ;;          #(revert-upsert-result result %))
-  ;;       f (first r)]
-  ;;   (if (or (cn/an-instance? f)
-  ;;           (and (map? f) (:transition f)))
-  ;;     r
-  ;;     (first r))))
-  result)
+(defn- intercept-upsert-result [env result]
+  (let [r0 (read-intercept
+            env interceptors/skip-for-input
+            (fn [_] (format-upsert-result-for-read-intercept result)))
+        r (seq (revert-upsert-result result r0))
+        f (first r)]
+    (if (or (cn/an-instance? f)
+            (and (map? f) (:transition f)))
+      r
+      (first r))))
 
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
@@ -359,7 +361,7 @@
                   (when conditional-event-results
                     (cleanup-conditional-results conditional-event-results))))
                insts)))]
-      (intercept-upsert-result result))))
+      (intercept-upsert-result env result))))
 
 (defn- delete-by-id [store record-name inst]
   (let [id-attr (cn/identity-attribute-name record-name)]

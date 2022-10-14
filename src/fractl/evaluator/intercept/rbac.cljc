@@ -40,12 +40,22 @@
    :delete apply-delete-rules
    :eval apply-eval-rules})
 
-(defn- apply-read-attribute-rules [user arg]
-  (let [r (ii/data-output arg)
-        data (if (cn/an-instance? (first r))
-               r
-               (first r))
-        inst (first data)
+(defn- contains-env? [obj]
+  (and (seqable? obj)
+       (env/env? (second obj))))
+
+(defn- extract-read-results [obj]
+  (if (contains-env? obj)
+    (first obj)
+    obj))
+
+(defn- make-read-output-arg [old-output-data new-insts]
+  (if (contains-env? old-output-data)
+    (concat [new-insts] (rest old-output-data))
+    new-insts))
+
+(defn- apply-read-attribute-rules [user rslt arg]
+  (let [inst (first rslt)
         attr-names (keys (cn/instance-attributes inst))
         inst-type (cn/instance-type inst)
         res-names (mapv (partial ii/wrap-attribute inst-type) attr-names)
@@ -55,8 +65,9 @@
                              (filter #(apply-read-rules user {:data %}) res-names)))
                              attr-names)
         hidden-attrs (set/difference (set attr-names) (set readable-attrs))
-        new-insts (mapv #(apply dissoc % hidden-attrs) data)]
-    (ii/assoc-data-output arg (concat [new-insts] (rest (ii/data-output arg))))))
+        new-insts (mapv #(apply dissoc % hidden-attrs) rslt)]
+    (ii/assoc-data-output
+     arg (make-read-output-arg (ii/data-output arg) new-insts))))
 
 (defn- user-is-owner? [user env data]
   (when (cn/entity-instance? data)
@@ -79,10 +90,8 @@
 
 (defn- run [env opr arg]
   (if-let [data (ii/data-input arg)]
-    (if (and (= :read opr)
-             (seqable? data)
-             (cn/an-instance? (first data)))
-      arg ; push checking to output-intercept
+    (if (ii/skip-for-input? data)
+      arg
       (let [is-delete (= :delete opr)
             user (cn/event-context-user (ii/event arg))
             resource (if is-delete (second data) (first-instance data))
@@ -98,16 +107,19 @@
                     :ignore-refs ign-refs}))
           arg)))
     (if-let [data (seq (ii/data-output arg))]
-      (if (= :read opr)
-        (let [user (cn/event-context-user (ii/event arg))]
+      (cond
+        (ii/skip-for-output? data)
+        arg
+
+        (= :read opr)
+        (let [user (cn/event-context-user (ii/event arg))
+              rslt (extract-read-results data)]
           (if (and (ii/has-instance-meta? arg)
-                   (every? (partial user-is-owner? user env)
-                           (if (cn/an-instance? (first data))
-                             data
-                             (first data))))
+                   (every? (partial user-is-owner? user env) rslt))
             arg
-            (apply-read-attribute-rules user arg)))
-        arg)
+            (apply-read-attribute-rules user rslt arg)))
+
+        :else arg)
       arg)))
 
 (defn make [_] ; config is not used

@@ -43,3 +43,10 @@
             record-name
             (li/make-path record-name))]
     (li/make-ref p attr-name)))
+
+(def skip-for-input-tag :-*-skip-for-input-*-)
+(def skip-for-output-tag :-*-skip-for-output-*-)
+(def skip-for-output skip-for-output-tag)
+(def skip-for-input skip-for-input-tag)
+(def skip-for-input? (partial = skip-for-input))
+(def skip-for-output? (partial = skip-for-output))

@@ -209,14 +209,13 @@
           #(ev/eval-all-dataflows
             (with-user "u11" lookup)))
          (let [partial-inst?
-               (fn [x y inst]
+               (fn [x inst]
                  (is (cn/instance-of? :PrivTest/E inst))
                  (is (= id (cn/id-attr inst)))
-                 ;; TODO: :Y should be nil once upsert intercept is fixed
-                 (is (= y (:Y inst)))
+                 (is (not (:Y inst)))
                  (is (= x (:X inst))))]
            (partial-inst?
-            100 nil
+            100
             (tu/first-result
              (with-user "u33" lookup)))
            (tu/is-error
@@ -226,7 +225,7 @@
                 {:PrivTest/UpdateE
                  {:E id :X 1000 :Y 2000}})))
            (partial-inst?
-            1000 10
+            1000
             (get-in
              (tu/first-result
               (with-user
