@@ -2,6 +2,7 @@
   (:require #?(:clj  [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.string :as s]
+            [fractl.auth.model]
             [fractl.rbac.core :as rbac]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
@@ -291,6 +292,85 @@
                 (with-user "uu22" (delete id2)))))))))
    #(ei/reset-interceptors!)))
 
-(deftest rbac
+(deftest basic
   (rbac-application)
   (rbac-with-owner))
+
+(deftest hierarchy
+  (defcomponent :RbacH
+    (entity
+     :RbacH/E
+     {:X :Kernel/Int})
+    (dataflow
+     :RbacH/CreateUsers
+     {:Kernel.Identity/User
+      {:Name "uh11"}}
+     {:Kernel.Identity/User
+      {:Name "uh22"}})
+    (dataflow
+     :RbacH/CreatePrivileges
+     {:Kernel.RBAC/Role {:Name "rh11"}}
+     {:Kernel.RBAC/Role {:Name "rh22"}}
+     {:Kernel.RBAC/Privilege
+      {:Name "ph11"
+       :Actions [:q# [:read :upsert]]
+       :Resource [:q# [:RbacH/E]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "ph22"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:RbacH/Upsert_E :RbacH/Lookup_E]]}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "rh11" :Privilege "ph11"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "rh11" :Privilege "ph22"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "rh11" :Assignee "uh11"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "rh22" :Assignee "uh22"}})
+    (dataflow
+     :RbacH/AssignParent
+     {:Kernel.RBAC/AssignRelationship
+      {:Parent "rh22" :Child "rh11"}}))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac] (ei/init-interceptors [:rbac])))
+     (let [u2 (first
+               (tu/result
+                (with-user rbac/default-superuser-name :RbacH/CreateUsers)))]
+       (is (cn/instance-of? :Kernel.Identity/User u2))
+       (is (= "uh22" (:Name u2))))
+     (let [r2 (first
+               (tu/result
+                (with-user rbac/default-superuser-name :RbacH/CreatePrivileges)))]
+       (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r2))
+       (is (and (= "rh22" (:Role r2)) (= "uh22" (:Assignee r2)))))
+     (let [upsert-event {:RbacH/Upsert_E
+                         {:Instance
+                          {:RbacH/E
+                           {:X 100}}}}
+           mk-lookup-event (fn [id]
+                             {:RbacH/Lookup_E
+                              {cn/id-attr id}})]
+       (tu/is-error
+        #(tu/eval-all-dataflows
+          (with-user "uh22" upsert-event)))
+       (let [ok-test
+             (fn [user]
+               (let [u (tu/first-result (with-user user upsert-event))
+                     id (cn/id-attr u)
+                     u2 (tu/first-result (with-user user (mk-lookup-event id)))]
+                 (is (cn/instance-of? :RbacH/E u))
+                 (is (cn/same-instance? u u2))
+                 u))]
+         (tu/is-error
+          #(tu/eval-all-dataflows
+            (with-user "uh22" (mk-lookup-event (cn/id-attr (ok-test "uh11"))))))
+         (let [r (tu/first-result
+                  (with-user rbac/default-superuser-name :RbacH/AssignParent))]
+           (is (cn/instance-of? :Kernel.RBAC/RoleRelationship r))
+           (is (= "rh22" (:Parent r)))
+           (is (= "rh11" (:Child r))))
+         (rbac/force-reload-privileges!)
+         (let [u (ok-test "uh22")]
+           (cn/instance-of? :RbacH/E u)))))
+   #(ei/reset-interceptors!)))
