@@ -1,4 +1,5 @@
-(ns fractl.evaluator.intercept.internal)
+(ns fractl.evaluator.intercept.internal
+  (:require [fractl.lang.internal :as li]))
 
 (def ^:private name-tag :name)
 (def ^:private fn-tag :fn)
@@ -32,3 +33,20 @@
 
 (defn has-instance-meta? [arg]
   (some #{:instance-meta} (interceptors arg)))
+
+(defn attribute-ref? [path]
+  (and (keyword? path)
+       (seq (:refs (li/path-parts path)))))
+
+(defn wrap-attribute [record-name attr-name]
+  (let [p (if (keyword? record-name)
+            record-name
+            (li/make-path record-name))]
+    (li/make-ref p attr-name)))
+
+(def skip-for-input-tag :-*-skip-for-input-*-)
+(def skip-for-output-tag :-*-skip-for-output-*-)
+(def skip-for-output skip-for-output-tag)
+(def skip-for-input skip-for-input-tag)
+(def skip-for-input? (partial = skip-for-input))
+(def skip-for-output? (partial = skip-for-output))

@@ -190,7 +190,7 @@
 (defn left-out-from-sorted [tag attrs sorted]
   (let [all-in-tag (apply
                     concat
-                    (map second (filter (fn [[k _]] (= k tag)) sorted)))
+                    (mapv second (filter (fn [[k _]] (= k tag)) sorted)))
         ks (filter li/name? all-in-tag)
         left-out (filter
                   (fn [[k _]]
