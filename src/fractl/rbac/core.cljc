@@ -43,6 +43,31 @@
 (defn superuser-name? [user-name]
   (= user-name (:Name @superuser)))
 
+(defn- find-privileges [role-names]
+  (ev/safe-eval-internal
+   {:Kernel.RBAC/FindPrivilegeAssignments
+    {:RoleNames role-names}}))
+
+(defn- find-child-role-names [role-names]
+  (loop [rns role-names, roles []]
+    (if-let [r (first rns)]
+      (if-let [child-roles
+               (first
+                (ev/safe-eval-internal
+                 {:Kernel.RBAC/FindChildren
+                  {:Parent r}}))]
+        (let [names (mapv :Name child-roles)]
+          (recur
+           (rest rns)
+           (concat
+            names
+            (find-child-role-names names))))
+        (recur (rest rns) roles))
+      roles)))
+
+(def ^:private find-child-privileges
+  (comp find-privileges find-child-role-names))
+
 (def ^:private cache-threshold 1000)
 
 (def privileges
@@ -51,13 +76,17 @@
      (when-let [rs (ev/safe-eval-internal
                     {:Kernel.RBAC/FindRoleAssignments
                      {:Assignee user-name}})]
-       (let [ps (ev/safe-eval-internal
-                 {:Kernel.RBAC/FindPrivilegeAssignments
-                  {:RoleNames (mapv :Role rs)}})]
+       (let [role-names (mapv :Role rs)
+             ps0 (find-privileges role-names)
+             ps1 (find-child-privileges role-names)
+             ps (set (concat ps0 ps1))]
          (ev/safe-eval-internal
           {:Kernel.RBAC/FindPrivileges
            {:Names (mapv :Privilege ps)}}))))
    :lu/threshold cache-threshold))
+
+(defn force-reload-privileges! []
+  (mem/memo-clear! privileges))
 
 (defn- has-priv-on-resource? [resource priv-resource]
   (if (or (= :* priv-resource)

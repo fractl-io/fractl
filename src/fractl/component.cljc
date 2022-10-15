@@ -1382,6 +1382,11 @@
 
 (def hashed-attribute? :secure-hash)
 
+(defn assoc-event-context [event-instance context-obj]
+  (assoc event-instance li/event-context context-obj))
+
+(def event-context li/event-context)
+
 (defn event-context-value [k event-instance]
   (get-in event-instance [li/event-context k]))
 

@@ -50,6 +50,29 @@
   :meta
   {:unique [:Parent :Child]}})
 
+(event
+ :Kernel.RBAC/AssignRelationship
+ {:Parent :Kernel/String
+  :Child :Kernel/String})
+
+(dataflow
+ :Kernel.RBAC/AssignRelationship
+ {:Kernel.RBAC/RoleRelationship
+  {:Parent :Kernel.RBAC/AssignRelationship.Parent
+   :Child :Kernel.RBAC/AssignRelationship.Child}})
+
+(event
+ :Kernel.RBAC/FindChildren
+ {:Parent :Kernel/String})
+
+(dataflow
+ :Kernel.RBAC/FindChildren
+ [:for-each
+  {:Kernel.RBAC/RoleRelationship
+   {:Parent? :Kernel.RBAC/FindChildren.Parent}}
+  {:Kernel.RBAC/Role
+   {:Name? :Kernel.RBAC/RoleRelationship.Child}}])
+
 (dataflow
  :Kernel.RBAC/FindRoleAssignments
  {:Kernel.RBAC/RoleAssignment

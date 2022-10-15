@@ -891,6 +891,12 @@
             composed? (rg/composed? resolver)
             eval-env (env/make (env/get-store env) (env/get-resolver env))
             with-types (merge (env/with-types env) with-types)
+            active-event (env/active-event env)
+            inst (if active-event
+                   (cn/assoc-event-context
+                    inst (cn/event-context active-event))
+                   inst)
+            env (env/assoc-active-event env inst)
             local-result (when (or (not resolver) composed?)
                            (async-invoke
                             timeout-ms
@@ -907,7 +913,7 @@
                                (call-resolver-eval resolver composed? env inst))
             r (pack-results local-result resolver-results)
             env (if alias-name (env/bind-instance-to-alias env alias-name r) env)]
-        (i/ok r env)))
+        (i/ok r (env/assoc-active-event env active-event))))
 
     (do-delete-instance [self env [record-name queries]]
       (if-let [store (env/get-store env)]
