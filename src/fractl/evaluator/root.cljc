@@ -126,18 +126,25 @@
   (if attr-name
     (if-let [xs (env/pop-obj env)]
       (let [[env single? [n x]] xs
-            objs (if single? [x] x)
-            new-objs (map
-                      #(assoc
-                        % attr-name
-                        (if (fn? attr-value)
-                          (attr-value env %)
-                          attr-value))
-                      objs)
-            elem (if single? (first new-objs) new-objs)
-            env (env/push-obj env n elem)]
-        (i/ok elem (env/mark-all-dirty env new-objs)))
-      (i/error (str "cannot set attribute value, invalid object state - " [attr-name attr-value])))
+            objs (if single? [x] x)]
+        (upsert-intercept
+         env
+         (interceptors/wrap-attribute n attr-name)
+         (fn [_]
+           (let [new-objs (mapv
+                           #(assoc
+                             % attr-name
+                             (if (fn? attr-value)
+                               (attr-value env %)
+                               attr-value))
+                           objs)
+                 elem (if single? (first new-objs) new-objs)
+                 env (env/push-obj env n elem)]
+             (i/ok elem (env/mark-all-dirty env new-objs))))))
+      (i/error
+       (str
+        "cannot set attribute value, invalid object state - "
+        [attr-name attr-value])))
     (i/ok attr-value env)))
 
 (defn- call-function [env f]
@@ -295,28 +302,66 @@
       %)
    res))
 
+(defn- format-upsert-result-for-read-intercept [result]
+  (su/nonils
+   (flatten
+    (mapv #(if-let [t (:transition %)]
+             [(:from t) (:to t)]
+             (when (cn/an-instance? %)
+               %))
+          result))))
+
+(defn- revert-upsert-result [orig-result insts]
+  (loop [rslt orig-result, insts insts, result []]
+    (if-let [r (first rslt)]
+      (if (map? r)
+        (if (:transition r)
+          (recur (rest rslt)
+                 (rest (rest insts))
+                 (conj result {:transition {:from (first insts)
+                                            :to (second insts)}}))
+          (recur (rest rslt)
+                 (rest insts)
+                 (conj result (first insts))))
+        (recur (rest rslt)
+               insts (conj result r)))
+      result)))
+
+(defn- intercept-upsert-result [env result]
+  (let [r0 (read-intercept
+            env interceptors/skip-for-input
+            (fn [_] (format-upsert-result-for-read-intercept result)))
+        r (seq (revert-upsert-result result r0))
+        f (first r)]
+    (if (or (cn/an-instance? f)
+            (and (map? f) (:transition f)))
+      r
+      (first r))))
+
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
     (when store
       (maybe-init-schema! store (first record-name)))
-    (upsert-intercept
-     env insts
-     (fn [insts]
-       (if (env/any-dirty? env insts)
-         (let [result
-               (chained-crud
-                (when store (partial store/upsert-instances store record-name))
-                resolver (partial resolver-upsert env) nil insts)
-               conditional-event-results
-               (seq
-                (fire-all-conditional-events
-                 event-evaluator env store result))]
-           (concat
-            result
-            (when conditional-event-results
-              (cleanup-conditional-results conditional-event-results))))
-         insts)))))
+    (let [result
+          (upsert-intercept
+           env insts
+           (fn [insts]
+             (if (env/any-dirty? env insts)
+               (let [result
+                     (chained-crud
+                      (when store (partial store/upsert-instances store record-name))
+                      resolver (partial resolver-upsert env) nil insts)
+                     conditional-event-results
+                     (seq
+                      (fire-all-conditional-events
+                       event-evaluator env store result))]
+                 (concat
+                  result
+                  (when conditional-event-results
+                    (cleanup-conditional-results conditional-event-results))))
+               insts)))]
+      (intercept-upsert-result env result))))
 
 (defn- delete-by-id [store record-name inst]
   (let [id-attr (cn/identity-attribute-name record-name)]

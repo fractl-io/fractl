@@ -239,10 +239,10 @@
     (let [{computed :computed refs :refs
            compound :compound query :query
            :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
-          fs (map #(partial build-dependency-graph %) [refs compound query])
+          fs (mapv #(partial build-dependency-graph %) [refs compound query])
           deps-graph (appl fs [ctx schema ug/EMPTY])
-          compound-exprs (map (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
-          parsed-refs (map (fn [[k v]] [k (if (symbol? v) {:refs v} (li/path-parts v))]) refs)
+          compound-exprs (mapv (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
+          parsed-refs (mapv (fn [[k v]] [k (if (symbol? v) {:refs v} (li/path-parts v))]) refs)
           compiled-query (when query (compile-query ctx pat-name query (:query-filter args)))
           final-attrs (if (seq compiled-query)
                         (assoc cls-attrs :query compiled-query)
@@ -277,16 +277,19 @@
         event? (= (cn/type-tag-key args) :event)
         timeout-ms (:timeout-ms args)]
     (concat [(begin-build-instance rec-name attrs)]
-            (mapv (partial set-literal-attribute ctx)
-                  (:computed attrs))
-            (let [f (:compound set-attr-opcode-fns)]
-              (mapv #(f %) (:compound attrs)))
-            (mapv (fn [[k v]]
-                    ((k set-attr-opcode-fns) v))
-                  (:sorted attrs))
-            (mapv (fn [arg]
-                    (op/set-ref-attribute arg))
-                  (:refs attrs))
+            (distinct
+             (apply
+              concat
+              [(mapv (partial set-literal-attribute ctx)
+                     (:computed attrs))
+               (let [f (:compound set-attr-opcode-fns)]
+                 (mapv #(f %) (:compound attrs)))
+               (mapv (fn [[k v]]
+                       ((k set-attr-opcode-fns) v))
+                     (:sorted attrs))
+               (mapv (fn [arg]
+                       (op/set-ref-attribute arg))
+                     (:refs attrs))]))
             [(if event?
                (op/intern-event-instance
                 [rec-name alias (ctx/fetch-with-types ctx)
