@@ -364,6 +364,10 @@
         {:path (first refs) :refs (rest refs)}
         {:path path}))))
 
+(defn root-path [path]
+  (let [{c :component r :record} (path-parts path)]
+    (make-path [c r])))
+
 (defn query-pattern? [a]
   (and (keyword? a) (string/ends-with? (name a) "?")))
 

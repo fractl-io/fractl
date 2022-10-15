@@ -3,7 +3,8 @@
             [fractl.rbac.model]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            [fractl.evaluator.intercept.internal :as ii]))
 
 (def default-superuser-name "superuser")
 (def ^:private superuser (atom nil))
@@ -99,16 +100,25 @@
              (= prn :*)) true
         :else false))))
 
-(defn- has-priv? [action user-name resource]
+(defn- filter-privs [privs action ignore-refs resource]
+  (seq
+   (filter
+    (fn [p]
+      (and (some (partial has-priv-on-resource? resource)
+                 (mapv #(if ignore-refs (li/root-path %) %) (:Resource p)))
+           (some #{action :*} (:Actions p))))
+    privs)))
+
+(defn- has-priv? [action user-name arg]
   (if (superuser-name? user-name)
     true
-    (seq
-     (filter
-      (fn [p]
-        (and (some (partial has-priv-on-resource? resource)
-                   (:Resource p))
-             (some #{action :*} (:Actions p))))
-      (privileges user-name)))))
+    (let [resource (:data arg)
+          privs (privileges user-name)
+          predic (partial filter-privs privs action (:ignore-refs arg))]
+      (if (ii/attribute-ref? resource)
+        (or (predic (li/root-path resource))
+            (predic resource))
+        (predic resource)))))
 
 (def can-read? (partial has-priv? :read))
 (def can-upsert? (partial has-priv? :upsert))
