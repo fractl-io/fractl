@@ -9,7 +9,7 @@
             [fractl.util :as u]
             [fractl.util.auth :as au]
             [fractl.auth.jwt :as jwt]
-            [fractl.auth.internal :as i]))
+            [fractl.auth.core :as auth]))
 
 (def ^:private tag :keycloak)
 (def ^:private non-client-keys [:user-realm :user-client-id
@@ -25,7 +25,7 @@
 ;;  :client-id "admin-cli"
 ;;  :admin "admin"
 ;;  :admin-password "secretadmin"}
-(defmethod i/make-client tag [config]
+(defmethod auth/make-client tag [config]
   (or @client
       (let [c (let [admin (:admin config)
                     pswd (:admin-password config)]
@@ -43,7 +43,7 @@
    :client-id (or (:user-client-id config)
                   (:user-realm config))})
 
-(defmethod i/make-authfn tag [config]
+(defmethod auth/make-authfn tag [config]
   (kb/buddy-verify-token-fn
    (kd/deployment
     (kd/client-conf
@@ -67,7 +67,7 @@
     {:status (:status r)
      :body (json/decode (:body r))}))
 
-(defmethod i/user-login tag [{url :auth-server-url
+(defmethod auth/user-login tag [{url :auth-server-url
                               realm :user-realm
                               client-id :user-client-id
                               event-inst :event}]
@@ -84,22 +84,22 @@
    :password (:Password inst)
    :email (:Email inst)})
 
-(defmethod i/upsert-user tag [{kc-client i/client-key
+(defmethod auth/upsert-user tag [{kc-client auth/client-key
                                realm :user-realm
-                               inst i/instance-key}]
+                               inst auth/instance-key}]
   (let [obj (user-properties inst)]
     (ku/create-or-update-user! kc-client realm obj nil nil)
     inst))
 
-(defmethod i/delete-user tag [{kc-client i/client-key
+(defmethod auth/delete-user tag [{kc-client auth/client-key
                                realm :user-realm
-                               inst i/instance-key}]
+                               inst auth/instance-key}]
   (ku/delete-user! kc-client realm (:Name inst))
   inst)
 
-(defmethod i/user-logout tag [{realm :user-realm
+(defmethod auth/user-logout tag [{realm :user-realm
                                sub :sub :as arg}]
-  (let [kc-client (i/make-client arg)]
+  (let [kc-client (auth/make-client arg)]
     (ku/logout-user! kc-client realm sub)
     :bye))
 
@@ -107,8 +107,8 @@
   (let [token (au/bearer-token request)]
     (k (jwt/decode token))))
 
-(defmethod i/session-user tag [{request :request}]
+(defmethod auth/session-user tag [{request :request}]
   (get-session-value request :preferred_username))
 
-(defmethod i/session-sub tag [{request :request}]
+(defmethod auth/session-sub tag [{request :request}]
   (get-session-value request :sub))
