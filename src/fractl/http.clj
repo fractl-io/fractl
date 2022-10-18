@@ -11,7 +11,7 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.http :as uh]
-            [fractl.auth.internal :as ai]
+            [fractl.auth.core :as auth]
             [fractl.component :as cn]
             [fractl.lang.internal :as li])
   (:use [compojure.core :only [routes POST GET]]
@@ -68,7 +68,7 @@
 (defn- event-from-request [request event-name data-fmt auth-config]
   (try
     (let [user (when auth-config
-                 (ai/session-user
+                 (auth/session-user
                   (assoc auth-config :request request)))
           body (:body request)
           obj (if (map? body)
@@ -198,7 +198,7 @@
           (do (log/warn (str "bad login request - " err))
               (bad-request err data-fmt))
           (try
-            (let [result (ai/user-login
+            (let [result (auth/user-login
                           (assoc
                            auth-config
                            :event evobj
@@ -215,9 +215,9 @@
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
       (try
-        (let [sub (ai/session-sub
+        (let [sub (auth/session-sub
                    (assoc auth-config :request request))
-              result (ai/user-logout
+              result (auth/user-logout
                       (assoc
                        auth-config
                        :sub sub))]
@@ -243,7 +243,7 @@
         r-with-auth (if auth-config
                       (wrap-authentication
                        r (buddy-back/token
-                          {:authfn (ai/make-authfn auth-config)
+                          {:authfn (auth/make-authfn auth-config)
                            :token-name "Bearer"}))
                       r)]
     (cors/wrap-cors
