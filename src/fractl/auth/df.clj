@@ -4,16 +4,16 @@
             [fractl.component :as cn]
             [fractl.evaluator.internal :as ei]
             [fractl.util.auth :as au]
-            [fractl.auth.internal :as i]))
+            [fractl.auth.core :as auth]))
 
 (def ^:private tag :dataflow)
 (def ^:private token-db (atom {}))
 
-(defmethod i/make-client tag [config]
+(defmethod auth/make-client tag [config]
   (when-let [auth-event-name (:auth-event config)]
     {:auth-event auth-event-name}))
 
-(defmethod i/make-authfn tag [config]
+(defmethod auth/make-authfn tag [config]
   (fn [_ token]
     (get @token-db token)))
 
@@ -22,7 +22,7 @@
     (assoc result :access_token token)
     (normalize-result (first result) token)))
 
-(defmethod i/user-login tag [{event :event evaluate :eval auth-event :auth-event}]
+(defmethod auth/user-login tag [{event :event evaluate :eval auth-event :auth-event}]
   (when-not (= auth-event (cn/instance-type event))
     (u/throw-ex (str "login event is expected to be of type " auth-event)))
   (let [r (evaluate event)
@@ -34,7 +34,7 @@
         (assoc result :result nr))
       (u/throw-ex (str "login failed for event " auth-event)))))
 
-(defmethod i/user-logout tag [{sub :sub}]
+(defmethod auth/user-logout tag [{sub :sub}]
   :bye)
 
 (defn- get-session-value [request k]
@@ -43,8 +43,8 @@
       (get-in @token-db [token k])
       (get @token-db token))))
 
-(defmethod i/session-user tag [{request :request k :auth-identity}]
+(defmethod auth/session-user tag [{request :request k :auth-identity}]
   (get-session-value request k))
 
-(defmethod i/session-sub tag [{request :request k :auth-identity}]
+(defmethod auth/session-sub tag [{request :request k :auth-identity}]
   (get-session-value request k))
