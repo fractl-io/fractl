@@ -213,3 +213,46 @@
                  (cn/instance-of? :I594MR/R2 %))
             (ls/rel-tag a))
     (is (cn/same-instance? r a))))
+
+(deftest issue-649-01
+  (defcomponent :I64901
+    (entity
+     :I64901/E1
+     {:N {:type :Kernel/String
+          :identity true}
+      :X {:type :Kernel/Int :indexed true}})
+    (entity
+     :I64901/E2
+     {:Y {:type :Kernel/Int :indexed true}})
+    (relationship
+     :I64901/R1
+     {:meta
+      {:contains [:I64901/E1 :I64901/E2]
+       :on [:X :Y]}
+      :Z :Kernel/Int})
+    (dataflow
+     :I64901/CreateE2
+     {:I64901/E1
+      {:N? :I64901/CreateE2.N} :as :E1}
+     {:I64901/E2
+      {:Y :I64901/CreateE2.Y}
+      :-> [{:I64901/R1 {:Z :I64901/CreateE2.Z}} :E1]}))
+  (let [e11 (tu/first-result
+             {:I64901/Upsert_E1
+              {:Instance
+               {:I64901/E1
+                {:N "a" :X 1}}}})
+        e12 (tu/first-result
+             {:I64901/Upsert_E1
+              {:Instance
+               {:I64901/E1
+                {:N "b" :X 2}}}})
+        e21 (tu/result
+             {:I64901/CreateE2
+              {:N "a" :Y 100 :Z 20}})]
+    (is (cn/instance-of? :I64901/E2 e21))
+    (let [r (first (:-> e21))]
+      (is (cn/instance-of? :I64901/R1 r))
+      (is (= (:E1 r) 1))
+      (is (= (:E2 r) 100))
+      (is (= (:Z r) 20)))))

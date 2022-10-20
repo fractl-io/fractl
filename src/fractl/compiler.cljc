@@ -470,7 +470,13 @@
     (ensure-relationship-name n)
     (when-not (some #{n} (cn/find-relationships recname))
       (u/throw-ex (str "relationship " n " not found for " recname)))
-    [[rel (li/split-path n) is-obj] (compile-pattern ctx (second pat))]))
+    [[(when is-obj
+        (ctx/build-partial-instance! ctx)
+        (let [opc (compile-pattern ctx rel)]
+          (ctx/clear-build-partial-instance! ctx)
+          opc))
+      (li/split-path n) is-obj]
+     (compile-pattern ctx (second pat))]))
 
 (defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
   (let [c (partial compile-intern-relationship ctx recname)

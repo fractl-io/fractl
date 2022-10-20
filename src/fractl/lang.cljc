@@ -681,32 +681,39 @@
   ([attr-spec]
    (normalize-relation-attribute attr-spec nil)))
 
-(defn- assoc-relationship-attributes [attrs is-contains [rec-a rec-b :as recs]]
-  (when-not (or (li/name? rec-a) (li/name? rec-b))
-    (u/throw-ex (str "invalid relationship elements - " recs)))
+(defn- identity-attributes-for-relationship [rec-a rec-b]
   (let [scm-a (cn/ensure-entity-schema rec-a)
         scm-b (when-not (= rec-a rec-b) (cn/ensure-entity-schema rec-b))
         ida (cn/ensure-identity-attribute-name scm-a)
-        idb (if scm-b (cn/ensure-identity-attribute-name scm-b) ida)
-        [a b] (cn/relationship-attribute-names rec-a rec-b)
-        id-attrs {a {:ref (li/make-ref rec-a ida)}
-                  b {:ref (li/make-ref rec-b idb)}}]
-    (merge attrs id-attrs)))
+        idb (if scm-b (cn/ensure-identity-attribute-name scm-b) ida)]
+    (when (and ida idb)
+      [ida idb])))
+
+(defn- assoc-relationship-attributes [attrs is-contains [rec-a rec-b :as recs] on-attrs]
+  (when-not (or (li/name? rec-a) (li/name? rec-b))
+    (u/throw-ex (str "invalid relationship elements - " recs)))
+  (if-let [[ida idb] (or on-attrs (identity-attributes-for-relationship rec-a rec-b))]
+    (let [[a b :as ab] (cn/relationship-attribute-names rec-a rec-b)
+          id-attrs {a {:ref (li/make-ref rec-a ida)}
+                    b {:ref (li/make-ref rec-b idb)}}]
+      [(merge attrs id-attrs) ab])
+    (u/throw-ex (str "cannot infer reference attributes for relationship from " recs))))
 
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
          contains (mt/contains meta)
-         elems (or contains (mt/between meta))]
+         elems (or contains (mt/between meta))
+         on-attrs (:on meta)]
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
-     (let [attrs (assoc-relationship-attributes attrs contains elems)
+     (let [[attrs uqs] (assoc-relationship-attributes attrs contains elems on-attrs)
            r (serializable-entity
               relation-name
               (assoc
                attrs
-               :meta (assoc meta :relationship true)))]
+               :meta (assoc meta :relationship true :unique uqs)))]
        (when (cn/register-relationship elems relation-name)
          r))))
   ([schema]

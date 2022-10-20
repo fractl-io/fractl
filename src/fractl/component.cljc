@@ -1470,6 +1470,9 @@
       [(u/keyword-append a 1) (u/keyword-append b 2)]
       [a b])))
 
+(defn relationship-on-attributes [rel-name]
+  (:on (fetch-meta rel-name)))
+
 (defn init-relationship-instance [rel-name rel-attrs src-inst target-inst]
   (let [meta (fetch-meta rel-name)
         contains (mt/contains meta)
@@ -1483,8 +1486,9 @@
           [e1 e2] (if (= srctype (first elems))
                     [src-inst target-inst]
                     [target-inst src-inst])
-          id1 ((identity-attribute-name (first elems)) e1)
-          id2 ((identity-attribute-name (second elems)) e2)]
-      (make-instance
-       rel-name
-       (merge rel-attrs {a1 id1 a2 id2})))))
+          [attr1 attr2] (or (relationship-on-attributes rel-name)
+                            [(identity-attribute-name (first elems))
+                             (identity-attribute-name (second elems))])
+          id1 (attr1 e1)
+          id2 (attr2 e2)]
+      (make-instance rel-name (merge rel-attrs {a1 id1 a2 id2})))))
