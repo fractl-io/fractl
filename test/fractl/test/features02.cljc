@@ -249,10 +249,32 @@
                 {:N "b" :X 2}}}})
         e21 (tu/result
              {:I64901/CreateE2
-              {:N "a" :Y 100 :Z 20}})]
+              {:N "a" :Y 100 :Z 20}})
+        e22 (tu/result
+             {:I64901/CreateE2
+              {:N "a" :Y 100 :Z 20}})
+        e23 (tu/result
+             {:I64901/CreateE2
+              {:N "b" :Y 200 :Z 40}})
+        e24 (tu/result
+             {:I64901/CreateE2
+              {:N "b" :Y 100 :Z 40}})]
     (is (cn/instance-of? :I64901/E2 e21))
-    (let [r (first (:-> e21))]
+    (let [r (first (:-> e21))
+          t (:transition (first (:-> e22)))]
       (is (cn/instance-of? :I64901/R1 r))
       (is (= (:E1 r) 1))
       (is (= (:E2 r) 100))
-      (is (= (:Z r) 20)))))
+      (is (= (:Z r) 20))
+      (is (cn/same-instance? (:to t) r))
+      (is (cn/same-instance? (:from t) r)))
+    (let [r (first (:-> e23))]
+      (is (cn/instance-of? :I64901/R1 r))
+      (is (= (:E1 r) 2))
+      (is (= (:E2 r) 200))
+      (is (= (:Z r) 40)))
+    (let [r (first (:-> e24))]
+      (is (cn/instance-of? :I64901/R1 r))
+      (is (= (:E1 r) 2))
+      (is (= (:E2 r) 100))
+      (is (= (:Z r) 40)))))
