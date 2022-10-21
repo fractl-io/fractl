@@ -1156,6 +1156,9 @@
 (defn find-ref-path [attr-schema-name]
   (:ref (find-attribute-schema attr-schema-name)))
 
+(defn attribute-ref [entity-schema attr]
+  (find-ref-path (get entity-schema attr)))
+
 (defn dissoc-write-only [instance]
   (let [schema (ensure-schema (instance-type instance))]
     (if-let [wo-attrs (seq (write-only-attributes schema))]

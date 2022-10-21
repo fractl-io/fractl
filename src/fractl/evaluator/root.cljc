@@ -49,7 +49,7 @@
       (if-let [q (first qs)]
         (let [c (store/compile-query store (first q))
               [rec-name ref-val] (second q)
-              rs (store/do-query store (first c) [ref-val])]
+              rs (when ref-val (store/do-query store (first c) [ref-val]))]
           (recur (rest qs) (env/bind-instances env (stu/results-as-instances rec-name rs))))
         env))))
 
