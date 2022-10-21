@@ -704,6 +704,8 @@
    (let [meta (:meta attrs)
          contains (mt/contains meta)
          elems (or contains (mt/between meta))
+         combined-uqs (or (and contains (not (:N-N meta)))
+                          (:One-N meta))
          on-attrs (:on meta)]
      (when-not elems
        (u/throw-ex
@@ -713,7 +715,9 @@
               relation-name
               (assoc
                attrs
-               :meta (assoc meta :relationship true :unique uqs)))]
+               :meta (assoc
+                      (if combined-uqs (assoc meta :unique uqs) meta)
+                      :relationship true)))]
        (when (cn/register-relationship elems relation-name)
          r))))
   ([schema]
