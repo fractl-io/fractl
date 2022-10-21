@@ -214,70 +214,86 @@
             (ls/rel-tag a))
     (is (cn/same-instance? r a))))
 
-(deftest issue-649-01
-  (defcomponent :I64901
-    (entity
-     :I64901/E1
-     {:N {:type :Kernel/String
-          :identity true}
-      :X {:type :Kernel/Int :indexed true}})
-    (entity
-     :I64901/E2
-     {:Y {:type :Kernel/Int :indexed true}})
-    (relationship
-     :I64901/R1
-     {:meta
-      {:contains [:I64901/E1 :I64901/E2]
-       :on [:X :Y]}
-      :Z :Kernel/Int})
-    (dataflow
-     :I64901/CreateE2
-     {:I64901/E1
-      {:N? :I64901/CreateE2.N} :as :E1}
-     {:I64901/E2
-      {:Y :I64901/CreateE2.Y}
-      :-> [{:I64901/R1 {:Z :I64901/CreateE2.Z}} :E1]})
-    (dataflow
-     :I64901/DeleteE2
-     [:delete :I64901/E2 {cn/id-attr :I64901/DeleteE2.Id}]))
-  (let [e11 (tu/first-result
-             {:I64901/Upsert_E1
-              {:Instance
-               {:I64901/E1
-                {:N "a" :X 1}}}})
-        e12 (tu/first-result
-             {:I64901/Upsert_E1
-              {:Instance
-               {:I64901/E1
-                {:N "b" :X 2}}}})
-        e21 (tu/result
-             {:I64901/CreateE2
-              {:N "a" :Y 100 :Z 20}})
-        e22 (tu/result
-             {:I64901/CreateE2
-              {:N "a" :Y 100 :Z 20}})
-        e23 (tu/result
-             {:I64901/CreateE2
-              {:N "b" :Y 200 :Z 40}})
-        e24 (tu/result
-             {:I64901/CreateE2
-              {:N "b" :Y 100 :Z 40}})]
-    (is (cn/instance-of? :I64901/E2 e21))
-    (let [r (first (:-> e21))
-          t (:transition (first (:-> e22)))]
-      (is (cn/instance-of? :I64901/R1 r))
-      (is (= (:E1 r) 1))
-      (is (= (:E2 r) 100))
-      (is (= (:Z r) 20))
-      (is (cn/same-instance? (:to t) r))
-      (is (cn/same-instance? (:from t) r)))
-    (let [r (first (:-> e23))]
-      (is (cn/instance-of? :I64901/R1 r))
-      (is (= (:E1 r) 2))
-      (is (= (:E2 r) 200))
-      (is (= (:Z r) 40)))
-    (let [r (first (:-> e24))]
-      (is (cn/instance-of? :I64901/R1 r))
-      (is (= (:E1 r) 2))
-      (is (= (:E2 r) 100))
-      (is (= (:Z r) 40)))))
+(defn i649-test [n cascade-on-delete]
+  (let [cn (keyword (str "I6490" n))
+        p (partial tu/make-path cn)]
+    (defcomponent cn
+      (entity
+       (p :E1)
+       {:N {:type :Kernel/String
+            :identity true}
+        :X {:type :Kernel/Int :indexed true}})
+      (entity
+       (p :E2)
+       {:Y {:type :Kernel/Int :indexed true}})
+      (relationship
+       (p :R1)
+       {:meta
+        {:contains [(p :E1) (p :E2)]
+         :on [:X :Y]
+         :cascade-on-delete cascade-on-delete}
+        :Z :Kernel/Int})
+      (dataflow
+       (p :CreateE2)
+       {(p :E1)
+        {:N? (p :CreateE2.N)} :as :E1}
+       {(p :E2)
+        {:Y (p :CreateE2.Y)}
+        :-> [{(p :R1) {:Z (p :CreateE2.Z)}} :E1]})
+      (dataflow
+       (p :DeleteE2)
+       [:delete (p :E2) {cn/id-attr (p :DeleteE2.Id)}]))
+    (let [e11 (tu/first-result
+               {(p :Upsert_E1)
+                {:Instance
+                 {(p :E1)
+                  {:N "a" :X 1}}}})
+          e12 (tu/first-result
+               {(p :Upsert_E1)
+                {:Instance
+                 {(p :E1)
+                  {:N "b" :X 2}}}})
+          e21 (tu/result
+               {(p :CreateE2)
+                {:N "a" :Y 100 :Z 20}})
+          e22 (tu/result
+               {(p :CreateE2)
+                {:N "a" :Y 100 :Z 20}})
+          e23 (tu/result
+               {(p :CreateE2)
+                {:N "b" :Y 200 :Z 40}})
+          e24 (tu/result
+               {(p :CreateE2)
+                {:N "b" :Y 100 :Z 40}})]
+      (is (cn/instance-of? (p :E2) e21))
+      (let [r (first (:-> e21))
+            t (:transition (first (:-> e22)))]
+        (is (cn/instance-of? (p :R1) r))
+        (is (= (:E1 r) 1))
+        (is (= (:E2 r) 100))
+        (is (= (:Z r) 20))
+        (is (cn/same-instance? (:to t) r))
+        (is (cn/same-instance? (:from t) r)))
+      (let [r (first (:-> e23))]
+        (is (cn/instance-of? (p :R1) r))
+        (is (= (:E1 r) 2))
+        (is (= (:E2 r) 200))
+        (is (= (:Z r) 40)))
+      (let [r (first (:-> e24))]
+        (is (cn/instance-of? (p :R1) r))
+        (is (= (:E1 r) 2))
+        (is (= (:E2 r) 100))
+        (is (= (:Z r) 40)))
+      (let [id (cn/id-attr e21)
+            f #(tu/eval-all-dataflows
+                {(p :DeleteE2)
+                 {:Id id}})]
+        (if cascade-on-delete
+          (is (cn/same-instance?
+               (dissoc e21 :->)
+               (first (tu/fresult (f)))))
+          (is (tu/is-error f)))))))
+
+(deftest issue-649-contains-constraints
+  (i649-test 1 false)
+  (i649-test 2 true))

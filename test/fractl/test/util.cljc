@@ -257,3 +257,6 @@
 (def append-id cn/append-id)
 
 (def q-id-attr (keyword (str (name cn/id-attr) "?")))
+
+(defn make-path [component-name record-name]
+  (li/make-path [component-name record-name]))

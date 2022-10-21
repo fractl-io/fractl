@@ -38,13 +38,15 @@
 
 (def id-type (sql/attribute-to-sql-type :Kernel/UUID))
 
-(defn- append-fkeys [table-name [attr-name refspec]]
+(defn- append-fkeys [table-name [attr-name [refspec cascade-on-delete]]]
   (let [n (name attr-name)
         ename [(:component refspec) (:record refspec)]]
     (str "ALTER TABLE " table-name " ADD CONSTRAINT _" table-name "_" n "_fkey "
          "FOREIGN KEY(_" n ") "
          "REFERENCES " (su/entity-table-name ename)
-         "(_" (name (first (:refs refspec))) ")")))
+         "(_" (name (first (:refs refspec))) ")"
+         (when cascade-on-delete
+           " ON DELETE CASCADE"))))
 
 (defn- create-relational-table-sql [table-name entity-schema
                                     indexed-attributes unique-attributes

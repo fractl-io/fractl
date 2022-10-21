@@ -151,6 +151,7 @@
       :write-only (li/validate-bool :write-only v)
       :type-in-store (li/validate string? ":type-in-store must be specified as a string" v)
       :ref (li/validate reference-exists? ":ref is invalid" v)
+      :cascade-on-delete (li/validate-bool :cascade-on-delete v)
       :var (li/validate-bool :var v)
       :writer (li/validate fn? ":writer must be a function" v)
       :secure-hash (li/validate-bool :secure-hash v)
@@ -689,13 +690,14 @@
     (when (and ida idb)
       [ida idb])))
 
-(defn- assoc-relationship-attributes [attrs is-contains [rec-a rec-b :as recs] on-attrs]
+(defn- assoc-relationship-attributes [attrs is-contains [rec-a rec-b :as recs]
+                                      on-attrs cascade-on-delete]
   (when-not (or (li/name? rec-a) (li/name? rec-b))
     (u/throw-ex (str "invalid relationship elements - " recs)))
   (if-let [[ida idb] (or on-attrs (identity-attributes-for-relationship rec-a rec-b))]
     (let [[a b :as ab] (cn/relationship-attribute-names rec-a rec-b)
-          id-attrs {a {:ref (li/make-ref rec-a ida)}
-                    b {:ref (li/make-ref rec-b idb)}}]
+          id-attrs {a {:ref (li/make-ref rec-a ida) :cascade-on-delete cascade-on-delete}
+                    b {:ref (li/make-ref rec-b idb) :cascade-on-delete cascade-on-delete}}]
       [(merge attrs id-attrs) ab])
     (u/throw-ex (str "cannot infer reference attributes for relationship from " recs))))
 
@@ -706,11 +708,14 @@
          elems (or contains (mt/between meta))
          combined-uqs (or (and contains (not (:N-N meta)))
                           (:One-N meta))
-         on-attrs (:on meta)]
+         on-attrs (:on meta)
+         cascade-on-delete (:cascade-on-delete meta)]
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
-     (let [[attrs uqs] (assoc-relationship-attributes attrs contains elems on-attrs)
+     (let [[attrs uqs] (assoc-relationship-attributes
+                        attrs contains elems
+                        on-attrs (if cascade-on-delete true false))
            r (serializable-entity
               relation-name
               (assoc

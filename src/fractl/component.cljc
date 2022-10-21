@@ -1147,8 +1147,8 @@
 (def identity-attribute? :identity)
 
 (defn attribute-is-identity? [entity-schema attr]
-  (let [ascm (get entity-schema attr)]
-    (identity-attribute? (find-attribute-schema ascm))))
+  (let [a (get entity-schema attr)]
+    (identity-attribute? (find-attribute-schema a))))
 
 (defn type-any? [entity-schema attr]
   (= :Kernel/Any (attribute-type entity-schema attr)))
@@ -1157,7 +1157,10 @@
   (:ref (find-attribute-schema attr-schema-name)))
 
 (defn attribute-ref [entity-schema attr]
-  (find-ref-path (get entity-schema attr)))
+  (let [a (get entity-schema attr)
+        ascm (find-attribute-schema a)]
+    (when-let [r (:ref ascm)]
+      [r (:cascade-on-delete ascm)])))
 
 (defn dissoc-write-only [instance]
   (let [schema (ensure-schema (instance-type instance))]
