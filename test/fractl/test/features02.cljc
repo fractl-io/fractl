@@ -214,8 +214,7 @@
             (ls/rel-tag a))
     (is (cn/same-instance? r a))))
 
-;; TODO - failing when run with other tests, debug around new fk-constraints
-#_(deftest issue-649-01
+(deftest issue-649-01
   (defcomponent :I64901
     (entity
      :I64901/E1

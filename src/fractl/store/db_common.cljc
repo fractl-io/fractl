@@ -81,7 +81,7 @@
                  (str "CREATE INDEX "
                       #?(:clj "IF NOT EXISTS "
                          :cljs "")
-                      n "_Idx ON " table-name "(_" n ")")))
+                      "_" table-name "_" n "_Idx ON " table-name "(_" n ")")))
              indexed-attributes)))))
 
 (defn- create-relational-table [connection entity-schema table-name
