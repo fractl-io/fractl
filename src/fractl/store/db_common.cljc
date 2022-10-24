@@ -64,8 +64,9 @@
                           "PRIMARY KEY"
                           (when (some #{a} unique-attributes)
                             "NOT NULL UNIQUE"))]
-                 (when attr-ref
-                   (swap! post-init-sqls conj (afk [a attr-ref])))
+                 #?(:clj
+                    (when attr-ref
+                      (swap! post-init-sqls conj (afk [a attr-ref]))))
                  (recur
                   (rest attrs)
                   (str cols (str "_" (name a) " " sql-type " " uq)
