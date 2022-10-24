@@ -266,14 +266,16 @@
                {(p :CreateE2)
                 {:N "b" :Y 100 :Z 40}})]
       (is (cn/instance-of? (p :E2) e21))
+      (defn- check-rel-vals [e1 e2 z r]
+        (is (= (:E1 r) e1))
+        (is (= (:E2 r) e2))
+        (is (= (:Z r) z)))
       (let [r (first (:-> e21))
-            t (:transition (first (:-> e22)))]
+            t (:transition (first (:-> e22)))
+            chk (partial check-rel-vals 1 100 20)]
         (is (cn/instance-of? (p :R1) r))
-        (is (= (:E1 r) 1))
-        (is (= (:E2 r) 100))
-        (is (= (:Z r) 20))
-        (is (cn/same-instance? (:to t) r))
-        (is (cn/same-instance? (:from t) r)))
+        (chk r) (chk (:to t)) (chk (:from t))
+        (is (= (cn/id-attr (:to t)) (cn/id-attr (:from t)))))
       (let [r (first (:-> e23))]
         (is (cn/instance-of? (p :R1) r))
         (is (= (:E1 r) 2))
@@ -284,13 +286,13 @@
         (is (= (:E1 r) 2))
         (is (= (:E2 r) 100))
         (is (= (:Z r) 40)))
-      (let [id (cn/id-attr e21)
+      (let [id (cn/id-attr e22)
             f #(tu/eval-all-dataflows
                 {(p :DeleteE2)
                  {:Id id}})]
         (if cascade-on-delete
           (is (cn/same-instance?
-               (dissoc e21 :->)
+               (dissoc e22 :->)
                (first (tu/fresult (f)))))
           (is (tu/is-error f)))))))
 

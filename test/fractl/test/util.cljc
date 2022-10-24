@@ -88,7 +88,11 @@
 ;; export POSTGRES_ENABLED=<something>
 ;; To turn off
 ;; unset POSTGRES_ENABLED
-(def test-with-postgres false)
+(def test-with-postgres
+  #?(:clj (if (System/getenv "POSTGRES_ENABLED")
+            true
+            false)
+     :cljs false))
 
 (store/open-default-store
  #?(:clj (when test-with-postgres

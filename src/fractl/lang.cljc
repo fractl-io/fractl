@@ -688,18 +688,37 @@
         ida (cn/ensure-identity-attribute-name scm-a)
         idb (if scm-b (cn/ensure-identity-attribute-name scm-b) ida)]
     (when (and ida idb)
-      [ida idb])))
+      [ida idb scm-a (or scm-b scm-a)])))
+
+(defn- generate-relationship-attributes [cascade-on-delete is-id rec recattr idattr recscm attr]
+  (if is-id
+    {attr {:ref (li/make-ref rec recattr)
+           :cascade-on-delete cascade-on-delete}}
+    {attr (cn/attribute-type recscm recattr)
+     (cn/relationship-member-identity attr)
+     {:ref (li/make-ref rec idattr)
+      :cascade-on-delete cascade-on-delete}}))
 
 (defn- assoc-relationship-attributes [attrs is-contains [rec-a rec-b :as recs]
                                       on-attrs cascade-on-delete]
   (when-not (or (li/name? rec-a) (li/name? rec-b))
     (u/throw-ex (str "invalid relationship elements - " recs)))
-  (if-let [[ida idb] (or on-attrs (identity-attributes-for-relationship rec-a rec-b))]
-    (let [[a b :as ab] (cn/relationship-attribute-names rec-a rec-b)
-          id-attrs {a {:ref (li/make-ref rec-a ida) :cascade-on-delete cascade-on-delete}
-                    b {:ref (li/make-ref rec-b idb) :cascade-on-delete cascade-on-delete}}]
-      [(merge attrs id-attrs) ab])
-    (u/throw-ex (str "cannot infer reference attributes for relationship from " recs))))
+  (let [[ida idb scma scmb] (identity-attributes-for-relationship rec-a rec-b)]
+    (when-not ida
+      (u/throw-ex (str "no identity attribute found for " rec-a ", cannot form relationship")))
+    (when-not idb
+      (u/throw-ex (str "no identity attribute found for " rec-b ", cannot form relationship")))
+    (let [[ra rb] (or on-attrs [ida idb])
+          [a b :as ab] (cn/relationship-attribute-names rec-a rec-b)
+          genattr (partial generate-relationship-attributes cascade-on-delete)
+          a-attrs (genattr
+                   (cn/unique-or-identity? scma ra)
+                   rec-a ra ida scma a)
+          b-attrs (genattr
+                   (cn/unique-or-identity? scmb rb)
+                   rec-b rb idb scmb b)
+          id-attrs (merge a-attrs b-attrs)]
+      [(merge attrs id-attrs) ab])))
 
 (defn relationship
   ([relation-name attrs]
