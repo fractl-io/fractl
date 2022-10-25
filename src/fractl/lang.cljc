@@ -4,6 +4,7 @@
             [clojure.string :as s]
             [clojure.walk :as w]
             [fractl.util :as u]
+            [fractl.util.seq :as us]
             [fractl.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
@@ -720,21 +721,31 @@
           id-attrs (merge a-attrs b-attrs)]
       [(merge attrs id-attrs) ab])))
 
+(defn- parse-relationship-member-spec [spec]
+  (let [elems [(first spec) (second spec)]
+        meta (seq (rest (rest spec)))]
+    (if meta
+      [elems (us/wrap-to-map meta)]
+      [elems nil])))
+
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
          contains (mt/contains meta)
-         elems (or contains (mt/between meta))
-         combined-uqs (or (and contains (not (:N-N meta)))
-                          (:One-N meta))
-         on-attrs (:on meta)
-         cascade-on-delete (:cascade-on-delete meta)]
+         [elems relmeta] (parse-relationship-member-spec
+                          (or contains (mt/between meta)))
+         combined-uqs (or (and contains (not (:N-N relmeta)))
+                          (:One-N relmeta))
+         on-attrs (:on relmeta)
+         cascade-on-delete (:cascade-on-delete relmeta)]
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
      (let [[attrs uqs] (assoc-relationship-attributes
                         attrs contains elems
                         on-attrs (if cascade-on-delete true false))
+           meta0 (assoc meta cn/relmeta-key relmeta)
+           meta (assoc meta0 (if contains mt/contains mt/between) elems)
            r (serializable-entity
               relation-name
               (assoc

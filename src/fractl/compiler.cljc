@@ -811,7 +811,7 @@
   (op/entity-def (first pat)))
 
 (defn- compile-eval [ctx pat]
-  (let [m (us/split-to-map (rest pat))
+  (let [m (us/wrap-to-map (rest pat))
         ret-type (:check m)
         result-alias (:as m)]
     (when (keyword? ret-type)

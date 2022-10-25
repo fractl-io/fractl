@@ -229,9 +229,9 @@
       (relationship
        (p :R1)
        {:meta
-        {:contains [(p :E1) (p :E2)]
-         :on [:X :Y]
-         :cascade-on-delete cascade-on-delete}
+        {:contains [(p :E1) (p :E2)
+                    :on [:X :Y]
+                    :cascade-on-delete cascade-on-delete]}
         :Z :Kernel/Int})
       (dataflow
        (p :CreateE2)

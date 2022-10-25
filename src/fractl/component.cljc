@@ -1480,8 +1480,10 @@
       [(u/keyword-append a 1) (u/keyword-append b 2)]
       [a b])))
 
+(def relmeta-key :-*-relmeta-*-)
+
 (defn relationship-on-attributes [rel-name]
-  (:on (fetch-meta rel-name)))
+  (:on (relmeta-key (fetch-meta rel-name))))
 
 (defn relationship-member-identity [k]
   (keyword (str (name k) "Identity")))
