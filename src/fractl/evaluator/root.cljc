@@ -49,7 +49,7 @@
       (if-let [q (first qs)]
         (let [c (store/compile-query store (first q))
               [rec-name ref-val] (second q)
-              rs (store/do-query store (first c) [ref-val])]
+              rs (when ref-val (store/do-query store (first c) [ref-val]))]
           (recur (rest qs) (env/bind-instances env (stu/results-as-instances rec-name rs))))
         env))))
 
@@ -781,8 +781,11 @@
     (first obj)))
 
 (defn- intern-relationship [vm env eval-opcode eval-event-dataflows
-                            rel-name rel-attrs src-inst opc]
-  (let [r (eval-opcode vm env opc)]
+                            rel-name rel-opcode src-inst opc]
+  (let [rel-attrs (when rel-opcode
+                    (or (first (ok-result (eval-opcode vm env rel-opcode)))
+                        (u/throw-ex (str "failed to initialize relationship - " rel-name))))
+        r (eval-opcode vm env opc)]
     (when-let [target (normalize-rel-target (ok-result r))]
       (intern-instance
        vm (env/push-obj
@@ -871,12 +874,11 @@
       (let [r1 (eval-opcode self env src-opcode)]
         (if-let [src (first (ok-result r1))]
           (loop [topc rel-info-and-target-opcode, env (:env r1), rels []]
-            (if-let [[[rel rel-name is-obj] target-opcode] (first topc)]
+            (if-let [[[rel-opcode rel-name is-obj] target-opcode] (first topc)]
               (let [r2 (intern-relationship
                         self env
                         eval-opcode eval-event-dataflows
-                        rel-name (when is-obj (first (vals rel)))
-                        src target-opcode)]
+                        rel-name rel-opcode src target-opcode)]
                 (if-let [rel (first (ok-result r2))]
                   (recur (rest topc) (:env r2) (conj rels rel))
                   r2))

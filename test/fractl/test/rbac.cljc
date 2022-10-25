@@ -22,8 +22,8 @@
      {:Kernel.Identity/User {:Name "xyz"}})
     (dataflow
      :RoleMgmt/CreateRoles
-     {:Kernel.RBAC/Role {:Name "role1"}}
-     {:Kernel.RBAC/Role {:Name "role2"}})
+     {:Kernel.RBAC/Role {:Name "r1"}}
+     {:Kernel.RBAC/Role {:Name "r2"}})
     (dataflow
      :RoleMgmt/AssignPrivileges
      {:Kernel.RBAC/Privilege

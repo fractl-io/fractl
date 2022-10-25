@@ -456,6 +456,10 @@
     id
     (u/throw-ex (str "no identity attribute for - " type-name-or-scm))))
 
+(defn unique-or-identity? [entity-schema attr-name]
+  (some #{attr-name} (concat (identity-attributes entity-schema)
+                             (unique-attributes entity-schema))))
+
 (defn same-id? [a b]
   (= (str (id-attr a)) (str (id-attr b))))
 
@@ -1147,14 +1151,20 @@
 (def identity-attribute? :identity)
 
 (defn attribute-is-identity? [entity-schema attr]
-  (let [ascm (get entity-schema attr)]
-    (identity-attribute? (find-attribute-schema ascm))))
+  (let [a (get entity-schema attr)]
+    (identity-attribute? (find-attribute-schema a))))
 
 (defn type-any? [entity-schema attr]
   (= :Kernel/Any (attribute-type entity-schema attr)))
 
 (defn find-ref-path [attr-schema-name]
   (:ref (find-attribute-schema attr-schema-name)))
+
+(defn attribute-ref [entity-schema attr]
+  (let [a (get entity-schema attr)
+        ascm (find-attribute-schema a)]
+    (when-let [r (:ref ascm)]
+      [r (:cascade-on-delete ascm)])))
 
 (defn dissoc-write-only [instance]
   (let [schema (ensure-schema (instance-type instance))]
@@ -1470,6 +1480,22 @@
       [(u/keyword-append a 1) (u/keyword-append b 2)]
       [a b])))
 
+(def relmeta-key :-*-relmeta-*-)
+
+(defn relationship-on-attributes [rel-name]
+  (:on (relmeta-key (fetch-meta rel-name))))
+
+(defn relationship-member-identity [k]
+  (keyword (str (name k) "Identity")))
+
+(defn- relationship-references [inst attr relattr]
+  (let [tp (instance-type inst)
+        scm (entity-schema tp)]
+    (when-not (unique-or-identity? scm attr)
+      (let [idattr (identity-attribute-name tp)]
+        [(relationship-member-identity relattr)
+         (idattr inst)]))))
+
 (defn init-relationship-instance [rel-name rel-attrs src-inst target-inst]
   (let [meta (fetch-meta rel-name)
         contains (mt/contains meta)
@@ -1479,12 +1505,26 @@
         elems (mapv li/split-path (or contains between))]
     (when (not= (set elems) (set types))
       (u/throw-ex (str "relationship elements expected - " elems ", found - " types)))
-    (let [[a1 a2] (apply relationship-attribute-names elems)
-          [e1 e2] (if (= srctype (first elems))
+    (let [[e1 e2] (if (= srctype (first elems))
                     [src-inst target-inst]
                     [target-inst src-inst])
-          id1 ((identity-attribute-name (first elems)) e1)
-          id2 ((identity-attribute-name (second elems)) e2)]
+          [a1 a2] (apply relationship-attribute-names elems)
+          [idattr1 idattr2 :as idents]
+          [(identity-attribute-name (first elems))
+           (identity-attribute-name (second elems))]
+          [attr1 attr2] (or (relationship-on-attributes rel-name)
+                            idents)
+          [id1 idv1] (relationship-references e1 attr1 a1)
+          [id2 idv2] (relationship-references e2 attr2 a2)
+          v1 (attr1 e1)
+          v2 (attr2 e2)]
       (make-instance
        rel-name
-       (merge rel-attrs {a1 id1 a2 id2})))))
+       (merge
+        rel-attrs
+        {a1 v1
+         a2 v2}
+        (when (and id1 idv1)
+          {id1 idv1})
+        (when (and id2 idv2)
+          {id2 idv2}))))))

@@ -145,7 +145,7 @@
          @datasource entity-name instance))
       (delete-by-id [_ entity-name id-attr-name id]
         (db/delete-by-id
-         (partial pi/delete-by-id-statement id-attr-name)
+         pi/delete-by-id-statement
          @datasource entity-name id-attr-name id))
       (delete-all [_ entity-name]
         (db/delete-all @datasource entity-name))

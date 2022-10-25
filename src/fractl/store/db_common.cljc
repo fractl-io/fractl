@@ -38,46 +38,61 @@
 
 (def id-type (sql/attribute-to-sql-type :Kernel/UUID))
 
+(defn- append-fkeys [table-name [attr-name [refspec cascade-on-delete]]]
+  (let [n (name attr-name)
+        ename [(:component refspec) (:record refspec)]]
+    (str "ALTER TABLE " table-name " ADD CONSTRAINT _" table-name "_" n "_fkey "
+         "FOREIGN KEY(_" n ") "
+         "REFERENCES " (su/entity-table-name ename)
+         "(_" (name (first (:refs refspec))) ")"
+         (when cascade-on-delete
+           " ON DELETE CASCADE"))))
+
 (defn- create-relational-table-sql [table-name entity-schema
                                     indexed-attributes unique-attributes
-                                    compound-unique-attributes]
-  (concat
-   [(str su/create-table-prefix " " table-name " ("
-         (loop [attrs (sort (keys entity-schema)), cols ""]
-           (if-let [a (first attrs)]
-             (let [atype (cn/attribute-type entity-schema a)
-                   sql-type (sql/attribute-to-sql-type atype)
-                   is-ident (cn/attribute-is-identity? entity-schema a)
-                   uq (if is-ident
-                        "PRIMARY KEY"
-                        (when (some #{a} unique-attributes)
-                          "NOT NULL UNIQUE"))]
-               (recur
-                (rest attrs)
-                (str cols (str "_" (name a) " " sql-type " " uq)
-                     (when (seq (rest attrs))
-                       ", "))))
-             cols))
-         (when (seq compound-unique-attributes)
-           (str ", CONSTRAINT " (str table-name "_compound_uks")
-                " UNIQUE "
-                "(" (s/join ", " (mapv #(str "_" (name %)) compound-unique-attributes)) ")"))
-         ")")]
-   (when (seq indexed-attributes)
-     (mapv (fn [attr]
-             (let [n (name attr)]
-               (str "CREATE INDEX "
-                    #?(:clj "IF NOT EXISTS "
-                       :cljs "")
-                    n "_Idx ON " table-name "(_" n ")")))
-           indexed-attributes))))
+                                    compound-unique-attributes post-init-sqls]
+  (let [afk (partial append-fkeys table-name)]
+    (concat
+     [(str su/create-table-prefix " " table-name " ("
+           (loop [attrs (sort (keys entity-schema)), cols ""]
+             (if-let [a (first attrs)]
+               (let [atype (cn/attribute-type entity-schema a)
+                     sql-type (sql/attribute-to-sql-type atype)
+                     is-ident (cn/attribute-is-identity? entity-schema a)
+                     attr-ref (cn/attribute-ref entity-schema a)
+                     uq (if is-ident
+                          "PRIMARY KEY"
+                          (when (some #{a} unique-attributes)
+                            "NOT NULL UNIQUE"))]
+                 #?(:clj
+                    (when attr-ref
+                      (swap! post-init-sqls conj (afk [a attr-ref]))))
+                 (recur
+                  (rest attrs)
+                  (str cols (str "_" (name a) " " sql-type " " uq)
+                       (when (seq (rest attrs))
+                         ", "))))
+               cols))
+           (when (seq compound-unique-attributes)
+             (str ", CONSTRAINT " (str table-name "_compound_uks")
+                  " UNIQUE "
+                  "(" (s/join ", " (mapv #(str "_" (name %)) compound-unique-attributes)) ")"))
+           ")")]
+     (when (seq indexed-attributes)
+       (mapv (fn [attr]
+               (let [n (name attr)]
+                 (str "CREATE INDEX "
+                      #?(:clj "IF NOT EXISTS "
+                         :cljs "")
+                      "_" table-name "_" n "_Idx ON " table-name "(_" n ")")))
+             indexed-attributes)))))
 
 (defn- create-relational-table [connection entity-schema table-name
                                 indexed-attrs unique-attributes
-                                compound-unique-attributes]
+                                compound-unique-attributes post-init-sqls]
   (let [ss (create-relational-table-sql
             table-name entity-schema indexed-attrs
-            unique-attributes compound-unique-attributes)]
+            unique-attributes compound-unique-attributes post-init-sqls)]
     (doseq [sql ss]
       (when-not (execute-sql! connection [sql])
         (u/throw-ex (str "Failed to execute SQL - " sql))))
@@ -98,7 +113,8 @@
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
-  (let [scmname (su/db-schema-for-component component-name)]
+  (let [scmname (su/db-schema-for-component component-name)
+        post-init-sqls (atom [])]
     (execute-fn!
      datasource
      (fn [txn]
@@ -111,7 +127,10 @@
               txn schema tabname
               (cn/indexed-attributes schema)
               (cn/unique-attributes schema)
-              (cn/compound-unique-attributes ename)))))))
+              (cn/compound-unique-attributes ename)
+              post-init-sqls))))
+       (doseq [sql @post-init-sqls]
+         (execute-sql! txn [sql]))))
     component-name))
 
 (defn drop-schema
