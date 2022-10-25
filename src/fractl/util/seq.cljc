@@ -48,7 +48,7 @@
 (defn key-vals [m]
   [(keys m) (vals m)])
 
-(defn split-to-map [xs]
+(defn wrap-to-map [xs]
   (into {} (mapv vec (partition 2 xs))))
 
 (defn aconj [m tag x]
