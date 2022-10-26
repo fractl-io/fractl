@@ -796,6 +796,19 @@
        eval-opcode eval-event-dataflows
        rel-name nil true true))))
 
+(defn- intern-relationship-for-one-instance [vm eval-opcode eval-event-dataflows
+                                             rel-info-and-target-opcode env inst]
+  (loop [topc rel-info-and-target-opcode, env env, rels []]
+    (if-let [[[rel-opcode rel-name is-obj] target-opcode] (first topc)]
+      (let [r2 (intern-relationship
+                vm (env/bind-instance env inst)
+                eval-opcode eval-event-dataflows
+                rel-name rel-opcode inst target-opcode)]
+        (if-let [rel (first (ok-result r2))]
+          (recur (rest topc) (:env r2) (conj rels rel))
+          r2))
+      (i/ok (assoc inst ls/rel-tag rels) env))))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -872,17 +885,18 @@
 
     (do-intern-relationship-instance [self env [src-opcode rel-info-and-target-opcode]]
       (let [r1 (eval-opcode self env src-opcode)]
-        (if-let [src (first (ok-result r1))]
-          (loop [topc rel-info-and-target-opcode, env (:env r1), rels []]
-            (if-let [[[rel-opcode rel-name is-obj] target-opcode] (first topc)]
-              (let [r2 (intern-relationship
-                        self env
-                        eval-opcode eval-event-dataflows
-                        rel-name rel-opcode src target-opcode)]
-                (if-let [rel (first (ok-result r2))]
-                  (recur (rest topc) (:env r2) (conj rels rel))
-                  r2))
-              (i/ok (assoc src ls/rel-tag rels) env)))
+        (if-let [src-rs (ok-result r1)]
+          (let [intern-fn (partial
+                           intern-relationship-for-one-instance
+                           self eval-opcode eval-event-dataflows
+                           rel-info-and-target-opcode)]
+            (loop [src-rs (if (map? src-rs) [src-rs] src-rs), env (:env r1), result []]
+              (if-let [src (first src-rs)]
+                (let [r (intern-fn env src)]
+                  (if-let [obj (ok-result r)]
+                    (recur (rest src-rs) (:env r) (conj result obj))
+                    r))
+                (i/ok (if (= 1 (count result)) (first result) result) env))))
           r1)))
 
     (do-intern-event-instance [self env [record-name alias-name with-types timeout-ms]]

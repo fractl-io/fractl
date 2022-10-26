@@ -363,3 +363,48 @@
 (deftest n-to-n-relationships
   (reltype-tests false)
   (reltype-tests true))
+
+(deftest relations-on-resultset
+  (defcomponent :RoR
+    (entity
+     :RoR/A
+     {:X {:type :Kernel/Int :indexed true}})
+    (entity
+     :RoR/B
+     {:Y {:type :Kernel/Int :indexed true}
+      :K :Kernel/Int})
+    (relationship
+     :RoR/R1
+     {:meta
+      {:between [:RoR/A :RoR/B :on [:X :Y]]}
+      :Z :Kernel/Int})
+    (dataflow
+     :RoR/CreateRel
+     {:RoR/A {:X? :RoR/CreateRel.X} :as :A}
+     {:RoR/B
+      {:Y? :RoR/CreateRel.Y}
+      :-> [{:RoR/R1 {:Z '(* :RoR/B.K :RoR/CreateRel.Z)}} :A]}))
+  (let [a (tu/first-result
+           {:RoR/Upsert_A
+            {:Instance
+             {:RoR/A {:X 10}}}})
+        bs (mapv
+            (fn [[y k]]
+              (tu/first-result
+               {:RoR/Upsert_B
+                {:Instance
+                 {:RoR/B {:Y y :K k}}}}))
+            [[1 5] [1 3]])
+        rs (tu/result
+            {:RoR/CreateRel
+             {:X 10 :Y 1 :Z 2}})
+        is-b? (partial cn/instance-of? :RoR/B)]
+    (is (cn/instance-of? :RoR/A a))
+    (is (every? is-b? bs))
+    (is (every? is-b? bs))
+    (doseq [b rs]
+      (let [r1 (first (:-> b))]
+        (is (cn/instance-of? :RoR/R1 r1))
+        (is (= 10 (:A r1)))
+        (is (= 1 (:B r1)))
+        (is (= (:Z r1) (* (:K b) 2)))))))
