@@ -183,18 +183,18 @@
            {:I621/Upsert_Model
             {:Instance
              {:I621/Model
-              {:Name "m" :Version "1.0"}}}})
+              {:Name :m :Version "1.0"}}}})
         c (tu/first-result
            {:I621/Upsert_Component
             {:Instance
              {:I621/Component
-              {:Name "c" :Model "m"}}}})
+              {:Name :c :Model :m}}}})
         attrs {:a 1 :b false :c 3}
         r (tu/first-result
            {:I621/CreateRecord
-            {:Name "r1"
-             :Model "m"
-             :Component "c"
+            {:Name :r1
+             :Model :m
+             :Component :c
              :Attributes attrs}})
         m1 (tu/first-result
             {:I621/Lookup_Model
@@ -210,6 +210,23 @@
     (is (same-instance? m m1 [cn/id-attr :Name :Version]))
     (is (same-instance? c c1 [cn/id-attr :Name :Model]))
     (is (same-instance? r r1 [cn/id-attr :Name :Model :Component]))
-    (is (= (:Model r1) "m"))
-    (is (= (:Component r1) "c"))
+    (is (= (:Model r1) :m))
+    (is (= (:Component r1) :c))
     (is (= (:Attributes r1) attrs))))
+
+(deftest issue-669-keyword-query-bug
+  (defcomponent :I669
+    (entity
+     :I669/E
+     {:K :Kernel/Keyword
+      :P :Kernel/Path}))
+  (let [e (tu/first-result
+           {:I669/Upsert_E
+            {:Instance
+             {:I669/E
+              {:K :hello
+               :P :I669/F}}}})
+        e1 (tu/first-result
+            {:I669/Lookup_E
+             {cn/id-attr (cn/id-attr e)}})]
+    (is (cn/same-instance? e e1))))
