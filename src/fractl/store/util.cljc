@@ -118,9 +118,10 @@
   (let [s (str n)]
     (subs s 2)))
 
-(defn- normalize-attribute [schema [k v]]
+(defn- normalize-attribute [schema kw-type-attrs [k v]]
   [k
    (cond
+     (some #{k} kw-type-attrs) (u/string-as-keyword v)
      (uuid? v) (str v)
      (and (string? v) (s/starts-with? v obj-prefix))
      (#?(:clj read-string :cljs clj->js)
@@ -128,26 +129,32 @@
         #?(:clj (if (seq s) s "nil") :cljs s)))
      :else v)])
 
-(defn result-as-instance [entity-name result]
-  (let [attr-names (keys (cn/fetch-schema entity-name))]
-    (loop [result-keys (keys result), obj {}]
-      (if-let [rk (first result-keys)]
-        (let [[_ b] (li/split-path rk)
-              f (remove-prefix (or b rk))
-              aname (first
-                     (filter
-                      #(= (s/upper-case (name %)) (s/upper-case f))
-                      attr-names))]
-          (if aname
-            (recur (rest result-keys) (assoc obj aname (get result rk)))
-            (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
-        (cn/make-instance
-         entity-name
-         (into {} (mapv (partial normalize-attribute (cn/fetch-entity-schema entity-name)) obj))
-         false)))))
+(defn result-as-instance
+  ([entity-name entity-schema result]
+   (let [attr-names (cn/attribute-names entity-schema)]
+     (loop [result-keys (keys result), obj {}]
+       (if-let [rk (first result-keys)]
+         (let [[_ b] (li/split-path rk)
+               f (remove-prefix (or b rk))
+               aname (first
+                      (filter
+                       #(= (s/upper-case (name %)) (s/upper-case f))
+                       attr-names))]
+           (if aname
+             (recur (rest result-keys) (assoc obj aname (get result rk)))
+             (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
+         (cn/make-instance
+          entity-name
+          (into {} (mapv (partial
+                          normalize-attribute entity-schema
+                          (cn/keyword-type-attributes entity-schema attr-names))
+                         obj))
+          false)))))
+  ([entity-name result]
+   (result-as-instance entity-name (cn/fetch-schema entity-name) result)))
 
 (defn results-as-instances [entity-name results]
-  (mapv (partial result-as-instance entity-name) results))
+  (mapv (partial result-as-instance entity-name (cn/fetch-schema entity-name)) results))
 
 (def compiled-query :compiled-query)
 (def raw-query :raw-query)
