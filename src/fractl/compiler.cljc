@@ -486,29 +486,25 @@
     (op/intern-relationship-instance
      [(package-opcode intern-rec-opc) rel-opcs])))
 
-(defn- ensure-relationship-full-query [x]
-  (when-not (and (li/query-pattern? x)
-                 (ensure-relationship-name
-                  (li/query-target-name x)))
-    (u/throw-ex (str "not a relationship query - " x)))
-  x)
+(defn- relationship-full-query? [x]
+  (when (and (li/query-pattern? x)
+             (ensure-relationship-name
+              (li/query-target-name x)))
+    x))
 
-(defn- ensure-some-query-attrs [attrs]
-  (when-not (some li/query-pattern? (keys attrs))
-    (u/throw-ex (str "no query pattern in relationship - " attrs)))
-  attrs)
+(defn- some-query-attrs? [attrs]
+  (when (some li/query-pattern? (keys attrs))
+    attrs))
 
-(defn- ensure-relationship-query [pat]
+(defn- relationship-query? [pat]
   (if (vector? (first pat))
-    (doseq [p pat]
-      (ensure-relationship-query p))
+    (every? relationship-query? pat)
     (let [relq (first pat)]
       (cond
-        (keyword? relq) (ensure-relationship-full-query relq)
+        (keyword? relq) (relationship-full-query? relq)
         (map? relq) (and (ensure-relationship-name (first (keys relq)))
-                         (ensure-some-query-attrs (first (vals relq))))
-        :else (u/throw-ex (str "invalid relationship query pattern - " relq)))))
-  pat)
+                         (some-query-attrs? (first (vals relq))))
+        :else false))))
 
 (declare compile-query-command)
 
@@ -540,9 +536,7 @@
           relpat (ls/rel-tag pat)
           is-query-upsert (or (li/query-pattern? orig-nm)
                               (some li/query-pattern? (keys attrs)))
-          is-relq (and relpat is-query-upsert)]
-      (when is-relq
-        (ensure-relationship-query relpat))
+          is-relq (and relpat is-query-upsert (relationship-query? relpat))]
       (let [c (case tag
                 (:entity :record) emit-realize-instance
                 :event (do

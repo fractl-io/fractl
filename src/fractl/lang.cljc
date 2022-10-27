@@ -734,8 +734,8 @@
          contains (mt/contains meta)
          [elems relmeta] (parse-relationship-member-spec
                           (or contains (mt/between meta)))
-         combined-uqs (or (and contains (not (:N-N relmeta)))
-                          (:One-N relmeta))
+         combined-uqs (or (and contains (not (:n-n relmeta)))
+                          (:one-n relmeta))
          on-attrs (:on relmeta)
          cascade-on-delete (:cascade-on-delete relmeta)]
      (when-not elems
