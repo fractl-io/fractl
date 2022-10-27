@@ -1166,6 +1166,14 @@
     (when-let [r (:ref ascm)]
       [r (:cascade-on-delete ascm)])))
 
+(defn keyword-type-attributes [entity-schema attribute-names]
+  (let [atype (partial attribute-type entity-schema)]
+    (filter
+     #(let [t (atype %)]
+        (or (= t :Kernel/Keyword)
+            (= t :Kernel/Path)))
+     attribute-names)))
+
 (defn dissoc-write-only [instance]
   (let [schema (ensure-schema (instance-type instance))]
     (if-let [wo-attrs (seq (write-only-attributes schema))]
