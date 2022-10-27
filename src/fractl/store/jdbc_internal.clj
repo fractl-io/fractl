@@ -34,7 +34,7 @@
 
                  :else
                  [query-sql]))]
-     [pstmt query-params]))
+     [pstmt (mapv u/keyword-as-string query-params)]))
   ([conn query-sql]
    (jdbc/prepare conn [query-sql])))
 
