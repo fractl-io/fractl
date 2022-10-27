@@ -408,3 +408,49 @@
         (is (= 10 (:A r1)))
         (is (= 1 (:B r1)))
         (is (= (:Z r1) (* (:K b) 2)))))))
+
+(deftest relations-1-1
+  (defcomponent :R11
+    (entity
+     :R11/A
+     {:X {:type :Kernel/Int :indexed true}})
+    (entity
+     :R11/B
+     {:Y {:type :Kernel/Int :indexed true}})
+    (relationship
+     :R11/R
+     {:meta
+      {:between [:R11/A :R11/B :on [:X :Y]
+                 :one-one true]}
+      :Z :Kernel/Int})
+    (dataflow
+     :R11/CreateR
+     {:R11/A {:X? :R11/CreateR.X} :as :A}
+     {:R11/B
+      {:Y :R11/CreateR.Y}
+      :-> [{:R11/R {:Z :R11/CreateR.Z}} :A]}))
+  (let [a1 (tu/first-result
+            {:R11/Upsert_A
+             {:Instance
+              {:R11/A {:X 1}}}})
+        a2 (tu/first-result
+            {:R11/Upsert_A
+             {:Instance
+              {:R11/A {:X 2}}}})
+        b1 (tu/result
+            {:R11/CreateR
+             {:X 1 :Y 10 :Z 100}})
+        b2 (tu/result
+            {:R11/CreateR
+             {:X 2 :Y 20 :Z 200}})
+        p (fn [b y a]
+            (is (cn/instance-of? :R11/B b))
+            (let [r (first (:-> b))]
+              (is (= y (:Y b) (:B r)))
+              (is (= a (:A r)))))]
+    (p b1 10 1)
+    (p b2 20 2)
+    (tu/is-error
+     #(tu/eval-all-dataflows
+       {:R11/CreateR
+        {:X 1 :Y 20 :Z 300}}))))
