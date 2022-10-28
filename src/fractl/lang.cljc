@@ -691,17 +691,20 @@
     (when (and ida idb)
       [ida idb scm-a (or scm-b scm-a)])))
 
-(defn- generate-relationship-attributes [cascade-on-delete is-id rec recattr idattr recscm attr]
+(defn- generate-relationship-attributes [each-unique cascade-on-delete
+                                         is-id rec recattr idattr recscm attr]
   (if is-id
     {attr {:ref (li/make-ref rec recattr)
-           :cascade-on-delete cascade-on-delete}}
-    {attr (cn/attribute-type recscm recattr)
+           :cascade-on-delete cascade-on-delete
+           :unique each-unique}}
+    {attr {:type (cn/attribute-type recscm recattr)
+           :unique each-unique}
      (cn/relationship-member-identity attr)
      {:ref (li/make-ref rec idattr)
       :cascade-on-delete cascade-on-delete}}))
 
 (defn- assoc-relationship-attributes [attrs is-contains [rec-a rec-b :as recs]
-                                      on-attrs cascade-on-delete]
+                                      on-attrs each-unique cascade-on-delete]
   (when-not (or (li/name? rec-a) (li/name? rec-b))
     (u/throw-ex (str "invalid relationship elements - " recs)))
   (let [[ida idb scma scmb] (identity-attributes-for-relationship rec-a rec-b)]
@@ -711,7 +714,7 @@
       (u/throw-ex (str "no identity attribute found for " rec-b ", cannot form relationship")))
     (let [[ra rb] (or on-attrs [ida idb])
           [a b :as ab] (cn/relationship-attribute-names rec-a rec-b)
-          genattr (partial generate-relationship-attributes cascade-on-delete)
+          genattr (partial generate-relationship-attributes each-unique cascade-on-delete)
           a-attrs (genattr
                    (cn/unique-or-identity? scma ra)
                    rec-a ra ida scma a)
@@ -734,8 +737,10 @@
          contains (mt/contains meta)
          [elems relmeta] (parse-relationship-member-spec
                           (or contains (mt/between meta)))
-         combined-uqs (or (and contains (not (:n-n relmeta)))
-                          (:one-n relmeta))
+         each-uq (if (:one-one relmeta) true false)
+         combined-uqs (and (not each-uq)
+                           (or (and contains (not (:n-n relmeta)))
+                               (:one-n relmeta)))
          on-attrs (:on relmeta)
          cascade-on-delete (:cascade-on-delete relmeta)]
      (when-not elems
@@ -743,7 +748,8 @@
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
      (let [[attrs uqs] (assoc-relationship-attributes
                         attrs contains elems
-                        on-attrs (if cascade-on-delete true false))
+                        on-attrs each-uq
+                        (if cascade-on-delete true false))
            meta0 (assoc meta cn/relmeta-key relmeta)
            meta (assoc meta0 (if contains mt/contains mt/between) elems)
            r (serializable-entity
