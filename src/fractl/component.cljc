@@ -1489,6 +1489,7 @@
       [a b])))
 
 (def relmeta-key :-*-relmeta-*-)
+(def relationship-meta relmeta-key)
 
 (defn relationship-on-attributes [rel-name]
   (:on (relmeta-key (fetch-meta rel-name))))
