@@ -58,19 +58,20 @@
       (e/store-from-config (:store config))))
 
 (defn- load-components [component-scripts model-root config]
-  (let [load-from-resource (:load-model-from-resource config)]
-    (when-let [store (store-from-config config)]
-      (cn/set-aot-dataflow-compiler!
-       (partial
-        c/maybe-compile-dataflow
-        (partial store/compile-query store))))
-    (mapv
-     #(loader/load-script
-       model-root
-       (if load-from-resource
-         (io/resource (str "model/" model-root "/" %))
-         %))
-     component-scripts)))
+  (when (seq (su/nonils component-scripts))
+    (let [load-from-resource (:load-model-from-resource config)]
+      (when-let [store (store-from-config config)]
+        (cn/set-aot-dataflow-compiler!
+         (partial
+          c/maybe-compile-dataflow
+          (partial store/compile-query store))))
+      (mapv
+       #(loader/load-script
+         model-root
+         (if load-from-resource
+           (io/resource (str "model/" model-root "/" %))
+           %))
+       component-scripts))))
 
 (defn- load-components-from-model [model model-root config]
   (load-components
@@ -127,13 +128,14 @@
       (log/info "authentication resolver inited"))))
 
 (defn- model-name-from-args [args]
-  (and (= (count args) 1)
+  (and (seq (su/nonils args))
+       (= (count args) 1)
        (let [f (first args)]
          (and (s/ends-with? f (u/get-model-script-name))
               f))))
 
 (defn- maybe-read-model [args]
-  (when-let [n (model-name-from-args args)]
+  (when-let [n (and args (model-name-from-args args))]
     (read-model n)))
 
 (defn- log-app-init-result! [result]
@@ -156,8 +158,8 @@
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
-(defn- run-appinit-tasks! [evaluator store model components]
-  (trigger-appinit-event! evaluator (:init-data model)))
+(defn- run-appinit-tasks! [evaluator store init-data]
+  (trigger-appinit-event! evaluator init-data))
 
 (defn- merge-resolver-configs [app-config resolver-configs]
   (let [app-resolvers (:resolvers app-config)]
@@ -189,7 +191,7 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
-(defn- init-runtime [model components config]
+(defn- init-runtime [model config]
   (register-resolvers! config)
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
@@ -197,7 +199,8 @@
     ;; Register additional resolvers with remote configuration.
     (when-let [resolved-config (run-initconfig config ev)]
       (register-resolvers! resolved-config))
-    (run-appinit-tasks! ev store model components)
+    (run-appinit-tasks! ev store (or (:init-data model)
+                                     (:init-data config)))
     (when (some #{:rbac} (keys ins))
       (when-not (rbac/init (:rbac ins))
         (log/error "failed to initialize rbac")))
@@ -217,19 +220,21 @@
   (let [config (finalize-config model config)
         store (e/store-from-config (:store config))
         config (assoc config :store-handle store)
-        components (if model
-                     (load-model model model-root nil config)
-                     (load-components args (:component-root config) config))]
+        components (or
+                    (if model
+                      (load-model model model-root nil config)
+                      (load-components args (:component-root config) config))
+                    (cn/component-names))]
     (when (and (seq components) (every? keyword? components))
-      (log-seq! "Components" components)
-      (when-let [server-cfg (make-server-config config)]
-        (let [[evaluator store] (init-runtime model components config)
-              query-fn (e/query-fn store)]
-          (log/info (str "Server config - " server-cfg))
-          (h/run-server [evaluator query-fn] server-cfg))))))
+      (log-seq! "Components" components))
+    (when-let [server-cfg (make-server-config config)]
+      (let [[evaluator store] (init-runtime model config)
+            query-fn (e/query-fn store)]
+        (log/info (str "Server config - " server-cfg))
+        (h/run-server [evaluator query-fn] server-cfg)))))
 
 (defn- find-model-to-read [args config]
-  (or (seq args)
+  (or (seq (su/nonils args))
       [(:full-model-path config)]))
 
 (defn- read-env-var [x]
