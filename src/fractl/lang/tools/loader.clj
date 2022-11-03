@@ -1,4 +1,4 @@
-(ns fractl.lang.loader
+(ns fractl.lang.tools.loader
   "Component script loading with pre-processing."
   (:require [clojure.java.io :as io]
             [fractl.util :as u]

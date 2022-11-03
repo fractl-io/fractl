@@ -3,7 +3,7 @@
   (:require [clojure.test :refer [deftest is]]
             [fractl.core :as fc]
             [fractl.component :as cn]
-            [fractl.lang.loader :as loader]
+            [fractl.lang.tools.loader :as loader]
             [fractl.evaluator :as e]
             [fractl.test.util :as tu]))
 

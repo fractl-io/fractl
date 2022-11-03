@@ -17,7 +17,7 @@
             [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
-            [fractl.lang.loader :as loader]
+            [fractl.lang.tools.loader :as loader]
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac])
   (:import [java.util Properties]
