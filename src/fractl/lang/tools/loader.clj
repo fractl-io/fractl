@@ -139,3 +139,33 @@
    (let [model (read-model-expressions model-file)
          root (java.io.File. (.getParent (java.io.File. model-file)))]
      [model (str root)])))
+
+(defn load-components
+  ([component-scripts model-root load-from-resource]
+   (when (seq (su/nonils component-scripts))
+     (mapv
+      #(load-script
+        model-root
+        (if load-from-resource
+          (io/resource (str "model/" model-root "/" %))
+          %))
+      component-scripts)))
+  ([component-scripts model-root]
+   (load-components component-scripts model-root false)))
+
+(defn- script-name-from-component-name [component-name]
+  (loop [s (subs (str component-name) 1), sep "", result []]
+    (if-let [c (first s)]
+      (cond
+        (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
+        (or (= \/ c) (= \. c)) (recur (rest s) "" (conj result java.io.File/separator))
+        :else (recur (rest s) sep (conj result c)))
+      (str (s/join result) (u/get-script-extn)))))
+
+(defn load-components-from-model
+  ([model model-root load-from-resource]
+   (load-components
+    (mapv script-name-from-component-name (:components model))
+    model-root load-from-resource))
+  ([model model-root]
+   (load-components-from-model model model-root false)))

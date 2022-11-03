@@ -44,39 +44,26 @@
         mp
         [mp])))))
 
-(defn- script-name-from-component-name [component-name]
-  (loop [s (subs (str component-name) 1), sep "", result []]
-    (if-let [c (first s)]
-      (cond
-        (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
-        (or (= \/ c) (= \. c)) (recur (rest s) "" (conj result java.io.File/separator))
-        :else (recur (rest s) sep (conj result c)))
-      (str (s/join result) (u/get-script-extn)))))
-
 (defn- store-from-config [config]
   (or (:store-handle config)
       (e/store-from-config (:store config))))
 
-(defn- load-components [component-scripts model-root config]
-  (when (seq (su/nonils component-scripts))
-    (let [load-from-resource (:load-model-from-resource config)]
-      (when-let [store (store-from-config config)]
-        (cn/set-aot-dataflow-compiler!
-         (partial
-          c/maybe-compile-dataflow
-          (partial store/compile-query store))))
-      (mapv
-       #(loader/load-script
-         model-root
-         (if load-from-resource
-           (io/resource (str "model/" model-root "/" %))
-           %))
-       component-scripts))))
+(defn- set-aot-dataflow-compiler! [config]
+  (when-let [store (store-from-config config)]
+    (cn/set-aot-dataflow-compiler!
+     (partial
+      c/maybe-compile-dataflow
+      (partial store/compile-query store)))))
+
+(defn- load-components [components model-root config]
+  (set-aot-dataflow-compiler! config)
+  (loader/load-components components model-root))
 
 (defn- load-components-from-model [model model-root config]
-  (load-components
-   (mapv script-name-from-component-name (:components model))
-   model-root config))
+  (set-aot-dataflow-compiler! config)
+  (loader/load-components-from-model
+   model model-root
+   (:load-model-from-resource config)))
 
 (defn load-model [model model-root model-paths config]
   (when-let [deps (:dependencies model)]
