@@ -19,7 +19,7 @@
     (is [:Model2] (:dependencies exp))))
 
 (deftest test-load-dependencies
-  (let [[model model-root] (fc/read-model "sample/dependencies/model1/model.fractl")]
+  (let [[model model-root] (loader/read-model "sample/dependencies/model1/model.fractl")]
     (is (= [:Model1.C1] (fc/load-model model model-root [] nil)))
     (is (cn/component-exists? :Model1.C1))
     (is (cn/component-exists? :Model2.C1))))

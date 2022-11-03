@@ -78,34 +78,10 @@
    (mapv script-name-from-component-name (:components model))
    model-root config))
 
-(defn- read-model-expressions [model-file]
-  (try
-    (binding [*ns* *ns*]
-      (last (loader/read-expressions model-file nil)))
-    (catch Exception ex
-      (.printStackTrace ex))))
-
-(defn read-model [model-file]
-  (let [model (read-model-expressions model-file)
-        root (java.io.File. (.getParent (java.io.File. model-file)))]
-    [model (str root)]))
-
-(defn- read-model-from-paths [model-paths model-name]
-  (let [s (s/lower-case (name model-name))]
-    (loop [mps model-paths]
-      (if-let [mp (first mps)]
-        (let [p (str mp u/path-sep s u/path-sep (u/get-model-script-name))]
-          (if (.exists (java.io.File. p))
-            (read-model p)
-            (recur (rest mps))))
-        (u/throw-ex
-         (str model-name " - model not found in any of "
-              model-paths))))))
-
 (defn load-model [model model-root model-paths config]
   (when-let [deps (:dependencies model)]
     (let [model-paths (find-model-paths model model-paths config)
-          rmp (partial read-model-from-paths model-paths)]
+          rmp (partial loader/read-model model-paths)]
       (doseq [d deps]
         (let [[m mr] (rmp d)]
           (load-model m mr model-paths config)))))
@@ -136,7 +112,7 @@
 
 (defn- maybe-read-model [args]
   (when-let [n (and args (model-name-from-args args))]
-    (read-model n)))
+    (loader/read-model n)))
 
 (defn- log-app-init-result! [result]
   (cond
@@ -265,7 +241,7 @@
   (let [^String s (slurp
                    (io/resource
                     (str "model/" component-root "/" (u/get-model-script-name))))]
-    (if-let [model (read-model-expressions (io/input-stream (.getBytes s)))]
+    (if-let [model (loader/read-model-expressions (io/input-stream (.getBytes s)))]
       model
       (u/throw-ex (str "failed to load model from " component-root)))))
 

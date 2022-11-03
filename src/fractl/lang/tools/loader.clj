@@ -1,6 +1,7 @@
 (ns fractl.lang.tools.loader
   "Component script loading with pre-processing."
   (:require [clojure.java.io :as io]
+            [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
@@ -114,3 +115,27 @@
      mns))
   ([mns mns-exps]
    (load-expressions mns mns-exps true)))
+
+(defn read-model-expressions [model-file]
+  (try
+    (binding [*ns* *ns*]
+      (last (read-expressions model-file nil)))
+    (catch Exception ex
+      (.printStackTrace ex))))
+
+(defn read-model
+  ([model-paths model-name]
+   (let [s (s/lower-case (name model-name))]
+     (loop [mps model-paths]
+       (if-let [mp (first mps)]
+         (let [p (str mp u/path-sep s u/path-sep (u/get-model-script-name))]
+           (if (.exists (java.io.File. p))
+             (read-model p)
+             (recur (rest mps))))
+         (u/throw-ex
+          (str model-name " - model not found in any of "
+               model-paths))))))
+  ([model-file]
+   (let [model (read-model-expressions model-file)
+         root (java.io.File. (.getParent (java.io.File. model-file)))]
+     [model (str root)])))
