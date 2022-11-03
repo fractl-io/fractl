@@ -116,6 +116,9 @@
 (defn remove-component [component]
   (u/call-and-set components #(dissoc @components component)))
 
+(defn component-names []
+  (keys @components))
+
 (defn component-exists? [component]
   (if (find @components component)
     true
