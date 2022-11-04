@@ -9,6 +9,7 @@
                  [org.clojure/tools.logging "1.2.4"]
                  [ch.qos.logback/logback-classic "1.2.11"]
                  [commons-io/commons-io "2.11.0"]
+                 [org.apache.commons/commons-exec "1.3"]
                  [cheshire "5.10.1"]
                  [seancorfield/next.jdbc "1.2.659"]
                  [c3p0/c3p0 "0.9.1.2"]
