@@ -68,9 +68,9 @@
 (defn load-model [model model-root model-paths config]
   (when-let [deps (:dependencies model)]
     (let [model-paths (find-model-paths model model-paths config)
-          rmp (partial loader/read-model model-paths)]
+          rdm (partial loader/read-model model-paths)]
       (doseq [d deps]
-        (let [[m mr] (rmp d)]
+        (let [[m mr] (rdm (loader/dependency-model-name d))]
           (load-model m mr model-paths config)))))
   (load-components-from-model model model-root config))
 

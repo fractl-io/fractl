@@ -169,3 +169,12 @@
     model-root load-from-resource))
   ([model model-root]
    (load-components-from-model model model-root false)))
+
+(defn dependency-model-name [dep]
+  (cond
+    (keyword? dep) dep
+    (vector? dep) (first dep)))
+
+(defn dependency-model-version [dep]
+  (when (vector? dep)
+    (second dep)))
