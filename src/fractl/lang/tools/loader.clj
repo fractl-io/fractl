@@ -178,3 +178,16 @@
 (defn dependency-model-version [dep]
   (when (vector? dep)
     (second dep)))
+
+(declare load-model)
+
+(defn load-model-dependencies [model model-paths from-resource]
+  (when-let [deps (:dependencies model)]
+    (let [rdm (partial read-model model-paths)]
+      (doseq [d deps]
+        (let [[m mr] (rdm (dependency-model-name d))]
+          (load-model m mr model-paths from-resource))))))
+
+(defn load-model [model model-root model-paths from-resource]
+  (load-model-dependencies model model-paths from-resource)
+  (load-components-from-model model model-root from-resource))

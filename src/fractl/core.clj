@@ -32,7 +32,7 @@
    ["-p" "--package" "Package a model into a standalone jar"]
    ["-h" "--help"]])
 
-(defn- find-model-paths [model current-model-paths config]
+(defn- complete-model-paths [model current-model-paths config]
   (let [mpkey :model-paths
         mp (or (mpkey model)
                (mpkey config)
@@ -66,13 +66,10 @@
    (:load-model-from-resource config)))
 
 (defn load-model [model model-root model-paths config]
-  (when-let [deps (:dependencies model)]
-    (let [model-paths (find-model-paths model model-paths config)
-          rdm (partial loader/read-model model-paths)]
-      (doseq [d deps]
-        (let [[m mr] (rdm (loader/dependency-model-name d))]
-          (load-model m mr model-paths config)))))
-  (load-components-from-model model model-root config))
+  (loader/load-model
+   model model-root
+   (complete-model-paths model model-paths config)
+   (:load-model-from-resource config)))
 
 (defn- log-seq! [prefix xs]
   (loop [xs xs, sep "", s (str prefix " - ")]
