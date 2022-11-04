@@ -44,6 +44,8 @@
            result)))
       result)))
 
+(def ^:dynamic *parse-expressions* true)
+
 (defn read-expressions
   "Read expressions in sequence from a fractl component file. Each expression read
    is preprocessed to add component-name prefixes to names. Then the expression is evaluated.
@@ -57,12 +59,13 @@
          rdf #(read reader nil :done)
          fqn (if declared-names
                (partial nu/fully-qualified-names declared-names)
-               identity)]
+               identity)
+         parser (if *parse-expressions* eval identity)]
      (try
        (loop [exp (rdf), exps nil]
          (if (= exp :done)
            (reverse exps)
-           (recur (rdf) (conj exps (eval (fqn exp))))))
+           (recur (rdf) (conj exps (parser (fqn exp))))))
        (finally
          (u/safe-close reader)))))
   ([file-name-or-input-stream]
@@ -90,10 +93,16 @@
          component-name (:component names)]
      (when component-name
        (cn/remove-component component-name))
-     (binding [*ns* *ns*]
-       (read-expressions (if input-reader? file-name-or-input-stream file-ident) names))
-     (when (and component-name (cn/component-exists? component-name))
-       component-name)))
+     (let [exprs (binding [*ns* *ns*]
+                   (read-expressions
+                    (if input-reader?
+                      file-name-or-input-stream
+                      file-ident)
+                    names))]
+       (if *parse-expressions*
+         (when (and component-name (cn/component-exists? component-name))
+           component-name)
+         (vec exprs)))))
   ([file-name-or-input-stream]
    (load-script nil file-name-or-input-stream)))
 
@@ -125,7 +134,9 @@
 
 (defn read-model
   ([model-paths model-name]
-   (let [s (s/lower-case (name model-name))]
+   (let [s (if (keyword? model-name)
+             (s/lower-case (name model-name))
+             model-name)]
      (loop [mps model-paths]
        (if-let [mp (first mps)]
          (let [p (str mp u/path-sep s u/path-sep (u/get-model-script-name))]
@@ -169,6 +180,10 @@
     model-root load-from-resource))
   ([model model-root]
    (load-components-from-model model model-root false)))
+
+(defn read-components-from-model [model model-root]
+  (binding [*parse-expressions* false]
+    (load-components-from-model model model-root)))
 
 (defn dependency-model-name [dep]
   (cond

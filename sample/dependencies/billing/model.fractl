@@ -1,0 +1,3 @@
+{:name :Billing
+ :components [:Billing.Core]
+ :dependencies [[:Banking "0.0.1"]]}

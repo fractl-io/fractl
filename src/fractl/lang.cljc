@@ -28,7 +28,7 @@
 (defn- validate-component-spec [spec]
   (into
    {}
-   (map
+   (mapv
     (fn [[k v]]
       (let [vf (or (k component-spec-validators)
                    identity)]

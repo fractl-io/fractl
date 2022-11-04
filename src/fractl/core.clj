@@ -7,7 +7,6 @@
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.http :as h]
-            [fractl.package :as pkg]
             [fractl.resolver.registry :as rr]
             [fractl.compiler :as c]
             [fractl.component :as cn]
@@ -18,6 +17,7 @@
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.tools.loader :as loader]
+            [fractl.lang.tools.build :as build]
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac])
   (:import [java.util Properties]
@@ -29,7 +29,7 @@
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
-   ["-p" "--package" "Package a model into a standalone jar"]
+   ["-b" "--build" "Build and package a model into a standalone jar"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -292,5 +292,5 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
-      (:package options) (println (pkg/build (first args) (read-model-and-config args options)))
+      (:build options) (println (build/build-model (first args)))
       :else (run-service args (read-model-and-config args options)))))

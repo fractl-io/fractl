@@ -1,6 +1,3 @@
-(ns billing.model.billing.core
-  (:use [fractl.lang]))
-
 (component :Billing.Core)
 
 (entity
@@ -27,12 +24,12 @@
  :Billing.Core/Purchase
  {:Billing.Core/Product
   {:Name? :Billing.Core/Purchase.Product
-   :Stock '(billing.model.billing.core/update-stock :Stock :Billing.Core/Purchase.Count)}
+   :Stock '(update-stock :Stock :Billing.Core/Purchase.Count)}
   :as :Prod}
  {:Banking.Core/Transaction
   {:Account "0001"
    :Type "dr"
-   :Amount '(billing.model.billing.core/amount-to-debit :Prod.Price :Billing.Core/Purchase.Count)}
+   :Amount '(amount-to-debit :Prod.Price :Billing.Core/Purchase.Count)}
   :as :Acc}
  {:Billing.Core/PurchaseResult
   {:Result [:Prod :Acc]}})
