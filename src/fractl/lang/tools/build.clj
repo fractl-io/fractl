@@ -30,7 +30,7 @@
     (.setWorkingDirectory executor cljout-file)
     (zero? (.execute executor cmd-line))))
 
-(defn- finalize-project-spec [model project-spec]
+(defn- update-project-spec [model project-spec]
   (when-let [deps (:clj-dependencies model)]
     (loop [spec project-spec, final-spec []]
       (if-let [s (first spec)]
@@ -42,11 +42,40 @@
           (recur (rest spec) (conj final-spec s)))
         (seq final-spec)))))
 
+(defn- find-component-declaration [component]
+  (let [f (first component)]
+    (when (= 'component (first f))
+      f)))
+
+(defn- copy-component [reader writer model-name component]
+  (if-let [component-decl (find-component-declaration component)]
+    (let [component-name (second component-decl)
+          component-spec (nth component-decl 2)
+          cns-name (symbol (s/lower-case (name component-name)))
+          ns-name (symbol (str model-name ".model." cns-name))
+          clj-imports (:clj-import component-spec)
+          ns-decl `(~(symbol "ns") ~ns-name
+                    ~@(if (= 'quote (first clj-imports))
+                        (second clj-imports)
+                        clj-imports)
+                    (:use [fractl.lang]))]
+      (concat [ns-decl] component))
+    ;; TODO: 1. Collect all local-names (def, defn and defn-), walk each expression in
+    ;;          component and append the ns to those names.
+    ;;       2. Write the final component to a .clj file in the src directory.
+    ;;          Preserve quotes (by using '').
+    (u/throw-ex "no component declaration found")))
+
+(defn- copy-model [reader writer model]
+  )
+
 (defn- build-clj-project [model-name model-root model components]
   (if (create-clj-project model-name)
     (let [[rd wr] (clj-io model-name)]
-      (when-let [spec (finalize-project-spec model (rd "project.clj"))]
-        (wr "project.clj" spec)))
+      (when-let [spec (update-project-spec model (rd "project.clj"))]
+        (wr "project.clj" spec))
+      (mapv (partial copy-component rd wr model-name) components)
+      (copy-model rd wr model))
     (log/error (str "failed to create clj project for " model-name))))
 
 (defn build-model
