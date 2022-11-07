@@ -1,0 +1,2 @@
+{:name :Banking
+ :components [:Banking.Core]}

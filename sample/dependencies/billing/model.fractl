@@ -1,8 +1,9 @@
 {:name :Billing
  :components [:Billing.Core]
  :dependencies [[:Banking "0.0.1"]]
- ;; Note: clj-depndencies not required,
- ;; added here only for testing project
- ;; generation.
+ ;; Note: clj-depndencies not really
+ ;; required for this model,
+ ;; added here for testing project
+ ;; generation only.
  :clj-dependencies '[[cheshire "5.10.1"]
                      [http-kit "2.5.3"]]}
