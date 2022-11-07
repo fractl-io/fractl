@@ -42,6 +42,13 @@
     (.setWorkingDirectory executor cljout-file)
     (zero? (.execute executor cmd-line))))
 
+(defn- exec-for-model [cmd model-name]
+  (let [^CommandLine cmd-line (CommandLine/parse cmd)
+        ^Executor executor (DefaultExecutor.)
+        projdir (project-dir model-name)]
+    (.setWorkingDirectory executor (File. projdir))
+    (zero? (.execute executor cmd-line))))
+
 (defn- update-project-spec [model project-spec]
   (when-let [deps (:clj-dependencies model)]
     (loop [spec project-spec, final-spec []]
@@ -123,7 +130,8 @@
 (defn- write-model-clj [write model-name component-names model]
   (let [root-ns-name (symbol (str model-name ".model"))
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c))]) component-names)
-        ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))]
+        ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))
+        model (dissoc model :clj-dependencies)]
     (write (str "src" u/path-sep model-name u/path-sep "model" u/path-sep "model.clj")
            [ns-decl model] true)))
 
@@ -146,22 +154,26 @@
 
 (defn build-model
   ([model-paths model-name]
-   (let [[model model-root :as result] (loader/read-model model-paths model-name)
+   (let [model-paths (or model-paths (get-system-model-paths))
+         [model model-root :as result] (loader/read-model model-paths model-name)
          components (loader/read-components-from-model model model-root)
          projdir (File. (project-dir model-name))]
      (install-dependencies! model-paths (:dependencies model))
-     (FileUtils/deleteDirectory projdir)
+     (if (.exists projdir)
+       (FileUtils/deleteDirectory projdir)
+       (when-not (.exists cljout-file)
+         (.mkdir cljout-file)))
      (when (build-clj-project model-name model-root model components)
        result)))
   ([model-name]
-   (build-model (get-system-model-paths) model-name)))
+   (build-model nil model-name)))
 
 (defn install-model [model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
-    (let [cmd "lein install"
-          ^CommandLine cmd-line (CommandLine/parse cmd)
-          ^Executor executor (DefaultExecutor.)
-          projdir (project-dir model-name)]
-      (.setWorkingDirectory executor (File. projdir))
-      (when (zero? (.execute executor cmd-line))
-        result))))
+    (when (exec-for-model "lein install" model-name)
+      result)))
+
+(defn standalone-package [model-name]
+  (when-let [result (build-model nil model-name)]
+    (when (exec-for-model "lein uberjar" model-name)
+      result)))

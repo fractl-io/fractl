@@ -292,5 +292,5 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
-      (:build options) (println (build/build-model (first args)))
+      (:build options) (println (build/standalone-package (first args)))
       :else (run-service args (read-model-and-config args options)))))
