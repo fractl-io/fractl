@@ -1,2 +1,9 @@
 {:name :Banking
- :components [:Banking.Core]}
+ :components [:Banking.Core]
+ :repositories [["github" {:url "https://maven.pkg.github.com/fractl-dev/banking"
+                           :username "vijay@fractl.io"
+                           :password :env/GITHUB_TOKEN
+                           ;; !!!NOTE!!!
+                           ;; for production deployments :sign-releases
+                           ;; should be true
+                           :sign-releases false}]]}

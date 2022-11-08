@@ -49,8 +49,13 @@
     (.setWorkingDirectory executor (File. projdir))
     (zero? (.execute executor cmd-line))))
 
+(defn- maybe-add-repos [proj-spec model]
+  (if-let [repos (:repositories model)]
+    (conj proj-spec :repositories repos)
+    proj-spec))
+
 (defn- update-project-spec [model project-spec]
-  (when-let [deps (:clj-dependencies model)]
+  (let [deps (:clj-dependencies model)]
     (loop [spec project-spec, final-spec []]
       (if-let [s (first spec)]
         (if (= :dependencies s)
@@ -59,7 +64,7 @@
                   final-spec :dependencies
                   (vec (concat (second spec) deps))))
           (recur (rest spec) (conj final-spec s)))
-        (seq final-spec)))))
+        (seq (maybe-add-repos final-spec model))))))
 
 (defn- find-component-declaration [component]
   (let [f (first component)]
@@ -131,15 +136,15 @@
   (let [root-ns-name (symbol (str model-name ".model"))
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))
-        model (dissoc model :clj-dependencies)]
+        model (dissoc model :clj-dependencies :repositories)]
     (write (str "src" u/path-sep model-name u/path-sep "model" u/path-sep "model.clj")
            [ns-decl model] true)))
 
 (defn- build-clj-project [model-name model-root model components]
   (if (create-clj-project model-name)
-    (let [[rd wr] (clj-io model-name)]
-      (when-let [spec (update-project-spec model (rd "project.clj"))]
-        (wr "project.clj" spec))
+    (let [[rd wr] (clj-io model-name)
+          spec (update-project-spec model (rd "project.clj"))]
+      (wr "project.clj" spec)
       (let [cmps (mapv (partial copy-component wr model-name) components)]
         (write-model-clj wr model-name cmps model)
         model-name))
@@ -147,7 +152,7 @@
 
 (declare install-model)
 
-(defn- install-dependencies! [model-paths deps]
+(defn- install-local-dependencies! [model-paths deps]
   (doseq [[model-name _ :as d] deps]
     (when-not (install-model model-paths (s/lower-case (name model-name)))
       (u/throw-ex (str "failed to install dependency " d)))))
@@ -158,7 +163,7 @@
          [model model-root :as result] (loader/read-model model-paths model-name)
          components (loader/read-components-from-model model model-root)
          projdir (File. (project-dir model-name))]
-     (install-dependencies! model-paths (:dependencies model))
+     (install-local-dependencies! model-paths (:local-dependencies model))
      (if (.exists projdir)
        (FileUtils/deleteDirectory projdir)
        (when-not (.exists cljout-file)
@@ -168,12 +173,17 @@
   ([model-name]
    (build-model nil model-name)))
 
-(defn install-model [model-paths model-name]
+(defn- exec-with-build-model [cmd model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
-    (when (exec-for-model "lein install" model-name)
+    (when (exec-for-model cmd model-name)
       result)))
 
-(defn standalone-package [model-name]
-  (when-let [result (build-model nil model-name)]
-    (when (exec-for-model "lein uberjar" model-name)
-      result)))
+(def install-model (partial exec-with-build-model "lein install"))
+(def standalone-package (partial exec-with-build-model "lein uberjar" nil))
+
+(defn deploy-library [model-name target]
+  (let [cmd (case target
+              :local "lein install"
+              :clojars "lein deploy clojars"
+              :github "lein deploy github")]
+    (exec-with-build-model cmd nil model-name)))

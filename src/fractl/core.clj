@@ -29,7 +29,8 @@
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
-   ["-b" "--build" "Build and package a model into a standalone jar"]
+   ["-b" "--build MODEL" "Build and package a model into a standalone jar"]
+   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"] 
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -292,5 +293,11 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
-      (:build options) (println (build/standalone-package (first args)))
+      (:build options) (println
+                        (build/standalone-package
+                         (:build options)))
+      (:deploy options) (println
+                         (build/deploy-library
+                          (:deploy options)
+                          (keyword (first args))))
       :else (run-service args (read-model-and-config args options)))))

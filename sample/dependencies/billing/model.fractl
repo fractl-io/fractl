@@ -1,6 +1,6 @@
 {:name :Billing
  :components [:Billing.Core]
- :dependencies [[:Banking "0.0.1"]]
+ :local-dependencies [[:Banking "0.0.1"]]
  ;; Note: clj-depndencies not really
  ;; required for this model,
  ;; added here for testing project
