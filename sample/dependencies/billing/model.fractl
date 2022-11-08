@@ -1,9 +1,7 @@
 {:name :Billing
  :components [:Billing.Core]
- :local-dependencies [[:Banking "0.0.1"]]
- ;; Note: clj-depndencies not really
- ;; required for this model,
- ;; added here for testing project
- ;; generation only.
- :clj-dependencies '[[cheshire "5.10.1"]
-                     [http-kit "2.5.3"]]}
+ ;;:local-dependencies [[:Banking "0.0.1"]]
+ :repositories [["github" {:url "https://maven.pkg.github.com/fractl-dev/banking"
+                           :username "private-token"
+                           :password :env/GITHUB_TOKEN}]]
+ :clj-dependencies '[[banking "0.0.2"]]}

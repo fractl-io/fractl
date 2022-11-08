@@ -35,8 +35,9 @@
                (pprint/pprint exp w))
              (pprint/pprint contents w)))))]))
 
-(defn- create-clj-project [model-name]
-  (let [cmd (str "lein new fractl-model " model-name)
+(defn- create-clj-project [model-name version]
+  (let [app-name (if version (str model-name ":" version) model-name)
+        cmd (str "lein new fractl-model " app-name)
         ^CommandLine cmd-line (CommandLine/parse cmd)
         ^Executor executor (DefaultExecutor.)]
     (.setWorkingDirectory executor cljout-file)
@@ -55,7 +56,8 @@
     proj-spec))
 
 (defn- update-project-spec [model project-spec]
-  (let [deps (:clj-dependencies model)]
+  (let [deps (:clj-dependencies model)
+        ver (:version model)]
     (loop [spec project-spec, final-spec []]
       (if-let [s (first spec)]
         (if (= :dependencies s)
@@ -141,7 +143,7 @@
            [ns-decl model] true)))
 
 (defn- build-clj-project [model-name model-root model components]
-  (if (create-clj-project model-name)
+  (if (create-clj-project model-name (:version model))
     (let [[rd wr] (clj-io model-name)
           spec (update-project-spec model (rd "project.clj"))]
       (wr "project.clj" spec)
