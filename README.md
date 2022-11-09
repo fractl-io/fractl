@@ -13,3 +13,14 @@ A Fractl model can be compiled to a production grade application. Fractl is not 
 # Getting started with Fractl
 
 Please refer to the [wiki](https://github.com/fractl-io/fractl/wiki)
+
+# Installing fractl
+
+Run the install script from this directory, as shown below:
+
+```shell
+$ ./install.sh <target_dir>
+```
+
+This will create a the `<target_dir>/fractl-<version>` and copy the fractl uberjar, config.edn
+and the `fractl` command-line tool there.
