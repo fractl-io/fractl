@@ -9,9 +9,10 @@
             [fractl.lang.tools.loader :as loader])
   (:import [java.io File]
            [org.apache.commons.io FileUtils]
+           [org.apache.commons.io.filefilter IOFileFilter WildcardFileFilter]
            [org.apache.commons.exec CommandLine Executor DefaultExecutor]))
 
-(defn- get-system-model-paths []
+(defn get-system-model-paths []
   (if-let [paths (System/getenv "FRACTL_MODEL_PATHS")]
     (s/split paths #":")
     ["."]))
@@ -21,6 +22,13 @@
 
 (defn- project-dir [model-name]
   (str cljout u/path-sep model-name u/path-sep))
+
+(defn standalone-jar [model-name]
+  (let [^File dir (File. (str (project-dir model-name) u/path-sep "target"))
+        ^IOFileFilter ff (WildcardFileFilter. "*standalone*.jar")
+        files (FileUtils/iterateFiles dir ff nil)]
+    (when-let [rs (first (iterator-seq files))]
+      (str rs))))
 
 (defn- clj-io [model-name]
   (let [prefix (project-dir model-name)]
