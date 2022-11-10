@@ -1,6 +1,7 @@
-(ns fractl.lang.loader
+(ns fractl.lang.tools.loader
   "Component script loading with pre-processing."
   (:require [clojure.java.io :as io]
+            [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
@@ -43,6 +44,8 @@
            result)))
       result)))
 
+(def ^:dynamic *parse-expressions* true)
+
 (defn read-expressions
   "Read expressions in sequence from a fractl component file. Each expression read
    is preprocessed to add component-name prefixes to names. Then the expression is evaluated.
@@ -56,12 +59,13 @@
          rdf #(read reader nil :done)
          fqn (if declared-names
                (partial nu/fully-qualified-names declared-names)
-               identity)]
+               identity)
+         parser (if *parse-expressions* eval identity)]
      (try
        (loop [exp (rdf), exps nil]
          (if (= exp :done)
            (reverse exps)
-           (recur (rdf) (conj exps (eval (fqn exp))))))
+           (recur (rdf) (conj exps (parser (fqn exp))))))
        (finally
          (u/safe-close reader)))))
   ([file-name-or-input-stream]
@@ -89,10 +93,16 @@
          component-name (:component names)]
      (when component-name
        (cn/remove-component component-name))
-     (binding [*ns* *ns*]
-       (read-expressions (if input-reader? file-name-or-input-stream file-ident) names))
-     (when (and component-name (cn/component-exists? component-name))
-       component-name)))
+     (let [exprs (binding [*ns* *ns*]
+                   (read-expressions
+                    (if input-reader?
+                      file-name-or-input-stream
+                      file-ident)
+                    names))]
+       (if *parse-expressions*
+         (when (and component-name (cn/component-exists? component-name))
+           component-name)
+         (vec exprs)))))
   ([file-name-or-input-stream]
    (load-script nil file-name-or-input-stream)))
 
@@ -114,3 +124,85 @@
      mns))
   ([mns mns-exps]
    (load-expressions mns mns-exps true)))
+
+(defn read-model-expressions [model-file]
+  (try
+    (binding [*ns* *ns*]
+      (last (read-expressions model-file nil)))
+    (catch Exception ex
+      (.printStackTrace ex))))
+
+(defn read-model
+  ([model-paths model-name]
+   (let [s (if (keyword? model-name)
+             (s/lower-case (name model-name))
+             model-name)]
+     (loop [mps model-paths]
+       (if-let [mp (first mps)]
+         (let [p (str mp u/path-sep s u/path-sep (u/get-model-script-name))]
+           (if (.exists (java.io.File. p))
+             (read-model p)
+             (recur (rest mps))))
+         (u/throw-ex
+          (str model-name " - model not found in any of "
+               model-paths))))))
+  ([model-file]
+   (let [model (read-model-expressions model-file)
+         root (java.io.File. (.getParent (java.io.File. model-file)))]
+     [model (str root)])))
+
+(defn load-components
+  ([component-scripts model-root load-from-resource]
+   (when (seq (su/nonils component-scripts))
+     (mapv
+      #(load-script
+        model-root
+        (if load-from-resource
+          (io/resource (str "model/" model-root "/" %))
+          %))
+      component-scripts)))
+  ([component-scripts model-root]
+   (load-components component-scripts model-root false)))
+
+(defn- script-name-from-component-name [component-name]
+  (loop [s (subs (str component-name) 1), sep "", result []]
+    (if-let [c (first s)]
+      (cond
+        (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
+        (or (= \/ c) (= \. c)) (recur (rest s) "" (conj result java.io.File/separator))
+        :else (recur (rest s) sep (conj result c)))
+      (str (s/join result) (u/get-script-extn)))))
+
+(defn load-components-from-model
+  ([model model-root load-from-resource]
+   (load-components
+    (mapv script-name-from-component-name (:components model))
+    model-root load-from-resource))
+  ([model model-root]
+   (load-components-from-model model model-root false)))
+
+(defn read-components-from-model [model model-root]
+  (binding [*parse-expressions* false]
+    (load-components-from-model model model-root)))
+
+(defn dependency-model-name [dep]
+  (cond
+    (keyword? dep) dep
+    (vector? dep) (first dep)))
+
+(defn dependency-model-version [dep]
+  (when (vector? dep)
+    (second dep)))
+
+(declare load-model)
+
+(defn load-model-dependencies [model model-paths from-resource]
+  (when-let [deps (:dependencies model)]
+    (let [rdm (partial read-model model-paths)]
+      (doseq [d deps]
+        (let [[m mr] (rdm (dependency-model-name d))]
+          (load-model m mr model-paths from-resource))))))
+
+(defn load-model [model model-root model-paths from-resource]
+  (load-model-dependencies model model-paths from-resource)
+  (load-components-from-model model model-root from-resource))

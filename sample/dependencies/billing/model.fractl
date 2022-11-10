@@ -1,0 +1,13 @@
+{:name :Billing
+ :components [:Billing.Core]
+
+ ;; NOTE: enable :local-dependencies if the model
+ ;; is locally available under a path specified in
+ ;; FRACTL_MODEL_PATHS
+
+ ;; :local-dependencies [[:Banking "0.0.1"]]
+
+ :repositories [["github" {:url "https://maven.pkg.github.com/fractl-dev/banking"
+                           :username "private-token"
+                           :password :env/GITHUB_TOKEN}]]
+ :clj-dependencies '[[banking "0.0.2"]]}

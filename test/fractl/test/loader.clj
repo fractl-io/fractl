@@ -3,7 +3,7 @@
   (:require [clojure.test :refer [deftest is]]
             [fractl.core :as fc]
             [fractl.component :as cn]
-            [fractl.lang.loader :as loader]
+            [fractl.lang.tools.loader :as loader]
             [fractl.evaluator :as e]
             [fractl.test.util :as tu]))
 
@@ -19,7 +19,7 @@
     (is [:Model2] (:dependencies exp))))
 
 (deftest test-load-dependencies
-  (let [[model model-root] (fc/read-model "sample/dependencies/model1/model.fractl")]
+  (let [[model model-root] (loader/read-model "sample/dependencies/model1/model.fractl")]
     (is (= [:Model1.C1] (fc/load-model model model-root [] nil)))
     (is (cn/component-exists? :Model1.C1))
     (is (cn/component-exists? :Model2.C1))))

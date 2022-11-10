@@ -7,7 +7,6 @@
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.http :as h]
-            [fractl.package :as pkg]
             [fractl.resolver.registry :as rr]
             [fractl.compiler :as c]
             [fractl.component :as cn]
@@ -17,7 +16,8 @@
             [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
-            [fractl.lang.loader :as loader]
+            [fractl.lang.tools.loader :as loader]
+            [fractl.lang.tools.build :as build]
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac])
   (:import [java.util Properties]
@@ -29,10 +29,11 @@
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
-   ["-p" "--package" "Package a model into a standalone jar"]
+   ["-b" "--build MODEL" "Build and package a model into a standalone jar"]
+   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"] 
    ["-h" "--help"]])
 
-(defn- find-model-paths [model current-model-paths config]
+(defn- complete-model-paths [model current-model-paths config]
   (let [mpkey :model-paths
         mp (or (mpkey model)
                (mpkey config)
@@ -44,72 +45,32 @@
         mp
         [mp])))))
 
-(defn- script-name-from-component-name [component-name]
-  (loop [s (subs (str component-name) 1), sep "", result []]
-    (if-let [c (first s)]
-      (cond
-        (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
-        (or (= \/ c) (= \. c)) (recur (rest s) "" (conj result java.io.File/separator))
-        :else (recur (rest s) sep (conj result c)))
-      (str (s/join result) (u/get-script-extn)))))
-
 (defn- store-from-config [config]
   (or (:store-handle config)
       (e/store-from-config (:store config))))
 
-(defn- load-components [component-scripts model-root config]
-  (when (seq (su/nonils component-scripts))
-    (let [load-from-resource (:load-model-from-resource config)]
-      (when-let [store (store-from-config config)]
-        (cn/set-aot-dataflow-compiler!
-         (partial
-          c/maybe-compile-dataflow
-          (partial store/compile-query store))))
-      (mapv
-       #(loader/load-script
-         model-root
-         (if load-from-resource
-           (io/resource (str "model/" model-root "/" %))
-           %))
-       component-scripts))))
+(defn- set-aot-dataflow-compiler! [config]
+  (when-let [store (store-from-config config)]
+    (cn/set-aot-dataflow-compiler!
+     (partial
+      c/maybe-compile-dataflow
+      (partial store/compile-query store)))))
+
+(defn- load-components [components model-root config]
+  (set-aot-dataflow-compiler! config)
+  (loader/load-components components model-root))
 
 (defn- load-components-from-model [model model-root config]
-  (load-components
-   (mapv script-name-from-component-name (:components model))
-   model-root config))
-
-(defn- read-model-expressions [model-file]
-  (try
-    (binding [*ns* *ns*]
-      (last (loader/read-expressions model-file nil)))
-    (catch Exception ex
-      (.printStackTrace ex))))
-
-(defn read-model [model-file]
-  (let [model (read-model-expressions model-file)
-        root (java.io.File. (.getParent (java.io.File. model-file)))]
-    [model (str root)]))
-
-(defn- read-model-from-paths [model-paths model-name]
-  (let [s (s/lower-case (name model-name))]
-    (loop [mps model-paths]
-      (if-let [mp (first mps)]
-        (let [p (str mp u/path-sep s u/path-sep (u/get-model-script-name))]
-          (if (.exists (java.io.File. p))
-            (read-model p)
-            (recur (rest mps))))
-        (u/throw-ex
-         (str model-name " - model not found in any of "
-              model-paths))))))
+  (set-aot-dataflow-compiler! config)
+  (loader/load-components-from-model
+   model model-root
+   (:load-model-from-resource config)))
 
 (defn load-model [model model-root model-paths config]
-  (when-let [deps (:dependencies model)]
-    (let [model-paths (find-model-paths model model-paths config)
-          rmp (partial read-model-from-paths model-paths)]
-      (doseq [d deps]
-        (let [[m mr] (rmp d)]
-          (load-model m mr model-paths config)))))
-  (load-components-from-model model model-root config))
+  (loader/load-model
+   model model-root
+   (complete-model-paths model model-paths config)
+   (:load-model-from-resource config)))
 
 (defn- log-seq! [prefix xs]
   (loop [xs xs, sep "", s (str prefix " - ")]
@@ -136,7 +97,7 @@
 
 (defn- maybe-read-model [args]
   (when-let [n (and args (model-name-from-args args))]
-    (read-model n)))
+    (loader/read-model n)))
 
 (defn- log-app-init-result! [result]
   (cond
@@ -265,7 +226,7 @@
   (let [^String s (slurp
                    (io/resource
                     (str "model/" component-root "/" (u/get-model-script-name))))]
-    (if-let [model (read-model-expressions (io/input-stream (.getBytes s)))]
+    (if-let [model (loader/read-model-expressions (io/input-stream (.getBytes s)))]
       model
       (u/throw-ex (str "failed to load model from " component-root)))))
 
@@ -332,5 +293,11 @@
     (cond
       errors (println errors)
       (:help options) (println summary)
-      (:package options) (println (pkg/build (first args) (read-model-and-config args options)))
+      (:build options) (println
+                        (build/standalone-package
+                         (:build options)))
+      (:deploy options) (println
+                         (build/deploy-library
+                          (:deploy options)
+                          (keyword (first args))))
       :else (run-service args (read-model-and-config args options)))))

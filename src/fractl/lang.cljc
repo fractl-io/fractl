@@ -23,16 +23,12 @@
       imps)))
 
 (def ^:private component-spec-validators
-  {:import #(normalize-imports
-             (li/validate-imports %))
-   :clj-import li/validate-clj-imports
-   :java-import li/validate-java-imports
-   :v8-import li/validate-clj-imports})
+  {:clj-import li/validate-clj-imports})
 
 (defn- validate-component-spec [spec]
   (into
    {}
-   (map
+   (mapv
     (fn [[k v]]
       (let [vf (or (k component-spec-validators)
                    identity)]

@@ -121,37 +121,14 @@
     (single-spec? x)
     (every? single-spec? x)))
 
-(defn import-list? [x]
-  (or (nil? x)
-      (and (seq x)
-           (= :import (first x))
-           (specs? (rest x)))))
-
-(defn clj-list? [x]
-  ;; Insert into v8compile as `(apply list (first (rest <name>)))`
-  ;; Example: `[:clj [:require '[clojure.java.jdbc :as jdbc]]]`
-  (or (nil? x)
-      (and (seq x)
-           (or (= :clj (first x))
-               (= :v8 (first x)))
-           (cond
-             (= :require (ffirst (rest x))) true
-             (= :use (ffirst (rest x))) true
-             (= :refer (ffirst (rest x))) true
-             (= :refer-macros (ffirst (rest x))) true
-             :else false)
-           (cond
-             (= :as (second (first (rest (first (rest x)))))) true
-             (= :only (second (first (rest (first (rest x)))))) true
-             :else false))))
-
-(defn java-list? [x]
-  ;; Insert into v8compile similar to clj-list
-  ;; Example: `[:java [:import '(java.util.Date)]]
-  (or (nil? x)
-      (and (seq x)
-           (= :java (first x))
-           (= :import (first (second x))))))
+(defn clj-import-list? [x]
+  (and (seq x)
+       (every?
+        (fn [entry]
+          (let [k (first entry)]
+            (and (some #{k} #{:require :use :import :refer :refer-macros})
+                 (every? vector? (rest entry)))))
+        x)))
 
 (defn attribute-entry-format? [x]
   (if (vector? x)
@@ -298,9 +275,7 @@
 
 (def validate-name (partial validate (partial name? no-restricted-chars?) "not a valid name"))
 (def validate-name-relaxed (partial validate name? "not a valid name"))
-(def validate-imports (partial validate import-list? "not a valid imports list"))
-(def validate-clj-imports (partial validate clj-list? "not a valid clj require list"))
-(def validate-java-imports (partial validate java-list? "not a valid java import list"))
+(def validate-clj-imports (partial validate clj-import-list? "not a valid clj-import list"))
 
 (defn validate-bool [attrname v]
   (validate boolean? (str attrname " must be either true or false") v))
