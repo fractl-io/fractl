@@ -82,25 +82,7 @@
   [component spec]
   (u/call-and-set
    components
-   #(let [imports (when-let [imports (:imports spec)]
-                    {:import [imports (li/mappify-alias-imports imports)]
-                     ;; Special alias key for imports
-                     :alias (li/mappify-alias-imports imports)})
-          clj-imports (when-let [clj-imports (:clj-imports spec)]
-                        {:clj [(first (rest clj-imports)) (li/mappify-alias-imports clj-imports)]})
-          java-imports (when-let [java-imports (:java-imports spec)]
-                         {:java (first (rest java-imports))})
-          v8-imports (when-let [v8-imports (:v8-imports spec)]
-                       {:v8 [(first (rest v8-imports)) (li/mappify-alias-imports v8-imports)]})]
-      ;; The interned component has the following structure:
-      ;; {component {:resolver <resolver-config-map>
-      ;;              :import [imports aliases]
-      ;;              :clj [clj-imports aliases]
-      ;;              :java java-imports
-      ;;              :v8 [v8-imports aliases]}}
-      (assoc @components component
-             (merge {:resolver (:resolver spec)}
-                    imports clj-imports java-imports v8-imports))))
+   #(assoc @components component spec))
   (intern-attribute
    [component id-attr]
    {:type :Kernel/UUID

@@ -1,6 +1,3 @@
-(ns banking.model.banking.core
-  (:use [fractl.lang]))
-
 (component :Banking.Core)
 
 (entity
@@ -23,7 +20,7 @@
  :Banking.Core/Transaction
  {:Banking.Core/Account
   {:No? :Banking.Core/Transaction.Account
-   :Balance '(banking.model.banking.core/set-balance
+   :Balance '(set-balance
               :Banking.Core/Transaction.Type
               :Banking.Core/Transaction.Amount
               :Balance)}})
