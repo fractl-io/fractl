@@ -56,7 +56,7 @@
                r# (if (map? result#) result#
                       (if (i/const-value? result#)
                         result#
-                        (first result#)))]
+                        (if (seqable? result#) (first result#) result#)))]
            (if-let [refs# '~(seq (:refs parts))]
              (get-in r# refs#)
              result#)))
