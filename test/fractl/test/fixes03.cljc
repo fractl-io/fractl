@@ -230,3 +230,39 @@
             {:I669/Lookup_E
              {cn/id-attr (cn/id-attr e)}})]
     (is (cn/same-instance? e e1))))
+
+(defn first-result [rs]
+  (mapv first rs))
+
+(deftest issue-686-list-of-path
+  (defcomponent :I686
+    (entity
+     :I686/E
+     {:Name {:type :Kernel/Path
+             :unique true}})
+    (event
+     :I686/GetEs
+     {:Names {:listof :Kernel/Path}})
+    (record :I686/Result {:Es {:listof :I686/E}})
+    (dataflow
+     :I686/GetEs
+     [:for-each :I686/GetEs.Names
+      {:I686/E {:Name? :%}}
+      :as :Es]
+     {:I686/Result {:Es '(fractl.test.fixes03/first-result :Es)}}))
+  (let [names [:A :B :C]
+        es01 (mapv
+              #(tu/first-result
+                {:I686/Upsert_E
+                 {:Instance
+                  {:I686/E
+                   {:Name %}}}})
+              names)]
+    (is (every? (partial cn/instance-of? :I686/E) es01))
+    (let [rs (:Es
+              (tu/first-result
+               {:I686/GetEs
+                {:Names [:A :C]}}))]
+      (is (every? (partial cn/instance-of? :I686/E) rs))
+      (is (= 2 (count rs)))
+      (is (every? identity (mapv (fn [n] (some #{n} #{:A :C})) (mapv :Name rs)))))))
