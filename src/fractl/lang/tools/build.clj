@@ -20,7 +20,7 @@
 (def cljout "cljout")
 (def ^:private cljout-file (File. cljout))
 
-(defn- project-dir [model-name]
+(defn project-dir [model-name]
   (str cljout u/path-sep model-name u/path-sep))
 
 (defn standalone-jar [model-name]
