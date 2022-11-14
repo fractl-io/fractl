@@ -9,9 +9,10 @@
             [fractl.lang.tools.loader :as loader])
   (:import [java.io File]
            [org.apache.commons.io FileUtils]
+           [org.apache.commons.io.filefilter IOFileFilter WildcardFileFilter]
            [org.apache.commons.exec CommandLine Executor DefaultExecutor]))
 
-(defn- get-system-model-paths []
+(defn get-system-model-paths []
   (if-let [paths (System/getenv "FRACTL_MODEL_PATHS")]
     (s/split paths #":")
     ["."]))
@@ -21,6 +22,13 @@
 
 (defn- project-dir [model-name]
   (str cljout u/path-sep model-name u/path-sep))
+
+(defn standalone-jar [model-name]
+  (let [^File dir (File. (str (project-dir model-name) u/path-sep "target"))
+        ^IOFileFilter ff (WildcardFileFilter. "*standalone*.jar")
+        files (FileUtils/iterateFiles dir ff nil)]
+    (when-let [rs (first (iterator-seq files))]
+      (str rs))))
 
 (defn- clj-io [model-name]
   (let [prefix (project-dir model-name)]
@@ -114,6 +122,34 @@
         %)
      component)))
 
+(defn- model-refs-to-use [refs]
+  (let [spec (mapv
+              (fn [r]
+                (let [ss (s/split (s/lower-case (name r)) #"\.")]
+                  [(symbol
+                    (if (= 1 (count ss))
+                      (str (first ss) ".model.model")
+                      (s/join "." (concat [(first ss) "model"] ss))))]))
+              refs)]
+    (concat spec [[(symbol "fractl.lang")]])))
+
+(defn- merge-use-models [import-spec use-models]
+  (loop [spec import-spec, result [], merged false]
+    (if merged
+      (concat result spec)
+      (if-let [s (first spec)]
+        (let [m (= :use (first s))]
+          (recur (rest spec)
+                 (if m
+                   (conj result (concat s use-models))
+                   (conj result s)) m))
+        (conj result `(:use ~@use-models))))))
+
+(defn- normalize-clj-imports [spec]
+  (if (= 'quote (first spec))
+    (second spec)
+    spec))
+
 (defn- copy-component [write model-name component]
   (if-let [component-decl (find-component-declaration component)]
     (let [component-name (second component-decl)
@@ -121,12 +157,12 @@
                            (nth component-decl 2))
           cns-name (symbol (s/lower-case (name component-name)))
           ns-name (symbol (str model-name ".model." cns-name))
-          clj-imports (:clj-import component-spec)
+          use-models (model-refs-to-use (:refer component-spec))
+          clj-imports (merge-use-models
+                       (normalize-clj-imports (:clj-import component-spec))
+                       use-models)
           ns-decl `(~(symbol "ns") ~ns-name
-                    ~@(if (= 'quote (first clj-imports))
-                        (second clj-imports)
-                        clj-imports)
-                    (:use [fractl.lang]))]
+                    ~@clj-imports)]
       (write-component-clj
        model-name cns-name write
        (concat

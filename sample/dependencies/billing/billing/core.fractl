@@ -1,7 +1,8 @@
 (component
  :Billing.Core
  ;; clj-import only for testing build
- {:clj-import '[(:require [fractl.util :as u])
+ {:refer [:Banking.Core]
+  :clj-import '[(:require [fractl.util :as u])
                 (:import [java.io File])]})
 
 (entity
