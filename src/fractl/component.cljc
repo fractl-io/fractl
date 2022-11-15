@@ -124,6 +124,12 @@
 (def schema-type-tag type-tag-key)
 (def instance-type type-key)
 
+(defn instance-type-kw [inst]
+  (when-let [t (instance-type inst)]
+    (if (keyword? t)
+      t
+      (li/make-path t))))
+
 (defn- conj-meta-key [path]
   (conj path mt/meta-key))
 
