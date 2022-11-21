@@ -21,6 +21,6 @@ Run the install script from this directory, as shown below:
 ```shell
 $ ./install.sh <target_dir>
 ```
-
+Note: For now, use an absolute path for `<target_dir>`. The issue to handle relative paths is [here](https://github.com/fractl-io/fractl/issues/692).  
 This will create a the `<target_dir>/fractl-<version>` and copy the fractl uberjar, config.edn
 and the `fractl` command-line tool there.
