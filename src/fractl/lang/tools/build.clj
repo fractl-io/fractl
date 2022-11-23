@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [clojure.walk :as w]
             [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang.tools.loader :as loader])
   (:import [java.io File]
@@ -51,12 +52,14 @@
     (.setWorkingDirectory executor cljout-file)
     (zero? (.execute executor cmd-line))))
 
-(defn- exec-for-model [cmd model-name]
+(defn- exec-in-directory [path cmd]
   (let [^CommandLine cmd-line (CommandLine/parse cmd)
-        ^Executor executor (DefaultExecutor.)
-        projdir (project-dir model-name)]
-    (.setWorkingDirectory executor (File. projdir))
+        ^Executor executor (DefaultExecutor.)]
+    (.setWorkingDirectory executor (File. path))
     (zero? (.execute executor cmd-line))))
+
+(defn- exec-for-model [model-name cmd]
+  (exec-in-directory (project-dir model-name) cmd))
 
 (defn- maybe-add-repos [proj-spec model]
   (if-let [repos (:repositories model)]
@@ -195,25 +198,39 @@
     (when-not (install-model model-paths (s/lower-case (name model-name)))
       (u/throw-ex (str "failed to install dependency " d)))))
 
+(defn- clj-project-path [model-paths model-name]
+  (first
+   (su/truths
+    #(let [dir (str % u/path-sep model-name)
+           ^File f (File. (str dir u/path-sep "project.clj"))]
+       (when (.exists f)
+         dir))
+    model-paths)))
+
 (defn build-model
   ([model-paths model-name]
-   (let [model-paths (or model-paths (get-system-model-paths))
-         [model model-root :as result] (loader/read-model model-paths model-name)
-         components (loader/read-components-from-model model model-root)
-         projdir (File. (project-dir model-name))]
-     (install-local-dependencies! model-paths (:local-dependencies model))
-     (if (.exists projdir)
-       (FileUtils/deleteDirectory projdir)
-       (when-not (.exists cljout-file)
-         (.mkdir cljout-file)))
-     (when (build-clj-project model-name model-root model components)
-       result)))
+   (let [model-paths (or model-paths (get-system-model-paths))]
+     (if-let [path (clj-project-path model-paths model-name)]
+       (let [^File f (File. path)]
+         (FileUtils/createParentDirectories f)
+         (FileUtils/copyDirectory f (File. (project-dir model-name)))
+         [model-name path])
+       (let [[model model-root :as result] (loader/read-model model-paths model-name)
+             components (loader/read-components-from-model model model-root)
+             projdir (File. (project-dir model-name))]
+         (install-local-dependencies! model-paths (:local-dependencies model))
+         (if (.exists projdir)
+           (FileUtils/deleteDirectory projdir)
+           (when-not (.exists cljout-file)
+             (.mkdir cljout-file)))
+         (when (build-clj-project model-name model-root model components)
+           result)))))
   ([model-name]
    (build-model nil model-name)))
 
 (defn- exec-with-build-model [cmd model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
-    (when (exec-for-model cmd model-name)
+    (when (exec-for-model model-name cmd)
       result)))
 
 (def install-model (partial exec-with-build-model "lein install"))
