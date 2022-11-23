@@ -22,7 +22,7 @@ Run the install script from this directory, as shown below:
 $ ./install.sh <target_dir>
 ```
 
-If the command fails, install the dependency `fractl-lein-template` (https://github.com/fractl-io/fractl-lein-template)
+If the command fails, install the dependency [`fractl-lein-template`](https://github.com/fractl-io/fractl-lein-template)
 
 Note: For now, use an absolute path for `<target_dir>`. The issue to handle relative paths is [here](https://github.com/fractl-io/fractl/issues/692).  
 This will create a the `<target_dir>/fractl-<version>` and copy the fractl uberjar, config.edn
