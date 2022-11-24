@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [clojure.walk :as w]
             [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang.tools.loader :as loader])
   (:import [java.io File]
@@ -19,6 +20,12 @@
 
 (def cljout "cljout")
 (def ^:private cljout-file (File. cljout))
+
+(defn- as-path [s]
+  (s/replace s #"[\.\-_]" u/path-sep))
+
+(defn- sanitize [s]
+  (s/replace s "-" "_"))
 
 (defn project-dir [model-name]
   (str cljout u/path-sep model-name u/path-sep))
@@ -51,12 +58,14 @@
     (.setWorkingDirectory executor cljout-file)
     (zero? (.execute executor cmd-line))))
 
-(defn- exec-for-model [cmd model-name]
+(defn- exec-in-directory [path cmd]
   (let [^CommandLine cmd-line (CommandLine/parse cmd)
-        ^Executor executor (DefaultExecutor.)
-        projdir (project-dir model-name)]
-    (.setWorkingDirectory executor (File. projdir))
+        ^Executor executor (DefaultExecutor.)]
+    (.setWorkingDirectory executor (File. path))
     (zero? (.execute executor cmd-line))))
+
+(defn- exec-for-model [model-name cmd]
+  (exec-in-directory (project-dir model-name) cmd))
 
 (defn- maybe-add-repos [proj-spec model]
   (if-let [repos (:repositories model)]
@@ -87,7 +96,7 @@
         dirs (butlast parts)
         file-name
         (str
-         "src" u/path-sep model-name u/path-sep "model" u/path-sep
+         "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep
          (s/join u/path-sep (concat dirs [(str compname ".clj")])))]
     (write file-name component true)
     component-name))
@@ -156,7 +165,7 @@
           component-spec (when (> (count component-decl) 2)
                            (nth component-decl 2))
           cns-name (symbol (s/lower-case (name component-name)))
-          ns-name (symbol (str model-name ".model." cns-name))
+          ns-name (symbol (str (sanitize model-name) ".model." cns-name))
           use-models (model-refs-to-use (:refer component-spec))
           clj-imports (merge-use-models
                        (normalize-clj-imports (:clj-import component-spec))
@@ -171,11 +180,11 @@
     (u/throw-ex "no component declaration found")))
 
 (defn- write-model-clj [write model-name component-names model]
-  (let [root-ns-name (symbol (str model-name ".model"))
+  (let [root-ns-name (symbol (str (sanitize model-name) ".model"))
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))
         model (dissoc model :clj-dependencies :repositories)]
-    (write (str "src" u/path-sep model-name u/path-sep "model" u/path-sep "model.clj")
+    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.clj")
            [ns-decl model] true)))
 
 (defn- build-clj-project [model-name model-root model components]
@@ -195,25 +204,39 @@
     (when-not (install-model model-paths (s/lower-case (name model-name)))
       (u/throw-ex (str "failed to install dependency " d)))))
 
+(defn- clj-project-path [model-paths model-name]
+  (first
+   (su/truths
+    #(let [dir (str % u/path-sep model-name)
+           ^File f (File. (str dir u/path-sep "project.clj"))]
+       (when (.exists f)
+         dir))
+    model-paths)))
+
 (defn build-model
   ([model-paths model-name]
-   (let [model-paths (or model-paths (get-system-model-paths))
-         [model model-root :as result] (loader/read-model model-paths model-name)
-         components (loader/read-components-from-model model model-root)
-         projdir (File. (project-dir model-name))]
-     (install-local-dependencies! model-paths (:local-dependencies model))
-     (if (.exists projdir)
-       (FileUtils/deleteDirectory projdir)
-       (when-not (.exists cljout-file)
-         (.mkdir cljout-file)))
-     (when (build-clj-project model-name model-root model components)
-       result)))
+   (let [model-paths (or model-paths (get-system-model-paths))]
+     (if-let [path (clj-project-path model-paths model-name)]
+       (let [^File f (File. path)]
+         (FileUtils/createParentDirectories f)
+         (FileUtils/copyDirectory f (File. (project-dir model-name)))
+         [model-name path])
+       (let [[model model-root :as result] (loader/read-model model-paths model-name)
+             components (loader/read-components-from-model model model-root)
+             projdir (File. (project-dir model-name))]
+         (install-local-dependencies! model-paths (:local-dependencies model))
+         (if (.exists projdir)
+           (FileUtils/deleteDirectory projdir)
+           (when-not (.exists cljout-file)
+             (.mkdir cljout-file)))
+         (when (build-clj-project model-name model-root model components)
+           result)))))
   ([model-name]
    (build-model nil model-name)))
 
 (defn- exec-with-build-model [cmd model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
-    (when (exec-for-model cmd model-name)
+    (when (exec-for-model model-name cmd)
       result)))
 
 (def install-model (partial exec-with-build-model "lein install"))
