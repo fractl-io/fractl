@@ -21,6 +21,12 @@
 (def cljout "cljout")
 (def ^:private cljout-file (File. cljout))
 
+(defn- as-path [s]
+  (s/replace s #"[\.\-_]" u/path-sep))
+
+(defn- sanitize [s]
+  (s/replace s "-" "_"))
+
 (defn project-dir [model-name]
   (str cljout u/path-sep model-name u/path-sep))
 
@@ -90,7 +96,7 @@
         dirs (butlast parts)
         file-name
         (str
-         "src" u/path-sep model-name u/path-sep "model" u/path-sep
+         "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep
          (s/join u/path-sep (concat dirs [(str compname ".clj")])))]
     (write file-name component true)
     component-name))
@@ -159,7 +165,7 @@
           component-spec (when (> (count component-decl) 2)
                            (nth component-decl 2))
           cns-name (symbol (s/lower-case (name component-name)))
-          ns-name (symbol (str model-name ".model." cns-name))
+          ns-name (symbol (str (sanitize model-name) ".model." cns-name))
           use-models (model-refs-to-use (:refer component-spec))
           clj-imports (merge-use-models
                        (normalize-clj-imports (:clj-import component-spec))
@@ -174,11 +180,11 @@
     (u/throw-ex "no component declaration found")))
 
 (defn- write-model-clj [write model-name component-names model]
-  (let [root-ns-name (symbol (str model-name ".model"))
+  (let [root-ns-name (symbol (str (sanitize model-name) ".model"))
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))
         model (dissoc model :clj-dependencies :repositories)]
-    (write (str "src" u/path-sep model-name u/path-sep "model" u/path-sep "model.clj")
+    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.clj")
            [ns-decl model] true)))
 
 (defn- build-clj-project [model-name model-root model components]
