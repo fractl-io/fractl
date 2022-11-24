@@ -294,7 +294,7 @@
       (bad-request "invalid auth data" (find-data-format request)))))
 
 (defn- auth-service-supported? [auth]
-  (some #{(:service auth)} [:keycloak :dataflow]))
+  (some #{(:service auth)} [:keycloak :cognito :dataflow]))
 
 (defn make-auth-handler [config]
   (let [auth (:authentication config)

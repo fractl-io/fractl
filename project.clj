@@ -32,7 +32,8 @@
                  [reagent "1.1.0"]
                  [cljsjs/react "17.0.2-0"]
                  [tick "0.5.0-RC1"]
-                 [spec-provider "0.4.14"]]
+                 [spec-provider "0.4.14"]
+                 [amazonica "0.3.162"]]
 
   :java-source-paths ["src/java"]
 
