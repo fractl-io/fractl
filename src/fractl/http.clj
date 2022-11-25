@@ -225,6 +225,7 @@
           (do (log/warn (str "bad login request - " err))
               (bad-request err data-fmt))
           (try
+            ;; check login failure here
             (let [result (auth/user-login
                           (assoc
                            auth-config
