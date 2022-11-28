@@ -125,7 +125,7 @@
   (mapv (fn [n] {n (cn/entity-schema n)})
         (cn/entity-names component)))
 
-(defn- process-meta-request [maybe-unauth request]
+(defn- process-meta-request [[_ maybe-unauth] request]
   (or (maybe-unauth request)
       (let [c (keyword (get-in request [:params :component]))]
         (ok {:paths (paths-info c) :schemas (schemas-info c)}))))
@@ -230,6 +230,9 @@
      (str "unsupported content-type in request - "
           (request-content-type request)))))
 
+(defn- process-root-get [_]
+  (ok {:result :fractl}))
+
 (defn- make-routes [auth-config handlers]
   (let [r (routes
            (POST uh/login-prefix [] (:login handlers))
@@ -238,7 +241,8 @@
                  (:request handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
-           (GET "/meta/:component" [] process-meta-request)
+           (GET "/meta/:component" [] (:meta handlers))
+           (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
         r-with-auth (if auth-config
                       (wrap-authentication
@@ -280,7 +284,8 @@
           :logout (partial process-logout auth)
           :request (partial process-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
-          :eval (partial process-dynamic-eval evaluator auth-info nil)})
+          :eval (partial process-dynamic-eval evaluator auth-info nil)
+          :meta (partial process-meta-request auth-info)})
         (if (:thread config)
           config
           (assoc config :thread (+ 1 (u/n-cpu)))))
