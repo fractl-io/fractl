@@ -2,31 +2,36 @@
   (:require [amazonica.aws.cognitoidp :as aws]
             [amazonica.core :refer [ex->map]]
             [fractl.auth.core :as auth]
-            [fractl.evaluator :as e]))
+            [fractl.auth.jwt :as jwt]
+            [cheshire.core :as json]
+            [buddy.core.keys :as keys]))
 
 (def ^:private tag :cognito)
 
-(defmethod auth/make-client tag [{:keys [access-key-env-var secret-key-env-var region] :as _config}]
-  {:access-key (System/getenv access-key-env-var)
-   :secret-key (System/getenv secret-key-env-var)
+(defmethod auth/make-client tag [{:keys [access-key secret-key region] :as _config}]
+  {:access-key access-key
+   :secret-key secret-key
    :endpoint region})
 
-(defmethod auth/make-authfn tag [_]
-  (fn [_req token]
-    token))
+(defn make-jwks-url [region user-pool-id]
+  (str "https://cognito-idp."
+       region
+       ".amazonaws.com/"
+       user-pool-id
+       "/.well-known/jwks.json"))
 
-(defmethod auth/user-login tag [{:keys [client-id-env-var event] :as req}]
-  (try
-    (aws/initiate-auth (auth/make-client req)
-                       :auth-flow "USER_PASSWORD_AUTH"
-                       :client-id (System/getenv client-id-env-var)
-                       :auth-parameters {"USERNAME" (:Username event)
-                                         "PASSWORD" (:Password event)})
-    (catch Exception e
-      (let [exception-details (ex->map e)]
-        ;; how to change top level status. it's still 200. this goes inside `:body`
-        {:status (:status-code exception-details)
-         :body exception-details}))))
+(defmethod auth/make-authfn tag [{:keys [region user-pool-id] :as _config}]
+  (fn [_req token]
+    (jwt/verify-and-extract
+     (make-jwks-url region user-pool-id)
+     token)))
+
+(defmethod auth/user-login tag [{:keys [client-id event] :as req}]
+  (aws/initiate-auth (auth/make-client req)
+                     :auth-flow "USER_PASSWORD_AUTH"
+                     :client-id client-id
+                     :auth-parameters {"USERNAME" (:Username event)
+                                       "PASSWORD" (:Password event)}))
 
 (defn- user-exists? [username user-pool-id config]
   (try
@@ -41,20 +46,33 @@
           false
           (throw e))))))
 
-(defmethod auth/upsert-user tag [{:keys [client-id-env-var user-pool-id-env-var event] :as req}]
-  (let [username (:Username event)
-        password (:Password event)]
-    (if (user-exists? username (System/getenv user-pool-id-env-var) req)
-      nil ;;TODO: update-user
-      nil))) ;; TODO: create user
+;; right now only creates user, update user can be done directly via frontend
+(defmethod auth/upsert-user tag [{:keys [client-id user-pool-id] user auth/instance-key :as req}]
+  (when (user-exists? (:Email user) user-pool-id req)
+    (let [{:keys [Name FirstName LastName Password Email]} user]
+      (aws/sign-up
+       (auth/make-client req)
+       :client-id client-id
+       :password Password
+       :user-attributes [["given_name" FirstName]
+                         ["family_name" LastName]
+                         ["email" Email]
+                         ["name" Name]]
+       :username Email))))
 
-(defmethod auth/session-user tag [req]
-  nil)
+(defmethod auth/session-user tag [all-stuff-map]
+  (let [user-details (get-in all-stuff-map [:request :identity])]
+    {:github-username (:custom:github_username user-details)
+     :email (:email user-details)
+     :github-token (:custom:github_token user-details)
+     :sub (:sub user-details)
+     :username (:cognito:username user-details)}))
 
-(defmethod auth/session-sub tag [req]
-  nil)
+(defmethod auth/session-sub tag [& args]
+  (println ">>>>>session-sub" (pr-str args)))
 
-(defmethod auth/user-logout tag [])
+(defmethod auth/user-logout tag [& args]
+  (println ">>>>>logout" (pr-str args)))
 
-(defmethod auth/delete-user tag [req]
-  nil)
+(defmethod auth/delete-user tag [& args]
+  (println ">>>>>delete-user" (pr-str args)))

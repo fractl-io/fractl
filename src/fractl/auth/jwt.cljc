@@ -40,9 +40,9 @@
 (defn- fetch-keys
   "Fetches the jwks from the supplied jwks-url and converts to java Keys.
   Returns a map keyed on key-id where each value is a RSAPublicKey object"
-  [jwks-path]
+  [jwks-url]
   (try
-    (->> (slurp jwks-path)
+    (->> (slurp jwks-url)
          json/decode
          jwks-edn->keys)
     (catch Exception _e
@@ -58,13 +58,13 @@
 (defn- resolve-key
   "Returns java.security.Key given key-fn, jwks-url and :key-type in jwt-header.
   If no key is found refreshes"
-  [key-type jwks-path jwt-header]
-  (let [key-fn (fn [] (get-in @keystore [jwks-path (:kid jwt-header) key-type]))]
+  [key-type jwks-url jwt-header]
+  (let [key-fn (fn [] (get-in @keystore [jwks-url (:kid jwt-header) key-type]))]
     (if-let [key (key-fn)]
       key
       (do
-        (when-let [new-keys (fetch-keys jwks-path)]
-          (swap! keystore #(update % jwks-path merge new-keys)))
+        (when-let [new-keys (fetch-keys jwks-url)]
+          (swap! keystore #(update % jwks-url merge new-keys)))
         (if-let [key (key-fn)]
           key
           (throw
@@ -72,7 +72,7 @@
             (str "Could not locate key corresponding to jwt header's kid: "
                  (:kid jwt-header)
                  " for url: "
-                 jwks-path)
+                 jwks-url)
             {:type :validation :cause :unknown-key})))))))
 
 (def resolve-public-key
@@ -88,8 +88,8 @@
 (defn verify-and-extract
   "Given jwks-url, token, and optionally opts validates and returns the claims
   of the given json web token. Opts are the same as buddy-sign.jwt/unsign."
-  ([jwks-path token]
-   (verify-and-extract jwks-path token {}))
-  ([jwks-path token opts]
+  ([jwks-url token]
+   (verify-and-extract jwks-url token {}))
+  ([jwks-url token opts]
    (let [token (remove-bearer token)]
-     (jwt/unsign token (partial resolve-public-key jwks-path) (merge {:alg :rs256} opts)))))
+     (jwt/unsign token (partial resolve-public-key jwks-url) (merge {:alg :rs256} opts)))))
