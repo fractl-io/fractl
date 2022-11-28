@@ -33,7 +33,10 @@
                  [cljsjs/react "17.0.2-0"]
                  [tick "0.5.0-RC1"]
                  [spec-provider "0.4.14"]
-                 [amazonica "0.3.162"]]
+                 [amazonica "0.3.162"]
+                 [buddy/buddy-core "1.6.0"]
+                 [buddy/buddy-sign "3.1.0"]
+                 [org.clojure/algo.generic "0.1.3"]]
 
   :java-source-paths ["src/java"]
 

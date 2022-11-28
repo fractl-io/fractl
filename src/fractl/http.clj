@@ -267,7 +267,7 @@
            (POST uh/logout-prefix [] (:logout handlers))
            (POST uh/signup-prefix [] (:signup handlers))
            (POST (str uh/entity-event-prefix ":component/:event") []
-                 (:request handlers))
+             (:request handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (GET "/meta/:component" [] (:meta handlers))
