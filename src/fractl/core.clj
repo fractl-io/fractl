@@ -202,7 +202,10 @@
   (cond
     (symbol? x)
     (when-let [v (System/getenv (name x))]
-      (str (read-string v)))
+      (let [s (read-string v)]
+        (if (symbol? s)
+          (str s)
+          s)))
 
     (vector? x)
     (first (su/nonils (mapv read-env-var x)))
