@@ -4,7 +4,8 @@
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
             [cheshire.core :as json]
-            [buddy.core.keys :as keys]))
+            [buddy.core.keys :as keys])
+  (:import (org.apache.commons.lang3 NotImplementedException)))
 
 (def ^:private tag :cognito)
 
@@ -46,7 +47,7 @@
           false
           (throw e))))))
 
-;; right now only creates user, update user can be done directly via frontend
+;; right now only creates user, update user is done directly via frontend
 (defmethod auth/upsert-user tag [{:keys [client-id user-pool-id] user auth/instance-key :as req}]
   (when (user-exists? (:Email user) user-pool-id req)
     (let [{:keys [Name FirstName LastName Password Email]} user]
@@ -60,19 +61,30 @@
                          ["name" Name]]
        :username Email))))
 
+(defn confirm-signup [{:keys [client-id event] :as req}]
+  (aws/confirm-sign-up
+   (auth/make-client req)
+   :client-id client-id
+   :confirmation-code (:ConfirmationCode event)
+   :username (:Username event)))
+
 (defmethod auth/session-user tag [all-stuff-map]
   (let [user-details (get-in all-stuff-map [:request :identity])]
     {:github-username (:custom:github_username user-details)
-     :email (:email user-details)
      :github-token (:custom:github_token user-details)
+     :github-org (:custom:github_org user-details)
+     :email (:email user-details)
      :sub (:sub user-details)
      :username (:cognito:username user-details)}))
 
-(defmethod auth/session-sub tag [& args]
-  (println ">>>>>session-sub" (pr-str args)))
+(defmethod auth/session-sub tag [req]
+  (auth/session-user req))
 
-(defmethod auth/user-logout tag [& args]
-  (println ">>>>>logout" (pr-str args)))
+;; Frontend should use:
+;; `https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_GlobalSignOut.html` 
+;; directly for now.
+(defmethod auth/user-logout tag [_req]
+  (throw (NotImplementedException. "Use 'https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_GlobalSignOut.html'")))
 
 (defmethod auth/delete-user tag [& args]
   (println ">>>>>delete-user" (pr-str args)))

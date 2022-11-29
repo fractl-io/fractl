@@ -4,21 +4,18 @@
 (def service-tag :service)
 
 (defmulti make-client service-tag)
+;; Returns the function: `(fn [req token] (verify-and-extract token))`
+;; The returned function is called every time an API request with Bearer token is received.
 (defmulti make-authfn service-tag)
 (defmulti user-login service-tag)
-;; related to session-sub
+;; Return user details that you want to attach in EventContext. 
+;; Include `username` and `sub`.
 (defmulti session-user service-tag)
-;; token contains info about user. it should send the username. 
-;; returns username as string.
-;; add github-config from `component/assoc-event-context-value`
-;; session-sub might return a qualified user
-;; sub means subject here
+;; Can be same as `session-user`.
 (defmulti session-sub service-tag)
-;; should return some truthy value
+;; Logout from the auth broker and return some truthy value.
 (defmulti user-logout service-tag)
-;; don't implement (throw exception: not implelemented)
 (defmulti upsert-user service-tag)
-;; don't implement (throw exception: not implelemented)
 (defmulti delete-user service-tag)
 
 (def client-key :client)

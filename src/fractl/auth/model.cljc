@@ -8,7 +8,7 @@
 (entity
  :Kernel.Identity/User
  {:Name {:type :Kernel/String
-         :identity true}
+         :optional true}
   :Password {:type :Kernel/Password
              :optional true} ; may use social-login
   :FirstName {:type :Kernel/String
@@ -16,7 +16,7 @@
   :LastName {:type :Kernel/String
              :optional true}
   :Email {:type :Kernel/Email
-          :optional true}})
+          :identity true}})
 
 (event
  :Kernel.Identity/SignUp
