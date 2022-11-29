@@ -61,13 +61,6 @@
                          ["name" Name]]
        :username Email))))
 
-(defn confirm-signup [{:keys [client-id event] :as req}]
-  (aws/confirm-sign-up
-   (auth/make-client req)
-   :client-id client-id
-   :confirmation-code (:ConfirmationCode event)
-   :username (:Username event)))
-
 (defmethod auth/session-user tag [all-stuff-map]
   (let [user-details (get-in all-stuff-map [:request :identity])]
     {:github-username (:custom:github_username user-details)
