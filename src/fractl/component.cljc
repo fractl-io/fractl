@@ -294,6 +294,8 @@
     (when (mt/relationship? (fetch-meta rel-name))
       scm)))
 
+(def relationship? fetch-relationship-schema)
+
 (defn find-object-schema [path]
   (or (find-entity-schema path)
       (find-record-schema path)
@@ -1406,9 +1408,12 @@
 
 (def assoc-event-context-user (partial assoc-event-context-value :User))
 
+(def ^:private meta-suffix "Meta")
+(def ^:private meta-suffix-len (count meta-suffix))
+
 (defn meta-entity-name [n]
   (let [[component entity-name] (if (keyword? n) (li/split-path n) n)]
-    (keyword (str (name component) "/" (name entity-name) "Meta"))))
+    (keyword (str (name component) "/" (name entity-name) meta-suffix))))
 
 (defn meta-entity-attributes [component]
   {id-attr (canonical-type-name component id-attr)
@@ -1421,6 +1426,12 @@
                  :default dt/now}
    :LastUpdatedBy :Kernel/String
    :UserData {:type :Kernel/Map :optional true}})
+
+(defn meta-entity-for-any? [entity-names ename]
+  (let [n (str (if (keyword? ename) ename (li/make-path ename)))]
+    (when (s/ends-with? n meta-suffix)
+      (let [root-entity-name (keyword (subs (subs n 0 (- (count n) meta-suffix-len)) 1))]
+        (some #{root-entity-name} entity-names)))))
 
 (defn make-meta-instance
   ([inst user user-data]
@@ -1440,7 +1451,7 @@
 (defn instance-meta-lookup-event [entity-name id]
   (let [[component ename] (li/split-path entity-name)]
     (make-instance
-     {(keyword (str (name component) "/Lookup_" (name entity-name) "Meta"))
+     {(keyword (str (name component) "/Lookup_" (name entity-name) meta-suffix))
       {id-attr id}})))
 
 (def instance-meta-owner :Owner)
@@ -1481,6 +1492,15 @@
 
 (def relmeta-key :-*-relmeta-*-)
 (def relationship-meta relmeta-key)
+
+(defn contained-children [recname]
+  (when-let [rels (seq (find-relationships recname))]
+    (su/nonils
+     (mapv #(let [scm (fetch-relationship-schema %)
+                  contains (mt/contains (relationship-meta scm))]
+              (when (= recname (first contains))
+                (second contains)))
+           rels))))
 
 (defn relationship-on-attributes [rel-name]
   (:on (relmeta-key (fetch-meta rel-name))))
