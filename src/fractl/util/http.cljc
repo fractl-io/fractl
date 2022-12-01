@@ -30,6 +30,7 @@
 (def entity-event-prefix "/_e/")
 (def login-prefix "/_login/")
 (def logout-prefix "/_logout/")
+(def signup-prefix "/_signup/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
 (def callback-prefix "/_callback/")
