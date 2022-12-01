@@ -194,9 +194,15 @@
     (internal-error "cannot process sign-up - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
-        (if err
+        (cond
+          err
           (do (log/warn (str "bad sign-up request - " err))
               (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/SignUp evobj))
+          (bad-request (str "not a signup event - " evobj) data-fmt)
+
+          :else
           (try
             (let [result (auth/upsert-user
                           (assoc
