@@ -19,6 +19,10 @@
           :optional true}})
 
 (event
+ :Kernel.Identity/SignUp
+ {:User :Kernel.Identity/User})
+
+(event
  au/login-event-name
  {au/login-username :Kernel/String
   au/login-password :Kernel/Password})

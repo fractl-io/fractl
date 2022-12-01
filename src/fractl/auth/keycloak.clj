@@ -68,9 +68,9 @@
      :body (json/decode (:body r))}))
 
 (defmethod auth/user-login tag [{url :auth-server-url
-                              realm :user-realm
-                              client-id :user-client-id
-                              event-inst :event}]
+                                 realm :user-realm
+                                 client-id :user-client-id
+                                 event-inst :event}]
   (if-let [obj (au/as-login-event event-inst)]
     (authenticate
      url realm client-id
@@ -85,20 +85,22 @@
    :email (:Email inst)})
 
 (defmethod auth/upsert-user tag [{kc-client auth/client-key
-                               realm :user-realm
-                               inst auth/instance-key}]
+                                  realm :user-realm
+                                  inst auth/instance-key :as arg}]
   (let [obj (user-properties inst)]
-    (ku/create-or-update-user! kc-client realm obj nil nil)
+    (ku/create-or-update-user!
+     (or kc-client (auth/make-client arg))
+     realm obj nil nil)
     inst))
 
 (defmethod auth/delete-user tag [{kc-client auth/client-key
-                               realm :user-realm
-                               inst auth/instance-key}]
-  (ku/delete-user! kc-client realm (:Name inst))
+                                  realm :user-realm
+                                  inst auth/instance-key :as arg}]
+  (ku/delete-user! (or kc-client (auth/make-client arg)) realm (:Name inst))
   inst)
 
 (defmethod auth/user-logout tag [{realm :user-realm
-                               sub :sub :as arg}]
+                                  sub :sub :as arg}]
   (let [kc-client (auth/make-client arg)]
     (ku/logout-user! kc-client realm sub)
     :bye))
