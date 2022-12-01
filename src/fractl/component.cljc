@@ -1496,10 +1496,10 @@
 (defn contained-children [recname]
   (when-let [rels (seq (find-relationships recname))]
     (su/nonils
-     (mapv #(let [scm (fetch-relationship-schema %)
-                  contains (mt/contains (relationship-meta scm))]
+     (mapv #(let [meta (fetch-meta %)
+                  contains (mt/contains meta)]
               (when (= recname (first contains))
-                (second contains)))
+                [% (second contains)]))
            rels))))
 
 (defn relationship-on-attributes [rel-name]

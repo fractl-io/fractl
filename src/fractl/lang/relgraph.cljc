@@ -1,6 +1,7 @@
 (ns fractl.lang.relgraph
   "Traversal of the schema/instance graph as inferred from `contains` relationships"
-  (:require [fractl.component :as cn]
+  (:require [clojure.set :as set]
+            [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.lang.internal :as li]))
@@ -15,41 +16,52 @@
          (and (= 1 (count ks))
               (li/name? (first ks))))))
 
-(defn- merge-as-child [graph entity-name]
-  (loop [g graph]
-    (when-let [[k vs] (first g)]
-      (if-let [idx (su/index-of entity-name vs)]
-        (assoc
-         (dissoc graph entity-name)
-         k (assoc vs idx (entity-name graph)))
-        (recur (rest g))))))
+(def ^:private roots-tag :-*-roots-*-)
 
-(defn- merge-child-nodes [entity-names graph]
-  (reduce
-   (fn [graph entity-name]
-     (or (merge-as-child graph entity-name)
-         graph))
-   graph entity-names))
+(defn- attach-roots [graph]
+  (assoc
+   graph
+   roots-tag
+   (loop [g graph, result (set (keys graph))]
+     (if-let [[k vs] (first g)]
+       (if (seq vs)
+         (recur (rest g) (set/difference result (set (mapv :to vs))))
+         (recur (rest g) result))
+       result))))
 
-(defn- build-graph [entity-names]
-  (merge-child-nodes
-   entity-names
+(defn- as-contains-node [[rel-name child-entity]]
+  {:type :contains
+   :relationship rel-name
+   :to child-entity})
+
+(defn- do-build-graph [entity-names]
+  (attach-roots
    (reduce
     (fn [graph entity-name]
-      (let [children (cn/contained-children entity-name)
+      (let [children (mapv as-contains-node (cn/contained-children entity-name))
             existing-children (entity-name graph)]
-        (assoc graph entity-name (concat existing-children children))))
+        (assoc graph entity-name (vec (concat existing-children children)))))
     {} entity-names)))
 
 (defn- nodes-in-path [path-info]
   ;; TODO: implement
   )
 
-(defn find-nodes [root]
+(def graph? roots-tag)
+
+(defn roots [graph]
+  (select-keys graph [roots-tag]))
+
+(defn rep [obj]
+  (if-let [rts (roots-tag obj)]
+    rts
+    nil))
+
+(defn build-graph [root]
   (cond
     (component-name? root)
     (let [enames (cn/entity-names root)]
-      (build-graph
+      (do-build-graph
        (seq
         (filter
          #(and (not (cn/relationship? %))

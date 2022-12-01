@@ -473,6 +473,9 @@
      :I703/Warehouse
      {:Name {:type :Kernel/String :identity true}
       :Location :Kernel/String})
+    (entity
+     :I703/GlobalPreferences
+     {:Data :Kernel/Map})
     (relationship
      :I703/Section
      {:meta {:contains [:I703/Company :I703/Dept]}})
@@ -482,5 +485,6 @@
     (relationship
      :I703/Storage
      {:meta {:contains [:I703/Dept :I703/Warehouse]}}))
-  ;; TODO: Debug call - (rg/find-nodes :I703)
-  true)
+  (let [g (rg/build-graph :I703)]
+    (is (= (set [:I703/Company :I703/GlobalPreferences])
+           (rg/rep (rg/roots g))))))
