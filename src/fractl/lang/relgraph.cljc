@@ -2,6 +2,7 @@
   "Traversal of the schema/instance graph as inferred from `contains` relationships"
   (:require [clojure.set :as set]
             [fractl.component :as cn]
+            [fractl.meta :as mt]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.lang.internal :as li]))
@@ -17,6 +18,8 @@
               (li/name? (first ks))))))
 
 (def ^:private roots-tag :-*-roots-*-)
+(def ^:private paths-tag :-*-paths-*-)
+(def ^:private back-link-tag :-*-back-link-*-)
 
 (defn- attach-roots [graph]
   (assoc
@@ -30,7 +33,7 @@
        result))))
 
 (defn- as-contains-node [[rel-name child-entity]]
-  {:type :contains
+  {:type mt/contains
    :relationship rel-name
    :to child-entity})
 
@@ -47,15 +50,29 @@
   ;; TODO: implement
   )
 
-(def graph? roots-tag)
+(def roots identity)
 
-(defn roots [graph]
-  (select-keys graph [roots-tag]))
+(defn paths [graph root-node]
+  (when-let [ps (root-node graph)]
+    {paths-tag ps back-link-tag [root-node graph]}))
+
+(defn- paths-source-graph [paths]
+  (second (back-link-tag paths)))
+
+(defn- paths-rep [obj]
+  (when-let [ps (paths-tag obj)]
+    (set (mapv :relationship ps))))
+
+(defn descend [paths rel-name]
+  (when-let [path (first (filter #(= rel-name (:relationship %))
+                                 (paths-tag paths)))]
+    (assoc (paths-source-graph paths)
+           roots-tag (set [(:to path)]))))
 
 (defn rep [obj]
   (if-let [rts (roots-tag obj)]
     rts
-    nil))
+    (paths-rep obj)))
 
 (defn build-graph [root]
   (cond

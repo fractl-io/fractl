@@ -487,4 +487,10 @@
      {:meta {:contains [:I703/Dept :I703/Warehouse]}}))
   (let [g (rg/build-graph :I703)]
     (is (= (set [:I703/Company :I703/GlobalPreferences])
-           (rg/rep (rg/roots g))))))
+           (rg/rep (rg/roots g))))
+    (let [paths (rg/paths g :I703/Company)
+          subg (rg/descend paths :I703/Section)]
+      (is (= (set [:I703/Section]) (rg/rep paths)))
+      (is (= (set [:I703/Dept]) (rg/rep (rg/roots subg))))
+      (is (= (set [:I703/WorksFor :I703/Storage])
+             (rg/rep (rg/paths subg :I703/Dept)))))))
