@@ -189,6 +189,33 @@
           (log/exception ex)
           (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
+(defn- process-signup [[auth-config _] request]
+  (if-not auth-config
+    (internal-error "cannot process sign-up - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad sign-up request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/SignUp evobj))
+          (bad-request (str "not a signup event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [result (auth/upsert-user
+                          (assoc
+                           auth-config
+                           :event evobj))]
+              (ok result data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized "sign-up failed" data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
 (defn- process-login [evaluator [auth-config _ :as auth-info] request]
   (if-not auth-config
     (internal-error "cannot process login - authentication not enabled")
@@ -237,6 +264,7 @@
   (let [r (routes
            (POST uh/login-prefix [] (:login handlers))
            (POST uh/logout-prefix [] (:logout handlers))
+           (POST uh/signup-prefix [] (:signup handlers))
            (POST (str uh/entity-event-prefix ":component/:event") []
                  (:request handlers))
            (POST uh/query-prefix [] (:query handlers))
@@ -282,6 +310,7 @@
          auth
          {:login (partial process-login evaluator auth-info)
           :logout (partial process-logout auth)
+          :signup (partial process-signup auth-info)
           :request (partial process-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
