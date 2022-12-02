@@ -44,7 +44,7 @@
           false
           (throw e))))))
 
-;; right now only creates user, update user is done directly via frontend
+;; Right now it only creates user, update user is done directly by frontend.
 (defmethod auth/upsert-user tag [{:keys [client-id user-pool-id] user auth/instance-key :as req}]
   (when (user-exists? (:Email user) user-pool-id req)
     (let [{:keys [Name FirstName LastName Password Email]} user]

@@ -11,6 +11,5 @@
 (defn setup-resolver [config]
   (let [resolver (authn/make :authentication config)]
     (rr/compose-resolver
-     ;; give :auth-user-type as :Fractl.Meta.Identity/User in config.edn
      (vec (concat [:Kernel.Identity/User] [(:auth-user-type config)]))
      resolver)))

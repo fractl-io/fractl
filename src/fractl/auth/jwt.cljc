@@ -17,9 +17,6 @@
            ^JwtClaims claims (.processToClaims consumer token)]
        (json/decode (.getRawJson claims)))))
 
-;; (defn jwks-decode [token jwks-url]
-;;   (clj-jwt/unsign jwks-url token))
-
 ;; Copied from `https://github.com/sikt-no/clj-jwt/blob/main/src/no/nsd/clj_jwt.clj` 
 ;; because not able to add it as a dependency in `project.clj`.
 ;; Opened an issue for that: https://github.com/sikt-no/clj-jwt/issues/2
