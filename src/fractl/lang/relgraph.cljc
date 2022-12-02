@@ -75,18 +75,11 @@
     (paths-rep obj)))
 
 (defn build-graph [root]
-  (cond
-    (component-name? root)
+  (when (component-name? root)
     (let [enames (cn/entity-names root)]
       (do-build-graph
        (seq
         (filter
          #(and (not (cn/relationship? %))
                (not (cn/meta-entity-for-any? enames %)))
-         enames))))
-
-    (path? root)
-    (nodes-in-path root)
-
-    :else
-    (u/throw-ex (str "not a valid graph-root - " root))))
+         enames))))))
