@@ -5,7 +5,8 @@
             [fractl.meta :as mt]
             [fractl.util :as u]
             [fractl.util.seq :as su]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            [fractl.evaluator :as ev]))
 
 (defn- component-name? [obj]
   (and (li/name? obj)
@@ -83,3 +84,9 @@
          #(and (not (cn/relationship? %))
                (not (cn/meta-entity-for-any? enames %)))
          enames))))))
+
+(defn find-parents [instance]
+  (let [entity-name (cn/instance-type instance)]
+    (when-let [parent-rels (cn/containing-parents entity-name)]
+      ;; TODO: query parent instances and return them with relationship infos
+      )))

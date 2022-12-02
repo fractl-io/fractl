@@ -1493,14 +1493,19 @@
 (def relmeta-key :-*-relmeta-*-)
 (def relationship-meta relmeta-key)
 
-(defn contained-children [recname]
-  (when-let [rels (seq (find-relationships recname))]
-    (su/nonils
-     (mapv #(let [meta (fetch-meta %)
-                  contains (mt/contains meta)]
-              (when (= recname (first contains))
-                [% (second contains)]))
-           rels))))
+(defn- contain-rels [as-parent recname]
+  (let [accessors [first second]
+        [this that] (if as-parent (reverse accessors) accessors)]
+    (when-let [rels (seq (find-relationships recname))]
+      (su/nonils
+       (mapv #(let [meta (fetch-meta %)
+                    contains (mt/contains meta)]
+                (when (= recname (this contains))
+                  [% (that contains)]))
+             rels)))))
+
+(def contained-children (partial contain-rels false))
+(def containing-parents (partial contain-rels true))
 
 (defn relationship-on-attributes [rel-name]
   (:on (relmeta-key (fetch-meta rel-name))))
