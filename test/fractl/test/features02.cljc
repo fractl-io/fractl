@@ -484,7 +484,17 @@
      {:meta {:contains [:I703/Dept :I703/Employee]}})
     (relationship
      :I703/Storage
-     {:meta {:contains [:I703/Dept :I703/Warehouse]}}))
+     {:meta {:contains [:I703/Dept :I703/Warehouse]}})
+    (event
+     :I703/CreateDept
+     {:Company :Kernel/String})
+    (dataflow
+     :I703/CreateDept
+     {:I703/Company {:Name? :I703/CreateDept.Company}
+      :as [:C]}
+     {:I703/Dept
+      {:No 101}
+      :-> [{:I703/Section {}} :C]}))
   (let [g (rg/build-graph :I703)]
     (is (= (set [:I703/Company :I703/GlobalPreferences])
            (rg/rep (rg/roots g))))
@@ -493,4 +503,19 @@
       (is (= (set [:I703/Section]) (rg/rep paths)))
       (is (= (set [:I703/Dept]) (rg/rep (rg/roots subg))))
       (is (= (set [:I703/WorksFor :I703/Storage])
-             (rg/rep (rg/paths subg :I703/Dept)))))))
+             (rg/rep (rg/paths subg :I703/Dept))))))
+  (let [c (tu/first-result
+           {:I703/Upsert_Company
+            {:Instance
+             {:I703/Company {:Name "c1"}}}})
+        d (tu/result
+           {:I703/CreateDept
+            {:Company "c1"}})
+        [[rel-p ptype] pinst] (first (rg/find-parents d))
+        [[rel-c ctype] cinst] (first (rg/find-children c))]
+    (is (= :I703/Section rel-p))
+    (is (= :I703/Company ptype))
+    (is (cn/same-instance? pinst c))
+    (is (= :I703/Section rel-c))
+    (is (= :I703/Dept ctype))
+    (is (cn/same-instance? cinst d))))

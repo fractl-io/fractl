@@ -85,8 +85,22 @@
                (not (cn/meta-entity-for-any? enames %)))
          enames))))))
 
-(defn find-parents [instance]
-  (let [entity-name (cn/instance-type instance)]
-    (when-let [parent-rels (cn/containing-parents entity-name)]
-      ;; TODO: query parent instances and return them with relationship infos
-      )))
+(defn- find-instance-contains-rels [contains-lookup instance]
+  (let [[_ e :as inst-type] (li/split-path (cn/instance-type instance))
+        entity-name (li/make-path inst-type)]
+    (when-let [parent-rels (seq (contains-lookup entity-name))]
+      (let [inst-id ((cn/identity-attribute-name entity-name) instance)
+            qattr (keyword (str (name e) "?"))]
+        (mapv
+         (fn [p]
+           [p
+            (when-let [relinst (first (ev/safe-eval-pattern {(first p) {qattr inst-id}}))]
+              (let [[c pe :as parent-entity] (li/split-path (second p))
+                    lookupevt-name (keyword (str (name c) "/Lookup_" (name pe)))
+                    pidattr (cn/identity-attribute-name parent-entity)
+                    pidval (pe relinst)]
+                (first (ev/safe-eval {lookupevt-name {pidattr pidval}}))))])
+         parent-rels)))))
+
+(def find-parents (partial find-instance-contains-rels cn/containing-parents))
+(def find-children (partial find-instance-contains-rels cn/contained-children))
