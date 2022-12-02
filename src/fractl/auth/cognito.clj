@@ -2,10 +2,7 @@
   (:require [amazonica.aws.cognitoidp :as aws]
             [amazonica.core :refer [ex->map]]
             [fractl.auth.core :as auth]
-            [fractl.auth.jwt :as jwt]
-            [cheshire.core :as json]
-            [buddy.core.keys :as keys])
-  (:import (org.apache.commons.lang3 NotImplementedException)))
+            [fractl.auth.jwt :as jwt]))
 
 (def ^:private tag :cognito)
 
@@ -73,11 +70,14 @@
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))
 
-;; Frontend should use:
-;; `https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_GlobalSignOut.html` 
-;; directly for now.
-(defmethod auth/user-logout tag [_req]
-  (throw (NotImplementedException. "Use 'https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_GlobalSignOut.html'")))
+(defmethod auth/user-logout tag [{:keys [sub user-pool-id] :as req}]
+  (aws/admin-user-global-sign-out
+   (auth/make-client req)
+   :user-pool-id user-pool-id
+   :username (:username sub)))
 
-(defmethod auth/delete-user tag [& args]
-  (println ">>>>>delete-user" (pr-str args)))
+(defmethod auth/delete-user tag [{:keys [sub user-pool-id] :as req}]
+  (aws/admin-delete-user
+   (auth/make-client req)
+   :user-pool-id user-pool-id
+   :username (:username sub)))
