@@ -15,6 +15,8 @@
 (defmulti session-sub service-tag)
 ;; Logout from the auth broker and return some truthy value.
 (defmulti user-logout service-tag)
+;; Get user details
+(defmulti get-user service-tag)
 (defmulti upsert-user service-tag)
 (defmulti delete-user service-tag)
 

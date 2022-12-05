@@ -2,7 +2,8 @@
   (:require [amazonica.aws.cognitoidp :as aws]
             [amazonica.core :refer [ex->map]]
             [fractl.auth.core :as auth]
-            [fractl.auth.jwt :as jwt]))
+            [fractl.auth.jwt :as jwt]
+            [fractl.component :as cn]))
 
 (def ^:private tag :cognito)
 
@@ -44,10 +45,12 @@
           false
           (throw e))))))
 
-;; Right now it only creates user, update user is done directly by frontend.
-(defmethod auth/upsert-user tag [{:keys [client-id user-pool-id] user auth/instance-key :as req}]
-  (when (user-exists? (:Email user) user-pool-id req)
-    (let [{:keys [Name FirstName LastName Password Email]} user]
+(defmethod auth/upsert-user tag [{:keys [client-id user-pool-id event] :as req}]
+  (println ">>>upsert-user\n" req)
+  (if (= :SignUp (last (cn/instance-type event)))
+    ;; Create User
+    (let [user (:User event)
+          {:keys [Name FirstName LastName Password Email]} user]
       (aws/sign-up
        (auth/make-client req)
        :client-id client-id
@@ -56,7 +59,27 @@
                          ["family_name" LastName]
                          ["email" Email]
                          ["name" Name]]
-       :username Email))))
+       :username Email))
+    ;; Update user
+    (let [user-details (:UserDetails event)
+          cognito-username (get-in req [:user :username])
+          inner-user-details (:User user-details)
+          {:keys [FirstName LastName]} inner-user-details
+          github-details (get-in user-details [:OtherDetails :GitHub])
+          {:keys [Username Org Token]} github-details
+          refresh-token (get-in user-details [:OtherDetails :RefreshToken])]
+      (aws/admin-update-user-attributes
+       (auth/make-client req)
+       :username cognito-username
+       :user-pool-id user-pool-id
+       :user-attributes [["given_name" FirstName]
+                         ["family_name" LastName]
+                         ["custom:github_org" Org]
+                         ["custom:github_token" Token]
+                         ["custom:github_username" Username]]))))
+      ;; send new token back using admin-initiate-auth with refresh-token
+
+
 
 (defmethod auth/session-user tag [all-stuff-map]
   (let [user-details (get-in all-stuff-map [:request :identity])]
@@ -79,5 +102,25 @@
 (defmethod auth/delete-user tag [{:keys [sub user-pool-id] :as req}]
   (aws/admin-delete-user
    (auth/make-client req)
-   :user-pool-id user-pool-id
-   :username (:username sub)))
+   :username (:username sub)
+   :user-pool-id user-pool-id))
+
+(defmethod auth/get-user tag [{:keys [user user-pool-id] :as req}]
+  (let [resp (aws/admin-get-user
+              (auth/make-client req)
+              :username (:username user)
+              :user-pool-id user-pool-id)
+        user-attributes (:user-attributes resp)
+        user-attributes-map (reduce
+                             (fn [attributes-map attribute-map]
+                               (assoc attributes-map (keyword (:name attribute-map)) (:value attribute-map)))
+                             {}
+                             user-attributes)
+        {:keys [custom:github_username custom:github_token custom:github_org
+                given_name family_name email]} user-attributes-map]
+    {:GitHub {:Username custom:github_username
+              :Token custom:github_token
+              :Org custom:github_org}
+     :FirstName given_name
+     :LastName family_name
+     :Email email}))
