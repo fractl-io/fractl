@@ -1501,11 +1501,26 @@
        (mapv #(let [meta (fetch-meta %)
                     contains (mt/contains meta)]
                 (when (= recname (this contains))
-                  [% (that contains)]))
+                  [% :contains (that contains)]))
              rels)))))
+
+(def relinfo-name first)
+(defn relinfo-to [[_ _ to]] to)
+(def relinfo-type second)
 
 (def contained-children (partial contain-rels false))
 (def containing-parents (partial contain-rels true))
+
+(defn between-relationships [recname]
+  (when-let [rels (seq (find-relationships recname))]
+    (su/nonils
+     (mapv #(let [meta (fetch-meta %)
+                  elems (mt/between meta)]
+              (when elems
+                (let [that (or (first (filter (fn [e] (not= recname e)) elems))
+                               recname)]
+                  [% :between that])))
+           rels))))
 
 (defn relationship-on-attributes [rel-name]
   (:on (relmeta-key (fetch-meta rel-name))))

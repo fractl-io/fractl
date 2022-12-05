@@ -29,12 +29,15 @@
    (loop [g graph, result (set (keys graph))]
      (if-let [[k vs] (first g)]
        (if (seq vs)
-         (recur (rest g) (set/difference result (set (mapv :to vs))))
+         (recur
+          (rest g)
+          (set/difference
+           result (set (filter (partial not= k) (mapv :to vs)))))
          (recur (rest g) result))
        result))))
 
-(defn- as-contains-node [[rel-name child-entity]]
-  {:type mt/contains
+(defn- as-node [[rel-name rel-type child-entity]]
+  {:type rel-type
    :relationship rel-name
    :to child-entity})
 
@@ -42,14 +45,11 @@
   (attach-roots
    (reduce
     (fn [graph entity-name]
-      (let [children (mapv as-contains-node (cn/contained-children entity-name))
+      (let [children (mapv as-node (cn/contained-children entity-name))
+            between-rels (mapv as-node (cn/between-relationships entity-name))
             existing-children (entity-name graph)]
-        (assoc graph entity-name (vec (concat existing-children children)))))
+        (assoc graph entity-name (vec (concat existing-children children between-rels)))))
     {} entity-names)))
-
-(defn- nodes-in-path [path-info]
-  ;; TODO: implement
-  )
 
 (def roots identity)
 
@@ -69,6 +69,10 @@
                                  (paths-tag paths)))]
     (assoc (paths-source-graph paths)
            roots-tag (set [(:to path)]))))
+
+(defn node-object [paths rel-name]
+  (when-let [ps (paths-tag paths)]
+    (first (filter #(= rel-name (:relationship %)) ps))))
 
 (defn rep [obj]
   (if-let [rts (roots-tag obj)]
@@ -94,8 +98,8 @@
         (mapv
          (fn [p]
            [p
-            (when-let [relinst (first (ev/safe-eval-pattern {(first p) {qattr inst-id}}))]
-              (let [[c pe :as parent-entity] (li/split-path (second p))
+            (when-let [relinst (first (ev/safe-eval-pattern {(cn/relinfo-name p) {qattr inst-id}}))]
+              (let [[c pe :as parent-entity] (li/split-path (cn/relinfo-to p))
                     lookupevt-name (keyword (str (name c) "/Lookup_" (name pe)))
                     pidattr (cn/identity-attribute-name parent-entity)
                     pidval (pe relinst)]

@@ -485,6 +485,9 @@
     (relationship
      :I703/Storage
      {:meta {:contains [:I703/Dept :I703/Warehouse]}})
+    (relationship
+     :I703/ReportsTo
+     {:meta {:between [:I703/Employee :I703/Employee]}})
     (event
      :I703/CreateDept
      {:Company :Kernel/String})
@@ -502,8 +505,16 @@
           subg (rg/descend paths :I703/Section)]
       (is (= (set [:I703/Section]) (rg/rep paths)))
       (is (= (set [:I703/Dept]) (rg/rep (rg/roots subg))))
-      (is (= (set [:I703/WorksFor :I703/Storage])
-             (rg/rep (rg/paths subg :I703/Dept))))))
+      (let [paths (rg/paths subg :I703/Dept)
+            subg (rg/descend paths :I703/WorksFor)]
+        (is (= (set [:I703/WorksFor :I703/Storage]) (rg/rep paths)))
+        (is (= (set [:I703/Employee]) (rg/rep (rg/roots subg))))
+        (let [n (rg/node-object
+                 (rg/paths subg :I703/Employee)
+                 :I703/ReportsTo)]
+          (is (= :between (:type n)))
+          (is (= :I703/Employee (:to n)))
+          (is (= :I703/ReportsTo (:relationship n)))))))
   (let [c (tu/first-result
            {:I703/Upsert_Company
             {:Instance
@@ -511,8 +522,12 @@
         d (tu/result
            {:I703/CreateDept
             {:Company "c1"}})
-        [[rel-p ptype] pinst] (first (rg/find-parents d))
-        [[rel-c ctype] cinst] (first (rg/find-children c))]
+        [prelinfo pinst] (first (rg/find-parents d))
+        rel-p (cn/relinfo-name prelinfo)
+        ptype (cn/relinfo-to prelinfo)
+        [crelinfo cinst] (first (rg/find-children c))
+        rel-c (cn/relinfo-name crelinfo)
+        ctype (cn/relinfo-to crelinfo)]
     (is (= :I703/Section rel-p))
     (is (= :I703/Company ptype))
     (is (cn/same-instance? pinst c))
