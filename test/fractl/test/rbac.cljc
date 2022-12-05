@@ -92,7 +92,7 @@
     (dataflow
      :PrivTest/CreateUsers
      {:Kernel.Identity/User
-      {:Email "u11@uh11.com"}}
+      {:Email "u11@u11.com"}}
      {:Kernel.Identity/User
       {:Email "u33@u33.com"}}
      {:Kernel.Identity/User
@@ -249,7 +249,7 @@
   (defcomponent :RbacOwner
     (entity
      :RbacOwner/User
-     {:User {:ref :Kernel.Identity/User.Name}})
+     {:User {:ref :Kernel.Identity/User.Email}})
     (entity
      :RbacOwner/E
      {:X :Kernel/Int})
