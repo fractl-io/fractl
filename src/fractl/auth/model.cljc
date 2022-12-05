@@ -29,9 +29,9 @@
 
 (event
  :Kernel.Identity/FindUser
- {:Name :Kernel/String})
+ {:Email :Kernel/Email})
 
 (dataflow
  :Kernel.Identity/FindUser
  {:Kernel.Identity/User
-  {:Name? :Kernel.Identity/FindUser.Name}})
+  {:Email? :Kernel.Identity/FindUser.Email}})
