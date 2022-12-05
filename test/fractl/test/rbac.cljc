@@ -169,7 +169,6 @@
        (is (cn/instance-of? :PrivTest/User su))
        (is (= rbac/default-superuser-email (:User su)))
        (is (= [:rbac] (ei/init-interceptors [:rbac])))
-      ;;  (println ">>>>>>>>>" (tu/result (with-user rbac/default-superuser-email :PrivTest/CreateUsers)))
        (let [u2 (first
                  (tu/result
                   (with-user rbac/default-superuser-email :PrivTest/CreateUsers)))]
