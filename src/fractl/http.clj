@@ -225,6 +225,7 @@
           (do (log/warn (str "bad login request - " err))
               (bad-request err data-fmt))
           (try
+            ;; TODO: Check login failure here. It raises exception in client for unsuccessful login.
             (let [result (auth/user-login
                           (assoc
                            auth-config
@@ -266,7 +267,7 @@
            (POST uh/logout-prefix [] (:logout handlers))
            (POST uh/signup-prefix [] (:signup handlers))
            (POST (str uh/entity-event-prefix ":component/:event") []
-                 (:request handlers))
+             (:request handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (GET "/meta/:component" [] (:meta handlers))
@@ -294,7 +295,7 @@
       (bad-request "invalid auth data" (find-data-format request)))))
 
 (defn- auth-service-supported? [auth]
-  (some #{(:service auth)} [:keycloak :dataflow]))
+  (some #{(:service auth)} [:keycloak :cognito :dataflow]))
 
 (defn make-auth-handler [config]
   (let [auth (:authentication config)

@@ -6,13 +6,13 @@
             [fractl.lang.internal :as li]
             [fractl.evaluator.intercept.internal :as ii]))
 
-(def default-superuser-name "superuser")
+(def default-superuser-email "superuser@superuser.com")
 (def ^:private superuser (atom nil))
 
 (defn- find-su-event []
   (cn/make-instance
    {:Kernel.Identity/FindUser
-    {:Name default-superuser-name}}))
+    {:Email default-superuser-email}}))
 
 (defn- lookup-superuser []
   (when-let [r (ev/safe-eval (find-su-event))]
@@ -23,7 +23,7 @@
              {:Kernel.Identity/Upsert_User
               {:Instance
                {:Kernel.Identity/User
-                (merge {:Name default-superuser-name}
+                (merge {:Email default-superuser-email}
                        (when pswd
                          {:Password pswd}))}}})]
     (first
@@ -40,8 +40,8 @@
 (defn superuser? [user]
   (cn/same-instance? user @superuser))
 
-(defn superuser-name? [user-name]
-  (= user-name (:Name @superuser)))
+(defn superuser-email? [email]
+  (= email (:Email @superuser)))
 
 (defn- find-privileges [role-names]
   (ev/safe-eval-internal
@@ -109,11 +109,11 @@
            (some #{action :*} (:Actions p))))
     privs)))
 
-(defn- has-priv? [action user-name arg]
-  (if (superuser-name? user-name)
+(defn- has-priv? [action email arg]
+  (if (superuser-email? email)
     true
     (let [resource (:data arg)
-          privs (privileges user-name)
+          privs (privileges email)
           predic (partial filter-privs privs action (:ignore-refs arg))]
       (if (ii/attribute-ref? resource)
         (or (predic (li/root-path resource))

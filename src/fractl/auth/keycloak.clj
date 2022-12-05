@@ -78,7 +78,7 @@
     (u/throw-ex (str "failed to convert to login event: " (cn/instance-type event-inst)))))
 
 (defn- user-properties [inst]
-  {:username (:Name inst)
+  {:username (:Email inst)
    :first-name (:FirstName inst)
    :last-name (:LastName inst)
    :password (:Password inst)
