@@ -2,6 +2,7 @@
   (:require [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.auth.keycloak]
+            [fractl.auth.cognito]
             [fractl.auth.df]
             [fractl.auth.model :as am]
             [fractl.resolver.registry :as rr]

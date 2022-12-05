@@ -18,8 +18,8 @@
   (defcomponent :RoleMgmt
     (dataflow
      :RoleMgmt/CreateUsers
-     {:Kernel.Identity/User {:Name "abc"}}
-     {:Kernel.Identity/User {:Name "xyz"}})
+     {:Kernel.Identity/User {:Email "abc@abc.com"}}
+     {:Kernel.Identity/User {:Email "xyz@xyz.com"}})
     (dataflow
      :RoleMgmt/CreateRoles
      {:Kernel.RBAC/Role {:Name "r1"}}
@@ -43,9 +43,9 @@
     (dataflow
      :RoleMgmt/AssignRoles
      {:Kernel.RBAC/RoleAssignment
-      {:Role "r1" :Assignee "abc"}}
+      {:Role "r1" :Assignee "abc@abc.com"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "r2" :Assignee "xyz"}}))
+      {:Role "r2" :Assignee "xyz@xyz.com"}}))
   (let [[r1 r2 r3 r4]
         (mapv tu/result [:RoleMgmt/CreateUsers :RoleMgmt/CreateRoles
                          :RoleMgmt/AssignPrivileges :RoleMgmt/AssignRoles])]
@@ -53,17 +53,17 @@
     (is (cn/instance-of? :Kernel.RBAC/Role (first r2)))
     (is (cn/instance-of? :Kernel.RBAC/PrivilegeAssignment (first r3)))
     (is (cn/instance-of? :Kernel.RBAC/RoleAssignment (first r4)))
-    (let [ps1 (rbac/privileges "abc")
-          ps2 (rbac/privileges "xyz")
+    (let [ps1 (rbac/privileges "abc@abc.com")
+          ps2 (rbac/privileges "xyz@xyz.com")
           p2 (first ps2)]
       (is (= (count ps1) 2))
       (is (= (count ps2) 1))
       (is (= [:read] (:Actions p2)))
       (is (= [:C] (:Resource p2))))))
 
-(defn- with-user [user-name event]
+(defn- with-user [email event]
   (cn/assoc-event-context-user
-   user-name
+   email
    (cn/make-instance
     (if (keyword? event)
       {event {}}
@@ -80,7 +80,7 @@
   (defcomponent :PrivTest
     (entity
      :PrivTest/User
-     {:User {:ref :Kernel.Identity/User.Name}})
+     {:User {:ref :Kernel.Identity/User.Email}})
     (entity
      :PrivTest/E
      {:X :Kernel/Int
@@ -88,21 +88,21 @@
     (dataflow
      :PrivTest/CreateSuperUser
      {:PrivTest/User
-      {:User rbac/default-superuser-name}})
+      {:User rbac/default-superuser-email}})
     (dataflow
      :PrivTest/CreateUsers
      {:Kernel.Identity/User
-      {:Name "u11"}}
+      {:Email "u11@u11.com"}}
      {:Kernel.Identity/User
-      {:Name "u33"}}
+      {:Email "u33@u33.com"}}
      {:Kernel.Identity/User
-      {:Name "u22"}}
+      {:Email "u22@u22.com"}}
      {:PrivTest/User
-      {:User "u11"}}
+      {:User "u11@u11.com"}}
      {:PrivTest/User
-      {:User "u33"}}
+      {:User "u33@u33.com"}}
      {:PrivTest/User
-      {:User "u22"}})
+      {:User "u22@u22.com"}})
     (dataflow
      :PrivTest/CreatePrivileges
      {:Kernel.RBAC/Role {:Name "r11"}}
@@ -149,9 +149,9 @@
      {:Kernel.RBAC/RoleAssignment
       {:Role "r11" :Assignee "u11"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "r33" :Assignee "u33"}}
+      {:Role "r33" :Assignee "u33@u33.com"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "r22" :Assignee "u22"}})
+      {:Role "r22" :Assignee "u22@u22.com"}})
     (dataflow
      :PrivTest/UpdateE
      {:PrivTest/E
@@ -167,18 +167,18 @@
    (fn []
      (let [su (first (tu/result :PrivTest/CreateSuperUser))]
        (is (cn/instance-of? :PrivTest/User su))
-       (is (= rbac/default-superuser-name (:User su)))
+       (is (= rbac/default-superuser-email (:User su)))
        (is (= [:rbac] (ei/init-interceptors [:rbac])))
        (let [u2 (first
                  (tu/result
-                  (with-user rbac/default-superuser-name :PrivTest/CreateUsers)))]
+                  (with-user rbac/default-superuser-email :PrivTest/CreateUsers)))]
          (is (cn/instance-of? :PrivTest/User u2))
-         (is (= "u22" (:User u2))))
+         (is (= "u22@u22.com" (:User u2))))
        (let [r2 (first
                  (tu/result
-                  (with-user rbac/default-superuser-name :PrivTest/CreatePrivileges)))]
+                  (with-user rbac/default-superuser-email :PrivTest/CreatePrivileges)))]
          (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r2))
-         (is (and (= "r22" (:Role r2)) (= "u22" (:Assignee r2)))))
+         (is (and (= "r22" (:Role r2)) (= "u22@u22.com" (:Assignee r2)))))
        (tu/is-error
         #(ev/eval-all-dataflows
           (cn/make-instance
@@ -189,7 +189,7 @@
        (tu/is-error
         #(ev/eval-all-dataflows
           (with-user
-            "u22"
+            "u22@u22.com"
             {:PrivTest/Upsert_E
              {:Instance
               {:PrivTest/E
@@ -218,11 +218,11 @@
            (partial-inst?
             100
             (tu/first-result
-             (with-user "u33" lookup)))
+             (with-user "u33@u33.com" lookup)))
            (tu/is-error
             #(ev/eval-all-dataflows
               (with-user
-                "u33"
+                "u33@u33.com"
                 {:PrivTest/UpdateE
                  {:E id :X 1000 :Y 2000}})))
            (partial-inst?
@@ -230,13 +230,13 @@
             (get-in
              (tu/first-result
               (with-user
-                "u33"
+                "u33@u33.com"
                 {:PrivTest/UpdateEX
                  {:E id :X 1000 :Y 2000}}))
              [:transition :to])))
          (let [inst2 (first
                       (tu/result
-                       (with-user "u22" lookup)))]
+                       (with-user "u22@u22.com" lookup)))]
            (is (cn/instance-of? :PrivTest/E inst2))
            (is (= id (cn/id-attr inst2)))
            (is (= 1000 (:X inst2)))
@@ -248,24 +248,24 @@
   (defcomponent :RbacOwner
     (entity
      :RbacOwner/User
-     {:User {:ref :Kernel.Identity/User.Name}})
+     {:User {:ref :Kernel.Identity/User.Email}})
     (entity
      :RbacOwner/E
      {:X :Kernel/Int})
     (dataflow
      :RbacOwner/CreateSuperUser
      {:RbacOwner/User
-      {:User rbac/default-superuser-name}})
+      {:User rbac/default-superuser-email}})
     (dataflow
      :RbacOwner/CreateUsers
      {:Kernel.Identity/User
-      {:Name "uu11"}}
+      {:Email "uu11@uu11.com"}}
      {:Kernel.Identity/User
-      {:Name "uu22"}}
+      {:Email "uu22@uu22.com"}}
      {:RbacOwner/User
-      {:User "uu11"}}
+      {:User "uu11@uu11.com"}}
      {:RbacOwner/User
-      {:User "uu22"}})
+      {:User "uu22@uu22.com"}})
     (dataflow
      :RbacOwner/CreatePrivileges
      {:Kernel.RBAC/Role {:Name "rr11"}}
@@ -284,29 +284,29 @@
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "rr11" :Privilege "pp22"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "rr11" :Assignee "uu11"}}
+      {:Role "rr11" :Assignee "uu11@uu11.com"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "rr11" :Assignee "uu22"}}))
+      {:Role "rr11" :Assignee "uu22@uu22.com"}}))
   (call-with-rbac
    (fn []
      (let [su (first (tu/result :RbacOwner/CreateSuperUser))]
        (is (cn/instance-of? :RbacOwner/User su))
-       (is (= rbac/default-superuser-name (:User su)))
+       (is (= rbac/default-superuser-email (:User su)))
        (is (= [:rbac] (ei/init-interceptors [:rbac])))
        (let [u2 (first
                  (tu/result
-                  (with-user rbac/default-superuser-name :RbacOwner/CreateUsers)))]
+                  (with-user rbac/default-superuser-email :RbacOwner/CreateUsers)))]
          (is (cn/instance-of? :RbacOwner/User u2))
-         (is (= "uu22" (:User u2))))
+         (is (= "uu22@uu22.com" (:User u2))))
        (let [r1 (first
                  (tu/result
-                  (with-user rbac/default-superuser-name :RbacOwner/CreatePrivileges)))]
+                  (with-user rbac/default-superuser-email :RbacOwner/CreatePrivileges)))]
          (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r1))
-         (is (and (= "rr11" (:Role r1)) (= "uu22" (:Assignee r1)))))
+         (is (and (= "rr11" (:Role r1)) (= "uu22@uu22.com" (:Assignee r1)))))
        (let [e1 (first
                  (tu/result
                   (with-user
-                    "uu11"
+                    "uu11@uu11.com"
                     {:RbacOwner/Upsert_E
                      {:Instance
                       {:RbacOwner/E
@@ -314,7 +314,7 @@
              e2 (first
                  (tu/result
                   (with-user
-                    "uu22"
+                    "uu22@uu22.com"
                     {:RbacOwner/Upsert_E
                      {:Instance
                       {:RbacOwner/E
@@ -331,27 +331,27 @@
               e2
               (first
                (tu/result
-                (with-user "uu11" (lookup id2))))))
+                (with-user "uu11@uu11.com" (lookup id2))))))
          (is (cn/same-instance?
               e1
               (first
                (tu/result
-                (with-user "uu22" (lookup id1))))))
+                (with-user "uu22@uu22.com" (lookup id1))))))
          (is (cn/same-instance?
               e1
               (first
                (tu/result
-                (with-user "uu11" (delete id1))))))
+                (with-user "uu11@uu11.com" (delete id1))))))
          (is (= :error
                 (:status
                  (first
                   (tu/eval-all-dataflows
-                   (with-user "uu11" (delete id2)))))))
+                   (with-user "uu11@uu11.com" (delete id2)))))))
          (is (cn/same-instance?
               e2
               (first
                (tu/result
-                (with-user "uu22" (delete id2)))))))))
+                (with-user "uu22@uu22.com" (delete id2)))))))))
    #(ei/reset-interceptors!)))
 
 (deftest basic
@@ -366,9 +366,9 @@
     (dataflow
      :RbacH/CreateUsers
      {:Kernel.Identity/User
-      {:Name "uh11"}}
+      {:Email "uh11@uh11.com"}}
      {:Kernel.Identity/User
-      {:Name "uh22"}})
+      {:Email "uh22@uh22.com"}})
     (dataflow
      :RbacH/CreatePrivileges
      {:Kernel.RBAC/Role {:Name "rh11"}}
@@ -386,9 +386,9 @@
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "rh11" :Privilege "ph22"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "rh11" :Assignee "uh11"}}
+      {:Role "rh11" :Assignee "uh11@uh11.com"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "rh22" :Assignee "uh22"}})
+      {:Role "rh22" :Assignee "uh22@uh22.com"}})
     (dataflow
      :RbacH/AssignParent
      {:Kernel.RBAC/AssignRelationship
@@ -398,14 +398,14 @@
      (is (= [:rbac] (ei/init-interceptors [:rbac])))
      (let [u2 (first
                (tu/result
-                (with-user rbac/default-superuser-name :RbacH/CreateUsers)))]
+                (with-user rbac/default-superuser-email :RbacH/CreateUsers)))]
        (is (cn/instance-of? :Kernel.Identity/User u2))
-       (is (= "uh22" (:Name u2))))
+       (is (= "uh22@uh22.com" (:Email u2))))
      (let [r2 (first
                (tu/result
-                (with-user rbac/default-superuser-name :RbacH/CreatePrivileges)))]
+                (with-user rbac/default-superuser-email :RbacH/CreatePrivileges)))]
        (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r2))
-       (is (and (= "rh22" (:Role r2)) (= "uh22" (:Assignee r2)))))
+       (is (and (= "rh22" (:Role r2)) (= "uh22@uh22.com" (:Assignee r2)))))
      (let [upsert-event {:RbacH/Upsert_E
                          {:Instance
                           {:RbacH/E
@@ -415,7 +415,7 @@
                               {cn/id-attr id}})]
        (tu/is-error
         #(tu/eval-all-dataflows
-          (with-user "uh22" upsert-event)))
+          (with-user "uh22@uh22.com" upsert-event)))
        (let [ok-test
              (fn [user]
                (let [u (tu/first-result (with-user user upsert-event))
@@ -426,13 +426,13 @@
                  u))]
          (tu/is-error
           #(tu/eval-all-dataflows
-            (with-user "uh22" (mk-lookup-event (cn/id-attr (ok-test "uh11"))))))
+            (with-user "uh22@uh22.com" (mk-lookup-event (cn/id-attr (ok-test "uh11@uh11.com"))))))
          (let [r (tu/first-result
-                  (with-user rbac/default-superuser-name :RbacH/AssignParent))]
+                  (with-user rbac/default-superuser-email :RbacH/AssignParent))]
            (is (cn/instance-of? :Kernel.RBAC/RoleRelationship r))
            (is (= "rh22" (:Parent r)))
            (is (= "rh11" (:Child r))))
          (rbac/force-reload-privileges!)
-         (let [u (ok-test "uh22")]
+         (let [u (ok-test "uh22@uh22.com")]
            (cn/instance-of? :RbacH/E u)))))
    #(ei/reset-interceptors!)))
