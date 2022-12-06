@@ -114,3 +114,6 @@
 
 (defmethod auth/session-sub tag [{request :request}]
   (get-session-value request :sub))
+
+(defmethod auth/get-user tag [_req]
+  (throw (Exception. "Not implemented")))

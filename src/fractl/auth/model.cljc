@@ -22,6 +22,15 @@
  :Kernel.Identity/SignUp
  {:User :Kernel.Identity/User})
 
+(entity
+ :Kernel.Identity/UserExtra
+ {:User :Kernel.Identity/User
+  :OtherDetails :Kernel/Map})
+
+(event
+ :Kernel.Identity/UpdateUser
+ {:UserDetails :Kernel.Identity/UserExtra})
+
 (event
  au/login-event-name
  {au/login-username :Kernel/String
