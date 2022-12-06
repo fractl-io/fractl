@@ -7,6 +7,7 @@
                      entity record relationship
                      dataflow]]
             [fractl.lang.syntax :as ls]
+            [fractl.lang.relgraph :as rg]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -454,3 +455,82 @@
      #(tu/eval-all-dataflows
        {:R11/CreateR
         {:X 1 :Y 20 :Z 300}}))))
+
+(deftest issue-703-contains-graph
+  (defcomponent :I703
+    (entity
+     :I703/Company
+     {:Name {:type :Kernel/String :identity true}})
+    (entity
+     :I703/Dept
+     {:No {:type :Kernel/Int :identity true}})
+    (entity
+     :I703/Employee
+     {:FirstName :Kernel/String
+      :LastName :Kernel/String
+      :Email {:type :Kernel/Email :identity true}})
+    (entity
+     :I703/Warehouse
+     {:Name {:type :Kernel/String :identity true}
+      :Location :Kernel/String})
+    (entity
+     :I703/GlobalPreferences
+     {:Data :Kernel/Map})
+    (relationship
+     :I703/Section
+     {:meta {:contains [:I703/Company :I703/Dept]}})
+    (relationship
+     :I703/WorksFor
+     {:meta {:contains [:I703/Dept :I703/Employee]}})
+    (relationship
+     :I703/Storage
+     {:meta {:contains [:I703/Dept :I703/Warehouse]}})
+    (relationship
+     :I703/ReportsTo
+     {:meta {:between [:I703/Employee :I703/Employee]}})
+    (event
+     :I703/CreateDept
+     {:Company :Kernel/String})
+    (dataflow
+     :I703/CreateDept
+     {:I703/Company {:Name? :I703/CreateDept.Company}
+      :as [:C]}
+     {:I703/Dept
+      {:No 101}
+      :-> [{:I703/Section {}} :C]}))
+  (let [g (rg/build-graph :I703)]
+    (is (= (set [:I703/Company :I703/GlobalPreferences])
+           (rg/rep (rg/roots g))))
+    (let [paths (rg/paths g :I703/Company)
+          subg (rg/descend paths :I703/Section)]
+      (is (= (set [:I703/Section]) (rg/rep paths)))
+      (is (= (set [:I703/Dept]) (rg/rep (rg/roots subg))))
+      (let [paths (rg/paths subg :I703/Dept)
+            subg (rg/descend paths :I703/WorksFor)]
+        (is (= (set [:I703/WorksFor :I703/Storage]) (rg/rep paths)))
+        (is (= (set [:I703/Employee]) (rg/rep (rg/roots subg))))
+        (let [n (rg/node-object
+                 (rg/paths subg :I703/Employee)
+                 :I703/ReportsTo)]
+          (is (= :between (:type n)))
+          (is (= :I703/Employee (:to n)))
+          (is (= :I703/ReportsTo (:relationship n)))))))
+  (let [c (tu/first-result
+           {:I703/Upsert_Company
+            {:Instance
+             {:I703/Company {:Name "c1"}}}})
+        d (tu/result
+           {:I703/CreateDept
+            {:Company "c1"}})
+        [prelinfo pinst] (first (rg/find-parents d))
+        rel-p (cn/relinfo-name prelinfo)
+        ptype (cn/relinfo-to prelinfo)
+        [crelinfo cinst] (first (rg/find-children c))
+        rel-c (cn/relinfo-name crelinfo)
+        ctype (cn/relinfo-to crelinfo)]
+    (is (= :I703/Section rel-p))
+    (is (= :I703/Company ptype))
+    (is (cn/same-instance? pinst c))
+    (is (= :I703/Section rel-c))
+    (is (= :I703/Dept ctype))
+    (is (cn/same-instance? cinst d))))

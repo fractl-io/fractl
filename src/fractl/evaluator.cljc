@@ -142,8 +142,8 @@
    and evaluator returned by a previous call to evaluator/make may be passed as
    the first two arguments."
   [compile-query-fn evaluator env event-instance]
-  (let [ dfs (c/compile-dataflows-for-event
-              compile-query-fn event-instance)
+  (let [dfs (c/compile-dataflows-for-event
+             compile-query-fn event-instance)
         logging-rules (logging/rules event-instance)
         hidden-attrs (logging/hidden-attributes logging-rules)
         ef (partial
@@ -211,7 +211,20 @@
      result))
   ([store-or-store-config resolver-or-resolver-config]
    (evaluator store-or-store-config resolver-or-resolver-config false))
-  ([] (evaluator nil nil)))
+  ([] (evaluator (es/get-active-store) nil)))
+
+(defn evaluate-pattern
+  ([store-or-store-config resolver-or-resolver-config pattern]
+   (let [store (if (nil? store-or-store-config)
+                 (or (es/get-active-store)
+                     (store-from-config store-or-store-config))
+                 (store-from-config store-or-store-config))
+         resolver (resolver-from-config resolver-or-resolver-config)
+         [compile-query-fn evaluator] (make store)
+         env (env/make store resolver)
+         opcode (c/compile-standalone-pattern compile-query-fn pattern)]
+     (dispatch evaluator env opcode)))
+  ([pattern] (evaluate-pattern nil nil pattern)))
 
 (defn- maybe-init-event [event-obj]
   (if (cn/event-instance? event-obj)
@@ -224,7 +237,7 @@
    (doall ((evaluator store-or-store-config resolver-or-resolver-config)
            (maybe-init-event event-obj))))
   ([event-obj]
-   (eval-all-dataflows event-obj nil nil)))
+   (eval-all-dataflows event-obj (es/get-active-store) nil)))
 
 (defn eval-pure-dataflows
   "Facility to evaluate dataflows without producing any side-effects.
@@ -251,7 +264,7 @@
 
 (defn ok-result
   ([result safe]
-   (let [f (first result)]
+   (let [f (if (map? result) result (first result))]
      (if (= :ok (:status f))
        (:result f)
        (let [msg (str "unexpected result: " result)]
@@ -273,3 +286,7 @@
    (eval-all-dataflows
     (mark-internal
      (cn/make-instance event-obj)))))
+
+(defn safe-eval-pattern [pattern]
+  (safe-ok-result
+   (evaluate-pattern pattern)))
