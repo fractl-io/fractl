@@ -934,6 +934,14 @@
     (mapv (partial maybe-compile-dataflow compile-query-fn wt)
           (cn/dataflows-for-event evt))))
 
+(defn compile-standalone-pattern
+  ([compile-query-fn with-types pattern]
+   (let [ctx (make-context with-types)]
+     (ctx/bind-compile-query-fn! ctx compile-query-fn)
+     (compile-pattern ctx pattern)))
+  ([compile-query-fn pattern]
+   (compile-standalone-pattern compile-query-fn cn/with-default-types pattern)))
+
 (defn- reference-attributes [attrs refrec]
   (when-let [result (cn/all-reference-paths attrs)]
     (let [[attr-name path] (first result)
