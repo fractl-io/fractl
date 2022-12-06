@@ -66,7 +66,6 @@
       (internal-error (.getMessage ex) data-fmt))))
 
 (defn- event-from-request [request event-name data-fmt auth-config]
-  ;; (println ";;>>>>event-from-request>>>\n" [request auth-config])
   (try
     (let [user (when auth-config
                  (auth/session-user
@@ -82,9 +81,6 @@
                     (or (cn/instance-type obj)
                         (u/string-as-keyword
                          (first (keys obj)))))]
-      ;; (println ">>>>>>>>>1" obj)
-      ;; (println ">>>>>>>>2" (cn/an-instance? obj))
-      ;; (println ">>>>>>3" (cn/make-event-instance obj-name (first (vals obj))))
       (if (or (not event-name) (= obj-name event-name))
         [(cn/assoc-event-context-user
           user

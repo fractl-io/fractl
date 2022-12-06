@@ -32,19 +32,6 @@
                                        "PASSWORD" (:Password event)}
                      :client-id client-id))
 
-(defn- user-exists? [username user-pool-id config]
-  (try
-    (aws/admin-get-user (auth/make-client config)
-                        :username username
-                        :user-pool-id user-pool-id)
-    true
-    (catch Exception e
-      (let [exception-details (ex->map e)
-            {:keys [error-code status-code]} exception-details]
-        (if (and (= status-code 400) (= error-code "UserNotFoundException"))
-          false
-          (throw e))))))
-
 (defmethod auth/upsert-user tag [{:keys [client-id user-pool-id event] :as req}]
   (if (= :SignUp (last (cn/instance-type event)))
     ;; Create User
