@@ -231,7 +231,7 @@
                            auth-config
                            :event evobj
                            :eval evaluator))]
-              (ok result data-fmt))
+              (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
               (unauthorized "login failed" data-fmt)))))
@@ -258,6 +258,52 @@
      (str "unsupported content-type in request - "
           (request-content-type request)))))
 
+(defn- process-get-user [auth-config request]
+  (if-let [data-fmt (find-data-format request)]
+    (if auth-config
+      (try
+        (let [user (auth/session-user
+                    (assoc auth-config :request request))
+              result (auth/get-user
+                      (assoc auth-config :user user))]
+          (ok {:result result} data-fmt))
+        (catch Exception ex
+          (log/warn ex)
+          (unauthorized "get-user failed" data-fmt)))
+      (unauthorized "get-user failed" data-fmt))
+    (bad-request
+     (str "unsupported content-type in request - "
+          (request-content-type request)))))
+
+(defn- process-update-user [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process update-user - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request [:Kernel.Identity :UpdateUser] data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad update-user request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/UpdateUser evobj))
+          (bad-request (str "not a UpdateUser event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [user (auth/session-user
+                        (assoc auth-config :request request))
+                  result (auth/upsert-user
+                          (assoc
+                           auth-config
+                           :event evobj
+                           :user user))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized "update-user failed" data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - " (request-content-type request))))))
+
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
@@ -266,6 +312,8 @@
            (POST uh/login-prefix [] (:login handlers))
            (POST uh/logout-prefix [] (:logout handlers))
            (POST uh/signup-prefix [] (:signup handlers))
+           (POST uh/get-user-prefix [] (:get-user handlers))
+           (POST uh/update-user-prefix [] (:update-user handlers))
            (POST (str uh/entity-event-prefix ":component/:event") []
              (:request handlers))
            (POST uh/query-prefix [] (:query handlers))
@@ -312,6 +360,8 @@
          {:login (partial process-login evaluator auth-info)
           :logout (partial process-logout auth)
           :signup (partial process-signup auth-info)
+          :get-user (partial process-get-user auth)
+          :update-user (partial process-update-user auth)
           :request (partial process-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
