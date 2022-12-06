@@ -235,7 +235,7 @@
                            auth-config
                            :event evobj
                            :eval evaluator))]
-              (ok result data-fmt))
+              (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
               (unauthorized "login failed" data-fmt)))))
@@ -376,6 +376,3 @@
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
   ([eval-context]
    (run-server eval-context {:port 8080})))
-
-(use 'clojure.tools.trace)
-(trace-vars fractl.component/assoc-event-context-value)

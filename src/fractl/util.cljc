@@ -28,13 +28,13 @@
 
 (defn throw-ex
   [msg]
-#?(:clj
-   (throw (Exception. msg))
-   :cljs
-   (let [e (js/Error. msg)]
-     (println msg)
-     (.log js/console (.-stack e))
-     (throw e))))
+  #?(:clj
+     (throw (Exception. msg))
+     :cljs
+     (let [e (js/Error. msg)]
+       (println msg)
+       (.log js/console (.-stack e))
+       (throw e))))
 
 (macros/deftime
   (defmacro passthru
@@ -133,9 +133,9 @@
   (logical-for-each predics arg false))
 
 #?(:clj
-(defn n-cpu
-  "Return number of CPU in the system"
-  [] (.availableProcessors (Runtime/getRuntime))))
+   (defn n-cpu
+     "Return number of CPU in the system"
+     [] (.availableProcessors (Runtime/getRuntime))))
 
 (defn make-cell
   "A common mutable place for both clj and cljs."
@@ -267,3 +267,15 @@
            (with-out-str
              (pp/write edn :dispatch pp/code-dispatch)))
      :cljs edn))
+
+(defn trace
+  "Prints `msg` and `x`. Returns `x`."
+  [msg x]
+  (println msg (pr-str x))
+  x)
+
+(defn trace-with-fn
+  "Prints `msg`, `x` and the result of `(f x)`. Returns `x`."
+  [msg f x]
+  (println msg (pr-str x) (pr-str (f x)))
+  x)
