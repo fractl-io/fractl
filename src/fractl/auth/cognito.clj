@@ -33,8 +33,9 @@
                      :client-id client-id))
 
 (defmethod auth/upsert-user tag [{:keys [client-id user-pool-id event] :as req}]
-  (if (= :SignUp (last (cn/instance-type event)))
+  (case (last (cn/instance-type event))
     ;; Create User
+    :SignUp
     (let [user (:User event)
           {:keys [Name FirstName LastName Password Email]} user]
       (aws/sign-up
@@ -45,7 +46,10 @@
                          ["family_name" LastName]
                          ["email" Email]
                          ["name" Name]]
-       :username Email))
+       :username Email)
+      user)
+
+    :UpdateUser
     ;; Update user
     (let [user-details (:UserDetails event)
           cognito-username (get-in req [:user :username])
@@ -69,7 +73,9 @@
        :auth-flow "REFRESH_TOKEN_AUTH"
        :auth-parameters {"USERNAME" cognito-username
                          "REFRESH_TOKEN" refresh-token}
-       :client-id client-id))))
+       :client-id client-id))
+
+    nil))
 
 (defmethod auth/session-user tag [all-stuff-map]
   (let [user-details (get-in all-stuff-map [:request :identity])]
