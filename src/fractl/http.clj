@@ -109,7 +109,7 @@
          (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
            (if err
              (bad-request err data-fmt)
-             (ok (evaluate evaluator obj data-fmt))))
+             (ok (evaluate evaluator obj data-fmt) data-fmt)))
          (bad-request
           (str "unsupported content-type in request - "
                (request-content-type request))))))
