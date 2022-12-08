@@ -147,7 +147,7 @@
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "r33" :Privilege "p55"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "r11" :Assignee "u11"}}
+      {:Role "r11" :Assignee "u11@u11.com"}}
      {:Kernel.RBAC/RoleAssignment
       {:Role "r33" :Assignee "u33@u33.com"}}
      {:Kernel.RBAC/RoleAssignment
@@ -197,7 +197,7 @@
        (let [inst (first
                    (tu/result
                     (with-user
-                      "u11"
+                      "u11@u11.com"
                       {:PrivTest/Upsert_E
                        {:Instance
                         {:PrivTest/E
@@ -208,7 +208,7 @@
          (is (cn/instance-of? :PrivTest/E inst))
          (tu/is-error
           #(ev/eval-all-dataflows
-            (with-user "u11" lookup)))
+            (with-user "u11@u11.com" lookup)))
          (let [partial-inst?
                (fn [x inst]
                  (is (cn/instance-of? :PrivTest/E inst))
