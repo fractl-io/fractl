@@ -101,10 +101,13 @@
                           (or (= :read opr) (= :upsert opr)))]
         (when (or (and (ii/has-instance-meta? arg)
                        (user-is-owner? user env resource))
-                  ((opr actions)
-                   user
-                   {:data check-on
-                    :ignore-refs ign-refs}))
+                  (case (rbac/check-instance-level-privilege user opr resource)
+                    :allow true
+                    :block false
+                    :rbac ((opr actions)
+                           user
+                           {:data check-on
+                            :ignore-refs ign-refs})))
           arg)))
     (if-let [data (seq (ii/data-output arg))]
       (cond

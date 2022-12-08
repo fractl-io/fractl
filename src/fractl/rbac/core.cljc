@@ -124,3 +124,16 @@
 (def can-upsert? (partial has-priv? :upsert))
 (def can-delete? (partial has-priv? :delete))
 (def can-eval? (partial has-priv? :eval))
+
+(defn check-instance-level-privilege [email opr resource]
+  ;; TODO: eval :Kernel.RBAC/FindInstancePrivileges to load
+  ;; instance-level privileges for resource.
+  ;; If none are defined, return :rbac to check global-rbac.
+  ;; If instance-level privilege is set for the user and opr is in :Actions,
+  ;; return :allow, otherwise return :block.
+  ;; If instance-level privilege is not set for the user, but opr is in :Filter, return :rbac,
+  ;; otherwise return :block
+
+  ;; TODO: To support #697 - walk up the resource's parent graph to figure out
+  ;; instance-level permissions and apply above rules - this can be done in a separate PR.
+  :rbac)
