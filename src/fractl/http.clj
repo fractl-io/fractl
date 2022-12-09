@@ -48,6 +48,10 @@
   ([obj]
    (ok obj :json)))
 
+(defn- create-event [event-name]
+  {cn/type-tag-key :event
+   cn/instance-type (keyword event-name)})
+
 (defn- maybe-remove-read-only-attributes [obj]
   (if (cn/an-instance? obj)
     (cn/dissoc-write-only obj)
@@ -60,7 +64,7 @@
   (try
     (let [result (remove-all-read-only-attributes
                   (evaluator event-instance))]
-      (ok result data-fmt))
+      result)
     (catch Exception ex
       (log/exception ex)
       (internal-error (.getMessage ex) data-fmt))))
@@ -109,7 +113,7 @@
          (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
            (if err
              (bad-request err data-fmt)
-             (evaluate evaluator obj data-fmt)))
+             (ok (evaluate evaluator obj data-fmt) data-fmt)))
          (bad-request
           (str "unsupported content-type in request - "
                (request-content-type request))))))
@@ -189,7 +193,7 @@
           (log/exception ex)
           (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
-(defn- process-signup [[auth-config _] request]
+(defn- process-signup [evaluator post-signup-event-name [auth-config _] request]
   (if-not auth-config
     (internal-error "cannot process sign-up - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
@@ -208,7 +212,12 @@
                           (assoc
                            auth-config
                            :event evobj))]
-              (ok result data-fmt))
+              (ok (or (evaluate evaluator
+                                (assoc
+                                 (create-event post-signup-event-name)
+                                 :Result result)
+                                data-fmt)
+                      result) data-fmt))
             (catch Exception ex
               (log/warn ex)
               (unauthorized "sign-up failed" data-fmt)))))
@@ -359,7 +368,7 @@
          auth
          {:login (partial process-login evaluator auth-info)
           :logout (partial process-logout auth)
-          :signup (partial process-signup auth-info)
+          :signup (partial process-signup evaluator (:post-sign-up-event config) auth-info)
           :get-user (partial process-get-user auth)
           :update-user (partial process-update-user auth)
           :request (partial process-request evaluator auth-info)
