@@ -88,6 +88,15 @@
     (first data)
     :else data))
 
+(defn- check-instance-privilege
+  ([truth user opr resource on-rbac]
+   (case (rbac/check-instance-privilege user opr resource)
+     :allow truth
+     :block false
+     :rbac (on-rbac)))
+  ([user opr resource on-rbac]
+   (check-instance-privilege true user opr resource on-rbac)))
+
 (defn- run [env opr arg]
   (if-let [data (ii/data-input arg)]
     (if (ii/skip-for-input? data)
@@ -101,13 +110,12 @@
                           (or (= :read opr) (= :upsert opr)))]
         (when (or (and (ii/has-instance-meta? arg)
                        (user-is-owner? user env resource))
-                  (case (rbac/check-instance-level-privilege user opr resource)
-                    :allow true
-                    :block false
-                    :rbac ((opr actions)
-                           user
-                           {:data check-on
-                            :ignore-refs ign-refs})))
+                  (check-instance-privilege
+                   user opr resource
+                   #((opr actions)
+                     user
+                     {:data check-on
+                      :ignore-refs ign-refs})))
           arg)))
     (if-let [data (seq (ii/data-output arg))]
       (cond
@@ -120,7 +128,9 @@
           (if (and (ii/has-instance-meta? arg)
                    (every? (partial user-is-owner? user env) rslt))
             arg
-            (apply-read-attribute-rules user rslt arg)))
+            (check-instance-privilege
+             arg user opr rslt
+             #(apply-read-attribute-rules user rslt arg))))
 
         :else arg)
       arg)))

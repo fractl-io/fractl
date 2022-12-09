@@ -100,14 +100,12 @@
 
 (entity
  :Kernel.RBAC/InstancePrivilegeAssignment
- {:Name {:type :Kernel/String
-         :indexed true
-         :unique true}
-  :Actions {:check crud-list?}
+ {:Actions {:check crud-list?}
   :Filter {:check crud-list? :optional true}
   :Resource {:type :Kernel/Path :indexed true}
   :ResourceId {:type :Kernel/Any :indexed true}
-  :Assignee {:type :Kernel/String :indexed true}})
+  :Assignee {:type :Kernel/String :indexed true}
+  :meta {:unique [:Assignee :Resource :ResourceId]}})
 
 (dataflow
  :Kernel.RBAC/FindInstancePrivileges

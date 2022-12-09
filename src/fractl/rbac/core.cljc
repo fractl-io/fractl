@@ -109,11 +109,11 @@
            (some #{action :*} (:Actions p))))
     privs)))
 
-(defn- has-priv? [action email arg]
-  (if (superuser-email? email)
+(defn- has-priv? [action userid arg]
+  (if (superuser-email? userid)
     true
     (let [resource (:data arg)
-          privs (privileges email)
+          privs (privileges userid)
           predic (partial filter-privs privs action (:ignore-refs arg))]
       (if (ii/attribute-ref? resource)
         (or (predic (li/root-path resource))
@@ -125,15 +125,47 @@
 (def can-delete? (partial has-priv? :delete))
 (def can-eval? (partial has-priv? :eval))
 
-(defn check-instance-level-privilege [email opr resource]
-  ;; TODO: eval :Kernel.RBAC/FindInstancePrivileges to load
-  ;; instance-level privileges for resource.
-  ;; If none are defined, return :rbac to check global-rbac.
-  ;; If instance-level privilege is set for the user and opr is in :Actions,
-  ;; return :allow, otherwise return :block.
-  ;; If instance-level privilege is not set for the user, but opr is in :Filter, return :rbac,
-  ;; otherwise return :block
+(defn- fetch-instance-info [obj]
+  (when-let [inst (cond
+                    (cn/entity-instance? obj) obj
+                    (and (seqable? obj)
+                         (cn/entity-instance? (first obj)))
+                    (first obj))]
+    [(cn/instance-type inst) (cn/idval inst)]))
 
-  ;; TODO: To support #697 - walk up the resource's parent graph to figure out
-  ;; instance-level permissions and apply above rules - this can be done in a separate PR.
-  :rbac)
+(defn- find-instance-privileges [instance-type instance-id]
+  (seq
+   (ev/safe-eval
+    (cn/make-instance
+     {:Kernel.RBAC/FindInstancePrivileges
+      {:Resource (if (keyword? instance-type)
+                   instance-type
+                   (li/make-path instance-type))
+       :ResourceId instance-id}}))))
+
+(defn- filter-instance-privilege? [opr inst-privs]
+  (every? (fn [p] (some #{opr} (:Filter p))) inst-privs))
+
+(defn check-instance-privilege
+  "Load instance-level privileges for resource.
+   If none are defined, return :rbac to check global-rbac.
+   If instance-level privilege is set for the user and opr is in :Actions,
+   return :allow, otherwise return :block.
+   If instance-level privilege is not set for the user, but opr is in :Filter, return :rbac,
+   otherwise return :block
+
+   TODO: To support #697 - walk up the resource's parent graph to figure out
+   instance-level permissions and apply above rules - this can be done in a separate PR."
+  [userid opr resource]
+  (if-let [[instance-type instance-id] (fetch-instance-info resource)]
+    (if-let [inst-privs (find-instance-privileges instance-type instance-id)]
+      (let [inst-priv-for-user (first (filter #(= userid (:Assignee %)) inst-privs))]
+        (if inst-priv-for-user
+          (if (some #{opr} (:Actions inst-priv-for-user))
+            :allow
+            :block)
+          (if (filter-instance-privilege? opr inst-privs)
+            :rbac
+            :block)))
+      :rbac)
+    :rbac))

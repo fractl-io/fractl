@@ -449,6 +449,10 @@
     id
     (u/throw-ex (str "no identity attribute for - " type-name-or-scm))))
 
+(defn idval [entity-instance]
+  ((ensure-identity-attribute-name (instance-type entity-instance))
+   entity-instance))
+
 (defn unique-or-identity? [entity-schema attr-name]
   (some #{attr-name} (concat (identity-attributes entity-schema)
                              (unique-attributes entity-schema))))
