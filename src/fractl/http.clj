@@ -48,6 +48,10 @@
   ([obj]
    (ok obj :json)))
 
+(defn- create-event [event-name]
+  {cn/type-tag-key :event
+   cn/instance-type (keyword event-name)})
+
 (defn- maybe-remove-read-only-attributes [obj]
   (if (cn/an-instance? obj)
     (cn/dissoc-write-only obj)
@@ -209,10 +213,9 @@
                            auth-config
                            :event evobj))]
               (ok (or (evaluate evaluator
-                                ;; TODO: Need a better way to create this event
-                                {cn/type-tag-key :event
-                                 cn/instance-type post-signup-event-name
-                                 :Result result}
+                                (assoc
+                                 (create-event post-signup-event-name)
+                                 :Result result)
                                 data-fmt)
                       result) data-fmt))
             (catch Exception ex
