@@ -47,7 +47,7 @@
                   (is (= r (li/split-path (cn/meta-entity-name :MetaDataCrud/E))))
                   (let [m1 (first r)]
                     (is (cn/instance-of? (cn/meta-entity-name :MetaDataCrud/E) m1))
-                    (is (= (cn/id-attr m1) id))
+                    (is (= (cn/meta-entity-id m1) id))
                     m1))))
             m1 (lookup-meta false)]
         (is (= "abcd" (:LastUpdatedBy m1) (:Owner m1)))

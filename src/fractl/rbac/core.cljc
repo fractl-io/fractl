@@ -135,7 +135,7 @@
 
 (defn- find-instance-privileges [instance-type instance-id]
   (seq
-   (ev/safe-eval
+   (ev/safe-eval-internal
     (cn/make-instance
      {:Kernel.RBAC/FindInstancePrivileges
       {:Resource (if (keyword? instance-type)
@@ -169,3 +169,9 @@
             :block)))
       :rbac)
     :rbac))
+
+(defn instance-privilege-assignment-object? [obj]
+  (cn/instance-of? :Kernel.RBAC/InstancePrivilegeAssignment obj))
+
+(def instance-privilege-assignment-resource :Resource)
+(def instance-privilege-assignment-resource-id :ResourceId)

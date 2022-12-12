@@ -69,16 +69,20 @@
     (ii/assoc-data-output
      arg (make-read-output-arg (ii/data-output arg) new-insts))))
 
-(defn- user-is-owner? [user env data]
-  (when (cn/entity-instance? data)
-    (let [[inst-type id] [(cn/instance-type data)
-                          (cn/id-attr data)]]
-      (when (and inst-type id)
-        (when-let [meta (store/lookup-by-id
-                         (env/get-store env)
-                         (cn/meta-entity-name inst-type)
-                         id)]
-          (= (cn/instance-meta-owner meta) user))))))
+(defn- user-is-owner?
+  ([user env data]
+   (when (cn/entity-instance? data)
+     (user-is-owner?
+      user env
+      (cn/instance-type data)
+      (cn/idval data))))
+  ([user env inst-type id]
+   (when (and inst-type id)
+     (when-let [meta (store/lookup-by-id
+                      (env/get-store env)
+                      (cn/meta-entity-name inst-type)
+                      cn/meta-entity-id (str id))]
+       (= (cn/instance-meta-owner meta) user)))))
 
 (defn- first-instance [data]
   (cond
@@ -89,13 +93,24 @@
     :else data))
 
 (defn- check-instance-privilege
-  ([truth user opr resource on-rbac]
-   (case (rbac/check-instance-privilege user opr resource)
-     :allow truth
-     :block false
-     :rbac (on-rbac)))
-  ([user opr resource on-rbac]
-   (check-instance-privilege true user opr resource on-rbac)))
+  ([env truth user opr resource on-rbac]
+   (cond
+     (rbac/superuser-email? user) truth
+
+     (and (or (= opr :upsert) (= opr :delete))
+          (rbac/instance-privilege-assignment-object? resource))
+     (user-is-owner?
+      user env
+      (rbac/instance-privilege-assignment-resource resource)
+      (rbac/instance-privilege-assignment-resource-id resource))
+
+     :else
+     (case (rbac/check-instance-privilege user opr resource)
+       :allow truth
+       :block false
+       :rbac (on-rbac))))
+  ([env user opr resource on-rbac]
+   (check-instance-privilege env true user opr resource on-rbac)))
 
 (defn- run [env opr arg]
   (if-let [data (ii/data-input arg)]
@@ -111,7 +126,7 @@
         (when (or (and (ii/has-instance-meta? arg)
                        (user-is-owner? user env resource))
                   (check-instance-privilege
-                   user opr resource
+                   env user opr resource
                    #((opr actions)
                      user
                      {:data check-on
@@ -129,7 +144,7 @@
                    (every? (partial user-is-owner? user env) rslt))
             arg
             (check-instance-privilege
-             arg user opr rslt
+             env arg user opr rslt
              #(apply-read-attribute-rules user rslt arg))))
 
         :else arg)
