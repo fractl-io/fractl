@@ -69,12 +69,16 @@
       {event {}}
       event))))
 
-(defn- call-with-rbac [f finalize]
-  (is (rbac/init))
-  (try
-    (f)
-    (finally
-      (finalize))))
+(def ^:privilege default-finalize ei/reset-interceptors!)
+
+(defn- call-with-rbac
+  ([f finalize]
+   (is (rbac/init))
+   (try
+     (f)
+     (finally
+       (finalize))))
+  ([f] (call-with-rbac f default-finalize)))
 
 (defn- rbac-application []
   (defcomponent :PrivTest
@@ -147,7 +151,7 @@
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "r33" :Privilege "p55"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "r11" :Assignee "u11"}}
+      {:Role "r11" :Assignee "u11@u11.com"}}
      {:Kernel.RBAC/RoleAssignment
       {:Role "r33" :Assignee "u33@u33.com"}}
      {:Kernel.RBAC/RoleAssignment
@@ -197,7 +201,7 @@
        (let [inst (first
                    (tu/result
                     (with-user
-                      "u11"
+                      "u11@u11.com"
                       {:PrivTest/Upsert_E
                        {:Instance
                         {:PrivTest/E
@@ -208,7 +212,7 @@
          (is (cn/instance-of? :PrivTest/E inst))
          (tu/is-error
           #(ev/eval-all-dataflows
-            (with-user "u11" lookup)))
+            (with-user "u11@u11.com" lookup)))
          (let [partial-inst?
                (fn [x inst]
                  (is (cn/instance-of? :PrivTest/E inst))
@@ -240,8 +244,7 @@
            (is (cn/instance-of? :PrivTest/E inst2))
            (is (= id (cn/id-attr inst2)))
            (is (= 1000 (:X inst2)))
-           (is (= 10 (:Y inst2)))))))
-   #(ei/reset-interceptors!)))
+           (is (= 10 (:Y inst2)))))))))
 
 (defn- rbac-with-owner []
   (is (= [:instance-meta] (ei/init-interceptors [:instance-meta])))
@@ -351,8 +354,7 @@
               e2
               (first
                (tu/result
-                (with-user "uu22@uu22.com" (delete id2)))))))))
-   #(ei/reset-interceptors!)))
+                (with-user "uu22@uu22.com" (delete id2)))))))))))
 
 (deftest basic
   (rbac-application)
@@ -434,5 +436,151 @@
            (is (= "rh11" (:Child r))))
          (rbac/force-reload-privileges!)
          (let [u (ok-test "uh22@uh22.com")]
-           (cn/instance-of? :RbacH/E u)))))
-   #(ei/reset-interceptors!)))
+           (cn/instance-of? :RbacH/E u)))))))
+
+(deftest instance-level-rbac
+  (defcomponent :Ilr
+    (entity
+     :Ilr/E
+     {:Id {:type :Kernel/String :identity true}
+      :X :Kernel/Int})
+    (dataflow
+     :Ilr/CreateUsers
+     {:Kernel.Identity/User
+      {:Email "ilr_u1@ilr.com"}}
+     {:Kernel.Identity/User
+      {:Email "ilr_u2@ilr.com"}}
+     {:Kernel.Identity/User
+      {:Email "ilr_u3@ilr.com"}})
+    (dataflow
+     :Ilr/AssignRoles
+     {:Kernel.RBAC/Role {:Name "ilr_r1"}}
+     {:Kernel.RBAC/Privilege
+      {:Name "ilr_p1"
+       :Actions [:q# [:read :upsert :delete]]
+       :Resource [:q# [:Ilr/E]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "ilr_p2"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:Ilr/CreateE :Ilr/UpdateE
+                       :Ilr/DeleteE :Ilr/LookupE
+                       :Ilr/UpdateInstancePrivs]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "ilr_p3"
+       :Actions [:q# [:read :upsert :delete]]
+       :Resource [:q# [:Kernel.RBAC/InstancePrivilegeAssignment]]}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "ilr_r1" :Privilege "ilr_p1"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "ilr_r1" :Privilege "ilr_p2"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "ilr_r1" :Privilege "ilr_p3"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "ilr_r1" :Assignee "ilr_u1@ilr.com"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "ilr_r1" :Assignee "ilr_u2@ilr.com"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "ilr_r1" :Assignee "ilr_u3@ilr.com"}})
+    (event
+     :Ilr/CreateE
+     {:X :Kernel/Int
+      :Id :Kernel/String
+      :Assignee :Kernel/String})
+    (dataflow
+     :Ilr/CreateE
+     {:Ilr/E {:Id :Ilr/CreateE.Id :X :Ilr/CreateE.X} :as :E}
+     {:Kernel.RBAC/InstancePrivilegeAssignment
+      {:Actions [:q# [:read :upsert]]
+       :Filter [:q# [:read]]
+       :Resource [:q# :Ilr/E]
+       :ResourceId :E.Id
+       :Assignee :Ilr/CreateE.Assignee}}
+     :E)
+    (dataflow
+     :Ilr/UpdateE
+     {:Ilr/E {:Id? :Ilr/UpdateE.Id :X :Ilr/UpdateE.X}})
+    (dataflow
+     :Ilr/LookupE
+     {:Ilr/E {:Id? :Ilr/LookupE.Id}})
+    (dataflow
+     :Ilr/DeleteE
+     [:delete :Ilr/E {:Id :Ilr/DeleteE.Id}])
+    (dataflow
+     :Ilr/UpdateInstancePrivs
+     {:Kernel.RBAC/InstancePrivilegeAssignment
+      {:Actions [:q# [:read :upsert :delete]]
+       :Filter [:q# [:read]]
+       :Resource [:q# :Ilr/E]
+       :ResourceId :Ilr/UpdateInstancePrivs.Id
+       :Assignee :Ilr/UpdateInstancePrivs.Assignee}}))
+  (defn- rbac-setup [event-name result-type]
+    (is (cn/instance-of?
+         result-type
+         (first
+          (tu/result
+           (with-user rbac/default-superuser-email event-name))))))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+     (rbac-setup :Ilr/CreateUsers :Kernel.Identity/User)
+     (rbac-setup :Ilr/AssignRoles :Kernel.RBAC/RoleAssignment)
+     (let [es (mapv
+               #(tu/result
+                 (with-user
+                   "ilr_u1@ilr.com"
+                   {:Ilr/CreateE
+                    {:X (second %) :Id (first %)
+                     :Assignee "ilr_u2@ilr.com"}}))
+               [["123" 100] ["564" 200] ["222" 300]])
+           e (first es)]
+       (is (cn/instance-of? :Ilr/E e))
+       (defn- update-e [fail? id user new-x]
+         (let [e1 (:to
+                   (:transition
+                    (tu/first-result
+                     (with-user
+                       user
+                       {:Ilr/UpdateE {:Id id :X new-x}}))))]
+           (if fail?
+             (is (not e1))
+             (is (and (cn/instance-of? :Ilr/E e1)
+                      (= (:Id e1) (:Id e))
+                      (= (:X e1) new-x))))))
+       (update-e false "123" "ilr_u1@ilr.com" 200)
+       (update-e false "123" "ilr_u2@ilr.com" 300)
+       (update-e true "123" "ilr_u3@ilr.com" 400)
+       (defn- lookup-e [id user]
+         (let [e1 (tu/first-result
+                   (with-user user
+                     {:Ilr/LookupE {:Id id}}))]
+           (is (and (cn/instance-of? :Ilr/E e1)
+                    (= (:Id e1) (:Id e))
+                    (= (:X e1) 300)))))
+       (doseq [user ["ilr_u1@ilr.com"
+                     "ilr_u2@ilr.com"
+                     "ilr_u3@ilr.com"]]
+         (lookup-e "123" user))
+       (defn- delete-e [fail? id user]
+         (let [e1 (tu/first-result
+                   (with-user user
+                     {:Ilr/DeleteE {:Id id}}))]
+           (if fail?
+             (is (not e1))
+             (do (is (cn/instance-of? :Ilr/E e1))
+                 (is (= (:Id e1) id))))))
+       (delete-e false "123" "ilr_u1@ilr.com")
+       (delete-e false "222" "ilr_u1@ilr.com")
+       (delete-e true "564" "ilr_u2@ilr.com")
+       (defn- change-inst-priv [id user assignee]
+         (tu/first-result
+          (with-user
+            user
+            {:Ilr/UpdateInstancePrivs
+             {:Id id :Assignee assignee}})))
+       ;; Only owner or superuser can set instance privilege.
+       (is (not (change-inst-priv "564" "ilr_u2@ilr.com" "ilr_u2@ilr.com")))
+       (let [a (change-inst-priv "564" "ilr_u1@ilr.com" "ilr_u2@ilr.com")]
+         (is (cn/instance-of?
+              :Kernel.RBAC/InstancePrivilegeAssignment
+              (:to (:transition a))))
+         (delete-e false "564" "ilr_u2@ilr.com"))))))

@@ -478,13 +478,14 @@
                          r))))]
       (filter predic result))))
 
-(defn- query-all [env store entity-name query]
+(defn- query-all [env store entity-name query is-aggregate-query]
   (cond
     (vector? query)
-    (let [[params env] (evaluate-id-result env (rest query))]
-      [(stu/results-as-instances
-        entity-name
-        (store/do-query store (first query) params))
+    (let [[params env] (evaluate-id-result env (rest query))
+          results (store/do-query store (first query) params)]
+      [(if is-aggregate-query
+         (stu/normalize-aggregates results)
+         (stu/results-as-instances entity-name results))
        env])
 
     (or (string? query) (map? query))
@@ -496,7 +497,7 @@
 (defn- find-instances-in-store [env store entity-name full-query]
   (let [q (or (stu/compiled-query full-query)
               (store/compile-query store full-query))]
-    (query-all env store entity-name q)))
+    (query-all env store entity-name q (stu/aggregate-query? (stu/raw-query full-query)))))
 
 (defn- maybe-async-channel? [x]
   (and x (not (seqable? x))))

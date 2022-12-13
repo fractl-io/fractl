@@ -15,14 +15,23 @@
       %)
    where-clause))
 
+(defn- make-wildcard [query]
+  (if (su/aggregate-query? query)
+    (mapv
+     #(let [c (get query %)]
+        (keyword (str "%" (name %) "." (when (not= c :*) "_") (name (get query %)))))
+     (keys (dissoc query :where)))
+    [:*]))
+
 (defn format-sql [table-name query]
-  (let [final-pattern
+  (let [wildcard (make-wildcard query)
+        final-pattern
         (if (map? query)
           (merge
-           {:select [:*] :from [(keyword table-name)]}
+           {:select wildcard :from [(keyword table-name)]}
            (attach-column-name-prefixes query))
           (let [where-clause (attach-column-name-prefixes query)
-                p {:select [:*]
+                p {:select wildcard
                    :from [(keyword table-name)]}]
             (if where-clause
               (assoc p :where

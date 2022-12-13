@@ -475,3 +475,28 @@
                {:Xs [2 1 4]}})))]
     (is (= 3 (count rs)))
     (is (every? (fn [r] (some #{(:X r)} [2 1 4])) rs))))
+
+(deftest aggregates
+  (defcomponent :Agrgts
+    (entity :Agrgts/E {:X :Kernel/Int})
+    (record :Agrgts/Result {:R :Kernel/Int})
+    (dataflow
+     :Agrgts/Evt1
+     {:Agrgts/E?
+      {:where [:> :X 3]
+       :count :X
+       :sum :X
+       :avg :X
+       :max :X
+       :min :X}
+      :as [:R]}
+     :R))
+  (let [es (mapv #(tu/first-result
+                   {:Agrgts/Upsert_E
+                    {:Instance
+                     {:Agrgts/E {:X %}}}})
+                 [1 2 3 4 5 6])
+        r (tu/result {:Agrgts/Evt1 {}})]
+    (is (= (count es) 6))
+    (is (every? (partial cn/instance-of? :Agrgts/E) es))
+    (is (= r {:count 3, :sum 15, :avg 5, :max 6, :min 4}))))
