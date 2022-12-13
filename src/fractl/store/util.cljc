@@ -165,3 +165,19 @@
     raw-query q})
   ([cq]
    (package-query nil cq)))
+
+(def aggregate-fns [:count :max :min :avg :sum])
+
+(defn aggregate-query? [query]
+  (and (map? query) (some (set (keys query)) aggregate-fns)))
+
+(defn- normalize-aggregate [result]
+  (into
+   {}
+   (mapv (fn [[k v]]
+           (let [s (s/lower-case (name k))]
+             [(or (first (filter #(s/starts-with? s (name %)) aggregate-fns)) k) v]))
+         result)))
+
+(defn normalize-aggregates [results]
+  (mapv normalize-aggregate results))

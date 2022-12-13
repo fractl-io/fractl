@@ -97,3 +97,18 @@
 (dataflow
  :Kernel.RBAC/FindPrivileges
  [:query {:Kernel.RBAC/Privilege? privileges-query}])
+
+(entity
+ :Kernel.RBAC/InstancePrivilegeAssignment
+ {:Actions {:check crud-list?}
+  :Filter {:check crud-list? :optional true}
+  :Resource {:type :Kernel/Path :indexed true}
+  :ResourceId {:type :Kernel/Any :indexed true}
+  :Assignee {:type :Kernel/String :indexed true}
+  :meta {:unique [:Assignee :Resource :ResourceId]}})
+
+(dataflow
+ :Kernel.RBAC/FindInstancePrivileges
+ {:Kernel.RBAC/InstancePrivilegeAssignment
+  {:Resource? :Kernel.RBAC/FindInstancePrivileges.Resource
+   :ResourceId? :Kernel.RBAC/FindInstancePrivileges.ResourceId}})

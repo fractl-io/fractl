@@ -449,6 +449,10 @@
     id
     (u/throw-ex (str "no identity attribute for - " type-name-or-scm))))
 
+(defn idval [entity-instance]
+  ((ensure-identity-attribute-name (instance-type entity-instance))
+   entity-instance))
+
 (defn unique-or-identity? [entity-schema attr-name]
   (some #{attr-name} (concat (identity-attributes entity-schema)
                              (unique-attributes entity-schema))))
@@ -1415,8 +1419,10 @@
   (let [[component entity-name] (if (keyword? n) (li/split-path n) n)]
     (keyword (str (name component) "/" (name entity-name) meta-suffix))))
 
+(def meta-entity-id :EntityId)
+
 (defn meta-entity-attributes [component]
-  {id-attr (canonical-type-name component id-attr)
+  {meta-entity-id {:type :Kernel/String :identity true}
    :Owner {:type :Kernel/String
            :immutable true}
    :Created {:type :Kernel/DateTime
@@ -1437,11 +1443,11 @@
   ([inst user user-data]
    (let [ename (li/split-path (instance-type inst))
          mname (meta-entity-name ename)
-         entity-id (id-attr inst)]
+         entity-id (idval inst)]
      [mname
       (make-instance
        mname
-       (merge {id-attr entity-id
+       (merge {meta-entity-id (str entity-id)
                :Owner user :LastUpdatedBy user}
               (when user-data
                 {:UserData user-data})))]))
@@ -1452,7 +1458,7 @@
   (let [[component ename] (li/split-path entity-name)]
     (make-instance
      {(keyword (str (name component) "/Lookup_" (name entity-name) meta-suffix))
-      {id-attr id}})))
+      {meta-entity-id (str id)}})))
 
 (def instance-meta-owner :Owner)
 
