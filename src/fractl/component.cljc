@@ -1499,6 +1499,14 @@
 (def relmeta-key :-*-relmeta-*-)
 (def relationship-meta relmeta-key)
 
+(defn attribute-in-relationship [relname entity-name]
+  (let [mt (fetch-meta relname)
+        entity-name (if (keyword? entity-name) entity-name (li/make-path entity-name))
+        [e1 e2] (or (mt/contains mt) (mt/between mt))]
+    (if-let [[a1 a2] (:on (relationship-meta mt))]
+      (if (= entity-name e1) a1 a2)
+      (identity-attribute-name entity-name))))
+
 (defn- contain-rels [as-parent recname]
   (let [accessors [first second]
         [this that] (if as-parent (reverse accessors) accessors)]
