@@ -204,10 +204,10 @@
     (loop [cqs (rest compiled-queries)
            attrs (rest attr-names)
            sql (str (first qp) " AND " (su/attribute-column-name (first attr-names)) " IN (")
-           params (rest qp)]
+            params (rest qp)]
       (if-let [qp (maybe-with-where-clause (first cqs))]
-        (let [a1 (first attrs)
-              a2 (second attrs)]
+        (let [[a1 _] (first attrs)
+              [_ a2] (second attrs)]
           (recur (rest cqs) (rest attrs)
                  (str
                   sql (if a1

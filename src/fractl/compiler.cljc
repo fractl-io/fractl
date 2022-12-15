@@ -162,6 +162,14 @@
       r
       (first r))))
 
+(defn- normalized-rel-attr [rel-name entity-name rel-attr-name]
+  (let [attr-in-rel (cn/attribute-in-relationship rel-name entity-name)
+        ident (cn/identity-attribute-name entity-name)]
+    [(if (= ident attr-in-rel)
+       attr-in-rel
+       (cn/relationship-member-identity rel-attr-name))
+     rel-attr-name]))
+
 (defn- merge-queries [ctx main-entity-name main-query filters-opcode]
   (let [fopcode (as-opcode-map (first filters-opcode))
         sopcode (as-opcode-map (second filters-opcode))
@@ -171,12 +179,12 @@
       (u/throw-ex (str main-entity-name " not in relationship - " rel-name)))
     (when-not (cn/in-relationship? node-entity-name rel-name)
       (u/throw-ex (str node-entity-name " not in relationship - " rel-name)))
-    (let [rel-scm (cn/fetch-relationship-schema rel-name)
-          ent-scm (cn/fetch-entity-schema node-entity-name)
+    (let [ent-scm (cn/fetch-entity-schema node-entity-name)
+          [a1 a2] (cn/relationship-attribute-names main-entity-name node-entity-name)
           attrs (concat
                  [(cn/identity-attribute-name main-entity-name)]
-                 (cn/relationship-attribute-names
-                  main-entity-name node-entity-name))
+                 [(normalized-rel-attr rel-name main-entity-name a1)
+                  (normalized-rel-attr rel-name node-entity-name a2)])
           rel-q (compiled-query-from-opcode fopcode)
           node-q (compiled-query-from-opcode sopcode)]
       ((fetch-compile-query-fn ctx)
