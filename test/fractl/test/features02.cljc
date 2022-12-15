@@ -8,6 +8,7 @@
                      dataflow]]
             [fractl.lang.syntax :as ls]
             [fractl.lang.relgraph :as rg]
+            [fractl.auth.model]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -534,3 +535,66 @@
     (is (= :I703/Section rel-c))
     (is (= :I703/Dept ctype))
     (is (cn/same-instance? cinst d))))
+
+(deftest contains-workspace
+  (defcomponent :Fractl.Meta.Core
+    (entity
+     :Fractl.Meta.Core/User
+     {:meta {:inherits :Kernel.Identity/User}})
+    (entity
+     :Fractl.Meta.Core/Workspace
+     {:Name {:type :Kernel/String
+             :indexed true}
+      :Models {:listof :Kernel/Path}})
+    (relationship
+     :Fractl.Meta.Core/BelongsTo
+     {:meta {:contains [:Fractl.Meta.Core/User :Fractl.Meta.Core/Workspace
+                        :on [:Email :Name]]}})
+    (dataflow
+     :Fractl.Meta.Core/SignUp2
+     {:Fractl.Meta.Core/User
+      {:Email :Fractl.Meta.Core/SignUp2.Email
+       :Name :Fractl.Meta.Core/SignUp2.Name
+       :FirstName :Fractl.Meta.Core/SignUp2.FirstName
+       :LastName :Fractl.Meta.Core/SignUp2.LastName}
+      :as :U}
+     {:Fractl.Meta.Core/Workspace
+      {:Name "Default"
+       :Models []}
+      :-> [{:Fractl.Meta.Core/BelongsTo {}} :U]})
+    (dataflow
+     :Fractl.Meta.Core/GetWorkspace
+     {:Fractl.Meta.Core/Workspace
+      {:Name? :Fractl.Meta.Core/GetWorkspace.WorkspaceName}
+      :-> [:Fractl.Meta.Core/BelongsTo?
+           {:Fractl.Meta.Core/User
+            {:Email? :Fractl.Meta.Core/GetWorkspace.EventContext.User.email}}]}))
+  (let [r1 (tu/result
+            {:Fractl.Meta.Core/SignUp2
+             {:Name "c@c.com", :Email "c@c.com",
+              :FirstName "Foo", :LastName "Bar"}})
+        r2 (tu/result
+            {:Fractl.Meta.Core/SignUp2
+             {:Name "d@d.com", :Email "d@d.com",
+              :FirstName "Foo", :LastName "Bar"}})
+        r3 (tu/result
+            {:Fractl.Meta.Core/SignUp2
+             {:Name "d@d.com", :Email "d@d.com",
+              :FirstName "Foo", :LastName "Bar"}})]
+    (defn- check
+      ([transition? x]
+       (is (and (cn/instance-of? :Fractl.Meta.Core/Workspace x)
+                (cn/instance-of?
+                 :Fractl.Meta.Core/BelongsTo
+                 (if transition?
+                   (:to (:transition (first (:-> x))))
+                   (first (:-> x)))))))
+      ([x] (check false x)))
+    (check r1) (check r2) (check true r3)
+    (let [r4 (tu/result
+              {:Fractl.Meta.Core/GetWorkspace
+               {:WorkspaceName "Default"
+                :EventContext {:User {:email "d@d.com"}}}})]
+      (is (= 1 (count r4)))
+      (is (cn/instance-of? :Fractl.Meta.Core/Workspace (first r4)))
+      (is (cn/same-instance? (dissoc r3 :->) (first r4))))))

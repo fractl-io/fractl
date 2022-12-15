@@ -18,7 +18,7 @@
         (let [connection-info (su/normalize-connection-info connection-info)
               jdbc-url (str url-prefix (:dbname connection-info))
               username (or (:username connection-info) "sa")
-              password (or (:password connection-info) "")]
+              password (or (:password connection-info) "sa")]
           (u/safe-set-once
            datasource
            #(let [dbspec {:driver-class driver-class
