@@ -357,8 +357,8 @@
                 (with-user "uu22@uu22.com" (delete id2)))))))))))
 
 (deftest basic
-  (rbac-application)
-  (rbac-with-owner))
+  (rbac-application))
+  ;;(rbac-with-owner))
 
 (deftest hierarchy
   (defcomponent :RbacH

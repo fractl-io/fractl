@@ -92,23 +92,28 @@
     (first data)
     :else data))
 
-(defn- check-instance-privilege
-  ([env truth user opr resource continuation]
-   (cond
-     (and (or (= opr :upsert) (= opr :delete))
-          (rbac/instance-privilege-assignment-object? resource))
-     (user-is-owner?
-      user env
-      (rbac/instance-privilege-assignment-resource resource)
-      (rbac/instance-privilege-assignment-resource-id resource))
+(defn- apply-privilege-hierarchy-checks [user opr resource continuation]
+  (continuation))
 
-     :else
-     (case (rbac/check-instance-privilege user opr resource)
-       :allow truth
-       :block false
-       :continue (continuation))))
-  ([env user opr resource continuation]
-   (check-instance-privilege env true user opr resource continuation)))
+(defn- check-instance-privilege [env user opr resource continuation]
+  (let [r (if (cn/entity-instance? resource)
+            (if (and (or (= opr :upsert) (= opr :delete))
+                     (rbac/instance-privilege-assignment-object? resource))
+              (and
+               (user-is-owner?
+                user env
+                (rbac/instance-privilege-assignment-resource resource)
+                (rbac/instance-privilege-assignment-resource-id resource))
+               :allow)
+              (rbac/check-instance-privilege user opr resource))
+            :continue)]
+    (case r
+      :allow true
+      :block false
+      :continue (if continuation
+                  (apply-privilege-hierarchy-checks
+                   user opr resource continuation)
+                  true))))
 
 (defn- apply-rbac-for-user [user env opr arg]
   (if-let [data (ii/data-input arg)]
@@ -139,9 +144,8 @@
           (if (and (ii/has-instance-meta? arg)
                    (every? (partial user-is-owner? user env) rslt))
             arg
-            (check-instance-privilege
-             env arg user opr rslt
-             #(apply-read-attribute-rules user rslt arg))))
+            (when (every? #(check-instance-privilege env user opr % nil) rslt)
+              (apply-read-attribute-rules user rslt arg))))
 
         :else arg)
       arg)))
