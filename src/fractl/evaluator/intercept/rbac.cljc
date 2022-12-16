@@ -93,7 +93,7 @@
     :else data))
 
 (defn- check-instance-privilege
-  ([env truth user opr resource on-rbac]
+  ([env truth user opr resource continuation]
    (cond
      (and (or (= opr :upsert) (= opr :delete))
           (rbac/instance-privilege-assignment-object? resource))
@@ -106,9 +106,9 @@
      (case (rbac/check-instance-privilege user opr resource)
        :allow truth
        :block false
-       :rbac (on-rbac))))
-  ([env user opr resource on-rbac]
-   (check-instance-privilege env true user opr resource on-rbac)))
+       :continue (continuation))))
+  ([env user opr resource continuation]
+   (check-instance-privilege env true user opr resource continuation)))
 
 (defn- apply-rbac-for-user [user env opr arg]
   (if-let [data (ii/data-input arg)]
