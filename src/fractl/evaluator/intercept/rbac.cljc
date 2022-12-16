@@ -95,8 +95,6 @@
 (defn- check-instance-privilege
   ([env truth user opr resource on-rbac]
    (cond
-     (rbac/superuser-email? user) truth
-
      (and (or (= opr :upsert) (= opr :delete))
           (rbac/instance-privilege-assignment-object? resource))
      (user-is-owner?
@@ -112,12 +110,11 @@
   ([env user opr resource on-rbac]
    (check-instance-privilege env true user opr resource on-rbac)))
 
-(defn- run [env opr arg]
+(defn- apply-rbac-for-user [user env opr arg]
   (if-let [data (ii/data-input arg)]
     (if (ii/skip-for-input? data)
       arg
       (let [is-delete (= :delete opr)
-            user (cn/event-context-user (ii/event arg))
             resource (if is-delete (second data) (first-instance data))
             check-on (if is-delete (first data) resource)
             ign-refs (and (not is-delete)
@@ -138,8 +135,7 @@
         arg
 
         (= :read opr)
-        (let [user (cn/event-context-user (ii/event arg))
-              rslt (extract-read-results data)]
+        (let [rslt (extract-read-results data)]
           (if (and (ii/has-instance-meta? arg)
                    (every? (partial user-is-owner? user env) rslt))
             arg
@@ -149,6 +145,12 @@
 
         :else arg)
       arg)))
+
+(defn- run [env opr arg]
+  (let [user (cn/event-context-user (ii/event arg))]
+    (if (rbac/superuser-email? user)
+      arg
+      (apply-rbac-for-user user env opr arg))))
 
 (defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))

@@ -110,15 +110,14 @@
     privs)))
 
 (defn- has-priv? [action userid arg]
-  (if (superuser-email? userid)
-    true
-    (let [resource (:data arg)
-          privs (privileges userid)
-          predic (partial filter-privs privs action (:ignore-refs arg))]
-      (if (ii/attribute-ref? resource)
-        (or (predic (li/root-path resource))
-            (predic resource))
-        (predic resource)))))
+  ;; Assumes - (not (superuser-email? userid))
+  (let [resource (:data arg)
+        privs (privileges userid)
+        predic (partial filter-privs privs action (:ignore-refs arg))]
+    (if (ii/attribute-ref? resource)
+      (or (predic (li/root-path resource))
+          (predic resource))
+      (predic resource))))
 
 (def can-read? (partial has-priv? :read))
 (def can-upsert? (partial has-priv? :upsert))
