@@ -102,11 +102,44 @@
         (recur (rest insts)))
       false)))
 
+(defn- check-inherited-instance-privilege [user opr instance]
+  (or
+   (let [entity-name (cn/instance-type instance)]
+     (loop [rels (seq (cn/relationships-with-instance-rbac entity-name))
+            result :continue]
+       (if-let [r (first rels)]
+         (if-let [nodes (seq (rg/find-connected-nodes r entity-name instance))]
+           (let [pvs (mapv #(conj (check-inherited-instance-privilege user opr %)
+                                  (rbac/check-instance-privilege user opr %))
+                           nodes)]
+             (if (some #{:block} pvs)
+               :block
+               (recur (rest pvs) (some #{:allow} pvs))))
+           result)
+         result)))
+   :continue))
+
+(defn- check-inherited-entity-privilege [user opr instance]
+  (let [entity-name (cn/instance-type instance)]
+    (when-let [rels (seq (cn/relationships-with-entity-rbac entity-name))]
+      ;; TODO: implement entity-level check for only contains relationships
+      :continue)))
+
+(defn- call-rbac-continuation [r c]
+  (case r
+    :allow true
+    :block false
+    :continue (c)))
+
 (defn- apply-privilege-hierarchy-checks [env user opr resource continuation]
   (if (cn/entity-instance? resource)
     (if (parent-of-any? env user (rg/find-parents resource))
       true
-      (continuation))
+      (call-rbac-continuation
+       (check-inherited-instance-privilege user opr resource)
+       #(call-rbac-continuation
+         (check-inherited-entity-privilege user opr resource)
+         continuation)))
     (continuation)))
 
 (defn- check-instance-privilege [env user opr resource continuation]
@@ -121,13 +154,11 @@
                :allow)
               (rbac/check-instance-privilege user opr resource))
             :continue)]
-    (case r
-      :allow true
-      :block false
-      :continue (if continuation
-                  (apply-privilege-hierarchy-checks
-                   env user opr resource continuation)
-                  true))))
+    (call-rbac-continuation
+     r #(if continuation
+          (apply-privilege-hierarchy-checks
+           env user opr resource continuation)
+          true))))
 
 (defn- apply-rbac-for-user [user env opr arg]
   (if-let [data (ii/data-input arg)]

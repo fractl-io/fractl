@@ -89,6 +89,18 @@
                (not (cn/meta-entity-for-any? enames %)))
          enames))))))
 
+(defn- lookup-relations [relname relinsts other-entity-name]
+  (let [[c pe :as parent-entity] (li/split-path other-entity-name)
+        lookupevt-name (keyword (str (name c) "/Lookup_" (name pe)))]
+    (mapv
+     (fn [relinst]
+       (let [p-rel-attr (cn/attribute-in-relationship relname parent-entity)
+             p-id-attr (cn/identity-attribute-name parent-entity)
+             p-attr (if (= p-rel-attr p-id-attr) pe (cn/relationship-member-identity pe))
+             p-id-val (p-attr relinst)]
+         (first (ev/safe-eval {lookupevt-name {p-id-attr p-id-val}}))))
+     relinsts)))
+
 (defn- find-instance-contains-rels [contains-lookup instance]
   (let [[_ e :as inst-type] (li/split-path (cn/instance-type instance))
         entity-name (li/make-path inst-type)]
@@ -101,17 +113,18 @@
                qattr (keyword (str (name e) "?"))]
            [p
             (when-let [relinsts (seq (ev/safe-eval-pattern {relname {qattr inst-rel-id}}))]
-              (let [[c pe :as parent-entity] (li/split-path (cn/relinfo-to p))
-                    lookupevt-name (keyword (str (name c) "/Lookup_" (name pe)))]
-                (mapv
-                 (fn [relinst]
-                   (let [p-rel-attr (cn/attribute-in-relationship relname parent-entity)
-                         p-id-attr (cn/identity-attribute-name parent-entity)
-                         p-attr (if (= p-rel-attr p-id-attr) pe (cn/relationship-member-identity pe))
-                         p-id-val (p-attr relinst)]
-                     (first (ev/safe-eval {lookupevt-name {p-id-attr p-id-val}}))))
-                 relinsts)))]))
+              (lookup-relations relname relinsts (cn/relinfo-to p)))]))
        parent-rels))))
 
 (def find-parents (partial find-instance-contains-rels cn/containing-parents))
 (def find-children (partial find-instance-contains-rels cn/contained-children))
+
+(defn find-connected-nodes [relname entity-name entity-instance]
+  (let [meta (cn/fetch-meta relname)
+        [e1 e2] (or (mt/contains meta) (mt/between meta))
+        other-entity (if (= entity-name e1) e2 e1)
+        inst-rel-attr (cn/attribute-in-relationship relname entity-name)
+        inst-rel-id (inst-rel-attr entity-instance)
+        qattr (keyword (str (name (second (li/split-path entity-name))) "?"))]
+    (when-let [relinsts (seq (ev/safe-eval-pattern {relname {qattr inst-rel-id}}))]
+      (lookup-relations relname relinsts other-entity))))
