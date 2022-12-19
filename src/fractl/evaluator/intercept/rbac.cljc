@@ -6,6 +6,7 @@
             [fractl.store :as store]
             [fractl.env :as env]
             [fractl.lang.internal :as li]
+            [fractl.lang.relgraph :as rg]
             [fractl.rbac.core :as rbac]
             [fractl.evaluator.intercept.internal :as ii]))
 
@@ -92,8 +93,21 @@
     (first data)
     :else data))
 
-(defn- apply-privilege-hierarchy-checks [user opr resource continuation]
-  (continuation))
+(defn- parent-of-any? [env user insts]
+  (loop [insts insts]
+    (if-let [inst (first insts)]
+      (if (or (user-is-owner? user env (cn/instance-type inst) (cn/idval inst))
+              (parent-of-any? user env (rg/find-parents inst)))
+        true
+        (recur (rest insts)))
+      false)))
+
+(defn- apply-privilege-hierarchy-checks [env user opr resource continuation]
+  (if (cn/entity-instance? resource)
+    (if (parent-of-any? env user (rg/find-parents resource))
+      true
+      (continuation))
+    (continuation)))
 
 (defn- check-instance-privilege [env user opr resource continuation]
   (let [r (if (cn/entity-instance? resource)
@@ -112,7 +126,7 @@
       :block false
       :continue (if continuation
                   (apply-privilege-hierarchy-checks
-                   user opr resource continuation)
+                   env user opr resource continuation)
                   true))))
 
 (defn- apply-rbac-for-user [user env opr arg]

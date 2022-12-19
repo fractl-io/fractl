@@ -93,18 +93,25 @@
   (let [[_ e :as inst-type] (li/split-path (cn/instance-type instance))
         entity-name (li/make-path inst-type)]
     (when-let [parent-rels (seq (contains-lookup entity-name))]
-      (let [inst-id ((cn/identity-attribute-name entity-name) instance)
-            qattr (keyword (str (name e) "?"))]
-        (mapv
-         (fn [p]
+      (mapv
+       (fn [p]
+         (let [relname (cn/relinfo-name p)
+               inst-rel-attr (cn/attribute-in-relationship relname entity-name)
+               inst-rel-id (inst-rel-attr instance)
+               qattr (keyword (str (name e) "?"))]
            [p
-            (when-let [relinst (first (ev/safe-eval-pattern {(cn/relinfo-name p) {qattr inst-id}}))]
+            (when-let [relinsts (seq (ev/safe-eval-pattern {relname {qattr inst-rel-id}}))]
               (let [[c pe :as parent-entity] (li/split-path (cn/relinfo-to p))
-                    lookupevt-name (keyword (str (name c) "/Lookup_" (name pe)))
-                    pidattr (cn/identity-attribute-name parent-entity)
-                    pidval (pe relinst)]
-                (first (ev/safe-eval {lookupevt-name {pidattr pidval}}))))])
-         parent-rels)))))
+                    lookupevt-name (keyword (str (name c) "/Lookup_" (name pe)))]
+                (mapv
+                 (fn [relinst]
+                   (let [p-rel-attr (cn/attribute-in-relationship relname parent-entity)
+                         p-id-attr (cn/identity-attribute-name parent-entity)
+                         p-attr (if (= p-rel-attr p-id-attr) pe (cn/relationship-member-identity pe))
+                         p-id-val (p-attr relinst)]
+                     (first (ev/safe-eval {lookupevt-name {p-id-attr p-id-val}}))))
+                 relinsts)))]))
+       parent-rels))))
 
 (def find-parents (partial find-instance-contains-rels cn/containing-parents))
 (def find-children (partial find-instance-contains-rels cn/contained-children))
