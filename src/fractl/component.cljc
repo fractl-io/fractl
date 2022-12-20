@@ -1480,7 +1480,11 @@
   (filter #(get-in (fetch-meta %) [:rbac :inherit tag]) (find-relationships recname)))
 
 (def relationships-with-instance-rbac (partial find-relationships-with-rbac-inheritance :instance))
-(def relationships-with-entity-rbac (partial find-relationships-with-rbac-inheritance :entity))
+
+(defn relationships-with-entity-rbac [recname]
+  (filter #(let [[_ e2] (mt/contains (fetch-meta %))]
+             (= e2 recname))
+          (find-relationships-with-rbac-inheritance :entity recname)))
 
 (defn in-relationship? [recname relname]
   (let [n (if (keyword? relname)
@@ -1542,8 +1546,14 @@
                   [% :between that])))
            rels))))
 
-(defn relationship-on-attributes [rel-name]
-  (:on (relmeta-key (fetch-meta rel-name))))
+(defn contains-relationship? [relname]
+  (mt/contains (fetch-meta relname)))
+
+(defn containing-parent [relname]
+  (first (mt/contains (fetch-meta relname))))
+
+(defn relationship-on-attributes [relname]
+  (:on (relmeta-key (fetch-meta relname))))
 
 (defn relationship-member-identity [k]
   (keyword (str (name k) "Identity")))

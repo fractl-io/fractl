@@ -119,11 +119,15 @@
          result)))
    :continue))
 
-(defn- check-inherited-entity-privilege [user opr instance]
-  (let [entity-name (cn/instance-type instance)]
+(defn- check-inherited-entity-privilege [user opr instance rbac-check]
+  (let [entity-name (if (keyword? instance) instance (cn/instance-type instance))]
     (if-let [rels (seq (cn/relationships-with-entity-rbac entity-name))]
-      ;; TODO: implement entity-level check for only contains relationships
-      :continue
+      (if (every? #(let [e1 (cn/containing-parent %)]
+                     (or (rbac-check e1)
+                         (= :allow (check-inherited-entity-privilege user opr e1 rbac-check))))
+                  rels)
+        :allow
+        :block)
       :continue)))
 
 (defn- call-rbac-continuation [r c]
@@ -132,34 +136,37 @@
     :block false
     :continue (c)))
 
-(defn- apply-privilege-hierarchy-checks [env user opr resource continuation]
+(defn- apply-privilege-hierarchy-checks [env user opr resource rbac-check continuation]
   (if (cn/entity-instance? resource)
     (if (parent-of-any? env user (rg/find-parents resource))
       true
       (call-rbac-continuation
        (check-inherited-instance-privilege user opr resource)
        #(call-rbac-continuation
-         (check-inherited-entity-privilege user opr resource)
+         (check-inherited-entity-privilege user opr resource rbac-check)
          continuation)))
     (continuation)))
 
-(defn- check-instance-privilege [env user opr resource continuation]
-  (let [r (if (cn/entity-instance? resource)
-            (if (and (or (= opr :upsert) (= opr :delete))
-                     (rbac/instance-privilege-assignment-object? resource))
-              (and
-               (user-is-owner?
-                user env
-                (rbac/instance-privilege-assignment-resource resource)
-                (rbac/instance-privilege-assignment-resource-id resource))
-               :allow)
-              (rbac/check-instance-privilege user opr resource))
-            :continue)]
-    (call-rbac-continuation
-     r #(if continuation
-          (apply-privilege-hierarchy-checks
-           env user opr resource continuation)
-          true))))
+(defn- check-instance-privilege
+  ([env user opr resource rbac-check continuation]
+   (let [r (if (cn/entity-instance? resource)
+             (if (and (or (= opr :upsert) (= opr :delete))
+                      (rbac/instance-privilege-assignment-object? resource))
+               (and
+                (user-is-owner?
+                 user env
+                 (rbac/instance-privilege-assignment-resource resource)
+                 (rbac/instance-privilege-assignment-resource-id resource))
+                :allow)
+               (rbac/check-instance-privilege user opr resource))
+             :continue)]
+     (call-rbac-continuation
+      r #(if continuation
+           (apply-privilege-hierarchy-checks
+            env user opr resource rbac-check continuation)
+           true))))
+  ([env user opr resource]
+   (check-instance-privilege env user opr resource nil nil)))
 
 (defn- apply-rbac-for-user [user env opr arg]
   (if-let [data (ii/data-input arg)]
@@ -173,12 +180,11 @@
                           (or (= :read opr) (= :upsert opr)))]
         (when (or (and (ii/has-instance-meta? arg)
                        (user-is-owner? user env resource))
-                  (check-instance-privilege
-                   env user opr resource
-                   #((opr actions)
-                     user
-                     {:data check-on
-                      :ignore-refs ign-refs})))
+                  (let [check-arg {:data check-on :ignore-refs ign-refs}]
+                    (check-instance-privilege
+                     env user opr resource
+                     #(apply-rbac-for-user user env opr (ii/assoc-data-input arg %))
+                     #((opr actions) user check-arg))))
           arg)))
     (if-let [data (seq (ii/data-output arg))]
       (cond
@@ -190,7 +196,7 @@
           (if (and (ii/has-instance-meta? arg)
                    (every? (partial user-is-owner? user env) rslt))
             arg
-            (when (every? #(check-instance-privilege env user opr % nil) rslt)
+            (when (every? #(check-instance-privilege env user opr %) rslt)
               (apply-read-attribute-rules user rslt arg))))
 
         :else arg)
