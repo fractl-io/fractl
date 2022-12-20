@@ -121,8 +121,9 @@
 
 (defn- check-inherited-entity-privilege [user opr instance]
   (let [entity-name (cn/instance-type instance)]
-    (when-let [rels (seq (cn/relationships-with-entity-rbac entity-name))]
+    (if-let [rels (seq (cn/relationships-with-entity-rbac entity-name))]
       ;; TODO: implement entity-level check for only contains relationships
+      :continue
       :continue)))
 
 (defn- call-rbac-continuation [r c]
