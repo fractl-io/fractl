@@ -8,6 +8,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.relgraph :as rg]
             [fractl.rbac.core :as rbac]
+            [fractl.global-state :as gs]
             [fractl.evaluator.intercept.internal :as ii]))
 
 (defn- has-priv? [rbac-predic user arg]
@@ -93,44 +94,59 @@
     (first data)
     :else data))
 
+(defn- find-parents [inst]
+  (let [parent-info (rg/find-parents inst)]
+    (seq (su/nonils (mapv second parent-info)))))
+
 (defn- parent-of-any? [env user insts]
   (loop [insts insts]
     (if-let [inst (first insts)]
       (if (or (user-is-owner? user env (cn/instance-type inst) (cn/idval inst))
-              (parent-of-any? user env (rg/find-parents inst)))
+              (parent-of-any? user env (find-parents inst)))
         true
         (recur (rest insts)))
       false)))
 
 (defn- check-inherited-instance-privilege [user opr instance]
   (or
-   (let [entity-name (cn/instance-type instance)]
-     (loop [rels (seq (cn/relationships-with-instance-rbac entity-name))
-            result :continue]
-       (if-let [r (first rels)]
-         (if-let [nodes (seq (rg/find-connected-nodes r entity-name instance))]
-           (let [pvs (mapv #(conj (check-inherited-instance-privilege user opr %)
-                                  (rbac/check-instance-privilege user opr %))
-                           nodes)]
-             (if (some #{:block} pvs)
-               :block
-               (recur (rest pvs) (some #{:allow} pvs))))
-           result)
-         result)))
+   (when (cn/entity-instance? instance)
+     (let [entity-name (cn/instance-type instance)]
+       (loop [rels (seq (cn/relationships-with-instance-rbac entity-name))
+              result :continue]
+         (if-let [r (first rels)]
+           (if-let [nodes (seq (rg/find-connected-nodes r entity-name instance))]
+             (let [pvs (mapv #(conj (check-inherited-instance-privilege user opr %)
+                                    (rbac/check-instance-privilege user opr %))
+                             nodes)]
+               (if (some #{:block} pvs)
+                 :block
+                 (recur (rest pvs) (some #{:allow} pvs))))
+             result)
+           result))))
    :continue))
 
 (defn- check-inherited-entity-privilege [user opr instance rbac-check]
-  (let [entity-name (if (keyword? instance) instance (cn/instance-type instance))]
-    (if-let [rels (seq (cn/relationships-with-entity-rbac entity-name))]
-      (if (every? #(let [e1 (cn/containing-parent %)]
-                     (or (rbac-check e1)
-                         (= :allow (check-inherited-entity-privilege user opr e1 rbac-check))))
-                  rels)
-        :allow
-        :block)
+  (let [entity-name (cond
+                      (keyword? instance)
+                      (li/root-path instance)
+
+                      (vector? instance)
+                      (li/make-path instance)
+
+                      :else
+                      (cn/instance-type instance))]
+    (if (cn/entity? entity-name)
+      (if-let [rels (seq (cn/relationships-with-entity-rbac entity-name))]
+        (if (every? #(let [e1 (cn/containing-parent %)]
+                       (or (rbac-check e1)
+                           (= :allow (check-inherited-entity-privilege user opr e1 rbac-check))))
+                    rels)
+          :allow
+          :block)
+        :continue)
       :continue)))
 
-(defn- call-rbac-continuation [r c]
+(defn- call-rbac-continuation [user resource opr r c]
   (case r
     :allow true
     :block false
@@ -138,14 +154,15 @@
 
 (defn- apply-privilege-hierarchy-checks [env user opr resource rbac-check continuation]
   (if (cn/entity-instance? resource)
-    (if (parent-of-any? env user (rg/find-parents resource))
-      true
-      (call-rbac-continuation
-       (check-inherited-instance-privilege user opr resource)
-       #(call-rbac-continuation
-         (check-inherited-entity-privilege user opr resource rbac-check)
-         continuation)))
-    (continuation)))
+    (or (parent-of-any? env user (find-parents resource))
+        (call-rbac-continuation user resource opr
+         (check-inherited-instance-privilege user opr resource)
+         #(call-rbac-continuation user resource opr
+           (check-inherited-entity-privilege user opr resource rbac-check)
+           continuation)))
+    (call-rbac-continuation user resource opr
+     (check-inherited-entity-privilege user opr resource rbac-check)
+     continuation)))
 
 (defn- check-instance-privilege
   ([env user opr resource rbac-check continuation]
@@ -160,7 +177,7 @@
                 :allow)
                (rbac/check-instance-privilege user opr resource))
              :continue)]
-     (call-rbac-continuation
+     (call-rbac-continuation user resource opr
       r #(if continuation
            (apply-privilege-hierarchy-checks
             env user opr resource rbac-check continuation)
@@ -203,7 +220,8 @@
       arg)))
 
 (defn- run [env opr arg]
-  (let [user (cn/event-context-user (ii/event arg))]
+  (let [user (or (cn/event-context-user (ii/event arg))
+                 (gs/active-user))]
     (if (rbac/superuser-email? user)
       arg
       (apply-rbac-for-user user env opr arg))))

@@ -589,10 +589,10 @@
   (defcomponent :I711A
     (entity
      :I711A/E1
-     {:X :Kernel/Int})
+     {:X {:type :Kernel/Int :identity true}})
     (entity
      :I711A/E2
-     {:Y :Kernel/Int})
+     {:Y {:type :Kernel/Int :identity true}})
     (relationship
      :I711A/R1
      {:meta {:contains [:I711A/E1 :I711A/E2]
@@ -600,24 +600,37 @@
     (dataflow
      :I711A/CreateUsers
      {:Kernel.Identity/User
-      {:Email "u1@i711a.com"}})
+      {:Email "u1@i711a.com"}}
+     {:Kernel.Identity/User
+      {:Email "u2@i711a.com"}})
     (dataflow
      :I711A/AssignRoles
      {:Kernel.RBAC/Role {:Name "i711a_r1"}}
      {:Kernel.RBAC/Privilege
       {:Name "i711a_p1"
        :Actions [:q# [:read :upsert :delete]]
-       :Resource [:q# [:I711A/E1]]}}
+       :Resource [:q# [:I711A/E1 :I711A/R1]]}}
      {:Kernel.RBAC/Privilege
       {:Name "i711a_p2"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:I711A/Upsert_E1]]}}
+       :Resource [:q# [:I711A/Upsert_E1 :I711A/CreateE2]]}}
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "i711a_r1" :Privilege "i711a_p1"}}
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "i711a_r1" :Privilege "i711a_p2"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "i711a_r1" :Assignee "u1@i711a.com"}}))
+      {:Role "i711a_r1" :Assignee "u1@i711a.com"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i711a_r1" :Assignee "u2@i711a.com"}})
+    (event
+     :I711A/CreateE2
+     {:X :Kernel/Int :Y :Kernel/Int})
+    (dataflow
+     :I711A/CreateE2
+     {:I711A/E1 {:X? :I711A/CreateE2.X} :as :E1}
+     {:I711A/E2
+      {:Y :I711A/CreateE2.Y}
+      :-> [{:I711A/R1 {}} :E1]}))
   (defn- rbac-setup [event-name result-type]
     (is (cn/instance-of?
          result-type
@@ -640,4 +653,7 @@
      (is (create-e1 10 true))
      (rbac-setup :I711A/AssignRoles :Kernel.RBAC/RoleAssignment)
      (rbac/force-reload-privileges!)
-     (is (cn/instance-of? :I711A/E1 (first (create-e1 10 false)))))))
+     (is (cn/instance-of? :I711A/E1 (first (create-e1 10 false))))
+     (let [r (tu/result (with-user "u1@i711a.com" {:I711A/CreateE2 {:X 10 :Y 100}}))]
+       (is (cn/instance-of? :I711A/E2 r))
+       (is (cn/instance-of? :I711A/R1 (first (:-> r))))))))

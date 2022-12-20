@@ -1482,9 +1482,10 @@
 (def relationships-with-instance-rbac (partial find-relationships-with-rbac-inheritance :instance))
 
 (defn relationships-with-entity-rbac [recname]
-  (filter #(let [[_ e2] (mt/contains (fetch-meta %))]
-             (= e2 recname))
-          (find-relationships-with-rbac-inheritance :entity recname)))
+  (let [recname (if (keyword? recname) recname (li/make-path recname))]
+    (filter #(let [[_ e2] (mt/contains (fetch-meta %))]
+               (= e2 recname))
+            (find-relationships-with-rbac-inheritance :entity recname))))
 
 (defn in-relationship? [recname relname]
   (let [n (if (keyword? relname)
