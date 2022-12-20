@@ -176,8 +176,8 @@
         (str "component not found - " component)
         {type-key typname
          :tag typtag}))
-     (log/debug (str "custom parse policies for " typname " - "
-                     (mt/apply-policy-parsers k meta)))
+     (when-let [pp (mt/apply-policy-parsers k meta)]
+       (log/debug (str "custom parse policies for " typname " - " pp)))
      (u/call-and-set
       components
       #(assoc-in (if meta

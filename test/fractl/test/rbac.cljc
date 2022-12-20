@@ -10,7 +10,7 @@
             [fractl.auth]
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record relationship dataflow]]
             #?(:clj  [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -584,3 +584,60 @@
               :Kernel.RBAC/InstancePrivilegeAssignment
               (:to (:transition a))))
          (delete-e false "564" "ilr_u2@ilr.com"))))))
+
+(deftest issue-711-inherit-entity-priv
+  (defcomponent :I711A
+    (entity
+     :I711A/E1
+     {:X :Kernel/Int})
+    (entity
+     :I711A/E2
+     {:Y :Kernel/Int})
+    (relationship
+     :I711A/R1
+     {:meta {:contains [:I711A/E1 :I711A/E2]
+             :rbac {:inherit {:entity true}}}})
+    (dataflow
+     :I711A/CreateUsers
+     {:Kernel.Identity/User
+      {:Email "u1@i711a.com"}})
+    (dataflow
+     :I711A/AssignRoles
+     {:Kernel.RBAC/Role {:Name "i711a_r1"}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711a_p1"
+       :Actions [:q# [:read :upsert :delete]]
+       :Resource [:q# [:I711A/E1]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711a_p2"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:I711A/Upsert_E1]]}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711a_r1" :Privilege "i711a_p1"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711a_r1" :Privilege "i711a_p2"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i711a_r1" :Assignee "u1@i711a.com"}}))
+  (defn- rbac-setup [event-name result-type]
+    (is (cn/instance-of?
+         result-type
+         (first
+          (tu/result
+           (with-user rbac/default-superuser-email event-name))))))
+  (defn- create-e1 [x expect-error]
+    (let [f #(tu/result
+              (with-user
+                "u1@i711a.com"
+                {:I711A/Upsert_E1
+                 {:Instance {:I711A/E1 {:X x}}}}))]
+      (if expect-error
+        (tu/is-error f)
+        (f))))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+     (rbac-setup :I711A/CreateUsers :Kernel.Identity/User)
+     (is (create-e1 10 true))
+     (rbac-setup :I711A/AssignRoles :Kernel.RBAC/RoleAssignment)
+     (rbac/force-reload-privileges!)
+     (is (cn/instance-of? :I711A/E1 (first (create-e1 10 false)))))))

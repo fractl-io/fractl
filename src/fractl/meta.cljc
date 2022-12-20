@@ -39,8 +39,9 @@
   (intercept (policy-parsers @custom-parsers)))
 
 (defn apply-policy-parsers [rec-name meta]
-  (su/nonils
-   (mapv (fn [[intercept _ _ :as args]]
-           (when-let [fs (get-policy-parsers intercept)]
-             (apply concat (mapv #(apply % args) fs))))
-         (meta-as-policies rec-name meta))))
+  (seq
+   (su/nonils
+    (mapv (fn [[intercept _ _ :as args]]
+            (when-let [fs (get-policy-parsers intercept)]
+              (apply concat (mapv #(apply % args) fs))))
+          (meta-as-policies rec-name meta)))))
