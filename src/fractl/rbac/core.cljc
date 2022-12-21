@@ -115,8 +115,9 @@
         privs (privileges userid)
         predic (partial filter-privs privs action (:ignore-refs arg))]
     (if (ii/attribute-ref? resource)
-      (or (predic (li/root-path resource))
-          (predic resource))
+      (let [rp (li/root-path resource)]
+        (or (predic rp)
+            (predic resource)))
       (predic resource))))
 
 (def can-read? (partial has-priv? :read))

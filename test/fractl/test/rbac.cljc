@@ -600,9 +600,7 @@
     (dataflow
      :I711A/CreateUsers
      {:Kernel.Identity/User
-      {:Email "u1@i711a.com"}}
-     {:Kernel.Identity/User
-      {:Email "u2@i711a.com"}})
+      {:Email "u1@i711a.com"}})
     (dataflow
      :I711A/AssignRoles
      {:Kernel.RBAC/Role {:Name "i711a_r1"}}
@@ -619,9 +617,7 @@
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "i711a_r1" :Privilege "i711a_p2"}}
      {:Kernel.RBAC/RoleAssignment
-      {:Role "i711a_r1" :Assignee "u1@i711a.com"}}
-     {:Kernel.RBAC/RoleAssignment
-      {:Role "i711a_r1" :Assignee "u2@i711a.com"}})
+      {:Role "i711a_r1" :Assignee "u1@i711a.com"}})
     (event
      :I711A/CreateE2
      {:X :Kernel/Int :Y :Kernel/Int})
@@ -689,17 +685,41 @@
       {:Name "i711b_p2"
        :Actions [:q# [:eval]]
        :Resource [:q# [:I711B/Upsert_E1 :I711B/CreateE2
-                       :I711B/UpdateE2]]}}
+                       :I711B/UpdateE2 :I711B/Lookup_E1]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711b_p3"
+       :Actions [:q# [:eval :upsert :read]]
+       :Resource [:q# [:I711B/AssignInstancePriv
+                       :Kernel.RBAC/InstancePrivilegeAssignment]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711b_p4"
+       :Actions [:q# [:read]]
+       :Resource [:q# [:I711B/E1 :I711B/R1 :I711B/E2]]}}
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "i711b_r1" :Privilege "i711b_p1"}}
      {:Kernel.RBAC/PrivilegeAssignment
       {:Role "i711b_r1" :Privilege "i711b_p2"}}
      {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711b_r1" :Privilege "i711b_p3"}}
+     {:Kernel.RBAC/PrivilegeAssignment
       {:Role "i711b_r2" :Privilege "i711b_p2"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711b_r2" :Privilege "i711b_p4"}}
      {:Kernel.RBAC/RoleAssignment
       {:Role "i711b_r1" :Assignee "u1@i711b.com"}}
      {:Kernel.RBAC/RoleAssignment
       {:Role "i711b_r2" :Assignee "u2@i711b.com"}})
+    (event
+     :I711B/AssignInstancePriv
+     {:X :Kernel/Int
+      :User :Kernel/String})
+    (dataflow
+     :I711B/AssignInstancePriv
+     {:Kernel.RBAC/InstancePrivilegeAssignment
+      {:Actions [:q# [:read :upsert]]
+       :Resource [:q# :I711B/E1]
+       :ResourceId :I711B/AssignInstancePriv.X
+       :Assignee :I711B/AssignInstancePriv.User}})
     (event
      :I711B/CreateE2
      {:X :Kernel/Int :Y :Kernel/Int :K :Kernel/Int})
@@ -752,4 +772,17 @@
        (let [from (:from (:transition r))
              to (:to (:transition r))]
          (is (= 3 (:K from)))
-         (is (= 4 (:K to))))))))
+         (is (= 4 (:K to)))))
+     (is (cn/instance-of?
+          :Kernel.RBAC/InstancePrivilegeAssignment
+          (tu/first-result
+           (with-user "u1@i711b.com"
+             {:I711B/AssignInstancePriv
+              {:X 10 :User "u2@i711b.com"}}))))
+     (let [r (tu/first-result
+              (with-user "u2@i711b.com"
+                {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))
+           from (:from (:transition r))
+           to (:to (:transition r))]
+       (is (= 4 (:K from)))
+       (is (= 5 (:K to)))))))

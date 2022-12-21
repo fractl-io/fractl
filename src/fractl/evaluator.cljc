@@ -71,7 +71,8 @@
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (binding [gs/active-event-context (li/event-context event-instance)]
+   (binding [gs/active-event-context (or (li/event-context event-instance)
+                                         gs/active-event-context)]
      (let [is-internal (internal-event? event-instance)
            event-instance (if is-internal
                             (dissoc event-instance internal-event-key)

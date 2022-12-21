@@ -96,7 +96,7 @@
 
 (defn- find-parents [inst]
   (let [parent-info (rg/find-parents inst)]
-    (seq (su/nonils (mapv second parent-info)))))
+    (seq (su/nonils (apply concat (mapv second parent-info))))))
 
 (defn- parent-of-any? [env user insts]
   (loop [insts insts]
@@ -115,8 +115,10 @@
               result :continue]
          (if-let [r (first rels)]
            (if-let [nodes (seq (rg/find-connected-nodes r entity-name instance))]
-             (let [pvs (mapv #(conj (check-inherited-instance-privilege user opr %)
-                                    (rbac/check-instance-privilege user opr %))
+             (let [pvs (mapv #(let [p (rbac/check-instance-privilege user opr %)]
+                                (if (= :continue p)
+                                  (check-inherited-instance-privilege user opr %)
+                                  p))
                              nodes)]
                (if (some #{:block} pvs)
                  :block
@@ -185,6 +187,13 @@
   ([env user opr resource]
    (check-instance-privilege env user opr resource nil nil)))
 
+(defn- obj-name? [x]
+  (if (map? x)
+    false
+    (or (keyword? x)
+        (and (seqable? x)
+             (every? keyword? x)))))
+
 (defn- apply-rbac-for-user [user env opr arg]
   (if-let [data (ii/data-input arg)]
     (if (ii/skip-for-input? data)
@@ -192,9 +201,7 @@
       (let [is-delete (= :delete opr)
             resource (if is-delete (second data) (first-instance data))
             check-on (if is-delete (first data) resource)
-            ign-refs (and (not is-delete)
-                          (not (ii/attribute-ref? resource))
-                          (or (= :read opr) (= :upsert opr)))]
+            ign-refs (or is-delete (= :read opr))]
         (when (or (and (ii/has-instance-meta? arg)
                        (user-is-owner? user env resource))
                   (let [check-arg {:data check-on :ignore-refs ign-refs}]
@@ -219,12 +226,23 @@
         :else arg)
       arg)))
 
+(defn- check-upsert-on-attributes [env user arg]
+  (when-let [inst (first-instance (ii/data-input arg))]
+    (let [n (cn/instance-type inst)
+          idattr (cn/identity-attribute-name n)
+          attrs (remove #(= idattr %) (keys (cn/instance-attributes inst)))
+          waf (partial ii/wrap-attribute n)]
+      (when (every? #(apply-rbac-for-user user env :upsert (ii/assoc-data-input arg (waf %))) attrs)
+        arg))))
+
 (defn- run [env opr arg]
   (let [user (or (cn/event-context-user (ii/event arg))
                  (gs/active-user))]
     (if (rbac/superuser-email? user)
       arg
-      (apply-rbac-for-user user env opr arg))))
+      (or (apply-rbac-for-user user env opr arg)
+          (when (= opr :upsert)
+            (check-upsert-on-attributes env user arg))))))
 
 (defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))

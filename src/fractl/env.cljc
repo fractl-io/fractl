@@ -185,7 +185,6 @@
           (recur (rest insts) ds)))
       (assoc env :dirty ds))))
 
-(def mark-all-mint (partial dirty-flag-switch false))
 (def mark-all-dirty (partial dirty-flag-switch true))
 
 (defn any-dirty?
@@ -203,6 +202,12 @@
               (recur (rest insts))))
           false)))
     true))
+
+(defn mark-all-mint [env insts]
+  (let [env (dirty-flag-switch false env insts)]
+    (if-not (any-dirty? env insts)
+      (dissoc env :dirty)
+      env)))
 
 (def as-map identity)
 
