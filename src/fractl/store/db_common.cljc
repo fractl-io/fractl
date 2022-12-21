@@ -41,12 +41,14 @@
 (defn- append-fkeys [table-name [attr-name [refspec cascade-on-delete]]]
   (let [n (name attr-name)
         ename [(:component refspec) (:record refspec)]]
-    (str "ALTER TABLE " table-name " ADD CONSTRAINT _" table-name "_" n "_fkey "
-         "FOREIGN KEY(_" n ") "
-         "REFERENCES " (su/entity-table-name ename)
-         "(_" (name (first (:refs refspec))) ")"
-         (when cascade-on-delete
-           " ON DELETE CASCADE"))))
+    (let [constraint-name (str "_" table-name "_" n "_fkey")]
+      [(str "ALTER TABLE " table-name " DROP CONSTRAINT IF EXISTS " constraint-name)
+       (str "ALTER TABLE " table-name " ADD CONSTRAINT " constraint-name
+            " FOREIGN KEY(_" n ") "
+            "REFERENCES " (su/entity-table-name ename)
+            "(_" (name (first (:refs refspec))) ")"
+            (when cascade-on-delete
+              " ON DELETE CASCADE"))])))
 
 (defn- create-relational-table-sql [table-name entity-schema
                                     indexed-attributes unique-attributes
@@ -66,7 +68,7 @@
                             "NOT NULL UNIQUE"))]
                  #?(:clj
                     (when attr-ref
-                      (swap! post-init-sqls conj (afk [a attr-ref]))))
+                      (swap! post-init-sqls concat (afk [a attr-ref]))))
                  (recur
                   (rest attrs)
                   (str cols (str "_" (name a) " " sql-type " " uq)
@@ -139,7 +141,7 @@
   (let [scmname (su/db-schema-for-component component-name)]
     (execute-fn! datasource
                  (fn [txn]
-                 (drop-db-schema! txn scmname)))
+                   (drop-db-schema! txn scmname)))
     component-name))
 
 (defn- remove-unique-attributes [indexed-attrs entity-schema]
@@ -204,7 +206,7 @@
     (loop [cqs (rest compiled-queries)
            attrs (rest attr-names)
            sql (str (first qp) " AND " (su/attribute-column-name (first attr-names)) " IN (")
-            params (rest qp)]
+           params (rest qp)]
       (if-let [qp (maybe-with-where-clause (first cqs))]
         (let [[a1 _] (first attrs)
               [_ a2] (second attrs)]
@@ -248,8 +250,8 @@
   (flatten (mapv u/apply0 query-fns)))
 
 (defn- query-instances [entity-name query-fns]
-   (let [results (raw-results query-fns)]
-     (su/results-as-instances entity-name results)))
+  (let [results (raw-results query-fns)]
+    (su/results-as-instances entity-name results)))
 
 (defn query-by-id
   ([query-by-id-statement datasource entity-name query-sql ids]
