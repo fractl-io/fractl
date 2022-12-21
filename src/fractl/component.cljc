@@ -1477,15 +1477,15 @@
   (or (component-find :entity-relationship recname) #{}))
 
 (defn find-relationships-with-rbac-inheritance [tag recname]
-  (filter #(get-in (fetch-meta %) [:rbac :inherit tag]) (find-relationships recname)))
+  (let [recname (if (keyword? recname) recname (li/make-path recname))]
+    (filter #(let [mt (fetch-meta %)
+                   [_ e2] (mt/contains mt)]
+               (when (= e2 recname)
+                 (get-in mt [:rbac :inherit tag])))
+            (find-relationships recname))))
 
 (def relationships-with-instance-rbac (partial find-relationships-with-rbac-inheritance :instance))
-
-(defn relationships-with-entity-rbac [recname]
-  (let [recname (if (keyword? recname) recname (li/make-path recname))]
-    (filter #(let [[_ e2] (mt/contains (fetch-meta %))]
-               (= e2 recname))
-            (find-relationships-with-rbac-inheritance :entity recname))))
+(def relationships-with-entity-rbac (partial find-relationships-with-rbac-inheritance :entity))
 
 (defn in-relationship? [recname relname]
   (let [n (if (keyword? relname)
