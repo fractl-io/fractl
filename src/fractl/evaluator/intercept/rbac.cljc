@@ -167,7 +167,7 @@
      continuation)))
 
 (defn- check-instance-privilege
-  ([env user opr resource rbac-check continuation]
+  ([env user arg opr resource rbac-check continuation]
    (let [r (if (cn/entity-instance? resource)
              (if (and (or (= opr :upsert) (= opr :delete))
                       (rbac/instance-privilege-assignment-object? resource))
@@ -179,13 +179,17 @@
                 :allow)
                (rbac/check-instance-privilege user opr resource))
              :continue)]
-     (call-rbac-continuation user resource opr
-      r #(if continuation
-           (apply-privilege-hierarchy-checks
-            env user opr resource rbac-check continuation)
-           true))))
-  ([env user opr resource]
-   (check-instance-privilege env user opr resource nil nil)))
+     (if (= r :block)
+       (do (ii/set-user-state-value! arg :blocked-at-instance-level r)
+           false)
+       (call-rbac-continuation
+        user resource opr
+        r #(if continuation
+             (apply-privilege-hierarchy-checks
+              env user opr resource rbac-check continuation)
+             true)))))
+  ([env user arg opr resource]
+   (check-instance-privilege env user arg opr resource nil nil)))
 
 (defn- obj-name? [x]
   (if (map? x)
@@ -206,7 +210,7 @@
                        (user-is-owner? user env resource))
                   (let [check-arg {:data check-on :ignore-refs ign-refs}]
                     (check-instance-privilege
-                     env user opr resource
+                     env user arg opr resource
                      #(apply-rbac-for-user user env opr (ii/assoc-data-input arg %))
                      #((opr actions) user check-arg))))
           arg)))
@@ -220,7 +224,7 @@
           (if (and (ii/has-instance-meta? arg)
                    (every? (partial user-is-owner? user env) rslt))
             arg
-            (when (every? #(check-instance-privilege env user opr %) rslt)
+            (when (every? #(check-instance-privilege env user arg opr %) rslt)
               (apply-read-attribute-rules user rslt arg))))
 
         :else arg)
@@ -235,14 +239,19 @@
       (when (every? #(apply-rbac-for-user user env :upsert (ii/assoc-data-input arg (waf %))) attrs)
         arg))))
 
+(defn- blocked-at-instance-level? [arg]
+  (= :block (ii/get-user-state-value arg :blocked-at-instance-level)))
+
 (defn- run [env opr arg]
   (let [user (or (cn/event-context-user (ii/event arg))
                  (gs/active-user))]
     (if (rbac/superuser-email? user)
       arg
-      (or (apply-rbac-for-user user env opr arg)
-          (when (= opr :upsert)
-            (check-upsert-on-attributes env user arg))))))
+      (let [is-ups (= opr :upsert)
+            arg (if is-ups (ii/assoc-user-state arg) arg)]
+        (or (apply-rbac-for-user user env opr arg)
+            (when (and is-ups (not (blocked-at-instance-level? arg)))
+              (check-upsert-on-attributes env user arg)))))))
 
 (defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))
