@@ -1477,13 +1477,14 @@
   (or (component-find :entity-relationship recname) #{}))
 
 (defn find-contained-relationship [recname]
-  (first
-   (filter
-    #(= recname (second (mt/contains (fetch-meta %))))
-    (find-relationships recname))))
+  (let [recname (li/keyword-name recname)]
+    (first
+     (filter
+      #(= recname (second (mt/contains (fetch-meta %))))
+      (find-relationships recname)))))
 
 (defn find-relationships-with-rbac-inheritance [tag recname]
-  (let [recname (if (keyword? recname) recname (li/make-path recname))]
+  (let [recname (li/keyword-name recname)]
     (filter #(let [mt (fetch-meta %)
                    [_ e2] (mt/contains mt)]
                (when (= e2 recname)
