@@ -10,7 +10,7 @@
             [fractl.auth]
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record relationship dataflow]]
             #?(:clj  [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -584,3 +584,205 @@
               :Kernel.RBAC/InstancePrivilegeAssignment
               (:to (:transition a))))
          (delete-e false "564" "ilr_u2@ilr.com"))))))
+
+(deftest issue-711-inherit-entity-priv
+  (defcomponent :I711A
+    (entity
+     :I711A/E1
+     {:X {:type :Kernel/Int :identity true}})
+    (entity
+     :I711A/E2
+     {:Y {:type :Kernel/Int :identity true}})
+    (relationship
+     :I711A/R1
+     {:meta {:contains [:I711A/E1 :I711A/E2]
+             :rbac {:inherit {:entity true}}}})
+    (dataflow
+     :I711A/CreateUsers
+     {:Kernel.Identity/User
+      {:Email "u1@i711a.com"}})
+    (dataflow
+     :I711A/AssignRoles
+     {:Kernel.RBAC/Role {:Name "i711a_r1"}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711a_p1"
+       :Actions [:q# [:read :upsert :delete]]
+       :Resource [:q# [:I711A/E1 :I711A/R1]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711a_p2"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:I711A/Upsert_E1 :I711A/CreateE2]]}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711a_r1" :Privilege "i711a_p1"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711a_r1" :Privilege "i711a_p2"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i711a_r1" :Assignee "u1@i711a.com"}})
+    (event
+     :I711A/CreateE2
+     {:X :Kernel/Int :Y :Kernel/Int})
+    (dataflow
+     :I711A/CreateE2
+     {:I711A/E1 {:X? :I711A/CreateE2.X} :as :E1}
+     {:I711A/E2
+      {:Y :I711A/CreateE2.Y}
+      :-> [{:I711A/R1 {}} :E1]}))
+  (defn- rbac-setup [event-name result-type]
+    (is (cn/instance-of?
+         result-type
+         (first
+          (tu/result
+           (with-user rbac/default-superuser-email event-name))))))
+  (defn- create-e1 [x expect-error]
+    (let [f #(tu/result
+              (with-user
+                "u1@i711a.com"
+                {:I711A/Upsert_E1
+                 {:Instance {:I711A/E1 {:X x}}}}))]
+      (if expect-error
+        (tu/is-error f)
+        (f))))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+     (rbac-setup :I711A/CreateUsers :Kernel.Identity/User)
+     (is (create-e1 10 true))
+     (rbac-setup :I711A/AssignRoles :Kernel.RBAC/RoleAssignment)
+     (rbac/force-reload-privileges!)
+     (is (cn/instance-of? :I711A/E1 (first (create-e1 10 false))))
+     (let [r (tu/result (with-user "u1@i711a.com" {:I711A/CreateE2 {:X 10 :Y 100}}))]
+       (is (cn/instance-of? :I711A/E2 r))
+       (is (cn/instance-of? :I711A/R1 (first (:-> r))))))))
+
+(deftest issue-711-inherit-instance-priv
+  (defcomponent :I711B
+    (entity
+     :I711B/E1
+     {:X {:type :Kernel/Int :identity true}})
+    (entity
+     :I711B/E2
+     {:Y {:type :Kernel/Int :identity true}
+      :K :Kernel/Int})
+    (relationship
+     :I711B/R1
+     {:meta {:contains [:I711B/E1 :I711B/E2]
+             :rbac {:inherit {:instance true}}}})
+    (dataflow
+     :I711B/CreateUsers
+     {:Kernel.Identity/User
+      {:Email "u1@i711b.com"}}
+     {:Kernel.Identity/User
+      {:Email "u2@i711b.com"}})
+    (dataflow
+     :I711B/AssignRoles
+     {:Kernel.RBAC/Role {:Name "i711b_r1"}}
+     {:Kernel.RBAC/Role {:Name "i711b_r2"}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711b_p1"
+       :Actions [:q# [:read :upsert :delete]]
+       :Resource [:q# [:I711B/E1 :I711B/R1 :I711B/E2]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711b_p2"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:I711B/Upsert_E1 :I711B/CreateE2
+                       :I711B/UpdateE2 :I711B/Lookup_E1]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711b_p3"
+       :Actions [:q# [:eval :upsert :read]]
+       :Resource [:q# [:I711B/AssignInstancePriv
+                       :Kernel.RBAC/InstancePrivilegeAssignment]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i711b_p4"
+       :Actions [:q# [:read]]
+       :Resource [:q# [:I711B/E1 :I711B/R1 :I711B/E2]]}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711b_r1" :Privilege "i711b_p1"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711b_r1" :Privilege "i711b_p2"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711b_r1" :Privilege "i711b_p3"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711b_r2" :Privilege "i711b_p2"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i711b_r2" :Privilege "i711b_p4"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i711b_r1" :Assignee "u1@i711b.com"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i711b_r2" :Assignee "u2@i711b.com"}})
+    (event
+     :I711B/AssignInstancePriv
+     {:X :Kernel/Int
+      :User :Kernel/String})
+    (dataflow
+     :I711B/AssignInstancePriv
+     {:Kernel.RBAC/InstancePrivilegeAssignment
+      {:Actions [:q# [:read :upsert]]
+       :Resource [:q# :I711B/E1]
+       :ResourceId :I711B/AssignInstancePriv.X
+       :Assignee :I711B/AssignInstancePriv.User}})
+    (event
+     :I711B/CreateE2
+     {:X :Kernel/Int :Y :Kernel/Int :K :Kernel/Int})
+    (dataflow
+     :I711B/CreateE2
+     {:I711B/E1 {:X? :I711B/CreateE2.X} :as :E1}
+     {:I711B/E2
+      {:Y :I711B/CreateE2.Y
+       :K :I711B/CreateE2.K}
+      :-> [{:I711B/R1 {}} :E1]})
+    (event
+     :I711B/UpdateE2
+     {:X :Kernel/Int :Y :Kernel/Int :K :Kernel/Int})
+    (dataflow
+     :I711B/UpdateE2
+     {:I711B/E2
+      {:Y? :I711B/UpdateE2.Y
+       :K :I711B/UpdateE2.K}
+      :-> [:I711B/R1?
+           {:I711B/E1 {:X? :I711B/UpdateE2.X}}]}))
+  (defn- rbac-setup [event-name result-type]
+    (is (cn/instance-of?
+         result-type
+         (first
+          (tu/result
+           (with-user rbac/default-superuser-email event-name))))))
+  (defn- create-e1 [x expect-error]
+    (let [f #(tu/result
+              (with-user
+                "u1@i711b.com"
+                {:I711B/Upsert_E1
+                 {:Instance {:I711B/E1 {:X x}}}}))]
+      (if expect-error
+        (tu/is-error f)
+        (f))))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+     (rbac-setup :I711B/CreateUsers :Kernel.Identity/User)
+     (is (create-e1 10 true))
+     (rbac-setup :I711B/AssignRoles :Kernel.RBAC/RoleAssignment)
+     (rbac/force-reload-privileges!)
+     (is (cn/instance-of? :I711B/E1 (first (create-e1 10 false))))
+     (let [r (tu/result (with-user "u1@i711b.com" {:I711B/CreateE2 {:X 10 :Y 100 :K 3}}))]
+       (is (cn/instance-of? :I711B/E2 r))
+       (is (cn/instance-of? :I711B/R1 (first (:-> r)))))
+     (is (not (tu/result (with-user "u2@i711b.com" {:I711B/CreateE2 {:X 10 :Y 200 :K 4}}))))
+     (is (not (tu/result (with-user "u2@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))))
+     (let [r (tu/first-result (with-user "u1@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))]
+       (let [from (:from (:transition r))
+             to (:to (:transition r))]
+         (is (= 3 (:K from)))
+         (is (= 4 (:K to)))))
+     (is (cn/instance-of?
+          :Kernel.RBAC/InstancePrivilegeAssignment
+          (tu/first-result
+           (with-user "u1@i711b.com"
+             {:I711B/AssignInstancePriv
+              {:X 10 :User "u2@i711b.com"}}))))
+     (let [r (tu/first-result
+              (with-user "u2@i711b.com"
+                {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))
+           from (:from (:transition r))
+           to (:to (:transition r))]
+       (is (= 4 (:K from)))
+       (is (= 5 (:K to)))))))

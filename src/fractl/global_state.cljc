@@ -9,3 +9,5 @@
   @app-config)
 
 (def ^:dynamic active-event-context)
+
+(defn active-user [] (:User active-event-context))

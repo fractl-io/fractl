@@ -110,15 +110,15 @@
     privs)))
 
 (defn- has-priv? [action userid arg]
-  (if (superuser-email? userid)
-    true
-    (let [resource (:data arg)
-          privs (privileges userid)
-          predic (partial filter-privs privs action (:ignore-refs arg))]
-      (if (ii/attribute-ref? resource)
-        (or (predic (li/root-path resource))
-            (predic resource))
-        (predic resource)))))
+  ;; Assumes - (not (superuser-email? userid))
+  (let [resource (:data arg)
+        privs (privileges userid)
+        predic (partial filter-privs privs action (:ignore-refs arg))]
+    (if (ii/attribute-ref? resource)
+      (let [rp (li/root-path resource)]
+        (or (predic rp)
+            (predic resource)))
+      (predic resource))))
 
 (def can-read? (partial has-priv? :read))
 (def can-upsert? (partial has-priv? :upsert))
@@ -148,27 +148,24 @@
 
 (defn check-instance-privilege
   "Load instance-level privileges for resource.
-   If none are defined, return :rbac to check global-rbac.
+   If none are defined, return :continue to execute the rest of the rbac-algo.
    If instance-level privilege is set for the user and opr is in :Actions,
    return :allow, otherwise return :block.
-   If instance-level privilege is not set for the user, but opr is in :Filter, return :rbac,
-   otherwise return :block
-
-   TODO: To support #697 - walk up the resource's parent graph to figure out
-   instance-level permissions and apply above rules - this can be done in a separate PR."
+   If instance-level privilege is not set for the user, but opr is in :Filter, return :continue,
+   otherwise return :block"
   [userid opr resource]
-  (if-let [[instance-type instance-id] (fetch-instance-info resource)]
-    (if-let [inst-privs (find-instance-privileges instance-type instance-id)]
-      (let [inst-priv-for-user (first (filter #(= userid (:Assignee %)) inst-privs))]
-        (if inst-priv-for-user
-          (if (some #{opr} (:Actions inst-priv-for-user))
-            :allow
-            :block)
-          (if (filter-instance-privilege? opr inst-privs)
-            :rbac
-            :block)))
-      :rbac)
-    :rbac))
+  (or
+   (when-let [[instance-type instance-id] (fetch-instance-info resource)]
+     (when-let [inst-privs (find-instance-privileges instance-type instance-id)]
+       (let [inst-priv-for-user (first (filter #(= userid (:Assignee %)) inst-privs))]
+         (if inst-priv-for-user
+           (if (some #{opr} (:Actions inst-priv-for-user))
+             :allow
+             :block)
+           (if (filter-instance-privilege? opr inst-privs)
+             :continue
+             :block)))))
+   :continue))
 
 (defn instance-privilege-assignment-object? [obj]
   (cn/instance-of? :Kernel.RBAC/InstancePrivilegeAssignment obj))

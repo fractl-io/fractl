@@ -176,8 +176,8 @@
         (str "component not found - " component)
         {type-key typname
          :tag typtag}))
-     (log/debug (str "custom parse policies for " typname " - "
-                     (mt/apply-policy-parsers k meta)))
+     (when-let [pp (mt/apply-policy-parsers k meta)]
+       (log/debug (str "custom parse policies for " typname " - " pp)))
      (u/call-and-set
       components
       #(assoc-in (if meta
@@ -1476,6 +1476,17 @@
 (defn find-relationships [recname]
   (or (component-find :entity-relationship recname) #{}))
 
+(defn find-relationships-with-rbac-inheritance [tag recname]
+  (let [recname (if (keyword? recname) recname (li/make-path recname))]
+    (filter #(let [mt (fetch-meta %)
+                   [_ e2] (mt/contains mt)]
+               (when (= e2 recname)
+                 (get-in mt [:rbac :inherit tag])))
+            (find-relationships recname))))
+
+(def relationships-with-instance-rbac (partial find-relationships-with-rbac-inheritance :instance))
+(def relationships-with-entity-rbac (partial find-relationships-with-rbac-inheritance :entity))
+
 (defn in-relationship? [recname relname]
   (let [n (if (keyword? relname)
             relname
@@ -1536,8 +1547,14 @@
                   [% :between that])))
            rels))))
 
-(defn relationship-on-attributes [rel-name]
-  (:on (relmeta-key (fetch-meta rel-name))))
+(defn contains-relationship? [relname]
+  (mt/contains (fetch-meta relname)))
+
+(defn containing-parent [relname]
+  (first (mt/contains (fetch-meta relname))))
+
+(defn relationship-on-attributes [relname]
+  (:on (relmeta-key (fetch-meta relname))))
 
 (defn relationship-member-identity [k]
   (keyword (str (name k) "Identity")))

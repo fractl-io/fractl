@@ -531,10 +531,10 @@
         ctype (cn/relinfo-to crelinfo)]
     (is (= :I703/Section rel-p))
     (is (= :I703/Company ptype))
-    (is (cn/same-instance? pinst c))
+    (is (cn/same-instance? (first pinst) c))
     (is (= :I703/Section rel-c))
     (is (= :I703/Dept ctype))
-    (is (cn/same-instance? cinst d))))
+    (is (cn/same-instance? (first cinst) d))))
 
 (deftest contains-workspace
   (defcomponent :Fractl.Meta.Core
