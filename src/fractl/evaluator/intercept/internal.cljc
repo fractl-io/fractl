@@ -31,6 +31,21 @@
 (def assoc-data-input (partial assoc-arg-value data-input))
 (def assoc-data-output (partial assoc-arg-value data-output))
 
+(def ^:private user-state-key :-*-user-state-*-)
+
+(defn assoc-user-state [arg]
+  (assoc arg user-state-key (atom {})))
+
+(defn set-user-state-value! [arg k v]
+  (let [state (user-state-key arg)]
+    (when state
+      (swap! state assoc k v))
+    v))
+
+(defn get-user-state-value [arg k]
+  (when-let [state (user-state-key arg)]
+    (get @state k)))
+
 (defn has-instance-meta? [arg]
   (some #{:instance-meta} (interceptors arg)))
 

@@ -14,6 +14,9 @@
       %)
    rows))
 
+(defn- transition? [x]
+  (and (map? x) (:transition x)))
+
 (defn- upsert-meta-failed-msg [entity-instances]
   (str "failed to upsert meta-data for "
        (cn/instance-type (first entity-instances))))
@@ -22,8 +25,14 @@
   (let [user (cn/event-context-user (ii/event arg))
         entity-instances (ii/data-output arg)]
     (cond
+      (not entity-instances) arg
+
+      (not (or (cn/entity-instance? (first entity-instances))
+               (transition? (first entity-instances)))) arg
+
       (ii/attribute-ref? entity-instances) arg
-      (and user entity-instances)
+
+      user
       (try
         (let [entity-instances (normalize-upsert-result entity-instances)
               meta-infos (group-by
