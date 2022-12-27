@@ -112,6 +112,8 @@
        (loop [rels (seq (cn/relationships-with-instance-rbac entity-name))
               result :continue]
          (if-let [r (first rels)]
+           ;; TODO rg/find-connected-nodes can be optimized for queries on parents.
+           ;; (https://github.com/fractl-io/fractl/issues/712)
            (if-let [nodes (seq (rg/find-connected-nodes r entity-name instance))]
              (let [pvs (mapv #(let [p (rbac/check-instance-privilege user opr %)]
                                 (if (= :continue p)
