@@ -429,3 +429,6 @@
 
 (defn normalize-upsert-pattern [pat]
   (dissoc pat :from :as))
+
+(defn keyword-name [n]
+  (if (keyword? n) n (make-path n)))

@@ -22,6 +22,12 @@
 
 (def make-context ctx/make)
 
+(def ^:dynamic active-event-name nil) ; event for which dataflow is being compiled
+
+(defn- active-event-is-built-in? []
+  (when-let [[_ n] active-event-name]
+    (s/index-of (str n) "_")))
+
 (def ^:private emit-load-literal op/load-literal)
 (def ^:private emit-load-instance-by-name op/load-instance)
 
@@ -514,6 +520,19 @@
                          (some-query-attrs? (first (vals relq))))
         :else false))))
 
+(defn- relationship-name-from-pattern [pat]
+  (cond
+    (vector? pat)
+    (relationship-name-from-pattern (first pat))
+
+    (map? pat)
+    (relationship-name-from-pattern (first (keys pat)))
+
+    (keyword? pat)
+    (if (li/query-pattern? pat)
+      (li/query-target-name pat)
+      pat)))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -545,6 +564,10 @@
           is-query-upsert (or (li/query-pattern? orig-nm)
                               (some li/query-pattern? (keys attrs)))
           is-relq (and relpat is-query-upsert (relationship-query? relpat))]
+      (when-not (active-event-is-built-in?)
+        (when-let [r (cn/find-contained-relationship full-nm)]
+          (when (not= r (relationship-name-from-pattern relpat))
+            (u/throw-ex (str "pattern for " full-nm " requires relationship " r)))))
       (let [c (case tag
                 (:entity :record) emit-realize-instance
                 :event (do
@@ -937,10 +960,11 @@
    (maybe-compile-dataflow compile-query-fn cn/with-default-types df)))
 
 (defn compile-dataflows-for-event [compile-query-fn event]
-  (let [evt (dissoc event ctx/with-types-tag)
-        wt (get event ctx/with-types-tag cn/with-default-types)]
-    (mapv (partial maybe-compile-dataflow compile-query-fn wt)
-          (cn/dataflows-for-event evt))))
+  (binding [active-event-name (li/split-path (cn/instance-type event))]
+    (let [evt (dissoc event ctx/with-types-tag)
+          wt (get event ctx/with-types-tag cn/with-default-types)]
+      (mapv (partial maybe-compile-dataflow compile-query-fn wt)
+            (cn/dataflows-for-event evt)))))
 
 (defn compile-standalone-pattern
   ([compile-query-fn with-types pattern]
