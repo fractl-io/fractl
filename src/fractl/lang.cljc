@@ -44,7 +44,8 @@
    (let [ns-name (li/validate-name n)]
      (cn/create-component
       ns-name
-      (when spec (validate-component-spec spec)))))
+      (when spec
+        (validate-component-spec spec)))))
   ([n] (component n nil)))
 
 (defn- attribute-type? [nm]

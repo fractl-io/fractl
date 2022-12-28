@@ -148,7 +148,6 @@
           (str model-name " - model not found in any of "
                model-paths))))))
   ([model-file]
-   (eval '(use (quote [fractl.lang])))
    (let [model (read-model-expressions model-file)
          root (java.io.File. (.getParent (java.io.File. model-file)))]
      [model (str root)])))
