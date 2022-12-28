@@ -161,6 +161,7 @@
    'record fq-preproc-record-def
    'entity fq-preproc-record-def
    'event fq-preproc-record-def
+   'relationship fq-preproc-record-def
    'dataflow fq-preproc-dataflow-def})
 
 (defn fully-qualified-names [declared-names exp]

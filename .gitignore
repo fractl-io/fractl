@@ -31,3 +31,4 @@ app
 /platform/aws/lambda/target/
 .calva/
 .vscode/
+cljout/
