@@ -226,6 +226,7 @@
             (request-content-type request))))))
 
 (defn- process-login [evaluator [auth-config _ :as auth-info] request]
+  (println auth-info)
   (if-not auth-config
     (internal-error "cannot process login - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
