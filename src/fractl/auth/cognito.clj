@@ -47,16 +47,23 @@
     :SignUp
     (let [user (:User event)
           {:keys [Name FirstName LastName Password Email]} user]
-      (aws/sign-up
-       (auth/make-client req)
-       :client-id client-id
-       :password Password
-       :user-attributes [["given_name" FirstName]
-                         ["family_name" LastName]
-                         ["email" Email]
-                         ["name" Name]]
-       :username Email)
-      user)
+      (try
+        (aws/sign-up
+         (auth/make-client req)
+         :client-id client-id
+         :password Password
+         :user-attributes [["given_name" FirstName]
+                           ["family_name" LastName]
+                           ["email" Email]
+                           ["name" Name]]
+         :username Email)
+        user
+        (catch Exception e
+          (let [error-msg (:message (ex->map e))]
+            (throw (Exception. (subs
+                                error-msg
+                                0
+                                (str/index-of error-msg "(Service: AWSCognitoIdentityProvider"))))))))
 
     :UpdateUser
     ;; Update user
