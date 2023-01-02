@@ -63,7 +63,9 @@
             (throw (Exception. (subs
                                 error-msg
                                 0
-                                (str/index-of error-msg "(Service: AWSCognitoIdentityProvider"))))))))
+                                (or (str/index-of error-msg "(Service: AWSCognitoIdentityProvider")
+                                    (count error-msg)))))))))
+
 
     :UpdateUser
     ;; Update user
