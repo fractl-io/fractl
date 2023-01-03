@@ -221,7 +221,8 @@
                       result) data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized "sign-up failed" data-fmt)))))
+              (unauthorized (str "Sign up failed. " (.getMessage ex))
+                            data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request))))))
