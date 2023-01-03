@@ -26,6 +26,14 @@
      (make-jwks-url region user-pool-id)
      token)))
 
+(defn- get-error-msg [cognito-exception]
+  (let [error-msg (:message (ex->map cognito-exception))]
+    (subs
+     error-msg
+     0
+     (or (str/index-of error-msg  "(Service: AWSCognitoIdentityProvider")
+         (count error-msg)))))
+
 (defmethod auth/user-login tag [{:keys [client-id event] :as req}]
   (try
     (aws/initiate-auth (auth/make-client req)
@@ -34,12 +42,7 @@
                                          "PASSWORD" (:Password event)}
                        :client-id client-id)
     (catch Exception e
-      (let [error-msg (:message (ex->map e))]
-        (throw (Exception. (subs
-                            error-msg
-                            0
-                            (or (str/index-of error-msg  "(Service: AWSCognitoIdentityProvider")
-                                (count error-msg)))))))))
+      (throw (Exception. (get-error-msg e))))))
 
 (defmethod auth/upsert-user tag [{:keys [client-id user-pool-id event] :as req}]
   (case (last (cn/instance-type event))
@@ -59,12 +62,7 @@
          :username Email)
         user
         (catch Exception e
-          (let [error-msg (:message (ex->map e))]
-            (throw (Exception. (subs
-                                error-msg
-                                0
-                                (or (str/index-of error-msg "(Service: AWSCognitoIdentityProvider")
-                                    (count error-msg)))))))))
+          (throw (Exception. (get-error-msg e))))))
 
 
     :UpdateUser
