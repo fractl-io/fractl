@@ -1,5 +1,6 @@
 (ns fractl.http
-  (:require [clojure.walk :as w]
+  (:require [amazonica.aws.s3 :as s3]
+            [clojure.walk :as w]
             [clojure.string :as s]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
@@ -225,7 +226,23 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
-(defn- process-login [evaluator [auth-config _ :as auth-info] request]
+(defn- whitelisted? [email {:keys [access-key secret-key region whitelist? s3-bucket whitelist-file-key] :as _auth-info}]
+  (if-not whitelist?
+    true
+    (let [whitelisted-emails (try
+                               (read-string
+                                (s3/get-object-as-string
+                                 {:access-key access-key
+                                  :secret-key secret-key
+                                  :endpoint region}
+                                 s3-bucket whitelist-file-key))
+                               (catch Exception ex
+                                 (log/warn ex)
+                                 #{}))]
+      (contains? whitelisted-emails email))))
+
+
+(defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
     (internal-error "cannot process login - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
@@ -233,17 +250,19 @@
         (if err
           (do (log/warn (str "bad login request - " err))
               (bad-request err data-fmt))
-          (try
-            ;; TODO: Check login failure here. It raises exception in client for unsuccessful login.
-            (let [result (auth/user-login
-                          (assoc
-                           auth-config
-                           :event evobj
-                           :eval evaluator))]
-              (ok {:result result} data-fmt))
-            (catch Exception ex
-              (log/warn ex)
-              (unauthorized "login failed" data-fmt)))))
+          (if-not (whitelisted? (:Username evobj) auth-config)
+            (unauthorized "Your email is not whitelisted yet." data-fmt)
+            (try
+              (let [result (auth/user-login
+                            (assoc
+                             auth-config
+                             :event evobj
+                             :eval evaluator))]
+                (ok {:result result} data-fmt))
+              (catch Exception ex
+                (log/warn ex)
+                (unauthorized (str "Login failed. "
+                                   (.getMessage ex)) data-fmt))))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request))))))

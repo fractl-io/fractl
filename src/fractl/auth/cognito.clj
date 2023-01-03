@@ -1,6 +1,7 @@
 (ns fractl.auth.cognito
   (:require [amazonica.aws.cognitoidp :as aws]
             [amazonica.core :refer [ex->map]]
+            [clojure.string :as str]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
             [fractl.component :as cn]))
@@ -26,11 +27,19 @@
      token)))
 
 (defmethod auth/user-login tag [{:keys [client-id event] :as req}]
-  (aws/initiate-auth (auth/make-client req)
-                     :auth-flow "USER_PASSWORD_AUTH"
-                     :auth-parameters {"USERNAME" (:Username event)
-                                       "PASSWORD" (:Password event)}
-                     :client-id client-id))
+  (try
+    (aws/initiate-auth (auth/make-client req)
+                       :auth-flow "USER_PASSWORD_AUTH"
+                       :auth-parameters {"USERNAME" (:Username event)
+                                         "PASSWORD" (:Password event)}
+                       :client-id client-id)
+    (catch Exception e
+      (let [error-msg (:message (ex->map e))]
+        (throw (Exception. (subs
+                            error-msg
+                            0
+                            (or (str/index-of error-msg  "(Service: AWSCognitoIdentityProvider")
+                                (count error-msg)))))))))
 
 (defmethod auth/upsert-user tag [{:keys [client-id user-pool-id event] :as req}]
   (case (last (cn/instance-type event))
