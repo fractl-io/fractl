@@ -268,6 +268,90 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
+(defn- process-forgot-password [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process forgot-password - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad forgot-request request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/ForgotPassword evobj))
+          (bad-request (str "not a forgot-password event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [result (auth/forgot-password
+                          (assoc
+                           auth-config
+                           :event evobj))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "Forgot Password failed. "
+                                 (.getMessage ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
+(defn- process-confirm-forgot-password [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process confirm-forgot-password - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad confirm-forgot-request request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/ConfirmForgotPassword evobj))
+          (bad-request (str "not a confirm-forgot-password event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [result (auth/confirm-forgot-password
+                          (assoc
+                           auth-config
+                           :event evobj))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "Confirm Forgot Password failed. "
+                                 (.getMessage ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
+(defn- process-change-password [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process change-password - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad change-password-request request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/ChangePassword evobj))
+          (bad-request (str "not a change-password event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [result (auth/change-password
+                          (assoc
+                           auth-config
+                           :event evobj))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "Change Password failed. "
+                                 (.getMessage ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
 (defn- process-logout [auth-config request]
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
@@ -343,6 +427,9 @@
            (POST uh/signup-prefix [] (:signup handlers))
            (POST uh/get-user-prefix [] (:get-user handlers))
            (POST uh/update-user-prefix [] (:update-user handlers))
+           (POST uh/forgot-password-prefix [] (:forgot-password handlers))
+           (POST uh/confirm-forgot-password-prefix [] (:confirm-forgot-password handlers))
+           (POST uh/change-password-prefix [] (:change-password handlers))
            (POST (str uh/entity-event-prefix ":component/:event") []
              (:request handlers))
            (POST uh/query-prefix [] (:query handlers))
@@ -391,6 +478,9 @@
           :signup (partial process-signup evaluator (:post-sign-up-event config) auth-info)
           :get-user (partial process-get-user auth)
           :update-user (partial process-update-user auth)
+          :forgot-password (partial process-forgot-password auth)
+          :confirm-forgot-password (partial process-confirm-forgot-password auth)
+          :change-password (partial process-change-password auth)
           :request (partial process-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)

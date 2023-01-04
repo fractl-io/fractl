@@ -1,5 +1,5 @@
 (ns fractl.auth.cognito
-  (:require [amazonica.aws.cognitoidp :as aws]
+  (:require [amazonica.aws.cognitoidp :as cognito]
             [amazonica.core :refer [ex->map]]
             [clojure.string :as str]
             [fractl.auth.core :as auth]
@@ -36,11 +36,11 @@
 
 (defmethod auth/user-login tag [{:keys [client-id event] :as req}]
   (try
-    (aws/initiate-auth (auth/make-client req)
-                       :auth-flow "USER_PASSWORD_AUTH"
-                       :auth-parameters {"USERNAME" (:Username event)
-                                         "PASSWORD" (:Password event)}
-                       :client-id client-id)
+    (cognito/initiate-auth (auth/make-client req)
+                           :auth-flow "USER_PASSWORD_AUTH"
+                           :auth-parameters {"USERNAME" (:Username event)
+                                             "PASSWORD" (:Password event)}
+                           :client-id client-id)
     (catch Exception e
       (throw (Exception. (get-error-msg e))))))
 
@@ -51,7 +51,7 @@
     (let [user (:User event)
           {:keys [Name FirstName LastName Password Email]} user]
       (try
-        (aws/sign-up
+        (cognito/sign-up
          (auth/make-client req)
          :client-id client-id
          :password Password
@@ -74,7 +74,7 @@
           github-details (get-in user-details [:OtherDetails :GitHub])
           {:keys [Username Org Token]} github-details
           refresh-token (get-in user-details [:OtherDetails :RefreshToken])]
-      (aws/admin-update-user-attributes
+      (cognito/admin-update-user-attributes
        (auth/make-client req)
        :username cognito-username
        :user-pool-id user-pool-id
@@ -84,7 +84,7 @@
                          ["custom:github_token" Token]
                          ["custom:github_username" Username]])
       ;; Refresh credentials
-      (aws/initiate-auth
+      (cognito/initiate-auth
        (auth/make-client req)
        :auth-flow "REFRESH_TOKEN_AUTH"
        :auth-parameters {"USERNAME" cognito-username
@@ -106,19 +106,19 @@
   (auth/session-user req))
 
 (defmethod auth/user-logout tag [{:keys [sub user-pool-id] :as req}]
-  (aws/admin-user-global-sign-out
+  (cognito/admin-user-global-sign-out
    (auth/make-client req)
    :user-pool-id user-pool-id
    :username (:username sub)))
 
 (defmethod auth/delete-user tag [{:keys [sub user-pool-id] :as req}]
-  (aws/admin-delete-user
+  (cognito/admin-delete-user
    (auth/make-client req)
    :username (:username sub)
    :user-pool-id user-pool-id))
 
 (defmethod auth/get-user tag [{:keys [user user-pool-id] :as req}]
-  (let [resp (aws/admin-get-user
+  (let [resp (cognito/admin-get-user
               (auth/make-client req)
               :username (:username user)
               :user-pool-id user-pool-id)
@@ -136,3 +136,35 @@
      :FirstName given_name
      :LastName family_name
      :Email email}))
+
+(defmethod auth/forgot-password tag [{:keys [client-id event] :as req}]
+  (try
+    (cognito/forgot-password
+     (auth/make-client req)
+     :username (:Username event)
+     :client-id client-id)
+    (catch Exception e
+      (throw (Exception. (get-error-msg e))))))
+
+(defmethod auth/confirm-forgot-password tag [{:keys [client-id event] :as req}]
+  (let [{:keys [Username ConfirmationCode Password]} event]
+    (try
+      (cognito/confirm-forgot-password
+       (auth/make-client req)
+       :username Username
+       :confirmation-code ConfirmationCode
+       :client-id client-id
+       :password Password)
+      (catch Exception e
+        (throw (Exception. (get-error-msg e)))))))
+
+(defmethod auth/change-password tag [{:keys [event] :as req}]
+  (let [{:keys [AccessToken CurrentPassword NewPassword]} event]
+    (try
+      (cognito/change-password
+       (auth/make-client req)
+       :access-token AccessToken
+       :previous-password CurrentPassword
+       :proposed-password NewPassword)
+      (catch Exception e
+        (throw (Exception. (get-error-msg e)))))))
