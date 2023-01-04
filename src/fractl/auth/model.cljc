@@ -32,6 +32,22 @@
  {:UserDetails :Kernel.Identity/UserExtra})
 
 (event
+ :Kernel.Identity/ForgotPassword
+ {:Username :Kernel/Email})
+
+(event
+ :Kernel.Identity/ConfirmForgotPassword
+ {:Username :Kernel/Email
+  :ConfirmationCode :Kernel/String
+  :Password :Kernel/String})
+
+(event
+ :Kernel.Identity/ChangePassword
+ {:AccessToken :Kernel/String
+  :CurrentPassword :Kernel/String
+  :NewPassword :Kernel/String})
+
+(event
  au/login-event-name
  {au/login-username :Kernel/String
   au/login-password :Kernel/Password})

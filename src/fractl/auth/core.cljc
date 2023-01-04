@@ -19,6 +19,9 @@
 (defmulti get-user service-tag)
 (defmulti upsert-user service-tag)
 (defmulti delete-user service-tag)
+(defmulti forgot-password service-tag)
+(defmulti confirm-forgot-password service-tag)
+(defmulti change-password service-tag)
 
 (def client-key :client)
 (def instance-key :instance)
