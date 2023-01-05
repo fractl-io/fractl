@@ -8,13 +8,14 @@
             [cljc.java-time.local-time :as lt]
             [cljc.java-time.local-date-time :as ldt]
             [cljc.java-time.format.date-time-formatter :as format]
-            [cljc.java-time.temporal.chrono-unit :as cu]))
+            [cljc.java-time.temporal.chrono-unit :as cu]
+            [cljc.java-time.zone-id :as zone-id]))
 
 (defn- valid-format? [parser formatter s]
   (try
     (parser s formatter)
     (catch
-      #?(:clj Exception :cljs :default) ex
+     #?(:clj Exception :cljs :default) ex
       (log/error ex)
       false)))
 
@@ -126,6 +127,9 @@
 
 (defn now []
   (as-string (ldt/now)))
+
+(defn now-utc []
+  (as-string (ldt/now (zone-id/of "UTC"))))
 
 #?(:clj (def now-raw ldt/now)
    :cljs (defn now-raw []
