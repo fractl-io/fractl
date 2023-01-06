@@ -420,7 +420,7 @@
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
-(defn- make-routes [auth-config handlers]
+(defn- make-routes [config auth-config handlers]
   (let [r (routes
            (POST uh/login-prefix [] (:login handlers))
            (POST uh/logout-prefix [] (:logout handlers))
@@ -445,7 +445,8 @@
                       r)]
     (cors/wrap-cors
      r-with-auth
-     :access-control-allow-origin [#".*"]
+     :access-control-allow-origin (or (:cors-allow-origin config)
+                                      [#".*"])
      :access-control-allow-credentials true
      :access-control-allow-methods [:post])))
 
@@ -472,7 +473,7 @@
      (if (or (not auth) (auth-service-supported? auth))
        (h/run-server
         (make-routes
-         auth
+         config auth
          {:login (partial process-login evaluator auth-info)
           :logout (partial process-logout auth)
           :signup (partial process-signup evaluator (:post-sign-up-event config) auth-info)

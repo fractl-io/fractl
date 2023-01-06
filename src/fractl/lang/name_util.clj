@@ -111,9 +111,7 @@
         :else v))))
 
 (defn- fq-map-entry [[k v] is-recdef]
-  (if (= :meta k)
-    [k v]
-    [k (fq-generic v is-recdef)]))
+  [k (fq-generic v (if (= :meta k) false is-recdef))])
 
 (defn- map-with-fq-names [m is-recdef]
   (into {} (doall (map #(fq-map-entry % is-recdef) m))))
@@ -163,6 +161,7 @@
    'record fq-preproc-record-def
    'entity fq-preproc-record-def
    'event fq-preproc-record-def
+   'relationship fq-preproc-record-def
    'dataflow fq-preproc-dataflow-def})
 
 (defn fully-qualified-names [declared-names exp]

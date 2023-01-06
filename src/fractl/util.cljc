@@ -6,7 +6,10 @@
      (:require [net.cgrand.macrovich :as macros])
      :cljs
      (:require-macros [net.cgrand.macrovich :as macros]
-                      [fractl.util :refer [passthru]])))
+                      [fractl.util :refer [passthru]]))
+  #?(:clj
+     (:import [java.io File]
+              [org.apache.commons.exec CommandLine Executor DefaultExecutor])))
 
 (def ^:private script-extn (atom ".fractl"))
 
@@ -279,3 +282,10 @@
   [msg f x]
   (println msg (pr-str x) (pr-str (f x)))
   x)
+
+#?(:clj
+   (defn exec-in-directory [path cmd]
+     (let [^CommandLine cmd-line (CommandLine/parse cmd)
+           ^Executor executor (DefaultExecutor.)]
+       (.setWorkingDirectory executor (if (string? path) (File. path) path))
+       (zero? (.execute executor cmd-line)))))

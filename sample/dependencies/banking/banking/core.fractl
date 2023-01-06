@@ -1,7 +1,7 @@
 (component :Banking.Core)
 
 (entity
- :Banking.Core/Account
+ :Account
  {:No {:type :Kernel/String
        :identity true}
   :Balance :Kernel/Decimal})
@@ -11,22 +11,22 @@
    current-balance transaction-amount))
 
 (event
- :Banking.Core/Transaction
+ :Transaction
  {:Account :Kernel/String
   :Type :Kernel/String
   :Amount :Kernel/Decimal})
 
 (dataflow
- :Banking.Core/Transaction
- {:Banking.Core/Account
-  {:No? :Banking.Core/Transaction.Account
+ :Transaction
+ {:Account
+  {:No? :Transaction.Account
    :Balance '(set-balance
-              :Banking.Core/Transaction.Type
-              :Banking.Core/Transaction.Amount
+              :Transaction.Type
+              :Transaction.Amount
               :Balance)}})
 
 (dataflow
  :Kernel/AppInit
- {:Banking.Core/Account
+ {:Account
   {:No "0001"
    :Balance 1500M}})
