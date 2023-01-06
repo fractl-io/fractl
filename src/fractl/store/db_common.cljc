@@ -208,17 +208,22 @@
            sql (str (first qp) " AND " (su/attribute-column-name (first attr-names)) " IN (")
            params (rest qp)]
       (if-let [qp (maybe-with-where-clause (first cqs))]
-        (let [[a1 _] (first attrs)
-              [_ a2] (second attrs)]
-          (recur (rest cqs) (rest attrs)
-                 (str
-                  sql (if a1
-                        (s/replace (first qp) "*" (su/attribute-column-name a1))
-                        (first qp))
-                  (when a2
-                    (str " AND " (su/attribute-column-name a2)
-                         " IN (")))
-                 (concat params (rest qp))))
+        (if (seq (rest attrs))
+          (let [[a1 a2] (first attrs)
+                [b1 b2] (second attrs)]
+            (recur (rest cqs) (rest attrs)
+                   (str
+                    sql
+                    (s/replace
+                     (first qp) "*"
+                     (su/attribute-column-name (if (= a1 (first attr-names)) a2 a1)))
+                    (str " AND " (su/attribute-column-name b2) " IN ("))
+                   (concat params (rest qp))))
+          (let [[a1 _] (first attrs)]
+            (recur (rest cqs) (rest attrs)
+                   (str
+                    sql (s/replace (first qp) "*" (su/attribute-column-name a1)))
+                   (concat params (rest qp)))))
         (vec
          (concat
           [(str sql (s/join (repeat (dec (count attr-names)) \))))]

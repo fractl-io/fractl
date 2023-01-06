@@ -7,16 +7,11 @@
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
+            [fractl.lang.tools.util :as tu]
             [fractl.lang.tools.loader :as loader])
   (:import [java.io File]
            [org.apache.commons.io FileUtils]
-           [org.apache.commons.io.filefilter IOFileFilter WildcardFileFilter]
-           [org.apache.commons.exec CommandLine Executor DefaultExecutor]))
-
-(defn get-system-model-paths []
-  (if-let [paths (System/getenv "FRACTL_MODEL_PATHS")]
-    (s/split paths #":")
-    ["."]))
+           [org.apache.commons.io.filefilter IOFileFilter WildcardFileFilter]))
 
 (def cljout "cljout")
 (def ^:private cljout-file (File. cljout))
@@ -52,20 +47,11 @@
 
 (defn- create-clj-project [model-name version]
   (let [app-name (if version (str model-name ":" version) model-name)
-        cmd (str "lein new fractl-model " app-name)
-        ^CommandLine cmd-line (CommandLine/parse cmd)
-        ^Executor executor (DefaultExecutor.)]
-    (.setWorkingDirectory executor cljout-file)
-    (zero? (.execute executor cmd-line))))
-
-(defn- exec-in-directory [path cmd]
-  (let [^CommandLine cmd-line (CommandLine/parse cmd)
-        ^Executor executor (DefaultExecutor.)]
-    (.setWorkingDirectory executor (File. path))
-    (zero? (.execute executor cmd-line))))
+        cmd (str "lein new fractl-model " app-name)]
+    (u/exec-in-directory cljout-file cmd)))
 
 (defn- exec-for-model [model-name cmd]
-  (exec-in-directory (project-dir model-name) cmd))
+  (u/exec-in-directory (project-dir model-name) cmd))
 
 (defn- maybe-add-repos [proj-spec model]
   (if-let [repos (:repositories model)]
@@ -215,7 +201,7 @@
 
 (defn build-model
   ([model-paths model-name]
-   (let [model-paths (or model-paths (get-system-model-paths))]
+   (let [model-paths (or model-paths (tu/get-system-model-paths))]
      (if-let [path (clj-project-path model-paths model-name)]
        (let [^File f (File. path)]
          (FileUtils/createParentDirectories f)

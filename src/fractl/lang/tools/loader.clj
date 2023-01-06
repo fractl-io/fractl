@@ -7,6 +7,7 @@
             [fractl.util.logger :as log]
             [fractl.lang.name-util :as nu]
             [fractl.lang.internal :as li]
+            [fractl.lang.tools.util :as tu]
             [fractl.component :as cn])
   (:import [java.io FileInputStream InputStreamReader PushbackReader]))
 
@@ -34,7 +35,7 @@
            component
            (assoc result :component (second exp))
 
-           (entity record event dataflow)
+           (entity record event dataflow relationship)
            (assoc
             result :records
             (conj
@@ -203,6 +204,12 @@
         (let [[m mr] (rdm (dependency-model-name d))]
           (load-model m mr model-paths from-resource))))))
 
-(defn load-model [model model-root model-paths from-resource]
-  (load-model-dependencies model model-paths from-resource)
-  (load-components-from-model model model-root from-resource))
+(defn load-model
+  ([model model-root model-paths from-resource]
+   (load-model-dependencies model model-paths from-resource)
+   (load-components-from-model model model-root from-resource))
+  ([model-name model-paths]
+   (when-let [[model model-root] (read-model model-paths model-name )]
+     (load-model model model-root model-paths false)))
+  ([model-name]
+   (load-model model-name (tu/get-system-model-paths))))
