@@ -116,6 +116,8 @@
     (dataflow
      :I594ML/CreateEmployee
      {:I594ML/Dept {:Name? :I594ML/CreateEmployee.Dept}
+      :-> [:I594ML/PartOf?
+           {:I594ML/Company {:Name? :I594ML/CreateEmployee.Company}}]
       :as [:D]}
      {:I594ML/Employee
       {:Name :I594ML/CreateEmployee.Emp
@@ -140,7 +142,8 @@
              :Location "west"}})
         e (tu/result
            {:I594ML/CreateEmployee
-            {:Dept "101"
+            {:Company "acme"
+             :Dept "101"
              :Emp "steve"
              :Salary 5600}})
         r (tu/first-result
@@ -177,11 +180,11 @@
     (relationship
      :I594MR/R1
      {:meta
-      {:contains [:I594MR/B :I594MR/A]}})
+      {:between [:I594MR/B :I594MR/A]}})
     (relationship
      :I594MR/R2
      {:meta
-      {:contains [:I594MR/C :I594MR/A]}})
+      {:between [:I594MR/C :I594MR/A]}})
     (dataflow
      :I594MR/CreateA
      {:I594MR/A

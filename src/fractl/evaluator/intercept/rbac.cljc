@@ -5,6 +5,7 @@
             [fractl.util.seq :as su]
             [fractl.store :as store]
             [fractl.env :as env]
+            [fractl.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.lang.relgraph :as rg]
             [fractl.rbac.core :as rbac]
@@ -94,18 +95,15 @@
     (first data)
     :else data))
 
-(defn- find-parents [inst]
-  (let [parent-info (rg/find-parents inst)]
-    (seq (su/nonils (apply concat (mapv second parent-info))))))
+(defn- find-parent [env inst]
+  (let [r (cn/find-contained-relationship (cn/instance-type inst))
+        pn (when r (first (mt/contains (cn/fetch-meta r))))]
+    (and pn (env/lookup env pn))))
 
-(defn- parent-of-any? [env user insts]
-  (loop [insts insts]
-    (if-let [inst (first insts)]
-      (if (or (user-is-owner? user env (cn/instance-type inst) (cn/idval inst))
-              (parent-of-any? user env (find-parents inst)))
-        true
-        (recur (rest insts)))
-      false)))
+(defn- parent-of? [env user inst]
+  (when inst
+    (or (user-is-owner? user env (cn/instance-type inst) (cn/idval inst))
+        (parent-of? user env (find-parent env inst)))))
 
 (defn- check-inherited-instance-privilege [user opr instance]
   (or
@@ -114,6 +112,8 @@
        (loop [rels (seq (cn/relationships-with-instance-rbac entity-name))
               result :continue]
          (if-let [r (first rels)]
+           ;; TODO rg/find-connected-nodes can be optimized for queries on parents.
+           ;; (https://github.com/fractl-io/fractl/issues/712)
            (if-let [nodes (seq (rg/find-connected-nodes r entity-name instance))]
              (let [pvs (mapv #(let [p (rbac/check-instance-privilege user opr %)]
                                 (if (= :continue p)
@@ -156,7 +156,7 @@
 
 (defn- apply-privilege-hierarchy-checks [env user opr resource rbac-check continuation]
   (if (cn/entity-instance? resource)
-    (or (parent-of-any? env user (find-parents resource))
+    (or (parent-of? env user (find-parent env resource))
         (call-rbac-continuation user resource opr
          (check-inherited-instance-privilege user opr resource)
          #(call-rbac-continuation user resource opr

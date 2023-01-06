@@ -117,3 +117,12 @@
 
 (defmethod auth/get-user tag [_req]
   (throw (Exception. "Not implemented")))
+
+(defmethod auth/forgot-password tag [_req]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/confirm-forgot-password tag [_req]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/change-password tag [_req]
+  (throw (Exception. "Not implemented")))

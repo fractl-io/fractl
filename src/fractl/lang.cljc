@@ -728,10 +728,16 @@
       [elems (us/wrap-to-map meta)]
       [elems nil])))
 
+(defn- ensure-unique-contains [[_ e2 :as elems]]
+  (when elems
+    (when-let [r (cn/find-contained-relationship e2)]
+      (u/throw-ex (str e2 " is already in a contains relationship - " r)))
+    elems))
+
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
-         contains (mt/contains meta)
+         contains (ensure-unique-contains (mt/contains meta))
          [elems relmeta] (parse-relationship-member-spec
                           (or contains (mt/between meta)))
          each-uq (if (:one-one relmeta) true false)

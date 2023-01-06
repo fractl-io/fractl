@@ -1,5 +1,6 @@
 (ns fractl.http
-  (:require [clojure.walk :as w]
+  (:require [amazonica.aws.s3 :as s3]
+            [clojure.walk :as w]
             [clojure.string :as s]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
@@ -220,12 +221,29 @@
                       result) data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized "sign-up failed" data-fmt)))))
+              (unauthorized (str "Sign up failed. " (.getMessage ex))
+                            data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
-(defn- process-login [evaluator [auth-config _ :as auth-info] request]
+(defn- whitelisted? [email {:keys [access-key secret-key region whitelist? s3-bucket whitelist-file-key] :as _auth-info}]
+  (if-not whitelist?
+    true
+    (let [whitelisted-emails (try
+                               (read-string
+                                (s3/get-object-as-string
+                                 {:access-key access-key
+                                  :secret-key secret-key
+                                  :endpoint region}
+                                 s3-bucket whitelist-file-key))
+                               (catch Exception ex
+                                 (log/warn ex)
+                                 #{}))]
+      (contains? whitelisted-emails email))))
+
+
+(defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
     (internal-error "cannot process login - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
@@ -233,17 +251,103 @@
         (if err
           (do (log/warn (str "bad login request - " err))
               (bad-request err data-fmt))
+          (if-not (whitelisted? (:Username evobj) auth-config)
+            (unauthorized "Your email is not whitelisted yet." data-fmt)
+            (try
+              (let [result (auth/user-login
+                            (assoc
+                             auth-config
+                             :event evobj
+                             :eval evaluator))]
+                (ok {:result result} data-fmt))
+              (catch Exception ex
+                (log/warn ex)
+                (unauthorized (str "Login failed. "
+                                   (.getMessage ex)) data-fmt))))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
+(defn- process-forgot-password [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process forgot-password - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad forgot-request request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/ForgotPassword evobj))
+          (bad-request (str "not a forgot-password event - " evobj) data-fmt)
+
+          :else
           (try
-            ;; TODO: Check login failure here. It raises exception in client for unsuccessful login.
-            (let [result (auth/user-login
+            (let [result (auth/forgot-password
                           (assoc
                            auth-config
-                           :event evobj
-                           :eval evaluator))]
+                           :event evobj))]
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized "login failed" data-fmt)))))
+              (unauthorized (str "Forgot Password failed. "
+                                 (.getMessage ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
+(defn- process-confirm-forgot-password [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process confirm-forgot-password - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad confirm-forgot-request request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/ConfirmForgotPassword evobj))
+          (bad-request (str "not a confirm-forgot-password event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [result (auth/confirm-forgot-password
+                          (assoc
+                           auth-config
+                           :event evobj))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "Confirm Forgot Password failed. "
+                                 (.getMessage ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
+(defn- process-change-password [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process change-password - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad change-password-request request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/ChangePassword evobj))
+          (bad-request (str "not a change-password event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [result (auth/change-password
+                          (assoc
+                           auth-config
+                           :event evobj))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "Change Password failed. "
+                                 (.getMessage ex)) data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request))))))
@@ -323,6 +427,9 @@
            (POST uh/signup-prefix [] (:signup handlers))
            (POST uh/get-user-prefix [] (:get-user handlers))
            (POST uh/update-user-prefix [] (:update-user handlers))
+           (POST uh/forgot-password-prefix [] (:forgot-password handlers))
+           (POST uh/confirm-forgot-password-prefix [] (:confirm-forgot-password handlers))
+           (POST uh/change-password-prefix [] (:change-password handlers))
            (POST (str uh/entity-event-prefix ":component/:event") []
              (:request handlers))
            (POST uh/query-prefix [] (:query handlers))
@@ -372,6 +479,9 @@
           :signup (partial process-signup evaluator (:post-sign-up-event config) auth-info)
           :get-user (partial process-get-user auth)
           :update-user (partial process-update-user auth)
+          :forgot-password (partial process-forgot-password auth)
+          :confirm-forgot-password (partial process-confirm-forgot-password auth)
+          :change-password (partial process-change-password auth)
           :request (partial process-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
