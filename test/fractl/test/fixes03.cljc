@@ -7,7 +7,7 @@
             [fractl.util.hash :as sh]
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record relationship dataflow]]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -266,3 +266,46 @@
       (is (every? (partial cn/instance-of? :I686/E) rs))
       (is (= 2 (count rs)))
       (is (every? identity (mapv (fn [n] (some #{n} #{:A :C})) (mapv :Name rs)))))))
+
+(deftest issue-741-rel-delete
+  (defcomponent :I741
+    (entity
+     :I741/E1
+     {:X {:type :Kernel/Int
+          :identity true}
+      :Y :Kernel/Int})
+    (entity
+     :I741/E2
+     {:A {:type :Kernel/Int
+          :identity true}
+      :B :Kernel/Int})
+    (relationship
+     :I741/R1
+     {:meta {:contains [:I741/E1 :I741/E2]}})
+    (dataflow
+     :I741/CreateE2
+     {:I741/E1 {:X? :I741/CreateE2.E1} :as :E1}
+     {:I741/E2
+      {:A 10 :B 20}
+      :-> [{:I741/R1 {}} :E1]})
+    (dataflow
+     :I741/RemoveR1
+     [:delete :I741/R1 [:->
+                        ;; also allow pre-queried :E1 for :contains.
+                        ;; for :between, both can be aliases
+                        {:I741/E1 {:X? :I741/RemoveR1.E1}}
+                        {:I741/E2 {:A? :I741/RemoveR1.E2}}]]))
+  (let [e1 (tu/first-result
+            {:I741/Upsert_E1
+             {:Instance
+              {:I741/E1 {:X 1 :Y 10}}}})
+        e2 (tu/result
+            {:I741/CreateE2
+             {:E1 1}})]
+    (is (cn/instance-of? :I741/E1 e1))
+    (is (cn/instance-of? :I741/E2 e2))
+    (is (cn/instance-of? :I741/R1 (first (:-> e2))))
+    #_(let [d1 (tu/result
+                {:I741/RemoveR1
+                 {:E1 1 :E2 10}})]
+        (is (cn/instance-of? :I741/R1 d1)))))
