@@ -267,7 +267,7 @@
       (is (= 2 (count rs)))
       (is (every? identity (mapv (fn [n] (some #{n} #{:A :C})) (mapv :Name rs)))))))
 
-#_(deftest issue-741-rel-delete
+(deftest issue-741-rel-delete
   (defcomponent :I741
     (entity
      :I741/E1
@@ -289,10 +289,18 @@
       {:A 10 :B 20}
       :-> [{:I741/R1 {}} :E1]})
     (dataflow
+     :I741/LookupE2
+     {:I741/E2? {}
+      :-> [:I741/R1?
+           {:I741/E1 {:X? :I741/LookupE2.E1}}]})
+    (dataflow
+     :I741/AttachE2
+     {:I741/E1 {:X? :I741/AttachE2.E1} :as :E1}
+     {:I741/E2 {:A 10 :B 100}
+      :-> [{:I741/R1 {}} :E1]})
+    (dataflow
      :I741/RemoveR1
      [:delete :I741/R1 [:->
-                        ;; also allow pre-queried :E1 for :contains.
-                        ;; for :between, both can be aliases
                         {:I741/E1 {:X? :I741/RemoveR1.E1}}
                         {:I741/E2 {:A? :I741/RemoveR1.E2}}]]))
   (let [e1 (tu/first-result
@@ -305,7 +313,23 @@
     (is (cn/instance-of? :I741/E1 e1))
     (is (cn/instance-of? :I741/E2 e2))
     (is (cn/instance-of? :I741/R1 (first (:-> e2))))
-    (let [d1 (tu/result
+    (defn- lookup-e2 [exists b]
+      (let [r (tu/result
+               {:I741/LookupE2
+                {:E1 1}})]
+        (if exists
+          (is (and (cn/instance-of? :I741/E2 (first r))
+                   (= b (:B (first r)))))
+          (is (= [:I741 :E2] r)))))
+    (lookup-e2 true 20)
+    (let [d1 (tu/first-result
               {:I741/RemoveR1
                {:E1 1 :E2 10}})]
-      (is (cn/instance-of? :I741/R1 d1)))))
+      (is (cn/instance-of? :I741/R1 d1))
+      (lookup-e2 false nil))
+    (let [r (tu/result
+             {:I741/AttachE2
+              {:E1 1}})]
+      (is (cn/instance-of? :I741/E2 (:to (:transition r))))
+      (is (cn/instance-of? :I741/R1 (first (:-> r)))))
+    (lookup-e2 true 100)))
