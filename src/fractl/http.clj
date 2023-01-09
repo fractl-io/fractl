@@ -214,9 +214,8 @@
                            auth-config
                            :event evobj))]
               (ok (or (evaluate evaluator
-                                (assoc
-                                 (create-event post-signup-event-name)
-                                 :Result result)
+                                (merge result
+                                       (create-event post-signup-event-name))
                                 data-fmt)
                       result) data-fmt))
             (catch Exception ex
