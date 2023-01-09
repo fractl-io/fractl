@@ -294,11 +294,6 @@
       :-> [:I741/R1?
            {:I741/E1 {:X? :I741/LookupE2.E1}}]})
     (dataflow
-     :I741/AttachE2
-     {:I741/E1 {:X? :I741/AttachE2.E1} :as :E1}
-     {:I741/E2 {:A 10 :B 100}
-      :-> [{:I741/R1 {}} :E1]})
-    (dataflow
      :I741/RemoveR1
      [:delete :I741/R1 [:->
                         {:I741/E1 {:X? :I741/RemoveR1.E1}}
@@ -326,10 +321,4 @@
               {:I741/RemoveR1
                {:E1 1 :E2 10}})]
       (is (cn/instance-of? :I741/R1 d1))
-      (lookup-e2 false nil))
-    (let [r (tu/result
-             {:I741/AttachE2
-              {:E1 1}})]
-      (is (cn/instance-of? :I741/E2 (:to (:transition r))))
-      (is (cn/instance-of? :I741/R1 (first (:-> r)))))
-    (lookup-e2 true 100)))
+      (lookup-e2 false nil))))

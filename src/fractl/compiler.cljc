@@ -12,6 +12,7 @@
             [fractl.lang.syntax :as ls]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
+            [fractl.meta :as mt]
             [fractl.env :as env]
             [fractl.store :as store]
             [fractl.store.util :as stu]
@@ -802,7 +803,7 @@
       (compile-query-pattern ctx query-pat alias))))
 
 (defn- compile-delete-relationship [ctx recname [main-entity-pat node-entity-pat]]
-  (if-let [scm (cn/fetch-relationship-schema recname)]
+  (if (cn/relationship? recname)
     (ctx/with-ignore-relationship-query-constraint
       ctx
       #(emit-delete
@@ -811,14 +812,21 @@
          (compile-pattern ctx main-entity-pat)
          (compile-pattern ctx node-entity-pat)
          (fn [r1 r2]
-           (let [[_ [main-id main-rel-attr] [node-id node-rel-attr]]
+           (let [r2-type (cn/instance-type r2)
+                 [_ [main-id main-rel-attr] [node-id node-rel-attr]]
                  (normalized-attributes-in-relationship
                   recname
-                  (cn/instance-type r1) (cn/instance-type r2))]
-             (compile-pattern
-              ctx [:delete recname
-                   {main-rel-attr (main-id r1)
-                    node-rel-attr (node-id r2)}])))]))
+                  (cn/instance-type r1) r2-type)
+                 p1 (compile-pattern
+                     ctx [:delete recname
+                          {main-rel-attr (main-id r1)
+                           node-rel-attr (node-id r2)}])
+                 p2 (when (mt/contains (cn/fetch-meta recname))
+                      (let [idattr (cn/identity-attribute-name r2-type)]
+                        (compile-pattern
+                         ctx [:delete r2-type
+                              {idattr (idattr r2)}])))]
+             (if p2 [p1 p2] [p1])))]))
     (u/throw-ex (str "invalid delete, " recname " is not a relationship"))))
 
 (defn- compile-delete [ctx [recname & id-pat]]
