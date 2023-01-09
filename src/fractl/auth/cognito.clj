@@ -111,11 +111,16 @@
    :user-pool-id user-pool-id
    :username (:username sub)))
 
-(defmethod auth/delete-user tag [{:keys [sub user-pool-id] :as req}]
-  (cognito/admin-delete-user
-   (auth/make-client req)
-   :username (:username sub)
-   :user-pool-id user-pool-id))
+(defmethod auth/delete-user tag [{:keys [instance user-pool-id] :as req}]
+  (when-let [email (:Email instance)]
+    (try
+      (cognito/admin-delete-user
+       (auth/make-client req)
+       :username email
+       :user-pool-id user-pool-id)
+      (catch Exception e
+        (throw (Exception. (get-error-msg e)))))))
+
 
 (defmethod auth/get-user tag [{:keys [user user-pool-id] :as req}]
   (let [resp (cognito/admin-get-user
