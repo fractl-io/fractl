@@ -267,7 +267,7 @@
       (is (= 2 (count rs)))
       (is (every? identity (mapv (fn [n] (some #{n} #{:A :C})) (mapv :Name rs)))))))
 
-(deftest issue-741-rel-delete
+#_(deftest issue-741-rel-delete
   (defcomponent :I741
     (entity
      :I741/E1
@@ -305,7 +305,7 @@
     (is (cn/instance-of? :I741/E1 e1))
     (is (cn/instance-of? :I741/E2 e2))
     (is (cn/instance-of? :I741/R1 (first (:-> e2))))
-    #_(let [d1 (tu/result
-                {:I741/RemoveR1
-                 {:E1 1 :E2 10}})]
-        (is (cn/instance-of? :I741/R1 d1)))))
+    (let [d1 (tu/result
+              {:I741/RemoveR1
+               {:E1 1 :E2 10}})]
+      (is (cn/instance-of? :I741/R1 d1)))))

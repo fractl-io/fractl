@@ -176,6 +176,13 @@
        (cn/relationship-member-identity rel-attr-name))
      rel-attr-name]))
 
+(defn- normalized-attributes-in-relationship [rel-name main-entity-name node-entity-name]
+  (let [[a1 a2] (cn/relationship-attribute-names main-entity-name node-entity-name)]
+    (concat
+     [(cn/identity-attribute-name main-entity-name)]
+     [(normalized-rel-attr rel-name main-entity-name a1)
+      (normalized-rel-attr rel-name node-entity-name a2)])))
+
 (defn- merge-queries [ctx main-entity-name main-query filters-opcode]
   (let [fopcode (as-opcode-map (first filters-opcode))
         sopcode (as-opcode-map (second filters-opcode))
@@ -185,12 +192,8 @@
       (u/throw-ex (str main-entity-name " not in relationship - " rel-name)))
     (when-not (cn/in-relationship? node-entity-name rel-name)
       (u/throw-ex (str node-entity-name " not in relationship - " rel-name)))
-    (let [ent-scm (cn/fetch-entity-schema node-entity-name)
-          [a1 a2] (cn/relationship-attribute-names main-entity-name node-entity-name)
-          attrs (concat
-                 [(cn/identity-attribute-name main-entity-name)]
-                 [(normalized-rel-attr rel-name main-entity-name a1)
-                  (normalized-rel-attr rel-name node-entity-name a2)])
+    (let [attrs (normalized-attributes-in-relationship
+                 rel-name main-entity-name node-entity-name)
           rel-q (compiled-query-from-opcode fopcode)
           node-q (compiled-query-from-opcode sopcode)]
       ((fetch-compile-query-fn ctx)
@@ -453,10 +456,9 @@
        [(li/split-path (ctx/dynamic-type ctx typ))
         (let [np (li/normalize-upsert-pattern pat)]
           (when-let [p (seq (first (vals np)))]
-            (ctx/build-partial-instance! ctx)
-            (let [cp (compile-pattern ctx np)]
-              (ctx/clear-build-partial-instance! ctx)
-              cp)))
+            (ctx/with-build-partial-instance
+              ctx
+              #(compile-pattern ctx np))))
         opcode inst-alias]))))
 
 (defn- package-opcode [code]
@@ -485,10 +487,9 @@
     (when-not (some #{n} (cn/find-relationships recname))
       (u/throw-ex (str "relationship " n " not found for " recname)))
     [[(when is-obj
-        (ctx/build-partial-instance! ctx)
-        (let [opc (compile-pattern ctx rel)]
-          (ctx/clear-build-partial-instance! ctx)
-          opc))
+        (ctx/with-build-partial-instance
+          ctx
+          #(compile-pattern ctx rel)))
       (li/split-path n) is-obj]
      (compile-pattern ctx (second pat))]))
 
@@ -564,7 +565,8 @@
           is-query-upsert (or (li/query-pattern? orig-nm)
                               (some li/query-pattern? (keys attrs)))
           is-relq (and relpat is-query-upsert (relationship-query? relpat))]
-      (when-not (active-event-is-built-in?)
+      (when-not (or (active-event-is-built-in?)
+                    (ctx/ignore-relationship-query-constraint? ctx))
         (when-let [r (cn/find-contained-relationship full-nm)]
           (when (not= r (relationship-name-from-pattern relpat))
             (u/throw-ex (str "pattern for " full-nm " requires relationship " r)))))
@@ -799,9 +801,35 @@
                           alias])
       (compile-query-pattern ctx query-pat alias))))
 
+(defn- compile-delete-relationship [ctx recname [main-entity-pat node-entity-pat]]
+  (if-let [scm (cn/fetch-relationship-schema recname)]
+    (ctx/with-ignore-relationship-query-constraint
+      ctx
+      #(emit-delete
+        (li/split-path recname)
+        [li/rel-tag
+         (compile-pattern ctx main-entity-pat)
+         (compile-pattern ctx node-entity-pat)
+         (fn [r1 r2]
+           (let [[_ [main-id main-rel-attr] [node-id node-rel-attr]]
+                 (normalized-attributes-in-relationship
+                  recname
+                  (cn/instance-type r1) (cn/instance-type r2))]
+             (compile-pattern
+              ctx [:delete recname
+                   {main-rel-attr (main-id r1)
+                    node-rel-attr (node-id r2)}])))]))
+    (u/throw-ex (str "invalid delete, " recname " is not a relationship"))))
+
 (defn- compile-delete [ctx [recname & id-pat]]
-  (if (= (vec id-pat) [:*])
+  (cond
+    (= li/rel-tag (ffirst id-pat))
+    (compile-delete-relationship ctx recname (rest (first id-pat)))
+
+    (= (vec id-pat) [:*])
     (emit-delete (li/split-path recname) :*)
+
+    :else
     (let [p (first id-pat)
           qpat (if (map? p)
                  p
