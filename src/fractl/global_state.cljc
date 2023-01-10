@@ -8,6 +8,8 @@
 (defn get-app-config []
   @app-config)
 
-(def ^:dynamic active-event-context)
+(def ^:dynamic active-event-context nil)
 
 (defn active-user [] (:User active-event-context))
+
+(def ^:dynamic active-store-connection nil)

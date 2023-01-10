@@ -147,6 +147,7 @@
 
 (def compile-query p/compile-query)
 (def get-reference p/get-reference)
+(def call-in-transaction p/call-in-transaction)
 
 (defn reactive?
   "Checks whether a given store supports reactive references"

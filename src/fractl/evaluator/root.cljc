@@ -814,10 +814,10 @@
     (if-let [r2 (first (ok-result (eval-opcode vm env node-entity-opcode)))]
       (let [[opc1 opc2] (fetch-delete-rel-opcode r1 r2)
             res1 (eval-opcode vm env opc1)]
-        (if (and opc2 (ok-result res1))
-          (let [res2 (eval-opcode vm env opc2)]
-            (if (ok-result res2) res1 res2))
-          res1))
+           (if (and opc2 (ok-result res1))
+             (let [res2 (eval-opcode vm env opc2)]
+               (if (ok-result res2) res1 res2))
+             res1))
       (i/error (str "failed to load node-instance for relationship " relname)))
     (i/error (str "failed to load main-instance for relationship " relname))))
 

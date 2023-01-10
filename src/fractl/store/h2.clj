@@ -60,6 +60,8 @@
         (db/query-all @datasource entity-name query))
       (do-query [_ query params]
         (db/do-query @datasource query params))
+      (call-in-transaction [_ f]
+        (db/transact-fn! @datasource f))
       (compile-query [_ query-pattern]
         (db/compile-query query-pattern))
       (get-reference [_ path refs]))))

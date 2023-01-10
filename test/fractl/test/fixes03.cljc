@@ -344,6 +344,9 @@
          (tu/result
           {:I741/CreateE3
            {:E1 1 :E2 10}})))
+    (is (not (tu/first-result
+              {:I741/RemoveR1
+               {:E1 1 :E2 10}})))
     (is (cn/instance-of?
          :I741/R2
          (tu/first-result
