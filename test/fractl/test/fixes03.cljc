@@ -330,15 +330,15 @@
     (is (cn/instance-of? :I741/E1 e1))
     (is (cn/instance-of? :I741/E2 e2))
     (is (cn/instance-of? :I741/R1 (first (:-> e2))))
-    (defn- lookup-e2 [exists b]
+    (defn- lookup-e2 [exists]
       (let [r (tu/result
                {:I741/LookupE2
                 {:E1 1}})]
         (if exists
           (is (and (cn/instance-of? :I741/E2 (first r))
-                   (= b (:B (first r)))))
+                   (= 20 (:B (first r)))))
           (is (= [:I741 :E2] r)))))
-    (lookup-e2 true 20)
+    (lookup-e2 true)
     (is (cn/instance-of?
          :I741/E3
          (tu/result
@@ -349,9 +349,67 @@
          (tu/first-result
           {:I741/RemoveR2
            {:E2 10 :E3 3}})))
-    (lookup-e2 true 20)
+    (lookup-e2 true)
     (let [d1 (tu/first-result
               {:I741/RemoveR1
                {:E1 1 :E2 10}})]
       (is (cn/instance-of? :I741/R1 d1))
-      (lookup-e2 false nil))))
+      (lookup-e2 false))))
+
+(deftest issue-741-rel-delete-between
+  (defcomponent :I741B
+    (entity
+     :I741B/E1
+     {:X {:type :Kernel/Int
+          :identity true}
+      :Y :Kernel/Int})
+    (entity
+     :I741B/E2
+     {:A {:type :Kernel/Int
+          :identity true}
+      :B :Kernel/Int})
+    (relationship
+     :I741B/R1
+     {:meta {:between [:I741B/E1 :I741B/E2]}})
+    (dataflow
+     :I741B/CreateE2
+     {:I741B/E1 {:X? :I741B/CreateE2.E1} :as :E1}
+     {:I741B/E2
+      {:A 10 :B 20}
+      :-> [{:I741B/R1 {}} :E1]})
+    (dataflow
+     :I741B/LookupE2
+     {:I741B/E2? {}
+      :-> [:I741B/R1?
+           {:I741B/E1 {:X? :I741B/LookupE2.E1}}]})
+    (dataflow
+     :I741B/RemoveR1
+     [:delete :I741B/R1 [:->
+                        {:I741B/E1 {:X? :I741B/RemoveR1.E1}}
+                        {:I741B/E2 {:A? :I741B/RemoveR1.E2}}]]))
+  (let [e1 (tu/first-result
+            {:I741B/Upsert_E1
+             {:Instance
+              {:I741B/E1 {:X 1 :Y 10}}}})
+        e2 (tu/result
+            {:I741B/CreateE2
+             {:E1 1}})]
+    (is (cn/instance-of? :I741B/E1 e1))
+    (is (cn/instance-of? :I741B/E2 e2))
+    (is (cn/instance-of? :I741B/R1 (first (:-> e2))))
+    (defn- lookup-e2 [exists]
+      (let [r (if exists
+                (tu/result
+                 {:I741B/LookupE2
+                  {:E1 1}})
+                (tu/result
+                 {:I741B/Lookup_E2
+                  {:A 10}}))]
+        (is (and (cn/instance-of? :I741B/E2 (first r))
+                 (= 20 (:B (first r)))))))
+    (lookup-e2 true)
+    (let [d1 (tu/first-result
+              {:I741B/RemoveR1
+               {:E1 1 :E2 10}})]
+      (is (cn/instance-of? :I741B/R1 d1))
+      (lookup-e2 false))))
