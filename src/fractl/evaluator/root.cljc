@@ -952,7 +952,8 @@
           (= queries :*)
           (i/ok [(delete-intercept
                   env [record-name nil]
-                  (fn [[record-name _]] (store/delete-all store record-name)))]
+                  (fn [[record-name _]]
+                    (store/delete-all store record-name)))]
                 env)
 
           :else

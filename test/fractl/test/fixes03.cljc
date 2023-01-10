@@ -279,9 +279,17 @@
      {:A {:type :Kernel/Int
           :identity true}
       :B :Kernel/Int})
+    (entity
+     :I741/E3
+     {:C {:type :Kernel/Int
+          :identity true}
+      :D :Kernel/Int})
     (relationship
      :I741/R1
      {:meta {:contains [:I741/E1 :I741/E2]}})
+    (relationship
+     :I741/R2
+     {:meta {:contains [:I741/E2 :I741/E3]}})
     (dataflow
      :I741/CreateE2
      {:I741/E1 {:X? :I741/CreateE2.E1} :as :E1}
@@ -289,10 +297,24 @@
       {:A 10 :B 20}
       :-> [{:I741/R1 {}} :E1]})
     (dataflow
+     :I741/CreateE3
+     {:I741/E2
+      {:A? :I741/CreateE3.E2}
+      :-> [:I741/R1? {:I741/E1 {:X? :I741/CreateE3.E1}}]
+      :as :E2}
+     {:I741/E3
+      {:C 3 :D 5}
+      :-> [{:I741/R2 {}} :E2]})
+    (dataflow
      :I741/LookupE2
      {:I741/E2? {}
       :-> [:I741/R1?
            {:I741/E1 {:X? :I741/LookupE2.E1}}]})
+    (dataflow
+     :I741/RemoveR2
+     [:delete :I741/R2 [:->
+                        {:I741/E2 {:A? :I741/RemoveR2.E2}}
+                        {:I741/E3 {:C? :I741/RemoveR2.E3}}]])
     (dataflow
      :I741/RemoveR1
      [:delete :I741/R1 [:->
@@ -316,6 +338,17 @@
           (is (and (cn/instance-of? :I741/E2 (first r))
                    (= b (:B (first r)))))
           (is (= [:I741 :E2] r)))))
+    (lookup-e2 true 20)
+    (is (cn/instance-of?
+         :I741/E3
+         (tu/result
+          {:I741/CreateE3
+           {:E1 1 :E2 10}})))
+    (is (cn/instance-of?
+         :I741/R2
+         (tu/first-result
+          {:I741/RemoveR2
+           {:E2 10 :E3 3}})))
     (lookup-e2 true 20)
     (let [d1 (tu/first-result
               {:I741/RemoveR1
