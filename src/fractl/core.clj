@@ -202,7 +202,9 @@
   (cond
     (symbol? x)
     (when-let [v (System/getenv (name x))]
-      (let [s (read-string v)]
+      (let [s (try
+                (read-string v)
+                (catch Exception _e v))]
         (if (symbol? s)
           (str s)
           s)))
