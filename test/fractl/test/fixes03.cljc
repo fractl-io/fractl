@@ -7,7 +7,7 @@
             [fractl.util.hash :as sh]
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record relationship dataflow]]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -266,3 +266,153 @@
       (is (every? (partial cn/instance-of? :I686/E) rs))
       (is (= 2 (count rs)))
       (is (every? identity (mapv (fn [n] (some #{n} #{:A :C})) (mapv :Name rs)))))))
+
+(deftest issue-741-rel-delete
+  (defcomponent :I741
+    (entity
+     :I741/E1
+     {:X {:type :Kernel/Int
+          :identity true}
+      :Y :Kernel/Int})
+    (entity
+     :I741/E2
+     {:A {:type :Kernel/Int
+          :identity true}
+      :B :Kernel/Int})
+    (entity
+     :I741/E3
+     {:C {:type :Kernel/Int
+          :identity true}
+      :D :Kernel/Int})
+    (relationship
+     :I741/R1
+     {:meta {:contains [:I741/E1 :I741/E2]}})
+    (relationship
+     :I741/R2
+     {:meta {:contains [:I741/E2 :I741/E3]}})
+    (dataflow
+     :I741/CreateE2
+     {:I741/E1 {:X? :I741/CreateE2.E1} :as :E1}
+     {:I741/E2
+      {:A 10 :B 20}
+      :-> [{:I741/R1 {}} :E1]})
+    (dataflow
+     :I741/CreateE3
+     {:I741/E2
+      {:A? :I741/CreateE3.E2}
+      :-> [:I741/R1? {:I741/E1 {:X? :I741/CreateE3.E1}}]
+      :as :E2}
+     {:I741/E3
+      {:C 3 :D 5}
+      :-> [{:I741/R2 {}} :E2]})
+    (dataflow
+     :I741/LookupE2
+     {:I741/E2? {}
+      :-> [:I741/R1?
+           {:I741/E1 {:X? :I741/LookupE2.E1}}]})
+    (dataflow
+     :I741/RemoveR2
+     [:delete :I741/R2 [:->
+                        {:I741/E2 {:A? :I741/RemoveR2.E2}}
+                        {:I741/E3 {:C? :I741/RemoveR2.E3}}]])
+    (dataflow
+     :I741/RemoveR1
+     [:delete :I741/R1 [:->
+                        {:I741/E1 {:X? :I741/RemoveR1.E1}}
+                        {:I741/E2 {:A? :I741/RemoveR1.E2}}]]))
+  (let [e1 (tu/first-result
+            {:I741/Upsert_E1
+             {:Instance
+              {:I741/E1 {:X 1 :Y 10}}}})
+        e2 (tu/result
+            {:I741/CreateE2
+             {:E1 1}})]
+    (is (cn/instance-of? :I741/E1 e1))
+    (is (cn/instance-of? :I741/E2 e2))
+    (is (cn/instance-of? :I741/R1 (first (:-> e2))))
+    (defn- lookup-e2 [exists]
+      (let [r (tu/result
+               {:I741/LookupE2
+                {:E1 1}})]
+        (if exists
+          (is (and (cn/instance-of? :I741/E2 (first r))
+                   (= 20 (:B (first r)))))
+          (is (= [:I741 :E2] r)))))
+    (lookup-e2 true)
+    (is (cn/instance-of?
+         :I741/E3
+         (tu/result
+          {:I741/CreateE3
+           {:E1 1 :E2 10}})))
+    (is (not (tu/first-result
+              {:I741/RemoveR1
+               {:E1 1 :E2 10}})))
+    (is (cn/instance-of?
+         :I741/R2
+         (tu/first-result
+          {:I741/RemoveR2
+           {:E2 10 :E3 3}})))
+    (lookup-e2 true)
+    (let [d1 (tu/first-result
+              {:I741/RemoveR1
+               {:E1 1 :E2 10}})]
+      (is (cn/instance-of? :I741/R1 d1))
+      (lookup-e2 false))))
+
+(deftest issue-741-rel-delete-between
+  (defcomponent :I741B
+    (entity
+     :I741B/E1
+     {:X {:type :Kernel/Int
+          :identity true}
+      :Y :Kernel/Int})
+    (entity
+     :I741B/E2
+     {:A {:type :Kernel/Int
+          :identity true}
+      :B :Kernel/Int})
+    (relationship
+     :I741B/R1
+     {:meta {:between [:I741B/E1 :I741B/E2]}})
+    (dataflow
+     :I741B/CreateE2
+     {:I741B/E1 {:X? :I741B/CreateE2.E1} :as :E1}
+     {:I741B/E2
+      {:A 10 :B 20}
+      :-> [{:I741B/R1 {}} :E1]})
+    (dataflow
+     :I741B/LookupE2
+     {:I741B/E2? {}
+      :-> [:I741B/R1?
+           {:I741B/E1 {:X? :I741B/LookupE2.E1}}]})
+    (dataflow
+     :I741B/RemoveR1
+     [:delete :I741B/R1 [:->
+                        {:I741B/E1 {:X? :I741B/RemoveR1.E1}}
+                        {:I741B/E2 {:A? :I741B/RemoveR1.E2}}]]))
+  (let [e1 (tu/first-result
+            {:I741B/Upsert_E1
+             {:Instance
+              {:I741B/E1 {:X 1 :Y 10}}}})
+        e2 (tu/result
+            {:I741B/CreateE2
+             {:E1 1}})]
+    (is (cn/instance-of? :I741B/E1 e1))
+    (is (cn/instance-of? :I741B/E2 e2))
+    (is (cn/instance-of? :I741B/R1 (first (:-> e2))))
+    (defn- lookup-e2 [exists]
+      (let [r (if exists
+                (tu/result
+                 {:I741B/LookupE2
+                  {:E1 1}})
+                (tu/result
+                 {:I741B/Lookup_E2
+                  {:A 10}}))]
+        (is (and (cn/instance-of? :I741B/E2 (first r))
+                 (= 20 (:B (first r)))))))
+    (lookup-e2 true)
+    (let [d1 (tu/first-result
+              {:I741B/RemoveR1
+               {:E1 1 :E2 10}})]
+      (is (cn/instance-of? :I741B/R1 d1))
+      (lookup-e2 false))))

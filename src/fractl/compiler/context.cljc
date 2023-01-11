@@ -120,3 +120,20 @@
 
 (defn clear-build-partial-instance! [ctx]
   (unbind-variable! ctx :partial-instance?))
+
+(defn with-build-partial-instance [ctx f]
+  (try
+    (do (build-partial-instance! ctx)
+        (f))
+    (finally
+      (clear-build-partial-instance! ctx))))
+
+(defn with-ignore-relationship-query-constraint [ctx f]
+  (try
+    (do (bind-variable! ctx :ignore-rel-query-constraint? true)
+        (f))
+    (finally
+      (unbind-variable! ctx :ignore-rel-query-constraint?))))
+
+(defn ignore-relationship-query-constraint? [ctx]
+  (fetch-variable ctx :ignore-rel-query-constraint?))

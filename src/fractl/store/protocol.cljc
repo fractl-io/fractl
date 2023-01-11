@@ -50,6 +50,8 @@
   (do-query [store query query-params]
     "Return all instances that satisfy the query. Return nil if no data found.
      On failure or if the query is not supported, raise an exception.")
+  (call-in-transaction [store f]
+    "Call the function f in a transaction.")
   (compile-query [store query-pattern]
     "Compile the query from a dataflow pattern to a format understood by this
      store implementation.")

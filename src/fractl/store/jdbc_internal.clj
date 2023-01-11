@@ -1,6 +1,7 @@
 (ns fractl.store.jdbc-internal
   (:require [next.jdbc :as jdbc]
             [next.jdbc.prepare :as jdbcp]
+            [fractl.global-state :as gs]
             [fractl.component :as cn]
             [fractl.util :as u])
   (:import [java.sql PreparedStatement]))
@@ -44,8 +45,10 @@
       (f txn))))
 
 (defn execute-fn! [datasource f]
-  (with-open [conn (jdbc/get-connection datasource)]
-    (f conn)))
+  (if gs/active-store-connection
+    (f gs/active-store-connection)
+    (with-open [conn (jdbc/get-connection datasource)]
+      (f conn))))
 
 (defn execute-sql! [conn sql]
   (jdbc/execute! conn sql))

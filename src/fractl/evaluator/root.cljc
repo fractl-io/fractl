@@ -806,6 +806,21 @@
           r2))
       (i/ok (assoc inst ls/rel-tag rels) env))))
 
+(defn- do-delete-relationship [vm env eval-opcode
+                               relname [main-entity-opcode
+                                        node-entity-opcode
+                                        fetch-delete-rel-opcode]]
+  (if-let [r1 (first (ok-result (eval-opcode vm env main-entity-opcode)))]
+    (if-let [r2 (first (ok-result (eval-opcode vm env node-entity-opcode)))]
+      (let [[opc1 opc2] (fetch-delete-rel-opcode r1 r2)
+            res1 (eval-opcode vm env opc1)]
+           (if (and opc2 (ok-result res1))
+             (let [res2 (eval-opcode vm env opc2)]
+               (if (ok-result res2) res1 res2))
+             res1))
+      (i/error (str "failed to load node-instance for relationship " relname)))
+    (i/error (str "failed to load main-instance for relationship " relname))))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -930,11 +945,18 @@
 
     (do-delete-instance [self env [record-name queries]]
       (if-let [store (env/get-store env)]
-        (if (= queries :*)
+        (cond
+          (= li/rel-tag (first queries))
+          (do-delete-relationship self env eval-opcode record-name (rest queries))
+
+          (= queries :*)
           (i/ok [(delete-intercept
                   env [record-name nil]
-                  (fn [[record-name _]] (store/delete-all store record-name)))]
+                  (fn [[record-name _]]
+                    (store/delete-all store record-name)))]
                 env)
+
+          :else
           (if-let [[insts env]
                    (find-instances env store record-name queries)]
             (let [alias (:alias queries)
