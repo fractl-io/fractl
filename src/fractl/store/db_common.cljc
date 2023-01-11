@@ -175,21 +175,21 @@
 (defn delete-by-id
   ([delete-by-id-statement datasource entity-name id-attr-name id]
    (let [tabname (su/entity-table-name entity-name)]
-     (transact-fn!
+     (execute-fn!
       datasource
-      (fn [txn]
-        (delete-inst! txn tabname id-attr-name id delete-by-id-statement)))
+      (fn [conn]
+        (delete-inst! conn tabname id-attr-name id delete-by-id-statement)))
      id))
   ([datasource entity-name id-attr-name id]
    (delete-by-id delete-by-id-statement datasource entity-name id-attr-name id)))
 
 (defn delete-all [datasource entity-name]
   (let [tabname (su/entity-table-name entity-name)]
-    (transact-fn!
+    (execute-fn!
      datasource
-     (fn [txn]
-       (let [pstmt (delete-all-statement txn tabname)]
-         (execute-stmt! txn pstmt nil))))
+     (fn [conn]
+       (let [pstmt (delete-all-statement conn tabname)]
+         (execute-stmt! conn pstmt nil))))
     entity-name))
 
 (defn- maybe-with-where-clause [q]

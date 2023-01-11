@@ -51,4 +51,6 @@
         (db/do-query @datasource query params))
       (compile-query [_ query-pattern]
         (db/compile-query query-pattern))
+      (call-in-transaction [_ f]
+        (f @datasource))
       (get-reference [_ path refs]))))

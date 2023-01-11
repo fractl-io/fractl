@@ -1574,10 +1574,17 @@
         [(relationship-member-identity relattr)
          (idattr inst)]))))
 
+(defn- maybe-transition [inst]
+  (if-let [t (:transition inst)]
+    (:to t)
+    inst))
+
 (defn init-relationship-instance [rel-name rel-attrs src-inst target-inst]
   (let [meta (fetch-meta rel-name)
         contains (mt/contains meta)
         between (when-not contains (mt/between meta))
+        src-inst (maybe-transition src-inst)
+        target-inst (maybe-transition target-inst)
         srctype (instance-type src-inst)
         types (mapv li/split-path [srctype (instance-type target-inst)])
         elems (mapv li/split-path (or contains between))]

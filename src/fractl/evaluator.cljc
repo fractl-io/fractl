@@ -66,33 +66,40 @@
   (when (identical? internal-event-flag (internal-event-key event-instance))
     true))
 
+(defn- eval-dataflow-with-store-connection [evaluator env event-instance df store-connection]
+  (binding [gs/active-event-context (or (li/event-context event-instance)
+                                        gs/active-event-context)
+            gs/active-store-connection store-connection]
+    (let [is-internal (internal-event? event-instance)
+          event-instance (if is-internal
+                           (dissoc event-instance internal-event-key)
+                           event-instance)
+          env0 (if is-internal
+                 (env/block-interceptors env)
+                 (env/assoc-active-event env event-instance))
+          continuation (fn [event-instance]
+                         (let [env (if event-instance
+                                     (env/assoc-active-event
+                                      (env/bind-instance
+                                       env0 (li/split-path (cn/instance-type event-instance))
+                                       event-instance)
+                                      event-instance)
+                                     env0)
+                               [_ dc] (cn/dataflow-opcode
+                                       df (or (env/with-types env)
+                                              cn/with-default-types))]
+                           (deref-futures (dispatch-opcodes evaluator env dc))))]
+      (interceptors/eval-intercept env0 event-instance continuation))))
+
 (defn eval-dataflow
   "Evaluate a compiled dataflow, triggered by event-instance, within the context
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (binding [gs/active-event-context (or (li/event-context event-instance)
-                                         gs/active-event-context)]
-     (let [is-internal (internal-event? event-instance)
-           event-instance (if is-internal
-                            (dissoc event-instance internal-event-key)
-                            event-instance)
-           env0 (if is-internal
-                  (env/block-interceptors env)
-                  (env/assoc-active-event env event-instance))
-           continuation (fn [event-instance]
-                          (let [env (if event-instance
-                                      (env/assoc-active-event
-                                       (env/bind-instance
-                                        env0 (li/split-path (cn/instance-type event-instance))
-                                        event-instance)
-                                       event-instance)
-                                      env0)
-                                [_ dc] (cn/dataflow-opcode
-                                        df (or (env/with-types env)
-                                               cn/with-default-types))]
-                            (deref-futures (dispatch-opcodes evaluator env dc))))]
-       (interceptors/eval-intercept env0 event-instance continuation))))
+   (let [f (partial eval-dataflow-with-store-connection evaluator env event-instance df)]
+     (if-let [store (env/get-store env)]
+       (store/call-in-transaction store f)
+       (f nil))))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 
