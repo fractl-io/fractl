@@ -352,6 +352,14 @@
 (defn- name-or-map? [x]
   (or (map? x) (li/name? x)))
 
+(defn- macro-call? [x]
+  (and (vector? x)
+       (li/registered-macro? (first x))))
+
+(defn- dataflow-pattern? [x]
+  (or (name-or-map? x)
+      (macro-call? x)))
+
 (defn for-each
   ([spec]
    (for-each ($value spec) ($body spec) (alias-tag spec)))
@@ -359,7 +367,7 @@
    (validate-alias! val-alias)
    (when-not (name-or-map? valpat)
      (u/throw-ex (str "invalid value pattern in for-each - " valpat)))
-   (when-not (every? name-or-map? body)
+   (when-not (every? dataflow-pattern? body)
      (u/throw-ex (str "invalid for-each body - " body)))
    (as-syntax-object
     :for-each
@@ -398,7 +406,7 @@
   ([spec]
    (_try ($body spec) ($cases spec) (alias-tag spec)))
   ([body cases val-alias]
-   (when-not (name-or-map? body)
+   (when-not (dataflow-pattern? body)
      (u/throw-ex (str "invalid body for try - " body)))
    (validate-alias! val-alias)
    (as-syntax-object
