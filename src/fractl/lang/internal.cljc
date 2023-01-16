@@ -23,16 +23,13 @@
                    :offset :join :left-join
                    :right-join])
 (def oprs (concat query-cmpr-oprs sql-keywords [:not :and :or :between :in]))
+(def macro-names #{:match :try :for-each :delete :query :await :entity :eval})
 
 (defn operator? [x]
   (some #{x} oprs))
 
 (def ^:private special-form-names
-  (set
-   (concat
-    oprs
-    #{:match :try :for-each :delete
-      :query :await :entity :eval})))
+  (set (concat oprs macro-names)))
 
 (def ^:private reserved-names
   (set (concat
@@ -98,7 +95,7 @@
   false)
 
 (defn registered-macro? [k]
-  (or (some #{k} special-form-names)
+  (or (some #{k} macro-names)
       (user-defined-macro? k)))
 
 (defn logical-opr? [x]

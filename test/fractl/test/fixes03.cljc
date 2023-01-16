@@ -5,6 +5,7 @@
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             [fractl.util.hash :as sh]
+            [fractl.lang.syntax :as ls]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship dataflow]]
@@ -416,3 +417,21 @@
                {:E1 1 :E2 10}})]
       (is (cn/instance-of? :I741B/R1 d1))
       (lookup-e2 false))))
+
+(deftest issue-754-for-each-introspect
+  (let [s1 (ls/introspect
+            [:for-each :E1
+             {:FeDel/E2 {:A? :%.X}}
+             [:delete :FeDel/E1 {:X :%.X}]
+             :as :P])
+        s2 (ls/introspect
+            [:for-each :collection
+             {:Department {:Name "hamza"}}
+             [:delete :Department {:Name "hamza"}] :as :p])]
+    (is (and (ls/for-each? s1) (ls/for-each? s2)))
+    (is (= :E1 (ls/value-tag s1)))
+    (is (= :collection (ls/value-tag s2)))
+    (is (= :P (ls/alias-tag s1)))
+    (is (= :p (ls/alias-tag s2)))
+    (is (= 2 (count (ls/body-tag s1))))
+    (is (= 2 (count (ls/body-tag s2))))))
