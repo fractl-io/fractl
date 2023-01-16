@@ -16,6 +16,29 @@
 (def cljout "cljout")
 (def ^:private cljout-file (File. cljout))
 
+(def ^:private logback-xml
+  "<?xml version=\"1.0\"?>
+<configuration>
+  <appender name=\"ROLLING\" class=\"ch.qos.logback.core.rolling.RollingFileAppender\">
+    <file>logs/$app-version.log</file>
+    <rollingPolicy class=\"ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy\">
+      <fileNamePattern>logs/$app-version-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <maxFileSize>20MB</maxFileSize>
+      <maxHistory>30</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  <root level=\"INFO\">
+    <appender-ref ref=\"ROLLING\" />
+  </root>
+</configuration>")
+
+(defn- make-log-config [model-name model-version]
+  (s/replace logback-xml "$app-version" (str model-name "-" model-version)))
+
 (defn- as-path [s]
   (s/replace s #"[\.\-_]" u/path-sep))
 
@@ -36,13 +59,18 @@
   (let [prefix (project-dir model-name)]
     [#(read-string (slurp (str prefix %)))
      (fn [file-name contents & options]
-       (let [f (File. (str prefix file-name))
-             write-each (first options)]
+       (let [f (File. (str prefix file-name))]
          (FileUtils/createParentDirectories f)
          (with-open [w (io/writer f)]
-           (if write-each
+           (cond
+             (some #{:spit} options)
+             (spit w contents)
+
+             (some #{:write-each} options)
              (doseq [exp contents]
                (pprint/pprint exp w))
+
+             :else
              (pprint/pprint contents w)))))]))
 
 (defn- create-clj-project [model-name version]
@@ -58,9 +86,12 @@
     (conj proj-spec :repositories repos)
     proj-spec))
 
+(defn- model-version [model]
+  (or (:version model) "0.0.1"))
+
 (defn- update-project-spec [model project-spec]
   (let [deps (:clj-dependencies model)
-        ver (:version model)]
+        ver (model-version model)]
     (loop [spec project-spec, final-spec []]
       (if-let [s (first spec)]
         (if (= :dependencies s)
@@ -84,7 +115,7 @@
         (str
          "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep
          (s/join u/path-sep (concat dirs [(str compname ".clj")])))]
-    (write file-name component true)
+    (write file-name component :write-each)
     component-name))
 
 (defn- var-name [defexp]
@@ -171,13 +202,15 @@
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))
         model (dissoc model :clj-dependencies :repositories)]
     (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.clj")
-           [ns-decl model] true)))
+           [ns-decl model] :write-each)))
 
 (defn- build-clj-project [model-name model-root model components]
-  (if (create-clj-project model-name (:version model))
+  (if (create-clj-project model-name (model-version model))
     (let [[rd wr] (clj-io model-name)
-          spec (update-project-spec model (rd "project.clj"))]
+          spec (update-project-spec model (rd "project.clj"))
+          log-config (make-log-config model-name (model-version model))]
       (wr "project.clj" spec)
+      (wr "resources/logback.xml" log-config :spit)
       (let [cmps (mapv (partial copy-component wr model-name) components)]
         (write-model-clj wr model-name cmps model)
         model-name))
