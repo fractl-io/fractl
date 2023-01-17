@@ -54,12 +54,16 @@
     (seqable? raw-result) (reach-result (first raw-result))
     :else {}))
 
+(defn- ok-result [r]
+  (when (= :ok (:status r))
+    (:result r)))
+
 (defn remote-eval-with-result
   ([host event-inst predic]
    (let [rawr (remote-eval host nil event-inst)
-         r (reach-result rawr)]
-     (if (and (= :ok (:status r)) (predic event-inst (:result r)))
-       (:result r)
+         r (ok-result (reach-result rawr))]
+     (if (predic event-inst r)
+       r
        (u/throw-ex (str "unexpected result " rawr " for event " event-inst)))))
   ([event-inst predic]
    (remote-eval-with-result "http://localhost:8080" event-inst predic)))
