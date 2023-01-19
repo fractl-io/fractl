@@ -522,6 +522,10 @@
                          (some-query-attrs? (first (vals relq))))
         :else false))))
 
+(defn- some-relationship-queries? [pat]
+  (and (vector? (first pat))
+       (some relationship-query? pat)))
+
 (defn- relationship-name-from-pattern [pat]
   (cond
     (vector? pat)
@@ -566,6 +570,8 @@
           is-query-upsert (or (li/query-pattern? orig-nm)
                               (some li/query-pattern? (keys attrs)))
           is-relq (and relpat is-query-upsert (relationship-query? relpat))]
+      (when (and (not is-relq) (some-relationship-queries? relpat))
+        (u/throw-ex (str "cannot mix relationship queries and upserts - " relpat)))
       (when-not (or (active-event-is-built-in?)
                     (ctx/ignore-relationship-query-constraint? ctx))
         (when-let [r (cn/find-contained-relationship full-nm)]
@@ -979,6 +985,7 @@
                 (first (keys evt-pattern)))
         safe-compile (partial compile-with-error-report df-patterns c)
         result [ec (mapv safe-compile df-patterns (range (count df-patterns)))]]
+    (log/debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result))
     result))
 
 (defn maybe-compile-dataflow
