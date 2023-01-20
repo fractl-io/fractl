@@ -204,6 +204,13 @@
     (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.clj")
            [ns-decl model] :write-each)))
 
+(def ^:private config-edn "config.edn")
+
+(defn- write-config-edn [model-root write]
+  (let [src-cfg (str model-root u/path-sep config-edn)]
+    (when (.exists (File. src-cfg))
+      (write config-edn (slurp src-cfg) :spit))))
+
 (defn- build-clj-project [model-name model-root model components]
   (if (create-clj-project model-name (model-version model))
     (let [[rd wr] (clj-io model-name)
@@ -213,6 +220,7 @@
       (wr "resources/logback.xml" log-config :spit)
       (let [cmps (mapv (partial copy-component wr model-name) components)]
         (write-model-clj wr model-name cmps model)
+        (write-config-edn model-root wr)
         model-name))
     (log/error (str "failed to create clj project for " model-name))))
 
