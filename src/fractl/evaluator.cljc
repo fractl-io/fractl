@@ -140,7 +140,9 @@
     (catch #?(:clj Exception :cljs :default) ex
       (let [msg (str "error in dataflow for "
                      (cn/instance-type event-instance)
-                     " - " #?(:clj (.getMessage ex) :cljs ex))]
+                     " - " #?(:clj (str (.getMessage ex)
+                                        (ex-data ex))
+                              :cljs ex))]
         (log/warn msg)
         (log/exception ex)
         (i/error msg)))))
