@@ -13,8 +13,8 @@
            [org.apache.commons.io FileUtils]
            [org.apache.commons.io.filefilter IOFileFilter WildcardFileFilter]))
 
-(def cljout "cljout")
-(def ^:private cljout-file (File. cljout))
+(def out-dir "out")
+(def ^:private out-file (File. out-dir))
 
 (def ^:private logback-xml
   "<?xml version=\"1.0\"?>
@@ -46,7 +46,7 @@
   (s/replace s "-" "_"))
 
 (defn project-dir [model-name]
-  (str cljout u/path-sep model-name u/path-sep))
+  (str out-dir u/path-sep model-name u/path-sep))
 
 (defn standalone-jar [model-name]
   (let [^File dir (File. (str (project-dir model-name) u/path-sep "target"))
@@ -76,7 +76,7 @@
 (defn- create-clj-project [model-name version]
   (let [app-name (if version (str model-name ":" version) model-name)
         cmd (str "lein new fractl-model " app-name)]
-    (u/exec-in-directory cljout-file cmd)))
+    (u/exec-in-directory out-file cmd)))
 
 (defn- exec-for-model [model-name cmd]
   (u/exec-in-directory (project-dir model-name) cmd))
@@ -254,8 +254,8 @@
          (install-local-dependencies! model-paths (:local-dependencies model))
          (if (.exists projdir)
            (FileUtils/deleteDirectory projdir)
-           (when-not (.exists cljout-file)
-             (.mkdir cljout-file)))
+           (when-not (.exists out-file)
+             (.mkdir out-file)))
          (when (build-clj-project model-name model-root model components)
            result)))))
   ([model-name]
