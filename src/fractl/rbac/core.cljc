@@ -145,7 +145,7 @@
       {:Resource (if (keyword? instance-type)
                    instance-type
                    (li/make-path instance-type))
-       :ResourceId instance-id}}))))
+       :ResourceId (str instance-id)}}))))
 
 (defn- filter-instance-privilege? [opr inst-privs]
   (every? (fn [p] (some #{opr} (:Filter p))) inst-privs))

@@ -84,6 +84,13 @@
       (vec (filter #(not= % id-attr) uq-attrs)))
     uq-attrs))
 
+(defn- cast-attr-types [entity-schema attr-names instance]
+  (reduce (fn [inst attr-n]
+            (if (= :Kernel/Any (:type (cn/find-attribute-schema (attr-n entity-schema))))
+              (assoc inst attr-n (str (attr-n inst)))
+              inst))
+          instance attr-names))
+
 (defn upsert-instance [store record-name instance]
   (let [scm (su/find-entity-schema record-name)
         instance (cn/secure-attributes record-name instance scm)
@@ -92,7 +99,8 @@
                   (cn/compound-unique-attributes record-name))]
     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
                                (p/query-by-unique-keys
-                                store record-name (maybe-remove-id record-name uq-attrs) instance))]
+                                store record-name (maybe-remove-id record-name uq-attrs)
+                                (cast-attr-types scm uq-attrs instance)))]
       (let [new-instance
             (cn/validate-instance
              (p/update-instance

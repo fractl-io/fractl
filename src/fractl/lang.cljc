@@ -763,9 +763,10 @@
                       (if combined-uqs (assoc meta :unique uqs) meta)
                       :relationship true)))]
        (when (cn/register-relationship elems relation-name)
-         r))))
+         (and (meta-entity relation-name) r)))))
   ([schema]
-   (parse-and-define serializable-entity schema)))
+   (let [r (parse-and-define serializable-entity schema)]
+     (and (meta-entity (first (keys schema))) r))))
 
 (defn- resolver-for-entity [component ename spec]
   (if (cn/find-entity-schema ename)
