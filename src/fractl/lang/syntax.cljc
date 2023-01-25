@@ -24,7 +24,6 @@
 (def cases-tag :cases)
 (def body-tag :body)
 (def check-tag :check)
-(def alias-tag :alias)
 
 (def rel-tag li/rel-tag)
 (def timeout-ms-tag li/timeout-ms-tag)
@@ -172,10 +171,14 @@
 
 (def upsert? (partial has-type? :upsert))
 
+(declare raw-relationship)
+
 (defn- raw-upsert [ir]
   (merge
    {($record ir)
     (raw-walk ($attrs ir))}
+   (when-let [rel (rel-tag ir)]
+     {rel-tag (raw-relationship rel)})
    (when-let [als (alias-tag ir)]
      {alias-tag als})))
 
@@ -219,11 +222,15 @@
     (merge
      {($record ir)
       (raw-walk obj)}
+     (when-let [rel (rel-tag ir)]
+       {rel-tag (raw-relationship rel)})
      (when-let [als (alias-tag ir)]
        {alias-tag als}))))
 
 (defn- introspect-relationship [r]
   (mapv introspect r))
+
+(def ^:private raw-relationship raw-walk)
 
 (defn- maybe-assoc-relationship [obj pattern]
   (if-let [r (rel-tag pattern)]
@@ -277,14 +284,13 @@
 (def query-object? (partial has-type? :query-object))
 
 (defn- raw-query-object [ir]
-  (let [obj (query-pattern ir)]
-    (when-not obj
-      (u/throw-ex (str "expected query pattern not found - " ir)))
+  (if-let [obj (query-pattern ir)]
     (merge
      {($record ir)
       (raw-walk obj)}
      (when-let [als (alias-tag ir)]
-       {alias-tag als}))))
+       {alias-tag als}))
+    (li/name-as-query-pattern ($record ir))))
 
 (defn- introspect-query-object [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
@@ -581,10 +587,7 @@
 (defn- introspect-name [pattern]
   (if (li/query-pattern? pattern)
     (as-syntax-object :query-object {record-tag (li/normalize-name pattern)})
-    (as-syntax-object :alias-object {alias-tag pattern})))
-
-(def alias? (partial has-type? :alias-object))
-(def alias-name alias-tag)
+    pattern))
 
 (defn introspect [pattern]
   (cond
