@@ -435,3 +435,31 @@
     (is (= :p (ls/alias-tag s2)))
     (is (= 2 (count (ls/body-tag s1))))
     (is (= 2 (count (ls/body-tag s2))))))
+
+(deftest issue-765-delete-in-match
+  (defcomponent :I765
+    (entity
+     :I765/E1
+     {:X {:type :Kernel/Int :identity true}})
+    (entity
+     :I765/E2
+     {:Y {:type :Kernel/Int :identity true}})
+    (dataflow
+     :I765/DelE
+     [:match :I765/DelE.V
+      1 [:delete :I765/E1 {:X :I765/DelE.X}]
+      2 [:delete :I765/E2 {:Y :I765/DelE.Y}]]))
+  (let [e1 (tu/first-result
+            {:I765/Upsert_E1
+             {:Instance
+              {:I765/E1 {:X 100}}}})
+        e2 (tu/first-result
+            {:I765/Upsert_E2
+             {:Instance
+              {:I765/E2 {:Y 200}}}})
+        r1 (tu/first-result
+            {:I765/DelE {:V 1 :X 100}})
+        r2 (tu/first-result
+            {:I765/DelE {:V 2 :Y 200}})]
+    (is (cn/same-instance? e1 r1))
+    (is (cn/same-instance? e2 r2))))

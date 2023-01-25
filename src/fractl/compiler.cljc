@@ -660,7 +660,7 @@
         [result nil alias]))))
 
 (defn- compile-maybe-pattern-list [ctx pat]
-  (if (vector? pat)
+  (if (and (vector? pat) (not (li/registered-macro? (first pat))))
     (mapv #(compile-pattern ctx %) pat)
     (compile-pattern ctx pat)))
 
