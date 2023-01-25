@@ -6,7 +6,8 @@
             [fractl.store.util :as su]
             [fractl.store.jdbc-cp :as cp]
             [fractl.store.db-common :as db]
-            [fractl.store.postgres-internal :as pi]))
+            [fractl.store.postgres-internal :as pi])
+  (:import [org.postgresql.util PSQLException]))
 
 (def ^:private driver-class "org.postgresql.Driver")
 (def ^:private jdbc-url-prefix "jdbc:postgresql://")
@@ -101,12 +102,19 @@
       (open-connection [store connection-info]
         (let [connection-info (su/normalize-connection-info connection-info)
               jdbc-url (str jdbc-url-prefix
-                            (or (:host connection-info) "localhost")
+                            (or (:host connection-info)
+                                (System/getenv "POSTGRES_HOST")
+                                "localhost")
                             "/"
-                            (or (:dbname connection-info) "v8")
+                            (or (:dbname connection-info)
+                                (System/getenv "POSTGRES_DB")
+                                "postgres")
                             "?stringtype=unspecified")
-              username (or (:username connection-info) "postgres")
-              password (or (:password connection-info) "posterV8")]
+              username (or (:username connection-info)
+                           (System/getenv "POSTGRES_USER")
+                           "postgres")
+              password (or (:password connection-info)
+                           (System/getenv "POSTGRES_PASSWORD"))]
           (u/safe-set-once
            datasource
            #(let [dbspec {:driver-class driver-class

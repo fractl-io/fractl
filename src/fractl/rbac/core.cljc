@@ -1,18 +1,22 @@
 (ns fractl.rbac.core
   (:require [clojure.core.memoize :as mem]
             [fractl.rbac.model]
+            [fractl.global-state :as gs]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
             [fractl.lang.internal :as li]
             [fractl.evaluator.intercept.internal :as ii]))
 
-(def default-superuser-email "superuser@superuser.com")
+(defn get-superuser-email []
+  (or (get-in (gs/get-app-config) [:authentication :superuser-email])
+      "superuser@superuser.com"))
+
 (def ^:private superuser (atom nil))
 
 (defn- find-su-event []
   (cn/make-instance
    {:Kernel.Identity/FindUser
-    {:Email default-superuser-email}}))
+    {:Email (get-superuser-email)}}))
 
 (defn- lookup-superuser []
   (when-let [r (ev/safe-eval (find-su-event))]
@@ -23,7 +27,7 @@
              {:Kernel.Identity/Upsert_User
               {:Instance
                {:Kernel.Identity/User
-                (merge {:Email default-superuser-email}
+                (merge {:Email (get-superuser-email)}
                        (when pswd
                          {:Password pswd}))}}})]
     (first
@@ -141,7 +145,7 @@
       {:Resource (if (keyword? instance-type)
                    instance-type
                    (li/make-path instance-type))
-       :ResourceId instance-id}}))))
+       :ResourceId (str instance-id)}}))))
 
 (defn- filter-instance-privilege? [opr inst-privs]
   (every? (fn [p] (some #{opr} (:Filter p))) inst-privs))
