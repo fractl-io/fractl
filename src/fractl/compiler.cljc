@@ -142,13 +142,18 @@
        (let [f (first q)]
          (or (= :and f) (= :or f)))))
 
+(declare compound-expr-as-fn)
+
 (defn- query-param-process [[k v]]
   (if (logical-query? v)
     (let [opr (first v)]
       `[~opr ~@(map #(query-param-process [k %]) (rest v))])
     (cond
       (i/const-value? v) [k v]
-      (seqable? v) (vec (param-process-seq-query k v))
+      (seqable? v)
+      (if (symbol? (first v))
+        [k (compound-expr-as-fn v)]
+        (vec (param-process-seq-query k v)))
       :else [k (query-param-lookup v)])))
 
 (defn- fetch-compile-query-fn [ctx]
