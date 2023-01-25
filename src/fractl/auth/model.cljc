@@ -16,7 +16,8 @@
   :LastName {:type :Kernel/String
              :optional true}
   :Email {:type :Kernel/Email
-          :identity true}})
+          :identity true}
+  :UserData {:type :Kernel/Map :optional true}})
 
 (event
  :Kernel.Identity/SignUp

@@ -92,7 +92,7 @@
     (dataflow
      :PrivTest/CreateSuperUser
      {:PrivTest/User
-      {:User rbac/default-superuser-email}})
+      {:User (rbac/get-superuser-email)}})
     (dataflow
      :PrivTest/CreateUsers
      {:Kernel.Identity/User
@@ -171,16 +171,16 @@
    (fn []
      (let [su (first (tu/result :PrivTest/CreateSuperUser))]
        (is (cn/instance-of? :PrivTest/User su))
-       (is (= rbac/default-superuser-email (:User su)))
+       (is (= (rbac/get-superuser-email) (:User su)))
        (is (= [:rbac] (ei/init-interceptors [:rbac])))
        (let [u2 (first
                  (tu/result
-                  (with-user rbac/default-superuser-email :PrivTest/CreateUsers)))]
+                  (with-user (rbac/get-superuser-email) :PrivTest/CreateUsers)))]
          (is (cn/instance-of? :PrivTest/User u2))
          (is (= "u22@u22.com" (:User u2))))
        (let [r2 (first
                  (tu/result
-                  (with-user rbac/default-superuser-email :PrivTest/CreatePrivileges)))]
+                  (with-user (rbac/get-superuser-email) :PrivTest/CreatePrivileges)))]
          (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r2))
          (is (and (= "r22" (:Role r2)) (= "u22@u22.com" (:Assignee r2)))))
        (tu/is-error
@@ -258,7 +258,7 @@
     (dataflow
      :RbacOwner/CreateSuperUser
      {:RbacOwner/User
-      {:User rbac/default-superuser-email}})
+      {:User (rbac/get-superuser-email)}})
     (dataflow
      :RbacOwner/CreateUsers
      {:Kernel.Identity/User
@@ -294,16 +294,16 @@
    (fn []
      (let [su (first (tu/result :RbacOwner/CreateSuperUser))]
        (is (cn/instance-of? :RbacOwner/User su))
-       (is (= rbac/default-superuser-email (:User su)))
+       (is (= (rbac/get-superuser-email) (:User su)))
        (is (= [:rbac] (ei/init-interceptors [:rbac])))
        (let [u2 (first
                  (tu/result
-                  (with-user rbac/default-superuser-email :RbacOwner/CreateUsers)))]
+                  (with-user (rbac/get-superuser-email) :RbacOwner/CreateUsers)))]
          (is (cn/instance-of? :RbacOwner/User u2))
          (is (= "uu22@uu22.com" (:User u2))))
        (let [r1 (first
                  (tu/result
-                  (with-user rbac/default-superuser-email :RbacOwner/CreatePrivileges)))]
+                  (with-user (rbac/get-superuser-email) :RbacOwner/CreatePrivileges)))]
          (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r1))
          (is (and (= "rr11" (:Role r1)) (= "uu22@uu22.com" (:Assignee r1)))))
        (let [e1 (first
@@ -400,12 +400,12 @@
      (is (= [:rbac] (ei/init-interceptors [:rbac])))
      (let [u2 (first
                (tu/result
-                (with-user rbac/default-superuser-email :RbacH/CreateUsers)))]
+                (with-user (rbac/get-superuser-email) :RbacH/CreateUsers)))]
        (is (cn/instance-of? :Kernel.Identity/User u2))
        (is (= "uh22@uh22.com" (:Email u2))))
      (let [r2 (first
                (tu/result
-                (with-user rbac/default-superuser-email :RbacH/CreatePrivileges)))]
+                (with-user (rbac/get-superuser-email) :RbacH/CreatePrivileges)))]
        (is (cn/instance-of? :Kernel.RBAC/RoleAssignment r2))
        (is (and (= "rh22" (:Role r2)) (= "uh22@uh22.com" (:Assignee r2)))))
      (let [upsert-event {:RbacH/Upsert_E
@@ -430,7 +430,7 @@
           #(tu/eval-all-dataflows
             (with-user "uh22@uh22.com" (mk-lookup-event (cn/id-attr (ok-test "uh11@uh11.com"))))))
          (let [r (tu/first-result
-                  (with-user rbac/default-superuser-email :RbacH/AssignParent))]
+                  (with-user (rbac/get-superuser-email) :RbacH/AssignParent))]
            (is (cn/instance-of? :Kernel.RBAC/RoleRelationship r))
            (is (= "rh22" (:Parent r)))
            (is (= "rh11" (:Child r))))
@@ -518,7 +518,7 @@
          result-type
          (first
           (tu/result
-           (with-user rbac/default-superuser-email event-name))))))
+           (with-user (rbac/get-superuser-email) event-name))))))
   (call-with-rbac
    (fn []
      (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
@@ -632,7 +632,7 @@
          result-type
          (first
           (tu/result
-           (with-user rbac/default-superuser-email event-name))))))
+           (with-user (rbac/get-superuser-email) event-name))))))
   (defn- create-e1 [x expect-error]
     (let [f #(tu/result
               (with-user
@@ -745,7 +745,7 @@
          result-type
          (first
           (tu/result
-           (with-user rbac/default-superuser-email event-name))))))
+           (with-user (rbac/get-superuser-email) event-name))))))
   (defn- create-e1 [x expect-error]
     (let [f #(tu/result
               (with-user

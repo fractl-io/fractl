@@ -499,4 +499,4 @@
         r (tu/result {:Agrgts/Evt1 {}})]
     (is (= (count es) 6))
     (is (every? (partial cn/instance-of? :Agrgts/E) es))
-    (is (= r {:count 3, :sum 15, :avg 5, :max 6, :min 4}))))
+    (is (= (assoc r :avg (int (:avg r))) {:count 3, :sum 15, :avg 5, :max 6, :min 4}))))

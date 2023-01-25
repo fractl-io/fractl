@@ -18,7 +18,7 @@
 
 (def ^:private client (atom nil))
 
-;; Return a keycloak client. An is,
+;; Return a keycloak client - as in,
 ;; {:auth-server-url "http://localhost:8090/auth"
 ;;  :realm "master"
 ;;  :user-realm "fractl-dev"

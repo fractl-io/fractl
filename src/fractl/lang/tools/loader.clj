@@ -35,7 +35,7 @@
            component
            (assoc result :component (second exp))
 
-           (entity record event dataflow relationship)
+           (entity record event dataflow relationship attribute)
            (assoc
             result :records
             (conj
