@@ -31,6 +31,7 @@
   [["-c" "--config CONFIG" "Configuration file"]
    ["-b" "--build MODEL" "Build and package a model into a standalone jar"]
    ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"] 
+   ["-s" "--doc MODEL" "Generate documentation in .html"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -194,6 +195,19 @@
         (log/info (str "Server config - " server-cfg))
         (h/run-server [evaluator query-fn] server-cfg)))))
 
+(defn generate-swagger-doc [args [[model model-root] config]]
+  (let [config (finalize-config model config)
+        store (e/store-from-config (:store config))
+        config (assoc config :store-handle store)
+        components (or
+                    (if model
+                      (load-model model model-root nil config)
+                      (load-components args (:component-root config) config))
+                    (cn/component-names))]
+    (when (and (seq components) (every? keyword? components))
+      (println "sdoc: " components)
+      (log-seq! "Components" components))))
+
 (defn- find-model-to-read [args config]
   (or (seq (su/nonils args))
       [(:full-model-path config)]))
@@ -305,4 +319,7 @@
                          (build/deploy-library
                           (:deploy options)
                           (keyword (first args))))
+      (:doc options) (generate-swagger-doc
+                      args
+                      (read-model-and-config args options))
       :else (run-service args (read-model-and-config args options)))))
