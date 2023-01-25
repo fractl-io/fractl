@@ -443,9 +443,20 @@
                :-> [{:Acme/WorksFor {:Location "south"}} :Dept]})
         obj2 (ls/introspect
               {:Acme/Employee? {}
-               :-> [:Acme/WorksFor? :Dept]})]
+               :-> [:Acme/WorksFor? :Dept]})
+        obj3 (ls/introspect
+              {:Acme/Employee? {}
+               :-> [:Acme/WorksFor?
+                    {:Acme/Dept {:No :DeptNo}
+                     :-> [:Acme/PartOf? {:Acme/Company {:Name :CompanyName}}]}]})
+        obj4 (ls/introspect
+              {:C/E {:X 100}
+               :-> [[{:C/R1 {}} :A]
+                    [{:C/R2 {}} :B]]})]
     (is (and (ls/upsert? obj1) (ls/relationship-object obj1)))
-    (is (and (ls/query-upsert? obj2) (ls/relationship-object obj2)))))
+    (is (and (ls/query-upsert? obj2) (ls/relationship-object obj2)))
+    (is (and (ls/query-upsert? obj3) (ls/relationship-object obj3)))
+    (is (and (ls/upsert? obj4) (ls/relationship-object obj4)))))
 
 (deftest issue-765-delete-in-match
   (defcomponent :I765

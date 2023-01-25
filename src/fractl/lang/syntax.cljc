@@ -24,6 +24,7 @@
 (def cases-tag :cases)
 (def body-tag :body)
 (def check-tag :check)
+(def alias-tag :alias)
 
 (def rel-tag li/rel-tag)
 (def timeout-ms-tag li/timeout-ms-tag)
@@ -221,9 +222,16 @@
      (when-let [als (alias-tag ir)]
        {alias-tag als}))))
 
+(defn- introspect-relationship [r]
+  (mapv introspect r))
+
 (defn- maybe-assoc-relationship [obj pattern]
   (if-let [r (rel-tag pattern)]
-    (assoc obj rel-tag r)
+    (assoc
+     obj rel-tag
+     (if (vector? (first r))
+       (mapv introspect-relationship r)
+       (introspect-relationship r)))
     obj))
 
 (defn- introspect-query-upsert [pattern]
@@ -570,9 +578,18 @@
         attrs ((first (keys pat)) pat)]
     (and (map? attrs) (:where attrs))))
 
+(defn- introspect-name [pattern]
+  (if (li/query-pattern? pattern)
+    (as-syntax-object :query-object {record-tag (li/normalize-name pattern)})
+    (as-syntax-object :alias-object {alias-tag pattern})))
+
+(def alias? (partial has-type? :alias-object))
+(def alias-name alias-tag)
+
 (defn introspect [pattern]
   (cond
     (syntax-object? pattern) pattern
+
     (seqable? pattern)
     (cond
       (or (list? pattern) (= 'quote (first pattern)))
@@ -587,6 +604,10 @@
       (introspect-special-form pattern)
 
       :else pattern)
+
+    (li/name? pattern)
+    (introspect-name pattern)
+
     :else pattern))
 
 (def introspect-json (comp introspect json/decode))
