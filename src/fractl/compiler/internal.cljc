@@ -204,10 +204,12 @@
 
 (defn- process-where-clause [clause]
   (cv/ensure-where-clause
-   (if (and (= 2 (count clause))
-            (not (vector? (first clause))))
+   (cond
+     (fn? clause) [:= clause]
+     (and (= 2 (count clause))
+          (not (vector? (first clause))))
      (su/vec-add-first := clause)
-     clause)))
+     :else clause)))
 
 (defn expand-query [entity-name query-pattern]
   (let [wildcard? (not (seq query-pattern))

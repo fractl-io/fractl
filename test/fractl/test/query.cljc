@@ -500,3 +500,28 @@
     (is (= (count es) 6))
     (is (every? (partial cn/instance-of? :Agrgts/E) es))
     (is (= (assoc r :avg (int (:avg r))) {:count 3, :sum 15, :avg 5, :max 6, :min 4}))))
+
+(deftest issue-766-fn-in-query
+  (defcomponent :I766
+    (entity
+     :I766/E
+     {:X {:type :Kernel/Int :indexed true}
+      :Y {:type :Kernel/Int :indexed true}})
+    (defn i766-f [y] (* y 10))
+    (dataflow
+     :I766/Q
+     {:I766/E
+      {:X? [:>= :I766/Q.X] :Y? '(fractl.test.query/i766-f :I766/Q.Y)}}))
+  (let [es (mapv #(tu/first-result
+                   {:I766/Upsert_E
+                    {:Instance
+                     {:I766/E {:X %1 :Y %2}}}})
+                 [1 2 3 4 5] [10 100 200 300 200])
+        rs (tu/result
+            {:I766/Q {:X 2 :Y 20}})]
+    (is (= 2 (count rs)))
+    (is (every?
+         true?
+         (mapv #(and (or (= 3 (:X %)) (= 5 (:X %)))
+                     (= 200 (:Y %)))
+               rs)))))
