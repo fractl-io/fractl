@@ -221,6 +221,11 @@
      (when-let [als (alias-tag ir)]
        {alias-tag als}))))
 
+(defn- maybe-assoc-relationship [obj pattern]
+  (if-let [r (rel-tag pattern)]
+    (assoc obj rel-tag r)
+    obj))
+
 (defn- introspect-query-upsert [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
         recname (first (keys pat))
@@ -229,10 +234,15 @@
       (u/throw-ex (str "invalid record name - " recname)))
     (when-not (map? attrs)
       (u/throw-ex (str "attributes must be a map - " attrs)))
-    (let [qpat (some li/query-pattern? (keys attrs))]
-      ((if qpat query-upsert upsert)
-       recname attrs
-       (alias-tag pattern)))))
+    (let [attr-names (seq (keys attrs))
+          qpat (if attr-names
+                 (some li/query-pattern? attr-names)
+                 (li/query-pattern? recname))]
+      (maybe-assoc-relationship
+       ((if qpat query-upsert upsert)
+        recname attrs
+        (alias-tag pattern))
+       pattern))))
 
 (defn query-object
   ([spec]
@@ -279,6 +289,8 @@
     (query-object
      recname qpat
      (alias-tag pattern))))
+
+(def relationship-object rel-tag)
 
 (defn- verify-cases! [cs]
   (loop [cs cs]

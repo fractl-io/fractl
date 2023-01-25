@@ -436,6 +436,17 @@
     (is (= 2 (count (ls/body-tag s1))))
     (is (= 2 (count (ls/body-tag s2))))))
 
+(deftest issue-761-relationship-syntax
+  (let [obj1 (ls/introspect
+              {:Acme/Employee
+               {:Name "xyz"}
+               :-> [{:Acme/WorksFor {:Location "south"}} :Dept]})
+        obj2 (ls/introspect
+              {:Acme/Employee? {}
+               :-> [:Acme/WorksFor? :Dept]})]
+    (is (and (ls/upsert? obj1) (ls/relationship-object obj1)))
+    (is (and (ls/query-upsert? obj2) (ls/relationship-object obj2)))))
+
 (deftest issue-765-delete-in-match
   (defcomponent :I765
     (entity
