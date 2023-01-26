@@ -436,6 +436,32 @@
     (is (= 2 (count (ls/body-tag s1))))
     (is (= 2 (count (ls/body-tag s2))))))
 
+(deftest issue-761-relationship-syntax
+  (let [pat1 {:Acme/Employee
+              {:Name "xyz"}
+              :-> [{:Acme/WorksFor {:Location "south"}} :Dept]}
+        obj1 (ls/introspect pat1)
+        pat2 {:Acme/Employee? {}
+              :-> [:Acme/WorksFor? :Dept]}
+        obj2 (ls/introspect pat2)
+        pat3 {:Acme/Employee? {}
+              :-> [:Acme/WorksFor?
+                   {:Acme/Dept {:No :DeptNo}
+                    :-> [:Acme/PartOf? {:Acme/Company {:Name :CompanyName}}]}]}
+        obj3 (ls/introspect pat3)
+        pat4 {:C/E {:X 100}
+              :-> [[{:C/R1 {}} :A]
+                   [{:C/R2 {}} :B]]}
+        obj4 (ls/introspect pat4)]
+    (is (and (ls/upsert? obj1) (ls/relationship-object obj1)))
+    (is (and (ls/query-upsert? obj2) (ls/relationship-object obj2)))
+    (is (and (ls/query-upsert? obj3) (ls/relationship-object obj3)))
+    (is (and (ls/upsert? obj4) (ls/relationship-object obj4)))
+    (is (= (ls/raw obj1) pat1))
+    (is (= (ls/raw obj2) pat2))
+    (is (= (ls/raw obj3) pat3))
+    (is (= (ls/raw obj4) pat4))))
+
 (deftest issue-765-delete-in-match
   (defcomponent :I765
     (entity

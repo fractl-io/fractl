@@ -171,10 +171,14 @@
 
 (def upsert? (partial has-type? :upsert))
 
+(declare raw-relationship)
+
 (defn- raw-upsert [ir]
   (merge
    {($record ir)
     (raw-walk ($attrs ir))}
+   (when-let [rel (rel-tag ir)]
+     {rel-tag (raw-relationship rel)})
    (when-let [als (alias-tag ir)]
      {alias-tag als})))
 
@@ -218,8 +222,24 @@
     (merge
      {($record ir)
       (raw-walk obj)}
+     (when-let [rel (rel-tag ir)]
+       {rel-tag (raw-relationship rel)})
      (when-let [als (alias-tag ir)]
        {alias-tag als}))))
+
+(defn- introspect-relationship [r]
+  (mapv introspect r))
+
+(def ^:private raw-relationship raw-walk)
+
+(defn- maybe-assoc-relationship [obj pattern]
+  (if-let [r (rel-tag pattern)]
+    (assoc
+     obj rel-tag
+     (if (vector? (first r))
+       (mapv introspect-relationship r)
+       (introspect-relationship r)))
+    obj))
 
 (defn- introspect-query-upsert [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
@@ -229,10 +249,15 @@
       (u/throw-ex (str "invalid record name - " recname)))
     (when-not (map? attrs)
       (u/throw-ex (str "attributes must be a map - " attrs)))
-    (let [qpat (some li/query-pattern? (keys attrs))]
-      ((if qpat query-upsert upsert)
-       recname attrs
-       (alias-tag pattern)))))
+    (let [attr-names (seq (keys attrs))
+          qpat (if attr-names
+                 (some li/query-pattern? attr-names)
+                 (li/query-pattern? recname))]
+      (maybe-assoc-relationship
+       ((if qpat query-upsert upsert)
+        recname attrs
+        (alias-tag pattern))
+       pattern))))
 
 (defn query-object
   ([spec]
@@ -259,14 +284,13 @@
 (def query-object? (partial has-type? :query-object))
 
 (defn- raw-query-object [ir]
-  (let [obj (query-pattern ir)]
-    (when-not obj
-      (u/throw-ex (str "expected query pattern not found - " ir)))
+  (if-let [obj (query-pattern ir)]
     (merge
      {($record ir)
       (raw-walk obj)}
      (when-let [als (alias-tag ir)]
-       {alias-tag als}))))
+       {alias-tag als}))
+    (li/name-as-query-pattern ($record ir))))
 
 (defn- introspect-query-object [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
@@ -279,6 +303,8 @@
     (query-object
      recname qpat
      (alias-tag pattern))))
+
+(def relationship-object rel-tag)
 
 (defn- verify-cases! [cs]
   (loop [cs cs]
@@ -558,9 +584,15 @@
         attrs ((first (keys pat)) pat)]
     (and (map? attrs) (:where attrs))))
 
+(defn- introspect-name [pattern]
+  (if (li/query-pattern? pattern)
+    (as-syntax-object :query-object {record-tag (li/normalize-name pattern)})
+    pattern))
+
 (defn introspect [pattern]
   (cond
     (syntax-object? pattern) pattern
+
     (seqable? pattern)
     (cond
       (or (list? pattern) (= 'quote (first pattern)))
@@ -575,6 +607,10 @@
       (introspect-special-form pattern)
 
       :else pattern)
+
+    (li/name? pattern)
+    (introspect-name pattern)
+
     :else pattern))
 
 (def introspect-json (comp introspect json/decode))
