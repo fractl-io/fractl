@@ -209,10 +209,7 @@
 
           :else
           (try
-            (let [result (auth/upsert-user
-                          (assoc
-                           auth-config
-                           :event evobj))]
+            (let [result (evaluate evaluator evobj data-fmt)]
               (ok (or (evaluate evaluator
                                 (merge result
                                        (create-event post-signup-event-name))

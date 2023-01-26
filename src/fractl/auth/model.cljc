@@ -23,6 +23,10 @@
  :Kernel.Identity/SignUp
  {:User :Kernel.Identity/User})
 
+(dataflow
+ :Kernel.Identity/SignUp
+ :Kernel.Identity/SignUp.User)
+
 (entity
  :Kernel.Identity/UserExtra
  {:User :Kernel.Identity/User
