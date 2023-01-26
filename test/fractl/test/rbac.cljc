@@ -786,3 +786,118 @@
            to (:to (:transition r))]
        (is (= 4 (:K from)))
        (is (= 5 (:K to)))))))
+
+(deftest issue-762-instance-priv-by-owner
+  (defcomponent :I762
+    (entity
+     :I762/E1
+     {:X {:type :Kernel/Int :identity true}
+      :Y :Kernel/Int})
+    (dataflow
+     :I762/UpdateE1
+     {:I762/E1
+      {:X? :I762/UpdateE1.X
+       :Y :I762/UpdateE1.Y}})
+    (dataflow
+     :I762/CreateUsers
+     {:Kernel.Identity/User
+      {:Email "u1@i762.com"}}
+     {:Kernel.Identity/User
+      {:Email "u2@i762.com"}}
+     {:Kernel.Identity/User
+      {:Email "u3@i762.com"}})
+    (dataflow
+     :I762/AssignRoles
+     {:Kernel.RBAC/Role {:Name "i762_r1"}}
+     {:Kernel.RBAC/Role {:Name "i762_r2"}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i762_p1"
+       :Actions [:q# [:read :upsert :delete]]
+       :Resource [:q# [:I762/E1]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i762_p2"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:I762/Upsert_E1 :I762/Lookup_E1 :I762/UpdateE1]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i762_p3"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:I762/AssignInstancePriv]]}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r1" :Privilege "i762_p1"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r1" :Privilege "i762_p2"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r1" :Privilege "i762_p3"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r2" :Privilege "i762_p1"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r2" :Privilege "i762_p2"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i762_r1" :Assignee "u1@i762.com"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i762_r2" :Assignee "u2@i762.com"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i762_r2" :Assignee "u3@i762.com"}})
+    (dataflow
+     :I762/AssignInstancePriv
+     {:Kernel.RBAC/InstancePrivilegeAssignment
+      {:Actions [:q# [:read :upsert]]
+       :Filter [:q# [:read]]
+       :Resource [:q# :I762/E1]
+       :ResourceId :I762/AssignInstancePriv.X
+       :Assignee :I762/AssignInstancePriv.User}}))
+  (defn- rbac-setup [event-name result-type]
+    (is (cn/instance-of?
+         result-type
+         (first
+          (tu/result
+           (with-user (rbac/get-superuser-email) event-name))))))
+  (defn- create-e1 [x user]
+    (tu/first-result
+     (with-user
+       user
+       {:I762/Upsert_E1
+        {:Instance {:I762/E1 {:X x :Y (* x 10)}}}})))
+  (defn- lookup-e1 [x user]
+    (tu/first-result
+     (with-user
+       user
+       {:I762/Lookup_E1
+        {:X x}})))
+  (defn- update-e1 [x y user]
+    (tu/first-result
+     (with-user
+       user
+       {:I762/UpdateE1
+        {:X x :Y y}})))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+     (rbac-setup :I762/CreateUsers :Kernel.Identity/User)
+     (rbac-setup :I762/AssignRoles :Kernel.RBAC/RoleAssignment)
+     (rbac/force-reload-privileges!)
+     (let [xs [1 2 3]
+           users (mapv #(str % "@i762.com") ["u1" "u2" "u3"])
+           for-all (fn [f shuffle] (mapv #(f %1 %2) (shuffle xs) users))
+           e1? (partial cn/instance-of? :I762/E1)
+           e1s? (fn [f shuffle]
+                  (is (every? e1? (for-all f shuffle))))]
+       (e1s? create-e1 identity)
+       (e1s? lookup-e1 shuffle)
+       (is (= 100 (get-in (update-e1 1 100 "u2@i762.com") [:transition :to :Y])))
+       (is (= 200 (get-in (update-e1 1 200 "u3@i762.com") [:transition :to :Y])))
+       (is (not (tu/result
+                 (with-user
+                   "u1@i762.com"
+                   {:I762/AssignInstancePriv
+                    {:User "u2@i762.com" :X 2}}))))
+       (is (cn/instance-of?
+            :Kernel.RBAC/InstancePrivilegeAssignment
+            (tu/first-result
+             (with-user
+               "u1@i762.com"
+               {:I762/AssignInstancePriv
+                {:User "u2@i762.com" :X 1}}))))
+       (is (= 1000 (get-in (update-e1 1 1000 "u2@i762.com") [:transition :to :Y])))
+       (is (not (update-e1 1 2000 "u3@i762.com")))
+       (e1s? lookup-e1 shuffle)))))
