@@ -49,6 +49,10 @@
   :NewPassword :Kernel/String})
 
 (event
+ :Kernel.Identity/RefreshToken
+ {:RefreshToken :Kernel/String})
+
+(event
  au/login-event-name
  {au/login-username :Kernel/String
   au/login-password :Kernel/Password})

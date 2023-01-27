@@ -74,24 +74,40 @@
           github-details (get-in user-details [:OtherDetails :GitHub])
           {:keys [Username Org Token]} github-details
           refresh-token (get-in user-details [:OtherDetails :RefreshToken])]
-      (cognito/admin-update-user-attributes
-       (auth/make-client req)
-       :username cognito-username
-       :user-pool-id user-pool-id
-       :user-attributes [["given_name" FirstName]
-                         ["family_name" LastName]
-                         ["custom:github_org" Org]
-                         ["custom:github_token" Token]
-                         ["custom:github_username" Username]])
-      ;; Refresh credentials
+      (try
+        (cognito/admin-update-user-attributes
+         (auth/make-client req)
+         :username cognito-username
+         :user-pool-id user-pool-id
+         :user-attributes [["given_name" FirstName]
+                           ["family_name" LastName]
+                           ["custom:github_org" Org]
+                           ["custom:github_token" Token]
+                           ["custom:github_username" Username]])
+        ;; Refresh credentials
+        (cognito/initiate-auth
+         (auth/make-client req)
+         :auth-flow "REFRESH_TOKEN_AUTH"
+         :auth-parameters {"USERNAME" cognito-username
+                           "REFRESH_TOKEN" refresh-token}
+         :client-id client-id)
+        (catch Exception e
+          (throw (Exception. (get-error-msg e))))))
+
+    nil))
+
+(defmethod auth/refresh-token tag [{:keys [client-id event] :as req}]
+  (let [cognito-username (get-in req [:user :username])
+        refresh-token (:RefreshToken event)]
+    (try
       (cognito/initiate-auth
        (auth/make-client req)
        :auth-flow "REFRESH_TOKEN_AUTH"
        :auth-parameters {"USERNAME" cognito-username
                          "REFRESH_TOKEN" refresh-token}
-       :client-id client-id))
-
-    nil))
+       :client-id client-id)
+      (catch Exception e
+        (throw (Exception. (get-error-msg e)))))))
 
 (defmethod auth/session-user tag [all-stuff-map]
   (let [user-details (get-in all-stuff-map [:request :identity])]
@@ -106,10 +122,13 @@
   (auth/session-user req))
 
 (defmethod auth/user-logout tag [{:keys [sub user-pool-id] :as req}]
-  (cognito/admin-user-global-sign-out
-   (auth/make-client req)
-   :user-pool-id user-pool-id
-   :username (:username sub)))
+  (try
+    (cognito/admin-user-global-sign-out
+     (auth/make-client req)
+     :user-pool-id user-pool-id
+     :username (:username sub))
+    (catch Exception e
+      (throw (Exception. (get-error-msg e))))))
 
 (defmethod auth/delete-user tag [{:keys [instance user-pool-id] :as req}]
   (when-let [email (:Email instance)]
@@ -120,7 +139,6 @@
        :user-pool-id user-pool-id)
       (catch Exception e
         (throw (Exception. (get-error-msg e)))))))
-
 
 (defmethod auth/get-user tag [{:keys [user user-pool-id] :as req}]
   (let [resp (cognito/admin-get-user
