@@ -153,13 +153,11 @@
      (dissoc app-config :resolvers))))
 
 (defn- init-runtime [model config]
-  (register-resolvers! config)
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
-        ins (:interceptors config)]
-    ;; Register additional resolvers with remote configuration.
-    (when-let [resolved-config (run-initconfig config ev)]
-      (register-resolvers! resolved-config))
+        ins (:interceptors config)
+        resolved-config (run-initconfig config ev)]
+    (register-resolvers! resolved-config)
     (run-appinit-tasks! ev store (or (:init-data model)
                                      (:init-data config)))
     (when (some #{:rbac} (keys ins))

@@ -194,7 +194,15 @@
           (log/exception ex)
           (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
-(defn- process-signup [evaluator post-signup-event-name [auth-config _] request]
+(def ^:private post-signup-event-name :Kernel.Identity/PostSignUp)
+
+(defn- eval-ok-result [eval-result]
+  (if (vector? eval-result)
+    (eval-ok-result (first eval-result))
+    (when (and (map? eval-result) (= :ok (:status eval-result)))
+      (:result eval-result))))
+
+(defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
     (internal-error "cannot process sign-up - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
@@ -209,12 +217,18 @@
 
           :else
           (try
-            (let [result (evaluate evaluator evobj data-fmt)]
-              (ok (or (evaluate evaluator
-                                (merge result
-                                       (create-event post-signup-event-name))
-                                data-fmt)
-                      result) data-fmt))
+            (let [result (evaluate evaluator evobj data-fmt)
+                  r (eval-ok-result result)
+                  user (if (map? r) r (first r))
+                  post-signup-result
+                  (when call-post-signup
+                    (evaluate
+                     evaluator
+                     (assoc (create-event post-signup-event-name) :SignupResult result)
+                     data-fmt))]
+              (if user
+                (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
+                (bad-request (or post-signup-result result) data-fmt)))
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Sign up failed. " (.getMessage ex))
@@ -502,7 +516,9 @@
          config auth
          {:login (partial process-login evaluator auth-info)
           :logout (partial process-logout auth)
-          :signup (partial process-signup evaluator (:post-sign-up-event config) auth-info)
+          :signup (partial
+                   process-signup evaluator
+                   (:call-post-sign-up-event config) auth-info)
           :get-user (partial process-get-user auth)
           :update-user (partial process-update-user auth)
           :forgot-password (partial process-forgot-password auth)

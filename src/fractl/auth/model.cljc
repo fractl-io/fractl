@@ -23,6 +23,11 @@
  :Kernel.Identity/SignUp
  {:User :Kernel.Identity/User})
 
+(event
+ :Kernel.Identity/PostSignUp
+ {:SignupResult :Kernel/Any
+  :UserData :Kernel/Any})
+
 (dataflow
  :Kernel.Identity/SignUp
  :Kernel.Identity/SignUp.User)
