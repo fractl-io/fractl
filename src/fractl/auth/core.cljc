@@ -22,6 +22,7 @@
 (defmulti forgot-password service-tag)
 (defmulti confirm-forgot-password service-tag)
 (defmulti change-password service-tag)
+(defmulti refresh-token service-tag)
 
 (def client-key :client)
 (def instance-key :instance)

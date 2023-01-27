@@ -126,3 +126,6 @@
 
 (defmethod auth/change-password tag [_req]
   (throw (Exception. "Not implemented")))
+
+(defmethod auth/refresh-token tag [_req]
+  (throw (Exception. "Not implemented")))
