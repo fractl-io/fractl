@@ -413,6 +413,35 @@
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request))))))
 
+(defn- process-refresh-token [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process refresh-token - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request [:Kernel.Identity :RefreshToken] data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad refresh-token request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/RefreshToken evobj))
+          (bad-request (str "not a RefreshToken event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [user (auth/session-user
+                        (assoc auth-config :request request))
+                  result (auth/refresh-token
+                          (assoc
+                           auth-config
+                           :event evobj
+                           :user user))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized "refresh-token failed" data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - " (request-content-type request))))))
+
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
@@ -426,6 +455,7 @@
            (POST uh/forgot-password-prefix [] (:forgot-password handlers))
            (POST uh/confirm-forgot-password-prefix [] (:confirm-forgot-password handlers))
            (POST uh/change-password-prefix [] (:change-password handlers))
+           (POST uh/refresh-token-prefix [] (:refresh-token handlers))
            (POST (str uh/entity-event-prefix ":component/:event") []
              (:request handlers))
            (POST uh/query-prefix [] (:query handlers))
@@ -478,6 +508,7 @@
           :forgot-password (partial process-forgot-password auth)
           :confirm-forgot-password (partial process-confirm-forgot-password auth)
           :change-password (partial process-change-password auth)
+          :refresh-token (partial process-refresh-token auth)
           :request (partial process-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
