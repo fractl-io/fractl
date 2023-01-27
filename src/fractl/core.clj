@@ -80,12 +80,12 @@
           (recur cs " " s)
           (log/info s))))))
 
-(defn- register-resolvers! [config]
+(defn- register-resolvers! [config evaluator]
   (when-let [resolver-specs (:resolvers config)]
     (when-let [rns (rr/register-resolvers resolver-specs)]
       (log-seq! "Resolvers" rns)))
   (when-let [auth-config (:authentication config)]
-    (when (auth/setup-resolver auth-config)
+    (when (auth/setup-resolver auth-config evaluator)
       (log/info "authentication resolver inited"))))
 
 (defn- model-name-from-args [args]
@@ -157,7 +157,7 @@
         ev (e/public-evaluator store true)
         ins (:interceptors config)
         resolved-config (run-initconfig config ev)]
-    (register-resolvers! resolved-config)
+    (register-resolvers! resolved-config ev)
     (run-appinit-tasks! ev store (or (:init-data model)
                                      (:init-data config)))
     (when (some #{:rbac} (keys ins))

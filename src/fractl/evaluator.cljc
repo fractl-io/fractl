@@ -91,12 +91,19 @@
                            (deref-futures (dispatch-opcodes evaluator env dc))))]
       (interceptors/eval-intercept env0 event-instance continuation))))
 
+(defn- maybe-init-event [event-obj]
+  (if (cn/event-instance? event-obj)
+    event-obj
+    (let [event-name (first (keys event-obj))]
+      (cn/make-instance event-name (event-name event-obj)))))
+
 (defn eval-dataflow
   "Evaluate a compiled dataflow, triggered by event-instance, within the context
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (let [f (partial eval-dataflow-with-store-connection evaluator env event-instance df)]
+   (let [event-instance (maybe-init-event event-instance)
+         f (partial eval-dataflow-with-store-connection evaluator env event-instance df)]
      (if-let [store (env/get-store env)]
        (store/call-in-transaction store f)
        (f nil))))
@@ -236,16 +243,9 @@
      (dispatch evaluator env opcode)))
   ([pattern] (evaluate-pattern nil nil pattern)))
 
-(defn- maybe-init-event [event-obj]
-  (if (cn/event-instance? event-obj)
-    event-obj
-    (let [event-name (first (keys event-obj))]
-      (cn/make-instance event-name (event-name event-obj)))))
-
 (defn eval-all-dataflows
   ([event-obj store-or-store-config resolver-or-resolver-config]
-   (doall ((evaluator store-or-store-config resolver-or-resolver-config)
-           (maybe-init-event event-obj))))
+   ((evaluator store-or-store-config resolver-or-resolver-config) event-obj))
   ([event-obj]
    (eval-all-dataflows event-obj (es/get-active-store) nil)))
 
