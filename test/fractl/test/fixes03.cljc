@@ -489,3 +489,10 @@
             {:I765/DelE {:V 2 :Y 200}})]
     (is (cn/same-instance? e1 r1))
     (is (cn/same-instance? e2 r2))))
+
+(deftest issue-775-syntax-api-delete-bug
+  (let [pat [:delete :CommentOnPost
+             [:->
+              {:Post {:Id :DeleteComment.PostId}}
+              {:Comment {:Id :DeleteComment.CommentId}}]]]
+    (is (= pat (ls/raw (ls/introspect pat))))))
