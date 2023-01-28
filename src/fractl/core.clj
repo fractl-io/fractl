@@ -19,10 +19,12 @@
             [fractl.lang.tools.loader :as loader]
             [fractl.lang.tools.build :as build]
             [fractl.auth :as auth]
-            [fractl.rbac.core :as rbac])
+            [fractl.rbac.core :as rbac]
+            [fractl.swagger.doc :as doc])
   (:import [java.util Properties]
            [java.net URL]
-           [java.io File])
+           [java.io File]
+           [org.apache.commons.exec CommandLine Executor DefaultExecutor])
   (:gen-class
    :name fractl.core
    :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
@@ -30,7 +32,7 @@
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
    ["-b" "--build MODEL" "Build and package a model into a standalone jar"]
-   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"] 
+   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"]
    ["-s" "--doc MODEL" "Generate documentation in .html"]
    ["-h" "--help"]])
 
@@ -195,18 +197,25 @@
         (log/info (str "Server config - " server-cfg))
         (h/run-server [evaluator query-fn] server-cfg)))))
 
-(defn generate-swagger-doc [args [[model model-root] config]]
-  (let [config (finalize-config model config)
-        store (e/store-from-config (:store config))
-        config (assoc config :store-handle store)
-        components (or
-                    (if model
-                      (load-model model model-root nil config)
-                      (load-components args (:component-root config) config))
-                    (cn/component-names))]
-    (when (and (seq components) (every? keyword? components))
-      (println "sdoc: " components)
-      (log-seq! "Components" components))))
+(defn generate-swagger-doc [model-name args]
+  (let [model-path (first args)]
+    (if (build/compiled-model? model-path model-name) 
+      (let [components (remove #{:Kernel :Kernel.Identity :Kernel.RBAC} 
+                               (cn/component-names))]
+        (doall (map (fn [component]
+                      (let [json-file (str (name component) ".json")
+                            html-file (str (name component) ".html")]
+                      (with-open [w (clojure.java.io/writer
+                                     json-file)]
+                        (.write w (doc/generate-swagger-json component)))
+                      (let [^CommandLine cmd-line
+                            (CommandLine/parse
+                             (str "redoc-cli bundle -o " html-file " " json-file))
+                            ^Executor executor (DefaultExecutor.)]
+                        (.execute executor cmd-line))))
+                    components)) 
+        (log-seq! "components" components))
+      (build/exec-with-build-model (str "lein run -s " model-name " .") nil model-name))))
 
 (defn- find-model-to-read [args config]
   (or (seq (su/nonils args))
@@ -320,6 +329,6 @@
                           (:deploy options)
                           (keyword (first args))))
       (:doc options) (generate-swagger-doc
-                      args
-                      (read-model-and-config args options))
+                      (:doc options)
+                      args)
       :else (run-service args (read-model-and-config args options)))))
