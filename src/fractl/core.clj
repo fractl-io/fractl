@@ -199,21 +199,26 @@
 
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
-    (if (build/compiled-model? model-path model-name) 
-      (let [components (remove #{:Kernel :Kernel.Identity :Kernel.RBAC} 
+    (if (build/compiled-model? model-path model-name)
+      (let [components (remove #{:Kernel :Kernel.Identity :Kernel.RBAC}
                                (cn/component-names))]
+        (.mkdir (File. "doc"))
+        (.mkdir (File. "doc/api"))
         (doall (map (fn [component]
-                      (let [json-file (str (name component) ".json")
-                            html-file (str (name component) ".html")]
-                      (with-open [w (clojure.java.io/writer
-                                     json-file)]
-                        (.write w (doc/generate-swagger-json component)))
-                      (let [^CommandLine cmd-line
-                            (CommandLine/parse
-                             (str "redoc-cli bundle -o " html-file " " json-file))
-                            ^Executor executor (DefaultExecutor.)]
-                        (.execute executor cmd-line))))
-                    components)) 
+                      (let [comp-name (clojure.string/replace
+                                       (name component) "." "")
+                            doc-path "doc/api/"
+                            json-file (str doc-path comp-name ".json")
+                            html-file (str doc-path comp-name ".html")]
+                        (with-open [w (clojure.java.io/writer
+                                       json-file)]
+                          (.write w (doc/generate-swagger-json component)))
+                        (let [^CommandLine cmd-line
+                              (CommandLine/parse
+                               (str "redoc-cli bundle -o " html-file " " json-file))
+                              ^Executor executor (DefaultExecutor.)]
+                          (.execute executor cmd-line))))
+                    components))
         (log-seq! "components" components))
       (build/exec-with-build-model (str "lein run -s " model-name " .") nil model-name))))
 
