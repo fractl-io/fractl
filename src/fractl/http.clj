@@ -87,8 +87,10 @@
                         (u/string-as-keyword
                          (first (keys obj)))))]
       (if (or (not event-name) (= obj-name event-name))
-        [(cn/assoc-event-context-user
-          user
+        [(cn/assoc-event-context-values
+          {:User (:email user)
+           :Sub (:sub user)
+           :UserDetails user}
           (if (cn/an-instance? obj)
             obj
             (cn/make-event-instance obj-name (first (vals obj)))))
