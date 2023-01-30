@@ -506,7 +506,7 @@
   ex-info and raise it as an exception."
   ([msg attributes]
    (u/throw-ex-info (str "component/error: " msg)
-                       {:error (make-error msg attributes)}))
+                    {:error (make-error msg attributes)}))
   ([msg] (throw-error msg nil)))
 
 (defn- check-attribute-names [recname schema attributes]
@@ -592,7 +592,7 @@
         (valid-attribute-value
          attr-name (check-format ascm attr-name obj)
          (merge-attr-schema attr-scm ascm))
-      (throw-error (str "no schema defined for " tp))))))
+        (throw-error (str "no schema defined for " tp))))))
 
 (defn valid-attribute-value
   "Check against the attribute schema, if the provided value (v)
@@ -1236,11 +1236,11 @@
        trigger-store
        (let [trigs (get ts rn)
              rs (set (map li/split-path records-to-load))]
-           (assoc
-            ts rn
-            (conj
-             trigs
-             [predicate event-name [where-clause rs]]))))))
+         (assoc
+          ts rn
+          (conj
+           trigs
+           [predicate event-name [where-clause rs]]))))))
   (u/call-and-set
    trigger-store
    #(assoc
@@ -1411,6 +1411,11 @@
   (assoc-in event-instance [li/event-context k] v))
 
 (def assoc-event-context-user (partial assoc-event-context-value :User))
+
+(defn assoc-event-context-values [values-map event-instance]
+  (let [current-event-context (get event-instance event-context)
+        updated-event-context (merge current-event-context values-map)]
+    (assoc event-instance event-context updated-event-context)))
 
 (def ^:private meta-suffix "Meta")
 (def ^:private meta-suffix-len (count meta-suffix))
