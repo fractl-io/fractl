@@ -1,6 +1,5 @@
 (ns fractl.rbac.core
-  (:require [clojure.core.memoize :as mem]
-            [fractl.rbac.model]
+  (:require [fractl.rbac.model]
             [fractl.global-state :as gs]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
@@ -72,25 +71,17 @@
 (def ^:private find-child-privileges
   (comp find-privileges find-child-role-names))
 
-(def ^:private cache-threshold 1000)
-
-(def privileges
-  (mem/lu
-   (fn [user-name]
-     (when-let [rs (ev/safe-eval-internal
-                    {:Kernel.RBAC/FindRoleAssignments
-                     {:Assignee user-name}})]
-       (let [role-names (mapv :Role rs)
-             ps0 (find-privileges role-names)
-             ps1 (find-child-privileges role-names)
-             ps (set (concat ps0 ps1))]
-         (ev/safe-eval-internal
-          {:Kernel.RBAC/FindPrivileges
-           {:Names (mapv :Privilege ps)}}))))
-   :lu/threshold cache-threshold))
-
-(defn force-reload-privileges! []
-  (mem/memo-clear! privileges))
+(defn privileges [user-name]
+  (when-let [rs (ev/safe-eval-internal
+                 {:Kernel.RBAC/FindRoleAssignments
+                  {:Assignee user-name}})]
+    (let [role-names (mapv :Role rs)
+          ps0 (find-privileges role-names)
+          ps1 (find-child-privileges role-names)
+          ps (set (concat ps0 ps1))]
+      (ev/safe-eval-internal
+       {:Kernel.RBAC/FindPrivileges
+        {:Names (mapv :Privilege ps)}}))))
 
 (defn- has-priv-on-resource? [resource priv-resource]
   (if (or (= :* priv-resource)

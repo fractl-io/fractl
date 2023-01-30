@@ -242,10 +242,19 @@
 (defn- blocked-at-instance-level? [arg]
   (= :block (ii/get-user-state-value arg :blocked-at-instance-level)))
 
+(def ^:private system-events #{[:Kernel.Identity :SignUp]
+                               [:Kernel.Identity :ForgotPassword]
+                               [:Kernel.Identity :ConfirmForgotPassword]})
+
+(defn- system-event? [inst]
+  (let [n (li/split-path (cn/instance-type inst))]
+    (some #{n} system-events)))
+
 (defn- run [env opr arg]
   (let [user (or (cn/event-context-user (ii/event arg))
                  (gs/active-user))]
-    (if (rbac/superuser-email? user)
+    (if (or (rbac/superuser-email? user)
+            (system-event? (ii/event arg)))
       arg
       (let [is-ups (= opr :upsert)
             arg (if is-ups (ii/assoc-user-state arg) arg)]

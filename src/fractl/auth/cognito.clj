@@ -115,9 +115,8 @@
     {:github-username (:custom:github_username user-details)
      :github-token (:custom:github_token user-details)
      :github-org (:custom:github_org user-details)
-     :email (:email user-details)
-     :sub (:sub user-details)
-     :username (:cognito:username user-details)}))
+     :username (:username user-details)
+     :sub (:sub user-details)}))
 
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))

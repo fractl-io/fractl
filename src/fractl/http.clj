@@ -88,7 +88,7 @@
                          (first (keys obj)))))]
       (if (or (not event-name) (= obj-name event-name))
         [(cn/assoc-event-context-values
-          {:User (:email user)
+          {:User (:username user)
            :Sub (:sub user)
            :UserDetails user}
           (if (cn/an-instance? obj)
