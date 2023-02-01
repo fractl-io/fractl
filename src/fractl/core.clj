@@ -312,4 +312,6 @@
                          (build/deploy-library
                           (:deploy options)
                           (keyword (first args))))
-      :else (run-service args (read-model-and-config args options)))))
+      :else (do
+              (println "Server started")
+              (run-service args (read-model-and-config args options))))))

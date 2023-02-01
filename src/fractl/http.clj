@@ -14,7 +14,8 @@
             [fractl.util.http :as uh]
             [fractl.auth.core :as auth]
             [fractl.component :as cn]
-            [fractl.lang.internal :as li])
+            [fractl.lang.internal :as li]
+            [keycloak.user :as user])
   (:use [compojure.core :only [routes POST GET]]
         [compojure.route :only [not-found]]))
 
@@ -222,11 +223,15 @@
             (let [result (evaluate evaluator evobj data-fmt)
                   r (eval-ok-result result)
                   user (if (map? r) r (first r))
+                  _ (println {:result result
+                              :evobj evobj
+                              :r r
+                              :user user})
                   post-signup-result
                   (when call-post-signup
                     (evaluate
                      evaluator
-                     (assoc (create-event post-signup-event-name) :SignupResult result)
+                     (assoc (create-event post-signup-event-name) :SignupResult result :UserDetails evobj)
                      data-fmt))]
               (if user
                 (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
