@@ -434,7 +434,6 @@
            (is (cn/instance-of? :Kernel.RBAC/RoleRelationship r))
            (is (= "rh22" (:Parent r)))
            (is (= "rh11" (:Child r))))
-         (rbac/force-reload-privileges!)
          (let [u (ok-test "uh22@uh22.com")]
            (cn/instance-of? :RbacH/E u)))))))
 
@@ -648,7 +647,6 @@
      (rbac-setup :I711A/CreateUsers :Kernel.Identity/User)
      (is (create-e1 10 true))
      (rbac-setup :I711A/AssignRoles :Kernel.RBAC/RoleAssignment)
-     (rbac/force-reload-privileges!)
      (is (cn/instance-of? :I711A/E1 (first (create-e1 10 false))))
      (let [r (tu/result (with-user "u1@i711a.com" {:I711A/CreateE2 {:X 10 :Y 100}}))]
        (is (cn/instance-of? :I711A/E2 r))
@@ -761,7 +759,6 @@
      (rbac-setup :I711B/CreateUsers :Kernel.Identity/User)
      (is (create-e1 10 true))
      (rbac-setup :I711B/AssignRoles :Kernel.RBAC/RoleAssignment)
-     (rbac/force-reload-privileges!)
      (is (cn/instance-of? :I711B/E1 (first (create-e1 10 false))))
      (let [r (tu/result (with-user "u1@i711b.com" {:I711B/CreateE2 {:X 10 :Y 100 :K 3}}))]
        (is (cn/instance-of? :I711B/E2 r))
@@ -875,7 +872,6 @@
      (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
      (rbac-setup :I762/CreateUsers :Kernel.Identity/User)
      (rbac-setup :I762/AssignRoles :Kernel.RBAC/RoleAssignment)
-     (rbac/force-reload-privileges!)
      (let [xs [1 2 3]
            users (mapv #(str % "@i762.com") ["u1" "u2" "u3"])
            for-all (fn [f shuffle] (mapv #(f %1 %2) (shuffle xs) users))

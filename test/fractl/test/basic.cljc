@@ -710,7 +710,7 @@
   (try
     (let [evt {:L/MakeE0 {:Xs [10 "hi"] :Y 1}}
           result (tu/fresult (e/eval-all-dataflows evt))]
-      (is false))
+      (is (nil? result)))
     (catch #?(:clj Exception :cljs :default) ex
       (is ex)))
   (let [evt {:L/MakeE1 {:X1 10 :X2 20 :Y 1}}

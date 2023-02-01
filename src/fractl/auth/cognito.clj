@@ -2,6 +2,7 @@
   (:require [amazonica.aws.cognitoidp :as cognito]
             [amazonica.core :refer [ex->map]]
             [clojure.string :as str]
+            [fractl.lang.internal :as li]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
             [fractl.component :as cn]))
@@ -44,11 +45,11 @@
     (catch Exception e
       (throw (Exception. (get-error-msg e))))))
 
-(defmethod auth/upsert-user tag [{:keys [client-id user-pool-id event] :as req}]
-  (case (last (cn/instance-type event))
+(defmethod auth/upsert-user tag [{:keys [client-id user-pool-id instance] :as req}]
+  (case (last (li/split-path (cn/instance-type instance)))
     ;; Create User
-    :SignUp
-    (let [user (:User event)
+    :User
+    (let [user instance
           {:keys [Name FirstName LastName Password Email]} user]
       (try
         (cognito/sign-up
@@ -67,7 +68,7 @@
 
     :UpdateUser
     ;; Update user
-    (let [user-details (:UserDetails event)
+    (let [user-details (:UserDetails instance)
           cognito-username (get-in req [:user :username])
           inner-user-details (:User user-details)
           {:keys [FirstName LastName]} inner-user-details
@@ -114,9 +115,8 @@
     {:github-username (:custom:github_username user-details)
      :github-token (:custom:github_token user-details)
      :github-org (:custom:github_org user-details)
-     :email (:email user-details)
-     :sub (:sub user-details)
-     :username (:cognito:username user-details)}))
+     :username (:username user-details)
+     :sub (:sub user-details)}))
 
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))

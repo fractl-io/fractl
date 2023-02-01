@@ -80,12 +80,12 @@
           (recur cs " " s)
           (log/info s))))))
 
-(defn- register-resolvers! [config]
+(defn- register-resolvers! [config evaluator]
   (when-let [resolver-specs (:resolvers config)]
     (when-let [rns (rr/register-resolvers resolver-specs)]
       (log-seq! "Resolvers" rns)))
   (when-let [auth-config (:authentication config)]
-    (when (auth/setup-resolver auth-config)
+    (when (auth/setup-resolver auth-config evaluator)
       (log/info "authentication resolver inited"))))
 
 (defn- model-name-from-args [args]
@@ -152,14 +152,19 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
+(defn- normalize-interceptors [ins]
+  (let [ks (keys ins)]
+    (if (and (some #{:rbac} ks)
+             (not (some #{:instance-meta} ks)))
+      (assoc ins :instance-meta {:enabled true})
+      ins)))
+
 (defn- init-runtime [model config]
-  (register-resolvers! config)
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
-        ins (:interceptors config)]
-    ;; Register additional resolvers with remote configuration.
-    (when-let [resolved-config (run-initconfig config ev)]
-      (register-resolvers! resolved-config))
+        ins (normalize-interceptors (:interceptors config))
+        resolved-config (run-initconfig config ev)]
+    (register-resolvers! resolved-config ev)
     (run-appinit-tasks! ev store (or (:init-data model)
                                      (:init-data config)))
     (when (some #{:rbac} (keys ins))
