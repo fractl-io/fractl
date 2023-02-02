@@ -629,7 +629,6 @@
     (is (cn/instance-of? :ForEachAlias/R secondE))
     (is (= 11 (:A secondE)))))
 
-
 (deftest destructuring-alias
   (defcomponent :DestructuringAlias
     (entity {:DestructuringAlias/E {:X {:type    :Kernel/Int
@@ -981,16 +980,20 @@
       :cljs cljs.core.async/go)
    (defcomponent :FormatTest
      (entity {:FormatTest/E
-              {:DOB {:type :Kernel/String
+              {:Phone {:type :Kernel/String
+                       :format "^(1\\s?)?(\\d{3}|\\(\\d{3}\\))[\\s\\-]?\\d{3}[\\s\\-]?\\d{4}$"}
+               :DOB {:type :Kernel/String
                      :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}}})
      (is (cn/instance-of?
           :FormatTest/E
           (cn/make-instance
            {:FormatTest/E
-            {:DOB "1999-03-20"}})))
+            {:Phone "(555)555-5555"
+             :DOB "1999-03-20"}})))
      (tu/is-error #(cn/make-instance
                     {:FormatTest/E
-                     {:DOB "1877-09-01"}})))))
+                     {:Phone "(555)555-5555"
+                      :DOB "1877-09-01"}})))))
 
 (deftest numeric-types
   (#?(:clj do
@@ -1036,8 +1039,12 @@
      (dataflow
       :MC/E
       [:match
+       [:like :MC/E.Y "xyz%"] {:MC/R {:X 0}}
        [:< :MC/E.X 10] {:MC/R {:X 1}}
-       [:>= :MC/E.X 100] {:MC/R {:X 2}}
+       [:= :MC/E.X 100] {:MC/R {:X 2}}
+       [:between 1000 5000 :MC/E.X] {:MC/R {:X 100}}
+       [:in [11 20 30] :MC/E.X] {:MC/R {:X 5}}
+       [:or [:= 10 :MC/E.X] [:= 21 :MC/E.X]] {:MC/R {:X 12}}
        {:MC/R {:X 3}}
        :as :Result]
       :Result))
@@ -1046,9 +1053,18 @@
               (tu/fresult
                (e/eval-all-dataflows
                 (cn/make-instance
-                 {:MC/E {:X x}}))))]
+                 {:MC/E
+                  {:X x
+                   :Y
+                   (if (neg? x)
+                     "xyz@eee.com"
+                     "abc@ddsd.com")}}))))]
        (is (= (:X r) result))))
-   (run 200 2)
+   (run 3000 100)
+   (run 20 5)
+   (run 21 12)
+   (run -1 0)
+   (run 100 2)
    (run 9 1)
    (run 22 3)))
 
