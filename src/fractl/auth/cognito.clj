@@ -65,9 +65,8 @@
         (catch Exception e
           (throw (Exception. (get-error-msg e))))))
 
-
-    :UpdateUser
     ;; Update user
+    :UpdateUser
     (let [user-details (:UserDetails instance)
           cognito-username (get-in req [:user :username])
           inner-user-details (:User user-details)
@@ -115,8 +114,9 @@
     {:github-username (:custom:github_username user-details)
      :github-token (:custom:github_token user-details)
      :github-org (:custom:github_org user-details)
-     :username (:username user-details)
-     :sub (:sub user-details)}))
+     :email (:email user-details)
+     :sub (:sub user-details)
+     :username (:cognito:username user-details)}))
 
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))
