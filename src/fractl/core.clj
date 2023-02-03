@@ -164,7 +164,9 @@
         ev (e/public-evaluator store true)
         ins (normalize-interceptors (:interceptors config))
         resolved-config (run-initconfig config ev)]
-    (register-resolvers! resolved-config ev)
+    (register-resolvers! config ev)
+    (when (seq (:resolvers resolved-config))
+      (register-resolvers! resolved-config ev))
     (run-appinit-tasks! ev store (or (:init-data model)
                                      (:init-data config)))
     (when (some #{:rbac} (keys ins))
