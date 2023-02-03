@@ -14,8 +14,7 @@
             [fractl.util.http :as uh]
             [fractl.auth.core :as auth]
             [fractl.component :as cn]
-            [fractl.lang.internal :as li]
-            [keycloak.user :as user])
+            [fractl.lang.internal :as li])
   (:use [compojure.core :only [routes POST GET]]
         [compojure.route :only [not-found]]))
 
