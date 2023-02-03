@@ -30,7 +30,7 @@
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
    ["-b" "--build MODEL" "Build and package a model into a standalone jar"]
-   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"] 
+   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -290,7 +290,7 @@
                       (or @resource-cache (load-model-from-resource))]
                   (when-not (seq components)
                     (u/throw-ex (str "no components loaded from model " model)))
-                  (first (init-runtime model components config)))))
+                  (first (init-runtime model config)))))
         parsed-request (normalize-external-request request)
         auth (h/make-auth-handler (first @resource-cache))]
     [(json/encode (h/process-request e auth parsed-request)) e]))
@@ -312,6 +312,4 @@
                          (build/deploy-library
                           (:deploy options)
                           (keyword (first args))))
-      :else (do
-              (println "Server started")
-              (run-service args (read-model-and-config args options))))))
+      :else (run-service args (read-model-and-config args options)))))
