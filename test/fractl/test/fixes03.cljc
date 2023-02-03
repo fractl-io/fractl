@@ -460,7 +460,19 @@
     (is (= (ls/raw obj1) pat1))
     (is (= (ls/raw obj2) pat2))
     (is (= (ls/raw obj3) pat3))
-    (is (= (ls/raw obj4) pat4))))
+    (is (= (ls/raw obj4) pat4))
+    (let [u1 (ls/upsert {ls/record-tag :Person
+                         ls/attrs-tag {:Age :Int :Name :String}
+                         ls/alias-tag :P1
+                         ls/rel-tag [{:Spouse {}} :P2]})
+          qu1 (ls/query-upsert {ls/record-tag :Person
+                                ls/attrs-tag {:Name? "abc" :Age 100}
+                                ls/alias-tag :P1
+                                ls/rel-tag [:Spouse? {:Person {:Name? "xyz"}}]})]
+      (is (ls/upsert? u1))
+      (is (ls/query-upsert? qu1))
+      (is (= (ls/rel-tag u1) [{:Spouse {}} :P2]))
+      (is (= (ls/rel-tag qu1) [:Spouse? {:Person {:Name? "xyz"}}])))))
 
 (deftest issue-765-delete-in-match
   (defcomponent :I765

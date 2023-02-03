@@ -146,10 +146,12 @@
 (defn upsert
   ([spec]
    (let [cnt (count spec)]
-     (when (or (< cnt 2) (> cnt 3))
+     (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid upsert spec - " spec))))
-   (upsert ($record spec) ($attrs spec) (alias-tag spec)))
+   (upsert ($record spec) ($attrs spec) (alias-tag spec) (rel-tag spec)))
   ([recname rec-attrs rec-alias]
+   (upsert recname rec-attrs rec-alias nil))
+  ([recname rec-attrs rec-alias rel]
    (when-not (li/name? recname)
      (u/throw-ex (str "invalid record name - " recname)))
    (when (li/query-pattern? recname)
@@ -166,6 +168,8 @@
     (merge
      {record-tag recname
       attrs-tag (introspect-attrs rec-attrs)}
+     (when rel
+       {rel-tag rel})
      (when rec-alias
        {alias-tag rec-alias})))))
 
@@ -193,13 +197,15 @@
 (defn query-upsert
   ([spec]
    (let [cnt (count spec)]
-     (when (or (< cnt 2) (> cnt 3))
+     (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid query-upsert spec - " spec))))
    (let [attrs (attributes spec)]
      (when-not (seq attrs)
        (u/throw-ex (str "no valid attributes found - " spec)))
-     (query-upsert ($record spec) attrs (alias-tag spec))))
+     (query-upsert ($record spec) attrs (alias-tag spec) (rel-tag spec))))
   ([recname attrs rec-alias]
+   (query-upsert recname attrs rec-alias nil))
+  ([recname attrs rec-alias rel]
    (when-not (or (li/query-pattern? recname)
                  (query-attrs? attrs))
      (u/throw-ex
@@ -210,6 +216,8 @@
     (merge
      {record-tag recname
       attrs-tag (introspect-attrs attrs)}
+     (when rel
+       {rel-tag rel})
      (when rec-alias
        {alias-tag rec-alias})))))
 
