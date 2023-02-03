@@ -242,14 +242,15 @@
 
 (defn build-model
   ([model-paths model-name]
-   (let [model-paths (or model-paths (tu/get-system-model-paths))]
+   (let [model-paths (or model-paths (tu/get-system-model-paths))
+         [model model-root :as result] (loader/read-model model-paths model-name)
+         model-name (or model-name (s/lower-case (name (:name model))))]
      (if-let [path (clj-project-path model-paths model-name)]
        (let [^File f (File. path)]
          (FileUtils/createParentDirectories f)
          (FileUtils/copyDirectory f (File. (project-dir model-name)))
          [model-name path])
-       (let [[model model-root :as result] (loader/read-model model-paths model-name)
-             components (loader/read-components-from-model model model-root)
+       (let [components (loader/read-components-from-model model model-root)
              projdir (File. (project-dir model-name))]
          (install-local-dependencies! model-paths (:local-dependencies model))
          (if (.exists projdir)
@@ -257,14 +258,14 @@
            (when-not (.exists out-file)
              (.mkdir out-file)))
          (when (build-clj-project model-name model-root model components)
-           result)))))
+           [model-name result])))))
   ([model-name]
    (build-model nil model-name)))
 
 (defn- exec-with-build-model [cmd model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
-    (when (exec-for-model model-name cmd)
-      result)))
+    (when (exec-for-model (first result) cmd)
+      (second result))))
 
 (def install-model (partial exec-with-build-model "lein install"))
 (def standalone-package (partial exec-with-build-model "lein uberjar" nil))
