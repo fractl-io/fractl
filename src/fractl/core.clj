@@ -290,7 +290,7 @@
                       (or @resource-cache (load-model-from-resource))]
                   (when-not (seq components)
                     (u/throw-ex (str "no components loaded from model " model)))
-                  (first (init-runtime model config)))))
+                  (first (init-runtime model components config)))))
         parsed-request (normalize-external-request request)
         auth (h/make-auth-handler (first @resource-cache))]
     [(json/encode (h/process-request e auth parsed-request)) e]))
