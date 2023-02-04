@@ -468,11 +468,14 @@
           qu1 (ls/query-upsert {ls/record-tag :Person
                                 ls/attrs-tag {:Name? "abc" :Age 100}
                                 ls/alias-tag :P1
-                                ls/rel-tag [:Spouse? {:Person {:Name? "xyz"}}]})]
+                                ls/rel-tag [:Spouse? {:Person {:Name? "xyz"}}]})
+          d1 (ls/delete {ls/record-tag :Spouse
+                         ls/rel-tag [{:Person {:Name "xyz"}} {:Person{:Name "abc"}}]})]
       (is (ls/upsert? u1))
       (is (ls/query-upsert? qu1))
-      (is (= (ls/rel-tag u1) [{:Spouse {}} :P2]))
-      (is (= (ls/rel-tag qu1) [:Spouse? {:Person {:Name? "xyz"}}])))))
+      (is (= (ls/raw-relationship (ls/rel-tag u1)) [{:Spouse {}} :P2]))
+      (is (= (ls/raw-relationship (ls/rel-tag qu1)) [:Spouse? {:Person {:Name? "xyz"}}]))
+      (is (= (ls/raw-relationship (ls/rel-tag d1)) [{:Person {:Name "xyz"}} {:Person{:Name "abc"}}])))))
 
 (deftest issue-765-delete-in-match
   (defcomponent :I765
