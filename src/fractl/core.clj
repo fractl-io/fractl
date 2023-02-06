@@ -316,7 +316,10 @@
   (println "For `build`, `deploy` and `run` the model will be searched in the local directory")
   (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
   (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
-  (println "model directory itself."))
+  (println "model directory itself.")
+  (println)
+  (println "To run a model script, pass the .fractl filename as the command-line argument, with")
+  (println "optional configuration (--config)"))
 
 (defn -main [& args]
   (when-not args
