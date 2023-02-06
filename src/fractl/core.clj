@@ -306,26 +306,32 @@
     (build/deploy-library nil (keyword (first args)))
     (build/deploy-library (first args) (keyword (second args)))))
 
-(defn- print-help [summary]
-  (println summary)
+(defn- print-help []
+  (doseq [opt cli-options]
+    (println (str "  " (s/join " " opt))))
   (println "  build MODEL-NAME Compile a model to produce a standalone application")
   (println "  deploy MODEL-NAME TARGET Deploy the model to one of the targets - `local`, `clojars` or `github`")
+  (println "  run MODEL-NAME (optionally) build and run a model")
   (println)
-  (println "For `build` and `deploy` the model will be searched in the local directory")
+  (println "For `build`, `deploy` and `run` the model will be searched in the local directory")
   (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
   (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
   (println "model directory itself."))
 
 (defn -main [& args]
-  (initialize)
+  (when-not args
+    (print-help)
+    (System/exit 0))
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)]
+    (initialize)
     (cond
       errors (println errors)
-      (:help options) (print-help summary)
+      (:help options) (print-help)
       :else
       (or (some identity (mapv (partial run-plain-option args)
-                               ["build" "deploy"]
+                               ["build" "run" "deploy"]
                                [#(println (build/standalone-package (first %)))
+                                #(println (build/run-standalone-package (first %)))
                                 #(println (deploy-library %))]))
           (run-service args (read-model-and-config args options))))))

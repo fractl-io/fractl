@@ -49,11 +49,15 @@
   (str out-dir u/path-sep model-name u/path-sep))
 
 (defn standalone-jar [model-name]
-  (let [^File dir (File. (str (project-dir model-name) u/path-sep "target"))
-        ^IOFileFilter ff (WildcardFileFilter. "*standalone*.jar")
-        files (FileUtils/iterateFiles dir ff nil)]
-    (when-let [rs (first (iterator-seq files))]
-      (str rs))))
+  (try
+    (let [^File dir (File. (str (project-dir model-name) u/path-sep "target"))
+          ^IOFileFilter ff (WildcardFileFilter. "*standalone*.jar")
+          files (FileUtils/iterateFiles dir ff nil)]
+      (when-let [rs (first (iterator-seq files))]
+        (str rs)))
+    (catch Exception ex
+      (log/warn (str "standalone-jar - " (.getMessage ex)))
+      nil)))
 
 (defn- clj-io [model-name]
   (let [prefix (project-dir model-name)]
@@ -240,11 +244,20 @@
          dir))
     model-paths)))
 
+(defn- load-all-model-info [model-paths model-name model-info]
+  (let [model-paths (or model-paths (tu/get-system-model-paths))
+        [model model-root] (or model-info (loader/read-model model-paths model-name))
+        model-name (or model-name (s/lower-case (name (:name model))))]
+    {:paths model-paths
+     :model model
+     :root model-root
+     :name model-name}))
+
 (defn build-model
-  ([model-paths model-name]
-   (let [model-paths (or model-paths (tu/get-system-model-paths))
-         [model model-root :as result] (loader/read-model model-paths model-name)
-         model-name (or model-name (s/lower-case (name (:name model))))]
+  ([model-paths model-name model-info]
+   (let [{model-paths :paths model :model model-root :root model-name :name}
+         (load-all-model-info model-paths model-name model-info)
+         result [model model-root]]
      (if-let [path (clj-project-path model-paths model-name)]
        (let [^File f (File. path)]
          (FileUtils/createParentDirectories f)
@@ -259,6 +272,8 @@
              (.mkdir out-file)))
          (when (build-clj-project model-name model-root model components)
            [model-name result])))))
+  ([model-paths model-name]
+   (build-model model-paths model-name nil))
   ([model-name]
    (build-model nil model-name)))
 
@@ -269,6 +284,20 @@
 
 (def install-model (partial exec-with-build-model "lein install"))
 (def standalone-package (partial exec-with-build-model "lein uberjar" nil))
+
+(defn- config-file-path [model-name]
+  (str (project-dir model-name) config-edn))
+
+(defn- exec-standalone [model-name cfg]
+  (when-let [jar-file (standalone-jar model-name)]
+    (let [cmd (str "java -jar " jar-file " -c " cfg)]
+      (println cmd)
+      (u/exec-in-directory "." cmd))))
+
+(defn run-standalone-package [model-name]
+  (let [model-name (or model-name (:name (load-all-model-info nil model-name nil)))
+        run #(exec-standalone model-name (config-file-path model-name))]
+    (or (run) (when (standalone-package model-name) (run)))))
 
 (defn deploy-library [model-name target]
   (let [cmd (case target
