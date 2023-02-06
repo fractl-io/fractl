@@ -19,7 +19,7 @@
 (def record-tag :record)
 (def attrs-tag :attrs)
 (def query-tag :query)
-(def alias-tag :alias)
+(def alias-tag :as)
 (def value-tag :value)
 (def cases-tag :cases)
 (def body-tag :body)
@@ -347,7 +347,7 @@
 
 (def match? (partial has-type? :match))
 
-(def ^:private not-as #(not= :as %))
+(def ^:private not-as #(not= alias-tag %))
 
 (defn- upto-alias [exps]
   (take-while not-as exps))
@@ -360,7 +360,7 @@
    (concat
     cmd-vec
     (when-let [a (alias-tag ir)]
-      [:as a]))))
+      [alias-tag a]))))
 
 (defn- extract-match-cases [obj]
   (let [cs (take-while not-as obj)]
