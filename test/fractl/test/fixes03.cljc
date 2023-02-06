@@ -511,3 +511,9 @@
               {:Post {:Id :DeleteComment.PostId}}
               {:Comment {:Id :DeleteComment.CommentId}}]]]
     (is (= pat (ls/raw (ls/introspect pat))))))
+
+(deftest syntax-api-alias-bug
+  (let [pat {:User {:Email? :CreatePost.UserEmail}, :as :U}
+        ir (ls/introspect pat)]
+    (is (= (ls/alias-tag ir) :U))
+    (is (= pat (ls/raw ir)))))
