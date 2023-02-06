@@ -143,13 +143,18 @@
 
 (declare introspect introspect-attrs)
 
+(defn- introspect-relationship [r]
+  (mapv introspect r))
+
 (defn upsert
   ([spec]
    (let [cnt (count spec)]
-     (when (or (< cnt 2) (> cnt 3))
+     (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid upsert spec - " spec))))
-   (upsert ($record spec) ($attrs spec) (alias-tag spec)))
+   (upsert ($record spec) ($attrs spec) (alias-tag spec) (rel-tag spec)))
   ([recname rec-attrs rec-alias]
+   (upsert recname rec-attrs rec-alias nil))
+  ([recname rec-attrs rec-alias rel]
    (when-not (li/name? recname)
      (u/throw-ex (str "invalid record name - " recname)))
    (when (li/query-pattern? recname)
@@ -166,6 +171,8 @@
     (merge
      {record-tag recname
       attrs-tag (introspect-attrs rec-attrs)}
+     (when rel
+       {rel-tag (introspect-relationship rel)})
      (when rec-alias
        {alias-tag rec-alias})))))
 
@@ -193,13 +200,15 @@
 (defn query-upsert
   ([spec]
    (let [cnt (count spec)]
-     (when (or (< cnt 2) (> cnt 3))
+     (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid query-upsert spec - " spec))))
    (let [attrs (attributes spec)]
      (when-not (seq attrs)
        (u/throw-ex (str "no valid attributes found - " spec)))
-     (query-upsert ($record spec) attrs (alias-tag spec))))
+     (query-upsert ($record spec) attrs (alias-tag spec) (rel-tag spec))))
   ([recname attrs rec-alias]
+   (query-upsert recname attrs rec-alias nil))
+  ([recname attrs rec-alias rel]
    (when-not (or (li/query-pattern? recname)
                  (query-attrs? attrs))
      (u/throw-ex
@@ -210,6 +219,8 @@
     (merge
      {record-tag recname
       attrs-tag (introspect-attrs attrs)}
+     (when rel
+       {rel-tag (introspect-relationship rel)})
      (when rec-alias
        {alias-tag rec-alias})))))
 
@@ -227,10 +238,7 @@
      (when-let [als (alias-tag ir)]
        {alias-tag als}))))
 
-(defn- introspect-relationship [r]
-  (mapv introspect r))
-
-(def ^:private raw-relationship raw-walk)
+(def raw-relationship raw-walk)
 
 (defn- maybe-assoc-relationship [obj pattern]
   (if-let [r (rel-tag pattern)]
@@ -461,24 +469,32 @@
 
 (defn delete
   ([spec]
-   (delete ($record spec) ($attrs spec) (alias-tag spec)))
+   (delete
+    ($record spec) (attrs-tag spec)
+    (alias-tag spec)
+    (when-let [rel (rel-tag spec)]
+      `[~rel-tag ~@rel])))
   ([recname attrs result-alias]
-   (when-not (li/name? recname)
-     (u/throw-ex (str "invalid record-name in delete - " recname)))
-   (if (map? attrs)
-     (when-not (every? valid-attr-spec? attrs)
-       (u/throw-ex (str "invalid attribute spec in delete - " attrs)))
-     (when-not (relspec-for-delete? attrs)
-       (u/throw-ex (str "invalid delete spec - " attrs))))
-   (validate-alias! result-alias)
-   (as-syntax-object
-    :delete
-    (merge
-     {record-tag recname}
-     (if (map? attrs)
-       {attrs-tag (introspect-attrs attrs)}
-       {rel-tag (mapv introspect (rest attrs))})
-     {alias-tag result-alias}))))
+   (delete recname attrs result-alias nil))
+  ([recname attrs result-alias rel]
+   (let [amap (map? attrs)
+         rel (or rel (if-not amap attrs rel))]
+     (when-not (li/name? recname)
+       (u/throw-ex (str "invalid record-name in delete - " recname)))
+     (if amap
+       (when-not (every? valid-attr-spec? attrs)
+         (u/throw-ex (str "invalid attribute spec in delete - " attrs)))
+       (when-not (relspec-for-delete? rel)
+         (u/throw-ex (str "invalid relationship delete spec - " rel))))
+     (validate-alias! result-alias)
+     (as-syntax-object
+      :delete
+      (merge
+       {record-tag recname}
+       (if amap
+         {attrs-tag (introspect-attrs attrs)}
+         {rel-tag (introspect-relationship (rest rel))})
+       {alias-tag result-alias})))))
 
 (def delete? (partial has-type? :delete))
 
