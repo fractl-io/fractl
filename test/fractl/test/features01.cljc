@@ -411,14 +411,14 @@
                          ls/attrs-tag (assoc attrs :X exp)
                          ls/alias-tag :P})
         pat01 (ls/raw es01)
-        p (dissoc pat01 :alias)
+        p (dissoc pat01 ls/alias-tag)
         ir01 (ls/introspect pat01)]
     (is (ls/syntax-object? es01))
     (is (ls/upsert? es01))
     (is (= (ls/record-tag es01) :Acme/Person))
     (is (= (dissoc (ls/attributes es01) :X) attrs))
     (is (= (ls/alias-tag es01) :P))
-    (is (= :P (:alias pat01)))
+    (is (= :P (ls/alias-tag pat01)))
     (is (= :Acme/Person (first (keys p))))
     (is (= attrs (dissoc (:Acme/Person p) :X)))
     (is (= ir01 es01))))
@@ -430,13 +430,13 @@
                                ls/attrs-tag attrs
                                ls/alias-tag :P})
         pat01 (ls/raw es01)
-        p (dissoc pat01 :alias)]
+        p (dissoc pat01 ls/alias-tag)]
     (is (ls/syntax-object? es01))
     (is (ls/query-upsert? es01))
     (is (= (ls/record-tag es01) :Acme/Person))
     (is (= (ls/attributes es01) attrs))
     (is (= (ls/alias-tag es01) :P))
-    (is (= :P (:alias pat01)))
+    (is (= :P (ls/alias-tag pat01)))
     (is (= :Acme/Person (first (keys p))))
     (is (= attrs (:Acme/Person p)))
     (is (= (ls/introspect pat01) es01)))
@@ -445,7 +445,7 @@
                                ls/query-tag where
                                ls/alias-tag :R})
         pat02 (ls/raw es02)
-        p (dissoc pat02 :alias)]
+        p (dissoc pat02 ls/alias-tag)]
     (is (ls/syntax-object? es02))
     (is (ls/query-object? es02))
     (is (= (ls/record-tag es02) :Acme/Employee?))
@@ -453,7 +453,7 @@
     (is (= (ls/alias-tag es02) :R))
     (is (= :Acme/Employee? (first (keys p))))
     (is (= where (:Acme/Employee? p)))
-    (is (= :R (:alias pat02)))
+    (is (= :R (ls/alias-tag pat02)))
     (is (= es02 (ls/introspect pat02)))))
 
 (deftest issue-637-match-for-each
