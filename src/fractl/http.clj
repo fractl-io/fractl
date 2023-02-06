@@ -88,7 +88,7 @@
                          (first (keys obj)))))]
       (if (or (not event-name) (= obj-name event-name))
         [(cn/assoc-event-context-values
-          {:User (:username user)
+          {:User (:email user)
            :Sub (:sub user)
            :UserDetails user}
           (if (cn/an-instance? obj)
@@ -226,7 +226,7 @@
                   (when call-post-signup
                     (evaluate
                      evaluator
-                     (assoc (create-event post-signup-event-name) :SignupResult result)
+                     (assoc (create-event post-signup-event-name) :SignupResult result :UserDetails evobj)
                      data-fmt))]
               (if user
                 (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
@@ -420,12 +420,12 @@
                   result (auth/upsert-user
                           (assoc
                            auth-config
-                           :event evobj
+                           :instance evobj
                            :user user))]
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized "update-user failed" data-fmt)))))
+              (unauthorized (str "update-user failed" (ex-message ex)) data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request))))))
 

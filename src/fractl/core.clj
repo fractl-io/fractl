@@ -30,7 +30,7 @@
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
    ["-b" "--build MODEL" "Build and package a model into a standalone jar"]
-   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"] 
+   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
