@@ -29,8 +29,6 @@
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
-   ["-b" "--build MODEL" "Build and package a model into a standalone jar"]
-   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -298,18 +296,45 @@
 (defn -process_request [a b]
   (process_request a b))
 
+(defn- run-plain-option [args opt callback]
+  (when (= (first args) opt)
+    (callback (rest args))
+    (first args)))
+
+(defn- deploy-library [args]
+  (if (= (count args) 1)
+    (build/deploy-library nil (keyword (first args)))
+    (build/deploy-library (first args) (keyword (second args)))))
+
+(defn- print-help []
+  (doseq [opt cli-options]
+    (println (str "  " (s/join " " opt))))
+  (println "  build MODEL-NAME Compile a model to produce a standalone application")
+  (println "  deploy MODEL-NAME TARGET Deploy the model to one of the targets - `local`, `clojars` or `github`")
+  (println "  run MODEL-NAME (optionally) build and run a model")
+  (println)
+  (println "For `build`, `deploy` and `run` the model will be searched in the local directory")
+  (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
+  (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
+  (println "model directory itself.")
+  (println)
+  (println "To run a model script, pass the .fractl filename as the command-line argument, with")
+  (println "optional configuration (--config)"))
+
 (defn -main [& args]
-  (initialize)
+  (when-not args
+    (print-help)
+    (System/exit 0))
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)]
+    (initialize)
     (cond
       errors (println errors)
-      (:help options) (println summary)
-      (:build options) (println
-                        (build/standalone-package
-                         (:build options)))
-      (:deploy options) (println
-                         (build/deploy-library
-                          (:deploy options)
-                          (keyword (first args))))
-      :else (run-service args (read-model-and-config args options)))))
+      (:help options) (print-help)
+      :else
+      (or (some identity (mapv (partial run-plain-option args)
+                               ["build" "run" "deploy"]
+                               [#(println (build/standalone-package (first %)))
+                                #(println (build/run-standalone-package (first %)))
+                                #(println (deploy-library %))]))
+          (run-service args (read-model-and-config args options))))))

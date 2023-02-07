@@ -133,20 +133,34 @@
     (catch Exception ex
       (.printStackTrace ex))))
 
+(defn- verified-model-file-path
+  ([model-script-name root-dir model-dir]
+   (let [p (str root-dir u/path-sep
+                (when model-dir
+                  (str model-dir u/path-sep))
+                model-script-name)]
+     (and (.exists (java.io.File. p)) p)))
+  ([model-script-name root-dir]
+   (verified-model-file-path
+    model-script-name root-dir nil)))
+
 (defn read-model
   ([model-paths model-name]
-   (let [s (if (keyword? model-name)
-             (s/lower-case (name model-name))
-             model-name)]
-     (loop [mps model-paths]
-       (if-let [mp (first mps)]
-         (let [p (str mp u/path-sep s u/path-sep (u/get-model-script-name))]
-           (if (.exists (java.io.File. p))
-             (read-model p)
-             (recur (rest mps))))
-         (u/throw-ex
-          (str model-name " - model not found in any of "
-               model-paths))))))
+   (let [fpath (partial verified-model-file-path
+                        (u/get-model-script-name))]
+     (if-let [p (fpath ".")]
+       (read-model p)
+       (let [s (if (keyword? model-name)
+                 (s/lower-case (name model-name))
+                 model-name)]
+         (loop [mps model-paths]
+           (if-let [mp (first mps)]
+             (if-let [p (fpath mp s)]
+               (read-model p)
+               (recur (rest mps)))
+             (u/throw-ex
+              (str model-name " - model not found in any of "
+                   model-paths))))))))
   ([model-file]
    (let [model (read-model-expressions model-file)
          root (java.io.File. (.getParent (java.io.File. model-file)))]
