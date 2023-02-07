@@ -17,19 +17,19 @@
   (defcomponent :I594B
     (entity
      :I594B/Dept
-     {:No {:type :Kernel/Int
+     {:No {:type :Int
            :identity true}
-      :Name :Kernel/String})
+      :Name :String})
     (entity
      :I594B/Employee
-     {:Name {:type :Kernel/String
+     {:Name {:type :String
              :identity true}
-      :Salary :Kernel/Decimal})
+      :Salary :Decimal})
     (relationship
      :I594B/WorksFor
      {:meta
       {:contains [:I594B/Dept :I594B/Employee]}
-      :Location {:type :Kernel/String :indexed true}})
+      :Location {:type :String :indexed true}})
     (dataflow
      :I594B/CreateEmployee
      {:I594B/Dept {:No? :I594B/CreateEmployee.Dept}
@@ -84,18 +84,18 @@
   (defcomponent :I594ML
     (entity
      :I594ML/Company
-     {:Name {:type :Kernel/String
+     {:Name {:type :String
              :identity true}})
     (entity
      :I594ML/Dept
-     {:Name {:type :Kernel/String
+     {:Name {:type :String
              :identity true}
-      :Location :Kernel/String})
+      :Location :String})
     (entity
      :I594ML/Employee
-     {:Name {:type :Kernel/String
+     {:Name {:type :String
              :identity true}
-      :Salary :Kernel/Decimal})
+      :Salary :Decimal})
     (relationship
      :I594ML/PartOf
      {:meta
@@ -167,15 +167,15 @@
   (defcomponent :I594MR
     (entity
      :I594MR/A
-     {:X {:type :Kernel/Int
+     {:X {:type :Int
           :identity true}})
     (entity
      :I594MR/B
-     {:Y {:type :Kernel/Int
+     {:Y {:type :Int
           :identity true}})
     (entity
      :I594MR/C
-     {:Z {:type :Kernel/Int
+     {:Z {:type :Int
           :identity true}})
     (relationship
      :I594MR/R1
@@ -225,19 +225,19 @@
     (defcomponent cn
       (entity
        (p :E1)
-       {:N {:type :Kernel/String
+       {:N {:type :String
             :identity true}
-        :X {:type :Kernel/Int :indexed true}})
+        :X {:type :Int :indexed true}})
       (entity
        (p :E2)
-       {:Y {:type :Kernel/Int :indexed true}})
+       {:Y {:type :Int :indexed true}})
       (relationship
        (p :R1)
        {:meta
         {:contains [(p :E1) (p :E2)
                     :on [:X :Y]
                     :cascade-on-delete cascade-on-delete]}
-        :Z :Kernel/Int})
+        :Z :Int})
       (dataflow
        (p :CreateE2)
        {(p :E1)
@@ -311,18 +311,18 @@
     (defcomponent cn
       (entity
        (p :A)
-       {:X {:type :Kernel/Int
+       {:X {:type :Int
             :identity true}})
       (entity
        (p :B)
-       {:Y {:type :Kernel/Int
+       {:Y {:type :Int
             :identity true}})
       (relationship
        (p :R1)
        {:meta
         {:between [(p :A) (p :B)
                    :one-n one-n]}
-        :Z :Kernel/Int})
+        :Z :Int})
       (dataflow
        (p :CreateB)
        {(p :A) {:X? (p :CreateB.X)} :as :A}
@@ -373,16 +373,16 @@
   (defcomponent :RoR
     (entity
      :RoR/A
-     {:X {:type :Kernel/Int :indexed true}})
+     {:X {:type :Int :indexed true}})
     (entity
      :RoR/B
-     {:Y {:type :Kernel/Int :indexed true}
-      :K :Kernel/Int})
+     {:Y {:type :Int :indexed true}
+      :K :Int})
     (relationship
      :RoR/R1
      {:meta
       {:between [:RoR/A :RoR/B :on [:X :Y]]}
-      :Z :Kernel/Int})
+      :Z :Int})
     (dataflow
      :RoR/CreateRel
      {:RoR/A {:X? :RoR/CreateRel.X} :as :A}
@@ -418,16 +418,16 @@
   (defcomponent :R11
     (entity
      :R11/A
-     {:X {:type :Kernel/Int :indexed true}})
+     {:X {:type :Int :indexed true}})
     (entity
      :R11/B
-     {:Y {:type :Kernel/Int :indexed true}})
+     {:Y {:type :Int :indexed true}})
     (relationship
      :R11/R
      {:meta
       {:between [:R11/A :R11/B :on [:X :Y]
                  :one-one true]}
-      :Z :Kernel/Int})
+      :Z :Int})
     (dataflow
      :R11/CreateR
      {:R11/A {:X? :R11/CreateR.X} :as :A}
@@ -464,22 +464,22 @@
   (defcomponent :I703
     (entity
      :I703/Company
-     {:Name {:type :Kernel/String :identity true}})
+     {:Name {:type :String :identity true}})
     (entity
      :I703/Dept
-     {:No {:type :Kernel/Int :identity true}})
+     {:No {:type :Int :identity true}})
     (entity
      :I703/Employee
-     {:FirstName :Kernel/String
-      :LastName :Kernel/String
-      :Email {:type :Kernel/Email :identity true}})
+     {:FirstName :String
+      :LastName :String
+      :Email {:type :Email :identity true}})
     (entity
      :I703/Warehouse
-     {:Name {:type :Kernel/String :identity true}
-      :Location :Kernel/String})
+     {:Name {:type :String :identity true}
+      :Location :String})
     (entity
      :I703/GlobalPreferences
-     {:Data :Kernel/Map})
+     {:Data :Map})
     (relationship
      :I703/Section
      {:meta {:contains [:I703/Company :I703/Dept]}})
@@ -494,7 +494,7 @@
      {:meta {:between [:I703/Employee :I703/Employee]}})
     (event
      :I703/CreateDept
-     {:Company :Kernel/String})
+     {:Company :String})
     (dataflow
      :I703/CreateDept
      {:I703/Company {:Name? :I703/CreateDept.Company}
@@ -546,9 +546,9 @@
      {:meta {:inherits :Kernel.Identity/User}})
     (entity
      :Fractl.Meta.Core/Workspace
-     {:Name {:type :Kernel/String
+     {:Name {:type :String
              :indexed true}
-      :Models {:listof :Kernel/Path}})
+      :Models {:listof :Path}})
     (relationship
      :Fractl.Meta.Core/BelongsTo
      {:meta {:contains [:Fractl.Meta.Core/User :Fractl.Meta.Core/Workspace

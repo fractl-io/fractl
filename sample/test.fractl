@@ -5,8 +5,8 @@
 
 (record
  :HelloWorld
- {:Name :Kernel/String
-  :Message :Kernel/String})
+ {:Name :String
+  :Message :String})
 
 (dataflow
  :SayHello
@@ -16,12 +16,12 @@
 
 (entity
  :Sample.Test/SalaryInfo
- {:Salary :Kernel/Int})
+ {:Salary :Int})
 
 (entity
  :Sample.Test/PersonalInfo
- {:Age :Kernel/Int
-  :Salary :Kernel/Int})
+ {:Age :Int
+  :Salary :Int})
 
 (entity
  :Sample.Test/SalaryInfoOffice
@@ -29,7 +29,7 @@
 
 (event
  {:Sample.Test/AddPersonalInfo
-  {:Age :Kernel/Int}})
+  {:Age :Int}})
 
 (dataflow
  :Sample.Test/AddPersonalInfo

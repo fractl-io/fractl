@@ -16,11 +16,11 @@
    (defcomponent :EvBlock
      (record
       :EvBlock/R
-      {:A :Kernel/Int
-       :B :Kernel/Int})
+      {:A :Int
+       :B :Int})
      (entity
       :EvBlock/E
-      {:X :Kernel/Int
+      {:X :Int
        :Y {:eval
            {:patterns
             [{:EvBlock/R
@@ -40,10 +40,10 @@
   (defcomponent :CustId
     (entity
      :CustId/E
-     {:SeqNo {:type :Kernel/Int
+     {:SeqNo {:type :Int
               :unique true
               :identity true}
-      :X :Kernel/String}))
+      :X :String}))
   (let [scm (cn/entity-schema :CustId/E)
         id-scm (cn/find-attribute-schema (:SeqNo scm))]
     (is (and (:unique id-scm) (:indexed id-scm)
@@ -85,12 +85,12 @@
   (defcomponent :I624
     (entity
      :I624/E
-     {:X :Kernel/Int
-      :Y :Kernel/Int
-      :Z {:type :Kernel/Int :default 24}})
+     {:X :Int
+      :Y :Int
+      :Z {:type :Int :default 24}})
     (record
      :I624/R
-     {:A :Kernel/Int
+     {:A :Int
       :B :I624/E})
     (dataflow
      :I624/MakeE
@@ -130,11 +130,11 @@
   (defcomponent :I625Ups
     (entity
      :I625Ups/P
-     {:X {:type :Kernel/Int
+     {:X {:type :Int
           :indexed true}})
     (event
      :I625Ups/MakeP
-     {:Data :Kernel/Map})
+     {:Data :Map})
 
     (dataflow
      :I625Ups/MakeP
@@ -143,7 +143,7 @@
     (entity
      :I625Ups/C
      {:meta {:inherits :I625Ups/P}
-      :Y :Kernel/Int})
+      :Y :Int})
 
     (dataflow
      :I625Ups/MakeC
@@ -170,13 +170,13 @@
   (defcomponent :I625Sr
     (entity
      :I625Sr/P
-     {:X {:type :Kernel/Int
+     {:X {:type :Int
           :indexed true}
-      :Y :Kernel/Int})
+      :Y :Int})
     (entity
      :I625Sr/C
      {:meta {:inherits :I625Sr/P}
-      :Z :Kernel/Int})
+      :Z :Int})
     (event
      :I625Sr/Evt
      {:P :I625Sr/P})
@@ -265,9 +265,9 @@
   (defcomponent :I630
     (entity
      :I630/E
-     {:id {:type :Kernel/Int
+     {:id {:type :Int
            :identity true}
-      :X :Kernel/Int})
+      :X :Int})
     (dataflow
      :I630/FindE
      {:I630/E {:id? :I630/FindE.E}})
@@ -311,9 +311,9 @@
   (defcomponent :I630M
     (entity
      :I630M/E
-     {:X {:type :Kernel/Int
+     {:X {:type :Int
           :indexed true}
-      :Y {:type :Kernel/Int
+      :Y {:type :Int
           :expr '(* :X 2)}})
     (dataflow
      :I630M/FindE
@@ -353,9 +353,9 @@
   (defcomponent :DelMulti
     (entity
      :DelMulti/E
-     {:X {:type :Kernel/Int
+     {:X {:type :Int
           :indexed true}
-      :Y {:type :Kernel/Int
+      :Y {:type :Int
           :indexed true}})
     (dataflow
      :DelMulti/Del

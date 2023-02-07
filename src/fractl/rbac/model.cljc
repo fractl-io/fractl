@@ -8,7 +8,7 @@
 
 (entity
  :Kernel.RBAC/Role
- {:Name {:type :Kernel/String
+ {:Name {:type :Kernel.Lang/String
          :indexed true
          :unique true}})
 
@@ -19,11 +19,11 @@
 
 (entity
  :Kernel.RBAC/Privilege
- {:Name {:type :Kernel/String
+ {:Name {:type :Kernel.Lang/String
          :indexed true
          :unique true}
   :Actions {:check crud-list?}
-  :Resource :Kernel/Edn})
+  :Resource :Kernel.Lang/Edn})
 
 (entity
  :Kernel.RBAC/PrivilegeAssignment
@@ -36,7 +36,7 @@
  :Kernel.RBAC/RoleAssignment
  {:Role {:ref :Kernel.RBAC/Role.Name
          :indexed true}
-  :Assignee {:type :Kernel/String ; usually a :Kernel.Identity/User.Name
+  :Assignee {:type :Kernel.Lang/String ; usually a :Kernel.Identity/User.Name
              :indexed true}
   :meta
   {:unique [:Role :Assignee]}})
@@ -52,8 +52,8 @@
 
 (event
  :Kernel.RBAC/AssignRelationship
- {:Parent :Kernel/String
-  :Child :Kernel/String})
+ {:Parent :Kernel.Lang/String
+  :Child :Kernel.Lang/String})
 
 (dataflow
  :Kernel.RBAC/AssignRelationship
@@ -63,7 +63,7 @@
 
 (event
  :Kernel.RBAC/FindChildren
- {:Parent :Kernel/String})
+ {:Parent :Kernel.Lang/String})
 
 (dataflow
  :Kernel.RBAC/FindChildren
@@ -102,9 +102,9 @@
  :Kernel.RBAC/InstancePrivilegeAssignment
  {:Actions {:check crud-list?}
   :Filter {:check crud-list? :optional true}
-  :Resource {:type :Kernel/Path :indexed true}
-  :ResourceId {:type :Kernel/Any :indexed true}
-  :Assignee {:type :Kernel/String :indexed true}
+  :Resource {:type :Kernel.Lang/Path :indexed true}
+  :ResourceId {:type :Kernel.Lang/Any :indexed true}
+  :Assignee {:type :Kernel.Lang/String :indexed true}
   :meta {:unique [:Assignee :Resource :ResourceId]}})
 
 (dataflow

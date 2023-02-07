@@ -64,32 +64,39 @@
        (re-matches email-pattern x)))
 
 (def types
-  {:Kernel/String kernel-string?
-   :Kernel/Keyword #(or (keyword? %) (string? %))
-   :Kernel/Path path?
-   :Kernel/DateTime date-time?
-   :Kernel/Date date?
-   :Kernel/Time time?
-   :Kernel/UUID UUID?
-   :Kernel/Int int?
-   :Kernel/Int64 int?
-   :Kernel/BigInteger integer?
-   :Kernel/Float kernel-float?
-   :Kernel/Double kernel-double?
-   :Kernel/Decimal cn/decimal-value?
-   :Kernel/Boolean boolean?
-   :Kernel/Record cn/record-instance?
-   :Kernel/Entity cn/entity-instance?
-   :Kernel/Event cn/event-instance?
-   :Kernel/Any any-obj?
-   :Kernel/Email email?
-   :Kernel/Map map?
-   :Kernel/Edn edn?})
+  {:Kernel.Lang/String kernel-string?
+   :Kernel.Lang/Keyword #(or (keyword? %) (string? %))
+   :Kernel.Lang/Path path?
+   :Kernel.Lang/DateTime date-time?
+   :Kernel.Lang/Date date?
+   :Kernel.Lang/Time time?
+   :Kernel.Lang/UUID UUID?
+   :Kernel.Lang/Int int?
+   :Kernel.Lang/Int64 int?
+   :Kernel.Lang/BigInteger integer?
+   :Kernel.Lang/Float kernel-float?
+   :Kernel.Lang/Double kernel-double?
+   :Kernel.Lang/Decimal cn/decimal-value?
+   :Kernel.Lang/Boolean boolean?
+   :Kernel.Lang/Record cn/record-instance?
+   :Kernel.Lang/Entity cn/entity-instance?
+   :Kernel.Lang/Event cn/event-instance?
+   :Kernel.Lang/Any any-obj?
+   :Kernel.Lang/Email email?
+   :Kernel.Lang/Password kernel-string?
+   :Kernel.Lang/Map map?
+   :Kernel.Lang/Edn edn?})
 
 (def ^:private type-names (keys types))
 
+(def ^:private plain-types
+  (into {} (mapv (fn [t] [(second (li/split-path t)) t]) type-names)))
+
 (defn kernel-type? [n]
   (some #{n} type-names))
+
+(defn normalize-kernel-type [t]
+  (or (t plain-types) t))
 
 (defn find-root-attribute-type [n]
   (if (kernel-type? n)
@@ -97,10 +104,10 @@
     (when-let [ascm (cn/find-attribute-schema n)]
       (cond
         (:listof ascm)
-        :Kernel/List
+        :Kernel.Lang/List
 
         (:oneof ascm)
-        :Kernel/String
+        :Kernel.Lang/String
 
         :else
         (when-let [t (if (map? ascm) (:type ascm) ascm)]
@@ -111,16 +118,8 @@
 (def type-predicate first)
 (def type-default-value second)
 
-(def ^:private kernel-bindings #{:String :DateTime :UUID
-                                 :Int :Int64 :Integer
-                                 :Float :Double :Decimal
-                                 :Boolean :Record :Entity :Event})
-
-(defn kernel-binding? [n]
-  (some #{n} kernel-bindings))
-
-(def ^:private event-context-type [:Kernel/EventContext
-                                   {:type :Kernel/Map
+(def ^:private event-context-type [:Kernel.Lang/EventContext
+                                   {:type :Kernel.Lang/Map
                                     :optional true}])
 
 (defn event-context-attribute-name []

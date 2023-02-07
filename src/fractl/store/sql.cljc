@@ -70,20 +70,20 @@
   ([max-varchar-length bool-type date-time-type attribute-type]
    (if-let [root-type (k/find-root-attribute-type attribute-type)]
      (case root-type
-       (:Kernel/String
-        :Kernel/Keyword :Kernel/Email :Kernel/Password
-        :Kernel/DateTime :Kernel/Date :Kernel/Time
-        :Kernel/List :Kernel/Edn :Kernel/Any :Kernel/Map
-        :Kernel/Path)
+       (:Kernel.Lang/String
+        :Kernel.Lang/Keyword :Kernel.Lang/Email :Kernel.Lang/Password
+        :Kernel.Lang/DateTime :Kernel.Lang/Date :Kernel.Lang/Time
+        :Kernel.Lang/List :Kernel.Lang/Edn :Kernel.Lang/Any :Kernel.Lang/Map
+        :Kernel.Lang/Path)
        (str "VARCHAR(" max-varchar-length ")")
 
-       :Kernel/UUID "UUID"
-       :Kernel/Int "INT"
-       (:Kernel/Int64 :Kernel/Integer) "BIGINT"
-       :Kernel/Float "REAL"
-       :Kernel/Double "DOUBLE"
-       :Kernel/Decimal "DECIMAL"
-       :Kernel/Boolean bool-type
+       :Kernel.Lang/UUID "UUID"
+       :Kernel.Lang/Int "INT"
+       (:Kernel.Lang/Int64 :Kernel.Lang/Integer) "BIGINT"
+       :Kernel.Lang/Float "REAL"
+       :Kernel.Lang/Double "DOUBLE"
+       :Kernel.Lang/Decimal "DECIMAL"
+       :Kernel.Lang/Boolean bool-type
        (u/throw-ex (str "SQL type mapping failed for " attribute-type
                         ", root type is " root-type)))
      (str "VARCHAR(" max-varchar-length ")")))

@@ -16,11 +16,11 @@
   (defcomponent :I576
     (entity
      {:I576/E
-      {:X :Kernel/Int}})
+      {:X :Int}})
     (record
      {:I576/R
       {:A {:listof :I576/E}
-       :B :Kernel/Int
+       :B :Int
        :C {:listof :I576/E}}})
     (dataflow
      :I576/Evt
@@ -53,12 +53,12 @@
   (defcomponent :I585
     (entity
      :I585/E
-     {:K {:type :Kernel/String
+     {:K {:type :String
           :indexed true}
-      :X :Kernel/Int})
+      :X :Int})
     (record
      :I585/R
-     {:Y :Kernel/Int})
+     {:Y :Int})
     (defn i585-f1 [e]
       (cn/make-instance
        :I585/R
@@ -107,11 +107,11 @@
   (defcomponent :I599
     (entity
      :I599/E
-     {:N {:type :Kernel/Int :indexed true}
-      :X :Kernel/Int})
+     {:N {:type :Int :indexed true}
+      :X :Int})
     (record
      :I599/R
-     {:Data :Kernel/Map})
+     {:Data :Map})
     (dataflow
      :I599/Evt
      {:I599/E {:N? 1} :as [:A :& :_]}
@@ -136,38 +136,38 @@
   (defcomponent :I621
     (entity
      :I621/Model
-     {:Name {:type :Kernel/Path
+     {:Name {:type :Path
              :unique true}
-      :Version :Kernel/String
-      :Config {:type :Kernel/Map
+      :Version :String
+      :Config {:type :Map
                :optional true}
-      :ClojureImports {:listof :Kernel/Any
+      :ClojureImports {:listof :Any
                        :optional true}})
     (entity
      :I621/Component
-     {:Name :Kernel/Path
+     {:Name :Path
       :Model {:ref :I621/Model.Name}
-      :ClojureImports {:listof :Kernel/Any
+      :ClojureImports {:listof :Any
                        :optional true}
       :meta {:unique [:Model :Name]}})
 
     (entity
      :I621/Record
-     {:Name :Kernel/Path
+     {:Name :Path
       :Model {:ref :I621/Model.Name}
-      :Component :Kernel/Path
-      :Attributes :Kernel/Map
+      :Component :Path
+      :Attributes :Map
       :meta {:unique [:Model :Component :Name]}
-      :Meta {:type :Kernel/Map
+      :Meta {:type :Map
              :optional true}})
 
     (event
      :I621/CreateRecord
-     {:Name :Kernel/Path
-      :Model :Kernel/Path
-      :Component :Kernel/Path
-      :Attributes :Kernel/Map
-      :Meta {:type :Kernel/Map
+     {:Name :Path
+      :Model :Path
+      :Component :Path
+      :Attributes :Map
+      :Meta {:type :Map
              :optional true}})
 
     (dataflow
@@ -219,8 +219,8 @@
   (defcomponent :I669
     (entity
      :I669/E
-     {:K :Kernel/Keyword
-      :P :Kernel/Path}))
+     {:K :Keyword
+      :P :Path}))
   (let [e (tu/first-result
            {:I669/Upsert_E
             {:Instance
@@ -239,11 +239,11 @@
   (defcomponent :I686
     (entity
      :I686/E
-     {:Name {:type :Kernel/Path
+     {:Name {:type :Path
              :unique true}})
     (event
      :I686/GetEs
-     {:Names {:listof :Kernel/Path}})
+     {:Names {:listof :Path}})
     (record :I686/Result {:Es {:listof :I686/E}})
     (dataflow
      :I686/GetEs
@@ -272,19 +272,19 @@
   (defcomponent :I741
     (entity
      :I741/E1
-     {:X {:type :Kernel/Int
+     {:X {:type :Int
           :identity true}
-      :Y :Kernel/Int})
+      :Y :Int})
     (entity
      :I741/E2
-     {:A {:type :Kernel/Int
+     {:A {:type :Int
           :identity true}
-      :B :Kernel/Int})
+      :B :Int})
     (entity
      :I741/E3
-     {:C {:type :Kernel/Int
+     {:C {:type :Int
           :identity true}
-      :D :Kernel/Int})
+      :D :Int})
     (relationship
      :I741/R1
      {:meta {:contains [:I741/E1 :I741/E2]}})
@@ -364,14 +364,14 @@
   (defcomponent :I741B
     (entity
      :I741B/E1
-     {:X {:type :Kernel/Int
+     {:X {:type :Int
           :identity true}
-      :Y :Kernel/Int})
+      :Y :Int})
     (entity
      :I741B/E2
-     {:A {:type :Kernel/Int
+     {:A {:type :Int
           :identity true}
-      :B :Kernel/Int})
+      :B :Int})
     (relationship
      :I741B/R1
      {:meta {:between [:I741B/E1 :I741B/E2]}})
@@ -481,10 +481,10 @@
   (defcomponent :I765
     (entity
      :I765/E1
-     {:X {:type :Kernel/Int :identity true}})
+     {:X {:type :Int :identity true}})
     (entity
      :I765/E2
-     {:Y {:type :Kernel/Int :identity true}})
+     {:Y {:type :Int :identity true}})
     (dataflow
      :I765/DelE
      [:match :I765/DelE.V

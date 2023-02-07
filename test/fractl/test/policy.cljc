@@ -22,15 +22,15 @@
    (defcomponent :I506PI
      (entity
       :I506PI/E1
-      {:X :Kernel/Int
+      {:X :Int
        :meta
        {:views {:style {:background :red}}}})
      (entity
       :I506PI/E2
-      {:Y :Kernel/Int})
+      {:Y :Int})
      (entity
       :I506PI/E3
-      {:Z :Kernel/Int
+      {:Z :Int
        :meta
        {:contains [:I506PI/E1 :I506PI/E2]
         :views {:style {:background :white}}}}))
