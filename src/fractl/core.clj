@@ -210,9 +210,10 @@
       (let [s (try
                 (read-string v)
                 (catch Exception _e v))]
-        (if (symbol? s)
-          (str s)
-          s)))
+        (cond
+          (not= (str s) v) v
+          (symbol? s) (str s)
+          :else s)))
 
     (vector? x)
     (first (su/nonils (mapv read-env-var x)))
