@@ -176,9 +176,30 @@
         attrscm)
       attrscm)))
 
+(defn- attr-type-spec [attr-spec]
+  (when-let [p (some #{:type :listof :setof} (keys attr-spec))]
+    [p (p attr-spec)]))
+
+(defn- normalize-kernel-types [attrs]
+  (let [r (mapv (fn [[k v]]
+                  [k (cond
+                       (keyword? v)
+                       (k/normalize-kernel-type v)
+
+                       (map? v)
+                       (if-let [[p t] (attr-type-spec v)]
+                         (assoc v p (k/normalize-kernel-type t))
+                         v)
+
+                       :else v)])
+                attrs)]
+    (into {} r)))
+
 (defn- validate-attribute-schema-map-keys [scm]
   (let [newscm (maybe-assoc-ref-type
-                (finalize-raw-attribute-schema (oneof-as-check scm)))]
+                (finalize-raw-attribute-schema
+                 (oneof-as-check
+                  (normalize-kernel-types scm))))]
     (cond
       (:unique newscm)
       (assoc newscm :indexed true)
@@ -201,25 +222,6 @@
    (li/validate-name-relaxed n)
    (normalize-attribute-schema
     (validate-attribute-schema n scm))))
-
-(defn- attr-type-spec [attr-spec]
-  (when-let [p (some #{:type :listof :setof} (keys attr-spec))]
-    [p (p attr-spec)]))
-
-(defn- normalize-kernel-types [attrs]
-  (let [r (mapv (fn [[k v]]
-                  [k (cond
-                       (keyword? v)
-                       (k/normalize-kernel-type v)
-
-                       (map? v)
-                       (if-let [[p t] (attr-type-spec v)]
-                         (assoc v p (k/normalize-kernel-type t))
-                         v)
-
-                       :else v)])
-                attrs)]
-    (into {} r)))
 
 (defn- validate-attributes [attrs]
   (doseq [[k v] attrs]
