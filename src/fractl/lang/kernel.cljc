@@ -95,6 +95,9 @@
 (defn kernel-type? [n]
   (some #{n} type-names))
 
+(defn plain-kernel-type? [n]
+  (n plain-types))
+
 (defn normalize-kernel-type [t]
   (or (t plain-types) t))
 

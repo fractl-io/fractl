@@ -215,13 +215,28 @@
     (validate-attribute-schema-map-keys
      (li/validate map? (str n " - attribute specification should be a map") scm))))
 
-(defn attribute
+(defn- validated-canonical-type-name
+  ([validate-name n]
+   (let [canon (cn/canonical-type-name n)
+         [_ n] (li/split-path canon)]
+     (when (k/plain-kernel-type? n)
+       (u/throw-ex (str "cannot redefine kernel type - " n)))
+     (validate-name canon)))
+  ([n] (validated-canonical-type-name li/validate-name n)))
+
+(defn- intern-attribute
   "Add a new attribute definition to the component."
-  [n scm]
-  (cn/intern-attribute
-   (li/validate-name-relaxed n)
-   (normalize-attribute-schema
-    (validate-attribute-schema n scm))))
+  ([validate-name n scm]
+   (cn/intern-attribute
+    (validate-name n)
+    (normalize-attribute-schema
+     (validate-attribute-schema n scm))))
+  ([n scm]
+   (intern-attribute li/validate-name-relaxed n scm)))
+
+(def attribute (partial
+                intern-attribute
+                (partial validated-canonical-type-name li/validate-name-relaxed)))
 
 (defn- validate-attributes [attrs]
   (doseq [[k v] attrs]
@@ -304,9 +319,6 @@
                {:ref fulln})
               fulln)))]
     [k newv]))
-
-(defn- validated-canonical-type-name [n]
-  (li/validate-name (cn/canonical-type-name n)))
 
 (defn- required-attribute-names [attrs]
   (map first
@@ -825,15 +837,15 @@
 (defn- do-init-kernel []
   (cn/create-component :Kernel.Lang {})
   (doseq [[type-name type-def] k/types]
-    (attribute type-name {:check type-def
-                          :type type-name}))
+    (intern-attribute type-name {:check type-def
+                                 :type type-name}))
 
   (attribute (k/event-context-attribute-name)
              (k/event-context-attribute-schema))
 
-  (attribute :Kernel.Lang/Password
-             {:type :Kernel.Lang/String
-              :secure-hash true})
+  (intern-attribute :Kernel.Lang/Password
+                    {:type :Kernel.Lang/String
+                     :secure-hash true})
 
   (record :Kernel.Lang/Future
           {:Result :Kernel.Lang/Any

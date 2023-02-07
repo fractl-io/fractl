@@ -152,7 +152,7 @@
       :meta {:unique [:Model :Name]}})
 
     (entity
-     :I621/Record
+     :I621/Rec
      {:Name :Path
       :Model {:ref :I621/Model.Name}
       :Component :Path
@@ -162,7 +162,7 @@
              :optional true}})
 
     (event
-     :I621/CreateRecord
+     :I621/CreateRec
      {:Name :Path
       :Model :Path
       :Component :Path
@@ -171,14 +171,14 @@
              :optional true}})
 
     (dataflow
-     :I621/CreateRecord
-     {:I621/Component {:Name? :I621/CreateRecord.Component
-                       :Model? :I621/CreateRecord.Model} :as :C}
-     {:I621/Record {:Name :I621/CreateRecord.Name
-                    :Model :C.Model
-                    :Component :C.Name
-                    :Attributes :I621/CreateRecord.Attributes
-                    :Meta :I621/CreateRecord.Meta}}))
+     :I621/CreateRec
+     {:I621/Component {:Name? :I621/CreateRec.Component
+                       :Model? :I621/CreateRec.Model} :as :C}
+     {:I621/Rec {:Name :I621/CreateRec.Name
+                 :Model :C.Model
+                 :Component :C.Name
+                 :Attributes :I621/CreateRec.Attributes
+                 :Meta :I621/CreateRec.Meta}}))
 
   (let [m (tu/first-result
            {:I621/Upsert_Model
@@ -192,7 +192,7 @@
               {:Name :c :Model :m}}}})
         attrs {:a 1 :b false :c 3}
         r (tu/first-result
-           {:I621/CreateRecord
+           {:I621/CreateRec
             {:Name :r1
              :Model :m
              :Component :c
@@ -204,7 +204,7 @@
             {:I621/Lookup_Component
              {cn/id-attr (cn/id-attr c)}})
         r1 (tu/first-result
-            {:I621/Lookup_Record
+            {:I621/Lookup_Rec
              {cn/id-attr (cn/id-attr r)}})]
     (defn same-instance? [a b ks]
       (every? #(= (% a) (% b)) ks))
