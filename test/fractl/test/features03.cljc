@@ -58,15 +58,27 @@
                                  {:I800/Company
                                   {:Name %}}}})
                              ["acme" "zigma"])
+        dept-nos ["101" "102" "101"]
+        co-names ["acme" "zigma" "zigma"]
         [d1 d2 d3 :as ds] (mapv #(tu/result
                                   {:I800/CreateDepartment
                                    {:Id %1 :No %2 :Company %3}})
-                                ["1" "2" "3"]
-                                ["101" "102" "101"]
-                                ["acme" "zigma" "zigma"])
+                                ["1" "2" "3"] dept-nos co-names)
         company? (partial cn/instance-of? :I800/Company)
         dept? (partial cn/instance-of? :I800/Department)
         section-of? #(= %1 (:Company (first (:-> %2))))]
     (is (every? company? cs))
     (is (every? dept? ds))
-    (is (every? #(apply section-of? %) [["acme" d1] ["zigma" d2] ["zigma" d3]]))))
+    (is (every? #(apply section-of? %) [["acme" d1] ["zigma" d2] ["zigma" d3]]))
+    (let [emp-names ["a" "b" "c"]
+          [e1 e2 e3 :as es] (mapv #(tu/result
+                                    {:I800/CreateEmployee
+                                     {:Company %1
+                                      :Department %2
+                                      :Email (str %3 "@" %1 ".com")
+                                      :Name %3}})
+                                  co-names dept-nos emp-names)
+          employee? (partial cn/instance-of? :I800/Employee)
+          works-for? #(= %1 (:Department (first (:-> %2))))]
+      (is (every? employee? es))
+      (is (every? #(apply works-for? %) [["1" e1] ["2" e2] ["3" e3]])))))
