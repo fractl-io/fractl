@@ -544,6 +544,35 @@
       (li/query-target-name pat)
       pat)))
 
+(defn- normalize-relationship-path [[attr-name path-query] pat]
+  (let [path (li/path-query-string path-query)
+        nm (li/instance-pattern-name pat)]
+    (when-not nm
+      (u/throw-ex (str "not a valid instance pattern - " pat)))
+    (when-not (seq path)
+      (u/throw-ex "invalid or empty path-query"))
+    (when (li/rel-tag pat)
+      (u/throw-ex "pattern already contains relationship spec, cannot process path-query"))
+    (when-not (= (cn/identity-attribute-name nm) (li/normalize-name attr-name))
+      (u/throw-ex (str "path-query cannot be attached to non-identity attribute - " attr-name)))
+    (let [parts (li/parse-query-path path)]
+      ;; `parts` is a vector of {relname :relationship child :child
+      ;;                       child-val :child-value parent :parent
+      ;;                       parent-val :parent-value}
+      ;; in reverse order of the path.
+      ;; TODO: walk the vector and translate to embedded patterns of relationship queries.
+      ;; assoc the final pattern to pat's :->
+      pat)))
+
+(defn- maybe-normalize-relationship-path [pat]
+  (let [path-queries (filter #(and (li/query-pattern? (first %))
+                                   (li/path-query? (second %)))
+                             pat)]
+    (cond
+      (not (seq path-queries)) pat
+      (> (count path-queries) 1) (u/throw-ex "pattern can have only one path-query")
+      :else (normalize-relationship-path (first path-queries) pat))))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -555,7 +584,8 @@
     (compile-from-pattern ctx pat)
 
     (li/instance-pattern? pat)
-    (let [orig-nm (ctx/dynamic-type
+    (let [pat (maybe-normalize-relationship-path pat)
+          orig-nm (ctx/dynamic-type
                    ctx
                    (li/instance-pattern-name pat))
           full-nm (li/normalize-name orig-nm)

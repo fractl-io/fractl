@@ -429,3 +429,20 @@
 
 (defn keyword-name [n]
   (if (keyword? n) n (make-path n)))
+
+(def path-query-prefix "path:/")
+(def path-query-prefix-len (count path-query-prefix))
+
+(defn path-query? [x]
+  (and (string? x)
+       (string/starts-with? x path-query-prefix)))
+
+(defn path-query-string [s]
+  (subs s path-query-prefix-len))
+
+(defn parse-query-path [s]
+  (let [parts (partition 5 (reverse (filter #(identity (seq %)) (string/split s #"/"))))]
+    (reduce (fn [result [child-val child relname parent-val parent]]
+              (conj result {:child-val child-val :child child :relationship relname
+                            :parent-val parent-val :parent parent}))
+            [] parts)))
