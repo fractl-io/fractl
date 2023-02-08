@@ -7,17 +7,17 @@
 
 (entity
  :Kernel.Identity/User
- {:Name {:type :Kernel/String
+ {:Name {:type :Kernel.Lang/String
          :optional true}
-  :Password {:type :Kernel/Password
+  :Password {:type :Kernel.Lang/Password
              :optional true} ; may use social-login
-  :FirstName {:type :Kernel/String
+  :FirstName {:type :Kernel.Lang/String
               :optional true}
-  :LastName {:type :Kernel/String
+  :LastName {:type :Kernel.Lang/String
              :optional true}
-  :Email {:type :Kernel/Email
+  :Email {:type :Kernel.Lang/Email
           :identity true}
-  :UserData {:type :Kernel/Map :optional true}})
+  :UserData {:type :Kernel.Lang/Map :optional true}})
 
 (event
  :Kernel.Identity/SignUp
@@ -25,8 +25,8 @@
 
 (event
  :Kernel.Identity/PostSignUp
- {:SignupResult :Kernel/Any
-  :UserData :Kernel/Any})
+ {:SignupResult :Kernel.Lang/Any
+  :UserData :Kernel.Lang/Any})
 
 (dataflow
  :Kernel.Identity/SignUp
@@ -35,7 +35,7 @@
 (entity
  :Kernel.Identity/UserExtra
  {:User :Kernel.Identity/User
-  :OtherDetails :Kernel/Map})
+  :OtherDetails :Kernel.Lang/Map})
 
 (event
  :Kernel.Identity/UpdateUser
@@ -43,32 +43,32 @@
 
 (event
  :Kernel.Identity/ForgotPassword
- {:Username :Kernel/Email})
+ {:Username :Kernel.Lang/Email})
 
 (event
  :Kernel.Identity/ConfirmForgotPassword
- {:Username :Kernel/Email
-  :ConfirmationCode :Kernel/String
-  :Password :Kernel/String})
+ {:Username :Kernel.Lang/Email
+  :ConfirmationCode :Kernel.Lang/String
+  :Password :Kernel.Lang/String})
 
 (event
  :Kernel.Identity/ChangePassword
- {:AccessToken :Kernel/String
-  :CurrentPassword :Kernel/String
-  :NewPassword :Kernel/String})
+ {:AccessToken :Kernel.Lang/String
+  :CurrentPassword :Kernel.Lang/String
+  :NewPassword :Kernel.Lang/String})
 
 (event
  :Kernel.Identity/RefreshToken
- {:RefreshToken :Kernel/String})
+ {:RefreshToken :Kernel.Lang/String})
 
 (event
  au/login-event-name
- {au/login-username :Kernel/String
-  au/login-password :Kernel/Password})
+ {au/login-username :Kernel.Lang/String
+  au/login-password :Kernel.Lang/Password})
 
 (event
  :Kernel.Identity/FindUser
- {:Email :Kernel/Email})
+ {:Email :Kernel.Lang/Email})
 
 (dataflow
  :Kernel.Identity/FindUser

@@ -176,9 +176,30 @@
         attrscm)
       attrscm)))
 
+(defn- attr-type-spec [attr-spec]
+  (when-let [p (some #{:type :listof :setof} (keys attr-spec))]
+    [p (p attr-spec)]))
+
+(defn- normalize-kernel-types [attrs]
+  (let [r (mapv (fn [[k v]]
+                  [k (cond
+                       (keyword? v)
+                       (k/normalize-kernel-type v)
+
+                       (map? v)
+                       (if-let [[p t] (attr-type-spec v)]
+                         (assoc v p (k/normalize-kernel-type t))
+                         v)
+
+                       :else v)])
+                attrs)]
+    (into {} r)))
+
 (defn- validate-attribute-schema-map-keys [scm]
   (let [newscm (maybe-assoc-ref-type
-                (finalize-raw-attribute-schema (oneof-as-check scm)))]
+                (finalize-raw-attribute-schema
+                 (oneof-as-check
+                  (normalize-kernel-types scm))))]
     (cond
       (:unique newscm)
       (assoc newscm :indexed true)
@@ -194,13 +215,28 @@
     (validate-attribute-schema-map-keys
      (li/validate map? (str n " - attribute specification should be a map") scm))))
 
-(defn attribute
+(defn- validated-canonical-type-name
+  ([validate-name n]
+   (let [canon (cn/canonical-type-name n)
+         [_ n] (li/split-path canon)]
+     (when (k/plain-kernel-type? n)
+       (u/throw-ex (str "cannot redefine kernel type - " n)))
+     (validate-name canon)))
+  ([n] (validated-canonical-type-name li/validate-name n)))
+
+(defn- intern-attribute
   "Add a new attribute definition to the component."
-  [n scm]
-  (cn/intern-attribute
-   (li/validate-name-relaxed n)
-   (normalize-attribute-schema
-    (validate-attribute-schema n scm))))
+  ([validate-name n scm]
+   (cn/intern-attribute
+    (validate-name n)
+    (normalize-attribute-schema
+     (validate-attribute-schema n scm))))
+  ([n scm]
+   (intern-attribute li/validate-name-relaxed n scm)))
+
+(def attribute (partial
+                intern-attribute
+                (partial validated-canonical-type-name li/validate-name-relaxed)))
 
 (defn- validate-attributes [attrs]
   (doseq [[k v] attrs]
@@ -210,7 +246,7 @@
                      (u/throw-ex (str "type not defined - " v)))
       (map? v) (validate-attribute-schema-map-keys v)
       (not (list? v)) (u/throw-ex (str "invalid attribute specification - " v))))
-  attrs)
+    attrs)
 
 (defn- query-eval-fn [recname attrs k v]
   ;; TODO: implement the query->fn compilation phase.
@@ -284,9 +320,6 @@
               fulln)))]
     [k newv]))
 
-(defn- validated-canonical-type-name [n]
-  (li/validate-name (cn/canonical-type-name n)))
-
 (defn- required-attribute-names [attrs]
   (map first
        (filter (fn [[_ v]]
@@ -342,6 +375,7 @@
 
 (defn- normalized-attributes [rectype recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
+        orig-attrs (normalize-kernel-types orig-attrs)
         meta (:meta orig-attrs)
         inherits (:inherits meta)
         inherited-scm (when inherits (fetch-inherited-schema inherits rectype))
@@ -623,7 +657,7 @@
             inst-evattrs {:Instance n li/event-context ctx-aname}
             id-attr (identity-attribute-name rec-name)
             id-attr-type (or (identity-attribute-type id-attr attrs)
-                             :Kernel/Any)
+                             :Kernel.Lang/Any)
             id-evattrs {id-attr id-attr-type
                         li/event-context ctx-aname}]
         ;; Define CRUD events and dataflows:
@@ -801,88 +835,88 @@
       (resolver-for-component target spec))))
 
 (defn- do-init-kernel []
-  (cn/create-component :Kernel {})
+  (cn/create-component :Kernel.Lang {})
   (doseq [[type-name type-def] k/types]
-    (attribute type-name {:check type-def
-                          :type type-name}))
+    (intern-attribute type-name {:check type-def
+                                 :type type-name}))
 
   (attribute (k/event-context-attribute-name)
              (k/event-context-attribute-schema))
 
-  (attribute :Kernel/Password
-             {:type :Kernel/String
-              :secure-hash true})
+  (intern-attribute :Kernel.Lang/Password
+                    {:type :Kernel.Lang/String
+                     :secure-hash true})
 
-  (record :Kernel/Future
-          {:Result :Kernel/Any
-           :TimeoutMillis {:type :Kernel/Int
+  (record :Kernel.Lang/Future
+          {:Result :Kernel.Lang/Any
+           :TimeoutMillis {:type :Kernel.Lang/Int
                            :default 2000}})
 
-  (entity {:Kernel/Resolver
-           {:Type :Kernel/String
-            :Configuration :Kernel/Map
+  (entity {:Kernel.Lang/Resolver
+           {:Type :Kernel.Lang/String
+            :Configuration :Kernel.Lang/Map
             :Identifier {:check keyword? :unique true}}})
 
   (entity
-   :Kernel/Role
-   {:Name {:type :Kernel/String
+   :Kernel.Lang/Role
+   {:Name {:type :Kernel.Lang/String
            :unique true}})
 
   (event
-   :Kernel/RoleAssignment
-   {:Role :Kernel/Role
-    :Assignee :Kernel/Entity})
+   :Kernel.Lang/RoleAssignment
+   {:Role :Kernel.Lang/Role
+    :Assignee :Kernel.Lang/Entity})
 
   (entity
-   :Kernel/Policy
-   {:Intercept {:type :Kernel/Keyword
+   :Kernel.Lang/Policy
+   {:Intercept {:type :Kernel.Lang/Keyword
                 :indexed true}
-    :Resource {:type :Kernel/Path
+    :Resource {:type :Kernel.Lang/Path
                :indexed true}
-    :Spec :Kernel/Edn
+    :Spec :Kernel.Lang/Edn
     :InterceptStage
     {:oneof [:PreEval :PostEval :Default]
      :default :Default}})
 
-  (entity {:Kernel/Timer
-           {:Expiry :Kernel/Int
+  (entity {:Kernel.Lang/Timer
+           {:Expiry :Kernel.Lang/Int
             :ExpiryUnit {:oneof [:Seconds :Minutes :Hours :Days]
                          :default :Seconds}
-            :ExpiryEvent :Kernel/Map
+            :ExpiryEvent :Kernel.Lang/Map
             ;; :TaskHandle is set by the runtime, represents the
             ;; thread that execute the event after timer expiry.
-            :TaskHandle {:type :Kernel/Any :optional true}}})
+            :TaskHandle {:type :Kernel.Lang/Any :optional true}}})
 
   (dataflow
-   :Kernel/LoadPolicies
-   {:Kernel/Policy
-    {:Intercept? :Kernel/LoadPolicies.Intercept
-     :Resource? :Kernel/LoadPolicies.Resource}})
+   :Kernel.Lang/LoadPolicies
+   {:Kernel.Lang/Policy
+    {:Intercept? :Kernel.Lang/LoadPolicies.Intercept
+     :Resource? :Kernel.Lang/LoadPolicies.Resource}})
 
   (event
-   :Kernel/AppInit
-   {:Data :Kernel/Map})
+   :Kernel.Lang/AppInit
+   {:Data :Kernel.Lang/Map})
 
   (event
-   :Kernel/InitConfig
+   :Kernel.Lang/InitConfig
    {})
 
   (record
-   :Kernel/InitConfigResult
-   {:Data {:listof :Kernel/Map}})
+   :Kernel.Lang/InitConfigResult
+   {:Data {:listof :Kernel.Lang/Map}})
 
   #?(:clj
      (do
-       (record :Kernel/DataSource
-               {:Uri {:type :Kernel/String
+       (record :Kernel.Lang/DataSource
+               {:Uri {:type :Kernel.Lang/String
                       :optional true} ;; defaults to currently active store
-                :Entity :Kernel/String ;; name of an entity
-                :AttributeMapping {:type :Kernel/Map
+                :Entity :Kernel.Lang/String ;; name of an entity
+                :AttributeMapping {:type :Kernel.Lang/Map
                                    :optional true}})
 
-       (event :Kernel/DataSync
-              {:Source :Kernel/DataSource
-               :DestinationUri {:type :Kernel/String
+       (event :Kernel.Lang/DataSync
+              {:Source :Kernel.Lang/DataSource
+               :DestinationUri {:type :Kernel.Lang/String
                                 :optional true}})
 
        (r/register-resolvers
@@ -895,15 +929,15 @@
                     :event event
                     :record record
                     :dataflow dataflow}}
-          :paths [:Kernel/LoadModelFromMeta]}
+          :paths [:Kernel.Lang/LoadModelFromMeta]}
          {:name :timer
           :type :timer
           :compose? false
-          :paths [:Kernel/Timer]}
+          :paths [:Kernel.Lang/Timer]}
          {:name :data-sync
           :type :data-sync
           :compose? false
-          :paths [:Kernel/DataSync]}]))))
+          :paths [:Kernel.Lang/DataSync]}]))))
 
 (defn init []
   (when-not (cn/kernel-inited?)

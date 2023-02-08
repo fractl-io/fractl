@@ -18,9 +18,9 @@
    (defcomponent :I352DtIndex
      (entity
       {:I352DtIndex/E
-       {:A {:type :Kernel/DateTime
+       {:A {:type :DateTime
             :indexed true}
-        :B :Kernel/Int}})
+        :B :Int}})
      (dataflow :I352DtIndex/FindByDateTime
                {:I352DtIndex/E
                 {:A? :I352DtIndex/FindByDateTime.Input}})
@@ -81,8 +81,8 @@
    (defcomponent :I352Dtu
      (entity
       :I352Dtu/E
-      {:A :Kernel/Date
-       :B :Kernel/Time}))
+      {:A :Date
+       :B :Time}))
    (let [r1 (tu/first-result
              {:I352Dtu/Upsert_E
               {:Instance
@@ -99,14 +99,14 @@
      (defcomponent :I358Csv01
        (entity
         :I358Csv01/Employee
-        {:FirstName :Kernel/String
-         :LastName :Kernel/String
-         :Salary :Kernel/Decimal})
+        {:FirstName :String
+         :LastName :String
+         :Salary :Decimal})
        (dataflow
         :I358Csv01/ImportEmployees
-        {:Kernel/DataSync
+        {:Kernel.Lang/DataSync
          {:Source
-          {:Kernel/DataSource
+          {:Kernel.Lang/DataSource
            {:Uri "file://sample/emp.csv"
             :Entity "I358Csv01/Employee"
             :AttributeMapping
@@ -115,9 +115,9 @@
              "salary" "Salary"}}}}})
        (dataflow
         :I358Csv01/ExportEmployees
-        {:Kernel/DataSync
+        {:Kernel.Lang/DataSync
          {:Source
-          {:Kernel/DataSource
+          {:Kernel.Lang/DataSource
            {:Entity "I358Csv01/Employee"
             :AttributeMapping
             {"FirstName" "first_name"
@@ -158,7 +158,7 @@
    (defcomponent :I372
      (entity
       :I372/E
-      {:X {:type :Kernel/Int
+      {:X {:type :Int
            :indexed true}})
      (dataflow
       :I372/Lookup
@@ -192,19 +192,19 @@
    (defcomponent :I377.Test1
      (entity
       :I377.Test1/Defect
-      {:SiteLocation :Kernel/String
-       :DefectType :Kernel/String
-       :Timestamp {:type :Kernel/DateTime
+      {:SiteLocation :String
+       :DefectType :String
+       :Timestamp {:type :DateTime
                    :default dt/now
                    :indexed true}
-       :MarkedAsDeleted {:type :Kernel/Boolean
+       :MarkedAsDeleted {:type :Boolean
                          :default false}})
 
      (event
       :I377.Test1/GetDefectsByDateAndSiteLocation
-      {:From :Kernel/String
-       :To :Kernel/String
-       :SiteLocation :Kernel/String})
+      {:From :String
+       :To :String
+       :SiteLocation :String})
 
      (dataflow
       :I377.Test1/GetDefectsByDateAndSiteLocation
@@ -258,13 +258,13 @@
    (defcomponent :I379
      (entity
       :I379/P
-      {:A :Kernel/Int})
+      {:A :Int})
      (entity
       :I379/E
       {:P {:ref :I379/P.__Id__}
-       :X {:type :Kernel/Int
+       :X {:type :Int
            :indexed true}
-       :Y {:type :Kernel/Int
+       :Y {:type :Int
            :expr '(+ 10 :X :P.A)}})
      (dataflow
       :I379/Q
@@ -297,9 +297,9 @@
    (defcomponent :I391
      (entity
       :I391/E
-      {:X {:type :Kernel/Int
+      {:X {:type :Int
            :indexed true}
-       :Y :Kernel/Int})
+       :Y :Int})
      (dataflow
       :I391/Query01
       {:I391/E?
@@ -349,10 +349,10 @@
    (defcomponent :I427
      (entity
       :I427/A
-      {:X :Kernel/Int})
+      {:X :Int})
      (record
       :I427/B
-      {:Result :Kernel/Any})
+      {:Result :Any})
      (dataflow
       :I427/E
       {:I427/A? {} :as :R}
@@ -375,10 +375,10 @@
    (defcomponent :I427b
      (entity
       :I427b/A
-      {:X :Kernel/Boolean})
+      {:X :Boolean})
      (record
       :I427b/B
-      {:Result :Kernel/Any})
+      {:Result :Any})
      (dataflow
       :I427b/E
       {:I427b/A {:X? true} :as :R}
@@ -421,9 +421,9 @@
    (defcomponent :I442
      (entity
       :I442/E
-      {:X :Kernel/Int
-       :Y :Kernel/Any
-       :Z :Kernel/Int}))
+      {:X :Int
+       :Y :Any
+       :Z :Int}))
    (let [api-token "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Im00YTJzbG1IQkhxLTJVdDllREk1eiJ9.eyJpc3MiOiJodHRwczovL2ZyYWN0bC51cy5hdXRoMC5jb20vIiwic3ViIjoiQnRaT05YTVRRRWJzU0hpZkRTWW90WGZPdFk1QmVIdThAY2xpZW50cyIsImF1ZCI6Imh0dHBzOi8vZnJhY3RsLnVzLmF1dGgwLmNvbS9hcGkvdjIvIiwiaWF0IjoxNjQyNTI4MTQzLCJleHAiOjE2NDI2MTQ1NDMsImF6cCI6IkJ0Wk9OWE1UUUVic1NIaWZEU1lvdFhmT3RZNUJlSHU4Iiwic2NvcGUiOiJyZWFkOmNsaWVudF9ncmFudHMgY3JlYXRlOmNsaWVudF9ncmFudHMgZGVsZXRlOmNsaWVudF9ncmFudHMgdXBkYXRlOmNsaWVudF9ncmFudHMgcmVhZDp1c2VycyB1cGRhdGU6dXNlcnMgZGVsZXRlOnVzZXJzIGNyZWF0ZTp1c2VycyByZWFkOnVzZXJzX2FwcF9tZXRhZGF0YSB1cGRhdGU6dXNlcnNfYXBwX21ldGFkYXRhIGRlbGV0ZTp1c2Vyc19hcHBfbWV0YWRhdGEgY3JlYXRlOnVzZXJzX2FwcF9tZXRhZGF0YSByZWFkOnVzZXJfY3VzdG9tX2Jsb2NrcyBjcmVhdGU6dXNlcl9jdXN0b21fYmxvY2tzIGRlbGV0ZTp1c2VyX2N1c3RvbV9ibG9ja3MgY3JlYXRlOnVzZXJfdGlja2V0cyByZWFkOmNsaWVudHMgdXBkYXRlOmNsaWVudHMgZGVsZXRlOmNsaWVudHMgY3JlYXRlOmNsaWVudHMgcmVhZDpjbGllbnRfa2V5cyB1cGRhdGU6Y2xpZW50X2tleXMgZGVsZXRlOmNsaWVudF9rZXlzIGNyZWF0ZTpjbGllbnRfa2V5cyByZWFkOmNvbm5lY3Rpb25zIHVwZGF0ZTpjb25uZWN0aW9ucyBkZWxldGU6Y29ubmVjdGlvbnMgY3}lYXRlOmNvbm5lY3Rpb25zIHJlYWQ6cmVzb3VyY2Vfc2VydmVycyB1cGRhdGU6cmVzb3VyY2Vfc2VydmVycyBkZWxldGU6cmVzb3VyY2Vfc2VydmVycyBjcmVhdGU6cmVzb3VyY2Vfc2VydmVycyByZWFkOmRldmljZV9jcmVkZW50aWFscyB1cGRhdGU6ZGV2aWNlX2NyZWRlbnRpYWxzIGRlbGV0ZTpkZXZpY2VfY3JlZGVudGlhbHMgY3JlYXRlOmRldmljZV9jcmVkZW50aWFscyByZWFkOnJ1bGVzIHVwZGF0ZTpydWxlcyBkZWxldGU6cnVsZXMgY3JlYXRlOnJ1bGVzIHJlYWQ6cnVsZXNfY29uZmlncyB1cGRhdGU6cnVsZXNfY29uZmlncyBkZWxldGU6cnVsZXNfY29uZmlncyByZWFkOmhvb2tzIHVwZGF0ZTpob29rcyBkZWxldGU6aG9va3MgY3JlYXRlOmhvb2tzIHJlYWQ6YWN0aW9ucyB1cGRhdGU6YWN0aW9ucyBkZWxldGU6YWN0aW9ucyBjcmVhdGU6YWN0aW9ucyByZWFkOmVtYWlsX3Byb3ZpZGVyIHVwZGF0ZTplbWFpbF9wcm92aWRlciBkZWxldGU6ZW1haWxfcHJvdmlkZXIgY3JlYXRlOmVtYWlsX3Byb3ZpZGVyIGJsYWNrbGlzdDp0b2tlbnMgcmVhZDpzdGF0cyByZWFkOmluc2lnaHRzIHJlYWQ6dGVuYW50X3NldHRpbmdzIHVwZGF0ZTp0ZW5hbnRfc2V0dGluZ3MgcmVhZDpsb2dzIHJlYWQ6bG9nc191c2VycyByZWFkOnNoaWVsZHMgY3JlYXRlOnNoaWVsZHMgdXBkYXRlOnNoaWVsZHMgZGVsZXRlOnNoaWVsZHMgcmVhZDphbm9tYWx5X2Jsb2NrcyBkZWxldGU6YW5vbWFseV9ibG9ja3MgdXBkYXRlOnRyaWdnZXJzIHJlYWQ6dHJpZ2dlcnMgcmVhZDpncmFudHMgZGVsZXRlOmdyYW50cyByZWFkOmd1YXJkaWFuX2ZhY3RvcnMgdXBkYXRlOmd1YXJkaWFuX2ZhY3RvcnMgcmVhZDpndWFyZGlhbl9lbnJvbGxtZW50cyBkZWxldGU6Z3VhcmRpYW5fZW5yb2xsbWVudHMgY3JlYXRlOmd1YXJkaWFuX2Vucm9sbG1lbnRfdGlja2V0cyByZWFkOnVzZXJfaWRwX3Rva2VucyBjcmVhdGU6cGFzc3dvcmRzX2NoZWNraW5nX2pvYiBkZWxldGU6cGFzc3dvcmRzX2NoZWNraW5nX2pvYiByZWFkOmN1c3RvbV9kb21haW5zIGRlbGV0ZTpjdXN0b21fZG9tYWlucyBjcmVhdGU6Y3VzdG9tX2RvbWFpbnMgdXBkYXRlOmN1c3RvbV9kb21haW5zIHJlYWQ6ZW1haWxfdGVtcGxhdGVzIGNyZWF0ZTplbWFpbF90ZW1wbGF0ZXMgdXBkYXRlOmVtYWlsX3RlbXBsYXRlcyByZWFkOm1mYV9wb2xpY2llcyB1cGRhdGU6bWZhX3BvbGljaWVzIHJlYWQ6cm9sZXMgY3JlYXRlOnJvbGVzIGRlbGV0ZTpyb2xlcyB1cGRhdGU6cm9sZXMgcmVhZDpwcm9tcHRzIHVwZGF0ZTpwcm9tcHRzIHJlYWQ6YnJhbmRpbmcgdXBkYXRlOmJyYW5kaW5nIGRlbGV0ZTpicmFuZGluZyByZWFkOmxvZ19zdHJlYW1zIGNyZWF0ZTpsb2dfc3RyZWFtcyBkZWxldGU6bG9nX3N0cmVhbXMgdXBkYXRlOmxvZ19zdHJlYW1zIGNyZWF0ZTpzaWduaW5nX2tleXMgcmVhZDpzaWduaW5nX2tleXMgdXBkYXRlOnNpZ25pbmdfa2V5cyByZWFkOmxpbWl0cyB1cGRhdGU6bGltaXRzIGNyZWF0ZTpyb2xlX21lbWJlcnMgcmVhZDpyb2xlX21lbWJlcnMgZGVsZXRlOnJvbGVfbWVtYmVycyByZWFkOmVudGl0bGVtZW50cyByZWFkOmF0dGFja19wcm90ZWN0aW9uIHVwZGF0ZTphdHRhY2tfcHJvdGVjdGlvbiByZWFkOm9yZ2FuaXphdGlvbnMgdXBkYXRlOm9yZ2FuaXphdGlvbnMgY3JlYXRlOm9yZ2FuaXphdGlvbnMgZGVsZXRlOm9yZ2FuaXphdGlvbnMgY3JlYXRlOm9yZ2FuaXphdGlvbl9tZW1iZXJzIHJlYWQ6b3JnYW5pemF0aW9uX21lbWJlcnMgZGVsZXRlOm9yZ2FuaXphdGlvbl9tZW1iZXJzIGNyZWF0ZTpvcmdhbml6YXRpb25fY29ubmVjdGlvbnMgcmVhZDpvcmdhbml6YXRpb25fY29ubmVjdGlvbnMgdXBkYXRlOm9yZ2FuaXphdGlvbl9jb25uZWN0aW9ucyBkZWxldGU6b3JnYW5pemF0aW9uX2Nvbm5lY3Rpb25zIGNyZWF0ZTpvcmdhbml6YXRpb25fbWVtYmVyX3JvbGVzIHJlYWQ6b3JnYW5pemF0aW9uX21lbWJlcl9yb2xlcyBkZWxldGU6b3JnYW5pemF0aW9uX21lbWJlcl9yb2xlcyBjcmVhdGU6b3JnYW5pemF0aW9uX2ludml0YXRpb25zIHJlYWQ6b3JnYW5pemF0aW9uX2ludml0YXRpb25zIGRlbGV0ZTpvcmdhbml6YXRpb25faW52aXRhdGlvbnMiLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMifQ.lSEMXLAuoJAZ9tLwtYudizukW0MJwwP03G9fPDUsA8UIi38nCNIDakklnWNxf6J8uO-13O4UTt5XQ1uwdwitdNgPpzoAuGIClvQ_eUHMdMiWIoQdc--UZ11TdNVzeFWzuOja8k4dKjsFZ_ZdwNnZXEswajz1sR1Z2WwPqFB9ztz6vfi5CZqT49iFPlp_leKMhDWYXNCjgWfV0FlFOWIOgnJ5HmYDGKfWp5Hb1CbPB9tzZRZ1dUBQgfawxGxz_Ihx45ewJ4JeEz_NisCDia_gQ1BRR8CUW73eVuKqGxnv1THbJXDZE5PnCET46krmpBzzXdXTWomZaMz6DVhYIFtNJg"
          e1 (tu/first-result
              {:I442/Upsert_E
@@ -455,10 +455,10 @@
    (defcomponent :I450
      (entity
       :I450/E
-      {:X :Kernel/Int})
+      {:X :Int})
      (event
       :I450/Evt
-      {:Y :Kernel/Int})
+      {:Y :Int})
      (dataflow
       :I450/Evt
       {:I450/E {:X :I450/Evt.Y}})
@@ -478,9 +478,9 @@
      (entity
       :I479/Bid
       {:meta {:unique [:JobId :UserId]}
-       :JobId :Kernel/Int
-       :UserId :Kernel/Int
-       :StatusDate {:type :Kernel/DateTime
+       :JobId :Int
+       :UserId :Int
+       :StatusDate {:type :DateTime
                     :default dt/now}
        :Status {:oneof ["default" "decline" "bid"]
                 :default "default"}})
@@ -542,14 +542,14 @@
    (defcomponent :I485
      (entity
       :I485/Account
-      {:Title :Kernel/String
+      {:Title :String
        :meta {:str :Title}})
      (entity
       :I485/User
-      {:FirstName :Kernel/String
-       :LastName :Kernel/String
-       :Email :Kernel/Email
-       :Age :Kernel/Int
+      {:FirstName :String
+       :LastName :String
+       :Email :Email
+       :Age :Int
        :meta {:str [:FirstName " " :LastName " <" :Email ">"]}}))
    (let [a1 (cn/make-instance
              {:I485/Account
@@ -566,7 +566,7 @@
 (deftest issue-565-list-bug
   (defcomponent :I565
     (record {:I565/R1
-             {:X :Kernel/Int}})
+             {:X :Int}})
     (record {:I565/R2
              {:R1 {:listof :I565/R1}}})
     (entity {:I565/E
@@ -587,7 +587,7 @@
 (deftest issue-568-arg-compilation
   (defcomponent :I568
     (record {:I568/R
-             {:K :Kernel/Any}})
+             {:K :Any}})
     (dataflow
      :I568/D
      {:I568/R {:K '(identity :I568/D)}}))
@@ -601,7 +601,7 @@
   (defcomponent :I584
     (entity
      {:I584/E1
-      {:X :Kernel/Int}})
+      {:X :Int}})
     (entity
      {:I584/E2
       {:E1s {:listof :I584/E1}}})

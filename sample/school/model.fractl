@@ -1,4 +1,0 @@
-{:name :School
- :components [:School/Enrollment]
- :config {:service {:port 8080}
-          :store {:dbname "./app/db"}}}

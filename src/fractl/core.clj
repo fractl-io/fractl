@@ -113,7 +113,7 @@
 (defn- trigger-appinit-event! [evaluator data]
   (let [result (evaluator
                 (cn/make-instance
-                 {:Kernel/AppInit
+                 {:Kernel.Lang/AppInit
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
@@ -135,7 +135,7 @@
 (defn- run-initconfig [app-config evaluator]
   (let [result (evaluator
                 (cn/make-instance
-                 {:Kernel/InitConfig {}}))
+                 {:Kernel.Lang/InitConfig {}}))
         configs (first (mapv :Data (:result (first result))))
         resolver-configs (merge-resolver-configs
                           app-config

@@ -87,8 +87,8 @@
      {:User {:ref :Kernel.Identity/User.Email}})
     (entity
      :PrivTest/E
-     {:X :Kernel/Int
-      :Y {:type :Kernel/Int :optional true}})
+     {:X :Int
+      :Y {:type :Int :optional true}})
     (dataflow
      :PrivTest/CreateSuperUser
      {:PrivTest/User
@@ -254,7 +254,7 @@
      {:User {:ref :Kernel.Identity/User.Email}})
     (entity
      :RbacOwner/E
-     {:X :Kernel/Int})
+     {:X :Int})
     (dataflow
      :RbacOwner/CreateSuperUser
      {:RbacOwner/User
@@ -364,7 +364,7 @@
   (defcomponent :RbacH
     (entity
      :RbacH/E
-     {:X :Kernel/Int})
+     {:X :Int})
     (dataflow
      :RbacH/CreateUsers
      {:Kernel.Identity/User
@@ -441,8 +441,8 @@
   (defcomponent :Ilr
     (entity
      :Ilr/E
-     {:Id {:type :Kernel/String :identity true}
-      :X :Kernel/Int})
+     {:Id {:type :String :identity true}
+      :X :Int})
     (dataflow
      :Ilr/CreateUsers
      {:Kernel.Identity/User
@@ -482,9 +482,9 @@
       {:Role "ilr_r1" :Assignee "ilr_u3@ilr.com"}})
     (event
      :Ilr/CreateE
-     {:X :Kernel/Int
-      :Id :Kernel/String
-      :Assignee :Kernel/String})
+     {:X :Int
+      :Id :String
+      :Assignee :String})
     (dataflow
      :Ilr/CreateE
      {:Ilr/E {:Id :Ilr/CreateE.Id :X :Ilr/CreateE.X} :as :E}
@@ -588,10 +588,10 @@
   (defcomponent :I711A
     (entity
      :I711A/E1
-     {:X {:type :Kernel/Int :identity true}})
+     {:X {:type :Int :identity true}})
     (entity
      :I711A/E2
-     {:Y {:type :Kernel/Int :identity true}})
+     {:Y {:type :Int :identity true}})
     (relationship
      :I711A/R1
      {:meta {:contains [:I711A/E1 :I711A/E2]
@@ -619,7 +619,7 @@
       {:Role "i711a_r1" :Assignee "u1@i711a.com"}})
     (event
      :I711A/CreateE2
-     {:X :Kernel/Int :Y :Kernel/Int})
+     {:X :Int :Y :Int})
     (dataflow
      :I711A/CreateE2
      {:I711A/E1 {:X? :I711A/CreateE2.X} :as :E1}
@@ -656,11 +656,11 @@
   (defcomponent :I711B
     (entity
      :I711B/E1
-     {:X {:type :Kernel/Int :identity true}})
+     {:X {:type :Int :identity true}})
     (entity
      :I711B/E2
-     {:Y {:type :Kernel/Int :identity true}
-      :K :Kernel/Int})
+     {:Y {:type :Int :identity true}
+      :K :Int})
     (relationship
      :I711B/R1
      {:meta {:contains [:I711B/E1 :I711B/E2]
@@ -709,8 +709,8 @@
       {:Role "i711b_r2" :Assignee "u2@i711b.com"}})
     (event
      :I711B/AssignInstancePriv
-     {:X :Kernel/Int
-      :User :Kernel/String})
+     {:X :Int
+      :User :String})
     (dataflow
      :I711B/AssignInstancePriv
      {:Kernel.RBAC/InstancePrivilegeAssignment
@@ -720,7 +720,7 @@
        :Assignee :I711B/AssignInstancePriv.User}})
     (event
      :I711B/CreateE2
-     {:X :Kernel/Int :Y :Kernel/Int :K :Kernel/Int})
+     {:X :Int :Y :Int :K :Int})
     (dataflow
      :I711B/CreateE2
      {:I711B/E1 {:X? :I711B/CreateE2.X} :as :E1}
@@ -730,7 +730,7 @@
       :-> [{:I711B/R1 {}} :E1]})
     (event
      :I711B/UpdateE2
-     {:X :Kernel/Int :Y :Kernel/Int :K :Kernel/Int})
+     {:X :Int :Y :Int :K :Int})
     (dataflow
      :I711B/UpdateE2
      {:I711B/E2
@@ -788,8 +788,8 @@
   (defcomponent :I762
     (entity
      :I762/E1
-     {:X {:type :Kernel/Int :identity true}
-      :Y :Kernel/Int})
+     {:X {:type :Int :identity true}
+      :Y :Int})
     (dataflow
      :I762/UpdateE1
      {:I762/E1

@@ -113,26 +113,26 @@
                         (local-time/to-nano-of-day (local-time/of 23 59))))
 
 (comment
-  {:Kernel/UUID (list `s/with-gen string?
+  {:Kernel.Lang/UUID (list `s/with-gen string?
                       #(gen/fmap str (s/gen uuid?)))})
 
 (def fractl-type->spec-clj-type
-  {:Kernel/String string?
-   :Kernel/Keyword keyword?
-   :Kernel/Int int?
-   :Kernel/Int64 int?
-   :Kernel/BigInteger integer?
-   :Kernel/Float float?
-   :Kernel/Double double?
-   :Kernel/Decimal #?(:clj decimal?
+  {:Kernel.Lang/String string?
+   :Kernel.Lang/Keyword keyword?
+   :Kernel.Lang/Int int?
+   :Kernel.Lang/Int64 int?
+   :Kernel.Lang/BigInteger integer?
+   :Kernel.Lang/Float float?
+   :Kernel.Lang/Double double?
+   :Kernel.Lang/Decimal #?(:clj decimal?
                       :cljs float?)
-   :Kernel/Boolean boolean?
-   :Kernel/Any any?
-   :Kernel/Map map?
-   :Kernel/UUID uuid?
-   :Kernel/Path (list `s/or :string (list `s/and string? (complement clojure.string/blank?))
+   :Kernel.Lang/Boolean boolean?
+   :Kernel.Lang/Any any?
+   :Kernel.Lang/Map map?
+   :Kernel.Lang/UUID uuid?
+   :Kernel.Lang/Path (list `s/or :string (list `s/and string? (complement clojure.string/blank?))
                       :keyword keyword?)
-   :Kernel/Edn (list `s/or :vector vector?
+   :Kernel.Lang/Edn (list `s/or :vector vector?
                      :map map?
                      :symbol symbol?
                      :keyword keyword?
@@ -142,15 +142,15 @@
                      :nil nil?
                      :list list?
                      :set set?)
-   :Kernel/Date (list `s/with-gen (partial instance? java.time.LocalDate)
+   :Kernel.Lang/Date (list `s/with-gen (partial instance? java.time.LocalDate)
                       #(gen/fmap (fn [ms]
                                    (local-date/of-epoch-day ms))
                                  (s/gen ::past-and-future-date)))
-   :Kernel/Time (list `s/with-gen (partial instance? java.time.LocalTime)
+   :Kernel.Lang/Time (list `s/with-gen (partial instance? java.time.LocalTime)
                       #(gen/fmap (fn [ms]
                                    (local-time/of-nano-of-day ms))
                                  (s/gen ::time)))
-   :Kernel/DateTime (list `s/with-gen (partial instance? java.time.LocalDateTime)
+   :Kernel.Lang/DateTime (list `s/with-gen (partial instance? java.time.LocalDateTime)
                           #(gen/fmap (fn [ms]
                                        (local-date-time/of-epoch-second ms 0 utc))
                                      (s/gen ::past-and-future-date-time)))})
@@ -175,9 +175,9 @@
 (comment
   ;;[com.gfredericks/test.chuck "0.2.13"] can be used for predefined regex patterns
   (defcomponent :RefCheck
-                #_(entity {:RefCheck/E3 {:AIdId {:type :Kernel/String
+                #_(entity {:RefCheck/E3 {:AIdId {:type :Kernel.Lang/String
                                                :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}}}))
-  (defmethod define-spec :Kernel/String [{:keys [spec-entity-name property-details]}]
+  (defmethod define-spec :Kernel.Lang/String [{:keys [spec-entity-name property-details]}]
     (let [spec-fn (if (:format property-details)
                     (list `s/def spec-entity-name (list `s/and string? #(re-matches (re-pattern (:format property-details)) %)))
                     (list `s/def spec-entity-name string?))]
@@ -215,8 +215,8 @@
   (cond
     (-> attr-schema :oneof seq) {:type :oneof
                                  :vals (-> attr-schema :oneof set)}
-    (= (-> attr-schema :type) :Kernel/String) {:type :Kernel/String
-                                               :format (-> attr-schema :format-str)}
+    (= (-> attr-schema :type) :Kernel.Lang/String) {:type :Kernel.Lang/String
+                                                    :format (-> attr-schema :format-str)}
     (-> attr-schema :listof some?) {:type :listof
                                     :listof-type (:listof attr-schema)}
     :else attr-schema))
