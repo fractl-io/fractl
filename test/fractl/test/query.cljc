@@ -13,7 +13,7 @@
 
 (deftest q01
   (defcomponent :Q01
-    (entity {:Q01/E {:X :Kernel/Int}}))
+    (entity {:Q01/E {:X :Int}}))
   (let [e (cn/make-instance :Q01/E {:X 10})
         e1 (first (tu/fresult (e/eval-all-dataflows {:Q01/Upsert_E {:Instance e}})))
         id (cn/id-attr e1)
@@ -23,16 +23,16 @@
 
 (deftest q02
   (defcomponent :Q02
-    (entity {:Q02/E {:X {:type :Kernel/Int
+    (entity {:Q02/E {:X {:type :Int
                          :indexed true}
-                     :Y {:type :Kernel/Int
+                     :Y {:type :Int
                          :indexed true}}})
-    (event {:Q02/QE01 {:Y :Kernel/Int}})
+    (event {:Q02/QE01 {:Y :Int}})
     (dataflow :Q02/QE01
               {:Q02/E {:X? [:>= 10]
                        :Y :Q02/QE01.Y}})
-    (event {:Q02/QE02 {:X :Kernel/Int
-                       :Y :Kernel/Int}})
+    (event {:Q02/QE02 {:X :Int
+                       :Y :Int}})
     (dataflow :Q02/QE02
               {:Q02/E {:X? [:>= :Q02/QE02.X]
                        :Y? :Q02/QE02.Y}}))
@@ -57,7 +57,7 @@
 
 (deftest query-all
   (defcomponent :QueryAll
-    (entity {:QueryAll/E {:X :Kernel/Int :N :Kernel/String}})
+    (entity {:QueryAll/E {:X :Int :N :String}})
     (event {:QueryAll/AllE {}})
     (dataflow :QueryAll/AllE
               :QueryAll/E?))
@@ -72,10 +72,10 @@
 
 (deftest alias-on-query-result
   (defcomponent :QueryAlias
-    (entity {:QueryAlias/E {:X {:type :Kernel/Int
+    (entity {:QueryAlias/E {:X {:type :Int
                                 :indexed true}
-                            :N :Kernel/String}})
-    (event {:QueryAlias/Evt {:X :Kernel/Int}})
+                            :N :String}})
+    (event {:QueryAlias/Evt {:X :Int}})
     (dataflow :QueryAlias/Evt
               {:QueryAlias/E {:X? :QueryAlias/Evt.X} :as :R}
               :R))
@@ -96,11 +96,11 @@
 (deftest query-alias-in-expr
   (defcomponent :QueryAliasInExpr
     (entity {:QueryAliasInExpr/OrderLine
-             {:Title :Kernel/String
-              :Qty :Kernel/Int}})
+             {:Title :String
+              :Qty :Int}})
     (entity {:QueryAliasInExpr/ProductBatch
-             {:Title :Kernel/String
-              :AvailableQty {:type :Kernel/Int :check pos?}}})
+             {:Title :String
+              :AvailableQty {:type :Int :check pos?}}})
     (dataflow :QueryAliasInExpr/AllocateOrderLine
               {:QueryAliasInExpr/OrderLine
                {tu/q-id-attr :QueryAliasInExpr/AllocateOrderLine.LineId}
@@ -149,10 +149,10 @@
 
 (deftest idempotent-upsert
   (defcomponent :IdempUps
-    (entity {:IdempUps/E {:X {:type :Kernel/Int
+    (entity {:IdempUps/E {:X {:type :Int
                               :unique true
                               :indexed true}
-                          :Y :Kernel/Int}})
+                          :Y :Int}})
     (let [e1 (cn/make-instance :IdempUps/E {:X 10 :Y 20})
           r1 (first (tu/fresult (e/eval-all-dataflows {:IdempUps/Upsert_E {:Instance e1}})))
           id (cn/id-attr r1)
@@ -169,10 +169,10 @@
 
 (deftest query-by-id-and-delete
   (defcomponent :QIdDel
-    (entity {:QIdDel/E {:X {:type :Kernel/Int
+    (entity {:QIdDel/E {:X {:type :Int
                             :indexed true}}})
     (event {:QIdDel/FindByIdAndDel
-            {:EId :Kernel/UUID}})
+            {:EId :UUID}})
     (dataflow :QIdDel/FindByIdAndDel
               [:delete :QIdDel/E {cn/id-attr :QIdDel/FindByIdAndDel.EId}]))
   (let [e (cn/make-instance :QIdDel/E {:X 100})
@@ -186,10 +186,10 @@
 
 (deftest query-and-delete
   (defcomponent :QDel
-    (entity {:QDel/E {:X {:type :Kernel/Int
+    (entity {:QDel/E {:X {:type :Int
                           :indexed true}}})
     (event {:QDel/FindAndDel
-            {:X :Kernel/Int}})
+            {:X :Int}})
     (dataflow :QDel/FindAndDel
               {:QDel/E {:X? :QDel/FindAndDel.X}}
               [:delete :QDel/E {cn/id-attr (tu/append-id :QDel/E)}])
@@ -212,7 +212,7 @@
 
 (deftest delete-by-attribute
   (defcomponent :QDel
-    (entity {:QDel/E {:X {:type :Kernel/Int
+    (entity {:QDel/E {:X {:type :Int
                           :indexed true}}})
     (dataflow :QDel/DeleteByAttr
       [:delete :QDel/E {:X 50}])
@@ -247,9 +247,9 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :I255
-     (entity {:I255/E {:X {:type :Kernel/Int
+     (entity {:I255/E {:X {:type :Int
                            :indexed true}
-                       :Y :Kernel/Int}})
+                       :Y :Int}})
      (dataflow :I255/Q1
                {:I255/E {:X? :I255/Q1.X
                          :Y? [:< 5]}})
@@ -279,9 +279,9 @@
 
 (deftest test-unique-date-time
   (defcomponent :Dt01
-    (entity {:Dt01/E {:Name :Kernel/String
+    (entity {:Dt01/E {:Name :String
                       :LastAccountAccess
-                      {:type :Kernel/DateTime
+                      {:type :DateTime
                        ;; Disable this for postgres
                                         ;:unique true
                        }}}))
@@ -296,9 +296,9 @@
 
 (deftest query-in-for-each
   (defcomponent :Qfe
-    (entity {:Qfe/E {:X {:type :Kernel/Int
+    (entity {:Qfe/E {:X {:type :Int
                          :indexed true}}})
-    (record {:Qfe/R {:Y :Kernel/Int}})
+    (record {:Qfe/R {:Y :Int}})
     (dataflow
      :Qfe/Evt1
      [:for-each :Qfe/E? {:Qfe/R {:Y '(+ 10 :Qfe/E.X)}}])
@@ -355,7 +355,7 @@
   (defcomponent :LikeOpr
     (entity
      {:LikeOpr/E
-      {:X {:type :Kernel/String
+      {:X {:type :String
            :indexed true}}})
     (dataflow
      :LikeOpr/Q
@@ -377,13 +377,13 @@
   (defcomponent :QueryCommand
     (entity
      :QueryCommand/E
-     {:X {:type :Kernel/Int
+     {:X {:type :Int
           :indexed true}
-      :Y :Kernel/Int})
+      :Y :Int})
     (record
      :QueryCommand/F
-     {:A :Kernel/Int
-      :B :Kernel/Int})
+     {:A :Int
+      :B :Int})
     (dataflow
      :QueryCommand/FindE
      [:query :QueryCommand/FindE.Q])
@@ -429,8 +429,8 @@
 
 (deftest ref-first-result
   (defcomponent :Rfr
-    (record {:Rfr/R {:A :Kernel/Int :B :Kernel/Int}})
-    (entity {:Rfr/E {:N {:type :Kernel/String :indexed true} :X :Kernel/Int}})
+    (record {:Rfr/R {:A :Int :B :Int}})
+    (entity {:Rfr/E {:N {:type :String :indexed true} :X :Int}})
     (dataflow
      :Rfr/J
      {:Rfr/E {:N? :Rfr/J.N1} :as :E1}
@@ -454,7 +454,7 @@
   (defcomponent :SelAll
     (entity
      {:SelAll/E
-      {:X {:type :Kernel/Int
+      {:X {:type :Int
            :indexed true}}})
     (dataflow
      :SelAll/FindE
@@ -478,8 +478,8 @@
 
 (deftest aggregates
   (defcomponent :Agrgts
-    (entity :Agrgts/E {:X :Kernel/Int})
-    (record :Agrgts/Result {:R :Kernel/Int})
+    (entity :Agrgts/E {:X :Int})
+    (record :Agrgts/Result {:R :Int})
     (dataflow
      :Agrgts/Evt1
      {:Agrgts/E?
@@ -505,8 +505,8 @@
   (defcomponent :I766
     (entity
      :I766/E
-     {:X {:type :Kernel/Int :indexed true}
-      :Y {:type :Kernel/Int :indexed true}})
+     {:X {:type :Int :indexed true}
+      :Y {:type :Int :indexed true}})
     (defn i766-f [y] (* y 10))
     (dataflow
      :I766/Q

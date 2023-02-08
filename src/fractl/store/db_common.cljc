@@ -36,7 +36,7 @@
 (def do-query-statement (:do-query-statement store-fns))
 (def validate-ref-statement (:validate-ref-statement store-fns))
 
-(def id-type (sql/attribute-to-sql-type :Kernel/UUID))
+(def id-type (sql/attribute-to-sql-type :Kernel.Lang/UUID))
 
 (defn- append-fkeys [table-name [attr-name [refspec cascade-on-delete]]]
   (let [n (name attr-name)

@@ -16,14 +16,14 @@
    (defcomponent :BasicTimer
      (entity
       :BasicTimer/E
-      {:X {:type :Kernel/Int
+      {:X {:type :Int
            :indexed true}})
      (event
       :BasicTimer/OnTimer
-      {:X :Kernel/Int})
+      {:X :Int})
      (dataflow
       :BasicTimer/StartTimer
-      {:Kernel/Timer
+      {:Kernel.Lang/Timer
        {:Expiry 1
         :ExpiryEvent
         {:BasicTimer/OnTimer
@@ -44,5 +44,5 @@
    (let [r (tu/first-result
             {:BasicTimer/StartTimer
              {:X 100}})]
-     (is (cn/instance-of? :Kernel/Timer r))
+     (is (cn/instance-of? :Kernel.Lang/Timer r))
      (tu/sleep 3000 #(query-e 100)))))

@@ -36,13 +36,13 @@
 
 (defn- parse-attribute-value [v attr-type]
   (case attr-type
-    (:Kernel/Int
-     :Kernel/Int64 
-     :Kernel/BigInteger
-     :Kernel/Float
-     :Kernel/Double
-     :Kernel/Decimal
-     :Kernel/Boolean)
+    (:Kernel.Lang/Int
+     :Kernel.Lang/Int64
+     :Kernel.Lang/BigInteger
+     :Kernel.Lang/Float
+     :Kernel.Lang/Double
+     :Kernel.Lang/Decimal
+     :Kernel.Lang/Boolean)
     (read-string v)
     v))
 
@@ -159,7 +159,7 @@
 
 (defn- data-sync-eval [inst]
   (case (cn/instance-type inst)
-    [:Kernel :DataSync] (data-sync inst)
+    [:Kernel.Lang :DataSync] (data-sync inst)
     (u/throw-ex
      (str "data-sync resolver cannot handle "
           (cn/instance-type inst)))))

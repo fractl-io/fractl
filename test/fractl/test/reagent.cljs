@@ -31,9 +31,9 @@
 ; Enable this when not running alasql
 #_(deftest store-test-reagent
     (defcomponent :ST
-      (entity {:ST/E {:X :Kernel/Int}})
+      (entity {:ST/E {:X :Int}})
 
-      (event {:ST/NewE {:X :Kernel/Int}})
+      (event {:ST/NewE {:X :Int}})
 
       (dataflow :ST/NewE
                 {:ST/E {:X :ST/NewE.X}}
@@ -64,9 +64,9 @@
 ; Test for alasql reagent
 #_(deftest store-test-alasql
   (defcomponent :STA
-    (entity {:STA/E {:X :Kernel/Int}})
+    (entity {:STA/E {:X :Int}})
 
-    (event {:STA/NewE {:X :Kernel/Int}})
+    (event {:STA/NewE {:X :Int}})
 
     (dataflow :STA/NewE
               {:STA/E {:X :STA/NewE.X}}

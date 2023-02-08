@@ -16,17 +16,17 @@
          {:Name {:check app-name?}
           :Publisher {:ref (cn/append-id :Sample.Library.Identity/User)
                       :indexed true}
-          :PublishDate {:type :Kernel/DateTime
+          :PublishDate {:type :DateTime
                         :immutable true
                         :default now}
-          :LastUpdated {:type :Kernel/DateTime
+          :LastUpdated {:type :DateTime
                         :default now}
-          :IsCheckedout {:type :Kernel/Boolean
+          :IsCheckedout {:type :Boolean
                          :default false}
-          :LastCheckout {:type :Kernel/UUID
+          :LastCheckout {:type :UUID
                          :optional true}}})
 
-(event {:ListBooks {:Publisher :Kernel/UUID}})
+(event {:ListBooks {:Publisher :UUID}})
 
 (dataflow :ListBooks {:Book {:Publisher? :ListBooks.Publisher}})
 

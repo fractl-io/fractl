@@ -24,64 +24,64 @@
   type-lookup
   "Maps postgres to fractl types.
   Types currently unsupported in fractl are explicitly mapped to false."
-  {"bigint" :Kernel/Int64
-   "int8" :Kernel/Int64
-   "bigserial" :Kernel/Int64
-   "serial8" :Kernel/Int64
+  {"bigint" :Kernel.Lang/Int64
+   "int8" :Kernel.Lang/Int64
+   "bigserial" :Kernel.Lang/Int64
+   "serial8" :Kernel.Lang/Int64
    "bit" false
    "bit varying" false
    "varbit" false
-   "boolean" :Kernel/Boolean
-   "bool" :Kernel/Boolean
+   "boolean" :Kernel.Lang/Boolean
+   "bool" :Kernel.Lang/Boolean
    "box" false
    "bytea" false
    "binary data" false
-   "character" :Kernel/String
-   "char" :Kernel/String
-   "character varying" :Kernel/String
-   "varchar" :Kernel/String
+   "character" :Kernel.Lang/String
+   "char" :Kernel.Lang/String
+   "character varying" :Kernel.Lang/String
+   "varchar" :Kernel.Lang/String
    "cidr" false
    "circle" false
-   "date" :Kernel/String
-   "double precision" :Kernel/Double
-   "float8" :Kernel/Double
+   "date" :Kernel.Lang/String
+   "double precision" :Kernel.Lang/Double
+   "float8" :Kernel.Lang/Double
    "inet" false
-   "integer" :Kernel/Int
-   "int" :Kernel/Int
-   "int4" :Kernel/Int
+   "integer" :Kernel.Lang/Int
+   "int" :Kernel.Lang/Int
+   "int4" :Kernel.Lang/Int
    "interval" false
-   "json" :Kernel/String
+   "json" :Kernel.Lang/String
    "jsonb" false
    "line" false
    "lseg" false
    "macaddr" false
-   "money" :Kernel/Decimal
-   "numeric" :Kernel/Decimal
-   "decimal" :Kernel/Decimal
+   "money" :Kernel.Lang/Decimal
+   "numeric" :Kernel.Lang/Decimal
+   "decimal" :Kernel.Lang/Decimal
    "path" false
    "pg_lsn" false
    "point" false
    "polygon" false
-   "real" :Kernel/Float
-   "float4" :Kernel/Float
-   "smallint" :Kernel/Int
-   "int2" :Kernel/Int
-   "smallserial" :Kernel/Int
-   "serial2" :Kernel/Int
-   "serial" :Kernel/Int
-   "serial4" :Kernel/Int
-   "text" :Kernel/String
-   "time" :Kernel/String
-   "time with time zone" :Kernel/String
-   "timetz" :Kernel/String
-   "timestamp" :Kernel/String
-   "timestamp with time zone" :Kernel/String
-   "timestamptz" :Kernel/String
-   "tsquery" :Kernel/String
+   "real" :Kernel.Lang/Float
+   "float4" :Kernel.Lang/Float
+   "smallint" :Kernel.Lang/Int
+   "int2" :Kernel.Lang/Int
+   "smallserial" :Kernel.Lang/Int
+   "serial2" :Kernel.Lang/Int
+   "serial" :Kernel.Lang/Int
+   "serial4" :Kernel.Lang/Int
+   "text" :Kernel.Lang/String
+   "time" :Kernel.Lang/String
+   "time with time zone" :Kernel.Lang/String
+   "timetz" :Kernel.Lang/String
+   "timestamp" :Kernel.Lang/String
+   "timestamp with time zone" :Kernel.Lang/String
+   "timestamptz" :Kernel.Lang/String
+   "tsquery" :Kernel.Lang/String
    "tsvector" false
    "txid_snapshot" false
-   "uuid" :Kernel/UUID
-   "xml" :Kernel/String})
+   "uuid" :Kernel.Lang/UUID
+   "xml" :Kernel.Lang/String})
 
 (def ^:private fetch-schema-sql
   "select * from pg_catalog.pg_tables where schemaname<>'pg_catalog' and schemaname<>'information_schema'")
