@@ -6,6 +6,7 @@
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.meta :as mt]
+            [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
             [fractl.component :as cn]
@@ -220,7 +221,9 @@
    (let [canon (cn/canonical-type-name n)
          [_ n] (li/split-path canon)]
      (when (k/plain-kernel-type? n)
-       (u/throw-ex (str "cannot redefine kernel type - " n)))
+       (log/warn (str "redefinition of kernel type "
+                      n " will always require the fully-qualified name - "
+                      canon)))
      (validate-name canon)))
   ([n] (validated-canonical-type-name li/validate-name n)))
 
