@@ -566,7 +566,7 @@
     (assoc root-pat li/rel-tag [(first relpat) (assoc-leaf-relpat (second relpat) leaf-pat)])
     leaf-pat))
 
-(defn- normalize-relationship-path [[attr-name path-query] pat]
+(defn- normalize-relationship-path [path-query pat]
   (let [path (li/path-query-string path-query)
         nm (li/instance-pattern-name pat)
         old-attrs (nm pat)]
@@ -576,8 +576,6 @@
       (u/throw-ex "invalid or empty path-query"))
     (when (li/rel-tag pat)
       (u/throw-ex "pattern already contains relationship spec, cannot process path-query"))
-    (when-not (= (cn/identity-attribute-name nm) (li/normalize-name attr-name))
-      (u/throw-ex (str "path-query cannot be attached to non-identity attribute - " attr-name)))
     (let [[c _] (li/split-path nm)
           parts (li/parse-query-path c path)
           relpats (mapv path->relpat parts)]
@@ -586,16 +584,21 @@
           (recur (assoc-leaf-relpat root lf) (rest leaves))
           (let [attrs (li/instance-pattern-attrs root)]
             (assoc root (li/instance-pattern-name root)
-                   (merge attrs (dissoc old-attrs attr-name)))))))))
+                   (merge attrs (dissoc old-attrs :?)))))))))
 
 (defn- maybe-normalize-relationship-path [pat]
-  (let [path-queries (filter #(and (li/query-pattern? (first %))
-                                   (li/path-query? (second %)))
-                             (li/instance-pattern-attrs pat))]
+  (let [path-queries
+        (filter
+         (fn [[k v :as arg]]
+           (when (li/path-query? v)
+             (if (li/path-query-pattern? k)
+               arg
+               (u/throw-ex (str "path-query can be attached only to :?, found " k)))))
+         (li/instance-pattern-attrs pat))]
     (cond
       (not (seq path-queries)) pat
       (> (count path-queries) 1) (u/throw-ex "pattern can have only one path-query")
-      :else (normalize-relationship-path (first path-queries) pat))))
+      :else (normalize-relationship-path (second (first path-queries)) pat))))
 
 (declare compile-query-command)
 

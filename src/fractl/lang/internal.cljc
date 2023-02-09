@@ -465,3 +465,5 @@
                              :parent-value (v parent-val)
                              :parent (t parent)}))
         result))))
+
+(defn path-query-pattern? [x] (= x :?))
