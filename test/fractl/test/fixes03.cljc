@@ -6,6 +6,7 @@
             [fractl.resolver.registry :as rg]
             [fractl.util.hash :as sh]
             [fractl.lang.syntax :as ls]
+            [fractl.lang.datetime :as dt]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship dataflow]]
@@ -517,3 +518,23 @@
         ir (ls/introspect pat)]
     (is (= (ls/alias-tag ir) :U))
     (is (= pat (ls/raw ir)))))
+
+(deftest redefine-core-types
+  (defcomponent :RedefTypes
+    (attribute
+     :RedefTypes/DateTime
+     {:type :String})
+    (entity
+     :RedefTypes/E
+     {:A :RedefTypes/DateTime
+      :B :DateTime}))
+  (is (tu/is-error
+       #(cn/make-instance
+         {:RedefTypes/E
+          {:A "abc"
+           :B "xyz"}})))
+  (let [e1 (cn/make-instance
+            {:RedefTypes/E
+             {:A "abc"
+              :B (dt/now)}})]
+    (is (cn/instance-of? :RedefTypes/E e1))))
