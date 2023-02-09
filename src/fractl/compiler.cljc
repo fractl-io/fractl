@@ -544,9 +544,32 @@
       (li/query-target-name pat)
       pat)))
 
+(defn- fetch-node-attr [relname attrs-info entity-name]
+  (if-let [a (entity-name attrs-info)]
+    a
+    (u/throw-ex (str "failed to fetch attribute of " entity-name " in relationship " relname))))
+
+(defn- path->relpat [{relname :relationship child :child child-val :child-value
+                      parent :parent parent-val :parent-value}]
+  (if-let [attrs-info (cn/attributes-in-contains relname)]
+    (let [f (partial fetch-node-attr relname attrs-info)
+          ca (f child) pa (f parent)]
+      {child
+       {(li/name-as-query-pattern ca) child-val}
+       li/rel-tag [(li/name-as-query-pattern relname)
+                   {parent
+                    {(li/name-as-query-pattern pa) parent-val}}]})
+    (u/throw-ex (str "failed to fetch details of contains relationship - " relname))))
+
+(defn- assoc-leaf-relpat [root-pat leaf-pat]
+  (if-let [relpat (li/rel-tag root-pat)]
+    (assoc root-pat li/rel-tag [(first relpat) (assoc-leaf-relpat (second relpat) leaf-pat)])
+    leaf-pat))
+
 (defn- normalize-relationship-path [[attr-name path-query] pat]
   (let [path (li/path-query-string path-query)
-        nm (li/instance-pattern-name pat)]
+        nm (li/instance-pattern-name pat)
+        old-attrs (nm pat)]
     (when-not nm
       (u/throw-ex (str "not a valid instance pattern - " pat)))
     (when-not (seq path)
@@ -555,19 +578,20 @@
       (u/throw-ex "pattern already contains relationship spec, cannot process path-query"))
     (when-not (= (cn/identity-attribute-name nm) (li/normalize-name attr-name))
       (u/throw-ex (str "path-query cannot be attached to non-identity attribute - " attr-name)))
-    (let [parts (li/parse-query-path path)]
-      ;; `parts` is a vector of {relname :relationship child :child
-      ;;                       child-val :child-value parent :parent
-      ;;                       parent-val :parent-value}
-      ;; in reverse order of the path.
-      ;; TODO: walk the vector and translate to embedded patterns of relationship queries.
-      ;; assoc the final pattern to pat's :->
-      pat)))
+    (let [[c _] (li/split-path nm)
+          parts (li/parse-query-path c path)
+          relpats (mapv path->relpat parts)]
+      (loop [root (first relpats), leaves (rest relpats)]
+        (if-let [lf (first leaves)]
+          (recur (assoc-leaf-relpat root lf) (rest leaves))
+          (let [attrs (li/instance-pattern-attrs root)]
+            (assoc root (li/instance-pattern-name root)
+                   (merge attrs (dissoc old-attrs attr-name)))))))))
 
 (defn- maybe-normalize-relationship-path [pat]
   (let [path-queries (filter #(and (li/query-pattern? (first %))
                                    (li/path-query? (second %)))
-                             pat)]
+                             (li/instance-pattern-attrs pat))]
     (cond
       (not (seq path-queries)) pat
       (> (count path-queries) 1) (u/throw-ex "pattern can have only one path-query")

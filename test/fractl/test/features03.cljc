@@ -6,6 +6,7 @@
              :refer [component attribute event
                      entity record relationship
                      dataflow]]
+            [fractl.lang.datetime :as dt]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -27,13 +28,20 @@
      {:Email {:type :Email
               :identity true}
       :Name :String})
+    (entity
+     :I800/Assignment
+     {:No {:type :Int :identity true}
+      :AssignedOn {:type :DateTime :default dt/now}})
     (relationship
      :I800/Section
-     {:meta {:contains [:I800/Company :I800/Department]
-             :on [:Name :No]}})
+     {:meta {:contains [:I800/Company :I800/Department
+                        :on [:Name :No]]}})
     (relationship
      :I800/WorksFor
      {:meta {:contains [:I800/Department :I800/Employee]}})
+    (relationship
+     :I800/AssignedTo
+     {:meta {:contains [:I800/Employee :I800/Assignment]}})
     (dataflow
      :I800/CreateDepartment
      {:I800/Department
@@ -49,9 +57,7 @@
        :Name :I800/CreateEmployee.Name}
       :-> [{:I800/WorksFor {}}
            {:I800/Department
-            {:No? :I800/CreateEmployee.Department}
-            :-> [:I800/Section? {:I800/Company
-                                 {:Name? :I800/CreateEmployee.Company}}]}]}))
+            {:Id? "path://Company/:CreateEmployee.Company/Section/Department/:CreateEmployee.Department"}}]}))
   (let [[c1 c2 :as cs] (mapv #(tu/first-result
                                {:I800/Upsert_Company
                                 {:Instance
