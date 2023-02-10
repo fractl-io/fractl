@@ -544,18 +544,78 @@
       (li/query-target-name pat)
       pat)))
 
+(defn- fetch-node-attr [relname attrs-info entity-name]
+  (if-let [a (entity-name attrs-info)]
+    a
+    (u/throw-ex (str "failed to fetch attribute of " entity-name " in relationship " relname))))
+
+(defn- path->relpat [{relname :relationship child :child child-val :child-value
+                      parent :parent parent-val :parent-value}]
+  (if-let [attrs-info (cn/attributes-in-contains relname)]
+    (let [f (partial fetch-node-attr relname attrs-info)
+          ca (f child) pa (f parent)]
+      {child
+       {(li/name-as-query-pattern ca) child-val}
+       li/rel-tag [(li/name-as-query-pattern relname)
+                   {parent
+                    {(li/name-as-query-pattern pa) parent-val}}]})
+    (u/throw-ex (str "failed to fetch details of contains relationship - " relname))))
+
+(defn- assoc-leaf-relpat [root-pat leaf-pat]
+  (if-let [relpat (li/rel-tag root-pat)]
+    (assoc root-pat li/rel-tag [(first relpat) (assoc-leaf-relpat (second relpat) leaf-pat)])
+    leaf-pat))
+
+(defn- normalize-relationship-path [path-query pat]
+  (let [path (li/path-query-string path-query)
+        nm (li/instance-pattern-name pat)
+        old-attrs (nm pat)]
+    (when-not nm
+      (u/throw-ex (str "not a valid instance pattern - " pat)))
+    (when-not (seq path)
+      (u/throw-ex "invalid or empty path-query"))
+    (when (li/rel-tag pat)
+      (u/throw-ex "pattern already contains relationship spec, cannot process path-query"))
+    (let [[c _] (li/split-path nm)
+          parts (li/parse-query-path c path)
+          relpats (mapv path->relpat parts)]
+      (loop [root (first relpats), leaves (rest relpats)]
+        (if-let [lf (first leaves)]
+          (recur (assoc-leaf-relpat root lf) (rest leaves))
+          (let [attrs (li/instance-pattern-attrs root)]
+            (assoc root (li/instance-pattern-name root)
+                   (merge attrs (dissoc old-attrs :?)))))))))
+
+(defn- maybe-normalize-relationship-path [pat]
+  (let [path-queries
+        (filter
+         (fn [[k v :as arg]]
+           (when (li/path-query? v)
+             (if (li/path-query-pattern? k)
+               arg
+               (u/throw-ex (str "path-query can be attached only to :?, found " k)))))
+         (li/instance-pattern-attrs pat))]
+    (cond
+      (not (seq path-queries)) pat
+      (> (count path-queries) 1) (u/throw-ex "pattern can have only one path-query")
+      :else (normalize-relationship-path (second (first path-queries)) pat))))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
   (cond
     (complex-query-pattern? pat)
-    (compile-query-command ctx (query-map->command pat))
+    (let [[k v] [(first (keys pat)) (first (vals pat))]]
+      (if (li/path-query? v)
+        (compile-map ctx {(li/normalize-name k) {:? v}})
+        (compile-query-command ctx (query-map->command pat))))
 
     (from-pattern? pat)
     (compile-from-pattern ctx pat)
 
     (li/instance-pattern? pat)
-    (let [orig-nm (ctx/dynamic-type
+    (let [pat (maybe-normalize-relationship-path pat)
+          orig-nm (ctx/dynamic-type
                    ctx
                    (li/instance-pattern-name pat))
           full-nm (li/normalize-name orig-nm)

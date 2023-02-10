@@ -429,3 +429,41 @@
 
 (defn keyword-name [n]
   (if (keyword? n) n (make-path n)))
+
+(def path-query-prefix "path:/")
+(def path-query-prefix-len (count path-query-prefix))
+
+(defn path-query? [x]
+  (and (string? x)
+       (string/starts-with? x path-query-prefix)))
+
+(defn path-query-string [s]
+  (subs s path-query-prefix-len))
+
+(defn- fully-qualified-path-type [base-component n]
+  (if (string/index-of n "_")
+    (keyword (string/replace n "_" "/"))
+    (keyword (str (name base-component) "/" n))))
+
+(defn- fully-qualified-path-value [base-component n]
+  (if (string/starts-with? n ":")
+    (fully-qualified-path-type base-component (subs n 1))
+    n))
+
+(defn parse-query-path [base-component s]
+  (let [parts (reverse (filter #(identity (seq %)) (string/split s #"/")))
+        t (partial fully-qualified-path-type base-component)
+        v (partial fully-qualified-path-value base-component)]
+    (loop [parts parts, result []]
+      (if-let [[child-val child relname parent-val parent]
+               (when (>= (count parts) 5)
+                 (take 5 parts))]
+        (recur (drop 3 parts)
+               (conj result {:child-value (v child-val)
+                             :child (t child)
+                             :relationship (t relname)
+                             :parent-value (v parent-val)
+                             :parent (t parent)}))
+        result))))
+
+(defn path-query-pattern? [x] (= x :?))
