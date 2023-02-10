@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2023-02-10
+
 ## [0.2.3] - 2022-01-17
 
 -   **Security fix** for log4j vulnerability
@@ -87,7 +89,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.2.3...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.3.0...HEAD
+
+[0.3.0]: https://github.com/fractl-io/fractl/compare/0.2.3...0.3.0
 
 [0.2.3]: https://github.com/fractl-io/fractl/compare/0.2.2...0.2.3
 
