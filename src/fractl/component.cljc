@@ -890,15 +890,14 @@
     #(let [ms @components
            ename (normalize-type-name (event-name event))
            path [component :events ename]
-           currpats (get-in ms path [])
-           newpats (conj
-                    currpats
-                    (maybe-aot-compile-dataflow
+           newpats [(maybe-aot-compile-dataflow
                      [event
                       {:head head
                        :event-pattern event
                        :patterns patterns
-                       :opcode (u/make-cell {})}]))]
+                       :opcode (u/make-cell {})}])]]
+       (when (seq (get-in ms path))
+         (log/warn (str "overwriting dataflow for " event)))
        (assoc-in ms path newpats)))
    event)
   ([event head patterns]
