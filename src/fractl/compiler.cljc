@@ -605,7 +605,10 @@
 (defn- compile-map [ctx pat]
   (cond
     (complex-query-pattern? pat)
-    (compile-query-command ctx (query-map->command pat))
+    (let [[k v] [(first (keys pat)) (first (vals pat))]]
+      (if (li/path-query? v)
+        (compile-map ctx {(li/normalize-name k) {:? v}})
+        (compile-query-command ctx (query-map->command pat))))
 
     (from-pattern? pat)
     (compile-from-pattern ctx pat)

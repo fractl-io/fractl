@@ -63,8 +63,7 @@
       {:Email :I800/CreateEmployee.Email
        :Name :I800/CreateEmployee.Name}
       :-> [{:I800/WorksFor {}}
-           {:I800/Department
-            {:? "path://Company/:CreateEmployee.Company/Section/Department/:CreateEmployee.Department"}}]}))
+           {:I800/Department? "path://Company/:CreateEmployee.Company/Section/Department/:CreateEmployee.Department"}]}))
   (let [[c1 c2 :as cs] (mapv #(tu/first-result
                                {:I800/Upsert_Company
                                 {:Instance
