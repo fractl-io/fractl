@@ -1559,8 +1559,10 @@
                   [% :between that])))
            rels))))
 
-(defn contains-relationship? [relname]
+(defn contains-entities [relname]
   (mt/contains (fetch-meta relname)))
+
+(def contains-relationship? contains-entities)
 
 (defn containing-parent [relname]
   (first (mt/contains (fetch-meta relname))))
@@ -1578,6 +1580,12 @@
       (let [idattr (identity-attribute-name tp)]
         [(relationship-member-identity relattr)
          (idattr inst)]))))
+
+(defn attributes-in-contains [relname]
+  (let [[p c] (contains-entities relname)
+        [a1 a2] (or (relationship-on-attributes relname)
+                    [(identity-attribute-name p) (identity-attribute-name c)])]
+    {p a1 c a2}))
 
 (defn- maybe-transition [inst]
   (if-let [t (:transition inst)]
