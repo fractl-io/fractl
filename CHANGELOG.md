@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.3.0] - 2023-02-10
+-  Graph data model with relationships
+-  New Auth and RBAC infrastructure
 
 ## [0.2.3] - 2022-01-17
 
