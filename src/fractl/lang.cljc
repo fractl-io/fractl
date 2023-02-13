@@ -784,8 +784,34 @@
       (u/throw-ex (str e2 " is already in a contains relationship - " r)))
     elems))
 
+(defn- parent-query-pattern [attr-accessor relname parent]
+  (let [cps (seq (cn/containing-parents parent))
+        parent-pat {parent {(li/name-as-query-pattern
+                             (cn/identity-attribute-name parent))
+                            (attr-accessor (name parent))}}]
+    [{relname {}} ; TODO: Instead of {}, `:from` a map attribute in the event?
+     (if cps
+       (let [[r _ p] (first cps)]
+         (assoc parent-pat li/rel-tag (parent-query-pattern attr-accessor r p)))
+       parent-pat)]))
+
+(defn- parent-query-path [attr-accessor relname parent child]
+  (let [f attr-accessor, np (name parent) nc (name child)
+        path (str "/" np "/" (f np) "/" (name relname) "/" nc "/" (f nc))]
+    (loop [parent parent, path path]
+      (if-let [cps (seq (cn/containing-parents parent))]
+        (let [[r _ p] (first cps), np (name p)]
+          (recur p (str np "/" (f np) "/" (name r) "/" path)))
+        (str "path:" (if (s/starts-with? path "/") "/" "//") path)))))
+
+(defn- parent-names-as-attributes [parent]
+  (loop [p parent, result {(keyword (name parent)) :Kernel.Lang/Any}]
+    (if-let [cps (seq (cn/containing-parents p))]
+      (let [[_ _ p0] (first cps)]
+        (recur p0 (assoc result (keyword (name p0)) :Kernel.Lang/Any)))
+      result)))
+
 (defn regen-default-dataflows [relname [parent child]]
-  ;; TODO: handle multi-level relationships
   (let [ev (partial crud-evname child)
         upevt (ev :Upsert)
         attr-names (cn/attribute-names (cn/fetch-schema child))
@@ -794,32 +820,29 @@
         ups-inst-pat (into {} (mapv (fn [a] [a (f1 a)]) attr-names))
         lookupevt (ev :Lookup)
         f3 (partial crud-event-attr-accessor lookupevt true)
-        p (name parent) c (name child)
-        query-path (fn [f]
-                     (str "path://" p "/" (f p) "/" (name relname)
-                          "/" c "/" (f c)))
+        c (name child)
         ctx-aname (k/event-context-attribute-name)]
     (event-internal
      upevt
-     {:Instance child
-      (keyword p) :Kernel.Lang/Any
-      li/event-context ctx-aname})
+     (merge
+      {:Instance child
+       li/event-context ctx-aname}
+      (parent-names-as-attributes parent)))
     (cn/register-dataflow
      upevt
      [{child ups-inst-pat
        li/rel-tag
-       [{relname {}}
-        {parent {(li/name-as-query-pattern
-                  (cn/identity-attribute-name parent))
-                 (f2 p)}}]}])
+       (parent-query-pattern f2 relname parent)}])
     (event-internal
      lookupevt
-     {(keyword p) :Kernel.Lang/Any
-      (keyword c) :Kernel.Lang/Any
-      li/event-context ctx-aname})
+     (merge
+      {(keyword c) :Kernel.Lang/Any
+       li/event-context ctx-aname}
+      (parent-names-as-attributes parent)))
     (cn/register-dataflow
      lookupevt
-     [{(li/name-as-query-pattern child) (query-path f3)}])))
+     [{(li/name-as-query-pattern child)
+       (parent-query-path f3 relname parent child)}])))
 
 (defn relationship
   ([relation-name attrs]

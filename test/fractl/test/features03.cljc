@@ -106,8 +106,20 @@
 (deftest issue-786-auto-upsert-rels
   (defcomponent :I786
     (entity
+     :I786/T
+     {:I {:type :Int :identity true}})
+    (entity
+     :I786/S
+     {:J {:type :Int :identity true}})
+    (relationship
+     :I786/R0
+     {:meta {:contains [:I786/T :I786/S]}})
+    (entity
      :I786/A
      {:X {:type :Int :identity true}})
+    (relationship
+     :I786/R1
+     {:meta {:contains [:I786/S :I786/A]}})
     (entity
      :I786/B
      {:K {:type :Int :default 1}
@@ -115,17 +127,24 @@
     (relationship
      :I786/R
      {:meta {:contains [:I786/A :I786/B]}}))
-  (let [a (tu/first-result {:I786/Upsert_A
+  (let [t (tu/first-result {:I786/Upsert_T
                             {:Instance
-                             {:I786/A
-                              {:X 100}}}})
+                             {:I786/T {:I 1}}}})
+        s (tu/first-result {:I786/Upsert_S
+                            {:Instance
+                             {:I786/S {:J 2}}
+                             :T 1}})
+        a (tu/result {:I786/Upsert_A
+                      {:Instance
+                       {:I786/A {:X 100}}
+                       :T 1 :S 2}})
         b1 (tu/result {:I786/Upsert_B
                       {:Instance
                        {:I786/B {:Y 20}}
-                       :A 100}})
+                       :A 100 :T 1 :S 2}})
         b2 (tu/first-result
             {:I786/Lookup_B
-             {:A 100 :B 20}})]
+             {:A 100 :B 20 :T 1 :S 2}})]
     (is (cn/instance-of? :I786/A a))
     (is (cn/instance-of? :I786/B b1))
     (let [r (first (li/rel-tag b1))]
