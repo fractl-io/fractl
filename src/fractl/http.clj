@@ -203,8 +203,9 @@
     (when (and (map? eval-result) (= :ok (:status eval-result)))
       (:result eval-result))))
 
-(defn- whitelisted-email? [email {:keys [access-key secret-key region s3-bucket whitelist-file-key] :as _auth-info}]
-  (let [whitelisted-emails (read-string
+(defn- whitelisted-email? [email]
+  (let [{:keys [access-key secret-key region s3-bucket whitelist-file-key] :as _aws-config} (uh/get-aws-config true)
+        whitelisted-emails (read-string
                             (s3/get-object-as-string
                              {:access-key access-key
                               :secret-key secret-key
@@ -216,17 +217,17 @@
   (let [domain (last (s/split email #"@"))]
     (contains? (set domains) domain)))
 
-(defn- whitelisted? [email {:keys [whitelist? email-domains] :as auth-info}]
+(defn- whitelisted? [email {:keys [whitelist? email-domains] :as _auth-info}]
   (cond
     (and (not (nil? email-domains)) (true? whitelist?))
-    (or (whitelisted-email? email auth-info)
+    (or (whitelisted-email? email)
         (whitelisted-domain? email email-domains))
 
     (not (nil? email-domains))
     (whitelisted-domain? email email-domains)
 
     (true? whitelist?)
-    (whitelisted-email? email auth-info)
+    (whitelisted-email? email)
 
     :else
     true))
