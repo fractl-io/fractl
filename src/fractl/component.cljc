@@ -1462,7 +1462,8 @@
 (def lookup-internal-event-prefix-s (name lookup-internal-event-prefix))
 
 (defn an-internal-event? [event-name]
-  (s/starts-with? (name event-name) lookup-internal-event-prefix-s))
+  (let [event-name (if (keyword? event-name) event-name (second event-name))]
+    (s/starts-with? (name event-name) lookup-internal-event-prefix-s)))
 
 (defn instance-meta-lookup-event [entity-name id]
   (let [[component ename] (li/split-path entity-name)]
