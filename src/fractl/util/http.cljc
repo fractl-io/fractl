@@ -93,3 +93,22 @@
 
 (defn normalize-post-options [arg]
   (if (fn? arg) {:callback arg} arg))
+
+(defn- get-env-var [var-name]
+  (let [var-value (System/getenv var-name)]
+    (if (nil? var-value)
+      (throw (Exception. (str "Environment variable \"" var-name "\" not found.")))
+      var-value)))
+
+(defn get-aws-config [whitelist?]
+  (let [aws-config {:region (get-env-var "AWS_REGION")
+                    :access-key (get-env-var "AWS_ACCESS_KEY")
+                    :secret-key (get-env-var "AWS_SECRET_KEY")
+                    :client-id (get-env-var "AWS_COGNITO_CLIENT_ID")
+                    :user-pool-id (get-env-var "AWS_COGNITO_USER_POOL_ID")
+                    :whitelist? whitelist?}]
+    (if (true? whitelist?)
+      (assoc aws-config
+             :s3-bucket (get-env-var "AWS_S3_BUCKET")
+             :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
+      aws-config)))
