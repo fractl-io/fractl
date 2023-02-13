@@ -2,10 +2,11 @@
   (:require [amazonica.aws.cognitoidp :as cognito]
             [amazonica.core :refer [ex->map]]
             [clojure.string :as str]
-            [fractl.lang.internal :as li]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
-            [fractl.component :as cn]))
+            [fractl.component :as cn]
+            [fractl.lang.internal :as li]
+            [fractl.util.http :as uh]))
 
 (def ^:private tag :cognito)
 
@@ -21,11 +22,12 @@
        user-pool-id
        "/.well-known/jwks.json"))
 
-(defmethod auth/make-authfn tag [{:keys [region user-pool-id] :as _config}]
-  (fn [_req token]
-    (jwt/verify-and-extract
-     (make-jwks-url region user-pool-id)
-     token)))
+(defmethod auth/make-authfn tag [_config]
+  (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config false)]
+    (fn [_req token]
+      (jwt/verify-and-extract
+       (make-jwks-url region user-pool-id)
+       token))))
 
 (defn- get-error-msg [cognito-exception]
   (let [error-msg (:message (ex->map cognito-exception))]
@@ -35,73 +37,76 @@
      (or (str/index-of error-msg  "(Service: AWSCognitoIdentityProvider")
          (count error-msg)))))
 
-(defmethod auth/user-login tag [{:keys [client-id event] :as req}]
-  (try
-    (cognito/initiate-auth (auth/make-client req)
-                           :auth-flow "USER_PASSWORD_AUTH"
-                           :auth-parameters {"USERNAME" (:Username event)
-                                             "PASSWORD" (:Password event)}
-                           :client-id client-id)
-    (catch Exception e
-      (throw (Exception. (get-error-msg e))))))
+(defmethod auth/user-login tag [{:keys [event] :as req}]
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)]
+    (try
+      (cognito/initiate-auth (auth/make-client (merge req aws-config))
+                             :auth-flow "USER_PASSWORD_AUTH"
+                             :auth-parameters {"USERNAME" (:Username event)
+                                               "PASSWORD" (:Password event)}
+                             :client-id client-id)
+      (catch Exception e
+        (throw (Exception. (get-error-msg e)))))))
 
-(defmethod auth/upsert-user tag [{:keys [client-id user-pool-id instance] :as req}]
-  (case (last (li/split-path (cn/instance-type instance)))
+(defmethod auth/upsert-user tag [{:keys [instance] :as req}]
+  (let [{:keys [client-id user-pool-id] :as aws-config} (uh/get-aws-config false)]
+    (case (last (li/split-path (cn/instance-type instance)))
     ;; Create User
-    :User
-    (let [user instance
-          {:keys [Name FirstName LastName Password Email]} user]
-      (try
-        (cognito/sign-up
-         (auth/make-client req)
-         :client-id client-id
-         :password Password
-         :user-attributes [["given_name" FirstName]
-                           ["family_name" LastName]
-                           ["email" Email]
-                           ["name" Name]]
-         :username Email)
-        user
-        (catch Exception e
-          (throw (Exception. (get-error-msg e))))))
+      :User
+      (let [user instance
+            {:keys [Name FirstName LastName Password Email]} user]
+        (try
+          (cognito/sign-up
+           (auth/make-client (merge req aws-config))
+           :client-id client-id
+           :password Password
+           :user-attributes [["given_name" FirstName]
+                             ["family_name" LastName]
+                             ["email" Email]
+                             ["name" Name]]
+           :username Email)
+          user
+          (catch Exception e
+            (throw (Exception. (get-error-msg e))))))
 
     ;; Update user
-    :UpdateUser
-    (let [user-details (:UserDetails instance)
-          cognito-username (get-in req [:user :username])
-          inner-user-details (:User user-details)
-          {:keys [FirstName LastName]} inner-user-details
-          github-details (get-in user-details [:OtherDetails :GitHub])
-          {:keys [Username Org Token]} github-details
-          refresh-token (get-in user-details [:OtherDetails :RefreshToken])]
-      (try
-        (cognito/admin-update-user-attributes
-         (auth/make-client req)
-         :username cognito-username
-         :user-pool-id user-pool-id
-         :user-attributes [["given_name" FirstName]
-                           ["family_name" LastName]
-                           ["custom:github_org" Org]
-                           ["custom:github_token" Token]
-                           ["custom:github_username" Username]])
+      :UpdateUser
+      (let [user-details (:UserDetails instance)
+            cognito-username (get-in req [:user :username])
+            inner-user-details (:User user-details)
+            {:keys [FirstName LastName]} inner-user-details
+            github-details (get-in user-details [:OtherDetails :GitHub])
+            {:keys [Username Org Token]} github-details
+            refresh-token (get-in user-details [:OtherDetails :RefreshToken])]
+        (try
+          (cognito/admin-update-user-attributes
+           (auth/make-client (merge req aws-config))
+           :username cognito-username
+           :user-pool-id user-pool-id
+           :user-attributes [["given_name" FirstName]
+                             ["family_name" LastName]
+                             ["custom:github_org" Org]
+                             ["custom:github_token" Token]
+                             ["custom:github_username" Username]])
         ;; Refresh credentials
-        (cognito/initiate-auth
-         (auth/make-client req)
-         :auth-flow "REFRESH_TOKEN_AUTH"
-         :auth-parameters {"USERNAME" cognito-username
-                           "REFRESH_TOKEN" refresh-token}
-         :client-id client-id)
-        (catch Exception e
-          (throw (Exception. (get-error-msg e))))))
+          (cognito/initiate-auth
+           (auth/make-client (merge req aws-config))
+           :auth-flow "REFRESH_TOKEN_AUTH"
+           :auth-parameters {"USERNAME" cognito-username
+                             "REFRESH_TOKEN" refresh-token}
+           :client-id client-id)
+          (catch Exception e
+            (throw (Exception. (get-error-msg e))))))
 
-    nil))
+      nil)))
 
-(defmethod auth/refresh-token tag [{:keys [client-id event] :as req}]
-  (let [cognito-username (get-in req [:user :username])
+(defmethod auth/refresh-token tag [{:keys [event] :as req}]
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)
+        cognito-username (get-in req [:user :username])
         refresh-token (:RefreshToken event)]
     (try
       (cognito/initiate-auth
-       (auth/make-client req)
+       (auth/make-client (merge req aws-config))
        :auth-flow "REFRESH_TOKEN_AUTH"
        :auth-parameters {"USERNAME" cognito-username
                          "REFRESH_TOKEN" refresh-token}
@@ -121,28 +126,31 @@
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))
 
-(defmethod auth/user-logout tag [{:keys [sub user-pool-id] :as req}]
-  (try
-    (cognito/admin-user-global-sign-out
-     (auth/make-client req)
-     :user-pool-id user-pool-id
-     :username (:username sub))
-    (catch Exception e
-      (throw (Exception. (get-error-msg e))))))
-
-(defmethod auth/delete-user tag [{:keys [instance user-pool-id] :as req}]
-  (when-let [email (:Email instance)]
+(defmethod auth/user-logout tag [{:keys [sub] :as req}]
+  (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config false)]
     (try
-      (cognito/admin-delete-user
-       (auth/make-client req)
-       :username email
-       :user-pool-id user-pool-id)
+      (cognito/admin-user-global-sign-out
+       (auth/make-client (merge req aws-config))
+       :user-pool-id user-pool-id
+       :username (:username sub))
       (catch Exception e
         (throw (Exception. (get-error-msg e)))))))
 
-(defmethod auth/get-user tag [{:keys [user user-pool-id] :as req}]
-  (let [resp (cognito/admin-get-user
-              (auth/make-client req)
+(defmethod auth/delete-user tag [{:keys [instance] :as req}]
+  (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config false)]
+    (when-let [email (:Email instance)]
+      (try
+        (cognito/admin-delete-user
+         (auth/make-client (merge req aws-config))
+         :username email
+         :user-pool-id user-pool-id)
+        (catch Exception e
+          (throw (Exception. (get-error-msg e))))))))
+
+(defmethod auth/get-user tag [{:keys [user] :as req}]
+  (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config false)
+        resp (cognito/admin-get-user
+              (auth/make-client (merge req aws-config))
               :username (:username user)
               :user-pool-id user-pool-id)
         user-attributes (:user-attributes resp)
@@ -160,20 +168,22 @@
      :LastName family_name
      :Email email}))
 
-(defmethod auth/forgot-password tag [{:keys [client-id event] :as req}]
-  (try
-    (cognito/forgot-password
-     (auth/make-client req)
-     :username (:Username event)
-     :client-id client-id)
-    (catch Exception e
-      (throw (Exception. (get-error-msg e))))))
+(defmethod auth/forgot-password tag [{:keys [event] :as req}]
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)]
+    (try
+      (cognito/forgot-password
+       (auth/make-client (merge req aws-config))
+       :username (:Username event)
+       :client-id client-id)
+      (catch Exception e
+        (throw (Exception. (get-error-msg e)))))))
 
-(defmethod auth/confirm-forgot-password tag [{:keys [client-id event] :as req}]
-  (let [{:keys [Username ConfirmationCode Password]} event]
+(defmethod auth/confirm-forgot-password tag [{:keys [event] :as req}]
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)
+        {:keys [Username ConfirmationCode Password]} event]
     (try
       (cognito/confirm-forgot-password
-       (auth/make-client req)
+       (auth/make-client (merge req aws-config))
        :username Username
        :confirmation-code ConfirmationCode
        :client-id client-id
@@ -182,10 +192,11 @@
         (throw (Exception. (get-error-msg e)))))))
 
 (defmethod auth/change-password tag [{:keys [event] :as req}]
-  (let [{:keys [AccessToken CurrentPassword NewPassword]} event]
+  (let [aws-config (uh/get-aws-config false)
+        {:keys [AccessToken CurrentPassword NewPassword]} event]
     (try
       (cognito/change-password
-       (auth/make-client req)
+       (auth/make-client (merge req aws-config))
        :access-token AccessToken
        :previous-password CurrentPassword
        :proposed-password NewPassword)
