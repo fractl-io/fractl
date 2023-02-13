@@ -676,7 +676,8 @@
         ;; Define CRUD events and dataflows:
         (let [upevt (ev :Upsert)
               delevt (ev :Delete)
-              lookupevt (ev :Lookup)]
+              lookupevt (ev :Lookup)
+              lookupevt-internal (ev cn/lookup-internal-event-prefix)]
           (cn/for-each-entity-event-name
            rec-name (partial entity-event rec-name))
           (event-internal upevt inst-evattrs)
@@ -689,6 +690,8 @@
             (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
           (event-internal delevt id-evattrs)
           (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
+          (event-internal lookupevt-internal id-evattrs)
+          (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
           (event-internal lookupevt id-evattrs)
           (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)]))
         ;; Install dataflows for implicit events.
@@ -789,7 +792,7 @@
         f1 (partial crud-event-inst-accessor upevt true)
         f2 (partial crud-event-attr-accessor upevt)
         ups-inst-pat (into {} (mapv (fn [a] [a (f1 a)]) attr-names))
-        lookupevt (ev :Fetch)
+        lookupevt (ev :Lookup)
         f3 (partial crud-event-attr-accessor lookupevt true)
         p (name parent) c (name child)
         query-path (fn [f]

@@ -124,7 +124,7 @@
                        {:I786/B {:Y 20}}
                        :A 100}})
         b2 (tu/first-result
-            {:I786/Fetch_B
+            {:I786/Lookup_B
              {:A 100 :B 20}})]
     (is (cn/instance-of? :I786/A a))
     (is (cn/instance-of? :I786/B b1))
