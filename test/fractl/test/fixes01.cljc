@@ -303,25 +303,28 @@
    (defcomponent :LEnt
      (record {:LEnt/E {:X :Int}})
      (entity {:LEnt/F {:Es {:listof :LEnt/E}}})
-     (event {:LEnt/MakeF {:Xs {:listof :Int}}})
+     (event {:LEnt/MakeF1 {:Xs {:listof :Int}}})
+     (event {:LEnt/MakeF2 {:Xs {:listof :Int}}})
      (dataflow
-      :LEnt/MakeF
-      [:for-each :LEnt/MakeF.Xs
+      :LEnt/MakeF1
+      [:for-each :LEnt/MakeF1.Xs
        {:LEnt/E {:X :%}}
        :as :ListofEs]
       {:LEnt/F {:Es :ListofEs}})
      (dataflow
-      :LEnt/MakeF
-      [:for-each [:LEnt/MakeF.Xs :as :I]
+      :LEnt/MakeF2
+      [:for-each [:LEnt/MakeF2.Xs :as :I]
        {:LEnt/E {:X '(* 10 :I)}}
        :as :ListofEs]
       {:LEnt/F {:Es :ListofEs}}))
    (let [xs [10 20 30 40]
          xs*10 (mapv #(* 10 %) xs)
-         evt {:LEnt/MakeF {:Xs xs}}
-         result (e/eval-all-dataflows evt)
-         rs1 (first (tu/fresult result))
-         rs2 (first (tu/nth-result result 1))]
+         evt1 {:LEnt/MakeF1 {:Xs xs}}
+         evt2 {:LEnt/MakeF2 {:Xs xs}}
+         result1 (e/eval-all-dataflows evt1)
+         result2 (e/eval-all-dataflows evt2)
+         rs1 (first (tu/fresult result1))
+         rs2 (first (tu/fresult result2))]
      (doseq [e (:Es rs1)]
        (is (cn/instance-of? :LEnt/E e))
        (is (some #{(:X e)} xs)))

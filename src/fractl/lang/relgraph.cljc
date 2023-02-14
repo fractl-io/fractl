@@ -91,7 +91,7 @@
 
 (defn- lookup-relations [relname relinsts other-entity-name]
   (let [[c pe :as parent-entity] (li/split-path other-entity-name)
-        lookupevt-name (keyword (str (name c) "/Lookup_" (name pe)))]
+        lookupevt-name (keyword (str (name c) "/" cn/lookup-internal-event-prefix-s "_" (name pe)))]
     (mapv
      (fn [relinst]
        (let [p-rel-attr (cn/attribute-in-relationship relname parent-entity)

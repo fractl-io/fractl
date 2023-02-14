@@ -247,8 +247,9 @@
                                [:Kernel.Identity :ConfirmForgotPassword]})
 
 (defn- system-event? [inst]
-  (let [n (li/split-path (cn/instance-type inst))]
-    (some #{n} system-events)))
+  (when-let [t (cn/instance-type inst)]
+    (or (cn/an-internal-event? t)
+        (some #{(li/split-path t)} system-events))))
 
 (defn- run [env opr arg]
   (let [user (or (cn/event-context-user (ii/event arg))

@@ -110,15 +110,17 @@
 
 (defn- process-dynamic-eval
   ([evaluator [auth-config maybe-unauth] event-name request]
-   (or (maybe-unauth request)
-       (if-let [data-fmt (find-data-format request)]
-         (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
-           (if err
-             (bad-request err data-fmt)
-             (ok (evaluate evaluator obj data-fmt) data-fmt)))
-         (bad-request
-          (str "unsupported content-type in request - "
-               (request-content-type request))))))
+     (or (maybe-unauth request)
+         (if-let [data-fmt (find-data-format request)]
+           (if (cn/an-internal-event? event-name)
+             (bad-request (str "cannot invoke internal event - " event-name) data-fmt)
+             (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
+               (if err
+                 (bad-request err data-fmt)
+                 (ok (evaluate evaluator obj data-fmt) data-fmt))))
+           (bad-request
+            (str "unsupported content-type in request - "
+                 (request-content-type request))))))
   ([evaluator auth-info request]
    (process-dynamic-eval evaluator auth-info nil request)))
 
