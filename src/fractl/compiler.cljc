@@ -451,6 +451,8 @@
   (let [typ (from-pattern-typename pat)]
     (when-not (cn/find-object-schema typ)
       (u/throw-ex (str "undefined type " typ " in " pat)))
+    (when (li/rel-tag pat)
+      (u/throw-ex (str "cannot mix :from and " li/rel-tag)))
     (let [f (:from pat)
           inst-alias (:as pat)
           opcode (if (or (li/pathname? f) (map? f))

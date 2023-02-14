@@ -554,9 +554,19 @@
   (cn/canonical-type-name
    (keyword (str (name evtname) "_" (name entity-name)))))
 
-(defn- crud-event-inst-accessor [evtname]
-  (cn/canonical-type-name
-   (keyword (str (name evtname) ".Instance"))))
+(defn- crud-event-attr-accessor
+  ([evtname use-name? attr-name]
+   (keyword (str (if use-name? (name evtname) (subs (str evtname) 1)) "." attr-name)))
+  ([evtname attr-name]
+   (crud-event-attr-accessor evtname false attr-name)))
+
+(defn- crud-event-inst-accessor
+  ([evtname canonical? inst-attr]
+   (let [r (keyword (str (name evtname) ".Instance"
+                         (when inst-attr
+                           (str "." (name inst-attr)))))]
+     (if canonical? (cn/canonical-type-name r) r)))
+  ([evtname] (crud-event-inst-accessor evtname true nil)))
 
 (defn- direct-id-accessor [evtname id-attr]
   (cn/canonical-type-name
@@ -666,7 +676,8 @@
         ;; Define CRUD events and dataflows:
         (let [upevt (ev :Upsert)
               delevt (ev :Delete)
-              lookupevt (ev :Lookup)]
+              lookupevt (ev :Lookup)
+              lookupevt-internal (ev cn/lookup-internal-event-prefix)]
           (cn/for-each-entity-event-name
            rec-name (partial entity-event rec-name))
           (event-internal upevt inst-evattrs)
@@ -679,6 +690,8 @@
             (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
           (event-internal delevt id-evattrs)
           (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
+          (event-internal lookupevt-internal id-evattrs)
+          (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
           (event-internal lookupevt id-evattrs)
           (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)]))
         ;; Install dataflows for implicit events.
@@ -771,6 +784,66 @@
       (u/throw-ex (str e2 " is already in a contains relationship - " r)))
     elems))
 
+(defn- parent-query-pattern [attr-accessor relname parent]
+  (let [cps (seq (cn/containing-parents parent))
+        parent-pat {parent {(li/name-as-query-pattern
+                             (cn/identity-attribute-name parent))
+                            (attr-accessor (name parent))}}]
+    [{relname {}} ; TODO: Instead of {}, `:from` a map attribute in the event?
+     (if cps
+       (let [[r _ p] (first cps)]
+         (assoc parent-pat li/rel-tag (parent-query-pattern attr-accessor r p)))
+       parent-pat)]))
+
+(defn- parent-query-path [attr-accessor relname parent child]
+  (let [f attr-accessor, np (name parent) nc (name child)
+        path (str "/" np "/" (f np) "/" (name relname) "/" nc "/" (f nc))]
+    (loop [parent parent, path path]
+      (if-let [cps (seq (cn/containing-parents parent))]
+        (let [[r _ p] (first cps), np (name p)]
+          (recur p (str np "/" (f np) "/" (name r) "/" path)))
+        (str "path:" (if (s/starts-with? path "/") "/" "//") path)))))
+
+(defn- parent-names-as-attributes [parent]
+  (loop [p parent, result {(keyword (name parent)) :Kernel.Lang/Any}]
+    (if-let [cps (seq (cn/containing-parents p))]
+      (let [[_ _ p0] (first cps)]
+        (recur p0 (assoc result (keyword (name p0)) :Kernel.Lang/Any)))
+      result)))
+
+(defn regen-default-dataflows [relname [parent child]]
+  (let [ev (partial crud-evname child)
+        upevt (ev :Upsert)
+        attr-names (cn/attribute-names (cn/fetch-schema child))
+        f1 (partial crud-event-inst-accessor upevt true)
+        f2 (partial crud-event-attr-accessor upevt)
+        ups-inst-pat (into {} (mapv (fn [a] [a (f1 a)]) attr-names))
+        lookupevt (ev :Lookup)
+        f3 (partial crud-event-attr-accessor lookupevt true)
+        c (name child)
+        ctx-aname (k/event-context-attribute-name)]
+    (event-internal
+     upevt
+     (merge
+      {:Instance child
+       li/event-context ctx-aname}
+      (parent-names-as-attributes parent)))
+    (cn/register-dataflow
+     upevt
+     [{child ups-inst-pat
+       li/rel-tag
+       (parent-query-pattern f2 relname parent)}])
+    (event-internal
+     lookupevt
+     (merge
+      {(keyword c) :Kernel.Lang/Any
+       li/event-context ctx-aname}
+      (parent-names-as-attributes parent)))
+    (cn/register-dataflow
+     lookupevt
+     [{(li/name-as-query-pattern child)
+       (parent-query-path f3 relname parent child)}])))
+
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
@@ -800,7 +873,11 @@
                       (if combined-uqs (assoc meta :unique uqs) meta)
                       :relationship true)))]
        (when (cn/register-relationship elems relation-name)
-         (and (meta-entity relation-name) r)))))
+         (when-let [r (and (meta-entity relation-name) r)]
+           (when contains
+             (regen-default-dataflows
+              relation-name contains))
+           r)))))
   ([schema]
    (let [r (parse-and-define serializable-entity schema)]
      (and (meta-entity (first (keys schema))) r))))

@@ -890,15 +890,14 @@
     #(let [ms @components
            ename (normalize-type-name (event-name event))
            path [component :events ename]
-           currpats (get-in ms path [])
-           newpats (conj
-                    currpats
-                    (maybe-aot-compile-dataflow
+           newpats [(maybe-aot-compile-dataflow
                      [event
                       {:head head
                        :event-pattern event
                        :patterns patterns
-                       :opcode (u/make-cell {})}]))]
+                       :opcode (u/make-cell {})}])]]
+       (when (seq (get-in ms path))
+         (log/warn (str "overwriting dataflow for " event)))
        (assoc-in ms path newpats)))
    event)
   ([event head patterns]
@@ -1459,10 +1458,17 @@
   ([inst user]
    (make-meta-instance inst user nil)))
 
+(def lookup-internal-event-prefix :Lookup_Internal)
+(def lookup-internal-event-prefix-s (name lookup-internal-event-prefix))
+
+(defn an-internal-event? [event-name]
+  (let [event-name (if (keyword? event-name) event-name (second event-name))]
+    (s/starts-with? (name event-name) lookup-internal-event-prefix-s)))
+
 (defn instance-meta-lookup-event [entity-name id]
   (let [[component ename] (li/split-path entity-name)]
     (make-instance
-     {(keyword (str (name component) "/Lookup_" (name entity-name) meta-suffix))
+     {(keyword (str (name component) "/" lookup-internal-event-prefix-s "_" (name entity-name) meta-suffix))
       {meta-entity-id (str id)}})))
 
 (def instance-meta-owner :Owner)
