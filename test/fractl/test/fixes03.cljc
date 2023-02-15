@@ -538,3 +538,7 @@
              {:A "abc"
               :B (dt/now)}})]
     (is (cn/instance-of? :RedefTypes/E e1))))
+
+(deftest query-object-bug
+  (let [obj (ls/query-object {ls/record-tag :Blog/PostAuthorship?})]
+    (is (= (ls/raw obj) :Blog/PostAuthorship?))))
