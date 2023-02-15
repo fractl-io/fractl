@@ -269,23 +269,20 @@
 
 (defn query-object
   ([spec]
-   (let [cnt (count spec)]
-     (when (or (< cnt 2) (> cnt 3))
-       (u/throw-ex (str "invalid query spec - " spec))))
-   (if-let [query-pat (query-pattern spec)]
-     (query-object ($record spec) query-pat (alias-tag spec))
-     (u/throw-ex (str "no valid query-pattern found - " spec))))
+   (when (> (count spec) 3)
+     (u/throw-ex (str "invalid query spec - " spec)))
+   (query-object ($record spec) (query-pattern spec) (alias-tag spec)))
   ([recname query-pat rec-alias]
-   (when-not (or (li/query-pattern? recname)
-                 (:where query-pat))
+   (when (and query-pat (not (:where query-pat)))
      (u/throw-ex
       (str "not a valid query pattern - " {recname query-pat})))
    (validate-alias! rec-alias)
    (as-syntax-object
     :query-object
     (merge
-     {record-tag recname
-      query-tag query-pat}
+     {record-tag recname}
+     (when query-pat
+       {query-tag query-pat})
      (when rec-alias
        {alias-tag rec-alias})))))
 
@@ -298,7 +295,10 @@
       (raw-walk obj)}
      (when-let [als (alias-tag ir)]
        {alias-tag als}))
-    (li/name-as-query-pattern ($record ir))))
+    (let [n ($record ir)]
+      (if (li/query-pattern? n)
+        n
+        (li/name-as-query-pattern n)))))
 
 (defn- introspect-query-object [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
