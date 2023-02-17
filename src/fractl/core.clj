@@ -311,10 +311,10 @@
   (doseq [opt cli-options]
     (println (str "  " (s/join " " opt))))
   (println "  build MODEL-NAME Compile a model to produce a standalone application")
-  (println "  deploy MODEL-NAME TARGET Deploy the model to one of the targets - `local`, `clojars` or `github`")
+  (println "  publish MODEL-NAME TARGET Publish the model to one of the targets - `local`, `clojars` or `github`")
   (println "  run MODEL-NAME (optionally) build and run a model")
   (println)
-  (println "For `build`, `deploy` and `run` the model will be searched in the local directory")
+  (println "For `build`, `publish` and `run` the model will be searched in the local directory")
   (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
   (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
   (println "model directory itself.")
