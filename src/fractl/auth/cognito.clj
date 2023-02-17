@@ -41,7 +41,9 @@
          (make-jwks-url region user-pool-id)
          token)
         (catch Exception e
-          (throw (Exception. (get-error-msg-and-log e))))))))
+          (log/error e)
+          (throw e))))))
+
 
 (defmethod auth/user-login tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)]
