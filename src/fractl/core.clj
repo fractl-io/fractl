@@ -302,10 +302,10 @@
     (callback (rest args))
     (first args)))
 
-(defn- deploy-library [args]
+(defn- publish-library [args]
   (if (= (count args) 1)
-    (build/deploy-library nil (keyword (first args)))
-    (build/deploy-library (first args) (keyword (second args)))))
+    (build/publish-library nil (keyword (first args)))
+    (build/publish-library (first args) (keyword (second args)))))
 
 (defn- print-help []
   (doseq [opt cli-options]
@@ -334,8 +334,8 @@
       (:help options) (print-help)
       :else
       (or (some identity (mapv (partial run-plain-option args)
-                               ["build" "run" "deploy"]
+                               ["build" "run" "publish"]
                                [#(println (build/standalone-package (first %)))
                                 #(println (build/run-standalone-package (first %)))
-                                #(println (deploy-library %))]))
+                                #(println (publish-library %))]))
           (run-service args (read-model-and-config args options))))))
