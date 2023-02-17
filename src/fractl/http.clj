@@ -110,17 +110,17 @@
 
 (defn- process-dynamic-eval
   ([evaluator [auth-config maybe-unauth] event-name request]
-     (or (maybe-unauth request)
-         (if-let [data-fmt (find-data-format request)]
-           (if (cn/an-internal-event? event-name)
-             (bad-request (str "cannot invoke internal event - " event-name) data-fmt)
-             (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
-               (if err
-                 (bad-request err data-fmt)
-                 (ok (evaluate evaluator obj data-fmt) data-fmt))))
-           (bad-request
-            (str "unsupported content-type in request - "
-                 (request-content-type request))))))
+   (or (maybe-unauth request)
+       (if-let [data-fmt (find-data-format request)]
+         (if (cn/an-internal-event? event-name)
+           (bad-request (str "cannot invoke internal event - " event-name) data-fmt)
+           (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
+             (if err
+               (bad-request err data-fmt)
+               (ok (evaluate evaluator obj data-fmt) data-fmt))))
+         (bad-request
+          (str "unsupported content-type in request - "
+               (request-content-type request))))))
   ([evaluator auth-info request]
    (process-dynamic-eval evaluator auth-info nil request)))
 
@@ -391,7 +391,7 @@
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
-          (unauthorized "logout failed" data-fmt)))
+          (unauthorized (str "logout failed. " (ex-message ex)) data-fmt)))
       (ok {:result :bye} data-fmt))
     (bad-request
      (str "unsupported content-type in request - "
@@ -408,7 +408,7 @@
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
-          (unauthorized "get-user failed" data-fmt)))
+          (unauthorized (str "get-user failed" (ex-message ex)) data-fmt)))
       (unauthorized "get-user failed" data-fmt))
     (bad-request
      (str "unsupported content-type in request - "
@@ -439,7 +439,7 @@
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized (str "update-user failed" (ex-message ex)) data-fmt)))))
+              (unauthorized (str "update-user failed. " (ex-message ex)) data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request))))))
 
@@ -468,7 +468,7 @@
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized "refresh-token failed" data-fmt)))))
+              (unauthorized (str "refresh-token failed. " (ex-message ex)) data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request))))))
 
