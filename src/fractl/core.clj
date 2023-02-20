@@ -18,6 +18,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.tools.loader :as loader]
             [fractl.lang.tools.build :as build]
+            [fractl.lang.tools.deploy :as d]
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac])
   (:import [java.util Properties]
@@ -322,6 +323,9 @@
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
 
+(defn- load-config [options]
+  (read-config-file (get options :config "config.edn")))
+
 (defn -main [& args]
   (when-not args
     (print-help)
@@ -334,8 +338,11 @@
       (:help options) (print-help)
       :else
       (or (some identity (mapv (partial run-plain-option args)
-                               ["build" "run" "publish"]
+                               ["build" "run" "publish" "deploy"]
                                [#(println (build/standalone-package (first %)))
                                 #(println (build/run-standalone-package (first %)))
-                                #(println (publish-library %))]))
+                                #(println (publish-library %))
+                                #(println (d/deploy
+                                           (:deploy (load-config options))
+                                           (first %)))]))
           (run-service args (read-model-and-config args options))))))
