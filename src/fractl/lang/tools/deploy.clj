@@ -24,7 +24,12 @@
 (defn- deploy-model [service-info model-name repourl]
   (if-let [r (uh/POST
               (str (:host service-info) deploy-api)
-              {:auth-token (:auth-token service-info)}
+              {:auth-token (:auth-token service-info)
+               ;; TODO: remove these long timeouts once
+               ;; https://github.com/fractl-io/fractl-deployment-service/issues/11
+               ;; is done.
+               :keepalive 3600000
+               :timeout 3600000} ; 1 hour in ms
               {:FractlDeployment.Core/DeployToCluster
                {:Model model-name :SourceRepository repourl}})]
     (assoc service-info :result r)

@@ -41,15 +41,19 @@
 (def dynamic-eval-prefix "/_dynamic/")
 (def callback-prefix "/_callback/")
 
+(defn- remote-resolver-error [response]
+  (u/throw-ex (str "remote resolver error - " (or (:error response) response))))
+
 (defn- response-handler [format callback response]
   ((or callback identity)
    (if (map? response)
-     (let [status (:status response)]
+     (if-let [status (:status response)]
        (if (< 199 status 299)
          #?(:clj
             ((decoder format) (:body response))
             :cljs (:body response))
-         (u/throw-ex (str "remote resolver error - " response))))
+         (remote-resolver-error response))
+       (remote-resolver-error response))
      response)))
 
 (defn- fetch-auth-token [options]
