@@ -1,6 +1,5 @@
 (ns fractl.auth.cognito
   (:require [amazonica.aws.cognitoidp :as cognito]
-            [amazonica.core :refer [ex->map]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [fractl.auth.core :as auth]
@@ -24,9 +23,8 @@
        "/.well-known/jwks.json"))
 
 (defn- get-error-msg-and-log [cognito-exception]
-  (let [error-msg (:message (ex->map cognito-exception))]
+  (let [error-msg (ex-message cognito-exception)]
     (log/error cognito-exception)
-    (log/error (ex->map cognito-exception))
     (subs
      error-msg
      0
@@ -36,14 +34,9 @@
 (defmethod auth/make-authfn tag [_config]
   (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config false)]
     (fn [_req token]
-      (try
-        (jwt/verify-and-extract
-         (make-jwks-url region user-pool-id)
-         token)
-        (catch Exception e
-          (log/error e)
-          (throw e))))))
-
+      (jwt/verify-and-extract
+       (make-jwks-url region user-pool-id)
+       token))))
 
 (defmethod auth/user-login tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)]
