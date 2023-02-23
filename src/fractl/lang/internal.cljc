@@ -196,7 +196,10 @@
    (make-path component obj-name)))
 
 (defn make-ref [recname attrname]
-  (keyword (str (subs (str recname) 1) "." (name attrname))))
+  (keyword (str (subs (str recname) 1) "."
+                (if (keyword? attrname)
+                  (name attrname)
+                  (string/join "." (mapv name attrname))))))
 
 (defn has-modpath? [path]
   (some #{\/} (str path)))
