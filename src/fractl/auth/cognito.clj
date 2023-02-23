@@ -1,7 +1,7 @@
 (ns fractl.auth.cognito
   (:require [amazonica.aws.cognitoidp :as cognito]
-            [amazonica.core :refer [ex->map]]
             [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
             [fractl.component :as cn]
@@ -22,20 +22,21 @@
        user-pool-id
        "/.well-known/jwks.json"))
 
+(defn- get-error-msg-and-log [cognito-exception]
+  (let [error-msg (ex-message cognito-exception)]
+    (log/error cognito-exception)
+    (subs
+     error-msg
+     0
+     (or (str/index-of error-msg  "(Service: AWSCognitoIdentityProvider")
+         (count error-msg)))))
+
 (defmethod auth/make-authfn tag [_config]
   (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config false)]
     (fn [_req token]
       (jwt/verify-and-extract
        (make-jwks-url region user-pool-id)
        token))))
-
-(defn- get-error-msg [cognito-exception]
-  (let [error-msg (:message (ex->map cognito-exception))]
-    (subs
-     error-msg
-     0
-     (or (str/index-of error-msg  "(Service: AWSCognitoIdentityProvider")
-         (count error-msg)))))
 
 (defmethod auth/user-login tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)]
@@ -46,7 +47,7 @@
                                                "PASSWORD" (:Password event)}
                              :client-id client-id)
       (catch Exception e
-        (throw (Exception. (get-error-msg e)))))))
+        (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/upsert-user tag [{:keys [instance] :as req}]
   (let [{:keys [client-id user-pool-id] :as aws-config} (uh/get-aws-config false)]
@@ -67,7 +68,7 @@
            :username Email)
           user
           (catch Exception e
-            (throw (Exception. (get-error-msg e))))))
+            (throw (Exception. (get-error-msg-and-log e))))))
 
     ;; Update user
       :UpdateUser
@@ -96,7 +97,7 @@
                              "REFRESH_TOKEN" refresh-token}
            :client-id client-id)
           (catch Exception e
-            (throw (Exception. (get-error-msg e))))))
+            (throw (Exception. (get-error-msg-and-log e))))))
 
       nil)))
 
@@ -112,7 +113,7 @@
                          "REFRESH_TOKEN" refresh-token}
        :client-id client-id)
       (catch Exception e
-        (throw (Exception. (get-error-msg e)))))))
+        (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/session-user tag [all-stuff-map]
   (let [user-details (get-in all-stuff-map [:request :identity])]
@@ -134,7 +135,7 @@
        :user-pool-id user-pool-id
        :username (:username sub))
       (catch Exception e
-        (throw (Exception. (get-error-msg e)))))))
+        (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/delete-user tag [{:keys [instance] :as req}]
   (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config false)]
@@ -145,7 +146,7 @@
          :username email
          :user-pool-id user-pool-id)
         (catch Exception e
-          (throw (Exception. (get-error-msg e))))))))
+          (throw (Exception. (get-error-msg-and-log e))))))))
 
 (defmethod auth/get-user tag [{:keys [user] :as req}]
   (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config false)
@@ -176,7 +177,7 @@
        :username (:Username event)
        :client-id client-id)
       (catch Exception e
-        (throw (Exception. (get-error-msg e)))))))
+        (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/confirm-forgot-password tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)
@@ -189,7 +190,7 @@
        :client-id client-id
        :password Password)
       (catch Exception e
-        (throw (Exception. (get-error-msg e)))))))
+        (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/change-password tag [{:keys [event] :as req}]
   (let [aws-config (uh/get-aws-config false)
@@ -201,4 +202,4 @@
        :previous-password CurrentPassword
        :proposed-password NewPassword)
       (catch Exception e
-        (throw (Exception. (get-error-msg e)))))))
+        (throw (Exception. (get-error-msg-and-log e)))))))
