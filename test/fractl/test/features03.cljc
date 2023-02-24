@@ -151,3 +151,57 @@
       (is (cn/instance-of? :I786/R r))
       (is (and (= 100 (:A r)) (= 20 (:B r)))))
     (is (cn/same-instance? b2 (dissoc b1 li/rel-tag)))))
+
+(deftest issue-801-upsert-endpoints-for-between-rels
+  (defcomponent :I801
+    (entity
+     :I801/A
+     {:X :Int
+      :Id {:type :Int :identity true}})
+    (entity
+     :I801/B
+     {:Y :Int
+      :Id {:type :Int :identity true}})
+    (relationship
+     :I801/R1
+     {:meta {:between [:I801/A :I801/B]}})
+    (relationship
+     :I801/R2
+     {:meta {:between [:I801/A :I801/A]}})
+    (relationship
+     :I801/R3
+     {:meta {:between [:I801/A :I801/B :on [:X :Y]]}}))
+  (let [[a1 a2] (mapv
+                 #(tu/first-result
+                   {:I801/Upsert_A
+                    {:Instance {:I801/A {:X (* 100 %) :Id %}}}})
+                 [1 3])
+        b1 (tu/first-result
+            {:I801/Upsert_B
+             {:Instance {:I801/B {:Y 200 :Id 10}}}})
+        a11 (tu/result
+             {:I801/Upsert_R1
+              {:A 1 :B 10}})
+        r1 (first (li/rel-tag a11))]
+    (is (cn/same-instance? a1 (dissoc a11 li/rel-tag)))
+    (is (cn/instance-of? :I801/R1 r1))
+    (is (= (:A r1) 1))
+    (is (= (:B r1) 10))
+    (let [a11 (tu/result
+               {:I801/Upsert_R2
+                {:A1 1 :A2 3}})
+          r2 (first (li/rel-tag a11))]
+      (is (cn/same-instance? a1 (dissoc a11 li/rel-tag)))
+      (is (cn/instance-of? :I801/R2 r2))
+      (is (= (:A1 r2) 1))
+      (is (= (:A2 r2) 3)))
+    (let [a11 (tu/result
+               {:I801/Upsert_R3
+                {:A 3 :B 10}})
+          r3 (first (li/rel-tag a11))]
+      (is (cn/same-instance? a2 (dissoc a11 li/rel-tag)))
+      (is (cn/instance-of? :I801/R3 r3))
+      (is (= (:A r3) 300))
+      (is (= (:B r3) 200))
+      (is (= (:AIdentity r3) 3))
+      (is (= (:BIdentity r3) 10)))))

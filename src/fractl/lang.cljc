@@ -869,21 +869,27 @@
         ev (partial crud-evname relname)
         upevt (ev :Upsert)
         ups-attrs (make-between-upsert-attributes upevt (dissoc attrs aname-to))
-        ctx-aname (k/event-context-attribute-name)]
+        ctx-aname (k/event-context-attribute-name)
+        f (second (li/split-path from))
+        t (second (li/split-path to))
+        [fname tname] (if (= from to)
+                        [(keyword (str (name f) "1"))
+                         (keyword (str (name t) "2"))]
+                        [f t])]
     (event-internal
      upevt
      (merge
-      {:Instance relname
+      {:Instance {:type relname :optional true}
        li/event-context ctx-aname}
-      {aname-from :Kernel.Lang/Any
-       aname-to :Kernel.Lang/Any}))
+      {fname :Kernel.Lang/Any
+       tname :Kernel.Lang/Any}))
     (cn/register-dataflow
      upevt
-     {from {(li/name-as-query-pattern from-qattr)
-            (li/make-ref upevt aname-from)}
-      li/rel-tag [{relname ups-attrs}
-                  {to {(li/name-as-query-pattern to-qattr)
-                       (li/make-ref upevt aname-to)}}]})))
+     [{from {(li/name-as-query-pattern from-qattr)
+             (li/make-ref upevt fname)}
+       li/rel-tag [{relname ups-attrs}
+                   {to {(li/name-as-query-pattern to-qattr)
+                        (li/make-ref upevt tname)}}]}])))
 
 (defn relationship
   ([relation-name attrs]
