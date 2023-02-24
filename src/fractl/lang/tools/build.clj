@@ -299,7 +299,7 @@
         run #(exec-standalone model-name (config-file-path model-name))]
     (or (run) (when (standalone-package model-name) (run)))))
 
-(defn deploy-library [model-name target]
+(defn publish-library [model-name target]
   (let [cmd (case target
               :local "lein install"
               :clojars "lein deploy clojars"
