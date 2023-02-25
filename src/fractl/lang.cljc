@@ -811,7 +811,7 @@
         (recur p0 (assoc result (keyword (name p0)) :Kernel.Lang/Any)))
       result)))
 
-(defn regen-default-dataflows [relname [parent child]]
+(defn- regen-default-dataflows-for-contains [relname [parent child]]
   (let [ev (partial crud-evname child)
         upevt (ev :Upsert)
         attr-names (cn/attribute-names (cn/fetch-schema child))
@@ -844,12 +844,60 @@
      [{(li/name-as-query-pattern child)
        (parent-query-path f3 relname parent child)}])))
 
+(defn- find-between-ref [attrs node-rec-name]
+  (let [cn (li/split-path node-rec-name)]
+    (us/first-truth
+     #(when-let [r (:ref (second %))]
+        (let [p (li/path-parts r)]
+          (when (= cn [(:component p) (:record p)])
+            [(first %) (first (:refs p))])))
+     attrs)))
+
+(defn- make-between-upsert-attributes [ups-event-name attrs]
+  (if (seq attrs)
+    (into
+     {}
+     (mapv (fn [[k _]]
+             [k (li/make-ref ups-event-name [:Instance k])])
+           attrs))
+    {}))
+
+(defn- regen-default-dataflows-for-between [relname [from to] attrs]
+  (let [[aname-from from-qattr] (find-between-ref attrs from)
+        attrs (dissoc attrs aname-from)
+        [aname-to to-qattr] (find-between-ref attrs to)
+        ev (partial crud-evname relname)
+        upevt (ev :Upsert)
+        ups-attrs (make-between-upsert-attributes upevt (dissoc attrs aname-to))
+        ctx-aname (k/event-context-attribute-name)
+        f (second (li/split-path from))
+        t (second (li/split-path to))
+        [fname tname] (if (= from to)
+                        [(keyword (str (name f) "1"))
+                         (keyword (str (name t) "2"))]
+                        [f t])]
+    (event-internal
+     upevt
+     (merge
+      {:Instance {:type relname :optional true}
+       li/event-context ctx-aname}
+      {fname :Kernel.Lang/Any
+       tname :Kernel.Lang/Any}))
+    (cn/register-dataflow
+     upevt
+     [{from {(li/name-as-query-pattern from-qattr)
+             (li/make-ref upevt fname)}
+       li/rel-tag [{relname ups-attrs}
+                   {to {(li/name-as-query-pattern to-qattr)
+                        (li/make-ref upevt tname)}}]}])))
+
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
          contains (ensure-unique-contains (mt/contains meta))
+         between (when-not contains (mt/between meta))
          [elems relmeta] (parse-relationship-member-spec
-                          (or contains (mt/between meta)))
+                          (or contains between))
          each-uq (if (:one-one relmeta) true false)
          combined-uqs (and (not each-uq)
                            (or (and contains (not (:n-n relmeta)))
@@ -874,9 +922,9 @@
                       :relationship true)))]
        (when (cn/register-relationship elems relation-name)
          (when-let [r (and (meta-entity relation-name) r)]
-           (when contains
-             (regen-default-dataflows
-              relation-name contains))
+           (if contains
+             (regen-default-dataflows-for-contains relation-name contains)
+             (regen-default-dataflows-for-between relation-name between (dissoc attrs :meta)))
            r)))))
   ([schema]
    (let [r (parse-and-define serializable-entity schema)]
