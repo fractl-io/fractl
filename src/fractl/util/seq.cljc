@@ -72,6 +72,9 @@
 (defn first-val [m]
   (first (vals m)))
 
+(defn first-truth [f xs]
+  (first (nonils (map f xs))))
+
 (defn move-all [xs target f]
   (loop [xs xs, target target]
     (if-let [x (first xs)]
