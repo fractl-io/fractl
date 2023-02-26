@@ -19,11 +19,35 @@
    :Kernel/Double Double
    :Kernel/Boolean Boolean
    :Kernel/Email String
-   :Kernel/Any s/Any})
+   :Kernel/Any s/Any
+   :Kernel.Lang/String String
+   :Kernel.Lang/DateTime Date
+   :Kernel.Lang/Date LocalDate
+   :Kernel.Lang/Time LocalTime
+   :Kernel.Lang/UUID UUID
+   :Kernel.Lang/Int Integer
+   :Kernel.Lang/Int64 Double
+   :Kernel.Lang/Float Float
+   :Kernel.Lang/Double Double
+   :Kernel.Lang/Boolean Boolean
+   :Kernel.Lang/Email String
+   :Kernel.Lang/Any s/Any
+   :String String
+   :DateTime Date
+   :Date LocalDate
+   :Time LocalTime
+   :UUID UUID
+   :Int Integer
+   :Int64 Double
+   :Float Float
+   :Double Double
+   :Boolean Boolean
+   :Email String
+   :Any s/Any})
 
 (defn get-clojure-type [attr]
   (let [ns (namespace attr)]
-    (if (= ns "Kernel")
+    (if (or (= ns "Kernel") (= ns "Kernel.Lang"))
       (get fractlType->schemaType attr s/Any)
       (if-let [attr (cn/find-attribute-schema attr)]
         (get fractlType->schemaType (get attr :type) s/Any)
@@ -73,7 +97,8 @@
   (let [event-schema (dissoc event-schema :EventContext :inferred)]
     (zipmap (keys event-schema)
             (map (fn [schema-type]
-                   (if (= (namespace schema-type) "Kernel")
+                   (if (or (= (namespace schema-type) "Kernel")
+                           (= (namespace schema-type) "Kernel.Lang"))
                      (get-clojure-type schema-type)
                      (s/schema-with-name
                       (fractl-entity-to-schema schema-type)

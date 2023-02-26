@@ -36,7 +36,7 @@
                  [amazonica "0.3.162"]
                  [buddy/buddy-core "1.6.0"]
                  [buddy/buddy-sign "3.1.0"]
-                 [org.clojure/algo.generic "0.1.3"] 
+                 [org.clojure/algo.generic "0.1.3"]
                  [metosin/ring-swagger "0.26.2"]
                  [cheshire "5.11.0"]]
 
@@ -65,10 +65,10 @@
   :repositories [["public-github" {:url "git://github.com" :protocol :https}]]
 
   :pom-addition [:distributionManagement
-                  [:repository
-                    ["id" "github"]
-                    ["name" "GitHub fractl.io Apache Maven Packages"]
-                    ["url" "https://maven.pkg.github.com/fractl-io/fractl"]]]
+                 [:repository
+                  ["id" "github"]
+                  ["name" "GitHub fractl.io Apache Maven Packages"]
+                  ["url" "https://maven.pkg.github.com/fractl-io/fractl"]]]
 
   :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4" :exclusions [args4j]]
                                   [com.bhauman/figwheel-main "0.2.15"

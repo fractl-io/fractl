@@ -244,6 +244,15 @@
          dir))
     model-paths)))
 
+(defn- load-all-model-info [model-paths model-name model-info]
+  (let [model-paths (or model-paths (tu/get-system-model-paths))
+        [model model-root] (or model-info (loader/read-model model-paths model-name))
+        model-name (or model-name (s/lower-case (name (:name model))))]
+    {:paths model-paths
+     :model model
+     :root model-root
+     :name model-name}))
+
 (defn compiled-model?
   ([model-path model-name]
    (let [model-path (if (= model-path ".")
@@ -254,15 +263,6 @@
        (let [^File f (File. (str model-path u/path-sep "project.clj"))]
          (when (.exists f)
            model-path))))))
-
-(defn- load-all-model-info [model-paths model-name model-info]
-  (let [model-paths (or model-paths (tu/get-system-model-paths))
-        [model model-root] (or model-info (loader/read-model model-paths model-name))
-        model-name (or model-name (s/lower-case (name (:name model))))]
-    {:paths model-paths
-     :model model
-     :root model-root
-     :name model-name}))
 
 (defn build-model
   ([model-paths model-name model-info]

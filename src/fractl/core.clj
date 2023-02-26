@@ -26,12 +26,14 @@
            [java.net URL]
            [java.io File]
            [org.apache.commons.exec CommandLine Executor DefaultExecutor])
+  
   (:gen-class
    :name fractl.core
    :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
+   ["-s" "--doc MODEL" "Generate documentation in .html"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -205,7 +207,8 @@
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
     (if (build/compiled-model? model-path model-name)
-      (let [components (remove #{:Kernel :Kernel.Identity :Kernel.RBAC}
+      (let [components (remove #{:Kernel :Kernel.Identity :Kernel.RBAC 
+                                 :Kernel.Lang}
                                (cn/component-names))]
         (.mkdir (File. "doc"))
         (.mkdir (File. "doc/api"))
@@ -362,7 +365,10 @@
     (initialize)
     (cond
       errors (println errors)
-      (:help options) (println summary)
+      (:help options) (print-help)
+      (:doc options) (generate-swagger-doc
+                      (:doc options)
+                      args)
       :else
       (or (some identity (mapv (partial run-plain-option args)
                                ["build" "run" "publish" "deploy"]
