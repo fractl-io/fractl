@@ -87,8 +87,8 @@
      {:User {:ref :Kernel.Identity/User.Email}})
     (entity
      :PrivTest/E
-     {:X :Kernel/Int
-      :Y {:type :Kernel/Int :optional true}})
+     {:X :Int
+      :Y {:type :Int :optional true}})
     (dataflow
      :PrivTest/CreateSuperUser
      {:PrivTest/User
@@ -254,7 +254,7 @@
      {:User {:ref :Kernel.Identity/User.Email}})
     (entity
      :RbacOwner/E
-     {:X :Kernel/Int})
+     {:X :Int})
     (dataflow
      :RbacOwner/CreateSuperUser
      {:RbacOwner/User
@@ -364,7 +364,7 @@
   (defcomponent :RbacH
     (entity
      :RbacH/E
-     {:X :Kernel/Int})
+     {:X :Int})
     (dataflow
      :RbacH/CreateUsers
      {:Kernel.Identity/User
@@ -434,7 +434,6 @@
            (is (cn/instance-of? :Kernel.RBAC/RoleRelationship r))
            (is (= "rh22" (:Parent r)))
            (is (= "rh11" (:Child r))))
-         (rbac/force-reload-privileges!)
          (let [u (ok-test "uh22@uh22.com")]
            (cn/instance-of? :RbacH/E u)))))))
 
@@ -442,8 +441,8 @@
   (defcomponent :Ilr
     (entity
      :Ilr/E
-     {:Id {:type :Kernel/String :identity true}
-      :X :Kernel/Int})
+     {:Id {:type :String :identity true}
+      :X :Int})
     (dataflow
      :Ilr/CreateUsers
      {:Kernel.Identity/User
@@ -483,9 +482,9 @@
       {:Role "ilr_r1" :Assignee "ilr_u3@ilr.com"}})
     (event
      :Ilr/CreateE
-     {:X :Kernel/Int
-      :Id :Kernel/String
-      :Assignee :Kernel/String})
+     {:X :Int
+      :Id :String
+      :Assignee :String})
     (dataflow
      :Ilr/CreateE
      {:Ilr/E {:Id :Ilr/CreateE.Id :X :Ilr/CreateE.X} :as :E}
@@ -589,10 +588,10 @@
   (defcomponent :I711A
     (entity
      :I711A/E1
-     {:X {:type :Kernel/Int :identity true}})
+     {:X {:type :Int :identity true}})
     (entity
      :I711A/E2
-     {:Y {:type :Kernel/Int :identity true}})
+     {:Y {:type :Int :identity true}})
     (relationship
      :I711A/R1
      {:meta {:contains [:I711A/E1 :I711A/E2]
@@ -620,7 +619,7 @@
       {:Role "i711a_r1" :Assignee "u1@i711a.com"}})
     (event
      :I711A/CreateE2
-     {:X :Kernel/Int :Y :Kernel/Int})
+     {:X :Int :Y :Int})
     (dataflow
      :I711A/CreateE2
      {:I711A/E1 {:X? :I711A/CreateE2.X} :as :E1}
@@ -648,7 +647,6 @@
      (rbac-setup :I711A/CreateUsers :Kernel.Identity/User)
      (is (create-e1 10 true))
      (rbac-setup :I711A/AssignRoles :Kernel.RBAC/RoleAssignment)
-     (rbac/force-reload-privileges!)
      (is (cn/instance-of? :I711A/E1 (first (create-e1 10 false))))
      (let [r (tu/result (with-user "u1@i711a.com" {:I711A/CreateE2 {:X 10 :Y 100}}))]
        (is (cn/instance-of? :I711A/E2 r))
@@ -658,11 +656,11 @@
   (defcomponent :I711B
     (entity
      :I711B/E1
-     {:X {:type :Kernel/Int :identity true}})
+     {:X {:type :Int :identity true}})
     (entity
      :I711B/E2
-     {:Y {:type :Kernel/Int :identity true}
-      :K :Kernel/Int})
+     {:Y {:type :Int :identity true}
+      :K :Int})
     (relationship
      :I711B/R1
      {:meta {:contains [:I711B/E1 :I711B/E2]
@@ -711,8 +709,8 @@
       {:Role "i711b_r2" :Assignee "u2@i711b.com"}})
     (event
      :I711B/AssignInstancePriv
-     {:X :Kernel/Int
-      :User :Kernel/String})
+     {:X :Int
+      :User :String})
     (dataflow
      :I711B/AssignInstancePriv
      {:Kernel.RBAC/InstancePrivilegeAssignment
@@ -722,7 +720,7 @@
        :Assignee :I711B/AssignInstancePriv.User}})
     (event
      :I711B/CreateE2
-     {:X :Kernel/Int :Y :Kernel/Int :K :Kernel/Int})
+     {:X :Int :Y :Int :K :Int})
     (dataflow
      :I711B/CreateE2
      {:I711B/E1 {:X? :I711B/CreateE2.X} :as :E1}
@@ -732,7 +730,7 @@
       :-> [{:I711B/R1 {}} :E1]})
     (event
      :I711B/UpdateE2
-     {:X :Kernel/Int :Y :Kernel/Int :K :Kernel/Int})
+     {:X :Int :Y :Int :K :Int})
     (dataflow
      :I711B/UpdateE2
      {:I711B/E2
@@ -761,7 +759,6 @@
      (rbac-setup :I711B/CreateUsers :Kernel.Identity/User)
      (is (create-e1 10 true))
      (rbac-setup :I711B/AssignRoles :Kernel.RBAC/RoleAssignment)
-     (rbac/force-reload-privileges!)
      (is (cn/instance-of? :I711B/E1 (first (create-e1 10 false))))
      (let [r (tu/result (with-user "u1@i711b.com" {:I711B/CreateE2 {:X 10 :Y 100 :K 3}}))]
        (is (cn/instance-of? :I711B/E2 r))
@@ -786,3 +783,117 @@
            to (:to (:transition r))]
        (is (= 4 (:K from)))
        (is (= 5 (:K to)))))))
+
+(deftest issue-762-instance-priv-by-owner
+  (defcomponent :I762
+    (entity
+     :I762/E1
+     {:X {:type :Int :identity true}
+      :Y :Int})
+    (dataflow
+     :I762/UpdateE1
+     {:I762/E1
+      {:X? :I762/UpdateE1.X
+       :Y :I762/UpdateE1.Y}})
+    (dataflow
+     :I762/CreateUsers
+     {:Kernel.Identity/User
+      {:Email "u1@i762.com"}}
+     {:Kernel.Identity/User
+      {:Email "u2@i762.com"}}
+     {:Kernel.Identity/User
+      {:Email "u3@i762.com"}})
+    (dataflow
+     :I762/AssignRoles
+     {:Kernel.RBAC/Role {:Name "i762_r1"}}
+     {:Kernel.RBAC/Role {:Name "i762_r2"}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i762_p1"
+       :Actions [:q# [:read :upsert :delete]]
+       :Resource [:q# [:I762/E1]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i762_p2"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:I762/Upsert_E1 :I762/Lookup_E1 :I762/UpdateE1]]}}
+     {:Kernel.RBAC/Privilege
+      {:Name "i762_p3"
+       :Actions [:q# [:eval]]
+       :Resource [:q# [:I762/AssignInstancePriv]]}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r1" :Privilege "i762_p1"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r1" :Privilege "i762_p2"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r1" :Privilege "i762_p3"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r2" :Privilege "i762_p1"}}
+     {:Kernel.RBAC/PrivilegeAssignment
+      {:Role "i762_r2" :Privilege "i762_p2"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i762_r1" :Assignee "u1@i762.com"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i762_r2" :Assignee "u2@i762.com"}}
+     {:Kernel.RBAC/RoleAssignment
+      {:Role "i762_r2" :Assignee "u3@i762.com"}})
+    (dataflow
+     :I762/AssignInstancePriv
+     {:Kernel.RBAC/InstancePrivilegeAssignment
+      {:Actions [:q# [:read :upsert]]
+       :Filter [:q# [:read]]
+       :Resource [:q# :I762/E1]
+       :ResourceId :I762/AssignInstancePriv.X
+       :Assignee :I762/AssignInstancePriv.User}}))
+  (defn- rbac-setup [event-name result-type]
+    (is (cn/instance-of?
+         result-type
+         (first
+          (tu/result
+           (with-user (rbac/get-superuser-email) event-name))))))
+  (defn- create-e1 [x user]
+    (tu/first-result
+     (with-user
+       user
+       {:I762/Upsert_E1
+        {:Instance {:I762/E1 {:X x :Y (* x 10)}}}})))
+  (defn- lookup-e1 [x user]
+    (tu/first-result
+     (with-user
+       user
+       {:I762/Lookup_E1
+        {:X x}})))
+  (defn- update-e1 [x y user]
+    (tu/first-result
+     (with-user
+       user
+       {:I762/UpdateE1
+        {:X x :Y y}})))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+     (rbac-setup :I762/CreateUsers :Kernel.Identity/User)
+     (rbac-setup :I762/AssignRoles :Kernel.RBAC/RoleAssignment)
+     (let [xs [1 2 3]
+           users (mapv #(str % "@i762.com") ["u1" "u2" "u3"])
+           for-all (fn [f shuffle] (mapv #(f %1 %2) (shuffle xs) users))
+           e1? (partial cn/instance-of? :I762/E1)
+           e1s? (fn [f shuffle]
+                  (is (every? e1? (for-all f shuffle))))]
+       (e1s? create-e1 identity)
+       (e1s? lookup-e1 shuffle)
+       (is (= 100 (get-in (update-e1 1 100 "u2@i762.com") [:transition :to :Y])))
+       (is (= 200 (get-in (update-e1 1 200 "u3@i762.com") [:transition :to :Y])))
+       (is (not (tu/result
+                 (with-user
+                   "u1@i762.com"
+                   {:I762/AssignInstancePriv
+                    {:User "u2@i762.com" :X 2}}))))
+       (is (cn/instance-of?
+            :Kernel.RBAC/InstancePrivilegeAssignment
+            (tu/first-result
+             (with-user
+               "u1@i762.com"
+               {:I762/AssignInstancePriv
+                {:User "u2@i762.com" :X 1}}))))
+       (is (= 1000 (get-in (update-e1 1 1000 "u2@i762.com") [:transition :to :Y])))
+       (is (not (update-e1 1 2000 "u3@i762.com")))
+       (e1s? lookup-e1 shuffle)))))

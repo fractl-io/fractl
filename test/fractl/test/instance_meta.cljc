@@ -21,7 +21,7 @@
   (defcomponent :MetaDataCrud
     (entity
      :MetaDataCrud/E
-     {:X :Kernel/Int})
+     {:X :Int})
     (dataflow
      :MetaDataCrud/Update
      {:MetaDataCrud/E

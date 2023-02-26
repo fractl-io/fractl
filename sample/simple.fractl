@@ -3,12 +3,12 @@
 
 (component :Sample.Simple)
 
-(entity {:E1 {:A :Kernel/Int
-              :B :Kernel/Int
-              :C :Kernel/Int
-              :X {:type :Kernel/String
+(entity {:E1 {:A :Int
+              :B :Int
+              :C :Int
+              :X {:type :String
                   :write-only true}
-              :Y :Kernel/DateTime}})
+              :Y :DateTime}})
 
 (dataflow
  :K
@@ -24,18 +24,18 @@
 
 (record
  {:Result
-  {:Data :Kernel/Any}})
+  {:Data :Any}})
 
 (dataflow
  :F
  {:E1? {} :as :Es}
  {:Result {:Data :Es}})
 
-(entity {:E2 {:Y :Kernel/DateTime}})
+(entity {:E2 {:Y :DateTime}})
 
 (record {:StringField
-         {:Question {:type :Kernel/String}
-          :Value {:type :Kernel/String
+         {:Question {:type :String}
+          :Value {:type :String
                   :optional true}}})
 
 (defn valid-name? [s]

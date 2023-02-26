@@ -11,41 +11,41 @@
 (entity {:Sample.Library.Ledger/CheckoutLog
          {:Member       {:ref     (cn/append-id :Sample.Library.Identity/Member)
                          :indexed true}
-          :Designation  :Kernel/String
+          :Designation  :String
           :Book         {:ref     (cn/append-id :Sample.Library.Catalog/Book)
                          :indexed true}
-          :IsCheckedout {:type    :Kernel/Boolean
+          :IsCheckedout {:type    :Boolean
                          :default true}
-          :CheckoutDate {:type    :Kernel/DateTime
+          :CheckoutDate {:type    :DateTime
                          :default now}
-          :ReturnDate   {:type     :Kernel/DateTime
+          :ReturnDate   {:type     :DateTime
                          :optional true}
           :meta         {:unique [:Member :Book]}}})
 
-(entity {:Kernel/Authentication
-         {:Owner         :Kernel/Any
-          :Issued        {:type :Kernel/DateTime :optional true}
-          :ExpirySeconds {:type :Kernel/Int :default 300}}})
+(entity {:Authentication
+         {:Owner         :Any
+          :Issued        {:type :DateTime :optional true}
+          :ExpirySeconds {:type :Int :default 300}}})
 
 (dataflow :Sample.Library.Ledger/MemberLogin
           {:Sample.Library.Identity/Member {:UserName? :Sample.Library.Ledger/MemberLogin.UserName}}
           [:match :Sample.Library.Identity/Member.Password
-           :Sample.Library.Ledger/MemberLogin.Password  {:Kernel/Authentication {:Owner :Sample.Library.Identity/Member}}])
+           :Sample.Library.Ledger/MemberLogin.Password  {:Authentication {:Owner :Sample.Library.Identity/Member}}])
 
 (dataflow :Sample.Library.Ledger/UserLogin
           {:Sample.Library.Identity/User {:UserName? :Sample.Library.Ledger/UserLogin.UserName}}
           [:match :Sample.Library.Identity/User.Password
-           :Sample.Library.Ledger/UserLogin.Password  {:Kernel/Authentication {:Owner :Sample.Library.Identity/User}}])
+           :Sample.Library.Ledger/UserLogin.Password  {:Authentication {:Owner :Sample.Library.Identity/User}}])
 
 (event {:Sample.Library.Ledger/CheckoutBook
-        {:Member   :Kernel/UUID
-         :Designation :Kernel/String
-         :Book     :Kernel/UUID
-         :Backend  :Kernel/String
-         :Receiver :Kernel/String
-         :Subject  :Kernel/String
-         :Text     :Kernel/String
-         :To       :Kernel/String}})
+        {:Member   :UUID
+         :Designation :String
+         :Book     :UUID
+         :Backend  :String
+         :Receiver :String
+         :Subject  :String
+         :Text     :String
+         :To       :String}})
 
 (dataflow :Sample.Library.Ledger/CheckoutBook
           {:Sample.Library.Ledger/CheckoutLog {:Member       :Sample.Library.Ledger/CheckoutBook.Member
@@ -62,14 +62,14 @@
                                                :Book?   :Sample.Library.Ledger/CheckoutBook.Book}})
 
 (event {:Sample.Library.Ledger/CheckinBook
-        {:Member   :Kernel/UUID
-         :Designation :Kernel/String
-         :Book     :Kernel/UUID
-         :Backend  :Kernel/String
-         :Receiver :Kernel/String
-         :Subject  :Kernel/String
-         :Text     :Kernel/String
-         :To       :Kernel/String}})
+        {:Member   :UUID
+         :Designation :String
+         :Book     :UUID
+         :Backend  :String
+         :Receiver :String
+         :Subject  :String
+         :Text     :String
+         :To       :String}})
 
 (dataflow :Sample.Library.Ledger/CheckinBook
           {:Sample.Library.Ledger/CheckoutLog {:Member       :Sample.Library.Ledger/CheckinBook.Member
@@ -86,13 +86,13 @@
                          :Book?   :Sample.Library.Ledger/CheckinBook.Book}})
 
 (event {:CheckedoutBooks
-        {:Member :Kernel/UUID}})
+        {:Member :UUID}})
 
 (dataflow :CheckedoutBooks
           {:CheckoutLog {:Member? :Sample.Library.Ledger/CheckedoutBooks.Member}})
 
 (event {:CheckedoutBy
-        {:Book :Kernel/UUID}})
+        {:Book :UUID}})
 
 (dataflow :CheckedoutBy
           {:CheckoutLog {:Book? :Sample.Library.Ledger/CheckedoutBy.Book}}
@@ -105,7 +105,7 @@
           :CheckoutLog?)
 
 (dataflow :ServicePolicy
-          {:Kernel/Policy
+          {:Kernel.Lang/Policy
            {:Intercept "RBAC"
             :Resource  ["Sample.Library.Identity/Upsert_Member"]
             :Spec      [:q#
@@ -115,7 +115,7 @@
                           :EventContext.Auth.Owner.Designation]]]}})
 
 (dataflow :UserCreationPolicy
-          {:Kernel/Policy
+          {:Kernel.Lang/Policy
            {:Intercept "RBAC"
             :Resource  ["Sample.Library.Identity/Upsert_User"]
             :Spec      [:q#
@@ -123,7 +123,7 @@
                          [:= "incharge" :EventContext.Auth.Owner.Designation]]]}})
 
 (dataflow :CheckoutPolicy
-          {:Kernel/Policy
+          {:Kernel.Lang/Policy
            {:Intercept "RBAC"
             :Resource  ["Sample.Library.Ledger/CheckoutBook"]
             :Spec      [:q#
@@ -133,7 +133,7 @@
                           :EventContext.Auth.Owner.Designation]]]}})
 
 (dataflow :CheckinPolicy
-          {:Kernel/Policy
+          {:Kernel.Lang/Policy
            {:Intercept "RBAC"
             :Resource  ["Sample.Library.Ledger/CheckinBook"]
             :Spec      [:q#
@@ -143,7 +143,7 @@
                           :EventContext.Auth.Owner.Designation]]]}})
 
 (dataflow :RBACPolicyLogging
-          {:Kernel/Policy
+          {:Kernel.Lang/Policy
            {:Intercept "Logging"
             :Resource  ["Sample.Library.Ledger/CheckoutBook"
                         "Sample.Library.Ledger/CheckinBook"

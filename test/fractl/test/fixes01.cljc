@@ -15,16 +15,16 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :I195
-     (entity {:I195/E1 {:A :Kernel/Int
-                        :B :Kernel/Int
-                        :C :Kernel/Int
-                        :Y :Kernel/DateTime}})
+     (entity {:I195/E1 {:A :Int
+                        :B :Int
+                        :C :Int
+                        :Y :DateTime}})
      (dataflow :I195/K
                {:I195/E1 {:A '(+ 5 :B)
                           :B 10
                           :C '(+ 10 :A)
                           :Y '(fractl.lang.datetime/now)}})
-     (entity {:I195/E2 {:Y :Kernel/DateTime}})
+     (entity {:I195/E2 {:Y :DateTime}})
      (dataflow :I195/KK {:I195/E2 {:Y '(fractl.lang.datetime/now)}}))
    (let [evt (cn/make-instance :I195/K {})
          r (first (tu/fresult (e/eval-all-dataflows evt)))]
@@ -51,9 +51,9 @@
    (defcomponent :I196
      (entity
       :I196/E1
-      {:A :Kernel/Int
-       :B :Kernel/Int
-       :C :Kernel/Int
+      {:A :Int
+       :B :Int
+       :C :Int
        :meta {:unique [:A :C]}}))
    (let [e01 (cn/make-instance :I196/E1 {:A 10 :B 20 :C 30})
          evt1 (cn/make-instance {:I196/Upsert_E1 {:Instance e01}})
@@ -77,9 +77,9 @@
    (defcomponent :I206
      (entity
       :I206/E1
-      {:A :Kernel/Int
-       :B :Kernel/Int
-       :C :Kernel/Int
+      {:A :Int
+       :B :Int
+       :C :Int
        :meta {:unique [:A :C]}}))
    (let [e01 (cn/make-instance :I206/E1 {:A 10 :B 20 :C 30})
          evt1 (cn/make-instance {:I206/Upsert_E1 {:Instance e01}})
@@ -98,8 +98,8 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :I185
-     (entity {:I185/E {:X :Kernel/Int :Y :Kernel/Int}})
-     (record {:I185/R {:Y :Kernel/Int}})
+     (entity {:I185/E {:X :Int :Y :Int}})
+     (record {:I185/R {:Y :Int}})
      (dataflow :I185/UpdateE
                {:I185/E {tu/q-id-attr (tu/append-id :I185/UpdateE)
                          :X :I185/UpdateE.X
@@ -143,10 +143,10 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :I213
-     (entity {:I213/E1 {:X :Kernel/Int}})
+     (entity {:I213/E1 {:X :Int}})
      (entity {:I213/E2 {:E1 {:ref (tu/append-id :I213/E1)}
-                        :Y :Kernel/Int}})
-     (record {:I213/R {:Y :Kernel/Int :Z :Kernel/Int}})
+                        :Y :Int}})
+     (record {:I213/R {:Y :Int :Z :Int}})
      (dataflow :I213/UpdateE1
                {:I213/E1 {tu/q-id-attr (tu/append-id :I213/UpdateE1)
                           :X :I213/UpdateE1.X}})
@@ -194,11 +194,11 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :I213NR
-     (entity {:I213NR/E1 {:X :Kernel/Int
-                          :Z {:type :Kernel/Int
+     (entity {:I213NR/E1 {:X :Int
+                          :Z {:type :Int
                               :indexed true}}})
-     (entity {:I213NR/E2 {:Y :Kernel/Int}})
-     (record {:I213NR/R {:Y :Kernel/Int}})
+     (entity {:I213NR/E2 {:Y :Int}})
+     (record {:I213NR/R {:Y :Int}})
      (dataflow [:I213NR/CrossCond
                 :when [:and
                        [:> :I213NR/E1.X 10]
@@ -234,9 +234,9 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :I219
-     (event :I219/Evt {:Y :Kernel/Int})
-     (record :I219/R {:Y :Kernel/Int
-                      :Z :Kernel/Map})
+     (event :I219/Evt {:Y :Int})
+     (record :I219/R {:Y :Int
+                      :Z :Map})
      (dataflow :I219/Evt
                {:I219/R {:Y '(+ 10 :I219/Evt.Y)
                          :Z :I219/Evt.EventContext}}))
@@ -275,7 +275,7 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :lcase
-     (entity :lcase/e {:x :Kernel/Int})
+     (entity :lcase/e {:x :Int})
      (let [e (cn/make-instance
               {:lcase/e {:x 100}})]
        (is (cn/instance-of? :lcase/e e))
@@ -285,7 +285,7 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :I314
-     (record :I314/R {:X :Kernel/Int
+     (record :I314/R {:X :Int
                       :Y '(+ 10 :X)})
      (dataflow :I314/Evt {:I314/R {:X :I314/Evt.X}}))
    (let [r (first
@@ -301,27 +301,30 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :LEnt
-     (record {:LEnt/E {:X :Kernel/Int}})
+     (record {:LEnt/E {:X :Int}})
      (entity {:LEnt/F {:Es {:listof :LEnt/E}}})
-     (event {:LEnt/MakeF {:Xs {:listof :Kernel/Int}}})
+     (event {:LEnt/MakeF1 {:Xs {:listof :Int}}})
+     (event {:LEnt/MakeF2 {:Xs {:listof :Int}}})
      (dataflow
-      :LEnt/MakeF
-      [:for-each :LEnt/MakeF.Xs
+      :LEnt/MakeF1
+      [:for-each :LEnt/MakeF1.Xs
        {:LEnt/E {:X :%}}
        :as :ListofEs]
       {:LEnt/F {:Es :ListofEs}})
      (dataflow
-      :LEnt/MakeF
-      [:for-each [:LEnt/MakeF.Xs :as :I]
+      :LEnt/MakeF2
+      [:for-each [:LEnt/MakeF2.Xs :as :I]
        {:LEnt/E {:X '(* 10 :I)}}
        :as :ListofEs]
       {:LEnt/F {:Es :ListofEs}}))
    (let [xs [10 20 30 40]
          xs*10 (mapv #(* 10 %) xs)
-         evt {:LEnt/MakeF {:Xs xs}}
-         result (e/eval-all-dataflows evt)
-         rs1 (first (tu/fresult result))
-         rs2 (first (tu/nth-result result 1))]
+         evt1 {:LEnt/MakeF1 {:Xs xs}}
+         evt2 {:LEnt/MakeF2 {:Xs xs}}
+         result1 (e/eval-all-dataflows evt1)
+         result2 (e/eval-all-dataflows evt2)
+         rs1 (first (tu/fresult result1))
+         rs2 (first (tu/fresult result2))]
      (doseq [e (:Es rs1)]
        (is (cn/instance-of? :LEnt/E e))
        (is (some #{(:X e)} xs)))
@@ -333,7 +336,7 @@
   (defcomponent :Fea
                 (entity
                   :Fea/E
-                  {:X :Kernel/Int :Y :Kernel/Int})
+                  {:X :Int :Y :Int})
                 (dataflow
                   :Fea/Evt1
                   [:for-each

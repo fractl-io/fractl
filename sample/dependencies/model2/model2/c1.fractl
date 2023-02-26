@@ -3,4 +3,4 @@
 
 (component :Model2.C1)
 
-(entity :E {:X :Kernel/Int})
+(entity :E {:X :Int})

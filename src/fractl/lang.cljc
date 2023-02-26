@@ -6,6 +6,7 @@
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.meta :as mt]
+            [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
             [fractl.component :as cn]
@@ -176,9 +177,30 @@
         attrscm)
       attrscm)))
 
+(defn- attr-type-spec [attr-spec]
+  (when-let [p (some #{:type :listof :setof} (keys attr-spec))]
+    [p (p attr-spec)]))
+
+(defn- normalize-kernel-types [attrs]
+  (let [r (mapv (fn [[k v]]
+                  [k (cond
+                       (keyword? v)
+                       (k/normalize-kernel-type v)
+
+                       (map? v)
+                       (if-let [[p t] (attr-type-spec v)]
+                         (assoc v p (k/normalize-kernel-type t))
+                         v)
+
+                       :else v)])
+                attrs)]
+    (into {} r)))
+
 (defn- validate-attribute-schema-map-keys [scm]
   (let [newscm (maybe-assoc-ref-type
-                (finalize-raw-attribute-schema (oneof-as-check scm)))]
+                (finalize-raw-attribute-schema
+                 (oneof-as-check
+                  (normalize-kernel-types scm))))]
     (cond
       (:unique newscm)
       (assoc newscm :indexed true)
@@ -194,13 +216,30 @@
     (validate-attribute-schema-map-keys
      (li/validate map? (str n " - attribute specification should be a map") scm))))
 
-(defn attribute
+(defn- validated-canonical-type-name
+  ([validate-name n]
+   (let [canon (cn/canonical-type-name n)
+         [_ n] (li/split-path canon)]
+     (when (k/plain-kernel-type? n)
+       (log/warn (str "redefinition of kernel type "
+                      n " will always require the fully-qualified name - "
+                      canon)))
+     (validate-name canon)))
+  ([n] (validated-canonical-type-name li/validate-name n)))
+
+(defn- intern-attribute
   "Add a new attribute definition to the component."
-  [n scm]
-  (cn/intern-attribute
-   (li/validate-name-relaxed n)
-   (normalize-attribute-schema
-    (validate-attribute-schema n scm))))
+  ([validate-name n scm]
+   (cn/intern-attribute
+    (validate-name n)
+    (normalize-attribute-schema
+     (validate-attribute-schema n scm))))
+  ([n scm]
+   (intern-attribute li/validate-name-relaxed n scm)))
+
+(def attribute (partial
+                intern-attribute
+                (partial validated-canonical-type-name li/validate-name-relaxed)))
 
 (defn- validate-attributes [attrs]
   (doseq [[k v] attrs]
@@ -210,7 +249,7 @@
                      (u/throw-ex (str "type not defined - " v)))
       (map? v) (validate-attribute-schema-map-keys v)
       (not (list? v)) (u/throw-ex (str "invalid attribute specification - " v))))
-  attrs)
+    attrs)
 
 (defn- query-eval-fn [recname attrs k v]
   ;; TODO: implement the query->fn compilation phase.
@@ -284,9 +323,6 @@
               fulln)))]
     [k newv]))
 
-(defn- validated-canonical-type-name [n]
-  (li/validate-name (cn/canonical-type-name n)))
-
 (defn- required-attribute-names [attrs]
   (map first
        (filter (fn [[_ v]]
@@ -342,6 +378,7 @@
 
 (defn- normalized-attributes [rectype recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
+        orig-attrs (normalize-kernel-types orig-attrs)
         meta (:meta orig-attrs)
         inherits (:inherits meta)
         inherited-scm (when inherits (fetch-inherited-schema inherits rectype))
@@ -517,9 +554,19 @@
   (cn/canonical-type-name
    (keyword (str (name evtname) "_" (name entity-name)))))
 
-(defn- crud-event-inst-accessor [evtname]
-  (cn/canonical-type-name
-   (keyword (str (name evtname) ".Instance"))))
+(defn- crud-event-attr-accessor
+  ([evtname use-name? attr-name]
+   (keyword (str (if use-name? (name evtname) (subs (str evtname) 1)) "." attr-name)))
+  ([evtname attr-name]
+   (crud-event-attr-accessor evtname false attr-name)))
+
+(defn- crud-event-inst-accessor
+  ([evtname canonical? inst-attr]
+   (let [r (keyword (str (name evtname) ".Instance"
+                         (when inst-attr
+                           (str "." (name inst-attr)))))]
+     (if canonical? (cn/canonical-type-name r) r)))
+  ([evtname] (crud-event-inst-accessor evtname true nil)))
 
 (defn- direct-id-accessor [evtname id-attr]
   (cn/canonical-type-name
@@ -623,13 +670,14 @@
             inst-evattrs {:Instance n li/event-context ctx-aname}
             id-attr (identity-attribute-name rec-name)
             id-attr-type (or (identity-attribute-type id-attr attrs)
-                             :Kernel/Any)
+                             :Kernel.Lang/Any)
             id-evattrs {id-attr id-attr-type
                         li/event-context ctx-aname}]
         ;; Define CRUD events and dataflows:
         (let [upevt (ev :Upsert)
               delevt (ev :Delete)
-              lookupevt (ev :Lookup)]
+              lookupevt (ev :Lookup)
+              lookupevt-internal (ev cn/lookup-internal-event-prefix)]
           (cn/for-each-entity-event-name
            rec-name (partial entity-event rec-name))
           (event-internal upevt inst-evattrs)
@@ -642,6 +690,8 @@
             (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
           (event-internal delevt id-evattrs)
           (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
+          (event-internal lookupevt-internal id-evattrs)
+          (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
           (event-internal lookupevt id-evattrs)
           (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)]))
         ;; Install dataflows for implicit events.
@@ -734,12 +784,120 @@
       (u/throw-ex (str e2 " is already in a contains relationship - " r)))
     elems))
 
+(defn- parent-query-pattern [attr-accessor relname parent]
+  (let [cps (seq (cn/containing-parents parent))
+        parent-pat {parent {(li/name-as-query-pattern
+                             (cn/identity-attribute-name parent))
+                            (attr-accessor (name parent))}}]
+    [{relname {}} ; TODO: Instead of {}, `:from` a map attribute in the event?
+     (if cps
+       (let [[r _ p] (first cps)]
+         (assoc parent-pat li/rel-tag (parent-query-pattern attr-accessor r p)))
+       parent-pat)]))
+
+(defn- parent-query-path [attr-accessor relname parent child]
+  (let [f attr-accessor, np (name parent) nc (name child)
+        path (str "/" np "/" (f np) "/" (name relname) "/" nc "/" (f nc))]
+    (loop [parent parent, path path]
+      (if-let [cps (seq (cn/containing-parents parent))]
+        (let [[r _ p] (first cps), np (name p)]
+          (recur p (str np "/" (f np) "/" (name r) "/" path)))
+        (str "path:" (if (s/starts-with? path "/") "/" "//") path)))))
+
+(defn- parent-names-as-attributes [parent]
+  (loop [p parent, result {(keyword (name parent)) :Kernel.Lang/Any}]
+    (if-let [cps (seq (cn/containing-parents p))]
+      (let [[_ _ p0] (first cps)]
+        (recur p0 (assoc result (keyword (name p0)) :Kernel.Lang/Any)))
+      result)))
+
+(defn- regen-default-dataflows-for-contains [relname [parent child]]
+  (let [ev (partial crud-evname child)
+        upevt (ev :Upsert)
+        attr-names (cn/attribute-names (cn/fetch-schema child))
+        f1 (partial crud-event-inst-accessor upevt true)
+        f2 (partial crud-event-attr-accessor upevt)
+        ups-inst-pat (into {} (mapv (fn [a] [a (f1 a)]) attr-names))
+        lookupevt (ev :Lookup)
+        f3 (partial crud-event-attr-accessor lookupevt true)
+        c (name child)
+        ctx-aname (k/event-context-attribute-name)]
+    (event-internal
+     upevt
+     (merge
+      {:Instance child
+       li/event-context ctx-aname}
+      (parent-names-as-attributes parent)))
+    (cn/register-dataflow
+     upevt
+     [{child ups-inst-pat
+       li/rel-tag
+       (parent-query-pattern f2 relname parent)}])
+    (event-internal
+     lookupevt
+     (merge
+      {(keyword c) :Kernel.Lang/Any
+       li/event-context ctx-aname}
+      (parent-names-as-attributes parent)))
+    (cn/register-dataflow
+     lookupevt
+     [{(li/name-as-query-pattern child)
+       (parent-query-path f3 relname parent child)}])))
+
+(defn- find-between-ref [attrs node-rec-name]
+  (let [cn (li/split-path node-rec-name)]
+    (us/first-truth
+     #(when-let [r (:ref (second %))]
+        (let [p (li/path-parts r)]
+          (when (= cn [(:component p) (:record p)])
+            [(first %) (first (:refs p))])))
+     attrs)))
+
+(defn- make-between-upsert-attributes [ups-event-name attrs]
+  (if (seq attrs)
+    (into
+     {}
+     (mapv (fn [[k _]]
+             [k (li/make-ref ups-event-name [:Instance k])])
+           attrs))
+    {}))
+
+(defn- regen-default-dataflows-for-between [relname [from to] attrs]
+  (let [[aname-from from-qattr] (find-between-ref attrs from)
+        attrs (dissoc attrs aname-from)
+        [aname-to to-qattr] (find-between-ref attrs to)
+        ev (partial crud-evname relname)
+        upevt (ev :Upsert)
+        ups-attrs (make-between-upsert-attributes upevt (dissoc attrs aname-to))
+        ctx-aname (k/event-context-attribute-name)
+        f (second (li/split-path from))
+        t (second (li/split-path to))
+        [fname tname] (if (= from to)
+                        [(keyword (str (name f) "1"))
+                         (keyword (str (name t) "2"))]
+                        [f t])]
+    (event-internal
+     upevt
+     (merge
+      {:Instance {:type relname :optional true}
+       li/event-context ctx-aname}
+      {fname :Kernel.Lang/Any
+       tname :Kernel.Lang/Any}))
+    (cn/register-dataflow
+     upevt
+     [{from {(li/name-as-query-pattern from-qattr)
+             (li/make-ref upevt fname)}
+       li/rel-tag [{relname ups-attrs}
+                   {to {(li/name-as-query-pattern to-qattr)
+                        (li/make-ref upevt tname)}}]}])))
+
 (defn relationship
   ([relation-name attrs]
    (let [meta (:meta attrs)
          contains (ensure-unique-contains (mt/contains meta))
+         between (when-not contains (mt/between meta))
          [elems relmeta] (parse-relationship-member-spec
-                          (or contains (mt/between meta)))
+                          (or contains between))
          each-uq (if (:one-one relmeta) true false)
          combined-uqs (and (not each-uq)
                            (or (and contains (not (:n-n relmeta)))
@@ -763,7 +921,11 @@
                       (if combined-uqs (assoc meta :unique uqs) meta)
                       :relationship true)))]
        (when (cn/register-relationship elems relation-name)
-         (and (meta-entity relation-name) r)))))
+         (when-let [r (and (meta-entity relation-name) r)]
+           (if contains
+             (regen-default-dataflows-for-contains relation-name contains)
+             (regen-default-dataflows-for-between relation-name between (dissoc attrs :meta)))
+           r)))))
   ([schema]
    (let [r (parse-and-define serializable-entity schema)]
      (and (meta-entity (first (keys schema))) r))))
@@ -801,88 +963,88 @@
       (resolver-for-component target spec))))
 
 (defn- do-init-kernel []
-  (cn/create-component :Kernel {})
+  (cn/create-component :Kernel.Lang {})
   (doseq [[type-name type-def] k/types]
-    (attribute type-name {:check type-def
-                          :type type-name}))
+    (intern-attribute type-name {:check type-def
+                                 :type type-name}))
 
   (attribute (k/event-context-attribute-name)
              (k/event-context-attribute-schema))
 
-  (attribute :Kernel/Password
-             {:type :Kernel/String
-              :secure-hash true})
+  (intern-attribute :Kernel.Lang/Password
+                    {:type :Kernel.Lang/String
+                     :secure-hash true})
 
-  (record :Kernel/Future
-          {:Result :Kernel/Any
-           :TimeoutMillis {:type :Kernel/Int
+  (record :Kernel.Lang/Future
+          {:Result :Kernel.Lang/Any
+           :TimeoutMillis {:type :Kernel.Lang/Int
                            :default 2000}})
 
-  (entity {:Kernel/Resolver
-           {:Type :Kernel/String
-            :Configuration :Kernel/Map
+  (entity {:Kernel.Lang/Resolver
+           {:Type :Kernel.Lang/String
+            :Configuration :Kernel.Lang/Map
             :Identifier {:check keyword? :unique true}}})
 
   (entity
-   :Kernel/Role
-   {:Name {:type :Kernel/String
+   :Kernel.Lang/Role
+   {:Name {:type :Kernel.Lang/String
            :unique true}})
 
   (event
-   :Kernel/RoleAssignment
-   {:Role :Kernel/Role
-    :Assignee :Kernel/Entity})
+   :Kernel.Lang/RoleAssignment
+   {:Role :Kernel.Lang/Role
+    :Assignee :Kernel.Lang/Entity})
 
   (entity
-   :Kernel/Policy
-   {:Intercept {:type :Kernel/Keyword
+   :Kernel.Lang/Policy
+   {:Intercept {:type :Kernel.Lang/Keyword
                 :indexed true}
-    :Resource {:type :Kernel/Path
+    :Resource {:type :Kernel.Lang/Path
                :indexed true}
-    :Spec :Kernel/Edn
+    :Spec :Kernel.Lang/Edn
     :InterceptStage
     {:oneof [:PreEval :PostEval :Default]
      :default :Default}})
 
-  (entity {:Kernel/Timer
-           {:Expiry :Kernel/Int
+  (entity {:Kernel.Lang/Timer
+           {:Expiry :Kernel.Lang/Int
             :ExpiryUnit {:oneof [:Seconds :Minutes :Hours :Days]
                          :default :Seconds}
-            :ExpiryEvent :Kernel/Map
+            :ExpiryEvent :Kernel.Lang/Map
             ;; :TaskHandle is set by the runtime, represents the
             ;; thread that execute the event after timer expiry.
-            :TaskHandle {:type :Kernel/Any :optional true}}})
+            :TaskHandle {:type :Kernel.Lang/Any :optional true}}})
 
   (dataflow
-   :Kernel/LoadPolicies
-   {:Kernel/Policy
-    {:Intercept? :Kernel/LoadPolicies.Intercept
-     :Resource? :Kernel/LoadPolicies.Resource}})
+   :Kernel.Lang/LoadPolicies
+   {:Kernel.Lang/Policy
+    {:Intercept? :Kernel.Lang/LoadPolicies.Intercept
+     :Resource? :Kernel.Lang/LoadPolicies.Resource}})
 
   (event
-   :Kernel/AppInit
-   {:Data :Kernel/Map})
+   :Kernel.Lang/AppInit
+   {:Data :Kernel.Lang/Map})
 
   (event
-   :Kernel/InitConfig
+   :Kernel.Lang/InitConfig
    {})
 
   (record
-   :Kernel/InitConfigResult
-   {:Data {:listof :Kernel/Map}})
+   :Kernel.Lang/InitConfigResult
+   {:Data {:listof :Kernel.Lang/Map}})
 
   #?(:clj
      (do
-       (record :Kernel/DataSource
-               {:Uri {:type :Kernel/String
+       (record :Kernel.Lang/DataSource
+               {:Uri {:type :Kernel.Lang/String
                       :optional true} ;; defaults to currently active store
-                :Entity :Kernel/String ;; name of an entity
-                :AttributeMapping {:type :Kernel/Map
+                :Entity :Kernel.Lang/String ;; name of an entity
+                :AttributeMapping {:type :Kernel.Lang/Map
                                    :optional true}})
 
-       (event :Kernel/DataSync
-              {:Source :Kernel/DataSource
-               :DestinationUri {:type :Kernel/String
+       (event :Kernel.Lang/DataSync
+              {:Source :Kernel.Lang/DataSource
+               :DestinationUri {:type :Kernel.Lang/String
                                 :optional true}})
 
        (r/register-resolvers
@@ -895,15 +1057,15 @@
                     :event event
                     :record record
                     :dataflow dataflow}}
-          :paths [:Kernel/LoadModelFromMeta]}
+          :paths [:Kernel.Lang/LoadModelFromMeta]}
          {:name :timer
           :type :timer
           :compose? false
-          :paths [:Kernel/Timer]}
+          :paths [:Kernel.Lang/Timer]}
          {:name :data-sync
           :type :data-sync
           :compose? false
-          :paths [:Kernel/DataSync]}]))))
+          :paths [:Kernel.Lang/DataSync]}]))))
 
 (defn init []
   (when-not (cn/kernel-inited?)

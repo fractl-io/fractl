@@ -25,8 +25,8 @@
   (cn/remove-component :CompileTest)
   (component :CompileTest)
   (entity {:CompileTest/E1
-           {:X :Kernel/Int
-            :Y :Kernel/Int}}))
+           {:X :Int
+            :Y :Int}}))
 
 (defn- init-test-context []
   (install-test-component)
@@ -120,8 +120,8 @@
 (deftest compile-ref
   (defcomponent :Df01
     (entity {:Df01/E
-             {:X :Kernel/Int
-              :Y :Kernel/Int}}))
+             {:X :Int
+              :Y :Int}}))
   (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
         evt {:Df01/Upsert_E {:Instance e}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
@@ -130,9 +130,9 @@
 (deftest compile-create
   (defcomponent :Df02
     (entity {:Df02/E
-             {:X :Kernel/Int
-              :Y :Kernel/Int}})
-    (record {:Df02/R {:A :Kernel/Int}})
+             {:X :Int
+              :Y :Int}})
+    (record {:Df02/R {:A :Int}})
     (event {:Df02/PostE {:R :Df02/R}}))
   (dataflow :Df02/PostE
             {:Df02/E {:X :Df02/PostE.R.A
@@ -147,10 +147,10 @@
 
 (deftest dependency
   (defcomponent :Df03
-    (record {:Df03/R {:A :Kernel/Int}})
-    (entity {:Df03/E {:X :Kernel/Int
-                      :Y :Kernel/Int
-                      :Z :Kernel/Int}})
+    (record {:Df03/R {:A :Int}})
+    (entity {:Df03/E {:X :Int
+                      :Y :Int
+                      :Z :Int}})
     (event {:Df03/PostE {:R :Df03/R}}))
   (dataflow :Df03/PostE
             {:Df03/E {:X :Df03/PostE.R.A
@@ -167,10 +167,10 @@
 
 (deftest boolean-type
   (defcomponent :Bool
-    (entity {:Bool/E {:X :Kernel/Boolean
-                      :Y :Kernel/Boolean}})
-    (event {:Bool/PostE1 {:B :Kernel/Boolean}})
-    (event {:Bool/PostE2 {:B :Kernel/Boolean}}))
+    (entity {:Bool/E {:X :Boolean
+                      :Y :Boolean}})
+    (event {:Bool/PostE1 {:B :Boolean}})
+    (event {:Bool/PostE2 {:B :Boolean}}))
   (dataflow :Bool/PostE1
             {:Bool/E {:X :Bool/PostE1.B
                       :Y true}})
@@ -193,11 +193,11 @@
 (deftest self-reference
   (defcomponent :SelfRef
     (entity {:SelfRef/E
-             {:X :Kernel/Int
-              :Y :Kernel/Int
-              :Z :Kernel/Int}})
-    (event {:SelfRef/AddToX {:EId :Kernel/UUID
-                             :Y :Kernel/Int}}))
+             {:X :Int
+              :Y :Int
+              :Z :Int}})
+    (event {:SelfRef/AddToX {:EId :UUID
+                             :Y :Int}}))
   (dataflow :SelfRef/AddToX
             {:SelfRef/E {tu/q-id-attr :SelfRef/AddToX.EId
                          :X '(+ :X :SelfRef/AddToX.Y)
@@ -223,10 +223,10 @@
 
 (deftest compound-attributes
   (defcomponent :Df04
-    (entity {:Df04/E1 {:A :Kernel/Int}})
+    (entity {:Df04/E1 {:A :Int}})
     (entity {:Df04/E2 {:AId {:ref (tu/append-id :Df04/E1)}
-                       :X :Kernel/Int
-                       :Y {:type :Kernel/Int
+                       :X :Int
+                       :Y {:type :Int
                            :expr '(* :X :AId.A)}}})
     (event {:Df04/PostE2 {:E1 :Df04/E1}}))
   (dataflow :Df04/PostE2
@@ -248,14 +248,14 @@
 
 (deftest compound-attributes-non-id
   (defcomponent :Df04NID
-    (entity {:Df04NID/E1 {:A :Kernel/Int
-                          :Name {:type :Kernel/String
+    (entity {:Df04NID/E1 {:A :Int
+                          :Name {:type :String
                                  :unique true}}})
     (entity {:Df04NID/E2 {:E1 {:ref :Df04NID/E1.Name}
-                          :X :Kernel/Int
-                          :Y {:type :Kernel/Int
+                          :X :Int
+                          :Y {:type :Int
                               :expr '(* :X :E1.A)}}})
-    (event {:Df04NID/PostE2 {:E1Name :Kernel/String}}))
+    (event {:Df04NID/PostE2 {:E1Name :String}}))
   (dataflow :Df04NID/PostE2
             {:Df04NID/E2 {:E1 :Df04NID/PostE2.E1Name
                           :X 500}})
@@ -279,8 +279,8 @@
 
 (deftest compound-attributes-with-default-events
   (defcomponent :CA
-    (entity {:CA/E {:A :Kernel/Int
-                    :B {:type :Kernel/Int
+    (entity {:CA/E {:A :Int
+                    :B {:type :Int
                         :expr '(* :A 10)}}}))
   (let [e (cn/make-instance :CA/E {:A 20})
         evt {:CA/Upsert_E {:Instance e}}
@@ -295,9 +295,9 @@
 
 (deftest compound-attributes-literal-arg
   (defcomponent :Df041
-    (record {:Df041/R {:A :Kernel/Int}})
-    (entity {:Df041/E {:X :Kernel/Int
-                       :Y {:type :Kernel/Int
+    (record {:Df041/R {:A :Int}})
+    (entity {:Df041/E {:X :Int
+                       :Y {:type :Int
                            :expr '(* :X 10)}}})
     (event {:Df041/PostE {:R :Df041/R}}))
   (dataflow :Df041/PostE
@@ -313,8 +313,8 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :Df05
-     (entity {:Df05/E1 {:A :Kernel/Int}})
-     (entity {:Df05/E2 {:B :Kernel/Int}})
+     (entity {:Df05/E1 {:A :Int}})
+     (entity {:Df05/E2 {:B :Int}})
      (event {:Df05/Evt01 {:E1 :Df05/E1}})
      (event {:Df05/Evt02 {:E1 :Df05/E1}})
      (dataflow :Df05/Evt01
@@ -329,9 +329,9 @@
 
 (deftest refcheck
   (defcomponent :RefCheck
-    (entity {:RefCheck/E1 {:A :Kernel/Int}})
+    (entity {:RefCheck/E1 {:A :Int}})
     (entity {:RefCheck/E2 {:AId {:ref (tu/append-id :RefCheck/E1)}
-                           :X :Kernel/Int}}))
+                           :X :Int}}))
   (let [e (cn/make-instance :RefCheck/E1 {:A 100})
         id (cn/id-attr e)
         e2 (cn/make-instance :RefCheck/E2 {:AId (cn/id-attr e) :X 20})
@@ -349,13 +349,13 @@
 (deftest s3-test
   (defcomponent :AWS
     (record {:AWS/CreateBucketConfig
-             {:LocationConstraint :Kernel/String}})
+             {:LocationConstraint :String}})
     (entity {:AWS/S3Bucket
-             {:Bucket :Kernel/String
+             {:Bucket :String
               :CreateBucketConfiguration :AWS/CreateBucketConfig}})
     (event {:AWS/CreateBucket
-            {:Bucket :Kernel/String
-             :Region :Kernel/String}}))
+            {:Bucket :String
+             :Region :String}}))
   (dataflow :AWS/CreateBucket
             {:AWS/CreateBucketConfig {:LocationConstraint :AWS/CreateBucket.Region}}
             {:AWS/S3Bucket {:Bucket :AWS/CreateBucket.Bucket
@@ -372,10 +372,10 @@
 
 (deftest record-in-entity
   (defcomponent :RecordEnt
-    (record {:RecordEnt/R {:A :Kernel/Int}})
-    (entity {:RecordEnt/E {:Q :Kernel/Int
+    (record {:RecordEnt/R {:A :Int}})
+    (entity {:RecordEnt/E {:Q :Int
                            :R :RecordEnt/R}})
-    (event {:RecordEnt/PostE {:RA :Kernel/Int}}))
+    (event {:RecordEnt/PostE {:RA :Int}}))
   (dataflow :RecordEnt/PostE
             {:RecordEnt/R {:A :RecordEnt/PostE.RA}}
             {:RecordEnt/E {:Q 100
@@ -389,8 +389,8 @@
 
 (deftest hidden-attributes
   (defcomponent :H
-    (entity {:H/E {:A :Kernel/Int
-                   :X {:type :Kernel/String
+    (entity {:H/E {:A :Int
+                   :X {:type :String
                        :secure-hash true
                        :write-only true}}}))
   (let [x "this is a secret"
@@ -407,8 +407,8 @@
 
 (deftest alias-for-instances
   (defcomponent :Alias
-    (entity {:Alias/E {:X :Kernel/Int}})
-    (entity {:Alias/F {:Y :Kernel/Int}})
+    (entity {:Alias/E {:X :Int}})
+    (entity {:Alias/F {:Y :Int}})
     (record {:Alias/R {:F :Alias/F}})
     (event {:Alias/Evt {:Instance :Alias/E}})
     (dataflow :Alias/Evt
@@ -423,11 +423,11 @@
 
 (deftest multi-alias
   (defcomponent :MultiAlias
-    (entity {:MultiAlias/E {:X :Kernel/Int}})
-    (entity {:MultiAlias/F {:A :Kernel/Int
-                            :B :Kernel/Int}})
-    (event {:MultiAlias/Evt {:EX1 :Kernel/Int
-                             :EX2 :Kernel/Int}})
+    (entity {:MultiAlias/E {:X :Int}})
+    (entity {:MultiAlias/F {:A :Int
+                            :B :Int}})
+    (event {:MultiAlias/Evt {:EX1 :Int
+                             :EX2 :Int}})
     (dataflow :MultiAlias/Evt
               {:MultiAlias/E {:X :MultiAlias/Evt.EX1} :as :E1}
               {:MultiAlias/E {:X :MultiAlias/Evt.EX2} :as :E2}
@@ -451,8 +451,8 @@
 
 (deftest conditional
   (defcomponent :Cond
-    (record {:Cond/R {:X :Kernel/Int}})
-    (event {:Cond/Evt {:I :Kernel/Int}})
+    (record {:Cond/R {:X :Int}})
+    (event {:Cond/Evt {:I :Int}})
     (dataflow :Cond/Evt
               [:match :Cond/Evt.I
                0 {:Cond/R {:X 100}}
@@ -471,8 +471,8 @@
 
 (deftest conditional-boolean
   (defcomponent :CondBool
-    (record {:CondBool/R {:X :Kernel/Int}})
-    (event {:CondBool/Evt {:I :Kernel/Boolean}})
+    (record {:CondBool/R {:X :Int}})
+    (event {:CondBool/Evt {:I :Boolean}})
     (dataflow :CondBool/Evt
               [:match :CondBool/Evt.I
                true {:CondBool/R {:X 100}}
@@ -489,8 +489,8 @@
 
 (deftest conditional-pattern-list
   (defcomponent :CondPatList
-    (record {:CondPatList/R {:X :Kernel/Int}})
-    (event {:CondPatList/Evt {:I :Kernel/Int}})
+    (record {:CondPatList/R {:X :Int}})
+    (event {:CondPatList/Evt {:I :Int}})
     (dataflow :CondPatList/Evt
               [:match :CondPatList/Evt.I
                0 [{:CondPatList/R {:X 100}}
@@ -508,8 +508,8 @@
 
 (deftest match-with-alias
   (defcomponent :MA
-    (record {:MA/R {:X :Kernel/Int}})
-    (event {:MA/Evt {:I :Kernel/Int}})
+    (record {:MA/R {:X :Int}})
+    (event {:MA/Evt {:I :Int}})
     (dataflow :MA/Evt
               [:match :MA/Evt.I
                0 {:MA/R {:X 100}}
@@ -528,8 +528,8 @@
 
 (deftest match-with-alias-no-alternative-case
   (defcomponent :MA2
-    (record {:MA2/R {:X :Kernel/Int}})
-    (event {:MA2/Evt {:I :Kernel/Int}})
+    (record {:MA2/R {:X :Int}})
+    (event {:MA2/Evt {:I :Int}})
     (dataflow :MA2/Evt
               [:match :MA2/Evt.I
                0 {:MA2/R {:X 100}}
@@ -545,9 +545,9 @@
 
 (deftest alias-scope
   (defcomponent :AScope
-    (entity {:AScope/E {:X :Kernel/Int}})
-    (record {:AScope/R {:A :Kernel/Int :B :Kernel/Int}})
-    (event {:AScope/Evt {:I :Kernel/Int}})
+    (entity {:AScope/E {:X :Int}})
+    (record {:AScope/R {:A :Int :B :Int}})
+    (event {:AScope/Evt {:I :Int}})
     (dataflow :AScope/Evt
               {:AScope/E {:X :AScope/Evt.I} :as :E1}
               {:AScope/E {:X '(+ :E1.X 1)} :as :E2}
@@ -559,9 +559,9 @@
 
 (deftest for-each
   (defcomponent :ForEach
-    (entity {:ForEach/E {:X :Kernel/Int}})
-    (record {:ForEach/R {:A :Kernel/Int}})
-    (event {:ForEach/Evt {:I :Kernel/Int}})
+    (entity {:ForEach/E {:X :Int}})
+    (record {:ForEach/R {:A :Int}})
+    (event {:ForEach/Evt {:I :Int}})
     (dataflow :ForEach/Evt
               {:ForEach/E {:X :ForEach/Evt.I} :as :E1}
               {:ForEach/E {:X '(+ :E1.X 1)} :as :E2}
@@ -578,9 +578,9 @@
 
 (deftest for-each-literal-result
   (defcomponent :ForEachLR
-    (entity {:ForEachLR/E {:X :Kernel/Int}})
-    (record {:ForEachLR/R {:A :Kernel/Int}})
-    (event {:ForEachLR/Evt {:I :Kernel/Int}})
+    (entity {:ForEachLR/E {:X :Int}})
+    (record {:ForEachLR/R {:A :Int}})
+    (event {:ForEachLR/Evt {:I :Int}})
     (dataflow :ForEachLR/Evt
               {:ForEachLR/E {:X :ForEachLR/Evt.I} :as :E1}
               {:ForEachLR/E {:X '(+ :E1.X 1)} :as :E2}
@@ -594,10 +594,10 @@
 
 (deftest for-each-basic-query
   (defcomponent :ForEachBQ
-    (entity {:ForEachBQ/E {:X {:type :Kernel/Int
+    (entity {:ForEachBQ/E {:X {:type :Int
                                :indexed true}}})
-    (record {:ForEachBQ/R {:A :Kernel/Int}})
-    (event {:ForEachBQ/Evt {:I :Kernel/Int}})
+    (record {:ForEachBQ/R {:A :Int}})
+    (event {:ForEachBQ/Evt {:I :Int}})
     (dataflow :ForEachBQ/Evt
               {:ForEachBQ/E {:X :ForEachBQ/Evt.I} :as :E1}
               {:ForEachBQ/E {:X '(+ :E1.X 1)} :as :E2}
@@ -611,9 +611,9 @@
 
 (deftest for-each-with-alias
   (defcomponent :ForEachAlias
-    (entity {:ForEachAlias/E {:X :Kernel/Int}})
-    (record {:ForEachAlias/R {:A :Kernel/Int}})
-    (event {:ForEachAlias/Evt {:I :Kernel/Int}})
+    (entity {:ForEachAlias/E {:X :Int}})
+    (record {:ForEachAlias/R {:A :Int}})
+    (event {:ForEachAlias/Evt {:I :Int}})
     (dataflow :ForEachAlias/Evt
               {:ForEachAlias/E {:X :ForEachAlias/Evt.I} :as :E1}
               {:ForEachAlias/E {:X '(+ :E1.X 1)} :as :E2}
@@ -629,14 +629,13 @@
     (is (cn/instance-of? :ForEachAlias/R secondE))
     (is (= 11 (:A secondE)))))
 
-
 (deftest destructuring-alias
   (defcomponent :DestructuringAlias
-    (entity {:DestructuringAlias/E {:X {:type    :Kernel/Int
+    (entity {:DestructuringAlias/E {:X {:type    :Int
                                 :indexed true}
-                            :N :Kernel/String}})
-    (record {:Result {:Values :Kernel/Any}})
-    (event {:DestructuringAlias/Evt {:X :Kernel/Int}})
+                            :N :String}})
+    (record {:Result {:Values :Any}})
+    (event {:DestructuringAlias/Evt {:X :Int}})
      (dataflow :DestructuringAlias/Evt
       {:DestructuringAlias/E {:X? :DestructuringAlias/Evt.X} :as [:R1 :R2 :_ :R4 :& :RS]}
       {:DestructuringAlias/Result {:Values [:R1 :R2 :R4 :RS]}}))
@@ -663,7 +662,7 @@
 
 (deftest delete-insts
   (defcomponent :Del
-    (entity {:Del/E {:X :Kernel/Int}}))
+    (entity {:Del/E {:X :Int}}))
   (let [e (cn/make-instance :Del/E {:X 100})
         e01 (first (tu/fresult (e/eval-all-dataflows {:Del/Upsert_E {:Instance e}})))
         id (cn/id-attr e01)
@@ -687,19 +686,19 @@
 
 (deftest listof
   (defcomponent :L
-    (entity {:L/E {:Xs {:listof :Kernel/Int}
-                   :Y :Kernel/Int}})
-    (event {:L/MakeE0 {:Xs {:listof :Kernel/Int} :Y :Kernel/Int}})
+    (entity {:L/E {:Xs {:listof :Int}
+                   :Y :Int}})
+    (event {:L/MakeE0 {:Xs {:listof :Int} :Y :Int}})
     (dataflow :L/MakeE0
               {:L/E {:Xs :L/MakeE0.Xs :Y :L/MakeE0.Y}})
-    (event {:L/MakeE1 {:X1 :Kernel/Int :X2 :Kernel/Int :Y :Kernel/Int}})
+    (event {:L/MakeE1 {:X1 :Int :X2 :Int :Y :Int}})
     (dataflow :L/MakeE1
               {:L/E {:Xs [:L/MakeE1.X1 :L/MakeE1.X2] :Y :L/MakeE1.Y}})
-    (event {:L/MakeE2 {:X :Kernel/Int :Y :Kernel/Int}})
+    (event {:L/MakeE2 {:X :Int :Y :Int}})
     (dataflow :L/MakeE2
               {:L/E {:Xs [(* 100 2) 780 :L/MakeE2.X] :Y :L/MakeE2.Y}})
-    (entity {:L/F {:Xs {:listof :Kernel/Any}
-                   :Y :Kernel/Int}}))
+    (entity {:L/F {:Xs {:listof :Any}
+                   :Y :Int}}))
   (let [e (cn/make-instance :L/E {:Xs [1 2 3] :Y 100})
         evt {:L/Upsert_E {:Instance e}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
@@ -710,7 +709,7 @@
   (try
     (let [evt {:L/MakeE0 {:Xs [10 "hi"] :Y 1}}
           result (tu/fresult (e/eval-all-dataflows evt))]
-      (is false))
+      (is (nil? result)))
     (catch #?(:clj Exception :cljs :default) ex
       (is ex)))
   (let [evt {:L/MakeE1 {:X1 10 :X2 20 :Y 1}}
@@ -726,13 +725,13 @@
 
 (deftest optional-attributes
   (defcomponent :OptAttr
-    (entity {:OptAttr/E {:X :Kernel/Int
-                         :Y {:type :Kernel/Int
+    (entity {:OptAttr/E {:X :Int
+                         :Y {:type :Int
                              :optional true}
-                         :S :Kernel/String}})
-    (entity {:OptAttr/F {:X :Kernel/Int
-                         :Y :Kernel/Int
-                         :S :Kernel/String
+                         :S :String}})
+    (entity {:OptAttr/F {:X :Int
+                         :Y :Int
+                         :S :String
                          :meta {:required-attributes [:X :S]}}}))
   (let [e1 (cn/make-instance :OptAttr/E {:X 10 :S "hello"})
         e2 (cn/make-instance :OptAttr/E {:X 1 :Y 2 :S "hi"})]
@@ -749,11 +748,11 @@
 
 (deftest optional-record-attribute
   (defcomponent :OptRecAttr
-    (record {:OptRecAttr/R {:A :Kernel/Int}})
-    (entity {:OptRecAttr/E {:Q :Kernel/Int
+    (record {:OptRecAttr/R {:A :Int}})
+    (entity {:OptRecAttr/E {:Q :Int
                             :R {:type :OptRecAttr/R
                                 :optional true}}})
-    (event {:OptRecAttr/PostE {:Q :Kernel/Int}}))
+    (event {:OptRecAttr/PostE {:Q :Int}}))
   (dataflow :OptRecAttr/PostE
             {:OptRecAttr/E {:Q :OptRecAttr/PostE.Q}})
   (let [evt {:OptRecAttr/PostE {:Q 10}}
@@ -764,22 +763,22 @@
 
 (deftest inherits
   (defcomponent :Inherits
-    (record {:Inherits/Base {:A {:type :Kernel/Int
+    (record {:Inherits/Base {:A {:type :Int
                                  :optional true}
-                             :B :Kernel/Int}})
+                             :B :Int}})
     (entity {:Inherits/E {:meta {:inherits :Inherits/Base}
-                          :X :Kernel/Int
-                          :Y {:type :Kernel/Int
+                          :X :Int
+                          :Y {:type :Int
                               :optional true}
-                          :S :Kernel/String}})
-    (record {:Inherits/BaseMeta {:A :Kernel/Int
-                                 :B :Kernel/Int
+                          :S :String}})
+    (record {:Inherits/BaseMeta {:A :Int
+                                 :B :Int
                                  :meta {:required-attributes [:B]}}})
     (entity {:Inherits/F {:meta {:inherits :Inherits/BaseMeta}
-                          :X :Kernel/Int
-                          :Y {:type :Kernel/Int
+                          :X :Int
+                          :Y {:type :Int
                               :optional true}
-                          :S :Kernel/String}}))
+                          :S :String}}))
   (let [e1 (cn/make-instance :Inherits/E {:X 10 :S "hello" :A 100 :B 200})
         e2 (cn/make-instance :Inherits/E {:X 1 :Y 2 :S "hi" :B 200})]
     (is (cn/instance-of? :Inherits/E e1))
@@ -795,15 +794,15 @@
 
 (deftest multi-level-inherits
   (defcomponent :MultiInherits
-    (record {:MultiInherits/Base1 {:A {:type :Kernel/Int
+    (record {:MultiInherits/Base1 {:A {:type :Int
                                        :optional true}
-                                   :B :Kernel/Int}})
-    (record {:MultiInherits/Base2 {:C :Kernel/Int
+                                   :B :Int}})
+    (record {:MultiInherits/Base2 {:C :Int
                                    :meta {:inherits :MultiInherits/Base1}}})
-    (entity {:MultiInherits/E {:X :Kernel/Int
-                               :Y {:type :Kernel/Int
+    (entity {:MultiInherits/E {:X :Int
+                               :Y {:type :Int
                                    :optional true}
-                               :S :Kernel/String
+                               :S :String
                                :meta {:inherits :MultiInherits/Base2}}}))
   (let [e1 (cn/make-instance :MultiInherits/E {:X 10 :S "hello" :A 100 :B 200 :C 300})
         e2 (cn/make-instance :MultiInherits/E {:X 1 :Y 2 :S "hi" :B 200 :C 300})]
@@ -814,15 +813,15 @@
 
 (deftest multi-level-inherits-meta
   (defcomponent :MultiInheritsMeta
-    (record {:MultiInheritsMeta/Base1 {:A :Kernel/Int
-                                       :B :Kernel/Int
+    (record {:MultiInheritsMeta/Base1 {:A :Int
+                                       :B :Int
                                        :meta {:required-attributes [:B]}}})
-    (record {:MultiInheritsMeta/Base2 {:C :Kernel/Int
+    (record {:MultiInheritsMeta/Base2 {:C :Int
                                        :meta {:inherits :MultiInheritsMeta/Base1}}})
-    (entity {:MultiInheritsMeta/E {:X :Kernel/Int
-                                   :Y {:type :Kernel/Int
+    (entity {:MultiInheritsMeta/E {:X :Int
+                                   :Y {:type :Int
                                        :optional true}
-                                   :S :Kernel/String
+                                   :S :String
                                    :meta {:inherits :MultiInheritsMeta/Base2}}}))
   (let [e1 (cn/make-instance :MultiInheritsMeta/E {:X 10 :S "hello" :A 100 :B 200 :C 300})
         e2 (cn/make-instance :MultiInheritsMeta/E {:X 1 :Y 2 :S "hi" :B 200 :C 300})]
@@ -833,14 +832,14 @@
 
 (deftest edn-attribute
   (defcomponent :EdnAttr
-    (entity :EdnAttr/Form {:Title :Kernel/String
-                           :X :Kernel/Int
-                           :Y {:type :Kernel/Int
+    (entity :EdnAttr/Form {:Title :String
+                           :X :Int
+                           :Y {:type :Int
                                :expr '(+ :X 10)}
-                           :View :Kernel/Edn})
-    (event :EdnAttr/RenderLoginForm {:Title :Kernel/String
-                                     :X :Kernel/Int
-                                     :Y :Kernel/Int})
+                           :View :Edn})
+    (event :EdnAttr/RenderLoginForm {:Title :String
+                                     :X :Int
+                                     :Y :Int})
     (dataflow :EdnAttr/RenderLoginForm
               {:EdnAttr/Form
                {:Title :EdnAttr/RenderLoginForm.Title
@@ -871,13 +870,13 @@
 
 (deftest patterns-in-attributes
   (defcomponent :PA
-    (event {:PA/OnClickEvent {:Source {:type :Kernel/UUID :optional true}}})
-    (record {:PA/Position {:X :Kernel/Int :Y :Kernel/Int
-                           :W :Kernel/Int :H :Kernel/Int}})
-    (entity {:PA/Button {:Title :Kernel/String
+    (event {:PA/OnClickEvent {:Source {:type :UUID :optional true}}})
+    (record {:PA/Position {:X :Int :Y :Int
+                           :W :Int :H :Int}})
+    (entity {:PA/Button {:Title :String
                          :Position :PA/Position
                          :OnClick :PA/OnClickEvent}})
-    (event {:PA/AddButton {:Title :Kernel/String :Position :PA/Position}})
+    (event {:PA/AddButton {:Title :String :Position :PA/Position}})
     (dataflow :PA/AddButton
               {:PA/Button {:Title :PA/AddButton.Title
                            :Position :PA/AddButton.Position
@@ -891,15 +890,15 @@
 (deftest edn-ui
   (defcomponent :EdnUI
     (entity {:EdnUI/UserLogin
-             {:UserNameLabel {:type :Kernel/String
+             {:UserNameLabel {:type :String
                               :default "Username: "}
-              :PasswordLabel {:type :Kernel/String
+              :PasswordLabel {:type :String
                               :default "Password: "}
-              :ButtonTitle {:type :Kernel/String
+              :ButtonTitle {:type :String
                             :default "Login"}
-              :HandlerEvent {:type :Kernel/Keyword
+              :HandlerEvent {:type :Keyword
                              :optional true}
-              :View {:type :Kernel/Edn
+              :View {:type :Edn
                      :default
                      [:div
                       [:div
@@ -914,17 +913,17 @@
     (entity {:EdnUI/LoginForm
              {:UserLogin {:type :EdnUI/UserLogin
                           :optional true}
-              :Title {:type :Kernel/String
+              :Title {:type :String
                       :default "Login"}
-              :DOMTarget :Kernel/String
-              :View {:type :Kernel/Edn
+              :DOMTarget :String
+              :View {:type :Edn
                      :default
                      [:div
                       [:h2 :Title]
                       [:div :UserLogin.View]]}}})
 
     (event {:EdnUI/LoginEvent
-            {:Data :Kernel/Any}})
+            {:Data :Any}})
 
     (dataflow :EdnUI/MakeLoginForm
               {:EdnUI/UserLogin
@@ -949,9 +948,9 @@
   (#?(:clj do
       :cljs cljs.core.async/go)
    (defcomponent :AE
-     (record {:AE/R01 {:X :Kernel/Int}})
-     (event {:AE/Evt01 {:A :Kernel/Int}})
-     (event {:AE/Evt02 {:B :Kernel/Int}})
+     (record {:AE/R01 {:X :Int}})
+     (event {:AE/Evt01 {:A :Int}})
+     (event {:AE/Evt02 {:B :Int}})
      (dataflow :AE/Evt01
                {:AE/Evt02 {:B :AE/Evt01.A}})
      (dataflow :AE/Evt02
@@ -966,7 +965,7 @@
       :cljs cljs.core.async/go)
    (defcomponent :PathType
      (entity {:PathType/E
-              {:X :Kernel/Path}}))
+              {:X :Path}}))
    (let [e1 (cn/make-instance {:PathType/E {:X :A/B.R}})
          e2 (cn/make-instance {:PathType/E {:X "A/B.R"}})]
      (is (cn/instance-of? :PathType/E e1))
@@ -981,16 +980,20 @@
       :cljs cljs.core.async/go)
    (defcomponent :FormatTest
      (entity {:FormatTest/E
-              {:DOB {:type :Kernel/String
+              {:Phone {:type :String
+                       :format "^(1\\s?)?(\\d{3}|\\(\\d{3}\\))[\\s\\-]?\\d{3}[\\s\\-]?\\d{4}$"}
+               :DOB {:type :String
                      :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}}})
      (is (cn/instance-of?
           :FormatTest/E
           (cn/make-instance
            {:FormatTest/E
-            {:DOB "1999-03-20"}})))
+            {:Phone "(555)555-5555"
+             :DOB "1999-03-20"}})))
      (tu/is-error #(cn/make-instance
                     {:FormatTest/E
-                     {:DOB "1877-09-01"}})))))
+                     {:Phone "(555)555-5555"
+                      :DOB "1877-09-01"}})))))
 
 (deftest numeric-types
   (#?(:clj do
@@ -998,13 +1001,13 @@
    (defcomponent :NT
      (entity
       :NT/E
-      {:X :Kernel/Int
-       :Y :Kernel/Int64
-       :Z :Kernel/BigInteger
-       :A :Kernel/Float
-       :B :Kernel/Double
-       :C :Kernel/Decimal
-       :D :Kernel/DateTime})
+      {:X :Int
+       :Y :Int64
+       :Z :BigInteger
+       :A :Float
+       :B :Double
+       :C :Decimal
+       :D :DateTime})
      (let [bi 8993993938884848858996996
            f 1.2
            d "90.8"
@@ -1032,12 +1035,16 @@
    (defcomponent :MC
      (record
       {:MC/R
-       {:X :Kernel/Int}})
+       {:X :Int}})
      (dataflow
       :MC/E
       [:match
+       [:like :MC/E.Y "xyz%"] {:MC/R {:X 0}}
        [:< :MC/E.X 10] {:MC/R {:X 1}}
-       [:>= :MC/E.X 100] {:MC/R {:X 2}}
+       [:= :MC/E.X 100] {:MC/R {:X 2}}
+       [:between 1000 5000 :MC/E.X] {:MC/R {:X 100}}
+       [:in [11 20 30] :MC/E.X] {:MC/R {:X 5}}
+       [:or [:= 10 :MC/E.X] [:= 21 :MC/E.X]] {:MC/R {:X 12}}
        {:MC/R {:X 3}}
        :as :Result]
       :Result))
@@ -1046,9 +1053,18 @@
               (tu/fresult
                (e/eval-all-dataflows
                 (cn/make-instance
-                 {:MC/E {:X x}}))))]
+                 {:MC/E
+                  {:X x
+                   :Y
+                   (if (neg? x)
+                     "xyz@eee.com"
+                     "abc@ddsd.com")}}))))]
        (is (= (:X r) result))))
-   (run 200 2)
+   (run 3000 100)
+   (run 20 5)
+   (run 21 12)
+   (run -1 0)
+   (run 100 2)
    (run 9 1)
    (run 22 3)))
 
@@ -1056,19 +1072,19 @@
   (defcomponent :Itc
     (record
      :Itc/Base
-     {:X :Kernel/Int})
+     {:X :Int})
     (record
      :Itc/Child1
      {:meta {:inherits :Itc/Base}
-      :Y :Kernel/Int})
+      :Y :Int})
     (record
      :Itc/Child2
      {:meta {:inherits :Itc/Base}
-      :Z :Kernel/Int})
+      :Z :Int})
     (record
      :Itc/Child3
      {:meta {:inherits :Itc/Child1}
-      :A :Kernel/Int})
+      :A :Int})
     (entity
      :Itc/E
      {:Vals {:listof :Itc/Base}}))
@@ -1094,9 +1110,9 @@
    (deftest check-wrong-reference-attribute-use
      (defcomponent :UserAccount
                    (entity {:UserAccount/Estimate
-                            {:Balance :Kernel/Float
-                             :Loan    :Kernel/Float}})
-                   (record {:UserAccount/Total {:Total :Kernel/Float}})
+                            {:Balance :Float
+                             :Loan    :Float}})
+                   (record {:UserAccount/Total {:Total :Float}})
                    (event {:UserAccount/IncreaseLoan {:Balance :UserAccount/Total}}))
      (dataflow :UserAccount/IncreaseLoan
                {:UserAccount/Estimate {:Balance :UserAccount/IncreaseLoan.Total
@@ -1111,9 +1127,9 @@
    (deftest access-wrong-event-entity
      (defcomponent :UserAccount
                    (entity {:UserAccount/Estimate
-                            {:Balance :Kernel/Float
-                             :Loan    :Kernel/Float}})
-                   (record {:UserAccount/Total {:Total :Kernel/Float}})
+                            {:Balance :Float
+                             :Loan    :Float}})
+                   (record {:UserAccount/Total {:Total :Float}})
                    (event {:UserAccount/IncreaseLoan {:Balance :UserAccount/Total}}))
      (dataflow :UserAccount/IncreaseLoan
                ;Intentional
@@ -1129,10 +1145,10 @@
    (deftest ref-id-of-record
           (defcomponent :UserAccount
                         (record {:UserAccount/Estimate
-                                 {:Balance :Kernel/Float
-                                  :Loan    :Kernel/Float}})
-                        (record {:UserAccount/Total {:Total :Kernel/Float}})
-                        (event {:UserAccount/IncreaseLoan {cn/id-attr      {:type    :Kernel/UUID
+                                 {:Balance :Float
+                                  :Loan    :Float}})
+                        (record {:UserAccount/Total {:Total :Float}})
+                        (event {:UserAccount/IncreaseLoan {cn/id-attr      {:type    :UUID
                                                                      :default "167d0b04-fa75-11eb-9a03-0242ac130003"}
                                                            :Balance :UserAccount/Total}}))
           (dataflow :UserAccount/IncreaseLoan
@@ -1147,11 +1163,11 @@
   (defcomponent :Try
     (entity
      :Try/E
-     {:X {:type :Kernel/Int
+     {:X {:type :Int
           :indexed true}})
     (record
      :Try/R
-     {:Y :Kernel/Boolean})
+     {:Y :Boolean})
     (dataflow
      :Try/Find
      [:try
@@ -1184,10 +1200,10 @@
     (defcomponent :ExprCompile
       (entity
        :ExprCompile/Form
-       {:Name :Kernel/String
-        :Age :Kernel/Int
+       {:Name :String
+        :Age :Int
         :Spec
-        {:type :Kernel/Edn
+        {:type :Edn
          :expr spec}})
       (dataflow
        :ExprCompile/ShowForm
@@ -1205,13 +1221,13 @@
   (defcomponent :PM
     (entity
      :PM/User
-     {:UserName {:type :Kernel/String
+     {:UserName {:type :String
                  :indexed true}
-      :Password :Kernel/Password})
+      :Password :Password})
     (event
      :PM/UserLogin
-     {:UserName :Kernel/String
-      :Password :Kernel/Password})
+     {:UserName :String
+      :Password :Password})
     (dataflow
      :PM/UserLogin
      {:PM/User
@@ -1240,7 +1256,7 @@
     (testing "list-of"
       (testing "string"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/String}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :String}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1250,7 +1266,7 @@
 
       (testing "unique string"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/String}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :String}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1260,7 +1276,7 @@
 
       (testing "int"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Int}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Int}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1269,7 +1285,7 @@
 
       (testing "keyword"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Keyword}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Keyword}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1278,7 +1294,7 @@
 
       (testing "path"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Path}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Path}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1289,7 +1305,7 @@
 
       (testing "float"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Float}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Float}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1298,7 +1314,7 @@
 
       (testing "double"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Double}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Double}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1307,7 +1323,7 @@
 
       (testing "decimal"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Decimal}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Decimal}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1316,7 +1332,7 @@
 
       (testing "boolean"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Boolean}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Boolean}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1325,7 +1341,7 @@
 
       (testing "any"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Any}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Any}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1334,7 +1350,7 @@
 
       (testing "map"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Map}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Map}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1343,7 +1359,7 @@
 
       (testing "date"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Date}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Date}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1354,7 +1370,7 @@
 
       (testing "date-time"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/DateTime}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :DateTime}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1365,7 +1381,7 @@
 
       (testing "time"
         (defcomponent :RefCheck
-                      (entity {:RefCheck/E3 {:AIdId {:listof :Kernel/Time}}}))
+                      (entity {:RefCheck/E3 {:AIdId {:listof :Time}}}))
 
         (let [data (tu/generate-data :RefCheck/E3)]
           (is (seq? data))
@@ -1380,8 +1396,8 @@
         (testing "entity"
           (defcomponent :Df01
                         (entity {:Df01/E
-                                 {:X :Kernel/Int
-                                  :Y :Kernel/Int}}))
+                                 {:X :Int
+                                  :Y :Int}}))
 
           (let [data (tu/generate-data :Df01/E)]
             (is (seq? data))
@@ -1392,8 +1408,8 @@
         (testing "record"
           (defcomponent :Df01
                         (record {:Df01/E
-                                 {:X :Kernel/Int
-                                  :Y :Kernel/Int}}))
+                                 {:X :Int
+                                  :Y :Int}}))
 
           (let [data (tu/generate-data :Df01/E)]
             (is (seq? data))
@@ -1403,9 +1419,9 @@
 
         (testing "Reference to an entity's attribute"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E1 {:A :Kernel/Int}})
+                        (entity {:RefCheck/E1 {:A :Int}})
                         (entity {:RefCheck/E2 {:AId {:ref (tu/append-id :RefCheck/E1)}
-                                               :X :Kernel/Int}})
+                                               :X :Int}})
                         (entity {:RefCheck/E3 {:AIdId {:ref :RefCheck/E2.AId}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
@@ -1414,9 +1430,9 @@
 
         (testing "Reference to an entity"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E1 {:A :Kernel/Int}})
+                        (entity {:RefCheck/E1 {:A :Int}})
                         (entity {:RefCheck/E2 {:AId {:ref (tu/append-id :RefCheck/E1)}
-                                               :X :Kernel/Int}})
+                                               :X :Int}})
                         (entity {:RefCheck/E3 {:AIdId {:type :RefCheck/E1}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
@@ -1425,9 +1441,9 @@
 
         (testing "Reference to a record"
           (defcomponent :RefCheck
-                        (record {:RefCheck/E1 {:A :Kernel/Int}})
+                        (record {:RefCheck/E1 {:A :Int}})
                         (entity {:RefCheck/E2 {:AId {:ref :RefCheck/E1.A}
-                                               :X :Kernel/Int}})
+                                               :X :Int}})
                         (entity {:RefCheck/E3 {:AIdId {:type :RefCheck/E1}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
@@ -1444,7 +1460,7 @@
 
         (testing "string without format"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/String}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :String}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1452,7 +1468,7 @@
 
         (testing "keyword"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Keyword}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Keyword}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1460,7 +1476,7 @@
 
         (testing "path"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Path}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Path}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1468,7 +1484,7 @@
 
         (testing "int64"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Int64}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Int64}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1476,7 +1492,7 @@
 
         (testing "bigInteger"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/BigInteger}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :BigInteger}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1484,7 +1500,7 @@
 
         (testing "float"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Float}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Float}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1492,7 +1508,7 @@
 
         (testing "double"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Double}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Double}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1500,7 +1516,7 @@
 
         (testing "decimal"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Decimal}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Decimal}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1508,7 +1524,7 @@
 
         (testing "boolean"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Boolean}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Boolean}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1516,7 +1532,7 @@
 
         (testing "date"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Date}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Date}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1524,7 +1540,7 @@
 
         (testing "dateTime"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/DateTime}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :DateTime}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1532,7 +1548,7 @@
 
         (testing "time"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Time}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Time}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1540,7 +1556,7 @@
 
         (testing "any"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Any}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Any}}}))
 
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
@@ -1548,7 +1564,7 @@
 
         (testing "map"
           (defcomponent :RefCheck
-                        (entity {:RefCheck/E3 {:AIdId {:type :Kernel/Map}}}))
+                        (entity {:RefCheck/E3 {:AIdId {:type :Map}}}))
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
             (is (every? #(map? (:RefCheck/E3.AIdId %)) data)))))))

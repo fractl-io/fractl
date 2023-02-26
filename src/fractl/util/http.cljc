@@ -36,19 +36,24 @@
 (def forgot-password-prefix "/_forgot-password/")
 (def confirm-forgot-password-prefix "/_confirm-forgot-password/")
 (def change-password-prefix "/_change-password/")
+(def refresh-token-prefix "/_refresh-token/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
 (def callback-prefix "/_callback/")
 
+(defn- remote-resolver-error [response]
+  (u/throw-ex (str "remote resolver error - " (or (:error response) response))))
+
 (defn- response-handler [format callback response]
   ((or callback identity)
    (if (map? response)
-     (let [status (:status response)]
+     (if-let [status (:status response)]
        (if (< 199 status 299)
          #?(:clj
             ((decoder format) (:body response))
             :cljs (:body response))
-         (u/throw-ex (str "remote resolver error - " response))))
+         (remote-resolver-error response))
+       (remote-resolver-error response))
      response)))
 
 (defn- fetch-auth-token [options]
@@ -92,3 +97,22 @@
 
 (defn normalize-post-options [arg]
   (if (fn? arg) {:callback arg} arg))
+
+(defn- get-env-var [var-name]
+  (let [var-value (System/getenv var-name)]
+    (if (nil? var-value)
+      (throw (Exception. (str "Environment variable \"" var-name "\" not found.")))
+      var-value)))
+
+(defn get-aws-config [whitelist?]
+  (let [aws-config {:region (get-env-var "AWS_REGION")
+                    :access-key (get-env-var "AWS_ACCESS_KEY")
+                    :secret-key (get-env-var "AWS_SECRET_KEY")
+                    :client-id (get-env-var "AWS_COGNITO_CLIENT_ID")
+                    :user-pool-id (get-env-var "AWS_COGNITO_USER_POOL_ID")
+                    :whitelist? whitelist?}]
+    (if (true? whitelist?)
+      (assoc aws-config
+             :s3-bucket (get-env-var "AWS_S3_BUCKET")
+             :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
+      aws-config)))

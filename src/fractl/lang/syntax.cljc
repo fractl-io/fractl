@@ -19,7 +19,7 @@
 (def record-tag :record)
 (def attrs-tag :attrs)
 (def query-tag :query)
-(def alias-tag :alias)
+(def alias-tag :as)
 (def value-tag :value)
 (def cases-tag :cases)
 (def body-tag :body)
@@ -143,13 +143,18 @@
 
 (declare introspect introspect-attrs)
 
+(defn- introspect-relationship [r]
+  (mapv introspect r))
+
 (defn upsert
   ([spec]
    (let [cnt (count spec)]
-     (when (or (< cnt 2) (> cnt 3))
+     (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid upsert spec - " spec))))
-   (upsert ($record spec) ($attrs spec) (alias-tag spec)))
+   (upsert ($record spec) ($attrs spec) (alias-tag spec) (rel-tag spec)))
   ([recname rec-attrs rec-alias]
+   (upsert recname rec-attrs rec-alias nil))
+  ([recname rec-attrs rec-alias rel]
    (when-not (li/name? recname)
      (u/throw-ex (str "invalid record name - " recname)))
    (when (li/query-pattern? recname)
@@ -166,15 +171,21 @@
     (merge
      {record-tag recname
       attrs-tag (introspect-attrs rec-attrs)}
+     (when rel
+       {rel-tag (introspect-relationship rel)})
      (when rec-alias
        {alias-tag rec-alias})))))
 
 (def upsert? (partial has-type? :upsert))
 
+(declare raw-relationship)
+
 (defn- raw-upsert [ir]
   (merge
    {($record ir)
     (raw-walk ($attrs ir))}
+   (when-let [rel (rel-tag ir)]
+     {rel-tag (raw-relationship rel)})
    (when-let [als (alias-tag ir)]
      {alias-tag als})))
 
@@ -189,13 +200,15 @@
 (defn query-upsert
   ([spec]
    (let [cnt (count spec)]
-     (when (or (< cnt 2) (> cnt 3))
+     (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid query-upsert spec - " spec))))
    (let [attrs (attributes spec)]
      (when-not (seq attrs)
        (u/throw-ex (str "no valid attributes found - " spec)))
-     (query-upsert ($record spec) attrs (alias-tag spec))))
+     (query-upsert ($record spec) attrs (alias-tag spec) (rel-tag spec))))
   ([recname attrs rec-alias]
+   (query-upsert recname attrs rec-alias nil))
+  ([recname attrs rec-alias rel]
    (when-not (or (li/query-pattern? recname)
                  (query-attrs? attrs))
      (u/throw-ex
@@ -206,6 +219,8 @@
     (merge
      {record-tag recname
       attrs-tag (introspect-attrs attrs)}
+     (when rel
+       {rel-tag (introspect-relationship rel)})
      (when rec-alias
        {alias-tag rec-alias})))))
 
@@ -218,8 +233,21 @@
     (merge
      {($record ir)
       (raw-walk obj)}
+     (when-let [rel (rel-tag ir)]
+       {rel-tag (raw-relationship rel)})
      (when-let [als (alias-tag ir)]
        {alias-tag als}))))
+
+(def raw-relationship raw-walk)
+
+(defn- maybe-assoc-relationship [obj pattern]
+  (if-let [r (rel-tag pattern)]
+    (assoc
+     obj rel-tag
+     (if (vector? (first r))
+       (mapv introspect-relationship r)
+       (introspect-relationship r)))
+    obj))
 
 (defn- introspect-query-upsert [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
@@ -229,44 +257,48 @@
       (u/throw-ex (str "invalid record name - " recname)))
     (when-not (map? attrs)
       (u/throw-ex (str "attributes must be a map - " attrs)))
-    (let [qpat (some li/query-pattern? (keys attrs))]
-      ((if qpat query-upsert upsert)
-       recname attrs
-       (alias-tag pattern)))))
+    (let [attr-names (seq (keys attrs))
+          qpat (if attr-names
+                 (some li/query-pattern? attr-names)
+                 (li/query-pattern? recname))]
+      (maybe-assoc-relationship
+       ((if qpat query-upsert upsert)
+        recname attrs
+        (alias-tag pattern))
+       pattern))))
 
 (defn query-object
   ([spec]
-   (let [cnt (count spec)]
-     (when (or (< cnt 2) (> cnt 3))
-       (u/throw-ex (str "invalid query spec - " spec))))
-   (if-let [query-pat (query-pattern spec)]
-     (query-object ($record spec) query-pat (alias-tag spec))
-     (u/throw-ex (str "no valid query-pattern found - " spec))))
+   (when (> (count spec) 3)
+     (u/throw-ex (str "invalid query spec - " spec)))
+   (query-object ($record spec) (query-pattern spec) (alias-tag spec)))
   ([recname query-pat rec-alias]
-   (when-not (or (li/query-pattern? recname)
-                 (:where query-pat))
+   (when (and query-pat (not (:where query-pat)))
      (u/throw-ex
       (str "not a valid query pattern - " {recname query-pat})))
    (validate-alias! rec-alias)
    (as-syntax-object
     :query-object
     (merge
-     {record-tag recname
-      query-tag query-pat}
+     {record-tag recname}
+     (when query-pat
+       {query-tag query-pat})
      (when rec-alias
        {alias-tag rec-alias})))))
 
 (def query-object? (partial has-type? :query-object))
 
 (defn- raw-query-object [ir]
-  (let [obj (query-pattern ir)]
-    (when-not obj
-      (u/throw-ex (str "expected query pattern not found - " ir)))
+  (if-let [obj (query-pattern ir)]
     (merge
      {($record ir)
       (raw-walk obj)}
      (when-let [als (alias-tag ir)]
-       {alias-tag als}))))
+       {alias-tag als}))
+    (let [n ($record ir)]
+      (if (li/query-pattern? n)
+        n
+        (li/name-as-query-pattern n)))))
 
 (defn- introspect-query-object [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
@@ -279,6 +311,8 @@
     (query-object
      recname qpat
      (alias-tag pattern))))
+
+(def relationship-object rel-tag)
 
 (defn- verify-cases! [cs]
   (loop [cs cs]
@@ -313,7 +347,7 @@
 
 (def match? (partial has-type? :match))
 
-(def ^:private not-as #(not= :as %))
+(def ^:private not-as #(not= alias-tag %))
 
 (defn- upto-alias [exps]
   (take-while not-as exps))
@@ -326,7 +360,7 @@
    (concat
     cmd-vec
     (when-let [a (alias-tag ir)]
-      [:as a]))))
+      [alias-tag a]))))
 
 (defn- extract-match-cases [obj]
   (let [cs (take-while not-as obj)]
@@ -430,20 +464,37 @@
      ~(raw-walk ($body ir))
      ~@(apply concat (mapv (fn [[k v]] [k (raw-walk v)]) ($cases ir)))]))
 
+(defn- relspec-for-delete? [obj]
+  (and (vector? obj) (= rel-tag (first obj))))
+
 (defn delete
   ([spec]
-   (delete ($record spec) ($attrs spec) (alias-tag spec)))
+   (delete
+    ($record spec) (attrs-tag spec)
+    (alias-tag spec)
+    (when-let [rel (rel-tag spec)]
+      `[~rel-tag ~@rel])))
   ([recname attrs result-alias]
-   (when-not (li/name? recname)
-     (u/throw-ex (str "invalid record-name in delete - " recname)))
-   (when-not (and (map? attrs) (every? valid-attr-spec? attrs))
-     (u/throw-ex (str "invalid attribute spec in delete - " attrs)))
-   (validate-alias! result-alias)
-   (as-syntax-object
-    :delete
-    {record-tag recname
-     attrs-tag (introspect-attrs attrs)
-     alias-tag result-alias})))
+   (delete recname attrs result-alias nil))
+  ([recname attrs result-alias rel]
+   (let [amap (map? attrs)
+         rel (or rel (if-not amap attrs rel))]
+     (when-not (li/name? recname)
+       (u/throw-ex (str "invalid record-name in delete - " recname)))
+     (if amap
+       (when-not (every? valid-attr-spec? attrs)
+         (u/throw-ex (str "invalid attribute spec in delete - " attrs)))
+       (when-not (relspec-for-delete? rel)
+         (u/throw-ex (str "invalid relationship delete spec - " rel))))
+     (validate-alias! result-alias)
+     (as-syntax-object
+      :delete
+      (merge
+       {record-tag recname}
+       (if amap
+         {attrs-tag (introspect-attrs attrs)}
+         {rel-tag (introspect-relationship (rest rel))})
+       {alias-tag result-alias})))))
 
 (def delete? (partial has-type? :delete))
 
@@ -456,7 +507,9 @@
   (raw-special-form
    ir
    [:delete ($record ir)
-    (raw-walk ($attrs ir))]))
+    (if-let [attrs (attrs-tag ir)]
+      (raw-walk attrs)
+      `[~rel-tag ~@(raw-relationship (rel-tag ir))])]))
 
 (defn query
   ([spec]
@@ -558,9 +611,15 @@
         attrs ((first (keys pat)) pat)]
     (and (map? attrs) (:where attrs))))
 
+(defn- introspect-name [pattern]
+  (if (li/query-pattern? pattern)
+    (as-syntax-object :query-object {record-tag (li/normalize-name pattern)})
+    pattern))
+
 (defn introspect [pattern]
   (cond
     (syntax-object? pattern) pattern
+
     (seqable? pattern)
     (cond
       (or (list? pattern) (= 'quote (first pattern)))
@@ -575,6 +634,10 @@
       (introspect-special-form pattern)
 
       :else pattern)
+
+    (li/name? pattern)
+    (introspect-name pattern)
+
     :else pattern))
 
 (def introspect-json (comp introspect json/decode))

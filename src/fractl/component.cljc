@@ -11,7 +11,7 @@
             [fractl.lang.datetime :as dt]))
 
 (def id-attr li/id-attr)
-(def id-attr-type :Kernel/UUID)
+(def id-attr-type :Kernel.Lang/UUID)
 
 (def ^:private components
   "Table that maps component names to their definitions."
@@ -85,13 +85,13 @@
    #(assoc @components component spec))
   (intern-attribute
    [component id-attr]
-   {:type :Kernel/UUID
+   {:type :Kernel.Lang/UUID
     :unique true
     :immutable true
     :identity true
     :default u/uuid-string})
   (intern-event [component (component-init-event-name component)]
-                {:ComponentName :Kernel/Keyword})
+                {:ComponentName :Kernel.Lang/Keyword})
   (set-current-component component)
   component)
 
@@ -366,7 +366,7 @@
 (def set-attribute-value assoc)
 
 (def error? (partial instance-of? :error))
-(def async-future? (partial instance-of? :Kernel/Future))
+(def async-future? (partial instance-of? :Kernel.Lang/Future))
 
 (defn same-record-type?
   "Return true if both instances have the same name and type."
@@ -506,7 +506,7 @@
   ex-info and raise it as an exception."
   ([msg attributes]
    (u/throw-ex-info (str "component/error: " msg)
-                       {:error (make-error msg attributes)}))
+                    {:error (make-error msg attributes)}))
   ([msg] (throw-error msg nil)))
 
 (defn- check-attribute-names [recname schema attributes]
@@ -592,7 +592,7 @@
         (valid-attribute-value
          attr-name (check-format ascm attr-name obj)
          (merge-attr-schema attr-scm ascm))
-      (throw-error (str "no schema defined for " tp))))))
+        (throw-error (str "no schema defined for " tp))))))
 
 (defn valid-attribute-value
   "Check against the attribute schema, if the provided value (v)
@@ -650,9 +650,9 @@
 
 (defn- preproc-attribute-value [attributes attrname attr-type]
   (if-let [p (case attr-type
-               :Kernel/Float float
-               :Kernel/Double double
-               :Kernel/Decimal decimal
+               :Kernel.Lang/Float float
+               :Kernel.Lang/Double double
+               :Kernel.Lang/Decimal decimal
                false)]
     (assoc attributes attrname (p (get attributes attrname)))
     attributes))
@@ -890,15 +890,14 @@
     #(let [ms @components
            ename (normalize-type-name (event-name event))
            path [component :events ename]
-           currpats (get-in ms path [])
-           newpats (conj
-                    currpats
-                    (maybe-aot-compile-dataflow
+           newpats [(maybe-aot-compile-dataflow
                      [event
                       {:head head
                        :event-pattern event
                        :patterns patterns
-                       :opcode (u/make-cell {})}]))]
+                       :opcode (u/make-cell {})}])]]
+       (when (seq (get-in ms path))
+         (log/warn (str "overwriting dataflow for " event)))
        (assoc-in ms path newpats)))
    event)
   ([event head patterns]
@@ -1123,7 +1122,7 @@
     (into {} (su/nonils new-attrs))))
 
 (defn kernel-resolver-name? [n]
-  (= :Kernel/Resolver n))
+  (= :Kernel.Lang/Resolver n))
 
 (defn tag? [k]
   (or (= k type-key)
@@ -1152,7 +1151,7 @@
     (identity-attribute? (find-attribute-schema a))))
 
 (defn type-any? [entity-schema attr]
-  (= :Kernel/Any (attribute-type entity-schema attr)))
+  (= :Kernel.Lang/Any (attribute-type entity-schema attr)))
 
 (defn find-ref-path [attr-schema-name]
   (:ref (find-attribute-schema attr-schema-name)))
@@ -1167,8 +1166,8 @@
   (let [atype (partial attribute-type entity-schema)]
     (filter
      #(let [t (atype %)]
-        (or (= t :Kernel/Keyword)
-            (= t :Kernel/Path)))
+        (or (= t :Kernel.Lang/Keyword)
+            (= t :Kernel.Lang/Path)))
      attribute-names)))
 
 (defn dissoc-write-only [instance]
@@ -1180,10 +1179,10 @@
       instance)))
 
 (defn make-future [future-obj timeout-ms]
-  (make-instance :Kernel/Future {:Result future-obj
+  (make-instance :Kernel.Lang/Future {:Result future-obj
                                  :TimeoutMillis timeout-ms}))
 
-(def future-object? (partial instance-of? :Kernel/Future))
+(def future-object? (partial instance-of? :Kernel.Lang/Future))
 
 (defn deref-future-object [obj]
   #?(:clj
@@ -1236,11 +1235,11 @@
        trigger-store
        (let [trigs (get ts rn)
              rs (set (map li/split-path records-to-load))]
-           (assoc
-            ts rn
-            (conj
-             trigs
-             [predicate event-name [where-clause rs]]))))))
+         (assoc
+          ts rn
+          (conj
+           trigs
+           [predicate event-name [where-clause rs]]))))))
   (u/call-and-set
    trigger-store
    #(assoc
@@ -1412,6 +1411,11 @@
 
 (def assoc-event-context-user (partial assoc-event-context-value :User))
 
+(defn assoc-event-context-values [values-map event-instance]
+  (let [current-event-context (get event-instance event-context)
+        updated-event-context (merge current-event-context values-map)]
+    (assoc event-instance event-context updated-event-context)))
+
 (def ^:private meta-suffix "Meta")
 (def ^:private meta-suffix-len (count meta-suffix))
 
@@ -1422,16 +1426,16 @@
 (def meta-entity-id :EntityId)
 
 (defn meta-entity-attributes [component]
-  {meta-entity-id {:type :Kernel/String :identity true}
-   :Owner {:type :Kernel/String
+  {meta-entity-id {:type :Kernel.Lang/String :identity true}
+   :Owner {:type :Kernel.Lang/String
            :immutable true}
-   :Created {:type :Kernel/DateTime
+   :Created {:type :Kernel.Lang/DateTime
              :default dt/now
              :immutable true}
-   :LastUpdated {:type :Kernel/DateTime
+   :LastUpdated {:type :Kernel.Lang/DateTime
                  :default dt/now}
-   :LastUpdatedBy :Kernel/String
-   :UserData {:type :Kernel/Map :optional true}})
+   :LastUpdatedBy :Kernel.Lang/String
+   :UserData {:type :Kernel.Lang/Map :optional true}})
 
 (defn meta-entity-for-any? [entity-names ename]
   (let [n (str (if (keyword? ename) ename (li/make-path ename)))]
@@ -1454,10 +1458,17 @@
   ([inst user]
    (make-meta-instance inst user nil)))
 
+(def lookup-internal-event-prefix :Lookup_Internal)
+(def lookup-internal-event-prefix-s (name lookup-internal-event-prefix))
+
+(defn an-internal-event? [event-name]
+  (let [event-name (if (keyword? event-name) event-name (second event-name))]
+    (s/starts-with? (name event-name) lookup-internal-event-prefix-s)))
+
 (defn instance-meta-lookup-event [entity-name id]
   (let [[component ename] (li/split-path entity-name)]
     (make-instance
-     {(keyword (str (name component) "/Lookup_" (name entity-name) meta-suffix))
+     {(keyword (str (name component) "/" lookup-internal-event-prefix-s "_" (name entity-name) meta-suffix))
       {meta-entity-id (str id)}})))
 
 (def instance-meta-owner :Owner)
@@ -1554,8 +1565,10 @@
                   [% :between that])))
            rels))))
 
-(defn contains-relationship? [relname]
+(defn contains-entities [relname]
   (mt/contains (fetch-meta relname)))
+
+(def contains-relationship? contains-entities)
 
 (defn containing-parent [relname]
   (first (mt/contains (fetch-meta relname))))
@@ -1573,6 +1586,12 @@
       (let [idattr (identity-attribute-name tp)]
         [(relationship-member-identity relattr)
          (idattr inst)]))))
+
+(defn attributes-in-contains [relname]
+  (let [[p c] (contains-entities relname)
+        [a1 a2] (or (relationship-on-attributes relname)
+                    [(identity-attribute-name p) (identity-attribute-name c)])]
+    {p a1 c a2}))
 
 (defn- maybe-transition [inst]
   (if-let [t (:transition inst)]

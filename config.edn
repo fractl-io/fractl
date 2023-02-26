@@ -11,4 +11,6 @@
  ;;                  :user-client-id "fractl-dev"
  ;;                  :admin "admin"
  ;;                  :admin-password "admin123"}
- :service {:port #$ [FRACTL_HTTP_PORT 8080]}}
+ :deploy {:host #$ FRACTL_DEPLOYMENT_HOST :user #$ FRACTL_DEPLOYMENT_USER
+          :password #$ FRACTL_DEPLOYMENT_PASSWORD}
+ :service {:port #$ [FRACTL_HTTP_PORT 8000]}}

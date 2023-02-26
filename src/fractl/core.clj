@@ -18,6 +18,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.tools.loader :as loader]
             [fractl.lang.tools.build :as build]
+            [fractl.lang.tools.deploy :as d]
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac]
             [fractl.swagger.doc :as doc])
@@ -31,9 +32,6 @@
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
-   ["-b" "--build MODEL" "Build and package a model into a standalone jar"]
-   ["-d" "--deploy MODEL TARGET" "Build and deploy a model as a library"]
-   ["-s" "--doc MODEL" "Generate documentation in .html"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -83,12 +81,12 @@
           (recur cs " " s)
           (log/info s))))))
 
-(defn- register-resolvers! [config]
+(defn- register-resolvers! [config evaluator]
   (when-let [resolver-specs (:resolvers config)]
     (when-let [rns (rr/register-resolvers resolver-specs)]
       (log-seq! "Resolvers" rns)))
   (when-let [auth-config (:authentication config)]
-    (when (auth/setup-resolver auth-config)
+    (when (auth/setup-resolver auth-config evaluator)
       (log/info "authentication resolver inited"))))
 
 (defn- model-name-from-args [args]
@@ -118,7 +116,7 @@
 (defn- trigger-appinit-event! [evaluator data]
   (let [result (evaluator
                 (cn/make-instance
-                 {:Kernel/AppInit
+                 {:Kernel.Lang/AppInit
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
@@ -140,7 +138,7 @@
 (defn- run-initconfig [app-config evaluator]
   (let [result (evaluator
                 (cn/make-instance
-                 {:Kernel/InitConfig {}}))
+                 {:Kernel.Lang/InitConfig {}}))
         configs (first (mapv :Data (:result (first result))))
         resolver-configs (merge-resolver-configs
                           app-config
@@ -155,14 +153,21 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
+(defn- normalize-interceptors [ins]
+  (let [ks (keys ins)]
+    (if (and (some #{:rbac} ks)
+             (not (some #{:instance-meta} ks)))
+      (assoc ins :instance-meta {:enabled true})
+      ins)))
+
 (defn- init-runtime [model config]
-  (register-resolvers! config)
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
-        ins (:interceptors config)]
-    ;; Register additional resolvers with remote configuration.
-    (when-let [resolved-config (run-initconfig config ev)]
-      (register-resolvers! resolved-config))
+        ins (normalize-interceptors (:interceptors config))
+        resolved-config (run-initconfig config ev)]
+    (register-resolvers! config ev)
+    (when (seq (:resolvers resolved-config))
+      (register-resolvers! resolved-config ev))
     (run-appinit-tasks! ev store (or (:init-data model)
                                      (:init-data config)))
     (when (some #{:rbac} (keys ins))
@@ -233,9 +238,10 @@
       (let [s (try
                 (read-string v)
                 (catch Exception _e v))]
-        (if (symbol? s)
-          (str s)
-          s)))
+        (cond
+          (not= (str s) v) v
+          (symbol? s) (str s)
+          :else s)))
 
     (vector? x)
     (first (su/nonils (mapv read-env-var x)))
@@ -319,21 +325,51 @@
 (defn -process_request [a b]
   (process_request a b))
 
+(defn- run-plain-option [args opt callback]
+  (when (= (first args) opt)
+    (callback (rest args))
+    (first args)))
+
+(defn- publish-library [args]
+  (if (= (count args) 1)
+    (build/publish-library nil (keyword (first args)))
+    (build/publish-library (first args) (keyword (second args)))))
+
+(defn- print-help []
+  (doseq [opt cli-options]
+    (println (str "  " (s/join " " opt))))
+  (println "  build MODEL-NAME Compile a model to produce a standalone application")
+  (println "  publish MODEL-NAME TARGET Publish the model to one of the targets - `local`, `clojars` or `github`")
+  (println "  run MODEL-NAME (optionally) build and run a model")
+  (println)
+  (println "For `build`, `publish` and `run` the model will be searched in the local directory")
+  (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
+  (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
+  (println "model directory itself.")
+  (println)
+  (println "To run a model script, pass the .fractl filename as the command-line argument, with")
+  (println "optional configuration (--config)"))
+
+(defn- load-config [options]
+  (read-config-file (get options :config "config.edn")))
+
 (defn -main [& args]
-  (initialize)
+  (when-not args
+    (print-help)
+    (System/exit 0))
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)]
+    (initialize)
     (cond
       errors (println errors)
       (:help options) (println summary)
-      (:build options) (println
-                        (build/standalone-package
-                         (:build options)))
-      (:deploy options) (println
-                         (build/deploy-library
-                          (:deploy options)
-                          (keyword (first args))))
-      (:doc options) (generate-swagger-doc
-                      (:doc options)
-                      args)
-      :else (run-service args (read-model-and-config args options)))))
+      :else
+      (or (some identity (mapv (partial run-plain-option args)
+                               ["build" "run" "publish" "deploy"]
+                               [#(println (build/standalone-package (first %)))
+                                #(println (build/run-standalone-package (first %)))
+                                #(println (publish-library %))
+                                #(println (d/deploy
+                                           (:deploy (load-config options))
+                                           (first %)))]))
+          (run-service args (read-model-and-config args options))))))

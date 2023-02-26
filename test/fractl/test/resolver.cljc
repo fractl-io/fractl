@@ -47,17 +47,17 @@
 (deftest r01
   (defcomponent :EntityXformR01
     (entity :EntityXformR01/EPrime
-            {:X :Kernel/Int})
+            {:X :Int})
     (event {:EntityXformR01/EToEPrime
-            {:Instance :Kernel/Entity}})
+            {:Instance :Entity}})
     (dataflow :EntityXformR01/EToEPrime
               {:EntityXformR01/EPrime
                {:X :EntityXformR01/EToEPrime.Instance.X
                 cn/id-attr :EntityXformR01/EToEPrime.Instance.Id}})
     (event {:EntityXformR01/EPrimeToE
-            {:Instance :Kernel/Entity}}))
+            {:Instance :Entity}}))
   (defcomponent :R01
-    (entity {:R01/E {:X :Kernel/Int}}))
+    (entity {:R01/E {:X :Int}}))
   (dataflow :EntityXformR01/EPrimeToE
             {:R01/E {:X :EntityXformR01/EPrimeToE.Instance.X
                      cn/id-attr :EntityXformR01/EPrimeToE.Instance.Id}})
@@ -93,18 +93,18 @@
 (deftest r02
   (defcomponent :EntityXformR02
     (entity :EntityXformR02/E
-            {:X :Kernel/Int})
+            {:X :Int})
     (event {:EntityXformR02/EToE
-            {:Instance :Kernel/Entity}})
+            {:Instance :Entity}})
     (dataflow :EntityXformR02/EToE
               {:EntityXformR02/E
                {:X :EntityXformR02/EToE.Instance.X
                 cn/id-attr (tu/append-id :EntityXformR02/EToE.Instance)}})
     (event {:EntityXformR02/EToK
-            {:Instance :Kernel/Entity}}))
+            {:Instance :Entity}}))
   (defcomponent :R02
-    (entity {:R02/E {:X :Kernel/Int}})
-    (record {:R02/K {:X :Kernel/Int cn/id-attr :Kernel/UUID}}))
+    (entity {:R02/E {:X :Int}})
+    (record {:R02/K {:X :Int cn/id-attr :UUID}}))
   (dataflow :EntityXformR02/EToK
             {:R02/K {:X :EntityXformR02/EToK.Instance.X
                      cn/id-attr (tu/append-id :EntityXformR02/EToK.Instance)}})
@@ -137,7 +137,7 @@
 
 (deftest query
   (defcomponent :RQ
-    (entity {:RQ/E {:X :Kernel/Int}}))
+    (entity {:RQ/E {:X :Int}}))
   (test-query-resolver rg/compose-resolver :RQResolver :RQ/E)
   (let [e (cn/make-instance :RQ/E {:X 10})
         e01 (first (tu/fresult (e/eval-all-dataflows {:RQ/Upsert_E {:Instance e}})))]
@@ -151,7 +151,7 @@
 
 (deftest query-all
   (defcomponent :ResQueryAll
-    (entity {:ResQueryAll/E {:X :Kernel/Int :N :Kernel/String}})
+    (entity {:ResQueryAll/E {:X :Int :N :String}})
     (event {:ResQueryAll/AllE {}})
     (dataflow :ResQueryAll/AllE
               :ResQueryAll/E?))
@@ -174,8 +174,8 @@
 
 (deftest compose-test
   (defcomponent :CT
-    (entity {:CT/E1 {:X :Kernel/Int :N :Kernel/String}})
-    (entity {:CT/E2 {:X :Kernel/Int :N :Kernel/String}}))
+    (entity {:CT/E1 {:X :Int :N :String}})
+    (entity {:CT/E2 {:X :Int :N :String}}))
   (rg/compose-resolver :CT/E1 (make-resolver :CTR1 :X))
   (rg/compose-resolver :CT/E2 (make-resolver :CTR2 :Y))
   (let [result1 (tu/fresult
@@ -222,7 +222,7 @@
 
 (deftest invoke-test
   (defcomponent :IT
-    (entity {:IT/E1 {:X :Kernel/Int :N :Kernel/String}}))
+    (entity {:IT/E1 {:X :Int :N :String}}))
   (rg/compose-resolver :IT/E1 (make-resolver-for-invoke :ITR1))
   (let [r1 (first
             (tu/fresult

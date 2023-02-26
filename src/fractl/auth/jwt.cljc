@@ -89,4 +89,7 @@
    (verify-and-extract jwks-url token {}))
   ([jwks-url token opts]
    (let [token (remove-bearer token)]
-     (jwt/unsign token (partial resolve-public-key jwks-url) (merge {:alg :rs256} opts)))))
+     (jwt/unsign
+      token
+      (partial resolve-public-key jwks-url)
+      (merge {:alg :rs256} opts)))))

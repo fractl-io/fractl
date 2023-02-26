@@ -1,20 +1,19 @@
 (ns fractl.http
   (:require [amazonica.aws.s3 :as s3]
-            [clojure.walk :as w]
-            [clojure.string :as s]
-            [org.httpkit.server :as h]
-            [ring.middleware.cors :as cors]
-            [ring.util.codec :as codec]
             [buddy.auth :as buddy]
             [buddy.auth.backends :as buddy-back]
             [buddy.auth.middleware :as buddy-midd
              :refer [wrap-authentication]]
-            [fractl.util :as u]
-            [fractl.util.logger :as log]
-            [fractl.util.http :as uh]
+            [clojure.string :as s]
+            [clojure.walk :as w]
             [fractl.auth.core :as auth]
             [fractl.component :as cn]
-            [fractl.lang.internal :as li])
+            [fractl.lang.internal :as li]
+            [fractl.util :as u]
+            [fractl.util.http :as uh]
+            [fractl.util.logger :as log]
+            [org.httpkit.server :as h]
+            [ring.middleware.cors :as cors])
   (:use [compojure.core :only [routes POST GET]]
         [compojure.route :only [not-found]]))
 
@@ -87,8 +86,10 @@
                         (u/string-as-keyword
                          (first (keys obj)))))]
       (if (or (not event-name) (= obj-name event-name))
-        [(cn/assoc-event-context-user
-          user
+        [(cn/assoc-event-context-values
+          {:User (:email user)
+           :Sub (:sub user)
+           :UserDetails user}
           (if (cn/an-instance? obj)
             obj
             (cn/make-event-instance obj-name (first (vals obj)))))
@@ -111,10 +112,12 @@
   ([evaluator [auth-config maybe-unauth] event-name request]
    (or (maybe-unauth request)
        (if-let [data-fmt (find-data-format request)]
-         (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
-           (if err
-             (bad-request err data-fmt)
-             (ok (evaluate evaluator obj data-fmt) data-fmt)))
+         (if (cn/an-internal-event? event-name)
+           (bad-request (str "cannot invoke internal event - " event-name) data-fmt)
+           (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
+             (if err
+               (bad-request err data-fmt)
+               (ok (evaluate evaluator obj data-fmt) data-fmt))))
          (bad-request
           (str "unsupported content-type in request - "
                (request-content-type request))))))
@@ -194,7 +197,44 @@
           (log/exception ex)
           (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
-(defn- process-signup [evaluator post-signup-event-name [auth-config _] request]
+(def ^:private post-signup-event-name :Kernel.Identity/PostSignUp)
+
+(defn- eval-ok-result [eval-result]
+  (if (vector? eval-result)
+    (eval-ok-result (first eval-result))
+    (when (and (map? eval-result) (= :ok (:status eval-result)))
+      (:result eval-result))))
+
+(defn- whitelisted-email? [email]
+  (let [{:keys [access-key secret-key region s3-bucket whitelist-file-key] :as _aws-config} (uh/get-aws-config true)
+        whitelisted-emails (read-string
+                            (s3/get-object-as-string
+                             {:access-key access-key
+                              :secret-key secret-key
+                              :endpoint region}
+                             s3-bucket whitelist-file-key))]
+    (contains? whitelisted-emails email)))
+
+(defn- whitelisted-domain? [email domains]
+  (let [domain (last (s/split email #"@"))]
+    (contains? (set domains) domain)))
+
+(defn- whitelisted? [email {:keys [whitelist? email-domains] :as _auth-info}]
+  (cond
+    (and (not (nil? email-domains)) (true? whitelist?))
+    (or (whitelisted-email? email)
+        (whitelisted-domain? email email-domains))
+
+    (not (nil? email-domains))
+    (whitelisted-domain? email email-domains)
+
+    (true? whitelist?)
+    (whitelisted-email? email)
+
+    :else
+    true))
+
+(defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
     (internal-error "cannot process sign-up - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
@@ -208,39 +248,28 @@
           (bad-request (str "not a signup event - " evobj) data-fmt)
 
           :else
-          (try
-            (let [result (auth/upsert-user
-                          (assoc
-                           auth-config
-                           :event evobj))]
-              (ok (or (evaluate evaluator
-                                (merge result
-                                       (create-event post-signup-event-name))
-                                data-fmt)
-                      result) data-fmt))
-            (catch Exception ex
-              (log/warn ex)
-              (unauthorized (str "Sign up failed. " (.getMessage ex))
-                            data-fmt)))))
+          (if-not (whitelisted? (:Email (:User evobj)) auth-config)
+            (unauthorized "Your email is not whitelisted yet." data-fmt)
+            (try
+              (let [result (evaluate evaluator evobj data-fmt)
+                    r (eval-ok-result result)
+                    user (if (map? r) r (first r))
+                    post-signup-result
+                    (when call-post-signup
+                      (evaluate
+                       evaluator
+                       (assoc (create-event post-signup-event-name) :SignupResult result :UserDetails evobj)
+                       data-fmt))]
+                (if user
+                  (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
+                  (bad-request (or post-signup-result result) data-fmt)))
+              (catch Exception ex
+                (log/warn ex)
+                (unauthorized (str "Sign up failed. " (.getMessage ex))
+                              data-fmt))))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request))))))
-
-(defn- whitelisted? [email {:keys [access-key secret-key region whitelist? s3-bucket whitelist-file-key] :as _auth-info}]
-  (if-not whitelist?
-    true
-    (let [whitelisted-emails (try
-                               (read-string
-                                (s3/get-object-as-string
-                                 {:access-key access-key
-                                  :secret-key secret-key
-                                  :endpoint region}
-                                 s3-bucket whitelist-file-key))
-                               (catch Exception ex
-                                 (log/warn ex)
-                                 #{}))]
-      (contains? whitelisted-emails email))))
-
 
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
@@ -250,19 +279,17 @@
         (if err
           (do (log/warn (str "bad login request - " err))
               (bad-request err data-fmt))
-          (if-not (whitelisted? (:Username evobj) auth-config)
-            (unauthorized "Your email is not whitelisted yet." data-fmt)
-            (try
-              (let [result (auth/user-login
-                            (assoc
-                             auth-config
-                             :event evobj
-                             :eval evaluator))]
-                (ok {:result result} data-fmt))
-              (catch Exception ex
-                (log/warn ex)
-                (unauthorized (str "Login failed. "
-                                   (.getMessage ex)) data-fmt))))))
+          (try
+            (let [result (auth/user-login
+                          (assoc
+                           auth-config
+                           :event evobj
+                           :eval evaluator))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "Login failed. "
+                                 (.getMessage ex)) data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request))))))
@@ -364,7 +391,7 @@
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
-          (unauthorized "logout failed" data-fmt)))
+          (unauthorized (str "logout failed. " (ex-message ex)) data-fmt)))
       (ok {:result :bye} data-fmt))
     (bad-request
      (str "unsupported content-type in request - "
@@ -381,7 +408,7 @@
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
-          (unauthorized "get-user failed" data-fmt)))
+          (unauthorized (str "get-user failed" (ex-message ex)) data-fmt)))
       (unauthorized "get-user failed" data-fmt))
     (bad-request
      (str "unsupported content-type in request - "
@@ -407,12 +434,41 @@
                   result (auth/upsert-user
                           (assoc
                            auth-config
+                           :instance evobj
+                           :user user))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "update-user failed. " (ex-message ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - " (request-content-type request))))))
+
+(defn- process-refresh-token [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process refresh-token - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request [:Kernel.Identity :RefreshToken] data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad refresh-token request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Kernel.Identity/RefreshToken evobj))
+          (bad-request (str "not a RefreshToken event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [user (auth/session-user
+                        (assoc auth-config :request request))
+                  result (auth/refresh-token
+                          (assoc
+                           auth-config
                            :event evobj
                            :user user))]
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized "update-user failed" data-fmt)))))
+              (unauthorized (str "refresh-token failed. " (ex-message ex)) data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request))))))
 
@@ -429,6 +485,7 @@
            (POST uh/forgot-password-prefix [] (:forgot-password handlers))
            (POST uh/confirm-forgot-password-prefix [] (:confirm-forgot-password handlers))
            (POST uh/change-password-prefix [] (:change-password handlers))
+           (POST uh/refresh-token-prefix [] (:refresh-token handlers))
            (POST (str uh/entity-event-prefix ":component/:event") []
              (:request handlers))
            (POST uh/query-prefix [] (:query handlers))
@@ -475,12 +532,15 @@
          config auth
          {:login (partial process-login evaluator auth-info)
           :logout (partial process-logout auth)
-          :signup (partial process-signup evaluator (:post-sign-up-event config) auth-info)
+          :signup (partial
+                   process-signup evaluator
+                   (:call-post-sign-up-event config) auth-info)
           :get-user (partial process-get-user auth)
           :update-user (partial process-update-user auth)
           :forgot-password (partial process-forgot-password auth)
           :confirm-forgot-password (partial process-confirm-forgot-password auth)
           :change-password (partial process-change-password auth)
+          :refresh-token (partial process-refresh-token auth)
           :request (partial process-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
