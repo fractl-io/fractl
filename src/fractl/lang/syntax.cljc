@@ -25,6 +25,7 @@
 (def body-tag :body)
 (def check-tag :check)
 (def path-tag :path)
+(def name-tag :name)
 
 (def rel-tag li/rel-tag)
 (def timeout-ms-tag li/timeout-ms-tag)
@@ -618,7 +619,11 @@
 (defn- introspect-name [pattern]
   (if (li/query-pattern? pattern)
     (as-syntax-object :query-object {record-tag (li/normalize-name pattern)})
-    pattern))
+    (as-syntax-object :reference {name-tag pattern})))
+
+(def ^:private raw-reference name-tag)
+
+(def reference? (partial has-type? :reference))
 
 (defn introspect [pattern]
   (cond
@@ -657,6 +662,7 @@
    :try raw-try
    :query raw-query
    :delete raw-delete
+   :reference raw-reference
    :eval raw-eval})
 
 (defn raw
