@@ -21,12 +21,13 @@
             [fractl.lang.tools.deploy :as d]
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac]
-            [fractl.swagger.doc :as doc])
+            [fractl.swagger.doc :as doc]
+            [fractl.swagger.docindex :as docindex])
   (:import [java.util Properties]
            [java.net URL]
            [java.io File]
            [org.apache.commons.exec CommandLine Executor DefaultExecutor])
-  
+
   (:gen-class
    :name fractl.core
    :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
@@ -207,26 +208,28 @@
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
     (if (build/compiled-model? model-path model-name)
-      (let [components (remove #{:Kernel :Kernel.Identity :Kernel.RBAC 
+      (let [components (remove #{:Kernel :Kernel.Identity :Kernel.RBAC
                                  :Kernel.Lang}
                                (cn/component-names))]
         (.mkdir (File. "doc"))
         (.mkdir (File. "doc/api"))
-        (doall (map (fn [component]
-                      (let [comp-name (clojure.string/replace
-                                       (name component) "." "")
-                            doc-path "doc/api/"
-                            json-file (str doc-path comp-name ".json")
-                            html-file (str doc-path comp-name ".html")]
-                        (with-open [w (clojure.java.io/writer
-                                       json-file)]
-                          (.write w (doc/generate-swagger-json component)))
-                        (let [^CommandLine cmd-line
-                              (CommandLine/parse
-                               (str "redoc-cli bundle -o " html-file " " json-file))
-                              ^Executor executor (DefaultExecutor.)]
-                          (.execute executor cmd-line))))
-                    components))
+
+        (docindex/gen-index-file model-name components)
+
+        (doseq [component components]
+          (let [comp-name (clojure.string/replace
+                           (name component) "." "")
+                doc-path "doc/api/"
+                json-file (str doc-path comp-name ".json")
+                html-file (str doc-path comp-name ".html")]
+            (with-open [w (clojure.java.io/writer
+                           json-file)]
+              (.write w (doc/generate-swagger-json component)))
+            (let [^CommandLine cmd-line
+                  (CommandLine/parse
+                   (str "redoc-cli bundle -o " html-file " " json-file))
+                  ^Executor executor (DefaultExecutor.)]
+              (.execute executor cmd-line))))
         (log-seq! "components" components))
       (build/exec-with-build-model (str "lein run -s " model-name " .") nil model-name))))
 
