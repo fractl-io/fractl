@@ -311,11 +311,12 @@
 (defn- print-help []
   (doseq [opt cli-options]
     (println (str "  " (s/join " " opt))))
+  (println "  run MODEL-NAME Load and run a model")
   (println "  build MODEL-NAME Compile a model to produce a standalone application")
   (println "  publish MODEL-NAME TARGET Publish the model to one of the targets - `local`, `clojars` or `github`")
-  (println "  run MODEL-NAME (optionally) build and run a model")
+  (println "  exec MODEL-NAME build and run the model as a standalone application")
   (println)
-  (println "For `build`, `publish` and `run` the model will be searched in the local directory")
+  (println "For `run`, `build`, `publish` and `exec` the model will be searched in the local directory")
   (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
   (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
   (println "model directory itself.")
@@ -338,8 +339,10 @@
       (:help options) (print-help)
       :else
       (or (some identity (mapv (partial run-plain-option args)
-                               ["build" "run" "publish" "deploy"]
-                               [#(println (build/standalone-package (first %)))
+                               ["run" "build" "exec" "publish" "deploy"]
+                               [#(when (build/load-model (first %))
+                                   (run-service nil (read-model-and-config nil options)))
+                                #(println (build/standalone-package (first %)))
                                 #(println (build/run-standalone-package (first %)))
                                 #(println (publish-library %))
                                 #(println (d/deploy
