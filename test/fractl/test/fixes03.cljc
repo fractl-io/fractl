@@ -542,3 +542,12 @@
 (deftest query-object-bug
   (let [obj (ls/query-object {ls/record-tag :Blog/PostAuthorship?})]
     (is (= (ls/raw obj) :Blog/PostAuthorship?))))
+
+(deftest path-query-syntax
+  (let [p1 {:C/E? "path://A/Evt.A/R/B"}
+        r1 (ls/introspect p1)
+        p2 {:C/E {:? "path://A/Evt.A/R/B"
+                  :K 100}}
+        r2 (ls/introspect p2)]
+    (is (= p1 (ls/raw r1)))
+    (is (= p2 (ls/raw r2)))))
