@@ -2,7 +2,8 @@
   (:require [fractl.component :as cn]
             [ring.swagger.swagger2 :as rs]
             [schema.core :as s]
-            [cheshire.core :as json])
+            [cheshire.core :as json]
+            [clojure.string])
   (:import [java.lang String Integer Double Float Boolean]
            [java.util Date UUID]
            [java.time LocalDate LocalTime]))
@@ -105,13 +106,20 @@
                       (name schema-type))))
                  (vals event-schema)))))
 
+(defn get-entity-from-event [event]
+  (let [event (name event)]
+    (if-let [found (clojure.string/last-index-of event "_")]
+      (subs event (inc found))
+      event)))
+
 (defn- api-event [event]
   (when-let [event-obj (cn/find-event-schema event)]
     (let [event-sch (process-event-schema (:schema event-obj))]
       {:parameters {:path {}
                     :body event-sch}
        :responses {200 {:description "Okay"}
-                   404 {:description "Error"}}})))
+                   404 {:description "Error"}}
+       :tags [(get-entity-from-event event)]})))
 
 (defn all-api-events [component]
   (let [all-events (get-all-events component)]
@@ -127,13 +135,6 @@
   (let [cmpn-name (name component)]
     (json/generate-string
      (rs/swagger-json
-      {:info {:version "1.0.0"
-              :title cmpn-name
-              :description "Sausage description"
-              :termsOfService "http://helloreverb.com/terms/"
-              :contact {:name "My API Team"
-                        :email "foo@example.com"
-                        :url "http://www.metosin.fi"}
-              :license {:name "Eclipse Public License"
-                        :url "http://www.eclipse.org/legal/epl-v10.html"}}
+      {:info {:version "0.0.1"
+              :title cmpn-name}
        :paths (all-api-events component)}))))
