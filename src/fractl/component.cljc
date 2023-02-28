@@ -1474,7 +1474,7 @@
 (def instance-meta-owner :Owner)
 
 (defn kernel-inited? []
-  (:Kernel @components))
+  (and (:Kernel.Lang @components) true))
 
 (defn append-id
   ([path id-attr]

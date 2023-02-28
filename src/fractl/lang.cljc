@@ -36,12 +36,9 @@
         [k (vf v)]))
     spec)))
 
-(declare init)
-
 (defn component
   "Create and activate a new component with the given name."
   ([n spec]
-   (init)
    (let [ns-name (li/validate-name n)]
      (cn/create-component
       ns-name
@@ -1067,6 +1064,5 @@
           :compose? false
           :paths [:Kernel.Lang/DataSync]}]))))
 
-(defn init []
-  (when-not (cn/kernel-inited?)
-    (do-init-kernel)))
+(when-not (cn/kernel-inited?)
+  (do-init-kernel))
