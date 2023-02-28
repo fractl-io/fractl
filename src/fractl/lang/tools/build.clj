@@ -192,12 +192,14 @@
                        (normalize-clj-imports (:clj-import component-spec))
                        use-models)
           ns-decl `(~(symbol "ns") ~ns-name
-                    ~@clj-imports)]
-      (write-component-clj
-       model-name cns-name write
-       (concat
-        [ns-decl]
-        (update-local-defs ns-name component))))
+                    ~@clj-imports)
+          exps (concat
+                [ns-decl]
+                (update-local-defs ns-name component))]
+      (if write
+        (write-component-clj
+         model-name cns-name write exps)
+        (doseq [exp exps] (eval exp))))
     (u/throw-ex "no component declaration found")))
 
 (defn- write-model-clj [write model-name component-names model]
@@ -215,18 +217,26 @@
     (when (.exists (File. src-cfg))
       (write config-edn (slurp src-cfg) :spit))))
 
-(defn- build-clj-project [model-name model-root model components]
-  (if (create-clj-project model-name (model-version model))
-    (let [[rd wr] (clj-io model-name)
-          spec (update-project-spec model (rd "project.clj"))
-          log-config (make-log-config model-name (model-version model))]
-      (wr "project.clj" spec)
-      (wr "resources/logback.xml" log-config :spit)
-      (let [cmps (mapv (partial copy-component wr model-name) components)]
-        (write-model-clj wr model-name cmps model)
-        (write-config-edn model-root wr)
-        model-name))
-    (log/error (str "failed to create clj project for " model-name))))
+(defn- load-or-build-clj-project [load model-name model-root model components]
+  (if load
+    (let [f (partial copy-component nil model-name)]
+      (doseq [c components]
+        (f c))
+      model-name)
+    (if (create-clj-project model-name (model-version model))
+      (let [[rd wr] (clj-io model-name)
+            spec (update-project-spec model (rd "project.clj"))
+            log-config (make-log-config model-name (model-version model))]
+        (wr "project.clj" spec)
+        (wr "resources/logback.xml" log-config :spit)
+        (let [cmps (mapv (partial copy-component wr model-name) components)]
+          (write-model-clj wr model-name cmps model)
+          (write-config-edn model-root wr)
+          model-name))
+      (log/error (str "failed to create clj project for " model-name)))))
+
+(def ^:private build-clj-project (partial load-or-build-clj-project false))
+(def ^:private load-clj-project (partial load-or-build-clj-project true))
 
 (declare install-model)
 
@@ -254,7 +264,7 @@
      :name model-name}))
 
 (defn build-model
-  ([model-paths model-name model-info]
+  ([build-load-fn model-paths model-name model-info]
    (let [{model-paths :paths model :model model-root :root model-name :name}
          (load-all-model-info model-paths model-name model-info)
          result [model model-root]]
@@ -270,10 +280,10 @@
            (FileUtils/deleteDirectory projdir)
            (when-not (.exists out-file)
              (.mkdir out-file)))
-         (when (build-clj-project model-name model-root model components)
+         (when (build-load-fn model-name model-root model components)
            [model-name result])))))
   ([model-paths model-name]
-   (build-model model-paths model-name nil))
+   (build-model build-clj-project model-paths model-name nil))
   ([model-name]
    (build-model nil model-name)))
 
@@ -284,6 +294,9 @@
 
 (def install-model (partial exec-with-build-model "lein install"))
 (def standalone-package (partial exec-with-build-model "lein uberjar" nil))
+
+(defn load-model [model-name]
+  (build-model load-clj-project nil model-name nil))
 
 (defn- config-file-path [model-name]
   (str (project-dir model-name) config-edn))
