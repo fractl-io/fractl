@@ -26,7 +26,7 @@
 (event
  :Kernel.Identity/PostSignUp
  {:SignupResult :Kernel.Lang/Any
-  :UserDetails :Kernel.Lang/Any})
+  :UserDetails :Kernel.Lang/Map})
 
 (dataflow
  :Kernel.Identity/SignUp
