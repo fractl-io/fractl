@@ -64,7 +64,6 @@
     <div class=\"header\">
       <h1>Model: $model-name</h1>
     </div>
-   <h2>Components:<h2>
     <div class=\"container\">
       <div class=\"links\">
         $components

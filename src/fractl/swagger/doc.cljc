@@ -59,15 +59,18 @@
   [entity-name]
   (let [entity-obj (cn/find-entity-schema entity-name)
         entity-obj (:schema entity-obj)]
-    (zipmap
-     (keys entity-obj)
-     (map get-clojure-type
-          (vals entity-obj)))))
+    {entity-name
+     (zipmap
+      (keys entity-obj)
+      (map get-clojure-type
+           (vals entity-obj)))}))
 
 (defn all-fractl-entities-to-schema [component]
   (let [entities (cn/entity-names component)
         schemas (map fractl-entity-to-schema entities)]
     (zipmap entities schemas)))
+
+(all-fractl-entities-to-schema :Deeds.Core)
 
 (defn- get-unneeded-entity-dataflows [component]
   (let [entities (cn/entity-names component)]
@@ -94,13 +97,16 @@
 (defn- process-event-schema
   "Fractl Event Schema to API body/response schema
    compatible with Ring Swagger"
-  [event-schema]
+  [event-schema event-type]
   (let [event-schema (dissoc event-schema :EventContext :inferred)]
     (zipmap (keys event-schema)
             (map (fn [schema-type]
                    (if (or (= (namespace schema-type) "Kernel")
                            (= (namespace schema-type) "Kernel.Lang"))
-                     (get-clojure-type schema-type)
+                     (if (and (= schema-type :Kernel.Lang/Any)
+                              (= event-type :Upsert))
+                       (get-clojure-type :Kernel.Lang/UUID)
+                       (get-clojure-type schema-type))
                      (s/schema-with-name
                       (fractl-entity-to-schema schema-type)
                       (name schema-type))))
@@ -112,9 +118,16 @@
       (subs event (inc found))
       event)))
 
+(defn get-event-type [event]
+  (let [en (name event)]
+    (cond
+      (clojure.string/starts-with? en "Upsert_") :Upsert
+      :else nil)))
+
 (defn- api-event [event]
   (when-let [event-obj (cn/find-event-schema event)]
-    (let [event-sch (process-event-schema (:schema event-obj))]
+    (let [event-sch (process-event-schema (:schema event-obj)
+                                          (get-event-type event))]
       {:parameters {:path {}
                     :body event-sch}
        :responses {200 {:description "Okay"}
