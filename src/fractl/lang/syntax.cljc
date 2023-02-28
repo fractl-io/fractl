@@ -24,6 +24,8 @@
 (def cases-tag :cases)
 (def body-tag :body)
 (def check-tag :check)
+(def path-tag :path)
+(def name-tag :name)
 
 (def rel-tag li/rel-tag)
 (def timeout-ms-tag li/timeout-ms-tag)
@@ -190,7 +192,7 @@
      {alias-tag als})))
 
 (defn- query-attrs? [attrs]
-  (some li/query-pattern? (keys attrs)))
+  (or (li/path-query? attrs) (some li/query-pattern? (keys attrs))))
 
 (defn- query-record-name [recname]
   (if (li/query-pattern? recname)
@@ -217,8 +219,10 @@
    (as-syntax-object
     :query-upsert
     (merge
-     {record-tag recname
-      attrs-tag (introspect-attrs attrs)}
+     {record-tag recname}
+     (if (map? attrs)
+       {attrs-tag (introspect-attrs attrs)}
+       {path-tag attrs})
      (when rel
        {rel-tag (introspect-relationship rel)})
      (when rec-alias
@@ -227,12 +231,13 @@
 (def query-upsert? (partial has-type? :query-upsert))
 
 (defn- raw-query-upsert [ir]
-  (let [obj (attributes ir)]
-    (when-not obj
-      (u/throw-ex (str "expected query-upsert attributes not found - " ir)))
+  (let [path (path-tag ir)
+        obj (when-not path (attributes ir))]
+    (when-not (or obj path)
+      (u/throw-ex (str "expected query-upsert attributes or path not found - " ir)))
     (merge
      {($record ir)
-      (raw-walk obj)}
+      (or path (raw-walk obj))}
      (when-let [rel (rel-tag ir)]
        {rel-tag (raw-relationship rel)})
      (when-let [als (alias-tag ir)]
@@ -255,9 +260,9 @@
         attrs (recname pat)]
     (when-not (li/name? recname)
       (u/throw-ex (str "invalid record name - " recname)))
-    (when-not (map? attrs)
-      (u/throw-ex (str "attributes must be a map - " attrs)))
-    (let [attr-names (seq (keys attrs))
+    (when-not (or (map? attrs) (li/path-query? attrs))
+      (u/throw-ex (str "expected a map or a path query - " attrs)))
+    (let [attr-names (and (map? attrs ) (seq (keys attrs)))
           qpat (if attr-names
                  (some li/query-pattern? attr-names)
                  (li/query-pattern? recname))]
@@ -614,7 +619,11 @@
 (defn- introspect-name [pattern]
   (if (li/query-pattern? pattern)
     (as-syntax-object :query-object {record-tag (li/normalize-name pattern)})
-    pattern))
+    (as-syntax-object :reference {name-tag pattern})))
+
+(def ^:private raw-reference name-tag)
+
+(def reference? (partial has-type? :reference))
 
 (defn introspect [pattern]
   (cond
@@ -653,6 +662,7 @@
    :try raw-try
    :query raw-query
    :delete raw-delete
+   :reference raw-reference
    :eval raw-eval})
 
 (defn raw
