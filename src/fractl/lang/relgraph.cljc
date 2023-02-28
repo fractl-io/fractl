@@ -32,7 +32,9 @@
          (recur
           (rest g)
           (set/difference
-           result (set (filter (partial not= k) (mapv :to vs)))))
+           result (set (filter
+                        (partial not= k)
+                        (mapv :to (filter #(= :contains (:type %)) vs))))))
          (recur (rest g) result))
        result))))
 
