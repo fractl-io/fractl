@@ -295,8 +295,11 @@
 (def install-model (partial exec-with-build-model "lein install"))
 (def standalone-package (partial exec-with-build-model "lein uberjar" nil))
 
-(defn load-model [model-name]
-  (build-model load-clj-project nil model-name nil))
+(defn load-model
+  ([model-paths model-name]
+   (build-model load-clj-project model-paths model-name nil))
+  ([model-name]
+   (load-model nil model-name)))
 
 (defn- config-file-path [model-name]
   (str (project-dir model-name) config-edn))

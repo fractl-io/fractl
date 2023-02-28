@@ -9,12 +9,12 @@
             [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
+            [fractl.lang.tools.build :as build]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
             [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
-            [fractl.resolver.registry :as r]
             [fractl.resolvers]))
 
 (defn- normalize-imports [imports]
@@ -216,8 +216,8 @@
 (defn- validated-canonical-type-name
   ([validate-name n]
    (let [canon (cn/canonical-type-name n)
-         [_ n] (li/split-path canon)]
-     (when (k/plain-kernel-type? n)
+         [c n] (li/split-path canon)]
+     (when (and (not= c k/kernel-lang-component) (k/plain-kernel-type? n))
        (log/warn (str "redefinition of kernel type "
                       n " will always require the fully-qualified name - "
                       canon)))
@@ -960,109 +960,7 @@
       (resolver-for-component target spec))))
 
 (defn- do-init-kernel []
-  (cn/create-component :Kernel.Lang {})
-  (doseq [[type-name type-def] k/types]
-    (intern-attribute type-name {:check type-def
-                                 :type type-name}))
-
-  (attribute (k/event-context-attribute-name)
-             (k/event-context-attribute-schema))
-
-  (intern-attribute :Kernel.Lang/Password
-                    {:type :Kernel.Lang/String
-                     :secure-hash true})
-
-  (record :Kernel.Lang/Future
-          {:Result :Kernel.Lang/Any
-           :TimeoutMillis {:type :Kernel.Lang/Int
-                           :default 2000}})
-
-  (entity {:Kernel.Lang/Resolver
-           {:Type :Kernel.Lang/String
-            :Configuration :Kernel.Lang/Map
-            :Identifier {:check keyword? :unique true}}})
-
-  (entity
-   :Kernel.Lang/Role
-   {:Name {:type :Kernel.Lang/String
-           :unique true}})
-
-  (event
-   :Kernel.Lang/RoleAssignment
-   {:Role :Kernel.Lang/Role
-    :Assignee :Kernel.Lang/Entity})
-
-  (entity
-   :Kernel.Lang/Policy
-   {:Intercept {:type :Kernel.Lang/Keyword
-                :indexed true}
-    :Resource {:type :Kernel.Lang/Path
-               :indexed true}
-    :Spec :Kernel.Lang/Edn
-    :InterceptStage
-    {:oneof [:PreEval :PostEval :Default]
-     :default :Default}})
-
-  (entity {:Kernel.Lang/Timer
-           {:Expiry :Kernel.Lang/Int
-            :ExpiryUnit {:oneof [:Seconds :Minutes :Hours :Days]
-                         :default :Seconds}
-            :ExpiryEvent :Kernel.Lang/Map
-            ;; :TaskHandle is set by the runtime, represents the
-            ;; thread that execute the event after timer expiry.
-            :TaskHandle {:type :Kernel.Lang/Any :optional true}}})
-
-  (dataflow
-   :Kernel.Lang/LoadPolicies
-   {:Kernel.Lang/Policy
-    {:Intercept? :Kernel.Lang/LoadPolicies.Intercept
-     :Resource? :Kernel.Lang/LoadPolicies.Resource}})
-
-  (event
-   :Kernel.Lang/AppInit
-   {:Data :Kernel.Lang/Map})
-
-  (event
-   :Kernel.Lang/InitConfig
-   {})
-
-  (record
-   :Kernel.Lang/InitConfigResult
-   {:Data {:listof :Kernel.Lang/Map}})
-
-  #?(:clj
-     (do
-       (record :Kernel.Lang/DataSource
-               {:Uri {:type :Kernel.Lang/String
-                      :optional true} ;; defaults to currently active store
-                :Entity :Kernel.Lang/String ;; name of an entity
-                :AttributeMapping {:type :Kernel.Lang/Map
-                                   :optional true}})
-
-       (event :Kernel.Lang/DataSync
-              {:Source :Kernel.Lang/DataSource
-               :DestinationUri {:type :Kernel.Lang/String
-                                :optional true}})
-
-       (r/register-resolvers
-        [{:name :meta
-          :type :meta
-          :compose? false
-          :config {:fractl-api
-                   {:component component
-                    :entity entity
-                    :event event
-                    :record record
-                    :dataflow dataflow}}
-          :paths [:Kernel.Lang/LoadModelFromMeta]}
-         {:name :timer
-          :type :timer
-          :compose? false
-          :paths [:Kernel.Lang/Timer]}
-         {:name :data-sync
-          :type :data-sync
-          :compose? false
-          :paths [:Kernel.Lang/DataSync]}]))))
+  (build/load-model ["."] :Kernel))
 
 (when-not (cn/kernel-inited?)
   (do-init-kernel))

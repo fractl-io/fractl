@@ -4,6 +4,8 @@
             [fractl.lang.datetime :as dt]
             [fractl.component :as cn]))
 
+(def kernel-lang-component :Kernel.Lang)
+
 (defn kernel-string?
   ([s rgex-s]
    (re-matches (re-pattern rgex-s) s))
@@ -30,14 +32,14 @@
 
 (def any-obj? (constantly true))
 
-(defn- edn? [x]
+(defn edn? [x]
   (or (vector? x) (map? x)
       (symbol? x) (keyword? x)
       (string? x) (number? x)
       (boolean? x) (nil? x)
       (list? x) (set? x)))
 
-(defn- path?
+(defn path?
   "Encode a path in a fractl record. Examples:
      :C, :C/E, :C/E.R. Paths may also be represented
    as strings - \"C/E.R\""
@@ -63,31 +65,29 @@
   (and (string? x)
        (re-matches email-pattern x)))
 
-(def types
-  {:Kernel.Lang/String kernel-string?
-   :Kernel.Lang/Keyword #(or (keyword? %) (string? %))
-   :Kernel.Lang/Path path?
-   :Kernel.Lang/DateTime date-time?
-   :Kernel.Lang/Date date?
-   :Kernel.Lang/Time time?
-   :Kernel.Lang/UUID UUID?
-   :Kernel.Lang/Int int?
-   :Kernel.Lang/Int64 int?
-   :Kernel.Lang/BigInteger integer?
-   :Kernel.Lang/Float kernel-float?
-   :Kernel.Lang/Double kernel-double?
-   :Kernel.Lang/Decimal cn/decimal-value?
-   :Kernel.Lang/Boolean boolean?
-   :Kernel.Lang/Record cn/record-instance?
-   :Kernel.Lang/Entity cn/entity-instance?
-   :Kernel.Lang/Event cn/event-instance?
-   :Kernel.Lang/Any any-obj?
-   :Kernel.Lang/Email email?
-   :Kernel.Lang/Password kernel-string?
-   :Kernel.Lang/Map map?
-   :Kernel.Lang/Edn edn?})
-
-(def ^:private type-names (keys types))
+;; TODO: call cn/all-attributes to load kernel.lang type-names
+(def type-names [:Kernel.Lang/String
+                 :Kernel.Lang/Keyword
+                 :Kernel.Lang/Path
+                 :Kernel.Lang/DateTime
+                 :Kernel.Lang/Date
+                 :Kernel.Lang/Time
+                 :Kernel.Lang/UUID
+                 :Kernel.Lang/Int
+                 :Kernel.Lang/Int64
+                 :Kernel.Lang/BigInteger
+                 :Kernel.Lang/Float
+                 :Kernel.Lang/Double
+                 :Kernel.Lang/Decimal
+                 :Kernel.Lang/Boolean
+                 :Kernel.Lang/Record
+                 :Kernel.Lang/Entity
+                 :Kernel.Lang/Event
+                 :Kernel.Lang/Any
+                 :Kernel.Lang/Email
+                 :Kernel.Lang/Password
+                 :Kernel.Lang/Map
+                 :Kernel.Lang/Edn])
 
 (def ^:private plain-types
   (into {} (mapv (fn [t] [(second (li/split-path t)) t]) type-names)))
