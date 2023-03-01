@@ -80,7 +80,12 @@
            (map (fn [entity]
                   (let [nm (name entity)
                         ns (namespace entity)]
-                    [(keyword ns (str nm "_OnUpsert_After"))
+                    [(keyword ns (str "Lookup_Internal_" nm))
+                     (keyword ns (str "Lookup_" nm "Meta"))
+                     (keyword ns (str "Delete_" nm "Meta"))
+                     (keyword ns (str "Upsert_" nm "Meta"))
+                     (keyword ns (str "Lookup_Internal_" nm "Meta"))
+                     (keyword ns (str nm "_OnUpsert_After"))
                      (keyword ns (str nm "_OnUpsert_Before"))
                      (keyword ns (str nm "_OnDelete_After"))
                      (keyword ns (str nm "_OnDelete_Before"))]))
