@@ -7,7 +7,10 @@
   [fractl.lang.datetime :as dt]
   [fractl.resolver.registry :as r]
   [fractl.component :as cn])
- (:use [fractl.lang]))
+ (:use
+  [fractl.lang
+   :only
+   [component attribute entity record event dataflow]]))
 (component
  :Fractl.Kernel.Lang
  {:clj-import
@@ -21,7 +24,7 @@
 (attribute :Fractl.Kernel.Lang/String {:check k/kernel-string?})
 (attribute
  :Fractl.Kernel.Lang/Keyword
- {:check (fn* [p1__272#] (or (keyword? p1__272#) (string? p1__272#)))})
+ {:check (fn* [p1__256#] (or (keyword? p1__256#) (string? p1__256#)))})
 (attribute :Fractl.Kernel.Lang/Path {:check k/path?})
 (attribute :Fractl.Kernel.Lang/DateTime {:check k/date-time?})
 (attribute :Fractl.Kernel.Lang/Date {:check k/date?})
@@ -107,3 +110,6 @@
    :type :data-sync,
    :compose? false,
    :paths [:Fractl.Kernel.Lang/DataSync]}])
+(def
+ Fractl.Kernel.Lang___COMPONENT-ID__
+ "105dbeb6-ca73-4887-8759-10a54ca5fc6f")

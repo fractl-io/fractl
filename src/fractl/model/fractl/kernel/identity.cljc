@@ -1,6 +1,12 @@
 (ns
  fractl.model.fractl.kernel.identity
- (:use [fractl.model.fractl.kernel.lang] [fractl.lang]))
+ (:use
+  [fractl.model.fractl.kernel.lang
+   :only
+   [Fractl.Kernel.Lang___COMPONENT-ID__]]
+  [fractl.lang
+   :only
+   [component attribute entity record event dataflow]]))
 (component :Fractl.Kernel.Identity {:refer [:Fractl.Kernel.Lang]})
 (entity
  :Fractl.Kernel.Identity/User
@@ -42,3 +48,6 @@
  #:Fractl.Kernel.Identity{:User
                           {:Email?
                            :Fractl.Kernel.Identity/FindUser.Email}})
+(def
+ Fractl.Kernel.Identity___COMPONENT-ID__
+ "0f8629da-87b7-48b1-bf11-26bc0686685f")

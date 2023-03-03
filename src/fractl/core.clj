@@ -317,7 +317,7 @@
   (println "  publish MODEL-NAME TARGET Publish the model to one of the targets - `local`, `clojars` or `github`")
   (println "  exec MODEL-NAME build and run the model as a standalone application")
   (println)
-  (println "For `run`, `build`, `publish` and `exec` the model will be searched in the local directory")
+  (println "For `run`, `compile`, `build`, `publish` and `exec` the model will be searched in the local directory")
   (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
   (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
   (println "model directory itself.")

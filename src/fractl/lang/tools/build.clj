@@ -16,6 +16,9 @@
 (def out-dir "out")
 (def ^:private out-file (File. out-dir))
 
+(def ^:private component-id-var "__COMPONENT-ID__")
+(def ^:private model-id-var "__MODEL-ID__")
+
 (def ^:private logback-xml
   "<?xml version=\"1.0\"?>
 <configuration>
@@ -152,16 +155,22 @@
         %)
      component)))
 
+(def ^:private lang-vars
+  '[component attribute entity record event dataflow])
+
 (defn- model-refs-to-use [refs]
   (let [spec (mapv
               (fn [r]
                 (let [ss (s/split (s/lower-case (name r)) #"\.")]
-                  [(symbol
-                    (if (= 1 (count ss))
+                  (if (= 1 (count ss))
+                    [(symbol
                       (str (first ss) ".model.model")
-                      (s/join "." (concat [(first ss) "model"] ss))))]))
+                      :only [(symbol (str (name r) "_" model-id-var))])]
+                    [(symbol
+                      (s/join "." (concat [(first ss) "model"] ss)))
+                     :only [(symbol (str (name r) "_" component-id-var))]])))
               refs)]
-    (concat spec [[(symbol "fractl.lang")]])))
+    (concat spec [['fractl.lang :only lang-vars]])))
 
 (defn- merge-use-models [import-spec use-models]
   (loop [spec import-spec, result [], merged false]
@@ -195,7 +204,8 @@
                     ~@clj-imports)
           exps (concat
                 [ns-decl]
-                (update-local-defs ns-name component))]
+                (update-local-defs ns-name component)
+                [`(def ~(symbol (str (name component-name) "_" component-id-var)) ~(u/uuid-string))])]
       (if write
         (write-component-clj
          model-name cns-name write exps)
@@ -208,7 +218,9 @@
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))
         model (dissoc model :clj-dependencies :repositories)]
     (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
-           [ns-decl model] :write-each)))
+           [ns-decl model
+            `(def ~(symbol (str (name model-name) "_" model-id-var)) ~(u/uuid-string))]
+           :write-each)))
 
 (def ^:private config-edn "config.edn")
 
@@ -265,7 +277,10 @@
 
 (defn build-model
   ([build-load-fn model-paths model-name model-info]
-   (let [{model-paths :paths model :model model-root :root model-name :name}
+   (let [model-paths (if (some #{"."} model-paths)
+                       model-paths
+                       (conj model-paths "."))
+         {model-paths :paths model :model model-root :root model-name :name}
          (load-all-model-info model-paths model-name model-info)
          result [model model-root]]
      (if-let [path (clj-project-path model-paths model-name)]

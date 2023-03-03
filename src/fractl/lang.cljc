@@ -9,7 +9,6 @@
             [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
-            [fractl.lang.tools.build :as build]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
