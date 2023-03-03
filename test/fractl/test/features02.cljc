@@ -8,7 +8,6 @@
                      dataflow]]
             [fractl.lang.syntax :as ls]
             [fractl.lang.relgraph :as rg]
-            [fractl.auth.model]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -543,7 +542,7 @@
   (defcomponent :Fractl.Meta.Core
     (entity
      :Fractl.Meta.Core/User
-     {:meta {:inherits :Kernel.Identity/User}})
+     {:meta {:inherits :Fractl.Kernel.Identity/User}})
     (entity
      :Fractl.Meta.Core/Workspace
      {:Name {:type :String

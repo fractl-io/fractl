@@ -1,5 +1,5 @@
 (component
- :Kernel.Lang
+ :Fractl.Kernel.Lang
  {:clj-import '[(:require [fractl.util :as u]
                           [fractl.lang.kernel :as k]
                           [fractl.lang.internal :as li]
@@ -81,7 +81,7 @@
 
 (record
  :InitConfigResult
- {:Data {:listof :Kernel.Lang/Map}})
+ {:Data {:listof :Fractl.Kernel.Lang/Map}})
 
 (record
  :DataSource
@@ -107,12 +107,12 @@
              :event event
              :record record
              :dataflow dataflow}}
-   :paths [:Kernel.Lang/LoadModelFromMeta]}
+   :paths [:Fractl.Kernel.Lang/LoadModelFromMeta]}
   {:name :timer
    :type :timer
    :compose? false
-   :paths [:Kernel.Lang/Timer]}
+   :paths [:Fractl.Kernel.Lang/Timer]}
   {:name :data-sync
    :type :data-sync
    :compose? false
-   :paths [:Kernel.Lang/DataSync]}])
+   :paths [:Fractl.Kernel.Lang/DataSync]}])

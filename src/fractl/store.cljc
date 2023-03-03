@@ -86,7 +86,7 @@
 
 (defn- cast-attr-types [entity-schema attr-names instance]
   (reduce (fn [inst attr-n]
-            (if (= :Kernel.Lang/Any (:type (cn/find-attribute-schema (attr-n entity-schema))))
+            (if (= :Fractl.Kernel.Lang/Any (:type (cn/find-attribute-schema (attr-n entity-schema))))
               (assoc inst attr-n (str (attr-n inst)))
               inst))
           instance attr-names))

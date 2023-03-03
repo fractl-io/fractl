@@ -3,7 +3,7 @@
             [fractl.component :as cn]
             [fractl.lang.internal :as li]))
 
-(def login-event-name :Kernel.Identity/UserLogin)
+(def login-event-name :Fractl.Kernel.Identity/UserLogin)
 (def login-username :Username)
 (def login-password :Password)
 

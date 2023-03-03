@@ -24,64 +24,64 @@
   type-lookup
   "Maps postgres to fractl types.
   Types currently unsupported in fractl are explicitly mapped to false."
-  {"bigint" :Kernel.Lang/Int64
-   "int8" :Kernel.Lang/Int64
-   "bigserial" :Kernel.Lang/Int64
-   "serial8" :Kernel.Lang/Int64
+  {"bigint" :Fractl.Kernel.Lang/Int64
+   "int8" :Fractl.Kernel.Lang/Int64
+   "bigserial" :Fractl.Kernel.Lang/Int64
+   "serial8" :Fractl.Kernel.Lang/Int64
    "bit" false
    "bit varying" false
    "varbit" false
-   "boolean" :Kernel.Lang/Boolean
-   "bool" :Kernel.Lang/Boolean
+   "boolean" :Fractl.Kernel.Lang/Boolean
+   "bool" :Fractl.Kernel.Lang/Boolean
    "box" false
    "bytea" false
    "binary data" false
-   "character" :Kernel.Lang/String
-   "char" :Kernel.Lang/String
-   "character varying" :Kernel.Lang/String
-   "varchar" :Kernel.Lang/String
+   "character" :Fractl.Kernel.Lang/String
+   "char" :Fractl.Kernel.Lang/String
+   "character varying" :Fractl.Kernel.Lang/String
+   "varchar" :Fractl.Kernel.Lang/String
    "cidr" false
    "circle" false
-   "date" :Kernel.Lang/String
-   "double precision" :Kernel.Lang/Double
-   "float8" :Kernel.Lang/Double
+   "date" :Fractl.Kernel.Lang/String
+   "double precision" :Fractl.Kernel.Lang/Double
+   "float8" :Fractl.Kernel.Lang/Double
    "inet" false
-   "integer" :Kernel.Lang/Int
-   "int" :Kernel.Lang/Int
-   "int4" :Kernel.Lang/Int
+   "integer" :Fractl.Kernel.Lang/Int
+   "int" :Fractl.Kernel.Lang/Int
+   "int4" :Fractl.Kernel.Lang/Int
    "interval" false
-   "json" :Kernel.Lang/String
+   "json" :Fractl.Kernel.Lang/String
    "jsonb" false
    "line" false
    "lseg" false
    "macaddr" false
-   "money" :Kernel.Lang/Decimal
-   "numeric" :Kernel.Lang/Decimal
-   "decimal" :Kernel.Lang/Decimal
+   "money" :Fractl.Kernel.Lang/Decimal
+   "numeric" :Fractl.Kernel.Lang/Decimal
+   "decimal" :Fractl.Kernel.Lang/Decimal
    "path" false
    "pg_lsn" false
    "point" false
    "polygon" false
-   "real" :Kernel.Lang/Float
-   "float4" :Kernel.Lang/Float
-   "smallint" :Kernel.Lang/Int
-   "int2" :Kernel.Lang/Int
-   "smallserial" :Kernel.Lang/Int
-   "serial2" :Kernel.Lang/Int
-   "serial" :Kernel.Lang/Int
-   "serial4" :Kernel.Lang/Int
-   "text" :Kernel.Lang/String
-   "time" :Kernel.Lang/String
-   "time with time zone" :Kernel.Lang/String
-   "timetz" :Kernel.Lang/String
-   "timestamp" :Kernel.Lang/String
-   "timestamp with time zone" :Kernel.Lang/String
-   "timestamptz" :Kernel.Lang/String
-   "tsquery" :Kernel.Lang/String
+   "real" :Fractl.Kernel.Lang/Float
+   "float4" :Fractl.Kernel.Lang/Float
+   "smallint" :Fractl.Kernel.Lang/Int
+   "int2" :Fractl.Kernel.Lang/Int
+   "smallserial" :Fractl.Kernel.Lang/Int
+   "serial2" :Fractl.Kernel.Lang/Int
+   "serial" :Fractl.Kernel.Lang/Int
+   "serial4" :Fractl.Kernel.Lang/Int
+   "text" :Fractl.Kernel.Lang/String
+   "time" :Fractl.Kernel.Lang/String
+   "time with time zone" :Fractl.Kernel.Lang/String
+   "timetz" :Fractl.Kernel.Lang/String
+   "timestamp" :Fractl.Kernel.Lang/String
+   "timestamp with time zone" :Fractl.Kernel.Lang/String
+   "timestamptz" :Fractl.Kernel.Lang/String
+   "tsquery" :Fractl.Kernel.Lang/String
    "tsvector" false
    "txid_snapshot" false
-   "uuid" :Kernel.Lang/UUID
-   "xml" :Kernel.Lang/String})
+   "uuid" :Fractl.Kernel.Lang/UUID
+   "xml" :Fractl.Kernel.Lang/String})
 
 (def ^:private fetch-schema-sql
   "select * from pg_catalog.pg_tables where schemaname<>'pg_catalog' and schemaname<>'information_schema'")

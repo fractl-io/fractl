@@ -118,7 +118,7 @@
         file-name
         (str
          "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep
-         (s/join u/path-sep (concat dirs [(str compname ".clj")])))]
+         (s/join u/path-sep (concat dirs [(str compname ".cljc")])))]
     (write file-name component :write-each)
     component-name))
 
@@ -199,7 +199,7 @@
       (if write
         (write-component-clj
          model-name cns-name write exps)
-        (doseq [exp exps] (eval exp))))
+        (binding [*ns* *ns*] (doseq [exp exps] (eval exp)))))
     (u/throw-ex "no component declaration found")))
 
 (defn- write-model-clj [write model-name component-names model]
@@ -207,7 +207,7 @@
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))
         model (dissoc model :clj-dependencies :repositories)]
-    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.clj")
+    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
            [ns-decl model] :write-each)))
 
 (def ^:private config-edn "config.edn")
@@ -289,11 +289,23 @@
 
 (defn- exec-with-build-model [cmd model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
-    (when (exec-for-model (first result) cmd)
-      (second result))))
+    (if cmd
+      (when (exec-for-model (first result) cmd)
+        (second result))
+      (first result))))
 
-(def install-model (partial exec-with-build-model "lein install"))
+(def install-model (partial exec-with-build-model "lein install" nil))
 (def standalone-package (partial exec-with-build-model "lein uberjar" nil))
+
+(defn- maybe-copy-kernel [model-name]
+  (when (= model-name "fractl")
+    (FileUtils/copyDirectory
+     (File. "out/fractl/src/fractl/model/fractl/kernel")
+     (File. "src/fractl/model/fractl/kernel")))
+  model-name)
+
+(defn compile-model [model-name]
+  (maybe-copy-kernel (exec-with-build-model nil nil model-name)))
 
 (defn load-model
   ([model-paths model-name]

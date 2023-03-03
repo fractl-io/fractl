@@ -242,9 +242,9 @@
 (defn- blocked-at-instance-level? [arg]
   (= :block (ii/get-user-state-value arg :blocked-at-instance-level)))
 
-(def ^:private system-events #{[:Kernel.Identity :SignUp]
-                               [:Kernel.Identity :ForgotPassword]
-                               [:Kernel.Identity :ConfirmForgotPassword]})
+(def ^:private system-events #{[:Fractl.Kernel.Identity :SignUp]
+                               [:Fractl.Kernel.Identity :ForgotPassword]
+                               [:Fractl.Kernel.Identity :ConfirmForgotPassword]})
 
 (defn- system-event? [inst]
   (when-let [t (cn/instance-type inst)]

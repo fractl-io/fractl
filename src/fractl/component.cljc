@@ -11,7 +11,7 @@
             [fractl.lang.datetime :as dt]))
 
 (def id-attr li/id-attr)
-(def id-attr-type :Kernel.Lang/UUID)
+(def id-attr-type :Fractl.Kernel.Lang/UUID)
 
 (def ^:private components
   "Table that maps component names to their definitions."
@@ -22,7 +22,7 @@
   "The name of the active component for the current thread."
   #?(:clj
      (proxy [ThreadLocal] []
-       (initialValue [] :Kernel))
+       (initialValue [] :Fractl.Kernel))
      :cljs
      (atom nil)))
 
@@ -85,13 +85,13 @@
    #(assoc @components component spec))
   (intern-attribute
    [component id-attr]
-   {:type :Kernel.Lang/UUID
+   {:type :Fractl.Kernel.Lang/UUID
     :unique true
     :immutable true
     :identity true
     :default u/uuid-string})
   (intern-event [component (component-init-event-name component)]
-                {:ComponentName :Kernel.Lang/Keyword})
+                {:ComponentName :Fractl.Kernel.Lang/Keyword})
   (set-current-component component)
   component)
 
@@ -366,7 +366,7 @@
 (def set-attribute-value assoc)
 
 (def error? (partial instance-of? :error))
-(def async-future? (partial instance-of? :Kernel.Lang/Future))
+(def async-future? (partial instance-of? :Fractl.Kernel.Lang/Future))
 
 (defn same-record-type?
   "Return true if both instances have the same name and type."
@@ -650,9 +650,9 @@
 
 (defn- preproc-attribute-value [attributes attrname attr-type]
   (if-let [p (case attr-type
-               :Kernel.Lang/Float float
-               :Kernel.Lang/Double double
-               :Kernel.Lang/Decimal decimal
+               :Fractl.Kernel.Lang/Float float
+               :Fractl.Kernel.Lang/Double double
+               :Fractl.Kernel.Lang/Decimal decimal
                false)]
     (assoc attributes attrname (p (get attributes attrname)))
     attributes))
@@ -1122,7 +1122,7 @@
     (into {} (su/nonils new-attrs))))
 
 (defn kernel-resolver-name? [n]
-  (= :Kernel.Lang/Resolver n))
+  (= :Fractl.Kernel.Lang/Resolver n))
 
 (defn tag? [k]
   (or (= k type-key)
@@ -1151,7 +1151,7 @@
     (identity-attribute? (find-attribute-schema a))))
 
 (defn type-any? [entity-schema attr]
-  (= :Kernel.Lang/Any (attribute-type entity-schema attr)))
+  (= :Fractl.Kernel.Lang/Any (attribute-type entity-schema attr)))
 
 (defn find-ref-path [attr-schema-name]
   (:ref (find-attribute-schema attr-schema-name)))
@@ -1166,8 +1166,8 @@
   (let [atype (partial attribute-type entity-schema)]
     (filter
      #(let [t (atype %)]
-        (or (= t :Kernel.Lang/Keyword)
-            (= t :Kernel.Lang/Path)))
+        (or (= t :Fractl.Kernel.Lang/Keyword)
+            (= t :Fractl.Kernel.Lang/Path)))
      attribute-names)))
 
 (defn dissoc-write-only [instance]
@@ -1179,10 +1179,10 @@
       instance)))
 
 (defn make-future [future-obj timeout-ms]
-  (make-instance :Kernel.Lang/Future {:Result future-obj
+  (make-instance :Fractl.Kernel.Lang/Future {:Result future-obj
                                  :TimeoutMillis timeout-ms}))
 
-(def future-object? (partial instance-of? :Kernel.Lang/Future))
+(def future-object? (partial instance-of? :Fractl.Kernel.Lang/Future))
 
 (defn deref-future-object [obj]
   #?(:clj
@@ -1426,16 +1426,16 @@
 (def meta-entity-id :EntityId)
 
 (defn meta-entity-attributes [component]
-  {meta-entity-id {:type :Kernel.Lang/String :identity true}
-   :Owner {:type :Kernel.Lang/String
+  {meta-entity-id {:type :Fractl.Kernel.Lang/String :identity true}
+   :Owner {:type :Fractl.Kernel.Lang/String
            :immutable true}
-   :Created {:type :Kernel.Lang/DateTime
+   :Created {:type :Fractl.Kernel.Lang/DateTime
              :default dt/now
              :immutable true}
-   :LastUpdated {:type :Kernel.Lang/DateTime
+   :LastUpdated {:type :Fractl.Kernel.Lang/DateTime
                  :default dt/now}
-   :LastUpdatedBy :Kernel.Lang/String
-   :UserData {:type :Kernel.Lang/Map :optional true}})
+   :LastUpdatedBy :Fractl.Kernel.Lang/String
+   :UserData {:type :Fractl.Kernel.Lang/Map :optional true}})
 
 (defn meta-entity-for-any? [entity-names ename]
   (let [n (str (if (keyword? ename) ename (li/make-path ename)))]
@@ -1474,7 +1474,7 @@
 (def instance-meta-owner :Owner)
 
 (defn kernel-inited? []
-  (and (:Kernel.Lang @components) true))
+  (and (:Fractl.Kernel.Lang @components) true))
 
 (defn append-id
   ([path id-attr]

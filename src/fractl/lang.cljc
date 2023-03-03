@@ -667,7 +667,7 @@
             inst-evattrs {:Instance n li/event-context ctx-aname}
             id-attr (identity-attribute-name rec-name)
             id-attr-type (or (identity-attribute-type id-attr attrs)
-                             :Kernel.Lang/Any)
+                             :Fractl.Kernel.Lang/Any)
             id-evattrs {id-attr id-attr-type
                         li/event-context ctx-aname}]
         ;; Define CRUD events and dataflows:
@@ -802,10 +802,10 @@
         (str "path:" (if (s/starts-with? path "/") "/" "//") path)))))
 
 (defn- parent-names-as-attributes [parent]
-  (loop [p parent, result {(keyword (name parent)) :Kernel.Lang/Any}]
+  (loop [p parent, result {(keyword (name parent)) :Fractl.Kernel.Lang/Any}]
     (if-let [cps (seq (cn/containing-parents p))]
       (let [[_ _ p0] (first cps)]
-        (recur p0 (assoc result (keyword (name p0)) :Kernel.Lang/Any)))
+        (recur p0 (assoc result (keyword (name p0)) :Fractl.Kernel.Lang/Any)))
       result)))
 
 (defn- regen-default-dataflows-for-contains [relname [parent child]]
@@ -833,7 +833,7 @@
     (event-internal
      lookupevt
      (merge
-      {(keyword c) :Kernel.Lang/Any
+      {(keyword c) :Fractl.Kernel.Lang/Any
        li/event-context ctx-aname}
       (parent-names-as-attributes parent)))
     (cn/register-dataflow
@@ -878,8 +878,8 @@
      (merge
       {:Instance {:type relname :optional true}
        li/event-context ctx-aname}
-      {fname :Kernel.Lang/Any
-       tname :Kernel.Lang/Any}))
+      {fname :Fractl.Kernel.Lang/Any
+       tname :Fractl.Kernel.Lang/Any}))
     (cn/register-dataflow
      upevt
      [{from {(li/name-as-query-pattern from-qattr)
@@ -958,9 +958,3 @@
     (if (and a b)
       (resolver-for-entity a b spec)
       (resolver-for-component target spec))))
-
-(defn- do-init-kernel []
-  (build/load-model ["."] :Kernel))
-
-(when-not (cn/kernel-inited?)
-  (do-init-kernel))

@@ -4,7 +4,7 @@
             [fractl.lang.datetime :as dt]
             [fractl.component :as cn]))
 
-(def kernel-lang-component :Kernel.Lang)
+(def kernel-lang-component :Fractl.Kernel.Lang)
 
 (defn kernel-string?
   ([s rgex-s]
@@ -65,29 +65,31 @@
   (and (string? x)
        (re-matches email-pattern x)))
 
-;; TODO: call cn/all-attributes to load kernel.lang type-names
-(def type-names [:Kernel.Lang/String
-                 :Kernel.Lang/Keyword
-                 :Kernel.Lang/Path
-                 :Kernel.Lang/DateTime
-                 :Kernel.Lang/Date
-                 :Kernel.Lang/Time
-                 :Kernel.Lang/UUID
-                 :Kernel.Lang/Int
-                 :Kernel.Lang/Int64
-                 :Kernel.Lang/BigInteger
-                 :Kernel.Lang/Float
-                 :Kernel.Lang/Double
-                 :Kernel.Lang/Decimal
-                 :Kernel.Lang/Boolean
-                 :Kernel.Lang/Record
-                 :Kernel.Lang/Entity
-                 :Kernel.Lang/Event
-                 :Kernel.Lang/Any
-                 :Kernel.Lang/Email
-                 :Kernel.Lang/Password
-                 :Kernel.Lang/Map
-                 :Kernel.Lang/Edn])
+;; TODO: load types from the kernel model by calling
+;; appropriate component namespace (cn) functions
+(def type-names [:Fractl.Kernel.Lang/String
+                 :Fractl.Kernel.Lang/Keyword
+                 :Fractl.Kernel.Lang/Path
+                 :Fractl.Kernel.Lang/DateTime
+                 :Fractl.Kernel.Lang/Date
+                 :Fractl.Kernel.Lang/Time
+                 :Fractl.Kernel.Lang/UUID
+                 :Fractl.Kernel.Lang/Int
+                 :Fractl.Kernel.Lang/Int64
+                 :Fractl.Kernel.Lang/BigInteger
+                 :Fractl.Kernel.Lang/Float
+                 :Fractl.Kernel.Lang/Double
+                 :Fractl.Kernel.Lang/Decimal
+                 :Fractl.Kernel.Lang/Boolean
+                 :Fractl.Kernel.Lang/Record
+                 :Fractl.Kernel.Lang/Entity
+                 :Fractl.Kernel.Lang/Event
+                 :Fractl.Kernel.Lang/Any
+                 :Fractl.Kernel.Lang/Email
+                 :Fractl.Kernel.Lang/Password
+                 :Fractl.Kernel.Lang/Map
+                 :Fractl.Kernel.Lang/Edn
+                 :Fractl.Kernel.Lang/EventContext])
 
 (def ^:private plain-types
   (into {} (mapv (fn [t] [(second (li/split-path t)) t]) type-names)))
@@ -107,10 +109,10 @@
     (when-let [ascm (cn/find-attribute-schema n)]
       (cond
         (:listof ascm)
-        :Kernel.Lang/List
+        :Fractl.Kernel.Lang/List
 
         (:oneof ascm)
-        :Kernel.Lang/String
+        :Fractl.Kernel.Lang/String
 
         :else
         (when-let [t (if (map? ascm) (:type ascm) ascm)]
@@ -121,8 +123,8 @@
 (def type-predicate first)
 (def type-default-value second)
 
-(def ^:private event-context-type [:Kernel.Lang/EventContext
-                                   {:type :Kernel.Lang/Map
+(def ^:private event-context-type [:Fractl.Kernel.Lang/EventContext
+                                   {:type :Fractl.Kernel.Lang/Map
                                     :optional true}])
 
 (defn event-context-attribute-name []

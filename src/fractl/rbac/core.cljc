@@ -1,6 +1,5 @@
 (ns fractl.rbac.core
-  (:require [fractl.rbac.model]
-            [fractl.global-state :as gs]
+  (:require [fractl.global-state :as gs]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
             [fractl.lang.internal :as li]
@@ -14,7 +13,7 @@
 
 (defn- find-su-event []
   (cn/make-instance
-   {:Kernel.Identity/FindUser
+   {:Fractl.Kernel.Identity/FindUser
     {:Email (get-superuser-email)}}))
 
 (defn- lookup-superuser []
@@ -23,9 +22,9 @@
 
 (defn- upsert-superuser [pswd]
   (let [evt (cn/make-instance
-             {:Kernel.Identity/Upsert_User
+             {:Fractl.Kernel.Identity/Upsert_User
               {:Instance
-               {:Kernel.Identity/User
+               {:Fractl.Kernel.Identity/User
                 (merge {:Email (get-superuser-email)}
                        (when pswd
                          {:Password pswd}))}}})]
@@ -48,7 +47,7 @@
 
 (defn- find-privileges [role-names]
   (ev/safe-eval-internal
-   {:Kernel.RBAC/FindPrivilegeAssignments
+   {:Fractl.Kernel.Rbac/FindPrivilegeAssignments
     {:RoleNames role-names}}))
 
 (defn- find-child-role-names [role-names]
@@ -57,7 +56,7 @@
       (if-let [child-roles
                (first
                 (ev/safe-eval-internal
-                 {:Kernel.RBAC/FindChildren
+                 {:Fractl.Kernel.Rbac/FindChildren
                   {:Parent r}}))]
         (let [names (mapv :Name child-roles)]
           (recur
@@ -73,14 +72,14 @@
 
 (defn privileges [user-name]
   (when-let [rs (ev/safe-eval-internal
-                 {:Kernel.RBAC/FindRoleAssignments
+                 {:Fractl.Kernel.Rbac/FindRoleAssignments
                   {:Assignee user-name}})]
     (let [role-names (mapv :Role rs)
           ps0 (find-privileges role-names)
           ps1 (find-child-privileges role-names)
           ps (set (concat ps0 ps1))]
       (ev/safe-eval-internal
-       {:Kernel.RBAC/FindPrivileges
+       {:Fractl.Kernel.Rbac/FindPrivileges
         {:Names (mapv :Privilege ps)}}))))
 
 (defn- has-priv-on-resource? [resource priv-resource]
@@ -132,7 +131,7 @@
   (seq
    (ev/safe-eval-internal
     (cn/make-instance
-     {:Kernel.RBAC/FindInstancePrivileges
+     {:Fractl.Kernel.Rbac/FindInstancePrivileges
       {:Resource (if (keyword? instance-type)
                    instance-type
                    (li/make-path instance-type))
@@ -163,7 +162,7 @@
    :continue))
 
 (defn instance-privilege-assignment-object? [obj]
-  (cn/instance-of? :Kernel.RBAC/InstancePrivilegeAssignment obj))
+  (cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment obj))
 
 (def instance-privilege-assignment-resource :Resource)
 (def instance-privilege-assignment-resource-id :ResourceId)

@@ -104,9 +104,9 @@
          :Salary :Decimal})
        (dataflow
         :I358Csv01/ImportEmployees
-        {:Kernel.Lang/DataSync
+        {:Fractl.Kernel.Lang/DataSync
          {:Source
-          {:Kernel.Lang/DataSource
+          {:Fractl.Kernel.Lang/DataSource
            {:Uri "file://sample/emp.csv"
             :Entity "I358Csv01/Employee"
             :AttributeMapping
@@ -115,9 +115,9 @@
              "salary" "Salary"}}}}})
        (dataflow
         :I358Csv01/ExportEmployees
-        {:Kernel.Lang/DataSync
+        {:Fractl.Kernel.Lang/DataSync
          {:Source
-          {:Kernel.Lang/DataSource
+          {:Fractl.Kernel.Lang/DataSource
            {:Entity "I358Csv01/Employee"
             :AttributeMapping
             {"FirstName" "first_name"
@@ -408,7 +408,7 @@
    :Email "testuser@ventur8.io",
    :AuthDomain "fractl.us.auth0.com",
    cn/id-attr "8dd4b088-1e51-4efe-9385-018783b96eb4"
-   :-*-name-*- [:Kernel :OAuthAnyRequest],
+   :-*-name-*- [:Fractl.Kernel :OAuthAnyRequest],
    :UserName "testuser",
    :Password "P@s$w0rd123",
    :ClientSecret "DSiQSiVT7Sd0RJwxdQ4gCfjLUA495PjlVNKhkgB6yFgpH2rgt9kpRbxJLPOcAaXH",
