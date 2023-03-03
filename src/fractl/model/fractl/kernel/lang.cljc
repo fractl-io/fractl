@@ -10,7 +10,7 @@
  (:use
   [fractl.lang
    :only
-   [component attribute entity record event dataflow]]))
+   [dataflow entity attribute relationship component event record]]))
 (component
  :Fractl.Kernel.Lang
  {:clj-import
@@ -112,4 +112,4 @@
    :paths [:Fractl.Kernel.Lang/DataSync]}])
 (def
  Fractl.Kernel.Lang___COMPONENT-ID__
- "105dbeb6-ca73-4887-8759-10a54ca5fc6f")
+ "cea30cf9-feb0-40b8-80e8-de5a56a63802")

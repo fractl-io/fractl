@@ -137,7 +137,7 @@
    decl))
 
 (def ^:private clj-defs #{'def 'defn 'defn-})
-(def ^:private fractl-defs #{'entity 'dataflow 'event 'record})
+(def ^:private fractl-defs #{'entity 'dataflow 'event 'record 'relationship 'attribute})
 
 (defn- update-local-defs [ns-name component]
   (let [local-defs (set
@@ -155,8 +155,7 @@
         %)
      component)))
 
-(def ^:private lang-vars
-  '[component attribute entity record event dataflow])
+(def ^:private lang-vars (vec (conj fractl-defs 'component)))
 
 (defn- model-refs-to-use [refs]
   (let [spec (mapv
@@ -277,10 +276,7 @@
 
 (defn build-model
   ([build-load-fn model-paths model-name model-info]
-   (let [model-paths (if (some #{"."} model-paths)
-                       model-paths
-                       (conj model-paths "."))
-         {model-paths :paths model :model model-root :root model-name :name}
+   (let [{model-paths :paths model :model model-root :root model-name :name}
          (load-all-model-info model-paths model-name model-info)
          result [model model-root]]
      (if-let [path (clj-project-path model-paths model-name)]

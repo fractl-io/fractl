@@ -6,7 +6,7 @@
    [Fractl.Kernel.Lang___COMPONENT-ID__]]
   [fractl.lang
    :only
-   [component attribute entity record event dataflow]]))
+   [dataflow entity attribute relationship component event record]]))
 (component :Fractl.Kernel.Identity {:refer [:Fractl.Kernel.Lang]})
 (entity
  :Fractl.Kernel.Identity/User
@@ -50,4 +50,4 @@
                            :Fractl.Kernel.Identity/FindUser.Email}})
 (def
  Fractl.Kernel.Identity___COMPONENT-ID__
- "0f8629da-87b7-48b1-bf11-26bc0686685f")
+ "1882be98-0905-4a9d-a9f5-420e3cbf17a8")

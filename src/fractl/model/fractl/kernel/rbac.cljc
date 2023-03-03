@@ -7,7 +7,7 @@
    [Fractl.Kernel.Lang___COMPONENT-ID__]]
   [fractl.lang
    :only
-   [component attribute entity record event dataflow]]))
+   [dataflow entity attribute relationship component event record]]))
 (component
  :Fractl.Kernel.Rbac
  {:refer [:Fractl.Kernel.Lang],
@@ -126,4 +126,4 @@
                        :Fractl.Kernel.Rbac/FindInstancePrivileges.ResourceId}})
 (def
  Fractl.Kernel.Rbac___COMPONENT-ID__
- "e30b7adc-6188-484b-bb7e-81ab714224ee")
+ "5bb818c1-3ae8-4414-9a3f-193a15a8af20")
