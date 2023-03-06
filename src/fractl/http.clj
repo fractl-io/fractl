@@ -197,7 +197,7 @@
           (log/exception ex)
           (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
-(def ^:private post-signup-event-name :Kernel.Identity/PostSignUp)
+(def ^:private post-signup-event-name :Fractl.Kernel.Identity/PostSignUp)
 
 (defn- eval-ok-result [eval-result]
   (if (vector? eval-result)
@@ -244,7 +244,7 @@
           (do (log/warn (str "bad sign-up request - " err))
               (bad-request err data-fmt))
 
-          (not (cn/instance-of? :Kernel.Identity/SignUp evobj))
+          (not (cn/instance-of? :Fractl.Kernel.Identity/SignUp evobj))
           (bad-request (str "not a signup event - " evobj) data-fmt)
 
           :else
@@ -304,7 +304,7 @@
           (do (log/warn (str "bad forgot-request request - " err))
               (bad-request err data-fmt))
 
-          (not (cn/instance-of? :Kernel.Identity/ForgotPassword evobj))
+          (not (cn/instance-of? :Fractl.Kernel.Identity/ForgotPassword evobj))
           (bad-request (str "not a forgot-password event - " evobj) data-fmt)
 
           :else
@@ -332,7 +332,7 @@
           (do (log/warn (str "bad confirm-forgot-request request - " err))
               (bad-request err data-fmt))
 
-          (not (cn/instance-of? :Kernel.Identity/ConfirmForgotPassword evobj))
+          (not (cn/instance-of? :Fractl.Kernel.Identity/ConfirmForgotPassword evobj))
           (bad-request (str "not a confirm-forgot-password event - " evobj) data-fmt)
 
           :else
@@ -360,7 +360,7 @@
           (do (log/warn (str "bad change-password-request request - " err))
               (bad-request err data-fmt))
 
-          (not (cn/instance-of? :Kernel.Identity/ChangePassword evobj))
+          (not (cn/instance-of? :Fractl.Kernel.Identity/ChangePassword evobj))
           (bad-request (str "not a change-password event - " evobj) data-fmt)
 
           :else
@@ -418,13 +418,13 @@
   (if-not auth-config
     (internal-error "cannot process update-user - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
-      (let [[evobj err] (event-from-request request [:Kernel.Identity :UpdateUser] data-fmt nil)]
+      (let [[evobj err] (event-from-request request [:Fractl.Kernel.Identity :UpdateUser] data-fmt nil)]
         (cond
           err
           (do (log/warn (str "bad update-user request - " err))
               (bad-request err data-fmt))
 
-          (not (cn/instance-of? :Kernel.Identity/UpdateUser evobj))
+          (not (cn/instance-of? :Fractl.Kernel.Identity/UpdateUser evobj))
           (bad-request (str "not a UpdateUser event - " evobj) data-fmt)
 
           :else
@@ -447,13 +447,13 @@
   (if-not auth-config
     (internal-error "cannot process refresh-token - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
-      (let [[evobj err] (event-from-request request [:Kernel.Identity :RefreshToken] data-fmt nil)]
+      (let [[evobj err] (event-from-request request [:Fractl.Kernel.Identity :RefreshToken] data-fmt nil)]
         (cond
           err
           (do (log/warn (str "bad refresh-token request - " err))
               (bad-request err data-fmt))
 
-          (not (cn/instance-of? :Kernel.Identity/RefreshToken evobj))
+          (not (cn/instance-of? :Fractl.Kernel.Identity/RefreshToken evobj))
           (bad-request (str "not a RefreshToken event - " evobj) data-fmt)
 
           :else

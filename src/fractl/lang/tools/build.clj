@@ -16,6 +16,9 @@
 (def out-dir "out")
 (def ^:private out-file (File. out-dir))
 
+(def ^:private component-id-var "__COMPONENT-ID__")
+(def ^:private model-id-var "__MODEL-ID__")
+
 (def ^:private logback-xml
   "<?xml version=\"1.0\"?>
 <configuration>
@@ -118,7 +121,7 @@
         file-name
         (str
          "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep
-         (s/join u/path-sep (concat dirs [(str compname ".clj")])))]
+         (s/join u/path-sep (concat dirs [(str compname ".cljc")])))]
     (write file-name component :write-each)
     component-name))
 
@@ -134,7 +137,7 @@
    decl))
 
 (def ^:private clj-defs #{'def 'defn 'defn-})
-(def ^:private fractl-defs #{'entity 'dataflow 'event 'record})
+(def ^:private fractl-defs #{'entity 'dataflow 'event 'record 'relationship 'attribute})
 
 (defn- update-local-defs [ns-name component]
   (let [local-defs (set
@@ -152,16 +155,21 @@
         %)
      component)))
 
+(def ^:private lang-vars (vec (conj fractl-defs 'component)))
+
 (defn- model-refs-to-use [refs]
   (let [spec (mapv
               (fn [r]
                 (let [ss (s/split (s/lower-case (name r)) #"\.")]
-                  [(symbol
-                    (if (= 1 (count ss))
+                  (if (= 1 (count ss))
+                    [(symbol
                       (str (first ss) ".model.model")
-                      (s/join "." (concat [(first ss) "model"] ss))))]))
+                      :only [(symbol (str (name r) "_" model-id-var))])]
+                    [(symbol
+                      (s/join "." (concat [(first ss) "model"] ss)))
+                     :only [(symbol (str (name r) "_" component-id-var))]])))
               refs)]
-    (concat spec [[(symbol "fractl.lang")]])))
+    (concat spec [['fractl.lang :only lang-vars]])))
 
 (defn- merge-use-models [import-spec use-models]
   (loop [spec import-spec, result [], merged false]
@@ -195,11 +203,12 @@
                     ~@clj-imports)
           exps (concat
                 [ns-decl]
-                (update-local-defs ns-name component))]
+                (update-local-defs ns-name component)
+                [`(def ~(symbol (str (name component-name) "_" component-id-var)) ~(u/uuid-string))])]
       (if write
         (write-component-clj
          model-name cns-name write exps)
-        (doseq [exp exps] (eval exp))))
+        (binding [*ns* *ns*] (doseq [exp exps] (eval exp)))))
     (u/throw-ex "no component declaration found")))
 
 (defn- write-model-clj [write model-name component-names model]
@@ -207,8 +216,10 @@
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))
         model (dissoc model :clj-dependencies :repositories)]
-    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.clj")
-           [ns-decl model] :write-each)))
+    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
+           [ns-decl model
+            `(def ~(symbol (str (name model-name) "_" model-id-var)) ~(u/uuid-string))]
+           :write-each)))
 
 (def ^:private config-edn "config.edn")
 
@@ -289,14 +300,29 @@
 
 (defn- exec-with-build-model [cmd model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
-    (when (exec-for-model (first result) cmd)
-      (second result))))
+    (if cmd
+      (when (exec-for-model (first result) cmd)
+        (second result))
+      (first result))))
 
-(def install-model (partial exec-with-build-model "lein install"))
+(def install-model (partial exec-with-build-model "lein install" nil))
 (def standalone-package (partial exec-with-build-model "lein uberjar" nil))
 
-(defn load-model [model-name]
-  (build-model load-clj-project nil model-name nil))
+(defn- maybe-copy-kernel [model-name]
+  (when (= model-name "fractl")
+    (FileUtils/copyDirectory
+     (File. "out/fractl/src/fractl/model/fractl/kernel")
+     (File. "src/fractl/model/fractl/kernel")))
+  model-name)
+
+(defn compile-model [model-name]
+  (maybe-copy-kernel (exec-with-build-model nil nil model-name)))
+
+(defn load-model
+  ([model-paths model-name]
+   (build-model load-clj-project model-paths model-name nil))
+  ([model-name]
+   (load-model nil model-name)))
 
 (defn- config-file-path [model-name]
   (str (project-dir model-name) config-edn))

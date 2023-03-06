@@ -14,7 +14,7 @@
 
 (defn- meta-eval [fractl-api event-instance]
   (let [[c n] (cn/instance-type event-instance)]
-    (when (= c :Kernel)
+    (when (= c :Fractl.Kernel)
       (case n
         :LoadModelFromMeta (load-model-from-meta (:Model event-instance))
         nil))))

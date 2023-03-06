@@ -1,0 +1,4 @@
+{:name :Fractl
+ :components [:Fractl.Kernel.Lang
+              :Fractl.Kernel.Identity
+              :Fractl.Kernel.Rbac]}

@@ -6,7 +6,7 @@
 (defn- login [service-info]
   (if-let [r (uh/POST
               (str (:host service-info) uh/login-prefix)
-              nil {:Kernel.Identity/UserLogin
+              nil {:Fractl.Kernel.Identity/UserLogin
                    {:Username (:user service-info)
                     :Password (:password service-info)}})]
     (if-let [token (get-in r [:result :authentication-result :access-token])]

@@ -1,0 +1,112 @@
+(component
+ :Fractl.Kernel.Rbac
+ {:refer [:Fractl.Kernel.Lang]
+  :clj-import '[(:require [clojure.string :as s]
+                          [fractl.store.util :as stu])]})
+
+(entity
+ :Role
+ {:Name {:type :String
+         :indexed true
+         :unique true}})
+
+(def ^:private oprs #{:read :upsert :delete :eval})
+
+(defn- crud-list? [xs]
+  (every? #(some #{%} oprs) (set xs)))
+
+(entity
+ :Privilege
+ {:Name {:type :String
+         :indexed true
+         :unique true}
+  :Actions {:check crud-list?}
+  :Resource :Edn})
+
+(entity
+ :PrivilegeAssignment
+ {:Role {:ref :Role.Name
+         :indexed true}
+  :Privilege {:ref :Privilege.Name}
+  :meta {:unique [:Role :Privilege]}})
+
+(entity
+ :RoleAssignment
+ {:Role {:ref :Role.Name
+         :indexed true}
+  :Assignee {:type :String ; usually a :Fractl.Kernel.Identity/User.Name
+             :indexed true}
+  :meta
+  {:unique [:Role :Assignee]}})
+
+(entity
+ :RoleRelationship
+ {:Parent {:ref :Role.Name
+           :indexed true}
+  :Child {:ref :Role.Name
+          :indexed true}
+  :meta
+  {:unique [:Parent :Child]}})
+
+(event
+ :AssignRelationship
+ {:Parent :String
+  :Child :String})
+
+(dataflow
+ :AssignRelationship
+ {:RoleRelationship
+  {:Parent :AssignRelationship.Parent
+   :Child :AssignRelationship.Child}})
+
+(event
+ :FindChildren
+ {:Parent :String})
+
+(dataflow
+ :FindChildren
+ [:for-each
+  {:RoleRelationship
+   {:Parent? :FindChildren.Parent}}
+  {:Role
+   {:Name? :RoleRelationship.Child}}])
+
+(dataflow
+ :FindRoleAssignments
+ {:RoleAssignment
+  {:Assignee? :FindRoleAssignments.Assignee}})
+
+(defn- priv-assigns-query [env]
+  (let [role-names (env :Fractl.Kernel.Rbac/FindPrivilegeAssignments.RoleNames)]
+    (str "SELECT * FROM " (stu/entity-table-name :Fractl.Kernel.Rbac/PrivilegeAssignment)
+         " WHERE (" (stu/attribute-column-name :Role) " in ("
+         (s/join "," (map #(str "'" (str %) "'") role-names)) "))")))
+
+(dataflow
+ :FindPrivilegeAssignments
+ [:query {:PrivilegeAssignment? priv-assigns-query}])
+
+(defn- privileges-query [env]
+  (let [names (env :Fractl.Kernel.Rbac/FindPrivileges.Names)]
+    (str "SELECT * FROM " (stu/entity-table-name :Fractl.Kernel.Rbac/Privilege)
+         " WHERE (" (stu/attribute-column-name :Name) " in ("
+         (s/join "," (map #(str "'" (str %) "'") names)) "))")))
+
+(dataflow
+ :FindPrivileges
+ [:query {:Privilege? privileges-query}])
+
+(entity
+ :InstancePrivilegeAssignment
+ {:Actions {:check crud-list?}
+  :Filter {:check crud-list? :optional true}
+  :Resource {:type :Path :indexed true}
+  :ResourceId {:type :Any :indexed true}
+  :Assignee {:type :String :indexed true}
+  :meta {:unique [:Assignee :Resource :ResourceId]}})
+
+(dataflow
+ :FindInstancePrivileges
+ {:InstancePrivilegeAssignment
+  {:Resource? :FindInstancePrivileges.Resource
+   :ResourceId? :FindInstancePrivileges.ResourceId}})

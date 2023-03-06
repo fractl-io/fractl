@@ -36,13 +36,13 @@
 
 (defn- parse-attribute-value [v attr-type]
   (case attr-type
-    (:Kernel.Lang/Int
-     :Kernel.Lang/Int64
-     :Kernel.Lang/BigInteger
-     :Kernel.Lang/Float
-     :Kernel.Lang/Double
-     :Kernel.Lang/Decimal
-     :Kernel.Lang/Boolean)
+    (:Fractl.Kernel.Lang/Int
+     :Fractl.Kernel.Lang/Int64
+     :Fractl.Kernel.Lang/BigInteger
+     :Fractl.Kernel.Lang/Float
+     :Fractl.Kernel.Lang/Double
+     :Fractl.Kernel.Lang/Decimal
+     :Fractl.Kernel.Lang/Boolean)
     (read-string v)
     v))
 
@@ -159,7 +159,7 @@
 
 (defn- data-sync-eval [inst]
   (case (cn/instance-type inst)
-    [:Kernel.Lang :DataSync] (data-sync inst)
+    [:Fractl.Kernel.Lang :DataSync] (data-sync inst)
     (u/throw-ex
      (str "data-sync resolver cannot handle "
           (cn/instance-type inst)))))

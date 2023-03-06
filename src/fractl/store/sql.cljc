@@ -70,20 +70,20 @@
   ([max-varchar-length bool-type date-time-type attribute-type]
    (if-let [root-type (k/find-root-attribute-type attribute-type)]
      (case root-type
-       (:Kernel.Lang/String
-        :Kernel.Lang/Keyword :Kernel.Lang/Email :Kernel.Lang/Password
-        :Kernel.Lang/DateTime :Kernel.Lang/Date :Kernel.Lang/Time
-        :Kernel.Lang/List :Kernel.Lang/Edn :Kernel.Lang/Any :Kernel.Lang/Map
-        :Kernel.Lang/Path)
+       (:Fractl.Kernel.Lang/String
+        :Fractl.Kernel.Lang/Keyword :Fractl.Kernel.Lang/Email :Fractl.Kernel.Lang/Password
+        :Fractl.Kernel.Lang/DateTime :Fractl.Kernel.Lang/Date :Fractl.Kernel.Lang/Time
+        :Fractl.Kernel.Lang/List :Fractl.Kernel.Lang/Edn :Fractl.Kernel.Lang/Any :Fractl.Kernel.Lang/Map
+        :Fractl.Kernel.Lang/Path)
        (str "VARCHAR(" max-varchar-length ")")
 
-       :Kernel.Lang/UUID "UUID"
-       :Kernel.Lang/Int "INT"
-       (:Kernel.Lang/Int64 :Kernel.Lang/Integer) "BIGINT"
-       :Kernel.Lang/Float "REAL"
-       :Kernel.Lang/Double "DOUBLE"
-       :Kernel.Lang/Decimal "DECIMAL"
-       :Kernel.Lang/Boolean bool-type
+       :Fractl.Kernel.Lang/UUID "UUID"
+       :Fractl.Kernel.Lang/Int "INT"
+       (:Fractl.Kernel.Lang/Int64 :Fractl.Kernel.Lang/Integer) "BIGINT"
+       :Fractl.Kernel.Lang/Float "REAL"
+       :Fractl.Kernel.Lang/Double "DOUBLE"
+       :Fractl.Kernel.Lang/Decimal "DECIMAL"
+       :Fractl.Kernel.Lang/Boolean bool-type
        (u/throw-ex (str "SQL type mapping failed for " attribute-type
                         ", root type is " root-type)))
      (str "VARCHAR(" max-varchar-length ")")))
