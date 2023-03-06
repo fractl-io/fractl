@@ -424,8 +424,8 @@
       (u/throw-ex (str "invalid :where clause - " wc)))))
 
 (defn keyword-type? [x]
-  (or (= x :Kernel.Lang/Keyword)
-      (= x :Kernel.Lang/Path)))
+  (or (= x :Fractl.Kernel.Lang/Keyword)
+      (= x :Fractl.Kernel.Lang/Path)))
 
 (defn normalize-upsert-pattern [pat]
   (dissoc pat :from :as))

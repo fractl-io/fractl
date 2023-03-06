@@ -13,6 +13,11 @@
             [fractl.policy.logging :as logging]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
+            ;; load kernel components
+            [fractl.model.fractl.kernel.lang]
+            [fractl.model.fractl.kernel.identity]
+            [fractl.model.fractl.kernel.rbac]
+            ;; :~
             [fractl.global-state :as gs]
             [fractl.evaluator.state :as es]
             [fractl.evaluator.internal :as i]

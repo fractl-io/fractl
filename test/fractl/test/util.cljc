@@ -113,26 +113,26 @@
                         (local-time/to-nano-of-day (local-time/of 23 59))))
 
 (comment
-  {:Kernel.Lang/UUID (list `s/with-gen string?
+  {:Fractl.Kernel.Lang/UUID (list `s/with-gen string?
                       #(gen/fmap str (s/gen uuid?)))})
 
 (def fractl-type->spec-clj-type
-  {:Kernel.Lang/String string?
-   :Kernel.Lang/Keyword keyword?
-   :Kernel.Lang/Int int?
-   :Kernel.Lang/Int64 int?
-   :Kernel.Lang/BigInteger integer?
-   :Kernel.Lang/Float float?
-   :Kernel.Lang/Double double?
-   :Kernel.Lang/Decimal #?(:clj decimal?
+  {:Fractl.Kernel.Lang/String string?
+   :Fractl.Kernel.Lang/Keyword keyword?
+   :Fractl.Kernel.Lang/Int int?
+   :Fractl.Kernel.Lang/Int64 int?
+   :Fractl.Kernel.Lang/BigInteger integer?
+   :Fractl.Kernel.Lang/Float float?
+   :Fractl.Kernel.Lang/Double double?
+   :Fractl.Kernel.Lang/Decimal #?(:clj decimal?
                       :cljs float?)
-   :Kernel.Lang/Boolean boolean?
-   :Kernel.Lang/Any any?
-   :Kernel.Lang/Map map?
-   :Kernel.Lang/UUID uuid?
-   :Kernel.Lang/Path (list `s/or :string (list `s/and string? (complement clojure.string/blank?))
+   :Fractl.Kernel.Lang/Boolean boolean?
+   :Fractl.Kernel.Lang/Any any?
+   :Fractl.Kernel.Lang/Map map?
+   :Fractl.Kernel.Lang/UUID uuid?
+   :Fractl.Kernel.Lang/Path (list `s/or :string (list `s/and string? (complement clojure.string/blank?))
                       :keyword keyword?)
-   :Kernel.Lang/Edn (list `s/or :vector vector?
+   :Fractl.Kernel.Lang/Edn (list `s/or :vector vector?
                      :map map?
                      :symbol symbol?
                      :keyword keyword?
@@ -142,15 +142,15 @@
                      :nil nil?
                      :list list?
                      :set set?)
-   :Kernel.Lang/Date (list `s/with-gen (partial instance? java.time.LocalDate)
+   :Fractl.Kernel.Lang/Date (list `s/with-gen (partial instance? java.time.LocalDate)
                       #(gen/fmap (fn [ms]
                                    (local-date/of-epoch-day ms))
                                  (s/gen ::past-and-future-date)))
-   :Kernel.Lang/Time (list `s/with-gen (partial instance? java.time.LocalTime)
+   :Fractl.Kernel.Lang/Time (list `s/with-gen (partial instance? java.time.LocalTime)
                       #(gen/fmap (fn [ms]
                                    (local-time/of-nano-of-day ms))
                                  (s/gen ::time)))
-   :Kernel.Lang/DateTime (list `s/with-gen (partial instance? java.time.LocalDateTime)
+   :Fractl.Kernel.Lang/DateTime (list `s/with-gen (partial instance? java.time.LocalDateTime)
                           #(gen/fmap (fn [ms]
                                        (local-date-time/of-epoch-second ms 0 utc))
                                      (s/gen ::past-and-future-date-time)))})
@@ -175,9 +175,9 @@
 (comment
   ;;[com.gfredericks/test.chuck "0.2.13"] can be used for predefined regex patterns
   (defcomponent :RefCheck
-                #_(entity {:RefCheck/E3 {:AIdId {:type :Kernel.Lang/String
+                #_(entity {:RefCheck/E3 {:AIdId {:type :Fractl.Kernel.Lang/String
                                                :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}}}))
-  (defmethod define-spec :Kernel.Lang/String [{:keys [spec-entity-name property-details]}]
+  (defmethod define-spec :Fractl.Kernel.Lang/String [{:keys [spec-entity-name property-details]}]
     (let [spec-fn (if (:format property-details)
                     (list `s/def spec-entity-name (list `s/and string? #(re-matches (re-pattern (:format property-details)) %)))
                     (list `s/def spec-entity-name string?))]
@@ -215,7 +215,7 @@
   (cond
     (-> attr-schema :oneof seq) {:type :oneof
                                  :vals (-> attr-schema :oneof set)}
-    (= (-> attr-schema :type) :Kernel.Lang/String) {:type :Kernel.Lang/String
+    (= (-> attr-schema :type) :Fractl.Kernel.Lang/String) {:type :Fractl.Kernel.Lang/String
                                                     :format (-> attr-schema :format-str)}
     (-> attr-schema :listof some?) {:type :listof
                                     :listof-type (:listof attr-schema)}

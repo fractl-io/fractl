@@ -23,7 +23,7 @@
       {:X :Int})
      (dataflow
       :BasicTimer/StartTimer
-      {:Kernel.Lang/Timer
+      {:Fractl.Kernel.Lang/Timer
        {:Expiry 1
         :ExpiryEvent
         {:BasicTimer/OnTimer
@@ -44,5 +44,5 @@
    (let [r (tu/first-result
             {:BasicTimer/StartTimer
              {:X 100}})]
-     (is (cn/instance-of? :Kernel.Lang/Timer r))
+     (is (cn/instance-of? :Fractl.Kernel.Lang/Timer r))
      (tu/sleep 3000 #(query-e 100)))))

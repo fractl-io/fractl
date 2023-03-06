@@ -114,7 +114,7 @@
 (defn- trigger-appinit-event! [evaluator data]
   (let [result (evaluator
                 (cn/make-instance
-                 {:Kernel.Lang/AppInit
+                 {:Fractl.Kernel.Lang/AppInit
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
@@ -136,7 +136,7 @@
 (defn- run-initconfig [app-config evaluator]
   (let [result (evaluator
                 (cn/make-instance
-                 {:Kernel.Lang/InitConfig {}}))
+                 {:Fractl.Kernel.Lang/InitConfig {}}))
         configs (first (mapv :Data (:result (first result))))
         resolver-configs (merge-resolver-configs
                           app-config
@@ -312,11 +312,12 @@
   (doseq [opt cli-options]
     (println (str "  " (s/join " " opt))))
   (println "  run MODEL-NAME Load and run a model")
+  (println "  compile MODEL-NAME Compile a model into a Clojure project")
   (println "  build MODEL-NAME Compile a model to produce a standalone application")
   (println "  publish MODEL-NAME TARGET Publish the model to one of the targets - `local`, `clojars` or `github`")
   (println "  exec MODEL-NAME build and run the model as a standalone application")
   (println)
-  (println "For `run`, `build`, `publish` and `exec` the model will be searched in the local directory")
+  (println "For `run`, `compile`, `build`, `publish` and `exec` the model will be searched in the local directory")
   (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
   (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
   (println "model directory itself.")
@@ -339,9 +340,10 @@
       (:help options) (print-help)
       :else
       (or (some identity (mapv (partial run-plain-option args)
-                               ["run" "build" "exec" "publish" "deploy"]
+                               ["run" "compile" "build" "exec" "publish" "deploy"]
                                [#(when (build/load-model (first %))
                                    (run-service nil (read-model-and-config nil options)))
+                                #(println (build/compile-model (first %)))
                                 #(println (build/standalone-package (first %)))
                                 #(println (build/run-standalone-package (first %)))
                                 #(println (publish-library %))

@@ -19,7 +19,7 @@
       :clj
       (let [result
             (ev/eval-all-dataflows
-             {:Kernel.Lang/LoadPolicies
+             {:Fractl.Kernel.Lang/LoadPolicies
               {:Intercept (u/keyword-as-string intercept)
                :Resource (u/keyword-as-string (normalize-path resource))}})]
         (ev/ok-result result true)))
@@ -32,9 +32,9 @@
 (defn upsert-policy [intercept resource spec]
   (let [result
         (ev/eval-all-dataflows
-         {:Kernel.Lang/Upsert_Policy
+         {:Fractl.Kernel.Lang/Upsert_Policy
           {:Instance
-           {:Kernel.Lang/Policy
+           {:Fractl.Kernel.Lang/Policy
             {:Intercept (u/keyword-as-string intercept)
              :Resource (u/keyword-as-string (normalize-path resource))
              :Spec [:q# spec]}}}})]
