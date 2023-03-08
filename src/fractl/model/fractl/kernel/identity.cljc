@@ -21,7 +21,7 @@
  {:User :Fractl.Kernel.Identity/User})
 (event
  :Fractl.Kernel.Identity/PostSignUp
- {:SignupResult :Any, :UserData :Any})
+ {:SignupResult :Any, :UserDetails :Any})
 (dataflow
  :Fractl.Kernel.Identity/SignUp
  :Fractl.Kernel.Identity/SignUp.User)
