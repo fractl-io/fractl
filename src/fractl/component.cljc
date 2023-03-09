@@ -289,6 +289,9 @@
 (defn fetch-entity-schema [entity-name]
   (:schema (find-entity-schema entity-name)))
 
+(defn fetch-event-schema [event-name]
+  (:schema (find-event-schema event-name)))
+
 (defn fetch-relationship-schema [rel-name]
   (when-let [scm (fetch-entity-schema rel-name)]
     (when (mt/relationship? (fetch-meta rel-name))
@@ -1052,6 +1055,12 @@
 (def record-names (partial record-names-by-type :record))
 (def entity-names (partial record-names-by-type :entity))
 (def event-names (partial record-names-by-type :event))
+
+(defn user-defined-event? [event-name]
+  (not (s/index-of (name event-name) "_")))
+
+(defn user-event-names [component]
+  (filter user-defined-event? (event-names component)))
 
 (defn relationship-names [component]
   (filter
