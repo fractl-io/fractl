@@ -1643,3 +1643,17 @@
           {id1 idv1})
         (when (and id2 idv2)
           {id2 idv2}))))))
+
+(defn- event-attachments [component]
+  (into {} (filter
+            #(get-in % [:ui :attach-to-entities])
+            (mapv (fn [n] [n (fetch-meta n)]) (event-names component)))))
+
+(defn ui-event-attachments [components]
+  (seq
+   (apply
+    concat
+    (mapv #(event-attachments %) components))))
+
+(defn ui-attached-events [attachments entity-name]
+  (mapv first (filter (fn [[_ v]] (some #{entity-name} v)) attachments)))
