@@ -290,7 +290,9 @@
   (:schema (find-entity-schema entity-name)))
 
 (defn fetch-event-schema [event-name]
-  (:schema (find-event-schema event-name)))
+  (dissoc
+   (:schema (find-event-schema event-name))
+   li/event-context))
 
 (defn fetch-relationship-schema [rel-name]
   (when-let [scm (fetch-entity-schema rel-name)]
