@@ -568,6 +568,15 @@
     (assoc root-pat li/rel-tag [(first relpat) (assoc-leaf-relpat (second relpat) leaf-pat)])
     leaf-pat))
 
+(defn- normalize-for-lookup-all [root attrs old-attrs]
+  (let [n (li/instance-pattern-name root)
+        vs (vals attrs)]
+    (if (and (= 1 (count vs)) (= "*" (first vs)))
+      {(li/name-as-query-pattern n) {}
+       li/rel-tag (li/rel-tag root)}
+      (assoc root (li/instance-pattern-name root)
+             (merge attrs (dissoc old-attrs :?))))))
+
 (defn- normalize-relationship-path [path-query pat]
   (let [path (li/path-query-string path-query)
         nm (li/instance-pattern-name pat)
@@ -585,8 +594,7 @@
         (if-let [lf (first leaves)]
           (recur (assoc-leaf-relpat root lf) (rest leaves))
           (let [attrs (li/instance-pattern-attrs root)]
-            (assoc root (li/instance-pattern-name root)
-                   (merge attrs (dissoc old-attrs :?)))))))))
+            (normalize-for-lookup-all root attrs old-attrs)))))))
 
 (defn- maybe-normalize-relationship-path [pat]
   (let [path-queries
