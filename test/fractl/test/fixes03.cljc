@@ -563,3 +563,19 @@
     (is (ls/reference? r2))
     (is (= p1 (ls/raw r1)))
     (is (= p2 (ls/raw r2)))))
+
+(deftest eval-syntax-bug
+  (let [fn-call '(a/f :A/K.Arg1 :A/K.Arg2)
+        exp [:eval fn-call]
+        p1 (ls/introspect exp)
+        exp-with-check (vec (concat exp [:check :A/B]))
+        p2 (ls/introspect exp-with-check)
+        p3 (ls/introspect (vec (concat exp [:as :R])))
+        p4 (ls/introspect (vec (concat exp-with-check [:as :R])))
+        ps [p1 p2 p3 p4]]
+    (is (every? ls/eval? ps))
+    (is (every? #(= fn-call (second (ls/raw (ls/exp-tag %)))) ps))
+    (is (= :A/B (ls/raw (ls/check-tag p2))))
+    (is (= :R (ls/raw (ls/alias-tag p3))))
+    (is (and (= :A/B (ls/raw (ls/check-tag p4)))
+             (= :R (ls/raw (ls/alias-tag p4)))))))
