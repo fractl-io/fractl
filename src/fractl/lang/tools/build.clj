@@ -239,7 +239,7 @@
             spec (update-project-spec model (rd "project.clj"))
             log-config (make-log-config model-name (model-version model))]
         (wr "project.clj" spec)
-        (wr "resources/logback.xml" log-config :spit)
+        (wr "logback.xml" log-config :spit)
         (let [cmps (mapv (partial copy-component wr model-name) components)]
           (write-model-clj wr model-name cmps model)
           (write-config-edn model-root wr)
