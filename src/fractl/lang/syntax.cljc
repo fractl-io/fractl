@@ -551,14 +551,15 @@
   ([spec]
    (_eval ($exp spec) (check-tag spec) (alias-tag spec)))
   ([exp check result-alias]
-   (when-not (li/name? check)
+   (when (and check (not (li/name? check)))
      (u/throw-ex (str "invalid value for check - " check)))
    (validate-alias! result-alias)
    (as-syntax-object
     :eval
-    {exp-tag (introspect exp)
-     check-tag check
-     alias-tag result-alias})))
+    (merge
+     {exp-tag (introspect exp)}
+     (when check {check-tag check})
+     (when result-alias {alias-tag result-alias})))))
 
 (def eval? (partial has-type? :eval))
 
