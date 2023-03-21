@@ -289,6 +289,11 @@
 (defn fetch-entity-schema [entity-name]
   (:schema (find-entity-schema entity-name)))
 
+(defn fetch-event-schema [event-name]
+  (dissoc
+   (:schema (find-event-schema event-name))
+   li/event-context))
+
 (defn fetch-relationship-schema [rel-name]
   (when-let [scm (fetch-entity-schema rel-name)]
     (when (mt/relationship? (fetch-meta rel-name))
@@ -874,6 +879,31 @@
                  (u/throw-ex (str "not a valid event name - " n))))
     :else (u/throw-ex (str "invalid event pattern - " e))))
 
+(defn record-names-by-type
+  "Return a list of record-names, of the given type, interned in this component.
+  The type argument `tp` could be one of - :record, :event or :entity."
+  [tp component]
+  (let [recs (filter
+              (fn [[_ v]] (= tp (type-tag-key v)))
+              (:records (get @components component)))]
+    (set (map (partial full-name component) (keys recs)))))
+
+(def record-names (partial record-names-by-type :record))
+(def entity-names (partial record-names-by-type :entity))
+(def event-names (partial record-names-by-type :event))
+
+(defn relationship-names [component]
+  (filter
+   #(:relationship
+     (fetch-meta %))
+   (record-names-by-type :entity component)))
+
+(defn user-defined-event? [event-name]
+  (not (s/index-of (name event-name) "_")))
+
+(defn user-event-names [component]
+  (filter user-defined-event? (event-names component)))
+
 (def ^:private aot-dataflow-compiler (atom nil))
 
 (defn set-aot-dataflow-compiler! [f]
@@ -896,7 +926,7 @@
                        :event-pattern event
                        :patterns patterns
                        :opcode (u/make-cell {})}])]]
-       (when (seq (get-in ms path))
+       (when (and (user-defined-event? event) (seq (get-in ms path)))
          (log/warn (str "overwriting dataflow for " event)))
        (assoc-in ms path newpats)))
    event)
@@ -1039,25 +1069,6 @@
   [k (dataflow-patterns df)])
 
 ;; Component querying, useful for the edges.
-
-(defn record-names-by-type
-  "Return a list of record-names, of the given type, interned in this component.
-  The type argument `tp` could be one of - :record, :event or :entity."
-  [tp component]
-  (let [recs (filter
-              (fn [[_ v]] (= tp (type-tag-key v)))
-              (:records (get @components component)))]
-    (set (map (partial full-name component) (keys recs)))))
-
-(def record-names (partial record-names-by-type :record))
-(def entity-names (partial record-names-by-type :entity))
-(def event-names (partial record-names-by-type :event))
-
-(defn relationship-names [component]
-  (filter
-   #(:relationship
-     (fetch-meta %))
-   (record-names-by-type :entity component)))
 
 (defn get-schema [getter recname]
   (:schema (getter recname)))
