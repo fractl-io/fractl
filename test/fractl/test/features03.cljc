@@ -205,3 +205,54 @@
       (is (= (:B r3) 200))
       (is (= (:AIdentity r3) 3))
       (is (= (:BIdentity r3) 10)))))
+
+(deftest lookup-all
+  (defcomponent :LA
+    (entity
+     :LA/A
+     {:X {:type :Int :identity true}})
+    (entity
+     :LA/B
+     {:Y {:type :Int :identity true}})
+    (relationship
+     :LA/R
+     {:meta {:contains [:LA/A :LA/B]}}))
+  (let [as (mapv
+            #(tu/first-result
+              {:LA/Upsert_A
+               {:Instance
+                {:LA/A {:X %}}}})
+            [1 2])
+        bs_1 (mapv #(tu/result
+                     {:LA/Upsert_B
+                      {:Instance
+                       {:LA/B {:Y %}}
+                       :A 1}})
+                   [10 20 30])
+        bs_2 (mapv #(tu/result
+                     {:LA/Upsert_B
+                      {:Instance
+                       {:LA/B {:Y %}}
+                       :A 2}})
+                   [100 200])]
+    (defn- sum [insts attr]
+      (reduce (fn [x a] (+ x (attr a))) 0 insts))
+    (defn- is-sum-xs [rs]
+      (is (= 2 (count rs)))
+      (is (= 3 (sum rs :X))))
+    (is (every? (partial cn/instance-of? :LA/A) as))
+    (is-sum-xs as)
+    (defn- check-bs [bs_1 bs_2]
+      (is (every? (partial cn/instance-of? :LA/B) bs_1))
+      (is (= 3 (count bs_1)))
+      (is (= 60 (sum bs_1 :Y)))
+      (is (every? (partial cn/instance-of? :LA/B) bs_2))
+      (is (= 2 (count bs_2)))
+      (is (= 300 (sum bs_2 :Y))))
+    (check-bs bs_1 bs_2)
+    (let [rs (tu/result {:LA/LookupAll_A {}})]
+      (is (every? (partial cn/instance-of? :LA/A) rs))
+      (is-sum-xs rs))
+    (let [bs_1 (tu/result {:LA/LookupAll_B {:A 1}})
+          bs_2 (tu/result {:LA/LookupAll_B {:A 2}})]
+      (check-bs bs_1 bs_2))))

@@ -673,7 +673,8 @@
         (let [upevt (ev :Upsert)
               delevt (ev :Delete)
               lookupevt (ev :Lookup)
-              lookupevt-internal (ev cn/lookup-internal-event-prefix)]
+              lookupevt-internal (ev cn/lookup-internal-event-prefix)
+              lookupallevt (ev :LookupAll)]
           (cn/for-each-entity-event-name
            rec-name (partial entity-event rec-name))
           (event-internal upevt inst-evattrs)
@@ -689,7 +690,9 @@
           (event-internal lookupevt-internal id-evattrs)
           (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
           (event-internal lookupevt id-evattrs)
-          (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)]))
+          (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
+          (event-internal lookupallevt {})
+          (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)]))
         ;; Install dataflows for implicit events.
         (when dfexps (doall (map eval dfexps)))
         result)
@@ -791,14 +794,18 @@
          (assoc parent-pat li/rel-tag (parent-query-pattern attr-accessor r p)))
        parent-pat)]))
 
-(defn- parent-query-path [attr-accessor relname parent child]
-  (let [f attr-accessor, np (name parent) nc (name child)
-        path (str "/" np "/" (f np) "/" (name relname) "/" nc "/" (f nc))]
-    (loop [parent parent, path path]
-      (if-let [cps (seq (cn/containing-parents parent))]
-        (let [[r _ p] (first cps), np (name p)]
-          (recur p (str np "/" (f np) "/" (name r) "/" path)))
-        (str "path:" (if (s/starts-with? path "/") "/" "//") path)))))
+(defn- parent-query-path
+  ([attr-accessor relname parent child query-all]
+   (let [f attr-accessor, np (name parent), nc (name child)
+         path (str "/" np "/" (f np) "/" (name relname) "/" nc
+                   (if query-all "/*" (str "/" (f nc))))]
+     (loop [parent parent, path path]
+       (if-let [cps (seq (cn/containing-parents parent))]
+         (let [[r _ p] (first cps), np (name p)]
+           (recur p (str np "/" (f np) "/" (name r) "/" path)))
+         (str "path:" (if (s/starts-with? path "/") "/" "//") path)))))
+  ([attr-accessor relname parent child]
+   (parent-query-path attr-accessor relname parent child false)))
 
 (defn- parent-names-as-attributes [parent]
   (loop [p parent, result {(keyword (name parent)) :Fractl.Kernel.Lang/Any}]
@@ -817,7 +824,9 @@
         lookupevt (ev :Lookup)
         f3 (partial crud-event-attr-accessor lookupevt true)
         c (name child)
-        ctx-aname (k/event-context-attribute-name)]
+        ctx-aname (k/event-context-attribute-name)
+        lookupallevt (ev :LookupAll)
+        f4 (partial crud-event-attr-accessor lookupallevt true)]
     (event-internal
      upevt
      (merge
@@ -838,7 +847,16 @@
     (cn/register-dataflow
      lookupevt
      [{(li/name-as-query-pattern child)
-       (parent-query-path f3 relname parent child)}])))
+       (parent-query-path f3 relname parent child)}])
+    (event-internal
+     lookupallevt
+     (merge
+      {li/event-context ctx-aname}
+      (parent-names-as-attributes parent)))
+    (cn/register-dataflow
+     lookupallevt
+     [{(li/name-as-query-pattern child)
+       (parent-query-path f4 relname parent child true)}])))
 
 (defn- find-between-ref [attrs node-rec-name]
   (let [cn (li/split-path node-rec-name)]
