@@ -164,10 +164,10 @@
                   (if (= 1 (count ss))
                     [(symbol
                       (str (first ss) ".model.model")
-                      :only [(symbol (str (name r) "_" model-id-var))])]
+                      :only [(symbol (str (s/replace (name r) "." "_") "_" model-id-var))])]
                     [(symbol
                       (s/join "." (concat [(first ss) "model"] ss)))
-                     :only [(symbol (str (name r) "_" component-id-var))]])))
+                     :only [(symbol (str (s/replace (name r) "." "_") "_" component-id-var))]])))
               refs)]
     (concat spec [['fractl.lang :only lang-vars]])))
 
@@ -204,7 +204,7 @@
           exps (concat
                 [ns-decl]
                 (update-local-defs ns-name component)
-                [`(def ~(symbol (str (name component-name) "_" component-id-var)) ~(u/uuid-string))])]
+                [`(def ~(symbol (str (s/replace (name component-name) "." "_") "_" component-id-var)) ~(u/uuid-string))])]
       (if write
         (write-component-clj
          model-name cns-name write exps)
@@ -218,7 +218,7 @@
         model (dissoc model :clj-dependencies :repositories)]
     (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
            [ns-decl model
-            `(def ~(symbol (str (name model-name) "_" model-id-var)) ~(u/uuid-string))]
+            `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))]
            :write-each)))
 
 (def ^:private config-edn "config.edn")
