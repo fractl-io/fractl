@@ -632,8 +632,8 @@
 (deftest destructuring-alias
   (defcomponent :DestructuringAlias
     (entity {:DestructuringAlias/E {:X {:type    :Int
-                                :indexed true}
-                            :N :String}})
+                                        :indexed true}
+                                    :N :String}})
     (record {:Result {:Values :Any}})
     (event {:DestructuringAlias/Evt {:X :Int}})
      (dataflow :DestructuringAlias/Evt
@@ -648,11 +648,11 @@
             (cn/make-instance :DestructuringAlias/E {:X 1 :N "e07"})]
         evts (map #(cn/make-instance :DestructuringAlias/Upsert_E {:Instance %}) es)
         _    (doall (map (comp (comp first tu/fresult)
-                           #(e/eval-all-dataflows %))
-                      evts))
+                               #(e/eval-all-dataflows %))
+                         evts))
         result (:Values (first (tu/fresult (e/eval-all-dataflows {:DestructuringAlias/Evt {:X 1}}))))]
     (is (and (= "e01" (:N (first result)))
-          (= 1 (:X (first result)))))
+             (= 1 (:X (first result)))))
     (is (= "e03" (:N (nth result 1))))
     (is (= 1 (:X (nth result 1))))
     (is (= "e05" (:N (nth result 2))))
