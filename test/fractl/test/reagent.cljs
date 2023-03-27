@@ -9,7 +9,7 @@
             [fractl.resolver.registry :as rg]
             [fractl.test.util :as tu :refer-macros [defcomponent]]))
 
-(def store (store/open-reagent-store nil))
+(def store (store/open-mem-store nil))
 
 (defn- test-resolver [install-resolver resolver-name path]
   (let [r (r/make-resolver resolver-name {:upsert {:handler identity}

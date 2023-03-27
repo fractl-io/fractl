@@ -1,4 +1,4 @@
-(ns fractl.store.reagent.internal
+(ns fractl.store.mem.internal
   (:require [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.util :as u]
@@ -6,7 +6,8 @@
 
 (def view-tag :DOMView)
 
-(def inst-store (reagent/atom {}))
+#_(def inst-store (reagent/atom {}))
+(def inst-store (atom {}))
 
 (defn- store
   []

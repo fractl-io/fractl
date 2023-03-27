@@ -1,8 +1,7 @@
 (ns fractl.store
   (:require #?(:clj [fractl.store.h2 :as h2]
-               :cljs [fractl.store.alasql :as alasql])
+               :cljs [fractl.store.mem.core :as mem])
             #?(:clj [fractl.store.postgres :as postgres])
-            #?(:cljs [fractl.store.reagent.core :as reagent])
             [fractl.component :as cn]
             [fractl.util.logger :as log]
             [fractl.store.util :as su]
@@ -36,8 +35,8 @@
       {:h2 h2/make
        :postgres postgres/make}
       :cljs
-      {:alasql alasql/make
-       :reagent reagent/make})))
+      {:reagent mem/reagent-make
+       :mem mem/make})))
 
 (defn register-store [store-name constructor]
   (u/call-and-set
@@ -48,7 +47,7 @@
   (if-let [t (:type config)]
     (t @store-constructors)
     #?(:clj h2/make
-       :cljs reagent/make)))
+       :cljs mem/make)))
 
 (defn open-default-store
   ([store-config]
@@ -58,12 +57,12 @@
   ([]
    (open-default-store nil)))
 
-(defn open-reagent-store
+(defn open-mem-store
   ([store-config]
-   #?(:clj (u/throw-ex (str "Reagent store not supported - " store-config))
-      :cljs (make-default-store (assoc store-config :reactive true) (reagent/make))))
+   #?(:clj (u/throw-ex (str "Mem store not supported - " store-config))
+      :cljs (make-default-store (assoc store-config :reactive true) (mem/make))))
   ([]
-   (open-reagent-store nil)))
+   (open-mem-store nil)))
 
 (defn- merge-non-unique
   "Merge non-unique attributes from inst-b to inst-a.

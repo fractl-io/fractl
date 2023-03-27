@@ -1,9 +1,9 @@
-(ns fractl.store.reagent.core
-  (:require [fractl.store.reagent.internal :as i]
+(ns fractl.store.mem.core
+  (:require [fractl.store.mem.internal :as i]
             [fractl.store.protocol :as p]
             [fractl.util :as u]))
 
-(defn make []
+(defn- make-internal []
   (let [datasource (u/make-cell)]
     (reify p/Store
       (open-connection [store connection-info]
@@ -40,8 +40,17 @@
       (compile-query
         [_ query-pattern]
         (i/compile-to-indexed-query query-pattern))
+      (call-in-transaction [_ f]
+        (f nil))
       (get-reference
         [_ path refs]
         (i/get-reference path refs)))))
 
-(def state i/inst-store)
+(defn make
+  []
+  (make-internal))
+
+#?(:cljs
+   (defn reagent-make
+     []
+     (make-internal)))
