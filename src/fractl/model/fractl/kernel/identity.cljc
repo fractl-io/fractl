@@ -3,7 +3,7 @@
  (:use
   [fractl.model.fractl.kernel.lang
    :only
-   [Fractl_Kernel_Lang___COMPONENT-ID__]]
+   [Fractl_Kernel_Lang___COMPONENT_ID__]]
   [fractl.lang
    :only
    [dataflow entity attribute relationship component event record]]))
@@ -49,5 +49,5 @@
                           {:Email?
                            :Fractl.Kernel.Identity/FindUser.Email}})
 (def
- Fractl_Kernel_Identity___COMPONENT-ID__
+ Fractl_Kernel_Identity___COMPONENT_ID__
  "1882be98-0905-4a9d-a9f5-420e3cbf17a8")

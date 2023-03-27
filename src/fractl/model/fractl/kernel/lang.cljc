@@ -113,5 +113,5 @@
       :paths [:Fractl.Kernel.Lang/DataSync]})
   ])
 (def
- Fractl_Kernel_Lang___COMPONENT-ID__
+ Fractl_Kernel_Lang___COMPONENT_ID__
  "cea30cf9-feb0-40b8-80e8-de5a56a63802")

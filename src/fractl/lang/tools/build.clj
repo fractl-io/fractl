@@ -16,8 +16,8 @@
 (def out-dir "out")
 (def ^:private out-file (File. out-dir))
 
-(def ^:private component-id-var "__COMPONENT-ID__")
-(def ^:private model-id-var "__MODEL-ID__")
+(def ^:private component-id-var "__COMPONENT_ID__")
+(def ^:private model-id-var "__MODEL_ID__")
 
 (def ^:private logback-xml
   "<?xml version=\"1.0\"?>
