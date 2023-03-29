@@ -47,6 +47,8 @@
      :I594B/Spouse
      {:meta
       {:between [:I594B/Employee :I594B/Employee]}}))
+  (is (= #{:I594B/WorksFor :I594B/Spouse}
+         (set (cn/relationship-names :I594B))))
   (let [rscm (cn/fetch-schema :I594B/WorksFor)
         r1 (:ref (cn/find-attribute-schema (:Dept rscm)))
         r2 (:ref (cn/find-attribute-schema (:Employee rscm)))
