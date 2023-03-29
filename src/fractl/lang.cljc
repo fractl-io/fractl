@@ -151,6 +151,7 @@
       :writer (li/validate fn? ":writer must be a function" v)
       :secure-hash (li/validate-bool :secure-hash v)
       :oneof v
+      :raw-expr v
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}
@@ -294,7 +295,8 @@
            (merge (if-let [t (:type v)]
                     {:type t}
                     (u/throw-ex (str ":type is required for attribute " k " with compound expression")))
-                  {:expr (c recname attrs k expr)})))))))
+                  {:raw-expr expr
+                   :expr (c recname attrs k expr)})))))))
 
 (defn- normalize-attr [recname attrs fqn [k v]]
   (let [newv
@@ -309,7 +311,8 @@
           (attribute
            (fqn (li/unq-name))
            {:expr (c/compile-attribute-expression
-                   recname attrs k v)})
+                   recname attrs k v)
+            :raw-expr v})
           :else
           (let [fulln (fqn v)]
             (if (attref? fulln)
