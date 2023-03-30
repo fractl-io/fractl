@@ -215,14 +215,15 @@
 
 (defn- validated-canonical-type-name
   ([validate-name n]
-   (let [canon (cn/canonical-type-name n)
+   (let [validate-name (or validate-name li/validate-name)
+         canon (cn/canonical-type-name n)
          [c n] (li/split-path canon)]
      (when (and (not= c k/kernel-lang-component) (k/plain-kernel-type? n))
        (log/warn (str "redefinition of kernel type "
                       n " will always require the fully-qualified name - "
                       canon)))
      (validate-name canon)))
-  ([n] (validated-canonical-type-name li/validate-name n)))
+  ([n] (validated-canonical-type-name nil n)))
 
 (defn- intern-attribute
   "Add a new attribute definition to the component."
@@ -656,7 +657,9 @@
 (defn- serializable-record [rectype n attrs]
   (if-let [intern-rec (rectype intern-rec-fns)]
     (if (map? attrs)
-      (let [rec-name (validated-canonical-type-name n)
+      (let [rec-name (validated-canonical-type-name
+                      (when (cn/system-defined? attrs) identity)
+                      n)
             [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
             result (intern-rec
                     rec-name
