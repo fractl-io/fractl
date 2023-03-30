@@ -1568,3 +1568,10 @@
           (let [data (tu/generate-data :RefCheck/E3)]
             (is (seq? data))
             (is (every? #(map? (:RefCheck/E3.AIdId %)) data)))))))
+
+(deftest components-in-model
+  (component :Abc.X)
+  (component :Abc.Y)
+  (component :Bcd.Z)
+  (is (= #{:Abc.X :Abc.Y} (set (cn/component-names :Abc))))
+  (is (= #{:Bcd.Z} (set (cn/component-names :Bcd)))))

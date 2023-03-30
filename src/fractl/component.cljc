@@ -98,8 +98,12 @@
 (defn remove-component [component]
   (u/call-and-set components #(dissoc @components component)))
 
-(defn component-names []
-  (keys @components))
+(defn component-names
+  ([]
+   (keys @components))
+  ([prefix]
+   (let [s (str prefix)]
+     (filter #(s/starts-with? (str %) s) (component-names)))))
 
 (defn component-exists? [component]
   (if (find @components component)
