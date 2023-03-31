@@ -102,7 +102,7 @@
      (u/throw-ex
       (str
        "invalid argument in "
-       (mark-exp-error args))))
+       (mark-exp-error fnname args fnname))))
    (as-syntax-object
     :exp
     {exp-fn-tag fnname

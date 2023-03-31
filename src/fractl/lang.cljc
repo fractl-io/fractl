@@ -151,6 +151,7 @@
       :writer (li/validate fn? ":writer must be a function" v)
       :secure-hash (li/validate-bool :secure-hash v)
       :oneof v
+      :raw-expr v
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}
@@ -214,14 +215,15 @@
 
 (defn- validated-canonical-type-name
   ([validate-name n]
-   (let [canon (cn/canonical-type-name n)
+   (let [validate-name (or validate-name li/validate-name)
+         canon (cn/canonical-type-name n)
          [c n] (li/split-path canon)]
      (when (and (not= c k/kernel-lang-component) (k/plain-kernel-type? n))
        (log/warn (str "redefinition of kernel type "
                       n " will always require the fully-qualified name - "
                       canon)))
      (validate-name canon)))
-  ([n] (validated-canonical-type-name li/validate-name n)))
+  ([n] (validated-canonical-type-name nil n)))
 
 (defn- intern-attribute
   "Add a new attribute definition to the component."
@@ -294,7 +296,8 @@
            (merge (if-let [t (:type v)]
                     {:type t}
                     (u/throw-ex (str ":type is required for attribute " k " with compound expression")))
-                  {:expr (c recname attrs k expr)})))))))
+                  {:raw-expr expr
+                   :expr (c recname attrs k expr)})))))))
 
 (defn- normalize-attr [recname attrs fqn [k v]]
   (let [newv
@@ -309,7 +312,8 @@
           (attribute
            (fqn (li/unq-name))
            {:expr (c/compile-attribute-expression
-                   recname attrs k v)})
+                   recname attrs k v)
+            :raw-expr v})
           :else
           (let [fulln (fqn v)]
             (if (attref? fulln)
@@ -653,7 +657,9 @@
 (defn- serializable-record [rectype n attrs]
   (if-let [intern-rec (rectype intern-rec-fns)]
     (if (map? attrs)
-      (let [rec-name (validated-canonical-type-name n)
+      (let [rec-name (validated-canonical-type-name
+                      (when (cn/system-defined? attrs) identity)
+                      n)
             [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
             result (intern-rec
                     rec-name

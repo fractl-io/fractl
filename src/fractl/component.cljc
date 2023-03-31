@@ -98,8 +98,12 @@
 (defn remove-component [component]
   (u/call-and-set components #(dissoc @components component)))
 
-(defn component-names []
-  (keys @components))
+(defn component-names
+  ([]
+   (keys @components))
+  ([prefix]
+   (let [s (str prefix)]
+     (filter #(s/starts-with? (str %) s) (component-names)))))
 
 (defn component-exists? [component]
   (if (find @components component)
@@ -1427,7 +1431,7 @@
         updated-event-context (merge current-event-context values-map)]
     (assoc event-instance event-context updated-event-context)))
 
-(def ^:private meta-suffix "Meta")
+(def ^:private meta-suffix "_Meta")
 (def ^:private meta-suffix-len (count meta-suffix))
 
 (defn meta-entity-name [n]
@@ -1446,7 +1450,11 @@
    :LastUpdated {:type :Fractl.Kernel.Lang/DateTime
                  :default dt/now}
    :LastUpdatedBy :Fractl.Kernel.Lang/String
-   :UserData {:type :Fractl.Kernel.Lang/Map :optional true}})
+   :UserData {:type :Fractl.Kernel.Lang/Map :optional true}
+   :meta {:system-defined? true}})
+
+(defn system-defined? [schema]
+  (:system-defined? (:meta schema)))
 
 (defn meta-entity-for-any? [entity-names ename]
   (let [n (str (if (keyword? ename) ename (li/make-path ename)))]
