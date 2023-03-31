@@ -1438,6 +1438,9 @@
   (let [[component entity-name] (if (keyword? n) (li/split-path n) n)]
     (keyword (str (name component) "/" (name entity-name) meta-suffix))))
 
+(defn meta-entity-name? [n]
+  (s/ends-with? (name n) meta-suffix))
+
 (def meta-entity-id :EntityId)
 
 (defn meta-entity-attributes [component]
@@ -1476,6 +1479,11 @@
                 {:UserData user-data})))]))
   ([inst user]
    (make-meta-instance inst user nil)))
+
+(defn user-entity-names [component]
+  (filter #(and (not (meta-entity-name? %))
+                (not (relationship? %)))
+          (entity-names component)))
 
 (def lookup-internal-event-prefix :Lookup_Internal)
 (def lookup-internal-event-prefix-s (name lookup-internal-event-prefix))
