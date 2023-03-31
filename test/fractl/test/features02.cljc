@@ -602,3 +602,19 @@
       (is (= 1 (count r4)))
       (is (cn/instance-of? :Fractl.Meta.Core/Workspace (first r4)))
       (is (cn/same-instance? (dissoc r3 :->) (first r4))))))
+
+(deftest issue-840-raw-attributes
+  (defcomponent :I840
+    (attribute :I840/K {:type :String})
+    (entity
+     :I840/E
+     {:X :Int
+      :Y {:type :String :default "yyyy"}
+      :Z :I840/K}))
+  (is (= {:X :Fractl.Kernel.Lang/Int
+          :Y {:unique false
+              :immutable false
+              :type :Fractl.Kernel.Lang/String
+              :default "yyyy"}
+          :Z :I840/K}
+         (cn/fetch-user-schema :I840/E))))
