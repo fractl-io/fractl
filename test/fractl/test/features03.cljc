@@ -318,5 +318,12 @@
     (relationship
      :I846R/R2
      {:meta {:contains [:I846R/E1 :I846R/E3]}}))
-  ;; TODO: test delete relationships
-  )
+  (tu/is-error #(cn/remove-entity :I846R/E1))
+  (tu/is-error #(cn/remove-entity :I846R/E2))
+  (tu/is-error #(cn/remove-entity :I846R/E3))
+  (is (cn/remove-relationship :I846R/R1))
+  (tu/is-error #(cn/remove-entity :I846R/E1))
+  (is (cn/remove-entity :I846R/E2))
+  (is (cn/remove-relationship :I846R/R2))
+  (is (cn/remove-entity :I846R/E1))
+  (is (cn/remove-entity :I846R/E3)))
