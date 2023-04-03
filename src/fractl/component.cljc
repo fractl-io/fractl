@@ -1699,21 +1699,21 @@
           comp-scm (get comps c)
           attrs (:attributes comp-scm)
           recs (:records comp-scm)
+          evts (:events comp-scm)
           new-attrs (apply
                      dissoc attrs
                      (mapv #(second (li/split-path %))
                            (vals (dissoc scm id-attr))))
           new-recs (dissoc recs n)
-          new-comp-scm (dissoc (assoc comp-scm :attributes new-attrs :records new-recs) n)
+          new-evts (dissoc evts n) ; applies to only events
+          new-comp-scm (dissoc
+                        (assoc
+                         comp-scm
+                         :attributes new-attrs
+                         :records new-recs
+                         :events evts)
+                        n)
           final-comps (assoc comps c new-comp-scm)]
-      #_(if ent-scm
-          (loop [evts (mapv (partial crud-event-name c n) [:Upsert :Delete :Lookup :LookupAll])
-                 comps new-comps]
-            (if-let [evt (first evts)]
-              (when-let [c (remove-record comps evt)]
-                (recur (rest evts) c))
-              comps))
-          new-comps)
       (u/safe-set components final-comps))))
 
 (defn remove-entity [recname]
