@@ -292,4 +292,31 @@
       (is (not (cn/fetch-meta :I846/E)))
       (is (every? nil? (mapv cn/fetch-event-schema evts)))
       (is (cn/fetch-schema :I846/R))
-      (is (cn/fetch-meta :I846/R)))))
+      (is (cn/fetch-meta :I846/R)))
+    (let [c (cn/remove-record :I846/R)]
+      (is c)
+      (is (not (cn/fetch-entity-schema :I846/E)))
+      (is (not (cn/fetch-meta :I846/E)))
+      (is (every? nil? (mapv cn/fetch-event-schema evts)))
+      (is (not (cn/fetch-schema :I846/R)))
+      (is (not (cn/fetch-meta :I846/R))))))
+
+(deftest issue-846-remove-relationship
+  (defcomponent :I846R
+    (entity
+     :I846R/E1
+     {:X :Int})
+    (entity
+     :I846R/E2
+     {:A :Int})
+    (entity
+     :I846R/E3
+     {:B :Int})
+    (relationship
+     :I846R/R1
+     {:meta {:between [:I846R/E1 :I846R/E2]}})
+    (relationship
+     :I846R/R2
+     {:meta {:contains [:I846R/E1 :I846R/E3]}}))
+  ;; TODO: test delete relationships
+  )
