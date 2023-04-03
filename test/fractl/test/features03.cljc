@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
+            [fractl.util.seq :as su]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship
@@ -278,13 +279,17 @@
     (record
      :I846/R
      {:A :Int}))
-  (is (cn/fetch-entity-schema :I846/E))
-  (is (cn/fetch-meta :I846/E))
-  (is (cn/fetch-schema :I846/R))
-  (is (cn/fetch-meta :I846/R))
-  (let [c (cn/remove-record :I846/E)]
-    (is c)
-    (is (not (cn/fetch-entity-schema :I846/E)))
-    (is (not (cn/fetch-meta :I846/E)))
+  (let [evts (cn/all-crud-events :I846/E)]
+    (is (cn/fetch-entity-schema :I846/E))
+    (is (cn/fetch-meta :I846/E))
+    (is (su/all-true? (mapv cn/fetch-event-schema evts)))
+    (is (su/all-true? (mapv cn/fetch-event-schema evts)))
     (is (cn/fetch-schema :I846/R))
-    (is (cn/fetch-meta :I846/R))))
+    (is (cn/fetch-meta :I846/R))
+    (let [c (cn/remove-entity :I846/E)]
+      (is c)
+      (is (not (cn/fetch-entity-schema :I846/E)))
+      (is (not (cn/fetch-meta :I846/E)))
+      (is (every? nil? (mapv cn/fetch-event-schema evts)))
+      (is (cn/fetch-schema :I846/R))
+      (is (cn/fetch-meta :I846/R)))))

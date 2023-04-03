@@ -1692,6 +1692,11 @@
         (keyword (str (name evtname) "_" (name n))))
        (crud-event-name c n evtname)))))
 
+(defn all-crud-events [recname]
+  (mapv
+   (partial crud-event-name recname)
+   [:Upsert :Delete :Lookup :LookupAll]))
+
 (defn remove-record [recname]
   (when-let [scm (fetch-schema recname)]
     (let [comps @components
@@ -1718,11 +1723,6 @@
 
 (defn remove-entity [recname]
   (when (and (remove-record (meta-entity-name recname))
-             (every?
-              true?
-              (mapv
-               remove-record
-               (mapv
-                (partial crud-event-name recname)
-                [:Upsert :Delete :Lookup :LookupAll]))))
+             (su/all-true?
+              (mapv remove-record (all-crud-events recname))))
     (remove-record recname)))
