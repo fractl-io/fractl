@@ -287,8 +287,8 @@
                     find-attribute-schema :attribute]
                    [path]))
 
-(defn fetch-schema [some-type]
-  (:schema (second (find-schema some-type))))
+(defn fetch-schema [rec-name]
+  (:schema (second (find-schema rec-name))))
 
 (defn fetch-entity-schema [entity-name]
   (:schema (find-entity-schema entity-name)))
@@ -297,6 +297,25 @@
   (dissoc
    (:schema (find-event-schema event-name))
    li/event-context))
+
+(defn- dissoc-system-attributes [attrs]
+  (filter
+   (fn [[k _]]
+     (not (s/index-of (name k) "_")))
+   attrs))
+
+(defn- maybe-expand-attribute-schema [attr-name]
+  (if (s/index-of (name attr-name) "_")
+    (find-attribute-schema attr-name)
+    attr-name))
+
+(defn fetch-user-schema [rec-name]
+  (when-let [scm (fetch-schema rec-name)]
+    (into
+     {}
+     (mapv (fn [[k v]]
+             [k (maybe-expand-attribute-schema v)])
+           (dissoc-system-attributes scm)))))
 
 (defn fetch-relationship-schema [rel-name]
   (when-let [scm (fetch-entity-schema rel-name)]
@@ -1441,6 +1460,9 @@
   (let [[component entity-name] (if (keyword? n) (li/split-path n) n)]
     (keyword (str (name component) "/" (name entity-name) meta-suffix))))
 
+(defn meta-entity-name? [n]
+  (s/ends-with? (name n) meta-suffix))
+
 (def meta-entity-id :EntityId)
 
 (defn meta-entity-attributes [component]
@@ -1479,6 +1501,11 @@
                 {:UserData user-data})))]))
   ([inst user]
    (make-meta-instance inst user nil)))
+
+(defn user-entity-names [component]
+  (filter #(and (not (meta-entity-name? %))
+                (not (relationship? %)))
+          (entity-names component)))
 
 (def lookup-internal-event-prefix :Lookup_Internal)
 (def lookup-internal-event-prefix-s (name lookup-internal-event-prefix))

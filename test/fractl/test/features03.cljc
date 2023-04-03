@@ -258,6 +258,19 @@
           bs_2 (tu/result {:LA/LookupAll_B {:A 2}})]
       (check-bs bs_1 bs_2))))
 
+(deftest issue-839-entity-names-filter
+  (defcomponent :I839
+    (entity
+     :I839/E1
+     {:X :Int})
+    (entity
+     :I839/E2
+     {:Y :Int})
+    (relationship
+     :I839/R
+     {:meta {:between [:I839/E1 :I839/E2]}}))
+  (is (= #{:I839/E1 :I839/E2} (set (cn/user-entity-names :I839)))))
+
 (deftest issue-845-all-dataflows
   (defcomponent :I845
     (entity :I845/E {:X {:type :Int :indexed true}})
