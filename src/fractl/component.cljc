@@ -1069,6 +1069,9 @@
   (let [evts (component-find :events (event-name event))]
     (filter-by-conditional-events event evts)))
 
+(defn all-dataflows [component]
+  (su/nonils (mapv (comp first seq dataflows-for-event) (event-names component))))
+
 (defn evalable-dataflow [[k dfspec :as df]]
   [k (dataflow-patterns df)])
 

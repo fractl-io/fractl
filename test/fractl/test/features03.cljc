@@ -1,6 +1,7 @@
 (ns fractl.test.features03
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.set :as set]
             [fractl.component :as cn]
             [fractl.lang
              :refer [component attribute event
@@ -256,3 +257,26 @@
     (let [bs_1 (tu/result {:LA/LookupAll_B {:A 1}})
           bs_2 (tu/result {:LA/LookupAll_B {:A 2}})]
       (check-bs bs_1 bs_2))))
+
+(deftest issue-845-all-dataflows
+  (defcomponent :I845
+    (entity :I845/E {:X {:type :Int :indexed true}})
+    (event :I845/Event01 {:E :Int})
+    (dataflow
+     :I845/Event01
+     {:I845/E {:X? :I845/Event01.E}})
+    (dataflow
+     :I845/Event02
+     {:I845/E {:X? [:> :I845/Event02.E]}}))
+  (let [dfs (cn/all-dataflows :I845)
+        event-names (set (mapv first dfs))
+        expected-event-names #{:I845/Event02 :I845/Event01
+                               :I845/Lookup_E :I845/Upsert_E
+                               :I845/Delete_E}
+        df-obj? (fn [x]
+                  (and
+                   (map? x)
+                   (= (set (keys x))
+                      #{:head :event-pattern :patterns :opcode})))]
+    (is (= expected-event-names (set/intersection expected-event-names event-names)))
+    (every? #(df-obj? (second %)) dfs)))
