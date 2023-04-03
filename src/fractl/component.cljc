@@ -141,12 +141,13 @@
   (let [p (if (string? path)
             (keyword path)
             path)]
-    (assoc
-     (get-in @components (conj-meta-key (li/split-path p)))
-     mt/meta-of-key
-     (if (keyword? p)
-       p
-       (li/make-path p)))))
+    (when-let [scm (get-in @components (conj-meta-key (li/split-path p)))]
+      (assoc
+       scm
+       mt/meta-of-key
+       (if (keyword? p)
+         p
+         (li/make-path p))))))
 
 (def meta-of mt/meta-of-key)
 
@@ -1678,3 +1679,50 @@
           {id1 idv1})
         (when (and id2 idv2)
           {id2 idv2}))))))
+
+(defn crud-event-name
+  ([component-name entity-name evtname]
+   (canonical-type-name
+    component-name
+    (keyword (str (name evtname) "_" (name entity-name)))))
+  ([entity-name evtname]
+   (let [[c n] (li/split-path entity-name)]
+     (if-not n
+       (canonical-type-name
+        (keyword (str (name evtname) "_" (name n))))
+       (crud-event-name c n evtname)))))
+
+(defn remove-record [recname]
+  (when-let [scm (fetch-schema recname)]
+    (let [comps @components
+          [c n] (li/split-path recname)
+          comp-scm (get comps c)
+          attrs (:attributes comp-scm)
+          recs (:records comp-scm)
+          new-attrs (apply
+                     dissoc attrs
+                     (mapv #(second (li/split-path %))
+                           (vals (dissoc scm id-attr))))
+          new-recs (dissoc recs n)
+          new-comp-scm (dissoc (assoc comp-scm :attributes new-attrs :records new-recs) n)
+          final-comps (assoc comps c new-comp-scm)]
+      #_(if ent-scm
+          (loop [evts (mapv (partial crud-event-name c n) [:Upsert :Delete :Lookup :LookupAll])
+                 comps new-comps]
+            (if-let [evt (first evts)]
+              (when-let [c (remove-record comps evt)]
+                (recur (rest evts) c))
+              comps))
+          new-comps)
+      (u/safe-set components final-comps))))
+
+(defn remove-entity [recname]
+  (when (and (remove-record (meta-entity-name recname))
+             (every?
+              true?
+              (mapv
+               remove-record
+               (mapv
+                (partial crud-event-name recname)
+                [:Upsert :Delete :Lookup :LookupAll]))))
+    (remove-record recname)))

@@ -269,3 +269,22 @@
      :I839/R
      {:meta {:between [:I839/E1 :I839/E2]}}))
   (is (= #{:I839/E1 :I839/E2} (set (cn/user-entity-names :I839)))))
+
+(deftest issue-846-remove-records
+  (defcomponent :I846
+    (entity
+     :I846/E
+     {:X {:type :Int :indexed true}})
+    (record
+     :I846/R
+     {:A :Int}))
+  (is (cn/fetch-entity-schema :I846/E))
+  (is (cn/fetch-meta :I846/E))
+  (is (cn/fetch-schema :I846/R))
+  (is (cn/fetch-meta :I846/R))
+  (let [c (cn/remove-record :I846/E)]
+    (is c)
+    (is (not (cn/fetch-entity-schema :I846/E)))
+    (is (not (cn/fetch-meta :I846/E)))
+    (is (cn/fetch-schema :I846/R))
+    (is (cn/fetch-meta :I846/R))))
