@@ -3,6 +3,7 @@
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.set :as set]
             [fractl.component :as cn]
+            [fractl.util.seq :as su]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship
@@ -277,7 +278,8 @@
     (event :I845/Event01 {:E :Int})
     (dataflow
      :I845/Event01
-     {:I845/E {:X? :I845/Event01.E}})
+     {:I845/E {:X? :I845/Event01.E} :as :E}
+     [:delete :I845/E {:X 100}])
     (dataflow
      :I845/Event02
      {:I845/E {:X? [:> :I845/Event02.E]}}))
@@ -290,6 +292,66 @@
                   (and
                    (map? x)
                    (= (set (keys x))
-                      #{:head :event-pattern :patterns :opcode})))]
+                      #{:head :event-pattern :patterns :opcode})))
+        df01 (first (filter #(= :I845/Event01 (first %)) dfs))]
+    (is (= [{:I845/E {:X? :I845/Event01.E}, :as :E} [:delete :I845/E {:X 100}]]
+           (:patterns (second df01))))
     (is (= expected-event-names (set/intersection expected-event-names event-names)))
     (every? #(df-obj? (second %)) dfs)))
+
+(deftest issue-846-remove-records
+  (defcomponent :I846
+    (entity
+     :I846/E
+     {:X {:type :Int :indexed true}})
+    (record
+     :I846/R
+     {:A :Int}))
+  (let [evts (cn/all-crud-events :I846/E)]
+    (is (cn/fetch-entity-schema :I846/E))
+    (is (cn/fetch-meta :I846/E))
+    (is (su/all-true? (mapv cn/fetch-event-schema evts)))
+    (is (su/all-true? (mapv cn/fetch-event-schema evts)))
+    (is (cn/fetch-schema :I846/R))
+    (is (cn/fetch-meta :I846/R))
+    (let [c (cn/remove-entity :I846/E)]
+      (is c)
+      (is (not (cn/fetch-entity-schema :I846/E)))
+      (is (not (cn/fetch-meta :I846/E)))
+      (is (every? nil? (mapv cn/fetch-event-schema evts)))
+      (is (cn/fetch-schema :I846/R))
+      (is (cn/fetch-meta :I846/R)))
+    (let [c (cn/remove-record :I846/R)]
+      (is c)
+      (is (not (cn/fetch-entity-schema :I846/E)))
+      (is (not (cn/fetch-meta :I846/E)))
+      (is (every? nil? (mapv cn/fetch-event-schema evts)))
+      (is (not (cn/fetch-schema :I846/R)))
+      (is (not (cn/fetch-meta :I846/R))))))
+
+(deftest issue-846-remove-relationship
+  (defcomponent :I846R
+    (entity
+     :I846R/E1
+     {:X :Int})
+    (entity
+     :I846R/E2
+     {:A :Int})
+    (entity
+     :I846R/E3
+     {:B :Int})
+    (relationship
+     :I846R/R1
+     {:meta {:between [:I846R/E1 :I846R/E2]}})
+    (relationship
+     :I846R/R2
+     {:meta {:contains [:I846R/E1 :I846R/E3]}}))
+  (tu/is-error #(cn/remove-entity :I846R/E1))
+  (tu/is-error #(cn/remove-entity :I846R/E2))
+  (tu/is-error #(cn/remove-entity :I846R/E3))
+  (is (cn/remove-relationship :I846R/R1))
+  (tu/is-error #(cn/remove-entity :I846R/E1))
+  (is (cn/remove-entity :I846R/E2))
+  (is (cn/remove-relationship :I846R/R2))
+  (is (cn/remove-entity :I846R/E1))
+  (is (cn/remove-entity :I846R/E3)))

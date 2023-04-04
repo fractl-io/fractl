@@ -141,12 +141,13 @@
   (let [p (if (string? path)
             (keyword path)
             path)]
-    (assoc
-     (get-in @components (conj-meta-key (li/split-path p)))
-     mt/meta-of-key
-     (if (keyword? p)
-       p
-       (li/make-path p)))))
+    (when-let [scm (get-in @components (conj-meta-key (li/split-path p)))]
+      (assoc
+       scm
+       mt/meta-of-key
+       (if (keyword? p)
+         p
+         (li/make-path p))))))
 
 (def meta-of mt/meta-of-key)
 
@@ -1681,3 +1682,59 @@
           {id1 idv1})
         (when (and id2 idv2)
           {id2 idv2}))))))
+
+(defn crud-event-name
+  ([component-name entity-name evtname]
+   (canonical-type-name
+    component-name
+    (keyword (str (name evtname) "_" (name entity-name)))))
+  ([entity-name evtname]
+   (let [[c n] (li/split-path entity-name)]
+     (if-not n
+       (canonical-type-name
+        (keyword (str (name evtname) "_" (name n))))
+       (crud-event-name c n evtname)))))
+
+(defn all-crud-events [recname]
+  (mapv
+   (partial crud-event-name recname)
+   [:Upsert :Delete :Lookup :LookupAll]))
+
+(defn remove-record [recname]
+  (when-let [scm (fetch-schema recname)]
+    (let [comps @components
+          [c n] (li/split-path recname)
+          comp-scm (get comps c)
+          attrs (:attributes comp-scm)
+          recs (:records comp-scm)
+          evts (:events comp-scm)
+          new-attrs (apply
+                     dissoc attrs
+                     (mapv #(second (li/split-path %))
+                           (vals (dissoc scm id-attr))))
+          new-recs (dissoc recs n)
+          new-evts (dissoc evts n) ; applies to only events
+          new-comp-scm (dissoc
+                        (assoc
+                         comp-scm
+                         :attributes new-attrs
+                         :records new-recs
+                         :events evts)
+                        n)
+          final-comps (assoc comps c new-comp-scm)]
+      (u/safe-set components final-comps))))
+
+(defn remove-entity [recname]
+  (when-let [r (seq (map first (containing-parents recname)))]
+    (u/throw-ex (str "cannot remove entity in child-relationships - " r)))
+  (when-let [r (seq (map first (contained-children recname)))]
+    (u/throw-ex (str "cannot remove entity in parent-relationships - " r)))
+  (when-let [r (seq (map first (between-relationships recname)))]
+    (u/throw-ex (str "cannot remove entity in between-relationships - " r)))
+  (when (and (remove-record (meta-entity-name recname))
+             (su/all-true?
+              (mapv remove-record (all-crud-events recname))))
+    (remove-record recname)))
+
+(def remove-event remove-record)
+(def remove-relationship remove-entity)
