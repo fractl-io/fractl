@@ -1,6 +1,7 @@
 (ns fractl.test.features03
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.set :as set]
             [fractl.component :as cn]
             [fractl.util.seq :as su]
             [fractl.lang
@@ -270,6 +271,33 @@
      :I839/R
      {:meta {:between [:I839/E1 :I839/E2]}}))
   (is (= #{:I839/E1 :I839/E2} (set (cn/user-entity-names :I839)))))
+
+(deftest issue-845-all-dataflows
+  (defcomponent :I845
+    (entity :I845/E {:X {:type :Int :indexed true}})
+    (event :I845/Event01 {:E :Int})
+    (dataflow
+     :I845/Event01
+     {:I845/E {:X? :I845/Event01.E} :as :E}
+     [:delete :I845/E {:X 100}])
+    (dataflow
+     :I845/Event02
+     {:I845/E {:X? [:> :I845/Event02.E]}}))
+  (let [dfs (cn/all-dataflows :I845)
+        event-names (set (mapv first dfs))
+        expected-event-names #{:I845/Event02 :I845/Event01
+                               :I845/Lookup_E :I845/Upsert_E
+                               :I845/Delete_E}
+        df-obj? (fn [x]
+                  (and
+                   (map? x)
+                   (= (set (keys x))
+                      #{:head :event-pattern :patterns :opcode})))
+        df01 (first (filter #(= :I845/Event01 (first %)) dfs))]
+    (is (= [{:I845/E {:X? :I845/Event01.E}, :as :E} [:delete :I845/E {:X 100}]]
+           (:patterns (second df01))))
+    (is (= expected-event-names (set/intersection expected-event-names event-names)))
+    (every? #(df-obj? (second %)) dfs)))
 
 (deftest issue-846-remove-records
   (defcomponent :I846
