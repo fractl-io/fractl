@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
+            [fractl.util.seq :as su]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship
@@ -269,3 +270,60 @@
      :I839/R
      {:meta {:between [:I839/E1 :I839/E2]}}))
   (is (= #{:I839/E1 :I839/E2} (set (cn/user-entity-names :I839)))))
+
+(deftest issue-846-remove-records
+  (defcomponent :I846
+    (entity
+     :I846/E
+     {:X {:type :Int :indexed true}})
+    (record
+     :I846/R
+     {:A :Int}))
+  (let [evts (cn/all-crud-events :I846/E)]
+    (is (cn/fetch-entity-schema :I846/E))
+    (is (cn/fetch-meta :I846/E))
+    (is (su/all-true? (mapv cn/fetch-event-schema evts)))
+    (is (su/all-true? (mapv cn/fetch-event-schema evts)))
+    (is (cn/fetch-schema :I846/R))
+    (is (cn/fetch-meta :I846/R))
+    (let [c (cn/remove-entity :I846/E)]
+      (is c)
+      (is (not (cn/fetch-entity-schema :I846/E)))
+      (is (not (cn/fetch-meta :I846/E)))
+      (is (every? nil? (mapv cn/fetch-event-schema evts)))
+      (is (cn/fetch-schema :I846/R))
+      (is (cn/fetch-meta :I846/R)))
+    (let [c (cn/remove-record :I846/R)]
+      (is c)
+      (is (not (cn/fetch-entity-schema :I846/E)))
+      (is (not (cn/fetch-meta :I846/E)))
+      (is (every? nil? (mapv cn/fetch-event-schema evts)))
+      (is (not (cn/fetch-schema :I846/R)))
+      (is (not (cn/fetch-meta :I846/R))))))
+
+(deftest issue-846-remove-relationship
+  (defcomponent :I846R
+    (entity
+     :I846R/E1
+     {:X :Int})
+    (entity
+     :I846R/E2
+     {:A :Int})
+    (entity
+     :I846R/E3
+     {:B :Int})
+    (relationship
+     :I846R/R1
+     {:meta {:between [:I846R/E1 :I846R/E2]}})
+    (relationship
+     :I846R/R2
+     {:meta {:contains [:I846R/E1 :I846R/E3]}}))
+  (tu/is-error #(cn/remove-entity :I846R/E1))
+  (tu/is-error #(cn/remove-entity :I846R/E2))
+  (tu/is-error #(cn/remove-entity :I846R/E3))
+  (is (cn/remove-relationship :I846R/R1))
+  (tu/is-error #(cn/remove-entity :I846R/E1))
+  (is (cn/remove-entity :I846R/E2))
+  (is (cn/remove-relationship :I846R/R2))
+  (is (cn/remove-entity :I846R/E1))
+  (is (cn/remove-entity :I846R/E3)))
