@@ -550,9 +550,7 @@
               (do (ensure-event! event)
                   (cn/register-dataflow event hd patterns)))))))))
 
-(defn- crud-evname [entity-name evtname]
-  (cn/canonical-type-name
-   (keyword (str (name evtname) "_" (name entity-name)))))
+(def ^:private crud-evname cn/crud-event-name)
 
 (defn- crud-event-attr-accessor
   ([evtname use-name? attr-name]
