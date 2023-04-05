@@ -308,24 +308,10 @@
    (:schema (find-event-schema event-name))
    li/event-context))
 
-(defn- dissoc-system-attributes [attrs]
-  (filter
-   (fn [[k _]]
-     (not (s/index-of (name k) "_")))
-   attrs))
-
 (defn- maybe-expand-attribute-schema [attr-name]
   (if (s/index-of (name attr-name) "_")
     (find-attribute-schema attr-name)
     attr-name))
-
-(defn fetch-user-schema [rec-name]
-  (when-let [scm (fetch-schema rec-name)]
-    (into
-     {}
-     (mapv (fn [[k v]]
-             [k (maybe-expand-attribute-schema v)])
-           (dissoc-system-attributes scm)))))
 
 (defn fetch-relationship-schema [rel-name]
   (when-let [scm (fetch-entity-schema rel-name)]
@@ -1747,3 +1733,22 @@
 
 (def remove-event remove-record)
 (def remove-relationship remove-entity)
+
+(defn raw-definition [recname raw-attrs]
+  (u/call-and-set
+   components
+   #(assoc-in @components [:raw recname] raw-attrs))
+  recname)
+
+(defn- dissoc-system-attributes [attrs]
+  (into
+   {}
+   (filter
+    (fn [[k _]]
+      (and (not= li/event-context k)
+           (not (s/index-of (name k) "_"))))
+    attrs)))
+
+(defn fetch-user-schema [recname]
+  (dissoc-system-attributes
+   (get-in @components [:raw recname])))

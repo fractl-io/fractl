@@ -611,10 +611,8 @@
      {:X :Int
       :Y {:type :String :default "yyyy"}
       :Z :I840/K}))
-  (is (= {:X :Fractl.Kernel.Lang/Int
-          :Y {:unique false
-              :immutable false
-              :type :Fractl.Kernel.Lang/String
+  (is (= {:X :Int
+          :Y {:type :String
               :default "yyyy"}
           :Z :I840/K}
          (cn/fetch-user-schema :I840/E))))
