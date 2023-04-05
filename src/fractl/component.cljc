@@ -134,6 +134,15 @@
       t
       (li/make-path t))))
 
+(defn unqualified-name [x]
+  (cond
+    (li/name? x)
+    (let [[c n] (li/split-path x)]
+      (or n c))
+
+    (li/parsed-path? x)
+    (second x)))
+
 (defn- conj-meta-key [path]
   (conj path mt/meta-key))
 
