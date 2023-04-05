@@ -355,3 +355,9 @@
   (is (cn/remove-relationship :I846R/R2))
   (is (cn/remove-entity :I846R/E1))
   (is (cn/remove-entity :I846R/E3)))
+
+(deftest unqualified-name
+  (is (= :E (cn/unqualified-name :C/E)))
+  (is (= :E (cn/unqualified-name [:C :E])))
+  (is (= :E (cn/unqualified-name :E)))
+  (is (not (cn/unqualified-name "abc"))))
