@@ -151,7 +151,7 @@
       :writer (li/validate fn? ":writer must be a function" v)
       :secure-hash (li/validate-bool :secure-hash v)
       :oneof v
-      :raw-expr v
+      :label (li/validate symbol? ":label must be a symbol" v)
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}
@@ -296,8 +296,7 @@
            (merge (if-let [t (:type v)]
                     {:type t}
                     (u/throw-ex (str ":type is required for attribute " k " with compound expression")))
-                  {:raw-expr expr
-                   :expr (c recname attrs k expr)})))))))
+                  {:expr (c recname attrs k expr)})))))))
 
 (defn- normalize-attr [recname attrs fqn [k v]]
   (let [newv
@@ -312,8 +311,7 @@
           (attribute
            (fqn (li/unq-name))
            {:expr (c/compile-attribute-expression
-                   recname attrs k v)
-            :raw-expr v})
+                   recname attrs k v)})
           :else
           (let [fulln (fqn v)]
             (if (attref? fulln)
@@ -404,9 +402,11 @@
   "Add a new record definition to the component."
   ([n attrs]
    (if (map? attrs)
-     (let [cn (validated-canonical-type-name n)]
-       (cn/intern-record
-         cn (normalized-attributes :record cn attrs)))
+     (let [cn (validated-canonical-type-name n)
+           r (cn/intern-record
+              cn (normalized-attributes :record cn attrs))]
+       (when r
+         (and (cn/raw-definition cn attrs) r)))
      (u/throw-ex (str "Syntax error in record. Check record: " n))))
   ([schema]
    (parse-and-define record schema)))
@@ -415,10 +415,14 @@
   ([n attrs verify-name?]
    (let [cn (if verify-name?
               (validated-canonical-type-name n)
-              (cn/canonical-type-name n))]
-     (cn/intern-event cn (if (cn/inferred-event-schema? attrs)
-                              attrs
-                              (normalized-attributes :event cn attrs)))))
+              (cn/canonical-type-name n))
+         r (cn/intern-event
+            cn
+            (if (cn/inferred-event-schema? attrs)
+              attrs
+              (normalized-attributes :event cn attrs)))]
+     (when r
+       (and (cn/raw-definition cn attrs) r))))
   ([n attrs]
    (event-internal n attrs false)))
 
@@ -648,60 +652,68 @@
      {(keyword (str (name (first (:refs r))) "?"))
       (keyword (str (name c) "/" (name evt-name) "." (name evt-ref) "." (name attr-name)))}}))
 
-(def ^:private intern-rec-fns
-  {:entity cn/intern-entity
-   :relationship cn/intern-relationship})
+(defn- serialize-record [f cn attrs raw-attrs]
+  (when-let [r (f cn attrs)]
+    (and (cn/raw-definition cn raw-attrs) r)))
 
-(defn- serializable-record [rectype n attrs]
-  (if-let [intern-rec (rectype intern-rec-fns)]
-    (if (map? attrs)
-      (let [rec-name (validated-canonical-type-name
-                      (when (cn/system-defined? attrs) identity)
+(def ^:private intern-rec-fns
+  {:entity (partial serialize-record cn/intern-entity)
+   :relationship (partial serialize-record cn/intern-relationship)})
+
+(defn- serializable-record
+  ([rectype n attrs raw-attrs]
+   (if-let [intern-rec (rectype intern-rec-fns)]
+     (if (map? attrs)
+       (let [rec-name (validated-canonical-type-name
+                       (when (cn/system-defined? attrs) identity)
                       n)
-            [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
-            result (intern-rec
-                    rec-name
-                    (maybe-assoc-id
+             [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
+             result (intern-rec
                      rec-name
-                     (normalized-attributes
-                      rectype rec-name attrs)))
-            ev (partial crud-evname n)
-            ctx-aname (k/event-context-attribute-name)
-            inst-evattrs {:Instance n li/event-context ctx-aname}
-            id-attr (identity-attribute-name rec-name)
-            id-attr-type (or (identity-attribute-type id-attr attrs)
-                             :Fractl.Kernel.Lang/Any)
-            id-evattrs {id-attr id-attr-type
-                        li/event-context ctx-aname}]
-        ;; Define CRUD events and dataflows:
-        (let [upevt (ev :Upsert)
-              delevt (ev :Delete)
-              lookupevt (ev :Lookup)
-              lookupevt-internal (ev cn/lookup-internal-event-prefix)
-              lookupallevt (ev :LookupAll)]
-          (cn/for-each-entity-event-name
-           rec-name (partial entity-event rec-name))
-          (event-internal upevt inst-evattrs)
-          (let [ref-pats (mapv (fn [[k v]]
-                                 (load-ref-pattern
-                                  upevt :Instance rec-name k
-                                  (cn/find-attribute-schema v)))
-                               (cn/ref-attribute-schemas
-                                (cn/fetch-schema rec-name)))]
-            (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
-          (event-internal delevt id-evattrs)
-          (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
-          (event-internal lookupevt-internal id-evattrs)
-          (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
-          (event-internal lookupevt id-evattrs)
-          (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
-          (event-internal lookupallevt {})
-          (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)]))
-        ;; Install dataflows for implicit events.
-        (when dfexps (doall (map eval dfexps)))
-        result)
-      (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
-    (u/throw-ex (str "Not a serializable record type: " (name rectype)))))
+                     (maybe-assoc-id
+                      rec-name
+                      (normalized-attributes
+                       rectype rec-name attrs))
+                     raw-attrs)
+             ev (partial crud-evname n)
+             ctx-aname (k/event-context-attribute-name)
+             inst-evattrs {:Instance n li/event-context ctx-aname}
+             id-attr (identity-attribute-name rec-name)
+             id-attr-type (or (identity-attribute-type id-attr attrs)
+                              :Fractl.Kernel.Lang/Any)
+             id-evattrs {id-attr id-attr-type
+                         li/event-context ctx-aname}]
+         ;; Define CRUD events and dataflows:
+         (let [upevt (ev :Upsert)
+               delevt (ev :Delete)
+               lookupevt (ev :Lookup)
+               lookupevt-internal (ev cn/lookup-internal-event-prefix)
+               lookupallevt (ev :LookupAll)]
+           (cn/for-each-entity-event-name
+            rec-name (partial entity-event rec-name))
+           (event-internal upevt inst-evattrs)
+           (let [ref-pats (mapv (fn [[k v]]
+                                  (load-ref-pattern
+                                   upevt :Instance rec-name k
+                                   (cn/find-attribute-schema v)))
+                                (cn/ref-attribute-schemas
+                                 (cn/fetch-schema rec-name)))]
+             (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
+           (event-internal delevt id-evattrs)
+           (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
+           (event-internal lookupevt-internal id-evattrs)
+           (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
+           (event-internal lookupevt id-evattrs)
+           (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
+           (event-internal lookupallevt {})
+           (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)]))
+         ;; Install dataflows for implicit events.
+         (when dfexps (mapv eval dfexps))
+         result)
+       (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
+     (u/throw-ex (str "Not a serializable record type: " (name rectype)))))
+  ([rectype n attrs]
+   (serializable-record rectype n attrs attrs)))
 
 (def serializable-entity (partial serializable-record :entity))
 
@@ -925,7 +937,8 @@
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
-     (let [[attrs uqs] (assoc-relationship-attributes
+     (let [raw-attrs attrs
+           [attrs uqs] (assoc-relationship-attributes
                         attrs contains elems
                         on-attrs each-uq
                         (if cascade-on-delete true false))
@@ -937,7 +950,8 @@
                attrs
                :meta (assoc
                       (if combined-uqs (assoc meta :unique uqs) meta)
-                      :relationship true)))]
+                      :relationship true))
+              raw-attrs)]
        (when (cn/register-relationship elems relation-name)
          (when-let [r (and (meta-entity relation-name) r)]
            (if contains

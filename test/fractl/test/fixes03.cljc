@@ -579,3 +579,50 @@
     (is (= :R (ls/raw (ls/alias-tag p3))))
     (is (and (= :A/B (ls/raw (ls/check-tag p4)))
              (= :R (ls/raw (ls/alias-tag p4)))))))
+
+(deftest issue-849
+  (defcomponent :I849
+    (entity
+     :I849/E
+     {:X {:type :Int :default 1000}})
+    (entity
+     :I849/F
+     {:Y :Int})
+    (record
+     :I849/Rec
+     {:A :String
+      :B {:type :Int
+          :unique true
+          :check pos?
+          :label 'pos?}})
+    (event
+     :I849/Evt
+     {:E :I849/E})
+    (relationship
+     :I849/Rel
+     {:meta {:contains [:I849/E :I849/F]}
+      :G :Int
+      :H '(+ 1 :G)}))
+  (defn- is-scm [n s]
+    (is (= s (cn/fetch-user-schema n))))
+  (is-scm
+   :I849/E
+   {:X {:type :Int, :default 1000}})
+  (is-scm
+   :I849/F
+   {:Y :Int})
+  (is-scm
+   :I849/Rec
+   {:A :String
+    :B {:type :Int
+        :unique true
+        :check pos?
+        :label 'pos?}})
+  (is-scm
+   :I849/Evt
+   {:E :I849/E})
+  (is-scm
+   :I849/Rel
+   {:meta {:contains [:I849/E :I849/F]}
+    :G :Int
+    :H '(+ 1 :G)}))
