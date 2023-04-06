@@ -134,6 +134,17 @@
       t
       (li/make-path t))))
 
+(defn fully-qualified?
+  ([n]
+   (if (second (li/split-path n))
+     true
+     false))
+  ([model-name n]
+   (cond
+     (= model-name n) false
+     (s/starts-with? (str n) (str model-name)) true
+     :else false)))
+
 (defn unqualified-name [x]
   (cond
     (li/name? x)
@@ -142,6 +153,28 @@
 
     (li/parsed-path? x)
     (second x)))
+
+(defn name-info
+  ([model-name n]
+   (let [{c :component r :record} (li/path-parts n)
+         root-parts (if (and c r) (li/split-ref c) (li/split-ref n))
+         recname (or r (first root-parts))
+         model-name-parts (when model-name (li/split-ref model-name))
+         model-parts (when (> (count root-parts) 1)
+                       (if model-name-parts
+                         (take (count model-name-parts) root-parts)
+                         [(first root-parts)]))
+         comp-parts (if model-parts
+                      (drop (count model-parts) root-parts)
+                      root-parts)
+         cname (when r (li/make-ref comp-parts))
+         mname (when model-parts (li/make-ref model-parts))]
+     (if (and model-name-parts (not= model-name-parts model-parts))
+       nil
+       {:model mname
+        :component cname
+        :record recname})))
+  ([n] (name-info nil n)))
 
 (defn- conj-meta-key [path]
   (conj path mt/meta-key))
