@@ -473,3 +473,9 @@
         result))))
 
 (defn path-query-pattern? [x] (= x :?))
+
+(defn full-path-name? [n]
+  (s/index-of (str n) "/"))
+
+(defn ref-path-name? [n]
+  (s/index-of (str n) "."))

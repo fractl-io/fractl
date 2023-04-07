@@ -1,5 +1,6 @@
 (ns fractl.lang.syntax
   (:require [clojure.walk :as w]
+            [clojure.string :as s]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.datafmt.json :as json]
@@ -678,3 +679,58 @@
 
 (def raw-json (comp json/encode raw))
 (def raw-transit (comp t/encode raw))
+
+(defn fully-qualified?
+  ([n]
+   (if (second (li/split-path n))
+     true
+     false))
+  ([model-name n]
+   (cond
+     (= model-name n) false
+     (s/starts-with? (str n) (str model-name)) true
+     :else false)))
+
+(defn unqualified-name [x]
+  (cond
+    (li/name? x)
+    (let [[c n] (li/split-path x)]
+      (or n c))
+
+    (li/parsed-path? x)
+    (second x)))
+
+(defn- ref-path-name-info [model-name n]
+  (let [root-parts (li/split-ref n)
+        parts-count (count root-parts)
+        recname (when (= parts-count 1) (first root-parts))
+        model-name-parts (when model-name (li/split-ref model-name))
+        model-parts (when (> parts-count 1)
+                      (if model-name-parts
+                        (take (count model-name-parts) root-parts)
+                        [(first root-parts)]))
+        comp-parts (when (> parts-count 1)
+                     (if model-parts
+                       (drop (count model-parts) root-parts)
+                       root-parts))
+        cname (when comp-parts (li/make-ref comp-parts))
+        mname (when model-parts (li/make-ref model-parts))]
+    (if (and model-name (not= model-name mname))
+      nil
+      {:model mname :component cname :record recname})))
+
+(defn- full-path-name-info [model-name n]
+  (let [{c :component r :record} (li/path-parts n)]
+    (if (li/ref-path-name? c)
+      (when-let [info (ref-path-name-info model-name c)]
+        (merge info {:record r}))
+      {:component c :record r})))
+
+(defn name-info
+  ([model-name n]
+   (cond
+     (li/full-path-name? n) (full-path-name-info model-name n)
+     (li/ref-path-name? n) (ref-path-name-info model-name n)
+     (li/name? n) {:record n}
+     :else nil))
+  ([n] (name-info nil n)))
