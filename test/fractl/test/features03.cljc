@@ -361,3 +361,25 @@
   (is (= :E (cn/unqualified-name [:C :E])))
   (is (= :E (cn/unqualified-name :E)))
   (is (not (cn/unqualified-name "abc"))))
+
+(deftest is-fully-qualified
+  (is (not (cn/fully-qualified? :Hello)))
+  (is (cn/fully-qualified? :Acme.Core/Employee))
+  (is (cn/fully-qualified? :Acme :Acme.Core/Employee))
+  (is (not (cn/fully-qualified? :Abc :Acme.Core/Employee)))
+  (is (not (cn/fully-qualified? :Acme.Core))))
+
+(deftest name-info
+  (is (= (cn/name-info :Hello)
+         {:model nil :component nil :record :Hello}))
+  (is (= (cn/name-info :Acme/Hello)
+         {:model nil :component :Acme :record :Hello}))
+  (is (= (cn/name-info :Acme.Core/Hello)
+         {:model :Acme :component :Core :record :Hello}))
+  (is (= (cn/name-info :Acme.Core.Abc/Hello)
+         {:model :Acme :component :Core.Abc :record :Hello}))
+  (is (= (cn/name-info :Acme :Acme.Core.Abc/Hello)
+         {:model :Acme :component :Core.Abc :record :Hello}))
+  (is (= (cn/name-info :Acme.Core :Acme.Core.Abc/Hello)
+         {:model :Acme.Core :component :Abc :record :Hello}))
+  (is (not (cn/name-info :Xyz :Acme.Core/Hello))))
