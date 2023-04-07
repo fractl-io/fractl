@@ -1,5 +1,5 @@
 (ns fractl.lang.internal
-  (:require [clojure.string :as string]
+  (:require [clojure.string :as s]
             [clojure.set :as set]
             [fractl.util :as u]
             #?(:cljs
@@ -43,7 +43,7 @@
 
 (defn- capitalized? [s]
   (let [s1 (first s)]
-    (= (str s1) (string/capitalize s1))))
+    (= (str s1) (s/capitalize s1))))
 
 (defn- no-special-chars? [s]
   (not-any? #{\_ \- \$ \@ \# \! \& \^ \% \~} s))
@@ -169,7 +169,7 @@
   [delim string]
   (mapv #(keyword (.substring
                    % (if (= \: (first %)) 1 0)))
-        (string/split string delim)))
+        (s/split string delim)))
 
 (defn split-path
   "Split a :Component/Member path into the individual
@@ -195,11 +195,14 @@
   ([[component obj-name]]
    (make-path component obj-name)))
 
-(defn make-ref [recname attrname]
-  (keyword (str (subs (str recname) 1) "."
-                (if (keyword? attrname)
-                  (name attrname)
-                  (string/join "." (mapv name attrname))))))
+(defn make-ref
+  ([recname attrname]
+   (keyword (str (subs (str recname) 1) "."
+                 (if (keyword? attrname)
+                   (name attrname)
+                   (s/join "." (mapv name attrname))))))
+  ([parts]
+   (keyword (s/join "." (mapv name parts)))))
 
 (defn has-modpath? [path]
   (some #{\/} (str path)))
@@ -225,8 +228,8 @@
 
 (defn v8ns-as-cljns
   [v8ns]
-  (let [parts (string/split (name v8ns) #"\.")
-        names (string/join "." (map lowercase-component parts))]
+  (let [parts (s/split (name v8ns) #"\.")
+        names (s/join "." (map lowercase-component parts))]
     names))
 
 (def pwd-prefix (str "." u/path-sep))
@@ -235,14 +238,14 @@
   "Return file-name after removing any of these path prefixes: path-prefix, ./, ., /"
   ([^String file-name ^String path-prefix]
    (cond
-     (and path-prefix (string/starts-with? file-name path-prefix))
+     (and path-prefix (s/starts-with? file-name path-prefix))
      (subs file-name (.length path-prefix))
 
-     (string/starts-with? file-name pwd-prefix)
+     (s/starts-with? file-name pwd-prefix)
      (subs file-name 2)
 
-     (or (string/starts-with? file-name u/path-sep)
-         (string/starts-with? file-name "."))
+     (or (s/starts-with? file-name u/path-sep)
+         (s/starts-with? file-name "."))
      (subs file-name 1)
 
      :else file-name))
@@ -255,12 +258,12 @@
                       u/path-sep)
         ns-parts (concat (take (dec (count parts)) parts)
                          [(u/remove-extension (last parts))])
-        names (string/join "." (map uppercase-component ns-parts))]
+        names (s/join "." (map uppercase-component ns-parts))]
     (keyword names)))
 
 (defn components [^String component-ns]
-  (let [parts (string/split component-ns #"\.")
-        names (string/join "." (map uppercase-component parts))]
+  (let [parts (s/split component-ns #"\.")
+        names (s/join "." (map uppercase-component parts))]
     (keyword names)))
 
 (defn literal? [x]
@@ -326,8 +329,8 @@
    the returned map will be {:path :P}."
   [path]
   (let [s (subs (str path) 1)
-        [a b] (string/split s #"/")
-        cs (seq (string/split (or b a) #"\."))
+        [a b] (s/split s #"/")
+        cs (seq (s/split (or b a) #"\."))
         [m r] (kw [a b])
         refs (seq (kw cs))]
     (if (and r refs)
@@ -344,7 +347,7 @@
     (make-path [c r])))
 
 (defn query-pattern? [a]
-  (and (keyword? a) (string/ends-with? (name a) "?")))
+  (and (keyword? a) (s/ends-with? (name a) "?")))
 
 (defn name-as-query-pattern [n]
   (keyword (str (subs (str n) 1) "?")))
@@ -354,14 +357,14 @@
 
 (defn normalize-name [a]
   (let [n (str a)]
-    (if (string/ends-with? n "?")
+    (if (s/ends-with? n "?")
       (keyword (subs n 1 (dec (count n))))
       a)))
 
 (defn macro-name? [x]
   (and (keyword? x)
     (let [c (first (name x))]
-      (= c (string/lower-case c)))))
+      (= c (s/lower-case c)))))
 
 (defn referenced-record-names
   "Return record names referenced in the pattern"
@@ -438,23 +441,23 @@
 
 (defn path-query? [x]
   (and (string? x)
-       (string/starts-with? x path-query-prefix)))
+       (s/starts-with? x path-query-prefix)))
 
 (defn path-query-string [s]
   (subs s path-query-prefix-len))
 
 (defn- fully-qualified-path-type [base-component n]
-  (if (string/index-of n "#")
-    (keyword (string/replace n "#" "/"))
+  (if (s/index-of n "#")
+    (keyword (s/replace n "#" "/"))
     (keyword (str (name base-component) "/" n))))
 
 (defn- fully-qualified-path-value [base-component n]
-  (if (string/starts-with? n ":")
+  (if (s/starts-with? n ":")
     (fully-qualified-path-type base-component (subs n 1))
     n))
 
 (defn parse-query-path [base-component s]
-  (let [parts (reverse (filter #(identity (seq %)) (string/split s #"/")))
+  (let [parts (reverse (filter #(identity (seq %)) (s/split s #"/")))
         t (partial fully-qualified-path-type base-component)
         v (partial fully-qualified-path-value base-component)]
     (loop [parts parts, result []]
