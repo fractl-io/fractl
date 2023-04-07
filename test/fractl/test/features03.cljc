@@ -10,6 +10,7 @@
                      dataflow]]
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]
+            [fractl.lang.syntax :as ls]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -357,29 +358,32 @@
   (is (cn/remove-entity :I846R/E3)))
 
 (deftest unqualified-name
-  (is (= :E (cn/unqualified-name :C/E)))
-  (is (= :E (cn/unqualified-name [:C :E])))
-  (is (= :E (cn/unqualified-name :E)))
-  (is (not (cn/unqualified-name "abc"))))
+  (is (= :E (ls/unqualified-name :C/E)))
+  (is (= :E (ls/unqualified-name [:C :E])))
+  (is (= :E (ls/unqualified-name :E)))
+  (is (not (ls/unqualified-name "abc"))))
 
 (deftest is-fully-qualified
-  (is (not (cn/fully-qualified? :Hello)))
-  (is (cn/fully-qualified? :Acme.Core/Employee))
-  (is (cn/fully-qualified? :Acme :Acme.Core/Employee))
-  (is (not (cn/fully-qualified? :Abc :Acme.Core/Employee)))
-  (is (not (cn/fully-qualified? :Acme.Core))))
+  (is (not (ls/fully-qualified? :Hello)))
+  (is (ls/fully-qualified? :Acme.Core/Employee))
+  (is (ls/fully-qualified? :Acme :Acme.Core/Employee))
+  (is (not (ls/fully-qualified? :Abc :Acme.Core/Employee)))
+  (is (not (ls/fully-qualified? :Acme.Core))))
 
 (deftest name-info
-  (is (= (cn/name-info :Hello)
-         {:model nil :component nil :record :Hello}))
-  (is (= (cn/name-info :Acme/Hello)
-         {:model nil :component :Acme :record :Hello}))
-  (is (= (cn/name-info :Acme.Core/Hello)
+  (is (= (ls/name-info :Hello) {:record :Hello}))
+  (is (= (ls/name-info :Acme.Core)
+         {:model :Acme, :component :Core, :record nil}))
+  (is (= (ls/name-info :Acme.Core :Acme.Core.Abc)
+         {:model :Acme.Core, :component :Abc, :record nil}))
+  (is (= (ls/name-info :Acme/Hello)
+         {:component :Acme :record :Hello}))
+  (is (= (ls/name-info :Acme.Core/Hello)
          {:model :Acme :component :Core :record :Hello}))
-  (is (= (cn/name-info :Acme.Core.Abc/Hello)
+  (is (= (ls/name-info :Acme.Core.Abc/Hello)
          {:model :Acme :component :Core.Abc :record :Hello}))
-  (is (= (cn/name-info :Acme :Acme.Core.Abc/Hello)
+  (is (= (ls/name-info :Acme :Acme.Core.Abc/Hello)
          {:model :Acme :component :Core.Abc :record :Hello}))
-  (is (= (cn/name-info :Acme.Core :Acme.Core.Abc/Hello)
+  (is (= (ls/name-info :Acme.Core :Acme.Core.Abc/Hello)
          {:model :Acme.Core :component :Abc :record :Hello}))
-  (is (not (cn/name-info :Xyz :Acme.Core/Hello))))
+  (is (not (ls/name-info :Xyz :Acme.Core/Hello))))
