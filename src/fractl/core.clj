@@ -183,7 +183,7 @@
   (assoc (:service app-config) :authentication
          (:authentication app-config)))
 
-(defn run-service [args [[model model-root] config]]
+(defn run-service [args [[model model-root] config] & {:keys [should-run-server] :or {should-run-server true}}]
   (let [config (finalize-config model config)
         store (e/store-from-config (:store config))
         config (assoc config :store-handle store)
@@ -198,7 +198,8 @@
       (let [[evaluator store] (init-runtime model config)
             query-fn (e/query-fn store)]
         (log/info (str "Server config - " server-cfg))
-        (h/run-server [evaluator query-fn] server-cfg)))))
+        (when should-run-server
+          (h/run-server [evaluator query-fn] server-cfg))))))
 
 (defn- find-model-to-read [args config]
   (or (seq (su/nonils args))
