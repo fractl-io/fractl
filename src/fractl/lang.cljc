@@ -153,6 +153,7 @@
       :secure-hash (li/validate-bool :secure-hash v)
       :oneof v
       :label (li/validate symbol? ":label must be a symbol" v)
+      :meta v
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}

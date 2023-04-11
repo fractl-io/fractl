@@ -137,17 +137,20 @@
 (defn- conj-meta-key [path]
   (conj path mt/meta-key))
 
+(declare find-attribute-schema-internal)
+
 (defn fetch-meta [path]
   (let [p (if (string? path)
             (keyword path)
             path)]
-    (when-let [scm (get-in @components (conj-meta-key (li/split-path p)))]
+    (if-let [scm (get-in @components (conj-meta-key (li/split-path p)))]
       (assoc
        scm
        mt/meta-of-key
        (if (keyword? p)
          p
-         (li/make-path p))))))
+         (li/make-path p)))
+      (:meta (find-attribute-schema-internal p)))))
 
 (def meta-of mt/meta-of-key)
 
@@ -251,7 +254,7 @@
 (def intern-event (partial intern-record :event))
 (def intern-relationship intern-entity)
 
-(defn find-attribute-schema
+(defn- find-attribute-schema-internal
   "Find and return an attribute schema by the given path.
   Path should be in one of the following forms:
    - :ComponentName/AttributeName
@@ -262,11 +265,17 @@
    (let [[recname attrname] (li/split-ref aref)]
      (if attrname
        (when-let [rec (component-find [component :records recname])]
-         (find-attribute-schema (get-in rec [:schema attrname])))
+         (find-attribute-schema-internal (get-in rec [:schema attrname])))
        (component-find [component :attributes aref]))))
   ([path]
    (let [[component aref] (li/split-path path)]
-     (find-attribute-schema component aref))))
+     (find-attribute-schema-internal component aref))))
+
+(defn find-attribute-schema
+  ([component aref]
+   (dissoc (find-attribute-schema-internal component aref) :meta))
+  ([path]
+   (dissoc (find-attribute-schema-internal path) :meta)))
 
 (defn all-attributes [component]
   (component-find [component :attributes]))

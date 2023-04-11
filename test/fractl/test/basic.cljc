@@ -1575,3 +1575,14 @@
   (component :Bcd.Z)
   (is (= #{:Abc.X :Abc.Y} (set (cn/component-names :Abc))))
   (is (= #{:Bcd.Z} (set (cn/component-names :Bcd)))))
+
+(deftest attribute-meta
+  (defcomponent :AMeta
+    (attribute
+     :AMeta/Name
+     {:type :String
+      :meta {:instance {:ui {:Fractl.Fx/Input {}}}}}))
+  (is (= {:unique false, :immutable false, :type :Fractl.Kernel.Lang/String}
+         (cn/find-attribute-schema :AMeta/Name)))
+  (is (= {:instance {:ui #:Fractl.Fx{:Input {}}}}
+         (cn/fetch-meta :AMeta/Name))))
