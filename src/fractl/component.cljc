@@ -139,6 +139,9 @@
 
 (declare find-attribute-schema-internal)
 
+(defn fetch-attribute-meta [path]
+  (:meta (find-attribute-schema-internal path)))
+
 (defn fetch-meta [path]
   (let [p (if (string? path)
             (keyword path)
@@ -150,7 +153,7 @@
        (if (keyword? p)
          p
          (li/make-path p)))
-      (:meta (find-attribute-schema-internal p)))))
+      (fetch-attribute-meta p))))
 
 (def meta-of mt/meta-of-key)
 
