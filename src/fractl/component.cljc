@@ -1756,3 +1756,12 @@
 (defn fetch-user-schema [recname]
   (dissoc-system-attributes
    (get-in @components [:raw recname])))
+
+(defn normalize-between-attribute-names [relname from to]
+  (let [f (second (li/split-path from))
+        t (second (li/split-path to))]
+    (or (:as (fetch-meta relname))
+        (if (= from to)
+          [(keyword (str (name f) "1"))
+           (keyword (str (name t) "2"))]
+          [f t]))))

@@ -903,14 +903,7 @@
         upevt (ev :Upsert)
         ups-attrs (make-between-upsert-attributes upevt (dissoc attrs aname-to))
         ctx-aname (k/event-context-attribute-name)
-        f (second (li/split-path from))
-        t (second (li/split-path to))
-        [fname tname]
-        (or (:as (cn/fetch-meta relname))
-            (if (= from to)
-              [(keyword (str (name f) "1"))
-               (keyword (str (name t) "2"))]
-              [f t]))]
+        [fname tname] (cn/normalize-between-attribute-names relname from to)]
     (event-internal
      upevt
      (merge
