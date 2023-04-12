@@ -144,6 +144,7 @@
       :setof (li/validate attribute-type? ":setof has invalid type" v)
       :indexed (li/validate-bool :indexed v)
       :write-only (li/validate-bool :write-only v)
+      :read-only (li/validate-bool :read-only v)
       :type-in-store (li/validate string? ":type-in-store must be specified as a string" v)
       :ref (li/validate reference-exists? ":ref is invalid" v)
       :cascade-on-delete (li/validate-bool :cascade-on-delete v)
@@ -152,6 +153,7 @@
       :secure-hash (li/validate-bool :secure-hash v)
       :oneof v
       :label (li/validate symbol? ":label must be a symbol" v)
+      :meta v
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
   (merge
    {:unique false :immutable false}
@@ -302,7 +304,8 @@
   (let [newv
         (cond
           (map? v)
-          (let [nm (fqn (li/unq-name))]
+          (let [v (if (:read-only v) (assoc v :optional true) v)
+                nm (fqn (li/unq-name))]
             (if (query-pattern? v)
               (attribute nm {:query (query-eval-fn recname attrs k v)})
               (or (normalize-compound-attr recname attrs nm [k v])
