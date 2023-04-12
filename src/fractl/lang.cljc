@@ -768,7 +768,7 @@
      {:ref (li/make-ref rec idattr)
       :cascade-on-delete cascade-on-delete}}))
 
-(defn- assoc-relationship-attributes [attrs is-contains [rec-a rec-b :as recs]
+(defn- assoc-relationship-attributes [attrs rel-attr-names is-contains [rec-a rec-b :as recs]
                                       on-attrs each-unique cascade-on-delete]
   (when-not (or (li/name? rec-a) (li/name? rec-b))
     (u/throw-ex (str "invalid relationship elements - " recs)))
@@ -778,7 +778,7 @@
     (when-not idb
       (u/throw-ex (str "no identity attribute found for " rec-b ", cannot form relationship")))
     (let [[ra rb] (or on-attrs [ida idb])
-          [a b :as ab] (cn/relationship-attribute-names rec-a rec-b)
+          [a b :as ab] (or rel-attr-names (cn/relationship-attribute-names rec-a rec-b))
           genattr (partial generate-relationship-attributes each-unique cascade-on-delete)
           a-attrs (genattr
                    (cn/unique-or-identity? scma ra)
@@ -905,10 +905,12 @@
         ctx-aname (k/event-context-attribute-name)
         f (second (li/split-path from))
         t (second (li/split-path to))
-        [fname tname] (if (= from to)
-                        [(keyword (str (name f) "1"))
-                         (keyword (str (name t) "2"))]
-                        [f t])]
+        [fname tname]
+        (or (:as (cn/fetch-meta relname))
+            (if (= from to)
+              [(keyword (str (name f) "1"))
+               (keyword (str (name t) "2"))]
+              [f t]))]
     (event-internal
      upevt
      (merge
@@ -936,15 +938,15 @@
                            (or (and contains (not (:n-n relmeta)))
                                (:one-n relmeta)))
          on-attrs (:on relmeta)
+         rel-attr-names (when between (:as meta))
          cascade-on-delete (:cascade-on-delete relmeta)]
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
      (let [raw-attrs attrs
            [attrs uqs] (assoc-relationship-attributes
-                        attrs contains elems
-                        on-attrs each-uq
-                        (if cascade-on-delete true false))
+                        attrs rel-attr-names contains elems
+                        on-attrs  each-uq (if cascade-on-delete true false))
            meta0 (assoc meta cn/relmeta-key relmeta)
            meta (assoc meta0 (if contains mt/contains mt/between) elems)
            r (serializable-entity
