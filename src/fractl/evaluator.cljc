@@ -140,9 +140,10 @@
         (remove-hidden-attributes hidden-attrs event-instance))))
 
 (defn- log-result-object [hidden-attrs event-instance obj]
-  (log/debug
-   (str "dataflow result for " (cn/instance-type event-instance)
-        " - " (remove-hidden-attributes hidden-attrs obj))))
+  #?(:clj
+     (log/debug
+      (str "dataflow result for " (cn/instance-type event-instance)
+           " - " (remove-hidden-attributes hidden-attrs obj)))))
 
 (defn- eval-dataflow-with-logs [evaluator env event-instance hidden-attrs df]
   (try
