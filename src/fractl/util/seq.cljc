@@ -164,3 +164,8 @@
         k (k m)
 
         :else (u/throw-ex "no default specified for case-keys")))))
+
+(defn value-map [m]
+  (into
+   {}
+   (filter (fn [[_ v]] (not (nil? v))) m)))
