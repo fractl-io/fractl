@@ -135,9 +135,10 @@
         inst))))
 
 (defn- log-event [hidden-attrs event-instance]
-  (log/info
-   (str "evaluating dataflow for event - "
-        (remove-hidden-attributes hidden-attrs event-instance))))
+  #?(:clj
+     (log/info
+      (str "evaluating dataflow for event - "
+           (remove-hidden-attributes hidden-attrs event-instance)))))
 
 (defn- log-result-object [hidden-attrs event-instance obj]
   #?(:clj
