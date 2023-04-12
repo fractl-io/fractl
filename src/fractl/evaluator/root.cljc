@@ -783,7 +783,7 @@
                     (or (first (ok-result (eval-opcode vm env rel-opcode)))
                         (u/throw-ex (str "failed to initialize relationship - " rel-name))))
         r (eval-opcode vm env opc)]
-    (when-let [target (normalize-rel-target (ok-result r))]
+    (if-let [target (normalize-rel-target (ok-result r))]
       (intern-instance
        vm (env/push-obj
            (:env r) rel-name
@@ -791,7 +791,8 @@
             rel-name rel-attrs
             src-inst target))
        eval-opcode eval-event-dataflows
-       rel-name nil true true))))
+       rel-name nil true true)
+      r)))
 
 (defn- intern-relationship-for-one-instance [vm eval-opcode eval-event-dataflows
                                              rel-info-and-target-opcode env inst]
