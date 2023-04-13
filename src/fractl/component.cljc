@@ -1765,3 +1765,14 @@
           [(keyword (str (name f) "1"))
            (keyword (str (name t) "2"))]
           [f t]))))
+
+(defn fetch-default-attribute-values [schema]
+  (into
+   {}
+   (mapv
+    (fn [[k v]]
+      [k
+       (when-let [scm (find-attribute-schema v)]
+         (when-let [d (:default scm)]
+           (if (fn? d) (d) d)))])
+    schema)))
