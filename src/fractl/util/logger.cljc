@@ -1,6 +1,12 @@
 (ns fractl.util.logger
   #?(:clj (:require [clojure.tools.logging :as logger])))
 
+;; flag applies only to low-priority log-modes (debug and info)
+(def logging-enabled (atom #?(:clj true :cljs false)))
+
+(defn disable-logging! [] (reset! logging-enabled false))
+(defn enable-logging! [] (reset! logging-enabled true))
+
 #?(:cljs
    (do
      (defn prn-log [tag msg]
@@ -18,14 +24,16 @@
    msg))
 
 (defn debug [msg]
-  (#?(:clj logger/debug
-      :cljs prn-debug)
-   msg))
+  (when @logging-enabled
+    (#?(:clj logger/debug
+        :cljs prn-debug)
+     msg)))
 
 (defn info [msg]
-  (#?(:clj logger/info
-      :cljs prn-info)
-   msg))
+  (when @logging-enabled
+    (#?(:clj logger/info
+        :cljs prn-info)
+     msg)))
 
 (defn warn [msg]
   (#?(:clj logger/warn

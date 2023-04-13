@@ -1660,7 +1660,8 @@
     (let [[e1 e2] (if (= srctype (first elems))
                     [src-inst target-inst]
                     [target-inst src-inst])
-          [a1 a2] (apply relationship-attribute-names elems)
+          [a1 a2] (or (when between (:as meta))
+                      (apply relationship-attribute-names elems))
           [idattr1 idattr2 :as idents]
           [(identity-attribute-name (first elems))
            (identity-attribute-name (second elems))]
@@ -1755,3 +1756,12 @@
 (defn fetch-user-schema [recname]
   (dissoc-system-attributes
    (get-in @components [:raw recname])))
+
+(defn normalize-between-attribute-names [relname from to]
+  (let [f (second (li/split-path from))
+        t (second (li/split-path to))]
+    (or (:as (fetch-meta relname))
+        (if (= from to)
+          [(keyword (str (name f) "1"))
+           (keyword (str (name t) "2"))]
+          [f t]))))
