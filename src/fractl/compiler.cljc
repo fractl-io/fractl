@@ -1060,8 +1060,7 @@
                 (first (keys evt-pattern)))
         safe-compile (partial compile-with-error-report df-patterns c)
         result [ec (mapv safe-compile df-patterns (range (count df-patterns)))]]
-    #?(:clj
-       (log/debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result)))
+    (log/debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result))
     result))
 
 (defn maybe-compile-dataflow
