@@ -387,3 +387,25 @@
   (is (= (ls/name-info :Acme.Core :Acme.Core.Abc/Hello)
          {:model :Acme.Core :component :Abc :record :Hello}))
   (is (not (ls/name-info :Xyz :Acme.Core/Hello))))
+
+(deftest rel-entity-alias
+  (defcomponent :Rea
+    (entity
+     :Rea/E1
+     {:X {:type :Int :identity true}})
+    (relationship
+     :Rea/R
+     {:meta {:between [:Rea/E1 :Rea/E1]
+             :as [:A :B]}}))
+  (let [[e11 e22 :as es] (mapv #(tu/first-result
+                          {:Rea/Upsert_E1
+                           {:Instance
+                            {:Rea/E1 {:X %}}}})
+                        [1 2])]
+    (is (every? (partial cn/instance-of? :Rea/E1) es))
+    (let [e1 (tu/result {:Rea/Upsert_R
+                         {:A 1 :B 2}})
+          r (first (ls/rel-tag e1))]
+      (is (cn/instance-of? :Rea/E1 e1))
+      (is (cn/instance-of? :Rea/R r))
+      (is (and (= (:A r) 1) (= (:B r) 2))))))
