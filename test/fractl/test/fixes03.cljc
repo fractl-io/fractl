@@ -626,3 +626,44 @@
    {:meta {:contains [:I849/E :I849/F]}
     :G :Int
     :H '(+ 1 :G)}))
+
+(deftest issue-855-rel-upsert-bug
+  (defcomponent :I855
+    (entity
+     :I855/E1 {:X {:type :Int :identity true}})
+    (entity
+     :I855/E2 {:Y {:type :Int :identity true}})
+    (relationship
+     :I855/R {:meta {:contains [:I855/E1 :I855/E2]}})
+    (dataflow
+     :I855/Cr1
+     {:I855/E2
+      {:Y 100}
+      :-> [{:I855/R {}}
+           {:I855/E1 {:X? :I855/Cr1.E1}}]})
+    (dataflow
+     :I855/Cr2
+     {:I855/E1 {:X? :I855/Cr2.E1} :as :E1}
+     {:I855/E2
+      {:Y 200}
+      :-> [{:I855/R {}} :E1]}))
+  (let [e1 (tu/first-result
+            {:I855/Upsert_E1
+             {:Instance
+              {:I855/E1 {:X 1}}}})
+        r11 (tu/result
+             {:I855/Cr1 {:E1 1}})
+        r21 (tu/result
+             {:I855/Cr2 {:E1 1}})]
+    (defn- not-found [evt]
+      (is (= :not-found (:status (first (tu/eval-all-dataflows evt))))))
+    (not-found {:I855/Cr1 {:E1 2}})
+    (not-found {:I855/Cr2 {:E1 2}})
+    (defn- check-r [e1 e2]
+      (is (cn/instance-of? :I855/E2 e2))
+      (let [r (first (ls/rel-tag e2))]
+        (is (cn/instance-of? :I855/R r))
+        (is (= (:X e1) (:E1 r)))))
+    (is (cn/instance-of? :I855/E1 e1))
+    (check-r e1 r11)
+    (check-r e1 r21)))
