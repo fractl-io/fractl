@@ -1618,6 +1618,9 @@
 
 (def contains-relationship? contains-entities)
 
+(defn between-relationship? [recname]
+  (mt/between (fetch-meta recname)))
+
 (defn containing-parent [relname]
   (first (mt/contains (fetch-meta relname))))
 
