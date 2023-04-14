@@ -264,3 +264,9 @@
 
 (defn make-path [component-name record-name]
   (li/make-path [component-name record-name]))
+
+(defn not-found? [r]
+  (cond
+    (map? r) (= :not-found (:status r))
+    (vector? r) (not-found? (first r))
+    :else false))
