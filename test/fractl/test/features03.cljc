@@ -409,3 +409,84 @@
       (is (cn/instance-of? :Rea/E1 e1))
       (is (cn/instance-of? :Rea/R r))
       (is (and (= (:A r) 1) (= (:B r) 2))))))
+
+(deftest between-lookup-all
+  (defcomponent :Bla
+    (entity
+     :Bla/E1
+     {:X {:type :Int :identity true}})
+    (entity
+     :Bla/E2
+     {:Y {:type :Int :identity true}})
+    (relationship
+     :Bla/R1
+     {:meta {:between [:Bla/E1 :Bla/E2]}})
+    (relationship
+     :Bla/R2
+     {:meta {:between [:Bla/E1 :Bla/E1]
+             :as [:A :B]}})
+    (dataflow
+     :Bla/CreateR1
+     {:Bla/E1
+      {:X? :Bla/CreateR1.E1} :as :E1}
+     {:Bla/E2
+      {:Y? :Bla/CreateR1.E2}
+      :-> [{:Bla/R1 {}} :E1]})
+    (dataflow
+     :Bla/CreateR2
+     {:Bla/E1
+      {:X? :Bla/CreateR2.E11} :as :E11}
+     {:Bla/E1
+      {:X? :Bla/CreateR2.E12}
+      :-> [{:Bla/R2 {}} :E11]}))
+  (let [[e11 e12] (mapv #(tu/first-result
+                          {:Bla/Upsert_E1
+                           {:Instance
+                            {:Bla/E1 {:X %}}}})
+                        [1 2])
+        e21 (tu/first-result
+             {:Bla/Upsert_E2
+              {:Instance
+               {:Bla/E2 {:Y 100}}}})
+        r11 (tu/result
+             {:Bla/CreateR1
+              {:E1 1 :E2 100}})
+        r12 (tu/result
+             {:Bla/CreateR1
+              {:E1 2 :E2 100}})
+        r13 (tu/result
+             {:Bla/CreateR1
+              {:E1 2 :E2 100}})
+        r21 (tu/result
+             {:Bla/CreateR2
+              {:E11 1 :E12 2}})
+        e1? (partial cn/instance-of? :Bla/E1)
+        e2? (partial cn/instance-of? :Bla/E2)
+        r1? (partial cn/instance-of? :Bla/R1)
+        r2? (partial cn/instance-of? :Bla/R2)]
+    (is (and (e1? e11) (e1? e12)))
+    (is (and (e2? e21) (e2? r11) (e2? r12) (e2? r13)))
+    (is (e1? r21))
+    (is (r1? (first (ls/rel-tag r11))))
+    (is (r2? (first (ls/rel-tag r21))))
+    (let [rs? (fn [predic c rs]
+                (and (= (count rs) c)
+                     (every? predic rs)))
+          r1s? (partial rs? r1?)
+          r2s? (partial rs? r2?)
+          r11s (tu/result {:Bla/LookupAll_R1
+                           {:E1 1 :E2 100}})
+          r12s (tu/result {:Bla/LookupAll_R1
+                           {:E1 2 :E2 100}})
+          r13s (tu/eval-all-dataflows
+                {:Bla/LookupAll_R1
+                 {:E1 1 :E2 200}})
+          r21s (tu/result {:Bla/LookupAll_R2
+                           {:A 1 :B 2}})
+          r22s (tu/result {:Bla/LookupAll_R2
+                           {:A 2 :B 1}})]
+      (r1s? 1 r11s)
+      (r1s? 2 r12s)
+      (tu/not-found? r13s)
+      (tu/not-found? r21s)
+      (r2s? 1 r22s))))

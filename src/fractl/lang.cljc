@@ -903,7 +903,20 @@
         upevt (ev :Upsert)
         ups-attrs (make-between-upsert-attributes upevt (dissoc attrs aname-to))
         ctx-aname (k/event-context-attribute-name)
-        [fname tname] (cn/normalize-between-attribute-names relname from to)]
+        [fname tname] (cn/normalize-between-attribute-names relname from to)
+        lookupall-evt (ev :LookupAll)]
+    (event-internal
+     lookupall-evt
+     {fname :Fractl.Kernel.Lang/Any
+      tname :Fractl.Kernel.Lang/Any
+      li/event-context ctx-aname})
+    (cn/register-dataflow
+     lookupall-evt
+     [{relname
+       {(li/name-as-query-pattern fname)
+        (li/make-ref lookupall-evt fname)
+        (li/name-as-query-pattern tname)
+        (li/make-ref lookupall-evt tname)}}])
     (event-internal
      upevt
      (merge
