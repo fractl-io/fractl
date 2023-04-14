@@ -474,17 +474,21 @@
                      (every? predic rs)))
           r1s? (partial rs? r1?)
           r2s? (partial rs? r2?)
-          r11s (tu/result {:Bla/LookupAll_R1
+          r11s (tu/result {:Bla/Lookup_R1
                            {:E1 1 :E2 100}})
-          r12s (tu/result {:Bla/LookupAll_R1
+          r12s (tu/result {:Bla/Lookup_R1
                            {:E1 2 :E2 100}})
           r13s (tu/eval-all-dataflows
-                {:Bla/LookupAll_R1
+                {:Bla/Lookup_R1
                  {:E1 1 :E2 200}})
-          r21s (tu/result {:Bla/LookupAll_R2
+          r21s (tu/result {:Bla/Lookup_R2
                            {:A 1 :B 2}})
-          r22s (tu/result {:Bla/LookupAll_R2
-                           {:A 2 :B 1}})]
+          r22s (tu/result {:Bla/Lookup_R2
+                           {:A 2 :B 1}})
+          all-r1s (tu/result {:Bla/LookupAll_R1 {}})
+          all-r2s (tu/result {:Bla/LookupAll_R2 {}})]
+      (r1s? 3 all-r1s)
+      (r2s? 1 all-r2s)
       (r1s? 1 r11s)
       (r1s? 2 r12s)
       (tu/not-found? r13s)
