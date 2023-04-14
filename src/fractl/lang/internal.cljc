@@ -154,7 +154,9 @@
     pat
     (when (map? pat)
       (let [n (first (keys pat))]
-        (when (name? n) n)))))
+        (when (or (name? n)
+                  (and (string? n) (name (keyword n))))
+          n)))))
 
 (defn record-attributes [pat]
   (when (map? pat)
