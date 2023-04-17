@@ -198,8 +198,7 @@
       (let [[evaluator store] (init-runtime model config)
             query-fn (e/query-fn store)]
         (log/info (str "Server config - " server-cfg))
-        (when should-run-server
-          (h/run-server [evaluator query-fn] server-cfg))))))
+        (h/run-server [evaluator query-fn] server-cfg)))))
 
 (defn- find-model-to-read [args config]
   (or (seq (su/nonils args))
