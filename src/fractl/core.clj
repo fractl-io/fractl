@@ -183,7 +183,7 @@
   (assoc (:service app-config) :authentication
          (:authentication app-config)))
 
-(defn run-service [args [[model model-root] config] & {:keys [should-run-server] :or {should-run-server true}}]
+(defn run-service [args [[model model-root] config]]
   (let [config (finalize-config model config)
         store (e/store-from-config (:store config))
         config (assoc config :store-handle store)
