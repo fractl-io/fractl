@@ -20,14 +20,21 @@
 (defn- make-default-store [store-config store]
   ;; NOTE: The default db connection, if opened,
   ;; will last the lifetime of the app.
-  (u/safe-set-once
-    default-store
-    #(do
-       (p/open-connection
-        store
-        (or store-config
-            (make-default-store-config)))
-       store)))
+  (if (:always-init store-config)
+    (do
+      (p/open-connection
+       store
+       (or store-config
+           (make-default-store-config)))
+      store)
+    (u/safe-set-once
+     default-store
+     #(do
+        (p/open-connection
+         store
+         (or store-config
+             (make-default-store-config)))
+        store))))
 
 (def ^:private store-constructors
   (u/make-cell
