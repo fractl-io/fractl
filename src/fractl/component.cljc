@@ -1663,7 +1663,7 @@
     (let [[e1 e2] (if (= srctype (first elems))
                     [src-inst target-inst]
                     [target-inst src-inst])
-          [a1 a2] (or (when between (:as meta))
+          [a1 a2] (or (when between (:as (relationship-meta meta)))
                       (apply relationship-attribute-names elems))
           [idattr1 idattr2 :as idents]
           [(identity-attribute-name (first elems))
@@ -1763,7 +1763,7 @@
 (defn normalize-between-attribute-names [relname from to]
   (let [f (second (li/split-path from))
         t (second (li/split-path to))]
-    (or (:as (fetch-meta relname))
+    (or (:as (relationship-meta (fetch-meta relname)))
         (if (= from to)
           [(keyword (str (name f) "1"))
            (keyword (str (name t) "2"))]

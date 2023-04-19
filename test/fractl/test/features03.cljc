@@ -395,8 +395,8 @@
      {:X {:type :Int :identity true}})
     (relationship
      :Rea/R
-     {:meta {:between [:Rea/E1 :Rea/E1]
-             :as [:A :B]}}))
+     {:meta {:between [:Rea/E1 :Rea/E1
+                       :as [:A :B]]}}))
   (let [[e11 e22 :as es] (mapv #(tu/first-result
                           {:Rea/Upsert_E1
                            {:Instance
@@ -423,8 +423,8 @@
      {:meta {:between [:Bla/E1 :Bla/E2]}})
     (relationship
      :Bla/R2
-     {:meta {:between [:Bla/E1 :Bla/E1]
-             :as [:A :B]}})
+     {:meta {:between [:Bla/E1 :Bla/E1
+                       :as [:A :B]]}})
     (dataflow
      :Bla/CreateR1
      {:Bla/E1

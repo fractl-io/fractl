@@ -951,7 +951,7 @@
                            (or (and contains (not (:n-n relmeta)))
                                (:one-n relmeta)))
          on-attrs (:on relmeta)
-         rel-attr-names (when between (:as meta))
+         rel-attr-names (when between (:as relmeta))
          cascade-on-delete (:cascade-on-delete relmeta)]
      (when-not elems
        (u/throw-ex
