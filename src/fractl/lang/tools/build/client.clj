@@ -94,7 +94,7 @@
         index-html (sp/render public_index_html params)
         core (read-string (sp/render src_main_core_cljs params))]
     (writer "package.json" package_json :spit)
-    (writer "shadow-cljs.edn" shadow-cljs :spit)
+    (writer "shadow-cljs.edn" shadow-cljs)
     (writer (str "public" u/path-sep "index.html") index-html :spit)
     (writer (str "src" u/path-sep "main" u/path-sep "core.cljs") core)
     model-name))
