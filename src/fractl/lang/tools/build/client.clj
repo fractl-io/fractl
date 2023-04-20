@@ -1,6 +1,7 @@
 (ns fractl.lang.tools.build.client
   (:require [selmer.parser :as sp]
             [fractl.util :as u]
+            [fractl.global-state :as gs]
             [fractl.datafmt.json :as json]))
 
 (def package_json
@@ -61,8 +62,11 @@
               [fractl.lang :refer [dataflow]]
               {{model-require}}
               [fractl.fx.view.util :as vu]
+              [fractl.fx.view.state :as vs]
               [fractl.fx.core :as fx]))
   
+  (vs/prod-build!)
+
   (def app-name \"{{app-name}}\")
   (def app-root {{app-root}})
   (def api-host \"{{api-host}}\")
@@ -85,16 +89,23 @@
 
 (defn build-project [model-name model-version model-ns writer]
   (let [mn (name model-name)
-        params {:app-name mn
-                :app-root :Accounts.Core/Company ; TODO: load from config or model-info
-                :api-host "http://localhost:8080"; TODO: load from config or model-info
-                :title (str "Welcome to " mn)
-                :model-require [model-ns :as 'model]}
-        shadow-cljs (update-shadow-cljs [(symbol mn) model-version])
-        index-html (sp/render public_index_html params)
-        core (read-string (sp/render src_main_core_cljs params))]
-    (writer "package.json" package_json :spit)
-    (writer "shadow-cljs.edn" shadow-cljs)
-    (writer (str "public" u/path-sep "index.html") index-html :spit)
-    (writer (str "src" u/path-sep "main" u/path-sep "core.cljs") core)
-    model-name))
+        build-config (:client (:build (gs/get-app-config)))
+        app-root (:root-entity build-config)
+        api-host (:api-host build-config)]
+    (when-not app-root
+      (u/throw-ex "required configuration not found - build -> client -> root-entity"))
+    (when-not app-root
+      (u/throw-ex "required configuration not found - build -> client -> api-host"))
+    (let [params {:app-name mn
+                  :app-root (:root-entity build-config) ; TODO: load from config or model-info
+                  :api-host (:api-host build-config); TODO: load from config or model-info
+                  :title (str "Welcome to " mn)
+                  :model-require [model-ns :as 'model]}
+          shadow-cljs (update-shadow-cljs [(symbol mn) model-version])
+          index-html (sp/render public_index_html params)
+          core (rest (read-string (sp/render src_main_core_cljs params)))]
+      (writer "package.json" package_json :spit)
+      (writer "shadow-cljs.edn" shadow-cljs)
+      (writer (str "public" u/path-sep "index.html") index-html :spit)
+      (writer (str "src" u/path-sep "main" u/path-sep "core.cljs") core :write-each)
+      model-name)))
