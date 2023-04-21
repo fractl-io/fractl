@@ -333,21 +333,23 @@
     (print-help)
     (System/exit 0))
   (let [{options :options args :arguments
-         summary :summary errors :errors} (parse-opts args cli-options)]
+         summary :summary errors :errors} (parse-opts args cli-options)
+        basic-config (load-config options)]
     (initialize)
+    (gs/set-app-config! basic-config)
     (cond
       errors (println errors)
       (:help options) (print-help)
       :else
-      (or (some identity (mapv (partial run-plain-option args)
-                               ["run" "compile" "build" "exec" "publish" "deploy"]
-                               [#(when (build/load-model (first %))
-                                   (run-service nil (read-model-and-config nil options)))
-                                #(println (build/compile-model (first %)))
-                                #(println (build/standalone-package (first %)))
-                                #(println (build/run-standalone-package (first %)))
-                                #(println (publish-library %))
-                                #(println (d/deploy
-                                           (:deploy (load-config options))
-                                           (first %)))]))
+      (or (some
+           identity
+           (mapv (partial run-plain-option args)
+                 ["run" "compile" "build" "exec" "publish" "deploy"]
+                 [#(when (build/load-model (first %))
+                     (run-service nil (read-model-and-config nil options)))
+                  #(println (build/compile-model (first %)))
+                  #(println (build/standalone-package (first %)))
+                  #(println (build/run-standalone-package (first %)))
+                  #(println (publish-library %))
+                  #(println (d/deploy (:deploy basic-config) (first %)))]))
           (run-service args (read-model-and-config args options))))))

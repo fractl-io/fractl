@@ -7,6 +7,7 @@
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
+            [fractl.lang.tools.build.client :as cl]
             [fractl.lang.tools.util :as tu]
             [fractl.lang.tools.loader :as loader])
   (:import [java.io File]
@@ -62,23 +63,30 @@
       (log/warn (str "standalone-jar - " (.getMessage ex)))
       nil)))
 
+(defn- make-writer [prefix]
+  (fn [file-name contents & options]
+    (let [f (File. (str prefix file-name))]
+      (FileUtils/createParentDirectories f)
+      (with-open [w (io/writer f)]
+        (cond
+          (some #{:spit} options)
+          (spit w contents)
+
+          (some #{:write-each} options)
+          (doseq [exp contents]
+            (pprint/pprint exp w))
+
+          :else
+          (pprint/pprint contents w))))))
+
+(defn- client-writer [model-name]
+  (let [path (str (project-dir model-name) "client" u/path-sep)]
+    (make-writer path)))
+
 (defn- clj-io [model-name]
   (let [prefix (project-dir model-name)]
     [#(read-string (slurp (str prefix %)))
-     (fn [file-name contents & options]
-       (let [f (File. (str prefix file-name))]
-         (FileUtils/createParentDirectories f)
-         (with-open [w (io/writer f)]
-           (cond
-             (some #{:spit} options)
-             (spit w contents)
-
-             (some #{:write-each} options)
-             (doseq [exp contents]
-               (pprint/pprint exp w))
-
-             :else
-             (pprint/pprint contents w)))))]))
+     (make-writer prefix)]))
 
 (defn- create-clj-project [model-name version]
   (let [app-name (if version (str model-name ":" version) model-name)
@@ -213,8 +221,8 @@
 
 (defn- write-model-clj [write model-name component-names model]
   (let [root-ns-name (symbol (str (sanitize model-name) ".model"))
-        req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c))]) component-names)
-        ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:use ~@req-comp))
+        req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c)) :as (symbol (name c))]) component-names)
+        ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:require ~@req-comp))
         model (dissoc model :clj-dependencies :repositories)]
     (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
            [ns-decl model
@@ -228,23 +236,28 @@
     (when (.exists (File. src-cfg))
       (write config-edn (slurp src-cfg) :spit))))
 
+(defn- create-client-project [model-name ver]
+  (let [model-ns (symbol (str (sanitize (name model-name)) ".model.model"))]
+    (cl/build-project model-name ver model-ns (client-writer model-name))))
+
 (defn- load-or-build-clj-project [load model-name model-root model components]
   (if load
     (let [f (partial copy-component nil model-name)]
       (doseq [c components]
         (f c))
       model-name)
-    (if (create-clj-project model-name (model-version model))
-      (let [[rd wr] (clj-io model-name)
-            spec (update-project-spec model (rd "project.clj"))
-            log-config (make-log-config model-name (model-version model))]
-        (wr "project.clj" spec)
-        (wr "logback.xml" log-config :spit)
-        (let [cmps (mapv (partial copy-component wr model-name) components)]
-          (write-model-clj wr model-name cmps model)
-          (write-config-edn model-root wr)
-          model-name))
-      (log/error (str "failed to create clj project for " model-name)))))
+    (let [ver (model-version model)]
+      (if (create-clj-project model-name ver)
+        (let [[rd wr] (clj-io model-name)
+              spec (update-project-spec model (rd "project.clj"))
+              log-config (make-log-config model-name ver)]
+          (wr "project.clj" spec)
+          (wr "logback.xml" log-config :spit)
+          (let [cmps (mapv (partial copy-component wr model-name) components)]
+            (write-model-clj wr model-name cmps model)
+            (write-config-edn model-root wr)
+            (create-client-project model-name ver)))
+        (log/error (str "failed to create clj project for " model-name))))))
 
 (def ^:private build-clj-project (partial load-or-build-clj-project false))
 (def ^:private load-clj-project (partial load-or-build-clj-project true))
