@@ -48,7 +48,7 @@
     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
   </head>
   <body>
-    <div id=\"app\"></div>
+    <div id=\"app\" style=\"width: 800px;height: 800px;position: absolute;top:0;bottom: 0;left: 0;right: 0;margin: auto;\"></div>
     <script src=\"js/main.js\" type=\"text/javascript\"></script>
   </body>
   </html>")
