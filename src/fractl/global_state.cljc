@@ -2,6 +2,9 @@
 
 (def ^:private app-config (atom nil))
 
+(defn set-app-config! [config]
+  (reset! app-config config))
+
 (defn merge-app-config! [config]
   (reset! app-config (merge @app-config config)))
 
