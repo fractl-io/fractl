@@ -79,9 +79,12 @@
           :else
           (pprint/pprint contents w))))))
 
-(defn- client-writer [model-name]
-  (let [path (str (project-dir model-name) "client" u/path-sep)]
-    (make-writer path)))
+(defn- client-path [model-name]
+  (let [path (str (project-dir model-name) "client" u/path-sep)
+        f (File. path)]
+    (FileUtils/createParentDirectories f)
+    (.mkdir f)
+    path))
 
 (defn- clj-io [model-name]
   (let [prefix (project-dir model-name)]
@@ -237,8 +240,7 @@
       (write config-edn (slurp src-cfg) :spit))))
 
 (defn- create-client-project [model-name ver]
-  (let [model-ns (symbol (str (sanitize (name model-name)) ".model.model"))]
-    (cl/build-project model-name ver model-ns (client-writer model-name))))
+  (cl/build-project model-name ver (client-path model-name)))
 
 (defn- load-or-build-clj-project [load model-name model-root model components]
   (if load
