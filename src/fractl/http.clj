@@ -205,6 +205,11 @@
     (when (and (map? eval-result) (= :ok (:status eval-result)))
       (:result eval-result))))
 
+(defn- eval-result [eval-res]
+  (if (vector? eval-res)
+    (eval-result (first eval-res))
+    eval-res))
+
 (defn- whitelisted-email? [email]
   (let [{:keys [access-key secret-key region s3-bucket whitelist-file-key] :as _aws-config} (uh/get-aws-config true)
         whitelisted-emails (read-string
@@ -252,17 +257,18 @@
             (unauthorized "Your email is not whitelisted yet." data-fmt)
             (try
               (let [result (evaluate evaluator evobj data-fmt)
-                    r (eval-ok-result result)
-                    user (if (map? r) r (first r))
-                    post-signup-result
-                    (when call-post-signup
-                      (evaluate
-                       evaluator
-                       (assoc (create-event post-signup-event-name) :SignupResult result :UserDetails evobj)
-                       data-fmt))]
-                (if user
-                  (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
-                  (bad-request (or post-signup-result result) data-fmt)))
+                    r (eval-ok-result result)]
+                (when (not r) (throw (Exception. (:message (eval-result result)))))
+                (let [user (if (map? r) r (first r))
+                      post-signup-result
+                      (when call-post-signup
+                        (evaluate
+                         evaluator
+                         (assoc (create-event post-signup-event-name) :SignupResult result :UserDetails evobj)
+                         data-fmt))]
+                  (if user
+                    (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
+                    (bad-request (or post-signup-result result) data-fmt))))
               (catch Exception ex
                 (log/warn ex)
                 (unauthorized (str "Sign up failed. " (.getMessage ex))
