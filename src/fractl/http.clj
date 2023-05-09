@@ -84,15 +84,18 @@
           obj-name (li/split-path
                     (or (cn/instance-type obj)
                         (u/string-as-keyword
-                         (first (keys obj)))))]
+                         (first (keys obj)))))
+          event-instance (if (cn/an-instance? obj)
+                           obj
+                           (cn/make-event-instance obj-name (first (vals obj))))]
       (if (or (not event-name) (= obj-name event-name))
-        [(cn/assoc-event-context-values
-          {:User (:email user)
-           :Sub (:sub user)
-           :UserDetails user}
-          (if (cn/an-instance? obj)
-            obj
-            (cn/make-event-instance obj-name (first (vals obj)))))
+        [(if auth-config
+           (cn/assoc-event-context-values
+            {:User (:email user)
+             :Sub (:sub user)
+             :UserDetails user}
+            event-instance)
+           event-instance)
          nil]
         [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
     (catch Exception ex
