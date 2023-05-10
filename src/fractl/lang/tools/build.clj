@@ -97,7 +97,11 @@
     (u/exec-in-directory out-file cmd)))
 
 (defn- exec-for-model [model-name cmd]
-  (u/exec-in-directory (project-dir model-name) cmd))
+  (let [f (partial u/exec-in-directory (project-dir model-name))]
+    (if (string? cmd)
+      (f cmd)
+      ;; else, a vector of commands
+      (every? f cmd))))
 
 (defn- maybe-add-repos [proj-spec model]
   (if-let [repos (:repositories model)]
@@ -321,7 +325,7 @@
       (first result))))
 
 (def install-model (partial exec-with-build-model "lein install" nil))
-(def standalone-package (partial exec-with-build-model "lein uberjar" nil))
+(def standalone-package (partial exec-with-build-model ["lein install" "lein uberjar"] nil))
 
 (defn- maybe-copy-kernel [model-name]
   (when (= model-name "fractl")
