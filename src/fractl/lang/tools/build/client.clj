@@ -11,5 +11,5 @@
       (u/throw-ex "required configuration not found - build -> client -> root-entity"))
     (when-not app-root
       (u/throw-ex "required configuration not found - build -> client -> api-host"))
-    (u/exec-in-directory path (str "lein new fx2-app " mn ":" model-version " -- " api-host " " app-root))
+    (u/exec-in-directory path (str "lein new fx-app " mn ":" model-version " -- " api-host " " app-root))
     model-name))
