@@ -79,9 +79,12 @@
           :else
           (pprint/pprint contents w))))))
 
-(defn- client-writer [model-name]
-  (let [path (str (project-dir model-name) "client" u/path-sep)]
-    (make-writer path)))
+(defn- client-path [model-name]
+  (let [path (str (project-dir model-name) "client" u/path-sep)
+        f (File. path)]
+    (FileUtils/createParentDirectories f)
+    (.mkdir f)
+    path))
 
 (defn- clj-io [model-name]
   (let [prefix (project-dir model-name)]
@@ -94,7 +97,11 @@
     (u/exec-in-directory out-file cmd)))
 
 (defn- exec-for-model [model-name cmd]
-  (u/exec-in-directory (project-dir model-name) cmd))
+  (let [f (partial u/exec-in-directory (project-dir model-name))]
+    (if (string? cmd)
+      (f cmd)
+      ;; else, a vector of commands
+      (every? f cmd))))
 
 (defn- maybe-add-repos [proj-spec model]
   (if-let [repos (:repositories model)]
@@ -237,8 +244,7 @@
       (write config-edn (slurp src-cfg) :spit))))
 
 (defn- create-client-project [model-name ver]
-  (let [model-ns (symbol (str (sanitize (name model-name)) ".model.model"))]
-    (cl/build-project model-name ver model-ns (client-writer model-name))))
+  (cl/build-project model-name ver (client-path model-name)))
 
 (defn- load-or-build-clj-project [load model-name model-root model components]
   (if load
@@ -319,7 +325,7 @@
       (first result))))
 
 (def install-model (partial exec-with-build-model "lein install" nil))
-(def standalone-package (partial exec-with-build-model "lein uberjar" nil))
+(def standalone-package (partial exec-with-build-model ["lein install" "lein uberjar"] nil))
 
 (defn- maybe-copy-kernel [model-name]
   (when (= model-name "fractl")

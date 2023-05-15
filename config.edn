@@ -13,4 +13,6 @@
  ;;                  :admin-password "admin123"}
  ;; :deploy {:host #$ FRACTL_DEPLOYMENT_HOST :user #$ FRACTL_DEPLOYMENT_USER
  ;;          :password #$ FRACTL_DEPLOYMENT_PASSWORD}
+ ;; :build {:client {:root-entity :Accounts.Core/Company
+ ;;                  :api-host "http://localhost:8080"}}
  :service {:port #$ [FRACTL_HTTP_PORT 8000]}}
