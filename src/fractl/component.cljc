@@ -1761,9 +1761,9 @@
    (get-in @components [:raw recname])))
 
 (defn normalize-between-attribute-names [relname from to]
-  (let [f (second (li/split-path from))
-        t (second (li/split-path to))]
-    (or (:as (relationship-meta (fetch-meta relname)))
+  (or (:as (relationship-meta (fetch-meta relname)))
+      (let [f (second (li/split-path from))
+            t (second (li/split-path to))]
         (if (= from to)
           [(keyword (str (name f) "1"))
            (keyword (str (name t) "2"))]
