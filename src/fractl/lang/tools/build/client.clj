@@ -3,13 +3,14 @@
             [fractl.global-state :as gs]))
 
 (defn build-project [model-name model-version path]
-  (let [mn (name model-name)
-        build-config (:client (:build (gs/get-app-config)))
-        app-root (:root-entity build-config)
-        api-host (:api-host build-config)]
-    (when-not app-root
-      (u/throw-ex "required configuration not found - build -> client -> root-entity"))
-    (when-not app-root
-      (u/throw-ex "required configuration not found - build -> client -> api-host"))
-    (u/exec-in-directory path (str "lein new fx-app " mn ":" model-version " -- " api-host " " app-root))
-    model-name))
+  (if-let [build-config (:client (:build (gs/get-app-config)))]
+    (let [mn (name model-name)
+          app-root (:root-entity build-config)
+          api-host (:api-host build-config)]
+      (when-not app-root
+        (u/throw-ex "required configuration not found - build -> client -> root-entity"))
+      (when-not app-root
+        (u/throw-ex "required configuration not found - build -> client -> api-host"))
+      (u/exec-in-directory path (str "lein new fx-app " mn ":" model-version " -- " api-host " " app-root)))
+    (println "no build -> client spec in config, skipping client-app generation"))
+  model-name)
