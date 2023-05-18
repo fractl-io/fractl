@@ -222,13 +222,21 @@
     :else x))
 
 (defn- read-config-file [config-file]
+  (let [f (io/file config-file)]
+    (when-not (.exists f)
+      (with-open [out (io/writer f)]
+        (binding [*out* out]
+          (print {:service {:port 8080}})))))
   (binding [*data-readers* {'$ read-env-var}]
     (read-string (slurp config-file))))
 
+(defn- load-config [options]
+  (read-config-file (get options :config "config.edn")))
+
+(def ^:private config-data-key :-*-config-data-*-)
+
 (defn read-model-and-config [args options]
-  (let [config-file (get options :config)
-        config (when config-file
-                 (read-config-file config-file))]
+  (let [config (or (config-data-key options) (load-config options))]
     (when-let [extn (:script-extn config)]
       (u/set-script-extn! extn))
     (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))]
@@ -325,16 +333,14 @@
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
 
-(defn- load-config [options]
-  (read-config-file (get options :config "config.edn")))
-
 (defn -main [& args]
   (when-not args
     (print-help)
     (System/exit 0))
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)
-        basic-config (load-config options)]
+        basic-config (load-config options)
+        options (assoc options config-data-key basic-config)]
     (initialize)
     (gs/set-app-config! basic-config)
     (cond
