@@ -21,6 +21,7 @@
                  [http-kit "2.5.3"]
                  [cljs-http "0.1.46"]
                  [ring-cors "0.1.13"]
+                 [hawk "0.2.11"]
                  [net.cgrand/macrovich "0.2.1"]
                  [cljsjs/alasql "0.6.5-0"]
                  [org.postgresql/postgresql "42.3.1"]
