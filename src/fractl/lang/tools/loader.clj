@@ -2,13 +2,16 @@
   "Component script loading with pre-processing."
   (:require [clojure.java.io :as io]
             [clojure.string :as s]
+            [fractl.component :as cn]
+            [fractl.store :as store]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang.name-util :as nu]
             [fractl.lang.internal :as li]
             [fractl.lang.tools.util :as tu]
-            [fractl.component :as cn])
+            [fractl.global-state :as gs]
+            [fractl.evaluator.state :as es])
   (:import [java.io FileInputStream InputStreamReader PushbackReader]))
 
 (defn- record-name [obj]
@@ -62,6 +65,7 @@
                (partial nu/fully-qualified-names declared-names)
                identity)
          parser (if *parse-expressions* eval identity)]
+     (use '[fractl.lang])
      (try
        (loop [exp (rdf), exps nil]
          (if (= exp :done)
@@ -73,6 +77,13 @@
    (read-expressions
     file-name-or-input-stream
     (fetch-declared-names file-name-or-input-stream))))
+
+(defn- remove-component [component]
+  (cn/remove-component component)
+  (when (gs/in-script-mode?)
+    (when-let [store (es/get-active-store)]
+      (store/drop-schema store component)))
+  component)
 
 (defn load-script
   "Load, complile and intern the component from a script file."
@@ -92,8 +103,8 @@
              file-name-or-input-stream))
          names (fetch-declared-names file-ident)
          component-name (:component names)]
-     (when component-name
-       (cn/remove-component component-name))
+     (when (and component-name (cn/component-exists? component-name))
+       (remove-component component-name))
      (let [exprs (binding [*ns* *ns*]
                    (read-expressions
                     (if input-reader?
@@ -111,7 +122,7 @@
   "Load, complile and intern the component from a namespace expressions."
   ([mns mns-exps convert-fq?]
    (use 'fractl.lang)
-   (cn/remove-component mns)
+   (remove-component mns)
    (binding [*ns* *ns*]
      (into
       '()

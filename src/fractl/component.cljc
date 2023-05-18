@@ -1724,7 +1724,11 @@
                          :events evts)
                         n)
           final-comps (assoc comps c new-comp-scm)]
-      (u/safe-set components final-comps))))
+      (and (u/safe-set components final-comps) recname))))
+
+(defn maybe-remove-record [recname]
+  (remove-record recname)
+  recname)
 
 (defn remove-entity [recname]
   (when-let [r (seq (map first (containing-parents recname)))]
@@ -1735,7 +1739,10 @@
     (u/throw-ex (str "cannot remove entity in between-relationships - " r)))
   (when (and (remove-record (meta-entity-name recname))
              (su/all-true?
-              (mapv remove-record (all-crud-events recname))))
+              (mapv (if (relationship? recname)
+                      maybe-remove-record
+                      remove-record)
+                    (all-crud-events recname))))
     (remove-record recname)))
 
 (def remove-event remove-record)

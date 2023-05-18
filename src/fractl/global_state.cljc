@@ -16,3 +16,10 @@
 (defn active-user [] (:User active-event-context))
 
 (def ^:dynamic active-store-connection nil)
+
+(def ^:private script-mode (atom false))
+
+(defn in-script-mode! []
+  (reset! script-mode true))
+
+(defn in-script-mode? [] @script-mode)

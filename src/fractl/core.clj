@@ -351,8 +351,9 @@
            identity
            (mapv (partial run-plain-option args)
                  ["run" "compile" "build" "exec" "publish" "deploy"]
-                 [#(when (build/load-model (first %))
-                     (run-service nil (read-model-and-config nil options)))
+                 [#(do (gs/in-script-mode!)
+                       (when (build/load-model (first %) true)
+                         (run-service nil (read-model-and-config nil options))))
                   #(println (build/compile-model (first %)))
                   #(println (build/standalone-package (first %)))
                   #(println (build/run-standalone-package (first %)))
