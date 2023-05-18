@@ -9,7 +9,7 @@
           api-host (:api-host build-config)]
       (when-not app-root
         (u/throw-ex "required configuration not found - build -> client -> root-entity"))
-      (when-not app-root
+      (when-not api-host
         (u/throw-ex "required configuration not found - build -> client -> api-host"))
       (u/exec-in-directory path (str "lein new fx-app " mn ":" model-version " -- " api-host " " app-root)))
     (println "no build -> client spec in config, skipping client-app generation"))
