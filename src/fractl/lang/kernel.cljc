@@ -89,7 +89,9 @@
                  :Fractl.Kernel.Lang/Password
                  :Fractl.Kernel.Lang/Map
                  :Fractl.Kernel.Lang/Edn
-                 :Fractl.Kernel.Lang/EventContext])
+                 :Fractl.Kernel.Lang/EventContext
+                 :Fractl.Kernel.Lang/Identity
+                 :Fractl.Kernel.Lang/Now])
 
 (def ^:private plain-types
   (into {} (mapv (fn [t] [(second (li/split-path t)) t]) type-names)))

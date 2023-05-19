@@ -31,7 +31,7 @@
 (attribute :Edn {:check k/edn?})
 
 (attribute :Identity {:type :UUID :default u/uuid-string :identity true})
-(attribute :Now {:type :DateTime :default :dt/now})
+(attribute :Now {:type :DateTime :default dt/now})
 
 (attribute (k/event-context-attribute-name)
            (k/event-context-attribute-schema))

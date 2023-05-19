@@ -52,7 +52,7 @@
   :identity true})
 (attribute
  :Fractl.Kernel.Lang/Now
- {:type :Fractl.Kernel.Lang/DateTime, :default :dt/now})
+ {:type :Fractl.Kernel.Lang/DateTime, :default dt/now})
 (attribute
  (k/event-context-attribute-name)
  (k/event-context-attribute-schema))
@@ -120,4 +120,4 @@
    :paths [:Fractl.Kernel.Lang/DataSync]}])
 (def
  Fractl_Kernel_Lang___COMPONENT_ID__
- "8780083b-7107-4344-b06d-825915ac995e")
+ "5bebb66a-705f-4501-85f4-9ed97d2a5594")
