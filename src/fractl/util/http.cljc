@@ -106,15 +106,15 @@
            (throw (Exception. (str "Environment variable \"" var-name "\" not found.")))
            var-value)))
 
-     (defn get-aws-config [whitelist?]
-       (let [aws-config {:region (get-env-var "AWS_REGION")
+     (defn get-aws-config []
+       (let [aws-config {:region  (get-env-var "AWS_REGION")
                          :access-key (get-env-var "AWS_ACCESS_KEY")
                          :secret-key (get-env-var "AWS_SECRET_KEY")
                          :client-id (get-env-var "AWS_COGNITO_CLIENT_ID")
                          :user-pool-id (get-env-var "AWS_COGNITO_USER_POOL_ID")
-                         :whitelist? whitelist?}]
-         (if (true? whitelist?)
+                         :whitelist? (get-env-var "WHITELIST")}]
+         (if (true? (:whitelist? aws-config))
            (assoc aws-config
-                  :s3-bucket (get-env-var "AWS_S3_BUCKET")
-                  :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
+             :s3-bucket (get-env-var "AWS_S3_BUCKET")
+             :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
            aws-config)))))

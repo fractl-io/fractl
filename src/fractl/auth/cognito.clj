@@ -32,14 +32,14 @@
          (count error-msg)))))
 
 (defmethod auth/make-authfn tag [_config]
-  (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config false)]
+  (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
     (fn [_req token]
       (jwt/verify-and-extract
        (make-jwks-url region user-pool-id)
        token))))
 
 (defmethod auth/user-login tag [{:keys [event] :as req}]
-  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)]
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
     (try
       (cognito/initiate-auth (auth/make-client (merge req aws-config))
                              :auth-flow "USER_PASSWORD_AUTH"
@@ -50,7 +50,7 @@
         (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/upsert-user tag [{:keys [instance] :as req}]
-  (let [{:keys [client-id user-pool-id] :as aws-config} (uh/get-aws-config false)]
+  (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)]
     (case (last (li/split-path (cn/instance-type instance)))
     ;; Create User
       :User
@@ -68,7 +68,18 @@
            :username Email)
           user
           (catch Exception e
-            (throw (Exception. (get-error-msg-and-log e))))))
+            (throw (Exception. (get-error-msg-and-log e)))))
+
+        (when (false? whitelist?)
+          (try
+            (cognito/admin-confirm-sign-up
+              (auth/make-client (merge req aws-config))
+              :username Email
+              :user-pool-id user-pool-id)
+            user
+            (catch Exception e
+              (throw (Exception. (get-error-msg-and-log e)))))))
+
 
     ;; Update user
       :UpdateUser
@@ -102,7 +113,7 @@
       nil)))
 
 (defmethod auth/refresh-token tag [{:keys [event] :as req}]
-  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)
         cognito-username (get-in req [:user :username])
         refresh-token (:RefreshToken event)]
     (try
@@ -128,7 +139,7 @@
   (auth/session-user req))
 
 (defmethod auth/user-logout tag [{:keys [sub] :as req}]
-  (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config false)]
+  (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config)]
     (try
       (cognito/admin-user-global-sign-out
        (auth/make-client (merge req aws-config))
@@ -138,7 +149,7 @@
         (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/delete-user tag [{:keys [instance] :as req}]
-  (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config false)]
+  (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config)]
     (when-let [email (:Email instance)]
       (try
         (cognito/admin-delete-user
@@ -149,7 +160,7 @@
           (throw (Exception. (get-error-msg-and-log e))))))))
 
 (defmethod auth/get-user tag [{:keys [user] :as req}]
-  (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config false)
+  (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config)
         resp (cognito/admin-get-user
               (auth/make-client (merge req aws-config))
               :username (:username user)
@@ -170,7 +181,7 @@
      :Email email}))
 
 (defmethod auth/forgot-password tag [{:keys [event] :as req}]
-  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)]
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
     (try
       (cognito/forgot-password
        (auth/make-client (merge req aws-config))
@@ -180,7 +191,7 @@
         (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/confirm-forgot-password tag [{:keys [event] :as req}]
-  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config false)
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)
         {:keys [Username ConfirmationCode Password]} event]
     (try
       (cognito/confirm-forgot-password
@@ -193,7 +204,7 @@
         (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/change-password tag [{:keys [event] :as req}]
-  (let [aws-config (uh/get-aws-config false)
+  (let [aws-config (uh/get-aws-config)
         {:keys [AccessToken CurrentPassword NewPassword]} event]
     (try
       (cognito/change-password

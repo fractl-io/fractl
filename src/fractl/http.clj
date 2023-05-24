@@ -214,14 +214,17 @@
     eval-res))
 
 (defn- whitelisted-email? [email]
-  (let [{:keys [access-key secret-key region s3-bucket whitelist-file-key] :as _aws-config} (uh/get-aws-config true)
-        whitelisted-emails (read-string
-                            (s3/get-object-as-string
-                             {:access-key access-key
-                              :secret-key secret-key
-                              :endpoint region}
-                             s3-bucket whitelist-file-key))]
-    (contains? whitelisted-emails email)))
+  (let [{:keys [access-key secret-key region whitelist?] :as _aws-config} (uh/get-aws-config)]
+    (if (true? whitelist?)
+      (let [[s3-bucket whitelist-file-key] (uh/get-aws-config)
+            whitelisted-emails (read-string
+                                 (s3/get-object-as-string
+                                   {:access-key access-key
+                                    :secret-key secret-key
+                                    :endpoint region}
+                                   s3-bucket whitelist-file-key))]
+        (contains? whitelisted-emails email))
+      nil)))
 
 (defn- whitelisted-domain? [email domains]
   (let [domain (last (s/split email #"@"))]
