@@ -59,7 +59,7 @@
         (throw (Exception. (get-error-msg-and-log e)))))
     nil))
 
-(defn- sign-up-user [req aws-config client-id user-pool-id user]
+(defn- sign-up-user [req aws-config client-id user-pool-id whitelist? user]
   (let [{:keys [Name FirstName LastName Password Email]} user]
     (try
       (sign-up
@@ -71,7 +71,7 @@
                          ["email" Email]
                          ["name" Name]]
        :username Email)
-      (confirm-signed-up-user-if-whitelist-is-false req aws-config false Email user-pool-id)
+      (confirm-signed-up-user-if-whitelist-is-false req aws-config whitelist? Email user-pool-id)
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
@@ -82,7 +82,7 @@
     ;; Create User
       :User
       (let [user instance]
-        (sign-up-user req aws-config client-id user-pool-id user))
+        (sign-up-user req aws-config client-id user-pool-id whitelist? user))
 
     ;; Update user
       :UpdateUser
