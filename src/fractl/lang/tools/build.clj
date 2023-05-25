@@ -241,10 +241,15 @@
 (defn- write-config-edn [model-root write]
   (let [src-cfg (str model-root u/path-sep config-edn)]
     (when (.exists (File. src-cfg))
-      (write config-edn (slurp src-cfg) :spit))))
+      (let [cfg (slurp src-cfg)]
+        (write config-edn cfg :spit)
+        cfg))))
 
-(defn- create-client-project [model-name ver]
-  (cl/build-project model-name ver (client-path model-name)))
+(defn- create-client-project [model-name ver app-config]
+  (let [build-type (if (:service (:authentication app-config))
+                     'prod
+                     'dev)]
+    (cl/build-project model-name ver (client-path model-name) build-type)))
 
 (defn- build-clj-project [model-name model-root model components]
   (let [ver (model-version model)]
@@ -256,8 +261,7 @@
         (wr "logback.xml" log-config :spit)
         (let [cmps (mapv (partial copy-component wr model-name) components)]
           (write-model-clj wr model-name cmps model)
-          (write-config-edn model-root wr)
-          (create-client-project model-name ver)))
+          (create-client-project model-name ver (write-config-edn model-root wr))))
       (log/error (str "failed to create clj project for " model-name)))))
 
 (defn- load-clj-project [model-name components]
