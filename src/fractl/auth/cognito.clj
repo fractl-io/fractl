@@ -1,5 +1,5 @@
 (ns fractl.auth.cognito
-  (:require [amazonica.aws.cognitoidp :as cognito]
+  (:require [amazonica.aws.cognitoidp :refer :all]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [fractl.auth.core :as auth]
@@ -41,11 +41,11 @@
 (defmethod auth/user-login tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
     (try
-      (cognito/initiate-auth (auth/make-client (merge req aws-config))
-                             :auth-flow "USER_PASSWORD_AUTH"
-                             :auth-parameters {"USERNAME" (:Username event)
-                                               "PASSWORD" (:Password event)}
-                             :client-id client-id)
+      (initiate-auth (auth/make-client (merge req aws-config))
+                     :auth-flow "USER_PASSWORD_AUTH"
+                     :auth-parameters {"USERNAME" (:Username event)
+                                       "PASSWORD" (:Password event)}
+                     :client-id client-id)
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
@@ -57,7 +57,7 @@
       (let [user instance
             {:keys [Name FirstName LastName Password Email]} user]
         (try
-          (cognito/sign-up
+          (sign-up
            (auth/make-client (merge req aws-config))
            :client-id client-id
            :password Password
@@ -72,7 +72,7 @@
 
         (when (false? whitelist?)
           (try
-            (cognito/admin-confirm-sign-up
+            (admin-confirm-sign-up
               (auth/make-client (merge req aws-config))
               :username Email
               :user-pool-id user-pool-id)
@@ -91,7 +91,7 @@
             {:keys [Username Org Token]} github-details
             refresh-token (get-in user-details [:OtherDetails :RefreshToken])]
         (try
-          (cognito/admin-update-user-attributes
+          (admin-update-user-attributes
            (auth/make-client (merge req aws-config))
            :username cognito-username
            :user-pool-id user-pool-id
@@ -101,7 +101,7 @@
                              ["custom:github_token" Token]
                              ["custom:github_username" Username]])
         ;; Refresh credentials
-          (cognito/initiate-auth
+          (initiate-auth
            (auth/make-client (merge req aws-config))
            :auth-flow "REFRESH_TOKEN_AUTH"
            :auth-parameters {"USERNAME" cognito-username
@@ -117,7 +117,7 @@
         cognito-username (get-in req [:user :username])
         refresh-token (:RefreshToken event)]
     (try
-      (cognito/initiate-auth
+      (initiate-auth
        (auth/make-client (merge req aws-config))
        :auth-flow "REFRESH_TOKEN_AUTH"
        :auth-parameters {"USERNAME" cognito-username
@@ -141,7 +141,7 @@
 (defmethod auth/user-logout tag [{:keys [sub] :as req}]
   (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config)]
     (try
-      (cognito/admin-user-global-sign-out
+      (admin-user-global-sign-out
        (auth/make-client (merge req aws-config))
        :user-pool-id user-pool-id
        :username (:username sub))
@@ -152,7 +152,7 @@
   (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config)]
     (when-let [email (:Email instance)]
       (try
-        (cognito/admin-delete-user
+        (admin-delete-user
          (auth/make-client (merge req aws-config))
          :username email
          :user-pool-id user-pool-id)
@@ -161,7 +161,7 @@
 
 (defmethod auth/get-user tag [{:keys [user] :as req}]
   (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config)
-        resp (cognito/admin-get-user
+        resp (admin-get-user
               (auth/make-client (merge req aws-config))
               :username (:username user)
               :user-pool-id user-pool-id)
@@ -183,7 +183,7 @@
 (defmethod auth/forgot-password tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
     (try
-      (cognito/forgot-password
+      (forgot-password
        (auth/make-client (merge req aws-config))
        :username (:Username event)
        :client-id client-id)
@@ -194,7 +194,7 @@
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)
         {:keys [Username ConfirmationCode Password]} event]
     (try
-      (cognito/confirm-forgot-password
+      (confirm-forgot-password
        (auth/make-client (merge req aws-config))
        :username Username
        :confirmation-code ConfirmationCode
@@ -207,7 +207,7 @@
   (let [aws-config (uh/get-aws-config)
         {:keys [AccessToken CurrentPassword NewPassword]} event]
     (try
-      (cognito/change-password
+      (change-password
        (auth/make-client (merge req aws-config))
        :access-token AccessToken
        :previous-password CurrentPassword
