@@ -49,37 +49,40 @@
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
+(defn- confirm-signed-up-user-if-whitelist-is-false [req aws-config whitelist? email user-pool-id]
+  (if (false? whitelist?)
+    (try
+      (admin-confirm-sign-up (auth/make-client (merge req aws-config))
+                             :username email
+                             :user-pool-id user-pool-id)
+      (catch Exception e
+        (throw (Exception. (get-error-msg-and-log e)))))
+    nil))
+
+(defn- sign-up-user [req aws-config client-id user-pool-id user]
+  (let [{:keys [Name FirstName LastName Password Email]} user]
+    (try
+      (sign-up
+       (auth/make-client (merge req aws-config))
+       :client-id client-id
+       :password Password
+       :user-attributes [["given_name" FirstName]
+                         ["family_name" LastName]
+                         ["email" Email]
+                         ["name" Name]]
+       :username Email)
+      (confirm-signed-up-user-if-whitelist-is-false req aws-config false Email user-pool-id)
+      (catch Exception e
+        (throw (Exception. (get-error-msg-and-log e)))))))
+
+
 (defmethod auth/upsert-user tag [{:keys [instance] :as req}]
   (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)]
     (case (last (li/split-path (cn/instance-type instance)))
     ;; Create User
       :User
-      (let [user instance
-            {:keys [Name FirstName LastName Password Email]} user]
-        (try
-          (sign-up
-           (auth/make-client (merge req aws-config))
-           :client-id client-id
-           :password Password
-           :user-attributes [["given_name" FirstName]
-                             ["family_name" LastName]
-                             ["email" Email]
-                             ["name" Name]]
-           :username Email)
-          user
-          (catch Exception e
-            (throw (Exception. (get-error-msg-and-log e)))))
-
-        (when (false? whitelist?)
-          (try
-            (admin-confirm-sign-up
-              (auth/make-client (merge req aws-config))
-              :username Email
-              :user-pool-id user-pool-id)
-            user
-            (catch Exception e
-              (throw (Exception. (get-error-msg-and-log e)))))))
-
+      (let [user instance]
+        (sign-up-user req aws-config client-id user-pool-id user))
 
     ;; Update user
       :UpdateUser
