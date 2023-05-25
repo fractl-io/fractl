@@ -4,7 +4,6 @@
             [clojure.pprint :as pprint]
             [clojure.java.io :as io]
             [clojure.walk :as w]
-            [hawk.core :as hawk]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
@@ -336,10 +335,6 @@
 (defn compile-model [model-name]
   (maybe-copy-kernel (exec-with-build-model nil nil model-name)))
 
-(defn- fractl-script? [ctx f]
-  (and (hawk/file? ctx f)
-       (u/fractl-script? (:file f))))
-
 (defn- load-script [model-root _ f]
   (when (not= :delete (:kind f))
     (try
@@ -348,17 +343,11 @@
         (.printStackTrace ex)
         (log/warn (str "failed to load " (:file f) " - " (str ex)))))))
 
-(defn- handle-load-clj-project [live-reload model-name model-root _ components]
-  (let [r (load-clj-project model-name components)]
-    (when live-reload
-      (hawk/watch!
-       [{:paths [model-root]
-         :filter fractl-script?
-         :handler (partial load-script model-root)}]))
-    r))
+(defn- handle-load-clj-project [model-name model-root _ components]
+  (load-clj-project model-name components))
 
-(defn load-model [model-name live-reload]
-  (build-model (partial handle-load-clj-project live-reload) nil model-name nil))
+(defn load-model [model-name]
+  (build-model handle-load-clj-project nil model-name nil))
 
 (defn- config-file-path [model-name]
   (str (project-dir model-name) config-edn))

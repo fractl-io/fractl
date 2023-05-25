@@ -3,14 +3,12 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as s]
             [fractl.component :as cn]
-            [fractl.store :as store]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang.name-util :as nu]
             [fractl.lang.internal :as li]
             [fractl.lang.tools.util :as tu]
-            [fractl.global-state :as gs]
             [fractl.evaluator.state :as es])
   (:import [java.io FileInputStream InputStreamReader PushbackReader]))
 
@@ -78,13 +76,6 @@
     file-name-or-input-stream
     (fetch-declared-names file-name-or-input-stream))))
 
-(defn- remove-component [component]
-  (cn/remove-component component)
-  (when (gs/in-script-mode?)
-    (when-let [store (es/get-active-store)]
-      (store/drop-schema store component)))
-  component)
-
 (defn load-script
   "Load, complile and intern the component from a script file."
   ([^String component-root-path file-name-or-input-stream]
@@ -104,7 +95,7 @@
          names (fetch-declared-names file-ident)
          component-name (:component names)]
      (when (and component-name (cn/component-exists? component-name))
-       (remove-component component-name))
+       (cn/remove-component component-name))
      (let [exprs (binding [*ns* *ns*]
                    (read-expressions
                     (if input-reader?
@@ -122,7 +113,7 @@
   "Load, complile and intern the component from a namespace expressions."
   ([mns mns-exps convert-fq?]
    (use 'fractl.lang)
-   (remove-component mns)
+   (cn/remove-component mns)
    (binding [*ns* *ns*]
      (into
       '()
