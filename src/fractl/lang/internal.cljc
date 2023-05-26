@@ -129,13 +129,14 @@
         x)))
 
 (defn do-clj-import [clj-import]
-  (when (gs/in-script-mode?)
-    (doseq [spec clj-import]
-      (let [f (case (first spec)
-                :require require
-                :use use
-                nil)]
-        (when f (apply f (rest spec)))))))
+  #?(:clj
+     (when (gs/in-script-mode?)
+       (doseq [spec clj-import]
+         (let [f (case (first spec)
+                   :require require
+                   :use use
+                   nil)]
+           (when f (apply f (rest spec))))))))
 
 (defn attribute-entry-format? [x]
   (if (vector? x)
