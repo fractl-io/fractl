@@ -2,6 +2,7 @@
   (:require [clojure.string :as s]
             [clojure.set :as set]
             [fractl.util :as u]
+            [fractl.global-state :as gs]
             #?(:cljs
                [cljs.js :refer [eval empty-state js-eval]])))
 
@@ -126,6 +127,16 @@
             (and (some #{k} #{:require :use :import :refer :refer-macros})
                  (every? vector? (rest entry)))))
         x)))
+
+(defn do-clj-import [clj-import]
+  #?(:clj
+     (when (gs/in-script-mode?)
+       (doseq [spec clj-import]
+         (let [f (case (first spec)
+                   :require require
+                   :use use
+                   nil)]
+           (when f (apply f (rest spec))))))))
 
 (defn attribute-entry-format? [x]
   (if (vector? x)

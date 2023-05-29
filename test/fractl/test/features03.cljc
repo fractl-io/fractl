@@ -184,25 +184,24 @@
              {:Instance {:I801/B {:Y 200 :Id 10}}}})
         a11 (tu/result
              {:I801/Upsert_R1
-              {:A 1 :B 10}})
-        r1 (first (li/rel-tag a11))]
-    (is (cn/same-instance? a1 (dissoc a11 li/rel-tag)))
+              {:Instance {:I801/R1 {:A 1 :B 10}}}})
+        r1 (first a11)]
     (is (cn/instance-of? :I801/R1 r1))
     (is (= (:A r1) 1))
     (is (= (:B r1) 10))
     (let [a11 (tu/result
                {:I801/Upsert_R2
-                {:A1 1 :A2 3}})
-          r2 (first (li/rel-tag a11))]
-      (is (cn/same-instance? a1 (dissoc a11 li/rel-tag)))
+                {:Instance {:I801/R2 {:A1 1 :A2 3}}}})
+          r2 (first a11)]
       (is (cn/instance-of? :I801/R2 r2))
       (is (= (:A1 r2) 1))
       (is (= (:A2 r2) 3)))
     (let [a11 (tu/result
                {:I801/Upsert_R3
-                {:A 3 :B 10}})
-          r3 (first (li/rel-tag a11))]
-      (is (cn/same-instance? a2 (dissoc a11 li/rel-tag)))
+                {:Instance {:I801/R3
+                            {:A 300 :B 200
+                             :AIdentity 3 :BIdentity 10}}}})
+          r3 (first a11)]
       (is (cn/instance-of? :I801/R3 r3))
       (is (= (:A r3) 300))
       (is (= (:B r3) 200))
@@ -403,10 +402,9 @@
                             {:Rea/E1 {:X %}}}})
                         [1 2])]
     (is (every? (partial cn/instance-of? :Rea/E1) es))
-    (let [e1 (tu/result {:Rea/Upsert_R
-                         {:A 1 :B 2}})
-          r (first (ls/rel-tag e1))]
-      (is (cn/instance-of? :Rea/E1 e1))
+    (let [r (first
+             (tu/result {:Rea/Upsert_R
+                         {:Instance {:Rea/R {:A 1 :B 2}}}}))]
       (is (cn/instance-of? :Rea/R r))
       (is (and (= (:A r) 1) (= (:B r) 2))))))
 

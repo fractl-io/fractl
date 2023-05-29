@@ -241,32 +241,34 @@
 (defn- write-config-edn [model-root write]
   (let [src-cfg (str model-root u/path-sep config-edn)]
     (when (.exists (File. src-cfg))
-      (write config-edn (slurp src-cfg) :spit))))
+      (let [cfg (slurp src-cfg)]
+        (write config-edn cfg :spit)
+        cfg))))
 
-(defn- create-client-project [model-name ver]
-  (cl/build-project model-name ver (client-path model-name)))
+(defn- create-client-project [model-name ver app-config]
+  (let [build-type (if (:service (:authentication app-config))
+                     'prod
+                     'dev)]
+    (cl/build-project model-name ver (client-path model-name) build-type)))
 
-(defn- load-or-build-clj-project [load model-name model-root model components]
-  (if load
-    (let [f (partial copy-component nil model-name)]
-      (doseq [c components]
-        (f c))
-      model-name)
-    (let [ver (model-version model)]
-      (if (create-clj-project model-name ver)
-        (let [[rd wr] (clj-io model-name)
-              spec (update-project-spec model (rd "project.clj"))
-              log-config (make-log-config model-name ver)]
-          (wr "project.clj" spec)
-          (wr "logback.xml" log-config :spit)
-          (let [cmps (mapv (partial copy-component wr model-name) components)]
-            (write-model-clj wr model-name cmps model)
-            (write-config-edn model-root wr)
-            (create-client-project model-name ver)))
-        (log/error (str "failed to create clj project for " model-name))))))
+(defn- build-clj-project [model-name model-root model components]
+  (let [ver (model-version model)]
+    (if (create-clj-project model-name ver)
+      (let [[rd wr] (clj-io model-name)
+            spec (update-project-spec model (rd "project.clj"))
+            log-config (make-log-config model-name ver)]
+        (wr "project.clj" spec)
+        (wr "logback.xml" log-config :spit)
+        (let [cmps (mapv (partial copy-component wr model-name) components)]
+          (write-model-clj wr model-name cmps model)
+          (create-client-project model-name ver (write-config-edn model-root wr))))
+      (log/error (str "failed to create clj project for " model-name)))))
 
-(def ^:private build-clj-project (partial load-or-build-clj-project false))
-(def ^:private load-clj-project (partial load-or-build-clj-project true))
+(defn- load-clj-project [model-name components]
+  (let [f (partial copy-component nil model-name)]
+    (doseq [c components]
+      (f c))
+    model-name))
 
 (declare install-model)
 
@@ -337,11 +339,19 @@
 (defn compile-model [model-name]
   (maybe-copy-kernel (exec-with-build-model nil nil model-name)))
 
-(defn load-model
-  ([model-paths model-name]
-   (build-model load-clj-project model-paths model-name nil))
-  ([model-name]
-   (load-model nil model-name)))
+(defn- load-script [model-root _ f]
+  (when (not= :delete (:kind f))
+    (try
+      (loader/load-script model-root (:file f))
+      (catch Exception ex
+        (.printStackTrace ex)
+        (log/warn (str "failed to load " (:file f) " - " (str ex)))))))
+
+(defn- handle-load-clj-project [model-name model-root _ components]
+  (load-clj-project model-name components))
+
+(defn load-model [model-name]
+  (build-model handle-load-clj-project nil model-name nil))
 
 (defn- config-file-path [model-name]
   (str (project-dir model-name) config-edn))

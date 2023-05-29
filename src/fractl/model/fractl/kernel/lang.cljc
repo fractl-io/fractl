@@ -46,6 +46,14 @@
 (attribute :Fractl.Kernel.Lang/Map {:check map?})
 (attribute :Fractl.Kernel.Lang/Edn {:check k/edn?})
 (attribute
+ :Fractl.Kernel.Lang/Identity
+ {:type :Fractl.Kernel.Lang/UUID,
+  :default u/uuid-string,
+  :identity true})
+(attribute
+ :Fractl.Kernel.Lang/Now
+ {:type :Fractl.Kernel.Lang/DateTime, :default dt/now})
+(attribute
  (k/event-context-attribute-name)
  (k/event-context-attribute-schema))
 (attribute
@@ -106,12 +114,10 @@
    :type :timer,
    :compose? false,
    :paths [:Fractl.Kernel.Lang/Timer]}
-  #?(:clj
-     {:name :data-sync,
-      :type :data-sync,
-      :compose? false,
-      :paths [:Fractl.Kernel.Lang/DataSync]})
-  ])
+  {:name :data-sync,
+   :type :data-sync,
+   :compose? false,
+   :paths [:Fractl.Kernel.Lang/DataSync]}])
 (def
  Fractl_Kernel_Lang___COMPONENT_ID__
- "cea30cf9-feb0-40b8-80e8-de5a56a63802")
+ "5bebb66a-705f-4501-85f4-9ed97d2a5594")

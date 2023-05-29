@@ -9,6 +9,7 @@
                       [fractl.util :refer [passthru]]))
   #?(:clj
      (:import [java.io File]
+              [org.apache.commons.io FilenameUtils]
               [org.apache.commons.exec CommandLine Executor DefaultExecutor])))
 
 (def ^:private script-extn (atom ".fractl"))
@@ -23,6 +24,15 @@
 
 (defn get-model-script-name []
   (str "model" @script-extn))
+
+(defn file-extension [s]
+  #?(:clj
+     (str "." (FilenameUtils/getExtension s))
+     :cljs
+     (second (re-find #"(\.[a-zA-Z0-9]+)$" s))))
+
+(defn fractl-script? [f]
+  (= @script-extn (file-extension (str f))))
 
 (defn throw-ex-info
   ([msg errobj]
