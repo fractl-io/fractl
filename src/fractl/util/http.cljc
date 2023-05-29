@@ -111,7 +111,7 @@
                          :secret-key (get-env-var "AWS_SECRET_KEY")
                          :client-id (get-env-var "AWS_COGNITO_CLIENT_ID")
                          :user-pool-id (get-env-var "AWS_COGNITO_USER_POOL_ID")
-                         :whitelist? (read-string (get-env-var "WHITELIST"))}]
+                         :whitelist? (read-string (get-env-var "FRACTL_AUTH_WHITELIST"))}]
          ;;TODO: Need to revisit this and add a layer to check for domains
          ;;      that are whitelisted.
          #_(if (true? (:whitelist? aws-config))
