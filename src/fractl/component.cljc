@@ -311,6 +311,13 @@
    (:schema (find-event-schema event-name))
    li/event-context))
 
+(defn fetch-spec [tag n]
+  (when-let [meta (fetch-meta n)]
+    (tag meta)))
+
+(def fetch-ui-spec (partial fetch-spec :ui))
+(def fetch-rbac-spec (partial fetch-spec :rbac))
+
 (defn- maybe-expand-attribute-schema [attr-name]
   (if (s/index-of (name attr-name) "_")
     (find-attribute-schema attr-name)

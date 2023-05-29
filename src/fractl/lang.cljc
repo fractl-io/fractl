@@ -129,6 +129,20 @@
 
     :else (u/throw-ex (str "invalid :listof specification - " x))))
 
+(defn- meta-specs [attrs]
+  (let [meta (:meta attrs)
+        ui-spec (:ui attrs)
+        rbac-spec (:rbac attrs)
+        meta-ui (merge (:ui meta) ui-spec)
+        meta-rbac (merge (:rbac meta) rbac-spec)]
+    [(merge meta (when (seq meta-ui) {:ui meta-ui})
+            (when (seq meta-rbac) {:rbac meta-rbac}))
+     (dissoc attrs :meta :ui :rbac)]))
+
+(defn- merge-attribute-meta [scm]
+  (let [[meta scm] (meta-specs scm)]
+    (assoc scm :meta meta)))
+
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
     (case k
@@ -158,13 +172,14 @@
       :secure-hash (li/validate-bool :secure-hash v)
       :oneof v
       :label (li/validate symbol? ":label must be a symbol" v)
-      :meta v
+      (:ui :rbac :meta) v
       (u/throw-ex (str "invalid constraint in attribute definition - " k))))
-  (merge
-   {:unique false :immutable false}
-   (if-let [fmt (:format scm)]
-     (assoc scm :format (partial re-matches (re-pattern fmt)) :format-str fmt)
-     scm)))
+  (merge-attribute-meta
+   (merge
+    {:unique false :immutable false}
+    (if-let [fmt (:format scm)]
+      (assoc scm :format (partial re-matches (re-pattern fmt)) :format-str fmt)
+      scm))))
 
 (defn- find-ref-type [path]
   (when-let [scm (cn/find-attribute-schema path)]
@@ -375,12 +390,11 @@
 (defn- normalized-attributes [rectype recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
         orig-attrs (normalize-kernel-types orig-attrs)
-        meta (:meta orig-attrs)
+        [meta base-attrs] (meta-specs orig-attrs)
         inherits (:inherits meta)
         inherited-scm (when inherits (fetch-inherited-schema inherits rectype))
         req-inherited-attrs (or (:required-attributes inherited-scm)
                                 (required-attribute-names inherited-scm))
-        base-attrs (dissoc orig-attrs :meta)
         attrs (if inherited-scm
                 (merge inherited-scm base-attrs)
                 base-attrs)
