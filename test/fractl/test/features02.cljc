@@ -616,3 +616,50 @@
               :default "yyyy"}
           :Z :I840/K}
          (cn/fetch-user-schema :I840/E))))
+
+(deftest deeds-awards
+  (defcomponent :Deeds
+    (attribute
+     :Deeds/IdName
+     {:type :String :identity true})
+    (entity :Deeds/Member {:Name :IdName})
+    (entity :Deeds/Group {:Name :IdName})
+    (entity :Deeds/Deed {:Title :IdName})
+    (entity :Deeds/Award {:Title :IdName})
+    (relationship :Deeds/Membership {:meta {:contains [:Deeds/Group :Deeds/Member]}})
+    (relationship :Deeds/MemberAward {:meta {:between [:Deeds/Member :Deeds/Award]}})
+    (relationship :Deeds/DeedsAward {:meta {:between [:Deeds/Deed :Deeds/Award]}})
+    (dataflow
+     :Deeds/GiveAward
+     {:Deeds/Award
+      {:Title :Deeds/GiveAward.Title}
+      :-> [[{:Deeds/MemberAward {}} {:Deeds/Member
+                                     {:Name? :Deeds/GiveAward.Member}
+                                     :-> [:Deeds/Membership?
+                                          {:Deeds/Group {:Name? :Deeds/GiveAward.Group}}]}]
+           [{:Deeds/DeedsAward {}} {:Deeds/Deed
+                                    {:Title? :Deeds/GiveAward.Deed}}]]}))
+  (let [grp (tu/first-result
+             {:Deeds/Upsert_Group
+              {:Instance {:Deeds/Group {:Name "g1"}}}})
+        mem (tu/result
+             {:Deeds/Upsert_Member
+              {:Instance {:Deeds/Member {:Name "m1"}}
+               :Group "g1"}})
+        dd (tu/first-result
+            {:Deeds/Upsert_Deed
+             {:Instance {:Deeds/Deed {:Title "d1"}}}})]
+    (is (cn/instance-of? :Deeds/Group grp))
+    (is (cn/instance-of? :Deeds/Member mem))
+    (is (cn/instance-of? :Deeds/Deed dd))
+    (let [r (tu/result
+             {:Deeds/GiveAward
+              {:Title "a1"
+               :Group "g1"
+               :Member "m1"
+               :Deed "d1"}})]
+      (is (cn/instance-of? :Deeds/Award r))
+      (is (= 2 (count (:-> r))))
+      (doseq [a (:-> r)]
+        (is (or (cn/instance-of? :Deeds/MemberAward a)
+                (cn/instance-of? :Deeds/DeedsAward a)))))))
