@@ -126,4 +126,4 @@
                        :Fractl.Kernel.Rbac/FindInstancePrivileges.ResourceId}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "5bb818c1-3ae8-4414-9a3f-193a15a8af20")
+ "9998b799-ec8d-4825-a718-c25045a71278")

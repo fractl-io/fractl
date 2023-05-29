@@ -39,10 +39,15 @@
   "Create and activate a new component with the given name."
   ([n spec]
    (let [ns-name (li/validate-name n)]
-     (cn/create-component
-      ns-name
-      (when spec
-        (validate-component-spec spec)))))
+     (when (cn/component-exists? ns-name)
+       (cn/remove-component ns-name))
+     (let [r (cn/create-component
+              ns-name
+              (when spec
+                (validate-component-spec spec)))]
+       (when-let [imps (:clj-import spec)]
+         (li/do-clj-import imps))
+       r)))
   ([n] (component n nil)))
 
 (defn- attribute-type? [nm]
@@ -669,7 +674,8 @@
      (if (map? attrs)
        (let [rec-name (validated-canonical-type-name
                        (when (cn/system-defined? attrs) identity)
-                      n)
+                       n)
+             is-rel (:relationship (:meta attrs))
              [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
              result (intern-rec
                      rec-name
@@ -694,22 +700,22 @@
                lookupallevt (ev :LookupAll)]
            (cn/for-each-entity-event-name
             rec-name (partial entity-event rec-name))
-           (event-internal upevt inst-evattrs)
-           (let [ref-pats (mapv (fn [[k v]]
-                                  (load-ref-pattern
-                                   upevt :Instance rec-name k
-                                   (cn/find-attribute-schema v)))
-                                (cn/ref-attribute-schemas
-                                 (cn/fetch-schema rec-name)))]
-             (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
            (event-internal delevt id-evattrs)
            (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
-           (event-internal lookupevt-internal id-evattrs)
-           (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
-           (event-internal lookupevt id-evattrs)
-           (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
-           (event-internal lookupallevt {})
-           (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)]))
+           (when-not is-rel
+             (event-internal upevt inst-evattrs)
+             (event-internal lookupevt-internal id-evattrs)
+             (event-internal lookupevt id-evattrs)
+             (event-internal lookupallevt {})
+             (let [ref-pats (mapv (fn [[k v]]
+                                    (load-ref-pattern
+                                     upevt :Instance rec-name k
+                                     (cn/find-attribute-schema v)))
+                                  (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))]
+               (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
+             (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
+             (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
+             (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)])))
          ;; Install dataflows for implicit events.
          (when dfexps (mapv eval dfexps))
          result)
@@ -905,7 +911,9 @@
         ctx-aname (k/event-context-attribute-name)
         [fname tname] (cn/normalize-between-attribute-names relname from to)
         lookup-evt (ev :Lookup)
-        lookupall-evt (ev :LookupAll)]
+        lookupall-evt (ev :LookupAll)
+        id-f (cn/identity-attribute-name from)
+        id-t (cn/identity-attribute-name to)]
     (event-internal
      lookupall-evt
      {li/event-context ctx-aname})
@@ -920,24 +928,13 @@
     (cn/register-dataflow
      lookup-evt
      [{relname
-       {(li/name-as-query-pattern fname)
-        (li/make-ref lookup-evt fname)
-        (li/name-as-query-pattern tname)
-        (li/make-ref lookup-evt tname)}}])
+       {(li/name-as-query-pattern fname) (li/make-ref lookup-evt fname)
+        (li/name-as-query-pattern tname) (li/make-ref lookup-evt tname)}}])
     (event-internal
      upevt
-     (merge
-      {:Instance {:type relname :optional true}
-       li/event-context ctx-aname}
-      {fname :Fractl.Kernel.Lang/Any
-       tname :Fractl.Kernel.Lang/Any}))
-    (cn/register-dataflow
-     upevt
-     [{from {(li/name-as-query-pattern from-qattr)
-             (li/make-ref upevt fname)}
-       li/rel-tag [{relname ups-attrs}
-                   {to {(li/name-as-query-pattern to-qattr)
-                        (li/make-ref upevt tname)}}]}])))
+     {:Instance {:type relname :optional true}
+      li/event-context ctx-aname})
+    (cn/register-dataflow upevt [(li/make-ref upevt :Instance)])))
 
 (defn relationship
   ([relation-name attrs]

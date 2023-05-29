@@ -2,13 +2,14 @@
   "Component script loading with pre-processing."
   (:require [clojure.java.io :as io]
             [clojure.string :as s]
+            [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang.name-util :as nu]
             [fractl.lang.internal :as li]
             [fractl.lang.tools.util :as tu]
-            [fractl.component :as cn])
+            [fractl.evaluator.state :as es])
   (:import [java.io FileInputStream InputStreamReader PushbackReader]))
 
 (defn- record-name [obj]
@@ -62,6 +63,7 @@
                (partial nu/fully-qualified-names declared-names)
                identity)
          parser (if *parse-expressions* eval identity)]
+     (use '[fractl.lang])
      (try
        (loop [exp (rdf), exps nil]
          (if (= exp :done)
@@ -92,7 +94,7 @@
              file-name-or-input-stream))
          names (fetch-declared-names file-ident)
          component-name (:component names)]
-     (when component-name
+     (when (and component-name (cn/component-exists? component-name))
        (cn/remove-component component-name))
      (let [exprs (binding [*ns* *ns*]
                    (read-expressions
