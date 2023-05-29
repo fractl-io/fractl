@@ -1,7 +1,6 @@
 (ns fractl.util.http
   (:require #?(:clj [org.httpkit.client :as http]
                :cljs [cljs-http.client :as http])
-            [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.datafmt.json :as json]
@@ -106,15 +105,18 @@
            (throw (Exception. (str "Environment variable \"" var-name "\" not found.")))
            var-value)))
 
-     (defn get-aws-config [whitelist?]
-       (let [aws-config {:region (get-env-var "AWS_REGION")
+     (defn get-aws-config []
+       (let [aws-config {:region  (get-env-var "AWS_REGION")
                          :access-key (get-env-var "AWS_ACCESS_KEY")
                          :secret-key (get-env-var "AWS_SECRET_KEY")
                          :client-id (get-env-var "AWS_COGNITO_CLIENT_ID")
                          :user-pool-id (get-env-var "AWS_COGNITO_USER_POOL_ID")
-                         :whitelist? whitelist?}]
-         (if (true? whitelist?)
-           (assoc aws-config
-                  :s3-bucket (get-env-var "AWS_S3_BUCKET")
-                  :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
-           aws-config)))))
+                         :whitelist? (read-string (get-env-var "FRACTL_AUTH_WHITELIST"))}]
+         ;;TODO: Need to revisit this and add a layer to check for domains
+         ;;      that are whitelisted.
+         #_(if (true? (:whitelist? aws-config))
+             (assoc aws-config
+               :s3-bucket (get-env-var "AWS_S3_BUCKET")
+               :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
+             aws-config)
+         aws-config))))
