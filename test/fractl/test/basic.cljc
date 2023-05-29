@@ -1182,41 +1182,6 @@
     (is (not (:Y r1)))
     (is (:Y r2))))
 
-(deftest expr-compile
-  (c/register-expression-compiler
-   :ui (fn [_ _ _ v] (constantly v)))
-  (let [spec [:ui
-              [:div
-               "Name: " [:input {:type "text"
-                                 :on-change [:set :Name]}]
-               [:br]
-               "Age: " [:input {:type "text"
-                                :on-change [:set :Age]}]
-               [:br]
-               [:input {:type "button" :value "OK"
-                        :on-click {:ExprCompile/SayHello
-                                   {:Name :Name
-                                    :Age :Age}}}]]]]
-    (defcomponent :ExprCompile
-      (entity
-       :ExprCompile/Form
-       {:Name :String
-        :Age :Int
-        :Spec
-        {:type :Edn
-         :expr spec}})
-      (dataflow
-       :ExprCompile/ShowForm
-       {:ExprCompile/Form
-        {:Name "xyz" :Age 20}}))
-    (let [e (tu/first-result
-             (cn/make-instance
-              {:ExprCompile/ShowForm
-               {:Name "xyz"
-                :Age 20}}))]
-      (is (cn/instance-of? :ExprCompile/Form e))
-      (is (= spec (:Spec e))))))
-
 (deftest password-match
   (defcomponent :PM
     (entity

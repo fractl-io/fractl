@@ -260,13 +260,6 @@
   ;; TODO: implement the query->fn compilation phase.
   (u/throw-ex (str k " - inline compilation for :query not implemented")))
 
-(def ^:private default-expression-compiler [c/compile-attribute-expression nil])
-
-(defn- fetch-expression-compiler [expr]
-  (if (vector? expr)
-    (c/expression-compiler (first expr))
-    default-expression-compiler))
-
 (defn- attref? [n]
   (let [[[_ _] a] (li/ref-as-names n)]
     (if a true false)))
@@ -295,15 +288,12 @@
     (when-let [expr (:expr v)]
       (if (fn? expr)
         (attribute nm v)
-        (let [[c tag] (fetch-expression-compiler expr)]
-          (when tag
-            (cn/register-custom-compiled-record tag recname))
-          (attribute
-           nm
-           (merge (if-let [t (:type v)]
-                    {:type t}
-                    (u/throw-ex (str ":type is required for attribute " k " with compound expression")))
-                  {:expr (c recname attrs k expr)})))))))
+        (attribute
+         nm
+         (merge (if-let [t (:type v)]
+                  {:type t}
+                  (u/throw-ex (str ":type is required for attribute " k " with compound expression")))
+                {:expr (c/compile-attribute-expression recname attrs k expr)}))))))
 
 (defn- normalize-attr [recname attrs fqn [k v]]
   (let [newv
