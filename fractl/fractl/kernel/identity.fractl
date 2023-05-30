@@ -22,8 +22,8 @@
 
 (event
  :PostSignUp
- {:SignupResult :Any
-  :UserData :Any})
+ {:SignupRequest :SignUp
+  :SignupResult :Any})
 
 (dataflow :SignUp :SignUp.User)
 

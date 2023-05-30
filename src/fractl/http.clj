@@ -275,7 +275,9 @@
                       (when call-post-signup
                         (evaluate
                          evaluator
-                         (assoc (create-event post-signup-event-name) :SignupResult result :UserDetails evobj)
+                         (assoc
+                          (create-event post-signup-event-name)
+                          :SignupResult result :SignupRequest evobj)
                          data-fmt))]
                   (if user
                     (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
