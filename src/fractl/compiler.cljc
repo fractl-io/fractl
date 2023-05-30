@@ -1139,17 +1139,3 @@
         exp `(fn [~runtime-env-var ~current-instance-var]
                (~(first aval) ~@fexprs))]
     (li/evaluate exp)))
-
-(def expression-compiler-registry (u/make-cell {:ui uic/compile-ui-spec}))
-
-(defn register-expression-compiler [tag compile-fn]
-  (u/safe-set
-   expression-compiler-registry
-   (assoc @expression-compiler-registry tag compile-fn)))
-
-(defn expression-compiler [n]
-  (let [[a b] (li/split-path n)
-        tag (or b a)]
-    (if-let [c (tag @expression-compiler-registry)]
-      [c tag]
-      (u/throw-ex (str tag " - unsupported expression tag")))))
