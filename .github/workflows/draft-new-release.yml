@@ -46,8 +46,7 @@ jobs:
           head: release/${{ github.event.inputs.version }}
           base: main
           title: Release version ${{ github.event.inputs.version }}
-          assignees: |
-            ${{ github.actor }} # By default, we assign the person who triggered the workflow.
+          assignees: ${{ github.actor }} # By default, we assign the person who triggered the workflow.
           reviewers: |
             ${{ github.actor }} # By default, we request a review from the person who triggered the workflow.
             fractlrao
