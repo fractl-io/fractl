@@ -295,6 +295,17 @@
      :root model-root
      :name model-name}))
 
+(defn compiled-model?
+  ([model-path model-name]
+   (let [model-path (if (= model-path ".")
+                      (System/getProperty "user.dir")
+                      model-path)]
+     (if (nil? model-path)
+       (clj-project-path (tu/get-system-model-paths) model-name)
+       (let [^File f (File. (str model-path u/path-sep "project.clj"))]
+         (when (.exists f)
+           model-path))))))
+
 (defn build-model
   ([build-load-fn model-paths model-name model-info]
    (let [{model-paths :paths model :model model-root :root model-name :name}
@@ -319,7 +330,7 @@
   ([model-name]
    (build-model nil model-name)))
 
-(defn- exec-with-build-model [cmd model-paths model-name]
+(defn exec-with-build-model [cmd model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
     (if cmd
       (when (exec-for-model (first result) cmd)
