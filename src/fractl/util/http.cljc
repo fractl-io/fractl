@@ -1,10 +1,11 @@
 (ns fractl.util.http
-  (:require #?(:clj [org.httpkit.client :as http]
+  (:require #?(:clj  [org.httpkit.client :as http]
                :cljs [cljs-http.client :as http])
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]
+            [fractl.global-state :as gs]
             #?(:cljs [cljs.core.async :refer [<!]]))
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
@@ -106,12 +107,13 @@
            var-value)))
 
      (defn get-aws-config []
-       (let [aws-config {:region  (get-env-var "AWS_REGION")
-                         :access-key (get-env-var "AWS_ACCESS_KEY")
-                         :secret-key (get-env-var "AWS_SECRET_KEY")
-                         :client-id (get-env-var "AWS_COGNITO_CLIENT_ID")
+       (let [aws-config {:region       (get-env-var "AWS_REGION")
+                         :access-key   (get-env-var "AWS_ACCESS_KEY")
+                         :secret-key   (get-env-var "AWS_SECRET_KEY")
+                         :client-id    (get-env-var "AWS_COGNITO_CLIENT_ID")
                          :user-pool-id (get-env-var "AWS_COGNITO_USER_POOL_ID")
-                         :whitelist? (read-string (get-env-var "FRACTL_AUTH_WHITELIST"))}]
+                         :whitelist?   (or (get-in (gs/get-app-config) [:authentication :whitelist?])
+                                           false)}]
          ;;TODO: Need to revisit this and add a layer to check for domains
          ;;      that are whitelisted.
          #_(if (true? (:whitelist? aws-config))
