@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.3.1] - 2023-05-31
+
 -   Support relationships in upsert/lookup dataflows
 -   Fractl Kernel is now a standalone model
 -   Build integration with fx for generating frontend app

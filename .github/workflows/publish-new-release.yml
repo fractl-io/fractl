@@ -48,6 +48,7 @@ jobs:
         run: |
           lein jar
           lein uberjar
+          mkdir /home/runner/work/fractl/fractl/lib
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}.jar /home/runner/work/fractl/fractl/lib/
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}-standalone.jar /home/runner/work/fractl/fractl/lib/
 
