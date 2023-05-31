@@ -30,7 +30,8 @@
       :where [:= (first (:refs r)) ref-val]}
      [rec-name ref-val]]))
 
-(def ^:private upsert-intercept interceptors/upsert-intercept)
+(def ^:private create-intercept interceptors/create-intercept)
+(def ^:private update-intercept interceptors/update-intercept)
 (def ^:private delete-intercept interceptors/delete-intercept)
 (def ^:private read-intercept interceptors/read-intercept)
 
@@ -204,6 +205,9 @@
        (mapv (partial process-resolver-upsert r f env) arg))
      insts rs)))
 
+(def ^:private call-resolver-create call-resolver-upsert)
+(def ^:private call-resolver-update call-resolver-upsert)
+
 (defn- call-resolver-delete [f env resolver composed? inst]
   (let [rs (if composed? resolver [resolver])]
     (reduce
@@ -214,7 +218,8 @@
 (defn- async-invoke [timeout-ms f]
   (cn/make-future (a/async-invoke f) timeout-ms))
 
-(def ^:private resolver-upsert (partial call-resolver-upsert r/call-resolver-upsert))
+(def ^:private resolver-update (partial call-resolver-update r/call-resolver-update))
+(def ^:private resolver-create (partial call-resolver-create r/call-resolver-create))
 (def ^:private resolver-delete (partial call-resolver-delete r/call-resolver-delete))
 
 (defn- call-resolver-eval [resolver composed? env inst]
@@ -339,24 +344,35 @@
         resolver (env/get-resolver env)]
     (when store
       (maybe-init-schema! store (first record-name)))
-    (let [result
-          (upsert-intercept
-           env insts
-           (fn [insts]
-             (if (env/any-dirty? env insts)
-               (let [result
-                     (chained-crud
-                      (when store (partial store/upsert-instances store record-name))
-                      resolver (partial resolver-upsert env) nil insts)
-                     conditional-event-results
-                     (seq
-                      (fire-all-conditional-events
-                       event-evaluator env store result))]
-                 (concat
-                  result
-                  (when conditional-event-results
-                    (cleanup-conditional-results conditional-event-results))))
-               insts)))]
+    (let [is-single (map? insts)
+          result
+          (if (or is-single (env/any-dirty? env insts))
+            (let [insts (if is-single [insts] insts)
+                  id-attr (cn/identity-attribute-name record-name)]
+              (apply
+               concat
+               (mapv
+                (fn [inst]
+                  (let [is-queried (env/queried-id? env record-name (id-attr inst))]
+                    ((if is-queried update-intercept create-intercept)
+                     env inst
+                     (fn [inst]
+                       (let [store-f (if is-queried store/update-instances store/create-instances)
+                             resolver-f (if is-queried resolver-update resolver-create)
+                             result
+                             (chained-crud
+                              (when store (partial store-f store record-name))
+                              resolver (partial resolver-f env) nil [inst])
+                             conditional-event-results
+                             (seq
+                              (fire-all-conditional-events
+                               event-evaluator env store result))]
+                         (concat
+                          result
+                          (when conditional-event-results
+                            (cleanup-conditional-results conditional-event-results))))))))
+                insts)))
+            insts)]
       (intercept-upsert-result env result))))
 
 (defn- delete-by-id [store record-name inst]
@@ -721,11 +737,15 @@
        (env/push-obj env entity-name insts))
 
       (seq insts)
-      (i/ok
-       insts
-       (env/mark-all-mint
-        (env/push-obj env entity-name insts)
-        insts))
+      (let [id-attr-name (cn/identity-attribute-name entity-name)
+            ids (mapv id-attr-name entity-name)]
+        (i/ok
+         insts
+         (env/mark-all-mint
+          (env/push-obj
+           (env/bind-queried-ids env entity-name ids)
+           entity-name insts)
+          insts)))
 
       :else
       (i/ok [] env))

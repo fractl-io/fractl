@@ -147,10 +147,10 @@
         (db/upsert-instance
          pi/upsert-inst-statement
          @datasource entity-name instance))
+      (create-instance [_ entity-name instance]
+        (db/create-instance @datasource entity-name instance))
       (update-instance [_ entity-name instance]
-        (db/upsert-instance
-         pi/upsert-inst-statement
-         @datasource entity-name instance))
+        (db/update-instance @datasource entity-name instance))
       (delete-by-id [_ entity-name id-attr-name id]
         (db/delete-by-id
          pi/delete-by-id-statement

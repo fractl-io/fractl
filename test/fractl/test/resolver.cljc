@@ -22,7 +22,7 @@
   (let [f (fn [_ arg] arg)
         r (r/make-resolver
            resolver-name
-           {:upsert {:handler identity
+           {:create {:handler identity
                      :xform {:in [f :EntityXformR01/EToEPrime]
                              :out [f :EntityXformR01/EPrimeToE]}}
             :delete {:handler identity
@@ -79,7 +79,7 @@
 
 (defn- test-resolver-r02 [install-resolver resolver-name path]
   (let [f (fn [_ arg] arg)
-        r (r/make-resolver resolver-name {:upsert {:handler identity
+        r (r/make-resolver resolver-name {:create {:handler identity
                                                    :xform {:in [f :EntityXformR02/EToE]
                                                            :out [f :EntityXformR02/EToK]}}
                                           :delete {:handler identity
@@ -170,7 +170,7 @@
 
 (defn- make-resolver [n k]
   (r/make-resolver
-   n {:upsert {:handler (partial resolver-upsert k)}}))
+   n {:create {:handler (partial resolver-upsert k)}}))
 
 (deftest compose-test
   (defcomponent :CT

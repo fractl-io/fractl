@@ -77,7 +77,8 @@
     arg))
 
 (def ^:private actions
-  {:upsert upsert-meta
+  {:create upsert-meta
+   :update upsert-meta
    :delete delete-meta})
 
 (defn- run [env opr arg]

@@ -5,6 +5,7 @@
   (:require [fractl.util :as u]
             [fractl.store.protocol :as p]
             [fractl.store.util :as su]
+            [fractl.store.h2-internal :as h2i]
             [fractl.store.jdbc-cp :as cp]
             [fractl.store.db-common :as db]))
 
@@ -44,10 +45,14 @@
         (db/drop-schema @datasource component-name))
       (fetch-schema [_]
         nil)
-      (update-instance [_ entity-name instance]
-        (db/upsert-instance @datasource entity-name instance))
       (upsert-instance [_ entity-name instance]
-        (db/upsert-instance @datasource entity-name instance))
+        (db/upsert-instance
+         h2i/upsert-inst-statement
+         @datasource entity-name instance))
+      (update-instance [_ entity-name instance]
+        (db/update-instance @datasource entity-name instance))
+      (create-instance [_ entity-name instance]
+        (db/create-instance @datasource entity-name instance))
       (delete-by-id [_ entity-name id-attr-name id]
         (db/delete-by-id @datasource entity-name id-attr-name id))
       (delete-all [_ entity-name]

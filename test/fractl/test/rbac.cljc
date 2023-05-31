@@ -27,7 +27,7 @@
      :RoleMgmt/AssignPrivileges
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p1"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :create :update]]
        :Resource [:q# [:A :B]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p2"
@@ -113,7 +113,7 @@
      {:Fractl.Kernel.Rbac/Role {:Name "r22"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p11"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :update :create]]
        :Resource [:q# [:PrivTest/E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p22"
@@ -131,7 +131,7 @@
        :Resource [:q# [:PrivTest/Lookup_E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p55"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :update :create]]
        :Resource [:q# [:PrivTest/E.X (tu/append-id :PrivTest/E)]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "r11" :Privilege "p11"}}
@@ -271,7 +271,7 @@
      {:Fractl.Kernel.Rbac/Role {:Name "rr11"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "pp11"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :update :create]]
        :Resource [:q# [:RbacOwner/E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "pp22"
@@ -374,7 +374,7 @@
      {:Fractl.Kernel.Rbac/Role {:Name "rh22"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ph11"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :update :create]]
        :Resource [:q# [:RbacH/E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ph22"
@@ -453,7 +453,7 @@
      {:Fractl.Kernel.Rbac/Role {:Name "ilr_r1"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ilr_p1"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:Ilr/E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ilr_p2"
@@ -463,7 +463,7 @@
                        :Ilr/UpdateInstancePrivs]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ilr_p3"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:Fractl.Kernel.Rbac/InstancePrivilegeAssignment]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "ilr_r1" :Privilege "ilr_p1"}}
@@ -486,7 +486,7 @@
      :Ilr/CreateE
      {:Ilr/E {:Id :Ilr/CreateE.Id :X :Ilr/CreateE.X} :as :E}
      {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-      {:Actions [:q# [:read :upsert]]
+      {:Actions [:q# [:read :update :create]]
        :Filter [:q# [:read]]
        :Resource [:q# :Ilr/E]
        :ResourceId :E.Id
@@ -504,7 +504,7 @@
     (dataflow
      :Ilr/UpdateInstancePrivs
      {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-      {:Actions [:q# [:read :upsert :delete]]
+      {:Actions [:q# [:read :update :create :delete]]
        :Filter [:q# [:read]]
        :Resource [:q# :Ilr/E]
        :ResourceId :Ilr/UpdateInstancePrivs.Id
@@ -602,7 +602,7 @@
      {:Fractl.Kernel.Rbac/Role {:Name "i711a_r1"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711a_p1"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:I711A/E1 :I711A/R1]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711a_p2"
@@ -674,7 +674,7 @@
      {:Fractl.Kernel.Rbac/Role {:Name "i711b_r2"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p1"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:I711B/E1 :I711B/R1 :I711B/E2]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p2"
@@ -683,7 +683,7 @@
                        :I711B/UpdateE2 :I711B/Lookup_E1]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p3"
-       :Actions [:q# [:eval :upsert :read]]
+       :Actions [:q# [:eval :update :create :read]]
        :Resource [:q# [:I711B/AssignInstancePriv
                        :Fractl.Kernel.Rbac/InstancePrivilegeAssignment]]}}
      {:Fractl.Kernel.Rbac/Privilege
@@ -711,7 +711,7 @@
     (dataflow
      :I711B/AssignInstancePriv
      {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-      {:Actions [:q# [:read :upsert]]
+      {:Actions [:q# [:read :update :create]]
        :Resource [:q# :I711B/E1]
        :ResourceId :I711B/AssignInstancePriv.X
        :Assignee :I711B/AssignInstancePriv.User}})
@@ -806,7 +806,7 @@
      {:Fractl.Kernel.Rbac/Role {:Name "i762_r2"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i762_p1"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:I762/E1]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i762_p2"
@@ -835,7 +835,7 @@
     (dataflow
      :I762/AssignInstancePriv
      {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-      {:Actions [:q# [:read :upsert]]
+      {:Actions [:q# [:read :update :create]]
        :Filter [:q# [:read]]
        :Resource [:q# :I762/E1]
        :ResourceId :I762/AssignInstancePriv.X

@@ -11,6 +11,7 @@
     (if-let [client (auth/make-client config)]
       (r/make-resolver
        resolver-name
-       {:upsert {:handler (partial auth/call-upsert-user client config)}
+       {:create {:handler (partial auth/call-upsert-user client config)}
+        :update {:handler (partial auth/call-upsert-user client config)}
         :delete {:handler (partial auth/call-delete-user client config)}})
       (u/throw-ex (str "failed to create auth-client for " resolver-name)))))

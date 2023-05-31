@@ -16,7 +16,7 @@
 (entity
  :Fractl.Kernel.Rbac/Role
  {:Name {:type :String, :indexed true, :unique true}})
-(def oprs #{:read :delete :upsert :eval})
+(def oprs #{:read :create :update :delete :eval})
 (defn-
  crud-list?
  [xs]
@@ -126,4 +126,4 @@
                        :Fractl.Kernel.Rbac/FindInstancePrivileges.ResourceId}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "125ad5a1-0284-4767-b799-da8b43d26eac")
+ "afa4c322-9773-47ae-93e9-6057a7fd2671")

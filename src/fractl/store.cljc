@@ -97,29 +97,31 @@
               inst))
           instance attr-names))
 
-(defn upsert-instance [store record-name instance]
-  (let [scm (su/find-entity-schema record-name)
-        instance (cn/secure-attributes record-name instance scm)
-        uq-attrs (concat
-                  (cn/unique-attributes scm)
-                  (cn/compound-unique-attributes record-name))]
-    (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
-                               (p/query-by-unique-keys
-                                store record-name (maybe-remove-id record-name uq-attrs)
-                                (cast-attr-types scm uq-attrs instance)))]
-      (let [new-instance
+(defn upsert-instance
+  ([f store record-name instance]
+   (let [scm (su/find-entity-schema record-name)
+         instance (cn/secure-attributes record-name instance scm)
+         uq-attrs (concat
+                   (cn/unique-attributes scm)
+                   (cn/compound-unique-attributes record-name))]
+     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
+                                (p/query-by-unique-keys
+                                 store record-name (maybe-remove-id record-name uq-attrs)
+                                 (cast-attr-types scm uq-attrs instance)))]
+       (let [new-instance
             (cn/validate-instance
              (p/update-instance
               store record-name
               (merge-non-unique
                old-instance instance
                (set (concat (cn/immutable-attributes scm) uq-attrs)))))]
-        {:transition
-         {:from old-instance
-          :to new-instance}})
-      (p/upsert-instance
-       store record-name
-       (cn/validate-instance instance)))))
+         {:transition
+          {:from old-instance
+           :to new-instance}})
+       (f store record-name
+          (cn/validate-instance instance)))))
+  ([store record-name instance]
+   (upsert-instance p/upsert-instance store record-name instance)))
 
 (def open-connection p/open-connection)
 (def close-connection p/close-connection)
@@ -171,11 +173,23 @@
       (get conn-info :reactive))
     false))
 
-(defn upsert-instances [store record-name insts]
+(defn update-instances [store record-name insts]
   (mapv
    #(upsert-instance
-     store record-name
+     p/update-instance store record-name
      %)
+   insts))
+
+(defn create-instances [store record-name insts]
+  (mapv
+   #(upsert-instance
+     p/create-instance store record-name
+     %)
+   insts))
+
+(defn upsert-instances [store record-name insts]
+  (mapv
+   #(upsert-instance store record-name %)
    insts))
 
 (defn get-default-compile-query []

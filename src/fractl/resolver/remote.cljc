@@ -6,7 +6,8 @@
              [defmake]]))
 
 (def ^:private resolver-fns
-  {:upsert {:handler ur/remote-upsert}
+  {:create {:handler ur/remote-create}
+   :update {:handler ur/remote-update}
    :delete {:handler ur/remote-delete}
    :get {:handler ur/remote-get}
    :query {:handler ur/remote-query}

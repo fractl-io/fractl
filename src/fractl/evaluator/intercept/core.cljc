@@ -16,7 +16,7 @@
 ;; identifies the interceptor and `:fn` is a two-argument
 ;; function that performs the intercept operation. The first
 ;; argument identifies the operation, which should be
-;; one of - `[:read :upsert :delete :eval]`. The second argument
+;; one of - `[:read :create :update :delete :eval]`. The second argument
 ;; must be a map with at least two keys - `:user` and `:data`.
 ;; `:user` is the name of the currently logged-in `:Fractl.Kernel.Identity/User`
 ;; and data could be an entity instance, a list of entity instances
@@ -73,7 +73,8 @@
     (continuation data)))
 
 (def ^:private read-operation (partial invoke-interceptors :read))
-(def ^:private upsert-operation (partial invoke-interceptors :upsert))
+(def ^:private update-operation (partial invoke-interceptors :update))
+(def ^:private create-operation (partial invoke-interceptors :create))
 (def ^:private delete-operation (partial invoke-interceptors :delete))
 (def ^:private eval-operation (partial invoke-interceptors :eval))
 
@@ -83,7 +84,8 @@
     (intercept-fn env data continuation)))
 
 (def read-intercept (partial do-intercept-opr read-operation))
-(def upsert-intercept (partial do-intercept-opr upsert-operation))
+(def create-intercept (partial do-intercept-opr create-operation))
+(def update-intercept (partial do-intercept-opr update-operation))
 (def delete-intercept (partial do-intercept-opr delete-operation))
 (def eval-intercept (partial do-intercept-opr eval-operation))
 

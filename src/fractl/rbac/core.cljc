@@ -115,7 +115,8 @@
       (predic resource))))
 
 (def can-read? (partial has-priv? :read))
-(def can-upsert? (partial has-priv? :upsert))
+(def can-create? (partial has-priv? :create))
+(def can-update? (partial has-priv? :update))
 (def can-delete? (partial has-priv? :delete))
 (def can-eval? (partial has-priv? :eval))
 
