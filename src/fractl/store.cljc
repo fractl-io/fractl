@@ -110,11 +110,10 @@
                                  (cast-attr-types scm uq-attrs instance)))]
        (let [new-instance
             (cn/validate-instance
-             (p/update-instance
-              store record-name
-              (merge-non-unique
-               old-instance instance
-               (set (concat (cn/immutable-attributes scm) uq-attrs)))))]
+             (f store record-name
+                (merge-non-unique
+                 old-instance instance
+                 (set (concat (cn/immutable-attributes scm) uq-attrs)))))]
          {:transition
           {:from old-instance
            :to new-instance}})

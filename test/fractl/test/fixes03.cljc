@@ -667,3 +667,41 @@
     (is (cn/instance-of? :I855/E1 e1))
     (check-r e1 r11)
     (check-r e1 r21)))
+
+(deftest issue-886-create-update
+  (defcomponent :I886
+    (entity
+     :I886/E
+     {:Id {:type :Int :identity true}
+      :Name :String})
+    (dataflow
+     :I886/CreateE
+     :I886/CreateE.Instance)
+    (dataflow
+     :I886/UpdateE
+     {:I886/E
+      {:Id? :I886/UpdateE.Id
+       :Name :I886/UpdateE.Name}}))
+  (let [e1 (tu/first-result
+            {:I886/CreateE
+             {:Instance
+              {:I886/E
+               {:Id 1 :Name "abc"}}}})
+        e2 (tu/first-result
+            {:I886/Lookup_E
+             {:Id 1}})]
+    (is (cn/same-instance? e1 e2))
+    (let [e3 (tu/first-result
+              {:I886/UpdateE
+               {:Id 1 :Name "xyz"}})
+          f (get-in e3 [:transition :from])
+          t (get-in e3 [:transition :to])
+          e4 (tu/first-result
+              {:I886/Lookup_E
+               {:Id 1}})]
+      (is (and (cn/same-instance? e1 f)
+               (cn/instance-eq? e1 t)))
+      (is (= (:Name f) "abc"))
+      (is (= (:Name t) "xyz"))
+      (is (cn/instance-eq? e1 e4))
+      (is (= (:Name e4) "xyz")))))

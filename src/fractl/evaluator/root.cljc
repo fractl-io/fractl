@@ -738,7 +738,7 @@
 
       (seq insts)
       (let [id-attr-name (cn/identity-attribute-name entity-name)
-            ids (mapv id-attr-name entity-name)]
+            ids (mapv id-attr-name insts)]
         (i/ok
          insts
          (env/mark-all-mint
@@ -785,12 +785,18 @@
       (i/not-found record-name env))))
 
 (defn- dispatch-dynamic-upsert [self env inst-compiler eval-opcode
-                                inst-type attrs inst]
+                                inst-type id-attr-name attrs inst]
   (let [opc (inst-compiler {(if (keyword? inst-type)
                               inst-type
                               (li/make-path inst-type))
-                            (merge (cn/instance-attributes inst) attrs)})]
-    (eval-opcode self env opc)))
+                            (merge (cn/instance-attributes inst) attrs)})
+        id-val (or (id-attr-name attrs) (id-attr-name inst))]
+    (when-not id-val
+      (u/throw-ex
+       (str
+        "dynamic-types can be used only for instance updates, identity is required - "
+        [inst-type id-attr-name])))
+    (eval-opcode self (env/bind-queried-ids env inst-type [id-val]) opc)))
 
 (defn- normalize-rel-target [obj]
   (if (map? obj)
@@ -1070,12 +1076,12 @@
                  (first (env/follow-reference env path-parts)))
             single? (map? rs)
             inst-type (cn/instance-type (if single? rs (first rs)))
-            scm (cn/find-entity-schema inst-type)]
+            scm (cn/find-entity-schema inst-type)
+            id-attr-name (cn/identity-attribute-name inst-type)]
         (when-not scm
           (u/throw-ex (str path-parts " is not bound to an entity-instance")))
-        (let [dispatch (partial
-                        dispatch-dynamic-upsert
-                        self env inst-compiler eval-opcode inst-type attrs)]
+        (let [dispatch (partial dispatch-dynamic-upsert self env inst-compiler
+                                eval-opcode inst-type id-attr-name attrs)]
           (if single?
             (dispatch rs)
             (loop [env env, rs rs, result []]
