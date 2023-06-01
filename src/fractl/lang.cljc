@@ -832,7 +832,8 @@
        (if-let [cps (seq (cn/containing-parents parent))]
          (let [[r _ p] (first cps), np (name p)]
            (recur p (str np "/" (f np) "/" (name r) "/" path)))
-         (str "path:" (if (s/starts-with? path "/") "/" "//") path)))))
+         (str "path:" (if (s/starts-with? path "/") "/" "//")
+              (s/replace path "//" "/"))))))
   ([attr-accessor relname parent child]
    (parent-query-path attr-accessor relname parent child false)))
 
