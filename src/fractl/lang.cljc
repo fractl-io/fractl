@@ -853,9 +853,13 @@
         lookupevt (ev :Lookup)
         f3 (partial crud-event-attr-accessor lookupevt true)
         c (name child)
+        ck (keyword c)
         ctx-aname (k/event-context-attribute-name)
         lookupallevt (ev :LookupAll)
-        f4 (partial crud-event-attr-accessor lookupallevt true)]
+        f4 (partial crud-event-attr-accessor lookupallevt true)
+        delevt (ev :Delete)
+        pattrs (parent-names-as-attributes parent)
+        pk (keyword (name parent))]
     (event-internal
      upevt
      (merge
@@ -870,9 +874,9 @@
     (event-internal
      lookupevt
      (merge
-      {(keyword c) :Fractl.Kernel.Lang/Any
+      {ck :Fractl.Kernel.Lang/Any
        li/event-context ctx-aname}
-      (parent-names-as-attributes parent)))
+      pattrs))
     (cn/register-dataflow
      lookupevt
      [{(li/name-as-query-pattern child)
@@ -881,11 +885,21 @@
      lookupallevt
      (merge
       {li/event-context ctx-aname}
-      (parent-names-as-attributes parent)))
+      pattrs))
     (cn/register-dataflow
      lookupallevt
      [{(li/name-as-query-pattern child)
-       (parent-query-path f4 relname parent child true)}])))
+       (parent-query-path f4 relname parent child true)}])
+    (event-internal
+     delevt
+     {ck :Fractl.Kernel.Lang/Any
+      pk :Fractl.Kernel.Lang/Any})
+    (cn/register-dataflow
+     delevt
+     [[:delete relname {pk (li/make-ref delevt pk)
+                        ck (li/make-ref delevt ck)}]
+      [:delete child {(cn/identity-attribute-name child)
+                      (li/make-ref delevt ck)}]])))
 
 (defn- find-between-ref [attrs node-rec-name]
   (let [cn (li/split-path node-rec-name)]
