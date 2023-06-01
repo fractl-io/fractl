@@ -697,7 +697,8 @@
              id-evattrs {id-attr id-attr-type
                          li/event-context ctx-aname}]
          ;; Define CRUD events and dataflows:
-         (let [upevt (ev :Upsert)
+         (let [crevt (ev :Create)
+               upevt (ev :Update)
                delevt (ev :Delete)
                lookupevt (ev :Lookup)
                lookupevt-internal (ev cn/lookup-internal-event-prefix)
@@ -707,16 +708,20 @@
            (event-internal delevt id-evattrs)
            (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
            (when-not is-rel
+             (event-internal crevt inst-evattrs)
              (event-internal upevt inst-evattrs)
              (event-internal lookupevt-internal id-evattrs)
              (event-internal lookupevt id-evattrs)
              (event-internal lookupallevt {})
-             (let [ref-pats (mapv (fn [[k v]]
-                                    (load-ref-pattern
-                                     upevt :Instance rec-name k
-                                     (cn/find-attribute-schema v)))
-                                  (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))]
-               (cn/register-dataflow upevt `[~@ref-pats ~(crud-event-inst-accessor upevt)]))
+             (let [rs (mapv (fn [[k v]]
+                              (let [s (cn/find-attribute-schema v)]
+                                [(load-ref-pattern crevt :Instance rec-name k s)
+                                 (load-ref-pattern upevt :Instance rec-name k s)]))
+                            (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))
+                   cr-ref-pats (mapv first rs)
+                   up-ref-pats (mapv second rs)]
+               (cn/register-dataflow crevt `[~@cr-ref-pats ~(crud-event-inst-accessor upevt)])
+               (cn/register-dataflow upevt `[~@up-ref-pats ~(crud-event-inst-accessor upevt)]))
              (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
              (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
              (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)])))
