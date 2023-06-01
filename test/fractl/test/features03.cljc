@@ -492,3 +492,30 @@
       (tu/not-found? r13s)
       (tu/not-found? r21s)
       (r2s? 1 r22s))))
+
+(deftest del-contains-child
+  (defcomponent :DC
+    (entity
+     :DC/G
+     {:Id {:type :Int :identity true}})
+    (entity
+     :DC/P
+     {:Id {:type :Int :identity true}})
+    (relationship
+     :DC/GP
+     {:meta {:contains [:DC/G :DC/P]}})
+    (entity
+     :DC/C
+     {:Id {:type :Int :identity true}})
+    (relationship
+     :DC/R
+     {:meta {:contains [:DC/P :DC/C]}}))
+  (let [g (tu/first-result
+           {:DC/Upsert_G {:Instance {:DC/G {:Id 0}}}})
+        p (tu/first-result
+           {:DC/Upsert_P {:Instance {:DC/P {:Id 1}} :G 0}})
+        c (tu/result
+           {:DC/Upsert_C {:Instance {:DC/C {:Id 2}} :P 1}})]
+    (is (cn/same-instance? c (tu/first-result {:DC/Lookup_C {:P 1 :C 2}})))
+    (is (cn/same-instance? c (tu/first-result {:DC/Delete_C {:P 1 :C 2}})))
+    (= :not-found (:status (first (tu/eval-all-dataflows {:DC/Lookup_C {:P 1 :C 2}}))))))
