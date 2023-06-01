@@ -34,7 +34,7 @@
   (let [xs (range 1 11)
         sum (apply + xs)
         rs1 (mapv #(tu/first-result
-                    {:I576/Upsert_E
+                    {:I576/Create_E
                      {:Instance
                       {:I576/E
                        {:X %}}}})
@@ -87,7 +87,7 @@
      {:I585/E {:K? :I585/Evt3.K}}
      [:eval '(fractl.test.fixes03/i585-f1 :I585/E)]))
   (let [e1 (tu/first-result
-            {:I585/Upsert_E
+            {:I585/Create_E
              {:Instance
               {:I585/E {:K "abc" :X 10}}}})
         r1 (tu/first-result
@@ -124,7 +124,7 @@
          [{:name :abc
            :config {:x [:uq# :A.X] :y 20}}]}]}}))
   (let [e (tu/first-result
-           {:I599/Upsert_E
+           {:I599/Create_E
             {:Instance
              {:I599/E {:N 1 :X 10}}}})
         r (tu/first-result
@@ -182,12 +182,12 @@
                  :Meta :I621/CreateRec.Meta}}))
 
   (let [m (tu/first-result
-           {:I621/Upsert_Model
+           {:I621/Create_Model
             {:Instance
              {:I621/Model
               {:Name :m :Version "1.0"}}}})
         c (tu/first-result
-           {:I621/Upsert_Component
+           {:I621/Create_Component
             {:Instance
              {:I621/Component
               {:Name :c :Model :m}}}})
@@ -223,7 +223,7 @@
      {:K :Keyword
       :P :Path}))
   (let [e (tu/first-result
-           {:I669/Upsert_E
+           {:I669/Create_E
             {:Instance
              {:I669/E
               {:K :hello
@@ -255,7 +255,7 @@
   (let [names [:A :B :C]
         es01 (mapv
               #(tu/first-result
-                {:I686/Upsert_E
+                {:I686/Create_E
                  {:Instance
                   {:I686/E
                    {:Name %}}}})
@@ -323,7 +323,7 @@
                         {:I741/E1 {:X? :I741/RemoveR1.E1}}
                         {:I741/E2 {:A? :I741/RemoveR1.E2}}]]))
   (let [e1 (tu/first-result
-            {:I741/Upsert_E1
+            {:I741/Create_E1
              {:Instance
               {:I741/E1 {:X 1 :Y 10}}}})
         e2 (tu/result
@@ -393,7 +393,7 @@
                         {:I741B/E1 {:X? :I741B/RemoveR1.E1}}
                         {:I741B/E2 {:A? :I741B/RemoveR1.E2}}]]))
   (let [e1 (tu/first-result
-            {:I741B/Upsert_E1
+            {:I741B/Create_E1
              {:Instance
               {:I741B/E1 {:X 1 :Y 10}}}})
         e2 (tu/result
@@ -492,11 +492,11 @@
       1 [:delete :I765/E1 {:X :I765/DelE.X}]
       2 [:delete :I765/E2 {:Y :I765/DelE.Y}]]))
   (let [e1 (tu/first-result
-            {:I765/Upsert_E1
+            {:I765/Create_E1
              {:Instance
               {:I765/E1 {:X 100}}}})
         e2 (tu/first-result
-            {:I765/Upsert_E2
+            {:I765/Create_E2
              {:Instance
               {:I765/E2 {:Y 200}}}})
         r1 (tu/first-result
@@ -648,17 +648,19 @@
       {:Y 200}
       :-> [{:I855/R {}} :E1]}))
   (let [e1 (tu/first-result
-            {:I855/Upsert_E1
+            {:I855/Create_E1
              {:Instance
               {:I855/E1 {:X 1}}}})
         r11 (tu/result
              {:I855/Cr1 {:E1 1}})
         r21 (tu/result
              {:I855/Cr2 {:E1 1}})]
-    (defn- not-found [evt]
-      (is (= :not-found (:status (first (tu/eval-all-dataflows evt))))))
-    (not-found {:I855/Cr1 {:E1 2}})
-    (not-found {:I855/Cr2 {:E1 2}})
+    (defn- chk [status evt]
+      (let [s (:status (first (tu/eval-all-dataflows evt)))]
+        (is (= s status))))
+    ;; error on duplicate value for :Y
+    (chk :error {:I855/Cr1 {:E1 2}})
+    (chk :not-found {:I855/Cr2 {:E1 2}})
     (defn- check-r [e1 e2]
       (is (cn/instance-of? :I855/E2 e2))
       (let [r (first (ls/rel-tag e2))]
