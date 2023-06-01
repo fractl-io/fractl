@@ -60,11 +60,11 @@
   (let [[_ c] (pattern-compiler)
         p1 :CompileTest/E1
         p1e :CompileTest/E111
-        p2 :CompileTest/Upsert_E1
-        p2e :CompileTest/Upsert_E111]
+        p2 :CompileTest/Create_E1
+        p2e :CompileTest/Update_E111]
     (load-instance? (c p1) [[:CompileTest :E1] nil])
     (tu/is-error #(c p1e))
-    (load-instance? (c p2) [[:CompileTest :Upsert_E1] nil])
+    (load-instance? (c p2) [[:CompileTest :Create_E1] nil])
     (tu/is-error #(c p2e))))
 
 (deftest compile-pattern-01
@@ -123,7 +123,7 @@
              {:X :Int
               :Y :Int}}))
   (let [e (cn/make-instance :Df01/E {:X 10 :Y 20})
-        evt {:Df01/Upsert_E {:Instance e}}
+        evt {:Df01/Create_E {:Instance e}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/same-instance? e result))))
 
@@ -204,7 +204,7 @@
                          :Y :SelfRef/AddToX.Y
                          :Z 1}})
   (let [e (cn/make-instance :SelfRef/E {:X 100 :Y 200 :Z 300})
-        evt (cn/make-instance :SelfRef/Upsert_E {:Instance e})
+        evt (cn/make-instance :SelfRef/Create_E {:Instance e})
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :SelfRef/E result))
     (is (u/uuid-from-string (cn/id-attr result)))
@@ -233,7 +233,7 @@
             {:Df04/E2 {:AId (tu/append-id :Df04/PostE2.E1)
                        :X 500}})
   (let [e (cn/make-instance :Df04/E1 {:A 100})
-        evt (cn/make-instance :Df04/Upsert_E1 {:Instance e})
+        evt (cn/make-instance :Df04/Create_E1 {:Instance e})
         e1 (first (tu/fresult (e/eval-all-dataflows evt)))
         id (cn/id-attr e1)
         e2 (cn/make-instance :Df04/E2 {:AId (cn/id-attr e1)
@@ -261,7 +261,7 @@
                           :X 500}})
   (let [e (cn/make-instance :Df04NID/E1 {:A 100
                                          :Name "E1-A"})
-        evt (cn/make-instance :Df04NID/Upsert_E1 {:Instance e})
+        evt (cn/make-instance :Df04NID/Create_E1 {:Instance e})
         e1 (first (tu/fresult (e/eval-all-dataflows evt)))
         e1-name (:Name e1)
         evt (cn/make-instance :Df04NID/PostE2 {:E1Name e1-name})
@@ -283,7 +283,7 @@
                     :B {:type :Int
                         :expr '(* :A 10)}}}))
   (let [e (cn/make-instance :CA/E {:A 20})
-        evt {:CA/Upsert_E {:Instance e}}
+        evt {:CA/Create_E {:Instance e}}
         r (e/eval-all-dataflows evt)
         result (first (tu/fresult r))]
     (assert-ca-e! result)
@@ -335,13 +335,13 @@
   (let [e (cn/make-instance :RefCheck/E1 {:A 100})
         id (cn/id-attr e)
         e2 (cn/make-instance :RefCheck/E2 {:AId (cn/id-attr e) :X 20})
-        evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})]
+        evt (cn/make-instance :RefCheck/Create_E2 {:Instance e2})]
     (is (= :not-found (:status (first (e/eval-all-dataflows evt)))))
-    (let [evt (cn/make-instance :RefCheck/Upsert_E1 {:Instance e})
+    (let [evt (cn/make-instance :RefCheck/Create_E1 {:Instance e})
           e1 (first (tu/fresult (e/eval-all-dataflows evt)))
           id (cn/id-attr e1)
           e2 (cn/make-instance :RefCheck/E2 {:AId (cn/id-attr e1) :X 20})
-          evt (cn/make-instance :RefCheck/Upsert_E2 {:Instance e2})
+          evt (cn/make-instance :RefCheck/Create_E2 {:Instance e2})
           inst (first (tu/fresult (e/eval-all-dataflows evt)))]
       (is (cn/instance-of? :RefCheck/E2 inst))
       (is (= (:AId inst) id)))))
@@ -395,7 +395,7 @@
                        :write-only true}}}))
   (let [x "this is a secret"
         e (cn/make-instance :H/E {:A 10 :X x})
-        evt {:H/Upsert_E {:Instance e}}
+        evt {:H/Create_E {:Instance e}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))
         r2 (cn/dissoc-write-only result)]
     (is (cn/instance-of? :H/E result))
@@ -646,7 +646,7 @@
             (cn/make-instance :DestructuringAlias/E {:X 1 :N "e05"})
             (cn/make-instance :DestructuringAlias/E {:X 1 :N "e06"})
             (cn/make-instance :DestructuringAlias/E {:X 1 :N "e07"})]
-        evts (map #(cn/make-instance :DestructuringAlias/Upsert_E {:Instance %}) es)
+        evts (map #(cn/make-instance :DestructuringAlias/Create_E {:Instance %}) es)
         _    (doall (map (comp (comp first tu/fresult)
                                #(e/eval-all-dataflows %))
                          evts))
@@ -664,7 +664,7 @@
   (defcomponent :Del
     (entity {:Del/E {:X :Int}}))
   (let [e (cn/make-instance :Del/E {:X 100})
-        e01 (first (tu/fresult (e/eval-all-dataflows {:Del/Upsert_E {:Instance e}})))
+        e01 (first (tu/fresult (e/eval-all-dataflows {:Del/Create_E {:Instance e}})))
         id (cn/id-attr e01)
         lookup-evt (cn/make-instance :Del/Lookup_E {cn/id-attr id})
         e02 (first (tu/fresult (e/eval-all-dataflows lookup-evt)))
@@ -700,7 +700,7 @@
     (entity {:L/F {:Xs {:listof :Any}
                    :Y :Int}}))
   (let [e (cn/make-instance :L/E {:Xs [1 2 3] :Y 100})
-        evt {:L/Upsert_E {:Instance e}}
+        evt {:L/Create_E {:Instance e}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (assert-le result [1 2 3] 100))
   (let [evt {:L/MakeE0 {:Xs [10 20 30 40] :Y 1}}
@@ -719,7 +719,7 @@
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (assert-le result [200 780 10] 90))
   (let [e (cn/make-instance :L/F {:Xs [10 "hi"] :Y 1})
-        evt {:L/Upsert_F {:Instance e}}
+        evt {:L/Create_F {:Instance e}}
         result (first (tu/fresult (e/eval-all-dataflows evt)))]
     (assert-le :L/F result [10 "hi"] 1)))
 
@@ -1097,7 +1097,7 @@
                 (tu/fresult
                  (e/eval-all-dataflows
                   (cn/make-instance
-                   {:Itc/Upsert_E
+                   {:Itc/Create_E
                     {:Instance e}}))))]
     (is (cn/instance-of? :Itc/E result))
     (every? #(or (cn/instance-of? :Itc/Child1 %)
@@ -1176,7 +1176,7 @@
       [:error :not-found] {:Try/R {:Y false}}]))
   (let [r1 (tu/first-result {:Try/Find {:X 100}})
         e (cn/make-instance {:Try/E {:X 100}})
-        _ (tu/first-result {:Try/Upsert_E
+        _ (tu/first-result {:Try/Create_E
                             {:Instance e}})
         r2 (tu/first-result {:Try/Find {:X 100}})]
     (is (not (:Y r1)))
@@ -1200,7 +1200,7 @@
      [:match :PM/UserLogin.Password
       :PM/User.Password :PM/User]))
   (let [u (tu/first-result
-           {:PM/Upsert_User
+           {:PM/Create_User
             {:Instance
              {:PM/User
               {:UserName "admin"

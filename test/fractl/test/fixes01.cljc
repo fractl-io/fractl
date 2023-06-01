@@ -51,18 +51,19 @@
    (defcomponent :I196
      (entity
       :I196/E1
-      {:A :Int
+      {:Id {:type :Int :identity true}
+       :A :Int
        :B :Int
        :C :Int
        :meta {:unique [:A :C]}}))
-   (let [e01 (cn/make-instance :I196/E1 {:A 10 :B 20 :C 30})
-         evt1 (cn/make-instance {:I196/Upsert_E1 {:Instance e01}})
-         e02 (cn/make-instance :I196/E1 {:A 10 :B 40 :C 30})
-         evt2 (cn/make-instance {:I196/Upsert_E1 {:Instance e02}})
-         e03 (cn/make-instance :I196/E1 {:A 20 :B 60 :C 40})
-         evt3 (cn/make-instance {:I196/Upsert_E1 {:Instance e03}})
-         e04 (cn/make-instance :I196/E1 {:A 20 :B 40 :C 40})
-         evt4 (cn/make-instance {:I196/Upsert_E1 {:Instance e04}})
+   (let [e01 (cn/make-instance :I196/E1 {:Id 1 :A 10 :B 20 :C 30})
+         evt1 (cn/make-instance {:I196/Create_E1 {:Instance e01}})
+         e02 {:A 10 :B 40 :C 30}
+         evt2 (cn/make-instance {:I196/Update_E1 {:Id 1 :Data e02}})
+         e03 (cn/make-instance :I196/E1 {:Id 2 :A 20 :B 60 :C 40})
+         evt3 (cn/make-instance {:I196/Create_E1 {:Instance e03}})
+         e04 {:A 20 :B 40 :C 40}
+         evt4 (cn/make-instance {:I196/Update_E1 {:Id 2 :Data e04}})
          results (mapv #(first (tu/fresult (e/eval-all-dataflows %)))
                        [evt1 evt2 evt3 evt4])]
      (is (cn/instance-of? :I196/E1 (first results)))
@@ -77,16 +78,17 @@
    (defcomponent :I206
      (entity
       :I206/E1
-      {:A :Int
+      {:Id {:type :Int :identity true}
+       :A :Int
        :B :Int
        :C :Int
        :meta {:unique [:A :C]}}))
-   (let [e01 (cn/make-instance :I206/E1 {:A 10 :B 20 :C 30})
-         evt1 (cn/make-instance {:I206/Upsert_E1 {:Instance e01}})
-         e02 (cn/make-instance :I206/E1 {:A 10 :B 0 :C 30})
-         evt2 (cn/make-instance {:I206/Upsert_E1 {:Instance e02}})
-         e03 (cn/make-instance :I206/E1 {:A 10 :B 60 :C 30})
-         evt3 (cn/make-instance {:I206/Upsert_E1 {:Instance e03}})
+   (let [e01 (cn/make-instance :I206/E1 {:A 10 :B 20 :C 30 :Id 1})
+         evt1 (cn/make-instance {:I206/Create_E1 {:Instance e01}})
+         e02 {:A 10 :B 0 :C 30}
+         evt2 (cn/make-instance {:I206/Update_E1 {:Id 1 :Data e02}})
+         e03 {:A 10 :B 60 :C 30}
+         evt3 (cn/make-instance {:I206/Update_E1 {:Id 1 :Data e03}})
          results (mapv #(first (tu/fresult (e/eval-all-dataflows %)))
                        [evt1 evt2 evt3])]
      (is (cn/instance-of? :I206/E1 (first results)))
@@ -109,7 +111,7 @@
                                      [:= :I185/E.Y 200]]]
                {:I185/R {:Y '(* 2 :I185/E.Y)}}))
    (let [e (cn/make-instance {:I185/E {:X 10 :Y 1}})
-         evt (cn/make-instance {:I185/Upsert_E {:Instance e}})
+         evt (cn/make-instance {:I185/Create_E {:Instance e}})
          r (tu/fresult (e/eval-all-dataflows evt))
          r1 (first r)
          id (cn/id-attr r1)
@@ -161,12 +163,12 @@
                 :where [:= :I213/E2.E1 (tu/append-id :I213/E1)]]
                {:I213/R {:Y '(* :I213/E2.Y :I213/E1.X) :Z 1}})
      (let [e1 (cn/make-instance {:I213/E1 {:X 10}})
-           evt (cn/make-instance {:I213/Upsert_E1 {:Instance e1}})
+           evt (cn/make-instance {:I213/Create_E1 {:Instance e1}})
            r1 (tu/fresult (e/eval-all-dataflows evt))
            e1 (first r1)
            e2 (cn/make-instance {:I213/E2 {:E1 (cn/id-attr e1)
                                            :Y 20}})
-           evt (cn/make-instance {:I213/Upsert_E2 {:Instance e2}})
+           evt (cn/make-instance {:I213/Create_E2 {:Instance e2}})
            r2 (tu/fresult (e/eval-all-dataflows evt))
            e2 (first r2)
            evt (cn/make-instance {:I213/UpdateE1
@@ -207,19 +209,19 @@
                 :where [:= :I213NR/E1.Z 1]]
                {:I213NR/R {:Y '(+ :I213NR/E1.X :I213NR/E2.Y)}})
      (let [e1 (cn/make-instance {:I213NR/E1 {:X 9 :Z 2}})
-           evt (cn/make-instance {:I213NR/Upsert_E1 {:Instance e1}})
+           evt (cn/make-instance {:I213NR/Create_E1 {:Instance e1}})
            r1 (tu/fresult (e/eval-all-dataflows evt))
            e1 (first r1)
            e2 (cn/make-instance {:I213NR/E2 {:Y 20}})
-           evt (cn/make-instance {:I213NR/Upsert_E2 {:Instance e2}})
+           evt (cn/make-instance {:I213NR/Create_E2 {:Instance e2}})
            r2 (tu/fresult (e/eval-all-dataflows evt))
            e2 (first r2)
            e11 (cn/make-instance {:I213NR/E1 {:X 11 :Z 1}})
-           evt (cn/make-instance {:I213NR/Upsert_E1 {:Instance e11}})
+           evt (cn/make-instance {:I213NR/Create_E1 {:Instance e11}})
            r11 (tu/fresult (e/eval-all-dataflows evt))
            e11 (first r11)
            e22 (cn/make-instance {:I213NR/E2 {:Y 200}})
-           evt (cn/make-instance {:I213NR/Upsert_E2 {:Instance e22}})
+           evt (cn/make-instance {:I213NR/Create_E2 {:Instance e22}})
            r22 (tu/fresult (e/eval-all-dataflows evt))
            e22 (first r22)
            r (first (tu/embedded-results r22))]

@@ -1050,19 +1050,20 @@
           result)))
 
     (do-instance-from [self env [record-name inst-opcode data-opcode inst-alias]]
-      (let [[inst-result inst-err]
+      (let [[inst-result inst-err env]
             (when inst-opcode
               (let [result (eval-opcode self env inst-opcode)
                     r (first (ok-result result))]
                 (if (map? r)
-                  [r nil]
-                  [nil result])))]
+                  [r nil (:env result)]
+                  [nil result env])))]
         (or inst-err
             (let [result (eval-opcode self env data-opcode)
                   r (ok-result result)
                   env (:env result)]
               (if (map? r)
-                (let [inst (cn/make-instance record-name (if inst-result (merge r inst-result) r))
+                (let [attrs (if inst-result (merge inst-result r) r)
+                      inst (if (cn/an-instance? attrs) attrs (cn/make-instance record-name attrs))
                       upsert-required (cn/fetch-entity-schema record-name)]
                   (intern-instance
                    self (env/push-obj env record-name inst)

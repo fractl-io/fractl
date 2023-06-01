@@ -690,12 +690,15 @@
                      raw-attrs)
              ev (partial crud-evname n)
              ctx-aname (k/event-context-attribute-name)
-             inst-evattrs {:Instance n li/event-context ctx-aname}
              id-attr (identity-attribute-name rec-name)
              id-attr-type (or (identity-attribute-type id-attr attrs)
                               :Fractl.Kernel.Lang/Any)
              id-evattrs {id-attr id-attr-type
-                         li/event-context ctx-aname}]
+                         li/event-context ctx-aname}
+             cr-evattrs {:Instance n li/event-context ctx-aname}
+             up-id-attr :Id
+             up-evattrs {up-id-attr id-attr-type
+                         :Data :Fractl.Kernel.Lang/Map}]
          ;; Define CRUD events and dataflows:
          (let [crevt (ev :Create)
                upevt (ev :Update)
@@ -708,8 +711,8 @@
            (event-internal delevt id-evattrs)
            (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
            (when-not is-rel
-             (event-internal crevt inst-evattrs)
-             (event-internal upevt inst-evattrs)
+             (event-internal crevt cr-evattrs)
+             (event-internal upevt up-evattrs)
              (event-internal lookupevt-internal id-evattrs)
              (event-internal lookupevt id-evattrs)
              (event-internal lookupallevt {})
@@ -720,8 +723,13 @@
                             (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))
                    cr-ref-pats (mapv first rs)
                    up-ref-pats (mapv second rs)]
-               (cn/register-dataflow crevt `[~@cr-ref-pats ~(crud-event-inst-accessor upevt)])
-               (cn/register-dataflow upevt `[~@up-ref-pats ~(crud-event-inst-accessor upevt)]))
+               (cn/register-dataflow crevt `[~@cr-ref-pats ~(crud-event-inst-accessor crevt)])
+               (cn/register-dataflow
+                upevt
+                (concat [up-ref-pats]
+                        [{rec-name
+                          {(li/name-as-query-pattern id-attr) (crud-event-attr-accessor upevt (name up-id-attr))}
+                          :from (crud-event-attr-accessor upevt "Data")}])))
              (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
              (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
              (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)])))
@@ -851,11 +859,12 @@
 
 (defn- regen-default-dataflows-for-contains [relname [parent child]]
   (let [ev (partial crud-evname child)
-        upevt (ev :Upsert)
+        crevt (ev :Create)
+        upevt (ev :Update)
         attr-names (cn/attribute-names (cn/fetch-schema child))
         f1 (partial crud-event-inst-accessor upevt true)
         f2 (partial crud-event-attr-accessor upevt)
-        ups-inst-pat (into {} (mapv (fn [a] [a (f1 a)]) attr-names))
+        cr-inst-pat (into {} (mapv (fn [a] [a (f1 a)]) attr-names))
         lookupevt (ev :Lookup)
         f3 (partial crud-event-attr-accessor lookupevt true)
         c (name child)
@@ -867,14 +876,14 @@
         pattrs (parent-names-as-attributes parent)
         pk (keyword (name parent))]
     (event-internal
-     upevt
+     crevt
      (merge
       {:Instance child
        li/event-context ctx-aname}
       (parent-names-as-attributes parent)))
     (cn/register-dataflow
-     upevt
-     [{child ups-inst-pat
+     crevt
+     [{child cr-inst-pat
        li/rel-tag
        (parent-query-pattern f2 relname parent)}])
     (event-internal

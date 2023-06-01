@@ -529,3 +529,19 @@
       (is (= 200 (:X c)))
       (is (cn/same-instance? c (tu/first-result {:DC/Delete_C {:P 1 :C 2 :G 0}})))
       (= :not-found (:status (first (tu/eval-all-dataflows {:DC/Lookup_C {:P 1 :C 2 :G 0}})))))))
+
+(deftest from-with-query-update
+  (defcomponent :Ft
+    (entity
+     :Ft/E
+     {:Id {:type :Int :identity true}
+      :Y :Int
+      :X :Int}))
+  (let [e1 (tu/first-result {:Ft/Create_E
+                             {:Instance
+                              {:Ft/E {:Id 1 :X 100 :Y 200}}}})]
+    (is (cn/instance-of? :Ft/E e1))
+    (is (= 100 (:X e1)))
+    (let [e2 (:to (:transition (tu/first-result {:Ft/Update_E {:Id 1 :Data {:X 300}}})))]
+      (is (cn/instance-eq? e1 e2))
+      (is (= 300 (:X e2))))))
