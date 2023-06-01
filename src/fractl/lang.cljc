@@ -893,8 +893,8 @@
        (parent-query-path f4 relname parent child true)}])
     (event-internal
      delevt
-     {ck :Fractl.Kernel.Lang/Any
-      pk :Fractl.Kernel.Lang/Any})
+     (merge {ck :Fractl.Kernel.Lang/Any}
+            (parent-names-as-attributes parent)))
     (cn/register-dataflow
      delevt
      [[:delete relname {pk (li/make-ref delevt pk)
