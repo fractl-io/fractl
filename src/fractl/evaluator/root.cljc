@@ -1050,7 +1050,7 @@
           result)))
 
     (do-instance-from [self env [record-name inst-opcode data-opcode inst-alias]]
-      (let [[inst-result inst-err env]
+      (let [[inst-result inst-err new-env]
             (when inst-opcode
               (let [result (eval-opcode self env inst-opcode)
                     r (first (ok-result result))]
@@ -1058,7 +1058,8 @@
                   [r nil (:env result)]
                   [nil result env])))]
         (or inst-err
-            (let [result (eval-opcode self env data-opcode)
+            (let [env (or new-env env)
+                  result (eval-opcode self env data-opcode)
                   r (ok-result result)
                   env (:env result)]
               (if (map? r)
