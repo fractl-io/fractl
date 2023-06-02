@@ -47,10 +47,8 @@
     (let [r01 (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}}))
           r (e/eval-all-dataflows {:Q02/QE02 {:X 5 :Y 100}})
           r02 (tu/fresult r)
-          fs01 (:from (:transition r01))
-          ts01 (:to (:transition r01))]
+          ts01 r01]
       (is (= 2 (count r01)))
-      (is (every? #(and (some #{(:X %)} [10 12]) (some #{(:Y %)} [4 6])) fs01))
       (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) ts01))
       (is (= 2 (count r02)))
       (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) r02)))))
@@ -142,9 +140,7 @@
         evt (cn/make-instance
              {:QueryAliasInExpr/AllocateOrderLine
               {:BatchId batch-id :LineId line-id}})
-        r (get-in
-           (first (tu/fresult (e/eval-all-dataflows evt)))
-           [:transition :to])]
+        r (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (= (:AvailableQty r) 18))))
 
 (deftest query-by-id-and-delete

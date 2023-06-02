@@ -696,14 +696,10 @@
     (let [e3 (tu/first-result
               {:I886/UpdateE
                {:Id 1 :Name "xyz"}})
-          f (get-in e3 [:transition :from])
-          t (get-in e3 [:transition :to])
           e4 (tu/first-result
               {:I886/Lookup_E
                {:Id 1}})]
-      (is (and (cn/same-instance? e1 f)
-               (cn/instance-eq? e1 t)))
-      (is (= (:Name f) "abc"))
-      (is (= (:Name t) "xyz"))
+      (is (cn/instance-eq? e1 e3))
+      (is (= (:Name e3) "xyz"))
       (is (cn/instance-eq? e1 e4))
       (is (= (:Name e4) "xyz")))))

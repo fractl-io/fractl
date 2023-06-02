@@ -287,25 +287,21 @@
               {:id 1 :X 10}}}})
         r0 (tu/first-result
             {:I630/FindE {:E 1}})
-        r1 (:transition
-            (tu/first-result
-             {:I630/Evt1
-              {:E 1}}))
+        r1 (tu/first-result
+            {:I630/Evt1
+             {:E 1}})
         r2 (tu/first-result
             {:I630/FindE {:E 1}})
-        r3 (:transition
-            (tu/first-result
-             {:I630/Evt2
-              {:E e}}))
+        r3 (tu/first-result
+            {:I630/Evt2
+             {:E e}})
         r4 (tu/first-result
             {:I630/FindE {:E 1}})]
     (is (cn/same-instance? e r0))
-    (is (cn/same-instance? e (:from r1)))
-    (is (= 200 (:X (:to r1))))
-    (is (cn/same-instance? (:to r1) r2))
-    (is (cn/same-instance? (:to r1) (:from r3)))
-    (is (= 300 (:X (:to r3))))
-    (is (cn/same-instance? r4 (:to r3)))))
+    (is (= 200 (:X r1)))
+    (is (cn/same-instance? r1 r2))
+    (is (= 300 (:X r3)))
+    (is (cn/same-instance? r4 r3))))
 
 (deftest issue-630-upsert-multiple
   (defcomponent :I630M
@@ -343,7 +339,7 @@
             {:I630M/FindE {}})]
     (is (= (sum-xs r0) (sum-xs es) (apply + xs)))
     (is (= (sum-ys r0) (sum-ys es) (apply + ys)))
-    (let [tos (mapv #(:to (:transition %)) r1)]
+    (let [tos r1]
       (is (= (sum-xs tos) (sum-xs tos) (apply + ys10)))
       (is (= (sum-ys tos) (* 2 (sum-xs tos)))))
     (is (= (sum-xs r2) (apply + ys10)))

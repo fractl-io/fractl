@@ -100,25 +100,9 @@
 (defn upsert-instance
   ([f store record-name instance]
    (let [scm (su/find-entity-schema record-name)
-         instance (cn/secure-attributes record-name instance scm)
-         uq-attrs (concat
-                   (cn/unique-attributes scm)
-                   (cn/compound-unique-attributes record-name))]
-     (if-let [old-instance (and (some (set uq-attrs) (set (keys instance)))
-                                (p/query-by-unique-keys
-                                 store record-name (maybe-remove-id record-name uq-attrs)
-                                 (cast-attr-types scm uq-attrs instance)))]
-       (let [new-instance
-            (cn/validate-instance
-             (f store record-name
-                (merge-non-unique
-                 old-instance instance
-                 (set (concat (cn/immutable-attributes scm) uq-attrs)))))]
-         {:transition
-          {:from old-instance
-           :to new-instance}})
-       (f store record-name
-          (cn/validate-instance instance)))))
+         instance (cn/secure-attributes record-name instance scm)]
+     (f store record-name
+        (cn/validate-instance instance))))
   ([store record-name instance]
    (upsert-instance p/upsert-instance store record-name instance)))
 

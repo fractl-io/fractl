@@ -559,7 +559,7 @@
                 (cn/instance-of?
                  :Fractl.Meta.Core/BelongsTo
                  (if transition?
-                   (:to (:transition (first (:-> x))))
+                   (first (:-> x))
                    (first (:-> x)))))))
       ([x] (check false x)))
     (check r1) (check r2)

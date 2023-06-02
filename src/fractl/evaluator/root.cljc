@@ -239,21 +239,17 @@
 
 (defn- fire-conditional-event [event-evaluator env store event-info instance]
   (let [[_ event-name [where-clause records-to-load]] event-info
-        upserted-inst (if-let [t (:transition instance)]
-                        (:from t)
-                        instance)
-        new-inst (if-let [t (:transition instance)] (:to t) upserted-inst)
-        env (env/bind-instance env (or new-inst upserted-inst))
+        env (env/bind-instance env instance)
         [all-insts env] (load-instances-for-conditional-event
                          env store where-clause
-                         records-to-load #{new-inst})]
+                         records-to-load #{instance})]
     (when (cn/fire-event? event-info all-insts)
-      (let [[_ n] (li/split-path (cn/instance-type upserted-inst))
+      (let [[_ n] (li/split-path (cn/instance-type instance))
             upserted-n (li/upserted-instance-attribute n)
             evt (cn/make-instance
                  event-name
-                 {n new-inst
-                  upserted-n upserted-inst})]
+                 {n instance
+                  upserted-n instance})]
         (event-evaluator env evt)))))
 
 (defn- fire-all-conditional-events [event-evaluator env store insts]
@@ -304,26 +300,15 @@
    res))
 
 (defn- format-upsert-result-for-read-intercept [result]
-  (su/nonils
-   (flatten
-    (mapv #(if-let [t (:transition %)]
-             [(:from t) (:to t)]
-             (when (cn/an-instance? %)
-               %))
-          result))))
+  (filter cn/an-instance? result))
 
 (defn- revert-upsert-result [orig-result insts]
   (loop [rslt orig-result, insts insts, result []]
     (if-let [r (first rslt)]
       (if (map? r)
-        (if (:transition r)
-          (recur (rest rslt)
-                 (rest (rest insts))
-                 (conj result {:transition {:from (first insts)
-                                            :to (second insts)}}))
-          (recur (rest rslt)
-                 (rest insts)
-                 (conj result (first insts))))
+        (recur (rest rslt)
+               (rest insts)
+               (conj result (first insts)))
         (recur (rest rslt)
                insts (conj result r)))
       result)))
@@ -334,8 +319,7 @@
             (fn [_] (format-upsert-result-for-read-intercept result)))
         r (seq (revert-upsert-result result r0))
         f (first r)]
-    (if (or (cn/an-instance? f)
-            (and (map? f) (:transition f)))
+    (if (cn/an-instance? f)
       r
       (first r))))
 
@@ -706,12 +690,6 @@
         result)
       final-list)))
 
-(defn- normalize-transitions [xs]
-  (mapv #(if-let [t (:transition %)]
-           (:to t)
-           %)
-        xs))
-
 (defn- call-with-exception-as-error [f]
   (try
     (f)
@@ -771,10 +749,9 @@
                            (chained-upsert
                             env (partial eval-event-dataflows self)
                             record-name insts)
-                           (if single? (seq [insts]) insts))
-            lr (normalize-transitions local-result)]
-        (if-let [bindable (if single? (first lr) lr)]
-          (let [env-with-inst (env/bind-instances env record-name lr)
+                           (if single? (seq [insts]) insts))]
+        (if-let [bindable (if single? (first local-result) local-result)]
+          (let [env-with-inst (env/bind-instances env record-name local-result)
                 final-env (if inst-alias
                             (env/bind-instance-to-alias env-with-inst inst-alias bindable)
                             env-with-inst)]

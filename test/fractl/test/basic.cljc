@@ -214,7 +214,7 @@
     (let [id (cn/id-attr result)
           addevt (cn/make-instance :SelfRef/AddToX {:EId id :Y 10})
           result (first (tu/fresult (e/eval-all-dataflows addevt)))
-          inst (or (get-in result [:transition :to]) result)]
+          inst result]
       (is (cn/instance-of? :SelfRef/E inst))
       (is (u/uuid-from-string (cn/id-attr inst)))
       (is (= 110 (:X inst)))

@@ -523,8 +523,8 @@
                {:I479/Bid
                 {:JobId 1
                  :UserId 102}}}})
-         bid1b (get-in j1 [:transition :to])
-         bid2b (get-in j2 [:transition :to])]
+         bid1b j1
+         bid2b j2]
      (defn inplace-update? [b1 b2 b2-status]
        (is (and (= (cn/id-attr b1) (cn/id-attr b2))
                 (= (:JobId b1) (:JobId b2))

@@ -97,13 +97,11 @@
                                   co-names dept-nos emp-names)
           employee? (partial cn/instance-of? :I800/Employee)
           works-for? #(= %1 (:Department (first (:-> %2))))
-          {df :from dt :to} (:transition
-                               (tu/first-result
-                                {:I800/UpdateDepartment
-                                 {:Company "acme" :Department "101" :Location "B786"}}))]
+          dt (tu/first-result
+              {:I800/UpdateDepartment
+               {:Company "acme" :Department "101" :Location "B786"}})]
       (is (every? employee? es))
       (is (every? #(apply works-for? %) [["1" e1] ["2" e2] ["3" e3]]))
-      (is (cn/same-instance? df d1))
       (is (and (= (:Id dt) (:Id d1)) (= (:Location dt) "B786"))))))
 
 (deftest issue-786-auto-upsert-rels
@@ -519,7 +517,7 @@
            {:DC/Create_C {:Instance {:DC/C {:Id 2 :X 100}} :P 1 :G 0}})]
     (is (cn/instance-of? :DC/C c))
     (is (cn/same-instance? c (tu/first-result {:DC/Lookup_C {:P 1 :C 2 :G 0}})))
-    (let [c (:to (:transition (tu/first-result {:DC/Update_C {:G 0 :P 1 :C 2 :Data {:X 200}}})))]
+    (let [c (tu/first-result {:DC/Update_C {:G 0 :P 1 :C 2 :Data {:X 200}}})]
       (is (cn/instance-of? :DC/C c))
       (is (= 200 (:X c)))
       (is (cn/same-instance? c (tu/first-result {:DC/Delete_C {:P 1 :C 2 :G 0}})))
@@ -537,6 +535,6 @@
                               {:Ft/E {:Id 1 :X 100 :Y 200}}}})]
     (is (cn/instance-of? :Ft/E e1))
     (is (= 100 (:X e1)))
-    (let [e2 (:to (:transition (tu/first-result {:Ft/Update_E {:Id 1 :Data {:X 300}}})))]
+    (let [e2 (tu/first-result {:Ft/Update_E {:Id 1 :Data {:X 300}}})]
       (is (cn/instance-eq? e1 e2))
       (is (= 300 (:X e2))))))

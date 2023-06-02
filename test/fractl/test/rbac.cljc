@@ -228,13 +228,11 @@
                  {:E id :X 1000 :Y 2000}})))
            (partial-inst?
             1000
-            (get-in
-             (tu/first-result
-              (with-user
-                "u33@u33.com"
-                {:PrivTest/UpdateEX
-                 {:E id :X 1000 :Y 2000}}))
-             [:transition :to])))
+            (tu/first-result
+             (with-user
+               "u33@u33.com"
+               {:PrivTest/UpdateEX
+                {:E id :X 1000 :Y 2000}}))))
          (let [inst2 (first
                       (tu/result
                        (with-user "u22@u22.com" lookup)))]
@@ -355,7 +353,7 @@
 
 (deftest basic
   (rbac-application)
-  #_(rbac-with-owner))
+  (rbac-with-owner))
 
 (deftest hierarchy
   (defcomponent :RbacH
@@ -531,12 +529,10 @@
            e (first es)]
        (is (cn/instance-of? :Ilr/E e))
        (defn- update-e [fail? id user new-x]
-         (let [e1 (:to
-                   (:transition
-                    (tu/first-result
-                     (with-user
-                       user
-                       {:Ilr/UpdateE {:Id id :X new-x}}))))]
+         (let [e1 (tu/first-result
+                   (with-user
+                     user
+                     {:Ilr/UpdateE {:Id id :X new-x}}))]
            (if fail?
              (is (not e1))
              (is (and (cn/instance-of? :Ilr/E e1)
@@ -576,9 +572,7 @@
        ;; Only owner or superuser can set instance privilege.
        (is (not (change-inst-priv "564" "ilr_u2@ilr.com" "ilr_u2@ilr.com")))
        (let [a (change-inst-priv "564" "ilr_u1@ilr.com" "ilr_u2@ilr.com")]
-         (is (cn/instance-of?
-              :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-              (:to (:transition a))))
+         (is (cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment a))
          (delete-e false "564" "ilr_u2@ilr.com"))))))
 
 (deftest issue-711-inherit-entity-priv
@@ -763,10 +757,7 @@
      (is (not (tu/result (with-user "u2@i711b.com" {:I711B/CreateE2 {:X 10 :Y 200 :K 4}}))))
      (is (not (tu/result (with-user "u2@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))))
      (let [r (tu/first-result (with-user "u1@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))]
-       (let [from (:from (:transition r))
-             to (:to (:transition r))]
-         (is (= 3 (:K from)))
-         (is (= 4 (:K to)))))
+       (is (= 4 (:K r))))
      (is (cn/instance-of?
           :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
           (tu/first-result
@@ -775,11 +766,8 @@
               {:X 10 :User "u2@i711b.com"}}))))
      (let [r (tu/first-result
               (with-user "u2@i711b.com"
-                {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))
-           from (:from (:transition r))
-           to (:to (:transition r))]
-       (is (= 4 (:K from)))
-       (is (= 5 (:K to)))))))
+                {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))]
+       (is (= 5 (:K r)))))))
 
 (deftest issue-762-instance-priv-by-owner
   (defcomponent :I762
@@ -871,26 +859,27 @@
      (rbac-setup :I762/AssignRoles :Fractl.Kernel.Rbac/RoleAssignment)
      (let [xs [1 2 3]
            users (mapv #(str % "@i762.com") ["u1" "u2" "u3"])
-           for-all (fn [f shuffle] (mapv #(f %1 %2) (shuffle xs) users))
+           for-all (fn [f] (mapv #(f %1 %2) xs users))
            e1? (partial cn/instance-of? :I762/E1)
-           e1s? (fn [f shuffle]
-                  (is (every? e1? (for-all f shuffle))))]
-       (e1s? create-e1 identity)
-       (e1s? lookup-e1 shuffle)
-       (is (= 100 (get-in (update-e1 1 100 "u2@i762.com") [:transition :to :Y])))
-       (is (= 200 (get-in (update-e1 1 200 "u3@i762.com") [:transition :to :Y])))
+           e1s? (fn [f] (is (every? e1? (for-all f))))
+           inst-priv? (partial
+                       cn/instance-of?
+                       :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)]
+       (e1s? create-e1)
+       (e1s? lookup-e1)
+       (is (= 100 (:Y (update-e1 1 100 "u2@i762.com"))))
+       (is (= 200 (:Y (update-e1 1 200 "u3@i762.com"))))
        (is (not (tu/result
                  (with-user
                    "u1@i762.com"
                    {:I762/AssignInstancePriv
-                    {:User "u2@i762.com" :X 2}}))))
-       (is (cn/instance-of?
-            :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
+                    {:User "u2@i762.com" :X 3}}))))
+       (is (inst-priv?
             (tu/first-result
              (with-user
                "u1@i762.com"
                {:I762/AssignInstancePriv
                 {:User "u2@i762.com" :X 1}}))))
-       (is (= 1000 (get-in (update-e1 1 1000 "u2@i762.com") [:transition :to :Y])))
+       (is (= 1000 (:Y (update-e1 1 1000 "u2@i762.com"))))
        (is (not (update-e1 1 2000 "u3@i762.com")))
-       (e1s? lookup-e1 shuffle)))))
+       (e1s? lookup-e1)))))

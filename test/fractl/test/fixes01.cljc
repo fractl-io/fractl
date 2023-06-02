@@ -38,12 +38,8 @@
      (is (cn/instance-of? :I195/E2 r))
      (is (dt/parse-date-time (:Y r))))))
 
-(defn- assert-transition [attr-names from-attr-vals to-attr-vals r]
-  (let [t (:transition r)]
-    (is t)
-    (let [from (:from t), to (:to t)]
-      (is (= from-attr-vals (mapv #(% from) attr-names)))
-      (is (= to-attr-vals (mapv #(% to) attr-names))))))
+(defn- assert-transition [attr-names to-attr-vals r]
+  (is (= to-attr-vals (mapv #(% r) attr-names))))
 
 (deftest issue-196
   (#?(:clj do
@@ -69,8 +65,8 @@
      (is (cn/instance-of? :I196/E1 (first results)))
      (is (cn/instance-of? :I196/E1 (nth results 2)))
      (let [a (partial assert-transition [:A :B :C])]
-       (a [10 20 30] [10 40 30] (second results))
-       (a [20 60 40] [20 40 40] (nth results 3))))))
+       (a [10 40 30] (second results))
+       (a [20 40 40] (nth results 3))))))
 
 (deftest issue-206
   (#?(:clj do
@@ -93,8 +89,8 @@
                        [evt1 evt2 evt3])]
      (is (cn/instance-of? :I206/E1 (first results)))
      (let [a (partial assert-transition [:A :B :C])]
-       (a [10 20 30] [10 0 30] (second results))
-       (a [10 0 30] [10 60 30] (nth results 2))))))
+       (a [10 0 30] (second results))
+       (a [10 60 30] (nth results 2))))))
 
 (deftest issue-185
   (#?(:clj do
@@ -127,11 +123,11 @@
      (is (cn/instance-of? :I185/E r1))
      (is (= 10 (:X r1)))
      (is (= 1 (:Y r1)))
-     (let [inst (get-in (first r2) [:transition :to])]
+     (let [inst (first r2)]
        (is (cn/instance-of? :I185/E inst))
        (is (= 20 (:X inst))))
      (is (nil? r3))
-     (let [inst (get-in (first r4) [:transition :to])]
+     (let [inst (first r4)]
        (is (cn/instance-of? :I185/E inst))
        (is (= 11 (:X inst)))
        (is (= 200 (:Y inst))))
@@ -175,12 +171,12 @@
                                   {cn/id-attr (cn/id-attr e1)
                                    :X 20}})
            r3 (tu/fresult (e/eval-all-dataflows evt))
-           e3 (get-in (first r3) [:transition :to])
+           e3 (first r3)
            evt (cn/make-instance {:I213/UpdateE2
                                   {cn/id-attr (cn/id-attr e2)
                                    :Y 200}})
            r4 (tu/fresult (e/eval-all-dataflows evt))
-           e4 (get-in (first r4) [:transition :to])
+           e4 (first r4)
            r5 (first (tu/embedded-results r4))]
        (is (cn/instance-of? :I213/E2 e2))
        (is (nil? (tu/embedded-results r1)))
