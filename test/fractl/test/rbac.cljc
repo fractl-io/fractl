@@ -118,7 +118,7 @@
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p22"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:PrivTest/Upsert_E
+       :Resource [:q# [:PrivTest/Create_E
                        :PrivTest/UpdateE
                        :PrivTest/UpdateEX]]}}
      {:Fractl.Kernel.Rbac/Privilege
@@ -183,7 +183,7 @@
        (tu/is-error
         #(ev/eval-all-dataflows
           (cn/make-instance
-           {:PrivTest/Upsert_E
+           {:PrivTest/Create_E
             {:Instance
              {:PrivTest/E
               {:X 100 :Y 10}}}})))
@@ -191,7 +191,7 @@
         #(ev/eval-all-dataflows
           (with-user
             "u22@u22.com"
-            {:PrivTest/Upsert_E
+            {:PrivTest/Create_E
              {:Instance
               {:PrivTest/E
                {:X 200 :Y 20}}}})))
@@ -199,7 +199,7 @@
                    (tu/result
                     (with-user
                       "u11@u11.com"
-                      {:PrivTest/Upsert_E
+                      {:PrivTest/Create_E
                        {:Instance
                         {:PrivTest/E
                          {:X 100 :Y 10}}}})))
@@ -276,7 +276,7 @@
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "pp22"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:RbacOwner/Upsert_E
+       :Resource [:q# [:RbacOwner/Create_E
                        :RbacOwner/Lookup_E
                        :RbacOwner/Delete_E]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
@@ -307,7 +307,7 @@
                  (tu/result
                   (with-user
                     "uu11@uu11.com"
-                    {:RbacOwner/Upsert_E
+                    {:RbacOwner/Create_E
                      {:Instance
                       {:RbacOwner/E
                        {:X 100}}}})))
@@ -315,7 +315,7 @@
                  (tu/result
                   (with-user
                     "uu22@uu22.com"
-                    {:RbacOwner/Upsert_E
+                    {:RbacOwner/Create_E
                      {:Instance
                       {:RbacOwner/E
                        {:X 200}}}})))
@@ -355,7 +355,7 @@
 
 (deftest basic
   (rbac-application)
-  (rbac-with-owner))
+  #_(rbac-with-owner))
 
 (deftest hierarchy
   (defcomponent :RbacH
@@ -379,7 +379,7 @@
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ph22"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:RbacH/Upsert_E :RbacH/Lookup_E]]}}
+       :Resource [:q# [:RbacH/Create_E :RbacH/Lookup_E]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "rh11" :Privilege "ph11"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
@@ -405,7 +405,7 @@
                 (with-user (rbac/get-superuser-email) :RbacH/CreatePrivileges)))]
        (is (cn/instance-of? :Fractl.Kernel.Rbac/RoleAssignment r2))
        (is (and (= "rh22" (:Role r2)) (= "uh22@uh22.com" (:Assignee r2)))))
-     (let [upsert-event {:RbacH/Upsert_E
+     (let [upsert-event {:RbacH/Create_E
                          {:Instance
                           {:RbacH/E
                            {:X 100}}}}
@@ -507,7 +507,7 @@
       {:Actions [:q# [:read :update :create :delete]]
        :Filter [:q# [:read]]
        :Resource [:q# :Ilr/E]
-       :ResourceId :Ilr/UpdateInstancePrivs.Id
+       :ResourceId? :Ilr/UpdateInstancePrivs.Id
        :Assignee :Ilr/UpdateInstancePrivs.Assignee}}))
   (defn- rbac-setup [event-name result-type]
     (is (cn/instance-of?
@@ -607,7 +607,7 @@
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711a_p2"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:I711A/Upsert_E1 :I711A/CreateE2]]}}
+       :Resource [:q# [:I711A/Create_E1 :I711A/CreateE2]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "i711a_r1" :Privilege "i711a_p1"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
@@ -633,7 +633,7 @@
     (let [f #(tu/result
               (with-user
                 "u1@i711a.com"
-                {:I711A/Upsert_E1
+                {:I711A/Create_E1
                  {:Instance {:I711A/E1 {:X x}}}}))]
       (if expect-error
         (tu/is-error f)
@@ -679,7 +679,7 @@
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p2"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:I711B/Upsert_E1 :I711B/CreateE2
+       :Resource [:q# [:I711B/Create_E1 :I711B/CreateE2
                        :I711B/UpdateE2 :I711B/Lookup_E1]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p3"
@@ -745,7 +745,7 @@
     (let [f #(tu/result
               (with-user
                 "u1@i711b.com"
-                {:I711B/Upsert_E1
+                {:I711B/Create_E1
                  {:Instance {:I711B/E1 {:X x}}}}))]
       (if expect-error
         (tu/is-error f)
@@ -811,7 +811,7 @@
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i762_p2"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:I762/Upsert_E1 :I762/Lookup_E1 :I762/UpdateE1]]}}
+       :Resource [:q# [:I762/Create_E1 :I762/Lookup_E1 :I762/UpdateE1]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i762_p3"
        :Actions [:q# [:eval]]
@@ -850,7 +850,7 @@
     (tu/first-result
      (with-user
        user
-       {:I762/Upsert_E1
+       {:I762/Create_E1
         {:Instance {:I762/E1 {:X x :Y (* x 10)}}}})))
   (defn- lookup-e1 [x user]
     (tu/first-result

@@ -22,7 +22,7 @@
 
 (defn- upsert-superuser [pswd]
   (let [evt (cn/make-instance
-             {:Fractl.Kernel.Identity/Upsert_User
+             {:Fractl.Kernel.Identity/Create_User
               {:Instance
                {:Fractl.Kernel.Identity/User
                 (merge {:Email (get-superuser-email)}

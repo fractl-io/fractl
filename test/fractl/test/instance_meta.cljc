@@ -33,7 +33,7 @@
                (cn/assoc-event-context-user
                 "abcd"
                 (cn/make-instance
-                 {:MetaDataCrud/Upsert_E
+                 {:MetaDataCrud/Create_E
                   {:Instance
                    (cn/make-instance {:MetaDataCrud/E {:X 100}})}}))))]
       (is (cn/instance-of? :MetaDataCrud/E e1))

@@ -1681,7 +1681,7 @@
 (defn all-crud-events [recname]
   (mapv
    (partial crud-event-name recname)
-   [:Upsert :Delete :Lookup :LookupAll]))
+   [:Create :Update :Delete :Lookup :LookupAll]))
 
 (defn remove-record [recname]
   (when-let [scm (fetch-schema recname)]

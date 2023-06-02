@@ -62,14 +62,14 @@
             {:R01/E {:X :EntityXformR01/EPrimeToE.Instance.X
                      cn/id-attr :EntityXformR01/EPrimeToE.Instance.Id}})
   (let [e (cn/make-instance :R01/E {:X 10})
-        result (tu/fresult (e/eval-all-dataflows {:R01/Upsert_E {:Instance e}}))
+        result (tu/fresult (e/eval-all-dataflows {:R01/Create_E {:Instance e}}))
         e01 (first result)]
     (is (cn/instance-of? :R01/E e01))
     (is (nil? (second result)))
     (is (persisted? :R01 e01)))
   (compose-test-resolver :TestResolver01 :R01/E)
   (let [e (cn/make-instance :R01/E {:X 10})
-        result (tu/fresult (e/eval-all-dataflows {:R01/Upsert_E {:Instance e}}))
+        result (tu/fresult (e/eval-all-dataflows {:R01/Create_E {:Instance e}}))
         e01 (first result)]
     (is (cn/instance-of? :R01/E e01))
     (is (persisted? :R01 e01))
@@ -110,7 +110,7 @@
                      cn/id-attr (tu/append-id :EntityXformR02/EToK.Instance)}})
   (override-test-resolver-r02 :TestResolver02 :R02/E)
   (let [e (cn/make-instance :R02/E {:X 10})
-        result (tu/fresult (e/eval-all-dataflows {:R02/Upsert_E {:Instance e}}))
+        result (tu/fresult (e/eval-all-dataflows {:R02/Create_E {:Instance e}}))
         e01 (first result)]
     (is (cn/instance-of? :R02/K e01))
     (is (not (persisted? :R02 e01)))))
@@ -140,7 +140,7 @@
     (entity {:RQ/E {:X :Int}}))
   (test-query-resolver rg/compose-resolver :RQResolver :RQ/E)
   (let [e (cn/make-instance :RQ/E {:X 10})
-        e01 (first (tu/fresult (e/eval-all-dataflows {:RQ/Upsert_E {:Instance e}})))]
+        e01 (first (tu/fresult (e/eval-all-dataflows {:RQ/Create_E {:Instance e}})))]
     (is (cn/instance-of? :RQ/E e01))
     (is (= 10 (:X e01)))
     (let [id (cn/id-attr e01)
@@ -158,7 +158,7 @@
   (test-query-resolver rg/compose-resolver :RQResolver :ResQueryAll/E)
   (let [es [(cn/make-instance :ResQueryAll/E {:X 1 :N "e01"})
             (cn/make-instance :ResQueryAll/E {:X 2 :N "e02"})]
-        evts (map #(cn/make-instance :ResQueryAll/Upsert_E {:Instance %}) es)
+        evts (map #(cn/make-instance :ResQueryAll/Create_E {:Instance %}) es)
         _ (doall (map tu/fresult (map #(e/eval-all-dataflows %) evts)))
         result (tu/fresult (e/eval-all-dataflows {:ResQueryAll/AllE {}}))]
     (doseq [r result]
@@ -180,13 +180,13 @@
   (rg/compose-resolver :CT/E2 (make-resolver :CTR2 :Y))
   (let [result1 (tu/fresult
                  (e/eval-all-dataflows
-                  {:CT/Upsert_E1
+                  {:CT/Create_E1
                    {:Instance
                     {:CT/E1 {:X 100 :N "hello"}}}}))]
     (tu/is-error
      #(tu/fresult
        (e/eval-all-dataflows
-        {:CT/Upsert_E2
+        {:CT/Create_E2
          {:Instance
           {:CT/E2 {:X 200 :N "bye"}}}})))
     (is (cn/instance-of? :CT/E1 (first result1)))
@@ -227,7 +227,7 @@
   (let [r1 (first
             (tu/fresult
              (e/eval-all-dataflows
-              {:IT/Upsert_E1
+              {:IT/Create_E1
                {:Instance
                 {:IT/E1 {:X 100 :N "hello"}}}})))
         id (cn/id-attr r1)

@@ -18,7 +18,7 @@
 (deftest issue-506-policy-inheritance
   (#?(:clj do
       :cljs cljs.core.async/go)
-   (mt/set-policy-parser! mt/views-tag policy/upsert-policy)
+   (mt/set-policy-parser! mt/views-tag policy/create-policy)
    (defcomponent :I506PI
      (entity
       :I506PI/E1
