@@ -826,20 +826,20 @@
     elems))
 
 (defn- parent-query-pattern
-  ([attr-accessor relname parent query-rel]
+  ([attr-accessor relname rel-attrs parent query-rel]
    (let [cps (seq (cn/containing-parents parent))
          parent-pat {parent {(li/name-as-query-pattern
                               (cn/identity-attribute-name parent))
                              (attr-accessor (name parent))}}]
      [(if query-rel
         (li/name-as-query-pattern relname)
-        {relname {}}) ; TODO: Instead of {}, `:from` a map attribute in the event?
+        {relname (into {} (mapv (fn [a] [a (attr-accessor (name a))]) rel-attrs))})
       (if cps
         (let [[r _ p] (first cps)]
-          (assoc parent-pat li/rel-tag (parent-query-pattern attr-accessor r p true)))
+          (assoc parent-pat li/rel-tag (parent-query-pattern attr-accessor r nil p true)))
         parent-pat)]))
-  ([attr-accessor relname parent]
-   (parent-query-pattern attr-accessor relname parent false)))
+  ([attr-accessor relname rel-attrs parent]
+   (parent-query-pattern attr-accessor relname rel-attrs parent false)))
 
 (defn- parent-query-path
   ([attr-accessor relname parent child query-all]
@@ -862,7 +862,7 @@
         (recur p0 (assoc result (keyword (name p0)) :Fractl.Kernel.Lang/Any)))
       result)))
 
-(defn- regen-default-dataflows-for-contains [relname [parent child]]
+(defn- regen-default-dataflows-for-contains [relname [parent child] rel-attrs]
   (let [ev (partial crud-evname child)
         crevt (ev :Create)
         upevt (ev :Update)
@@ -887,12 +887,12 @@
      (merge
       {:Instance child
        li/event-context ctx-aname}
-      (parent-names-as-attributes parent)))
+      rel-attrs (parent-names-as-attributes parent)))
     (cn/register-dataflow
      crevt
      [{child cr-inst-pat
        li/rel-tag
-       (parent-query-pattern f2 relname parent)}])
+       (parent-query-pattern f2 relname (keys rel-attrs) parent)}])
     (event-internal
      upevt
      (merge
@@ -1020,7 +1020,7 @@
        (when (cn/register-relationship elems relation-name)
          (when-let [r (and (meta-entity relation-name) r)]
            (if contains
-             (regen-default-dataflows-for-contains relation-name contains)
+             (regen-default-dataflows-for-contains relation-name contains (dissoc raw-attrs :meta))
              (regen-default-dataflows-for-between relation-name between (dissoc attrs :meta)))
            r)))))
   ([schema]
