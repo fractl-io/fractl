@@ -460,8 +460,8 @@
   (subs s path-query-prefix-len))
 
 (defn- fully-qualified-path-type [base-component n]
-  (if (s/index-of n "#")
-    (keyword (s/replace n "#" "/"))
+  (if (s/index-of n "$")
+    (keyword (s/replace n "$" "/"))
     (keyword (str (name base-component) "/" n))))
 
 (defn- fully-qualified-path-value [base-component n]

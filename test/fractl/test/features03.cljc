@@ -538,3 +538,10 @@
     (let [e2 (tu/first-result {:Ft/Update_E {:Id 1 :Data {:X 300}}})]
       (is (cn/instance-eq? e1 e2))
       (is (= 300 (:X e2))))))
+
+(deftest path-with-child-components
+  (let [parse (partial li/parse-query-path :Acme.Core)
+        parts1 (first (parse "path://Company/:LookupEmployee.C/WorksFor/Acme.Erp$Employee/:LookupEmployee.E"))
+        parts2 (first (parse "path://Company/:LookupEmployee.C/WorksFor/Employee/:LookupEmployee.E"))]
+    (is (= :Acme.Erp/Employee (:child parts1)))
+    (is (= :Acme.Core/Employee (:child parts2)))))

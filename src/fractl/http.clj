@@ -14,7 +14,7 @@
             [fractl.util.logger :as log]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors])
-  (:use [compojure.core :only [routes POST GET]]
+  (:use [compojure.core :only [routes POST PUT GET]]
         [compojure.route :only [not-found]]))
 
 (defn- response
@@ -149,6 +149,16 @@
     (if (cn/find-event-schema n)
       (process-dynamic-eval evaluator auth n request)
       (bad-request (str "Event not found - " n)))))
+
+(defn- parse-rest-uri [request]
+  (uh/parse-rest-uri (:* (:params request))))
+
+(defn process-put-request [evaluator [_ maybe-unauth] request]
+  (or (maybe-unauth request)
+      (if-let [path (parse-rest-uri request)]
+        ;; TODO: generate event from parsed-path, eval and return result
+        (ok {:PUT path})
+        (bad-request (str "invalid PUT target - " (:* (:params request)))))))
 
 (defn- like-pattern? [x]
   ;; For patterns that include the `_` wildcard,
@@ -506,7 +516,8 @@
            (POST uh/change-password-prefix [] (:change-password handlers))
            (POST uh/refresh-token-prefix [] (:refresh-token handlers))
            (POST (str uh/entity-event-prefix ":component/:event") []
-             (:request handlers))
+                 (:request handlers))
+           (PUT (str uh/entity-event-prefix "*") [] (:put-request handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (GET "/meta/:component" [] (:meta handlers))
@@ -561,6 +572,7 @@
           :change-password (partial process-change-password auth)
           :refresh-token (partial process-refresh-token auth)
           :request (partial process-request evaluator auth-info)
+          :put-request (partial process-put-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
           :meta (partial process-meta-request auth-info)})

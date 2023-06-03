@@ -1,6 +1,7 @@
 (ns fractl.util.http
   (:require #?(:clj  [org.httpkit.client :as http]
                :cljs [cljs-http.client :as http])
+            [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.datafmt.json :as json]
@@ -122,3 +123,35 @@
                :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
              aws-config)
          aws-config))))
+
+(defn- fully-qualified-name [base-component n]
+  (let [[c en] (s/split n #"\$")]
+    (if (and c en)
+      (keyword (str c "/" en))
+      (keyword (str base-component "/" n)))))
+
+(defn- uri-as-path [fqn parts]
+  (loop [ss (partition-all 3 parts), path []]
+    (if (seq ss)
+      (let [[p v r] (first ss)]
+        (if (and p v r)
+          (recur
+           (rest ss)
+           (conj path {:parent (fqn p)
+                       :relation (fqn r)
+                       :id v}))
+          {:path path :entity (fqn p) :id v})))))
+
+(defn parse-rest-uri [uri]
+  (let [parts (s/split uri #"/")
+        c (count parts)]
+    (when (>= c 2)
+      (let [f (first parts) r (rest parts)
+            fqn (partial fully-qualified-name f)]
+        (if (<= c 3)
+          {:component (keyword f)
+           :entity (fqn (first r))
+           :id (when (seq (rest r)) (last r))}
+          (assoc
+           (uri-as-path fqn r)
+           :component (keyword f)))))))
