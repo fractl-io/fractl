@@ -145,7 +145,7 @@
                        :A 100 :T 1 :S 2}})
         b2 (tu/first-result
             {:I786/Lookup_B
-             {:A 100 :B 20 :T 1 :S 2}})]
+             {:A 100 :Y 20 :T 1 :S 2}})]
     (is (cn/instance-of? :I786/A a))
     (is (cn/instance-of? :I786/B b1))
     (let [r (first (li/rel-tag b1))]
@@ -516,12 +516,12 @@
         c (tu/result
            {:DC/Create_C {:Instance {:DC/C {:Id 2 :X 100}} :P 1 :G 0}})]
     (is (cn/instance-of? :DC/C c))
-    (is (cn/same-instance? c (tu/first-result {:DC/Lookup_C {:P 1 :C 2 :G 0}})))
-    (let [c (tu/first-result {:DC/Update_C {:G 0 :P 1 :C 2 :Data {:X 200}}})]
+    (is (cn/same-instance? c (tu/first-result {:DC/Lookup_C {:P 1 :Id 2 :G 0}})))
+    (let [c (tu/first-result {:DC/Update_C {:G 0 :P 1 :Id 2 :Data {:X 200}}})]
       (is (cn/instance-of? :DC/C c))
       (is (= 200 (:X c)))
-      (is (cn/same-instance? c (tu/first-result {:DC/Delete_C {:P 1 :C 2 :G 0}})))
-      (= :not-found (:status (first (tu/eval-all-dataflows {:DC/Lookup_C {:P 1 :C 2 :G 0}})))))))
+      (is (cn/same-instance? c (tu/first-result {:DC/Delete_C {:P 1 :Id 2 :G 0}})))
+      (= :not-found (:status (first (tu/eval-all-dataflows {:DC/Lookup_C {:P 1 :Id 2 :G 0}})))))))
 
 (deftest from-with-query-update
   (defcomponent :Ft

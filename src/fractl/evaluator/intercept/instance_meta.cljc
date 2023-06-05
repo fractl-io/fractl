@@ -46,7 +46,7 @@
        (su/all-true?
         (mapv #(e/safe-eval-internal
                 {(cn/meta-entity-update-event-name n)
-                 {:Id (str (cn/idval %))
+                 {cn/meta-entity-id (str (cn/idval %))
                   :Data {:LastUpdated (dt/now) :LastUpdatedBy user}}})
               entity-instances))))))
 

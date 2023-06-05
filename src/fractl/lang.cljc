@@ -696,7 +696,7 @@
              id-evattrs {id-attr id-attr-type
                          li/event-context ctx-aname}
              cr-evattrs {:Instance n li/event-context ctx-aname}
-             up-id-attr :Id
+             up-id-attr id-attr
              up-evattrs {up-id-attr id-attr-type
                          :Data :Fractl.Kernel.Lang/Map}]
          ;; Define CRUD events and dataflows:
@@ -842,18 +842,18 @@
    (parent-query-pattern attr-accessor relname rel-attrs parent false)))
 
 (defn- parent-query-path
-  ([attr-accessor relname parent child query-all]
+  ([attr-accessor relname parent [child child-id-attr] query-all]
    (let [f attr-accessor, np (name parent), nc (name child)
          path (str "/" np "/" (f np) "/" (name relname) "/" nc
-                   (if query-all "/*" (str "/" (f nc))))]
+                   (if query-all "/*" (str "/" (f (name child-id-attr)))))]
      (loop [parent parent, path path]
        (if-let [cps (seq (cn/containing-parents parent))]
          (let [[r _ p] (first cps), np (name p)]
            (recur p (str np "/" (f np) "/" (name r) "/" path)))
          (str "path:" (if (s/starts-with? path "/") "/" "//")
               (s/replace path "//" "/"))))))
-  ([attr-accessor relname parent child]
-   (parent-query-path attr-accessor relname parent child false)))
+  ([attr-accessor relname parent child-info]
+   (parent-query-path attr-accessor relname parent child-info false)))
 
 (defn- parent-names-as-attributes [parent]
   (loop [p parent, result {(keyword (name parent)) :Fractl.Kernel.Lang/Any}]
@@ -867,6 +867,7 @@
         crevt (ev :Create)
         upevt (ev :Update)
         attr-names (cn/attribute-names (cn/fetch-schema child))
+        id-attr (cn/identity-attribute-name child)
         f1 (partial crud-event-inst-accessor crevt true)
         f2 (partial crud-event-attr-accessor crevt)
         f2up1 (partial crud-event-attr-accessor upevt)
@@ -897,23 +898,23 @@
      upevt
      (merge
       {:Data :Fractl.Kernel.Lang/Map
-       ck :Fractl.Kernel.Lang/Any}
+       id-attr :Fractl.Kernel.Lang/Any}
       (parent-names-as-attributes parent)))
     (cn/register-dataflow
      upevt
      [{child
-       {:? (parent-query-path f2up2 relname parent child)}
+       {:? (parent-query-path f2up2 relname parent [child id-attr])}
        :from (f2up1 "Data")}])
     (event-internal
      lookupevt
      (merge
-      {ck :Fractl.Kernel.Lang/Any
+      {id-attr :Fractl.Kernel.Lang/Any
        li/event-context ctx-aname}
       pattrs))
     (cn/register-dataflow
      lookupevt
      [{(li/name-as-query-pattern child)
-       (parent-query-path f3 relname parent child)}])
+       (parent-query-path f3 relname parent [child id-attr])}])
     (event-internal
      lookupallevt
      (merge
@@ -922,17 +923,17 @@
     (cn/register-dataflow
      lookupallevt
      [{(li/name-as-query-pattern child)
-       (parent-query-path f4 relname parent child true)}])
+       (parent-query-path f4 relname parent [child id-attr] true)}])
     (event-internal
      delevt
-     (merge {ck :Fractl.Kernel.Lang/Any}
+     (merge {id-attr :Fractl.Kernel.Lang/Any}
             (parent-names-as-attributes parent)))
     (cn/register-dataflow
      delevt
      [[:delete relname {pk (li/make-ref delevt pk)
-                        ck (li/make-ref delevt ck)}]
+                        ck (li/make-ref delevt id-attr)}]
       [:delete child {(cn/identity-attribute-name child)
-                      (li/make-ref delevt ck)}]])))
+                      (li/make-ref delevt id-attr)}]])))
 
 (defn- find-between-ref [attrs node-rec-name]
   (let [cn (li/split-path node-rec-name)]
