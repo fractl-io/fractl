@@ -155,7 +155,8 @@
 
 (defn- request-object [request]
   (if-let [data-fmt (find-data-format request)]
-    [((uh/decoder data-fmt) (String. (.bytes (:body request)))) data-fmt nil]
+    [(when-let [body (:body request)]
+       ((uh/decoder data-fmt) (String. (.bytes body)))) data-fmt nil]
     [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)))]))
 
 (defn- path-as-parent-ids [path]
@@ -601,7 +602,7 @@
      :access-control-allow-origin (or (:cors-allow-origin config)
                                       [#".*"])
      :access-control-allow-credentials true
-     :access-control-allow-methods [:post])))
+     :access-control-allow-methods [:post :put :delete :get])))
 
 (defn- handle-request-auth [request]
   (try
