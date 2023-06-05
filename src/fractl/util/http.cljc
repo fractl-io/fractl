@@ -131,16 +131,15 @@
       (keyword (str base-component "/" n)))))
 
 (defn- uri-as-path [fqn parts]
-  (loop [ss (partition-all 3 parts), path []]
+  (loop [ss (partition-all 2 parts), path []]
     (if (seq ss)
-      (let [[p v r] (first ss)]
-        (if (and p v r)
+      (let [[p v] (first ss)]
+        (if (seq (rest ss))
           (recur
            (rest ss)
            (conj path {:parent (fqn p)
-                       :relation (fqn r)
                        :id v}))
-          {:path path :entity (fqn p) :id v})))))
+          {:path path :entity p :id v})))))
 
 (defn parse-rest-uri [uri]
   (let [parts (s/split uri #"/")

@@ -153,11 +153,23 @@
 (defn- parse-rest-uri [request]
   (uh/parse-rest-uri (:* (:params request))))
 
+(defn- request-object [request]
+  (if-let [data-fmt (find-data-format request)]
+    [((uh/decoder data-fmt) (String. (.bytes (:body request)))) nil]
+    [nil (bad-request (str "unsupported content-type in request - " (request-content-type request)))]))
+
 (defn process-put-request [evaluator [_ maybe-unauth] request]
   (or (maybe-unauth request)
-      (if-let [path (parse-rest-uri request)]
-        ;; TODO: generate event from parsed-path, eval and return result
-        (ok {:PUT path})
+      (if-let [{entity-name :entity id :id component :component path :path}
+               (parse-rest-uri request)]
+        (let [[obj err-response] (request-object request)]
+          (or err-response
+              (ok {(cn/crud-event-name component entity-name :Update)
+                   (merge
+                    {:Id id
+                     :Data (li/record-attributes obj)}
+                    (when path
+                      (into {} (mapv (fn [{p :parent id :id}] [(keyword (name (keyword p))) id]) path))))})))
         (bad-request (str "invalid PUT target - " (:* (:params request)))))))
 
 (defn- like-pattern? [x]
