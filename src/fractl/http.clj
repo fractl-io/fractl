@@ -127,6 +127,15 @@
   ([evaluator auth-info request]
    (process-dynamic-eval evaluator auth-info nil request)))
 
+(defn process-request [evaluator auth request]
+  (let [params (:params request)
+        component (keyword (:component params))
+        event (keyword (:event params))
+        n [component event]]
+    (if (cn/find-event-schema n)
+      (process-dynamic-eval evaluator auth n request)
+      (bad-request (str "Event not found - " n)))))
+
 (defn- paths-info [component]
   (mapv (fn [n] {(subs (str n) 1)
                  {"post" {"parameters" (cn/event-schema n)}}})
