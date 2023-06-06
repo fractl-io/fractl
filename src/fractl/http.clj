@@ -180,11 +180,13 @@
   (partial
    process-generic-request
    (fn [{entity-name :entity id :id component :component path :path} obj]
-     [{(cn/crud-event-name component entity-name :Create)
-       (merge
-        {:Instance obj}
-        (path-as-parent-ids path))}
-      nil])))
+     (if (cn/event? entity-name)
+       [obj nil]
+       [{(cn/crud-event-name component entity-name :Create)
+         (merge
+          {:Instance obj}
+          (path-as-parent-ids path))}
+        nil]))))
 
 (def process-put-request
   (partial

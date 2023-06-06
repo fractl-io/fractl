@@ -139,7 +139,7 @@
            (rest ss)
            (conj path {:parent (fqn p)
                        :id v}))
-          {:path path :entity p :id v})))))
+          {:path path :entity (fqn p) :id v})))))
 
 (defn parse-rest-uri [uri]
   (let [parts (s/split uri #"/")

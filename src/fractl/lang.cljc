@@ -1016,7 +1016,7 @@
                attrs
                :meta (assoc
                       (if combined-uqs (assoc meta :unique uqs) meta)
-                      :relationship true))
+                      :relationship (if between :between :contains)))
               raw-attrs)]
        (when (cn/register-relationship elems relation-name)
          (when-let [r (and (meta-entity relation-name) r)]
