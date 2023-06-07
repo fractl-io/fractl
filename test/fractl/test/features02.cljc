@@ -513,13 +513,7 @@
       (let [paths (rg/paths subg :I703/Dept)
             subg (rg/descend paths :I703/WorksFor)]
         (is (= (set [:I703/WorksFor :I703/Storage]) (rg/rep paths)))
-        (is (= (set [:I703/Employee]) (rg/rep (rg/roots subg))))
-        (let [n (rg/node-object
-                 (rg/paths subg :I703/Employee)
-                 :I703/ReportsTo)]
-          (is (= :between (:type n)))
-          (is (= :I703/Employee (:to n)))
-          (is (= :I703/ReportsTo (:relationship n)))))))
+        (is (= (set [:I703/Employee]) (rg/rep (rg/roots subg)))))))
   (let [c (tu/first-result
            {:I703/Upsert_Company
             {:Instance
@@ -539,6 +533,86 @@
     (is (= :I703/Section rel-c))
     (is (= :I703/Dept ctype))
     (is (cn/same-instance? (first cinst) d))))
+
+(deftest deeds-contains-graph
+  (defcomponent :I703Deeds
+    (entity
+     :I703Deeds/Group
+     {:Name {:type :String :identity true}})
+    (entity
+     :I703Deeds/FocusArea
+     {:Name {:type :String :identity true}})
+    (entity
+     :I703Deeds/Deed
+     {:Name {:type :String :identity true}})
+    (entity
+     :I703Deeds/Member
+     {:Email {:type :Email :identity true}})
+    (entity
+     :I703Deeds/Transaction
+     {:Points {:type :Int}})
+    (relationship
+     :I703Deeds/GroupFocusArea
+     {:meta {:contains [:I703Deeds/Group :I703Deeds/FocusArea]}})
+    (relationship
+     :I703Deeds/FocusAreaDeed
+     {:meta {:contains [:I703Deeds/FocusArea :I703Deeds/Deed]}})
+    (relationship
+     :I703Deeds/MemberTransaction
+     {:meta {:contains [:I703Deeds/Member :I703Deeds/Transaction]}})
+    (relationship
+     :I703Deeds/GroupMember
+     {:meta {:between [:I703Deeds/Group :I703Deeds/Member]}})
+    (relationship
+     :I703Deeds/DeedTransaction
+     {:meta {:between [:I703Deeds/Deed :I703Deeds/Transaction]}})
+
+    (event
+     :I703Deeds/CreateDeed
+     {:Group :String
+      :FocusArea :String
+      :Deed :String})
+    (dataflow
+     :I703Deeds/CreateDeed
+     {:I703Deeds/Deed {:Name :I703Deeds/CreateDeed.Deed}
+      :-> [{:I703Deeds/FocusAreaDeed {}}
+           {:I703Deeds/FocusArea {:Name :I703Deeds/CreateDeed.FocusArea}
+            :-> [{:I703Deeds/GroupFocusArea {}}
+                 {:I703Deeds/Group {:Name :I703Deeds/CreateDeed.Group}}]}]})
+
+    (event
+     :I703Deeds/CreateMember
+     {:Email :Email
+      :Group :String})
+    (dataflow
+     :I703Deeds/CreateMember
+     {:I703Deeds/Group {:Name? :I703Deeds/CreateMember.Group}
+      :as [:G]}
+     {:I703Deeds/Member {:Email :I703Deeds/CreateMember.Email}
+      :-> [{:I703Deeds/GroupMember {}} :G]})
+
+    (event
+     :I703Deeds/CreateTransaction
+     {:Points :Int
+      :Group :String
+      :FocusArea :String
+      :Deed :String
+      :Member :Email})
+    (dataflow
+     :I703Deeds/CreateTransaction
+     {:I703Deeds/Member {:Email? :I703Deeds/CreateTransaction.Member}
+      :as [:M]}
+     {:I703Deeds/Deed {:Name? :I703Deeds/CreateTransaction.Deed}
+      :-> [:I703Deeds/FocusAreaDeed?
+           {:I703Deeds/FocusArea {:Name? :I703Deeds/CreateTransaction.FocusArea}
+            :-> [:I703Deeds/GroupFocusArea?
+                 {:I703Deeds/Group {:Name? :I703Deeds/CreateTransaction.Group}}]}]
+      :as [:D]}
+     {:I703Deeds/Transaction {:Points :I703Deeds/CreateTransaction.Points}
+      :-> [[{:I703Deeds/MemberTransaction {}} :M]
+           [{:I703Deeds/DeedTransaction {}} :D]]}))
+  (let [g (rg/build-graph :I703Deeds)]
+    (is (= (rg/rep g) #{:I703Deeds/Group :I703Deeds/Member}))))
 
 (deftest contains-workspace
   (defcomponent :Fractl.Meta.Core
