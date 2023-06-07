@@ -237,34 +237,8 @@
   (or (seq (su/nonils args))
       [(:full-model-path config)]))
 
-(defn- read-env-var [x]
-  (cond
-    (symbol? x)
-    (when-let [v (System/getenv (name x))]
-      (let [s (try
-                (read-string v)
-                (catch Exception _e v))]
-        (cond
-          (not= (str s) v) v
-          (symbol? s) (str s)
-          :else s)))
-
-    (vector? x)
-    (first (su/nonils (mapv read-env-var x)))
-
-    :else x))
-
-(defn- read-config-file [config-file]
-  (let [f (io/file config-file)]
-    (when-not (.exists f)
-      (with-open [out (io/writer f)]
-        (binding [*out* out]
-          (print {:service {:port 8080}})))))
-  (binding [*data-readers* {'$ read-env-var}]
-    (read-string (slurp config-file))))
-
 (defn- load-config [options]
-  (read-config-file (get options :config "config.edn")))
+  (u/read-config-file (get options :config "config.edn")))
 
 (def ^:private config-data-key :-*-config-data-*-)
 
