@@ -7,7 +7,7 @@
                      entity record dataflow]]
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
-            [clojure.java.io :as io]
+            #?(:clj [clojure.java.io :as io])
             #?(:clj [fractl.datafmt.csv :as csv])
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
