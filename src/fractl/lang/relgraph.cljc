@@ -46,7 +46,6 @@
    (reduce
     (fn [graph entity-name]
       (let [children (mapv as-node (cn/contained-children entity-name))
-            between-rels (mapv as-node (cn/between-relationships entity-name))
             existing-children (entity-name graph)]
         (assoc graph entity-name (vec (concat existing-children children)))))
     {} entity-names)))
