@@ -11,6 +11,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]
             [fractl.lang.syntax :as ls]
+            [fractl.lang.raw :as raw]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -545,3 +546,41 @@
         parts2 (first (parse "path://Company/:LookupEmployee.C/WorksFor/Employee/:LookupEmployee.E"))]
     (is (= :Acme.Erp/Employee (:child parts1)))
     (is (= :Acme.Core/Employee (:child parts2)))))
+
+(deftest issue-902-component-code
+  (component :I902
+             {:clj-import '[(:require [clojure.string :as s])]})
+  (record :I902/A {:X :Int :Y {:type :String :identity true}})
+  (entity :I902/B {:F {:type :Int :identity true} :G {:oneof ["a" "b" "c"]}})
+  (dataflow
+   :I902/MakeA
+   {:I902/B {:F? :I902/MakeA.B} :as :B}
+   {:I902/A {:X :B.F :Y '(str :X :B.G)}})
+  (entity :I902/C {:K :Float})
+  (relationship :I902/R {:meta {:contains [:I902/B :I902/C]} :D :DateTime})
+  (event :I902/GetC {:B :Int})
+  (dataflow
+   :I902/GetC
+   {:I902/C? {}
+    :-> [:I902/R? {:I902/B {:F? :I902/GetC.B}}]})
+  (defn- elem-exists? [edn idx elem]
+    (= elem (edn idx)))
+  (is (not (raw/as-edn :I902.Core)))
+  (let [edn (raw/as-edn :I902)
+        e? (partial elem-exists? (vec (rest edn)))
+        elems [['component :I902 {:clj-import '[(:require [clojure.string :as s])]}]
+               ['record :I902/A {:X :Int :Y {:type :String :identity true}}]
+               ['entity :I902/B {:F {:type :Int :identity true} :G {:oneof ["a" "b" "c"]}}]
+               ['dataflow :I902/MakeA
+                {:I902/B {:F? :I902/MakeA.B} :as :B}
+                {:I902/A {:X :B.F :Y '(str :X :B.G)}}]
+               ['entity :I902/C {:K :Float}]
+               ['relationship :I902/R
+                {:meta {:contains [:I902/B :I902/C]} :D :DateTime}]
+               ['event :I902/GetC {:B :Int}]
+               ['dataflow :I902/GetC {:I902/C? {} :-> [:I902/R? {:I902/B {:F? :I902/GetC.B}}]}]]
+        n (count elems)]
+    (loop [i 0]
+      (when (< i n)
+        (is (e? i (elems i)))
+        (recur (inc i))))))
