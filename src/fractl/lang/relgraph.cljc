@@ -42,13 +42,18 @@
    :to child-entity})
 
 (defn- do-build-graph [entity-names]
-  (attach-roots
-   (reduce
-    (fn [graph entity-name]
-      (let [children (mapv as-node (cn/contained-children entity-name))
-            existing-children (entity-name graph)]
-        (assoc graph entity-name (vec (concat existing-children children)))))
-    {} entity-names)))
+  (let [rooted-graph (attach-roots
+                      (reduce
+                       (fn [graph entity-name]
+                         (let [children (mapv as-node (cn/contained-children entity-name))
+                               existing-children (entity-name graph)]
+                           (assoc graph entity-name (vec (concat existing-children children)))))
+                       {} entity-names))]
+    (reduce (fn [graph entity-name]
+              (let [between-rels (mapv as-node (cn/between-relationships entity-name))
+                    existing-children (entity-name graph)]
+                (assoc graph entity-name (vec (concat existing-children between-rels)))))
+           rooted-graph entity-names)))
 
 (def roots identity)
 
