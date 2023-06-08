@@ -9,16 +9,15 @@
             [fractl.store.sql :as sql]
             [fractl.util.seq :as us]
             #?(:clj [fractl.store.jdbc-internal :as ji])
-            #?(:clj [fractl.store.postgres-internal :as pi])
-            #?(:clj [fractl.store.h2-internal :as h2i]
-               :cljs [fractl.store.alasql-internal :as aqi])))
+            #?(:cljs [fractl.store.alasql-internal :as aqi])))
 
 (def ^:private store-fns
   {:transact-fn! #?(:clj ji/transact-fn! :cljs aqi/execute-fn!)
    :execute-fn! #?(:clj ji/execute-fn! :cljs aqi/execute-fn!)
    :execute-sql! #?(:clj ji/execute-sql! :cljs aqi/execute-sql!)
    :execute-stmt! #?(:clj ji/execute-stmt! :cljs aqi/execute-stmt!)
-   :upsert-inst-statement #?(:clj h2i/upsert-inst-statement :cljs aqi/upsert-inst-statement)
+   :create-inst-statement #?(:clj ji/create-inst-statement :cljs aqi/upsert-inst-statement)
+   :update-inst-statement #?(:clj ji/update-inst-statement :cljs aqi/upsert-inst-statement)
    :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
    :delete-all-statement #?(:clj ji/delete-all-statement :cljs aqi/delete-all-statement)
    :query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement)
@@ -29,7 +28,8 @@
 (def execute-fn! (:execute-fn! store-fns))
 (def execute-sql! (:execute-sql! store-fns))
 (def execute-stmt! (:execute-stmt! store-fns))
-(def upsert-inst-statement (:upsert-inst-statement store-fns))
+(def create-inst-statement (:create-inst-statement store-fns))
+(def update-inst-statement (:update-inst-statement store-fns))
 (def delete-by-id-statement (:delete-by-id-statement store-fns))
 (def delete-all-statement (:delete-all-statement store-fns))
 (def query-by-id-statement (:query-by-id-statement store-fns))
@@ -158,13 +158,12 @@
         (execute-stmt! % pstmt params)))
     instance))
 
-(defn upsert-instance
-  ([upsert-inst-statement datasource entity-name instance]
-   (upsert-relational-entity-instance
-    upsert-inst-statement datasource entity-name instance))
-  ([datasource entity-name instance]
-   (upsert-relational-entity-instance
-    upsert-inst-statement datasource entity-name instance)))
+(defn upsert-instance [upsert-inst-statement datasource entity-name instance]
+  (upsert-relational-entity-instance
+   upsert-inst-statement datasource entity-name instance))
+
+(def create-instance (partial upsert-instance create-inst-statement))
+(def update-instance (partial upsert-instance update-inst-statement))
 
 (defn- delete-inst!
   "Delete an entity instance."

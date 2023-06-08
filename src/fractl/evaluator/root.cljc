@@ -30,7 +30,8 @@
       :where [:= (first (:refs r)) ref-val]}
      [rec-name ref-val]]))
 
-(def ^:private upsert-intercept interceptors/upsert-intercept)
+(def ^:private create-intercept interceptors/create-intercept)
+(def ^:private update-intercept interceptors/update-intercept)
 (def ^:private delete-intercept interceptors/delete-intercept)
 (def ^:private read-intercept interceptors/read-intercept)
 
@@ -204,6 +205,9 @@
        (mapv (partial process-resolver-upsert r f env) arg))
      insts rs)))
 
+(def ^:private call-resolver-create call-resolver-upsert)
+(def ^:private call-resolver-update call-resolver-upsert)
+
 (defn- call-resolver-delete [f env resolver composed? inst]
   (let [rs (if composed? resolver [resolver])]
     (reduce
@@ -214,7 +218,8 @@
 (defn- async-invoke [timeout-ms f]
   (cn/make-future (a/async-invoke f) timeout-ms))
 
-(def ^:private resolver-upsert (partial call-resolver-upsert r/call-resolver-upsert))
+(def ^:private resolver-update (partial call-resolver-update r/call-resolver-update))
+(def ^:private resolver-create (partial call-resolver-create r/call-resolver-create))
 (def ^:private resolver-delete (partial call-resolver-delete r/call-resolver-delete))
 
 (defn- call-resolver-eval [resolver composed? env inst]
@@ -234,21 +239,17 @@
 
 (defn- fire-conditional-event [event-evaluator env store event-info instance]
   (let [[_ event-name [where-clause records-to-load]] event-info
-        upserted-inst (if-let [t (:transition instance)]
-                        (:from t)
-                        instance)
-        new-inst (if-let [t (:transition instance)] (:to t) upserted-inst)
-        env (env/bind-instance env (or new-inst upserted-inst))
+        env (env/bind-instance env instance)
         [all-insts env] (load-instances-for-conditional-event
                          env store where-clause
-                         records-to-load #{new-inst})]
+                         records-to-load #{instance})]
     (when (cn/fire-event? event-info all-insts)
-      (let [[_ n] (li/split-path (cn/instance-type upserted-inst))
+      (let [[_ n] (li/split-path (cn/instance-type instance))
             upserted-n (li/upserted-instance-attribute n)
             evt (cn/make-instance
                  event-name
-                 {n new-inst
-                  upserted-n upserted-inst})]
+                 {n instance
+                  upserted-n instance})]
         (event-evaluator env evt)))))
 
 (defn- fire-all-conditional-events [event-evaluator env store insts]
@@ -299,26 +300,15 @@
    res))
 
 (defn- format-upsert-result-for-read-intercept [result]
-  (su/nonils
-   (flatten
-    (mapv #(if-let [t (:transition %)]
-             [(:from t) (:to t)]
-             (when (cn/an-instance? %)
-               %))
-          result))))
+  (filter cn/an-instance? result))
 
 (defn- revert-upsert-result [orig-result insts]
   (loop [rslt orig-result, insts insts, result []]
     (if-let [r (first rslt)]
       (if (map? r)
-        (if (:transition r)
-          (recur (rest rslt)
-                 (rest (rest insts))
-                 (conj result {:transition {:from (first insts)
-                                            :to (second insts)}}))
-          (recur (rest rslt)
-                 (rest insts)
-                 (conj result (first insts))))
+        (recur (rest rslt)
+               (rest insts)
+               (conj result (first insts)))
         (recur (rest rslt)
                insts (conj result r)))
       result)))
@@ -329,8 +319,7 @@
             (fn [_] (format-upsert-result-for-read-intercept result)))
         r (seq (revert-upsert-result result r0))
         f (first r)]
-    (if (or (cn/an-instance? f)
-            (and (map? f) (:transition f)))
+    (if (cn/an-instance? f)
       r
       (first r))))
 
@@ -339,24 +328,35 @@
         resolver (env/get-resolver env)]
     (when store
       (maybe-init-schema! store (first record-name)))
-    (let [result
-          (upsert-intercept
-           env insts
-           (fn [insts]
-             (if (env/any-dirty? env insts)
-               (let [result
-                     (chained-crud
-                      (when store (partial store/upsert-instances store record-name))
-                      resolver (partial resolver-upsert env) nil insts)
-                     conditional-event-results
-                     (seq
-                      (fire-all-conditional-events
-                       event-evaluator env store result))]
-                 (concat
-                  result
-                  (when conditional-event-results
-                    (cleanup-conditional-results conditional-event-results))))
-               insts)))]
+    (let [is-single (map? insts)
+          result
+          (if (or is-single (env/any-dirty? env insts))
+            (let [insts (if is-single [insts] insts)
+                  id-attr (cn/identity-attribute-name record-name)]
+              (apply
+               concat
+               (mapv
+                (fn [inst]
+                  (let [is-queried (env/queried-id? env record-name (id-attr inst))]
+                    ((if is-queried update-intercept create-intercept)
+                     env inst
+                     (fn [inst]
+                       (let [store-f (if is-queried store/update-instances store/create-instances)
+                             resolver-f (if is-queried resolver-update resolver-create)
+                             result
+                             (chained-crud
+                              (when store (partial store-f store record-name))
+                              resolver (partial resolver-f env) nil [inst])
+                             conditional-event-results
+                             (seq
+                              (fire-all-conditional-events
+                               event-evaluator env store result))]
+                         (concat
+                          result
+                          (when conditional-event-results
+                            (cleanup-conditional-results conditional-event-results))))))))
+                insts)))
+            insts)]
       (intercept-upsert-result env result))))
 
 (defn- delete-by-id [store record-name inst]
@@ -690,12 +690,6 @@
         result)
       final-list)))
 
-(defn- normalize-transitions [xs]
-  (mapv #(if-let [t (:transition %)]
-           (:to t)
-           %)
-        xs))
-
 (defn- call-with-exception-as-error [f]
   (try
     (f)
@@ -721,11 +715,15 @@
        (env/push-obj env entity-name insts))
 
       (seq insts)
-      (i/ok
-       insts
-       (env/mark-all-mint
-        (env/push-obj env entity-name insts)
-        insts))
+      (let [id-attr-name (cn/identity-attribute-name entity-name)
+            ids (mapv id-attr-name insts)]
+        (i/ok
+         insts
+         (env/mark-all-mint
+          (env/push-obj
+           (env/bind-queried-ids env entity-name ids)
+           entity-name insts)
+          insts)))
 
       :else
       (i/ok [] env))
@@ -751,10 +749,9 @@
                            (chained-upsert
                             env (partial eval-event-dataflows self)
                             record-name insts)
-                           (if single? (seq [insts]) insts))
-            lr (normalize-transitions local-result)]
-        (if-let [bindable (if single? (first lr) lr)]
-          (let [env-with-inst (env/bind-instances env record-name lr)
+                           (if single? (seq [insts]) insts))]
+        (if-let [bindable (if single? (first local-result) local-result)]
+          (let [env-with-inst (env/bind-instances env record-name local-result)
                 final-env (if inst-alias
                             (env/bind-instance-to-alias env-with-inst inst-alias bindable)
                             env-with-inst)]
@@ -765,12 +762,18 @@
       (i/not-found record-name env))))
 
 (defn- dispatch-dynamic-upsert [self env inst-compiler eval-opcode
-                                inst-type attrs inst]
+                                inst-type id-attr-name attrs inst]
   (let [opc (inst-compiler {(if (keyword? inst-type)
                               inst-type
                               (li/make-path inst-type))
-                            (merge (cn/instance-attributes inst) attrs)})]
-    (eval-opcode self env opc)))
+                            (merge (cn/instance-attributes inst) attrs)})
+        id-val (or (id-attr-name attrs) (id-attr-name inst))]
+    (when-not id-val
+      (u/throw-ex
+       (str
+        "dynamic-types can be used only for instance updates, identity is required - "
+        [inst-type id-attr-name])))
+    (eval-opcode self (env/bind-queried-ids env inst-type [id-val]) opc)))
 
 (defn- normalize-rel-target [obj]
   (if (map? obj)
@@ -1024,19 +1027,21 @@
           result)))
 
     (do-instance-from [self env [record-name inst-opcode data-opcode inst-alias]]
-      (let [[inst-result inst-err]
+      (let [[inst-result inst-err new-env]
             (when inst-opcode
               (let [result (eval-opcode self env inst-opcode)
                     r (first (ok-result result))]
                 (if (map? r)
-                  [r nil]
-                  [nil result])))]
+                  [r nil (:env result)]
+                  [nil result env])))]
         (or inst-err
-            (let [result (eval-opcode self env data-opcode)
+            (let [env (or new-env env)
+                  result (eval-opcode self env data-opcode)
                   r (ok-result result)
                   env (:env result)]
               (if (map? r)
-                (let [inst (cn/make-instance record-name (if inst-result (merge r inst-result) r))
+                (let [attrs (if inst-result (merge inst-result r) r)
+                      inst (if (cn/an-instance? attrs) attrs (cn/make-instance record-name attrs))
                       upsert-required (cn/fetch-entity-schema record-name)]
                   (intern-instance
                    self (env/push-obj env record-name inst)
@@ -1050,12 +1055,12 @@
                  (first (env/follow-reference env path-parts)))
             single? (map? rs)
             inst-type (cn/instance-type (if single? rs (first rs)))
-            scm (cn/find-entity-schema inst-type)]
+            scm (cn/find-entity-schema inst-type)
+            id-attr-name (cn/identity-attribute-name inst-type)]
         (when-not scm
           (u/throw-ex (str path-parts " is not bound to an entity-instance")))
-        (let [dispatch (partial
-                        dispatch-dynamic-upsert
-                        self env inst-compiler eval-opcode inst-type attrs)]
+        (let [dispatch (partial dispatch-dynamic-upsert self env inst-compiler
+                                eval-opcode inst-type id-attr-name attrs)]
           (if single?
             (dispatch rs)
             (loop [env env, rs rs, result []]

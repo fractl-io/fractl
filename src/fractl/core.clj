@@ -20,16 +20,21 @@
             [fractl.lang.tools.build :as build]
             [fractl.lang.tools.deploy :as d]
             [fractl.auth :as auth]
-            [fractl.rbac.core :as rbac])
+            [fractl.rbac.core :as rbac]
+            [fractl.swagger.doc :as doc]
+            [fractl.swagger.docindex :as docindex])
   (:import [java.util Properties]
            [java.net URL]
-           [java.io File])
+           [java.io File]
+           [org.apache.commons.exec CommandLine Executor DefaultExecutor])
+
   (:gen-class
    :name fractl.core
    :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
+   ["-s" "--doc MODEL" "Generate documentation in .html"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -200,38 +205,40 @@
         (log/info (str "Server config - " server-cfg))
         (h/run-server [evaluator query-fn] server-cfg)))))
 
+(defn generate-swagger-doc [model-name args]
+  (let [model-path (first args)]
+    (if (build/compiled-model? model-path model-name)
+      (let [components (remove #{:Kernel :Kernel.Identity :Kernel.RBAC
+                                 :Kernel.Lang}
+                               (cn/component-names))]
+        (.mkdir (File. "doc"))
+        (.mkdir (File. "doc/api"))
+
+        (docindex/gen-index-file model-name components)
+
+        (doseq [component components]
+          (let [comp-name (clojure.string/replace
+                           (name component) "." "")
+                doc-path "doc/api/"
+                json-file (str doc-path comp-name ".json")
+                html-file (str doc-path comp-name ".html")]
+            (with-open [w (clojure.java.io/writer
+                           json-file)]
+              (.write w (doc/generate-swagger-json component)))
+            (let [^CommandLine cmd-line
+                  (CommandLine/parse
+                   (str "redoc-cli bundle -o " html-file " " json-file))
+                  ^Executor executor (DefaultExecutor.)]
+              (.execute executor cmd-line))))
+        (log-seq! "components" components))
+      (build/exec-with-build-model (str "lein run -s " model-name " .") nil model-name))))
+
 (defn- find-model-to-read [args config]
   (or (seq (su/nonils args))
       [(:full-model-path config)]))
 
-(defn- read-env-var [x]
-  (cond
-    (symbol? x)
-    (when-let [v (System/getenv (name x))]
-      (let [s (try
-                (read-string v)
-                (catch Exception _e v))]
-        (cond
-          (not= (str s) v) v
-          (symbol? s) (str s)
-          :else s)))
-
-    (vector? x)
-    (first (su/nonils (mapv read-env-var x)))
-
-    :else x))
-
-(defn- read-config-file [config-file]
-  (let [f (io/file config-file)]
-    (when-not (.exists f)
-      (with-open [out (io/writer f)]
-        (binding [*out* out]
-          (print {:service {:port 8080}})))))
-  (binding [*data-readers* {'$ read-env-var}]
-    (read-string (slurp config-file))))
-
 (defn- load-config [options]
-  (read-config-file (get options :config "config.edn")))
+  (u/read-config-file (get options :config "config.edn")))
 
 (def ^:private config-data-key :-*-config-data-*-)
 
@@ -346,6 +353,9 @@
     (cond
       errors (println errors)
       (:help options) (print-help)
+      (:doc options) (generate-swagger-doc
+                      (:doc options)
+                      args)
       :else
       (or (some
            identity

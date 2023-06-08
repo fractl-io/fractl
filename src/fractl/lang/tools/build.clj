@@ -241,7 +241,7 @@
 (defn- write-config-edn [model-root write]
   (let [src-cfg (str model-root u/path-sep config-edn)]
     (when (.exists (File. src-cfg))
-      (let [cfg (slurp src-cfg)]
+      (let [cfg (u/read-config-file src-cfg)]
         (write config-edn cfg :spit)
         cfg))))
 
@@ -289,11 +289,27 @@
 (defn- load-all-model-info [model-paths model-name model-info]
   (let [model-paths (or model-paths (tu/get-system-model-paths))
         [model model-root] (or model-info (loader/read-model model-paths model-name))
-        model-name (or model-name (s/lower-case (name (:name model))))]
-    {:paths model-paths
-     :model model
-     :root model-root
-     :name model-name}))
+        model-name (or model-name (:name model))]
+    (when-not model-name
+      (u/throw-ex "model-name is required"))
+    (let [model-name (if (keyword? model-name)
+                       (s/lower-case (name model-name))
+                       model-name)]
+      {:paths model-paths
+       :model model
+       :root model-root
+       :name model-name})))
+
+(defn compiled-model?
+  ([model-path model-name]
+   (let [model-path (if (= model-path ".")
+                      (System/getProperty "user.dir")
+                      model-path)]
+     (if (nil? model-path)
+       (clj-project-path (tu/get-system-model-paths) model-name)
+       (let [^File f (File. (str model-path u/path-sep "project.clj"))]
+         (when (.exists f)
+           model-path))))))
 
 (defn build-model
   ([build-load-fn model-paths model-name model-info]
@@ -319,7 +335,7 @@
   ([model-name]
    (build-model nil model-name)))
 
-(defn- exec-with-build-model [cmd model-paths model-name]
+(defn exec-with-build-model [cmd model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
     (if cmd
       (when (exec-for-model (first result) cmd)

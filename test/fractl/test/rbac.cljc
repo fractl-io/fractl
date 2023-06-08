@@ -27,7 +27,7 @@
      :RoleMgmt/AssignPrivileges
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p1"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :create :update]]
        :Resource [:q# [:A :B]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p2"
@@ -113,12 +113,12 @@
      {:Fractl.Kernel.Rbac/Role {:Name "r22"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p11"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :update :create]]
        :Resource [:q# [:PrivTest/E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p22"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:PrivTest/Upsert_E
+       :Resource [:q# [:PrivTest/Create_E
                        :PrivTest/UpdateE
                        :PrivTest/UpdateEX]]}}
      {:Fractl.Kernel.Rbac/Privilege
@@ -131,7 +131,7 @@
        :Resource [:q# [:PrivTest/Lookup_E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "p55"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :update :create]]
        :Resource [:q# [:PrivTest/E.X (tu/append-id :PrivTest/E)]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "r11" :Privilege "p11"}}
@@ -183,7 +183,7 @@
        (tu/is-error
         #(ev/eval-all-dataflows
           (cn/make-instance
-           {:PrivTest/Upsert_E
+           {:PrivTest/Create_E
             {:Instance
              {:PrivTest/E
               {:X 100 :Y 10}}}})))
@@ -191,7 +191,7 @@
         #(ev/eval-all-dataflows
           (with-user
             "u22@u22.com"
-            {:PrivTest/Upsert_E
+            {:PrivTest/Create_E
              {:Instance
               {:PrivTest/E
                {:X 200 :Y 20}}}})))
@@ -199,7 +199,7 @@
                    (tu/result
                     (with-user
                       "u11@u11.com"
-                      {:PrivTest/Upsert_E
+                      {:PrivTest/Create_E
                        {:Instance
                         {:PrivTest/E
                          {:X 100 :Y 10}}}})))
@@ -228,13 +228,11 @@
                  {:E id :X 1000 :Y 2000}})))
            (partial-inst?
             1000
-            (get-in
-             (tu/first-result
-              (with-user
-                "u33@u33.com"
-                {:PrivTest/UpdateEX
-                 {:E id :X 1000 :Y 2000}}))
-             [:transition :to])))
+            (tu/first-result
+             (with-user
+               "u33@u33.com"
+               {:PrivTest/UpdateEX
+                {:E id :X 1000 :Y 2000}}))))
          (let [inst2 (first
                       (tu/result
                        (with-user "u22@u22.com" lookup)))]
@@ -271,12 +269,12 @@
      {:Fractl.Kernel.Rbac/Role {:Name "rr11"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "pp11"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :update :create]]
        :Resource [:q# [:RbacOwner/E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "pp22"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:RbacOwner/Upsert_E
+       :Resource [:q# [:RbacOwner/Create_E
                        :RbacOwner/Lookup_E
                        :RbacOwner/Delete_E]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
@@ -307,7 +305,7 @@
                  (tu/result
                   (with-user
                     "uu11@uu11.com"
-                    {:RbacOwner/Upsert_E
+                    {:RbacOwner/Create_E
                      {:Instance
                       {:RbacOwner/E
                        {:X 100}}}})))
@@ -315,7 +313,7 @@
                  (tu/result
                   (with-user
                     "uu22@uu22.com"
-                    {:RbacOwner/Upsert_E
+                    {:RbacOwner/Create_E
                      {:Instance
                       {:RbacOwner/E
                        {:X 200}}}})))
@@ -374,12 +372,12 @@
      {:Fractl.Kernel.Rbac/Role {:Name "rh22"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ph11"
-       :Actions [:q# [:read :upsert]]
+       :Actions [:q# [:read :update :create]]
        :Resource [:q# [:RbacH/E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ph22"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:RbacH/Upsert_E :RbacH/Lookup_E]]}}
+       :Resource [:q# [:RbacH/Create_E :RbacH/Lookup_E]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "rh11" :Privilege "ph11"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
@@ -405,7 +403,7 @@
                 (with-user (rbac/get-superuser-email) :RbacH/CreatePrivileges)))]
        (is (cn/instance-of? :Fractl.Kernel.Rbac/RoleAssignment r2))
        (is (and (= "rh22" (:Role r2)) (= "uh22@uh22.com" (:Assignee r2)))))
-     (let [upsert-event {:RbacH/Upsert_E
+     (let [upsert-event {:RbacH/Create_E
                          {:Instance
                           {:RbacH/E
                            {:X 100}}}}
@@ -453,7 +451,7 @@
      {:Fractl.Kernel.Rbac/Role {:Name "ilr_r1"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ilr_p1"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:Ilr/E]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ilr_p2"
@@ -463,7 +461,7 @@
                        :Ilr/UpdateInstancePrivs]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "ilr_p3"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:Fractl.Kernel.Rbac/InstancePrivilegeAssignment]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "ilr_r1" :Privilege "ilr_p1"}}
@@ -486,7 +484,7 @@
      :Ilr/CreateE
      {:Ilr/E {:Id :Ilr/CreateE.Id :X :Ilr/CreateE.X} :as :E}
      {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-      {:Actions [:q# [:read :upsert]]
+      {:Actions [:q# [:read :update :create]]
        :Filter [:q# [:read]]
        :Resource [:q# :Ilr/E]
        :ResourceId :E.Id
@@ -504,10 +502,10 @@
     (dataflow
      :Ilr/UpdateInstancePrivs
      {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-      {:Actions [:q# [:read :upsert :delete]]
+      {:Actions [:q# [:read :update :create :delete]]
        :Filter [:q# [:read]]
        :Resource [:q# :Ilr/E]
-       :ResourceId :Ilr/UpdateInstancePrivs.Id
+       :ResourceId? :Ilr/UpdateInstancePrivs.Id
        :Assignee :Ilr/UpdateInstancePrivs.Assignee}}))
   (defn- rbac-setup [event-name result-type]
     (is (cn/instance-of?
@@ -531,12 +529,10 @@
            e (first es)]
        (is (cn/instance-of? :Ilr/E e))
        (defn- update-e [fail? id user new-x]
-         (let [e1 (:to
-                   (:transition
-                    (tu/first-result
-                     (with-user
-                       user
-                       {:Ilr/UpdateE {:Id id :X new-x}}))))]
+         (let [e1 (tu/first-result
+                   (with-user
+                     user
+                     {:Ilr/UpdateE {:Id id :X new-x}}))]
            (if fail?
              (is (not e1))
              (is (and (cn/instance-of? :Ilr/E e1)
@@ -576,9 +572,7 @@
        ;; Only owner or superuser can set instance privilege.
        (is (not (change-inst-priv "564" "ilr_u2@ilr.com" "ilr_u2@ilr.com")))
        (let [a (change-inst-priv "564" "ilr_u1@ilr.com" "ilr_u2@ilr.com")]
-         (is (cn/instance-of?
-              :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-              (:to (:transition a))))
+         (is (cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment a))
          (delete-e false "564" "ilr_u2@ilr.com"))))))
 
 (deftest issue-711-inherit-entity-priv
@@ -602,12 +596,12 @@
      {:Fractl.Kernel.Rbac/Role {:Name "i711a_r1"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711a_p1"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:I711A/E1 :I711A/R1]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711a_p2"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:I711A/Upsert_E1 :I711A/CreateE2]]}}
+       :Resource [:q# [:I711A/Create_E1 :I711A/CreateE2]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "i711a_r1" :Privilege "i711a_p1"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
@@ -633,7 +627,7 @@
     (let [f #(tu/result
               (with-user
                 "u1@i711a.com"
-                {:I711A/Upsert_E1
+                {:I711A/Create_E1
                  {:Instance {:I711A/E1 {:X x}}}}))]
       (if expect-error
         (tu/is-error f)
@@ -674,16 +668,16 @@
      {:Fractl.Kernel.Rbac/Role {:Name "i711b_r2"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p1"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:I711B/E1 :I711B/R1 :I711B/E2]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p2"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:I711B/Upsert_E1 :I711B/CreateE2
+       :Resource [:q# [:I711B/Create_E1 :I711B/CreateE2
                        :I711B/UpdateE2 :I711B/Lookup_E1]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p3"
-       :Actions [:q# [:eval :upsert :read]]
+       :Actions [:q# [:eval :update :create :read]]
        :Resource [:q# [:I711B/AssignInstancePriv
                        :Fractl.Kernel.Rbac/InstancePrivilegeAssignment]]}}
      {:Fractl.Kernel.Rbac/Privilege
@@ -711,7 +705,7 @@
     (dataflow
      :I711B/AssignInstancePriv
      {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-      {:Actions [:q# [:read :upsert]]
+      {:Actions [:q# [:read :update :create]]
        :Resource [:q# :I711B/E1]
        :ResourceId :I711B/AssignInstancePriv.X
        :Assignee :I711B/AssignInstancePriv.User}})
@@ -745,7 +739,7 @@
     (let [f #(tu/result
               (with-user
                 "u1@i711b.com"
-                {:I711B/Upsert_E1
+                {:I711B/Create_E1
                  {:Instance {:I711B/E1 {:X x}}}}))]
       (if expect-error
         (tu/is-error f)
@@ -763,10 +757,7 @@
      (is (not (tu/result (with-user "u2@i711b.com" {:I711B/CreateE2 {:X 10 :Y 200 :K 4}}))))
      (is (not (tu/result (with-user "u2@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))))
      (let [r (tu/first-result (with-user "u1@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))]
-       (let [from (:from (:transition r))
-             to (:to (:transition r))]
-         (is (= 3 (:K from)))
-         (is (= 4 (:K to)))))
+       (is (= 4 (:K r))))
      (is (cn/instance-of?
           :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
           (tu/first-result
@@ -775,11 +766,8 @@
               {:X 10 :User "u2@i711b.com"}}))))
      (let [r (tu/first-result
               (with-user "u2@i711b.com"
-                {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))
-           from (:from (:transition r))
-           to (:to (:transition r))]
-       (is (= 4 (:K from)))
-       (is (= 5 (:K to)))))))
+                {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))]
+       (is (= 5 (:K r)))))))
 
 (deftest issue-762-instance-priv-by-owner
   (defcomponent :I762
@@ -806,12 +794,12 @@
      {:Fractl.Kernel.Rbac/Role {:Name "i762_r2"}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i762_p1"
-       :Actions [:q# [:read :upsert :delete]]
+       :Actions [:q# [:read :update :create :delete]]
        :Resource [:q# [:I762/E1]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i762_p2"
        :Actions [:q# [:eval]]
-       :Resource [:q# [:I762/Upsert_E1 :I762/Lookup_E1 :I762/UpdateE1]]}}
+       :Resource [:q# [:I762/Create_E1 :I762/Lookup_E1 :I762/UpdateE1]]}}
      {:Fractl.Kernel.Rbac/Privilege
       {:Name "i762_p3"
        :Actions [:q# [:eval]]
@@ -835,7 +823,7 @@
     (dataflow
      :I762/AssignInstancePriv
      {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-      {:Actions [:q# [:read :upsert]]
+      {:Actions [:q# [:read :update :create]]
        :Filter [:q# [:read]]
        :Resource [:q# :I762/E1]
        :ResourceId :I762/AssignInstancePriv.X
@@ -850,7 +838,7 @@
     (tu/first-result
      (with-user
        user
-       {:I762/Upsert_E1
+       {:I762/Create_E1
         {:Instance {:I762/E1 {:X x :Y (* x 10)}}}})))
   (defn- lookup-e1 [x user]
     (tu/first-result
@@ -871,26 +859,27 @@
      (rbac-setup :I762/AssignRoles :Fractl.Kernel.Rbac/RoleAssignment)
      (let [xs [1 2 3]
            users (mapv #(str % "@i762.com") ["u1" "u2" "u3"])
-           for-all (fn [f shuffle] (mapv #(f %1 %2) (shuffle xs) users))
+           for-all (fn [f] (mapv #(f %1 %2) xs users))
            e1? (partial cn/instance-of? :I762/E1)
-           e1s? (fn [f shuffle]
-                  (is (every? e1? (for-all f shuffle))))]
-       (e1s? create-e1 identity)
-       (e1s? lookup-e1 shuffle)
-       (is (= 100 (get-in (update-e1 1 100 "u2@i762.com") [:transition :to :Y])))
-       (is (= 200 (get-in (update-e1 1 200 "u3@i762.com") [:transition :to :Y])))
+           e1s? (fn [f] (is (every? e1? (for-all f))))
+           inst-priv? (partial
+                       cn/instance-of?
+                       :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)]
+       (e1s? create-e1)
+       (e1s? lookup-e1)
+       (is (= 100 (:Y (update-e1 1 100 "u2@i762.com"))))
+       (is (= 200 (:Y (update-e1 1 200 "u3@i762.com"))))
        (is (not (tu/result
                  (with-user
                    "u1@i762.com"
                    {:I762/AssignInstancePriv
-                    {:User "u2@i762.com" :X 2}}))))
-       (is (cn/instance-of?
-            :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
+                    {:User "u2@i762.com" :X 3}}))))
+       (is (inst-priv?
             (tu/first-result
              (with-user
                "u1@i762.com"
                {:I762/AssignInstancePriv
                 {:User "u2@i762.com" :X 1}}))))
-       (is (= 1000 (get-in (update-e1 1 1000 "u2@i762.com") [:transition :to :Y])))
+       (is (= 1000 (:Y (update-e1 1 1000 "u2@i762.com"))))
        (is (not (update-e1 1 2000 "u3@i762.com")))
-       (e1s? lookup-e1 shuffle)))))
+       (e1s? lookup-e1)))))

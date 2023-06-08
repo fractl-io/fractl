@@ -69,7 +69,7 @@
       :-> [{:I800/WorksFor {}}
            {:I800/Department? "path://Company/:CreateEmployee.Company/Section/Department/:CreateEmployee.Department"}]}))
   (let [[c1 c2 :as cs] (mapv #(tu/first-result
-                               {:I800/Upsert_Company
+                               {:I800/Create_Company
                                 {:Instance
                                  {:I800/Company
                                   {:Name %}}}})
@@ -97,13 +97,11 @@
                                   co-names dept-nos emp-names)
           employee? (partial cn/instance-of? :I800/Employee)
           works-for? #(= %1 (:Department (first (:-> %2))))
-          {df :from dt :to} (:transition
-                               (tu/first-result
-                                {:I800/UpdateDepartment
-                                 {:Company "acme" :Department "101" :Location "B786"}}))]
+          dt (tu/first-result
+              {:I800/UpdateDepartment
+               {:Company "acme" :Department "101" :Location "B786"}})]
       (is (every? employee? es))
       (is (every? #(apply works-for? %) [["1" e1] ["2" e2] ["3" e3]]))
-      (is (cn/same-instance? df d1))
       (is (and (= (:Id dt) (:Id d1)) (= (:Location dt) "B786"))))))
 
 (deftest issue-786-auto-upsert-rels
@@ -130,24 +128,24 @@
     (relationship
      :I786/R
      {:meta {:contains [:I786/A :I786/B]}}))
-  (let [t (tu/first-result {:I786/Upsert_T
+  (let [t (tu/first-result {:I786/Create_T
                             {:Instance
                              {:I786/T {:I 1}}}})
-        s (tu/first-result {:I786/Upsert_S
+        s (tu/first-result {:I786/Create_S
                             {:Instance
                              {:I786/S {:J 2}}
                              :T 1}})
-        a (tu/result {:I786/Upsert_A
+        a (tu/result {:I786/Create_A
                       {:Instance
                        {:I786/A {:X 100}}
                        :T 1 :S 2}})
-        b1 (tu/result {:I786/Upsert_B
+        b1 (tu/result {:I786/Create_B
                       {:Instance
                        {:I786/B {:Y 20}}
                        :A 100 :T 1 :S 2}})
         b2 (tu/first-result
             {:I786/Lookup_B
-             {:A 100 :B 20 :T 1 :S 2}})]
+             {:A 100 :Y 20 :T 1 :S 2}})]
     (is (cn/instance-of? :I786/A a))
     (is (cn/instance-of? :I786/B b1))
     (let [r (first (li/rel-tag b1))]
@@ -176,28 +174,28 @@
      {:meta {:between [:I801/A :I801/B :on [:X :Y]]}}))
   (let [[a1 a2] (mapv
                  #(tu/first-result
-                   {:I801/Upsert_A
+                   {:I801/Create_A
                     {:Instance {:I801/A {:X (* 100 %) :Id %}}}})
                  [1 3])
         b1 (tu/first-result
-            {:I801/Upsert_B
+            {:I801/Create_B
              {:Instance {:I801/B {:Y 200 :Id 10}}}})
         a11 (tu/result
-             {:I801/Upsert_R1
+             {:I801/Create_R1
               {:Instance {:I801/R1 {:A 1 :B 10}}}})
         r1 (first a11)]
     (is (cn/instance-of? :I801/R1 r1))
     (is (= (:A r1) 1))
     (is (= (:B r1) 10))
     (let [a11 (tu/result
-               {:I801/Upsert_R2
+               {:I801/Create_R2
                 {:Instance {:I801/R2 {:A1 1 :A2 3}}}})
           r2 (first a11)]
       (is (cn/instance-of? :I801/R2 r2))
       (is (= (:A1 r2) 1))
       (is (= (:A2 r2) 3)))
     (let [a11 (tu/result
-               {:I801/Upsert_R3
+               {:I801/Create_R3
                 {:Instance {:I801/R3
                             {:A 300 :B 200
                              :AIdentity 3 :BIdentity 10}}}})
@@ -221,18 +219,18 @@
      {:meta {:contains [:LA/A :LA/B]}}))
   (let [as (mapv
             #(tu/first-result
-              {:LA/Upsert_A
+              {:LA/Create_A
                {:Instance
                 {:LA/A {:X %}}}})
             [1 2])
         bs_1 (mapv #(tu/result
-                     {:LA/Upsert_B
+                     {:LA/Create_B
                       {:Instance
                        {:LA/B {:Y %}}
                        :A 1}})
                    [10 20 30])
         bs_2 (mapv #(tu/result
-                     {:LA/Upsert_B
+                     {:LA/Create_B
                       {:Instance
                        {:LA/B {:Y %}}
                        :A 2}})
@@ -286,8 +284,8 @@
   (let [dfs (cn/all-dataflows :I845)
         event-names (set (mapv first dfs))
         expected-event-names #{:I845/Event02 :I845/Event01
-                               :I845/Lookup_E :I845/Upsert_E
-                               :I845/Delete_E}
+                               :I845/Lookup_E :I845/Create_E
+                               :I845/Update_E :I845/Delete_E}
         df-obj? (fn [x]
                   (and
                    (map? x)
@@ -397,13 +395,13 @@
      {:meta {:between [:Rea/E1 :Rea/E1
                        :as [:A :B]]}}))
   (let [[e11 e22 :as es] (mapv #(tu/first-result
-                          {:Rea/Upsert_E1
+                          {:Rea/Create_E1
                            {:Instance
                             {:Rea/E1 {:X %}}}})
                         [1 2])]
     (is (every? (partial cn/instance-of? :Rea/E1) es))
     (let [r (first
-             (tu/result {:Rea/Upsert_R
+             (tu/result {:Rea/Create_R
                          {:Instance {:Rea/R {:A 1 :B 2}}}}))]
       (is (cn/instance-of? :Rea/R r))
       (is (and (= (:A r) 1) (= (:B r) 2))))))
@@ -438,12 +436,12 @@
       {:X? :Bla/CreateR2.E12}
       :-> [{:Bla/R2 {}} :E11]}))
   (let [[e11 e12] (mapv #(tu/first-result
-                          {:Bla/Upsert_E1
+                          {:Bla/Create_E1
                            {:Instance
                             {:Bla/E1 {:X %}}}})
                         [1 2])
         e21 (tu/first-result
-             {:Bla/Upsert_E2
+             {:Bla/Create_E2
               {:Instance
                {:Bla/E2 {:Y 100}}}})
         r11 (tu/result
@@ -492,3 +490,58 @@
       (tu/not-found? r13s)
       (tu/not-found? r21s)
       (r2s? 1 r22s))))
+
+(deftest del-contains-child
+  (defcomponent :DC
+    (entity
+     :DC/G
+     {:Id {:type :Int :identity true}})
+    (entity
+     :DC/P
+     {:Id {:type :Int :identity true}})
+    (relationship
+     :DC/GP
+     {:meta {:contains [:DC/G :DC/P]}})
+    (entity
+     :DC/C
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (relationship
+     :DC/R
+     {:meta {:contains [:DC/P :DC/C]}}))
+  (let [g (tu/first-result
+           {:DC/Create_G {:Instance {:DC/G {:Id 0}}}})
+        p (tu/first-result
+           {:DC/Create_P {:Instance {:DC/P {:Id 1}} :G 0}})
+        c (tu/result
+           {:DC/Create_C {:Instance {:DC/C {:Id 2 :X 100}} :P 1 :G 0}})]
+    (is (cn/instance-of? :DC/C c))
+    (is (cn/same-instance? c (tu/first-result {:DC/Lookup_C {:P 1 :Id 2 :G 0}})))
+    (let [c (tu/first-result {:DC/Update_C {:G 0 :P 1 :Id 2 :Data {:X 200}}})]
+      (is (cn/instance-of? :DC/C c))
+      (is (= 200 (:X c)))
+      (is (cn/same-instance? c (tu/first-result {:DC/Delete_C {:P 1 :Id 2 :G 0}})))
+      (= :not-found (:status (first (tu/eval-all-dataflows {:DC/Lookup_C {:P 1 :Id 2 :G 0}})))))))
+
+(deftest from-with-query-update
+  (defcomponent :Ft
+    (entity
+     :Ft/E
+     {:Id {:type :Int :identity true}
+      :Y :Int
+      :X :Int}))
+  (let [e1 (tu/first-result {:Ft/Create_E
+                             {:Instance
+                              {:Ft/E {:Id 1 :X 100 :Y 200}}}})]
+    (is (cn/instance-of? :Ft/E e1))
+    (is (= 100 (:X e1)))
+    (let [e2 (tu/first-result {:Ft/Update_E {:Id 1 :Data {:X 300}}})]
+      (is (cn/instance-eq? e1 e2))
+      (is (= 300 (:X e2))))))
+
+(deftest path-with-child-components
+  (let [parse (partial li/parse-query-path :Acme.Core)
+        parts1 (first (parse "path://Company/:LookupEmployee.C/WorksFor/Acme.Erp$Employee/:LookupEmployee.E"))
+        parts2 (first (parse "path://Company/:LookupEmployee.C/WorksFor/Employee/:LookupEmployee.E"))]
+    (is (= :Acme.Erp/Employee (:child parts1)))
+    (is (= :Acme.Core/Employee (:child parts2)))))

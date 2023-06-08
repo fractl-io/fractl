@@ -10,7 +10,7 @@
          :indexed true
          :unique true}})
 
-(def ^:private oprs #{:read :upsert :delete :eval})
+(def ^:private oprs #{:read :update :create :delete :eval})
 
 (defn- crud-list? [xs]
   (every? #(some #{%} oprs) (set xs)))

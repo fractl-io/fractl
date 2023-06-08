@@ -39,13 +39,14 @@ jobs:
         run: git push origin release/${{ github.event.inputs.version }}
 
       - name: Create pull request
-        uses: thomaseizinger/create-pull-request@1.0.0
+        uses: thomaseizinger/create-pull-request@1.3.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           head: release/${{ github.event.inputs.version }}
           base: main
           title: Release version ${{ github.event.inputs.version }}
+          assignees: ${{ github.actor }} # By default, we assign the person who triggered the workflow.
           reviewers: ${{ github.actor }} # By default, we request a review from the person who triggered the workflow.
           body: |
             Hi,

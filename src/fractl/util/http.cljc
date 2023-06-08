@@ -1,10 +1,12 @@
 (ns fractl.util.http
-  (:require #?(:clj [org.httpkit.client :as http]
+  (:require #?(:clj  [org.httpkit.client :as http]
                :cljs [cljs-http.client :as http])
+            [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]
+            [fractl.global-state :as gs]
             #?(:cljs [cljs.core.async :refer [<!]]))
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
@@ -106,12 +108,13 @@
            var-value)))
 
      (defn get-aws-config []
-       (let [aws-config {:region  (get-env-var "AWS_REGION")
-                         :access-key (get-env-var "AWS_ACCESS_KEY")
-                         :secret-key (get-env-var "AWS_SECRET_KEY")
-                         :client-id (get-env-var "AWS_COGNITO_CLIENT_ID")
+       (let [aws-config {:region       (get-env-var "AWS_REGION")
+                         :access-key   (get-env-var "AWS_ACCESS_KEY")
+                         :secret-key   (get-env-var "AWS_SECRET_KEY")
+                         :client-id    (get-env-var "AWS_COGNITO_CLIENT_ID")
                          :user-pool-id (get-env-var "AWS_COGNITO_USER_POOL_ID")
-                         :whitelist? (read-string (get-env-var "FRACTL_AUTH_WHITELIST"))}]
+                         :whitelist?   (or (get-in (gs/get-app-config) [:authentication :whitelist?])
+                                           false)}]
          ;;TODO: Need to revisit this and add a layer to check for domains
          ;;      that are whitelisted.
          #_(if (true? (:whitelist? aws-config))
@@ -120,3 +123,34 @@
                :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
              aws-config)
          aws-config))))
+
+(defn- fully-qualified-name [base-component n]
+  (let [[c en] (s/split n #"\$")]
+    (if (and c en)
+      (keyword (str c "/" en))
+      (keyword (str base-component "/" n)))))
+
+(defn- uri-as-path [fqn parts]
+  (loop [ss (partition-all 2 parts), path []]
+    (if (seq ss)
+      (let [[p v] (first ss)]
+        (if (seq (rest ss))
+          (recur
+           (rest ss)
+           (conj path {:parent (fqn p)
+                       :id v}))
+          {:path path :entity (fqn p) :id v})))))
+
+(defn parse-rest-uri [uri]
+  (let [parts (s/split uri #"/")
+        c (count parts)]
+    (when (>= c 2)
+      (let [f (first parts) r (rest parts)
+            fqn (partial fully-qualified-name f)]
+        (if (<= c 3)
+          {:component (keyword f)
+           :entity (fqn (first r))
+           :id (when (seq (rest r)) (last r))}
+          (assoc
+           (uri-as-path fqn r)
+           :component (keyword f)))))))

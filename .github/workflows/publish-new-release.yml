@@ -48,6 +48,7 @@ jobs:
         run: |
           lein jar
           lein uberjar
+          mkdir /home/runner/work/fractl/fractl/lib
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}.jar /home/runner/work/fractl/fractl/lib/
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}-standalone.jar /home/runner/work/fractl/fractl/lib/
 
@@ -66,25 +67,3 @@ jobs:
           rm -r /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}.jar
           rm -r /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}-standalone.jar
           lein clean
-
-      - name: Slack Notification
-        if: ${{ success() }}
-        uses: rtCamp/action-slack-notify@v2.1.0
-        env:
-          SLACK_CHANNEL: releases
-          SLACK_FOOTER: Fractl Release Notification
-          SLACK_TITLE: 'Release packaging successful'
-          SLACK_MESSAGE: ${{ github.event.release.tag_name }}
-          SLACK_USERNAME: Release Bot
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      - name: Slack Notification
-        if: ${{ failure() }}
-        uses: rtCamp/action-slack-notify@v2.1.0
-        env:
-          SLACK_CHANNEL: releases
-          SLACK_FOOTER: Fractl Release Notification
-          SLACK_TITLE: 'Release packaging failed'
-          SLACK_MESSAGE: ${{ github.event.release.tag_name }}
-          SLACK_COLOR: '#ff1100'
-          SLACK_USERNAME: Release Bot
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

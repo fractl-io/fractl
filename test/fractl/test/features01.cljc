@@ -27,7 +27,7 @@
               {:A '(+ :EvBlock/E.X 10)
                :B 100}}]}}}))
    (let [e (tu/first-result
-            {:EvBlock/Upsert_E
+            {:EvBlock/Create_E
              {:Instance
               {:EvBlock/E
                {:X 5}}}})
@@ -49,13 +49,13 @@
     (is (and (:unique id-scm) (:indexed id-scm)
              (:identity id-scm)))
     (let [e1 (tu/first-result
-              {:CustId/Upsert_E
+              {:CustId/Create_E
                {:Instance
                 {:CustId/E
                  {:SeqNo 1
                   :X "abc"}}}})
           e2 (tu/first-result
-              {:CustId/Upsert_E
+              {:CustId/Create_E
                {:Instance
                 {:CustId/E
                  {:SeqNo 2
@@ -116,7 +116,7 @@
              {:I624/Lookup_E {cn/id-attr (get-in r [:B cn/id-attr])}})]
       (is (and (= (:X e) 10) (= (:Y e) 4) (= (:Z e) 24)))))
   (let [r (tu/first-result
-           {:I624/MakeE2 {:Data {:X 10 :Y 4}}})]
+           {:I624/MakeE2 {:Data {:Y 4}}})]
     (is (cn/instance-of? :I624/R r))
     (is (cn/instance-of? :I624/E (:B r)))
     (is (= 200 (get-in r [:B :Z])))
@@ -184,12 +184,12 @@
      :I625Sr/Evt
      {:I625Sr/P {:X? :I625Sr/Evt.P.X}}))
   (let [p (tu/first-result
-           {:I625Sr/Upsert_P
+           {:I625Sr/Create_P
             {:Instance
              {:I625Sr/P
               {:X 1 :Y 100}}}})
         c (tu/first-result
-           {:I625Sr/Upsert_C
+           {:I625Sr/Create_C
             {:Instance
              {:I625Sr/C
               {:X 1 :Y 2 :Z 3}}}})
@@ -281,31 +281,27 @@
      :I630/Evt2
      {:I630/Evt2.E {:X 300}}))
   (let [e (tu/first-result
-           {:I630/Upsert_E
+           {:I630/Create_E
             {:Instance
              {:I630/E
               {:id 1 :X 10}}}})
         r0 (tu/first-result
             {:I630/FindE {:E 1}})
-        r1 (:transition
-            (tu/first-result
-             {:I630/Evt1
-              {:E 1}}))
+        r1 (tu/first-result
+            {:I630/Evt1
+             {:E 1}})
         r2 (tu/first-result
             {:I630/FindE {:E 1}})
-        r3 (:transition
-            (tu/first-result
-             {:I630/Evt2
-              {:E e}}))
+        r3 (tu/first-result
+            {:I630/Evt2
+             {:E e}})
         r4 (tu/first-result
             {:I630/FindE {:E 1}})]
     (is (cn/same-instance? e r0))
-    (is (cn/same-instance? e (:from r1)))
-    (is (= 200 (:X (:to r1))))
-    (is (cn/same-instance? (:to r1) r2))
-    (is (cn/same-instance? (:to r1) (:from r3)))
-    (is (= 300 (:X (:to r3))))
-    (is (cn/same-instance? r4 (:to r3)))))
+    (is (= 200 (:X r1)))
+    (is (cn/same-instance? r1 r2))
+    (is (= 300 (:X r3)))
+    (is (cn/same-instance? r4 r3))))
 
 (deftest issue-630-upsert-multiple
   (defcomponent :I630M
@@ -330,7 +326,7 @@
         ys10 (mapv (partial * 10) ys)
         es (mapv
             #(tu/first-result
-              {:I630M/Upsert_E
+              {:I630M/Create_E
                {:Instance
                 {:I630M/E
                  {:X %}}}})
@@ -343,7 +339,7 @@
             {:I630M/FindE {}})]
     (is (= (sum-xs r0) (sum-xs es) (apply + xs)))
     (is (= (sum-ys r0) (sum-ys es) (apply + ys)))
-    (let [tos (mapv #(:to (:transition %)) r1)]
+    (let [tos r1]
       (is (= (sum-xs tos) (sum-xs tos) (apply + ys10)))
       (is (= (sum-ys tos) (* 2 (sum-xs tos)))))
     (is (= (sum-xs r2) (apply + ys10)))
@@ -369,7 +365,7 @@
      {:DelMulti/E {:X? :DelMulti/Find.X
                    :Y? :DelMulti/Find.Y}}))
   (let [_ (mapv #(tu/first-result
-                  {:DelMulti/Upsert_E
+                  {:DelMulti/Create_E
                    {:Instance
                     {:DelMulti/E
                      {:X %1 :Y %2}}}})

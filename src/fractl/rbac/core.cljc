@@ -22,7 +22,7 @@
 
 (defn- upsert-superuser [pswd]
   (let [evt (cn/make-instance
-             {:Fractl.Kernel.Identity/Upsert_User
+             {:Fractl.Kernel.Identity/Create_User
               {:Instance
                {:Fractl.Kernel.Identity/User
                 (merge {:Email (get-superuser-email)}
@@ -115,7 +115,8 @@
       (predic resource))))
 
 (def can-read? (partial has-priv? :read))
-(def can-upsert? (partial has-priv? :upsert))
+(def can-create? (partial has-priv? :create))
+(def can-update? (partial has-priv? :update))
 (def can-delete? (partial has-priv? :delete))
 (def can-eval? (partial has-priv? :eval))
 
