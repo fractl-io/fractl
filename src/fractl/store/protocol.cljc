@@ -30,7 +30,9 @@
   (create-table [store entity-name]
     "Create a table for a newly defined entity.")
   (upsert-instance [store entity-name instance]
-    "Insert or update the instance in the store. On success, return instance.
+    "Insert or update the instance in the store. On success, return instance.")
+  (create-instance [store entity-name instance]
+    "Insert the instance in the store. On success, return instance.
      On failure, raise an exception.")
   (update-instance [store entity-name instance]
     "Update the instance without violating unique-key constraints.")

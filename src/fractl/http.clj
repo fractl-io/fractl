@@ -14,7 +14,7 @@
             [fractl.util.logger :as log]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors])
-  (:use [compojure.core :only [routes POST GET]]
+  (:use [compojure.core :only [routes POST PUT DELETE GET]]
         [compojure.route :only [not-found]]))
 
 (defn- response
@@ -127,6 +127,15 @@
   ([evaluator auth-info request]
    (process-dynamic-eval evaluator auth-info nil request)))
 
+(defn process-request [evaluator auth request]
+  (let [params (:params request)
+        component (keyword (:component params))
+        event (keyword (:event params))
+        n [component event]]
+    (if (cn/find-event-schema n)
+      (process-dynamic-eval evaluator auth n request)
+      (bad-request (str "Event not found - " n)))))
+
 (defn- paths-info [component]
   (mapv (fn [n] {(subs (str n) 1)
                  {"post" {"parameters" (cn/event-schema n)}}})
@@ -141,14 +150,84 @@
       (let [c (keyword (get-in request [:params :component]))]
         (ok {:paths (paths-info c) :schemas (schemas-info c)}))))
 
-(defn process-request [evaluator auth request]
-  (let [params (:params request)
-        component (keyword (:component params))
-        event (keyword (:event params))
-        n [component event]]
-    (if (cn/find-event-schema n)
-      (process-dynamic-eval evaluator auth n request)
-      (bad-request (str "Event not found - " n)))))
+(defn- parse-rest-uri [request]
+  (uh/parse-rest-uri (:* (:params request))))
+
+(defn- request-object [request]
+  (if-let [data-fmt (find-data-format request)]
+    [(when-let [body (:body request)]
+       ((uh/decoder data-fmt) (String. (.bytes body)))) data-fmt nil]
+    [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)))]))
+
+(defn- path-as-parent-ids [path]
+  (when path
+    (into
+     {}
+     (mapv
+      (fn [{p :parent id :id}]
+        [(keyword (name (keyword p))) id])
+      path))))
+
+(defn- process-generic-request [handler evaluator [_ maybe-unauth] request]
+  (or (maybe-unauth request)
+      (if-let [parsed-path (parse-rest-uri request)]
+        (let [[obj data-fmt err-response] (request-object request)]
+          (or err-response (let [[evt err] (handler parsed-path obj)]
+                             (if err err (ok (evaluate evaluator evt data-fmt) data-fmt)))))
+        (bad-request (str "invalid request uri - " (:* (:params request)))))))
+
+(def process-post-request
+  (partial
+   process-generic-request
+   (fn [{entity-name :entity id :id component :component path :path} obj]
+     (if (cn/event? entity-name)
+       [obj nil]
+       [{(cn/crud-event-name component entity-name :Create)
+         (merge
+          {:Instance obj}
+          (path-as-parent-ids path))}
+        nil]))))
+
+(def process-put-request
+  (partial
+   process-generic-request
+   (fn [{entity-name :entity id :id component :component path :path} obj]
+     (if-not id
+       [nil (bad-request (str "id required to update " entity-name))]
+       (let [id-attr (cn/identity-attribute-name entity-name)]
+         [{(cn/crud-event-name component entity-name :Update)
+           (merge
+            {id-attr id
+             :Data (li/record-attributes obj)}
+            (path-as-parent-ids path))}
+          nil])))))
+
+(def process-get-request
+  (partial
+   process-generic-request
+   (fn [{entity-name :entity id :id component :component path :path} obj]
+     [(if id
+        (let [id-attr (cn/identity-attribute-name entity-name)]
+          {(cn/crud-event-name component entity-name :Lookup)
+           (merge
+            {id-attr id}
+            (path-as-parent-ids path))})
+        {(cn/crud-event-name component entity-name :LookupAll)
+         (merge {} (path-as-parent-ids path))})
+      nil])))
+
+(def process-delete-request
+  (partial
+   process-generic-request
+   (fn [{entity-name :entity id :id component :component path :path} _]
+     (if-not id
+       [nil (bad-request (str "id required to delete " entity-name))]
+       (let [id-attr (cn/identity-attribute-name entity-name)]
+         [{(cn/crud-event-name component entity-name :Delete)
+           (merge
+            {id-attr id}
+            (path-as-parent-ids path))}
+          nil])))))
 
 (defn- like-pattern? [x]
   ;; For patterns that include the `_` wildcard,
@@ -275,7 +354,9 @@
                       (when call-post-signup
                         (evaluate
                          evaluator
-                         (assoc (create-event post-signup-event-name) :SignupResult result :UserData evobj)
+                         (assoc
+                          (create-event post-signup-event-name)
+                          :SignupResult result :SignupRequest evobj)
                          data-fmt))]
                   (if user
                     (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
@@ -503,8 +584,10 @@
            (POST uh/confirm-forgot-password-prefix [] (:confirm-forgot-password handlers))
            (POST uh/change-password-prefix [] (:change-password handlers))
            (POST uh/refresh-token-prefix [] (:refresh-token handlers))
-           (POST (str uh/entity-event-prefix ":component/:event") []
-             (:request handlers))
+           (PUT (str uh/entity-event-prefix "*") [] (:put-request handlers))
+           (POST (str uh/entity-event-prefix "*") [] (:post-request handlers))
+           (GET (str uh/entity-event-prefix "*") [] (:get-request handlers))
+           (DELETE (str uh/entity-event-prefix "*") [] (:delete-request handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (GET "/meta/:component" [] (:meta handlers))
@@ -521,7 +604,7 @@
      :access-control-allow-origin (or (:cors-allow-origin config)
                                       [#".*"])
      :access-control-allow-credentials true
-     :access-control-allow-methods [:post])))
+     :access-control-allow-methods [:post :put :delete :get])))
 
 (defn- handle-request-auth [request]
   (try
@@ -558,7 +641,10 @@
           :confirm-forgot-password (partial process-confirm-forgot-password auth)
           :change-password (partial process-change-password auth)
           :refresh-token (partial process-refresh-token auth)
-          :request (partial process-request evaluator auth-info)
+          :put-request (partial process-put-request evaluator auth-info)
+          :post-request (partial process-post-request evaluator auth-info)
+          :get-request (partial process-get-request evaluator auth-info)
+          :delete-request (partial process-delete-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
           :meta (partial process-meta-request auth-info)})

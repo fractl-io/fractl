@@ -63,7 +63,7 @@
              (= (:record r2) :Employee)
              (= (first (:refs r2)) :Name))))
   (let [dept (tu/first-result
-              {:I594B/Upsert_Dept
+              {:I594B/Create_Dept
                {:Instance
                 {:I594B/Dept
                  {:No 101 :Name "abc"}}}})
@@ -133,7 +133,7 @@
             :-> [:I594ML/PartOf?
                  {:I594ML/Company {:Name? :I594ML/LookupEmployees.Company}}]}]}))
   (let [c (tu/first-result
-           {:I594ML/Upsert_Company
+           {:I594ML/Create_Company
             {:Instance
              {:I594ML/Company {:Name "acme"}}}})
         d (tu/result
@@ -198,11 +198,11 @@
       :-> [[:I594MR/R1? {:I594MR/B {:Y? :I594MR/FindA.B}}]
            [:I594MR/R2? {:I594MR/C {:Z? :I594MR/FindA.C}}]]}))
   (let [b (tu/first-result
-           {:I594MR/Upsert_B
+           {:I594MR/Create_B
             {:Instance
              {:I594MR/B {:Y 100}}}})
         c (tu/first-result
-           {:I594MR/Upsert_C
+           {:I594MR/Create_C
             {:Instance
              {:I594MR/C {:Z 200}}}})
         a (tu/result
@@ -228,79 +228,62 @@
        (p :E1)
        {:N {:type :String
             :identity true}
-        :X {:type :Int :indexed true}})
+        :X {:type :Int}})
       (entity
        (p :E2)
-       {:Y {:type :Int :indexed true}})
+       {:Y {:type :Int :identity true}})
       (relationship
        (p :R1)
        {:meta
         {:contains [(p :E1) (p :E2)
-                    :on [:X :Y]
                     :cascade-on-delete cascade-on-delete]}
-        :Z :Int})
-      (dataflow
-       (p :CreateE2)
-       {(p :E1)
-        {:N? (p :CreateE2.N)} :as :E1}
-       {(p :E2)
-        {:Y (p :CreateE2.Y)}
-        :-> [{(p :R1) {:Z (p :CreateE2.Z)}} :E1]})
-      (dataflow
-       (p :DeleteE2)
-       [:delete (p :E2) {cn/id-attr (p :DeleteE2.Id)}]))
+        :Z :Int}))
     (let [e11 (tu/first-result
-               {(p :Upsert_E1)
+               {(p :Create_E1)
                 {:Instance
                  {(p :E1)
                   {:N "a" :X 1}}}})
           e12 (tu/first-result
-               {(p :Upsert_E1)
+               {(p :Create_E1)
                 {:Instance
                  {(p :E1)
                   {:N "b" :X 2}}}})
-          e21 (tu/result
-               {(p :CreateE2)
-                {:N "a" :Y 100 :Z 20}})
-          e22 (tu/result
-               {(p :CreateE2)
-                {:N "a" :Y 100 :Z 20}})
-          e23 (tu/result
-               {(p :CreateE2)
-                {:N "b" :Y 200 :Z 40}})
-          e24 (tu/result
-               {(p :CreateE2)
-                {:N "b" :Y 100 :Z 40}})]
-      (is (cn/instance-of? (p :E2) e21))
-      (defn- check-rel-vals [e1 e2 z r]
-        (is (= (:E1 r) e1))
-        (is (= (:E2 r) e2))
-        (is (= (:Z r) z)))
-      (let [r (first (:-> e21))
-            t (:transition (first (:-> e22)))
-            chk (partial check-rel-vals 1 100 20)]
-        (is (cn/instance-of? (p :R1) r))
-        (chk r) (chk (:to t)) (chk (:from t))
-        (is (= (cn/id-attr (:to t)) (cn/id-attr (:from t)))))
-      (let [r (first (:-> e23))]
-        (is (cn/instance-of? (p :R1) r))
-        (is (= (:E1 r) 2))
-        (is (= (:E2 r) 200))
-        (is (= (:Z r) 40)))
-      (let [r (first (:-> e24))]
-        (is (cn/instance-of? (p :R1) r))
-        (is (= (:E1 r) 2))
-        (is (= (:E2 r) 100))
-        (is (= (:Z r) 40)))
-      (let [id (cn/id-attr e22)
-            f #(tu/eval-all-dataflows
-                {(p :DeleteE2)
-                 {:Id id}})]
+          create-e2 (fn [e1 y z]
+                      (tu/result
+                       {(p :Create_E2)
+                        {:Instance
+                         {(p :E2)
+                          {:Y y}}
+                         :Z z
+                         :E1 e1}}))
+          e21 (create-e2 "a" 100 20)
+          e22 (create-e2 "b" 200 30)
+          e23 (create-e2 "a" 300 40)
+          e2? (partial cn/instance-of? (p :E2))
+          v? #(let [r (first (:-> %1))]
+                (and (= %2 (:Z r))
+                     (= %3 (:E1 r))
+                     (= %4 (:E2 r))))]
+      (is (e2? e21))
+      (is (e2? e22))
+      (is (e2? e23))
+      (is (v? e21 20 "a" 100))
+      (is (v? e22 30 "b" 200))
+      (is (v? e23 40 "a" 300))
+      (defn- lk [e1 c]
+        (let [r ((if c tu/result tu/eval-all-dataflows)
+                 {(p :LookupAll_E2) {:E1 e1}})]
+          (if c
+            (is (= c (count r)))
+            (is (= :not-found (:status (first r)))))))
+      (lk "a" 2)
+      (let [del-p {(p :Delete_E1) {:N "a"}}]
         (if cascade-on-delete
-          (is (cn/same-instance?
-               (dissoc e22 :->)
-               (first (tu/fresult (f)))))
-          (is (tu/is-error f)))))))
+          (do (= "a" (:N (tu/first-result del-p)))
+              (lk "a" nil))
+          (do (tu/is-error #(tu/eval-all-dataflows del-p))
+              (lk "a" 2))))
+      (lk "b" 1))))
 
 (deftest issue-649-contains-constraints
   (i649-test 1 false)
@@ -323,48 +306,36 @@
        {:meta
         {:between [(p :A) (p :B)
                    :one-n one-n]}
-        :Z :Int})
-      (dataflow
-       (p :CreateB)
-       {(p :A) {:X? (p :CreateB.X)} :as :A}
-       {(p :B)
-        {:Y (p :CreateB.Y)}
-        :-> [{(p :R1) {:Z (p :CreateB.Z)}} :A]})
-      (dataflow
-       (p :CreateR1ForA)
-       {(p :B) {:Y? (p :CreateR1ForA.Y)} :as :B}
-       {(p :A)
-        {:X? (p :CreateR1ForA.X)}
-        :-> [{(p :R1) {:Z (p :CreateR1ForA.Z)}} :B]}))
-    (let [a (tu/first-result
-             {(p :Upsert_A)
+        :Z :Int}))
+    (let [r1? (partial cn/instance-of? (p :R1))
+          a (tu/first-result
+             {(p :Create_A)
               {:Instance
                {(p :A) {:X 10}}}})
-          b (tu/result
-             {(p :CreateB)
-              {:X 10 :Y 20 :Z 30}})
-          a1 (tu/result
-              {(p :CreateR1ForA)
-               {:Y 20 :X 10 :Z 40}})]
+          b (tu/first-result
+             {(p :Create_B)
+              {:Instance
+               {(p :B) {:Y 20}}}})
+          b2 (tu/first-result
+              {(p :Create_B)
+               {:Instance
+                {(p :B) {:Y 30}}}})
+          cr-r1inst1 {(p :Create_R1)
+                      {:Instance
+                       {(p :R1)
+                        {:A 10 :B 20 :Z 100}}}}
+          cr-r1inst2 {(p :Create_R1)
+                      {:Instance
+                       {(p :R1)
+                        {:A 10 :B 30 :Z 100}}}}
+          r1 (tu/first-result cr-r1inst1)]
       (is (cn/instance-of? (p :A) a))
       (is (cn/instance-of? (p :B) b))
-      (is (cn/instance-of? (p :A) a1))
-      (let [rb (first (:-> b))
-            ra (first (:-> a1))
-            xyz (fn [r] (mapv #(% r) [:A :B :Z]))]
-        (is (cn/instance-of? (p :R1) rb))
-        (is (= [10 20 30] (xyz rb)))
-        (if one-n
-          (let [f (:from (:transition ra))
-                t (:to (:transition ra))]
-            (is (cn/instance-of? (p :R1) f))
-            (is (cn/instance-of? (p :R1) t))
-            (is (= [10 20 30] (xyz f)))
-            (is (= [10 20 40] (xyz t)))
-            (is (= (cn/id-attr f) (cn/id-attr t))))
-          (do (is (cn/instance-of? (p :R1) ra))
-              (is (= [10 20 40] (xyz ra)))
-              (is (not= (cn/id-attr rb) (cn/id-attr ra)))))))))
+      (is (r1? r1))
+      (if one-n
+        (tu/is-error #(tu/eval-all-dataflows cr-r1inst1))
+        (is (r1? (tu/first-result cr-r1inst1))))
+      (is (r1? (tu/first-result cr-r1inst2))))))
 
 (deftest n-to-n-relationships
   (reltype-tests false)
@@ -391,13 +362,13 @@
       {:Y? :RoR/CreateRel.Y}
       :-> [{:RoR/R1 {:Z '(* :RoR/B.K :RoR/CreateRel.Z)}} :A]}))
   (let [a (tu/first-result
-           {:RoR/Upsert_A
+           {:RoR/Create_A
             {:Instance
              {:RoR/A {:X 10}}}})
         bs (mapv
             (fn [[y k]]
               (tu/first-result
-               {:RoR/Upsert_B
+               {:RoR/Create_B
                 {:Instance
                  {:RoR/B {:Y y :K k}}}}))
             [[1 5] [1 3]])
@@ -436,11 +407,11 @@
       {:Y :R11/CreateR.Y}
       :-> [{:R11/R {:Z :R11/CreateR.Z}} :A]}))
   (let [a1 (tu/first-result
-            {:R11/Upsert_A
+            {:R11/Create_A
              {:Instance
               {:R11/A {:X 1}}}})
         a2 (tu/first-result
-            {:R11/Upsert_A
+            {:R11/Create_A
              {:Instance
               {:R11/A {:X 2}}}})
         b1 (tu/result
@@ -515,7 +486,7 @@
         (is (= (set [:I703/WorksFor :I703/Storage]) (rg/rep paths)))
         (is (= (set [:I703/Employee]) (rg/rep (rg/roots subg)))))))
   (let [c (tu/first-result
-           {:I703/Upsert_Company
+           {:I703/Create_Company
             {:Instance
              {:I703/Company {:Name "c1"}}}})
         d (tu/result
@@ -626,7 +597,8 @@
       :Models {:listof :Path}})
     (relationship
      :Fractl.Meta.Core/BelongsTo
-     {:meta {:contains [:Fractl.Meta.Core/User :Fractl.Meta.Core/Workspace
+     {:meta {:contains [:Fractl.Meta.Core/User
+                        :Fractl.Meta.Core/Workspace
                         :on [:Email :Name]]}})
     (dataflow
      :Fractl.Meta.Core/SignUp2
@@ -654,10 +626,6 @@
         r2 (tu/result
             {:Fractl.Meta.Core/SignUp2
              {:Name "d@d.com", :Email "d@d.com",
-              :FirstName "Foo", :LastName "Bar"}})
-        r3 (tu/result
-            {:Fractl.Meta.Core/SignUp2
-             {:Name "d@d.com", :Email "d@d.com",
               :FirstName "Foo", :LastName "Bar"}})]
     (defn- check
       ([transition? x]
@@ -665,17 +633,16 @@
                 (cn/instance-of?
                  :Fractl.Meta.Core/BelongsTo
                  (if transition?
-                   (:to (:transition (first (:-> x))))
+                   (first (:-> x))
                    (first (:-> x)))))))
       ([x] (check false x)))
-    (check r1) (check r2) (check true r3)
+    (check r1) (check r2)
     (let [r4 (tu/result
               {:Fractl.Meta.Core/GetWorkspace
                {:WorkspaceName "Default"
                 :EventContext {:User {:email "d@d.com"}}}})]
       (is (= 1 (count r4)))
-      (is (cn/instance-of? :Fractl.Meta.Core/Workspace (first r4)))
-      (is (cn/same-instance? (dissoc r3 :->) (first r4))))))
+      (is (cn/instance-of? :Fractl.Meta.Core/Workspace (first r4))))))
 
 (deftest issue-840-raw-attributes
   (defcomponent :I840
@@ -714,14 +681,14 @@
            [{:Deeds/DeedsAward {}} {:Deeds/Deed
                                     {:Title? :Deeds/GiveAward.Deed}}]]}))
   (let [grp (tu/first-result
-             {:Deeds/Upsert_Group
+             {:Deeds/Create_Group
               {:Instance {:Deeds/Group {:Name "g1"}}}})
         mem (tu/result
-             {:Deeds/Upsert_Member
+             {:Deeds/Create_Member
               {:Instance {:Deeds/Member {:Name "m1"}}
                :Group "g1"}})
         dd (tu/first-result
-            {:Deeds/Upsert_Deed
+            {:Deeds/Create_Deed
              {:Instance {:Deeds/Deed {:Title "d1"}}}})]
     (is (cn/instance-of? :Deeds/Group grp))
     (is (cn/instance-of? :Deeds/Member mem))

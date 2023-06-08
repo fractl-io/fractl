@@ -1295,7 +1295,7 @@
 (defn conditional-events
   "Return conditional events to fire for the given instance"
   [obj]
-  (let [instance (if (an-instance? obj) obj (get-in obj [:transition :from]))
+  (let [instance obj
         recname (li/split-path (instance-type instance))]
     (seq (get @trigger-store recname))))
 
@@ -1442,6 +1442,10 @@
 
 (defn meta-entity-name? [n]
   (s/ends-with? (name n) meta-suffix))
+
+(defn meta-entity-update-event-name [n]
+  (let [[c n] (li/split-path (meta-entity-name n))]
+    (keyword (str (name c) "/Update_" (name n)))))
 
 (def meta-entity-id :EntityId)
 
@@ -1625,17 +1629,10 @@
                     [(identity-attribute-name p) (identity-attribute-name c)])]
     {p a1 c a2}))
 
-(defn- maybe-transition [inst]
-  (if-let [t (:transition inst)]
-    (:to t)
-    inst))
-
 (defn init-relationship-instance [rel-name rel-attrs src-inst target-inst]
   (let [meta (fetch-meta rel-name)
         contains (mt/contains meta)
         between (when-not contains (mt/between meta))
-        src-inst (maybe-transition src-inst)
-        target-inst (maybe-transition target-inst)
         srctype (instance-type src-inst)
         types (mapv li/split-path [srctype (instance-type target-inst)])
         elems (mapv li/split-path (or contains between))]
@@ -1681,7 +1678,7 @@
 (defn all-crud-events [recname]
   (mapv
    (partial crud-event-name recname)
-   [:Upsert :Delete :Lookup :LookupAll]))
+   [:Create :Update :Delete :Lookup :LookupAll]))
 
 (defn remove-record [recname]
   (when-let [scm (fetch-schema recname)]

@@ -4,7 +4,7 @@
             [fractl.util.seq :as su]
             [fractl.lang.internal :as li]))
 
-(def ^:private valid-resolver-keys #{:upsert :delete :get :query :eval :invoke})
+(def ^:private valid-resolver-keys #{:update :create :delete :get :query :eval :invoke})
 
 (defn make-resolver
   ([resolver-name fnmap eval-dataflow]
@@ -20,7 +20,8 @@
    (make-resolver resolver-name fnmap nil)))
 
 (def resolver-name :name)
-(def resolver-upsert :upsert)
+(def resolver-create :create)
+(def resolver-update :update)
 (def resolver-delete :delete)
 (def resolver-query :query)
 (def resolver-eval :eval)
@@ -97,7 +98,8 @@
        :method method
        :result (invoke-method :invoke resolver m method env arg)})))
 
-(def call-resolver-upsert (partial wrap-result :upsert))
+(def call-resolver-create (partial wrap-result :create))
+(def call-resolver-update (partial wrap-result :update))
 (def call-resolver-delete (partial wrap-result :delete))
 (def call-resolver-query (partial wrap-result :query))
 (def call-resolver-eval (partial wrap-result :eval))
@@ -106,7 +108,8 @@
 (defn- dispatch-method-call [method resolver arg]
   (:result (method resolver nil arg)))
 
-(def dispatch-upsert (partial dispatch-method-call call-resolver-upsert))
+(def dispatch-create (partial dispatch-method-call call-resolver-create))
+(def dispatch-update (partial dispatch-method-call call-resolver-update))
 (def dispatch-delete (partial dispatch-method-call call-resolver-delete))
 (def dispatch-query (partial dispatch-method-call call-resolver-query))
 (def dispatch-eval (partial dispatch-method-call call-resolver-eval))

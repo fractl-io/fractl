@@ -30,7 +30,7 @@
            (.unlock lock))))
      :cljs (f)))
 
-(def ^:private store-opr-names #{:Upsert :Delete :Lookup})
+(def ^:private store-opr-names #{:Update :Create :Delete :Lookup})
 
 (def ^:private allow-all (constantly true))
 

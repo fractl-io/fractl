@@ -26,14 +26,14 @@
      :MetaDataCrud/Update
      {:MetaDataCrud/E
       {tu/q-id-attr :MetaDataCrud/Update.E
-       :X 200}}))       
+       :X 200}}))
   (finally-reset-interceptors
    #(let [e1 (first
               (tu/result
                (cn/assoc-event-context-user
                 "abcd"
                 (cn/make-instance
-                 {:MetaDataCrud/Upsert_E
+                 {:MetaDataCrud/Create_E
                   {:Instance
                    (cn/make-instance {:MetaDataCrud/E {:X 100}})}}))))]
       (is (cn/instance-of? :MetaDataCrud/E e1))
@@ -64,7 +64,7 @@
                     {:MetaDataCrud/Lookup_E
                      {cn/id-attr id}})))
               m2 (lookup-meta false)]
-          (is (= 200 (:X (get-in e2 [:transition :to]))))
+          (is (= 200 (:X e2)))
           (is (= id (cn/id-attr e3)))
           (is (= 200 (:X e3)))
           (is (= "abcd" (:Owner m2)))

@@ -1,15 +1,61 @@
 (ns fractl.store.jdbc-internal
-  (:require [next.jdbc :as jdbc]
+  (:require [clojure.set :as set]
+            [next.jdbc :as jdbc]
             [next.jdbc.prepare :as jdbcp]
             [fractl.global-state :as gs]
             [fractl.component :as cn]
-            [fractl.util :as u])
+            [fractl.util :as u]
+            [fractl.util.seq :as us]
+            [fractl.store.util :as su])
   (:import [java.sql PreparedStatement]))
 
 (defn validate-ref-statement [conn index-tabname colname ref]
   (let [sql (str "SELECT 1 FROM " index-tabname " WHERE _" colname " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [(u/uuid-from-string ref)]]))
+
+(defn create-inst-statement [conn table-name id obj]
+  (let [[entity-name instance] obj
+        scm (cn/fetch-entity-schema entity-name)
+        ks (keys (cn/instance-attributes instance))
+        col-names (mapv #(str "_" (name %)) ks)
+        col-vals (u/objects-as-string (mapv #(% instance) ks))
+        sql (str "INSERT INTO " table-name " ("
+                 (us/join-as-string col-names ", ")
+                 ") VALUES ("
+                 (us/join-as-string (mapv (constantly "?") col-vals) ", ")
+                 ")")]
+    [(jdbc/prepare conn [sql]) col-vals]))
+
+(defn- update-set-exprs [col-names]
+  (loop [cs col-names, s ""]
+    (if-let [c (first cs)]
+      (let [rs (seq (rest cs))
+            final-s (str s c " = ?")]
+        (if-not rs
+          final-s
+          (recur rs (str final-s ", "))))
+      s)))
+
+(defn update-inst-statement [conn table-name id obj]
+  (let [[entity-name instance] obj
+        scm (:schema (cn/find-entity-schema entity-name))
+        id-attrs (cn/identity-attributes scm)
+        immutable-attrs (cn/immutable-attributes scm)
+        ignore-attrs (set/intersection
+                      (set (mapv su/attribute-column-name id-attrs))
+                      (set (mapv su/attribute-column-name immutable-attrs)))
+        ks (set/difference
+            (set (keys (cn/instance-attributes instance)))
+            ignore-attrs)
+        col-names (mapv su/attribute-column-name ks)
+        col-vals (u/objects-as-string (mapv #(% instance) ks))
+        id-attr-name (cn/identity-attribute-name entity-name)
+        id-attr-val (id-attr-name instance)
+        sql (str "UPDATE " table-name " SET "
+                 (update-set-exprs col-names)
+                 " WHERE " (su/attribute-column-name id-attr-name) " = ?")]
+    [(jdbc/prepare conn [sql]) (concat col-vals [id-attr-val])]))
 
 (defn query-by-id-statement [conn query-sql id]
   (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]

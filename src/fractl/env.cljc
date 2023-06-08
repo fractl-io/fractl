@@ -229,3 +229,12 @@
 
 (defn bind-with-types [env types]
   (assoc env with-types types))
+
+(defn bind-queried-ids [env entity-name ids]
+  (let [k [:queried-ids (li/split-path entity-name)]
+        old-ids (get-in env k #{})]
+    (assoc-in env k (set (concat old-ids ids)))))
+
+(defn queried-id? [env entity-name id]
+  (when-let [ids (get-in env [:queried-ids (li/split-path entity-name)])]
+    (some #{id} ids)))

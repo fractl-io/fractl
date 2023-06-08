@@ -1,6 +1,7 @@
 (ns fractl.util
   (:require [clojure.string :as string]
             [clojure.pprint :as pp]
+            #?(:clj [clojure.java.io :as io])
             [fractl.datafmt.json :as json])
   #?(:clj
      (:require [net.cgrand.macrovich :as macros])
@@ -294,8 +295,35 @@
   x)
 
 #?(:clj
-   (defn exec-in-directory [path cmd]
-     (let [^CommandLine cmd-line (CommandLine/parse cmd)
-           ^Executor executor (DefaultExecutor.)]
-       (.setWorkingDirectory executor (if (string? path) (File. path) path))
-       (zero? (.execute executor cmd-line)))))
+   (do
+     (defn exec-in-directory [path cmd]
+       (let [^CommandLine cmd-line (CommandLine/parse cmd)
+             ^Executor executor (DefaultExecutor.)]
+         (.setWorkingDirectory executor (if (string? path) (File. path) path))
+         (zero? (.execute executor cmd-line))))
+
+     (defn read-env-var [x]
+       (cond
+         (symbol? x)
+         (when-let [v (System/getenv (name x))]
+           (let [s (try
+                     (read-string v)
+                     (catch Exception _e v))]
+             (cond
+               (not= (str s) v) v
+               (symbol? s) (str s)
+               :else s)))
+
+         (vector? x)
+         (first (filter identity (mapv read-env-var x)))
+
+         :else x))
+
+     (defn read-config-file [config-file]
+       (let [f (io/file config-file)]
+         (when-not (.exists f)
+           (with-open [out (io/writer f)]
+             (binding [*out* out]
+               (print {:service {:port 8080}})))))
+       (binding [*data-readers* {'$ read-env-var}]
+         (read-string (slurp config-file))))))
