@@ -104,7 +104,8 @@
     (cancel-task! id)))
 
 (def ^:private resolver-fns
-  {:upsert {:handler timer-upsert}
+  {:create {:handler timer-upsert}
+   :update {:handler timer-upsert}
    :delete {:handler timer-delete}})
 
 (defmake :timer

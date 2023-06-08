@@ -20,7 +20,8 @@
 (defn- mk-lookup-obj [inst]
   {cn/id-attr (cn/id-attr inst)})
 
-(def remote-upsert (partial remote-request :Upsert nil))
+(def remote-create (partial remote-request :Create nil))
+(def remote-update (partial remote-request :Update nil))
 (def remote-get (partial remote-request :Lookup mk-lookup-obj))
 
 (defn remote-delete [host options arg]

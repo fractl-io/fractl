@@ -29,10 +29,10 @@
   (when-let [c (cn/fetch-container resource)]
     (lookup-policies intercept c)))
 
-(defn upsert-policy [intercept resource spec]
+(defn create-policy [intercept resource spec]
   (let [result
         (ev/eval-all-dataflows
-         {:Fractl.Kernel.Lang/Upsert_Policy
+         {:Fractl.Kernel.Lang/Create_Policy
           {:Instance
            {:Fractl.Kernel.Lang/Policy
             {:Intercept (u/keyword-as-string intercept)

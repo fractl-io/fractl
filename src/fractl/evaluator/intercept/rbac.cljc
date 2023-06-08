@@ -32,13 +32,15 @@
       (let [rs (set (map cn/instance-type data))]
         (su/all-true? (map #(p (assoc arg :data %)) rs))))))
 
-(def ^:private apply-upsert-rules (partial has-priv? rbac/can-upsert?))
+(def ^:private apply-create-rules (partial has-priv? rbac/can-create?))
+(def ^:private apply-update-rules (partial has-priv? rbac/can-update?))
 (def ^:private apply-read-rules (partial has-priv? rbac/can-read?))
 (def ^:private apply-delete-rules (partial has-priv? rbac/can-delete?))
 (def ^:private apply-eval-rules (partial has-priv? rbac/can-eval?))
 
 (def ^:private actions
-  {:upsert apply-upsert-rules
+  {:update apply-update-rules
+   :create apply-create-rules
    :read apply-read-rules
    :delete apply-delete-rules
    :eval apply-eval-rules})
@@ -169,7 +171,7 @@
 (defn- check-instance-privilege
   ([env user arg opr resource rbac-check continuation]
    (let [r (if (cn/entity-instance? resource)
-             (if (and (or (= opr :upsert) (= opr :delete))
+             (if (and (some #{opr} #{:update :create :delete})
                       (rbac/instance-privilege-assignment-object? resource))
                (and
                 (user-is-owner?
@@ -230,13 +232,13 @@
         :else arg)
       arg)))
 
-(defn- check-upsert-on-attributes [env user arg]
+(defn- check-upsert-on-attributes [env opr user arg]
   (when-let [inst (first-instance (ii/data-input arg))]
     (let [n (cn/instance-type inst)
           idattr (cn/identity-attribute-name n)
           attrs (remove #(= idattr %) (keys (cn/instance-attributes inst)))
           waf (partial ii/wrap-attribute n)]
-      (when (every? #(apply-rbac-for-user user env :upsert (ii/assoc-data-input arg (waf %))) attrs)
+      (when (every? #(apply-rbac-for-user user env opr (ii/assoc-data-input arg (waf %))) attrs)
         arg))))
 
 (defn- blocked-at-instance-level? [arg]
@@ -257,11 +259,11 @@
     (if (or (rbac/superuser-email? user)
             (system-event? (ii/event arg)))
       arg
-      (let [is-ups (= opr :upsert)
+      (let [is-ups (or (= opr :update) (= opr :create))
             arg (if is-ups (ii/assoc-user-state arg) arg)]
         (or (apply-rbac-for-user user env opr arg)
             (when (and is-ups (not (blocked-at-instance-level? arg)))
-              (check-upsert-on-attributes env user arg)))))))
+              (check-upsert-on-attributes env opr user arg)))))))
 
 (defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))

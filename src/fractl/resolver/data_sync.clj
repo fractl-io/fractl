@@ -64,7 +64,7 @@
         [component entity-name] (li/split-path (cn/instance-type (first insts)))
         event-name (li/make-path
                     [component
-                     (keyword (str "Upsert_" (subs (str entity-name) 1)))])]
+                     (keyword (str "Create_" (subs (str entity-name) 1)))])]
     (doseq [inst insts]
       (ev (cn/make-instance
            {event-name

@@ -15,7 +15,7 @@
   (defcomponent :Q01
     (entity {:Q01/E {:X :Int}}))
   (let [e (cn/make-instance :Q01/E {:X 10})
-        e1 (first (tu/fresult (e/eval-all-dataflows {:Q01/Upsert_E {:Instance e}})))
+        e1 (first (tu/fresult (e/eval-all-dataflows {:Q01/Create_E {:Instance e}})))
         id (cn/id-attr e1)
         e2 (first (tu/fresult (e/eval-all-dataflows {:Q01/Lookup_E {cn/id-attr id}})))]
     (is (cn/instance-of? :Q01/E e2))
@@ -39,7 +39,7 @@
   (let [es [(cn/make-instance :Q02/E {:X 10 :Y 4})
             (cn/make-instance :Q02/E {:X 12 :Y 6})
             (cn/make-instance :Q02/E {:X 9 :Y 3})]
-        evts (map #(cn/make-instance :Q02/Upsert_E {:Instance %}) es)
+        evts (map #(cn/make-instance :Q02/Create_E {:Instance %}) es)
         f (comp first #(:result (first (e/eval-all-dataflows %))))
         insts (mapv f evts)
         ids (mapv cn/id-attr insts)]
@@ -47,10 +47,8 @@
     (let [r01 (tu/fresult (e/eval-all-dataflows {:Q02/QE01 {:Y 100}}))
           r (e/eval-all-dataflows {:Q02/QE02 {:X 5 :Y 100}})
           r02 (tu/fresult r)
-          fs01 (:from (:transition r01))
-          ts01 (:to (:transition r01))]
+          ts01 r01]
       (is (= 2 (count r01)))
-      (is (every? #(and (some #{(:X %)} [10 12]) (some #{(:Y %)} [4 6])) fs01))
       (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) ts01))
       (is (= 2 (count r02)))
       (is (every? #(and (some #{(:X %)} [10 12]) (= 100 (:Y %))) r02)))))
@@ -63,7 +61,7 @@
               :QueryAll/E?))
   (let [es [(cn/make-instance :QueryAll/E {:X 1 :N "e01"})
             (cn/make-instance :QueryAll/E {:X 2 :N "e02"})]
-        evts (mapv #(cn/make-instance :QueryAll/Upsert_E {:Instance %}) es)
+        evts (mapv #(cn/make-instance :QueryAll/Create_E {:Instance %}) es)
         _ (mapv tu/fresult (mapv #(e/eval-all-dataflows %) evts))
         result (tu/fresult (e/eval-all-dataflows {:QueryAll/AllE {}}))]
     (doseq [r result]
@@ -82,7 +80,7 @@
   (let [es [(cn/make-instance :QueryAlias/E {:X 1 :N "e01"})
             (cn/make-instance :QueryAlias/E {:X 2 :N "e02"})
             (cn/make-instance :QueryAlias/E {:X 1 :N "e03"})]
-        evts (map #(cn/make-instance :QueryAlias/Upsert_E {:Instance %}) es)
+        evts (map #(cn/make-instance :QueryAlias/Create_E {:Instance %}) es)
         es_result (doall (map (comp (comp first tu/fresult)
                                     #(e/eval-all-dataflows %))
                               evts))
@@ -113,7 +111,7 @@
                 {:Title "Table"
                  :AvailableQty 20}})
         evt (cn/make-instance
-             {:QueryAliasInExpr/Upsert_ProductBatch
+             {:QueryAliasInExpr/Create_ProductBatch
               {:Instance batch}})
         r (first (tu/fresult (e/eval-all-dataflows evt)))
         batch-id (cn/id-attr r)
@@ -122,7 +120,7 @@
                      {:Title "Table"
                       :Qty 21}})
            evt (cn/make-instance
-                {:QueryAliasInExpr/Upsert_OrderLine
+                {:QueryAliasInExpr/Create_OrderLine
                  {:Instance order-line}})
         r (first (tu/fresult (e/eval-all-dataflows evt)))
         line-id (cn/id-attr r)
@@ -135,37 +133,15 @@
                      {:Title "Table"
                       :Qty 2}})
         evt (cn/make-instance
-             {:QueryAliasInExpr/Upsert_OrderLine
+             {:QueryAliasInExpr/Create_OrderLine
               {:Instance order-line}})
         r (first (tu/fresult (e/eval-all-dataflows evt)))
         line-id (cn/id-attr r)
         evt (cn/make-instance
              {:QueryAliasInExpr/AllocateOrderLine
               {:BatchId batch-id :LineId line-id}})
-        r (get-in
-           (first (tu/fresult (e/eval-all-dataflows evt)))
-           [:transition :to])]
+        r (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (= (:AvailableQty r) 18))))
-
-(deftest idempotent-upsert
-  (defcomponent :IdempUps
-    (entity {:IdempUps/E {:X {:type :Int
-                              :unique true
-                              :indexed true}
-                          :Y :Int}})
-    (let [e1 (cn/make-instance :IdempUps/E {:X 10 :Y 20})
-          r1 (first (tu/fresult (e/eval-all-dataflows {:IdempUps/Upsert_E {:Instance e1}})))
-          id (cn/id-attr r1)
-          r2 (first (tu/fresult (e/eval-all-dataflows {:IdempUps/Lookup_E {cn/id-attr id}})))
-          e2 (cn/make-instance :IdempUps/E {:X 10 :Y 30})
-          r3 (first (tu/fresult (e/eval-all-dataflows {:IdempUps/Upsert_E {:Instance e2}})))
-          r4 (first (tu/fresult (e/eval-all-dataflows {:IdempUps/Lookup_E {cn/id-attr id}})))]
-      (is (= 20 (get-in r3 [:transition :from :Y])))
-      (is (= 30 (get-in r3 [:transition :to :Y])))
-      (is (= id (cn/id-attr r4)))
-      (is (= (:X r2) (:X r4)))
-      (is (= 20 (:Y r2)))
-      (is (= 30 (:Y r4))))))
 
 (deftest query-by-id-and-delete
   (defcomponent :QIdDel
@@ -176,7 +152,7 @@
     (dataflow :QIdDel/FindByIdAndDel
               [:delete :QIdDel/E {cn/id-attr :QIdDel/FindByIdAndDel.EId}]))
   (let [e (cn/make-instance :QIdDel/E {:X 100})
-        e01 (first (tu/fresult (e/eval-all-dataflows {:QIdDel/Upsert_E {:Instance e}})))
+        e01 (first (tu/fresult (e/eval-all-dataflows {:QIdDel/Create_E {:Instance e}})))
         id (cn/id-attr e01)
         devt (cn/make-instance :QIdDel/FindByIdAndDel {:EId (cn/id-attr e01)})
         _ (doall (e/eval-all-dataflows devt))
@@ -196,7 +172,7 @@
     (dataflow :QDel/DeleteById
               [:delete :QDel/E {cn/id-attr :QDel/DeleteById.EId}]))
   (let [e (cn/make-instance :QDel/E {:X 100})
-        e01 (first (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e}})))
+        e01 (first (tu/fresult (e/eval-all-dataflows {:QDel/Create_E {:Instance e}})))
         id (cn/id-attr e01)
         devt (cn/make-instance :QDel/FindAndDel {:X 100})
         _ (doall (e/eval-all-dataflows devt))
@@ -225,8 +201,8 @@
       {:QDel/E {:X? 50}}))
   (let [e (cn/make-instance :QDel/E {:X 100})
         e1                       (cn/make-instance :QDel/E {:X 50})
-        _                        (first (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e}})))
-        _                        (first (tu/fresult (e/eval-all-dataflows {:QDel/Upsert_E {:Instance e1}})))
+        _                        (first (tu/fresult (e/eval-all-dataflows {:QDel/Create_E {:Instance e}})))
+        _                        (first (tu/fresult (e/eval-all-dataflows {:QDel/Create_E {:Instance e1}})))
 
         devt                     (cn/make-instance :QDel/DeleteByAttr {})
         delete-result            (doall (e/eval-all-dataflows devt))
@@ -261,7 +237,7 @@
              (cn/make-instance :I255/E {:X 10 :Y 3})
              (cn/make-instance :I255/E {:X 9 :Y 2})
              (cn/make-instance :I255/E {:X 10 :Y 20})]
-         evts (map #(cn/make-instance :I255/Upsert_E {:Instance %}) es)
+         evts (map #(cn/make-instance :I255/Create_E {:Instance %}) es)
          f (comp first #(:result (first (e/eval-all-dataflows %))))
          insts (map f evts)]
      (is (every? true? (map #(cn/instance-of? :I255/E %) insts)))
@@ -286,7 +262,7 @@
                                         ;:unique true
                        }}}))
   (let [e (cn/make-instance :Dt01/E {:Name "Birkhe" :LastAccountAccess "2018-07-28T12:15:30"})
-        e1 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Upsert_E {:Instance e}})))
+        e1 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Create_E {:Instance e}})))
         id (cn/id-attr e1)
         e2 (first (tu/fresult (e/eval-all-dataflows {:Dt01/Lookup_E {cn/id-attr id}})))
         laa (:LastAccountAccess e2)]
@@ -320,7 +296,7 @@
       {:Qfe/R {:Y :Qfe/E.X}}]))
   (defn make-e [x]
     (let [evt (cn/make-instance
-               {:Qfe/Upsert_E
+               {:Qfe/Create_E
                 {:Instance
                  (cn/make-instance {:Qfe/E {:X x}})}})
           e (first (tu/fresult (e/eval-all-dataflows evt)))]
@@ -364,7 +340,7 @@
   (let [e1 (cn/make-instance :LikeOpr/E {:X "hi"})
         e2 (cn/make-instance :LikeOpr/E {:X "bye"})
         e3 (cn/make-instance :LikeOpr/E {:X "hello"})
-        [r1 r2 r3] (mapv #(tu/first-result {:LikeOpr/Upsert_E {:Instance %}}) [e1 e2 e3])
+        [r1 r2 r3] (mapv #(tu/first-result {:LikeOpr/Create_E {:Instance %}}) [e1 e2 e3])
         qrs1 (tu/fresult (e/eval-all-dataflows {:LikeOpr/Q {:S "h%"}}))
         qrs2 (tu/fresult (e/eval-all-dataflows {:LikeOpr/Q {:S "b%"}}))
         qrs3 (tu/fresult (e/eval-all-dataflows {:LikeOpr/Q {:S "%ell%"}}))]
@@ -398,7 +374,7 @@
   (let [es (mapv
             #(tu/first-result
               (cn/make-instance
-               {:QueryCommand/Upsert_E
+               {:QueryCommand/Create_E
                 {:Instance
                  (cn/make-instance
                   {:QueryCommand/E
@@ -438,8 +414,8 @@
      {:Rfr/R {:A :E1.X :B :E2.X}}))
   (let [e1 (cn/make-instance :Rfr/E {:N "ABC" :X 10})
         e2 (cn/make-instance :Rfr/E {:N "EFG" :X 20})
-        r1 (first (tu/fresult (e/eval-all-dataflows {:Rfr/Upsert_E {:Instance e1}})))
-        r2 (first (tu/fresult (e/eval-all-dataflows {:Rfr/Upsert_E {:Instance e2}})))
+        r1 (first (tu/fresult (e/eval-all-dataflows {:Rfr/Create_E {:Instance e1}})))
+        r2 (first (tu/fresult (e/eval-all-dataflows {:Rfr/Create_E {:Instance e2}})))
         k1 (first (tu/fresult (e/eval-all-dataflows {:Rfr/J {:N1 "EFG" :N2 "ABC"}})))]
     (is (cn/instance-of? :Rfr/R k1))
     (is (= 20 (:A k1)))
@@ -465,7 +441,7 @@
                  (range 5))
         _ (mapv #(tu/first-result
                   (cn/make-instance
-                   {:SelAll/Upsert_E
+                   {:SelAll/Create_E
                     {:Instance %}}))
                 es)
         rs (tu/fresult
@@ -492,7 +468,7 @@
       :as [:R]}
      :R))
   (let [es (mapv #(tu/first-result
-                   {:Agrgts/Upsert_E
+                   {:Agrgts/Create_E
                     {:Instance
                      {:Agrgts/E {:X %}}}})
                  [1 2 3 4 5 6])
@@ -513,7 +489,7 @@
      {:I766/E
       {:X? [:>= :I766/Q.X] :Y? '(fractl.test.query/i766-f :I766/Q.Y)}}))
   (let [es (mapv #(tu/first-result
-                   {:I766/Upsert_E
+                   {:I766/Create_E
                     {:Instance
                      {:I766/E {:X %1 :Y %2}}}})
                  [1 2 3 4 5] [10 100 200 300 200])
