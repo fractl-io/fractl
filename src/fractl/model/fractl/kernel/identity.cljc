@@ -36,6 +36,9 @@
  :Fractl.Kernel.Identity/ConfirmForgotPassword
  {:Username :Email, :ConfirmationCode :String, :Password :String})
 (event
+ :Fractl.Kernel.Identity/ConfirmSignUp
+ {:Username :Email, :ConfirmationCode :String})
+(event
  :Fractl.Kernel.Identity/ChangePassword
  {:AccessToken :String, :CurrentPassword :String, :NewPassword :String})
 (event :Fractl.Kernel.Identity/RefreshToken {:RefreshToken :String})
