@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2023-06-08
+-   Replace Upsert with Create and Update
+-   Relationship bug fixes
+
 ## [0.3.1] - 2023-05-31
 
 -   Support relationships in upsert/lookup dataflows
@@ -101,7 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.3.1...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.3.2...HEAD
+
+[0.3.2]: https://github.com/fractl-io/fractl/compare/0.3.1...0.3.2
 
 [0.3.1]: https://github.com/fractl-io/fractl/compare/0.3.0...0.3.1
 
