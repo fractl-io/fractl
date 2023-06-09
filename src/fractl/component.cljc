@@ -827,7 +827,7 @@
   ([m]
    (if (an-instance? m)
      m
-     (make-instance (first (keys m)) (first (vals m))))))
+     (make-instance (li/record-name m) (li/record-attributes m)))))
 
 (defn- make-X-instance
   "Make a new instance of the record, entity or event with the name `xname`.

@@ -69,12 +69,22 @@
       (log/exception ex)
       (internal-error (.getMessage ex) data-fmt))))
 
+(defn- assoc-event-context [request auth-config event-instance]
+  (if auth-config
+    (let [user (auth/session-user (assoc auth-config :request request))
+          event-instance (if (cn/an-instance? event-instance)
+                           event-instance
+                           (cn/make-instance event-instance))]
+      (cn/assoc-event-context-values
+       {:User (:email user)
+        :Sub (:sub user)
+        :UserDetails user}
+       event-instance))
+    event-instance))
+
 (defn- event-from-request [request event-name data-fmt auth-config]
   (try
-    (let [user (when auth-config
-                 (auth/session-user
-                  (assoc auth-config :request request)))
-          body (:body request)
+    (let [body (:body request)
           obj (if (map? body)
                 body
                 ((uh/decoder data-fmt)
@@ -89,14 +99,7 @@
                            obj
                            (cn/make-event-instance obj-name (first (vals obj))))]
       (if (or (not event-name) (= obj-name event-name))
-        [(if auth-config
-           (cn/assoc-event-context-values
-            {:User (:email user)
-             :Sub (:sub user)
-             :UserDetails user}
-            event-instance)
-           event-instance)
-         nil]
+        [(assoc-event-context request auth-config event-instance) nil]
         [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
     (catch Exception ex
       (log/exception ex)
@@ -168,12 +171,15 @@
         [(keyword (name (keyword p))) id])
       path))))
 
-(defn- process-generic-request [handler evaluator [_ maybe-unauth] request]
+(defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
   (or (maybe-unauth request)
       (if-let [parsed-path (parse-rest-uri request)]
         (let [[obj data-fmt err-response] (request-object request)]
           (or err-response (let [[evt err] (handler parsed-path obj)]
-                             (if err err (ok (evaluate evaluator evt data-fmt) data-fmt)))))
+                             (if err
+                               err
+                               (let [evt (assoc-event-context request auth-config evt)]
+                                 (ok (evaluate evaluator evt data-fmt) data-fmt))))))
         (bad-request (str "invalid request uri - " (:* (:params request)))))))
 
 (def process-post-request

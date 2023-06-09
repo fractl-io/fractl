@@ -75,7 +75,6 @@
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
-
 (defmethod auth/upsert-user tag [{:keys [instance] :as req}]
   (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)]
     (case (last (li/split-path (cn/instance-type instance)))
