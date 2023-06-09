@@ -11,10 +11,13 @@
     (u/safe-set raw-store (assoc s component-name cdef))
     component-name))
 
+(defn- remrec [tag record-name elems]
+  (filter (fn [[t r _]] (not (and (= record-name r) (= tag t)))) elems))
+
 (defn element [tag record-name attrs]
   (let [s @raw-store
         [c n] (li/split-path record-name)
-        cdef (get s c), elems (get cdef :elems)
+        cdef (get s c), elems (remrec tag record-name (get cdef :elems))
         new-cdef (assoc cdef :elems (conj elems [tag record-name attrs]))]
     (u/safe-set raw-store (assoc s c new-cdef))
     record-name))
@@ -35,10 +38,28 @@
       `(~tag ~n ~@spec)
       (seq elem))))
 
-(defn as-edn [component-name]
-  (when-let [cdef (get @raw-store component-name)]
-    `(do
-       ~(concat [(symbol "component") component-name]
-                (when-let [spec (:spec cdef)]
-                  [spec]))               
-       ~@(mapv elem-as-edn (reverse (:elems cdef))))))
+(defn- elems-of-tag [tag elems]
+  (seq (filter #(= (first %) tag) elems)))
+
+(defn- order-defs [cdef]
+  (let [elems (reverse (:elems cdef))
+        recs (elems-of-tag 'record elems)
+        ents (elems-of-tag 'entity elems)
+        evts (elems-of-tag 'event elems)
+        rels (elems-of-tag 'relationship elems)
+        dfs (elems-of-tag 'dataflow elems)]
+    (assoc cdef :elems (concat recs ents rels evts dfs))))
+
+(defn as-edn
+  ([component-name ordered]
+   (when-let [cdef (get @raw-store component-name)]
+     (let [cdef (if ordered (order-defs cdef) cdef)]
+       `(do
+          ~(concat [(symbol "component") component-name]
+                   (when-let [spec (:spec cdef)]
+                     [spec]))
+          ~@(mapv
+             elem-as-edn
+             ((if ordered identity reverse)
+              (:elems cdef)))))))
+  ([component-name] (as-edn component-name true)))

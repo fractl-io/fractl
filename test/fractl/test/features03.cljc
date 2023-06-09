@@ -566,21 +566,48 @@
   (defn- elem-exists? [edn idx elem]
     (= elem (edn idx)))
   (is (not (raw/as-edn :I902.Core)))
-  (let [edn (raw/as-edn :I902)
-        e? (partial elem-exists? (vec (rest edn)))
-        elems [['component :I902 {:clj-import '[(:require [clojure.string :as s])]}]
-               ['record :I902/A {:X :Int :Y {:type :String :identity true}}]
-               ['entity :I902/B {:F {:type :Int :identity true} :G {:oneof ["a" "b" "c"]}}]
-               ['dataflow :I902/MakeA
-                {:I902/B {:F? :I902/MakeA.B} :as :B}
-                {:I902/A {:X :B.F :Y '(str :X :B.G)}}]
-               ['entity :I902/C {:K :Float}]
-               ['relationship :I902/R
-                {:meta {:contains [:I902/B :I902/C]} :D :DateTime}]
-               ['event :I902/GetC {:B :Int}]
-               ['dataflow :I902/GetC {:I902/C? {} :-> [:I902/R? {:I902/B {:F? :I902/GetC.B}}]}]]
-        n (count elems)]
-    (loop [i 0]
-      (when (< i n)
-        (is (e? i (elems i)))
-        (recur (inc i))))))
+  (defn- check-raw [ordered elems]
+    (let [edn (raw/as-edn :I902 ordered)
+          e? (partial elem-exists? (vec (rest edn)))
+          n (count elems)]
+      (loop [i 0]
+        (when (< i n)
+          (is (e? i (elems i)))
+          (recur (inc i))))))
+  (check-raw
+   false
+   [['component :I902 {:clj-import '[(:require [clojure.string :as s])]}]
+    ['record :I902/A {:X :Int :Y {:type :String :identity true}}]
+    ['entity :I902/B {:F {:type :Int :identity true} :G {:oneof ["a" "b" "c"]}}]
+    ['dataflow :I902/MakeA
+     {:I902/B {:F? :I902/MakeA.B} :as :B}
+     {:I902/A {:X :B.F :Y '(str :X :B.G)}}]
+    ['entity :I902/C {:K :Float}]
+    ['relationship :I902/R
+     {:meta {:contains [:I902/B :I902/C]} :D :DateTime}]
+    ['event :I902/GetC {:B :Int}]
+    ['dataflow :I902/GetC {:I902/C? {} :-> [:I902/R? {:I902/B {:F? :I902/GetC.B}}]}]])
+  (check-raw
+   true
+   [['component :I902 {:clj-import '[(:require [clojure.string :as s])]}]
+    ['record :I902/A {:X :Int :Y {:type :String :identity true}}]
+    ['entity :I902/B {:F {:type :Int :identity true} :G {:oneof ["a" "b" "c"]}}]
+    ['entity :I902/C {:K :Float}]
+    ['relationship :I902/R
+     {:meta {:contains [:I902/B :I902/C]} :D :DateTime}]
+    ['event :I902/GetC {:B :Int}]
+    ['dataflow :I902/MakeA
+     {:I902/B {:F? :I902/MakeA.B} :as :B}
+     {:I902/A {:X :B.F :Y '(str :X :B.G)}}]
+    ['dataflow :I902/GetC {:I902/C? {} :-> [:I902/R? {:I902/B {:F? :I902/GetC.B}}]}]])
+  (event :I902/GetC {:K :Int})
+  (dataflow
+   :I902/GetC
+   {:I902/C? {}
+    :-> [:I902/R? {:I902/B {:F? :I902/GetC.K}}]})
+  (let [edn (vec (take-last 2 (rest (raw/as-edn :I902 false))))]
+    (is (= (first edn) '(event :I902/GetC {:K :Int})))
+    (is (= (second edn) '(dataflow
+                          :I902/GetC
+                          {:I902/C? {}
+                           :-> [:I902/R? {:I902/B {:F? :I902/GetC.K}}]})))))
