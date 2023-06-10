@@ -246,7 +246,8 @@
 
 (def ^:private system-events #{[:Fractl.Kernel.Identity :SignUp]
                                [:Fractl.Kernel.Identity :ForgotPassword]
-                               [:Fractl.Kernel.Identity :ConfirmForgotPassword]})
+                               [:Fractl.Kernel.Identity :ConfirmForgotPassword]
+                               [:Fractl.Kernel.Identity :ConfirmSignUp]})
 
 (defn- system-event? [inst]
   (when-let [t (cn/instance-type inst)]
