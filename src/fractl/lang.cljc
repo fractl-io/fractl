@@ -870,6 +870,20 @@
         (recur p0 (assoc result (keyword (name p0)) :Fractl.Kernel.Lang/Any)))
       result)))
 
+(defn- del-all-children [parent id-attr id-accessor]
+  (when-let [children (seq (cn/contained-children parent))]
+    (mapv
+     (fn [[rel _ child]]
+       (let [cid (cn/identity-attribute-name child)]
+         [:for-each
+          {(li/name-as-query-pattern child) {}
+           :->
+           [(li/name-as-query-pattern rel)
+            {parent
+             {(li/name-as-query-pattern id-attr) id-accessor}}]}
+          [:delete child {cid (keyword (str "%." (name cid)))}]]))
+     children)))
+
 (defn- regen-default-dataflows-for-contains [relname [parent child] rel-attrs]
   (let [ev (partial crud-evname child)
         crevt (ev :Create)
@@ -948,8 +962,8 @@
             ref (li/make-ref delevt idattr)]
         (cn/register-dataflow
          delevt
-         [[:delete relname {pk ref}]
-          [:delete parent {idattr ref}]])))))
+         `[~@(del-all-children parent idattr ref)
+           [:delete ~parent {~idattr ~ref}]])))))
 
 (defn- find-between-ref [attrs node-rec-name]
   (let [cn (li/split-path node-rec-name)]

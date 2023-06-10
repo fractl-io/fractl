@@ -715,7 +715,17 @@
     (relationship
      :I906/R
      {:meta {:contains [:I906/P :I906/C]
-             :cascade-on-delete true}}))
+             :cascade-on-delete true}})
+    (dataflow
+     :I906/DelP
+     [:for-each
+      {:I906/C? {}
+       :->
+       [:I906/R?
+        {:I906/P
+         {:X? :I906/DelP.X}}]}
+      [:delete :I906/C {:Y :%.Y}]]
+     [:delete :I906/P {:X :I906/DelP.X}]))
   (defn- sort-by-attr [attr xs]
     (sort #(compare (attr %1) (attr %2)) xs))
   (def sort-by-y (partial sort-by-attr :Y))
@@ -749,11 +759,17 @@
     (defn- check-c2s []
       (let [c2s (lookupall-cs 2)]
         (is (= (count c2s) 1))
+        (is (every? #(cn/instance-of? :I906/C %) c2s))
         (is (= (dissoc c21 :->) (first c2s)))))
     (check-c2s)
     (is (cn/same-instance? p1 (tu/first-result {:I906/Delete_P {:X 1}})))
     (check-c2s)
     (is (tu/not-found? (lookupall-cs true 1)))
-    (let [cs (create-cs 2)]
-      (is (= (count cs) 2))
-      (is (mapv (fn [y] (some #{y} #{101 102})) (mapv :Y cs))))))
+    (defn- check-css [cs cnt ys]
+      (is (= (count cs) cnt))
+      (is (every? #(cn/instance-of? :I906/C %) cs))
+      (is (mapv (fn [y] (some #{y} ys)) (mapv :Y cs))))
+    (check-css (create-cs 2) 2 #{101 102})
+    (check-css (lookupall-cs 2) 3 #{101 102 201})
+    (is (cn/same-instance? c21 (tu/first-result {:I906/Delete_C {:P 2 :Y 201}})))
+    (check-css (lookupall-cs 2) 2 #{101 102})))
