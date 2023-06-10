@@ -235,8 +235,8 @@
       (relationship
        (p :R1)
        {:meta
-        {:contains [(p :E1) (p :E2)
-                    :cascade-on-delete cascade-on-delete]}
+        {:contains [(p :E1) (p :E2)]
+         :cascade-on-delete cascade-on-delete}
         :Z :Int}))
     (let [e11 (tu/first-result
                {(p :Create_E1)

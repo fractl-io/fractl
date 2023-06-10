@@ -703,3 +703,57 @@
       (is (= (:Name e3) "xyz"))
       (is (cn/instance-eq? e1 e4))
       (is (= (:Name e4) "xyz")))))
+
+(deftest I906-cascade-delete-bug
+  (defcomponent :I906
+    (entity
+     :I906/P
+     {:X {:type :Int :identity true}})
+    (entity
+     :I906/C
+     {:Y {:type :Int :identity true}})
+    (relationship
+     :I906/R
+     {:meta {:contains [:I906/P :I906/C]
+             :cascade-on-delete true}}))
+  (defn- sort-by-attr [attr xs]
+    (sort #(compare (attr %1) (attr %2)) xs))
+  (def sort-by-y (partial sort-by-attr :Y))
+  (let [[p1 p2] (mapv
+                 #(tu/first-result
+                   {:I906/Create_P
+                    {:Instance
+                     {:I906/P {:X %}}}})
+                 [1 2])
+        create-cs (fn [p]
+                    (mapv
+                     #(tu/result
+                       {:I906/Create_C
+                        {:Instance
+                         {:I906/C {:Y %1}}
+                         :P %2}})
+                     [101 102] [p p]))
+        [c11 c12] (create-cs 1)
+        c21 (tu/result
+             {:I906/Create_C
+              {:Instance
+               {:I906/C {:Y 201}}
+               :P 2}})]
+    (defn- lookupall-cs
+      ([only-eval p]
+       ((if only-eval tu/eval-all-dataflows tu/result)
+        {:I906/LookupAll_C {:P p}}))
+      ([p] (lookupall-cs false p)))
+    (is (= (mapv #(dissoc % :->) [c11 c12])
+           (sort-by-y (lookupall-cs 1))))
+    (defn- check-c2s []
+      (let [c2s (lookupall-cs 2)]
+        (is (= (count c2s) 1))
+        (is (= (dissoc c21 :->) (first c2s)))))
+    (check-c2s)
+    (is (cn/same-instance? p1 (tu/first-result {:I906/Delete_P {:X 1}})))
+    (check-c2s)
+    (is (tu/not-found? (lookupall-cs true 1)))
+    (let [cs (create-cs 2)]
+      (is (= (count cs) 2))
+      (is (mapv (fn [y] (some #{y} #{101 102})) (mapv :Y cs))))))

@@ -941,7 +941,15 @@
      [[:delete relname {pk (li/make-ref delevt pk)
                         ck (li/make-ref delevt id-attr)}]
       [:delete child {(cn/identity-attribute-name child)
-                      (li/make-ref delevt id-attr)}]])))
+                      (li/make-ref delevt id-attr)}]])
+    (when (:cascade-on-delete (cn/fetch-meta relname))
+      (let [delevt (crud-evname parent :Delete)
+            idattr (cn/identity-attribute-name parent)
+            ref (li/make-ref delevt idattr)]
+        (cn/register-dataflow
+         delevt
+         [[:delete relname {pk ref}]
+          [:delete parent {idattr ref}]])))))
 
 (defn- find-between-ref [attrs node-rec-name]
   (let [cn (li/split-path node-rec-name)]
@@ -1008,7 +1016,7 @@
                                (:one-n relmeta)))
          on-attrs (:on relmeta)
          rel-attr-names (when between (:as relmeta))
-         cascade-on-delete (:cascade-on-delete relmeta)]
+         cascade-on-delete (:cascade-on-delete meta)]
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
