@@ -69,12 +69,22 @@
       (log/exception ex)
       (internal-error (.getMessage ex) data-fmt))))
 
+(defn- assoc-event-context [request auth-config event-instance]
+  (if auth-config
+    (let [user (auth/session-user (assoc auth-config :request request))
+          event-instance (if (cn/an-instance? event-instance)
+                           event-instance
+                           (cn/make-instance event-instance))]
+      (cn/assoc-event-context-values
+       {:User (:email user)
+        :Sub (:sub user)
+        :UserDetails user}
+       event-instance))
+    event-instance))
+
 (defn- event-from-request [request event-name data-fmt auth-config]
   (try
-    (let [user (when auth-config
-                 (auth/session-user
-                  (assoc auth-config :request request)))
-          body (:body request)
+    (let [body (:body request)
           obj (if (map? body)
                 body
                 ((uh/decoder data-fmt)
@@ -89,14 +99,7 @@
                            obj
                            (cn/make-event-instance obj-name (first (vals obj))))]
       (if (or (not event-name) (= obj-name event-name))
-        [(if auth-config
-           (cn/assoc-event-context-values
-            {:User (:email user)
-             :Sub (:sub user)
-             :UserDetails user}
-            event-instance)
-           event-instance)
-         nil]
+        [(assoc-event-context request auth-config event-instance) nil]
         [nil (str "Type mismatch in request - " event-name " <> " obj-name)]))
     (catch Exception ex
       (log/exception ex)
@@ -159,21 +162,40 @@
        ((uh/decoder data-fmt) (String. (.bytes body)))) data-fmt nil]
     [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)))]))
 
+(defn- parse-attr [entity-name attr v]
+  (let [scm (cn/fetch-schema entity-name)
+        ascm (cn/find-attribute-schema (get scm attr))]
+    (if-let [t (:type ascm)]
+      (case t
+        :Fractl.Kernel.Lang/Int (Integer/parseInt v)
+        :Fractl.Kernel.Lang/Int64 (Long/parseLong v)
+        :Fractl.Kernel.Lang/BigInteger (BigInteger. v)
+        :Fractl.Kernel.Lang/Float (Float/parseFloat v)
+        :Fractl.Kernel.Lang/Double (Double/parseDouble v)
+        :Fractl.Kernel.Lang/Decimal (BigDecimal. v)
+        :Fractl.Kernel.Lang/Boolean (if (= "true" v) true false)
+        v)
+      v)))
+
 (defn- path-as-parent-ids [path]
   (when path
     (into
      {}
      (mapv
       (fn [{p :parent id :id}]
-        [(keyword (name (keyword p))) id])
+        (let [id-attr (cn/identity-attribute-name p)]
+          [(keyword (name (keyword p))) (parse-attr p id-attr id)]))
       path))))
 
-(defn- process-generic-request [handler evaluator [_ maybe-unauth] request]
+(defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
   (or (maybe-unauth request)
       (if-let [parsed-path (parse-rest-uri request)]
         (let [[obj data-fmt err-response] (request-object request)]
           (or err-response (let [[evt err] (handler parsed-path obj)]
-                             (if err err (ok (evaluate evaluator evt data-fmt) data-fmt)))))
+                             (if err
+                               err
+                               (let [evt (assoc-event-context request auth-config evt)]
+                                 (ok (evaluate evaluator evt data-fmt) data-fmt))))))
         (bad-request (str "invalid request uri - " (:* (:params request)))))))
 
 (def process-post-request
@@ -197,7 +219,7 @@
        (let [id-attr (cn/identity-attribute-name entity-name)]
          [{(cn/crud-event-name component entity-name :Update)
            (merge
-            {id-attr id
+            {id-attr (parse-attr entity-name id-attr id)
              :Data (li/record-attributes obj)}
             (path-as-parent-ids path))}
           nil])))))
@@ -210,7 +232,7 @@
         (let [id-attr (cn/identity-attribute-name entity-name)]
           {(cn/crud-event-name component entity-name :Lookup)
            (merge
-            {id-attr id}
+            {id-attr (parse-attr entity-name id-attr id)}
             (path-as-parent-ids path))})
         {(cn/crud-event-name component entity-name :LookupAll)
          (merge {} (path-as-parent-ids path))})
@@ -225,7 +247,7 @@
        (let [id-attr (cn/identity-attribute-name entity-name)]
          [{(cn/crud-event-name component entity-name :Delete)
            (merge
-            {id-attr id}
+            {id-attr (parse-attr entity-name id-attr id)}
             (path-as-parent-ids path))}
           nil])))))
 
