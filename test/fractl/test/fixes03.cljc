@@ -715,17 +715,7 @@
     (relationship
      :I906/R
      {:meta {:contains [:I906/P :I906/C]
-             :cascade-on-delete true}})
-    (dataflow
-     :I906/DelP
-     [:for-each
-      {:I906/C? {}
-       :->
-       [:I906/R?
-        {:I906/P
-         {:X? :I906/DelP.X}}]}
-      [:delete :I906/C {:Y :%.Y}]]
-     [:delete :I906/P {:X :I906/DelP.X}]))
+             :cascade-on-delete true}}))
   (defn- sort-by-attr [attr xs]
     (sort #(compare (attr %1) (attr %2)) xs))
   (def sort-by-y (partial sort-by-attr :Y))
@@ -763,6 +753,9 @@
         (is (= (dissoc c21 :->) (first c2s)))))
     (check-c2s)
     (is (cn/same-instance? p1 (tu/first-result {:I906/Delete_P {:X 1}})))
+    ;; Give time for the Delete_C event-firing to commit the db-transaction,
+    ;; this has been a problem when the complete test-suite is running.
+    #?(:clj (Thread/sleep 2000))
     (check-c2s)
     (is (tu/not-found? (lookupall-cs true 1)))
     (defn- check-css [cs cnt ys]
