@@ -47,6 +47,11 @@
   :Password :String})
 
 (event
+ :ConfirmSignUp
+ {:Username :Email
+  :ConfirmationCode :String})
+
+(event
  :ChangePassword
  {:AccessToken :String
   :CurrentPassword :String
