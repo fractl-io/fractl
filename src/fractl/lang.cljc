@@ -884,25 +884,26 @@
         [children rels]))))
 
 (defn- del-all-children [children parent id-attr id-accessor]
-  (let [pk (keyword (name parent))]
-    (apply
-     concat
-     (mapv
-      (fn [[rel _ child]]
-        (let [cid (cn/identity-attribute-name child)
-              cid-ref (keyword (str "%." (name cid)))]
-          [[:try
-            {(li/name-as-query-pattern child) {}
-             :->
-             [(li/name-as-query-pattern rel)
-              {parent
-               {(li/name-as-query-pattern id-attr) id-accessor}}]}
-            :not-found []
-            :as :Cs]
-           [:for-each :Cs
-            {(crud-evname child :Delete) {pk id-accessor cid cid-ref}}
-            [:delete rel {pk id-accessor (keyword (name child)) cid-ref}]]]))
-      children))))
+  (apply
+   concat
+   (mapv
+    (fn [[rel _ child]]
+      (let [cid (cn/identity-attribute-name child)
+            cid-ref (keyword (str "%." (name cid)))
+            pk (cn/deref-relationship-identity rel (keyword (name parent)))
+            ck (cn/deref-relationship-identity rel (keyword (name child)))]
+        [[:try
+          {(li/name-as-query-pattern child) {}
+           :->
+           [(li/name-as-query-pattern rel)
+            {parent
+             {(li/name-as-query-pattern id-attr) id-accessor}}]}
+          :not-found []
+          :as :Cs]
+         [:for-each :Cs
+          {(crud-evname child :Delete) {pk id-accessor cid cid-ref}}
+          [:delete rel {pk id-accessor ck cid-ref}]]]))
+    children)))
 
 (defn- del-all-between-rels [rels entity-name id-accessor]
   (mapv
@@ -935,13 +936,13 @@
         lookupevt (ev :Lookup)
         f3 (partial crud-event-attr-accessor lookupevt true)
         c (name child)
-        ck (keyword c)
+        ck (cn/deref-relationship-identity relname (keyword c))
         ctx-aname (k/event-context-attribute-name)
         lookupallevt (ev :LookupAll)
         f4 (partial crud-event-attr-accessor lookupallevt true)
         delevt (ev :Delete)
         pattrs (parent-names-as-attributes parent)
-        pk (keyword (name parent))]
+        pk (cn/deref-relationship-identity relname (keyword (name parent)))]
     (event-internal
      crevt
      (merge
@@ -1021,7 +1022,10 @@
         ev (partial crud-evname relname)
         crevt (ev :Create)
         ctx-aname (k/event-context-attribute-name)
-        [fname tname] (cn/normalize-between-attribute-names relname from to)
+        [fname tname]
+        (mapv
+         (partial cn/deref-relationship-identity relname)
+         (cn/normalize-between-attribute-names relname from to))
         lookup-evt (ev :Lookup)
         lookupall-evt (ev :LookupAll)
         id-f (cn/identity-attribute-name from)

@@ -929,18 +929,14 @@
                     inst (cn/event-context active-event))
                    inst)
             env (env/assoc-active-event env inst)
-            local-result (when (or (not resolver) composed?)
-                           (async-invoke
-                            timeout-ms
-                            #(doall
-                              (extract-local-result
-                               (first (eval-event-dataflows
-                                       self (if with-types
-                                              (env/bind-with-types eval-env with-types)
-                                              eval-env)
-                                       (if with-types
-                                         (assoc inst li/with-types-tag with-types)
-                                         inst)))))))
+            local-result (extract-local-result
+                          (first (eval-event-dataflows
+                                  self (if with-types
+                                         (env/bind-with-types eval-env with-types)
+                                         eval-env)
+                                  (if with-types
+                                    (assoc inst li/with-types-tag with-types)
+                                    inst))))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? env inst))
             r (pack-results local-result resolver-results)

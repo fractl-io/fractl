@@ -270,3 +270,6 @@
     (map? r) (= :not-found (:status r))
     (vector? r) (not-found? (first r))
     :else false))
+
+(defn sort-by-attr [attr xs]
+  (sort #(compare (attr %1) (attr %2)) xs))

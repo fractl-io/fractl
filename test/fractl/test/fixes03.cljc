@@ -706,7 +706,7 @@
       (is (cn/instance-eq? e1 e4))
       (is (= (:Name e4) "xyz")))))
 
-(deftest I906-cascade-delete-bug
+(deftest issue-906-cascade-delete-bug
   (defcomponent :I906
     (entity
      :I906/P
@@ -729,9 +729,7 @@
     (relationship
      :I906/G
      {:meta {:between [:I906/D :I906/E]}}))
-  (defn- sort-by-attr [attr xs]
-    (sort #(compare (attr %1) (attr %2)) xs))
-  (def sort-by-y (partial sort-by-attr :Y))
+  (def sort-by-y (partial tu/sort-by-attr :Y))
   (let [[p1 p2] (mapv
                  #(tu/first-result
                    {:I906/Create_P
@@ -796,11 +794,9 @@
         (is (= (dissoc c21 :->) (first c2s)))))
     (check-c2s)
     (is (cn/same-instance? p1 (tu/first-result {:I906/Delete_P {:X 1}})))
-    #?(:clj (Thread/sleep 2000))
     (is (tu/not-found? (tu/eval-all-dataflows {:I906/Lookup_G {:D 301 :E 789}})))
     ;; Give time for the Delete_C event-firing to commit the db-transaction,
     ;; this has been a problem when the complete test-suite is running.
-    #?(:clj (Thread/sleep 2000))
     (check-c2s)
     (is (tu/not-found? (lookupall-cs true 1)))
     (is (tu/not-found? (lookup-d1)))
@@ -812,3 +808,47 @@
     (check-css (lookupall-cs 2) 3 #{101 102 201})
     (is (cn/same-instance? c21 (tu/first-result {:I906/Delete_C {:P 2 :Y 201}})))
     (check-css (lookupall-cs 2) 2 #{101 102})))
+
+(deftest issue-906-cascade-delete-with-non-identity
+  (defcomponent :I906B
+    (entity
+     :I906B/P
+     {:X {:type :Int :identity true}
+      :A {:type :Int :indexed true}})
+    (entity
+     :I906B/C
+     {:Y {:type :Int :identity true}
+      :B {:type :Int :indexed true}})
+    (relationship
+     :I906B/R
+     {:meta {:contains [:I906B/P :I906B/C :on [:A :B]]}}))
+  (let [[p1 p2 :as ps] (mapv
+                 #(tu/first-result
+                   {:I906B/Create_P
+                    {:Instance
+                     {:I906B/P {:X % :A (* 10 %)}}}})
+                 [1 2])
+        create-cs (fn [p]
+                    (mapv
+                     #(tu/result
+                       {:I906B/Create_C
+                        {:Instance
+                         {:I906B/C {:Y %1 :B (* 10 %1)}}
+                         :P %2}})
+                     [101 102] [p p]))
+        [c11 c12 :as cs] (create-cs 1)
+        c21 (tu/result
+             {:I906B/Create_C
+              {:Instance
+               {:I906B/C {:Y 201 :B 11}}
+               :P 2}})]
+    (defn- lookupall-cs
+      ([only-eval p]
+       ((if only-eval tu/eval-all-dataflows tu/result)
+        {:I906B/LookupAll_C {:P p}}))
+      ([p] (lookupall-cs false p)))
+    (is (every? #(cn/instance-of? :I906B/P %) ps))
+    (is (every? #(cn/instance-of? :I906B/C %) (conj cs c21)))
+    ;; TODO: test cascade deletes for contains
+    ;; TODO: add a scenario for deleting between relationship defined on non-identity
+    ))
