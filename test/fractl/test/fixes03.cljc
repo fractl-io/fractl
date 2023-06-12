@@ -717,12 +717,18 @@
     (entity
      :I906/D
      {:Z {:type :Int :identity true}})
+    (entity
+     :I906/E
+     {:A {:type :Int :identity true}})
     (relationship
      :I906/R
      {:meta {:contains [:I906/P :I906/C]}})
     (relationship
      :I906/F
-     {:meta {:contains [:I906/C :I906/D]}}))
+     {:meta {:contains [:I906/C :I906/D]}})
+    (relationship
+     :I906/G
+     {:meta {:between [:I906/D :I906/E]}}))
   (defn- sort-by-attr [attr xs]
     (sort #(compare (attr %1) (attr %2)) xs))
   (def sort-by-y (partial sort-by-attr :Y))
@@ -752,7 +758,19 @@
                :P 2}})
         d1 (tu/result
             {:I906/Create_D
-             {:P 1 :C 101 :Instance {:I906/D {:Z 301}}}})]
+             {:P 1 :C 101 :Instance {:I906/D {:Z 301}}}})
+        e1 (tu/first-result
+            {:I906/Create_E
+             {:Instance
+              {:I906/E {:A 789}}}})
+        g1 (tu/first-result
+            {:I906/Create_G
+             {:Instance
+              {:I906/G
+               {:D 301 :E 789}}}})]
+    (is (cn/instance-of? :I906/E e1))
+    (is (cn/instance-of? :I906/G g1))
+    (is (cn/same-instance? g1 (tu/first-result {:I906/Lookup_G {:D 301 :E 789}})))
     (is (cn/same-instance? p3 (tu/first-result
                                {:I906/Lookup_P {:X 3}})))
     (is (cn/same-instance? p3 (tu/first-result
@@ -778,6 +796,8 @@
         (is (= (dissoc c21 :->) (first c2s)))))
     (check-c2s)
     (is (cn/same-instance? p1 (tu/first-result {:I906/Delete_P {:X 1}})))
+    #?(:clj (Thread/sleep 2000))
+    (is (tu/not-found? (tu/eval-all-dataflows {:I906/Lookup_G {:D 301 :E 789}})))
     ;; Give time for the Delete_C event-firing to commit the db-transaction,
     ;; this has been a problem when the complete test-suite is running.
     #?(:clj (Thread/sleep 2000))
