@@ -872,18 +872,23 @@
 
 (defn- del-all-children [parent id-attr id-accessor pk]
   (when-let [children (seq (cn/contained-children parent))]
-    (mapv
-     (fn [[rel _ child]]
-       (let [cid (cn/identity-attribute-name child)
-             cid-ref (keyword (str "%." (name cid)))]
-         [:for-each
-          {(li/name-as-query-pattern child) {}
-           :->
-           [(li/name-as-query-pattern rel)
-            {parent
-             {(li/name-as-query-pattern id-attr) id-accessor}}]}
-          {(crud-evname child :Delete) {pk id-accessor cid cid-ref}}]))
-     children)))
+    (apply
+     concat
+     (mapv
+      (fn [[rel _ child]]
+        (let [cid (cn/identity-attribute-name child)
+              cid-ref (keyword (str "%." (name cid)))]
+          [[:try
+            {(li/name-as-query-pattern child) {}
+             :->
+             [(li/name-as-query-pattern rel)
+              {parent
+               {(li/name-as-query-pattern id-attr) id-accessor}}]}
+            :not-found []
+            :as :Cs]
+           [:for-each :Cs
+            {(crud-evname child :Delete) {pk id-accessor cid cid-ref}}]]))
+      children))))
 
 (defn- regen-default-dataflows-for-contains [relname [parent child] rel-attrs]
   (let [ev (partial crud-evname child)

@@ -725,6 +725,10 @@
                     {:Instance
                      {:I906/P {:X %}}}})
                  [1 2])
+        p3 (tu/first-result
+            {:I906/Create_P
+             {:Instance
+              {:I906/P {:X 3}}}})
         create-cs (fn [p]
                     (mapv
                      #(tu/result
@@ -739,6 +743,11 @@
               {:Instance
                {:I906/C {:Y 201}}
                :P 2}})]
+    (is (cn/same-instance? p3 (tu/first-result
+                               {:I906/Lookup_P {:X 3}})))
+    (is (cn/same-instance? p3 (tu/first-result
+                               {:I906/Delete_P {:X 3}})))
+    (is (tu/not-found? (tu/eval-all-dataflows {:I906/Lookup_P {:X 3}})))
     (defn- lookupall-cs
       ([only-eval p]
        ((if only-eval tu/eval-all-dataflows tu/result)
