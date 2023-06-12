@@ -712,9 +712,16 @@
     (entity
      :I906/C
      {:Y {:type :Int :identity true}})
+    (entity
+     :I906/D
+     {:Z {:type :Int :identity true}})
     (relationship
      :I906/R
      {:meta {:contains [:I906/P :I906/C]
+             :cascade-on-delete true}})
+    (relationship
+     :I906/F
+     {:meta {:contains [:I906/C :I906/D]
              :cascade-on-delete true}}))
   (defn- sort-by-attr [attr xs]
     (sort #(compare (attr %1) (attr %2)) xs))
@@ -742,12 +749,21 @@
              {:I906/Create_C
               {:Instance
                {:I906/C {:Y 201}}
-               :P 2}})]
+               :P 2}})
+        d1 (tu/result
+            {:I906/Create_D
+             {:P 1 :C 101 :Instance {:I906/D {:Z 301}}}})]
     (is (cn/same-instance? p3 (tu/first-result
                                {:I906/Lookup_P {:X 3}})))
     (is (cn/same-instance? p3 (tu/first-result
                                {:I906/Delete_P {:X 3}})))
     (is (tu/not-found? (tu/eval-all-dataflows {:I906/Lookup_P {:X 3}})))
+    (is (cn/instance-of? :I906/D d1))
+    (defn- lookup-d1 []
+      (tu/eval-all-dataflows
+       {:I906/Lookup_D
+        {:P 1 :C 101 :Z 301}}))
+    (is (cn/same-instance? (dissoc d1 :->) (first (:result (first (lookup-d1))))))
     (defn- lookupall-cs
       ([only-eval p]
        ((if only-eval tu/eval-all-dataflows tu/result)
@@ -767,6 +783,7 @@
     #?(:clj (Thread/sleep 2000))
     (check-c2s)
     (is (tu/not-found? (lookupall-cs true 1)))
+    (is (tu/not-found? (lookup-d1)))
     (defn- check-css [cs cnt ys]
       (is (= (count cs) cnt))
       (is (every? #(cn/instance-of? :I906/C %) cs))

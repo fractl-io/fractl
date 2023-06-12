@@ -863,12 +863,15 @@
   ([attr-accessor relname parent child-info]
    (parent-query-path attr-accessor relname parent child-info false)))
 
-(defn- parent-names-as-attributes [parent]
-  (loop [p parent, result {(keyword (name parent)) :Fractl.Kernel.Lang/Any}]
-    (if-let [cps (seq (cn/containing-parents p))]
-      (let [[_ _ p0] (first cps)]
-        (recur p0 (assoc result (keyword (name p0)) :Fractl.Kernel.Lang/Any)))
-      result)))
+(defn- parent-names-as-attributes
+  ([parent roots-optional]
+   (loop [p parent, result {(keyword (name parent)) :Fractl.Kernel.Lang/Any}]
+     (if-let [cps (seq (cn/containing-parents p))]
+       (let [[_ _ p0] (first cps)]
+         (recur p0 (assoc result (keyword (name p0)) {:type :Fractl.Kernel.Lang/Any
+                                                      :optional roots-optional})))
+       result)))
+  ([parent] (parent-names-as-attributes parent false)))
 
 (defn- del-all-children [parent id-attr id-accessor pk]
   (when-let [children (seq (cn/contained-children parent))]
@@ -955,7 +958,7 @@
     (event-internal
      delevt
      (merge {id-attr :Fractl.Kernel.Lang/Any}
-            (parent-names-as-attributes parent)))
+            (parent-names-as-attributes parent true)))
     (cn/register-dataflow
      delevt
      [[:delete relname {pk (li/make-ref delevt pk)
@@ -966,6 +969,9 @@
       (let [delevt (crud-evname parent :Delete)
             idattr (cn/identity-attribute-name parent)
             ref (li/make-ref delevt idattr)]
+        (println          delevt
+         `[~@(del-all-children parent idattr ref pk)
+           [:delete ~parent {~idattr ~ref}]])
         (cn/register-dataflow
          delevt
          `[~@(del-all-children parent idattr ref pk)
