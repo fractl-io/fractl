@@ -969,9 +969,6 @@
       (let [delevt (crud-evname parent :Delete)
             idattr (cn/identity-attribute-name parent)
             ref (li/make-ref delevt idattr)]
-        (println          delevt
-         `[~@(del-all-children parent idattr ref pk)
-           [:delete ~parent {~idattr ~ref}]])
         (cn/register-dataflow
          delevt
          `[~@(del-all-children parent idattr ref pk)
@@ -1031,7 +1028,10 @@
 
 (defn relationship
   ([relation-name attrs]
-   (let [meta (:meta attrs)
+   (let [meta (let [m (:meta attrs)]
+                (if (some #{:cascade-on-delete} (keys m))
+                  m
+                  (assoc m :cascade-on-delete true)))
          contains (ensure-unique-contains (mt/contains meta))
          between (when-not contains (mt/between meta))
          [elems relmeta] (parse-relationship-member-spec

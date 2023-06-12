@@ -288,10 +288,12 @@
       :D :Int})
     (relationship
      :I741/R1
-     {:meta {:contains [:I741/E1 :I741/E2]}})
+     {:meta {:contains [:I741/E1 :I741/E2]
+             :cascade-on-delete false}})
     (relationship
      :I741/R2
-     {:meta {:contains [:I741/E2 :I741/E3]}})
+     {:meta {:contains [:I741/E2 :I741/E3]
+             :cascade-on-delete false}})
     (dataflow
      :I741/CreateE2
      {:I741/E1 {:X? :I741/CreateE2.E1} :as :E1}
@@ -717,12 +719,10 @@
      {:Z {:type :Int :identity true}})
     (relationship
      :I906/R
-     {:meta {:contains [:I906/P :I906/C]
-             :cascade-on-delete true}})
+     {:meta {:contains [:I906/P :I906/C]}})
     (relationship
      :I906/F
-     {:meta {:contains [:I906/C :I906/D]
-             :cascade-on-delete true}}))
+     {:meta {:contains [:I906/C :I906/D]}}))
   (defn- sort-by-attr [attr xs]
     (sort #(compare (attr %1) (attr %2)) xs))
   (def sort-by-y (partial sort-by-attr :Y))
