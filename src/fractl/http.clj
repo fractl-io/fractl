@@ -414,6 +414,34 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
+(defn- process-confirm-sign-up [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process process-confirm-sign-up - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad confirm-sign-up request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Fractl.Kernel.Identity/ConfirmSignUp evobj))
+          (bad-request (str "not a confirm-sign-up event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [result (auth/confirm-sign-up
+                          (assoc
+                           auth-config
+                           :event evobj))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "Verify user failed. "
+                                 (.getMessage ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
 (defn- process-forgot-password [auth-config request]
   (if-not auth-config
     (internal-error "cannot process forgot-password - authentication not enabled")
@@ -600,6 +628,7 @@
            (POST uh/login-prefix [] (:login handlers))
            (POST uh/logout-prefix [] (:logout handlers))
            (POST uh/signup-prefix [] (:signup handlers))
+           (POST uh/confirm-sign-up-prefix [] (:confirm-sign-up handlers))
            (POST uh/get-user-prefix [] (:get-user handlers))
            (POST uh/update-user-prefix [] (:update-user handlers))
            (POST uh/forgot-password-prefix [] (:forgot-password handlers))
@@ -657,6 +686,7 @@
           :signup (partial
                    process-signup evaluator
                    (:call-post-sign-up-event config) auth-info)
+          :confirm-sign-up (partial process-confirm-sign-up auth)
           :get-user (partial process-get-user auth)
           :update-user (partial process-update-user auth)
           :forgot-password (partial process-forgot-password auth)
