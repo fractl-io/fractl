@@ -114,10 +114,11 @@
    :type :timer,
    :compose? false,
    :paths [:Fractl.Kernel.Lang/Timer]}
-  {:name :data-sync,
-   :type :data-sync,
-   :compose? false,
-   :paths [:Fractl.Kernel.Lang/DataSync]}])
+  #?(:clj
+     {:name :data-sync,
+      :type :data-sync,
+      :compose? false,
+      :paths [:Fractl.Kernel.Lang/DataSync]})])
 (def
  Fractl_Kernel_Lang___COMPONENT_ID__
  "ce7119f1-6fce-48df-b007-4b37432ef306")
