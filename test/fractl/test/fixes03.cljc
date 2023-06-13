@@ -819,6 +819,13 @@
      :I906B/C
      {:Y {:type :Int :identity true}
       :B {:type :Int :indexed true}})
+    (entity
+     :I906B/D
+     {:Z {:type :Int :identity true}
+      :K {:type :Int :indexed true}})
+    (relationship
+     :I906B/CD
+     {:meta {:between [:I906B/C :I906B/D :on [:B :K]]}})
     (relationship
      :I906B/R
      {:meta {:contains [:I906B/P :I906B/C :on [:A :B]]}}))
@@ -843,7 +850,17 @@
                {:I906B/C {:Y 201 :B 11}}
                :P 2}})
         p? (partial cn/instance-of? :I906B/P)
-        c? (partial cn/instance-of? :I906B/C)]
+        c? (partial cn/instance-of? :I906B/C)
+        d1 (tu/first-result
+            {:I906B/Create_D
+             {:Instance {:I906B/D {:Z 111 :K 9}}}})
+        cd1 (tu/first-result
+             {:I906B/Create_CD
+              {:Instance
+               {:I906B/CD
+                {:CIdentity 201 :DIdentity 111 :C 11 :D 9}}}})]
+    (is (cn/instance-of? :I906B/D d1))
+    (is (cn/instance-of? :I906B/CD cd1))
     (defn- lookupall-cs
       ([only-eval p]
        ((if only-eval tu/eval-all-dataflows tu/result)
@@ -861,4 +878,18 @@
                                {:I906B/Delete_P
                                 {:X 1}})))
     (is (tu/not-found? (lookupall-cs true 10)))
-    (check-cs 20 1)))
+    (check-cs 20 1)
+    (is (cn/same-instance? cd1 (tu/first-result
+                                {:I906B/Lookup_CD
+                                 {:CIdentity 201 :DIdentity 111}})))
+    (is (cn/same-instance? d1 (tu/first-result
+                               {:I906B/Lookup_D {:Z 111}})))
+    (is (cn/same-instance? p2 (tu/first-result
+                               {:I906B/Delete_P
+                                {:X 2}})))
+    (is (tu/not-found? (lookupall-cs true 20)))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:I906B/Lookup_CD
+                         {:CIdentity 201 :DIdentity 111}})))
+    (is (cn/same-instance? d1 (tu/first-result
+                               {:I906B/Lookup_D {:Z 111}})))))
