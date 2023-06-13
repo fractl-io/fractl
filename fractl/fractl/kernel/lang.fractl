@@ -115,7 +115,8 @@
    :type :timer
    :compose? false
    :paths [:Fractl.Kernel.Lang/Timer]}
-  {:name :data-sync
-   :type :data-sync
-   :compose? false
-   :paths [:Fractl.Kernel.Lang/DataSync]}])
+  #?(:clj
+     {:name :data-sync
+      :type :data-sync
+      :compose? false
+      :paths [:Fractl.Kernel.Lang/DataSync]})])
