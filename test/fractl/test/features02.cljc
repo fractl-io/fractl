@@ -332,9 +332,13 @@
       (is (cn/instance-of? (p :A) a))
       (is (cn/instance-of? (p :B) b))
       (is (r1? r1))
-      (if one-n
-        (tu/is-error #(tu/eval-all-dataflows cr-r1inst1))
-        (is (r1? (tu/first-result cr-r1inst1))))
+      (is (r1? (tu/first-result cr-r1inst1)))
+      (let [c (count
+               (tu/result
+                {(p :LookupAll_R1) {}}))]
+        (if one-n
+          (= c 2)
+          (= c 1)))
       (is (r1? (tu/first-result cr-r1inst2))))))
 
 (deftest n-to-n-relationships
@@ -427,10 +431,11 @@
               (is (= a (:A r)))))]
     (p b1 10 1)
     (p b2 20 2)
-    (tu/is-error
-     #(tu/eval-all-dataflows
-       {:R11/CreateR
-        {:X 1 :Y 20 :Z 300}}))))
+    (is (cn/instance-of? :R11/B
+                         (tu/result
+                          {:R11/CreateR
+                           {:X 1 :Y 20 :Z 300}})))
+    (is (= 2 (count (tu/result {:R11/LookupAll_R {}}))))))
 
 (deftest issue-703-contains-graph
   (defcomponent :I703

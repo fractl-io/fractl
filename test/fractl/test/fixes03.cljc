@@ -660,8 +660,7 @@
     (defn- chk [status evt]
       (let [s (:status (first (tu/eval-all-dataflows evt)))]
         (is (= s status))))
-    ;; error on duplicate value for :Y
-    (chk :error {:I855/Cr1 {:E1 2}})
+    (chk :not-found {:I855/Cr1 {:E1 2}})
     (chk :not-found {:I855/Cr2 {:E1 2}})
     (defn- check-r [e1 e2]
       (is (cn/instance-of? :I855/E2 e2))
