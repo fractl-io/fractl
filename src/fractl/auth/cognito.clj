@@ -1,5 +1,8 @@
 (ns fractl.auth.cognito
-  (:require [amazonica.aws.cognitoidp :refer :all]
+  (:require [amazonica.aws.cognitoidp
+             :refer [sign-up admin-confirm-sign-up admin-delete-user admin-get-user
+                     admin-update-user-attributes admin-user-global-sign-out change-password
+                     confirm-forgot-password confirm-sign-up forgot-password initiate-auth]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [fractl.auth.core :as auth]
@@ -71,10 +74,8 @@
                          ["email" Email]
                          ["name" Name]]
        :username Email)
-      (confirm-signed-up-user-if-whitelist-is-false req aws-config whitelist? Email user-pool-id)
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
-
 
 (defmethod auth/upsert-user tag [{:keys [instance] :as req}]
   (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)]
@@ -82,7 +83,9 @@
     ;; Create User
       :User
       (let [user instance]
-        (sign-up-user req aws-config client-id user-pool-id whitelist? user))
+        (sign-up-user req aws-config client-id user-pool-id whitelist? user)
+        nil)
+
 
     ;; Update user
       :UpdateUser
@@ -182,6 +185,18 @@
      :FirstName given_name
      :LastName family_name
      :Email email}))
+
+(defmethod auth/confirm-sign-up tag [{:keys [event] :as req}]
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)
+        {:keys [Username ConfirmationCode]} event]
+    (try
+      (confirm-sign-up
+       (auth/make-client (merge req aws-config))
+       :username Username
+       :confirmation-code ConfirmationCode
+       :client-id client-id)
+      (catch Exception e
+        (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/forgot-password tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]

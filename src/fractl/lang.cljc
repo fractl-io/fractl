@@ -9,6 +9,7 @@
             [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
+            [fractl.lang.raw :as raw]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
@@ -47,7 +48,8 @@
                 (validate-component-spec spec)))]
        (when-let [imps (:clj-import spec)]
          (li/do-clj-import imps))
-       r)))
+       (and (raw/component n spec)
+            r))))
   ([n] (component n nil)))
 
 (defn- attribute-type? [nm]
@@ -418,7 +420,9 @@
            r (cn/intern-record
               cn (normalized-attributes :record cn attrs))]
        (when r
-         (and (cn/raw-definition cn attrs) r)))
+         (and (cn/raw-definition cn attrs)
+              (raw/record n attrs)
+              r)))
      (u/throw-ex (str "Syntax error in record. Check record: " n))))
   ([schema]
    (parse-and-define record schema)))
@@ -446,9 +450,10 @@
   "An event record with timestamp and other auto-generated meta fields."
   ([n attrs]
    (ensure-no-reserved-event-attrs! attrs)
-   (event-internal
-    n (assoc attrs li/event-context (k/event-context-attribute-name))
-    true))
+   (let [r (event-internal
+            n (assoc attrs li/event-context (k/event-context-attribute-name))
+            true)]
+     (and (raw/event n attrs) r)))
   ([schema]
    (parse-and-define event schema)))
 
@@ -550,21 +555,24 @@
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
-  (if (not (seq patterns))
-    (apply dataflow match-pat (event-self-ref-pattern match-pat))
-    (do
-      (ensure-dataflow-patterns! patterns)
-      (if (vector? match-pat)
-        (apply
-         dataflow
-         (install-event-trigger-pattern match-pat)
-         patterns)
-        (let [hd (:head match-pat)]
-          (if-let [mt (and hd (:on-entity-event hd))]
-            (cn/register-entity-dataflow mt hd patterns)
-            (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-              (do (ensure-event! event)
-                  (cn/register-dataflow event hd patterns)))))))))
+  (let [r (if (not (seq patterns))
+            (apply dataflow match-pat (event-self-ref-pattern match-pat))
+            (do
+              (ensure-dataflow-patterns! patterns)
+              (if (vector? match-pat)
+                (apply
+                 dataflow
+                 (install-event-trigger-pattern match-pat)
+                 patterns)
+                (let [hd (:head match-pat)]
+                  (if-let [mt (and hd (:on-entity-event hd))]
+                    (cn/register-entity-dataflow mt hd patterns)
+                    (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
+                      (do (ensure-event! event)
+                          (cn/register-dataflow event hd patterns))))))))]
+    (when r
+      (raw/dataflow match-pat patterns)
+      r)))
 
 (def ^:private crud-evname cn/crud-event-name)
 
@@ -754,7 +762,7 @@
   "A record that can be persisted with a unique id."
   ([n attrs]
    (when-let [r (serializable-entity n attrs)]
-     (and (meta-entity n) r)))
+     (and (meta-entity n) (raw/entity n attrs) r)))
   ([schema]
    (parse-and-define entity schema)))
 
@@ -1023,10 +1031,11 @@
            (if contains
              (regen-default-dataflows-for-contains relation-name contains (dissoc raw-attrs :meta))
              (regen-default-dataflows-for-between relation-name between (dissoc attrs :meta)))
-           r)))))
+           (and (raw/relationship relation-name raw-attrs) r))))))
   ([schema]
-   (let [r (parse-and-define serializable-entity schema)]
-     (and (meta-entity (first (keys schema))) r))))
+   (let [r (parse-and-define serializable-entity schema)
+         n (li/record-name schema)]
+     (and (meta-entity n) (raw/relationship n (li/record-attributes schema)) r))))
 
 (defn- resolver-for-entity [component ename spec]
   (if (cn/find-entity-schema ename)

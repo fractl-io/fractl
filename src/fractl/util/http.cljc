@@ -36,6 +36,7 @@
 (def update-user-prefix "/_update-user/")
 (def forgot-password-prefix "/_forgot-password/")
 (def confirm-forgot-password-prefix "/_confirm-forgot-password/")
+(def confirm-sign-up-prefix "/_confirm-sign-up/")
 (def change-password-prefix "/_change-password/")
 (def refresh-token-prefix "/_refresh-token/")
 (def query-prefix "/_q/")

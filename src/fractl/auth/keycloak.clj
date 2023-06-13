@@ -121,6 +121,9 @@
 (defmethod auth/forgot-password tag [_req]
   (throw (Exception. "Not implemented")))
 
+(defmethod auth/confirm-sign-up tag [_req]
+  (throw (Exception. "Not implemented")))
+
 (defmethod auth/confirm-forgot-password tag [_req]
   (throw (Exception. "Not implemented")))
 
