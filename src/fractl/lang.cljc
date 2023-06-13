@@ -890,8 +890,8 @@
     (fn [[rel _ child]]
       (let [cid (cn/identity-attribute-name child)
             cid-ref (keyword (str "%." (name cid)))
-            pk (cn/deref-relationship-identity rel (keyword (name parent)))
-            ck (cn/deref-relationship-identity rel (keyword (name child)))]
+            pk (keyword (name parent))
+            ck (keyword (name child))]
         [[:try
           {(li/name-as-query-pattern child) {}
            :->
@@ -935,14 +935,15 @@
         cr-inst-pat (into {} (mapv (fn [a] [a (f1 a)]) attr-names))
         lookupevt (ev :Lookup)
         f3 (partial crud-event-attr-accessor lookupevt true)
-        c (name child)
-        ck (cn/deref-relationship-identity relname (keyword c))
+        ck-raw (keyword (name child))
+        ck (cn/relationship-identity relname ck-raw)
         ctx-aname (k/event-context-attribute-name)
         lookupallevt (ev :LookupAll)
         f4 (partial crud-event-attr-accessor lookupallevt true)
         delevt (ev :Delete)
         pattrs (parent-names-as-attributes parent)
-        pk (cn/deref-relationship-identity relname (keyword (name parent)))]
+        pk-raw (keyword (name parent))
+        pk (cn/relationship-identity relname pk-raw)]
     (event-internal
      crevt
      (merge
@@ -990,7 +991,7 @@
             (parent-names-as-attributes parent true)))
     (cn/register-dataflow
      delevt
-     [[:delete relname {pk (li/make-ref delevt pk)
+     [[:delete relname {pk (li/make-ref delevt pk-raw)
                         ck (li/make-ref delevt id-attr)}]
       [:delete child {(cn/identity-attribute-name child)
                       (li/make-ref delevt id-attr)}]])
@@ -1024,7 +1025,7 @@
         ctx-aname (k/event-context-attribute-name)
         [fname tname]
         (mapv
-         (partial cn/deref-relationship-identity relname)
+         (partial cn/relationship-identity relname)
          (cn/normalize-between-attribute-names relname from to))
         lookup-evt (ev :Lookup)
         lookupall-evt (ev :LookupAll)

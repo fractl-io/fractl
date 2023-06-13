@@ -841,14 +841,24 @@
              {:I906B/Create_C
               {:Instance
                {:I906B/C {:Y 201 :B 11}}
-               :P 2}})]
+               :P 2}})
+        p? (partial cn/instance-of? :I906B/P)
+        c? (partial cn/instance-of? :I906B/C)]
     (defn- lookupall-cs
       ([only-eval p]
        ((if only-eval tu/eval-all-dataflows tu/result)
         {:I906B/LookupAll_C {:P p}}))
       ([p] (lookupall-cs false p)))
-    (is (every? #(cn/instance-of? :I906B/P %) ps))
-    (is (every? #(cn/instance-of? :I906B/C %) (conj cs c21)))
-    ;; TODO: test cascade deletes for contains
-    ;; TODO: add a scenario for deleting between relationship defined on non-identity
-    ))
+    (is (every? p? ps))
+    (is (every? c? (conj cs c21)))
+    (defn- check-cs [a n]
+      (let [cs (lookupall-cs a)]
+        (is (= n (count cs)))
+        (is (every? c? cs))))
+    (check-cs 10 2)
+    (check-cs 20 1)
+    (is (cn/same-instance? p1 (tu/first-result
+                               {:I906B/Delete_P
+                                {:X 1}})))
+    (is (tu/not-found? (lookupall-cs true 10)))
+    (check-cs 20 1)))

@@ -187,7 +187,7 @@
     (concat
      [(cn/identity-attribute-name main-entity-name)]
      [(normalized-rel-attr rel-name main-entity-name a1)
-      (normalized-rel-attr rel-name node-entity-name a2)])))
+      [(cn/attribute-in-relationship rel-name node-entity-name) a2]])))
 
 (defn- merge-queries [ctx main-entity-name main-query filters-opcode]
   (let [fopcode (as-opcode-map (first filters-opcode))
