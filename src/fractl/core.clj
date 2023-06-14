@@ -16,6 +16,7 @@
             [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
+            [fractl.lang.postproc :as pt]
             [fractl.lang.tools.loader :as loader]
             [fractl.lang.tools.build :as build]
             [fractl.lang.tools.deploy :as d]
@@ -124,7 +125,8 @@
     (log-app-init-result! result)))
 
 (defn- run-appinit-tasks! [evaluator store init-data]
-  (trigger-appinit-event! evaluator init-data))
+  (when (pt/finalize-events evaluator)
+    (trigger-appinit-event! evaluator init-data)))
 
 (defn- merge-resolver-configs [app-config resolver-configs]
   (let [app-resolvers (:resolvers app-config)]

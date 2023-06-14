@@ -171,7 +171,7 @@
 (defn- check-instance-privilege
   ([env user arg opr resource rbac-check continuation]
    (let [r (if (cn/entity-instance? resource)
-             (if (and (some #{opr} #{:update :create :delete})
+             (if (and (some #{opr} #{:update :create :delete :read})
                       (rbac/instance-privilege-assignment-object? resource))
                (and
                 (user-is-owner?
@@ -202,7 +202,7 @@
 
 (defn- apply-rbac-for-user [user env opr arg]
   (if-let [data (ii/data-input arg)]
-    (if (ii/skip-for-input? data)
+    (if (or (ii/skip-for-input? data) (= opr :read))
       arg
       (let [is-delete (= :delete opr)
             resource (if is-delete (second data) (first-instance data))
@@ -226,7 +226,11 @@
           (if (and (ii/has-instance-meta? arg)
                    (every? (partial user-is-owner? user env) rslt))
             arg
-            (when (every? #(check-instance-privilege env user arg opr %) rslt)
+            (when (every? #(check-instance-privilege
+                            env user arg opr %
+                            (fn [a] (apply-rbac-for-user user env opr (ii/assoc-data-output arg a)))
+                            (fn [] ((opr actions) user {:data % :ignore-refs true})))
+                          rslt)
               (apply-read-attribute-rules user rslt arg))))
 
         :else arg)
