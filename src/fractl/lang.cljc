@@ -863,12 +863,64 @@
   ([attr-accessor relname parent child-info]
    (parent-query-path attr-accessor relname parent child-info false)))
 
-(defn- parent-names-as-attributes [parent]
-  (loop [p parent, result {(keyword (name parent)) :Fractl.Kernel.Lang/Any}]
-    (if-let [cps (seq (cn/containing-parents p))]
-      (let [[_ _ p0] (first cps)]
-        (recur p0 (assoc result (keyword (name p0)) :Fractl.Kernel.Lang/Any)))
-      result)))
+(defn- parent-names-as-attributes
+  ([parent roots-optional]
+   (loop [p parent, result {(keyword (name parent)) :Fractl.Kernel.Lang/Any}]
+     (if-let [cps (seq (cn/containing-parents p))]
+       (let [[_ _ p0] (first cps)]
+         (recur p0 (assoc result (keyword (name p0)) {:type :Fractl.Kernel.Lang/Any
+                                                      :optional roots-optional})))
+       result)))
+  ([parent] (parent-names-as-attributes parent false)))
+
+(defn- all-cascades? [rels]
+  (every? true? (map #(:cascade-on-delete (cn/fetch-meta (first %))) rels)))
+
+(defn- relationships-for-cascade-delete [recname]
+  (let [children (seq (cn/contained-children recname))
+        rels (seq (cn/between-relationships recname))]
+    (when (or children rels)
+      (when (all-cascades? (concat children rels))
+        [children rels]))))
+
+(defn- del-all-children [children parent id-attr id-accessor]
+  (apply
+   concat
+   (mapv
+    (fn [[rel _ child]]
+      (let [cid (cn/identity-attribute-name child)
+            cid-ref (keyword (str "%." (name cid)))
+            pk (keyword (name parent))
+            ck (keyword (name child))]
+        [[:try
+          {(li/name-as-query-pattern child) {}
+           :->
+           [(li/name-as-query-pattern rel)
+            {parent
+             {(li/name-as-query-pattern id-attr) id-accessor}}]}
+          :not-found []
+          :as :Cs]
+         [:for-each :Cs
+          {(crud-evname child :Delete) {pk id-accessor cid cid-ref}}
+          [:delete rel {pk id-accessor ck cid-ref}]]]))
+    children)))
+
+(defn- del-all-between-rels [rels entity-name id-accessor]
+  (mapv
+   (fn [[rel _ _]] [:delete rel {(keyword (name entity-name)) id-accessor}])
+   rels))
+
+(defn- regen-delete-with-relationships [entity-name]
+  (let [[children bet-rels] (relationships-for-cascade-delete entity-name)]
+    (when (or children bet-rels)
+      (let [delevt (crud-evname entity-name :Delete)
+            idattr (cn/identity-attribute-name entity-name)
+            rf (li/make-ref delevt idattr)
+            del-cs (when children (del-all-children children entity-name idattr rf))
+            del-bets (when bet-rels (del-all-between-rels bet-rels entity-name rf))]
+        (cn/register-dataflow
+         delevt
+         `[~@del-cs ~@del-bets [:delete ~entity-name {~idattr ~rf}]])))))
 
 (defn- regen-default-dataflows-for-contains [relname [parent child] rel-attrs]
   (let [ev (partial crud-evname child)
@@ -883,14 +935,15 @@
         cr-inst-pat (into {} (mapv (fn [a] [a (f1 a)]) attr-names))
         lookupevt (ev :Lookup)
         f3 (partial crud-event-attr-accessor lookupevt true)
-        c (name child)
-        ck (keyword c)
+        ck-raw (keyword (name child))
+        ck (cn/relationship-identity relname ck-raw)
         ctx-aname (k/event-context-attribute-name)
         lookupallevt (ev :LookupAll)
         f4 (partial crud-event-attr-accessor lookupallevt true)
         delevt (ev :Delete)
         pattrs (parent-names-as-attributes parent)
-        pk (keyword (name parent))]
+        pk-raw (keyword (name parent))
+        pk (cn/relationship-identity relname pk-raw)]
     (event-internal
      crevt
      (merge
@@ -935,13 +988,15 @@
     (event-internal
      delevt
      (merge {id-attr :Fractl.Kernel.Lang/Any}
-            (parent-names-as-attributes parent)))
+            (parent-names-as-attributes parent true)))
     (cn/register-dataflow
      delevt
-     [[:delete relname {pk (li/make-ref delevt pk)
+     [[:delete relname {pk (li/make-ref delevt pk-raw)
                         ck (li/make-ref delevt id-attr)}]
       [:delete child {(cn/identity-attribute-name child)
-                      (li/make-ref delevt id-attr)}]])))
+                      (li/make-ref delevt id-attr)}]])
+    (regen-delete-with-relationships parent)
+    relname))
 
 (defn- find-between-ref [attrs node-rec-name]
   (let [cn (li/split-path node-rec-name)]
@@ -968,7 +1023,10 @@
         ev (partial crud-evname relname)
         crevt (ev :Create)
         ctx-aname (k/event-context-attribute-name)
-        [fname tname] (cn/normalize-between-attribute-names relname from to)
+        [fname tname]
+        (mapv
+         (partial cn/relationship-identity relname)
+         (cn/normalize-between-attribute-names relname from to))
         lookup-evt (ev :Lookup)
         lookupall-evt (ev :LookupAll)
         id-f (cn/identity-attribute-name from)
@@ -993,11 +1051,17 @@
      crevt
      {:Instance {:type relname :optional true}
       li/event-context ctx-aname})
-    (cn/register-dataflow crevt [(li/make-ref crevt :Instance)])))
+    (cn/register-dataflow crevt [(li/make-ref crevt :Instance)])
+    (regen-delete-with-relationships from)
+    (regen-delete-with-relationships to)
+    relname))
 
 (defn relationship
   ([relation-name attrs]
-   (let [meta (:meta attrs)
+   (let [meta (let [m (:meta attrs)]
+                (if (some #{:cascade-on-delete} (keys m))
+                  m
+                  (assoc m :cascade-on-delete true)))
          contains (ensure-unique-contains (mt/contains meta))
          between (when-not contains (mt/between meta))
          [elems relmeta] (parse-relationship-member-spec
@@ -1008,7 +1072,7 @@
                                (:one-n relmeta)))
          on-attrs (:on relmeta)
          rel-attr-names (when between (:as relmeta))
-         cascade-on-delete (:cascade-on-delete relmeta)]
+         cascade-on-delete (:cascade-on-delete meta)]
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
