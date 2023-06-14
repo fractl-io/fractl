@@ -17,7 +17,7 @@
     (reify p/Store
       (open-connection [store connection-info]
         (let [connection-info (su/normalize-connection-info connection-info)
-              jdbc-url (str url-prefix (:dbname connection-info))
+              jdbc-url (str url-prefix (:dbname connection-info) ";MODE=PostgreSQL")
               username (or (:username connection-info) "sa")
               password (or (:password connection-info) "sa")]
           (u/safe-set-once
