@@ -288,10 +288,12 @@
       :D :Int})
     (relationship
      :I741/R1
-     {:meta {:contains [:I741/E1 :I741/E2]}})
+     {:meta {:contains [:I741/E1 :I741/E2]
+             :cascade-on-delete false}})
     (relationship
      :I741/R2
-     {:meta {:contains [:I741/E2 :I741/E3]}})
+     {:meta {:contains [:I741/E2 :I741/E3]
+             :cascade-on-delete false}})
     (dataflow
      :I741/CreateE2
      {:I741/E1 {:X? :I741/CreateE2.E1} :as :E1}
@@ -658,8 +660,7 @@
     (defn- chk [status evt]
       (let [s (:status (first (tu/eval-all-dataflows evt)))]
         (is (= s status))))
-    ;; error on duplicate value for :Y
-    (chk :error {:I855/Cr1 {:E1 2}})
+    (chk :not-found {:I855/Cr1 {:E1 2}})
     (chk :not-found {:I855/Cr2 {:E1 2}})
     (defn- check-r [e1 e2]
       (is (cn/instance-of? :I855/E2 e2))
@@ -703,3 +704,191 @@
       (is (= (:Name e3) "xyz"))
       (is (cn/instance-eq? e1 e4))
       (is (= (:Name e4) "xyz")))))
+
+(deftest issue-906-cascade-delete-bug
+  (defcomponent :I906
+    (entity
+     :I906/P
+     {:X {:type :Int :identity true}})
+    (entity
+     :I906/C
+     {:Y {:type :Int :identity true}})
+    (entity
+     :I906/D
+     {:Z {:type :Int :identity true}})
+    (entity
+     :I906/E
+     {:A {:type :Int :identity true}})
+    (relationship
+     :I906/R
+     {:meta {:contains [:I906/P :I906/C]}})
+    (relationship
+     :I906/F
+     {:meta {:contains [:I906/C :I906/D]}})
+    (relationship
+     :I906/G
+     {:meta {:between [:I906/D :I906/E]}}))
+  (def sort-by-y (partial tu/sort-by-attr :Y))
+  (let [[p1 p2] (mapv
+                 #(tu/first-result
+                   {:I906/Create_P
+                    {:Instance
+                     {:I906/P {:X %}}}})
+                 [1 2])
+        p3 (tu/first-result
+            {:I906/Create_P
+             {:Instance
+              {:I906/P {:X 3}}}})
+        create-cs (fn [p]
+                    (mapv
+                     #(tu/result
+                       {:I906/Create_C
+                        {:Instance
+                         {:I906/C {:Y %1}}
+                         :P %2}})
+                     [101 102] [p p]))
+        [c11 c12] (create-cs 1)
+        c21 (tu/result
+             {:I906/Create_C
+              {:Instance
+               {:I906/C {:Y 201}}
+               :P 2}})
+        d1 (tu/result
+            {:I906/Create_D
+             {:P 1 :C 101 :Instance {:I906/D {:Z 301}}}})
+        e1 (tu/first-result
+            {:I906/Create_E
+             {:Instance
+              {:I906/E {:A 789}}}})
+        g1 (tu/first-result
+            {:I906/Create_G
+             {:Instance
+              {:I906/G
+               {:D 301 :E 789}}}})]
+    (is (cn/instance-of? :I906/E e1))
+    (is (cn/instance-of? :I906/G g1))
+    (is (cn/same-instance? g1 (tu/first-result {:I906/Lookup_G {:D 301 :E 789}})))
+    (is (cn/same-instance? p3 (tu/first-result
+                               {:I906/Lookup_P {:X 3}})))
+    (is (cn/same-instance? p3 (tu/first-result
+                               {:I906/Delete_P {:X 3}})))
+    (is (tu/not-found? (tu/eval-all-dataflows {:I906/Lookup_P {:X 3}})))
+    (is (cn/instance-of? :I906/D d1))
+    (defn- lookup-d1 []
+      (tu/eval-all-dataflows
+       {:I906/Lookup_D
+        {:P 1 :C 101 :Z 301}}))
+    (is (cn/same-instance? (dissoc d1 :->) (first (:result (first (lookup-d1))))))
+    (defn- lookupall-cs
+      ([only-eval p]
+       ((if only-eval tu/eval-all-dataflows tu/result)
+        {:I906/LookupAll_C {:P p}}))
+      ([p] (lookupall-cs false p)))
+    (is (= (mapv #(dissoc % :->) [c11 c12])
+           (sort-by-y (lookupall-cs 1))))
+    (defn- check-c2s []
+      (let [c2s (lookupall-cs 2)]
+        (is (= (count c2s) 1))
+        (is (every? #(cn/instance-of? :I906/C %) c2s))
+        (is (= (dissoc c21 :->) (first c2s)))))
+    (check-c2s)
+    (is (cn/same-instance? p1 (tu/first-result {:I906/Delete_P {:X 1}})))
+    (is (tu/not-found? (tu/eval-all-dataflows {:I906/Lookup_G {:D 301 :E 789}})))
+    ;; Give time for the Delete_C event-firing to commit the db-transaction,
+    ;; this has been a problem when the complete test-suite is running.
+    (check-c2s)
+    (is (tu/not-found? (lookupall-cs true 1)))
+    (is (tu/not-found? (lookup-d1)))
+    (defn- check-css [cs cnt ys]
+      (is (= (count cs) cnt))
+      (is (every? #(cn/instance-of? :I906/C %) cs))
+      (is (mapv (fn [y] (some #{y} ys)) (mapv :Y cs))))
+    (check-css (create-cs 2) 2 #{101 102})
+    (check-css (lookupall-cs 2) 3 #{101 102 201})
+    (is (cn/same-instance? c21 (tu/first-result {:I906/Delete_C {:P 2 :Y 201}})))
+    (check-css (lookupall-cs 2) 2 #{101 102})))
+
+(deftest issue-906-cascade-delete-with-non-identity
+  (defcomponent :I906B
+    (entity
+     :I906B/P
+     {:X {:type :Int :identity true}
+      :A {:type :Int :indexed true}})
+    (entity
+     :I906B/C
+     {:Y {:type :Int :identity true}
+      :B {:type :Int :indexed true}})
+    (entity
+     :I906B/D
+     {:Z {:type :Int :identity true}
+      :K {:type :Int :indexed true}})
+    (relationship
+     :I906B/CD
+     {:meta {:between [:I906B/C :I906B/D :on [:B :K]]}})
+    (relationship
+     :I906B/R
+     {:meta {:contains [:I906B/P :I906B/C :on [:A :B]]}}))
+  (let [[p1 p2 :as ps] (mapv
+                 #(tu/first-result
+                   {:I906B/Create_P
+                    {:Instance
+                     {:I906B/P {:X % :A (* 10 %)}}}})
+                 [1 2])
+        create-cs (fn [p]
+                    (mapv
+                     #(tu/result
+                       {:I906B/Create_C
+                        {:Instance
+                         {:I906B/C {:Y %1 :B (* 10 %1)}}
+                         :P %2}})
+                     [101 102] [p p]))
+        [c11 c12 :as cs] (create-cs 1)
+        c21 (tu/result
+             {:I906B/Create_C
+              {:Instance
+               {:I906B/C {:Y 201 :B 11}}
+               :P 2}})
+        p? (partial cn/instance-of? :I906B/P)
+        c? (partial cn/instance-of? :I906B/C)
+        d1 (tu/first-result
+            {:I906B/Create_D
+             {:Instance {:I906B/D {:Z 111 :K 9}}}})
+        cd1 (tu/first-result
+             {:I906B/Create_CD
+              {:Instance
+               {:I906B/CD
+                {:CIdentity 201 :DIdentity 111 :C 11 :D 9}}}})]
+    (is (cn/instance-of? :I906B/D d1))
+    (is (cn/instance-of? :I906B/CD cd1))
+    (defn- lookupall-cs
+      ([only-eval p]
+       ((if only-eval tu/eval-all-dataflows tu/result)
+        {:I906B/LookupAll_C {:P p}}))
+      ([p] (lookupall-cs false p)))
+    (is (every? p? ps))
+    (is (every? c? (conj cs c21)))
+    (defn- check-cs [a n]
+      (let [cs (lookupall-cs a)]
+        (is (= n (count cs)))
+        (is (every? c? cs))))
+    (check-cs 10 2)
+    (check-cs 20 1)
+    (is (cn/same-instance? p1 (tu/first-result
+                               {:I906B/Delete_P
+                                {:X 1}})))
+    (is (tu/not-found? (lookupall-cs true 10)))
+    (check-cs 20 1)
+    (is (cn/same-instance? cd1 (tu/first-result
+                                {:I906B/Lookup_CD
+                                 {:CIdentity 201 :DIdentity 111}})))
+    (is (cn/same-instance? d1 (tu/first-result
+                               {:I906B/Lookup_D {:Z 111}})))
+    (is (cn/same-instance? p2 (tu/first-result
+                               {:I906B/Delete_P
+                                {:X 2}})))
+    (is (tu/not-found? (lookupall-cs true 20)))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:I906B/Lookup_CD
+                         {:CIdentity 201 :DIdentity 111}})))
+    (is (cn/same-instance? d1 (tu/first-result
+                               {:I906B/Lookup_D {:Z 111}})))))

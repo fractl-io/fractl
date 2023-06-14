@@ -1615,6 +1615,13 @@
 (defn relationship-member-identity [k]
   (keyword (str (name k) "Identity")))
 
+(defn relationship-identity [relname k]
+  (when-let [scm (fetch-relationship-schema relname)]
+    (let [ident (relationship-member-identity k)]
+      (if (some #{ident} (attribute-names scm))
+        ident
+        k))))
+
 (defn- relationship-references [inst attr relattr]
   (let [tp (instance-type inst)
         scm (entity-schema tp)]

@@ -24,7 +24,7 @@
                  (us/join-as-string col-names ", ")
                  ") VALUES ("
                  (us/join-as-string (mapv (constantly "?") col-vals) ", ")
-                 ")")]
+                 ") ON CONFLICT DO NOTHING")]
     [(jdbc/prepare conn [sql]) col-vals]))
 
 (defn- update-set-exprs [col-names]
