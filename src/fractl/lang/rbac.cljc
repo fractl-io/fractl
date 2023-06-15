@@ -10,6 +10,7 @@
 
 (def ^:private inited-roles (u/make-cell #{}))
 (def ^:private allow-all [:create :update :delete :read])
+(def ^:private admin-rbac-spec {:roles ["admin"] :allow :*})
 
 (defn- valid-perm? [s]
   (if (some #{s} allow-all)
@@ -89,8 +90,13 @@
       (or (:rbac (cn/fetch-meta p))
           (rbac-spec-of-parent p)))))
 
+(defn- conj-admin [spec]
+  (if (some #{admin-rbac-spec} spec)
+    spec
+    (conj spec admin-rbac-spec)))
+
 (defn- intern-rbac [evaluator recname spec]
-  (let [spec (conj spec {:roles ["admin"] :allow :*})
+  (let [spec (conj-admin spec)
         pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
         [c n] (li/split-path recname)
         event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
@@ -103,7 +109,7 @@
                (cond
                  rel (when-let [spec (rbac-spec-for-relationship recname rel)]
                        (intern-rbac evaluator recname spec))
-                 (not spec) (when-let [spec (rbac-spec-of-parent recname)]
+                 (not spec) (let [spec (rbac-spec-of-parent recname)]
                               (intern-rbac evaluator recname spec))
                  :else (intern-rbac evaluator recname spec)))]
     (u/safe-set postproc-events (conj @postproc-events cont))
