@@ -107,7 +107,7 @@
 (defn rbac [recname rel spec]
   (let [cont (fn [evaluator]
                (cond
-                 rel (when-let [spec (rbac-spec-for-relationship recname rel)]
+                 rel (when-let [spec (or spec (rbac-spec-for-relationship recname rel))]
                        (intern-rbac evaluator recname spec))
                  (not spec) (let [spec (rbac-spec-of-parent recname)]
                               (intern-rbac evaluator recname spec))

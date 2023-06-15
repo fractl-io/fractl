@@ -744,7 +744,7 @@
              (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)])))
          ;; Install dataflows for implicit events.
          (when dfexps (mapv eval dfexps))
-         (let [rbac-spec (if is-rel [] (:rbac attrs))]
+         (let [rbac-spec (:rbac attrs)]
            (lr/rbac rec-name is-rel rbac-spec))
          result)
        (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
