@@ -53,15 +53,33 @@
             roles)))])
      spec)))
 
-(defn- merge-rbac-specs [rec1 rec2]
-  ;; NOTE: rbac resolution for relationship - first cut
+(defn- filter-rbac-by-perms [p r]
+  (filter (fn [{allow :allow}]
+            (when (or (= allow :*)
+                      (some p allow))))
+          r))
+
+(def ^:private filter-upcr (partial filter-rbac-by-perms #{:update :create}))
+
+(defn- merge-reads-with-writes [r1 r2]
+  (let [rr1 (filter-rbac-by-perms r1 #{:read})
+        rr2 (filter-upcr r2)]
+    (concat rr1 rr2)))
+
+(defn- merge-read-writes [r1 r2]
+  (concat (filter-upcr r1)
+          (filter-upcr r2)))
+
+(defn- merge-rbac-specs [reltype rec1 rec2]
   (let [[r1 r2] [(:rbac (cn/fetch-meta rec1))
                  (:rbac (cn/fetch-meta rec2))]]
-    (or r2 r1)))
+    (case reltype
+      :contains (merge-reads-with-writes r1 r2)
+      :between (merge-read-writes r1 r2))))
 
-(defn- rbac-spec-for-relationship [relname]
+(defn- rbac-spec-for-relationship [relname reltype]
   (if-let [[e1 e2] (cn/relationship-nodes relname)]
-    (merge-rbac-specs e1 e2)
+    (merge-rbac-specs reltype e1 e2)
     (u/throw-ex (str "failed to fetch nodes for " relname))))
 
 (defn- rbac-spec-of-parent [recname]
@@ -81,7 +99,7 @@
 (defn rbac [recname rel spec]
   (let [cont (fn [evaluator]
                (cond
-                 rel (when-let [spec (rbac-spec-for-relationship recname)]
+                 rel (when-let [spec (rbac-spec-for-relationship recname rel)]
                        (intern-rbac evaluator recname spec))
                  (not spec) (when-let [spec (rbac-spec-of-parent recname)]
                               (intern-rbac evaluator recname spec))
