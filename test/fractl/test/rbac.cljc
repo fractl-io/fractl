@@ -7,7 +7,7 @@
             [fractl.evaluator :as ev]
             [fractl.evaluator.intercept :as ei]
             [fractl.auth]
-            [fractl.lang.postproc :as pt]
+            [fractl.lang.rbac :as lr]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship dataflow]]
@@ -881,7 +881,7 @@
        (e1s? lookup-e1)))))
 
 (deftest issue-884-rbac-dsl
-  (pt/reset-events!)
+  (lr/reset-events!)
   (defcomponent :I884
     (entity
      :I884/E
@@ -918,12 +918,14 @@
       {:Role "user" :Assignee "u2@i884.com"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
       {:Role "manager" :Assignee "u1@i884.com"}}))
-  (is (pt/finalize-events tu/eval-all-dataflows))
+  (is (lr/finalize-events tu/eval-all-dataflows))
   (is (cn/instance-of?
        :Fractl.Kernel.Rbac/RoleAssignment
        (tu/first-result {:I884/InitUsers {}})))
   (let [e? (partial cn/instance-of? :I884/E)
-        f? (partial cn/instance-of? :I884/F)]
+        f? (partial cn/instance-of? :I884/F)
+        g? (partial cn/instance-of? :I884/G)
+        r2? (partial cn/instance-of? :I884/R2)]
     (call-with-rbac
      (fn []
        (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
@@ -940,7 +942,16 @@
                         {:I884/Create_F
                          {:Instance
                           {:I884/F {:Id id :Y (* id 2)}}
-                          :E e}})]
+                          :E e}})
+             create-g (fn [id]
+                        {:I884/Create_G
+                         {:Instance
+                          {:I884/G {:Id id :Z (* id 5)}}}})
+             create-r2 (fn [f g]
+                         {:I884/Create_R2
+                          {:Instance
+                           {:I884/R2
+                            {:F f :G g}}}})]
          (tu/is-error #(tu/eval-all-dataflows (create-e 1)))
          (is (e? (tu/first-result
                   (with-user "u1@i884.com" (create-e 1)))))
@@ -967,7 +978,11 @@
                          (with-user "u2@i884.com" (lookup-e 2))))))
          (is (= 400 (:X (tu/first-result
                          (with-user "u2@i884.com" (update-e 2))))))
-         ;; TODO: postproc-events reset! issue
-         ;; TODO: tests for relationships
-         ;; TODO: default admin role
-         )))))
+         (is (g? (tu/first-result
+                  (with-user "u1@i884.com" (create-g 1)))))
+         (is (g? (tu/first-result
+                  (with-user "u2@i884.com" (create-g 2)))))
+         (is (r2? (tu/first-result
+                   (with-user "u1@i884.com" (create-r2 2 1)))))
+         (is (r2? (tu/first-result
+                   (with-user "u2@i884.com" (create-r2 2 2))))))))))

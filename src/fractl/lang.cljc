@@ -10,7 +10,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
             [fractl.lang.raw :as raw]
-            [fractl.lang.postproc :as pt]
+            [fractl.lang.rbac :as lr]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
@@ -745,7 +745,7 @@
          ;; Install dataflows for implicit events.
          (when dfexps (mapv eval dfexps))
          (let [rbac-spec (if is-rel [] (:rbac attrs))]
-           (pt/rbac rec-name is-rel rbac-spec))
+           (lr/rbac rec-name is-rel rbac-spec))
          result)
        (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
      (u/throw-ex (str "Not a serializable record type: " (name rectype)))))

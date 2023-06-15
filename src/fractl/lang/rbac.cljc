@@ -1,4 +1,4 @@
-(ns fractl.lang.postproc
+(ns fractl.lang.rbac
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [fractl.lang.internal :as li]
@@ -55,14 +55,15 @@
 
 (defn- filter-rbac-by-perms [p r]
   (filter (fn [{allow :allow}]
-            (when (or (= allow :*)
-                      (some p allow))))
+            (or (= allow :*)
+                (some p allow)))
           r))
 
+(def ^:private filter-rd (partial filter-rbac-by-perms #{:read}))
 (def ^:private filter-upcr (partial filter-rbac-by-perms #{:update :create}))
 
 (defn- merge-reads-with-writes [r1 r2]
-  (let [rr1 (filter-rbac-by-perms r1 #{:read})
+  (let [rr1 (filter-rd r1)
         rr2 (filter-upcr r2)]
     (concat rr1 rr2)))
 
@@ -89,7 +90,8 @@
           (rbac-spec-of-parent p)))))
 
 (defn- intern-rbac [evaluator recname spec]
-  (let [pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
+  (let [spec (conj spec {:roles ["admin"] :allow :*})
+        pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
         [c n] (li/split-path recname)
         event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
     (cn/intern-event event-name {})
