@@ -610,6 +610,10 @@
       (> (count path-queries) 1) (u/throw-ex "pattern can have only one path-query")
       :else (normalize-relationship-path (second (first path-queries)) pat))))
 
+(defn- query-by-contains-path? [pat relpat]
+  (and (nil? (seq relpat))
+       (some #{li/path-attr-q} (keys (li/record-attributes pat)))))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -650,7 +654,8 @@
       (when-not (or (active-event-is-built-in?)
                     (ctx/ignore-relationship-query-constraint? ctx))
         (when-let [r (cn/find-contained-relationship full-nm)]
-          (when (not= r (relationship-name-from-pattern relpat))
+          (when (and (not (query-by-contains-path? pat relpat))
+                     (not= r (relationship-name-from-pattern relpat)))
             (u/throw-ex (str "pattern for " full-nm " requires relationship " r)))))
       (let [c (case tag
                 (:entity :record) emit-realize-instance

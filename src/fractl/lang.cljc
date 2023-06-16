@@ -863,12 +863,12 @@
 
 (defn- parent-path-constructor [attr-accessor relname parent child child-id-access]
   (let [f attr-accessor, np (name parent), nc (name child)
-        path ["/" np "/" (f np) "/" (name relname) "/" nc "/" child-id-access]]
+        path ["/" np "/" (f np) "/" (name relname) "/" nc "/" (or child-id-access "%")]]
      (loop [parent parent, path path]
        (if-let [cps (seq (cn/containing-parents parent))]
          (let [[r _ p] (first cps), np (name p)]
            (recur p (concat [np "/" (f np) "/" (name r) "/"] path)))
-         `(str ~@path)))))
+         `(str ~@(us/remove-twins path))))))
 
 (defn- parent-names-as-attributes
   ([parent roots-optional]
@@ -944,7 +944,7 @@
                                      (if (and (= a li/path-attr) path-id-attr)
                                        [a (parent-path-constructor
                                            (partial crud-event-attr-accessor crevt)
-                                           relname parent child (f1 path-id-attr))]
+                                           relname parent child (f1 (name path-id-attr)))]
                                        [a (f1 a)]))
                                    attr-names))
         lookupevt (ev :Lookup)
@@ -988,8 +988,13 @@
       pattrs))
     (cn/register-dataflow
      lookupevt
-     [{(li/name-as-query-pattern child)
-       (parent-query-path f3 relname parent [child id-attr])}])
+     (if path-id-attr
+       [{child {li/path-attr-q
+                (parent-path-constructor
+                 (partial crud-event-attr-accessor lookupevt)
+                 relname parent child (f3 (name path-id-attr)))}}]
+       [{(li/name-as-query-pattern child)
+         (parent-query-path f3 relname parent [child id-attr])}]))
     (event-internal
      lookupallevt
      (merge
@@ -997,8 +1002,14 @@
       pattrs))
     (cn/register-dataflow
      lookupallevt
-     [{(li/name-as-query-pattern child)
-       (parent-query-path f4 relname parent [child id-attr] true)}])
+     (if path-id-attr
+       [{child {(li/name-as-query-pattern li/path-attr)
+                [:like
+                 (parent-path-constructor
+                  (partial crud-event-attr-accessor lookupallevt)
+                  relname parent child nil)]}}]
+       [{(li/name-as-query-pattern child)
+         (parent-query-path f4 relname parent [child id-attr] true)}]))
     (event-internal
      delevt
      (merge {id-attr :Fractl.Kernel.Lang/Any}
@@ -1106,7 +1117,9 @@
                               [relmeta on]
                               (if (and contains (:with-paths meta))
                                 (contains-on contains relmeta)
-                                [relmeta nil]))
+                                (let [[p c] elems]
+                                  [relmeta [(cn/identity-attribute-name p)
+                                            (cn/identity-attribute-name c)]])))
          rel-attr-names (when between (:as relmeta))
          cascade-on-delete (:cascade-on-delete meta)]
      (when-not elems
@@ -1115,7 +1128,7 @@
      (let [raw-attrs attrs
            [attrs uqs] (assoc-relationship-attributes
                         attrs rel-attr-names contains elems
-                        on-attrs  each-uq (if cascade-on-delete true false))
+                        on-attrs each-uq (if cascade-on-delete true false))
            meta0 (assoc meta cn/relmeta-key relmeta)
            meta (assoc meta0 (if contains mt/contains mt/between) elems)
            r (serializable-entity

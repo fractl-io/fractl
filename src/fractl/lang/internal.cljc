@@ -15,6 +15,7 @@
    :default "/null"
    :unique true
    :indexed true})
+(def path-attr-q :PATH?)
 
 (defn evaluate [form]
   #?(:clj (eval form)

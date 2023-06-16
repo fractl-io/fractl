@@ -18,19 +18,21 @@
           :identity true}})
     (entity
      :I917/C
-     ;; :X is user-defined identity, turned to indexed.
-     ;; :Path and the unique-key must be
-     ;; defined by the compiler.
      {:X {:type :Int
           :identity true}
       :Y :Int})
+    (entity
+     :I917/D
+     {:Z {:type :Int
+          :identity true}
+      :K :Int})
     (relationship
      :I917/R
-     ;; :on should be added by compiler,
-     ;; this means the whole transformation described here
-     ;; should happen only if a user-specified `:on` is not
-     ;; present in the relationship.
      {:meta {:contains [:I917/P :I917/C]
+             :with-paths true}})
+    (relationship
+     :I917/G
+     {:meta {:contains [:I917/C :I917/D]
              :with-paths true}}))
   (let [p? (partial cn/instance-of? :I917/P)
         c? (partial cn/instance-of? :I917/C)
@@ -74,4 +76,20 @@
                       {:P 1}}))))
     (is (= 1 (count (tu/result
                      {:I917/LookupAll_C
-                      {:P 2}}))))))
+                      {:P 2}}))))
+    (let [d1 (tu/result
+              {:I917/Create_D
+               {:Instance
+                {:I917/D
+                 {:Z 101 :K 3}}
+                :P 1 :C 20}})
+          d2 (tu/eval-all-dataflows
+              {:I917/Create_D
+               {:Instance
+                {:I917/D
+                 {:Z 201 :K 4}}
+                :P 1 :C 100}})]
+      ;; TODO: test lookup_child by path.
+      ;; TODO: make :with-paths the default for contains.
+      (is (cn/instance-of? :I917/D d1))
+      (is (tu/not-found? d2)))))
