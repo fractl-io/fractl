@@ -60,17 +60,19 @@
       (ii/data-output result))))
 
 (defn invoke-interceptors [opr env data continuation]
-  (if-let [ins (seq @interceptors)]
-    (let [event-instance (env/active-event env)]
-      (loop [ins ins
-             result (ii/encode-input-arg event-instance data ins)]
-        (if-let [i (first ins)]
-          (if-let [r ((ii/intercept-fn i)
-                      (when (system-interceptor? i) env) opr result)]
-            (recur (rest ins) r)
-            (u/throw-ex (str "operation " opr " blocked on " data " by interceptor " (ii/intercept-name i))))
-          (invoke-for-output opr env event-instance (continuation (ii/data-input result))))))
-    (continuation data)))
+  (if (= opr :eval) ; skip check on eval
+    (continuation data)
+    (if-let [ins (seq @interceptors)]
+      (let [event-instance (env/active-event env)]
+        (loop [ins ins
+               result (ii/encode-input-arg event-instance data ins)]
+          (if-let [i (first ins)]
+            (if-let [r ((ii/intercept-fn i)
+                        (when (system-interceptor? i) env) opr result)]
+              (recur (rest ins) r)
+              (u/throw-ex (str "operation " opr " blocked on " data " by interceptor " (ii/intercept-name i))))
+            (invoke-for-output opr env event-instance (continuation (ii/data-input result))))))
+      (continuation data))))
 
 (def ^:private read-operation (partial invoke-interceptors :read))
 (def ^:private update-operation (partial invoke-interceptors :update))

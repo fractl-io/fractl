@@ -1561,6 +1561,10 @@
 (def relmeta-key :-*-relmeta-*-)
 (def relationship-meta relmeta-key)
 
+(defn relationship-nodes [relname]
+  (when-let [mt (fetch-meta relname)]
+    (or (mt/contains mt) (mt/between mt))))
+
 (defn attribute-in-relationship [relname entity-name]
   (let [mt (fetch-meta relname)
         entity-name (if (keyword? entity-name) entity-name (li/make-path entity-name))
