@@ -32,12 +32,13 @@
                    :right-join])
 (def oprs (concat query-cmpr-oprs sql-keywords [:not :and :or :between :in]))
 (def macro-names #{:match :try :for-each :delete :query :await :entity :eval})
+(def property-names #{:meta :ui :rbac})
 
 (defn operator? [x]
   (some #{x} oprs))
 
 (def ^:private special-form-names
-  (set (concat oprs macro-names)))
+  (set (concat oprs macro-names property-names)))
 
 (def ^:private reserved-names
   (set (concat

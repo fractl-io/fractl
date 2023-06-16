@@ -7,6 +7,7 @@
             [fractl.evaluator :as ev]
             [fractl.evaluator.intercept :as ei]
             [fractl.auth]
+            [fractl.lang.rbac :as lr]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship dataflow]]
@@ -207,9 +208,6 @@
              lookup {:PrivTest/Lookup_E
                      {cn/id-attr id}}]
          (is (cn/instance-of? :PrivTest/E inst))
-         (tu/is-error
-          #(ev/eval-all-dataflows
-            (with-user "u11@u11.com" lookup)))
          (let [partial-inst?
                (fn [x inst]
                  (is (cn/instance-of? :PrivTest/E inst))
@@ -636,7 +634,6 @@
    (fn []
      (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
      (rbac-setup :I711A/CreateUsers :Fractl.Kernel.Identity/User)
-     (is (create-e1 10 true))
      (rbac-setup :I711A/AssignRoles :Fractl.Kernel.Rbac/RoleAssignment)
      (is (cn/instance-of? :I711A/E1 (first (create-e1 10 false))))
      (let [r (tu/result (with-user "u1@i711a.com" {:I711A/CreateE2 {:X 10 :Y 100}}))]
@@ -748,7 +745,6 @@
    (fn []
      (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
      (rbac-setup :I711B/CreateUsers :Fractl.Kernel.Identity/User)
-     (is (create-e1 10 true))
      (rbac-setup :I711B/AssignRoles :Fractl.Kernel.Rbac/RoleAssignment)
      (is (cn/instance-of? :I711B/E1 (first (create-e1 10 false))))
      (let [r (tu/result (with-user "u1@i711b.com" {:I711B/CreateE2 {:X 10 :Y 100 :K 3}}))]
@@ -764,10 +760,10 @@
            (with-user "u1@i711b.com"
              {:I711B/AssignInstancePriv
               {:X 10 :User "u2@i711b.com"}}))))
-     (let [r (tu/first-result
-              (with-user "u2@i711b.com"
-                {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))]
-       (is (= 5 (:K r)))))))
+     (tu/is-error
+      #(tu/eval-all-dataflows
+        (with-user "u2@i711b.com"
+          {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))))))
 
 (deftest issue-762-instance-priv-by-owner
   (defcomponent :I762
@@ -883,3 +879,110 @@
        (is (= 1000 (:Y (update-e1 1 1000 "u2@i762.com"))))
        (is (not (update-e1 1 2000 "u3@i762.com")))
        (e1s? lookup-e1)))))
+
+(deftest issue-884-rbac-dsl
+  (lr/reset-events!)
+  (defcomponent :I884
+    (entity
+     :I884/E
+     {:rbac [{:roles ["user"] :allow [:create]}
+             {:roles ["manager"] :allow [:create :update :read]}]
+      :Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :I884/F
+     {:rbac [{:roles ["manager"] :allow [:create :update :read]}]
+      :Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :I884/G
+     {:rbac [{:roles ["user"] :allow :*}
+             {:roles ["manager"] :allow :*}]
+      :Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :I884/R1
+     {:meta {:contains [:I884/E :I884/F]}})
+    (relationship
+     :I884/R2
+     {:meta {:between [:I884/F :I884/G]}})
+    (dataflow
+     :I884/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@i884.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@i884.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u3@i884.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "user" :Assignee "u2@i884.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "manager" :Assignee "u1@i884.com"}}))
+  (is (lr/finalize-events tu/eval-all-dataflows))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:I884/InitUsers {}})))
+  (let [e? (partial cn/instance-of? :I884/E)
+        f? (partial cn/instance-of? :I884/F)
+        g? (partial cn/instance-of? :I884/G)
+        r2? (partial cn/instance-of? :I884/R2)]
+    (call-with-rbac
+     (fn []
+       (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+       (let [create-e (fn [id]
+                        {:I884/Create_E
+                         {:Instance
+                          {:I884/E {:Id id :X (* id 100)}}}})
+             update-e (fn [id]
+                        {:I884/Update_E
+                         {:Id id :Data {:X (* id 200)}}})
+             lookup-e (fn [id]
+                        {:I884/Lookup_E {:Id id}})
+             create-f (fn [e id]
+                        {:I884/Create_F
+                         {:Instance
+                          {:I884/F {:Id id :Y (* id 2)}}
+                          :E e}})
+             create-g (fn [id]
+                        {:I884/Create_G
+                         {:Instance
+                          {:I884/G {:Id id :Z (* id 5)}}}})
+             create-r2 (fn [f g]
+                         {:I884/Create_R2
+                          {:Instance
+                           {:I884/R2
+                            {:F f :G g}}}})]
+         (tu/is-error #(tu/eval-all-dataflows (create-e 1)))
+         (is (e? (tu/first-result
+                  (with-user "u1@i884.com" (create-e 1)))))
+         (is (e? (tu/first-result
+                  (with-user "u2@i884.com" (create-e 2)))))
+         (tu/is-error #(tu/eval-all-dataflows
+                        (with-user "u3@i884.com" (create-e 2))))
+         (is (f? (tu/result
+                  (with-user "u1@i884.com" (create-f 1 2)))))
+         (tu/is-error #(tu/eval-all-dataflows
+                        (with-user "u2@i884.com" (create-f 2 1))))
+         (tu/is-error #(tu/eval-all-dataflows
+                        (with-user "u2@i884.com" (update-e 1))))
+         (is (= 100 (:X (tu/first-result
+                         (with-user "u1@i884.com" (lookup-e 1))))))
+         (is (= 200 (:X (tu/first-result
+                         (with-user "u1@i884.com" (update-e 1))))))
+         (is (= 200 (:X (tu/first-result
+                         (with-user "u1@i884.com" (lookup-e 1))))))
+         (tu/is-error #(tu/eval-all-dataflows
+                        (with-user "u2@i884.com" (lookup-e 1))))
+         ;; ownership semantics
+         (is (= 200 (:X (tu/first-result
+                         (with-user "u2@i884.com" (lookup-e 2))))))
+         (is (= 400 (:X (tu/first-result
+                         (with-user "u2@i884.com" (update-e 2))))))
+         (is (g? (tu/first-result
+                  (with-user "u1@i884.com" (create-g 1)))))
+         (is (g? (tu/first-result
+                  (with-user "u2@i884.com" (create-g 2)))))
+         (is (r2? (tu/first-result
+                   (with-user "u1@i884.com" (create-r2 2 1)))))
+         (is (r2? (tu/first-result
+                   (with-user "u2@i884.com" (create-r2 2 2))))))))))
