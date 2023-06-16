@@ -1079,9 +1079,12 @@
       (u/throw-ex (str child "." li/path-attr " - attribute name is reserved")))
     (entity child (assoc
                    child-attrs
-                   cident {:type (:type cident-spec)
-                           :path-identity true
-                           :indexed true}
+                   cident (merge
+                           {:type (or (:type cident-spec) :UUID)
+                            :path-identity true
+                            :indexed true}
+                           (when-not cident-spec ;; __Id__
+                             {:default u/uuid-string}))
                    li/path-attr li/path-attr-spec))
     [(assoc relmeta :on on) on]))
 
@@ -1101,8 +1104,9 @@
                                (:one-n relmeta)))
          [relmeta on-attrs] (if-let [on (:on relmeta)]
                               [relmeta on]
-                              (when contains
-                                (contains-on contains relmeta)))
+                              (if (and contains (:with-paths meta))
+                                (contains-on contains relmeta)
+                                [relmeta nil]))
          rel-attr-names (when between (:as relmeta))
          cascade-on-delete (:cascade-on-delete meta)]
      (when-not elems

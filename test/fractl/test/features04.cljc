@@ -30,7 +30,8 @@
      ;; this means the whole transformation described here
      ;; should happen only if a user-specified `:on` is not
      ;; present in the relationship.
-     {:meta {:contains [:I917/P :I917/C]}}))
+     {:meta {:contains [:I917/P :I917/C]
+             :with-paths true}}))
   (let [p? (partial cn/instance-of? :I917/P)
         c? (partial cn/instance-of? :I917/C)
         ps (mapv #(tu/first-result
