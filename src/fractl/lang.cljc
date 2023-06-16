@@ -10,6 +10,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
             [fractl.lang.raw :as raw]
+            [fractl.lang.rbac :as lr]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
@@ -136,7 +137,7 @@
         ui-spec (:ui attrs)
         rbac-spec (:rbac attrs)
         meta-ui (merge (:ui meta) ui-spec)
-        meta-rbac (merge (:rbac meta) rbac-spec)]
+        meta-rbac (concat (:rbac meta) rbac-spec)]
     [(merge meta (when (seq meta-ui) {:ui meta-ui})
             (when (seq meta-rbac) {:rbac meta-rbac}))
      (dissoc attrs :meta :ui :rbac)]))
@@ -743,6 +744,8 @@
              (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)])))
          ;; Install dataflows for implicit events.
          (when dfexps (mapv eval dfexps))
+         (let [rbac-spec (:rbac attrs)]
+           (lr/rbac rec-name is-rel rbac-spec))
          result)
        (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
      (u/throw-ex (str "Not a serializable record type: " (name rectype)))))

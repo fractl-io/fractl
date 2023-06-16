@@ -16,6 +16,7 @@
             [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
+            [fractl.lang.rbac :as lr]
             [fractl.lang.tools.loader :as loader]
             [fractl.lang.tools.build :as build]
             [fractl.lang.tools.deploy :as d]
@@ -167,13 +168,17 @@
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
         ins (normalize-interceptors (:interceptors config))
-        resolved-config (run-initconfig config ev)]
+        resolved-config (run-initconfig config ev)
+        has-rbac (some #{:rbac} (keys ins))]
     (register-resolvers! config ev)
     (when (seq (:resolvers resolved-config))
       (register-resolvers! resolved-config ev))
+    (if has-rbac
+      (lr/finalize-events ev)
+      (lr/reset-events!))
     (run-appinit-tasks! ev store (or (:init-data model)
                                      (:init-data config)))
-    (when (some #{:rbac} (keys ins))
+    (when has-rbac
       (when-not (rbac/init (:rbac ins))
         (log/error "failed to initialize rbac")))
     (ei/init-interceptors ins)
