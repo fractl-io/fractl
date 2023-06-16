@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
+            [fractl.lang.internal :as li]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship
@@ -17,19 +18,19 @@
           :identity true}})
     (entity
      :I917/C
-     ;; :X is user-defined identity, turned to indexed
-     ;; :Path and the combined unique-key must be
+     ;; :X is user-defined identity, turned to indexed.
+     ;; :Path and the unique-key must be
      ;; defined by the compiler.
      {:X {:type :Int
-          :indexed true}
-      :Y :Int
-      :Path {:type :String
-             :indexed true}
-      :meta {:unique [:X :Path]}})
+          :identity true}
+      :Y :Int})
     (relationship
      :I917/R
-     ;; :on should be added by compiler
-     {:meta {:contains [:I917/P :I917/C :on [:A :X]]}}))
+     ;; :on should be added by compiler,
+     ;; this means the whole transformation described here
+     ;; should happen only if a user-specified `:on` is not
+     ;; present in the relationship.
+     {:meta {:contains [:I917/P :I917/C]}}))
   (let [p? (partial cn/instance-of? :I917/P)
         c? (partial cn/instance-of? :I917/C)
         ps (mapv #(tu/first-result
@@ -42,28 +43,30 @@
             {:I917/Create_C
              {:Instance
               {:I917/C
-               {:X 20 :Y 100 :Path "/P/1/R/20"}}
-              :P 1}})        
+               {:X 20 :Y 100}}
+              :P 1}})
         c1 (tu/result
             {:I917/Create_C
              {:Instance
               {:I917/C
-               {:X 10 :Y 100 :Path "/P/1/R/10"}}
+               {:X 10 :Y 100}}
               :P 1}})
         c2 (tu/result
             {:I917/Create_C
              {:Instance
               {:I917/C
-               {:X 10 :Y 200 :Path "/P/2/R/10"}}
+               {:X 10 :Y 200}}
               :P 2}})
         c3 (tu/result
             {:I917/Create_C
              {:Instance
               {:I917/C
-               {:X 10 :Y 300 :Path "/P/1/R/10"}}
-              :P 1}})] 
+               {:X 10 :Y 300}}
+              :P 1}})]
     (is (every? p? ps))
     (is (every? c? [c0 c1 c2 c3]))
+    (is (= (li/path-attr c0) "/P/1/R/C/20"))
+    (is (= (li/path-attr c2) "/P/2/R/C/10"))
     ;; c3 did nothing because of idempotent create
     (is (= 2 (count (tu/result
                      {:I917/LookupAll_C

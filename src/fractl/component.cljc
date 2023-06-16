@@ -483,6 +483,14 @@
     id
     (u/throw-ex (str "no identity attribute for - " type-name-or-scm))))
 
+(def path-id-attrs (make-attributes-filter :path-identity))
+
+(defn path-identity-attribute-name [type-name-or-scm]
+  (let [scm (if (map? type-name-or-scm)
+              type-name-or-scm
+              (fetch-entity-schema type-name-or-scm))]
+    (first (path-id-attrs scm))))
+
 (defn idval [entity-instance]
   ((ensure-identity-attribute-name (instance-type entity-instance))
    entity-instance))

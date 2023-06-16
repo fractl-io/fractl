@@ -9,6 +9,13 @@
 (def id-attr :__Id__)
 (def with-types-tag :with-types)
 
+(def path-attr :PATH)
+(def path-attr-spec
+  {:type :String
+   :default "/null"
+   :unique true
+   :indexed true})
+
 (defn evaluate [form]
   #?(:clj (eval form)
      :cljs (eval (empty-state)
