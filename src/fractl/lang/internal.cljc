@@ -493,3 +493,5 @@
 
 (defn ref-path-name? [n]
   (s/index-of (str n) "."))
+
+(def owner :owner)

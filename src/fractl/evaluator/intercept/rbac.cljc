@@ -77,10 +77,14 @@
 (defn- user-is-owner?
   ([user env data]
    (when (cn/entity-instance? data)
-     (user-is-owner?
-      user env
-      (cn/instance-type data)
-      (cn/idval data))))
+     (let [t (cn/instance-type data)]
+       (if (cn/between-relationship? t)
+         (if-let [ownt (cn/owning-node t)]
+           (let [own-ident (cn/relationship-identity t (keyword (name ownt)))]
+             (or (user-is-owner? user env ownt (own-ident data))
+                 (user-is-owner? user env t (cn/idval data))))
+           (user-is-owner? user env t (cn/idval data)))
+         (user-is-owner? user env t (cn/idval data))))))
   ([user env inst-type id]
    (when (and inst-type id)
      (when-let [meta (store/lookup-by-id

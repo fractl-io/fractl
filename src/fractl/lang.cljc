@@ -137,7 +137,7 @@
         ui-spec (:ui attrs)
         rbac-spec (:rbac attrs)
         meta-ui (merge (:ui meta) ui-spec)
-        meta-rbac (concat (:rbac meta) rbac-spec)]
+        meta-rbac ((if (map? rbac-spec) merge concat) (:rbac meta) rbac-spec)]
     [(merge meta (when (seq meta-ui) {:ui meta-ui})
             (when (seq meta-rbac) {:rbac meta-rbac}))
      (dissoc attrs :meta :ui :rbac)]))
@@ -1059,6 +1059,11 @@
     (regen-delete-with-relationships to)
     relname))
 
+(defn- validate-rbac-owner [rbac nodes]
+  (when-let [own (li/owner rbac)]
+    (when-not (some #{own} nodes)
+      (u/throw-ex (str "invalid rbac owner node " own)))))
+
 (defn relationship
   ([relation-name attrs]
    (let [meta (let [m (:meta attrs)]
@@ -1079,6 +1084,8 @@
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
+     (when between
+       (validate-rbac-owner (:rbac meta) elems))
      (let [raw-attrs attrs
            [attrs uqs] (assoc-relationship-attributes
                         attrs rel-attr-names contains elems

@@ -1775,3 +1775,6 @@
          (when-let [d (:default scm)]
            (if (fn? d) (d) d)))])
     schema)))
+
+(defn owning-node [relname]
+  (li/owner (:rbac (fetch-meta relname))))
