@@ -17,6 +17,8 @@
    :indexed true})
 (def path-attr-q :PATH?)
 
+(def globally-unique :globally-unique)
+
 (defn evaluate [form]
   #?(:clj (eval form)
      :cljs (eval (empty-state)

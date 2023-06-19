@@ -1103,8 +1103,8 @@
     [(assoc relmeta :on on) on]))
 
 (defn- maybe-assoc-local-identity [[_ child] meta]
-  (if-not (seq (select-keys meta [:local-identity]))
-    (assoc meta :local-identity (not (cn/globally-unique-identity? child)))
+  (if-not (seq (select-keys meta [li/globally-unique]))
+    (assoc meta li/globally-unique (cn/globally-unique-identity? child))
     meta))
 
 (defn relationship
@@ -1124,7 +1124,7 @@
                                (:one-n relmeta)))
          [relmeta on-attrs] (if-let [on (:on relmeta)]
                               [relmeta on]
-                              (if (and contains (:local-identity meta))
+                              (if (and contains (not (li/globally-unique meta)))
                                 (contains-on contains relmeta)
                                 (let [[p c] elems]
                                   [relmeta [(cn/identity-attribute-name p)

@@ -8,6 +8,7 @@
                      entity record dataflow]]
             [fractl.meta :as mt]
             [fractl.policy :as policy]
+            [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -33,7 +34,7 @@
       {:Z :Int
        :meta
        {:contains [:I506PI/E1 :I506PI/E2]
-        :local-identity false
+        li/globally-unique true
         :views {:style {:background :white}}}}))
    (let [p1 (policy/lookup-policies :views :I506PI/E1)
          p2 (policy/lookup-policies :views :I506PI/E2)

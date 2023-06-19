@@ -42,15 +42,15 @@
      :I800/Section
      {:meta {:contains [:I800/Company :I800/Department
                         :on [:Name :No]]
-             :local-identity false}})
+             li/globally-unique true}})
     (relationship
      :I800/WorksFor
      {:meta {:contains [:I800/Department :I800/Employee]
-             :local-identity false}})
+             li/globally-unique true}})
     (relationship
      :I800/AssignedTo
      {:meta {:contains [:I800/Employee :I800/Assignment]
-             :local-identity false}})
+             li/globally-unique true}})
     (dataflow
      :I800/CreateDepartment
      {:I800/Department
@@ -119,14 +119,14 @@
     (relationship
      :I786/R0
      {:meta {:contains [:I786/T :I786/S]
-             :local-identity false}})
+             li/globally-unique true}})
     (entity
      :I786/A
      {:X {:type :Int :identity true}})
     (relationship
      :I786/R1
      {:meta {:contains [:I786/S :I786/A]
-             :local-identity false}})
+             li/globally-unique true}})
     (entity
      :I786/B
      {:K {:type :Int :default 1}
@@ -134,7 +134,7 @@
     (relationship
      :I786/R
      {:meta {:contains [:I786/A :I786/B]
-             :local-identity false}}))
+             li/globally-unique true}}))
   (let [t (tu/first-result {:I786/Create_T
                             {:Instance
                              {:I786/T {:I 1}}}})
@@ -224,7 +224,7 @@
     (relationship
      :LA/R
      {:meta {:contains [:LA/A :LA/B]
-             :local-identity false}}))
+             li/globally-unique true}}))
   (let [as (mapv
             #(tu/first-result
               {:LA/Create_A
@@ -352,7 +352,7 @@
     (relationship
      :I846R/R2
      {:meta {:contains [:I846R/E1 :I846R/E3]
-             :local-identity false}}))
+             li/globally-unique true}}))
   (tu/is-error #(cn/remove-entity :I846R/E1))
   (tu/is-error #(cn/remove-entity :I846R/E2))
   (tu/is-error #(cn/remove-entity :I846R/E3))
@@ -511,7 +511,7 @@
     (relationship
      :DC/GP
      {:meta {:contains [:DC/G :DC/P]
-             :local-identity false}})
+             li/globally-unique true}})
     (entity
      :DC/C
      {:Id {:type :Int :identity true}
@@ -519,7 +519,7 @@
     (relationship
      :DC/R
      {:meta {:contains [:DC/P :DC/C]
-             :local-identity false}}))
+             li/globally-unique true}}))
   (let [g (tu/first-result
            {:DC/Create_G {:Instance {:DC/G {:Id 0}}}})
         p (tu/first-result
@@ -568,7 +568,7 @@
    {:I902/A {:X :B.F :Y '(str :X :B.G)}})
   (entity :I902/C {:K :Float})
   (relationship :I902/R {:meta {:contains [:I902/B :I902/C]
-                                :local-identity false}
+                                li/globally-unique true}
                          :D :DateTime})
   (event :I902/GetC {:B :Int})
   (dataflow
@@ -596,7 +596,7 @@
      {:I902/A {:X :B.F :Y '(str :X :B.G)}}]
     ['entity :I902/C {:K :Float}]
     ['relationship :I902/R
-     {:meta {:contains [:I902/B :I902/C] :local-identity false} :D :DateTime}]
+     {:meta {:contains [:I902/B :I902/C] li/globally-unique true} :D :DateTime}]
     ['event :I902/GetC {:B :Int}]
     ['dataflow :I902/GetC {:I902/C? {} :-> [:I902/R? {:I902/B {:F? :I902/GetC.B}}]}]])
   (check-raw
@@ -606,7 +606,7 @@
     ['entity :I902/B {:F {:type :Int :identity true} :G {:oneof ["a" "b" "c"]}}]
     ['entity :I902/C {:K :Float}]
     ['relationship :I902/R
-     {:meta {:contains [:I902/B :I902/C] :local-identity false} :D :DateTime}]
+     {:meta {:contains [:I902/B :I902/C] li/globally-unique true} :D :DateTime}]
     ['event :I902/GetC {:B :Int}]
     ['dataflow :I902/MakeA
      {:I902/B {:F? :I902/MakeA.B} :as :B}
