@@ -148,6 +148,9 @@
          (try_
           [[body handlers alias-name]]
           "Evaluate body, branch to a handler based on the result")
+         (rethrow-after
+          [[handler]]
+          "To be called in a try handler, rethrow the original error")
          (for-each
           [[bind-pattern-code match-alias body-code result-alias]]
           "Execute code for the binding pattern and the iteration.")

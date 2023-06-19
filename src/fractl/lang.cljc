@@ -864,11 +864,11 @@
 (defn- parent-path-constructor [attr-accessor relname parent child child-id-access]
   (let [f attr-accessor, np (name parent), nc (name child)
         path ["/" np "/" (f np) "/" (name relname) "/" nc "/" (or child-id-access "%")]]
-     (loop [parent parent, path path]
-       (if-let [cps (seq (cn/containing-parents parent))]
-         (let [[r _ p] (first cps), np (name p)]
-           (recur p (concat [np "/" (f np) "/" (name r) "/"] path)))
-         `(str ~@(us/remove-twins path))))))
+    (loop [parent parent, path path]
+      (if-let [cps (seq (cn/containing-parents parent))]
+        (let [[r _ p] (first cps), np (name p)]
+          (recur p (concat ["/" np "/" (f np) "/" (name r) "/"] path)))
+        `(str ~@(us/remove-twins path))))))
 
 (defn- parent-names-as-attributes
   ([parent roots-optional]
@@ -966,9 +966,12 @@
       rel-attrs (parent-names-as-attributes parent)))
     (cn/register-dataflow
      crevt
-     [{child cr-inst-pat
-       li/rel-tag
-       (parent-query-pattern f2 relname (keys rel-attrs) parent)}])
+     (let [id-attr-accessor (keyword (str (subs (str crevt) 1) ".Instance." (name id-attr)))]
+       [[:try
+         {child cr-inst-pat
+          li/rel-tag
+          (parent-query-pattern f2 relname (keys rel-attrs) parent)}
+         [:not-found :error] [:rethrow-after [:delete child {id-attr id-attr-accessor}]]]]))
     (event-internal
      upevt
      (merge
@@ -989,10 +992,10 @@
     (cn/register-dataflow
      lookupevt
      (if path-id-attr
-       [{child {li/path-attr-q
-                (parent-path-constructor
-                 (partial crud-event-attr-accessor lookupevt)
-                 relname parent child (f3 (name path-id-attr)))}}]
+       (let [f3f (partial crud-event-attr-accessor lookupevt)]
+         [{child {li/path-attr-q
+                  (parent-path-constructor
+                   f3f relname parent child (f3f (name path-id-attr)))}}])
        [{(li/name-as-query-pattern child)
          (parent-query-path f3 relname parent [child id-attr])}]))
     (event-internal

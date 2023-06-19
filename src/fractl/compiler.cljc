@@ -969,9 +969,13 @@
      [(expr-as-fn (expr-with-arg-lookups (first pat)))
       ret-type result-alias])))
 
+(defn- compile-rethrow-after [ctx pat]
+  (op/rethrow-after [(compile-pattern ctx (first pat))]))
+
 (def ^:private special-form-handlers
   {:match compile-match
    :try compile-try
+   :rethrow-after compile-rethrow-after
    :for-each compile-for-each
    :query compile-query-command
    :delete compile-delete

@@ -77,6 +77,9 @@
     (is (= 1 (count (tu/result
                      {:I917/LookupAll_C
                       {:P 2}}))))
+    (is (cn/same-instance? c1 (tu/first-result
+                               {:I917/Lookup_C
+                                {:P 1 :X 10}})))
     (let [d1 (tu/result
               {:I917/Create_D
                {:Instance
@@ -89,7 +92,15 @@
                 {:I917/D
                  {:Z 201 :K 4}}
                 :P 1 :C 100}})]
-      ;; TODO: test lookup_child by path.
-      ;; TODO: make :with-paths the default for contains.
       (is (cn/instance-of? :I917/D d1))
-      (is (tu/not-found? d2)))))
+      (is (tu/not-found? d2))
+      (is (tu/not-found?
+           (tu/eval-all-dataflows
+            {:I917/Lookup_D
+             {:P 1 :C 100 :Z 201}})))
+      (is (cn/same-instance?
+           d1
+           (tu/first-result
+            {:I917/Lookup_D
+             {:P 1 :C 20 :Z 101}}))))))
+      ;; TODO: make :with-paths the default for contains.

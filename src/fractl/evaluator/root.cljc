@@ -1002,8 +1002,14 @@
         (bind-result-to-alias
          alias-name
          (if h
-           (eval-opcode self (or (:env result) env) h)
+           (eval-opcode self (env/bind-active-error-result (or (:env result) env) result) h)
            result))))
+
+    (do-rethrow-after [self env [handler]]
+      (let [result (eval-opcode self env handler)]
+        (if (ok-result result)
+          (env/active-error-result env)
+          result)))
 
     (do-await_ [self env [body continuation]]
       (do
