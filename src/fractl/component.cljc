@@ -1787,3 +1787,9 @@
          (when-let [d (:default scm)]
            (if (fn? d) (d) d)))])
     schema)))
+
+(defn globally-unique-identity? [entity-name]
+  (= id-attr-type
+     (:type (find-attribute-schema
+             ((identity-attribute-name entity-name)
+              (fetch-schema entity-name))))))

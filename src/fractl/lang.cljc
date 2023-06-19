@@ -1102,6 +1102,11 @@
                    li/path-attr li/path-attr-spec))
     [(assoc relmeta :on on) on]))
 
+(defn- maybe-assoc-local-identity [[_ child] meta]
+  (if-not (seq (select-keys meta [:local-identity]))
+    (assoc meta :local-identity (not (cn/globally-unique-identity? child)))
+    meta))
+
 (defn relationship
   ([relation-name attrs]
    (let [meta (let [m (:meta attrs)]
@@ -1110,6 +1115,7 @@
                   (assoc m :cascade-on-delete true)))
          contains (ensure-unique-contains (mt/contains meta))
          between (when-not contains (mt/between meta))
+         meta (if contains (maybe-assoc-local-identity contains meta) meta)
          [elems relmeta] (parse-relationship-member-spec
                           (or contains between))
          each-uq (if (:one-one relmeta) true false)
@@ -1118,7 +1124,7 @@
                                (:one-n relmeta)))
          [relmeta on-attrs] (if-let [on (:on relmeta)]
                               [relmeta on]
-                              (if (and contains (:with-paths meta))
+                              (if (and contains (:local-identity meta))
                                 (contains-on contains relmeta)
                                 (let [[p c] elems]
                                   [relmeta [(cn/identity-attribute-name p)

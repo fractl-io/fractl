@@ -27,7 +27,8 @@
     (relationship
      :I594B/WorksFor
      {:meta
-      {:contains [:I594B/Dept :I594B/Employee]}
+      {:contains [:I594B/Dept :I594B/Employee]
+       :local-identity false}
       :Location {:type :String :indexed true}})
     (dataflow
      :I594B/CreateEmployee
@@ -100,11 +101,13 @@
     (relationship
      :I594ML/PartOf
      {:meta
-      {:contains [:I594ML/Company :I594ML/Dept]}})
+      {:contains [:I594ML/Company :I594ML/Dept]
+       :local-identity false}})
     (relationship
      :I594ML/WorksFor
      {:meta
-      {:contains [:I594ML/Dept :I594ML/Employee]}})
+      {:contains [:I594ML/Dept :I594ML/Employee]
+       :local-identity false}})
     (dataflow
      :I594ML/CreateDept
      {:I594ML/Company
@@ -236,6 +239,7 @@
        (p :R1)
        {:meta
         {:contains [(p :E1) (p :E2)]
+         :local-identity false
          :cascade-on-delete cascade-on-delete}
         :Z :Int}))
     (let [e11 (tu/first-result
@@ -459,13 +463,16 @@
      {:Data :Map})
     (relationship
      :I703/Section
-     {:meta {:contains [:I703/Company :I703/Dept]}})
+     {:meta {:contains [:I703/Company :I703/Dept]
+             :local-identity false}})
     (relationship
      :I703/WorksFor
-     {:meta {:contains [:I703/Dept :I703/Employee]}})
+     {:meta {:contains [:I703/Dept :I703/Employee]
+             :local-identity false}})
     (relationship
      :I703/Storage
-     {:meta {:contains [:I703/Dept :I703/Warehouse]}})
+     {:meta {:contains [:I703/Dept :I703/Warehouse]
+             :local-identity false}})
     (relationship
      :I703/ReportsTo
      {:meta {:between [:I703/Employee :I703/Employee]}})
@@ -529,13 +536,16 @@
      {:Points {:type :Int}})
     (relationship
      :I703Deeds/GroupFocusArea
-     {:meta {:contains [:I703Deeds/Group :I703Deeds/FocusArea]}})
+     {:meta {:contains [:I703Deeds/Group :I703Deeds/FocusArea]
+             :local-identity false}})
     (relationship
      :I703Deeds/FocusAreaDeed
-     {:meta {:contains [:I703Deeds/FocusArea :I703Deeds/Deed]}})
+     {:meta {:contains [:I703Deeds/FocusArea :I703Deeds/Deed]
+             :local-identity false}})
     (relationship
      :I703Deeds/MemberTransaction
-     {:meta {:contains [:I703Deeds/Member :I703Deeds/Transaction]}})
+     {:meta {:contains [:I703Deeds/Member :I703Deeds/Transaction]
+             :local-identity false}})
     (relationship
      :I703Deeds/GroupMember
      {:meta {:between [:I703Deeds/Group :I703Deeds/Member]}})
@@ -604,7 +614,8 @@
      :Fractl.Meta.Core/BelongsTo
      {:meta {:contains [:Fractl.Meta.Core/User
                         :Fractl.Meta.Core/Workspace
-                        :on [:Email :Name]]}})
+                        :on [:Email :Name]]
+             :local-identity false}})
     (dataflow
      :Fractl.Meta.Core/SignUp2
      {:Fractl.Meta.Core/User
@@ -672,7 +683,8 @@
     (entity :Deeds/Group {:Name :IdName})
     (entity :Deeds/Deed {:Title :IdName})
     (entity :Deeds/Award {:Title :IdName})
-    (relationship :Deeds/Membership {:meta {:contains [:Deeds/Group :Deeds/Member]}})
+    (relationship :Deeds/Membership {:meta {:contains [:Deeds/Group :Deeds/Member]
+                                            :local-identity false}})
     (relationship :Deeds/MemberAward {:meta {:between [:Deeds/Member :Deeds/Award]}})
     (relationship :Deeds/DeedsAward {:meta {:between [:Deeds/Deed :Deeds/Award]}})
     (dataflow

@@ -33,6 +33,7 @@
       {:Z :Int
        :meta
        {:contains [:I506PI/E1 :I506PI/E2]
+        :local-identity false
         :views {:style {:background :white}}}}))
    (let [p1 (policy/lookup-policies :views :I506PI/E1)
          p2 (policy/lookup-policies :views :I506PI/E2)

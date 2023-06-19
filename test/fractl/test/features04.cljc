@@ -28,12 +28,10 @@
       :K :Int})
     (relationship
      :I917/R
-     {:meta {:contains [:I917/P :I917/C]
-             :with-paths true}})
+     {:meta {:contains [:I917/P :I917/C]}})
     (relationship
      :I917/G
-     {:meta {:contains [:I917/C :I917/D]
-             :with-paths true}}))
+     {:meta {:contains [:I917/C :I917/D]}}))
   (let [p? (partial cn/instance-of? :I917/P)
         c? (partial cn/instance-of? :I917/C)
         ps (mapv #(tu/first-result
