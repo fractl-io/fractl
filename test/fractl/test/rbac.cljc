@@ -990,3 +990,63 @@
                    (with-user "u1@i884.com" (create-r2 2 1)))))
          (is (r2? (tu/first-result
                    (with-user "u2@i884.com" (create-r2 2 2))))))))))
+
+(deftest issue-923-between-ownership
+  (lr/reset-events!)
+  (defcomponent :I923
+    (entity
+     :I923/A
+     {:X {:identity true :type :Int}
+      :rbac [{:roles ["user"] :allow :*}]})
+    (entity
+     :I923/B
+     {:Y {:type :Int :identity true}
+      :rbac [{:roles ["user"] :allow :*}]})
+    (relationship
+     :I923/R
+     {:meta {:between [:I923/A :I923/B]}
+      :rbac {:owner :I923/A}})
+    (dataflow
+     :I923/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@i923.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@i923.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "user" :Assignee "u2@i923.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "user" :Assignee "u1@i923.com"}}))
+  (is (lr/finalize-events tu/eval-all-dataflows))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:I923/InitUsers {}})))
+  (let [create-a (fn [x]
+                   {:I923/Create_A
+                    {:Instance
+                     {:I923/A {:X x}}}})
+        create-b (fn [y]
+                   {:I923/Create_B
+                    {:Instance
+                     {:I923/B {:Y y}}}})
+        create-r (fn [x y]
+                   {:I923/Create_R
+                    {:Instance
+                     {:I923/R {:A x :B y}}}})
+        a? (partial cn/instance-of? :I923/A)
+        b? (partial cn/instance-of? :I923/B)
+        r? (partial cn/instance-of? :I923/R)]
+    (call-with-rbac
+     (fn []
+       (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+       (is (a? (tu/first-result
+                (with-user "u1@i923.com" (create-a 1)))))
+       (is (a? (tu/first-result
+                (with-user "u1@i923.com" (create-a 10)))))
+       (is (b? (tu/first-result
+                (with-user "u2@i923.com" (create-b 2)))))
+       (is (b? (tu/first-result
+                (with-user "u2@i923.com" (create-b 20)))))
+       (is (r? (tu/first-result
+                (with-user "u1@i923.com" (create-r 1 2)))))
+       (tu/is-error #(tu/eval-all-dataflows
+                      (with-user "u2@i923.com" (create-r 10 20))))))))
