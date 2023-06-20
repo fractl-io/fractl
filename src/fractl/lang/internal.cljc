@@ -9,6 +9,16 @@
 (def id-attr :__Id__)
 (def with-types-tag :with-types)
 
+(def path-attr :PATH)
+(def path-attr-spec
+  {:type :String
+   :default "/null"
+   :unique true
+   :indexed true})
+(def path-attr-q :PATH?)
+
+(def globally-unique :globally-unique)
+
 (defn evaluate [form]
   #?(:clj (eval form)
      :cljs (eval (empty-state)
@@ -24,7 +34,7 @@
                    :offset :join :left-join
                    :right-join])
 (def oprs (concat query-cmpr-oprs sql-keywords [:not :and :or :between :in]))
-(def macro-names #{:match :try :for-each :delete :query :await :entity :eval})
+(def macro-names #{:match :try :rethrow-after :for-each :delete :query :await :entity :eval})
 (def property-names #{:meta :ui :rbac})
 
 (defn operator? [x]

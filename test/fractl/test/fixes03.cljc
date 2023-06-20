@@ -7,6 +7,7 @@
             [fractl.util.hash :as sh]
             [fractl.lang.syntax :as ls]
             [fractl.lang.datetime :as dt]
+            [fractl.lang.internal :as li]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship dataflow]]
@@ -289,10 +290,12 @@
     (relationship
      :I741/R1
      {:meta {:contains [:I741/E1 :I741/E2]
+             li/globally-unique true
              :cascade-on-delete false}})
     (relationship
      :I741/R2
      {:meta {:contains [:I741/E2 :I741/E3]
+             li/globally-unique true
              :cascade-on-delete false}})
     (dataflow
      :I741/CreateE2
@@ -602,7 +605,8 @@
      {:E :I849/E})
     (relationship
      :I849/Rel
-     {:meta {:contains [:I849/E :I849/F]}
+     {:meta {:contains [:I849/E :I849/F]
+             li/globally-unique true}
       :G :Int
       :H '(+ 1 :G)}))
   (defn- is-scm [n s]
@@ -625,7 +629,8 @@
    {:E :I849/E})
   (is-scm
    :I849/Rel
-   {:meta {:contains [:I849/E :I849/F]}
+   {:meta {:contains [:I849/E :I849/F]
+           li/globally-unique true}
     :G :Int
     :H '(+ 1 :G)}))
 
@@ -636,7 +641,8 @@
     (entity
      :I855/E2 {:Y {:type :Int :identity true}})
     (relationship
-     :I855/R {:meta {:contains [:I855/E1 :I855/E2]}})
+     :I855/R {:meta {:contains [:I855/E1 :I855/E2]
+                     li/globally-unique true}})
     (dataflow
      :I855/Cr1
      {:I855/E2
@@ -721,10 +727,12 @@
      {:A {:type :Int :identity true}})
     (relationship
      :I906/R
-     {:meta {:contains [:I906/P :I906/C]}})
+     {:meta {:contains [:I906/P :I906/C]
+             li/globally-unique true}})
     (relationship
      :I906/F
-     {:meta {:contains [:I906/C :I906/D]}})
+     {:meta {:contains [:I906/C :I906/D]
+             li/globally-unique true}})
     (relationship
      :I906/G
      {:meta {:between [:I906/D :I906/E]}}))
@@ -827,7 +835,8 @@
      {:meta {:between [:I906B/C :I906B/D :on [:B :K]]}})
     (relationship
      :I906B/R
-     {:meta {:contains [:I906B/P :I906B/C :on [:A :B]]}}))
+     {:meta {:contains [:I906B/P :I906B/C :on [:A :B]]
+             li/globally-unique true}}))
   (let [[p1 p2 :as ps] (mapv
                  #(tu/first-result
                    {:I906B/Create_P

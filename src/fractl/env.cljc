@@ -238,3 +238,8 @@
 (defn queried-id? [env entity-name id]
   (when-let [ids (get-in env [:queried-ids (li/split-path entity-name)])]
     (some #{id} ids)))
+
+(def active-error-result :-*-active-error-result-*-)
+
+(defn bind-active-error-result [env r]
+  (assoc env active-error-result r))

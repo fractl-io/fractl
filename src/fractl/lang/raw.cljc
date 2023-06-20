@@ -32,6 +32,19 @@
     record-name
     (element 'event record-name attrs)))
 
+(defn fetch-attributes [tag record-name]
+  (let [s @raw-store
+        [c n] (li/split-path record-name)
+        cdef (get s c)]
+    (last
+     (first
+      (filter
+       (fn [[t r _]]
+         (and (= t tag) (= r record-name)))
+       (get cdef :elems))))))
+
+(def entity-attributes (partial fetch-attributes 'entity))
+
 (defn- elem-as-edn [elem]
   (let [[tag n spec] elem]
     (if (= 'dataflow tag)

@@ -8,6 +8,7 @@
             [fractl.evaluator.intercept :as ei]
             [fractl.auth]
             [fractl.lang.rbac :as lr]
+            [fractl.lang.internal :as li]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship dataflow]]
@@ -584,6 +585,7 @@
     (relationship
      :I711A/R1
      {:meta {:contains [:I711A/E1 :I711A/E2]
+             li/globally-unique true
              :rbac {:inherit {:entity true}}}})
     (dataflow
      :I711A/CreateUsers
@@ -652,6 +654,7 @@
     (relationship
      :I711B/R1
      {:meta {:contains [:I711B/E1 :I711B/E2]
+             li/globally-unique true
              :rbac {:inherit {:instance true}}}})
     (dataflow
      :I711B/CreateUsers
@@ -902,7 +905,8 @@
       :Z :Int})
     (relationship
      :I884/R1
-     {:meta {:contains [:I884/E :I884/F]}})
+     {:meta {:contains [:I884/E :I884/F]
+             li/globally-unique true}})
     (relationship
      :I884/R2
      {:meta {:between [:I884/F :I884/G]}})
