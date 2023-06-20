@@ -80,14 +80,13 @@
 (defmethod auth/upsert-user tag [{:keys [instance] :as req}]
   (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)]
     (case (last (li/split-path (cn/instance-type instance)))
-    ;; Create User
+      ;; Create User
       :User
       (let [user instance]
         (sign-up-user req aws-config client-id user-pool-id whitelist? user)
         nil)
 
-
-    ;; Update user
+      ;; Update user
       :UpdateUser
       (let [user-details (:UserDetails instance)
             cognito-username (get-in req [:user :username])
@@ -106,7 +105,7 @@
                              ["custom:github_org" Org]
                              ["custom:github_token" Token]
                              ["custom:github_username" Username]])
-        ;; Refresh credentials
+          ;; Refresh credentials
           (initiate-auth
            (auth/make-client (merge req aws-config))
            :auth-flow "REFRESH_TOKEN_AUTH"
