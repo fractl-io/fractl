@@ -1148,9 +1148,10 @@
                                  {:Balance :Float
                                   :Loan    :Float}})
                         (record {:UserAccount/Total {:Total :Float}})
-                        (event {:UserAccount/IncreaseLoan {cn/id-attr      {:type    :UUID
-                                                                     :default "167d0b04-fa75-11eb-9a03-0242ac130003"}
-                                                           :Balance :UserAccount/Total}}))
+            (event {:UserAccount/IncreaseLoan {cn/id-attr
+                                               {:type :UUID
+                                                :default "167d0b04-fa75-11eb-9a03-0242ac130003"}
+                                               :Balance :UserAccount/Total}}))
           (dataflow :UserAccount/IncreaseLoan
                     {:UserAccount/Estimate {tu/q-id-attr (tu/append-id :UserAccount/IncreaseLoan)}}
                     {:UserAccount/Estimate {:Balance :UserAccount/IncreaseLoan.Balance.Total

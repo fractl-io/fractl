@@ -169,3 +169,11 @@
   (into
    {}
    (filter (fn [[_ v]] (not (nil? v))) m)))
+
+(defn remove-twins [xs]
+  (loop [xs xs, prev nil, result []]
+    (if-let [x (first xs)]
+      (if (= x prev)
+        (recur (rest xs) prev result)
+        (recur (rest xs) x (conj result x)))
+      result)))
