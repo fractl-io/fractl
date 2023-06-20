@@ -23,6 +23,10 @@
 (defmulti confirm-forgot-password service-tag)
 (defmulti change-password service-tag)
 (defmulti refresh-token service-tag)
+(defmulti create-group service-tag)
+(defmulti delete-group service-tag)
+(defmulti add-user-to-group service-tag)
+(defmulti remove-user-from-group service-tag)
 
 (def client-key :client)
 (def instance-key :instance)

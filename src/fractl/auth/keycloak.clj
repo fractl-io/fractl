@@ -132,3 +132,15 @@
 
 (defmethod auth/refresh-token tag [_req]
   (throw (Exception. "Not implemented")))
+
+(defmethod auth/create-group tag [_req]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/delete-group tag [_req]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/add-user-to-group tag [_req]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/remove-user-from-group tag [_req]
+  (throw (Exception. "Not implemented")))
