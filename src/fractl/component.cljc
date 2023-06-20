@@ -467,6 +467,14 @@
   "Return the names of all immutable attributes in the schema."
   (make-attributes-filter :immutable))
 
+(def path-id-attrs (make-attributes-filter :path-identity))
+
+(defn path-identity-attribute-name [type-name-or-scm]
+  (let [scm (if (map? type-name-or-scm)
+              type-name-or-scm
+              (fetch-entity-schema type-name-or-scm))]
+    (first (path-id-attrs scm))))
+
 (defn identity-attribute-names
   "Return the name of any one of the identity attributes of the given entity."
   [type-name-or-scm]
@@ -476,7 +484,11 @@
     (identity-attributes scm)))
 
 (defn identity-attribute-name [type-name-or-scm]
-  (first (identity-attribute-names type-name-or-scm)))
+  (let [scm (if (map? type-name-or-scm)
+              type-name-or-scm
+              (fetch-entity-schema type-name-or-scm))]
+    (or (path-identity-attribute-name scm)
+        (first (identity-attribute-names scm)))))
 
 (defn ensure-identity-attribute-name [type-name-or-scm]
   (if-let [id (identity-attribute-name type-name-or-scm)]
@@ -1775,3 +1787,9 @@
          (when-let [d (:default scm)]
            (if (fn? d) (d) d)))])
     schema)))
+
+(defn globally-unique-identity? [entity-name]
+  (= id-attr-type
+     (:type (find-attribute-schema
+             ((identity-attribute-name entity-name)
+              (fetch-schema entity-name))))))
