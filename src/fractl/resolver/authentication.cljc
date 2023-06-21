@@ -11,10 +11,10 @@
 (def ^:private crdel-fns
   {:user {:create auth/call-upsert-user
           :delete auth/call-delete-user}
-   :role {:create auth/create-group
-          :delete auth/delete-group}
-   :role-assignment {:create auth/add-user-to-group
-                     :delete auth/remove-user-from-group}})
+   :role {:create auth/create-role
+          :delete auth/delete-role}
+   :role-assignment {:create auth/add-user-to-role
+                     :delete auth/remove-user-from-role}})
 
 (defn- crdel [tag client config inst]
   (let [n (cn/instance-type-kw inst)]
@@ -22,13 +22,13 @@
       :Fractl.Kernel.Rbac/RoleAssignment
       (and ((tag (:role-assignment crdel-fns))
             (assoc config auth/client-key client
-                   :group-name (:Role inst)
+                   :role-name (:Role inst)
                    :username (:Assignee inst)))
            inst)
       :Fractl.Kernel.Rbac/Role
       (and ((tag (:role crdel-fns))
             (assoc config auth/client-key client
-                   :group-name (:Name inst)))
+                   :role-name (:Name inst)))
            inst)
       ((tag (:user crdel-fns)) client config inst))))
 

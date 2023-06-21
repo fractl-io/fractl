@@ -133,14 +133,14 @@
 (defmethod auth/refresh-token tag [_req]
   (throw (Exception. "Not implemented")))
 
-(defmethod auth/create-group tag [_req]
+(defmethod auth/create-role tag [_req]
   (throw (Exception. "Not implemented")))
 
-(defmethod auth/delete-group tag [_req]
+(defmethod auth/delete-role tag [_req]
   (throw (Exception. "Not implemented")))
 
-(defmethod auth/add-user-to-group tag [_req]
+(defmethod auth/add-user-to-role tag [_req]
   (throw (Exception. "Not implemented")))
 
-(defmethod auth/remove-user-from-group tag [_req]
+(defmethod auth/remove-user-from-role tag [_req]
   (throw (Exception. "Not implemented")))

@@ -238,38 +238,38 @@
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
-(defmethod auth/create-group tag [{:keys [group-name] :as req}]
+(defmethod auth/create-role tag [{:keys [role-name] :as req}]
   (try
     (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
       (create-group
        (auth/make-client (merge req cfg))
-       :group-name group-name
+       :group-name role-name
        :user-pool-id user-pool-id))
     (catch com.amazonaws.services.cognitoidp.model.GroupExistsException ex
       req)))
 
-(defmethod auth/delete-group tag [{:keys [client group-name] :as req}]
+(defmethod auth/delete-role tag [{:keys [client role-name] :as req}]
   (try
     (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
       (delete-group
        (or client (auth/make-client (merge req cfg)))
-       :group-name group-name
+       :group-name role-name
        :user-pool-id user-pool-id))
     (catch com.amazonaws.services.cognitoidp.model.ResourceNotFoundException ex
       req)))
 
-(defmethod auth/add-user-to-group tag [{:keys [client group-name username] :as req}]
+(defmethod auth/add-user-to-role tag [{:keys [client role-name username] :as req}]
   (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
     (admin-add-user-to-group
      (or client (auth/make-client (merge req cfg)))
-     :group-name group-name
+     :group-name role-name
      :username username
      :user-pool-id user-pool-id)))
 
-(defmethod auth/remove-user-from-group tag [{:keys [client group-name username] :as req}]
+(defmethod auth/remove-user-from-role tag [{:keys [client role-name username] :as req}]
   (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
     (admin-remove-user-from-group
      (or client (auth/make-client (merge req cfg)))
-     :group-name group-name
+     :group-name role-name
      :username username
      :user-pool-id user-pool-id)))
