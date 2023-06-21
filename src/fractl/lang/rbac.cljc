@@ -104,16 +104,21 @@
     (cn/register-dataflow event-name pats)
     (evaluator {event-name {}})))
 
+(defn pending-ownership [rel spec]
+  (and (= rel :between) (li/owner spec)))
+
 (defn rbac [recname rel spec]
-  (let [cont (fn [evaluator]
-               (cond
-                 rel (when-let [spec (or spec (rbac-spec-for-relationship recname rel))]
-                       (intern-rbac evaluator recname spec))
-                 (not spec) (let [spec (rbac-spec-of-parent recname)]
-                              (intern-rbac evaluator recname spec))
-                 :else (intern-rbac evaluator recname spec)))]
-    (u/safe-set postproc-events (conj @postproc-events cont))
-    recname))
+  (if (pending-ownership rel spec)
+    recname
+    (let [cont (fn [evaluator]
+                 (cond
+                   rel (when-let [spec (or spec (rbac-spec-for-relationship recname rel))]
+                         (intern-rbac evaluator recname spec))
+                   (not spec) (let [spec (rbac-spec-of-parent recname)]
+                                (intern-rbac evaluator recname spec))
+                   :else (intern-rbac evaluator recname spec)))]
+      (u/safe-set postproc-events (conj @postproc-events cont))
+      recname)))
 
 (defn eval-events [evaluator]
   (su/nonils

@@ -1788,6 +1788,9 @@
            (if (fn? d) (d) d)))])
     schema)))
 
+(defn owning-node [relname]
+  (li/owner (:rbac (fetch-meta relname))))
+
 (defn globally-unique-identity? [entity-name]
   (= id-attr-type
      (:type (find-attribute-schema
