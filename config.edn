@@ -3,6 +3,8 @@
  ;; :store {:type :postgres}
  ;; :script-extn ".cljs"
  ;; :interceptors {:rbac {:enabled true}}
+ ;; :authentication {:service :cognito
+ ;;                  :superuser-email #$ FRACTL_SUPERUSER_EMAIL}
  ;; :authentication {:service :keycloak
  ;;                  :auth-server-url "http://localhost:8080"
  ;;                  :realm "master"
