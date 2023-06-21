@@ -2,7 +2,8 @@
   (:require [amazonica.aws.cognitoidp
              :refer [sign-up admin-confirm-sign-up admin-delete-user admin-get-user
                      admin-update-user-attributes admin-user-global-sign-out change-password
-                     confirm-forgot-password confirm-sign-up forgot-password initiate-auth]]
+                     confirm-forgot-password confirm-sign-up forgot-password initiate-auth
+                     create-group delete-group admin-add-user-to-group admin-remove-user-from-group]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [fractl.auth.core :as auth]
@@ -14,9 +15,10 @@
 (def ^:private tag :cognito)
 
 (defmethod auth/make-client tag [{:keys [access-key secret-key region] :as _config}]
-  {:access-key access-key
-   :secret-key secret-key
-   :endpoint region})
+  (or (auth/client-key _config)
+      {:access-key access-key
+       :secret-key secret-key
+       :endpoint region}))
 
 (defn make-jwks-url [region user-pool-id]
   (str "https://cognito-idp."
@@ -74,20 +76,23 @@
                          ["email" Email]
                          ["name" Name]]
        :username Email)
+      (catch com.amazonaws.services.cognitoidp.model.UsernameExistsException ex
+        (log/error ex))
+      (catch com.amazonaws.services.cognitoidp.model.CodeDeliveryFailureException ex
+        (log/error ex))
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/upsert-user tag [{:keys [instance] :as req}]
   (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)]
     (case (last (li/split-path (cn/instance-type instance)))
-    ;; Create User
+      ;; Create User
       :User
       (let [user instance]
         (sign-up-user req aws-config client-id user-pool-id whitelist? user)
         nil)
 
-
-    ;; Update user
+      ;; Update user
       :UpdateUser
       (let [user-details (:UserDetails instance)
             cognito-username (get-in req [:user :username])
@@ -106,7 +111,7 @@
                              ["custom:github_org" Org]
                              ["custom:github_token" Token]
                              ["custom:github_username" Username]])
-        ;; Refresh credentials
+          ;; Refresh credentials
           (initiate-auth
            (auth/make-client (merge req aws-config))
            :auth-flow "REFRESH_TOKEN_AUTH"
@@ -232,3 +237,39 @@
        :proposed-password NewPassword)
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
+
+(defmethod auth/create-role tag [{:keys [role-name] :as req}]
+  (try
+    (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
+      (create-group
+       (auth/make-client (merge req cfg))
+       :group-name role-name
+       :user-pool-id user-pool-id))
+    (catch com.amazonaws.services.cognitoidp.model.GroupExistsException ex
+      req)))
+
+(defmethod auth/delete-role tag [{:keys [client role-name] :as req}]
+  (try
+    (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
+      (delete-group
+       (or client (auth/make-client (merge req cfg)))
+       :group-name role-name
+       :user-pool-id user-pool-id))
+    (catch com.amazonaws.services.cognitoidp.model.ResourceNotFoundException ex
+      req)))
+
+(defmethod auth/add-user-to-role tag [{:keys [client role-name username] :as req}]
+  (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
+    (admin-add-user-to-group
+     (or client (auth/make-client (merge req cfg)))
+     :group-name role-name
+     :username username
+     :user-pool-id user-pool-id)))
+
+(defmethod auth/remove-user-from-role tag [{:keys [client role-name username] :as req}]
+  (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
+    (admin-remove-user-from-group
+     (or client (auth/make-client (merge req cfg)))
+     :group-name role-name
+     :username username
+     :user-pool-id user-pool-id)))
