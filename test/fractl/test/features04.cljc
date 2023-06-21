@@ -166,3 +166,5 @@
                                    {:Email "m1@i931.org"
                                     :Company "i931"
                                     :Group (:Id g1)}}))))))
+;; TODO: add more tests - for create and lookup scenarios
+;; TODO: make sure rollbacks for failed contains-lookup is working (this must be already covered in the preceding test)

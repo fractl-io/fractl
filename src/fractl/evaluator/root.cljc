@@ -382,15 +382,13 @@
    (chained-delete env record-name instance true)))
 
 (defn- purge-all [env instances]
-  (if (every? identity (mapv #(chained-delete env (cn/instance-type %) % false) instances))
-    (loop [env env, insts instances]
-      (if-let [inst (first insts)]
-        (let [t (cn/instance-type inst)
-              id-attr (cn/identity-attribute-name t)]
-          (recur (env/purge-instance env t id-attr (id-attr inst))
-                 (rest insts)))
-        env))
-    env))
+  (loop [env env, insts instances]
+    (if-let [inst (first insts)]
+      (let [t (cn/instance-type inst)
+            id-attr (cn/identity-attribute-name t)]
+        (recur (env/purge-instance env t id-attr (id-attr inst))
+               (rest insts)))
+      env)))
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
