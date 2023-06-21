@@ -964,6 +964,13 @@
       {:Instance child
        li/event-context ctx-aname}
       rel-attrs (parent-names-as-attributes parent)))
+    (println "@@@@@@@@@@@@@@@@@@@@@@@"      crevt
+     (let [id-attr-accessor (keyword (str (subs (str crevt) 1) ".Instance." (name id-attr)))]
+       [[:try
+         {child cr-inst-pat
+          li/rel-tag
+          (parent-query-pattern f2 relname (keys rel-attrs) parent)}
+         [:not-found :error] [:rethrow-after [:delete child {id-attr id-attr-accessor}]]]]))
     (cn/register-dataflow
      crevt
      (let [id-attr-accessor (keyword (str (subs (str crevt) 1) ".Instance." (name id-attr)))]

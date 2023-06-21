@@ -101,4 +101,47 @@
            (tu/first-result
             {:I917/Lookup_D
              {:P 1 :C 20 :Z 101}}))))))
-      ;; TODO: make :with-paths the default for contains.
+
+(deftest issue-931-contains-patterns
+  (defcomponent :I931
+    (entity
+     :I931/Group
+     {:Id :Identity
+      :Name {:type :String, :unique true}})
+    (entity
+     :I931/Member
+     {:Email {:type :Email, :identity true}})
+    (entity
+     :I931/GroupMember
+     {:Email {:type :Email, :identity true}
+      :IsAdmin :Boolean})
+    (relationship
+     :I931/MemberGroupMember
+     {:meta {:between [:I931/Member :I931/GroupMember]}})
+    (relationship
+     :I931/Membership
+     {:meta {:contains [:I931/Group :I931/GroupMember],
+             :cascade-on-delete true}})
+    (event
+     :I931/CreateGroup
+     {:User :Email
+      :Name {:type :String}})
+    (dataflow
+     :I931/CreateGroup
+     {:I931/Member {:Email? :I931/CreateGroup.User}, :as [:M]}
+     {:I931/Group {:Name :I931/CreateGroup.Name}
+      :as :G}
+     {:I931/GroupMember {:Email :M.Email, :IsAdmin true},
+      :-> [[{:I931/Membership {}} :G] [{:I931/MemberGroupMember {}} :M]]}
+     :G))
+  (let [m1 (tu/first-result
+            {:I931/Create_Member
+             {:Instance
+              {:I931/Member
+               {:Email "m1@i931.org"}}}})
+        g1 (tu/eval-all-dataflows
+            {:I931/CreateGroup
+             {:User "m1@i931.org"
+              :Name "g1"}})]
+    (println "@@@@@@@@@@@@@@@@@@@@@@@" m1)
+    (println "#######################" g1)))
