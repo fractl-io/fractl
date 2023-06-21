@@ -1638,10 +1638,11 @@
         ident
         k))))
 
-(defn- relationship-references [inst attr relattr]
+(defn- relationship-references [between inst attr relattr]
   (let [tp (instance-type inst)
         scm (entity-schema tp)]
-    (when-not (unique-or-identity? scm attr)
+    (when-not (or (unique-or-identity? scm attr)
+                  (and between (= attr (path-identity-attribute-name scm))))
       (let [idattr (identity-attribute-name tp)]
         [(relationship-member-identity relattr)
          (idattr inst)]))))
@@ -1671,8 +1672,8 @@
            (identity-attribute-name (second elems))]
           [attr1 attr2] (or (relationship-on-attributes rel-name)
                             idents)
-          [id1 idv1] (relationship-references e1 attr1 a1)
-          [id2 idv2] (relationship-references e2 attr2 a2)
+          [id1 idv1] (relationship-references between e1 attr1 a1)
+          [id2 idv2] (relationship-references between e2 attr2 a2)
           v1 (attr1 e1)
           v2 (attr2 e2)]
       (make-instance
