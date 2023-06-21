@@ -105,6 +105,9 @@
 (deftest issue-931-contains-patterns
   (defcomponent :I931
     (entity
+     :I931/Company
+     {:Name {:type :String :identity true}})
+    (entity
      :I931/Group
      {:Id :Identity
       :Name {:type :String, :unique true}})
@@ -116,6 +119,9 @@
      {:Email {:type :Email, :identity true}
       :IsAdmin :Boolean})
     (relationship
+     :I931/GroupOf
+     {:meta {:contains [:I931/Company :I931/Group]}})
+    (relationship
      :I931/MemberGroupMember
      {:meta {:between [:I931/Member :I931/GroupMember]}})
     (relationship
@@ -124,24 +130,39 @@
              :cascade-on-delete true}})
     (event
      :I931/CreateGroup
-     {:User :Email
+     {:Company :String
+      :User :Email
       :Name {:type :String}})
     (dataflow
      :I931/CreateGroup
      {:I931/Member {:Email? :I931/CreateGroup.User}, :as [:M]}
+     {:I931/Company {:Name? :I931/CreateGroup.Company} :as [:C]}
      {:I931/Group {:Name :I931/CreateGroup.Name}
+      :-> [{:I931/GroupOf {}} :C]
       :as :G}
      {:I931/GroupMember {:Email :M.Email, :IsAdmin true},
       :-> [[{:I931/Membership {}} :G] [{:I931/MemberGroupMember {}} :M]]}
      :G))
-  (let [m1 (tu/first-result
+  (let [c1 (tu/first-result
+            {:I931/Create_Company
+             {:Instance
+              {:I931/Company
+               {:Name "i931"}}}})
+        m1 (tu/first-result
             {:I931/Create_Member
              {:Instance
               {:I931/Member
                {:Email "m1@i931.org"}}}})
-        g1 (tu/eval-all-dataflows
+        g1 (tu/result
             {:I931/CreateGroup
-             {:User "m1@i931.org"
+             {:Company "i931"
+              :User "m1@i931.org"
               :Name "g1"}})]
-    (println "@@@@@@@@@@@@@@@@@@@@@@@" m1)
-    (println "#######################" g1)))
+    (is (cn/instance-of? :I931/Company c1))
+    (is (cn/instance-of? :I931/Member m1))
+    (is (cn/instance-of? :I931/Group g1))
+    (is (= "m1@i931.org" (:Email (tu/first-result
+                                  {:I931/Lookup_GroupMember
+                                   {:Email "m1@i931.org"
+                                    :Company "i931"
+                                    :Group (:Id g1)}}))))))

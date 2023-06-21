@@ -2,6 +2,7 @@
   "The default evaluator implementation"
   (:require [clojure.walk :as w]
             [clojure.set :as set]
+            [clojure.string :as s]
             [fractl.env :as env]
             [fractl.component :as cn]
             [fractl.util :as u]
@@ -363,15 +364,33 @@
   (let [id-attr (cn/identity-attribute-name record-name)]
     [record-name (store/delete-by-id store record-name id-attr (id-attr inst))]))
 
-(defn- chained-delete [env record-name instance]
-  (let [store (env/get-store env)
-        resolver (env/get-resolver env)]
-    (delete-intercept
-     env [record-name instance]
-     (fn [[record-name instance]]
+(defn- chained-delete
+  ([env record-name instance with-intercept]
+   (let [store (env/get-store env)
+         resolver (env/get-resolver env)]
+     (if with-intercept
+       (delete-intercept
+        env [record-name instance]
+        (fn [[record-name instance]]
+          (chained-crud
+           (when store (partial delete-by-id store record-name))
+           resolver (partial resolver-delete env) record-name instance)))
        (chained-crud
         (when store (partial delete-by-id store record-name))
-        resolver (partial resolver-delete env) record-name instance)))))
+        resolver (partial resolver-delete env) record-name instance))))
+  ([env record-name instance]
+   (chained-delete env record-name instance true)))
+
+(defn- purge-all [env instances]
+  (if (every? identity (mapv #(chained-delete env (cn/instance-type %) % false) instances))
+    (loop [env env, insts instances]
+      (if-let [inst (first insts)]
+        (let [t (cn/instance-type inst)
+              id-attr (cn/identity-attribute-name t)]
+          (recur (env/purge-instance env t id-attr (id-attr inst))
+                 (rest insts)))
+        env))
+    env))
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
@@ -825,6 +844,31 @@
       (i/error (str "failed to load node-instance for relationship " relname)))
     (i/error (str "failed to load main-instance for relationship " relname))))
 
+(defn- make-parent-path
+  ([env child-type rel-inst add-child-info]
+   (let [rel-tp (cn/instance-type-kw rel-inst)
+         [n1 n2 :as ns] (cn/relationship-nodes rel-tp)
+         [a1 a2] (mapv #(second (li/split-path %)) ns)
+         path (str "/" (name a1) "/" (a1 rel-inst) "/" (name rel-tp)
+                   (when add-child-info (str "/" (name a2) "/" (a2 rel-inst))))]
+     (if-let [pr (first (cn/containing-parents n1))]
+       (if-let [r (first (env/get-instances env (li/split-path (first pr))))]
+         (let [p (make-parent-path env n1 r false)]
+           (li/normalize-path (str p "/" path)))
+         (u/throw-ex (str "parent relationship " pr " not loaded into context")))
+       (li/normalize-path path))))
+  ([env child-type rel-inst] (make-parent-path env child-type rel-inst true)))
+
+(defn- build-parent-path [env inst]
+  (or (when (cn/null-parent-path? inst)
+        (let [tp (cn/instance-type-kw inst)]
+          (when-let [ident (cn/path-identity-attribute-name tp)]
+            (when-let [contains (first (filter #(cn/contains-relationship? (cn/instance-type %))
+                                               (li/rel-tag inst)))]
+              (when-let [p (make-parent-path env tp contains)]
+                (store/update-instances (env/get-store env) tp [(assoc inst li/path-attr p)]))))))
+      inst))
+
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -905,13 +949,14 @@
           (let [intern-fn (partial
                            intern-relationship-for-one-instance
                            self eval-opcode eval-event-dataflows
-                           rel-info-and-target-opcode)]
+                           rel-info-and-target-opcode)
+                orig-src-rs src-rs]
             (loop [src-rs (if (map? src-rs) [src-rs] src-rs), env (:env r1), result []]
               (if-let [src (first src-rs)]
                 (let [r (intern-fn env src)]
                   (if-let [obj (ok-result r)]
-                    (recur (rest src-rs) (:env r) (conj result obj))
-                    r))
+                    (recur (rest src-rs) (:env r) (conj result (build-parent-path (:env r) obj)))
+                    (assoc r :env (purge-all env src-rs))))
                 (i/ok (if (= 1 (count result)) (first result) result) env))))
           r1)))
 
