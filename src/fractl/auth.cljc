@@ -27,6 +27,8 @@
       (u/throw-ex (str "superuser email not set in auth-config")))
     (if (maybe-signup-user evaluator admin-email)
       (rr/compose-resolver
-       [:Fractl.Kernel.Identity/User]
+       [:Fractl.Kernel.Identity/User
+        :Fractl.Kernel.Rbac/Role
+        :Fractl.Kernel.Rbac/RoleAssignment]
        resolver)
       (u/throw-ex (str "failed to create local user for " admin-email)))))

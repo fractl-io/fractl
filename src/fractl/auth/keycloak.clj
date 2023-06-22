@@ -132,3 +132,15 @@
 
 (defmethod auth/refresh-token tag [_req]
   (throw (Exception. "Not implemented")))
+
+(defmethod auth/create-role tag [_req]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/delete-role tag [_req]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/add-user-to-role tag [_req]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/remove-user-from-role tag [_req]
+  (throw (Exception. "Not implemented")))
