@@ -101,4 +101,18 @@
            (tu/first-result
             {:I917/Lookup_D
              {:P 1 :C 20 :Z 101}}))))))
-      ;; TODO: make :with-paths the default for contains.
+
+(deftest issue-926-rbac-ui-apis
+  (let [rbac-spec [{:roles ["user" "manager"] :allow :*}
+                   {:roles ["guest"] :allow [:read]}]
+        ui-spec {:card {:bgcolor :red}}]
+    (defcomponent :I926
+      (entity
+       :I926/E
+       {:Id :Identity
+        :X :Int
+        :meta {:author "rj"}
+        :rbac rbac-spec
+        :ui ui-spec}))
+    (is (= rbac-spec (cn/fetch-rbac-spec :I926/E)))
+    (is (= ui-spec (cn/fetch-ui-spec :I926/E)))))
