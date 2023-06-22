@@ -253,6 +253,7 @@
   (= :block (ii/get-user-state-value arg :blocked-at-instance-level)))
 
 (def ^:private system-events #{[:Fractl.Kernel.Identity :SignUp]
+                               [:Fractl.Kernel.Identity :PostSignUp]
                                [:Fractl.Kernel.Identity :ForgotPassword]
                                [:Fractl.Kernel.Identity :ConfirmForgotPassword]
                                [:Fractl.Kernel.Identity :ConfirmSignUp]})
