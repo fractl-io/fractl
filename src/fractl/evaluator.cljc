@@ -93,7 +93,10 @@
                                [_ dc] (cn/dataflow-opcode
                                        df (or (env/with-types env)
                                               cn/with-default-types))]
-                           (deref-futures (dispatch-opcodes evaluator env dc))))]
+                           (deref-futures (let [r (dispatch-opcodes evaluator env dc)]
+                                            (if (and (map? r) (not= :ok (:status r)))
+                                              (throw (ex-info "eval failed" {:eval-result r}))
+                                              r)))))]
       (interceptors/eval-intercept env0 event-instance continuation))))
 
 (defn- maybe-init-event [event-obj]
@@ -109,9 +112,14 @@
   ([evaluator env event-instance df]
    (let [event-instance (maybe-init-event event-instance)
          f (partial eval-dataflow-with-store-connection evaluator env event-instance df)]
-     (if-let [store (env/get-store env)]
-       (store/call-in-transaction store f)
-       (f nil))))
+     (try
+       (if-let [store (env/get-store env)]
+         (store/call-in-transaction store f)
+         (f nil))
+       (catch Exception ex
+         (if-let [r (:eval-result (ex-data ex))]
+           r
+           (throw ex))))))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 

@@ -1797,3 +1797,7 @@
      (:type (find-attribute-schema
              ((identity-attribute-name entity-name)
               (fetch-schema entity-name))))))
+
+(defn null-parent-path? [inst]
+  (when-let [p (li/path-attr inst)]
+    (= p li/default-path)))

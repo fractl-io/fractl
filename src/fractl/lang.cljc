@@ -857,7 +857,7 @@
          (let [[r _ p] (first cps), np (name p)]
            (recur p (str np "/" (f np) "/" (name r) "/" path)))
          (str "path:" (if (s/starts-with? path "/") "/" "//")
-              (s/replace path "//" "/"))))))
+              (li/normalize-path path))))))
   ([attr-accessor relname parent child-info]
    (parent-query-path attr-accessor relname parent child-info false)))
 
@@ -967,11 +967,9 @@
     (cn/register-dataflow
      crevt
      (let [id-attr-accessor (keyword (str (subs (str crevt) 1) ".Instance." (name id-attr)))]
-       [[:try
-         {child cr-inst-pat
-          li/rel-tag
-          (parent-query-pattern f2 relname (keys rel-attrs) parent)}
-         [:not-found :error] [:rethrow-after [:delete child {id-attr id-attr-accessor}]]]]))
+       [{child cr-inst-pat
+         li/rel-tag
+         (parent-query-pattern f2 relname (keys rel-attrs) parent)}]))
     (event-internal
      upevt
      (merge
