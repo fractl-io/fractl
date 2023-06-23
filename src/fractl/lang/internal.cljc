@@ -10,9 +10,10 @@
 (def with-types-tag :with-types)
 
 (def path-attr :PATH)
+(def default-path "/null")
 (def path-attr-spec
   {:type :String
-   :default "/null"
+   :default default-path
    :unique true
    :indexed true})
 (def path-attr-q :PATH?)
@@ -505,3 +506,6 @@
   (s/index-of (str n) "."))
 
 (def owner :owner)
+
+(defn normalize-path [p]
+  (s/replace p "//" "/"))
