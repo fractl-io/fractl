@@ -106,7 +106,7 @@
         pn (when r (first (mt/contains (cn/fetch-meta r))))]
     (and pn (env/lookup env pn))))
 
-(defn- parent-of? [env user inst]
+(defn- parent-of? [user env inst]
   (when inst
     (or (user-is-owner? user env (cn/instance-type inst) (cn/idval inst))
         (parent-of? user env (find-parent env inst)))))
@@ -162,7 +162,7 @@
 
 (defn- apply-privilege-hierarchy-checks [env user opr resource rbac-check continuation]
   (if (cn/entity-instance? resource)
-    (or (parent-of? env user (find-parent env resource))
+    (or (parent-of? user env (find-parent env resource))
         (call-rbac-continuation user resource opr
          (check-inherited-instance-privilege user opr resource)
          #(call-rbac-continuation user resource opr
@@ -204,41 +204,61 @@
         (and (seqable? x)
              (every? keyword? x)))))
 
+(defn- apply-parent-ownership-for-contains [user env arg]
+  (let [data (or (ii/data-input arg) (ii/data-output arg))]
+    (if (or (ii/skip-for-input? data) (ii/skip-for-output? data))
+      :allow
+      (or
+       (when-let [inst (first-instance data)]
+         (when-let [[parent-type parent-id] (and (cn/an-instance? inst)
+                                                 (cn/find-parent-info inst))]
+           (if (or (user-is-owner? user env parent-type parent-id)
+                   (parent-of? user env (env/lookup env parent-type)))
+             :allow
+             (if (:crud-exclusive-for-owner (cn/fetch-meta (cn/instance-type-kw inst)))
+               :block
+               :continue))))
+       :continue))))
+
 (defn- apply-rbac-for-user [user env opr arg]
-  (if-let [data (ii/data-input arg)]
-    (if (or (ii/skip-for-input? data) (= opr :read))
-      arg
-      (let [is-delete (= :delete opr)
-            resource (if is-delete (second data) (first-instance data))
-            check-on (if is-delete (first data) resource)
-            ign-refs (or is-delete (= :read opr))]
-        (when (or (and (ii/has-instance-meta? arg)
-                       (user-is-owner? user env resource))
-                  (let [check-arg {:data check-on :ignore-refs ign-refs}]
-                    (check-instance-privilege
-                     env user arg opr resource
-                     #(apply-rbac-for-user user env opr (ii/assoc-data-input arg %))
-                     #((opr actions) user check-arg))))
-          arg)))
-    (if-let [data (seq (ii/data-output arg))]
-      (cond
-        (ii/skip-for-output? data)
+  (case (apply-parent-ownership-for-contains user env arg)
+    :allow arg
+    :block nil
+    :continue
+    (if-let [data (ii/data-input arg)]
+      (if (or (ii/skip-for-input? data) (= opr :read))
         arg
+        (let [is-delete (= :delete opr)
+              resource (if is-delete (second data) (first-instance data))
+              check-on (if is-delete (first data) resource)
+              ign-refs (or is-delete (= :read opr))]
+          (when (or (and (ii/has-instance-meta? arg)
+                         (user-is-owner? user env resource))
+                    (let [check-arg {:data check-on :ignore-refs ign-refs}]
+                      (check-instance-privilege
+                       env user arg opr resource
+                       #(apply-rbac-for-user user env opr (ii/assoc-data-input arg %))
+                       #((opr actions) user check-arg))))
+            arg)))
+      (if-let [data (seq (ii/data-output arg))]
+        (cond
+          (ii/skip-for-output? data)
+          arg
 
-        (= :read opr)
-        (let [rslt (extract-read-results data)]
-          (if (and (ii/has-instance-meta? arg)
-                   (every? (partial user-is-owner? user env) rslt))
-            arg
-            (when (every? #(check-instance-privilege
-                            env user arg opr %
-                            (fn [a] (apply-rbac-for-user user env opr (ii/assoc-data-output arg a)))
-                            (fn [] ((opr actions) user {:data % :ignore-refs true})))
-                          rslt)
-              (apply-read-attribute-rules user rslt arg))))
+          (= :read opr)
+          (let [rslt (extract-read-results data)]
+            (if (and (ii/has-instance-meta? arg)
+                     (every? (partial user-is-owner? user env) rslt))
+              arg
+              (when (every? #(check-instance-privilege
+                              env user arg opr %
+                              (fn [a] (apply-rbac-for-user user env opr (ii/assoc-data-output arg a)))
+                              (fn [] ((opr actions) user {:data % :ignore-refs true})))
+                            rslt)
+                (apply-read-attribute-rules user rslt arg))))
 
-        :else arg)
-      arg)))
+          :else arg)
+        arg))))
 
 (defn- check-upsert-on-attributes [env opr user arg]
   (when-let [inst (first-instance (ii/data-input arg))]

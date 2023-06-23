@@ -1801,3 +1801,11 @@
 (defn null-parent-path? [inst]
   (when-let [p (li/path-attr inst)]
     (= p li/default-path)))
+
+(defn find-parent-info [rel-inst]
+  (let [tp (instance-type-kw rel-inst)]
+    (when (contains-relationship? tp)
+      (let [[p _] (relationship-nodes tp)
+            pn (second (li/split-path p))]
+        [p (or ((relationship-member-identity pn) rel-inst)
+               (pn rel-inst))]))))
