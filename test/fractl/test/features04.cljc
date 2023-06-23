@@ -102,6 +102,71 @@
             {:I917/Lookup_D
              {:P 1 :C 20 :Z 101}}))))))
 
+(deftest issue-931-contains-patterns
+  (defcomponent :I931
+    (entity
+     :I931/Company
+     {:Name {:type :String :identity true}})
+    (entity
+     :I931/Group
+     {:Id :Identity
+      :Name {:type :String, :unique true}})
+    (entity
+     :I931/Member
+     {:Email {:type :Email, :identity true}})
+    (entity
+     :I931/GroupMember
+     {:Email {:type :Email, :identity true}
+      :IsAdmin :Boolean})
+    (relationship
+     :I931/GroupOf
+     {:meta {:contains [:I931/Company :I931/Group]}})
+    (relationship
+     :I931/MemberGroupMember
+     {:meta {:between [:I931/Member :I931/GroupMember]}})
+    (relationship
+     :I931/Membership
+     {:meta {:contains [:I931/Group :I931/GroupMember],
+             :cascade-on-delete true}})
+    (event
+     :I931/CreateGroup
+     {:Company :String
+      :User :Email
+      :Name {:type :String}})
+    (dataflow
+     :I931/CreateGroup
+     {:I931/Member {:Email? :I931/CreateGroup.User}, :as [:M]}
+     {:I931/Company {:Name? :I931/CreateGroup.Company} :as [:C]}
+     {:I931/Group {:Name :I931/CreateGroup.Name}
+      :-> [{:I931/GroupOf {}} :C]
+      :as :G}
+     {:I931/GroupMember {:Email :M.Email, :IsAdmin true},
+      :-> [[{:I931/Membership {}} :G] [{:I931/MemberGroupMember {}} :M]]}
+     :G))
+  (let [c1 (tu/first-result
+            {:I931/Create_Company
+             {:Instance
+              {:I931/Company
+               {:Name "i931"}}}})
+        m1 (tu/first-result
+            {:I931/Create_Member
+             {:Instance
+              {:I931/Member
+               {:Email "m1@i931.org"}}}})
+        g1 (tu/result
+            {:I931/CreateGroup
+             {:Company "i931"
+              :User "m1@i931.org"
+              :Name "g1"}})]
+    (is (cn/instance-of? :I931/Company c1))
+    (is (cn/instance-of? :I931/Member m1))
+    (is (cn/instance-of? :I931/Group g1))
+    (is (= "m1@i931.org" (:Email (tu/first-result
+                                  {:I931/Lookup_GroupMember
+                                   {:Email "m1@i931.org"
+                                    :Company "i931"
+                                    :Group (:Id g1)}}))))))
+
 (deftest issue-926-rbac-ui-apis
   (let [rbac-spec [{:roles ["user" "manager"] :allow :*}
                    {:roles ["guest"] :allow [:read]}]
