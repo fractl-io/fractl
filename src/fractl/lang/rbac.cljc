@@ -76,7 +76,7 @@
   (let [[r1 r2] [(:rbac (cn/fetch-meta rec1))
                  (:rbac (cn/fetch-meta rec2))]]
     (case reltype
-      :contains nil;;(merge-reads-with-writes r1 r2)
+      :contains (merge-reads-with-writes r1 r2)
       :between (merge-read-writes r1 r2))))
 
 (defn- rbac-spec-for-relationship [relname reltype]
