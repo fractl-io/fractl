@@ -1052,10 +1052,10 @@
                       (with-user "u2@i923.com" (create-r 10 20))))))))
 
 (defn- issue-938-helper [allow-read]
-  (let [cn (if allow-read :I938A :I938B)
-        I938 #(keyword (str (name cn) "/" (name %)))]
+  (let [cname (if allow-read :I938A :I938B)
+        I938 #(keyword (str (name cname) "/" (name %)))]
     (lr/reset-events!)
-    (defcomponent cn
+    (defcomponent cname
       (entity
        (I938 :A)
        {:X {:type :Int :identity true}
@@ -1110,6 +1110,9 @@
                   {:Instance
                    {(I938 :C) {:Z z}}
                    :A x :B y}})
+          get-c (fn [x y z]
+                  {(I938 :Lookup_C)
+                   {:A x :B y :Z z}})
           a? (partial cn/instance-of? (I938 :A))
           b? (partial cn/instance-of? (I938 :B))
           c? (partial cn/instance-of? (I938 :C))]
@@ -1132,10 +1135,23 @@
            (if allow-read
              (let [b1 (dissoc b1 li/rel-tag)
                    b2 (dissoc b2 li/rel-tag)]
+               (is (b? (tu/result (with-user "u2@i938.com" (cr-b 1 300)))))
                (is (cn/same-instance? b1 (tu/first-result (with-user "u2@i938.com" (get-b 1 100)))))
                (is (cn/same-instance? b2 (tu/first-result (with-user "u1@i938.com" (get-b 2 200))))))
-             (do (tu/is-error #(tu/eval-all-dataflows (with-user "u2@i938.com" (get-b 1 100))))
-                 (tu/is-error #(tu/eval-all-dataflows (with-user "u1@i938.com" (get-b 2 200))))))))))))
+             (do (tu/is-error #(tu/eval-all-dataflows (with-user "u2@i938.com" (cr-b 1 300))))
+                 (tu/is-error #(tu/eval-all-dataflows (with-user "u2@i938.com" (get-b 1 100))))
+                 (tu/is-error #(tu/eval-all-dataflows (with-user "u1@i938.com" (get-b 2 200)))))))
+         (let [c1 (tu/result (with-user "u1@i938.com" (cr-c 1 100 1000)))
+               c2 (tu/result (with-user "u2@i938.com" (cr-c 2 200 2000)))]
+           (is (every? c? [c1 c2]))
+           (tu/is-error #(tu/eval-all-dataflows (with-user "u1@i938.com" (cr-c 2 200 3000))))
+           (if allow-read
+             (let [c1 (dissoc c1 li/rel-tag)
+                   c2 (dissoc c2 li/rel-tag)]
+               (is (cn/same-instance? c1 (tu/first-result (with-user "u2@i938.com" (get-c 1 100 1000)))))
+               (is (cn/same-instance? c2 (tu/first-result (with-user "u2@i938.com" (get-c 2 200 2000))))))
+             (do (tu/is-error #(tu/eval-all-dataflows (with-user "u2@i938.com" (get-c 1 100 1000))))
+                 (tu/is-error #(tu/eval-all-dataflows (with-user "u1@i938.com" (get-c 2 200 2000))))))))))))
 
 (deftest issue-938
   (issue-938-helper false)
