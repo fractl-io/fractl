@@ -64,8 +64,8 @@
 (def ^:private filter-upcr (partial filter-rbac-by-perms #{:update :create}))
 
 (defn- merge-reads-with-writes [r1 r2]
-  (let [rr1 (filter-rd r1)
-        rr2 (filter-upcr r2)]
+  (let [rr1 (filter-upcr r1)
+        rr2 (filter-rd r2)]
     (concat rr1 rr2)))
 
 (defn- merge-read-writes [r1 r2]
