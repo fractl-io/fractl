@@ -256,7 +256,6 @@
                               (fn [] ((opr actions) user {:data % :ignore-refs true})))
                             rslt)
                 (apply-read-attribute-rules user rslt arg))))
-
           :else arg)
         arg))))
 
