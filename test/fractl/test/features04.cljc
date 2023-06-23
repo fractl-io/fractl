@@ -166,5 +166,18 @@
                                    {:Email "m1@i931.org"
                                     :Company "i931"
                                     :Group (:Id g1)}}))))))
-;; TODO: add more tests - for create and lookup scenarios
-;; TODO: make sure rollbacks for failed contains-lookup is working (this must be already covered in the preceding test)
+
+(deftest issue-926-rbac-ui-apis
+  (let [rbac-spec [{:roles ["user" "manager"] :allow :*}
+                   {:roles ["guest"] :allow [:read]}]
+        ui-spec {:card {:bgcolor :red}}]
+    (defcomponent :I926
+      (entity
+       :I926/E
+       {:Id :Identity
+        :X :Int
+        :meta {:author "rj"}
+        :rbac rbac-spec
+        :ui ui-spec}))
+    (is (= rbac-spec (cn/fetch-rbac-spec :I926/E)))
+    (is (= ui-spec (cn/fetch-ui-spec :I926/E)))))
