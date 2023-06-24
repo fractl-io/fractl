@@ -54,6 +54,11 @@
     (first obj)
     obj))
 
+(defn- set-read-results [obj rslt]
+  (if (contains-env? obj)
+    (concat [rslt] (rest obj))
+    rslt))
+
 (defn- make-read-output-arg [old-output-data new-insts]
   (if (contains-env? old-output-data)
     (concat [new-insts] (rest old-output-data))
@@ -246,10 +251,11 @@
           arg
 
           (= :read opr)
-          (let [rslt (extract-read-results data)]
-            (if (and (ii/has-instance-meta? arg)
-                     (every? (partial user-is-owner? user env) rslt))
-              arg
+          (let [rslt (extract-read-results data)
+                owned-rslt (and (ii/has-instance-meta? arg)
+                                (seq (filter (partial user-is-owner? user env) rslt)))]
+            (if owned-rslt
+              (ii/assoc-data-output arg (set-read-results data owned-rslt))
               (when (every? #(check-instance-privilege
                               env user arg opr %
                               (fn [a] (apply-rbac-for-user user env opr (ii/assoc-data-output arg a)))

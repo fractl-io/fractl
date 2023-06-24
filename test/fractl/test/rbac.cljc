@@ -1156,3 +1156,59 @@
 (deftest issue-938
   (issue-938-helper false)
   (issue-938-helper true))
+
+(deftest issue-884-rbac-dsl-ownership
+  (lr/reset-events!)
+  (defcomponent :I884Own
+    (entity
+     :I884Own/E
+     {:rbac [{:roles ["user"] :allow [:create]}]
+      :Id {:type :Int :identity true}
+      :X :Int})
+    (dataflow
+     :I884Own/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@i884own.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@i884own.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "user" :Assignee "u1@i884own.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "user" :Assignee "u2@i884own.com"}}))
+  (is (lr/finalize-events tu/eval-all-dataflows))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:I884Own/InitUsers {}})))
+  (let [e? (partial cn/instance-of? :I884Own/E)]
+    (call-with-rbac
+     (fn []
+       (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+       (let [create-e (fn [id]
+                        {:I884Own/Create_E
+                         {:Instance
+                          {:I884Own/E {:Id id :X (* id 100)}}}})
+             update-e (fn [id]
+                        {:I884Own/Update_E
+                         {:Id id :Data {:X (* id 200)}}})
+             lookup-all-e (fn []
+                            {:I884Own/LookupAll_E {}})
+             lookup-e (fn [id]
+                        {:I884Own/Lookup_E {:Id id}})]
+         (tu/is-error #(tu/eval-all-dataflows (create-e 1)))
+         (is (e? (tu/first-result
+                  (with-user "u1@i884own.com" (create-e 1)))))
+         (is (e? (tu/first-result
+                  (with-user "u2@i884own.com" (create-e 2)))))
+         ;; ownership semantics
+         (is (= 100 (:X (tu/first-result
+                         (with-user "u1@i884own.com" (lookup-e 1))))))
+         (is (= 200 (:X (tu/first-result
+                         (with-user "u2@i884own.com" (lookup-e 2))))))
+         (is (= 400 (:X (tu/first-result
+                         (with-user "u2@i884own.com" (update-e 2))))))
+         (defn- test-lookup-all [user x]
+           (let [es (tu/result (with-user user (lookup-all-e)))]
+             (is (= 1 (count es)))
+             (is (= x (:X (first es))))))
+         (test-lookup-all "u1@i884own.com" 100)
+         (test-lookup-all "u2@i884own.com" 400))))))
