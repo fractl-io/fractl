@@ -506,6 +506,7 @@
   (s/index-of (str n) "."))
 
 (def owner :owner)
+(def owner-exclusive-crud :crud-exclusive-for-owner)
 
 (defn normalize-path [p]
   (s/replace p "//" "/"))

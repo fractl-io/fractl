@@ -1790,7 +1790,7 @@
     schema)))
 
 (defn owning-node [relname]
-  (li/owner (:rbac (fetch-meta relname))))
+  (li/owner (fetch-rbac-spec relname)))
 
 (defn globally-unique-identity? [entity-name]
   (= id-attr-type

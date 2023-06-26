@@ -596,7 +596,10 @@
      {:I902/A {:X :B.F :Y '(str :X :B.G)}}]
     ['entity :I902/C {:K :Float}]
     ['relationship :I902/R
-     {:meta {:contains [:I902/B :I902/C] li/globally-unique true} :D :DateTime}]
+     {:meta {:contains [:I902/B :I902/C]
+             li/globally-unique true}
+      :rbac {li/owner-exclusive-crud true}
+      :D :DateTime}]
     ['event :I902/GetC {:B :Int}]
     ['dataflow :I902/GetC {:I902/C? {} :-> [:I902/R? {:I902/B {:F? :I902/GetC.B}}]}]])
   (check-raw
@@ -606,7 +609,9 @@
     ['entity :I902/B {:F {:type :Int :identity true} :G {:oneof ["a" "b" "c"]}}]
     ['entity :I902/C {:K :Float}]
     ['relationship :I902/R
-     {:meta {:contains [:I902/B :I902/C] li/globally-unique true} :D :DateTime}]
+     {:meta {:contains [:I902/B :I902/C] li/globally-unique true}
+      :rbac {li/owner-exclusive-crud true}
+      :D :DateTime}]
     ['event :I902/GetC {:B :Int}]
     ['dataflow :I902/MakeA
      {:I902/B {:F? :I902/MakeA.B} :as :B}

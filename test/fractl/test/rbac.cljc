@@ -585,8 +585,9 @@
     (relationship
      :I711A/R1
      {:meta {:contains [:I711A/E1 :I711A/E2]
-             li/globally-unique true
-             :rbac {:inherit {:entity true}}}})
+             li/globally-unique true}
+      :rbac {li/owner-exclusive-crud false
+             :inherit {:entity true}}})
     (dataflow
      :I711A/CreateUsers
      {:Fractl.Kernel.Identity/User
@@ -654,8 +655,9 @@
     (relationship
      :I711B/R1
      {:meta {:contains [:I711B/E1 :I711B/E2]
-             li/globally-unique true
-             :rbac {:inherit {:instance true}}}})
+             li/globally-unique true}
+      :rbac {li/owner-exclusive-crud false
+             :inherit {:instance true}}})
     (dataflow
      :I711B/CreateUsers
      {:Fractl.Kernel.Identity/User
@@ -757,16 +759,21 @@
      (is (not (tu/result (with-user "u2@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))))
      (let [r (tu/first-result (with-user "u1@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))]
        (is (= 4 (:K r))))
+     (tu/is-error
+      #(tu/eval-all-dataflows
+        (with-user "u2@i711b.com"
+          {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}})))
      (is (cn/instance-of?
           :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
           (tu/first-result
            (with-user "u1@i711b.com"
              {:I711B/AssignInstancePriv
               {:X 10 :User "u2@i711b.com"}}))))
-     (tu/is-error
-      #(tu/eval-all-dataflows
-        (with-user "u2@i711b.com"
-          {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))))))
+     (let [e2 (tu/first-result
+               (with-user "u2@i711b.com"
+                 {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))]
+       (is (cn/instance-of? :I711B/E2 e2))
+       (is (and (= 100 (:Y e2)) (= 5 (:K e2))))))))
 
 (deftest issue-762-instance-priv-by-owner
   (defcomponent :I762
@@ -906,7 +913,8 @@
     (relationship
      :I884/R1
      {:meta {:contains [:I884/E :I884/F]
-             li/globally-unique true}})
+             li/globally-unique true}
+      :rbac {li/owner-exclusive-crud false}})
     (relationship
      :I884/R2
      {:meta {:between [:I884/F :I884/G]}})
@@ -1071,11 +1079,11 @@
        {:Z {:type :Int :identity true}})
       (relationship
        (I938 :R1)
-       {:meta {:contains [(I938 :A) (I938 :B)]}})
+       {:meta {:contains [(I938 :A) (I938 :B)]}
+        :rbac {li/owner-exclusive-crud false}})
       (relationship
        (I938 :R2)
-       {:meta {:contains [(I938 :B) (I938 :C)]
-               :crud-exclusive-for-owner true}})
+       {:meta {:contains [(I938 :B) (I938 :C)]}})
       (dataflow
        (I938 :InitUsers)
        {:Fractl.Kernel.Identity/User

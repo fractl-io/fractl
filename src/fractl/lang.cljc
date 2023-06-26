@@ -1111,6 +1111,14 @@
     (assoc meta li/globally-unique (cn/globally-unique-identity? child))
     meta))
 
+(defn- cleanup-rel-attrs [attrs]
+  (dissoc attrs :meta :rbac :ui))
+
+(defn- maybe-assoc-rbac-for-contains [attrs]
+  (if (:rbac attrs)
+    attrs
+    (assoc attrs :rbac {li/owner-exclusive-crud true})))
+
 (defn relationship
   ([relation-name attrs]
    (let [meta (let [m (:meta attrs)]
@@ -1120,6 +1128,7 @@
          contains (ensure-unique-contains (mt/contains meta))
          between (when-not contains (mt/between meta))
          meta (if contains (maybe-assoc-local-identity contains meta) meta)
+         attrs (if contains (maybe-assoc-rbac-for-contains attrs) attrs)
          [elems relmeta] (parse-relationship-member-spec
                           (or contains between))
          each-uq (if (:one-one relmeta) true false)
@@ -1139,7 +1148,7 @@
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
      (when between
-       (validate-rbac-owner (:rbac meta) elems))
+       (validate-rbac-owner (:rbac attrs) elems))
      (let [raw-attrs attrs
            [attrs uqs] (assoc-relationship-attributes
                         attrs rel-attr-names contains elems
@@ -1157,8 +1166,8 @@
        (when (cn/register-relationship elems relation-name)
          (when-let [r (and (meta-entity relation-name) r)]
            (if contains
-             (regen-contains-dataflows relation-name contains (dissoc raw-attrs :meta))
-             (regen-between-dataflows relation-name between (dissoc attrs :meta)))
+             (regen-contains-dataflows relation-name contains (cleanup-rel-attrs raw-attrs))
+             (regen-between-dataflows relation-name between (cleanup-rel-attrs attrs)))
            (and (raw/relationship relation-name raw-attrs) r))))))
   ([schema]
    (let [r (parse-and-define serializable-entity schema)

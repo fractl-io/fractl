@@ -220,7 +220,7 @@
            (if (or (user-is-owner? user env parent-type parent-id)
                    (parent-of? user env (env/lookup env parent-type)))
              :allow
-             (if (:crud-exclusive-for-owner (cn/fetch-meta (cn/instance-type-kw inst)))
+             (if (li/owner-exclusive-crud (cn/fetch-rbac-spec (cn/instance-type-kw inst)))
                :block
                :continue))))
        :continue))))
