@@ -225,6 +225,15 @@
                :continue))))
        :continue))))
 
+(defn- has-record-level-privilege? [opr user rs]
+  (let [r (first rs)
+        t (cn/instance-type-kw r)
+        t? (partial cn/instance-of? t)
+        chk (fn [x] ((opr actions) user {:data x :ignore-refs true}))]
+    (if (every? t? rs)
+      (and (chk r) true)
+      (when (every? identity (mapv chk rs)) true))))
+
 (defn- apply-rbac-for-user [user env opr arg]
   (case (apply-parent-ownership-for-contains user env arg)
     :allow arg
@@ -251,17 +260,18 @@
           arg
 
           (= :read opr)
-          (let [rslt (extract-read-results data)
-                owned-rslt (and (ii/has-instance-meta? arg)
-                                (seq (filter (partial user-is-owner? user env) rslt)))]
-            (if owned-rslt
-              (ii/assoc-data-output arg (set-read-results data owned-rslt))
-              (when (every? #(check-instance-privilege
-                              env user arg opr %
-                              (fn [a] (apply-rbac-for-user user env opr (ii/assoc-data-output arg a)))
-                              (fn [] ((opr actions) user {:data % :ignore-refs true})))
+          (let [rslt (extract-read-results data)]
+            (if (has-record-level-privilege? opr user rslt)
+              (apply-read-attribute-rules user rslt arg)
+              (if-let [owned-rslt (and (ii/has-instance-meta? arg)
+                                       (seq (filter (partial user-is-owner? user env) rslt)))]
+                (ii/assoc-data-output arg (set-read-results data owned-rslt))
+                (when (every? #(check-instance-privilege
+                                env user arg opr %
+                                (fn [a] (apply-rbac-for-user user env opr (ii/assoc-data-output arg a)))
+                                (fn [] ((opr actions) user {:data % :ignore-refs true})))
                             rslt)
-                (apply-read-attribute-rules user rslt arg))))
+                  (apply-read-attribute-rules user rslt arg)))))
           :else arg)
         arg))))
 
