@@ -1213,52 +1213,73 @@
          (test-lookup-all "u1@i884own.com" 100)
          (test-lookup-all "u2@i884own.com" 400))))))
 
+(defn- read-blocked-for-get-all-helper [read-only]
+  (let [RBGA (if read-only :RbGa1 :RbGa2)
+        RbGa #(keyword (str (name RBGA) "/" (name %)))]
+    (lr/reset-events!)
+    (defcomponent RBGA
+      (entity
+       (RbGa :E)
+       {:Id {:type :Int :identity true}
+        :X :Int
+        :rbac [{:roles ["member"] :allow (if read-only [:read] [:create :update :read])}]})
+      (event (RbGa :CreateEs) {})
+      (when read-only
+        (dataflow
+         (RbGa :CreateEs)
+         {(RbGa :Create_E)
+          {:Instance
+           {(RbGa :E) {:Id 1 :X 100}}}}
+         {(RbGa :Create_E)
+          {:Instance
+           {(RbGa :E) {:Id 2 :X 200}}}}))
+      (dataflow
+       (RbGa :InitUsers)
+       {(RbGa :CreateEs) {}}
+       {:Fractl.Kernel.Identity/User
+        {:Email "u1@rbga.com"}}
+       {:Fractl.Kernel.Rbac/RoleAssignment
+        {:Role "member" :Assignee "u1@rbga.com"}}
+       {:Fractl.Kernel.Identity/User
+        {:Email "u2@rbga.com"}}
+       {:Fractl.Kernel.Rbac/RoleAssignment
+        {:Role "member" :Assignee "u2@rbga.com"}}))
+    (is (lr/finalize-events tu/eval-all-dataflows))
+    (is (cn/instance-of?
+         :Fractl.Kernel.Rbac/RoleAssignment
+         (tu/first-result {(RbGa :InitUsers) {}})))
+    (call-with-rbac
+     (fn []
+       (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+       (let [e? (partial cn/instance-of? (RbGa :E))
+             create-e (fn [id]
+                        {(RbGa :Create_E)
+                         {:Instance
+                          {(RbGa :E) {:Id id :X (* id 100)}}}})
+             lookup-e (fn [id]
+                        {(RbGa :Lookup_E)
+                         {:Id id}})
+             lookup-all-e (fn [] {(RbGa :LookupAll_E) {}})
+             test-lookup-all-e (fn [user]
+                                 (let [es (tu/result (with-user user (lookup-all-e)))]
+                                   (is (= 2 (count es)))
+                                   (is (every? e? es))))]
+         (if read-only
+           (tu/is-error #(tu/eval-all-dataflows
+                          (with-user "u1@rbga.com" (create-e 10))))
+           (do (is (e? (tu/first-result
+                        (with-user "u1@rbga.com" (create-e 1)))))
+               (is (e? (tu/first-result
+                        (with-user "u2@rbga.com" (create-e 2)))))))
+         (doseq [user ["u1@rbga.com" "u2@rbga.com"]]
+           #(let [r1 (tu/first-result (with-user user (lookup-e 1)))
+                  r2 (tu/first-result (with-user user (lookup-e 2)))]
+              (is (e? r1))
+              (is (= 100 (:X r1)))
+              (is (e? r2))
+              (is (= 200 (:X r2)))
+              (test-lookup-all-e user))))))))
+
 (deftest read-blocked-for-get-all
-  (lr/reset-events!)
-  (defcomponent :RbGa
-    (entity
-     :RbGa/E
-     {:Id {:type :Int :identity true}
-      :X :Int
-      :rbac [{:roles ["member"] :allow [:read]}]})
-    (dataflow
-     :RbGa/InitUsers
-     {:RbGa/Create_E
-      {:Instance
-       {:RbGa/E {:Id 1 :X 100}}}}
-     {:RbGa/Create_E
-      {:Instance
-       {:RbGa/E {:Id 2 :X 200}}}}
-     {:Fractl.Kernel.Identity/User
-      {:Email "u1@rbga.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
-      {:Role "member" :Assignee "u1@rbga.com"}}
-     {:Fractl.Kernel.Identity/User
-      {:Email "u2@rbga.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
-      {:Role "member" :Assignee "u2@rbga.com"}}))
-  (is (lr/finalize-events tu/eval-all-dataflows))
-  (is (cn/instance-of?
-       :Fractl.Kernel.Rbac/RoleAssignment
-       (tu/first-result {:RbGa/InitUsers {}})))
-  (call-with-rbac
-   (fn []
-     (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
-     (let [e? (partial cn/instance-of? :RbGa/E)
-           lookup-e (fn [id]
-                      {:RbGa/Lookup_E
-                       {:Id id}})
-           lookup-all-e (fn [] {:RbGa/LookupAll_E {}})
-           test-lookup-all-e (fn [user]
-                               (let [es (tu/result (with-user user (lookup-all-e)))]
-                                 (is (= 2 (count es)))
-                                 (is (every? e? es))))]
-       (tu/is-error #(tu/first-result
-                      (with-user "u1@rbga.com" {:RbGa/Create_E
-                                                {:Instance
-                                                 {:RbGa/E {:Id 10 :X 123}}}})))
-       (doseq [user ["u1@rbga.com" "u2@rbga.com"]]
-         #(let [r (tu/first-result (with-user user (lookup-e 1)))]
-            (is (e? r))
-            (is (= 100 (:X r)))
-            (test-lookup-all-e user)))))))
+  (read-blocked-for-get-all-helper true)
+  (read-blocked-for-get-all-helper false))
