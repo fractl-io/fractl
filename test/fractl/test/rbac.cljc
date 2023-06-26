@@ -1232,7 +1232,11 @@
      {:Fractl.Kernel.Identity/User
       {:Email "u1@rbga.com"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
-      {:Role "member" :Assignee "u1@rbga.com"}}))
+      {:Role "member" :Assignee "u1@rbga.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@rbga.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "member" :Assignee "u2@rbga.com"}}))
   (is (lr/finalize-events tu/eval-all-dataflows))
   (is (cn/instance-of?
        :Fractl.Kernel.Rbac/RoleAssignment
@@ -1244,17 +1248,17 @@
            lookup-e (fn [id]
                       {:RbGa/Lookup_E
                        {:Id id}})
-           lookup-all-e (fn [] {:RbGa/LookupAll_E {}})]
+           lookup-all-e (fn [] {:RbGa/LookupAll_E {}})
+           test-lookup-all-e (fn [user]
+                               (let [es (tu/result (with-user user (lookup-all-e)))]
+                                 (is (= 2 (count es)))
+                                 (is (every? e? es))))]
        (tu/is-error #(tu/first-result
                       (with-user "u1@rbga.com" {:RbGa/Create_E
                                                 {:Instance
                                                  {:RbGa/E {:Id 10 :X 123}}}})))
-       (let [r (tu/first-result
-                (with-user "u1@rbga.com" (lookup-e 1)))]
-         (is (e? r))
-         (is (= 100 (:X r))))
-       (defn- test-lookup-all-e [user]
-         (let [es (tu/result (with-user user (lookup-all-e)))]
-           (is (= 2 (count es)))
-           (is (every? e? es))))
-       (test-lookup-all-e "u1@rbga.com")))))
+       (doseq [user ["u1@rbga.com" "u2@rbga.com"]]
+         #(let [r (tu/first-result (with-user user (lookup-e 1)))]
+            (is (e? r))
+            (is (= 100 (:X r)))
+            (test-lookup-all-e user)))))))
