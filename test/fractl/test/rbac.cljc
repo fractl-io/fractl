@@ -525,7 +525,16 @@
                     {:X (second %) :Id (first %)
                      :Assignee "ilr_u2@ilr.com"}}))
                [["123" 100] ["564" 200] ["222" 300]])
-           e (first es)]
+           e (first es)
+           priv? (partial cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)
+           privs-check (fn [del? id]
+                         (let [ps (rbac/find-instance-privileges :Ilr/E id)]
+                           (if del?
+                             (is (nil? ps))
+                             (is (and (seq ps)
+                                      (every? #(and (priv? %) (= (:ResourceId %) id)) ps))))))
+           has-privs (partial privs-check false)
+           no-privs (partial privs-check true)]
        (is (cn/instance-of? :Ilr/E e))
        (defn- update-e [fail? id user new-x]
          (let [e1 (tu/first-result
@@ -559,9 +568,16 @@
              (is (not e1))
              (do (is (cn/instance-of? :Ilr/E e1))
                  (is (= (:Id e1) id))))))
+       (has-privs "123")
        (delete-e false "123" "ilr_u1@ilr.com")
+       (no-privs "123")
+
+       (has-privs "222")
        (delete-e false "222" "ilr_u1@ilr.com")
+       (no-privs "222")
+       (has-privs "564")
        (delete-e true "564" "ilr_u2@ilr.com")
+
        (defn- change-inst-priv [id user assignee]
          (tu/first-result
           (with-user
@@ -572,7 +588,9 @@
        (is (not (change-inst-priv "564" "ilr_u2@ilr.com" "ilr_u2@ilr.com")))
        (let [a (change-inst-priv "564" "ilr_u1@ilr.com" "ilr_u2@ilr.com")]
          (is (cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment a))
-         (delete-e false "564" "ilr_u2@ilr.com"))))))
+         (has-privs "564")
+         (delete-e false "564" "ilr_u2@ilr.com")
+         (no-privs "564"))))))
 
 (deftest issue-711-inherit-entity-priv
   (defcomponent :I711A

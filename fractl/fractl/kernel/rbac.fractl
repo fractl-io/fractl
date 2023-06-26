@@ -98,7 +98,8 @@
 
 (entity
  :InstancePrivilegeAssignment
- {:Actions {:check crud-list?}
+ {:Id :Identity
+  :Actions {:check crud-list?}
   :Filter {:check crud-list? :optional true}
   :Resource {:type :Path :indexed true}
   :ResourceId {:type :Any :indexed true}
@@ -110,3 +111,13 @@
  {:InstancePrivilegeAssignment
   {:Resource? :FindInstancePrivileges.Resource
    :ResourceId? :FindInstancePrivileges.ResourceId}})
+
+(dataflow
+ :DeleteInstancePrivileges
+ {:InstancePrivilegeAssignment
+  {:Resource? :DeleteInstancePrivileges.Resource
+   :ResourceId? :DeleteInstancePrivileges.ResourceId}
+  :as :Privs}
+ [:for-each :Privs
+  [:delete :InstancePrivilegeAssignment
+   {:Id :%.Id}]])
