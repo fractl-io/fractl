@@ -20,7 +20,7 @@
 (defn-
  crud-list?
  [xs]
- (every? (fn* [p1__260#] (some #{p1__260#} oprs)) (set xs)))
+ (every? (fn* [p1__264#] (some #{p1__264#} oprs)) (set xs)))
 (entity
  :Fractl.Kernel.Rbac/Privilege
  {:Name {:type :String, :indexed true, :unique true},
@@ -81,7 +81,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__261#] (str "'" (str p1__261#) "'")) role-names))
+    (map (fn* [p1__265#] (str "'" (str p1__265#) "'")) role-names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivilegeAssignments
@@ -101,7 +101,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__262#] (str "'" (str p1__262#) "'")) names))
+    (map (fn* [p1__266#] (str "'" (str p1__266#) "'")) names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivileges
@@ -110,7 +110,8 @@
                        fractl.model.fractl.kernel.rbac/privileges-query}])
 (entity
  :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
- {:Actions {:check fractl.model.fractl.kernel.rbac/crud-list?},
+ {:Id :Identity,
+  :Actions {:check fractl.model.fractl.kernel.rbac/crud-list?},
   :Filter
   {:check fractl.model.fractl.kernel.rbac/crud-list?, :optional true},
   :Resource {:type :Path, :indexed true},
@@ -124,6 +125,18 @@
                        :Fractl.Kernel.Rbac/FindInstancePrivileges.Resource,
                        :ResourceId?
                        :Fractl.Kernel.Rbac/FindInstancePrivileges.ResourceId}})
+(dataflow
+ :Fractl.Kernel.Rbac/DeleteInstancePrivileges
+ {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
+  {:Resource? :Fractl.Kernel.Rbac/DeleteInstancePrivileges.Resource,
+   :ResourceId?
+   :Fractl.Kernel.Rbac/DeleteInstancePrivileges.ResourceId},
+  :as :Privs}
+ [:for-each
+  :Privs
+  [:delete
+   :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
+   {:Id :%.Id}]])
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "afa4c322-9773-47ae-93e9-6057a7fd2671")
+ "1f6423dc-8730-4af9-868b-47f9c32107e8")
