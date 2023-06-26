@@ -272,6 +272,12 @@
                                 (fn [] ((opr actions) user {:data % :ignore-refs true})))
                             rslt)
                   (apply-read-attribute-rules user rslt arg)))))
+
+          (= :delete opr)
+          (let [[typ id] data]
+            (rbac/delete-instance-privileges typ id)
+            arg)
+
           :else arg)
         arg))))
 

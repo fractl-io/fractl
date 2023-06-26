@@ -128,7 +128,7 @@
                     (first obj))]
     [(cn/instance-type inst) (cn/idval inst)]))
 
-(defn- find-instance-privileges [instance-type instance-id]
+(defn find-instance-privileges [instance-type instance-id]
   (seq
    (ev/safe-eval-internal
     (cn/make-instance
@@ -137,6 +137,15 @@
                    instance-type
                    (li/make-path instance-type))
        :ResourceId (str instance-id)}}))))
+
+(defn delete-instance-privileges [instance-type instance-id]
+  (ev/safe-eval-internal
+   (cn/make-instance
+    {:Fractl.Kernel.Rbac/DeleteInstancePrivileges
+     {:Resource (if (keyword? instance-type)
+                  instance-type
+                  (li/make-path instance-type))
+      :ResourceId (str instance-id)}})))
 
 (defn- filter-instance-privilege? [opr inst-privs]
   (every? (fn [p] (some #{opr} (:Filter p))) inst-privs))
