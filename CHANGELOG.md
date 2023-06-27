@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.3.3] - 2023-06-27
+-   Significant RBAC related enhancements
+    -   RBAC centered around graph data model
+    -   RBAC DSL
+-   RESTful API changes
+-   Bug fixes
 
 ## [0.3.2] - 2023-06-08
 
