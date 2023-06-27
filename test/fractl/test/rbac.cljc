@@ -458,16 +458,10 @@
        :Resource [:q# [:Ilr/CreateE :Ilr/UpdateE
                        :Ilr/DeleteE :Ilr/LookupE
                        :Ilr/UpdateInstancePrivs]]}}
-     {:Fractl.Kernel.Rbac/Privilege
-      {:Name "ilr_p3"
-       :Actions [:q# [:read :update :create :delete]]
-       :Resource [:q# [:Fractl.Kernel.Rbac/InstancePrivilegeAssignment]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "ilr_r1" :Privilege "ilr_p1"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "ilr_r1" :Privilege "ilr_p2"}}
-     {:Fractl.Kernel.Rbac/PrivilegeAssignment
-      {:Role "ilr_r1" :Privilege "ilr_p3"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
       {:Role "ilr_r1" :Assignee "ilr_u1@ilr.com"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
@@ -603,8 +597,8 @@
     (relationship
      :I711A/R1
      {:meta {:contains [:I711A/E1 :I711A/E2]
-             li/globally-unique true
-             :rbac {:inherit {:entity true}}}})
+             li/globally-unique true}
+      :rbac {li/owner-exclusive-crud false}})
     (dataflow
      :I711A/CreateUsers
      {:Fractl.Kernel.Identity/User
@@ -672,8 +666,8 @@
     (relationship
      :I711B/R1
      {:meta {:contains [:I711B/E1 :I711B/E2]
-             li/globally-unique true
-             :rbac {:inherit {:instance true}}}})
+             li/globally-unique true}
+      :rbac {li/owner-exclusive-crud false}})
     (dataflow
      :I711B/CreateUsers
      {:Fractl.Kernel.Identity/User
@@ -694,11 +688,6 @@
        :Resource [:q# [:I711B/Create_E1 :I711B/CreateE2
                        :I711B/UpdateE2 :I711B/Lookup_E1]]}}
      {:Fractl.Kernel.Rbac/Privilege
-      {:Name "i711b_p3"
-       :Actions [:q# [:eval :update :create :read]]
-       :Resource [:q# [:I711B/AssignInstancePriv
-                       :Fractl.Kernel.Rbac/InstancePrivilegeAssignment]]}}
-     {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p4"
        :Actions [:q# [:read]]
        :Resource [:q# [:I711B/E1 :I711B/R1 :I711B/E2]]}}
@@ -706,8 +695,6 @@
       {:Role "i711b_r1" :Privilege "i711b_p1"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "i711b_r1" :Privilege "i711b_p2"}}
-     {:Fractl.Kernel.Rbac/PrivilegeAssignment
-      {:Role "i711b_r1" :Privilege "i711b_p3"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "i711b_r2" :Privilege "i711b_p2"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
@@ -775,16 +762,26 @@
      (is (not (tu/result (with-user "u2@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))))
      (let [r (tu/first-result (with-user "u1@i711b.com" {:I711B/UpdateE2 {:X 10 :Y 100 :K 4}}))]
        (is (= 4 (:K r))))
+     (tu/is-error
+      #(tu/eval-all-dataflows
+        (with-user "u2@i711b.com"
+          {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}})))
+     (tu/is-error
+      #(tu/eval-all-dataflows
+        (with-user "u2@i711b.com"
+          {:I711B/AssignInstancePriv
+           {:X 10 :User "u2@i711b.com"}})))
      (is (cn/instance-of?
           :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
           (tu/first-result
            (with-user "u1@i711b.com"
              {:I711B/AssignInstancePriv
               {:X 10 :User "u2@i711b.com"}}))))
-     (tu/is-error
-      #(tu/eval-all-dataflows
-        (with-user "u2@i711b.com"
-          {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))))))
+     (let [e2 (tu/first-result
+               (with-user "u2@i711b.com"
+                 {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}}))]
+       (is (cn/instance-of? :I711B/E2 e2))
+       (is (and (= 100 (:Y e2)) (= 5 (:K e2))))))))
 
 (deftest issue-762-instance-priv-by-owner
   (defcomponent :I762
@@ -924,7 +921,8 @@
     (relationship
      :I884/R1
      {:meta {:contains [:I884/E :I884/F]
-             li/globally-unique true}})
+             li/globally-unique true}
+      :rbac {li/owner-exclusive-crud false}})
     (relationship
      :I884/R2
      {:meta {:between [:I884/F :I884/G]}})
@@ -1068,3 +1066,266 @@
                 (with-user "u1@i923.com" (create-r 1 2)))))
        (tu/is-error #(tu/eval-all-dataflows
                       (with-user "u2@i923.com" (create-r 10 20))))))))
+
+(defn- issue-938-helper [allow-read]
+  (let [cname (if allow-read :I938A :I938B)
+        I938 #(keyword (str (name cname) "/" (name %)))]
+    (lr/reset-events!)
+    (defcomponent cname
+      (entity
+       (I938 :A)
+       {:X {:type :Int :identity true}
+        :rbac [{:roles ["manager"]
+                :allow (if allow-read
+                         [:create :read]
+                         [:create])}]})
+      (entity
+       (I938 :B)
+       {:Y {:type :Int :identity true}})
+      (entity
+       (I938 :C)
+       {:Z {:type :Int :identity true}})
+      (relationship
+       (I938 :R1)
+       {:meta {:contains [(I938 :A) (I938 :B)]}
+        :rbac {li/owner-exclusive-crud false}})
+      (relationship
+       (I938 :R2)
+       {:meta {:contains [(I938 :B) (I938 :C)]}})
+      (dataflow
+       (I938 :InitUsers)
+       {:Fractl.Kernel.Identity/User
+        {:Email "u1@i938.com"}}
+       {:Fractl.Kernel.Identity/User
+        {:Email "u2@i938.com"}}
+       {:Fractl.Kernel.Rbac/RoleAssignment
+        {:Role "manager" :Assignee "u1@i938.com"}}
+       {:Fractl.Kernel.Rbac/RoleAssignment
+        {:Role "manager" :Assignee "u2@i938.com"}}))
+    (is (lr/finalize-events tu/eval-all-dataflows))
+    (is (cn/instance-of?
+         :Fractl.Kernel.Rbac/RoleAssignment
+         (tu/first-result {(I938 :InitUsers) {}})))
+    (let [cr-a (fn [x]
+                 {(I938 :Create_A)
+                  {:Instance
+                   {(I938 :A) {:X x}}}})
+          get-a (fn [x]
+                  {(I938 :Lookup_A)
+                   {:X x}})
+          cr-b (fn [x y]
+                 {(I938 :Create_B)
+                  {:Instance
+                   {(I938 :B) {:Y y}}
+                   :A x}})
+          get-b (fn [x y]
+                  {(I938 :Lookup_B)
+                   {:A x :Y y}})
+          cr-c (fn [x y z]
+                 {(I938 :Create_C)
+                  {:Instance
+                   {(I938 :C) {:Z z}}
+                   :A x :B y}})
+          get-c (fn [x y z]
+                  {(I938 :Lookup_C)
+                   {:A x :B y :Z z}})
+          a? (partial cn/instance-of? (I938 :A))
+          b? (partial cn/instance-of? (I938 :B))
+          c? (partial cn/instance-of? (I938 :C))]
+      (call-with-rbac
+       (fn []
+         (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+         (let [a1 (tu/first-result (with-user "u1@i938.com" (cr-a 1)))
+               a2 (tu/first-result (with-user "u2@i938.com" (cr-a 2)))]
+           (is (every? a? [a1 a2]))
+           (is (cn/same-instance? a1 (tu/first-result (with-user "u1@i938.com" (get-a 1)))))
+           (is (cn/same-instance? a2 (tu/first-result (with-user "u2@i938.com" (get-a 2)))))
+           (if allow-read
+             (do (is (cn/same-instance? a2 (tu/first-result (with-user "u1@i938.com" (get-a 2)))))
+                 (is (cn/same-instance? a1 (tu/first-result (with-user "u2@i938.com" (get-a 1))))))
+             (do (tu/is-error #(tu/eval-all-dataflows (with-user "u1@i938.com" (get-a 2))))
+                 (tu/is-error #(tu/eval-all-dataflows (with-user "u2@i938.com" (get-a 1)))))))
+         (let [b1 (tu/result (with-user "u1@i938.com" (cr-b 1 100)))
+               b2 (tu/result (with-user "u2@i938.com" (cr-b 2 200)))]
+           (is (every? b? [b1 b2]))
+           (if allow-read
+             (let [b1 (dissoc b1 li/rel-tag)
+                   b2 (dissoc b2 li/rel-tag)]
+               (is (b? (tu/result (with-user "u2@i938.com" (cr-b 1 300)))))
+               (is (cn/same-instance? b1 (tu/first-result (with-user "u2@i938.com" (get-b 1 100)))))
+               (is (cn/same-instance? b2 (tu/first-result (with-user "u1@i938.com" (get-b 2 200))))))
+             (do (tu/is-error #(tu/eval-all-dataflows (with-user "u2@i938.com" (cr-b 1 300))))
+                 (tu/is-error #(tu/eval-all-dataflows (with-user "u2@i938.com" (get-b 1 100))))
+                 (tu/is-error #(tu/eval-all-dataflows (with-user "u1@i938.com" (get-b 2 200)))))))
+         (let [c1 (tu/result (with-user "u1@i938.com" (cr-c 1 100 1000)))
+               c2 (tu/result (with-user "u2@i938.com" (cr-c 2 200 2000)))]
+           (is (every? c? [c1 c2]))
+           (tu/is-error #(tu/eval-all-dataflows (with-user "u1@i938.com" (cr-c 2 200 3000))))
+           (if allow-read
+             (let [c1 (dissoc c1 li/rel-tag)
+                   c2 (dissoc c2 li/rel-tag)]
+               (is (cn/same-instance? c1 (tu/first-result (with-user "u2@i938.com" (get-c 1 100 1000)))))
+               (is (cn/same-instance? c2 (tu/first-result (with-user "u2@i938.com" (get-c 2 200 2000))))))
+             (do (tu/is-error #(tu/eval-all-dataflows (with-user "u2@i938.com" (get-c 1 100 1000))))
+                 (tu/is-error #(tu/eval-all-dataflows (with-user "u1@i938.com" (get-c 2 200 2000))))))))))))
+
+(deftest issue-938
+  (issue-938-helper false)
+  (issue-938-helper true))
+
+(deftest issue-884-rbac-dsl-ownership
+  (lr/reset-events!)
+  (defcomponent :I884Own
+    (entity
+     :I884Own/E
+     {:rbac [{:roles ["user"] :allow [:create]}]
+      :Id {:type :Int :identity true}
+      :X :Int})
+    (dataflow
+     :I884Own/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@i884own.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@i884own.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "user" :Assignee "u1@i884own.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "user" :Assignee "u2@i884own.com"}}))
+  (is (lr/finalize-events tu/eval-all-dataflows))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:I884Own/InitUsers {}})))
+  (let [e? (partial cn/instance-of? :I884Own/E)]
+    (call-with-rbac
+     (fn []
+       (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+       (let [create-e (fn [id]
+                        {:I884Own/Create_E
+                         {:Instance
+                          {:I884Own/E {:Id id :X (* id 100)}}}})
+             update-e (fn [id]
+                        {:I884Own/Update_E
+                         {:Id id :Data {:X (* id 200)}}})
+             lookup-all-e (fn []
+                            {:I884Own/LookupAll_E {}})
+             lookup-e (fn [id]
+                        {:I884Own/Lookup_E {:Id id}})]
+         (tu/is-error #(tu/eval-all-dataflows (create-e 1)))
+         (is (e? (tu/first-result
+                  (with-user "u1@i884own.com" (create-e 1)))))
+         (is (e? (tu/first-result
+                  (with-user "u2@i884own.com" (create-e 2)))))
+         ;; ownership semantics
+         (is (= 100 (:X (tu/first-result
+                         (with-user "u1@i884own.com" (lookup-e 1))))))
+         (is (= 200 (:X (tu/first-result
+                         (with-user "u2@i884own.com" (lookup-e 2))))))
+         (is (= 400 (:X (tu/first-result
+                         (with-user "u2@i884own.com" (update-e 2))))))
+         (defn- test-lookup-all [user x]
+           (let [es (tu/result (with-user user (lookup-all-e)))]
+             (is (= 1 (count es)))
+             (is (= x (:X (first es))))))
+         (test-lookup-all "u1@i884own.com" 100)
+         (test-lookup-all "u2@i884own.com" 400))))))
+
+(defn- read-blocked-for-get-all-helper [read-only]
+  (let [RBGA (if read-only :RbGa1 :RbGa2)
+        RbGa #(keyword (str (name RBGA) "/" (name %)))]
+    (lr/reset-events!)
+    (defcomponent RBGA
+      (entity
+       (RbGa :E)
+       {:Id {:type :Int :identity true}
+        :X :Int
+        :rbac [{:roles ["member"] :allow (if read-only [:read] [:create :update :read])}]})
+      (event (RbGa :CreateEs) {})
+      (when read-only
+        (dataflow
+         (RbGa :CreateEs)
+         {(RbGa :Create_E)
+          {:Instance
+           {(RbGa :E) {:Id 1 :X 100}}}}
+         {(RbGa :Create_E)
+          {:Instance
+           {(RbGa :E) {:Id 2 :X 200}}}}))
+      (dataflow
+       (RbGa :InitUsers)
+       {(RbGa :CreateEs) {}}
+       {:Fractl.Kernel.Identity/User
+        {:Email "u1@rbga.com"}}
+       {:Fractl.Kernel.Rbac/RoleAssignment
+        {:Role "member" :Assignee "u1@rbga.com"}}
+       {:Fractl.Kernel.Identity/User
+        {:Email "u2@rbga.com"}}
+       {:Fractl.Kernel.Rbac/RoleAssignment
+        {:Role "member" :Assignee "u2@rbga.com"}}))
+    (is (lr/finalize-events tu/eval-all-dataflows))
+    (is (cn/instance-of?
+         :Fractl.Kernel.Rbac/RoleAssignment
+         (tu/first-result {(RbGa :InitUsers) {}})))
+    (call-with-rbac
+     (fn []
+       (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+       (let [e? (partial cn/instance-of? (RbGa :E))
+             create-e (fn [id]
+                        {(RbGa :Create_E)
+                         {:Instance
+                          {(RbGa :E) {:Id id :X (* id 100)}}}})
+             lookup-e (fn [id]
+                        {(RbGa :Lookup_E)
+                         {:Id id}})
+             lookup-all-e (fn [] {(RbGa :LookupAll_E) {}})
+             test-lookup-all-e (fn [user]
+                                 (let [es (tu/result (with-user user (lookup-all-e)))]
+                                   (is (= 2 (count es)))
+                                   (is (every? e? es))))]
+         (if read-only
+           (tu/is-error #(tu/eval-all-dataflows
+                          (with-user "u1@rbga.com" (create-e 10))))
+           (do (is (e? (tu/first-result
+                        (with-user "u1@rbga.com" (create-e 1)))))
+               (is (e? (tu/first-result
+                        (with-user "u2@rbga.com" (create-e 2)))))))
+         (doseq [user ["u1@rbga.com" "u2@rbga.com"]]
+           #(let [r1 (tu/first-result (with-user user (lookup-e 1)))
+                  r2 (tu/first-result (with-user user (lookup-e 2)))]
+              (is (e? r1))
+              (is (= 100 (:X r1)))
+              (is (e? r2))
+              (is (= 200 (:X r2)))
+              (test-lookup-all-e user))))))))
+
+(deftest read-blocked-for-get-all
+  (read-blocked-for-get-all-helper true)
+  (read-blocked-for-get-all-helper false))
+
+(deftest fetch-with-no-results-bug
+  (lr/reset-events!)
+  (defcomponent :FwRb
+    (entity
+     :FwRb/E
+     {:Id {:type :Int :identity true}
+      :X :Int
+      :rbac [{:roles ["member"] :allow :*}]})
+    (dataflow
+     :FwRb/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@fwrb.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "member" :Assignee "u1@fwrb.com"}}))
+  (is (lr/finalize-events tu/eval-all-dataflows))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:FwRb/InitUsers {}})))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+     (let [lookup-e (fn [id]
+                      {:FwRb/Lookup_E
+                       {:Id id}})
+           chk #(is (tu/not-found? %))]
+       (chk
+        (tu/eval-all-dataflows
+         (with-user "u1@fwrb.com" {:FwRb/Lookup_E {:Id 1}})))
+       (is (nil? (seq (tu/result (with-user "u1@fwrb.com" {:FwRb/LookupAll_E {}})))))))))

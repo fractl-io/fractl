@@ -610,7 +610,7 @@
       :G :Int
       :H '(+ 1 :G)}))
   (defn- is-scm [n s]
-    (is (= s (cn/fetch-user-schema n))))
+    (is (= s (dissoc (cn/fetch-user-schema n) :rbac))))
   (is-scm
    :I849/E
    {:X {:type :Int, :default 1000}})

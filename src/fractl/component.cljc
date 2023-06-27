@@ -1539,16 +1539,19 @@
       #(= recname (second (mt/contains (fetch-meta %))))
       (find-relationships recname)))))
 
-(defn find-relationships-with-rbac-inheritance [tag recname]
-  (let [recname (li/keyword-name recname)]
-    (filter #(let [mt (fetch-meta %)
-                   [_ e2] (mt/contains mt)]
-               (when (= e2 recname)
-                 (get-in mt [:rbac :inherit tag])))
-            (find-relationships recname))))
+(defn find-relationships-with-rbac-inheritance
+  ([not-found tag recname]
+   (let [recname (li/keyword-name recname)]
+     (filter #(let [mt (fetch-meta %)
+                    [_ e2] (mt/contains mt)]
+                (when (= e2 recname)
+                  (get-in mt [:rbac :inherit tag] not-found)))
+             (find-relationships recname))))
+  ([tag recname]
+   (find-relationships-with-rbac-inheritance nil tag recname)))
 
-(def relationships-with-instance-rbac (partial find-relationships-with-rbac-inheritance :instance))
-(def relationships-with-entity-rbac (partial find-relationships-with-rbac-inheritance :entity))
+(def relationships-with-instance-rbac (partial find-relationships-with-rbac-inheritance true :instance))
+(def relationships-with-entity-rbac (partial find-relationships-with-rbac-inheritance nil :entity))
 
 (defn in-relationship? [recname relname]
   (let [n (if (keyword? relname)
@@ -1790,7 +1793,7 @@
     schema)))
 
 (defn owning-node [relname]
-  (li/owner (:rbac (fetch-meta relname))))
+  (li/owner (fetch-rbac-spec relname)))
 
 (defn globally-unique-identity? [entity-name]
   (= id-attr-type
@@ -1801,3 +1804,11 @@
 (defn null-parent-path? [inst]
   (when-let [p (li/path-attr inst)]
     (= p li/default-path)))
+
+(defn find-parent-info [rel-inst]
+  (let [tp (instance-type-kw rel-inst)]
+    (when (contains-relationship? tp)
+      (let [[p _] (relationship-nodes tp)
+            pn (second (li/split-path p))]
+        [p (or ((relationship-member-identity pn) rel-inst)
+               (pn rel-inst))]))))
