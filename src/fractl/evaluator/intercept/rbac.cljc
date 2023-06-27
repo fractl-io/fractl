@@ -182,12 +182,12 @@
    (let [r (if (cn/entity-instance? resource)
              (if (and (some #{opr} #{:update :create :delete :read})
                       (rbac/instance-privilege-assignment-object? resource))
-               (and
-                (user-is-owner?
-                 user env
-                 (rbac/instance-privilege-assignment-resource resource)
-                 (rbac/instance-privilege-assignment-resource-id resource))
-                :allow)
+               (if (user-is-owner?
+                    user env
+                    (rbac/instance-privilege-assignment-resource resource)
+                    (rbac/instance-privilege-assignment-resource-id resource))
+                 :allow
+                 :block)
                (rbac/check-instance-privilege user opr resource))
              :continue)]
      (if (= r :block)

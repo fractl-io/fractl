@@ -768,6 +768,11 @@
       #(tu/eval-all-dataflows
         (with-user "u2@i711b.com"
           {:I711B/UpdateE2 {:X 10 :Y 100 :K 5}})))
+     (tu/is-error
+      #(tu/eval-all-dataflows
+        (with-user "u2@i711b.com"
+          {:I711B/AssignInstancePriv
+           {:X 10 :User "u2@i711b.com"}})))
      (is (cn/instance-of?
           :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
           (tu/first-result
