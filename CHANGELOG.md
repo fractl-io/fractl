@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2023-06-27
+-   Significant RBAC related enhancements
+    -   RBAC centered around graph data model
+    -   RBAC DSL
+-   RESTful API changes
+-   Bug fixes
+
 ## [0.3.2] - 2023-06-08
+
 -   Replace Upsert with Create and Update
 -   Relationship bug fixes
 
@@ -105,7 +113,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.3.2...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.3.3...HEAD
+
+[0.3.3]: https://github.com/fractl-io/fractl/compare/0.3.2...0.3.3
 
 [0.3.2]: https://github.com/fractl-io/fractl/compare/0.3.1...0.3.2
 
