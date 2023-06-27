@@ -285,7 +285,7 @@
                         (when resolver
                           (let [r (resolver-f resolver composed? insts)]
                             (if (map? r)
-                              r
+                              (when (seq r) r)
                               (seq (filter identity r)))))
                         insts)]
     (if (and crud? store-f
