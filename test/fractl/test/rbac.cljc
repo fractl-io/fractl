@@ -598,8 +598,7 @@
      :I711A/R1
      {:meta {:contains [:I711A/E1 :I711A/E2]
              li/globally-unique true}
-      :rbac {li/owner-exclusive-crud false
-             :inherit {:entity true}}})
+      :rbac {li/owner-exclusive-crud false}})
     (dataflow
      :I711A/CreateUsers
      {:Fractl.Kernel.Identity/User
@@ -668,8 +667,7 @@
      :I711B/R1
      {:meta {:contains [:I711B/E1 :I711B/E2]
              li/globally-unique true}
-      :rbac {li/owner-exclusive-crud false
-             :inherit {:instance true}}})
+      :rbac {li/owner-exclusive-crud false}})
     (dataflow
      :I711B/CreateUsers
      {:Fractl.Kernel.Identity/User
