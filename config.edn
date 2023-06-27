@@ -3,8 +3,8 @@
  ;; :store {:type :postgres}
  ;; :script-extn ".cljs"
  ;; :interceptors {:rbac {:enabled true}}
- :authentication {:service :cognito
-                  :superuser-email #$ FRACTL_SUPERUSER_EMAIL}
+ ;; :authentication {:service :cognito
+ ;;                  :superuser-email #$ FRACTL_SUPERUSER_EMAIL}
  ;; :authentication {:service :keycloak
  ;;                  :auth-server-url "http://localhost:8080"
  ;;                  :realm "master"
@@ -17,4 +17,4 @@
  ;;          :password #$ FRACTL_DEPLOYMENT_PASSWORD}
  ;; :build {:client {:root-entity :Accounts.Core/Company
  ;;                  :api-host "http://localhost:8080"}}
- :service {:port #$ [FRACTL_HTTP_PORT 8080]}}
+ :service {:port #$ [FRACTL_HTTP_PORT 8000]}}
