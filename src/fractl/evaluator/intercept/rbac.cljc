@@ -260,7 +260,7 @@
           arg
 
           (= :read opr)
-          (let [rslt (extract-read-results data)]
+          (if-let [rslt (seq (extract-read-results data))]
             (if (has-record-level-privilege? opr user rslt)
               (apply-read-attribute-rules user rslt arg)
               (if-let [owned-rslt (and (ii/has-instance-meta? arg)
@@ -271,7 +271,8 @@
                                 (fn [a] (apply-rbac-for-user user env opr (ii/assoc-data-output arg a)))
                                 (fn [] ((opr actions) user {:data % :ignore-refs true})))
                             rslt)
-                  (apply-read-attribute-rules user rslt arg)))))
+                  (apply-read-attribute-rules user rslt arg))))
+            arg)
 
           (= :delete opr)
           (let [[typ id] data]

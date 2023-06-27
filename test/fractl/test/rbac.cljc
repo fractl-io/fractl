@@ -1309,3 +1309,33 @@
 (deftest read-blocked-for-get-all
   (read-blocked-for-get-all-helper true)
   (read-blocked-for-get-all-helper false))
+
+(deftest fetch-with-no-results-bug
+  (lr/reset-events!)
+  (defcomponent :FwRb
+    (entity
+     :FwRb/E
+     {:Id {:type :Int :identity true}
+      :X :Int
+      :rbac [{:roles ["member"] :allow :*}]})
+    (dataflow
+     :FwRb/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@fwrb.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "member" :Assignee "u1@fwrb.com"}}))
+  (is (lr/finalize-events tu/eval-all-dataflows))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:FwRb/InitUsers {}})))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac :instance-meta] (ei/init-interceptors [:rbac :instance-meta])))
+     (let [lookup-e (fn [id]
+                      {:FwRb/Lookup_E
+                       {:Id id}})
+           chk #(is (tu/not-found? %))]
+       (chk
+        (tu/eval-all-dataflows
+         (with-user "u1@fwrb.com" {:FwRb/Lookup_E {:Id 1}})))
+       (is (nil? (seq (tu/result (with-user "u1@fwrb.com" {:FwRb/LookupAll_E {}})))))))))
