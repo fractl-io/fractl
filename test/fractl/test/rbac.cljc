@@ -458,16 +458,10 @@
        :Resource [:q# [:Ilr/CreateE :Ilr/UpdateE
                        :Ilr/DeleteE :Ilr/LookupE
                        :Ilr/UpdateInstancePrivs]]}}
-     {:Fractl.Kernel.Rbac/Privilege
-      {:Name "ilr_p3"
-       :Actions [:q# [:read :update :create :delete]]
-       :Resource [:q# [:Fractl.Kernel.Rbac/InstancePrivilegeAssignment]]}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "ilr_r1" :Privilege "ilr_p1"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "ilr_r1" :Privilege "ilr_p2"}}
-     {:Fractl.Kernel.Rbac/PrivilegeAssignment
-      {:Role "ilr_r1" :Privilege "ilr_p3"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
       {:Role "ilr_r1" :Assignee "ilr_u1@ilr.com"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
@@ -696,11 +690,6 @@
        :Resource [:q# [:I711B/Create_E1 :I711B/CreateE2
                        :I711B/UpdateE2 :I711B/Lookup_E1]]}}
      {:Fractl.Kernel.Rbac/Privilege
-      {:Name "i711b_p3"
-       :Actions [:q# [:eval :update :create :read]]
-       :Resource [:q# [:I711B/AssignInstancePriv
-                       :Fractl.Kernel.Rbac/InstancePrivilegeAssignment]]}}
-     {:Fractl.Kernel.Rbac/Privilege
       {:Name "i711b_p4"
        :Actions [:q# [:read]]
        :Resource [:q# [:I711B/E1 :I711B/R1 :I711B/E2]]}}
@@ -708,8 +697,6 @@
       {:Role "i711b_r1" :Privilege "i711b_p1"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "i711b_r1" :Privilege "i711b_p2"}}
-     {:Fractl.Kernel.Rbac/PrivilegeAssignment
-      {:Role "i711b_r1" :Privilege "i711b_p3"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
       {:Role "i711b_r2" :Privilege "i711b_p2"}}
      {:Fractl.Kernel.Rbac/PrivilegeAssignment
