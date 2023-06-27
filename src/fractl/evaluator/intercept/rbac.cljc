@@ -138,26 +138,32 @@
            result))))
    :continue))
 
+;; NOTE: disabled {:rbac {:inherit {:entity true}}} setting for contains-relationships.
+;; (see issue-711)
+(def ^:private inherit-entity-priv-disabled true)
+
 (defn- check-inherited-entity-privilege [user opr instance rbac-check]
-  (let [entity-name (cond
-                      (keyword? instance)
-                      (li/root-path instance)
+  (if inherit-entity-priv-disabled
+    :continue
+    (let [entity-name (cond
+                        (keyword? instance)
+                        (li/root-path instance)
 
-                      (vector? instance)
-                      (li/make-path instance)
+                        (vector? instance)
+                        (li/make-path instance)
 
-                      :else
-                      (cn/instance-type instance))]
-    (if (cn/entity? entity-name)
-      (if-let [rels (seq (cn/relationships-with-entity-rbac entity-name))]
-        (if (every? #(let [e1 (cn/containing-parent %)]
-                       (or (rbac-check e1)
-                           (= :allow (check-inherited-entity-privilege user opr e1 rbac-check))))
-                    rels)
-          :allow
-          :block)
-        :continue)
-      :continue)))
+                        :else
+                        (cn/instance-type instance))]
+      (if (cn/entity? entity-name)
+        (if-let [rels (seq (cn/relationships-with-entity-rbac entity-name))]
+          (if (every? #(let [e1 (cn/containing-parent %)]
+                         (or (rbac-check e1)
+                             (= :allow (check-inherited-entity-privilege user opr e1 rbac-check))))
+                      rels)
+            :allow
+            :block)
+          :continue)
+        :continue))))
 
 (defn- call-rbac-continuation [user resource opr r c]
   (case r
@@ -182,12 +188,12 @@
    (let [r (if (cn/entity-instance? resource)
              (if (and (some #{opr} #{:update :create :delete :read})
                       (rbac/instance-privilege-assignment-object? resource))
-               (and
-                (user-is-owner?
-                 user env
-                 (rbac/instance-privilege-assignment-resource resource)
-                 (rbac/instance-privilege-assignment-resource-id resource))
-                :allow)
+               (if (user-is-owner?
+                    user env
+                    (rbac/instance-privilege-assignment-resource resource)
+                    (rbac/instance-privilege-assignment-resource-id resource))
+                 :allow
+                 :block)
                (rbac/check-instance-privilege user opr resource))
              :continue)]
      (if (= r :block)
