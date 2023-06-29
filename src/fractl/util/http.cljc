@@ -1,6 +1,7 @@
 (ns fractl.util.http
   (:require #?(:clj  [org.httpkit.client :as http]
                :cljs [cljs-http.client :as http])
+            #?(:clj [org.httpkit.sni-client :as sni-client])
             [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as us]
@@ -9,6 +10,9 @@
             [fractl.global-state :as gs]
             #?(:cljs [cljs.core.async :refer [<!]]))
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
+
+#?(:clj
+   (alter-var-root #'org.httpkit.client/*default-client* (fn [_] sni-client/default-client)))
 
 (def ^:private enc-dec
   {:json [json/decode json/encode]
