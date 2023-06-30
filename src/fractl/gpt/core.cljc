@@ -35,7 +35,6 @@
 
 (def ^:private default-model
   "gpt-3.5-turbo-16k"
-  ;; "curie:ft-personal-2023-06-28-10-58-47"
   )
 
 (defn init-gpt [gpt-model-name api-key]
