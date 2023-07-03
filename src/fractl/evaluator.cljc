@@ -116,7 +116,7 @@
        (if-let [store (env/get-store env)]
          (store/call-in-transaction store f)
          (f nil))
-       (catch Exception ex
+       (catch #?(:clj Exception :cljs :default) ex
          (if-let [r (:eval-result (ex-data ex))]
            r
            (throw ex))))))
