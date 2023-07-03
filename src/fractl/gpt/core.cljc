@@ -2,9 +2,10 @@
   (:require [clojure.string :as s]
             [fractl.util.http :as http]
             [fractl.util :as u]
-            [fractl.datafmt.json :as json]))
+            [fractl.datafmt.json :as json]
+            [fractl.gpt.seed :as seed]))
 
-(def ^:private default-conversation (read-string (slurp "gpt/seed.edn")))
+(def ^:private default-conversation seed/conversation)
 
 (defn- add-to-conversation
   ([history role s]
@@ -70,20 +71,28 @@
 
 (defn- prnf [s]
   #?(:clj
-     (do (print s) (flush))))
+     (do (print s) (flush))
+     :cljs (println s)))
 
 (defn- prompt-for-input [prompt]
   #?(:clj
      (do (prnf prompt)
          (read-line))))
 
-(defn bot []
-  #?(:clj
-     (interactive-generate
-      (fn [choices]
-        (when-let [c (first choices)]
-          (println ">>>> " c)
-          (let [req (prompt-for-input "? ")]
+(defn bot
+  ([prompt-for-input handle-choice app-description]
+   (interactive-generate
+    (fn [choices]
+      (when-let [c (first choices)]
+        (when (handle-choice c)
+          (let [req (prompt-for-input)]
             (when-not (= req "bye")
-              [c req]))))
-      (prompt-for-input "Enter application description: "))))
+              [c req])))))
+    app-description))
+  ([app-description]
+   #?(:clj
+      (bot (partial prompt-for-input "? ")
+           #(do (println ">>>>> " %) true)
+           app-description)
+      :cljs (u/throw-ex (str "no default bot implementation"))))
+  ([] (bot (prompt-for-input "Enter app-description: "))))
