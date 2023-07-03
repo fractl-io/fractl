@@ -2,8 +2,11 @@
   (:require [clojure.string :as s]
             [fractl.util.http :as http]
             [fractl.util :as u]
+            [fractl.component :as cn]
+            [fractl.lang.internal :as li]
             [fractl.datafmt.json :as json]
-            [fractl.gpt.seed :as seed]))
+            [fractl.gpt.seed :as seed])
+  (:use [fractl.lang]))
 
 (def ^:private default-conversation seed/conversation)
 
@@ -79,6 +82,23 @@
      (do (prnf prompt)
          (read-line))))
 
+(defn maybe-intern-component [s]
+  (let [exp (read-string s)]
+    (when (and (seqable? exp) (= (first exp) 'component))
+      (let [exps (read-string (str "(do " s ")"))]
+        (li/evaluate exps)
+        [(second exp) exps]))))
+
+(defn- maybe-pprint-choice [s]
+  #?(:clj
+     (try
+       (if-let [c (maybe-intern-component s)]
+         (do (prnf (cn/entity-names (first c)))
+             (clojure.pprint/pprint (second c)))
+         (prnf s))
+       (catch Exception ex
+         (prnf (str " >>>>> " (.getMessage ex) " choice: " s))))))
+
 (defn bot
   ([prompt-for-input handle-choice app-description]
    (interactive-generate
@@ -92,7 +112,7 @@
   ([app-description]
    #?(:clj
       (bot (partial prompt-for-input "? ")
-           #(do (println ">>>>> " %) true)
+           #(do (maybe-pprint-choice %) true)
            app-description)
       :cljs (u/throw-ex (str "no default bot implementation"))))
   ([] (bot (prompt-for-input "Enter app-description: "))))
