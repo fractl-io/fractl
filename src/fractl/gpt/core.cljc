@@ -3,6 +3,7 @@
             [fractl.util.http :as http]
             [fractl.util :as u]
             [fractl.lang :as ln]
+            [fractl.lang.internal :as li]
             [fractl.datafmt.json :as json]
             [fractl.gpt.seed :as seed]))
 
@@ -75,10 +76,31 @@
      (do (print s) (flush))
      :cljs (println s)))
 
-(defn- prompt-for-input [prompt]
-  #?(:clj
-     (do (prnf prompt)
-         (read-line))))
+(defn- make-input-cache [threshold]
+  (atom {:threshold threshold :count 0 :cache nil}))
+
+(defn- set-cache [input-cache s]
+  (let [c @input-cache, n (:count c)]
+    (when (<= n (:threshold c))
+      (swap! input-cache assoc :count (inc n) :cache s)
+      input-cache)))
+
+(defn- fetch-cache [input-cache]
+  (when-let [s (:cache @input-cache)]
+    (swap! input-cache assoc :cache nil)
+    s))
+
+(defn- reset-input-cache! [input-cache]
+  (swap! input-cache assoc :count 0 :cache nil))
+
+(defn- prompt-for-input
+  ([prompt input-cache]
+   #?(:clj
+      (do (prnf prompt)
+          (or (and input-cache (fetch-cache input-cache))
+              (read-line)))))
+  ([prompt]
+   (prompt-for-input prompt nil)))
 
 (def ^:private model-fns
   {'component ln/component
@@ -89,11 +111,17 @@
    'dataflow ln/dataflow
    'attribute ln/attribute})
 
-(def ^:private model-constructs (keys model-fns))
-
-(defn- model-exp? [x]
+(defn- exp? [tags x]
   (and (seqable? x)
-       (some #{(first x)} model-constructs)))
+       (some #{(first x)} tags)))
+
+(def ^:private clj-constructs #{'defn- 'defn 'def})
+
+(def ^:private clj-exp? (partial exp? clj-constructs))
+
+(def ^:private model-constructs (concat (keys model-fns) clj-constructs))
+
+(def ^:private model-exp? (partial exp? model-constructs))
 
 (defn- remove-invalid-tokens [s]
   (s/join " " (filter #(not (s/ends-with? % ":")) (s/split s #" "))))
@@ -107,20 +135,24 @@
   (let [final-s (read-string (str "(do " (remove-invalid-tokens (trim-to-exp s)) ")"))]
     (when-let [exps (seq (filter model-exp? final-s))]
       (doseq [exp exps]
-        (apply (get model-fns (first exp)) (rest exp)))
+        (if (clj-exp? exp)
+          (li/evaluate exp)
+          (apply (get model-fns (first exp)) (rest exp))))
       `(do ~@exps))))
 
-(defn- print-choice [s]
+(defn- print-choice [s input-cache]
   (try
     (if-let [c (maybe-intern-component s)]
       (clojure.pprint/pprint c)
       (prnf s))
     (catch #?(:clj Exception :cljs :default) ex
-      (.printStackTrace ex)
       (let [msg #?(:clj (str (.getMessage ex)
                              (ex-data ex))
-                   :cljs ex)]
-        (prnf (str "ERROR: " msg ", choice: " s))))))
+                   :cljs ex)
+            s (str "ERROR: " msg)]
+        (when-not (set-cache input-cache s)
+          (reset-input-cache! input-cache)
+          (prnf (str s ", choice: " s)))))))
 
 (defn bot
   ([prompt-for-input handle-choice app-description]
@@ -134,8 +166,9 @@
     app-description))
   ([app-description]
    #?(:clj
-      (bot (partial prompt-for-input "? ")
-           #(do (print-choice %) true)
-           app-description)
+      (let [error-cache (make-input-cache 3)]
+        (bot (partial prompt-for-input "? " error-cache)
+             #(do (print-choice % error-cache) true)
+             app-description))
       :cljs (u/throw-ex (str "no default bot implementation"))))
   ([] (bot (prompt-for-input "Enter app-description: "))))
