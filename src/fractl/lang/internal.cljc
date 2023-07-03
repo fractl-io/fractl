@@ -132,13 +132,15 @@
     (every? single-spec? x)))
 
 (defn clj-import-list? [x]
-  (and (seq x)
-       (every?
-        (fn [entry]
-          (let [k (first entry)]
-            (and (some #{k} #{:require :use :import :refer :refer-macros})
-                 (every? vector? (rest entry)))))
-        x)))
+  (if (and (seqable? x) (= (first x) 'quote))
+    (clj-import-list? (first (rest x)))
+    (and (seq x)
+         (every?
+          (fn [entry]
+            (let [k (first entry)]
+              (and (some #{k} #{:require :use :import :refer :refer-macros})
+                   (every? vector? (rest entry)))))
+          x))))
 
 (defn do-clj-import [clj-import]
   #?(:clj

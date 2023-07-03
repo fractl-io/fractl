@@ -2,11 +2,9 @@
   (:require [clojure.string :as s]
             [fractl.util.http :as http]
             [fractl.util :as u]
-            [fractl.component :as cn]
-            [fractl.lang.internal :as li]
+            [fractl.lang :as ln]
             [fractl.datafmt.json :as json]
-            [fractl.gpt.seed :as seed])
-  (:use [fractl.lang]))
+            [fractl.gpt.seed :as seed]))
 
 (def ^:private default-conversation seed/conversation)
 
@@ -82,22 +80,47 @@
      (do (prnf prompt)
          (read-line))))
 
-(defn maybe-intern-component [s]
-  (let [exp (read-string s)]
-    (when (and (seqable? exp) (= (first exp) 'component))
-      (let [exps (read-string (str "(do " s ")"))]
-        (li/evaluate exps)
-        [(second exp) exps]))))
+(def ^:private model-fns
+  {'component ln/component
+   'entity ln/entity
+   'record ln/record
+   'event ln/event
+   'relationship ln/relationship
+   'dataflow ln/dataflow
+   'attribute ln/attribute})
 
-(defn- maybe-pprint-choice [s]
-  #?(:clj
-     (try
-       (if-let [c (maybe-intern-component s)]
-         (do (prnf (cn/entity-names (first c)))
-             (clojure.pprint/pprint (second c)))
-         (prnf s))
-       (catch Exception ex
-         (prnf (str " >>>>> " (.getMessage ex) " choice: " s))))))
+(def ^:private model-constructs (keys model-fns))
+
+(defn- model-exp? [x]
+  (and (seqable? x)
+       (some #{(first x)} model-constructs)))
+
+(defn- remove-invalid-tokens [s]
+  (s/join " " (filter #(not (s/ends-with? % ":")) (s/split s #" "))))
+
+(defn- trim-to-exp [s]
+  (if-let [i (s/index-of s "(")]
+    (subs s i)
+    s))
+
+(defn maybe-intern-component [s]
+  (let [final-s (read-string (str "(do " (remove-invalid-tokens (trim-to-exp s)) ")"))]
+    (when-let [exps (seq (filter model-exp? final-s))]
+      (doseq [exp exps]
+        (apply (get model-fns (first exp)) (rest exp)))
+      `(do ~@exps))))
+
+(defn- print-choice [s]
+  (try
+    (if-let [c (maybe-intern-component s)]
+      (clojure.pprint/pprint c)
+      (prnf s))
+    (catch #?(:clj Exception :cljs :default) ex
+      (.printStackTrace ex)
+      (let [msg #?(:clj (str (.getMessage ex)
+                             (ex-data ex))
+                   :cljs ex)]
+        (prnf (str "ERROR: " msg ", choice: " s))))))
 
 (defn bot
   ([prompt-for-input handle-choice app-description]
@@ -112,7 +135,7 @@
   ([app-description]
    #?(:clj
       (bot (partial prompt-for-input "? ")
-           #(do (maybe-pprint-choice %) true)
+           #(do (print-choice %) true)
            app-description)
       :cljs (u/throw-ex (str "no default bot implementation"))))
   ([] (bot (prompt-for-input "Enter app-description: "))))
