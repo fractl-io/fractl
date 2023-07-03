@@ -9,13 +9,13 @@
 
 (def ^:private default-conversation seed/conversation)
 
-(defn- add-to-conversation
+(defn add-to-conversation
   ([history role s]
    (concat history [{:role role :content s}]))
   ([s]
    (add-to-conversation default-conversation "user" s)))
 
-(defn- post [gpt result-handler request]
+(defn post [gpt result-handler request]
   (http/do-post
    "https://api.openai.com/v1/chat/completions"
    {:headers {"Content-Type" "application/json"
@@ -44,14 +44,6 @@
   {:gpt-model gpt-model-name
    :api-key api-key})
 
-;; Sample usage: (generate "a library application")
-(defn generate
-  ([gpt-model-name api-key request continuation]
-   (let [gpt (init-gpt gpt-model-name api-key)]
-     (post gpt continuation (add-to-conversation request))))
-  ([app-request]
-   (generate default-model (u/getenv "OPENAI_API_KEY") app-request println)))
-
 (defn- interactive-generate-helper [gpt response-handler request]
   (let [request (if (string? request)
                   (add-to-conversation request)
@@ -70,6 +62,25 @@
    (interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
   ([response-handler request]
    (interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
+
+(defn non-interactive-generate-helper [gpt response-handler request]
+  (let [request (if (string? request)
+                  (add-to-conversation request)
+                  request)]
+    (post gpt (fn [r]
+                (response-handler
+                 (choices (:chat-response r))
+                 (fn [choice next-request]
+                   (add-to-conversation
+                    (add-to-conversation request "assistant" choice)
+                    "user" next-request))))
+          request)))
+
+(defn non-interactive-generate
+  ([gpt-model-name api-key response-handler request]
+   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
+  ([response-handler request]
+   (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 
 (defn- prnf [s]
   #?(:clj
@@ -96,9 +107,8 @@
 (defn- prompt-for-input
   ([prompt input-cache]
    #?(:clj
-      (do (prnf prompt)
-          (or (and input-cache (fetch-cache input-cache))
-              (read-line)))))
+      (or (and input-cache (fetch-cache input-cache))
+          (do (prnf prompt) (read-line)))))
   ([prompt]
    (prompt-for-input prompt nil)))
 
