@@ -162,11 +162,18 @@
 
 (defn- process-gpt-chat [[_ maybe-unauth] request]
   (or (maybe-unauth request)
-      (let [[obj data-fmt err-response] (request-object request)]
+      (let [[obj _ err-response] (request-object request)]
         (or err-response
-            (let [choices (atom nil)]
-              (gpt/non-interactive-generate (fn [cs _] (reset! choices cs)) obj)
-              (ok @choices))))))
+            (let [resp (atom nil)]
+              (gpt/non-interactive-generate
+               (fn [cs f]
+                 (let [choice (first cs)]
+                   (reset!
+                    resp
+                    {:choice choice
+                     :chat-history (f choice "<insert-next-request-here>")})))
+               obj)
+              (ok @resp))))))
 
 (defn- parse-rest-uri [request]
   (uh/parse-rest-uri (:* (:params request))))
