@@ -46,6 +46,7 @@
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
 (def callback-prefix "/_callback/")
+(def gpt-prefix "/_gpt/")
 
 (defn- remote-resolver-error [response]
   (u/throw-ex (str "remote resolver error - " (or (:error response) response))))

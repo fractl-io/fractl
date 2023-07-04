@@ -12,6 +12,7 @@
             [fractl.util :as u]
             [fractl.util.http :as uh]
             [fractl.util.logger :as log]
+            [fractl.gpt.core :as gpt]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors])
   (:use [compojure.core :only [routes POST PUT DELETE GET]]
@@ -148,19 +149,27 @@
   (mapv (fn [n] {n (cn/entity-schema n)})
         (cn/entity-names component)))
 
-(defn- process-meta-request [[_ maybe-unauth] request]
-  (or (maybe-unauth request)
-      (let [c (keyword (get-in request [:params :component]))]
-        (ok {:paths (paths-info c) :schemas (schemas-info c)}))))
-
-(defn- parse-rest-uri [request]
-  (uh/parse-rest-uri (:* (:params request))))
-
 (defn- request-object [request]
   (if-let [data-fmt (find-data-format request)]
     [(when-let [body (:body request)]
        ((uh/decoder data-fmt) (String. (.bytes body)))) data-fmt nil]
     [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)))]))
+
+(defn- process-meta-request [[_ maybe-unauth] request]
+  (or (maybe-unauth request)
+      (let [c (keyword (get-in request [:params :component]))]
+        (ok {:paths (paths-info c) :schemas (schemas-info c)}))))
+
+(defn- process-gpt-chat [[_ maybe-unauth] request]
+  (or (maybe-unauth request)
+      (let [[obj data-fmt err-response] (request-object request)]
+        (or err-response
+            (let [choices (atom nil)]
+              (gpt/non-interactive-generate (fn [cs _] (reset! choices cs)) obj)
+              (ok @choices))))))
+
+(defn- parse-rest-uri [request]
+  (uh/parse-rest-uri (:* (:params request))))
 
 (defn- parse-attr [entity-name attr v]
   (let [scm (cn/fetch-schema entity-name)
@@ -641,6 +650,7 @@
            (DELETE (str uh/entity-event-prefix "*") [] (:delete-request handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
+           (POST uh/gpt-prefix [] (:gpt handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
@@ -699,6 +709,7 @@
           :delete-request (partial process-delete-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
+          :gpt (partial process-gpt-chat auth-info)
           :meta (partial process-meta-request auth-info)})
         (if (:thread config)
           config
