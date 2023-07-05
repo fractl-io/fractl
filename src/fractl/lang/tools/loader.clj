@@ -1,6 +1,6 @@
 (ns fractl.lang.tools.loader
   "Component script loading with pre-processing."
-  (:require [clojure.java.io :as io]
+  (:require #?(:clj [clojure.java.io :as io])
             [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.util :as u]
@@ -165,7 +165,8 @@
                    model-paths))))))))
   ([model-file]
    (let [model (read-model-expressions model-file)
-         root (java.io.File. (.getParent (java.io.File. model-file)))]
+         root #?(:clj (java.io.File. (.getParent (java.io.File. model-file)))
+                 :cljs nil)]
      [model (str root)])))
 
 (defn load-components
@@ -175,7 +176,8 @@
       #(load-script
         model-root
         (if load-from-resource
-          (io/resource (str "model/" model-root "/" %))
+          #?(:clj (io/resource (str "model/" model-root "/" %))
+             :cljs (u/throw-ex "load-from-resource: not supported in cljs"))
           %))
       component-scripts)))
   ([component-scripts model-root]
