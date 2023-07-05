@@ -11,7 +11,8 @@
             [fractl.lang.internal :as li]
             [fractl.lang.tools.util :as tu]
             [fractl.evaluator.state :as es])
-  (:import [java.io FileInputStream InputStreamReader PushbackReader]))
+  #?(:clj
+     (:import [java.io FileInputStream InputStreamReader PushbackReader])))
 
 (defn- record-name [obj]
   (let [n (cond
@@ -27,7 +28,8 @@
     (or b a)))
 
 (defn- fetch-declared-names [script-file]
-  (loop [exps (read-string (str "(do" (slurp script-file) ")"))
+  (loop [exps #?(:clj (read-string (str "(do" (slurp script-file) ")"))
+                 :cljs nil)
          result {}]
     (if-let [exp (first exps)]
       (recur
@@ -54,24 +56,25 @@
    is preprocessed to add component-name prefixes to names. Then the expression is evaluated.
    Return a list with the results of evaluations."
   ([file-name-or-input-stream declared-names]
-   (let [reader (PushbackReader.
-                 (InputStreamReader.
-                  (if (string? file-name-or-input-stream)
-                    (FileInputStream. file-name-or-input-stream)
-                    (io/input-stream file-name-or-input-stream))))
-         rdf #(read reader nil :done)
-         fqn (if declared-names
-               (partial nu/fully-qualified-names declared-names)
-               identity)
-         parser (if *parse-expressions* eval identity)]
-     (use '[fractl.lang])
-     (try
-       (loop [exp (rdf), exps nil]
-         (if (= exp :done)
-           (reverse exps)
-           (recur (rdf) (conj exps (parser (fqn exp))))))
-       (finally
-         (iou/safe-close reader)))))
+   #?(:clj
+      (let [reader (PushbackReader.
+                    (InputStreamReader.
+                     (if (string? file-name-or-input-stream)
+                       (FileInputStream. file-name-or-input-stream)
+                       (io/input-stream file-name-or-input-stream))))
+            rdf #(read reader nil :done)
+            fqn (if declared-names
+                  (partial nu/fully-qualified-names declared-names)
+                  identity)
+            parser (if *parse-expressions* eval identity)]
+        (use '[fractl.lang])
+        (try
+          (loop [exp (rdf), exps nil]
+            (if (= exp :done)
+              (reverse exps)
+              (recur (rdf) (conj exps (parser (fqn exp))))))
+          (finally
+            (iou/safe-close reader))))))
   ([file-name-or-input-stream]
    (read-expressions
     file-name-or-input-stream
@@ -82,31 +85,32 @@
   ([^String component-root-path file-name-or-input-stream]
    (log/info (str "Component root path: " component-root-path))
    (log/info (str "File name: " file-name-or-input-stream))
-   (let [input-reader? (not (string? file-name-or-input-stream))
-        file-ident
-         (if input-reader?
-           (InputStreamReader. (io/input-stream file-name-or-input-stream))
-           (if (and
-                component-root-path
-                (not (.startsWith
-                      file-name-or-input-stream
-                      component-root-path)))
-             (str component-root-path iou/path-sep file-name-or-input-stream)
-             file-name-or-input-stream))
-         names (fetch-declared-names file-ident)
-         component-name (:component names)]
-     (when (and component-name (cn/component-exists? component-name))
-       (cn/remove-component component-name))
-     (let [exprs (binding [*ns* *ns*]
-                   (read-expressions
-                    (if input-reader?
-                      file-name-or-input-stream
-                      file-ident)
-                    names))]
-       (if *parse-expressions*
-         (when (and component-name (cn/component-exists? component-name))
-           component-name)
-         (vec exprs)))))
+   #?(:clj
+      (let [input-reader? (not (string? file-name-or-input-stream))
+            file-ident
+            (if input-reader?
+              (InputStreamReader. (io/input-stream file-name-or-input-stream))
+              (if (and
+                   component-root-path
+                   (not (.startsWith
+                         file-name-or-input-stream
+                         component-root-path)))
+                (str component-root-path iou/path-sep file-name-or-input-stream)
+                file-name-or-input-stream))
+            names (fetch-declared-names file-ident)
+            component-name (:component names)]
+        (when (and component-name (cn/component-exists? component-name))
+          (cn/remove-component component-name))
+        (let [exprs (binding [*ns* *ns*]
+                      (read-expressions
+                       (if input-reader?
+                         file-name-or-input-stream
+                         file-ident)
+                       names))]
+          (if *parse-expressions*
+            (when (and component-name (cn/component-exists? component-name))
+              component-name)
+            (vec exprs))))))
   ([file-name-or-input-stream]
    (load-script nil file-name-or-input-stream)))
 
@@ -134,7 +138,8 @@
     (binding [*ns* *ns*]
       (last (read-expressions model-file nil)))
     (catch Exception ex
-      (.printStackTrace ex))))
+      #?(:clj (.printStackTrace ex)
+         :cljs (println ex)))))
 
 (defn- verified-model-file-path
   ([model-script-name root-dir model-dir]
@@ -142,7 +147,7 @@
                 (when model-dir
                   (str model-dir iou/path-sep))
                 model-script-name)]
-     (and (.exists (java.io.File. p)) p)))
+     (and #?(:clj (.exists (java.io.File. p)) :cljs true) p)))
   ([model-script-name root-dir]
    (verified-model-file-path
     model-script-name root-dir nil)))
@@ -166,8 +171,7 @@
                    model-paths))))))))
   ([model-file]
    (let [model (read-model-expressions model-file)
-         root #?(:clj (java.io.File. (.getParent (java.io.File. model-file)))
-                 :cljs nil)]
+         root (iou/get-parent model-file)]
      [model (str root)])))
 
 (defn load-components
@@ -177,8 +181,7 @@
       #(load-script
         model-root
         (if load-from-resource
-          #?(:clj (io/resource (str "model/" model-root "/" %))
-             :cljs (u/throw-ex "load-from-resource: not supported in cljs"))
+          (iou/resource (str "model/" model-root "/" %))
           %))
       component-scripts)))
   ([component-scripts model-root]

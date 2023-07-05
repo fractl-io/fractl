@@ -1,6 +1,7 @@
 (ns fractl.util.io
   (:require [clojure.string :as s]
             [clojure.pprint :as pp]
+            [fractl.util.common :as uc]
             #?(:clj [clojure.java.io :as io]))
     #?(:clj
      (:import [java.io File]
@@ -107,3 +108,7 @@
             (java.io.File. p))
      :cljs (when-let [i (s/last-index-of file-name path-sep)]
              (subs file-name 0 i))))
+
+(defn resource [path]
+  #?(:clj (io/resource path)
+     :cljs (uc/throw-ex "load-from-resource: not supported in cljs")))

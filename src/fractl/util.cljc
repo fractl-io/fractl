@@ -1,5 +1,6 @@
 (ns fractl.util
   (:require [clojure.string :as string]
+            [fractl.util.common :as uc]
             [fractl.datafmt.json :as json])
   #?(:clj
      (:require [net.cgrand.macrovich :as macros])
@@ -7,20 +8,8 @@
      (:require-macros [net.cgrand.macrovich :as macros]
                       [fractl.util :refer [passthru]])))
 
-(defn throw-ex-info
-  ([msg errobj]
-   (throw (ex-info msg errobj)))
-  ([msg] (throw-ex-info msg nil)))
-
-(defn throw-ex
-  [msg]
-  #?(:clj
-     (throw (Exception. msg))
-     :cljs
-     (let [e (js/Error. msg)]
-       (println msg)
-       (.log js/console (.-stack e))
-       (throw e))))
+(def throw-ex-info uc/throw-ex-info)
+(def throw-ex uc/throw-ex)
 
 (macros/deftime
   (defmacro passthru
