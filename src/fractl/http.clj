@@ -24,10 +24,7 @@
    Also see: https://github.com/ring-clojure/ring/wiki/Creating-responses"
   [json-obj status data-fmt]
   {:status status
-   :headers {"Content-Type" (uh/content-type data-fmt)
-             "Access-Control-Allow-Origin" "*"
-             "Access-Control-Allow-Methods" "GET,POST,PUT,DELETE"
-             "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"}
+   :headers {"Content-Type" (uh/content-type data-fmt)}
    :body ((uh/encoder data-fmt) json-obj)})
 
 (defn- unauthorized
