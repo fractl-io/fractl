@@ -4,6 +4,7 @@
             [clojure.string :as s]
             [fractl.datafmt.json :as json]
             [fractl.util :as u]
+            [fractl.util.io :as iou]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.http :as h]
@@ -97,7 +98,7 @@
   (and (seq (su/nonils args))
        (= (count args) 1)
        (let [f (first args)]
-         (and (s/ends-with? f (u/get-model-script-name))
+         (and (s/ends-with? f (iou/get-model-script-name))
               f))))
 
 (defn- maybe-read-model [args]
@@ -243,21 +244,21 @@
       [(:full-model-path config)]))
 
 (defn- load-config [options]
-  (u/read-config-file (get options :config "config.edn")))
+  (iou/read-config-file (get options :config "config.edn")))
 
 (def ^:private config-data-key :-*-config-data-*-)
 
 (defn read-model-and-config [args options]
   (let [config (or (config-data-key options) (load-config options))]
     (when-let [extn (:script-extn config)]
-      (u/set-script-extn! extn))
+      (iou/set-script-extn! extn))
     (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))]
       [m (merge (:config model) config)])))
 
 (defn- read-model-from-resource [component-root]
   (let [^String s (slurp
                    (io/resource
-                    (str "model/" component-root "/" (u/get-model-script-name))))]
+                    (str "model/" component-root "/" (iou/get-model-script-name))))]
     (if-let [model (loader/read-model-expressions (io/input-stream (.getBytes s)))]
       model
       (u/throw-ex (str "failed to load model from " component-root)))))
@@ -268,7 +269,7 @@
   (when-let [cfgres (io/resource "config.edn")]
     (let [config (read-string (slurp cfgres))]
       (when-let [extn (:script-extn config)]
-        (u/set-script-extn! extn))
+        (iou/set-script-extn! extn))
       (if-let [component-root (:component-root config)]
         (let [model (read-model-from-resource component-root)
               config (merge (:config model) config)

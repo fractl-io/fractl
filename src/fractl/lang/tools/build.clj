@@ -95,10 +95,10 @@
 (defn- create-clj-project [model-name version]
   (let [app-name (if version (str model-name ":" version) model-name)
         cmd (str "lein new fractl-model " app-name)]
-    (u/exec-in-directory out-file cmd)))
+    (iou/exec-in-directory out-file cmd)))
 
 (defn- exec-for-model [model-name cmd]
-  (let [f (partial u/exec-in-directory (project-dir model-name))]
+  (let [f (partial iou/exec-in-directory (project-dir model-name))]
     (if (string? cmd)
       (f cmd)
       ;; else, a vector of commands
