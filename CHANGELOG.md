@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.4.0] - 2023-07-05
+-   GPT integration for generating app
 
 ## [0.3.3] - 2023-06-27
 
