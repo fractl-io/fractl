@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2023-07-05
+
 ## [0.3.3] - 2023-06-27
+
 -   Significant RBAC related enhancements
     -   RBAC centered around graph data model
     -   RBAC DSL
@@ -113,7 +116,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.3.3...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.4.0...HEAD
+
+[0.4.0]: https://github.com/fractl-io/fractl/compare/0.3.3...0.4.0
 
 [0.3.3]: https://github.com/fractl-io/fractl/compare/0.3.2...0.3.3
 
