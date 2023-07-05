@@ -216,3 +216,6 @@
   #?(:clj read-string
      :cljs cljs.reader/read-string))
 
+(defn strs
+  ([j ss] (string/join j ss))
+  ([ss] (string/join "\n" ss)))

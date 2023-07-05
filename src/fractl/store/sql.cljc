@@ -23,25 +23,29 @@
      (keys (dissoc query :where)))
     [:*]))
 
+(defn- maybe-remove-where [qpat]
+  (if (:where qpat) qpat (dissoc qpat :where)))
+
 (defn format-sql [table-name query]
   (let [wildcard (make-wildcard query)
         final-pattern
-        (if (map? query)
-          (merge
-           {:select wildcard :from [(keyword table-name)]}
-           (attach-column-name-prefixes query))
-          (let [where-clause (attach-column-name-prefixes query)
-                p {:select wildcard
-                   :from [(keyword table-name)]}]
-            (if where-clause
-              (assoc p :where
-                     (let [f (first where-clause)]
-                       (cond
-                         (string? f)
-                         [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
-                         (seqable? f) f
-                         :else where-clause)))
-              p)))]
+        (maybe-remove-where
+         (if (map? query)
+           (merge
+            {:select wildcard :from [(keyword table-name)]}
+            (attach-column-name-prefixes query))
+           (let [where-clause (attach-column-name-prefixes query)
+                 p {:select wildcard
+                    :from [(keyword table-name)]}]
+             (if where-clause
+               (assoc p :where
+                      (let [f (first where-clause)]
+                        (cond
+                          (string? f)
+                          [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
+                          (seqable? f) f
+                          :else where-clause)))
+               p))))]
     (hsql/format final-pattern)))
 
 (defn- concat-where-clauses [clauses]

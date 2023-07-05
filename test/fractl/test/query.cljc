@@ -501,3 +501,45 @@
          (mapv #(and (or (= 3 (:X %)) (= 5 (:X %)))
                      (= 200 (:Y %)))
                rs)))))
+
+(deftest ai-test
+  (defcomponent :Acme
+    (entity :Acme/Sales {:Date :DateTime :Price :Decimal})
+    (dataflow :Acme/SalesSummary {:Acme/Sales? {:where [:> :Date :Acme/SalesSummary.Date] :sum :Price :avg :Price}})
+    (dataflow :Acme/SalesRange {:Acme/Sales? {:where [:> :Date :Acme/SalesRange.Date] :max :Price :min :Price}})
+    (dataflow :Acme/SalesCount {:Acme/Sales? {:where [:> :Date :Acme/SalesCount.Date] :count :Price}})
+    (dataflow :Acme/SalesBelowOrEqual1500 {:Acme/Sales? {:where [:<= :Price 1500] :order-by [:Date]}})
+    (dataflow :Acme/SalesBelowOrEqual1500Desc {:Acme/Sales? {:where [:<= :Price 1500] :order-by [[:Date :desc]]}})
+    (dataflow :Acme/SalesByPrice {:Acme/Sales? {:order-by [:Price]}}))
+  (let [all-sales? (partial every? (partial cn/instance-of? :Acme/Sales))]
+    (is all-sales?
+        (mapv #(tu/first-result
+                {:Acme/Create_Sales
+                 {:Instance
+                  {:Acme/Sales {:Date %1 :Price %2}}}})
+              ["2023-07-04T10:56:46.41097409"
+               "2023-05-04T10:56:46.41097409"
+               "2023-07-03T10:56:46.41097409"
+               "2023-06-04T10:56:46.41097409"
+               "2023-04-04T10:56:46.41097409"]
+              [1000.0 1500.0 2000.0 2200.0 800.0]))
+    (let [rs (tu/first-result {:Acme/SalesSummary {:Date "2023-06-04T10:56:46.41097409"}})]
+      (is (= (float (:sum rs)) 3000.0))
+      (is (= (float (:avg rs)) 1500.0)))
+    (let [rs (tu/first-result {:Acme/SalesRange {:Date "2023-06-04T10:56:46.41097409"}})]
+      (is (= (float (:max rs)) 2000.0))
+      (is (= (float (:min rs)) 1000.0)))
+    (let [rs (tu/first-result {:Acme/SalesCount {:Date "2023-06-04T10:56:46.41097409"}})]
+      (is (= (:count rs) 2)))
+    (let [rs (tu/result {:Acme/SalesBelowOrEqual1500 {}})]
+      (is (all-sales? rs))
+      (is (= (count rs) 3))
+      (let [rs2 (tu/result {:Acme/SalesBelowOrEqual1500Desc {}})]
+        (is (all-sales? rs2))
+        (is (= (count rs2) 3))
+        (is (= (reverse rs) rs2))))
+    (let [rs (tu/result {:Acme/SalesByPrice {}})]
+      (is (all-sales? rs))
+      (is (= (count rs) 5))
+      (is (= (float (:Price (first rs))) 800.0))
+      (is (= (float (:Price (last rs))) 2200.0)))))

@@ -23,6 +23,7 @@
             [fractl.lang.tools.deploy :as d]
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac]
+            [fractl.gpt.core :as gpt]
             [fractl.swagger.doc :as doc]
             [fractl.swagger.docindex :as docindex])
   (:import [java.util Properties]
@@ -37,6 +38,7 @@
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
    ["-s" "--doc MODEL" "Generate documentation in .html"]
+   ["-i" "--interactive" "Model an application in the interactive mode with the AI assist"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -362,6 +364,7 @@
       (:doc options) (generate-swagger-doc
                       (:doc options)
                       args)
+      (:interactive options) (gpt/bot)
       :else
       (or (some
            identity
