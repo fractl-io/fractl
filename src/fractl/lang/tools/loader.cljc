@@ -4,6 +4,7 @@
             [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.util.io :as iou]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang.name-util :as nu]
@@ -70,7 +71,7 @@
            (reverse exps)
            (recur (rdf) (conj exps (parser (fqn exp))))))
        (finally
-         (u/safe-close reader)))))
+         (iou/safe-close reader)))))
   ([file-name-or-input-stream]
    (read-expressions
     file-name-or-input-stream
@@ -90,7 +91,7 @@
                 (not (.startsWith
                       file-name-or-input-stream
                       component-root-path)))
-             (str component-root-path u/path-sep file-name-or-input-stream)
+             (str component-root-path iou/path-sep file-name-or-input-stream)
              file-name-or-input-stream))
          names (fetch-declared-names file-ident)
          component-name (:component names)]
@@ -137,9 +138,9 @@
 
 (defn- verified-model-file-path
   ([model-script-name root-dir model-dir]
-   (let [p (str root-dir u/path-sep
+   (let [p (str root-dir iou/path-sep
                 (when model-dir
-                  (str model-dir u/path-sep))
+                  (str model-dir iou/path-sep))
                 model-script-name)]
      (and (.exists (java.io.File. p)) p)))
   ([model-script-name root-dir]
@@ -149,7 +150,7 @@
 (defn read-model
   ([model-paths model-name]
    (let [fpath (partial verified-model-file-path
-                        (u/get-model-script-name))]
+                        (iou/get-model-script-name))]
      (if-let [p (fpath ".")]
        (read-model p)
        (let [s (if (keyword? model-name)
@@ -190,7 +191,7 @@
         (Character/isUpperCase c) (recur (rest s) "_" (conj result sep (Character/toLowerCase c)))
         (or (= \/ c) (= \. c)) (recur (rest s) "" (conj result java.io.File/separator))
         :else (recur (rest s) sep (conj result c)))
-      (str (s/join result) (u/get-script-extn)))))
+      (str (s/join result) (iou/get-script-extn)))))
 
 (defn load-components-from-model
   ([model model-root load-from-resource]

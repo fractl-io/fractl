@@ -1,11 +1,12 @@
 (ns fractl.package
   (:require [clojure.string :as s]
-            [fractl.util :as u])
+            [fractl.util :as u]
+            [fractl.util.io :as iou])
   (:import [java.io File]
            [java.util.regex Pattern]
            [fractl.filesystem Util]))
 
-(def ^:private path-split-pat (re-pattern (Pattern/quote u/path-sep)))
+(def ^:private path-split-pat (re-pattern (Pattern/quote iou/path-sep)))
 (def ^:private model-resource-root "app")
 
 (defn- project-spec [project-name model]
@@ -23,7 +24,7 @@
         [:dependencies deps])))
 
 (defn- fetch-app-config [model-root-dir launch-config]
-  (let [^File file (File. (str model-root-dir u/path-sep "config.edn"))]
+  (let [^File file (File. (str model-root-dir iou/path-sep "config.edn"))]
     (if (.exists file)
       (slurp file)
       launch-config)))
@@ -32,19 +33,19 @@
   (when-not (Util/forceDeleteDirectory project-dir)
     (u/throw-ex (str "failed to delete old project directory - " project-dir)))
   (let [mdir (last (s/split model-root-dir path-split-pat))
-        dest-root (str project-dir u/path-sep model-resource-root)
-        mroot (str dest-root u/path-sep mdir)
+        dest-root (str project-dir iou/path-sep model-resource-root)
+        mroot (str dest-root iou/path-sep mdir)
         mfile (.getName (File. model-file))]
     (Util/maybeCreateDirectories dest-root)
-    (u/pretty-spit (str project-dir u/path-sep "config.edn")
-                   (assoc (fetch-app-config model-root-dir config)
-                          :full-model-path
-                          (str "." u/path-sep model-resource-root
-                               u/path-sep mdir u/path-sep mfile)))
-    (u/pretty-spit (str project-dir u/path-sep "project.clj")
-                   (project-spec project-dir model))
+    (iou/pretty-spit (str project-dir iou/path-sep "config.edn")
+                     (assoc (fetch-app-config model-root-dir config)
+                            :full-model-path
+                            (str "." iou/path-sep model-resource-root
+                                 iou/path-sep mdir iou/path-sep mfile)))
+    (iou/pretty-spit (str project-dir iou/path-sep "project.clj")
+                     (project-spec project-dir model))
     (Util/copyDirectory model-root-dir mroot))
-  {:model (:name model) :project-path (str "." u/path-sep project-dir)})
+  {:model (:name model) :project-path (str "." iou/path-sep project-dir)})
 
 (defn- normalize-model-name-dir [s]
   (s/replace s #"/" "_"))

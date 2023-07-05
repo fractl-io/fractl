@@ -2,6 +2,7 @@
   (:require [clojure.string :as s]
             [clojure.set :as set]
             [fractl.util :as u]
+            [fractl.util.io :as iou]
             [fractl.global-state :as gs]
             #?(:cljs
                [cljs.js :refer [eval empty-state js-eval]])))
@@ -257,7 +258,7 @@
         names (s/join "." (map lowercase-component parts))]
     names))
 
-(def pwd-prefix (str "." u/path-sep))
+(def pwd-prefix (str "." iou/path-sep))
 
 (defn- trim-path-prefix
   "Return file-name after removing any of these path prefixes: path-prefix, ./, ., /"
@@ -269,7 +270,7 @@
      (s/starts-with? file-name pwd-prefix)
      (subs file-name 2)
 
-     (or (s/starts-with? file-name u/path-sep)
+     (or (s/starts-with? file-name iou/path-sep)
          (s/starts-with? file-name "."))
      (subs file-name 1)
 
@@ -280,9 +281,9 @@
   (let [parts (.split (trim-path-prefix
                        (trim-path-prefix file-name)
                        component-root-path)
-                      u/path-sep)
+                      iou/path-sep)
         ns-parts (concat (take (dec (count parts)) parts)
-                         [(u/remove-extension (last parts))])
+                         [(iou/remove-extension (last parts))])
         names (s/join "." (map uppercase-component ns-parts))]
     (keyword names)))
 

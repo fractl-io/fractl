@@ -5,6 +5,7 @@
             [clojure.java.io :as io]
             [clojure.walk :as w]
             [fractl.util :as u]
+            [fractl.util.io :as iou]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang.tools.build.client :as cl]
@@ -44,17 +45,17 @@
   (s/replace logback-xml "$app-version" (str model-name "-" model-version)))
 
 (defn- as-path [s]
-  (s/replace s #"[\.\-_]" u/path-sep))
+  (s/replace s #"[\.\-_]" iou/path-sep))
 
 (defn- sanitize [s]
   (s/replace s "-" "_"))
 
 (defn project-dir [model-name]
-  (str out-dir u/path-sep model-name u/path-sep))
+  (str out-dir iou/path-sep model-name iou/path-sep))
 
 (defn standalone-jar [model-name]
   (try
-    (let [^File dir (File. (str (project-dir model-name) u/path-sep "target"))
+    (let [^File dir (File. (str (project-dir model-name) iou/path-sep "target"))
           ^IOFileFilter ff (WildcardFileFilter. "*standalone*.jar")
           files (FileUtils/iterateFiles dir ff nil)]
       (when-let [rs (first (iterator-seq files))]
@@ -80,7 +81,7 @@
           (pprint/pprint contents w))))))
 
 (defn- client-path [model-name]
-  (let [path (str (project-dir model-name) "client" u/path-sep)
+  (let [path (str (project-dir model-name) "client" iou/path-sep)
         f (File. path)]
     (FileUtils/createParentDirectories f)
     (.mkdir f)
@@ -135,8 +136,8 @@
         dirs (butlast parts)
         file-name
         (str
-         "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep
-         (s/join u/path-sep (concat dirs [(str compname ".cljc")])))]
+         "src" iou/path-sep (sanitize model-name) iou/path-sep "model" iou/path-sep
+         (s/join iou/path-sep (concat dirs [(str compname ".cljc")])))]
     (write file-name component :write-each)
     component-name))
 
@@ -231,7 +232,7 @@
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c)) :as (symbol (name c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:require ~@req-comp))
         model (dissoc model :clj-dependencies :repositories)]
-    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
+    (write (str "src" iou/path-sep (sanitize model-name) iou/path-sep "model" iou/path-sep "model.cljc")
            [ns-decl model
             `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))]
            :write-each)))
@@ -239,9 +240,9 @@
 (def ^:private config-edn "config.edn")
 
 (defn- write-config-edn [model-root write]
-  (let [src-cfg (str model-root u/path-sep config-edn)]
+  (let [src-cfg (str model-root iou/path-sep config-edn)]
     (when (.exists (File. src-cfg))
-      (let [cfg (u/read-config-file src-cfg)]
+      (let [cfg (iou/read-config-file src-cfg)]
         (write config-edn cfg :spit)
         cfg))))
 
@@ -280,8 +281,8 @@
 (defn- clj-project-path [model-paths model-name]
   (first
    (su/truths
-    #(let [dir (str % u/path-sep model-name)
-           ^File f (File. (str dir u/path-sep "project.clj"))]
+    #(let [dir (str % iou/path-sep model-name)
+           ^File f (File. (str dir iou/path-sep "project.clj"))]
        (when (.exists f)
          dir))
     model-paths)))
@@ -307,7 +308,7 @@
                       model-path)]
      (if (nil? model-path)
        (clj-project-path (tu/get-system-model-paths) model-name)
-       (let [^File f (File. (str model-path u/path-sep "project.clj"))]
+       (let [^File f (File. (str model-path iou/path-sep "project.clj"))]
          (when (.exists f)
            model-path))))))
 
@@ -376,7 +377,7 @@
   (when-let [jar-file (standalone-jar model-name)]
     (let [cmd (str "java -jar " jar-file " -c " cfg)]
       (println cmd)
-      (u/exec-in-directory "." cmd))))
+      (iou/exec-in-directory "." cmd))))
 
 (defn run-standalone-package [model-name]
   (let [model-name (or model-name (:name (load-all-model-info nil model-name nil)))
