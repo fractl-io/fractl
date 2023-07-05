@@ -327,3 +327,7 @@
                (print {:service {:port 8080}})))))
        (binding [*data-readers* {'$ read-env-var}]
          (read-string (slurp config-file))))))
+
+(defn strs
+  ([j ss] (string/join j ss))
+  ([ss] (string/join "\n" ss)))

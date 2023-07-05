@@ -33,7 +33,7 @@
 (def sql-keywords [:where :from :order-by
                    :group-by :having :limit
                    :offset :join :left-join
-                   :right-join])
+                   :right-join :desc])
 (def oprs (concat query-cmpr-oprs sql-keywords [:not :and :or :between :in]))
 (def macro-names #{:match :try :rethrow-after :for-each :delete :query :await :entity :eval})
 (def property-names #{:meta :ui :rbac})
@@ -132,13 +132,15 @@
     (every? single-spec? x)))
 
 (defn clj-import-list? [x]
-  (and (seq x)
-       (every?
-        (fn [entry]
-          (let [k (first entry)]
-            (and (some #{k} #{:require :use :import :refer :refer-macros})
-                 (every? vector? (rest entry)))))
-        x)))
+  (if (and (seqable? x) (= (first x) 'quote))
+    (clj-import-list? (first (rest x)))
+    (and (seq x)
+         (every?
+          (fn [entry]
+            (let [k (first entry)]
+              (and (some #{k} #{:require :use :import :refer :refer-macros})
+                   (every? vector? (rest entry)))))
+          x))))
 
 (defn do-clj-import [clj-import]
   #?(:clj
