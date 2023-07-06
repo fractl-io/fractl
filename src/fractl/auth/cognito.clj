@@ -100,6 +100,7 @@
             {:keys [FirstName LastName]} inner-user-details
             github-details (get-in user-details [:OtherDetails :GitHub])
             {:keys [Username Org Token]} github-details
+            UserSlug (get-in user-details [:OtherDetails :UserSlug])
             refresh-token (get-in user-details [:OtherDetails :RefreshToken])]
         (try
           (admin-update-user-attributes
@@ -108,6 +109,7 @@
            :user-pool-id user-pool-id
            :user-attributes [["given_name" FirstName]
                              ["family_name" LastName]
+                             ["custom:user_slug" UserSlug]
                              ["custom:github_org" Org]
                              ["custom:github_token" Token]
                              ["custom:github_username" Username]])
@@ -142,6 +144,7 @@
     {:github-username (:custom:github_username user-details)
      :github-token (:custom:github_token user-details)
      :github-org (:custom:github_org user-details)
+     :user-slug (:custom:user_slug user-details)
      :email (or (:email user-details) (:username user-details))
      :sub (:sub user-details)
      :username (or (:cognito:username user-details) (:sub user-details))}))
@@ -183,10 +186,11 @@
                              {}
                              user-attributes)
         {:keys [custom:github_username custom:github_token custom:github_org
-                given_name family_name email]} user-attributes-map]
+                custom:user_slug given_name family_name email]} user-attributes-map]
     {:GitHub {:Username custom:github_username
               :Token custom:github_token
               :Org custom:github_org}
+     :UserSlug custom:user_slug
      :FirstName given_name
      :LastName family_name
      :Email email}))
