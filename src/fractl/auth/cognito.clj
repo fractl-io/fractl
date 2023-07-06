@@ -10,7 +10,8 @@
             [fractl.auth.jwt :as jwt]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
-            [fractl.util.http :as uh]))
+            [fractl.util.http :as uh])
+  (:import [org.apache.commons.lang3 RandomStringUtils]))
 
 (def ^:private tag :cognito)
 
@@ -35,6 +36,12 @@
      0
      (or (str/index-of error-msg  "(Service: AWSCognitoIdentityProvider")
          (count error-msg)))))
+
+(defn generate-random-slug
+  ([length]
+   (let [chars (str "0123456789ABCDEF")]
+     (RandomStringUtils/random length chars)))
+  ([] (generate-random-slug 8)))
 
 (defmethod auth/make-authfn tag [_config]
   (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
@@ -74,7 +81,9 @@
        :user-attributes [["given_name" FirstName]
                          ["family_name" LastName]
                          ["email" Email]
-                         ["name" Name]]
+                         ["name" Name]
+                         ["custom:user_slug" (generate-random-slug)]
+                         ]
        :username Email)
       (catch com.amazonaws.services.cognitoidp.model.UsernameExistsException ex
         (log/error ex))
@@ -100,7 +109,8 @@
             {:keys [FirstName LastName]} inner-user-details
             github-details (get-in user-details [:OtherDetails :GitHub])
             {:keys [Username Org Token]} github-details
-            UserSlug (get-in user-details [:OtherDetails :UserSlug])
+            UserSlug (get-in user-details 
+                             [:OtherDetails :UserSlug] (generate-random-slug))
             refresh-token (get-in user-details [:OtherDetails :RefreshToken])]
         (try
           (admin-update-user-attributes
