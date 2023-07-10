@@ -825,12 +825,6 @@
       [elems (us/wrap-to-map meta)]
       [elems nil])))
 
-(defn- ensure-unique-contains [[_ e2 :as elems]]
-  (when elems
-    (when-let [r (cn/find-contained-relationship e2)]
-      (u/throw-ex (str e2 " is already in a contains relationship - " r)))
-    elems))
-
 (defn- parent-query-pattern
   ([attr-accessor relname rel-attrs parent query-rel]
    (let [cps (seq (cn/containing-parents parent))
@@ -1088,28 +1082,21 @@
     (when-not (some #{own} nodes)
       (u/throw-ex (str "invalid rbac owner node " own)))))
 
-(defn- contains-on [[parent child] relmeta]
+(defn- regen-contains-child-attributes [child]
   (let [cident (cn/identity-attribute-name child)
-        on [(cn/identity-attribute-name parent) cident]
         child-attrs (raw/entity-attributes child)
         cident-spec (cident child-attrs)]
     (when (some #{li/path-attr} (keys child-attrs))
       (u/throw-ex (str child "." li/path-attr " - attribute name is reserved")))
-    (entity child (assoc
-                   child-attrs
-                   cident (merge
-                           {:type (or (:type cident-spec) :UUID)
-                            :path-identity true
-                            :indexed true}
-                           (when-not cident-spec ;; __Id__
-                             {:default u/uuid-string}))
-                   li/path-attr li/path-attr-spec))
-    [(assoc relmeta :on on) on]))
-
-(defn- maybe-assoc-local-identity [[_ child] meta]
-  (if-not (seq (select-keys meta [li/globally-unique]))
-    (assoc meta li/globally-unique (cn/globally-unique-identity? child))
-    meta))
+    (assoc
+     child-attrs
+     cident (merge
+             {:type (or (:type cident-spec) :UUID)
+              :path-identity true
+              :indexed true}
+             (when-not cident-spec ;; __Id__
+               {:default u/uuid-string}))
+     li/path-attr li/path-attr-spec)))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
@@ -1119,54 +1106,68 @@
     attrs
     (assoc attrs :rbac {li/owner-exclusive-crud true})))
 
+(defn- assoc-contains-attributes [attrs [parent child]]
+  (let [idp (cn/identity-attribute-name parent)
+        idc (cn/identity-attribute-name child)]
+    (assoc attrs (second (li/split-path parent)) (cn/attribute-type parent idp)
+           (second (li/split-path child)) (cn/attribute-type child idc))))
+
+(defn- contains-relationship [relname attrs relmeta elems]
+  (when (seq (keys (cleanup-rel-attrs attrs)))
+    (u/throw-ex (str "attributes not allowed for a contains relationship - " relname)))
+         attrs (if contains  attrs)
+  (let [raw-attrs attrs
+        meta (:meta attrs)
+        attrs (assoc (maybe-assoc-rbac-for-contains attrs)
+                     :meta (assoc meta cn/relmeta-key relmeta :relationship :contains))
+        child-attrs (regen-contains-child-attributes (second elems))]
+    (if-let [r (record relname (assoc-contains-attributes attrs elems))]
+      (if (entity child child-attrs)
+        (if (cn/register-relationship elems relation-name)
+          (and (regen-contains-dataflows relation-name elems (cleanup-rel-attrs raw-attrs))
+               (raw/relationship relname raw-attrs) r)
+          (u/throw-ex (str "failed to register relationship - " relname)))
+        (u/throw-ex (str "failed to regenerate schema for " (second elems))))
+      (u/throw-ex (str "failed to define schema for " relname)))))
+
 (defn relationship
   ([relation-name attrs]
    (let [meta (let [m (:meta attrs)]
                 (if (some #{:cascade-on-delete} (keys m))
                   m
                   (assoc m :cascade-on-delete true)))
-         contains (ensure-unique-contains (mt/contains meta))
+         contains (mt/contains meta)
          between (when-not contains (mt/between meta))
-         meta (if contains (maybe-assoc-local-identity contains meta) meta)
-         attrs (if contains (maybe-assoc-rbac-for-contains attrs) attrs)
-         [elems relmeta] (parse-relationship-member-spec
-                          (or contains between))
-         each-uq (if (:one-one relmeta) true false)
-         combined-uqs (and (not each-uq)
-                           (or (and contains (not (:n-n relmeta)))
-                               (:one-n relmeta)))
-         [relmeta on-attrs] (if-let [on (:on relmeta)]
-                              [relmeta on]
-                              (if (and contains (not (li/globally-unique meta)))
-                                (contains-on contains relmeta)
-                                (let [[p c] elems]
-                                  [relmeta [(cn/identity-attribute-name p)
-                                            (cn/identity-attribute-name c)]])))
-         rel-attr-names (when between (:as relmeta))
-         cascade-on-delete (:cascade-on-delete meta)]
+         [elems relmeta] (parse-relationship-member-spec (or contains between))]
      (when-not elems
        (u/throw-ex
-        (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
-     (when between
-       (validate-rbac-owner (:rbac attrs) elems))
-     (let [raw-attrs attrs
-           [attrs uqs] (assoc-relationship-attributes
-                        attrs rel-attr-names contains elems
-                        on-attrs each-uq (if cascade-on-delete true false))
-           meta0 (assoc meta cn/relmeta-key relmeta)
-           meta (assoc meta0 (if contains mt/contains mt/between) elems)
-           r (serializable-entity
-              relation-name
-              (assoc
-               attrs
-               :meta (assoc
-                      (if combined-uqs (assoc meta :unique uqs) meta)
-                      :relationship (if between :between :contains)))
-              raw-attrs)]
-       (when (cn/register-relationship elems relation-name)
-         (when-let [r (and (meta-entity relation-name) r)]
-           (if contains
-             (regen-contains-dataflows relation-name contains (cleanup-rel-attrs raw-attrs))
+        (str "type (contains, between) of relationship is not defined in meta - "
+             relation-name)))
+     (if contains
+       (contains-relationship relation-name attrs relmeta elems)
+       (let [each-uq (if (:one-one relmeta) true false)
+             combined-uqs (and (not each-uq)
+                               (or (and contains (not (:n-n relmeta)))
+                                   (:one-n relmeta)))
+             cascade-on-delete (:cascade-on-delete meta)]
+         (validate-rbac-owner (:rbac attrs) elems))
+       (let [raw-attrs attrs
+             ;; TODO: fix assoc-relationship-attributes only to take care of between
+             [attrs uqs] (assoc-relationship-attributes
+                          attrs rel-attr-names contains elems
+                          on-attrs each-uq (if cascade-on-delete true false))
+             meta0 (assoc meta cn/relmeta-key relmeta)
+             meta (assoc meta0 (if contains mt/contains mt/between) elems)
+             r (serializable-entity
+                relation-name
+                (assoc
+                 attrs
+                 :meta (assoc
+                        (if combined-uqs (assoc meta :unique uqs) meta)
+                        :relationship (if between :between :contains)))
+                raw-attrs)]
+         (when (cn/register-relationship elems relation-name)
+           (when-let [r (and (meta-entity relation-name) r)]
              (regen-between-dataflows relation-name between (cleanup-rel-attrs attrs)))
            (and (raw/relationship relation-name raw-attrs) r))))))
   ([schema]

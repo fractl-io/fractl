@@ -487,8 +487,7 @@
   (let [scm (if (map? type-name-or-scm)
               type-name-or-scm
               (fetch-entity-schema type-name-or-scm))]
-    (or (path-identity-attribute-name scm)
-        (first (identity-attribute-names scm)))))
+    (first (identity-attribute-names scm))))
 
 (defn ensure-identity-attribute-name [type-name-or-scm]
   (if-let [id (identity-attribute-name type-name-or-scm)]
@@ -1194,8 +1193,11 @@
 (defn unique-attribute? [entity-schema attr]
   (:unique (find-attribute-schema (get entity-schema attr))))
 
-(defn attribute-type [entity-schema attr]
-  (let [ascm (get entity-schema attr)]
+(defn attribute-type [entity-schema-or-name attr]
+  (let [entity-schema (if (keyword? entity-schema-or-name)
+                        (fetch-entity-schema entity-schema-or-name)
+                        entity-schema-or-name)
+        ascm (get entity-schema attr)]
     (or (:type (find-attribute-schema ascm))
         ascm)))
 
