@@ -28,7 +28,9 @@
     (or b a)))
 
 (defn- fetch-declared-names [spec-or-script]
-  (loop [exps #?(:clj (read-string (str "(do" (slurp spec-or-script) ")"))
+  (loop [exps #?(:clj (if-not (string? spec-or-script)
+                        spec-or-script
+                        (read-string (str "(do" (slurp spec-or-script) ")")))
                  :cljs spec-or-script)
          result {}]
     (if-let [exp (first exps)]
@@ -244,20 +246,20 @@
                        'relationship ln/relationship
                        'dataflow ln/dataflow})
 
-     (defn- intern-component [component-spec]
-       (doseq [exp (rest component-spec)]
-         (if-let [intern (get call-intern (first exp))]
-           (apply intern (rest exp))
-           (li/evaluate exp))))
+     (defn intern-component [component-spec]
+       (let [fqn (partial nu/fully-qualified-names (fetch-declared-names component-spec))]
+         (doseq [exp (rest component-spec)]
+           (when-let [intern (get call-intern (first exp))]
+             (apply intern (rest (fqn exp)))))))
 
-   (defn load-components-from-model [model callback]
-     (doseq [c (:components model)]
-       (callback intern-component c)))
+     (defn load-components-from-model [model callback]
+       (doseq [c (:components model)]
+         (callback intern-component c)))
 
-   (defn load-model-dependencies [model callback]
-     (let [deps (mapv dependency-model-name (:dependencies model))]
-       (callback deps)))
+     (defn load-model-dependencies [model callback]
+       (let [deps (mapv dependency-model-name (:dependencies model))]
+         (callback deps)))
 
-   (defn load-model [model callback]
-     (let [continuation (fn [_] (load-components-from-model model (partial callback :comp)))]
-       (load-model-dependencies model (partial callback :deps continuation))))))
+     (defn load-model [model callback]
+       (let [continuation (fn [_] (load-components-from-model model (partial callback :comp)))]
+         (load-model-dependencies model (partial callback :deps continuation))))))
