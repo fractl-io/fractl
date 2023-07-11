@@ -250,7 +250,8 @@
        (let [fqn (partial nu/fully-qualified-names (fetch-declared-names component-spec))]
          (doseq [exp (rest component-spec)]
            (when-let [intern (get call-intern (first exp))]
-             (apply intern (rest (fqn exp)))))))
+             (when-not (apply intern (rest (fqn exp)))
+               (u/throw-ex (str "failed to intern " exp)))))))
 
      (defn load-components-from-model [model callback]
        (doseq [c (:components model)]
