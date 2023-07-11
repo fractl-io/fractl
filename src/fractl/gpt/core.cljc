@@ -91,7 +91,7 @@
                      (add-to-conversation request "assistant" choice)
                      "user" next-request))]
         (post gpt (fn [r]
-                    (let [choices (:chat-response r)
+                    (let [choices (choices (:chat-response r))
                           [choice err-msg] (find-choice choices)]
                       (if-not err-msg
                         (response-handler choice (partial mkreq choice))
