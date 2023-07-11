@@ -96,7 +96,7 @@
                       (if-not err-msg
                         (response-handler choice (partial mkreq choice))
                         (do (log/warn (str "attempt to intern component failed: " err-msg))
-                            (cont (mkreq choice (str "ERROR - " err-msg)))))))
+                            (cont (mkreq (or (first choices) "") (str "ERROR - " err-msg)))))))
               request)))))
 
 (defn non-interactive-generate
