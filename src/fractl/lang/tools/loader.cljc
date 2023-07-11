@@ -51,6 +51,15 @@
            result)))
       result)))
 
+(defn dependency-model-name [dep]
+  (cond
+    (keyword? dep) dep
+    (vector? dep) (first dep)))
+
+(defn dependency-model-version [dep]
+  (when (vector? dep)
+    (second dep)))
+
 #?(:clj
    (do
      (def ^:dynamic *parse-expressions* true)
@@ -208,15 +217,6 @@
      (defn read-components-from-model [model model-root]
        (binding [*parse-expressions* false]
          (load-components-from-model model model-root)))
-
-     (defn dependency-model-name [dep]
-       (cond
-         (keyword? dep) dep
-         (vector? dep) (first dep)))
-
-     (defn dependency-model-version [dep]
-       (when (vector? dep)
-         (second dep)))
 
      (declare load-model)
 
