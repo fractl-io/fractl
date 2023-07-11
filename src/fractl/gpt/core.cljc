@@ -1,7 +1,8 @@
 (ns fractl.gpt.core
   (:require [clojure.string :as s]
-            [fractl.util.http :as http]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
+            [fractl.util.http :as http]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.datafmt.json :as json]
@@ -94,7 +95,8 @@
                           [choice err-msg] (find-choice choices)]
                       (if-not err-msg
                         (response-handler choice (partial mkreq choice))
-                        (cont (mkreq choice (str "ERROR - " err-msg))))))
+                        (do (log/warn (str "attempt to intern component failed: " err-msg))
+                            (cont (mkreq choice (str "ERROR - " err-msg)))))))
               request)))))
 
 (defn non-interactive-generate
@@ -163,6 +165,7 @@
     s))
 
 (defn maybe-intern-component [s]
+  (log/debug (str "trying to intern choice: " s))
   (let [final-s (read-string (str "(do " (remove-invalid-tokens (trim-to-exp s)) ")"))]
     (when-let [exps (seq (filter model-exp? final-s))]
       (doseq [exp exps]
