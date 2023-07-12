@@ -139,13 +139,18 @@
       [path (get-in (cn/instance-attributes inst) refs)]
       [path inst])))
 
-(defn lookup-instances-by-attributes [env rec-name query-attrs]
-  (when-let [insts (seq (get-instances env rec-name))]
-    (filter #(every?
-              (fn [[k v]]
-                (= v (get % k)))
-              query-attrs)
-            insts)))
+(defn lookup-instances-by-attributes
+  ([env rec-name query-attrs as-str]
+   (when-let [insts (seq (get-instances env rec-name))]
+     (filter #(every?
+               (fn [[k v]]
+                 (let [a0 (get % k)
+                       a (if as-str (str a0) a0)]
+                   (= v a)))
+               query-attrs)
+             insts)))
+  ([env rec-name query-attrs]
+   (lookup-instances-by-attributes env rec-name query-attrs false)))
 
 (defn- objstack [env]
   (get env :objstack (list)))

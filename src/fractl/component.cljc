@@ -937,7 +937,8 @@
   (filter
    #(:relationship
      (fetch-meta %))
-   (record-names-by-type :entity component)))
+   (concat (record-names component)
+           (entity-names component))))
 
 (defn user-defined-event? [event-name]
   (not (s/index-of (name event-name) "_")))
@@ -1609,6 +1610,18 @@
 (def contained-children (partial contain-rels false))
 (def containing-parents (partial contain-rels true))
 
+(defn parent-of? [child parent]
+  (if (some #{parent} (map last (containing-parents child)))
+    true
+    false))
+
+(defn parent-via? [relname child parent]
+  (if (first (filter #(and (= relname (first %))
+                           (= parent (last %)))
+                     (containing-parents child)))
+    true
+    false))
+
 (defn between-relationships [recname]
   (when-let [rels (seq (find-relationships recname))]
     (su/nonils
@@ -1630,68 +1643,6 @@
 
 (defn containing-parent [relname]
   (first (mt/contains (fetch-meta relname))))
-
-(defn relationship-on-attributes [relname]
-  (:on (relmeta-key (fetch-meta relname))))
-
-(defn relationship-member-identity [k]
-  (keyword (str (name k) "Identity")))
-
-(defn relationship-identity [relname k]
-  (when-let [scm (fetch-relationship-schema relname)]
-    (let [ident (relationship-member-identity k)]
-      (if (some #{ident} (attribute-names scm))
-        ident
-        k))))
-
-(defn- relationship-references [between inst attr relattr]
-  (let [tp (instance-type inst)
-        scm (entity-schema tp)]
-    (when-not (or (unique-or-identity? scm attr)
-                  (and between (= attr (path-identity-attribute-name scm))))
-      (let [idattr (identity-attribute-name tp)]
-        [(relationship-member-identity relattr)
-         (idattr inst)]))))
-
-(defn attributes-in-contains [relname]
-  (let [[p c] (contains-entities relname)
-        [a1 a2] (or (relationship-on-attributes relname)
-                    [(identity-attribute-name p) (identity-attribute-name c)])]
-    {p a1 c a2}))
-
-(defn init-relationship-instance [rel-name rel-attrs src-inst target-inst]
-  (let [meta (fetch-meta rel-name)
-        contains (mt/contains meta)
-        between (when-not contains (mt/between meta))
-        srctype (instance-type src-inst)
-        types (mapv li/split-path [srctype (instance-type target-inst)])
-        elems (mapv li/split-path (or contains between))]
-    (when (not= (set elems) (set types))
-      (u/throw-ex (str "relationship elements expected - " elems ", found - " types)))
-    (let [[e1 e2] (if (= srctype (first elems))
-                    [src-inst target-inst]
-                    [target-inst src-inst])
-          [a1 a2] (or (when between (:as (relationship-meta meta)))
-                      (apply relationship-attribute-names elems))
-          [idattr1 idattr2 :as idents]
-          [(identity-attribute-name (first elems))
-           (identity-attribute-name (second elems))]
-          [attr1 attr2] (or (relationship-on-attributes rel-name)
-                            idents)
-          [id1 idv1] (relationship-references between e1 attr1 a1)
-          [id2 idv2] (relationship-references between e2 attr2 a2)
-          v1 (attr1 e1)
-          v2 (attr2 e2)]
-      (make-instance
-       rel-name
-       (merge
-        rel-attrs
-        {a1 v1
-         a2 v2}
-        (when (and id1 idv1)
-          {id1 idv1})
-        (when (and id2 idv2)
-          {id2 idv2}))))))
 
 (defn crud-event-name
   ([component-name entity-name evtname]
@@ -1813,5 +1764,19 @@
     (when (contains-relationship? tp)
       (let [[p _] (relationship-nodes tp)
             pn (second (li/split-path p))]
-        [p (or ((relationship-member-identity pn) rel-inst)
-               (pn rel-inst))]))))
+        [p (pn rel-inst)]))))
+
+(defn parse-attribute-value [entity-name attr v]
+  (let [scm (fetch-schema entity-name)
+        ascm (find-attribute-schema (get scm attr))]
+    (if-let [t (:type ascm)]
+      (case t
+        :Fractl.Kernel.Lang/Int (#?(:clj Integer/parseInt :cljs js/parseInt) v)
+        :Fractl.Kernel.Lang/Int64 (#?(:clj Long/parseLong :cljs js/parseInt) v)
+        :Fractl.Kernel.Lang/BigInteger (#?(:clj BigInteger. :cljs js/parseInt) v)
+        :Fractl.Kernel.Lang/Float (#?(:clj Float/parseFloat :cljs js/parseFloat) v)
+        :Fractl.Kernel.Lang/Double (#?(:clj Double/parseDouble :cljs js/parseFloat) v)
+        :Fractl.Kernel.Lang/Decimal (#?(:clj BigDecimal. :cljs js/parseFloat) v)
+        :Fractl.Kernel.Lang/Boolean (if (= "true" v) true false)
+        v)
+      v)))

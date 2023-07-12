@@ -442,14 +442,16 @@
     (complex-query-pattern? pat)
     (let [[k v] [(first (keys pat)) (first (vals pat))]]
       (if (li/path-query? v)
-        (compile-map ctx {(li/normalize-name k) {:? v}})
+        (compile-map ctx {(li/normalize-name k) {li/path-query-tag v}})
         (compile-query-command ctx (query-map->command pat))))
 
     (from-pattern? pat)
     (compile-from-pattern ctx pat)
 
     (li/instance-pattern? pat)
-    (let [orig-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
+    (let [rel-path (li/rel-tag pat)
+          pat (if rel-path (dissoc pat li/rel-tag) pat)
+          orig-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
           full-nm (li/normalize-name orig-nm)
           {component :component record :record
            path :path refs :refs :as parts} (li/path-parts full-nm)
@@ -457,7 +459,8 @@
           nm (if (or path refs)
                parts
                [component record])
-          attrs (li/instance-pattern-attrs pat)
+          attrs (let [attrs (li/instance-pattern-attrs pat)]
+                  (if rel-path (assoc attrs li/path-attr rel-path) attrs))
           alias (:as pat)
           timeout-ms (ls/timeout-ms-tag pat)
           [tag scm] (if (or path refs)

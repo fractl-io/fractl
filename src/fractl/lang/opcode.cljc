@@ -129,9 +129,6 @@
          (intern-event-instance
           [[record-name alias with-types timeout-ms]]
           "Finish the instance initialization of an event, evaluate attached dataflows.")
-         (intern-relationship-instance
-          [[src-opcode relationship-info-and-target-opcode]]
-          "Fetch the src and target and create the relationship.")
          (delete-instance
           [[record-name id-pattern-code]]
           "Remove an instance of the given type and id from the store and caches. The value of

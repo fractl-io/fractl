@@ -749,6 +749,54 @@
 (defn- find-reference [env record-name refs]
   (second (env/instance-ref-path env record-name nil refs)))
 
+(defn- name-from-path-component [component n]
+  (let [k (keyword n)
+        parts (li/split-path k)]
+    (if (= 2 (count parts))
+      k
+      (li/make-path component k))))
+
+(defn- find-parent-by-path [env record-name path]
+  (let [[c n] (li/split-path record-name)
+        ps (filter seq (s/split path #"/"))
+        nc (partial name-from-path-component c)]
+    (if (= (count ps) 3)
+      (let [parent (nc (first ps))
+            pid-attr (cn/identity-attribute-name parent)
+            pid-val (second ps)
+            relname (nc (last ps))]
+        (when-not (cn/parent-via? relname record-name parent)
+          (u/throw-ex (str "not in relationship - " [relname record-name parent])))
+        (or (first (env/lookup-instances-by-attributes
+                    env (li/split-path parent) {pid-attr pid-val} true))
+            (first (store/query-by-unique-keys
+                    (env/get-store env) parent [pid-attr]
+                    [(cn/parse-attribute-value parent pid-attr pid-val)]))))
+      (let [path-val (subs path 0 (s/last-index-of path "/"))
+            parsed-path (li/parse-query-path (str li/path-query-prefix path))
+            lp (last parsed-path)
+            parent (:parent lp)
+            pid-attr (cn/identity-attribute-name parent)
+            pid-val (:parent-value lp)
+            relname (:relationship lp)]
+        (when-not (cn/parent-via? relname record-name parent)
+          (u/throw-ex (str "not in relationship - " [relname record-name parent])))
+        (or (first (env/lookup-instances-by-attributes
+                    env (li/split-path parent) {li/path-attr path-val}))
+            (first (store/query-by-unique-keys
+                    (env/get-store env) parent [li/path-attr] [path-val])))))))
+
+(defn- attach-full-path [record-name inst path]
+  (let [v (str ((cn/path-identity-attribute-name record-name) inst))]
+    (assoc inst li/path-attr (str path "/" v))))
+
+(defn- maybe-fix-contains-path [env record-name inst]
+  (if-let [path (li/path-attr inst)]
+    (if-let [parent (find-parent-by-path env path)]
+      (attach-full-path record-name inst path)
+      (u/throw-ex (str "failed to find parent by path - " path)))
+    inst))
+
 (defn- intern-instance [self env eval-opcode eval-event-dataflows
                         record-name inst-alias validation-required upsert-required]
   (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self) validation-required)
@@ -762,7 +810,11 @@
       (i/ok insts env)
 
       insts
-      (let [local-result (if upsert-required
+      (let [insts (let [r (mapv
+                           (partial maybe-fix-contains-path env record-name)
+                           (if single? [insts] (vec insts)))]
+                    (if single? (first r) r))
+            local-result (if upsert-required
                            (chained-upsert
                             env (partial eval-event-dataflows self)
                             record-name insts)
@@ -796,76 +848,6 @@
   (if (map? obj)
     obj
     (first obj)))
-
-(defn- intern-relationship [vm env eval-opcode eval-event-dataflows
-                            rel-name rel-opcode src-inst opc]
-  (let [rel-attrs (when rel-opcode
-                    (or (first (ok-result (eval-opcode vm env rel-opcode)))
-                        (u/throw-ex (str "failed to initialize relationship - " rel-name))))
-        r (eval-opcode vm env opc)]
-    (if-let [target (normalize-rel-target (ok-result r))]
-      (intern-instance
-       vm (env/push-obj
-           (:env r) rel-name
-           (cn/init-relationship-instance
-            rel-name rel-attrs
-            src-inst target))
-       eval-opcode eval-event-dataflows
-       rel-name nil true true)
-      r)))
-
-(defn- intern-relationship-for-one-instance [vm eval-opcode eval-event-dataflows
-                                             rel-info-and-target-opcode env inst]
-  (loop [topc rel-info-and-target-opcode, env env, rels []]
-    (if-let [[[rel-opcode rel-name is-obj] target-opcode] (first topc)]
-      (let [r2 (intern-relationship
-                vm (env/bind-instance env inst)
-                eval-opcode eval-event-dataflows
-                rel-name rel-opcode inst target-opcode)]
-        (if-let [rel (first (ok-result r2))]
-          (recur (rest topc) (:env r2) (conj rels rel))
-          r2))
-      (i/ok (assoc inst ls/rel-tag rels) env))))
-
-(defn- do-delete-relationship [vm env eval-opcode
-                               relname [main-entity-opcode
-                                        node-entity-opcode
-                                        fetch-delete-rel-opcode]]
-  (if-let [r1 (first (ok-result (eval-opcode vm env main-entity-opcode)))]
-    (if-let [r2 (first (ok-result (eval-opcode vm env node-entity-opcode)))]
-      (let [[opc1 opc2] (fetch-delete-rel-opcode r1 r2)
-            res1 (eval-opcode vm env opc1)]
-           (if (and opc2 (ok-result res1))
-             (let [res2 (eval-opcode vm env opc2)]
-               (if (ok-result res2) res1 res2))
-             res1))
-      (i/error (str "failed to load node-instance for relationship " relname)))
-    (i/error (str "failed to load main-instance for relationship " relname))))
-
-(defn- make-parent-path
-  ([env child-type rel-inst add-child-info]
-   (let [rel-tp (cn/instance-type-kw rel-inst)
-         [n1 n2 :as ns] (cn/relationship-nodes rel-tp)
-         [a1 a2] (mapv #(second (li/split-path %)) ns)
-         path (str "/" (name a1) "/" (a1 rel-inst) "/" (name rel-tp)
-                   (when add-child-info (str "/" (name a2) "/" (a2 rel-inst))))]
-     (if-let [pr (first (cn/containing-parents n1))]
-       (if-let [r (first (env/get-instances env (li/split-path (first pr))))]
-         (let [p (make-parent-path env n1 r false)]
-           (li/normalize-path (str p "/" path)))
-         (u/throw-ex (str "parent relationship " pr " not loaded into context")))
-       (li/normalize-path path))))
-  ([env child-type rel-inst] (make-parent-path env child-type rel-inst true)))
-
-(defn- build-parent-path [env inst]
-  (or (when (cn/null-parent-path? inst)
-        (let [tp (cn/instance-type-kw inst)]
-          (when-let [ident (cn/path-identity-attribute-name tp)]
-            (when-let [contains (first (filter #(cn/contains-relationship? (cn/instance-type %))
-                                               (li/rel-tag inst)))]
-              (when-let [p (make-parent-path env tp contains)]
-                (store/update-instances (env/get-store env) tp [(assoc inst li/path-attr p)]))))))
-      inst))
 
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
@@ -941,23 +923,6 @@
        self env eval-opcode eval-event-dataflows
        record-name inst-alias validation-required upsert-required))
 
-    (do-intern-relationship-instance [self env [src-opcode rel-info-and-target-opcode]]
-      (let [r1 (eval-opcode self env src-opcode)]
-        (if-let [src-rs (ok-result r1)]
-          (let [intern-fn (partial
-                           intern-relationship-for-one-instance
-                           self eval-opcode eval-event-dataflows
-                           rel-info-and-target-opcode)
-                orig-src-rs src-rs]
-            (loop [src-rs (if (map? src-rs) [src-rs] src-rs), env (:env r1), result []]
-              (if-let [src (first src-rs)]
-                (let [r (intern-fn env src)]
-                  (if-let [obj (ok-result r)]
-                    (recur (rest src-rs) (:env r) (conj result (build-parent-path (:env r) obj)))
-                    (assoc r :env (purge-all env src-rs))))
-                (i/ok (if (= 1 (count result)) (first result) result) env))))
-          r1)))
-
     (do-intern-event-instance [self env [record-name alias-name with-types timeout-ms]]
       (let [[inst env] (pop-and-intern-instance
                         env record-name
@@ -989,9 +954,6 @@
     (do-delete-instance [self env [record-name queries]]
       (if-let [store (env/get-store env)]
         (cond
-          (= li/rel-tag (first queries))
-          (do-delete-relationship self env eval-opcode record-name (rest queries))
-
           (= queries :*)
           (i/ok [(delete-intercept
                   env [record-name nil]

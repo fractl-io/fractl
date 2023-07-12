@@ -180,21 +180,6 @@
 (defn- parse-rest-uri [request]
   (uh/parse-rest-uri (:* (:params request))))
 
-(defn- parse-attr [entity-name attr v]
-  (let [scm (cn/fetch-schema entity-name)
-        ascm (cn/find-attribute-schema (get scm attr))]
-    (if-let [t (:type ascm)]
-      (case t
-        :Fractl.Kernel.Lang/Int (Integer/parseInt v)
-        :Fractl.Kernel.Lang/Int64 (Long/parseLong v)
-        :Fractl.Kernel.Lang/BigInteger (BigInteger. v)
-        :Fractl.Kernel.Lang/Float (Float/parseFloat v)
-        :Fractl.Kernel.Lang/Double (Double/parseDouble v)
-        :Fractl.Kernel.Lang/Decimal (BigDecimal. v)
-        :Fractl.Kernel.Lang/Boolean (if (= "true" v) true false)
-        v)
-      v)))
-
 (defn- path-as-parent-ids [path]
   (when path
     (into
@@ -202,7 +187,7 @@
      (mapv
       (fn [{p :parent id :id}]
         (let [id-attr (cn/identity-attribute-name p)]
-          [(keyword (name (keyword p))) (parse-attr p id-attr id)]))
+          [(keyword (name (keyword p))) (cn/parse-attribute-value p id-attr id)]))
       path))))
 
 (defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
@@ -237,7 +222,7 @@
        (let [id-attr (cn/identity-attribute-name entity-name)]
          [{(cn/crud-event-name component entity-name :Update)
            (merge
-            {id-attr (parse-attr entity-name id-attr id)
+            {id-attr (cn/parse-attribute-value entity-name id-attr id)
              :Data (li/record-attributes obj)}
             (path-as-parent-ids path))}
           nil])))))
@@ -250,7 +235,7 @@
         (let [id-attr (cn/identity-attribute-name entity-name)]
           {(cn/crud-event-name component entity-name :Lookup)
            (merge
-            {id-attr (parse-attr entity-name id-attr id)}
+            {id-attr (cn/parse-attribute-value entity-name id-attr id)}
             (path-as-parent-ids path))})
         {(cn/crud-event-name component entity-name :LookupAll)
          (merge {} (path-as-parent-ids path))})
@@ -265,7 +250,7 @@
        (let [id-attr (cn/identity-attribute-name entity-name)]
          [{(cn/crud-event-name component entity-name :Delete)
            (merge
-            {id-attr (parse-attr entity-name id-attr id)}
+            {id-attr (cn/parse-attribute-value entity-name id-attr id)}
             (path-as-parent-ids path))}
           nil])))))
 
