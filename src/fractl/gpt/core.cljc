@@ -82,14 +82,15 @@
 (defn non-interactive-generate-helper [gpt response-handler retries request]
   (let [request (if (string? request)
                   (add-to-conversation request)
-                  request)]
+                  request)
+        mkreq (fn [choice next-request]
+                (add-to-conversation
+                 (add-to-conversation request "assistant" choice)
+                 "user" next-request))]
     (if (>= retries MAX-RETRIES)
-      (u/throw-ex (str "gpt failed to generate the model, please try restarting the session"))
-      (let [cont (partial non-interactive-generate-helper gpt response-handler (inc retries))
-            mkreq (fn [choice next-request]
-                    (add-to-conversation
-                     (add-to-conversation request "assistant" choice)
-                     "user" next-request))]
+      (let [choice "WARN: I am unable to generate a valid model"]
+        (response-handler choice (partial mkreq choice)))
+      (let [cont (partial non-interactive-generate-helper gpt response-handler (inc retries))]
         (post gpt (fn [r]
                     (let [choices (choices (:chat-response r))
                           [choice err-msg] (find-choice choices)]
