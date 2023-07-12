@@ -169,12 +169,11 @@
         (or err-response
             (let [resp (atom nil)]
               (gpt/non-interactive-generate
-               (fn [cs f]
-                 (let [choice (first cs)]
-                   (reset!
-                    resp
-                    {:choice choice
-                     :chat-history (f choice "<insert-next-request-here>")})))
+               (fn [choice f]
+                 (reset!
+                  resp
+                  {:choice choice
+                   :chat-history (f "<insert-next-request-here>")}))
                obj)
               (ok @resp))))))
 
