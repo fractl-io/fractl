@@ -467,27 +467,28 @@
   "Return the names of all immutable attributes in the schema."
   (make-attributes-filter :immutable))
 
+(defn- maybe-fetch-entity-schema [type-name-or-scm]
+  (if (map? type-name-or-scm)
+    type-name-or-scm
+    (fetch-entity-schema type-name-or-scm)))
+
 (def path-id-attrs (make-attributes-filter :path-identity))
 
 (defn path-identity-attribute-name [type-name-or-scm]
-  (let [scm (if (map? type-name-or-scm)
-              type-name-or-scm
-              (fetch-entity-schema type-name-or-scm))]
-    (first (path-id-attrs scm))))
+  (first (path-id-attrs (maybe-fetch-entity-schema type-name-or-scm))))
 
 (defn identity-attribute-names
   "Return the name of any one of the identity attributes of the given entity."
   [type-name-or-scm]
-  (let [scm (if (map? type-name-or-scm)
-              type-name-or-scm
-              (fetch-entity-schema type-name-or-scm))]
-    (identity-attributes scm)))
+  (identity-attributes (maybe-fetch-entity-schema type-name-or-scm)))
 
 (defn identity-attribute-name [type-name-or-scm]
-  (let [scm (if (map? type-name-or-scm)
-              type-name-or-scm
-              (fetch-entity-schema type-name-or-scm))]
-    (first (identity-attribute-names scm))))
+  (first (identity-attribute-names (maybe-fetch-entity-schema type-name-or-scm))))
+
+(defn contained-identity [type-name-or-scm]
+  (let [scm (maybe-fetch-entity-schema type-name-or-scm)]
+    (or (path-identity-attribute-name scm)
+        (identity-attribute-name scm))))
 
 (defn ensure-identity-attribute-name [type-name-or-scm]
   (if-let [id (identity-attribute-name type-name-or-scm)]

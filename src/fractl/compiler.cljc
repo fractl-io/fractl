@@ -174,60 +174,17 @@
       r
       (first r))))
 
-(defn- normalized-rel-attr [rel-name entity-name rel-attr-name]
-  (let [attr-in-rel (cn/attribute-in-relationship rel-name entity-name)
-        ident (cn/identity-attribute-name entity-name)]
-    [(if (= ident attr-in-rel)
-       attr-in-rel
-       (cn/relationship-member-identity rel-attr-name))
-     rel-attr-name]))
-
-(defn- normalized-attributes-in-relationship [rel-name main-entity-name node-entity-name]
-  (let [[a1 a2] (cn/relationship-attribute-names main-entity-name node-entity-name)]
-    (concat
-     [(cn/identity-attribute-name main-entity-name)]
-     [(normalized-rel-attr rel-name main-entity-name a1)
-      [(cn/attribute-in-relationship rel-name node-entity-name) a2]])))
-
-(defn- merge-queries [ctx main-entity-name main-query filters-opcode]
-  (let [fopcode (as-opcode-map (first filters-opcode))
-        sopcode (as-opcode-map (second filters-opcode))
-        rel-name (recname-from-opcode fopcode)
-        node-entity-name (recname-from-opcode sopcode)]
-    (when-not (cn/in-relationship? main-entity-name rel-name)
-      (u/throw-ex (str main-entity-name " not in relationship - " rel-name)))
-    (when-not (cn/in-relationship? node-entity-name rel-name)
-      (u/throw-ex (str node-entity-name " not in relationship - " rel-name)))
-    (let [attrs (normalized-attributes-in-relationship
-                 rel-name main-entity-name node-entity-name)
-          rel-q (compiled-query-from-opcode fopcode)
-          node-q (compiled-query-from-opcode sopcode)]
-      ((fetch-compile-query-fn ctx)
-       {:filter-in-sequence [[main-query rel-q node-q] attrs]}))))
-
 (declare compile-pattern)
 
-(defn- compile-relational-entity-query [ctx entity-name query query-filter]
+(defn- compile-relational-entity-query [ctx entity-name query]
   (let [q (i/expand-query
            entity-name
            (mapv query-param-process query))
-        cq ((fetch-compile-query-fn ctx) q)
-        mfn (fn [query-filter]
-              (merge-queries
-               ctx entity-name cq
-               (mapv (partial compile-pattern ctx) query-filter)))
-        union-query-filter (vector? (first query-filter))
-        final-cq (if query-filter
-                   (if union-query-filter
-                     ((fetch-compile-query-fn ctx)
-                      {:union (mapv mfn query-filter)})
-                     (mfn query-filter))
-                   cq)]
+        final-cq ((fetch-compile-query-fn ctx) q)]
     (stu/package-query q final-cq)))
 
-(defn compile-query [ctx entity-name query query-filter]
-  (let [q (compile-relational-entity-query
-           ctx entity-name query query-filter)]
+(defn compile-query [ctx entity-name query]
+  (let [q (compile-relational-entity-query ctx entity-name query)]
     (ctx/put-fresh-record! ctx entity-name {})
     q))
 
@@ -258,7 +215,7 @@
     raise an error. Otherwise return a map with each attribute group and their attached graphs."
   [ctx pat-name pat-attrs schema args]
   (if (:full-query? args)
-    {:attrs (assoc pat-attrs :query (compile-query ctx pat-name pat-attrs (:query-filter args)))}
+    {:attrs (assoc pat-attrs :query (compile-query ctx pat-name pat-attrs))}
     (let [{computed :computed refs :refs
            compound :compound query :query
            :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
@@ -266,7 +223,7 @@
           deps-graph (appl fs [ctx schema ug/EMPTY])
           compound-exprs (mapv (fn [[k v]] [k (compound-expr-as-fn v)]) compound)
           parsed-refs (mapv (fn [[k v]] [k (if (symbol? v) {:refs v} (li/path-parts v))]) refs)
-          compiled-query (when query (compile-query ctx pat-name query (:query-filter args)))
+          compiled-query (when query (compile-query ctx pat-name query))
           final-attrs (if (seq compiled-query)
                         (assoc cls-attrs :query compiled-query)
                         cls-attrs)]
@@ -360,7 +317,7 @@
   a `SELECT * FROM entity_table`."
   [ctx pat]
   (let [entity-name (li/split-path (li/query-target-name pat))
-        q (compile-query ctx entity-name nil nil)]
+        q (compile-query ctx entity-name nil)]
     (op/query-instances [entity-name q])))
 
 (defn- compile-pathname
@@ -474,145 +431,9 @@
     code
     {:opcode code}))
 
-(defn- ensure-relationship-name [n]
-  (when-not (cn/fetch-relationship-schema (li/normalize-name n))
-    (u/throw-ex (str "relationship " n " not found")))
-  n)
-
-(defn normalize-recname-in-relationship [n]
-  (if (li/parsed-path? n)
-    n
-    (li/normalize-name (or (and (map? n) (:path n)) n))))
-
-(defn- compile-intern-relationship [ctx recname pat]
-  (let [rel (first pat)
-        is-obj (map? rel)
-        n (if is-obj
-            (first (keys rel))
-            rel)
-        recname (normalize-recname-in-relationship recname)]
-    (ensure-relationship-name n)
-    (when-not (some #{n} (cn/find-relationships recname))
-      (u/throw-ex (str "relationship " n " not found for " recname)))
-    [[(when is-obj
-        (ctx/with-build-partial-instance
-          ctx
-          #(compile-pattern ctx rel)))
-      (li/split-path n) is-obj]
-     (compile-pattern ctx (second pat))]))
-
-(defn- compile-relationship-pattern [ctx recname intern-rec-opc pat]
-  (let [c (partial compile-intern-relationship ctx recname)
-        rel-opcs (if (vector? (first pat))
-                   (mapv c pat)
-                   [(c pat)])]
-    (op/intern-relationship-instance
-     [(package-opcode intern-rec-opc) rel-opcs])))
-
-(defn- relationship-full-query? [x]
-  (when (and (li/query-pattern? x)
-             (ensure-relationship-name
-              (li/query-target-name x)))
-    x))
-
 (defn- some-query-attrs? [attrs]
   (when (some li/query-pattern? (keys attrs))
     attrs))
-
-(defn- relationship-query? [pat]
-  (if (vector? (first pat))
-    (every? relationship-query? pat)
-    (let [relq (first pat)]
-      (cond
-        (keyword? relq) (relationship-full-query? relq)
-        (map? relq) (and (ensure-relationship-name (first (keys relq)))
-                         (some-query-attrs? (first (vals relq))))
-        :else false))))
-
-(defn- some-relationship-queries? [pat]
-  (and (vector? (first pat))
-       (some relationship-query? pat)))
-
-(defn- relationship-name-from-pattern [pat]
-  (cond
-    (vector? pat)
-    (relationship-name-from-pattern (first pat))
-
-    (map? pat)
-    (relationship-name-from-pattern (first (keys pat)))
-
-    (keyword? pat)
-    (if (li/query-pattern? pat)
-      (li/query-target-name pat)
-      pat)))
-
-(defn- fetch-node-attr [relname attrs-info entity-name]
-  (if-let [a (entity-name attrs-info)]
-    a
-    (u/throw-ex (str "failed to fetch attribute of " entity-name " in relationship " relname))))
-
-(defn- path->relpat [{relname :relationship child :child child-val :child-value
-                      parent :parent parent-val :parent-value}]
-  (if-let [attrs-info (cn/attributes-in-contains relname)]
-    (let [f (partial fetch-node-attr relname attrs-info)
-          ca (f child) pa (f parent)]
-      {child
-       {(li/name-as-query-pattern ca) child-val}
-       li/rel-tag [(li/name-as-query-pattern relname)
-                   {parent
-                    {(li/name-as-query-pattern pa) parent-val}}]})
-    (u/throw-ex (str "failed to fetch details of contains relationship - " relname))))
-
-(defn- assoc-leaf-relpat [root-pat leaf-pat]
-  (if-let [relpat (li/rel-tag root-pat)]
-    (assoc root-pat li/rel-tag [(first relpat) (assoc-leaf-relpat (second relpat) leaf-pat)])
-    leaf-pat))
-
-(defn- normalize-for-lookup-all [root attrs old-attrs]
-  (let [n (li/instance-pattern-name root)
-        vs (vals attrs)]
-    (if (and (= 1 (count vs)) (= "*" (first vs)))
-      {(li/name-as-query-pattern n) {}
-       li/rel-tag (li/rel-tag root)}
-      (assoc root (li/instance-pattern-name root)
-             (merge attrs (dissoc old-attrs :?))))))
-
-(defn- normalize-relationship-path [path-query pat]
-  (let [path (li/path-query-string path-query)
-        nm (li/instance-pattern-name pat)
-        old-attrs (nm pat)]
-    (when-not nm
-      (u/throw-ex (str "not a valid instance pattern - " pat)))
-    (when-not (seq path)
-      (u/throw-ex "invalid or empty path-query"))
-    (when (li/rel-tag pat)
-      (u/throw-ex "pattern already contains relationship spec, cannot process path-query"))
-    (let [[c _] (li/split-path nm)
-          parts (li/parse-query-path c path)
-          relpats (mapv path->relpat parts)]
-      (loop [root (first relpats), leaves (rest relpats)]
-        (if-let [lf (first leaves)]
-          (recur (assoc-leaf-relpat root lf) (rest leaves))
-          (let [attrs (li/instance-pattern-attrs root)]
-            (normalize-for-lookup-all root attrs old-attrs)))))))
-
-(defn- maybe-normalize-relationship-path [pat]
-  (let [path-queries
-        (filter
-         (fn [[k v :as arg]]
-           (when (li/path-query? v)
-             (if (li/path-query-pattern? k)
-               arg
-               (u/throw-ex (str "path-query can be attached only to :?, found " k)))))
-         (li/instance-pattern-attrs pat))]
-    (cond
-      (not (seq path-queries)) pat
-      (> (count path-queries) 1) (u/throw-ex "pattern can have only one path-query")
-      :else (normalize-relationship-path (second (first path-queries)) pat))))
-
-(defn- query-by-contains-path? [pat relpat]
-  (and (nil? (seq relpat))
-       (some #{li/path-attr-q} (keys (li/record-attributes pat)))))
 
 (declare compile-query-command)
 
@@ -628,10 +449,7 @@
     (compile-from-pattern ctx pat)
 
     (li/instance-pattern? pat)
-    (let [pat (maybe-normalize-relationship-path pat)
-          orig-nm (ctx/dynamic-type
-                   ctx
-                   (li/instance-pattern-name pat))
+    (let [orig-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
           full-nm (li/normalize-name orig-nm)
           {component :component record :record
            path :path refs :refs :as parts} (li/path-parts full-nm)
@@ -645,18 +463,8 @@
           [tag scm] (if (or path refs)
                       [:dynamic-upsert nil]
                       (cv/find-schema nm full-nm))
-          relpat (ls/rel-tag pat)
           is-query-upsert (or (li/query-pattern? orig-nm)
-                              (some li/query-pattern? (keys attrs)))
-          is-relq (and relpat is-query-upsert (relationship-query? relpat))]
-      (when (and (not is-relq) (some-relationship-queries? relpat))
-        (u/throw-ex (str "cannot mix relationship queries and upserts - " relpat)))
-      (when-not (or (active-event-is-built-in?)
-                    (ctx/ignore-relationship-query-constraint? ctx))
-        (when-let [r (cn/find-contained-relationship full-nm)]
-          (when (and (not (query-by-contains-path? pat relpat))
-                     (not= r (relationship-name-from-pattern relpat)))
-            (u/throw-ex (str "pattern for " full-nm " requires relationship " r)))))
+                              (some li/query-pattern? (keys attrs)))]
       (let [c (case tag
                 (:entity :record) emit-realize-instance
                 :event (do
@@ -665,23 +473,17 @@
                          emit-realize-instance)
                 :dynamic-upsert emit-dynamic-upsert
                 (u/throw-ex (str "not a valid instance pattern - " pat)))
-            args0 (merge {:alias alias cn/type-tag-key tag
-                          :full-query? (and (= tag :entity)
-                                            (li/query-pattern? orig-nm))}
-                         (when timeout-ms
-                           {:timeout-ms timeout-ms}))
-            args (if is-relq
-                   (assoc
-                    args0 :query-filter relpat)
-                   args0)
+            args (merge {:alias alias cn/type-tag-key tag
+                         :full-query? (and (= tag :entity)
+                                           (li/query-pattern? orig-nm))}
+                        (when timeout-ms
+                          {:timeout-ms timeout-ms}))
             opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias
           (let [alias-name (ctx/alias-name alias)]
             (ctx/add-alias! ctx (or nm alias-name) alias)))
-        (if (and relpat (not is-relq))
-          (compile-relationship-pattern ctx nm opc relpat)
-          opc)))
+        opc))
 
     :else
     (emit-realize-map-literal ctx pat)))
@@ -888,38 +690,8 @@
                           alias])
       (compile-query-pattern ctx query-pat alias))))
 
-(defn- compile-delete-relationship [ctx recname [main-entity-pat node-entity-pat]]
-  (if (cn/relationship? recname)
-    (ctx/with-ignore-relationship-query-constraint
-      ctx
-      #(emit-delete
-        (li/split-path recname)
-        [li/rel-tag
-         (compile-pattern ctx main-entity-pat)
-         (compile-pattern ctx node-entity-pat)
-         (fn [r1 r2]
-           (let [r2-type (cn/instance-type r2)
-                 [_ [main-id main-rel-attr] [node-id node-rel-attr]]
-                 (normalized-attributes-in-relationship
-                  recname
-                  (cn/instance-type r1) r2-type)
-                 p1 (compile-pattern
-                     ctx [:delete recname
-                          {main-rel-attr (main-id r1)
-                           node-rel-attr (node-id r2)}])
-                 p2 (when (mt/contains (cn/fetch-meta recname))
-                      (let [idattr (cn/identity-attribute-name r2-type)]
-                        (compile-pattern
-                         ctx [:delete r2-type
-                              {idattr (idattr r2)}])))]
-             (if p2 [p1 p2] [p1])))]))
-    (u/throw-ex (str "invalid delete, " recname " is not a relationship"))))
-
 (defn- compile-delete [ctx [recname & id-pat]]
   (cond
-    (= li/rel-tag (ffirst id-pat))
-    (compile-delete-relationship ctx recname (rest (first id-pat)))
-
     (= (vec id-pat) [:*])
     (emit-delete (li/split-path recname) :*)
 
@@ -936,7 +708,7 @@
              ctx recname
              (if (map? qpat)
                (into [] qpat)
-               qpat) nil)]
+               qpat))]
       (when alias
         (ctx/add-alias! ctx recname alias))
       (emit-delete (li/split-path recname) (merge q {ls/alias-tag alias})))))

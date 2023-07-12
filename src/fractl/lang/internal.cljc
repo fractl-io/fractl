@@ -473,6 +473,9 @@
 (defn path-query-string [s]
   (subs s path-query-prefix-len))
 
+(def path-query-tag :?)
+(defn path-query-tag? [x] (= x :?))
+
 (defn- fully-qualified-path-type [base-component n]
   (if (s/index-of n "$")
     (keyword (s/replace n "$" "/"))
@@ -498,8 +501,6 @@
                              :parent-value (v parent-val)
                              :parent (t parent)}))
         result))))
-
-(defn path-query-pattern? [x] (= x :?))
 
 (defn full-path-name? [n]
   (s/index-of (str n) "/"))
