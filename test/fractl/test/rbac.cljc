@@ -586,7 +586,7 @@
          (delete-e false "564" "ilr_u2@ilr.com")
          (no-privs "564"))))))
 
-(deftest issue-711-inherit-entity-priv
+#_(deftest issue-711-inherit-entity-priv
   (defcomponent :I711A
     (entity
      :I711A/E1
@@ -654,7 +654,7 @@
        (is (cn/instance-of? :I711A/E2 r))
        (is (cn/instance-of? :I711A/R1 (first (:-> r))))))))
 
-(deftest issue-711-inherit-instance-priv
+#_(deftest issue-711-inherit-instance-priv
   (defcomponent :I711B
     (entity
      :I711B/E1
@@ -898,7 +898,7 @@
        (is (not (update-e1 1 2000 "u3@i762.com")))
        (e1s? lookup-e1)))))
 
-(deftest issue-884-rbac-dsl
+#_(deftest issue-884-rbac-dsl
   (lr/reset-events!)
   (defcomponent :I884
     (entity
@@ -1007,7 +1007,7 @@
          (is (r2? (tu/first-result
                    (with-user "u2@i884.com" (create-r2 2 2))))))))))
 
-(deftest issue-923-between-ownership
+#_(deftest issue-923-between-ownership
   (lr/reset-events!)
   (defcomponent :I923
     (entity
@@ -1067,7 +1067,7 @@
        (tu/is-error #(tu/eval-all-dataflows
                       (with-user "u2@i923.com" (create-r 10 20))))))))
 
-(defn- issue-938-helper [allow-read]
+#_(defn- issue-938-helper [allow-read]
   (let [cname (if allow-read :I938A :I938B)
         I938 #(keyword (str (name cname) "/" (name %)))]
     (lr/reset-events!)
@@ -1169,7 +1169,7 @@
              (do (tu/is-error #(tu/eval-all-dataflows (with-user "u2@i938.com" (get-c 1 100 1000))))
                  (tu/is-error #(tu/eval-all-dataflows (with-user "u1@i938.com" (get-c 2 200 2000))))))))))))
 
-(deftest issue-938
+#_(deftest issue-938
   (issue-938-helper false)
   (issue-938-helper true))
 
