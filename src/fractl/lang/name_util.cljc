@@ -47,7 +47,8 @@
        (if (= 'quote (first v))
          {k v}
          (let [qv (str "(quote " v ")")]
-           {k (eval (read-string qv))}))))))
+           {k #?(:clj (eval (read-string qv))
+                 :cljs (cljs.reader/read-string qv))}))))))
 
 (defn- maybe-merge-non-attrs [fq-inst orig-inst]
   (let [rels (when-let [rels (li/rel-tag orig-inst)]
