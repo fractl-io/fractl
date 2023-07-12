@@ -1,7 +1,8 @@
 (ns fractl.gpt.core
   (:require [clojure.string :as s]
-            [fractl.util.http :as http]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
+            [fractl.util.http :as http]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.datafmt.json :as json]
@@ -63,22 +64,44 @@
   ([response-handler request]
    (interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 
-(defn non-interactive-generate-helper [gpt response-handler request]
+(declare maybe-intern-component)
+
+(def ^:private MAX-RETRIES 3)
+
+(defn- find-choice [choices]
+  (try
+    (loop [choices choices]
+      (if-let [c (first choices)]
+        (if (maybe-intern-component c)
+          [c nil]
+          (recur (rest choices)))
+        [nil "no valid choices found in response"]))
+    (catch #?(:clj Exception :cljs :default) ex
+      [nil #?(:clj (.getMessage ex) :cljs ex)])))
+
+(defn non-interactive-generate-helper [gpt response-handler retries request]
   (let [request (if (string? request)
                   (add-to-conversation request)
                   request)]
-    (post gpt (fn [r]
-                (response-handler
-                 (choices (:chat-response r))
-                 (fn [choice next-request]
-                   (add-to-conversation
-                    (add-to-conversation request "assistant" choice)
-                    "user" next-request))))
-          request)))
+    (if (>= retries MAX-RETRIES)
+      (u/throw-ex (str "gpt failed to generate the model, please try restarting the session"))
+      (let [cont (partial non-interactive-generate-helper gpt response-handler (inc retries))
+            mkreq (fn [choice next-request]
+                    (add-to-conversation
+                     (add-to-conversation request "assistant" choice)
+                     "user" next-request))]
+        (post gpt (fn [r]
+                    (let [choices (choices (:chat-response r))
+                          [choice err-msg] (find-choice choices)]
+                      (if-not err-msg
+                        (response-handler choice (partial mkreq choice))
+                        (do (log/warn (str "attempt to intern component failed: " err-msg))
+                            (cont (mkreq (or (first choices) "") (str "ERROR - " err-msg)))))))
+              request)))))
 
 (defn non-interactive-generate
   ([gpt-model-name api-key response-handler request]
-   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
+   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler 0 request))
   ([response-handler request]
    (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 
@@ -142,6 +165,7 @@
     s))
 
 (defn maybe-intern-component [s]
+  (log/debug (str "trying to intern choice: " s))
   (let [final-s (read-string (str "(do " (remove-invalid-tokens (trim-to-exp s)) ")"))]
     (when-let [exps (seq (filter model-exp? final-s))]
       (doseq [exp exps]
