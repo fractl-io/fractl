@@ -756,31 +756,27 @@
       k
       (li/make-path component k))))
 
+(defn- parent-info-from-path [component-name path]
+  (let [ps (filter seq (s/split path #"/"))]
+    (if (= (count ps) 3)
+      (let [nc (partial name-from-path-component component-name)]
+        [(nc (first ps)) (second ps) (nc (last ps)) true])
+      (let [lp (last (li/parse-query-path (str li/path-query-prefix path)))]
+        [(:parent lp) (:parent-value lp) (:relationship lp) false]))))
+
 (defn- find-parent-by-path [env record-name path]
   (let [[c n] (li/split-path record-name)
-        ps (filter seq (s/split path #"/"))
-        nc (partial name-from-path-component c)]
-    (if (= (count ps) 3)
-      (let [parent (nc (first ps))
-            pid-attr (cn/identity-attribute-name parent)
-            pid-val (second ps)
-            relname (nc (last ps))]
-        (when-not (cn/parent-via? relname record-name parent)
-          (u/throw-ex (str "not in relationship - " [relname record-name parent])))
-        (or (first (env/lookup-instances-by-attributes
-                    env (li/split-path parent) {pid-attr pid-val} true))
-            (first (store/query-by-unique-keys
-                    (env/get-store env) parent [pid-attr]
-                    [(cn/parse-attribute-value parent pid-attr pid-val)]))))
-      (let [path-val (subs path 0 (s/last-index-of path "/"))
-            parsed-path (li/parse-query-path (str li/path-query-prefix path))
-            lp (last parsed-path)
-            parent (:parent lp)
-            pid-attr (cn/identity-attribute-name parent)
-            pid-val (:parent-value lp)
-            relname (:relationship lp)]
-        (when-not (cn/parent-via? relname record-name parent)
-          (u/throw-ex (str "not in relationship - " [relname record-name parent])))
+        [parent pid-val relname at-root] (parent-info-from-path c path)
+        pid-attr (cn/identity-attribute-name parent)]
+    (when-not (cn/parent-via? relname record-name parent)
+      (u/throw-ex (str "not in relationship - " [relname record-name parent])))
+    (if at-root
+      (or (first (env/lookup-instances-by-attributes
+                  env (li/split-path parent) {pid-attr pid-val} true))
+          (first (store/query-by-unique-keys
+                  (env/get-store env) parent [pid-attr]
+                  [(cn/parse-attribute-value parent pid-attr pid-val)])))
+      (let [path-val (subs path 0 (s/last-index-of path "/"))]
         (or (first (env/lookup-instances-by-attributes
                     env (li/split-path parent) {li/path-attr path-val}))
             (first (store/query-by-unique-keys
