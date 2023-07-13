@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [fractl.util :as u]
             [fractl.util.seq :as us]
+            [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.store.sql :as sql]
             [fractl.store.util :as su]))
@@ -32,6 +33,9 @@
 
 (defn delete-all-statement [_ table-name]
   (str "DELETE FROM " table-name))
+
+(defn delete-children-statement [conn table-name path]
+  (str "DELETE FROM " table-name " WHERE _" (name li/path-attr) " LIKE '" path "'"))
 
 (defn query-by-id-statement [_ query-sql id]
     (let [stmt (str query-sql)]

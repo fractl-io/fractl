@@ -4,6 +4,7 @@
             [next.jdbc.prepare :as jdbcp]
             [fractl.global-state :as gs]
             [fractl.component :as cn]
+            [fractl.lang.internal :as li]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.store.util :as su])
@@ -69,6 +70,10 @@
 
 (defn delete-all-statement [conn table-name]
   (let [sql (str "DELETE FROM " table-name)]
+    (jdbc/prepare conn [sql])))
+
+(defn delete-children-statement [conn table-name path]
+  (let [sql (str "DELETE FROM " table-name " WHERE _" (name li/path-attr) " LIKE '" path "'")]
     (jdbc/prepare conn [sql])))
 
 (defn do-query-statement

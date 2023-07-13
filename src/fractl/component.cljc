@@ -1239,7 +1239,7 @@
 
 (defn make-future [future-obj timeout-ms]
   (make-instance :Fractl.Kernel.Lang/Future {:Result future-obj
-                                 :TimeoutMillis timeout-ms}))
+                                             :TimeoutMillis timeout-ms}))
 
 (def future-object? (partial instance-of? :Fractl.Kernel.Lang/Future))
 
@@ -1626,6 +1626,12 @@
                        (containing-parents child)))
       true
       false)))
+
+(defn can-cascade-delete-children? [entity-name]
+  (if-let [rels (contained-children entity-name)]
+    (and (every? :cascade-on-delete (mapv fetch-meta rels))
+         (every? can-cascade-delete-children? (mapv relinfo-to rels)))
+    true))
 
 (defn between-relationships [recname]
   (when-let [rels (seq (find-relationships recname))]

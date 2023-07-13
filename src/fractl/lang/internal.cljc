@@ -485,12 +485,12 @@
 (def path-query-tag :?)
 (defn path-query-tag? [x] (= x :?))
 
-(defn- fully-qualified-path-type [base-component n]
+(defn fully-qualified-path-type [base-component n]
   (if (s/index-of n "$")
     (keyword (s/replace n "$" "/"))
     (keyword (str (name base-component) "/" n))))
 
-(defn- fully-qualified-path-value [base-component n]
+(defn fully-qualified-path-value [base-component n]
   (if (s/starts-with? n ":")
     (fully-qualified-path-type base-component (subs n 1))
     n))
@@ -510,6 +510,23 @@
                              :parent-value (v parent-val)
                              :parent (t parent)}))
         result))))
+
+(defn- fully-qualified-path-component [base-component n]
+  (if (s/index-of n "$")
+    n
+    (str (name base-component) "$" n)))
+
+(defn as-fully-qualified-path [base-component path]
+  (let [path (if (path-query? path) (subs path path-query-prefix-len) path)
+        fqt (partial fully-qualified-path-component base-component)]
+    (loop [parts (filter seq (s/split path #"/")), n 0, final-path []]
+      (if-let [p (first parts)]
+        (case n
+          (0 2 3) (recur (rest parts)
+                         (if (= n 3) 1 (inc n))
+                         (conj final-path (fqt p)))
+          (recur (rest parts) (inc n) (conj final-path p)))
+        (str path-query-prefix "/" (s/join "/" final-path))))))
 
 (defn full-path-name? [n]
   (s/index-of (str n) "/"))

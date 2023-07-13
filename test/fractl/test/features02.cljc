@@ -57,26 +57,32 @@
                                    :PATH "/Department/d1/WorksFor"}})
                                ["e01" "e02"])
           d? (partial cn/instance-of? :Bcr/Department)
-          e? (partial cn/instance-of? :Bcr/Employee)]
+          e? (partial cn/instance-of? :Bcr/Employee)
+          fq (partial li/as-fully-qualified-path :Bcr)]
       (is (d? d1)) (is (every? e? es))
       (defn- lookup-e [e]
         (is (cn/same-instance?
              e (tu/first-result
                 {:Bcr/Lookup_Employee
-                 {:PATH (str "path://Department/d1/WorksFor/" (:Email e))}}))))
+                 {:PATH
+                  (fq (str "path://Department/d1/WorksFor/Employee/" (:Email e)))}}))))
       (doseq [e es] (lookup-e e))
       (defn- lookup-all-es [dept cnt es]
         (let [rs (tu/result
                   {:Bcr/LookupAll_Employee
-                   {:PATH (str "path://Department/" dept "/WorksFor/%")}})]
+                   {:PATH (fq (str "path://Department/" dept "/WorksFor/Employee/%"))}})]
           (is (= (count rs) cnt))
           (is (every? (fn [e] (some (partial cn/same-instance? e) es)) rs))))
       (lookup-all-es "d1" 2 es)
       (let [e (tu/first-result
                {:Bcr/Update_Employee
                 {:Data {:Name "e0001"}
-                 :PATH "path://Department/d1/WorksFor/e01@bcr.com"}})]
+                 :PATH (fq "path://Department/d1/WorksFor/Employee/e01@bcr.com")}})]
         (is (= "e0001" (:Name e)))
         (is (= (:Email e1) (:Email e)))
         (lookup-e e)
-        (lookup-all-es "d1" 2 [e e2])))))
+        (lookup-all-es "d1" 2 [e e2])
+        (is (cn/same-instance? e (tu/first-result
+                                  {:Bcr/Delete_Employee
+                                   {:PATH (fq "path://Department/d1/WorksFor/Employee/e01@bcr.com")}})))
+        (lookup-all-es "d1" 1 [e2])))))

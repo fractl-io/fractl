@@ -57,6 +57,8 @@
         (db/delete-by-id @datasource entity-name id-attr-name id))
       (delete-all [_ entity-name]
         (db/delete-all @datasource entity-name))
+      (delete-children [_ entity-name path]
+        (db/delete-children @datasource entity-name path))
       (query-by-id [_ entity-name query ids]
         (db/query-by-id @datasource entity-name query ids))
       (query-by-unique-keys [store entity-name unique-keys unique-values]

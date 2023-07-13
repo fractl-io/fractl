@@ -20,6 +20,7 @@
    :update-inst-statement #?(:clj ji/update-inst-statement :cljs aqi/upsert-inst-statement)
    :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
    :delete-all-statement #?(:clj ji/delete-all-statement :cljs aqi/delete-all-statement)
+   :delete-children-statement #?(:clj ji/delete-children-statement :cljs aqi/delete-children-statement)
    :query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement)
    :do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement)
    :validate-ref-statement #?(:clj ji/validate-ref-statement :cljs aqi/validate-ref-statement)})
@@ -32,6 +33,7 @@
 (def update-inst-statement (:update-inst-statement store-fns))
 (def delete-by-id-statement (:delete-by-id-statement store-fns))
 (def delete-all-statement (:delete-all-statement store-fns))
+(def delete-children-statement (:delete-children-statement store-fns))
 (def query-by-id-statement (:query-by-id-statement store-fns))
 (def do-query-statement (:do-query-statement store-fns))
 (def validate-ref-statement (:validate-ref-statement store-fns))
@@ -188,6 +190,15 @@
      datasource
      (fn [conn]
        (let [pstmt (delete-all-statement conn tabname)]
+         (execute-stmt! conn pstmt nil))))
+    entity-name))
+
+(defn delete-children [datasource entity-name path]
+  (let [tabname (su/entity-table-name entity-name)]
+    (execute-fn!
+     datasource
+     (fn [conn]
+       (let [pstmt (delete-children-statement conn tabname path)]
          (execute-stmt! conn pstmt nil))))
     entity-name))
 

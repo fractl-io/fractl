@@ -381,6 +381,39 @@
   ([env record-name instance]
    (chained-delete env record-name instance true)))
 
+(defn- hard-delete-all-children [store record-name]
+  (loop [rels (cn/contained-children record-name)]
+    (if-let [[_ _ child] (first rels)]
+      (when (hard-delete-all-children child)
+        (store/delete-all store child)
+        (recur (rest rels)))
+      record-name)))
+
+(defn- delete-all-children [store record-name]
+  (if (cn/can-cascade-delete-children? record-name)
+    (hard-delete-all-children store record-name)
+    (u/throw-ex (str "cannot cascade delete children - " record-name))))
+
+(defn- find-path-prefix [record-name inst]
+  (or (li/path-attr inst)
+      (let [[c n] (li/split-path record-name)]
+        (str li/path-query-prefix "/" (name c) "$" (name n) "/"
+             ((cn/identity-attribute-name record-name) inst)))))
+
+(defn- hard-delete-children [store record-name path-prefix]
+  (loop [rels (cn/contained-children record-name)]
+    (if-let [[_ _ child] (first rels)]
+      (when (hard-delete-children store child path-prefix)
+        (store/delete-children store child path-prefix)
+        (recur (rest rels)))
+      record-name)))
+
+(defn- delete-children [store record-name inst]
+  (if (cn/can-cascade-delete-children? record-name)
+    (hard-delete-children store record-name
+                          (str (find-path-prefix record-name inst) "%"))
+    (u/throw-ex (str "cannot cascade delete children - " record-name))))
+
 (defn- purge-all [env instances]
   (loop [env env, insts instances]
     (if-let [inst (first insts)]
@@ -750,7 +783,7 @@
   (second (env/instance-ref-path env record-name nil refs)))
 
 (defn- name-from-path-component [component n]
-  (let [k (keyword n)
+  (let [k (li/fully-qualified-path-type component n)
         parts (li/split-path k)]
     (if (= 2 (count parts))
       k
@@ -784,8 +817,9 @@
              (env/get-store env) parent [li/path-attr] [path-val]))))))
 
 (defn- attach-full-path [record-name inst path]
-  (let [v (str ((cn/path-identity-attribute-name record-name) inst))]
-    (assoc inst li/path-attr (str li/path-query-prefix path "/" v))))
+  (let [v (str ((cn/path-identity-attribute-name record-name) inst))
+        [c n] (li/split-path record-name)]
+    (assoc inst li/path-attr (li/as-fully-qualified-path c (str path "/" (name n) "/" v)))))
 
 (defn- partial-path-attr [inst]
   (when-let [p (li/path-attr inst)]
@@ -960,7 +994,8 @@
           (i/ok [(delete-intercept
                   env [record-name nil]
                   (fn [[record-name _]]
-                    (store/delete-all store record-name)))]
+                    (when (delete-all-children store record-name)
+                      (store/delete-all store record-name))))]
                 env)
 
           :else
@@ -970,8 +1005,9 @@
                   env (if alias (env/bind-instance-to-alias env alias insts) env)
                   id-attr (cn/identity-attribute-name record-name)]
               (i/ok insts (reduce (fn [env instance]
-                                    (chained-delete env record-name instance)
-                                    (env/purge-instance env record-name id-attr (id-attr instance)))
+                                    (when (delete-children env record-name instance)
+                                      (chained-delete env record-name instance)
+                                      (env/purge-instance env record-name id-attr (id-attr instance))))
                                   env insts)))
             (i/not-found record-name env)))
         (i/error (str "no active store, cannot delete " record-name " instance"))))
