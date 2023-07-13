@@ -761,8 +761,9 @@
     (if (= (count ps) 3)
       (let [nc (partial name-from-path-component component-name)]
         [(nc (first ps)) (second ps) (nc (last ps)) true])
-      (let [lp (last (li/parse-query-path (str li/path-query-prefix path)))]
-        [(:parent lp) (:parent-value lp) (:relationship lp) false]))))
+      (let [lp (last (li/parse-query-path
+                      component-name (str li/path-query-prefix path)))]
+        [(:parent lp) (:relationship lp) (:parent-value lp) false]))))
 
 (defn- find-parent-by-path [env record-name path]
   (let [[c n] (li/split-path record-name)
@@ -773,22 +774,27 @@
     (if at-root
       (or (first (env/lookup-instances-by-attributes
                   env (li/split-path parent) {pid-attr pid-val} true))
-          (first (store/query-by-unique-keys
-                  (env/get-store env) parent [pid-attr]
-                  [(cn/parse-attribute-value parent pid-attr pid-val)])))
+          (store/query-by-unique-keys
+           (env/get-store env) parent [pid-attr]
+           [(cn/parse-attribute-value parent pid-attr pid-val)]))
       (let [path-val (subs path 0 (s/last-index-of path "/"))]
         (or (first (env/lookup-instances-by-attributes
                     env (li/split-path parent) {li/path-attr path-val}))
-            (first (store/query-by-unique-keys
-                    (env/get-store env) parent [li/path-attr] [path-val])))))))
+            (store/query-by-unique-keys
+             (env/get-store env) parent [li/path-attr] [path-val]))))))
 
 (defn- attach-full-path [record-name inst path]
   (let [v (str ((cn/path-identity-attribute-name record-name) inst))]
-    (assoc inst li/path-attr (str path "/" v))))
+    (assoc inst li/path-attr (str li/path-query-prefix path "/" v))))
+
+(defn- partial-path-attr [inst]
+  (when-let [p (li/path-attr inst)]
+    (when-not (li/path-query? p)
+      p)))
 
 (defn- maybe-fix-contains-path [env record-name inst]
-  (if-let [path (li/path-attr inst)]
-    (if-let [parent (find-parent-by-path env path)]
+  (if-let [path (partial-path-attr inst)]
+    (if-let [parent (find-parent-by-path env record-name path)]
       (attach-full-path record-name inst path)
       (u/throw-ex (str "failed to find parent by path - " path)))
     inst))

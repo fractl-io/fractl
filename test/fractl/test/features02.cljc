@@ -26,3 +26,57 @@
               :default "yyyy"}
           :Z :I840/K}
          (cn/fetch-user-schema :I840/E))))
+
+(deftest basic-contains-relationship
+  (let [grades ["a" "b"]]
+    (defcomponent :Bcr
+      (entity
+       :Bcr/Employee
+       {:Email {:type :Email :identity true}
+        :Name :String
+        :Grade {:oneof grades}})
+      (entity
+       :Bcr/Department
+       {:Name {:type :String :identity true}
+        :Location {:oneof ["north" "south" "west" "east"]}})
+      (relationship
+       :Bcr/WorksFor
+       {:meta {:contains [:Bcr/Department :Bcr/Employee]}}))
+    (is (cn/parent-via? :Bcr/WorksFor :Bcr/Employee :Bcr/Department))
+    (let [d1 (tu/first-result
+              {:Bcr/Create_Department
+               {:Instance
+                {:Bcr/Department
+                 {:Name "d1" :Location "south"}}}})
+          [e1 e2 :as es] (mapv #(tu/first-result
+                                 {:Bcr/Create_Employee
+                                  {:Instance
+                                   {:Bcr/Employee
+                                    {:Email (str % "@bcr.com")
+                                     :Name % :Grade (rand-nth grades)}}
+                                   :PATH "/Department/d1/WorksFor"}})
+                               ["e01" "e02"])
+          d? (partial cn/instance-of? :Bcr/Department)
+          e? (partial cn/instance-of? :Bcr/Employee)]
+      (is (d? d1)) (is (every? e? es))
+      (defn- lookup-e [e]
+        (is (cn/same-instance?
+             e (tu/first-result
+                {:Bcr/Lookup_Employee
+                 {:PATH (str "path://Department/d1/WorksFor/" (:Email e))}}))))
+      (doseq [e es] (lookup-e e))
+      (defn- lookup-all-es [dept cnt es]
+        (let [rs (tu/result
+                  {:Bcr/LookupAll_Employee
+                   {:PATH (str "path://Department/" dept "/WorksFor/%")}})]
+          (is (= (count rs) cnt))
+          (is (every? (fn [e] (some (partial cn/same-instance? e) es)) rs))))
+      (lookup-all-es "d1" 2 es)
+      (let [e (tu/first-result
+               {:Bcr/Update_Employee
+                {:Data {:Name "e0001"}
+                 :PATH "path://Department/d1/WorksFor/e01@bcr.com"}})]
+        (is (= "e0001" (:Name e)))
+        (is (= (:Email e1) (:Email e)))
+        (lookup-e e)
+        (lookup-all-es "d1" 2 [e e2])))))

@@ -219,8 +219,11 @@
   ([component obj-name]
    (when (and component obj-name)
      (keyword (str (name component) "/" (name obj-name)))))
-  ([[component obj-name]]
-   (make-path component obj-name)))
+  ([n]
+   (if (keyword? n)
+     n
+     (let [[component obj-name] n]
+       (make-path component obj-name)))))
 
 (defn make-ref
   ([recname attrname]
@@ -472,6 +475,12 @@
 
 (defn path-query-string [s]
   (subs s path-query-prefix-len))
+
+(defn maybe-add-path-query-prefix [s]
+  (if (path-query? s)
+    s
+    (str path-query-prefix
+         (if (= "/" (first s)) s (str "/" s)))))
 
 (def path-query-tag :?)
 (defn path-query-tag? [x] (= x :?))

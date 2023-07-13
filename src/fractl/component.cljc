@@ -1611,16 +1611,21 @@
 (def containing-parents (partial contain-rels true))
 
 (defn parent-of? [child parent]
-  (if (some #{parent} (map last (containing-parents child)))
-    true
-    false))
+  (let [child (li/make-path child)
+        parent (li/make-path parent)]
+    (if (some #{parent} (map last (containing-parents child)))
+      true
+      false)))
 
 (defn parent-via? [relname child parent]
-  (if (first (filter #(and (= relname (first %))
-                           (= parent (last %)))
-                     (containing-parents child)))
-    true
-    false))
+  (let [relname (li/make-path relname)
+        child (li/make-path child)
+        parent (li/make-path parent)]
+    (if (first (filter #(and (= relname (first %))
+                             (= parent (last %)))
+                       (containing-parents child)))
+      true
+      false)))
 
 (defn between-relationships [recname]
   (when-let [rels (seq (find-relationships recname))]

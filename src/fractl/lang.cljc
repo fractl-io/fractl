@@ -791,15 +791,15 @@
         li/event-context ctx-aname})
       (cn/register-dataflow
        (ev :Create)
-       {child (into
-               {} (mapv
-                   (fn [a]
-                     [a (if (= a li/path-attr)
-                          ;; The path-identity will be appended by the evaluator.
-                          cr-path
-                          (crud-event-inst-accessor crevt a))])
-                   attr-names))
-        li/rel-tag cr-path}))
+       [{child (into
+                {} (mapv
+                    (fn [a]
+                      [a (if (= a li/path-attr)
+                           ;; The path-identity will be appended by the evaluator.
+                           cr-path
+                           (crud-event-inst-accessor crevt a))])
+                    attr-names))
+         li/rel-tag cr-path}]))
     (let [upevt (ev :Update)]
       (event-internal
        upevt
@@ -809,8 +809,8 @@
       (cn/register-dataflow
        upevt
        [{child
-         {li/path-query-tag (evt-path-attr upevt)
-          :from (crud-event-attr-accessor upevt :Data)}}]))
+         {li/path-attr-q (evt-path-attr upevt)}
+         :from (crud-event-attr-accessor upevt :Data)}]))
     (let [lookupevt (ev :Lookup)
           lookupallevt (ev :LookupAll)
           evattrs {li/path-attr :Fractl.Kernel.Lang/String
@@ -818,8 +818,8 @@
           child-q (li/name-as-query-pattern child)]
       (event-internal lookupevt evattrs)
       (event-internal lookupallevt evattrs)
-      (cn/register-dataflow lookupevt [{child-q (evt-path-attr lookupevt)}])
-      (cn/register-dataflow lookupallevt [{child-q (evt-path-attr lookupallevt)}]))
+      (cn/register-dataflow lookupevt [{child {li/path-attr-q (evt-path-attr lookupevt)}}])
+      (cn/register-dataflow lookupallevt [{child {li/path-attr-q [:like (evt-path-attr lookupallevt)]}}]))
     (let [delevt (ev :Delete)]
       (event-internal delevt {li/path-attr :Fractl.Kernel.Lang/String
                               li/event-context ctx-aname})
