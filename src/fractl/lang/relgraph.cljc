@@ -94,7 +94,7 @@
          enames))))))
 
 (defn- lookup-relations [relname relinsts other-entity-name]
-  (let [[c pe :as parent-entity] (li/split-path other-entity-name)
+  #_(let [[c pe :as parent-entity] (li/split-path other-entity-name)
         lookupevt-name (keyword (str (name c) "/" cn/lookup-internal-event-prefix-s "_" (name pe)))]
     (mapv
      (fn [relinst]
@@ -106,7 +106,7 @@
      relinsts)))
 
 (defn- find-instance-contains-rels [contains-lookup instance]
-  (let [[_ e :as inst-type] (li/split-path (cn/instance-type instance))
+  #_(let [[_ e :as inst-type] (li/split-path (cn/instance-type instance))
         entity-name (li/make-path inst-type)]
     (when-let [parent-rels (seq (contains-lookup entity-name))]
       (mapv
@@ -124,7 +124,7 @@
 (def find-children (partial find-instance-contains-rels cn/contained-children))
 
 (defn find-connected-nodes [relname entity-name entity-instance]
-  (let [meta (cn/fetch-meta relname)
+  #_(let [meta (cn/fetch-meta relname)
         [e1 e2] (or (mt/contains meta) (mt/between meta))
         other-entity (if (= entity-name e1) e2 e1)
         inst-rel-attr (cn/attribute-in-relationship relname entity-name)

@@ -334,10 +334,12 @@
 
 (defn- required-attribute-names [attrs]
   (map first
-       (filter (fn [[_ v]]
+       (filter (fn [[a v]]
                  (if (map? v)
                    (not (or (:optional v) (:default v)))
-                   true))
+                   (if-let [scm (and (keyword? v) (cn/find-attribute-schema v))]
+                     (not (or (:optional scm) (:default scm)))
+                     true)))
                attrs)))
 
 (defn- infer-default [attr-name attr-def dict?]
@@ -680,6 +682,12 @@
   {:entity (partial serialize-record cn/intern-entity)
    :relationship (partial serialize-record cn/intern-relationship)})
 
+(defn- maybe-add-curd-meta [attrs]
+  (let [meta (:meta attrs)]
+    (if (some #{li/owner-exclusive-crud} (keys meta))
+      attrs
+      (assoc attrs :meta (assoc meta li/owner-exclusive-crud true)))))
+
 (defn- serializable-record
   ([rectype n attrs raw-attrs]
    (if-let [intern-rec (rectype intern-rec-fns)]
@@ -689,6 +697,8 @@
                        n)
              is-rel (:relationship (:meta attrs))
              [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
+             attrs (assoc attrs li/meta-attr li/meta-attr-spec)
+             attrs (if-not is-rel (maybe-add-curd-meta attrs) attrs)
              result (intern-rec
                      rec-name
                      (maybe-assoc-id
@@ -753,18 +763,11 @@
 
 (def serializable-entity (partial serializable-record :entity))
 
-(defn- meta-entity [entity-name]
-  (let [[c n :as en] (li/split-path entity-name)
-        n (cn/meta-entity-name en)]
-    (serializable-entity
-     n
-     (cn/meta-entity-attributes c))))
-
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
    (when-let [r (serializable-entity n attrs)]
-     (and (meta-entity n) (raw/entity n attrs) r)))
+     (and (raw/entity n attrs) r)))
   ([schema]
    (parse-and-define entity schema)))
 
@@ -837,8 +840,8 @@
     (let [cident (cn/identity-attribute-name child)
           child-attrs (raw/entity-attributes child)
           cident-spec (cident child-attrs)]
-      (when (some #{li/path-attr} (keys child-attrs))
-        (u/throw-ex (str child "." li/path-attr " - attribute name is reserved")))
+      (when-let [a (some li/reserved-attrs (map #(keyword (s/upper-case (name %))) (keys child-attrs)))]
+        (u/throw-ex (str child "." a " - attribute name is reserved")))
       (assoc
        child-attrs
        cident (merge
@@ -853,11 +856,6 @@
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
 
-(defn- maybe-assoc-rbac-for-contains [attrs]
-  (if (:rbac attrs)
-    attrs
-    (assoc attrs :rbac {li/owner-exclusive-crud true})))
-
 (defn- assoc-contains-attributes [attrs [parent child]]
   (let [idp (cn/identity-attribute-name parent)
         idc (cn/contained-identity child)]
@@ -869,8 +867,9 @@
     (u/throw-ex (str "attributes not allowed for a contains relationship - " relname)))
   (let [raw-attrs attrs
         meta (:meta attrs)
-        attrs (assoc (maybe-assoc-rbac-for-contains attrs)
-                     :meta (assoc meta cn/relmeta-key relmeta :relationship :contains))
+        attrs (assoc attrs :meta
+                     (assoc meta cn/relmeta-key
+                            relmeta :relationship :contains))
         child-attrs (regen-contains-child-attributes child)]
     (if-let [r (record relname (assoc-contains-attributes attrs elems))]
       (if (entity child child-attrs)
@@ -895,7 +894,7 @@
         (str "type (contains, between) of relationship is not defined in meta - "
              relation-name)))
      (if contains
-       (contains-relationship relation-name attrs relmeta elems)
+       (contains-relationship relation-name (assoc attrs :meta meta) relmeta elems)
        (u/throw-ex "between-relationships not yet implemented"))))
        ;; (let [each-uq (if (:one-one relmeta) true false)
        ;;       combined-uqs (and (not each-uq)
@@ -919,13 +918,13 @@
        ;;                  :relationship (if between :between :contains)))
        ;;          raw-attrs)]
        ;;   (when (cn/register-relationship elems relation-name)
-       ;;     (when-let [r (and (meta-entity relation-name) r)]
+       ;;     (when r
        ;;       (regen-between-dataflows relation-name between (cleanup-rel-attrs attrs)))
        ;;     (and (raw/relationship relation-name raw-attrs) r))))))
   ([schema]
    (let [r (parse-and-define serializable-entity schema)
          n (li/record-name schema)]
-     (and (meta-entity n) (raw/relationship n (li/record-attributes schema)) r))))
+     (and (raw/relationship n (li/record-attributes schema)) r))))
 
 (defn- resolver-for-entity [component ename spec]
   (if (cn/find-entity-schema ename)

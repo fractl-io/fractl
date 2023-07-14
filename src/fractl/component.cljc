@@ -379,12 +379,15 @@
          (parsed-instance-type inst))
       (inherits? nm (instance-type inst))))
 
-(defn instance-attributes [x]
-  (when (an-instance? x)
-    (li/normalize-instance-pattern
-     (dissoc
-      x type-tag-key
-      type-key dirty-key))))
+(defn instance-attributes
+  ([x include-meta]
+   (when (an-instance? x)
+     (li/normalize-instance-pattern
+      (dissoc
+       x type-tag-key
+       type-key dirty-key
+       (when-not include-meta li/meta-attr)))))
+  ([x] (instance-attributes x false)))
 
 (defn instance-all-attributes [x]
   (when (an-instance? x)
@@ -1168,7 +1171,7 @@
     attr-val))
 
 (defn serializable-attributes [inst]
-  (let [attrs (instance-attributes inst)
+  (let [attrs (instance-attributes inst true)
         schema (entity-schema (type-key inst))
         new-attrs (map (fn [[k v]]
                          (let [ascm (find-attribute-schema v)]
@@ -1266,7 +1269,7 @@
   (let [n (instance-type inst)
         schema (ensure-schema n)
         attrs (validate-record-attributes
-               n (instance-attributes inst) schema)]
+               n (instance-attributes inst true) schema)]
     (if (error? attrs)
       (u/throw-ex attrs)
       (restore-flags
@@ -1593,15 +1596,17 @@
       (identity-attribute-name entity-name))))
 
 (defn- contain-rels [as-parent recname]
-  (let [accessors [first second]
+  (let [recname (li/make-path recname)
+        accessors [first second]
         [this that] (if as-parent (reverse accessors) accessors)]
     (when-let [rels (seq (find-relationships recname))]
-      (su/nonils
-       (mapv #(let [meta (fetch-meta %)
-                    contains (mt/contains meta)]
-                (when (= recname (this contains))
-                  [% :contains (that contains)]))
-             rels)))))
+      (seq
+       (su/nonils
+        (mapv #(let [meta (fetch-meta %)
+                     contains (mt/contains meta)]
+                 (when (= recname (this contains))
+                   [% :contains (that contains)]))
+              rels))))))
 
 (def relinfo-name first)
 (defn relinfo-to [[_ _ to]] to)
@@ -1627,11 +1632,14 @@
       true
       false)))
 
-(defn can-cascade-delete-children? [entity-name]
+(defn check-cascade-delete-children [entity-name]
   (if-let [rels (contained-children entity-name)]
-    (and (every? :cascade-on-delete (mapv fetch-meta rels))
-         (every? can-cascade-delete-children? (mapv relinfo-to rels)))
-    true))
+    (and (every? :cascade-on-delete (map #(fetch-meta (relinfo-name %)) rels))
+         (every?
+          #(let [c (check-cascade-delete-children %)] (or (= c :delete) (= c :ignore)))
+          (map relinfo-to rels))
+         :delete)
+    :ignore))
 
 (defn between-relationships [recname]
   (when-let [rels (seq (find-relationships recname))]
@@ -1707,12 +1715,11 @@
     (u/throw-ex (str "cannot remove entity in parent-relationships - " r)))
   (when-let [r (seq (map first (between-relationships recname)))]
     (u/throw-ex (str "cannot remove entity in between-relationships - " r)))
-  (when (and (remove-record (meta-entity-name recname))
-             (su/all-true?
-              (mapv (if (relationship? recname)
-                      maybe-remove-record
-                      remove-record)
-                    (all-crud-events recname))))
+  (when (su/all-true?
+         (mapv (if (relationship? recname)
+                 maybe-remove-record
+                 remove-record)
+               (all-crud-events recname)))
     (remove-record recname)))
 
 (def remove-event remove-record)
@@ -1791,3 +1798,20 @@
         :Fractl.Kernel.Lang/Boolean (if (= "true" v) true false)
         v)
       v)))
+
+(defn owners [inst]
+  (when (an-instance? inst)
+    (let [owners (:owners (li/meta-attr inst))]
+      (when (seq owners)
+        (set (s/split owners #","))))))
+
+(defn concat-owners [inst new-owners]
+  (let [xs (owners inst)]
+    (if-let [ys (seq (set/union xs new-owners))]
+      (let [meta (assoc (li/meta-attr inst) :owners (s/join "," ys))]
+        (assoc inst li/meta-attr meta))
+      inst)))
+
+(defn instance-privileges-for-user [inst user]
+  (when (an-instance? inst)
+    (get (:instprivs (li/meta-attr inst)) user)))

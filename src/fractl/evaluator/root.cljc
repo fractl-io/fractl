@@ -16,6 +16,7 @@
             [fractl.evaluator.match :as m]
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.intercept.core :as interceptors]
+            [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.syntax :as ls]
             [fractl.lang.opcode :as opc]
@@ -324,6 +325,17 @@
       r
       (first r))))
 
+(defn- active-user [env]
+  (or (cn/event-context-user (env/active-event env))
+      (gs/active-user)))
+
+(defn- maybe-add-owner [env inst]
+  (if (cn/owners inst)
+    inst
+    (if-let [owner (active-user env)]
+      (cn/concat-owners inst [owner])
+      inst)))
+
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
@@ -332,7 +344,7 @@
     (let [is-single (map? insts)
           result
           (if (or is-single (env/any-dirty? env insts))
-            (let [insts (if is-single [insts] insts)
+            (let [insts (mapv (partial maybe-add-owner env) (if is-single [insts] insts))
                   id-attr (cn/identity-attribute-name record-name)]
               (apply
                concat
@@ -390,8 +402,9 @@
       record-name)))
 
 (defn- delete-all-children [store record-name]
-  (if (cn/can-cascade-delete-children? record-name)
-    (hard-delete-all-children store record-name)
+  (case (cn/check-cascade-delete-children record-name)
+    :delete (hard-delete-all-children store record-name)
+    :ignore record-name
     (u/throw-ex (str "cannot cascade delete children - " record-name))))
 
 (defn- find-path-prefix [record-name inst]
@@ -409,9 +422,11 @@
       record-name)))
 
 (defn- delete-children [store record-name inst]
-  (if (cn/can-cascade-delete-children? record-name)
-    (hard-delete-children store record-name
-                          (str (find-path-prefix record-name inst) "%"))
+  (case (cn/check-cascade-delete-children record-name)
+    :delete (hard-delete-children
+             store record-name
+             (str (find-path-prefix record-name inst) "%"))
+    :ignore record-name
     (u/throw-ex (str "cannot cascade delete children - " record-name))))
 
 (defn- purge-all [env instances]
@@ -804,22 +819,28 @@
         pid-attr (cn/identity-attribute-name parent)]
     (when-not (cn/parent-via? relname record-name parent)
       (u/throw-ex (str "not in relationship - " [relname record-name parent])))
-    (if at-root
-      (or (first (env/lookup-instances-by-attributes
-                  env (li/split-path parent) {pid-attr pid-val} true))
-          (store/query-by-unique-keys
-           (env/get-store env) parent [pid-attr]
-           [(cn/parse-attribute-value parent pid-attr pid-val)]))
-      (let [path-val (subs path 0 (s/last-index-of path "/"))]
-        (or (first (env/lookup-instances-by-attributes
-                    env (li/split-path parent) {li/path-attr path-val}))
-            (store/query-by-unique-keys
-             (env/get-store env) parent [li/path-attr] [path-val]))))))
+    (when-let [result (if at-root
+                        (or (first (env/lookup-instances-by-attributes
+                                    env (li/split-path parent) {pid-attr pid-val} true))
+                            (store/query-by-unique-keys
+                             (env/get-store env) parent [pid-attr]
+                             {pid-attr (cn/parse-attribute-value parent pid-attr pid-val)}))
+                        (let [path-val (subs path 0 (s/last-index-of path "/"))]
+                          (or (first (env/lookup-instances-by-attributes
+                                      env (li/split-path parent) {li/path-attr path-val}))
+                              (store/query-by-unique-keys
+                               (env/get-store env) parent [li/path-attr] {li/path-attr path-val}))))]
+      (if (map? result) result (when (seq result) (first result))))))
 
 (defn- attach-full-path [record-name inst path]
   (let [v (str ((cn/path-identity-attribute-name record-name) inst))
         [c n] (li/split-path record-name)]
     (assoc inst li/path-attr (li/as-fully-qualified-path c (str path "/" (name n) "/" v)))))
+
+(defn- concat-owners [inst parent-inst]
+  (if-let [owners (cn/owners parent-inst)]
+    (cn/concat-owners inst owners)
+    inst))
 
 (defn- partial-path-attr [inst]
   (when-let [p (li/path-attr inst)]
@@ -829,7 +850,7 @@
 (defn- maybe-fix-contains-path [env record-name inst]
   (if-let [path (partial-path-attr inst)]
     (if-let [parent (find-parent-by-path env record-name path)]
-      (attach-full-path record-name inst path)
+      (attach-full-path record-name (concat-owners inst parent) path)
       (u/throw-ex (str "failed to find parent by path - " path)))
     inst))
 
@@ -1005,7 +1026,7 @@
                   env (if alias (env/bind-instance-to-alias env alias insts) env)
                   id-attr (cn/identity-attribute-name record-name)]
               (i/ok insts (reduce (fn [env instance]
-                                    (when (delete-children env record-name instance)
+                                    (when (delete-children store record-name instance)
                                       (chained-delete env record-name instance)
                                       (env/purge-instance env record-name id-attr (id-attr instance))))
                                   env insts)))

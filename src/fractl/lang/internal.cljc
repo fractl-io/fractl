@@ -12,11 +12,16 @@
 (def path-attr :PATH)
 (def default-path "/null")
 (def path-attr-spec
-  {:type :String
+  {:type :Fractl.Kernel.Lang/String
    :default default-path
    :unique true
    :indexed true})
 (def path-attr-q :PATH?)
+
+(def meta-attr :INSTMETA)
+(def meta-attr-spec {:type :Fractl.Kernel.Lang/Map
+                     :optional true})
+(def reserved-attrs #{path-attr meta-attr})
 
 (def globally-unique :globally-unique)
 
@@ -27,6 +32,17 @@
                  {:eval js-eval
                   :context :expr}
                  :value)))
+
+(def rbac-oprs #{:read :create :update :delete :eval})
+
+(defn- privs-list? [xs]
+  (and (seqable? xs)
+       (= rbac-oprs (set/union (set xs) rbac-oprs))))
+
+(defn instance-privilege-spec? [obj]
+  (and (map? obj)
+       (every? string? (keys obj))
+       (every? privs-list? (vals obj))))
 
 (def cmpr-oprs [:= :< :> :<= :>= :<>])
 (def query-cmpr-oprs (conj cmpr-oprs :like))

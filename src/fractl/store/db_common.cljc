@@ -122,7 +122,6 @@
     (execute-fn!
      datasource
      (fn [txn]
-       (create-db-schema! txn scmname)
        (doseq [ename (cn/entity-names component-name)]
          (when-not (cn/entity-schema-predefined? ename)
            (let [tabname (su/entity-table-name ename)

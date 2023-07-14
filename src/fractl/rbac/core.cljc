@@ -46,41 +46,22 @@
   (= email (:Email @superuser)))
 
 (defn- find-privileges [role-names]
-  (ev/safe-eval-internal
-   {:Fractl.Kernel.Rbac/FindPrivilegeAssignments
-    {:RoleNames role-names}}))
-
-(defn- find-child-role-names [role-names]
-  (loop [rns role-names, roles []]
-    (if-let [r (first rns)]
-      (if-let [child-roles
-               (first
-                (ev/safe-eval-internal
-                 {:Fractl.Kernel.Rbac/FindChildren
-                  {:Parent r}}))]
-        (let [names (mapv :Name child-roles)]
-          (recur
-           (rest rns)
-           (concat
-            names
-            (find-child-role-names names))))
-        (recur (rest rns) roles))
-      roles)))
-
-(def ^:private find-child-privileges
-  (comp find-privileges find-child-role-names))
+  (when (seq role-names)
+    (ev/safe-eval-internal
+     {:Fractl.Kernel.Rbac/FindPrivilegeAssignments
+      {:RoleNames role-names}})))
 
 (defn privileges [user-name]
   (when-let [rs (ev/safe-eval-internal
                  {:Fractl.Kernel.Rbac/FindRoleAssignments
                   {:Assignee user-name}})]
     (let [role-names (mapv :Role rs)
-          ps0 (find-privileges role-names)
-          ps1 (find-child-privileges role-names)
-          ps (set (concat ps0 ps1))]
-      (ev/safe-eval-internal
-       {:Fractl.Kernel.Rbac/FindPrivileges
-        {:Names (mapv :Privilege ps)}}))))
+          ps (find-privileges role-names)
+          names (mapv :Privilege ps)]
+      (when (seq names)
+        (ev/safe-eval-internal
+         {:Fractl.Kernel.Rbac/FindPrivileges
+          {:Names names}})))))
 
 (defn- has-priv-on-resource? [resource priv-resource]
   (if (or (= :* priv-resource)
@@ -137,15 +118,6 @@
                    instance-type
                    (li/make-path instance-type))
        :ResourceId (str instance-id)}}))))
-
-(defn delete-instance-privileges [instance-type instance-id]
-  (ev/safe-eval-internal
-   (cn/make-instance
-    {:Fractl.Kernel.Rbac/DeleteInstancePrivileges
-     {:Resource (if (keyword? instance-type)
-                  instance-type
-                  (li/make-path instance-type))
-      :ResourceId (str instance-id)}})))
 
 (defn- filter-instance-privilege? [opr inst-privs]
   (every? (fn [p] (some #{opr} (:Filter p))) inst-privs))

@@ -43,7 +43,8 @@
        :Bcr/WorksFor
        {:meta {:contains [:Bcr/Department :Bcr/Employee]}}))
     (is (cn/parent-via? :Bcr/WorksFor :Bcr/Employee :Bcr/Department))
-    (let [d1 (tu/first-result
+    (let [fq (partial li/as-fully-qualified-path :Bcr)
+          d1 (tu/first-result
               {:Bcr/Create_Department
                {:Instance
                 {:Bcr/Department
@@ -57,8 +58,7 @@
                                    :PATH "/Department/d1/WorksFor"}})
                                ["e01" "e02"])
           d? (partial cn/instance-of? :Bcr/Department)
-          e? (partial cn/instance-of? :Bcr/Employee)
-          fq (partial li/as-fully-qualified-path :Bcr)]
+          e? (partial cn/instance-of? :Bcr/Employee)]
       (is (d? d1)) (is (every? e? es))
       (defn- lookup-e [e]
         (is (cn/same-instance?
@@ -68,11 +68,15 @@
                   (fq (str "path://Department/d1/WorksFor/Employee/" (:Email e)))}}))))
       (doseq [e es] (lookup-e e))
       (defn- lookup-all-es [dept cnt es]
-        (let [rs (tu/result
-                  {:Bcr/LookupAll_Employee
-                   {:PATH (fq (str "path://Department/" dept "/WorksFor/Employee/%"))}})]
-          (is (= (count rs) cnt))
-          (is (every? (fn [e] (some (partial cn/same-instance? e) es)) rs))))
+        (let [result (first
+                      (tu/eval-all-dataflows
+                       {:Bcr/LookupAll_Employee
+                        {:PATH (fq (str "path://Department/" dept "/WorksFor/Employee/%"))}}))
+              rs (when (= :ok (:status result)) (:result result))]
+          (if (zero? cnt)
+            (is (tu/not-found? result))
+            (do (is (= (count rs) cnt))
+                (is (every? (fn [e] (some (partial cn/same-instance? e) es)) rs))))))
       (lookup-all-es "d1" 2 es)
       (let [e (tu/first-result
                {:Bcr/Update_Employee
@@ -85,4 +89,6 @@
         (is (cn/same-instance? e (tu/first-result
                                   {:Bcr/Delete_Employee
                                    {:PATH (fq "path://Department/d1/WorksFor/Employee/e01@bcr.com")}})))
-        (lookup-all-es "d1" 1 [e2])))))
+        (lookup-all-es "d1" 1 [e2]))
+      (is (d? (tu/first-result {:Bcr/Delete_Department {:Name "d1"}})))
+      (lookup-all-es "d1" 0 nil))))
