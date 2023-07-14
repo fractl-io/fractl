@@ -83,6 +83,10 @@
         (recur (rest exp) (conj result x)))
       (seq result))))
 
+(defn fn-name? [x]
+  (or (symbol? x)
+      (some #{x} li/oprs)))
+
 (defn exp
   "Return the intermediate representation (ir)
   for a compound expression - required keys are -
@@ -94,7 +98,7 @@
      (u/throw-ex (str "invalid compound-expression spec " spec)))
    (exp ($fn spec) ($args spec)))
   ([fnname args]
-   (when-not (symbol? fnname)
+   (when-not (fn-name? fnname)
      (u/throw-ex
       (str
        "fn-name must be a symbol - "
