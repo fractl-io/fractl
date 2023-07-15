@@ -331,3 +331,14 @@
 (defn strs
   ([j ss] (string/join j ss))
   ([ss] (string/join "\n" ss)))
+
+(defn call-with-cache
+  "Similar to memoize, but only non-nil values are cached."
+  [f]
+  (let [mem (atom {})]
+    (fn [& args]
+      (if-let [e (find @mem args)]
+        (val e)
+        (let [ret (apply f args)]
+          (when-not (nil? ret) (swap! mem assoc args ret))
+          ret)))))

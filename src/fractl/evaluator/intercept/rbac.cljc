@@ -72,16 +72,17 @@
   (some #{user} (cn/owners resource)))
 
 (defn- apply-rbac-checks [user env opr arg resource check-input]
-  (let [is-owner (user-is-owner? user resource)]
-    (if is-owner
-      arg
-      (let [has-base-priv ((opr actions) user check-input)]
-        (if has-base-priv
-          (if (or (= opr :read) (= opr :create))
-            arg
-            (when-not (owner-exclusive? resource) arg))
-          (when (has-instance-privilege? user opr resource)
-            arg))))))
+  (let [has-base-priv ((opr actions) user check-input)]
+    (if (= :create opr)
+      (when has-base-priv arg)
+      (let [is-owner (user-is-owner? user resource)
+            has-inst-priv (has-instance-privilege? user opr resource)]
+        (if (or is-owner has-inst-priv)
+          arg
+          (if has-base-priv
+            (case opr
+              :read arg
+              (:delete :update) (when-not (owner-exclusive? resource) arg))))))))
 
 (defn- first-instance [data]
   (cond

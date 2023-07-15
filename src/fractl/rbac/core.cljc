@@ -1,5 +1,6 @@
 (ns fractl.rbac.core
   (:require [fractl.global-state :as gs]
+            [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
             [fractl.lang.internal :as li]
@@ -45,23 +46,32 @@
 (defn superuser-email? [email]
   (= email (:Email @superuser)))
 
-(defn- find-privileges [role-names]
-  (when (seq role-names)
-    (ev/safe-eval-internal
-     {:Fractl.Kernel.Rbac/FindPrivilegeAssignments
-      {:RoleNames role-names}})))
+(def ^:private find-privileges
+  (u/call-with-cache
+   (fn [role-names]
+     (when (seq role-names)
+       (ev/safe-eval-internal
+        {:Fractl.Kernel.Rbac/FindPrivilegeAssignments
+         {:RoleNames role-names}})))))
 
-(defn privileges [user-name]
-  (when-let [rs (ev/safe-eval-internal
-                 {:Fractl.Kernel.Rbac/FindRoleAssignments
-                  {:Assignee user-name}})]
-    (let [role-names (mapv :Role rs)
-          ps (find-privileges role-names)
-          names (mapv :Privilege ps)]
-      (when (seq names)
-        (ev/safe-eval-internal
-         {:Fractl.Kernel.Rbac/FindPrivileges
-          {:Names names}})))))
+(def ^:private role-assignments
+  (u/call-with-cache
+   (fn [user-name]
+     (ev/safe-eval-internal
+      {:Fractl.Kernel.Rbac/FindRoleAssignments
+       {:Assignee user-name}}))))
+
+(def privileges
+  (u/call-with-cache
+   (fn [user-name]
+     (when-let [rs (role-assignments user-name)]
+       (let [role-names (mapv :Role rs)
+             ps (find-privileges role-names)
+             names (mapv :Privilege ps)]
+         (when (seq names)
+           (ev/safe-eval-internal
+            {:Fractl.Kernel.Rbac/FindPrivileges
+             {:Names names}})))))))
 
 (defn- has-priv-on-resource? [resource priv-resource]
   (if (or (= :* priv-resource)
@@ -100,51 +110,3 @@
 (def can-update? (partial has-priv? :update))
 (def can-delete? (partial has-priv? :delete))
 (def can-eval? (partial has-priv? :eval))
-
-(defn- fetch-instance-info [obj]
-  (when-let [inst (cond
-                    (cn/entity-instance? obj) obj
-                    (and (seqable? obj)
-                         (cn/entity-instance? (first obj)))
-                    (first obj))]
-    [(cn/instance-type inst) (cn/idval inst)]))
-
-(defn find-instance-privileges [instance-type instance-id]
-  (seq
-   (ev/safe-eval-internal
-    (cn/make-instance
-     {:Fractl.Kernel.Rbac/FindInstancePrivileges
-      {:Resource (if (keyword? instance-type)
-                   instance-type
-                   (li/make-path instance-type))
-       :ResourceId (str instance-id)}}))))
-
-(defn- filter-instance-privilege? [opr inst-privs]
-  (every? (fn [p] (some #{opr} (:Filter p))) inst-privs))
-
-(defn check-instance-privilege
-  "Load instance-level privileges for resource.
-   If none are defined, return :continue to execute the rest of the rbac-algo.
-   If instance-level privilege is set for the user and opr is in :Actions,
-   return :allow, otherwise return :block.
-   If instance-level privilege is not set for the user, but opr is in :Filter, return :continue,
-   otherwise return :block"
-  [userid opr resource]
-  (or
-   (when-let [[instance-type instance-id] (fetch-instance-info resource)]
-     (when-let [inst-privs (find-instance-privileges instance-type instance-id)]
-       (let [inst-priv-for-user (first (filter #(= userid (:Assignee %)) inst-privs))]
-         (if inst-priv-for-user
-           (if (some #{opr} (:Actions inst-priv-for-user))
-             :allow
-             :block)
-           (if (filter-instance-privilege? opr inst-privs)
-             :continue
-             :block)))))
-   :continue))
-
-(defn instance-privilege-assignment-object? [obj]
-  (cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment obj))
-
-(def instance-privilege-assignment-resource :Resource)
-(def instance-privilege-assignment-resource-id :ResourceId)

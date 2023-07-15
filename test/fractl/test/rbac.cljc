@@ -124,5 +124,5 @@
                         {:Brd/Lookup_E {:Id id}})]
          (tu/is-error #(tu/eval-all-dataflows (create-e 1)))
          (is (e? (tu/first-result (with-user "u1@brd.com" (create-e 1)))))
-         #_(is (e? (tu/first-result (with-user "u2@brd.com" (create-e 2)))))
-         #_(tu/is-error #(tu/eval-all-dataflows (with-user "u3@brd.com" (create-e 2)))))))))
+         (is (e? (tu/first-result (with-user "u2@brd.com" (create-e 2)))))
+         (tu/is-error #(tu/eval-all-dataflows (with-user "u3@brd.com" (create-e 3)))))))))
