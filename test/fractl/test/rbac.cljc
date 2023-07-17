@@ -154,11 +154,38 @@
            (t2 true 1)
            (t3 1) (t3 2))
          (tu/is-error #(tu/eval-all-dataflows (with-user "u2@brd.com" (delete-e 1))))
+         (tu/is-error #(tu/eval-all-dataflows (with-user "u1@brd.com" (delete-e 2))))
+         (test-lookup "u1@brd.com" 200 false 1)
+         (test-lookup "u1@brd.com" 200 false 2)
          (let [r (tu/first-result (with-user "u2@brd.com" (delete-e 2)))]
            (is (e? r)) (is (= (:Id r) 2)))
-         (test-lookup "u1@brd.com" 200 false 1)
          (test-lookup "u1@brd.com" 200 true 2)
          (test-lookup "u2@brd.com" 200 true 2)
          (let [r (tu/first-result (with-user "u1@brd.com" (delete-e 1)))]
            (is (e? r)) (is (= (:Id r) 1)))
          (test-lookup "u1@brd.com" 200 true 1))))))
+
+(deftest rbac-with-contains-relationship
+  (lr/reset-events!)
+  (defcomponent :Wcr
+    (entity
+     :Wcr/E
+     {:rbac [{:roles ["user"] :allow [:create :update :read]}]
+      :Id {:type :Int :identity true}
+      :X :Int})
+    (dataflow
+     :Wcr/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@wcr.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@wcr.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u3@wcr.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "user" :Assignee "u2@wcr.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "manager" :Assignee "u1@wcr.com"}}))
+  (is (finalize-events))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:Wcr/InitUsers {}}))))
