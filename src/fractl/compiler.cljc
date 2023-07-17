@@ -236,7 +236,7 @@
 
 (defn- begin-build-instance [rec-name attrs]
   (if-let [q (:query attrs)]
-    (op/query-instances [rec-name q])
+    (op/query-instances [rec-name q (:filter-by attrs)])
     (op/new-instance rec-name)))
 
 (declare compile-list-literal)
@@ -318,7 +318,7 @@
   [ctx pat]
   (let [entity-name (li/split-path (li/query-target-name pat))
         q (compile-query ctx entity-name nil)]
-    (op/query-instances [entity-name q])))
+    (op/query-instances [entity-name q nil])))
 
 (defn- compile-pathname
   ([ctx pat alias]
@@ -376,7 +376,7 @@
      (let [q (k pat)
            w (when (seq (:where q)) (w/postwalk process-complex-query (:where q)))
            c (stu/package-query q ((fetch-compile-query-fn ctx) (assoc q :from n :where w)))]
-       (callback [(li/split-path n) c]))))
+       (callback [(li/split-path n) c nil]))))
   ([ctx pat]
    (compile-complex-query ctx pat op/query-instances)))
 
@@ -435,6 +435,11 @@
   (when (some li/query-pattern? (keys attrs))
     attrs))
 
+(defn- parse-rel-spec [spec]
+  (if (or (string? spec) (keyword? spec))
+    [spec nil]
+    [(first spec) (rest spec)]))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -449,8 +454,11 @@
     (compile-from-pattern ctx pat)
 
     (li/instance-pattern? pat)
-    (let [rel-path (li/rel-tag pat)
-          pat (if rel-path (dissoc pat li/rel-tag) pat)
+    (let [rel-spec (li/rel-tag pat)
+          [[rel-path filter-pats] pat]
+          (if rel-spec
+            [(parse-rel-spec rel-spec) (dissoc pat li/rel-tag)]
+            [nil pat])
           orig-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
           full-nm (li/normalize-name orig-nm)
           {component :component record :record
@@ -459,15 +467,19 @@
           nm (if (or path refs)
                parts
                [component record])
-          attrs (let [attrs (li/instance-pattern-attrs pat)]
-                  (if rel-path (assoc attrs li/path-attr rel-path) attrs))
+          attrs (li/instance-pattern-attrs pat)
+          is-query-upsert (or (li/query-pattern? orig-nm)
+                              (some li/query-pattern? (keys attrs)))
+          attrs (if rel-path
+                  (assoc
+                   attrs (if is-query-upsert li/path-attr-q li/path-attr)
+                   rel-path)
+                  attrs)
           alias (:as pat)
           timeout-ms (ls/timeout-ms-tag pat)
           [tag scm] (if (or path refs)
                       [:dynamic-upsert nil]
-                      (cv/find-schema nm full-nm))
-          is-query-upsert (or (li/query-pattern? orig-nm)
-                              (some li/query-pattern? (keys attrs)))]
+                      (cv/find-schema nm full-nm))]
       (let [c (case tag
                 (:entity :record) emit-realize-instance
                 :event (do
@@ -480,7 +492,9 @@
                          :full-query? (and (= tag :entity)
                                            (li/query-pattern? orig-nm))}
                         (when timeout-ms
-                          {:timeout-ms timeout-ms}))
+                          {:timeout-ms timeout-ms})
+                        (when filter-pats
+                          {:filter-by (mapv (partial compile-pattern ctx) filter-pats)}))
             opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias

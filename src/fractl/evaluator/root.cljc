@@ -773,34 +773,38 @@
        (catch js/Error e
          (or (.-ex-data e) (i/error e))))))
 
-(defn- query-helper [env entity-name queries]
-  (if-let [[insts env]
-           (read-intercept
-            env entity-name
-            (fn [entity-name]
-              (find-instances
-               env (env/get-store env)
-               entity-name queries)))]
-    (cond
-      (maybe-async-channel? insts)
-      (i/ok
-       insts
-       (env/push-obj env entity-name insts))
+(defn- query-helper
+  ([env entity-name queries filter-by-opcodes]
+   (if-let [[insts env]
+            (read-intercept
+             env entity-name
+             (fn [entity-name]
+               ;; TODO: pass result through filter-by-opcodes
+               ;; (the evaluator maybe passed by making filter-by-opcodes a map).
+               (find-instances
+                env (env/get-store env)
+                entity-name queries)))]
+     (cond
+       (maybe-async-channel? insts)
+       (i/ok
+        insts
+        (env/push-obj env entity-name insts))
 
-      (seq insts)
-      (let [id-attr-name (cn/identity-attribute-name entity-name)
-            ids (mapv id-attr-name insts)]
-        (i/ok
-         insts
-         (env/mark-all-mint
-          (env/push-obj
-           (env/bind-queried-ids env entity-name ids)
-           entity-name insts)
-          insts)))
+       (seq insts)
+       (let [id-attr-name (cn/identity-attribute-name entity-name)
+             ids (mapv id-attr-name insts)]
+         (i/ok
+          insts
+          (env/mark-all-mint
+           (env/push-obj
+            (env/bind-queried-ids env entity-name ids)
+            entity-name insts)
+           insts)))
 
-      :else
-      (i/ok [] env))
-    (i/error (str "query failed for " entity-name))))
+       :else
+       (i/ok [] env))
+     (i/error (str "query failed for " entity-name))))
+  ([env entity-name queries] (query-helper env entity-name queries nil)))
 
 (defn- find-reference [env record-name refs]
   (second (env/instance-ref-path env record-name nil refs)))
@@ -956,8 +960,8 @@
       (let [env (env/push-obj env record-name)]
         (i/ok record-name env)))
 
-    (do-query-instances [_ env [entity-name queries]]
-      (query-helper env entity-name queries))
+    (do-query-instances [_ env [entity-name queries filter-by-opcodes]]
+      (query-helper env entity-name queries filter-by-opcodes))
 
     (do-evaluate-query [_ env [fetch-query-fn result-alias]]
       (bind-result-to-alias

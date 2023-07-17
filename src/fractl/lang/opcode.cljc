@@ -103,7 +103,7 @@
           [record-name]
           "Start initializing a record/entity/event instance.")
          (query-instances
-          [[entity-name query-attrs]]
+          [[entity-name query-attrs filter-by-opcodes]]
           "Start initializing entity instances in env by first querying it from a persistent store.")
          (evaluate-query
           [[fetch-query-fn result-alias]]
