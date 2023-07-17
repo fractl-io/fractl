@@ -122,6 +122,7 @@
                          {:Id id :Data {:X (* id 200)}}})
              lookup-e (fn [id]
                         {:Brd/Lookup_E {:Id id}})
+             delete-e (fn [id] {:Brd/Delete_E {:Id id}})
              test-lookup (fn [user factor err e]
                            (if err
                              (tu/is-error #(tu/eval-all-dataflows (with-user user (lookup-e e))))
@@ -151,4 +152,13 @@
            (t2 false 2)
            (test-lookup "u2@brd.com" 200 false 2)
            (t2 true 1)
-           (t3 1) (t3 2)))))))
+           (t3 1) (t3 2))
+         (tu/is-error #(tu/eval-all-dataflows (with-user "u2@brd.com" (delete-e 1))))
+         (let [r (tu/first-result (with-user "u2@brd.com" (delete-e 2)))]
+           (is (e? r)) (is (= (:Id r) 2)))
+         (test-lookup "u1@brd.com" 200 false 1)
+         (test-lookup "u1@brd.com" 200 true 2)
+         (test-lookup "u2@brd.com" 200 true 2)
+         (let [r (tu/first-result (with-user "u1@brd.com" (delete-e 1)))]
+           (is (e? r)) (is (= (:Id r) 1)))
+         (test-lookup "u1@brd.com" 200 true 1))))))
