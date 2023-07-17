@@ -89,8 +89,8 @@
   (defcomponent :Brd
     (entity
      :Brd/E
-     {:rbac [{:roles ["user"] :allow [:create]}
-             {:roles ["manager"] :allow [:create :update :read]}]
+     {:rbac [{:roles ["brd-user"] :allow [:create]}
+             {:roles ["brd-manager"] :allow [:create :update :read]}]
       :Id {:type :Int :identity true}
       :X :Int})
     (dataflow
@@ -102,9 +102,9 @@
      {:Fractl.Kernel.Identity/User
       {:Email "u3@brd.com"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
-      {:Role "user" :Assignee "u2@brd.com"}}
+      {:Role "brd-user" :Assignee "u2@brd.com"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
-      {:Role "manager" :Assignee "u1@brd.com"}}))
+      {:Role "brd-manager" :Assignee "u1@brd.com"}}))
   (is (finalize-events))
   (is (cn/instance-of?
        :Fractl.Kernel.Rbac/RoleAssignment
@@ -170,22 +170,61 @@
   (defcomponent :Wcr
     (entity
      :Wcr/E
-     {:rbac [{:roles ["user"] :allow [:create :update :read]}]
+     {:rbac [{:roles ["wcr-user"] :allow [:create :update :read]}]
       :Id {:type :Int :identity true}
       :X :Int})
+    (entity
+     :Wcr/F
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Wcr/R
+     {:meta {:contains [:Wcr/E :Wcr/F]}})
     (dataflow
      :Wcr/InitUsers
      {:Fractl.Kernel.Identity/User
       {:Email "u1@wcr.com"}}
      {:Fractl.Kernel.Identity/User
       {:Email "u2@wcr.com"}}
-     {:Fractl.Kernel.Identity/User
-      {:Email "u3@wcr.com"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
-      {:Role "user" :Assignee "u2@wcr.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
-      {:Role "manager" :Assignee "u1@wcr.com"}}))
+      {:Role "wcr-user" :Assignee "u1@wcr.com"}}))
   (is (finalize-events))
   (is (cn/instance-of?
        :Fractl.Kernel.Rbac/RoleAssignment
-       (tu/first-result {:Wcr/InitUsers {}}))))
+       (tu/first-result {:Wcr/InitUsers {}})))
+  (let [e? (partial cn/instance-of? :Wcr/E)]
+    (call-with-rbac
+     (fn []
+       (is (= [:rbac] (ei/init-interceptors [:rbac])))
+       (let [fq (partial li/as-fully-qualified-path :Wcr)
+             e? (partial cn/instance-of? :Wcr/E)
+             f? (partial cn/instance-of? :Wcr/F)
+             create-e (fn [id]
+                        {:Wcr/Create_E
+                         {:Instance
+                          {:Wcr/E {:Id id :X (* id 100)}}}})
+             delete-e (fn [id]
+                        {:Wcr/Delete_E {:Id id}})
+             create-f (fn [e id]
+                        {:Wcr/Create_F
+                         {:Instance
+                          {:Wcr/F
+                           {:Id id
+                            :Y (* 5 id)}}
+                          :PATH (str "/E/" e "/R")}})
+             lookup-fs (fn [e]
+                         {:Wcr/LookupAll_F
+                          {:PATH (fq (str "path://E/" e "/R/F/%"))}})
+             with-u1 (partial with-user "u1@wcr.com")
+             e1 (tu/first-result (with-u1 (create-e 1)))
+             [f1 f2 :as fs] (mapv #(tu/first-result (with-u1 (create-f 1 %))) [10 20])]
+         (is (e? e1))
+         (is (= 2 (count fs)))
+         (is (every? f? fs))
+         (is (every? (fn [f] (some #{"u1@wcr.com"} (cn/owners f))) fs))
+         (is (tu/is-error #(tu/eval-all-dataflows (with-user "u2@wcr.com" (create-e 2)))))
+         (let [fs (tu/result (with-u1 (lookup-fs 1)))]
+           (is (= 2 (count fs)))
+           (is (every? f? fs)))
+         (is (e? (tu/first-result (with-u1 (delete-e 1)))))
+         (is (tu/is-error #(tu/eval-all-dataflows (with-u1 (lookup-fs 1))))))))))
