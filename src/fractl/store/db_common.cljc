@@ -201,64 +201,13 @@
          (execute-stmt! conn pstmt nil))))
     entity-name))
 
-(defn- maybe-with-where-clause [q]
-  (when q
-    (let [sql (first q)]
-      (concat
-       [(if (s/index-of (s/lower-case sql) "where")
-          sql
-          (str sql " WHERE 1=1"))]
-       (rest q)))))
-
-(defn- merge-queries-with-in-clause [[compiled-queries attr-names]]
-  (let [qp (maybe-with-where-clause (first compiled-queries))]
-    (loop [cqs (rest compiled-queries)
-           attrs (rest attr-names)
-           sql (str (first qp) " AND " (su/attribute-column-name (first attr-names)) " IN (")
-           params (rest qp)]
-      (if-let [qp (maybe-with-where-clause (first cqs))]
-        (if (seq (rest attrs))
-          (let [[a1 a2] (first attrs)
-                [b1 b2] (second attrs)]
-            (recur (rest cqs) (rest attrs)
-                   (str
-                    sql
-                    (s/replace
-                     (first qp) "*"
-                     (su/attribute-column-name (if (= a1 (first attr-names)) a2 a1)))
-                    (str " AND " (su/attribute-column-name b2) " IN ("))
-                   (concat params (rest qp))))
-          (let [[a1 _] (first attrs)]
-            (recur (rest cqs) (rest attrs)
-                   (str
-                    sql (s/replace (first qp) "*" (su/attribute-column-name a1)))
-                   (concat params (rest qp)))))
-        (vec
-         (concat
-          [(str sql (s/join (repeat (dec (count attr-names)) \))))]
-          params))))))
-
-(defn- merge-as-union-query [queries]
-  (vec
-   (flatten
-    (reduce (fn [a b]
-              [(if (seq (first a))
-                 (str (first a) " UNION " (first b)) (first b))
-               (concat (second a) (rest b))])
-            ["" []] queries))))
-
 (defn compile-query [query-pattern]
-  (us/case-keys
-   query-pattern
-   :filter-in-sequence merge-queries-with-in-clause
-   :union merge-as-union-query
-   (fn [query-pattern]
-     (sql/format-sql
-      (su/entity-table-name (:from query-pattern))
-      (if (> (count (keys query-pattern)) 2)
-        (dissoc query-pattern :from)
-        (let [where-clause (:where query-pattern)]
-          (when (not= :* where-clause) where-clause)))))))
+  (sql/format-sql
+   (su/entity-table-name (:from query-pattern))
+   (if (> (count (keys query-pattern)) 2)
+     (dissoc query-pattern :from)
+     (let [where-clause (:where query-pattern)]
+       (when (not= :* where-clause) where-clause)))))
 
 (defn- raw-results [query-fns]
   (flatten (mapv u/apply0 query-fns)))

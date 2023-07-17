@@ -125,4 +125,13 @@
          (tu/is-error #(tu/eval-all-dataflows (create-e 1)))
          (is (e? (tu/first-result (with-user "u1@brd.com" (create-e 1)))))
          (is (e? (tu/first-result (with-user "u2@brd.com" (create-e 2)))))
-         (tu/is-error #(tu/eval-all-dataflows (with-user "u3@brd.com" (create-e 3)))))))))
+         (tu/is-error #(tu/eval-all-dataflows (with-user "u3@brd.com" (create-e 3))))
+         (let [test-lookup (fn [user err e]
+                             (if err
+                               (tu/is-error #(tu/eval-all-dataflows (with-user user (lookup-e e))))
+                               (let [r (tu/first-result (with-user user (lookup-e e)))]
+                                 (is (e? r)) (is (= (:Id r) e)))))
+               t1 (partial test-lookup "u1@brd.com" false)
+               t2 (partial test-lookup "u2@brd.com")]
+           (t1 1) (t1 2) (t2 2 false) (t2 1 true)
+           (test-lookup 1 "u3@brd.com" true)))))))
