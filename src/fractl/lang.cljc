@@ -856,12 +856,6 @@
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
 
-(defn- assoc-contains-attributes [attrs [parent child]]
-  (let [idp (cn/identity-attribute-name parent)
-        idc (cn/contained-identity child)]
-    (assoc attrs (second (li/split-path parent)) (cn/attribute-type parent idp)
-           (second (li/split-path child)) (cn/attribute-type child idc))))
-
 (defn- contains-relationship [relname attrs relmeta [_ child :as elems]]
   (when (seq (keys (cleanup-rel-attrs attrs)))
     (u/throw-ex (str "attributes not allowed for a contains relationship - " relname)))
@@ -871,7 +865,7 @@
                      (assoc meta cn/relmeta-key
                             relmeta :relationship :contains))
         child-attrs (regen-contains-child-attributes child)]
-    (if-let [r (record relname (assoc-contains-attributes attrs elems))]
+    (if-let [r (record relname attrs)]
       (if (entity child child-attrs)
         (if (cn/register-relationship elems relname)
           (and (regen-contains-dataflows relname elems)
@@ -879,6 +873,32 @@
           (u/throw-ex (str "failed to register relationship - " relname)))
         (u/throw-ex (str "failed to regenerate schema for " child)))
       (u/throw-ex (str "failed to define schema for " relname)))))
+
+(defn- assoc-relnode-attributes [attrs [node1 node2]]
+  (let [idp (cn/identity-attribute-name node1)
+        idc (cn/identity-attribute-name node2)]
+    (assoc attrs (second (li/split-path node1)) (cn/attribute-type node1 idp)
+           (second (li/split-path node2)) (cn/attribute-type node2 idc))))
+
+(defn- between-unique-meta [meta relmeta [node1 node2]]
+  (let [[_ n1] (li/split-path node1)
+        [_ n2] (li/split-path node2)]
+    (cond
+      (:one-one relmeta)
+      (assoc meta :unique [n1 n2])
+
+      (:one-n relmeta)
+      (assoc meta :unique [n1])
+
+      :else meta)))
+
+(defn- between-relationship [relname attrs relmeta elems]
+  (let [new-attrs (assoc-relnode-attributes attrs elems)
+        meta (assoc (between-unique-meta (:meta attrs) relmeta elems)
+                    :relationship :between cn/relmeta-key relmeta)
+        r (serializable-entity relname (assoc new-attrs :meta meta))]
+    (when (cn/register-relationship elems relname)
+      (and (raw/relationship relname attrs) r))))
 
 (defn relationship
   ([relation-name attrs]
@@ -893,34 +913,8 @@
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - "
              relation-name)))
-     (if contains
-       (contains-relationship relation-name (assoc attrs :meta meta) relmeta elems)
-       (u/throw-ex "between-relationships not yet implemented"))))
-       ;; (let [each-uq (if (:one-one relmeta) true false)
-       ;;       combined-uqs (and (not each-uq)
-       ;;                         (or (and contains (not (:n-n relmeta)))
-       ;;                             (:one-n relmeta)))
-       ;;       cascade-on-delete (:cascade-on-delete meta)]
-       ;;   (validate-rbac-owner (:rbac attrs) elems))
-       ;; (let [raw-attrs attrs
-       ;;       ;; TODO: fix assoc-relationship-attributes only to take care of between
-       ;;       [attrs uqs] (assoc-relationship-attributes
-       ;;                    attrs rel-attr-names contains elems
-       ;;                    on-attrs each-uq (if cascade-on-delete true false))
-       ;;       meta0 (assoc meta cn/relmeta-key relmeta)
-       ;;       meta (assoc meta0 (if contains mt/contains mt/between) elems)
-       ;;       r (serializable-entity
-       ;;          relation-name
-       ;;          (assoc
-       ;;           attrs
-       ;;           :meta (assoc
-       ;;                  (if combined-uqs (assoc meta :unique uqs) meta)
-       ;;                  :relationship (if between :between :contains)))
-       ;;          raw-attrs)]
-       ;;   (when (cn/register-relationship elems relation-name)
-       ;;     (when r
-       ;;       (regen-between-dataflows relation-name between (cleanup-rel-attrs attrs)))
-       ;;     (and (raw/relationship relation-name raw-attrs) r))))))
+     ((if contains contains-relationship between-relationship)
+      relation-name (assoc attrs :meta meta) relmeta elems)))
   ([schema]
    (let [r (parse-and-define serializable-entity schema)
          n (li/record-name schema)]
