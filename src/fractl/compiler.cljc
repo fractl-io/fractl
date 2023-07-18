@@ -234,9 +234,9 @@
                                     :refs op/set-ref-attribute
                                     :compound op/set-compound-attribute})
 
-(defn- begin-build-instance [rec-name attrs]
+(defn- begin-build-instance [rec-name attrs args]
   (if-let [q (:query attrs)]
-    (op/query-instances [rec-name q (:filter-by attrs)])
+    (op/query-instances [rec-name q (:filter-by args)])
     (op/new-instance rec-name)))
 
 (declare compile-list-literal)
@@ -256,7 +256,7 @@
   (let [alias (:alias args)
         event? (= (cn/type-tag-key args) :event)
         timeout-ms (:timeout-ms args)]
-    (concat [(begin-build-instance rec-name attrs)]
+    (concat [(begin-build-instance rec-name attrs args)]
             (distinct
              (apply
               concat
@@ -436,9 +436,14 @@
     attrs))
 
 (defn- parse-rel-spec [spec]
-  (if (or (string? spec) (keyword? spec))
+  (cond
+    (or (string? spec) (keyword? spec))
     [spec nil]
-    [(first spec) (rest spec)]))
+
+    (or (string? (first spec)) (keyword? (first spec)))
+    [(first spec) (rest spec)]
+
+    :else [nil spec]))
 
 (declare compile-query-command)
 
@@ -494,7 +499,8 @@
                         (when timeout-ms
                           {:timeout-ms timeout-ms})
                         (when filter-pats
-                          {:filter-by (mapv (partial compile-pattern ctx) filter-pats)}))
+                          {:filter-by
+                           (compile-pattern ctx filter-pats)}))
             opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias

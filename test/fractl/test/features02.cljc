@@ -156,7 +156,11 @@
     (relationship
      :Bbr/R
      {:meta {:between [:Bbr/A :Bbr/B]}
-      :Z :Int}))
+      :Z :Int})
+    (dataflow
+     :Bbr/LookupB
+     {:Bbr/B {:Y? :Bbr/LookupB.Y}
+      :-> [{:Bbr/R {:A? :Bbr/LookupB.A}}]}))
   (let [a1 (tu/first-result
             {:Bbr/Create_A
              {:Instance
@@ -177,4 +181,8 @@
                         {:Bbr/R
                          {:A a :B b :Z z}}}}))]
       (is (r? (create-r 1 2 300)))
-      (tu/is-error #(create-r 3 2 400)))))
+      (tu/is-error #(create-r 3 2 400))
+      (let [rs (tu/result
+                {:Bbr/LookupB {:Y 200 :A 1}})]
+        (is (= 1 (count rs)))
+        (is (cn/same-instance? b1 (first rs)))))))

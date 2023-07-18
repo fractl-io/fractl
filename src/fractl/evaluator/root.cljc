@@ -773,15 +773,15 @@
        (catch js/Error e
          (or (.-ex-data e) (i/error e))))))
 
-(defn- filter-results [entity-name result-insts
-                       {opcodes :filter-by-opcodes
-                        evaluator :eval}]
+(defn- filter-results-by-rels [entity-name result-insts
+                               {opcodes :filter-by-opcodes
+                                evaluator :eval}]
   (let [r (evaluator opcodes)]
-    (if (= :ok (:status r))
+    (if-let [rs (extract-local-result r)]
       (let [[_ n] (li/split-path entity-name)
             ident (cn/identity-attribute-name entity-name)
-            ids (set (mapv n (:result r)))]
-        (filter #(some ids (ident %)) result-insts))
+            ids (set (mapv n rs))]
+        (filter (fn [inst] (some #{(ident inst)} ids)) result-insts))
       (u/throw-ex (str "filter pattern evaluation failed for " entity-name)))))
 
 (defn- query-helper
@@ -790,12 +790,10 @@
             (read-intercept
              env entity-name
              (fn [entity-name]
-               (let [insts (find-instances
-                            env (env/get-store env)
-                            entity-name queries)]
+               (let [[insts env :as r] (find-instances env (env/get-store env) entity-name queries)]
                  (if (:filter-by-opcodes result-filter)
-                   (filter-results entity-name insts result-filter)
-                   insts))))]
+                   [(filter-results-by-rels entity-name insts result-filter) env]
+                   r))))]
      (cond
        (maybe-async-channel? insts)
        (i/ok
