@@ -142,3 +142,39 @@
            (li/path-attr c11)))
     (is (tu/is-error #(create-c "/A/10/R1/B/10/R2" 200)))
     (is (tu/is-error #(create-c "/A/1/R1/B/1000/R2" 200)))))
+
+(deftest basic-between-relationships
+  (defcomponent :Bbr
+    (entity
+     :Bbr/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Bbr/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Bbr/R
+     {:meta {:between [:Bbr/A :Bbr/B]}
+      :Z :Int}))
+  (let [a1 (tu/first-result
+            {:Bbr/Create_A
+             {:Instance
+              {:Bbr/A {:Id 1 :X 100}}}})
+        b1 (tu/first-result
+            {:Bbr/Create_B
+             {:Instance
+              {:Bbr/B {:Id 2 :Y 200}}}})
+        a? (partial cn/instance-of? :Bbr/A)
+        b? (partial cn/instance-of? :Bbr/B)
+        r? (partial cn/instance-of? :Bbr/R)]
+    (is (a? a1))
+    (is (b? b1))
+    (let [create-r (fn [a b z]
+                     (tu/first-result
+                      {:Bbr/Create_R
+                       {:Instance
+                        {:Bbr/R
+                         {:A a :B b :Z z}}}}))]
+      (is (r? (create-r 1 2 300)))
+      (tu/is-error #(create-r 3 2 400)))))

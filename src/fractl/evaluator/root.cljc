@@ -835,6 +835,15 @@
         nc (partial name-from-path-component component-name)]
     [(nc (first ps)) (second ps) (nc (last ps)) at-root]))
 
+(defn- lookup-ref-inst
+  ([cast-val env recname id-attr id-val]
+   (or (first (env/lookup-instances-by-attributes
+               env (li/split-path recname) {id-attr id-val} true))
+       (store/query-by-unique-keys
+        (env/get-store env) recname [id-attr]
+        {id-attr (if cast-val (cn/parse-attribute-value recname id-attr id-val) id-val)})))
+  ([env recname id-attr id-val] (lookup-ref-inst true env recname id-attr id-val)))
+
 (defn- find-parent-by-path [env record-name path]
   (let [[c n] (li/split-path record-name)
         [parent pid-val relname at-root] (parent-info-from-path c path)
@@ -842,11 +851,7 @@
     (when-not (cn/parent-via? relname record-name parent)
       (u/throw-ex (str "not in relationship - " [relname record-name parent])))
     (when-let [result (if at-root
-                        (or (first (env/lookup-instances-by-attributes
-                                    env (li/split-path parent) {pid-attr pid-val} true))
-                            (store/query-by-unique-keys
-                             (env/get-store env) parent [pid-attr]
-                             {pid-attr (cn/parse-attribute-value parent pid-attr pid-val)}))
+                        (lookup-ref-inst env parent pid-attr pid-val)
                         (let [fq (partial li/as-fully-qualified-path c)
                               path-val (fq (str li/path-query-prefix (subs path 0 (s/last-index-of path "/"))))]
                           (or (first (env/lookup-instances-by-attributes
@@ -877,6 +882,24 @@
       (u/throw-ex (str "failed to find parent by path - " path)))
     inst))
 
+(defn- ensure-between-refs [env record-name inst]
+  (let [[node1 node2] (mapv li/split-path (cn/relationship-nodes record-name))
+        lookup (partial lookup-ref-inst false)]
+    (if (and (lookup env node1 (cn/identity-attribute-name node1) ((second node1) inst))
+             (lookup env node2 (cn/identity-attribute-name node2) ((second node2) inst)))
+      inst
+      (u/throw-ex (str "failed to lookup node-references: " record-name)))))
+
+(defn- ensure-relationship-constraints [env record-name inst]
+  (cond
+    (cn/between-relationship? record-name)
+    (ensure-between-refs env record-name inst)
+
+    (cn/entity? record-name)
+    (maybe-fix-contains-path env record-name inst)
+
+    :else inst))
+
 (defn- intern-instance [self env eval-opcode eval-event-dataflows
                         record-name inst-alias validation-required upsert-required]
   (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self) validation-required)
@@ -891,7 +914,7 @@
 
       insts
       (let [insts (let [r (mapv
-                           (partial maybe-fix-contains-path env record-name)
+                           (partial ensure-relationship-constraints env record-name)
                            (if single? [insts] (vec insts)))]
                     (if single? (first r) r))
             local-result (if upsert-required
@@ -955,7 +978,8 @@
       (if-let [[path v] (env/instance-ref-path env record-name alias refs)]
         (if (cn/an-instance? v)
           (let [opcode-eval (partial eval-opcode self)
-                final-inst (assoc-computed-attributes env (cn/instance-type v) v opcode-eval)
+                inst (assoc-computed-attributes env (cn/instance-type v) v opcode-eval)
+                final-inst (ensure-relationship-constraints env (cn/instance-type inst) inst)
                 event-evaluator (partial eval-event-dataflows self)
                 [env r]
                 (bind-and-persist env event-evaluator final-inst)]
