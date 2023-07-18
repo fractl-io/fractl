@@ -172,9 +172,14 @@
       (let [parent-entity
             (cn/containing-parents (or (first path) entity))]
         (if (empty? parent-entity)
-          (str "_e/" (namespace entity)
-               (when (seq path)
-                 (let [path (add-path-vars path)]
-                   (str "/" (apply str (interpose "/" (map name path))))))
-               "/" (name entity))
+          {:path (str "_e/" (namespace entity)
+                      (when (seq path)
+                        (let [path (add-path-vars path)]
+                          (str "/"
+                               (apply
+                                str
+                                (interpose
+                                 "/" (map name path))))))
+                      "/" (name entity))
+           :vars (map name path)}
           (recur (conj path (-> parent-entity first last))))))))
