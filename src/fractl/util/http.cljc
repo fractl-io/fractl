@@ -9,6 +9,7 @@
             [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]
             [fractl.global-state :as gs]
+            [clojure.string :as str]
             #?(:cljs [cljs.core.async :refer [<!]]))
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
