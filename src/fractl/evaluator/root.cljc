@@ -793,7 +793,7 @@
                (let [insts (find-instances
                             env (env/get-store env)
                             entity-name queries)]
-                 (if result-filter
+                 (if (:filter-by-opcodes result-filter)
                    (filter-results entity-name insts result-filter)
                    insts))))]
      (cond
@@ -829,13 +829,11 @@
       (li/make-path component k))))
 
 (defn- parent-info-from-path [component-name path]
-  (let [ps (filter seq (s/split path #"/"))]
-    (if (= (count ps) 3)
-      (let [nc (partial name-from-path-component component-name)]
-        [(nc (first ps)) (second ps) (nc (last ps)) true])
-      (let [lp (last (li/parse-query-path
-                      component-name (str li/path-query-prefix path)))]
-        [(:parent lp) (:relationship lp) (:parent-value lp) false]))))
+  (let [parts (filter seq (s/split path #"/"))
+        at-root (= (count parts) 3)
+        ps (if at-root parts (take-last 3 parts))
+        nc (partial name-from-path-component component-name)]
+    [(nc (first ps)) (second ps) (nc (last ps)) at-root]))
 
 (defn- find-parent-by-path [env record-name path]
   (let [[c n] (li/split-path record-name)
@@ -849,7 +847,8 @@
                             (store/query-by-unique-keys
                              (env/get-store env) parent [pid-attr]
                              {pid-attr (cn/parse-attribute-value parent pid-attr pid-val)}))
-                        (let [path-val (subs path 0 (s/last-index-of path "/"))]
+                        (let [fq (partial li/as-fully-qualified-path c)
+                              path-val (fq (str li/path-query-prefix (subs path 0 (s/last-index-of path "/"))))]
                           (or (first (env/lookup-instances-by-attributes
                                       env (li/split-path parent) {li/path-attr path-val}))
                               (store/query-by-unique-keys

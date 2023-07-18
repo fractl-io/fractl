@@ -92,3 +92,53 @@
         (lookup-all-es "d1" 1 [e2]))
       (is (d? (tu/first-result {:Bcr/Delete_Department {:Name "d1"}})))
       (lookup-all-es "d1" 0 nil))))
+
+(deftest multi-level-contains
+  (defcomponent :Mlc
+    (entity
+     :Mlc/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Mlc/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :Mlc/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :Mlc/R1
+     {:meta {:contains [:Mlc/A :Mlc/B]}})
+    (relationship
+     :Mlc/R2
+     {:meta {:contains [:Mlc/B :Mlc/C]}}))
+  (let [[a1 a1 :as as] (mapv #(tu/first-result
+                               {:Mlc/Create_A
+                                {:Instance
+                                 {:Mlc/A
+                                  {:Id % :X (* % 2)}}}})
+                             [1 2])
+        create-b #(tu/first-result {:Mlc/Create_B
+                                    {:Instance
+                                     {:Mlc/B
+                                      {:Id %2 :Y (* %2 5)}}
+                                     :PATH %1}})
+        create-c #(tu/first-result {:Mlc/Create_C
+                                    {:Instance
+                                     {:Mlc/C
+                                      {:Id %2 :Z (* %2 10)}}
+                                     :PATH %1}})
+        a? (partial cn/instance-of? :Mlc/A)
+        b? (partial cn/instance-of? :Mlc/B)
+        c? (partial cn/instance-of? :Mlc/C)
+        b1 (create-b "/A/1/R1" 10)
+        b2 (create-b "/A/2/R1" 20)
+        c11 (create-c "/A/1/R1/B/10/R2" 100)]
+    (is (every? a? as))
+    (is (every? b? [b1 b2]))
+    (is (c? c11))
+    (is (= "path://Mlc$A/1/Mlc$R1/Mlc$B/10/Mlc$R2/Mlc$C/100"
+           (li/path-attr c11)))
+    (is (tu/is-error #(create-c "/A/10/R1/B/10/R2" 200)))
+    (is (tu/is-error #(create-c "/A/1/R1/B/1000/R2" 200)))))

@@ -511,22 +511,6 @@
     (fully-qualified-path-type base-component (subs n 1))
     n))
 
-(defn parse-query-path [base-component s]
-  (let [parts (reverse (filter #(identity (seq %)) (s/split s #"/")))
-        t (partial fully-qualified-path-type base-component)
-        v (partial fully-qualified-path-value base-component)]
-    (loop [parts parts, result []]
-      (if-let [[child-val child relname parent-val parent]
-               (when (>= (count parts) 5)
-                 (take 5 parts))]
-        (recur (drop 3 parts)
-               (conj result {:child-value (v child-val)
-                             :child (t child)
-                             :relationship (t relname)
-                             :parent-value (v parent-val)
-                             :parent (t parent)}))
-        result))))
-
 (defn- fully-qualified-path-component [base-component n]
   (if (s/index-of n "$")
     n
