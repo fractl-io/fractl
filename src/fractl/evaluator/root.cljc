@@ -773,17 +773,29 @@
        (catch js/Error e
          (or (.-ex-data e) (i/error e))))))
 
+(defn- filter-results [entity-name result-insts
+                       {opcodes :filter-by-opcodes
+                        evaluator :eval}]
+  (let [r (evaluator opcodes)]
+    (if (= :ok (:status r))
+      (let [[_ n] (li/split-path entity-name)
+            ident (cn/identity-attribute-name entity-name)
+            ids (set (mapv n (:result r)))]
+        (filter #(some ids (ident %)) result-insts))
+      (u/throw-ex (str "filter pattern evaluation failed for " entity-name)))))
+
 (defn- query-helper
-  ([env entity-name queries filter-by-opcodes]
+  ([env entity-name queries result-filter]
    (if-let [[insts env]
             (read-intercept
              env entity-name
              (fn [entity-name]
-               ;; TODO: pass result through filter-by-opcodes
-               ;; (the evaluator maybe passed by making filter-by-opcodes a map).
-               (find-instances
-                env (env/get-store env)
-                entity-name queries)))]
+               (let [insts (find-instances
+                            env (env/get-store env)
+                            entity-name queries)]
+                 (if result-filter
+                   (filter-results entity-name insts result-filter)
+                   insts))))]
      (cond
        (maybe-async-channel? insts)
        (i/ok
@@ -960,8 +972,11 @@
       (let [env (env/push-obj env record-name)]
         (i/ok record-name env)))
 
-    (do-query-instances [_ env [entity-name queries filter-by-opcodes]]
-      (query-helper env entity-name queries filter-by-opcodes))
+    (do-query-instances [self env [entity-name queries filter-by-opcodes]]
+      (query-helper
+       env entity-name queries
+       {:filter-by-opcodes filter-by-opcodes
+        :eval (partial eval-opcode self env)}))
 
     (do-evaluate-query [_ env [fetch-query-fn result-alias]]
       (bind-result-to-alias
