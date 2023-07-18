@@ -162,6 +162,9 @@
            (uri-as-path fqn r)
            :component (keyword f)))))))
 
+(defn- add-path-vars [path]
+  (mapcat #(vector % (str "{" (str/lower-case (name %)) "}")) path))
+
 (defn get-child-entity-path [entity]
   (when (cn/entity? entity)
     (loop [path '()]
@@ -170,6 +173,7 @@
         (if (empty? parent-entity)
           (str "_e/" (namespace entity)
                (when (seq path)
-                 (str "/" (apply str (interpose "/" (map name path)))))
+                 (let [path (add-path-vars path)]
+                   (str "/" (apply str (interpose "/" (map name path))))))
                "/" (name entity))
           (recur (conj path (-> parent-entity first last))))))))
