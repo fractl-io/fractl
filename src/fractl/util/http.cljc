@@ -5,9 +5,11 @@
             [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as us]
+            [fractl.component :as cn]
             [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]
             [fractl.global-state :as gs]
+            [clojure.string :as str]
             #?(:cljs [cljs.core.async :refer [<!]]))
   #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
 
@@ -160,3 +162,24 @@
           (assoc
            (uri-as-path fqn r)
            :component (keyword f)))))))
+
+(defn- add-path-vars [path]
+  (mapcat #(vector % (str "{" (str/lower-case (name %)) "}")) path))
+
+(defn get-child-entity-path [entity]
+  (when (cn/entity? entity)
+    (loop [path '()]
+      (let [parent-entity
+            (cn/containing-parents (or (first path) entity))]
+        (if (empty? parent-entity)
+          {:path (str "_e/" (namespace entity)
+                      (when (seq path)
+                        (let [path (add-path-vars path)]
+                          (str "/"
+                               (apply
+                                str
+                                (interpose
+                                 "/" (map name path))))))
+                      "/" (name entity))
+           :vars (map name path)}
+          (recur (conj path (-> parent-entity first last))))))))
