@@ -202,6 +202,10 @@
 
 (def ^:private appl (partial u/apply-> last))
 
+(defn- normalize-attrs-for-full-query [attrs]
+  (let [new-attrs (mapv (fn [[k v]] [(li/normalize-name k) v]) attrs)]
+    (into {} new-attrs)))
+
 (defn- parse-attributes
   "Classify attributes in the pattern as follows:
     1. computable - values can be computed at compile-time, e.g literals.
@@ -215,7 +219,9 @@
     raise an error. Otherwise return a map with each attribute group and their attached graphs."
   [ctx pat-name pat-attrs schema args]
   (if (:full-query? args)
-    {:attrs (assoc pat-attrs :query (compile-query ctx pat-name pat-attrs))}
+    {:attrs (assoc pat-attrs :query (compile-query
+                                     ctx pat-name
+                                     (normalize-attrs-for-full-query pat-attrs)))}
     (let [{computed :computed refs :refs
            compound :compound query :query
            :as cls-attrs} (i/classify-attributes ctx pat-attrs schema)
@@ -500,7 +506,10 @@
                           {:timeout-ms timeout-ms})
                         (when filter-pats
                           {:filter-by
-                           (compile-pattern ctx filter-pats)}))
+                           (compile-pattern
+                            ctx (if (map? filter-pats)
+                                  filter-pats
+                                  (first filter-pats)))}))
             opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias

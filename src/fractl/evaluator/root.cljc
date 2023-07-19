@@ -644,6 +644,12 @@
   (when (i/ok? r)
     (first (:result r))))
 
+(defn- extract-local-result-as-vec [r]
+  (when-let [rs (extract-local-result r)]
+    (if (map? rs)
+      [rs]
+      rs)))
+
 (defn- bind-result-to-alias [result-alias result]
   (if result-alias
     (let [env (:env result)
@@ -776,13 +782,15 @@
 (defn- filter-results-by-rels [entity-name result-insts
                                {opcodes :filter-by-opcodes
                                 evaluator :eval}]
-  (let [r (evaluator opcodes)]
-    (if-let [rs (extract-local-result r)]
-      (let [[_ n] (li/split-path entity-name)
-            ident (cn/identity-attribute-name entity-name)
-            ids (set (mapv n rs))]
-        (filter (fn [inst] (some #{(ident inst)} ids)) result-insts))
-      (u/throw-ex (str "filter pattern evaluation failed for " entity-name)))))
+  (if (seq result-insts)
+    (let [r (evaluator opcodes)]
+      (if-let [rs (extract-local-result-as-vec r)]
+        (let [[_ n] (li/split-path entity-name)
+              ident (cn/identity-attribute-name entity-name)
+              ids (set (mapv n rs))]
+          (filter (fn [inst] (some #{(ident inst)} ids)) result-insts))
+        (u/throw-ex (str "filter pattern evaluation failed for " entity-name))))
+    result-insts))
 
 (defn- query-helper
   ([env entity-name queries result-filter]

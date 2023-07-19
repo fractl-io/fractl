@@ -206,7 +206,12 @@
      {:meta {:contains [:Bac/A :Bac/B]}})
     (relationship
      :Bac/Rb
-     {:meta {:between [:Bac/A :Bac/C]}}))
+     {:meta {:between [:Bac/B :Bac/C]}})
+    (dataflow
+     :Bac/LookupB
+     {:Bac/B? {}
+      :-> [:Bac/LookupB.Rc
+           {:Bac/Rb {:C? :Bac/LookupB.C}}]}))
   (let [create-a #(tu/first-result
                    {:Bac/Create_A
                     {:Instance
@@ -224,13 +229,20 @@
         create-rb #(tu/first-result
                     {:Bac/Create_Rb
                      {:Instance
-                      {:Bac/Rb {:A %1 :C %2}}}})
+                      {:Bac/Rb {:B %1 :C %2}}}})
         a? (tu/type-check :Bac/A)
         b? (tu/type-check :Bac/B)
         c? (tu/type-check :Bac/C)
         rb? (tu/type-check :Bac/Rb)
         as (mapv create-a [1 2 3])
-        bs (mapv create-b [1 2 3] [4 5 6])
+        [b1 b2 b3 :as bs] (mapv create-b [1 2 3] [4 5 4])
         cs (mapv create-c [7 8 9])
-        rbs (mapv create-rb [1 2 1] [7 7 9])]
-    (is (every? a? as))))
+        fq (partial li/as-fully-qualified-path :Bac)
+        rbs (mapv create-rb [(li/id-attr b1) (li/id-attr b3) (li/id-attr b1)] [7 7 9])]
+    (is (every? a? as))
+    (is (every? b? bs))
+    (is (every? c? cs))
+    (is (every? rb? rbs))
+    (is (cn/same-instance? b1 (tu/first-result
+                               {:Bac/LookupB
+                                {:B 4 :Rc (fq "/A/1/Rc/B/4") :C 7}})))))
