@@ -180,15 +180,9 @@
 (defn- parse-rest-uri [request]
   (uh/parse-rest-uri (:* (:params request))))
 
-(defn- path-as-parent-ids [path]
+(defn- maybe-path-attribute [path]
   (when path
-    (into
-     {}
-     (mapv
-      (fn [{p :parent id :id}]
-        (let [id-attr (cn/identity-attribute-name p)]
-          [(keyword (name (keyword p))) (cn/parse-attribute-value p id-attr id)]))
-      path))))
+    {li/path-attr path}))
 
 (defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
   (or (maybe-unauth request)
@@ -204,55 +198,58 @@
 (def process-post-request
   (partial
    process-generic-request
-   (fn [{entity-name :entity id :id component :component path :path} obj]
+   (fn [{entity-name :entity component :component path :path} obj]
      (if (cn/event? entity-name)
        [obj nil]
        [{(cn/crud-event-name component entity-name :Create)
          (merge
           {:Instance obj}
-          (path-as-parent-ids path))}
+          (maybe-path-attribute path))}
         nil]))))
 
 (def process-put-request
   (partial
    process-generic-request
    (fn [{entity-name :entity id :id component :component path :path} obj]
-     (if-not id
-       [nil (bad-request (str "id required to update " entity-name))]
-       (let [id-attr (cn/identity-attribute-name entity-name)]
-         [{(cn/crud-event-name component entity-name :Update)
-           (merge
-            {id-attr (cn/parse-attribute-value entity-name id-attr id)
-             :Data (li/record-attributes obj)}
-            (path-as-parent-ids path))}
-          nil])))))
+     (if-not (or id path)
+       [nil (bad-request (str "id or path required to update " entity-name))]
+       [{(cn/crud-event-name component entity-name :Update)
+         (merge
+          (when-not path
+            (let [id-attr (cn/identity-attribute-name entity-name)]
+              {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+          {:Data (li/record-attributes obj)}
+          (maybe-path-attribute path))}
+        nil]))))
 
 (def process-get-request
   (partial
    process-generic-request
-   (fn [{entity-name :entity id :id component :component path :path} obj]
+   (fn [{entity-name :entity id :id component :component path :path :as p} obj]
      [(if id
-        (let [id-attr (cn/identity-attribute-name entity-name)]
-          {(cn/crud-event-name component entity-name :Lookup)
-           (merge
-            {id-attr (cn/parse-attribute-value entity-name id-attr id)}
-            (path-as-parent-ids path))})
+        {(cn/crud-event-name component entity-name :Lookup)
+         (merge
+          (when-not path
+            (let [id-attr (cn/identity-attribute-name entity-name)]
+              {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+          (maybe-path-attribute path))}
         {(cn/crud-event-name component entity-name :LookupAll)
-         (merge {} (path-as-parent-ids path))})
+         (or (maybe-path-attribute path) {})})
       nil])))
 
 (def process-delete-request
   (partial
    process-generic-request
    (fn [{entity-name :entity id :id component :component path :path} _]
-     (if-not id
-       [nil (bad-request (str "id required to delete " entity-name))]
-       (let [id-attr (cn/identity-attribute-name entity-name)]
+     (if-not (or id path)
+       [nil (bad-request (str "id or path required to delete " entity-name))]
          [{(cn/crud-event-name component entity-name :Delete)
            (merge
-            {id-attr (cn/parse-attribute-value entity-name id-attr id)}
-            (path-as-parent-ids path))}
-          nil])))))
+            (when-not path
+              (let [id-attr (cn/identity-attribute-name entity-name)]
+                {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+            (maybe-path-attribute path))}
+          nil]))))
 
 (defn- like-pattern? [x]
   ;; For patterns that include the `_` wildcard,
