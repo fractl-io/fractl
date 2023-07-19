@@ -57,8 +57,8 @@
                                      :Name % :Grade (rand-nth grades)}}
                                    :PATH "/Department/d1/WorksFor"}})
                                ["e01" "e02"])
-          d? (partial cn/instance-of? :Bcr/Department)
-          e? (partial cn/instance-of? :Bcr/Employee)]
+          d? (tu/type-check :Bcr/Department)
+          e? (tu/type-check :Bcr/Employee)]
       (is (d? d1)) (is (every? e? es))
       (defn- lookup-e [e]
         (is (cn/same-instance?
@@ -129,9 +129,9 @@
                                      {:Mlc/C
                                       {:Id %2 :Z (* %2 10)}}
                                      :PATH %1}})
-        a? (partial cn/instance-of? :Mlc/A)
-        b? (partial cn/instance-of? :Mlc/B)
-        c? (partial cn/instance-of? :Mlc/C)
+        a? (tu/type-check :Mlc/A)
+        b? (tu/type-check :Mlc/B)
+        c? (tu/type-check :Mlc/C)
         b1 (create-b "/A/1/R1" 10)
         b2 (create-b "/A/2/R1" 20)
         c11 (create-c "/A/1/R1/B/10/R2" 100)]
@@ -169,9 +169,9 @@
             {:Bbr/Create_B
              {:Instance
               {:Bbr/B {:Id 2 :Y 200}}}})
-        a? (partial cn/instance-of? :Bbr/A)
-        b? (partial cn/instance-of? :Bbr/B)
-        r? (partial cn/instance-of? :Bbr/R)]
+        a? (tu/type-check :Bbr/A)
+        b? (tu/type-check :Bbr/B)
+        r? (tu/type-check :Bbr/R)]
     (is (a? a1))
     (is (b? b1))
     (let [create-r (fn [a b z]
@@ -186,3 +186,51 @@
                 {:Bbr/LookupB {:Y 200 :A 1}})]
         (is (= 1 (count rs)))
         (is (cn/same-instance? b1 (first rs)))))))
+
+(deftest between-and-contains
+  (defcomponent :Bac
+    (entity
+     :Bac/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Bac/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :Bac/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :Bac/Rc
+     {:meta {:contains [:Bac/A :Bac/B]}})
+    (relationship
+     :Bac/Rb
+     {:meta {:between [:Bac/A :Bac/C]}}))
+  (let [create-a #(tu/first-result
+                   {:Bac/Create_A
+                    {:Instance
+                     {:Bac/A {:Id % :X (* % 2)}}}})
+        mkpath #(str "/A/" % "/Rc")
+        create-b #(tu/first-result
+                   {:Bac/Create_B
+                    {:Instance
+                     {:Bac/B {:Id %2 :Y (* %2 5)}}
+                     :PATH (mkpath %1)}})
+        create-c #(tu/first-result
+                   {:Bac/Create_C
+                    {:Instance
+                     {:Bac/C {:Id % :Z (* % 10)}}}})
+        create-rb #(tu/first-result
+                    {:Bac/Create_Rb
+                     {:Instance
+                      {:Bac/Rb {:A %1 :C %2}}}})
+        a? (tu/type-check :Bac/A)
+        b? (tu/type-check :Bac/B)
+        c? (tu/type-check :Bac/C)
+        rb? (tu/type-check :Bac/Rb)
+        as (mapv create-a [1 2 3])
+        bs (mapv create-b [1 2 3] [4 5 6])
+        cs (mapv create-c [7 8 9])
+        rbs (mapv create-rb [1 2 1] [7 7 9])]
+    (is (every? a? as))))
