@@ -178,7 +178,11 @@
               (ok @resp))))))
 
 (defn- parse-rest-uri [request]
-  (uh/parse-rest-uri (:* (:params request))))
+  (let [s (:* (:params request))
+        [uri all] (if (s/ends-with? s "/__all")
+                    [(subs s 0 (s/index-of s "/__all")) true]
+                    [s false])]
+    (assoc (uh/parse-rest-uri uri) :all all)))
 
 (defn- maybe-path-attribute [path]
   (when path
@@ -204,7 +208,8 @@
        [{(cn/crud-event-name component entity-name :Create)
          (merge
           {:Instance obj}
-          (maybe-path-attribute path))}
+          (when path
+            {li/path-attr (li/as-partial-path path)}))}
         nil]))))
 
 (def process-put-request
@@ -225,17 +230,18 @@
 (def process-get-request
   (partial
    process-generic-request
-   (fn [{entity-name :entity id :id component :component path :path :as p} obj]
-     [(if id
-        {(cn/crud-event-name component entity-name :Lookup)
-         (merge
-          (when-not path
-            (let [id-attr (cn/identity-attribute-name entity-name)]
-              {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
-          (maybe-path-attribute path))}
-        {(cn/crud-event-name component entity-name :LookupAll)
-         (or (maybe-path-attribute path) {})})
-      nil])))
+   (fn [{entity-name :entity id :id component :component path :path all :all :as p} obj]
+     (let [path (when path (str path "%"))]
+       [(if id
+          {(cn/crud-event-name component entity-name :Lookup)
+           (merge
+            (when-not path
+              (let [id-attr (cn/identity-attribute-name entity-name)]
+                {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+            (maybe-path-attribute path))}
+          {(cn/crud-event-name component entity-name :LookupAll)
+           (or (maybe-path-attribute path) {})})
+        nil]))))
 
 (def process-delete-request
   (partial

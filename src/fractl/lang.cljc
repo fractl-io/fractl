@@ -837,7 +837,10 @@
   (if-not (cn/path-identity-attribute-name child)
     (let [cident (cn/identity-attribute-name child)
           child-attrs (raw/entity-attributes child)
-          cident-spec (cident child-attrs)]
+          cident-raw-spec (cident child-attrs)
+          cident-spec (if (map? cident-raw-spec)
+                        cident-raw-spec
+                        (cn/find-attribute-schema cident-raw-spec))]
       (when-let [a (some li/reserved-attrs (map #(keyword (s/upper-case (name %))) (keys child-attrs)))]
         (u/throw-ex (str child "." a " - attribute name is reserved")))
       (assoc

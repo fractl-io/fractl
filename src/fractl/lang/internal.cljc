@@ -492,6 +492,11 @@
 (defn path-query-string [s]
   (subs s path-query-prefix-len))
 
+(defn as-partial-path [path]
+  (let [s (path-query-string path)
+        idx (s/last-index-of s "/")]
+    (subs s 0 idx)))
+
 (defn maybe-add-path-query-prefix [s]
   (if (path-query? s)
     s
@@ -500,6 +505,12 @@
 
 (def path-query-tag :?)
 (defn path-query-tag? [x] (= x :?))
+
+(defn encoded-uri-path-part [base-component entity-name]
+  (let [[c n] (split-path entity-name)]
+    (if (and c n)
+      (str (name c) "$" (name n))
+      (name entity-name))))
 
 (defn fully-qualified-path-type [base-component n]
   (if (s/index-of n "$")
