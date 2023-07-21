@@ -46,9 +46,27 @@
    (response {:reason s} 500 data-fmt))
   ([s] (internal-error s :json)))
 
+(defn- cleanup-inst [obj]
+  (cond
+    (cn/an-instance? obj) (dissoc obj li/meta-attr)
+    (vector? obj) (mapv cleanup-inst obj)
+    :else obj))
+
+(defn- cleanup-result [rs]
+  (if-let [result (:result rs)]
+    (assoc rs :result (if (map? result)
+                        (cleanup-inst result)
+                        (mapv cleanup-inst result)))
+    rs))
+
+(defn- cleanup-results [rs]
+  (if (map? rs)
+    (cleanup-result rs)
+    (mapv cleanup-result rs)))
+
 (defn- ok
   ([obj data-fmt]
-   (response obj 200 data-fmt))
+   (response (cleanup-results obj) 200 data-fmt))
   ([obj]
    (ok obj :json)))
 
