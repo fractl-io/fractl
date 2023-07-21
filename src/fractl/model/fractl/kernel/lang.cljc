@@ -24,7 +24,7 @@
 (attribute :Fractl.Kernel.Lang/String {:check k/kernel-string?})
 (attribute
  :Fractl.Kernel.Lang/Keyword
- {:check (fn* [p1__267#] (or (keyword? p1__267#) (string? p1__267#)))})
+ {:check (fn* [p1__262#] (or (keyword? p1__262#) (string? p1__262#)))})
 (attribute :Fractl.Kernel.Lang/Path {:check k/path?})
 (attribute :Fractl.Kernel.Lang/DateTime {:check k/date-time?})
 (attribute :Fractl.Kernel.Lang/Date {:check k/date?})
@@ -120,4 +120,4 @@
    :paths [:Fractl.Kernel.Lang/DataSync]}])
 (def
  Fractl_Kernel_Lang___COMPONENT_ID__
- "2f7c1c3c-388d-4f75-8e5e-799795fd8104")
+ "03d61447-b9e9-444c-9ff9-0b723dd80b2a")

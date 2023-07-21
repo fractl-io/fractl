@@ -64,3 +64,11 @@
 (dataflow
  :FindPrivileges
  [:query {:Privilege? privileges-query}])
+
+(entity
+ {:InstancePrivilegeAssignment
+  {:Actions {:check crud-list?
+             :optional true}
+   :Resource :Path
+   :ResourceId :Any
+   :Assignee :String}})

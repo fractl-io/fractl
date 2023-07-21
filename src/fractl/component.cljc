@@ -1812,6 +1812,18 @@
         (assoc inst li/meta-attr meta))
       inst)))
 
+(defn user-is-owner? [user inst]
+  (some #{user} (owners inst)))
+
 (defn instance-privileges-for-user [inst user]
   (when (an-instance? inst)
     (get (:instprivs (li/meta-attr inst)) user)))
+
+(defn assign-instance-privileges [inst user privs]
+  (assoc-in inst [li/meta-attr :instprivs user] privs))
+
+(defn remove-instance-privileges [inst user]
+  (let [path [li/meta-attr :instprivs]]
+    (if-let [ps (get-in inst path)]
+      (assoc-in inst path (dissoc ps user))
+      inst)))

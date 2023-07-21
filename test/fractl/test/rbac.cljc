@@ -228,3 +228,84 @@
            (is (every? f? fs)))
          (is (e? (tu/first-result (with-u1 (delete-e 1)))))
          (is (tu/is-error #(tu/eval-all-dataflows (with-u1 (lookup-fs 1))))))))))
+
+(deftest instance-privs
+  (lr/reset-events!)
+  (defcomponent :Ipv
+    (entity
+     :Ipv/E
+     {:rbac [{:roles ["ipv-user"] :allow [:create :update :read]}
+             {:roles ["ipv-guest"] :allow [:read]}]
+      :Id {:type :Int :identity true}
+      :X :Int})
+    (dataflow
+     :Ipv/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@ipv.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@ipv.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "ipv-user" :Assignee "u1@ipv.com"}})
+    {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Role "ipv-guest" :Assignee "u2@ipv.com"}})
+  (is (finalize-events))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:Ipv/InitUsers {}})))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac] (ei/init-interceptors [:rbac])))
+     (let [e? (partial cn/instance-of? :Ipv/E)
+           create-e (fn [user id]
+                      (tu/first-result
+                       (with-user
+                         user
+                         {:Ipv/Create_E
+                          {:Instance
+                           {:Ipv/E {:Id id :X (* id 100)}}}})))
+           update-e (fn [user id x]
+                      (tu/first-result
+                       (with-user
+                         user
+                         {:Ipv/Update_E
+                          {:Id id
+                           :Data {:X x}}})))
+           lookup-e (fn [user id]
+                      (tu/first-result
+                       (with-user
+                         user
+                         {:Ipv/Lookup_E
+                          {:Id id}})))
+           inst-priv (fn [owner assignee actions id]
+                       (tu/first-result
+                        (with-user
+                          owner
+                          {:Fractl.Kernel.Rbac/Create_InstancePrivilegeAssignment
+                           {:Instance
+                            {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
+                             {:Resource :Ipv/E
+                              :ResourceId id
+                              :Assignee assignee
+                              :Actions actions}}}})))
+           del-inst-priv (fn [owner assignee id] (inst-priv owner assignee nil id))
+           ip? (partial cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)
+           e1 (create-e "u1@ipv.com" 1)]
+       (is (e? e1))
+       (is (not (create-e "u2@ipv.com" 2)))
+       (is (cn/same-instance? e1 (lookup-e "u1@ipv.com" 1)))
+       (is (not (lookup-e "u2@ipv.com" 1)))
+       (is (e? (update-e "u1@ipv.com" 1 3000)))
+       (is (not (update-e "u2@ipv.com" 1 5000)))
+       (is (ip? (inst-priv "u1@ipv.com" "u2@ipv.com" [:read :update] 1)))
+       (let [e (lookup-e "u1@ipv.com" 1)]
+         (is (= 3000 (:X e)))
+         (is (= [:read :update] (cn/instance-privileges-for-user e "u2@ipv.com")))
+         (is (cn/same-instance? e (lookup-e "u2@ipv.com" 1)))
+         (is (e? (update-e "u2@ipv.com" 1 5000)))
+         (is (ip? (del-inst-priv "u1@ipv.com" "u2@ipv.com" 1)))
+         (let [e (lookup-e "u1@ipv.com" 1)]
+           (is (= 5000 (:X e)))
+           (is (not (cn/instance-privileges-for-user e "u2@ipv.com")))
+           (is (not (update-e "u2@ipv.com" 1 8000)))
+           (is (not (lookup-e "u2@ipv.com" 1)))
+           (is (cn/same-instance? e (lookup-e "u1@ipv.com" 1)))))))))

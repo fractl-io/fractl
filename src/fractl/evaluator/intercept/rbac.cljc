@@ -10,6 +10,8 @@
             [fractl.lang.relgraph :as rg]
             [fractl.rbac.core :as rbac]
             [fractl.global-state :as gs]
+            [fractl.resolver.registry :as rr]
+            [fractl.resolver.rbac :as rbr]
             [fractl.evaluator.intercept.internal :as ii]))
 
 (defn- has-priv? [rbac-predic user arg]
@@ -68,21 +70,49 @@
                     resource
                     (cn/instance-type-kw resource)))))
 
-(defn- user-is-owner? [user resource]
-  (some #{user} (cn/owners resource)))
+(defn- instance-priv-assignment? [resource]
+  (and (cn/an-instance? resource)
+       (= (cn/instance-type-kw resource)
+          :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)))
+
+(defn- handle-instance-priv [user env opr inst]
+  (case opr
+    :create
+    (let [entity-name (:Resource inst)
+          id (:ResourceId inst)
+          store (env/get-store env)
+          res (store/lookup-by-id
+               store entity-name
+               (cn/identity-attribute-name entity-name) id)]
+      (when-not res
+        (u/throw-ex (str "resource not found - " [entity-name id])))
+      (when-not (cn/user-is-owner? user res)
+        (u/throw-ex (str "only owner can assign instance-privileges - " [entity-name id])))
+      (let [assignee (:Assignee inst)
+            actions (:Actions inst)]
+        (if (store/update-instances
+             store entity-name
+             [(if actions
+                (cn/assign-instance-privileges res assignee actions)
+                (cn/remove-instance-privileges res assignee))])
+          inst
+          (u/throw-ex (str "failed to assign instance-privileges - " [entity-name id])))))
+    inst))
 
 (defn- apply-rbac-checks [user env opr arg resource check-input]
-  (let [has-base-priv ((opr actions) user check-input)]
-    (if (= :create opr)
-      (when has-base-priv arg)
-      (let [is-owner (user-is-owner? user resource)
-            has-inst-priv (has-instance-privilege? user opr resource)]
-        (if (or is-owner has-inst-priv)
-          arg
-          (if has-base-priv
-            (case opr
-              :read arg
-              (:delete :update) (when-not (owner-exclusive? resource) arg))))))))
+  (if (instance-priv-assignment? resource)
+    (when (handle-instance-priv user env opr resource) arg)
+    (let [has-base-priv ((opr actions) user check-input)]
+      (if (= :create opr)
+        (when has-base-priv arg)
+        (let [is-owner (cn/user-is-owner? user resource)
+              has-inst-priv (has-instance-privilege? user opr resource)]
+          (if (or is-owner has-inst-priv)
+            arg
+            (if has-base-priv
+              (case opr
+                :read arg
+                (:delete :update) (when-not (owner-exclusive? resource) arg)))))))))
 
 (defn- first-instance [data]
   (cond
@@ -145,4 +175,9 @@
               (check-upsert-on-attributes env opr user arg)))))))
 
 (defn make [_] ; config is not used
-  (ii/make-interceptor :rbac run))
+  (let [r (ii/make-interceptor :rbac run)]
+    (rr/register-resolver
+     {:name :rbac :type :rbac
+      :compose? false
+      :paths [:Fractl.Kernel.Rbac/InstancePrivilegeAssignment]})
+    r))

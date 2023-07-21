@@ -53,4 +53,4 @@
                            :Fractl.Kernel.Identity/FindUser.Email}})
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "fefe53dd-8525-4e67-b624-47f3f09a92f6")
+ "a98859fd-0134-477d-a269-8151c04cb36b")
