@@ -113,12 +113,12 @@
     (relationship
      :Mlc/R2
      {:meta {:contains [:Mlc/B :Mlc/C]}}))
-  (let [[a1 a1 :as as] (mapv #(tu/first-result
-                               {:Mlc/Create_A
-                                {:Instance
-                                 {:Mlc/A
-                                  {:Id % :X (* % 2)}}}})
-                             [1 2])
+  (let [as (mapv #(tu/first-result
+                   {:Mlc/Create_A
+                    {:Instance
+                     {:Mlc/A
+                      {:Id % :X (* % 2)}}}})
+                 [1 2])
         create-b #(tu/first-result {:Mlc/Create_B
                                     {:Instance
                                      {:Mlc/B
@@ -246,3 +246,50 @@
     (is (cn/same-instance? b1 (tu/first-result
                                {:Bac/LookupB
                                 {:B 4 :Rc (fq "/A/1/Rc/B/4") :C 7}})))))
+
+(deftest multi-contains
+  (defcomponent :Mcs
+    (entity
+     :Mcs/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Mcs/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :Mcs/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :Mcs/R1
+     {:meta {:contains [:Mcs/A :Mcs/C]}})
+    (relationship
+     :Mcs/R2
+     {:meta {:contains [:Mcs/B :Mcs/C]}}))
+  (let [a1 (tu/first-result
+            {:Mcs/Create_A
+             {:Instance
+              {:Mcs/A
+               {:Id 1 :X 2}}}})
+        b1 (tu/first-result
+            {:Mcs/Create_B
+             {:Instance
+              {:Mcs/B
+               {:Id 2 :Y 20}}}})
+        create-c #(tu/first-result {:Mcs/Create_C
+                                    {:Instance
+                                     {:Mcs/C
+                                      {:Id %2 :Z (* %2 10)}}
+                                     :PATH %1}})
+        a? (tu/type-check :Mcs/A)
+        b? (tu/type-check :Mcs/B)
+        c? (tu/type-check :Mcs/C)
+        c1 (create-c "/A/1/R1" 10)
+        c2 (create-c "/B/2/R2" 100)]
+    (is (a? a1)) (is (b? b1))
+    (is (every? c? [c1 c2]))
+    (is (= "path://Mcs$A/1/Mcs$R1/Mcs$C/10" (:PATH c1)))
+    (is (= "path://Mcs$B/2/Mcs$R2/Mcs$C/100" (:PATH c2)))
+    (is (tu/is-error #(create-c "/A/1/R2" 20)))
+    (is (tu/is-error #(create-c "/B/1/R2" 200)))))
