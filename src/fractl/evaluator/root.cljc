@@ -590,13 +590,33 @@
     true
     false))
 
+(defn- instance-to-partial-path [parent-inst child-type]
+  (let [pt (cn/instance-type-kw parent-inst)
+        ct (li/make-path child-type)]
+    (if-let [rel (cn/parent-relationship pt ct)]
+      (let [pp (li/path-attr parent-inst)
+            rn (li/encoded-uri-path-part rel)]
+        (if pp
+          (str (li/path-query-string pp) rn)
+          (str "/" (li/encoded-uri-path-part pt)
+               "/" ((cn/identity-attribute-name pt) parent-inst)
+               "/" rn)))
+      (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
+
+(defn- normalize-partial-path [record-name obj]
+  (if-let [p (li/path-attr obj)]
+    (if (cn/entity-instance? p)
+      (assoc obj li/path-attr (instance-to-partial-path p record-name))
+      obj)
+    obj))
+
 (defn- validated-instance [record-name obj]
   (if (cn/an-instance? obj)
     (if-not (cn/entity-instance? obj)
       (cn/validate-instance obj)
       obj)
     (cn/make-instance
-     record-name obj
+     record-name (normalize-partial-path record-name obj)
      (require-validation? (li/make-path record-name)))))
 
 (defn- pop-instance

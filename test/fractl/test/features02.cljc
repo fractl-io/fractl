@@ -1,6 +1,7 @@
 (ns fractl.test.features02
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.lang
              :refer [component attribute event
@@ -293,3 +294,37 @@
     (is (= "path://Mcs$B/2/Mcs$R2/Mcs$C/100" (:PATH c2)))
     (is (tu/is-error #(create-c "/A/1/R2" 20)))
     (is (tu/is-error #(create-c "/B/1/R2" 200)))))
+
+(deftest contains-by-local-ref
+  (defcomponent :Cblr
+    (entity
+     :Cblr/P
+     {:Id :Identity
+      :X :Int})
+    (entity
+     :Cblr/C
+     {:Id :Identity
+      :Y :Int})
+    (relationship
+     :Cblr/R
+     {:meta {:contains [:Cblr/P :Cblr/C]}})
+    (dataflow
+     :Cblr/MakeC
+     {:Cblr/P {:X :Cblr/MakeC.X} :as :P}
+     {:Cblr/C {:Y :Cblr/MakeC.Y} :-> :P}))
+  (let [c? (partial cn/instance-of? :Cblr/C)
+        p? (partial cn/instance-of? :Cblr/P)
+        pid #(second (filter seq (s/split (li/path-query-string (li/path-attr %)) #"/")))
+        make-c #(tu/first-result
+                 {:Cblr/MakeC {:X %1 :Y %2}})
+        c1 (make-c 1 10)
+        lookup-p #(tu/first-result
+                   {:Cblr/Lookup_P {:Id %}})
+        lookup-c #(tu/first-result
+                   {:Cblr/Lookup_C {li/path-attr %}})]
+    (is (c? c1))
+    (let [p (pid c1)
+          p1 (lookup-p p)]
+      (is (p? p1))
+      (is (= p (:Id p1))))
+    (is (cn/same-instance? c1 (lookup-c (li/path-attr c1))))))

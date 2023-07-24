@@ -10,7 +10,39 @@
 (def with-types-tag :with-types)
 
 (def path-attr :PATH)
-(def default-path "/null")
+
+(def path-query-prefix "path:/")
+(def path-query-prefix-len (count path-query-prefix))
+
+(defn path-query? [x]
+  (and (string? x)
+       (s/starts-with? x path-query-prefix)))
+
+(defn path-query-string [s]
+  (subs s path-query-prefix-len))
+
+(defn as-partial-path [path]
+  (let [s (path-query-string path)
+        idx (s/last-index-of s "/")]
+    (subs s 0 idx)))
+
+(defn maybe-add-path-query-prefix [s]
+  (if (path-query? s)
+    s
+    (str path-query-prefix
+         (if (= "/" (first s)) s (str "/" s)))))
+
+(def path-query-tag :?)
+(defn path-query-tag? [x] (= x :?))
+
+(def ^:private default-path-prefix (str path-query-prefix "/__null/"))
+
+(defn- default-path []
+  (str default-path-prefix (u/uuid-string)))
+
+(defn null-path? [s]
+  (s/starts-with? s default-path-prefix))
+
 (def path-attr-spec
   {:type :Fractl.Kernel.Lang/String
    :default default-path
@@ -482,31 +514,7 @@
 (defn keyword-name [n]
   (if (keyword? n) n (make-path n)))
 
-(def path-query-prefix "path:/")
-(def path-query-prefix-len (count path-query-prefix))
-
-(defn path-query? [x]
-  (and (string? x)
-       (s/starts-with? x path-query-prefix)))
-
-(defn path-query-string [s]
-  (subs s path-query-prefix-len))
-
-(defn as-partial-path [path]
-  (let [s (path-query-string path)
-        idx (s/last-index-of s "/")]
-    (subs s 0 idx)))
-
-(defn maybe-add-path-query-prefix [s]
-  (if (path-query? s)
-    s
-    (str path-query-prefix
-         (if (= "/" (first s)) s (str "/" s)))))
-
-(def path-query-tag :?)
-(defn path-query-tag? [x] (= x :?))
-
-(defn encoded-uri-path-part [base-component entity-name]
+(defn encoded-uri-path-part [entity-name]
   (let [[c n] (split-path entity-name)]
     (if (and c n)
       (str (name c) "$" (name n))

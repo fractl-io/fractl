@@ -759,12 +759,21 @@
   ([rectype n attrs]
    (serializable-record rectype n attrs attrs)))
 
+(defn- preproc-for-identity [attrs]
+  (let [attrs (mapv (fn [[k v]]
+                      [k (if (or (= v :Identity)
+                                 (= v :Fractl.Kernel.Lang/Identity))
+                           (cn/find-attribute-schema :Fractl.Kernel.Lang/Identity)
+                           v)])
+                    attrs)]
+    (into {} attrs)))
+
 (def serializable-entity (partial serializable-record :entity))
 
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
-   (when-let [r (serializable-entity n attrs)]
+   (when-let [r (serializable-entity n (preproc-for-identity attrs))]
      (and (raw/entity n attrs) r)))
   ([schema]
    (parse-and-define entity schema)))

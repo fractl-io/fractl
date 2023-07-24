@@ -506,9 +506,6 @@
   (some #{attr-name} (concat (identity-attributes entity-schema)
                              (unique-attributes entity-schema))))
 
-(defn same-id? [a b]
-  (= (str (id-attr a)) (str (id-attr b))))
-
 (defn instance-eq?
   "Return true if both entity instances have the same identity."
   [a b]
@@ -1632,6 +1629,9 @@
       true
       false)))
 
+(defn parent-relationship [parent-name child-name]
+  (ffirst (filter #(= parent-name (last %)) (containing-parents child-name))))
+
 (defn check-cascade-delete-children [entity-name]
   (if-let [rels (contained-children entity-name)]
     (and (every? :cascade-on-delete (map #(fetch-meta (relinfo-name %)) rels))
@@ -1775,7 +1775,7 @@
 
 (defn null-parent-path? [inst]
   (when-let [p (li/path-attr inst)]
-    (= p li/default-path)))
+    (li/null-path? p)))
 
 (defn find-parent-info [rel-inst]
   (let [tp (instance-type-kw rel-inst)]
