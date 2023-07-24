@@ -10,13 +10,50 @@
 (def with-types-tag :with-types)
 
 (def path-attr :PATH)
-(def default-path "/null")
+
+(def path-query-prefix "path:/")
+(def path-query-prefix-len (count path-query-prefix))
+
+(defn path-query? [x]
+  (and (string? x)
+       (s/starts-with? x path-query-prefix)))
+
+(defn path-query-string [s]
+  (subs s path-query-prefix-len))
+
+(defn as-partial-path [path]
+  (let [s (path-query-string path)
+        idx (s/last-index-of s "/")]
+    (subs s 0 idx)))
+
+(defn maybe-add-path-query-prefix [s]
+  (if (path-query? s)
+    s
+    (str path-query-prefix
+         (if (= "/" (first s)) s (str "/" s)))))
+
+(def path-query-tag :?)
+(defn path-query-tag? [x] (= x :?))
+
+(def ^:private default-path-prefix (str path-query-prefix "/__null/"))
+
+(defn- default-path []
+  (str default-path-prefix (u/uuid-string)))
+
+(defn null-path? [s]
+  (s/starts-with? s default-path-prefix))
+
 (def path-attr-spec
-  {:type :String
+  {:type :Fractl.Kernel.Lang/String
    :default default-path
    :unique true
    :indexed true})
 (def path-attr-q :PATH?)
+
+(def meta-attr :INSTMETA)
+(def meta-attr-spec {:type :Fractl.Kernel.Lang/Map
+                     :optional true})
+(def reserved-attrs #{path-attr meta-attr})
 
 (def globally-unique :globally-unique)
 
@@ -27,6 +64,17 @@
                  {:eval js-eval
                   :context :expr}
                  :value)))
+
+(def rbac-oprs #{:read :create :update :delete :eval})
+
+(defn- privs-list? [xs]
+  (and (seqable? xs)
+       (= rbac-oprs (set/union (set xs) rbac-oprs))))
+
+(defn instance-privilege-spec? [obj]
+  (and (map? obj)
+       (every? string? (keys obj))
+       (every? privs-list? (vals obj))))
 
 (def cmpr-oprs [:= :< :> :<= :>= :<>])
 (def query-cmpr-oprs (conj cmpr-oprs :like))
@@ -219,8 +267,11 @@
   ([component obj-name]
    (when (and component obj-name)
      (keyword (str (name component) "/" (name obj-name)))))
-  ([[component obj-name]]
-   (make-path component obj-name)))
+  ([n]
+   (if (keyword? n)
+     n
+     (let [[component obj-name] n]
+       (make-path component obj-name)))))
 
 (defn make-ref
   ([recname attrname]
@@ -463,43 +514,38 @@
 (defn keyword-name [n]
   (if (keyword? n) n (make-path n)))
 
-(def path-query-prefix "path:/")
-(def path-query-prefix-len (count path-query-prefix))
+(defn encoded-uri-path-part [entity-name]
+  (let [[c n] (split-path entity-name)]
+    (if (and c n)
+      (str (name c) "$" (name n))
+      (name entity-name))))
 
-(defn path-query? [x]
-  (and (string? x)
-       (s/starts-with? x path-query-prefix)))
-
-(defn path-query-string [s]
-  (subs s path-query-prefix-len))
-
-(defn- fully-qualified-path-type [base-component n]
+(defn fully-qualified-path-type [base-component n]
   (if (s/index-of n "$")
     (keyword (s/replace n "$" "/"))
     (keyword (str (name base-component) "/" n))))
 
-(defn- fully-qualified-path-value [base-component n]
+(defn fully-qualified-path-value [base-component n]
   (if (s/starts-with? n ":")
     (fully-qualified-path-type base-component (subs n 1))
     n))
 
-(defn parse-query-path [base-component s]
-  (let [parts (reverse (filter #(identity (seq %)) (s/split s #"/")))
-        t (partial fully-qualified-path-type base-component)
-        v (partial fully-qualified-path-value base-component)]
-    (loop [parts parts, result []]
-      (if-let [[child-val child relname parent-val parent]
-               (when (>= (count parts) 5)
-                 (take 5 parts))]
-        (recur (drop 3 parts)
-               (conj result {:child-value (v child-val)
-                             :child (t child)
-                             :relationship (t relname)
-                             :parent-value (v parent-val)
-                             :parent (t parent)}))
-        result))))
+(defn- fully-qualified-path-component [base-component n]
+  (if (s/index-of n "$")
+    n
+    (str (name base-component) "$" n)))
 
-(defn path-query-pattern? [x] (= x :?))
+(defn as-fully-qualified-path [base-component path]
+  (let [path (if (path-query? path) (subs path path-query-prefix-len) path)
+        fqt (partial fully-qualified-path-component base-component)]
+    (loop [parts (filter seq (s/split path #"/")), n 0, final-path []]
+      (if-let [p (first parts)]
+        (case n
+          (0 2 3) (recur (rest parts)
+                         (if (= n 3) 1 (inc n))
+                         (conj final-path (fqt p)))
+          (recur (rest parts) (inc n) (conj final-path p)))
+        (str path-query-prefix "/" (s/join "/" final-path))))))
 
 (defn full-path-name? [n]
   (s/index-of (str n) "/"))

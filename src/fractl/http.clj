@@ -46,9 +46,27 @@
    (response {:reason s} 500 data-fmt))
   ([s] (internal-error s :json)))
 
+(defn- cleanup-inst [obj]
+  (cond
+    (cn/an-instance? obj) (dissoc obj li/meta-attr)
+    (vector? obj) (mapv cleanup-inst obj)
+    :else obj))
+
+(defn- cleanup-result [rs]
+  (if-let [result (:result rs)]
+    (assoc rs :result (if (map? result)
+                        (cleanup-inst result)
+                        (mapv cleanup-inst result)))
+    rs))
+
+(defn- cleanup-results [rs]
+  (if (map? rs)
+    (cleanup-result rs)
+    (mapv cleanup-result rs)))
+
 (defn- ok
   ([obj data-fmt]
-   (response obj 200 data-fmt))
+   (response (cleanup-results obj) 200 data-fmt))
   ([obj]
    (ok obj :json)))
 
@@ -178,32 +196,15 @@
               (ok @resp))))))
 
 (defn- parse-rest-uri [request]
-  (uh/parse-rest-uri (:* (:params request))))
+  (let [s (:* (:params request))
+        [uri all] (if (s/ends-with? s "/__all")
+                    [(subs s 0 (s/index-of s "/__all")) true]
+                    [s false])]
+    (assoc (uh/parse-rest-uri uri) :all all)))
 
-(defn- parse-attr [entity-name attr v]
-  (let [scm (cn/fetch-schema entity-name)
-        ascm (cn/find-attribute-schema (get scm attr))]
-    (if-let [t (:type ascm)]
-      (case t
-        :Fractl.Kernel.Lang/Int (Integer/parseInt v)
-        :Fractl.Kernel.Lang/Int64 (Long/parseLong v)
-        :Fractl.Kernel.Lang/BigInteger (BigInteger. v)
-        :Fractl.Kernel.Lang/Float (Float/parseFloat v)
-        :Fractl.Kernel.Lang/Double (Double/parseDouble v)
-        :Fractl.Kernel.Lang/Decimal (BigDecimal. v)
-        :Fractl.Kernel.Lang/Boolean (if (= "true" v) true false)
-        v)
-      v)))
-
-(defn- path-as-parent-ids [path]
+(defn- maybe-path-attribute [path]
   (when path
-    (into
-     {}
-     (mapv
-      (fn [{p :parent id :id}]
-        (let [id-attr (cn/identity-attribute-name p)]
-          [(keyword (name (keyword p))) (parse-attr p id-attr id)]))
-      path))))
+    {li/path-attr path}))
 
 (defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
   (or (maybe-unauth request)
@@ -219,55 +220,60 @@
 (def process-post-request
   (partial
    process-generic-request
-   (fn [{entity-name :entity id :id component :component path :path} obj]
+   (fn [{entity-name :entity component :component path :path} obj]
      (if (cn/event? entity-name)
        [obj nil]
        [{(cn/crud-event-name component entity-name :Create)
          (merge
           {:Instance obj}
-          (path-as-parent-ids path))}
+          (when path
+            {li/path-attr (li/as-partial-path path)}))}
         nil]))))
 
 (def process-put-request
   (partial
    process-generic-request
    (fn [{entity-name :entity id :id component :component path :path} obj]
-     (if-not id
-       [nil (bad-request (str "id required to update " entity-name))]
-       (let [id-attr (cn/identity-attribute-name entity-name)]
-         [{(cn/crud-event-name component entity-name :Update)
-           (merge
-            {id-attr (parse-attr entity-name id-attr id)
-             :Data (li/record-attributes obj)}
-            (path-as-parent-ids path))}
-          nil])))))
+     (if-not (or id path)
+       [nil (bad-request (str "id or path required to update " entity-name))]
+       [{(cn/crud-event-name component entity-name :Update)
+         (merge
+          (when-not path
+            (let [id-attr (cn/identity-attribute-name entity-name)]
+              {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+          {:Data (li/record-attributes obj)}
+          (maybe-path-attribute path))}
+        nil]))))
 
 (def process-get-request
   (partial
    process-generic-request
-   (fn [{entity-name :entity id :id component :component path :path} obj]
-     [(if id
-        (let [id-attr (cn/identity-attribute-name entity-name)]
+   (fn [{entity-name :entity id :id component :component path :path all :all :as p} obj]
+     (let [path (when path (str path "%"))]
+       [(if id
           {(cn/crud-event-name component entity-name :Lookup)
            (merge
-            {id-attr (parse-attr entity-name id-attr id)}
-            (path-as-parent-ids path))})
-        {(cn/crud-event-name component entity-name :LookupAll)
-         (merge {} (path-as-parent-ids path))})
-      nil])))
+            (when-not path
+              (let [id-attr (cn/identity-attribute-name entity-name)]
+                {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+            (maybe-path-attribute path))}
+          {(cn/crud-event-name component entity-name :LookupAll)
+           (or (maybe-path-attribute path) {})})
+        nil]))))
 
 (def process-delete-request
   (partial
    process-generic-request
    (fn [{entity-name :entity id :id component :component path :path} _]
-     (if-not id
-       [nil (bad-request (str "id required to delete " entity-name))]
-       (let [id-attr (cn/identity-attribute-name entity-name)]
+     (if-not (or id path)
+       [nil (bad-request (str "id or path required to delete " entity-name))]
          [{(cn/crud-event-name component entity-name :Delete)
            (merge
-            {id-attr (parse-attr entity-name id-attr id)}
-            (path-as-parent-ids path))}
-          nil])))))
+            (when-not path
+              (let [id-attr (cn/identity-attribute-name entity-name)]
+                {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+            (maybe-path-attribute path))}
+          nil]))))
 
 (defn- like-pattern? [x]
   ;; For patterns that include the `_` wildcard,

@@ -16,6 +16,7 @@
             [fractl.evaluator.match :as m]
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.intercept.core :as interceptors]
+            [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.syntax :as ls]
             [fractl.lang.opcode :as opc]
@@ -260,7 +261,8 @@
      (mapv #(seq (mapv (fn [e] (f e %)) (cn/conditional-events %)))
            insts))))
 
-(def ^:private inited-components (u/make-cell []))
+(def ^:private inited-components (u/make-cell #{}))
+(def ^:private init-pending-components (u/make-cell #{}))
 (def ^:private store-schema-lock #?(:clj (Object.) :cljs nil))
 
 (defn- maybe-init-schema! [store component-name]
@@ -269,10 +271,17 @@
      store-schema-lock
      (when-not (some #{component-name} @inited-components)
        (u/safe-set
-        inited-components
+        init-pending-components
         (do (store/create-schema store component-name)
-            (conj @inited-components component-name))
-        component-name)))))
+            (conj @init-pending-components component-name)))))))
+
+(defn merge-init-pending-components! []
+  (when (seq @init-pending-components)
+    (#?(:clj locking :cljs do)
+     store-schema-lock
+     (when (seq @init-pending-components)
+       (u/safe-set inited-components (set/union @inited-components @init-pending-components))
+       (u/safe-set init-pending-components #{})))))
 
 (defn- chained-crud [store-f res resolver-f single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
@@ -324,6 +333,17 @@
       r
       (first r))))
 
+(defn- active-user [env]
+  (or (cn/event-context-user (env/active-event env))
+      (gs/active-user)))
+
+(defn- maybe-add-owner [env inst]
+  (if (cn/owners inst)
+    inst
+    (if-let [owner (active-user env)]
+      (cn/concat-owners inst [owner])
+      inst)))
+
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
@@ -332,7 +352,7 @@
     (let [is-single (map? insts)
           result
           (if (or is-single (env/any-dirty? env insts))
-            (let [insts (if is-single [insts] insts)
+            (let [insts (mapv (partial maybe-add-owner env) (if is-single [insts] insts))
                   id-attr (cn/identity-attribute-name record-name)]
               (apply
                concat
@@ -380,6 +400,42 @@
         resolver (partial resolver-delete env) record-name instance))))
   ([env record-name instance]
    (chained-delete env record-name instance true)))
+
+(defn- hard-delete-all-children [store record-name]
+  (loop [rels (cn/contained-children record-name)]
+    (if-let [[_ _ child] (first rels)]
+      (when (hard-delete-all-children child)
+        (store/delete-all store child)
+        (recur (rest rels)))
+      record-name)))
+
+(defn- delete-all-children [store record-name]
+  (case (cn/check-cascade-delete-children record-name)
+    :delete (hard-delete-all-children store record-name)
+    :ignore record-name
+    (u/throw-ex (str "cannot cascade delete children - " record-name))))
+
+(defn- find-path-prefix [record-name inst]
+  (or (li/path-attr inst)
+      (let [[c n] (li/split-path record-name)]
+        (str li/path-query-prefix "/" (name c) "$" (name n) "/"
+             ((cn/identity-attribute-name record-name) inst)))))
+
+(defn- hard-delete-children [store record-name path-prefix]
+  (loop [rels (cn/contained-children record-name)]
+    (if-let [[_ _ child] (first rels)]
+      (when (hard-delete-children store child path-prefix)
+        (store/delete-children store child path-prefix)
+        (recur (rest rels)))
+      record-name)))
+
+(defn- delete-children [store record-name inst]
+  (case (cn/check-cascade-delete-children record-name)
+    :delete (hard-delete-children
+             store record-name
+             (str (find-path-prefix record-name inst) "%"))
+    :ignore record-name
+    (u/throw-ex (str "cannot cascade delete children - " record-name))))
 
 (defn- purge-all [env instances]
   (loop [env env, insts instances]
@@ -534,13 +590,33 @@
     true
     false))
 
+(defn- instance-to-partial-path [parent-inst child-type]
+  (let [pt (cn/instance-type-kw parent-inst)
+        ct (li/make-path child-type)]
+    (if-let [rel (cn/parent-relationship pt ct)]
+      (let [pp (li/path-attr parent-inst)
+            rn (li/encoded-uri-path-part rel)]
+        (if pp
+          (str (li/path-query-string pp) "/" rn)
+          (str "/" (li/encoded-uri-path-part pt)
+               "/" ((cn/identity-attribute-name pt) parent-inst)
+               "/" rn)))
+      (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
+
+(defn- normalize-partial-path [record-name obj]
+  (if-let [p (li/path-attr obj)]
+    (if (cn/entity-instance? p)
+      (assoc obj li/path-attr (instance-to-partial-path p record-name))
+      obj)
+    obj))
+
 (defn- validated-instance [record-name obj]
   (if (cn/an-instance? obj)
     (if-not (cn/entity-instance? obj)
       (cn/validate-instance obj)
       obj)
     (cn/make-instance
-     record-name obj
+     record-name (normalize-partial-path record-name obj)
      (require-validation? (li/make-path record-name)))))
 
 (defn- pop-instance
@@ -587,6 +663,12 @@
 (defn- extract-local-result [r]
   (when (i/ok? r)
     (first (:result r))))
+
+(defn- extract-local-result-as-vec [r]
+  (when-let [rs (extract-local-result r)]
+    (if (map? rs)
+      [rs]
+      rs)))
 
 (defn- bind-result-to-alias [result-alias result]
   (if result-alias
@@ -717,37 +799,132 @@
        (catch js/Error e
          (or (.-ex-data e) (i/error e))))))
 
-(defn- query-helper [env entity-name queries]
-  (if-let [[insts env]
-           (read-intercept
-            env entity-name
-            (fn [entity-name]
-              (find-instances
-               env (env/get-store env)
-               entity-name queries)))]
-    (cond
-      (maybe-async-channel? insts)
-      (i/ok
-       insts
-       (env/push-obj env entity-name insts))
+(defn- filter-results-by-rels [entity-name result-insts
+                               {opcodes :filter-by-opcodes
+                                evaluator :eval}]
+  (if (seq result-insts)
+    (let [r (evaluator opcodes)]
+      (if-let [rs (extract-local-result-as-vec r)]
+        (let [[_ n] (li/split-path entity-name)
+              ident (cn/identity-attribute-name entity-name)
+              ids (set (mapv n rs))]
+          (filter (fn [inst] (some #{(ident inst)} ids)) result-insts))
+        (u/throw-ex (str "filter pattern evaluation failed for " entity-name))))
+    result-insts))
 
-      (seq insts)
-      (let [id-attr-name (cn/identity-attribute-name entity-name)
-            ids (mapv id-attr-name insts)]
-        (i/ok
-         insts
-         (env/mark-all-mint
-          (env/push-obj
-           (env/bind-queried-ids env entity-name ids)
-           entity-name insts)
-          insts)))
+(defn- query-helper
+  ([env entity-name queries result-filter]
+   (if-let [[insts env]
+            (read-intercept
+             env entity-name
+             (fn [entity-name]
+               (let [[insts env :as r] (find-instances env (env/get-store env) entity-name queries)]
+                 (if (:filter-by-opcodes result-filter)
+                   [(filter-results-by-rels entity-name insts result-filter) env]
+                   r))))]
+     (cond
+       (maybe-async-channel? insts)
+       (i/ok
+        insts
+        (env/push-obj env entity-name insts))
 
-      :else
-      (i/ok [] env))
-    (i/error (str "query failed for " entity-name))))
+       (seq insts)
+       (let [id-attr-name (cn/identity-attribute-name entity-name)
+             ids (mapv id-attr-name insts)]
+         (i/ok
+          insts
+          (env/mark-all-mint
+           (env/push-obj
+            (env/bind-queried-ids env entity-name ids)
+            entity-name insts)
+           insts)))
+
+       :else
+       (i/ok [] env))
+     (i/error (str "query failed for " entity-name))))
+  ([env entity-name queries] (query-helper env entity-name queries nil)))
 
 (defn- find-reference [env record-name refs]
   (second (env/instance-ref-path env record-name nil refs)))
+
+(defn- name-from-path-component [component n]
+  (let [k (li/fully-qualified-path-type component n)
+        parts (li/split-path k)]
+    (if (= 2 (count parts))
+      k
+      (li/make-path component k))))
+
+(defn- parent-info-from-path [component-name path]
+  (let [parts (filter seq (s/split path #"/"))
+        at-root (= (count parts) 3)
+        ps (if at-root parts (take-last 3 parts))
+        nc (partial name-from-path-component component-name)]
+    [(nc (first ps)) (second ps) (nc (last ps)) at-root]))
+
+(defn- lookup-ref-inst
+  ([cast-val env recname id-attr id-val]
+   (or (first (env/lookup-instances-by-attributes
+               env (li/split-path recname) {id-attr id-val} true))
+       (store/query-by-unique-keys
+        (env/get-store env) recname [id-attr]
+        {id-attr (if cast-val (cn/parse-attribute-value recname id-attr id-val) id-val)})))
+  ([env recname id-attr id-val] (lookup-ref-inst true env recname id-attr id-val)))
+
+(defn- find-parent-by-path [env record-name path]
+  (let [[c n] (li/split-path record-name)
+        [parent pid-val relname at-root] (parent-info-from-path c path)
+        pid-attr (cn/identity-attribute-name parent)]
+    (when-not (cn/parent-via? relname record-name parent)
+      (u/throw-ex (str "not in relationship - " [relname record-name parent])))
+    (when-let [result (if at-root
+                        (lookup-ref-inst env parent pid-attr pid-val)
+                        (let [fq (partial li/as-fully-qualified-path c)
+                              path-val (fq (str li/path-query-prefix (subs path 0 (s/last-index-of path "/"))))]
+                          (or (first (env/lookup-instances-by-attributes
+                                      env (li/split-path parent) {li/path-attr path-val}))
+                              (store/query-by-unique-keys
+                               (env/get-store env) parent [li/path-attr] {li/path-attr path-val}))))]
+      (if (map? result) result (when (seq result) (first result))))))
+
+(defn- attach-full-path [record-name inst path]
+  (let [v (str ((cn/path-identity-attribute-name record-name) inst))
+        [c n] (li/split-path record-name)]
+    (assoc inst li/path-attr (li/as-fully-qualified-path c (str path "/" (name n) "/" v)))))
+
+(defn- concat-owners [inst parent-inst]
+  (if-let [owners (cn/owners parent-inst)]
+    (cn/concat-owners inst owners)
+    inst))
+
+(defn- partial-path-attr [inst]
+  (when-let [p (li/path-attr inst)]
+    (when-not (li/path-query? p)
+      p)))
+
+(defn- maybe-fix-contains-path [env record-name inst]
+  (if-let [path (partial-path-attr inst)]
+    (if-let [parent (find-parent-by-path env record-name path)]
+      (attach-full-path record-name (concat-owners inst parent) path)
+      (u/throw-ex (str "failed to find parent by path - " path)))
+    inst))
+
+(defn- ensure-between-refs [env record-name inst]
+  (let [[node1 node2] (mapv li/split-path (cn/relationship-nodes record-name))
+        lookup (partial lookup-ref-inst false)]
+    (if (and (lookup env node1 (cn/identity-attribute-name node1) ((second node1) inst))
+             (lookup env node2 (cn/identity-attribute-name node2) ((second node2) inst)))
+      inst
+      (u/throw-ex (str "failed to lookup node-references: " record-name)))))
+
+(defn- ensure-relationship-constraints [env record-name inst]
+  (cond
+    (cn/between-relationship? record-name)
+    (ensure-between-refs env record-name inst)
+
+    (cn/entity? record-name)
+    (maybe-fix-contains-path env record-name inst)
+
+    :else inst))
 
 (defn- intern-instance [self env eval-opcode eval-event-dataflows
                         record-name inst-alias validation-required upsert-required]
@@ -762,7 +939,11 @@
       (i/ok insts env)
 
       insts
-      (let [local-result (if upsert-required
+      (let [insts (let [r (mapv
+                           (partial ensure-relationship-constraints env record-name)
+                           (if single? [insts] (vec insts)))]
+                    (if single? (first r) r))
+            local-result (if upsert-required
                            (chained-upsert
                             env (partial eval-event-dataflows self)
                             record-name insts)
@@ -797,76 +978,6 @@
     obj
     (first obj)))
 
-(defn- intern-relationship [vm env eval-opcode eval-event-dataflows
-                            rel-name rel-opcode src-inst opc]
-  (let [rel-attrs (when rel-opcode
-                    (or (first (ok-result (eval-opcode vm env rel-opcode)))
-                        (u/throw-ex (str "failed to initialize relationship - " rel-name))))
-        r (eval-opcode vm env opc)]
-    (if-let [target (normalize-rel-target (ok-result r))]
-      (intern-instance
-       vm (env/push-obj
-           (:env r) rel-name
-           (cn/init-relationship-instance
-            rel-name rel-attrs
-            src-inst target))
-       eval-opcode eval-event-dataflows
-       rel-name nil true true)
-      r)))
-
-(defn- intern-relationship-for-one-instance [vm eval-opcode eval-event-dataflows
-                                             rel-info-and-target-opcode env inst]
-  (loop [topc rel-info-and-target-opcode, env env, rels []]
-    (if-let [[[rel-opcode rel-name is-obj] target-opcode] (first topc)]
-      (let [r2 (intern-relationship
-                vm (env/bind-instance env inst)
-                eval-opcode eval-event-dataflows
-                rel-name rel-opcode inst target-opcode)]
-        (if-let [rel (first (ok-result r2))]
-          (recur (rest topc) (:env r2) (conj rels rel))
-          r2))
-      (i/ok (assoc inst ls/rel-tag rels) env))))
-
-(defn- do-delete-relationship [vm env eval-opcode
-                               relname [main-entity-opcode
-                                        node-entity-opcode
-                                        fetch-delete-rel-opcode]]
-  (if-let [r1 (first (ok-result (eval-opcode vm env main-entity-opcode)))]
-    (if-let [r2 (first (ok-result (eval-opcode vm env node-entity-opcode)))]
-      (let [[opc1 opc2] (fetch-delete-rel-opcode r1 r2)
-            res1 (eval-opcode vm env opc1)]
-           (if (and opc2 (ok-result res1))
-             (let [res2 (eval-opcode vm env opc2)]
-               (if (ok-result res2) res1 res2))
-             res1))
-      (i/error (str "failed to load node-instance for relationship " relname)))
-    (i/error (str "failed to load main-instance for relationship " relname))))
-
-(defn- make-parent-path
-  ([env child-type rel-inst add-child-info]
-   (let [rel-tp (cn/instance-type-kw rel-inst)
-         [n1 n2 :as ns] (cn/relationship-nodes rel-tp)
-         [a1 a2] (mapv #(second (li/split-path %)) ns)
-         path (str "/" (name a1) "/" (a1 rel-inst) "/" (name rel-tp)
-                   (when add-child-info (str "/" (name a2) "/" (a2 rel-inst))))]
-     (if-let [pr (first (cn/containing-parents n1))]
-       (if-let [r (first (env/get-instances env (li/split-path (first pr))))]
-         (let [p (make-parent-path env n1 r false)]
-           (li/normalize-path (str p "/" path)))
-         (u/throw-ex (str "parent relationship " pr " not loaded into context")))
-       (li/normalize-path path))))
-  ([env child-type rel-inst] (make-parent-path env child-type rel-inst true)))
-
-(defn- build-parent-path [env inst]
-  (or (when (cn/null-parent-path? inst)
-        (let [tp (cn/instance-type-kw inst)]
-          (when-let [ident (cn/path-identity-attribute-name tp)]
-            (when-let [contains (first (filter #(cn/contains-relationship? (cn/instance-type %))
-                                               (li/rel-tag inst)))]
-              (when-let [p (make-parent-path env tp contains)]
-                (store/update-instances (env/get-store env) tp [(assoc inst li/path-attr p)]))))))
-      inst))
-
 (defn make-root-vm
   "Make a VM for running compiled opcode. The is given a handle each to,
      - a store implementation
@@ -893,7 +1004,8 @@
       (if-let [[path v] (env/instance-ref-path env record-name alias refs)]
         (if (cn/an-instance? v)
           (let [opcode-eval (partial eval-opcode self)
-                final-inst (assoc-computed-attributes env (cn/instance-type v) v opcode-eval)
+                inst (assoc-computed-attributes env (cn/instance-type v) v opcode-eval)
+                final-inst (ensure-relationship-constraints env (cn/instance-type inst) inst)
                 event-evaluator (partial eval-event-dataflows self)
                 [env r]
                 (bind-and-persist env event-evaluator final-inst)]
@@ -909,8 +1021,11 @@
       (let [env (env/push-obj env record-name)]
         (i/ok record-name env)))
 
-    (do-query-instances [_ env [entity-name queries]]
-      (query-helper env entity-name queries))
+    (do-query-instances [self env [entity-name queries filter-by-opcodes]]
+      (query-helper
+       env entity-name queries
+       {:filter-by-opcodes filter-by-opcodes
+        :eval (partial eval-opcode self env)}))
 
     (do-evaluate-query [_ env [fetch-query-fn result-alias]]
       (bind-result-to-alias
@@ -940,23 +1055,6 @@
       (intern-instance
        self env eval-opcode eval-event-dataflows
        record-name inst-alias validation-required upsert-required))
-
-    (do-intern-relationship-instance [self env [src-opcode rel-info-and-target-opcode]]
-      (let [r1 (eval-opcode self env src-opcode)]
-        (if-let [src-rs (ok-result r1)]
-          (let [intern-fn (partial
-                           intern-relationship-for-one-instance
-                           self eval-opcode eval-event-dataflows
-                           rel-info-and-target-opcode)
-                orig-src-rs src-rs]
-            (loop [src-rs (if (map? src-rs) [src-rs] src-rs), env (:env r1), result []]
-              (if-let [src (first src-rs)]
-                (let [r (intern-fn env src)]
-                  (if-let [obj (ok-result r)]
-                    (recur (rest src-rs) (:env r) (conj result (build-parent-path (:env r) obj)))
-                    (assoc r :env (purge-all env src-rs))))
-                (i/ok (if (= 1 (count result)) (first result) result) env))))
-          r1)))
 
     (do-intern-event-instance [self env [record-name alias-name with-types timeout-ms]]
       (let [[inst env] (pop-and-intern-instance
@@ -989,14 +1087,12 @@
     (do-delete-instance [self env [record-name queries]]
       (if-let [store (env/get-store env)]
         (cond
-          (= li/rel-tag (first queries))
-          (do-delete-relationship self env eval-opcode record-name (rest queries))
-
           (= queries :*)
           (i/ok [(delete-intercept
                   env [record-name nil]
                   (fn [[record-name _]]
-                    (store/delete-all store record-name)))]
+                    (when (delete-all-children store record-name)
+                      (store/delete-all store record-name))))]
                 env)
 
           :else
@@ -1006,8 +1102,9 @@
                   env (if alias (env/bind-instance-to-alias env alias insts) env)
                   id-attr (cn/identity-attribute-name record-name)]
               (i/ok insts (reduce (fn [env instance]
-                                    (chained-delete env record-name instance)
-                                    (env/purge-instance env record-name id-attr (id-attr instance)))
+                                    (when (delete-children store record-name instance)
+                                      (chained-delete env record-name instance)
+                                      (env/purge-instance env record-name id-attr (id-attr instance))))
                                   env insts)))
             (i/not-found record-name env)))
         (i/error (str "no active store, cannot delete " record-name " instance"))))

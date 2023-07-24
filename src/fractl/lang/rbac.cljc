@@ -107,7 +107,6 @@
 (defn- pending-ownership [rel spec]
   (case rel
     :between (li/owner spec)
-    :contains (li/owner-exclusive-crud spec)
     false))
 
 (defn- cleanup-spec [rel spec]

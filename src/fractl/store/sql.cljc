@@ -81,7 +81,7 @@
         :Fractl.Kernel.Lang/Path)
        (str "VARCHAR(" max-varchar-length ")")
 
-       :Fractl.Kernel.Lang/UUID "UUID"
+       (:Fractl.Kernel.Lang/UUID :Fractl.Kernel.Lang/Identity) "UUID"
        :Fractl.Kernel.Lang/Int "INT"
        (:Fractl.Kernel.Lang/Int64 :Fractl.Kernel.Lang/Integer) "BIGINT"
        :Fractl.Kernel.Lang/Float "REAL"

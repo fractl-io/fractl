@@ -30,4 +30,4 @@ and the `fractl` command-line tool there.
 
 # Setting logging properties
 
-export JAVA_OPTS=-Dlogback.configurationFile=/path/to/logback.xml
+export JDK_JAVA_OPTIONS=-Dlogback.configurationFile=/path/to/logback.xml

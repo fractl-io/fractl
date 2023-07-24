@@ -273,3 +273,6 @@
 
 (defn sort-by-attr [attr xs]
   (sort #(compare (attr %1) (attr %2)) xs))
+
+(defn type-check [t]
+  (partial cn/instance-of? t))

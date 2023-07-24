@@ -11,7 +11,7 @@
   (if-let [user (first
                  (ev/safe-ok-result
                   (evaluator
-                   {:Fractl.Kernel.Identity/Lookup_User
+                   {:Fractl.Kernel.Identity/FindUser
                     {:Email email}})))]
     user
     (ev/safe-ok-result
