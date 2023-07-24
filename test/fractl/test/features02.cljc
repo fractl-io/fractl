@@ -305,13 +305,24 @@
      :Cblr/C
      {:Id :Identity
       :Y :Int})
+    (entity
+     :Cblr/D
+     {:Id :Identity
+      :Z :Int})
     (relationship
      :Cblr/R
      {:meta {:contains [:Cblr/P :Cblr/C]}})
+    (relationship
+     :Cblr/S
+     {:meta {:contains [:Cblr/C :Cblr/D]}})
     (dataflow
      :Cblr/MakeC
      {:Cblr/P {:X :Cblr/MakeC.X} :as :P}
-     {:Cblr/C {:Y :Cblr/MakeC.Y} :-> :P}))
+     {:Cblr/C {:Y :Cblr/MakeC.Y} :-> :P})
+    (dataflow
+     :Cblr/MakeD
+     {:Cblr/C? {} :-> :Cblr/MakeD.C :as [:C]}
+     {:Cblr/D {:Z :Cblr/MakeD.Z} :-> :C}))
   (let [c? (partial cn/instance-of? :Cblr/C)
         p? (partial cn/instance-of? :Cblr/P)
         pid #(second (filter seq (s/split (li/path-query-string (li/path-attr %)) #"/")))
@@ -321,10 +332,18 @@
         lookup-p #(tu/first-result
                    {:Cblr/Lookup_P {:Id %}})
         lookup-c #(tu/first-result
-                   {:Cblr/Lookup_C {li/path-attr %}})]
+                   {:Cblr/Lookup_C {li/path-attr %}})
+        make-d #(tu/first-result
+                 {:Cblr/MakeD {:C %1 :Z %2}})
+        d? (partial cn/instance-of? :Cblr/D)
+        cpath #(subs % 0 (s/index-of % "/Cblr$S"))]
     (is (c? c1))
     (let [p (pid c1)
           p1 (lookup-p p)]
       (is (p? p1))
       (is (= p (:Id p1))))
-    (is (cn/same-instance? c1 (lookup-c (li/path-attr c1))))))
+    (is (cn/same-instance? c1 (lookup-c (li/path-attr c1))))
+    (let [d1 (make-d (li/path-attr c1) 200)]
+      (is (d? d1))
+      (is (pos? (s/index-of (li/path-attr d1) "/Cblr$S")))
+      (is (cn/same-instance? c1 (lookup-c (cpath (li/path-attr d1))))))))
