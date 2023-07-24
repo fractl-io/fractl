@@ -184,11 +184,11 @@
     (clj-import-list? (first (rest x)))
     (and (seq x)
          (every?
-          (fn [entry]
-            (let [k (first entry)]
-              (and (some #{k} #{:require :use :import :refer :refer-macros})
-                   (every? vector? (rest entry)))))
-          x))))
+           (fn [entry]
+             (let [k (first entry)]
+               (and (some #{k} #{:require :use :import :refer :refer-macros})
+                    (or (every? vector? (rest entry)) (every? list? (rest entry))))))
+           x))))
 
 (defn do-clj-import [clj-import]
   #?(:clj
