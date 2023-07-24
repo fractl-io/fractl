@@ -115,6 +115,7 @@
 (def create-table p/create-table)
 (def delete-by-id p/delete-by-id)
 (def delete-all p/delete-all)
+(def delete-children p/delete-children)
 
 (defn- empty-result-on-error [f]
   (try

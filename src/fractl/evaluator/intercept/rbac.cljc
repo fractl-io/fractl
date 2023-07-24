@@ -10,6 +10,8 @@
             [fractl.lang.relgraph :as rg]
             [fractl.rbac.core :as rbac]
             [fractl.global-state :as gs]
+            [fractl.resolver.registry :as rr]
+            [fractl.resolver.rbac :as rbr]
             [fractl.evaluator.intercept.internal :as ii]))
 
 (defn- has-priv? [rbac-predic user arg]
@@ -59,44 +61,58 @@
     (concat [rslt] (rest obj))
     rslt))
 
-(defn- make-read-output-arg [old-output-data new-insts]
-  (if (contains-env? old-output-data)
-    (concat [new-insts] (rest old-output-data))
-    new-insts))
+(defn- has-instance-privilege? [user opr resource]
+  (some #{opr} (cn/instance-privileges-for-user resource user)))
 
-(defn- apply-read-attribute-rules [user rslt arg]
-  (let [inst (first rslt)
-        attr-names (keys (cn/instance-attributes inst))
-        inst-type (cn/instance-type inst)
-        res-names (mapv (partial ii/wrap-attribute inst-type) attr-names)
-        readable-attrs (or (seq
-                            (mapv
-                             #(first (:refs (li/path-parts %)))
-                             (filter #(apply-read-rules user {:data %}) res-names)))
-                             attr-names)
-        hidden-attrs (set/difference (set attr-names) (set readable-attrs))
-        new-insts (mapv #(apply dissoc % hidden-attrs) rslt)]
-    (ii/assoc-data-output
-     arg (make-read-output-arg (ii/data-output arg) new-insts))))
+(defn- owner-exclusive? [resource]
+  (li/owner-exclusive-crud
+   (cn/fetch-meta (if (keyword? resource)
+                    resource
+                    (cn/instance-type-kw resource)))))
 
-(defn- user-is-owner?
-  ([user env data]
-   (when (cn/entity-instance? data)
-     (let [t (cn/instance-type data)]
-       (if (cn/between-relationship? t)
-         (if-let [ownt (cn/owning-node t)]
-           (let [own-ident (cn/relationship-identity t (keyword (name ownt)))]
-             (or (user-is-owner? user env ownt (own-ident data))
-                 (user-is-owner? user env t (cn/idval data))))
-           (user-is-owner? user env t (cn/idval data)))
-         (user-is-owner? user env t (cn/idval data))))))
-  ([user env inst-type id]
-   (when (and inst-type id)
-     (when-let [meta (store/lookup-by-id
-                      (env/get-store env)
-                      (cn/meta-entity-name inst-type)
-                      cn/meta-entity-id (str id))]
-       (= (cn/instance-meta-owner meta) user)))))
+(defn- instance-priv-assignment? [resource]
+  (and (cn/an-instance? resource)
+       (= (cn/instance-type-kw resource)
+          :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)))
+
+(defn- handle-instance-priv [user env opr inst]
+  (case opr
+    :create
+    (let [entity-name (:Resource inst)
+          id (:ResourceId inst)
+          store (env/get-store env)
+          res (store/lookup-by-id
+               store entity-name
+               (cn/identity-attribute-name entity-name) id)]
+      (when-not res
+        (u/throw-ex (str "resource not found - " [entity-name id])))
+      (when-not (cn/user-is-owner? user res)
+        (u/throw-ex (str "only owner can assign instance-privileges - " [entity-name id])))
+      (let [assignee (:Assignee inst)
+            actions (:Actions inst)]
+        (if (store/update-instances
+             store entity-name
+             [(if actions
+                (cn/assign-instance-privileges res assignee actions)
+                (cn/remove-instance-privileges res assignee))])
+          inst
+          (u/throw-ex (str "failed to assign instance-privileges - " [entity-name id])))))
+    inst))
+
+(defn- apply-rbac-checks [user env opr arg resource check-input]
+  (if (instance-priv-assignment? resource)
+    (when (handle-instance-priv user env opr resource) arg)
+    (let [has-base-priv ((opr actions) user check-input)]
+      (if (= :create opr)
+        (when has-base-priv arg)
+        (let [is-owner (cn/user-is-owner? user resource)
+              has-inst-priv (has-instance-privilege? user opr resource)]
+          (if (or is-owner has-inst-priv)
+            arg
+            (if has-base-priv
+              (case opr
+                :read arg
+                (:delete :update) (when-not (owner-exclusive? resource) arg)))))))))
 
 (defn- first-instance [data]
   (cond
@@ -106,145 +122,8 @@
     (first data)
     :else data))
 
-(defn- find-parent [env inst]
-  (let [r (cn/find-contained-relationship (cn/instance-type inst))
-        pn (when r (first (mt/contains (cn/fetch-meta r))))]
-    (and pn (env/lookup env pn))))
-
-(defn- parent-of? [user env inst]
-  (when inst
-    (or (user-is-owner? user env (cn/instance-type inst) (cn/idval inst))
-        (parent-of? user env (find-parent env inst)))))
-
-(defn- check-inherited-instance-privilege [user opr instance]
-  (or
-   (when (cn/entity-instance? instance)
-     (let [entity-name (cn/instance-type instance)]
-       (loop [rels (seq (cn/relationships-with-instance-rbac entity-name))
-              result :continue]
-         (if-let [r (first rels)]
-           ;; TODO rg/find-connected-nodes can be optimized for queries on parents.
-           ;; (https://github.com/fractl-io/fractl/issues/712)
-           (if-let [nodes (seq (rg/find-connected-nodes r entity-name instance))]
-             (let [pvs (mapv #(let [p (rbac/check-instance-privilege user opr %)]
-                                (if (= :continue p)
-                                  (check-inherited-instance-privilege user opr %)
-                                  p))
-                             nodes)]
-               (if (some #{:block} pvs)
-                 :block
-                 (recur (rest pvs) (some #{:allow} pvs))))
-             result)
-           result))))
-   :continue))
-
-;; NOTE: disabled {:rbac {:inherit {:entity true}}} setting for contains-relationships.
-;; (see issue-711)
-(def ^:private inherit-entity-priv-disabled true)
-
-(defn- check-inherited-entity-privilege [user opr instance rbac-check]
-  (if inherit-entity-priv-disabled
-    :continue
-    (let [entity-name (cond
-                        (keyword? instance)
-                        (li/root-path instance)
-
-                        (vector? instance)
-                        (li/make-path instance)
-
-                        :else
-                        (cn/instance-type instance))]
-      (if (cn/entity? entity-name)
-        (if-let [rels (seq (cn/relationships-with-entity-rbac entity-name))]
-          (if (every? #(let [e1 (cn/containing-parent %)]
-                         (or (rbac-check e1)
-                             (= :allow (check-inherited-entity-privilege user opr e1 rbac-check))))
-                      rels)
-            :allow
-            :block)
-          :continue)
-        :continue))))
-
-(defn- call-rbac-continuation [user resource opr r c]
-  (case r
-    :allow true
-    :block false
-    :continue (c)))
-
-(defn- apply-privilege-hierarchy-checks [env user opr resource rbac-check continuation]
-  (if (cn/entity-instance? resource)
-    (or (parent-of? user env (find-parent env resource))
-        (call-rbac-continuation user resource opr
-         (check-inherited-instance-privilege user opr resource)
-         #(call-rbac-continuation user resource opr
-           (check-inherited-entity-privilege user opr resource rbac-check)
-           continuation)))
-    (call-rbac-continuation user resource opr
-     (check-inherited-entity-privilege user opr resource rbac-check)
-     continuation)))
-
-(defn- check-instance-privilege
-  ([env user arg opr resource rbac-check continuation]
-   (let [r (if (cn/entity-instance? resource)
-             (if (and (some #{opr} #{:update :create :delete :read})
-                      (rbac/instance-privilege-assignment-object? resource))
-               (if (user-is-owner?
-                    user env
-                    (rbac/instance-privilege-assignment-resource resource)
-                    (rbac/instance-privilege-assignment-resource-id resource))
-                 :allow
-                 :block)
-               (rbac/check-instance-privilege user opr resource))
-             :continue)]
-     (if (= r :block)
-       (do (ii/set-user-state-value! arg :blocked-at-instance-level r)
-           false)
-       (call-rbac-continuation
-        user resource opr
-        r #(if continuation
-             (apply-privilege-hierarchy-checks
-              env user opr resource rbac-check continuation)
-             true)))))
-  ([env user arg opr resource]
-   (check-instance-privilege env user arg opr resource nil nil)))
-
-(defn- obj-name? [x]
-  (if (map? x)
-    false
-    (or (keyword? x)
-        (and (seqable? x)
-             (every? keyword? x)))))
-
-(defn- apply-parent-ownership-for-contains [user env arg]
-  (let [data (or (ii/data-input arg) (ii/data-output arg))]
-    (if (or (ii/skip-for-input? data) (ii/skip-for-output? data))
-      :allow
-      (or
-       (when-let [inst (first-instance data)]
-         (when-let [[parent-type parent-id] (and (cn/an-instance? inst)
-                                                 (cn/find-parent-info inst))]
-           (if (or (user-is-owner? user env parent-type parent-id)
-                   (parent-of? user env (env/lookup env parent-type)))
-             :allow
-             (if (li/owner-exclusive-crud (cn/fetch-rbac-spec (cn/instance-type-kw inst)))
-               :block
-               :continue))))
-       :continue))))
-
-(defn- has-record-level-privilege? [opr user rs]
-  (let [r (first rs)
-        t (cn/instance-type-kw r)
-        t? (partial cn/instance-of? t)
-        chk (fn [x] ((opr actions) user {:data x :ignore-refs true}))]
-    (if (every? t? rs)
-      (and (chk r) true)
-      (when (every? identity (mapv chk rs)) true))))
-
 (defn- apply-rbac-for-user [user env opr arg]
-  (case (apply-parent-ownership-for-contains user env arg)
-    :allow arg
-    :block nil
-    :continue
+  (let [check (partial apply-rbac-checks user env opr arg)]
     (if-let [data (ii/data-input arg)]
       (if (or (ii/skip-for-input? data) (= opr :read))
         arg
@@ -252,40 +131,15 @@
               resource (if is-delete (second data) (first-instance data))
               check-on (if is-delete (first data) resource)
               ign-refs (or is-delete (= :read opr))]
-          (when (or (and (ii/has-instance-meta? arg)
-                         (user-is-owner? user env resource))
-                    (let [check-arg {:data check-on :ignore-refs ign-refs}]
-                      (check-instance-privilege
-                       env user arg opr resource
-                       #(apply-rbac-for-user user env opr (ii/assoc-data-input arg %))
-                       #((opr actions) user check-arg))))
-            arg)))
+          (check resource {:data check-on :ignore-refs ign-refs})))
       (if-let [data (seq (ii/data-output arg))]
-        (cond
-          (ii/skip-for-output? data)
+        (if (ii/skip-for-output? data)
           arg
-
-          (= :read opr)
-          (if-let [rslt (seq (extract-read-results data))]
-            (if (has-record-level-privilege? opr user rslt)
-              (apply-read-attribute-rules user rslt arg)
-              (if-let [owned-rslt (and (ii/has-instance-meta? arg)
-                                       (seq (filter (partial user-is-owner? user env) rslt)))]
-                (ii/assoc-data-output arg (set-read-results data owned-rslt))
-                (when (every? #(check-instance-privilege
-                                env user arg opr %
-                                (fn [a] (apply-rbac-for-user user env opr (ii/assoc-data-output arg a)))
-                                (fn [] ((opr actions) user {:data % :ignore-refs true})))
-                            rslt)
-                  (apply-read-attribute-rules user rslt arg))))
-            arg)
-
-          (= :delete opr)
-          (let [[typ id] data]
-            (rbac/delete-instance-privileges typ id)
-            arg)
-
-          :else arg)
+          (if (= opr :read)
+            (when-let [rslt (seq (filter #(check % {:data % :ignore-refs true})
+                                         (seq (extract-read-results data))))]
+              (ii/assoc-data-output arg (set-read-results data rslt)))
+            arg))
         arg))))
 
 (defn- check-upsert-on-attributes [env opr user arg]
@@ -296,9 +150,6 @@
           waf (partial ii/wrap-attribute n)]
       (when (every? #(apply-rbac-for-user user env opr (ii/assoc-data-input arg (waf %))) attrs)
         arg))))
-
-(defn- blocked-at-instance-level? [arg]
-  (= :block (ii/get-user-state-value arg :blocked-at-instance-level)))
 
 (def ^:private system-events #{[:Fractl.Kernel.Identity :SignUp]
                                [:Fractl.Kernel.Identity :PostSignUp]
@@ -320,8 +171,13 @@
       (let [is-ups (or (= opr :update) (= opr :create))
             arg (if is-ups (ii/assoc-user-state arg) arg)]
         (or (apply-rbac-for-user user env opr arg)
-            (when (and is-ups (not (blocked-at-instance-level? arg)))
+            (when is-ups
               (check-upsert-on-attributes env opr user arg)))))))
 
 (defn make [_] ; config is not used
-  (ii/make-interceptor :rbac run))
+  (let [r (ii/make-interceptor :rbac run)]
+    (rr/register-resolver
+     {:name :rbac :type :rbac
+      :compose? false
+      :paths [:Fractl.Kernel.Rbac/InstancePrivilegeAssignment]})
+    r))
