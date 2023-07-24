@@ -26,6 +26,9 @@
 (defn- maybe-remove-where [qpat]
   (if (:where qpat) qpat (dissoc qpat :where)))
 
+(defn- with-not-deleted-clause [where]
+  [:and [:= su/deleted-flag-col-kw false] where])
+
 (defn format-sql [table-name query]
   (let [wildcard (make-wildcard query)
         final-pattern
@@ -39,12 +42,13 @@
                     :from [(keyword table-name)]}]
              (if where-clause
                (assoc p :where
-                      (let [f (first where-clause)]
-                        (cond
-                          (string? f)
-                          [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
-                          (seqable? f) f
-                          :else where-clause)))
+                      (with-not-deleted-clause
+                       (let [f (first where-clause)]
+                         (cond
+                           (string? f)
+                           [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
+                           (seqable? f) f
+                           :else where-clause))))
                p))))]
     (hsql/format final-pattern)))
 
@@ -58,8 +62,8 @@
    (let [sql (str "SELECT * FROM " table-name)
          logopr (if (= log-opr-tag :and) "AND " "OR ")]
      (if (= :* col-names)
-       sql
-       (str sql " WHERE "
+       (str sql " WHERE " su/deleted-flag-col " = FALSE")
+       (str sql " WHERE " su/deleted-flag-col " = FALSE AND "
             (loop [cs col-names, s ""]
               (if-let [c (first cs)]
                 (recur (rest cs)

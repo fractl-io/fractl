@@ -5,6 +5,12 @@
             [fractl.lang.internal :as li]
             [fractl.util :as u]))
 
+(def deleted-flag-col "FRACTL__IS_DELETED")
+(def deleted-flag-col-kw (keyword (str "_" deleted-flag-col)))
+
+(defn- sys-col? [n]
+  (= (s/upper-case n) deleted-flag-col))
+
 (defn db-ident [k]
   (if (keyword? k)
     (name k)
@@ -135,14 +141,16 @@
      (loop [result-keys (keys result), obj {}]
        (if-let [rk (first result-keys)]
          (let [[_ b] (li/split-path rk)
-               f (remove-prefix (or b rk))
-               aname (first
-                      (filter
-                       #(= (s/upper-case (name %)) (s/upper-case f))
-                       attr-names))]
-           (if aname
-             (recur (rest result-keys) (assoc obj aname (get result rk)))
-             (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))
+               f (remove-prefix (or b rk))]
+           (if (sys-col? f)
+             (recur (rest result-keys) obj)
+             (let [aname (first
+                          (filter
+                           #(= (s/upper-case (name %)) (s/upper-case f))
+                           attr-names))]
+               (if aname
+                 (recur (rest result-keys) (assoc obj aname (get result rk)))
+                 (u/throw-ex (str "cannot map " rk " to an attribute in " entity-name))))))
          (cn/make-instance
           entity-name
           (into {} (mapv (partial
