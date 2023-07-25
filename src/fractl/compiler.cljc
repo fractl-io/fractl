@@ -118,9 +118,9 @@
     :else (arg-lookup expr)))
 
 (defn- expr-as-fn [expr]
-   (li/evaluate
-    `(fn ~[runtime-env-var current-instance-var]
-       ~expr)))
+  (li/evaluate
+   `(fn ~[runtime-env-var current-instance-var]
+      ~expr)))
 
 (defn- query-param-lookup [p]
   (let [r (arg-lookup p)]
@@ -442,14 +442,17 @@
     attrs))
 
 (defn- parse-rel-spec [spec]
-  (cond
-    (or (string? spec) (keyword? spec))
+  (if (or (string? spec) (keyword? spec))
     [spec nil]
+    (let [f (first spec)]
+      (cond
+        (or (string? f) (keyword? f))
+        [f (seq (rest spec))]
 
-    (or (string? (first spec)) (keyword? (first spec)))
-    [(first spec) (rest spec)]
+        (vector? f)
+        [(str li/obj-path-prefix f) (seq (rest spec))]
 
-    :else [nil spec]))
+        :else [nil spec]))))
 
 (declare compile-query-command)
 
