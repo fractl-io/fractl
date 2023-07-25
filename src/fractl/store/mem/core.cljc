@@ -26,7 +26,7 @@
         (i/upsert-instance entity-name instance))
       (delete-by-id [_ entity-name id-attr-name id]
         (i/delete-by-id entity-name id-attr-name id))
-      (delete-all [_ entity-name]
+      (delete-all [_ entity-name _]
         (i/delete-all entity-name))
       (query-by-id [_ entity-name query ids]
         (i/query-by-id entity-name ids))
