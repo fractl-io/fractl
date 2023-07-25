@@ -135,14 +135,32 @@
         c? (tu/type-check :Mlc/C)
         b1 (create-b "/A/1/R1" 10)
         b2 (create-b "/A/2/R1" 20)
-        c11 (create-c "/A/1/R1/B/10/R2" 100)]
+        c11 (create-c "/A/1/R1/B/10/R2" 100)
+        fq (partial li/as-fully-qualified-path :Mlc)]
     (is (every? a? as))
     (is (every? b? [b1 b2]))
     (is (c? c11))
     (is (= "path://Mlc$A/1/Mlc$R1/Mlc$B/10/Mlc$R2/Mlc$C/100"
            (li/path-attr c11)))
     (is (tu/is-error #(create-c "/A/10/R1/B/10/R2" 200)))
-    (is (tu/is-error #(create-c "/A/1/R1/B/1000/R2" 200)))))
+    (is (tu/is-error #(create-c "/A/1/R1/B/1000/R2" 200)))
+    (let [rs (tu/result
+              {:Mlc/LookupAll_B
+               {:PATH (fq "path://A/1/R1/B/%")}})]
+      (is (= 1 (count rs)))
+      (is (b? (first rs))))
+    (let [rs (tu/result
+              {:Mlc/LookupAll_C
+               {:PATH (fq "path://A/1/R1/B/10/R2/C/%")}})]
+      (is (= 1 (count rs)))
+      (is (c? (first rs))))
+    (is (cn/same-instance? (first as) (tu/first-result {:Mlc/Delete_A {:Id 1}})))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:Mlc/LookupAll_B
+                         {:PATH (fq "path://A/1/R1/B/%")}})))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:Mlc/LookupAll_C
+                         {:PATH (fq "path://A/1/R1/B/10/R2/C/%")}})))))
 
 (deftest basic-between-relationships
   (defcomponent :Bbr
