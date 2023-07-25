@@ -855,6 +855,7 @@
       (assoc
        child-attrs
        cident (merge
+               (dissoc cident-spec :identity)
                {:type (or (:type cident-spec) :UUID)
                 :path-identity true
                 :indexed true}
