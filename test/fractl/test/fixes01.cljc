@@ -2,9 +2,10 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
+            [fractl.util :as u]
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record dataflow relationship]]
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
             [fractl.compiler.rule :as rule]
@@ -366,3 +367,29 @@
       (is (cn/instance-of? :Fea/E e))
       (is (some #{(:X e)} [1 2]))
       (is (some #{(:Y e)} [3 4])))))
+
+(deftest issue-959
+  (defcomponent :I959
+    (entity
+     :I959/A
+     {:Name :String})
+
+    (entity
+     :I959/B
+     {:Id {:type :UUID
+           :identity true
+           :default u/uuid-string}
+      :Name :String})
+
+    (relationship
+     :I959/R
+     {:meta {:contains [:I959/A :I959/B]}})
+
+    (dataflow
+     :I959/CreateB
+     {:I959/A {:Name? "ABC"} :as [:A]}
+     {:I959/B {:Name "A B"} :-> :A}))
+  (let [a1 (tu/first-result {:I959/Create_A {:Instance {:I959/A {:Name "ABC"}}}})
+        b1 (tu/first-result {:I959/CreateB {}})]
+    (is (cn/instance-of? :I959/A a1))
+    (is (cn/instance-of? :I959/B b1))))
