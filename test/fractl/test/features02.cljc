@@ -337,6 +337,13 @@
      :Cblr/MakeC
      {:Cblr/P {:X :Cblr/MakeC.X} :as :P}
      {:Cblr/C {:Y :Cblr/MakeC.Y} :-> :P})
+    (defn cblr-make-p-path [p c]
+      (cn/instance-to-full-path :Cblr/C c p))
+    (dataflow
+     :Cblr/FindC
+     {:Cblr/P {:Id? :Cblr/FindC.P} :as [:P]}
+     [:eval '(fractl.test.features02/cblr-make-p-path :P :Cblr/FindC.C) :as :P]
+     {:Cblr/C {:Y? :Cblr/FindC.Y} :-> :P})
     (dataflow
      :Cblr/MakeD
      {:Cblr/C? {} :-> :Cblr/MakeD.C :as [:C]}
@@ -347,6 +354,7 @@
         make-c #(tu/first-result
                  {:Cblr/MakeC {:X %1 :Y %2}})
         c1 (make-c 1 10)
+        c2 (make-c 1 20)
         lookup-p #(tu/first-result
                    {:Cblr/Lookup_P {:Id %}})
         lookup-c #(tu/first-result
@@ -356,10 +364,15 @@
         d? (partial cn/instance-of? :Cblr/D)
         cpath #(subs % 0 (s/index-of % "/Cblr$S"))]
     (is (c? c1))
+    (is (c? c2))
     (let [p (pid c1)
-          p1 (lookup-p p)]
+          p1 (lookup-p p)
+          cid (:Id c1)]
       (is (p? p1))
-      (is (= p (:Id p1))))
+      (is (= p (:Id p1)))
+      (is (cn/same-instance? c1 (tu/first-result
+                                 {:Cblr/FindC
+                                  {:P p :C cid :Y 10}}))))
     (is (cn/same-instance? c1 (lookup-c (li/path-attr c1))))
     (let [d1 (make-d (li/path-attr c1) 200)]
       (is (d? d1))
