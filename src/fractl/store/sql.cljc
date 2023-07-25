@@ -62,8 +62,8 @@
    (let [sql (str "SELECT * FROM " table-name)
          logopr (if (= log-opr-tag :and) "AND " "OR ")]
      (if (= :* col-names)
-       (str sql " WHERE " su/deleted-flag-col " = FALSE")
-       (str sql " WHERE " su/deleted-flag-col " = FALSE AND "
+       (str sql " WHERE _" su/deleted-flag-col " = FALSE")
+       (str sql " WHERE _" su/deleted-flag-col " = FALSE AND "
             (loop [cs col-names, s ""]
               (if-let [c (first cs)]
                 (recur (rest cs)
