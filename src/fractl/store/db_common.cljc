@@ -187,7 +187,6 @@
    (delete-by-id delete-by-id-statement datasource entity-name id-attr-name id)))
 
 (defn delete-all [datasource entity-name purge]
-  (println "%%" entity-name purge)
   (let [tabname (su/entity-table-name entity-name)]
     (execute-fn!
      datasource
