@@ -39,7 +39,7 @@
   (delete-by-id [store entity-name id-attr-name id]
     "Delete the instance with the given id. On success, return id.
      If the instance does not exist, return nil. On failure, raise an exception.")
-  (delete-all [store entity-name] "Delete all instances.")
+  (delete-all [store entity-name purge] "Delete all instances.")
   (delete-children [store entity-name path] "Delete all instances by parent path.")
   (query-by-id [store entity-name query-sql ids]
     "Return the instances with the given id-attr values. Return nil if the instances

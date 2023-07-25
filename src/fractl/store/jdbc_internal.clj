@@ -68,8 +68,10 @@
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 
-(defn delete-all-statement [conn table-name]
-  (let [sql (str "UPDATE " table-name " SET _" su/deleted-flag-col " = TRUE")]
+(defn delete-all-statement [conn table-name purge]
+  (let [sql (if purge
+              (str "DELETE FROM " table-name " WHERE _" su/deleted-flag-col " = TRUE")
+              (str "UPDATE " table-name " SET _" su/deleted-flag-col " = TRUE"))]
     (jdbc/prepare conn [sql])))
 
 (defn delete-children-statement [conn table-name path]

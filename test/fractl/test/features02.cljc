@@ -347,3 +347,67 @@
       (is (d? d1))
       (is (pos? (s/index-of (li/path-attr d1) "/Cblr$S")))
       (is (cn/same-instance? c1 (lookup-c (cpath (li/path-attr d1))))))))
+
+(deftest purge-delete-cascades
+  (defcomponent :Dac
+    (entity
+     :Dac/P
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Dac/C
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Dac/R
+     {:meta {:contains [:Dac/P :Dac/C]}})
+    (dataflow
+     :Dac/PurgeAll
+     [:delete :Dac/P :purge]))
+  (let [p (tu/first-result
+           {:Dac/Create_P
+            {:Instance {:Dac/P {:Id 1 :X 10}}}})
+        p2 (tu/first-result
+            {:Dac/Create_P
+             {:Instance {:Dac/P {:Id 2 :X 20}}}})
+        cs (mapv #(tu/first-result
+                   {:Dac/Create_C
+                    {:Instance {:Dac/C {:Id % :Y (* 2 %)}}
+                     :PATH "/P/1/R"}})
+                 [10 20])
+        cs2 (mapv #(tu/first-result
+                    {:Dac/Create_C
+                     {:Instance {:Dac/C {:Id % :Y (* 2 %)}}
+                      :PATH "/P/2/R"}})
+                  [10 20])
+        fq (partial li/as-fully-qualified-path :Dac)
+        allcs (fn [p f chk]
+                (let [cs (f
+                          {:Dac/LookupAll_C
+                           {:PATH (fq (str "path://P/" p "/R/C/%"))}})]
+                  (when chk
+                    (is (= 2 (count cs)))
+                    (is (every? (partial cn/instance-of? :Dac/C) cs))
+                    (is (every? #(s/starts-with?
+                                  (li/path-attr %)
+                                  (fq (str "path://P/" p "/R/C")))
+                                cs)))
+                  cs))]
+    (is (cn/instance-of? :Dac/P p))
+    (is (cn/instance-of? :Dac/P p2))
+    (is (= 2 (count cs)))
+    (is (every? (partial cn/instance-of? :Dac/C) cs))
+    (is (= 2 (count cs2)))
+    (is (every? (partial cn/instance-of? :Dac/C) cs2))
+    (allcs 1 tu/result true)
+    (allcs 2 tu/result true)
+    (is (cn/same-instance? p (tu/first-result
+                              {:Dac/Lookup_P {:Id 1}})))
+    (is (cn/same-instance? p (tu/first-result
+                              {:Dac/Delete_P {:Id 1}})))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:Dac/Lookup_P {:Id 1}})))
+    (is (tu/not-found? (allcs 1 tu/eval-all-dataflows false)))
+    (is (= :ok (:status (first (tu/eval-all-dataflows {:Dac/PurgeAll {}})))))
+    (is (cn/same-instance? p2 (tu/first-result {:Dac/Lookup_P {:Id 2}})))
+    (allcs 2 tu/result true)))
