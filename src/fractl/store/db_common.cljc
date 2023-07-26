@@ -52,6 +52,9 @@
             (when cascade-on-delete
               " ON DELETE CASCADE"))])))
 
+(defn- concat-sys-cols [s]
+  (str s ", _" su/deleted-flag-col " BOOLEAN DEFAULT false"))
+
 (defn- create-relational-table-sql [table-name entity-schema
                                     indexed-attributes unique-attributes
                                     compound-unique-attributes post-init-sqls]
@@ -76,7 +79,7 @@
                   (str cols (str "_" (name a) " " sql-type " " uq)
                        (when (seq (rest attrs))
                          ", "))))
-               cols))
+               (concat-sys-cols cols)))
            (when (seq compound-unique-attributes)
              (str ", CONSTRAINT " (str table-name "_compound_uks")
                   " UNIQUE "
@@ -183,12 +186,12 @@
   ([datasource entity-name id-attr-name id]
    (delete-by-id delete-by-id-statement datasource entity-name id-attr-name id)))
 
-(defn delete-all [datasource entity-name]
+(defn delete-all [datasource entity-name purge]
   (let [tabname (su/entity-table-name entity-name)]
     (execute-fn!
      datasource
      (fn [conn]
-       (let [pstmt (delete-all-statement conn tabname)]
+       (let [pstmt (delete-all-statement conn tabname purge)]
          (execute-stmt! conn pstmt nil))))
     entity-name))
 

@@ -64,16 +64,18 @@
     [pstmt nil]))
 
 (defn delete-by-id-statement [conn table-name id-attr-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE _" (name id-attr-name) " = ?")
+  (let [sql (str "UPDATE " table-name " SET _" su/deleted-flag-col " = TRUE WHERE _" (name id-attr-name) " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 
-(defn delete-all-statement [conn table-name]
-  (let [sql (str "DELETE FROM " table-name)]
+(defn delete-all-statement [conn table-name purge]
+  (let [sql (if purge
+              (str "DELETE FROM " table-name " WHERE _" su/deleted-flag-col " = TRUE")
+              (str "UPDATE " table-name " SET _" su/deleted-flag-col " = TRUE"))]
     (jdbc/prepare conn [sql])))
 
 (defn delete-children-statement [conn table-name path]
-  (let [sql (str "DELETE FROM " table-name " WHERE _" (name li/path-attr) " LIKE '" path "'")]
+  (let [sql (str "UPDATE " table-name " SET _" su/deleted-flag-col " = TRUE WHERE _" (name li/path-attr) " LIKE '" path "'")]
     (jdbc/prepare conn [sql])))
 
 (defn do-query-statement

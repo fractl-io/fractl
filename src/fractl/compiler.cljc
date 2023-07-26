@@ -727,6 +727,9 @@
     (= (vec id-pat) [:*])
     (emit-delete (li/split-path recname) :*)
 
+    (= (vec id-pat) [:purge])
+    (emit-delete (li/split-path recname) :purge)
+
     :else
     (let [p (first id-pat)
           qpat (if (map? p)

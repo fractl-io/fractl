@@ -401,17 +401,17 @@
   ([env record-name instance]
    (chained-delete env record-name instance true)))
 
-(defn- hard-delete-all-children [store record-name]
+(defn- delete-all-children-helper [store record-name purge]
   (loop [rels (cn/contained-children record-name)]
     (if-let [[_ _ child] (first rels)]
-      (when (hard-delete-all-children child)
-        (store/delete-all store child)
+      (when (delete-all-children-helper store child purge)
+        (store/delete-all store child purge)
         (recur (rest rels)))
       record-name)))
 
-(defn- delete-all-children [store record-name]
+(defn- delete-all-children [store record-name purge]
   (case (cn/check-cascade-delete-children record-name)
-    :delete (hard-delete-all-children store record-name)
+    :delete (delete-all-children-helper store record-name purge)
     :ignore record-name
     (u/throw-ex (str "cannot cascade delete children - " record-name))))
 
@@ -421,17 +421,17 @@
         (str li/path-query-prefix "/" (name c) "$" (name n) "/"
              ((cn/identity-attribute-name record-name) inst)))))
 
-(defn- hard-delete-children [store record-name path-prefix]
+(defn- delete-children-helper [store record-name path-prefix]
   (loop [rels (cn/contained-children record-name)]
     (if-let [[_ _ child] (first rels)]
-      (when (hard-delete-children store child path-prefix)
+      (when (delete-children-helper store child path-prefix)
         (store/delete-children store child path-prefix)
         (recur (rest rels)))
       record-name)))
 
 (defn- delete-children [store record-name inst]
   (case (cn/check-cascade-delete-children record-name)
-    :delete (hard-delete-children
+    :delete (delete-children-helper
              store record-name
              (str (find-path-prefix record-name inst) "%"))
     :ignore record-name
@@ -590,23 +590,10 @@
     true
     false))
 
-(defn- instance-to-partial-path [parent-inst child-type]
-  (let [pt (cn/instance-type-kw parent-inst)
-        ct (li/make-path child-type)]
-    (if-let [rel (cn/parent-relationship pt ct)]
-      (let [pp (li/path-attr parent-inst)
-            rn (li/encoded-uri-path-part rel)]
-        (if pp
-          (str (li/path-query-string pp) "/" rn)
-          (str "/" (li/encoded-uri-path-part pt)
-               "/" ((cn/identity-attribute-name pt) parent-inst)
-               "/" rn)))
-      (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
-
 (defn- normalize-partial-path [record-name obj]
   (if-let [p (li/path-attr obj)]
     (if (cn/entity-instance? p)
-      (assoc obj li/path-attr (instance-to-partial-path p record-name))
+      (assoc obj li/path-attr (cn/instance-to-partial-path record-name p))
       obj)
     obj))
 
@@ -1087,13 +1074,14 @@
     (do-delete-instance [self env [record-name queries]]
       (if-let [store (env/get-store env)]
         (cond
-          (= queries :*)
-          (i/ok [(delete-intercept
-                  env [record-name nil]
-                  (fn [[record-name _]]
-                    (when (delete-all-children store record-name)
-                      (store/delete-all store record-name))))]
-                env)
+          (or (= queries :*) (= queries :purge))
+          (let [purge (= queries :purge)]
+            (i/ok [(delete-intercept
+                    env [record-name nil]
+                    (fn [[record-name _]]
+                      (when (delete-all-children store record-name purge)
+                        (store/delete-all store record-name purge))))]
+                  env))
 
           :else
           (if-let [[insts env]

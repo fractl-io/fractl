@@ -1828,5 +1828,25 @@
       (assoc-in inst path (dissoc ps user))
       inst)))
 
+(defn instance-to-partial-path [child-type parent-inst]
+  (let [pt (instance-type-kw parent-inst)
+        ct (li/make-path child-type)]
+    (if-let [rel (parent-relationship pt ct)]
+      (let [pp (li/path-attr parent-inst)
+            rn (li/encoded-uri-path-part rel)]
+        (if pp
+          (str (li/path-query-string pp) "/" rn)
+          (str "/" (li/encoded-uri-path-part pt)
+               "/" ((identity-attribute-name pt) parent-inst)
+               "/" rn)))
+      (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
+
+(defn instance-to-full-path [child-type child-id parent-inst]
+  (if (entity-instance? parent-inst)
+    (let [[c _] (li/split-path child-type)]
+      (str (li/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst))
+           "/" (li/encoded-uri-path-part child-type) "/" child-id))
+    parent-inst))
+
 (defn path-from-references [parent child]
   "path://null")
