@@ -135,14 +135,32 @@
         c? (tu/type-check :Mlc/C)
         b1 (create-b "/A/1/R1" 10)
         b2 (create-b "/A/2/R1" 20)
-        c11 (create-c "/A/1/R1/B/10/R2" 100)]
+        c11 (create-c "/A/1/R1/B/10/R2" 100)
+        fq (partial li/as-fully-qualified-path :Mlc)]
     (is (every? a? as))
     (is (every? b? [b1 b2]))
     (is (c? c11))
     (is (= "path://Mlc$A/1/Mlc$R1/Mlc$B/10/Mlc$R2/Mlc$C/100"
            (li/path-attr c11)))
     (is (tu/is-error #(create-c "/A/10/R1/B/10/R2" 200)))
-    (is (tu/is-error #(create-c "/A/1/R1/B/1000/R2" 200)))))
+    (is (tu/is-error #(create-c "/A/1/R1/B/1000/R2" 200)))
+    (let [rs (tu/result
+              {:Mlc/LookupAll_B
+               {:PATH (fq "path://A/1/R1/B/%")}})]
+      (is (= 1 (count rs)))
+      (is (b? (first rs))))
+    (let [rs (tu/result
+              {:Mlc/LookupAll_C
+               {:PATH (fq "path://A/1/R1/B/10/R2/C/%")}})]
+      (is (= 1 (count rs)))
+      (is (c? (first rs))))
+    (is (cn/same-instance? (first as) (tu/first-result {:Mlc/Delete_A {:Id 1}})))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:Mlc/LookupAll_B
+                         {:PATH (fq "path://A/1/R1/B/%")}})))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:Mlc/LookupAll_C
+                         {:PATH (fq "path://A/1/R1/B/10/R2/C/%")}})))))
 
 (deftest basic-between-relationships
   (defcomponent :Bbr
@@ -319,6 +337,13 @@
      :Cblr/MakeC
      {:Cblr/P {:X :Cblr/MakeC.X} :as :P}
      {:Cblr/C {:Y :Cblr/MakeC.Y} :-> :P})
+    (defn cblr-make-p-path [p c]
+      (cn/instance-to-full-path :Cblr/C c p))
+    (dataflow
+     :Cblr/FindC
+     {:Cblr/P {:Id? :Cblr/FindC.P} :as [:P]}
+     [:eval '(fractl.test.features02/cblr-make-p-path :P :Cblr/FindC.C) :as :P]
+     {:Cblr/C {:Y? :Cblr/FindC.Y} :-> :P})
     (dataflow
      :Cblr/MakeD
      {:Cblr/C? {} :-> :Cblr/MakeD.C :as [:C]}
@@ -329,6 +354,7 @@
         make-c #(tu/first-result
                  {:Cblr/MakeC {:X %1 :Y %2}})
         c1 (make-c 1 10)
+        c2 (make-c 1 20)
         lookup-p #(tu/first-result
                    {:Cblr/Lookup_P {:Id %}})
         lookup-c #(tu/first-result
@@ -338,12 +364,81 @@
         d? (partial cn/instance-of? :Cblr/D)
         cpath #(subs % 0 (s/index-of % "/Cblr$S"))]
     (is (c? c1))
+    (is (c? c2))
     (let [p (pid c1)
-          p1 (lookup-p p)]
+          p1 (lookup-p p)
+          cid (:Id c1)]
       (is (p? p1))
-      (is (= p (:Id p1))))
+      (is (= p (:Id p1)))
+      (is (cn/same-instance? c1 (tu/first-result
+                                 {:Cblr/FindC
+                                  {:P p :C cid :Y 10}}))))
     (is (cn/same-instance? c1 (lookup-c (li/path-attr c1))))
     (let [d1 (make-d (li/path-attr c1) 200)]
       (is (d? d1))
       (is (pos? (s/index-of (li/path-attr d1) "/Cblr$S")))
       (is (cn/same-instance? c1 (lookup-c (cpath (li/path-attr d1))))))))
+
+(deftest purge-delete-cascades
+  (defcomponent :Dac
+    (entity
+     :Dac/P
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Dac/C
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Dac/R
+     {:meta {:contains [:Dac/P :Dac/C]}})
+    (dataflow
+     :Dac/PurgeAll
+     [:delete :Dac/P :purge]))
+  (let [p (tu/first-result
+           {:Dac/Create_P
+            {:Instance {:Dac/P {:Id 1 :X 10}}}})
+        p2 (tu/first-result
+            {:Dac/Create_P
+             {:Instance {:Dac/P {:Id 2 :X 20}}}})
+        cs (mapv #(tu/first-result
+                   {:Dac/Create_C
+                    {:Instance {:Dac/C {:Id % :Y (* 2 %)}}
+                     :PATH "/P/1/R"}})
+                 [10 20])
+        cs2 (mapv #(tu/first-result
+                    {:Dac/Create_C
+                     {:Instance {:Dac/C {:Id % :Y (* 2 %)}}
+                      :PATH "/P/2/R"}})
+                  [10 20])
+        fq (partial li/as-fully-qualified-path :Dac)
+        allcs (fn [p f chk]
+                (let [cs (f
+                          {:Dac/LookupAll_C
+                           {:PATH (fq (str "path://P/" p "/R/C/%"))}})]
+                  (when chk
+                    (is (= 2 (count cs)))
+                    (is (every? (partial cn/instance-of? :Dac/C) cs))
+                    (is (every? #(s/starts-with?
+                                  (li/path-attr %)
+                                  (fq (str "path://P/" p "/R/C")))
+                                cs)))
+                  cs))]
+    (is (cn/instance-of? :Dac/P p))
+    (is (cn/instance-of? :Dac/P p2))
+    (is (= 2 (count cs)))
+    (is (every? (partial cn/instance-of? :Dac/C) cs))
+    (is (= 2 (count cs2)))
+    (is (every? (partial cn/instance-of? :Dac/C) cs2))
+    (allcs 1 tu/result true)
+    (allcs 2 tu/result true)
+    (is (cn/same-instance? p (tu/first-result
+                              {:Dac/Lookup_P {:Id 1}})))
+    (is (cn/same-instance? p (tu/first-result
+                              {:Dac/Delete_P {:Id 1}})))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:Dac/Lookup_P {:Id 1}})))
+    (is (tu/not-found? (allcs 1 tu/eval-all-dataflows false)))
+    (is (= :ok (:status (first (tu/eval-all-dataflows {:Dac/PurgeAll {}})))))
+    (is (cn/same-instance? p2 (tu/first-result {:Dac/Lookup_P {:Id 2}})))
+    (allcs 2 tu/result true)))
