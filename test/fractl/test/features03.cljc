@@ -1,6 +1,7 @@
 (ns fractl.test.features03
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.string :as s]
             [clojure.set :as set]
             [fractl.component :as cn]
             [fractl.util.seq :as su]
@@ -8,10 +9,8 @@
              :refer [component attribute event
                      entity record relationship
                      dataflow]]
-            [fractl.lang.datetime :as dt]
+            [fractl.lang.internal :as li]
             [fractl.lang.syntax :as ls]
-            [fractl.lang.raw :as raw]
-            [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -118,3 +117,35 @@
     (let [e2 (tu/first-result {:Ft/Update_E {:Id 1 :Data {:X 300}}})]
       (is (cn/instance-eq? e1 e2))
       (is (= 300 (:X e2))))))
+
+(deftest issue-962-recursive-contains
+  (defcomponent :I962
+    (entity
+     :I962/Employee
+     {:Name {:type :String
+             :identity true}})
+    (relationship
+     :I962/WorksFor
+     {:meta {:contains [:I962/Employee :I962/Employee]}}))
+  (let [e1 (tu/first-result
+            {:I962/Create_Employee
+             {:Instance
+              {:I962/Employee
+               {:Name "e01"}}}})
+        e2 (tu/first-result
+            {:I962/Create_Employee
+             {:Instance
+              {:I962/Employee
+               {:Name "e02"}}
+              :PATH (str "/Employee/" (li/id-attr e1) "/WorksFor")}})
+        e? (partial cn/instance-of? :I962/Employee)
+        lookup-e (fn [e]
+                   (tu/first-result
+                    {:I962/Lookup_Employee
+                     {:PATH (li/path-attr e)}}))]
+    (is (e? e1))
+    (is (li/null-path? (li/path-attr e1)))
+    (is (e? e2))
+    (is (pos? (s/index-of (li/path-attr e2) (li/id-attr e1))))
+    (is (cn/same-instance? e1 (lookup-e e1)))
+    (is (cn/same-instance? e2 (lookup-e e2)))))

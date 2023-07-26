@@ -37,7 +37,7 @@
 
 (def ^:private default-path-prefix (str path-query-prefix "/__null/"))
 
-(defn- default-path []
+(defn default-path []
   (str default-path-prefix (u/uuid-string)))
 
 (defn null-path? [s]

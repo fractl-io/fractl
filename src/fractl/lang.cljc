@@ -797,7 +797,8 @@
       (event-internal
        crevt
        {:Instance child
-        li/path-attr :Fractl.Kernel.Lang/String
+        li/path-attr {:type :Fractl.Kernel.Lang/String
+                      :default li/default-path}
         li/event-context ctx-aname})
       (cn/register-dataflow
        (ev :Create)
