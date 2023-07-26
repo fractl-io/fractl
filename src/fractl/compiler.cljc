@@ -449,9 +449,6 @@
         (or (string? f) (keyword? f))
         [f (seq (rest spec))]
 
-        (vector? f)
-        [(str li/obj-path-prefix f) (seq (rest spec))]
-
         :else [nil spec]))))
 
 (declare compile-query-command)
@@ -866,6 +863,23 @@
        (catch js/Error e
          (report-compiler-error all-patterns n e)))))
 
+(defn- preproc-relspec [pat relspec]
+  (if (and (vector? relspec) (vector? (first relspec)))
+    (let [v (keyword (name (gensym)))]
+      [[:eval `(fractl.component/path-from-references ~@(first relspec)) :as v]
+       (assoc pat li/rel-tag (if-let [r (seq (rest relspec))]
+                               `[~v ~@r]
+                               v))])
+    [pat]))
+
+(defn- preproc-patterns [dfpats]
+  (loop [pats dfpats, final-pats []]
+    (if-let [p (first pats)]
+      (if-let [relspec (and (map? p) (li/rel-tag p))]
+        (recur (rest pats) (concat final-pats (preproc-relspec p relspec)))
+        (recur (rest pats) (conj final-pats p)))
+      final-pats)))
+
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
            compile-pattern
@@ -874,6 +888,7 @@
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
+        df-patterns (preproc-patterns df-patterns)
         safe-compile (partial compile-with-error-report df-patterns c)
         result [ec (mapv safe-compile df-patterns (range (count df-patterns)))]]
     (log/debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result))

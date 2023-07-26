@@ -1827,3 +1827,6 @@
     (if-let [ps (get-in inst path)]
       (assoc-in inst path (dissoc ps user))
       inst)))
+
+(defn path-from-references [parent child]
+  "path://null")

@@ -348,7 +348,7 @@
       (is (pos? (s/index-of (li/path-attr d1) "/Cblr$S")))
       (is (cn/same-instance? c1 (lookup-c (cpath (li/path-attr d1))))))))
 
-#_(deftest query-by-parent-pattern
+(deftest query-by-parent-pattern
   (defcomponent :Qpp
     (entity
      :Qpp/P
@@ -363,8 +363,13 @@
      {:meta {:contains [:Qpp/P :Qpp/C]}})
     (dataflow
      :Qpp/FindC
+     {:Qpp/P {:Id? :Qpp/FindC.P} :as [:P]}
      {:Qpp/C {:Y? :Qpp/FindC.Y}
-      :-> [[:Qpp/FindC.P :Qpp/FindC.C]]}))
-  (let [c (tu/eval-all-dataflows
+      :-> [[:P :Qpp/FindC.C]]}))
+  (let [p (tu/first-result
+           {:Qpp/Create_P
+            {:Instance {:Qpp/P {:Id 1 :X 10}}}})
+        c (tu/eval-all-dataflows
            {:Qpp/FindC {:Y 100 :P 1 :C 2}})]
+    (is (cn/instance-of? :Qpp/P p))
     (println c)))

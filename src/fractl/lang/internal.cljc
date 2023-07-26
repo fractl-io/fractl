@@ -50,15 +50,6 @@
    :indexed true})
 (def path-attr-q :PATH?)
 
-(def obj-path-prefix "obj-path://")
-(def obj-path-prefix-len (count obj-path-prefix))
-
-(defn object-path? [s]
-  (s/starts-with? s obj-path-prefix))
-
-(defn object-from-path [s]
-  (read-string (subs s obj-path-prefix-len)))
-
 (def meta-attr :INSTMETA)
 (def meta-attr-spec {:type :Fractl.Kernel.Lang/Map
                      :optional true})
