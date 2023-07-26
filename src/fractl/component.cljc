@@ -1848,5 +1848,5 @@
            "/" (li/encoded-uri-path-part child-type) "/" child-id))
     parent-inst))
 
-(defn path-from-references [parent child]
-  "path://null")
+(defn full-path-from-references [parent-inst child-id child-type-str]
+  (instance-to-full-path (keyword child-type-str) child-id parent-inst))

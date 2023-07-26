@@ -379,32 +379,6 @@
       (is (pos? (s/index-of (li/path-attr d1) "/Cblr$S")))
       (is (cn/same-instance? c1 (lookup-c (cpath (li/path-attr d1))))))))
 
-#_(deftest query-by-parent-pattern
-  (defcomponent :Qpp
-    (entity
-     :Qpp/P
-     {:Id {:type :Int :identity true}
-      :X :Int})
-    (entity
-     :Qpp/C
-     {:Id {:type :Int :identity true}
-      :Y :Int})
-    (relationship
-     :Qpp/R
-     {:meta {:contains [:Qpp/P :Qpp/C]}})
-    (dataflow
-     :Qpp/FindC
-     {:Qpp/P {:Id? :Qpp/FindC.P} :as [:P]}
-     {:Qpp/C {:Y? :Qpp/FindC.Y}
-      :-> [[:P :Qpp/FindC.C]]}))
-  (let [p (tu/first-result
-           {:Qpp/Create_P
-            {:Instance {:Qpp/P {:Id 1 :X 10}}}})
-        c (tu/eval-all-dataflows
-           {:Qpp/FindC {:Y 100 :P 1 :C 2}})]
-    (is (cn/instance-of? :Qpp/P p))
-    (println c)))
-
 (deftest purge-delete-cascades
   (defcomponent :Dac
     (entity
@@ -468,3 +442,33 @@
     (is (= :ok (:status (first (tu/eval-all-dataflows {:Dac/PurgeAll {}})))))
     (is (cn/same-instance? p2 (tu/first-result {:Dac/Lookup_P {:Id 2}})))
     (allcs 2 tu/result true)))
+
+(deftest query-by-parent-pattern
+  (defcomponent :Qpp
+    (entity
+     :Qpp/P
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Qpp/C
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Qpp/R
+     {:meta {:contains [:Qpp/P :Qpp/C]}})
+    (dataflow
+     :Qpp/FindC
+     {:Qpp/P {:Id? :Qpp/FindC.P} :as [:P]}
+     {:Qpp/C {:Y? :Qpp/FindC.Y}
+      :-> [[:P :Qpp/FindC.C]]}))
+  (let [p (tu/first-result
+           {:Qpp/Create_P
+            {:Instance {:Qpp/P {:Id 1 :X 10}}}})
+        c1 (tu/first-result
+            {:Qpp/Create_C
+             {:Instance {:Qpp/C {:Id 2 :Y 100}}
+              :PATH "/P/1/R"}})
+        c2 (tu/first-result
+            {:Qpp/FindC {:Y 100 :P 1 :C 2}})]
+    (is (cn/instance-of? :Qpp/P p))
+    (is (cn/same-instance? c1 c2))))
