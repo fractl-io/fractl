@@ -38,6 +38,9 @@
 (defn fresult [r]
   (:result (first r)))
 
+(defn ffresult [r]
+  (first (fresult r)))
+
 (defn nth-result [r n]
   (:result (nth r n)))
 

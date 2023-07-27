@@ -843,7 +843,7 @@
     (when-not (some #{own} nodes)
       (u/throw-ex (str "invalid rbac owner node " own)))))
 
-(defn- regen-contains-child-attributes [child]
+(defn- regen-contains-child-attributes [child meta]
   (if-not (cn/path-identity-attribute-name child)
     (let [cident (cn/identity-attribute-name child)
           child-attrs (raw/entity-attributes child)
@@ -856,7 +856,9 @@
       (assoc
        child-attrs
        cident (merge
-               (dissoc cident-spec :identity)
+               (if (:globally-unique meta)
+                 cident-spec
+                 (dissoc cident-spec :identity))
                {:type (or (:type cident-spec) :UUID)
                 :path-identity true
                 :indexed true}
@@ -876,7 +878,7 @@
         attrs (assoc attrs :meta
                      (assoc meta cn/relmeta-key
                             relmeta :relationship :contains))
-        child-attrs (regen-contains-child-attributes child)]
+        child-attrs (regen-contains-child-attributes child meta)]
     (if-let [r (record relname attrs)]
       (if (entity child child-attrs)
         (if (cn/register-relationship elems relname)

@@ -472,3 +472,49 @@
             {:Qpp/FindC {:Y 100 :P 1 :C 2}})]
     (is (cn/instance-of? :Qpp/P p))
     (is (cn/same-instance? c1 c2))))
+
+(defn- globally-unique-test [c flag]
+  (let [mp (partial li/make-path c)]
+    (defcomponent c
+      (entity
+       (mp :P)
+       {:Id {:type :Int :identity true}
+        :X :Int})
+      (entity
+       (mp :C)
+       {:Id {:type :Int :identity true}
+        :Y :Int})
+      (relationship
+       (mp :R)
+       {:meta {:contains [(mp :P) (mp :C)]
+               :globally-unique flag}}))
+    (let [create-p #(tu/first-result
+                     {(mp :Create_P)
+                      {:Instance
+                       {(mp :P) {:Id % :X (* 10 %)}}}})
+          [p1 p2] (mapv create-p [1 2])
+          create-c #(tu/first-result
+                     {(mp :Create_C)
+                      {:Instance
+                       {(mp :C) {:Id %2 :Y (* 100 %2)}}
+                       :PATH (str "/P/" %1 "/R")}})
+          c1 (create-c 1 2)
+          c2 (create-c 2 2)
+          c3 (create-c 2 3)
+          p? (partial cn/instance-of? (mp :P))
+          c? (partial cn/instance-of? (mp :C))
+          fq (partial li/as-fully-qualified-path c)
+          lookup-c #(tu/eval-all-dataflows
+                     {(mp :Lookup_C)
+                      {:PATH (fq (str "path://P/" %1 "/R/C/" %2))}})]
+      (is (every? p? [p1 p2]))
+      (is (every? c? [c1 c2 c3]))
+      (is (cn/same-instance? c1 (tu/ffresult (lookup-c 1 2))))
+      (if flag
+        (is (tu/not-found? (lookup-c 2 2)))
+        (is (cn/same-instance? c2 (tu/ffresult (lookup-c 2 2)))))
+      (is (cn/same-instance? c3 (tu/ffresult (lookup-c 2 3)))))))
+
+(deftest issue-961-globally-unique
+  (globally-unique-test :I961A true)
+  (globally-unique-test :I961B false))
