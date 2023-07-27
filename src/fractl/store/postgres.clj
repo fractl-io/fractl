@@ -100,7 +100,7 @@
 (defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
-      (open-connection [store connection-info]
+      (parse-connection-info [_ connection-info]
         (let [connection-info (su/normalize-connection-info connection-info)
               jdbc-url (str jdbc-url-prefix
                             (or (:host connection-info)
@@ -116,15 +116,18 @@
                            "postgres")
               password (or (:password connection-info)
                            (System/getenv "POSTGRES_PASSWORD"))]
-          (when (mg/migrate jdbc-url username password)
-            (u/safe-set-once
-             datasource
-             #(let [dbspec {:driver-class driver-class
-                            :jdbc-url jdbc-url
-                            :username username
-                            :password password}]
-                (cp/open-pooled-datasource dbspec)))
-            true)))
+          {:url jdbc-url :username username :password password}))
+      (open-connection [store connection-info]
+        (let [{jdbc-url :url username :username password :password}
+              (p/parse-connection-info store connection-info)]
+          (u/safe-set-once
+           datasource
+           #(let [dbspec {:driver-class driver-class
+                          :jdbc-url jdbc-url
+                          :username username
+                          :password password}]
+              (cp/open-pooled-datasource dbspec)))
+          true))
       (close-connection [_]
         (try
           (do (u/call-and-set
