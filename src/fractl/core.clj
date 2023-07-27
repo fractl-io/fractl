@@ -13,6 +13,7 @@
             [fractl.evaluator :as e]
             [fractl.evaluator.intercept :as ei]
             [fractl.store :as store]
+            [fractl.store.migration :as mg]
             [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
@@ -347,6 +348,19 @@
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
 
+(defn- call-after-load-model [model-name f]
+  (gs/in-script-mode!)
+  (when (build/load-model model-name)
+    (f)))
+
+(defn- db-baseline [[model config]]
+  (mg/baseline
+   (mg/init (store-from-config config))))
+
+(defn- db-migrate [[model config]]
+  (mg/migrate
+   (mg/init (store-from-config config))))
+
 (defn -main [& args]
   (when-not args
     (print-help)
@@ -368,13 +382,17 @@
       (or (some
            identity
            (mapv (partial run-plain-option args)
-                 ["run" "compile" "build" "exec" "publish" "deploy"]
-                 [#(do (gs/in-script-mode!)
-                       (when (build/load-model (first %))
-                         (run-service nil (read-model-and-config nil options))))
+                 ["run" "compile" "build" "exec" "publish" "deploy"
+                  "db:baseline" "db:migrate"]
+                 [#(call-after-load-model
+                    (first %) (fn [] (run-service nil (read-model-and-config nil options))))
                   #(println (build/compile-model (first %)))
                   #(println (build/standalone-package (first %)))
                   #(println (build/run-standalone-package (first %)))
                   #(println (publish-library %))
-                  #(println (d/deploy (:deploy basic-config) (first %)))]))
+                  #(println (d/deploy (:deploy basic-config) (first %)))
+                  #(call-after-load-model
+                    (first %) (fn [] (db-baseline (read-model-and-config nil options))))
+                  #(call-after-load-model
+                    (first %) (fn [] (db-migrate (read-model-and-config nil options))))]))
           (run-service args (read-model-and-config args options))))))
