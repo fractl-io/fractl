@@ -35,7 +35,7 @@
 (def path-query-tag :?)
 (defn path-query-tag? [x] (= x :?))
 
-(def ^:private default-path-prefix (str path-query-prefix "/__null/"))
+(def ^:private default-path-prefix (str path-query-prefix "/___/"))
 
 (defn default-path []
   (str default-path-prefix (u/uuid-string)))
