@@ -6,7 +6,8 @@
             [fractl.store.util :as su]
             [fractl.store.jdbc-cp :as cp]
             [fractl.store.db-common :as db]
-            [fractl.store.postgres-internal :as pi])
+            [fractl.store.postgres-internal :as pi]
+            [fractl.store.migration :as mg])
   (:import [org.postgresql.util PSQLException]))
 
 (def ^:private driver-class "org.postgresql.Driver")
@@ -115,14 +116,15 @@
                            "postgres")
               password (or (:password connection-info)
                            (System/getenv "POSTGRES_PASSWORD"))]
-          (u/safe-set-once
-           datasource
-           #(let [dbspec {:driver-class driver-class
-                          :jdbc-url jdbc-url
-                          :username username
-                          :password password}]
-              (cp/open-pooled-datasource dbspec)))
-          true))
+          (when (mg/migrate jdbc-url username password)
+            (u/safe-set-once
+             datasource
+             #(let [dbspec {:driver-class driver-class
+                            :jdbc-url jdbc-url
+                            :username username
+                            :password password}]
+                (cp/open-pooled-datasource dbspec)))
+            true)))
       (close-connection [_]
         (try
           (do (u/call-and-set
