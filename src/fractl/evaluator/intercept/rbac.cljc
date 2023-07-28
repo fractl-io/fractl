@@ -75,7 +75,7 @@
        (= (cn/instance-type-kw resource)
           :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)))
 
-(defn- handle-instance-priv [user env opr inst]
+(defn- handle-instance-priv [user env opr inst is-system-event]
   (case opr
     :create
     (let [entity-name (:Resource inst)
@@ -86,8 +86,9 @@
                (cn/identity-attribute-name entity-name) id)]
       (when-not res
         (u/throw-ex (str "resource not found - " [entity-name id])))
-      (when-not (cn/user-is-owner? user res)
-        (u/throw-ex (str "only owner can assign instance-privileges - " [entity-name id])))
+      (when-not is-system-event
+        (when-not (cn/user-is-owner? user res)
+          (u/throw-ex (str "only owner can assign instance-privileges - " [entity-name id]))))
       (let [assignee (:Assignee inst)
             actions (:Actions inst)]
         (if (store/update-instances
@@ -101,7 +102,7 @@
 
 (defn- apply-rbac-checks [user env opr arg resource check-input]
   (if (instance-priv-assignment? resource)
-    (when (handle-instance-priv user env opr resource) arg)
+    (when (handle-instance-priv user env opr resource false) arg)
     (let [has-base-priv ((opr actions) user check-input)]
       (if (= :create opr)
         (when has-base-priv arg)
@@ -142,7 +143,7 @@
             arg))
         arg))))
 
-(defn- check-upsert-on-attributes [env opr user arg]
+(defn- check-upsert-on-attributes [user env opr arg]
   (when-let [inst (first-instance (ii/data-input arg))]
     (let [n (cn/instance-type inst)
           idattr (cn/identity-attribute-name n)
@@ -150,6 +151,16 @@
           waf (partial ii/wrap-attribute n)]
       (when (every? #(apply-rbac-for-user user env opr (ii/assoc-data-input arg (waf %))) attrs)
         arg))))
+
+(defn- maybe-handle-system-objects [user env opr arg]
+  (if-let [data (ii/data-input arg)]
+    (if (and (= opr :create) (not (ii/skip-for-input? arg)))
+      (let [resource (first-instance data)]
+        (if (instance-priv-assignment? resource)
+          (when (handle-instance-priv user env opr resource true) arg)
+          arg))
+      arg)
+    arg))
 
 (def ^:private system-events #{[:Fractl.Kernel.Identity :SignUp]
                                [:Fractl.Kernel.Identity :PostSignUp]
@@ -167,12 +178,12 @@
                  (gs/active-user))]
     (if (or (rbac/superuser-email? user)
             (system-event? (ii/event arg)))
-      arg
+      (maybe-handle-system-objects user env opr arg)
       (let [is-ups (or (= opr :update) (= opr :create))
             arg (if is-ups (ii/assoc-user-state arg) arg)]
         (or (apply-rbac-for-user user env opr arg)
             (when is-ups
-              (check-upsert-on-attributes env opr user arg)))))))
+              (check-upsert-on-attributes user env opr arg)))))))
 
 (defn make [_] ; config is not used
   (let [r (ii/make-interceptor :rbac run)]

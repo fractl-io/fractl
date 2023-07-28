@@ -109,7 +109,8 @@
 (defn- valid-dependency
   ([ctx schema v vals-of-map?]
    (cond
-     (and (li/name? v) (reach-name ctx schema v))
+     (or (and (li/name? v) (reach-name ctx schema v))
+         (li/quoted? v))
      [v false]
 
      (symbol? v)
