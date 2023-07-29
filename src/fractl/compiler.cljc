@@ -881,7 +881,7 @@
   (loop [pats dfpats, final-pats []]
     (if-let [p (first pats)]
       (if-let [relspec (and (map? p) (li/rel-tag p))]
-        (recur (rest pats) (concat final-pats (preproc-relspec p relspec)))
+        (recur (rest pats) (vec (concat final-pats (preproc-relspec p relspec))))
         (recur (rest pats) (conj final-pats p)))
       final-pats)))
 
