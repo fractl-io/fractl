@@ -137,9 +137,10 @@
         (if (ii/skip-for-output? data)
           arg
           (if (= opr :read)
-            (when-let [rslt (seq (filter #(check % {:data % :ignore-refs true})
-                                         (seq (extract-read-results data))))]
-              (ii/assoc-data-output arg (set-read-results data rslt)))
+            (if-let [rs (seq (extract-read-results data))]
+              (when-let [rslt (seq (filter #(check % {:data % :ignore-refs true}) rs))]
+                (ii/assoc-data-output arg (set-read-results data rslt)))
+              arg)
             arg))
         arg))))
 

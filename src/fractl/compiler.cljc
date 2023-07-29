@@ -870,7 +870,7 @@
   (if (and (vector? relspec) (vector? (first relspec)))
     (let [v (keyword (name (gensym)))]
       [[:eval `(fractl.component/full-path-from-references
-                ~@(first relspec) ~(subs (str (li/record-name pat)) 1))
+                ~@(first relspec) ~(subs (str (li/normalize-name (li/record-name pat))) 1))
         :as v]
        (assoc pat li/rel-tag (if-let [r (seq (rest relspec))]
                                `[~v ~@r]

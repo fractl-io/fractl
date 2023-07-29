@@ -125,7 +125,8 @@
              delete-e (fn [id] {:Brd/Delete_E {:Id id}})
              test-lookup (fn [user factor err e]
                            (if err
-                             (tu/is-error #(tu/eval-all-dataflows (with-user user (lookup-e e))))
+                             (let [r (tu/eval-all-dataflows (with-user user (lookup-e e)))]
+                               (or (tu/not-found? r) (tu/is-error #(identity r))))
                              (let [r (tu/first-result (with-user user (lookup-e e)))]
                                (is (e? r)) (is (= (:Id r) e)) (is (= (:X r) (* factor e))))))]
          (tu/is-error #(tu/eval-all-dataflows (create-e 1)))
@@ -227,7 +228,7 @@
            (is (= 2 (count fs)))
            (is (every? f? fs)))
          (is (e? (tu/first-result (with-u1 (delete-e 1)))))
-         (is (tu/is-error #(tu/eval-all-dataflows (with-u1 (lookup-fs 1))))))))))
+         (is (tu/not-found? (tu/eval-all-dataflows (with-u1 (lookup-fs 1))))))))))
 
 (deftest instance-privs
   (lr/reset-events!)
