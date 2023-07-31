@@ -846,7 +846,7 @@
 (defn- regen-contains-child-attributes [child meta]
   (if-not (cn/path-identity-attribute-name child)
     (let [cident (cn/identity-attribute-name child)
-          child-attrs (raw/entity-attributes child)
+          child-attrs (raw/entity-attributes-include-inherits child)
           cident-raw-spec (cident child-attrs)
           cident-spec (if (map? cident-raw-spec)
                         cident-raw-spec
