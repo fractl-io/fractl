@@ -248,10 +248,11 @@
 (defn- intern-attribute
   "Add a new attribute definition to the component."
   ([validate-name n scm]
-   (cn/intern-attribute
-    (validate-name n)
-    (normalize-attribute-schema
-     (validate-attribute-schema n scm))))
+   (let [r (cn/intern-attribute
+            (validate-name n)
+            (normalize-attribute-schema
+             (validate-attribute-schema n scm)))]
+     (and (raw/attribute n scm) r)))
   ([n scm]
    (intern-attribute li/validate-name-relaxed n scm)))
 

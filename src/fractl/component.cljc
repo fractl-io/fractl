@@ -7,6 +7,7 @@
             [fractl.util.hash :as sh]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
+            [fractl.lang.raw :as raw]
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]))
 
@@ -96,7 +97,8 @@
   component)
 
 (defn remove-component [component]
-  (u/call-and-set components #(dissoc @components component)))
+  (let [r (u/call-and-set components #(dissoc @components component))]
+    (raw/remove-component component)))
 
 (defn component-names
   ([]
@@ -1680,29 +1682,36 @@
    (partial crud-event-name recname)
    [:Create :Update :Delete :Lookup :LookupAll]))
 
+(defn- only-internal-attrs [scm]
+  (mapv #(second (li/split-path %))
+        (filter li/internal-attribute-name?
+                (vals (dissoc scm id-attr)))))
+
 (defn remove-record [recname]
-  (when-let [scm (fetch-schema recname)]
+  (when-let [[tag {scm :schema}] (find-schema recname)]
     (let [comps @components
           [c n] (li/split-path recname)
           comp-scm (get comps c)
           attrs (:attributes comp-scm)
-          recs (:records comp-scm)
-          evts (:events comp-scm)
-          new-attrs (apply
-                     dissoc attrs
-                     (mapv #(second (li/split-path %))
-                           (vals (dissoc scm id-attr))))
-          new-recs (dissoc recs n)
-          new-evts (dissoc evts n) ; applies to only events
-          new-comp-scm (dissoc
-                        (assoc
-                         comp-scm
-                         :attributes new-attrs
-                         :records new-recs
-                         :events evts)
-                        n)
-          final-comps (assoc comps c new-comp-scm)]
-      (and (u/safe-set components final-comps) recname))))
+          new-comp-scm
+          (if (= tag :attribute)
+            (assoc comp-scm :attribute (dissoc attrs n))
+            (let [recs (:records comp-scm)
+                  evts (:events comp-scm)
+                  new-attrs (apply dissoc attrs (only-internal-attrs scm))
+                  new-recs (dissoc recs n)
+                  new-evts (if (= tag :event)
+                             (dissoc evts n)
+                             evts)]
+              (assoc
+               comp-scm
+               :attributes new-attrs
+               :records new-recs
+               :events evts)))
+          final-comps (assoc comps c (dissoc new-comp-scm n))]
+      (and (u/safe-set components final-comps)
+           (raw/remove-definition tag recname)
+           recname))))
 
 (defn maybe-remove-record [recname]
   (remove-record recname)
