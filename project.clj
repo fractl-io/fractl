@@ -14,7 +14,7 @@
                  [seancorfield/next.jdbc "1.2.659"]
                  [c3p0/c3p0 "0.9.1.2"]
                  [selmer "1.12.58"]
-                 [com.h2database/h2 "2.2.220"]
+                 [com.h2database/h2 "1.4.200"]
                  [org.mindrot/jbcrypt "0.4"]
                  [honeysql "1.0.461"]
                  [compojure "1.6.2"]
