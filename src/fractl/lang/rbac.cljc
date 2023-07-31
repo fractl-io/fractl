@@ -88,7 +88,7 @@
   (when-let [ps (cn/containing-parents recname)]
     (let [[_ _ p] (first ps)]
       (or (:rbac (cn/fetch-meta p))
-          (rbac-spec-of-parent p)))))
+          (when-not (= recname p) (rbac-spec-of-parent p))))))
 
 (defn- conj-admin [spec]
   (if (some #{admin-rbac-spec} spec)
