@@ -101,6 +101,13 @@
 (def bind-variable assoc)
 (def lookup-variable find)
 
+(defn- fetch-attr-ref-val [obj r]
+  (if-let [v (find obj r)]
+    (second v)
+    (when (= r cn/id-attr)
+      (when-let [t (cn/instance-type obj)]
+        ((cn/identity-attribute-name t) obj)))))
+
 (defn follow-reference [env path-parts]
   (let [refs (:refs path-parts)]
     (if (symbol? refs)
@@ -108,7 +115,7 @@
       (loop [env env, refs refs
              obj (find-instance-by-path-parts env path-parts (seq refs))]
         (if-let [r (first refs)]
-          (let [x (get obj r)]
+          (let [x (fetch-attr-ref-val obj r)]
             (recur (if (cn/an-instance? x)
                      (bind-instance env (cn/parsed-instance-type x) x)
                      env)

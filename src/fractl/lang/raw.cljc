@@ -79,6 +79,13 @@
 
 (def entity-attributes (partial fetch-attributes 'entity))
 
+(defn entity-attributes-include-inherits [entity-name]
+  (let [raw-attrs (entity-attributes entity-name)
+        attrs (apply dissoc raw-attrs li/property-names)]
+    (if-let [p (:inherits (:meta raw-attrs))]
+      (merge attrs (entity-attributes-include-inherits p))
+      attrs)))
+
 (defn- elem-as-edn [elem]
   (let [[tag n spec] elem]
     (if (= 'dataflow tag)

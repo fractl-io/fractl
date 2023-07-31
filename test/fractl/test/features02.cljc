@@ -459,6 +459,7 @@
     (dataflow
      :Qpp/FindC
      {:Qpp/P {:Id? :Qpp/FindC.P} :as [:P]}
+     ;; Also valid - {:Qpp/C? {} :-> [[:P :Qpp/FindC.C]]}
      {:Qpp/C {:Y? :Qpp/FindC.Y}
       :-> [[:P :Qpp/FindC.C]]}))
   (let [p (tu/first-result
