@@ -149,3 +149,48 @@
     (is (pos? (s/index-of (li/path-attr e2) (li/id-attr e1))))
     (is (cn/same-instance? e1 (lookup-e e1)))
     (is (cn/same-instance? e2 (lookup-e e2)))))
+
+(deftest generic__id__access
+  (defcomponent :Gid
+    (entity
+     :Gid/E
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Gid/F
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :Gid/G
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :Gid/R1
+     {:meta {:contains [:Gid/E :Gid/F]}})
+    (relationship
+     :Gid/R2
+     {:meta {:between [:Gid/F :Gid/G]}})
+    (dataflow
+     :Gid/MakeR2
+     {:Gid/F? {} :-> :Gid/MakeR2.FPath :as [:F]}
+     {:Gid/G {:Id? :Gid/MakeR2.GId} :as [:G]}
+     ;; __Id__ generically refers to the identity attribute.
+     {:Gid/R2 {:F :F.__Id__ :G :G.__Id__}}))
+  (let [e (tu/first-result
+           {:Gid/Create_E
+            {:Instance {:Gid/E {:Id 1 :X 10}}}})
+        f (tu/first-result
+           {:Gid/Create_F
+            {:Instance {:Gid/F {:Id 2 :Y 20}}
+             :PATH "/E/1/R1"}})
+        g (tu/first-result
+           {:Gid/Create_G
+            {:Instance {:Gid/G {:Id 3 :Z 30}}}})]
+    (is (cn/instance-of? :Gid/E e))
+    (is (cn/instance-of? :Gid/F f))
+    (is (cn/instance-of? :Gid/G g))
+    (let [r2 (tu/first-result
+              {:Gid/MakeR2 {:FPath (li/path-attr f) :GId (:Id g)}})]
+      (is (cn/instance-of? :Gid/R2 r2))
+      (is (= (:G r2) (:Id g)))
+      (is (= (:F r2) (li/id-attr f))))))

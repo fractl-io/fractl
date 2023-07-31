@@ -558,3 +558,7 @@
 
 (defn normalize-path [p]
   (s/replace p "//" "/"))
+
+(defn internal-attribute-name? [n]
+  (let [[_ n] (split-path n)]
+    (s/starts-with? (name n) "G__")))
