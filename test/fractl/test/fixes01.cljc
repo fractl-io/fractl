@@ -8,6 +8,7 @@
                      entity record dataflow relationship]]
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
+            [fractl.lang.raw :as raw]
             [fractl.compiler.rule :as rule]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -393,3 +394,43 @@
         b1 (tu/first-result {:I959/CreateB {}})]
     (is (cn/instance-of? :I959/A a1))
     (is (cn/instance-of? :I959/B b1))))
+
+(deftest issue-968-raw-delete
+  (defcomponent :I968
+    (attribute
+     :I968/K
+     {:type :Int :indexed true})
+    (record
+     :I968/A
+     {:X :Int :Y :I968/K})
+    (entity
+     :I968/B
+     {:Name :String})
+    (event
+     :I968/C
+     {:X :Int :Y :Int})
+    (dataflow
+     :I968/C
+     {:I968/A
+      {:X :I968/C.X :Y :I968/C.Y}}))
+  (defn a-def? [df x]
+    (= (take 2 x) df))
+  (defn any-def? [r df]
+    (some (partial a-def? df) r))
+  (let [dfs ['(attribute :I968/K) '(record :I968/A)
+             '(entity :I968/B) '(event :I968/C) '(dataflow :I968/C)]
+        p #(partial any-def? (rest (rest (raw/as-edn :I968))))]
+    (is (every? (p) dfs))
+    (mapv cn/remove-record [:I968/A :I968/B])
+    (defn rem-dfs [names dfs]
+      (loop [names names, result dfs]
+        (if-let [n (first names)]
+          (recur (rest names) (remove #(= n (second %)) result))
+          result)))
+    (is (every? (p) (rem-dfs [:I968/A :I968/B] dfs)))
+    (mapv cn/remove-record [:I968/C :I968/K])
+    (let [r (rest (raw/as-edn :I968))]
+      (is (= '(component :I968) (first r)))
+      (is (nil? (seq (rest r)))))
+    (cn/remove-component :I968)
+    (is (nil? (raw/as-edn :I968)))))
