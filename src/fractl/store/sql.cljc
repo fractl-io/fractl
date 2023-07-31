@@ -55,6 +55,7 @@
         final-pattern (if group-by
                         (assoc interim-pattern :group-by (mapv #(keyword (str "_" (name %))) group-by))
                         interim-pattern)]
+    (println (hsql/format final-pattern))
     (hsql/format final-pattern)))
 
 (defn- concat-where-clauses [clauses]
