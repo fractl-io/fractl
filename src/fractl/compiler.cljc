@@ -446,6 +446,9 @@
     [spec nil]
     (let [f (first spec)]
       (cond
+        (= :like f)
+        [spec nil]
+
         (or (string? f) (keyword? f))
         [f (seq (rest spec))]
 
@@ -867,15 +870,18 @@
          (report-compiler-error all-patterns n e)))))
 
 (defn- preproc-relspec [pat relspec]
-  (if (and (vector? relspec) (vector? (first relspec)))
-    (let [v (keyword (name (gensym)))]
+  (cond
+    (and (vector? relspec) (vector? (first relspec)))
+    (let [v (keyword (name (gensym)))
+          parent-only (= 1 (count (first relspec)))]
       [[:eval `(fractl.component/full-path-from-references
                 ~@(first relspec) ~(subs (str (li/normalize-name (li/record-name pat))) 1))
         :as v]
        (assoc pat li/rel-tag (if-let [r (seq (rest relspec))]
                                `[~v ~@r]
-                               v))])
-    [pat]))
+                               (if parent-only [:like v] v)))])
+
+    :else [pat]))
 
 (defn- preproc-patterns [dfpats]
   (loop [pats dfpats, final-pats []]

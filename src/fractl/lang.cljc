@@ -844,9 +844,15 @@
     (when-not (some #{own} nodes)
       (u/throw-ex (str "invalid rbac owner node " own)))))
 
+(defn- user-defined-identity-attribute-name [entity-name]
+  (let [ident (cn/identity-attribute-name entity-name)]
+    (when (= ident cn/id-attr)
+      (u/throw-ex (str "User-defined identity attribute required for " entity-name)))
+    ident))
+
 (defn- regen-contains-child-attributes [child meta]
   (if-not (cn/path-identity-attribute-name child)
-    (let [cident (cn/identity-attribute-name child)
+    (let [cident (user-defined-identity-attribute-name child)
           child-attrs (raw/entity-attributes-include-inherits child)
           cident-raw-spec (cident child-attrs)
           cident-spec (if (map? cident-raw-spec)
