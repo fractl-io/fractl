@@ -1,18 +1,37 @@
 (ns fractl.store.migration
   (:require [fractl.store.protocol :as p])
-  (:import [org.flywaydb.core Flyway]
-           [org.flywaydb.core.api.configuration FluentConfiguration]))
+  (:import [liquibase Contexts Liquibase]
+           [liquibase.database Database DatabaseFactory]
+           [liquibase.database.jvm JdbcConnection]
+           [liquibase.exception LiquibaseException]
+           [liquibase.resource FileSystemResourceAccessor]
+           [java.io File]
+           [java.sql Connection DriverManager SQLException]))
 
-(defn init [store conf]
+(defn lqb-init [store conf]
   (let [{db-url :url username :username password :password}
         (p/parse-connection-info store conf)
-        ^FluentConfiguration conf (Flyway/configure)]
-    (.locations conf (into-array String ["classpath:db/migration"]))
-    (.dataSource conf db-url username password)
-    (.load conf)))
+        conn #(DriverManager/getConnection db-url username password)]
+    {:connection conn}))
 
-(defn migrate [^Flyway handle]
-  (.migrate handle))
+(defn lqb-migrate [lqb]
+  (let [^Connection connection ((:connection lqb))]
+    (try
+      (let [^Database database (.findCorrectDatabaseImplementation
+                                (DatabaseFactory/getInstance)
+                                (JdbcConnection. connection))
+            ^File base-dir (File. ".")
+            ^Liquibase liquibase (Liquibase. "db/migration/changelog.sql"
+                                             (FileSystemResourceAccessor. (into-array File [base-dir]))
+                                             database)]
+        (.update liquibase (Contexts.)))
+      (catch Exception ex
+        (when connection
+          (.rollback connection))
+        (throw ex))
+      (finally
+        (when connection
+          (.close connection))))))
 
-(defn baseline [^Flyway handle]
-  (.baseline handle))
+(def init lqb-init)
+(def migrate lqb-migrate)

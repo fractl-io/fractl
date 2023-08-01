@@ -11,7 +11,7 @@
                  [commons-io/commons-io "2.11.0"]
                  [org.apache.commons/commons-exec "1.3"]
                  [cheshire "5.10.1"]
-                 [seancorfield/next.jdbc "1.2.659"]
+                 [com.github.seancorfield/next.jdbc "1.3.883"]
                  [c3p0/c3p0 "0.9.1.2"]
                  [selmer "1.12.58"]
                  [com.h2database/h2 "1.4.200"]
@@ -40,7 +40,7 @@
                  [org.clojure/algo.generic "0.1.3"]
                  [metosin/ring-swagger "0.26.2"]
                  [cheshire "5.11.0"]
-                 [org.flywaydb/flyway-core "9.21.0"]]
+                 [org.liquibase/liquibase-core "4.23.0"]]
 
   :java-source-paths ["src/java"]
 

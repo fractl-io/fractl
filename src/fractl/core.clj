@@ -353,13 +353,10 @@
   (when (build/load-model model-name)
     (f)))
 
-(defn- db-baseline [[model config]]
-  (mg/baseline
-   (mg/init (store-from-config config))))
+(defn- call-with-migration [f [_ config]]
+  (f (mg/init (store-from-config config) (:store config))))
 
-(defn- db-migrate [[model config]]
-  (mg/migrate
-   (mg/init (store-from-config config))))
+(def ^:private db-migrate (partial call-with-migration mg/migrate))
 
 (defn -main [& args]
   (when-not args
@@ -383,7 +380,7 @@
            identity
            (mapv (partial run-plain-option args)
                  ["run" "compile" "build" "exec" "publish" "deploy"
-                  "db:baseline" "db:migrate"]
+                  "db:migrate"]
                  [#(call-after-load-model
                     (first %) (fn [] (run-service nil (read-model-and-config nil options))))
                   #(println (build/compile-model (first %)))
@@ -391,8 +388,6 @@
                   #(println (build/run-standalone-package (first %)))
                   #(println (publish-library %))
                   #(println (d/deploy (:deploy basic-config) (first %)))
-                  #(call-after-load-model
-                    (first %) (fn [] (db-baseline (read-model-and-config nil options))))
                   #(call-after-load-model
                     (first %) (fn [] (db-migrate (read-model-and-config nil options))))]))
           (run-service args (read-model-and-config args options))))))
