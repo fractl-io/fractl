@@ -353,10 +353,13 @@
   (when (build/load-model model-name)
     (f)))
 
-(defn- call-with-migration [f [_ config]]
-  (f (mg/init (store-from-config config) (:store config))))
-
-(def ^:private db-migrate (partial call-with-migration mg/migrate))
+(defn- db-migrate [config]
+  (let [store (store-from-config config)]
+    (binding [*default-data-reader-fn* tagged-literal]
+      (doseq [cn (cn/component-names)]
+        (when-let [s (store/load-component store cn)]
+          (mg/diff cn (rest (read-string s))))))
+    (mg/migrate (mg/init store (:store config)))))
 
 (defn -main [& args]
   (when-not args
@@ -389,5 +392,5 @@
                   #(println (publish-library %))
                   #(println (d/deploy (:deploy basic-config) (first %)))
                   #(call-after-load-model
-                    (first %) (fn [] (db-migrate (read-model-and-config nil options))))]))
+                    (first %) (fn [] (db-migrate (second (read-model-and-config nil options)))))]))
           (run-service args (read-model-and-config args options))))))

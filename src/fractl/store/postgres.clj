@@ -148,6 +148,8 @@
          @datasource fetch-schema-sql
          table-names-from-schema fetch-columns-sql
          fetch-pk-columns-sql type-lookup))
+      (load-component [_ component-name]
+        (db/load-component @datasource component-name))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance
          pi/upsert-inst-statement

@@ -49,6 +49,8 @@
         (db/drop-schema @datasource component-name))
       (fetch-schema [_]
         nil)
+      (load-component [_ component-name]
+        (db/load-component @datasource component-name))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance
          h2i/upsert-inst-statement
