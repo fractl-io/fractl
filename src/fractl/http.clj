@@ -313,22 +313,17 @@
       (bad-request (str "not a valid query request - " request-obj)))))
 
 (defn- process-query [_ [_ maybe-unauth] query-fn request]
-  (println "<<<<query-request>>>>" request)
   (or (maybe-unauth request)
       (try
-        (println "<<<<query-request>>> authenticated")
         (if-let [data-fmt (find-data-format request)]
-          (do (println "<<<<query-request>>> data format: " data-fmt)
-              (do-query
-               query-fn
-               ((uh/decoder data-fmt) (String. (.bytes (:body request))))
-               data-fmt))
+          (do-query
+           query-fn
+           ((uh/decoder data-fmt) (String. (.bytes (:body request))))
+           data-fmt)
           (bad-request
            (str "unsupported content-type in request - "
                 (request-content-type request))))
         (catch Exception ex
-          (println "<<<<query-request>>> error: " (.getMessage ex))
-          (.printStackTrace ex)
           (log/exception ex)
           (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
 
