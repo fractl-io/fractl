@@ -869,7 +869,37 @@
        (catch js/Error e
          (report-compiler-error all-patterns n e)))))
 
+(defn- newname []
+  (keyword (name (gensym))))
+
+(declare new-preproc-relspec)
+
+(defn- preproc-contains-spec [pat relpat nodepat idpat]
+  (let [recname (li/normalize-name (li/record-name pat))
+        relname (li/normalize-name relpat)]
+    (when-not (= relname (ffirst (cn/containing-parents recname)))
+      (u/throw-ex (str "not a valid contains relationship for " recname " - " relname)))
+    (let [pat-alias (or (:as pat) (newname))
+          v (newname), pp (maybe-preproc-parent-pat nodepat)
+          pats [[:eval `(fractl.component/full-path-from-references ~@(:alias pp) ~(subs (str recname 1)))
+                 :as v]
+                (assoc pat li/path-attr v :as pat-alias)]]
+      {:patterns (concat (:patterns pp) (:post-patterns pp) pats)
+       :alias pat-alias})))
+
+(defn- preproc-between-spec [pat relpat nodepat idpat]
+  )
+
+(defn- preproc-relspec-entry [pat [relpat nodepat idpat]]
+  (if (keyword? relpat)
+    (preproc-contains-spec pat relpat nodepat idpat)
+    (preproc-between-spec pat relpat nodepat idpat)))
+
+(defn- new-preproc-relspec [pat relspec]
+  (mapv (partial preproc-relspec-entry pat) relspec))
+
 (defn- preproc-relspec [pat relspec]
+  (new-preproc-relspec pat relspec)
   (cond
     (and (vector? relspec) (vector? (first relspec)))
     (let [v (keyword (name (gensym)))
