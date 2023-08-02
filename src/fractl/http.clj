@@ -10,6 +10,7 @@
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.util.http :as uh]
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
@@ -305,10 +306,11 @@
     q))
 
 (defn do-query [query-fn request-obj data-fmt]
-  (if-let [q (preprocess-query (:Query request-obj))]
-    (let [result (query-fn (li/split-path (:from q)) q)]
-      (ok (first result) data-fmt))
-    (bad-request (str "not a valid query request - " request-obj))))
+  (let [request-obj (su/keys-as-keywords request-obj)]
+    (if-let [q (preprocess-query (:Query request-obj))]
+      (let [result (query-fn (li/split-path (:from q)) q)]
+        (ok (first result) data-fmt))
+      (bad-request (str "not a valid query request - " request-obj)))))
 
 (defn- process-query [_ [_ maybe-unauth] query-fn request]
   (or (maybe-unauth request)
