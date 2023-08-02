@@ -1814,10 +1814,18 @@
       (when (seq owners)
         (set (s/split owners #","))))))
 
+(defn- get-meta-attr [inst]
+  (when-let [ma (li/meta-attr inst)]
+    (if (string? ma)
+      (when (seq ma)
+        (read-string ma))
+      ma)))
+
 (defn concat-owners [inst new-owners]
   (let [xs (owners inst)]
     (if-let [ys (seq (set/union xs new-owners))]
-      (let [meta (assoc (li/meta-attr inst) :owners (s/join "," ys))]
+      (let [ma (get-meta-attr inst)
+            meta (assoc ma :owners (s/join "," ys))]
         (assoc inst li/meta-attr meta))
       inst)))
 
