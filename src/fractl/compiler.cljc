@@ -872,6 +872,10 @@
 (defn- newname []
   (keyword (name (gensym))))
 
+(defn- maybe-preproc-parent-pat [pat]
+  ;; TODO: implement
+  )
+
 (declare new-preproc-relspec)
 
 (defn- preproc-contains-spec [pat relpat nodepat idpat]
