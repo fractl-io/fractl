@@ -1654,6 +1654,9 @@
                   [% :between that])))
            rels))))
 
+(defn has-between-relationship? [rename relname]
+  (some #{relname} (map first (between-relationships recname))))
+
 (defn contains-entities [relname]
   (mt/contains (fetch-meta relname)))
 

@@ -28,6 +28,28 @@
           :Z :I840/K}
          (cn/fetch-user-schema :I840/E))))
 
+(deftest preproc-relspec
+  (defcomponent :Ppr
+    (entity
+     :Ppr/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Ppr/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Ppr/R1
+     {:meta {:contains [:Ppr/A :Ppr/B]}})
+    (dataflow
+     :Ppr/MakeBs
+     {:Ppr/B
+      {:Id 1
+       :Y 10}
+      :-> [[:Ppr/R1 {:Ppr/A {:Id 100 :X 200}}]]}))
+  (let [r (tu/eval-all-dataflows {:Ppr/MakeBs {}})]
+    (is r)))
+
 (deftest basic-contains-relationship
   (let [grades ["a" "b"]]
     (defcomponent :Bcr

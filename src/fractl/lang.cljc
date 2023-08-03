@@ -896,10 +896,8 @@
       (u/throw-ex (str "failed to define schema for " relname)))))
 
 (defn- assoc-relnode-attributes [attrs [node1 node2]]
-  (let [idp (cn/identity-attribute-name node1)
-        idc (cn/identity-attribute-name node2)]
-    (assoc attrs (second (li/split-path node1)) (cn/attribute-type node1 idp)
-           (second (li/split-path node2)) (cn/attribute-type node2 idc))))
+  (let [[a1 a2] (li/between-nodenames node1 node2)]
+    (assoc attrs a1 :Fractl.Kernel.Lang/Any a2 :Fractl.Kernel.Lang/Any)))
 
 (defn- between-unique-meta [meta relmeta [node1 node2]]
   (let [[_ n1] (li/split-path node1)
