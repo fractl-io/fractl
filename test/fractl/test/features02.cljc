@@ -38,16 +38,42 @@
      :Ppr/B
      {:Id {:type :Int :identity true}
       :Y :Int})
+    (entity
+     :Ppr/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (entity
+     :Ppr/D
+     {:Id {:type :Int :identity true}})
     (relationship
      :Ppr/R1
      {:meta {:contains [:Ppr/A :Ppr/B]}})
+    (relationship
+     :Ppr/R2
+     {:meta {:between [:Ppr/B :Ppr/C]}
+      :K :Int})
+    (relationship
+     :Ppr/R3
+     {:meta {:contains [:Ppr/B :Ppr/D]}})
     (dataflow
-     :Ppr/MakeBs
+     :Ppr/MakeB
      {:Ppr/B
       {:Id 1
        :Y 10}
-      :-> [[:Ppr/R1 {:Ppr/A {:Id 100 :X 200}}]]}))
-  (let [r (tu/eval-all-dataflows {:Ppr/MakeBs {}})]
+      :-> [[:Ppr/R1 {:Ppr/A {:Id 100 :X 200}}]
+           [{:Ppr/R2 {:K 3}} {:Ppr/C {:Id 8 :Z 9}}]
+           [{:Ppr/R2 {:K 4}} {:Ppr/C {:Id 10 :Z 12}}]]})
+    (dataflow
+     :Ppr/MakeD
+     {:Ppr/D
+      {:Id 1}
+      :-> [[:Ppr/R3 {:Ppr/B
+                     {:Id 1
+                      :Y 10}
+                     :-> [[:Ppr/R1 {:Ppr/A {:Id 100 :X 200}}]
+                          [{:Ppr/R2 {:K 3}} {:Ppr/C {:Id 8 :Z 9}}]
+                          [{:Ppr/R2 {:K 4}} {:Ppr/C {:Id 10 :Z 12}}]]}]]}))
+  (let [r (tu/eval-all-dataflows {:Ppr/MakeD {}})]
     (is r)))
 
 (deftest basic-contains-relationship

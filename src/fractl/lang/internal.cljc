@@ -427,6 +427,11 @@
 (defn query-pattern? [a]
   (and (keyword? a) (s/ends-with? (name a) "?")))
 
+(defn query-instance-pattern? [obj]
+  (or (query-pattern? obj)
+      (and (map? obj)
+           (some query-pattern? (keys (record-attributes obj))))))
+
 (defn name-as-query-pattern [n]
   (keyword (str (subs (str n) 1) "?")))
 
