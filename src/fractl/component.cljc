@@ -1848,28 +1848,34 @@
       (assoc-in inst path (dissoc ps user))
       inst)))
 
-(defn instance-to-partial-path [child-type parent-inst]
-  (let [pt (instance-type-kw parent-inst)
-        ct (li/make-path child-type)]
-    (if-let [rel (parent-relationship pt ct)]
-      (let [pp (li/path-attr parent-inst)
-            rn (li/encoded-uri-path-part rel)]
-        (if pp
-          (str (li/path-query-string pp) "/" rn)
-          (str "/" (li/encoded-uri-path-part pt)
-               "/" ((identity-attribute-name pt) parent-inst)
-               "/" rn)))
-      (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
+(defn instance-to-partial-path
+  ([child-type parent-inst relname]
+   (let [pt (instance-type-kw parent-inst)
+         ct (li/make-path child-type)]
+     (if-let [rel (or relname (parent-relationship pt ct))]
+       (let [pp (li/path-attr parent-inst)
+             rn (li/encoded-uri-path-part rel)]
+         (if pp
+           (str (li/path-query-string pp) "/" rn)
+           (str "/" (li/encoded-uri-path-part pt)
+                "/" ((identity-attribute-name pt) parent-inst)
+                "/" rn)))
+       (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
+  ([child-type parent-inst]
+   (instance-to-partial-path child-type parent-inst nil)))
 
-(defn instance-to-full-path [child-type child-id parent-inst]
-  (if (entity-instance? parent-inst)
-    (let [[c _] (li/split-path child-type)]
-      (str (li/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst))
-           "/" (li/encoded-uri-path-part child-type) "/" child-id))
-    parent-inst))
+(defn instance-to-full-path
+  ([child-type child-id parent-inst relname]
+   (if (entity-instance? parent-inst)
+     (let [[c _] (li/split-path child-type)]
+       (str (li/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst relname))
+            "/" (li/encoded-uri-path-part child-type) "/" child-id))
+     parent-inst))
+  ([child-type child-id parent-inst]
+   (instance-to-full-path child-type child-id parent-inst nil)))
 
 (defn full-path-from-references
-  ([parent-inst child-id child-type-str]
-   (instance-to-full-path (keyword child-type-str) (or child-id "%") parent-inst))
-  ([parent-inst child-type-str]
-   (full-path-from-references parent-inst nil child-type-str)))
+  ([parent-inst relname child-id child-type-str]
+   (instance-to-full-path (keyword child-type-str) (or child-id "%") parent-inst relname))
+  ([parent-inst relname child-type-str]
+   (full-path-from-references parent-inst relname nil child-type-str)))

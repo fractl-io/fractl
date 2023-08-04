@@ -893,11 +893,12 @@
                          li/path-attr-q
                          li/path-attr) v)
           pat (assoc pat pk attrs)
-          pats [[:eval (if idpat
-                         `(fractl.component/full-path-from-references
-                           ~pp-alias ~idpat ~(subs (str recname) 1))
-                         `(fractl.component/full-path-from-references
-                           ~pp-alias ~(subs (str recname) 1)))
+          rec-s (li/name-str recname)
+          rel-s (li/name-str relname)
+          pats [[:eval
+                 (if idpat
+                   `(fractl.component/full-path-from-references ~pp-alias ~rel-s ~idpat ~rec-s)
+                   `(fractl.component/full-path-from-references ~pp-alias ~rel-s ~rec-s))
                  :as v]
                 (assoc pat :as pat-alias)]]
       {:patterns (vec (concat (flatten-preproc-patterns pp) pats))

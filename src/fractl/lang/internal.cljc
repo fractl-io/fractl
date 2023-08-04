@@ -575,3 +575,6 @@
       [(keyword (str (name n1) "1"))
        (keyword (str (name n2) "2"))]
       [n1 n2])))
+
+(defn name-str [n]
+  (subs (str n) 1))
