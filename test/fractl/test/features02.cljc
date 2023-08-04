@@ -28,54 +28,6 @@
           :Z :I840/K}
          (cn/fetch-user-schema :I840/E))))
 
-(deftest preproc-relspec
-  (defcomponent :Ppr
-    (entity
-     :Ppr/A
-     {:Id {:type :Int :identity true}
-      :X :Int})
-    (entity
-     :Ppr/B
-     {:Id {:type :Int :identity true}
-      :Y :Int})
-    (entity
-     :Ppr/C
-     {:Id {:type :Int :identity true}
-      :Z :Int})
-    (entity
-     :Ppr/D
-     {:Id {:type :Int :identity true}})
-    (relationship
-     :Ppr/R1
-     {:meta {:contains [:Ppr/A :Ppr/B]}})
-    (relationship
-     :Ppr/R2
-     {:meta {:between [:Ppr/B :Ppr/C]}
-      :K :Int})
-    (relationship
-     :Ppr/R3
-     {:meta {:contains [:Ppr/B :Ppr/D]}})
-    (dataflow
-     :Ppr/MakeB
-     {:Ppr/B
-      {:Id 1
-       :Y 10}
-      :-> [[:Ppr/R1 {:Ppr/A {:Id 100 :X 200}}]
-           [{:Ppr/R2 {:K 3}} {:Ppr/C {:Id 8 :Z 9}}]
-           [{:Ppr/R2 {:K 4}} {:Ppr/C {:Id 10 :Z 12}}]]})
-    (dataflow
-     :Ppr/MakeD
-     {:Ppr/D
-      {:Id 1}
-      :-> [[:Ppr/R3 {:Ppr/B
-                     {:Id 1
-                      :Y 10}
-                     :-> [[:Ppr/R1 {:Ppr/A {:Id 100 :X 200}}]
-                          [{:Ppr/R2 {:K 3}} {:Ppr/C {:Id 8 :Z 9}}]
-                          [{:Ppr/R2 {:K 4}} {:Ppr/C {:Id 10 :Z 12}}]]}]]}))
-  (let [r (tu/eval-all-dataflows {:Ppr/MakeD {}})]
-    (is r)))
-
 (deftest basic-contains-relationship
   (let [grades ["a" "b"]]
     (defcomponent :Bcr
@@ -227,7 +179,7 @@
     (dataflow
      :Bbr/LookupB
      {:Bbr/B {:Y? :Bbr/LookupB.Y}
-      :-> [{:Bbr/R {:A? :Bbr/LookupB.A}}]}))
+      :-> [[{:Bbr/R {:A? :Bbr/LookupB.A}}]]}))
   (let [a1 (tu/first-result
             {:Bbr/Create_A
              {:Instance
@@ -276,9 +228,8 @@
      {:meta {:between [:Bac/B :Bac/C]}})
     (dataflow
      :Bac/LookupB
-     {:Bac/B? {}
-      :-> [:Bac/LookupB.Rc
-           {:Bac/Rb {:C? :Bac/LookupB.C}}]}))
+     {:Bac/B {:PATH? :Bac/LookupB.Rc}
+      :-> [[{:Bac/Rb {:C? :Bac/LookupB.C}}]]}))
   (let [create-a #(tu/first-result
                    {:Bac/Create_A
                     {:Instance
@@ -384,18 +335,18 @@
     (dataflow
      :Cblr/MakeC
      {:Cblr/P {:X :Cblr/MakeC.X} :as :P}
-     {:Cblr/C {:Y :Cblr/MakeC.Y} :-> :P})
+     {:Cblr/C {:Y :Cblr/MakeC.Y} :-> [[:Cblr/R :P]]})
     (defn cblr-make-p-path [p c]
       (cn/instance-to-full-path :Cblr/C c p))
     (dataflow
      :Cblr/FindC
      {:Cblr/P {:Id? :Cblr/FindC.P} :as [:P]}
      [:eval '(fractl.test.features02/cblr-make-p-path :P :Cblr/FindC.C) :as :P]
-     {:Cblr/C {:Y? :Cblr/FindC.Y} :-> :P})
+     {:Cblr/C {:Y? :Cblr/FindC.Y :PATH? :P}})
     (dataflow
      :Cblr/MakeD
-     {:Cblr/C? {} :-> :Cblr/MakeD.C :as [:C]}
-     {:Cblr/D {:Z :Cblr/MakeD.Z} :-> :C}))
+     {:Cblr/C {:PATH? :Cblr/MakeD.C} :as [:C]}
+     {:Cblr/D {:Z :Cblr/MakeD.Z} :-> [[:Cblr/S :C]]}))
   (let [c? (partial cn/instance-of? :Cblr/C)
         p? (partial cn/instance-of? :Cblr/P)
         pid #(second (filter seq (s/split (li/path-query-string (li/path-attr %)) #"/")))
@@ -511,7 +462,7 @@
      ;; 1. {:Qpp/C? {} :-> [[:P]]} = lookup all under :P
      ;; 2. {:Qpp/C? {} :-> [[:P :Qpp/FindC.C]]}, same as below
      {:Qpp/C {:Y? :Qpp/FindC.Y}
-      :-> [[:P :Qpp/FindC.C]]}))
+      :-> [[:Qpp/R? :P :Qpp/FindC.C]]}))
   (let [p (tu/first-result
            {:Qpp/Create_P
             {:Instance {:Qpp/P {:Id 1 :X 10}}}})

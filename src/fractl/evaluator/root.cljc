@@ -787,17 +787,21 @@
          (or (.-ex-data e) (i/error e))))))
 
 (defn- filter-results-by-rels [entity-name result-insts
-                               {opcodes :filter-by-opcodes
+                               {opcodes-vec :filter-by-opcodes
                                 evaluator :eval}]
-  (if (seq result-insts)
-    (let [r (evaluator opcodes)]
-      (if-let [rs (extract-local-result-as-vec r)]
-        (let [[_ n] (li/split-path entity-name)
-              ident (cn/identity-attribute-name entity-name)
-              ids (set (mapv n rs))]
-          (filter (fn [inst] (some #{(ident inst)} ids)) result-insts))
-        (u/throw-ex (str "filter pattern evaluation failed for " entity-name))))
-    result-insts))
+  (if-not (seq result-insts)
+    result-insts
+    (let [[_ n] (li/split-path entity-name)
+          ident (cn/identity-attribute-name entity-name)]
+      (vec
+       (reduce
+        (fn [result-insts opcodes]
+          (let [r (evaluator opcodes)]
+            (if-let [rs (extract-local-result-as-vec r)]
+              (let [ids (set (mapv n rs))]
+                (filter (fn [inst] (some #{(ident inst)} ids)) result-insts))
+              (u/throw-ex (str "filter pattern evaluation failed for " entity-name)))))
+        result-insts opcodes-vec)))))
 
 (defn- query-helper
   ([env entity-name queries result-filter]

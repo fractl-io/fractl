@@ -803,15 +803,17 @@
         li/event-context ctx-aname})
       (cn/register-dataflow
        (ev :Create)
-       [{child (into
-                {} (mapv
-                    (fn [a]
-                      [a (if (= a li/path-attr)
-                           ;; The path-identity will be appended by the evaluator.
-                           cr-path
-                           (crud-event-inst-accessor crevt a))])
-                    attr-names))
-         li/rel-tag cr-path}]))
+       [{child
+         (merge
+          (into
+           {} (mapv
+               (fn [a]
+                 [a (if (= a li/path-attr)
+                      ;; The path-identity will be appended by the evaluator.
+                      cr-path
+                      (crud-event-inst-accessor crevt a))])
+               attr-names))
+          {li/path-attr cr-path})}]))
     (let [upevt (ev :Update)]
       (event-internal
        upevt
@@ -895,9 +897,17 @@
         (u/throw-ex (str "failed to regenerate schema for " child)))
       (u/throw-ex (str "failed to define schema for " relname)))))
 
+(defn- between-node-types [node1 node2]
+  (let [id1 (cn/identity-attribute-name node1)
+        t1 (cn/attribute-type node1 id1)]
+    (if (= node1 node2)
+      [t1 t1]
+      [t1 (cn/attribute-type node2 (cn/identity-attribute-name node2))])))
+
 (defn- assoc-relnode-attributes [attrs [node1 node2]]
-  (let [[a1 a2] (li/between-nodenames node1 node2)]
-    (assoc attrs a1 :Fractl.Kernel.Lang/Any a2 :Fractl.Kernel.Lang/Any)))
+  (let [[a1 a2] (li/between-nodenames node1 node2)
+        [t1 t2] (between-node-types node1 node2)]
+    (assoc attrs a1 t1 a2 t2)))
 
 (defn- between-unique-meta [meta relmeta [node1 node2]]
   (let [[_ n1] (li/split-path node1)
@@ -928,6 +938,11 @@
          contains (mt/contains meta)
          between (when-not contains (mt/between meta))
          [elems relmeta] (parse-relationship-member-spec (or contains between))]
+     (when-let [child (and contains (second elems))]
+       (when (seq (cn/between-relationships child))
+         (u/throw-ex
+          (str child " already is one or more between relationships, "
+               "they can be defined only after " relation-name))))
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - "

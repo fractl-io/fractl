@@ -172,7 +172,7 @@
      {:meta {:between [:Gid/F :Gid/G]}})
     (dataflow
      :Gid/MakeR2
-     {:Gid/F? {} :-> :Gid/MakeR2.FPath :as [:F]}
+     {:Gid/F {:PATH? :Gid/MakeR2.FPath} :as [:F]}
      {:Gid/G {:Id? :Gid/MakeR2.GId} :as [:G]}
      ;; __Id__ generically refers to the identity attribute.
      {:Gid/R2 {:F :F.__Id__ :G :G.__Id__}}))

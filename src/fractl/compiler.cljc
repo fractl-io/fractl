@@ -500,10 +500,7 @@
                           {:timeout-ms timeout-ms})
                         (when filter-pats
                           {:filter-by
-                           (compile-pattern
-                            ctx (if (map? filter-pats)
-                                  filter-pats
-                                  (first filter-pats)))}))
+                           (mapv (partial compile-pattern ctx) filter-pats)}))
             opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias
@@ -879,6 +876,11 @@
       (let [alias (or (:as pat) (newname))]
         [{:patterns [(assoc pat :as alias)] :alias alias}]))))
 
+(defn maybe-append-path-identity-pattern [path path-ident]
+  (if (s/ends-with? path "%")
+    (s/replace path "%" (str path-ident))
+    path))
+
 (defn- preproc-contains-spec [pat pat-alias relpat nodepat idpat]
   (let [pk (li/record-name pat)
         recname (li/normalize-name pk)
@@ -888,10 +890,13 @@
     (let [v (newname)
           pp (maybe-preproc-parent-pat nodepat)
           pp-alias (find-preproc-alias pp)
+          is-rel-q (li/query-pattern? relpat)
+          is-pat-q (li/query-instance-pattern? pat)
           attrs (assoc (li/record-attributes pat)
-                       (if (li/query-pattern? relpat)
+                       (if is-rel-q
                          li/path-attr-q
-                         li/path-attr) v)
+                         li/path-attr)
+                       v)
           pat (assoc pat pk attrs)
           rec-s (li/name-str recname)
           rel-s (li/name-str relname)
@@ -900,8 +905,15 @@
                    `(fractl.component/full-path-from-references ~pp-alias ~rel-s ~idpat ~rec-s)
                    `(fractl.component/full-path-from-references ~pp-alias ~rel-s ~rec-s))
                  :as v]
-                (assoc pat :as pat-alias)]]
-      {:patterns (vec (concat (flatten-preproc-patterns pp) pats))
+                (assoc pat :as pat-alias)]
+          post-pats (when (and (not idpat) (not (and is-rel-q is-pat-q)))
+                      (let [ident (cn/identity-attribute-name recname)]
+                        [{recname
+                          {(li/name-as-query-pattern ident)
+                           (li/make-ref pat-alias ident)
+                           li/path-attr `(fractl.compiler/maybe-append-path-identity-pattern
+                                          ~v ~(cn/path-identity-attribute-name recname))}}]))]
+      {:patterns (vec (concat (flatten-preproc-patterns pp) pats post-pats))
        :alias pat-alias})))
 
 (defn- add-between-refs [relattrs [from-recname from-alias] [to-recname to-alias]]
@@ -947,7 +959,7 @@
       (if-let [relspec (and (map? p) (li/rel-tag p))]
         (recur (rest pats) (vec (concat final-pats (preproc-relspec p relspec))))
         (recur (rest pats) (conj final-pats p)))
-      final-pats)))
+      (if (seq final-pats) final-pats dfpats))))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
