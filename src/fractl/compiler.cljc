@@ -894,7 +894,7 @@
           is-pat-q (li/query-instance-pattern? pat)
           attrs (assoc (li/record-attributes pat)
                        (if is-rel-q
-                         li/path-attr-q
+                         li/path-attr?
                          li/path-attr)
                        v)
           pat (assoc pat pk attrs)

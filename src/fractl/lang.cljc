@@ -823,7 +823,7 @@
       (cn/register-dataflow
        upevt
        [{child
-         {li/path-attr-q (evt-path-attr upevt)}
+         {li/path-attr? (evt-path-attr upevt)}
          :from (crud-event-attr-accessor upevt :Data)}]))
     (let [lookupevt (ev :Lookup)
           lookupallevt (ev :LookupAll)
@@ -832,8 +832,8 @@
           child-q (li/name-as-query-pattern child)]
       (event-internal lookupevt evattrs)
       (event-internal lookupallevt evattrs)
-      (cn/register-dataflow lookupevt [{child {li/path-attr-q (evt-path-attr lookupevt)}}])
-      (cn/register-dataflow lookupallevt [{child {li/path-attr-q [:like (evt-path-attr lookupallevt)]}}]))
+      (cn/register-dataflow lookupevt [{child {li/path-attr? (evt-path-attr lookupevt)}}])
+      (cn/register-dataflow lookupallevt [{child {li/path-attr? [:like (evt-path-attr lookupallevt)]}}]))
     (let [delevt (ev :Delete)]
       (event-internal delevt {li/path-attr :Fractl.Kernel.Lang/String
                               li/event-context ctx-aname})

@@ -137,12 +137,12 @@
              {:Instance
               {:I962/Employee
                {:Name "e02"}}
-              :PATH (str "/Employee/" (li/id-attr e1) "/WorksFor")}})
+              li/path-attr (str "/Employee/" (li/id-attr e1) "/WorksFor")}})
         e? (partial cn/instance-of? :I962/Employee)
         lookup-e (fn [e]
                    (tu/first-result
                     {:I962/Lookup_Employee
-                     {:PATH (li/path-attr e)}}))]
+                     {li/path-attr (li/path-attr e)}}))]
     (is (e? e1))
     (is (li/null-path? (li/path-attr e1)))
     (is (e? e2))
@@ -172,7 +172,7 @@
      {:meta {:between [:Gid/F :Gid/G]}})
     (dataflow
      :Gid/MakeR2
-     {:Gid/F {:PATH? :Gid/MakeR2.FPath} :as [:F]}
+     {:Gid/F {li/path-attr? :Gid/MakeR2.FPath} :as [:F]}
      {:Gid/G {:Id? :Gid/MakeR2.GId} :as [:G]}
      ;; __Id__ generically refers to the identity attribute.
      {:Gid/R2 {:F :F.__Id__ :G :G.__Id__}}))
@@ -182,7 +182,7 @@
         f (tu/first-result
            {:Gid/Create_F
             {:Instance {:Gid/F {:Id 2 :Y 20}}
-             :PATH "/E/1/R1"}})
+             li/path-attr "/E/1/R1"}})
         g (tu/first-result
            {:Gid/Create_G
             {:Instance {:Gid/G {:Id 3 :Z 30}}}})]
@@ -243,7 +243,7 @@
   (let [create-a-evt (fn [id] {:I974B/Create_A {:Instance {:I974B/A {:Id id :X (* id 10)}}}})
         [a1 a2] (mapv #(tu/first-result (create-a-evt %)) [1 2])
         a? (partial cn/instance-of? :I974B/A)
-        lookup-inst #(tu/first-result {%1 {:PATH %2}})]
+        lookup-inst #(tu/first-result {%1 {li/path-attr %2}})]
     (is (every? a? [a1 a2]))
     (let [create-b-evt (fn [a id] {:I974B/CreateB {:Id id :A a}})
           b? (partial cn/instance-of? :I974B/B)
