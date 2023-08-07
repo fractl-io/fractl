@@ -221,7 +221,7 @@
       {:meta {:contains [:I974B/B :I974B/C]}}})
     (relationship
      :I974B/R3
-     {:meta {:between [:I974B/C :I974B/D]}
+     {:meta {:between [:I974B/C :I974B/D :as [:I :J]]}
       :R :Int})
     (dataflow
      :I974B/CreateB
@@ -232,9 +232,14 @@
      :I974B/CreateC
      {:I974B/C
       {:Id :I974B/CreateC.Id :Z '(* :I974B/CreateC.Id 5)}
-      :-> [[:I974B/R2 {:I974B/B? {}
-                       :-> [[:I974B/R1? {:I974B/A {:Id? :I974B/CreateC.A}} :I974B/CreateC.B]]}]
-           [{:I974B/R3 {:R :I974B/CreateC.R}} {:I974B/D {:Id :I974B/CreateC.D :S '(* 2 :I974B/CreateC.D)}}]]}))
+      :-> [[:I974B/R2 {:I974B/B? {} :-> [[:I974B/R1? {:I974B/A {:Id? :I974B/CreateC.A}} :I974B/CreateC.B]]}]
+           [{:I974B/R3 {:R :I974B/CreateC.R}} {:I974B/D {:Id :I974B/CreateC.D :S '(* 2 :I974B/CreateC.D)}}]]})
+    (dataflow
+     :I974B/FindC
+     {:I974B/C
+      {:Z? :I974B/FindC.Z}
+      :-> [[:I974B/R2? {:I974B/B? {} :-> [[:I974B/R1? {:I974B/A {:Id? :I974B/FindC.A}} :I974B/FindC.B]]} :I974B/FindC.C]
+           [{:I974B/R3 {:J? :I974B/FindC.D}}]]}))
   (let [create-a-evt (fn [id] {:I974B/Create_A {:Instance {:I974B/A {:Id id :X (* id 10)}}}})
         [a1 a2] (mapv #(tu/first-result (create-a-evt %)) [1 2])
         a? (partial cn/instance-of? :I974B/A)
@@ -251,4 +256,5 @@
             c1 (tu/first-result (create-c-evt 1 10 100))
             lookup-c (partial lookup-inst :I974B/Lookup_C)]
         (is c? c1)
-        (is (cn/same-instance? c1 (lookup-c "path://I974B$A/1/I974B$R1/I974B$B/10/I974B$R2/I974B$C/100")))))))
+        (is (cn/same-instance? c1 (lookup-c "path://I974B$A/1/I974B$R1/I974B$B/10/I974B$R2/I974B$C/100")))
+        (is (cn/same-instance? c1 (tu/first-result {:I974B/FindC {:Z 500 :C 100 :A 1 :B 10 :D 12}})))))))

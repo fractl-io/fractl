@@ -1756,14 +1756,20 @@
   (dissoc-system-attributes
    (get-in @components [:raw recname])))
 
-(defn normalize-between-attribute-names [relname from to]
-  (or (:as (relationship-meta (fetch-meta relname)))
-      (let [f (second (li/split-path from))
-            t (second (li/split-path to))]
-        (if (= from to)
-          [(keyword (str (name f) "1"))
-           (keyword (str (name t) "2"))]
-          [f t]))))
+(defn between-attribute-names [relname from to]
+  (let [relmeta (relationship-meta (fetch-meta relname))]
+    (li/between-nodenames from to relmeta)))
+
+(defn find-between-keys [relname entity-name]
+  (let [entity-name (li/make-path entity-name)
+        [node1 node2] (relationship-nodes relname)
+        [a1 a2 :as ks] (between-attribute-names relname node1 node2)]
+    (if (= entity-name node1 node2)
+      ks
+      [(cond
+         (= node1 entity-name) a1
+         (= node2 entity-name) a2
+         :else (u/throw-ex (str entity-name " not in relationship - " relname)))])))
 
 (defn fetch-default-attribute-values [schema]
   (into

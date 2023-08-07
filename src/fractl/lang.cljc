@@ -904,9 +904,11 @@
       [t1 t1]
       [t1 (cn/attribute-type node2 (cn/identity-attribute-name node2))])))
 
-(defn- assoc-relnode-attributes [attrs [node1 node2]]
-  (let [[a1 a2] (li/between-nodenames node1 node2)
+(defn- assoc-relnode-attributes [attrs [node1 node2] relmeta]
+  (let [[a1 a2] (li/between-nodenames node1 node2 relmeta)
         [t1 t2] (between-node-types node1 node2)]
+    (when-not (and a1 a2)
+      (u/throw-ex (str "failed to resolve both node-attributes for between-relationship - " [a1 a2])))
     (assoc attrs a1 t1 a2 t2)))
 
 (defn- between-unique-meta [meta relmeta [node1 node2]]
@@ -922,7 +924,7 @@
       :else meta)))
 
 (defn- between-relationship [relname attrs relmeta elems]
-  (let [new-attrs (assoc-relnode-attributes attrs elems)
+  (let [new-attrs (assoc-relnode-attributes attrs elems relmeta)
         meta (assoc (between-unique-meta (:meta attrs) relmeta elems)
                     :relationship :between cn/relmeta-key relmeta)
         r (serializable-entity relname (assoc new-attrs :meta meta))]

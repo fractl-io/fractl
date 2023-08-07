@@ -568,13 +568,14 @@
   (let [[_ n] (split-path n)]
     (s/starts-with? (name n) "G__")))
 
-(defn between-nodenames [node1 node2]
-  (let [[_ n1] (split-path node1)
-        [_ n2] (split-path node2)]
-    (if (= n1 n2)
-      [(keyword (str (name n1) "1"))
-       (keyword (str (name n2) "2"))]
-      [n1 n2])))
+(defn between-nodenames [node1 node2 relmeta]
+  (or (:as relmeta)
+      (let [[_ n1] (split-path node1)
+            [_ n2] (split-path node2)]
+        (if (= n1 n2)
+          [(keyword (str (name n1) "1"))
+           (keyword (str (name n2) "2"))]
+          [n1 n2]))))
 
 (defn name-str [n]
   (subs (str n) 1))

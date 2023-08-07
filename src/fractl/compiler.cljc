@@ -917,8 +917,8 @@
       {:patterns (vec (concat (flatten-preproc-patterns pp) pats post-pats))
        :alias pat-alias})))
 
-(defn- add-between-refs [relattrs [from-recname from-alias] [to-recname to-alias]]
-  (let [[a1 a2] (li/between-nodenames from-recname to-recname)
+(defn- add-between-refs [relattrs relmeta [from-recname from-alias] [to-recname to-alias]]
+  (let [[a1 a2] (li/between-nodenames from-recname to-recname relmeta)
         ids (name li/id-attr)
         f #(keyword (str (name %) "." ids))]
     (assoc relattrs a1 (f from-alias) a2 (f to-alias))))
@@ -926,11 +926,12 @@
 (defn- preproc-between-spec [pat pat-alias relpat nodepat idpat]
   (when-not (li/query-instance-pattern? relpat)
     (let [relattrs (li/record-attributes relpat)
-          relname (li/record-name relpat)]
+          relname (li/record-name relpat)
+          relmeta (cn/relationship-meta (cn/fetch-meta relname))]
       (if (vector? nodepat)
         (let [[nodetype alias] nodepat]
           {:patterns [{relname (add-between-refs
-                                relattrs
+                                relattrs relmeta
                                 [(li/normalize-name (li/record-name pat)) pat-alias]
                                 [nodetype alias])}]})
         (let [alias (or (:as nodepat) (newname))
@@ -938,7 +939,7 @@
           (when-not (cn/has-between-relationship? (li/record-name pat) relname)
             (u/throw-ex (str relname " is not in the between-relationship " relname)))
           {:patterns [nodepat {relname (add-between-refs
-                                        relattrs
+                                        relattrs relmeta
                                         [(li/normalize-name (li/record-name pat)) pat-alias]
                                         [(li/normalize-name (li/record-name nodepat)) alias])}]})))))
 
