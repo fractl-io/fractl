@@ -194,3 +194,61 @@
       (is (cn/instance-of? :Gid/R2 r2))
       (is (= (:G r2) (:Id g)))
       (is (= (:F r2) (li/id-attr f))))))
+
+(deftest issue-974-basic
+  (defcomponent :I974B
+    (entity
+     :I974B/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :I974B/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :I974B/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (entity
+     :I974B/D
+     {:Id {:type :Int :identity true}
+      :S :Int})
+    (relationship
+     :I974B/R1
+     {:meta {:contains [:I974B/A :I974B/B]}})
+    (relationship
+     {:I974B/R2
+      {:meta {:contains [:I974B/B :I974B/C]}}})
+    (relationship
+     :I974B/R3
+     {:meta {:between [:I974B/C :I974B/D]}
+      :R :Int})
+    (dataflow
+     :I974B/CreateB
+     {:I974B/B
+      {:Id :I974B/CreateB.Id :Y '(* :I974B/CreateB.Id 20)}
+      :-> [[:I974B/R1 {:I974B/A {:Id? :I974B/CreateB.A}}]]})
+    (dataflow
+     :I974B/CreateC
+     {:I974B/C
+      {:Id :I974B/CreateC.Id :Z '(* :I974B/CreateC.Id 5)}
+      :-> [[:I974B/R2 {:I974B/B? {}
+                       :-> [[:I974B/R1? {:I974B/A {:Id? :I974B/CreateC.A}} :I974B/CreateC.B]]}]
+           [{:I974B/R3 {:R :I974B/CreateC.R}} {:I974B/D {:Id :I974B/CreateC.D :S '(* 2 :I974B/CreateC.D)}}]]}))
+  (let [create-a-evt (fn [id] {:I974B/Create_A {:Instance {:I974B/A {:Id id :X (* id 10)}}}})
+        [a1 a2] (mapv #(tu/first-result (create-a-evt %)) [1 2])
+        a? (partial cn/instance-of? :I974B/A)
+        lookup-inst #(tu/first-result {%1 {:PATH %2}})]
+    (is (every? a? [a1 a2]))
+    (let [create-b-evt (fn [a id] {:I974B/CreateB {:Id id :A a}})
+          b? (partial cn/instance-of? :I974B/B)
+          b1 (tu/first-result (create-b-evt 1 10))
+          lookup-b (partial lookup-inst :I974B/Lookup_B)]
+      (is b? b1)
+      (is (cn/same-instance? b1 (lookup-b "path://I974B$A/1/I974B$R1/I974B$B/10")))
+      (let [create-c-evt (fn [a b id] {:I974B/CreateC {:Id id :A a :B b :R 464 :D 12}})
+            c? (partial cn/instance-of? :I974B/C)
+            c1 (tu/first-result (create-c-evt 1 10 100))
+            lookup-c (partial lookup-inst :I974B/Lookup_C)]
+        (is c? c1)
+        (is (cn/same-instance? c1 (lookup-c "path://I974B$A/1/I974B$R1/I974B$B/10/I974B$R2/I974B$C/100")))))))

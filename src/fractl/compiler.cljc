@@ -912,7 +912,8 @@
                           {(li/name-as-query-pattern ident)
                            (li/make-ref pat-alias ident)
                            li/path-attr `(fractl.compiler/maybe-append-path-identity-pattern
-                                          ~v ~(cn/path-identity-attribute-name recname))}}]))]
+                                          ~v ~(cn/path-identity-attribute-name recname))}
+                          :as pat-alias}]))]
       {:patterns (vec (concat (flatten-preproc-patterns pp) pats post-pats))
        :alias pat-alias})))
 
@@ -947,8 +948,10 @@
     (preproc-between-spec pat pat-alias relpat nodepat idpat)))
 
 (defn- preproc-relspec-helper [pat relspec]
-  (let [pat-alias (or (:as pat) (newname))]
-    (mapv (partial preproc-relspec-entry pat pat-alias) relspec)))
+  (let [pat-alias (or (:as pat) (newname))
+        new-pats (mapv (partial preproc-relspec-entry pat pat-alias) relspec)]
+    (when (and (seq new-pats) (every? identity new-pats))
+      (concat new-pats [{:patterns [pat-alias]}]))))
 
 (defn- preproc-relspec [pat relspec]
   (flatten-preproc-patterns (preproc-relspec-helper pat relspec)))

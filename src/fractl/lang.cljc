@@ -950,7 +950,7 @@
      ((if contains contains-relationship between-relationship)
       relation-name (assoc attrs :meta meta) relmeta elems)))
   ([schema]
-   (let [r (parse-and-define serializable-entity schema)
+   (let [r (parse-and-define relationship schema)
          n (li/record-name schema)]
      (and (raw/relationship n (li/record-attributes schema)) r))))
 

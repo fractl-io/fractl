@@ -1866,11 +1866,18 @@
 
 (defn instance-to-full-path
   ([child-type child-id parent-inst relname]
-   (if (entity-instance? parent-inst)
-     (let [[c _] (li/split-path child-type)]
-       (str (li/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst relname))
-            "/" (li/encoded-uri-path-part child-type) "/" child-id))
-     parent-inst))
+   (let [parent-inst (cond
+                       (map? parent-inst)
+                       parent-inst
+
+                       (seqable? parent-inst)
+                       (first parent-inst)
+
+                       :else parent-inst)]
+     (when (entity-instance? parent-inst)
+       (let [[c _] (li/split-path child-type)]
+         (str (li/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst relname))
+              "/" (li/encoded-uri-path-part child-type) "/" child-id)))))
   ([child-type child-id parent-inst]
    (instance-to-full-path child-type child-id parent-inst nil)))
 
