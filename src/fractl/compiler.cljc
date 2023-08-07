@@ -450,6 +450,12 @@
                   spec))]
     (vec ps)))
 
+(defn- extract-query-attrs [obj]
+  (when-let [filter-pat (and (seqable? obj) (first obj))]
+    (when (map? filter-pat)
+      (set (mapv #(li/normalize-name (first %))
+                 (filter #(li/query-pattern? (first %)) (li/record-attributes filter-pat)))))))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -500,7 +506,10 @@
                           {:timeout-ms timeout-ms})
                         (when filter-pats
                           {:filter-by
-                           (mapv (partial compile-pattern ctx) filter-pats)}))
+                           (mapv #(let [opc (compile-pattern ctx %)
+                                        qattrs (extract-query-attrs %)]
+                                    {:opcodes opc :query-attrs qattrs})
+                                 filter-pats)}))
             opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias
@@ -950,9 +959,11 @@
 
 (defn- preproc-relspec-helper [pat relspec]
   (let [pat-alias (or (:as pat) (newname))
-        new-pats (mapv (partial preproc-relspec-entry pat pat-alias) relspec)]
+        new-pats (mapv (partial preproc-relspec-entry pat pat-alias) relspec)
+        has-contains (some #(keyword? (first %)) relspec)
+        inst-pat (when-not has-contains [{:patterns [(assoc pat :as pat-alias)]}])]
     (when (and (seq new-pats) (every? identity new-pats))
-      (concat new-pats [{:patterns [pat-alias]}]))))
+      (concat inst-pat new-pats [{:patterns [pat-alias]}]))))
 
 (defn- preproc-relspec [pat relspec]
   (flatten-preproc-patterns (preproc-relspec-helper pat relspec)))

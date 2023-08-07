@@ -788,21 +788,22 @@
          (or (.-ex-data e) (i/error e))))))
 
 (defn- filter-results-by-rels [entity-name result-insts
-                               {opcodes-vec :filter-by-opcodes
+                               {result-filter :filter-by
                                 evaluator :eval}]
   (if-not (seq result-insts)
     result-insts
     (let [ident (cn/identity-attribute-name entity-name)]
       (vec
        (reduce
-        (fn [result-insts opcodes]
+        (fn [result-insts {opcodes :opcodes query-attrs :query-attrs}]
           (let [r (evaluator opcodes)]
             (if-let [rs (extract-local-result-as-vec r)]
-              (let [ks (cn/find-between-keys (cn/instance-type-kw (first rs)) entity-name)
-                    ids (set (apply concat (mapv (fn [n] (mapv n rs)) ks)))]
+              (let [ks (set (cn/find-between-keys (cn/instance-type-kw (first rs)) entity-name))
+                    ns (if (= query-attrs ks) ks (set/difference ks query-attrs))
+                    ids (set (apply concat (mapv (fn [n] (mapv n rs)) ns)))]
                 (filter (fn [inst] (some #{(ident inst)} ids)) result-insts))
               (u/throw-ex (str "filter pattern evaluation failed for " entity-name)))))
-        result-insts opcodes-vec)))))
+        result-insts result-filter)))))
 
 (defn- query-helper
   ([env entity-name queries result-filter]
@@ -811,7 +812,7 @@
              env entity-name
              (fn [entity-name]
                (let [[insts env :as r] (find-instances env (env/get-store env) entity-name queries)]
-                 (if (:filter-by-opcodes result-filter)
+                 (if (:filter-by result-filter)
                    [(filter-results-by-rels entity-name insts result-filter) env]
                    r))))]
      (cond
@@ -1014,10 +1015,10 @@
       (let [env (env/push-obj env record-name)]
         (i/ok record-name env)))
 
-    (do-query-instances [self env [entity-name queries filter-by-opcodes]]
+    (do-query-instances [self env [entity-name queries result-filter]]
       (query-helper
        env entity-name queries
-       {:filter-by-opcodes filter-by-opcodes
+       {:filter-by result-filter
         :eval (partial eval-opcode self env)}))
 
     (do-evaluate-query [_ env [fetch-query-fn result-alias]]
