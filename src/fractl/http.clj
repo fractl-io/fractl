@@ -250,17 +250,16 @@
   (partial
    process-generic-request
    (fn [{entity-name :entity id :id component :component path :path all :all :as p} obj]
-     (let [path (when path (str path "%"))]
-       [(if id
-          {(cn/crud-event-name component entity-name :Lookup)
-           (merge
-            (when-not path
-              (let [id-attr (cn/identity-attribute-name entity-name)]
-                {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
-            (maybe-path-attribute path))}
-          {(cn/crud-event-name component entity-name :LookupAll)
-           (or (maybe-path-attribute path) {})})
-        nil]))))
+     [(if id
+        {(cn/crud-event-name component entity-name :Lookup)
+         (merge
+          (when-not path
+            (let [id-attr (cn/identity-attribute-name entity-name)]
+              {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+          (maybe-path-attribute path))}
+        {(cn/crud-event-name component entity-name :LookupAll)
+         (or (maybe-path-attribute (when path (str path "%"))) {})})
+      nil])))
 
 (def process-delete-request
   (partial
