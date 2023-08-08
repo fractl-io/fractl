@@ -1,5 +1,6 @@
 (ns fractl.store.migration
   (:require [clojure.set :as set]
+            [fractl.util.seq :as su]
             [fractl.lang.raw :as raw]
             [fractl.lang.internal :as li]
             [fractl.store.protocol :as p])
@@ -52,10 +53,48 @@
 (defn- extract-entity-names [defs]
   (set (mapv #(li/record-name (second %)) (filter entity-def? defs))))
 
-(defn- make-alter-diff [entities new-def old-def]
-  ;; TODO: compare the chnages in the new and old defs, generate abstract alter-commands
-  ;; TODO: also consider contains-relationships
-  )
+(defn- find-entity-def [entity-name defs]
+  (first (filter #(and (= 'entity (first %))
+                       (= entity-name (li/record-name %)))
+                 defs)))
+
+(defn- normalize-attr-spec [spec]
+  (if (keyword? spec)
+    {:type spec}
+    spec))
+
+(defn- attribute-alteration [new-entity-spec old-entity-spec attr-name]
+  (let [new-spec (normalize-attr-spec (attr-name new-entity-spec))
+        old-spec (normalize-attr-spec (attr-name old-entity-spec))]
+    (when-not (= new-spec old-spec)
+      (let [ninfo (new-spec attr-name)
+            oinfo (old-spec attr-name)]
+        (merge nil (when (not= (:type ninfo) (:type oinfo))
+                     {:type (:type ninfo)})
+               (when (and (:indexed ninfo) (not (:indexed oinfo)))
+                 {:indexed true})
+               (when (and (:unique ninfo) (not (:unique oinfo)))
+                 {:unique true})
+               (when (and (not (:unique ninfo)) (:unique oinfo))
+                 {:unique false}))))))
+
+(defn- make-alter-diff [entities new-defs old-defs]
+  (doseq [e entities]
+    (let [new (find-entity-def e new-defs)
+          old (find-entity-def e old-defs)
+          nks (set (keys new)), oks (set (keys old))
+          common-attrs (set/intersection nks oks)
+          alter-attrs (seq
+                       (su/nonils
+                        (mapv
+                         (partial attribute-alteration new old)
+                         common-attrs)))
+          add-attrs (seq (set/difference nks oks))
+          drop-attrs (seq (set/difference oks nks))]
+      (when (or alter-attrs add-attrs drop-attrs)
+        {e {:add (when add-attrs (mapv #(% new) add-attrs))
+            :drop drop-attrs
+            :alter alter-attrs}}))))
 
 (defn diff [component old-def]
   (let [new-def (rest (raw/as-edn component))
