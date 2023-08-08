@@ -1710,7 +1710,7 @@
                comp-scm
                :attributes new-attrs
                :records new-recs
-               :events evts)))
+               :events new-evts)))
           final-comps (assoc comps c (dissoc new-comp-scm n))]
       (and (u/safe-set components final-comps)
            (raw/remove-definition tag recname)
