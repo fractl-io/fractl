@@ -56,7 +56,7 @@
                                    {:Bcr/Employee
                                     {:Email (str % "@bcr.com")
                                      :Name % :Grade (rand-nth grades)}}
-                                   :PATH "/Department/d1/WorksFor"}})
+                                   li/path-attr "/Department/d1/WorksFor"}})
                                ["e01" "e02"])
           d? (tu/type-check :Bcr/Department)
           e? (tu/type-check :Bcr/Employee)]
@@ -65,14 +65,14 @@
         (is (cn/same-instance?
              e (tu/first-result
                 {:Bcr/Lookup_Employee
-                 {:PATH
+                 {li/path-attr
                   (fq (str "path://Department/d1/WorksFor/Employee/" (:Email e)))}}))))
       (doseq [e es] (lookup-e e))
       (defn- lookup-all-es [dept cnt es]
         (let [result (first
                       (tu/eval-all-dataflows
                        {:Bcr/LookupAll_Employee
-                        {:PATH (fq (str "path://Department/" dept "/WorksFor/Employee/%"))}}))
+                        {li/path-attr (fq (str "path://Department/" dept "/WorksFor/Employee/%"))}}))
               rs (when (= :ok (:status result)) (:result result))]
           (if (zero? cnt)
             (is (tu/not-found? result))
@@ -82,14 +82,14 @@
       (let [e (tu/first-result
                {:Bcr/Update_Employee
                 {:Data {:Name "e0001"}
-                 :PATH (fq "path://Department/d1/WorksFor/Employee/e01@bcr.com")}})]
+                 li/path-attr (fq "path://Department/d1/WorksFor/Employee/e01@bcr.com")}})]
         (is (= "e0001" (:Name e)))
         (is (= (:Email e1) (:Email e)))
         (lookup-e e)
         (lookup-all-es "d1" 2 [e e2])
         (is (cn/same-instance? e (tu/first-result
                                   {:Bcr/Delete_Employee
-                                   {:PATH (fq "path://Department/d1/WorksFor/Employee/e01@bcr.com")}})))
+                                   {li/path-attr (fq "path://Department/d1/WorksFor/Employee/e01@bcr.com")}})))
         (lookup-all-es "d1" 1 [e2]))
       (is (d? (tu/first-result {:Bcr/Delete_Department {:Name "d1"}})))
       (lookup-all-es "d1" 0 nil))))
@@ -124,12 +124,12 @@
                                     {:Instance
                                      {:Mlc/B
                                       {:Id %2 :Y (* %2 5)}}
-                                     :PATH %1}})
+                                     li/path-attr %1}})
         create-c #(tu/first-result {:Mlc/Create_C
                                     {:Instance
                                      {:Mlc/C
                                       {:Id %2 :Z (* %2 10)}}
-                                     :PATH %1}})
+                                     li/path-attr %1}})
         a? (tu/type-check :Mlc/A)
         b? (tu/type-check :Mlc/B)
         c? (tu/type-check :Mlc/C)
@@ -146,21 +146,21 @@
     (is (tu/is-error #(create-c "/A/1/R1/B/1000/R2" 200)))
     (let [rs (tu/result
               {:Mlc/LookupAll_B
-               {:PATH (fq "path://A/1/R1/B/%")}})]
+               {li/path-attr (fq "path://A/1/R1/B/%")}})]
       (is (= 1 (count rs)))
       (is (b? (first rs))))
     (let [rs (tu/result
               {:Mlc/LookupAll_C
-               {:PATH (fq "path://A/1/R1/B/10/R2/C/%")}})]
+               {li/path-attr (fq "path://A/1/R1/B/10/R2/C/%")}})]
       (is (= 1 (count rs)))
       (is (c? (first rs))))
     (is (cn/same-instance? (first as) (tu/first-result {:Mlc/Delete_A {:Id 1}})))
     (is (tu/not-found? (tu/eval-all-dataflows
                         {:Mlc/LookupAll_B
-                         {:PATH (fq "path://A/1/R1/B/%")}})))
+                         {li/path-attr (fq "path://A/1/R1/B/%")}})))
     (is (tu/not-found? (tu/eval-all-dataflows
                         {:Mlc/LookupAll_C
-                         {:PATH (fq "path://A/1/R1/B/10/R2/C/%")}})))))
+                         {li/path-attr (fq "path://A/1/R1/B/10/R2/C/%")}})))))
 
 (deftest basic-between-relationships
   (defcomponent :Bbr
@@ -179,7 +179,7 @@
     (dataflow
      :Bbr/LookupB
      {:Bbr/B {:Y? :Bbr/LookupB.Y}
-      :-> [{:Bbr/R {:A? :Bbr/LookupB.A}}]}))
+      :-> [[{:Bbr/R {:A? :Bbr/LookupB.A}}]]}))
   (let [a1 (tu/first-result
             {:Bbr/Create_A
              {:Instance
@@ -228,9 +228,8 @@
      {:meta {:between [:Bac/B :Bac/C]}})
     (dataflow
      :Bac/LookupB
-     {:Bac/B? {}
-      :-> [:Bac/LookupB.Rc
-           {:Bac/Rb {:C? :Bac/LookupB.C}}]}))
+     {:Bac/B {li/path-attr? :Bac/LookupB.Rc}
+      :-> [[{:Bac/Rb {:C? :Bac/LookupB.C}}]]}))
   (let [create-a #(tu/first-result
                    {:Bac/Create_A
                     {:Instance
@@ -240,7 +239,7 @@
                    {:Bac/Create_B
                     {:Instance
                      {:Bac/B {:Id %2 :Y (* %2 5)}}
-                     :PATH (mkpath %1)}})
+                     li/path-attr (mkpath %1)}})
         create-c #(tu/first-result
                    {:Bac/Create_C
                     {:Instance
@@ -300,7 +299,7 @@
                                     {:Instance
                                      {:Mcs/C
                                       {:Id %2 :Z (* %2 10)}}
-                                     :PATH %1}})
+                                     li/path-attr %1}})
         a? (tu/type-check :Mcs/A)
         b? (tu/type-check :Mcs/B)
         c? (tu/type-check :Mcs/C)
@@ -308,8 +307,8 @@
         c2 (create-c "/B/2/R2" 100)]
     (is (a? a1)) (is (b? b1))
     (is (every? c? [c1 c2]))
-    (is (= "path://Mcs$A/1/Mcs$R1/Mcs$C/10" (:PATH c1)))
-    (is (= "path://Mcs$B/2/Mcs$R2/Mcs$C/100" (:PATH c2)))
+    (is (= "path://Mcs$A/1/Mcs$R1/Mcs$C/10" (li/path-attr c1)))
+    (is (= "path://Mcs$B/2/Mcs$R2/Mcs$C/100" (li/path-attr c2)))
     (is (tu/is-error #(create-c "/A/1/R2" 20)))
     (is (tu/is-error #(create-c "/B/1/R2" 200)))))
 
@@ -336,18 +335,18 @@
     (dataflow
      :Cblr/MakeC
      {:Cblr/P {:X :Cblr/MakeC.X} :as :P}
-     {:Cblr/C {:Y :Cblr/MakeC.Y} :-> :P})
+     {:Cblr/C {:Y :Cblr/MakeC.Y} :-> [[:Cblr/R :P]]})
     (defn cblr-make-p-path [p c]
       (cn/instance-to-full-path :Cblr/C c p))
     (dataflow
      :Cblr/FindC
      {:Cblr/P {:Id? :Cblr/FindC.P} :as [:P]}
      [:eval '(fractl.test.features02/cblr-make-p-path :P :Cblr/FindC.C) :as :P]
-     {:Cblr/C {:Y? :Cblr/FindC.Y} :-> :P})
+     {:Cblr/C {:Y? :Cblr/FindC.Y li/path-attr? :P}})
     (dataflow
      :Cblr/MakeD
-     {:Cblr/C? {} :-> :Cblr/MakeD.C :as [:C]}
-     {:Cblr/D {:Z :Cblr/MakeD.Z} :-> :C}))
+     {:Cblr/C {li/path-attr? :Cblr/MakeD.C} :as [:C]}
+     {:Cblr/D {:Z :Cblr/MakeD.Z} :-> [[:Cblr/S :C]]}))
   (let [c? (partial cn/instance-of? :Cblr/C)
         p? (partial cn/instance-of? :Cblr/P)
         pid #(second (filter seq (s/split (li/path-query-string (li/path-attr %)) #"/")))
@@ -404,18 +403,18 @@
         cs (mapv #(tu/first-result
                    {:Dac/Create_C
                     {:Instance {:Dac/C {:Id % :Y (* 2 %)}}
-                     :PATH "/P/1/R"}})
+                     li/path-attr "/P/1/R"}})
                  [10 20])
         cs2 (mapv #(tu/first-result
                     {:Dac/Create_C
                      {:Instance {:Dac/C {:Id % :Y (* 2 %)}}
-                      :PATH "/P/2/R"}})
+                      li/path-attr "/P/2/R"}})
                   [10 20])
         fq (partial li/as-fully-qualified-path :Dac)
         allcs (fn [p f chk]
                 (let [cs (f
                           {:Dac/LookupAll_C
-                           {:PATH (fq (str "path://P/" p "/R/C/%"))}})]
+                           {li/path-attr (fq (str "path://P/" p "/R/C/%"))}})]
                   (when chk
                     (is (= 2 (count cs)))
                     (is (every? (partial cn/instance-of? :Dac/C) cs))
@@ -463,14 +462,14 @@
      ;; 1. {:Qpp/C? {} :-> [[:P]]} = lookup all under :P
      ;; 2. {:Qpp/C? {} :-> [[:P :Qpp/FindC.C]]}, same as below
      {:Qpp/C {:Y? :Qpp/FindC.Y}
-      :-> [[:P :Qpp/FindC.C]]}))
+      :-> [[:Qpp/R? :P :Qpp/FindC.C]]}))
   (let [p (tu/first-result
            {:Qpp/Create_P
             {:Instance {:Qpp/P {:Id 1 :X 10}}}})
         c1 (tu/first-result
             {:Qpp/Create_C
              {:Instance {:Qpp/C {:Id 2 :Y 100}}
-              :PATH "/P/1/R"}})
+              li/path-attr "/P/1/R"}})
         c2 (tu/first-result
             {:Qpp/FindC {:Y 100 :P 1 :C 2}})]
     (is (cn/instance-of? :Qpp/P p))
@@ -500,7 +499,7 @@
                      {(mp :Create_C)
                       {:Instance
                        {(mp :C) {:Id %2 :Y (* 100 %2)}}
-                       :PATH (str "/P/" %1 "/R")}})
+                       li/path-attr (str "/P/" %1 "/R")}})
           c1 (create-c 1 2)
           c2 (create-c 2 2)
           c3 (create-c 2 3)
@@ -509,7 +508,7 @@
           fq (partial li/as-fully-qualified-path c)
           lookup-c #(tu/eval-all-dataflows
                      {(mp :Lookup_C)
-                      {:PATH (fq (str "path://P/" %1 "/R/C/" %2))}})]
+                      {li/path-attr (fq (str "path://P/" %1 "/R/C/" %2))}})]
       (is (every? p? [p1 p2]))
       (is (every? c? [c1 c2 c3]))
       (is (cn/same-instance? c1 (tu/ffresult (lookup-c 1 2))))

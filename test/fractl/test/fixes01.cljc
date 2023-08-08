@@ -389,7 +389,7 @@
     (dataflow
      :I959/CreateB
      {:I959/A {:Name? "ABC"} :as [:A]}
-     {:I959/B {:Name "A B"} :-> :A}))
+     {:I959/B {:Name "A B"} :-> [[:I959/R :A]]}))
   (let [a1 (tu/first-result {:I959/Create_A {:Instance {:I959/A {:Name "ABC"}}}})
         b1 (tu/first-result {:I959/CreateB {}})]
     (is (cn/instance-of? :I959/A a1))

@@ -137,12 +137,12 @@
              {:Instance
               {:I962/Employee
                {:Name "e02"}}
-              :PATH (str "/Employee/" (li/id-attr e1) "/WorksFor")}})
+              li/path-attr (str "/Employee/" (li/id-attr e1) "/WorksFor")}})
         e? (partial cn/instance-of? :I962/Employee)
         lookup-e (fn [e]
                    (tu/first-result
                     {:I962/Lookup_Employee
-                     {:PATH (li/path-attr e)}}))]
+                     {li/path-attr (li/path-attr e)}}))]
     (is (e? e1))
     (is (li/null-path? (li/path-attr e1)))
     (is (e? e2))
@@ -172,7 +172,7 @@
      {:meta {:between [:Gid/F :Gid/G]}})
     (dataflow
      :Gid/MakeR2
-     {:Gid/F? {} :-> :Gid/MakeR2.FPath :as [:F]}
+     {:Gid/F {li/path-attr? :Gid/MakeR2.FPath} :as [:F]}
      {:Gid/G {:Id? :Gid/MakeR2.GId} :as [:G]}
      ;; __Id__ generically refers to the identity attribute.
      {:Gid/R2 {:F :F.__Id__ :G :G.__Id__}}))
@@ -182,7 +182,7 @@
         f (tu/first-result
            {:Gid/Create_F
             {:Instance {:Gid/F {:Id 2 :Y 20}}
-             :PATH "/E/1/R1"}})
+             li/path-attr "/E/1/R1"}})
         g (tu/first-result
            {:Gid/Create_G
             {:Instance {:Gid/G {:Id 3 :Z 30}}}})]
@@ -194,3 +194,87 @@
       (is (cn/instance-of? :Gid/R2 r2))
       (is (= (:G r2) (:Id g)))
       (is (= (:F r2) (li/id-attr f))))))
+
+(deftest issue-974
+  (defcomponent :I974
+    (entity
+     :I974/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :I974/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :I974/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (entity
+     :I974/D
+     {:Id {:type :Int :identity true}
+      :S :Int})
+    (relationship
+     :I974/R1
+     {:meta {:contains [:I974/A :I974/B]}})
+    (relationship
+     {:I974/R2
+      {:meta {:contains [:I974/B :I974/C]}}})
+    (relationship
+     :I974/R3
+     {:meta {:between [:I974/C :I974/D]}
+      :R :Int})
+    (relationship
+     :I974/R4
+     {:meta {:between [:I974/D :I974/D :as [:I :J]]}
+      :T :Int})
+    (dataflow
+     :I974/CreateB
+     {:I974/B
+      {:Id :I974/CreateB.Id :Y '(* :I974/CreateB.Id 20)}
+      :-> [[:I974/R1 {:I974/A {:Id? :I974/CreateB.A}}]]})
+    (dataflow
+     :I974/CreateC
+     {:I974/C
+      {:Id :I974/CreateC.Id :Z '(* :I974/CreateC.Id 5)}
+      :-> [[:I974/R2 {:I974/B? {} :-> [[:I974/R1? {:I974/A {:Id? :I974/CreateC.A}} :I974/CreateC.B]]}]
+           [{:I974/R3 {:R :I974/CreateC.R}} {:I974/D {:Id :I974/CreateC.D :S '(* 2 :I974/CreateC.D)}}]]})
+    (dataflow
+     :I974/FindC
+     {:I974/C
+      {:Z? :I974/FindC.Z}
+      :-> [[:I974/R2? {:I974/B? {} :-> [[:I974/R1? {:I974/A {:Id? :I974/FindC.A}} :I974/FindC.B]]} :I974/FindC.C]
+           [{:I974/R3 {:D? :I974/FindC.D}}]]})
+    (dataflow
+     :I974/CreateD
+     {:I974/D
+      {:Id :I974/CreateD.Id :S '(* :I974/CreateD.Id 3)}
+      :-> [[{:I974/R4 {:T :I974/CreateD.T}} {:I974/D {:Id? :I974/CreateD.J}}]]})
+    (dataflow
+     :I974/FindD
+     {:I974/D? {} :-> [[{:I974/R4 {:J? :I974/FindD.J}}]]}))
+  (let [create-a-evt (fn [id] {:I974/Create_A {:Instance {:I974/A {:Id id :X (* id 10)}}}})
+        [a1 a2] (mapv #(tu/first-result (create-a-evt %)) [1 2])
+        a? (partial cn/instance-of? :I974/A)
+        lookup-inst #(tu/first-result {%1 {li/path-attr %2}})]
+    (is (every? a? [a1 a2]))
+    (let [create-b-evt (fn [a id] {:I974/CreateB {:Id id :A a}})
+          b? (partial cn/instance-of? :I974/B)
+          b1 (tu/first-result (create-b-evt 1 10))
+          lookup-b (partial lookup-inst :I974/Lookup_B)]
+      (is b? b1)
+      (is (cn/same-instance? b1 (lookup-b "path://I974$A/1/I974$R1/I974$B/10")))
+      (let [create-c-evt (fn [a b id] {:I974/CreateC {:Id id :A a :B b :R 464 :D 12}})
+            c? (partial cn/instance-of? :I974/C)
+            c1 (tu/first-result (create-c-evt 1 10 100))
+            lookup-c (partial lookup-inst :I974/Lookup_C)]
+        (is c? c1)
+        (is (cn/same-instance? c1 (lookup-c "path://I974$A/1/I974$R1/I974$B/10/I974$R2/I974$C/100")))
+        (is (cn/same-instance? c1 (tu/first-result {:I974/FindC {:Z 500 :C 100 :A 1 :B 10 :D 12}}))))))
+  (let [ds (mapv #(tu/result {:I974/CreateD {:Id % :T (* % 100) :J 12}}) [10 20])
+        d? (partial cn/instance-of? :I974/D)
+        chk (fn [ds]
+              (is (= 2 (count ds)))
+              (is (= (set (mapv :Id ds)) #{10 20}))
+              (is (every? d? ds)))]
+    (chk ds)
+    (chk (tu/result {:I974/FindD {:J 12}}))))
