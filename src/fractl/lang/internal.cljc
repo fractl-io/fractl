@@ -99,6 +99,9 @@
 
 (def event-context :EventContext)
 
+(defn only-user-attributes [attrs]
+  (apply dissoc attrs property-names))
+
 (defn- reserved? [x]
   (some #{x} reserved-names))
 

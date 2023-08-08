@@ -54,9 +54,18 @@
   (set (mapv #(li/record-name (second %)) (filter entity-def? defs))))
 
 (defn- find-entity-def [entity-name defs]
-  (first (filter #(and (= 'entity (first %))
-                       (= entity-name (li/record-name %)))
-                 defs)))
+  (when-let [d (first (filter #(and (= 'entity (first %))
+                                    (let [s (second %)
+                                          recname (if (map? s)
+                                                    (li/record-name s)
+                                                    s)]
+                                      (= entity-name recname)))
+                              defs))]
+    (li/only-user-attributes
+     (let [spec (second d)]
+       (if (map? spec)
+         (li/record-attributes spec)
+         (nth d 2))))))
 
 (defn- normalize-attr-spec [spec]
   (if (keyword? spec)
@@ -64,19 +73,17 @@
     spec))
 
 (defn- attribute-alteration [new-entity-spec old-entity-spec attr-name]
-  (let [new-spec (normalize-attr-spec (attr-name new-entity-spec))
-        old-spec (normalize-attr-spec (attr-name old-entity-spec))]
-    (when-not (= new-spec old-spec)
-      (let [ninfo (new-spec attr-name)
-            oinfo (old-spec attr-name)]
-        (merge nil (when (not= (:type ninfo) (:type oinfo))
-                     {:type (:type ninfo)})
-               (when (and (:indexed ninfo) (not (:indexed oinfo)))
-                 {:indexed true})
-               (when (and (:unique ninfo) (not (:unique oinfo)))
-                 {:unique true})
-               (when (and (not (:unique ninfo)) (:unique oinfo))
-                 {:unique false}))))))
+  (let [ninfo (normalize-attr-spec (attr-name new-entity-spec))
+        oinfo (normalize-attr-spec (attr-name old-entity-spec))]
+    (when-not (= ninfo oinfo)
+      (merge nil (when (not= (:type ninfo) (:type oinfo))
+                   {:type (:type ninfo)})
+             (when (and (:indexed ninfo) (not (:indexed oinfo)))
+               {:indexed true})
+             (when (and (:unique ninfo) (not (:unique oinfo)))
+               {:unique true})
+             (when (and (not (:unique ninfo)) (:unique oinfo))
+               {:unique false})))))
 
 (defn- make-alter-diff [entities new-defs old-defs]
   (doseq [e entities]
@@ -101,5 +108,5 @@
         new-entities (extract-entity-names new-def)
         old-entities (extract-entity-names old-def)
         active-entities (set/intersection old-entities new-entities)]
-    {:drop (seq (set/difference old-entities new-entities))
-     :alter (make-alter-diff active-entities new-def old-def)}))
+    (println {:drop (seq (set/difference old-entities new-entities))
+              :alter (make-alter-diff active-entities new-def old-def)})))
