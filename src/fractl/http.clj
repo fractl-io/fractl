@@ -10,6 +10,7 @@
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.util.http :as uh]
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
@@ -249,17 +250,16 @@
   (partial
    process-generic-request
    (fn [{entity-name :entity id :id component :component path :path all :all :as p} obj]
-     (let [path (when path (str path "%"))]
-       [(if id
-          {(cn/crud-event-name component entity-name :Lookup)
-           (merge
-            (when-not path
-              (let [id-attr (cn/identity-attribute-name entity-name)]
-                {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
-            (maybe-path-attribute path))}
-          {(cn/crud-event-name component entity-name :LookupAll)
-           (or (maybe-path-attribute path) {})})
-        nil]))))
+     [(if id
+        {(cn/crud-event-name component entity-name :Lookup)
+         (merge
+          (when-not path
+            (let [id-attr (cn/identity-attribute-name entity-name)]
+              {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+          (maybe-path-attribute path))}
+        {(cn/crud-event-name component entity-name :LookupAll)
+         (or (maybe-path-attribute (when path (str path "%"))) {})})
+      nil])))
 
 (def process-delete-request
   (partial
@@ -305,10 +305,11 @@
     q))
 
 (defn do-query [query-fn request-obj data-fmt]
-  (if-let [q (preprocess-query (:Query request-obj))]
-    (let [result (query-fn (li/split-path (:from q)) q)]
-      (ok (first result) data-fmt))
-    (bad-request (str "not a valid query request - " request-obj))))
+  (let [request-obj (su/keys-as-keywords request-obj)]
+    (if-let [q (preprocess-query (:Query request-obj))]
+      (let [result (query-fn (li/split-path (:from q)) q)]
+        (ok (first result) data-fmt))
+      (bad-request (str "not a valid query request - " request-obj)))))
 
 (defn- process-query [_ [_ maybe-unauth] query-fn request]
   (or (maybe-unauth request)
