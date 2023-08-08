@@ -9,7 +9,8 @@
 (def id-attr :__Id__)
 (def with-types-tag :with-types)
 
-(def path-attr :PATH)
+(def path-attr :__path__)
+(def path-attr? :__path__?)
 
 (def path-query-prefix "path:/")
 (def path-query-prefix-len (count path-query-prefix))
@@ -48,9 +49,8 @@
    :default default-path
    :unique true
    :indexed true})
-(def path-attr-q :PATH?)
 
-(def meta-attr :INSTMETA)
+(def meta-attr :__instmeta__)
 (def meta-attr-spec {:type :Fractl.Kernel.Lang/Map
                      :optional true})
 (def reserved-attrs #{path-attr meta-attr})
@@ -354,8 +354,17 @@
     (u/throw-ex (str errmsg " - " x)))
   x)
 
-(def validate-name (partial validate (partial name? no-restricted-chars?) "not a valid name"))
-(def validate-name-relaxed (partial validate name? "not a valid name"))
+(defn- valid-name?
+  ([char-predic n]
+   (or (= path-attr n)
+       (= meta-attr n)
+       (if char-predic
+         (name? char-predic n)
+         (name? n))))
+  ([n] (valid-name? nil n)))
+
+(def validate-name (partial validate (partial valid-name? no-restricted-chars?) "not a valid name"))
+(def validate-name-relaxed (partial validate valid-name? "not a valid name"))
 (def validate-clj-imports (partial validate clj-import-list? "not a valid clj-import list"))
 
 (defn validate-bool [attrname v]
@@ -426,6 +435,11 @@
 
 (defn query-pattern? [a]
   (and (keyword? a) (s/ends-with? (name a) "?")))
+
+(defn query-instance-pattern? [obj]
+  (or (query-pattern? obj)
+      (and (map? obj)
+           (some query-pattern? (keys (record-attributes obj))))))
 
 (defn name-as-query-pattern [n]
   (keyword (str (subs (str n) 1) "?")))
@@ -562,3 +576,15 @@
 (defn internal-attribute-name? [n]
   (let [[_ n] (split-path n)]
     (s/starts-with? (name n) "G__")))
+
+(defn between-nodenames [node1 node2 relmeta]
+  (or (:as relmeta)
+      (let [[_ n1] (split-path node1)
+            [_ n2] (split-path node2)]
+        (if (= n1 n2)
+          [(keyword (str (name n1) "1"))
+           (keyword (str (name n2) "2"))]
+          [n1 n2]))) )
+
+(defn name-str [n]
+  (subs (str n) 1))
