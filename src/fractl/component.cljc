@@ -1654,6 +1654,9 @@
                   [% :between that])))
            rels))))
 
+(defn has-between-relationship? [recname relname]
+  (some #{relname} (map first (between-relationships recname))))
+
 (defn contains-entities [relname]
   (mt/contains (fetch-meta relname)))
 
@@ -1753,14 +1756,20 @@
   (dissoc-system-attributes
    (get-in @components [:raw recname])))
 
-(defn normalize-between-attribute-names [relname from to]
-  (or (:as (relationship-meta (fetch-meta relname)))
-      (let [f (second (li/split-path from))
-            t (second (li/split-path to))]
-        (if (= from to)
-          [(keyword (str (name f) "1"))
-           (keyword (str (name t) "2"))]
-          [f t]))))
+(defn between-attribute-names [relname from to]
+  (let [relmeta (relationship-meta (fetch-meta relname))]
+    (li/between-nodenames from to relmeta)))
+
+(defn find-between-keys [relname entity-name]
+  (let [entity-name (li/make-path entity-name)
+        [node1 node2] (relationship-nodes relname)
+        [a1 a2 :as ks] (between-attribute-names relname node1 node2)]
+    (if (= entity-name node1 node2)
+      ks
+      [(cond
+         (= node1 entity-name) a1
+         (= node2 entity-name) a2
+         :else (u/throw-ex (str entity-name " not in relationship - " relname)))])))
 
 (defn fetch-default-attribute-values [schema]
   (into
@@ -1845,28 +1854,41 @@
       (assoc-in inst path (dissoc ps user))
       inst)))
 
-(defn instance-to-partial-path [child-type parent-inst]
-  (let [pt (instance-type-kw parent-inst)
-        ct (li/make-path child-type)]
-    (if-let [rel (parent-relationship pt ct)]
-      (let [pp (li/path-attr parent-inst)
-            rn (li/encoded-uri-path-part rel)]
-        (if pp
-          (str (li/path-query-string pp) "/" rn)
-          (str "/" (li/encoded-uri-path-part pt)
-               "/" ((identity-attribute-name pt) parent-inst)
-               "/" rn)))
-      (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
+(defn instance-to-partial-path
+  ([child-type parent-inst relname]
+   (let [pt (instance-type-kw parent-inst)
+         ct (li/make-path child-type)]
+     (if-let [rel (or relname (parent-relationship pt ct))]
+       (let [pp (li/path-attr parent-inst)
+             rn (li/encoded-uri-path-part rel)]
+         (if pp
+           (str (li/path-query-string pp) "/" rn)
+           (str "/" (li/encoded-uri-path-part pt)
+                "/" ((identity-attribute-name pt) parent-inst)
+                "/" rn)))
+       (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
+  ([child-type parent-inst]
+   (instance-to-partial-path child-type parent-inst nil)))
 
-(defn instance-to-full-path [child-type child-id parent-inst]
-  (if (entity-instance? parent-inst)
-    (let [[c _] (li/split-path child-type)]
-      (str (li/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst))
-           "/" (li/encoded-uri-path-part child-type) "/" child-id))
-    parent-inst))
+(defn instance-to-full-path
+  ([child-type child-id parent-inst relname]
+   (let [parent-inst (cond
+                       (map? parent-inst)
+                       parent-inst
+
+                       (seqable? parent-inst)
+                       (first parent-inst)
+
+                       :else parent-inst)]
+     (when (entity-instance? parent-inst)
+       (let [[c _] (li/split-path child-type)]
+         (str (li/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst relname))
+              "/" (li/encoded-uri-path-part child-type) "/" child-id)))))
+  ([child-type child-id parent-inst]
+   (instance-to-full-path child-type child-id parent-inst nil)))
 
 (defn full-path-from-references
-  ([parent-inst child-id child-type-str]
-   (instance-to-full-path (keyword child-type-str) (or child-id "%") parent-inst))
-  ([parent-inst child-type-str]
-   (full-path-from-references parent-inst nil child-type-str)))
+  ([parent-inst relname child-id child-type-str]
+   (instance-to-full-path (keyword child-type-str) (or child-id "%") parent-inst relname))
+  ([parent-inst relname child-type-str]
+   (full-path-from-references parent-inst relname nil child-type-str)))

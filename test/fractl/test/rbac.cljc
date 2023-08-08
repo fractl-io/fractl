@@ -212,10 +212,10 @@
                           {:Wcr/F
                            {:Id id
                             :Y (* 5 id)}}
-                          :PATH (str "/E/" e "/R")}})
+                          li/path-attr (str "/E/" e "/R")}})
              lookup-fs (fn [e]
                          {:Wcr/LookupAll_F
-                          {:PATH (fq (str "path://E/" e "/R/F/%"))}})
+                          {li/path-attr (fq (str "path://E/" e "/R/F/%"))}})
              with-u1 (partial with-user "u1@wcr.com")
              e1 (tu/first-result (with-u1 (create-e 1)))
              [f1 f2 :as fs] (mapv #(tu/first-result (with-u1 (create-f 1 %))) [10 20])]

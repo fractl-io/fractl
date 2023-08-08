@@ -441,18 +441,20 @@
   (when (some li/query-pattern? (keys attrs))
     attrs))
 
-(defn- parse-rel-spec [spec]
-  (if (or (string? spec) (keyword? spec))
-    [spec nil]
-    (let [f (first spec)]
-      (cond
-        (= :like f)
-        [spec nil]
+(defn- extract-filter-patterns [spec]
+  (when-let [ps (seq
+                 (filter
+                  #(let [r (first %)]
+                     (and (map? r)
+                          (li/query-instance-pattern? r)))
+                  spec))]
+    (vec ps)))
 
-        (or (string? f) (keyword? f))
-        [f (seq (rest spec))]
-
-        :else [nil spec]))))
+(defn- extract-query-attrs [obj]
+  (when-let [filter-pat (and (seqable? obj) (first obj))]
+    (when (map? filter-pat)
+      (set (mapv #(li/normalize-name (first %))
+                 (filter #(li/query-pattern? (first %)) (li/record-attributes filter-pat)))))))
 
 (declare compile-query-command)
 
@@ -469,9 +471,9 @@
 
     (li/instance-pattern? pat)
     (let [rel-spec (li/rel-tag pat)
-          [[rel-path filter-pats] pat]
+          [filter-pats pat]
           (if rel-spec
-            [(parse-rel-spec rel-spec) (dissoc pat li/rel-tag)]
+            [(extract-filter-patterns rel-spec) (dissoc pat li/rel-tag)]
             [nil pat])
           orig-nm (ctx/dynamic-type ctx (li/instance-pattern-name pat))
           full-nm (li/normalize-name orig-nm)
@@ -484,11 +486,6 @@
           attrs (li/instance-pattern-attrs pat)
           is-query-upsert (or (li/query-pattern? orig-nm)
                               (some li/query-pattern? (keys attrs)))
-          attrs (if rel-path
-                  (assoc
-                   attrs (if is-query-upsert li/path-attr-q li/path-attr)
-                   rel-path)
-                  attrs)
           alias (:as pat)
           timeout-ms (ls/timeout-ms-tag pat)
           [tag scm] (if (or path refs)
@@ -509,10 +506,10 @@
                           {:timeout-ms timeout-ms})
                         (when filter-pats
                           {:filter-by
-                           (compile-pattern
-                            ctx (if (map? filter-pats)
-                                  filter-pats
-                                  (first filter-pats)))}))
+                           (mapv #(let [opc (compile-pattern ctx %)
+                                        qattrs (extract-query-attrs %)]
+                                    {:opcodes opc :query-attrs qattrs})
+                                 filter-pats)}))
             opc (c ctx nm attrs scm args)]
         (ctx/put-record! ctx nm pat)
         (when alias
@@ -869,19 +866,107 @@
        (catch js/Error e
          (report-compiler-error all-patterns n e)))))
 
-(defn- preproc-relspec [pat relspec]
-  (cond
-    (and (vector? relspec) (vector? (first relspec)))
-    (let [v (keyword (name (gensym)))
-          parent-only (= 1 (count (first relspec)))]
-      [[:eval `(fractl.component/full-path-from-references
-                ~@(first relspec) ~(subs (str (li/normalize-name (li/record-name pat))) 1))
-        :as v]
-       (assoc pat li/rel-tag (if-let [r (seq (rest relspec))]
-                               `[~v ~@r]
-                               (if parent-only [:like v] v)))])
+(defn- newname []
+  (keyword (name (gensym))))
 
-    :else [pat]))
+(declare preproc-relspec-helper)
+
+(defn- flatten-preproc-patterns [pats]
+  (vec (apply concat (mapv :patterns pats))))
+
+(defn- find-preproc-alias [pats]
+  (:alias (first (filter :alias pats))))
+
+(defn- maybe-preproc-parent-pat [pat]
+  (if (keyword? pat)
+    [{:alias pat}]
+    (if-let [relspec (li/rel-tag pat)]
+      (preproc-relspec-helper pat relspec)
+      (let [alias (or (:as pat) (newname))]
+        [{:patterns [(assoc pat :as alias)] :alias alias}]))))
+
+(defn maybe-append-path-identity-pattern [path path-ident]
+  (if (s/ends-with? path "%")
+    (s/replace path "%" (str path-ident))
+    path))
+
+(defn- preproc-contains-spec [pat pat-alias relpat nodepat idpat]
+  (let [pk (li/record-name pat)
+        recname (li/normalize-name pk)
+        relname (li/normalize-name relpat)]
+    (when-not (= relname (ffirst (cn/containing-parents recname)))
+      (u/throw-ex (str "not a valid contains relationship for " recname " - " relname)))
+    (let [v (newname)
+          pp (maybe-preproc-parent-pat nodepat)
+          pp-alias (find-preproc-alias pp)
+          is-rel-q (li/query-pattern? relpat)
+          is-pat-q (li/query-instance-pattern? pat)
+          attrs (assoc (li/record-attributes pat)
+                       (if is-rel-q
+                         li/path-attr?
+                         li/path-attr)
+                       v)
+          pat (assoc pat pk attrs)
+          rec-s (li/name-str recname)
+          rel-s (li/name-str relname)
+          pats [[:eval
+                 (if idpat
+                   `(fractl.component/full-path-from-references ~pp-alias ~rel-s ~idpat ~rec-s)
+                   `(fractl.component/full-path-from-references ~pp-alias ~rel-s ~rec-s))
+                 :as v]
+                (assoc pat :as pat-alias)]
+          post-pats (when (and (not idpat) (not (and is-rel-q is-pat-q)))
+                      (let [ident (cn/identity-attribute-name recname)]
+                        [{recname
+                          {(li/name-as-query-pattern ident)
+                           (li/make-ref pat-alias ident)
+                           li/path-attr `(fractl.compiler/maybe-append-path-identity-pattern
+                                          ~v ~(cn/path-identity-attribute-name recname))}
+                          :as pat-alias}]))]
+      {:patterns (vec (concat (flatten-preproc-patterns pp) pats post-pats))
+       :alias pat-alias})))
+
+(defn- add-between-refs [relattrs relmeta [from-recname from-alias] [to-recname to-alias]]
+  (let [[a1 a2] (li/between-nodenames from-recname to-recname relmeta)
+        ids (name li/id-attr)
+        f #(keyword (str (name %) "." ids))]
+    (assoc relattrs a1 (f from-alias) a2 (f to-alias))))
+
+(defn- preproc-between-spec [pat pat-alias relpat nodepat idpat]
+  (when-not (li/query-instance-pattern? relpat)
+    (let [relattrs (li/record-attributes relpat)
+          relname (li/record-name relpat)
+          relmeta (cn/relationship-meta (cn/fetch-meta relname))]
+      (if (vector? nodepat)
+        (let [[nodetype alias] nodepat]
+          {:patterns [{relname (add-between-refs
+                                relattrs relmeta
+                                [(li/normalize-name (li/record-name pat)) pat-alias]
+                                [nodetype alias])}]})
+        (let [alias (or (:as nodepat) (newname))
+              nodepat (assoc nodepat :as alias)]
+          (when-not (cn/has-between-relationship? (li/record-name pat) relname)
+            (u/throw-ex (str relname " is not in the between-relationship " relname)))
+          {:patterns [nodepat {relname (add-between-refs
+                                        relattrs relmeta
+                                        [(li/normalize-name (li/record-name pat)) pat-alias]
+                                        [(li/normalize-name (li/record-name nodepat)) alias])}]})))))
+
+(defn- preproc-relspec-entry [pat pat-alias [relpat nodepat idpat]]
+  (if (keyword? relpat)
+    (preproc-contains-spec pat pat-alias relpat nodepat idpat)
+    (preproc-between-spec pat pat-alias relpat nodepat idpat)))
+
+(defn- preproc-relspec-helper [pat relspec]
+  (let [pat-alias (or (:as pat) (newname))
+        new-pats (mapv (partial preproc-relspec-entry pat pat-alias) relspec)
+        has-contains (some #(keyword? (first %)) relspec)
+        inst-pat (when-not has-contains [{:patterns [(assoc pat :as pat-alias)]}])]
+    (when (and (seq new-pats) (every? identity new-pats))
+      (concat inst-pat new-pats [{:patterns [pat-alias]}]))))
+
+(defn- preproc-relspec [pat relspec]
+  (flatten-preproc-patterns (preproc-relspec-helper pat relspec)))
 
 (defn- preproc-patterns [dfpats]
   (loop [pats dfpats, final-pats []]
@@ -889,7 +974,7 @@
       (if-let [relspec (and (map? p) (li/rel-tag p))]
         (recur (rest pats) (vec (concat final-pats (preproc-relspec p relspec))))
         (recur (rest pats) (conj final-pats p)))
-      final-pats)))
+      (if (seq final-pats) final-pats dfpats))))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
