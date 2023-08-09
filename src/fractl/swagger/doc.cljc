@@ -1,25 +1,8 @@
 (ns fractl.swagger.doc
   (:require [fractl.component :as cn]
-            [fractl.util.http :as uh]
-            [ring.swagger.swagger2 :as rs]
-            [schema.core :as s]
+            [fractl.util.http :as uh] 
             [cheshire.core :as json]
-            [clojure.string :as str])
-  (:import [java.lang String Integer Double Float Boolean]
-           [java.util Date UUID]
-           [java.time LocalDate LocalTime]))
-
-(defn get-entity-from-event [event]
-  (let [event (name event)]
-    (if-let [found (str/last-index-of event "_")]
-      (subs event (inc found))
-      event)))
-
-(defn get-event-type [event]
-  (let [en (name event)]
-    (cond
-      (str/starts-with? en "Upsert_") :Upsert
-      :else nil)))
+            [clojure.string :as str]))
 
 (def fractlType->swaggerType
   {:Fractl.Kernel.Lang/String {:type "string"}
@@ -100,6 +83,18 @@
     (filter (fn [e]
               (not (contains? def-events e))) all-events)))
 
+(defn get-event-return-type [event]
+  (when-let [patterns (-> (cn/dataflows-for-event event)
+                          first second :patterns)]
+    (let [last-entity (if (map? (last patterns)) (last patterns) (last (butlast patterns)))
+          last-entity-name (-> last-entity first first)
+          last-entity-name
+          (if (= \? (last (name last-entity-name)))
+            (keyword (str (namespace last-entity-name) "/"
+                          (apply str (butlast (name last-entity-name)))))
+            last-entity-name)]
+      (fractl-entity-to-swagger last-entity-name))))
+
 (defn get-entities-info [entities]
   (map
    (fn [entity-full-name]
@@ -132,8 +127,9 @@
    (fn [event]
      (let [event-schema (dissoc (cn/event-schema event) :EventContext :inferred)
            swagger-schema (zipmap (map name (keys event-schema))
-                                  (map get-clojure-type (vals event-schema)))]
-       [event swagger-schema])) events))
+                                  (map get-clojure-type (vals event-schema)))
+           event-return-type (get-event-return-type event)]
+       [event swagger-schema event-return-type])) events))
 
 (defn generate-swagger-json
   "Generate swagger JSON based on the information in a Fractl 
@@ -151,7 +147,7 @@
           merge
           (concat
            (map
-            (fn [[event-name _]]
+            (fn [[event-name _ _]]
               {(str "/_e/" (namespace event-name) "/" (name event-name))
                {:post
                 {:tags
@@ -160,7 +156,7 @@
                  {"$ref" (str "#/components/requestBodies/" (name event-name))},
                  :responses
                  {"200"
-                  {:description "successful operation"}}}}})
+                  {"$ref" (str "#/components/responses/" (name event-name))}}}}})
             events)
            (map
             (fn [[_ entity-name rest-path _ route-params-vars route-params-all]]
@@ -212,7 +208,7 @@
            merge
            (concat
             (map
-             (fn [[event-name event-schema]]
+             (fn [[event-name event-schema _]]
                {(keyword (name event-name))
                 {:required true,
                  :content
@@ -240,25 +236,48 @@
           :responses
           (apply
            merge
-           (map
-            (fn [[_ entity-name _ swagger-types _ _]]
-              {(keyword entity-name)
-               {:description "Success",
-                :content
-                {"application/json"
-                 {:schema
-                  {:type "object",
-                   :properties
-                   {"status"
-                    {:type "string",
-                     :example "ok"},
-                    "result"
-                    {:type "array",
-                     :items
-                     {:type "object",
-                      :properties swagger-types}},
-                    "message"
-                    {:type "string",
-                     :nullable true,
-                     :example nil}}}}}}}) entities))}}]
+           (concat
+            (map
+             (fn [[event-name _ event-return-type]]
+               {(keyword (name event-name))
+                {:description "Success",
+                 :content
+                 {"application/json"
+                  {:schema
+                   {:type "object",
+                    :properties
+                    {"status"
+                     {:type "string",
+                      :example "ok"},
+                     "result"
+                     {:type "array",
+                      :items
+                      {:type "object",
+                       :properties event-return-type}},
+                     "message"
+                     {:type "string",
+                      :nullable true,
+                      :example nil}}}}}}})
+             events)
+            (map
+             (fn [[_ entity-name _ swagger-types _ _]]
+               {(keyword entity-name)
+                {:description "Success",
+                 :content
+                 {"application/json"
+                  {:schema
+                   {:type "object",
+                    :properties
+                    {"status"
+                     {:type "string",
+                      :example "ok"},
+                     "result"
+                     {:type "array",
+                      :items
+                      {:type "object",
+                       :properties swagger-types}},
+                     "message"
+                     {:type "string",
+                      :nullable true,
+                      :example nil}}}}}}}) entities)))}}]
     (json/generate-string swag-spec)))
