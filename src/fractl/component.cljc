@@ -1686,9 +1686,10 @@
    [:Create :Update :Delete :Lookup :LookupAll]))
 
 (defn- only-internal-attrs [scm]
-  (mapv #(second (li/split-path %))
-        (filter li/internal-attribute-name?
-                (vals (dissoc scm id-attr)))))
+  (when-not (inferred-event-schema? scm)
+    (mapv #(second (li/split-path %))
+          (filter li/internal-attribute-name?
+                  (vals (dissoc scm id-attr))))))
 
 (defn remove-record [recname]
   (when-let [[tag {scm :schema}] (find-schema recname)]
@@ -1701,7 +1702,9 @@
             (assoc comp-scm :attribute (dissoc attrs n))
             (let [recs (:records comp-scm)
                   evts (:events comp-scm)
-                  new-attrs (apply dissoc attrs (only-internal-attrs scm))
+                  new-attrs (apply
+                             dissoc attrs
+                             (only-internal-attrs scm))
                   new-recs (dissoc recs n)
                   new-evts (if (= tag :event)
                              (dissoc evts n)

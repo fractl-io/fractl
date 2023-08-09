@@ -8,6 +8,8 @@
             [clojure.walk :as w]
             [fractl.auth.core :as auth]
             [fractl.component :as cn]
+            [fractl.compiler :as compiler]
+            [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.util :as u]
             [fractl.util.seq :as su]
@@ -211,12 +213,29 @@
   (or (maybe-unauth request)
       (if-let [parsed-path (parse-rest-uri request)]
         (let [[obj data-fmt err-response] (request-object request)]
-          (or err-response (let [[evt err] (handler parsed-path obj)]
+          (or err-response (let [[event-gen err] (handler parsed-path obj)]
                              (if err
                                err
-                               (let [evt (assoc-event-context request auth-config evt)]
-                                 (ok (evaluate evaluator evt data-fmt) data-fmt))))))
+                               (let [[evt post-fn] (if (fn? event-gen) (event-gen) [event-gen nil])
+                                     evt (assoc-event-context request auth-config evt)
+                                     result (try
+                                              (ok (evaluate evaluator evt data-fmt) data-fmt)
+                                              (finally
+                                                (when post-fn (post-fn))))]
+                                 result)))))
         (bad-request (str "invalid request uri - " (:* (:params request)))))))
+
+(defn- temp-event-name [component]
+  (li/make-path component (li/unq-name)))
+
+(defn- multi-post-request? [obj]
+  (>= 2 (count (keys obj))))
+
+(defn- maybe-generate-multi-post-event [obj component]
+  (when (multi-post-request? obj)
+    (let [event-name (temp-event-name component)]
+      (and (apply ln/dataflow event-name (compiler/parse-relationship-tree obj))
+           event-name))))
 
 (def process-post-request
   (partial
@@ -224,12 +243,14 @@
    (fn [{entity-name :entity component :component path :path} obj]
      (if (cn/event? entity-name)
        [obj nil]
-       [{(cn/crud-event-name component entity-name :Create)
-         (merge
-          {:Instance obj}
-          (when path
-            {li/path-attr (li/as-partial-path path)}))}
-        nil]))))
+       (if-let [evt (maybe-generate-multi-post-event obj component)]
+         [(fn [] [{evt {}} #(cn/remove-event evt)]) nil]
+         [{(cn/crud-event-name component entity-name :Create)
+           (merge
+            {:Instance obj}
+            (when path
+              {li/path-attr (li/as-partial-path path)}))}
+          nil])))))
 
 (def process-put-request
   (partial
