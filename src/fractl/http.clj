@@ -229,7 +229,7 @@
   (li/make-path component (li/unq-name)))
 
 (defn- multi-post-request? [obj]
-  (>= 2 (count (keys obj))))
+  (>= (count (keys obj)) 2))
 
 (defn- maybe-generate-multi-post-event [obj component]
   (when (multi-post-request? obj)
