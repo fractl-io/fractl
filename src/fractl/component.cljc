@@ -1756,9 +1756,14 @@
   (dissoc-system-attributes
    (get-in @components [:raw recname])))
 
-(defn between-attribute-names [relname from to]
-  (let [relmeta (relationship-meta (fetch-meta relname))]
-    (li/between-nodenames from to relmeta)))
+(defn between-attribute-names
+  ([relname from to]
+   (let [relmeta (relationship-meta (fetch-meta relname))]
+     (li/between-nodenames from to relmeta)))
+  ([relname from]
+   (let [[a b] (mt/between (fetch-meta relname))
+         to (if (= from a) b a)]
+     (between-attribute-names relname from to))))
 
 (defn find-between-keys [relname entity-name]
   (let [entity-name (li/make-path entity-name)

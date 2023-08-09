@@ -588,3 +588,6 @@
 
 (defn name-str [n]
   (subs (str n) 1))
+
+(defn id-ref [recname]
+  (make-ref recname id-attr))
