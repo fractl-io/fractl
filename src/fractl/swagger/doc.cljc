@@ -39,8 +39,9 @@
 (defn fractl-entity-to-swagger
   "Fractl entity to Ring Swagger compatible schema"
   [entity-name]
-  (let [entity-obj (:schema (cn/find-entity-schema entity-name))
-        entity-obj (dissoc entity-obj :PATH :INSTMETA)]
+  (let [entity-obj (:schema (cn/find-entity-schema entity-name)) 
+        entity-obj (if entity-obj (dissoc entity-obj :PATH :INSTMETA)
+                       (cn/record-schema entity-name))]
     (zipmap
      (map name (keys entity-obj))
      (map get-clojure-type (vals entity-obj)))))
@@ -86,13 +87,13 @@
 (defn get-event-return-type [event]
   (when-let [patterns (-> (cn/dataflows-for-event event)
                           first second :patterns)]
-    (let [last-entity (if (map? (last patterns)) (last patterns) (last (butlast patterns)))
-          last-entity-name (-> last-entity first first)
+    (let [comp (namespace event)
+          last-entity (if (map? (last patterns)) (last patterns) (last (butlast patterns)))
+          last-entity-name (-> last-entity first first) 
           last-entity-name
           (if (= \? (last (name last-entity-name)))
-            (keyword (str (namespace last-entity-name) "/"
-                          (apply str (butlast (name last-entity-name)))))
-            last-entity-name)]
+            (keyword (str comp "/" (apply str (butlast (name last-entity-name)))))
+            (keyword (str comp "/" (name last-entity-name))))]
       (fractl-entity-to-swagger last-entity-name))))
 
 (defn get-entities-info [entities]
@@ -231,7 +232,7 @@
                     :properties
                     {(str (namespace entity-full-name) "/" entity-name)
                      {:type "object",
-                      :properties (dissoc swagger-types "__Id__")}}}}}}})
+                      :properties (dissoc swagger-types "__Id__" "__instmeta__" "__path__")}}}}}}})
              entities)))
           :responses
           (apply
@@ -275,7 +276,7 @@
                      {:type "array",
                       :items
                       {:type "object",
-                       :properties swagger-types}},
+                       :properties (dissoc swagger-types "__instmeta__" "__path__")}},
                      "message"
                      {:type "string",
                       :nullable true,
