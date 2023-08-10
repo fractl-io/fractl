@@ -13,6 +13,8 @@
         true)
       (close-connection [_]
         true)
+      (parse-connection-info [_ connection-info]
+        connection-info)
       (connection-info [_]
         (if @datasource
           @datasource

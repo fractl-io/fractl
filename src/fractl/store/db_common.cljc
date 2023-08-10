@@ -5,9 +5,11 @@
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
+            [fractl.lang.raw :as raw]
             [fractl.store.util :as su]
             [fractl.store.sql :as sql]
             [fractl.util.seq :as us]
+            [fractl.util.logger :as log]
             #?(:clj [fractl.store.jdbc-internal :as ji])
             #?(:cljs [fractl.store.alasql-internal :as aqi])))
 
@@ -136,8 +138,8 @@
               (cn/compound-unique-attributes ename)
               post-init-sqls))))
        (doseq [sql @post-init-sqls]
-         (execute-sql! txn [sql]))))
-    component-name))
+         (execute-sql! txn [sql]))
+       component-name))))
 
 (defn drop-schema
   "Remove the schema from the database, perform a non-cascading delete."

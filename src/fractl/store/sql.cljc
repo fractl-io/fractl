@@ -30,8 +30,10 @@
   [:and [:= su/deleted-flag-col-kw false] where])
 
 (defn format-sql [table-name query]
-  (let [wildcard (make-wildcard query)
-        final-pattern
+  (let [group-by (:group-by query)
+        query (if group-by (dissoc query :group-by) query)
+        wildcard (make-wildcard query)
+        interim-pattern
         (maybe-remove-where
          (if (map? query)
            (merge
@@ -49,7 +51,10 @@
                            [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
                            (seqable? f) f
                            :else where-clause))))
-               p))))]
+               p))))
+        final-pattern (if group-by
+                        (assoc interim-pattern :group-by (mapv #(keyword (str "_" (name %))) group-by))
+                        interim-pattern)]
     (hsql/format final-pattern)))
 
 (defn- concat-where-clauses [clauses]

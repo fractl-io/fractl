@@ -15,11 +15,15 @@
 (defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
-      (open-connection [store connection-info]
+      (parse-connection-info [store connection-info]
         (let [connection-info (su/normalize-connection-info connection-info)
               jdbc-url (str url-prefix (:dbname connection-info) ";MODE=PostgreSQL")
               username (or (:username connection-info) "sa")
               password (or (:password connection-info) "sa")]
+          {:url jdbc-url :username username :password password}))
+      (open-connection [store connection-info]
+        (let [{jdbc-url :url username :username password :password}
+              (p/parse-connection-info store connection-info)]
           (u/safe-set-once
            datasource
            #(let [dbspec {:driver-class driver-class
