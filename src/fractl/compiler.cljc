@@ -866,8 +866,7 @@
        (catch js/Error e
          (report-compiler-error all-patterns n e)))))
 
-(defn- newname []
-  (keyword (name (gensym))))
+(def ^:private newname li/unq-name)
 
 (declare preproc-relspec-helper)
 
@@ -1066,3 +1065,39 @@
         exp `(fn [~runtime-env-var ~current-instance-var]
                (~(first aval) ~@fexprs))]
     (li/evaluate exp)))
+
+(defn- extract-node-info [tree]
+  (let [ks (keys tree)]
+    [(first (filter cn/entity? ks))
+     (first (filter cn/contains-relationship? ks))
+     (seq (filter cn/between-relationship? ks))]))
+
+(defn- instance-from-between-obj [obj]
+  (let [vs (vals obj)]
+    (when (and (= 1 (count vs)) (map? (first vs)))
+      obj)))
+
+(defn- process-between-rel-node [tree parent-name alias n]
+  (let [obj (n tree), [from to] (cn/between-attribute-names n parent-name)]
+    (if-let [inst (instance-from-between-obj obj)]
+      (let [inst-alias (newname), inst (assoc inst :as inst-alias)]
+        [inst {n {from (li/id-ref alias) to (li/id-ref inst-alias)}}])
+      [{n (assoc obj from (li/id-ref alias))}])))
+
+(defn parse-relationship-tree
+  ([parent-link tree]
+   (let [[root-entity contains-rel between-rels] (extract-node-info tree)]
+     (when (and contains-rel (not= root-entity (first (cn/contains-entities contains-rel))))
+       (u/throw-ex (str root-entity " not parent in " contains-rel)))
+     (when (and between-rels (not (every? (partial cn/has-between-relationship? root-entity) between-rels)))
+       (u/throw-ex (str root-entity " does not belong to one of " between-rels)))
+     (let [alias (newname)]
+       (flatten
+        `[~(merge {root-entity (root-entity tree) :as alias}
+                  (when parent-link {:-> [parent-link]}))
+          ~@(when contains-rel
+              (mapv (partial parse-relationship-tree [contains-rel alias]) (contains-rel tree)))
+          ~@(when between-rels
+              (mapv (partial process-between-rel-node tree root-entity alias) between-rels))
+          ~alias]))))
+  ([tree] (parse-relationship-tree nil tree)))
