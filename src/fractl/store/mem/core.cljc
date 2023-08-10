@@ -24,8 +24,6 @@
       (update-instance [_ entity-name instance]
         ;; always over-write
         (i/upsert-instance entity-name instance))
-      (load-component [_ component-name]
-        (u/throw-ex "Not implemented"))
       (upsert-instance [_ entity-name instance]
         (i/upsert-instance entity-name instance))
       (delete-by-id [_ entity-name id-attr-name id]
