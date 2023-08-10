@@ -357,10 +357,14 @@
     (u/throw-ex (str errmsg " - " x)))
   x)
 
+(defn auto-generated-name? [n]
+  (s/starts-with? (name n) "G__"))
+
 (defn- valid-name?
   ([char-predic n]
    (or (= path-attr n)
        (= meta-attr n)
+       (auto-generated-name? n)
        (if char-predic
          (name? char-predic n)
          (name? n))))
@@ -578,7 +582,7 @@
 
 (defn internal-attribute-name? [n]
   (let [[_ n] (split-path n)]
-    (s/starts-with? (name n) "G__")))
+    (auto-generated-name? n)))
 
 (defn between-nodenames [node1 node2 relmeta]
   (or (:as relmeta)
@@ -591,3 +595,6 @@
 
 (defn name-str [n]
   (subs (str n) 1))
+
+(defn id-ref [recname]
+  (make-ref recname id-attr))

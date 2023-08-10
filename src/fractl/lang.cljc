@@ -841,6 +841,15 @@
        delevt [[:delete child {li/path-attr (evt-path-attr delevt)}]]))
     relname))
 
+(declare relationship)
+
+(defn- regen-between-relationships [contains-child]
+  (doseq [[rel _ _] (seq (cn/between-relationships contains-child))]
+    (let [old-def (raw/find-relationship rel)]
+      (cn/remove-record rel)
+      (relationship rel old-def)))
+  contains-child)
+
 (defn- validate-rbac-owner [rbac nodes]
   (when-let [own (li/owner rbac)]
     (when-not (some #{own} nodes)
@@ -892,6 +901,7 @@
       (if (entity child child-attrs)
         (if (cn/register-relationship elems relname)
           (and (regen-contains-dataflows relname elems)
+               (regen-between-relationships (second elems))
                (raw/relationship relname raw-attrs) r)
           (u/throw-ex (str "failed to register relationship - " relname)))
         (u/throw-ex (str "failed to regenerate schema for " child)))
@@ -940,11 +950,6 @@
          contains (mt/contains meta)
          between (when-not contains (mt/between meta))
          [elems relmeta] (parse-relationship-member-spec (or contains between))]
-     (when-let [child (and contains (second elems))]
-       (when (seq (cn/between-relationships child))
-         (u/throw-ex
-          (str child " already is one or more between relationships, "
-               "they can be defined only after " relation-name))))
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - "

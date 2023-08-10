@@ -14,6 +14,15 @@
 (defn- remrec [tag record-name elems]
   (filter (fn [[t r _]] (not (and (= record-name r) (= tag t)))) elems))
 
+(defn find-element [tag record-name]
+  (let [s @raw-store
+        [c n] (li/split-path record-name)
+        cdef (get s c), elems (get cdef :elems)]
+    (nth (first (filter (fn [[t r _]] (and (= record-name r) (= tag t))) elems)) 2)))
+
+(def find-entity (partial find-element 'entity))
+(def find-relationship (partial find-element 'relationship))
+
 (defn element
   ([tag delete-only record-name attrs]
    (let [s @raw-store
@@ -78,6 +87,7 @@
        (get cdef :elems))))))
 
 (def entity-attributes (partial fetch-attributes 'entity))
+(def relationship-attributes entity-attributes)
 
 (defn entity-attributes-include-inherits [entity-name]
   (let [raw-attrs (entity-attributes entity-name)
