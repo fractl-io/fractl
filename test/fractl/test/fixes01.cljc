@@ -428,7 +428,9 @@
           (recur (rest names) (remove #(= n (second %)) result))
           result)))
     (is (every? (p) (rem-dfs [:I968/A :I968/B] dfs)))
+    (is (seq (cn/dataflows-for-event :I968/C)))
     (mapv cn/remove-record [:I968/C :I968/K])
+    (is (not (seq (cn/dataflows-for-event :I968/C))))
     (let [r (rest (raw/as-edn :I968))]
       (is (= '(component :I968) (first r)))
       (is (nil? (seq (rest r)))))
