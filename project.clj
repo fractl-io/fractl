@@ -38,7 +38,6 @@
                  [buddy/buddy-core "1.6.0"]
                  [buddy/buddy-sign "3.1.0"]
                  [org.clojure/algo.generic "0.1.3"]
-                 [metosin/ring-swagger "0.26.2"]
                  [cheshire "5.11.0"]]
 
   :java-source-paths ["src/java"]
