@@ -29,8 +29,6 @@
      schema does not exist. On failure, raise an exception.")
   (fetch-schema [store]
     "Return the schema as a map. Return nil if the schema cannot be retrieved.")
-  (load-component [store component-name]
-    "Return the last-saved component definition")
   (create-table [store entity-name]
     "Create a table for a newly defined entity.")
   (upsert-instance [store entity-name instance]

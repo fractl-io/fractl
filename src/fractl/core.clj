@@ -354,10 +354,6 @@
 
 (defn- db-migrate [config]
   (let [store (store-from-config config)]
-    (binding [*default-data-reader-fn* tagged-literal]
-      (doseq [cn (cn/component-names)]
-        (when-let [s (store/load-component store cn)]
-          (mg/diff cn (rest (read-string s))))))
     (mg/migrate (mg/init store (:store config)))))
 
 (defn -main [& args]

@@ -119,38 +119,6 @@
     db-schema-name
     (u/throw-ex (str "Failed to drop schema - " db-schema-name))))
 
-(def ^:private components-defs-table-name "__fractl_components")
-
-(defn- maybe-create-components-table! [connection]
-  (when-not (execute-sql! connection [(str "CREATE TABLE IF NOT EXISTS " components-defs-table-name
-                                           " (name VARCHAR PRIMARY KEY, defs VARCHAR)")])
-    (u/throw-ex (str "Failed to create component-definitions table"))))
-
-(defn- insert-component-definition! [connection component-name]
-  (if (execute-sql! connection [(str "DELETE FROM " components-defs-table-name
-                                     " WHERE name ='" (str component-name) "'")])
-    (when-not (execute-sql! connection [(str "INSERT INTO " components-defs-table-name
-                                             " VALUES('" (str component-name) "', '"
-                                             (str (raw/as-edn component-name)) "')")])
-      (u/throw-ex (str "Failed to persist component-definitions - " component-name)))
-    (u/throw-ex (str "Failed to delete old component-definitions - " component-name))))
-
-(defn- save-component [connection component-name]
-  (maybe-create-components-table! connection)
-  (insert-component-definition! connection component-name)
-  component-name)
-
-(defn load-component [datasource component-name]
-  (try
-    (execute-fn!
-     datasource
-     (fn [txn]
-       (when-let [rs (seq (execute-sql! txn [(str "SELECT defs FROM " components-defs-table-name
-                                                  " WHERE name = '" (str component-name) "'")]))]
-         (first (vals (first rs))))))
-    (catch Exception ex
-      (log/error ex) nil)))
-
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
@@ -171,7 +139,7 @@
               post-init-sqls))))
        (doseq [sql @post-init-sqls]
          (execute-sql! txn [sql]))
-       (save-component txn component-name)))))
+       component-name))))
 
 (defn drop-schema
   "Remove the schema from the database, perform a non-cascading delete."
