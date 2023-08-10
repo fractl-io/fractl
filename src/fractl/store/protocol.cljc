@@ -16,6 +16,8 @@
   (close-connection [store]
     "Close the active connection, return true on success, false if the connection
      cannot be closed.")
+  (parse-connection-info [store connection-info]
+    "Parse a map into the connection information specific to the store.")
   (connection-info [store]
     "Return information about the current connection")
   (create-schema [store component-name]

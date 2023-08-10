@@ -6,7 +6,8 @@
             [fractl.store.util :as su]
             [fractl.store.jdbc-cp :as cp]
             [fractl.store.db-common :as db]
-            [fractl.store.postgres-internal :as pi])
+            [fractl.store.postgres-internal :as pi]
+            [fractl.store.migration :as mg])
   (:import [org.postgresql.util PSQLException]))
 
 (def ^:private driver-class "org.postgresql.Driver")
@@ -99,7 +100,7 @@
 (defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
-      (open-connection [store connection-info]
+      (parse-connection-info [_ connection-info]
         (let [connection-info (su/normalize-connection-info connection-info)
               jdbc-url (str jdbc-url-prefix
                             (or (:host connection-info)
@@ -115,6 +116,10 @@
                            "postgres")
               password (or (:password connection-info)
                            (System/getenv "POSTGRES_PASSWORD"))]
+          {:url jdbc-url :username username :password password}))
+      (open-connection [store connection-info]
+        (let [{jdbc-url :url username :username password :password}
+              (p/parse-connection-info store connection-info)]
           (u/safe-set-once
            datasource
            #(let [dbspec {:driver-class driver-class
