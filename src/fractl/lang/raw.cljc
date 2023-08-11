@@ -128,3 +128,6 @@
              ((if ordered identity reverse)
               (:elems cdef)))))))
   ([component-name] (as-edn component-name true)))
+
+(defn raw-store-reset! []
+  (u/safe-set raw-store {}))
