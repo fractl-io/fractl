@@ -8,6 +8,7 @@
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
+            [fractl.resolver.store]
             [fractl.compiler :as c]
             [fractl.component :as cn]
             [fractl.evaluator :as e]

@@ -44,6 +44,8 @@
         (i/compile-to-indexed-query query-pattern))
       (call-in-transaction [_ f]
         (f nil))
+      (plan-changeset [_ changeset-inst]
+        (u/throw-ex "Not implemented"))
       (get-reference
         [_ path refs]
         (i/get-reference path refs)))))

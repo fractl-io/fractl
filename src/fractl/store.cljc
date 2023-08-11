@@ -116,6 +116,7 @@
 (def delete-by-id p/delete-by-id)
 (def delete-all p/delete-all)
 (def delete-children p/delete-children)
+(def plan-changeset p/plan-changeset)
 
 (defn- empty-result-on-error [f]
   (try
@@ -185,3 +186,4 @@
    (query-by-unique-keys store entity-name [id-attr-name] {id-attr-name id}))
   ([store entity-name id]
    (lookup-by-id store entity-name cn/id-attr id)))
+

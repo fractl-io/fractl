@@ -1,0 +1,50 @@
+(component
+ :Fractl.Kernel.Store
+ {:refer [:Fractl.Kernel.Lang]
+  :clj-import '[(:require [clojure.set :as set])]})
+
+(def ^:private attrs-changes #{:add :alter :rename :drop})
+
+(defn- rename-col? [x]
+  (and (map? x)
+       (= 2 (count (keys x)))
+       (keyword? (:from x))
+       (keyword? (:to x))))
+
+(defn- maybe-all? [predic k obj]
+  (if-let [x (k obj)]
+    (every? predic x)
+    true))
+
+(def ^:private maybe-all-keyword? (partial maybe-all? keyword?))
+
+(defn- attributes-spec? [obj]
+  (and (map? obj)
+       (= attrs-changes (set/union (set (keys obj)) attrs-changes))
+       (if-let [xs (seq (filter identity (mapv #(% obj) [:add :alter :rename])))]
+         (every? map? xs)
+         true)
+       (maybe-all? rename-col? :rename obj)
+       (maybe-all-keyword? :drop obj)))
+
+(def ^:private constraints-keys #{:identity :index :unique :drop-index :drop-unique})
+
+(defn- constraints-spec? [obj]
+  (and (map? obj)
+       (= constraints-keys (set/union (set (keys obj)) constraints-keys))
+       (if-let [ident (:identity obj)]
+         (keyword? ident)
+         true)
+       (maybe-all-keyword? :index obj)
+       (maybe-all-keyword? :unique obj)
+       (maybe-all-keyword? :drop-unique obj)
+       (maybe-all-keyword? :drop-index obj)))
+
+(entity
+ :Changeset
+ {:Entity :Path
+  :Attributes {:check attributes-spec? :optional true}
+  :Contains {:oneof [:add :drop :none] :default :none}
+  :Operation {:oneof [:alter :drop :rename] :default :alter}
+  :Constraints {:check constraints-spec? :optional true}
+  :NewName {:type :Path :optional true}})
