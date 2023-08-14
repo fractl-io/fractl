@@ -8,6 +8,7 @@
             [fractl.util :as u]
             [fractl.util.hash :as h]
             [fractl.util.seq :as su]
+            [fractl.util.logger :as log]
             [fractl.store :as store]
             [fractl.store.util :as stu]
             [fractl.resolver.core :as r]
@@ -17,6 +18,7 @@
             [fractl.evaluator.internal :as i]
             [fractl.evaluator.intercept.core :as interceptors]
             [fractl.global-state :as gs]
+            [fractl.compiler :as cl]
             [fractl.lang :as ln]
             [fractl.lang.syntax :as ls]
             [fractl.lang.opcode :as opc]
@@ -125,26 +127,33 @@
                       raw-obj)]
     (f (f (assoc-futures record-name interim-obj) efns) qfns)))
 
-(defn- set-obj-attr [env attr-name attr-value]
-  (if attr-name
-    (if-let [xs (env/pop-obj env)]
-      (let [[env single? [n x]] xs
-            objs (if single? [x] x)
-            new-objs (mapv
-                      #(assoc
-                        % attr-name
-                        (if (fn? attr-value)
-                          (attr-value env %)
-                          attr-value))
-                      objs)
-            elem (if single? (first new-objs) new-objs)
-            env (env/push-obj env n elem)]
-        (i/ok elem (env/mark-all-dirty env new-objs)))
-      (i/error
-       (str
-        "cannot set attribute value, invalid object state - "
-        [attr-name attr-value])))
-    (i/ok attr-value env)))
+(defn- set-obj-attr
+  ([env attr-name attr-ref attr-value]
+   (if attr-name
+     (if-let [xs (env/pop-obj env)]
+       (let [[env single? [n x]] xs
+             objs (if single? [x] x)
+             new-objs (mapv
+                       #(let [attr-value (if-not (nil? attr-value)
+                                           attr-value
+                                           (when attr-ref
+                                             (attr-ref %)))]
+                          (assoc
+                           % attr-name
+                           (if (fn? attr-value)
+                             (attr-value env %)
+                             attr-value)))
+                       objs)
+             elem (if single? (first new-objs) new-objs)
+             env (env/push-obj env n elem)]
+         (i/ok elem (env/mark-all-dirty env new-objs)))
+       (i/error
+        (str
+         "cannot set attribute value, invalid object state - "
+         [attr-name attr-value])))
+     (i/ok attr-value env)))
+  ([env attr-name attr-value]
+   (set-obj-attr env attr-name nil attr-value)))
 
 (defn- call-function [env f]
   (if-let [xs (env/pop-obj env)]
@@ -1040,7 +1049,7 @@
 
     (do-set-ref-attribute [_ env [attr-name attr-ref]]
       (let [[obj env] (env/follow-reference env attr-ref)]
-        (set-obj-attr env attr-name obj)))
+        (set-obj-attr env attr-name (:path attr-ref) obj)))
 
     (do-set-compound-attribute [_ env [attr-name f]]
       (set-obj-attr env attr-name f))
@@ -1064,14 +1073,19 @@
                     inst (cn/event-context active-event))
                    inst)
             env (env/assoc-active-event env inst)
-            local-result (extract-local-result
-                          (first (eval-event-dataflows
-                                  self (if with-types
-                                         (env/bind-with-types eval-env with-types)
-                                         eval-env)
-                                  (if with-types
-                                    (assoc inst li/with-types-tag with-types)
-                                    inst))))
+            df (first
+                (cl/compile-dataflows-for-event
+                 (partial store/compile-query (:store env))
+                 (if with-types
+                   (assoc inst li/with-types-tag with-types)
+                   inst)))
+            local-result (when df
+                           (let [[_ dc] (cn/dataflow-opcode df (or with-types cn/with-default-types))
+                                 evt-result (eval-opcode self env dc)
+                                 local-result (extract-local-result evt-result)]
+                             (when-not local-result
+                               (log/error (str record-name " - event failed - " (first evt-result))))
+                             local-result))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? env inst))
             r (pack-results local-result resolver-results)

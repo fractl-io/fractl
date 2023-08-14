@@ -436,3 +436,23 @@
       (is (nil? (seq (rest r)))))
     (cn/remove-component :I968)
     (is (nil? (raw/as-edn :I968)))))
+
+(deftest issue-967-embedded-quotes-bug
+  (defcomponent :I967
+    (entity
+     :I967/Employee
+     {:Name {:type :String :identity true}
+      :S :String
+      :Roles {:listof :Keyword}})
+    (dataflow
+     :I967/CallCreateEmployee
+     {:I967/Create_Employee
+      {:Instance
+       {:I967/Employee
+        {:Name :I967/CallCreateEmployee.Name
+         :S :Name
+         :Roles [:q# [:admin [:uq# '(keyword :Name)]]]}}}}))
+  (let [e1 (tu/first-result
+            {:I967/CallCreateEmployee {:Name "abc"}})]
+    (is (cn/instance-of? :I967/Employee e1))
+    (is (= [:admin :abc] (:Roles e1)))))

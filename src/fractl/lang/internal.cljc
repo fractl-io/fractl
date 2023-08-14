@@ -400,11 +400,12 @@
   (apply dissoc pat instance-meta-keys))
 
 (defn instance-pattern? [pat]
-  (let [ks (keys (normalize-instance-pattern pat))]
-    (and (= 1 (count ks))
-         (let [k (first ks)]
-           (and (name? k)
-                (map? (get pat k)))))))
+  (when (map? pat)
+    (let [ks (keys (normalize-instance-pattern pat))]
+      (and (= 1 (count ks))
+           (let [k (first ks)]
+             (and (name? k)
+                  (map? (get pat k))))))))
 
 (defn instance-pattern-name [pat]
   (first (keys (normalize-instance-pattern pat))))
