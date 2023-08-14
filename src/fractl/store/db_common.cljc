@@ -335,23 +335,23 @@
        " TO " (as-col-name (:to spec))))
 
 (defn- alter-column [table-name [attr-name attr-type]]
-  (if-let [sql-type (sql/as-sql-type attr-type)]
+  (if-let [sql-type (sql/as-sql-type (u/string-as-keyword attr-type))]
     (str "ALTER TABLE " table-name " ALTER COLUMN " (as-col-name attr-name)
-         " " sql-type))
-  (u/throw-ex (str "failed to find sql-type for " [attr-name attr-type])))
+         " " sql-type)
+    (u/throw-ex (str "failed to find sql-type for " [attr-name attr-type]))))
 
-(defn add-column [table-name [attr-name attr-type]]
-  (if-let [sql-type (sql/as-sql-type attr-type)]
+(defn- add-column [table-name [attr-name attr-type]]
+  (if-let [sql-type (sql/as-sql-type (u/string-as-keyword attr-type))]
     (str "ALTER TABLE " table-name " ADD COLUMN " (as-col-name attr-name)
-         " " sql-type))
-  (u/throw-ex (str "failed to find sql-type for " [attr-name attr-type])))
+         " " sql-type)
+    (u/throw-ex (str "failed to find sql-type for " [attr-name attr-type]))))
 
 (defn- update-columns [table-name attrs-spec]
   (concat
-   (mapv (partial drop-column table-name) (mapv (:drop attrs-spec))
+   (mapv (partial drop-column table-name) (:drop attrs-spec))
    (mapv (partial rename-column table-name) (:rename attrs-spec))
    (mapv (partial alter-column table-name) (:alter attrs-spec))
-   (mapv (partial add-column table-name) (:add attrs-spec)))))
+   (mapv (partial add-column table-name) (:add attrs-spec))))
 
 (defn- add-unique [table-name col-name]
   (str "ALTER TABLE " table-name " ADD CONSTRAINT " (uk table-name col-name) " UNIQUE(" col-name ")"))
@@ -393,14 +393,16 @@
     (mapv #(drop-index table-name (as-col-name %)) (:drop-index spec)))))
 
 (defn plan-changeset [changeset-inst]
-  (let [ename (:Entity changeset-inst)
+  (let [ename (u/string-as-keyword (:Entity changeset-inst))
         table-name (stu/entity-table-name ename)
-        opr (:Operation changeset-inst)]
+        opr (u/string-as-keyword (:Operation changeset-inst))]
     (if (= opr :drop)
       [(table-drop table-name)]
       (su/nonils
        `[~(when (= opr :rename)
-            (table-rename table-name (stu/entity-table-name (:NewName changeset-inst))))
+            (table-rename table-name (stu/entity-table-name
+                                      (u/string-as-keyword
+                                       (:NewName changeset-inst)))))
          ~@(when-let [attrs (:Attributes changeset-inst)]
              (update-columns table-name attrs))
          ~@(let [conts (:Contains changeset-inst)]

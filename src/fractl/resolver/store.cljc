@@ -3,14 +3,14 @@
             [fractl.component :as cn]
             [fractl.model.fractl.kernel.store]
             [fractl.resolver.core :as r]
-            [fractl.resolver.registry :as rr
+            [fractl.resolver.registry
              #?(:clj :refer :cljs :refer-macros)
              [defmake]]))
 
 (defn- handle-create [store instance]
   (case (cn/instance-type-kw instance)
     :Fractl.Kernel.Store/Changeset
-    (store/plan-changeset instance)
+    (store/plan-changeset store instance)
     instance))
 
 (defmake :store-migration
@@ -19,9 +19,3 @@
       (r/make-resolver
        resolver-name
        {:create {:handler (partial handle-create store)}}))))
-
-(rr/register-resolvers
- [{:name :store-migration
-   :type :store-migration
-   :compose? false
-   :paths [:Fractl.Kernel.Store/Changeset]}])
