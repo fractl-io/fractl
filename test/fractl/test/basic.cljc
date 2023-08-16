@@ -870,20 +870,23 @@
 
 (deftest patterns-in-attributes
   (defcomponent :PA
-    (event {:PA/OnClickEvent {:Source {:type :UUID :optional true}}})
+    (record {:PA/OnClickEvent {:Source {:type :Int :optional true}}})
     (record {:PA/Position {:X :Int :Y :Int
                            :W :Int :H :Int}})
-    (entity {:PA/Button {:Title :String
+    (entity {:PA/Button {:Id {:type :Int :identity true}
+                         :Title :String
                          :Position :PA/Position
                          :OnClick :PA/OnClickEvent}})
-    (event {:PA/AddButton {:Title :String :Position :PA/Position}})
+    (event {:PA/AddButton {:Title :String :Position :PA/Position :Id :Int}})
     (dataflow :PA/AddButton
-              {:PA/Button {:Title :PA/AddButton.Title
+              {:PA/Button {:Id :PA/AddButton.Id
+                           :Title :PA/AddButton.Title
                            :Position :PA/AddButton.Position
-                           :OnClick {:PA/OnClickEvent {:Source cn/id-attr}}}}))
+                           :OnClick
+                           {:PA/OnClickEvent {:Source :PA/AddButton.Id}}}}))
   (let [pos (cn/make-instance {:PA/Position {:X 10 :Y 10 :W 100 :H 50}})
-        add-btn (cn/make-instance {:PA/AddButton {:Title "OK" :Position pos}})
-        result (first (tu/fresult (e/eval-all-dataflows add-btn)))]
+        add-btn (cn/make-instance {:PA/AddButton {:Title "OK" :Position pos :Id 1}})
+        result (tu/first-result add-btn)]
     (is (cn/instance-of? :PA/Button result))
     (is (cn/instance-of? :PA/OnClickEvent (:OnClick result)))))
 
