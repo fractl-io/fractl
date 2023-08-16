@@ -261,21 +261,19 @@
 (defn- emit-build-record-instance [ctx rec-name attrs schema args]
   (let [alias (:alias args)
         event? (= (cn/type-tag-key args) :event)
-        timeout-ms (:timeout-ms args)]
+        timeout-ms (:timeout-ms args)
+        local-ref? #(:path (second %))
+        ext-refs (filter (complement local-ref?) (:refs attrs))
+        local-refs (filter local-ref? (:refs attrs))]
     (concat [(begin-build-instance rec-name attrs args)]
             (distinct
              (apply
               concat
-              [(mapv (partial set-literal-attribute ctx)
-                     (:computed attrs))
-               (let [f (:compound set-attr-opcode-fns)]
-                 (mapv #(f %) (:compound attrs)))
-               (mapv (fn [[k v]]
-                       ((k set-attr-opcode-fns) v))
-                     (:sorted attrs))
-               (mapv (fn [arg]
-                       (op/set-ref-attribute arg))
-                     (:refs attrs))]))
+              [(mapv #(op/set-ref-attribute %) ext-refs)
+               (mapv (partial set-literal-attribute ctx) (:computed attrs))
+               (let [f (:compound set-attr-opcode-fns)] (mapv #(f %) (:compound attrs)))
+               (mapv (fn [[k v]] ((k set-attr-opcode-fns) v)) (:sorted attrs))
+               (mapv #(op/set-ref-attribute %) local-refs)]))
             [(if event?
                (op/intern-event-instance
                 [rec-name alias (ctx/fetch-with-types ctx)
@@ -967,8 +965,64 @@
 (defn- preproc-relspec [pat relspec]
   (flatten-preproc-patterns (preproc-relspec-helper pat relspec)))
 
-(defn- preproc-patterns [dfpats]
+(defn- ensure-no-parent-refs! [parent-names v]
+  (let [parts (li/path-parts v)]
+    (if-let [path (:path parts)]
+      (when (some #{path} parent-names)
+        (u/throw-ex (str "cannot refer to " path " from embedded instance attribute - " v)))
+      (let [cn [(:component parts) (:record parts)]
+            pns (mapv li/split-path parent-names)]
+        (when (some #{cn} pns)
+          (u/throw-ex (str "cannot refer to " cn " from embedded instance attribute - " v)))))))
+
+(defn- lift-embedded-instances-from-pattern
+  ([pat]
+   (lift-embedded-instances-from-pattern
+    nil (or (:as pat) (newname)) pat
+    (li/instance-pattern-name pat)
+    (li/instance-pattern-attrs pat)))
+  ([parent-names alias orig-pat recname attrs]
+   (let [inter (mapv (fn [[k v]]
+                       (cond
+                         (keyword? v)
+                         (do (ensure-no-parent-refs! parent-names v)
+                             [nil [k v]])
+
+                         (li/instance-pattern? v)
+                         (let [v-alias (or (:as v) (newname))
+                               new-pats (lift-embedded-instances-from-pattern
+                                         (conj parent-names recname alias) v-alias
+                                         v (li/instance-pattern-name v)
+                                         (li/instance-pattern-attrs v))]
+                           [new-pats [k v-alias]])
+
+                         (and (vector? v) (every? li/instance-pattern? v))
+                         (let [r (mapv (fn [v]
+                                         (let [v-alias (or (:as v) (newname))
+                                               new-pats (lift-embedded-instances-from-pattern
+                                                         (conj parent-names recname alias) v-alias
+                                                         v (li/instance-pattern-name v)
+                                                         (li/instance-pattern-attrs v))]
+                                           [new-pats v-alias]))
+                                       v)]
+                           [(apply concat (filter identity (mapv first r))) [k (mapv second r)]])
+
+                         :else [nil [k v]]))
+                     attrs)
+         pre-pats (seq (filter identity (mapv first inter)))
+         new-attrs (into {} (mapv second inter))]
+     (flatten (concat pre-pats [(assoc orig-pat recname new-attrs :as alias)])))))
+
+(defn- lift-embedded-instances [dfpats]
   (loop [pats dfpats, final-pats []]
+    (if-let [p (first pats)]
+      (if (li/instance-pattern? p)
+        (recur (rest pats) (concat final-pats (lift-embedded-instances-from-pattern p)))
+        (recur (rest pats) (concat final-pats [p])))
+      final-pats)))
+
+(defn- preproc-patterns [dfpats]
+  (loop [pats (lift-embedded-instances dfpats), final-pats []]
     (if-let [p (first pats)]
       (if-let [relspec (and (map? p) (li/rel-tag p))]
         (recur (rest pats) (vec (concat final-pats (preproc-relspec p relspec))))

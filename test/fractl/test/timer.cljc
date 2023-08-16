@@ -26,8 +26,8 @@
       {:Fractl.Kernel.Lang/Timer
        {:Expiry 1
         :ExpiryEvent
-        {:BasicTimer/OnTimer
-         {:X :BasicTimer/StartTimer.X}}}})
+        [:q# {:BasicTimer/OnTimer
+              {:X [:uq# :BasicTimer/StartTimer.X]}}]}})
      (dataflow
       :BasicTimer/OnTimer
       {:BasicTimer/E
