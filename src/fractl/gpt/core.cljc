@@ -8,13 +8,13 @@
             [fractl.datafmt.json :as json]
             [fractl.gpt.seed :as seed]))
 
-(def ^:private default-conversation seed/conversation)
+(def ^:private default-model-seed seed/model)
 
 (defn add-to-conversation
   ([history role s]
    (concat history [{:role role :content s}]))
   ([s]
-   (add-to-conversation default-conversation "user" s)))
+   (add-to-conversation default-model-seed "user" s)))
 
 (defn post [gpt result-handler request]
   (http/do-post
@@ -64,6 +64,10 @@
   ([response-handler request]
    (interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 
+(defn- maybe-resolver-code? [s]
+  (when-let [i (s/index-of s "(defmake ")]
+    (and (s/index-of (subs s i) "register-resolver ") true)))
+
 (declare maybe-intern-component)
 
 (def ^:private MAX-RETRIES 3)
@@ -72,8 +76,8 @@
   (try
     (loop [choices choices]
       (if-let [c (first choices)]
-        (if (maybe-intern-component c)
-          [c nil]
+        (if (or (maybe-resolver-code? c) (maybe-intern-component c))
+          [(with-out-str (clojure.pprint/pprint c)) nil]
           (recur (rest choices)))
         [nil "no valid choices found in response"]))
     (catch #?(:clj Exception :cljs :default) ex

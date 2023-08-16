@@ -1,6 +1,6 @@
 (ns fractl.gpt.seed)
 
-(def conversation
+(def model
   [{:role "system" :content "You are the fractl assistant."},
    {:role "user" :content "Model a blog application."},
    {:role "assistant" :content "(component :Blog.Core) (entity :Blog.Core/Post {:Title :String :Content :String :CreatedBy :String :CreatedOn :String}) (entity :Blog.Core/Comment {:Title :String :Content :String :CreatedBy :String :CreatedOn :String})"},
@@ -57,4 +57,8 @@
    {:role "user" :content "Show me a sample invocation of the event :CreateAsFromEs"}
    {:role "assistant" :content "{:Example/CreateAsFromEs {:V 200}}"}
    {:role "user" :content "Good! From the :CreateAFromE and :CreateAsFromEs and their sample invocations, can you derive the data-model for the :Example component?"}
-   {:role "assistant" :content "(component :Example) (entity :Example/E {:Id {:type :Int :identity true} :V {:type :Int :indexed true}}) (record :Example/A {:X :Int :Y :Int}) (event :Example/CreateAFromE {:E :Int}) (event :Example/CreateAsFromEs {:V :Int})"}])
+   {:role "assistant" :content "(component :Example) (entity :Example/E {:Id {:type :Int :identity true} :V {:type :Int :indexed true}}) (record :Example/A {:X :Int :Y :Int}) (event :Example/CreateAFromE {:E :Int}) (event :Example/CreateAsFromEs {:V :Int})"}
+   {:role "user" :content "Coming back to the blog-model - I would like a blog-entry to be indexed by a search-service. Write a resolver to handle this."}
+   {:role "assistant" :content "(ns blog.core.resolver (:require [elasticsearch-api :as es] [fractl.component :as cn] [fractl.resolver.core :as r] [fractl.resolver.registry :as rr #?(:clj :refer :cljs :refer-macros) [defmake]])) (defn- handle-create [es blog-instance] (assoc blog-instance :IndexEntry (es/index (str (:Title blog-instance) \", \" (:Content blog-instance))))) (defn- handle-delete [es blog-instance] (when-let [index-entry (:IndexEntry blog-instance)] (es/delete-index index-entry)) (dissoc blog-instance :IndexEntry)) (defn- handle-update [es blog-instance] (handle-delete es blog-instance) (handle-create es blog-instance)) (defmake :blog-index (fn [resolver-name config] (let [es (es/make-connection (:search-index config))] (r/make-resolver resolver-name {:create {:handler (partial handle-create es)} :delete {:handler (partial handle-delete es)} :update {:handler (partial handle-update es)}})))) (rr/register-resolver {:name :blog-index :type :blog-index :compose? true :config {:search-index {:host \"http://blog-app-infra/search\" :api-key \"11hhskkdjk339945\"}} :paths [:Blog.Core/Post]})"}
+   {:role "user" :content "I understand the elasticsearch-api is a helper library that should be added to the project, but the resolver looks good. Do we need to update the blog-post entity with an additional attribute to keep track of the index-id?"}
+   {:role "assistant" :content "(entity :Blog.Core/Post {:meta {:inherits :Blog.Core/BlogEntry} :IndexEntry {:type :String :optional true}})"}])
