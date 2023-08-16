@@ -926,12 +926,18 @@
   "Return a list of record-names, of the given type, interned in this component.
   The type argument `tp` could be one of - :record, :event or :entity."
   [tp component]
-  (let [recs (filter
-              (fn [[_ v]] (= tp (type-tag-key v)))
-              (:records (get @components component)))]
-    (set (map (partial full-name component) (keys recs)))))
+  (when-let [recs (seq (filter
+                        (fn [[_ v]] (= tp (type-tag-key v)))
+                        (:records (get @components component))))]
+    (set (mapv (partial full-name component) (keys recs)))))
 
-(def record-names (partial record-names-by-type :record))
+(declare contains-relationship?)
+
+(defn record-names [component]
+  (when-let [recnames (record-names-by-type :record component)]
+    (when-let [rs (seq (filter (complement contains-relationship?) recnames))]
+      (set rs))))
+
 (def entity-names (partial record-names-by-type :entity))
 (def event-names (partial record-names-by-type :event))
 
