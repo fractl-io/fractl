@@ -1,6 +1,7 @@
 (ns fractl.test.fixes03
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.set :as set]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
@@ -464,3 +465,16 @@
       (is (= (:Name e3) "xyz"))
       (is (cn/instance-eq? e1 e4))
       (is (= (:Name e4) "xyz")))))
+
+(deftest issue-991-record-names-bug
+  (defcomponent :I991
+    (entity :I991/A {:Id :Identity :X :Int})
+    (entity :I991/B {:Id :Identity :Y :Int})
+    (entity :I991/C {:Id :Identity :Y :Int})
+    (record :I991/D {:Z :Int})
+    (event :I991/F {:K :Int})
+    (relationship :I991/R1 {:meta {:contains [:I991/A :I991/B]}})
+    (relationship :I991/R2 {:meta {:between [:I991/B :I991/C]}}))
+  (is (= #{:I991/D} (cn/record-names :I991)))
+  (is (= #{:I991/A :I991/B :I991/C :I991/R2} (cn/entity-names :I991)))
+  (is (= #{:I991/F} (set/intersection #{:I991/F} (cn/event-names :I991)))))
