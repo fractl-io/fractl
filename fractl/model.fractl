@@ -1,4 +1,5 @@
 {:name :Fractl
  :components [:Fractl.Kernel.Lang
               :Fractl.Kernel.Identity
-              :Fractl.Kernel.Rbac]}
+              :Fractl.Kernel.Rbac
+              :Fractl.Kernel.Store]}

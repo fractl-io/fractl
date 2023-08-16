@@ -75,4 +75,6 @@
         (db/transact-fn! @datasource f))
       (compile-query [_ query-pattern]
         (db/compile-query query-pattern))
+      (plan-changeset [_ changeset-inst]
+        (db/plan-changeset changeset-inst))
       (get-reference [_ path refs]))))

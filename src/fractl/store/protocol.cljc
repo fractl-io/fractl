@@ -62,6 +62,8 @@
   (get-reference [store path refs]
     "Get reference to instances stored in the store. This is useful for
      tracking instances in reactive store")
+  (plan-changeset [store changeset-inst]
+    "Generate migration script/plan for the changeset")
   (commit [store msg]
     "Commit local changes, return the version number"
     (not-implemented :commit)))

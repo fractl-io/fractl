@@ -13,6 +13,10 @@
               [org.apache.commons.io FilenameUtils]
               [org.apache.commons.exec CommandLine Executor DefaultExecutor])))
 
+(def host-runtime #?(:clj :jvm :cljs :js))
+
+(defn host-is-jvm? [] (= host-runtime :jvm))
+
 (def ^:private script-extn (atom ".fractl"))
 
 (defn set-script-extn! [extn]
