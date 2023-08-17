@@ -34,7 +34,8 @@
 
   (:gen-class
    :name fractl.core
-   :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
+   :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]
+             #^{:static true} [jvmmain [Object] Object]]))
 
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
@@ -366,10 +367,7 @@
   (let [store (store-from-config config)]
     (mg/migrate (mg/init store (:store config)))))
 
-(defn -main [& args]
-  (when-not args
-    (print-help)
-    (System/exit 0))
+(defn- process-cli [args]
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)
         basic-config (load-config options)
@@ -399,3 +397,14 @@
                   #(call-after-load-model
                     (first %) (fn [] (db-migrate (second (read-model-and-config nil options)))))]))
           (run-service args (read-model-and-config args options))))))
+
+(defn -jvmmain [args]
+  (if (and (vec args) (seq args))
+    (process-cli args)
+    (print-help)))
+
+(defn -main [& args]
+  (when-not args
+    (print-help)
+    (System/exit 0))
+  (process-cli args))
