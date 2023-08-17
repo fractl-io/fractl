@@ -182,6 +182,8 @@
        ([model-file]
         (let [model (read-model-expressions model-file)
               root (java.io.File. (.getParent (java.io.File. model-file)))]
+          (when (map? model)
+            (ln/model model))
           [model (str root)])))
 
      (defn load-components
