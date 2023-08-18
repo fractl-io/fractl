@@ -37,6 +37,22 @@
         [k (vf v)]))
     spec)))
 
+(def ^:private models (u/make-cell {}))
+
+(defn model [spec]
+  (let [n (:name spec)]
+    (when-not n
+      (u/throw-ex "model name is required"))
+    (let [v (:version spec)
+          version (or v "0.0.1")
+          spec (if-not v (assoc spec :version version) spec)]
+      (u/safe-set models (assoc @models n spec))
+      (log/info (str "model: " (name n) ", " version))
+      n)))
+
+(defn fetch-model [name] (get @models name))
+(defn model-version [name] (:version (fetch-model name)))
+
 (defn component
   "Create and activate a new component with the given name."
   ([n spec]
