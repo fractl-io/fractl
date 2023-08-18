@@ -22,6 +22,8 @@
 
 (def find-entity (partial find-element 'entity))
 (def find-relationship (partial find-element 'relationship))
+(def find-record (partial find-element 'record))
+(def find-event (partial find-element 'event))
 
 (defn element
   ([tag delete-only record-name attrs]
