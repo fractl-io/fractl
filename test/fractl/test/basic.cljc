@@ -7,6 +7,7 @@
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.lang
+             :as ln
              :refer [component attribute event
                      entity record dataflow]]
             [fractl.evaluator :as e]
@@ -1555,3 +1556,10 @@
          (cn/find-attribute-schema :AMeta/Name)))
   (is (= {:instance {:ui #:Fractl.Fx{:Input {}}}}
          (cn/fetch-meta :AMeta/Name))))
+
+(deftest model-spec
+  (let [spec {:name :crm :version "1.0.2"
+              :components [:Crm.Core :Crm.Sales]}]
+    (ln/model spec)
+    (is (= spec (ln/fetch-model :crm)))
+    (is (= "1.0.2" (ln/model-version :crm)))))

@@ -232,7 +232,7 @@
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:require ~@req-comp))
         model (dissoc model :clj-dependencies :repositories)]
     (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
-           [ns-decl model
+           [ns-decl (if (map? model) `(fractl.lang/model ~model) model)
             `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))]
            :write-each)))
 
