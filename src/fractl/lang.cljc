@@ -803,11 +803,11 @@
 
 (defn entity
   "A record that can be persisted with a unique id."
-  ([n attrs]
+  ([n attrs raw-required]
    (when-let [r (serializable-entity n attrs)]
-     (and (raw/entity n attrs) r)))
-  ([schema]
-   (parse-and-define entity schema)))
+     (and (if raw-required (raw/entity n attrs) true) r)))
+  ([n attrs] (entity n attrs true))
+  ([schema] (parse-and-define entity schema)))
 
 (defn- parse-relationship-member-spec [spec]
   (let [elems [(first spec) (second spec)]
@@ -913,7 +913,7 @@
                (when-not cident-spec ;; __Id__
                  {:default u/uuid-string}))
        li/path-attr li/path-attr-spec))
-    (raw/entity-attributes child)))
+    (cn/fetch-entity-schema child)))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
@@ -928,7 +928,7 @@
                             relmeta :relationship :contains))
         child-attrs (regen-contains-child-attributes child meta)]
     (if-let [r (record relname attrs)]
-      (if (entity child child-attrs)
+      (if (entity child child-attrs false)
         (if (cn/register-relationship elems relname)
           (and (regen-contains-dataflows relname elems)
                (regen-between-relationships (second elems))
