@@ -397,12 +397,34 @@
 (defn- fetch-inherited-schema [type-name child-record-type]
   (if-let [scm (case child-record-type
                  (:entity :record)
-                 (or (cn/find-entity-schema type-name)
-                     (cn/find-record-schema type-name))
-                 :event (or (cn/find-event-schema type-name)
-                            (cn/find-record-schema type-name)))]
-    (:schema scm)
+                 (or (raw/find-entity type-name)
+                     (raw/find-record type-name))
+                 :event (or (raw/find-event type-name)
+                            (raw/find-record type-name)))]
+    (let [final-scm (into {} (mapv (fn [[k v]]
+                                     (if (keyword? v)
+                                       [k (k/normalize-kernel-type v)]
+                                       [k v]))
+                                   scm))]
+      (if-let [inherits (:inherits (:meta scm))]
+        (merge final-scm (fetch-inherited-schema inherits child-record-type))
+        final-scm))
     (u/throw-ex (str "parent type not found - " type-name))))
+
+(defn- preproc-for-built-in-attrs [attrs]
+  (let [attrs (mapv (fn [[k v]]
+                      [k (cond
+                           (or (= v :Identity)
+                               (= v :Fractl.Kernel.Lang/Identity))
+                           (cn/find-attribute-schema :Fractl.Kernel.Lang/Identity)
+
+                           (or (= v :Now)
+                               (= v :Fractl.Kernel.Lang/Now))
+                           (cn/find-attribute-schema :Fractl.Kernel.Lang/Now)
+
+                           :else v)])
+                    attrs)]
+    (into {} attrs)))
 
 (defn- normalized-attributes [rectype recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
@@ -410,13 +432,14 @@
         [meta base-attrs] (meta-specs orig-attrs)
         inherits (:inherits meta)
         inherited-scm (when inherits (fetch-inherited-schema inherits rectype))
-        req-inherited-attrs (or (:required-attributes inherited-scm)
+        req-inherited-attrs (or (:required-attributes (:meta inherited-scm))
                                 (required-attribute-names inherited-scm))
-        attrs (if inherited-scm
-                (merge inherited-scm base-attrs)
-                base-attrs)
+        attrs (preproc-for-built-in-attrs
+               (if inherited-scm
+                 (merge (li/only-user-attributes inherited-scm) base-attrs)
+                 base-attrs))
         req-orig-attrs (or (:required-attributes meta)
-                           (required-attribute-names attrs))
+                           (required-attribute-names base-attrs))
         req-attrs (concat req-orig-attrs req-inherited-attrs)
         attrs-with-defaults (into {} (map (partial assoc-defaults req-attrs) attrs))
         newattrs (map (partial normalize-attr recname attrs f) attrs-with-defaults)
@@ -776,21 +799,12 @@
   ([rectype n attrs]
    (serializable-record rectype n attrs attrs)))
 
-(defn- preproc-for-identity [attrs]
-  (let [attrs (mapv (fn [[k v]]
-                      [k (if (or (= v :Identity)
-                                 (= v :Fractl.Kernel.Lang/Identity))
-                           (cn/find-attribute-schema :Fractl.Kernel.Lang/Identity)
-                           v)])
-                    attrs)]
-    (into {} attrs)))
-
 (def serializable-entity (partial serializable-record :entity))
 
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs]
-   (when-let [r (serializable-entity n (preproc-for-identity attrs))]
+   (when-let [r (serializable-entity n attrs)]
      (and (raw/entity n attrs) r)))
   ([schema]
    (parse-and-define entity schema)))
