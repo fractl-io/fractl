@@ -271,6 +271,99 @@
           (maybe-path-attribute path))}
         nil]))))
 
+(defn- generate-filter-query-event [component entity-name query-params]
+  (let [event-name (temp-event-name component)]
+    (and (apply ln/dataflow
+                event-name [{(li/name-as-query-pattern entity-name)
+                             {:where
+                              `[:and ~@(mapv
+                                        (fn [[k v]]
+                                          [(if (= k li/path-attr) :like :=)
+                                           k (cn/parse-attribute-value entity-name k v)])
+                                        query-params)]}}])
+         event-name)))
+
+(defn- make-lookup-event [component entity-name id path]
+  {(cn/crud-event-name component entity-name :Lookup)
+   (merge
+    (when-not path
+      (let [id-attr (cn/identity-attribute-name entity-name)]
+        {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+    (maybe-path-attribute path))})
+
+(defn- make-lookupall-event [component entity-name path]
+  {(cn/crud-event-name component entity-name :LookupAll)
+   (or (when path (maybe-path-attribute path)) {})})
+
+(defn- merge-child-uris [evaluator evt-context component entity-name
+                         parent-insts children data-fmt]
+  (mapv (fn [r]
+          (reduce
+           (fn [parent-inst [relname _ child-entity]]
+             (let [[c n] (li/split-path child-entity)
+                   path (cn/full-path-from-references parent-inst relname child-entity)
+                   evt (evt-context (make-lookupall-event c child-entity path))
+                   result (evaluate evaluator evt data-fmt)
+                   rels (li/rel-tag parent-inst)]
+               (assoc parent-inst li/rel-tag (assoc rels relname result))))
+           r children))
+        parent-insts))
+
+(defn- get-tree [evaluator [auth-config maybe-unauth] request
+                 component entity-name id path data-fmt]
+  (if-not id
+    (bad-request (str "identity of " entity-name " required for tree lookup"))
+    (or (maybe-unauth request)
+        (let [evt-context (partial assoc-event-context request auth-config)
+              evt (evt-context (make-lookup-event component entity-name id path))
+              result (evaluate evaluator evt data-fmt)]
+          (if (seq result)
+            (if-let [children (seq (cn/contained-children entity-name))]
+              (ok (merge-child-uris
+                   evaluator evt-context component entity-name
+                   result children data-fmt) data-fmt)
+              (ok result data-fmt))
+            (ok result data-fmt))))))
+
+(defn process-get-request [evaluator auth-info request]
+  (process-generic-request
+   (fn [{entity-name :entity id :id component :component path
+         :path suffix :suffix query-params :query-params data-fmt :data-fmt
+         :as p} obj]
+     (cond
+       query-params
+       [(fn []
+          (let [evt (generate-filter-query-event
+                     component entity-name
+                     (merge query-params (when path (maybe-path-attribute (str path "%")))))]
+            [{evt {}} #(cn/remove-event evt)]))
+        nil]
+
+       (= suffix :tree)
+       [nil (get-tree evaluator auth-info request component
+                      entity-name id path data-fmt)]
+
+       :else
+       [(if id
+          (make-lookup-event component entity-name id path)
+          (make-lookupall-event component entity-name (when path (str path "%"))))
+        nil]))
+   evaluator auth-info request))
+
+(def process-delete-request
+  (partial
+   process-generic-request
+   (fn [{entity-name :entity id :id component :component path :path} _]
+     (if-not (or id path)
+       [nil (bad-request (str "id or path required to delete " entity-name))]
+       [{(cn/crud-event-name component entity-name :Delete)
+         (merge
+          (when-not path
+            (let [id-attr (cn/identity-attribute-name entity-name)]
+              {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
+          (maybe-path-attribute path))}
+        nil]))))
+
 (defn- like-pattern? [x]
   ;; For patterns that include the `_` wildcard,
   ;; the caller should provide an explicit where clause:
@@ -306,56 +399,6 @@
       (let [result (query-fn (li/split-path (:from q)) q)]
         (ok (first result) data-fmt))
       (bad-request (str "not a valid query request - " request-obj)))))
-
-(defn- generate-filter-query-event [component entity-name query-params]
-  (let [event-name (temp-event-name component)]
-    (and (apply ln/dataflow
-                event-name [{(li/name-as-query-pattern entity-name)
-                             {:where
-                              `[:and ~@(mapv
-                                        (fn [[k v]]
-                                          [(if (= k li/path-attr) :like :=)
-                                           k (cn/parse-attribute-value entity-name k v)])
-                                        query-params)]}}])
-         event-name)))
-
-(defn process-get-request [evaluator auth-info query-fn request]
-  (process-generic-request
-   (fn [{entity-name :entity id :id component :component path
-         :path suffix :suffix query-params :query-params data-fmt :data-fmt
-         :as p} obj]
-     (if query-params
-       [(fn []
-          (let [evt (generate-filter-query-event
-                     component entity-name
-                     (merge query-params (when path (maybe-path-attribute (str path "%")))))]
-            [{evt {}} #(cn/remove-event evt)]))
-        nil]
-       [(if id
-          {(cn/crud-event-name component entity-name :Lookup)
-           (merge
-            (when-not path
-              (let [id-attr (cn/identity-attribute-name entity-name)]
-                {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
-            (maybe-path-attribute path))}
-          {(cn/crud-event-name component entity-name :LookupAll)
-           (or (when path (maybe-path-attribute (str path "%"))) {})})
-        nil]))
-   evaluator auth-info request))
-
-(def process-delete-request
-  (partial
-   process-generic-request
-   (fn [{entity-name :entity id :id component :component path :path} _]
-     (if-not (or id path)
-       [nil (bad-request (str "id or path required to delete " entity-name))]
-       [{(cn/crud-event-name component entity-name :Delete)
-         (merge
-          (when-not path
-            (let [id-attr (cn/identity-attribute-name entity-name)]
-              {id-attr (cn/parse-attribute-value entity-name id-attr id)}))
-          (maybe-path-attribute path))}
-        nil]))))
 
 (defn- process-query [_ [_ maybe-unauth] query-fn request]
   (or (maybe-unauth request)
@@ -767,7 +810,7 @@
           :refresh-token (partial process-refresh-token auth)
           :put-request (partial process-put-request evaluator auth-info)
           :post-request (partial process-post-request evaluator auth-info)
-          :get-request (partial process-get-request evaluator auth-info query-fn)
+          :get-request (partial process-get-request evaluator auth-info)
           :delete-request (partial process-delete-request evaluator auth-info)
           :query (partial process-query evaluator auth-info query-fn)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
