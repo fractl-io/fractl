@@ -7,6 +7,7 @@
              :refer [component attribute event
                      entity record relationship
                      dataflow]]
+            [fractl.lang.raw :as raw]
             [fractl.lang.syntax :as ls]
             [fractl.lang.relgraph :as rg]
             [fractl.lang.internal :as li]
@@ -26,7 +27,7 @@
           :Y {:type :String
               :default "yyyy"}
           :Z :I840/K}
-         (cn/fetch-user-schema :I840/E))))
+         (raw/find-entity :I840/E))))
 
 (deftest basic-contains-relationship
   (let [grades ["a" "b"]]

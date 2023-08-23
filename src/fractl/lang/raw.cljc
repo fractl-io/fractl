@@ -25,6 +25,10 @@
 (def find-record (partial find-element 'record))
 (def find-event (partial find-element 'event))
 
+(defn find-attribute [n]
+  (when-not (li/internal-attribute-name? n)
+    (find-element 'attribute n)))
+
 (defn element
   ([tag delete-only record-name attrs]
    (let [s @raw-store
