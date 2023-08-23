@@ -413,16 +413,21 @@
 
 (defn- preproc-for-built-in-attrs [attrs]
   (let [attrs (mapv (fn [[k v]]
-                      [k (cond
-                           (or (= v :Identity)
-                               (= v :Fractl.Kernel.Lang/Identity))
-                           (cn/find-attribute-schema :Fractl.Kernel.Lang/Identity)
+                      [k (if (keyword? v)
+                           (cond
+                             (or (= v :Identity)
+                                 (= v :Fractl.Kernel.Lang/Identity))
+                             (cn/find-attribute-schema :Fractl.Kernel.Lang/Identity)
 
-                           (or (= v :Now)
-                               (= v :Fractl.Kernel.Lang/Now))
-                           (cn/find-attribute-schema :Fractl.Kernel.Lang/Now)
+                             (or (= v :Now)
+                                 (= v :Fractl.Kernel.Lang/Now))
+                             (cn/find-attribute-schema :Fractl.Kernel.Lang/Now)
 
-                           :else v)])
+                             :else (let [[c n] (li/split-path v)]
+                                     (if (and c n (not= :Fractl.Kernel.Lang c))
+                                       (or (raw/find-attribute v) v)
+                                       v)))
+                           v)])
                     attrs)]
     (into {} attrs)))
 
@@ -434,10 +439,9 @@
         inherited-scm (when inherits (fetch-inherited-schema inherits rectype))
         req-inherited-attrs (or (:required-attributes (:meta inherited-scm))
                                 (required-attribute-names inherited-scm))
-        attrs (preproc-for-built-in-attrs
-               (if inherited-scm
-                 (merge (li/only-user-attributes inherited-scm) base-attrs)
-                 base-attrs))
+        attrs (if inherited-scm
+                (merge (li/only-user-attributes inherited-scm) base-attrs)
+                base-attrs)
         req-orig-attrs (or (:required-attributes meta)
                            (required-attribute-names base-attrs))
         req-attrs (concat req-orig-attrs req-inherited-attrs)
@@ -804,7 +808,7 @@
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs raw-required]
-   (when-let [r (serializable-entity n attrs)]
+   (when-let [r (serializable-entity n (preproc-for-built-in-attrs attrs))]
      (and (if raw-required (raw/entity n attrs) true) r)))
   ([n attrs] (entity n attrs true))
   ([schema] (parse-and-define entity schema)))
@@ -894,7 +898,8 @@
 (defn- regen-contains-child-attributes [child meta]
   (if-not (cn/path-identity-attribute-name child)
     (let [cident (user-defined-identity-attribute-name child)
-          child-attrs (raw/entity-attributes-include-inherits child)
+          child-attrs (preproc-for-built-in-attrs
+                       (raw/entity-attributes-include-inherits child))
           cident-raw-spec (cident child-attrs)
           cident-spec (if (map? cident-raw-spec)
                         cident-raw-spec
