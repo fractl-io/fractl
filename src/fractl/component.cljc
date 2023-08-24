@@ -1902,7 +1902,11 @@
    (instance-to-full-path child-type child-id parent-inst nil)))
 
 (defn full-path-from-references
-  ([parent-inst relname child-id child-type-str]
-   (instance-to-full-path (keyword child-type-str) (or child-id "%") parent-inst relname))
-  ([parent-inst relname child-type-str]
-   (full-path-from-references parent-inst relname nil child-type-str)))
+  ([parent-inst relname child-id child-type]
+   (instance-to-full-path
+    (if (keyword? child-type)
+      child-type
+      (keyword child-type))
+    (or child-id "%") parent-inst relname))
+  ([parent-inst relname child-type]
+   (full-path-from-references parent-inst relname nil child-type)))
