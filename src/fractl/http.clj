@@ -86,13 +86,16 @@
 (defn- remove-all-read-only-attributes [obj]
   (w/prewalk maybe-remove-read-only-attributes obj))
 
-(defn- evaluate [evaluator event-instance data-fmt]
+(defn- evaluate [evaluator event-instance]
+  (let [result (remove-all-read-only-attributes
+                (evaluator event-instance))]
+    result))
+
+(defn- maybe-ok [exp data-fmt]
   (try
-    (let [result (remove-all-read-only-attributes
-                  (evaluator event-instance))]
-      result)
+    (ok (exp) data-fmt)
     (catch Exception ex
-      (log/exception ex)
+      (log/error ex)
       (internal-error (.getMessage ex) data-fmt))))
 
 (defn- assoc-event-context [request auth-config event-instance]
@@ -149,7 +152,7 @@
            (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
              (if err
                (bad-request err data-fmt)
-               (ok (evaluate evaluator obj data-fmt) data-fmt))))
+               (maybe-ok #(evaluate evaluator obj) data-fmt))))
          (bad-request
           (str "unsupported content-type in request - "
                (request-content-type request))))))
@@ -223,7 +226,7 @@
                                (let [[evt post-fn] (if (fn? event-gen) (event-gen) [event-gen nil])
                                      evt (assoc-event-context request auth-config evt)
                                      result (try
-                                              (ok (evaluate evaluator evt data-fmt) data-fmt)
+                                              (maybe-ok #(evaluate evaluator evt) data-fmt)
                                               (finally
                                                 (when post-fn (post-fn))))]
                                  result)))))
@@ -295,21 +298,33 @@
   {(cn/crud-event-name component entity-name :LookupAll)
    (or (when path (maybe-path-attribute path)) {})})
 
-(defn- merge-child-uris [evaluator evt-context component entity-name
-                         parent-insts children data-fmt]
+(declare maybe-merge-child-uris)
+
+(defn- merge-child-uris [evaluator evt-context data-fmt
+                         component entity-name
+                         parent-insts children]
   (mapv (fn [r]
           (reduce
            (fn [parent-inst [relname _ child-entity]]
              (let [[c n] (li/split-path child-entity)
                    path (cn/full-path-from-references parent-inst relname child-entity)
                    evt (evt-context (make-lookupall-event c child-entity path))
-                   rs (let [rs (evaluate evaluator evt data-fmt)]
-                        (if (map? rs) rs (first rs)))
-                   result (mapv #(li/path-query-string (li/path-attr %)) (:result rs))
-                   rels (li/rel-tag parent-inst)]
-               (assoc parent-inst li/rel-tag (assoc rels relname result))))
+                   rs (let [rs (evaluate evaluator evt)]
+                        (if (map? rs) rs (first rs)))]
+               (if (= :ok (:status rs))
+                 (let [result (maybe-merge-child-uris
+                               evaluator evt-context data-fmt
+                               c child-entity (:result rs))
+                       rels (li/rel-tag parent-inst)]
+                   (assoc parent-inst li/rel-tag (assoc rels relname result)))
+                 parent-inst)))
            r children))
         parent-insts))
+
+(defn- maybe-merge-child-uris [evaluator evt-context data-fmt component entity-name insts]
+  (if-let [children (seq (cn/contained-children entity-name))]
+    (merge-child-uris evaluator evt-context data-fmt component entity-name insts children)
+    insts))
 
 (defn- get-tree [evaluator [auth-config maybe-unauth] request
                  component entity-name id path data-fmt]
@@ -318,15 +333,14 @@
     (or (maybe-unauth request)
         (let [evt-context (partial assoc-event-context request auth-config)
               evt (evt-context (make-lookup-event component entity-name id path))
-              rs (let [rs (evaluate evaluator evt data-fmt)]
+              rs (let [rs (evaluate evaluator evt)]
                    (if (map? rs) rs (first rs)))
               result (cleanup-inst (:result rs))]
           (if (seq result)
-            (if-let [children (seq (cn/contained-children entity-name))]
-              (ok (merge-child-uris
-                   evaluator evt-context component entity-name
-                   result children data-fmt) data-fmt)
-              (ok result data-fmt))
+            (ok (maybe-merge-child-uris
+                 evaluator evt-context data-fmt
+                 component entity-name result)
+                data-fmt)
             (ok result data-fmt))))))
 
 (defn process-get-request [evaluator auth-info request]
@@ -486,7 +500,7 @@
           (if-not (whitelisted? (:Email (:User evobj)) auth-config)
             (unauthorized "Your email is not whitelisted yet." data-fmt)
             (try
-              (let [result (evaluate evaluator evobj data-fmt)
+              (let [result (evaluate evaluator evobj)
                     r (eval-ok-result result)]
                 (when (not r) (throw (Exception. (:message (eval-result result)))))
                 (let [user (if (map? r) r (first r))
@@ -496,8 +510,7 @@
                          evaluator
                          (assoc
                           (create-event post-signup-event-name)
-                          :SignupResult result :SignupRequest evobj)
-                         data-fmt))]
+                          :SignupResult result :SignupRequest evobj)))]
                   (if user
                     (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
                     (bad-request (or post-signup-result result) data-fmt))))
