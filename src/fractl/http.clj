@@ -202,7 +202,7 @@
 (defn- parse-rest-uri [request]
   (let [s (:* (:params request))
         [uri suffix] (if (s/ends-with? s "/__tree")
-                       [(subs s 0 (s/index-of s "/__all")) :tree]
+                       [(subs s 0 (s/index-of s "/__tree")) :tree]
                        [s nil])]
     (assoc (uh/parse-rest-uri uri) :suffix suffix)))
 
@@ -303,7 +303,9 @@
              (let [[c n] (li/split-path child-entity)
                    path (cn/full-path-from-references parent-inst relname child-entity)
                    evt (evt-context (make-lookupall-event c child-entity path))
-                   result (evaluate evaluator evt data-fmt)
+                   rs (let [rs (evaluate evaluator evt data-fmt)]
+                        (if (map? rs) rs (first rs)))
+                   result (mapv #(li/path-query-string (li/path-attr %)) (:result rs))
                    rels (li/rel-tag parent-inst)]
                (assoc parent-inst li/rel-tag (assoc rels relname result))))
            r children))
@@ -316,7 +318,9 @@
     (or (maybe-unauth request)
         (let [evt-context (partial assoc-event-context request auth-config)
               evt (evt-context (make-lookup-event component entity-name id path))
-              result (evaluate evaluator evt data-fmt)]
+              rs (let [rs (evaluate evaluator evt data-fmt)]
+                   (if (map? rs) rs (first rs)))
+              result (cleanup-inst (:result rs))]
           (if (seq result)
             (if-let [children (seq (cn/contained-children entity-name))]
               (ok (merge-child-uris
