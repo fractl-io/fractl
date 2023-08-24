@@ -218,10 +218,9 @@
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components))
     (when-let [server-cfg (make-server-config config)]
-      (let [[evaluator store] (init-runtime model config)
-            query-fn (e/query-fn store)]
+      (let [[evaluator store] (init-runtime model config)]
         (log/info (str "Server config - " server-cfg))
-        (h/run-server [evaluator query-fn] server-cfg)))))
+        (h/run-server evaluator server-cfg)))))
 
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]

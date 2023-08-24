@@ -95,7 +95,7 @@
   (try
     (ok (exp) data-fmt)
     (catch Exception ex
-      (log/error ex)
+      (log/exception ex)
       (internal-error (.getMessage ex) data-fmt))))
 
 (defn- assoc-event-context [request auth-config event-instance]
@@ -279,11 +279,13 @@
     (and (apply ln/dataflow
                 event-name [{(li/name-as-query-pattern entity-name)
                              {:where
-                              `[:and ~@(mapv
-                                        (fn [[k v]]
-                                          [(if (= k li/path-attr) :like :=)
-                                           k (cn/parse-attribute-value entity-name k v)])
-                                        query-params)]}}])
+                              (if (map? query-params)
+                                `[:and ~@(mapv
+                                          (fn [[k v]]
+                                            [(if (= k li/path-attr) :like :=)
+                                             k (cn/parse-attribute-value entity-name k v)])
+                                          query-params)]
+                                query-params)}}])
          event-name)))
 
 (defn- make-lookup-event [component entity-name id path]
@@ -411,27 +413,23 @@
            `[~(if or-cond :or :and) ~@r]))))
     q))
 
-(defn do-query [query-fn request-obj data-fmt]
-  (let [request-obj (su/keys-as-keywords request-obj)]
-    (if-let [q (preprocess-query (:Query request-obj))]
-      (let [result (query-fn (li/split-path (:from q)) q)]
-        (ok (first result) data-fmt))
-      (bad-request (str "not a valid query request - " request-obj)))))
-
-(defn- process-query [_ [_ maybe-unauth] query-fn request]
+(defn- process-query [evaluator [auth-config maybe-unauth] request]
   (or (maybe-unauth request)
-      (try
-        (if-let [data-fmt (find-data-format request)]
-          (do-query
-           query-fn
-           ((uh/decoder data-fmt) (String. (.bytes (:body request))))
-           data-fmt)
-          (bad-request
-           (str "unsupported content-type in request - "
-                (request-content-type request))))
-        (catch Exception ex
-          (log/exception ex)
-          (internal-error (str "Failed to process query request - " (.getMessage ex)))))))
+      (if-let [data-fmt (find-data-format request)]
+        (let [reqobj ((uh/decoder data-fmt) (String. (.bytes (:body request))))
+              q (preprocess-query (:Query reqobj))
+              entity-name (:from q)
+              [component _] (li/split-path entity-name)
+              evn (generate-filter-query-event component entity-name (:where q))
+              evt (assoc-event-context request auth-config {evn {}})]
+          (try
+            (maybe-ok #(evaluate evaluator evt) data-fmt)
+            (catch Exception ex
+              (log/exception ex)
+              (internal-error (str "Failed to process query request - " (.getMessage ex))))
+            (finally (cn/remove-event evn))))
+        (bad-request (str "unsupported content-type in request - "
+                          (request-content-type request))))))
 
 (def ^:private post-signup-event-name :Fractl.Kernel.Identity/PostSignUp)
 
@@ -807,7 +805,7 @@
     [auth auth-check]))
 
 (defn run-server
-  ([[evaluator query-fn] config]
+  ([evaluator config]
    (let [[auth _ :as auth-info] (make-auth-handler config)]
      (if (or (not auth) (auth-service-supported? auth))
        (h/run-server
@@ -829,7 +827,7 @@
           :post-request (partial process-post-request evaluator auth-info)
           :get-request (partial process-get-request evaluator auth-info)
           :delete-request (partial process-delete-request evaluator auth-info)
-          :query (partial process-query evaluator auth-info query-fn)
+          :query (partial process-query evaluator auth-info)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
           :gpt (partial process-gpt-chat auth-info)
           :meta (partial process-meta-request auth-info)})
@@ -837,5 +835,5 @@
           config
           (assoc config :thread (+ 1 (u/n-cpu)))))
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
-  ([eval-context]
-   (run-server eval-context {:port 8080})))
+  ([evaluator]
+   (run-server evaluator {:port 8080})))
