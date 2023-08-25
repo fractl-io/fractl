@@ -58,9 +58,14 @@
 
 (defn- cleanup-result [rs]
   (if-let [result (:result rs)]
-    (assoc rs :result (if (map? result)
+    (assoc rs :result (cond
+                        (map? result)
                         (cleanup-inst result)
-                        (mapv cleanup-inst result)))
+
+                        (vector? result)
+                        (mapv cleanup-inst result)
+
+                        :else result))
     rs))
 
 (defn- cleanup-results [rs]
