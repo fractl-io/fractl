@@ -807,10 +807,10 @@
 
 (defn entity
   "A record that can be persisted with a unique id."
-  ([n attrs raw-required]
+  ([n attrs raw-attrs]
    (when-let [r (serializable-entity n (preproc-for-built-in-attrs attrs))]
-     (and (if raw-required (raw/entity n attrs) true) r)))
-  ([n attrs] (entity n attrs true))
+     (and (if raw-attrs (raw/entity n raw-attrs) true) r)))
+  ([n attrs] (entity n attrs attrs))
   ([schema] (parse-and-define entity schema)))
 
 (defn- parse-relationship-member-spec [spec]
@@ -932,7 +932,7 @@
                      (assoc meta cn/relmeta-key
                             relmeta :relationship :contains))
         child-attrs (regen-contains-child-attributes child meta)]
-    (if-let [r (record relname attrs)]
+    (if-let [r (record relname raw-attrs)]
       (if (entity child child-attrs false)
         (if (cn/register-relationship elems relname)
           (and (regen-contains-dataflows relname elems)
@@ -972,7 +972,7 @@
   (let [new-attrs (assoc-relnode-attributes attrs elems relmeta)
         meta (assoc (between-unique-meta (:meta attrs) relmeta elems)
                     :relationship :between cn/relmeta-key relmeta)
-        r (serializable-entity relname (assoc new-attrs :meta meta))]
+        r (serializable-entity relname (assoc new-attrs :meta meta) attrs)]
     (when (cn/register-relationship elems relname)
       (and (raw/relationship relname attrs) r))))
 
