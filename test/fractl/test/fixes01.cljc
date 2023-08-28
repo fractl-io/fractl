@@ -456,3 +456,33 @@
             {:I967/CallCreateEmployee {:Name "abc"}})]
     (is (cn/instance-of? :I967/Employee e1))
     (is (= [:admin :abc] (:Roles e1)))))
+
+(deftest issue-1009-raw-bugs
+  (defcomponent :I1009
+    (entity
+     :I1009/E
+     {:Id {:type :Int :identity true}
+      :X :Int
+      :meta {:unique :X}})
+    (entity
+     :I1009/F
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :I1009/G
+     {:Id {:type :Int :identity true}
+      :Z :Int})    
+    (record :I1009/A {:Z :Int})
+    (relationship
+     :I1009/R0
+     {:meta {:between [:I1009/F :I1009/G]}
+      :B :Int})
+    (relationship
+     :I1009/R1
+     {:meta {:contains [:I1009/E :I1009/F]}}))
+  (is (= #{:I1009/A} (cn/record-names :I1009)))
+  (is (= {:meta {:contains [:I1009/E :I1009/F], :cascade-on-delete true}}
+         (cn/fetch-user-schema :I1009/R1)))
+  (is (= {:meta {:between [:I1009/F :I1009/G], :cascade-on-delete true}, :B :Int}
+         (cn/fetch-user-schema :I1009/R0)))
+  (is (= {:unique :X} (cn/fetch-user-meta :I1009/E))))

@@ -1765,6 +1765,9 @@
   (dissoc-system-attributes
    (get-in @components [:raw recname])))
 
+(defn fetch-user-meta [recname]
+  (:meta (fetch-user-schema recname)))
+
 (defn between-attribute-names
   ([relname from to]
    (let [relmeta (relationship-meta (fetch-meta relname))]
