@@ -515,7 +515,8 @@
                           (create-event post-signup-event-name)
                           :SignupResult result :SignupRequest evobj)))]
                   (if user
-                    (ok (or post-signup-result {:status :ok :result (dissoc user :Password)}) data-fmt)
+                    (ok (or (when (seq post-signup-result) post-signup-result)
+                            {:status :ok :result (dissoc user :Password)}) data-fmt)
                     (bad-request (or post-signup-result result) data-fmt))))
               (catch Exception ex
                 (log/warn ex)
