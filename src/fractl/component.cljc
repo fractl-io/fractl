@@ -1592,6 +1592,10 @@
   (when-let [mt (fetch-meta relname)]
     (or (mt/contains mt) (mt/between mt))))
 
+(defn other-relationship-node [relname nodename]
+  (when-let [[a b] (relationship-nodes relname)]
+    (if (= a nodename) b a)))
+
 (defn attribute-in-relationship [relname entity-name]
   (let [mt (fetch-meta relname)
         entity-name (if (keyword? entity-name) entity-name (li/make-path entity-name))
