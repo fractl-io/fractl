@@ -887,6 +887,15 @@
     (s/replace path "%" (str path-ident))
     path))
 
+(defn- maybe-lift-id-pattern [recname attrs]
+  (if-let [pid (cn/path-identity-attribute-name recname)]
+    (let [pid (li/name-as-query-pattern pid)
+          ks (keys attrs)]
+      (if (some #{pid} ks)
+        [(dissoc attrs pid) (get attrs pid)]
+        [attrs nil]))
+    [attrs nil]))
+
 (defn- preproc-contains-spec [pat pat-alias relpat nodepat idpat]
   (let [pk (li/record-name pat)
         recname (li/normalize-name pk)
@@ -898,11 +907,17 @@
           pp-alias (find-preproc-alias pp)
           is-rel-q (li/query-pattern? relpat)
           is-pat-q (li/query-instance-pattern? pat)
-          attrs (assoc (li/record-attributes pat)
+          attrs0 (li/record-attributes pat)
+          [attrs1 idpat] (if (and (not idpat) (and is-rel-q is-pat-q))
+                           (maybe-lift-id-pattern pk attrs0)
+                           [attrs0 idpat])
+          attrs (assoc attrs1
                        (if is-rel-q
                          li/path-attr?
                          li/path-attr)
-                       v)
+                       (if (and is-rel-q (not idpat))
+                         [:like v]
+                         v))
           pat (assoc pat pk attrs)
           rec-s (li/name-str recname)
           rel-s (li/name-str relname)
