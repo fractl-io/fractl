@@ -933,24 +933,37 @@
   (when-not (li/query-instance-pattern? relpat)
     (let [relattrs (li/record-attributes relpat)
           relname (li/record-name relpat)
-          relmeta (cn/relationship-meta (cn/fetch-meta relname))]
+          rmeta (cn/fetch-meta relname)
+          relmeta (cn/relationship-meta rmeta)
+          pn (li/normalize-name (li/record-name pat))
+          nodepat (if (keyword? nodepat)
+                    [(cn/other-relationship-node relname pn) nodepat]
+                    nodepat)]
       (if (vector? nodepat)
         (let [[nodetype alias] nodepat]
           {:patterns [{relname (add-between-refs
                                 relattrs relmeta
-                                [(li/normalize-name (li/record-name pat)) pat-alias]
+                                [pn pat-alias]
                                 [nodetype alias])}]})
         (let [alias (or (:as nodepat) (newname))
               nodepat (assoc nodepat :as alias)]
-          (when-not (cn/has-between-relationship? (li/record-name pat) relname)
+          (when-not (cn/has-between-relationship? pn relname)
             (u/throw-ex (str relname " is not in the between-relationship " relname)))
           {:patterns [nodepat {relname (add-between-refs
                                         relattrs relmeta
-                                        [(li/normalize-name (li/record-name pat)) pat-alias]
+                                        [pn pat-alias]
                                         [(li/normalize-name (li/record-name nodepat)) alias])}]})))))
 
+(defn- contains-relationship-pattern [pat]
+  (cond
+    (keyword? pat) pat
+    (map? pat)
+    (when-let [n (li/record-name pat)]
+      (when (cn/contains-relationship? n) n))
+    :else nil))
+
 (defn- preproc-relspec-entry [pat pat-alias [relpat nodepat idpat]]
-  (if (keyword? relpat)
+  (if-let [relpat (contains-relationship-pattern relpat)]
     (preproc-contains-spec pat pat-alias relpat nodepat idpat)
     (preproc-between-spec pat pat-alias relpat nodepat idpat)))
 
@@ -1022,12 +1035,16 @@
       final-pats)))
 
 (defn- preproc-patterns [dfpats]
-  (loop [pats (lift-embedded-instances dfpats), final-pats []]
-    (if-let [p (first pats)]
-      (if-let [relspec (and (map? p) (li/rel-tag p))]
-        (recur (rest pats) (vec (concat final-pats (preproc-relspec p relspec))))
-        (recur (rest pats) (conj final-pats p)))
-      (if (seq final-pats) final-pats dfpats))))
+  (try
+    (loop [pats (lift-embedded-instances dfpats), final-pats []]
+      (if-let [p (first pats)]
+        (if-let [relspec (and (map? p) (li/rel-tag p))]
+          (recur (rest pats) (vec (concat final-pats (preproc-relspec p relspec))))
+          (recur (rest pats) (conj final-pats p)))
+        (if (seq final-pats) final-pats dfpats)))
+    (catch Exception ex
+      (log/exception ex)
+      (throw (Exception. "Error in dataflow, pre-processing failed")))))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
