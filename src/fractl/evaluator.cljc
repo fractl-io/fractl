@@ -161,7 +161,9 @@
       r)
     (catch #?(:clj Exception :cljs :default) ex
       (let [msg (str "error in dataflow for "
-                     (cn/instance-type event-instance)
+                     (or (cn/instance-type event-instance)
+                         (li/record-name event-instance)
+                         event-instance)
                      " - " #?(:clj (str (.getMessage ex)
                                         (ex-data ex))
                               :cljs ex))]

@@ -47,8 +47,10 @@
 
 (defn bind-instance
   ([env rec-name instance]
-   (let [insts (or (get-instances env rec-name) (list))]
-     (assoc env rec-name (conj insts instance))))
+   (if (and rec-name instance)
+     (let [insts (or (get-instances env rec-name) (list))]
+       (assoc env rec-name (conj insts instance)))
+     (u/throw-ex (str "may not be a valid instance - " instance ", record-name is - " rec-name))))
   ([env instance]
    (bind-instance
     env (li/split-path (cn/instance-type instance))
@@ -59,9 +61,12 @@
    (let [env (assoc env rec-name (list))]
      (su/move-all instances env #(bind-instance %1 rec-name %2))))
   ([env instances]
-   (bind-instances
-    env (li/split-path (cn/instance-type (first instances)))
-    instances)))
+   (if (seq instances)
+     (let [[c n :as rec-name] (li/split-path (cn/instance-type (first instances)))]
+       (if (and c n)
+         (bind-instances env rec-name instances)
+         (u/throw-ex (str "failed to fetch record-name from " (first instances)))))
+     env)))
 
 (defn bind-instance-to-alias [env alias result]
   (if (vector? alias)

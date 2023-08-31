@@ -1132,7 +1132,13 @@
           (let [new-env (if result-alias
                           (env/bind-instance-to-alias env result-alias r)
                           env)]
-            (i/ok r (if (map? r) (env/bind-instance new-env r) (env/bind-instances new-env r))))
+            (i/ok r (cond
+                      (map? r) (env/bind-instance new-env r)
+                      (seqable? r)
+                      (if (string? r)
+                        new-env
+                        (env/bind-instances new-env r))
+                      :else new-env)))
           (i/error (str ":eval failed - result is not of type " return-type)))))
 
     (do-match [self env [match-pattern-code cases-code alternative-code result-alias]]
