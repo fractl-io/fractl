@@ -446,6 +446,7 @@
 
 (defn query-instance-pattern? [obj]
   (or (query-pattern? obj)
+      (query-pattern? (record-name obj))
       (and (map? obj)
            (some query-pattern? (keys (record-attributes obj))))))
 

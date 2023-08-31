@@ -278,3 +278,82 @@
               (is (every? d? ds)))]
     (chk ds)
     (chk (tu/result {:I974/FindD {:J 12}}))))
+
+(deftest issue-1012-shorter-query-syntax
+  (defcomponent :I1012
+    (entity
+     :I1012/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :I1012/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :I1012/R
+     {:meta {:contains [:I1012/A :I1012/B]}})
+    (dataflow
+     :I1012/LookupAllB
+     {:I1012/B? {}
+      :-> [[:I1012/R? {:I1012/A {:Id? :I1012/LookupAllB.A}}]]})
+    (dataflow
+     :I1012/LookupAllBAlias
+     {:I1012/A {:Id? :I1012/LookupAllBAlias.A} :as [:A]}
+     {:I1012/B? {}
+      :-> [[:I1012/R? :A]]})
+    (dataflow
+     :I1012/LookupAllBOnY
+     {:I1012/B {:Y? :I1012/LookupAllBOnY.Y}
+      :-> [[:I1012/R? {:I1012/A {:Id? :I1012/LookupAllBOnY.A}}]]})
+    (dataflow
+     :I1012/LookupAllBOnYAlias
+     {:I1012/A {:Id? :I1012/LookupAllBOnYAlias.A} :as [:A]}
+     {:I1012/B {:Y? :I1012/LookupAllBOnYAlias.Y}
+      :-> [[:I1012/R? :A]]})
+    (dataflow
+     :I1012/LookupB
+     {:I1012/B {:Id? :I1012/LookupB.B}
+      :-> [[:I1012/R? {:I1012/A {:Id? :I1012/LookupB.A}}]]})
+    (dataflow
+     :I1012/LookupBOnY
+     {:I1012/B {:Id? :I1012/LookupBOnY.B
+                :Y? :I1012/LookupBOnY.Y}
+      :-> [[:I1012/R? {:I1012/A {:Id? :I1012/LookupBOnY.A}}]]})
+    (dataflow
+     :I1012/LookupBAlias
+     {:I1012/A {:Id? :I1012/LookupBAlias.A} :as [:A]}
+     {:I1012/B {:Id? :I1012/LookupBAlias.B}
+      :-> [[:I1012/R? :A]]}))
+  (let [as (mapv #(tu/first-result
+                   {:I1012/Create_A
+                    {:Instance
+                     {:I1012/A {:Id % :X (* % 10)}}}})
+                 [1 2])
+        crb #(tu/first-result
+              {:I1012/Create_B
+               {:Instance
+                {:I1012/B {:Id %2 :Y (* %2 20)}}
+                li/path-attr (str "/A/" %1 "/R")}})
+        bids [100 200 300]
+        bs1 (mapv (partial crb 1) bids)
+        bs2 (mapv (partial crb 2) bids)
+        b? (partial cn/instance-of? :I1012/B)
+        rs (tu/result
+            {:I1012/LookupAllBOnY
+             {:Y (* 20 100) :A 1}})]
+    (is (= 1 (count rs)))
+    (is (b? (first rs)))
+    (is (= rs (tu/result
+               {:I1012/LookupAllBOnYAlias
+                {:Y (* 20 100) :A 1}})))
+    (let [rs (tu/result
+              {:I1012/LookupAllB {:A 1}})]
+      (is (= 3 (count rs)))
+      (is (every? b? rs)))
+    (let [rs (tu/result {:I1012/LookupBAlias {:A 2 :B 200}})]
+      (is (= 1 (count rs)))
+      (is (b? (first rs)))
+      (is (= (li/path-attr (first rs)) "path://I1012$A/2/I1012$R/I1012$B/200"))
+      (is (= rs (tu/result {:I1012/LookupB {:A 2 :B 200}})))
+      (is (= rs (tu/result {:I1012/LookupBOnY {:A 2 :B 200 :Y (* 20 200)}})))
+      (is (tu/not-found? (tu/eval-all-dataflows {:I1012/LookupBOnY {:A 2 :B 200 :Y (* 5 200)}}))))))
