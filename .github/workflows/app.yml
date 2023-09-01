@@ -20,7 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Cloning fractl-io dependancies
-        run: git clone https://github.com/fractl-io/fractl-config-secrets-reader
+        run: git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
       - name: Installing fractl-io dependancies
         working-directory: ./fractl-config-secrets-reader
         run: lein install
