@@ -26,7 +26,8 @@
             [fractl.rbac.core :as rbac]
             [fractl.gpt.core :as gpt]
             [fractl.swagger.doc :as doc]
-            [fractl.swagger.docindex :as docindex])
+            [fractl.swagger.docindex :as docindex]
+            [fractl-config-secrets-reader.core :as fractl-secret-reader])
   (:import [java.util Properties]
            [java.net URL]
            [java.io File]
@@ -262,8 +263,12 @@
   (let [config (or (config-data-key options) (load-config options))]
     (when-let [extn (:script-extn config)]
       (u/set-script-extn! extn))
-    (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))]
-      [m (merge (:config model) config)])))
+    (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))
+          config (merge (:config model) config)]
+      (try
+        [m (fractl-secret-reader/read-secret-config config)]
+        (catch Exception e
+          (u/throw-ex (str "error reading secret config " e)))))))
 
 (defn- read-model-from-resource [component-root]
   (let [^String s (slurp
