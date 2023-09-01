@@ -14,7 +14,11 @@ jobs:
     if: github.event.pull_request.merged == true # only merged pull requests must trigger this job
     steps:
       - uses: actions/checkout@v2
-
+      - name: Installing fractl-io dependancies
+        run: |
+          git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
+          cd fractl-config-secrets-reader
+          lein install
       - name: Install dependencies
         run: lein deps
       - name: Generate pom.xml needed for mvn deploy
