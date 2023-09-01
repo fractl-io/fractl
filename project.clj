@@ -40,7 +40,8 @@
                  [org.clojure/algo.generic "0.1.3"]
                  [metosin/ring-swagger "0.26.2"]
                  [cheshire "5.11.0"]
-                 [org.liquibase/liquibase-core "4.23.0"]]
+                 [org.liquibase/liquibase-core "4.23.0"]
+                 [fractl-io/fractl-config-secrets-reader "0.1.0"]]
 
   :java-source-paths ["src/java"]
 
