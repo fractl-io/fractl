@@ -41,6 +41,3 @@ jobs:
         env:
           API_HOST: 127.0.0.1:8000
           CI: true
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
