@@ -19,11 +19,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Cloning fractl-io dependancies
-        run: git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
       - name: Installing fractl-io dependancies
-        working-directory: ./fractl-config-secrets-reader
-        run: lein install
+        run: |
+          git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
+          cd fractl-config-secrets-reader
+          lein install
       - name: Install dependencies
         run: lein deps
       - name: Install Node JS ${{ matrix.node-version }}
@@ -41,3 +41,6 @@ jobs:
         env:
           API_HOST: 127.0.0.1:8000
           CI: true
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
