@@ -9,6 +9,7 @@
             [fractl.lang.syntax :as ls]
             [fractl.lang.datetime :as dt]
             [fractl.lang.internal :as li]
+            [fractl.lang.raw :as raw]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship dataflow]]
@@ -478,3 +479,22 @@
   (is (= #{:I991/D} (cn/record-names :I991)))
   (is (= #{:I991/A :I991/B :I991/C :I991/R2} (cn/entity-names :I991)))
   (is (= #{:I991/F} (set/intersection #{:I991/F} (cn/event-names :I991)))))
+
+#?(:clj
+   (deftest issue-1023-spec-in-raw
+     (let [spec '(do (component :I1023)
+                     (attribute :I1023/UniqueName {:type :String, :unique true})
+                     (entity :I1023/E {:Id :Identity, :Name :I1023/UniqueName, :X {:type :Int, :optional true}}))
+           preproc-spec (map (fn [x]
+                               (if (seqable? x)
+                                 (let [n (first x) xs (rest x)]
+                                   `(~(symbol (str "fractl.lang/" (name n))) ~@xs))
+                                 x))
+                             spec)
+           third #(nth % 2)
+           third-of-third (comp third third)
+           third-of-second (comp third second)]
+       (eval preproc-spec)
+       (is (= spec (raw/as-edn :I1023)))
+       (is (= (third-of-third (rest spec)) (raw/find-entity :I1023/E)))
+       (is (= (third-of-second (rest spec)) (raw/find-attribute :I1023/UniqueName))))))
