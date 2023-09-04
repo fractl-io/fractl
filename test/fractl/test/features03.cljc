@@ -378,10 +378,10 @@
     (dataflow
      :Cbp/MakeB
      {:Cbp/B {:Id 10 :Y 100}
-      :-> [[:Cbp/R :_ :Cbp/MakeB.ParentPath]]})
+      :-> [[:Cbp/R :Cbp/MakeB.ParentPath :_]]})
     (dataflow
      :Cbp/FindB
-     {:Cbp/B? {} :-> [[:Cbp/R? :_ :Cbp/FindB.ParentPath]]}))
+     {:Cbp/B? {} :-> [[:Cbp/R? :Cbp/FindB.ParentPath :_]]}))
   (let [a (tu/first-result {:Cbp/Create_A {:Instance {:Cbp/A {:Id 1 :X 10}}}})
         b (tu/result {:Cbp/MakeB {:ParentPath "/A/1/R"}})]
     (is (cn/instance-of? :Cbp/A a))

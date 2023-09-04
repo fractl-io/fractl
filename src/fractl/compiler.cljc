@@ -912,8 +912,8 @@
         relname (li/normalize-name relpat)]
     (when-not (= relname (ffirst (cn/containing-parents recname)))
       (u/throw-ex (str "not a valid contains relationship for " recname " - " relname)))
-    (if (= :_ nodepat)
-      (preproc-contains-spec-by-path recname pat pat-alias relpat idpat)
+    (if (= :_ idpat)
+      (preproc-contains-spec-by-path recname pat pat-alias relpat nodepat)
       (let [v (newname)
             pp (maybe-preproc-parent-pat nodepat)
             pp-alias (find-preproc-alias pp)
