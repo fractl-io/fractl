@@ -34,6 +34,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+    - name: Installing fractl-io dependancies
+      run: |
+        git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
+        cd fractl-config-secrets-reader
+        lein install
     - name: Install dependencies
       run: lein deps
     - name: Run fractl test
