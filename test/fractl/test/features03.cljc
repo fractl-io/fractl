@@ -357,3 +357,33 @@
       (is (= rs (tu/result {:I1012/LookupB {:A 2 :B 200}})))
       (is (= rs (tu/result {:I1012/LookupBOnY {:A 2 :B 200 :Y (* 20 200)}})))
       (is (tu/not-found? (tu/eval-all-dataflows {:I1012/LookupBOnY {:A 2 :B 200 :Y (* 5 200)}}))))))
+
+(deftest contains-by-path ; issue-1018
+  (defcomponent :Cbp
+    (entity
+     :Cbp/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Cbp/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :Cbp/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :Cbp/R
+     {:meta {:contains [:Cbp/A :Cbp/B]}})
+    (dataflow
+     :Cbp/MakeB
+     {:Cbp/B {:Id 10 :Y 100}
+      :-> [[:Cbp/R :_ :Cbp/MakeB.ParentPath]]})
+    (dataflow
+     :Cbp/FindB
+     {:Cbp/B? {} :-> [[:Cbp/R? :_ :Cbp/FindB.ParentPath]]}))
+  (let [a (tu/first-result {:Cbp/Create_A {:Instance {:Cbp/A {:Id 1 :X 10}}}})
+        b (tu/result {:Cbp/MakeB {:ParentPath "/A/1/R"}})]
+    (is (cn/instance-of? :Cbp/A a))
+    (is (cn/instance-of? :Cbp/B b))
+    (is (cn/same-instance? b (tu/first-result {:Cbp/FindB {:ParentPath (li/path-attr b)}})))))

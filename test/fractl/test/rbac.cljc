@@ -311,7 +311,7 @@
            (is (not (lookup-e "u2@ipv.com" 1)))
            (is (cn/same-instance? e (lookup-e "u1@ipv.com" 1)))))))))
 
-(deftest issue-1018
+(deftest creator-and-parent-as-owners
   (lr/reset-events!)
   (defcomponent :I1018
     (entity
