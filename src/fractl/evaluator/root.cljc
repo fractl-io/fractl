@@ -917,9 +917,13 @@
 (defn- ensure-between-refs [env record-name inst]
   (let [[node1 node2] (mapv li/split-path (cn/relationship-nodes record-name))
         [a1 a2] (cn/between-attribute-names record-name node1 node2)
-        lookup (partial lookup-ref-inst false)]
-    (if (and (lookup env node1 (cn/identity-attribute-name node1) (a1 inst))
-             (lookup env node2 (cn/identity-attribute-name node2) (a2 inst)))
+        lookup (partial lookup-ref-inst false)
+        l1 #(when % (lookup env node1 % (a1 inst)))
+        l2 #(when % (lookup env node2 % (a2 inst)))]
+    (if (and (or (l1 (cn/identity-attribute-name node1))
+                 (l1 (cn/path-identity-attribute-name node1)))
+             (or (l2 (cn/identity-attribute-name node2))
+                 (l2 (cn/path-identity-attribute-name node2))))
       inst
       (u/throw-ex (str "failed to lookup node-references: " record-name)))))
 

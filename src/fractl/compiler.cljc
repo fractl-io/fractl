@@ -1183,7 +1183,7 @@
       [{n (assoc obj from (li/id-ref alias))}])))
 
 (defn parse-relationship-tree
-  ([parent-link tree]
+  ([parent-link path-attr tree]
    (let [[root-entity contains-rel between-rels] (extract-node-info tree)]
      (when (and contains-rel (not= root-entity (first (cn/contains-entities contains-rel))))
        (u/throw-ex (str root-entity " not parent in " contains-rel)))
@@ -1191,11 +1191,12 @@
        (u/throw-ex (str root-entity " does not belong to one of " between-rels)))
      (let [alias (newname)]
        (flatten
-        `[~(merge {root-entity (root-entity tree) :as alias}
+        `[~(merge {root-entity (merge (root-entity tree) path-attr) :as alias}
                   (when parent-link {:-> [parent-link]}))
           ~@(when contains-rel
-              (mapv (partial parse-relationship-tree [contains-rel alias]) (contains-rel tree)))
+              (mapv (partial parse-relationship-tree [contains-rel alias] nil) (contains-rel tree)))
           ~@(when between-rels
               (mapv (partial process-between-rel-node tree root-entity alias) between-rels))
           ~alias]))))
-  ([tree] (parse-relationship-tree nil tree)))
+  ([path-attr tree] (parse-relationship-tree nil path-attr tree))
+  ([tree] (parse-relationship-tree nil nil tree)))
