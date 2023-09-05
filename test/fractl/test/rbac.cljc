@@ -310,3 +310,67 @@
            (is (not (update-e "u2@ipv.com" 1 8000)))
            (is (not (lookup-e "u2@ipv.com" 1)))
            (is (cn/same-instance? e (lookup-e "u1@ipv.com" 1)))))))))
+
+(deftest creator-and-parent-as-owners
+  (lr/reset-events!)
+  (defcomponent :I1018
+    (entity
+     :I1018/A
+     {:rbac [{:roles ["i1018-admin"] :allow [:create :update :read]}]
+      :Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :I1018/B
+     {:rbac [{:roles ["i1018-user"] :allow [:create :update :read]}]
+      :Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :I1018/R
+     {:meta {:contains [:I1018/A :I1018/B]}})
+    (dataflow
+     :I1018/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@i1018.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@i1018.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1018-admin" :Assignee "u1@i1018.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1018-user" :Assignee "u2@i1018.com"}}))
+  (is (finalize-events))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:I1018/InitUsers {}})))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac] (ei/init-interceptors [:rbac])))
+     (let [fq (partial li/as-fully-qualified-path :I1018)
+           a? (partial cn/instance-of? :I1018/A)
+           b? (partial cn/instance-of? :I1018/B)
+           create-a (fn [id]
+                      {:I1018/Create_A
+                       {:Instance
+                        {:I1018/A {:Id id :X (* id 100)}}}})
+           create-b (fn [a id]
+                      {:I1018/Create_B
+                       {:Instance
+                        {:I1018/B
+                         {:Id id
+                          :Y (* 5 id)}}
+                        li/path-attr (str "/A/" a "/R")}})
+           lookup-bs (fn [a]
+                       {:I1018/LookupAll_B
+                        {li/path-attr (fq (str "path://A/" a "/R/B/%"))}})
+           with-u1 (partial with-user "u1@i1018.com")
+           with-u2 (partial with-user "u2@i1018.com")
+           a1 (tu/first-result (with-u1 (create-a 1)))
+           bs1 (mapv #(tu/first-result (with-u2 (create-b 1 %))) [10 20])
+           bs2 (tu/result (with-u2 (lookup-bs 1)))
+           is-bs (fn [bs]
+                   (is (= (count bs) 2))
+                   (is (every? b? bs))
+                   (is (every? #(= #{"u1@i1018.com" "u2@i1018.com"}
+                                   (cn/owners %)) bs)))]
+       (is (a? a1))
+       (is-bs bs1)
+       (is-bs bs2)))))
