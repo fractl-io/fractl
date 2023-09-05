@@ -893,10 +893,14 @@
         [c n] (li/split-path record-name)]
     (assoc inst li/path-attr (li/as-fully-qualified-path c (str path "/" (name n) "/" v)))))
 
-(defn- concat-owners [inst parent-inst]
-  (if-let [owners (cn/owners parent-inst)]
-    (cn/concat-owners inst owners)
-    inst))
+(defn- concat-owners [env inst parent-inst]
+  (let [user (active-user env)
+        owners (if-let [pos (cn/owners parent-inst)]
+                 (set (concat pos [user]))
+                 (when user #{user}))]
+    (if owners
+      (cn/concat-owners inst owners)
+      inst)))
 
 (defn- partial-path-attr [inst]
   (when-let [p (li/path-attr inst)]
@@ -906,7 +910,7 @@
 (defn- maybe-fix-contains-path [env record-name inst]
   (if-let [path (partial-path-attr inst)]
     (if-let [parent (find-parent-by-path env record-name path)]
-      (attach-full-path record-name (concat-owners inst parent) path)
+      (attach-full-path record-name (concat-owners env inst parent) path)
       (u/throw-ex (str "failed to find parent by path - " path)))
     inst))
 
