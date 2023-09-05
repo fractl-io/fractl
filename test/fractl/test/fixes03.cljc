@@ -476,9 +476,17 @@
     (event :I991/F {:K :Int})
     (relationship :I991/R1 {:meta {:contains [:I991/A :I991/B]}})
     (relationship :I991/R2 {:meta {:between [:I991/B :I991/C]}}))
+  (is (not (raw/find-record :I991/R1)))
   (is (= #{:I991/D} (cn/record-names :I991)))
   (is (= #{:I991/A :I991/B :I991/C :I991/R2} (cn/entity-names :I991)))
   (is (= #{:I991/F} (set/intersection #{:I991/F} (cn/event-names :I991)))))
+
+(deftest entity-default-id
+  (defcomponent :Edid
+    (entity :Edid/E {}))
+  (is (li/id-attr (cn/fetch-schema :Edid/E)))
+  (is (= li/id-attr (cn/identity-attribute-name :Edid/E)))
+  (is (not (seq (raw/find-entity :Edid/E)))))
 
 #?(:clj
    (deftest issue-1023-spec-in-raw
