@@ -463,7 +463,9 @@
               cn (normalized-attributes :record cn attrs))]
        (when r
          (and (cn/raw-definition cn attrs)
-              (raw/record n attrs)
+              (if-not (:contains (:meta attrs))
+                (raw/record n attrs)
+                n)
               r)))
      (u/throw-ex (str "Syntax error in record. Check record: " n))))
   ([schema]
@@ -810,7 +812,12 @@
   ([n attrs raw-attrs]
    (when-let [r (serializable-entity n (preproc-for-built-in-attrs attrs))]
      (and (if raw-attrs (raw/entity n raw-attrs) true) r)))
-  ([n attrs] (entity n attrs attrs))
+  ([n attrs]
+   (let [raw-attrs attrs
+         attrs (if-not (seq attrs)
+                 {li/id-attr :Fractl.Kernel.Lang/Identity}
+                 attrs)]
+     (entity n attrs raw-attrs)))
   ([schema] (parse-and-define entity schema)))
 
 (defn- parse-relationship-member-spec [spec]
