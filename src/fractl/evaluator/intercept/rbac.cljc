@@ -107,7 +107,7 @@
       (if (= :create opr)
         (when has-base-priv arg)
         (let [is-owner (cn/user-is-owner? user resource)
-              has-inst-priv (has-instance-privilege? user opr resource)]
+              has-inst-priv (when-not is-owner (has-instance-privilege? user opr resource))]
           (if (or is-owner has-inst-priv)
             arg
             (if has-base-priv

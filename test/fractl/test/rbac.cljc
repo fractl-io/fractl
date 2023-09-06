@@ -374,3 +374,45 @@
        (is (a? a1))
        (is-bs bs1)
        (is-bs bs2)))))
+
+(deftest between-ownership
+  (lr/reset-events!)
+  (defcomponent :BetOwn
+    (entity :BetOwn/A {:Id :Identity :X :Int
+                       :rbac [{:roles ["betown"] :allow [:create]}]})
+    (entity :BetOwn/B {:Id :Identity :Y :Int
+                       :rbac [{:roles ["betown"] :allow [:create]}]})                       
+    (relationship :BetOwn/R {:meta {:between [:BetOwn/A :BetOwn/B]}
+                             :rbac {:owner :BetOwn/A}})
+    (dataflow
+     :BetOwn/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@betown.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@betown.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "betown" :Assignee "u1@betown.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "betown" :Assignee "u2@betown.com"}}))
+  (is (finalize-events))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:BetOwn/InitUsers {}})))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac] (ei/init-interceptors [:rbac])))
+     (let [wu1 (partial with-user "u1@betown.com")
+           wu2 (partial with-user "u2@betown.com")
+           a1 (tu/first-result (wu1 {:BetOwn/Create_A
+                                     {:Instance
+                                      {:BetOwn/A {:X 1}}}}))
+           b1 (tu/first-result (wu2 {:BetOwn/Create_B
+                                     {:Instance
+                                      {:BetOwn/B {:Y 2}}}}))]
+       (is (cn/instance-of? :BetOwn/A a1))
+       (is (cn/instance-of? :BetOwn/B b1))
+       (println "@@@@@@@@@@@@@@@@@@@@@@@" (tu/result (wu1 {:BetOwn/Create_R
+                                                           {:Instance
+                                                            {:BetOwn/R
+                                                             {:A (:Id a1)
+                                                              :B (:Id b1)}}}})))))))
