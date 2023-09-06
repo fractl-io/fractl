@@ -139,7 +139,7 @@
     (execute-fn!
      datasource
      (fn [txn]
-       (doseq [ename (cn/entity-names component-name)]
+       (doseq [ename (cn/entity-names component-name false)]
          (when-not (cn/entity-schema-predefined? ename)
            (let [tabname (stu/entity-table-name ename)
                  schema (stu/find-entity-schema ename)]
