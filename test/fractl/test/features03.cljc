@@ -267,7 +267,7 @@
             c? (partial cn/instance-of? :I974/C)
             c1 (tu/first-result (create-c-evt 1 10 100))
             lookup-c (partial lookup-inst :I974/Lookup_C)]
-        (is c? c1)
+        (is (c? c1))
         (is (cn/same-instance? c1 (lookup-c "path://I974$A/1/I974$R1/I974$B/10/I974$R2/I974$C/100")))
         (is (cn/same-instance? c1 (tu/first-result {:I974/FindC {:Z 500 :C 100 :A 1 :B 10 :D 12}}))))))
   (let [ds (mapv #(tu/result {:I974/CreateD {:Id % :T (* % 100) :J 12}}) [10 20])

@@ -933,20 +933,28 @@
 
 (declare contains-relationship?)
 
-(defn record-names [component]
-  (when-let [recnames (record-names-by-type :record component)]
-    (when-let [rs (seq (filter (complement contains-relationship?) recnames))]
-      (set rs))))
+(defn record-names
+  ([component exclude-contains]
+   (when-let [recnames (record-names-by-type :record component)]
+     (when-let [rs (if exclude-contains
+                     (seq (filter (complement contains-relationship?) recnames))
+                     recnames)]
+       (set rs))))
+  ([component] (record-names component true)))
 
-(def entity-names (partial record-names-by-type :entity))
+(defn entity-names
+  ([component exclude-between]
+   (when-let [result (record-names-by-type :entity component)]
+     (if exclude-between
+       (set (filter #(not (:relationship (fetch-meta %))) result))
+       result)))
+  ([component] (entity-names component true)))
+
 (def event-names (partial record-names-by-type :event))
 
 (defn relationship-names [component]
-  (filter
-   #(:relationship
-     (fetch-meta %))
-   (concat (record-names component)
-           (entity-names component))))
+  (set (concat (filter #(:contains (fetch-meta %)) (record-names component false))
+               (filter #(:relationship (fetch-meta %)) (entity-names component false)))))
 
 (defn user-defined-event? [event-name]
   (not (s/index-of (name event-name) "_")))

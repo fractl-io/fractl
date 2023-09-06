@@ -478,7 +478,7 @@
     (relationship :I991/R2 {:meta {:between [:I991/B :I991/C]}}))
   (is (not (raw/find-record :I991/R1)))
   (is (= #{:I991/D} (cn/record-names :I991)))
-  (is (= #{:I991/A :I991/B :I991/C :I991/R2} (cn/entity-names :I991)))
+  (is (= #{:I991/A :I991/B :I991/C} (cn/entity-names :I991)))
   (is (= #{:I991/F} (set/intersection #{:I991/F} (cn/event-names :I991)))))
 
 (deftest entity-default-id
@@ -506,3 +506,16 @@
        (is (= spec (raw/as-edn :I1023)))
        (is (= (third-of-third (rest spec)) (raw/find-entity :I1023/E)))
        (is (= (third-of-second (rest spec)) (raw/find-attribute :I1023/UniqueName))))))
+
+(deftest contains-in-relnames
+  (defcomponent :Cir
+    (record :Cir/X {:Y :Int})
+    (entity :Cir/A {:Id :Identity})
+    (entity :Cir/B {:Id :Identity})
+    (entity :Cir/C {:Id :Identity})
+    (relationship :Cir/R1 {:meta {:contains [:Cir/A :Cir/B]}})
+    (relationship :Cir/R2 {:meta {:contains [:Cir/B :Cir/C]}})
+    (relationship :Cir/R3 {:meta {:between [:Cir/A :Cir/A]}}))
+  (is (= (cn/record-names :Cir) #{:Cir/X}))
+  (is (= (cn/entity-names :Cir) #{:Cir/B :Cir/C :Cir/A}))
+  (is (= (cn/relationship-names :Cir) #{:Cir/R1 :Cir/R2 :Cir/R3})))
