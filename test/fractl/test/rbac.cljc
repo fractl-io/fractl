@@ -375,44 +375,89 @@
        (is-bs bs1)
        (is-bs bs2)))))
 
-(deftest between-ownership
+(deftest issue-1025-rbac-update
   (lr/reset-events!)
-  (defcomponent :BetOwn
-    (entity :BetOwn/A {:Id :Identity :X :Int
-                       :rbac [{:roles ["betown"] :allow [:create]}]})
-    (entity :BetOwn/B {:Id :Identity :Y :Int
-                       :rbac [{:roles ["betown"] :allow [:create]}]})                       
-    (relationship :BetOwn/R {:meta {:between [:BetOwn/A :BetOwn/B]}
-                             :rbac {:owner :BetOwn/A}})
+  (defcomponent :I1025
+    (entity
+     :I1025/Member
+     {:Id :Identity
+      :rbac [{:roles ["i1025"] :allow [:create]}]})
+    (entity
+     :I1025/Assessment
+     {:Id :Identity
+      :rbac [{:roles ["i1025"] :allow [:create]}]})
+    (relationship
+     :I1025/AssessmentOf
+     {:meta {:contains [:I1025/Member :I1025/Assessment]}})
+    (relationship
+     :I1025/AssessementBy
+     {:meta {:between [:I1025/Member :I1025/Assessment]}})
+    (relationship
+     :I1025/Relation
+     {:meta {:between [:I1025/Member :I1025/Member :as [:From :To]]}
+      :rbac [{:roles ["i1025"] :allow [:create :read :delete]}]})
     (dataflow
-     :BetOwn/InitUsers
+     :I1025/CreateAssessment
+     {:I1025/Relation
+      {:From? :I1025/CreateAssessment.By :To? :I1025/CreateAssessment.Of}}
+     {:I1025/Assessment {}
+      :-> [[:I1025/AssessmentOf {:I1025/Member {:Id? :I1025/CreateAssessment.Of}}]
+           [{:I1025/AssessementBy {}} {:I1025/Member {:Id? :I1025/CreateAssessment.By}}]]})
+    (dataflow
+     :I1025/InitUsers
      {:Fractl.Kernel.Identity/User
-      {:Email "u1@betown.com"}}
+      {:Email "u1@i1025.com"}}
      {:Fractl.Kernel.Identity/User
-      {:Email "u2@betown.com"}}
+      {:Email "u2@i1025.com"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
-      {:Role "betown" :Assignee "u1@betown.com"}}
+      {:Role "i1025" :Assignee "u1@i1025.com"}}
      {:Fractl.Kernel.Rbac/RoleAssignment
-      {:Role "betown" :Assignee "u2@betown.com"}}))
+      {:Role "i1025" :Assignee "u2@i1025.com"}}))
   (is (finalize-events))
   (is (cn/instance-of?
        :Fractl.Kernel.Rbac/RoleAssignment
-       (tu/first-result {:BetOwn/InitUsers {}})))
+       (tu/first-result {:I1025/InitUsers {}})))
   (call-with-rbac
    (fn []
      (is (= [:rbac] (ei/init-interceptors [:rbac])))
-     (let [wu1 (partial with-user "u1@betown.com")
-           wu2 (partial with-user "u2@betown.com")
-           a1 (tu/first-result (wu1 {:BetOwn/Create_A
-                                     {:Instance
-                                      {:BetOwn/A {:X 1}}}}))
-           b1 (tu/first-result (wu2 {:BetOwn/Create_B
-                                     {:Instance
-                                      {:BetOwn/B {:Y 2}}}}))]
-       (is (cn/instance-of? :BetOwn/A a1))
-       (is (cn/instance-of? :BetOwn/B b1))
-       (println "@@@@@@@@@@@@@@@@@@@@@@@" (tu/result (wu1 {:BetOwn/Create_R
-                                                           {:Instance
-                                                            {:BetOwn/R
-                                                             {:A (:Id a1)
-                                                              :B (:Id b1)}}}})))))))
+     (let [wu1 (partial with-user "u1@i1025.com")
+           wu2 (partial with-user "u2@i1025.com")
+           create-member (fn [with-user]
+                           (tu/first-result
+                            (with-user {:I1025/Create_Member
+                                        {:Instance
+                                         {:I1025/Member {}}}})))
+           create-assessment (fn [with-user of by]
+                               (tu/first-result
+                                (with-user {:I1025/CreateAssessment
+                                            {:Of of :By by}})))
+           create-relation (fn [with-user from to]
+                             (tu/first-result
+                              (with-user {:I1025/Create_Relation
+                                          {:Instance
+                                           {:I1025/Relation
+                                            {:From from :To to}}}})))
+           m? (partial cn/instance-of? :I1025/Member)
+           a? (partial cn/instance-of? :I1025/Assessment)
+           r? (partial cn/instance-of? :I1025/Relation)
+           allow-member-read (fn [with-user id assignee]
+                               (tu/first-result
+                                (with-user
+                                  {:Fractl.Kernel.Rbac/Create_InstancePrivilegeAssignment
+                                   {:Instance
+                                    {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
+                                     {:Resource :I1025/Member
+                                      :ResourceId id
+                                      :Assignee assignee
+                                      :Actions [:read]}}}})))
+           inst-priv? (partial cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)
+           m1 (create-member wu1), m2 (create-member wu2)]
+       (is (m? m1)) (is (m? m2))
+       (is (tu/is-error #(create-assessment wu1 (:Id m1) (:Id m1))))
+       (is (r? (create-relation wu1 (:Id m1) (:Id m1))))
+       (is (a? (create-assessment wu1 (:Id m1) (:Id m1))))
+       (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2))))
+       (is (inst-priv? (allow-member-read wu1 (:Id m1) "u2@i1025.com")))
+       (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2))))
+       (is (r? (create-relation wu1 (:Id m2) (:Id m1))))
+       (is (a? (create-assessment wu2 (:Id m1) (:Id m2))))))))

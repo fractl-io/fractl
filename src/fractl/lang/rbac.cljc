@@ -104,18 +104,16 @@
     (cn/register-dataflow event-name pats)
     (evaluator {event-name {}})))
 
-(defn- inherits [rel spec]
+(defn- owners [rel spec]
   (case rel
-    :between (:inherits spec)
+    :between (li/owner spec)
     false))
 
 (defn- cleanup-spec [rel spec]
   (if (map? spec)
-    (if (li/owner spec)
-      nil
-      (if-let [node (inherits rel spec)]
-        (or (:rbac (cn/fetch-meta node)) (rbac-spec-of-parent node))
-        (:spec spec)))
+    (if-let [owner (owners rel spec)]
+      (or (:rbac (cn/fetch-meta owner)) (rbac-spec-of-parent owner))
+      (:spec spec))
     spec))
 
 (defn rbac [recname rel spec]
