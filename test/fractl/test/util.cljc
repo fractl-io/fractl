@@ -20,10 +20,16 @@
                    :cljs ex)))
   ex)
 
+(defn- maybe-result-map [r]
+  (cond
+    (map? r) r
+    (and (seqable? r) (map? (first r))) (first r)
+    :else nil))
+
 (defn is-error [f]
   (is (try
-        (if-let [r (f)]
-          (ei/error? (if (map? r) r (first r)))
+        (if-let [r (maybe-result-map (f))]
+          (ei/error? r)
           true)
         #?(:clj (catch Exception ex
                   (report-expected-ex ex))

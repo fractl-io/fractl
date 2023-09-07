@@ -260,3 +260,8 @@
 
 (defn bind-active-error-result [env r]
   (assoc env active-error-result r))
+
+(def relationship-context :-*-rel-context-*-)
+
+(defn merge-relationship-context [env ctx]
+  (assoc env relationship-context ctx))

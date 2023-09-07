@@ -914,23 +914,24 @@
       (u/throw-ex (str "failed to find parent by path - " path)))
     inst))
 
-(defn- ensure-between-refs [env record-name inst]
+(defn- ensure-between-refs [env rel-ctx record-name inst]
   (let [[node1 node2] (mapv li/split-path (cn/relationship-nodes record-name))
         [a1 a2] (cn/between-attribute-names record-name node1 node2)
         lookup (partial lookup-ref-inst false)
         l1 #(when % (lookup env node1 % (a1 inst)))
-        l2 #(when % (lookup env node2 % (a2 inst)))]
-    (if (and (or (l1 (cn/identity-attribute-name node1))
-                 (l1 (cn/path-identity-attribute-name node1)))
-             (or (l2 (cn/identity-attribute-name node2))
-                 (l2 (cn/path-identity-attribute-name node2))))
-      inst
+        l2 #(when % (lookup env node2 % (a2 inst)))
+        [r1 r2] [(or (l1 (cn/identity-attribute-name node1))
+                     (l1 (cn/path-identity-attribute-name node1)))
+                 (or (l2 (cn/identity-attribute-name node2))
+                     (l2 (cn/path-identity-attribute-name node2)))]]
+    (if (and r1 r2)
+      (and (swap! rel-ctx assoc record-name {a1 r1 a2 r2}) inst)
       (u/throw-ex (str "failed to lookup node-references: " record-name)))))
 
-(defn- ensure-relationship-constraints [env record-name inst]
+(defn- ensure-relationship-constraints [env rel-ctx record-name inst]
   (cond
     (cn/between-relationship? record-name)
-    (ensure-between-refs env record-name inst)
+    (ensure-between-refs env rel-ctx record-name inst)
 
     (cn/entity? record-name)
     (maybe-fix-contains-path env record-name inst)
@@ -950,10 +951,12 @@
       (i/ok insts env)
 
       insts
-      (let [insts (let [r (mapv
-                           (partial ensure-relationship-constraints env record-name)
+      (let [rel-ctx (atom {})
+            insts (let [r (mapv
+                           (partial ensure-relationship-constraints env rel-ctx record-name)
                            (if single? [insts] (vec insts)))]
                     (if single? (first r) r))
+            env (env/merge-relationship-context env @rel-ctx)
             local-result (if upsert-required
                            (chained-upsert
                             env (partial eval-event-dataflows self)
@@ -1016,7 +1019,9 @@
         (if (cn/an-instance? v)
           (let [opcode-eval (partial eval-opcode self)
                 inst (assoc-computed-attributes env (cn/instance-type v) v opcode-eval)
-                final-inst (ensure-relationship-constraints env (cn/instance-type inst) inst)
+                rel-ctx (atom nil)
+                final-inst (ensure-relationship-constraints env rel-ctx (cn/instance-type inst) inst)
+                env (env/merge-relationship-context env @rel-ctx)
                 event-evaluator (partial eval-event-dataflows self)
                 [env r]
                 (bind-and-persist env event-evaluator final-inst)]

@@ -382,10 +382,8 @@
      :I1025/Member
      {:Id :Identity
       :rbac [{:roles ["i1025"] :allow [:create]}]})
-    (entity
-     :I1025/Assessment
-     {:Id :Identity
-      :rbac [{:roles ["i1025"] :allow [:create]}]})
+    (entity :I1025/Assessment {:Id :Identity
+                               :rbac [{:roles ["i1025"] :allow [:create]}]})
     (relationship
      :I1025/AssessmentOf
      {:meta {:contains [:I1025/Member :I1025/Assessment]}})
@@ -394,7 +392,9 @@
      {:meta {:between [:I1025/Member :I1025/Assessment]}})
     (relationship
      :I1025/Relation
-     {:meta {:between [:I1025/Member :I1025/Member :as [:From :To]]}})
+     {:meta {:between [:I1025/Member :I1025/Member :as [:From :To]]}
+      :rbac {:allow-owners [[:read [:From :To]]
+                            [:create :I1025/Assessment]]}})
     (dataflow
      :I1025/CreateAssessment
      {:I1025/Relation

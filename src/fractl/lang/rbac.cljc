@@ -95,31 +95,93 @@
     spec
     (conj spec admin-rbac-spec)))
 
+(def ^:private derived-rbac-tag :derived-rbac)
+(def ^:private derived-rbac? derived-rbac-tag)
+
+(def ^:private rbac-assign-events (atom {}))
+
+(defn- register-derived-rbac-assign-event [evaluator recname rolename]
+  (let [[c n] (li/split-path recname)
+        event-name (li/make-path c (keyword (str (name n) "_DerivedRoleAssignment")))
+        aname :Owners]
+    (cn/intern-event event-name {aname :Fractl.Kernel.Lang/Any})
+    (cn/register-dataflow
+     event-name [[:for-each (li/make-ref event-name aname)
+                  {:Fractl.Kernel.Rbac/RoleAssignment
+                   {:Role rolename :Assignee :%}}]])
+    (swap! rbac-assign-events assoc (li/make-path recname) #(evaluator
+                                                             {event-name
+                                                              {aname %}}))
+    event-name))
+
+(defn- ensure-success [df-result]
+  (cond
+    (map? df-result)
+    (if (= :ok (:status df-result))
+      df-result
+      (u/throw-ex (str "Internal rbac-assignment failed - " (:message df-result))))
+
+    (seqable? df-result) (ensure-success (first df-result))
+
+    :else (u/throw-ex (str "Internal rbac-assignment failed with invalid result - " df-result))))
+
+(defn derived-rbac-assign [recname users]
+  (when-let [f (get @rbac-assign-events recname)]
+    (ensure-success (f users))))
+
+(defn deregister-derived-rbac-assign-event [recname]
+  (swap! rbac-assign-events dissoc (li/make-path recname))
+  recname)
+
+(defn- make-derived-role [recname target-recname]
+  (let [[c n] (li/split-path recname)
+        [_ n2] (li/split-path target-recname)]
+    (str (name c) "_" (name n) "_" (name n2) "__derived_role")))
+
+(declare intern-rbac)
+
+(defn- intern-derived-rbac [evaluator recname spec]
+  (doseq [s (derived-rbac-tag spec)]
+    (let [target-rec (second s)
+          rolename (make-derived-role recname target-rec)
+          perms (first s)]
+      (and (intern-rbac evaluator target-rec [{:roles [rolename]
+                                               :allow (if (keyword? perms)
+                                                        [perms]
+                                                        perms)}])
+           (register-derived-rbac-assign-event evaluator recname rolename))))
+  (intern-rbac evaluator recname (:spec spec)))
+
 (defn- intern-rbac [evaluator recname spec]
-  (let [spec (conj-admin spec)
-        pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
-        [c n] (li/split-path recname)
-        event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
-    (cn/intern-event event-name {})
-    (cn/register-dataflow event-name pats)
-    (evaluator {event-name {}})))
+  (if (derived-rbac? spec)
+    (intern-derived-rbac evaluator recname spec)
+    (let [spec (conj-admin spec)
+          pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
+          [c n] (li/split-path recname)
+          event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
+      (cn/intern-event event-name {})
+      (cn/register-dataflow event-name pats)
+      (evaluator {event-name {}}))))
 
 (defn- owners [rel spec]
   (case rel
     :between (li/owner spec)
     false))
 
-(defn- cleanup-spec [rel spec]
+(defn- cleanup-spec [recname rel spec]
   (if (map? spec)
-    (if-let [owner (owners rel spec)]
-      (or (:rbac (cn/fetch-meta owner)) (rbac-spec-of-parent owner))
-      (:spec spec))
+    (if-let [spec (:allow-owners spec)]
+      (when-let [rules (seq (filter #(keyword? (second %)) spec))]
+        {derived-rbac-tag rules :spec (rbac-spec-for-relationship recname rel)})
+      (if-let [owner (owners rel spec)]
+        (or (:rbac (cn/fetch-meta owner)) (rbac-spec-of-parent owner))
+        (:spec spec)))
     spec))
 
 (defn rbac [recname rel spec]
   (let [cont (fn [evaluator]
                (cond
-                 rel (when-let [spec (or (cleanup-spec rel spec)
+                 rel (when-let [spec (or (cleanup-spec recname rel spec)
                                          (rbac-spec-for-relationship recname rel))]
                        (intern-rbac evaluator recname spec))
                  (not spec) (let [spec (rbac-spec-of-parent recname)]
