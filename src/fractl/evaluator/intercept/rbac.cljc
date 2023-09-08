@@ -12,7 +12,6 @@
             [fractl.rbac.core :as rbac]
             [fractl.global-state :as gs]
             [fractl.resolver.registry :as rr]
-            [fractl.resolver.rbac :as rbr]
             [fractl.evaluator.intercept.internal :as ii]))
 
 (defn- has-priv? [rbac-predic user arg]
@@ -175,40 +174,44 @@
     (or (cn/an-internal-event? t)
         (some #{(li/split-path t)} system-events))))
 
-(def ^:dynamic in-system-mode false)
+(def ^:dynamic pass-thru-mode false)
 
 (defn- fire-derived-rbac-events [env relname]
-  (binding [in-system-mode true]
-    (when-let [owners (seq (map cn/owners (vals (relname (env/relationship-context env)))))]
-      (lr/derived-rbac-assign relname (vec (set (apply concat owners)))))
-    relname))
+  (binding [pass-thru-mode true]
+    (when-let [insts (seq (vals (relname (env/relationship-context env))))]
+      (let [owners (set (mapv (comp first cn/owners) insts)) ; only the first owner is considered
+            resources (vec
+                       (filter
+                        #(identity (first %))
+                        (map
+                         #(let [t (cn/instance-type-kw %)
+                                ident (cn/identity-attribute-name t)]
+                            [(first (set/difference owners #{(first (cn/owners %))})) t (ident %)])
+                         insts)))]
+        (lr/derived-rbac-assign relname owners resources))))
+  relname)
 
 (defn- run [env opr arg]
-  (if in-system-mode
-    arg
-    (let [user (or (cn/event-context-user (ii/event arg))
-                   (gs/active-user))
-          arg (if (or (rbac/superuser-email? user)
-                      (system-event? (ii/event arg)))
-                (maybe-handle-system-objects user env opr arg)
-                (let [is-ups (or (= opr :update) (= opr :create))
-                      arg (if is-ups (ii/assoc-user-state arg) arg)]
-                  (or (apply-rbac-for-user user env opr arg)
-                      (when is-ups
-                        (check-upsert-on-attributes user env opr arg)))))]
-      (if (= opr :create)
-        (if-let [inst (first-instance (extract-read-results (ii/data-output arg)))]
-          (let [n (and (cn/an-instance? inst) (cn/instance-type-kw inst))]
-            (if (and n (cn/between-relationship? n))
-              (and (fire-derived-rbac-events env n) arg)
-              arg))
-          arg)
-        arg))))
+  (let [user (or (cn/event-context-user (ii/event arg))
+                 (gs/active-user))]
+    (if pass-thru-mode
+      (maybe-handle-system-objects user env opr arg)
+      (let [arg (if (or (rbac/superuser-email? user)
+                        (system-event? (ii/event arg)))
+                  (maybe-handle-system-objects user env opr arg)
+                  (let [is-ups (or (= opr :update) (= opr :create))
+                        arg (if is-ups (ii/assoc-user-state arg) arg)]
+                    (or (apply-rbac-for-user user env opr arg)
+                        (when is-ups
+                          (check-upsert-on-attributes user env opr arg)))))]
+        (if (= opr :create)
+          (if-let [inst (first-instance (extract-read-results (ii/data-output arg)))]
+            (let [n (and (cn/an-instance? inst) (cn/instance-type-kw inst))]
+              (if (and n (cn/between-relationship? n))
+                (and (fire-derived-rbac-events env n) arg)
+                arg))
+            arg)
+          arg)))))
 
 (defn make [_] ; config is not used
-  (let [r (ii/make-interceptor :rbac run)]
-    (rr/register-resolver
-     {:name :rbac :type :rbac
-      :compose? false
-      :paths [:Fractl.Kernel.Rbac/InstancePrivilegeAssignment]})
-    r))
+  (ii/make-interceptor :rbac run))

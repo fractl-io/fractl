@@ -2,6 +2,7 @@
  fractl.model.fractl.kernel.rbac
  (:require
   [clojure.string :as s]
+  [fractl.util :as u]
   [fractl.store.util :as stu]
   [fractl.lang.internal :as li])
  (:use
@@ -17,6 +18,7 @@
   :clj-import
   '[(:require
      [clojure.string :as s]
+     [fractl.util :as u]
      [fractl.store.util :as stu]
      [fractl.lang.internal :as li])]})
 (entity
@@ -91,7 +93,11 @@
                        fractl.model.fractl.kernel.rbac/privileges-query}])
 (entity
  #:Fractl.Kernel.Rbac{:InstancePrivilegeAssignment
-                      {:Actions
+                      {:Name
+                       {:type :String,
+                        :identity true,
+                        :default u/uuid-string},
+                       :Actions
                        {:check
                         fractl.model.fractl.kernel.rbac/crud-list?,
                         :optional true},
@@ -100,4 +106,4 @@
                        :Assignee :String}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "1a8331f2-0684-4349-9e48-b76392f95cfa")
+ "6c63262f-0301-4cc9-8b24-d4f87090e4df")

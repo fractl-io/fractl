@@ -103,15 +103,26 @@
 (defn- register-derived-rbac-assign-event [evaluator recname rolename]
   (let [[c n] (li/split-path recname)
         event-name (li/make-path c (keyword (str (name n) "_DerivedRoleAssignment")))
-        aname :Owners]
-    (cn/intern-event event-name {aname :Fractl.Kernel.Lang/Any})
+        aowners :Owners ares :Resources]
+    (cn/intern-event event-name {aowners :Fractl.Kernel.Lang/Any
+                                 ares :Fractl.Kernel.Lang/Any})
     (cn/register-dataflow
-     event-name [[:for-each (li/make-ref event-name aname)
+     event-name [[:for-each [(li/make-ref event-name aowners) :as :U]
                   {:Fractl.Kernel.Rbac/RoleAssignment
-                   {:Role rolename :Assignee :%}}]])
-    (swap! rbac-assign-events assoc (li/make-path recname) #(evaluator
-                                                             {event-name
-                                                              {aname %}}))
+                   {:Role rolename :Assignee :U}}]
+                 [:for-each [(li/make-ref event-name ares) :as :R]
+                  {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
+                   {:Name '(str :R)
+                    :Resource '(second :R)
+                    :ResourceId '(nth :R 2)
+                    :Assignee '(first :R)
+                    :Actions [:q# [:read]]}}]])
+    (swap! rbac-assign-events assoc
+           (li/make-path recname)
+           (fn [owners resources]
+             (evaluator
+              {event-name
+               {aowners owners ares resources}})))
     event-name))
 
 (defn- ensure-success [df-result]
@@ -125,9 +136,9 @@
 
     :else (u/throw-ex (str "Internal rbac-assignment failed with invalid result - " df-result))))
 
-(defn derived-rbac-assign [recname users]
+(defn derived-rbac-assign [recname owners resources]
   (when-let [f (get @rbac-assign-events recname)]
-    (ensure-success (f users))))
+    (ensure-success (f owners resources))))
 
 (defn deregister-derived-rbac-assign-event [recname]
   (swap! rbac-assign-events dissoc (li/make-path recname))

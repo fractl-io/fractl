@@ -72,4 +72,4 @@
   :NewName {:type :Path, :optional true}})
 (def
  Fractl_Kernel_Store___COMPONENT_ID__
- "f4d4e596-c8be-430a-9977-dd337484a35a")
+ "69bd1653-946d-4c12-ab0a-db06d23589a4")

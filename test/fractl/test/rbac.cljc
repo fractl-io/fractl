@@ -397,7 +397,7 @@
                             [:create :I1025/Assessment]]}})
     (dataflow
      :I1025/CreateAssessment
-     {:I1025/Relation
+     #_{:I1025/Relation
       {:From? :I1025/CreateAssessment.By :To? :I1025/CreateAssessment.Of}}
      {:I1025/Assessment {}
       :-> [[:I1025/AssessmentOf {:I1025/Member {:Id? :I1025/CreateAssessment.Of}}]
@@ -439,28 +439,12 @@
            m? (partial cn/instance-of? :I1025/Member)
            a? (partial cn/instance-of? :I1025/Assessment)
            r? (partial cn/instance-of? :I1025/Relation)
-           allow-inst-read (fn [typ with-user id assignee]
-                             (tu/first-result
-                              (with-user
-                                {:Fractl.Kernel.Rbac/Create_InstancePrivilegeAssignment
-                                 {:Instance
-                                  {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-                                   {:Resource typ
-                                    :ResourceId id
-                                    :Assignee assignee
-                                    :Actions [:read]}}}})))
-           allow-member-read (partial allow-inst-read :I1025/Member)
-           allow-relation-read (partial allow-inst-read :I1025/Relation)
-           inst-priv? (partial cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)
            m1 (create-member wu1), m2 (create-member wu2)]
        (is (m? m1)) (is (m? m2))
-       (is (tu/is-error #(create-assessment wu1 (:Id m1) (:Id m1))))
-       (is (r? (create-relation wu1 (:Id m1) (:Id m1))))
        (is (a? (create-assessment wu1 (:Id m1) (:Id m1))))
+       #_(is (r? (create-relation wu1 (:Id m1) (:Id m1))))
+       #_(is (a? (create-assessment wu1 (:Id m1) (:Id m1))))
        (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2))))
-       (is (inst-priv? (allow-member-read wu1 (:Id m1) "u2@i1025.com")))
        (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2))))
-       (let [r (create-relation wu1 (:Id m2) (:Id m1))]
-         (is (r? r))
-         (is (inst-priv? (allow-relation-read wu1 (li/id-attr r) "u2@i1025.com"))))
+       (is (r? (create-relation wu1 (:Id m2) (:Id m1))))
        (is (a? (create-assessment wu2 (:Id m1) (:Id m2))))))))

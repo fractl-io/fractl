@@ -56,7 +56,7 @@
       (if-let [r ((ii/intercept-fn i)
                   (when (system-interceptor? i) env) opr result)]
         (recur (rest ins) r)
-        (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i) " for output")))
+        (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i) " for output" data)))
       (ii/data-output result))))
 
 (defn invoke-interceptors [opr env data continuation]
