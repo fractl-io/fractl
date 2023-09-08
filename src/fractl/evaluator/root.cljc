@@ -1118,8 +1118,7 @@
                   env))
 
           :else
-          (if-let [[insts env]
-                   (find-instances env store record-name queries)]
+          (if-let [[insts env] (find-instances env store record-name queries)]
             (let [alias (ls/alias-tag queries)
                   env (if alias (env/bind-instance-to-alias env alias insts) env)
                   id-attr (cn/identity-attribute-name record-name)]

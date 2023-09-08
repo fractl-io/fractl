@@ -397,8 +397,6 @@
                             [:create :I1025/Assessment]]}})
     (dataflow
      :I1025/CreateAssessment
-     #_{:I1025/Relation
-      {:From? :I1025/CreateAssessment.By :To? :I1025/CreateAssessment.Of}}
      {:I1025/Assessment {}
       :-> [[:I1025/AssessmentOf {:I1025/Member {:Id? :I1025/CreateAssessment.Of}}]
            [{:I1025/AssessementBy {}} {:I1025/Member {:Id? :I1025/CreateAssessment.By}}]]})
@@ -442,9 +440,13 @@
            m1 (create-member wu1), m2 (create-member wu2)]
        (is (m? m1)) (is (m? m2))
        (is (a? (create-assessment wu1 (:Id m1) (:Id m1))))
-       #_(is (r? (create-relation wu1 (:Id m1) (:Id m1))))
-       #_(is (a? (create-assessment wu1 (:Id m1) (:Id m1))))
        (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2))))
        (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2))))
-       (is (r? (create-relation wu1 (:Id m2) (:Id m1))))
-       (is (a? (create-assessment wu2 (:Id m1) (:Id m2))))))))
+       (let [r (create-relation wu1 (:Id m2) (:Id m1))]
+           (is (r? r))
+           (is (a? (create-assessment wu2 (:Id m1) (:Id m2))))
+           (is (r? (tu/first-result
+                     (wu1
+                      {:I1025/Delete_Relation
+                       {li/id-attr (li/id-attr r)}}))))
+           (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2)))))))))

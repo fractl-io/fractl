@@ -100,29 +100,48 @@
 
 (def ^:private rbac-assign-events (atom {}))
 
+(defn- role-name-prefix
+  ([relname component-required]
+   (let [[c n] (li/split-path relname)]
+     (str (when component-required (name c)) "_" (name n) "__derived")))
+  ([relname] (role-name-prefix relname true)))
+
 (defn- register-derived-rbac-assign-event [evaluator recname rolename]
   (let [[c n] (li/split-path recname)
-        event-name (li/make-path c (keyword (str (name n) "_DerivedRoleAssignment")))
-        aowners :Owners ares :Resources]
+        full-prefix (role-name-prefix recname)
+        prefix (role-name-prefix recname false)
+        event-name (li/make-path c (keyword (str prefix "RoleAssignment")))
+        del-event-name (li/make-path c (keyword (str prefix "DeleteRoleAssignment")))
+        aowners :Owners ares :Resources atag :Tag
+        atag-ref (li/make-ref event-name atag)
+        del-atag-ref (li/make-ref del-event-name atag)]
     (cn/intern-event event-name {aowners :Fractl.Kernel.Lang/Any
-                                 ares :Fractl.Kernel.Lang/Any})
+                                 ares :Fractl.Kernel.Lang/Any
+                                 atag :Fractl.Kernel.Lang/String})
+    (cn/intern-event del-event-name {atag :Fractl.Kernel.Lang/String})
     (cn/register-dataflow
      event-name [[:for-each [(li/make-ref event-name aowners) :as :U]
                   {:Fractl.Kernel.Rbac/RoleAssignment
-                   {:Role rolename :Assignee :U}}]
+                   {:Role rolename :Assignee :U :Tag atag-ref}}]
                  [:for-each [(li/make-ref event-name ares) :as :R]
                   {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-                   {:Name '(str :R)
+                   {:Tag atag-ref
                     :Resource '(second :R)
                     :ResourceId '(nth :R 2)
                     :Assignee '(first :R)
                     :Actions [:q# [:read]]}}]])
+    (cn/register-dataflow
+     del-event-name
+     [[:delete :Fractl.Kernel.Rbac/RoleAssignment {:Tag del-atag-ref}]
+      [:delete :Fractl.Kernel.Rbac/InstancePrivilegeAssignment {:Tag del-atag-ref}]])
     (swap! rbac-assign-events assoc
            (li/make-path recname)
-           (fn [owners resources]
-             (evaluator
-              {event-name
-               {aowners owners ares resources}})))
+           (fn [opr owners resources tag]
+             (case opr
+               :create (evaluator
+                        {event-name
+                         {aowners owners ares resources atag tag}})
+               :delete (evaluator {del-event-name {atag tag}}))))
     event-name))
 
 (defn- ensure-success [df-result]
@@ -136,18 +155,21 @@
 
     :else (u/throw-ex (str "Internal rbac-assignment failed with invalid result - " df-result))))
 
-(defn derived-rbac-assign [recname owners resources]
+(defn derived-rbac-assign [recname owners resources tag]
   (when-let [f (get @rbac-assign-events recname)]
-    (ensure-success (f owners resources))))
+    (ensure-success (f :create owners resources tag))))
+
+(defn derived-rbac-remove [recname tag]
+  (when-let [f (get @rbac-assign-events (li/make-path recname))]
+    (ensure-success (f :delete nil nil tag))))
 
 (defn deregister-derived-rbac-assign-event [recname]
   (swap! rbac-assign-events dissoc (li/make-path recname))
   recname)
 
 (defn- make-derived-role [recname target-recname]
-  (let [[c n] (li/split-path recname)
-        [_ n2] (li/split-path target-recname)]
-    (str (name c) "_" (name n) "_" (name n2) "__derived_role")))
+  (let [[_ n2] (li/split-path target-recname)]
+    (str (role-name-prefix recname) (name n2) "_role")))
 
 (declare intern-rbac)
 
