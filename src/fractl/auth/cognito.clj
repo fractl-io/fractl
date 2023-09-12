@@ -39,9 +39,11 @@
 (defmethod auth/make-authfn tag [_config]
   (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
     (fn [_req token]
-      (jwt/verify-and-extract
-       (make-jwks-url region user-pool-id)
-       token))))
+      (try
+        (jwt/verify-and-extract
+         (make-jwks-url region user-pool-id)
+         token)
+        (catch Exception e)))))
 
 (defmethod auth/user-login tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
