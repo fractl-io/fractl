@@ -95,126 +95,31 @@
     spec
     (conj spec admin-rbac-spec)))
 
-(def ^:private derived-rbac-tag :derived-rbac)
-(def ^:private derived-rbac? derived-rbac-tag)
-
-(def ^:private rbac-assign-events (atom {}))
-
-(defn- role-name-prefix
-  ([relname component-required]
-   (let [[c n] (li/split-path relname)]
-     (str (when component-required (name c)) "_" (name n) "__derived")))
-  ([relname] (role-name-prefix relname true)))
-
-(defn- register-derived-rbac-assign-event [evaluator recname rolename]
-  (let [[c n] (li/split-path recname)
-        full-prefix (role-name-prefix recname)
-        prefix (role-name-prefix recname false)
-        event-name (li/make-path c (keyword (str prefix "RoleAssignment")))
-        del-event-name (li/make-path c (keyword (str prefix "DeleteRoleAssignment")))
-        aowners :Owners ares :Resources atag :Tag
-        atag-ref (li/make-ref event-name atag)
-        del-atag-ref (li/make-ref del-event-name atag)]
-    (cn/intern-event event-name {aowners :Fractl.Kernel.Lang/Any
-                                 ares :Fractl.Kernel.Lang/Any
-                                 atag :Fractl.Kernel.Lang/String})
-    (cn/intern-event del-event-name {atag :Fractl.Kernel.Lang/String})
-    (cn/register-dataflow
-     event-name [[:for-each [(li/make-ref event-name aowners) :as :U]
-                  {:Fractl.Kernel.Rbac/RoleAssignment
-                   {:Role rolename :Assignee :U :Tag atag-ref}}]
-                 [:for-each [(li/make-ref event-name ares) :as :R]
-                  {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
-                   {:Tag atag-ref
-                    :Resource '(second :R)
-                    :ResourceId '(nth :R 2)
-                    :Assignee '(first :R)
-                    :Actions [:q# [:read]]}}]])
-    (cn/register-dataflow
-     del-event-name
-     [[:delete :Fractl.Kernel.Rbac/RoleAssignment {:Tag del-atag-ref}]
-      [:delete :Fractl.Kernel.Rbac/InstancePrivilegeAssignment {:Tag del-atag-ref}]])
-    (swap! rbac-assign-events assoc
-           (li/make-path recname)
-           (fn [opr owners resources tag]
-             (case opr
-               :create (evaluator
-                        {event-name
-                         {aowners owners ares resources atag tag}})
-               :delete (evaluator {del-event-name {atag tag}}))))
-    event-name))
-
-(defn- ensure-success [df-result]
-  (cond
-    (map? df-result)
-    (if (= :ok (:status df-result))
-      df-result
-      (u/throw-ex (str "Internal rbac-assignment failed - " (:message df-result))))
-
-    (seqable? df-result) (ensure-success (first df-result))
-
-    :else (u/throw-ex (str "Internal rbac-assignment failed with invalid result - " df-result))))
-
-(defn derived-rbac-assign [recname owners resources tag]
-  (when-let [f (get @rbac-assign-events recname)]
-    (ensure-success (f :create owners resources tag))))
-
-(defn derived-rbac-remove [recname tag]
-  (when-let [f (get @rbac-assign-events (li/make-path recname))]
-    (ensure-success (f :delete nil nil tag))))
-
-(defn deregister-derived-rbac-assign-event [recname]
-  (swap! rbac-assign-events dissoc (li/make-path recname))
-  recname)
-
-(defn- make-derived-role [recname target-recname]
-  (let [[_ n2] (li/split-path target-recname)]
-    (str (role-name-prefix recname) (name n2) "_role")))
-
-(declare intern-rbac)
-
-(defn- intern-derived-rbac [evaluator recname spec]
-  (doseq [s (derived-rbac-tag spec)]
-    (let [target-rec (second s)
-          rolename (make-derived-role recname target-rec)
-          perms (first s)]
-      (and (intern-rbac evaluator target-rec [{:roles [rolename]
-                                               :allow (if (keyword? perms)
-                                                        [perms]
-                                                        perms)}])
-           (register-derived-rbac-assign-event evaluator recname rolename))))
-  (intern-rbac evaluator recname (:spec spec)))
-
 (defn- intern-rbac [evaluator recname spec]
-  (if (derived-rbac? spec)
-    (intern-derived-rbac evaluator recname spec)
-    (let [spec (conj-admin spec)
-          pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
-          [c n] (li/split-path recname)
-          event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
-      (cn/intern-event event-name {})
-      (cn/register-dataflow event-name pats)
-      (evaluator {event-name {}}))))
+  (let [spec (conj-admin spec)
+        pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
+        [c n] (li/split-path recname)
+        event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
+    (cn/intern-event event-name {})
+    (cn/register-dataflow event-name pats)
+    (evaluator {event-name {}})))
 
 (defn- owners [rel spec]
   (case rel
     :between (li/owner spec)
     false))
 
-(defn- cleanup-spec [recname rel spec]
+(defn- cleanup-spec [rel spec]
   (if (map? spec)
-    (if-let [spec (:allow-owners spec)]
-      (when-let [rules (seq (filter #(keyword? (second %)) spec))]
-        {derived-rbac-tag rules :spec (rbac-spec-for-relationship recname rel)})
-      (if-let [owner (owners rel spec)]
-        (or (:rbac (cn/fetch-meta owner)) (rbac-spec-of-parent owner))
-        (:spec spec)))
+    (if-let [owner (owners rel spec)]
+      (or (:rbac (cn/fetch-meta owner)) (rbac-spec-of-parent owner))
+      (:spec spec))
     spec))
 
 (defn rbac [recname rel spec]
   (let [cont (fn [evaluator]
                (cond
-                 rel (when-let [spec (or (cleanup-spec recname rel spec)
+                 rel (when-let [spec (or (cleanup-spec rel spec)
                                          (rbac-spec-for-relationship recname rel))]
                        (intern-rbac evaluator recname spec))
                  (not spec) (let [spec (rbac-spec-of-parent recname)]

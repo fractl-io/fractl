@@ -375,7 +375,7 @@
        (is-bs bs1)
        (is-bs bs2)))))
 
-(deftest issue-1025-rbac-update
+#_(deftest issue-1025-rbac-update
   (lr/reset-events!)
   (defcomponent :I1025
     (entity

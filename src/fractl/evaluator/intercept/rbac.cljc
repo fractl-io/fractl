@@ -8,7 +8,6 @@
             [fractl.meta :as mt]
             [fractl.lang.internal :as li]
             [fractl.lang.relgraph :as rg]
-            [fractl.lang.rbac :as lr]
             [fractl.rbac.core :as rbac]
             [fractl.global-state :as gs]
             [fractl.resolver.registry :as rr]
@@ -174,52 +173,17 @@
     (or (cn/an-internal-event? t)
         (some #{(li/split-path t)} system-events))))
 
-(def ^:dynamic pass-thru-mode false)
-
-(defn- fire-derived-rbac-events [env opr relname relid]
-  (binding [pass-thru-mode true]
-    (case opr
-      :create
-      (when-let [insts (seq (vals (relname (env/relationship-context env))))]
-        (let [owners (set (apply concat (mapv cn/owners insts)))
-              resources (vec
-                         (filter
-                          #(identity (first %))
-                          (map
-                           #(let [t (cn/instance-type-kw %)
-                                  ident (cn/identity-attribute-name t)]
-                              [(first (set/difference owners #{(first (cn/owners %))})) t (ident %)])
-                           insts)))]
-          (lr/derived-rbac-assign relname owners resources relid)))
-      :delete (lr/derived-rbac-remove relname relid)))
-  relname)
-
 (defn- run [env opr arg]
   (let [user (or (cn/event-context-user (ii/event arg))
                  (gs/active-user))]
-    (if pass-thru-mode
+    (if (or (rbac/superuser-email? user)
+            (system-event? (ii/event arg)))
       (maybe-handle-system-objects user env opr arg)
-      (let [arg (if (or (rbac/superuser-email? user)
-                        (system-event? (ii/event arg)))
-                  (maybe-handle-system-objects user env opr arg)
-                  (let [is-ups (or (= opr :update) (= opr :create))
-                        arg (if is-ups (ii/assoc-user-state arg) arg)]
-                    (or (apply-rbac-for-user user env opr arg)
-                        (when is-ups
-                          (check-upsert-on-attributes user env opr arg)))))]
-        (case opr
-          :create
-          (if-let [inst (first-instance (extract-read-results (ii/data-output arg)))]
-            (let [n (and (cn/an-instance? inst) (cn/instance-type-kw inst))]
-              (if (and n (cn/between-relationship? n))
-                (and (fire-derived-rbac-events env opr n ((cn/identity-attribute-name n) inst)) arg)
-                arg))
-            arg)
-          :delete
-          (if-let [[n id] (ii/data-output arg)]
-            (and (fire-derived-rbac-events env opr n id) arg)
-            arg)
-          arg)))))
+      (let [is-ups (or (= opr :update) (= opr :create))
+            arg (if is-ups (ii/assoc-user-state arg) arg)]
+        (or (apply-rbac-for-user user env opr arg)
+            (when is-ups
+              (check-upsert-on-attributes user env opr arg)))))))
 
 (defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))
