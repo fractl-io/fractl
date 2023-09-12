@@ -377,9 +377,10 @@
 (defn instance-of?
   "Return true if the fully-qualified name is the same as that of the instance."
   [nm inst]
-  (or (= (li/split-path nm)
-         (parsed-instance-type inst))
-      (inherits? nm (instance-type inst))))
+  (and (an-instance? inst)
+       (or (= (li/split-path nm)
+              (parsed-instance-type inst))
+           (inherits? nm (instance-type inst)))))
 
 (defn instance-attributes
   ([x include-meta]
@@ -1859,13 +1860,16 @@
         (read-string ma))
       ma)))
 
-(defn concat-owners [inst new-owners]
+(defn- update-owners [opr inst users]
   (let [xs (owners inst)]
-    (if-let [ys (seq (set/union xs new-owners))]
+    (if-let [ys (seq (opr xs users))]
       (let [ma (get-meta-attr inst)
             meta (assoc ma :owners (s/join "," ys))]
         (assoc inst li/meta-attr meta))
       inst)))
+
+(def concat-owners (partial update-owners set/union))
+(def remove-owners (partial update-owners set/difference))
 
 (defn user-is-owner? [user inst]
   (some #{user} (owners inst)))

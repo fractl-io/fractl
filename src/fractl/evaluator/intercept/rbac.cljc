@@ -69,13 +69,7 @@
                     resource
                     (cn/instance-type-kw resource)))))
 
-(defn- instance-priv-assignment? [resource]
-  (and (cn/an-instance? resource)
-       (= (cn/instance-type-kw resource)
-          :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)))
-
-(defn- handle-instance-priv [user env opr inst is-system-event]
-  (if (or (= opr :create) (= opr :delete))
+(defn- handle-rbac-entity [tag update-inst user env opr inst is-system-event]
     (let [entity-name (:Resource inst)
           id (:ResourceId inst)
           store (env/get-store env)
@@ -86,32 +80,63 @@
         (u/throw-ex (str "resource not found - " [entity-name id])))
       (when-not is-system-event
         (when-not (cn/user-is-owner? user res)
-          (u/throw-ex (str "only owner can assign instance-privileges - " [entity-name id]))))
-      (let [assignee (:Assignee inst)
-            actions (when (= opr :create) (:Actions inst))]
-        (if (store/update-instances
-             store entity-name
-             [(if actions
-                (cn/assign-instance-privileges res assignee actions)
-                (cn/remove-instance-privileges res assignee))])
+          (u/throw-ex (str "only owner can assign " (name tag) " privileges - " [entity-name id]))))
+      (let [assignee (:Assignee inst)]
+        (if (store/update-instances store entity-name (update-inst res assignee))
           inst
-          (u/throw-ex (str "failed to assign instance-privileges - " [entity-name id])))))
+          (u/throw-ex (str "failed to assign " (name tag) " privileges - " [entity-name id]))))))
+
+(def ^:private instance-priv-assignment?
+  (partial cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment))
+
+(defn- handle-instance-priv [user env opr inst is-system-event]
+  (if (or (= opr :create) (= opr :delete))
+    (handle-rbac-entity :instance (fn [res assignee]
+                                    (let [actions (when (= opr :create) (:Actions inst))]
+                                      [(if actions
+                                         (cn/assign-instance-privileges res assignee actions)
+                                         (cn/remove-instance-privileges res assignee))]))
+                        user env opr inst is-system-event)
     inst))
 
+(def ^:private ownership-assignment?
+  (partial cn/instance-of? :Fractl.Kernel.Rbac/OwnershipAssignment))
+
+(defn- handle-ownership-assignment [user env opr inst is-system-event]
+  (if (or (= opr :create) (= opr :delete))
+    (handle-rbac-entity :ownership (fn [res assignee]
+                                     [(if (= opr :create)
+                                        (cn/concat-owners res #{assignee})
+                                        (cn/remove-owners res #{assignee}))])
+                        user env opr inst is-system-event)
+    inst))
+
+(defn- maybe-force [p]
+  (if (and p (fn? p))
+    (p)
+    p))
+
 (defn- apply-rbac-checks [user env opr arg resource check-input]
-  (if (instance-priv-assignment? resource)
+  (cond
+    (instance-priv-assignment? resource)
     (when (handle-instance-priv user env opr resource false) arg)
-    (let [inst-type (when (cn/an-instance? resource) (cn/instance-type-kw resource))
-          rel-ctx (when inst-type (inst-type (env/relationship-context env)))
-          [parent between-nodes] (when rel-ctx
-                                   [(:parent rel-ctx)
-                                    (seq (vals (dissoc rel-ctx :parent)))])
-          owner? (partial cn/user-is-owner? user)
-          has-base-priv (or ((opr actions) user check-input)
-                            (and parent (owner? parent))
-                            (and between-nodes (every? owner? between-nodes)))]
+
+    (ownership-assignment? resource)
+    (when (handle-ownership-assignment user env opr resource false) arg)
+
+    :else
+    (let [owner? (partial cn/user-is-owner? user)
+          has-base-priv ((opr actions) user check-input)]
       (if (= :create opr)
-        (when has-base-priv arg)
+        (or (and has-base-priv arg)
+            (let [inst-type (when (cn/an-instance? resource) (cn/instance-type-kw resource))
+                  rel-ctx (when inst-type (inst-type (env/relationship-context env)))
+                  [parent between-nodes] (when rel-ctx
+                                           [(maybe-force (:parent rel-ctx))
+                                            (seq (vals (dissoc rel-ctx :parent)))])
+                  has-owner-privs (or (and parent (owner? parent))
+                                      (and between-nodes (some owner? between-nodes)))]
+              (and has-owner-privs arg)))
         (let [is-owner (owner? resource)
               has-inst-priv (when-not is-owner (has-instance-privilege? user opr resource))]
           (if (or is-owner has-inst-priv)
@@ -151,22 +176,21 @@
         arg))))
 
 (defn- check-upsert-on-attributes [user env opr arg]
-  (when-let [inst (first-instance (ii/data-input arg))]
-    (let [n (cn/instance-type inst)
-          idattr (cn/identity-attribute-name n)
-          attrs (remove #(= idattr %) (keys (cn/instance-attributes inst)))
-          waf (partial ii/wrap-attribute n)]
-      (when (every? #(apply-rbac-for-user user env opr (ii/assoc-data-input arg (waf %))) attrs)
-        arg))))
+  ;; TODO: attributes rbac needs re-design.
+  arg)
 
 (defn- maybe-handle-system-objects [user env opr arg]
   (if-let [data (ii/data-input arg)]
     (if (and (or (= opr :create) (= opr :delete))
              (not (ii/skip-for-input? arg)))
       (let [resource (if (= opr :create) (first-instance data) (second data))]
-        (if (instance-priv-assignment? resource)
+        (cond
+          (instance-priv-assignment? resource)
           (when (handle-instance-priv user env opr resource true) arg)
-          arg))
+
+          (ownership-assignment? resource)
+          (when (handle-ownership-assignment user env opr resource true) arg)
+          :else arg))
       arg)
     arg))
 
@@ -189,9 +213,9 @@
       (maybe-handle-system-objects user env opr arg)
       (let [is-ups (or (= opr :update) (= opr :create))
             arg (if is-ups (ii/assoc-user-state arg) arg)]
-        (or (apply-rbac-for-user user env opr arg)
-            (when is-ups
-              (check-upsert-on-attributes user env opr arg)))))))
+        (apply-rbac-for-user user env opr arg)
+        ;; TODO: call check-upsert-on-attributes for create/update
+        ))))
 
 (defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))

@@ -38,7 +38,6 @@
          :indexed true}
   :Assignee {:type :String ; usually a :Fractl.Kernel.Identity/User.Name
              :indexed true}
-  :Tag {:type :String :indexed true :optional true}
   :meta
   {:unique [:Role :Assignee]}})
 
@@ -69,9 +68,14 @@
 
 (entity
  {:InstancePrivilegeAssignment
-  {:Tag {:type :String :indexed true :optional true}
-   :Actions {:check crud-list?
+  {:Actions {:check crud-list?
              :optional true}
    :Resource :Path
+   :ResourceId :Any
+   :Assignee :String}})
+
+(entity
+ {:OwnershipAssignment
+  {:Resource :Path
    :ResourceId :Any
    :Assignee :String}})

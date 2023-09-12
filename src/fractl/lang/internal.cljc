@@ -24,8 +24,12 @@
 
 (defn as-partial-path [path]
   (let [s (path-query-string path)
-        idx (s/last-index-of s "/")]
-    (subs s 0 idx)))
+        has-child (s/ends-with? s "%")
+        idx (s/last-index-of s "/")
+        s1 (subs s 0 idx)]
+    (if has-child
+      (subs s1 0 (s/last-index-of s1 "/"))
+      s1)))
 
 (defn maybe-add-path-query-prefix [s]
   (if (path-query? s)

@@ -902,17 +902,18 @@
       (cn/concat-owners inst owners)
       inst)))
 
-(defn- partial-path-attr [inst]
-  (when-let [p (li/path-attr inst)]
-    (when-not (li/path-query? p)
-      p)))
-
 (defn- maybe-fix-contains-path [env rel-ctx record-name inst]
-  (if-let [path (partial-path-attr inst)]
-    (if-let [parent (find-parent-by-path env record-name path)]
-      (and (swap! rel-ctx assoc (li/make-path record-name) {:parent parent})
-           (attach-full-path record-name (concat-owners env inst parent) path))
-      (u/throw-ex (str "failed to find parent by path - " path)))
+  (if-let [path (li/path-attr inst)]
+    (if-not (li/path-query? path)
+      (if-let [parent (find-parent-by-path env record-name path)]
+        (and (swap! rel-ctx assoc (li/make-path record-name) {:parent parent})
+             (attach-full-path record-name (concat-owners env inst parent) path))
+        (u/throw-ex (str "failed to find parent by path - " path)))
+      (and (swap! rel-ctx assoc (li/make-path record-name)
+                  {:parent #(find-parent-by-path
+                             env record-name
+                             (li/as-partial-path path))})
+           inst))
     inst))
 
 (defn- ensure-between-refs [env rel-ctx record-name inst]
