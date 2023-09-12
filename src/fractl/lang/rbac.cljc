@@ -54,42 +54,6 @@
             roles)))])
      spec)))
 
-(defn- filter-rbac-by-perms [p r]
-  (filter (fn [{allow :allow}]
-            (or (= allow :*)
-                (some p allow)))
-          r))
-
-(def ^:private filter-rd (partial filter-rbac-by-perms #{:read}))
-(def ^:private filter-upcr (partial filter-rbac-by-perms #{:update :create}))
-
-(defn- merge-reads-with-writes [r1 r2]
-  (let [rr1 (filter-upcr r1)
-        rr2 (filter-rd r2)]
-    (concat rr1 rr2)))
-
-(defn- merge-read-writes [r1 r2]
-  (concat (filter-upcr r1)
-          (filter-upcr r2)))
-
-(defn- merge-rbac-specs [reltype rec1 rec2]
-  (let [[r1 r2] [(:rbac (cn/fetch-meta rec1))
-                 (:rbac (cn/fetch-meta rec2))]]
-    (case reltype
-      :contains (merge-reads-with-writes r1 r2)
-      :between (merge-read-writes r1 r2))))
-
-(defn- rbac-spec-for-relationship [relname reltype]
-  (if-let [[e1 e2] (cn/relationship-nodes relname)]
-    (merge-rbac-specs reltype e1 e2)
-    (u/throw-ex (str "failed to fetch nodes for " relname))))
-
-(defn- rbac-spec-of-parent [recname]
-  (when-let [ps (cn/containing-parents recname)]
-    (let [[_ _ p] (first ps)]
-      (or (:rbac (cn/fetch-meta p))
-          (when-not (= recname p) (rbac-spec-of-parent p))))))
-
 (defn- conj-admin [spec]
   (if (some #{admin-rbac-spec} spec)
     spec
@@ -104,27 +68,15 @@
     (cn/register-dataflow event-name pats)
     (evaluator {event-name {}})))
 
-(defn- owners [rel spec]
-  (case rel
-    :between (li/owner spec)
-    false))
-
-(defn- cleanup-spec [rel spec]
+(defn- raw-spec [spec]
   (if (map? spec)
-    (if-let [owner (owners rel spec)]
-      (or (:rbac (cn/fetch-meta owner)) (rbac-spec-of-parent owner))
-      (:spec spec))
+    (:spec spec)
     spec))
 
-(defn rbac [recname rel spec]
+(defn rbac [recname spec]
   (let [cont (fn [evaluator]
-               (cond
-                 rel (when-let [spec (or (cleanup-spec rel spec)
-                                         (rbac-spec-for-relationship recname rel))]
-                       (intern-rbac evaluator recname spec))
-                 (not spec) (let [spec (rbac-spec-of-parent recname)]
-                              (intern-rbac evaluator recname spec))
-                 :else (intern-rbac evaluator recname spec)))]
+               (when-let [spec (or (raw-spec spec) spec)]
+                 (intern-rbac evaluator recname spec)))]
     (u/safe-set postproc-events (conj @postproc-events cont))
     recname))
 

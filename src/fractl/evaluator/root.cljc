@@ -907,10 +907,11 @@
     (when-not (li/path-query? p)
       p)))
 
-(defn- maybe-fix-contains-path [env record-name inst]
+(defn- maybe-fix-contains-path [env rel-ctx record-name inst]
   (if-let [path (partial-path-attr inst)]
     (if-let [parent (find-parent-by-path env record-name path)]
-      (attach-full-path record-name (concat-owners env inst parent) path)
+      (and (swap! rel-ctx assoc (li/make-path record-name) {:parent parent})
+           (attach-full-path record-name (concat-owners env inst parent) path))
       (u/throw-ex (str "failed to find parent by path - " path)))
     inst))
 
@@ -925,7 +926,7 @@
                  (or (l2 (cn/identity-attribute-name node2))
                      (l2 (cn/path-identity-attribute-name node2)))]]
     (if (and r1 r2)
-      (and (swap! rel-ctx assoc record-name {a1 r1 a2 r2}) inst)
+      (and (swap! rel-ctx assoc (li/make-path record-name) {a1 r1 a2 r2}) inst)
       (u/throw-ex (str "failed to lookup node-references: " record-name)))))
 
 (defn- ensure-relationship-constraints [env rel-ctx record-name inst]
@@ -934,7 +935,7 @@
     (ensure-between-refs env rel-ctx record-name inst)
 
     (cn/entity? record-name)
-    (maybe-fix-contains-path env record-name inst)
+    (maybe-fix-contains-path env rel-ctx record-name inst)
 
     :else inst))
 

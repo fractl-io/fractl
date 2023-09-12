@@ -101,10 +101,18 @@
 (defn- apply-rbac-checks [user env opr arg resource check-input]
   (if (instance-priv-assignment? resource)
     (when (handle-instance-priv user env opr resource false) arg)
-    (let [has-base-priv ((opr actions) user check-input)]
+    (let [inst-type (when (cn/an-instance? resource) (cn/instance-type-kw resource))
+          rel-ctx (when inst-type (inst-type (env/relationship-context env)))
+          [parent between-nodes] (when rel-ctx
+                                   [(:parent rel-ctx)
+                                    (seq (vals (dissoc rel-ctx :parent)))])
+          owner? (partial cn/user-is-owner? user)
+          has-base-priv (or ((opr actions) user check-input)
+                            (and parent (owner? parent))
+                            (and between-nodes (every? owner? between-nodes)))]
       (if (= :create opr)
         (when has-base-priv arg)
-        (let [is-owner (cn/user-is-owner? user resource)
+        (let [is-owner (owner? resource)
               has-inst-priv (when-not is-owner (has-instance-privilege? user opr resource))]
           (if (or is-owner has-inst-priv)
             arg
