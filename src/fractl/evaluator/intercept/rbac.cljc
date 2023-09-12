@@ -181,7 +181,7 @@
     (case opr
       :create
       (when-let [insts (seq (vals (relname (env/relationship-context env))))]
-        (let [owners (set (mapv (comp first cn/owners) insts)) ; only the first owner is considered
+        (let [owners (set (apply concat (mapv cn/owners insts)))
               resources (vec
                          (filter
                           #(identity (first %))

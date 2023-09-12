@@ -382,8 +382,7 @@
      :I1025/Member
      {:Id :Identity
       :rbac [{:roles ["i1025"] :allow [:create]}]})
-    (entity :I1025/Assessment {:Id :Identity
-                               :rbac [{:roles ["i1025"] :allow [:create]}]})
+    (entity :I1025/Assessment {:Id :Identity})
     (relationship
      :I1025/AssessmentOf
      {:meta {:contains [:I1025/Member :I1025/Assessment]}})
@@ -393,8 +392,7 @@
     (relationship
      :I1025/Relation
      {:meta {:between [:I1025/Member :I1025/Member :as [:From :To]]}
-      :rbac {:allow-owners [[:read [:From :To]]
-                            [:create :I1025/Assessment]]}})
+      :rbac {:allow-owners [[:create :I1025/Assessment]]}})
     (dataflow
      :I1025/CreateAssessment
      {:I1025/Assessment {}
@@ -446,7 +444,7 @@
            (is (r? r))
            (is (a? (create-assessment wu2 (:Id m1) (:Id m2))))
            (is (r? (tu/first-result
-                     (wu1
-                      {:I1025/Delete_Relation
-                       {li/id-attr (li/id-attr r)}}))))
+                    (wu1
+                     {:I1025/Delete_Relation
+                      {li/id-attr (li/id-attr r)}}))))
            (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2)))))))))
