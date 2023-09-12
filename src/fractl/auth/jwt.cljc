@@ -45,7 +45,6 @@
     (catch Exception _e
       false)))
 
-
 ;; Atom to hold the public and private keys used for signature validation in memory for
 ;; caching purposes. The atom holds a clojure map with kid -> key pairs. Each key is a
 ;; clojure map containing a :public-key and optionally a :private-key.
@@ -89,7 +88,9 @@
    (verify-and-extract jwks-url token {}))
   ([jwks-url token opts]
    (let [token (remove-bearer token)]
-     (jwt/unsign
-      token
-      (partial resolve-public-key jwks-url)
-      (merge {:alg :rs256} opts)))))
+     (try
+       (jwt/unsign
+        token
+        (partial resolve-public-key jwks-url)
+        (merge {:alg :rs256} opts))
+       (catch Exception e)))))
