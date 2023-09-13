@@ -398,6 +398,10 @@
     (relationship
      :I1025/AssessementBy
      {:meta {:between [:I1025/Member :I1025/Assessment]}})
+    (relationship
+     :I1025/Relation
+     {:meta {:between [:I1025/Member :I1025/Member :as [:From :To]]}
+      :rbac {:owner :From}})
     (dataflow
      :I1025/CreateAssessment
      {:I1025/Assessment {}
@@ -427,6 +431,12 @@
                             (with-user {:I1025/Create_Member
                                         {:Instance
                                          {:I1025/Member {}}}})))
+           create-relation (fn [with-user from to]
+                             (tu/first-result
+                              (with-user {:I1025/Create_Relation
+                                          {:Instance
+                                           {:I1025/Relation
+                                            {:From from :To to}}}})))
            create-assessment (fn [with-user of by]
                                (tu/first-result
                                 (with-user {:I1025/CreateAssessment
@@ -446,8 +456,13 @@
            m? (partial cn/instance-of? :I1025/Member)
            a? (partial cn/instance-of? :I1025/Assessment)
            r? (partial cn/instance-of? :I1025/Relation)
-           m1 (create-member wu1), m2 (create-member wu1)]
-       (is (m? m1)) (is (m? m2))
+           m1 (create-member wu1), m2 (create-member wu1)
+           m3 (create-member wu2)]
+       (is (m? m1)) (is (m? m2)) (is (m? m3))
+       (is (r? (create-relation wu1 (:Id m1) (:Id m2))))
+       (is (r? (create-relation wu1 (:Id m1) (:Id m3))))
+       (is (not (create-relation wu2 (:Id m1) (:Id m2))))
+       (is (r? (create-relation wu2 (:Id m3) (:Id m1))))
        (is (a? (create-assessment wu1 (:Id m1) (:Id m1))))
        (is (a? (create-assessment wu1 (:Id m1) (:Id m2))))
        (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2))))

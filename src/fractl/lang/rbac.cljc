@@ -60,25 +60,36 @@
     (conj spec admin-rbac-spec)))
 
 (defn- intern-rbac [evaluator recname spec]
-  (let [spec (conj-admin spec)
-        pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
-        [c n] (li/split-path recname)
-        event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
-    (cn/intern-event event-name {})
-    (cn/register-dataflow event-name pats)
-    (evaluator {event-name {}})))
+  (when (seq spec)
+    (let [spec (conj-admin spec)
+          pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
+          [c n] (li/split-path recname)
+          event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
+      (cn/intern-event event-name {})
+      (cn/register-dataflow event-name pats)
+      (evaluator {event-name {}}))))
 
 (defn- raw-spec [spec]
   (if (map? spec)
     (:spec spec)
     spec))
 
+(defn- verify-rbac-spec [recname spec]
+  (when-let [node (:owner spec)]
+    (if-let [attrs (cn/between-attribute-names recname)]
+      (when-not (some #{node} attrs)
+        (u/throw-ex (str "invalid rbac-owner - " node  ", must be one of " attrs)))
+      (u/throw-ex (str "rbac-owner can be specified only for between relatonships - " recname))))
+  recname)
+
 (defn rbac [recname spec]
-  (let [cont (fn [evaluator]
-               (when-let [spec (or (raw-spec spec) spec)]
-                 (intern-rbac evaluator recname spec)))]
-    (u/safe-set postproc-events (conj @postproc-events cont))
-    recname))
+  (if (map? spec)
+    (verify-rbac-spec recname spec) ; used later by the interceptor
+    (let [cont (fn [evaluator]
+                 (when-let [spec (or (raw-spec spec) spec)]
+                   (intern-rbac evaluator recname spec)))]
+      (u/safe-set postproc-events (conj @postproc-events cont))
+      recname)))
 
 (defn eval-events [evaluator]
   (su/nonils

@@ -116,6 +116,11 @@
     (p)
     p))
 
+(defn- has-between-ownership? [owner? relname between-nodes]
+  (if-let [owner-node (:owner (cn/fetch-rbac-spec relname))]
+    (owner? (owner-node between-nodes))
+    (every? owner? (vals between-nodes))))
+
 (defn- apply-rbac-checks [user env opr arg resource check-input]
   (cond
     (instance-priv-assignment? resource)
@@ -133,9 +138,10 @@
                   rel-ctx (when inst-type (inst-type (env/relationship-context env)))
                   [parent between-nodes] (when rel-ctx
                                            [(maybe-force (:parent rel-ctx))
-                                            (seq (vals (dissoc rel-ctx :parent)))])
+                                            (dissoc rel-ctx :parent)])
                   has-owner-privs (or (and parent (owner? parent))
-                                      (and between-nodes (some owner? between-nodes)))]
+                                      (when (seq between-nodes)
+                                        (has-between-ownership? owner? inst-type between-nodes)))]
               (and has-owner-privs arg)))
         (let [is-owner (owner? resource)
               has-inst-priv (when-not is-owner (has-instance-privilege? user opr resource))]

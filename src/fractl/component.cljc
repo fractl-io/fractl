@@ -1605,6 +1605,9 @@
   (when-let [[a b] (relationship-nodes relname)]
     (if (= a nodename) b a)))
 
+(defn between-relationship-nodes [relname]
+  (mt/between (fetch-meta relname)))
+
 (defn attribute-in-relationship [relname entity-name]
   (let [mt (fetch-meta relname)
         entity-name (if (keyword? entity-name) entity-name (li/make-path entity-name))
@@ -1788,7 +1791,10 @@
   ([relname from]
    (let [[a b] (mt/between (fetch-meta relname))
          to (if (= from a) b a)]
-     (between-attribute-names relname from to))))
+     (between-attribute-names relname from to)))
+  ([relname]
+   (let [[n1 n2] (between-relationship-nodes relname)]
+     (between-attribute-names relname n1 n2))))
 
 (defn find-between-keys [relname entity-name]
   (let [entity-name (li/make-path entity-name)
