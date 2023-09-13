@@ -2,6 +2,10 @@
 [![Fractl clj CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml)
 [![Fractl cljs CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml)
 
+# Fractl
+
+Fractl is a new and very different kind of programming language. It enables simultaneous coding in traditional IDEs, visual development in a no-code builder and code generation with generative-AI.
+
 # The Future of Programming is tri-modal
 
 We are marching towards a world where developers will build applications using a combination of 3 different approaches - traditional coding, no-code/visual development and AI-powered code generation. At least, they would like to.
@@ -14,7 +18,7 @@ For the triad of programming approaches to root, to work together cohesively for
 
 Fractl is the new programming language that unlocks the future of tri-modal development. Fractl has 3 facets:
 
-1. fractl language: A data-oriented programming language for professional developers
+1. fractl language: A data-oriented programming language, with a business-level abstraction, for professional developers
 2. Fractl Design Studio: A No-code visual development environment
 3. Fractl Co-Pilot: A GenAI and LLM-powered tool, integrated into Design Studio, to generate fractl programs.
 
