@@ -348,10 +348,27 @@
                 data-fmt)
             (ok result data-fmt))))))
 
+(defn- between-rel-path? [path]
+  (when path
+    (when-let [p (get (li/uri-path-split path) 2)]
+      (cn/between-relationship? (li/decode-uri-path-part p)))))
+
+(defn- generate-query-by-between-rel-event [component path]
+  (let [parts (li/uri-path-split path)
+        relname (li/decode-uri-path-part (get parts 2))
+        query-entity (li/decode-uri-path-part (get parts 3))
+        entity-name (li/decode-uri-path-part (get parts 0))
+        id (get parts 1)
+        pat {(li/name-as-query-pattern query-entity) {}
+             :-> [[{relname {(li/name-as-query-pattern
+                              (first (cn/find-between-keys relname entity-name))) id}}]]}
+        event-name (temp-event-name component)]
+    (and (apply ln/dataflow event-name [pat]) event-name)))
+
 (defn process-get-request [evaluator auth-info request]
   (process-generic-request
-   (fn [{entity-name :entity id :id component :component path
-         :path suffix :suffix query-params :query-params data-fmt :data-fmt
+   (fn [{entity-name :entity id :id component :component path :path
+         suffix :suffix query-params :query-params data-fmt :data-fmt
          :as p} obj]
      (cond
        query-params
@@ -365,6 +382,12 @@
        (= suffix :tree)
        [nil (get-tree evaluator auth-info request component
                       entity-name id path data-fmt)]
+
+       (between-rel-path? path)
+       [(fn []
+          (let [evt (generate-query-by-between-rel-event component path)]
+            [{evt {}} #(cn/remove-event evt)]))
+        nil]
 
        :else
        [(if id
