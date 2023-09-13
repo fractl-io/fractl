@@ -902,34 +902,41 @@
       (cn/concat-owners inst owners)
       inst)))
 
-(defn- partial-path-attr [inst]
-  (when-let [p (li/path-attr inst)]
-    (when-not (li/path-query? p)
-      p)))
-
-(defn- maybe-fix-contains-path [env record-name inst]
-  (if-let [path (partial-path-attr inst)]
-    (if-let [parent (find-parent-by-path env record-name path)]
-      (attach-full-path record-name (concat-owners env inst parent) path)
-      (u/throw-ex (str "failed to find parent by path - " path)))
+(defn- maybe-fix-contains-path [env rel-ctx record-name inst]
+  (if-let [path (li/path-attr inst)]
+    (if-not (li/path-query? path)
+      (if-let [parent (find-parent-by-path env record-name path)]
+        (and (swap! rel-ctx assoc (li/make-path record-name) {:parent parent})
+             (attach-full-path record-name (concat-owners env inst parent) path))
+        (u/throw-ex (str "failed to find parent by path - " path)))
+      (and (swap! rel-ctx assoc (li/make-path record-name)
+                  {:parent #(find-parent-by-path
+                             env record-name
+                             (li/as-partial-path path))})
+           inst))
     inst))
 
-(defn- ensure-between-refs [env record-name inst]
+(defn- ensure-between-refs [env rel-ctx record-name inst]
   (let [[node1 node2] (mapv li/split-path (cn/relationship-nodes record-name))
         [a1 a2] (cn/between-attribute-names record-name node1 node2)
-        lookup (partial lookup-ref-inst false)]
-    (if (and (lookup env node1 (cn/identity-attribute-name node1) (a1 inst))
-             (lookup env node2 (cn/identity-attribute-name node2) (a2 inst)))
-      inst
+        lookup (partial lookup-ref-inst false)
+        l1 #(when % (lookup env node1 % (a1 inst)))
+        l2 #(when % (lookup env node2 % (a2 inst)))
+        [r1 r2] [(or (l1 (cn/identity-attribute-name node1))
+                     (l1 (cn/path-identity-attribute-name node1)))
+                 (or (l2 (cn/identity-attribute-name node2))
+                     (l2 (cn/path-identity-attribute-name node2)))]]
+    (if (and r1 r2)
+      (and (swap! rel-ctx assoc (li/make-path record-name) {a1 r1 a2 r2}) inst)
       (u/throw-ex (str "failed to lookup node-references: " record-name)))))
 
-(defn- ensure-relationship-constraints [env record-name inst]
+(defn- ensure-relationship-constraints [env rel-ctx record-name inst]
   (cond
     (cn/between-relationship? record-name)
-    (ensure-between-refs env record-name inst)
+    (ensure-between-refs env rel-ctx record-name inst)
 
     (cn/entity? record-name)
-    (maybe-fix-contains-path env record-name inst)
+    (maybe-fix-contains-path env rel-ctx record-name inst)
 
     :else inst))
 
@@ -946,10 +953,12 @@
       (i/ok insts env)
 
       insts
-      (let [insts (let [r (mapv
-                           (partial ensure-relationship-constraints env record-name)
+      (let [rel-ctx (atom {})
+            insts (let [r (mapv
+                           (partial ensure-relationship-constraints env rel-ctx record-name)
                            (if single? [insts] (vec insts)))]
                     (if single? (first r) r))
+            env (env/merge-relationship-context env @rel-ctx)
             local-result (if upsert-required
                            (chained-upsert
                             env (partial eval-event-dataflows self)
@@ -1012,7 +1021,9 @@
         (if (cn/an-instance? v)
           (let [opcode-eval (partial eval-opcode self)
                 inst (assoc-computed-attributes env (cn/instance-type v) v opcode-eval)
-                final-inst (ensure-relationship-constraints env (cn/instance-type inst) inst)
+                rel-ctx (atom nil)
+                final-inst (ensure-relationship-constraints env rel-ctx (cn/instance-type inst) inst)
+                env (env/merge-relationship-context env @rel-ctx)
                 event-evaluator (partial eval-event-dataflows self)
                 [env r]
                 (bind-and-persist env event-evaluator final-inst)]
@@ -1109,8 +1120,7 @@
                   env))
 
           :else
-          (if-let [[insts env]
-                   (find-instances env store record-name queries)]
+          (if-let [[insts env] (find-instances env store record-name queries)]
             (let [alias (ls/alias-tag queries)
                   env (if alias (env/bind-instance-to-alias env alias insts) env)
                   id-attr (cn/identity-attribute-name record-name)]

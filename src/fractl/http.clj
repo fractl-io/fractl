@@ -243,26 +243,24 @@
 (defn- multi-post-request? [obj]
   (>= (count (keys obj)) 2))
 
-(defn- maybe-generate-multi-post-event [obj component]
+(defn- maybe-generate-multi-post-event [obj component path-attr]
   (when (multi-post-request? obj)
     (let [event-name (temp-event-name component)]
-      (and (apply ln/dataflow event-name (compiler/parse-relationship-tree obj))
+      (and (apply ln/dataflow event-name (compiler/parse-relationship-tree path-attr obj))
            event-name))))
 
 (def process-post-request
   (partial
    process-generic-request
    (fn [{entity-name :entity component :component path :path} obj]
-     (if (cn/event? entity-name)
-       [obj nil]
-       (if-let [evt (maybe-generate-multi-post-event obj component)]
-         [(fn [] [{evt {}} #(cn/remove-event evt)]) nil]
-         [{(cn/crud-event-name component entity-name :Create)
-           (merge
-            {:Instance obj}
-            (when path
-              {li/path-attr (li/as-partial-path path)}))}
-          nil])))))
+     (let [path-attr (when path {li/path-attr (li/as-partial-path path)})]
+       (if (cn/event? entity-name)
+         [obj nil]
+         (if-let [evt (maybe-generate-multi-post-event obj component path-attr)]
+           [(fn [] [{evt {}} #(cn/remove-event evt)]) nil]
+           [{(cn/crud-event-name component entity-name :Create)
+             (merge {:Instance obj} path-attr)}
+            nil]))))))
 
 (def process-put-request
   (partial

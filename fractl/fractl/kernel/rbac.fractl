@@ -2,6 +2,7 @@
  :Fractl.Kernel.Rbac
  {:refer [:Fractl.Kernel.Lang]
   :clj-import '[(:require [clojure.string :as s]
+                          [fractl.util :as u]
                           [fractl.store.util :as stu]
                           [fractl.lang.internal :as li])]})
 
@@ -70,5 +71,11 @@
   {:Actions {:check crud-list?
              :optional true}
    :Resource :Path
+   :ResourceId :Any
+   :Assignee :String}})
+
+(entity
+ {:OwnershipAssignment
+  {:Resource :Path
    :ResourceId :Any
    :Assignee :String}})

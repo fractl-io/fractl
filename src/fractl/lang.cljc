@@ -798,7 +798,7 @@
          (when dfexps (mapv eval dfexps))
          (let [rbac-spec (:rbac attrs)
                is-rel (:relationship (:meta attrs))]
-           (lr/rbac rec-name is-rel rbac-spec))
+           (lr/rbac rec-name rbac-spec))
          result)
        (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
      (u/throw-ex (str "Not a serializable record type: " (name rectype)))))

@@ -2,6 +2,7 @@
  fractl.model.fractl.kernel.rbac
  (:require
   [clojure.string :as s]
+  [fractl.util :as u]
   [fractl.store.util :as stu]
   [fractl.lang.internal :as li])
  (:use
@@ -17,6 +18,7 @@
   :clj-import
   '[(:require
      [clojure.string :as s]
+     [fractl.util :as u]
      [fractl.store.util :as stu]
      [fractl.lang.internal :as li])]})
 (entity
@@ -26,7 +28,7 @@
 (defn-
  crud-list?
  [xs]
- (every? (fn* [p1__272#] (some #{p1__272#} oprs)) (set xs)))
+ (every? (fn* [p1__274#] (some #{p1__274#} oprs)) (set xs)))
 (entity
  :Fractl.Kernel.Rbac/Privilege
  {:Name {:type :String, :indexed true, :unique true},
@@ -62,7 +64,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__273#] (str "'" (str p1__273#) "'")) role-names))
+    (map (fn* [p1__275#] (str "'" (str p1__275#) "'")) role-names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivilegeAssignments
@@ -82,7 +84,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__274#] (str "'" (str p1__274#) "'")) names))
+    (map (fn* [p1__276#] (str "'" (str p1__276#) "'")) names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivileges
@@ -98,6 +100,11 @@
                        :Resource :Path,
                        :ResourceId :Any,
                        :Assignee :String}})
+(entity
+ #:Fractl.Kernel.Rbac{:OwnershipAssignment
+                      {:Resource :Path,
+                       :ResourceId :Any,
+                       :Assignee :String}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "1a8331f2-0684-4349-9e48-b76392f95cfa")
+ "1f352896-526d-4112-a778-fa1e24058375")

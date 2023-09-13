@@ -377,9 +377,10 @@
 (defn instance-of?
   "Return true if the fully-qualified name is the same as that of the instance."
   [nm inst]
-  (or (= (li/split-path nm)
-         (parsed-instance-type inst))
-      (inherits? nm (instance-type inst))))
+  (and (an-instance? inst)
+       (or (= (li/split-path nm)
+              (parsed-instance-type inst))
+           (inherits? nm (instance-type inst)))))
 
 (defn instance-attributes
   ([x include-meta]
@@ -1604,6 +1605,9 @@
   (when-let [[a b] (relationship-nodes relname)]
     (if (= a nodename) b a)))
 
+(defn between-relationship-nodes [relname]
+  (mt/between (fetch-meta relname)))
+
 (defn attribute-in-relationship [relname entity-name]
   (let [mt (fetch-meta relname)
         entity-name (if (keyword? entity-name) entity-name (li/make-path entity-name))
@@ -1787,7 +1791,10 @@
   ([relname from]
    (let [[a b] (mt/between (fetch-meta relname))
          to (if (= from a) b a)]
-     (between-attribute-names relname from to))))
+     (between-attribute-names relname from to)))
+  ([relname]
+   (let [[n1 n2] (between-relationship-nodes relname)]
+     (between-attribute-names relname n1 n2))))
 
 (defn find-between-keys [relname entity-name]
   (let [entity-name (li/make-path entity-name)
@@ -1859,13 +1866,16 @@
         (read-string ma))
       ma)))
 
-(defn concat-owners [inst new-owners]
+(defn- update-owners [opr inst users]
   (let [xs (owners inst)]
-    (if-let [ys (seq (set/union xs new-owners))]
+    (if-let [ys (seq (opr xs users))]
       (let [ma (get-meta-attr inst)
             meta (assoc ma :owners (s/join "," ys))]
         (assoc inst li/meta-attr meta))
       inst)))
+
+(def concat-owners (partial update-owners set/union))
+(def remove-owners (partial update-owners set/difference))
 
 (defn user-is-owner? [user inst]
   (some #{user} (owners inst)))
