@@ -1,33 +1,46 @@
-# fractl
 [![AppCI](https://github.com/fractl-io/fractl/actions/workflows/app.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/app.yml)
 [![Fractl clj CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml)
 [![Fractl cljs CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml)
 
-Fractl is a low-code, declarative programming abstraction. Our goal is to bring the best of traditional development and LCNC tools together.
+# The Future of Programming is tri-modal
 
-![Fractl goals](https://user-images.githubusercontent.com/13515894/173900814-8486c876-b8b4-4621-a406-5f1a626b1539.png#gh-dark-mode-only)
-![Fractl goals](https://user-images.githubusercontent.com/13515894/173900724-16b83469-f526-4858-9259-e6b59cba9ae2.png#gh-light-mode-only)
+We are marching towards a world where developers will build applications using a combination of 3 different approaches - traditional coding, no-code/visual development and AI-powered code generation. At least, they would like to.
 
-A Fractl model can be compiled to a production grade application. Fractl is not just a very high-level language, it's also a low-code platform. A compiled model can be deployed as a distributed service to the Fractl platform.
+Unfortunately, it isn't possible to reach this tri-modal nirvana with existing programming tools. On the one hand, widely-used programming languages are too low-level, dealing with bits and bytes of programming, and are burdened by esoteric, intricate syntax. This makes them a poor fit for both no-code development and AI-driven code generation. On the other hand, existing no-code platforms haven't been enthusiastically embraced by professional developers. This is due to the fact that they are closed tools with proprietary abstractions and go against the grain of modern development ethos of openness.
+
+For the triad of programming approaches to root, to work together cohesively for the modern developer, a new programming language and abstraction is needed.
+
+# Fractl is tri-modal
+
+Fractl is the new programming language that unlocks the future of tri-modal development. Fractl has 3 facets:
+
+1. fractl language: A data-oriented programming language for professional developers
+2. Fractl Design Studio: A No-code visual development environment
+3. Fractl Co-Pilot: A GenAI and LLM-powered tool, integrated into Design Studio, to generate fractl programs.
+
+> Fractl is the industry's first **Generative AI-powered No-code Programming Language**
+
+With fractl, developers can build applications 10x-100x faster than traditional development approaches.
+
+# Fractl is innovative
+
+**Fractl** introduces a number of innovative concepts to programming:
+
+1. **[Graph-based Hierarchical Data Model](data-model.md)**
+2. **[Zero-trust Programming](zero-trust-programming.md)**
+3. **[Declarative Dataflow](declarative-dataflow.md)**
+4. **[Resolvers](resolvers.md)**
+5. **[Interceptors](interceptors.md)**
+6. **[Entity-graph-Database Mapping](entity-db-mapping.md)**
+
+# Fractl is easy to grok
+
+Start learning Fractl with the following resources:
+
+**[Concepts]()**
+**[Tutorial]()**
+**[Language Reference]()**
 
 # Getting started with Fractl
 
 Please refer to the [wiki](https://github.com/fractl-io/fractl/wiki)
-
-# Installing fractl
-
-Run the install script from this directory, as shown below:
-
-```shell
-$ ./install.sh <target_dir>
-```
-
-If the command fails, install the dependency [`fractl-lein-template`](https://github.com/fractl-io/fractl-lein-template)
-
-Note: For now, use an absolute path for `<target_dir>`. The issue to handle relative paths is [here](https://github.com/fractl-io/fractl/issues/692).  
-This will create a the `<target_dir>/fractl-<version>` and copy the fractl uberjar, config.edn
-and the `fractl` command-line tool there.
-
-# Setting logging properties
-
-export JDK_JAVA_OPTIONS=-Dlogback.configurationFile=/path/to/logback.xml
