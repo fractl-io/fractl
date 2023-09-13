@@ -91,6 +91,7 @@
      :Brd/E
      {:rbac [{:roles ["brd-user"] :allow [:create]}
              {:roles ["brd-manager"] :allow [:create :update :read]}]
+      :meta {li/owner-exclusive-crud false}
       :Id {:type :Int :identity true}
       :X :Int})
     (dataflow
@@ -136,35 +137,43 @@
          (let [t1 (partial test-lookup "u1@brd.com" 100 false)
                t2 (partial test-lookup "u2@brd.com" 100)
                t3 (partial test-lookup "u3@brd.com" 100 true)]
-           (t1 1) (t1 2) (t2 false 2) (t2 true 1)
+           (t1 1)
+           (t1 2)
+           (t2 false 2)
+           (t2 true 1)
            (test-lookup "u3@brd.com" 100 true 1)
-           (t3 1) (t3 2))
+           (t3 1)
+           (t3 2))
          (let [test-update (fn [user err e]
                              (if err
                                (tu/is-error #(tu/eval-all-dataflows (with-user user (update-e e))))
                                (let [r (tu/first-result (with-user user (update-e e)))]
-                                 (is (e? r)) (is (= (:Id r) e)) (is (= (:X r) (* e 200))))))
+                                 (is (e? r))
+                                 (is (= (:Id r) e))
+                                 (is (= (:X r) (* e 200))))))
                t1 (partial test-update "u1@brd.com" false)
                t2 (partial test-update "u2@brd.com")
                t3 (partial test-update "u3@brd.com" true)]
-           (t1 1) (t1 2)
+           (t1 1)
+           (t1 2)
            (test-lookup "u1@brd.com" 200 false 1)
            (test-lookup "u1@brd.com" 200 false 2)
            (t2 false 2)
            (test-lookup "u2@brd.com" 200 false 2)
            (t2 true 1)
-           (t3 1) (t3 2))
-         (tu/is-error #(tu/eval-all-dataflows (with-user "u2@brd.com" (delete-e 1))))
-         (tu/is-error #(tu/eval-all-dataflows (with-user "u1@brd.com" (delete-e 2))))
-         (test-lookup "u1@brd.com" 200 false 1)
-         (test-lookup "u1@brd.com" 200 false 2)
-         (let [r (tu/first-result (with-user "u2@brd.com" (delete-e 2)))]
-           (is (e? r)) (is (= (:Id r) 2)))
-         (test-lookup "u1@brd.com" 200 true 2)
-         (test-lookup "u2@brd.com" 200 true 2)
-         (let [r (tu/first-result (with-user "u1@brd.com" (delete-e 1)))]
-           (is (e? r)) (is (= (:Id r) 1)))
-         (test-lookup "u1@brd.com" 200 true 1))))))
+           (t3 1)
+           (t3 2)
+           (tu/is-error #(tu/eval-all-dataflows (with-user "u2@brd.com" (delete-e 1))))
+           (tu/is-error #(tu/eval-all-dataflows (with-user "u1@brd.com" (delete-e 2))))
+           (test-lookup "u1@brd.com" 200 false 1)
+           (test-lookup "u1@brd.com" 200 false 2)
+           (let [r (tu/first-result (with-user "u2@brd.com" (delete-e 2)))]
+             (is (e? r)) (is (= (:Id r) 2)))
+           (test-lookup "u1@brd.com" 200 true 2)
+           (test-lookup "u2@brd.com" 200 true 2)
+           (let [r (tu/first-result (with-user "u1@brd.com" (delete-e 1)))]
+             (is (e? r)) (is (= (:Id r) 1)))
+           (test-lookup "u1@brd.com" 200 true 1)))))))
 
 (deftest rbac-with-contains-relationship
   (lr/reset-events!)
@@ -374,3 +383,92 @@
        (is (a? a1))
        (is-bs bs1)
        (is-bs bs2)))))
+
+(deftest issue-1025-rbac-update
+  (lr/reset-events!)
+  (defcomponent :I1025
+    (entity
+     :I1025/Member
+     {:Id :Identity
+      :rbac [{:roles ["i1025"] :allow [:create]}]})
+    (entity :I1025/Assessment {:Id :Identity})
+    (relationship
+     :I1025/AssessmentOf
+     {:meta {:contains [:I1025/Member :I1025/Assessment]}})
+    (relationship
+     :I1025/AssessementBy
+     {:meta {:between [:I1025/Member :I1025/Assessment]}})
+    (relationship
+     :I1025/Relation
+     {:meta {:between [:I1025/Member :I1025/Member :as [:From :To]]}
+      :rbac {:owner :From}})
+    (dataflow
+     :I1025/CreateAssessment
+     {:I1025/Assessment {}
+      :-> [[:I1025/AssessmentOf {:I1025/Member {:Id? :I1025/CreateAssessment.Of}}]
+           [{:I1025/AssessementBy {}} {:I1025/Member {:Id? :I1025/CreateAssessment.By}}]]})
+    (dataflow
+     :I1025/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@i1025.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@i1025.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1025" :Assignee "u1@i1025.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1025" :Assignee "u2@i1025.com"}}))
+  (is (finalize-events))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:I1025/InitUsers {}})))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac] (ei/init-interceptors [:rbac])))
+     (let [wu1 (partial with-user "u1@i1025.com")
+           wu2 (partial with-user "u2@i1025.com")
+           create-member (fn [with-user]
+                           (tu/first-result
+                            (with-user {:I1025/Create_Member
+                                        {:Instance
+                                         {:I1025/Member {}}}})))
+           create-relation (fn [with-user from to]
+                             (tu/first-result
+                              (with-user {:I1025/Create_Relation
+                                          {:Instance
+                                           {:I1025/Relation
+                                            {:From from :To to}}}})))
+           create-assessment (fn [with-user of by]
+                               (tu/first-result
+                                (with-user {:I1025/CreateAssessment
+                                            {:Of of :By by}})))
+           assign-ownership (fn [with-user id]
+                              (tu/first-result
+                               (with-user {:Fractl.Kernel.Rbac/Create_OwnershipAssignment
+                                           {:Instance
+                                            {:Fractl.Kernel.Rbac/OwnershipAssignment
+                                             {:Resource :I1025/Member
+                                              :ResourceId id
+                                              :Assignee "u2@i1025.com"}}}})))
+           remove-ownership (fn [with-user id]
+                              (tu/first-result
+                               (with-user {:Fractl.Kernel.Rbac/Delete_OwnershipAssignment
+                                           {li/id-attr id}})))
+           m? (partial cn/instance-of? :I1025/Member)
+           a? (partial cn/instance-of? :I1025/Assessment)
+           r? (partial cn/instance-of? :I1025/Relation)
+           m1 (create-member wu1), m2 (create-member wu1)
+           m3 (create-member wu2)]
+       (is (m? m1)) (is (m? m2)) (is (m? m3))
+       (is (r? (create-relation wu1 (:Id m1) (:Id m2))))
+       (is (r? (create-relation wu1 (:Id m1) (:Id m3))))
+       (is (not (create-relation wu2 (:Id m1) (:Id m2))))
+       (is (r? (create-relation wu2 (:Id m3) (:Id m1))))
+       (is (a? (create-assessment wu1 (:Id m1) (:Id m1))))
+       (is (a? (create-assessment wu1 (:Id m1) (:Id m2))))
+       (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2))))
+       (let [res (mapv (partial assign-ownership wu1) [(:Id m1) (:Id m2)])
+             oa? (partial cn/instance-of? :Fractl.Kernel.Rbac/OwnershipAssignment)]
+         (is (every? oa? res))
+         (is (a? (create-assessment wu2 (:Id m1) (:Id m2))))
+         (is (every? oa? (mapv (partial remove-ownership wu1) (mapv li/id-attr res))))
+         (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2)))))))))
