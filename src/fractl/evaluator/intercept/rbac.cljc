@@ -185,19 +185,26 @@
   ;; TODO: attributes rbac needs re-design.
   arg)
 
-(defn- maybe-handle-system-objects [user env opr arg]
-  (if-let [data (ii/data-input arg)]
-    (if (and (or (= opr :create) (= opr :delete))
-             (not (ii/skip-for-input? arg)))
-      (let [resource (if (= opr :create) (first-instance data) (second data))]
-        (cond
-          (instance-priv-assignment? resource)
-          (when (handle-instance-priv user env opr resource true) arg)
+(defn- fetch-instance [opr data]
+  (if (= opr :create)
+    (first-instance data)
+    (second data)))
 
-          (ownership-assignment? resource)
-          (when (handle-ownership-assignment user env opr resource true) arg)
-          :else arg))
-      arg)
+(defn- fetch-crdel-instance [opr arg]
+  (when-let [data (ii/data-input arg)]
+    (when (and (or (= opr :create) (= opr :delete))
+               (not (ii/skip-for-input? arg)))
+      (fetch-instance opr data))))
+
+(defn- maybe-handle-system-objects [user env opr arg]
+  (if-let [resource (fetch-crdel-instance opr arg)]
+    (cond
+      (instance-priv-assignment? resource)
+      (when (handle-instance-priv user env opr resource true) arg)
+
+      (ownership-assignment? resource)
+      (when (handle-ownership-assignment user env opr resource true) arg)
+      :else arg)
     arg))
 
 (def ^:private system-events #{[:Fractl.Kernel.Identity :SignUp]
@@ -211,6 +218,58 @@
     (or (cn/an-internal-event? t)
         (some #{(li/split-path t)} system-events))))
 
+(defn- parse-ownership-spec [inst]
+  (when-let [spec (:ownership
+                   (:on-create
+                    (cn/fetch-rbac-spec (cn/instance-type-kw inst))))]
+    (when (and (= (count spec) 3)
+               (= :-> (second spec)))
+      [(first spec) (nth spec 2)])))
+
+(defn- maybe-delegate-ownership! [env inst]
+  (when-let [[from to] (parse-ownership-spec inst)]
+    (let [rel-ctx (env/relationship-context env)
+          from-inst (from rel-ctx)
+          to-inst (to rel-ctx)]
+      (when-not from-inst
+        (u/throw-ex (str "ownership delegation failed, instance not found for " from)))
+      (when-not to-inst
+        (u/throw-ex (str "ownership delegation failed, instance not found for " to)))
+      (let [to-type (cn/instance-type-kw to-inst)
+            id ((cn/identity-attribute-name to-type) to-inst)]
+        (doseq [owner (set/difference (cn/owners from-inst) (cn/owners to-inst))]
+          (let [inst (cn/make-instance :Fractl.Kernel.Rbac/OwnershipAssignment
+                                       {:Resource to-type
+                                        :ResourceId id
+                                        :Assignee owner})]
+            (handle-ownership-assignment nil env :create inst true)))))))
+
+(defn- maybe-revoke-ownership! [env inst]
+  (when-let [[from to] (parse-ownership-spec inst)]
+    (let [rel-ctx ((:load-between-refs env) inst)
+          from-inst (from rel-ctx)
+          to-inst (to rel-ctx)]
+      (when-not from-inst
+        (u/throw-ex (str "failed to revoke ownership, instance not found for " from)))
+      (when-not to-inst
+        (u/throw-ex (str "failed to revoke ownership, instance not found for " to)))
+      (let [to-type (cn/instance-type-kw to-inst)
+            id ((cn/identity-attribute-name to-type) to-inst)]
+        (doseq [owner (set/intersection (cn/owners from-inst) (cn/owners to-inst))]
+          (let [inst (cn/make-instance :Fractl.Kernel.Rbac/OwnershipAssignment
+                                       {:Resource to-type
+                                        :ResourceId id
+                                        :Assignee owner})]
+            (handle-ownership-assignment nil env :delete inst true)))))))
+
+(defn- post-process [env opr arg]
+  (when-let [inst (fetch-crdel-instance opr arg)]
+    (when (cn/between-relationship-instance? inst)
+      (case opr
+        :create (maybe-delegate-ownership! env inst)
+        :delete (maybe-revoke-ownership! env inst))))
+  arg)
+
 (defn- run [env opr arg]
   (let [user (or (cn/event-context-user (ii/event arg))
                  (gs/active-user))]
@@ -219,7 +278,8 @@
       (maybe-handle-system-objects user env opr arg)
       (let [is-ups (or (= opr :update) (= opr :create))
             arg (if is-ups (ii/assoc-user-state arg) arg)]
-        (apply-rbac-for-user user env opr arg)
+        (when-let [r (apply-rbac-for-user user env opr arg)]
+          (and (post-process env opr arg) r))
         ;; TODO: call check-upsert-on-attributes for create/update
         ))))
 

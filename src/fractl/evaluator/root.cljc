@@ -940,6 +940,11 @@
 
     :else inst))
 
+(defn- load-between-refs [env inst]
+  (let [rel-ctx (atom nil)]
+    (ensure-between-refs env rel-ctx (cn/instance-type-kw inst) inst)
+    @rel-ctx))
+
 (defn- intern-instance [self env eval-opcode eval-event-dataflows
                         record-name inst-alias validation-required upsert-required]
   (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self) validation-required)
@@ -1113,7 +1118,8 @@
           (or (= queries :*) (= queries :purge))
           (let [purge (= queries :purge)]
             (i/ok [(delete-intercept
-                    env [record-name nil]
+                    (assoc env :load-between-refs (partial load-between-refs env))
+                    [record-name nil]
                     (fn [[record-name _]]
                       (when (delete-all-children store record-name purge)
                         (store/delete-all store record-name purge))))]
