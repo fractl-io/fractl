@@ -228,7 +228,7 @@
 
 (defn- maybe-delegate-ownership! [env inst]
   (when-let [[from to] (parse-ownership-spec inst)]
-    (let [rel-ctx (env/relationship-context env)
+    (let [rel-ctx ((cn/instance-type-kw inst) (env/relationship-context env))
           from-inst (from rel-ctx)
           to-inst (to rel-ctx)]
       (when-not from-inst
