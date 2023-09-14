@@ -796,6 +796,10 @@
        (catch js/Error e
          (or (.-ex-data e) (i/error e))))))
 
+(defn- ensure-instances [xs]
+  (when (and (seq xs) (cn/an-instance? (first xs)))
+    xs))
+
 (defn- filter-results-by-rels [entity-name result-insts
                                {result-filter :filter-by
                                 evaluator :eval}]
@@ -805,13 +809,13 @@
       (vec
        (reduce
         (fn [result-insts {opcodes :opcodes query-attrs :query-attrs}]
-          (let [r (evaluator opcodes)]
-            (if-let [rs (extract-local-result-as-vec r)]
+          (let [r (evaluator opcodes), rs (extract-local-result-as-vec r)]
+            (if-let [rs (ensure-instances rs)]
               (let [ks (set (cn/find-between-keys (cn/instance-type-kw (first rs)) entity-name))
                     ns (if (= query-attrs ks) ks (set/difference ks query-attrs))
                     ids (set (apply concat (mapv (fn [n] (mapv n rs)) ns)))]
                 (filter (fn [inst] (some #{(ident inst)} ids)) result-insts))
-              (u/throw-ex (str "filter pattern evaluation failed for " entity-name)))))
+              (u/throw-ex (str "filter pattern evaluation failed - " rs)))))
         result-insts result-filter)))))
 
 (defn- query-helper
