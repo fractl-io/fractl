@@ -350,20 +350,30 @@
 
 (defn- between-rel-path? [path]
   (when path
-    (when-let [p (get (li/uri-path-split path) 2)]
+    (when-let [p (first (take-last 2 (li/uri-path-split path)))]
       (cn/between-relationship? (li/decode-uri-path-part p)))))
 
 (defn- generate-query-by-between-rel-event [component path]
   (let [parts (li/uri-path-split path)
-        relname (li/decode-uri-path-part (get parts 2))
-        query-entity (li/decode-uri-path-part (get parts 3))
-        entity-name (li/decode-uri-path-part (get parts 0))
-        id (get parts 1)
-        pat {(li/name-as-query-pattern query-entity) {}
-             :-> [[{relname {(li/name-as-query-pattern
-                              (first (cn/find-between-keys relname entity-name))) id}}]]}
-        event-name (temp-event-name component)]
-    (and (apply ln/dataflow event-name [pat]) event-name)))
+        relname (li/decode-uri-path-part (first (take-last 2 parts)))
+        query-entity (li/decode-uri-path-part (last parts))
+        entity-name (li/decode-uri-path-part (first (take-last 4 parts)))
+        event-name (temp-event-name component)
+        pats (if (= 4 (count parts))
+               (let [id (get parts 1)]
+                 [{(li/name-as-query-pattern query-entity) {}
+                   :-> [[{relname {(li/name-as-query-pattern
+                                    (first (cn/find-between-keys relname entity-name))) id}}]]}])
+               (let [alias (li/unq-name)
+                     id (li/make-ref alias li/id-attr)]
+                 [{entity-name
+                   {li/path-attr? (li/uri-join-parts (drop-last 2 parts))}
+                   :as [alias]}
+                  {(li/name-as-query-pattern query-entity) {}
+                   :-> [[{relname {(li/name-as-query-pattern
+                                    (first (cn/find-between-keys relname entity-name))) id}}]]}]))]
+    (when (apply ln/dataflow event-name pats)
+      event-name)))
 
 (defn process-get-request [evaluator auth-info request]
   (process-generic-request
