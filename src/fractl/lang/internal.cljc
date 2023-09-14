@@ -547,6 +547,15 @@
       (str (name c) "$" (name n))
       (name entity-name))))
 
+(defn decode-uri-path-part [part]
+  (keyword (s/replace part "$" "/")))
+
+(defn uri-path-split [path]
+  (vec (filter seq (s/split (path-query-string path) #"/"))))
+
+(defn uri-join-parts [parts]
+  (maybe-add-path-query-prefix (s/join "/" parts)))
+
 (defn fully-qualified-path-type [base-component n]
   (if (s/index-of n "$")
     (keyword (s/replace n "$" "/"))
