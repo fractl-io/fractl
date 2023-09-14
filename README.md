@@ -19,7 +19,12 @@ For the triad of programming approaches to root, to work together cohesively for
 Fractl is the new programming language that unlocks the future of tri-modal development. Fractl has 3 facets:
 
 1. fractl language: A data-oriented programming language, with a business-level abstraction, for professional developers
+
+![Fractl Language](https://github.com/fractl-io/fractl/assets/13515894/fc4cee3a-eb20-4f17-b8a0-3b6f9c6307e0)
+
 2. Fractl Design Studio: A No-code visual development environment
+![Design Studio](https://github.com/fractl-io/fractl/assets/13515894/11d81a8d-b8e0-443a-846b-ade4befdaaaa)
+
 3. Fractl Co-Pilot: A GenAI and LLM-powered tool, integrated into Design Studio, to generate fractl programs.
 
 > Fractl is the industry's first **Generative AI-powered No-code Programming Language**
