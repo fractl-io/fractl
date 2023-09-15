@@ -393,13 +393,18 @@
   (let [id-attr (cn/identity-attribute-name record-name)]
     [record-name (store/delete-by-id store record-name id-attr (id-attr inst))]))
 
+(declare load-between-refs)
+
 (defn- chained-delete
   ([env record-name instance with-intercept]
    (let [store (env/get-store env)
          resolver (env/get-resolver env)]
      (if with-intercept
        (delete-intercept
-        env [record-name instance]
+        (if (cn/between-relationship? record-name)
+          (env/assoc-load-between-refs env (partial load-between-refs env))
+          env)
+        [record-name instance]
         (fn [[record-name instance]]
           (chained-crud
            (when store (partial delete-by-id store record-name))
@@ -941,9 +946,10 @@
     :else inst))
 
 (defn- load-between-refs [env inst]
-  (let [rel-ctx (atom nil)]
-    (ensure-between-refs env rel-ctx (cn/instance-type-kw inst) inst)
-    @rel-ctx))
+  (let [rel-ctx (atom nil)
+        relname (cn/instance-type-kw inst)]
+    (ensure-between-refs env rel-ctx relname inst)
+    (relname @rel-ctx)))
 
 (defn- intern-instance [self env eval-opcode eval-event-dataflows
                         record-name inst-alias validation-required upsert-required]
@@ -1118,8 +1124,7 @@
           (or (= queries :*) (= queries :purge))
           (let [purge (= queries :purge)]
             (i/ok [(delete-intercept
-                    (assoc env :load-between-refs (partial load-between-refs env))
-                    [record-name nil]
+                    env [record-name nil]
                     (fn [[record-name _]]
                       (when (delete-all-children store record-name purge)
                         (store/delete-all store record-name purge))))]

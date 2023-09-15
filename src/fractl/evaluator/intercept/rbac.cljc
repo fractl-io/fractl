@@ -246,7 +246,7 @@
 
 (defn- maybe-revoke-ownership! [env inst]
   (when-let [[from to] (parse-ownership-spec inst)]
-    (let [rel-ctx ((:load-between-refs env) inst)
+    (let [rel-ctx ((env/load-between-refs env) inst)
           from-inst (from rel-ctx)
           to-inst (to rel-ctx)]
       (when-not from-inst

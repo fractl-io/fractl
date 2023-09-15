@@ -265,3 +265,8 @@
 
 (defn merge-relationship-context [env ctx]
   (assoc env relationship-context ctx))
+
+(def load-between-refs :load-between-refs)
+
+(defn assoc-load-between-refs [env f]
+  (assoc env load-between-refs f))
