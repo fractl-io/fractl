@@ -542,8 +542,14 @@
       (is (= e (ls/introspect r))))))
 
 (deftest issue-1038-query-introspect
-  (let [p {:Family {:Id? :GetAssessmentAggregate.Family}
-           :as [:F]}
-        obj (ls/introspect p)]
-    (is (ls/query? obj))
-    (is (= p (ls/raw obj)))))
+  (let [p1 {:Family {:Id? :GetAssessmentAggregate.Family}
+            :as [:F]}
+        p2 {:Family {:Id? :GetAssessmentAggregate.Family
+                     :Name "abc"}
+            :as [:F]}
+        obj1 (ls/introspect p1)
+        obj2 (ls/introspect p2)]
+    (is (ls/query? obj1))
+    (is (= p1 (ls/raw obj1)))
+    (is (ls/query-upsert? obj2))
+    (is (= p2 (ls/raw obj2)))))
