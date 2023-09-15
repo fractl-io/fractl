@@ -996,11 +996,10 @@
 
 (defn- preproc-relspec-helper [pat relspec]
   (let [pat-alias (or (:as pat) (newname))
-        new-pats (mapv (partial preproc-relspec-entry pat pat-alias) relspec)
+        new-pats (filter identity (mapv (partial preproc-relspec-entry pat pat-alias) relspec))
         has-contains (some #(keyword? (first %)) relspec)
         inst-pat (when-not has-contains [{:patterns [(assoc pat :as pat-alias)]}])]
-    (when (and (seq new-pats) (every? identity new-pats))
-      (concat inst-pat new-pats [{:patterns [pat-alias]}]))))
+    (concat inst-pat new-pats [{:patterns [pat-alias]}])))
 
 (defn- preproc-relspec [pat relspec]
   (flatten-preproc-patterns (preproc-relspec-helper pat relspec)))
