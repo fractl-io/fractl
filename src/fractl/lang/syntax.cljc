@@ -523,7 +523,9 @@
 
 (defn query
   ([spec]
-   (query ($query spec) (alias-tag spec)))
+   (if (attrs-tag spec)
+     (assoc (query-upsert spec) type-tag query-tag)
+     (query ($query spec) (alias-tag spec))))
   ([query-pat result-alias]
    (when-not (or (li/name? query-pat) (map? query-pat))
      (u/throw-ex (str "invalid query - " query-pat)))
@@ -547,10 +549,12 @@
   (query (second obj) (special-form-alias obj)))
 
 (defn- raw-query [ir]
-  (raw-special-form
-   ir
-   [:query
-    (raw-walk ($query ir))]))
+  (if (query-tag ir)
+    (raw-special-form
+     ir
+     [:query
+      (raw-walk ($query ir))])
+    (raw-query-upsert ir)))
 
 (defn _eval
   ([spec]
@@ -631,6 +635,11 @@
 
 (def reference? (partial has-type? :reference))
 
+(defn- maybe-query [obj]
+  (if (every? li/query-pattern? (keys (attrs-tag obj)))
+    (assoc obj type-tag query-tag)
+    obj))
+
 (defn introspect [pattern]
   (cond
     (syntax-object? pattern) pattern
@@ -643,7 +652,7 @@
       (map? pattern)
       (if (pure-query-map? pattern)
         (introspect-query-object pattern)
-        (introspect-query-upsert pattern))
+        (maybe-query (introspect-query-upsert pattern)))
 
       (vector? pattern)
       (introspect-special-form pattern)
