@@ -308,8 +308,8 @@
                    [{:C/R2 {}} :B]]}
         obj4 (ls/introspect pat4)]
     (is (and (ls/upsert? obj1) (ls/relationship-object obj1)))
-    (is (and (ls/query-upsert? obj2) (ls/relationship-object obj2)))
-    (is (and (ls/query-upsert? obj3) (ls/relationship-object obj3)))
+    (is (and (ls/query? obj2) (ls/relationship-object obj2)))
+    (is (and (ls/query? obj3) (ls/relationship-object obj3)))
     (is (and (ls/upsert? obj4) (ls/relationship-object obj4)))
     (is (= (ls/raw obj1) pat1))
     (is (= (ls/raw obj2) pat2))
@@ -319,14 +319,14 @@
                          ls/attrs-tag {:Age :Int :Name :String}
                          ls/alias-tag :P1
                          ls/rel-tag [{:Spouse {}} :P2]})
-          qu1 (ls/query-upsert {ls/record-tag :Person
-                                ls/attrs-tag {:Name? "abc" :Age 100}
-                                ls/alias-tag :P1
-                                ls/rel-tag [:Spouse? {:Person {:Name? "xyz"}}]})
+          qu1 (ls/query {ls/record-tag :Person
+                         ls/attrs-tag {:Name? "abc" :Age 100}
+                         ls/alias-tag :P1
+                         ls/rel-tag [:Spouse? {:Person {:Name? "xyz"}}]})
           d1 (ls/delete {ls/record-tag :Spouse
                          ls/rel-tag [{:Person {:Name "xyz"}} {:Person{:Name "abc"}}]})]
       (is (ls/upsert? u1))
-      (is (ls/query-upsert? qu1))
+      (is (ls/query? qu1))
       (is (= (ls/raw-relationship (ls/rel-tag u1)) [{:Spouse {}} :P2]))
       (is (= (ls/raw-relationship (ls/rel-tag qu1)) [:Spouse? {:Person {:Name? "xyz"}}]))
       (is (= (ls/raw-relationship (ls/rel-tag d1)) [{:Person {:Name "xyz"}} {:Person{:Name "abc"}}])))))
@@ -402,7 +402,7 @@
         p2 {:C/E {:? "path://A/Evt.A/R/B"
                   :K 100}}
         r2 (ls/introspect p2)]
-    (is (ls/query-upsert? r1))
+    (is (ls/query? r1))
     (is (ls/query-upsert? r2))
     (is (= p1 (ls/raw r1)))
     (is (= p2 (ls/raw r2)))))

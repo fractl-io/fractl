@@ -471,7 +471,7 @@
                          ls/body-tag [{:Acme/R {:A :Acme/E.X}}]
                          ls/alias-tag :R})]
     (is (ls/for-each? fe))
-    (is (ls/query-upsert? (ls/value-tag fe)))
+    (is (ls/query? (ls/value-tag fe)))
     (is (ls/upsert? (first (ls/body-tag fe))))
     (is (= :R (ls/alias-tag fe)))
     (let [r (ls/raw fe)]
@@ -488,7 +488,7 @@
                     ls/alias-tag :K})
         cases (ls/cases-tag t)]
     (is (ls/try? t))
-    (is (ls/query-upsert? (ls/body-tag t)))
+    (is (ls/query? (ls/body-tag t)))
     (is (= :ok (ffirst cases)))
     (is (ls/upsert? (second (first cases))))
     (is (= [:error :not-found] (first (second cases))))
@@ -540,3 +540,16 @@
     (let [r (ls/raw e)]
       (is (= r [:eval '(quote (f :E)) :check :K :as :R]))
       (is (= e (ls/introspect r))))))
+
+(deftest issue-1038-query-introspect
+  (let [p1 {:Family {:Id? :GetAssessmentAggregate.Family}
+            :as [:F]}
+        p2 {:Family {:Id? :GetAssessmentAggregate.Family
+                     :Name "abc"}
+            :as [:F]}
+        obj1 (ls/introspect p1)
+        obj2 (ls/introspect p2)]
+    (is (ls/query? obj1))
+    (is (= p1 (ls/raw obj1)))
+    (is (ls/query-upsert? obj2))
+    (is (= p2 (ls/raw obj2)))))
