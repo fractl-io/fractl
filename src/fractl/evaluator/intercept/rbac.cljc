@@ -220,7 +220,7 @@
 
 (defn- parse-ownership-spec [inst]
   (when-let [spec (:ownership
-                   (:on-create
+                   (:assign
                     (cn/fetch-rbac-spec (cn/instance-type-kw inst))))]
     (when (and (= (count spec) 3)
                (= :-> (second spec)))

@@ -482,7 +482,8 @@
     (relationship
      :I1035/Relation
      {:meta {:between [:I1035/Member :I1035/Member :as [:From :To]]}
-      :rbac {:owner :From :on-create {:ownership [:To :-> :From]}}})
+      :rbac {:owner :From
+             :assign {:ownership [:To :-> :From]}}})
     (relationship
      :I1035/ScoreFor
      {:meta {:contains [:I1035/Member :I1035/Score]}})
