@@ -1935,3 +1935,7 @@
     (or child-id "%") parent-inst relname))
   ([parent-inst relname child-type]
    (full-path-from-references parent-inst relname nil child-type)))
+
+(defn between-relationship-instance? [inst]
+  (when-let [t (instance-type-kw inst)]
+    (between-relationship? t)))

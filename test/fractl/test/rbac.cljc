@@ -472,3 +472,92 @@
          (is (a? (create-assessment wu2 (:Id m1) (:Id m2))))
          (is (every? oa? (mapv (partial remove-ownership wu1) (mapv li/id-attr res))))
          (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2)))))))))
+
+(deftest issue-1035-owner-assign
+  (defcomponent :I1035
+    (entity :I1035/Member {:Id :Identity
+                           :rbac [{:roles ["i1035"] :allow [:create]}]})
+    (entity :I1035/Score {:Id :Identity
+                          :rbac [{:roles ["i1035"] :allow [:create]}]})
+    (relationship
+     :I1035/Relation
+     {:meta {:between [:I1035/Member :I1035/Member :as [:From :To]]}
+      :rbac {:owner :From
+             :assign {:ownership [:To :-> :From]}}})
+    (relationship
+     :I1035/ScoreFor
+     {:meta {:contains [:I1035/Member :I1035/Score]}})
+    (dataflow
+     :I1035/AssignScore
+     {:I1035/Score {}
+      :-> [[:I1035/ScoreFor {:I1035/Member {:Id? :I1035/AssignScore.Member}}]]})
+    (dataflow
+     :I1035/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@i1035.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@i1035.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1035" :Assignee "u1@i1035.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1035" :Assignee "u2@i1035.com"}}))
+  (is (finalize-events))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:I1035/InitUsers {}})))
+  (call-with-rbac
+   (fn []
+     (is (= [:rbac] (ei/init-interceptors [:rbac])))
+     (let [wu1 (partial with-user "u1@i1035.com")
+           wu2 (partial with-user "u2@i1035.com")
+           create-member (fn [with-user]
+                           (tu/first-result
+                            (with-user {:I1035/Create_Member
+                                        {:Instance
+                                         {:I1035/Member {}}}})))
+           lookup-owners (fn [with-user member-id]
+                           (cn/owners
+                            (tu/first-result
+                             (with-user
+                               {:I1035/Lookup_Member {:Id member-id}}))))
+           assign-score (fn [with-user member-id]
+                          (tu/first-result
+                           (with-user {:I1035/AssignScore
+                                       {:Member member-id}})))
+           create-relation (fn [with-user from to]
+                             (tu/first-result
+                              (with-user {:I1035/Create_Relation
+                                          {:Instance
+                                           {:I1035/Relation
+                                            {:From from :To to}}}})))
+           delete-relation (fn [with-user relid]
+                             (tu/first-result
+                              (with-user {:I1035/Delete_Relation
+                                          {li/id-attr relid}})))
+           m? (partial cn/instance-of? :I1035/Member)
+           s? (partial cn/instance-of? :I1035/Score)
+           r? (partial cn/instance-of? :I1035/Relation)
+           m1 (create-member wu1) m2 (create-member wu1)
+           m3 (create-member wu2)]
+       (is (every? m? [m1 m2 m3]))
+       (is (= #{"u1@i1035.com"} (lookup-owners wu1 (:Id m1))))
+       (is (= #{"u1@i1035.com"} (lookup-owners wu1 (:Id m2))))
+       (is (= #{"u2@i1035.com"} (lookup-owners wu2 (:Id m3))))
+       (is (s? (assign-score wu1 (:Id m1))))
+       (is (not (assign-score wu2 (:Id m2))))
+       (is (s? (assign-score wu2 (:Id m3))))
+       (is (not (create-relation wu2 (:Id m1) (:Id m3))))
+       (is (r? (create-relation wu1 (:Id m1) (:Id m2))))
+       (is (not (assign-score wu2 (:Id m2))))
+       ;; assing ownership via Relation.
+       (let [r (create-relation wu1 (:Id m2) (:Id m3))]
+         (is (r? r))
+         (is (= #{"u1@i1035.com"} (lookup-owners wu1 (:Id m1))))
+         (is (= #{"u1@i1035.com" "u2@i1035.com"} (lookup-owners wu1 (:Id m2))))
+         (is (= #{"u2@i1035.com"} (lookup-owners wu2 (:Id m3))))
+         (is (s? (assign-score wu2 (:Id m2))))
+         ;; revoke ownership by deleting Relation.
+         (is (cn/same-instance? r (delete-relation wu1 (li/id-attr r))))
+         (is (= #{"u1@i1035.com"} (lookup-owners wu1 (:Id m1))))
+         (is (= #{"u1@i1035.com"} (lookup-owners wu1 (:Id m2))))
+         (is (= #{"u2@i1035.com"} (lookup-owners wu2 (:Id m3)))))))))
