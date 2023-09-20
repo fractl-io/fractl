@@ -262,7 +262,7 @@
                  opt)
           auth (or (:authentication config)
                    {:service :cognito
-                    :superuser-email (u/getenv "FRACTL_SUPERUSER_EMAIL" "superuser@fractl.io")
+                    :superuser-email (u/getenv "FRACTL_SUPERUSER_EMAIL" "superuser@superuser.com")
                     :whitelist? false})
           opt (:interceptors config)
           inter (if-not (:rbac opt)
