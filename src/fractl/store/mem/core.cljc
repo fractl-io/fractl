@@ -53,8 +53,3 @@
 (defn make
   []
   (make-internal))
-
-#?(:cljs
-   (defn reagent-make
-     []
-     (make-internal)))
