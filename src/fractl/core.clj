@@ -254,8 +254,30 @@
   (or (seq (su/nonils args))
       [(:full-model-path config)]))
 
+(defn- preproc-config [config]
+  (if (:rbac-enabled config)
+    (let [opt (:service config)
+          serv (if-not (find opt :call-post-sign-up-event)
+                 (assoc opt :call-post-sign-up-event true)
+                 opt)
+          auth (or (:authentication config)
+                   {:service :cognito
+                    :superuser-email (u/getenv "FRACTL_SUPERUSER_EMAIL" "superuser@fractl.io")
+                    :whitelist? false})
+          opt (:interceptors config)
+          inter (if-not (:rbac opt)
+                  (assoc opt :rbac {:enabled true})
+                  opt)]
+      (assoc (dissoc config :rbac-enabled)
+             :service serv
+             :authentication auth
+             :interceptors inter))
+    config))
+
 (defn- load-config [options]
-  (u/read-config-file (get options :config "config.edn")))
+  (u/trace
+   (preproc-config
+    (u/read-config-file (get options :config "config.edn")))))
 
 (def ^:private config-data-key :-*-config-data-*-)
 

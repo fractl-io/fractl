@@ -288,9 +288,10 @@
 
 (defn trace
   "Prints `msg` and `x`. Returns `x`."
-  [msg x]
-  (println msg (pr-str x))
-  x)
+  ([msg x]
+   (println msg (pr-str x))
+   x)
+  ([x] (trace "" x)))
 
 (defn trace-with-fn
   "Prints `msg`, `x` and the result of `(f x)`. Returns `x`."
