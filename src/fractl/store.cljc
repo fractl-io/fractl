@@ -1,7 +1,7 @@
 (ns fractl.store
-  (:require #?(:clj [fractl.store.h2 :as h2]
-               :cljs [fractl.store.mem.core :as mem])
+  (:require #?(:clj [fractl.store.h2 :as h2])
             #?(:clj [fractl.store.postgres :as postgres])
+            [fractl.store.mem.core :as mem]
             [fractl.component :as cn]
             [fractl.util.logger :as log]
             [fractl.store.util :as su]
@@ -40,10 +40,10 @@
   (u/make-cell
    #?(:clj
       {:h2 h2/make
-       :postgres postgres/make}
+       :postgres postgres/make
+       :mem mem/make}
       :cljs
-      {:reagent mem/reagent-make
-       :mem mem/make})))
+      {:mem mem/make})))
 
 (defn register-store [store-name constructor]
   (u/call-and-set
