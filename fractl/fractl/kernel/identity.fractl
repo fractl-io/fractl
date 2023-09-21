@@ -74,3 +74,9 @@
  :FindUser
  {:User
   {:Email? :FindUser.Email}})
+
+(event
+ :ResendConfirmationCode
+ {:User :User})
+
+(dataflow :ResendConfirmationCode :ResendConfirmationCode.User)

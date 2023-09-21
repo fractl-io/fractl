@@ -504,39 +504,39 @@
 ;; TODO: Add layer of domain filtering on top of cognito.
 ;; Additionally: Is this a right place for this?
 #_(defn- whitelisted-email? [email]
-  (let [{:keys [access-key secret-key region whitelist?] :as _aws-config} (uh/get-aws-config)]
-    (if (true? whitelist?)
-      (let [[s3-bucket whitelist-file-key] (uh/get-aws-config)
-            whitelisted-emails (read-string
-                                 (s3/get-object-as-string
+    (let [{:keys [access-key secret-key region whitelist?] :as _aws-config} (uh/get-aws-config)]
+      (if (true? whitelist?)
+        (let [[s3-bucket whitelist-file-key] (uh/get-aws-config)
+              whitelisted-emails (read-string
+                                  (s3/get-object-as-string
                                    {:access-key access-key
                                     :secret-key secret-key
                                     :endpoint region}
                                    s3-bucket whitelist-file-key))]
-        (contains? whitelisted-emails email))
-      nil)))
+          (contains? whitelisted-emails email))
+        nil)))
 
 ;; TODO: Add layer of domain filtering on top of cognito.
 #_(defn- whitelisted-domain? [email domains]
-  (let [domain (last (s/split email #"@"))]
-    (contains? (set domains) domain)))
+    (let [domain (last (s/split email #"@"))]
+      (contains? (set domains) domain)))
 
 (defn- whitelisted? [email {:keys [whitelist? email-domains] :as _auth-info}]
   true
   ;; TODO: Add layer of domain filtering on top of cognito.
   #_(cond
-    (and (not (nil? email-domains)) (true? whitelist?))
-    (or (whitelisted-email? email)
-        (whitelisted-domain? email email-domains))
+      (and (not (nil? email-domains)) (true? whitelist?))
+      (or (whitelisted-email? email)
+          (whitelisted-domain? email email-domains))
 
-    (not (nil? email-domains))
-    (whitelisted-domain? email email-domains)
+      (not (nil? email-domains))
+      (whitelisted-domain? email email-domains)
 
-    (true? whitelist?)
-    (whitelisted-email? email)
+      (true? whitelist?)
+      (whitelisted-email? email)
 
-    :else
-    true))
+      :else
+      true))
 
 (defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
@@ -596,6 +596,29 @@
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Login failed. "
+                                 (.getMessage ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
+(defn- process-resend-confirmation-code [evaluator [auth-config _ :as _auth-info] request]
+  (if-not auth-config
+    (internal-error "cannot process resend-confirmation-code - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (if err
+          (do (log/warn (str "bad resend-confirmation-code request - " err))
+              (bad-request err data-fmt))
+          (try
+            (let [result (auth/resend-confirmation-code
+                          (assoc
+                           auth-config
+                           :event evobj
+                           :eval evaluator))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "Resending confirmation code failed. "
                                  (.getMessage ex)) data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - "
@@ -881,6 +904,7 @@
           :confirm-forgot-password (partial process-confirm-forgot-password auth)
           :change-password (partial process-change-password auth)
           :refresh-token (partial process-refresh-token auth)
+          :resend-confirmation-code (partial process-resend-confirmation-code auth)
           :put-request (partial process-put-request evaluator auth-info)
           :post-request (partial process-post-request evaluator auth-info)
           :get-request (partial process-get-request evaluator auth-info)

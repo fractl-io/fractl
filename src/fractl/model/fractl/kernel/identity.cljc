@@ -51,6 +51,12 @@
  #:Fractl.Kernel.Identity{:User
                           {:Email?
                            :Fractl.Kernel.Identity/FindUser.Email}})
+(event
+ :Fractl.Kernel.Identity/ResendConfirmationCode
+ {:User :Fractl.Kernel.Identity/User})
+(dataflow
+ :Fractl.Kernel.Identity/ResendConfirmationCode
+ :Fractl.Kernel.Identity/ResendConfirmationCode.User)
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "efd26c45-83f6-40e9-b622-974987aee96f")
+ "3ba9ec5e-a48d-4ff7-a9c0-5b77346ab7fe")
