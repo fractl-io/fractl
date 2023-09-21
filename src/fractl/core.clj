@@ -275,9 +275,8 @@
     config))
 
 (defn- load-config [options]
-  (u/trace
-   (preproc-config
-    (u/read-config-file (get options :config "config.edn")))))
+  (preproc-config
+   (u/read-config-file (get options :config "config.edn"))))
 
 (def ^:private config-data-key :-*-config-data-*-)
 

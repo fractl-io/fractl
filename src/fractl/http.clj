@@ -16,6 +16,7 @@
             [fractl.util.http :as uh]
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
+            [fractl.global-state :as gs]
             [org.httpkit.server :as h]
             [ring.util.codec :as codec]
             [ring.middleware.cors :as cors])
@@ -96,12 +97,29 @@
                 (evaluator event-instance))]
     result))
 
-(defn- maybe-ok [exp data-fmt]
-  (try
-    (ok (exp) data-fmt)
-    (catch Exception ex
-      (log/exception ex)
-      (internal-error (.getMessage ex) data-fmt))))
+(defn- extract-status [r]
+  (cond
+    (map? r) (:status r)
+    (vector? r) (extract-status (first r))
+    :else nil))
+
+(defn- maybe-ok
+  ([on-no-perm exp data-fmt]
+   (try
+     (let [r (exp), status (extract-status r)]
+       (case status
+         :ok (ok r data-fmt)
+         :error (if (gs/error-no-perm?)
+                  (if on-no-perm
+                    (ok on-no-perm data-fmt)
+                    (unauthorized r data-fmt))
+                  (internal-error r data-fmt))
+         (ok r data-fmt)))
+     (catch Exception ex
+       (log/exception ex)
+       (internal-error (.getMessage ex) data-fmt))))
+  ([exp data-fmt]
+   (maybe-ok nil exp data-fmt)))
 
 (defn- assoc-event-context [request auth-config event-instance]
   (if auth-config
@@ -225,13 +243,15 @@
                              (w/keywordize-keys (codec/form-decode s)))
               [obj data-fmt err-response] (request-object request)
               parsed-path (assoc parsed-path :query-params query-params :data-fmt data-fmt)]
-          (or err-response (let [[event-gen resp] (handler parsed-path obj)]
+          (or err-response (let [[event-gen resp options] (handler parsed-path obj)]
                              (if resp
                                resp
                                (let [[evt post-fn] (if (fn? event-gen) (event-gen) [event-gen nil])
                                      evt (assoc-event-context request auth-config evt)
                                      result (try
-                                              (maybe-ok #(evaluate evaluator evt) data-fmt)
+                                              (maybe-ok
+                                               (and options (:on-no-perm options))
+                                               #(evaluate evaluator evt) data-fmt)
                                               (finally
                                                 (when post-fn (post-fn))))]
                                  result)))))
@@ -403,7 +423,7 @@
        [(if id
           (make-lookup-event component entity-name id path)
           (make-lookupall-event component entity-name (when path (str path "%"))))
-        nil]))
+        nil (when-not id {:on-no-perm []})]))
    evaluator auth-info request))
 
 (def process-delete-request
