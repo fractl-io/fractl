@@ -845,6 +845,7 @@
            (POST uh/confirm-forgot-password-prefix [] (:confirm-forgot-password handlers))
            (POST uh/change-password-prefix [] (:change-password handlers))
            (POST uh/refresh-token-prefix [] (:refresh-token handlers))
+           (POST uh/resend-confirmation-code-prefix [] (:resend-confirmation-code handlers))
            (PUT (str uh/entity-event-prefix "*") [] (:put-request handlers))
            (POST (str uh/entity-event-prefix "*") [] (:post-request handlers))
            (GET (str uh/entity-event-prefix "*") [] (:get-request handlers))
