@@ -502,41 +502,39 @@
     eval-res))
 
 ;; TODO: Add layer of domain filtering on top of cognito.
-;; Additionally: Is this a right place for this?
-#_(defn- whitelisted-email? [email]
-    (let [{:keys [access-key secret-key region whitelist?] :as _aws-config} (uh/get-aws-config)]
-      (if (true? whitelist?)
-        (let [[s3-bucket whitelist-file-key] (uh/get-aws-config)
-              whitelisted-emails (read-string
-                                  (s3/get-object-as-string
-                                   {:access-key access-key
-                                    :secret-key secret-key
-                                    :endpoint region}
-                                   s3-bucket whitelist-file-key))]
-          (contains? whitelisted-emails email))
-        nil)))
+(defn- whitelisted-email? [email]
+  (let [{:keys [access-key secret-key region whitelist?] :as _aws-config} (uh/get-aws-config)]
+    (if (true? whitelist?)
+      (let [[s3-bucket whitelist-file-key] (uh/get-aws-config)
+            whitelisted-emails (read-string
+                                (s3/get-object-as-string
+                                 {:access-key access-key
+                                  :secret-key secret-key
+                                  :endpoint region}
+                                 s3-bucket whitelist-file-key))]
+        (contains? whitelisted-emails email))
+      nil)))
 
 ;; TODO: Add layer of domain filtering on top of cognito.
-#_(defn- whitelisted-domain? [email domains]
-    (let [domain (last (s/split email #"@"))]
-      (contains? (set domains) domain)))
+(defn- whitelisted-domain? [email domains]
+  (let [domain (last (s/split email #"@"))]
+    (contains? (set domains) domain)))
 
 (defn- whitelisted? [email {:keys [whitelist? email-domains] :as _auth-info}]
-  true
   ;; TODO: Add layer of domain filtering on top of cognito.
-  #_(cond
-      (and (not (nil? email-domains)) (true? whitelist?))
-      (or (whitelisted-email? email)
-          (whitelisted-domain? email email-domains))
+  (cond
+    (and (not (nil? email-domains)) (true? whitelist?))
+    (or (whitelisted-email? email)
+        (whitelisted-domain? email email-domains))
 
-      (not (nil? email-domains))
-      (whitelisted-domain? email email-domains)
+    (not (nil? email-domains))
+    (whitelisted-domain? email email-domains)
 
-      (true? whitelist?)
-      (whitelisted-email? email)
+    (true? whitelist?)
+    (whitelisted-email? email)
 
-      :else
-      true))
+    :else
+    true))
 
 (defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
