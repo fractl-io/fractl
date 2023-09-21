@@ -111,8 +111,8 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\"Sample.Library.Identity/Member\": {\"Name\": \"Leo Tolstoy\",\"UserName\": \"lt\",\"Password\": \"tolstoy123\", \"Email\": \"leo@tolstoy.io\", \"DOB\": \"1828-09-09\",\"Designation\": \"life\"}}"
-					"options": {
+				    "raw": "{\"Sample.Library.Identity/Member\": {\"Name\": \"Leo Tolstoy\",\"UserName\": \"lt\",\"Password\": \"tolstoy123\", \"Email\": \"leo@tolstoy.io\", \"DOB\": \"1828-09-09\",\"Designation\": \"life\"}}",
+				    "options": {
 						"raw": {
 							"language": "json"
 						}
