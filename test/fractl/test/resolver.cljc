@@ -3,7 +3,7 @@
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     relationship entity record dataflow]]
             [fractl.component :as cn]
             [fractl.store :as store]
             [fractl.evaluator :as e]
@@ -247,3 +247,75 @@
     (is (= id (cn/id-attr r2)))
     (is (= id (cn/id-attr r3)))
     (is (= :not-found (:status (first r4))))))
+
+(defn- deployment-resolver [call-count]
+  (let [r (r/make-resolver
+           :fractl-deploy
+           {:create
+            {:handler
+             (fn [inst]
+               (swap! call-count inc)
+               inst)}})]
+    (rg/compose-resolver :FractlDeployment.Core/Deployment r)))
+
+(deftest duplicate-eval-bug
+  (defcomponent :FractlDeployment.Core
+    (entity
+     :FractlDeployment.Core/User
+     {:Email {:type :String
+              :indexed true
+              :unique true}
+      :UserSlug :String})
+
+    (entity
+     :FractlDeployment.Core/Deployment
+     {:Id :Identity
+      :Model :String
+      :Org :String
+      :Config {:type :Map :optional true}
+      :ModelName {:type :String :optional true}
+      :ModelShortName {:type :String :optional true}
+      :Status {:type :String :default "Undeployed"}
+      :DeploymentInfo {:type :Map :optional true}
+      :CreatedDate :Now})
+
+    (relationship
+     :FractlDeployment.Core/UserDeployment
+     {:meta {:contains [:FractlDeployment.Core/User :FractlDeployment.Core/Deployment
+                        :cascade-on-delete true]}})
+
+    (event
+     :FractlDeployment.Core/CreateDeployment
+     {:Model :String
+      :Org :String
+      :Config {:type :Map :optional true}})
+
+    (dataflow
+     :FractlDeployment.Core/CreateDeployment
+     {:FractlDeployment.Core/User
+      {:Email? :FractlDeployment.Core/CreateDeployment.EventContext.User}
+      :as :U}
+     {:FractlDeployment.Core/Deployment
+      {:Model :FractlDeployment.Core/CreateDeployment.Model
+       :Org :FractlDeployment.Core/CreateDeployment.Org
+       :Config :FractlDeployment.Core/CreateDeployment.Config}
+      :-> [[{:FractlDeployment.Core/UserDeployment {}} :U]]}))
+  (let [call-count (atom 0)]
+    (deployment-resolver call-count)
+    (is (cn/instance-of?
+         :FractlDeployment.Core/User
+         (tu/first-result
+          {:FractlDeployment.Core/Create_User
+           {:Instance
+            {:FractlDeployment.Core/User
+             {:Email "deployer@fractl.io"
+              :UserSlug "ok"}}}})))
+    (is (cn/instance-of?
+         :FractlDeployment.Core/Deployment
+         (tu/first-result
+          {:FractlDeployment.Core/CreateDeployment
+           {:Model "blog"
+            :Org "fractl"
+            :Config {:service 8080}
+            :EventContext {:User "deployer@fractl.io"}}})))
+    (is (= 1 @call-count))))

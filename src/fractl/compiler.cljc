@@ -997,7 +997,7 @@
 (defn- preproc-relspec-helper [pat relspec]
   (let [pat-alias (or (:as pat) (newname))
         new-pats (filter identity (mapv (partial preproc-relspec-entry pat pat-alias) relspec))
-        has-contains (some #(keyword? (first %)) relspec)
+        has-contains (some #(contains-relationship-pattern (first %)) relspec)
         inst-pat (when-not has-contains [{:patterns [(assoc pat :as pat-alias)]}])]
     (concat inst-pat new-pats [{:patterns [pat-alias]}])))
 
