@@ -108,6 +108,7 @@
    (try
      (let [r (exp), status (extract-status r)]
        (case status
+         nil (bad-request "invalid request" data-fmt)
          :ok (ok r data-fmt)
          :error (if (gs/error-no-perm?)
                   (if on-no-perm
