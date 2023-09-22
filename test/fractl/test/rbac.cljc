@@ -2,12 +2,10 @@
   (:require #?(:clj  [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.string :as s]
-            [fractl.rbac.core :as rbac]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
-            [fractl.evaluator.intercept :as ei]
             [fractl.auth]
-            [fractl.lang.rbac :as lr]
+            [fractl.rbac.core :as rbac]
             [fractl.lang.internal :as li]
             [fractl.lang
              :refer [component attribute event
@@ -62,30 +60,13 @@
       (is (= [:read] (:Actions p2)))
       (is (= [:C] (:Resource p2))))))
 
-(defn- with-user [email event]
-  (cn/assoc-event-context-user
-   email
-   (cn/make-instance
-    (if (keyword? event)
-      {event {}}
-      event))))
-
-(def ^:privilege default-finalize ei/reset-interceptors!)
-
-(defn- call-with-rbac
-  ([f finalize]
-   (is (rbac/init))
-   (try
-     (f)
-     (finally
-       (finalize))))
-  ([f] (call-with-rbac f default-finalize)))
-
-(defn- finalize-events []
-  (lr/finalize-events tu/eval-all-dataflows))
+(def ^:private call-with-rbac tu/call-with-rbac)
+(def ^:private finalize-events tu/finalize-events)
+(def ^:private reset-events! tu/reset-events!)
+(def ^:private with-user tu/with-user)
 
 (deftest basic-rbac-dsl
-  (lr/reset-events!)
+  (reset-events!)
   (defcomponent :Brd
     (entity
      :Brd/E
@@ -113,7 +94,6 @@
   (let [e? (partial cn/instance-of? :Brd/E)]
     (call-with-rbac
      (fn []
-       (is (= [:rbac] (ei/init-interceptors [:rbac])))
        (let [create-e (fn [id]
                         {:Brd/Create_E
                          {:Instance
@@ -176,7 +156,7 @@
            (test-lookup "u1@brd.com" 200 true 1)))))))
 
 (deftest rbac-with-contains-relationship
-  (lr/reset-events!)
+  (reset-events!)
   (defcomponent :Wcr
     (entity
      :Wcr/E
@@ -205,7 +185,6 @@
   (let [e? (partial cn/instance-of? :Wcr/E)]
     (call-with-rbac
      (fn []
-       (is (= [:rbac] (ei/init-interceptors [:rbac])))
        (let [fq (partial li/as-fully-qualified-path :Wcr)
              e? (partial cn/instance-of? :Wcr/E)
              f? (partial cn/instance-of? :Wcr/F)
@@ -240,7 +219,7 @@
          (is (tu/not-found? (tu/eval-all-dataflows (with-u1 (lookup-fs 1))))))))))
 
 (deftest instance-privs
-  (lr/reset-events!)
+  (reset-events!)
   (defcomponent :Ipv
     (entity
      :Ipv/E
@@ -264,7 +243,6 @@
        (tu/first-result {:Ipv/InitUsers {}})))
   (call-with-rbac
    (fn []
-     (is (= [:rbac] (ei/init-interceptors [:rbac])))
      (let [e? (partial cn/instance-of? :Ipv/E)
            create-e (fn [user id]
                       (tu/first-result
@@ -321,7 +299,7 @@
            (is (cn/same-instance? e (lookup-e "u1@ipv.com" 1)))))))))
 
 (deftest creator-and-parent-as-owners
-  (lr/reset-events!)
+  (reset-events!)
   (defcomponent :I1018
     (entity
      :I1018/A
@@ -352,7 +330,6 @@
        (tu/first-result {:I1018/InitUsers {}})))
   (call-with-rbac
    (fn []
-     (is (= [:rbac] (ei/init-interceptors [:rbac])))
      (let [fq (partial li/as-fully-qualified-path :I1018)
            a? (partial cn/instance-of? :I1018/A)
            b? (partial cn/instance-of? :I1018/B)
@@ -385,7 +362,7 @@
        (is-bs bs2)))))
 
 (deftest issue-1025-rbac-update
-  (lr/reset-events!)
+  (reset-events!)
   (defcomponent :I1025
     (entity
      :I1025/Member
@@ -423,7 +400,6 @@
        (tu/first-result {:I1025/InitUsers {}})))
   (call-with-rbac
    (fn []
-     (is (= [:rbac] (ei/init-interceptors [:rbac])))
      (let [wu1 (partial with-user "u1@i1025.com")
            wu2 (partial with-user "u2@i1025.com")
            create-member (fn [with-user]
@@ -507,7 +483,6 @@
        (tu/first-result {:I1035/InitUsers {}})))
   (call-with-rbac
    (fn []
-     (is (= [:rbac] (ei/init-interceptors [:rbac])))
      (let [wu1 (partial with-user "u1@i1035.com")
            wu2 (partial with-user "u2@i1035.com")
            create-member (fn [with-user]
