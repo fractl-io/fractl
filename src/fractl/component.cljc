@@ -1762,12 +1762,6 @@
 (def remove-event remove-record)
 (def remove-relationship remove-entity)
 
-(defn raw-definition [recname raw-attrs]
-  (u/call-and-set
-   components
-   #(assoc-in @components [:raw recname] raw-attrs))
-  recname)
-
 (defn- dissoc-system-attributes [attrs]
   (into
    {}
@@ -1779,7 +1773,10 @@
 
 (defn fetch-user-schema [recname]
   (dissoc-system-attributes
-   (get-in @components [:raw recname])))
+   (or (raw/find-entity recname)
+       (raw/find-relationship recname)
+       (raw/find-event recname)
+       (raw/find-record recname))))
 
 (defn fetch-user-meta [recname]
   (:meta (fetch-user-schema recname)))
