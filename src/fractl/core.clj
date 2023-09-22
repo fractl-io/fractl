@@ -170,17 +170,10 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
-(defn- normalize-interceptors [ins]
-  (let [ks (keys ins)]
-    (if (and (some #{:rbac} ks)
-             (not (some #{:instance-meta} ks)))
-      (assoc ins :instance-meta {:enabled true})
-      ins)))
-
 (defn- init-runtime [model config]
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
-        ins (normalize-interceptors (:interceptors config))
+        ins (:interceptors config)
         resolved-config (run-initconfig config ev)
         has-rbac (some #{:rbac} (keys ins))]
     (register-resolvers! config ev)
