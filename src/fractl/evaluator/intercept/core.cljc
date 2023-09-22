@@ -29,7 +29,7 @@
 ;; in the pipeline. An interceptor may terminate the pipeline by
 ;; returning nil
 (def ^:private interceptors (u/make-cell []))
-(def ^:private system-interceptors #{:instance-meta :rbac})
+(def ^:private system-interceptors #{:rbac})
 
 (defn- system-interceptor? [interceptor]
   (some #{(ii/intercept-name interceptor)} system-interceptors))
