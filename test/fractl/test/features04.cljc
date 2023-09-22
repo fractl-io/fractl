@@ -78,6 +78,11 @@
      :I1051/R2
      {:meta {:between [:I1051/A :I1051/A :as [:I :J]]}
       :rbac {:owner :J}})
+    (relationship
+     :I1051/R3
+     {:meta {:between [:I1051/A :I1051/B]}
+      :rbac {:owner :I1051/A
+             :assign {:ownership [:I1051/B :-> :I1051/A]}}})
     (dataflow
      :I1051/InitUsers
      {:Fractl.Kernel.Identity/User
@@ -101,7 +106,60 @@
                           {:Instance
                            {:I1051/A {:Id id :X (* id 10)}}}})))
            a? (partial cn/instance-of? :I1051/A)
+           lookup-a (fn [with-user id]
+                      (tu/first-result
+                       (with-user
+                         {:I1051/Lookup_A
+                          {:Id id}})))
+           create-b (fn [with-user id]
+                      (tu/first-result
+                       (with-user
+                         {:I1051/Create_B
+                          {:Instance
+                           {:I1051/B {:Id id :Y (* id 2)}}}})))
+           b? (partial cn/instance-of? :I1051/B)
+           create-r1 (fn [with-user id1 id2]
+                       (tu/first-result
+                        (with-user
+                          {:I1051/Create_R1
+                           {:Instance
+                            {:I1051/R1 {:A id1 :B id2}}}})))
+           r1? (partial cn/instance-of? :I1051/R1)
+           create-r2 (fn [with-user id1 id2]
+                       (tu/first-result
+                        (with-user
+                          {:I1051/Create_R2
+                           {:Instance
+                            {:I1051/R2 {:I id1 :J id2}}}})))
+           r2? (partial cn/instance-of? :I1051/R2)
+           create-r3 (fn [with-user id1 id2]
+                       (tu/first-result
+                        (with-user
+                          {:I1051/Create_R3
+                           {:Instance
+                            {:I1051/R3 {:A id1 :B id2}}}})))
+           delete-r3 (fn [with-user id]
+                       (tu/first-result
+                        (with-user
+                          {:I1051/Delete_R3
+                           {li/id-attr id}})))
+           r3? (partial cn/instance-of? :I1051/R3)
            wu1 (partial tu/with-user "u1@i1051.com")
            wu2 (partial tu/with-user "u2@i1051.com")
-           a1 (create-a wu1 1), a2 (create-a wu2 2)]
-       (is (a? a1)) (is (a? a2))))))
+           a1 (create-a wu1 1), a2 (create-a wu2 2)
+           b1 (create-b wu1 10), b2 (create-b wu2 20)]
+       (is (a? a1)) (is (a? a2))
+       (is (b? b1)) (is (b? b2))
+       (is (not (create-r1 wu1 (:Id a2) (:Id b2))))
+       (is (r1? (create-r1 wu1 (:Id a1) (:Id b2))))
+       (is (not (create-r2 wu1 (:Id a1) (:Id a2))))
+       (is (r2? (create-r2 wu1 (:Id a2) (:Id a1))))
+       (is (not (create-r3 wu1 (:Id a2) (:Id b2))))
+       (is (= #{"u1@i1051.com"} (cn/owners a1)))
+       (let [a1id (:Id a1)
+             r3 (create-r3 wu1 a1id (:Id b2))]
+         (is (r3? r3))
+         (is (= #{"u1@i1051.com" "u2@i1051.com"} (cn/owners (lookup-a wu2 a1id))))
+         (is (r3? (delete-r3 wu1 (li/id-attr r3))))
+         (is (not (lookup-a wu2 a1id)))
+         (is (= #{"u1@i1051.com"} (cn/owners (lookup-a wu1 a1id)))))))))

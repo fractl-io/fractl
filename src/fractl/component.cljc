@@ -1813,7 +1813,7 @@
           n (or n c)]
       (if (some #{n} (between-attribute-names relname))
         n
-        (find-between-keys relname maybe-node-name)))))
+        (first (find-between-keys relname maybe-node-name))))))
 
 (defn fetch-default-attribute-values [schema]
   (into
