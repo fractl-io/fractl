@@ -23,3 +23,22 @@
   (reset! script-mode true))
 
 (defn in-script-mode? [] @script-mode)
+
+#?(:clj
+   (def ^ThreadLocal error-code (ThreadLocal.))
+   :cljs
+   (def error-code (atom nil)))
+
+(defn set-error-code! [code]
+  #?(:clj (.set error-code code)
+     :cljs (reset! error-code code)))
+
+(defn get-error-code []
+  #?(:clj (.get error-code)
+     :cljs @error-code))
+
+(defn set-error-no-perm! []
+  (set-error-code! :no-permission))
+
+(defn error-no-perm? []
+  (= (get-error-code) :no-permission))
