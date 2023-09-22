@@ -29,6 +29,27 @@
           :Z :I840/K}
          (raw/find-entity :I840/E))))
 
+(deftest fetch-from-raw
+  (defcomponent :Ffr
+    (entity
+     :Ffr/E
+     {:Id :Identity
+      :rbac [{:roles ["user"] :allow [:create]}]})
+    (entity
+     :Ffr/F
+     {:X {:type :Int :identity true}})
+    (relationship
+     :Ffr/R
+     {:meta {:between [:Ffr/E :Ffr/F]}
+      :Y :Int}))
+  (= {:Id :Identity
+      :rbac [{:roles ["user"] :allow [:create]}]}
+     (cn/fetch-user-schema :Ffr/E))
+  (= {:X {:type :Int :identity true}}
+     (cn/fetch-user-schema :Ffr/F))
+  (= {:meta {:between [:Ffr/E :Ffr/F], :cascade-on-delete true}, :Y :Int}
+     (cn/fetch-user-schema :Ffr/R)))
+
 (deftest basic-contains-relationship
   (let [grades ["a" "b"]]
     (defcomponent :Bcr
