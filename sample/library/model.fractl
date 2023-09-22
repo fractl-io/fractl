@@ -4,4 +4,4 @@
               :Sample/Library/Ledger]
  :config {:service {:port 8000}
           :zero-trust-rbac false
-          :store {:dbname "./sample/library/db"}}}
+          :store {:type :mem}}}

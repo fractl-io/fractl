@@ -26,8 +26,12 @@
 (defn- maybe-remove-where [qpat]
   (if (:where qpat) qpat (dissoc qpat :where)))
 
+(def ^:private not-deleted [:= su/deleted-flag-col-kw false])
+
 (defn- with-not-deleted-clause [where]
-  [:and [:= su/deleted-flag-col-kw false] where])
+  (if where
+    [:and not-deleted where]
+    not-deleted))
 
 (defn format-sql [table-name query]
   (let [group-by (:group-by query)
@@ -42,16 +46,15 @@
            (let [where-clause (attach-column-name-prefixes query)
                  p {:select wildcard
                     :from [(keyword table-name)]}]
-             (if where-clause
-               (assoc p :where
-                      (with-not-deleted-clause
-                       (let [f (first where-clause)]
-                         (cond
-                           (string? f)
-                           [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
-                           (seqable? f) f
-                           :else where-clause))))
-               p))))
+             (assoc p :where
+                    (with-not-deleted-clause
+                      (when where-clause
+                        (let [f (first where-clause)]
+                          (cond
+                            (string? f)
+                            [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
+                            (seqable? f) f
+                            :else where-clause))))))))
         final-pattern (if group-by
                         (assoc interim-pattern :group-by (mapv #(keyword (str "_" (name %))) group-by))
                         interim-pattern)]
