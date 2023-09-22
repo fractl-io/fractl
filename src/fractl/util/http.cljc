@@ -45,6 +45,7 @@
 (def confirm-sign-up-prefix "/_confirm-sign-up/")
 (def change-password-prefix "/_change-password/")
 (def refresh-token-prefix "/_refresh-token/")
+(def resend-confirmation-code-prefix "/_resend-confirmation-code/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
 (def callback-prefix "/_callback/")
@@ -125,11 +126,11 @@
                                            false)}]
          ;;TODO: Need to revisit this and add a layer to check for domains
          ;;      that are whitelisted.
-         #_(if (true? (:whitelist? aws-config))
-             (assoc aws-config
-               :s3-bucket (get-env-var "AWS_S3_BUCKET")
-               :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
-             aws-config)
+         (if (true? (:whitelist? aws-config))
+           (assoc aws-config
+                  :s3-bucket (get-env-var "AWS_S3_BUCKET")
+                  :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
+           aws-config)
          aws-config))))
 
 (defn- fully-qualified-name [base-component n]

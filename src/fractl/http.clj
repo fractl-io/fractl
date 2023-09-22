@@ -502,29 +502,27 @@
     eval-res))
 
 ;; TODO: Add layer of domain filtering on top of cognito.
-;; Additionally: Is this a right place for this?
-#_(defn- whitelisted-email? [email]
+(defn- whitelisted-email? [email]
   (let [{:keys [access-key secret-key region whitelist?] :as _aws-config} (uh/get-aws-config)]
     (if (true? whitelist?)
       (let [[s3-bucket whitelist-file-key] (uh/get-aws-config)
             whitelisted-emails (read-string
-                                 (s3/get-object-as-string
-                                   {:access-key access-key
-                                    :secret-key secret-key
-                                    :endpoint region}
-                                   s3-bucket whitelist-file-key))]
+                                (s3/get-object-as-string
+                                 {:access-key access-key
+                                  :secret-key secret-key
+                                  :endpoint region}
+                                 s3-bucket whitelist-file-key))]
         (contains? whitelisted-emails email))
       nil)))
 
 ;; TODO: Add layer of domain filtering on top of cognito.
-#_(defn- whitelisted-domain? [email domains]
+(defn- whitelisted-domain? [email domains]
   (let [domain (last (s/split email #"@"))]
     (contains? (set domains) domain)))
 
 (defn- whitelisted? [email {:keys [whitelist? email-domains] :as _auth-info}]
-  true
   ;; TODO: Add layer of domain filtering on top of cognito.
-  #_(cond
+  (cond
     (and (not (nil? email-domains)) (true? whitelist?))
     (or (whitelisted-email? email)
         (whitelisted-domain? email email-domains))
@@ -596,6 +594,34 @@
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Login failed. "
+                                 (.getMessage ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - "
+            (request-content-type request))))))
+
+(defn- process-resend-confirmation-code [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process resend-confirmation-code - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request nil data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad resend-confirmation-code request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Fractl.Kernel.Identity/ResendConfirmationCode evobj))
+          (bad-request (str "not a resend-confirmation event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [result (auth/resend-confirmation-code
+                          (assoc
+                           auth-config
+                           :event evobj))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "Resending confirmation code failed. "
                                  (.getMessage ex)) data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - "
@@ -822,6 +848,7 @@
            (POST uh/confirm-forgot-password-prefix [] (:confirm-forgot-password handlers))
            (POST uh/change-password-prefix [] (:change-password handlers))
            (POST uh/refresh-token-prefix [] (:refresh-token handlers))
+           (POST uh/resend-confirmation-code-prefix [] (:resend-confirmation-code handlers))
            (PUT (str uh/entity-event-prefix "*") [] (:put-request handlers))
            (POST (str uh/entity-event-prefix "*") [] (:post-request handlers))
            (GET (str uh/entity-event-prefix "*") [] (:get-request handlers))
@@ -881,6 +908,7 @@
           :confirm-forgot-password (partial process-confirm-forgot-password auth)
           :change-password (partial process-change-password auth)
           :refresh-token (partial process-refresh-token auth)
+          :resend-confirmation-code (partial process-resend-confirmation-code auth)
           :put-request (partial process-put-request evaluator auth-info)
           :post-request (partial process-post-request evaluator auth-info)
           :get-request (partial process-get-request evaluator auth-info)

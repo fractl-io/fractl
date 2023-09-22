@@ -59,7 +59,8 @@
             [s3-wagon-private "1.3.4"]
             [lein-doo "0.1.10"]
             [reifyhealth/lein-git-down "0.4.0"]
-            [lein-ancient "1.0.0-RC3"]]
+            [lein-ancient "1.0.0-RC3"]
+            [cider/cider-nrepl "0.37.1"]]
 
   :middleware [lein-git-down.plugin/inject-properties]
 
