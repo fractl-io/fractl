@@ -462,8 +462,7 @@
            r (cn/intern-record
               cn (normalized-attributes :record cn attrs))]
        (when r
-         (and (cn/raw-definition cn attrs)
-              (if-not (:contains (:meta attrs))
+         (and (if-not (:contains (:meta attrs))
                 (raw/record n attrs)
                 n)
               r)))
@@ -475,14 +474,12 @@
   ([n attrs verify-name?]
    (let [cn (if verify-name?
               (validated-canonical-type-name n)
-              (cn/canonical-type-name n))
-         r (cn/intern-event
-            cn
-            (if (cn/inferred-event-schema? attrs)
-              attrs
-              (normalized-attributes :event cn attrs)))]
-     (when r
-       (and (cn/raw-definition cn attrs) r))))
+              (cn/canonical-type-name n))]
+     (cn/intern-event
+      cn
+      (if (cn/inferred-event-schema? attrs)
+        attrs
+        (normalized-attributes :event cn attrs)))))
   ([n attrs]
    (event-internal n attrs false)))
 
@@ -721,8 +718,7 @@
       (keyword (str (name c) "/" (name evt-name) "." (name evt-ref) "." (name attr-name)))}}))
 
 (defn- serialize-record [f cn attrs raw-attrs]
-  (when-let [r (f cn attrs)]
-    (and (cn/raw-definition cn raw-attrs) r)))
+  (f cn attrs))
 
 (def ^:private intern-rec-fns
   {:entity (partial serialize-record cn/intern-entity)
