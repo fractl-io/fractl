@@ -195,13 +195,12 @@
      :Email email}))
 
 (defmethod auth/resend-confirmation-code tag [{:keys [event] :as req}]
-  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)
-        {:keys [Username]} event]
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
     (try
       (resend-confirmation-code
        (auth/make-client (merge req aws-config))
-       :client-id client-id
-       :username Username)
+       :username (:Username event)
+       :client-id client-id)
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 

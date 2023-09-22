@@ -599,20 +599,25 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
-(defn- process-resend-confirmation-code [evaluator [auth-config _ :as _auth-info] request]
+(defn- process-resend-confirmation-code [auth-config request]
   (if-not auth-config
     (internal-error "cannot process resend-confirmation-code - authentication not enabled")
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
-        (if err
+        (cond
+          err
           (do (log/warn (str "bad resend-confirmation-code request - " err))
               (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Fractl.Kernel.Identity/ResendConfirmationCode evobj))
+          (bad-request (str "not a resend-confirmation event - " evobj) data-fmt)
+
+          :else
           (try
             (let [result (auth/resend-confirmation-code
                           (assoc
                            auth-config
-                           :event evobj
-                           :eval evaluator))]
+                           :event evobj))]
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)

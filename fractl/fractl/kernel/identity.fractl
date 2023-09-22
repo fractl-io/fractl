@@ -77,6 +77,4 @@
 
 (event
  :ResendConfirmationCode
- {:User :User})
-
-(dataflow :ResendConfirmationCode :ResendConfirmationCode.User)
+ {:Username :Email})
