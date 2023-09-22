@@ -76,10 +76,10 @@
 
 (defn- verify-rbac-spec [recname spec]
   (when-let [node (:owner spec)]
-    (if-let [attrs (cn/between-attribute-names recname)]
-      (when-not (some #{node} attrs)
-        (u/throw-ex (str "invalid rbac-owner - " node  ", must be one of " attrs)))
-      (u/throw-ex (str "rbac-owner can be specified only for between relatonships - " recname))))
+    (when-not (cn/between-relationship? recname)
+      (u/throw-ex (str "rbac-owner can be specified only for between relatonships - " recname)))
+    (when-not (cn/maybe-between-node-as-attribute recname node)
+      (u/throw-ex (str "invalid rbac-owner - " node))))
   recname)
 
 (defn rbac [recname spec]

@@ -56,3 +56,52 @@
   (is (cn/instance-of? :I980/A (tu/result {:I980/Temp {}})))
   (is (= :I980/Temp (cn/remove-event :I980/Temp)))
   (is (nil? (seq (tu/eval-all-dataflows {:I980/Temp {}})))))
+
+(deftest issue-1051-between-node-names
+  (tu/reset-events!)
+  (defcomponent :I1051
+    (entity
+     :I1051/A
+     {:Id {:type :Int :identity true}
+      :X :Int
+      :rbac [{:roles ["i1051-user"] :allow [:create]}]})
+    (entity
+     :I1051/B
+     {:Id {:type :Int :identity true}
+      :Y :Int
+      :rbac [{:roles ["i1051-user"] :allow [:create]}]})
+    (relationship
+     :I1051/R1
+     {:meta {:between [:I1051/A :I1051/B]}
+      :rbac {:owner :I1051/A}})
+    (relationship
+     :I1051/R2
+     {:meta {:between [:I1051/A :I1051/A :as [:I :J]]}
+      :rbac {:owner :J}})
+    (dataflow
+     :I1051/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@i1051.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@i1051.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1051-user" :Assignee "u2@i1051.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1051-user" :Assignee "u1@i1051.com"}}))
+  (is (tu/finalize-events))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:I1051/InitUsers {}})))
+  (tu/call-with-rbac
+   (fn []
+     (let [create-a (fn [with-user id]
+                      (tu/first-result
+                       (with-user
+                         {:I1051/Create_A
+                          {:Instance
+                           {:I1051/A {:Id id :X (* id 10)}}}})))
+           a? (partial cn/instance-of? :I1051/A)
+           wu1 (partial tu/with-user "u1@i1051.com")
+           wu2 (partial tu/with-user "u2@i1051.com")
+           a1 (create-a wu1 1), a2 (create-a wu2 2)]
+       (is (a? a1)) (is (a? a2))))))
