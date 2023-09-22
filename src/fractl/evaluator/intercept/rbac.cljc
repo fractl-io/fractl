@@ -117,7 +117,9 @@
     p))
 
 (defn- has-between-ownership? [owner? relname between-nodes]
-  (if-let [owner-node (:owner (cn/fetch-rbac-spec relname))]
+  (if-let [owner-node (cn/maybe-between-node-as-attribute
+                       relname
+                       (:owner (cn/fetch-rbac-spec relname)))]
     (owner? (owner-node between-nodes))
     (every? owner? (vals between-nodes))))
 
@@ -224,7 +226,8 @@
                     (cn/fetch-rbac-spec (cn/instance-type-kw inst))))]
     (when (and (= (count spec) 3)
                (= :-> (second spec)))
-      [(first spec) (nth spec 2)])))
+      (let [as-node (partial cn/maybe-between-node-as-attribute (cn/instance-type-kw inst))]
+        [(as-node (first spec)) (as-node (nth spec 2))]))))
 
 (defn- maybe-delegate-ownership! [env inst]
   (when-let [[from to] (parse-ownership-spec inst)]

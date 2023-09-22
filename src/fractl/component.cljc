@@ -1804,6 +1804,14 @@
          (= node2 entity-name) a2
          :else (u/throw-ex (str entity-name " not in relationship - " relname)))])))
 
+(defn maybe-between-node-as-attribute [relname maybe-node-name]
+  (when maybe-node-name
+    (let [[c n] (li/split-path maybe-node-name)
+          n (or n c)]
+      (if (some #{n} (between-attribute-names relname))
+        n
+        (first (find-between-keys relname maybe-node-name))))))
+
 (defn fetch-default-attribute-values [schema]
   (into
    {}
