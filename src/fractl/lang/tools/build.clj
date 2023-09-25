@@ -252,15 +252,18 @@
         (write config-edn cfg :spit)
         cfg))))
 
-(defn- create-client-project [model-name ver app-config]
+(defn- create-client-project [model-name ver fractl-ver app-config]
   (let [build-type (if (:service (:authentication app-config))
                      'prod
                      'dev)]
-    (cl/build-project model-name ver (client-path model-name) build-type)))
+    (cl/build-project
+     model-name ver fractl-ver
+     (client-path model-name) build-type)))
 
 (defn- build-clj-project [model-name model-root model components]
-  (let [ver (model-version model)]
-    (if (create-clj-project model-name ver (fetch-fractl-version model))
+  (let [ver (model-version model)
+        fractl-ver (fetch-fractl-version model)]
+    (if (create-clj-project model-name ver fractl-ver)
       (let [[rd wr] (clj-io model-name)
             spec (update-project-spec model (rd "project.clj"))
             log-config (make-log-config model-name ver)]
@@ -268,7 +271,7 @@
         (wr "logback.xml" log-config :spit)
         (let [cmps (mapv (partial copy-component wr model-name) components)]
           (write-model-clj wr model-name cmps model)
-          (create-client-project model-name ver (write-config-edn model-root wr))))
+          (create-client-project model-name ver fractl-ver (write-config-edn model-root wr))))
       (log/error (str "failed to create clj project for " model-name)))))
 
 (defn- load-clj-project [model-name components]
