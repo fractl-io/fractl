@@ -33,3 +33,4 @@ app
 .vscode/
 cljout/
 db/
+.lein-env

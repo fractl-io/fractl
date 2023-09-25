@@ -43,6 +43,8 @@
   (let [n (:name spec)]
     (when-not n
       (u/throw-ex "model name is required"))
+    (when-not (:fractl-version spec)
+      (u/throw-ex "fractl-version is required in model spec"))
     (let [v (:version spec)
           version (or v "0.0.1")
           spec (if-not v (assoc spec :version version) spec)]

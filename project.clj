@@ -7,6 +7,7 @@
                  [org.clojure/data.xml "0.2.0-alpha5"]
                  [org.clojure/data.csv "1.0.0"]
                  [org.clojure/tools.logging "1.2.4"]
+                 [environ "1.2.0"]
                  [ch.qos.logback/logback-classic "1.2.11"]
                  [commons-io/commons-io "2.11.0"]
                  [org.apache.commons/commons-exec "1.3"]
@@ -56,6 +57,7 @@
   :uberjar-exclusions [#"(?:^|/).fractl/" #"(?:^|/).db/" #"(?:^|/).json/"]
 
   :plugins [[lein-cljsbuild "1.1.8" :exclusions [[org.clojure/clojure]]]
+            [lein-environ "1.2.0"]
             [s3-wagon-private "1.3.4"]
             [lein-doo "0.1.10"]
             [reifyhealth/lein-git-down "0.4.0"]
