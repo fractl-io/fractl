@@ -1,4 +1,5 @@
 {:name :Model1
+ :fractl-version "current"
  :components [:Model1/C1]
  :dependencies [:Model2]
  :model-paths ["./sample/dependencies"]

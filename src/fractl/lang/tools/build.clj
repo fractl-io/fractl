@@ -4,6 +4,7 @@
             [clojure.pprint :as pprint]
             [clojure.java.io :as io]
             [clojure.walk :as w]
+            [fractl.global-state :as gs]
             [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
@@ -42,6 +43,12 @@
 
 (defn- make-log-config [model-name model-version]
   (s/replace logback-xml "$app-version" (str model-name "-" model-version)))
+
+(defn- fetch-fractl-version [model]
+  (when-let [v (:fractl-version model)]
+    (if (= v "current")
+      (gs/fractl-version)
+      v)))
 
 (defn- as-path [s]
   (s/replace s #"[\.\-_]" u/path-sep))
@@ -91,8 +98,8 @@
     [#(read-string (slurp (str prefix %)))
      (make-writer prefix)]))
 
-(defn- create-clj-project [model-name version]
-  (let [app-name (if version (str model-name ":" version) model-name)
+(defn- create-clj-project [model-name version fractl-version]
+  (let [app-name (if version (str model-name ":" version ":" fractl-version) model-name)
         cmd (str "lein new fractl-model " app-name)]
     (u/exec-in-directory out-file cmd)))
 
@@ -253,7 +260,7 @@
 
 (defn- build-clj-project [model-name model-root model components]
   (let [ver (model-version model)]
-    (if (create-clj-project model-name ver)
+    (if (create-clj-project model-name ver (fetch-fractl-version model))
       (let [[rd wr] (clj-io model-name)
             spec (update-project-spec model (rd "project.clj"))
             log-config (make-log-config model-name ver)]
@@ -315,7 +322,10 @@
   ([build-load-fn model-paths model-name model-info]
    (let [{model-paths :paths model :model model-root :root model-name :name}
          (load-all-model-info model-paths model-name model-info)
-         result [model model-root]]
+         result [model model-root]
+         fvers (fetch-fractl-version model)]
+     (when-not (= fvers (gs/fractl-version))
+       (u/throw-ex (str "runtime version mismatch - required " fvers ", found " (gs/fractl-version))))
      (if-let [path (clj-project-path model-paths model-name)]
        (let [^File f (File. path)]
          (FileUtils/createParentDirectories f)
