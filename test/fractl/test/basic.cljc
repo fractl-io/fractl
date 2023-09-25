@@ -1559,6 +1559,7 @@
 
 (deftest model-spec
   (let [spec {:name :crm :version "1.0.2"
+              :fractl-version "current"
               :components [:Crm.Core :Crm.Sales]}]
     (ln/model spec)
     (is (= spec (ln/fetch-model :crm)))

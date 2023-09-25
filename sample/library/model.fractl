@@ -1,4 +1,5 @@
 {:name :Library
+ :fractl-version "current"
  :components [:Sample/Library/Identity
               :Sample/Library/Catalog
               :Sample/Library/Ledger]
