@@ -1,8 +1,10 @@
 (ns fractl.swagger.doc
   (:require [fractl.component :as cn]
-            [fractl.util.http :as uh] 
+            [fractl.util.http :as uh]
             [cheshire.core :as json]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [fractl.util.logger :as log]
+            [clojure.set :refer [union]]))
 
 (def fractlType->swaggerType
   {:Fractl.Kernel.Lang/String {:type "string"}
@@ -47,7 +49,8 @@
      (map get-clojure-type (vals entity-obj)))))
 
 (defn- get-unneeded-entity-dataflows [component]
-  (let [entities (cn/entity-names component)]
+  (let [entities (union (cn/entity-names component)
+                        (cn/relationship-names component))]
     (into
      #{}
      (apply
@@ -85,16 +88,27 @@
               (not (contains? def-events e))) all-events)))
 
 (defn get-event-return-type [event]
-  (when-let [patterns (-> (cn/dataflows-for-event event)
-                          first second :patterns)]
-    (let [comp (namespace event)
-          last-entity (if (map? (last patterns)) (last patterns) (last (butlast patterns)))
-          last-entity-name (-> last-entity first first) 
-          last-entity-name
-          (if (= \? (last (name last-entity-name)))
-            (keyword (str comp "/" (apply str (butlast (name last-entity-name)))))
-            (keyword (str comp "/" (name last-entity-name))))]
-      (fractl-entity-to-swagger last-entity-name))))
+  (if-let
+   [pattern
+    (try (let [patterns (-> (cn/dataflows-for-event event) first second :patterns)
+               patterns (if (vector? (last patterns))
+                          (if (= (first (last patterns)) :match)
+                            (last patterns) patterns) patterns)
+               patterns (if (vector? (last patterns))
+                          (if (= (first (last patterns)) :delete)
+                            [{(second (last patterns)) {}}] patterns) patterns)
+               comp (namespace event)
+               patterns (if (vector? (last patterns)) (last patterns) patterns)
+               last-entity (if (map? (last patterns)) (last patterns) (last (butlast patterns)))
+               last-entity-name (-> last-entity first first)
+               last-entity-name
+               (if (= \? (last (name last-entity-name)))
+                 (keyword (str comp "/" (apply str (butlast (name last-entity-name)))))
+                 (keyword (str comp "/" (name last-entity-name))))]
+           (fractl-entity-to-swagger last-entity-name))
+         (catch Exception _
+           (log/info (str "Could not infer return type of dataflow: " event))))]
+    pattern {}))
 
 (defn get-entities-info [entities]
   (map
@@ -128,7 +142,7 @@
    (fn [event]
      (let [event-schema (dissoc (cn/event-schema event) :EventContext :inferred)
            swagger-schema (zipmap (map name (keys event-schema))
-                                  (map get-clojure-type (vals event-schema)))
+                                  (map get-clojure-type (vals event-schema))) 
            event-return-type (get-event-return-type event)]
        [event swagger-schema event-return-type])) events))
 

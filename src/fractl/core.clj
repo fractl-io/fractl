@@ -219,7 +219,9 @@
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
     (if (build/compiled-model? model-path model-name)
-      (let [components (remove #{:Fractl.Kernel.Lang :raw :Fractl.Kernel.Identity :Fractl.Kernel.Rbac}
+      (let [components (remove #{:Fractl.Kernel.Identity :Fractl.Kernel.Lang
+                                 :Fractl.Kernel.Store :Fractl.Kernel.Rbac
+                                 :raw :-*-containers-*-}
                                (cn/component-names))]
         (.mkdir (File. "doc"))
         (.mkdir (File. "doc/api"))
