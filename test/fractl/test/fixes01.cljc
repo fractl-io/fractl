@@ -486,3 +486,59 @@
   (is (= {:meta {:between [:I1009/F :I1009/G], :cascade-on-delete true}, :B :Int}
          (cn/fetch-user-schema :I1009/R0)))
   (is (= {:unique :X} (cn/fetch-user-meta :I1009/E))))
+
+(deftest issue-i1063-contains-bug
+  (defcomponent :I1063
+    (entity
+     :I1063/A
+     {:Id :Identity})
+    (entity
+     :I1063/B
+     {:Id {:type :Int :identity true}})
+    (entity
+     :I1063/Log
+     {:Id {:type :Int :identity true}
+      :Msg :String})
+    (relationship
+     :I1063/R
+     {:meta {:contains [:I1063/A :I1063/B]}})
+    (event
+     :I1063/Cr
+     {:A :UUID
+      :Odd :Boolean})
+    (dataflow
+     :I1063/Cr
+     {:I1063/A {:Id? :I1063/Cr.A} :as [:A]}
+     [:match :I1063/Cr.Odd
+      true [{:I1063/Log {:Id 1 :Msg "odd"}}
+            {:I1063/B {:Id 1}
+            :-> [[:I1063/R :A]]}]
+      [{:I1063/Log {:Id 2 :Msg "even"}}
+       {:I1063/B {:Id 2}
+        :-> [[:I1063/R :A]]}]]))
+  (let [lookup-log (fn [id]
+                     (tu/first-result
+                      {:I1063/Lookup_Log
+                       {:Id id}}))
+        log? (partial cn/instance-of? :I1063/Log)
+        log-of-type? #(let [r (lookup-log %1)]
+                        (and (log? r) (= %2 (:Msg r))))
+        even-log? #(log-of-type? 2 "even")
+        odd-log? #(log-of-type? 1 "odd")
+        a (tu/first-result
+           {:I1063/Create_A
+            {:Instance
+             {:I1063/A {}}}})
+        b1 (tu/first-result
+            {:I1063/Cr
+             {:A (:Id a) :Odd false}})
+        b? (partial cn/instance-of? :I1063/B)]
+    (is (b? b1))
+    (is (even-log?))
+    (is (not (odd-log?)))
+    (let [b2 (tu/first-result
+              {:I1063/Cr
+               {:A (:Id a) :Odd true}})]
+      (is (b? b2))
+      (is (even-log?))
+      (is (odd-log?)))))
