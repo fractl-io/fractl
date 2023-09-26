@@ -530,12 +530,28 @@
       [(vec (reverse (nthrest rpat 2))) (first rpat)]
       [pat nil])))
 
+(defn- maybe-single-pat [p]
+  (if (and (vector? p) (= 1 (count p)))
+    (first p)
+    p))
+
+(declare preproc-patterns)
+
+(defn- normalize-and-preproc [pat]
+  (maybe-single-pat
+   (preproc-patterns
+    (if (vector? pat)
+      (if (li/registered-macro? (first pat))
+        [pat]
+        pat)
+      [pat]))))
+
 (defn- compile-for-each-body [ctx body-pats]
   (ctx/add-alias! ctx :% :%)
   (let [code (loop [body-pats body-pats, body-code []]
                (if-let [body-pat (first body-pats)]
                  (recur (rest body-pats)
-                        (conj body-code [(compile-pattern ctx body-pat)]))
+                        (conj body-code [(compile-pattern ctx (normalize-and-preproc body-pat))]))
                  body-code))]
     code))
 
@@ -584,7 +600,7 @@
        (conj
         cases-code
         [[(compile-pattern ctx case-pat)]
-         [(compile-maybe-pattern-list ctx conseq)]]))
+         [(compile-maybe-pattern-list ctx (normalize-and-preproc conseq))]]))
       cases-code)))
 
 (defn- case-match?
@@ -1060,79 +1076,13 @@
         (recur (rest pats) (concat final-pats [p])))
       final-pats)))
 
-(defn- maybe-single-pat [p]
-  (if (and (vector? p) (= 1 (count p)))
-    (first p)
-    p))
-
-(defn- maybe-single-patterns [pats]
-  (loop [pats pats, final-pats []]
-    (if (seq pats)
-      (let [[a b] [(first pats) (second pats)]]
-        (if (and a b)
-          (recur (rest (rest pats))
-                 (concat final-pats [a (maybe-single-pat b)]))
-          (recur (rest pats)
-                 (concat final-pats [(maybe-single-pat a)]))))
-      (vec final-pats))))
-
-(declare preproc-patterns)
-
-(defn- preproc-match [pat]
-  (if (case-match? (rest pat))
-    (let [[cases alternative alias] (extract-match-clauses pat)]
-      (vec
-       (concat
-        `[~@(first cases)
-          ~@(loop [cases (rest cases), final-cases []]
-              (if-let [[cnd p] (first cases)]
-                (let [pat (if (vector? p) p [p])]
-                  (recur
-                   (rest cases)
-                   (conj final-cases [cnd (preproc-patterns pat)])))
-                (maybe-single-patterns (apply concat final-cases))))]
-        (when alternative
-          [(maybe-single-pat
-            (preproc-patterns (if (vector? alternative)
-                                alternative
-                                [alternative])))])
-        (when alias
-          [:as alias]))))
-    ;; else: match with conditional-clauses
-    (let [[pat alias] (special-form-alias pat)]
-      (vec
-       (concat
-        `[:match
-          ~@(loop [cases (rest pat), final-cases []]
-              (if (seq cases)
-                (let [[a b] [(first cases) (second cases)]
-                      [cnd p] (if (and a b) [a b] [nil a])
-                      pat (preproc-patterns (if (vector? p) p [p]))]
-                  (recur (if cnd
-                           (rest (rest cases))
-                           (rest cases))
-                         (conj final-cases (if cnd [cnd pat] pat))))
-                (maybe-single-patterns (apply concat final-cases))))]
-        (when alias
-          [:as alias]))))))
-
-(defn- preproc-for-each [pat]
-  pat)
-
 (defn- preproc-patterns [dfpats]
   (try
     (loop [pats (lift-embedded-instances dfpats), final-pats []]
       (if-let [p (first pats)]
-        (if (vector? p)
-          (recur (rest pats)
-                 (conj final-pats
-                       ((case (first p)
-                          :match preproc-match
-                          :for-each preproc-for-each
-                          identity) p)))
-          (if-let [relspec (and (map? p) (li/rel-tag p))]
-            (recur (rest pats) (vec (concat final-pats (preproc-relspec p relspec))))
-            (recur (rest pats) (conj final-pats p))))
+        (if-let [relspec (and (map? p) (li/rel-tag p))]
+          (recur (rest pats) (vec (concat final-pats (preproc-relspec p relspec))))
+          (recur (rest pats) (conj final-pats p)))
         (if (seq final-pats) final-pats dfpats)))
     (catch Exception ex
       (log/exception ex)

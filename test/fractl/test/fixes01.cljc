@@ -487,7 +487,7 @@
          (cn/fetch-user-schema :I1009/R0)))
   (is (= {:unique :X} (cn/fetch-user-meta :I1009/E))))
 
-(deftest issue-i1063-contains-bug
+(deftest issue-i1063-preproc-match-foreach
   (defcomponent :I1063
     (entity
      :I1063/A
