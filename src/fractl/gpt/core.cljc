@@ -6,7 +6,7 @@
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.datafmt.json :as json]
-            [fractl.gpt.seed :as seed]))
+            [fractl.gpt.resolver-seed :as seed]))
 
 (def ^:private default-conversation seed/conversation)
 
