@@ -537,23 +537,25 @@
 
 (declare preproc-patterns)
 
-(defn- normalize-and-preproc [pat]
-  (maybe-single-pat
-   (preproc-patterns
-    (if (vector? pat)
-      (if (li/registered-macro? (first pat))
-        [pat]
-        pat)
-      [pat]))))
+(defn- normalize-and-preproc
+  ([pat]
+   (maybe-single-pat
+    (preproc-patterns
+     (if (vector? pat)
+       (if (li/registered-macro? (first pat))
+         [pat]
+         pat)
+       [pat]))))
+  ([pat remove-alias]
+   (let [p (normalize-and-preproc pat)]
+     (if (map? p)
+       (dissoc p :as)
+       p))))
 
 (defn- compile-for-each-body [ctx body-pats]
   (ctx/add-alias! ctx :% :%)
-  (let [code (loop [body-pats body-pats, body-code []]
-               (if-let [body-pat (first body-pats)]
-                 (recur (rest body-pats)
-                        (conj body-code [(compile-pattern ctx (normalize-and-preproc body-pat))]))
-                 body-code))]
-    code))
+  (let [new-pats (preproc-patterns body-pats)]
+    (mapv #(compile-pattern ctx %) new-pats)))
 
 (defn- parse-for-each-match-pattern [pat]
   (if (vector? pat)
@@ -566,7 +568,7 @@
   (let [[pat alias] (parse-for-each-match-pattern pat)]
     (when alias
       (ctx/add-alias! ctx alias))
-    [(compile-pattern ctx pat) alias]))
+    [(compile-pattern ctx (normalize-and-preproc pat true)) alias]))
 
 (defn- compile-for-each [ctx pat]
   (let [[bind-pat-code elem-alias]
@@ -637,7 +639,9 @@
     (let [match-pat-code (compile-pattern ctx (first pat))
           [cases alternative alias] (extract-match-clauses (rest pat))
           cases-code (compile-match-cases ctx cases)
-          alt-code (when alternative (compile-maybe-pattern-list ctx alternative))]
+          alt-code (when alternative
+                     (compile-maybe-pattern-list
+                      ctx (normalize-and-preproc alternative)))]
       (when alias
         (ctx/add-alias! ctx alias))
       (emit-match [match-pat-code] cases-code [alt-code] alias))
