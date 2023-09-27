@@ -1,6 +1,6 @@
 (ns fractl.global-state
-  (:require [clojure.java.io :as io]
-            [environ.core :as environ]))
+  (:require [environ.core :as environ]
+            #?(:clj [clojure.java.io :as io])))
 
 (def ^:private app-config (atom nil))
 
@@ -45,9 +45,15 @@
 (defn error-no-perm? []
   (= (get-error-code) :no-permission))
 
-(def fractl-version
-  (memoize (fn []
-             (or (:fractl-version environ/env)
-                 (let [projfile (io/resource "META-INF/leiningen/fractl-io/fractl/project.clj")
-                       project (read-string (slurp projfile))]
-                   (nth project 2))))))
+
+#?(:clj
+   (def fractl-version
+     (memoize (fn []
+                (or (:fractl-version environ/env)
+                    (let [projfile (io/resource "META-INF/leiningen/fractl-io/fractl/project.clj")
+                          project (read-string (slurp projfile))]
+                      (nth project 2))))))
+
+   :cljs
+   (def fractl-version
+     (memoize (fn [] (:fractl-version environ/env)))))
