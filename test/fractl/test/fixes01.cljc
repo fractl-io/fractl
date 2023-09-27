@@ -1,6 +1,7 @@
 (ns fractl.test.fixes01
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.lang
@@ -9,6 +10,7 @@
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
             [fractl.lang.raw :as raw]
+            [fractl.lang.internal :as li]
             [fractl.compiler.rule :as rule]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -486,3 +488,81 @@
   (is (= {:meta {:between [:I1009/F :I1009/G], :cascade-on-delete true}, :B :Int}
          (cn/fetch-user-schema :I1009/R0)))
   (is (= {:unique :X} (cn/fetch-user-meta :I1009/E))))
+
+(deftest issue-i1063-preproc-match-foreach
+  (def i1063-ids (atom 10))
+  (defn i1063-next-id []
+    (swap! i1063-ids inc)
+    @i1063-ids)
+  (defcomponent :I1063
+    (entity
+     :I1063/A
+     {:Id :Identity})
+    (entity
+     :I1063/B
+     {:Id {:type :Int :identity true
+           :default i1063-next-id}})
+    (entity
+     :I1063/Log
+     {:Id {:type :Int :identity true}
+      :Msg :String})
+    (relationship
+     :I1063/R
+     {:meta {:contains [:I1063/A :I1063/B]}})
+    (event
+     :I1063/Cr1
+     {:A :UUID
+      :Odd :Boolean})
+    (dataflow
+     :I1063/Cr1
+     {:I1063/A {:Id? :I1063/Cr1.A} :as [:A]}
+     [:match :I1063/Cr1.Odd
+      true [{:I1063/Log {:Id 1 :Msg "odd"}}
+            {:I1063/B {:Id 1}
+            :-> [[:I1063/R :A]]}]
+      [{:I1063/Log {:Id 2 :Msg "even"}}
+       {:I1063/B {:Id 2}
+        :-> [[:I1063/R :A]]}]])
+    (dataflow
+     :I1063/Cr2
+     [:for-each {:I1063/A? {}}
+      {:I1063/B {}
+       :-> [[:I1063/R :%]]}]))
+  (let [lookup-log (fn [id]
+                     (tu/first-result
+                      {:I1063/Lookup_Log
+                       {:Id id}}))
+        log? (partial cn/instance-of? :I1063/Log)
+        log-of-type? #(let [r (lookup-log %1)]
+                        (and (log? r) (= %2 (:Msg r))))
+        even-log? #(log-of-type? 2 "even")
+        odd-log? #(log-of-type? 1 "odd")
+        create-a #(tu/first-result
+                   {:I1063/Create_A
+                    {:Instance
+                     {:I1063/A {}}}})
+        a (create-a)
+        b1 (tu/first-result
+            {:I1063/Cr1
+             {:A (:Id a) :Odd false}})
+        b? (partial cn/instance-of? :I1063/B)
+        check-b-rel #(let [bs (filter (fn [b] (s/index-of (li/path-attr b) (:Id %2))) %1)]
+                       (is (= 1 (count bs)))
+                       (is (b? (first bs))))]
+    (is (b? b1))
+    (check-b-rel [b1] a)
+    (is (even-log?))
+    (is (not (odd-log?)))
+    (let [b2 (tu/first-result
+              {:I1063/Cr1
+               {:A (:Id a) :Odd true}})]
+      (check-b-rel [b2] a)
+      (is (b? b2))
+      (is (even-log?))
+      (is (odd-log?)))
+    (let [a2 (create-a)
+          bs (tu/result {:I1063/Cr2 {}})
+          chk-id (partial check-b-rel bs)]
+      (is (= 2 (count bs)))
+      (is (every? b? bs))
+      (chk-id a) (chk-id a2))))
