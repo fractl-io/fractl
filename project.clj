@@ -7,11 +7,12 @@
                  [org.clojure/data.xml "0.2.0-alpha5"]
                  [org.clojure/data.csv "1.0.0"]
                  [org.clojure/tools.logging "1.2.4"]
+                 [environ "1.2.0"]
                  [ch.qos.logback/logback-classic "1.2.11"]
                  [commons-io/commons-io "2.11.0"]
                  [org.apache.commons/commons-exec "1.3"]
                  [cheshire "5.10.1"]
-                 [seancorfield/next.jdbc "1.2.659"]
+                 [com.github.seancorfield/next.jdbc "1.3.883"]
                  [c3p0/c3p0 "0.9.1.2"]
                  [selmer "1.12.58"]
                  [com.h2database/h2 "1.4.200"]
@@ -39,7 +40,9 @@
                  [buddy/buddy-sign "3.1.0"]
                  [org.clojure/algo.generic "0.1.3"]
                  [metosin/ring-swagger "0.26.2"]
-                 [cheshire "5.11.0"]]
+                 [cheshire "5.11.0"]
+                 [org.liquibase/liquibase-core "4.23.0"]
+                 [fractl-io/fractl-config-secrets-reader "0.1.0"]]
 
   :java-source-paths ["src/java"]
 
@@ -54,10 +57,12 @@
   :uberjar-exclusions [#"(?:^|/).fractl/" #"(?:^|/).db/" #"(?:^|/).json/"]
 
   :plugins [[lein-cljsbuild "1.1.8" :exclusions [[org.clojure/clojure]]]
+            [lein-environ "1.2.0"]
             [s3-wagon-private "1.3.4"]
             [lein-doo "0.1.10"]
             [reifyhealth/lein-git-down "0.4.0"]
-            [lein-ancient "1.0.0-RC3"]]
+            [lein-ancient "1.0.0-RC3"]
+            [cider/cider-nrepl "0.37.1"]]
 
   :middleware [lein-git-down.plugin/inject-properties]
 

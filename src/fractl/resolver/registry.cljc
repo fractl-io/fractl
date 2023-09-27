@@ -1,5 +1,6 @@
 (ns fractl.resolver.registry
   (:require [fractl.util :as u]
+            [fractl.util.seq :as su]
             [fractl.lang.internal :as li]))
 
 (def ^:private type-tag :-*-resolver-registry-*-)
@@ -80,7 +81,7 @@
     (u/throw-ex (str "Invalid resolver type " t " for resolver " n))))
 
 (defn register-resolvers [specs]
-  (mapv register-resolver specs))
+  (mapv register-resolver (su/nonils specs)))
 
 (defn root-registry
   []

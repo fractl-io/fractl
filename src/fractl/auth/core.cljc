@@ -16,6 +16,7 @@
 (defmulti user-logout service-tag)
 ;; Get user details
 (defmulti get-user service-tag)
+(defmulti resend-confirmation-code service-tag)
 (defmulti confirm-sign-up service-tag)
 (defmulti upsert-user service-tag)
 (defmulti delete-user service-tag)

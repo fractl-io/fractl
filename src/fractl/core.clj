@@ -8,11 +8,13 @@
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
+            [fractl.resolver.store]
             [fractl.compiler :as c]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.evaluator.intercept :as ei]
             [fractl.store :as store]
+            [fractl.store.migration :as mg]
             [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
@@ -24,7 +26,8 @@
             [fractl.rbac.core :as rbac]
             [fractl.gpt.core :as gpt]
             [fractl.swagger.doc :as doc]
-            [fractl.swagger.docindex :as docindex])
+            [fractl.swagger.docindex :as docindex]
+            [fractl-config-secrets-reader.core :as fractl-secret-reader])
   (:import [java.util Properties]
            [java.net URL]
            [java.io File]
@@ -86,6 +89,14 @@
         (if-let [cs (seq (rest xs))]
           (recur cs " " s)
           (log/info s))))))
+
+(defn- register-store-resolver! [store]
+  (rr/register-resolver
+   {:name :store-migration
+    :type :store-migration
+    :compose? false
+    :config {:store store}
+    :paths [:Fractl.Kernel.Store/Changeset]}))
 
 (defn- register-resolvers! [config evaluator]
   (when-let [resolver-specs (:resolvers config)]
@@ -159,22 +170,16 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
-(defn- normalize-interceptors [ins]
-  (let [ks (keys ins)]
-    (if (and (some #{:rbac} ks)
-             (not (some #{:instance-meta} ks)))
-      (assoc ins :instance-meta {:enabled true})
-      ins)))
-
 (defn- init-runtime [model config]
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
-        ins (normalize-interceptors (:interceptors config))
+        ins (:interceptors config)
         resolved-config (run-initconfig config ev)
         has-rbac (some #{:rbac} (keys ins))]
     (register-resolvers! config ev)
     (when (seq (:resolvers resolved-config))
       (register-resolvers! resolved-config ev))
+    (register-store-resolver! store)
     (if has-rbac
       (lr/finalize-events ev)
       (lr/reset-events!))
@@ -207,16 +212,16 @@
     (when (and (seq components) (every? keyword? components))
       (log-seq! "Components" components))
     (when-let [server-cfg (make-server-config config)]
-      (let [[evaluator store] (init-runtime model config)
-            query-fn (e/query-fn store)]
+      (let [[evaluator store] (init-runtime model config)]
         (log/info (str "Server config - " server-cfg))
-        (h/run-server [evaluator query-fn] server-cfg)))))
+        (h/run-server evaluator server-cfg)))))
 
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
     (if (build/compiled-model? model-path model-name)
-      (let [components (remove #{:Kernel :Kernel.Identity :Kernel.RBAC
-                                 :Kernel.Lang}
+      (let [components (remove #{:Fractl.Kernel.Identity :Fractl.Kernel.Lang
+                                 :Fractl.Kernel.Store :Fractl.Kernel.Rbac
+                                 :raw :-*-containers-*-}
                                (cn/component-names))]
         (.mkdir (File. "doc"))
         (.mkdir (File. "doc/api"))
@@ -244,8 +249,29 @@
   (or (seq (su/nonils args))
       [(:full-model-path config)]))
 
+(defn- preproc-config [config]
+  (if (:rbac-enabled config)
+    (let [opt (:service config)
+          serv (if-not (find opt :call-post-sign-up-event)
+                 (assoc opt :call-post-sign-up-event true)
+                 opt)
+          auth (or (:authentication config)
+                   {:service :cognito
+                    :superuser-email (u/getenv "FRACTL_SUPERUSER_EMAIL" "superuser@superuser.com")
+                    :whitelist? false})
+          opt (:interceptors config)
+          inter (if-not (:rbac opt)
+                  (assoc opt :rbac {:enabled true})
+                  opt)]
+      (assoc (dissoc config :rbac-enabled)
+             :service serv
+             :authentication auth
+             :interceptors inter))
+    config))
+
 (defn- load-config [options]
-  (u/read-config-file (get options :config "config.edn")))
+  (preproc-config
+   (u/read-config-file (get options :config "config.edn"))))
 
 (def ^:private config-data-key :-*-config-data-*-)
 
@@ -253,8 +279,12 @@
   (let [config (or (config-data-key options) (load-config options))]
     (when-let [extn (:script-extn config)]
       (u/set-script-extn! extn))
-    (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))]
-      [m (merge (:config model) config)])))
+    (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))
+          config (merge (:config model) config)]
+      (try
+        [m (fractl-secret-reader/read-secret-config config)]
+        (catch Exception e
+          (u/throw-ex (str "error reading secret config " e)))))))
 
 (defn- read-model-from-resource [component-root]
   (let [^String s (slurp
@@ -347,6 +377,15 @@
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
 
+(defn- call-after-load-model [model-name f]
+  (gs/in-script-mode!)
+  (when (build/load-model model-name)
+    (f)))
+
+(defn- db-migrate [config]
+  (let [store (store-from-config config)]
+    (mg/migrate (mg/init store (:store config)))))
+
 (defn -main [& args]
   (when-not args
     (print-help)
@@ -368,13 +407,15 @@
       (or (some
            identity
            (mapv (partial run-plain-option args)
-                 ["run" "compile" "build" "exec" "publish" "deploy"]
-                 [#(do (gs/in-script-mode!)
-                       (when (build/load-model (first %))
-                         (run-service nil (read-model-and-config nil options))))
+                 ["run" "compile" "build" "exec" "publish" "deploy"
+                  "db:migrate"]
+                 [#(call-after-load-model
+                    (first %) (fn [] (run-service nil (read-model-and-config nil options))))
                   #(println (build/compile-model (first %)))
                   #(println (build/standalone-package (first %)))
                   #(println (build/run-standalone-package (first %)))
                   #(println (publish-library %))
-                  #(println (d/deploy (:deploy basic-config) (first %)))]))
+                  #(println (d/deploy (:deploy basic-config) (first %)))
+                  #(call-after-load-model
+                    (first %) (fn [] (db-migrate (second (read-model-and-config nil options)))))]))
           (run-service args (read-model-and-config args options))))))

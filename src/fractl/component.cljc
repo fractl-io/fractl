@@ -7,6 +7,7 @@
             [fractl.util.hash :as sh]
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
+            [fractl.lang.raw :as raw]
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]))
 
@@ -96,7 +97,8 @@
   component)
 
 (defn remove-component [component]
-  (u/call-and-set components #(dissoc @components component)))
+  (let [r (u/call-and-set components #(dissoc @components component))]
+    (raw/remove-component component)))
 
 (defn component-names
   ([]
@@ -375,16 +377,20 @@
 (defn instance-of?
   "Return true if the fully-qualified name is the same as that of the instance."
   [nm inst]
-  (or (= (li/split-path nm)
-         (parsed-instance-type inst))
-      (inherits? nm (instance-type inst))))
+  (and (an-instance? inst)
+       (or (= (li/split-path nm)
+              (parsed-instance-type inst))
+           (inherits? nm (instance-type inst)))))
 
-(defn instance-attributes [x]
-  (when (an-instance? x)
-    (li/normalize-instance-pattern
-     (dissoc
-      x type-tag-key
-      type-key dirty-key))))
+(defn instance-attributes
+  ([x include-meta]
+   (when (an-instance? x)
+     (li/normalize-instance-pattern
+      (dissoc
+       x type-tag-key
+       type-key dirty-key
+       (when-not include-meta li/meta-attr)))))
+  ([x] (instance-attributes x false)))
 
 (defn instance-all-attributes [x]
   (when (an-instance? x)
@@ -467,28 +473,28 @@
   "Return the names of all immutable attributes in the schema."
   (make-attributes-filter :immutable))
 
+(defn- maybe-fetch-entity-schema [type-name-or-scm]
+  (if (map? type-name-or-scm)
+    type-name-or-scm
+    (fetch-entity-schema type-name-or-scm)))
+
 (def path-id-attrs (make-attributes-filter :path-identity))
 
 (defn path-identity-attribute-name [type-name-or-scm]
-  (let [scm (if (map? type-name-or-scm)
-              type-name-or-scm
-              (fetch-entity-schema type-name-or-scm))]
-    (first (path-id-attrs scm))))
+  (first (path-id-attrs (maybe-fetch-entity-schema type-name-or-scm))))
 
 (defn identity-attribute-names
   "Return the name of any one of the identity attributes of the given entity."
   [type-name-or-scm]
-  (let [scm (if (map? type-name-or-scm)
-              type-name-or-scm
-              (fetch-entity-schema type-name-or-scm))]
-    (identity-attributes scm)))
+  (identity-attributes (maybe-fetch-entity-schema type-name-or-scm)))
 
 (defn identity-attribute-name [type-name-or-scm]
-  (let [scm (if (map? type-name-or-scm)
-              type-name-or-scm
-              (fetch-entity-schema type-name-or-scm))]
+  (first (identity-attribute-names (maybe-fetch-entity-schema type-name-or-scm))))
+
+(defn contained-identity [type-name-or-scm]
+  (let [scm (maybe-fetch-entity-schema type-name-or-scm)]
     (or (path-identity-attribute-name scm)
-        (first (identity-attribute-names scm)))))
+        (identity-attribute-name scm))))
 
 (defn ensure-identity-attribute-name [type-name-or-scm]
   (if-let [id (identity-attribute-name type-name-or-scm)]
@@ -502,9 +508,6 @@
 (defn unique-or-identity? [entity-schema attr-name]
   (some #{attr-name} (concat (identity-attributes entity-schema)
                              (unique-attributes entity-schema))))
-
-(defn same-id? [a b]
-  (= (str (id-attr a)) (str (id-attr b))))
 
 (defn instance-eq?
   "Return true if both entity instances have the same identity."
@@ -924,20 +927,35 @@
   "Return a list of record-names, of the given type, interned in this component.
   The type argument `tp` could be one of - :record, :event or :entity."
   [tp component]
-  (let [recs (filter
-              (fn [[_ v]] (= tp (type-tag-key v)))
-              (:records (get @components component)))]
-    (set (map (partial full-name component) (keys recs)))))
+  (when-let [recs (seq (filter
+                        (fn [[_ v]] (= tp (type-tag-key v)))
+                        (:records (get @components component))))]
+    (set (mapv (partial full-name component) (keys recs)))))
 
-(def record-names (partial record-names-by-type :record))
-(def entity-names (partial record-names-by-type :entity))
+(declare contains-relationship?)
+
+(defn record-names
+  ([component exclude-contains]
+   (when-let [recnames (record-names-by-type :record component)]
+     (when-let [rs (if exclude-contains
+                     (seq (filter (complement contains-relationship?) recnames))
+                     recnames)]
+       (set rs))))
+  ([component] (record-names component true)))
+
+(defn entity-names
+  ([component exclude-between]
+   (when-let [result (record-names-by-type :entity component)]
+     (if exclude-between
+       (set (filter #(not (:relationship (fetch-meta %))) result))
+       result)))
+  ([component] (entity-names component true)))
+
 (def event-names (partial record-names-by-type :event))
 
 (defn relationship-names [component]
-  (filter
-   #(:relationship
-     (fetch-meta %))
-   (record-names-by-type :entity component)))
+  (set (concat (filter #(:contains (fetch-meta %)) (record-names component false))
+               (filter #(:relationship (fetch-meta %)) (entity-names component false)))))
 
 (defn user-defined-event? [event-name]
   (not (s/index-of (name event-name) "_")))
@@ -1167,7 +1185,7 @@
     attr-val))
 
 (defn serializable-attributes [inst]
-  (let [attrs (instance-attributes inst)
+  (let [attrs (instance-attributes inst true)
         schema (entity-schema (type-key inst))
         new-attrs (map (fn [[k v]]
                          (let [ascm (find-attribute-schema v)]
@@ -1194,8 +1212,11 @@
 (defn unique-attribute? [entity-schema attr]
   (:unique (find-attribute-schema (get entity-schema attr))))
 
-(defn attribute-type [entity-schema attr]
-  (let [ascm (get entity-schema attr)]
+(defn attribute-type [entity-schema-or-name attr]
+  (let [entity-schema (if (keyword? entity-schema-or-name)
+                        (fetch-entity-schema entity-schema-or-name)
+                        entity-schema-or-name)
+        ascm (get entity-schema attr)]
     (or (:type (find-attribute-schema ascm))
         ascm)))
 
@@ -1235,7 +1256,7 @@
 
 (defn make-future [future-obj timeout-ms]
   (make-instance :Fractl.Kernel.Lang/Future {:Result future-obj
-                                 :TimeoutMillis timeout-ms}))
+                                             :TimeoutMillis timeout-ms}))
 
 (def future-object? (partial instance-of? :Fractl.Kernel.Lang/Future))
 
@@ -1262,7 +1283,7 @@
   (let [n (instance-type inst)
         schema (ensure-schema n)
         attrs (validate-record-attributes
-               n (instance-attributes inst) schema)]
+               n (instance-attributes inst true) schema)]
     (if (error? attrs)
       (u/throw-ex attrs)
       (restore-flags
@@ -1580,6 +1601,13 @@
   (when-let [mt (fetch-meta relname)]
     (or (mt/contains mt) (mt/between mt))))
 
+(defn other-relationship-node [relname nodename]
+  (when-let [[a b] (relationship-nodes relname)]
+    (if (= a nodename) b a)))
+
+(defn between-relationship-nodes [relname]
+  (mt/between (fetch-meta relname)))
+
 (defn attribute-in-relationship [relname entity-name]
   (let [mt (fetch-meta relname)
         entity-name (if (keyword? entity-name) entity-name (li/make-path entity-name))
@@ -1589,15 +1617,17 @@
       (identity-attribute-name entity-name))))
 
 (defn- contain-rels [as-parent recname]
-  (let [accessors [first second]
+  (let [recname (li/make-path recname)
+        accessors [first second]
         [this that] (if as-parent (reverse accessors) accessors)]
     (when-let [rels (seq (find-relationships recname))]
-      (su/nonils
-       (mapv #(let [meta (fetch-meta %)
-                    contains (mt/contains meta)]
-                (when (= recname (this contains))
-                  [% :contains (that contains)]))
-             rels)))))
+      (seq
+       (su/nonils
+        (mapv #(let [meta (fetch-meta %)
+                     contains (mt/contains meta)]
+                 (when (= recname (this contains))
+                   [% :contains (that contains)]))
+              rels))))))
 
 (def relinfo-name first)
 (defn relinfo-to [[_ _ to]] to)
@@ -1605,6 +1635,35 @@
 
 (def contained-children (partial contain-rels false))
 (def containing-parents (partial contain-rels true))
+
+(defn parent-of? [child parent]
+  (let [child (li/make-path child)
+        parent (li/make-path parent)]
+    (if (some #{parent} (map last (containing-parents child)))
+      true
+      false)))
+
+(defn parent-via? [relname child parent]
+  (let [relname (li/make-path relname)
+        child (li/make-path child)
+        parent (li/make-path parent)]
+    (if (first (filter #(and (= relname (first %))
+                             (= parent (last %)))
+                       (containing-parents child)))
+      true
+      false)))
+
+(defn parent-relationship [parent-name child-name]
+  (ffirst (filter #(= parent-name (last %)) (containing-parents child-name))))
+
+(defn check-cascade-delete-children [entity-name]
+  (if-let [rels (contained-children entity-name)]
+    (and (every? :cascade-on-delete (map #(fetch-meta (relinfo-name %)) rels))
+         (every?
+          #(let [c (check-cascade-delete-children %)] (or (= c :delete) (= c :ignore)))
+          (map relinfo-to rels))
+         :delete)
+    :ignore))
 
 (defn between-relationships [recname]
   (when-let [rels (seq (find-relationships recname))]
@@ -1617,6 +1676,9 @@
                   [% :between that])))
            rels))))
 
+(defn has-between-relationship? [recname relname]
+  (some #{relname} (map first (between-relationships recname))))
+
 (defn contains-entities [relname]
   (mt/contains (fetch-meta relname)))
 
@@ -1627,68 +1689,6 @@
 
 (defn containing-parent [relname]
   (first (mt/contains (fetch-meta relname))))
-
-(defn relationship-on-attributes [relname]
-  (:on (relmeta-key (fetch-meta relname))))
-
-(defn relationship-member-identity [k]
-  (keyword (str (name k) "Identity")))
-
-(defn relationship-identity [relname k]
-  (when-let [scm (fetch-relationship-schema relname)]
-    (let [ident (relationship-member-identity k)]
-      (if (some #{ident} (attribute-names scm))
-        ident
-        k))))
-
-(defn- relationship-references [between inst attr relattr]
-  (let [tp (instance-type inst)
-        scm (entity-schema tp)]
-    (when-not (or (unique-or-identity? scm attr)
-                  (and between (= attr (path-identity-attribute-name scm))))
-      (let [idattr (identity-attribute-name tp)]
-        [(relationship-member-identity relattr)
-         (idattr inst)]))))
-
-(defn attributes-in-contains [relname]
-  (let [[p c] (contains-entities relname)
-        [a1 a2] (or (relationship-on-attributes relname)
-                    [(identity-attribute-name p) (identity-attribute-name c)])]
-    {p a1 c a2}))
-
-(defn init-relationship-instance [rel-name rel-attrs src-inst target-inst]
-  (let [meta (fetch-meta rel-name)
-        contains (mt/contains meta)
-        between (when-not contains (mt/between meta))
-        srctype (instance-type src-inst)
-        types (mapv li/split-path [srctype (instance-type target-inst)])
-        elems (mapv li/split-path (or contains between))]
-    (when (not= (set elems) (set types))
-      (u/throw-ex (str "relationship elements expected - " elems ", found - " types)))
-    (let [[e1 e2] (if (= srctype (first elems))
-                    [src-inst target-inst]
-                    [target-inst src-inst])
-          [a1 a2] (or (when between (:as (relationship-meta meta)))
-                      (apply relationship-attribute-names elems))
-          [idattr1 idattr2 :as idents]
-          [(identity-attribute-name (first elems))
-           (identity-attribute-name (second elems))]
-          [attr1 attr2] (or (relationship-on-attributes rel-name)
-                            idents)
-          [id1 idv1] (relationship-references between e1 attr1 a1)
-          [id2 idv2] (relationship-references between e2 attr2 a2)
-          v1 (attr1 e1)
-          v2 (attr2 e2)]
-      (make-instance
-       rel-name
-       (merge
-        rel-attrs
-        {a1 v1
-         a2 v2}
-        (when (and id1 idv1)
-          {id1 idv1})
-        (when (and id2 idv2)
-          {id2 idv2}))))))
 
 (defn crud-event-name
   ([component-name entity-name evtname]
@@ -1707,29 +1707,39 @@
    (partial crud-event-name recname)
    [:Create :Update :Delete :Lookup :LookupAll]))
 
+(defn- only-internal-attrs [scm]
+  (when-not (inferred-event-schema? scm)
+    (mapv #(second (li/split-path %))
+          (filter li/internal-attribute-name?
+                  (vals (dissoc scm id-attr))))))
+
 (defn remove-record [recname]
-  (when-let [scm (fetch-schema recname)]
+  (when-let [[tag {scm :schema}] (find-schema recname)]
     (let [comps @components
           [c n] (li/split-path recname)
           comp-scm (get comps c)
           attrs (:attributes comp-scm)
-          recs (:records comp-scm)
-          evts (:events comp-scm)
-          new-attrs (apply
-                     dissoc attrs
-                     (mapv #(second (li/split-path %))
-                           (vals (dissoc scm id-attr))))
-          new-recs (dissoc recs n)
-          new-evts (dissoc evts n) ; applies to only events
-          new-comp-scm (dissoc
-                        (assoc
-                         comp-scm
-                         :attributes new-attrs
-                         :records new-recs
-                         :events evts)
-                        n)
-          final-comps (assoc comps c new-comp-scm)]
-      (and (u/safe-set components final-comps) recname))))
+          new-comp-scm
+          (if (= tag :attribute)
+            (assoc comp-scm :attribute (dissoc attrs n))
+            (let [recs (:records comp-scm)
+                  evts (:events comp-scm)
+                  new-attrs (apply
+                             dissoc attrs
+                             (only-internal-attrs scm))
+                  new-recs (dissoc recs n)
+                  new-evts (if (= tag :event)
+                             (dissoc evts n)
+                             evts)]
+              (assoc
+               comp-scm
+               :attributes new-attrs
+               :records new-recs
+               :events new-evts)))
+          final-comps (assoc comps c (dissoc new-comp-scm n))]
+      (and (u/safe-set components final-comps)
+           (raw/remove-definition tag recname)
+           recname))))
 
 (defn maybe-remove-record [recname]
   (remove-record recname)
@@ -1742,22 +1752,15 @@
     (u/throw-ex (str "cannot remove entity in parent-relationships - " r)))
   (when-let [r (seq (map first (between-relationships recname)))]
     (u/throw-ex (str "cannot remove entity in between-relationships - " r)))
-  (when (and (remove-record (meta-entity-name recname))
-             (su/all-true?
-              (mapv (if (relationship? recname)
-                      maybe-remove-record
-                      remove-record)
-                    (all-crud-events recname))))
+  (when (su/all-true?
+         (mapv (if (relationship? recname)
+                 maybe-remove-record
+                 remove-record)
+               (all-crud-events recname)))
     (remove-record recname)))
 
 (def remove-event remove-record)
 (def remove-relationship remove-entity)
-
-(defn raw-definition [recname raw-attrs]
-  (u/call-and-set
-   components
-   #(assoc-in @components [:raw recname] raw-attrs))
-  recname)
 
 (defn- dissoc-system-attributes [attrs]
   (into
@@ -1770,16 +1773,44 @@
 
 (defn fetch-user-schema [recname]
   (dissoc-system-attributes
-   (get-in @components [:raw recname])))
+   (or (raw/find-entity recname)
+       (raw/find-relationship recname)
+       (raw/find-event recname)
+       (raw/find-record recname))))
 
-(defn normalize-between-attribute-names [relname from to]
-  (or (:as (relationship-meta (fetch-meta relname)))
-      (let [f (second (li/split-path from))
-            t (second (li/split-path to))]
-        (if (= from to)
-          [(keyword (str (name f) "1"))
-           (keyword (str (name t) "2"))]
-          [f t]))))
+(defn fetch-user-meta [recname]
+  (:meta (fetch-user-schema recname)))
+
+(defn between-attribute-names
+  ([relname from to]
+   (let [relmeta (relationship-meta (fetch-meta relname))]
+     (li/between-nodenames from to relmeta)))
+  ([relname from]
+   (let [[a b] (mt/between (fetch-meta relname))
+         to (if (= from a) b a)]
+     (between-attribute-names relname from to)))
+  ([relname]
+   (let [[n1 n2] (between-relationship-nodes relname)]
+     (between-attribute-names relname n1 n2))))
+
+(defn find-between-keys [relname entity-name]
+  (let [entity-name (li/make-path entity-name)
+        [node1 node2] (relationship-nodes relname)
+        [a1 a2 :as ks] (between-attribute-names relname node1 node2)]
+    (if (= entity-name node1 node2)
+      ks
+      [(cond
+         (= node1 entity-name) a1
+         (= node2 entity-name) a2
+         :else (u/throw-ex (str entity-name " not in relationship - " relname)))])))
+
+(defn maybe-between-node-as-attribute [relname maybe-node-name]
+  (when maybe-node-name
+    (let [[c n] (li/split-path maybe-node-name)
+          n (or n c)]
+      (if (some #{n} (between-attribute-names relname))
+        n
+        (first (find-between-keys relname maybe-node-name))))))
 
 (defn fetch-default-attribute-values [schema]
   (into
@@ -1803,12 +1834,113 @@
 
 (defn null-parent-path? [inst]
   (when-let [p (li/path-attr inst)]
-    (= p li/default-path)))
+    (li/null-path? p)))
 
 (defn find-parent-info [rel-inst]
   (let [tp (instance-type-kw rel-inst)]
     (when (contains-relationship? tp)
       (let [[p _] (relationship-nodes tp)
             pn (second (li/split-path p))]
-        [p (or ((relationship-member-identity pn) rel-inst)
-               (pn rel-inst))]))))
+        [p (pn rel-inst)]))))
+
+(defn parse-attribute-value [entity-name attr v]
+  (let [scm (fetch-schema entity-name)
+        ascm (find-attribute-schema (get scm attr))]
+    (if-let [t (:type ascm)]
+      (case t
+        :Fractl.Kernel.Lang/Int (#?(:clj Integer/parseInt :cljs js/parseInt) v)
+        :Fractl.Kernel.Lang/Int64 (#?(:clj Long/parseLong :cljs js/parseInt) v)
+        :Fractl.Kernel.Lang/BigInteger (#?(:clj BigInteger. :cljs js/parseInt) v)
+        :Fractl.Kernel.Lang/Float (#?(:clj Float/parseFloat :cljs js/parseFloat) v)
+        :Fractl.Kernel.Lang/Double (#?(:clj Double/parseDouble :cljs js/parseFloat) v)
+        :Fractl.Kernel.Lang/Decimal (#?(:clj BigDecimal. :cljs js/parseFloat) v)
+        :Fractl.Kernel.Lang/Boolean (if (= "true" v) true false)
+        v)
+      v)))
+
+(defn owners [inst]
+  (when (an-instance? inst)
+    (let [owners (:owners (li/meta-attr inst))]
+      (when (seq owners)
+        (set (s/split owners #","))))))
+
+(defn- get-meta-attr [inst]
+  (when-let [ma (li/meta-attr inst)]
+    (if (string? ma)
+      (when (seq ma)
+        (read-string ma))
+      ma)))
+
+(defn- update-owners [opr inst users]
+  (let [xs (owners inst)]
+    (if-let [ys (seq (opr xs users))]
+      (let [ma (get-meta-attr inst)
+            meta (assoc ma :owners (s/join "," ys))]
+        (assoc inst li/meta-attr meta))
+      inst)))
+
+(def concat-owners (partial update-owners set/union))
+(def remove-owners (partial update-owners set/difference))
+
+(defn user-is-owner? [user inst]
+  (some #{user} (owners inst)))
+
+(defn instance-privileges-for-user [inst user]
+  (when (an-instance? inst)
+    (get (:instprivs (li/meta-attr inst)) user)))
+
+(defn assign-instance-privileges [inst user privs]
+  (assoc-in inst [li/meta-attr :instprivs user] privs))
+
+(defn remove-instance-privileges [inst user]
+  (let [path [li/meta-attr :instprivs]]
+    (if-let [ps (get-in inst path)]
+      (assoc-in inst path (dissoc ps user))
+      inst)))
+
+(defn instance-to-partial-path
+  ([child-type parent-inst relname]
+   (let [pt (instance-type-kw parent-inst)
+         ct (li/make-path child-type)]
+     (if-let [rel (or relname (parent-relationship pt ct))]
+       (let [pp (li/path-attr parent-inst)
+             rn (li/encoded-uri-path-part rel)]
+         (if pp
+           (str (li/path-query-string pp) "/" rn)
+           (str "/" (li/encoded-uri-path-part pt)
+                "/" ((identity-attribute-name pt) parent-inst)
+                "/" rn)))
+       (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
+  ([child-type parent-inst]
+   (instance-to-partial-path child-type parent-inst nil)))
+
+(defn instance-to-full-path
+  ([child-type child-id parent-inst relname]
+   (let [parent-inst (cond
+                       (map? parent-inst)
+                       parent-inst
+
+                       (seqable? parent-inst)
+                       (first parent-inst)
+
+                       :else parent-inst)]
+     (when (entity-instance? parent-inst)
+       (let [[c _] (li/split-path child-type)]
+         (str (li/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst relname))
+              "/" (li/encoded-uri-path-part child-type) "/" child-id)))))
+  ([child-type child-id parent-inst]
+   (instance-to-full-path child-type child-id parent-inst nil)))
+
+(defn full-path-from-references
+  ([parent-inst relname child-id child-type]
+   (instance-to-full-path
+    (if (keyword? child-type)
+      child-type
+      (keyword child-type))
+    (or child-id "%") parent-inst relname))
+  ([parent-inst relname child-type]
+   (full-path-from-references parent-inst relname nil child-type)))
+
+(defn between-relationship-instance? [inst]
+  (when-let [t (instance-type-kw inst)]
+    (between-relationship? t)))

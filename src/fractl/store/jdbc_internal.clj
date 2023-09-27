@@ -4,6 +4,7 @@
             [next.jdbc.prepare :as jdbcp]
             [fractl.global-state :as gs]
             [fractl.component :as cn]
+            [fractl.lang.internal :as li]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.store.util :as su])
@@ -17,7 +18,7 @@
 (defn create-inst-statement [conn table-name id obj]
   (let [[entity-name instance] obj
         scm (cn/fetch-entity-schema entity-name)
-        ks (keys (cn/instance-attributes instance))
+        ks (keys (cn/instance-attributes instance true))
         col-names (mapv #(str "_" (name %)) ks)
         col-vals (u/objects-as-string (mapv #(% instance) ks))
         sql (str "INSERT INTO " table-name " ("
@@ -46,7 +47,7 @@
                       (set (mapv su/attribute-column-name id-attrs))
                       (set (mapv su/attribute-column-name immutable-attrs)))
         ks (set/difference
-            (set (keys (cn/instance-attributes instance)))
+            (set (keys (cn/instance-attributes instance true)))
             ignore-attrs)
         col-names (mapv su/attribute-column-name ks)
         col-vals (u/objects-as-string (mapv #(% instance) ks))
@@ -63,12 +64,18 @@
     [pstmt nil]))
 
 (defn delete-by-id-statement [conn table-name id-attr-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE _" (name id-attr-name) " = ?")
+  (let [sql (str "UPDATE " table-name " SET _" su/deleted-flag-col " = TRUE WHERE _" (name id-attr-name) " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
     [pstmt [id]]))
 
-(defn delete-all-statement [conn table-name]
-  (let [sql (str "DELETE FROM " table-name)]
+(defn delete-all-statement [conn table-name purge]
+  (let [sql (if purge
+              (str "DELETE FROM " table-name " WHERE _" su/deleted-flag-col " = TRUE")
+              (str "UPDATE " table-name " SET _" su/deleted-flag-col " = TRUE"))]
+    (jdbc/prepare conn [sql])))
+
+(defn delete-children-statement [conn table-name path]
+  (let [sql (str "UPDATE " table-name " SET _" su/deleted-flag-col " = TRUE WHERE _" (name li/path-attr) " LIKE '" path "'")]
     (jdbc/prepare conn [sql])))
 
 (defn do-query-statement

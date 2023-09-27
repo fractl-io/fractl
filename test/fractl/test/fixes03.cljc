@@ -1,6 +1,7 @@
 (ns fractl.test.fixes03
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.set :as set]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
@@ -8,6 +9,7 @@
             [fractl.lang.syntax :as ls]
             [fractl.lang.datetime :as dt]
             [fractl.lang.internal :as li]
+            [fractl.lang.raw :as raw]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship dataflow]]
@@ -270,160 +272,6 @@
       (is (= 2 (count rs)))
       (is (every? identity (mapv (fn [n] (some #{n} #{:A :C})) (mapv :Name rs)))))))
 
-(deftest issue-741-rel-delete
-  (defcomponent :I741
-    (entity
-     :I741/E1
-     {:X {:type :Int
-          :identity true}
-      :Y :Int})
-    (entity
-     :I741/E2
-     {:A {:type :Int
-          :identity true}
-      :B :Int})
-    (entity
-     :I741/E3
-     {:C {:type :Int
-          :identity true}
-      :D :Int})
-    (relationship
-     :I741/R1
-     {:meta {:contains [:I741/E1 :I741/E2]
-             li/globally-unique true
-             :cascade-on-delete false}})
-    (relationship
-     :I741/R2
-     {:meta {:contains [:I741/E2 :I741/E3]
-             li/globally-unique true
-             :cascade-on-delete false}})
-    (dataflow
-     :I741/CreateE2
-     {:I741/E1 {:X? :I741/CreateE2.E1} :as :E1}
-     {:I741/E2
-      {:A 10 :B 20}
-      :-> [{:I741/R1 {}} :E1]})
-    (dataflow
-     :I741/CreateE3
-     {:I741/E2
-      {:A? :I741/CreateE3.E2}
-      :-> [:I741/R1? {:I741/E1 {:X? :I741/CreateE3.E1}}]
-      :as :E2}
-     {:I741/E3
-      {:C 3 :D 5}
-      :-> [{:I741/R2 {}} :E2]})
-    (dataflow
-     :I741/LookupE2
-     {:I741/E2? {}
-      :-> [:I741/R1?
-           {:I741/E1 {:X? :I741/LookupE2.E1}}]})
-    (dataflow
-     :I741/RemoveR2
-     [:delete :I741/R2 [:->
-                        {:I741/E2 {:A? :I741/RemoveR2.E2}}
-                        {:I741/E3 {:C? :I741/RemoveR2.E3}}]])
-    (dataflow
-     :I741/RemoveR1
-     [:delete :I741/R1 [:->
-                        {:I741/E1 {:X? :I741/RemoveR1.E1}}
-                        {:I741/E2 {:A? :I741/RemoveR1.E2}}]]))
-  (let [e1 (tu/first-result
-            {:I741/Create_E1
-             {:Instance
-              {:I741/E1 {:X 1 :Y 10}}}})
-        e2 (tu/result
-            {:I741/CreateE2
-             {:E1 1}})]
-    (is (cn/instance-of? :I741/E1 e1))
-    (is (cn/instance-of? :I741/E2 e2))
-    (is (cn/instance-of? :I741/R1 (first (:-> e2))))
-    (defn- lookup-e2 [exists]
-      (let [r (tu/result
-               {:I741/LookupE2
-                {:E1 1}})]
-        (if exists
-          (is (and (cn/instance-of? :I741/E2 (first r))
-                   (= 20 (:B (first r)))))
-          (is (= [:I741 :E2] r)))))
-    (lookup-e2 true)
-    (is (cn/instance-of?
-         :I741/E3
-         (tu/result
-          {:I741/CreateE3
-           {:E1 1 :E2 10}})))
-    (is (not (tu/first-result
-              {:I741/RemoveR1
-               {:E1 1 :E2 10}})))
-    (is (cn/instance-of?
-         :I741/R2
-         (tu/first-result
-          {:I741/RemoveR2
-           {:E2 10 :E3 3}})))
-    (lookup-e2 true)
-    (let [d1 (tu/first-result
-              {:I741/RemoveR1
-               {:E1 1 :E2 10}})]
-      (is (cn/instance-of? :I741/R1 d1))
-      (lookup-e2 false))))
-
-(deftest issue-741-rel-delete-between
-  (defcomponent :I741B
-    (entity
-     :I741B/E1
-     {:X {:type :Int
-          :identity true}
-      :Y :Int})
-    (entity
-     :I741B/E2
-     {:A {:type :Int
-          :identity true}
-      :B :Int})
-    (relationship
-     :I741B/R1
-     {:meta {:between [:I741B/E1 :I741B/E2]}})
-    (dataflow
-     :I741B/CreateE2
-     {:I741B/E1 {:X? :I741B/CreateE2.E1} :as :E1}
-     {:I741B/E2
-      {:A 10 :B 20}
-      :-> [{:I741B/R1 {}} :E1]})
-    (dataflow
-     :I741B/LookupE2
-     {:I741B/E2? {}
-      :-> [:I741B/R1?
-           {:I741B/E1 {:X? :I741B/LookupE2.E1}}]})
-    (dataflow
-     :I741B/RemoveR1
-     [:delete :I741B/R1 [:->
-                        {:I741B/E1 {:X? :I741B/RemoveR1.E1}}
-                        {:I741B/E2 {:A? :I741B/RemoveR1.E2}}]]))
-  (let [e1 (tu/first-result
-            {:I741B/Create_E1
-             {:Instance
-              {:I741B/E1 {:X 1 :Y 10}}}})
-        e2 (tu/result
-            {:I741B/CreateE2
-             {:E1 1}})]
-    (is (cn/instance-of? :I741B/E1 e1))
-    (is (cn/instance-of? :I741B/E2 e2))
-    (is (cn/instance-of? :I741B/R1 (first (:-> e2))))
-    (defn- lookup-e2 [exists]
-      (let [r (if exists
-                (tu/result
-                 {:I741B/LookupE2
-                  {:E1 1}})
-                (tu/result
-                 {:I741B/Lookup_E2
-                  {:A 10}}))]
-        (is (and (cn/instance-of? :I741B/E2 (first r))
-                 (= 20 (:B (first r)))))))
-    (lookup-e2 true)
-    (let [d1 (tu/first-result
-              {:I741B/RemoveR1
-               {:E1 1 :E2 10}})]
-      (is (cn/instance-of? :I741B/R1 d1))
-      (lookup-e2 false))))
-
 (deftest issue-754-for-each-introspect
   (let [s1 (ls/introspect
             [:for-each :E1
@@ -460,8 +308,8 @@
                    [{:C/R2 {}} :B]]}
         obj4 (ls/introspect pat4)]
     (is (and (ls/upsert? obj1) (ls/relationship-object obj1)))
-    (is (and (ls/query-upsert? obj2) (ls/relationship-object obj2)))
-    (is (and (ls/query-upsert? obj3) (ls/relationship-object obj3)))
+    (is (and (ls/query? obj2) (ls/relationship-object obj2)))
+    (is (and (ls/query? obj3) (ls/relationship-object obj3)))
     (is (and (ls/upsert? obj4) (ls/relationship-object obj4)))
     (is (= (ls/raw obj1) pat1))
     (is (= (ls/raw obj2) pat2))
@@ -471,14 +319,14 @@
                          ls/attrs-tag {:Age :Int :Name :String}
                          ls/alias-tag :P1
                          ls/rel-tag [{:Spouse {}} :P2]})
-          qu1 (ls/query-upsert {ls/record-tag :Person
-                                ls/attrs-tag {:Name? "abc" :Age 100}
-                                ls/alias-tag :P1
-                                ls/rel-tag [:Spouse? {:Person {:Name? "xyz"}}]})
+          qu1 (ls/query {ls/record-tag :Person
+                         ls/attrs-tag {:Name? "abc" :Age 100}
+                         ls/alias-tag :P1
+                         ls/rel-tag [:Spouse? {:Person {:Name? "xyz"}}]})
           d1 (ls/delete {ls/record-tag :Spouse
                          ls/rel-tag [{:Person {:Name "xyz"}} {:Person{:Name "abc"}}]})]
       (is (ls/upsert? u1))
-      (is (ls/query-upsert? qu1))
+      (is (ls/query? qu1))
       (is (= (ls/raw-relationship (ls/rel-tag u1)) [{:Spouse {}} :P2]))
       (is (= (ls/raw-relationship (ls/rel-tag qu1)) [:Spouse? {:Person {:Name? "xyz"}}]))
       (is (= (ls/raw-relationship (ls/rel-tag d1)) [{:Person {:Name "xyz"}} {:Person{:Name "abc"}}])))))
@@ -554,7 +402,7 @@
         p2 {:C/E {:? "path://A/Evt.A/R/B"
                   :K 100}}
         r2 (ls/introspect p2)]
-    (is (ls/query-upsert? r1))
+    (is (ls/query? r1))
     (is (ls/query-upsert? r2))
     (is (= p1 (ls/raw r1)))
     (is (= p2 (ls/raw r2)))))
@@ -584,98 +432,6 @@
     (is (= :R (ls/raw (ls/alias-tag p3))))
     (is (and (= :A/B (ls/raw (ls/check-tag p4)))
              (= :R (ls/raw (ls/alias-tag p4)))))))
-
-(deftest issue-849
-  (defcomponent :I849
-    (entity
-     :I849/E
-     {:X {:type :Int :default 1000}})
-    (entity
-     :I849/F
-     {:Y :Int})
-    (record
-     :I849/Rec
-     {:A :String
-      :B {:type :Int
-          :unique true
-          :check pos?
-          :label 'pos?}})
-    (event
-     :I849/Evt
-     {:E :I849/E})
-    (relationship
-     :I849/Rel
-     {:meta {:contains [:I849/E :I849/F]
-             li/globally-unique true}
-      :G :Int
-      :H '(+ 1 :G)}))
-  (defn- is-scm [n s]
-    (is (= s (dissoc (cn/fetch-user-schema n) :rbac))))
-  (is-scm
-   :I849/E
-   {:X {:type :Int, :default 1000}})
-  (is-scm
-   :I849/F
-   {:Y :Int})
-  (is-scm
-   :I849/Rec
-   {:A :String
-    :B {:type :Int
-        :unique true
-        :check pos?
-        :label 'pos?}})
-  (is-scm
-   :I849/Evt
-   {:E :I849/E})
-  (is-scm
-   :I849/Rel
-   {:meta {:contains [:I849/E :I849/F]
-           li/globally-unique true}
-    :G :Int
-    :H '(+ 1 :G)}))
-
-(deftest issue-855-rel-upsert-bug
-  (defcomponent :I855
-    (entity
-     :I855/E1 {:X {:type :Int :identity true}})
-    (entity
-     :I855/E2 {:Y {:type :Int :identity true}})
-    (relationship
-     :I855/R {:meta {:contains [:I855/E1 :I855/E2]
-                     li/globally-unique true}})
-    (dataflow
-     :I855/Cr1
-     {:I855/E2
-      {:Y 100}
-      :-> [{:I855/R {}}
-           {:I855/E1 {:X? :I855/Cr1.E1}}]})
-    (dataflow
-     :I855/Cr2
-     {:I855/E1 {:X? :I855/Cr2.E1} :as :E1}
-     {:I855/E2
-      {:Y 200}
-      :-> [{:I855/R {}} :E1]}))
-  (let [e1 (tu/first-result
-            {:I855/Create_E1
-             {:Instance
-              {:I855/E1 {:X 1}}}})
-        r11 (tu/result
-             {:I855/Cr1 {:E1 1}})
-        r21 (tu/result
-             {:I855/Cr2 {:E1 1}})]
-    (defn- chk [status evt]
-      (let [s (:status (first (tu/eval-all-dataflows evt)))]
-        (is (= s status))))
-    (chk :not-found {:I855/Cr1 {:E1 2}})
-    (chk :not-found {:I855/Cr2 {:E1 2}})
-    (defn- check-r [e1 e2]
-      (is (cn/instance-of? :I855/E2 e2))
-      (let [r (first (ls/rel-tag e2))]
-        (is (cn/instance-of? :I855/R r))
-        (is (= (:X e1) (:E1 r)))))
-    (is (cn/instance-of? :I855/E1 e1))
-    (check-r e1 r11)
-    (check-r e1 r21)))
 
 (deftest issue-886-create-update
   (defcomponent :I886
@@ -711,193 +467,55 @@
       (is (cn/instance-eq? e1 e4))
       (is (= (:Name e4) "xyz")))))
 
-(deftest issue-906-cascade-delete-bug
-  (defcomponent :I906
-    (entity
-     :I906/P
-     {:X {:type :Int :identity true}})
-    (entity
-     :I906/C
-     {:Y {:type :Int :identity true}})
-    (entity
-     :I906/D
-     {:Z {:type :Int :identity true}})
-    (entity
-     :I906/E
-     {:A {:type :Int :identity true}})
-    (relationship
-     :I906/R
-     {:meta {:contains [:I906/P :I906/C]
-             li/globally-unique true}})
-    (relationship
-     :I906/F
-     {:meta {:contains [:I906/C :I906/D]
-             li/globally-unique true}})
-    (relationship
-     :I906/G
-     {:meta {:between [:I906/D :I906/E]}}))
-  (def sort-by-y (partial tu/sort-by-attr :Y))
-  (let [[p1 p2] (mapv
-                 #(tu/first-result
-                   {:I906/Create_P
-                    {:Instance
-                     {:I906/P {:X %}}}})
-                 [1 2])
-        p3 (tu/first-result
-            {:I906/Create_P
-             {:Instance
-              {:I906/P {:X 3}}}})
-        create-cs (fn [p]
-                    (mapv
-                     #(tu/result
-                       {:I906/Create_C
-                        {:Instance
-                         {:I906/C {:Y %1}}
-                         :P %2}})
-                     [101 102] [p p]))
-        [c11 c12] (create-cs 1)
-        c21 (tu/result
-             {:I906/Create_C
-              {:Instance
-               {:I906/C {:Y 201}}
-               :P 2}})
-        d1 (tu/result
-            {:I906/Create_D
-             {:P 1 :C 101 :Instance {:I906/D {:Z 301}}}})
-        e1 (tu/first-result
-            {:I906/Create_E
-             {:Instance
-              {:I906/E {:A 789}}}})
-        g1 (tu/first-result
-            {:I906/Create_G
-             {:Instance
-              {:I906/G
-               {:D 301 :E 789}}}})]
-    (is (cn/instance-of? :I906/E e1))
-    (is (cn/instance-of? :I906/G g1))
-    (is (cn/same-instance? g1 (tu/first-result {:I906/Lookup_G {:D 301 :E 789}})))
-    (is (cn/same-instance? p3 (tu/first-result
-                               {:I906/Lookup_P {:X 3}})))
-    (is (cn/same-instance? p3 (tu/first-result
-                               {:I906/Delete_P {:X 3}})))
-    (is (tu/not-found? (tu/eval-all-dataflows {:I906/Lookup_P {:X 3}})))
-    (is (cn/instance-of? :I906/D d1))
-    (defn- lookup-d1 []
-      (tu/eval-all-dataflows
-       {:I906/Lookup_D
-        {:P 1 :C 101 :Z 301}}))
-    (is (cn/same-instance? (dissoc d1 :->) (first (:result (first (lookup-d1))))))
-    (defn- lookupall-cs
-      ([only-eval p]
-       ((if only-eval tu/eval-all-dataflows tu/result)
-        {:I906/LookupAll_C {:P p}}))
-      ([p] (lookupall-cs false p)))
-    (is (= (mapv #(dissoc % :->) [c11 c12])
-           (sort-by-y (lookupall-cs 1))))
-    (defn- check-c2s []
-      (let [c2s (lookupall-cs 2)]
-        (is (= (count c2s) 1))
-        (is (every? #(cn/instance-of? :I906/C %) c2s))
-        (is (= (dissoc c21 :->) (first c2s)))))
-    (check-c2s)
-    (is (cn/same-instance? p1 (tu/first-result {:I906/Delete_P {:X 1}})))
-    (is (tu/not-found? (tu/eval-all-dataflows {:I906/Lookup_G {:D 301 :E 789}})))
-    ;; Give time for the Delete_C event-firing to commit the db-transaction,
-    ;; this has been a problem when the complete test-suite is running.
-    (check-c2s)
-    (is (tu/not-found? (lookupall-cs true 1)))
-    (is (tu/not-found? (lookup-d1)))
-    (defn- check-css [cs cnt ys]
-      (is (= (count cs) cnt))
-      (is (every? #(cn/instance-of? :I906/C %) cs))
-      (is (mapv (fn [y] (some #{y} ys)) (mapv :Y cs))))
-    (check-css (create-cs 2) 2 #{101 102})
-    (check-css (lookupall-cs 2) 3 #{101 102 201})
-    (is (cn/same-instance? c21 (tu/first-result {:I906/Delete_C {:P 2 :Y 201}})))
-    (check-css (lookupall-cs 2) 2 #{101 102})))
+(deftest issue-991-record-names-bug
+  (defcomponent :I991
+    (entity :I991/A {:Id :Identity :X :Int})
+    (entity :I991/B {:Id :Identity :Y :Int})
+    (entity :I991/C {:Id :Identity :Y :Int})
+    (record :I991/D {:Z :Int})
+    (event :I991/F {:K :Int})
+    (relationship :I991/R1 {:meta {:contains [:I991/A :I991/B]}})
+    (relationship :I991/R2 {:meta {:between [:I991/B :I991/C]}}))
+  (is (not (raw/find-record :I991/R1)))
+  (is (= #{:I991/D} (cn/record-names :I991)))
+  (is (= #{:I991/A :I991/B :I991/C} (cn/entity-names :I991)))
+  (is (= #{:I991/F} (set/intersection #{:I991/F} (cn/event-names :I991)))))
 
-(deftest issue-906-cascade-delete-with-non-identity
-  (defcomponent :I906B
-    (entity
-     :I906B/P
-     {:X {:type :Int :identity true}
-      :A {:type :Int :indexed true}})
-    (entity
-     :I906B/C
-     {:Y {:type :Int :identity true}
-      :B {:type :Int :indexed true}})
-    (entity
-     :I906B/D
-     {:Z {:type :Int :identity true}
-      :K {:type :Int :indexed true}})
-    (relationship
-     :I906B/CD
-     {:meta {:between [:I906B/C :I906B/D :on [:B :K]]}})
-    (relationship
-     :I906B/R
-     {:meta {:contains [:I906B/P :I906B/C :on [:A :B]]
-             li/globally-unique true}}))
-  (let [[p1 p2 :as ps] (mapv
-                 #(tu/first-result
-                   {:I906B/Create_P
-                    {:Instance
-                     {:I906B/P {:X % :A (* 10 %)}}}})
-                 [1 2])
-        create-cs (fn [p]
-                    (mapv
-                     #(tu/result
-                       {:I906B/Create_C
-                        {:Instance
-                         {:I906B/C {:Y %1 :B (* 10 %1)}}
-                         :P %2}})
-                     [101 102] [p p]))
-        [c11 c12 :as cs] (create-cs 1)
-        c21 (tu/result
-             {:I906B/Create_C
-              {:Instance
-               {:I906B/C {:Y 201 :B 11}}
-               :P 2}})
-        p? (partial cn/instance-of? :I906B/P)
-        c? (partial cn/instance-of? :I906B/C)
-        d1 (tu/first-result
-            {:I906B/Create_D
-             {:Instance {:I906B/D {:Z 111 :K 9}}}})
-        cd1 (tu/first-result
-             {:I906B/Create_CD
-              {:Instance
-               {:I906B/CD
-                {:CIdentity 201 :DIdentity 111 :C 11 :D 9}}}})]
-    (is (cn/instance-of? :I906B/D d1))
-    (is (cn/instance-of? :I906B/CD cd1))
-    (defn- lookupall-cs
-      ([only-eval p]
-       ((if only-eval tu/eval-all-dataflows tu/result)
-        {:I906B/LookupAll_C {:P p}}))
-      ([p] (lookupall-cs false p)))
-    (is (every? p? ps))
-    (is (every? c? (conj cs c21)))
-    (defn- check-cs [a n]
-      (let [cs (lookupall-cs a)]
-        (is (= n (count cs)))
-        (is (every? c? cs))))
-    (check-cs 10 2)
-    (check-cs 20 1)
-    (is (cn/same-instance? p1 (tu/first-result
-                               {:I906B/Delete_P
-                                {:X 1}})))
-    (is (tu/not-found? (lookupall-cs true 10)))
-    (check-cs 20 1)
-    (is (cn/same-instance? cd1 (tu/first-result
-                                {:I906B/Lookup_CD
-                                 {:CIdentity 201 :DIdentity 111}})))
-    (is (cn/same-instance? d1 (tu/first-result
-                               {:I906B/Lookup_D {:Z 111}})))
-    (is (cn/same-instance? p2 (tu/first-result
-                               {:I906B/Delete_P
-                                {:X 2}})))
-    (is (tu/not-found? (lookupall-cs true 20)))
-    (is (tu/not-found? (tu/eval-all-dataflows
-                        {:I906B/Lookup_CD
-                         {:CIdentity 201 :DIdentity 111}})))
-    (is (cn/same-instance? d1 (tu/first-result
-                               {:I906B/Lookup_D {:Z 111}})))))
+(deftest entity-default-id
+  (defcomponent :Edid
+    (entity :Edid/E {}))
+  (is (li/id-attr (cn/fetch-schema :Edid/E)))
+  (is (= li/id-attr (cn/identity-attribute-name :Edid/E)))
+  (is (not (seq (raw/find-entity :Edid/E)))))
+
+#?(:clj
+   (deftest issue-1023-spec-in-raw
+     (let [spec '(do (component :I1023)
+                     (attribute :I1023/UniqueName {:type :String, :unique true})
+                     (entity :I1023/E {:Id :Identity, :Name :I1023/UniqueName, :X {:type :Int, :optional true}}))
+           preproc-spec (map (fn [x]
+                               (if (seqable? x)
+                                 (let [n (first x) xs (rest x)]
+                                   `(~(symbol (str "fractl.lang/" (name n))) ~@xs))
+                                 x))
+                             spec)
+           third #(nth % 2)
+           third-of-third (comp third third)
+           third-of-second (comp third second)]
+       (eval preproc-spec)
+       (is (= spec (raw/as-edn :I1023)))
+       (is (= (third-of-third (rest spec)) (raw/find-entity :I1023/E)))
+       (is (= (third-of-second (rest spec)) (raw/find-attribute :I1023/UniqueName))))))
+
+(deftest contains-in-relnames
+  (defcomponent :Cir
+    (record :Cir/X {:Y :Int})
+    (entity :Cir/A {:Id :Identity})
+    (entity :Cir/B {:Id :Identity})
+    (entity :Cir/C {:Id :Identity})
+    (relationship :Cir/R1 {:meta {:contains [:Cir/A :Cir/B]}})
+    (relationship :Cir/R2 {:meta {:contains [:Cir/B :Cir/C]}})
+    (relationship :Cir/R3 {:meta {:between [:Cir/A :Cir/A]}}))
+  (is (= (cn/record-names :Cir) #{:Cir/X}))
+  (is (= (cn/entity-names :Cir) #{:Cir/B :Cir/C :Cir/A}))
+  (is (= (cn/relationship-names :Cir) #{:Cir/R1 :Cir/R2 :Cir/R3})))

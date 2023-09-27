@@ -37,6 +37,24 @@
         [k (vf v)]))
     spec)))
 
+(def ^:private models (u/make-cell {}))
+
+(defn model [spec]
+  (let [n (:name spec)]
+    (when-not n
+      (u/throw-ex "model name is required"))
+    (when-not (:fractl-version spec)
+      (u/throw-ex "fractl-version is required in model spec"))
+    (let [v (:version spec)
+          version (or v "0.0.1")
+          spec (if-not v (assoc spec :version version) spec)]
+      (u/safe-set models (assoc @models n spec))
+      (log/info (str "model: " (name n) ", " version))
+      n)))
+
+(defn fetch-model [name] (get @models name))
+(defn model-version [name] (:version (fetch-model name)))
+
 (defn component
   "Create and activate a new component with the given name."
   ([n spec]
@@ -248,10 +266,11 @@
 (defn- intern-attribute
   "Add a new attribute definition to the component."
   ([validate-name n scm]
-   (cn/intern-attribute
-    (validate-name n)
-    (normalize-attribute-schema
-     (validate-attribute-schema n scm))))
+   (let [r (cn/intern-attribute
+            (validate-name n)
+            (normalize-attribute-schema
+             (validate-attribute-schema n scm)))]
+     (and (raw/attribute n scm) r)))
   ([n scm]
    (intern-attribute li/validate-name-relaxed n scm)))
 
@@ -334,10 +353,12 @@
 
 (defn- required-attribute-names [attrs]
   (map first
-       (filter (fn [[_ v]]
+       (filter (fn [[a v]]
                  (if (map? v)
                    (not (or (:optional v) (:default v)))
-                   true))
+                   (if-let [scm (and (keyword? v) (cn/find-attribute-schema v))]
+                     (not (or (:optional scm) (:default scm)))
+                     true)))
                attrs)))
 
 (defn- infer-default [attr-name attr-def dict?]
@@ -378,12 +399,39 @@
 (defn- fetch-inherited-schema [type-name child-record-type]
   (if-let [scm (case child-record-type
                  (:entity :record)
-                 (or (cn/find-entity-schema type-name)
-                     (cn/find-record-schema type-name))
-                 :event (or (cn/find-event-schema type-name)
-                            (cn/find-record-schema type-name)))]
-    (:schema scm)
+                 (or (raw/find-entity type-name)
+                     (raw/find-record type-name))
+                 :event (or (raw/find-event type-name)
+                            (raw/find-record type-name)))]
+    (let [final-scm (into {} (mapv (fn [[k v]]
+                                     (if (keyword? v)
+                                       [k (k/normalize-kernel-type v)]
+                                       [k v]))
+                                   scm))]
+      (if-let [inherits (:inherits (:meta scm))]
+        (merge final-scm (fetch-inherited-schema inherits child-record-type))
+        final-scm))
     (u/throw-ex (str "parent type not found - " type-name))))
+
+(defn- preproc-for-built-in-attrs [attrs]
+  (let [attrs (mapv (fn [[k v]]
+                      [k (if (keyword? v)
+                           (cond
+                             (or (= v :Identity)
+                                 (= v :Fractl.Kernel.Lang/Identity))
+                             (cn/find-attribute-schema :Fractl.Kernel.Lang/Identity)
+
+                             (or (= v :Now)
+                                 (= v :Fractl.Kernel.Lang/Now))
+                             (cn/find-attribute-schema :Fractl.Kernel.Lang/Now)
+
+                             :else (let [[c n] (li/split-path v)]
+                                     (if (and c n (not= :Fractl.Kernel.Lang c))
+                                       (or (raw/find-attribute v) v)
+                                       v)))
+                           v)])
+                    attrs)]
+    (into {} attrs)))
 
 (defn- normalized-attributes [rectype recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
@@ -391,13 +439,13 @@
         [meta base-attrs] (meta-specs orig-attrs)
         inherits (:inherits meta)
         inherited-scm (when inherits (fetch-inherited-schema inherits rectype))
-        req-inherited-attrs (or (:required-attributes inherited-scm)
+        req-inherited-attrs (or (:required-attributes (:meta inherited-scm))
                                 (required-attribute-names inherited-scm))
         attrs (if inherited-scm
-                (merge inherited-scm base-attrs)
+                (merge (li/only-user-attributes inherited-scm) base-attrs)
                 base-attrs)
         req-orig-attrs (or (:required-attributes meta)
-                           (required-attribute-names attrs))
+                           (required-attribute-names base-attrs))
         req-attrs (concat req-orig-attrs req-inherited-attrs)
         attrs-with-defaults (into {} (map (partial assoc-defaults req-attrs) attrs))
         newattrs (map (partial normalize-attr recname attrs f) attrs-with-defaults)
@@ -416,8 +464,9 @@
            r (cn/intern-record
               cn (normalized-attributes :record cn attrs))]
        (when r
-         (and (cn/raw-definition cn attrs)
-              (raw/record n attrs)
+         (and (if-not (:contains (:meta attrs))
+                (raw/record n attrs)
+                n)
               r)))
      (u/throw-ex (str "Syntax error in record. Check record: " n))))
   ([schema]
@@ -427,14 +476,12 @@
   ([n attrs verify-name?]
    (let [cn (if verify-name?
               (validated-canonical-type-name n)
-              (cn/canonical-type-name n))
-         r (cn/intern-event
-            cn
-            (if (cn/inferred-event-schema? attrs)
-              attrs
-              (normalized-attributes :event cn attrs)))]
-     (when r
-       (and (cn/raw-definition cn attrs) r))))
+              (cn/canonical-type-name n))]
+     (cn/intern-event
+      cn
+      (if (cn/inferred-event-schema? attrs)
+        attrs
+        (normalized-attributes :event cn attrs)))))
   ([n attrs]
    (event-internal n attrs false)))
 
@@ -574,16 +621,20 @@
 
 (defn- crud-event-attr-accessor
   ([evtname use-name? attr-name]
-   (keyword (str (if use-name? (name evtname) (subs (str evtname) 1)) "." attr-name)))
+   (keyword (str (if use-name? (name evtname) (subs (str evtname) 1)) "." (name attr-name))))
   ([evtname attr-name]
    (crud-event-attr-accessor evtname false attr-name)))
 
+(defn- crud-event-subattr-accessor [evtname attr sub-attr]
+  (keyword (str (name evtname) (str "." (name attr))
+                (when sub-attr
+                  (str "." (name sub-attr))))))
+
 (defn- crud-event-inst-accessor
   ([evtname canonical? inst-attr]
-   (let [r (keyword (str (name evtname) ".Instance"
-                         (when inst-attr
-                           (str "." (name inst-attr)))))]
+   (let [r (crud-event-subattr-accessor evtname :Instance inst-attr)]
      (if canonical? (cn/canonical-type-name r) r)))
+  ([evtname inst-attr] (crud-event-inst-accessor evtname true inst-attr))
   ([evtname] (crud-event-inst-accessor evtname true nil)))
 
 (defn- direct-id-accessor [evtname id-attr]
@@ -669,12 +720,17 @@
       (keyword (str (name c) "/" (name evt-name) "." (name evt-ref) "." (name attr-name)))}}))
 
 (defn- serialize-record [f cn attrs raw-attrs]
-  (when-let [r (f cn attrs)]
-    (and (cn/raw-definition cn raw-attrs) r)))
+  (f cn attrs))
 
 (def ^:private intern-rec-fns
   {:entity (partial serialize-record cn/intern-entity)
    :relationship (partial serialize-record cn/intern-relationship)})
+
+(defn- maybe-add-curd-meta [attrs]
+  (let [meta (:meta attrs)]
+    (if (some #{li/owner-exclusive-crud} (keys meta))
+      attrs
+      (assoc attrs :meta (assoc meta li/owner-exclusive-crud true)))))
 
 (defn- serializable-record
   ([rectype n attrs raw-attrs]
@@ -683,8 +739,8 @@
        (let [rec-name (validated-canonical-type-name
                        (when (cn/system-defined? attrs) identity)
                        n)
-             is-rel (:relationship (:meta attrs))
              [attrs dfexps] (lift-implicit-entity-events rec-name attrs)
+             attrs (maybe-add-curd-meta (assoc attrs li/meta-attr li/meta-attr-spec))
              result (intern-rec
                      rec-name
                      (maybe-assoc-id
@@ -702,45 +758,45 @@
              cr-evattrs {:Instance n li/event-context ctx-aname}
              up-id-attr id-attr
              up-evattrs {up-id-attr id-attr-type
-                         :Data :Fractl.Kernel.Lang/Map}]
-         ;; Define CRUD events and dataflows:
-         (let [crevt (ev :Create)
-               upevt (ev :Update)
-               delevt (ev :Delete)
-               lookupevt (ev :Lookup)
-               lookupevt-internal (ev cn/lookup-internal-event-prefix)
-               lookupallevt (ev :LookupAll)]
-           (cn/for-each-entity-event-name
-            rec-name (partial entity-event rec-name))
-           (event-internal delevt id-evattrs)
-           (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
-           (when-not is-rel
-             (event-internal crevt cr-evattrs)
-             (event-internal upevt up-evattrs)
-             (event-internal lookupevt-internal id-evattrs)
-             (event-internal lookupevt id-evattrs)
-             (event-internal lookupallevt {})
-             (let [rs (mapv (fn [[k v]]
-                              (let [s (cn/find-attribute-schema v)]
-                                [(load-ref-pattern crevt :Instance rec-name k s)
-                                 (load-ref-pattern upevt :Instance rec-name k s)]))
-                            (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))
-                   cr-ref-pats (mapv first rs)
-                   up-ref-pats (mapv second rs)]
-               (cn/register-dataflow crevt `[~@cr-ref-pats ~(crud-event-inst-accessor crevt)])
-               (cn/register-dataflow
-                upevt
-                (concat [up-ref-pats]
-                        [{rec-name
-                          {(li/name-as-query-pattern id-attr) (crud-event-attr-accessor upevt (name up-id-attr))}
-                          :from (crud-event-attr-accessor upevt "Data")}])))
-             (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
-             (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
-             (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)])))
+                         :Data :Fractl.Kernel.Lang/Map}
+             ;; Define CRUD events and dataflows:
+             crevt (ev :Create)
+             upevt (ev :Update)
+             delevt (ev :Delete)
+             lookupevt (ev :Lookup)
+             lookupevt-internal (ev cn/lookup-internal-event-prefix)
+             lookupallevt (ev :LookupAll)]
+         (cn/for-each-entity-event-name
+          rec-name (partial entity-event rec-name))
+         (event-internal delevt id-evattrs)
+         (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
+         (event-internal crevt cr-evattrs)
+         (event-internal upevt up-evattrs)
+         (event-internal lookupevt-internal id-evattrs)
+         (event-internal lookupevt id-evattrs)
+         (event-internal lookupallevt {})
+         (let [rs (mapv (fn [[k v]]
+                          (let [s (cn/find-attribute-schema v)]
+                            [(load-ref-pattern crevt :Instance rec-name k s)
+                             (load-ref-pattern upevt :Instance rec-name k s)]))
+                        (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))
+               cr-ref-pats (mapv first rs)
+               up-ref-pats (mapv second rs)]
+           (cn/register-dataflow crevt `[~@cr-ref-pats ~(crud-event-inst-accessor crevt)])
+           (cn/register-dataflow
+            upevt
+            (concat [up-ref-pats]
+                    [{rec-name
+                      {(li/name-as-query-pattern id-attr) (crud-event-attr-accessor upevt (name up-id-attr))}
+                      :from (crud-event-attr-accessor upevt "Data")}])))
+         (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
+         (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
+         (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)])
          ;; Install dataflows for implicit events.
          (when dfexps (mapv eval dfexps))
-         (let [rbac-spec (:rbac attrs)]
-           (lr/rbac rec-name is-rel rbac-spec))
+         (let [rbac-spec (:rbac attrs)
+               is-rel (:relationship (:meta attrs))]
+           (lr/rbac rec-name rbac-spec))
          result)
        (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
      (u/throw-ex (str "Not a serializable record type: " (name rectype)))))
@@ -749,74 +805,18 @@
 
 (def serializable-entity (partial serializable-record :entity))
 
-(defn- meta-entity [entity-name]
-  (let [[c n :as en] (li/split-path entity-name)
-        n (cn/meta-entity-name en)]
-    (serializable-entity
-     n
-     (cn/meta-entity-attributes c))))
-
 (defn entity
   "A record that can be persisted with a unique id."
+  ([n attrs raw-attrs]
+   (when-let [r (serializable-entity n (preproc-for-built-in-attrs attrs))]
+     (and (if raw-attrs (raw/entity n raw-attrs) true) r)))
   ([n attrs]
-   (when-let [r (serializable-entity n attrs)]
-     (and (meta-entity n) (raw/entity n attrs) r)))
-  ([schema]
-   (parse-and-define entity schema)))
-
-(defn- normalize-relation-attribute
-  ([attr-spec cardinality]
-   (let [new-spec
-         (if (keyword? attr-spec)
-           {:type attr-spec
-            :indexed true}
-           (assoc attr-spec :indexed true))]
-     (if (:exclusive cardinality)
-       (assoc new-spec :unique true)
-       new-spec)))
-  ([attr-spec]
-   (normalize-relation-attribute attr-spec nil)))
-
-(defn- identity-attributes-for-relationship [rec-a rec-b]
-  (let [scm-a (cn/ensure-entity-schema rec-a)
-        scm-b (when-not (= rec-a rec-b) (cn/ensure-entity-schema rec-b))
-        ida (cn/ensure-identity-attribute-name scm-a)
-        idb (if scm-b (cn/ensure-identity-attribute-name scm-b) ida)]
-    (when (and ida idb)
-      [ida idb scm-a (or scm-b scm-a)])))
-
-(defn- generate-relationship-attributes [each-unique cascade-on-delete
-                                         is-id rec recattr idattr recscm attr]
-  (if is-id
-    {attr {:ref (li/make-ref rec recattr)
-           :cascade-on-delete cascade-on-delete
-           :unique each-unique}}
-    {attr {:type (cn/attribute-type recscm recattr)
-           :unique each-unique}
-     (cn/relationship-member-identity attr)
-     {:ref (li/make-ref rec idattr)
-      :cascade-on-delete cascade-on-delete}}))
-
-(defn- assoc-relationship-attributes [attrs rel-attr-names is-contains [rec-a rec-b :as recs]
-                                      on-attrs each-unique cascade-on-delete]
-  (when-not (or (li/name? rec-a) (li/name? rec-b))
-    (u/throw-ex (str "invalid relationship elements - " recs)))
-  (let [[ida idb scma scmb] (identity-attributes-for-relationship rec-a rec-b)]
-    (when-not ida
-      (u/throw-ex (str "no identity attribute found for " rec-a ", cannot form relationship")))
-    (when-not idb
-      (u/throw-ex (str "no identity attribute found for " rec-b ", cannot form relationship")))
-    (let [[ra rb] (or on-attrs [ida idb])
-          [a b :as ab] (or rel-attr-names (cn/relationship-attribute-names rec-a rec-b))
-          genattr (partial generate-relationship-attributes each-unique cascade-on-delete)
-          a-attrs (genattr
-                   (cn/unique-or-identity? scma ra)
-                   rec-a ra ida scma a)
-          b-attrs (genattr
-                   (cn/unique-or-identity? scmb rb)
-                   rec-b rb idb scmb b)
-          id-attrs (merge a-attrs b-attrs)]
-      [(merge attrs id-attrs) ab])))
+   (let [raw-attrs attrs
+         attrs (if-not (seq attrs)
+                 {li/id-attr :Fractl.Kernel.Lang/Identity}
+                 attrs)]
+     (entity n attrs raw-attrs)))
+  ([schema] (parse-and-define entity schema)))
 
 (defn- parse-relationship-member-spec [spec]
   (let [elems [(first spec) (second spec)]
@@ -825,299 +825,161 @@
       [elems (us/wrap-to-map meta)]
       [elems nil])))
 
-(defn- ensure-unique-contains [[_ e2 :as elems]]
-  (when elems
-    (when-let [r (cn/find-contained-relationship e2)]
-      (u/throw-ex (str e2 " is already in a contains relationship - " r)))
-    elems))
+(defn- evt-path-attr [evt]
+  (crud-event-attr-accessor evt li/path-attr))
 
-(defn- parent-query-pattern
-  ([attr-accessor relname rel-attrs parent query-rel]
-   (let [cps (seq (cn/containing-parents parent))
-         parent-pat {parent {(li/name-as-query-pattern
-                              (cn/identity-attribute-name parent))
-                             (attr-accessor (name parent))}}]
-     [(if query-rel
-        (li/name-as-query-pattern relname)
-        {relname (into {} (mapv (fn [a] [a (attr-accessor (name a))]) rel-attrs))})
-      (if cps
-        (let [[r _ p] (first cps)]
-          (assoc parent-pat li/rel-tag (parent-query-pattern attr-accessor r nil p true)))
-        parent-pat)]))
-  ([attr-accessor relname rel-attrs parent]
-   (parent-query-pattern attr-accessor relname rel-attrs parent false)))
-
-(defn- parent-query-path
-  ([attr-accessor relname parent [child child-id-attr] query-all]
-   (let [f attr-accessor, np (name parent), nc (name child)
-         path (str "/" np "/" (f np) "/" (name relname) "/" nc
-                   (if query-all "/*" (str "/" (f (name child-id-attr)))))]
-     (loop [parent parent, path path]
-       (if-let [cps (seq (cn/containing-parents parent))]
-         (let [[r _ p] (first cps), np (name p)]
-           (recur p (str np "/" (f np) "/" (name r) "/" path)))
-         (str "path:" (if (s/starts-with? path "/") "/" "//")
-              (li/normalize-path path))))))
-  ([attr-accessor relname parent child-info]
-   (parent-query-path attr-accessor relname parent child-info false)))
-
-(defn- parent-path-constructor [attr-accessor relname parent child child-id-access]
-  (let [f attr-accessor, np (name parent), nc (name child)
-        path ["/" np "/" (f np) "/" (name relname) "/" nc "/" (or child-id-access "%")]]
-    (loop [parent parent, path path]
-      (if-let [cps (seq (cn/containing-parents parent))]
-        (let [[r _ p] (first cps), np (name p)]
-          (recur p (concat ["/" np "/" (f np) "/" (name r) "/"] path)))
-        `(str ~@(us/remove-twins path))))))
-
-(defn- parent-names-as-attributes
-  ([parent roots-optional]
-   (loop [p parent, result {(keyword (name parent)) :Fractl.Kernel.Lang/Any}]
-     (if-let [cps (seq (cn/containing-parents p))]
-       (let [[_ _ p0] (first cps)]
-         (recur p0 (assoc result (keyword (name p0)) {:type :Fractl.Kernel.Lang/Any
-                                                      :optional roots-optional})))
-       result)))
-  ([parent] (parent-names-as-attributes parent false)))
-
-(defn- all-cascades? [rels]
-  (every? true? (map #(:cascade-on-delete (cn/fetch-meta (first %))) rels)))
-
-(defn- relationships-for-cascade-delete [recname]
-  (let [children (seq (cn/contained-children recname))
-        rels (seq (cn/between-relationships recname))]
-    (when (or children rels)
-      (when (all-cascades? (concat children rels))
-        [children rels]))))
-
-(defn- del-all-children [children parent id-attr id-accessor]
-  (apply
-   concat
-   (mapv
-    (fn [[rel _ child]]
-      (let [cid (cn/identity-attribute-name child)
-            cid-ref (keyword (str "%." (name cid)))
-            pk (keyword (name parent))
-            ck (keyword (name child))]
-        [[:try
-          {(li/name-as-query-pattern child) {}
-           :->
-           [(li/name-as-query-pattern rel)
-            {parent
-             {(li/name-as-query-pattern id-attr) id-accessor}}]}
-          :not-found []
-          :as :Cs]
-         [:for-each :Cs
-          {(crud-evname child :Delete) {pk id-accessor cid cid-ref}}
-          [:delete rel {pk id-accessor ck cid-ref}]]]))
-    children)))
-
-(defn- del-all-between-rels [rels entity-name id-accessor]
-  (mapv
-   (fn [[rel _ _]] [:delete rel {(keyword (name entity-name)) id-accessor}])
-   rels))
-
-(defn- regen-delete-with-relationships [entity-name]
-  (let [[children bet-rels] (relationships-for-cascade-delete entity-name)]
-    (when (or children bet-rels)
-      (let [delevt (crud-evname entity-name :Delete)
-            idattr (cn/identity-attribute-name entity-name)
-            rf (li/make-ref delevt idattr)
-            del-cs (when children (del-all-children children entity-name idattr rf))
-            del-bets (when bet-rels (del-all-between-rels bet-rels entity-name rf))]
-        (cn/register-dataflow
-         delevt
-         `[~@del-cs ~@del-bets [:delete ~entity-name {~idattr ~rf}]])))))
-
-(defn- regen-contains-dataflows [relname [parent child] rel-attrs]
+(defn- regen-contains-dataflows [relname [parent child]]
   (let [ev (partial crud-evname child)
-        crevt (ev :Create)
-        upevt (ev :Update)
         attr-names (cn/attribute-names (cn/fetch-schema child))
-        id-attr (cn/identity-attribute-name child)
-        f1 (partial crud-event-inst-accessor crevt true)
-        f2 (partial crud-event-attr-accessor crevt)
-        f2up1 (partial crud-event-attr-accessor upevt)
-        f2up2 (partial crud-event-attr-accessor upevt true)
-        path-id-attr (cn/path-identity-attribute-name child)
-        cr-inst-pat (into {} (mapv (fn [a]
-                                     (if (and (= a li/path-attr) path-id-attr)
-                                       [a (parent-path-constructor
-                                           (partial crud-event-attr-accessor crevt)
-                                           relname parent child (f1 (name path-id-attr)))]
-                                       [a (f1 a)]))
-                                   attr-names))
-        lookupevt (ev :Lookup)
-        f3 (partial crud-event-attr-accessor lookupevt true)
-        ck-raw (keyword (name child))
-        ck (cn/relationship-identity relname ck-raw)
-        ctx-aname (k/event-context-attribute-name)
-        lookupallevt (ev :LookupAll)
-        f4 (partial crud-event-attr-accessor lookupallevt true)
-        delevt (ev :Delete)
-        pattrs (parent-names-as-attributes parent)
-        pk-raw (keyword (name parent))
-        pk (cn/relationship-identity relname pk-raw)]
-    (event-internal
-     crevt
-     (merge
-      {:Instance child
-       li/event-context ctx-aname}
-      rel-attrs (parent-names-as-attributes parent)))
-    (cn/register-dataflow
-     crevt
-     (let [id-attr-accessor (keyword (str (subs (str crevt) 1) ".Instance." (name id-attr)))]
-       [{child cr-inst-pat
-         li/rel-tag
-         (parent-query-pattern f2 relname (keys rel-attrs) parent)}]))
-    (event-internal
-     upevt
-     (merge
-      {:Data :Fractl.Kernel.Lang/Map
-       id-attr :Fractl.Kernel.Lang/Any}
-      (parent-names-as-attributes parent)))
-    (cn/register-dataflow
-     upevt
-     [{child
-       {:? (parent-query-path f2up2 relname parent [child id-attr])}
-       :from (f2up1 "Data")}])
-    (event-internal
-     lookupevt
-     (merge
-      {id-attr :Fractl.Kernel.Lang/Any
-       li/event-context ctx-aname}
-      pattrs))
-    (cn/register-dataflow
-     lookupevt
-     (if path-id-attr
-       (let [f3f (partial crud-event-attr-accessor lookupevt)]
-         [{child {li/path-attr-q
-                  (parent-path-constructor
-                   f3f relname parent child (f3f (name path-id-attr)))}}])
-       [{(li/name-as-query-pattern child)
-         (parent-query-path f3 relname parent [child id-attr])}]))
-    (event-internal
-     lookupallevt
-     (merge
-      {li/event-context ctx-aname}
-      pattrs))
-    (cn/register-dataflow
-     lookupallevt
-     (if path-id-attr
-       [{child {(li/name-as-query-pattern li/path-attr)
-                [:like
-                 (parent-path-constructor
-                  (partial crud-event-attr-accessor lookupallevt)
-                  relname parent child nil)]}}]
-       [{(li/name-as-query-pattern child)
-         (parent-query-path f4 relname parent [child id-attr] true)}]))
-    (event-internal
-     delevt
-     (merge {id-attr :Fractl.Kernel.Lang/Any}
-            (parent-names-as-attributes parent true)))
-    (cn/register-dataflow
-     delevt
-     [[:delete relname {pk (li/make-ref delevt pk-raw)
-                        ck (li/make-ref delevt id-attr)}]
-      [:delete child {(cn/identity-attribute-name child)
-                      (li/make-ref delevt id-attr)}]])
-    (regen-delete-with-relationships parent)
+        ctx-aname (k/event-context-attribute-name)]
+    (let [crevt (ev :Create)
+          cr-path (evt-path-attr crevt)]
+      (event-internal
+       crevt
+       {:Instance child
+        li/path-attr {:type :Fractl.Kernel.Lang/String
+                      :default li/default-path}
+        li/event-context ctx-aname})
+      (cn/register-dataflow
+       (ev :Create)
+       [{child
+         (merge
+          (into
+           {} (mapv
+               (fn [a]
+                 [a (if (= a li/path-attr)
+                      ;; The path-identity will be appended by the evaluator.
+                      cr-path
+                      (crud-event-inst-accessor crevt a))])
+               attr-names))
+          {li/path-attr cr-path})}]))
+    (let [upevt (ev :Update)]
+      (event-internal
+       upevt
+       {:Data :Fractl.Kernel.Lang/Map
+        li/path-attr :Fractl.Kernel.Lang/String
+        li/event-context ctx-aname})
+      (cn/register-dataflow
+       upevt
+       [{child
+         {li/path-attr? (evt-path-attr upevt)}
+         :from (crud-event-attr-accessor upevt :Data)}]))
+    (let [lookupevt (ev :Lookup)
+          lookupallevt (ev :LookupAll)
+          evattrs {li/path-attr :Fractl.Kernel.Lang/String
+                   li/event-context ctx-aname}
+          child-q (li/name-as-query-pattern child)]
+      (event-internal lookupevt evattrs)
+      (event-internal lookupallevt evattrs)
+      (cn/register-dataflow lookupevt [{child {li/path-attr? (evt-path-attr lookupevt)}}])
+      (cn/register-dataflow lookupallevt [{child {li/path-attr? [:like (evt-path-attr lookupallevt)]}}]))
+    (let [delevt (ev :Delete)]
+      (event-internal delevt {li/path-attr :Fractl.Kernel.Lang/String
+                              li/event-context ctx-aname})
+      (cn/register-dataflow
+       delevt [[:delete child {li/path-attr (evt-path-attr delevt)}]]))
     relname))
 
-(defn- find-between-ref [attrs node-rec-name]
-  (let [cn (li/split-path node-rec-name)]
-    (us/first-truth
-     #(when-let [r (:ref (second %))]
-        (let [p (li/path-parts r)]
-          (when (= cn [(:component p) (:record p)])
-            [(first %) (first (:refs p))])))
-     attrs)))
+(declare relationship)
 
-(defn- make-between-upsert-attributes [ups-event-name attrs]
-  (if (seq attrs)
-    (into
-     {}
-     (mapv (fn [[k _]]
-             [k (li/make-ref ups-event-name [:Instance k])])
-           attrs))
-    {}))
-
-(defn- regen-between-dataflows [relname [from to] attrs]
-  (let [[aname-from from-qattr] (find-between-ref attrs from)
-        attrs (dissoc attrs aname-from)
-        [aname-to to-qattr] (find-between-ref attrs to)
-        ev (partial crud-evname relname)
-        crevt (ev :Create)
-        ctx-aname (k/event-context-attribute-name)
-        [fname tname]
-        (mapv
-         (partial cn/relationship-identity relname)
-         (cn/normalize-between-attribute-names relname from to))
-        lookup-evt (ev :Lookup)
-        lookupall-evt (ev :LookupAll)
-        id-f (cn/identity-attribute-name from)
-        id-t (cn/identity-attribute-name to)]
-    (event-internal
-     lookupall-evt
-     {li/event-context ctx-aname})
-    (cn/register-dataflow
-     lookupall-evt
-     [(li/name-as-query-pattern relname)])
-    (event-internal
-     lookup-evt
-     {fname :Fractl.Kernel.Lang/Any
-      tname :Fractl.Kernel.Lang/Any
-      li/event-context ctx-aname})
-    (cn/register-dataflow
-     lookup-evt
-     [{relname
-       {(li/name-as-query-pattern fname) (li/make-ref lookup-evt fname)
-        (li/name-as-query-pattern tname) (li/make-ref lookup-evt tname)}}])
-    (event-internal
-     crevt
-     {:Instance {:type relname :optional true}
-      li/event-context ctx-aname})
-    (cn/register-dataflow crevt [(li/make-ref crevt :Instance)])
-    (regen-delete-with-relationships from)
-    (regen-delete-with-relationships to)
-    relname))
-
+(defn- regen-between-relationships [contains-child]
+  (doseq [[rel _ _] (seq (cn/between-relationships contains-child))]
+    (let [old-def (raw/find-relationship rel)]
+      (cn/remove-record rel)
+      (relationship rel old-def)))
+  contains-child)
 
 (defn- validate-rbac-owner [rbac nodes]
   (when-let [own (li/owner rbac)]
     (when-not (some #{own} nodes)
       (u/throw-ex (str "invalid rbac owner node " own)))))
 
-(defn- contains-on [[parent child] relmeta]
-  (let [cident (cn/identity-attribute-name child)
-        on [(cn/identity-attribute-name parent) cident]
-        child-attrs (raw/entity-attributes child)
-        cident-spec (cident child-attrs)]
-    (when (some #{li/path-attr} (keys child-attrs))
-      (u/throw-ex (str child "." li/path-attr " - attribute name is reserved")))
-    (entity child (assoc
-                   child-attrs
-                   cident (merge
-                           {:type (or (:type cident-spec) :UUID)
-                            :path-identity true
-                            :indexed true}
-                           (when-not cident-spec ;; __Id__
-                             {:default u/uuid-string}))
-                   li/path-attr li/path-attr-spec))
-    [(assoc relmeta :on on) on]))
+(defn- user-defined-identity-attribute-name [entity-name]
+  (let [ident (cn/identity-attribute-name entity-name)]
+    (when (= ident cn/id-attr)
+      (u/throw-ex (str "User-defined identity attribute required for " entity-name)))
+    ident))
 
-(defn- maybe-assoc-local-identity [[_ child] meta]
-  (if-not (seq (select-keys meta [li/globally-unique]))
-    (assoc meta li/globally-unique (cn/globally-unique-identity? child))
-    meta))
+(defn- regen-contains-child-attributes [child meta]
+  (if-not (cn/path-identity-attribute-name child)
+    (let [cident (user-defined-identity-attribute-name child)
+          child-attrs (preproc-for-built-in-attrs
+                       (raw/entity-attributes-include-inherits child))
+          cident-raw-spec (cident child-attrs)
+          cident-spec (if (map? cident-raw-spec)
+                        cident-raw-spec
+                        (cn/find-attribute-schema cident-raw-spec))]
+      (when-let [a (some li/reserved-attrs (map #(keyword (s/upper-case (name %))) (keys child-attrs)))]
+        (u/throw-ex (str child "." a " - attribute name is reserved")))
+      (assoc
+       child-attrs
+       cident (merge
+               (if (:globally-unique meta)
+                 cident-spec
+                 (dissoc cident-spec :identity))
+               {:type (or (:type cident-spec) :UUID)
+                :path-identity true
+                :indexed true}
+               (when-not cident-spec ;; __Id__
+                 {:default u/uuid-string}))
+       li/path-attr li/path-attr-spec))
+    (cn/fetch-entity-schema child)))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
 
-(defn- maybe-assoc-rbac-for-contains [attrs]
-  (if (:rbac attrs)
-    attrs
-    (assoc attrs :rbac {li/owner-exclusive-crud true})))
+(defn- contains-relationship [relname attrs relmeta [_ child :as elems]]
+  (when (seq (keys (cleanup-rel-attrs attrs)))
+    (u/throw-ex (str "attributes not allowed for a contains relationship - " relname)))
+  (let [raw-attrs attrs
+        meta (:meta attrs)
+        attrs (assoc attrs :meta
+                     (assoc meta cn/relmeta-key
+                            relmeta :relationship :contains))
+        child-attrs (regen-contains-child-attributes child meta)]
+    (if-let [r (record relname raw-attrs)]
+      (if (entity child child-attrs false)
+        (if (cn/register-relationship elems relname)
+          (and (regen-contains-dataflows relname elems)
+               (regen-between-relationships (second elems))
+               (raw/relationship relname raw-attrs) r)
+          (u/throw-ex (str "failed to register relationship - " relname)))
+        (u/throw-ex (str "failed to regenerate schema for " child)))
+      (u/throw-ex (str "failed to define schema for " relname)))))
+
+(defn- between-node-types [node1 node2]
+  (let [id1 (cn/identity-attribute-name node1)
+        t1 (cn/attribute-type node1 id1)]
+    (if (= node1 node2)
+      [t1 t1]
+      [t1 (cn/attribute-type node2 (cn/identity-attribute-name node2))])))
+
+(defn- assoc-relnode-attributes [attrs [node1 node2] relmeta]
+  (let [[a1 a2] (li/between-nodenames node1 node2 relmeta)
+        [t1 t2] (between-node-types node1 node2)]
+    (when-not (and a1 a2)
+      (u/throw-ex (str "failed to resolve both node-attributes for between-relationship - " [a1 a2])))
+    (assoc attrs a1 t1 a2 t2)))
+
+(defn- between-unique-meta [meta relmeta [node1 node2]]
+  (let [[_ n1] (li/split-path node1)
+        [_ n2] (li/split-path node2)]
+    (cond
+      (:one-one relmeta)
+      (assoc meta :unique [n1 n2])
+
+      (:one-n relmeta)
+      (assoc meta :unique [n1])
+
+      :else meta)))
+
+(defn- between-relationship [relname attrs relmeta elems]
+  (let [new-attrs (assoc-relnode-attributes attrs elems relmeta)
+        meta (assoc (between-unique-meta (:meta attrs) relmeta elems)
+                    :relationship :between cn/relmeta-key relmeta)
+        r (serializable-entity relname (assoc new-attrs :meta meta) attrs)]
+    (when (cn/register-relationship elems relname)
+      (and (raw/relationship relname attrs) r))))
 
 (defn relationship
   ([relation-name attrs]
@@ -1125,54 +987,19 @@
                 (if (some #{:cascade-on-delete} (keys m))
                   m
                   (assoc m :cascade-on-delete true)))
-         contains (ensure-unique-contains (mt/contains meta))
+         contains (mt/contains meta)
          between (when-not contains (mt/between meta))
-         meta (if contains (maybe-assoc-local-identity contains meta) meta)
-         attrs (if contains (maybe-assoc-rbac-for-contains attrs) attrs)
-         [elems relmeta] (parse-relationship-member-spec
-                          (or contains between))
-         each-uq (if (:one-one relmeta) true false)
-         combined-uqs (and (not each-uq)
-                           (or (and contains (not (:n-n relmeta)))
-                               (:one-n relmeta)))
-         [relmeta on-attrs] (if-let [on (:on relmeta)]
-                              [relmeta on]
-                              (if (and contains (not (li/globally-unique meta)))
-                                (contains-on contains relmeta)
-                                (let [[p c] elems]
-                                  [relmeta [(cn/identity-attribute-name p)
-                                            (cn/identity-attribute-name c)]])))
-         rel-attr-names (when between (:as relmeta))
-         cascade-on-delete (:cascade-on-delete meta)]
+         [elems relmeta] (parse-relationship-member-spec (or contains between))]
      (when-not elems
        (u/throw-ex
-        (str "type (contains, between) of relationship is not defined in meta - " relation-name)))
-     (when between
-       (validate-rbac-owner (:rbac attrs) elems))
-     (let [raw-attrs attrs
-           [attrs uqs] (assoc-relationship-attributes
-                        attrs rel-attr-names contains elems
-                        on-attrs each-uq (if cascade-on-delete true false))
-           meta0 (assoc meta cn/relmeta-key relmeta)
-           meta (assoc meta0 (if contains mt/contains mt/between) elems)
-           r (serializable-entity
-              relation-name
-              (assoc
-               attrs
-               :meta (assoc
-                      (if combined-uqs (assoc meta :unique uqs) meta)
-                      :relationship (if between :between :contains)))
-              raw-attrs)]
-       (when (cn/register-relationship elems relation-name)
-         (when-let [r (and (meta-entity relation-name) r)]
-           (if contains
-             (regen-contains-dataflows relation-name contains (cleanup-rel-attrs raw-attrs))
-             (regen-between-dataflows relation-name between (cleanup-rel-attrs attrs)))
-           (and (raw/relationship relation-name raw-attrs) r))))))
+        (str "type (contains, between) of relationship is not defined in meta - "
+             relation-name)))
+     ((if contains contains-relationship between-relationship)
+      relation-name (assoc attrs :meta meta) relmeta elems)))
   ([schema]
-   (let [r (parse-and-define serializable-entity schema)
+   (let [r (parse-and-define relationship schema)
          n (li/record-name schema)]
-     (and (meta-entity n) (raw/relationship n (li/record-attributes schema)) r))))
+     (and (raw/relationship n (li/record-attributes schema)) r))))
 
 (defn- resolver-for-entity [component ename spec]
   (if (cn/find-entity-schema ename)

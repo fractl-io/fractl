@@ -2,6 +2,7 @@
   (:require [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.env :as env]
+            [fractl.global-state :as gs]
             [fractl.evaluator.intercept.internal :as ii]))
 
 ;; Manages a pipeline of interceptors.
@@ -28,7 +29,7 @@
 ;; in the pipeline. An interceptor may terminate the pipeline by
 ;; returning nil
 (def ^:private interceptors (u/make-cell []))
-(def ^:private system-interceptors #{:instance-meta :rbac})
+(def ^:private system-interceptors #{:rbac})
 
 (defn- system-interceptor? [interceptor]
   (some #{(ii/intercept-name interceptor)} system-interceptors))
@@ -56,7 +57,8 @@
       (if-let [r ((ii/intercept-fn i)
                   (when (system-interceptor? i) env) opr result)]
         (recur (rest ins) r)
-        (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i) " for output")))
+        (do (gs/set-error-no-perm!)
+            (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i) " for output"))))
       (ii/data-output result))))
 
 (defn invoke-interceptors [opr env data continuation]
@@ -70,7 +72,8 @@
             (if-let [r ((ii/intercept-fn i)
                         (when (system-interceptor? i) env) opr result)]
               (recur (rest ins) r)
-              (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i))))
+              (do (gs/set-error-no-perm!)
+                  (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i)))))
             (invoke-for-output opr env event-instance (continuation (ii/data-input result))))))
       (continuation data))))
 

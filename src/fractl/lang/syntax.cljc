@@ -83,6 +83,10 @@
         (recur (rest exp) (conj result x)))
       (seq result))))
 
+(defn fn-name? [x]
+  (or (symbol? x)
+      (some #{x} li/oprs)))
+
 (defn exp
   "Return the intermediate representation (ir)
   for a compound expression - required keys are -
@@ -94,7 +98,7 @@
      (u/throw-ex (str "invalid compound-expression spec " spec)))
    (exp ($fn spec) ($args spec)))
   ([fnname args]
-   (when-not (symbol? fnname)
+   (when-not (fn-name? fnname)
      (u/throw-ex
       (str
        "fn-name must be a symbol - "
@@ -519,7 +523,9 @@
 
 (defn query
   ([spec]
-   (query ($query spec) (alias-tag spec)))
+   (if (attrs-tag spec)
+     (assoc (query-upsert spec) type-tag query-tag)
+     (query ($query spec) (alias-tag spec))))
   ([query-pat result-alias]
    (when-not (or (li/name? query-pat) (map? query-pat))
      (u/throw-ex (str "invalid query - " query-pat)))
@@ -543,10 +549,12 @@
   (query (second obj) (special-form-alias obj)))
 
 (defn- raw-query [ir]
-  (raw-special-form
-   ir
-   [:query
-    (raw-walk ($query ir))]))
+  (if (query-tag ir)
+    (raw-special-form
+     ir
+     [:query
+      (raw-walk ($query ir))])
+    (raw-query-upsert ir)))
 
 (defn _eval
   ([spec]
@@ -627,6 +635,11 @@
 
 (def reference? (partial has-type? :reference))
 
+(defn- maybe-query [obj]
+  (if (every? li/query-pattern? (keys (attrs-tag obj)))
+    (assoc obj type-tag query-tag)
+    obj))
+
 (defn introspect [pattern]
   (cond
     (syntax-object? pattern) pattern
@@ -639,7 +652,7 @@
       (map? pattern)
       (if (pure-query-map? pattern)
         (introspect-query-object pattern)
-        (introspect-query-upsert pattern))
+        (maybe-query (introspect-query-upsert pattern)))
 
       (vector? pattern)
       (introspect-special-form pattern)

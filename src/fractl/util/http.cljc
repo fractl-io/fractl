@@ -5,6 +5,8 @@
             [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.seq :as us]
+            [fractl.component :as cn]
+            [fractl.lang.internal :as li]
             [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]
             [fractl.global-state :as gs]
@@ -43,6 +45,7 @@
 (def confirm-sign-up-prefix "/_confirm-sign-up/")
 (def change-password-prefix "/_change-password/")
 (def refresh-token-prefix "/_refresh-token/")
+(def resend-confirmation-code-prefix "/_resend-confirmation-code/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
 (def callback-prefix "/_callback/")
@@ -123,11 +126,11 @@
                                            false)}]
          ;;TODO: Need to revisit this and add a layer to check for domains
          ;;      that are whitelisted.
-         #_(if (true? (:whitelist? aws-config))
-             (assoc aws-config
-               :s3-bucket (get-env-var "AWS_S3_BUCKET")
-               :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
-             aws-config)
+         (if (true? (:whitelist? aws-config))
+           (assoc aws-config
+                  :s3-bucket (get-env-var "AWS_S3_BUCKET")
+                  :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
+           aws-config)
          aws-config))))
 
 (defn- fully-qualified-name [base-component n]
@@ -136,16 +139,20 @@
       (keyword (str c "/" en))
       (keyword (str base-component "/" n)))))
 
-(defn- uri-as-path [fqn parts]
-  (loop [ss (partition-all 2 parts), path []]
-    (if (seq ss)
-      (let [[p v] (first ss)]
-        (if (seq (rest ss))
-          (recur
-           (rest ss)
-           (conj path {:parent (fqn p)
-                       :id v}))
-          {:path path :entity (fqn p) :id v})))))
+(defn- parse-uri-parts [orig-uri fqn parts]
+  (let [ps (reverse (partition-all 3 parts))
+        f (first ps)
+        c (count f)]
+    (cond
+      (= 1 c) {:entity (fqn (first f))}
+      (= 2 c) {:entity (fqn (first f)) :id (second f)}
+      :else {:entity (fqn (second ps)) :id (nth 2 f)})))
+
+(defn- normalize-path [uri]
+  (let [uri-parts (s/split uri #"/")
+        child-path (rest uri-parts)]
+    (when (> (count child-path) 2)
+      (li/as-fully-qualified-path (keyword (first uri-parts)) (str "/" (s/join "/" child-path))))))
 
 (defn parse-rest-uri [uri]
   (let [parts (s/split uri #"/")
@@ -153,10 +160,32 @@
     (when (>= c 2)
       (let [f (first parts) r (rest parts)
             fqn (partial fully-qualified-name f)]
-        (if (<= c 3)
-          {:component (keyword f)
-           :entity (fqn (first r))
-           :id (when (seq (rest r)) (last r))}
-          (assoc
-           (uri-as-path fqn r)
-           :component (keyword f)))))))
+        (merge
+         {:component (keyword f)}
+         (if (<= c 3)
+           {:entity (fqn (first r))
+            :id (when (seq (rest r)) (last r))}
+           (assoc
+            (parse-uri-parts uri fqn r)
+            :path (normalize-path uri))))))))
+
+(defn- add-path-vars [path]
+  (mapcat #(vector % (str "{" (s/lower-case (name %)) "}")) path))
+
+(defn get-child-entity-path [entity]
+  (when (cn/entity? entity)
+    (loop [path '()]
+      (let [parent-entity
+            (cn/containing-parents (or (first path) entity))]
+        (if (empty? parent-entity)
+          {:path (str "_e/" (namespace entity)
+                      (when (seq path)
+                        (let [path (add-path-vars path)]
+                          (str "/"
+                               (apply
+                                str
+                                (interpose
+                                 "/" (map name path))))))
+                      "/" (name entity))
+           :vars (map name path)}
+          (recur (conj path (-> parent-entity first last))))))))

@@ -32,3 +32,5 @@ app
 .calva/
 .vscode/
 cljout/
+db/
+.lein-env

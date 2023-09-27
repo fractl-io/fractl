@@ -1,665 +1,19 @@
 (ns fractl.test.features02
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.lang
              :refer [component attribute event
                      entity record relationship
                      dataflow]]
+            [fractl.lang.raw :as raw]
             [fractl.lang.syntax :as ls]
             [fractl.lang.relgraph :as rg]
             [fractl.lang.internal :as li]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
-
-(deftest issue-594-basic-relationships
-  (defcomponent :I594B
-    (entity
-     :I594B/Dept
-     {:No {:type :Int
-           :identity true}
-      :Name :String})
-    (entity
-     :I594B/Employee
-     {:Name {:type :String
-             :identity true}
-      :Salary :Decimal})
-    (relationship
-     :I594B/WorksFor
-     {:meta
-      {:contains [:I594B/Dept :I594B/Employee]
-       li/globally-unique true}
-      :Location {:type :String :indexed true}})
-    (dataflow
-     :I594B/CreateEmployee
-     {:I594B/Dept {:No? :I594B/CreateEmployee.Dept}
-      :as [:D]}
-     {:I594B/Employee
-      {:Name :I594B/CreateEmployee.Name
-       :Salary :I594B/CreateEmployee.Salary}
-      :-> [{:I594B/WorksFor {:Location "ddd"}} :D]})
-    (dataflow
-     :I594B/FindEmployees
-     {:I594B/Employee
-      {:Salary? [:>= 1300M]}
-      :-> [{:I594B/WorksFor {:Location? "ddd"}}
-           {:I594B/Dept {:No? :I594B/FindEmployees.Dept}}]})
-    (relationship
-     :I594B/Spouse
-     {:meta
-      {:between [:I594B/Employee :I594B/Employee]}}))
-  (is (= #{:I594B/WorksFor :I594B/Spouse}
-         (set (cn/relationship-names :I594B))))
-  (let [rscm (cn/fetch-schema :I594B/WorksFor)
-        r1 (:ref (cn/find-attribute-schema (:Dept rscm)))
-        r2 (:ref (cn/find-attribute-schema (:Employee rscm)))
-        rels #{:I594B/WorksFor}]
-    (is (= rels (cn/find-relationships :I594B/Dept)))
-    (is (= (conj rels :I594B/Spouse)
-           (cn/find-relationships :I594B/Employee)))
-    (is (and (= (:component r1) :I594B)
-             (= (:record r1) :Dept)
-             (= (first (:refs r1)) :No)))
-    (is (and (= (:component r2) :I594B)
-             (= (:record r2) :Employee)
-             (= (first (:refs r2)) :Name))))
-  (let [dept (tu/first-result
-              {:I594B/Create_Dept
-               {:Instance
-                {:I594B/Dept
-                 {:No 101 :Name "abc"}}}})
-        r (tu/result
-           {:I594B/CreateEmployee
-            {:Name "xyz" :Salary 1300M :Dept 101}})]
-    (is (cn/instance-of? :I594B/Dept dept))
-    (is (cn/instance-of? :I594B/Employee r))
-    (let [rel (first (ls/rel-tag r))]
-      (is (cn/instance-of? :I594B/WorksFor rel))
-      (is (= (:No dept) (:Dept rel)))
-      (is (= (:Name r) (:Employee rel))))
-    (let [emps (tu/result
-                {:I594B/FindEmployees
-                 {:Dept 101}})]
-      (is (cn/same-instance? r (first emps))))))
-
-(deftest issue-594-multi-level-relationships
-  (defcomponent :I594ML
-    (entity
-     :I594ML/Company
-     {:Name {:type :String
-             :identity true}})
-    (entity
-     :I594ML/Dept
-     {:Name {:type :String
-             :identity true}
-      :Location :String})
-    (entity
-     :I594ML/Employee
-     {:Name {:type :String
-             :identity true}
-      :Salary :Decimal})
-    (relationship
-     :I594ML/PartOf
-     {:meta
-      {:contains [:I594ML/Company :I594ML/Dept]
-       li/globally-unique true}})
-    (relationship
-     :I594ML/WorksFor
-     {:meta
-      {:contains [:I594ML/Dept :I594ML/Employee]
-       li/globally-unique true}})
-    (dataflow
-     :I594ML/CreateDept
-     {:I594ML/Company
-      {:Name? :I594ML/CreateDept.Company}
-      :as [:C]}
-     {:I594ML/Dept
-      {:Name :I594ML/CreateDept.Dept
-       :Location :I594ML/CreateDept.Location}
-      :-> [{:I594ML/PartOf {}} :C]})
-    (dataflow
-     :I594ML/CreateEmployee
-     {:I594ML/Dept {:Name? :I594ML/CreateEmployee.Dept}
-      :-> [:I594ML/PartOf?
-           {:I594ML/Company {:Name? :I594ML/CreateEmployee.Company}}]
-      :as [:D]}
-     {:I594ML/Employee
-      {:Name :I594ML/CreateEmployee.Emp
-       :Salary :I594ML/CreateEmployee.Salary}
-      :-> [{:I594ML/WorksFor {}} :D]})
-    (dataflow
-     :I594ML/LookupEmployees
-     {:I594ML/Employee?
-      {}
-      :-> [:I594ML/WorksFor?
-           {:I594ML/Dept {:Name? :I594ML/LookupEmployees.Dept}
-            :-> [:I594ML/PartOf?
-                 {:I594ML/Company {:Name? :I594ML/LookupEmployees.Company}}]}]}))
-  (let [c (tu/first-result
-           {:I594ML/Create_Company
-            {:Instance
-             {:I594ML/Company {:Name "acme"}}}})
-        d (tu/result
-           {:I594ML/CreateDept
-            {:Company "acme"
-             :Dept "101"
-             :Location "west"}})
-        e (tu/result
-           {:I594ML/CreateEmployee
-            {:Company "acme"
-             :Dept "101"
-             :Emp "steve"
-             :Salary 5600}})
-        r (tu/first-result
-           {:I594ML/LookupEmployees
-            {:Company "acme" :Dept "101"}})]
-    (is (cn/instance-of? :I594ML/Company c))
-    (is (cn/instance-of? :I594ML/Dept d))
-    (let [rel (first (ls/rel-tag d))]
-      (is (cn/instance-of? :I594ML/PartOf rel))
-      (is (= "acme" (:Company rel)))
-      (is (= "101" (:Dept rel))))
-    (is (cn/instance-of? :I594ML/Employee e))
-    (let [rel (first (ls/rel-tag e))]
-      (is (cn/instance-of? :I594ML/WorksFor rel))
-      (is (= "101" (:Dept rel)))
-      (is (= "steve" (:Employee rel))))
-    (is (cn/instance-of? :I594ML/Employee r))
-    (is (cn/same-instance? e r))))
-
-(deftest issue-594-multi-relationships
-  (defcomponent :I594MR
-    (entity
-     :I594MR/A
-     {:X {:type :Int
-          :identity true}})
-    (entity
-     :I594MR/B
-     {:Y {:type :Int
-          :identity true}})
-    (entity
-     :I594MR/C
-     {:Z {:type :Int
-          :identity true}})
-    (relationship
-     :I594MR/R1
-     {:meta
-      {:between [:I594MR/B :I594MR/A]}})
-    (relationship
-     :I594MR/R2
-     {:meta
-      {:between [:I594MR/C :I594MR/A]}})
-    (dataflow
-     :I594MR/CreateA
-     {:I594MR/A
-      {:X :I594MR/CreateA.X}
-      :-> [[{:I594MR/R1 {}} {:I594MR/B {:Y? :I594MR/CreateA.B}}]
-           [{:I594MR/R2 {}} {:I594MR/C {:Z? :I594MR/CreateA.C}}]]})
-    (dataflow
-     :I594MR/FindA
-     {:I594MR/A? {}
-      :-> [[:I594MR/R1? {:I594MR/B {:Y? :I594MR/FindA.B}}]
-           [:I594MR/R2? {:I594MR/C {:Z? :I594MR/FindA.C}}]]}))
-  (let [b (tu/first-result
-           {:I594MR/Create_B
-            {:Instance
-             {:I594MR/B {:Y 100}}}})
-        c (tu/first-result
-           {:I594MR/Create_C
-            {:Instance
-             {:I594MR/C {:Z 200}}}})
-        a (tu/result
-           {:I594MR/CreateA
-            {:X 1 :B 100 :C 200}})
-        r (tu/first-result
-           {:I594MR/FindA
-            {:B 100 :C 200}})]
-    (is (cn/instance-of? :I594MR/B b))
-    (is (cn/instance-of? :I594MR/C c))
-    (is (cn/instance-of? :I594MR/A a))
-    (is (= 2 (count (ls/rel-tag a))))
-    (every? #(or (cn/instance-of? :I594MR/R1 %)
-                 (cn/instance-of? :I594MR/R2 %))
-            (ls/rel-tag a))
-    (is (cn/same-instance? r a))))
-
-(defn i649-test [n cascade-on-delete]
-  (let [cn (keyword (str "I6490" n))
-        p (partial tu/make-path cn)]
-    (defcomponent cn
-      (entity
-       (p :E1)
-       {:N {:type :String
-            :identity true}
-        :X {:type :Int}})
-      (entity
-       (p :E2)
-       {:Y {:type :Int :identity true}})
-      (relationship
-       (p :R1)
-       {:meta
-        {:contains [(p :E1) (p :E2)]
-         li/globally-unique true
-         :cascade-on-delete cascade-on-delete}
-        :Z :Int}))
-    (let [e11 (tu/first-result
-               {(p :Create_E1)
-                {:Instance
-                 {(p :E1)
-                  {:N "a" :X 1}}}})
-          e12 (tu/first-result
-               {(p :Create_E1)
-                {:Instance
-                 {(p :E1)
-                  {:N "b" :X 2}}}})
-          create-e2 (fn [e1 y z]
-                      (tu/result
-                       {(p :Create_E2)
-                        {:Instance
-                         {(p :E2)
-                          {:Y y}}
-                         :Z z
-                         :E1 e1}}))
-          e21 (create-e2 "a" 100 20)
-          e22 (create-e2 "b" 200 30)
-          e23 (create-e2 "a" 300 40)
-          e2? (partial cn/instance-of? (p :E2))
-          v? #(let [r (first (:-> %1))]
-                (and (= %2 (:Z r))
-                     (= %3 (:E1 r))
-                     (= %4 (:E2 r))))]
-      (is (e2? e21))
-      (is (e2? e22))
-      (is (e2? e23))
-      (is (v? e21 20 "a" 100))
-      (is (v? e22 30 "b" 200))
-      (is (v? e23 40 "a" 300))
-      (defn- lk [e1 c]
-        (let [r ((if c tu/result tu/eval-all-dataflows)
-                 {(p :LookupAll_E2) {:E1 e1}})]
-          (if c
-            (is (= c (count r)))
-            (is (= :not-found (:status (first r)))))))
-      (lk "a" 2)
-      (let [del-p {(p :Delete_E1) {:N "a"}}]
-        (if cascade-on-delete
-          (do (= "a" (:N (tu/first-result del-p)))
-              (lk "a" nil))
-          (do (tu/is-error #(tu/eval-all-dataflows del-p))
-              (lk "a" 2))))
-      (lk "b" 1))))
-
-(deftest issue-649-contains-constraints
-  (i649-test 1 false)
-  (i649-test 2 true))
-
-(defn- reltype-tests [one-n]
-  (let [cn (keyword (str "ReltypeTest" (if one-n 1 0)))
-        p (partial tu/make-path cn)]
-    (defcomponent cn
-      (entity
-       (p :A)
-       {:X {:type :Int
-            :identity true}})
-      (entity
-       (p :B)
-       {:Y {:type :Int
-            :identity true}})
-      (relationship
-       (p :R1)
-       {:meta
-        {:between [(p :A) (p :B)
-                   :one-n one-n]}
-        :Z :Int}))
-    (let [r1? (partial cn/instance-of? (p :R1))
-          a (tu/first-result
-             {(p :Create_A)
-              {:Instance
-               {(p :A) {:X 10}}}})
-          b (tu/first-result
-             {(p :Create_B)
-              {:Instance
-               {(p :B) {:Y 20}}}})
-          b2 (tu/first-result
-              {(p :Create_B)
-               {:Instance
-                {(p :B) {:Y 30}}}})
-          cr-r1inst1 {(p :Create_R1)
-                      {:Instance
-                       {(p :R1)
-                        {:A 10 :B 20 :Z 100}}}}
-          cr-r1inst2 {(p :Create_R1)
-                      {:Instance
-                       {(p :R1)
-                        {:A 10 :B 30 :Z 100}}}}
-          r1 (tu/first-result cr-r1inst1)]
-      (is (cn/instance-of? (p :A) a))
-      (is (cn/instance-of? (p :B) b))
-      (is (r1? r1))
-      (is (r1? (tu/first-result cr-r1inst1)))
-      (let [c (count
-               (tu/result
-                {(p :LookupAll_R1) {}}))]
-        (if one-n
-          (= c 2)
-          (= c 1)))
-      (is (r1? (tu/first-result cr-r1inst2))))))
-
-(deftest n-to-n-relationships
-  (reltype-tests false)
-  (reltype-tests true))
-
-(deftest relations-on-resultset
-  (defcomponent :RoR
-    (entity
-     :RoR/A
-     {:X {:type :Int :indexed true}})
-    (entity
-     :RoR/B
-     {:Y {:type :Int :indexed true}
-      :K :Int})
-    (relationship
-     :RoR/R1
-     {:meta
-      {:between [:RoR/A :RoR/B :on [:X :Y]]}
-      :Z :Int})
-    (dataflow
-     :RoR/CreateRel
-     {:RoR/A {:X? :RoR/CreateRel.X} :as :A}
-     {:RoR/B
-      {:Y? :RoR/CreateRel.Y}
-      :-> [{:RoR/R1 {:Z '(* :RoR/B.K :RoR/CreateRel.Z)}} :A]}))
-  (let [a (tu/first-result
-           {:RoR/Create_A
-            {:Instance
-             {:RoR/A {:X 10}}}})
-        bs (mapv
-            (fn [[y k]]
-              (tu/first-result
-               {:RoR/Create_B
-                {:Instance
-                 {:RoR/B {:Y y :K k}}}}))
-            [[1 5] [1 3]])
-        rs (tu/result
-            {:RoR/CreateRel
-             {:X 10 :Y 1 :Z 2}})
-        is-b? (partial cn/instance-of? :RoR/B)]
-    (is (cn/instance-of? :RoR/A a))
-    (is (every? is-b? bs))
-    (is (every? is-b? bs))
-    (doseq [b rs]
-      (let [r1 (first (:-> b))]
-        (is (cn/instance-of? :RoR/R1 r1))
-        (is (= 10 (:A r1)))
-        (is (= 1 (:B r1)))
-        (is (= (:Z r1) (* (:K b) 2)))))))
-
-(deftest relations-1-1
-  (defcomponent :R11
-    (entity
-     :R11/A
-     {:X {:type :Int :indexed true}})
-    (entity
-     :R11/B
-     {:Y {:type :Int :indexed true}})
-    (relationship
-     :R11/R
-     {:meta
-      {:between [:R11/A :R11/B :on [:X :Y]
-                 :one-one true]}
-      :Z :Int})
-    (dataflow
-     :R11/CreateR
-     {:R11/A {:X? :R11/CreateR.X} :as :A}
-     {:R11/B
-      {:Y :R11/CreateR.Y}
-      :-> [{:R11/R {:Z :R11/CreateR.Z}} :A]}))
-  (let [a1 (tu/first-result
-            {:R11/Create_A
-             {:Instance
-              {:R11/A {:X 1}}}})
-        a2 (tu/first-result
-            {:R11/Create_A
-             {:Instance
-              {:R11/A {:X 2}}}})
-        b1 (tu/result
-            {:R11/CreateR
-             {:X 1 :Y 10 :Z 100}})
-        b2 (tu/result
-            {:R11/CreateR
-             {:X 2 :Y 20 :Z 200}})
-        p (fn [b y a]
-            (is (cn/instance-of? :R11/B b))
-            (let [r (first (:-> b))]
-              (is (= y (:Y b) (:B r)))
-              (is (= a (:A r)))))]
-    (p b1 10 1)
-    (p b2 20 2)
-    (is (cn/instance-of? :R11/B
-                         (tu/result
-                          {:R11/CreateR
-                           {:X 1 :Y 20 :Z 300}})))
-    (is (= 2 (count (tu/result {:R11/LookupAll_R {}}))))))
-
-(deftest issue-703-contains-graph
-  (defcomponent :I703
-    (entity
-     :I703/Company
-     {:Name {:type :String :identity true}})
-    (entity
-     :I703/Dept
-     {:No {:type :Int :identity true}})
-    (entity
-     :I703/Employee
-     {:FirstName :String
-      :LastName :String
-      :Email {:type :Email :identity true}})
-    (entity
-     :I703/Warehouse
-     {:Name {:type :String :identity true}
-      :Location :String})
-    (entity
-     :I703/GlobalPreferences
-     {:Data :Map})
-    (relationship
-     :I703/Section
-     {:meta {:contains [:I703/Company :I703/Dept]
-             li/globally-unique true}})
-    (relationship
-     :I703/WorksFor
-     {:meta {:contains [:I703/Dept :I703/Employee]
-             li/globally-unique true}})
-    (relationship
-     :I703/Storage
-     {:meta {:contains [:I703/Dept :I703/Warehouse]
-             li/globally-unique true}})
-    (relationship
-     :I703/ReportsTo
-     {:meta {:between [:I703/Employee :I703/Employee]}})
-    (event
-     :I703/CreateDept
-     {:Company :String})
-    (dataflow
-     :I703/CreateDept
-     {:I703/Company {:Name? :I703/CreateDept.Company}
-      :as [:C]}
-     {:I703/Dept
-      {:No 101}
-      :-> [{:I703/Section {}} :C]}))
-  (let [g (rg/build-graph :I703)]
-    (is (= (set [:I703/Company :I703/GlobalPreferences])
-           (rg/rep (rg/roots g))))
-    (let [paths (rg/paths g :I703/Company)
-          subg (rg/descend paths :I703/Section)]
-      (is (= (set [:I703/Section]) (rg/rep paths)))
-      (is (= (set [:I703/Dept]) (rg/rep (rg/roots subg))))
-      (let [paths (rg/paths subg :I703/Dept)
-            subg (rg/descend paths :I703/WorksFor)]
-        (is (= (set [:I703/WorksFor :I703/Storage]) (rg/rep paths)))
-        (is (= (set [:I703/Employee]) (rg/rep (rg/roots subg)))))))
-  (let [c (tu/first-result
-           {:I703/Create_Company
-            {:Instance
-             {:I703/Company {:Name "c1"}}}})
-        d (tu/result
-           {:I703/CreateDept
-            {:Company "c1"}})
-        [prelinfo pinst] (first (rg/find-parents d))
-        rel-p (cn/relinfo-name prelinfo)
-        ptype (cn/relinfo-to prelinfo)
-        [crelinfo cinst] (first (rg/find-children c))
-        rel-c (cn/relinfo-name crelinfo)
-        ctype (cn/relinfo-to crelinfo)]
-    (is (= :I703/Section rel-p))
-    (is (= :I703/Company ptype))
-    (is (cn/same-instance? (first pinst) c))
-    (is (= :I703/Section rel-c))
-    (is (= :I703/Dept ctype))
-    (is (cn/same-instance? (first cinst) d))))
-
-(deftest deeds-contains-graph
-  (defcomponent :I703Deeds
-    (entity
-     :I703Deeds/Group
-     {:Name {:type :String :identity true}})
-    (entity
-     :I703Deeds/FocusArea
-     {:Name {:type :String :identity true}})
-    (entity
-     :I703Deeds/Deed
-     {:Name {:type :String :identity true}})
-    (entity
-     :I703Deeds/Member
-     {:Email {:type :Email :identity true}})
-    (entity
-     :I703Deeds/Transaction
-     {:Points {:type :Int}})
-    (relationship
-     :I703Deeds/GroupFocusArea
-     {:meta {:contains [:I703Deeds/Group :I703Deeds/FocusArea]
-             li/globally-unique true}})
-    (relationship
-     :I703Deeds/FocusAreaDeed
-     {:meta {:contains [:I703Deeds/FocusArea :I703Deeds/Deed]
-             li/globally-unique true}})
-    (relationship
-     :I703Deeds/MemberTransaction
-     {:meta {:contains [:I703Deeds/Member :I703Deeds/Transaction]
-             li/globally-unique true}})
-    (relationship
-     :I703Deeds/GroupMember
-     {:meta {:between [:I703Deeds/Group :I703Deeds/Member]}})
-    (relationship
-     :I703Deeds/DeedTransaction
-     {:meta {:between [:I703Deeds/Deed :I703Deeds/Transaction]}})
-
-    (event
-     :I703Deeds/CreateDeed
-     {:Group :String
-      :FocusArea :String
-      :Deed :String})
-    (dataflow
-     :I703Deeds/CreateDeed
-     {:I703Deeds/Deed {:Name :I703Deeds/CreateDeed.Deed}
-      :-> [{:I703Deeds/FocusAreaDeed {}}
-           {:I703Deeds/FocusArea {:Name :I703Deeds/CreateDeed.FocusArea}
-            :-> [{:I703Deeds/GroupFocusArea {}}
-                 {:I703Deeds/Group {:Name :I703Deeds/CreateDeed.Group}}]}]})
-
-    (event
-     :I703Deeds/CreateMember
-     {:Email :Email
-      :Group :String})
-    (dataflow
-     :I703Deeds/CreateMember
-     {:I703Deeds/Group {:Name? :I703Deeds/CreateMember.Group}
-      :as [:G]}
-     {:I703Deeds/Member {:Email :I703Deeds/CreateMember.Email}
-      :-> [{:I703Deeds/GroupMember {}} :G]})
-
-    (event
-     :I703Deeds/CreateTransaction
-     {:Points :Int
-      :Group :String
-      :FocusArea :String
-      :Deed :String
-      :Member :Email})
-    (dataflow
-     :I703Deeds/CreateTransaction
-     {:I703Deeds/Member {:Email? :I703Deeds/CreateTransaction.Member}
-      :as [:M]}
-     {:I703Deeds/Deed {:Name? :I703Deeds/CreateTransaction.Deed}
-      :-> [:I703Deeds/FocusAreaDeed?
-           {:I703Deeds/FocusArea {:Name? :I703Deeds/CreateTransaction.FocusArea}
-            :-> [:I703Deeds/GroupFocusArea?
-                 {:I703Deeds/Group {:Name? :I703Deeds/CreateTransaction.Group}}]}]
-      :as [:D]}
-     {:I703Deeds/Transaction {:Points :I703Deeds/CreateTransaction.Points}
-      :-> [[{:I703Deeds/MemberTransaction {}} :M]
-           [{:I703Deeds/DeedTransaction {}} :D]]}))
-  (let [g (rg/build-graph :I703Deeds)]
-    (is (= (rg/rep g) #{:I703Deeds/Group :I703Deeds/Member}))))
-
-(deftest contains-workspace
-  (defcomponent :Fractl.Meta.Core
-    (entity
-     :Fractl.Meta.Core/User
-     {:meta {:inherits :Fractl.Kernel.Identity/User}})
-    (entity
-     :Fractl.Meta.Core/Workspace
-     {:Name {:type :String
-             :indexed true}
-      :Models {:listof :Path}})
-    (relationship
-     :Fractl.Meta.Core/BelongsTo
-     {:meta {:contains [:Fractl.Meta.Core/User
-                        :Fractl.Meta.Core/Workspace
-                        :on [:Email :Name]]
-             li/globally-unique true}})
-    (dataflow
-     :Fractl.Meta.Core/SignUp2
-     {:Fractl.Meta.Core/User
-      {:Email :Fractl.Meta.Core/SignUp2.Email
-       :Name :Fractl.Meta.Core/SignUp2.Name
-       :FirstName :Fractl.Meta.Core/SignUp2.FirstName
-       :LastName :Fractl.Meta.Core/SignUp2.LastName}
-      :as :U}
-     {:Fractl.Meta.Core/Workspace
-      {:Name "Default"
-       :Models []}
-      :-> [{:Fractl.Meta.Core/BelongsTo {}} :U]})
-    (dataflow
-     :Fractl.Meta.Core/GetWorkspace
-     {:Fractl.Meta.Core/Workspace
-      {:Name? :Fractl.Meta.Core/GetWorkspace.WorkspaceName}
-      :-> [:Fractl.Meta.Core/BelongsTo?
-           {:Fractl.Meta.Core/User
-            {:Email? :Fractl.Meta.Core/GetWorkspace.EventContext.User.email}}]}))
-  (let [r1 (tu/result
-            {:Fractl.Meta.Core/SignUp2
-             {:Name "c@c.com", :Email "c@c.com",
-              :FirstName "Foo", :LastName "Bar"}})
-        r2 (tu/result
-            {:Fractl.Meta.Core/SignUp2
-             {:Name "d@d.com", :Email "d@d.com",
-              :FirstName "Foo", :LastName "Bar"}})]
-    (defn- check
-      ([transition? x]
-       (is (and (cn/instance-of? :Fractl.Meta.Core/Workspace x)
-                (cn/instance-of?
-                 :Fractl.Meta.Core/BelongsTo
-                 (if transition?
-                   (first (:-> x))
-                   (first (:-> x)))))))
-      ([x] (check false x)))
-    (check r1) (check r2)
-    (let [r4 (tu/result
-              {:Fractl.Meta.Core/GetWorkspace
-               {:WorkspaceName "Default"
-                :EventContext {:User {:email "d@d.com"}}}})]
-      (is (= 1 (count r4)))
-      (is (cn/instance-of? :Fractl.Meta.Core/Workspace (first r4))))))
 
 (deftest issue-840-raw-attributes
   (defcomponent :I840
@@ -673,52 +27,515 @@
           :Y {:type :String
               :default "yyyy"}
           :Z :I840/K}
-         (cn/fetch-user-schema :I840/E))))
+         (raw/find-entity :I840/E))))
 
-(deftest deeds-awards
-  (defcomponent :Deeds
-    (attribute
-     :Deeds/IdName
-     {:type :String :identity true})
-    (entity :Deeds/Member {:Name :IdName})
-    (entity :Deeds/Group {:Name :IdName})
-    (entity :Deeds/Deed {:Title :IdName})
-    (entity :Deeds/Award {:Title :IdName})
-    (relationship :Deeds/Membership {:meta {:contains [:Deeds/Group :Deeds/Member]
-                                            li/globally-unique true}})
-    (relationship :Deeds/MemberAward {:meta {:between [:Deeds/Member :Deeds/Award]}})
-    (relationship :Deeds/DeedsAward {:meta {:between [:Deeds/Deed :Deeds/Award]}})
+(deftest fetch-from-raw
+  (defcomponent :Ffr
+    (entity
+     :Ffr/E
+     {:Id :Identity
+      :rbac [{:roles ["user"] :allow [:create]}]})
+    (entity
+     :Ffr/F
+     {:X {:type :Int :identity true}})
+    (relationship
+     :Ffr/R
+     {:meta {:between [:Ffr/E :Ffr/F]}
+      :Y :Int}))
+  (= {:Id :Identity
+      :rbac [{:roles ["user"] :allow [:create]}]}
+     (cn/fetch-user-schema :Ffr/E))
+  (= {:X {:type :Int :identity true}}
+     (cn/fetch-user-schema :Ffr/F))
+  (= {:meta {:between [:Ffr/E :Ffr/F], :cascade-on-delete true}, :Y :Int}
+     (cn/fetch-user-schema :Ffr/R)))
+
+(deftest basic-contains-relationship
+  (let [grades ["a" "b"]]
+    (defcomponent :Bcr
+      (entity
+       :Bcr/Employee
+       {:Email {:type :Email :identity true}
+        :Name :String
+        :Grade {:oneof grades}})
+      (entity
+       :Bcr/Department
+       {:Name {:type :String :identity true}
+        :Location {:oneof ["north" "south" "west" "east"]}})
+      (relationship
+       :Bcr/WorksFor
+       {:meta {:contains [:Bcr/Department :Bcr/Employee]}}))
+    (is (cn/parent-via? :Bcr/WorksFor :Bcr/Employee :Bcr/Department))
+    (let [fq (partial li/as-fully-qualified-path :Bcr)
+          d1 (tu/first-result
+              {:Bcr/Create_Department
+               {:Instance
+                {:Bcr/Department
+                 {:Name "d1" :Location "south"}}}})
+          [e1 e2 :as es] (mapv #(tu/first-result
+                                 {:Bcr/Create_Employee
+                                  {:Instance
+                                   {:Bcr/Employee
+                                    {:Email (str % "@bcr.com")
+                                     :Name % :Grade (rand-nth grades)}}
+                                   li/path-attr "/Department/d1/WorksFor"}})
+                               ["e01" "e02"])
+          d? (tu/type-check :Bcr/Department)
+          e? (tu/type-check :Bcr/Employee)]
+      (is (d? d1)) (is (every? e? es))
+      (defn- lookup-e [e]
+        (is (cn/same-instance?
+             e (tu/first-result
+                {:Bcr/Lookup_Employee
+                 {li/path-attr
+                  (fq (str "path://Department/d1/WorksFor/Employee/" (:Email e)))}}))))
+      (doseq [e es] (lookup-e e))
+      (defn- lookup-all-es [dept cnt es]
+        (let [result (first
+                      (tu/eval-all-dataflows
+                       {:Bcr/LookupAll_Employee
+                        {li/path-attr (fq (str "path://Department/" dept "/WorksFor/Employee/%"))}}))
+              rs (when (= :ok (:status result)) (:result result))]
+          (if (zero? cnt)
+            (is (tu/not-found? result))
+            (do (is (= (count rs) cnt))
+                (is (every? (fn [e] (some (partial cn/same-instance? e) es)) rs))))))
+      (lookup-all-es "d1" 2 es)
+      (let [e (tu/first-result
+               {:Bcr/Update_Employee
+                {:Data {:Name "e0001"}
+                 li/path-attr (fq "path://Department/d1/WorksFor/Employee/e01@bcr.com")}})]
+        (is (= "e0001" (:Name e)))
+        (is (= (:Email e1) (:Email e)))
+        (lookup-e e)
+        (lookup-all-es "d1" 2 [e e2])
+        (is (cn/same-instance? e (tu/first-result
+                                  {:Bcr/Delete_Employee
+                                   {li/path-attr (fq "path://Department/d1/WorksFor/Employee/e01@bcr.com")}})))
+        (lookup-all-es "d1" 1 [e2]))
+      (is (d? (tu/first-result {:Bcr/Delete_Department {:Name "d1"}})))
+      (lookup-all-es "d1" 0 nil))))
+
+(deftest multi-level-contains
+  (defcomponent :Mlc
+    (entity
+     :Mlc/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Mlc/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :Mlc/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :Mlc/R1
+     {:meta {:contains [:Mlc/A :Mlc/B]}})
+    (relationship
+     :Mlc/R2
+     {:meta {:contains [:Mlc/B :Mlc/C]}}))
+  (let [as (mapv #(tu/first-result
+                   {:Mlc/Create_A
+                    {:Instance
+                     {:Mlc/A
+                      {:Id % :X (* % 2)}}}})
+                 [1 2])
+        create-b #(tu/first-result {:Mlc/Create_B
+                                    {:Instance
+                                     {:Mlc/B
+                                      {:Id %2 :Y (* %2 5)}}
+                                     li/path-attr %1}})
+        create-c #(tu/first-result {:Mlc/Create_C
+                                    {:Instance
+                                     {:Mlc/C
+                                      {:Id %2 :Z (* %2 10)}}
+                                     li/path-attr %1}})
+        a? (tu/type-check :Mlc/A)
+        b? (tu/type-check :Mlc/B)
+        c? (tu/type-check :Mlc/C)
+        b1 (create-b "/A/1/R1" 10)
+        b2 (create-b "/A/2/R1" 20)
+        c11 (create-c "/A/1/R1/B/10/R2" 100)
+        fq (partial li/as-fully-qualified-path :Mlc)]
+    (is (every? a? as))
+    (is (every? b? [b1 b2]))
+    (is (c? c11))
+    (is (= "path://Mlc$A/1/Mlc$R1/Mlc$B/10/Mlc$R2/Mlc$C/100"
+           (li/path-attr c11)))
+    (is (tu/is-error #(create-c "/A/10/R1/B/10/R2" 200)))
+    (is (tu/is-error #(create-c "/A/1/R1/B/1000/R2" 200)))
+    (let [rs (tu/result
+              {:Mlc/LookupAll_B
+               {li/path-attr (fq "path://A/1/R1/B/%")}})]
+      (is (= 1 (count rs)))
+      (is (b? (first rs))))
+    (let [rs (tu/result
+              {:Mlc/LookupAll_C
+               {li/path-attr (fq "path://A/1/R1/B/10/R2/C/%")}})]
+      (is (= 1 (count rs)))
+      (is (c? (first rs))))
+    (is (cn/same-instance? (first as) (tu/first-result {:Mlc/Delete_A {:Id 1}})))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:Mlc/LookupAll_B
+                         {li/path-attr (fq "path://A/1/R1/B/%")}})))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:Mlc/LookupAll_C
+                         {li/path-attr (fq "path://A/1/R1/B/10/R2/C/%")}})))))
+
+(deftest basic-between-relationships
+  (defcomponent :Bbr
+    (entity
+     :Bbr/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Bbr/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Bbr/R
+     {:meta {:between [:Bbr/A :Bbr/B]}
+      :Z :Int})
     (dataflow
-     :Deeds/GiveAward
-     {:Deeds/Award
-      {:Title :Deeds/GiveAward.Title}
-      :-> [[{:Deeds/MemberAward {}} {:Deeds/Member
-                                     {:Name? :Deeds/GiveAward.Member}
-                                     :-> [:Deeds/Membership?
-                                          {:Deeds/Group {:Name? :Deeds/GiveAward.Group}}]}]
-           [{:Deeds/DeedsAward {}} {:Deeds/Deed
-                                    {:Title? :Deeds/GiveAward.Deed}}]]}))
-  (let [grp (tu/first-result
-             {:Deeds/Create_Group
-              {:Instance {:Deeds/Group {:Name "g1"}}}})
-        mem (tu/result
-             {:Deeds/Create_Member
-              {:Instance {:Deeds/Member {:Name "m1"}}
-               :Group "g1"}})
-        dd (tu/first-result
-            {:Deeds/Create_Deed
-             {:Instance {:Deeds/Deed {:Title "d1"}}}})]
-    (is (cn/instance-of? :Deeds/Group grp))
-    (is (cn/instance-of? :Deeds/Member mem))
-    (is (cn/instance-of? :Deeds/Deed dd))
-    (let [r (tu/result
-             {:Deeds/GiveAward
-              {:Title "a1"
-               :Group "g1"
-               :Member "m1"
-               :Deed "d1"}})]
-      (is (cn/instance-of? :Deeds/Award r))
-      (is (= 2 (count (:-> r))))
-      (doseq [a (:-> r)]
-        (is (or (cn/instance-of? :Deeds/MemberAward a)
-                (cn/instance-of? :Deeds/DeedsAward a)))))))
+     :Bbr/LookupB
+     {:Bbr/B {:Y? :Bbr/LookupB.Y}
+      :-> [[{:Bbr/R {:A? :Bbr/LookupB.A}}]]}))
+  (let [a1 (tu/first-result
+            {:Bbr/Create_A
+             {:Instance
+              {:Bbr/A {:Id 1 :X 100}}}})
+        b1 (tu/first-result
+            {:Bbr/Create_B
+             {:Instance
+              {:Bbr/B {:Id 2 :Y 200}}}})
+        a? (tu/type-check :Bbr/A)
+        b? (tu/type-check :Bbr/B)
+        r? (tu/type-check :Bbr/R)]
+    (is (a? a1))
+    (is (b? b1))
+    (let [create-r (fn [a b z]
+                     (tu/first-result
+                      {:Bbr/Create_R
+                       {:Instance
+                        {:Bbr/R
+                         {:A a :B b :Z z}}}}))]
+      (is (r? (create-r 1 2 300)))
+      (tu/is-error #(create-r 3 2 400))
+      (let [rs (tu/result
+                {:Bbr/LookupB {:Y 200 :A 1}})]
+        (is (= 1 (count rs)))
+        (is (cn/same-instance? b1 (first rs)))))))
+
+(deftest between-and-contains
+  (defcomponent :Bac
+    (entity
+     :Bac/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Bac/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :Bac/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :Bac/Rc
+     {:meta {:contains [:Bac/A :Bac/B]}})
+    (relationship
+     :Bac/Rb
+     {:meta {:between [:Bac/B :Bac/C]}})
+    (dataflow
+     :Bac/LookupB
+     {:Bac/B {li/path-attr? :Bac/LookupB.Rc}
+      :-> [[{:Bac/Rb {:C? :Bac/LookupB.C}}]]}))
+  (let [create-a #(tu/first-result
+                   {:Bac/Create_A
+                    {:Instance
+                     {:Bac/A {:Id % :X (* % 2)}}}})
+        mkpath #(str "/A/" % "/Rc")
+        create-b #(tu/first-result
+                   {:Bac/Create_B
+                    {:Instance
+                     {:Bac/B {:Id %2 :Y (* %2 5)}}
+                     li/path-attr (mkpath %1)}})
+        create-c #(tu/first-result
+                   {:Bac/Create_C
+                    {:Instance
+                     {:Bac/C {:Id % :Z (* % 10)}}}})
+        create-rb #(tu/first-result
+                    {:Bac/Create_Rb
+                     {:Instance
+                      {:Bac/Rb {:B %1 :C %2}}}})
+        a? (tu/type-check :Bac/A)
+        b? (tu/type-check :Bac/B)
+        c? (tu/type-check :Bac/C)
+        rb? (tu/type-check :Bac/Rb)
+        as (mapv create-a [1 2 3])
+        [b1 b2 b3 :as bs] (mapv create-b [1 2 3] [4 5 4])
+        cs (mapv create-c [7 8 9])
+        fq (partial li/as-fully-qualified-path :Bac)
+        rbs (mapv create-rb [(li/id-attr b1) (li/id-attr b3) (li/id-attr b1)] [7 7 9])]
+    (is (every? a? as))
+    (is (every? b? bs))
+    (is (every? c? cs))
+    (is (every? rb? rbs))
+    (is (cn/same-instance? b1 (tu/first-result
+                               {:Bac/LookupB
+                                {:B 4 :Rc (fq "/A/1/Rc/B/4") :C 7}})))))
+
+(deftest multi-contains
+  (defcomponent :Mcs
+    (entity
+     :Mcs/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Mcs/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :Mcs/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :Mcs/R1
+     {:meta {:contains [:Mcs/A :Mcs/C]}})
+    (relationship
+     :Mcs/R2
+     {:meta {:contains [:Mcs/B :Mcs/C]}}))
+  (let [a1 (tu/first-result
+            {:Mcs/Create_A
+             {:Instance
+              {:Mcs/A
+               {:Id 1 :X 2}}}})
+        b1 (tu/first-result
+            {:Mcs/Create_B
+             {:Instance
+              {:Mcs/B
+               {:Id 2 :Y 20}}}})
+        create-c #(tu/first-result {:Mcs/Create_C
+                                    {:Instance
+                                     {:Mcs/C
+                                      {:Id %2 :Z (* %2 10)}}
+                                     li/path-attr %1}})
+        a? (tu/type-check :Mcs/A)
+        b? (tu/type-check :Mcs/B)
+        c? (tu/type-check :Mcs/C)
+        c1 (create-c "/A/1/R1" 10)
+        c2 (create-c "/B/2/R2" 100)]
+    (is (a? a1)) (is (b? b1))
+    (is (every? c? [c1 c2]))
+    (is (= "path://Mcs$A/1/Mcs$R1/Mcs$C/10" (li/path-attr c1)))
+    (is (= "path://Mcs$B/2/Mcs$R2/Mcs$C/100" (li/path-attr c2)))
+    (is (tu/is-error #(create-c "/A/1/R2" 20)))
+    (is (tu/is-error #(create-c "/B/1/R2" 200)))))
+
+(deftest contains-by-local-ref
+  (defcomponent :Cblr
+    (entity
+     :Cblr/P
+     {:Id :Identity
+      :X :Int})
+    (entity
+     :Cblr/C
+     {:Id :Identity
+      :Y :Int})
+    (entity
+     :Cblr/D
+     {:Id :Identity
+      :Z :Int})
+    (relationship
+     :Cblr/R
+     {:meta {:contains [:Cblr/P :Cblr/C]}})
+    (relationship
+     :Cblr/S
+     {:meta {:contains [:Cblr/C :Cblr/D]}})
+    (dataflow
+     :Cblr/MakeC
+     {:Cblr/P {:X :Cblr/MakeC.X} :as :P}
+     {:Cblr/C {:Y :Cblr/MakeC.Y} :-> [[:Cblr/R :P]]})
+    (defn cblr-make-p-path [p c]
+      (cn/instance-to-full-path :Cblr/C c p))
+    (dataflow
+     :Cblr/FindC
+     {:Cblr/P {:Id? :Cblr/FindC.P} :as [:P]}
+     [:eval '(fractl.test.features02/cblr-make-p-path :P :Cblr/FindC.C) :as :P]
+     {:Cblr/C {:Y? :Cblr/FindC.Y li/path-attr? :P}})
+    (dataflow
+     :Cblr/MakeD
+     {:Cblr/C {li/path-attr? :Cblr/MakeD.C} :as [:C]}
+     {:Cblr/D {:Z :Cblr/MakeD.Z} :-> [[:Cblr/S :C]]}))
+  (let [c? (partial cn/instance-of? :Cblr/C)
+        p? (partial cn/instance-of? :Cblr/P)
+        pid #(second (filter seq (s/split (li/path-query-string (li/path-attr %)) #"/")))
+        make-c #(tu/first-result
+                 {:Cblr/MakeC {:X %1 :Y %2}})
+        c1 (make-c 1 10)
+        c2 (make-c 1 20)
+        lookup-p #(tu/first-result
+                   {:Cblr/Lookup_P {:Id %}})
+        lookup-c #(tu/first-result
+                   {:Cblr/Lookup_C {li/path-attr %}})
+        make-d #(tu/first-result
+                 {:Cblr/MakeD {:C %1 :Z %2}})
+        d? (partial cn/instance-of? :Cblr/D)
+        cpath #(subs % 0 (s/index-of % "/Cblr$S"))]
+    (is (c? c1))
+    (is (c? c2))
+    (let [p (pid c1)
+          p1 (lookup-p p)
+          cid (:Id c1)]
+      (is (p? p1))
+      (is (= p (:Id p1)))
+      (is (cn/same-instance? c1 (tu/first-result
+                                 {:Cblr/FindC
+                                  {:P p :C cid :Y 10}}))))
+    (is (cn/same-instance? c1 (lookup-c (li/path-attr c1))))
+    (let [d1 (make-d (li/path-attr c1) 200)]
+      (is (d? d1))
+      (is (pos? (s/index-of (li/path-attr d1) "/Cblr$S")))
+      (is (cn/same-instance? c1 (lookup-c (cpath (li/path-attr d1))))))))
+
+(deftest purge-delete-cascades
+  (defcomponent :Dac
+    (entity
+     :Dac/P
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Dac/C
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Dac/R
+     {:meta {:contains [:Dac/P :Dac/C]}})
+    (dataflow
+     :Dac/PurgeAll
+     [:delete :Dac/P :purge]))
+  (let [p (tu/first-result
+           {:Dac/Create_P
+            {:Instance {:Dac/P {:Id 1 :X 10}}}})
+        p2 (tu/first-result
+            {:Dac/Create_P
+             {:Instance {:Dac/P {:Id 2 :X 20}}}})
+        cs (mapv #(tu/first-result
+                   {:Dac/Create_C
+                    {:Instance {:Dac/C {:Id % :Y (* 2 %)}}
+                     li/path-attr "/P/1/R"}})
+                 [10 20])
+        cs2 (mapv #(tu/first-result
+                    {:Dac/Create_C
+                     {:Instance {:Dac/C {:Id % :Y (* 2 %)}}
+                      li/path-attr "/P/2/R"}})
+                  [10 20])
+        fq (partial li/as-fully-qualified-path :Dac)
+        allcs (fn [p f chk]
+                (let [cs (f
+                          {:Dac/LookupAll_C
+                           {li/path-attr (fq (str "path://P/" p "/R/C/%"))}})]
+                  (when chk
+                    (is (= 2 (count cs)))
+                    (is (every? (partial cn/instance-of? :Dac/C) cs))
+                    (is (every? #(s/starts-with?
+                                  (li/path-attr %)
+                                  (fq (str "path://P/" p "/R/C")))
+                                cs)))
+                  cs))]
+    (is (cn/instance-of? :Dac/P p))
+    (is (cn/instance-of? :Dac/P p2))
+    (is (= 2 (count cs)))
+    (is (every? (partial cn/instance-of? :Dac/C) cs))
+    (is (= 2 (count cs2)))
+    (is (every? (partial cn/instance-of? :Dac/C) cs2))
+    (allcs 1 tu/result true)
+    (allcs 2 tu/result true)
+    (is (cn/same-instance? p (tu/first-result
+                              {:Dac/Lookup_P {:Id 1}})))
+    (is (cn/same-instance? p (tu/first-result
+                              {:Dac/Delete_P {:Id 1}})))
+    (is (tu/not-found? (tu/eval-all-dataflows
+                        {:Dac/Lookup_P {:Id 1}})))
+    (is (tu/not-found? (allcs 1 tu/eval-all-dataflows false)))
+    (is (= :ok (:status (first (tu/eval-all-dataflows {:Dac/PurgeAll {}})))))
+    (is (cn/same-instance? p2 (tu/first-result {:Dac/Lookup_P {:Id 2}})))
+    (allcs 2 tu/result true)))
+
+(deftest query-by-parent-pattern
+  (defcomponent :Qpp
+    (entity
+     :Qpp/P
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Qpp/C
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Qpp/R
+     {:meta {:contains [:Qpp/P :Qpp/C]}})
+    (dataflow
+     :Qpp/FindC
+     {:Qpp/P {:Id? :Qpp/FindC.P} :as [:P]}
+     {:Qpp/C {:Y? :Qpp/FindC.Y}
+      :-> [[:Qpp/R? :P :Qpp/FindC.C]]}))
+  (let [p (tu/first-result
+           {:Qpp/Create_P
+            {:Instance {:Qpp/P {:Id 1 :X 10}}}})
+        c1 (tu/first-result
+            {:Qpp/Create_C
+             {:Instance {:Qpp/C {:Id 2 :Y 100}}
+              li/path-attr "/P/1/R"}})
+        c2 (tu/first-result
+            {:Qpp/FindC {:Y 100 :P 1 :C 2}})]
+    (is (cn/instance-of? :Qpp/P p))
+    (is (cn/same-instance? c1 c2))))
+
+(defn- globally-unique-test [c flag]
+  (let [mp (partial li/make-path c)]
+    (defcomponent c
+      (entity
+       (mp :P)
+       {:Id {:type :Int :identity true}
+        :X :Int})
+      (entity
+       (mp :C)
+       {:Id {:type :Int :identity true}
+        :Y :Int})
+      (relationship
+       (mp :R)
+       {:meta {:contains [(mp :P) (mp :C)]
+               :globally-unique flag}}))
+    (let [create-p #(tu/first-result
+                     {(mp :Create_P)
+                      {:Instance
+                       {(mp :P) {:Id % :X (* 10 %)}}}})
+          [p1 p2] (mapv create-p [1 2])
+          create-c #(tu/first-result
+                     {(mp :Create_C)
+                      {:Instance
+                       {(mp :C) {:Id %2 :Y (* 100 %2)}}
+                       li/path-attr (str "/P/" %1 "/R")}})
+          c1 (create-c 1 2)
+          c2 (create-c 2 2)
+          c3 (create-c 2 3)
+          p? (partial cn/instance-of? (mp :P))
+          c? (partial cn/instance-of? (mp :C))
+          fq (partial li/as-fully-qualified-path c)
+          lookup-c #(tu/eval-all-dataflows
+                     {(mp :Lookup_C)
+                      {li/path-attr (fq (str "path://P/" %1 "/R/C/" %2))}})]
+      (is (every? p? [p1 p2]))
+      (is (every? c? [c1 c2 c3]))
+      (is (cn/same-instance? c1 (tu/ffresult (lookup-c 1 2))))
+      (if flag
+        (is (tu/not-found? (lookup-c 2 2)))
+        (is (cn/same-instance? c2 (tu/ffresult (lookup-c 2 2)))))
+      (is (cn/same-instance? c3 (tu/ffresult (lookup-c 2 3)))))))
+
+(deftest issue-961-globally-unique
+  (globally-unique-test :I961A true)
+  (globally-unique-test :I961B false))

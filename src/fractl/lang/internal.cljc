@@ -9,14 +9,55 @@
 (def id-attr :__Id__)
 (def with-types-tag :with-types)
 
-(def path-attr :PATH)
-(def default-path "/null")
+(def path-attr :__path__)
+(def path-attr? :__path__?)
+
+(def path-query-prefix "path:/")
+(def path-query-prefix-len (count path-query-prefix))
+
+(defn path-query? [x]
+  (and (string? x)
+       (s/starts-with? x path-query-prefix)))
+
+(defn path-query-string [s]
+  (subs s path-query-prefix-len))
+
+(defn as-partial-path [path]
+  (let [s (path-query-string path)
+        has-child (s/ends-with? s "%")
+        idx (s/last-index-of s "/")
+        s1 (subs s 0 idx)]
+    (if has-child
+      (subs s1 0 (s/last-index-of s1 "/"))
+      s1)))
+
+(defn maybe-add-path-query-prefix [s]
+  (if (path-query? s)
+    s
+    (str path-query-prefix
+         (if (= "/" (first s)) s (str "/" s)))))
+
+(def path-query-tag :?)
+(defn path-query-tag? [x] (= x :?))
+
+(def ^:private default-path-prefix (str path-query-prefix "/___/"))
+
+(defn default-path []
+  (str default-path-prefix (u/uuid-string)))
+
+(defn null-path? [s]
+  (s/starts-with? s default-path-prefix))
+
 (def path-attr-spec
-  {:type :String
+  {:type :Fractl.Kernel.Lang/String
    :default default-path
    :unique true
    :indexed true})
-(def path-attr-q :PATH?)
+
+(def meta-attr :__instmeta__)
+(def meta-attr-spec {:type :Fractl.Kernel.Lang/Map
+                     :optional true})
+(def reserved-attrs #{path-attr meta-attr})
 
 (def globally-unique :globally-unique)
 
@@ -27,6 +68,17 @@
                  {:eval js-eval
                   :context :expr}
                  :value)))
+
+(def rbac-oprs #{:read :create :update :delete :eval})
+
+(defn- privs-list? [xs]
+  (and (seqable? xs)
+       (= rbac-oprs (set/union (set xs) rbac-oprs))))
+
+(defn instance-privilege-spec? [obj]
+  (and (map? obj)
+       (every? string? (keys obj))
+       (every? privs-list? (vals obj))))
 
 (def cmpr-oprs [:= :< :> :<= :>= :<>])
 (def query-cmpr-oprs (conj cmpr-oprs :like))
@@ -50,6 +102,9 @@
         #{with-types-tag :as :resolver})))
 
 (def event-context :EventContext)
+
+(defn only-user-attributes [attrs]
+  (apply dissoc attrs property-names))
 
 (defn- reserved? [x]
   (some #{x} reserved-names))
@@ -136,11 +191,11 @@
     (clj-import-list? (first (rest x)))
     (and (seq x)
          (every?
-          (fn [entry]
-            (let [k (first entry)]
-              (and (some #{k} #{:require :use :import :refer :refer-macros})
-                   (every? vector? (rest entry)))))
-          x))))
+           (fn [entry]
+             (let [k (first entry)]
+               (and (some #{k} #{:require :use :import :refer :refer-macros})
+                    (or (every? vector? (rest entry)) (every? list? (rest entry))))))
+           x))))
 
 (defn do-clj-import [clj-import]
   #?(:clj
@@ -219,8 +274,11 @@
   ([component obj-name]
    (when (and component obj-name)
      (keyword (str (name component) "/" (name obj-name)))))
-  ([[component obj-name]]
-   (make-path component obj-name)))
+  ([n]
+   (if (keyword? n)
+     n
+     (let [[component obj-name] n]
+       (make-path component obj-name)))))
 
 (defn make-ref
   ([recname attrname]
@@ -303,8 +361,21 @@
     (u/throw-ex (str errmsg " - " x)))
   x)
 
-(def validate-name (partial validate (partial name? no-restricted-chars?) "not a valid name"))
-(def validate-name-relaxed (partial validate name? "not a valid name"))
+(defn auto-generated-name? [n]
+  (s/starts-with? (name n) "G__"))
+
+(defn- valid-name?
+  ([char-predic n]
+   (or (= path-attr n)
+       (= meta-attr n)
+       (auto-generated-name? n)
+       (if char-predic
+         (name? char-predic n)
+         (name? n))))
+  ([n] (valid-name? nil n)))
+
+(def validate-name (partial validate (partial valid-name? no-restricted-chars?) "not a valid name"))
+(def validate-name-relaxed (partial validate valid-name? "not a valid name"))
 (def validate-clj-imports (partial validate clj-import-list? "not a valid clj-import list"))
 
 (defn validate-bool [attrname v]
@@ -333,11 +404,12 @@
   (apply dissoc pat instance-meta-keys))
 
 (defn instance-pattern? [pat]
-  (let [ks (keys (normalize-instance-pattern pat))]
-    (and (= 1 (count ks))
-         (let [k (first ks)]
-           (and (name? k)
-                (map? (get pat k)))))))
+  (when (map? pat)
+    (let [ks (keys (normalize-instance-pattern pat))]
+      (and (= 1 (count ks))
+           (let [k (first ks)]
+             (and (name? k)
+                  (map? (get pat k))))))))
 
 (defn instance-pattern-name [pat]
   (first (keys (normalize-instance-pattern pat))))
@@ -376,8 +448,14 @@
 (defn query-pattern? [a]
   (and (keyword? a) (s/ends-with? (name a) "?")))
 
+(defn query-instance-pattern? [obj]
+  (or (query-pattern? obj)
+      (query-pattern? (record-name obj))
+      (and (map? obj)
+           (some query-pattern? (keys (record-attributes obj))))))
+
 (defn name-as-query-pattern [n]
-  (keyword (str (subs (str n) 1) "?")))
+  (keyword (str (if (keyword? n) (subs (str n) 1) n) "?")))
 
 (defn query-target-name [q]
   (keyword (let [s (subs (str q) 1)] (subs s 0 (dec (count s))))))
@@ -463,43 +541,47 @@
 (defn keyword-name [n]
   (if (keyword? n) n (make-path n)))
 
-(def path-query-prefix "path:/")
-(def path-query-prefix-len (count path-query-prefix))
+(defn encoded-uri-path-part [entity-name]
+  (let [[c n] (split-path entity-name)]
+    (if (and c n)
+      (str (name c) "$" (name n))
+      (name entity-name))))
 
-(defn path-query? [x]
-  (and (string? x)
-       (s/starts-with? x path-query-prefix)))
+(defn decode-uri-path-part [part]
+  (keyword (s/replace part "$" "/")))
 
-(defn path-query-string [s]
-  (subs s path-query-prefix-len))
+(defn uri-path-split [path]
+  (vec (filter seq (s/split (path-query-string path) #"/"))))
 
-(defn- fully-qualified-path-type [base-component n]
+(defn uri-join-parts [parts]
+  (maybe-add-path-query-prefix (s/join "/" parts)))
+
+(defn fully-qualified-path-type [base-component n]
   (if (s/index-of n "$")
     (keyword (s/replace n "$" "/"))
     (keyword (str (name base-component) "/" n))))
 
-(defn- fully-qualified-path-value [base-component n]
+(defn fully-qualified-path-value [base-component n]
   (if (s/starts-with? n ":")
     (fully-qualified-path-type base-component (subs n 1))
     n))
 
-(defn parse-query-path [base-component s]
-  (let [parts (reverse (filter #(identity (seq %)) (s/split s #"/")))
-        t (partial fully-qualified-path-type base-component)
-        v (partial fully-qualified-path-value base-component)]
-    (loop [parts parts, result []]
-      (if-let [[child-val child relname parent-val parent]
-               (when (>= (count parts) 5)
-                 (take 5 parts))]
-        (recur (drop 3 parts)
-               (conj result {:child-value (v child-val)
-                             :child (t child)
-                             :relationship (t relname)
-                             :parent-value (v parent-val)
-                             :parent (t parent)}))
-        result))))
+(defn- fully-qualified-path-component [base-component n]
+  (if (s/index-of n "$")
+    n
+    (str (name base-component) "$" n)))
 
-(defn path-query-pattern? [x] (= x :?))
+(defn as-fully-qualified-path [base-component path]
+  (let [path (if (path-query? path) (subs path path-query-prefix-len) path)
+        fqt (partial fully-qualified-path-component base-component)]
+    (loop [parts (filter seq (s/split path #"/")), n 0, final-path []]
+      (if-let [p (first parts)]
+        (case n
+          (0 2 3) (recur (rest parts)
+                         (if (= n 3) 1 (inc n))
+                         (conj final-path (fqt p)))
+          (recur (rest parts) (inc n) (conj final-path p)))
+        (str path-query-prefix "/" (s/join "/" final-path))))))
 
 (defn full-path-name? [n]
   (s/index-of (str n) "/"))
@@ -512,3 +594,22 @@
 
 (defn normalize-path [p]
   (s/replace p "//" "/"))
+
+(defn internal-attribute-name? [n]
+  (let [[_ n] (split-path n)]
+    (auto-generated-name? n)))
+
+(defn between-nodenames [node1 node2 relmeta]
+  (or (:as relmeta)
+      (let [[_ n1] (split-path node1)
+            [_ n2] (split-path node2)]
+        (if (= n1 n2)
+          [(keyword (str (name n1) "1"))
+           (keyword (str (name n2) "2"))]
+          [n1 n2]))) )
+
+(defn name-str [n]
+  (subs (str n) 1))
+
+(defn id-ref [recname]
+  (make-ref recname id-attr))

@@ -113,9 +113,11 @@
    (let [event-instance (maybe-init-event event-instance)
          f (partial eval-dataflow-with-store-connection evaluator env event-instance df)]
      (try
-       (if-let [store (env/get-store env)]
-         (store/call-in-transaction store f)
-         (f nil))
+       (let [r (if-let [store (env/get-store env)]
+                 (store/call-in-transaction store f)
+                 (f nil))]
+         (r/merge-init-pending-components!)
+         r)
        (catch #?(:clj Exception :cljs :default) ex
          (if-let [r (:eval-result (ex-data ex))]
            r
@@ -159,7 +161,9 @@
       r)
     (catch #?(:clj Exception :cljs :default) ex
       (let [msg (str "error in dataflow for "
-                     (cn/instance-type event-instance)
+                     (or (cn/instance-type event-instance)
+                         (li/record-name event-instance)
+                         event-instance)
                      " - " #?(:clj (str (.getMessage ex)
                                         (ex-data ex))
                               :cljs ex))]

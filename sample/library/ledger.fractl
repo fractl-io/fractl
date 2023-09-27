@@ -9,10 +9,10 @@
 (component :Sample.Library.Ledger)
 
 (entity {:Sample.Library.Ledger/CheckoutLog
-         {:Member       {:ref     (cn/append-id :Sample.Library.Identity/Member)
+         {:Member       {:ref     :Sample.Library.Identity/Member.Email
                          :indexed true}
           :Designation  :String
-          :Book         {:ref     (cn/append-id :Sample.Library.Catalog/Book)
+          :Book         {:ref     :Sample.Library.Catalog/Book.ISBN
                          :indexed true}
           :IsCheckedout {:type    :Boolean
                          :default true}
@@ -38,9 +38,9 @@
            :Sample.Library.Ledger/UserLogin.Password  {:Authentication {:Owner :Sample.Library.Identity/User}}])
 
 (event {:Sample.Library.Ledger/CheckoutBook
-        {:Member   :UUID
+        {:Member   :Email
          :Designation :String
-         :Book     :UUID
+         :Book     :String
          :Backend  :String
          :Receiver :String
          :Subject  :String
@@ -62,9 +62,9 @@
                                                :Book?   :Sample.Library.Ledger/CheckoutBook.Book}})
 
 (event {:Sample.Library.Ledger/CheckinBook
-        {:Member   :UUID
+        {:Member   :Email
          :Designation :String
-         :Book     :UUID
+         :Book     :String
          :Backend  :String
          :Receiver :String
          :Subject  :String

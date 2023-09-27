@@ -15,11 +15,15 @@
 (defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
-      (open-connection [store connection-info]
+      (parse-connection-info [store connection-info]
         (let [connection-info (su/normalize-connection-info connection-info)
               jdbc-url (str url-prefix (:dbname connection-info) ";MODE=PostgreSQL")
               username (or (:username connection-info) "sa")
               password (or (:password connection-info) "sa")]
+          {:url jdbc-url :username username :password password}))
+      (open-connection [store connection-info]
+        (let [{jdbc-url :url username :username password :password}
+              (p/parse-connection-info store connection-info)]
           (u/safe-set-once
            datasource
            #(let [dbspec {:driver-class driver-class
@@ -55,8 +59,10 @@
         (db/create-instance @datasource entity-name instance))
       (delete-by-id [_ entity-name id-attr-name id]
         (db/delete-by-id @datasource entity-name id-attr-name id))
-      (delete-all [_ entity-name]
-        (db/delete-all @datasource entity-name))
+      (delete-all [_ entity-name purge]
+        (db/delete-all @datasource entity-name purge))
+      (delete-children [_ entity-name path]
+        (db/delete-children @datasource entity-name path))
       (query-by-id [_ entity-name query ids]
         (db/query-by-id @datasource entity-name query ids))
       (query-by-unique-keys [store entity-name unique-keys unique-values]
@@ -69,4 +75,6 @@
         (db/transact-fn! @datasource f))
       (compile-query [_ query-pattern]
         (db/compile-query query-pattern))
+      (plan-changeset [_ changeset-inst]
+        (db/plan-changeset changeset-inst))
       (get-reference [_ path refs]))))

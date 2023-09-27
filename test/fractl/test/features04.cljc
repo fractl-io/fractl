@@ -10,163 +10,6 @@
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
-(deftest issue-917-child-identity
-  (defcomponent :I917
-    (entity
-     :I917/P
-     {:A {:type :Int
-          :identity true}})
-    (entity
-     :I917/C
-     {:X {:type :Int
-          :identity true}
-      :Y :Int})
-    (entity
-     :I917/D
-     {:Z {:type :Int
-          :identity true}
-      :K :Int})
-    (relationship
-     :I917/R
-     {:meta {:contains [:I917/P :I917/C]}})
-    (relationship
-     :I917/G
-     {:meta {:contains [:I917/C :I917/D]}}))
-  (let [p? (partial cn/instance-of? :I917/P)
-        c? (partial cn/instance-of? :I917/C)
-        ps (mapv #(tu/first-result
-                   {:I917/Create_P
-                    {:Instance
-                     {:I917/P
-                      {:A %}}}})
-                 [1 2])
-        c0 (tu/result
-            {:I917/Create_C
-             {:Instance
-              {:I917/C
-               {:X 20 :Y 100}}
-              :P 1}})
-        c1 (tu/result
-            {:I917/Create_C
-             {:Instance
-              {:I917/C
-               {:X 10 :Y 100}}
-              :P 1}})
-        c2 (tu/result
-            {:I917/Create_C
-             {:Instance
-              {:I917/C
-               {:X 10 :Y 200}}
-              :P 2}})
-        c3 (tu/result
-            {:I917/Create_C
-             {:Instance
-              {:I917/C
-               {:X 10 :Y 300}}
-              :P 1}})]
-    (is (every? p? ps))
-    (is (every? c? [c0 c1 c2 c3]))
-    (is (= (li/path-attr c0) "/P/1/R/C/20"))
-    (is (= (li/path-attr c2) "/P/2/R/C/10"))
-    ;; c3 did nothing because of idempotent create
-    (is (= 2 (count (tu/result
-                     {:I917/LookupAll_C
-                      {:P 1}}))))
-    (is (= 1 (count (tu/result
-                     {:I917/LookupAll_C
-                      {:P 2}}))))
-    (is (cn/same-instance? c1 (tu/first-result
-                               {:I917/Lookup_C
-                                {:P 1 :X 10}})))
-    (let [d1 (tu/result
-              {:I917/Create_D
-               {:Instance
-                {:I917/D
-                 {:Z 101 :K 3}}
-                :P 1 :C 20}})
-          d2 (tu/eval-all-dataflows
-              {:I917/Create_D
-               {:Instance
-                {:I917/D
-                 {:Z 201 :K 4}}
-                :P 1 :C 100}})]
-      (is (cn/instance-of? :I917/D d1))
-      (is (tu/not-found? d2))
-      (is (tu/not-found?
-           (tu/eval-all-dataflows
-            {:I917/Lookup_D
-             {:P 1 :C 100 :Z 201}})))
-      (is (cn/same-instance?
-           d1
-           (tu/first-result
-            {:I917/Lookup_D
-             {:P 1 :C 20 :Z 101}}))))))
-
-(deftest issue-931-contains-patterns
-  (defcomponent :I931
-    (entity
-     :I931/Company
-     {:Name {:type :String :identity true}})
-    (entity
-     :I931/Group
-     {:Id :Identity
-      :Name {:type :String, :unique true}})
-    (entity
-     :I931/Member
-     {:Email {:type :Email, :identity true}})
-    (entity
-     :I931/GroupMember
-     {:Email {:type :Email, :identity true}
-      :IsAdmin :Boolean})
-    (relationship
-     :I931/GroupOf
-     {:meta {:contains [:I931/Company :I931/Group]}})
-    (relationship
-     :I931/MemberGroupMember
-     {:meta {:between [:I931/Member :I931/GroupMember]}})
-    (relationship
-     :I931/Membership
-     {:meta {:contains [:I931/Group :I931/GroupMember],
-             :cascade-on-delete true}})
-    (event
-     :I931/CreateGroup
-     {:Company :String
-      :User :Email
-      :Name {:type :String}})
-    (dataflow
-     :I931/CreateGroup
-     {:I931/Member {:Email? :I931/CreateGroup.User}, :as [:M]}
-     {:I931/Company {:Name? :I931/CreateGroup.Company} :as [:C]}
-     {:I931/Group {:Name :I931/CreateGroup.Name}
-      :-> [{:I931/GroupOf {}} :C]
-      :as :G}
-     {:I931/GroupMember {:Email :M.Email, :IsAdmin true},
-      :-> [[{:I931/Membership {}} :G] [{:I931/MemberGroupMember {}} :M]]}
-     :G))
-  (let [c1 (tu/first-result
-            {:I931/Create_Company
-             {:Instance
-              {:I931/Company
-               {:Name "i931"}}}})
-        m1 (tu/first-result
-            {:I931/Create_Member
-             {:Instance
-              {:I931/Member
-               {:Email "m1@i931.org"}}}})
-        g1 (tu/result
-            {:I931/CreateGroup
-             {:Company "i931"
-              :User "m1@i931.org"
-              :Name "g1"}})]
-    (is (cn/instance-of? :I931/Company c1))
-    (is (cn/instance-of? :I931/Member m1))
-    (is (cn/instance-of? :I931/Group g1))
-    (is (= "m1@i931.org" (:Email (tu/first-result
-                                  {:I931/Lookup_GroupMember
-                                   {:Email "m1@i931.org"
-                                    :Company "i931"
-                                    :Group (:Id g1)}}))))))
-
 (deftest issue-926-rbac-ui-apis
   (let [rbac-spec [{:roles ["user" "manager"] :allow :*}
                    {:roles ["guest"] :allow [:read]}]
@@ -181,3 +24,142 @@
         :ui ui-spec}))
     (is (= rbac-spec (cn/fetch-rbac-spec :I926/E)))
     (is (= ui-spec (cn/fetch-ui-spec :I926/E)))))
+
+(deftest issue-980-compilation
+  (defcomponent :I980
+    (entity
+     :I980/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :I980/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :I980/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :I980/R1
+     {:meta {:contains [:I980/A :I980/B]}})
+    (relationship
+     :I980/R2
+     {:meta {:between [:I980/B :I980/C]}}))
+  (apply dataflow :I980/Temp
+         (fractl.compiler/parse-relationship-tree
+          {:I980/A {:Id 1 :X 10}
+           :I980/R1
+           [{:I980/B {:Id 2 :Y 20}
+             :I980/R2 {:I980/C {:Id 3 :Z 30}}}
+            {:I980/B {:Id 4 :Y 40}
+             :I980/R2 {:C 3}}]}))
+  (is (cn/instance-of? :I980/A (tu/result {:I980/Temp {}})))
+  (is (= :I980/Temp (cn/remove-event :I980/Temp)))
+  (is (nil? (seq (tu/eval-all-dataflows {:I980/Temp {}})))))
+
+(deftest issue-1051-between-node-names
+  (tu/reset-events!)
+  (defcomponent :I1051
+    (entity
+     :I1051/A
+     {:Id {:type :Int :identity true}
+      :X :Int
+      :rbac [{:roles ["i1051-user"] :allow [:create]}]})
+    (entity
+     :I1051/B
+     {:Id {:type :Int :identity true}
+      :Y :Int
+      :rbac [{:roles ["i1051-user"] :allow [:create]}]})
+    (relationship
+     :I1051/R1
+     {:meta {:between [:I1051/A :I1051/B]}
+      :rbac {:owner :I1051/A}})
+    (relationship
+     :I1051/R2
+     {:meta {:between [:I1051/A :I1051/A :as [:I :J]]}
+      :rbac {:owner :J}})
+    (relationship
+     :I1051/R3
+     {:meta {:between [:I1051/A :I1051/B]}
+      :rbac {:owner :I1051/A
+             :assign {:ownership [:I1051/B :-> :I1051/A]}}})
+    (dataflow
+     :I1051/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@i1051.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@i1051.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1051-user" :Assignee "u2@i1051.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "i1051-user" :Assignee "u1@i1051.com"}}))
+  (is (tu/finalize-events))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:I1051/InitUsers {}})))
+  (tu/call-with-rbac
+   (fn []
+     (let [create-a (fn [with-user id]
+                      (tu/first-result
+                       (with-user
+                         {:I1051/Create_A
+                          {:Instance
+                           {:I1051/A {:Id id :X (* id 10)}}}})))
+           a? (partial cn/instance-of? :I1051/A)
+           lookup-a (fn [with-user id]
+                      (tu/first-result
+                       (with-user
+                         {:I1051/Lookup_A
+                          {:Id id}})))
+           create-b (fn [with-user id]
+                      (tu/first-result
+                       (with-user
+                         {:I1051/Create_B
+                          {:Instance
+                           {:I1051/B {:Id id :Y (* id 2)}}}})))
+           b? (partial cn/instance-of? :I1051/B)
+           create-r1 (fn [with-user id1 id2]
+                       (tu/first-result
+                        (with-user
+                          {:I1051/Create_R1
+                           {:Instance
+                            {:I1051/R1 {:A id1 :B id2}}}})))
+           r1? (partial cn/instance-of? :I1051/R1)
+           create-r2 (fn [with-user id1 id2]
+                       (tu/first-result
+                        (with-user
+                          {:I1051/Create_R2
+                           {:Instance
+                            {:I1051/R2 {:I id1 :J id2}}}})))
+           r2? (partial cn/instance-of? :I1051/R2)
+           create-r3 (fn [with-user id1 id2]
+                       (tu/first-result
+                        (with-user
+                          {:I1051/Create_R3
+                           {:Instance
+                            {:I1051/R3 {:A id1 :B id2}}}})))
+           delete-r3 (fn [with-user id]
+                       (tu/first-result
+                        (with-user
+                          {:I1051/Delete_R3
+                           {li/id-attr id}})))
+           r3? (partial cn/instance-of? :I1051/R3)
+           wu1 (partial tu/with-user "u1@i1051.com")
+           wu2 (partial tu/with-user "u2@i1051.com")
+           a1 (create-a wu1 1), a2 (create-a wu2 2)
+           b1 (create-b wu1 10), b2 (create-b wu2 20)]
+       (is (a? a1)) (is (a? a2))
+       (is (b? b1)) (is (b? b2))
+       (is (not (create-r1 wu1 (:Id a2) (:Id b2))))
+       (is (r1? (create-r1 wu1 (:Id a1) (:Id b2))))
+       (is (not (create-r2 wu1 (:Id a1) (:Id a2))))
+       (is (r2? (create-r2 wu1 (:Id a2) (:Id a1))))
+       (is (not (create-r3 wu1 (:Id a2) (:Id b2))))
+       (is (= #{"u1@i1051.com"} (cn/owners a1)))
+       (let [a1id (:Id a1)
+             r3 (create-r3 wu1 a1id (:Id b2))]
+         (is (r3? r3))
+         (is (= #{"u1@i1051.com" "u2@i1051.com"} (cn/owners (lookup-a wu2 a1id))))
+         (is (r3? (delete-r3 wu1 (li/id-attr r3))))
+         (is (not (lookup-a wu2 a1id)))
+         (is (= #{"u1@i1051.com"} (cn/owners (lookup-a wu1 a1id)))))))))

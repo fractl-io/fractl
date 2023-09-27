@@ -13,6 +13,10 @@
               [org.apache.commons.io FilenameUtils]
               [org.apache.commons.exec CommandLine Executor DefaultExecutor])))
 
+(def host-runtime #?(:clj :jvm :cljs :js))
+
+(defn host-is-jvm? [] (= host-runtime :jvm))
+
 (def ^:private script-extn (atom ".fractl"))
 
 (defn set-script-extn! [extn]
@@ -284,9 +288,10 @@
 
 (defn trace
   "Prints `msg` and `x`. Returns `x`."
-  [msg x]
-  (println msg (pr-str x))
-  x)
+  ([msg x]
+   (println msg (pr-str x))
+   x)
+  ([x] (trace "" x)))
 
 (defn trace-with-fn
   "Prints `msg`, `x` and the result of `(f x)`. Returns `x`."
@@ -331,3 +336,14 @@
 (defn strs
   ([j ss] (string/join j ss))
   ([ss] (string/join "\n" ss)))
+
+(defn call-with-cache
+  "Similar to memoize, but only non-nil values are cached."
+  [f]
+  (let [mem (atom {})]
+    (fn [& args]
+      (if-let [e (find @mem args)]
+        (val e)
+        (let [ret (apply f args)]
+          (when-not (nil? ret) (swap! mem assoc args ret))
+          ret)))))

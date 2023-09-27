@@ -1,7 +1,7 @@
 (ns fractl.store
-  (:require #?(:clj [fractl.store.h2 :as h2]
-               :cljs [fractl.store.mem.core :as mem])
+  (:require #?(:clj [fractl.store.h2 :as h2])
             #?(:clj [fractl.store.postgres :as postgres])
+            [fractl.store.mem.core :as mem]
             [fractl.component :as cn]
             [fractl.util.logger :as log]
             [fractl.store.util :as su]
@@ -40,10 +40,10 @@
   (u/make-cell
    #?(:clj
       {:h2 h2/make
-       :postgres postgres/make}
+       :postgres postgres/make
+       :mem mem/make}
       :cljs
-      {:reagent mem/reagent-make
-       :mem mem/make})))
+      {:mem mem/make})))
 
 (defn register-store [store-name constructor]
   (u/call-and-set
@@ -115,6 +115,8 @@
 (def create-table p/create-table)
 (def delete-by-id p/delete-by-id)
 (def delete-all p/delete-all)
+(def delete-children p/delete-children)
+(def plan-changeset p/plan-changeset)
 
 (defn- empty-result-on-error [f]
   (try
@@ -184,3 +186,4 @@
    (query-by-unique-keys store entity-name [id-attr-name] {id-attr-name id}))
   ([store entity-name id]
    (lookup-by-id store entity-name cn/id-attr id)))
+

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 lein install
 lein uberjar
 SRC_JAR=`ls target/fractl-*standalone*.jar`

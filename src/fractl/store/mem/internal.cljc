@@ -6,8 +6,8 @@
 
 (def view-tag :DOMView)
 
-#_(def inst-store (reagent/atom {}))
-(def inst-store (atom {}))
+(def inst-store #?(:clj (atom {})
+                   :cljs (reagent/atom {})))
 
 (defn- store
   []

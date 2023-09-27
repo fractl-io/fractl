@@ -3,7 +3,7 @@
              :refer [sign-up admin-confirm-sign-up admin-delete-user admin-get-user
                      admin-update-user-attributes admin-user-global-sign-out change-password
                      confirm-forgot-password confirm-sign-up forgot-password initiate-auth
-                     create-group delete-group admin-add-user-to-group admin-remove-user-from-group]]
+                     create-group delete-group admin-add-user-to-group admin-remove-user-from-group resend-confirmation-code]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [fractl.auth.core :as auth]
@@ -39,9 +39,11 @@
 (defmethod auth/make-authfn tag [_config]
   (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
     (fn [_req token]
-      (jwt/verify-and-extract
-       (make-jwks-url region user-pool-id)
-       token))))
+      (try
+        (jwt/verify-and-extract
+         (make-jwks-url region user-pool-id)
+         token)
+        (catch Exception e)))))
 
 (defmethod auth/user-login tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
@@ -76,6 +78,7 @@
                          ["email" Email]
                          ["name" Name]]
        :username Email)
+      (confirm-signed-up-user-if-whitelist-is-false req aws-config whitelist? Email user-pool-id)
       (catch com.amazonaws.services.cognitoidp.model.UsernameExistsException ex
         (log/error ex))
       (catch com.amazonaws.services.cognitoidp.model.CodeDeliveryFailureException ex
@@ -190,6 +193,16 @@
      :FirstName given_name
      :LastName family_name
      :Email email}))
+
+(defmethod auth/resend-confirmation-code tag [{:keys [event] :as req}]
+  (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
+    (try
+      (resend-confirmation-code
+       (auth/make-client (merge req aws-config))
+       :username (:Username event)
+       :client-id client-id)
+      (catch Exception e
+        (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/confirm-sign-up tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)

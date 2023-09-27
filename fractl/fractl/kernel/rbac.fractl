@@ -2,7 +2,9 @@
  :Fractl.Kernel.Rbac
  {:refer [:Fractl.Kernel.Lang]
   :clj-import '[(:require [clojure.string :as s]
-                          [fractl.store.util :as stu])]})
+                          [fractl.util :as u]
+                          [fractl.store.util :as stu]
+                          [fractl.lang.internal :as li])]})
 
 (entity
  :Role
@@ -10,7 +12,7 @@
          :indexed true
          :unique true}})
 
-(def ^:private oprs #{:read :update :create :delete :eval})
+(def ^:private oprs li/rbac-oprs)
 
 (defn- crud-list? [xs]
   (every? #(some #{%} oprs) (set xs)))
@@ -39,38 +41,6 @@
   :meta
   {:unique [:Role :Assignee]}})
 
-(entity
- :RoleRelationship
- {:Parent {:ref :Role.Name
-           :indexed true}
-  :Child {:ref :Role.Name
-          :indexed true}
-  :meta
-  {:unique [:Parent :Child]}})
-
-(event
- :AssignRelationship
- {:Parent :String
-  :Child :String})
-
-(dataflow
- :AssignRelationship
- {:RoleRelationship
-  {:Parent :AssignRelationship.Parent
-   :Child :AssignRelationship.Child}})
-
-(event
- :FindChildren
- {:Parent :String})
-
-(dataflow
- :FindChildren
- [:for-each
-  {:RoleRelationship
-   {:Parent? :FindChildren.Parent}}
-  {:Role
-   {:Name? :RoleRelationship.Child}}])
-
 (dataflow
  :FindRoleAssignments
  {:RoleAssignment
@@ -97,27 +67,15 @@
  [:query {:Privilege? privileges-query}])
 
 (entity
- :InstancePrivilegeAssignment
- {:Id :Identity
-  :Actions {:check crud-list?}
-  :Filter {:check crud-list? :optional true}
-  :Resource {:type :Path :indexed true}
-  :ResourceId {:type :Any :indexed true}
-  :Assignee {:type :String :indexed true}
-  :meta {:unique [:Assignee :Resource :ResourceId]}})
-
-(dataflow
- :FindInstancePrivileges
  {:InstancePrivilegeAssignment
-  {:Resource? :FindInstancePrivileges.Resource
-   :ResourceId? :FindInstancePrivileges.ResourceId}})
+  {:Actions {:check crud-list?
+             :optional true}
+   :Resource :Path
+   :ResourceId :Any
+   :Assignee :String}})
 
-(dataflow
- :DeleteInstancePrivileges
- {:InstancePrivilegeAssignment
-  {:Resource? :DeleteInstancePrivileges.Resource
-   :ResourceId? :DeleteInstancePrivileges.ResourceId}
-  :as :Privs}
- [:for-each :Privs
-  [:delete :InstancePrivilegeAssignment
-   {:Id :%.Id}]])
+(entity
+ {:OwnershipAssignment
+  {:Resource :Path
+   :ResourceId :Any
+   :Assignee :String}})

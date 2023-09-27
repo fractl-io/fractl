@@ -25,7 +25,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Identity/Upsert_User\": {\n        \"Instance\": {\n            \"Sample.Library.Identity/User\": {\n                \"UserName\": \"New Book Publisher\",\n                \"Designation\": \"incharge\",\n                \"Password\": \"publishingnewbooks\",\n                \"Email\": \"book@publisher.io\"\n            }\n        }\n    }\n}",
+				    "raw": "{\"Sample.Library.Identity/User\": {\"UserName\": \"New Book Publisher\", \"Designation\": \"incharge\", \"Password\": \"publishingnewbooks\", \"Email\": \"book@publisher.io\"}}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -33,7 +33,7 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Sample.Library.Identity/Upsert_User",
+					"raw": "http://localhost:8000/_e/Sample.Library.Identity/User",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -42,7 +42,7 @@
 					"path": [
 						"_e",
 						"Sample.Library.Identity",
-						"Upsert_User"
+						"User"
 					]
 				}
 			},
@@ -68,7 +68,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Catalog/Upsert_Book\": {\n        \"Instance\": {\n            \"Sample.Library.Catalog/Book\": {\n                \"Name\": \"The Godfather\",\n                \"Publisher\": \"8f2ab3a1-0380-4bbb-8a7e-acca38b1d389\"\n            }\n        }\n    }\n}",
+					"raw": "{\"Sample.Library.Catalog/Book\": {\"Name\": \"The Godfather\", \"ISBN\": \"123\", \"Publisher\": \"book@publisher.io\"}}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -76,7 +76,7 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Sample.Library.Catalog/Upsert_Book",
+					"raw": "http://localhost:8000/_e/Sample.Library.Catalog/Book",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -85,7 +85,7 @@
 					"path": [
 						"_e",
 						"Sample.Library.Catalog",
-						"Upsert_Book"
+						"Book"
 					]
 				}
 			},
@@ -111,15 +111,15 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Identity/Upsert_Member\": {\n        \"Instance\": {\n            \"Sample.Library.Identity/Member\": {\n                \"Name\": \"Leo Tolstoy\",\n                \"UserName\": \"lt\",\n                \"Password\": \"tolstoy123\",\n                \"Email\": \"leo@tolstoy.io\",\n                \"DOB\": \"1828-09-09\",\n                \"Designation\": \"life\"\n            }\n        }\n    }\n}",
-					"options": {
+				    "raw": "{\"Sample.Library.Identity/Member\": {\"Name\": \"Leo Tolstoy\",\"UserName\": \"lt\",\"Password\": \"tolstoy123\", \"Email\": \"leo@tolstoy.io\", \"DOB\": \"1828-09-09\",\"Designation\": \"life\"}}",
+				    "options": {
 						"raw": {
 							"language": "json"
 						}
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Sample.Library.Identity/Upsert_Member",
+					"raw": "http://localhost:8000/_e/Sample.Library.Identity/Member",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -128,7 +128,7 @@
 					"path": [
 						"_e",
 						"Sample.Library.Identity",
-						"Upsert_Member"
+						"Member"
 					]
 				}
 			},
@@ -154,7 +154,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"Sample.Library.Ledger/CheckoutBook\": {\n        \"Book\": \"a52dba91-a3b3-451c-ae58-42d4668d7787\",\n        \"Member\": \"5f8cad32-6b57-47cf-a6f0-53d67256f3d1\",\n        \"Designation\": \"life\",\n        \"Backend\": \"Postmark\",\n        \"Receiver\": \"test@test.io\",\n        \"Subject\": \"Book Checked out\",\n        \"Text\": \"You have checked out Crime and Punishment. Please return it after 2 weeks.\",\n        \"To\": \"+9779841XXXXXX\"\n    }\n}",
+					"raw": "{\"Sample.Library.Ledger/CheckoutBook\": {\"Book\": \"123\",\"Member\": \"leo@tolstoy.io\",\"Designation\": \"life\", \"Backend\": \"Postmark\",\"Receiver\": \"test@test.io\",\"Subject\": \"Book Checked out\", \"Text\": \"You have checked out Crime and Punishment. Please return it after 2 weeks.\",\"To\": \"+9779841XXXXXX\"}}",
 					"options": {
 						"raw": {
 							"language": "json"

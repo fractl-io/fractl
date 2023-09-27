@@ -1,12 +1,16 @@
 (ns fractl.test.fixes01
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.string :as s]
             [fractl.component :as cn]
+            [fractl.util :as u]
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record dataflow relationship]]
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
+            [fractl.lang.raw :as raw]
+            [fractl.lang.internal :as li]
             [fractl.compiler.rule :as rule]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -366,3 +370,199 @@
       (is (cn/instance-of? :Fea/E e))
       (is (some #{(:X e)} [1 2]))
       (is (some #{(:Y e)} [3 4])))))
+
+(deftest issue-959
+  (defcomponent :I959
+    (entity
+     :I959/A
+     {:Name :String})
+
+    (entity
+     :I959/B
+     {:Id {:type :UUID
+           :identity true
+           :default u/uuid-string}
+      :Name :String})
+
+    (relationship
+     :I959/R
+     {:meta {:contains [:I959/A :I959/B]}})
+
+    (dataflow
+     :I959/CreateB
+     {:I959/A {:Name? "ABC"} :as [:A]}
+     {:I959/B {:Name "A B"} :-> [[:I959/R :A]]}))
+  (let [a1 (tu/first-result {:I959/Create_A {:Instance {:I959/A {:Name "ABC"}}}})
+        b1 (tu/first-result {:I959/CreateB {}})]
+    (is (cn/instance-of? :I959/A a1))
+    (is (cn/instance-of? :I959/B b1))))
+
+(deftest issue-968-raw-delete
+  (defcomponent :I968
+    (attribute
+     :I968/K
+     {:type :Int :indexed true})
+    (record
+     :I968/A
+     {:X :Int :Y :I968/K})
+    (entity
+     :I968/B
+     {:Name :String})
+    (event
+     :I968/C
+     {:X :Int :Y :Int})
+    (dataflow
+     :I968/C
+     {:I968/A
+      {:X :I968/C.X :Y :I968/C.Y}}))
+  (defn a-def? [df x]
+    (= (take 2 x) df))
+  (defn any-def? [r df]
+    (some (partial a-def? df) r))
+  (let [dfs ['(attribute :I968/K) '(record :I968/A)
+             '(entity :I968/B) '(event :I968/C) '(dataflow :I968/C)]
+        p #(partial any-def? (rest (rest (raw/as-edn :I968))))]
+    (is (every? (p) dfs))
+    (mapv cn/remove-record [:I968/A :I968/B])
+    (defn rem-dfs [names dfs]
+      (loop [names names, result dfs]
+        (if-let [n (first names)]
+          (recur (rest names) (remove #(= n (second %)) result))
+          result)))
+    (is (every? (p) (rem-dfs [:I968/A :I968/B] dfs)))
+    (is (seq (cn/dataflows-for-event :I968/C)))
+    (mapv cn/remove-record [:I968/C :I968/K])
+    (is (not (seq (cn/dataflows-for-event :I968/C))))
+    (let [r (rest (raw/as-edn :I968))]
+      (is (= '(component :I968) (first r)))
+      (is (nil? (seq (rest r)))))
+    (cn/remove-component :I968)
+    (is (nil? (raw/as-edn :I968)))))
+
+(deftest issue-967-embedded-quotes-bug
+  (defcomponent :I967
+    (entity
+     :I967/Employee
+     {:Name {:type :String :identity true}
+      :S :String
+      :Roles {:listof :Keyword}})
+    (dataflow
+     :I967/CallCreateEmployee
+     {:I967/Create_Employee
+      {:Instance
+       {:I967/Employee
+        {:Name :I967/CallCreateEmployee.Name
+         :S :Name
+         :Roles [:q# [:admin [:uq# '(keyword :Name)]]]}}}}))
+  (let [e1 (tu/first-result
+            {:I967/CallCreateEmployee {:Name "abc"}})]
+    (is (cn/instance-of? :I967/Employee e1))
+    (is (= [:admin :abc] (:Roles e1)))))
+
+(deftest issue-1009-raw-bugs
+  (defcomponent :I1009
+    (entity
+     :I1009/E
+     {:Id {:type :Int :identity true}
+      :X :Int
+      :meta {:unique :X}})
+    (entity
+     :I1009/F
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :I1009/G
+     {:Id {:type :Int :identity true}
+      :Z :Int})    
+    (record :I1009/A {:Z :Int})
+    (relationship
+     :I1009/R0
+     {:meta {:between [:I1009/F :I1009/G]}
+      :B :Int})
+    (relationship
+     :I1009/R1
+     {:meta {:contains [:I1009/E :I1009/F]}}))
+  (is (= #{:I1009/A} (cn/record-names :I1009)))
+  (is (= {:meta {:contains [:I1009/E :I1009/F], :cascade-on-delete true}}
+         (cn/fetch-user-schema :I1009/R1)))
+  (is (= {:meta {:between [:I1009/F :I1009/G], :cascade-on-delete true}, :B :Int}
+         (cn/fetch-user-schema :I1009/R0)))
+  (is (= {:unique :X} (cn/fetch-user-meta :I1009/E))))
+
+(deftest issue-i1063-preproc-match-foreach
+  (def i1063-ids (atom 10))
+  (defn i1063-next-id []
+    (swap! i1063-ids inc)
+    @i1063-ids)
+  (defcomponent :I1063
+    (entity
+     :I1063/A
+     {:Id :Identity})
+    (entity
+     :I1063/B
+     {:Id {:type :Int :identity true
+           :default i1063-next-id}})
+    (entity
+     :I1063/Log
+     {:Id {:type :Int :identity true}
+      :Msg :String})
+    (relationship
+     :I1063/R
+     {:meta {:contains [:I1063/A :I1063/B]}})
+    (event
+     :I1063/Cr1
+     {:A :UUID
+      :Odd :Boolean})
+    (dataflow
+     :I1063/Cr1
+     {:I1063/A {:Id? :I1063/Cr1.A} :as [:A]}
+     [:match :I1063/Cr1.Odd
+      true [{:I1063/Log {:Id 1 :Msg "odd"}}
+            {:I1063/B {:Id 1}
+            :-> [[:I1063/R :A]]}]
+      [{:I1063/Log {:Id 2 :Msg "even"}}
+       {:I1063/B {:Id 2}
+        :-> [[:I1063/R :A]]}]])
+    (dataflow
+     :I1063/Cr2
+     [:for-each {:I1063/A? {}}
+      {:I1063/B {}
+       :-> [[:I1063/R :%]]}]))
+  (let [lookup-log (fn [id]
+                     (tu/first-result
+                      {:I1063/Lookup_Log
+                       {:Id id}}))
+        log? (partial cn/instance-of? :I1063/Log)
+        log-of-type? #(let [r (lookup-log %1)]
+                        (and (log? r) (= %2 (:Msg r))))
+        even-log? #(log-of-type? 2 "even")
+        odd-log? #(log-of-type? 1 "odd")
+        create-a #(tu/first-result
+                   {:I1063/Create_A
+                    {:Instance
+                     {:I1063/A {}}}})
+        a (create-a)
+        b1 (tu/first-result
+            {:I1063/Cr1
+             {:A (:Id a) :Odd false}})
+        b? (partial cn/instance-of? :I1063/B)
+        check-b-rel #(let [bs (filter (fn [b] (s/index-of (li/path-attr b) (:Id %2))) %1)]
+                       (is (= 1 (count bs)))
+                       (is (b? (first bs))))]
+    (is (b? b1))
+    (check-b-rel [b1] a)
+    (is (even-log?))
+    (is (not (odd-log?)))
+    (let [b2 (tu/first-result
+              {:I1063/Cr1
+               {:A (:Id a) :Odd true}})]
+      (check-b-rel [b2] a)
+      (is (b? b2))
+      (is (even-log?))
+      (is (odd-log?)))
+    (let [a2 (create-a)
+          bs (tu/result {:I1063/Cr2 {}})
+          chk-id (partial check-b-rel bs)]
+      (is (= 2 (count bs)))
+      (is (every? b? bs))
+      (chk-id a) (chk-id a2))))

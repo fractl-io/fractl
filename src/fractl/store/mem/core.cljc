@@ -13,12 +13,16 @@
         true)
       (close-connection [_]
         true)
+      (parse-connection-info [_ connection-info]
+        connection-info)
       (connection-info [_]
         (if @datasource
           @datasource
           {}))
       (create-schema [_ component-name])
       (drop-schema [_ component-name])
+      (create-instance [_ entity-name instance]
+        (i/upsert-instance entity-name instance))
       (update-instance [_ entity-name instance]
         ;; always over-write
         (i/upsert-instance entity-name instance))
@@ -26,7 +30,7 @@
         (i/upsert-instance entity-name instance))
       (delete-by-id [_ entity-name id-attr-name id]
         (i/delete-by-id entity-name id-attr-name id))
-      (delete-all [_ entity-name]
+      (delete-all [_ entity-name _]
         (i/delete-all entity-name))
       (query-by-id [_ entity-name query ids]
         (i/query-by-id entity-name ids))
@@ -42,6 +46,8 @@
         (i/compile-to-indexed-query query-pattern))
       (call-in-transaction [_ f]
         (f nil))
+      (plan-changeset [_ changeset-inst]
+        (u/throw-ex "Not implemented"))
       (get-reference
         [_ path refs]
         (i/get-reference path refs)))))
@@ -49,8 +55,3 @@
 (defn make
   []
   (make-internal))
-
-#?(:cljs
-   (defn reagent-make
-     []
-     (make-internal)))

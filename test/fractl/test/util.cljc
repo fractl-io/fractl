@@ -1,11 +1,14 @@
 (ns fractl.test.util
   (:require [fractl.evaluator :as e]
             [fractl.evaluator.internal :as ei]
+            [fractl.evaluator.intercept :as ec]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             #?(:clj  [clojure.test :refer [is]]
                :cljs [cljs.test :refer-macros [is]])
             [fractl.store :as store]
+            [fractl.rbac.core :as rbac]
+            [fractl.lang.rbac :as lr]
             [clojure.spec.gen.alpha :as gen]
             [clojure.spec.alpha :as s]
             [cljc.java-time.local-date-time :as local-date-time]
@@ -20,10 +23,16 @@
                    :cljs ex)))
   ex)
 
+(defn- maybe-result-map [r]
+  (cond
+    (map? r) r
+    (and (seqable? r) (map? (first r))) (first r)
+    :else nil))
+
 (defn is-error [f]
   (is (try
-        (if-let [r (f)]
-          (ei/error? (if (map? r) r (first r)))
+        (if-let [r (maybe-result-map (f))]
+          (ei/error? r)
           true)
         #?(:clj (catch Exception ex
                   (report-expected-ex ex))
@@ -37,6 +46,9 @@
 
 (defn fresult [r]
   (:result (first r)))
+
+(defn ffresult [r]
+  (first (fresult r)))
 
 (defn nth-result [r n]
   (:result (nth r n)))
@@ -273,3 +285,29 @@
 
 (defn sort-by-attr [attr xs]
   (sort #(compare (attr %1) (attr %2)) xs))
+
+(defn type-check [t]
+  (partial cn/instance-of? t))
+
+(defn call-with-rbac
+  ([f finalize]
+   (is (rbac/init))
+   (is (= [:rbac] (ec/init-interceptors [:rbac])))
+   (try
+     (f)
+     (finally
+       (finalize))))
+  ([f] (call-with-rbac f ec/reset-interceptors!)))
+
+(defn finalize-events []
+  (lr/finalize-events eval-all-dataflows))
+
+(def reset-events! lr/reset-events!)
+
+(defn with-user [email event]
+  (cn/assoc-event-context-user
+   email
+   (cn/make-instance
+    (if (keyword? event)
+      {event {}}
+      event))))
