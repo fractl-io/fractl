@@ -566,3 +566,108 @@
       (is (= 2 (count bs)))
       (is (every? b? bs))
       (chk-id a) (chk-id a2))))
+
+(deftest issue-i1070-nested-queries
+  (defcomponent :I1070
+    (entity
+     :I1070/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :I1070/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :I1070/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :I1070/R1
+     {:meta {:contains [:I1070/A :I1070/B]}})
+    (relationship
+     :I1070/R2
+     {:meta {:contains [:I1070/B :I1070/C]}})
+    (dataflow
+     :I1070/CreateB
+     {:I1070/B
+      {:Id :I1070/CreateB.Id
+       :Y '(* :I1070/CreateB.Id 20)}
+      :-> [[:I1070/R1 {:I1070/A {:Id? :I1070/CreateB.A}}]]})
+    (dataflow
+     :I1070/CreateC
+     {:I1070/C
+      {:Id :I1070/CreateC.Id
+       :Z '(* :I1070/CreateC.Id 30)}
+      :-> [[:I1070/R2 {:I1070/B? {}
+                       :-> [[:I1070/R1? {:I1070/A {:Id? :I1070/CreateC.A}}
+                             :I1070/CreateC.B]]}]]})
+    (dataflow
+     :I1070/FindC
+     {:I1070/C? {}
+      :-> [[:I1070/R2? {:I1070/B? {}
+                        :-> [[:I1070/R1? {:I1070/A {:Id? :I1070/FindC.A}}
+                              :I1070/FindC.B]]}
+            :I1070/FindC.C]]})
+    (dataflow
+     :I1070/FindAllC
+     {:I1070/C? {}
+      :-> [[:I1070/R2? {:I1070/B? {}
+                        :-> [[:I1070/R1? {:I1070/A {:Id? :I1070/FindAllC.A}}
+                              :I1070/FindAllC.B]]}]]})
+    (dataflow
+     :I1070/FindAllCWithZ
+     {:I1070/C? {:Z? :I1070/FindAllCWithZ.Z}
+      :-> [[:I1070/R2? {:I1070/B? {}
+                        :-> [[:I1070/R1? {:I1070/A {:Id? :I1070/FindAllCWithZ.A}}
+                              :I1070/FindAllCWithZ.B]]}]]}))
+  (let [create-a (fn [id]
+                   (tu/first-result
+                    {:I1070/Create_A
+                     {:Instance
+                      {:I1070/A {:Id id :X (* id 10)}}}}))
+        a? (partial cn/instance-of? :I1070/A)
+        create-b (fn [id a]
+                   (tu/first-result
+                    {:I1070/CreateB
+                     {:Id id :A a}}))
+        b? (partial cn/instance-of? :I1070/B)
+        create-c (fn [id a b]
+                   (tu/first-result
+                    {:I1070/CreateC
+                     {:Id id :A a :B b}}))
+        find-c (fn [a b c]
+                 (tu/first-result
+                  {:I1070/FindC
+                   {:A a :B b :C c}}))
+        find-all-c (fn [a b]
+                     (tu/result
+                      {:I1070/FindAllC
+                       {:A a :B b}}))
+        find-all-c-with-z (fn [a b z]
+                            (tu/result
+                             {:I1070/FindAllCWithZ
+                              {:A a :B b :Z z}}))
+        c? (partial cn/instance-of? :I1070/C)
+        as (mapv create-a [1 2])]
+    (is (and (= 2 (count as)) (every? a? as)))
+    (let [b1 (create-b 10 1)
+          b2 (create-b 100 1)
+          c1 (create-c 20 1 10)
+          c2 (create-c 30 1 10)
+          c3 (create-c 40 1 100)]
+      (is (b? b1))
+      (is (c? c1))
+      (is (c? c2))
+      (is (c? c3))
+      (is (cn/same-instance? c1 (find-c 1 10 20)))
+      (is (cn/same-instance? c2 (find-c 1 10 30)))
+      (is (cn/same-instance? c3 (find-c 1 100 40)))
+      (let [cs (find-all-c 1 10)]
+        (is (and (= 2 (count cs)) (every? c? cs)))
+        (is (= [c1 c2] (sort #(< (:Id %1) (:Id %2)) cs))))
+      (let [cs (find-all-c 1 100)]
+        (is (and (= 1 (count cs)) (every? c? cs)))
+        (is (cn/same-instance? (first cs) c3)))
+      (let [cs (find-all-c-with-z 1 10 (* 30 30))]
+        (is (and (= 1 (count cs)) (every? c? cs)))
+        (is (cn/same-instance? (first cs) c2))))))
