@@ -616,10 +616,12 @@
                               :I1070/FindAllC.B]]}]]})
     (dataflow
      :I1070/FindAllCWithZ
+     {:I1070/B? {}
+      :-> [[:I1070/R1? {:I1070/A {:Id? :I1070/FindAllCWithZ.A}}
+            :I1070/FindAllCWithZ.B]]
+      :as [:B]}
      {:I1070/C? {:Z? :I1070/FindAllCWithZ.Z}
-      :-> [[:I1070/R2? {:I1070/B? {}
-                        :-> [[:I1070/R1? {:I1070/A {:Id? :I1070/FindAllCWithZ.A}}
-                              :I1070/FindAllCWithZ.B]]}]]}))
+      :-> [[:I1070/R2? :B]]}))
   (let [create-a (fn [id]
                    (tu/first-result
                     {:I1070/Create_A
