@@ -123,13 +123,19 @@
                          :client-id    (get-env-var "AWS_COGNITO_CLIENT_ID")
                          :user-pool-id (get-env-var "AWS_COGNITO_USER_POOL_ID")
                          :whitelist?   (or (get-in (gs/get-app-config) [:authentication :whitelist?])
-                                           false)}]
+                                           false)
+                         :s3? (or (get-in (gs/get-app-config) [:storage :s3?])
+                                  false)}]
          ;;TODO: Need to revisit this and add a layer to check for domains
          ;;      that are whitelisted.
          (if (true? (:whitelist? aws-config))
            (assoc aws-config
                   :s3-bucket (get-env-var "AWS_S3_BUCKET")
                   :whitelist-file-key (get-env-var "WHITELIST_FILE_KEY"))
+           aws-config)
+         (if (true? (:s3? aws-config))
+           (assoc aws-config
+                  :s3-storage-bucket (get-env-var "AWS_S3_STORAGE_BUCKET"))
            aws-config)
          aws-config))))
 
