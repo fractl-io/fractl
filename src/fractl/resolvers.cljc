@@ -3,4 +3,5 @@
   (:require [fractl.resolver.meta]
             [fractl.resolver.timer]
             [fractl.resolver.policy]
-            #?(:clj [fractl.resolver.data-sync])))
+            #?(:clj [fractl.resolver.data-sync])
+            #?(:clj [fractl.resolver.storage])))
