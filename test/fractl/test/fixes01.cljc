@@ -673,3 +673,44 @@
       (let [cs (find-all-c-with-z 1 10 (* 30 30))]
         (is (and (= 1 (count cs)) (every? c? cs)))
         (is (cn/same-instance? (first cs) c2))))))
+
+(deftest alias-support-for-between
+  (defcomponent :Asfb
+    (entity
+     :Asfb/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Asfb/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :Asfb/R
+     {:meta {:between [:Asfb/A :Asfb/B]}})
+    (dataflow
+     :Asfb/MakeB
+     {:Asfb/A {:Id? :Asfb/MakeB.A} :as [:AliasForA]}
+     {:Asfb/B {:Id :Asfb/MakeB.B, :Y '(* :Asfb/MakeB.B 10)}
+      :-> [[{:Asfb/R {}} :AliasForA]]})
+    (dataflow
+     :Asfb/FindR
+     {:Asfb/R {:A? :Asfb/FindR.A :B? :Asfb/FindR.B}}))
+  (let [create-a (fn [id]
+                   (tu/first-result
+                    {:Asfb/Create_A
+                     {:Instance
+                      {:Asfb/A {:Id id :X (* id 2)}}}}))
+        make-b (fn [id a]
+                 (tu/result
+                  {:Asfb/MakeB {:A a :B id}}))
+        find-r (fn [a b]
+                 (tu/first-result
+                  {:Asfb/FindR {:A a :B b}}))
+        a (create-a 1)]
+    (is (cn/instance-of? :Asfb/A a))
+    (is (tu/is-error #(find-r 1 2)))
+    (let [b (make-b 2 1)
+          r (find-r 1 2)]
+      (is (cn/instance-of? :Asfb/B b))
+      (is (cn/instance-of? :Asfb/R r))
+      (is (and (= 1 (:A r)) (= 2 (:B r)))))))
