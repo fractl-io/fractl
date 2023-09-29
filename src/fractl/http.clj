@@ -48,7 +48,8 @@
 
 (defn- internal-error
   ([s data-fmt]
-   (response {:reason s} 500 data-fmt))
+   (log/warn (str "internal error reported from HTTP layer: " s))
+   (response {:reason "internal error on server"} 500 data-fmt))
   ([s] (internal-error s :json)))
 
 (defn- cleanup-inst [obj]
@@ -60,10 +61,11 @@
 (defn- cleanup-result [rs]
   (if-let [result (:result rs)]
     (assoc rs :result (cond
-                        (map? result)
+                        (cn/an-instance? result)
                         (cleanup-inst result)
 
-                        (vector? result)
+                        (and (seqable? result)
+                             (cn/an-instance? (first result)))
                         (mapv cleanup-inst result)
 
                         :else result))
@@ -103,19 +105,26 @@
     (vector? r) (extract-status (first r))
     :else nil))
 
+(defn- wrap-result
+  ([on-no-perm r data-fmt]
+   (let [status (extract-status r)]
+     (case status
+       nil (bad-request "invalid request" data-fmt)
+       :ok (ok (cleanup-results r) data-fmt)
+       :error (if (gs/error-no-perm?)
+                (if on-no-perm
+                  (ok on-no-perm data-fmt)
+                  (unauthorized r data-fmt))
+                (internal-error r data-fmt))
+       (ok r data-fmt))))
+  ([r data-fmt]
+   (wrap-result nil r data-fmt)))
+
 (defn- maybe-ok
   ([on-no-perm exp data-fmt]
    (try
-     (let [r (exp), status (extract-status r)]
-       (case status
-         nil (bad-request "invalid request" data-fmt)
-         :ok (ok r data-fmt)
-         :error (if (gs/error-no-perm?)
-                  (if on-no-perm
-                    (ok on-no-perm data-fmt)
-                    (unauthorized r data-fmt))
-                  (internal-error r data-fmt))
-         (ok r data-fmt)))
+     (let [r (exp)]
+       (wrap-result on-no-perm r data-fmt))
      (catch Exception ex
        (log/exception ex)
        (internal-error (.getMessage ex) data-fmt))))
@@ -227,11 +236,14 @@
               (ok @resp))))))
 
 (defn- parse-rest-uri [request]
-  (let [s (:* (:params request))
-        [uri suffix] (if (s/ends-with? s "/__tree")
-                       [(subs s 0 (s/index-of s "/__tree")) :tree]
-                       [s nil])]
-    (assoc (uh/parse-rest-uri uri) :suffix suffix)))
+  (try
+    (let [s (:* (:params request))
+          [uri suffix] (if (s/ends-with? s "/__tree")
+                         [(subs s 0 (s/index-of s "/__tree")) :tree]
+                         [s nil])]
+      (assoc (uh/parse-rest-uri uri) :suffix suffix))
+    (catch Exception ex
+      (log/warn (str "failed to parse uri: " (.getMessage ex))))))
 
 (defn- maybe-path-attribute [path]
   (when path
@@ -248,14 +260,13 @@
                              (if resp
                                resp
                                (let [[evt post-fn] (if (fn? event-gen) (event-gen) [event-gen nil])
-                                     evt (assoc-event-context request auth-config evt)
-                                     result (try
-                                              (maybe-ok
-                                               (and options (:on-no-perm options))
-                                               #(evaluate evaluator evt) data-fmt)
-                                              (finally
-                                                (when post-fn (post-fn))))]
-                                 result)))))
+                                     evt (assoc-event-context request auth-config evt)]
+                                 (try
+                                   (maybe-ok
+                                    (and options (:on-no-perm options))
+                                    #(evaluate evaluator evt) data-fmt)
+                                   (finally
+                                     (when post-fn (post-fn)))))))))
         (bad-request (str "invalid request uri - " (:* (:params request)))))))
 
 (defn- temp-event-name [component]
@@ -340,7 +351,7 @@
                (if (= :ok (:status rs))
                  (let [result (maybe-merge-child-uris
                                evaluator evt-context data-fmt
-                               c child-entity (:result rs))
+                               c child-entity (cleanup-inst (:result rs)))
                        rels (li/rel-tag parent-inst)]
                    (assoc parent-inst li/rel-tag (assoc rels relname result)))
                  parent-inst)))
@@ -361,13 +372,16 @@
               evt (evt-context (make-lookup-event component entity-name id path))
               rs (let [rs (evaluate evaluator evt)]
                    (if (map? rs) rs (first rs)))
-              result (cleanup-inst (:result rs))]
-          (if (seq result)
-            (ok (maybe-merge-child-uris
-                 evaluator evt-context data-fmt
-                 component entity-name result)
-                data-fmt)
-            (ok result data-fmt))))))
+              status (extract-status rs)]
+          (if (= :ok status)
+            (let [result (cleanup-inst (:result rs))]
+              (if (seq result)
+                (ok (maybe-merge-child-uris
+                     evaluator evt-context data-fmt
+                     component entity-name result)
+                    data-fmt)
+                (ok result data-fmt)))
+            (wrap-result rs data-fmt))))))
 
 (defn- between-rel-path? [path]
   (when path
