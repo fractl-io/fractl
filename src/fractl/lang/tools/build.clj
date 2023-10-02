@@ -222,7 +222,7 @@
                        (normalize-clj-imports (:clj-import component-spec))
                        use-models)
           ns-decl `(~(symbol "ns") ~ns-name
-                    ~@clj-imports)
+                                   ~@clj-imports)
           exps (concat
                 [ns-decl]
                 (update-local-defs ns-name component)
@@ -402,3 +402,9 @@
               :clojars "lein deploy clojars"
               :github "lein deploy github")]
     (exec-with-build-model cmd nil model-name)))
+
+(defn exec-repl [model-name]
+  (when-let [proj-dir (project-dir model-name)]
+    (let [cmd (str "lein repl")]
+      (println cmd)
+      (u/exec-in-directory proj-dir cmd))))

@@ -368,8 +368,9 @@
   (println "  build MODEL-NAME Compile a model to produce a standalone application")
   (println "  publish MODEL-NAME TARGET Publish the model to one of the targets - `local`, `clojars` or `github`")
   (println "  exec MODEL-NAME build and run the model as a standalone application")
+  (println "  repl MODEL-NAME run `lein repl` for the model.")
   (println)
-  (println "For `run`, `compile`, `build`, `publish` and `exec` the model will be searched in the local directory")
+  (println "For `run`, `compile`, `build`, `publish`, `exec` and `repl` the model will be searched in the local directory")
   (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
   (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
   (println "model directory itself.")
@@ -407,13 +408,14 @@
       (or (some
            identity
            (mapv (partial run-plain-option args)
-                 ["run" "compile" "build" "exec" "publish" "deploy"
+                 ["run" "compile" "build" "exec" "repl" "publish" "deploy"
                   "db:migrate"]
                  [#(call-after-load-model
                     (first %) (fn [] (run-service nil (read-model-and-config nil options))))
                   #(println (build/compile-model (first %)))
                   #(println (build/standalone-package (first %)))
                   #(println (build/run-standalone-package (first %)))
+                  #(println (build/exec-repl (first %)))
                   #(println (publish-library %))
                   #(println (d/deploy (:deploy basic-config) (first %)))
                   #(call-after-load-model
