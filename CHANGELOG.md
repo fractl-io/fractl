@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2023-10-02
+
 ## [0.4.0] - 2023-07-05
+
 -   GPT integration for generating app
 
 ## [0.3.3] - 2023-06-27
@@ -117,7 +120,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.4.0...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.4.5...HEAD
+
+[0.4.5]: https://github.com/fractl-io/fractl/compare/0.4.0...0.4.5
 
 [0.4.0]: https://github.com/fractl-io/fractl/compare/0.3.3...0.4.0
 
