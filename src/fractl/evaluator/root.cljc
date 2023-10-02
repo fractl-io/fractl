@@ -353,6 +353,15 @@
       (cn/concat-owners inst [owner])
       inst)))
 
+(defn- upsert-post-event-sources [env record-name insts]
+  (let [id-attr (cn/identity-attribute-name record-name)]
+    (reduce (fn [env inst]
+              ((if (env/queried-id? env record-name (id-attr inst))
+                 env/update-post-event
+                 env/create-post-event)
+               env inst))
+            env insts)))
+
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
@@ -386,8 +395,9 @@
                           (when conditional-event-results
                             (cleanup-conditional-results conditional-event-results))))))))
                 insts)))
-            insts)]
-      (intercept-upsert-result env result))))
+            insts)
+          env (upsert-post-event-sources env record-name result)]
+      [env (intercept-upsert-result env result)])))
 
 (defn- delete-by-id [store record-name inst]
   (let [id-attr (cn/identity-attribute-name record-name)]
@@ -463,7 +473,7 @@
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
     (let [n (li/split-path (cn/instance-type x))
-          r (chained-upsert env event-evaluator n x)]
+          [env r] (chained-upsert env event-evaluator n x)]
       [(env/bind-instance env n x) r])
     [env nil]))
 
@@ -974,11 +984,11 @@
                            (if single? [insts] (vec insts)))]
                     (if single? (first r) r))
             env (env/merge-relationship-context env @rel-ctx)
-            local-result (if upsert-required
-                           (chained-upsert
-                            env (partial eval-event-dataflows self)
-                            record-name insts)
-                           (if single? (seq [insts]) insts))]
+            [env local-result] (if upsert-required
+                                 (chained-upsert
+                                  env (partial eval-event-dataflows self)
+                                  record-name insts)
+                                 [env (if single? (seq [insts]) insts)])]
         (if-let [bindable (if single? (first local-result) local-result)]
           (let [env-with-inst (env/bind-instances env record-name local-result)
                 final-env (if inst-alias
@@ -1142,7 +1152,9 @@
               (i/ok insts (reduce (fn [env instance]
                                     (when (delete-children store record-name instance)
                                       (chained-delete env record-name instance)
-                                      (env/purge-instance env record-name id-attr (id-attr instance))))
+                                      (env/delete-post-event
+                                       (env/purge-instance env record-name id-attr (id-attr instance))
+                                       instance)))
                                   env insts)))
             (i/not-found record-name env)))
         (i/error (str "no active store, cannot delete " record-name " instance"))))

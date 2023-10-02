@@ -163,3 +163,24 @@
          (is (r3? (delete-r3 wu1 (li/id-attr r3))))
          (is (not (lookup-a wu2 a1id)))
          (is (= #{"u1@i1051.com"} (cn/owners (lookup-a wu1 a1id)))))))))
+
+(deftest issue-1059-crud-events
+  (defcomponent :I1059
+    (entity
+     :I1059/A
+     {:Id :Identity :X :Int})
+    (entity
+     :I1059/B
+     {:Id :Identity :Y :Int})
+    (dataflow
+     :I1059/E1
+     {:I1059/A {:X :I1059/E1.A} :as :A}
+     {:I1059/B {:Y :I1059/E1.B}}
+     {:I1059/A {:Id? :A.Id :X 200}}))
+  (let [a (tu/first-result
+           {:I1059/Create_A
+            {:Instance
+             {:I1059/A {:X 100}}}})
+        a? (partial cn/instance-of? :I1059/A)]
+    (is (a? a))
+    (is (a? (tu/first-result {:I1059/E1 {:A 1 :B 2}})))))

@@ -71,10 +71,14 @@
   (when (identical? internal-event-flag (internal-event-key event-instance))
     true))
 
-(defn- eval-dataflow-with-store-connection [evaluator env event-instance df store-connection]
+(defn- fire-post-events [env]
+  ;; TODO: walk (env/post-event-trigger-sources env) and fire appropriate events
+  env)
+
+(defn- eval-dataflow-in-transaction [evaluator env event-instance df txn]
   (binding [gs/active-event-context (or (li/event-context event-instance)
                                         gs/active-event-context)
-            gs/active-store-connection store-connection]
+            gs/active-txn txn]
     (let [is-internal (internal-event? event-instance)
           event-instance (if is-internal
                            (dissoc event-instance internal-event-key)
@@ -92,11 +96,13 @@
                                      env0)
                                [_ dc] (cn/dataflow-opcode
                                        df (or (env/with-types env)
-                                              cn/with-default-types))]
-                           (deref-futures (let [r (dispatch-opcodes evaluator env dc)]
-                                            (if (and (map? r) (not= :ok (:status r)))
-                                              (throw (ex-info "eval failed" {:eval-result r}))
-                                              r)))))]
+                                              cn/with-default-types))
+                               result (deref-futures (let [r (dispatch-opcodes evaluator env dc)]
+                                                       (if (and (map? r) (not= :ok (:status r)))
+                                                         (throw (ex-info "eval failed" {:eval-result r}))
+                                                         r)))]
+                           (fire-post-events (:env result))
+                           result))]
       (interceptors/eval-intercept env0 event-instance continuation))))
 
 (defn- maybe-init-event [event-obj]
@@ -111,11 +117,13 @@
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
    (let [event-instance (maybe-init-event event-instance)
-         f (partial eval-dataflow-with-store-connection evaluator env event-instance df)]
+         f (partial eval-dataflow-in-transaction evaluator env event-instance df)]
      (try
-       (let [r (if-let [store (env/get-store env)]
-                 (store/call-in-transaction store f)
-                 (f nil))]
+       (let [r (if gs/active-txn
+                 (f gs/active-txn)
+                 (if-let [store (env/get-store env)]
+                   (store/call-in-transaction store f)
+                   (f nil)))]
          (r/merge-init-pending-components!)
          r)
        (catch #?(:clj Exception :cljs :default) ex
@@ -176,13 +184,11 @@
    and evaluator returned by a previous call to evaluator/make may be passed as
    the first two arguments."
   [compile-query-fn evaluator env event-instance]
-  (let [dfs (c/compile-dataflows-for-event
-             compile-query-fn event-instance)
+  (let [dfs (c/compile-dataflows-for-event compile-query-fn event-instance)
         logging-rules (logging/rules event-instance)
         hidden-attrs (logging/hidden-attributes logging-rules)
-        ef (partial
-            eval-dataflow-with-logs evaluator
-            env event-instance hidden-attrs)]
+        ef (partial eval-dataflow-with-logs evaluator
+                    env event-instance hidden-attrs)]
     (log-event hidden-attrs event-instance)
     (mapv ef dfs)))
 
@@ -227,7 +233,7 @@
       resolver-or-resolver-config
       (u/throw-ex (str "invalid resolver config " resolver-or-resolver-config)))))
 
-(defn evaluator
+(defn- evaluator
   ([store-or-store-config resolver-or-resolver-config with-query-support]
    (let [store (store-from-config store-or-store-config)
          resolver (resolver-from-config resolver-or-resolver-config)
@@ -240,8 +246,7 @@
                       (r/find-instances env store (first qinfo) (second qinfo))
                       (ef x)))
                   ef)]
-     (es/set-active-evaluator! result)
-     (es/set-active-store! store)
+     (es/set-active-state! result store)
      result))
   ([store-or-store-config resolver-or-resolver-config]
    (evaluator store-or-store-config resolver-or-resolver-config false))
@@ -262,7 +267,8 @@
 
 (defn eval-all-dataflows
   ([event-obj store-or-store-config resolver-or-resolver-config]
-   ((evaluator store-or-store-config resolver-or-resolver-config) event-obj))
+   (let [ef (evaluator store-or-store-config resolver-or-resolver-config)]
+     (ef event-obj)))
   ([event-obj]
    (eval-all-dataflows event-obj (es/get-active-store) nil)))
 
@@ -284,10 +290,6 @@
 
 (defn query-fn [store]
   (partial r/find-instances env/EMPTY store))
-
-(defn global-dataflow-eval []
-  (or (es/get-active-evaluator)
-      (public-evaluator {} nil)))
 
 (defn ok-result
   ([result safe]

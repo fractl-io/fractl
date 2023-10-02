@@ -270,3 +270,26 @@
 
 (defn assoc-load-between-refs [env f]
   (assoc env load-between-refs f))
+
+(def post-event-trigger-sources :-*-post-event-trigger-sources-*-)
+
+(defn- remove-trigger-source [trigger-sources predic]
+  (loop [tags [:create :update :delete], trigger-sources trigger-sources]
+    (if-let [tag (first tags)]
+      (if-let [srcs (tag trigger-sources)]
+        (if (first (filter predic srcs))
+          (assoc trigger-sources tag (remove predic srcs))
+          (recur (rest tags) trigger-sources))
+        (recur (rest tags) trigger-sources))
+      trigger-sources)))
+
+(defn- add-post-event-trigger-source [tag env inst]
+  (let [trigger-sources (get env post-event-trigger-sources)
+        srcs (get trigger-sources tag [])
+        new-trigger-sources (remove-trigger-source trigger-sources (partial cn/instance-eq? inst))]
+    (assoc env post-event-trigger-sources
+           (assoc new-trigger-sources tag (conj srcs inst)))))
+
+(def create-post-event (partial add-post-event-trigger-source :create))
+(def update-post-event (partial add-post-event-trigger-source :update))
+(def delete-post-event (partial add-post-event-trigger-source :delete))
