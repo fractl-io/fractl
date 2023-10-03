@@ -363,6 +363,14 @@
                env inst))
             env insts)))
 
+(defn- fire-pre-crud-event [event-evaluator env tag inst]
+  (when-let [[event-name r] (cn/fire-pre-event
+                             (partial event-evaluator (env/disable-post-event-triggers env))
+                             tag inst)]
+    (when-not (u/safe-ok-result r)
+      (log/warn r)
+      (u/throw-ex (str "internal event " event-name " failed.")))))
+
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
@@ -382,6 +390,10 @@
                      env inst
                      (fn [inst]
                        (let [store-f (if is-queried store/update-instances store/create-instances)
+                             _ (fire-pre-crud-event
+                                event-evaluator env
+                                (if is-queried :update :create)
+                                inst)
                              resolver-f (if is-queried resolver-update resolver-create)
                              result
                              (chained-crud
@@ -1150,6 +1162,8 @@
             (let [alias (ls/alias-tag queries)
                   env (if alias (env/bind-instance-to-alias env alias insts) env)
                   id-attr (cn/identity-attribute-name record-name)]
+              (doseq [inst insts]
+                (fire-pre-crud-event (partial eval-event-dataflows self) env :delete inst))
               (i/ok insts (reduce (fn [env instance]
                                     (when (delete-children store record-name instance)
                                       (chained-delete env record-name instance)

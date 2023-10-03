@@ -293,3 +293,6 @@
 (def create-post-event (partial add-post-event-trigger-source :create))
 (def update-post-event (partial add-post-event-trigger-source :update))
 (def delete-post-event (partial add-post-event-trigger-source :delete))
+
+(defn disable-post-event-triggers [env]
+  (dissoc env post-event-trigger-sources))

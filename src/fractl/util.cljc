@@ -2,6 +2,7 @@
   (:require [clojure.string :as string]
             [clojure.pprint :as pp]
             #?(:clj [clojure.java.io :as io])
+            [fractl.util.logger :as log]
             [fractl.datafmt.json :as json])
   #?(:clj
      (:require [net.cgrand.macrovich :as macros])
@@ -347,3 +348,17 @@
         (let [ret (apply f args)]
           (when-not (nil? ret) (swap! mem assoc args ret))
           ret)))))
+
+(defn ok-result
+  ([result safe]
+   (let [f (if (map? result) result (first result))]
+     (if (= :ok (:status f))
+       (:result f)
+       (let [msg (str "unexpected result: " result)]
+         (if safe
+           (do (log/warn msg) nil)
+           (throw-ex msg))))))
+  ([result] (ok-result result false)))
+
+(defn safe-ok-result [result]
+  (ok-result result true))

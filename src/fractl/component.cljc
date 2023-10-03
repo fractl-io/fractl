@@ -1948,10 +1948,10 @@
   (when-let [t (instance-type-kw inst)]
     (between-relationship? t)))
 
-(defn prepost-event-name [p tag recname]
+(defn prepost-event-name [selector tag recname]
   (let [[c n] (li/split-path recname)]
     (li/make-path c (keyword
-                     (str (case p :post "Post_" :pre "Pre_")
+                     (str (case selector :post "Post_" :pre "Pre_")
                           (name tag) "_"
                           (name n))))))
 
@@ -1960,3 +1960,11 @@
 
 (defn make-post-event [event-name inst]
   (make-instance event-name {:Instance inst}))
+
+(defn fire-prepost-event [selector event-evaluator tag inst]
+  (let [event-name (prepost-event-name selector tag (instance-type inst))]
+    (when (find-dataflows event-name)
+      [event-name (event-evaluator (make-post-event event-name inst))])))
+
+(def fire-post-event (partial fire-prepost-event :post))
+(def fire-pre-event (partial fire-prepost-event :pre))

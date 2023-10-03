@@ -71,16 +71,14 @@
   (when (identical? internal-event-flag (internal-event-key event-instance))
     true))
 
-(declare eval-all-dataflows ok-result)
+(declare eval-all-dataflows)
 
 (defn- fire-post-events-for [tag insts]
   (doseq [inst insts]
-    (let [event-name (cn/post-event-name tag (cn/instance-type inst))]
-      (when (cn/find-dataflows event-name)
-        (let [r (eval-all-dataflows (cn/make-post-event event-name inst))]
-          (when-not (ok-result r)
-            (log/warn r)
-            (u/throw-ex (str "internal event " event-name " failed."))))))))
+    (when-let [[event-name r] (cn/fire-post-event eval-all-dataflows tag inst)]
+      (when-not (u/safe-ok-result r)
+        (log/warn r)
+        (u/throw-ex (str "internal event " event-name " failed."))))))
 
 (defn- fire-post-events [env]
   (let [srcs (env/post-event-trigger-sources env)]
@@ -305,31 +303,17 @@
 (defn query-fn [store]
   (partial r/find-instances env/EMPTY store))
 
-(defn ok-result
-  ([result safe]
-   (let [f (if (map? result) result (first result))]
-     (if (= :ok (:status f))
-       (:result f)
-       (let [msg (str "unexpected result: " result)]
-         (if safe
-           (do (log/warn msg) nil)
-           (u/throw-ex msg))))))
-  ([result] (ok-result result false)))
-
-(defn safe-ok-result [result]
-  (ok-result result true))
-
 (defn safe-eval [event-obj]
-  (safe-ok-result
+  (u/safe-ok-result
    (eval-all-dataflows
     (cn/make-instance event-obj))))
 
 (defn safe-eval-internal [event-obj]
-  (safe-ok-result
+  (u/safe-ok-result
    (eval-all-dataflows
     (mark-internal
      (cn/make-instance event-obj)))))
 
 (defn safe-eval-pattern [pattern]
-  (safe-ok-result
+  (u/safe-ok-result
    (evaluate-pattern pattern)))
