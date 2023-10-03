@@ -166,12 +166,16 @@
 
 (deftest issue-1059-crud-events
   (defcomponent :I1059
-    (entity
-     :I1059/A
-     {:Id :Identity :X :Int})
-    (entity
-     :I1059/B
-     {:Id :Identity :Y :Int})
+    (entity :I1059/A {:Id :Identity :X :Int})
+    (entity :I1059/B {:Id :Identity :Y :Int})
+    (entity :I1059/A1 {:Id :UUID :X :Int})
+    (entity :I1059/B1 {:Y :Int})
+    (dataflow
+     [:post :create :I1059/A]
+     {:I1059/A1 {:X :Instance.X :Id :Instance.Id}})
+    (dataflow
+     :I1059/LookupA1
+     {:I1059/A1 {:Id? :I1059/LookupA1.Id}})
     (dataflow
      :I1059/E1
      {:I1059/A {:X :I1059/E1.A} :as :A}
@@ -181,6 +185,14 @@
            {:I1059/Create_A
             {:Instance
              {:I1059/A {:X 100}}}})
-        a? (partial cn/instance-of? :I1059/A)]
+        a? (partial cn/instance-of? :I1059/A)
+        lookup-a1 (fn [id]
+                    (tu/result
+                     {:I1059/LookupA1
+                      {:Id id}}))
+        a1? (partial cn/instance-of? :I1059/A1)]
     (is (a? a))
-    (is (a? (tu/first-result {:I1059/E1 {:A 1 :B 2}})))))
+    (is (a? (tu/first-result {:I1059/E1 {:A 1 :B 2}})))
+    (let [a1s (lookup-a1 (:Id a))]
+      (is (= 1 (count a1s)))
+      (is (a1? (first a1s))))))

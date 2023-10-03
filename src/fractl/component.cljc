@@ -1948,9 +1948,15 @@
   (when-let [t (instance-type-kw inst)]
     (between-relationship? t)))
 
-(defn post-event-name [tag recname]
+(defn prepost-event-name [p tag recname]
   (let [[c n] (li/split-path recname)]
-    (li/make-path c (keyword (str "OnPost_" (name tag) "_" (name n))))))
+    (li/make-path c (keyword
+                     (str (case p :post "Post_" :pre "Pre_")
+                          (name tag) "_"
+                          (name n))))))
+
+(def post-event-name (partial prepost-event-name :post))
+(def pre-event-name (partial prepost-event-name :pre))
 
 (defn make-post-event [event-name inst]
   (make-instance event-name {:Instance inst}))
