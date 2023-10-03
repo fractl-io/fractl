@@ -22,7 +22,7 @@
              {:Fractl.Kernel.Lang/LoadPolicies
               {:Intercept (u/keyword-as-string intercept)
                :Resource (u/keyword-as-string (normalize-path resource))}})]
-        (ev/ok-result result true)))
+        (u/ok-result result true)))
    (lookup-container-policies intercept resource)))
 
 (defn- lookup-container-policies [intercept resource]
@@ -38,6 +38,6 @@
             {:Intercept (u/keyword-as-string intercept)
              :Resource (u/keyword-as-string (normalize-path resource))
              :Spec [:q# spec]}}}})]
-    (ev/ok-result result)))
+    (u/ok-result result)))
 
 (def spec :Spec)
