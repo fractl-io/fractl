@@ -354,7 +354,8 @@
       inst)))
 
 (defn- upsert-post-event-sources [env record-name insts]
-  (let [id-attr (cn/identity-attribute-name record-name)]
+  (let [id-attr (cn/identity-attribute-name record-name)
+        insts (if (map? insts) [insts] insts)]
     (reduce (fn [env inst]
               ((if (env/queried-id? env record-name (id-attr inst))
                  env/update-post-event
@@ -396,7 +397,7 @@
                             (cleanup-conditional-results conditional-event-results))))))))
                 insts)))
             insts)
-          env (upsert-post-event-sources env record-name result)]
+          env (upsert-post-event-sources env record-name insts)]
       [env (intercept-upsert-result env result)])))
 
 (defn- delete-by-id [store record-name inst]

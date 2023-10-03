@@ -71,8 +71,19 @@
   (when (identical? internal-event-flag (internal-event-key event-instance))
     true))
 
+(declare eval-all-dataflows)
+
+(defn- fire-post-events-for! [tag insts]
+  (doseq [inst insts]
+    (let [event-name (cn/post-event-name tag (cn/instance-type inst))]
+      (when (cn/find-dataflows event-name)
+        (eval-all-dataflows (cn/make-post-event event-name inst))))))
+
 (defn- fire-post-events [env]
-  ;; TODO: walk (env/post-event-trigger-sources env) and fire appropriate events
+  (let [srcs (env/post-event-trigger-sources env)]
+    (doseq [tag [:create :update :delete]]
+      (when-let [insts (seq (tag srcs))]
+        (fire-post-events-for! tag insts))))
   env)
 
 (defn- eval-dataflow-in-transaction [evaluator env event-instance df txn]
