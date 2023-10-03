@@ -1,6 +1,5 @@
 (ns fractl.auth
   (:require [fractl.util :as u]
-            [fractl.auth.keycloak]
             [fractl.auth.cognito]
             [fractl.auth.df]
             [fractl.resolver.registry :as rr]
