@@ -1,7 +1,5 @@
 (ns fractl.auth
   (:require [fractl.util :as u]
-            [fractl.evaluator :as ev]
-            [fractl.auth.keycloak]
             [fractl.auth.cognito]
             [fractl.auth.df]
             [fractl.resolver.registry :as rr]
@@ -9,12 +7,12 @@
 
 (defn- maybe-signup-user [evaluator email]
   (if-let [user (first
-                 (ev/safe-ok-result
+                 (u/safe-ok-result
                   (evaluator
                    {:Fractl.Kernel.Identity/FindUser
                     {:Email email}})))]
     user
-    (ev/safe-ok-result
+    (u/safe-ok-result
      (evaluator {:Fractl.Kernel.Identity/SignUp
                  {:User
                   {:Fractl.Kernel.Identity/User

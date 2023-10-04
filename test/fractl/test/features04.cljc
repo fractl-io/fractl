@@ -163,3 +163,92 @@
          (is (r3? (delete-r3 wu1 (li/id-attr r3))))
          (is (not (lookup-a wu2 a1id)))
          (is (= #{"u1@i1051.com"} (cn/owners (lookup-a wu1 a1id)))))))))
+
+(deftest issue-1059-crud-events
+  (defcomponent :I1059
+    (entity :I1059/A {:Id :Identity :X :Int})
+    (entity :I1059/B {:Id :Identity :Y :Int})
+    (entity :I1059/A1 {:Id :UUID :X :Int})
+    (entity :I1059/ALog {:Id :UUID :Tag :String})
+    (entity :I1059/B1 {:Y :Int})
+    (dataflow
+     [:after :create :I1059/A]
+     {:I1059/A1 {:X :Instance.X :Id :Instance.Id}})
+    (dataflow
+     [:before :create :I1059/A]
+     {:I1059/ALog {:Id :Instance.Id :Tag "create"}})
+    (dataflow
+     [:before :update :I1059/A]
+     {:I1059/ALog {:Id :Instance.Id :Tag "update"}})
+    (dataflow
+     [:before :delete :I1059/A]
+     {:I1059/ALog {:Id :Instance.Id :Tag "delete"}})
+    (dataflow
+     [:after :delete :I1059/A]
+     [:delete :I1059/A1 {:Id :Instance.Id}])
+    (dataflow
+     [:after :create :I1059/B]
+     {:I1059/B1 {:Y :Instance.Y}})
+    (dataflow
+     :I1059/LookupA1
+     {:I1059/A1 {:Id? :I1059/LookupA1.Id}})
+    (dataflow
+     :I1059/LookupALogs
+     {:I1059/ALog {:Id? :I1059/LookupALogs.Id}})
+    (dataflow
+     :I1059/LookupB1
+     {:I1059/B1 {:Y? :I1059/LookupB1.Y}})
+    (dataflow
+     :I1059/E1
+     {:I1059/A {:X :I1059/E1.A} :as :A}
+     {:I1059/B {:Y :I1059/E1.B}}
+     {:I1059/A {:Id? :A.Id :X 200}}))
+  (let [a (tu/first-result
+           {:I1059/Create_A
+            {:Instance
+             {:I1059/A {:X 100}}}})
+        a? (partial cn/instance-of? :I1059/A)
+        lookup-a1 (fn [id]
+                    (tu/eval-all-dataflows
+                     {:I1059/LookupA1
+                      {:Id id}}))
+        a1? (partial cn/instance-of? :I1059/A1)
+        lookup-alogs (fn [id]
+                       (tu/eval-all-dataflows
+                        {:I1059/LookupALogs
+                         {:Id id}}))
+        alog? (partial cn/instance-of? :I1059/ALog)
+        lookup-b1 (fn [y]
+                    (tu/result
+                     {:I1059/LookupB1
+                      {:Y y}}))
+        b1? (partial cn/instance-of? :I1059/B1)]
+    (is (a? a))
+    (is (= 100 (:X a)))
+    (let [a1s (tu/fresult (lookup-a1 (:Id a)))]
+      (is (= 1 (count a1s)))
+      (is (a1? (first a1s))))
+    (let [a (tu/first-result {:I1059/E1 {:A 1 :B 2}})]
+      (is (a? a))
+      (is (= 200 (:X a)))
+      (is (tu/not-found? (lookup-a1 (:Id a))))
+      (let [b1s (lookup-b1 2)]
+        (is (= 1 (count b1s)))
+        (is (b1? (first b1s))))
+      (let [alogs (tu/fresult (lookup-alogs (:Id a)))
+            ftr (fn [alogs tag]
+                  (filter #(= tag (:Tag %)) alogs))
+            f (partial ftr alogs)]
+        (is (= 2 (count alogs)))
+        (is (every? alog? alogs))
+        (is (= 1 (count (f "create"))))
+        (is (= 1 (count (f "update"))))
+        (is (cn/same-instance? a (tu/first-result {:I1059/Delete_A {:Id (:Id a)}})))
+        (let [alogs (tu/fresult (lookup-alogs (:Id a)))
+              f (partial ftr alogs)]
+          (is (= 3 (count alogs)))
+          (is (every? alog? alogs))
+          (is (= 1 (count (f "create"))))
+          (is (= 1 (count (f "update"))))
+          (is (= 1 (count (f "delete"))))
+          (is (tu/not-found? (lookup-a1 (:Id a)))))))))

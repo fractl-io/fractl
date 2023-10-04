@@ -17,7 +17,7 @@
 
 (defn active-user [] (:User active-event-context))
 
-(def ^:dynamic active-store-connection nil)
+(def ^:dynamic active-txn nil) ; active-transaction on store
 
 (def ^:private script-mode (atom false))
 
