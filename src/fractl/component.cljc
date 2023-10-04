@@ -1951,12 +1951,12 @@
 (defn prepost-event-name [selector tag recname]
   (let [[c n] (li/split-path recname)]
     (li/make-path c (keyword
-                     (str (case selector :post "Post_" :pre "Pre_")
+                     (str (case selector :after "After_" :before "Before_")
                           (name tag) "_"
                           (name n))))))
 
-(def post-event-name (partial prepost-event-name :post))
-(def pre-event-name (partial prepost-event-name :pre))
+(def post-event-name (partial prepost-event-name :after))
+(def pre-event-name (partial prepost-event-name :before))
 
 (defn make-post-event [event-name inst]
   (make-instance event-name {:Instance inst}))
@@ -1966,5 +1966,5 @@
     (when (find-dataflows event-name)
       [event-name (event-evaluator (make-post-event event-name inst))])))
 
-(def fire-post-event (partial fire-prepost-event :post))
-(def fire-pre-event (partial fire-prepost-event :pre))
+(def fire-post-event (partial fire-prepost-event :after))
+(def fire-pre-event (partial fire-prepost-event :before))

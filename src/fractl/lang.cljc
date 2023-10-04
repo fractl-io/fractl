@@ -598,7 +598,7 @@
 (defn- pre-post-crud-dataflow? [pat]
   (when (vector? pat)
     (let [p (first pat)]
-      (when (and (or (= :post p) (= :pre p))
+      (when (and (or (= :after p) (= :before p))
                (some #{(second pat)} #{:create :update :delete})
                (cn/entity? (nth pat 2)))
         true))))

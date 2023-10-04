@@ -172,22 +172,22 @@
     (entity :I1059/ALog {:Id :UUID :Tag :String})
     (entity :I1059/B1 {:Y :Int})
     (dataflow
-     [:post :create :I1059/A]
+     [:after :create :I1059/A]
      {:I1059/A1 {:X :Instance.X :Id :Instance.Id}})
     (dataflow
-     [:pre :create :I1059/A]
+     [:before :create :I1059/A]
      {:I1059/ALog {:Id :Instance.Id :Tag "create"}})
     (dataflow
-     [:pre :update :I1059/A]
+     [:before :update :I1059/A]
      {:I1059/ALog {:Id :Instance.Id :Tag "update"}})
     (dataflow
-     [:pre :delete :I1059/A]
+     [:before :delete :I1059/A]
      {:I1059/ALog {:Id :Instance.Id :Tag "delete"}})
     (dataflow
-     [:post :delete :I1059/A]
+     [:after :delete :I1059/A]
      [:delete :I1059/A1 {:Id :Instance.Id}])
     (dataflow
-     [:post :create :I1059/B]
+     [:after :create :I1059/B]
      {:I1059/B1 {:Y :Instance.Y}})
     (dataflow
      :I1059/LookupA1
