@@ -1118,11 +1118,14 @@
   [event-inst dfs]
   (filter (partial satisfies-conditions? event-inst) dfs))
 
+(defn find-dataflows [event-name]
+  (seq (component-find :events event-name)))
+
 (defn dataflows-for-event
   "Return all dataflows attached to the event."
   [event]
-  (let [evts (component-find :events (event-name event))]
-    (filter-by-conditional-events event evts)))
+  (let [dfs (find-dataflows (event-name event))]
+    (filter-by-conditional-events event dfs)))
 
 (defn all-dataflows [component]
   (su/nonils (mapv (comp first seq dataflows-for-event) (event-names component))))
@@ -1944,3 +1947,24 @@
 (defn between-relationship-instance? [inst]
   (when-let [t (instance-type-kw inst)]
     (between-relationship? t)))
+
+(defn prepost-event-name [selector tag recname]
+  (let [[c n] (li/split-path recname)]
+    (li/make-path c (keyword
+                     (str (case selector :after "After_" :before "Before_")
+                          (name tag) "_"
+                          (name n))))))
+
+(def post-event-name (partial prepost-event-name :after))
+(def pre-event-name (partial prepost-event-name :before))
+
+(defn make-post-event [event-name inst]
+  (make-instance event-name {:Instance inst}))
+
+(defn fire-prepost-event [selector event-evaluator tag inst]
+  (let [event-name (prepost-event-name selector tag (instance-type inst))]
+    (when (find-dataflows event-name)
+      [event-name (event-evaluator (make-post-event event-name inst))])))
+
+(def fire-post-event (partial fire-prepost-event :after))
+(def fire-pre-event (partial fire-prepost-event :before))

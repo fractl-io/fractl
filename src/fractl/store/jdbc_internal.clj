@@ -98,8 +98,8 @@
       (f txn))))
 
 (defn execute-fn! [datasource f]
-  (if gs/active-store-connection
-    (f gs/active-store-connection)
+  (if gs/active-txn
+    (f gs/active-txn)
     (with-open [conn (jdbc/get-connection datasource)]
       (f conn))))
 

@@ -18,8 +18,7 @@
             [fractl.store.util :as stu]
             [fractl.compiler.rule :as rule]
             [fractl.compiler.validation :as cv]
-            [fractl.compiler.internal :as i]
-            [fractl.compiler.expr.ui :as uic]))
+            [fractl.compiler.internal :as i]))
 
 (def make-context ctx/make)
 

@@ -1,23 +1,12 @@
 (ns fractl.evaluator.state
   (:require [fractl.util :as u]))
 
-(defn- set-active-state!
-  ([db k obj]
-   (u/safe-set
-    db
-    (assoc @db k obj)))
-  ([db obj] (set-active-state! db :public obj)))
+(def ^:private active-state (u/make-cell nil))
 
-(defn- get-active-state
-  ([db k]
-   (get @db k))
-  ([db] (get-active-state db :public)))
+(defn set-active-state! [evaluator store]
+  (when-not @active-state
+    (u/safe-set active-state {:evaluator evaluator
+                              :store store})))
 
-(def ^:private active-evaluators (u/make-cell {}))
-(def ^:private active-stores (u/make-cell {}))
-
-(def set-active-evaluator! (partial set-active-state! active-evaluators))
-(def get-active-evaluator (partial get-active-state active-evaluators))
-
-(def set-active-store! (partial set-active-state! active-stores))
-(def get-active-store (partial get-active-state active-stores))
+(defn get-active-evaluator [] (:evaluator @active-state))
+(defn get-active-store [] (:store @active-state))

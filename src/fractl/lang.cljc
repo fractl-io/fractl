@@ -595,11 +595,45 @@
       [{event-name (into {} attrs)}])
     (u/throw-ex (str "cannot auto-generate dataflow patterns, event schema not found - " event-name))))
 
+(defn- pre-post-crud-dataflow? [pat]
+  (when (vector? pat)
+    (let [p (first pat)]
+      (when (and (or (= :after p) (= :before p))
+               (some #{(second pat)} #{:create :update :delete})
+               (cn/entity? (nth pat 2)))
+        true))))
+
+(defn- parse-prepost-patterns [event-name pats]
+  (let [rf (li/make-ref event-name :Instance)]
+    (w/postwalk
+     #(if (keyword? %)
+        (cond
+          (= :Instance %) rf
+
+          (s/starts-with? (str %) ":Instance.")
+          (keyword (subs (s/replace (str %) ":Instance." (str rf ".")) 1))
+
+          :else %)
+        %)
+     pats)))
+
+(defn- parse-prepost-crud-header [pat]
+  (let [event-name (apply cn/prepost-event-name pat)]
+    (event-internal event-name {:Instance :Fractl.Kernel.Lang/Entity})
+    event-name))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
-  (let [r (if (not (seq patterns))
+  (let [r (cond
+            (not (seq patterns))
             (apply dataflow match-pat (event-self-ref-pattern match-pat))
+
+            (pre-post-crud-dataflow? match-pat)
+            (let [event-name (parse-prepost-crud-header match-pat)]
+              (apply dataflow event-name (parse-prepost-patterns event-name patterns)))
+
+            :else
             (do
               (ensure-dataflow-patterns! patterns)
               (if (vector? match-pat)
