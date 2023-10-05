@@ -539,3 +539,107 @@
 (deftest issue-961-globally-unique
   (globally-unique-test :I961A true)
   (globally-unique-test :I961B false))
+
+(deftest relationship-cardinality
+  (defcomponent :RelCard
+    (entity
+     :RelCard/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :RelCard/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (relationship
+     :RelCard/R1
+     {:meta {:between [:RelCard/A :RelCard/B]}})
+    (relationship
+     :RelCard/R2
+     {:meta {:between [:RelCard/A :RelCard/B :one-n true]}})
+    (relationship
+     :RelCard/R3
+     {:meta {:between [:RelCard/A :RelCard/B :one-one true]}}))
+  (let [create-a (fn [id]
+                   (tu/first-result
+                    {:RelCard/Create_A
+                     {:Instance
+                      {:RelCard/A
+                       {:Id id :X (* id 10)}}}}))
+        create-b (fn [id]
+                   (tu/first-result
+                    {:RelCard/Create_B
+                     {:Instance
+                      {:RelCard/B
+                       {:Id id :Y (* id 20)}}}}))
+        a? (partial cn/instance-of? :RelCard/A)
+        b? (partial cn/instance-of? :RelCard/B)
+        as (mapv create-a [1 2 3])
+        bs (mapv create-b [10 20 30])
+        create-r1 (fn [a b]
+                    (tu/first-result
+                     {:RelCard/Create_R1
+                      {:Instance
+                       {:RelCard/R1
+                        {:A a :B b}}}}))
+        lookup-r1 (fn [id]
+                    (tu/first-result
+                     {:RelCard/Lookup_R1 {cn/id-attr id}}))
+        r1? (partial cn/instance-of? :RelCard/R1)
+        create-r2 (fn [a b]
+                    (tu/first-result
+                     {:RelCard/Create_R2
+                      {:Instance
+                       {:RelCard/R2
+                        {:A a :B b}}}}))
+        lookup-r2 (fn [id]
+                    (tu/first-result
+                     {:RelCard/Lookup_R2 {cn/id-attr id}}))
+        r2? (partial cn/instance-of? :RelCard/R2)
+        create-r3 (fn [a b]
+                    (tu/first-result
+                     {:RelCard/Create_R3
+                      {:Instance
+                       {:RelCard/R3
+                        {:A a :B b}}}}))
+        lookup-r3 (fn [id]
+                    (tu/first-result
+                     {:RelCard/Lookup_R3 {cn/id-attr id}}))
+        r3? (partial cn/instance-of? :RelCard/R3)
+        r-with-ids (fn [cr r? a b]
+                     (let [r (cr a b)
+                           id (cn/id-attr r)]
+                       (and (r? r)
+                            (= a (:A r))
+                            (= b (:B r))
+                            id)))
+        r1-with-ids (partial r-with-ids create-r1 r1?)
+        r2-with-ids (partial r-with-ids create-r2 r2?)
+        r3-with-ids (partial r-with-ids create-r3 r3?)]
+    (is (and (= 3 (count as)) (every? a? as)))
+    (is (and (= 3 (count bs)) (every? b? bs)))
+    (let [r10 (r1-with-ids 1 10)
+          r11 (r1-with-ids 1 10)
+          r12 (is (r1-with-ids 1 20))]
+      (is (and r10 r11 r12))
+      (is (r1? (lookup-r1 r10)))
+      (is (r1? (lookup-r1 r11)))
+      (is (r1? (lookup-r1 r12)))
+      (is (r1-with-ids 2 30)))
+    (let [r20 (r2-with-ids 1 10)
+          r21 (r2-with-ids 1 10)
+          r22 (r2-with-ids 1 20)
+          r23 (r2-with-ids 2 30)]
+      (is (and r20 r21 r22 r23))
+      (is (r2? (lookup-r2 r20)))
+      (is (not (r2? (lookup-r2 r21))))
+      (is (not (r2? (lookup-r2 r22))))
+      (is (r2? (lookup-r2 r23))))
+    (let [r30 (r3-with-ids 1 10)
+          r31 (r3-with-ids 1 10)
+          r32 (r3-with-ids 1 20)
+          r33 (r3-with-ids 2 30)]
+      (is (and r30 r31 r32 r33))
+      (is (r3? (lookup-r3 r30)))
+      (is (not (r3? (lookup-r3 r31))))
+      (is (r3? (lookup-r3 r32)))
+      (is (r3? (lookup-r3 r33))))))
