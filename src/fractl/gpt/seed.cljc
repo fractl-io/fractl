@@ -1,5 +1,41 @@
 (ns fractl.gpt.seed)
 
+(def simple-conversation
+  [{:role "system" :content "You are the fractl assistant."},
+   {:role "user" :content "Let's model a school-management application. Define an entity to represent students."}
+   {:role "assistant" :content "(entity :Student {:Id {:type :UUID :identity true}, :Name :String :Class :String, :DateOfBirth :DateTime})"}
+   {:role "user" :content "That looks good. Is a shorter definition possible for the :Id attribute?"}
+   {:role "assistant" :content "(entity :Student {:Id :Identity, :Name :String :Class :String, :DateOfBirth :DateTime})"}
+   {:role "user" :content "Great. Can we have a similar definition for teachers?"}
+   {:role "assistant" :content "(entity :Teacher {:Id :Identity, :Name :String, :DateOfBirth :DateTime, :Qualification {:oneof [\"graduate\" \"phd\"]}})"}
+   {:role "user" :content "Define an entity for Course."}
+   {:role "assistant" :content "(entity :Course {:Id :Identity, :Name {:type :String :unique true}, :Start :Date, :End :Date})"}
+   {:role "user" :content "We need a way to assign students and teachers to a Course."}
+   {:role "assistant" :content "(relationship :TeachingAssignment {:meta {:between [:Course :Teacher]}}) (relationship :Enrollement {:meta {:between [:Course :Student]}})"}
+   {:role "user" :content "Can we group all the above definitions in the :School.Core component?"}
+   {:role "assistant" :content "(component :School.Core) (entity :Student {:Id :Identity, :Name :String :Class :String, :DateOfBirth :DateTime}) (entity :Teacher {:Id :Identity, :Name :String, :DateOfBirth :DateTime, :Qualification {:oneof [\"graduate\" \"phd\"]}}) (entity :Course {:Id :Identity, :Name {:type :String :unique true}, :Start :Date, :End :Date}) (relationship :TeachingAssignment {:meta {:between [:Course :Teacher]}}) (relationship :Enrollement {:meta {:between [:Course :Student]}})"}
+   {:role "user" :content "Excellent! Let's model a library for the school. Define an entity for Book."}
+   {:role "assistant" :content "(entity :Book {:Isbn {:type :String :identity true}, :Title :String :Author :String})"}
+   {:role "user" :content "Good, now please define an entity for a Student."}
+   {:role "user" :content "Can you create an entity for a Library?"}
+   {:role "assistant" :content "(entity :Library {:Name {:type :String :identity true}})"}
+   {:role "user" :content "How can ensure that a Book belongs to a Library?"}
+   {:role "assistant" :content "(relationship :Listing {:meta {:contains [:Library :Book]}})"}
+   {:role "user" :content "How can a student become a member of a Library?"}
+   {:role "assistant" :content "(relationship :Membership {:meta {:between [:Library :School.Core/Student]}, :DateOfJoining {:type :DateTime, :default fractl.util.datetime/now}})"}
+   {:role "user" :content "Can we have a shorter specification for the :DateOfJoining attribute?"}
+   {:role "assistant" :content "(relationship :Membership {:meta {:between [:Library :School.Core/Student]}, :DateOfJoining :Now})"}
+   {:role "user" :content "Great! How can we model the book-checkout process?"}
+   {:role "assistant" :content "(relationship :Checkout {:meta {:between [:School.Core/Student :Book :one-one true]}, :DateOfCheckout :Now})"}
+   {:role "user" :content "Fantastic! Don't you think we have reasonably good Library `component` for a School application now?"}
+   {:role "assistant" :content "(component :School.Library)(entity :Book {:Isbn {:type :String :identity true}, :Title :String :Author :String})(entity :Library {:Name {:type :String :identity true}})(relationship :Listing {:meta {:contains [:Library :Book]}})(relationship :Membership {:meta {:between [:Library :School.Core/Student]}, :DateOfJoining :Now})(relationship :Checkout {:meta {:between [:School.Core/Student :Book :one-one true]}, :DateOfCheckout :Now})"}
+   {:role "user" :content "I have the following accounting component: (component :School.Accounting)(entity :AccountHead {:Name {:type :String :identity true}}). Can you please show me how transactions may be represented?"}
+   {:role "assistant" :content "(relationship :Transaction {:meta {:between [:AccountHead :AccountHead :as [:Debit :Credit]]} :Date :Now :Amount :Decimal})"}
+   {:role "user" :content "Please make sure :Amount is always a positive number. You can use Clojure to implement your predicate."}
+   {:role "assistant" :content "(relationship :Transaction {:meta {:between [:AccountHead :AccountHead :as [:Debit :Credit]]} :Date :Now :Amount {:type :Decimal :check pos?}})"}
+   {:role "user" :content "Define a Person entity with detailed contact information."}
+   {:role "assistant" :content "(defn street? [s] (and (string? s) (< 0 (count s) 100))) (defn city? \"TODO: add more cities to the set.\" [s] (some #{s} #{\"NY\" \"BOST\" \"SJS\"})) (defn state? \"TODO: add more states to the set.\" [s] (some #{s} #{\"NY\" \"MA\" \"CAL\"})) (record :Address {:Type {:oneof [\"work\", \"home\"]}, :Street1 {:check street?}, :Street1 {:check street?, :optional true}, :City {:check city?}, :State {:check state?}, :Zip {:format \"^[0-9]{5}(?:-[0-9]{4})?$\"}}) (record :PhoneNumber {:Type {:oneof [\"work\", \"home\"]}, :Number {:format \"^(1\\s?)?(\\d{3}|\\(\\d{3}\\))[\\s\\-]?\\d{3}[\\s\\-]?\\d{4}$\"}}) (entity :Person {:FirstName :String, :LastName :String, :Addresses {:listof :Address}, :PhoneNumbers {:listof :PhoneNumber}, :Email :Email})"}])
+
 (def conversation
   [{:role "system" :content "You are the fractl assistant."},
    {:role "user" :content "Model a blog application."},

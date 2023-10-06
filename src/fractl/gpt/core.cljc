@@ -8,7 +8,7 @@
             [fractl.datafmt.json :as json]
             [fractl.gpt.seed :as seed]))
 
-(def ^:private default-conversation seed/conversation)
+(def ^:private default-conversation seed/simple-conversation)
 
 (defn add-to-conversation
   ([history role s]
@@ -38,7 +38,7 @@
   (map #(:content (:message %)) (:choices resp)))
 
 (def ^:private default-model
-  "gpt-3.5-turbo-16k"
+  "gpt-3.5-turbo"
   )
 
 (defn init-gpt [gpt-model-name api-key]
@@ -72,7 +72,8 @@
   (try
     (loop [choices choices]
       (if-let [c (first choices)]
-        (if (maybe-intern-component c)
+        [c nil]
+        #_(if (maybe-intern-component c)
           [c nil]
           (recur (rest choices)))
         [nil "no valid choices found in response"]))
