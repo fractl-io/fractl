@@ -7,6 +7,7 @@
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang :as ln]
+            [fractl.lang.raw :as raw]
             [fractl.lang.name-util :as nu]
             [fractl.lang.internal :as li]
             [fractl.lang.tools.util :as tu]
@@ -249,11 +250,19 @@
                        'dataflow ln/dataflow})
 
      (defn intern-component [component-spec]
-       (let [fqn (partial nu/fully-qualified-names (fetch-declared-names component-spec))]
-         (doseq [exp (rest component-spec)]
+       (let [component-spec (if (= 'do (ffirst component-spec))
+                              (rest component-spec)
+                              component-spec)
+             cspec (when (= 'component (ffirst component-spec)) (first component-spec))
+             cname (if cspec
+                     (second cspec)
+                     (u/throw-ex (str "expected a component declaration, not " (first component-spec))))
+             fqn (partial nu/fully-qualified-names (fetch-declared-names component-spec))]
+         (doseq [exp component-spec]
            (when-let [intern (get call-intern (first exp))]
              (when-not (apply intern (rest (fqn exp)))
-               (u/throw-ex (str "failed to intern " exp)))))))
+               (u/throw-ex (str "failed to intern " exp)))))
+         (raw/intern-component cname cspec)))
 
      (defn load-components-from-model [model callback]
        (doseq [c (:components model)]
