@@ -82,10 +82,11 @@
               parser (if *parse-expressions* eval identity)]
           (use '[fractl.lang])
           (try
-            (loop [exp (rdf), exps nil]
+            (loop [exp (rdf), raw-exps [], exps []]
               (if (= exp :done)
-                (reverse exps)
-                (recur (rdf) (conj exps (parser (fqn exp))))))
+                (do (raw/maybe-intern-component raw-exps) exps)
+                (let [exp (fqn exp)]
+                  (recur (rdf) (conj raw-exps exp) (conj exps (parser exp))))))
             (finally
               (u/safe-close reader)))))
        ([file-name-or-input-stream]

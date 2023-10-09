@@ -16,6 +16,16 @@
   (u/safe-set raw-store (assoc @raw-store component-name (seq defs)))
   component-name)
 
+(defn- infer-component-name [defs]
+  (when (seqable? defs)
+    (when-not (or (map? defs) (string? defs))
+      (when-let [d (first (filter #(= 'component (first %)) defs))]
+        (second d)))))
+
+(defn maybe-intern-component [defs]
+  (when-let [component-name (infer-component-name defs)]
+    (intern-component component-name defs)))
+
 (defn- extract-def-name [obj]
   (if (keyword? obj)
     obj
@@ -40,11 +50,30 @@
   (when-let [[defs _ rec-name] (get-all-defs full-recname)]
     (first (filter (partial def? tag full-recname rec-name) defs))))
 
-(defn- replace-def [tag full-recname new-attrs]
+(defn- quote-fn-calls [spec]
+  (cond
+    (map? spec)
+    (into {} (mapv (fn [[k v]]
+                     [k (cond
+                          (and (list? v) (not= 'quote (first v)))
+                          `(quote ~v)
+
+                          (map? v) (quote-fn-calls v)
+
+                          :else v)])
+                   spec))
+    (and (vector? spec) (= :eval (first spec)) (not= 'quote (first (second spec))))
+    (assoc spec 1 `(quote ~(second spec)))
+
+    :else spec))
+
+(defn- replace-def [tag full-recname new-spec]
   (when-let [[defs c rec-name] (get-all-defs full-recname)]
     (let [tag (symbol tag)
           p? (partial def? tag full-recname rec-name)
-          ndef `(~tag ~full-recname ~new-attrs)]
+          ndef (if (= 'dataflow tag)
+                 `(~tag ~full-recname ~@(map quote-fn-calls new-spec))
+                 `(~tag ~full-recname ~(quote-fn-calls new-spec)))]
       (loop [defs defs, found false, new-defs []]
         (if-let [d (first defs)]
           (if (p? d)
