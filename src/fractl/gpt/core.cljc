@@ -5,6 +5,7 @@
             [fractl.util.http :as http]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
+            [fractl.global-state :as gs]
             [fractl.datafmt.json :as json]
             [fractl.gpt.seed :as seed]))
 
@@ -15,9 +16,6 @@
    (concat history [{:role role :content s}]))
   ([msgs]
    (concat default-conversation msgs)))
-
-(defn add-user-message [history msg]
-  (add-to-conversation history "user" msg))
 
 (defn post [gpt result-handler request]
   (http/do-post
@@ -198,3 +196,29 @@
              app-description))
       :cljs (u/throw-ex (str "no default bot implementation"))))
   ([] (bot (prompt-for-input "Enter app-description: "))))
+
+;; API for cljs clients
+
+(defn add-user-message [history msg]
+  (add-to-conversation history "user" msg))
+
+(def choice :choice)
+(def chat-history :chat-history)
+
+(defn- make-model [component-def]
+  (let [cname (second component-def)
+        c (first (s/split (str cname) #"\."))]
+    {:name (keyword (subs (s/lower-case c) 1))
+     :version "0.0.1"
+     :fractl-version (or (gs/fractl-version) "current")
+     :components [cname]}))
+
+(defn get-model [response]
+  (try
+    (when-let [c (choice response)]
+      (let [exps (rest (u/parse-string (str "(do " c ")")))]
+        (when (= 'component (ffirst exps))
+          {:model (make-model (first exps))
+           :component exps})))
+    (catch #?(:clj Exception :cljs :default) _
+      (log/warn (str "failed to fetch model from " response)))))
