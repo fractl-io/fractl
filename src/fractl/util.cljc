@@ -224,10 +224,17 @@
 
 (defn noop [])
 
+#?(:cljs
+   (do
+     (def sys-env (atom {}))
+
+     (defn setenv [k v]
+       (swap! sys-env assoc k v))))
+
 (defn getenv
   ([varname default]
    (let [val #?(:clj (or (System/getenv varname) default)
-                :cljs default)]
+                :cljs (get @sys-env varname default))]
      (if-not (nil? val)
        val
        (throw-ex (str varname " - environment variable not set")))))

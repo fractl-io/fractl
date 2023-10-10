@@ -37,9 +37,7 @@
 (defn- choices [resp]
   (map #(:content (:message %)) (:choices resp)))
 
-(def ^:private default-model
-  "gpt-3.5-turbo"
-  )
+(def default-model "gpt-3.5-turbo")
 
 (defn init-gpt [gpt-model-name api-key]
   {:gpt-model gpt-model-name
@@ -94,6 +92,8 @@
         (post gpt (fn [r]
                     (let [choices (choices (:chat-response r))
                           [choice err-msg] (find-choice choices)]
+                      (println "%%%%%%%%%%%%%%%%%%%%%%%" r)
+                      (println "@@@@@@@@@@@@@@@@@@@@@@@" choices err-msg)
                       (if-not err-msg
                         (response-handler choice (partial mkreq choice))
                         (do (log/warn (str "attempt to intern component failed: " err-msg))
