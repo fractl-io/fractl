@@ -598,20 +598,28 @@
 (defn- pre-post-crud-dataflow? [pat]
   (when (vector? pat)
     (let [p (first pat)]
-      (when (and (or (= :after p) (= :before p))
-               (some #{(second pat)} #{:create :update :delete})
-               (cn/entity? (nth pat 2)))
-        true))))
+      (when (or (= :after p) (= :before p))
+        (if (some #{(second pat)} #{:create :update :delete})
+          (if (cn/entity? (nth pat 2))
+            true
+            (u/throw-ex (str "invalid entity name in " pat)))
+          (u/throw-ex (str "invalid crud operation in " pat)))))))
 
 (defn- parse-prepost-patterns [event-name pats]
-  (let [rf (li/make-ref event-name :Instance)]
+  (let [rf-inst (li/make-ref event-name :Instance)
+        rf-ctx (li/make-ref event-name li/event-context)]
     (w/postwalk
      #(if (keyword? %)
         (cond
-          (= :Instance %) rf
+          (= :Instance %) rf-inst
+
+          (= li/event-context %) rf-ctx
 
           (s/starts-with? (str %) ":Instance.")
-          (keyword (subs (s/replace (str %) ":Instance." (str rf ".")) 1))
+          (keyword (subs (s/replace (str %) ":Instance." (str rf-inst ".")) 1))
+
+          (s/starts-with? (str %) ":EventContext.")
+          (keyword (subs (s/replace (str %) ":EventContext." (str rf-ctx ".")) 1))
 
           :else %)
         %)
@@ -619,7 +627,8 @@
 
 (defn- parse-prepost-crud-header [pat]
   (let [event-name (apply cn/prepost-event-name pat)]
-    (event-internal event-name {:Instance :Fractl.Kernel.Lang/Entity})
+    (event-internal event-name {:Instance :Fractl.Kernel.Lang/Entity
+                                li/event-context (k/event-context-attribute-name)})
     event-name))
 
 (defn dataflow

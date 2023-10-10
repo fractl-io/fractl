@@ -169,20 +169,20 @@
     (entity :I1059/A {:Id :Identity :X :Int})
     (entity :I1059/B {:Id :Identity :Y :Int})
     (entity :I1059/A1 {:Id :UUID :X :Int})
-    (entity :I1059/ALog {:Id :UUID :Tag :String})
+    (entity :I1059/ALog {:Id :UUID :Tag :String :User :String})
     (entity :I1059/B1 {:Y :Int})
     (dataflow
      [:after :create :I1059/A]
      {:I1059/A1 {:X :Instance.X :Id :Instance.Id}})
     (dataflow
      [:before :create :I1059/A]
-     {:I1059/ALog {:Id :Instance.Id :Tag "create"}})
+     {:I1059/ALog {:Id :Instance.Id :Tag "create" :User :EventContext.User}})
     (dataflow
      [:before :update :I1059/A]
-     {:I1059/ALog {:Id :Instance.Id :Tag "update"}})
+     {:I1059/ALog {:Id :Instance.Id :Tag "update" :User :EventContext.User}})
     (dataflow
      [:before :delete :I1059/A]
-     {:I1059/ALog {:Id :Instance.Id :Tag "delete"}})
+     {:I1059/ALog {:Id :Instance.Id :Tag "delete" :User :EventContext.User}})
     (dataflow
      [:after :delete :I1059/A]
      [:delete :I1059/A1 {:Id :Instance.Id}])
@@ -206,7 +206,8 @@
   (let [a (tu/first-result
            {:I1059/Create_A
             {:Instance
-             {:I1059/A {:X 100}}}})
+             {:I1059/A {:X 100}}
+             :EventContext {:User "abc"}}})
         a? (partial cn/instance-of? :I1059/A)
         lookup-a1 (fn [id]
                     (tu/eval-all-dataflows
@@ -228,7 +229,7 @@
     (let [a1s (tu/fresult (lookup-a1 (:Id a)))]
       (is (= 1 (count a1s)))
       (is (a1? (first a1s))))
-    (let [a (tu/first-result {:I1059/E1 {:A 1 :B 2}})]
+    (let [a (tu/first-result {:I1059/E1 {:A 1 :B 2 :EventContext {:User "abc"}}})]
       (is (a? a))
       (is (= 200 (:X a)))
       (is (tu/not-found? (lookup-a1 (:Id a))))
@@ -236,19 +237,24 @@
         (is (= 1 (count b1s)))
         (is (b1? (first b1s))))
       (let [alogs (tu/fresult (lookup-alogs (:Id a)))
-            ftr (fn [alogs tag]
-                  (filter #(= tag (:Tag %)) alogs))
+            ftr (fn [alogs tag user]
+                  (filter #(and (= tag (:Tag %))
+                                (= user (:User %)))
+                          alogs))
             f (partial ftr alogs)]
         (is (= 2 (count alogs)))
         (is (every? alog? alogs))
-        (is (= 1 (count (f "create"))))
-        (is (= 1 (count (f "update"))))
-        (is (cn/same-instance? a (tu/first-result {:I1059/Delete_A {:Id (:Id a)}})))
+        (is (= 1 (count (f "create" "abc"))))
+        (is (= 1 (count (f "update" "abc"))))
+        (is (cn/same-instance? a (tu/first-result
+                                  {:I1059/Delete_A
+                                   {:Id (:Id a)
+                                    :EventContext {:User "xyz"}}})))
         (let [alogs (tu/fresult (lookup-alogs (:Id a)))
               f (partial ftr alogs)]
           (is (= 3 (count alogs)))
           (is (every? alog? alogs))
-          (is (= 1 (count (f "create"))))
-          (is (= 1 (count (f "update"))))
-          (is (= 1 (count (f "delete"))))
+          (is (= 1 (count (f "create" "abc"))))
+          (is (= 1 (count (f "update" "abc"))))
+          (is (= 1 (count (f "delete" "xyz"))))
           (is (tu/not-found? (lookup-a1 (:Id a)))))))))
