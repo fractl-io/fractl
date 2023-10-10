@@ -13,8 +13,11 @@
 (defn add-to-conversation
   ([history role s]
    (concat history [{:role role :content s}]))
-  ([s]
-   (add-to-conversation default-conversation "user" s)))
+  ([msgs]
+   (concat default-conversation msgs)))
+
+(defn add-user-message [history msg]
+  (add-to-conversation history "user" msg))
 
 (defn post [gpt result-handler request]
   (http/do-post
@@ -44,9 +47,7 @@
    :api-key api-key})
 
 (defn- interactive-generate-helper [gpt response-handler request]
-  (let [request (if (string? request)
-                  (add-to-conversation request)
-                  request)]
+  (let [request (add-to-conversation request)]
     (post gpt (fn [r]
                 (when-let [[choice next-request] (response-handler
                                                   (choices (:chat-response r)))]
@@ -78,31 +79,21 @@
     (catch #?(:clj Exception :cljs :default) ex
       [nil #?(:clj (.getMessage ex) :cljs ex)])))
 
-(defn non-interactive-generate-helper [gpt response-handler retries request]
-  (let [request (if (string? request)
-                  (add-to-conversation request)
-                  request)]
-    (if (>= retries MAX-RETRIES)
-      (u/throw-ex (str "gpt failed to generate the model, please try restarting the session"))
-      (let [cont (partial non-interactive-generate-helper gpt response-handler (inc retries))
-            mkreq (fn [choice next-request]
-                    (add-to-conversation
-                     (add-to-conversation request "assistant" choice)
-                     "user" next-request))]
-        (post gpt (fn [r]
-                    (let [choices (choices (:chat-response r))
-                          [choice err-msg] (find-choice choices)]
-                      (println "%%%%%%%%%%%%%%%%%%%%%%%" r)
-                      (println "@@@@@@@@@@@@@@@@@@@@@@@" choices err-msg)
-                      (if-not err-msg
-                        (response-handler choice (partial mkreq choice))
-                        (do (log/warn (str "attempt to intern component failed: " err-msg))
-                            (cont (mkreq (or (first choices) "") (str "ERROR - " err-msg)))))))
-              request)))))
+(defn non-interactive-generate-helper [gpt response-handler request]
+  (let [orig-request request
+        request (add-to-conversation request)]
+    (post gpt (fn [r]
+                (let [choices (choices (:chat-response r))
+                      [choice err-msg] (find-choice choices)]
+                  (if-not err-msg
+                    (response-handler choice (add-to-conversation orig-request "assistant" choice))
+                    (do (log/warn (str "attempt to intern component failed: " err-msg))
+                        (response-handler nil nil)))))
+          request)))
 
 (defn non-interactive-generate
   ([gpt-model-name api-key response-handler request]
-   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler 0 request))
+   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
   ([response-handler request]
    (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 
