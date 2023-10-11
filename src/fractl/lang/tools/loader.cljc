@@ -7,6 +7,7 @@
             [fractl.util.seq :as su]
             [fractl.util.logger :as log]
             [fractl.lang :as ln]
+            [fractl.lang.raw :as raw]
             [fractl.lang.name-util :as nu]
             [fractl.lang.internal :as li]
             [fractl.lang.tools.util :as tu]
@@ -81,10 +82,11 @@
               parser (if *parse-expressions* eval identity)]
           (use '[fractl.lang])
           (try
-            (loop [exp (rdf), exps nil]
+            (loop [exp (rdf), raw-exps [], exps []]
               (if (= exp :done)
-                (reverse exps)
-                (recur (rdf) (conj exps (parser (fqn exp))))))
+                (do (raw/maybe-intern-component raw-exps) exps)
+                (let [exp (fqn exp)]
+                  (recur (rdf) (conj raw-exps exp) (conj exps (parser exp))))))
             (finally
               (u/safe-close reader)))))
        ([file-name-or-input-stream]
@@ -249,11 +251,19 @@
                        'dataflow ln/dataflow})
 
      (defn intern-component [component-spec]
-       (let [fqn (partial nu/fully-qualified-names (fetch-declared-names component-spec))]
-         (doseq [exp (rest component-spec)]
+       (let [component-spec (if (= 'do (first component-spec))
+                              (rest component-spec)
+                              component-spec)
+             cspec (when (= 'component (ffirst component-spec)) (first component-spec))
+             cname (if cspec
+                     (second cspec)
+                     (u/throw-ex (str "expected a component declaration, not " (first component-spec))))
+             fqn (partial nu/fully-qualified-names (fetch-declared-names component-spec))]
+         (doseq [exp component-spec]
            (when-let [intern (get call-intern (first exp))]
              (when-not (apply intern (rest (fqn exp)))
-               (u/throw-ex (str "failed to intern " exp)))))))
+               (u/throw-ex (str "failed to intern " exp)))))
+         (raw/intern-component cname component-spec)))
 
      (defn load-components-from-model [model callback]
        (doseq [c (:components model)]
