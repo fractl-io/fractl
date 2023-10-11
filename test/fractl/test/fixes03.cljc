@@ -5,6 +5,7 @@
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
+            [fractl.util :as u]
             [fractl.util.hash :as sh]
             [fractl.lang.syntax :as ls]
             [fractl.lang.datetime :as dt]
@@ -519,3 +520,32 @@
   (is (= (cn/record-names :Cir) #{:Cir/X}))
   (is (= (cn/entity-names :Cir) #{:Cir/B :Cir/C :Cir/A}))
   (is (= (cn/relationship-names :Cir) #{:Cir/R1 :Cir/R2 :Cir/R3})))
+
+(deftest issue-1067-empty-uuid
+  (defcomponent :I1067
+    (entity
+     :I1067/E
+     {:Id {:type :Int :identity true}
+      :X {:type :UUID :optional true}}))
+  (let [create-e (fn [id x]
+                   (tu/first-result
+                    {:I1067/Create_E
+                     {:Instance
+                      {:I1067/E
+                       (merge {:Id id} (when x {:X x}))}}}))
+        lookup-e (fn [id]
+                   (tu/first-result
+                    {:I1067/Lookup_E
+                     {:Id id}}))
+        e? (partial cn/instance-of? :I1067/E)
+        e1 (create-e 1 nil)
+        e2 (create-e 2 "")
+        e3 (create-e 3 (u/uuid-string))]
+    (is (e? e1))
+    (is (not (:X e1)))
+    (is (not e2))
+    (is (e? e3))
+    (is (u/uuid-from-string (:X e3)))
+    (is (not (:X (lookup-e 1))))
+    (is (not (e? (lookup-e 2))))
+    (is (cn/same-instance? e3 (lookup-e 3)))))
