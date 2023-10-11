@@ -95,10 +95,11 @@
   (if (uuid? string)
     string
     (try
-      #?(:clj
-         (java.util.UUID/fromString string)
-         :cljs
-         (uuid string))
+      (when (seq string)
+        #?(:clj
+           (java.util.UUID/fromString string)
+           :cljs
+           (uuid string)))
       (catch #?(:clj Exception :cljs :default) _ nil))))
 
 (defn call-safe [f arg]
