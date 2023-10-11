@@ -613,3 +613,11 @@
 
 (defn id-ref [recname]
   (make-ref recname id-attr))
+
+(defn prepost-event-heads [entity-name]
+  [[:after :create entity-name]
+   [:before :create entity-name]
+   [:after :update entity-name]
+   [:before :update entity-name]
+   [:after :delete entity-name]
+   [:before :delete entity-name]])

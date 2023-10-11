@@ -595,7 +595,7 @@
       [{event-name (into {} attrs)}])
     (u/throw-ex (str "cannot auto-generate dataflow patterns, event schema not found - " event-name))))
 
-(defn- pre-post-crud-dataflow? [pat]
+(defn- prepost-crud-dataflow? [pat]
   (when (vector? pat)
     (let [p (first pat)]
       (when (or (= :after p) (= :before p))
@@ -606,24 +606,25 @@
           (u/throw-ex (str "invalid crud operation in " pat)))))))
 
 (defn- parse-prepost-patterns [event-name pats]
-  (let [rf-inst (li/make-ref event-name :Instance)
-        rf-ctx (li/make-ref event-name li/event-context)]
-    (w/postwalk
-     #(if (keyword? %)
-        (cond
-          (= :_Instance %) rf-inst
+  (when (seq pats)
+    (let [rf-inst (li/make-ref event-name :Instance)
+          rf-ctx (li/make-ref event-name li/event-context)]
+      (w/postwalk
+       #(if (keyword? %)
+          (cond
+            (= :_Instance %) rf-inst
 
-          (= li/event-context %) rf-ctx
+            (= li/event-context %) rf-ctx
 
-          (s/starts-with? (str %) ":_Instance.")
-          (keyword (subs (s/replace (str %) ":_Instance." (str rf-inst ".")) 1))
+            (s/starts-with? (str %) ":_Instance.")
+            (keyword (subs (s/replace (str %) ":_Instance." (str rf-inst ".")) 1))
 
-          (s/starts-with? (str %) ":_EventContext.")
-          (keyword (subs (s/replace (str %) ":_EventContext." (str rf-ctx ".")) 1))
+            (s/starts-with? (str %) ":_EventContext.")
+            (keyword (subs (s/replace (str %) ":_EventContext." (str rf-ctx ".")) 1))
 
-          :else %)
-        %)
-     pats)))
+            :else %)
+          %)
+       pats))))
 
 (defn- parse-prepost-crud-header [pat]
   (let [event-name (apply cn/prepost-event-name pat)]
@@ -635,17 +636,23 @@
   (when (map? match-pat)
     (:preproc match-pat)))
 
+(defn- as-preproc [match-pat]
+  (if (and (map? match-pat) (:preproc match-pat))
+    match-pat
+    {:preproc match-pat}))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
   (let [r (cond
-            (not (seq patterns))
-            (apply dataflow {:preproc match-pat} (event-self-ref-pattern match-pat))
-
-            (pre-post-crud-dataflow? match-pat)
+            (prepost-crud-dataflow? match-pat)
             (let [event-name (parse-prepost-crud-header match-pat)
                   pats (parse-prepost-patterns event-name patterns)]
-              (apply dataflow {:preproc event-name} pats))
+              (apply dataflow (as-preproc event-name) pats))
+
+            (not (seq patterns))
+            (apply dataflow (as-preproc match-pat)
+                   (event-self-ref-pattern (preproc-match-pat match-pat)))
 
             :else
             (let [match-pat (or (preproc-match-pat match-pat) match-pat)]
@@ -653,14 +660,11 @@
               (if (vector? match-pat)
                 (apply
                  dataflow
-                 (install-event-trigger-pattern match-pat)
+                 (as-preproc (install-event-trigger-pattern match-pat))
                  patterns)
-                (let [hd (:head match-pat)]
-                  (if-let [mt (and hd (:on-entity-event hd))]
-                    (cn/register-entity-dataflow mt hd patterns)
-                    (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-                      (do (ensure-event! event)
-                          (cn/register-dataflow event hd patterns))))))))]
+                (let [event (normalize-event-pattern match-pat)]
+                  (do (ensure-event! event)
+                      (cn/register-dataflow event nil patterns))))))]
     (when (and r (not (preproc-match-pat match-pat)))
       (raw/dataflow match-pat patterns))
     r))
