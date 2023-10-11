@@ -631,19 +631,23 @@
                                 li/event-context (k/event-context-attribute-name)})
     event-name))
 
+(defn- preproc-match-pat [match-pat]
+  (when (map? match-pat)
+    (:preproc match-pat)))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
   (let [r (cond
             (not (seq patterns))
-            (apply dataflow match-pat (event-self-ref-pattern match-pat))
+            (apply dataflow {:preproc match-pat} (event-self-ref-pattern match-pat))
 
             (pre-post-crud-dataflow? match-pat)
             (let [event-name (parse-prepost-crud-header match-pat)]
-              (apply dataflow event-name (parse-prepost-patterns event-name patterns)))
+              (apply dataflow {:preproc event-name} (parse-prepost-patterns event-name patterns)))
 
             :else
-            (do
+            (let [match-pat (or (preproc-match-pat match-pat) match-pat)]
               (ensure-dataflow-patterns! patterns)
               (if (vector? match-pat)
                 (apply
@@ -656,9 +660,9 @@
                     (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
                       (do (ensure-event! event)
                           (cn/register-dataflow event hd patterns))))))))]
-    (when r
-      (raw/dataflow match-pat patterns)
-      r)))
+    (when (and r (not (preproc-match-pat match-pat)))
+      (raw/dataflow match-pat patterns))
+    r))
 
 (def ^:private crud-evname cn/crud-event-name)
 

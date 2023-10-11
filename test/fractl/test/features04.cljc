@@ -258,3 +258,64 @@
           (is (= 1 (count (f "update" "abc"))))
           (is (= 1 (count (f "delete" "xyz"))))
           (is (tu/not-found? (lookup-a1 (:Id a)))))))))
+
+(deftest crud-events-with-rels
+  (defcomponent :Cewr
+    (entity
+     :Cewr/A
+     {:Id {:type :Int :identity true}
+      :X :Int})
+    (entity
+     :Cewr/B
+     {:Id {:type :Int :identity true}
+      :Y :Int})
+    (entity
+     :Cewr/C
+     {:Id {:type :Int :identity true}
+      :Z :Int})
+    (relationship
+     :Cewr/R1
+     {:meta {:contains [:Cewr/A :Cewr/B]}})
+    (relationship
+     :Cewr/R2
+     {:meta {:between [:Cewr/B :Cewr/C]}})
+    (dataflow
+     :Cewr/FindB
+     {:Cewr/B {:Id? :Cewr/FindB.Id}})
+    (dataflow
+     :Cewr/FindR2
+     {:Cewr/R2 {:C? :Cewr/FindR2.C}})
+    (dataflow
+     [:after :create :Cewr/A]
+     {:Cewr/B
+      {:Id :Instance.Id :Y '(* :Instance.Id 100)}
+      :-> [[:Cewr/R1 :Instance]
+           [{:Cewr/R2 {}} {:Cewr/C {:Id? :Instance.Id}}]]}))
+  (let [create-a (fn [id]
+                   (tu/first-result
+                    {:Cewr/Create_A
+                     {:Instance
+                      {:Cewr/A {:Id id :X (* id 2)}}}}))
+        create-c (fn [a-id]
+                   (tu/first-result
+                    {:Cewr/Create_C
+                     {:Instance
+                      {:Cewr/C {:Id a-id :Z (* 5 a-id)}}}}))
+        lookup-b (fn [a-id]
+                   (tu/first-result
+                    {:Cewr/FindB {:Id a-id}}))
+        a? (partial cn/instance-of? :Cewr/A)
+        b? (partial cn/instance-of? :Cewr/B)
+        c? (partial cn/instance-of? :Cewr/C)
+        c (create-c 1)
+        a (create-a 1)]
+    (is (a? a))
+    (is (c? c))
+    (let [b (lookup-b 1)]
+      (is (b? b))
+      (is (= 1 (:Id b)))
+      (is (= "path://Cewr$A/1/Cewr$R1/Cewr$B/1" (li/path-attr b)))
+      (let [r2 (tu/first-result {:Cewr/FindR2 {:C 1}})]
+        (is (cn/instance-of? :Cewr/R2 r2))
+        (is (= (li/id-attr b) (:B r2)))
+        (is (= 1 (:C r2)))))))
