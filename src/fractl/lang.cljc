@@ -511,7 +511,7 @@
 
 (defn ensure-dataflow-pattern! [x]
   (cond
-    (keyword? x) (li/validate-name x)
+    (keyword? x) (li/validate-name-relaxed x)
     (or (map? x) (li/special-form? x) (symbol? x)) x
     :else (u/throw-ex (str "Invalid dataflow pattern. Possible syntax error - " x))))
 
