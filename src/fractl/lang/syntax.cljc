@@ -646,6 +646,9 @@
 
     (seqable? pattern)
     (cond
+      (not (seq pattern))
+      pattern
+
       (or (list? pattern) (= 'quote (first pattern)))
       (introspect-exp pattern)
 
