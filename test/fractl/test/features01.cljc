@@ -387,6 +387,7 @@
     (= :not-found (:status (first r3)))))
 
 (deftest issue-636-syntax-exp
+  (is (= {} (ls/introspect {})))
   (let [es01 (ls/exp {ls/exp-fn-tag 'abc ls/exp-args-tag [:X 10 "hello"]})]
     (is (ls/syntax-object? es01))
     (is (ls/exp? es01))
