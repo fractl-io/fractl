@@ -605,7 +605,7 @@
       r)))
 
 (defn- check-format [ascm aname aval]
-  (if (and (:optional ascm) (u/empty-string? aval))
+  (if (and (:optional ascm) (nil? aval))
     aval
     (do
       (when-let [p (:check ascm)]
