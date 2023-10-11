@@ -251,7 +251,7 @@
                        'dataflow ln/dataflow})
 
      (defn intern-component [component-spec]
-       (let [component-spec (if (= 'do (ffirst component-spec))
+       (let [component-spec (if (= 'do (first component-spec))
                               (rest component-spec)
                               component-spec)
              cspec (when (= 'component (ffirst component-spec)) (first component-spec))
@@ -263,7 +263,7 @@
            (when-let [intern (get call-intern (first exp))]
              (when-not (apply intern (rest (fqn exp)))
                (u/throw-ex (str "failed to intern " exp)))))
-         (raw/intern-component cname cspec)))
+         (raw/intern-component cname component-spec)))
 
      (defn load-components-from-model [model callback]
        (doseq [c (:components model)]
