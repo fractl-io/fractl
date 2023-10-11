@@ -611,15 +611,15 @@
     (w/postwalk
      #(if (keyword? %)
         (cond
-          (= :Instance %) rf-inst
+          (= :_Instance %) rf-inst
 
           (= li/event-context %) rf-ctx
 
-          (s/starts-with? (str %) ":Instance.")
-          (keyword (subs (s/replace (str %) ":Instance." (str rf-inst ".")) 1))
+          (s/starts-with? (str %) ":_Instance.")
+          (keyword (subs (s/replace (str %) ":_Instance." (str rf-inst ".")) 1))
 
-          (s/starts-with? (str %) ":EventContext.")
-          (keyword (subs (s/replace (str %) ":EventContext." (str rf-ctx ".")) 1))
+          (s/starts-with? (str %) ":_EventContext.")
+          (keyword (subs (s/replace (str %) ":_EventContext." (str rf-ctx ".")) 1))
 
           :else %)
         %)
@@ -643,8 +643,9 @@
             (apply dataflow {:preproc match-pat} (event-self-ref-pattern match-pat))
 
             (pre-post-crud-dataflow? match-pat)
-            (let [event-name (parse-prepost-crud-header match-pat)]
-              (apply dataflow {:preproc event-name} (parse-prepost-patterns event-name patterns)))
+            (let [event-name (parse-prepost-crud-header match-pat)
+                  pats (parse-prepost-patterns event-name patterns)]
+              (apply dataflow {:preproc event-name} pats))
 
             :else
             (let [match-pat (or (preproc-match-pat match-pat) match-pat)]
@@ -829,7 +830,13 @@
                         (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))
                cr-ref-pats (mapv first rs)
                up-ref-pats (mapv second rs)]
-           (cn/register-dataflow crevt `[~@cr-ref-pats ~(crud-event-inst-accessor crevt)])
+           (cn/register-dataflow
+            crevt
+            `[~@cr-ref-pats
+              ~{rec-name
+                {}
+                :from
+                (crud-event-inst-accessor crevt)}])
            (cn/register-dataflow
             upevt
             (concat [up-ref-pats]
