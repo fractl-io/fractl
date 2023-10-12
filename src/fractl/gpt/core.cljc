@@ -71,8 +71,8 @@
       (if-let [c (first choices)]
         [c nil]
         #_(if (maybe-intern-component c)
-          [c nil]
-          (recur (rest choices)))
+            [c nil]
+            (recur (rest choices)))
         [nil "no valid choices found in response"]))
     (catch #?(:clj Exception :cljs :default) ex
       [nil #?(:clj (.getMessage ex) :cljs ex)])))
@@ -213,12 +213,15 @@
      :fractl-version (or (gs/fractl-version) "current")
      :components [cname]}))
 
+(defn- verify-component-defs [exps]
+  (doseq [exp exps]
+    (when-let [f (get model-fns (first exp))]
+      (apply f (rest exp))))
+  exps)
+
 (defn get-model [response]
-  (try
-    (when-let [c (choice response)]
-      (let [exps (rest (u/parse-string (str "(do " c ")")))]
-        (when (= 'component (ffirst exps))
-          {:model (make-model (first exps))
-           :component exps})))
-    (catch #?(:clj Exception :cljs :default) _
-      (log/warn (str "failed to fetch model from " response)))))
+  (when-let [c (choice response)]
+    (let [exps (rest (u/parse-string (str "(do " c ")")))]
+      (when (= 'component (ffirst exps))
+        {:model (make-model (first exps))
+         :component (verify-component-defs exps)}))))

@@ -812,7 +812,7 @@
          (let [rs (mapv (fn [[k v]]
                           (let [s (cn/find-attribute-schema v)]
                             [(load-ref-pattern crevt :Instance rec-name k s)
-                             (load-ref-pattern upevt :Instance rec-name k s)]))
+                             (load-ref-pattern upevt :Data rec-name k s)]))
                         (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))
                cr-ref-pats (mapv first rs)
                up-ref-pats (mapv second rs)]
