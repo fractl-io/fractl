@@ -37,6 +37,10 @@
  {:UserDetails :UserExtra})
 
 (event
+ :DeleteUser
+ {:Username :Email})
+
+(event
  :ForgotPassword
  {:Username :Email})
 

@@ -814,6 +814,35 @@
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request))))))
 
+(defn- process-delete-user [auth-config request]
+  (if-not auth-config
+    (internal-error "cannot process delete-user - authentication not enabled")
+    (if-let [data-fmt (find-data-format request)]
+      (let [[evobj err] (event-from-request request [:Fractl.Kernel.Identity :DeleteUser] data-fmt nil)]
+        (cond
+          err
+          (do (log/warn (str "bad delete-user request - " err))
+              (bad-request err data-fmt))
+
+          (not (cn/instance-of? :Fractl.Kernel.Identity/DeleteUser evobj))
+          (bad-request (str "not a DeleteUser event - " evobj) data-fmt)
+
+          :else
+          (try
+            (let [user (auth/session-user
+                        (assoc auth-config :request request))
+                  result (auth/delete-user
+                          (assoc
+                           auth-config
+                           :instance evobj
+                           :user user))]
+              (ok {:result result} data-fmt))
+            (catch Exception ex
+              (log/warn ex)
+              (unauthorized (str "delete-user failed. " (ex-message ex)) data-fmt)))))
+      (bad-request
+       (str "unsupported content-type in request - " (request-content-type request))))))
+
 (defn- process-refresh-token [auth-config request]
   (if-not auth-config
     (internal-error "cannot process refresh-token - authentication not enabled")
@@ -854,6 +883,7 @@
            (POST uh/confirm-sign-up-prefix [] (:confirm-sign-up handlers))
            (POST uh/get-user-prefix [] (:get-user handlers))
            (POST uh/update-user-prefix [] (:update-user handlers))
+           (POST uh/delete-user-prefix [] (:delete-user handlers))
            (POST uh/forgot-password-prefix [] (:forgot-password handlers))
            (POST uh/confirm-forgot-password-prefix [] (:confirm-forgot-password handlers))
            (POST uh/change-password-prefix [] (:change-password handlers))
@@ -914,6 +944,7 @@
           :confirm-sign-up (partial process-confirm-sign-up auth)
           :get-user (partial process-get-user auth)
           :update-user (partial process-update-user auth)
+          :delete-user (partial process-delete-user auth)
           :forgot-password (partial process-forgot-password auth)
           :confirm-forgot-password (partial process-confirm-forgot-password auth)
           :change-password (partial process-change-password auth)

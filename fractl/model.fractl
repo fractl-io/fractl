@@ -2,4 +2,5 @@
  :components [:Fractl.Kernel.Lang
               :Fractl.Kernel.Identity
               :Fractl.Kernel.Rbac
-              :Fractl.Kernel.Store]}
+              :Fractl.Kernel.Store]
+ :fractl-version "current"}

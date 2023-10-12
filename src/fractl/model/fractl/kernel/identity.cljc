@@ -31,6 +31,7 @@
 (event
  :Fractl.Kernel.Identity/UpdateUser
  {:UserDetails :Fractl.Kernel.Identity/UserExtra})
+(event :Fractl.Kernel.Identity/DeleteUser {:Username :Email})
 (event :Fractl.Kernel.Identity/ForgotPassword {:Username :Email})
 (event
  :Fractl.Kernel.Identity/ConfirmForgotPassword
@@ -56,4 +57,4 @@
  {:Username :Email})
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "d41fce8b-bf1f-4cc5-980f-d4f61b8065b2")
+ "d935ca68-4b26-4f9d-8b1d-779a4032148a")

@@ -40,6 +40,7 @@
 (def signup-prefix "/_signup/")
 (def get-user-prefix "/_get-user/")
 (def update-user-prefix "/_update-user/")
+(def delete-user-prefix "/_delete-user/")
 (def forgot-password-prefix "/_forgot-password/")
 (def confirm-forgot-password-prefix "/_confirm-forgot-password/")
 (def confirm-sign-up-prefix "/_confirm-sign-up/")
