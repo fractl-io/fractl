@@ -153,7 +153,7 @@
 
 (defmethod auth/delete-user tag [{:keys [instance] :as req}]
   (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config)]
-    (when-let [email (:Email instance)]
+    (when-let [email (:Username instance)]
       (try
         (admin-delete-user
          :username email
