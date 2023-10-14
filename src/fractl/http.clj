@@ -227,11 +227,13 @@
         (or err-response
             (let [resp (atom nil)]
               (gpt/non-interactive-generate
-               (fn [choice f]
-                 (reset!
-                  resp
-                  {:choice choice
-                   :chat-history (f "<insert-next-request-here>")}))
+               (fn [choice history]
+                 (if choice
+                   (reset!
+                    resp
+                    {:choice choice
+                     :chat-history history})
+                   (u/throw-ex "AI failed to service your request, please try again")))
                obj)
               (ok @resp))))))
 
