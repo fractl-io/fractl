@@ -5,16 +5,17 @@
             [fractl.util.http :as http]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
+            [fractl.global-state :as gs]
             [fractl.datafmt.json :as json]
             [fractl.gpt.seed :as seed]))
 
-(def ^:private default-conversation seed/conversation)
+(def ^:private default-conversation seed/simple-conversation)
 
 (defn add-to-conversation
   ([history role s]
    (concat history [{:role role :content s}]))
-  ([s]
-   (add-to-conversation default-conversation "user" s)))
+  ([msgs]
+   (concat default-conversation msgs)))
 
 (defn post [gpt result-handler request]
   (http/do-post
@@ -37,18 +38,14 @@
 (defn- choices [resp]
   (map #(:content (:message %)) (:choices resp)))
 
-(def ^:private default-model
-  "gpt-3.5-turbo-16k"
-  )
+(def default-model "gpt-3.5-turbo")
 
 (defn init-gpt [gpt-model-name api-key]
   {:gpt-model gpt-model-name
    :api-key api-key})
 
 (defn- interactive-generate-helper [gpt response-handler request]
-  (let [request (if (string? request)
-                  (add-to-conversation request)
-                  request)]
+  (let [request (add-to-conversation request)]
     (post gpt (fn [r]
                 (when-let [[choice next-request] (response-handler
                                                   (choices (:chat-response r)))]
@@ -72,36 +69,29 @@
   (try
     (loop [choices choices]
       (if-let [c (first choices)]
-        (if (maybe-intern-component c)
+        [c nil]
+        #_(if (maybe-intern-component c)
           [c nil]
           (recur (rest choices)))
         [nil "no valid choices found in response"]))
     (catch #?(:clj Exception :cljs :default) ex
       [nil #?(:clj (.getMessage ex) :cljs ex)])))
 
-(defn non-interactive-generate-helper [gpt response-handler retries request]
-  (let [request (if (string? request)
-                  (add-to-conversation request)
-                  request)]
-    (if (>= retries MAX-RETRIES)
-      (u/throw-ex (str "gpt failed to generate the model, please try restarting the session"))
-      (let [cont (partial non-interactive-generate-helper gpt response-handler (inc retries))
-            mkreq (fn [choice next-request]
-                    (add-to-conversation
-                     (add-to-conversation request "assistant" choice)
-                     "user" next-request))]
-        (post gpt (fn [r]
-                    (let [choices (choices (:chat-response r))
-                          [choice err-msg] (find-choice choices)]
-                      (if-not err-msg
-                        (response-handler choice (partial mkreq choice))
-                        (do (log/warn (str "attempt to intern component failed: " err-msg))
-                            (cont (mkreq (or (first choices) "") (str "ERROR - " err-msg)))))))
-              request)))))
+(defn non-interactive-generate-helper [gpt response-handler request]
+  (let [orig-request request
+        request (add-to-conversation request)]
+    (post gpt (fn [r]
+                (let [choices (choices (:chat-response r))
+                      [choice err-msg] (find-choice choices)]
+                  (if-not err-msg
+                    (response-handler choice (add-to-conversation orig-request "assistant" choice))
+                    (do (log/warn (str "attempt to intern component failed: " err-msg))
+                        (response-handler nil nil)))))
+          request)))
 
 (defn non-interactive-generate
   ([gpt-model-name api-key response-handler request]
-   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler 0 request))
+   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
   ([response-handler request]
    (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 
@@ -206,3 +196,32 @@
              app-description))
       :cljs (u/throw-ex (str "no default bot implementation"))))
   ([] (bot (prompt-for-input "Enter app-description: "))))
+
+;; API for cljs clients
+
+(defn add-user-message [history msg]
+  (add-to-conversation history "user" msg))
+
+(def choice :choice)
+(def chat-history :chat-history)
+
+(defn- make-model [component-def]
+  (let [cname (second component-def)
+        c (first (s/split (str cname) #"\."))]
+    {:name (keyword (subs (s/lower-case c) 1))
+     :version "0.0.1"
+     :fractl-version (or (gs/fractl-version) "current")
+     :components [cname]}))
+
+(defn- verify-component-defs [exps]
+  (doseq [exp exps]
+    (when-let [f (get model-fns (first exp))]
+      (apply f (rest exp))))
+  exps)
+
+(defn get-model [response]
+  (when-let [c (choice response)]
+    (let [exps (rest (u/parse-string (str "(do " c ")")))]
+      (when (= 'component (ffirst exps))
+        {:model (make-model (first exps))
+         :component (verify-component-defs exps)}))))
