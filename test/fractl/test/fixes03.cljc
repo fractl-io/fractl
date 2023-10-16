@@ -442,7 +442,7 @@
       :Name :String})
     (dataflow
      :I886/CreateE
-     :I886/CreateE.Instance)
+     {:I886/E {} :from :I886/CreateE.Instance})
     (dataflow
      :I886/UpdateE
      {:I886/E

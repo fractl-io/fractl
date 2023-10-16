@@ -92,9 +92,12 @@
                                         gs/active-event-context)
             gs/active-txn txn]
     (let [is-internal (internal-event? event-instance)
-          event-instance (if is-internal
-                           (dissoc event-instance internal-event-key)
-                           event-instance)
+          event-instance0 (if is-internal
+                            (dissoc event-instance internal-event-key)
+                            event-instance)
+          event-instance (if-not (li/event-context event-instance0)
+                           (assoc event-instance0 li/event-context gs/active-event-context)
+                           event-instance0)
           env0 (if is-internal
                  (env/block-interceptors env)
                  (env/assoc-active-event env event-instance))
