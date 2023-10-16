@@ -24,7 +24,8 @@
  {:SignupRequest :Fractl.Kernel.Identity/SignUp, :SignupResult :Any})
 (dataflow
  :Fractl.Kernel.Identity/SignUp
- :Fractl.Kernel.Identity/SignUp.User)
+ {:Fractl.Kernel.Identity/User {},
+  :from :Fractl.Kernel.Identity/SignUp.User})
 (entity
  :Fractl.Kernel.Identity/UserExtra
  {:User :Fractl.Kernel.Identity/User, :OtherDetails :Map})
@@ -56,4 +57,4 @@
  {:Username :Email})
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "d41fce8b-bf1f-4cc5-980f-d4f61b8065b2")
+ "75a59960-4024-43ca-bc3a-4fec59d71166")
