@@ -1,5 +1,5 @@
 {:name :Fractl
- :fractl-version "0.4.5"
+ :fractl-version "current"
  :components [:Fractl.Kernel.Lang
               :Fractl.Kernel.Identity
               :Fractl.Kernel.Rbac
