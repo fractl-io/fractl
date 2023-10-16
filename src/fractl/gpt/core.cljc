@@ -24,7 +24,6 @@
               "Authorization" (str "Bearer " (:api-key gpt))}}
    {:model (:gpt-model gpt)
     :messages request
-    :max_tokens 1500
     :temperature 0.9
     :top_p 1
     :frequency_penalty 0.0
