@@ -144,14 +144,26 @@
         mergvs (merge vs mvs)]
     {k mergvs}))
 
+(defn- preproc-crud? [pat]
+  (let [f (first pat)]
+    (or (= :after f) (= :before f))))
+
 (defn- fq-preproc-dataflow-def
   "Preprocess a dataflow to add fully-qualified names."
   [exp]
   (let [pat (second exp)
         body (nthrest exp 2)
-        proc-pat (if (map? pat)
+        proc-pat (cond
+                   (map? pat)
                    (fq-named-df-pat pat)
-                   (fq-name pat))
+
+                   (keyword? pat)
+                   (fq-name pat)
+
+                   (vector? pat)
+                   (if (preproc-crud? pat)
+                     (assoc pat 2 (fq-name (nth pat 2)))
+                     (assoc pat 1 (fq-name (first pat)))))
         proc-body (mapv #(fq-generic % false) body)]
     `(~(symbol "dataflow") ~proc-pat ~@proc-body)))
 
