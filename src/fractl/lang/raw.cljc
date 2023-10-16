@@ -176,6 +176,9 @@
 (def entity-attributes (partial fetch-attributes 'entity))
 (def relationship-attributes entity-attributes)
 
+(defn fetch-all-dataflows [component-name]
+  (filter #(= 'dataflow (first %)) (get @raw-store component-name)))
+
 (defn entity-attributes-include-inherits [entity-name]
   (let [raw-attrs (entity-attributes entity-name)
         attrs (apply dissoc raw-attrs li/property-names)]
