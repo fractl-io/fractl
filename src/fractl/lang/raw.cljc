@@ -3,7 +3,7 @@
   (:require [fractl.util :as u]
             [fractl.lang.internal :as li]))
 
-(def raw-store (u/make-cell {}))
+(def ^:private raw-store (u/make-cell {}))
 
 (defn component [component-name spec]
   (let [s @raw-store, cdef (get s component-name '())
