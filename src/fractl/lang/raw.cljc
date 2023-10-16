@@ -26,19 +26,34 @@
   (when-let [component-name (infer-component-name defs)]
     (intern-component component-name defs)))
 
+(defn prepost-header? [n]
+  (some #{(first n)} #{:after :before}))
+
 (defn- extract-def-name [obj]
-  (if (keyword? obj)
-    obj
-    (li/record-name obj)))
+  (cond
+    (keyword? obj) obj
+    (vector? obj) (if (prepost-header? obj)
+                    obj
+                    (first obj))
+    :else (li/record-name obj)))
 
 (defn- def? [tag full-name rec-name obj]
   (and (= (first obj) (symbol tag))
        (let [n (extract-def-name (second obj))]
-         (or (= n rec-name) (= n full-name)))))
+         (or (= n full-name) (= n rec-name)))))
+
+(defn- extract-record-name [n]
+  (cond
+    (keyword? n) n
+    (vector? n) (if (prepost-header? n)
+                  (nth n 2)
+                  (first n))
+    :else (u/throw-ex (str "cannot extract record name from " n))))
 
 (defn- get-all-defs [record-name]
   (let [s @raw-store
-        [c n] (li/split-path record-name)]
+        recname (extract-record-name record-name)
+        [c n] (li/split-path recname)]
     (when-let [defs (get s c)]
       [defs c n])))
 
@@ -107,8 +122,11 @@
     record-name))
 
 (defn remove-definition [tag record-name]
-  (when (= 'event (symbol tag))
-    (remove-definition 'dataflow record-name))
+  (case (symbol tag)
+    event (remove-definition 'dataflow record-name)
+    entity (doseq [evt (li/prepost-event-heads record-name)]
+             (remove-definition 'dataflow evt))
+    true)
   (when (change-defs #(remove-def tag record-name))
     record-name))
 

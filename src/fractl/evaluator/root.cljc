@@ -485,9 +485,8 @@
 
 (defn- bind-and-persist [env event-evaluator x]
   (if (cn/an-instance? x)
-    (let [n (li/split-path (cn/instance-type x))
-          [env r] (chained-upsert env event-evaluator n x)]
-      [(env/bind-instance env n x) r])
+    (let [n (li/split-path (cn/instance-type x))]
+      [(env/bind-instance env n x) nil])
     [env nil]))
 
 (defn- id-attribute [query-attrs]
