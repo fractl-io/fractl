@@ -3,7 +3,7 @@
   (:require [fractl.util :as u]
             [fractl.lang.internal :as li]))
 
-(def raw-store (u/make-cell {}))
+(def ^:private raw-store (u/make-cell {}))
 
 (defn component [component-name spec]
   (let [s @raw-store, cdef (get s component-name '())
@@ -175,6 +175,9 @@
 
 (def entity-attributes (partial fetch-attributes 'entity))
 (def relationship-attributes entity-attributes)
+
+(defn fetch-all-dataflows [component-name]
+  (filter #(= 'dataflow (first %)) (get @raw-store component-name)))
 
 (defn entity-attributes-include-inherits [entity-name]
   (let [raw-attrs (entity-attributes entity-name)
