@@ -63,6 +63,11 @@
     (.setString pstmt 1 (str id))
     [pstmt nil]))
 
+(defn purge-by-id-statement [conn table-name id-attr-name id]
+  (let [sql (str "DELETE FROM " table-name " WHERE _" (name id-attr-name) " = ? AND _" su/deleted-flag-col " = TRUE")
+        ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
+    [pstmt [id]]))
+
 (defn delete-by-id-statement [conn table-name id-attr-name id]
   (let [sql (str "UPDATE " table-name " SET _" su/deleted-flag-col " = TRUE WHERE _" (name id-attr-name) " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
