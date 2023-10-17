@@ -25,7 +25,9 @@
  {:SignupRequest :SignUp
   :SignupResult :Any})
 
-(dataflow :SignUp :SignUp.User)
+(dataflow
+ :SignUp
+ {:User {} :from :SignUp.User})
 
 (entity
  :UserExtra

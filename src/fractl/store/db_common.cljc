@@ -20,6 +20,7 @@
    :execute-stmt! #?(:clj ji/execute-stmt! :cljs aqi/execute-stmt!)
    :create-inst-statement #?(:clj ji/create-inst-statement :cljs aqi/upsert-inst-statement)
    :update-inst-statement #?(:clj ji/update-inst-statement :cljs aqi/upsert-inst-statement)
+   :purge-by-id-statement #?(:clj ji/purge-by-id-statement :cljs aqi/delete-by-id-statement)
    :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
    :delete-all-statement #?(:clj ji/delete-all-statement :cljs aqi/delete-all-statement)
    :delete-children-statement #?(:clj ji/delete-children-statement :cljs aqi/delete-children-statement)
@@ -33,6 +34,7 @@
 (def execute-stmt! (:execute-stmt! store-fns))
 (def create-inst-statement (:create-inst-statement store-fns))
 (def update-inst-statement (:update-inst-statement store-fns))
+(def purge-by-id-statement (:purge-by-id-statement store-fns))
 (def delete-by-id-statement (:delete-by-id-statement store-fns))
 (def delete-all-statement (:delete-all-statement store-fns))
 (def delete-children-statement (:delete-children-statement store-fns))
@@ -167,21 +169,27 @@
     (set/difference (set indexed-attrs) (set uq-attrs))
     indexed-attrs))
 
-(defn upsert-relational-entity-instance [upsert-inst-statement datasource entity-name instance]
+(defn- upsert-relational-entity-instance [upsert-inst-statement create-mode
+                                          datasource entity-name instance]
   (let [tabname (stu/entity-table-name entity-name)
         inst (stu/serialize-objects instance)]
     (execute-fn!
      datasource
-     #(let [[pstmt params] (upsert-inst-statement % tabname nil [entity-name inst])]
-        (execute-stmt! % pstmt params)))
+     #(do (when create-mode
+            (let [id-attr-name (cn/identity-attribute-name entity-name)
+                  id-val (id-attr-name instance)
+                  [pstmt params] (purge-by-id-statement % tabname id-attr-name id-val)]
+              (execute-stmt! % pstmt params)))
+          (let [[pstmt params] (upsert-inst-statement % tabname nil [entity-name inst])]
+            (execute-stmt! % pstmt params))))
     instance))
 
-(defn upsert-instance [upsert-inst-statement datasource entity-name instance]
+(defn upsert-instance [upsert-inst-statement create-mode datasource entity-name instance]
   (upsert-relational-entity-instance
-   upsert-inst-statement datasource entity-name instance))
+   upsert-inst-statement create-mode datasource entity-name instance))
 
-(def create-instance (partial upsert-instance create-inst-statement))
-(def update-instance (partial upsert-instance update-inst-statement))
+(def create-instance (partial upsert-instance create-inst-statement true))
+(def update-instance (partial upsert-instance update-inst-statement false))
 
 (defn- delete-inst!
   "Delete an entity instance."

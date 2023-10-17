@@ -5,7 +5,7 @@
                      confirm-forgot-password confirm-sign-up forgot-password initiate-auth
                      create-group delete-group admin-add-user-to-group admin-remove-user-from-group resend-confirmation-code]]
             [clojure.string :as str]
-            [clojure.tools.logging :as log]
+            [fractl.util.logger :as log]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
             [fractl.component :as cn]
@@ -156,7 +156,6 @@
     (when-let [email (:Email instance)]
       (try
         (admin-delete-user
-         (auth/make-client (merge req aws-config))
          :username email
          :user-pool-id user-pool-id)
         (catch Exception e
