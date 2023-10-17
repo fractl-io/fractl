@@ -319,3 +319,16 @@
             :Config {:service 8080}
             :EventContext {:User "deployer@fractl.io"}}})))
     (is (= 1 @call-count))))
+
+(deftest issue-1091-delete
+  (defcomponent :I1091
+    (entity
+     :I1091/E
+     {:Id :Identity
+      :X :Int}))
+  (let [rdb (atom [])
+        r (r/make-resolver
+           :i1091
+           {:create {:handler (fn [inst] (swap! rdb conj inst) inst)}
+            :delete {:handler (fn [inst] (println "delete: " inst) inst)}})]
+    (rg/override-resolver path r)))
