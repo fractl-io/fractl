@@ -102,7 +102,7 @@
 
 (defn component-names
   ([]
-   (keys @components))
+   (filter li/name? (keys @components)))
   ([prefix]
    (let [s (str prefix)]
      (filter #(s/starts-with? (str %) s) (component-names)))))
