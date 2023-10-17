@@ -330,5 +330,18 @@
         r (r/make-resolver
            :i1091
            {:create {:handler (fn [inst] (swap! rdb conj inst) inst)}
-            :delete {:handler (fn [inst] (println "delete: " inst) inst)}})]
-    (rg/override-resolver path r)))
+            :query {:handler (fn [[_ {where :where}]]
+                               (let [[_ _ id] where]
+                                 (filter #(= (:Id %) id) @rdb)))}
+            :delete {:handler (fn [{id :Id :as inst}]
+                                (reset! rdb (filter #(not= (:Id %) id) @rdb))
+                                inst)}})]
+    (rg/override-resolver :I1091/E r)
+    (let [e1 (tu/first-result
+              {:I1091/Create_E
+               {:Instance
+                {:I1091/E {:X 10}}}})
+          e? (partial cn/instance-of? :I1091/E)]
+      (is (e? e1))
+      (is (cn/same-instance? e1 (tu/first-result {:I1091/Delete_E {:Id (:Id e1)}})))
+      (is (nil? (seq @rdb))))))
