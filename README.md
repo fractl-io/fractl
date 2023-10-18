@@ -25,20 +25,22 @@ cd fractl
 ./install.sh
 ```
 
-The `install.sh` command will install Fractl to you home directory - e.g `/home/me/fractl-0.4.5`. You may also pass a custom
+The `install.sh` command will install Fractl to you home directory - e.g `/home/me/fractl-0.4.5`. You may decide to pass a custom
 install location to this script - `./install.sh /home/me/programs`.
 
 #### Testing the installation
 
+Make sure the install location of Fractl is in the system search-path:
 
-# Fractl is easy to grok
+```shell
+export PATH=$PATH:/home/me/fractl-0.4.5
+```
 
-Start learning Fractl with the following resources:
+Start the Fractl REPL:
 
-* **[Concepts]()**
-* **[Tutorial]()**
-* **[Language Reference]()**
+```shell
+fractl repl
+```
 
-# Getting started with Fractl
-
-Please refer to the [wiki](https://github.com/fractl-io/fractl/wiki)
+If you land in the `fractl>` prompt, Fractl is installed correctly. You're all set to further explore the language.
+To learn more about Fractl, please visit the official [documentation](https://fractl.io/docs) pages.
