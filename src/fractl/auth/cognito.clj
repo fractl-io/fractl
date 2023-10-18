@@ -81,7 +81,8 @@
       ;; Create User
       :User
       (let [user instance]
-        (sign-up-user req aws-config client-id user-pool-id whitelist? user)
+        (when (:password user)
+          (sign-up-user req aws-config client-id user-pool-id whitelist? user))
         nil)
 
       ;; Update user

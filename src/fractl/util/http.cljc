@@ -48,7 +48,7 @@
 (def resend-confirmation-code-prefix "/_resend-confirmation-code/")
 (def query-prefix "/_q/")
 (def dynamic-eval-prefix "/_dynamic/")
-(def callback-prefix "/_callback/")
+(def auth-redirect-prefix "/_authredirect")
 (def gpt-prefix "/_gpt/")
 
 (defn- remote-resolver-error [response]

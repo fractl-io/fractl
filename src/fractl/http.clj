@@ -13,6 +13,7 @@
             [fractl.lang.internal :as li]
             [fractl.util :as u]
             [fractl.util.seq :as su]
+            [fractl.auth.jwt :as jwt]
             [fractl.util.http :as uh]
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
@@ -848,6 +849,56 @@
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
+(defn make-jwks-url [region user-pool-id]
+  (str "https://cognito-idp."
+       region
+       ".amazonaws.com/"
+       user-pool-id
+       "/.well-known/jwks.json"))
+
+(defn- verify-token [token]
+  (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
+    (jwt/verify-and-extract
+     (make-jwks-url region user-pool-id)
+     token)))
+
+(defn- maybe-signup-user [evaluator email sign-up-request]
+  (if (first
+       (u/safe-ok-result
+        (evaluator
+         {:Fractl.Kernel.Identity/FindUser
+          {:Email email}})))
+    nil
+    (u/safe-ok-result
+     (evaluator sign-up-request))))
+
+(defn- process-redirect [evaluator call-post-signup [auth-config _] request]
+  (if auth-config
+    (let [[obj _ _] (request-object request)]
+      (if-let [token (:id_token obj)]
+        (if-let [user (verify-token token)]
+          (when (:email user)
+            (let [sign-up-request
+                  {:Fractl.Kernel.Identity/SignUp
+                   {:User
+                    {:Fractl.Kernel.Identity/User
+                     {:Email (:email user)
+                      :FirstName (:given_name user)
+                      :LastName (:family_name user)}}}}
+                  sign-up-result (maybe-signup-user evaluator (:email user) sign-up-request)]
+              (when call-post-signup
+                (evaluate
+                 evaluator
+                 (assoc
+                  (create-event post-signup-event-name)
+                  :SignupResult sign-up-result :SignupRequest sign-up-request))))
+            (ok {:result "ok"}))
+          (bad-request (str "id_token not valid")))
+        (bad-request
+         (str "id_token required"))))
+    (internal-error
+     "cannot process sign-up - authentication not enabled")))
+
 (defn- make-routes [config auth-config handlers]
   (let [r (routes
            (POST uh/login-prefix [] (:login handlers))
@@ -868,6 +919,7 @@
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (POST uh/gpt-prefix [] (:gpt handlers))
+           (POST uh/auth-redirect-prefix [] (:redirect handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
@@ -928,6 +980,7 @@
           :query (partial process-query evaluator auth-info)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
           :gpt (partial process-gpt-chat auth-info)
+          :redirect (partial process-redirect evaluator config auth-info)
           :meta (partial process-meta-request auth-info)})
         (if (:thread config)
           config
