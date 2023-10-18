@@ -361,7 +361,7 @@
   (process_request a b))
 
 (defn- run-plain-option [args opt callback]
-  (when (= (first args) opt)
+  (when (= (first args) (name opt))
     (callback (rest args))
     (first args)))
 
@@ -388,10 +388,19 @@
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
 
-(defn- call-after-load-model [model-name f]
-  (gs/in-script-mode!)
-  (when (build/load-model model-name)
-    (f)))
+(defn- call-after-load-model
+  ([model-name f ignore-load-error]
+   (gs/in-script-mode!)
+   (when (try
+           (build/load-model model-name)
+           (catch Exception ex
+             (if ignore-load-error true (throw ex))))
+     (f)))
+  ([model-name f]
+   (call-after-load-model model-name f false)))
+
+(defn- force-call-after-load-model [model-name f]
+  (call-after-load-model model-name f true))
 
 (defn- db-migrate [config]
   (let [store (store-from-config config)]
@@ -417,20 +426,18 @@
       :else
       (or (some
            identity
-           (map (partial run-plain-option args)
-                ["run" "compile" "build" "exec" "repl" "publish" "deploy"
-                 "db:migrate"]
-                [#(call-after-load-model
-                   (first %) (fn [] (run-service (read-model-and-config options))))
-                 #(println (build/compile-model (first %)))
-                 #(println (build/standalone-package (first %)))
-                 #(println (build/run-standalone-package (first %)))
-                 #(println (call-after-load-model
-                            (first %)
-                            (let [model-info (read-model-and-config options)]
-                              (fn [] (repl/run (first %) (ffirst (prepare-runtime model-info)))))))
-                 #(println (publish-library %))
-                 #(println (d/deploy (:deploy basic-config) (first %)))
-                 #(call-after-load-model
-                   (first %) (fn [] (db-migrate (second (read-model-and-config options)))))]))
+           (map #(apply (partial run-plain-option args) %)
+                {:run #(call-after-load-model
+                        (first %) (fn [] (run-service (read-model-and-config options))))
+                 :compile #(println (build/compile-model (first %)))
+                 :build #(println (build/standalone-package (first %)))
+                 :exec #(println (build/run-standalone-package (first %)))
+                 :repl #(println (force-call-after-load-model
+                                  (first %)
+                                  (let [model-info (read-model-and-config options)]
+                                    (fn [] (repl/run (first %) (ffirst (prepare-runtime model-info)))))))
+                 :publish #(println (publish-library %))
+                 :deploy #(println (d/deploy (:deploy basic-config) (first %)))
+                 :db:migrate #(call-after-load-model
+                               (first %) (fn [] (db-migrate (second (read-model-and-config options)))))}))
           (run-service args (read-model-and-config args options))))))
