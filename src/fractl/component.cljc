@@ -605,7 +605,7 @@
       r)))
 
 (defn- check-format [ascm aname aval]
-  (if (and (:optional ascm) (u/empty-string? aval))
+  (if (and (:optional ascm) (nil? aval))
     aval
     (do
       (when-let [p (:check ascm)]
@@ -994,24 +994,6 @@
      (register-dataflow event head patterns component)))
   ([event patterns] (register-dataflow event nil patterns)))
 
-(defn- register-entity-event-df [head patterns event-name _ _]
-  (let [instpat (keyword (str (subs (str event-name) 1) ".Instance"))
-        pats `[~instpat ~@patterns]]
-    (register-dataflow event-name head pats)))
-
-(defn register-entity-dataflow
-  "Register an :EntityEvent dataflow with a condition, based on an :on-entity-event
-  spec associated with an entity."
-  [head-pat head patterns]
-  (let [nm (cond
-             (map? head-pat) (first (keys head-pat))
-             (li/name? head-pat) head-pat
-             :else (throw-error (str "invalid head pattern - " head-pat)))]
-    (if (find-entity-schema nm)
-      (for-each-entity-event-name
-       nm (partial register-entity-event-df head patterns))
-      (throw-error (str "cannot regsiter dataflow, schema not found for " nm)))))
-
 (declare event-cond-expr->fncall-expr normalize-event-cond-predic)
 
 (defn- event-attrval
@@ -1118,11 +1100,14 @@
   [event-inst dfs]
   (filter (partial satisfies-conditions? event-inst) dfs))
 
+(defn find-dataflows [event-name]
+  (seq (component-find :events event-name)))
+
 (defn dataflows-for-event
   "Return all dataflows attached to the event."
   [event]
-  (let [evts (component-find :events (event-name event))]
-    (filter-by-conditional-events event evts)))
+  (let [dfs (find-dataflows (event-name event))]
+    (filter-by-conditional-events event dfs)))
 
 (defn all-dataflows [component]
   (su/nonils (mapv (comp first seq dataflows-for-event) (event-names component))))
@@ -1702,10 +1687,17 @@
         (keyword (str (name evtname) "_" (name n))))
        (crud-event-name c n evtname)))))
 
+(declare prepost-event-name)
+
 (defn all-crud-events [recname]
   (mapv
    (partial crud-event-name recname)
    [:Create :Update :Delete :Lookup :LookupAll]))
+
+(defn- all-prepost-events [recname]
+   (mapv
+    #(apply prepost-event-name %)
+    (li/prepost-event-heads recname)))
 
 (defn- only-internal-attrs [scm]
   (when-not (inferred-event-schema? scm)
@@ -1757,7 +1749,8 @@
                  maybe-remove-record
                  remove-record)
                (all-crud-events recname)))
-    (remove-record recname)))
+    (and (su/all-true? (mapv maybe-remove-record (all-prepost-events recname)))
+         (remove-record recname))))
 
 (def remove-event remove-record)
 (def remove-relationship remove-entity)
@@ -1944,3 +1937,24 @@
 (defn between-relationship-instance? [inst]
   (when-let [t (instance-type-kw inst)]
     (between-relationship? t)))
+
+(defn prepost-event-name [selector tag recname]
+  (let [[c n] (li/split-path recname)]
+    (li/make-path c (keyword
+                     (str (case selector :after "After_" :before "Before_")
+                          (name tag) "_"
+                          (name n))))))
+
+(def post-event-name (partial prepost-event-name :after))
+(def pre-event-name (partial prepost-event-name :before))
+
+(defn make-post-event [event-name inst]
+  (make-instance event-name {:Instance inst}))
+
+(defn fire-prepost-event [selector event-evaluator tag inst]
+  (let [event-name (prepost-event-name selector tag (instance-type inst))]
+    (when (find-dataflows event-name)
+      [event-name (event-evaluator (make-post-event event-name inst))])))
+
+(def fire-post-event (partial fire-prepost-event :after))
+(def fire-pre-event (partial fire-prepost-event :before))

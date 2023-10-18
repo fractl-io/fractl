@@ -227,11 +227,13 @@
         (or err-response
             (let [resp (atom nil)]
               (gpt/non-interactive-generate
-               (fn [choice f]
-                 (reset!
-                  resp
-                  {:choice choice
-                   :chat-history (f "<insert-next-request-here>")}))
+               (fn [choice history]
+                 (if choice
+                   (reset!
+                    resp
+                    {:choice choice
+                     :chat-history history})
+                   (u/throw-ex "AI failed to service your request, please try again")))
                obj)
               (ok @resp))))))
 
@@ -519,7 +521,7 @@
 (defn- whitelisted-email? [email]
   (let [{:keys [access-key secret-key region whitelist?] :as _aws-config} (uh/get-aws-config)]
     (if (true? whitelist?)
-      (let [[s3-bucket whitelist-file-key] (uh/get-aws-config)
+      (let [{:keys [s3-bucket whitelist-file-key]} _aws-config
             whitelisted-emails (read-string
                                 (s3/get-object-as-string
                                  {:access-key access-key
@@ -538,10 +540,6 @@
   ;; TODO: Add layer of domain filtering on top of cognito.
   (cond
     (and (not (nil? email-domains)) (true? whitelist?))
-    (or (whitelisted-email? email)
-        (whitelisted-domain? email email-domains))
-
-    (not (nil? email-domains))
     (whitelisted-domain? email email-domains)
 
     (true? whitelist?)

@@ -511,7 +511,7 @@
 
 (defn ensure-dataflow-pattern! [x]
   (cond
-    (keyword? x) (li/validate-name x)
+    (keyword? x) (li/validate-name-relaxed x)
     (or (map? x) (li/special-form? x) (symbol? x)) x
     :else (u/throw-ex (str "Invalid dataflow pattern. Possible syntax error - " x))))
 
@@ -595,27 +595,79 @@
       [{event-name (into {} attrs)}])
     (u/throw-ex (str "cannot auto-generate dataflow patterns, event schema not found - " event-name))))
 
+(defn- prepost-crud-dataflow? [pat]
+  (when (vector? pat)
+    (let [p (first pat)]
+      (when (or (= :after p) (= :before p))
+        (if (some #{(second pat)} #{:create :update :delete})
+          (if (cn/entity? (nth pat 2))
+            true
+            (u/throw-ex (str "invalid entity name in " pat)))
+          (u/throw-ex (str "invalid crud operation in " pat)))))))
+
+(defn- parse-prepost-patterns [event-name pats]
+  (when (seq pats)
+    (let [rf-inst (li/make-ref event-name :Instance)
+          rf-ctx (li/make-ref event-name li/event-context)]
+      (w/postwalk
+       #(if (keyword? %)
+          (cond
+            (= :_Instance %) rf-inst
+
+            (= li/event-context %) rf-ctx
+
+            (s/starts-with? (str %) ":_Instance.")
+            (keyword (subs (s/replace (str %) ":_Instance." (str rf-inst ".")) 1))
+
+            (s/starts-with? (str %) ":_EventContext.")
+            (keyword (subs (s/replace (str %) ":_EventContext." (str rf-ctx ".")) 1))
+
+            :else %)
+          %)
+       pats))))
+
+(defn- parse-prepost-crud-header [pat]
+  (let [event-name (apply cn/prepost-event-name pat)]
+    (event-internal event-name {:Instance :Fractl.Kernel.Lang/Entity
+                                li/event-context (k/event-context-attribute-name)})
+    event-name))
+
+(defn- preproc-match-pat [match-pat]
+  (when (map? match-pat)
+    (:preproc match-pat)))
+
+(defn- as-preproc [match-pat]
+  (if (and (map? match-pat) (:preproc match-pat))
+    match-pat
+    {:preproc match-pat}))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
-  (let [r (if (not (seq patterns))
-            (apply dataflow match-pat (event-self-ref-pattern match-pat))
-            (do
+  (let [r (cond
+            (prepost-crud-dataflow? match-pat)
+            (let [event-name (parse-prepost-crud-header match-pat)
+                  pats (parse-prepost-patterns event-name patterns)]
+              (apply dataflow (as-preproc event-name) pats))
+
+            (not (seq patterns))
+            (apply dataflow (as-preproc match-pat)
+                   (event-self-ref-pattern (preproc-match-pat match-pat)))
+
+            :else
+            (let [match-pat (or (preproc-match-pat match-pat) match-pat)]
               (ensure-dataflow-patterns! patterns)
               (if (vector? match-pat)
                 (apply
                  dataflow
-                 (install-event-trigger-pattern match-pat)
+                 (as-preproc (install-event-trigger-pattern match-pat))
                  patterns)
-                (let [hd (:head match-pat)]
-                  (if-let [mt (and hd (:on-entity-event hd))]
-                    (cn/register-entity-dataflow mt hd patterns)
-                    (let [event (normalize-event-pattern (if hd (:on-event hd) match-pat))]
-                      (do (ensure-event! event)
-                          (cn/register-dataflow event hd patterns))))))))]
-    (when r
-      (raw/dataflow match-pat patterns)
-      r)))
+                (let [event (normalize-event-pattern match-pat)]
+                  (do (ensure-event! event)
+                      (cn/register-dataflow event nil patterns))))))]
+    (when (and r (not (preproc-match-pat match-pat)))
+      (raw/dataflow match-pat patterns))
+    r))
 
 (def ^:private crud-evname cn/crud-event-name)
 
@@ -778,11 +830,17 @@
          (let [rs (mapv (fn [[k v]]
                           (let [s (cn/find-attribute-schema v)]
                             [(load-ref-pattern crevt :Instance rec-name k s)
-                             (load-ref-pattern upevt :Instance rec-name k s)]))
+                             (load-ref-pattern upevt :Data rec-name k s)]))
                         (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))
                cr-ref-pats (mapv first rs)
                up-ref-pats (mapv second rs)]
-           (cn/register-dataflow crevt `[~@cr-ref-pats ~(crud-event-inst-accessor crevt)])
+           (cn/register-dataflow
+            crevt
+            `[~@cr-ref-pats
+              ~{rec-name
+                {}
+                :from
+                (crud-event-inst-accessor crevt)}])
            (cn/register-dataflow
             upevt
             (concat [up-ref-pats]

@@ -1,11 +1,11 @@
 (ns fractl.auth.cognito
   (:require [amazonica.aws.cognitoidp
-             :refer [sign-up admin-confirm-sign-up admin-delete-user admin-get-user
+             :refer [sign-up admin-delete-user admin-get-user
                      admin-update-user-attributes admin-user-global-sign-out change-password
                      confirm-forgot-password confirm-sign-up forgot-password initiate-auth
                      create-group delete-group admin-add-user-to-group admin-remove-user-from-group resend-confirmation-code]]
             [clojure.string :as str]
-            [clojure.tools.logging :as log]
+            [fractl.util.logger :as log]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
             [fractl.component :as cn]
@@ -56,16 +56,6 @@
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
-(defn- confirm-signed-up-user-if-whitelist-is-false [req aws-config whitelist? email user-pool-id]
-  (if (false? whitelist?)
-    (try
-      (admin-confirm-sign-up (auth/make-client (merge req aws-config))
-                             :username email
-                             :user-pool-id user-pool-id)
-      (catch Exception e
-        (throw (Exception. (get-error-msg-and-log e)))))
-    nil))
-
 (defn- sign-up-user [req aws-config client-id user-pool-id whitelist? user]
   (let [{:keys [Name FirstName LastName Password Email]} user]
     (try
@@ -78,7 +68,6 @@
                          ["email" Email]
                          ["name" Name]]
        :username Email)
-      (confirm-signed-up-user-if-whitelist-is-false req aws-config whitelist? Email user-pool-id)
       (catch com.amazonaws.services.cognitoidp.model.UsernameExistsException ex
         (log/error ex))
       (catch com.amazonaws.services.cognitoidp.model.CodeDeliveryFailureException ex
@@ -167,7 +156,6 @@
     (when-let [email (:Email instance)]
       (try
         (admin-delete-user
-         (auth/make-client (merge req aws-config))
          :username email
          :user-pool-id user-pool-id)
         (catch Exception e

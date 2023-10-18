@@ -2,6 +2,7 @@
   (:require [clojure.string :as string]
             [clojure.pprint :as pp]
             #?(:clj [clojure.java.io :as io])
+            [fractl.util.logger :as log]
             [fractl.datafmt.json :as json])
   #?(:clj
      (:require [net.cgrand.macrovich :as macros])
@@ -54,6 +55,20 @@
        (.log js/console (.-stack e))
        (throw e))))
 
+(defn ok-result
+  ([result safe]
+   (let [f (if (map? result) result (first result))]
+     (if (= :ok (:status f))
+       (:result f)
+       (let [msg (str "unexpected result: " result)]
+         (if safe
+           (do (log/warn msg) nil)
+           (throw-ex msg))))))
+  ([result] (ok-result result false)))
+
+(defn safe-ok-result [result]
+  (ok-result result true))
+
 (macros/deftime
   (defmacro passthru
     "If the predicate function returns true for exp1, return exp1, otherwise return
@@ -80,10 +95,11 @@
   (if (uuid? string)
     string
     (try
-      #?(:clj
-         (java.util.UUID/fromString string)
-         :cljs
-         (uuid string))
+      (when (seq string)
+        #?(:clj
+           (java.util.UUID/fromString string)
+           :cljs
+           (uuid string)))
       (catch #?(:clj Exception :cljs :default) _ nil))))
 
 (defn call-safe [f arg]
@@ -209,10 +225,17 @@
 
 (defn noop [])
 
+#?(:cljs
+   (do
+     (def sys-env (atom {}))
+
+     (defn setenv [k v]
+       (swap! sys-env assoc k v))))
+
 (defn getenv
   ([varname default]
    (let [val #?(:clj (or (System/getenv varname) default)
-                :cljs default)]
+                :cljs (get @sys-env varname default))]
      (if-not (nil? val)
        val
        (throw-ex (str varname " - environment variable not set")))))
