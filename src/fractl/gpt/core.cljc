@@ -9,7 +9,7 @@
             [fractl.datafmt.json :as json]
             [fractl.gpt.seed :as seed]))
 
-(def ^:private default-conversation seed/simple-conversation)
+(def ^:private default-conversation seed/full-conversation)
 
 (defn add-to-conversation
   ([history role s]
@@ -70,8 +70,8 @@
       (if-let [c (first choices)]
         [c nil]
         #_(if (maybe-intern-component c)
-          [c nil]
-          (recur (rest choices)))
+            [c nil]
+            (recur (rest choices)))
         [nil "no valid choices found in response"]))
     (catch #?(:clj Exception :cljs :default) ex
       [nil #?(:clj (.getMessage ex) :cljs ex)])))
