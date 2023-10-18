@@ -415,22 +415,22 @@
                       args)
       (:interactive options) (gpt/bot)
       :else
-      (let [[_ config :as model-info] (read-model-and-config options)]
-        (or (some
-             identity
-             (mapv (partial run-plain-option args)
-                   ["run" "compile" "build" "exec" "repl" "publish" "deploy"
-                    "db:migrate"]
-                   [#(call-after-load-model
-                      (first %) (fn [] (run-service model-info)))
-                    #(println (build/compile-model (first %)))
-                    #(println (build/standalone-package (first %)))
-                    #(println (build/run-standalone-package (first %)))
-                    #(println (call-after-load-model
-                               (first %)
-                               (fn [] (repl/run (first %) (ffirst (prepare-runtime model-info))))))
-                    #(println (publish-library %))
-                    #(println (d/deploy (:deploy basic-config) (first %)))
-                    #(call-after-load-model
-                      (first %) (fn [] (db-migrate config)))]))
-            (run-service args model-info))))))
+      (or (some
+           identity
+           (map (partial run-plain-option args)
+                ["run" "compile" "build" "exec" "repl" "publish" "deploy"
+                 "db:migrate"]
+                [#(call-after-load-model
+                   (first %) (fn [] (run-service (read-model-and-config options))))
+                 #(println (build/compile-model (first %)))
+                 #(println (build/standalone-package (first %)))
+                 #(println (build/run-standalone-package (first %)))
+                 #(println (call-after-load-model
+                            (first %)
+                            (let [model-info (read-model-and-config options)]
+                              (fn [] (repl/run (first %) (ffirst (prepare-runtime model-info)))))))
+                 #(println (publish-library %))
+                 #(println (d/deploy (:deploy basic-config) (first %)))
+                 #(call-after-load-model
+                   (first %) (fn [] (db-migrate (second (read-model-and-config options)))))]))
+          (run-service args (read-model-and-config args options))))))
