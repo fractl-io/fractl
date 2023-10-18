@@ -402,9 +402,3 @@
               :clojars "lein deploy clojars"
               :github "lein deploy github")]
     (exec-with-build-model cmd nil model-name)))
-
-(defn exec-repl [model-name]
-  (when-let [proj-dir (project-dir model-name)]
-    (let [cmd (str "lein repl")]
-      (println cmd)
-      (u/exec-in-directory proj-dir cmd))))
