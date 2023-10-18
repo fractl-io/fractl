@@ -9,10 +9,11 @@ BASENAME=$(basename -- "$SRC_JAR")
 FILENAME="${BASENAME%.*}"
 NORM_FILENAME=${FILENAME%-standalone*}
 
-TARGET_DIR=`realpath $1`/$NORM_FILENAME
+TARGET_DIR=`realpath ${1:-$HOME}`/$NORM_FILENAME
 TARGET_JAR=$TARGET_DIR/$BASENAME
 
 mkdir -p $TARGET_DIR
+
 cp target/fractl-*standalone*.jar $TARGET_JAR
 cp config.edn $TARGET_DIR
 
