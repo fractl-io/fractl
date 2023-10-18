@@ -2,6 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.pprint :as pp]
             [fractl.lang.internal :as li]
+            [fractl.lang.tools.loader :as loader]
             [fractl.component :as cn]))
 
 (defn- repl-eval [evaluator exp]
@@ -18,7 +19,8 @@
       (println (str "ERROR - " (.getMessage ex))))))
 
 (defn run [model-name evaluator]
-  (let [prompt (str (name model-name) "> ")
+  (let [model-name (or model-name (:name (loader/load-default-model-info)))
+        prompt (str (name model-name) "> ")
         reval (partial repl-eval evaluator)]
     (use '[fractl.lang])
     (loop []
