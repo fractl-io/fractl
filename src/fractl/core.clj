@@ -16,6 +16,7 @@
             [fractl.store :as store]
             [fractl.store.migration :as mg]
             [fractl.global-state :as gs]
+            [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.rbac :as lr]
             [fractl.lang.tools.loader :as loader]
@@ -170,7 +171,7 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
-(defn- init-runtime [config]
+(defn- init-runtime [model config]
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
         ins (:interceptors config)
@@ -183,15 +184,16 @@
     (if has-rbac
       (lr/finalize-events ev)
       (lr/reset-events!))
-    (run-appinit-tasks! ev store (:init-data config))
+    (run-appinit-tasks! ev store (or (:init-data model)
+                                     (:init-data config)))
     (when has-rbac
       (when-not (rbac/init (:rbac ins))
         (log/error "failed to initialize rbac")))
     (ei/init-interceptors ins)
     [ev store]))
 
-(defn- finalize-config [config]
-  (let [final-config config]
+(defn- finalize-config [model config]
+  (let [final-config (merge (:config model) config)]
     (gs/merge-app-config! final-config)
     final-config))
 
@@ -199,24 +201,28 @@
   (assoc (:service app-config) :authentication
          (:authentication app-config)))
 
-(defn- prepare-runtime
-  ([args config]
-   (let [config (finalize-config config)
+(defn prepare-runtime
+  ([args [[model model-root] config]]
+   (let [config (finalize-config model config)
          store (e/store-from-config (:store config))
          config (assoc config :store-handle store)
-         components (cn/component-names)]
+         components (or
+                     (if model
+                       (load-model model model-root nil config)
+                       (load-components args (:component-root config) config))
+                     (cn/component-names))]
      (when (and (seq components) (every? keyword? components))
        (log-seq! "Components" components))
-     (init-runtime config)))
-  ([config] (prepare-runtime nil config)))
+     [(init-runtime model config) config]))
+  ([model-info] (prepare-runtime nil model-info)))
 
 (defn run-service
-  ([args config]
-   (when-let [server-cfg (make-server-config config)]
-     (let [[evaluator store] (prepare-runtime args config)]
+  ([args model-info]
+   (let [[[evaluator _] config] (prepare-runtime args model-info)]
+     (when-let [server-cfg (make-server-config config)]
        (log/info (str "Server config - " server-cfg))
        (h/run-server evaluator server-cfg))))
-  ([config] (run-service nil config)))
+  ([model-info] (run-service nil model-info)))
 
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
@@ -277,14 +283,18 @@
 
 (def ^:private config-data-key :-*-config-data-*-)
 
-(defn load-full-config [args options]
-  (let [config (or (config-data-key options) (load-config options))]
-    (when-let [extn (:script-extn config)]
-      (u/set-script-extn! extn))
-    (try
-      (fractl-secret-reader/read-secret-config config)
-      (catch Exception e
-        (u/throw-ex (str "error reading secret config " e))))))
+(defn read-model-and-config
+  ([args options]
+   (let [config (or (config-data-key options) (load-config options))]
+     (when-let [extn (:script-extn config)]
+       (u/set-script-extn! extn))
+     (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))
+           config (merge (:config model) config)]
+       (try
+         [m (fractl-secret-reader/read-secret-config config)]
+         (catch Exception e
+           (u/throw-ex (str "error reading secret config " e)))))))
+  ([options] (read-model-and-config nil options)))
 
 (defn- read-model-from-resource [component-root]
   (let [^String s (slurp
@@ -342,7 +352,7 @@
                       (or @resource-cache (load-model-from-resource))]
                   (when-not (seq components)
                     (u/throw-ex (str "no components loaded from model " model)))
-                  (first (init-runtime components config)))))
+                  (first (init-runtime model components config)))))
         parsed-request (normalize-external-request request)
         auth (h/make-auth-handler (first @resource-cache))]
     [(json/encode (h/process-request e auth parsed-request)) e]))
@@ -405,22 +415,22 @@
                       args)
       (:interactive options) (gpt/bot)
       :else
-      (let [config (load-full-config nil options)]
+      (let [[_ config :as model-info] (read-model-and-config options)]
         (or (some
              identity
              (mapv (partial run-plain-option args)
                    ["run" "compile" "build" "exec" "repl" "publish" "deploy"
                     "db:migrate"]
                    [#(call-after-load-model
-                      (first %) (fn [] (run-service config)))
+                      (first %) (fn [] (run-service model-info)))
                     #(println (build/compile-model (first %)))
                     #(println (build/standalone-package (first %)))
                     #(println (build/run-standalone-package (first %)))
                     #(println (call-after-load-model
                                (first %)
-                               (fn [] (repl/run (first %) (first (prepare-runtime config))))))
+                               (fn [] (repl/run (first %) (ffirst (prepare-runtime model-info))))))
                     #(println (publish-library %))
                     #(println (d/deploy (:deploy basic-config) (first %)))
                     #(call-after-load-model
                       (first %) (fn [] (db-migrate config)))]))
-            (run-service args config))))))
+            (run-service args model-info))))))
