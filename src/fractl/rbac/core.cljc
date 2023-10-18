@@ -17,25 +17,9 @@
    {:Fractl.Kernel.Identity/FindUser
     {:Email (get-superuser-email)}}))
 
-(defn- lookup-superuser []
-  (when-let [r (ev/safe-eval (find-su-event))]
-    (first r)))
-
-(defn- upsert-superuser [pswd]
-  (let [evt (cn/make-instance
-             {:Fractl.Kernel.Identity/Create_User
-              {:Instance
-               {:Fractl.Kernel.Identity/User
-                (merge {:Email (get-superuser-email)}
-                       (when pswd
-                         {:Password pswd}))}}})]
-    (first
-     (ev/safe-eval evt))))
-
 (defn init
   ([config]
-   (let [su (or (lookup-superuser)
-                (upsert-superuser (:superuser-password config)))]
+   (let [su (get-superuser-email)]
      (reset! superuser su)
      true))
   ([] (init nil)))

@@ -213,7 +213,7 @@
       (log-seq! "Components" components))
     (when-let [server-cfg (make-server-config config)]
       (let [[evaluator store] (init-runtime model config)]
-        (log/info (str "Server config - " server-cfg))
+        (log/info (str "Server config - " (update-in server-cfg [:authentication] dissoc :superuser-password)))
         (h/run-server evaluator server-cfg)))))
 
 (defn generate-swagger-doc [model-name args]
