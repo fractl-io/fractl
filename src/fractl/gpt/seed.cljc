@@ -1,52 +1,118 @@
 (ns fractl.gpt.seed)
 
 (def full-conversation
-  [{:role "system" :content "You are the fractl assistant."},
-   {:role "user" :content "Let's create an e-commerce application similar to Etsy. Define an entity for 'User'."}
-   {:role "assistant" :content "(entity :Etsy.User {:Id :Identity, :Username {:type :String :unique true}, :Email :Email, :Password :Password})"}
-   {:role "user" :content "Good. Define an entity for 'Product'."}
-   {:role "assistant" :content "(entity :Etsy.Product {:Id :Identity, :Title :String, :Description :String, :Price :Decimal, :Stock :Int, :Seller {:ref :Etsy.User.Id}})"}
-   {:role "user" :content "How can we represent categories for products?"}
-   {:role "assistant" :content "(entity :Etsy.Category {:Id :Identity, :Name :String}) (relationship :Etsy.ProductCategory {:meta {:between [:Etsy.Product :Etsy.Category]}})"}
-   {:role "user" :content "What if we want to represent product images?"}
-   {:role "assistant" :content "(entity :Etsy.Image {:Id :Identity, :URL :String}) (relationship :Etsy.ProductImage {:meta {:between [:Etsy.Product :Etsy.Image]}})"}
-   {:role "user" :content "How can users place orders for products?"}
-   {:role "assistant" :content "(entity :Etsy.Order {:Id :Identity, :User {:ref :Etsy.User.Id}, :Product {:ref :Etsy.Product.Id}, :Quantity :Int, :TotalAmount :Decimal, :OrderDate :Now})"}
-   {:role "user" :content "What if we want to keep track of user reviews for products?"}
-   {:role "assistant" :content "(entity :Etsy.Review {:Id :Identity, :User {:ref :Etsy.User.Id}, :Product {:ref :Etsy.Product.Id}, :Rating :Int, :Comment :Text, :Date :Now})"}
-   {:role "user" :content "How can we model user preferences, like favorite products?"}
-   {:role "assistant" :content "(relationship :Etsy.FavoriteProduct {:meta {:between [:Etsy.User :Etsy.Product]}})"}
-   {:role "user" :content "Define a cart concept to hold selected products before checkout."}
-   {:role "assistant" :content "(entity :Etsy.Cart {:Id :Identity, :User {:ref :Etsy.User.Id}, :Contents {:listof :Etsy.Product.Id}})"}
-   {:role "user" :content "Great! Now let's consider handling payment information."}
-   {:role "assistant" :content "(entity :Etsy.PaymentMethod {:Id :Identity, :User {:ref :Etsy.User.Id}, :CardNumber :CreditCard, :ExpirationDate :Date, :CVV :String, :BillingAddress {:type :Etsy.Address}})"}
-   {:role "user" :content "What about shipping addresses?"}
-   {:role "assistant" :content "(entity :Etsy.Address {:Id :Identity, :User {:ref :Etsy.User.Id}, :Street :String, :City :String, :State :String, :Zip :String})"}
-   {:role "user" :content "Now, how can we handle order shipments?"}
-   {:role "assistant" :content "(entity :Etsy.Shipment {:Id :Identity, :Order {:ref :Etsy.Order.Id}, :ShippingAddress {:ref :Etsy.Address.Id}, :ShippedDate :Now})"}
-   {:role "user" :content "What if we want to track seller information and ratings?"}
-   {:role "assistant" :content "(entity :Etsy.SellerInfo {:Id :Identity, :User {:ref :Etsy.User.Id}, :Rating :Decimal, :Description :Text})"}
-   {:role "user" :content "Let's group these definitions under a 'Core' component."}
-   {:role "assistant" :content "(component :Etsy.Core) (entity :Etsy.User {:Id :Identity, :Username {:type :String :unique true}, :Email :Email, :Password :Password}) (entity :Etsy.Product {:Id :Identity, :Title :String, :Description :String, :Price :Decimal, :Stock :Int, :Seller {:ref :Etsy.User.Id}}) (entity :Etsy.Category {:Id :Identity, :Name :String}) (relationship :Etsy.ProductCategory {:meta {:between [:Etsy.Product :Etsy.Category]}}) (entity :Etsy.Image {:Id :Identity, :URL :String}) (relationship :Etsy.ProductImage {:meta {:between [:Etsy.Product :Etsy.Image]}}) (entity :Etsy.Order {:Id :Identity, :User {:ref :Etsy.User.Id}, :Product {:ref :Etsy.Product.Id}, :Quantity :Int, :TotalAmount :Decimal, :OrderDate :Now}) (entity :Etsy.Review {:Id :Identity, :User {:ref :Etsy.User.Id}, :Product {:ref :Etsy.Product.Id}, :Rating :Int, :Comment :Text, :Date :Now}) (relationship :Etsy.FavoriteProduct {:meta {:between [:Etsy.User :Etsy.Product]}}) (entity :Etsy.Cart {:Id :Identity, :User {:ref :Etsy.User.Id}, :Contents {:listof :Etsy.Product.Id}}) (entity :Etsy.PaymentMethod {:Id :Identity, :User {:ref :Etsy.User.Id}, :CardNumber :CreditCard, :ExpirationDate :Date, :CVV :String, :BillingAddress {:type :Etsy.Address}}) (entity :Etsy.Address {:Id :Identity, :User {:ref :Etsy.User.Id}, :Street :String, :City :String, :State :String, :Zip :String}) (entity :Etsy.Shipment {:Id :Identity, :Order {:ref :Etsy.Order.Id}, :ShippingAddress {:ref :Etsy.Address.Id}, :ShippedDate :Now}) (entity :Etsy.SellerInfo {:Id :Identity, :User {:ref :Etsy.User.Id}, :Rating :Decimal, :Description :Text})"}
-   {:role "user" :content "How can we handle product reviews and ratings?"}
-   {:role "assistant" :content "(entity :Etsy.ProductRating {:Id :Identity, :Product {:ref :Etsy.Product.Id}, :User {:ref :Etsy.User.Id}, :Rating :Decimal, :Review :Text, :Date :Now})"}
-   {:role "user" :content "Great! Let's create a report for the top-rated products."}
-   {:role "assistant" :content "(dataflow :Etsy.TopRatedProducts {:Etsy.ProductRating? {:order-by [[:Rating :desc]]}})"}
-   {:role "user" :content "Show me a sample invocation of the :TopRatedProducts dataflow."}
-   {:role "assistant" :content "{:Etsy.TopRatedProducts {}}"}
-   {:role "user" :content "Define a dataflow to retrieve unread notifications for a user."}
-   {:role "assistant" :content "(dataflow :Etsy.UnreadNotifications {:Etsy.Notification? {:where [:and [:= :User :Etsy.UnreadNotifications.User] [:= :Read false]]}})"}
-   {:role "user" :content "How can we model a discount or coupon system?"}
-   {:role "assistant" :content "(entity :Etsy.Discount {:Id :Identity, :Code :String, :Description :Text, :DiscountAmount :Decimal, :ValidFrom :DateTime, :ValidTo :DateTime})"}
-   {:role "user" :content "What's the best way to associate discounts with orders?"}
-   {:role "assistant" :content "(relationship :Etsy.OrderDiscount {:meta {:between [:Etsy.Order :Etsy.Discount]}})"}
-   {:role "user" :content "Define a component to handle payment transactions."}
-   {:role "assistant" :content "(component :Etsy.Payment) (entity :Etsy.Payment.Transaction {:Id :Identity, :User {:ref :Etsy.User.Id}, :Amount :Decimal, :TransactionDate :Now}) (relationship :Etsy.PaymentHistory {:meta {:between [:Etsy.User :Etsy.Payment.Transaction]}})"}
-   {:role "user" :content "How can we track the popularity of products based on views or purchases?"}
-   {:role "assistant" :content "(entity :Etsy.Popularity {:Id :Identity, :Product {:ref :Etsy.Product.Id}, :Views :Int, :Purchases :Int})"}
-   {:role "user" :content "Create a dataflow to find popular products based on views."}
-   {:role "assistant" :content "(dataflow :Etsy.PopularProductsByViews {:Etsy.Popularity? {:order-by [[:Views :desc]]}})"}
-   {:role "user" :content "Can you show a sample invocation for the :PopularProductsByViews dataflow?"}
-   {:role "assistant" :content "{:Etsy.PopularProductsByViews {}}"}
-   {:role "user" :content "How can we track stock changes for products?"}
-   {:role "assistant" :content "(entity :Etsy.StockChange {:Id :Identity, :Product {:ref :Etsy.Product.Id}, :ChangeType :String, :ChangeAmount :Int, :ChangeDate :Now})"}])
+  [{:role "system" :content "You are the fractl assistant."}
+   {:role "user", :content "Let's create an e-commerce application similar to Etsy called Marketplace."}
+   {:role "assistant", :content
+    "(entity :Marketplace.User {:Id :Identity, :Username {:type :String :unique true}, :Email :Email, :Password :Password}) 
+    (entity :Marketplace.Shop {:Id :Identity, :Name :String, :Description :Text, :Owner {:ref :Marketplace.User.Id}, :CreationDate :DateTime})
+    (entity :Marketplace.Product {:Id :Identity, :Title :String, :Description :Text, :Price :Decimal, :Shop {:ref :Marketplace.Shop.Id}, :Category {:ref :Marketplace.ProductCategory.Id}, :CreatedDate :DateTime})
+    (entity :Marketplace.ProductCategory {:Id :Identity, :Name :String, :ParentCategory {:ref :Marketplace.ProductCategory.Id :optional true}})
+    (relationship :Marketplace.ProductReview {:meta {:between [:Marketplace.User :Marketplace.Product], :Rating :Int, :Review :Text, :ReviewDate :DateTime}})
+    (relationship :Marketplace.ShopMembership {:meta {:between [:Marketplace.User :Marketplace.Shop], :JoinDate :DateTime}})
+    (relationship :Marketplace.Order {:meta {:between [:Marketplace.User :Marketplace.Product], :OrderDate :DateTime, :Quantity :Int, :TotalPrice :Decimal}})
+    (relationship :Marketplace.Payment {:meta {:between [:Marketplace.Order :Marketplace.User], :PaymentDate :DateTime, :Amount :Decimal}})
+    (dataflow :Marketplace.ProductSearch {:Marketplace.Product? {:where [:or [:like :Title :Marketplace.ProductSearch.Keyword] [:like :Description :Marketplace.ProductSearch.Keyword]]}})
+    (dataflow :Marketplace.ShopProducts {:Marketplace.Product? {:where [:= :Shop :Marketplace.ShopProducts.ShopId]}})
+    (dataflow :Marketplace.OrderHistory {:Marketplace.Order? {:where [:= :User :Marketplace.OrderHistory.UserId]}})
+    (dataflow :Marketplace.ProductAverageRating {:Marketplace.ProductReview? {:where [:= :Product :Marketplace.ProductAverageRating.ProductId] :avg :Rating}})
+    (event :Marketplace.NewProductReview {:User :Marketplace.User.Id :Product :Marketplace.Product.Id :Rating :Int :Review :Text :ReviewDate :DateTime})
+    (event :Marketplace.NewShopMembership {:User :Marketplace.User.Id :Shop :Marketplace.Shop.Id :JoinDate :DateTime})
+    (event :Marketplace.NewOrder {:User :Marketplace.User.Id :Product :Marketplace.Product.Id :OrderDate :DateTime :Quantity :Int :TotalPrice :Decimal})
+    (event :Marketplace.NewPayment {:Order :Marketplace.Order.Id :User :Marketplace.User.Id :PaymentDate :DateTime :Amount :Decimal})"}
+   {:role "user" :content "In the above data-model you used ref, but, ref is marked invalid and should be replaced by relationship like contains, between"}
+   {:role "assistant" :content "I apologize for the oversight. You're correct, in the Fractl data model, the use of :ref is marked as invalid, and relationships like `:contains` and `:between` should be used instead. Here's the corrected data model for the `Marketplace` e-commerce application using only relationships:
+    (entity :Marketplace.User {:Id :Identity, :Username {:type :String :unique true}, :Email :Email, :Password :Password}) 
+    (entity :Marketplace.Shop {:Id :Identity, :Name :String, :Description :Text, :Owner :Identity, :CreationDate :DateTime})
+    (entity :Marketplace.Product {:Id :Identity, :Title :String, :Description :Text, :Price :Decimal, :Shop :Identity, :Category :Identity, :CreatedDate :DateTime})
+    (entity :Marketplace.ProductCategory {:Id :Identity, :Name :String, :ParentCategory :Identity :optional true})
+    (relationship :Marketplace.ProductReview {:meta {:between [:Marketplace.User :Marketplace.Product], :Rating :Int, :Review :Text, :ReviewDate :DateTime}})
+    (relationship :Marketplace.ShopMembership {:meta {:between [:Marketplace.User :Marketplace.Shop], :JoinDate :DateTime}})
+    (relationship :Marketplace.Order {:meta {:between [:Marketplace.User :Marketplace.Product], :OrderDate :DateTime, :Quantity :Int, :TotalPrice :Decimal}})
+    (relationship :Marketplace.Payment {:meta {:between [:Marketplace.Order :Marketplace.User], :PaymentDate :DateTime, :Amount :Decimal}})
+    (dataflow :Marketplace.ProductSearch {:Marketplace.Product? {:where [:or [:like :Title :Marketplace.ProductSearch.Keyword] [:like :Description :Marketplace.ProductSearch.Keyword]]}})
+    (dataflow :Marketplace.ShopProducts {:Marketplace.Product? {:where [:= :Shop :Marketplace.ShopProducts.ShopId]}})
+    (dataflow :Marketplace.OrderHistory {:Marketplace.Order? {:where [:= :User :Marketplace.OrderHistory.UserId]}})
+    (dataflow :Marketplace.ProductAverageRating {:Marketplace.ProductReview? {:where [:= :Product :Marketplace.ProductAverageRating.ProductId] :avg :Rating}})
+    (event :Marketplace.NewProductReview {:User :Marketplace.User.Id :Product :Marketplace.Product.Id :Rating :Int :Review :Text :ReviewDate :DateTime})
+    (event :Marketplace.NewShopMembership {:User :Marketplace.User.Id :Shop :Marketplace.Shop.Id :JoinDate :DateTime})
+    (event :Marketplace.NewOrder {:User :Marketplace.User.Id :Product :Marketplace.Product.Id :OrderDate :DateTime :Quantity :Int :TotalPrice :Decimal})
+    (event :Marketplace.NewPayment {:Order :Marketplace.Order.Id :User :Marketplace.User.Id :PaymentDate :DateTime :Amount :Decimal})"}
+   {:role "user", :content "Let's create a data model for a bookstore application."}
+   {:role "assistant", :content
+    "(entity :Bookstore.Book {:Id :Identity, :Title :String, :Author :String, :Genre :String, :PublicationDate :DateTime, :Price :Decimal, :ISBN :String, :Quantity :Int})
+    (entity :Bookstore.Customer {:Id :Identity, :Name :String, :Email :Email, :Address :String})
+    (entity :Bookstore.Order {:Id :Identity, :Customer :Identity, :OrderDate :DateTime, :TotalPrice :Decimal})
+    (entity :Bookstore.OrderItem {:Id :Identity, :Order :Identity, :Book :Identity, :Quantity :Int, :Price :Decimal})
+    (entity :Bookstore.Review {:Id :Identity, :Book :Identity, :Customer :Identity, :Rating :Int, :Comment :Text, :ReviewDate :DateTime})
+    (relationship :Bookstore.CustomerOrder {:meta {:between [:Bookstore.Customer :Bookstore.Order], :OrderDate :DateTime}})
+    (relationship :Bookstore.OrderBook {:meta {:between [:Bookstore.Order :Bookstore.OrderItem], :Quantity :Int, :Price :Decimal}})
+    (relationship :Bookstore.BookReview {:meta {:between [:Bookstore.Book :Bookstore.Review], :Rating :Int, :Comment :Text, :ReviewDate :DateTime}})
+    (dataflow :Bookstore.SearchBooks {:Bookstore.Book? {:where [:or [:like :Title :Bookstore.SearchBooks.Keyword] [:like :Author :Bookstore.SearchBooks.Keyword] [:like :Genre :Bookstore.SearchBooks.Keyword]]}})
+    (dataflow :Bookstore.CustomerOrders {:Bookstore.Order? {:where [:= :Customer :Bookstore.CustomerOrders.CustomerId]}})
+    (dataflow :Bookstore.BookReviews {:Bookstore.Review? {:where [:= :Book :Bookstore.BookReviews.BookId] :avg :Rating}})
+    (event :Bookstore.NewOrder {:Customer :Bookstore.Customer.Id :OrderDate :DateTime :TotalPrice :Decimal})
+    (event :Bookstore.NewOrderItem {:Order :Bookstore.Order.Id :Book :Bookstore.Book.Id :Quantity :Int :Price :Decimal})
+    (event :Bookstore.NewReview {:Book :Bookstore.Book.Id :Customer :Bookstore.Customer.Id :Rating :Int :Comment :Text :ReviewDate :DateTime})"}
+   {:role "user", :content "Let's create a data model for a hospital management application."}
+   {:role "assistant", :content
+    "(entity :Hospital.Patient {:Id :Identity, :FirstName :String, :LastName :String, :DateOfBirth :DateTime, :Gender :String, :ContactNumber :String, :Address :String})
+    (entity :Hospital.Doctor {:Id :Identity, :FirstName :String, :LastName :String, :Specialty :String, :ContactNumber :String, :Email :Email})
+    (entity :Hospital.Appointment {:Id :Identity, :Patient :Identity, :Doctor :Identity, :AppointmentDate :DateTime, :Status :String, :Notes :Text})
+    (entity :Hospital.MedicalRecord {:Id :Identity, :Patient :Identity, :Doctor :Identity, :AdmissionDate :DateTime, :Diagnosis :Text, :Prescription :Text})
+    (entity :Hospital.Staff {:Id :Identity, :FirstName :String, :LastName :String, :Role :String, :ContactNumber :String, :Email :Email})
+    (relationship :Hospital.DoctorPatient {:meta {:between [:Hospital.Doctor :Hospital.Patient]}})
+    (relationship :Hospital.AppointmentDoctor {:meta {:between [:Hospital.Appointment :Hospital.Doctor]}})
+    (relationship :Hospital.AppointmentPatient {:meta {:between [:Hospital.Appointment :Hospital.Patient]}})
+    (relationship :Hospital.MedicalRecordDoctor {:meta {:between [:Hospital.MedicalRecord :Hospital.Doctor]}})
+    (relationship :Hospital.MedicalRecordPatient {:meta {:between [:Hospital.MedicalRecord :Hospital.Patient]}})
+    (dataflow :Hospital.PatientAppointments {:Hospital.Appointment? {:where [:= :Patient :Hospital.PatientAppointments.PatientId]}})
+    (dataflow :Hospital.DoctorAppointments {:Hospital.Appointment? {:where [:= :Doctor :Hospital.DoctorAppointments.DoctorId]}})
+    (event :Hospital.NewAppointment {:Patient :Hospital.Patient.Id :Doctor :Hospital.Doctor.Id :AppointmentDate :DateTime :Status :String :Notes :Text})
+    (event :Hospital.NewMedicalRecord {:Patient :Hospital.Patient.Id :Doctor :Hospital.Doctor.Id :AdmissionDate :DateTime :Diagnosis :Text :Prescription :Text})
+    (event :Hospital.NewStaff {:FirstName :String :LastName :String :Role :String :ContactNumber :String :Email :Email})"}
+   {:role "user" :content "I seem to note, you have been only using between relationship, can you re-write the previous app using contains in relationship"}
+   {:role "assistant", :content
+    "(entity :Hospital.Patient {:Id :Identity, :FirstName :String, :LastName :String, :DateOfBirth :DateTime, :Gender :String, :ContactNumber :String, :Address :String})
+    (entity :Hospital.Doctor {:Id :Identity, :FirstName :String, :LastName :String, :Specialty :String, :ContactNumber :String, :Email :Email})
+    (entity :Hospital.Appointment {:Id :Identity, :Patient :Identity, :Doctor :Identity, :AppointmentDate :DateTime, :Status :String, :Notes :Text})
+    (entity :Hospital.MedicalRecord {:Id :Identity, :Patient :Identity, :Doctor :Identity, :AdmissionDate :DateTime, :Diagnosis :Text, :Prescription :Text})
+    (entity :Hospital.Staff {:Id :Identity, :FirstName :String, :LastName :String, :Role :String, :ContactNumber :String, :Email :Email})
+    (relationship :Hospital.HospitalPatients {:meta {:contains [:Hospital.Hospital :Hospital.Patient]}})
+    (relationship :Hospital.HospitalDoctors {:meta {:contains [:Hospital.Hospital :Hospital.Doctor]}})
+    (relationship :Hospital.HospitalAppointments {:meta {:contains [:Hospital.Hospital :Hospital.Appointment]}})
+    (relationship :Hospital.HospitalMedicalRecords {:meta {:contains [:Hospital.Hospital :Hospital.MedicalRecord]}})
+    (relationship :Hospital.DoctorPatients {:meta {:contains [:Hospital.Doctor :Hospital.Patient]}})
+    (relationship :Hospital.AppointmentDoctors {:meta {:contains [:Hospital.Appointment :Hospital.Doctor]}})
+    (relationship :Hospital.AppointmentPatients {:meta {:contains [:Hospital.Appointment :Hospital.Patient]}})
+    (relationship :Hospital.MedicalRecordDoctors {:meta {:contains [:Hospital.MedicalRecord :Hospital.Doctor]}})
+    (relationship :Hospital.MedicalRecordPatients {:meta {:contains [:Hospital.MedicalRecord :Hospital.Patient]}})
+    (dataflow :Hospital.PatientAppointments {:Hospital.Appointment? {:where [:= :Patient :Hospital.PatientAppointments.PatientId]}})
+    (dataflow :Hospital.DoctorAppointments {:Hospital.Appointment? {:where [:= :Doctor :Hospital.DoctorAppointments.DoctorId]}})
+    (event :Hospital.NewAppointment {:Patient :Hospital.Patient.Id :Doctor :Hospital.Doctor.Id :AppointmentDate :DateTime :Status :String :Notes :Text})
+    (event :Hospital.NewMedicalRecord {:Patient :Hospital.Patient.Id :Doctor :Hospital.Doctor.Id :AdmissionDate :DateTime :Diagnosis :Text :Prescription :Text})
+    (event :Hospital.NewStaff {:FirstName :String :LastName :String :Role :String :ContactNumber :String :Email :Email})"}
+   {:role "user" :content "Again, please note, you can freely use `between` and `contains` relationship but, do not use ref"}
+   {:role "assistant" :content "Absolutely, I understand. Here's the data model for a hospital management application using both `:between` and :`contains` relationships, with no use of `:ref`:
+    (entity :Hospital.Patient {:Id :Identity, :FirstName :String, :LastName :String, :DateOfBirth :DateTime, :Gender :String, :ContactNumber :String, :Address :String})
+    (entity :Hospital.Doctor {:Id :Identity, :FirstName :String, :LastName :String, :Specialty :String, :ContactNumber :String, :Email :Email})
+    (entity :Hospital.Appointment {:Id :Identity, :Patient :Identity, :Doctor :Identity, :AppointmentDate :DateTime, :Status :String, :Notes :Text})
+    (entity :Hospital.MedicalRecord {:Id :Identity, :Patient :Identity, :Doctor :Identity, :AdmissionDate :DateTime, :Diagnosis :Text, :Prescription :Text})
+    (entity :Hospital.Staff {:Id :Identity, :FirstName :String, :LastName :String, :Role :String, :ContactNumber :String, :Email :Email})
+    (entity :Hospital.Hospital {:Name :String, :Location :String, :Capacity :Int})
+    (relationship :Hospital.HospitalPatients {:meta {:contains [:Hospital.Hospital :Hospital.Patient]}})
+    (relationship :Hospital.HospitalDoctors {:meta {:contains [:Hospital.Hospital :Hospital.Doctor]}})
+    (relationship :Hospital.HospitalAppointments {:meta {:contains [:Hospital.Hospital :Hospital.Appointment]}})
+    (relationship :Hospital.HospitalMedicalRecords {:meta {:contains [:Hospital.Hospital :Hospital.MedicalRecord]}})
+    (relationship :Hospital.HospitalStaff {:meta {:contains [:Hospital.Hospital :Hospital.Staff]}})
+    (relationship :Hospital.DoctorPatients {:meta {:between [:Hospital.Doctor :Hospital.Patient]}})
+    (relationship :Hospital.AppointmentDoctors {:meta {:between [:Hospital.Appointment :Hospital.Doctor]}})
+    (relationship :Hospital.AppointmentPatients {:meta {:between [:Hospital.Appointment :Hospital.Patient]}})
+    (relationship :Hospital.MedicalRecordDoctors {:meta {:between [:Hospital.MedicalRecord :Hospital.Doctor]}})
+    (relationship :Hospital.MedicalRecordPatients {:meta {:between [:Hospital.MedicalRecord :Hospital.Patient]}})
+    (relationship :Hospital.StaffHospital {:meta {:between [:Hospital.Staff :Hospital.Hospital]}})
+    (dataflow :Hospital.PatientAppointments {:Hospital.Appointment? {:where [:= :Patient :Hospital.PatientAppointments.PatientId]}})
+    (dataflow :Hospital.DoctorAppointments {:Hospital.Appointment? {:where [:= :Doctor :Hospital.DoctorAppointments.DoctorId]}})
+    (event :Hospital.NewAppointment {:Patient :Hospital.Patient.Id :Doctor :Hospital.Doctor.Id :AppointmentDate :DateTime :Status :String :Notes :Text})
+    (event :Hospital.NewMedicalRecord {:Patient :Hospital.Patient.Id :Doctor :Hospital.Doctor.Id :AdmissionDate :DateTime :Diagnosis :Text :Prescription :Text})
+    (event :Hospital.NewStaff {:FirstName :String :LastName :String :Role :String :ContactNumber :String :Email :Email})"}])
