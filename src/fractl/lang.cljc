@@ -863,11 +863,19 @@
 
 (def serializable-entity (partial serializable-record :entity))
 
+(defn- preproc-path-identity [attrs]
+  (if-let [[k v] (first (filter #(let [v (second %)]
+                                   (and (map? v) (:path-identity v)))
+                                attrs))]
+    (assoc attrs k (assoc v :indexed true) li/path-attr li/path-attr-spec)
+    attrs))
+
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs raw-attrs]
-   (when-let [r (serializable-entity n (preproc-for-built-in-attrs attrs))]
-     (and (if raw-attrs (raw/entity n raw-attrs) true) r)))
+   (let [attrs (if raw-attrs (preproc-path-identity attrs) attrs)]
+     (when-let [r (serializable-entity n (preproc-for-built-in-attrs attrs))]
+       (and (if raw-attrs (raw/entity n raw-attrs) true) r))))
   ([n attrs]
    (let [raw-attrs attrs
          attrs (if-not (seq attrs)
@@ -959,7 +967,7 @@
     ident))
 
 (defn- regen-contains-child-attributes [child meta]
-  (if-not (cn/path-identity-attribute-name child)
+  (when-not (cn/path-identity-attribute-name child)
     (let [cident (user-defined-identity-attribute-name child)
           child-attrs (preproc-for-built-in-attrs
                        (raw/entity-attributes-include-inherits child))
@@ -980,8 +988,7 @@
                 :indexed true}
                (when-not cident-spec ;; __Id__
                  {:default u/uuid-string}))
-       li/path-attr li/path-attr-spec))
-    (cn/fetch-entity-schema child)))
+       li/path-attr li/path-attr-spec))))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
@@ -996,7 +1003,7 @@
                             relmeta :relationship :contains))
         child-attrs (regen-contains-child-attributes child meta)]
     (if-let [r (record relname raw-attrs)]
-      (if (entity child child-attrs false)
+      (if (or (not child-attrs) (entity child child-attrs false))
         (if (cn/register-relationship elems relname)
           (and (regen-contains-dataflows relname elems)
                (regen-between-relationships (second elems))
@@ -1020,8 +1027,7 @@
     (assoc attrs a1 t1 a2 t2)))
 
 (defn- between-unique-meta [meta relmeta [node1 node2]]
-  (let [[_ n1] (li/split-path node1)
-        [_ n2] (li/split-path node2)]
+  (let [[n1 n2] (li/between-nodenames node1 node2 relmeta)]
     (cond
       (:one-one relmeta)
       (assoc meta :unique [n1 n2])

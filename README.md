@@ -10,6 +10,40 @@ visually-designed in the generative-AI powered Fractl Design Studio.
 
 The Fractl language specification, its compiler and runtime are all fully open source. 
 
+## A Taste of Fractl
+
+The following code snippet shows a complete Fractl program that models a micro-blogging platform. (Let's name our new
+micro-blogging platform `ZipZap` :-)).
+
+```clojure
+(component :ZipZap)
+
+(entity :User
+ {:Email {:type :Email
+          :identity true}
+  :FirstName :String
+  :LastName :String})
+
+(entity :Tweet
+ {:Id {:type :UUID
+       :default fractl.util/uuid-string
+       :path-identity true}
+  :Created :Now
+  :Body :String})
+
+(relationship :Feed
+ {:meta {:contains [:ZipZap/User :ZipZap/Tweet]}})
+
+(relationship :Conversation
+ {:meta {:between [:ZipZap/Tweet :ZipZap/Tweet
+                   :as [:OriginalTweet :Reply]
+                   :one-one true]}})
+```
+
+That's it - this model can be built and deployed immediately as a highly-scalable micro-blogging service!
+But before you do that, you need to install Fractl and learn to invoke its build tools. The next sections will
+help you with that.
+
 ## Download and Install
 
 #### Prerequisites
