@@ -187,7 +187,7 @@
     (run-appinit-tasks! ev store (or (:init-data model)
                                      (:init-data config)))
     (when has-rbac
-      (when-not (rbac/init (:rbac ins))
+      (when-not (rbac/init (merge (:rbac ins) (:authentication config)))
         (log/error "failed to initialize rbac")))
     (ei/init-interceptors ins)
     [ev store]))
