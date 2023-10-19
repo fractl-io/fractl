@@ -2,7 +2,7 @@
   (:require [amazonica.aws.cognitoidp
              :refer [sign-up admin-delete-user admin-get-user
                      admin-update-user-attributes admin-user-global-sign-out change-password
-                     confirm-forgot-password confirm-sign-up forgot-password initiate-auth
+                     confirm-forgot-password confirm-sign-up list-users forgot-password initiate-auth
                      create-group delete-group admin-add-user-to-group admin-remove-user-from-group resend-confirmation-code]]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
@@ -35,6 +35,15 @@
      0
      (or (str/index-of error-msg  "(Service: AWSCognitoIdentityProvider")
          (count error-msg)))))
+
+(defn- find-cognito-username-by-email [client user-pool-id email]
+  (let [users
+        (list-users
+         client
+         :user-pool-id user-pool-id
+         :filter (str "email = \"" email "\""))
+        user (first (:users users))]
+    (:username user)))
 
 (defmethod auth/make-authfn tag [_config]
   (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
@@ -81,7 +90,7 @@
       ;; Create User
       :User
       (let [user instance]
-        (when (:password user)
+        (when (:Password user)
           (sign-up-user req aws-config client-id user-pool-id whitelist? user))
         nil)
 
@@ -262,17 +271,19 @@
       req)))
 
 (defmethod auth/add-user-to-role tag [{:keys [client role-name username] :as req}]
-  (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
+  (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)
+        client (or client (auth/make-client (merge req cfg)))]
     (admin-add-user-to-group
-     (or client (auth/make-client (merge req cfg)))
+     client
      :group-name role-name
-     :username username
+     :username (find-cognito-username-by-email client user-pool-id username)
      :user-pool-id user-pool-id)))
 
 (defmethod auth/remove-user-from-role tag [{:keys [client role-name username] :as req}]
-  (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)]
+  (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)
+        client (or client (auth/make-client (merge req cfg)))]
     (admin-remove-user-from-group
-     (or client (auth/make-client (merge req cfg)))
+     client
      :group-name role-name
-     :username username
+     :username (find-cognito-username-by-email client user-pool-id username)
      :user-pool-id user-pool-id)))

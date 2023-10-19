@@ -862,37 +862,35 @@
      (make-jwks-url region user-pool-id)
      token)))
 
-(defn- maybe-signup-user [evaluator email sign-up-request]
-  (if (first
-       (u/safe-ok-result
-        (evaluator
-         {:Fractl.Kernel.Identity/FindUser
-          {:Email email}})))
-    nil
-    (u/safe-ok-result
-     (evaluator sign-up-request))))
-
 (defn- process-redirect [evaluator call-post-signup [auth-config _] request]
   (if auth-config
     (let [[obj _ _] (request-object request)]
       (if-let [token (:id_token obj)]
         (if-let [user (verify-token token)]
           (when (:email user)
-            (let [sign-up-request
+            (let [user {:Email (:email user)
+                        :Name (str (:given_name user) " " (:family_name user))
+                        :FirstName (:given_name user)
+                        :LastName (:family_name user)}
+                  sign-up-request
                   {:Fractl.Kernel.Identity/SignUp
-                   {:User
-                    {:Fractl.Kernel.Identity/User
-                     {:Email (:email user)
-                      :FirstName (:given_name user)
-                      :LastName (:family_name user)}}}}
-                  sign-up-result (maybe-signup-user evaluator (:email user) sign-up-request)]
-              (when call-post-signup
-                (evaluate
-                 evaluator
-                 (assoc
-                  (create-event post-signup-event-name)
-                  :SignupResult sign-up-result :SignupRequest sign-up-request))))
-            (ok {:result "ok"}))
+                   {:User {:Fractl.Kernel.Identity/User user}}}
+                  new-sign-up
+                  (= :not-found
+                     (:status
+                      (first
+                       (evaluator
+                        {:Fractl.Kernel.Identity/FindUser
+                         {:Email (:Email user)}}))))]
+              (when new-sign-up
+                (let [sign-up-result (u/safe-ok-result (evaluator sign-up-request))]
+                  (when call-post-signup
+                    (evaluate
+                     evaluator
+                     (assoc
+                      (create-event post-signup-event-name)
+                      :SignupResult sign-up-result :SignupRequest {:User user})))))
+              (ok {:status "ok" :new-sign-up new-sign-up :result user})))
           (bad-request (str "id_token not valid")))
         (bad-request
          (str "id_token required"))))
