@@ -61,6 +61,25 @@
   (when (vector? dep)
     (second dep)))
 
+(declare read-model)
+
+(defn load-all-model-info [model-paths model-name model-info]
+  (let [model-paths (or model-paths (tu/get-system-model-paths))
+        [model model-root] (or model-info (read-model model-paths model-name))
+        model-name (or model-name (:name model))]
+    (when-not model-name
+      (u/throw-ex "model-name is required"))
+    (let [model-name (if (keyword? model-name)
+                       (s/lower-case (name model-name))
+                       model-name)]
+      {:paths model-paths
+       :model model
+       :root model-root
+       :name model-name})))
+
+(defn load-default-model-info []
+  (load-all-model-info nil nil nil))
+
 #?(:clj
    (do
      (def ^:dynamic *parse-expressions* true)
@@ -276,3 +295,4 @@
      (defn load-model [model callback]
        (let [continuation (fn [_] (load-components-from-model model (partial callback :comp)))]
          (load-model-dependencies model (partial callback :deps continuation))))))
+
