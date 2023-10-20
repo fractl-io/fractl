@@ -4,11 +4,10 @@
 
 # The Fractl Programming Language
 
-Fractl is a data-oriented, declarative programming language that allows the development of business applications from high-level
-models or specifications. Fractl programs (or models) can be developed using traditional code-editors or they could be 
-visually-designed in the generative-AI powered Fractl Design Studio.
+Fractl is a data-oriented, declarative programming language for developing business applications from high-level specifications. 
+Fractl programs (also known as `models`) can be developed using traditional code-editors or they could be visually-designed in the generative-AI powered Fractl Design Studio.
 
-The Fractl language specification, its compiler and runtime are all fully open source.
+The Fractl language specification, its compiler and runtime are all open source.
 
 ## What Makes Fractl Special
 
@@ -16,8 +15,8 @@ Fractl introduces a number of innovative concepts to programming:
 
 1. Graph-based Hierarchical Data Model
 
-The high-level design of an application can often be decomposed into graph-like or hierarchical relationships between
-business entities. Such [relationships](https://fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
+   The high-level design of an application can often be decomposed into graph-like or hierarchical relationships between
+   business entities. Such [relationships](https://fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
 
 2. Zero-trust Programming
 
