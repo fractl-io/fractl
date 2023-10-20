@@ -9,8 +9,7 @@
 (entity
  :Role
  {:Name {:type :String
-         :indexed true
-         :unique true}})
+         :identity true}})
 
 (def ^:private oprs li/rbac-oprs)
 
@@ -20,21 +19,27 @@
 (entity
  :Privilege
  {:Name {:type :String
-         :indexed true
-         :unique true}
+         :default u/uuid-string
+         :identity true}
   :Actions {:check crud-list?}
   :Resource :Edn})
 
 (entity
  :PrivilegeAssignment
- {:Role {:ref :Role.Name
+ {:Name {:type :String
+         :default u/uuid-string
+         :identity true}
+  :Role {:ref :Role.Name
          :indexed true}
   :Privilege {:ref :Privilege.Name}
   :meta {:unique [:Role :Privilege]}})
 
 (entity
  :RoleAssignment
- {:Role {:ref :Role.Name
+ {:Name {:type :String
+         :default u/uuid-string
+         :identity true}
+  :Role {:ref :Role.Name
          :indexed true}
   :Assignee {:type :String ; usually a :Fractl.Kernel.Identity/User.Name
              :indexed true}
@@ -68,7 +73,10 @@
 
 (entity
  {:InstancePrivilegeAssignment
-  {:Actions {:check crud-list?
+  {:Name {:type :String
+          :default u/uuid-string
+          :identity true}
+   :Actions {:check crud-list?
              :optional true}
    :Resource :Path
    :ResourceId :Any
@@ -76,6 +84,9 @@
 
 (entity
  {:OwnershipAssignment
-  {:Resource :Path
+  {:Name {:type :String
+          :default u/uuid-string
+          :identity true}
+   :Resource :Path
    :ResourceId :Any
    :Assignee :String}})
