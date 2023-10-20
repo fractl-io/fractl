@@ -81,7 +81,10 @@
    (filter
     (fn [p]
       (and (some (partial has-priv-on-resource? resource)
-                 (mapv #(if ignore-refs (li/root-path %) %) (:Resource p)))
+                 (mapv #(if (and ignore-refs (not= % :*))
+                          (li/root-path %)
+                          %)
+                       (:Resource p)))
            (some #{action :*} (:Actions p))))
     privs)))
 
