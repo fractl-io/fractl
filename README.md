@@ -68,7 +68,7 @@ cd fractl
 ./install.sh
 ```
 
-The `install.sh` command will install Fractl to your home directory - e.g `/home/me/fractl-0.4.5`. You may decide to pass a custom
+The `install.sh` command will install Fractl to your home directory - e.g `/home/me/fractl-0.4.6`. You may decide to pass a custom
 install location to this script - `./install.sh /home/me/programs`.
 
 #### Testing the installation
@@ -76,7 +76,7 @@ install location to this script - `./install.sh /home/me/programs`.
 Make sure the install location of Fractl is in the system search-path:
 
 ```shell
-export PATH=$PATH:/home/me/fractl-0.4.5
+export PATH=$PATH:/home/me/fractl-0.4.6
 ```
 
 Start the ZipZap service using the following command:
