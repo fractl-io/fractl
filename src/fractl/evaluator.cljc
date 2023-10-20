@@ -134,11 +134,9 @@
    (let [event-instance (maybe-init-event event-instance)
          f (partial eval-dataflow-in-transaction evaluator env event-instance df)]
      (try
-       (let [r (if gs/active-txn
-                 (f gs/active-txn)
-                 (if-let [store (env/get-store env)]
-                   (store/call-in-transaction store f)
-                   (f nil)))]
+       (let [r (if-let [store (env/get-store env)]
+                 (store/call-in-transaction store f)
+                 (f nil))]
          (r/merge-init-pending-components!)
          r)
        (catch #?(:clj Exception :cljs :default) ex
