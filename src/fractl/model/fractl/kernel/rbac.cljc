@@ -23,7 +23,7 @@
      [fractl.lang.internal :as li])]})
 (entity
  :Fractl.Kernel.Rbac/Role
- {:Name {:type :String, :indexed true, :unique true}})
+ {:Name {:type :String, :identity true}})
 (def oprs li/rbac-oprs)
 (defn-
  crud-list?
@@ -31,18 +31,20 @@
  (every? (fn* [p1__276#] (some #{p1__276#} oprs)) (set xs)))
 (entity
  :Fractl.Kernel.Rbac/Privilege
- {:Name {:type :String, :indexed true, :unique true},
+ {:Name {:type :String, :default u/uuid-string, :identity true},
   :Actions {:check fractl.model.fractl.kernel.rbac/crud-list?},
   :Resource :Edn})
 (entity
  :Fractl.Kernel.Rbac/PrivilegeAssignment
- {:Role {:ref :Fractl.Kernel.Rbac/Role.Name, :indexed true},
+ {:Name {:type :String, :default u/uuid-string, :identity true},
+  :Role {:ref :Fractl.Kernel.Rbac/Role.Name, :indexed true},
   :Privilege {:ref :Fractl.Kernel.Rbac/Privilege.Name},
   :meta
   {:unique [:Fractl.Kernel.Rbac/Role :Fractl.Kernel.Rbac/Privilege]}})
 (entity
  :Fractl.Kernel.Rbac/RoleAssignment
- {:Role {:ref :Fractl.Kernel.Rbac/Role.Name, :indexed true},
+ {:Name {:type :String, :default u/uuid-string, :identity true},
+  :Role {:ref :Fractl.Kernel.Rbac/Role.Name, :indexed true},
   :Assignee {:type :String, :indexed true},
   :meta {:unique [:Fractl.Kernel.Rbac/Role :Assignee]}})
 (dataflow
@@ -93,7 +95,11 @@
                        fractl.model.fractl.kernel.rbac/privileges-query}])
 (entity
  #:Fractl.Kernel.Rbac{:InstancePrivilegeAssignment
-                      {:Actions
+                      {:Name
+                       {:type :String,
+                        :default u/uuid-string,
+                        :identity true},
+                       :Actions
                        {:check
                         fractl.model.fractl.kernel.rbac/crud-list?,
                         :optional true},
@@ -102,9 +108,13 @@
                        :Assignee :String}})
 (entity
  #:Fractl.Kernel.Rbac{:OwnershipAssignment
-                      {:Resource :Path,
+                      {:Name
+                       {:type :String,
+                        :default u/uuid-string,
+                        :identity true},
+                       :Resource :Path,
                        :ResourceId :Any,
                        :Assignee :String}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "b472a669-eafc-4fe6-8cf5-93edf4fed9c6")
+ "17afff02-2160-4925-9462-79dc569e4a49")
