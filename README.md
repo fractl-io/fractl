@@ -8,7 +8,42 @@ Fractl is a data-oriented, declarative programming language that allows the deve
 models or specifications. Fractl programs (or models) can be developed using traditional code-editors or they could be 
 visually-designed in the generative-AI powered Fractl Design Studio.
 
-The Fractl language specification, its compiler and runtime are all fully open source. 
+The Fractl language specification, its compiler and runtime are all fully open source.
+
+## What Makes Fractl Special
+
+Fractl introduces a number of innovative concepts to programming:
+
+1. Graph-based Hierarchical Data Model
+
+The high-level design of an application can often be decomposed into graph-like or hierarchical relationships between
+business entities. Such [relationships](https://fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
+
+2. Zero-trust Programming
+
+Access to and operations on business entities are tightly controlled through
+[declarative access-control-rules](https://fractl.io/docs/concepts/zero-trust-programming), expressed directly in the program.
+
+3. Declarative Dataflow
+
+Business logic expressed as [purely-declarative patterns of data](https://fractl.io/docs/concepts/declarative-dataflow).
+
+4. Resolvers
+
+Control how patterns are interpreted in dataflows using a powerful [functional interface](https://fractl.io/docs/concepts/resolvers).
+
+5. Interceptors
+
+Run custom Clojure code before and after a pattern evaluation happens. Read more on interceptors [here](https://fractl.io/docs/concepts/interceptors).
+
+6. Entity-graph-Database Mapping
+
+An [abstract persistence layer](https://fractl.io/docs/concepts/entity-db-mapping) for fully-automated storage of entity instances.
+
+7. Generative-AI
+
+As a Fractl program is a very high-level model of the business problem, the built-in Gen-AI can transform a pure-text
+description of the problem to an immediately executable Fractl application, in the matter of a few seconds.
 
 ## A Taste of Fractl
 
@@ -40,7 +75,7 @@ micro-blogging platform `ZipZap` :-)).
                    :one-one true]}})
 ```
 
-That's it - this model can be built and deployed immediately as a highly-scalable micro-blogging service!
+Save this code to a file named `zipzap.fractl` and its ready to be run as a highly-scalable micro-blogging service!
 But before you do that, you need to install Fractl and learn to invoke its build tools. The next sections will
 help you with that.
 
@@ -70,11 +105,28 @@ Make sure the install location of Fractl is in the system search-path:
 export PATH=$PATH:/home/me/fractl-0.4.5
 ```
 
-Start the Fractl REPL:
+Start the ZipZap service using the following command:
 
 ```shell
-fractl repl
+fractl zipzap.fractl
 ```
 
-If you land in the `fractl>` prompt, Fractl is installed correctly. You're all set to further explore the language.
-To learn more about Fractl, please visit the official [documentation](https://fractl.io/docs) pages.
+We can create a new ZipZap user with an HTTP POST request,
+
+```shell
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"ZipZap/User": {"Email": "jane@zipzap.com", "FirstName": "Jane", "LastName": "J"}}' \
+http://localhost:8080/_e/ZipZap/User
+```
+
+To make sure the new user is persisted in the store, try the following request:
+
+```shell
+curl http://localhost:8080/_e/ZipZap/User/jane@zipzap.com
+```
+
+If Fractl is installed correctly, both these requests will return an `OK` status along with a `:ZipZap/User` instance.
+
+You're all set to further explore the language. To learn more about Fractl, please visit the
+official [documentation](https://fractl.io/docs) pages.
