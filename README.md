@@ -13,37 +13,13 @@ The Fractl language specification, its compiler and runtime are all open source.
 
 Fractl introduces a number of innovative concepts to programming:
 
-1. Graph-based Hierarchical Data Model
-
-   Decompose the high-level design of an application into graph-like or hierarchical relationships between
-   business entities. Such [relationships](https://fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
-
-2. Zero-trust Programming
-
-   Tightly control operations on business entities through [declarative access-control-rules](https://fractl.io/docs/concepts/zero-trust-programming) encoded directly in the program.
-
-3. Declarative Dataflow
-
-   Express business logic as [purely-declarative patterns of data](https://fractl.io/docs/concepts/declarative-dataflow).
-
-4. Resolvers
-
-   Use a powerful [functional interface](https://fractl.io/docs/concepts/resolvers) to control how dataflow-patterns are
-   interpreted.
-
-5. Interceptors
-
-   [Run custom Clojure code](https://fractl.io/docs/concepts/interceptors) before and after a pattern evaluation happens.
-
-6. Entity-graph-Database Mapping
-
-   Take advantage of an [abstract persistence layer](https://fractl.io/docs/concepts/entity-db-mapping) for
-   fully-automated storage of entity instances.
-
-7. Generative-AI
-
-   Allow the built-in Gen-AI to transform a pure-text description of the problem to an immediately executable Fractl
-   application, all in the matter of a few seconds.
+1. Graph-based Hierarchical Data Model - decompose the high-level design of an application into graph-like or hierarchical relationships between business entities. Such [relationships](https://fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
+2. Zero-trust Programming - tightly control operations on business entities through [declarative access-control-rules](https://fractl.io/docs/concepts/zero-trust-programming) encoded directly in the program.
+3. Declarative Dataflow - express business logic as [purely-declarative patterns of data](https://fractl.io/docs/concepts/declarative-dataflow).
+4. Resolvers - use a powerful [functional interface](https://fractl.io/docs/concepts/resolvers) to control how dataflow-patterns are interpreted.
+5. Interceptors - [run custom Clojure code](https://fractl.io/docs/concepts/interceptors) before and after a pattern evaluation happens.
+6. Entity-graph-Database Mapping - take advantage of an [abstract persistence layer](https://fractl.io/docs/concepts/entity-db-mapping) for fully-automated storage of entity instances.
+7. Generative-AI - allow the built-in Gen-AI to transform a pure-text description of the problem to an immediately executable Fractl application, all in the matter of a few seconds.
 
 ## A Taste of Fractl
 
