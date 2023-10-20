@@ -91,6 +91,10 @@
 (defn non-interactive-generate
   ([gpt-model-name api-key response-handler request]
    (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
+  ([api-key response-handler request]
+   (if (nil? api-key)
+     (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)
+     (non-interactive-generate default-model api-key response-handler request)))
   ([response-handler request]
    (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 
