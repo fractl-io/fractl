@@ -1564,3 +1564,57 @@
     (ln/model spec)
     (is (= spec (ln/fetch-model :crm)))
     (is (= "1.0.2" (ln/model-version :crm)))))
+
+#?(:clj
+   (deftest multi-threaded-transactions
+     (defcomponent :Mtt01
+       (entity
+        :Mtt01/E
+        {:Id {:type :Int :identity true}
+         :X :Int
+         :Y :String}))
+     (let [create-e (fn [id]
+                      (let [x (* id 10)]
+                        (tu/first-result
+                         {:Mtt01/Create_E
+                          {:Instance
+                           {:Mtt01/E {:Id id :X x
+                                      :Y (str id ", " x)}}}})))
+           e? (partial cn/instance-of? :Mtt01/E)
+           create-es #(mapv create-e %)
+           lookup-all (fn [] (tu/result
+                              {:Mtt01/LookupAll_E {}}))
+           delete-e (fn [id]
+                      (tu/first-result
+                       {:Mtt01/Delete_E
+                        {:Id id}}))
+           delete-es #(mapv delete-e %)
+           trtest (fn [opr ids]
+                    (let [res (atom nil)
+                          ^Thread t (Thread. #(reset! res (opr ids)))]
+                      (.start t)
+                      [t res]))
+           chk (fn [[^Thread t res] ids]
+                 (.join t)
+                 (is (= (count ids) (count @res)))
+                 (let [rs (filter e? @res)]
+                   (is (> (count rs)
+                          (int (* (count ids) 0.98))))))
+           crtest (partial trtest create-es)
+           deltest (partial trtest delete-es)]
+       (let [ids1 (range 1 500)
+             ids2 (range 500 1000)
+             ids3 (range 20 100)
+             ids4 (range 470 600)
+             t1 (crtest ids1)
+             t2 (crtest ids2)]
+         (chk t1 ids1)
+         (chk t2 ids2)
+         (let [es (lookup-all)]
+           (is (every? e? es)))
+         (let [t3 (deltest ids3)
+               t4 (deltest ids4)]
+           (chk t3 ids3)
+           (chk t4 ids4)
+           (let [es (lookup-all)]
+             (is (every? e? es))))))))
