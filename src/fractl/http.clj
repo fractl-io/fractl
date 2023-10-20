@@ -12,8 +12,9 @@
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.util :as u]
-            [fractl.util.seq :as su]
             [fractl.util.http :as uh]
+            [fractl.auth.cognito :as cognito]
+            [fractl.auth.jwt :as jwt]
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
             [fractl.global-state :as gs]
@@ -845,6 +846,47 @@
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request))))))
 
+(defn- verify-token [token]
+  (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
+    (jwt/verify-and-extract
+     (cognito/make-jwks-url region user-pool-id)
+     token)))
+
+(defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
+  (if auth-config
+    (let [[obj _ _] (request-object request)]
+      (if-let [token (:id_token obj)]
+        (if-let [user (verify-token token)]
+          (when (:email user)
+            (let [user {:Email (:email user)
+                        :Name (str (:given_name user) " " (:family_name user))
+                        :FirstName (:given_name user)
+                        :LastName (:family_name user)}
+                  sign-up-request
+                  {:Fractl.Kernel.Identity/SignUp
+                   {:User {:Fractl.Kernel.Identity/User user}}}
+                  new-sign-up
+                  (= :not-found
+                     (:status
+                      (first
+                       (evaluator
+                        {:Fractl.Kernel.Identity/FindUser
+                         {:Email (:Email user)}}))))]
+              (when new-sign-up
+                (let [sign-up-result (u/safe-ok-result (evaluator sign-up-request))]
+                  (when call-post-signup
+                    (evaluate
+                     evaluator
+                     (assoc
+                      (create-event post-signup-event-name)
+                      :SignupResult sign-up-result :SignupRequest {:User user})))))
+              (ok {:status "ok" :new-sign-up new-sign-up :result user})))
+          (bad-request (str "id_token not valid")))
+        (bad-request
+         (str "id_token required"))))
+    (internal-error
+     "cannot process sign-up - authentication not enabled")))
+
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
@@ -868,6 +910,7 @@
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (POST uh/gpt-prefix [] (:gpt handlers))
+           (POST uh/auth-callback-prefix [] (:auth-callback handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
@@ -928,6 +971,7 @@
           :query (partial process-query evaluator auth-info)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
           :gpt (partial process-gpt-chat auth-info)
+          :auth-callback (partial process-auth-callback evaluator config auth-info)
           :meta (partial process-meta-request auth-info)})
         (if (:thread config)
           config
