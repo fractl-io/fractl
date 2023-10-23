@@ -17,7 +17,13 @@
 
 (defn active-user [] (:User active-event-context))
 
-(def ^:dynamic active-txn nil) ; active-transaction on store
+(def ^:private active-txn (ThreadLocal.))
+
+(defn set-active-txn! [txn]
+  (.set active-txn txn))
+
+(defn get-active-txn []
+  (.get active-txn))
 
 (def ^:private script-mode (atom false))
 

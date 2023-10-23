@@ -345,3 +345,39 @@
       (is (e? e1))
       (is (cn/same-instance? e1 (tu/first-result {:I1091/Delete_E {:Id (:Id e1)}})))
       (is (nil? (seq @rdb))))))
+
+(deftest future-eval
+  (defcomponent :Feval
+    (entity
+     :Feval/E
+     {:Id :Identity
+      :X :Int})
+    (entity :Feval/F {:E :UUID})
+    (entity :Feval/Evt {:E :UUID})
+    (dataflow
+     :Feval/Evt
+     {:Feval/E {:Id? :Feval/Evt.E} :as [:E]}
+     :E))
+  (let [fut (atom nil)
+        r (r/make-resolver
+           :Feval
+           {:create {:handler (fn [inst]
+                                (reset!
+                                 fut
+                                 (future (tu/eval-all-dataflows
+                                          {:Feval/Evt {:E (:E inst)}})))
+                                inst)}})]
+    (rg/override-resolver :Feval/F r)
+    (let [e1 (tu/first-result
+              {:Feval/Create_E
+               {:Instance
+                {:Feval/E {:X 10}}}})
+          e? (partial cn/instance-of? :Feval/E)
+          f1 (tu/first-result
+              {:Feval/Create_F
+               {:Instance
+                {:Feval/F {:E (:Id e1)}}}})
+          f? (partial cn/instance-of? :Feval/F)]
+      (is (e? e1))
+      (is (f? f1))      
+      (is (cn/same-instance? e1 (tu/fresult (deref @fut)))))))

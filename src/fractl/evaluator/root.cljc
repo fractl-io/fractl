@@ -275,7 +275,8 @@
 (def ^:private store-schema-lock #?(:clj (Object.) :cljs nil))
 
 (defn- maybe-init-schema! [store component-name]
-  (when-not (some #{component-name} @inited-components)
+  (when (and (not (some #{component-name} @inited-components))
+             (not (some #{component-name} @init-pending-components)))
     (#?(:clj locking :cljs do)
      store-schema-lock
      (when-not (some #{component-name} @inited-components)
@@ -291,6 +292,9 @@
      (when (seq @init-pending-components)
        (u/safe-set inited-components (set/union @inited-components @init-pending-components))
        (u/safe-set init-pending-components #{})))))
+
+(defn reset-init-pending-components! []
+  (u/safe-set init-pending-components #{}))
 
 (defn- chained-crud [store-f res resolver-f single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
