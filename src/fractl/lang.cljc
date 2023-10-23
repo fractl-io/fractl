@@ -593,7 +593,7 @@
                         [k (keyword (str prefix "." (name k)))])
                       scm)]
       [{event-name (into {} attrs)}])
-    (u/throw-ex (str "cannot auto-generate dataflow patterns, event schema not found - " event-name))))
+    (log/warn (str "cannot auto-generate dataflow patterns, event schema not found - " event-name))))
 
 (defn- prepost-crud-dataflow? [pat]
   (when (vector? pat)
