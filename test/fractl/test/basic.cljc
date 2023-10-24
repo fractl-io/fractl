@@ -874,7 +874,7 @@
     (record {:PA/OnClickEvent {:Source {:type :Int :optional true}}})
     (record {:PA/Position {:X :Int :Y :Int
                            :W :Int :H :Int}})
-    (entity {:PA/Button {:Id {:type :Int :identity true}
+    (entity {:PA/Button {:Id {:type :Int tu/guid true}
                          :Title :String
                          :Position :PA/Position
                          :OnClick :PA/OnClickEvent}})
@@ -1570,7 +1570,7 @@
      (defcomponent :Mtt01
        (entity
         :Mtt01/E
-        {:Id {:type :Int :identity true}
+        {:Id {:type :Int tu/guid true}
          :X :Int
          :Y :String}))
      (let [create-e (fn [id]

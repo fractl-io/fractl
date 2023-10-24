@@ -166,30 +166,32 @@
 
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
-    (case k
-      (:unique :immutable :optional :identity
-      :path-identity :indexed :write-only :read-only
-      :cascade-on-delete :var :secure-hash)
+    (if (or (= k li/guid) (= k li/path-identity))
       (li/validate-bool k v)
-
-      :check (li/validate fn? ":check is not a predicate" v)
-      :default (when-not (fn? v)
-                 (when-let [predic (:check scm)]
-                   (li/validate predic "invalid value for :default" v)))
-      :type (li/validate attribute-type? "invalid :type" v)
-      :expr (li/validate fn-or-name? ":expr has invalid value" v)
-      :eval (li/validate eval-block? ":eval has invalid value" v)
-      :query (li/validate fn? ":query must be a compiled pattern" v)
-      :format (li/validate string? ":format must be a textual pattern" v)
-      :listof (li/validate listof-spec? ":listof has invalid type" v)
-      :setof (li/validate attribute-type? ":setof has invalid type" v)
-      :type-in-store (li/validate string? ":type-in-store must be specified as a string" v)
-      :ref (li/validate reference-exists? ":ref is invalid" v)
-      :writer (li/validate fn? ":writer must be a function" v)
-      :oneof v
-      :label (li/validate symbol? ":label must be a symbol" v)
-      (:ui :rbac :meta) v
-      (u/throw-ex (str "invalid constraint in attribute definition - " k))))
+      (case k
+        (:unique
+         :immutable :optional :indexed
+         :write-only :read-only
+         :cascade-on-delete :var :secure-hash)
+        (li/validate-bool k v)
+        :check (li/validate fn? ":check is not a predicate" v)
+        :default (when-not (fn? v)
+                   (when-let [predic (:check scm)]
+                     (li/validate predic "invalid value for :default" v)))
+        :type (li/validate attribute-type? "invalid :type" v)
+        :expr (li/validate fn-or-name? ":expr has invalid value" v)
+        :eval (li/validate eval-block? ":eval has invalid value" v)
+        :query (li/validate fn? ":query must be a compiled pattern" v)
+        :format (li/validate string? ":format must be a textual pattern" v)
+        :listof (li/validate listof-spec? ":listof has invalid type" v)
+        :setof (li/validate attribute-type? ":setof has invalid type" v)
+        :type-in-store (li/validate string? ":type-in-store must be specified as a string" v)
+        :ref (li/validate reference-exists? ":ref is invalid" v)
+        :writer (li/validate fn? ":writer must be a function" v)
+        :oneof v
+        :label (li/validate symbol? ":label must be a symbol" v)
+        (:ui :rbac :meta) v
+        (u/throw-ex (str "invalid constraint in attribute definition - " k)))))
   (merge-attribute-meta
    (merge
     {:unique false :immutable false}
@@ -240,7 +242,7 @@
       (:unique newscm)
       (assoc newscm :indexed true)
 
-      (:identity newscm)
+      (li/guid newscm)
       (assoc newscm :indexed true :unique true)
 
       :else newscm)))
@@ -865,7 +867,7 @@
 
 (defn- preproc-path-identity [attrs]
   (if-let [[k v] (first (filter #(let [v (second %)]
-                                   (and (map? v) (:path-identity v)))
+                                   (and (map? v) (li/path-identity v)))
                                 attrs))]
     (assoc attrs k (assoc v :indexed true) li/path-attr li/path-attr-spec)
     attrs))
@@ -982,9 +984,9 @@
        cident (merge
                (if (:globally-unique meta)
                  cident-spec
-                 (dissoc cident-spec :identity))
+                 (dissoc cident-spec li/guid))
                {:type (or (:type cident-spec) :UUID)
-                :path-identity true
+                li/path-identity true
                 :indexed true}
                (when-not cident-spec ;; __Id__
                  {:default u/uuid-string}))

@@ -15,6 +15,9 @@
 (def path-query-prefix "path:/")
 (def path-query-prefix-len (count path-query-prefix))
 
+(def guid :identity)
+(def path-identity :path-identity)
+
 (defn path-query? [x]
   (and (string? x)
        (s/starts-with? x path-query-prefix)))

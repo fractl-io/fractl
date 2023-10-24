@@ -336,10 +336,10 @@
   (defcomponent :I765
     (entity
      :I765/E1
-     {:X {:type :Int :identity true}})
+     {:X {:type :Int tu/guid true}})
     (entity
      :I765/E2
-     {:Y {:type :Int :identity true}})
+     {:Y {:type :Int tu/guid true}})
     (dataflow
      :I765/DelE
      [:match :I765/DelE.V
@@ -438,7 +438,7 @@
   (defcomponent :I886
     (entity
      :I886/E
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Name :String})
     (dataflow
      :I886/CreateE
@@ -525,7 +525,7 @@
   (defcomponent :I1067
     (entity
      :I1067/E
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X {:type :UUID :optional true}}))
   (let [create-e (fn [id x]
                    (tu/first-result
