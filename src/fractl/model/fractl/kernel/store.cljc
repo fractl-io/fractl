@@ -1,6 +1,9 @@
 (ns
  fractl.model.fractl.kernel.store
- (:require [clojure.set :as set] [fractl.util.seq :as su])
+ (:require
+  [clojure.set :as set]
+  [fractl.lang.internal :as li]
+  [fractl.util.seq :as su])
  (:use
   [fractl.model.fractl.kernel.lang
    :only
@@ -12,7 +15,10 @@
  :Fractl.Kernel.Store
  {:refer [:Fractl.Kernel.Lang],
   :clj-import
-  '[(:require [clojure.set :as set] [fractl.util.seq :as su])]})
+  '[(:require
+     [clojure.set :as set]
+     [fractl.lang.internal :as li]
+     [fractl.util.seq :as su])]})
 (def attrs-changes #{:alter :drop :rename :add})
 (defn-
  rename-col?
@@ -39,21 +45,21 @@
     (seq
      (filter
       identity
-      (mapv (fn* [p1__280#] (p1__280# obj)) [:add :alter :rename])))]
+      (mapv (fn* [p1__284#] (p1__284# obj)) [:add :alter :rename])))]
    (every? map? xs)
    true)
   (maybe-all? rename-col? :rename obj)
   (maybe-all-ks? :drop obj)))
 (def
  constraints-keys
- #{:unique :identity :index :drop-unique :drop-index})
+ #{:unique :index :drop-unique :drop-index li/guid})
 (defn-
  constraints-spec?
  [obj]
  (and
   (map? obj)
   (= constraints-keys (set/union (set (keys obj)) constraints-keys))
-  (if-let [ident (:identity obj)] (keyword? ident) true)
+  (if-let [ident (li/guid obj)] (keyword? ident) true)
   (maybe-all-ks? :index obj)
   (maybe-all-ks? :unique obj)
   (maybe-all-ks? :drop-unique obj)
@@ -72,4 +78,4 @@
   :NewName {:type :Path, :optional true}})
 (def
  Fractl_Kernel_Store___COMPONENT_ID__
- "3686ca51-46bd-4195-980a-eb33a037f213")
+ "883c98a6-4434-4765-a722-5c236b1617b7")

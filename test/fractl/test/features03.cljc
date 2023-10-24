@@ -106,7 +106,7 @@
   (defcomponent :Ft
     (entity
      :Ft/E
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int
       :X :Int}))
   (let [e1 (tu/first-result {:Ft/Create_E
@@ -123,7 +123,7 @@
     (entity
      :I962/Employee
      {:Name {:type :String
-             :identity true}})
+             tu/guid true}})
     (relationship
      :I962/WorksFor
      {:meta {:contains [:I962/Employee :I962/Employee]}}))
@@ -154,15 +154,15 @@
   (defcomponent :Gid
     (entity
      :Gid/E
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Gid/F
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :Gid/G
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})
     (relationship
      :Gid/R1
@@ -199,19 +199,19 @@
   (defcomponent :I974
     (entity
      :I974/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :I974/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :I974/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})
     (entity
      :I974/D
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :S :Int})
     (relationship
      :I974/R1
@@ -283,11 +283,11 @@
   (defcomponent :I1012
     (entity
      :I1012/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :I1012/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (relationship
      :I1012/R
@@ -362,15 +362,15 @@
   (defcomponent :Cbp
     (entity
      :Cbp/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Cbp/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :Cbp/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})
     (relationship
      :Cbp/R

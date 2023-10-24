@@ -73,7 +73,7 @@
      {:rbac [{:roles ["brd-user"] :allow [:create]}
              {:roles ["brd-manager"] :allow [:create :update :read]}]
       :meta {li/owner-exclusive-crud false}
-      :Id {:type :Int :identity true}
+      :Id {:type :Int tu/guid true}
       :X :Int})
     (dataflow
      :Brd/InitUsers
@@ -161,11 +161,11 @@
     (entity
      :Wcr/E
      {:rbac [{:roles ["wcr-user"] :allow [:create :update :read]}]
-      :Id {:type :Int :identity true}
+      :Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Wcr/F
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (relationship
      :Wcr/R
@@ -225,7 +225,7 @@
      :Ipv/E
      {:rbac [{:roles ["ipv-user"] :allow [:create :update :read]}
              {:roles ["ipv-guest"] :allow [:read]}]
-      :Id {:type :Int :identity true}
+      :Id {:type :Int tu/guid true}
       :X :Int})
     (dataflow
      :Ipv/InitUsers
@@ -304,12 +304,12 @@
     (entity
      :I1018/A
      {:rbac [{:roles ["i1018-admin"] :allow [:create :update :read]}]
-      :Id {:type :Int :identity true}
+      :Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :I1018/B
      {:rbac [{:roles ["i1018-user"] :allow [:create :update :read]}]
-      :Id {:type :Int :identity true}
+      :Id {:type :Int tu/guid true}
       :Y :Int})
     (relationship
      :I1018/R

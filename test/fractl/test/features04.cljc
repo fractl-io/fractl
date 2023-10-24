@@ -29,15 +29,15 @@
   (defcomponent :I980
     (entity
      :I980/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :I980/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :I980/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})
     (relationship
      :I980/R1
@@ -62,12 +62,12 @@
   (defcomponent :I1051
     (entity
      :I1051/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int
       :rbac [{:roles ["i1051-user"] :allow [:create]}]})
     (entity
      :I1051/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int
       :rbac [{:roles ["i1051-user"] :allow [:create]}]})
     (relationship
@@ -263,15 +263,15 @@
   (defcomponent :Cewr
     (entity
      :Cewr/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Cewr/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :Cewr/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})
     (relationship
      :Cewr/R1
