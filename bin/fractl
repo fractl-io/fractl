@@ -192,4 +192,4 @@ if [ ! -r "$FRACTL_JAR" ]; then
     self_install
 fi
 
-$FRACTL_JAVA_CMD $FRACTL_JVM_OPTS -jar ${FRACTL_JAR} $@
+$FRACTL_JAVA_CMD $FRACTL_JVM_OPTS -jar ${FRACTL_JAR} "$@"
