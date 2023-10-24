@@ -104,5 +104,5 @@ To make sure the new company is persisted in the store, try the following `HTTP 
 curl http://localhost:8080/_e/Accounts.Core/Company/acme
 ```
 
-If Fractl is working correctly, both these requests will return an `OK` status along with a `:ZipZap/User` instance.
+If Fractl is installed correctly, both these requests will return an `OK` status along with a `:Company` instance.
 You're all set to further explore **Fractl**. Please proceed to the official [documentation](https://docs.fractl.io/docs) pages.
