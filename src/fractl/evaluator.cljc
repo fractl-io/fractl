@@ -89,36 +89,41 @@
 
 (defn- eval-dataflow-in-transaction [evaluator env event-instance df txn]
   (binding [gs/active-event-context (or (li/event-context event-instance)
-                                        gs/active-event-context)
-            gs/active-txn txn]
-    (let [is-internal (internal-event? event-instance)
-          event-instance0 (if is-internal
-                            (dissoc event-instance internal-event-key)
-                            event-instance)
-          event-instance (if-not (li/event-context event-instance0)
-                           (assoc event-instance0 li/event-context gs/active-event-context)
-                           event-instance0)
-          env0 (if is-internal
-                 (env/block-interceptors env)
-                 (env/assoc-active-event env event-instance))
-          continuation (fn [event-instance]
-                         (let [env (if event-instance
-                                     (env/assoc-active-event
-                                      (env/bind-instance
-                                       env0 (li/split-path (cn/instance-type event-instance))
-                                       event-instance)
-                                      event-instance)
-                                     env0)
-                               [_ dc] (cn/dataflow-opcode
-                                       df (or (env/with-types env)
-                                              cn/with-default-types))
-                               result (deref-futures (let [r (dispatch-opcodes evaluator env dc)]
-                                                       (if (and (map? r) (not= :ok (:status r)))
-                                                         (throw (ex-info "eval failed" {:eval-result r}))
-                                                         r)))]
-                           (fire-post-events (:env result))
-                           result))]
-      (interceptors/eval-intercept env0 event-instance continuation))))
+                                        gs/active-event-context)]
+    (let [txn-set (atom false)]
+      (when (and txn (not (gs/get-active-txn)))
+        (gs/set-active-txn! txn)
+        (reset! txn-set true))
+      (try
+        (let [is-internal (internal-event? event-instance)
+              event-instance0 (if is-internal
+                                (dissoc event-instance internal-event-key)
+                                event-instance)
+              event-instance (if-not (li/event-context event-instance0)
+                               (assoc event-instance0 li/event-context gs/active-event-context)
+                               event-instance0)
+              env0 (if is-internal
+                     (env/block-interceptors env)
+                     (env/assoc-active-event env event-instance))
+              continuation (fn [event-instance]
+                             (let [env (if event-instance
+                                         (env/assoc-active-event
+                                          (env/bind-instance
+                                           env0 (li/split-path (cn/instance-type event-instance))
+                                           event-instance)
+                                          event-instance)
+                                         env0)
+                                   [_ dc] (cn/dataflow-opcode
+                                           df (or (env/with-types env)
+                                                  cn/with-default-types))
+                                   result (deref-futures (let [r (dispatch-opcodes evaluator env dc)]
+                                                           (if (and (map? r) (not= :ok (:status r)))
+                                                             (throw (ex-info "eval failed" {:eval-result r}))
+                                                             r)))]
+                               (fire-post-events (:env result))
+                               result))]
+          (interceptors/eval-intercept env0 event-instance continuation))
+        (finally (when @txn-set (gs/set-active-txn! nil)))))))
 
 (defn- maybe-init-event [event-obj]
   (if (cn/event-instance? event-obj)
@@ -134,17 +139,18 @@
    (let [event-instance (maybe-init-event event-instance)
          f (partial eval-dataflow-in-transaction evaluator env event-instance df)]
      (try
-       (let [r (if gs/active-txn
-                 (f gs/active-txn)
+       (let [r (if-let [txn (gs/get-active-txn)]
+                 (f txn)
                  (if-let [store (env/get-store env)]
                    (store/call-in-transaction store f)
                    (f nil)))]
          (r/merge-init-pending-components!)
          r)
        (catch #?(:clj Exception :cljs :default) ex
-         (if-let [r (:eval-result (ex-data ex))]
-           r
-           (throw ex))))))
+         (do (r/reset-init-pending-components!)
+             (if-let [r (:eval-result (ex-data ex))]
+               r
+               (throw ex)))))))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 
