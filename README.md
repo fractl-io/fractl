@@ -11,10 +11,12 @@ Fractl unlocks the future of tri-modal development - concurrent use of 3 differe
 
 ## Fractl Loves Gen AI
 As a language, Fractl is a data-oriented and declarative, with an abstraction that is closer to natural language than traditional programming languages. This makes fractl a much better fit for Gen AI-powered code generation. 
-Users can rapidly build business application in Fractl from high-level specifications, without the lock-in that is common to other low-code/no-code platforms.
+Users can rapidly build business application in Fractl from high-level specifications - typically more than 10x faster than traditional programming languages.
 
 ## Fractl is open
 The Fractl language specification, its compiler and runtime are open source.
+
+The code you build in Fractl can be run anywhere using the open source compiler and runtime, thereby avoiding the vendor lock-in of other low-code/no-code platforms.
 
 ## Fractl is innovative
 Fractl introduces a number of innovative concepts to programming:
