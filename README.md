@@ -73,7 +73,7 @@ The following code snippet shows the Fractl model (i.e., program) for a simple a
     {:Balance '(find-balance :Ts)}})
 ```
 
-Save this code to a file named `accounts.fractl` and its ready to be run as a highly-scalable accounting service!
+Save this code to a file named `accounts.fractl` and its ready to be run as a highly-scalable accounting service with RESTful APIs to perform CRUD operations and generate balance report!
 But before you can actually run it, you need to install Fractl. The next section will help you with that.
 
 ## Download and Install
