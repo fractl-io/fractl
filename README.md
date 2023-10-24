@@ -28,95 +28,71 @@ Fractl introduces a number of innovative concepts to programming:
 
 ## A Taste of Fractl
 
-The following code snippet shows the Fractl model (i.e., program) for a micro-blogging platform. (Let's name our new micro-blogging platform as `ZipZap` :-)).
+The following code snippet shows the Fractl model (i.e., program) for a simple accounting application. 
 
 ```clojure
-(component :ZipZap)
+(component :Accounts.Core)
 
-(entity :User
- {:Email {:type :Email
-          :identity true}
-  :FirstName :String
-  :LastName :String})
+(entity :Company
+ {:Name {:type :String :identity true}})
 
-(entity :Tweet
- {:Id {:type :UUID
-       :default fractl.util/uuid-string
-       :path-identity true}
-  :Created :Now
-  :Body :String})
+(entity :AccountHead
+ {:Name {:type :String :path-identity true}})
 
-(entity :Feed
- {:Id {:type :UUID
-       :default fractl.util/uuid-string
-       :path-identity true}})
+(relationship :AccountOf
+ {:meta {:contains [:Company :AccountHead]}})
 
-(relationship :Tweets
- {:meta {:contains [:ZipZap/User :ZipZap/Tweet]}})
+(relationship :Transaction
+ {:meta {:between [:AccountHead :AccountHead :as [:Debit :Credit]]}
+  :DateCreated :Now
+  :Type {:oneof ["income" "expense"]}
+  :Amount :Decimal
+  :Remarks :String})
 
-(relationship :Conversation
- {:meta {:between [:ZipZap/Tweet :ZipZap/Tweet
-                   :as [:OriginalTweet :Reply]
-                   :one-one true]}})
+(record :BalanceReport
+ {:GeneratedOn :Now
+  :Balance :Decimal})
 
-(relationship :FeedTweets
- {:meta {:contains [:ZipZap/Feed :ZipZap/Tweet]}})
+(defn find-balance [opening-balance transactions]
+ (reduce (fn [b t]
+          ((if (= "income" (:Type t)) + -) b (:Amount t)))
+         opening-balance transactions))
 
-(relationship :UserFeed
- {:meta {:between [:ZipZap/User :ZipZap/Feed
-                   :one-one true]}})
+(dataflow :MakeReport
+  {:Transaction {:DateCreated? [:>= :MakeReport.Since]} :as :Ts}
+  {:BalanceReport {:Balance '(find-balance :MakeReport.OpeningBalance :Ts)}})
 ```
 
-Save this code to a file named `zip_zap.fractl` and its ready to be run as a highly-scalable micro-blogging service!
+Save this code to a file named `accounts.fractl` and its ready to be run as a highly-scalable accounting service!
 But before you can actually run it, you need to install Fractl. The next section will help you with that.
 
 ## Download and Install
 
 #### Prerequisites
 
-1. JDK 19 or later
-2. The [Leiningen](https://leiningen.org) build automation tool
+1. JVM 19 or later
+2. Linux, Mac OSX or a Unix emulator in Windows
 
-Checkout the Fractl source code from our canonical Git repository [github.com/fractl-io/fractl](https://github.com/fractl-io/fractl)
-and run the following shell commands:
-
-```shell
-cd fractl
-./install.sh
-```
-
-The `install.sh` command will install Fractl to your home directory - e.g `/home/me/fractl-0.4.6`. You may decide to pass a custom
-install location to this script - `./install.sh /home/me/programs`.
-
-#### Testing the installation
-
-Make sure the install location of Fractl is in the system search-path:
+Download the [Fractl CLI tool](https://raw.githubusercontent.com/fractl-io/fractl-releases/87fe3632fca9cf1e9bdd4b2655ed89fed345d6ae/fractl) and execute the model:
 
 ```shell
-export PATH=$PATH:/home/me/fractl-0.4.6
+./fractl /path/to/accounts.fractl
 ```
 
-Start the ZipZap service using the following command:
-
-```shell
-fractl zip_zap.fractl
-```
-
-We can create a new ZipZap user with an `HTTP POST` request,
+We can create a new company using an `HTTP POST` request,
 
 ```shell
 curl --header "Content-Type: application/json" \
-  --request POST \
-  --data '{"ZipZap/User": {"Email": "jane@zipzap.com", "FirstName": "Jane", "LastName": "J"}}' \
-http://localhost:8080/_e/ZipZap/User
+--request POST \
+--data '{"Accounts.Core/Company": {"Name": "acme"}}' \
+http://localhost:8080/_e/Accounts.Core/Company
 ```
 
-To make sure the new user is persisted in the store, try the following `HTTP GET`:
+To make sure the new company is persisted in the store, try the following `HTTP GET`:
 
 ```shell
-curl http://localhost:8080/_e/ZipZap/User/jane@zipzap.com
+curl http://localhost:8080/_e/Accounts.Core/Company/acme
 ```
 
-If Fractl is installed correctly, both these requests will return an `OK` status along with a `:ZipZap/User` instance.
-
+If Fractl is working correctly, both these requests will return an `OK` status along with a `:ZipZap/User` instance.
 You're all set to further explore **Fractl**. Please proceed to the official [documentation](https://docs.fractl.io/docs) pages.

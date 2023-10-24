@@ -464,7 +464,7 @@
    (if (map? attrs)
      (let [cn (validated-canonical-type-name n)
            r (cn/intern-record
-              cn (normalized-attributes :record cn attrs))]
+              cn (normalized-attributes :record cn (preproc-for-built-in-attrs attrs)))]
        (when r
          (and (if-not (:contains (:meta attrs))
                 (raw/record n attrs)
@@ -495,8 +495,9 @@
   "An event record with timestamp and other auto-generated meta fields."
   ([n attrs]
    (ensure-no-reserved-event-attrs! attrs)
-   (let [r (event-internal
-            n (assoc attrs li/event-context (k/event-context-attribute-name))
+   (let [attrs1 (preproc-for-built-in-attrs attrs)
+         r (event-internal
+            n (assoc attrs1 li/event-context (k/event-context-attribute-name))
             true)]
      (and (raw/event n attrs) r)))
   ([schema]
@@ -1040,7 +1041,7 @@
       :else meta)))
 
 (defn- between-relationship [relname attrs relmeta elems]
-  (let [new-attrs (assoc-relnode-attributes attrs elems relmeta)
+  (let [new-attrs (assoc-relnode-attributes (preproc-for-built-in-attrs attrs) elems relmeta)
         meta (assoc (between-unique-meta (:meta attrs) relmeta elems)
                     :relationship :between cn/relmeta-key relmeta)
         r (serializable-entity relname (assoc new-attrs :meta meta) attrs)]
