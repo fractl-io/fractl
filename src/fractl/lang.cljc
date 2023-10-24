@@ -166,30 +166,32 @@
 
 (defn- finalize-raw-attribute-schema [scm]
   (doseq [[k v] scm]
-    (case k
-      (:unique :immutable :optional :identity
-      :path-identity :indexed :write-only :read-only
-      :cascade-on-delete :var :secure-hash)
+    (if (or (= k li/guid) (= k li/path-identity))
       (li/validate-bool k v)
-
-      :check (li/validate fn? ":check is not a predicate" v)
-      :default (when-not (fn? v)
-                 (when-let [predic (:check scm)]
-                   (li/validate predic "invalid value for :default" v)))
-      :type (li/validate attribute-type? "invalid :type" v)
-      :expr (li/validate fn-or-name? ":expr has invalid value" v)
-      :eval (li/validate eval-block? ":eval has invalid value" v)
-      :query (li/validate fn? ":query must be a compiled pattern" v)
-      :format (li/validate string? ":format must be a textual pattern" v)
-      :listof (li/validate listof-spec? ":listof has invalid type" v)
-      :setof (li/validate attribute-type? ":setof has invalid type" v)
-      :type-in-store (li/validate string? ":type-in-store must be specified as a string" v)
-      :ref (li/validate reference-exists? ":ref is invalid" v)
-      :writer (li/validate fn? ":writer must be a function" v)
-      :oneof v
-      :label (li/validate symbol? ":label must be a symbol" v)
-      (:ui :rbac :meta) v
-      (u/throw-ex (str "invalid constraint in attribute definition - " k))))
+      (case k
+        (:unique
+         :immutable :optional :indexed
+         :write-only :read-only
+         :cascade-on-delete :var :secure-hash)
+        (li/validate-bool k v)
+        :check (li/validate fn? ":check is not a predicate" v)
+        :default (when-not (fn? v)
+                   (when-let [predic (:check scm)]
+                     (li/validate predic "invalid value for :default" v)))
+        :type (li/validate attribute-type? "invalid :type" v)
+        :expr (li/validate fn-or-name? ":expr has invalid value" v)
+        :eval (li/validate eval-block? ":eval has invalid value" v)
+        :query (li/validate fn? ":query must be a compiled pattern" v)
+        :format (li/validate string? ":format must be a textual pattern" v)
+        :listof (li/validate listof-spec? ":listof has invalid type" v)
+        :setof (li/validate attribute-type? ":setof has invalid type" v)
+        :type-in-store (li/validate string? ":type-in-store must be specified as a string" v)
+        :ref (li/validate reference-exists? ":ref is invalid" v)
+        :writer (li/validate fn? ":writer must be a function" v)
+        :oneof v
+        :label (li/validate symbol? ":label must be a symbol" v)
+        (:ui :rbac :meta) v
+        (u/throw-ex (str "invalid constraint in attribute definition - " k)))))
   (merge-attribute-meta
    (merge
     {:unique false :immutable false}
@@ -240,7 +242,7 @@
       (:unique newscm)
       (assoc newscm :indexed true)
 
-      (:identity newscm)
+      (li/guid newscm)
       (assoc newscm :indexed true :unique true)
 
       :else newscm)))
@@ -462,7 +464,7 @@
    (if (map? attrs)
      (let [cn (validated-canonical-type-name n)
            r (cn/intern-record
-              cn (normalized-attributes :record cn attrs))]
+              cn (normalized-attributes :record cn (preproc-for-built-in-attrs attrs)))]
        (when r
          (and (if-not (:contains (:meta attrs))
                 (raw/record n attrs)
@@ -493,8 +495,9 @@
   "An event record with timestamp and other auto-generated meta fields."
   ([n attrs]
    (ensure-no-reserved-event-attrs! attrs)
-   (let [r (event-internal
-            n (assoc attrs li/event-context (k/event-context-attribute-name))
+   (let [attrs1 (preproc-for-built-in-attrs attrs)
+         r (event-internal
+            n (assoc attrs1 li/event-context (k/event-context-attribute-name))
             true)]
      (and (raw/event n attrs) r)))
   ([schema]
@@ -593,7 +596,7 @@
                         [k (keyword (str prefix "." (name k)))])
                       scm)]
       [{event-name (into {} attrs)}])
-    (u/throw-ex (str "cannot auto-generate dataflow patterns, event schema not found - " event-name))))
+    (log/warn (str "cannot auto-generate dataflow patterns, event schema not found - " event-name))))
 
 (defn- prepost-crud-dataflow? [pat]
   (when (vector? pat)
@@ -863,11 +866,19 @@
 
 (def serializable-entity (partial serializable-record :entity))
 
+(defn- preproc-path-identity [attrs]
+  (if-let [[k v] (first (filter #(let [v (second %)]
+                                   (and (map? v) (li/path-identity v)))
+                                attrs))]
+    (assoc attrs k (assoc v :indexed true) li/path-attr li/path-attr-spec)
+    attrs))
+
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs raw-attrs]
-   (when-let [r (serializable-entity n (preproc-for-built-in-attrs attrs))]
-     (and (if raw-attrs (raw/entity n raw-attrs) true) r)))
+   (let [attrs (if raw-attrs (preproc-path-identity attrs) attrs)]
+     (when-let [r (serializable-entity n (preproc-for-built-in-attrs attrs))]
+       (and (if raw-attrs (raw/entity n raw-attrs) true) r))))
   ([n attrs]
    (let [raw-attrs attrs
          attrs (if-not (seq attrs)
@@ -959,7 +970,7 @@
     ident))
 
 (defn- regen-contains-child-attributes [child meta]
-  (if-not (cn/path-identity-attribute-name child)
+  (when-not (cn/path-identity-attribute-name child)
     (let [cident (user-defined-identity-attribute-name child)
           child-attrs (preproc-for-built-in-attrs
                        (raw/entity-attributes-include-inherits child))
@@ -974,14 +985,13 @@
        cident (merge
                (if (:globally-unique meta)
                  cident-spec
-                 (dissoc cident-spec :identity))
+                 (dissoc cident-spec li/guid))
                {:type (or (:type cident-spec) :UUID)
-                :path-identity true
+                li/path-identity true
                 :indexed true}
                (when-not cident-spec ;; __Id__
                  {:default u/uuid-string}))
-       li/path-attr li/path-attr-spec))
-    (cn/fetch-entity-schema child)))
+       li/path-attr li/path-attr-spec))))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
@@ -996,7 +1006,7 @@
                             relmeta :relationship :contains))
         child-attrs (regen-contains-child-attributes child meta)]
     (if-let [r (record relname raw-attrs)]
-      (if (entity child child-attrs false)
+      (if (or (not child-attrs) (entity child child-attrs false))
         (if (cn/register-relationship elems relname)
           (and (regen-contains-dataflows relname elems)
                (regen-between-relationships (second elems))
@@ -1020,8 +1030,7 @@
     (assoc attrs a1 t1 a2 t2)))
 
 (defn- between-unique-meta [meta relmeta [node1 node2]]
-  (let [[_ n1] (li/split-path node1)
-        [_ n2] (li/split-path node2)]
+  (let [[n1 n2] (li/between-nodenames node1 node2 relmeta)]
     (cond
       (:one-one relmeta)
       (assoc meta :unique [n1 n2])
@@ -1032,7 +1041,7 @@
       :else meta)))
 
 (defn- between-relationship [relname attrs relmeta elems]
-  (let [new-attrs (assoc-relnode-attributes attrs elems relmeta)
+  (let [new-attrs (assoc-relnode-attributes (preproc-for-built-in-attrs attrs) elems relmeta)
         meta (assoc (between-unique-meta (:meta attrs) relmeta elems)
                     :relationship :between cn/relmeta-key relmeta)
         r (serializable-entity relname (assoc new-attrs :meta meta) attrs)]

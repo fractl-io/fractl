@@ -2,6 +2,7 @@
  :Fractl.Kernel.Store
  {:refer [:Fractl.Kernel.Lang]
   :clj-import '[(:require [clojure.set :as set]
+                          [fractl.lang.internal :as li]
                           [fractl.util.seq :as su])]})
 
 (def ^:private attrs-changes #{:add :alter :rename :drop})
@@ -31,12 +32,12 @@
        (maybe-all? rename-col? :rename obj)
        (maybe-all-ks? :drop obj)))
 
-(def ^:private constraints-keys #{:identity :index :unique :drop-index :drop-unique})
+(def ^:private constraints-keys #{li/guid :index :unique :drop-index :drop-unique})
 
 (defn- constraints-spec? [obj]
   (and (map? obj)
        (= constraints-keys (set/union (set (keys obj)) constraints-keys))
-       (if-let [ident (:identity obj)]
+       (if-let [ident (li/guid obj)]
          (keyword? ident)
          true)
        (maybe-all-ks? :index obj)

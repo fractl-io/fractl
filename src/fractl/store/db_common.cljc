@@ -391,7 +391,7 @@
 
 (defn- update-constraints [table-name spec]
   (concat
-   (when-let [ident (:identity spec)]
+   (when-let [ident (li/guid spec)]
      [(drop-identity table-name)
       (add-unique table-name (as-col-name ident))])
    (flatten

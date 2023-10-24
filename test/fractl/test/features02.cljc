@@ -37,7 +37,7 @@
       :rbac [{:roles ["user"] :allow [:create]}]})
     (entity
      :Ffr/F
-     {:X {:type :Int :identity true}})
+     {:X {:type :Int tu/guid true}})
     (relationship
      :Ffr/R
      {:meta {:between [:Ffr/E :Ffr/F]}
@@ -45,7 +45,7 @@
   (= {:Id :Identity
       :rbac [{:roles ["user"] :allow [:create]}]}
      (cn/fetch-user-schema :Ffr/E))
-  (= {:X {:type :Int :identity true}}
+  (= {:X {:type :Int tu/guid true}}
      (cn/fetch-user-schema :Ffr/F))
   (= {:meta {:between [:Ffr/E :Ffr/F], :cascade-on-delete true}, :Y :Int}
      (cn/fetch-user-schema :Ffr/R)))
@@ -55,12 +55,12 @@
     (defcomponent :Bcr
       (entity
        :Bcr/Employee
-       {:Email {:type :Email :identity true}
+       {:Email {:type :Email tu/guid true}
         :Name :String
         :Grade {:oneof grades}})
       (entity
        :Bcr/Department
-       {:Name {:type :String :identity true}
+       {:Name {:type :String tu/guid true}
         :Location {:oneof ["north" "south" "west" "east"]}})
       (relationship
        :Bcr/WorksFor
@@ -120,15 +120,15 @@
   (defcomponent :Mlc
     (entity
      :Mlc/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Mlc/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :Mlc/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})
     (relationship
      :Mlc/R1
@@ -188,11 +188,11 @@
   (defcomponent :Bbr
     (entity
      :Bbr/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Bbr/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (relationship
      :Bbr/R
@@ -232,15 +232,15 @@
   (defcomponent :Bac
     (entity
      :Bac/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Bac/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :Bac/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})
     (relationship
      :Bac/Rc
@@ -291,15 +291,15 @@
   (defcomponent :Mcs
     (entity
      :Mcs/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Mcs/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :Mcs/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})
     (relationship
      :Mcs/R1
@@ -404,11 +404,11 @@
   (defcomponent :Dac
     (entity
      :Dac/P
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Dac/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (relationship
      :Dac/R
@@ -468,11 +468,11 @@
   (defcomponent :Qpp
     (entity
      :Qpp/P
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Qpp/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (relationship
      :Qpp/R
@@ -499,11 +499,11 @@
     (defcomponent c
       (entity
        (mp :P)
-       {:Id {:type :Int :identity true}
+       {:Id {:type :Int tu/guid true}
         :X :Int})
       (entity
        (mp :C)
-       {:Id {:type :Int :identity true}
+       {:Id {:type :Int tu/guid true}
         :Y :Int})
       (relationship
        (mp :R)
@@ -544,11 +544,11 @@
   (defcomponent :RelCard
     (entity
      :RelCard/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :RelCard/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (relationship
      :RelCard/R1

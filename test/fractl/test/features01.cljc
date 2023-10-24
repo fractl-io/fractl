@@ -42,12 +42,12 @@
      :CustId/E
      {:SeqNo {:type :Int
               :unique true
-              :identity true}
+              tu/guid true}
       :X :String}))
   (let [scm (cn/entity-schema :CustId/E)
         id-scm (cn/find-attribute-schema (:SeqNo scm))]
     (is (and (:unique id-scm) (:indexed id-scm)
-             (:identity id-scm)))
+             (tu/guid id-scm)))
     (let [e1 (tu/first-result
               {:CustId/Create_E
                {:Instance
@@ -266,7 +266,7 @@
     (entity
      :I630/E
      {:id {:type :Int
-           :identity true}
+           tu/guid true}
       :X :Int})
     (dataflow
      :I630/FindE

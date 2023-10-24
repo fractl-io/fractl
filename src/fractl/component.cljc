@@ -89,7 +89,7 @@
    {:type :Fractl.Kernel.Lang/UUID
     :unique true
     :immutable true
-    :identity true
+    li/guid true
     :default u/uuid-string})
   (intern-event [component (component-init-event-name component)]
                 {:ComponentName :Fractl.Kernel.Lang/Keyword})
@@ -467,7 +467,7 @@
 
 (def identity-attributes
   "Return the names of all identity attributes in the schema."
-  (make-attributes-filter :identity))
+  (make-attributes-filter li/guid))
 
 (def immutable-attributes
   "Return the names of all immutable attributes in the schema."
@@ -478,7 +478,7 @@
     type-name-or-scm
     (fetch-entity-schema type-name-or-scm)))
 
-(def path-id-attrs (make-attributes-filter :path-identity))
+(def path-id-attrs (make-attributes-filter li/path-identity))
 
 (defn path-identity-attribute-name [type-name-or-scm]
   (first (path-id-attrs (maybe-fetch-entity-schema type-name-or-scm))))
@@ -1205,7 +1205,7 @@
     (or (:type (find-attribute-schema ascm))
         ascm)))
 
-(def identity-attribute? :identity)
+(def identity-attribute? li/guid)
 
 (defn attribute-is-identity? [entity-schema attr]
   (let [a (get entity-schema attr)]
@@ -1468,7 +1468,7 @@
 (def meta-entity-id :EntityId)
 
 (defn meta-entity-attributes [component]
-  {meta-entity-id {:type :Fractl.Kernel.Lang/String :identity true}
+  {meta-entity-id {:type :Fractl.Kernel.Lang/String li/guid true}
    :Owner {:type :Fractl.Kernel.Lang/String
            :immutable true}
    :Created {:type :Fractl.Kernel.Lang/DateTime
