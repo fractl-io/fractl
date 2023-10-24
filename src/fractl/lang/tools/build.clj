@@ -222,7 +222,7 @@
                        (normalize-clj-imports (:clj-import component-spec))
                        use-models)
           ns-decl `(~(symbol "ns") ~ns-name
-                    ~@clj-imports)
+                                   ~@clj-imports)
           exps (concat
                 [ns-decl]
                 (update-local-defs ns-name component)
@@ -296,20 +296,6 @@
          dir))
     model-paths)))
 
-(defn- load-all-model-info [model-paths model-name model-info]
-  (let [model-paths (or model-paths (tu/get-system-model-paths))
-        [model model-root] (or model-info (loader/read-model model-paths model-name))
-        model-name (or model-name (:name model))]
-    (when-not model-name
-      (u/throw-ex "model-name is required"))
-    (let [model-name (if (keyword? model-name)
-                       (s/lower-case (name model-name))
-                       model-name)]
-      {:paths model-paths
-       :model model
-       :root model-root
-       :name model-name})))
-
 (defn compiled-model?
   ([model-path model-name]
    (let [model-path (if (= model-path ".")
@@ -324,7 +310,7 @@
 (defn build-model
   ([build-load-fn model-paths model-name model-info]
    (let [{model-paths :paths model :model model-root :root model-name :name}
-         (load-all-model-info model-paths model-name model-info)
+         (loader/load-all-model-info model-paths model-name model-info)
          result [model model-root]
          fvers (fetch-fractl-version model)]
      (when-not (= fvers (gs/fractl-version))
@@ -392,7 +378,7 @@
       (u/exec-in-directory "." cmd))))
 
 (defn run-standalone-package [model-name]
-  (let [model-name (or model-name (:name (load-all-model-info nil model-name nil)))
+  (let [model-name (or model-name (:name (loader/load-default-model-info)))
         run #(exec-standalone model-name (config-file-path model-name))]
     (or (run) (when (standalone-package model-name) (run)))))
 

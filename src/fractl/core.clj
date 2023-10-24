@@ -22,6 +22,7 @@
             [fractl.lang.tools.loader :as loader]
             [fractl.lang.tools.build :as build]
             [fractl.lang.tools.deploy :as d]
+            [fractl.lang.tools.repl :as repl]
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac]
             [fractl.gpt.core :as gpt]
@@ -186,7 +187,7 @@
     (run-appinit-tasks! ev store (or (:init-data model)
                                      (:init-data config)))
     (when has-rbac
-      (when-not (rbac/init (:rbac ins))
+      (when-not (rbac/init (merge (:rbac ins) (:authentication config)))
         (log/error "failed to initialize rbac")))
     (ei/init-interceptors ins)
     [ev store]))
@@ -200,21 +201,28 @@
   (assoc (:service app-config) :authentication
          (:authentication app-config)))
 
-(defn run-service [args [[model model-root] config]]
-  (let [config (finalize-config model config)
-        store (e/store-from-config (:store config))
-        config (assoc config :store-handle store)
-        components (or
-                    (if model
-                      (load-model model model-root nil config)
-                      (load-components args (:component-root config) config))
-                    (cn/component-names))]
-    (when (and (seq components) (every? keyword? components))
-      (log-seq! "Components" components))
-    (when-let [server-cfg (make-server-config config)]
-      (let [[evaluator store] (init-runtime model config)]
-        (log/info (str "Server config - " server-cfg))
-        (h/run-server evaluator server-cfg)))))
+(defn prepare-runtime
+  ([args [[model model-root] config]]
+   (let [config (finalize-config model config)
+         store (e/store-from-config (:store config))
+         config (assoc config :store-handle store)
+         components (or
+                     (if model
+                       (load-model model model-root nil config)
+                       (load-components args (:component-root config) config))
+                     (cn/component-names))]
+     (when (and (seq components) (every? keyword? components))
+       (log-seq! "Components" components))
+     [(init-runtime model config) config]))
+  ([model-info] (prepare-runtime nil model-info)))
+
+(defn run-service
+  ([args model-info]
+   (let [[[evaluator _] config] (prepare-runtime args model-info)]
+     (when-let [server-cfg (make-server-config config)]
+       (log/info (str "Server config - " server-cfg))
+       (h/run-server evaluator server-cfg))))
+  ([model-info] (run-service nil model-info)))
 
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
@@ -275,16 +283,18 @@
 
 (def ^:private config-data-key :-*-config-data-*-)
 
-(defn read-model-and-config [args options]
-  (let [config (or (config-data-key options) (load-config options))]
-    (when-let [extn (:script-extn config)]
-      (u/set-script-extn! extn))
-    (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))
-          config (merge (:config model) config)]
-      (try
-        [m (fractl-secret-reader/read-secret-config config)]
-        (catch Exception e
-          (u/throw-ex (str "error reading secret config " e)))))))
+(defn read-model-and-config
+  ([args options]
+   (let [config (or (config-data-key options) (load-config options))]
+     (when-let [extn (:script-extn config)]
+       (u/set-script-extn! extn))
+     (let [[model _ :as m] (maybe-read-model (find-model-to-read args config))
+           config (merge (:config model) config)]
+       (try
+         [m (fractl-secret-reader/read-secret-config config)]
+         (catch Exception e
+           (u/throw-ex (str "error reading secret config " e)))))))
+  ([options] (read-model-and-config nil options)))
 
 (defn- read-model-from-resource [component-root]
   (let [^String s (slurp
@@ -351,7 +361,7 @@
   (process_request a b))
 
 (defn- run-plain-option [args opt callback]
-  (when (= (first args) opt)
+  (when (= (first args) (name opt))
     (callback (rest args))
     (first args)))
 
@@ -368,8 +378,9 @@
   (println "  build MODEL-NAME Compile a model to produce a standalone application")
   (println "  publish MODEL-NAME TARGET Publish the model to one of the targets - `local`, `clojars` or `github`")
   (println "  exec MODEL-NAME build and run the model as a standalone application")
+  (println "  repl MODEL-NAME run `lein repl` for the model.")
   (println)
-  (println "For `run`, `compile`, `build`, `publish` and `exec` the model will be searched in the local directory")
+  (println "For `run`, `compile`, `build`, `publish`, `exec` and `repl` the model will be searched in the local directory")
   (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
   (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
   (println "model directory itself.")
@@ -377,10 +388,19 @@
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
 
-(defn- call-after-load-model [model-name f]
-  (gs/in-script-mode!)
-  (when (build/load-model model-name)
-    (f)))
+(defn- call-after-load-model
+  ([model-name f ignore-load-error]
+   (gs/in-script-mode!)
+   (when (try
+           (build/load-model model-name)
+           (catch Exception ex
+             (if ignore-load-error true (throw ex))))
+     (f)))
+  ([model-name f]
+   (call-after-load-model model-name f false)))
+
+(defn- force-call-after-load-model [model-name f]
+  (call-after-load-model model-name f true))
 
 (defn- db-migrate [config]
   (let [store (store-from-config config)]
@@ -406,16 +426,18 @@
       :else
       (or (some
            identity
-           (mapv (partial run-plain-option args)
-                 ["run" "compile" "build" "exec" "publish" "deploy"
-                  "db:migrate"]
-                 [#(call-after-load-model
-                    (first %) (fn [] (run-service nil (read-model-and-config nil options))))
-                  #(println (build/compile-model (first %)))
-                  #(println (build/standalone-package (first %)))
-                  #(println (build/run-standalone-package (first %)))
-                  #(println (publish-library %))
-                  #(println (d/deploy (:deploy basic-config) (first %)))
-                  #(call-after-load-model
-                    (first %) (fn [] (db-migrate (second (read-model-and-config nil options)))))]))
+           (map #(apply (partial run-plain-option args) %)
+                {:run #(call-after-load-model
+                        (first %) (fn [] (run-service (read-model-and-config options))))
+                 :compile #(println (build/compile-model (first %)))
+                 :build #(println (build/standalone-package (first %)))
+                 :exec #(println (build/run-standalone-package (first %)))
+                 :repl #(println (force-call-after-load-model
+                                  (first %)
+                                  (let [model-info (read-model-and-config options)]
+                                    (fn [] (repl/run (first %) (ffirst (prepare-runtime model-info)))))))
+                 :publish #(println (publish-library %))
+                 :deploy #(println (d/deploy (:deploy basic-config) (first %)))
+                 :db:migrate #(call-after-load-model
+                               (first %) (fn [] (db-migrate (second (read-model-and-config options)))))}))
           (run-service args (read-model-and-config args options))))))

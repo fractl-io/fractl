@@ -21,76 +21,72 @@
   (when-let [r (ev/safe-eval (find-su-event))]
     (first r)))
 
-(defn- upsert-superuser [pswd]
-  (let [evt (cn/make-instance
-             {:Fractl.Kernel.Identity/Create_User
-              {:Instance
-               {:Fractl.Kernel.Identity/User
-                (merge {:Email (get-superuser-email)}
-                       (when pswd
-                         {:Password pswd}))}}})]
-    (first
-     (ev/safe-eval evt))))
-
 (defn init
   ([config]
-   (let [su (or (lookup-superuser)
-                (upsert-superuser (:superuser-password config)))]
-     (reset! superuser su)
-     true))
+   (when-let [su (lookup-superuser)]
+     (reset! superuser su))
+   true)
   ([] (init nil)))
 
 (defn superuser? [user]
   (cn/same-instance? user @superuser))
 
 (defn superuser-email? [email]
-  (= email (:Email @superuser)))
+  (when (seq email)
+    (when-let [su @superuser]
+      (= email (:Email su)))))
 
 (def ^:private find-privileges
-  (u/call-with-cache
-   (fn [role-names]
-     (when (seq role-names)
-       (ev/safe-eval-internal
-        {:Fractl.Kernel.Rbac/FindPrivilegeAssignments
-         {:RoleNames role-names}})))))
+  (fn [role-names]
+    (when (seq role-names)
+      (ev/safe-eval-internal
+       {:Fractl.Kernel.Rbac/FindPrivilegeAssignments
+        {:RoleNames role-names}}))))
 
 (def ^:private role-assignments
-  (u/call-with-cache
-   (fn [user-name]
-     (ev/safe-eval-internal
-      {:Fractl.Kernel.Rbac/FindRoleAssignments
-       {:Assignee user-name}}))))
+  (fn [user-name]
+    (ev/safe-eval-internal
+     {:Fractl.Kernel.Rbac/FindRoleAssignments
+      {:Assignee user-name}})))
+
+(def ^:private admin-priv [{:Resource [:*] :Actions [:*]}])
 
 (def privileges
-  (u/call-with-cache
-   (fn [user-name]
-     (when-let [rs (role-assignments user-name)]
-       (let [role-names (mapv :Role rs)
-             ps (find-privileges role-names)
-             names (mapv :Privilege ps)]
-         (when (seq names)
-           (ev/safe-eval-internal
-            {:Fractl.Kernel.Rbac/FindPrivileges
-             {:Names names}})))))))
+  (fn [user-name]
+    (when-let [rs (role-assignments user-name)]
+      (let [role-names (mapv :Role rs)]
+        (if (some #{"admin"} role-names)
+          admin-priv
+          (let [ps (find-privileges role-names)
+                names (mapv :Privilege ps)]
+            (when (seq names)
+              (ev/safe-eval-internal
+               {:Fractl.Kernel.Rbac/FindPrivileges
+                {:Names names}}))))))))
 
 (defn- has-priv-on-resource? [resource priv-resource]
-  (if (or (= :* priv-resource)
-          (= resource priv-resource))
-    true
-    (let [[rc rn :as r] (li/split-path resource)
-          [prc prn :as pr] (li/split-path priv-resource)]
-      (cond
-        (= r pr) true
-        (and (= rc prc)
-             (= prn :*)) true
-        :else false))))
+  (or (if (or (= :* priv-resource)
+              (= resource priv-resource))
+        true
+        (let [[rc rn :as r] (li/split-path resource)
+              [prc prn :as pr] (li/split-path priv-resource)]
+          (cond
+            (= r pr) true
+            (and (= rc prc)
+                 (= prn :*)) true
+            :else false)))
+      (when-let [parents (seq (cn/containing-parents resource))]
+        (some (fn [[_ _ p]] (has-priv-on-resource? p priv-resource)) parents))))
 
 (defn- filter-privs [privs action ignore-refs resource]
   (seq
    (filter
     (fn [p]
       (and (some (partial has-priv-on-resource? resource)
-                 (mapv #(if ignore-refs (li/root-path %) %) (:Resource p)))
+                 (map #(if (and ignore-refs (not= % :*))
+                         (li/root-path %)
+                         %)
+                      (:Resource p)))
            (some #{action :*} (:Actions p))))
     privs)))
 

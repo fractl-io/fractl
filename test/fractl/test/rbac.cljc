@@ -428,7 +428,7 @@
            remove-ownership (fn [with-user id]
                               (tu/first-result
                                (with-user {:Fractl.Kernel.Rbac/Delete_OwnershipAssignment
-                                           {li/id-attr id}})))
+                                           {:Name id}})))
            m? (partial cn/instance-of? :I1025/Member)
            a? (partial cn/instance-of? :I1025/Assessment)
            r? (partial cn/instance-of? :I1025/Relation)
@@ -446,7 +446,7 @@
              oa? (partial cn/instance-of? :Fractl.Kernel.Rbac/OwnershipAssignment)]
          (is (every? oa? res))
          (is (a? (create-assessment wu2 (:Id m1) (:Id m2))))
-         (is (every? oa? (mapv (partial remove-ownership wu1) (mapv li/id-attr res))))
+         (is (every? oa? (mapv (partial remove-ownership wu1) (mapv :Name res))))
          (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2)))))))))
 
 (deftest issue-1035-owner-assign
