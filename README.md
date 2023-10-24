@@ -4,26 +4,31 @@
 
 # The Fractl Programming Language
 
-Fractl is a data-oriented, declarative programming language for developing business applications from high-level specifications.
-Fractl programs (also known as `models`) can be developed using traditional code-editors or they could be visually-designed in the generative-AI powered Fractl Design Studio.
+Fractl unlocks the future of tri-modal development - concurrent use of 3 different ways of programming:
+* Traditional coding in IDEs,
+* Visual development in a no-code builder, and,
+* Code generation with generative-AI.
 
-The Fractl language specification, its compiler and runtime are all open source.
+## Fractl Loves Gen AI
+As a language, Fractl is a data-oriented and declarative, with an abstraction that is closer to natural language than traditional programming languages. This makes fractl a much better fit for Gen AI-powered code generation. 
+Users can rapidly build business application in Fractl from high-level specifications, without the lock-in that is common to other low-code/no-code platforms.
 
-## What Makes Fractl Special
+## Fractl is open
+The Fractl language specification, its compiler and runtime are open source.
 
+## Fractl is innovative
 Fractl introduces a number of innovative concepts to programming:
 
-1. **Graph-based Hierarchical Data Model** - decompose the high-level design of an application into graph-like or hierarchical relationships between business entities. Such [relationships](https://fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
-2. **Zero-trust Programming** - tightly control operations on business entities through [declarative access-control-rules](https://fractl.io/docs/concepts/zero-trust-programming) encoded directly in the model itself.
-3. **Declarative Dataflow** - express business logic as [purely-declarative patterns of data](https://fractl.io/docs/concepts/declarative-dataflow).
-4. **Resolvers** - use a powerful [functional interface](https://fractl.io/docs/concepts/resolvers) to control how dataflow-patterns are interpreted.
-5. **Interceptors** - [run custom Clojure code](https://fractl.io/docs/concepts/interceptors) before and after a pattern evaluation happens.
-6. **Entity-graph-Database Mapping** - take advantage of an [abstract persistence layer](https://fractl.io/docs/concepts/entity-db-mapping) for fully-automated storage of entity instances.
-7. **Generative-AI** - allow the built-in Gen-AI to transform a pure-text description of the problem to an immediately executable Fractl application, all in the matter of a few seconds.
+1. **Graph-based Hierarchical Data Model** - compose the high-level data model of an application as hierarchical graph of business entities with relationships. Such [entities and relationships](https://docs.fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
+2. **Zero-trust Programming** - tightly control operations on business entities through [declarative access-control](https://docs.fractl.io/docs/concepts/zero-trust-programming) encoded directly in the model itself.
+3. **Declarative Dataflow** - express business logic as [purely-declarative patterns of data](https://docs.fractl.io/docs/concepts/declarative-dataflow).
+4. **Resolvers** - use a simple, but [powerful interface](https://docs.fractl.io/docs/concepts/resolvers) to interface with external systems.
+5. **Interceptors** - [extend the fractl runtime](https://docs.fractl.io/docs/concepts/interceptors) with custom capabilities.
+6. **Entity-graph-Database Mapping** - take advantage of an [abstract persistence layer](https://docs.fractl.io/docs/concepts/entity-db-mapping) for fully-automated storage of entity instances.
 
 ## A Taste of Fractl
 
-The following code snippet shows the Fractl model for a micro-blogging platform. (Let's name our new micro-blogging platform as `ZipZap` :-)).
+The following code snippet shows the Fractl model (i.e., program) for a micro-blogging platform. (Let's name our new micro-blogging platform as `ZipZap` :-)).
 
 ```clojure
 (component :ZipZap)
@@ -41,12 +46,24 @@ The following code snippet shows the Fractl model for a micro-blogging platform.
   :Created :Now
   :Body :String})
 
-(relationship :Feed
+(entity :Feed
+ {:Id {:type :UUID
+       :default fractl.util/uuid-string
+       :path-identity true}})
+
+(relationship :Tweets
  {:meta {:contains [:ZipZap/User :ZipZap/Tweet]}})
 
 (relationship :Conversation
  {:meta {:between [:ZipZap/Tweet :ZipZap/Tweet
                    :as [:OriginalTweet :Reply]
+                   :one-one true]}})
+
+(relationship :FeedTweets
+ {:meta {:contains [:ZipZap/Feed :ZipZap/Tweet]}})
+
+(relationship :UserFeed
+ {:meta {:between [:ZipZap/User :ZipZap/Feed
                    :one-one true]}})
 ```
 
@@ -102,4 +119,4 @@ curl http://localhost:8080/_e/ZipZap/User/jane@zipzap.com
 
 If Fractl is installed correctly, both these requests will return an `OK` status along with a `:ZipZap/User` instance.
 
-You're all set to further explore **Fractl**. Please proceed to the official [documentation](https://fractl.io/docs) pages.
+You're all set to further explore **Fractl**. Please proceed to the official [documentation](https://docs.fractl.io/docs) pages.
