@@ -65,26 +65,28 @@
                 {:Names names}}))))))))
 
 (defn- has-priv-on-resource? [resource priv-resource]
-  (if (or (= :* priv-resource)
-          (= resource priv-resource))
-    true
-    (let [[rc rn :as r] (li/split-path resource)
-          [prc prn :as pr] (li/split-path priv-resource)]
-      (cond
-        (= r pr) true
-        (and (= rc prc)
-             (= prn :*)) true
-        :else false))))
+  (or (if (or (= :* priv-resource)
+              (= resource priv-resource))
+        true
+        (let [[rc rn :as r] (li/split-path resource)
+              [prc prn :as pr] (li/split-path priv-resource)]
+          (cond
+            (= r pr) true
+            (and (= rc prc)
+                 (= prn :*)) true
+            :else false)))
+      (when-let [parents (seq (cn/containing-parents resource))]
+        (some (fn [[_ _ p]] (has-priv-on-resource? p priv-resource)) parents))))
 
 (defn- filter-privs [privs action ignore-refs resource]
   (seq
    (filter
     (fn [p]
       (and (some (partial has-priv-on-resource? resource)
-                 (mapv #(if (and ignore-refs (not= % :*))
-                          (li/root-path %)
-                          %)
-                       (:Resource p)))
+                 (map #(if (and ignore-refs (not= % :*))
+                         (li/root-path %)
+                         %)
+                      (:Resource p)))
            (some #{action :*} (:Actions p))))
     privs)))
 
