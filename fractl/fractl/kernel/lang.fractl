@@ -30,7 +30,7 @@
 (attribute :Map {:check map?})
 (attribute :Edn {:check k/edn?})
 
-(attribute :Identity {:type :UUID :default u/uuid-string :identity true})
+(attribute :Identity {:type :UUID :default u/uuid-string li/guid true})
 (attribute :Now {:type :DateTime :default dt/now})
 
 (attribute (k/event-context-attribute-name)

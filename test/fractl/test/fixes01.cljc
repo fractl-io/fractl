@@ -51,7 +51,7 @@
    (defcomponent :I196
      (entity
       :I196/E1
-      {:Id {:type :Int :identity true}
+      {:Id {:type :Int tu/guid true}
        :A :Int
        :B :Int
        :C :Int
@@ -78,7 +78,7 @@
    (defcomponent :I206
      (entity
       :I206/E1
-      {:Id {:type :Int :identity true}
+      {:Id {:type :Int tu/guid true}
        :A :Int
        :B :Int
        :C :Int
@@ -380,7 +380,7 @@
     (entity
      :I959/B
      {:Id {:type :UUID
-           :identity true
+           tu/guid true
            :default u/uuid-string}
       :Name :String})
 
@@ -443,7 +443,7 @@
   (defcomponent :I967
     (entity
      :I967/Employee
-     {:Name {:type :String :identity true}
+     {:Name {:type :String tu/guid true}
       :S :String
       :Roles {:listof :Keyword}})
     (dataflow
@@ -463,16 +463,16 @@
   (defcomponent :I1009
     (entity
      :I1009/E
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int
       :meta {:unique :X}})
     (entity
      :I1009/F
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :I1009/G
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})    
     (record :I1009/A {:Z :Int})
     (relationship
@@ -500,11 +500,11 @@
      {:Id :Identity})
     (entity
      :I1063/B
-     {:Id {:type :Int :identity true
+     {:Id {:type :Int tu/guid true
            :default i1063-next-id}})
     (entity
      :I1063/Log
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Msg :String})
     (relationship
      :I1063/R
@@ -571,15 +571,15 @@
   (defcomponent :I1070
     (entity
      :I1070/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :I1070/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (entity
      :I1070/C
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Z :Int})
     (relationship
      :I1070/R1
@@ -678,11 +678,11 @@
   (defcomponent :Asfb
     (entity
      :Asfb/A
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :X :Int})
     (entity
      :Asfb/B
-     {:Id {:type :Int :identity true}
+     {:Id {:type :Int tu/guid true}
       :Y :Int})
     (relationship
      :Asfb/R

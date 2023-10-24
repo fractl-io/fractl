@@ -1,6 +1,7 @@
 (component
  :Fractl.Kernel.Identity
- {:refer [:Fractl.Kernel.Lang]})
+ {:refer [:Fractl.Kernel.Lang]
+  :clj-import '[(:require [fractl.lang.internal :as li])]})
 
 (entity
  :User
@@ -13,7 +14,7 @@
   :LastName {:type :String
              :optional true}
   :Email {:type :Email
-          :identity true}
+          li/guid true}
   :UserData {:type :Map :optional true}})
 
 (event
