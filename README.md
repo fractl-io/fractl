@@ -54,9 +54,9 @@ The following code snippet shows the Fractl model (i.e., program) for a simple a
   :Balance :Decimal})
 
 (defn find-balance [opening-balance transactions]
- (reduce (fn [b t]
-          ((if (= "income" (:Type t)) + -) b (:Amount t)))
-         opening-balance transactions))
+  (reduce (fn [b t]
+           ((if (= "income" (:Type t)) + -) b (:Amount t)))
+          opening-balance transactions))
 
 (dataflow :MakeReport
   {:Transaction {:DateCreated? [:>= :MakeReport.Since]} :as :Ts}
