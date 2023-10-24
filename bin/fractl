@@ -10,7 +10,7 @@ function msg {
 
 export FRACTL_VERSION="0.4.5"
 # Must be sha256sum, will be replaced by bin/release
-export FRACTL_CHECKSUM='b1883513c35cd4ba9f819f3929fdb2069f4d36e9115c2939c055bfc6cd73532d'
+export FRACTL_CHECKSUM='e62e2b633ca76c34019133a4a27dc6fc1f4c4e11055be8e2ade4001cb9e8d9c4'
 
 if [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
     delimiter=";"
