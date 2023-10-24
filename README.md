@@ -36,31 +36,41 @@ The following code snippet shows the Fractl model (i.e., program) for a simple a
 (entity :Company
  {:Name {:type :String :identity true}})
 
-(entity :AccountHead
+(entity :Account
  {:Name {:type :String :path-identity true}})
 
-(relationship :AccountOf
- {:meta {:contains [:Company :AccountHead]}})
+(relationship :Accounts
+ {:meta {:contains [:Company :Account]}})
 
 (relationship :Transaction
- {:meta {:between [:AccountHead :AccountHead :as [:Debit :Credit]]}
-  :DateCreated :Now
-  :Type {:oneof ["income" "expense"]}
+ {:Type {:oneof ["income" "expense"]}
   :Amount :Decimal
-  :Remarks :String})
+  :Remarks :String
+  :DateCreated :Now
+  :meta {:between [:Account :Account :as [:Debit :Credit]]}})
 
 (record :BalanceReport
- {:GeneratedOn :Now
-  :Balance :Decimal})
+ {:Balance :Decimal
+  :GeneratedOn :Now})
 
-(defn find-balance [opening-balance transactions]
+(defn- find-balance [transactions]
   (reduce (fn [b t]
-           ((if (= "income" (:Type t)) + -) b (:Amount t)))
-          opening-balance transactions))
+            (let [op (if (= "income" (:Type t)) + -)]
+              (op b (:Amount t))))
+          0 transactions))
 
-(dataflow :MakeReport
-  {:Transaction {:DateCreated? [:>= :MakeReport.Since]} :as :Ts}
-  {:BalanceReport {:Balance '(find-balance :MakeReport.OpeningBalance :Ts)}})
+(event :GenerateReport
+  {:Since :DateTime
+   :Company :UUID
+   :Account :UUID})
+
+(dataflow :GenerateReport
+  {:Transaction
+    {:DateCreated? [:>= :GenerateReport.Since]}
+    :-> [[]] ;; To do
+    :as :Ts}
+  {:BalanceReport
+    {:Balance '(find-balance :Ts)}})
 ```
 
 Save this code to a file named `accounts.fractl` and its ready to be run as a highly-scalable accounting service!
