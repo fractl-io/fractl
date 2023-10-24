@@ -6,16 +6,25 @@
 
 (def ^:private valid-resolver-keys #{:update :create :delete :get :query :eval :invoke})
 
+(defn- preproc-fnmap [fnmap]
+  (let [fns (mapv (fn [[k v]]
+                    [k (if (fn? v)
+                         {:handler v}
+                         v)])
+                  fnmap)]
+    (into {} fns)))
+
 (defn make-resolver
   ([resolver-name fnmap eval-dataflow]
-   (when-not (su/all-true? (mapv #(some #{%} valid-resolver-keys) (keys fnmap)))
-     (u/throw-ex (str "invalid resolver keys - " (keys fnmap))))
-   (doseq [[k v] fnmap]
-     (when-not (fn? (:handler v))
-       (u/throw-ex (str "resolver key [" k " :handler] must be mapped to a function"))))
-   (assoc fnmap
-          :name resolver-name
-          :evt-handler eval-dataflow))
+   (let [fnmap (preproc-fnmap fnmap)]
+     (when-not (su/all-true? (mapv #(some #{%} valid-resolver-keys) (keys fnmap)))
+       (u/throw-ex (str "invalid resolver keys - " (keys fnmap))))
+     (doseq [[k v] fnmap]
+       (when-not (fn? (:handler v))
+         (u/throw-ex (str "error in resolver " resolver-name ", " k " must be mapped to a function"))))
+     (assoc fnmap
+            :name resolver-name
+            :evt-handler eval-dataflow)))
   ([resolver-name fnmap]
    (make-resolver resolver-name fnmap nil)))
 
