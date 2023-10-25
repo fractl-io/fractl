@@ -410,7 +410,7 @@
   (println (str "Your request: '" request "' is being serviced..."))
   (if request
     (if-let [code (gpt/bot request)]
-      (clojure.pprint/pprint code)
+      (do (clojure.pprint/pprint code) (System/exit 0))
       (println "ERROR: GPT failed to generate model, please try again."))
     (println "Please enter a description of the app after the -i option.")))
 

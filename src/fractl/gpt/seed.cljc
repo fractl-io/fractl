@@ -6,14 +6,11 @@
    {:role "assistant", :content
     "(component :Marketplace.Core)
 
-(def phone-number? (partial re-matches #\"^(\\+\\d{1,2}\\s)?\\(?\\d{3}\\)?[\\s.-]\\d{3}[\\s.-]\\d{4}$\"))
-;; examples of phone-number? matches: 123-456-7890, (123) 456-7890, 123 456 7890, 123.456.7890, +91 (123) 456-7890
-
 (record :Marketplace.Core/Person
   {:Email {:type :Email :guid true} ; guid means globally-unique-identity
    :FullName :String
    :Address :String
-   :PhoneNumber {:check phone-number?}})
+   :PhoneNumber :String})
 
 (entity :Marketplace.Core/Buyer
   {:meta {:inherits :Marketplace.Core/Person}})
@@ -38,13 +35,10 @@
 (relationship :Marketplace.Product/Listing
   {:meta {:contains [:Marketplace.Core/Seller :Marketplace.Product/Item]}})
 
-(defn rating? [r]
-  (and (int? r) (<= 0 r 5)))
-
 (entity :Marketplace.Product/Review
-  {:Id :Identity
+  {:Id :Identity ; :Identity is shortcut for {:type :UUID :default fractl.util/uuid-string :guid true}
    :Reviewer {:type :Email :id true}
-   :Rating {:check rating?}
+   :Rating :Int
    :Comment {:type :String :optional true}
    :Date :Now})
 
@@ -76,6 +70,7 @@
 
 (entity :SocialNetwork.Core/Profile
   {:Email {:type :Email :guid true}
+   :PhoneNumber :String
    :Name :String
    :Bio :String
    :ProfilePicture :String
@@ -84,9 +79,8 @@
    :JoinDate :Now})
 
 (entity :SocialNetwork.Core/Post
-  {:Id {:type :UUID
-        :default fractl.util/uuid-string
-        :id true}
+  {:Name {:type :String
+          :id true} ; :id is unique in the context of a contains-parent, in this case :SocialNetwork.Core/Profile
    :Content :String
    :Images {:setof :String}
    :Created :Now
@@ -97,4 +91,63 @@
 
 (relationship :SocialNetwork.Core/Friends
   {:meta {:between [:SocialNetwork.Core/Profile :SocialNetwork.Core/Profile :as [:From :To]]}
-   :FriendsSince :Now})"}])
+   :FriendsSince :Now})"}
+   {:role "user" :content "Good. Please generate a small library management application."}
+   {:role "assistant" :content
+"(component :Library.Core)
+
+(entity :Library.Core/Book
+  {:Id :Identity
+   :Title :String
+   :Author :String
+   :Genre :String
+   :PublicationDate :Date
+   :Availability :Boolean})
+
+(entity :Library.Core/Member
+  {:Id :Identity
+   :Name :String
+   :Email {:type :Email :guid true}
+   :PhoneNumber :String
+   :Address :String
+   :JoinDate :Now})
+
+(entity :Library.Core/Loan
+  {:Id {:type :UUID
+        :default fractl.util/uuid-string
+        :id true}
+   :BookId {:ref :Library.Core/Book.Id}
+   :MemberId {:ref :Library.Core/Member.Id}
+   :LoanDate :Now
+   :ReturnDate :DateTime
+   :Returned :Boolean})
+
+(relationship :Library.Core/Loans
+  {:meta {:contains [:Library.Core/Book]}
+   :LoanDate :Npw})"}
+   {:role "user" :content "Error in `:ref`. Instead of `:ref`, use relationships. Error in `relationship :Library.Core/Loans` - both `:contains` and `:between` relationships must have two entity-nodes. Also attributes like :LoanDate is not allowed for `:contains` relationships. Attributes are allowed only for `:between` relationships."}
+   {:role "assistant" :content
+"(component :Library.Core)
+
+(entity :Library.Core/Book
+  {:Id :Identity
+   :Title :String
+   :Author :String
+   :Genre :String
+   :PublicationDate :Date
+   :Availability :Boolean})
+
+(entity :Library.Core/Member
+  {:Id :Identity
+   :Name :String
+   :Email {:type :Email :guid true}
+   :PhoneNumber :String
+   :Address :String
+   :JoinDate :Now})
+
+(relationship
+ :Library.Core/Loan
+ {:meta {:between [:Library.Core/Member :Library.Core/Book]}
+  :LoanDate :Now
+  :ReturnDate :DateTime
+  :Returned :Boolean})"}])
