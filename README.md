@@ -2,42 +2,117 @@
 [![Fractl clj CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml)
 [![Fractl cljs CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml)
 
-# Fractl
+# The Fractl Programming Language
 
-Fractl is the new programming language that unlocks the future of tri-modal development: concurrent development with traditional coding in IDEs, visual development in a no-code builder and code generation with generative-AI: 
+Fractl unlocks the future of tri-modal development - concurrent use of 3 different ways of programming:
+* Traditional coding in IDEs,
+* Visual development in a no-code builder, and,
+* Code generation with generative-AI.
 
-1. fractl language: A data-oriented programming language, with a business-level abstraction, for professional developers
+## Fractl Loves Gen AI
+As a language, Fractl is a data-oriented and declarative, with an abstraction that is closer to natural language than traditional programming languages. This makes fractl a much better fit for Gen AI-powered code generation. 
+Users can rapidly build business application in Fractl from high-level specifications - typically more than 10x faster than traditional programming languages.
 
-![Fractl Language](https://github.com/fractl-io/fractl/assets/13515894/fc4cee3a-eb20-4f17-b8a0-3b6f9c6307e0)
+## Fractl is open
+The Fractl language specification, its compiler and runtime are open source.
 
-2. Fractl Design Studio: A No-code visual development environment
-![Design Studio](https://github.com/fractl-io/fractl/assets/13515894/11d81a8d-b8e0-443a-846b-ade4befdaaaa)
+The code you build in Fractl can be run anywhere using the open source compiler and runtime, thereby avoiding the vendor lock-in of other low-code/no-code platforms.
 
-3. Fractl Co-Pilot: A GenAI and LLM-powered tool, integrated into Design Studio, to generate fractl programs.
+## Fractl is innovative
+Fractl introduces a number of innovative concepts to programming:
 
-> Fractl is the industry's first **Generative AI-powered No-code Programming Language**
+1. **Graph-based Hierarchical Data Model** - compose the high-level data model of an application as hierarchical graph of business entities with relationships. Such [entities and relationships](https://docs.fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
+2. **Zero-trust Programming** - tightly control operations on business entities through [declarative access-control](https://docs.fractl.io/docs/concepts/zero-trust-programming) encoded directly in the model itself.
+3. **Declarative Dataflow** - express business logic as [purely-declarative patterns of data](https://docs.fractl.io/docs/concepts/declarative-dataflow).
+4. **Resolvers** - use a simple, but [powerful interface](https://docs.fractl.io/docs/concepts/resolvers) to interface with external systems.
+5. **Interceptors** - [extend the fractl runtime](https://docs.fractl.io/docs/concepts/interceptors) with custom capabilities.
+6. **Entity-graph-Database Mapping** - take advantage of an [abstract persistence layer](https://docs.fractl.io/docs/concepts/entity-db-mapping) for fully-automated storage of entity instances.
 
-With fractl, developers can build applications 10x-100x faster than traditional development approaches.
+## A Taste of Fractl
 
-# Fractl is innovative
+The following code snippet shows the Fractl model (i.e., program) for a simple accounting application. 
 
-**Fractl** introduces a number of innovative concepts to programming:
+```clojure
+(component :Accounts.Core)
 
-1. **[Graph-based Hierarchical Data Model](data-model.md)**
-2. **[Zero-trust Programming](zero-trust-programming.md)**
-3. **[Declarative Dataflow](declarative-dataflow.md)**
-4. **[Resolvers](resolvers.md)**
-5. **[Interceptors](interceptors.md)**
-6. **[Entity-graph-Database Mapping](entity-db-mapping.md)**
+(entity :Company
+ {:Name {:type :String :guid true}})
 
-# Fractl is easy to grok
+(entity :AccountHead
+ {:Name {:type :String :id true}})
 
-Start learning Fractl with the following resources:
+(entity :Entry
+ {:No {:type :Int :id true}
+  :Type {:oneof ["income" "expense"]}
+  :Amount :Decimal
+  :Remarks {:type :String :optional true}
+  :DateCreated :Now})
 
-* **[Concepts]()**
-* **[Tutorial]()**
-* **[Language Reference]()**
+(relationship :CompanyAccounts
+ {:meta {:contains [:Company :AccountHead]}})
 
-# Getting started with Fractl
+(relationship :Transactions
+ {:meta {:contains [:AccountHead :Entry]}})
 
-Please refer to the [wiki](https://github.com/fractl-io/fractl/wiki)
+(record :BalanceReport
+ {:Balance :Decimal
+  :GeneratedOn :Now})
+
+(defn- find-balance [entries]
+  (reduce (fn [b t]
+            (let [op (if (= "income" (:Type t)) + -)]
+              (op b (:Amount t))))
+          0 entries))
+
+(event :GenerateReport
+ {:Since :DateTime
+  :Company :String
+  :AccountHead :String})
+
+(dataflow :GenerateReport
+ {:AccountHead? {}
+  :-> [[:CompanyAccounts?
+        {:Company {:Name? :GenerateReport.Company}}
+        :GenerateReport.AccountHead]]
+  :as [:A]}
+ {:Entry
+  {:DateCreated? [:>= :GenerateReport.Since]}
+  :-> [[:Transactions? :A]]
+  :as :Es}
+ {:BalanceReport
+  {:Balance '(find-balance :Es)}})
+```
+
+Save this code to a file named `accounts.fractl` and its ready to be run as a highly-scalable accounting service with RESTful APIs to perform CRUD operations and generate balance report!
+But before you can actually run it, you need to install Fractl. The next section will help you with that.
+
+## Download and Install
+
+#### Prerequisites
+
+1. JVM 19 or later
+2. Linux, Mac OSX or a Unix emulator in Windows
+
+Download the [Fractl CLI tool](https://raw.githubusercontent.com/fractl-io/fractl-releases/87fe3632fca9cf1e9bdd4b2655ed89fed345d6ae/fractl) and execute the model:
+
+```shell
+./fractl /path/to/accounts.fractl
+```
+
+We can create a new company using an `HTTP POST` request,
+
+```shell
+curl --header "Content-Type: application/json" \
+--request POST \
+--data '{"Accounts.Core/Company": {"Name": "acme"}}' \
+http://localhost:8080/_e/Accounts.Core/Company
+```
+
+To make sure the new company is persisted in the store, try the following `HTTP GET`:
+
+```shell
+curl http://localhost:8080/_e/Accounts.Core/Company/acme
+```
+
+If Fractl is installed correctly, both these requests will return an `OK` status along with a `:Company` instance.
+You're all set to further explore **Fractl**. Please proceed to the official [documentation](https://docs.fractl.io/docs) pages.

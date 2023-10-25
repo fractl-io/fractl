@@ -311,3 +311,6 @@
     (if (keyword? event)
       {event {}}
       event))))
+
+(def guid li/guid)
+(def path-identity li/path-identity)

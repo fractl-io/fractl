@@ -143,7 +143,7 @@
         (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/session-user tag [all-stuff-map]
-  (let [user-details (get-in all-stuff-map [:request :identity])]
+  (let [user-details (get-in all-stuff-map [:request li/guid])]
     {:github-username (:custom:github_username user-details)
      :github-token (:custom:github_token user-details)
      :github-org (:custom:github_org user-details)

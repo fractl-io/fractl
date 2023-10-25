@@ -41,7 +41,7 @@
 (def cli-options
   [["-c" "--config CONFIG" "Configuration file"]
    ["-s" "--doc MODEL" "Generate documentation in .html"]
-   ["-i" "--interactive" "Model an application in the interactive mode with the AI assist"]
+   ["-i" "--interactive 'app-description'" "Invoke AI-assist to model an application"]
    ["-h" "--help"]])
 
 (defn- complete-model-paths [model current-model-paths config]
@@ -406,6 +406,14 @@
   (let [store (store-from-config config)]
     (mg/migrate (mg/init store (:store config)))))
 
+(defn- gpt-bot [request]
+  (println (str "Your request: '" request "' is being serviced..."))
+  (if request
+    (if-let [code (gpt/bot request)]
+      (clojure.pprint/pprint code)
+      (println "ERROR: GPT failed to generate model, please try again."))
+    (println "Please enter a description of the app after the -i option.")))
+
 (defn -main [& args]
   (when-not args
     (print-help)
@@ -422,7 +430,7 @@
       (:doc options) (generate-swagger-doc
                       (:doc options)
                       args)
-      (:interactive options) (gpt/bot)
+      (:interactive options) (gpt-bot (:interactive options))
       :else
       (or (some
            identity

@@ -98,10 +98,11 @@
 (defn reset-events! [] (u/safe-set postproc-events []))
 
 (defn- ok? [r]
-  (cond
-    (map? r) (= :ok (:status r))
-    (seqable? r) (ok? (first r))
-    :else false))
+  (when r
+    (cond
+      (map? r) (= :ok (:status r))
+      (seqable? r) (ok? (first r))
+      :else false)))
 
 (defn finalize-events [evaluator]
   (let [rs (eval-events evaluator)]

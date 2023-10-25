@@ -181,25 +181,6 @@
           (reset-input-cache! input-cache)
           (prnf (str s ", choice: " s)))))))
 
-(defn bot
-  ([prompt-for-input handle-choice app-description]
-   (interactive-generate
-    (fn [choices]
-      (when-let [c (first choices)]
-        (when (handle-choice c)
-          (let [req (prompt-for-input)]
-            (when-not (= req "bye")
-              [c req])))))
-    app-description))
-  ([app-description]
-   #?(:clj
-      (let [error-cache (make-input-cache 3)]
-        (bot (partial prompt-for-input "? " error-cache)
-             #(do (print-choice % error-cache) true)
-             app-description))
-      :cljs (u/throw-ex (str "no default bot implementation"))))
-  ([] (bot (prompt-for-input "Enter app-description: "))))
-
 ;; API for cljs clients
 
 (defn add-user-message [history msg]
@@ -223,8 +204,24 @@
   exps)
 
 (defn get-model [response]
-  (when-let [c (choice response)]
-    (let [exps (rest (u/parse-string (str "(do " c ")")))]
-      (when (= 'component (ffirst exps))
-        {:model (make-model (first exps))
-         :component (verify-component-defs exps)}))))
+  (try
+    (when-let [c (choice response)]
+      (let [exps (rest (u/parse-string (str "(do " c ")")))]
+        (when (= 'component (ffirst exps))
+          {:model (make-model (first exps))
+           :component (verify-component-defs exps)})))
+    (catch #?(:clj Exception :cljs :default) ex
+      (log/warn ex))))
+
+#?(:clj
+   (defn bot [request]
+     (let [req [{:role "user" :content request}]
+           resp (atom nil)]
+       (non-interactive-generate
+        (fn [choice history]
+          (reset!
+           resp
+           {:choice choice
+            :chat-history history}))
+        req)
+       (get-model @resp))))

@@ -1,5 +1,6 @@
 (ns
  fractl.model.fractl.kernel.identity
+ (:require [fractl.lang.internal :as li])
  (:use
   [fractl.model.fractl.kernel.lang
    :only
@@ -7,14 +8,17 @@
   [fractl.lang
    :only
    [dataflow entity attribute relationship component event record]]))
-(component :Fractl.Kernel.Identity {:refer [:Fractl.Kernel.Lang]})
+(component
+ :Fractl.Kernel.Identity
+ {:refer [:Fractl.Kernel.Lang],
+  :clj-import '[(:require [fractl.lang.internal :as li])]})
 (entity
  :Fractl.Kernel.Identity/User
  {:Name {:type :String, :optional true},
   :Password {:type :Password, :optional true},
   :FirstName {:type :String, :optional true},
   :LastName {:type :String, :optional true},
-  :Email {:type :Email, :identity true},
+  :Email {:type :Email, li/guid true},
   :UserData {:type :Map, :optional true}})
 (event
  :Fractl.Kernel.Identity/SignUp
@@ -57,4 +61,4 @@
  {:Username :Email})
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "d46a5a2f-edde-47b4-9cd9-a13bf6055b2c")
+ "41db9419-1d8e-4354-8c8d-77edc0d55ba0")
