@@ -9,7 +9,7 @@
             [fractl.datafmt.json :as json]
             [fractl.gpt.seed :as seed]))
 
-(def ^:private default-conversation seed/simple-conversation)
+(def ^:private default-conversation seed/full-conversation)
 
 (defn add-to-conversation
   ([history role s]
@@ -24,7 +24,6 @@
               "Authorization" (str "Bearer " (:api-key gpt))}}
    {:model (:gpt-model gpt)
     :messages request
-    :max_tokens 1500
     :temperature 0.9
     :top_p 1
     :frequency_penalty 0.0
@@ -71,8 +70,8 @@
       (if-let [c (first choices)]
         [c nil]
         #_(if (maybe-intern-component c)
-          [c nil]
-          (recur (rest choices)))
+            [c nil]
+            (recur (rest choices)))
         [nil "no valid choices found in response"]))
     (catch #?(:clj Exception :cljs :default) ex
       [nil #?(:clj (.getMessage ex) :cljs ex)])))
@@ -92,6 +91,10 @@
 (defn non-interactive-generate
   ([gpt-model-name api-key response-handler request]
    (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
+  ([api-key response-handler request]
+   (if (nil? api-key)
+     (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)
+     (non-interactive-generate default-model api-key response-handler request)))
   ([response-handler request]
    (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 

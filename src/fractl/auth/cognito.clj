@@ -102,7 +102,9 @@
             {:keys [FirstName LastName]} inner-user-details
             github-details (get-in user-details [:OtherDetails :GitHub])
             {:keys [Username Org Token]} github-details
-            refresh-token (get-in user-details [:OtherDetails :RefreshToken])]
+            refresh-token (get-in user-details [:OtherDetails :RefreshToken])
+            open-ai-key (get-in user-details [:OtherDetails :OpenAI])
+            {:keys [Key]} open-ai-key]
         (try
           (admin-update-user-attributes
            (auth/make-client (merge req aws-config))
@@ -112,7 +114,8 @@
                              ["family_name" LastName]
                              ["custom:github_org" Org]
                              ["custom:github_token" Token]
-                             ["custom:github_username" Username]])
+                             ["custom:github_username" Username]
+                             ["custom:openai_key" Key]])
           ;; Refresh credentials
           (initiate-auth
            (auth/make-client (merge req aws-config))
@@ -144,6 +147,7 @@
     {:github-username (:custom:github_username user-details)
      :github-token (:custom:github_token user-details)
      :github-org (:custom:github_org user-details)
+     :openai-key (:custom:openai_key user-details)
      :email (or (:email user-details) (:username user-details))
      :sub (:sub user-details)
      :username (or (:cognito:username user-details) (:sub user-details))}))
@@ -183,11 +187,12 @@
                                (assoc attributes-map (keyword (:name attribute-map)) (:value attribute-map)))
                              {}
                              user-attributes)
-        {:keys [custom:github_username custom:github_token custom:github_org
+        {:keys [custom:github_username custom:github_token custom:github_org custom:openai_key
                 given_name family_name email]} user-attributes-map]
     {:GitHub {:Username custom:github_username
               :Token custom:github_token
               :Org custom:github_org}
+     :OpenAI {:Key custom:openai_key}
      :FirstName given_name
      :LastName family_name
      :Email email}))

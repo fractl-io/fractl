@@ -226,8 +226,10 @@
   (or (maybe-unauth request)
       (let [[obj _ err-response] (request-object request)]
         (or err-response
-            (let [resp (atom nil)]
+            (let [resp (atom nil)
+                  map-obj (first obj)]
               (gpt/non-interactive-generate
+               (get map-obj :key)
                (fn [choice history]
                  (if choice
                    (reset!
@@ -235,7 +237,7 @@
                     {:choice choice
                      :chat-history history})
                    (u/throw-ex "AI failed to service your request, please try again")))
-               obj)
+               (list (dissoc map-obj :key)))
               (ok @resp))))))
 
 (defn- parse-rest-uri [request]
