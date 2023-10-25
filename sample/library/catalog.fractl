@@ -14,7 +14,7 @@
 
 (entity {:Sample.Library.Catalog/Book
          {:Name {:check app-name?}
-          :ISBN {:type :String :identity true}
+          :ISBN {:type :String :guid true}
           :Publisher {:ref :Sample.Library.Identity/User.Email
                       :indexed true}
           :PublishDate {:type :DateTime

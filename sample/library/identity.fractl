@@ -18,7 +18,7 @@
           :Password    {:type  :Password
                         :check password?}
           :Email       {:type   :Email
-                        :identity true}
+                        :guid true}
           :DateCreated {:type    :DateTime
                         :default now}}})
 
@@ -31,7 +31,7 @@
           :Password {:type  :Password
                      :check password?}
           :Email    {:type   :Email
-                     :identity true}
+                     :guid true}
           :DOB      :String
           :DateCreated {:type    :DateTime
                         :default now}
