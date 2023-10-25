@@ -22,11 +22,15 @@
    :cljs
    (def ^:dynamic active-txn nil))
 
-(defn set-active-txn! [txn]
-  (.set active-txn txn))
+#?(:clj
+   (defn set-active-txn! [txn] (.set active-txn txn))
+   :cljs
+   (defn set-active-txn! [_] nil))
 
-(defn get-active-txn []
-  (.get active-txn))
+#?(:clj
+   (defn get-active-txn [] (.get active-txn))
+   :cljs
+   (defn get-active-txn [] nil))
 
 (def ^:private script-mode (atom false))
 
