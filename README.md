@@ -36,43 +36,51 @@ The following code snippet shows the Fractl model (i.e., program) for a simple a
 (component :Accounts.Core)
 
 (entity :Company
- {:Name {:type :String :identity true}})
+ {:Name {:type :String :guid true}})
 
-(entity :Account
- {:Name {:type :String :path-identity true}})
+(entity :AccountHead
+ {:Name {:type :String :id true}})
 
-(relationship :Accounts
- {:meta {:contains [:Company :Account]}})
-
-(relationship :Transaction
- {:Type {:oneof ["income" "expense"]}
+(entity :Entry
+ {:No {:type :Int :id true}
+  :Type {:oneof ["income" "expense"]}
   :Amount :Decimal
-  :Remarks :String
-  :DateCreated :Now
-  :meta {:between [:Account :Account :as [:Debit :Credit]]}})
+  :Remarks {:type :String :optional true}
+  :DateCreated :Now})
+
+(relationship :CompanyAccounts
+ {:meta {:contains [:Company :AccountHead]}})
+
+(relationship :Transactions
+ {:meta {:contains [:AccountHead :Entry]}})
 
 (record :BalanceReport
  {:Balance :Decimal
   :GeneratedOn :Now})
 
-(defn- find-balance [transactions]
+(defn- find-balance [entries]
   (reduce (fn [b t]
             (let [op (if (= "income" (:Type t)) + -)]
               (op b (:Amount t))))
-          0 transactions))
+          0 entries))
 
 (event :GenerateReport
-  {:Since :DateTime
-   :Company :UUID
-   :Account :UUID})
+ {:Since :DateTime
+  :Company :String
+  :AccountHead :String})
 
 (dataflow :GenerateReport
-  {:Transaction
-    {:DateCreated? [:>= :GenerateReport.Since]}
-    :-> [[]] ;; To do
-    :as :Ts}
-  {:BalanceReport
-    {:Balance '(find-balance :Ts)}})
+ {:AccountHead? {}
+  :-> [[:CompanyAccounts?
+        {:Company {:Name? :GenerateReport.Company}}
+        :GenerateReport.AccountHead]]
+  :as [:A]}
+ {:Entry
+  {:DateCreated? [:>= :GenerateReport.Since]}
+  :-> [[:Transactions? :A]]
+  :as :Es}
+ {:BalanceReport
+  {:Balance '(find-balance :Es)}})
 ```
 
 Save this code to a file named `accounts.fractl` and its ready to be run as a highly-scalable accounting service with RESTful APIs to perform CRUD operations and generate balance report!
