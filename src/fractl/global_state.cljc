@@ -17,7 +17,10 @@
 
 (defn active-user [] (:User active-event-context))
 
-(def ^:private active-txn (ThreadLocal.))
+#?(:clj
+   (def ^:private active-txn (ThreadLocal.))
+   :cljs
+   (def ^:dynamic active-txn nil))
 
 (defn set-active-txn! [txn]
   (.set active-txn txn))
