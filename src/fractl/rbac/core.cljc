@@ -36,18 +36,38 @@
     (when-let [su @superuser]
       (= email (:Email su)))))
 
+#?(:clj
+   (def ^:private local-cache (ThreadLocal.)))
+
+(defn- cached [key]
+  #?(:clj
+     (when-let [c (.get local-cache)]
+       #_(println "##@" key (get c key))
+       (get c key))))
+
+(defn- cache [key val]
+  #?(:clj
+     (let [c (or (.get local-cache) {})]
+       (.set local-cache (assoc c key val))
+       val)
+     :cljs val))
+
 (def ^:private find-privileges
   (fn [role-names]
     (when (seq role-names)
-      (ev/safe-eval-internal
-       {:Fractl.Kernel.Rbac/FindPrivilegeAssignments
-        {:RoleNames role-names}}))))
+      (or (cached role-names)
+          (cache role-names
+                 (ev/safe-eval-internal
+                  {:Fractl.Kernel.Rbac/FindPrivilegeAssignments
+                   {:RoleNames role-names}}))))))
 
 (def ^:private role-assignments
   (fn [user-name]
-    (ev/safe-eval-internal
-     {:Fractl.Kernel.Rbac/FindRoleAssignments
-      {:Assignee user-name}})))
+    (or (cached user-name)
+        (cache user-name
+               (ev/safe-eval-internal
+                {:Fractl.Kernel.Rbac/FindRoleAssignments
+                 {:Assignee user-name}})))))
 
 (def ^:private admin-priv [{:Resource [:*] :Actions [:*]}])
 
@@ -60,9 +80,11 @@
           (let [ps (find-privileges role-names)
                 names (mapv :Privilege ps)]
             (when (seq names)
-              (ev/safe-eval-internal
-               {:Fractl.Kernel.Rbac/FindPrivileges
-                {:Names names}}))))))))
+              (or (cached names)
+                  (cache names
+                         (ev/safe-eval-internal
+                          {:Fractl.Kernel.Rbac/FindPrivileges
+                           {:Names names}}))))))))))
 
 (defn- has-priv-on-resource? [resource priv-resource]
   (or (if (or (= :* priv-resource)
