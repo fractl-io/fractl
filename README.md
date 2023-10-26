@@ -36,10 +36,12 @@ The following code snippet shows the Fractl model (i.e., program) for a simple a
 (component :Accounts.Core)
 
 (entity :Company
- {:Name {:type :String :guid true}})
+ {:Name {:type :String :guid true}
+  :rbac [{:roles ["manager"] :allow [:create]}]})
 
 (entity :AccountHead
- {:Name {:type :String :id true}})
+ {:Name {:type :String :id true}
+  :rbac [{:roles ["accountant"] :allow [:create]}]})
 
 (entity :Entry
  {:No {:type :Int :id true}
