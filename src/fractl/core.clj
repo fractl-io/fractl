@@ -443,7 +443,9 @@
                  :repl #(println (force-call-after-load-model
                                   (first %)
                                   (let [model-info (read-model-and-config options)]
-                                    (fn [] (repl/run (first %) (ffirst (prepare-runtime model-info)))))))
+                                    (fn []
+                                      (log/log-capture! :fractl)
+                                      (repl/run (first %) (ffirst (prepare-runtime model-info)))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(call-after-load-model
