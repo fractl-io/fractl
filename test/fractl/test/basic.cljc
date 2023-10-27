@@ -6,6 +6,7 @@
             [fractl.store :as store]
             [fractl.component :as cn]
             [fractl.compiler :as c]
+            [fractl.lang.core :as lnc]
             [fractl.lang
              :as ln
              :refer [component attribute event
@@ -1562,8 +1563,8 @@
               :fractl-version "current"
               :components [:Crm.Core :Crm.Sales]}]
     (ln/model spec)
-    (is (= spec (ln/fetch-model :crm)))
-    (is (= "1.0.2" (ln/model-version :crm)))))
+    (is (= spec (lnc/fetch-model :crm)))
+    (is (= "1.0.2" (lnc/model-version :crm)))))
 
 #?(:clj
    (deftest multi-threaded-transactions
