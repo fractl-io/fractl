@@ -1,7 +1,7 @@
 (ns fractl.auth
   (:require [clojure.string :as s]
             [fractl.util :as u]
-            [fractl.auth.cognito]
+            #?(:clj [fractl.auth.cognito])
             [fractl.auth.df]
             [fractl.resolver.registry :as rr]
             [fractl.resolver.authentication :as authn]))
