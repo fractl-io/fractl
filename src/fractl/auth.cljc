@@ -2,7 +2,7 @@
   (:require [clojure.string :as s]
             [fractl.util :as u]
             #?(:clj [fractl.auth.cognito])
-            [fractl.auth.df]
+            #?(:clj [fractl.auth.df])
             [fractl.resolver.registry :as rr]
             [fractl.resolver.authentication :as authn]))
 
