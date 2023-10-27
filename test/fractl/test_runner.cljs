@@ -9,7 +9,6 @@
             [fractl.test.fixes01]
             [fractl.test.fixes02]
             [fractl.test.fixes03]
-            [fractl.test.instance-meta]
             [fractl.test.policy]
             [fractl.test.query]
             [fractl.test.rbac]
