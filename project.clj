@@ -46,8 +46,6 @@
 
   :java-source-paths ["src/java"]
 
-  ;;:resource-paths ["lib/sfdc-enterprise.jar" "lib/jbcrypt.jar" "lib/auth0-1.35.0-uber.jar"]
-
   :main fractl.core
   :aot :all
   ;;:omit-source true
