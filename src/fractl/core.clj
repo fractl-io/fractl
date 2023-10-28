@@ -440,10 +440,12 @@
                  :compile #(println (build/compile-model (first %)))
                  :build #(println (build/standalone-package (first %)))
                  :exec #(println (build/run-standalone-package (first %)))
-                 :repl #(println (force-call-after-load-model
-                                  (first %)
-                                  (let [model-info (read-model-and-config options)]
-                                    (fn [] (repl/run (first %) (ffirst (prepare-runtime model-info)))))))
+                 :repl #(do (log/log-capture! :fractl)
+                            (println (force-call-after-load-model
+                                      (first %)
+                                      (let [model-info (read-model-and-config options)]
+                                        (fn []
+                                          (repl/run (first %) (ffirst (prepare-runtime model-info))))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(call-after-load-model
