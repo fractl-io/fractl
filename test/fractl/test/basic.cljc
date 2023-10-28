@@ -10,6 +10,8 @@
              :as ln
              :refer [component attribute event
                      entity record dataflow]]
+            [fractl.lang.internal :as li]
+            [fractl.api :as api]
             [fractl.evaluator :as e]
             [fractl.lang.opcode :as opc]
             [fractl.compiler.context :as ctx]
@@ -1618,3 +1620,41 @@
            (chk t4 ids4)
            (let [es (lookup-all)]
              (is (every? e? es))))))))
+
+(deftest api-test
+  (api/component :Api.Test)
+  (api/record
+   :Api.Test/R
+   {:A :String})
+  (api/entity
+   :Api.Test/E
+   {:Id :Identity :R :Api.Test/R})
+  (api/entity
+   :Api.Test/F
+   {:Id :Identity
+    :Name {:type :String :id true}
+    :Y :Int})
+  (api/relationship
+   :Api.Test/Rel
+   {:meta {:contains [:Api.Test/E :Api.Test/F]}})
+  (api/event
+   :Api.Test/MakeF
+   {:Name :String :Y :Int})
+  (api/dataflow
+   :Api.Test/MakeF
+   {:Api.Test/R
+    {:A "hello, world"} :as :R}
+   {:Api.Test/E {:R :R} :as :E}
+   {:Api.Test/F
+    {:Name :Api.Test/MakeF.Name
+     :Y :Api.Test/MakeF.Y}
+    :-> [[:Api.Test/Rel :E]]})
+  (let [f (tu/first-result
+           {:Api.Test/MakeF
+            {:Name "abc" :Y 100}})]
+    (is (cn/instance-of? :Api.Test/F f))
+    (is (cn/same-instance?
+         f
+         (tu/first-result
+          {:Api.Test/Lookup_F
+           {li/path-attr (li/path-attr f)}})))))
