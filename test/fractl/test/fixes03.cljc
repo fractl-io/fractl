@@ -549,3 +549,37 @@
     (is (not (:X (lookup-e 1))))
     (is (not (e? (lookup-e 2))))
     (is (cn/same-instance? e3 (lookup-e 3)))))
+
+#?(:clj
+   (deftest optional-data-conversion-error-in-db
+     (defcomponent :DbDataConv
+       (entity
+        :DbDataConv/E
+        {:Id :Identity
+         :X :String
+         :Y {:type :Int :optional true}
+         :Z {:type :Decimal :optional true}}))
+     (let [e (tu/first-result
+              {:DbDataConv/Create_E
+               {:Instance
+                {:DbDataConv/E {:X "hello"}}}})
+           e? (partial cn/instance-of? :DbDataConv/E)]
+       (is (e? e))
+       (is (cn/instance-eq?
+            e
+            (tu/first-result
+             {:DbDataConv/Update_E
+              {:Id (:Id e)
+               :Data {:X "hi"}}})))
+       (is (cn/instance-eq?
+            e
+            (tu/first-result
+             {:DbDataConv/Update_E
+              {:Id (:Id e)
+               :Data {:Y 10 :Z 145.34}}})))
+       (let [e (tu/first-result
+                {:DbDataConv/Lookup_E
+                 {:Id (:Id e)}})]
+         (is (= "hi" (:X e)))
+         (is (= 10 (:Y e)))
+         (is (= 145.34M (:Z e)))))))
