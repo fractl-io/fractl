@@ -99,16 +99,17 @@
 (defn- serialize-obj-entry [non-serializable-attrs [k v]]
   (if (cn/meta-attribute-name? k)
     [k v]
-    [k (cond
-         (or
-          (or (fn? v)
-              (and (seqable? v) (not (string? v))))
-          (some #{k} non-serializable-attrs))
-         (str obj-prefix (str v))
+    (when-not (nil? v)
+      [k (cond
+           (or
+            (or (fn? v)
+                (and (seqable? v) (not (string? v))))
+            (some #{k} non-serializable-attrs))
+           (str obj-prefix (str v))
 
-         (keyword? v) (subs (str v) 1)
+           (keyword? v) (subs (str v) 1)
 
-         :else v)]))
+           :else v)])))
 
 (defn serialize-objects [instance]
   (let [fattrs (mapv first (cn/future-attrs (cn/instance-type instance)))]
