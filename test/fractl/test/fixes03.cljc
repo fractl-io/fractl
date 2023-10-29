@@ -558,7 +558,8 @@
         {:Id :Identity
          :X :String
          :Y {:type :Int :optional true}
-         :Z {:type :Decimal :optional true}}))
+         :Z {:type :Decimal :optional true}
+         :W {:listof :String :optional true}}))
      (let [e (tu/first-result
               {:DbDataConv/Create_E
                {:Instance
@@ -570,7 +571,7 @@
             (tu/first-result
              {:DbDataConv/Update_E
               {:Id (:Id e)
-               :Data {:X "hi"}}})))
+               :Data {:X "hi" :W ["a" "b"]}}})))
        (is (cn/instance-eq?
             e
             (tu/first-result
@@ -581,5 +582,18 @@
                 {:DbDataConv/Lookup_E
                  {:Id (:Id e)}})]
          (is (= "hi" (:X e)))
+         (is (= ["a" "b"] (:W e)))
          (is (= 10 (:Y e)))
-         (is (= 145.34M (:Z e)))))))
+         (is (= 145.34M (:Z e))))
+       (let [e (tu/first-result
+                {:DbDataConv/Create_E
+                 {:Instance
+                  {:DbDataConv/E
+                   {:X "krs"
+                    :Y 1 :Z 1.23
+                    :W ["k" "r" "s"]}}}})]
+         (is (e? e))
+         (is (= "krs" (:X e)))
+         (is (= 1 (:Y e)))
+         (is (= 1.23 (:Z e)))
+         (is (= ["k" "r" "s"] (:W e)))))))
