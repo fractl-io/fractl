@@ -1664,7 +1664,10 @@
     (entity
      :PswdEnc/E
      {:X :String
-      :Y {:type :Password :optional true}}))
+      :Y {:type :Password :optional true
+          :check #(or (fractl.util.hash/crypto-hash? %)
+                      (let [c (count %)]
+                        (< 2 c 10)))}}))
   (let [e (tu/first-result
            {:PswdEnc/Create_E
             {:Instance
