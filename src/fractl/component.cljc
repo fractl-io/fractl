@@ -271,7 +271,10 @@
      (if attrname
        (when-let [rec (component-find [component :records recname])]
          (find-attribute-schema-internal (get-in rec [:schema attrname])))
-       (component-find [component :attributes aref]))))
+       (when-let [scm (component-find [component :attributes aref])]
+         (if-let [parent-type (:type scm)]
+           (merge (apply find-attribute-schema-internal (li/split-path parent-type)) scm)
+           scm)))))
   ([path]
    (let [[component aref] (li/split-path path)]
      (find-attribute-schema-internal component aref))))
@@ -637,11 +640,8 @@
   (let [tp (:type ascm)]
     (if (find-record-schema tp)
       (assert-literal-instance attr-name tp obj)
-      (if-let [attr-scm (find-attribute-schema tp)]
-        (valid-attribute-value
-         attr-name (check-format ascm attr-name obj)
-         (merge-attr-schema attr-scm ascm))
-        (throw-error (str "no schema defined for " tp))))))
+      (valid-attribute-value
+       attr-name (check-format ascm attr-name obj) (dissoc ascm :type)))))
 
 (defn valid-attribute-value
   "Check against the attribute schema, if the provided value (v)
