@@ -26,7 +26,6 @@
 (attribute :Event {:check cn/event-instance?})
 (attribute :Any {:check k/any-obj?})
 (attribute :Email {:check k/email?})
-(attribute :Password {:check k/kernel-string?})
 (attribute :Map {:check map?})
 (attribute :Edn {:check k/edn?})
 

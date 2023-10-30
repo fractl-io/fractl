@@ -13,6 +13,7 @@
             [fractl.lang.internal :as li]
             [fractl.util :as u]
             [fractl.util.http :as uh]
+            [fractl.util.hash :as hash]
             [fractl.auth.cognito :as cognito]
             [fractl.auth.jwt :as jwt]
             [fractl.util.logger :as log]
@@ -53,9 +54,17 @@
    (response {:reason "internal error on server"} 500 data-fmt))
   ([s] (internal-error s :json)))
 
+(defn- sanitize-secrets [obj]
+  (let [r (mapv (fn [[k v]]
+                  [k (if (hash/crypto-hash? v)
+                       "*********"
+                       v)])
+                obj)]
+    (into {} r)))
+
 (defn- cleanup-inst [obj]
   (cond
-    (cn/an-instance? obj) (dissoc obj li/meta-attr)
+    (cn/an-instance? obj) (dissoc (sanitize-secrets obj) li/meta-attr)
     (vector? obj) (mapv cleanup-inst obj)
     :else obj))
 

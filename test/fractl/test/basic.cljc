@@ -1555,7 +1555,7 @@
      {:type :String
       :meta {:instance {:ui {:Fractl.Fx/Input {}}}}}))
   (is (= {:unique false, :immutable false, :type :Fractl.Kernel.Lang/String}
-         (cn/find-attribute-schema :AMeta/Name)))
+         (dissoc (cn/find-attribute-schema :AMeta/Name) :check)))
   (is (= {:instance {:ui #:Fractl.Fx{:Input {}}}}
          (cn/fetch-meta :AMeta/Name))))
 
@@ -1658,3 +1658,16 @@
          (tu/first-result
           {:Api.Test/Lookup_F
            {li/path-attr (li/path-attr f)}})))))
+
+(deftest password-encryption-bug
+  (defcomponent :PswdEnc
+    (entity
+     :PswdEnc/E
+     {:X :String
+      :Y {:type :Password :optional true}}))
+  (let [e (tu/first-result
+           {:PswdEnc/Create_E
+            {:Instance
+             {:PswdEnc/E {:X "hello" :Y "jjj3223"}}}})]
+    (is (cn/instance-of? :PswdEnc/E e))
+    (is (fractl.util.hash/crypto-hash? (:Y e)))))
