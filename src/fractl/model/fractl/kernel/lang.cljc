@@ -42,7 +42,6 @@
 (attribute :Fractl.Kernel.Lang/Event {:check cn/event-instance?})
 (attribute :Fractl.Kernel.Lang/Any {:check k/any-obj?})
 (attribute :Fractl.Kernel.Lang/Email {:check k/email?})
-(attribute :Fractl.Kernel.Lang/Password {:check k/kernel-string?})
 (attribute :Fractl.Kernel.Lang/Map {:check map?})
 (attribute :Fractl.Kernel.Lang/Edn {:check k/edn?})
 (attribute
@@ -120,4 +119,4 @@
     :paths [:Fractl.Kernel.Lang/DataSync]})])
 (def
  Fractl_Kernel_Lang___COMPONENT_ID__
- "fe5ea0e9-2c61-49c7-9ca4-ae5f097172b9")
+ "9466a990-391f-4e32-a48e-645fa853eaaf")
