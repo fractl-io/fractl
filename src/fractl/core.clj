@@ -400,7 +400,12 @@
    (call-after-load-model model-name f false)))
 
 (defn- force-call-after-load-model [model-name f]
-  (call-after-load-model model-name f true))
+  (try
+    (call-after-load-model model-name f)
+    (catch Exception ex
+      (log/error ex)
+      (println (str "ERROR: " (.getMessage ex)))
+      (f))))
 
 (defn- db-migrate [config]
   (let [store (store-from-config config)]

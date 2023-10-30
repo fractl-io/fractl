@@ -5,17 +5,44 @@
             [fractl.lang.internal :as li]
             [fractl.lang.tools.loader :as loader]
             [fractl.component :as cn]
+            [fractl.evaluator :as ev]
+            [fractl.env :as env]
             [fractl.global-state :as gs]))
+
+(def ^:private ^ThreadLocal active-env (ThreadLocal.))
+
+(defn- evaluate-pattern [pat]
+  (if (keyword? pat)
+    (or (env/lookup (.get active-env) pat) pat)
+    (try
+      (let [res (ev/evaluate-pattern (.get active-env) pat)
+            {env :env status :status result :result} res]
+        (if (= :ok status)
+          (do (.set active-env env)
+              result)
+          pat))
+      (catch Exception ex pat))))
+
+(defn- extract-result [res]
+  (cond
+    (map? res)
+    (or (:result res) res)
+
+    (vector? res)
+    (extract-result (first res))
+
+    :else res))
 
 (defn- repl-eval [evaluator exp]
   (try
     (let [r (eval exp)]
-      (if (map? r)
-        (let [n (li/record-name r)]
-          (cond
-            (cn/event? n) (evaluator r)
-            (cn/find-object-schema n) (cn/make-instance r)
-            :else r))
+      (if (or (map? r) (vector? r) (keyword? r))
+        (if (map? r)
+          (let [n (li/record-name r)]
+            (if (cn/event? n)
+              (extract-result (evaluator r))
+              (evaluate-pattern r)))
+          (evaluate-pattern r))
         r))
     (catch Exception ex
       (println (str "ERROR - " (.getMessage ex))))))
