@@ -50,6 +50,7 @@
 (def dynamic-eval-prefix "/_dynamic/")
 (def auth-callback-prefix "/_authcallback")
 (def gpt-prefix "/_gpt/")
+(def ai-prefix "/_ai/")
 
 (defn- remote-resolver-error [response]
   (u/throw-ex (str "remote resolver error - " (or (:error response) response))))
