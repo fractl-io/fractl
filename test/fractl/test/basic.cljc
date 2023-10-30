@@ -638,10 +638,11 @@
                                         :indexed true}
                                     :N :String}})
     (record {:Result {:Values :Any}})
-    (event {:DestructuringAlias/Evt {:X :Int}}
-           (dataflow :DestructuringAlias/Evt
-                     {:DestructuringAlias/E {:X? :DestructuringAlias/Evt.X} :as [:R1 :R2 :_ :R4 :& :RS]}
-                     {:DestructuringAlias/Result {:Values [:R1 :R2 :R4 :RS]}})))
+    (event {:DestructuringAlias/Evt {:X :Int}})
+           
+    (dataflow :DestructuringAlias/Evt
+     {:DestructuringAlias/E {:X? :DestructuringAlias/Evt.X} :as [:R1 :R2 :_ :R4 :& :RS]}
+     {:DestructuringAlias/Result {:Values [:R1 :R2 :R4 :RS]}}))
   (let [es [(cn/make-instance :DestructuringAlias/E {:X 1 :N "e01"})
             (cn/make-instance :DestructuringAlias/E {:X 2 :N "e02"})
             (cn/make-instance :DestructuringAlias/E {:X 1 :N "e03"})
@@ -1162,9 +1163,9 @@
                {:UserAccount/Estimate {tu/q-id-attr (tu/append-id :UserAccount/IncreaseLoan)}}
                {:UserAccount/Estimate {:Balance :UserAccount/IncreaseLoan.Balance.Total
                                        :Loan    '(+ :Balance 10000)}})
-     (let [r (cn/make-instance :UserAccount/Total {:Total 100000}
-                               evt (cn/make-instance :UserAccount/IncreaseLoan {:Balance r}))
-           (is (thrown? Exception (cn/instance-of? :UserAccount/Estimate (first (tu/fresult (e/eval-all-dataflows evt))))))])))
+     (let [r (cn/make-instance :UserAccount/Total {:Total 100000})
+           evt (cn/make-instance :UserAccount/IncreaseLoan {:Balance r})]
+          (is (thrown? Exception (cn/instance-of? :UserAccount/Estimate (first (tu/fresult (e/eval-all-dataflows evt)))))))))
 
 (deftest try_
   (defcomponent :Try
