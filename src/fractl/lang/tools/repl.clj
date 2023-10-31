@@ -1,7 +1,6 @@
 (ns fractl.lang.tools.repl
   (:require [clojure.edn :as edn]
             [clojure.pprint :as pp]
-            [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.lang.tools.loader :as loader]
             [fractl.component :as cn]
@@ -51,7 +50,7 @@
   (try
     (:name (loader/load-default-model-info))
     (catch Exception ex
-      (log/warn (.getMessage ex))
+      (println (str "WARN - " (.getMessage ex)))
       :fractl)))
 
 (defn run [model-name evaluator]
@@ -65,7 +64,7 @@
                   (edn/read (java.io.PushbackReader.
                              (java.io.BufferedReader. *in*)))
                   (catch Exception ex
-                    (println (str "ERROR - " (.getMessage ex)))))]
+                    (println (str "ERROR in input - " (.getMessage ex)))))]
         (if exp
           (cond
             (= exp :quit)
