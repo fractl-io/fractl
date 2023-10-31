@@ -617,7 +617,7 @@
           (cond
             (= :_Instance %) rf-inst
 
-            (= li/event-context %) rf-ctx
+            (= :_EventContext %) rf-ctx
 
             (s/starts-with? (str %) ":_Instance.")
             (keyword (subs (s/replace (str %) ":_Instance." (str rf-inst ".")) 1))

@@ -2,6 +2,7 @@
   "Compile-time schema and data validation."
   (:require [clojure.set :as set]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]))
 
@@ -27,10 +28,12 @@
     (when-let [r (first rs)]
       (let [[_ scm] (find-schema k)
             attrs (cn/attributes scm)]
-        (when-not (cn/inferred-event-schema? scm)
-          (if-let [adef (get attrs r)]
-            (recur adef (rest rs))
-            (u/throw-ex (str "invalid reference - " [rec-name refs])))))))
+        (if attrs
+          (when-not (cn/inferred-event-schema? scm)
+            (if-let [adef (get attrs r)]
+              (recur adef (rest rs))
+              (u/throw-ex (str "invalid reference - " [rec-name refs]))))
+          (log/warn (str "cannot statically verify reference - " [rec-name refs]))))))
   refs)
 
 (def ^:private where-opr? li/operator?)
