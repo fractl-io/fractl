@@ -274,16 +274,19 @@
   ([] (evaluator (es/get-active-store) nil)))
 
 (defn evaluate-pattern
-  ([store-or-store-config resolver-or-resolver-config pattern]
+  ([env store-or-store-config resolver-or-resolver-config pattern]
    (let [store (if (nil? store-or-store-config)
                  (or (es/get-active-store)
                      (store-from-config store-or-store-config))
                  (store-from-config store-or-store-config))
          resolver (resolver-from-config resolver-or-resolver-config)
          [compile-query-fn evaluator] (make store)
-         env (env/make store resolver)
+         env (or env (env/make store resolver))
          opcode (c/compile-standalone-pattern compile-query-fn pattern)]
      (dispatch evaluator env opcode)))
+  ([store-or-store-config resolver-or-resolver-config pattern]
+   (evaluate-pattern nil store-or-store-config resolver-or-resolver-config pattern))
+  ([env pattern] (evaluate-pattern env nil nil pattern))
   ([pattern] (evaluate-pattern nil nil pattern)))
 
 (defn eval-all-dataflows

@@ -400,7 +400,11 @@
    (call-after-load-model model-name f false)))
 
 (defn- force-call-after-load-model [model-name f]
-  (call-after-load-model model-name f true))
+  (try
+    (call-after-load-model model-name f)
+    (catch Exception ex
+      (println (str "ERROR - " (.getMessage ex)))
+      (f))))
 
 (defn- db-migrate [config]
   (let [store (store-from-config config)]
@@ -440,12 +444,17 @@
                  :compile #(println (build/compile-model (first %)))
                  :build #(println (build/standalone-package (first %)))
                  :exec #(println (build/run-standalone-package (first %)))
-                 :repl #(do (log/log-capture! :fractl)
-                            (println (force-call-after-load-model
-                                      (first %)
-                                      (let [model-info (read-model-and-config options)]
-                                        (fn []
-                                          (repl/run (first %) (ffirst (prepare-runtime model-info))))))))
+                 :repl #(let [opt (first %)
+                              with-logs (= opt ":with-logs")
+                              args (if with-logs
+                                     (rest %)
+                                     (do (log/log-capture! :fractl) %))
+                              model-name (first args)]
+                          (println (force-call-after-load-model
+                                    model-name
+                                    (let [model-info (read-model-and-config options)]
+                                      (fn []
+                                        (repl/run model-name (prepare-runtime model-info)))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(call-after-load-model
