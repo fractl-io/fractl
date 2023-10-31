@@ -5,32 +5,40 @@
             [fractl.lang.tools.loader :as loader]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
+            [fractl.util :as u]
             [fractl.env :as env]
             [fractl.global-state :as gs]))
 
-(def ^:private ^ThreadLocal active-env (ThreadLocal.))
-
 (defn- evaluate-pattern [pat]
   (if (keyword? pat)
-    (or (env/lookup (.get active-env) pat) pat)
+    (or (env/lookup (gs/get-active-env) pat) pat)
     (try
-      (let [res (ev/evaluate-pattern (.get active-env) pat)
+      (let [res (ev/evaluate-pattern (gs/get-active-env) pat)
             {env :env status :status result :result} res]
         (if (= :ok status)
-          (do (.set active-env env)
+          (do (gs/set-active-env! env)
               result)
-          pat))
+          (or status pat)))
       (catch Exception ex pat))))
 
 (defn- extract-result [res]
   (cond
     (map? res)
-    (or (:result res) res)
+    (if-let [s (:status res)]
+      (if (= :ok s)
+        (or (:result res) res)
+        s)
+      res)
 
     (vector? res)
     (extract-result (first res))
 
     :else res))
+
+(defn- proc-event-pattern [pat]
+  (when (:as pat)
+    (u/throw-ex "alias not supported for event-pattern"))
+  pat)
 
 (defn- repl-eval [evaluator exp]
   (try
@@ -39,7 +47,7 @@
         (if (map? r)
           (let [n (li/record-name r)]
             (if (cn/event? n)
-              (extract-result (evaluator r))
+              (extract-result (evaluator (proc-event-pattern r)))
               (evaluate-pattern r)))
           (evaluate-pattern r))
         r))

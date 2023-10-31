@@ -454,7 +454,7 @@
                                     model-name
                                     (let [model-info (read-model-and-config options)]
                                       (fn []
-                                        (repl/run model-name (prepare-runtime model-info)))))))
+                                        (repl/run model-name (ffirst (prepare-runtime model-info))))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(call-after-load-model
