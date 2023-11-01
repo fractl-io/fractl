@@ -453,9 +453,9 @@
                               model-name (first args)]
                           (println (force-call-after-load-model
                                     model-name
-                                    (let [model-info (read-model-and-config options)
-                                          [_ config] (prepare-runtime model-info)]
-                                      (fn []
+                                    (fn []
+                                      (let [model-info (read-model-and-config options)
+                                            [_ config] (prepare-runtime model-info)]
                                         (repl/run model-name (:store-handle config)))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
