@@ -31,19 +31,19 @@
 
 (def ^:private lang-fns #{'entity 'relationship 'event 'record 'component})
 
-(defn- maybe-reinit-schema [exp]
+(defn- maybe-reinit-schema [store exp]
   (when (and (seqable? exp) (some #{(first exp)} lang-fns))
     (let [[c _] (li/split-path
                  (let [r (second exp)]
                    (if (map? r)
                      (li/record-name r)
                      r)))]
-      (evr/reinit-component-schema! c)))
+      (evr/force-init-schema store c)))
   exp)
 
-(defn- repl-eval [exp]
+(defn- repl-eval [store exp]
   (try
-    (let [r (eval (maybe-reinit-schema exp))]
+    (let [r (eval (maybe-reinit-schema store exp))]
       (if (or (map? r) (vector? r) (keyword? r))
         (evaluate-pattern r)
         r))
@@ -57,10 +57,10 @@
       (println (str "WARN - " (.getMessage ex)))
       :fractl)))
 
-(defn run [model-name]
+(defn run [model-name store]
   (let [model-name (or model-name (infer-model-name))
         prompt (str (name model-name) "> ")
-        reval repl-eval]
+        reval (partial repl-eval store)]
     (use '[fractl.lang])
     (loop []
       (print prompt) (flush)

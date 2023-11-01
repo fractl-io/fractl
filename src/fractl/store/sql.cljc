@@ -96,9 +96,9 @@
         :Map :Path) (str "VARCHAR(" max-varchar-length ")")
        (:UUID :Identity) "UUID"
        :Int "INT"
-       (:Int64 :Integer) "BIGINT"
+       (:Int64 :Integer :BigInteger) "BIGINT"
        :Float "REAL"
-       :Double "DOUBLE"
+       :Double "DOUBLE PRECISION"
        :Decimal "DECIMAL"
        :Boolean bool-type
        nil)))

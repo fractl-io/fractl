@@ -36,6 +36,7 @@
 
 (deftest test-load-script-with-raw
   (is :Sample.Tiny (loader/load-script nil "sample/tiny.fractl"))
+  (tu/finalize-component :Sample.Tiny)
   (let [expected-spec '(do (component :Sample.Tiny)
                            (entity :Sample.Tiny/A {:Id :Identity, :X :Int})
                            (defn tiny-f [x] (* 100 x))

@@ -285,7 +285,7 @@
         (do (store/create-schema store component-name)
             (conj @init-pending-components component-name)))))))
 
-(defn merge-init-pending-components! []
+(defn- merge-init-pending-components! []
   (when (seq @init-pending-components)
     (#?(:clj locking :cljs do)
      store-schema-lock
@@ -293,16 +293,17 @@
        (u/safe-set inited-components (set/union @inited-components @init-pending-components))
        (u/safe-set init-pending-components #{})))))
 
-(defn reset-init-pending-components! []
-  (u/safe-set init-pending-components #{}))
-
-(defn reinit-component-schema!
-  "Called by the repl for handling dynamic-changes in the schema."
-  [component-name]
+(defn init-all-schema [store]
+  (doseq [cname (cn/component-names)]
+    (maybe-init-schema! store cname))
   (merge-init-pending-components!)
-  (#?(:clj locking :cljs do)
-   store-schema-lock
-   (u/safe-set inited-components (disj @inited-components component-name))))
+  true)
+
+(defn force-init-schema [store component-name]
+  (u/safe-set inited-components (disj @inited-components component-name))
+  (maybe-init-schema! store component-name)
+  (merge-init-pending-components!)
+  component-name)
 
 (defn- chained-crud [store-f res resolver-f single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
@@ -386,8 +387,6 @@
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
-    (when store
-      (maybe-init-schema! store (first record-name)))
     (let [is-single (map? insts)
           result
           (if (or is-single (env/any-dirty? env insts))

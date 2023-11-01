@@ -139,7 +139,8 @@
     (log-app-init-result! result)))
 
 (defn- run-appinit-tasks! [evaluator store init-data]
-  (trigger-appinit-event! evaluator init-data))
+  (when (e/init-all-schema)
+    (trigger-appinit-event! evaluator init-data)))
 
 (defn- merge-resolver-configs [app-config resolver-configs]
   (let [app-resolvers (:resolvers app-config)]
@@ -453,9 +454,9 @@
                           (println (force-call-after-load-model
                                     model-name
                                     (let [model-info (read-model-and-config options)
-                                          _ (prepare-runtime model-info)]
+                                          [_ config] (prepare-runtime model-info)]
                                       (fn []
-                                        (repl/run model-name))))))
+                                        (repl/run model-name (:store-handle config)))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(call-after-load-model

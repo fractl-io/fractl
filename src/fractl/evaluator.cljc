@@ -139,18 +139,15 @@
    (let [event-instance (maybe-init-event event-instance)
          f (partial eval-dataflow-in-transaction evaluator env event-instance df)]
      (try
-       (let [r (if-let [txn (gs/get-active-txn)]
-                 (f txn)
-                 (if-let [store (env/get-store env)]
-                   (store/call-in-transaction store f)
-                   (f nil)))]
-         (r/merge-init-pending-components!)
-         r)
+       (if-let [txn (gs/get-active-txn)]
+         (f txn)
+         (if-let [store (env/get-store env)]
+           (store/call-in-transaction store f)
+           (f nil)))
        (catch #?(:clj Exception :cljs :default) ex
-         (do (r/reset-init-pending-components!)
-             (if-let [r (:eval-result (ex-data ex))]
-               r
-               (throw ex)))))))
+         (if-let [r (:eval-result (ex-data ex))]
+           r
+           (throw ex))))))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 
@@ -329,3 +326,5 @@
 (defn safe-eval-pattern [pattern]
   (u/safe-ok-result
    (evaluate-pattern pattern)))
+
+(def init-all-schema r/init-all-schema)
