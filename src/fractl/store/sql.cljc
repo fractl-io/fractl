@@ -26,28 +26,40 @@
 (defn- maybe-remove-where [qpat]
   (if (:where qpat) qpat (dissoc qpat :where)))
 
-(def ^:private not-deleted [:= su/deleted-flag-col-kw false])
+(defn- with-deleted-flag [flag where]
+  (let [clause [:= su/deleted-flag-col-kw flag]]
+    (if where
+      [:and clause where]
+      clause)))
 
-(defn- with-not-deleted-clause [where]
-  (if where
-    [:and not-deleted where]
-    not-deleted))
+(def ^:private with-not-deleted-clause (partial with-deleted-flag false))
+(def ^:private with-deleted-clause (partial with-deleted-flag true))
 
 (defn format-sql [table-name query]
-  (let [group-by (:group-by query)
+  (let [qmap (map? query)
+        group-by (when qmap (:group-by query))
         query (if group-by (dissoc query :group-by) query)
+        [deleted query] (if qmap
+                          [(:deleted query)
+                           (dissoc query :deleted)]
+                          [nil query])
+        with-deleted-flag (if deleted
+                            with-deleted-clause
+                            with-not-deleted-clause)
         wildcard (make-wildcard query)
         interim-pattern
         (maybe-remove-where
-         (if (map? query)
+         (if qmap
            (merge
             {:select wildcard :from [(keyword table-name)]}
-            (attach-column-name-prefixes query))
+            (let [clause (attach-column-name-prefixes query)
+                  where (:where clause)]
+              (assoc clause :where (with-deleted-flag where))))
            (let [where-clause (attach-column-name-prefixes query)
                  p {:select wildcard
                     :from [(keyword table-name)]}]
              (assoc p :where
-                    (with-not-deleted-clause
+                    (with-deleted-flag
                       (when where-clause
                         (let [f (first where-clause)]
                           (cond

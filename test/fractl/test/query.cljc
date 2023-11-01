@@ -200,18 +200,17 @@
     (dataflow :QDel/find2
       {:QDel/E {:X? 50}}))
   (let [e (cn/make-instance :QDel/E {:X 100})
-        e1                       (cn/make-instance :QDel/E {:X 50})
-        _                        (first (tu/fresult (e/eval-all-dataflows {:QDel/Create_E {:Instance e}})))
-        _                        (first (tu/fresult (e/eval-all-dataflows {:QDel/Create_E {:Instance e1}})))
-
-        devt                     (cn/make-instance :QDel/DeleteByAttr {})
-        delete-result            (doall (e/eval-all-dataflows devt))
-        devt                     (cn/make-instance :QDel/DeleteWithAlias {})
+        e1 (cn/make-instance :QDel/E {:X 50})
+        _ (first (tu/fresult (e/eval-all-dataflows {:QDel/Create_E {:Instance e}})))
+        _ (first (tu/fresult (e/eval-all-dataflows {:QDel/Create_E {:Instance e1}})))
+        devt (cn/make-instance :QDel/DeleteByAttr {})
+        delete-result (doall (e/eval-all-dataflows devt))
+        devt (cn/make-instance :QDel/DeleteWithAlias {})
         delete-with-alias-result (doall (e/eval-all-dataflows devt))
-        devt                     (cn/make-instance :QDel/find1 {})
-        find-result-1            (doall (e/eval-all-dataflows devt))
-        devt                     (cn/make-instance :QDel/find2 {})
-        find-result-2            (doall (e/eval-all-dataflows devt))]
+        devt (cn/make-instance :QDel/find1 {})
+        find-result-1 (doall (e/eval-all-dataflows devt))
+        devt (cn/make-instance :QDel/find2 {})
+        find-result-2 (doall (e/eval-all-dataflows devt))]
     (is (= :ok (:status (first delete-result))))
     (is (= 50 (get-in (first delete-result) [:result 0 :X])))
     (is (= :ok (:status (first delete-with-alias-result))))
@@ -543,3 +542,34 @@
       (is (= (count rs) 5))
       (is (= (float (:Price (first rs))) 800.0))
       (is (= (float (:Price (last rs))) 2200.0)))))
+
+(deftest issue-1123-query-deleted
+  (defcomponent :I1123
+    (entity
+     :I1123/E
+     {:X :Int
+      :Id {:type :Int :guid true}})
+    (dataflow
+     :I1123/QueryAllDeleted
+     {:I1123/E?
+      {:deleted true}})
+    (dataflow
+     :I1123/QueryDeleted
+     {:I1123/E?
+      {:deleted true
+       :where [:= :Id :I1123/QueryDeleted.Id]}}))
+  (let [[e1 e2 e3 :as es] (mapv #(tu/first-result
+                                  {:I1123/Create_E
+                                   {:Instance
+                                    {:I1123/E {:Id % :X (* 2 %)}}}})
+                                [1 2 3])
+        e? (partial cn/instance-of? :I1123/E)]
+    (is (and (= 3 (count es)) (every? e? es)))
+    (is (cn/same-instance? e1 (tu/first-result {:I1123/Lookup_E {:Id 1}})))
+    (is (not (seq (tu/result {:I1123/QueryDeleted {:Id 1}}))))
+    (is (cn/same-instance? e1 (tu/first-result {:I1123/Delete_E {:Id 1}})))
+    (is (not (e? (tu/first-result {:I1123/Lookup_E {:Id 1}}))))
+    (is (cn/same-instance? e1 (tu/first-result {:I1123/QueryDeleted {:Id 1}})))
+    (is (cn/same-instance? e2 (tu/first-result {:I1123/Delete_E {:Id 2}})))
+    (let [es (tu/result {:I1123/QueryAllDeleted {}})]
+      (is (and (= 2 (count es)) (every? e? es))))))
