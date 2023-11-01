@@ -29,10 +29,17 @@
     (u/throw-ex "alias not supported for event-pattern"))
   pat)
 
-(def ^:private schema-fns #{'entity 'relationship})
+(defn- need-schema-init? [exp]
+  (let [n (first exp)]
+    (or (= n 'entity)
+        (and (= n 'relationship)
+             (let [rec-def (if (map? (second exp))
+                             (li/record-attributes (second exp))
+                             (nth exp 2))]
+               (:between (:meta rec-def)))))))
 
 (defn- maybe-reinit-schema [store exp]
-  (when (and (seqable? exp) (some #{(first exp)} schema-fns))
+  (when (and (seqable? exp) (need-schema-init? exp))
     (let [[c _] (li/split-path
                  (let [r (second exp)]
                    (if (map? r)
@@ -43,10 +50,11 @@
 
 (defn- repl-eval [store exp]
   (try
-    (let [r (eval (maybe-reinit-schema store exp))]
-      (if (or (map? r) (vector? r) (keyword? r))
-        (evaluate-pattern r)
-        r))
+    (let [r (eval exp)]
+      (when (maybe-reinit-schema store exp)
+        (if (or (map? r) (vector? r) (keyword? r))
+          (evaluate-pattern r)
+          r)))
     (catch Exception ex
       (println (str "ERROR - " (.getMessage ex))))))
 

@@ -202,8 +202,10 @@
   component-name)
 
 (defn init-all-schema [store]
-  (doseq [cname (cn/component-names)]
-    (maybe-init-schema store cname)))
+  (let [cnames (cn/component-names)]
+    (doseq [cname cnames]
+      (maybe-init-schema store cname))
+    cnames))
 
 (defn force-init-schema [store component-name]
   (u/safe-set inited-components (disj @inited-components component-name))
