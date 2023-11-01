@@ -17,7 +17,8 @@
       (let [res (ev/evaluate-pattern (gs/get-active-env) pat)
             {env :env status :status result :result} res]
         (if (= :ok status)
-          (do (gs/set-active-env! env)
+          (do (ev/fire-post-events env)
+              (gs/set-active-env! (env/disable-post-event-triggers env))
               result)
           (or status pat)))
       (catch Exception ex

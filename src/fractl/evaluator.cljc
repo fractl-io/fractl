@@ -80,7 +80,7 @@
         (log/warn r)
         (u/throw-ex (str "internal event " event-name " failed."))))))
 
-(defn- fire-post-events [env]
+(defn fire-post-events [env]
   (let [srcs (env/post-event-trigger-sources env)]
     (doseq [tag [:create :update :delete]]
       (when-let [insts (seq (tag srcs))]
