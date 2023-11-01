@@ -326,5 +326,3 @@
 (defn safe-eval-pattern [pattern]
   (u/safe-ok-result
    (evaluate-pattern pattern)))
-
-(def init-all-schema r/init-all-schema)

@@ -139,7 +139,7 @@
     (log-app-init-result! result)))
 
 (defn- run-appinit-tasks! [evaluator store init-data]
-  (when (e/init-all-schema)
+  (when (store/init-all-schema store)
     (trigger-appinit-event! evaluator init-data)))
 
 (defn- merge-resolver-configs [app-config resolver-configs]

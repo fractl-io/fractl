@@ -2,7 +2,6 @@
   (:require [fractl.evaluator :as e]
             [fractl.evaluator.internal :as ei]
             [fractl.evaluator.intercept :as ec]
-            [fractl.evaluator.root :as er]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             #?(:clj  [clojure.test :refer [is]]
@@ -44,11 +43,11 @@
   (doseq [cn [:Fractl.Kernel.Lang
               :Fractl.Kernel.Identity
               :Fractl.Kernel.Rbac]]
-    (er/force-init-schema (store/get-default-store) cn)))
+    (store/force-init-schema (store/get-default-store) cn)))
 
 (defn finalize-component [component]
   (finalize-kernel-components)
-  (er/force-init-schema (store/get-default-store) component))
+  (store/force-init-schema (store/get-default-store) component))
 
 (defmacro defcomponent [component & body]
   `(do (fractl.lang/component ~component)

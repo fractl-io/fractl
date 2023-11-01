@@ -270,41 +270,6 @@
      (mapv #(seq (mapv (fn [e] (f e %)) (cn/conditional-events %)))
            insts))))
 
-(def ^:private inited-components (u/make-cell #{}))
-(def ^:private init-pending-components (u/make-cell #{}))
-(def ^:private store-schema-lock #?(:clj (Object.) :cljs nil))
-
-(defn- maybe-init-schema! [store component-name]
-  (when (and (not (some #{component-name} @inited-components))
-             (not (some #{component-name} @init-pending-components)))
-    (#?(:clj locking :cljs do)
-     store-schema-lock
-     (when-not (some #{component-name} @inited-components)
-       (u/safe-set
-        init-pending-components
-        (do (store/create-schema store component-name)
-            (conj @init-pending-components component-name)))))))
-
-(defn- merge-init-pending-components! []
-  (when (seq @init-pending-components)
-    (#?(:clj locking :cljs do)
-     store-schema-lock
-     (when (seq @init-pending-components)
-       (u/safe-set inited-components (set/union @inited-components @init-pending-components))
-       (u/safe-set init-pending-components #{})))))
-
-(defn init-all-schema [store]
-  (doseq [cname (cn/component-names)]
-    (maybe-init-schema! store cname))
-  (merge-init-pending-components!)
-  true)
-
-(defn force-init-schema [store component-name]
-  (u/safe-set inited-components (disj @inited-components component-name))
-  (maybe-init-schema! store component-name)
-  (merge-init-pending-components!)
-  component-name)
-
 (defn- chained-crud [store-f res resolver-f single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path

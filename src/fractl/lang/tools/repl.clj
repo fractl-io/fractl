@@ -5,7 +5,7 @@
             [fractl.lang.tools.loader :as loader]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
-            [fractl.evaluator.root :as evr]
+            [fractl.store :as store]
             [fractl.util :as u]
             [fractl.env :as env]
             [fractl.global-state :as gs]))
@@ -29,16 +29,16 @@
     (u/throw-ex "alias not supported for event-pattern"))
   pat)
 
-(def ^:private lang-fns #{'entity 'relationship 'event 'record 'component})
+(def ^:private schema-fns #{'entity 'relationship})
 
 (defn- maybe-reinit-schema [store exp]
-  (when (and (seqable? exp) (some #{(first exp)} lang-fns))
+  (when (and (seqable? exp) (some #{(first exp)} schema-fns))
     (let [[c _] (li/split-path
                  (let [r (second exp)]
                    (if (map? r)
                      (li/record-name r)
                      r)))]
-      (evr/force-init-schema store c)))
+      (store/force-init-schema store c)))
   exp)
 
 (defn- repl-eval [store exp]

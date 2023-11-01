@@ -187,3 +187,24 @@
   ([store entity-name id]
    (lookup-by-id store entity-name cn/id-attr id)))
 
+(def ^:private inited-components (u/make-cell #{}))
+(def ^:private store-schema-lock #?(:clj (Object.) :cljs nil))
+
+(defn- maybe-init-schema [store component-name]
+  (when (not (some #{component-name} @inited-components))
+    (#?(:clj locking :cljs do)
+     store-schema-lock
+     (when-not (some #{component-name} @inited-components)
+       (u/safe-set
+        inited-components
+        (do (create-schema store component-name)
+            (conj @inited-components component-name))))))
+  component-name)
+
+(defn init-all-schema [store]
+  (doseq [cname (cn/component-names)]
+    (maybe-init-schema store cname)))
+
+(defn force-init-schema [store component-name]
+  (u/safe-set inited-components (disj @inited-components component-name))
+  (maybe-init-schema store component-name))
