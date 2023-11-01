@@ -239,6 +239,7 @@
                   map-obj (first obj)]
               (gpt/non-interactive-generate
                (get map-obj :key)
+               (get map-obj :seed-type)
                (fn [choice history]
                  (if choice
                    (reset!
@@ -927,7 +928,6 @@
            (DELETE (str uh/entity-event-prefix "*") [] (:delete-request handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
-           (POST uh/gpt-prefix [] (:gpt handlers))
            (POST uh/ai-prefix [] (:ai handlers))
            (POST uh/auth-callback-prefix [] (:auth-callback handlers))
            (GET "/meta/:component" [] (:meta handlers))
@@ -989,7 +989,6 @@
           :delete-request (partial process-delete-request evaluator auth-info)
           :query (partial process-query evaluator auth-info)
           :eval (partial process-dynamic-eval evaluator auth-info nil)
-          :gpt (partial process-gpt-chat auth-info)
           :ai (partial process-gpt-chat auth-info)
           :auth-callback (partial process-auth-callback evaluator config auth-info)
           :meta (partial process-meta-request auth-info)})

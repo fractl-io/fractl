@@ -219,9 +219,11 @@
 
 #?(:clj
    (defn bot [request]
-     (let [req [{:role "user" :content request}]
+     (let [seed-type (:seed-type request)
+           req [{:role "user" :content (:content request)}]
            resp (atom nil)]
        (non-interactive-generate
+        seed-type
         (fn [choice history]
           (reset!
            resp
