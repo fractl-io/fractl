@@ -615,15 +615,15 @@
       (w/postwalk
        #(if (keyword? %)
           (cond
-            (= :_Instance %) rf-inst
+            (= :Instance %) rf-inst
 
             (= li/event-context %) rf-ctx
 
-            (s/starts-with? (str %) ":_Instance.")
-            (keyword (subs (s/replace (str %) ":_Instance." (str rf-inst ".")) 1))
+            (s/starts-with? (str %) ":Instance.")
+            (keyword (subs (s/replace (str %) ":Instance." (str rf-inst ".")) 1))
 
-            (s/starts-with? (str %) ":_EventContext.")
-            (keyword (subs (s/replace (str %) ":_EventContext." (str rf-ctx ".")) 1))
+            (s/starts-with? (str %) ":EventContext.")
+            (keyword (subs (s/replace (str %) ":EventContext." (str rf-ctx ".")) 1))
 
             :else %)
           %)

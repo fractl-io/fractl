@@ -173,22 +173,22 @@
     (entity :I1059/B1 {:Y :Int})
     (dataflow
      [:after :create :I1059/A]
-     {:I1059/A1 {:X :_Instance.X :Id :_Instance.Id}})
+     {:I1059/A1 {:X :Instance.X :Id :Instance.Id}})
     (dataflow
      [:before :create :I1059/A]
-     {:I1059/ALog {:Id :_Instance.Id :Tag "create" :User :_EventContext.User}})
+     {:I1059/ALog {:Id :Instance.Id :Tag "create" :User :EventContext.User}})
     (dataflow
      [:before :update :I1059/A]
-     {:I1059/ALog {:Id :_Instance.Id :Tag "update" :User :_EventContext.User}})
+     {:I1059/ALog {:Id :Instance.Id :Tag "update" :User :EventContext.User}})
     (dataflow
      [:before :delete :I1059/A]
-     {:I1059/ALog {:Id :_Instance.Id :Tag "delete" :User :_EventContext.User}})
+     {:I1059/ALog {:Id :Instance.Id :Tag "delete" :User :EventContext.User}})
     (dataflow
      [:after :delete :I1059/A]
-     [:delete :I1059/A1 {:Id :_Instance.Id}])
+     [:delete :I1059/A1 {:Id :Instance.Id}])
     (dataflow
      [:after :create :I1059/B]
-     {:I1059/B1 {:Y :_Instance.Y}})
+     {:I1059/B1 {:Y :Instance.Y}})
     (dataflow
      :I1059/LookupA1
      {:I1059/A1 {:Id? :I1059/LookupA1.Id}})
@@ -288,9 +288,9 @@
     (dataflow
      [:after :create :Cewr/A]
      {:Cewr/B
-      {:Id :_Instance.Id :Y '(* :_Instance.Id 100)}
-      :-> [[:Cewr/R1 :_Instance]
-           [{:Cewr/R2 {}} {:Cewr/C {:Id? :_Instance.Id}}]]}))
+      {:Id :Instance.Id :Y '(* :Instance.Id 100)}
+      :-> [[:Cewr/R1 :Instance]
+           [{:Cewr/R2 {}} {:Cewr/C {:Id? :Instance.Id}}]]}))
   (let [create-a (fn [id]
                    (tu/first-result
                     {:Cewr/Create_A

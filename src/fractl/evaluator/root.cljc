@@ -296,6 +296,14 @@
 (defn reset-init-pending-components! []
   (u/safe-set init-pending-components #{}))
 
+(defn reinit-component-schema!
+  "Called by the repl for handling dynamic-changes in the schema."
+  [component-name]
+  (merge-init-pending-components!)
+  (#?(:clj locking :cljs do)
+   store-schema-lock
+   (u/safe-set inited-components (disj @inited-components component-name))))
+
 (defn- chained-crud [store-f res resolver-f single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
@@ -689,7 +697,10 @@
 
 (defn- extract-local-result [r]
   (when (i/ok? r)
-    (first (:result r))))
+    (let [res (:result r)]
+      (if (map? res)
+        res
+        (first res)))))
 
 (defn- extract-local-result-as-vec [r]
   (when-let [rs (extract-local-result r)]
