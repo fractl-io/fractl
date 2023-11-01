@@ -2,6 +2,7 @@
   (:require [clojure.tools.cli :refer [parse-opts]]
             [clojure.java.io :as io]
             [clojure.string :as s]
+            [clojure.pprint :as pprint]
             [fractl.datafmt.json :as json]
             [fractl.util :as u]
             [fractl.util.seq :as su]
@@ -415,7 +416,8 @@
   (println (str "Your request: '" request "' is being serviced..."))
   (if request
     (if-let [code (gpt/bot request)]
-      (do (clojure.pprint/pprint code) (System/exit 0))
+      (do (pprint/pprint code)
+          (System/exit 0))
       (println "ERROR: GPT failed to generate model, please try again."))
     (println "Please enter a description of the app after the -i option.")))
 

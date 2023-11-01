@@ -78,9 +78,11 @@
     (catch #?(:clj Exception :cljs :default) ex
       [nil #?(:clj (.getMessage ex) :cljs ex)])))
 
-(defn non-interactive-generate-helper [gpt seed response-handler request]
+(defn non-interactive-generate-helper [gpt seed-type response-handler request]
   (let [orig-request request
-        request (add-to-conversation seed request)]
+        request (case seed-type
+                  "model" (add-to-conversation default-conversation request)
+                  "resolver" (add-to-conversation resolver-conversation request))]
     (post gpt (fn [r]
                 (let [choices (choices (:chat-response r))
                       [choice err-msg] (find-choice choices)]
@@ -91,14 +93,14 @@
           request)))
 
 (defn non-interactive-generate
-  ([gpt-model-name api-key seed response-handler request]
-   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) seed response-handler request))
-  ([api-key seed response-handler request]
+  ([gpt-model-name api-key seed-type response-handler request]
+   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) seed-type response-handler request))
+  ([api-key seed-type response-handler request]
    (if (nil? api-key)
-     (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") seed response-handler request)
-     (non-interactive-generate default-model api-key seed response-handler request)))
-  ([seed response-handler request]
-   (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") seed response-handler request)))
+     (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") seed-type response-handler request)
+     (non-interactive-generate default-model api-key seed-type response-handler request)))
+  ([seed-type response-handler request]
+   (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") seed-type response-handler request)))
 
 (defn- prnf [s]
   #?(:clj
