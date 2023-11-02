@@ -952,13 +952,21 @@
             pat (assoc pat pk attrs)
             rec-s (li/name-str recname)
             rel-s (li/name-str relname)
+            pid-n (cn/path-identity-attribute-name recname)
+            maybe-can-fix-path (and (not idpat) (not (and is-rel-q is-pat-q)))
+            pat-with-fixed-path (when maybe-can-fix-path
+                                  (when-let [pid-v (pid-n attrs)]
+                                    (assoc pat pk
+                                           (assoc attrs li/path-attr
+                                                  `(fractl.compiler/maybe-append-path-identity-pattern
+                                                    ~v ~(cn/path-identity-attribute-name recname))))))
             pats [[:eval
                    (if idpat
                      `(fractl.component/full-path-from-references ~pp-alias ~rel-s ~idpat ~rec-s)
                      `(fractl.component/full-path-from-references ~pp-alias ~rel-s ~rec-s))
                    :as v]
-                  (assoc pat :as pat-alias)]
-            post-pats (when (and (not idpat) (not (and is-rel-q is-pat-q)))
+                  (assoc (or pat-with-fixed-path pat) :as pat-alias)]
+            post-pats (when maybe-can-fix-path
                         (let [ident (cn/identity-attribute-name recname)]
                           [{recname
                             {(li/name-as-query-pattern ident)
