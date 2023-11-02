@@ -31,10 +31,11 @@
     :frequency_penalty 0.0
     :presence_penalty 0.6}
    :json (fn [{body :body :as response}]
-           (result-handler
-            (if (and (string? body) (seq body))
-              {:chat-response (json/decode body)}
-              response)))))
+           (let [decoded-body (json/decode body)
+                 choices (:choices decoded-body)]
+             (if (not (nil? decoded-body))
+               {:chat-reponse (get-in (first choices) [:message :content])}
+               (u/throw-ex "AI failed to service your request, please try again"))))))
 
 (defn- choices [resp]
   (map #(:content (:message %)) (:choices resp)))
@@ -191,6 +192,7 @@
   (add-to-conversation history "user" msg))
 
 (def choice :choice)
+(def chat-response :chat-response)
 (def chat-history :chat-history)
 
 (defn- make-model [component-def]
@@ -209,7 +211,7 @@
 
 (defn get-model [response]
   (try
-    (when-let [c (choice response)]
+    (when-let [c (chat-response response)]
       (let [exps (rest (u/parse-string (str "(do " c ")")))]
         (when (= 'component (ffirst exps))
           {:model (make-model (first exps))
