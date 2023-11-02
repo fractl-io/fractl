@@ -138,8 +138,8 @@
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
-(defn- run-appinit-tasks! [evaluator store init-data]
-  (trigger-appinit-event! evaluator init-data))
+(defn- run-appinit-tasks! [evaluator init-data]
+    (trigger-appinit-event! evaluator init-data))
 
 (defn- merge-resolver-configs [app-config resolver-configs]
   (let [app-resolvers (:resolvers app-config)]
@@ -174,23 +174,24 @@
 (defn- init-runtime [model config]
   (let [store (store-from-config config)
         ev (e/public-evaluator store true)
-        ins (:interceptors config)
-        resolved-config (run-initconfig config ev)
-        has-rbac (some #{:rbac} (keys ins))]
-    (register-resolvers! config ev)
-    (when (seq (:resolvers resolved-config))
-      (register-resolvers! resolved-config ev))
-    (register-store-resolver! store)
-    (if has-rbac
-      (lr/finalize-events ev)
-      (lr/reset-events!))
-    (run-appinit-tasks! ev store (or (:init-data model)
-                                     (:init-data config)))
-    (when has-rbac
-      (when-not (rbac/init (merge (:rbac ins) (:authentication config)))
-        (log/error "failed to initialize rbac")))
-    (ei/init-interceptors ins)
-    [ev store]))
+        ins (:interceptors config)]
+    (when (store/init-all-schema store)
+      (let [resolved-config (run-initconfig config ev)
+            has-rbac (some #{:rbac} (keys ins))]
+        (register-resolvers! config ev)
+        (when (seq (:resolvers resolved-config))
+          (register-resolvers! resolved-config ev))
+        (register-store-resolver! store)
+        (if has-rbac
+          (lr/finalize-events ev)
+          (lr/reset-events!))
+        (run-appinit-tasks! ev (or (:init-data model)
+                                   (:init-data config)))
+        (when has-rbac
+          (when-not (rbac/init (merge (:rbac ins) (:authentication config)))
+            (log/error "failed to initialize rbac")))
+        (ei/init-interceptors ins)
+        [ev store]))))
 
 (defn- finalize-config [model config]
   (let [final-config (merge (:config model) config)]
@@ -452,10 +453,10 @@
                               model-name (first args)]
                           (println (force-call-after-load-model
                                     model-name
-                                    (let [model-info (read-model-and-config options)
-                                          _ (prepare-runtime model-info)]
-                                      (fn []
-                                        (repl/run model-name))))))
+                                    (fn []
+                                      (let [model-info (read-model-and-config options)
+                                            [_ config] (prepare-runtime model-info)]
+                                        (repl/run model-name (:store-handle config)))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(call-after-load-model

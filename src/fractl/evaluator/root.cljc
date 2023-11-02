@@ -270,40 +270,6 @@
      (mapv #(seq (mapv (fn [e] (f e %)) (cn/conditional-events %)))
            insts))))
 
-(def ^:private inited-components (u/make-cell #{}))
-(def ^:private init-pending-components (u/make-cell #{}))
-(def ^:private store-schema-lock #?(:clj (Object.) :cljs nil))
-
-(defn- maybe-init-schema! [store component-name]
-  (when (and (not (some #{component-name} @inited-components))
-             (not (some #{component-name} @init-pending-components)))
-    (#?(:clj locking :cljs do)
-     store-schema-lock
-     (when-not (some #{component-name} @inited-components)
-       (u/safe-set
-        init-pending-components
-        (do (store/create-schema store component-name)
-            (conj @init-pending-components component-name)))))))
-
-(defn merge-init-pending-components! []
-  (when (seq @init-pending-components)
-    (#?(:clj locking :cljs do)
-     store-schema-lock
-     (when (seq @init-pending-components)
-       (u/safe-set inited-components (set/union @inited-components @init-pending-components))
-       (u/safe-set init-pending-components #{})))))
-
-(defn reset-init-pending-components! []
-  (u/safe-set init-pending-components #{}))
-
-(defn reinit-component-schema!
-  "Called by the repl for handling dynamic-changes in the schema."
-  [component-name]
-  (merge-init-pending-components!)
-  (#?(:clj locking :cljs do)
-   store-schema-lock
-   (u/safe-set inited-components (disj @inited-components component-name))))
-
 (defn- chained-crud [store-f res resolver-f single-arg-path insts]
   (let [insts (if (or single-arg-path (not (map? insts))) insts [insts])
         resolver (if single-arg-path
@@ -386,8 +352,6 @@
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
         resolver (env/get-resolver env)]
-    (when store
-      (maybe-init-schema! store (first record-name)))
     (let [is-single (map? insts)
           result
           (if (or is-single (env/any-dirty? env insts))
