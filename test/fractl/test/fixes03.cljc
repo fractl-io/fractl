@@ -644,7 +644,7 @@
         g? (partial cn/instance-of? :Mqs/G)]
     (is (= (count es) 3) (every? e? es))
     (is (= (count fs) 3) (every? f? fs))
-    (let [g (tu/result {:Mqs/Q {:E 1 :F 2}})]
+    (let [g (tu/first-result {:Mqs/Q {:E 1 :F 2}})]
       (is (g? g))
       (is (= (:Pid g) 100))
       (is (cn/same-instance?
