@@ -966,7 +966,7 @@
                      `(fractl.component/full-path-from-references ~pp-alias ~rel-s ~rec-s))
                    :as v]
                   (assoc (or pat-with-fixed-path pat) :as pat-alias)]
-            post-pats (when maybe-can-fix-path
+            post-pats (when (and maybe-can-fix-path (not pat-with-fixed-path))
                         (let [ident (cn/identity-attribute-name recname)]
                           [{recname
                             {(li/name-as-query-pattern ident)

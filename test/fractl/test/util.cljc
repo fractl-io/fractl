@@ -86,7 +86,8 @@
 (def eval-all-dataflows e/eval-all-dataflows)
 
 (defn first-result [evt]
-  (first (result (maybe-as-map evt))))
+  (let [r (result (maybe-as-map evt))]
+    (if (map? r) r (first r))))
 
 (defn sleep [msec f]
   #?(:clj
