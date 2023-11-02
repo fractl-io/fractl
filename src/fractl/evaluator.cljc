@@ -80,7 +80,7 @@
         (log/warn r)
         (u/throw-ex (str "internal event " event-name " failed."))))))
 
-(defn- fire-post-events [env]
+(defn fire-post-events [env]
   (let [srcs (env/post-event-trigger-sources env)]
     (doseq [tag [:create :update :delete]]
       (when-let [insts (seq (tag srcs))]
@@ -139,18 +139,15 @@
    (let [event-instance (maybe-init-event event-instance)
          f (partial eval-dataflow-in-transaction evaluator env event-instance df)]
      (try
-       (let [r (if-let [txn (gs/get-active-txn)]
-                 (f txn)
-                 (if-let [store (env/get-store env)]
-                   (store/call-in-transaction store f)
-                   (f nil)))]
-         (r/merge-init-pending-components!)
-         r)
+       (if-let [txn (gs/get-active-txn)]
+         (f txn)
+         (if-let [store (env/get-store env)]
+           (store/call-in-transaction store f)
+           (f nil)))
        (catch #?(:clj Exception :cljs :default) ex
-         (do (r/reset-init-pending-components!)
-             (if-let [r (:eval-result (ex-data ex))]
-               r
-               (throw ex)))))))
+         (if-let [r (:eval-result (ex-data ex))]
+           r
+           (throw ex))))))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 

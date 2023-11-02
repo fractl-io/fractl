@@ -39,10 +39,21 @@
            :cljs (catch js/Error e
                    (report-expected-ex e))))))
 
+(defn- finalize-kernel-components []
+  (doseq [cn [:Fractl.Kernel.Lang
+              :Fractl.Kernel.Identity
+              :Fractl.Kernel.Rbac]]
+    (store/force-init-schema (store/get-default-store) cn)))
+
+(defn finalize-component [component]
+  (finalize-kernel-components)
+  (store/force-init-schema (store/get-default-store) component))
+
 (defmacro defcomponent [component & body]
   `(do (fractl.lang/component ~component)
        ~@body
-       ~component))
+       ~component
+       (finalize-component ~component)))
 
 (defn fresult [r]
   (:result (first r)))
