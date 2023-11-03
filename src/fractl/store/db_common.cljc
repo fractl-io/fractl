@@ -74,7 +74,10 @@
 (defn- create-relational-table-sql [table-name entity-schema
                                     indexed-attributes unique-attributes
                                     compound-unique-attributes post-init-sqls]
-  (let [afk (partial append-fkeys table-name)]
+  (let [afk (partial append-fkeys table-name)
+        compound-unique-attributes (if (keyword? compound-unique-attributes)
+                                     [compound-unique-attributes]
+                                     compound-unique-attributes)]
     (concat
      [(str stu/create-table-prefix " " table-name " ("
            (loop [attrs (sort (keys entity-schema)), cols ""]

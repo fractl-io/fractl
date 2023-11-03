@@ -5,7 +5,7 @@
             [fractl.lang.tools.loader :as loader]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
-            [fractl.evaluator.root :as evr]
+            [fractl.store :as store]
             [fractl.util :as u]
             [fractl.env :as env]
             [fractl.global-state :as gs]))
@@ -17,7 +17,8 @@
       (let [res (ev/evaluate-pattern (gs/get-active-env) pat)
             {env :env status :status result :result} res]
         (if (= :ok status)
-          (do (gs/set-active-env! env)
+          (do (ev/fire-post-events env)
+              (gs/set-active-env! (env/disable-post-event-triggers env))
               result)
           (or status pat)))
       (catch Exception ex
@@ -29,24 +30,32 @@
     (u/throw-ex "alias not supported for event-pattern"))
   pat)
 
-(def ^:private lang-fns #{'entity 'relationship 'event 'record 'component})
+(defn- need-schema-init? [exp]
+  (let [n (first exp)]
+    (or (= n 'entity)
+        (and (= n 'relationship)
+             (let [rec-def (if (map? (second exp))
+                             (li/record-attributes (second exp))
+                             (nth exp 2))]
+               (:between (:meta rec-def)))))))
 
-(defn- maybe-reinit-schema [exp]
-  (when (and (seqable? exp) (some #{(first exp)} lang-fns))
+(defn- maybe-reinit-schema [store exp]
+  (when (and (seqable? exp) (need-schema-init? exp))
     (let [[c _] (li/split-path
                  (let [r (second exp)]
                    (if (map? r)
                      (li/record-name r)
                      r)))]
-      (evr/reinit-component-schema! c)))
+      (store/force-init-schema store c)))
   exp)
 
-(defn- repl-eval [exp]
+(defn- repl-eval [store exp]
   (try
-    (let [r (eval (maybe-reinit-schema exp))]
-      (if (or (map? r) (vector? r) (keyword? r))
-        (evaluate-pattern r)
-        r))
+    (let [r (eval exp)]
+      (when (maybe-reinit-schema store exp)
+        (if (or (map? r) (vector? r) (keyword? r))
+          (evaluate-pattern r)
+          r)))
     (catch Exception ex
       (println (str "ERROR - " (.getMessage ex))))))
 
@@ -57,10 +66,10 @@
       (println (str "WARN - " (.getMessage ex)))
       :fractl)))
 
-(defn run [model-name]
+(defn run [model-name store]
   (let [model-name (or model-name (infer-model-name))
         prompt (str (name model-name) "> ")
-        reval repl-eval]
+        reval (partial repl-eval store)]
     (use '[fractl.lang])
     (loop []
       (print prompt) (flush)
