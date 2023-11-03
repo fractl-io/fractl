@@ -2,8 +2,7 @@
   (:require [fractl.util :as u]
             [fractl.evaluator :as ev]
             [fractl.component :as cn]
-            [fractl.lang.internal :as li]
-            #?(:cljs [fractl.ui.policy-resolver :as uip])))
+            [fractl.lang.internal :as li]))
 
 (defn- normalize-path [p]
   (if (li/parsed-path? p)
@@ -14,15 +13,12 @@
 
 (defn lookup-policies [intercept resource]
   (or
-   #?(:cljs
-      (uip/lookup-policies intercept resource)
-      :clj
-      (let [result
-            (ev/eval-all-dataflows
-             {:Fractl.Kernel.Lang/LoadPolicies
-              {:Intercept (u/keyword-as-string intercept)
-               :Resource (u/keyword-as-string (normalize-path resource))}})]
-        (u/ok-result result true)))
+   (let [result
+         (ev/eval-all-dataflows
+          {:Fractl.Kernel.Lang/LoadPolicies
+           {:Intercept (u/keyword-as-string intercept)
+            :Resource (u/keyword-as-string (normalize-path resource))}})]
+     (ev/ok-result result true))
    (lookup-container-policies intercept resource)))
 
 (defn- lookup-container-policies [intercept resource]
