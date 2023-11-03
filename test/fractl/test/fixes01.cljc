@@ -629,12 +629,12 @@
                       {:I1070/A {:Id id :X (* id 10)}}}}))
         a? (partial cn/instance-of? :I1070/A)
         create-b (fn [id a]
-                   (tu/first-result
+                   (tu/result
                     {:I1070/CreateB
                      {:Id id :A a}}))
         b? (partial cn/instance-of? :I1070/B)
         create-c (fn [id a b]
-                   (tu/first-result
+                   (tu/result
                     {:I1070/CreateC
                      {:Id id :A a :B b}}))
         find-c (fn [a b c]
@@ -664,7 +664,7 @@
       (is (cn/same-instance? c1 (find-c 1 10 20)))
       (is (cn/same-instance? c2 (find-c 1 10 30)))
       (is (cn/same-instance? c3 (find-c 1 100 40)))
-      (let [cs (find-all-c 1 10)]
+      (let [cs (mapv #(dissoc % :__instmeta__) (find-all-c 1 10))]
         (is (and (= 2 (count cs)) (every? c? cs)))
         (is (= [c1 c2] (sort #(< (:Id %1) (:Id %2)) cs))))
       (let [cs (find-all-c 1 100)]

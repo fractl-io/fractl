@@ -259,13 +259,13 @@
     (is (every? a? [a1 a2]))
     (let [create-b-evt (fn [a id] {:I974/CreateB {:Id id :A a}})
           b? (partial cn/instance-of? :I974/B)
-          b1 (tu/first-result (create-b-evt 1 10))
+          b1 (tu/result (create-b-evt 1 10))
           lookup-b (partial lookup-inst :I974/Lookup_B)]
       (is b? b1)
       (is (cn/same-instance? b1 (lookup-b "path://I974$A/1/I974$R1/I974$B/10")))
       (let [create-c-evt (fn [a b id] {:I974/CreateC {:Id id :A a :B b :R 464 :D 12}})
             c? (partial cn/instance-of? :I974/C)
-            c1 (tu/first-result (create-c-evt 1 10 100))
+            c1 (tu/result (create-c-evt 1 10 100))
             lookup-c (partial lookup-inst :I974/Lookup_C)]
         (is (c? c1))
         (is (cn/same-instance? c1 (lookup-c "path://I974$A/1/I974$R1/I974$B/10/I974$R2/I974$C/100")))
