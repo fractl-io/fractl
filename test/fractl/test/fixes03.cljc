@@ -597,3 +597,56 @@
          (is (= 1 (:Y e)))
          (is (= 1.23 (:Z e)))
          (is (= ["k" "r" "s"] (:W e)))))))
+
+(deftest match-query-issue
+  (defcomponent :Mqs
+    (entity
+     :Mqs/E
+     {:Id {:type :Int :guid true}
+      :X :String})
+    (entity
+     :Mqs/F
+     {:Id {:type :Int :guid true}
+      :Y :Int})
+    (entity
+     :Mqs/G
+     {:Id :Identity
+      :Pid {:type :Int :id true}
+      :Z :Int})
+    (relationship
+     :Mqs/R
+     {:meta {:contains [:Mqs/F :Mqs/G]}})
+    (dataflow
+     :Mqs/Q
+     {:Mqs/E
+      {:Id? :Mqs/Q.E}
+      :as [:E1]}
+     {:Mqs/F
+      {:Id? :Mqs/Q.F}
+      :as [:F1]}
+     [:match :Mqs/E.X
+      "a" {:Mqs/G {:Pid 100 :Z 12}
+           :-> [[:Mqs/R :F1]]}
+      "b" {:Mqs/G {:Pid 200 :Z 24}
+           :-> [[:Mqs/R :F1]]}]))
+  (let [es (mapv #(tu/first-result
+                   {:Mqs/Create_E
+                    {:Instance
+                     {:Mqs/E {:Id %1 :X %2}}}})
+                 [1 2 3] ["a" "b" "c"])
+        fs (mapv #(tu/first-result
+                   {:Mqs/Create_F
+                    {:Instance
+                     {:Mqs/F {:Id % :Y (* % 10)}}}})
+                 [1 2 3])
+        e? (partial cn/instance-of? :Mqs/E)
+        f? (partial cn/instance-of? :Mqs/F)
+        g? (partial cn/instance-of? :Mqs/G)]
+    (is (= (count es) 3) (every? e? es))
+    (is (= (count fs) 3) (every? f? fs))
+    (let [g (tu/first-result {:Mqs/Q {:E 1 :F 2}})]
+      (is (g? g))
+      (is (= (:Pid g) 100))
+      (is (cn/same-instance?
+           g (tu/first-result
+              {:Mqs/Lookup_G {li/path-attr (li/path-attr g)}}))))))
