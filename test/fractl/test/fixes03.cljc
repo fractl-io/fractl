@@ -597,3 +597,21 @@
          (is (= 1 (:Y e)))
          (is (= 1.23 (:Z e)))
          (is (= ["k" "r" "s"] (:W e)))))))
+
+(deftest recursive-expr-bug
+  (defcomponent :Reb
+    (entity
+     :Reb/E
+     {:X :Float
+      :Y :Float
+      :Z '(/ (* :X 100) (- :Y :X))})
+    (dataflow
+     :Reb/MakeE
+     {:Reb/E {:X :Reb/MakeE.X
+              :Y '(* (+ :Reb/MakeE.Y 100) (- :X 1))}}))
+  (let [x (float 20.45)
+        computed-y (float 2926.058)
+        e (tu/first-result {:Reb/MakeE {:X 20.45 :Y 50.44}})]
+    (is (cn/instance-of? :Reb/E e))
+    (is (= computed-y (:Y e)))
+    (is (= (float (/ (* x 100) (- computed-y x))) (float (:Z e))))))
