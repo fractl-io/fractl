@@ -1,24 +1,49 @@
 (ns fractl.lang.tools.repl
   (:require [clojure.edn :as edn]
             [clojure.pprint :as pp]
+            [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.tools.loader :as loader]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
             [fractl.store :as store]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.env :as env]
             [fractl.global-state :as gs]))
 
-(defn- evaluate-pattern [pat]
-  (if (keyword? pat)
-    (or (env/lookup (gs/get-active-env) pat) pat)
+(def ^:private repl-component :Fractl.Kernel.Repl)
+(def ^:private ^ThreadLocal active-env (ThreadLocal.))
+
+(defn- set-active-env! [env]
+  (.set active-env env))
+
+(defn- get-active-env []
+  (.get active-env))
+
+(defn- eval-pattern-as-dataflow [evaluator pat]
+  (let [evt-name (li/make-path repl-component (li/unq-name))]
+    (ln/event evt-name {})
     (try
-      (let [res (ev/evaluate-pattern (gs/get-active-env) pat)
-            {env :env status :status result :result} res]
+      (let [evobj {evt-name {}}]
+        (ln/dataflow evt-name pat)
+        (evaluator
+         (if-let [env (get-active-env)]
+           (cn/assoc-event-context-env env evobj)
+           evobj)))
+      (finally
+        (cn/remove-event evt-name)))))
+
+(defn- evaluate-pattern [evaluator pat]
+  (if (keyword? pat)
+    (or (env/lookup (get-active-env) pat) pat)
+    (try
+      (let [res (eval-pattern-as-dataflow evaluator pat)
+            {env :env status :status result :result}
+            (if (map? res) res (first res))]
         (if (= :ok status)
           (do (ev/fire-post-events env)
-              (gs/set-active-env! (env/disable-post-event-triggers env))
+              (set-active-env! (env/disable-post-event-triggers env))
               result)
           (or status pat)))
       (catch Exception ex
@@ -49,12 +74,12 @@
       (store/force-init-schema store c)))
   exp)
 
-(defn- repl-eval [store exp]
+(defn- repl-eval [store evaluator exp]
   (try
     (let [r (eval exp)]
       (when (maybe-reinit-schema store exp)
         (if (or (map? r) (vector? r) (keyword? r))
-          (evaluate-pattern r)
+          (evaluate-pattern evaluator r)
           r)))
     (catch Exception ex
       (println (str "ERROR - " (.getMessage ex))))))
@@ -66,11 +91,12 @@
       (println (str "WARN - " (.getMessage ex)))
       :fractl)))
 
-(defn run [model-name store]
+(defn run [model-name store evaluator]
   (let [model-name (or model-name (infer-model-name))
         prompt (str (name model-name) "> ")
-        reval (partial repl-eval store)]
+        reval (partial repl-eval store evaluator)]
     (use '[fractl.lang])
+    (ln/component repl-component)
     (loop []
       (print prompt) (flush)
       (let [exp (try
