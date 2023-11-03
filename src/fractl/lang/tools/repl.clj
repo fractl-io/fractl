@@ -1,13 +1,14 @@
 (ns fractl.lang.tools.repl
   (:require [clojure.edn :as edn]
             [clojure.pprint :as pp]
+            [clojure.string :as s]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.tools.loader :as loader]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
             [fractl.store :as store]
-            [fractl.util :as u]
+            [fractl.util :as u]   
             [fractl.util.logger :as log]
             [fractl.env :as env]
             [fractl.global-state :as gs]))
@@ -21,18 +22,27 @@
 (defn- get-active-env []
   (.get active-env))
 
+(defn- invoke-eval [evaluator evobj]
+  (evaluator
+   (if-let [env (get-active-env)]
+     (cn/assoc-event-context-env env evobj)
+     evobj)))
+
+(defn- event-instance? [obj]
+  (and (map? obj)
+       (cn/event? (li/record-name obj))))
+
 (defn- eval-pattern-as-dataflow [evaluator pat]
-  (let [evt-name (li/make-path repl-component (li/unq-name))]
-    (ln/event evt-name {})
-    (try
-      (let [evobj {evt-name {}}]
-        (ln/dataflow evt-name pat)
-        (evaluator
-         (if-let [env (get-active-env)]
-           (cn/assoc-event-context-env env evobj)
-           evobj)))
-      (finally
-        (cn/remove-event evt-name)))))
+  (if (event-instance? pat)
+    (invoke-eval evaluator pat)
+    (let [evt-name (li/make-path repl-component (li/unq-name))]
+      (ln/event evt-name {})
+      (try
+        (let [evobj {evt-name {}}]
+          (ln/dataflow evt-name pat)
+          (invoke-eval evaluator evobj))
+        (finally
+          (cn/remove-event evt-name))))))
 
 (defn- evaluate-pattern [evaluator pat]
   (if (keyword? pat)
@@ -91,14 +101,21 @@
       (println (str "WARN - " (.getMessage ex)))
       :fractl)))
 
+(defn- maybe-change-model-name [model-name exp]
+  (if (and (seqable? exp) (= 'component (first exp)))
+    (let [n (second exp)
+          s (s/split (subs (str n) 1) #"\.")]
+      (s/lower-case (first s)))
+    model-name))
+
 (defn run [model-name store evaluator]
   (let [model-name (or model-name (infer-model-name))
-        prompt (str (name model-name) "> ")
         reval (partial repl-eval store evaluator)]
     (use '[fractl.lang])
+    (use '[fractl.lang.tools.replcmds])
     (ln/component repl-component)
-    (loop []
-      (print prompt) (flush)
+    (loop [model-name model-name]
+      (print (str (name model-name) "> ")) (flush)
       (let [exp (try
                   (edn/read (java.io.PushbackReader.
                              (java.io.BufferedReader. *in*)))
@@ -115,12 +132,12 @@
             (do (pp/pprint
                  {:fractl-version (gs/fractl-version)
                   :components (vec (cn/component-names))})
-                (recur))
+                (recur model-name))
 
             :else
             (do
               (when-let [r (reval exp)]
                 (pp/pprint r)
                 (flush))
-              (recur)))
-          (recur))))))
+              (recur (maybe-change-model-name model-name exp))))
+          (recur model-name))))))
