@@ -198,7 +198,7 @@
 (defn- make-model [component-def]
   (let [cname (second component-def)
         c (first (s/split (str cname) #"\."))]
-    {:name (keyword (subs (s/lower-case c) 1))
+    {:name (keyword (second (s/split c #"\:")))
      :version "0.0.1"
      :fractl-version (or (gs/fractl-version) "current")
      :components [cname]}))
