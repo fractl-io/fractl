@@ -34,7 +34,7 @@
            (let [decoded-body (json/decode body)
                  choices (:choices decoded-body)]
              (if (not (nil? decoded-body))
-               {:chat-reponse (get-in (first choices) [:message :content])}
+               {:chat-response (get-in (first choices) [:message :content])}
                (u/throw-ex "AI failed to service your request, please try again"))))))
 
 (defn- choices [resp]
