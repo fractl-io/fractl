@@ -158,7 +158,7 @@
         (db/update-instance @datasource entity-name instance))
       (delete-by-id [_ entity-name id-attr-name id]
         (db/delete-by-id
-         pi/delete-by-id-statement
+         db/delete-by-id-statement
          @datasource entity-name id-attr-name id))
       (delete-all [_ entity-name purge]
         (db/delete-all @datasource entity-name purge))

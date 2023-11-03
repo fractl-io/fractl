@@ -42,10 +42,3 @@
   (let [^PreparedStatement pstmt (jdbc/prepare conn [query-sql])]
     (.setObject pstmt 1 id)
     [pstmt nil]))
-
-(defn delete-by-id-statement [conn table-name id-attr-name id]
-  (let [sql (str "DELETE FROM " table-name " WHERE _" (s/lower-case (name id-attr-name)) " = ?")
-        ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
-    [pstmt [(if (= id-attr-name cn/id-attr)
-              (u/uuid-from-string id)
-              id)]]))

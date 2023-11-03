@@ -323,19 +323,24 @@
           (maybe-path-attribute path))}
         nil]))))
 
-(defn- generate-filter-query-event [component entity-name query-params]
-  (let [event-name (temp-event-name component)]
-    (and (apply ln/dataflow
-                event-name [{(li/name-as-query-pattern entity-name)
-                             {:where
-                              (if (map? query-params)
-                                `[:and ~@(mapv
-                                          (fn [[k v]]
-                                            [(if (= k li/path-attr) :like :=)
-                                             k (cn/parse-attribute-value entity-name k v)])
-                                          query-params)]
-                                query-params)}}])
-         event-name)))
+(defn- generate-filter-query-event
+  ([component entity-name query-params deleted]
+   (let [event-name (temp-event-name component)]
+     (and (apply ln/dataflow
+                 event-name [{(li/name-as-query-pattern entity-name)
+                              (merge
+                               (when deleted {:deleted true})
+                               {:where
+                                (if (map? query-params)
+                                  `[:and ~@(mapv
+                                            (fn [[k v]]
+                                              [(if (= k li/path-attr) :like :=)
+                                               k (cn/parse-attribute-value entity-name k v)])
+                                            query-params)]
+                                  query-params)})}])
+          event-name)))
+  ([component entity-name query-params]
+   (generate-filter-query-event component entity-name query-params false)))
 
 (defn- make-lookup-event [component entity-name id path]
   {(cn/crud-event-name component entity-name :Lookup)
@@ -502,10 +507,12 @@
   (or (maybe-unauth request)
       (if-let [data-fmt (find-data-format request)]
         (let [reqobj ((uh/decoder data-fmt) (String. (.bytes (:body request))))
-              q (preprocess-query (:Query reqobj))
+              qobj (:Query reqobj)
+              q (preprocess-query qobj)
+              deleted (:deleted qobj)
               entity-name (:from q)
               [component _] (li/split-path entity-name)
-              evn (generate-filter-query-event component entity-name (:where q))
+              evn (generate-filter-query-event component entity-name (:where q) deleted)
               evt (assoc-event-context request auth-config {evn {}})]
           (try
             (maybe-ok #(evaluate evaluator evt) data-fmt)
