@@ -7,15 +7,17 @@
             [fractl.lang.internal :as li]
             [fractl.global-state :as gs]
             [fractl.datafmt.json :as json]
-            [fractl.gpt.seed :as seed]))
+            [fractl.gpt.seed :as seed]
+            [fractl.gpt.resolver-seed :as resolver-seed]))
 
 (def ^:private default-conversation seed/full-conversation)
+(def ^:private resolver-conversation resolver-seed/conversation)
 
 (defn add-to-conversation
   ([history role s]
    (concat history [{:role role :content s}]))
-  ([msgs]
-   (concat default-conversation msgs)))
+  ([seed msgs]
+   (concat seed msgs)))
 
 (defn post [gpt result-handler request]
   (http/do-post
@@ -29,10 +31,11 @@
     :frequency_penalty 0.0
     :presence_penalty 0.6}
    :json (fn [{body :body :as response}]
-           (result-handler
-            (if (and (string? body) (seq body))
-              {:chat-response (json/decode body)}
-              response)))))
+           (let [decoded-body (json/decode body)
+                 choices (:choices decoded-body)]
+             (if (not (nil? decoded-body))
+               {:chat-response (get-in (first choices) [:message :content])}
+               (u/throw-ex "AI failed to service your request, please try again"))))))
 
 (defn- choices [resp]
   (map #(:content (:message %)) (:choices resp)))
@@ -43,22 +46,22 @@
   {:gpt-model gpt-model-name
    :api-key api-key})
 
-(defn- interactive-generate-helper [gpt response-handler request]
-  (let [request (add-to-conversation request)]
+(defn- interactive-generate-helper [gpt seed response-handler request]
+  (let [request (add-to-conversation seed request)]
     (post gpt (fn [r]
                 (when-let [[choice next-request] (response-handler
                                                   (choices (:chat-response r)))]
                   (interactive-generate-helper
-                   gpt response-handler (add-to-conversation
-                                         (add-to-conversation request "assistant" choice)
-                                         "user" next-request))))
+                   gpt seed response-handler (add-to-conversation
+                                              (add-to-conversation request "assistant" choice)
+                                              "user" next-request))))
           request)))
 
 (defn interactive-generate
-  ([gpt-model-name api-key response-handler request]
-   (interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
-  ([response-handler request]
-   (interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
+  ([gpt-model-name api-key seed response-handler request]
+   (interactive-generate-helper (init-gpt gpt-model-name api-key) seed response-handler request))
+  ([seed response-handler request]
+   (interactive-generate default-model (u/getenv "OPENAI_API_KEY") seed response-handler request)))
 
 (declare maybe-intern-component)
 
@@ -76,9 +79,11 @@
     (catch #?(:clj Exception :cljs :default) ex
       [nil #?(:clj (.getMessage ex) :cljs ex)])))
 
-(defn non-interactive-generate-helper [gpt response-handler request]
+(defn non-interactive-generate-helper [gpt seed-type response-handler request]
   (let [orig-request request
-        request (add-to-conversation request)]
+        request (case seed-type
+                  "model" (add-to-conversation default-conversation request)
+                  "resolver" (add-to-conversation resolver-conversation request))]
     (post gpt (fn [r]
                 (let [choices (choices (:chat-response r))
                       [choice err-msg] (find-choice choices)]
@@ -89,14 +94,14 @@
           request)))
 
 (defn non-interactive-generate
-  ([gpt-model-name api-key response-handler request]
-   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
-  ([api-key response-handler request]
+  ([gpt-model-name api-key seed-type response-handler request]
+   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) seed-type response-handler request))
+  ([api-key seed-type response-handler request]
    (if (nil? api-key)
-     (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)
-     (non-interactive-generate default-model api-key response-handler request)))
-  ([response-handler request]
-   (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
+     (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") seed-type response-handler request)
+     (non-interactive-generate default-model api-key seed-type response-handler request)))
+  ([seed-type response-handler request]
+   (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") seed-type response-handler request)))
 
 (defn- prnf [s]
   #?(:clj
@@ -187,12 +192,13 @@
   (add-to-conversation history "user" msg))
 
 (def choice :choice)
+(def chat-response :chat-response)
 (def chat-history :chat-history)
 
 (defn- make-model [component-def]
   (let [cname (second component-def)
         c (first (s/split (str cname) #"\."))]
-    {:name (keyword (subs (s/lower-case c) 1))
+    {:name (keyword (second (s/split c #"\:")))
      :version "0.0.1"
      :fractl-version (or (gs/fractl-version) "current")
      :components [cname]}))
@@ -205,7 +211,7 @@
 
 (defn get-model [response]
   (try
-    (when-let [c (choice response)]
+    (when-let [c (chat-response response)]
       (let [exps (rest (u/parse-string (str "(do " c ")")))]
         (when (= 'component (ffirst exps))
           {:model (make-model (first exps))
@@ -215,9 +221,11 @@
 
 #?(:clj
    (defn bot [request]
-     (let [req [{:role "user" :content request}]
+     (let [seed-type (:seed-type request)
+           req [{:role "user" :content (:content request)}]
            resp (atom nil)]
        (non-interactive-generate
+        seed-type
         (fn [choice history]
           (reset!
            resp
