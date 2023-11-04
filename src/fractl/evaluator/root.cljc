@@ -1261,16 +1261,7 @@
                   (if okr
                     (recur (:env r) (rest rs) (concat result okr))
                     r))
-                (i/ok result env)))))))
-
-    (do-entity-def [_ env schema]
-      (let [n (li/record-name schema)
-            [c _] (li/split-path n)
-            old-c (cn/switch-component c)
-            r (ln/entity schema)]
-        (store/create-table (env/get-store env) n)
-        (cn/switch-component old-c)
-        (i/ok r env)))))
+                (i/ok result env)))))))))
 
 (def ^:private default-evaluator (u/make-cell))
 
