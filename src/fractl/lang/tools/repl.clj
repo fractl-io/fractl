@@ -65,32 +65,49 @@
     (u/throw-ex "alias not supported for event-pattern"))
   pat)
 
+(defn- reldef [exp]
+  (if (map? (second exp))
+    (li/record-attributes (second exp))
+    (nth exp 2)))
+
 (defn- need-schema-init? [exp]
   (let [n (first exp)]
     (or (= n 'entity)
-        (and (= n 'relationship)
-             (let [rec-def (if (map? (second exp))
-                             (li/record-attributes (second exp))
-                             (nth exp 2))]
-               (:between (:meta rec-def)))))))
+        (= n 'relationship))))
 
 (defn- maybe-reinit-schema [store exp]
   (when (and (seqable? exp) (need-schema-init? exp))
-    (let [[c _] (li/split-path
-                 (let [r (second exp)]
-                   (if (map? r)
-                     (li/record-name r)
-                     r)))]
+    (let [n (let [r (second exp)]
+              (if (map? r)
+                (li/record-name r)
+                r))
+          [c _] (li/split-path n)
+          is-rel (= (first exp) 'relationship)
+          is-ent (not is-rel)
+          rd (when is-rel (reldef exp))]
+      (when (or is-ent (:between (:meta rd)))
+        (store/drop-entity store n))
+      (when is-rel
+        (when-let [spec (:contains (:meta rd))]
+          (store/drop-entity store (second spec))))
       (store/force-init-schema store c)))
   exp)
+
+(def ^:private lang-fns #{'entity 'relationship 'event 'record 'dataflow})
+
+(defn- lang-defn? [exp]
+  (and (seqable? exp)
+       (some #{(first exp)} lang-fns)))
 
 (defn- repl-eval [store evaluator exp]
   (try
     (let [r (eval exp)]
       (when (maybe-reinit-schema store exp)
-        (if (or (map? r) (vector? r) (keyword? r))
+        (cond
+          (lang-defn? exp) r
+          (or (map? r) (vector? r) (keyword? r))
           (evaluate-pattern evaluator r)
-          r)))
+          :else r)))
     (catch Exception ex
       (println (str "ERROR - " (.getMessage ex))))))
 

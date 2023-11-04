@@ -47,8 +47,9 @@
         (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
         (db/drop-schema @datasource component-name))
-      (fetch-schema [_]
-        nil)
+      (fetch-schema [_] nil)
+      (drop-entity [_ entity-name]
+        (db/drop-entity @datasource entity-name))
       (upsert-instance [_ entity-name instance]
         (db/upsert-instance
          h2i/upsert-inst-statement

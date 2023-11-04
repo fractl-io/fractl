@@ -29,8 +29,7 @@
      schema does not exist. On failure, raise an exception.")
   (fetch-schema [store]
     "Return the schema as a map. Return nil if the schema cannot be retrieved.")
-  (create-table [store entity-name]
-    "Create a table for a newly defined entity.")
+  (drop-entity [store entity-name] "Delete storage for the entity.")
   (upsert-instance [store entity-name instance]
     "Insert or update the instance in the store. On success, return instance.")
   (create-instance [store entity-name instance]

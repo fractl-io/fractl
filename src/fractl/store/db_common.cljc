@@ -167,6 +167,14 @@
                    (drop-db-schema! txn scmname)))
     component-name))
 
+(defn drop-entity
+  [datasource entity-name]
+  (let [tabname (stu/entity-table-name entity-name)]
+    (execute-fn! datasource
+                 (fn [txn]
+                   (let [sql (str "DROP TABLE IF EXISTS " tabname " CASCADE")]
+                     (execute-sql! txn [sql]))))))
+
 (defn- remove-unique-attributes [indexed-attrs entity-schema]
   (if-let [uq-attrs (seq (cn/unique-attributes entity-schema))]
     (set/difference (set indexed-attrs) (set uq-attrs))
