@@ -46,7 +46,7 @@
            (assoc
             result :records
             (conj
-             (:records result)
+             (or (:records result) #{})
              (record-name (second exp))))
 
            result)))

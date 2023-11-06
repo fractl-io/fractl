@@ -115,6 +115,10 @@
 (defn component-definition [component]
   (find @components component))
 
+(defn declared-names [component]
+  (when-let [defs (second (component-definition component))]
+    (set (keys (dissoc defs :attributes :records :events :entity-relationship)))))
+
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)
     (get-in @components [component :alias alias-entry])
@@ -1439,12 +1443,15 @@
 (defn event-context-value [k event-instance]
   (get-in event-instance [li/event-context k]))
 
-(def event-context-user (partial event-context-value :User))
-
 (defn assoc-event-context-value [k v event-instance]
   (assoc-in event-instance [li/event-context k] v))
 
+(def event-context-user (partial event-context-value :User))
 (def assoc-event-context-user (partial assoc-event-context-value :User))
+
+;; Note: event-context-env is used only from the repl.
+(def event-context-env (partial event-context-value :-*-env-*-))
+(def assoc-event-context-env (partial assoc-event-context-value :-*-env-*-))
 
 (defn assoc-event-context-values [values-map event-instance]
   (let [current-event-context (get event-instance event-context)

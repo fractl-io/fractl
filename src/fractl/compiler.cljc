@@ -778,9 +778,6 @@
 (defn- compile-await [ctx pat]
   (op/await_ (compile-construct-with-handlers ctx pat)))
 
-(defn- compile-entity-definition [_ pat]
-  (op/entity-def (first pat)))
-
 (defn- compile-eval [ctx pat]
   (let [m (us/wrap-to-map (rest pat))
         ret-type (:check m)
@@ -804,8 +801,7 @@
    :query compile-query-command
    :delete compile-delete
    :await compile-await
-   :eval compile-eval
-   :entity compile-entity-definition})
+   :eval compile-eval})
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic

@@ -172,9 +172,15 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
+(def ^:private repl-mode-key :-*-repl-mode-*-)
+(def ^:private repl-mode? repl-mode-key)
+
 (defn- init-runtime [model config]
   (let [store (store-from-config config)
-        ev (e/public-evaluator store true)
+        ev ((if (repl-mode? config)
+              e/internal-evaluator
+              e/public-evaluator)
+            store)
         ins (:interceptors config)]
     (when (store/init-all-schema store)
       (let [resolved-config (run-initconfig config ev)
@@ -217,6 +223,9 @@
        (log-seq! "Components" components))
      [(init-runtime model config) config]))
   ([model-info] (prepare-runtime nil model-info)))
+
+(defn- prepare-repl-runtime [[[model model-root] config]]
+  (prepare-runtime [[model model-root] (assoc config repl-mode-key true)]))
 
 (defn run-service
   ([args model-info]
@@ -457,8 +466,8 @@
                                     model-name
                                     (fn []
                                       (let [model-info (read-model-and-config options)
-                                            [_ config] (prepare-runtime model-info)]
-                                        (repl/run model-name (:store-handle config)))))))
+                                            [[ev store] _] (prepare-repl-runtime model-info)]
+                                        (repl/run model-name store ev))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(call-after-load-model

@@ -21,6 +21,7 @@
           {}))
       (create-schema [_ component-name])
       (drop-schema [_ component-name])
+      (drop-entity [_ entity-name])
       (create-instance [_ entity-name instance]
         (i/upsert-instance entity-name instance))
       (update-instance [_ entity-name instance]

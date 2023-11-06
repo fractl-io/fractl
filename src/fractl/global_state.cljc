@@ -70,15 +70,3 @@
    :cljs
    (def fractl-version
      (memoize (fn [] (:fractl-version environ/env)))))
-
-;; active-env is used only by the repl.
-#?(:clj
-   (def ^:private ^ThreadLocal active-env (ThreadLocal.)))
-
-(defn set-active-env! [env]
-  #?(:clj
-     (.set active-env env)))
-
-(defn get-active-env []
-  #?(:clj
-     (.get active-env)))

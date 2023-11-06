@@ -624,3 +624,5 @@
    [:before :update entity-name]
    [:after :delete entity-name]
    [:before :delete entity-name]])
+
+(def event-internal-env :-*-event-internal-env-*-)

@@ -2,10 +2,7 @@
   "Namespace for fully-qualified name utilities"
   (:require [clojure.string :as string]
             [clojure.walk :as w]
-            [fractl.util.logger :as log]
             [fractl.util.seq :as su]
-            [fractl.component :as cn]
-            [fractl.lang.kernel :as k]
             [fractl.lang.internal :as li]))
 
 (defn- normalize-path [path]
@@ -182,3 +179,7 @@
     (if (seqable? exp)
       ((get fq-preproc-defs (first exp) identity) exp)
       exp)))
+
+(defn generic-fully-qualified-names [declared-names exp]
+  (binding [fq-name (make-fq-name declared-names)]
+    (fq-generic exp false)))
