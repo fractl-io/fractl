@@ -14,17 +14,10 @@
             [fractl.global-state :as gs]))
 
 (def ^:private repl-component :Fractl.Kernel.Repl)
-(def ^:private ^ThreadLocal active-env (ThreadLocal.))
 
-(defn- set-active-env! [env]
-  (.set active-env env))
-
-(defn- get-active-env []
-  (.get active-env))
-
-(defn- invoke-eval [evaluator evobj]
+(defn- invoke-eval [env evaluator evobj]
   (evaluator
-   (if-let [env (get-active-env)]
+   (if env
      (cn/assoc-event-context-env env evobj)
      evobj)))
 
@@ -32,33 +25,36 @@
   (and (map? obj)
        (cn/event? (li/record-name obj))))
 
-(defn- eval-pattern-as-dataflow [evaluator pat]
+(defn- eval-pattern-as-dataflow [env evaluator pat]
   (if (event-instance? pat)
-    (invoke-eval evaluator pat)
+    (invoke-eval env evaluator pat)
     (let [evt-name (li/make-path repl-component (li/unq-name))]
       (ln/event evt-name {})
       (try
         (let [evobj {evt-name {}}]
           (ln/dataflow evt-name pat)
-          (invoke-eval evaluator evobj))
+          (invoke-eval env evaluator evobj))
         (finally
           (cn/remove-event evt-name))))))
 
-(defn- evaluate-pattern [evaluator pat]
-  (if (keyword? pat)
-    (or (env/lookup (get-active-env) pat) pat)
-    (try
-      (let [res (eval-pattern-as-dataflow evaluator pat)
-            {env :env status :status result :result}
-            (if (map? res) res (first res))]
-        (if (= :ok status)
-          (do (ev/fire-post-events env)
-              (set-active-env! (env/disable-post-event-triggers env))
-              result)
-          (or status pat)))
-      (catch Exception ex
-        (println (str "WARN - " (.getMessage ex)))
-        pat))))
+(defn- evaluate-pattern [env-handle evaluator pat]
+  (let [env @env-handle]
+    (if (keyword? pat)
+      (or (env/lookup env pat) pat)
+      (try
+        (let [res (eval-pattern-as-dataflow env evaluator pat)
+              {env :env status :status result :result}
+              (if (map? res) res (first res))]
+          (if (= :ok status)
+            (do (ev/fire-post-events env)
+                (reset!
+                 env-handle
+                 (env/disable-post-event-triggers env))
+                result)
+            (or status pat)))
+        (catch Exception ex
+          (println (str "WARN - " (.getMessage ex)))
+          pat)))))
 
 (defn- proc-event-pattern [pat]
   (when (:as pat)
@@ -99,14 +95,14 @@
   (and (seqable? exp)
        (some #{(first exp)} lang-fns)))
 
-(defn- repl-eval [store evaluator exp]
+(defn- repl-eval [store env-handle evaluator exp]
   (try
     (let [r (eval exp)]
       (when (maybe-reinit-schema store exp)
         (cond
           (lang-defn? exp) r
           (or (map? r) (vector? r) (keyword? r))
-          (evaluate-pattern evaluator r)
+          (evaluate-pattern env-handle evaluator r)
           :else r)))
     (catch Exception ex
       (println (str "ERROR - " (.getMessage ex))))))
@@ -127,7 +123,7 @@
 
 (defn run [model-name store evaluator]
   (let [model-name (or model-name (infer-model-name))
-        reval (partial repl-eval store evaluator)]
+        reval (partial repl-eval store (atom nil) evaluator)]
     (use '[fractl.lang])
     (use '[fractl.lang.tools.replcmds])
     (ln/component repl-component)
