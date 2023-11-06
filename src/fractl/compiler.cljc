@@ -1179,12 +1179,24 @@
         (u/throw-ex (str "not a reference attribute " [rec-name aname arg])))
       (u/throw-ex (str "invalid reference attribute " [rec-name aname arg])))))
 
+(defn- maybe-expr? [x]
+  (and (seqable? x)
+       (not (vector? x))
+       (not (string? x))))
+
+(defn- parse-expr [arg-lookup exp]
+  (cond
+    (keyword? exp) (arg-lookup exp)
+    (maybe-expr? exp)
+    `(~(first exp) ~@(map #(parse-expr arg-lookup %) (rest exp)))
+    :else exp))
+
 (defn compile-attribute-expression [rec-name attrs aname aval]
   (when-not aval
     (u/throw-ex (str "attribute expression cannot be nil - " [rec-name aname])))
-  (let [fexprs (map (partial arg-lookup-fn rec-name attrs (keys attrs) aname) (rest aval))
-        exp `(fn [~runtime-env-var ~current-instance-var]
-               (~(first aval) ~@fexprs))]
+  (let [arg-lookup (partial arg-lookup-fn rec-name attrs (keys attrs) aname)
+        parse-exp (partial parse-expr arg-lookup)
+        exp `(fn [~runtime-env-var ~current-instance-var] ~(parse-exp aval))]
     (li/evaluate exp)))
 
 (defn- extract-node-info [tree]
