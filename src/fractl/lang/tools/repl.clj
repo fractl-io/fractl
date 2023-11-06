@@ -111,22 +111,24 @@
        (some #{(first exp)} lang-fns)))
 
 (defn- fetch-def-name [exp]
-  (let [d (second exp)
-        n (li/split-path
-           (if (map? d)
-             (li/record-name d)
-             d))]
-    (if (= 1 (count n))
-      [nil (first n)]
-      n)))
+  (let [d (second exp)]
+    (when-not (vector? d)
+      (let [n (li/split-path
+               (if (map? d)
+                 (li/record-name d)
+                 d))]
+        (if (= 1 (count n))
+          [nil (first n)]
+          n)))))
 
 (defn- maybe-preproc-expression [exp]
   (cond
     (lang-defn? exp)
-    (let [[c n] (fetch-def-name exp)
-          cn (or c @active-component)]
-      (add-declared-name! cn n)
-      (nu/fully-qualified-names (declared-names cn) exp))
+    (if-let [[c n] (fetch-def-name exp)]
+      (let [cn (or c @active-component)]
+        (add-declared-name! cn n)
+        (nu/fully-qualified-names (declared-names cn) exp))
+      (nu/fully-qualified-names (declared-names @active-component) exp))
 
     (and (seqable? exp) (= 'component (first exp)))
     (do (reset! active-component (second exp)) exp)
