@@ -112,7 +112,6 @@
 (def create-schema p/create-schema)
 (def fetch-schema p/fetch-schema)
 (def drop-schema p/drop-schema)
-(def create-table p/create-table)
 (def delete-by-id p/delete-by-id)
 (def delete-all p/delete-all)
 (def delete-children p/delete-children)
@@ -149,6 +148,7 @@
 (def compile-query p/compile-query)
 (def get-reference p/get-reference)
 (def call-in-transaction p/call-in-transaction)
+(def drop-entity p/drop-entity)
 
 (defn reactive?
   "Checks whether a given store supports reactive references"

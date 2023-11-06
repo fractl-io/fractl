@@ -160,7 +160,4 @@
          (await_
           [[body continuation]]
           "Evaluate body asynchronously and then evaluate the proper handler in the 
-           continuation based on the result, in an updated env")
-         (entity-def
-          [schema]
-          "Define a new entity.")]))
+           continuation based on the result, in an updated env")]))

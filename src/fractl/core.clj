@@ -2,6 +2,7 @@
   (:require [clojure.tools.cli :refer [parse-opts]]
             [clojure.java.io :as io]
             [clojure.string :as s]
+            [clojure.pprint :as pprint]
             [fractl.datafmt.json :as json]
             [fractl.util :as u]
             [fractl.util.seq :as su]
@@ -171,9 +172,15 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
+(def ^:private repl-mode-key :-*-repl-mode-*-)
+(def ^:private repl-mode? repl-mode-key)
+
 (defn- init-runtime [model config]
   (let [store (store-from-config config)
-        ev (e/public-evaluator store true)
+        ev ((if (repl-mode? config)
+              e/internal-evaluator
+              e/public-evaluator)
+            store)
         ins (:interceptors config)]
     (when (store/init-all-schema store)
       (let [resolved-config (run-initconfig config ev)
@@ -216,6 +223,9 @@
        (log-seq! "Components" components))
      [(init-runtime model config) config]))
   ([model-info] (prepare-runtime nil model-info)))
+
+(defn- prepare-repl-runtime [[[model model-root] config]]
+  (prepare-runtime [[model model-root] (assoc config repl-mode-key true)]))
 
 (defn run-service
   ([args model-info]
@@ -415,7 +425,8 @@
   (println (str "Your request: '" request "' is being serviced..."))
   (if request
     (if-let [code (gpt/bot request)]
-      (do (clojure.pprint/pprint code) (System/exit 0))
+      (do (pprint/pprint code)
+          (System/exit 0))
       (println "ERROR: GPT failed to generate model, please try again."))
     (println "Please enter a description of the app after the -i option.")))
 
@@ -455,8 +466,8 @@
                                     model-name
                                     (fn []
                                       (let [model-info (read-model-and-config options)
-                                            [_ config] (prepare-runtime model-info)]
-                                        (repl/run model-name (:store-handle config)))))))
+                                            [[ev store] _] (prepare-repl-runtime model-info)]
+                                        (repl/run model-name store ev))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(call-after-load-model

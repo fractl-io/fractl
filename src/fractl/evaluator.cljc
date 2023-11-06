@@ -136,7 +136,8 @@
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (let [event-instance (maybe-init-event event-instance)
+   (let [env (or (cn/event-context-env event-instance) env)
+         event-instance (maybe-init-event event-instance)
          f (partial eval-dataflow-in-transaction evaluator env event-instance df)]
      (try
        (if-let [txn (gs/get-active-txn)]
@@ -252,22 +253,14 @@
       (u/throw-ex (str "invalid resolver config " resolver-or-resolver-config)))))
 
 (defn- evaluator
-  ([store-or-store-config resolver-or-resolver-config with-query-support]
+  ([store-or-store-config resolver-or-resolver-config]
    (let [store (store-from-config store-or-store-config)
          resolver (resolver-from-config resolver-or-resolver-config)
          [compile-query-fn evaluator] (make store)
          env (env/make store resolver)
-         ef (partial run-dataflows compile-query-fn evaluator env)
-         result (if with-query-support
-                  (fn [x]
-                    (if-let [qinfo (:Query x)]
-                      (r/find-instances env store (first qinfo) (second qinfo))
-                      (ef x)))
-                  ef)]
-     (es/set-active-state! result store)
-     result))
-  ([store-or-store-config resolver-or-resolver-config]
-   (evaluator store-or-store-config resolver-or-resolver-config false))
+         ef (partial run-dataflows compile-query-fn evaluator env)]
+     (es/set-active-state! ef store)
+     ef))
   ([] (evaluator (es/get-active-store) nil)))
 
 (defn evaluate-pattern
@@ -306,8 +299,11 @@
     (dissoc xs :env)
     (mapv filter-public-result xs)))
 
-(defn public-evaluator [store-or-config with-query-support]
-  (comp filter-public-result (evaluator store-or-config nil with-query-support)))
+(defn public-evaluator [store-or-config]
+  (comp filter-public-result (evaluator store-or-config nil)))
+
+(defn internal-evaluator [store-or-config]
+  (evaluator store-or-config nil))
 
 (defn query-fn [store]
   (partial r/find-instances env/EMPTY store))

@@ -18,40 +18,31 @@
 (entity :Marketplace.Core/Seller
   {:meta {:inherits :Marketplace.Core/Person}})
 
-(component :Marketplace.Product
-  {:refer [:Marketplace.Core]})
-
-(entity :Marketplace.Product/Item
-  {:SerialNumber {:type :String :guid true} ; :guid is globally unique
-   :Name {:type :String :id true} ; :id is unique under the parent - :Marketplace.Core/Seller
+(entity :Marketplace.Core/Item
+  {:SerialNumber {:type :String :guid true}
+   :Name {:type :String :id true}
    :Description :String
    :Price :Decimal
    :Category {:type :String :default \"NA\"}
    :QuantityAvailable :Int
    :Images {:setof :String}
-   :CreationDate :Now ; :Now is :DateTime that defaults to the current date and time.
+   :CreationDate :Now
    :ActiveStatus {:type :Boolean :default true}})
 
-(relationship :Marketplace.Product/Listing
-  {:meta {:contains [:Marketplace.Core/Seller :Marketplace.Product/Item]}})
+(relationship :Marketplace.Core/Listing
+  {:meta {:contains [:Marketplace.Core/Seller :Marketplace.Core/Item]}})
 
-(entity :Marketplace.Product/Review
+(entity :Marketplace.Core/Review
   {:Id :Identity ; :Identity is shortcut for {:type :UUID :default fractl.util/uuid-string :guid true}
    :Reviewer {:type :Email :id true}
    :Rating :Int
    :Comment {:type :String :optional true}
    :Date :Now})
 
-(relationship :Marketplace.Product/BuyerReview
-  {:meta {:between [:Marketplace.Core/Buyer :Marketplace.Product/Review]}})
+(relationship :Marketplace.Core/BuyerReview
+  {:meta {:between [:Marketplace.Core/Buyer :Marketplace.Core/Review]}})
 
-(relationship :Marketplace.Product/ItemReviews
-  {:meta {:contains [:Marketplace.Product/Item :Marketplace.Product/Review]}})
-
-(component :Marketplace.Sales
- {:refer [:Marketplace.Core :Marketplace.Product]})
-
-(entity :Marketplace.Sales/Order
+(entity :Marketplace.Core/Order
   {:Id :Identity
    :SerialNumber {:type :Int :id true}
    :Quantity :Int
@@ -59,11 +50,8 @@
    :OrderDate :Now
    :Status {:oneof [\"pending\" \"processing\" \"fulfilled\"]}})
 
-(relationship :Marketplace.Sales/BuyerOrders
-  {:meta {:contains [:Marketplace.Core/Buyer :Marketplace.Sales/Order]}})
-
-(relationship :Marketplace.Sales/ItemOrders
-  {:meta {:between [:Marketplace.Product/Item :Marketplace.Sales/Order]}})"}
+(relationship :Marketplace.Core/ItemOrders
+  {:meta {:between [:Marketplace.Core/Item :Marketplace.Core/Order]}})"}
    {:role "user" :content "Looks good. Now please create the data-model for social-networking platform"}
    {:role "assistant" :content
     "(component :SocialNetwork.Core)
@@ -94,7 +82,7 @@
    :FriendsSince :Now})"}
    {:role "user" :content "Good. Please generate a small library management application."}
    {:role "assistant" :content
-"(component :Library.Core)
+    "(component :Library.Core)
 
 (entity :Library.Core/Book
   {:Id :Identity
@@ -127,7 +115,7 @@
    :LoanDate :Npw})"}
    {:role "user" :content "Error in `:ref`. Instead of `:ref`, use relationships. Error in `relationship :Library.Core/Loans` - both `:contains` and `:between` relationships must have two entity-nodes. Also attributes like :LoanDate is not allowed for `:contains` relationships. Attributes are allowed only for `:between` relationships."}
    {:role "assistant" :content
-"(component :Library.Core)
+    "(component :Library.Core)
 
 (entity :Library.Core/Book
   {:Id :Identity
