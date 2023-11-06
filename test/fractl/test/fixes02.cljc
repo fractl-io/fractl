@@ -107,7 +107,7 @@
         {:Fractl.Kernel.Lang/DataSync
          {:Source
           {:Fractl.Kernel.Lang/DataSource
-           {:Uri "file://sample/emp.csv"
+           {:Uri "file://test/sample/emp.csv"
             :Entity "I358Csv01/Employee"
             :AttributeMapping
             {"first_name" "FirstName"
@@ -123,7 +123,7 @@
             {"FirstName" "first_name"
              "LastName" "last_name"
              "Salary" "salary"}}}
-          :DestinationUri "file://sample/emp2.csv"}}))
+          :DestinationUri "file://test/sample/emp2.csv"}}))
      (let [r (first
               (e/eval-all-dataflows
                {:I358Csv01/ImportEmployees {}}))
@@ -142,7 +142,7 @@
                 (e/eval-all-dataflows
                  {:I358Csv01/ExportEmployees {}}))
              result (first (second (:result r)))
-             csv-file "sample/emp2.csv"]
+             csv-file "test/sample/emp2.csv"]
          (is (= :ok (:status r)))
          (is (= :data-sync (:resolver result)))
          (is (= csv-file (:result result)))
