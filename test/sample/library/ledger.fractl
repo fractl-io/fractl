@@ -6,13 +6,13 @@
         [fractl.lang.b64])
   (:require [fractl.component :as cn]))
 
-(component :Sample.Library.Ledger)
+(component :Test.Sample.Library.Ledger)
 
-(entity {:Sample.Library.Ledger/CheckoutLog
-         {:Member       {:ref     :Sample.Library.Identity/Member.Email
+(entity {:Test.Sample.Library.Ledger/CheckoutLog
+         {:Member       {:ref     :Test.Sample.Library.Identity/Member.Email
                          :indexed true}
           :Designation  :String
-          :Book         {:ref     :Sample.Library.Catalog/Book.ISBN
+          :Book         {:ref     :Test.Sample.Library.Catalog/Book.ISBN
                          :indexed true}
           :IsCheckedout {:type    :Boolean
                          :default true}
@@ -27,17 +27,17 @@
           :Issued        {:type :DateTime :optional true}
           :ExpirySeconds {:type :Int :default 300}}})
 
-(dataflow :Sample.Library.Ledger/MemberLogin
-          {:Sample.Library.Identity/Member {:UserName? :Sample.Library.Ledger/MemberLogin.UserName}}
-          [:match :Sample.Library.Identity/Member.Password
-           :Sample.Library.Ledger/MemberLogin.Password  {:Authentication {:Owner :Sample.Library.Identity/Member}}])
+(dataflow :Test.Sample.Library.Ledger/MemberLogin
+          {:Test.Sample.Library.Identity/Member {:UserName? :Test.Sample.Library.Ledger/MemberLogin.UserName}}
+          [:match :Test.Sample.Library.Identity/Member.Password
+           :Test.Sample.Library.Ledger/MemberLogin.Password  {:Authentication {:Owner :Test.Sample.Library.Identity/Member}}])
 
-(dataflow :Sample.Library.Ledger/UserLogin
-          {:Sample.Library.Identity/User {:UserName? :Sample.Library.Ledger/UserLogin.UserName}}
-          [:match :Sample.Library.Identity/User.Password
-           :Sample.Library.Ledger/UserLogin.Password  {:Authentication {:Owner :Sample.Library.Identity/User}}])
+(dataflow :Test.Sample.Library.Ledger/UserLogin
+          {:Test.Sample.Library.Identity/User {:UserName? :Test.Sample.Library.Ledger/UserLogin.UserName}}
+          [:match :Test.Sample.Library.Identity/User.Password
+           :Test.Sample.Library.Ledger/UserLogin.Password  {:Authentication {:Owner :Test.Sample.Library.Identity/User}}])
 
-(event {:Sample.Library.Ledger/CheckoutBook
+(event {:Test.Sample.Library.Ledger/CheckoutBook
         {:Member   :Email
          :Designation :String
          :Book     :String
@@ -47,21 +47,21 @@
          :Text     :String
          :To       :String}})
 
-(dataflow :Sample.Library.Ledger/CheckoutBook
-          {:Sample.Library.Ledger/CheckoutLog {:Member       :Sample.Library.Ledger/CheckoutBook.Member
-                                               :Designation  :Sample.Library.Ledger/CheckoutBook.Designation
-                                               :Book         :Sample.Library.Ledger/CheckoutBook.Book
+(dataflow :Test.Sample.Library.Ledger/CheckoutBook
+          {:Test.Sample.Library.Ledger/CheckoutLog {:Member       :Test.Sample.Library.Ledger/CheckoutBook.Member
+                                               :Designation  :Test.Sample.Library.Ledger/CheckoutBook.Designation
+                                               :Book         :Test.Sample.Library.Ledger/CheckoutBook.Book
                                                :IsCheckedout true}}
-          #_{:Email/Push {:Backend  :Sample.Library.Ledger/CheckoutBook.Backend
-                          :Receiver :Sample.Library.Ledger/CheckoutBook.Receiver
-                          :Subject  :Sample.Library.Ledger/CheckoutBook.Subject
-                          :Text     :Sample.Library.Ledger/CheckoutBook.Text}}
-          #_{:Sms/Push {:To   :Sample.Library.Ledger/CheckoutBook.To
-                        :Body :Sample.Library.Ledger/CheckoutBook.Text}}
-          {:Sample.Library.Ledger/CheckoutLog {:Member? :Sample.Library.Ledger/CheckoutBook.Member
-                                               :Book?   :Sample.Library.Ledger/CheckoutBook.Book}})
+          #_{:Email/Push {:Backend  :Test.Sample.Library.Ledger/CheckoutBook.Backend
+                          :Receiver :Test.Sample.Library.Ledger/CheckoutBook.Receiver
+                          :Subject  :Test.Sample.Library.Ledger/CheckoutBook.Subject
+                          :Text     :Test.Sample.Library.Ledger/CheckoutBook.Text}}
+          #_{:Sms/Push {:To   :Test.Sample.Library.Ledger/CheckoutBook.To
+                        :Body :Test.Sample.Library.Ledger/CheckoutBook.Text}}
+          {:Test.Sample.Library.Ledger/CheckoutLog {:Member? :Test.Sample.Library.Ledger/CheckoutBook.Member
+                                               :Book?   :Test.Sample.Library.Ledger/CheckoutBook.Book}})
 
-(event {:Sample.Library.Ledger/CheckinBook
+(event {:Test.Sample.Library.Ledger/CheckinBook
         {:Member   :Email
          :Designation :String
          :Book     :String
@@ -71,31 +71,31 @@
          :Text     :String
          :To       :String}})
 
-(dataflow :Sample.Library.Ledger/CheckinBook
-          {:Sample.Library.Ledger/CheckoutLog {:Member       :Sample.Library.Ledger/CheckinBook.Member
-                                               :Designation   :Sample.Library.Ledger/CheckinBook.Designation
-                                               :Book         :Sample.Library.Ledger/CheckinBook.Book
+(dataflow :Test.Sample.Library.Ledger/CheckinBook
+          {:Test.Sample.Library.Ledger/CheckoutLog {:Member       :Test.Sample.Library.Ledger/CheckinBook.Member
+                                               :Designation   :Test.Sample.Library.Ledger/CheckinBook.Designation
+                                               :Book         :Test.Sample.Library.Ledger/CheckinBook.Book
                                                :IsCheckedout false}}
-          #_{:Email/Push {:Backend  :Sample.Library.Ledger/CheckoutBook.Backend
-                        :Receiver :Sample.Library.Ledger/CheckoutBook.Receiver
-                        :Subject  :Sample.Library.Ledger/CheckoutBook.Subject
-                        :Text     :Sample.Library.Ledger/CheckoutBook.Text}}
-          #_{:Sms/Push {:To   :Sample.Library.Ledger/CheckoutBook.To
-                      :Body :Sample.Library.Ledger/CheckoutBook.Text}}
-          {:CheckoutLog {:Member? :Sample.Library.Ledger/CheckinBook.Member
-                         :Book?   :Sample.Library.Ledger/CheckinBook.Book}})
+          #_{:Email/Push {:Backend  :Test.Sample.Library.Ledger/CheckoutBook.Backend
+                        :Receiver :Test.Sample.Library.Ledger/CheckoutBook.Receiver
+                        :Subject  :Test.Sample.Library.Ledger/CheckoutBook.Subject
+                        :Text     :Test.Sample.Library.Ledger/CheckoutBook.Text}}
+          #_{:Sms/Push {:To   :Test.Sample.Library.Ledger/CheckoutBook.To
+                      :Body :Test.Sample.Library.Ledger/CheckoutBook.Text}}
+          {:CheckoutLog {:Member? :Test.Sample.Library.Ledger/CheckinBook.Member
+                         :Book?   :Test.Sample.Library.Ledger/CheckinBook.Book}})
 
 (event {:CheckedoutBooks
         {:Member :UUID}})
 
 (dataflow :CheckedoutBooks
-          {:CheckoutLog {:Member? :Sample.Library.Ledger/CheckedoutBooks.Member}})
+          {:CheckoutLog {:Member? :Test.Sample.Library.Ledger/CheckedoutBooks.Member}})
 
 (event {:CheckedoutBy
         {:Book :UUID}})
 
 (dataflow :CheckedoutBy
-          {:CheckoutLog {:Book? :Sample.Library.Ledger/CheckedoutBy.Book}}
+          {:CheckoutLog {:Book? :Test.Sample.Library.Ledger/CheckedoutBy.Book}}
           [:match :CheckoutLog.IsCheckedout
            true :CheckoutLog])
 
@@ -107,7 +107,7 @@
 (dataflow :ServicePolicy
           {:Fractl.Kernel.Lang/Policy
            {:Intercept "RBAC"
-            :Resource  ["Sample.Library.Identity/Upsert_Member"]
+            :Resource  ["Test.Sample.Library.Identity/Upsert_Member"]
             :Spec      [:q#
                         [:when
                          [:in ["life" "individual" "family"
@@ -117,7 +117,7 @@
 (dataflow :UserCreationPolicy
           {:Fractl.Kernel.Lang/Policy
            {:Intercept "RBAC"
-            :Resource  ["Sample.Library.Identity/Upsert_User"]
+            :Resource  ["Test.Sample.Library.Identity/Upsert_User"]
             :Spec      [:q#
                         [:when
                          [:= "incharge" :EventContext.Auth.Owner.Designation]]]}})
@@ -125,7 +125,7 @@
 (dataflow :CheckoutPolicy
           {:Fractl.Kernel.Lang/Policy
            {:Intercept "RBAC"
-            :Resource  ["Sample.Library.Ledger/CheckoutBook"]
+            :Resource  ["Test.Sample.Library.Ledger/CheckoutBook"]
             :Spec      [:q#
                         [:when
                          [:in ["life" "individual" "family"
@@ -135,7 +135,7 @@
 (dataflow :CheckinPolicy
           {:Fractl.Kernel.Lang/Policy
            {:Intercept "RBAC"
-            :Resource  ["Sample.Library.Ledger/CheckinBook"]
+            :Resource  ["Test.Sample.Library.Ledger/CheckinBook"]
             :Spec      [:q#
                         [:when
                          [:in ["life" "individual" "family"
@@ -145,10 +145,10 @@
 (dataflow :RBACPolicyLogging
           {:Fractl.Kernel.Lang/Policy
            {:Intercept "Logging"
-            :Resource  ["Sample.Library.Ledger/CheckoutBook"
-                        "Sample.Library.Ledger/CheckinBook"
-                        "Sample.Library.Identity/Upsert_Member"
-                        "Sample.Library.Identity/Upsert_User"]
+            :Resource  ["Test.Sample.Library.Ledger/CheckoutBook"
+                        "Test.Sample.Library.Ledger/CheckinBook"
+                        "Test.Sample.Library.Identity/Upsert_Member"
+                        "Test.Sample.Library.Identity/Upsert_User"]
             :Spec      [:q# {:Disable        :INFO
                              :PagerThreshold {:WARN  {:count            5
                                                       :duration-minutes 10}

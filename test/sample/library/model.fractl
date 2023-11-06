@@ -1,8 +1,8 @@
 {:name :Library
  :fractl-version "current"
- :components [:Sample/Library/Identity
-              :Sample/Library/Catalog
-              :Sample/Library/Ledger]
+ :components [:Test.Sample/Library/Identity
+              :Test.Sample/Library/Catalog
+              :Test.Sample/Library/Ledger]
  :config {:service {:port 8000}
           :zero-trust-rbac false
           :store {:type :mem}}}
