@@ -4,16 +4,31 @@
             [clojure.string :as s]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
+            [fractl.lang.name-util :as nu]
             [fractl.lang.tools.loader :as loader]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
             [fractl.store :as store]
-            [fractl.util :as u]   
+            [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.env :as env]
             [fractl.global-state :as gs]))
 
 (def ^:private repl-component :Fractl.Kernel.Repl)
+(def ^:private components (atom {}))
+(def ^:private active-component (atom nil))
+
+(defn- set-declared-names! [cn decl-names]
+  (swap! components assoc cn decl-names)
+  (reset! active-component cn))
+
+(defn- add-declared-name! [cn n]
+  (let [names (get @components cn #{})]
+    (swap! components assoc cn (conj names n))))
+
+(defn- declared-names [cn]
+  (when-let [decl-ns (get @components cn)]
+    {:component cn :records decl-ns}))
 
 (defn- invoke-eval [env evaluator evobj]
   (evaluator
@@ -95,9 +110,38 @@
   (and (seqable? exp)
        (some #{(first exp)} lang-fns)))
 
+(defn- fetch-def-name [exp]
+  (let [d (second exp)
+        n (li/split-path
+           (if (map? d)
+             (li/record-name d)
+             d))]
+    (if (= 1 (count n))
+      [nil (first n)]
+      n)))
+
+(defn- maybe-preproc-expression [exp]
+  (cond
+    (lang-defn? exp)
+    (let [[c n] (fetch-def-name exp)
+          cn (or c @active-component)]
+      (add-declared-name! cn n)
+      (nu/fully-qualified-names (declared-names cn) exp))
+
+    (and (seqable? exp) (= 'component (first exp)))
+    (do (reset! active-component (second exp)) exp)
+
+    (or (map? exp) (vector? exp))
+    (if-let [names (declared-names @active-component)]
+      (nu/generic-fully-qualified-names names exp)
+      exp)
+
+    :else exp))
+
 (defn- repl-eval [store env-handle evaluator exp]
   (try
-    (let [r (eval exp)]
+    (let [exp (maybe-preproc-expression exp)
+          r (eval exp)]
       (when (maybe-reinit-schema store exp)
         (cond
           (lang-defn? exp) r
@@ -123,7 +167,11 @@
 
 (defn run [model-name store evaluator]
   (let [model-name (or model-name (infer-model-name))
-        reval (partial repl-eval store (atom nil) evaluator)]
+        reval (partial repl-eval store (atom nil) evaluator)
+        current-cn (cn/get-current-component)
+        decl-names (cn/declared-names current-cn)]
+    (when decl-names
+      (set-declared-names! current-cn decl-names))
     (use '[fractl.lang])
     (use '[fractl.lang.tools.replcmds])
     (ln/component repl-component)

@@ -115,6 +115,10 @@
 (defn component-definition [component]
   (find @components component))
 
+(defn declared-names [component]
+  (when-let [defs (second (component-definition component))]
+    (set (keys (dissoc defs :attributes :records :events :entity-relationship)))))
+
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)
     (get-in @components [component :alias alias-entry])
