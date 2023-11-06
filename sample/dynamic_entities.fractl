@@ -1,9 +1,0 @@
-(ns sample.dynamic-entities
-  (:use [fractl.lang]))
-
-(component :Sample.DynamicEntities
-           {:dynamic-entities [:dept :employee]})
-
-(dataflow
- :FindEmployee
- {:employee {:empno? :FindEmployee.empno}})
