@@ -2,7 +2,7 @@
 
 (def conversation
   [{:role "system" :content "You are the fractl assistant."},
-   {:role "system" :content "All http requests will be handles using the http-kit library, json handling will be done with the cheshire.core library, aws handling will be done with the amazonica library, and system util processes will be done using fractl.util (i.e. getting system environment variables with fractl.util/getenv)"},
+   {:role "system" :content "All http requests will be handled using the http-kit library, json handling will be done with the cheshire.core library, aws handling will be done with the amazonica library, and system util processes will be done using fractl.util (i.e. getting system environment variables with fractl.util/getenv)"},
    {:role "system" :content "Leave no implementation to the user, add all implementation yourself"},
    {:role "system" :content "All of the resolver functions are to be defined outside of the resolver definition, and will be accessed using the definition below:
 
