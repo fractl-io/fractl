@@ -1,0 +1,5 @@
+{:name :school
+ :description "A School Management Application"
+ :version "0.0.1"
+ :fractl-version "current"
+ :components [:School.Core]}

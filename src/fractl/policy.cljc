@@ -10,7 +10,7 @@
     (li/make-path p)
     p))
 
-(declare lookup-container-policies)
+(declare lookup-parent-policies)
 
 (defn lookup-policies [intercept resource]
   (or
@@ -23,11 +23,11 @@
               {:Intercept (u/keyword-as-string intercept)
                :Resource (u/keyword-as-string (normalize-path resource))}})]
         (u/ok-result result true)))
-   (lookup-container-policies intercept resource)))
+   (lookup-parent-policies intercept resource)))
 
-(defn- lookup-container-policies [intercept resource]
-  (when-let [c (cn/fetch-container resource)]
-    (lookup-policies intercept c)))
+(defn- lookup-parent-policies [intercept resource]
+  (when-let [[_ _ p] (cn/containing-parents resource)]
+    (lookup-policies intercept p)))
 
 (defn create-policy [intercept resource spec]
   (let [result

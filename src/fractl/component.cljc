@@ -127,7 +127,6 @@
 (def ^:private type-key :-*-type-*-)
 (def ^:private dirty-key :-*-dirty-*-)
 (def type-tag-key :type-*-tag-*-)
-(def ^:private containers-key :-*-containers-*-)
 
 (def instance->map identity)
 (def instance-type-tag type-tag-key)
@@ -163,23 +162,8 @@
 
 (def meta-of mt/meta-of-key)
 
-(defn- intern-contains [components rec-name contains]
-  (loop [containers (containers-key components)
-         contains contains]
-    (if-let [f (first contains)]
-      (let [p (li/split-path f)]
-        (if-let [c (get containers p)]
-          (do (log/warn (str c " already contains " f ", only one :contains relatonship is allowed"))
-              (recur containers (rest contains)))
-          (recur (assoc containers p rec-name) (rest contains))))
-      (assoc components containers-key containers))))
-
 (defn- intern-meta [typtag components rec-name meta]
-  (let [cs (if-let [cnts (and (not (:relationship meta))
-                              (mt/contains meta))]
-             (intern-contains components rec-name cnts)
-             components)]
-    (assoc-in cs (conj-meta-key rec-name) meta)))
+  (assoc-in components (conj-meta-key rec-name) meta))
 
 (defn- component-intern
   "Add or replace a component entry.
@@ -204,10 +188,6 @@
      typname))
   ([typname typdef typtag]
    (component-intern typname typdef typtag nil)))
-
-(defn fetch-container [rec-name]
-  (let [containers (get @components containers-key)]
-    (get containers (li/split-path rec-name))))
 
 (defn- component-find
   ([path]
