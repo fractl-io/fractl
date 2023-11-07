@@ -34,9 +34,9 @@ jobs:
         run: npm install -g newman
       - name: Run lein library app & Newman API test
         run: |
-          lein run sample/library/model.fractl &
+          lein run test/sample/library/model.fractl &
           sleep 180
-          newman run sample/library/library-ci.postman_collection.json
+          newman run test/sample/library/library-ci.postman_collection.json
           kill -9 `lsof -i:8000 -t`
         env:
           API_HOST: 127.0.0.1:8000

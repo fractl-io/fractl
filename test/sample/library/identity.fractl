@@ -5,7 +5,7 @@
         [fractl.lang.datetime]
         [fractl.lang.string]))
 
-(component :Sample.Library.Identity)
+(component :Test.Sample.Library.Identity)
 
 (def user-name? (partial string-in-range? 2 50))
 
