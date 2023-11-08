@@ -123,7 +123,10 @@
            (map? (get a-map k))))))
 
 (defn- fn-or-name? [x]
-  (or (fn? x) (li/name? x)))
+  #?(:clj
+     (or (fn? x) (li/name? x))
+     ;; expressions not currently validated or used in the browser.
+     :cljs true))
 
 (defn- encryption? [x]
   ;; true/:default means use the default encryption algorithm.
