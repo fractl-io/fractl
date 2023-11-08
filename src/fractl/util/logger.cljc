@@ -7,7 +7,7 @@
 (defn disable-logging! [] (reset! logging-enabled false))
 (defn enable-logging! [] (reset! logging-enabled true))
 
-(def log-capture! logger/log-capture!)
+#?(:clj (def log-capture! logger/log-capture!))
 
 #?(:cljs
    (do
