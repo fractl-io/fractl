@@ -512,14 +512,18 @@
       (intern-inferred-event n))
     (u/throw-ex (str "not an event - " x))))
 
-(defn ensure-dataflow-pattern! [x]
+(defn- ensure-dataflow-pattern! [x]
   (cond
     (keyword? x) (li/validate-name-relaxed x)
     (or (map? x) (li/special-form? x) (symbol? x)) x
     :else (u/throw-ex (str "Invalid dataflow pattern. Possible syntax error - " x))))
 
-(defn ensure-dataflow-patterns! [xs]
-  (doseq [x xs] (ensure-dataflow-pattern! x)))
+(defn- prepare-dataflow-patterns [xs]
+  (let [xs (if (and (seqable? xs) (string? (first xs))) ; ignore docstring
+             (rest xs)
+             xs)]
+    (doseq [x xs] (ensure-dataflow-pattern! x))
+    xs))
 
 (declare normalize-event-pattern)
 
@@ -658,8 +662,8 @@
                    (event-self-ref-pattern (preproc-match-pat match-pat)))
 
             :else
-            (let [match-pat (or (preproc-match-pat match-pat) match-pat)]
-              (ensure-dataflow-patterns! patterns)
+            (let [match-pat (or (preproc-match-pat match-pat) match-pat)
+                  patterns (prepare-dataflow-patterns patterns)]
               (if (vector? match-pat)
                 (apply
                  dataflow
