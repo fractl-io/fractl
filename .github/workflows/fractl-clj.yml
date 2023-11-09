@@ -33,6 +33,8 @@ jobs:
           lein: 2.9.1 # Leiningen
       - name: Set user-level lein plugin for classpath
         run: |
+          mkdir ~/.lein
+          touch ~/.lein/profiles.clj
           echo "{:user {:plugins [[lein-classpath-jar \"0.1.0\"]]}}" >> ~/.lein/profiles.clj
       - name: Installing fractl-io dependancies
         run: |
