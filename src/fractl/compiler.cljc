@@ -618,12 +618,12 @@
   (loop [clauses pat, code []]
     (if-let [c (first clauses)]
       (if-not (seq (rest clauses))
-        {:clauses code :else (compile-pattern ctx c)}
+        {:clauses code :else (compile-maybe-pattern-list ctx (normalize-and-preproc c))}
         (recur (nthrest clauses 2)
                (conj
                 code
                 [(rule/compile-rule-pattern c)
-                 (compile-pattern ctx (second clauses))])))
+                 (compile-maybe-pattern-list ctx (normalize-and-preproc (second clauses)))])))
       {:clauses code})))
 
 (defn- compile-match-cond [ctx pat]

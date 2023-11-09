@@ -668,3 +668,46 @@
       (is (cn/same-instance?
            g (tu/first-result
               {:Mqs/Lookup_G {li/path-attr (li/path-attr g)}}))))))
+
+(deftest preproc-cond-match
+  (defcomponent :Pcm
+    (entity
+     :Pcm/A
+     {:Id :Identity
+      :X :Int})
+    (entity
+     :Pcm/B
+     {:Id {:type :Int :guid true}
+      :Y :Int})
+    (relationship
+     :Pcm/R
+     {:meta {:between [:Pcm/A :Pcm/B]}})
+    (dataflow
+     :Pcm/MakeB
+     [:match
+      [:> :Pcm/MakeB.Id 10]
+      {:Pcm/B {:Y :Pcm/MakeB.Y :Id :Pcm/MakeB.Id}
+       :-> [[{:Pcm/R {}} {:Pcm/A {:Id? :Pcm/MakeB.A}}]]}
+      {:Pcm/B {:Y :Pcm/MakeB.Y :Id :Pcm/MakeB.Id}}]))
+  (let [cra (fn [x]
+              (tu/first-result
+               {:Pcm/Create_A
+                {:Instance
+                 {:Pcm/A {:X x}}}}))
+        [a1 a2] (mapv cra [1 2])
+        mkb (fn [a id y]
+              (let [b (tu/result
+                       {:Pcm/MakeB
+                        {:A a :Id id :Y y}})]
+                (if (map? b) b (first b))))
+        b1 (mkb (:Id a1) 10 100)
+        b2 (mkb (:Id a1) 11 200)
+        b3 (mkb (:Id a2) 12 300)
+        a? (partial cn/instance-of? :Pcm/A)
+        b? (partial cn/instance-of? :Pcm/B)]
+    (is (every? a? [a1 a2]))
+    (is (every? b? [b1 b2 b3]))
+    (let [rs (tu/result {:Pcm/LookupAll_R {}})]
+      (is (= 2 (count rs)))
+      (is (every? (partial cn/instance-of? :Pcm/R) rs))
+      (is (= [11 12] (vec (sort (mapv :B rs))))))))
