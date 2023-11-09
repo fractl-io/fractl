@@ -10,7 +10,7 @@ Fractl unlocks the future of tri-modal development - concurrent use of 3 differe
 * Code generation with generative-AI.
 
 ## Fractl Loves Gen AI
-As a language, Fractl is a data-oriented and declarative, with an abstraction that is closer to natural language than traditional programming languages. This makes fractl a much better fit for Gen AI-powered code generation. 
+As a language, Fractl is data-oriented and declarative, with an abstraction that is closer to natural languages than traditional programming languages. This makes fractl a much better fit for Gen AI-powered code generation.
 Users can rapidly build business application in Fractl from high-level specifications - typically more than 10x faster than traditional programming languages.
 
 ## Fractl is open
@@ -21,10 +21,10 @@ The code you build in Fractl can be run anywhere using the open source compiler 
 ## Fractl is innovative
 Fractl introduces a number of innovative concepts to programming:
 
-1. **Graph-based Hierarchical Data Model** - compose the high-level data model of an application as hierarchical graph of business entities with relationships. Such [entities and relationships](https://docs.fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
+1. **Graph-based Hierarchical Data Model** - compose the high-level data model of an application as a hierarchical graph of business entities with relationships. Such [entities and relationships](https://docs.fractl.io/docs/concepts/data-model) are first-class constructs in Fractl.
 2. **Zero-trust Programming** - tightly control operations on business entities through [declarative access-control](https://docs.fractl.io/docs/concepts/zero-trust-programming) encoded directly in the model itself.
 3. **Declarative Dataflow** - express business logic as [purely-declarative patterns of data](https://docs.fractl.io/docs/concepts/declarative-dataflow).
-4. **Resolvers** - use a simple, but [powerful interface](https://docs.fractl.io/docs/concepts/resolvers) to interface with external systems.
+4. **Resolvers** - use a simple, but [powerful mechanism](https://docs.fractl.io/docs/concepts/resolvers) to interface with external systems.
 5. **Interceptors** - [extend the fractl runtime](https://docs.fractl.io/docs/concepts/interceptors) with custom capabilities.
 6. **Entity-graph-Database Mapping** - take advantage of an [abstract persistence layer](https://docs.fractl.io/docs/concepts/entity-db-mapping) for fully-automated storage of entity instances.
 
@@ -117,4 +117,41 @@ curl http://localhost:8080/_e/Accounts.Core/Company/acme
 ```
 
 If Fractl is installed correctly, both these requests will return an `OK` status along with a `:Company` instance.
+Listed below are a few more HTTP requests that you can try with our "accounting" application:
+
+1. Create an account-head for the new company.
+
+```shell
+POST /_e/Accounts.Core/Company/acme/CompanyAccounts/AccountHead
+
+{"Accounts.Core/AccountHead": {"Name": "Department01"}}
+```
+
+2. Make some transactions under the new account-head.
+
+```shell
+POST /_e/Accounts.Core/Company/acme/CompanyAccounts/AccountHead/Department01/Transactions/Entry
+
+{"Accounts.Core/Entry":
+ {"No": 1, "Type": "income",
+  "Amount": 2000.0, "Remarks": "Opening balance"}}
+
+POST /_e/Accounts.Core/Company/acme/CompanyAccounts/AccountHead/Department01/Transactions/Entry
+
+{"Accounts.Core/Entry":
+ {"No": 2, "Type": "expense",
+  "Amount": 500.0, "Remarks": "Rent paid"}}
+```
+
+3. Generate the balance-report for the account-head.
+
+```shell
+POST /_e/Accounts.Core/GenerateReport
+
+{"Accounts.Core/GenerateReport":
+ {"Since": "2023-11-09T00:00:00.00",
+  "Company": "acme",
+  "AccountHead": "Department01"}}
+```
+
 You're all set to further explore **Fractl**. Please proceed to the official [documentation](https://docs.fractl.io/docs) pages.
