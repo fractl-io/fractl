@@ -39,12 +39,6 @@
    :name fractl.core
    :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
 
-(def cli-options
-  [["-c" "--config CONFIG" "Configuration file"]
-   ["-s" "--doc MODEL" "Generate documentation in .html"]
-   ["-i" "--interactive 'app-description'" "Invoke AI-assist to model an application"]
-   ["-h" "--help"]])
-
 (defn- complete-model-paths [model current-model-paths config]
   (let [mpkey :model-paths
         mp (or (mpkey model)
@@ -381,20 +375,37 @@
     (build/publish-library nil (keyword (first args)))
     (build/publish-library (first args) (keyword (second args)))))
 
+(def ^:private cli-options
+  [["-c" "--config CONFIG" "Configuration file"]
+   ["-s" "--doc MODEL" "Generate documentation in .html"]
+   ["-i" "--interactive 'app-description'" "Invoke AI-assist to model an application"]
+   ["-h" "--help"]])
+
 (defn- print-help []
-  (doseq [opt cli-options]
-    (println (str "  " (s/join " " opt))))
-  (println "  run MODEL-NAME Load and run a model")
-  (println "  compile MODEL-NAME Compile a model into a Clojure project")
-  (println "  build MODEL-NAME Compile a model to produce a standalone application")
-  (println "  publish MODEL-NAME TARGET Publish the model to one of the targets - `local`, `clojars` or `github`")
-  (println "  exec MODEL-NAME build and run the model as a standalone application")
-  (println "  repl MODEL-NAME run `lein repl` for the model.")
+  (println "This is the command-line interface for the Fractl language tool-chain which includes the")
+  (println "compiler, runtime, REPL and the code-deployer.")
   (println)
-  (println "For `run`, `compile`, `build`, `publish`, `exec` and `repl` the model will be searched in the local directory")
-  (println "or under the paths pointed-to by the `FRACTL_MODEL_PATHS` environment variable.")
-  (println "If `MODEL-NAME` is not required it the fractl command is executed from within the")
-  (println "model directory itself.")
+  (println (str "Version: " (gs/fractl-version)))
+  (println)
+  (println "Usage: fractl [arg*] [command] [MODEL-NAME | SCRIPT]")
+  (println)
+  (println "Valid commands are: ")
+  (println "  run MODEL-NAME             Load and run a model")
+  (println "  compile MODEL-NAME         Compile a model into a Clojure project")
+  (println "  build MODEL-NAME           Compile a model to produce a standalone application")
+  (println "  publish MODEL-NAME TARGET  Publish the model to the target - local, clojars or github")
+  (println "  exec MODEL-NAME            Build and run the model as a standalone application")
+  (println "  repl MODEL-NAME            Launch the Fractl REPL")
+  (println)
+  (println "The model will be searched in the local directory or under the paths pointed-to by")
+  (println "the `FRACTL_MODEL_PATHS` environment variable. If `MODEL-NAME` is not provided,")
+  (println "the fractl command will try to load a model available in the current directory.")
+  (println)
+  (println "The command-line arguments accepted by fractl are:")
+  (println "  -c --config CONFIG         Configuration file")
+  (println "  -s --doc MODEL             Generate HTML documentation")
+  (println "  -i --interactive 'desc'    Use AI to generate a model from the textual description")
+  (println "  -h --help                  Print this help and quit")
   (println)
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
