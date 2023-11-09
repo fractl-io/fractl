@@ -31,6 +31,9 @@ jobs:
         uses: DeLaGuardo/setup-clojure@12.1
         with:
           lein: 2.9.1 # Leiningen
+      - name: Set user-level lein plugin for classpath
+        run: |
+          echo "{:user {:plugins [[lein-classpath-jar \"0.1.0\"]]}}" >> ~/.lein/profiles.clj
       - name: Installing fractl-io dependancies
         run: |
           git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
