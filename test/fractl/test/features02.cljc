@@ -400,6 +400,32 @@
       (is (pos? (s/index-of (li/path-attr d1) "/Cblr$S")))
       (is (cn/same-instance? c1 (lookup-c (cpath (li/path-attr d1))))))))
 
+(deftest issue-1138-fire-dynamic-events
+  (let [x (atom 0)]
+    (defn add-to-x! [v]
+      (reset! x (+ @x v)))
+    (defcomponent :I1138
+      (event
+       :I1138/Evt
+       {:X :Int})
+      (entity
+       :I1138/E
+       {:Evt :I1138/Evt})
+      (dataflow
+       :I1138/Evt
+       [:eval '(fractl.test.features02/add-to-x! :I1138/Evt.X)]
+       :I1138/Evt)
+      (dataflow
+       :I1138/FireEvt
+       [:eval :I1138/FireEvt.E.Evt]
+       :I1138/FireEvt.E))
+    (let [e (tu/result
+             {:I1138/FireEvt
+              {:E {:I1138/E
+                   {:Evt {:I1138/Evt {:X 1}}}}}})]
+      (is (cn/instance-of? :I1138/E e))
+      (is (= 1 @x)))))
+
 (deftest purge-delete-cascades
   (defcomponent :Dac
     (entity

@@ -778,8 +778,15 @@
 (defn- compile-await [ctx pat]
   (op/await_ (compile-construct-with-handlers ctx pat)))
 
+(defn- maybe-as-eval-event [pat]
+  (let [f (first pat)]
+    (if (or (map? f) (keyword? f))
+      `[(fractl.evaluator/safe-eval ~f) ~@(rest pat)]
+      pat)))
+
 (defn- compile-eval [ctx pat]
-  (let [m (us/wrap-to-map (rest pat))
+  (let [pat (maybe-as-eval-event pat)
+        m (us/wrap-to-map (rest pat))
         ret-type (:check m)
         result-alias (:as m)]
     (when (keyword? ret-type)

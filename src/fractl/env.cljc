@@ -61,7 +61,7 @@
    (let [env (assoc env rec-name (list))]
      (su/move-all instances env #(bind-instance %1 rec-name %2))))
   ([env instances]
-   (if (seq instances)
+   (if (and (seq instances) (cn/an-instance? (first instances)))
      (let [[c n :as rec-name] (li/split-path (cn/instance-type (first instances)))]
        (if (and c n)
          (bind-instances env rec-name instances)
