@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.6] - 2023-11-10
+
+- after/before crud-events
+- New Fractl REPL support on CLI
+- GPT support on Fractl with ai endpoints
+- Support lookup of deleted instances
+- Rename of identity properties
+
 ## [0.4.5] - 2023-10-02
 
 - Refactor relationships syntax and internal schema
@@ -128,7 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.4.5...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.4.6...HEAD
+[0.4.6]: https://github.com/fractl-io/fractl/compare/0.4.5...0.4.6
 [0.4.5]: https://github.com/fractl-io/fractl/compare/0.4.0...0.4.5
 [0.4.0]: https://github.com/fractl-io/fractl/compare/0.3.3...0.4.0
 [0.3.3]: https://github.com/fractl-io/fractl/compare/0.3.2...0.3.3

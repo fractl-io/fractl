@@ -1,4 +1,4 @@
-(defproject fractl-io/fractl "0.4.5"
+(defproject fractl-io/fractl "0.4.6"
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [org.clojure/clojurescript "1.10.896"
                   :exclusions [com.google.code.findbugs/jsr305]]
@@ -60,7 +60,8 @@
             [lein-doo "0.1.10"]
             [reifyhealth/lein-git-down "0.4.0"]
             [lein-ancient "1.0.0-RC3"]
-            [cider/cider-nrepl "0.37.1"]]
+            [cider/cider-nrepl "0.37.1"]
+            [lein-classpath-jar "0.1.0"]]
 
   :middleware [lein-git-down.plugin/inject-properties]
 

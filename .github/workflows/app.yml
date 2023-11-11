@@ -6,19 +6,29 @@ on:
       - main
   pull_request:
     branches:
-      - '*'         # matches every branch that doesn't contain a '/'
-      - '*/*'       # matches every branch containing a single '/'
-      - '**'        # matches every branch
+      - "*" # matches every branch that doesn't contain a '/'
+      - "*/*" # matches every branch containing a single '/'
+      - "**" # matches every branch
 
 jobs:
   test_library_app:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [16.x]
+        platform: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+      - name: Prepare java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: "19"
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@12.1
+        with:
+          lein: 2.9.1 # Leiningen
       - name: Installing fractl-io dependancies
         run: |
           git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
@@ -26,10 +36,19 @@ jobs:
           lein install
       - name: Install dependencies
         run: lein deps
-      - name: Install Node JS ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+      - name: Cache clojure depdendencies
+        uses: actions/cache@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: cljdeps-${{ hashFiles('project.clj') }}
+          restore-keys: cljdeps-
+      - name: Install Node JS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
       - name: Newman cli install
         run: npm install -g newman
       - name: Run lein library app & Newman API test

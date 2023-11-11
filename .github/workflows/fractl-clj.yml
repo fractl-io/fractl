@@ -6,48 +6,54 @@ on:
       - main
   pull_request:
     branches:
-      - '*'         # matches every branch that doesn't contain a '/'
-      - '*/*'       # matches every branch containing a single '/'
-      - '**'        # matches every branch
+      - "*" # matches every branch that doesn't contain a '/'
+      - "*/*" # matches every branch containing a single '/'
+      - "**" # matches every branch
 
 jobs:
   test_clj:
-    runs-on: ubuntu-latest
-    services:
-      # Label used to access the service container
-      postgres:
-        # Docker Hub image
-        image: postgres
-        # Provide the password for postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        # Set health checks to wait until postgres has started
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          # Maps tcp port 5432 on service container to the host
-          - 5432:5432
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.platform }}
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Installing fractl-io dependancies
-      run: |
-        git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
-        cd fractl-config-secrets-reader
-        lein install
-    - name: Install dependencies
-      run: lein deps
-    - name: Run fractl test
-      run: lein test
-      env:
-        # The hostname used to communicate with the PostgreSQL service container
-        POSTGRES_HOST: localhost
-        # The default PostgreSQL port
-        POSTGRES_PORT: 5432
-        POSTGRES_PASSWORD: postgres
-    - name: Clean target
-      run: lein clean
+      - name: Setup postgres
+        uses: ikalnytskyi/action-setup-postgres@v4
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Prepare java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "zulu"
+          java-version: "19"
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@12.1
+        with:
+          lein: 2.9.1 # Leiningen
+      - name: Installing fractl-io dependancies
+        run: |
+          git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
+          cd fractl-config-secrets-reader
+          lein install
+      - name: Install dependencies
+        run: lein deps
+      - name: Cache clojure depdendencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+            ~/.deps.clj
+          key: cljdeps-${{ hashFiles('project.clj') }}
+          restore-keys: cljdeps-
+      - name: Run fractl test
+        run: lein test
+        env:
+          # The hostname used to communicate with the PostgreSQL service container
+          POSTGRES_HOST: localhost
+          # The default PostgreSQL port
+          POSTGRES_PORT: 5432
+          POSTGRES_PASSWORD: postgres
+      - name: Clean target
+        run: lein clean
