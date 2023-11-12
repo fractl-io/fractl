@@ -8,9 +8,9 @@ function msg {
     echo "$@" 1>&2
 }
 
-export FRACTL_VERSION="0.4.5"
-# Must be sha256sum, will be replaced by bin/release
-export FRACTL_CHECKSUM='e62e2b633ca76c34019133a4a27dc6fc1f4c4e11055be8e2ade4001cb9e8d9c4'
+export FRACTL_VERSION="0.4.6"
+# Must be sha256sum
+export FRACTL_CHECKSUM='c18477722dd5b1caf13df25e0dcc0d590ded6327605cdf70987895c04968a61a'
 
 if [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
     delimiter=";"
@@ -86,7 +86,7 @@ function self_install {
   fi
   msg "Downloading Fractl to $FRACTL_JAR now..."
   mkdir -p "$(dirname "$FRACTL_JAR")"
-  FRACTL_URL="https://github.com/fractl-io/fractl-releases/releases/download/pre-release/fractl-$FRACTL_VERSION-standalone.jar"
+  FRACTL_URL="https://github.com/fractl-io/fractl/releases/download/$FRACTL_VERSION/fractl-$FRACTL_VERSION-standalone.jar"
   echo "$HTTP_CLIENT $FRACTL_JAR.pending $FRACTL_URL"
   $HTTP_CLIENT "$FRACTL_JAR.pending" "$FRACTL_URL"
   local exit_code=$?
