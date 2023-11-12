@@ -155,3 +155,11 @@ POST /_e/Accounts.Core/GenerateReport
 ```
 
 You're all set to further explore **Fractl**. Please proceed to the official [documentation](https://docs.fractl.io/docs) pages.
+
+## License
+
+Copyright 2022 Fractl Inc.
+
+Licensed under the Apache License, Version 2.0:
+http://www.apache.org/licenses/LICENSE-2.0
+
