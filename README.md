@@ -4,7 +4,7 @@
 
 # The Fractl Programming Language
 
-Fractl unlocks the future of tri-modal development - concurrent use of 3 different ways of programming:
+Fractl is a data-oriented, declarative programming language that allows the development of business applications from high-level models or specifications. Fractl enable developers to focus on the core business requirements of their application, instead of dealing with the wiring logic and resulting accidental complexity. Fractl unlocks the future of tri-modal development - concurrent use of 3 different ways of programming:
 * Traditional coding in IDEs,
 * Visual development in a no-code builder, and,
 * Code generation with generative-AI.
@@ -13,10 +13,15 @@ Fractl unlocks the future of tri-modal development - concurrent use of 3 differe
 As a language, Fractl is data-oriented and declarative, with an abstraction that is closer to natural languages than traditional programming languages. This makes fractl a much better fit for Gen AI-powered code generation.
 Users can rapidly build business application in Fractl from high-level specifications - typically more than 10x faster than traditional programming languages.
 
-## Fractl is open
-The Fractl language specification, its compiler and runtime are open source.
+## Fractl is a bridge between Code and Low-code/No-code
 
-The code you build in Fractl can be run anywhere using the open source compiler and runtime, thereby avoiding the vendor lock-in of other low-code/no-code platforms.
+Fractl, with its ultra high-level abstraction and data-oriented syntax, also acts a single abstraction for both traditional programming and visual building in Fractl Inc's Design Studio product. Code blocks in the Fractl programming language can be directly represented as visual elements in Fractl Design Studio, without any translation, and vice versa. This unique characteristic of Fractl makes it possible for developers to concurrently use multiple ways of building:
+
+Traditional coding: The complete life-cycle of a Fractl project (design, coding, debugging and deployment) can be managed using your favorite text editor and the fractl command-line tool. Fractl models are expressed in a simple and intuitive data-oriented syntax. This means, your Fractl programs can easily integrate with existing plain-text processing tools.
+No-code building: Fractl Design Studio, our no-code builder, allows Fractl models to be designed visually. It also provide an accessible browser-based interface for all aspects of project management. Design Studio is also tightly integrated with the fractl.io platform which automates all aspects of deploying and managing planet-scale SaaS applications.
+Generative AI: The very-high-level, declarative nature of Fractl is a phenomenal fit for LLM-driven code generation. The Gen-AI built-into Design Studio can generate ready-to-deploy applications from pure-text descriptions of the business problem.
+
+> Fractl is built on top of the Clojure programming language and apps built in Fractl can leverage the universe of Java and Clojure libraries.
 
 ## Fractl is innovative
 Fractl introduces a number of innovative concepts to programming:
