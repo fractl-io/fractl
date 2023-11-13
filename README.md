@@ -6,6 +6,8 @@
 
 Fractl is a data-oriented, declarative programming language that allows the development of business applications from high-level models or specifications. Fractl enable developers to focus on the core business requirements of their application, instead of dealing with the wiring logic and resulting accidental complexity.
 
+> Fractl is built on top of the Clojure programming language and apps built in Fractl can leverage the universe of Java and Clojure libraries.
+
 ## Fractl Loves Gen AI
 
 As a language, Fractl is data-oriented and declarative, with an abstraction that is closer to natural languages than traditional programming languages. This makes fractl a much better fit for Gen AI-powered code generation.
@@ -19,7 +21,7 @@ Fractl, with its ultra high-level abstraction and data-oriented syntax, also act
 * No-code building in Fractl Design Studio
 * Generative AI code generation in Fractl Design Studio
 
-> Fractl is built on top of the Clojure programming language and apps built in Fractl can leverage the universe of Java and Clojure libraries.
+With Fractl, we finally have a visual development platform that is open and works with developer workflow.
 
 ## Fractl is innovative
 
@@ -99,10 +101,12 @@ But before you can actually run it, you need to install Fractl. The next section
 1. JVM 19 or later
 2. Linux, Mac OSX or a Unix emulator in Windows
 
-Download the [Fractl CLI tool](https://raw.githubusercontent.com/fractl-io/fractl/main/bin/fractl?token=GHSAT0AAAAAACJKCQZ6U7QVI6PA6CWL7FG4ZKPU2YQ) and execute the model:
+Download the [Fractl CLI tool](https://raw.githubusercontent.com/fractl-io/fractl/main/bin/fractl?token=GHSAT0AAAAAACJKCQZ6U7QVI6PA6CWL7FG4ZKPU2YQ) and add it to a location in your system's search-path.
+
+## Execute the model
 
 ```shell
-./fractl /path/to/accounts.fractl
+fractl /path/to/accounts.fractl
 ```
 
 We can create a new company using an `HTTP POST` request,
