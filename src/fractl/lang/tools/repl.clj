@@ -177,9 +177,11 @@
     (use '[fractl.lang])
     (use '[fractl.lang.tools.replcmds])
     (ln/component repl-component)
-    (when current-cn
-      (reset! active-component current-cn)
-      (cn/switch-component current-cn))
+    (let [cn (if (= model-name :fractl)
+               repl-component
+               current-cn)]
+      (reset! active-component cn)
+      (cn/switch-component cn))
     (loop [model-name model-name]
       (print (str (name model-name) "> ")) (flush)
       (let [exp (try
