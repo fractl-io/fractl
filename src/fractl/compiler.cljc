@@ -1199,12 +1199,14 @@
     :else exp))
 
 (defn compile-attribute-expression [rec-name attrs aname aval]
-  (when-not aval
-    (u/throw-ex (str "attribute expression cannot be nil - " [rec-name aname])))
-  (let [arg-lookup (partial arg-lookup-fn rec-name attrs (keys attrs) aname)
-        parse-exp (partial parse-expr arg-lookup)
-        exp `(fn [~runtime-env-var ~current-instance-var] ~(parse-exp aval))]
-    (li/evaluate exp)))
+  #?(:clj
+     (do (when-not aval
+           (u/throw-ex (str "attribute expression cannot be nil - " [rec-name aname])))
+         (let [arg-lookup (partial arg-lookup-fn rec-name attrs (keys attrs) aname)
+               parse-exp (partial parse-expr arg-lookup)
+               exp `(fn [~runtime-env-var ~current-instance-var] ~(parse-exp aval))]
+           (li/evaluate exp)))
+     :cljs (concat ['quote] [aval])))
 
 (defn- extract-node-info [tree]
   (let [ks (keys tree)]
