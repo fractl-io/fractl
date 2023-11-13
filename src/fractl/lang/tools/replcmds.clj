@@ -3,6 +3,7 @@
             [clojure.java.io :as io]
             [clojure.pprint :as pp]
             [fractl.util :as u]
+            [fractl.component :as cn]
             [fractl.lang.raw :as raw]
             [fractl.global-state :as gs])
   (:import [java.io File]
@@ -37,3 +38,11 @@
         (doseq [exp (rest contents)]
           (pp/pprint exp w)))
       full-path)))
+
+(def ^:private active-component (atom nil))
+
+(defn switch [component-name]
+  (cn/switch-component component-name)
+  (reset! active-component component-name))
+
+(defn get-active-component [] @active-component)

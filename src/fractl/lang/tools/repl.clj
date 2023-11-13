@@ -6,6 +6,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.name-util :as nu]
             [fractl.lang.tools.loader :as loader]
+            [fractl.lang.tools.replcmds :as replcmds]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
             [fractl.store :as store]
@@ -16,11 +17,10 @@
 
 (def ^:private repl-component :Fractl.Kernel.Repl)
 (def ^:private components (atom {}))
-(def ^:private active-component (atom nil))
 
 (defn- set-declared-names! [cn decl-names]
   (swap! components assoc cn decl-names)
-  (reset! active-component cn))
+  (replcmds/switch cn))
 
 (defn- add-declared-name! [cn n]
   (let [names (get @components cn #{})]
@@ -125,16 +125,16 @@
   (cond
     (lang-defn? exp)
     (if-let [[c n] (fetch-def-name exp)]
-      (let [cn (or c @active-component)]
+      (let [cn (or c (replcmds/get-active-component))]
         (add-declared-name! cn n)
         (nu/fully-qualified-names (declared-names cn) exp))
-      (nu/fully-qualified-names (declared-names @active-component) exp))
+      (nu/fully-qualified-names (declared-names (replcmds/get-active-component)) exp))
 
     (and (seqable? exp) (= 'component (first exp)))
-    (do (reset! active-component (second exp)) exp)
+    (do (replcmds/switch (second exp)) exp)
 
     (or (map? exp) (vector? exp))
-    (if-let [names (declared-names @active-component)]
+    (if-let [names (declared-names (replcmds/get-active-component))]
       (nu/generic-fully-qualified-names names exp)
       exp)
 
@@ -161,10 +161,13 @@
       :fractl)))
 
 (defn- maybe-change-model-name [model-name exp]
-  (if (and (seqable? exp) (= 'component (first exp)))
-    (let [n (second exp)
-          s (s/split (subs (str n) 1) #"\.")]
-      (s/lower-case (first s)))
+  (if (seqable? exp)
+    (let [x (first exp)]
+      (if (or (= 'component x) (= 'switch x))
+        (let [n (second exp)
+              s (s/split (subs (str n) 1) #"\.")]
+          (s/lower-case (first s)))
+        model-name))
     model-name))
 
 (defn run [model-name store evaluator]
@@ -180,8 +183,7 @@
     (let [cn (if (= model-name :fractl)
                repl-component
                current-cn)]
-      (reset! active-component cn)
-      (cn/switch-component cn))
+      (replcmds/switch cn))
     (loop [model-name model-name]
       (print (str (name model-name) "> ")) (flush)
       (let [exp (try
