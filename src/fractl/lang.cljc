@@ -616,7 +616,7 @@
           (u/throw-ex (str "invalid crud operation in " pat)))))))
 
 (defn- parse-prepost-patterns [event-name pats]
-  (when (seq pats)
+  (if (seq pats)
     (let [rf-inst (li/make-ref event-name :Instance)
           rf-ctx (li/make-ref event-name li/event-context)]
       (w/postwalk
@@ -634,7 +634,8 @@
 
             :else %)
           %)
-       pats))))
+       pats))
+    (parse-prepost-patterns event-name [:Instance])))
 
 (defn- parse-prepost-crud-header [pat]
   (let [event-name (apply cn/prepost-event-name pat)]
