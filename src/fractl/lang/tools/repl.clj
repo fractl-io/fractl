@@ -177,6 +177,9 @@
     (use '[fractl.lang])
     (use '[fractl.lang.tools.replcmds])
     (ln/component repl-component)
+    (when current-cn
+      (reset! active-component current-cn)
+      (cn/switch-component current-cn))
     (loop [model-name model-name]
       (print (str (name model-name) "> ")) (flush)
       (let [exp (try
