@@ -44,6 +44,8 @@
                  [org.liquibase/liquibase-core "4.23.0"]
                  [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]]
 
+  :license {:name "Apache2"}
+
   :java-source-paths ["src/java"]
 
   :main fractl.core
