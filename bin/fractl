@@ -8,9 +8,9 @@ function msg {
     echo "$@" 1>&2
 }
 
-export FRACTL_VERSION="0.4.6"
+export FRACTL_VERSION="0.4.7"
 # Must be sha256sum
-export FRACTL_CHECKSUM='c18477722dd5b1caf13df25e0dcc0d590ded6327605cdf70987895c04968a61a'
+export FRACTL_CHECKSUM='72b0515b1c666467cf5d82366ed5820343a5b2df923e55652c545937999c865e'
 
 if [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
     delimiter=";"
@@ -188,6 +188,13 @@ fi
 
 if [ ! -r "$FRACTL_JAR" ]; then
     self_install
+    present_dir=`pwd`
+    rm -rf $FRACTL_HOME/self-installs/fractl-lein-template
+    cd $FRACTL_HOME/self-installs
+    git clone https://github.com/fractl-io/fractl-lein-template.git || exit 1
+    cd $FRACTL_HOME/self-installs/fractl-lein-template/fractl-model
+    lein install || exit 1
+    cd ${present_dir}
 fi
 
 $FRACTL_JAVA_CMD $FRACTL_JVM_OPTS -jar ${FRACTL_JAR} "$@"
