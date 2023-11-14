@@ -95,7 +95,7 @@ But before you can actually run it, you need to install Fractl. The next section
 1. JVM 19 or later
 2. Linux, Mac OSX or a Unix emulator in Windows
 
-Download the [Fractl CLI tool](https://raw.githubusercontent.com/fractl-io/fractl/main/bin/fractl?token=GHSAT0AAAAAACJKCQZ6U7QVI6PA6CWL7FG4ZKPU2YQ) and execute the model:
+Download the [Fractl CLI tool](https://raw.githubusercontent.com/fractl-io/fractl/main/bin/fractl) and execute the model:
 
 ```shell
 ./fractl /path/to/accounts.fractl
