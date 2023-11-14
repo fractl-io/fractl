@@ -4,14 +4,19 @@
 
 # The Fractl Programming Language
 
-Fractl unlocks the future of tri-modal development - concurrent use of 3 different ways of programming:
+Generative AI is poised to revolutionize the entire software development landscape, with the promise of fluently writing code on behalf of programmers. However, programming is a discipline that requires precision and deep reasoning, not just fluency: minor nuances in code can lead to wildly different outcomes. As a result, AI-driven code generation needs to involve a human (developer) in the loop. Developers still need to meticulously review, refactor, and test AI-generated code (aided by AI, of course) before incorporating it into their projects. Traditional programming languages are a poor fit for this human-in-the-loop workflow: generated code is too low-level, syntactically verbose, and comprehensible only by highly-trained experts, even then requiring significant effort.
+
+## Fractl Loves Gen AI
+As a language, Fractl is data-oriented and declarative, with an abstraction that is closer to natural languages than traditional programming languages. This makes fractl a much better fit for Gen AI-powered code generation. Users can rapidly build business application in Fractl from high-level specifications - typically more than 10x faster than traditional programming languages.
+
+## Fractl is a bridge between Code and Low-code/No-code
+With the rising popularity of Low-code/No-code tools, a growing chasm has emerged between traditional programming and visual building. Traditional programming by professional developers offers immense power and flexiblity, but tends to be slow, expensive and constrained by the availability of skilled developers. In contrast, low-code/no-code tools provide speed and simplicity, but are often limited to simple use cases, lead to strong vendor lock-ins, and, as a result, have been strongly rejected by professional developers.
+
+Fractl, with its high-level of abstraction and data-oriented syntax, bridges this chasm by being a single abstraction for both traditional programming and visual building. Code blocks in the Fractl programming language can be directly represented as visual elements in Fractl Design Studio, without any translation, and vice versa. This unique characteristic of Fractl makes it possible for developers to concurrently use multiple ways of building:
+
 * Traditional coding in IDEs,
 * Visual development in a no-code builder, and,
 * Code generation with generative-AI.
-
-## Fractl Loves Gen AI
-As a language, Fractl is data-oriented and declarative, with an abstraction that is closer to natural languages than traditional programming languages. This makes fractl a much better fit for Gen AI-powered code generation.
-Users can rapidly build business application in Fractl from high-level specifications - typically more than 10x faster than traditional programming languages.
 
 ## Fractl is open
 The Fractl language specification, its compiler and runtime are open source.
