@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.7] - 2023-11-14
+
+- Change project-prefix for publishing in Clojars
+- Fix expression loading for cljs
+- Minor bug fixes in REPL
+
 ## [0.4.6] - 2023-11-10
 
 - after/before crud-events

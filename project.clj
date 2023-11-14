@@ -1,4 +1,4 @@
-(defproject fractl-io/fractl "0.4.6"
+(defproject com.github.fractl-io/fractl "0.4.7"
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [org.clojure/clojurescript "1.10.896"
                   :exclusions [com.google.code.findbugs/jsr305]]
@@ -42,7 +42,7 @@
                  [metosin/ring-swagger "0.26.2"]
                  [cheshire "5.11.0"]
                  [org.liquibase/liquibase-core "4.23.0"]
-                 [fractl-io/fractl-config-secrets-reader "0.1.0"]]
+                 [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]]
 
   :java-source-paths ["src/java"]
 
