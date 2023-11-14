@@ -106,15 +106,7 @@ function self_install {
       download_failed_message "$FRACTL_URL" "$exit_code"
       exit 1
   fi
-  local templ_dir="$FRACTL_HOME/self-installs/fractl-lein-template"
-  rm -rf "$templ_dir"
-  git clone https://github.com/fractl-io/fractl-lein-template.git "$templ_dir" || echo "ERROR: failed to clone fractl-lein-template"; return
-  cd "$templ_dir/fractl-model"
-  lein install || echo "ERROR: failed to install fractl-lein-template"
-  cd -
 }
-
-
 
 export FRACTL_HOME="${FRACTL_HOME:-"$HOME/.fractl"}"
 
