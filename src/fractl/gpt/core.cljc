@@ -164,18 +164,19 @@
 
 (defn maybe-intern-component [s]
   (log/debug (str "trying to intern choice: " s))
-  (let [final-s (read-string (str "(do " (remove-invalid-tokens (trim-to-exp s)) ")"))]
-    (when-let [exps (seq (filter model-exp? final-s))]
-      (doseq [exp exps]
-        (if (clj-exp? exp)
-          (li/evaluate exp)
-          (apply (get model-fns (first exp)) (rest exp))))
-      `(do ~@exps))))
+  #?(:clj
+     (let [final-s (read-string (str "(do " (remove-invalid-tokens (trim-to-exp s)) ")"))]
+       (when-let [exps (seq (filter model-exp? final-s))]
+         (doseq [exp exps]
+           (if (clj-exp? exp)
+             (li/evaluate exp)
+             (apply (get model-fns (first exp)) (rest exp))))
+         `(do ~@exps)))))
 
 (defn- print-choice [s input-cache]
   (try
     (if-let [c (maybe-intern-component s)]
-      (clojure.pprint/pprint c)
+      (#?(:clj clojure.pprint/pprint :cljs println) c)
       (prnf s))
     (catch #?(:clj Exception :cljs :default) ex
       (let [msg #?(:clj (str (.getMessage ex)
