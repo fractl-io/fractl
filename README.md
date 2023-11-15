@@ -159,7 +159,7 @@ POST /_e/Accounts.Core/GenerateReport
   "AccountHead": "Department01"}}
 ```
 
-You're all set to further explore **Fractl**. Please proceed to the official [documentation](https://docs.fractl.io/docs) pages.
+You're all set to further explore **Fractl**. Please proceed to the official [documentation](https://docs.fractl.io) pages.
 
 ## License
 
