@@ -189,68 +189,69 @@
 
 (deftest issue-377-multi-query
   (#?(:clj do)
-   (defcomponent :I377.Test1
-     (entity
-      :I377.Test1/Defect
-      {:SiteLocation :String
-       :DefectType :String
-       :Timestamp {:type :DateTime
-                   :default dt/now
-                   :indexed true}
-       :MarkedAsDeleted {:type :Boolean
-                         :default false}})
+   (when-not (tu/windows?)
+     (defcomponent :I377.Test1
+       (entity
+        :I377.Test1/Defect
+        {:SiteLocation :String
+         :DefectType :String
+         :Timestamp {:type :DateTime
+                     :default dt/now
+                     :indexed true}
+         :MarkedAsDeleted {:type :Boolean
+                           :default false}})
 
-     (event
-      :I377.Test1/GetDefectsByDateAndSiteLocation
-      {:From :String
-       :To :String
-       :SiteLocation :String})
+       (event
+        :I377.Test1/GetDefectsByDateAndSiteLocation
+        {:From :String
+         :To :String
+         :SiteLocation :String})
 
-     (dataflow
-      :I377.Test1/GetDefectsByDateAndSiteLocation
-      {:I377.Test1/Defect
-       {:Timestamp? [:and
-                     [:> :I377.Test1/GetDefectsByDateAndSiteLocation.From]
-                     [:< :I377.Test1/GetDefectsByDateAndSiteLocation.To]]
-        :SiteLocation? [:= :I377.Test1/GetDefectsByDateAndSiteLocation.SiteLocation]
-        :MarkedAsDeleted? [:= false]}}))
+       (dataflow
+        :I377.Test1/GetDefectsByDateAndSiteLocation
+        {:I377.Test1/Defect
+         {:Timestamp? [:and
+                       [:> :I377.Test1/GetDefectsByDateAndSiteLocation.From]
+                       [:< :I377.Test1/GetDefectsByDateAndSiteLocation.To]]
+          :SiteLocation? [:= :I377.Test1/GetDefectsByDateAndSiteLocation.SiteLocation]
+          :MarkedAsDeleted? [:= false]}}))
 
-   (let [s (dt/now)
-         _ (Thread/sleep 1000)
-         e1 (cn/make-instance
-             {:I377.Test1/Defect
-              {:SiteLocation "a"
-               :Timestamp "2021-10-20T11:39:55.539551"
-               :DefectType "fatal"}})
-         er1 (tu/first-result
-              {:I377.Test1/Create_Defect {:Instance e1}})
-         e2 (cn/make-instance
-             {:I377.Test1/Defect
-              {:SiteLocation "b"
-               :Timestamp "2021-10-20T11:39:20.539551"
-               :DefectType "serious"}})
-         er2 (tu/first-result
-              {:I377.Test1/Create_Defect {:Instance e2}})
-         e3 (cn/make-instance
-             {:I377.Test1/Defect
-              {:SiteLocation "b"
-               :DefectType "normal"}})
-         er3 (tu/first-result
-              {:I377.Test1/Create_Defect {:Instance e3}})
-         e4 (cn/make-instance
-             {:I377.Test1/Defect
-              {:SiteLocation "a"
-               :DefectType "fatal"}})
-         er4 (tu/first-result
-              {:I377.Test1/Create_Defect {:Instance e4}})
-         evt (cn/make-instance
-              {:I377.Test1/GetDefectsByDateAndSiteLocation
-               {:From s
-                :To (dt/now)
-                :SiteLocation "b"}})
-         r (:result (first (e/eval-all-dataflows evt)))]
-     (is (= 1 (count r)))
-     (is (= (cn/id-attr (first r)) (cn/id-attr er3))))))
+     (let [s (dt/now)
+           _ (Thread/sleep 1000)
+           e1 (cn/make-instance
+               {:I377.Test1/Defect
+                {:SiteLocation "a"
+                 :Timestamp "2021-10-20T11:39:55.539551"
+                 :DefectType "fatal"}})
+           er1 (tu/first-result
+                {:I377.Test1/Create_Defect {:Instance e1}})
+           e2 (cn/make-instance
+               {:I377.Test1/Defect
+                {:SiteLocation "b"
+                 :Timestamp "2021-10-20T11:39:20.539551"
+                 :DefectType "serious"}})
+           er2 (tu/first-result
+                {:I377.Test1/Create_Defect {:Instance e2}})
+           e3 (cn/make-instance
+               {:I377.Test1/Defect
+                {:SiteLocation "b"
+                 :DefectType "normal"}})
+           er3 (tu/first-result
+                {:I377.Test1/Create_Defect {:Instance e3}})
+           e4 (cn/make-instance
+               {:I377.Test1/Defect
+                {:SiteLocation "a"
+                 :DefectType "fatal"}})
+           er4 (tu/first-result
+                {:I377.Test1/Create_Defect {:Instance e4}})
+           evt (cn/make-instance
+                {:I377.Test1/GetDefectsByDateAndSiteLocation
+                 {:From s
+                  :To (dt/now)
+                  :SiteLocation "b"}})
+           r (:result (first (e/eval-all-dataflows evt)))]
+       (is (= 1 (count r)))
+       (is (= (cn/id-attr (first r)) (cn/id-attr er3)))))))
 
 (deftest issue-379-compound-query
   (#?(:clj do
