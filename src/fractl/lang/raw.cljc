@@ -154,7 +154,6 @@
 (def remove-entity (partial remove-definition 'entity))
 (def remove-relationship (partial remove-definition 'relationship))
 (def remove-dataflow (partial remove-definition 'dataflow))
-(def remove-event (partial remove-definition 'event))
 
 (defn remove-event [event-name]
   (when (remove-dataflow event-name)

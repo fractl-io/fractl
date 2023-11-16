@@ -1099,9 +1099,9 @@
           (recur (rest pats) (vec (concat final-pats (preproc-relspec p relspec))))
           (recur (rest pats) (conj final-pats p)))
         (if (seq final-pats) final-pats dfpats)))
-    (catch Exception ex
+    (catch #?(:clj Exception :cljs :default) ex
       (log/exception ex)
-      (throw (Exception. "Error in dataflow, pre-processing failed")))))
+      #?(:clj (throw (Exception. "Error in dataflow, pre-processing failed"))))))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial

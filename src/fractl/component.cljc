@@ -1848,7 +1848,7 @@
   (when-let [ma (li/meta-attr inst)]
     (if (string? ma)
       (when (seq ma)
-        (read-string ma))
+        (#?(:clj read-string :cljs cljs.reader/read-string) ma))
       ma)))
 
 (defn- update-owners [opr inst users]
