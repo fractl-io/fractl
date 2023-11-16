@@ -18,6 +18,11 @@
 
 (defn host-is-jvm? [] (= host-runtime :jvm))
 
+(defn host-os []
+  #?(:clj
+     (keyword (first (string/split (string/lower-case (System/getProperty "os.name")) #" ")))
+     :cljs :js))
+
 (def ^:private script-extn (atom ".fractl"))
 
 (defn set-script-extn! [extn]

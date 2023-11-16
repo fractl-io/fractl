@@ -6,6 +6,7 @@
             [fractl.lang.internal :as li]
             #?(:clj  [clojure.test :refer [is]]
                :cljs [cljs.test :refer-macros [is]])
+            [fractl.util :as u]
             [fractl.store :as store]
             [fractl.rbac.core :as rbac]
             [fractl.lang.rbac :as lr]
@@ -326,3 +327,6 @@
 
 (def guid li/guid)
 (def path-identity li/path-identity)
+
+(defn windows? []
+  (= :windows (u/host-os)))

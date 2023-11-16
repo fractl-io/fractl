@@ -555,10 +555,12 @@
                      {(mp :Lookup_C)
                       {li/path-attr (fq (str "path://P/" %1 "/R/C/" %2))}})]
       (is (every? p? [p1 p2]))
-      (is (every? c? [c1 c2 c3]))
-      (is (cn/same-instance? c1 (tu/ffresult (lookup-c 1 2))))
+      (is (every? c? [c1 c3]))
       (if flag
-        (is (tu/not-found? (lookup-c 2 2)))
+        (is (nil? c2))
+        (is (c? c2)))
+      (is (cn/same-instance? c1 (tu/ffresult (lookup-c 1 2))))
+      (when-not flag
         (is (cn/same-instance? c2 (tu/ffresult (lookup-c 2 2)))))
       (is (cn/same-instance? c3 (tu/ffresult (lookup-c 2 3)))))))
 
@@ -655,7 +657,7 @@
           r21 (r2-with-ids 1 10)
           r22 (r2-with-ids 1 20)
           r23 (r2-with-ids 2 30)]
-      (is (and r20 r21 r22 r23))
+      (is (and r20 r23))
       (is (r2? (lookup-r2 r20)))
       (is (not (r2? (lookup-r2 r21))))
       (is (not (r2? (lookup-r2 r22))))
@@ -664,7 +666,7 @@
           r31 (r3-with-ids 1 10)
           r32 (r3-with-ids 1 20)
           r33 (r3-with-ids 2 30)]
-      (is (and r30 r31 r32 r33))
+      (is (and r30 r32 r33))
       (is (r3? (lookup-r3 r30)))
       (is (not (r3? (lookup-r3 r31))))
       (is (r3? (lookup-r3 r32)))

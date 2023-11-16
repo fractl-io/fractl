@@ -446,14 +446,20 @@
      {:Name {:type :String tu/guid true}
       :S :String
       :Roles {:listof :Keyword}})
+    (event
+     :I967/CreateEmployee
+     {:Name :String :Roles :Any})
+    (dataflow
+     :I967/CreateEmployee
+     {:I967/Employee
+      {:Name :I967/CreateEmployee.Name
+       :S :Name
+       :Roles :I967/CreateEmployee.Roles}})
     (dataflow
      :I967/CallCreateEmployee
-     {:I967/Create_Employee
-      {:Instance
-       {:I967/Employee
-        {:Name :I967/CallCreateEmployee.Name
-         :S :Name
-         :Roles [:q# [:admin [:uq# '(keyword :Name)]]]}}}}))
+     {:I967/CreateEmployee
+      {:Name :I967/CallCreateEmployee.Name
+       :Roles [:q# [:admin [:uq# '(keyword :Name)]]]}}))
   (let [e1 (tu/first-result
             {:I967/CallCreateEmployee {:Name "abc"}})]
     (is (cn/instance-of? :I967/Employee e1))
