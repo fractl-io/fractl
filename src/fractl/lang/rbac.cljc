@@ -29,7 +29,10 @@
     (u/throw-ex (str "invalid roles in " spec)))
   (when-let [roles (seq (set/difference roles (set @inited-roles)))]
     (let [r (mapv
-             (fn [r] {:Fractl.Kernel.Rbac/Role {:Name r}})
+             (fn [r]
+               [:try
+                {:Fractl.Kernel.Rbac/Role {:Name? r}}
+                :not-found {:Fractl.Kernel.Rbac/Role {:Name r}}])
              roles)]
       (u/safe-set inited-roles (set/union roles @inited-roles))
       r)))
@@ -38,20 +41,27 @@
   (let [[c n] (li/split-path recname)]
     (mapv
      (fn [{roles :roles allow :allow}]
-       [(create-roles (set roles) spec)
+       (concat
+        (create-roles (set roles) spec)
         (let [allow (validate-perms allow)
               pname (str "priv_" (name c) "_" (name n)
                          "_" (s/join "_" roles))]
           (concat
-           [{:Fractl.Kernel.Rbac/Privilege
-             {:Name pname
-              :Actions [:q# allow]
-              :Resource [:q# [recname]]}}]
+           [[:try
+             {:Fractl.Kernel.Rbac/Privilege {:Name? pname}}
+             :not-found
+             {:Fractl.Kernel.Rbac/Privilege
+              {:Name pname
+               :Actions [:q# allow]
+               :Resource [:q# [recname]]}}]]
            (mapv
             (fn [r]
-              {:Fractl.Kernel.Rbac/PrivilegeAssignment
-               {:Role r :Privilege pname}})
-            roles)))])
+              [:try
+               {:Fractl.Kernel.Rbac/PrivilegeAssignment
+                {:Role? r :Privilege? pname}}
+               :not-found {:Fractl.Kernel.Rbac/PrivilegeAssignment
+                           {:Role r :Privilege pname}}])
+            roles)))))
      spec)))
 
 (defn- conj-admin [spec]
@@ -62,7 +72,7 @@
 (defn- intern-rbac [evaluator recname spec]
   (when (seq spec)
     (let [spec (conj-admin spec)
-          pats (vec (su/nonils (flatten (rbac-patterns recname spec))))
+          pats (vec (su/nonils (apply concat (rbac-patterns recname spec))))
           [c n] (li/split-path recname)
           event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
       (cn/intern-event event-name {})
