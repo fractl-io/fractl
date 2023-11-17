@@ -3,8 +3,7 @@
             [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
-            [fractl.util :as u]
-            [fractl.global-state :as gs]))
+            [fractl.util :as u]))
 
 (def deleted-flag-col "FRACTL__IS_DELETED")
 (def deleted-flag-col-kw (keyword (str "_" deleted-flag-col)))
@@ -22,15 +21,15 @@
 
 (def ^:private schema-version
   (memoize
-   (fn []
+   (fn [component-name]
      (reduce
       (fn [a c]
         (if a (str a (if #?(:clj (Character/isLetterOrDigit c) :cljs true) c \_)) c))
-      nil (gs/get-schema-version)))))
+      nil (or (cn/model-version (cn/model-for-component component-name)) "0.0.1")))))
 
 (defn entity-table-name [entity-name]
   (let [[component-name r] (li/split-path entity-name)
-        v (schema-version)
+        v (schema-version component-name)
         en (str (db-ident r) "_" v)]
     (if (cn/entity-schema-predefined? entity-name)
       en

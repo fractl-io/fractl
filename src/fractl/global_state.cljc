@@ -13,9 +13,6 @@
 (defn get-app-config []
   @app-config)
 
-(defn get-schema-version []
-  (or (:schema-version (:store @app-config)) "0.0.1"))
-
 (def ^:dynamic active-event-context nil)
 
 (defn active-user [] (:User active-event-context))
@@ -66,7 +63,7 @@
    (def fractl-version
      (memoize (fn []
                 (or (:fractl-version environ/env)
-                    (let [projfile (io/resource "META-INF/leiningen/fractl-io/fractl/project.clj")
+                    (let [projfile (io/resource "META-INF/leiningen/com.github.fractl-io/fractl/project.clj")
                           project (read-string (slurp projfile))]
                       (nth project 2))))))
 

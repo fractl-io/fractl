@@ -1533,8 +1533,8 @@
               :fractl-version "current"
               :components [:Crm.Core :Crm.Sales]}]
     (ln/model spec)
-    (is (= spec (ln/fetch-model :crm)))
-    (is (= "1.0.2" (ln/model-version :crm)))))
+    (is (= spec (cn/fetch-model :crm)))
+    (is (= "1.0.2" (cn/model-version :crm)))))
 
 #?(:clj
    (deftest multi-threaded-transactions

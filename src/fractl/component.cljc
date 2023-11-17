@@ -11,6 +11,20 @@
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]))
 
+(def ^:private models (u/make-cell {}))
+
+(defn register-model [model-name spec]
+  (u/safe-set models (assoc @models model-name spec))
+  model-name)
+
+(defn fetch-model [name] (get @models name))
+(defn model-version [name] (:version (fetch-model name)))
+
+(defn model-for-component [component-name]
+  (ffirst (filter (fn [[_ spec]]
+                    (some #{component-name} (:components spec)))
+                  @models)))
+
 (def id-attr li/id-attr)
 (def id-attr-type :Fractl.Kernel.Lang/UUID)
 
