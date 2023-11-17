@@ -968,34 +968,34 @@
   ([evaluator config]
    (let [[auth _ :as auth-info] (make-auth-handler config)]
      (if (or (not auth) (auth-service-supported? auth))
-       (h/run-server
-        (make-routes
-         config auth
-         {:login (partial process-login evaluator auth-info)
-          :logout (partial process-logout auth)
-          :signup (partial
-                   process-signup evaluator
-                   (:call-post-sign-up-event config) auth-info)
-          :confirm-sign-up (partial process-confirm-sign-up auth)
-          :get-user (partial process-get-user auth)
-          :update-user (partial process-update-user auth)
-          :forgot-password (partial process-forgot-password auth)
-          :confirm-forgot-password (partial process-confirm-forgot-password auth)
-          :change-password (partial process-change-password auth)
-          :refresh-token (partial process-refresh-token auth)
-          :resend-confirmation-code (partial process-resend-confirmation-code auth)
-          :put-request (partial process-put-request evaluator auth-info)
-          :post-request (partial process-post-request evaluator auth-info)
-          :get-request (partial process-get-request evaluator auth-info)
-          :delete-request (partial process-delete-request evaluator auth-info)
-          :query (partial process-query evaluator auth-info)
-          :eval (partial process-dynamic-eval evaluator auth-info nil)
-          :ai (partial process-gpt-chat auth-info)
-          :auth-callback (partial process-auth-callback evaluator config auth-info)
-          :meta (partial process-meta-request auth-info)})
-        (if (:thread config)
-          config
-          (assoc config :thread (+ 1 (u/n-cpu)))))
+       (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
+         (println (str "The HTTP server is listening on port " (:port config)))
+         (h/run-server
+           (make-routes
+             config auth
+             {:login (partial process-login evaluator auth-info)
+              :logout (partial process-logout auth)
+              :signup (partial
+                        process-signup evaluator
+                        (:call-post-sign-up-event config) auth-info)
+              :confirm-sign-up (partial process-confirm-sign-up auth)
+              :get-user (partial process-get-user auth)
+              :update-user (partial process-update-user auth)
+              :forgot-password (partial process-forgot-password auth)
+              :confirm-forgot-password (partial process-confirm-forgot-password auth)
+              :change-password (partial process-change-password auth)
+              :refresh-token (partial process-refresh-token auth)
+              :resend-confirmation-code (partial process-resend-confirmation-code auth)
+              :put-request (partial process-put-request evaluator auth-info)
+              :post-request (partial process-post-request evaluator auth-info)
+              :get-request (partial process-get-request evaluator auth-info)
+              :delete-request (partial process-delete-request evaluator auth-info)
+              :query (partial process-query evaluator auth-info)
+              :eval (partial process-dynamic-eval evaluator auth-info nil)
+              :ai (partial process-gpt-chat auth-info)
+              :auth-callback (partial process-auth-callback evaluator config auth-info)
+              :meta (partial process-meta-request auth-info)})
+           config))
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
   ([evaluator]
-   (run-server evaluator {:port 8080})))
+   (run-server evaluator {})))
