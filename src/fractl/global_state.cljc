@@ -13,6 +13,9 @@
 (defn get-app-config []
   @app-config)
 
+(defn get-schema-version []
+  (or (:schema-version (:store @app-config)) "0.0.1"))
+
 (def ^:dynamic active-event-context nil)
 
 (defn active-user [] (:User active-event-context))

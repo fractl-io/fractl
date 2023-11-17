@@ -3,7 +3,8 @@
             [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
-            [fractl.util :as u]))
+            [fractl.util :as u]
+            [fractl.global-state :as gs]))
 
 (def deleted-flag-col "FRACTL__IS_DELETED")
 (def deleted-flag-col-kw (keyword (str "_" deleted-flag-col)))
@@ -19,11 +20,21 @@
 (defn db-schema-for-component [component-name]
   (s/replace (name component-name) #"\." "_"))
 
+(def ^:private schema-version
+  (memoize
+   (fn []
+     (reduce
+      (fn [a c]
+        (if a (str a (if #?(:clj (Character/isLetterOrDigit c) :cljs true) c \_)) c))
+      nil (gs/get-schema-version)))))
+
 (defn entity-table-name [entity-name]
-  (let [[component-name r] (li/split-path entity-name)]
+  (let [[component-name r] (li/split-path entity-name)
+        v (schema-version)
+        en (str (db-ident r) "_" v)]
     (if (cn/entity-schema-predefined? entity-name)
-      (db-ident r)
-      (str (db-schema-for-component component-name) "__" (db-ident r)))))
+      en
+      (str (db-schema-for-component component-name) "__" en))))
 
 (defn attribute-column-name [aname]
   (str "_" (name aname)))
