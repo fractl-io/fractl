@@ -63,7 +63,7 @@
    (def fractl-version
      (memoize (fn []
                 (or (:fractl-version environ/env)
-                    (let [projfile (io/resource "META-INF/leiningen/fractl-io/fractl/project.clj")
+                    (let [projfile (io/resource "META-INF/leiningen/com.github.fractl-io/fractl/project.clj")
                           project (read-string (slurp projfile))]
                       (nth project 2))))))
 
