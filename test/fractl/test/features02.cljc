@@ -583,10 +583,12 @@
      {:meta {:between [:RelCard/A :RelCard/B]}})
     (relationship
      :RelCard/R2
-     {:meta {:between [:RelCard/A :RelCard/B :one-n true]}})
+     {:meta {:between [:RelCard/A :RelCard/B]
+             :one-n true}})
     (relationship
      :RelCard/R3
-     {:meta {:between [:RelCard/A :RelCard/B :one-one true]}}))
+     {:meta {:between [:RelCard/A :RelCard/B]
+             :one-one true}}))
   (let [create-a (fn [id]
                    (tu/first-result
                     {:RelCard/Create_A

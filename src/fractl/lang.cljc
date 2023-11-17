@@ -895,12 +895,19 @@
      (entity n attrs raw-attrs)))
   ([schema] (parse-and-define entity schema)))
 
-(defn- parse-relationship-member-spec [spec]
+(defn- extract-rel-meta [meta]
+  (when-let [props (seq (filter (fn [[k _]]
+                                  (some #{k} #{:as :one-one :one-n}))
+                                meta))]
+    (into {} props)))
+
+(defn- parse-relationship-member-spec [meta spec]
   (let [elems [(first spec) (second spec)]
-        meta (seq (rest (rest spec)))]
-    (if meta
-      [elems (us/wrap-to-map meta)]
-      [elems nil])))
+        relmeta (seq (rest (rest spec)))]
+    (if relmeta
+      [elems (merge (us/wrap-to-map relmeta)
+                    (extract-rel-meta meta))]
+      [elems (extract-rel-meta meta)])))
 
 (defn- evt-path-attr [evt]
   (crud-event-attr-accessor evt li/path-attr))
@@ -1064,7 +1071,7 @@
                   (assoc m :cascade-on-delete true)))
          contains (mt/contains meta)
          between (when-not contains (mt/between meta))
-         [elems relmeta] (parse-relationship-member-spec (or contains between))]
+         [elems relmeta] (parse-relationship-member-spec meta (or contains between))]
      (when-not elems
        (u/throw-ex
         (str "type (contains, between) of relationship is not defined in meta - "
