@@ -25,7 +25,7 @@
      (reduce
       (fn [a c]
         (if a (str a (if #?(:clj (Character/isLetterOrDigit c) :cljs true) c \_)) c))
-      nil (cn/model-version (cn/model-for-component component-name))))))
+      nil (or (cn/model-version (cn/model-for-component component-name)) "0.0.1")))))
 
 (defn entity-table-name [entity-name]
   (let [[component-name r] (li/split-path entity-name)
