@@ -647,3 +647,22 @@
       (is (= (apply + xs)
              (apply + (mapv :X es)))))
     (is (= (:E1s r3) (:E1s r4)))))
+
+(deftest issue-1062-future-eval
+  (defcomponent :I1062
+    (entity
+     :I1062/E
+     {:Id :Identity
+      :X :Int})
+    (dataflow
+     :I1062/CreateE
+     {:I1062/E
+      {:X :I1062/CreateE.X}}))
+  (let [r (future (tu/eval-all-dataflows
+                   {:I1062/CreateE {:X 100}}))
+        e (first (:result (first @r)))
+        e? (partial cn/instance-of? :I1062/E)]
+    (is (e? e))
+    (is (cn/same-instance? e (tu/first-result
+                              {:I1062/Lookup_E
+                               {:Id (:Id e)}})))))
