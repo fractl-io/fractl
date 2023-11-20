@@ -654,17 +654,23 @@
      :I1062/E
      {:Id :Identity
       :X :Int})
+    (defn i1062f1 [x]
+      (future (tu/eval-all-dataflows
+               {:I1062/Create_E
+                {:Instance
+                 {:I1062/E {:X x}}}})))
+    (defn i1062f2 [id x]
+      (future (tu/eval-all-dataflows
+               {:I1062/Update_E
+                {:Id id
+                 :Data {:X x}}})))
     (dataflow
      :I1062/CreateE
-     {:I1062/E
-      {:X :I1062/CreateE.X}})
+     [:eval '(fractl.test.fixes02/i1062f1 :I1062/CreateE.X)])
     (dataflow
      :I1062/UpdateE
-     {:I1062/E
-      {:Id? :I1062/UpdateE.Id
-       :X :I1062/UpdateE.X}}))
-  (let [r (future (tu/eval-all-dataflows
-                   {:I1062/CreateE {:X 100}}))
+     [:eval '(fractl.test.fixes02/i1062f2 :I1062/UpdateE.Id :I1062/UpdateE.X)]))
+  (let [r (tu/result {:I1062/CreateE {:X 100}})
         res (fn [r] (first (:result (first @r))))
         e (res r)
         e? (partial cn/instance-of? :I1062/E)]
@@ -672,8 +678,7 @@
     (is (cn/same-instance? e (tu/first-result
                               {:I1062/Lookup_E
                                {:Id (:Id e)}})))
-    (let [r (future (tu/eval-all-dataflows
-                     {:I1062/UpdateE {:Id (:Id e) :X 200}}))
+    (let [r (tu/result {:I1062/UpdateE {:Id (:Id e) :X 200}})
           e2 (res r)]
       (is (e? e2))
       (is (and (= (:Id e) (:Id e2))
