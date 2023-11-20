@@ -73,7 +73,7 @@
 
 (defn- create-relational-table-sql [table-name entity-schema
                                     indexed-attributes unique-attributes
-                                    compound-unique-attributes post-init-sqls]
+                                    compound-unique-attributes out-table-data]
   (let [afk (partial append-fkeys table-name)
         compound-unique-attributes (if (keyword? compound-unique-attributes)
                                      [compound-unique-attributes]
@@ -86,16 +86,18 @@
                      sql-type (sql/attribute-to-sql-type atype)
                      is-ident (cn/attribute-is-identity? entity-schema a)
                      attr-ref (cn/attribute-ref entity-schema a)
+                     col-name (as-col-name a)
                      uq (if is-ident
                           (str "CONSTRAINT " (pk table-name) " PRIMARY KEY")
                           (when (some #{a} unique-attributes)
-                            (str "CONSTRAINT " (uk table-name (as-col-name a)) " UNIQUE")))]
+                            (str "CONSTRAINT " (uk table-name col-name) " UNIQUE")))]
                  #?(:clj
                     (when attr-ref
-                      (swap! post-init-sqls concat (afk [a attr-ref]))))
+                      (let [d (concat (:post-init-sqls @out-table-data) (afk [a attr-ref]))]
+                        (swap! out-table-data assoc :post-init-sqls d))))
                  (recur
                   (rest attrs)
-                  (str cols (str (as-col-name a) " " sql-type " " uq)
+                  (str cols (str col-name " " sql-type " " uq)
                        (when (seq (rest attrs))
                          ", "))))
                (concat-sys-cols cols)))
@@ -115,10 +117,10 @@
 
 (defn- create-relational-table [connection entity-schema table-name
                                 indexed-attrs unique-attributes
-                                compound-unique-attributes post-init-sqls]
+                                compound-unique-attributes out-table-data]
   (let [ss (create-relational-table-sql
             table-name entity-schema indexed-attrs
-            unique-attributes compound-unique-attributes post-init-sqls)]
+            unique-attributes compound-unique-attributes out-table-data)]
     (doseq [sql ss]
       (when-not (execute-sql! connection [sql])
         (u/throw-ex (str "Failed to execute SQL - " sql))))
@@ -140,7 +142,7 @@
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
   (let [scmname (stu/db-schema-for-component component-name)
-        post-init-sqls (atom [])]
+        table-data (atom nil)]
     (execute-fn!
      datasource
      (fn [txn]
@@ -153,8 +155,8 @@
               (cn/indexed-attributes schema)
               (cn/unique-attributes schema)
               (cn/compound-unique-attributes ename)
-              post-init-sqls))))
-       (doseq [sql @post-init-sqls]
+              table-data))))
+       (doseq [sql (:post-init-sqls @table-data)]
          (execute-sql! txn [sql]))
        component-name))))
 
