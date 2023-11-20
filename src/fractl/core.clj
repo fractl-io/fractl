@@ -428,9 +428,11 @@
       (println (str "ERROR - " (.getMessage ex)))
       (f))))
 
-(defn- db-migrate [config]
-  (let [store (store-from-config config)]
-    (mg/migrate store config)))
+(defn- db-migrate [model-name config]
+  (if-let [mg-config (:db:migrate config)]
+    (let [store (store-from-config config)]
+      (mg/migrate store model-name mg-config))
+    (println "No configuration found for db:migrate.")))
 
 (defn- gpt-bot [request]
   (println (str "Your request: '" request "' is being serviced..."))
@@ -482,5 +484,9 @@
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(call-after-load-model
-                               (first %) (fn [] (db-migrate (second (read-model-and-config options)))))}))
+                               (first %)
+                               (fn []
+                                 (db-migrate
+                                  (keyword (first %))
+                                  (second (read-model-and-config options)))))}))
           (run-service args (read-model-and-config args options))))))

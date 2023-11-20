@@ -152,15 +152,21 @@
   (str "INSERT INTO " comp-meta-table " VALUES ('" entity-table "', '" meta-data "')"
        " ON CONFLICT DO NOTHING"))
 
+(defn- normalize-meta-result [r]
+  (let [r (mapv (fn [[k v]]
+                  [(second (li/split-path k)) v])
+                r)]
+    (into {} r)))
+
 (defn load-component-meta
-  ([datasource component-name model-version]
+  ([datasource model-version component-name]
    (let [table-name (stu/component-meta-table-name component-name model-version)]
      (try
-       (execute-sql! datasource (str "SELECT * FROM " table-name))
+       (mapv normalize-meta-result (execute-sql! datasource [(str "SELECT * FROM " table-name)]))
        (catch Exception ex
          (log/error ex)))))
   ([datasource component-name]
-   (load-component-meta datasource component-name nil)))
+   (load-component-meta datasource nil component-name)))
 
 (defn create-schema
   "Create the schema, tables and indexes for the component."
