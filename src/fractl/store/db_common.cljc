@@ -90,18 +90,19 @@
                (let [atype (cn/attribute-type entity-schema a)
                      sql-type (sql/attribute-to-sql-type atype)
                      is-ident (cn/attribute-is-identity? entity-schema a)
+                     is-uk (some #{a} unique-attributes)
                      attr-ref (cn/attribute-ref entity-schema a)
                      col-name (as-col-name a)
                      uq (if is-ident
                           (str "CONSTRAINT " (pk table-name) " PRIMARY KEY")
-                          (when (some #{a} unique-attributes)
+                          (when is-uk
                             (str "CONSTRAINT " (uk table-name col-name) " UNIQUE")))]
                  #?(:clj
                     (when attr-ref
                       (post-init-sql! (afk [a attr-ref]))))
                  (recur
                   (rest attrs)
-                  (conj col-types [col-name sql-type])
+                  (conj col-types [col-name sql-type (or is-ident is-uk)])
                   (str cols (str col-name " " sql-type " " uq)
                        (when (seq (rest attrs))
                          ", "))))
