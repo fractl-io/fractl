@@ -657,12 +657,29 @@
     (dataflow
      :I1062/CreateE
      {:I1062/E
-      {:X :I1062/CreateE.X}}))
+      {:X :I1062/CreateE.X}})
+    (dataflow
+     :I1062/UpdateE
+     {:I1062/E
+      {:Id? :I1062/UpdateE.Id
+       :X :I1062/UpdateE.X}}))
   (let [r (future (tu/eval-all-dataflows
                    {:I1062/CreateE {:X 100}}))
-        e (first (:result (first @r)))
+        res (fn [r] (first (:result (first @r))))
+        e (res r)
         e? (partial cn/instance-of? :I1062/E)]
     (is (e? e))
     (is (cn/same-instance? e (tu/first-result
                               {:I1062/Lookup_E
-                               {:Id (:Id e)}})))))
+                               {:Id (:Id e)}})))
+    (let [r (future (tu/eval-all-dataflows
+                     {:I1062/UpdateE {:Id (:Id e) :X 200}}))
+          e2 (res r)]
+      (is (e? e2))
+      (is (and (= (:Id e) (:Id e2))
+               (= 200 (:X e2))))
+      (is (= 200 (:X (tu/first-result
+                      {:I1062/Lookup_E
+                       {:Id (:Id e)}}))))
+      (let [es (tu/result {:I1062/LookupAll_E {}})]
+        (is (and (= 1 (count es)) (cn/same-instance? e2 (first es))))))))
