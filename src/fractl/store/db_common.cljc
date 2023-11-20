@@ -71,16 +71,21 @@
 (defn- pk [table-name]
   (str table-name "_pk"))
 
+(defn- concat-post-init-sql! [out-table-data sqls]
+  (let [d (concat (:post-init-sqls @out-table-data) sqls)]
+    (swap! out-table-data assoc :post-init-sqls d)))
+
 (defn- create-relational-table-sql [table-name entity-schema
                                     indexed-attributes unique-attributes
                                     compound-unique-attributes out-table-data]
   (let [afk (partial append-fkeys table-name)
+        post-init-sql! (partial concat-post-init-sql! out-table-data)
         compound-unique-attributes (if (keyword? compound-unique-attributes)
                                      [compound-unique-attributes]
                                      compound-unique-attributes)]
     (concat
      [(str stu/create-table-prefix " " table-name " ("
-           (loop [attrs (sort (keys entity-schema)), cols ""]
+           (loop [attrs (sort (keys entity-schema)), col-types [], cols ""]
              (if-let [a (first attrs)]
                (let [atype (cn/attribute-type entity-schema a)
                      sql-type (sql/attribute-to-sql-type atype)
@@ -93,14 +98,15 @@
                             (str "CONSTRAINT " (uk table-name col-name) " UNIQUE")))]
                  #?(:clj
                     (when attr-ref
-                      (let [d (concat (:post-init-sqls @out-table-data) (afk [a attr-ref]))]
-                        (swap! out-table-data assoc :post-init-sqls d))))
+                      (post-init-sql! (afk [a attr-ref]))))
                  (recur
                   (rest attrs)
+                  (conj col-types [col-name sql-type])
                   (str cols (str col-name " " sql-type " " uq)
                        (when (seq (rest attrs))
                          ", "))))
-               (concat-sys-cols cols)))
+               (do (swap! out-table-data assoc :columns col-types)
+                   (concat-sys-cols cols))))
            (when (seq compound-unique-attributes)
              (str ", CONSTRAINT " (str table-name "_compound_uks")
                   " UNIQUE "
@@ -123,7 +129,7 @@
             unique-attributes compound-unique-attributes out-table-data)]
     (doseq [sql ss]
       (when-not (execute-sql! connection [sql])
-        (u/throw-ex (str "Failed to execute SQL - " sql))))
+        (u/throw-ex (str "Failed to create table - " sql))))
     table-name))
 
 (defn- create-db-schema!
@@ -138,14 +144,23 @@
     db-schema-name
     (u/throw-ex (str "Failed to drop schema - " db-schema-name))))
 
+(defn- create-component-meta-table-sql [table-name]
+  (str "CREATE TABLE IF NOT EXISTS " table-name " (KEY VARCHAR(100) PRIMARY KEY, VALUE VARCHAR(1052))"))
+
+(defn- insert-entity-meta-sql [comp-meta-table entity-table meta-data]
+  (str "INSERT INTO " comp-meta-table " VALUES ('" entity-table "', '" meta-data "')"
+       " ON CONFLICT DO NOTHING"))
+
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
   (let [scmname (stu/db-schema-for-component component-name)
-        table-data (atom nil)]
+        table-data (atom nil)
+        component-meta-table (stu/component-meta-table-name component-name)]
     (execute-fn!
      datasource
      (fn [txn]
+       (execute-sql! txn [(create-component-meta-table-sql component-meta-table)])
        (doseq [ename (cn/entity-names component-name false)]
          (when-not (cn/entity-schema-predefined? ename)
            (let [tabname (stu/entity-table-name ename)
@@ -155,7 +170,11 @@
               (cn/indexed-attributes schema)
               (cn/unique-attributes schema)
               (cn/compound-unique-attributes ename)
-              table-data))))
+              table-data)
+             (execute-sql!
+              txn [(insert-entity-meta-sql
+                    component-meta-table tabname
+                    {:columns (:columns @table-data)})]))))
        (doseq [sql (:post-init-sqls @table-data)]
          (execute-sql! txn [sql]))
        component-name))))

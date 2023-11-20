@@ -35,6 +35,12 @@
       en
       (str (db-schema-for-component component-name) "__" en))))
 
+(defn component-meta-table-name
+  ([component-name model-version]
+   (let [v (or model-version (schema-version component-name))]
+     (str (db-ident (db-schema-for-component component-name)) "_meta_" v)))
+  ([component-name] (component-meta-table-name component-name nil)))
+
 (defn attribute-column-name [aname]
   (str "_" (name aname)))
 
