@@ -48,7 +48,8 @@
 (defn throw-ex-info
   ([msg errobj]
    (throw (ex-info msg errobj)))
-  ([msg] (throw-ex-info msg nil)))
+  ([msg]
+   (throw-ex-info msg nil)))
 
 (defn throw-ex
   [msg]

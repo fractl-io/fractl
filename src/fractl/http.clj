@@ -48,11 +48,28 @@
    (response {:reason s} 400 data-fmt))
   ([s] (bad-request s :json)))
 
+(defn- extract-client-message [s]
+  "extracts client message from s, it is a bit quirky. In future, we should format s properly in throw-err-info.
+  Example of s:
+  first-item: {:status :error, :result nil, :message error in dataflow for :WordCount.Core/Create_User - component/error:
+  :WordCount.Core/User - invalid attribute(s) found - (:beautiful){:error {:type-*-tag-*- :record, :-*-type-*- :error,
+  :message \":WordCount.Core/User - invalid attribute(s) found - (:beautiful)\"}, :client \"Invalid attribute(s) found -
+  (:beautiful)\"}}"
+  (let [first-item (first s)
+        message-value (get first-item :message)
+        map-start-index (.indexOf message-value "{")
+        message-map (when (> map-start-index -1)
+                      (read-string (subs message-value map-start-index)))]
+    (get message-map :client "internal error on server")))
+
 (defn- internal-error
   ([s data-fmt]
    (log/warn (str "internal error reported from HTTP layer: " s))
-   (response {:reason "internal error on server"} 500 data-fmt))
-  ([s] (internal-error s :json)))
+   (let [client-msg (extract-client-message s)]
+     (response {:reason client-msg} 500 data-fmt)))
+   ([s]
+    (internal-error s :json)))
+
 
 (defn- sanitize-secrets [obj]
   (let [r (mapv (fn [[k v]]
@@ -137,9 +154,10 @@
        (wrap-result on-no-perm r data-fmt))
      (catch Exception ex
        (log/exception ex)
-       (internal-error (.getMessage ex) data-fmt))))
-  ([exp data-fmt]
-   (maybe-ok nil exp data-fmt)))
+       (let [errobj (ex-data ex)]
+         (internal-error (.getMessage ex) data-fmt)))))
+   ([exp data-fmt]
+    (maybe-ok nil exp data-fmt)))
 
 (defn- assoc-event-context [request auth-config event-instance]
   (if auth-config
