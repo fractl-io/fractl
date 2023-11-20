@@ -110,12 +110,10 @@
 (def close-connection p/close-connection)
 (def connection-info p/connection-info)
 (def create-schema p/create-schema)
-(def fetch-schema p/fetch-schema)
 (def drop-schema p/drop-schema)
 (def delete-by-id p/delete-by-id)
 (def delete-all p/delete-all)
 (def delete-children p/delete-children)
-(def plan-changeset p/plan-changeset)
 
 (defn- empty-result-on-error [f]
   (try

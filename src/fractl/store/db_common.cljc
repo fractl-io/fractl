@@ -152,6 +152,16 @@
   (str "INSERT INTO " comp-meta-table " VALUES ('" entity-table "', '" meta-data "')"
        " ON CONFLICT DO NOTHING"))
 
+(defn load-component-meta
+  ([datasource component-name model-version]
+   (let [table-name (stu/component-meta-table-name component-name model-version)]
+     (try
+       (execute-sql! datasource (str "SELECT * FROM " table-name))
+       (catch Exception ex
+         (log/error ex)))))
+  ([datasource component-name]
+   (load-component-meta datasource component-name nil)))
+
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
@@ -318,136 +328,3 @@
          [#(execute-stmt! conn pstmt params)])))))
   ([datasource entity-name query-sql]
    (query-all datasource entity-name query-instances query-sql nil)))
-
-(defn- query-pk-columns [conn table-name sql]
-  (let [pstmt (do-query-statement conn (s/replace sql #"\?" table-name))]
-    (mapv :pg_attribute/attname (execute-stmt! conn pstmt nil))))
-
-(defn- mark-pks [pks schema]
-  (mapv
-   #(let [colname (:columns/column_name %)]
-      (if (some #{colname} pks)
-        (assoc % :columns/pk true)
-        %))
-   schema))
-
-(defn- normalize-table-schema [type-lookup cols]
-  (apply
-   merge
-   (mapv
-    (fn [c]
-      (if-let [t (type-lookup (:columns/data_type c))]
-        {(keyword (:columns/column_name c))
-         (merge {:type t} (when (:columns/pk c) {:unique true :immutable true}))}
-        (u/throw-ex (str "type not supported - " (:columns/data_type c)))))
-    cols)))
-
-(defn fetch-schema [datasource fetch-schema-sql
-                    get-table-names fetch-columns-sql
-                    fetch-pk-columns-sql type-lookup]
-  (execute-fn!
-   datasource
-   (fn [conn]
-     (let [[pstmt params] (do-query-statement conn fetch-schema-sql nil)
-           tabnames (get-table-names
-                     (raw-results
-                      [#(execute-stmt! conn pstmt params)]))
-           col-pstmt (do-query-statement conn fetch-columns-sql)]
-       (mapv
-        (fn [tn]
-          (let [pks (query-pk-columns conn tn fetch-pk-columns-sql)
-                r (raw-results
-                   [#(execute-stmt!
-                      conn col-pstmt [tn])])]
-            {(keyword tn) (normalize-table-schema type-lookup (mark-pks pks r))}))
-        tabnames)))))
-
-(defn- table-drop [table-name]
-  (str "DROP TABLE " table-name))
-
-(defn- table-rename [old-name new-name]
-  (str "ALTER TABLE " old-name " RENAME TO " new-name))
-
-(defn- drop-column [table-name attr-name]
-  (str "ALTER TABLE " table-name " DROP COLUMN " (as-col-name attr-name)))
-
-(defn- rename-column [table-name spec]
-  (str "ALTER TABLE " table-name " RENAME COLUMN " (as-col-name (:from spec))
-       " TO " (as-col-name (:to spec))))
-
-(defn- alter-column [table-name [attr-name attr-type]]
-  (if-let [sql-type (sql/as-sql-type (u/string-as-keyword attr-type))]
-    (str "ALTER TABLE " table-name " ALTER COLUMN " (as-col-name attr-name)
-         " " sql-type)
-    (u/throw-ex (str "failed to find sql-type for " [attr-name attr-type]))))
-
-(defn- add-column [table-name [attr-name attr-type]]
-  (if-let [sql-type (sql/as-sql-type (u/string-as-keyword attr-type))]
-    (str "ALTER TABLE " table-name " ADD COLUMN " (as-col-name attr-name)
-         " " sql-type)
-    (u/throw-ex (str "failed to find sql-type for " [attr-name attr-type]))))
-
-(defn- update-columns [table-name attrs-spec]
-  (concat
-   (mapv (partial drop-column table-name) (:drop attrs-spec))
-   (mapv (partial rename-column table-name) (:rename attrs-spec))
-   (mapv (partial alter-column table-name) (:alter attrs-spec))
-   (mapv (partial add-column table-name) (:add attrs-spec))))
-
-(defn- add-unique [table-name col-name]
-  (str "ALTER TABLE " table-name " ADD CONSTRAINT " (uk table-name col-name) " UNIQUE(" col-name ")"))
-
-(defn- drop-unique [table-name col-name]
-  (str "ALTER TABLE " table-name " DROP CONSTRAINT " (uk table-name col-name) " UNIQUE(" col-name ")"))
-
-(defn- create-index [table-name col-name]
-  (str "CREATE INDEX " (idx table-name col-name) " ON " table-name "(" col-name ")"))
-
-(defn- drop-index [table-name col-name]
-  (str "DROP INDEX " (idx table-name col-name)))
-
-(defn- add-identity [table-name col-name]
-  (str "ALTER TABLE " table-name " ADD CONSTRAINT " (pk table-name) " PRIMARY KEY(" col-name ")"))
-
-(defn- drop-identity [table-name]
-  (str "ALTER TABLE " table-name " DROP CONSTRAINT " (pk table-name)))
-
-(defn- update-for-contains [table-name tag]
-  (let [col-name (as-col-name li/path-attr)]
-    (case tag
-      :add [(str "ALTER TABLE " table-name " ADD COLUMN " col-name " " (sql/as-sql-type :String))
-            (add-unique table-name col-name)
-            (create-index table-name col-name)]
-      :drop [(str "ALTER TABLE " table-name " DROP COLUMN " col-name)
-             (drop-index table-name col-name)]
-      nil)))
-
-(defn- update-constraints [table-name spec]
-  (concat
-   (when-let [ident (li/guid spec)]
-     [(drop-identity table-name)
-      (add-unique table-name (as-col-name ident))])
-   (flatten
-    (mapv #(create-index table-name (as-col-name %)) (:index spec))
-    (mapv #(add-unique table-name (as-col-name %)) (:unique spec))
-    (mapv #(drop-unique table-name (as-col-name %)) (:drop-unique spec))
-    (mapv #(drop-index table-name (as-col-name %)) (:drop-index spec)))))
-
-(defn plan-changeset [changeset-inst]
-  (let [ename (u/string-as-keyword (:Entity changeset-inst))
-        table-name (stu/entity-table-name ename)
-        opr (u/string-as-keyword (:Operation changeset-inst))]
-    (if (= opr :drop)
-      [(table-drop table-name)]
-      (su/nonils
-       `[~(when (= opr :rename)
-            (table-rename table-name (stu/entity-table-name
-                                      (u/string-as-keyword
-                                       (:NewName changeset-inst)))))
-         ~@(when-let [attrs (:Attributes changeset-inst)]
-             (update-columns table-name attrs))
-         ~@(let [conts (:Contains changeset-inst)]
-             (when (not= conts :none)
-               (update-for-contains table-name conts)))
-         ~@(when-let [consts (:Constraints changeset-inst)]
-             (update-constraints table-name consts))]))))

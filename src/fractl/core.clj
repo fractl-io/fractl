@@ -430,7 +430,7 @@
 
 (defn- db-migrate [config]
   (let [store (store-from-config config)]
-    (mg/migrate (mg/init store (:store config)))))
+    (mg/migrate store config)))
 
 (defn- gpt-bot [request]
   (println (str "Your request: '" request "' is being serviced..."))
