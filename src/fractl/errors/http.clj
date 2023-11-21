@@ -6,14 +6,9 @@
   for client-side presentation while maintaining detailed internal error logs."
   (:require[fractl.util :as u]))
 
-;; for some errors we directly call internal-error and supply it with a string
-;; below is consolidation of such errors
-(def internal-error-messages
-  {:query-failure "Failed to process query request - %s"
-   :auth-disabled "cannot process %s - authentication not enabled"})
-(defn get-internal-error-message [key & args]
-  (format (get internal-error-messages key) args))
-
+;; currently, we use two functions to handle errors: throw-error, internal-error
+;; throw-error raises an exception that is later caught and message flows to internal-error, and it is logged as well as sent to client
+;; using methods below we can choose to modify client-side error messages or return a generic response
 (defn default-client-error []
   "Generic client error message, displayed when client error disabled"
   "Internal error on server")
@@ -23,7 +18,7 @@
   sensitive BE info)"
   #{})
 
-;; Functions for each error type. Name format "error key-error"
+;; Functions for each error type thrown using throw-error. Name format "error-key-error"
 (defn- invalid-attribute-error [recname ks]
   (str recname " - invalid attribute(s) found - " ks))
 
@@ -113,6 +108,16 @@
                    client-msg)})
       {:internal "Unknown error"
        :client (default-client-error)})))
+
+
+;; for some errors we directly call internal-error and supply it with a string
+;; below is consolidation of such errors
+(def internal-error-messages
+  {:query-failure "Failed to process query request - %s"
+   :auth-disabled "cannot process %s - authentication not enabled"})
+
+(defn get-internal-error-message [key & args]
+  (format (get internal-error-messages key) args))
 
 (defn make-error
   "Return an instance of the error record with the given message
