@@ -18,6 +18,14 @@
 
 (defn host-is-jvm? [] (= host-runtime :jvm))
 
+(def type-key :-*-type-*-)
+
+(def type-tag-key :type-*-tag-*-)
+
+(defn make-record-instance [type-tag full-name attributes]
+  (into {} (concat {type-tag-key type-tag
+                    type-key full-name} attributes)))
+
 (defn host-os []
   #?(:clj
      (keyword (first (string/split (string/lower-case (System/getProperty "os.name")) #" ")))
@@ -44,12 +52,6 @@
 
 (defn fractl-script? [f]
   (= @script-extn (file-extension (str f))))
-
-(defn throw-ex-info
-  ([msg errobj]
-   (throw (ex-info msg errobj)))
-  ([msg]
-   (throw-ex-info msg nil)))
 
 (defn throw-ex
   [msg]

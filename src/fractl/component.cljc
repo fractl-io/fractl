@@ -10,7 +10,7 @@
             [fractl.lang.raw :as raw]
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]
-            [fractl.errors.http :as errs]))
+            [fractl.errors.http :refer [raise-error throw-ex-info make-error]]))
 
 (def ^:private models (u/make-cell {}))
 
@@ -188,7 +188,7 @@
    (let [[component n :as k] (li/split-path typname)
          intern-k [component typtag n]]
      (when-not (component-exists? component)
-       (u/throw-ex-info
+       (throw-ex-info
         (str "component not found - " component)
         {type-key typname
          :tag typtag}))
@@ -339,10 +339,6 @@
       (find-record-schema path)
       (find-event-schema path)))
 
-(defn make-record-instance [type-tag full-name attributes]
-  (into {} (concat {type-tag-key type-tag
-                    type-key full-name} attributes)))
-
 (defn ensure-type-and-name [inst type-name type-tag]
   (assoc
    (if (type-tag-key inst)
@@ -421,7 +417,7 @@
 (defn make-with-attributes
   "Make a copy of the given instance and set the new attributes."
   [inst newattrs]
-  (make-record-instance (instance-type-tag inst)
+  (u/make-record-instance (instance-type-tag inst)
                         (instance-type inst)
                         newattrs))
 
@@ -538,27 +534,11 @@
 (defn same-instance? [a b]
   (and (instance-eq? a b) (attributes-eq? a b)))
 
-(defn make-error
-  "Return an instance of the error record with the given message
-   and additional attributes."
-  ([msg attributes]
-   (make-record-instance :record :error (assoc attributes :message msg)))
-  ([msg]
-   (make-error msg nil)))
-
 (defn exception->error [ex]
   #?(:clj
      (make-error (or (.getMessage ex) (str ex)) {})
      :cljs
      (make-error ex)))
-
-(defn throw-error
-  "Call make-error to create a new instance of error, wrap it in an
-  ex-info and raise it as an exception."
-  ([msgs attributes]
-   (u/throw-ex-info (str "component/error: " (:internal msgs))
-                    {:error (make-error (:internal msgs) attributes) :client (:client msgs)}))
-  ([msgs] (throw-error msgs {})))
 
 (defn- check-attribute-names [recname schema attributes]
   (let [sks (set (keys schema))
@@ -569,7 +549,7 @@
                      " Here is the error line: "
                      (when (get schema li/event-context) "check this line in event: ")
                      (conj {} (first schema))))
-      (throw-error (errs/get-error-messages :invalid-attribute [recname ks])))
+      (raise-error :invalid-attribute [recname ks]))
     true))
 
 (defn decimal-value? [x]
@@ -612,10 +592,10 @@
     (do
       (when-let [p (:check ascm)]
         (when-not (p aval)
-          (throw-error (errs/get-error-messages :check-failed [aval aname]))))
+          (raise-error :check-failed [aval aname])))
       (when-let [fmt (:format ascm)]
         (when-not (fmt aval)
-          (throw-error (errs/get-error-messages :format-mismatch [aname]))))
+          (raise-error :format-mismatch [aname])))
       aval)))
 
 (defn- instantiable-map? [x]
@@ -631,7 +611,7 @@
 (defn- assert-literal-instance [attr-name type-name obj]
   (if (instantiable-map-of? type-name obj)
     obj
-    (throw-error (errs/get-error-messages :expected-type [attr-name type-name]))))
+    (raise-error :expected-type [attr-name type-name])))
 
 (declare valid-attribute-value)
 
@@ -660,16 +640,16 @@
               p (partial element-type-check tp (find-schema tp))]
           (if (su/all-true? (mapv p aval))
             aval
-            (throw-error (errs/get-error-messages :invalid-list [aname]))))
+            (raise-error :invalid-list [aname])))
 
         (:setof ascm)
         (do (when-not (set? aval)
-              (throw-error (errs/get-error-messages :not-a-set [aname])))
+              (raise-error :not-a-set [aname]))
             (let [tp (:setof ascm)
                   p (partial element-type-check tp (find-schema tp))]
               (if (su/all-true? (map p aval))
                 aval
-                (throw-error (errs/get-error-messages :invalid-set [aname])))))
+                (raise-error :invalid-set [aname]))))
 
         :else (check-format ascm aname aval))
       (let [dval (:default ascm)]
@@ -687,14 +667,14 @@
           (assoc attributes aname dval)
           (if (:optional ascm)
             attributes
-            (throw-error (errs/get-error-messages :no-default-value [aname]))))))))
+            (raise-error :no-default-value [aname])))))))
 
 (defn- ensure-attribute-is-instance-of [recname attrname attributes]
   (if-let [aval (get attributes attrname)]
     (if (instance-of? recname aval)
       attributes
-      (throw-error (errs/get-error-messages :attribute-type-mismatch [attrname recname])))
-    (throw-error (errs/get-error-messages :no-record-set [attrname]))))
+      (raise-error :attribute-type-mismatch [attrname recname]))
+    (raise-error :no-record-set [attrname])))
 
 (defn- preproc-attribute-value [attributes attrname attr-type]
   (if-let [p (case attr-type
@@ -725,8 +705,8 @@
   (if-let [typname (li/extract-attribute-name (get (:schema schema) attr-name))]
     (if-let [ascm (find-attribute-schema typname)]
       (valid-attribute-value attr-name attr-val ascm)
-      (throw-error (errs/get-error-messages :no-schema-found [attr-name])))
-    (throw-error (errs/get-error-messages :attribute-not-in-schema [attr-name]))))
+     (raise-error :no-schema-found [attr-name]))
+    (raise-error :attribute-not-in-schema [attr-name])))
 
 (def inferred-event-schema {:inferred true})
 
@@ -738,12 +718,12 @@
 (defn ensure-schema [recname]
   (if-let [rec (find-record-schema recname)]
     (:schema rec)
-    (throw-error (errs/get-error-messages :schema-not-found [recname]))))
+    (raise-error :schema-not-found [recname])))
 
 (defn ensure-entity-schema [recname]
   (if-let [scm (fetch-entity-schema recname)]
     scm
-    (throw-error (errs/get-error-messages :schema-not-found-for-entity [recname]))))
+    (raise-error :schema-not-found-for-entity [recname])))
 
 (defn validate-record-attributes
   ([recname recattrs schema]
@@ -835,7 +815,7 @@
                  attrs-with-insts)]
      (if (error? attrs)
        attrs
-       (make-record-instance (type-tag-of record-name) record-name attrs))))
+       (u/make-record-instance (type-tag-of record-name) record-name attrs))))
   ([record-name attributes]
    (make-instance record-name attributes true))
   ([m]
@@ -1030,7 +1010,7 @@
         (let [f (first cond-expr)]
           (if (some #{f} #{:= :< :> :<= :>= :and :or})
             (symbol (name f))
-            (throw-error (errs/get-error-messages :invalid-constant-type [cond-expr]))))]
+            (raise-error :invalid-constant-type [cond-expr])))]
     `(~fpos-expr ~@(map (partial event-attrval event-inst) (rest cond-expr)))))
 
 (defn- satisfies-event-condition?
@@ -1271,7 +1251,7 @@
     (if (error? attrs)
       (u/throw-ex attrs)
       (restore-flags
-       (make-record-instance (type-tag-key inst) n attrs)
+       (u/make-record-instance (type-tag-key inst) n attrs)
        inst))))
 
 (defn tag-record [recname attrs]

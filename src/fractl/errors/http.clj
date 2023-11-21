@@ -3,65 +3,74 @@
   It includes definitions of various error types, their corresponding error messages,
   and functionality to manage client-facing error messages. This setup allows for
   consistent error handling across the system, with the ability to override error messages
-  for client-side presentation while maintaining detailed internal error logs.")
+  for client-side presentation while maintaining detailed internal error logs."
+  (:require[fractl.util :as u]))
+
+;; for some errors we directly call internal-error and supply it with a string
+;; below is consolidation of such errors
+(def internal-error-messages
+  {:query-failure "Failed to process query request - %s"
+   :auth-disabled "cannot process %s - authentication not enabled"})
+(defn get-internal-error-message [key & args]
+  (format (get internal-error-messages key) args))
 
 (defn default-client-error []
-  "Generic client error message, displayed when client erro disabled"
+  "Generic client error message, displayed when client error disabled"
   "Internal error on server")
 
 (def disabled-client-errors
-  "symbols of errors for which generic client message should be sent (for example, in case error message may reveal
+  "Symbols of errors for which generic client message should be sent (for example, in case error message may reveal
   sensitive BE info)"
   #{})
 
 ;; Functions for each error type. Name format "error key-error"
-(defn invalid-attribute-error [recname ks]
+(defn- invalid-attribute-error [recname ks]
   (str recname " - invalid attribute(s) found - " ks))
 
-(defn client-invalid-attribute-error [recname ks]
-  "overrides client side message for invalid-attribute error"
+(defn- client-invalid-attribute-error [recname ks]
+  "Overrides client side message for invalid-attribute error"
   (str "Invalid attribute(s) found - " ks))
 
-(defn check-failed-error [aval aname]
+(defn- check-failed-error [aval aname]
   (str "Check failed, invalid value " aval " for " aname))
 
-(defn format-mismatch-error [aname]
+(defn- format-mismatch-error [aname]
   (str "Format mismatch - " aname))
 
-(defn expected-type-error [attr-name type-name]
+(defn- expected-type-error [attr-name type-name]
   (str "Expected type for " attr-name " is " type-name))
 
-(defn invalid-list-error [aname]
+(defn- invalid-list-error [aname]
   (str "Invalid list for " aname))
 
-(defn not-a-set-error [aname]
+(defn- not-a-set-error [aname]
   (str "Not a set - " aname))
 
-(defn invalid-set-error [aname]
+(defn- invalid-set-error [aname]
   (str "Invalid set for " aname))
 
-(defn no-default-value-error [aname]
+(defn- no-default-value-error [aname]
   (str "No default value defined for " aname))
 
-(defn attribute-type-mismatch-error [attrname recname]
+(defn- attribute-type-mismatch-error [attrname recname]
   (str "Attribute " attrname " is not of type " recname))
 
-(defn no-record-set-error [attrname]
+(defn- no-record-set-error [attrname]
   (str "No record set for attribute " attrname))
 
-(defn no-schema-found-error [attr-name]
+(defn- no-schema-found-error [attr-name]
   (str "No schema found for attribute - " attr-name))
 
-(defn attribute-not-in-schema-error [attr-name]
+(defn- attribute-not-in-schema-error [attr-name]
   (str "Attribute not in schema - " attr-name))
 
-(defn schema-not-found-error [recname]
+(defn- schema-not-found-error [recname]
   (str "Schema not found for " recname))
 
-(defn schema-not-found-for-entity-error [recname]
+(defn- schema-not-found-for-entity-error [recname]
   (str "Schema not found for entity - " recname))
 
-(defn invalid-condition-error [cond-expr]
+(defn- invalid-condition-error [cond-expr]
   (str "Invalid condition in event pattern - " cond-expr))
 
 (def error-functions
@@ -83,12 +92,12 @@
    :invalid-condition invalid-condition-error})
 
 (def client-error-functions
-  {:invalid-attribute client-invalid-attribute-error
+  {
    ;; Add other overrides as necessary
    })
 
 (defn get-error-messages [error-key args]
-  "returns internal and client side error messages for given error key
+  "Returns internal and client side error messages for given error key
   Returned string will be used for backend logging as well as to be sent to client-side
   Optionally, we can override client-facing message by introducing a function starting with ¨client-¨ in same namespace"
   (let [internal-msg-fn (get error-functions error-key)
@@ -104,3 +113,40 @@
                    client-msg)})
       {:internal "Unknown error"
        :client (default-client-error)})))
+
+(defn make-error
+  "Return an instance of the error record with the given message
+   and additional attributes."
+  ([msg attributes]
+   (u/make-record-instance :record :error (assoc attributes :message msg)))
+  ([msg]
+   (make-error msg nil)))
+
+(defn throw-ex-info
+  "Throws an exception with the given error object."
+  ([msg error-obj]
+   (throw (ex-info msg error-obj)))
+  ([msg]
+   (throw-ex-info msg nil)))
+
+(defn extract-client-message-from-ex [ex-obj]
+  "Extracts client message from the additional data map of exception."
+  (let [ex-data-map (ex-data ex-obj)
+        client-msg (:client ex-data-map)]
+    client-msg))
+
+(defn- throw-error
+  "Create a structured error object and throw it as an exception."
+  ([msgs attributes]
+   (let [error-msg (str "component/error: " (:internal msgs))
+         error-details {:error (make-error (:internal msgs) attributes)
+                        :client (:client msgs)
+                        :type "component/error"}]
+     (throw-ex-info error-msg error-details)))
+  ([msgs]
+   (throw-error msgs {})))
+
+(defn raise-error
+  "Returns internal and client side error messages for given error key"
+  [error-key args]
+  (throw-error (get-error-messages error-key args)))

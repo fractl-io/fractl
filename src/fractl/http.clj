@@ -21,7 +21,8 @@
             [fractl.global-state :as gs]
             [org.httpkit.server :as h]
             [ring.util.codec :as codec]
-            [ring.middleware.cors :as cors])
+            [ring.middleware.cors :as cors]
+            [fractl.errors.http :refer [get-internal-error-message]])
   (:use [compojure.core :only [routes POST PUT DELETE GET]]
         [compojure.route :only [not-found]]))
 
@@ -48,28 +49,14 @@
    (response {:reason s} 400 data-fmt))
   ([s] (bad-request s :json)))
 
-(defn- extract-client-message [s]
-  "extracts client message from s, it is a bit quirky. In future, we should format s properly in throw-err-info.
-  Example of s:
-  first-item: {:status :error, :result nil, :message error in dataflow for :WordCount.Core/Create_User - component/error:
-  :WordCount.Core/User - invalid attribute(s) found - (:beautiful){:error {:type-*-tag-*- :record, :-*-type-*- :error,
-  :message \":WordCount.Core/User - invalid attribute(s) found - (:beautiful)\"}, :client \"Invalid attribute(s) found -
-  (:beautiful)\"}}"
-  (let [first-item (first s)
-        message-value (get first-item :message)
-        map-start-index (.indexOf message-value "{")
-        message-map (when (> map-start-index -1)
-                      (read-string (subs message-value map-start-index)))]
-    (get message-map :client "internal error on server")))
-
 (defn- internal-error
+  "Logs errors and constructs client-side response based on the type of input."
   ([s data-fmt]
    (log/warn (str "internal error reported from HTTP layer: " s))
-   (let [client-msg (extract-client-message s)]
-     (response {:reason client-msg} 500 data-fmt)))
-   ([s]
-    (internal-error s :json)))
-
+   (cond
+     (string? s) (response {:reason s} 500 data-fmt)
+     :else (response s 500 data-fmt)))
+  ([s] (internal-error s :json)))
 
 (defn- sanitize-secrets [obj]
   (let [r (mapv (fn [[k v]]
@@ -118,12 +105,13 @@
     (cn/dissoc-write-only obj)
     obj))
 
+
 (defn- remove-all-read-only-attributes [obj]
   (w/prewalk maybe-remove-read-only-attributes obj))
 
 (defn- evaluate [evaluator event-instance]
   (let [result (remove-all-read-only-attributes
-                (evaluator event-instance))]
+                 (evaluator event-instance))]
     result))
 
 (defn- extract-status [r]
@@ -154,10 +142,9 @@
        (wrap-result on-no-perm r data-fmt))
      (catch Exception ex
        (log/exception ex)
-       (let [errobj (ex-data ex)]
-         (internal-error (.getMessage ex) data-fmt)))))
-   ([exp data-fmt]
-    (maybe-ok nil exp data-fmt)))
+       (internal-error (.getMessage ex) data-fmt))))
+  ([exp data-fmt]
+   (maybe-ok nil exp data-fmt)))
 
 (defn- assoc-event-context [request auth-config event-instance]
   (if auth-config
@@ -538,7 +525,7 @@
             (maybe-ok #(evaluate evaluator evt) data-fmt)
             (catch Exception ex
               (log/exception ex)
-              (internal-error (str "Failed to process query request - " (.getMessage ex))))
+              (internal-error (get-internal-error-message :query-failure (.getMessage ex))))
             (finally (cn/remove-event evn))))
         (bad-request (str "unsupported content-type in request - "
                           (request-content-type request))))))
@@ -589,7 +576,7 @@
 
 (defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
-    (internal-error "cannot process sign-up - authentication not enabled")
+    (internal-error (get-internal-error-message :auth-disabled "sign-up"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (cond
@@ -629,7 +616,7 @@
 
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
-    (internal-error "cannot process login - authentication not enabled")
+    (internal-error (get-internal-error-message :auth-disabled "login"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (if err
@@ -652,7 +639,7 @@
 
 (defn- process-resend-confirmation-code [auth-config request]
   (if-not auth-config
-    (internal-error "cannot process resend-confirmation-code - authentication not enabled")
+    (internal-error (get-internal-error-message :auth-disabled "resend-confirmation-code"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (cond
@@ -680,7 +667,7 @@
 
 (defn- process-confirm-sign-up [auth-config request]
   (if-not auth-config
-    (internal-error "cannot process process-confirm-sign-up - authentication not enabled")
+    (internal-error (get-internal-error-message :auth-disabled "process-confirm-sign-up"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (cond
@@ -708,7 +695,7 @@
 
 (defn- process-forgot-password [auth-config request]
   (if-not auth-config
-    (internal-error "cannot process forgot-password - authentication not enabled")
+    (internal-error (get-internal-error-message :auth-disabled "forgot-password"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (cond
@@ -736,7 +723,7 @@
 
 (defn- process-confirm-forgot-password [auth-config request]
   (if-not auth-config
-    (internal-error "cannot process confirm-forgot-password - authentication not enabled")
+    (internal-error (get-internal-error-message :auth-disabled "confirm-forgot-password"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (cond
@@ -764,7 +751,7 @@
 
 (defn- process-change-password [auth-config request]
   (if-not auth-config
-    (internal-error "cannot process change-password - authentication not enabled")
+    (internal-error (get-internal-error-message :auth-disabled "change-password"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (cond
@@ -828,7 +815,7 @@
 
 (defn- process-update-user [auth-config request]
   (if-not auth-config
-    (internal-error "cannot process update-user - authentication not enabled")
+    (internal-error (get :auth-disabled "update-user"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request [:Fractl.Kernel.Identity :UpdateUser] data-fmt nil)]
         (cond
@@ -857,7 +844,7 @@
 
 (defn- process-refresh-token [auth-config request]
   (if-not auth-config
-    (internal-error "cannot process refresh-token - authentication not enabled")
+    (internal-error (get-internal-error-message :auth-disabled "refresh-token"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request [:Fractl.Kernel.Identity :RefreshToken] data-fmt nil)]
         (cond
@@ -922,8 +909,7 @@
           (bad-request (str "id_token not valid")))
         (bad-request
          (str "id_token required"))))
-    (internal-error
-     "cannot process sign-up - authentication not enabled")))
+    (internal-error "cannot process sign-up - authentication not enabled")))
 
 (defn- process-root-get [_]
   (ok {:result :fractl}))

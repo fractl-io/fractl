@@ -8,6 +8,7 @@
             [fractl.util.logger :as log]
             [fractl.util.seq :as su]
             [fractl.util.http :as uh]
+            [fractl.errors.http :refer [extract-client-message-from-ex]]
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
             [fractl.policy.logging :as logging]
@@ -194,7 +195,7 @@
                               :cljs ex))]
         (log/warn msg)
         (log/exception ex)
-        (i/error msg)))))
+        (i/error (extract-client-message-from-ex ex))))))
 
 (defn- run-dataflows
   "Compile and evaluate all dataflows attached to an event. The query-compiler
