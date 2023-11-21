@@ -168,6 +168,9 @@
   ([datasource component-name]
    (load-component-meta datasource nil component-name)))
 
+(defn- normalize-meta-data [[c t u]]
+  [c (s/upper-case t) u])
+
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
@@ -191,7 +194,8 @@
              (execute-sql!
               txn [(insert-entity-meta-sql
                     component-meta-table tabname
-                    {:columns (:columns @table-data)})]))))
+                    {:columns
+                     (mapv normalize-meta-data (:columns @table-data))})]))))
        (doseq [sql (:post-init-sqls @table-data)]
          (execute-sql! txn [sql]))
        component-name))))
