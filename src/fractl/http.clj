@@ -815,7 +815,7 @@
 
 (defn- process-update-user [auth-config request]
   (if-not auth-config
-    (internal-error (get :auth-disabled "update-user"))
+    (internal-error (get-internal-error-message :auth-disabled "update-user"))
     (if-let [data-fmt (find-data-format request)]
       (let [[evobj err] (event-from-request request [:Fractl.Kernel.Identity :UpdateUser] data-fmt nil)]
         (cond
