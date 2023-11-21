@@ -8,7 +8,7 @@
             [fractl.util.logger :as log]
             [fractl.util.seq :as su]
             [fractl.util.http :as uh]
-            [fractl.errors.http :refer [extract-client-message-from-ex]]
+            [fractl.util.errors :refer [extract-client-message-from-ex]]
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
             [fractl.policy.logging :as logging]

@@ -22,7 +22,7 @@
             [org.httpkit.server :as h]
             [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
-            [fractl.errors.http :refer [get-internal-error-message]])
+            [fractl.util.errors :refer [get-internal-error-message]])
   (:use [compojure.core :only [routes POST PUT DELETE GET]]
         [compojure.route :only [not-found]]))
 

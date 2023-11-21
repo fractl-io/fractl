@@ -10,7 +10,7 @@
             [fractl.lang.raw :as raw]
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]
-            [fractl.errors.http :refer [raise-error throw-ex-info make-error]]))
+            [fractl.util.errors :refer [raise-error throw-ex-info make-error]]))
 
 (def ^:private models (u/make-cell {}))
 
@@ -611,7 +611,7 @@
 (defn- assert-literal-instance [attr-name type-name obj]
   (if (instantiable-map-of? type-name obj)
     obj
-    (raise-error :expected-type [attr-name type-name])))
+    (raise-error :type-mismatch [attr-name type-name])))
 
 (declare valid-attribute-value)
 
@@ -640,7 +640,7 @@
               p (partial element-type-check tp (find-schema tp))]
           (if (su/all-true? (mapv p aval))
             aval
-            (raise-error :invalid-list [aname])))
+            (raise-error :invalid-list-element [aname])))
 
         (:setof ascm)
         (do (when-not (set? aval)
@@ -649,7 +649,7 @@
                   p (partial element-type-check tp (find-schema tp))]
               (if (su/all-true? (map p aval))
                 aval
-                (raise-error :invalid-set [aname]))))
+                (raise-error :invalid-set-element [aname]))))
 
         :else (check-format ascm aname aval))
       (let [dval (:default ascm)]
@@ -705,7 +705,7 @@
   (if-let [typname (li/extract-attribute-name (get (:schema schema) attr-name))]
     (if-let [ascm (find-attribute-schema typname)]
       (valid-attribute-value attr-name attr-val ascm)
-     (raise-error :no-schema-found [attr-name]))
+     (raise-error :schema-not-found [attr-name]))
     (raise-error :attribute-not-in-schema [attr-name])))
 
 (def inferred-event-schema {:inferred true})
@@ -1010,7 +1010,7 @@
         (let [f (first cond-expr)]
           (if (some #{f} #{:= :< :> :<= :>= :and :or})
             (symbol (name f))
-            (raise-error :invalid-constant-type [cond-expr])))]
+            (raise-error :invalid-operator [cond-expr])))]
     `(~fpos-expr ~@(map (partial event-attrval event-inst) (rest cond-expr)))))
 
 (defn- satisfies-event-condition?
