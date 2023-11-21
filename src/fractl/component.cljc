@@ -723,7 +723,7 @@
 (defn ensure-entity-schema [recname]
   (if-let [scm (fetch-entity-schema recname)]
     scm
-    (raise-error :schema-not-found-for-entity [recname])))
+    (raise-error :schema-not-found [recname])))
 
 (defn validate-record-attributes
   ([recname recattrs schema]

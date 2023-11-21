@@ -53,17 +53,11 @@
 (defn- no-record-set-error [attrname]
   (str "No record set for attribute " attrname))
 
-(defn- schema-not-found-error [attr-name]
-  (str "No schema found for attribute - " attr-name))
-
 (defn- attribute-not-in-schema-error [attr-name]
   (str "Attribute not in schema - " attr-name))
 
 (defn- schema-not-found-error [recname]
   (str "Schema not found for " recname))
-
-(defn- schema-not-found-for-entity-error [recname]
-  (str "Schema not found for entity - " recname))
 
 (defn- invalid-operator-error [cond-expr]
   (str "Invalid condition in event pattern - " cond-expr))
@@ -82,7 +76,6 @@
    :no-record-set no-record-set-error
    :schema-not-found schema-not-found-error
    :attribute-not-in-schema attribute-not-in-schema-error
-   :schema-not-found-for-entity schema-not-found-for-entity-error
    :invalid-operator invalid-operator-error})
 
 (def client-error-functions
