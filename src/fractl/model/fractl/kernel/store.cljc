@@ -45,7 +45,7 @@
     (seq
      (filter
       identity
-      (mapv (fn* [p1__284#] (p1__284# obj)) [:add :alter :rename])))]
+      (mapv (fn* [p1__292#] (p1__292# obj)) [:add :alter :rename])))]
    (every? map? xs)
    true)
   (maybe-all? rename-col? :rename obj)
@@ -78,4 +78,4 @@
   :NewName {:type :Path, :optional true}})
 (def
  Fractl_Kernel_Store___COMPONENT_ID__
- "3d41072c-13d0-4337-a1a9-4124f41d64ed")
+ "88bb4c2b-22d6-43a3-9878-b5686995b1a9")
