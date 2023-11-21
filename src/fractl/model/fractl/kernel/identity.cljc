@@ -33,9 +33,38 @@
 (entity
  :Fractl.Kernel.Identity/UserExtra
  {:User :Fractl.Kernel.Identity/User, :OtherDetails :Map})
+(entity
+ :Fractl.Kernel.Identity/UserSession
+ {:User :UUID, :LoggedIn :Boolean})
 (event
  :Fractl.Kernel.Identity/UpdateUser
  {:UserDetails :Fractl.Kernel.Identity/UserExtra})
+(event
+ :Fractl.Kernel.Identity/CreateUserSession
+ {:UserId :UUID, :Session :Boolean})
+(event
+ :Fractl.Kernel.Identity/UpdateUserSession
+ {:UserId :UUID, :Session :Boolean})
+(dataflow
+ :Fractl.Kernel.Identity/CreateUserSession
+ #:Fractl.Kernel.Identity{:UserSession
+                          {:User
+                           :Fractl.Kernel.Identity/CreateUserSession.UserId,
+                           :LoggedIn
+                           :Fractl.Kernel.Identity/CreateUserSession.Session}})
+(dataflow
+ :Fractl.Kernel.Identity/UpdateUserSession
+ #:Fractl.Kernel.Identity{:UserSession
+                          {:User?
+                           :Fractl.Kernel.Identity/UpdateUserSession.UserId,
+                           :LoggedIn
+                           :Fractl.Kernel.Identity/UpdateUserSession.Session}})
+(event :Fractl.Kernel.Identity/FindUserSessionInfo {:User :UUID})
+(dataflow
+ :Fractl.Kernel.Identity/FindUserSessionInfo
+ #:Fractl.Kernel.Identity{:UserSession
+                          {:User?
+                           :Fractl.Kernel.Identity/FindUserSessionInfo.User}})
 (event :Fractl.Kernel.Identity/ForgotPassword {:Username :Email})
 (event
  :Fractl.Kernel.Identity/ConfirmForgotPassword
@@ -61,4 +90,4 @@
  {:Username :Email})
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "71ce1964-7f92-4c37-9d4b-c1ac72aff9f2")
+ "1a09eb7f-cad6-4aa4-bc7b-5204d6fc352f")
