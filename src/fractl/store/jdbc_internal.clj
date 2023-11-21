@@ -111,7 +111,10 @@
 (defn execute-sql! [conn sql]
   (jdbc/execute! conn sql))
 
-(defn execute-stmt! [_ stmt params]
-  (if (and params (not= (first params) :*))
-    (jdbc/execute! (jdbcp/set-parameters stmt params))
-    (jdbc/execute! stmt)))
+(defn execute-stmt-once! [_ stmt params]
+  (try
+    (if (and params (not= (first params) :*))
+      (jdbc/execute! (jdbcp/set-parameters stmt params))
+      (jdbc/execute! stmt))
+    (finally
+      (.close stmt))))
