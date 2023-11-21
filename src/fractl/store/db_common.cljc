@@ -17,7 +17,7 @@
   {:transact-fn! #?(:clj ji/transact-fn! :cljs aqi/execute-fn!)
    :execute-fn! #?(:clj ji/execute-fn! :cljs aqi/execute-fn!)
    :execute-sql! #?(:clj ji/execute-sql! :cljs aqi/execute-sql!)
-   :execute-stmt! #?(:clj ji/execute-stmt! :cljs aqi/execute-stmt!)
+   :execute-stmt-once! #?(:clj ji/execute-stmt-once! :cljs aqi/execute-stmt-once!)
    :create-inst-statement #?(:clj ji/create-inst-statement :cljs aqi/upsert-inst-statement)
    :update-inst-statement #?(:clj ji/update-inst-statement :cljs aqi/upsert-inst-statement)
    :purge-by-id-statement #?(:clj ji/purge-by-id-statement :cljs aqi/delete-by-id-statement)
@@ -31,7 +31,7 @@
 (def transact-fn! (:transact-fn! store-fns))
 (def execute-fn! (:execute-fn! store-fns))
 (def execute-sql! (:execute-sql! store-fns))
-(def execute-stmt! (:execute-stmt! store-fns))
+(def execute-stmt-once! (:execute-stmt-once! store-fns))
 (def create-inst-statement (:create-inst-statement store-fns))
 (def update-inst-statement (:update-inst-statement store-fns))
 (def purge-by-id-statement (:purge-by-id-statement store-fns))
@@ -190,9 +190,9 @@
             (let [id-attr-name (cn/identity-attribute-name entity-name)
                   id-val (id-attr-name instance)
                   [pstmt params] (purge-by-id-statement % tabname id-attr-name id-val)]
-              (execute-stmt! % pstmt params)))
+              (execute-stmt-once! % pstmt params)))
           (let [[pstmt params] (upsert-inst-statement % tabname nil [entity-name inst])]
-            (execute-stmt! % pstmt params))))
+            (execute-stmt-once! % pstmt params))))
     instance))
 
 (defn upsert-instance [upsert-inst-statement create-mode datasource entity-name instance]
@@ -206,7 +206,7 @@
   "Delete an entity instance."
   [conn tabname id-attr-name id delete-by-id-statement]
   (let [[pstmt params] (delete-by-id-statement conn tabname id-attr-name id)]
-    (execute-stmt! conn pstmt params)))
+    (execute-stmt-once! conn pstmt params)))
 
 (defn delete-by-id
   ([delete-by-id-statement datasource entity-name id-attr-name id]
@@ -225,7 +225,7 @@
      datasource
      (fn [conn]
        (let [pstmt (delete-all-statement conn tabname purge)]
-         (execute-stmt! conn pstmt nil))))
+         (execute-stmt-once! conn pstmt nil))))
     entity-name))
 
 (defn delete-children [datasource entity-name path]
@@ -234,7 +234,7 @@
      datasource
      (fn [conn]
        (let [pstmt (delete-children-statement conn tabname path)]
-         (execute-stmt! conn pstmt nil))))
+         (execute-stmt-once! conn pstmt nil))))
     entity-name))
 
 (defn compile-query [query-pattern]
@@ -260,7 +260,7 @@
       (query-instances
        entity-name
        (mapv #(let [[pstmt params] (query-by-id-statement conn query-sql %)]
-                (fn [] (execute-stmt! conn pstmt params)))
+                (fn [] (execute-stmt-once! conn pstmt params)))
              (set ids))))))
   ([datasource entity-name query-sql ids]
    (query-by-id query-by-id-statement datasource entity-name query-sql ids)))
@@ -270,7 +270,7 @@
    datasource
    (fn [conn]
      (let [[pstmt params] (do-query-statement conn query-sql query-params)]
-       (execute-stmt! conn pstmt params)))))
+       (execute-stmt-once! conn pstmt params)))))
 
 (defn- query-relational-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
   (let [sql (sql/compile-to-direct-query (stu/entity-table-name entity-name) (mapv name unique-keys) :and)]
@@ -293,13 +293,13 @@
       (rows-to-instances
        entity-name
        (let [[pstmt params] (do-query-statement conn query-sql query-params)]
-         [#(execute-stmt! conn pstmt params)])))))
+         [#(execute-stmt-once! conn pstmt params)])))))
   ([datasource entity-name query-sql]
    (query-all datasource entity-name query-instances query-sql nil)))
 
 (defn- query-pk-columns [conn table-name sql]
   (let [pstmt (do-query-statement conn (s/replace sql #"\?" table-name))]
-    (mapv :pg_attribute/attname (execute-stmt! conn pstmt nil))))
+    (mapv :pg_attribute/attname (execute-stmt-once! conn pstmt nil))))
 
 (defn- mark-pks [pks schema]
   (mapv
@@ -329,14 +329,13 @@
      (let [[pstmt params] (do-query-statement conn fetch-schema-sql nil)
            tabnames (get-table-names
                      (raw-results
-                      [#(execute-stmt! conn pstmt params)]))
+                      [#(execute-stmt-once! conn pstmt params)]))
            col-pstmt (do-query-statement conn fetch-columns-sql)]
        (mapv
         (fn [tn]
           (let [pks (query-pk-columns conn tn fetch-pk-columns-sql)
                 r (raw-results
-                   [#(execute-stmt!
-                      conn col-pstmt [tn])])]
+                   [#(execute-stmt-once! conn col-pstmt [tn])])]
             {(keyword tn) (normalize-table-schema type-lookup (mark-pks pks r))}))
         tabnames)))))
 

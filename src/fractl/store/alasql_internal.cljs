@@ -68,3 +68,5 @@
                  (.exec db stmt (clj->js params))
                  (.exec db stmt))]
     (js->clj result :keywordize-keys true)))
+
+(def execute-stmt-once! execute-stmt!)

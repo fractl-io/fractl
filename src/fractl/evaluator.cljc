@@ -144,9 +144,10 @@
            (store/call-in-transaction store f)
            (f nil)))
        (catch #?(:clj Exception :cljs :default) ex
-         (if-let [r (:eval-result (ex-data ex))]
-           r
-           (throw ex))))))
+         (do (store/maybe-rollback-active-txn!)
+             (if-let [r (:eval-result (ex-data ex))]
+               r
+               (throw ex)))))))
   ([evaluator event-instance df]
    (eval-dataflow evaluator env/EMPTY event-instance df)))
 
@@ -284,6 +285,16 @@
   ([event-obj]
    (eval-all-dataflows event-obj (es/get-active-store) nil)))
 
+(defn eval-all-dataflows-atomic
+  "Evaluate the dataflows in a new transaction"
+  [event-obj]
+  (let [txn (gs/get-active-txn)]
+    (gs/set-active-txn! nil)
+    (try
+      (eval-all-dataflows event-obj)
+      (finally
+        (gs/set-active-txn! txn)))))
+
 (defn eval-pure-dataflows
   "Facility to evaluate dataflows without producing any side-effects.
    This is useful for pure tasks like data-format transformation.
@@ -311,11 +322,13 @@
    (eval-all-dataflows
     (cn/make-instance event-obj))))
 
-(defn safe-eval-internal [event-obj]
-  (u/safe-ok-result
-   (eval-all-dataflows
-    (mark-internal
-     (cn/make-instance event-obj)))))
+(defn safe-eval-internal
+  ([is-atomic event-obj]
+   (u/safe-ok-result
+    ((if is-atomic eval-all-dataflows-atomic eval-all-dataflows)
+     (mark-internal
+      (cn/make-instance event-obj)))))
+  ([event-obj] (safe-eval-internal true event-obj)))
 
 (defn safe-eval-pattern [pattern]
   (u/safe-ok-result
