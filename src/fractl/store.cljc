@@ -6,6 +6,7 @@
             [fractl.util.logger :as log]
             [fractl.store.util :as su]
             [fractl.store.protocol :as p]
+            [fractl.global-state :as gs]
             [fractl.util :as u]))
 
 (def ^:private default-store (u/make-cell))
@@ -114,6 +115,7 @@
 (def delete-by-id p/delete-by-id)
 (def delete-all p/delete-all)
 (def delete-children p/delete-children)
+(def execute-migration p/execute-migration)
 
 (defn- empty-result-on-error [f]
   (try
@@ -208,3 +210,7 @@
 (defn force-init-schema [store component-name]
   (u/safe-set inited-components (disj @inited-components component-name))
   (maybe-init-schema store component-name))
+
+(defn maybe-rollback-active-txn! []
+  #?(:clj (when-let [txn (gs/get-active-txn)]
+            (.rollback txn))))

@@ -647,3 +647,44 @@
       (is (= (apply + xs)
              (apply + (mapv :X es)))))
     (is (= (:E1s r3) (:E1s r4)))))
+
+(deftest issue-1062-future-eval
+  (defcomponent :I1062
+    (entity
+     :I1062/E
+     {:Id :Identity
+      :X :Int})
+    (defn i1062f1 [x]
+      (future (tu/eval-all-dataflows
+               {:I1062/Create_E
+                {:Instance
+                 {:I1062/E {:X x}}}})))
+    (defn i1062f2 [id x]
+      (future (tu/eval-all-dataflows
+               {:I1062/Update_E
+                {:Id id
+                 :Data {:X x}}})))
+    (dataflow
+     :I1062/CreateE
+     [:eval '(fractl.test.fixes02/i1062f1 :I1062/CreateE.X)])
+    (dataflow
+     :I1062/UpdateE
+     [:eval '(fractl.test.fixes02/i1062f2 :I1062/UpdateE.Id :I1062/UpdateE.X)]))
+  (let [r (tu/result {:I1062/CreateE {:X 100}})
+        res (fn [r] (first (:result (first @r))))
+        e (res r)
+        e? (partial cn/instance-of? :I1062/E)]
+    (is (e? e))
+    (is (cn/same-instance? e (tu/first-result
+                              {:I1062/Lookup_E
+                               {:Id (:Id e)}})))
+    (let [r (tu/result {:I1062/UpdateE {:Id (:Id e) :X 200}})
+          e2 (res r)]
+      (is (e? e2))
+      (is (and (= (:Id e) (:Id e2))
+               (= 200 (:X e2))))
+      (is (= 200 (:X (tu/first-result
+                      {:I1062/Lookup_E
+                       {:Id (:Id e)}}))))
+      (let [es (tu/result {:I1062/LookupAll_E {}})]
+        (is (and (= 1 (count es)) (cn/same-instance? e2 (first es))))))))

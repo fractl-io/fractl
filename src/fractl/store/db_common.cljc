@@ -13,34 +13,22 @@
             #?(:clj [fractl.store.jdbc-internal :as ji])
             #?(:cljs [fractl.store.alasql-internal :as aqi])))
 
-(def ^:private store-fns
-  {:transact-fn! #?(:clj ji/transact-fn! :cljs aqi/execute-fn!)
-   :execute-fn! #?(:clj ji/execute-fn! :cljs aqi/execute-fn!)
-   :execute-sql! #?(:clj ji/execute-sql! :cljs aqi/execute-sql!)
-   :execute-stmt! #?(:clj ji/execute-stmt! :cljs aqi/execute-stmt!)
-   :create-inst-statement #?(:clj ji/create-inst-statement :cljs aqi/upsert-inst-statement)
-   :update-inst-statement #?(:clj ji/update-inst-statement :cljs aqi/upsert-inst-statement)
-   :purge-by-id-statement #?(:clj ji/purge-by-id-statement :cljs aqi/delete-by-id-statement)
-   :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
-   :delete-all-statement #?(:clj ji/delete-all-statement :cljs aqi/delete-all-statement)
-   :delete-children-statement #?(:clj ji/delete-children-statement :cljs aqi/delete-children-statement)
-   :query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement)
-   :do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement)
-   :validate-ref-statement #?(:clj ji/validate-ref-statement :cljs aqi/validate-ref-statement)})
-
-(def transact-fn! (:transact-fn! store-fns))
-(def execute-fn! (:execute-fn! store-fns))
-(def execute-sql! (:execute-sql! store-fns))
-(def execute-stmt! (:execute-stmt! store-fns))
-(def create-inst-statement (:create-inst-statement store-fns))
-(def update-inst-statement (:update-inst-statement store-fns))
-(def purge-by-id-statement (:purge-by-id-statement store-fns))
-(def delete-by-id-statement (:delete-by-id-statement store-fns))
-(def delete-all-statement (:delete-all-statement store-fns))
-(def delete-children-statement (:delete-children-statement store-fns))
-(def query-by-id-statement (:query-by-id-statement store-fns))
-(def do-query-statement (:do-query-statement store-fns))
-(def validate-ref-statement (:validate-ref-statement store-fns))
+(def transact-fn! #?(:clj ji/transact-fn! :cljs aqi/execute-fn!))
+(def execute-fn! #?(:clj ji/execute-fn! :cljs aqi/execute-fn!))
+(def execute-sql! #?(:clj ji/execute-sql! :cljs aqi/execute-sql!))
+(def execute-stmt-once! #?(:clj ji/execute-stmt-once! :cljs aqi/execute-stmt-once!))
+(def execute-stmt! #?(:clj ji/execute-stmt! :cljs aqi/execute-stmt!))
+(def create-inst-statement #?(:clj ji/create-inst-statement :cljs aqi/upsert-inst-statement))
+(def update-inst-statement #?(:clj ji/update-inst-statement :cljs aqi/upsert-inst-statement))
+(def purge-by-id-statement #?(:clj ji/purge-by-id-statement :cljs aqi/delete-by-id-statement))
+(def delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement))
+(def delete-all-statement #?(:clj ji/delete-all-statement :cljs aqi/delete-all-statement))
+(def delete-children-statement #?(:clj ji/delete-children-statement :cljs aqi/delete-children-statement))
+(def query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement))
+(def do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement))
+(def validate-ref-statement #?(:clj ji/validate-ref-statement :cljs aqi/validate-ref-statement))
+(def prepare #?(:clj ji/prepare :cljs aqi/prepare))
+(def close-pstmt #?(:clj ji/close-pstmt :cljs aqi/close-pstmt))
 
 (def id-type (sql/attribute-to-sql-type :Fractl.Kernel.Lang/UUID))
 
@@ -152,22 +140,6 @@
   (str "INSERT INTO " comp-meta-table " VALUES ('" entity-table "', '" meta-data "')"
        " ON CONFLICT DO NOTHING"))
 
-(defn- normalize-meta-result [r]
-  (let [r (mapv (fn [[k v]]
-                  [(second (li/split-path k)) v])
-                r)]
-    (into {} r)))
-
-(defn load-component-meta
-  ([datasource model-version component-name]
-   (let [table-name (stu/component-meta-table-name component-name model-version)]
-     (try
-       (mapv normalize-meta-result (execute-sql! datasource [(str "SELECT * FROM " table-name)]))
-       (catch Exception ex
-         (log/error ex)))))
-  ([datasource component-name]
-   (load-component-meta datasource nil component-name)))
-
 (defn- normalize-meta-data [[c t u]]
   [c (s/upper-case t) u])
 
@@ -232,9 +204,9 @@
             (let [id-attr-name (cn/identity-attribute-name entity-name)
                   id-val (id-attr-name instance)
                   [pstmt params] (purge-by-id-statement % tabname id-attr-name id-val)]
-              (execute-stmt! % pstmt params)))
+              (execute-stmt-once! % pstmt params)))
           (let [[pstmt params] (upsert-inst-statement % tabname nil [entity-name inst])]
-            (execute-stmt! % pstmt params))))
+            (execute-stmt-once! % pstmt params))))
     instance))
 
 (defn upsert-instance [upsert-inst-statement create-mode datasource entity-name instance]
@@ -248,7 +220,7 @@
   "Delete an entity instance."
   [conn tabname id-attr-name id delete-by-id-statement]
   (let [[pstmt params] (delete-by-id-statement conn tabname id-attr-name id)]
-    (execute-stmt! conn pstmt params)))
+    (execute-stmt-once! conn pstmt params)))
 
 (defn delete-by-id
   ([delete-by-id-statement datasource entity-name id-attr-name id]
@@ -267,7 +239,7 @@
      datasource
      (fn [conn]
        (let [pstmt (delete-all-statement conn tabname purge)]
-         (execute-stmt! conn pstmt nil))))
+         (execute-stmt-once! conn pstmt nil))))
     entity-name))
 
 (defn delete-children [datasource entity-name path]
@@ -276,7 +248,7 @@
      datasource
      (fn [conn]
        (let [pstmt (delete-children-statement conn tabname path)]
-         (execute-stmt! conn pstmt nil))))
+         (execute-stmt-once! conn pstmt nil))))
     entity-name))
 
 (defn compile-query [query-pattern]
@@ -302,7 +274,7 @@
       (query-instances
        entity-name
        (mapv #(let [[pstmt params] (query-by-id-statement conn query-sql %)]
-                (fn [] (execute-stmt! conn pstmt params)))
+                (fn [] (execute-stmt-once! conn pstmt params)))
              (set ids))))))
   ([datasource entity-name query-sql ids]
    (query-by-id query-by-id-statement datasource entity-name query-sql ids)))
@@ -312,7 +284,7 @@
    datasource
    (fn [conn]
      (let [[pstmt params] (do-query-statement conn query-sql query-params)]
-       (execute-stmt! conn pstmt params)))))
+       (execute-stmt-once! conn pstmt params)))))
 
 (defn- query-relational-entity-by-unique-keys [datasource entity-name unique-keys attribute-values]
   (let [sql (sql/compile-to-direct-query (stu/entity-table-name entity-name) (mapv name unique-keys) :and)]
@@ -335,6 +307,148 @@
       (rows-to-instances
        entity-name
        (let [[pstmt params] (do-query-statement conn query-sql query-params)]
-         [#(execute-stmt! conn pstmt params)])))))
+         [#(execute-stmt-once! conn pstmt params)])))))
   ([datasource entity-name query-sql]
    (query-all datasource entity-name query-instances query-sql nil)))
+
+(defn- cols-spec-to-multiple-inserts [from-table to-table cols-spec]
+  [(str "SELECT * FROM " from-table)
+   (str "INSERT INTO " to-table " (" (s/join ", " (mapv first cols-spec)) ") VALUES "
+        "(" (s/join "," (repeat (count cols-spec) \?)) ")")
+   (mapv (fn [[_ c]]
+           (if (and (string? c) (s/starts-with? c "_"))
+             (keyword (s/upper-case c))
+             c))
+         cols-spec)])
+
+(defn generate-migration-commands [from-table to-table cols-spec]
+  (if (some #(fn? (second %)) cols-spec)
+    (cols-spec-to-multiple-inserts from-table to-table cols-spec)
+    (str "INSERT INTO " to-table " (" (s/join "," (mapv first cols-spec)) ") "
+         "SELECT " (s/join "," (mapv second cols-spec)) " FROM " from-table)))
+
+(defn- normalize-meta-result [r]
+  (let [r (mapv (fn [[k v]]
+                  [(second (li/split-path k)) v])
+                r)]
+    (into {} r)))
+
+(defn- normalize-component-meta [meta]
+  (into {} (mapv (fn [r] [(:KEY r) (u/parse-string (:VALUE r))]) meta)))
+
+(defn- load-component-meta
+  ([datasource model-version component-name]
+   (let [table-name (stu/component-meta-table-name component-name model-version)]
+     (try
+       (normalize-component-meta
+        (mapv normalize-meta-result (execute-sql! datasource [(str "SELECT * FROM " table-name)])))
+       (catch Exception ex
+         (log/error ex)))))
+  ([datasource component-name]
+   (load-component-meta datasource nil component-name)))
+
+(defn- raise-uk-change-error [table-name col-name]
+  (u/throw-ex (str "Migration cannot automatically handle unique-key conversion for " table-name "." col-name)))
+
+(defn- raise-type-change-error [table-name col-name]
+  (u/throw-ex (str "Migration cannot automatically handle data-type conversion for " table-name "." col-name)))
+
+(defn- raise-uk-number-error [table-name col-name]
+  (u/throw-ex (str "Migration cannot automatically handle addition of unique-numeric column " table-name "." col-name)))
+
+(defn- generate-inserts [[[from-table from-cols] [to-table to-cols]]]
+  (generate-migration-commands
+   from-table to-table
+   (mapv
+    (fn [[tc tt tu]]
+      (if-let [[c t u] (first (filter #(= tc (first %)) from-cols))]
+        (cond
+          (and (not u) tu) (raise-uk-change-error to-table tc)
+          (= tt t) [tc c]
+          :else (raise-type-change-error to-table tc))
+        (if tu
+          (case tt
+            :s [tc u/uuid-string]
+            :n (raise-uk-number-error to-table tc))
+          (case tt
+            :s [tc "NULL"]
+            :n [tc 0]))))
+    to-cols)))
+
+(defn- preproc-cols [{cols :columns}]
+  (mapv (fn [[c t u]]
+          [c (if (or (s/starts-with? t "VARCHAR")
+                     (= t "UUID"))
+               :s
+               :n)
+           u])
+        cols))
+
+(defn- compute-diff [from-tables from-meta to-tables to-meta]
+  (mapv (fn [f t] [[f (preproc-cols (get from-meta f))]
+                   [t (preproc-cols (get to-meta t))]])
+        from-tables to-tables))
+
+(defn- migration-commands [datasource from-vers to-vers components]
+  (let [load-from (partial load-component-meta datasource from-vers)
+        load-to (partial load-component-meta datasource to-vers)]
+    (mapv
+     (fn [cn]
+       (let [from-meta (load-from cn), to-meta (load-to cn),
+             from-tables (keys from-meta)
+             fvs (stu/escape-graphic-chars from-vers)
+             from-base (set (map #(subs % 0 (s/index-of % fvs)) from-tables))
+             to-tables (keys to-meta)
+             tvs (stu/escape-graphic-chars to-vers)
+             to-base (set (map #(subs % 0 (s/index-of % tvs)) to-tables))
+             final-tables (filter
+                           (fn [[f t]]
+                             (when-let [fmeta (get from-meta f)]
+                               (not= fmeta (get to-meta t))))
+                           (mapv (fn [n] [(str n fvs) (str n tvs)]) (set/union to-base from-base)))
+             final-from-tables (mapv first final-tables)
+             final-to-tables (mapv second final-tables)]
+         [cn (mapv
+              generate-inserts
+              (compute-diff final-from-tables from-meta
+                            final-to-tables to-meta))]))
+     components)))
+
+(defn- normalize-raw-results [rs]
+  (mapv
+   (fn [r]
+     (into
+      {}
+      (mapv
+       (fn [[k v]]
+         (let [[_ n] (li/split-path k)]
+           [(keyword (s/upper-case (name n))) v]))
+       r)))
+   rs))
+
+(defn- execute-per-row-migration! [txn cmd]
+  (when-let [rs (seq (normalize-raw-results (execute-sql! txn [(first cmd)])))]
+    (let [pstmt (prepare txn [(second cmd)])
+          args (nth cmd 2)]
+      (doseq [r rs]
+        (let [params (mapv (fn [k]
+                             (cond
+                               (keyword? k) (k r)
+                               (fn? k) (k)
+                               :else k))
+                           args)]
+          (execute-stmt! txn pstmt params))))))
+
+(defn execute-migration [datasource progress-callback from-vers to-vers components]
+  (let [commands (migration-commands datasource from-vers to-vers components)]
+    (transact-fn!
+     datasource
+     (fn [txn]
+       (doseq [[cn cmds] commands]
+         (progress-callback {:component cn})
+         (doseq [cmd cmds]
+           (progress-callback {:command cmd})
+           (if (string? cmd)
+             (execute-sql! txn [cmd])
+             (execute-per-row-migration! txn cmd))))))
+    true))

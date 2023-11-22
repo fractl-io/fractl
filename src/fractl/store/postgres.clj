@@ -163,4 +163,6 @@
         (db/transact-fn! @datasource f))
       (compile-query [_ query-pattern]
         (db/compile-query query-pattern))
-      (get-reference [_ path refs]))))
+      (get-reference [_ path refs])
+      (execute-migration [_ progress-callback from-vers to-vers components]
+        (db/execute-migration @datasource progress-callback from-vers to-vers components)))))

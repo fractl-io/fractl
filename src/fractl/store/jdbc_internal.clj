@@ -10,6 +10,11 @@
             [fractl.store.util :as su])
   (:import [java.sql PreparedStatement]))
 
+(def prepare jdbc/prepare)
+
+(defn close-pstmt [^PreparedStatement p]
+  (.close p))
+
 (defn validate-ref-statement [conn index-tabname colname ref]
   (let [sql (str "SELECT 1 FROM " index-tabname " WHERE _" colname " = ?")
         ^PreparedStatement pstmt (jdbc/prepare conn [sql])]
@@ -111,7 +116,14 @@
 (defn execute-sql! [conn sql]
   (jdbc/execute! conn sql))
 
-(defn execute-stmt! [_ stmt params]
-  (if (and params (not= (first params) :*))
-    (jdbc/execute! (jdbcp/set-parameters stmt params))
-    (jdbc/execute! stmt)))
+(defn- execute-prepared-stmt! [once _ stmt params]
+  (try
+    (if (and params (not= (first params) :*))
+      (jdbc/execute! (jdbcp/set-parameters stmt params))
+      (jdbc/execute! stmt))
+    (finally
+      (when once
+        (.close stmt)))))
+
+(def execute-stmt-once! (partial execute-prepared-stmt! true))
+(def execute-stmt! (partial execute-prepared-stmt! false))

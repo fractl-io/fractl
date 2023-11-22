@@ -61,4 +61,7 @@
      tracking instances in reactive store")
   (commit [store msg]
     "Commit local changes, return the version number"
-    (not-implemented :commit)))
+    (not-implemented :commit))
+  (execute-migration [store progress-callback from-vers to-vers components]
+    "Generate migration commands for the listed components and execute the migration, return true on success."
+    (not-implemented :execute-migration)))
