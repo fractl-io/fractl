@@ -609,6 +609,12 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
+(defn decode-jwt-token-from-response [response]
+  (-> response
+      (get :authentication-result)
+      (get :id-token)
+      (jwt/decode)))
+
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
     (internal-error "cannot process login - authentication not enabled")
@@ -623,7 +629,7 @@
                            auth-config
                            :event evobj
                            :eval evaluator))
-                  user-id (get (jwt/decode (get-in result [:authentication-result :id-token])) :sub)]
+                  user-id (get (decode-jwt-token-from-response result) :sub)]
               (if
                 (= (uh/get-status-of-response
                      (evaluator
@@ -979,13 +985,12 @@
      :access-control-allow-methods [:post :put :delete :get])))
 
 (defn- handle-request-auth [request evaluator]
-  (let [user (get-in request [:identity :sub])
-        logged-in-status (uh/get-data-in-response-result
-                           (evaluator
-                             {:Fractl.Kernel.Identity/Lookup_UserSession
-                              {:User user}}) :LoggedIn)]
+  (let [user (get-in request [:identity :sub])]
     (try
-      (when-not (and (buddy/authenticated? request) (= logged-in-status true))
+      (when-not (and (buddy/authenticated? request) (uh/get-data-in-response-result
+                                                      (evaluator
+                                                        {:Fractl.Kernel.Identity/Lookup_UserSession
+                                                         {:User user}}) :LoggedIn))
         (log/info (str "unauthorized request - " request))
         (unauthorized (find-data-format request)))
       (catch Exception ex
