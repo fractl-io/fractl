@@ -620,6 +620,23 @@
       (get :id-token)
       (jwt/decode)))
 
+(defn upsert-user-session [evaluator user-id logged-in]
+  (if
+    (= (uh/get-status-of-response
+         (evaluator
+           {:Fractl.Kernel.Identity/Lookup_UserSession
+            {:User user-id}})) :not-found)
+    (evaluator
+      {:Fractl.Kernel.Identity/Create_UserSession
+       {:Instance
+        {:Fractl.Kernel.Identity/UserSession
+         {:User     user-id
+          :LoggedIn logged-in}}}})
+    (evaluator
+      {:Fractl.Kernel.Identity/Update_UserSession
+       {:User user-id
+        :Data {:LoggedIn logged-in}}})))
+
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "login"))
@@ -635,21 +652,7 @@
                            :event evobj
                            :eval evaluator))
                   user-id (get (decode-jwt-token-from-response result) :sub)]
-              (if
-                (= (uh/get-status-of-response
-                     (evaluator
-                       {:Fractl.Kernel.Identity/Lookup_UserSession
-                        {:User user-id}})) :not-found)
-                (evaluator
-                  {:Fractl.Kernel.Identity/Create_UserSession
-                   {:Instance
-                    {:Fractl.Kernel.Identity/UserSession
-                     {:User     user-id
-                      :LoggedIn true}}}})
-                (evaluator
-                  {:Fractl.Kernel.Identity/Update_UserSession
-                   {:User user-id
-                    :Data {:LoggedIn true}}}))
+              (upsert-user-session evaluator user-id true)
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
@@ -809,21 +812,7 @@
                       (assoc
                        auth-config
                        :sub sub))]
-          (if
-            (= (uh/get-status-of-response
-                 (evaluator
-                   {:Fractl.Kernel.Identity/Lookup_UserSession
-                    {:User (:username sub)}})) :not-found)
-            (evaluator
-              {:Fractl.Kernel.Identity/Create_UserSession
-               {:Instance
-                {:Fractl.Kernel.Identity/UserSession
-                 {:User     (:username sub)
-                  :LoggedIn false}}}})
-            (evaluator
-              {:Fractl.Kernel.Identity/Update_UserSession
-               {:User (:username sub)
-                :Data {:LoggedIn false}}}))
+          (upsert-user-session evaluator (:username sub) false)
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
