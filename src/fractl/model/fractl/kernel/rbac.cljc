@@ -115,4 +115,4 @@
                        :Assignee :String}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "562b0bac-6095-4530-a994-35d6c7d747fc")
+ "602c223a-b71d-4562-8ded-3032e7a2f0f3")

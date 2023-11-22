@@ -37,43 +37,12 @@
 
 (entity
  :UserSession
- {:User :UUID
+ {:User :Identity
   :LoggedIn :Boolean})
 
 (event
  :UpdateUser
  {:UserDetails :UserExtra})
-
-(event
- :CreateUserSession
- {:UserId :UUID
-  :Session :Boolean})
-
-(event
- :UpdateUserSession
- {:UserId :UUID
-  :Session :Boolean})
-
-(dataflow
- :CreateUserSession
- {:UserSession
-  {:User :CreateUserSession.UserId
-   :LoggedIn :CreateUserSession.Session}})
-
-(dataflow
- :UpdateUserSession
- {:UserSession
-  {:User? :UpdateUserSession.UserId
-   :LoggedIn :UpdateUserSession.Session}})
-
-(event
- :FindUserSessionInfo
- {:User :UUID})
-
-(dataflow
- :FindUserSessionInfo
- {:UserSession
-  {:User? :FindUserSessionInfo.User}})
 
 (event
  :ForgotPassword
