@@ -13,7 +13,10 @@
   (let [model-spec (cn/fetch-model model-name)]
     (when-not model-spec
       (u/throw-ex (str "model " model-name " not loaded")))
-    (let [from-vers (:from config)
-          to-vers (:version model-spec)
-          components (:components model-spec)]
-      (store/execute-migration store report-progress from-vers to-vers components))))
+    (when (store/init-all-schema store)
+      (let [from-vers (:from config)
+            to-vers (:version model-spec)
+            components (:components model-spec)]
+        (when (store/execute-migration store report-progress from-vers to-vers components)
+          (println "done")
+          model-name)))))

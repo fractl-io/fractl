@@ -9,7 +9,6 @@
             [fractl.util.logger :as log]
             [fractl.http :as h]
             [fractl.resolver.registry :as rr]
-            [fractl.resolver.store]
             [fractl.compiler :as c]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
@@ -85,14 +84,6 @@
         (if-let [cs (seq (rest xs))]
           (recur cs " " s)
           (log/info s))))))
-
-(defn- register-store-resolver! [store]
-  (rr/register-resolver
-   {:name :store-migration
-    :type :store-migration
-    :compose? false
-    :config {:store store}
-    :paths [:Fractl.Kernel.Store/Changeset]}))
 
 (defn- register-resolvers! [config evaluator]
   (when-let [resolver-specs (:resolvers config)]
@@ -182,7 +173,6 @@
         (register-resolvers! config ev)
         (when (seq (:resolvers resolved-config))
           (register-resolvers! resolved-config ev))
-        (register-store-resolver! store)
         (if has-rbac
           (lr/finalize-events ev)
           (lr/reset-events!))
@@ -429,6 +419,7 @@
       (f))))
 
 (defn- db-migrate [model-name config]
+  ;; config: {:db:migrate {:from "version"}}
   (if-let [mg-config (:db:migrate config)]
     (let [store (store-from-config config)]
       (mg/migrate store model-name mg-config))

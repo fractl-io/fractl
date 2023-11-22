@@ -334,16 +334,14 @@
     (into {} r)))
 
 (defn- normalize-component-meta [meta]
-  (into {} (mapv (fn [r] [(:KEY r) (u/parse-string (:VALUE r))]) meta)))
+  (let [[kk vk] (if (:KEY (first meta)) [:KEY :VALUE] [:key :value])]
+    (into {} (mapv (fn [r] [(kk r) (u/parse-string (vk r))]) meta))))
 
 (defn- load-component-meta
   ([datasource model-version component-name]
    (let [table-name (stu/component-meta-table-name component-name model-version)]
-     (try
-       (normalize-component-meta
-        (mapv normalize-meta-result (execute-sql! datasource [(str "SELECT * FROM " table-name)])))
-       (catch Exception ex
-         (log/error ex)))))
+     (normalize-component-meta
+      (mapv normalize-meta-result (execute-sql! datasource [(str "SELECT * FROM " table-name)])))))
   ([datasource component-name]
    (load-component-meta datasource nil component-name)))
 
