@@ -108,7 +108,11 @@
    :auth-disabled "cannot process %s - authentication not enabled"})
 
 (defn get-internal-error-message [key & args]
-  (format (get internal-error-messages key) args))
+  (let [msg (get internal-error-messages key)]
+    #?(:clj
+       (format msg args)
+       :cljs
+       (clojure.string/replace msg #"\%s" args))))
 
 (defn make-error
   "Return an instance of the error record with the given message
