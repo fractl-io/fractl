@@ -629,10 +629,21 @@
                            :event evobj
                            :eval evaluator))
                   user-id (get (jwt/decode (get-in result [:authentication-result :id-token])) :sub)]
-              (evaluator
-                {:Fractl.Kernel.Identity/CreateUserSession
-                   {:UserId user-id
-                    :Session true}})
+              (if
+                (= (uh/get-status-of-response
+                     (evaluator
+                       {:Fractl.Kernel.Identity/Lookup_UserSession
+                        {:User user-id}})) :not-found)
+                (evaluator
+                  {:Fractl.Kernel.Identity/Create_UserSession
+                   {:Instance
+                    {:Fractl.Kernel.Identity/UserSession
+                     {:User     user-id
+                      :LoggedIn true}}}})
+                (evaluator
+                  {:Fractl.Kernel.Identity/Update_UserSession
+                   {:User user-id
+                    :Data {:LoggedIn true}}}))
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
@@ -792,10 +803,21 @@
                       (assoc
                        auth-config
                        :sub sub))]
-          (evaluator
-            {:Fractl.Kernel.Identity/UpdateUserSession
-             {:UserId (:username sub)
-              :Session false}})
+          (if
+            (= (uh/get-status-of-response
+                 (evaluator
+                   {:Fractl.Kernel.Identity/Lookup_UserSession
+                    {:User (:username sub)}})) :not-found)
+            (evaluator
+              {:Fractl.Kernel.Identity/Create_UserSession
+               {:Instance
+                {:Fractl.Kernel.Identity/UserSession
+                 {:User     (:username sub)
+                  :LoggedIn false}}}})
+            (evaluator
+              {:Fractl.Kernel.Identity/Update_UserSession
+               {:User (:username sub)
+                :Data {:LoggedIn false}}}))
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
@@ -962,13 +984,10 @@
 
 (defn- handle-request-auth [request evaluator]
   (let [user (get-in request [:identity :sub])
-        logged-in-status (get
-                           (first
-                             (get
-                               (first
-                                 (evaluator
-                                   {:Fractl.Kernel.Identity/FindUserSessionInfo
-                                    {:User user}})) :result)) :LoggedIn)]
+        logged-in-status (uh/get-data-in-response-result
+                           (evaluator
+                             {:Fractl.Kernel.Identity/Lookup_UserSession
+                              {:User user}}) :LoggedIn)]
     (try
       (when-not (and (buddy/authenticated? request) (= logged-in-status true))
         (log/info (str "unauthorized request - " request))
