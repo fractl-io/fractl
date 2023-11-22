@@ -107,8 +107,16 @@
   {:query-failure "Failed to process query request - %s"
    :auth-disabled "cannot process %s - authentication not enabled"})
 
-(defn get-internal-error-message [key & args]
-  (format (get internal-error-messages key) args))
+(defn get-internal-error-message
+  [key & args]
+  (let [msg-template (get internal-error-messages key "Unknown error key supplied for internal error: %s")]
+    #?(:clj
+       (apply format msg-template args)
+       :cljs
+       (reduce (fn [formatted-msg arg]
+                 (clojure.string/replace formatted-msg #"\%s" arg))
+               msg-template
+               args))))
 
 (defn make-error
   "Return an instance of the error record with the given message
