@@ -193,4 +193,4 @@
   (get (first request) :status))
 
 (defn get-data-in-response-result [request data]
-  (get (first (get (first request) :result)) data))
+  (get (first request) data))

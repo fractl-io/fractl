@@ -9,6 +9,7 @@
             [fractl.auth.core :as auth]
             [fractl.component :as cn]
             [fractl.compiler :as compiler]
+            [fractl.evaluator :as ev]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.util :as u]
@@ -271,7 +272,7 @@
     {li/path-attr path}))
 
 (defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
-  (or (maybe-unauth request evaluator)
+  (or (maybe-unauth request)
       (if-let [parsed-path (parse-rest-uri request)]
         (let [query-params (when-let [s (:query-string request)]
                              (w/keywordize-keys (codec/form-decode s)))
@@ -623,16 +624,16 @@
 (defn upsert-user-session [evaluator user-id logged-in]
   (if
     (= (uh/get-status-of-response
-         (evaluator
+         (ev/safe-eval-internal
            {:Fractl.Kernel.Identity/Lookup_UserSession
             {:User user-id}})) :not-found)
-    (evaluator
+    (ev/safe-eval-internal
       {:Fractl.Kernel.Identity/Create_UserSession
        {:Instance
         {:Fractl.Kernel.Identity/UserSession
          {:User     user-id
           :LoggedIn logged-in}}}})
-    (evaluator
+    (ev/safe-eval-internal
       {:Fractl.Kernel.Identity/Update_UserSession
        {:User user-id
         :Data {:LoggedIn logged-in}}})))
@@ -977,11 +978,11 @@
      :access-control-allow-credentials true
      :access-control-allow-methods [:post :put :delete :get])))
 
-(defn- handle-request-auth [request evaluator]
+(defn- handle-request-auth [request]
   (let [user (get-in request [:identity :sub])]
     (try
       (when-not (and (buddy/authenticated? request) (uh/get-data-in-response-result
-                                                      (evaluator
+                                                      (ev/safe-eval-internal
                                                         {:Fractl.Kernel.Identity/Lookup_UserSession
                                                          {:User user}}) :LoggedIn))
         (log/info (str "unauthorized request - " request))
@@ -993,14 +994,14 @@
 (defn- auth-service-supported? [auth]
   (some #{(:service auth)} [:keycloak :cognito :dataflow]))
 
-(defn make-auth-handler [config evaluator]
+(defn make-auth-handler [config]
   (let [auth (:authentication config)
         auth-check (if auth handle-request-auth (constantly false))]
     [auth auth-check]))
 
 (defn run-server
   ([evaluator config]
-   (let [[auth _ :as auth-info] (make-auth-handler config evaluator)]
+   (let [[auth _ :as auth-info] (make-auth-handler config)]
      (if (or (not auth) (auth-service-supported? auth))
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
          (println (str "The HTTP server is listening on port " (:port config)))
