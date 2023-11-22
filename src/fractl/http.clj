@@ -271,7 +271,7 @@
     {li/path-attr path}))
 
 (defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
-  (or (maybe-unauth request evaluator)
+  (or (maybe-unauth request)
       (if-let [parsed-path (parse-rest-uri request)]
         (let [query-params (when-let [s (:query-string request)]
                              (w/keywordize-keys (codec/form-decode s)))
@@ -614,29 +614,6 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
-(defn decode-jwt-token-from-response [response]
-  (-> response
-      (get :authentication-result)
-      (get :id-token)
-      (jwt/decode)))
-
-(defn upsert-user-session [evaluator user-id logged-in]
-  (if
-    (= (uh/get-status-of-response
-         (evaluator
-           {:Fractl.Kernel.Identity/Lookup_UserSession
-            {:User user-id}})) :not-found)
-    (evaluator
-      {:Fractl.Kernel.Identity/Create_UserSession
-       {:Instance
-        {:Fractl.Kernel.Identity/UserSession
-         {:User     user-id
-          :LoggedIn logged-in}}}})
-    (evaluator
-      {:Fractl.Kernel.Identity/Update_UserSession
-       {:User user-id
-        :Data {:LoggedIn logged-in}}})))
-
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "login"))
@@ -650,9 +627,7 @@
                           (assoc
                            auth-config
                            :event evobj
-                           :eval evaluator))
-                  user-id (get (decode-jwt-token-from-response result) :sub)]
-              (upsert-user-session evaluator user-id true)
+                           :eval evaluator))]
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
@@ -802,7 +777,7 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
-(defn- process-logout [evaluator auth-config request]
+(defn- process-logout [auth-config request]
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
       (try
@@ -812,7 +787,6 @@
                       (assoc
                        auth-config
                        :sub sub))]
-          (upsert-user-session evaluator (:username sub) false)
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
@@ -977,30 +951,26 @@
      :access-control-allow-credentials true
      :access-control-allow-methods [:post :put :delete :get])))
 
-(defn- handle-request-auth [request evaluator]
-  (let [user (get-in request [:identity :sub])]
-    (try
-      (when-not (and (buddy/authenticated? request) (uh/get-data-in-response-result
-                                                      (evaluator
-                                                        {:Fractl.Kernel.Identity/Lookup_UserSession
-                                                         {:User user}}) :LoggedIn))
-        (log/info (str "unauthorized request - " request))
-        (unauthorized (find-data-format request)))
-      (catch Exception ex
-        (log/warn ex)
-        (bad-request "invalid auth data" (find-data-format request))))))
+(defn- handle-request-auth [request]
+  (try
+    (when-not (buddy/authenticated? request)
+      (log/info (str "unauthorized request - " request))
+      (unauthorized (find-data-format request)))
+    (catch Exception ex
+      (log/warn ex)
+      (bad-request "invalid auth data" (find-data-format request)))))
 
 (defn- auth-service-supported? [auth]
   (some #{(:service auth)} [:keycloak :cognito :dataflow]))
 
-(defn make-auth-handler [config evaluator]
+(defn make-auth-handler [config]
   (let [auth (:authentication config)
         auth-check (if auth handle-request-auth (constantly false))]
     [auth auth-check]))
 
 (defn run-server
   ([evaluator config]
-   (let [[auth _ :as auth-info] (make-auth-handler config evaluator)]
+   (let [[auth _ :as auth-info] (make-auth-handler config)]
      (if (or (not auth) (auth-service-supported? auth))
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
          (println (str "The HTTP server is listening on port " (:port config)))
@@ -1008,7 +978,7 @@
            (make-routes
              config auth
              {:login (partial process-login evaluator auth-info)
-              :logout (partial process-logout evaluator auth)
+              :logout (partial process-logout auth)
               :signup (partial
                         process-signup evaluator
                         (:call-post-sign-up-event config) auth-info)

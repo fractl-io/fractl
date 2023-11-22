@@ -42,7 +42,6 @@
 (defn- cached [key]
   #?(:clj
      (when-let [c (.get local-cache)]
-       #_(println "##@" key (get c key))
        (get c key))))
 
 (defn- cache [key val]
