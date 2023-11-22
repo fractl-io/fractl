@@ -33,6 +33,9 @@
 (entity
  :Fractl.Kernel.Identity/UserExtra
  {:User :Fractl.Kernel.Identity/User, :OtherDetails :Map})
+(entity
+ :Fractl.Kernel.Identity/UserSession
+ {:User :Identity, :LoggedIn :Boolean})
 (event
  :Fractl.Kernel.Identity/UpdateUser
  {:UserDetails :Fractl.Kernel.Identity/UserExtra})
@@ -61,4 +64,4 @@
  {:Username :Email})
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "6de0cc55-e8ea-4221-853c-e5fa0bfead63")
+ "72dc903d-669e-4f59-9d4f-1e2f8fc60215")
