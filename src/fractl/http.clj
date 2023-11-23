@@ -621,7 +621,7 @@
       (get :id-token)
       (jwt/decode)))
 
-(defn upsert-user-session [evaluator user-id logged-in]
+(defn upsert-user-session [user-id logged-in]
   ((if (us/session-exists-for? user-id)
      us/session-update
      us/session-create)
@@ -642,7 +642,7 @@
                            :event evobj
                            :eval evaluator))
                   user-id (get (decode-jwt-token-from-response result) :sub)]
-              (upsert-user-session evaluator user-id true)
+              (upsert-user-session user-id true)
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
@@ -792,7 +792,7 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
-(defn- process-logout [evaluator auth-config request]
+(defn- process-logout [auth-config request]
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
       (try
@@ -802,7 +802,7 @@
                       (assoc
                        auth-config
                        :sub sub))]
-          (upsert-user-session evaluator (:username sub) false)
+          (upsert-user-session (:username sub) false)
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
@@ -996,7 +996,7 @@
            (make-routes
              config auth
              {:login (partial process-login evaluator auth-info)
-              :logout (partial process-logout evaluator auth)
+              :logout (partial process-logout auth)
               :signup (partial
                         process-signup evaluator
                         (:call-post-sign-up-event config) auth-info)
