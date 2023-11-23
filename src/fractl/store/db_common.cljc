@@ -13,34 +13,22 @@
             #?(:clj [fractl.store.jdbc-internal :as ji])
             #?(:cljs [fractl.store.alasql-internal :as aqi])))
 
-(def ^:private store-fns
-  {:transact-fn! #?(:clj ji/transact-fn! :cljs aqi/execute-fn!)
-   :execute-fn! #?(:clj ji/execute-fn! :cljs aqi/execute-fn!)
-   :execute-sql! #?(:clj ji/execute-sql! :cljs aqi/execute-sql!)
-   :execute-stmt-once! #?(:clj ji/execute-stmt-once! :cljs aqi/execute-stmt-once!)
-   :create-inst-statement #?(:clj ji/create-inst-statement :cljs aqi/upsert-inst-statement)
-   :update-inst-statement #?(:clj ji/update-inst-statement :cljs aqi/upsert-inst-statement)
-   :purge-by-id-statement #?(:clj ji/purge-by-id-statement :cljs aqi/delete-by-id-statement)
-   :delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement)
-   :delete-all-statement #?(:clj ji/delete-all-statement :cljs aqi/delete-all-statement)
-   :delete-children-statement #?(:clj ji/delete-children-statement :cljs aqi/delete-children-statement)
-   :query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement)
-   :do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement)
-   :validate-ref-statement #?(:clj ji/validate-ref-statement :cljs aqi/validate-ref-statement)})
-
-(def transact-fn! (:transact-fn! store-fns))
-(def execute-fn! (:execute-fn! store-fns))
-(def execute-sql! (:execute-sql! store-fns))
-(def execute-stmt-once! (:execute-stmt-once! store-fns))
-(def create-inst-statement (:create-inst-statement store-fns))
-(def update-inst-statement (:update-inst-statement store-fns))
-(def purge-by-id-statement (:purge-by-id-statement store-fns))
-(def delete-by-id-statement (:delete-by-id-statement store-fns))
-(def delete-all-statement (:delete-all-statement store-fns))
-(def delete-children-statement (:delete-children-statement store-fns))
-(def query-by-id-statement (:query-by-id-statement store-fns))
-(def do-query-statement (:do-query-statement store-fns))
-(def validate-ref-statement (:validate-ref-statement store-fns))
+(def transact-fn! #?(:clj ji/transact-fn! :cljs aqi/execute-fn!))
+(def execute-fn! #?(:clj ji/execute-fn! :cljs aqi/execute-fn!))
+(def execute-sql! #?(:clj ji/execute-sql! :cljs aqi/execute-sql!))
+(def execute-stmt-once! #?(:clj ji/execute-stmt-once! :cljs aqi/execute-stmt-once!))
+(def execute-stmt! #?(:clj ji/execute-stmt! :cljs aqi/execute-stmt!))
+(def create-inst-statement #?(:clj ji/create-inst-statement :cljs aqi/upsert-inst-statement))
+(def update-inst-statement #?(:clj ji/update-inst-statement :cljs aqi/upsert-inst-statement))
+(def purge-by-id-statement #?(:clj ji/purge-by-id-statement :cljs aqi/delete-by-id-statement))
+(def delete-by-id-statement #?(:clj ji/delete-by-id-statement :cljs aqi/delete-by-id-statement))
+(def delete-all-statement #?(:clj ji/delete-all-statement :cljs aqi/delete-all-statement))
+(def delete-children-statement #?(:clj ji/delete-children-statement :cljs aqi/delete-children-statement))
+(def query-by-id-statement #?(:clj ji/query-by-id-statement :cljs aqi/query-by-id-statement))
+(def do-query-statement #?(:clj ji/do-query-statement :cljs aqi/do-query-statement))
+(def validate-ref-statement #?(:clj ji/validate-ref-statement :cljs aqi/validate-ref-statement))
+(def prepare #?(:clj ji/prepare :cljs aqi/prepare))
+(def close-pstmt #?(:clj ji/close-pstmt :cljs aqi/close-pstmt))
 
 (def id-type (sql/attribute-to-sql-type :Fractl.Kernel.Lang/UUID))
 
@@ -71,34 +59,43 @@
 (defn- pk [table-name]
   (str table-name "_pk"))
 
+(defn- concat-post-init-sql! [out-table-data sqls]
+  (let [d (concat (:post-init-sqls @out-table-data) sqls)]
+    (swap! out-table-data assoc :post-init-sqls d)))
+
 (defn- create-relational-table-sql [table-name entity-schema
                                     indexed-attributes unique-attributes
-                                    compound-unique-attributes post-init-sqls]
+                                    compound-unique-attributes out-table-data]
   (let [afk (partial append-fkeys table-name)
+        post-init-sql! (partial concat-post-init-sql! out-table-data)
         compound-unique-attributes (if (keyword? compound-unique-attributes)
                                      [compound-unique-attributes]
                                      compound-unique-attributes)]
     (concat
      [(str stu/create-table-prefix " " table-name " ("
-           (loop [attrs (sort (keys entity-schema)), cols ""]
+           (loop [attrs (sort (keys entity-schema)), col-types [], cols ""]
              (if-let [a (first attrs)]
                (let [atype (cn/attribute-type entity-schema a)
                      sql-type (sql/attribute-to-sql-type atype)
                      is-ident (cn/attribute-is-identity? entity-schema a)
+                     is-uk (some #{a} unique-attributes)
                      attr-ref (cn/attribute-ref entity-schema a)
+                     col-name (as-col-name a)
                      uq (if is-ident
                           (str "CONSTRAINT " (pk table-name) " PRIMARY KEY")
-                          (when (some #{a} unique-attributes)
-                            (str "CONSTRAINT " (uk table-name (as-col-name a)) " UNIQUE")))]
+                          (when is-uk
+                            (str "CONSTRAINT " (uk table-name col-name) " UNIQUE")))]
                  #?(:clj
                     (when attr-ref
-                      (swap! post-init-sqls concat (afk [a attr-ref]))))
+                      (post-init-sql! (afk [a attr-ref]))))
                  (recur
                   (rest attrs)
-                  (str cols (str (as-col-name a) " " sql-type " " uq)
+                  (conj col-types [col-name sql-type (or is-ident is-uk)])
+                  (str cols (str col-name " " sql-type " " uq)
                        (when (seq (rest attrs))
                          ", "))))
-               (concat-sys-cols cols)))
+               (do (swap! out-table-data assoc :columns col-types)
+                   (concat-sys-cols cols))))
            (when (seq compound-unique-attributes)
              (str ", CONSTRAINT " (str table-name "_compound_uks")
                   " UNIQUE "
@@ -115,13 +112,13 @@
 
 (defn- create-relational-table [connection entity-schema table-name
                                 indexed-attrs unique-attributes
-                                compound-unique-attributes post-init-sqls]
+                                compound-unique-attributes out-table-data]
   (let [ss (create-relational-table-sql
             table-name entity-schema indexed-attrs
-            unique-attributes compound-unique-attributes post-init-sqls)]
+            unique-attributes compound-unique-attributes out-table-data)]
     (doseq [sql ss]
       (when-not (execute-sql! connection [sql])
-        (u/throw-ex (str "Failed to execute SQL - " sql))))
+        (u/throw-ex (str "Failed to create table - " sql))))
     table-name))
 
 (defn- create-db-schema!
@@ -136,14 +133,28 @@
     db-schema-name
     (u/throw-ex (str "Failed to drop schema - " db-schema-name))))
 
+(defn- create-component-meta-table-sql [table-name]
+  (str "CREATE TABLE IF NOT EXISTS " table-name
+       " (KEY VARCHAR(100) PRIMARY KEY, VALUE VARCHAR("
+       sql/default-max-varchar-length "))"))
+
+(defn- insert-entity-meta-sql [comp-meta-table entity-table meta-data]
+  (str "INSERT INTO " comp-meta-table " VALUES ('" entity-table "', '" meta-data "')"
+       " ON CONFLICT DO NOTHING"))
+
+(defn- normalize-meta-data [[c t u]]
+  [c (s/upper-case t) u])
+
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
   (let [scmname (stu/db-schema-for-component component-name)
-        post-init-sqls (atom [])]
+        table-data (atom nil)
+        component-meta-table (stu/component-meta-table-name component-name)]
     (execute-fn!
      datasource
      (fn [txn]
+       (execute-sql! txn [(create-component-meta-table-sql component-meta-table)])
        (doseq [ename (cn/entity-names component-name false)]
          (when-not (cn/entity-schema-predefined? ename)
            (let [tabname (stu/entity-table-name ename)
@@ -153,8 +164,13 @@
               (cn/indexed-attributes schema)
               (cn/unique-attributes schema)
               (cn/compound-unique-attributes ename)
-              post-init-sqls))))
-       (doseq [sql @post-init-sqls]
+              table-data)
+             (execute-sql!
+              txn [(insert-entity-meta-sql
+                    component-meta-table tabname
+                    {:columns
+                     (mapv normalize-meta-data (:columns @table-data))})]))))
+       (doseq [sql (:post-init-sqls @table-data)]
          (execute-sql! txn [sql]))
        component-name))))
 
@@ -297,134 +313,146 @@
   ([datasource entity-name query-sql]
    (query-all datasource entity-name query-instances query-sql nil)))
 
-(defn- query-pk-columns [conn table-name sql]
-  (let [pstmt (do-query-statement conn (s/replace sql #"\?" table-name))]
-    (mapv :pg_attribute/attname (execute-stmt-once! conn pstmt nil))))
+(defn- cols-spec-to-multiple-inserts [from-table to-table cols-spec]
+  [(str "SELECT * FROM " from-table)
+   (str "INSERT INTO " to-table " (" (s/join ", " (mapv first cols-spec)) ") VALUES "
+        "(" (s/join "," (repeat (count cols-spec) \?)) ")")
+   (mapv (fn [[_ c]]
+           (if (and (string? c) (s/starts-with? c "_"))
+             (keyword (s/upper-case c))
+             c))
+         cols-spec)])
 
-(defn- mark-pks [pks schema]
-  (mapv
-   #(let [colname (:columns/column_name %)]
-      (if (some #{colname} pks)
-        (assoc % :columns/pk true)
-        %))
-   schema))
+(defn generate-migration-commands [from-table to-table cols-spec]
+  (if (some #(fn? (second %)) cols-spec)
+    (cols-spec-to-multiple-inserts from-table to-table cols-spec)
+    (str "INSERT INTO " to-table " (" (s/join "," (mapv first cols-spec)) ") "
+         "SELECT " (s/join "," (mapv #(let [v (second %)]
+                                        (if (and (string? v) (= "NA" v))
+                                          (str "'" v "'")
+                                          v))
+                                     cols-spec))
+         " FROM " from-table)))
 
-(defn- normalize-table-schema [type-lookup cols]
-  (apply
-   merge
+(defn- normalize-meta-result [r]
+  (let [r (mapv (fn [[k v]]
+                  [(second (li/split-path k)) v])
+                r)]
+    (into {} r)))
+
+(defn- normalize-component-meta [meta]
+  (let [[kk vk] (if (:KEY (first meta)) [:KEY :VALUE] [:key :value])]
+    (into {} (mapv (fn [r] [(kk r) (u/parse-string (vk r))]) meta))))
+
+(defn- load-component-meta
+  ([datasource model-version component-name]
+   (let [table-name (stu/component-meta-table-name component-name model-version)]
+     (normalize-component-meta
+      (mapv normalize-meta-result (execute-sql! datasource [(str "SELECT * FROM " table-name)])))))
+  ([datasource component-name]
+   (load-component-meta datasource nil component-name)))
+
+(defn- raise-uk-change-error [table-name col-name]
+  (u/throw-ex (str "Migration cannot automatically handle unique-key conversion for " table-name "." col-name)))
+
+(defn- raise-type-change-error [table-name col-name]
+  (u/throw-ex (str "Migration cannot automatically handle data-type conversion for " table-name "." col-name)))
+
+(defn- raise-uk-number-error [table-name col-name]
+  (u/throw-ex (str "Migration cannot automatically handle addition of unique-numeric column " table-name "." col-name)))
+
+(defn- generate-inserts [[[from-table from-cols] [to-table to-cols]]]
+  (generate-migration-commands
+   from-table to-table
    (mapv
-    (fn [c]
-      (if-let [t (type-lookup (:columns/data_type c))]
-        {(keyword (:columns/column_name c))
-         (merge {:type t} (when (:columns/pk c) {:unique true :immutable true}))}
-        (u/throw-ex (str "type not supported - " (:columns/data_type c)))))
-    cols)))
+    (fn [[tc tt tu]]
+      (if-let [[c t u] (first (filter #(= tc (first %)) from-cols))]
+        (cond
+          (and (not u) tu) (raise-uk-change-error to-table tc)
+          (= tt t) [tc c]
+          :else (raise-type-change-error to-table tc))
+        (if tu
+          (case tt
+            :s [tc u/uuid-string]
+            :n (raise-uk-number-error to-table tc))
+          (case tt
+            :s [tc "NA"]
+            :n [tc 0]))))
+    to-cols)))
 
-(defn fetch-schema [datasource fetch-schema-sql
-                    get-table-names fetch-columns-sql
-                    fetch-pk-columns-sql type-lookup]
-  (execute-fn!
-   datasource
-   (fn [conn]
-     (let [[pstmt params] (do-query-statement conn fetch-schema-sql nil)
-           tabnames (get-table-names
-                     (raw-results
-                      [#(execute-stmt-once! conn pstmt params)]))
-           col-pstmt (do-query-statement conn fetch-columns-sql)]
-       (mapv
-        (fn [tn]
-          (let [pks (query-pk-columns conn tn fetch-pk-columns-sql)
-                r (raw-results
-                   [#(execute-stmt-once! conn col-pstmt [tn])])]
-            {(keyword tn) (normalize-table-schema type-lookup (mark-pks pks r))}))
-        tabnames)))))
+(defn- preproc-cols [{cols :columns}]
+  (mapv (fn [[c t u]]
+          [c (if (or (s/starts-with? t "VARCHAR")
+                     (= t "UUID"))
+               :s
+               :n)
+           u])
+        cols))
 
-(defn- table-drop [table-name]
-  (str "DROP TABLE " table-name))
+(defn- compute-diff [from-tables from-meta to-tables to-meta]
+  (mapv (fn [f t] [[f (preproc-cols (get from-meta f))]
+                   [t (preproc-cols (get to-meta t))]])
+        from-tables to-tables))
 
-(defn- table-rename [old-name new-name]
-  (str "ALTER TABLE " old-name " RENAME TO " new-name))
+(defn- migration-commands [datasource from-vers to-vers components]
+  (let [load-from (partial load-component-meta datasource from-vers)
+        load-to (partial load-component-meta datasource to-vers)]
+    (mapv
+     (fn [cn]
+       (let [from-meta (load-from cn), to-meta (load-to cn),
+             from-tables (keys from-meta)
+             fvs (stu/escape-graphic-chars from-vers)
+             from-base (set (map #(subs % 0 (s/index-of % fvs)) from-tables))
+             to-tables (keys to-meta)
+             tvs (stu/escape-graphic-chars to-vers)
+             to-base (set (map #(subs % 0 (s/index-of % tvs)) to-tables))
+             final-tables (mapv (fn [n] [(str n fvs) (str n tvs)]) (set/intersection to-base from-base))
+             final-from-tables (mapv first final-tables)
+             final-to-tables (mapv second final-tables)]
+         [cn (mapv
+              generate-inserts
+              (compute-diff final-from-tables from-meta
+                            final-to-tables to-meta))]))
+     components)))
 
-(defn- drop-column [table-name attr-name]
-  (str "ALTER TABLE " table-name " DROP COLUMN " (as-col-name attr-name)))
+(defn- normalize-raw-results [rs]
+  (mapv
+   (fn [r]
+     (into
+      {}
+      (mapv
+       (fn [[k v]]
+         (let [[_ n] (li/split-path k)]
+           [(keyword (s/upper-case (name n))) v]))
+       r)))
+   rs))
 
-(defn- rename-column [table-name spec]
-  (str "ALTER TABLE " table-name " RENAME COLUMN " (as-col-name (:from spec))
-       " TO " (as-col-name (:to spec))))
+(defn- execute-per-row-migration! [txn cmd]
+  (when-let [rs (seq (normalize-raw-results (execute-sql! txn [(first cmd)])))]
+    (let [pstmt (prepare txn [(second cmd)])
+          args (nth cmd 2)]
+      (try
+        (doseq [r rs]
+          (let [params (mapv (fn [k]
+                               (cond
+                                 (keyword? k) (k r)
+                                 (fn? k) (k)
+                                 :else k))
+                             args)]
+            (execute-stmt! txn pstmt params)))
+        (finally
+          #?(:clj (.close pstmt)))))))
 
-(defn- alter-column [table-name [attr-name attr-type]]
-  (if-let [sql-type (sql/as-sql-type (u/string-as-keyword attr-type))]
-    (str "ALTER TABLE " table-name " ALTER COLUMN " (as-col-name attr-name)
-         " " sql-type)
-    (u/throw-ex (str "failed to find sql-type for " [attr-name attr-type]))))
-
-(defn- add-column [table-name [attr-name attr-type]]
-  (if-let [sql-type (sql/as-sql-type (u/string-as-keyword attr-type))]
-    (str "ALTER TABLE " table-name " ADD COLUMN " (as-col-name attr-name)
-         " " sql-type)
-    (u/throw-ex (str "failed to find sql-type for " [attr-name attr-type]))))
-
-(defn- update-columns [table-name attrs-spec]
-  (concat
-   (mapv (partial drop-column table-name) (:drop attrs-spec))
-   (mapv (partial rename-column table-name) (:rename attrs-spec))
-   (mapv (partial alter-column table-name) (:alter attrs-spec))
-   (mapv (partial add-column table-name) (:add attrs-spec))))
-
-(defn- add-unique [table-name col-name]
-  (str "ALTER TABLE " table-name " ADD CONSTRAINT " (uk table-name col-name) " UNIQUE(" col-name ")"))
-
-(defn- drop-unique [table-name col-name]
-  (str "ALTER TABLE " table-name " DROP CONSTRAINT " (uk table-name col-name) " UNIQUE(" col-name ")"))
-
-(defn- create-index [table-name col-name]
-  (str "CREATE INDEX " (idx table-name col-name) " ON " table-name "(" col-name ")"))
-
-(defn- drop-index [table-name col-name]
-  (str "DROP INDEX " (idx table-name col-name)))
-
-(defn- add-identity [table-name col-name]
-  (str "ALTER TABLE " table-name " ADD CONSTRAINT " (pk table-name) " PRIMARY KEY(" col-name ")"))
-
-(defn- drop-identity [table-name]
-  (str "ALTER TABLE " table-name " DROP CONSTRAINT " (pk table-name)))
-
-(defn- update-for-contains [table-name tag]
-  (let [col-name (as-col-name li/path-attr)]
-    (case tag
-      :add [(str "ALTER TABLE " table-name " ADD COLUMN " col-name " " (sql/as-sql-type :String))
-            (add-unique table-name col-name)
-            (create-index table-name col-name)]
-      :drop [(str "ALTER TABLE " table-name " DROP COLUMN " col-name)
-             (drop-index table-name col-name)]
-      nil)))
-
-(defn- update-constraints [table-name spec]
-  (concat
-   (when-let [ident (li/guid spec)]
-     [(drop-identity table-name)
-      (add-unique table-name (as-col-name ident))])
-   (flatten
-    (mapv #(create-index table-name (as-col-name %)) (:index spec))
-    (mapv #(add-unique table-name (as-col-name %)) (:unique spec))
-    (mapv #(drop-unique table-name (as-col-name %)) (:drop-unique spec))
-    (mapv #(drop-index table-name (as-col-name %)) (:drop-index spec)))))
-
-(defn plan-changeset [changeset-inst]
-  (let [ename (u/string-as-keyword (:Entity changeset-inst))
-        table-name (stu/entity-table-name ename)
-        opr (u/string-as-keyword (:Operation changeset-inst))]
-    (if (= opr :drop)
-      [(table-drop table-name)]
-      (su/nonils
-       `[~(when (= opr :rename)
-            (table-rename table-name (stu/entity-table-name
-                                      (u/string-as-keyword
-                                       (:NewName changeset-inst)))))
-         ~@(when-let [attrs (:Attributes changeset-inst)]
-             (update-columns table-name attrs))
-         ~@(let [conts (:Contains changeset-inst)]
-             (when (not= conts :none)
-               (update-for-contains table-name conts)))
-         ~@(when-let [consts (:Constraints changeset-inst)]
-             (update-constraints table-name consts))]))))
+(defn execute-migration [datasource progress-callback from-vers to-vers components]
+  (let [commands (migration-commands datasource from-vers to-vers components)]
+    (transact-fn!
+     datasource
+     (fn [txn]
+       (doseq [[cn cmds] commands]
+         (progress-callback {:component cn})
+         (doseq [cmd cmds]
+           (progress-callback {:command cmd})
+           (if (string? cmd)
+             (execute-sql! txn [cmd])
+             (execute-per-row-migration! txn cmd))))))
+    true))

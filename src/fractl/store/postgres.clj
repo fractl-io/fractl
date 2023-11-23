@@ -6,8 +6,7 @@
             [fractl.store.util :as su]
             [fractl.store.jdbc-cp :as cp]
             [fractl.store.db-common :as db]
-            [fractl.store.postgres-internal :as pi]
-            [fractl.store.migration :as mg])
+            [fractl.store.postgres-internal :as pi])
   (:import [org.postgresql.util PSQLException]))
 
 (def ^:private driver-class "org.postgresql.Driver")
@@ -84,19 +83,6 @@
    "uuid" :Fractl.Kernel.Lang/UUID
    "xml" :Fractl.Kernel.Lang/String})
 
-(def ^:private fetch-schema-sql
-  "select * from pg_catalog.pg_tables where schemaname<>'pg_catalog' and schemaname<>'information_schema'")
-
-(def ^:private fetch-columns-sql
-  "select column_name, data_type from information_schema.columns where table_name = ?")
-
-(def ^:private fetch-pk-columns-sql
-  (str "select a.attname, format_type(a.atttypid, a.atttypmod) as data_type "
-       "from pg_index i "
-       "join pg_attribute a ON a.attrelid = i.indrelid and a.attnum = any(i.indkey) "
-       "where i.indrelid = '?'::regclass "
-       "and i.indisprimary"))
-
 (defn make []
   (let [datasource (u/make-cell)]
     (reify p/Store
@@ -143,11 +129,6 @@
         (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
         (db/drop-schema @datasource component-name))
-      (fetch-schema [_]
-        (db/fetch-schema
-         @datasource fetch-schema-sql
-         table-names-from-schema fetch-columns-sql
-         fetch-pk-columns-sql type-lookup))
       (drop-entity [_ entity-name]
         (db/drop-entity @datasource entity-name))
       (upsert-instance [_ entity-name instance]
@@ -182,6 +163,6 @@
         (db/transact-fn! @datasource f))
       (compile-query [_ query-pattern]
         (db/compile-query query-pattern))
-      (plan-changeset [_ changeset-inst]
-        (db/plan-changeset changeset-inst))
-      (get-reference [_ path refs]))))
+      (get-reference [_ path refs])
+      (execute-migration [_ progress-callback from-vers to-vers components]
+        (db/execute-migration @datasource progress-callback from-vers to-vers components)))))

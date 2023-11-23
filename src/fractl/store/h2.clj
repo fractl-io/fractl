@@ -47,7 +47,6 @@
         (db/create-schema @datasource component-name))
       (drop-schema [_ component-name]
         (db/drop-schema @datasource component-name))
-      (fetch-schema [_] nil)
       (drop-entity [_ entity-name]
         (db/drop-entity @datasource entity-name))
       (upsert-instance [_ entity-name instance]
@@ -76,6 +75,6 @@
         (db/transact-fn! @datasource f))
       (compile-query [_ query-pattern]
         (db/compile-query query-pattern))
-      (plan-changeset [_ changeset-inst]
-        (db/plan-changeset changeset-inst))
-      (get-reference [_ path refs]))))
+      (get-reference [_ path refs])
+      (execute-migration [_ progress-callback from-vers to-vers components]
+        (db/execute-migration @datasource progress-callback from-vers to-vers components)))))
