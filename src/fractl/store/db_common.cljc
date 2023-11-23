@@ -327,7 +327,12 @@
   (if (some #(fn? (second %)) cols-spec)
     (cols-spec-to-multiple-inserts from-table to-table cols-spec)
     (str "INSERT INTO " to-table " (" (s/join "," (mapv first cols-spec)) ") "
-         "SELECT " (s/join "," (mapv second cols-spec)) " FROM " from-table)))
+         "SELECT " (s/join "," (mapv #(let [v (second %)]
+                                        (if (and (string? v) (= "NA" v))
+                                          (str "'" v "'")
+                                          v))
+                                     cols-spec))
+         " FROM " from-table)))
 
 (defn- normalize-meta-result [r]
   (let [r (mapv (fn [[k v]]
@@ -371,7 +376,7 @@
             :s [tc u/uuid-string]
             :n (raise-uk-number-error to-table tc))
           (case tt
-            :s [tc "NULL"]
+            :s [tc "NA"]
             :n [tc 0]))))
     to-cols)))
 
@@ -401,11 +406,7 @@
              to-tables (keys to-meta)
              tvs (stu/escape-graphic-chars to-vers)
              to-base (set (map #(subs % 0 (s/index-of % tvs)) to-tables))
-             final-tables (filter
-                           (fn [[f t]]
-                             (when-let [fmeta (get from-meta f)]
-                               (not= fmeta (get to-meta t))))
-                           (mapv (fn [n] [(str n fvs) (str n tvs)]) (set/union to-base from-base)))
+             final-tables (mapv (fn [n] [(str n fvs) (str n tvs)]) (set/intersection to-base from-base))
              final-from-tables (mapv first final-tables)
              final-to-tables (mapv second final-tables)]
          [cn (mapv
@@ -430,14 +431,17 @@
   (when-let [rs (seq (normalize-raw-results (execute-sql! txn [(first cmd)])))]
     (let [pstmt (prepare txn [(second cmd)])
           args (nth cmd 2)]
-      (doseq [r rs]
-        (let [params (mapv (fn [k]
-                             (cond
-                               (keyword? k) (k r)
-                               (fn? k) (k)
-                               :else k))
-                           args)]
-          (execute-stmt! txn pstmt params))))))
+      (try
+        (doseq [r rs]
+          (let [params (mapv (fn [k]
+                               (cond
+                                 (keyword? k) (k r)
+                                 (fn? k) (k)
+                                 :else k))
+                             args)]
+            (execute-stmt! txn pstmt params)))
+        (finally
+          #?(:clj (.close pstmt)))))))
 
 (defn execute-migration [datasource progress-callback from-vers to-vers components]
   (let [commands (migration-commands datasource from-vers to-vers components)]
