@@ -9,7 +9,6 @@
             [fractl.auth.core :as auth]
             [fractl.component :as cn]
             [fractl.compiler :as compiler]
-            [fractl.evaluator :as ev]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.util :as u]
@@ -20,6 +19,7 @@
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
             [fractl.global-state :as gs]
+            [fractl.user-session :as us]
             [org.httpkit.server :as h]
             [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
@@ -622,21 +622,10 @@
       (jwt/decode)))
 
 (defn upsert-user-session [evaluator user-id logged-in]
-  (if
-    (= (uh/get-status-of-response
-         (ev/safe-eval-internal
-           {:Fractl.Kernel.Identity/Lookup_UserSession
-            {:User user-id}})) :not-found)
-    (ev/safe-eval-internal
-      {:Fractl.Kernel.Identity/Create_UserSession
-       {:Instance
-        {:Fractl.Kernel.Identity/UserSession
-         {:User     user-id
-          :LoggedIn logged-in}}}})
-    (ev/safe-eval-internal
-      {:Fractl.Kernel.Identity/Update_UserSession
-       {:User user-id
-        :Data {:LoggedIn logged-in}}})))
+  ((if (us/session-exists-for? user-id)
+     us/session-update
+     us/session-create)
+   user-id logged-in))
 
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
@@ -981,10 +970,8 @@
 (defn- handle-request-auth [request]
   (let [user (get-in request [:identity :sub])]
     (try
-      (when-not (and (buddy/authenticated? request) (uh/get-data-in-response-result
-                                                      (ev/safe-eval-internal
-                                                        {:Fractl.Kernel.Identity/Lookup_UserSession
-                                                         {:User user}}) :LoggedIn))
+      (when-not (and (buddy/authenticated? request)
+                     (us/is-logged-in user))
         (log/info (str "unauthorized request - " request))
         (unauthorized (find-data-format request)))
       (catch Exception ex

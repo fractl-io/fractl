@@ -188,9 +188,3 @@
                       "/" (name entity))
            :vars (map name path)}
           (recur (conj path (-> parent-entity first last))))))))
-
-(defn get-status-of-response [request]
-  (get (first request) :status))
-
-(defn get-data-in-response-result [request data]
-  (get (first request) data))
