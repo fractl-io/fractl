@@ -1,41 +1,30 @@
 (ns fractl.store.migration
-  (:require [clojure.set :as set]
-            [fractl.util.seq :as su]
-            [fractl.lang.raw :as raw]
-            [fractl.lang.internal :as li]
-            [fractl.store.protocol :as p])
-  (:import [liquibase Contexts Liquibase]
-           [liquibase.database Database DatabaseFactory]
-           [liquibase.database.jvm JdbcConnection]
-           [liquibase.exception LiquibaseException]
-           [liquibase.resource FileSystemResourceAccessor]
-           [java.io File]
-           [java.sql Connection DriverManager SQLException]))
+  (:require [fractl.util :as u]
+            [fractl.util.logger :as log]
+            [fractl.component :as cn]
+            [fractl.store :as store]))
 
-(defn lqb-init [store conf]
-  (let [{db-url :url username :username password :password}
-        (p/parse-connection-info store conf)
-        conn #(DriverManager/getConnection db-url username password)]
-    {:connection conn}))
+(defn- report-progress [obj]
+  (if-let [cn (:component obj)]
+    (println "migrating component" cn)
+    (log/info (str "executing command " (:command obj)))))
 
-(defn lqb-migrate [lqb]
-  (let [^Connection connection ((:connection lqb))]
-    (try
-      (let [^Database database (.findCorrectDatabaseImplementation
-                                (DatabaseFactory/getInstance)
-                                (JdbcConnection. connection))
-            ^File base-dir (File. ".")
-            ^Liquibase liquibase (Liquibase. "db/migration/changelog.sql"
-                                             (FileSystemResourceAccessor. (into-array File [base-dir]))
-                                             database)]
-        (.update liquibase (Contexts.)))
-      (catch Exception ex
-        (when connection
-          (.rollback connection))
-        (throw ex))
-      (finally
-        (when connection
-          (.close connection))))))
+(declare migrate)
 
-(def init lqb-init)
-(def migrate lqb-migrate)
+(defn- maybe-migrate-kernel [store config]
+  (if-let [config (:kernel config)]
+    (migrate store :Fractl config)
+    :Fractl))
+
+(defn migrate [store model-name config]
+  (when (maybe-migrate-kernel store config)
+    (let [model-spec (cn/fetch-model model-name)]
+      (when-not model-spec
+        (u/throw-ex (str "model " model-name " not loaded")))
+      (when (store/init-all-schema store)
+        (let [from-vers (:from config)
+              to-vers (:version model-spec)
+              components (:components model-spec)]
+          (when (store/execute-migration store report-progress from-vers to-vers components)
+            (println "done")
+            model-name))))))

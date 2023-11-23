@@ -94,7 +94,7 @@
   ([table-name col-names]
    (compile-to-direct-query table-name col-names :and)))
 
-(def ^:private default-max-varchar-length "10485760")
+(def default-max-varchar-length "10485760")
 (def ^:private default-boolean-type "BOOLEAN")
 
 (defn as-sql-type

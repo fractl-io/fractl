@@ -27,8 +27,6 @@
   (drop-schema [store component-name]
     "Drop the schema for the component. Return component-name on success, nil if the
      schema does not exist. On failure, raise an exception.")
-  (fetch-schema [store]
-    "Return the schema as a map. Return nil if the schema cannot be retrieved.")
   (drop-entity [store entity-name] "Delete storage for the entity.")
   (upsert-instance [store entity-name instance]
     "Insert or update the instance in the store. On success, return instance.")
@@ -61,8 +59,9 @@
   (get-reference [store path refs]
     "Get reference to instances stored in the store. This is useful for
      tracking instances in reactive store")
-  (plan-changeset [store changeset-inst]
-    "Generate migration script/plan for the changeset")
   (commit [store msg]
     "Commit local changes, return the version number"
-    (not-implemented :commit)))
+    (not-implemented :commit))
+  (execute-migration [store progress-callback from-vers to-vers components]
+    "Generate migration commands for the listed components and execute the migration, return true on success."
+    (not-implemented :execute-migration)))

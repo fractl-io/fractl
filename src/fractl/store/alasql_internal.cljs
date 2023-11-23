@@ -70,3 +70,5 @@
     (js->clj result :keywordize-keys true)))
 
 (def execute-stmt-once! execute-stmt!)
+(def prepare identity)
+(def close-pstmt identity)

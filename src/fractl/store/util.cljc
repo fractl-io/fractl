@@ -19,13 +19,19 @@
 (defn db-schema-for-component [component-name]
   (s/replace (name component-name) #"\." "_"))
 
+(defn escape-graphic-chars [s]
+  (when (string? s)
+    (reduce
+     (fn [a c]
+       (if a (str a (if #?(:clj (Character/isLetterOrDigit c) :cljs true) c \_)) c))
+     nil s)))
+
 (def ^:private schema-version
   (memoize
    (fn [component-name]
-     (reduce
-      (fn [a c]
-        (if a (str a (if #?(:clj (Character/isLetterOrDigit c) :cljs true) c \_)) c))
-      nil (or (cn/model-version (cn/model-for-component component-name)) "0.0.1")))))
+     (escape-graphic-chars
+      (or (cn/model-version (cn/model-for-component component-name))
+          "0.0.1")))))
 
 (defn entity-table-name [entity-name]
   (let [[component-name r] (li/split-path entity-name)
@@ -34,6 +40,12 @@
     (if (cn/entity-schema-predefined? entity-name)
       en
       (str (db-schema-for-component component-name) "__" en))))
+
+(defn component-meta-table-name
+  ([component-name model-version]
+   (let [v (or (escape-graphic-chars model-version) (schema-version component-name))]
+     (str (db-ident (db-schema-for-component component-name)) "_meta_" v)))
+  ([component-name] (component-meta-table-name component-name nil)))
 
 (defn attribute-column-name [aname]
   (str "_" (name aname)))
