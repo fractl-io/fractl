@@ -711,3 +711,30 @@
       (is (= 2 (count rs)))
       (is (every? (partial cn/instance-of? :Pcm/R) rs))
       (is (= [11 12] (vec (sort (mapv :B rs))))))))
+
+(deftest remove-pre-post-events
+  (defcomponent :Rempp
+    (entity :Rempp/E {:Id :Identity :X :Int})
+    (entity :Rempp/F {:Id :Identity :Y :Int})
+    (dataflow [:after :create :Rempp/E] {:Rempp/F {:Y :Instance.X}})
+    (event :Rempp/Evt {:X :Int})
+    (dataflow :Rempp/Evt {:Rempp/E {:X :Rempp/Evt.X}})
+    (dataflow [:before :delete :Rempp/F] {:Rempp/X {:X :Instance.Y}}))
+  (let [header1 [:after :create :Rempp/E]
+        header2 [:before :delete :Rempp/F]
+        df? (fn [header x]
+              (and (= 'dataflow (first x))
+                   (= header (second x))))
+        after-df? (partial df? header1)
+        before-df? (partial df? header2)
+        xs (rest (raw/as-edn :Rempp))]
+    (is (some after-df? xs))
+    (is (some before-df? xs))
+    (is (= header1 (cn/remove-event header1)))
+    (let [xs (rest (raw/as-edn :Rempp))]
+      (is (not (some after-df? xs)))
+      (is (some before-df? xs))
+      (is (= header2 (cn/remove-event header2)))
+      (let [xs (rest (raw/as-edn :Rempp))]
+        (is (not (some after-df? xs)))
+        (is (not (some before-df? xs)))))))

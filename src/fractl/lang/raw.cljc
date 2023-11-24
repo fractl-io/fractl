@@ -156,8 +156,10 @@
 (def remove-dataflow (partial remove-definition 'dataflow))
 
 (defn remove-event [event-name]
-  (when (remove-dataflow event-name)
-    (remove-definition 'event event-name)))
+  (if (vector? event-name)
+    (remove-definition 'event event-name)
+    (when (remove-dataflow event-name)
+      (remove-definition 'event event-name))))
 
 (defn remove-definition-by-tag [kw-tag record-name]
   (case kw-tag
