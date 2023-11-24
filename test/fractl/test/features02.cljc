@@ -584,7 +584,7 @@
     (relationship
      :RelCard/R2
      {:meta {:between [:RelCard/A :RelCard/B]
-             :one-n true}})
+             :one-many true}})
     (relationship
      :RelCard/R3
      {:meta {:between [:RelCard/A :RelCard/B]

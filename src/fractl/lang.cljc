@@ -892,7 +892,7 @@
 
 (defn- extract-rel-meta [meta]
   (when-let [props (seq (filter (fn [[k _]]
-                                  (some #{k} #{:as :one-one :one-n}))
+                                  (some #{k} #{:as :one-one :one-many}))
                                 meta))]
     (into {} props)))
 
@@ -1041,7 +1041,7 @@
 
 (defn- between-unique-meta [meta relmeta [node1 node2] [n1 n2] new-attrs]
   (cond
-    (:one-n relmeta)
+    (:one-many relmeta)
     [(assoc meta :unique [n1 n2]) new-attrs]
 
     (:one-one relmeta)
