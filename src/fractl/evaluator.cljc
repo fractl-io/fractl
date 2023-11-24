@@ -331,6 +331,9 @@
       (cn/make-instance event-obj)))))
   ([event-obj] (safe-eval-internal true event-obj)))
 
+(defn eval-internal [event-obj]
+  (eval-all-dataflows (mark-internal (cn/make-instance event-obj))))
+
 (defn safe-eval-pattern [pattern]
   (u/safe-ok-result
    (evaluate-pattern pattern)))

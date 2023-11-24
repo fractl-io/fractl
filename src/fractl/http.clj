@@ -19,6 +19,7 @@
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
             [fractl.global-state :as gs]
+            [fractl.user-session :as us]
             [org.httpkit.server :as h]
             [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
@@ -614,6 +615,18 @@
        (str "unsupported content-type in request - "
             (request-content-type request))))))
 
+(defn decode-jwt-token-from-response [response]
+  (-> response
+      (get :authentication-result)
+      (get :id-token)
+      (jwt/decode)))
+
+(defn upsert-user-session [user-id logged-in]
+  ((if (us/session-exists-for? user-id)
+     us/session-update
+     us/session-create)
+   user-id logged-in))
+
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "login"))
@@ -627,7 +640,9 @@
                           (assoc
                            auth-config
                            :event evobj
-                           :eval evaluator))]
+                           :eval evaluator))
+                  user-id (get (decode-jwt-token-from-response result) :sub)]
+              (upsert-user-session user-id true)
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
@@ -787,6 +802,7 @@
                       (assoc
                        auth-config
                        :sub sub))]
+          (upsert-user-session (:username sub) false)
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
@@ -952,13 +968,15 @@
      :access-control-allow-methods [:post :put :delete :get])))
 
 (defn- handle-request-auth [request]
-  (try
-    (when-not (buddy/authenticated? request)
-      (log/info (str "unauthorized request - " request))
-      (unauthorized (find-data-format request)))
-    (catch Exception ex
-      (log/warn ex)
-      (bad-request "invalid auth data" (find-data-format request)))))
+  (let [user (get-in request [:identity :sub])]
+    (try
+      (when-not (and (buddy/authenticated? request)
+                     (us/is-logged-in user))
+        (log/info (str "unauthorized request - " request))
+        (unauthorized (find-data-format request)))
+      (catch Exception ex
+        (log/warn ex)
+        (bad-request "invalid auth data" (find-data-format request))))))
 
 (defn- auth-service-supported? [auth]
   (some #{(:service auth)} [:keycloak :cognito :dataflow]))
