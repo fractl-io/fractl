@@ -1734,7 +1734,18 @@
     (and (su/all-true? (mapv maybe-remove-record (all-prepost-events recname)))
          (remove-record recname))))
 
-(def remove-event remove-record)
+(defn remove-event [event-name]
+  (cond
+    (keyword? event-name)
+    (remove-record event-name)
+
+    (vector? event-name)
+    (let [tag event-name]
+      (when (remove-record (apply prepost-event-name event-name))
+        (raw/remove-event tag)))
+
+    :else (u/throw-ex (str "invalid event name - " event-name))))
+
 (def remove-relationship remove-entity)
 
 (defn- dissoc-system-attributes [attrs]
