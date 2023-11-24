@@ -2,6 +2,8 @@
 [![Fractl clj CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-clj.yml)
 [![Fractl cljs CI](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml/badge.svg)](https://github.com/fractl-io/fractl/actions/workflows/fractl-cljs.yml)
 
+Join us on our Discord Server: https://discord.gg/VApmKxV8
+
 # The Fractl Programming Language
 
 Generative AI is poised to revolutionize the entire software development landscape, with the promise of fluently writing code on behalf of programmers. However, programming is a discipline that requires precision and deep reasoning, not just fluency: minor nuances in code can lead to wildly different outcomes. As a result, AI-driven code generation needs to involve a human (developer) in the loop. Developers still need to meticulously review, refactor, and test AI-generated code (aided by AI, of course) before incorporating it into their projects. Traditional programming languages are a poor fit for this human-in-the-loop workflow: generated code is too low-level, syntactically verbose, and comprehensible only by highly-trained experts, even then requiring significant effort.
