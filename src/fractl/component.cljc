@@ -1744,7 +1744,7 @@
       (when (remove-record (apply prepost-event-name event-name))
         (raw/remove-event tag)))
 
-    :else (u/throw-ex (str "invalid event name - " event-name))))
+    :else (u/throw-ex (str "failed to remove event, invalid event name - " event-name))))
 
 (def remove-relationship remove-entity)
 
