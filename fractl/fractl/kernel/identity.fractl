@@ -35,6 +35,11 @@
  {:User :User
   :OtherDetails :Map})
 
+(entity
+ :UserSession
+ {:User :Identity
+  :LoggedIn :Boolean})
+
 (event
  :UpdateUser
  {:UserDetails :UserExtra})
