@@ -74,7 +74,7 @@
      :cljs
      (str (random-uuid))))
 
-(defn- maybe-as-map [evt]
+(defn maybe-as-map [evt]
   (if (keyword? evt)
     {evt {}}
     evt))
