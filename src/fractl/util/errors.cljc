@@ -145,4 +145,4 @@
 (defn raise-error
   "Returns internal and client side error messages for given error key"
   [error-key args]
- (throw-error (get-error-messages error-key args)))
+  (throw-error (get-error-messages error-key args)))
