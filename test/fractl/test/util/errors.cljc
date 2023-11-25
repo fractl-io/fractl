@@ -12,8 +12,6 @@
 
 ;; specs for the expected structure of the error response
 (s/def ::status (s/and keyword? #(= % :error)))
-(s/def ::result nil?)
-(s/def ::env nil?)
 (s/def ::message string?)
 (s/def ::result-map (s/keys :req-un [::status ::result ::env ::message]))
 
