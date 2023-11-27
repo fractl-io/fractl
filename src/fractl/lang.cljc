@@ -892,7 +892,7 @@
 
 (defn- extract-rel-meta [meta]
   (when-let [props (seq (filter (fn [[k _]]
-                                  (some #{k} #{:as :one-one :one-n}))
+                                  (some #{k} #{:as :one-one :one-many}))
                                 meta))]
     (into {} props)))
 
@@ -1033,27 +1033,28 @@
       [t1 (cn/attribute-type node2 (cn/identity-attribute-name node2))])))
 
 (defn- assoc-relnode-attributes [attrs [node1 node2] relmeta]
-  (let [[a1 a2] (li/between-nodenames node1 node2 relmeta)
+  (let [[a1 a2 :as attr-names] (li/between-nodenames node1 node2 relmeta)
         [t1 t2] (between-node-types node1 node2)]
     (when-not (and a1 a2)
       (u/throw-ex (str "failed to resolve both node-attributes for between-relationship - " [a1 a2])))
-    (assoc attrs a1 t1 a2 t2)))
+    [attr-names (assoc attrs a1 t1 a2 t2)]))
 
-(defn- between-unique-meta [meta relmeta [node1 node2]]
-  (let [[n1 n2] (li/between-nodenames node1 node2 relmeta)]
-    (cond
-      (:one-one relmeta)
-      (assoc meta :unique [n1 n2])
+(defn- between-unique-meta [meta relmeta [node1 node2] [n1 n2] new-attrs]
+  (cond
+    (:one-many relmeta)
+    [(assoc meta :unique [n1 n2]) new-attrs]
 
-      (:one-n relmeta)
-      (assoc meta :unique [n1])
+    (:one-one relmeta)
+    (let [t1 {:type (n1 new-attrs) :unique true},
+          t2 {:type (n2 new-attrs) :unique true}]
+      [meta (assoc new-attrs n1 t1 n2 t2)])
 
-      :else meta)))
+    :else [meta new-attrs]))
 
 (defn- between-relationship [relname attrs relmeta elems]
-  (let [new-attrs (assoc-relnode-attributes (preproc-for-built-in-attrs attrs) elems relmeta)
-        meta (assoc (between-unique-meta (:meta attrs) relmeta elems)
-                    :relationship :between cn/relmeta-key relmeta)
+  (let [[node-names new-attrs] (assoc-relnode-attributes (preproc-for-built-in-attrs attrs) elems relmeta)
+        [meta new-attrs] (between-unique-meta (:meta attrs) relmeta elems node-names new-attrs)
+        meta (assoc meta :relationship :between cn/relmeta-key relmeta)
         r (serializable-entity relname (assoc new-attrs :meta meta) attrs)]
     (when (cn/register-relationship elems relname)
       (and (raw/relationship relname attrs) r))))
