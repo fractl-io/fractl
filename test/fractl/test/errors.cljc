@@ -1,4 +1,4 @@
-(ns fractl.test.util.errors
+(ns fractl.test.errors
   (:require [clojure.test :refer :all]
             [fractl.util.errors :refer :all]
             [fractl.test.util :as test-util]
