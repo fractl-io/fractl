@@ -932,7 +932,7 @@
   (let [pk (li/record-name pat)
         recname (li/normalize-name pk)
         relname (li/normalize-name relpat)]
-    (when-not (= relname (ffirst (cn/containing-parents recname)))
+    (when-not (first (filter #(= relname (first %)) (cn/containing-parents recname)))
       (u/throw-ex (str "not a valid contains relationship for " recname " - " relname)))
     (if (= :_ idpat)
       (preproc-contains-spec-by-path recname pat pat-alias relpat nodepat)

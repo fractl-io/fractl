@@ -738,3 +738,36 @@
       (let [xs (rest (raw/as-edn :Rempp))]
         (is (not (some after-df? xs)))
         (is (not (some before-df? xs)))))))
+
+(deftest issue-1183-multiple-parents-pattern-bug
+  (defcomponent :I1183
+    (entity :I1183/A {:Id :Identity :X :Int})
+    (entity :I1183/B {:Id :Identity :Y :Int})
+    (entity :I1183/C {:Id :Identity :Z :Int})
+    (relationship :I1183/R1 {:meta {:contains [:I1183/A :I1183/B]}})
+    (relationship :I1183/R2 {:meta {:contains [:I1183/C :I1183/B]}})
+    (dataflow
+     :I1183/CreateR1
+     {:I1183/B {:Y :I1183/CreateR1.Y} :-> [[:I1183/R1 {:I1183/A {:Id? :I1183/CreateR1.A}}]]})
+    (dataflow
+     :I1183/CreateR2
+     {:I1183/B {:Y :I1183/CreateR2.Y} :-> [[:I1183/R2 {:I1183/C {:Id? :I1183/CreateR2.C}}]]})
+    (dataflow :I1183/LookupR1 {:I1183/B? {} :-> [[:I1183/R1? {:I1183/A {:Id? :I1183/LookupR1.A}}]]})
+    (dataflow :I1183/LookupR2 {:I1183/B? {} :-> [[:I1183/R2? {:I1183/C {:Id? :I1183/LookupR2.C}}]]}))
+  (let [[a1 a2 :as aa] (mapv #(tu/first-result {:I1183/Create_A {:Instance {:I1183/A {:X %}}}}) [10 20])
+        [c1 c2 :as cc] (mapv #(tu/first-result {:I1183/Create_C {:Instance {:I1183/C {:Z %}}}}) [3 4])
+        a? (partial cn/instance-of? :I1183/A)
+        c? (partial cn/instance-of? :I1183/C)]
+    (is (every? a? aa))
+    (is (every? c? cc))
+    (let [[b1 b2 :as bb1] (mapv #(tu/first-result {:I1183/CreateR1 {:Y %1 :A (:Id a1)}}) [1 2])
+          b3 (tu/first-result {:I1183/CreateR1 {:Y 3 :A (:Id a2)}})
+          b? (partial cn/instance-of? :I1183/B)
+          [b4 b5 :as bb2] (mapv #(tu/first-result {:I1183/CreateR2 {:Y %1 :C (:Id c1)}}) [4 5])]
+      (is (every? b? (conj (concat bb1 bb2) b3)))
+      (let [srt (partial sort (fn [a b] (< (:Y a) (:Y b))))
+            rs (srt (tu/result {:I1183/LookupR1 {:A (:Id a1)}}))]
+        (is (and (= 2 (count rs)) (every? identity (mapv #(cn/same-instance? %1 %2) rs (srt bb1)))))
+        (is (cn/same-instance? b3 (tu/first-result {:I1183/LookupR1 {:A (:Id a2)}})))
+        (let [rs (srt (tu/result {:I1183/LookupR2 {:C (:Id c1)}}))]
+          (is (and (= 2 (count rs)) (every? identity (mapv #(cn/same-instance? %1 %2) rs (srt bb2))))))))))
