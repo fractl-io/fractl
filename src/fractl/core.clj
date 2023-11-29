@@ -328,16 +328,20 @@
   (let [basic-config (load-config options)]
     [basic-config (assoc options config-data-key basic-config)]))
 
-(defn run-script
+(defn load-script
   ([script-names options]
    (let [options (if (config-data-key options)
                    options
                    (second (merge-options-with-config options)))]
-     (run-service
-      script-names
-      (read-model-and-config script-names options))))
+     (read-model-and-config script-names options)))
   ([script-names]
-   (run-script script-names {:config "config.edn"})))
+   (load-script script-names {:config "config.edn"})))
+
+(defn run-script
+  ([script-names options]
+   (run-service script-names (load-script script-names options)))
+  ([script-names]
+   (run-service script-names (load-script script-names))))
 
 (defn- attach-params [request]
   (if (:params request)

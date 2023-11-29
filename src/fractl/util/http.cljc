@@ -102,17 +102,17 @@
    (let [[token options] (fetch-auth-token options)]
      #?(:clj
         (let [headers (apply
-                        assoc
-                        (:headers options)
-                        "Content-Type" (content-type format)
-                        (when token
-                          ["Authorization" (str "Bearer " token)]))
+                       assoc
+                       (:headers options)
+                       "Content-Type" (content-type format)
+                       (when token
+                         ["Authorization" (str "Bearer " token)]))
               options (assoc options :headers headers)]
           (response-handler @(http/get url options)))
         :cljs (go
                 (let [k (if (= format :transit+json) :transit-params :json-params)]
                   (response-handler
-                    (<! (http/get url (make-http-request k nil token)))))))))
+                   (<! (http/get url (make-http-request k nil token)))))))))
   ([url options]
    (do-get url options :json identity)))
 
