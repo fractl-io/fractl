@@ -99,7 +99,6 @@
 
 (defn do-get
   ([url options format response-handler]
-   (println "The format is: " format)
    (let [[token options] (fetch-auth-token options)]
      #?(:clj
         (let [headers (apply
