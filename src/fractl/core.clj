@@ -160,6 +160,10 @@
 (def ^:private repl-mode-key :-*-repl-mode-*-)
 (def ^:private repl-mode? repl-mode-key)
 
+(def ^:private on-init-fn (atom nil))
+
+(defn set-on-init! [f] (reset! on-init-fn f))
+
 (defn- init-runtime [model config]
   (let [store (store-from-config config)
         ev ((if (repl-mode? config)
@@ -176,6 +180,9 @@
         (if has-rbac
           (lr/finalize-events ev)
           (lr/reset-events!))
+        (when-let [f @on-init-fn]
+          (f)
+          (reset! on-init-fn nil))
         (run-appinit-tasks! ev (or (:init-data model)
                                    (:init-data config)))
         (when has-rbac
@@ -328,20 +335,16 @@
   (let [basic-config (load-config options)]
     [basic-config (assoc options config-data-key basic-config)]))
 
-(defn load-script
+(defn run-script
   ([script-names options]
    (let [options (if (config-data-key options)
                    options
                    (second (merge-options-with-config options)))]
-     (read-model-and-config script-names options)))
+     (run-service
+      script-names
+      (read-model-and-config script-names options))))
   ([script-names]
-   (load-script script-names {:config "config.edn"})))
-
-(defn run-script
-  ([script-names options]
-   (run-service script-names (load-script script-names options)))
-  ([script-names]
-   (run-service script-names (load-script script-names))))
+   (run-script script-names {:config "config.edn"})))
 
 (defn- attach-params [request]
   (if (:params request)
