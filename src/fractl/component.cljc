@@ -441,8 +441,9 @@
 
 (defn- filter-attributes
   "Filter attribute names based on the attribute schema check using the predicate."
-  [predic entity-schema]
-  (map first (filter-attribute-schemas predic entity-schema)))
+  [predic ent]
+  (let [entity-schema (if (keyword? ent) (fetch-entity-schema ent) ent)]
+    (map first (filter-attribute-schemas predic entity-schema))))
 
 (defn- make-attributes-filter [predic]
   (partial filter-attributes predic))
@@ -454,6 +455,8 @@
 (def hashed-attributes (make-attributes-filter :secure-hash))
 
 (def write-only-attributes (make-attributes-filter :write-only))
+
+(def read-only-attributes (make-attributes-filter :read-only))
 
 (def ref-attribute-schemas
   "Return the names and schemas of all attributes which has a :ref."
