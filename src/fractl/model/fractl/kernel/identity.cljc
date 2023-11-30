@@ -19,7 +19,8 @@
   :FirstName {:type :String, :optional true},
   :LastName {:type :String, :optional true},
   :Email {:type :Email, li/guid true},
-  :UserData {:type :Map, :optional true}})
+  :UserData {:type :Map, :optional true},
+  :AppId {:type :String, :optional true}})
 (event
  :Fractl.Kernel.Identity/SignUp
  {:User :Fractl.Kernel.Identity/User})
@@ -64,4 +65,4 @@
  {:Username :Email})
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "72dc903d-669e-4f59-9d4f-1e2f8fc60215")
+ "d18fefc5-3264-4b55-9ac8-65a074a7c5ca")

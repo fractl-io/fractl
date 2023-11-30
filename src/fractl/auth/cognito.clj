@@ -85,6 +85,7 @@
         (throw (Exception. (get-error-msg-and-log e)))))))
 
 (defmethod auth/upsert-user tag [{:keys [instance] :as req}]
+  (println "The instance is: " instance)
   (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)]
     (case (last (li/split-path (cn/instance-type instance)))
       ;; Create User
@@ -99,7 +100,7 @@
       (let [user-details (:UserDetails instance)
             cognito-username (get-in req [:user :username])
             inner-user-details (:User user-details)
-            {:keys [FirstName LastName]} inner-user-details
+            {:keys [FirstName LastName AppId]} inner-user-details
             github-details (get-in user-details [:OtherDetails :GitHub])
             {:keys [Username Org Token]} github-details
             refresh-token (get-in user-details [:OtherDetails :RefreshToken])
@@ -115,7 +116,8 @@
                              ["custom:github_org" Org]
                              ["custom:github_token" Token]
                              ["custom:github_username" Username]
-                             ["custom:openai_key" Key]])
+                             ["custom:openai_key" Key]
+                             ["custom:app_id" AppId]])
           ;; Refresh credentials
           (initiate-auth
            (auth/make-client (merge req aws-config))
@@ -148,6 +150,7 @@
      :github-token (:custom:github_token user-details)
      :github-org (:custom:github_org user-details)
      :openai-key (:custom:openai_key user-details)
+     :app-id (:custom:app_id user-details)
      :email (or (:email user-details) (:username user-details))
      :sub (:sub user-details)
      :username (or (:cognito:username user-details) (:sub user-details))}))
@@ -187,12 +190,13 @@
                                (assoc attributes-map (keyword (:name attribute-map)) (:value attribute-map)))
                              {}
                              user-attributes)
-        {:keys [custom:github_username custom:github_token custom:github_org custom:openai_key
+        {:keys [custom:github_username custom:github_token custom:github_org custom:openai_key custom:app_id
                 given_name family_name email]} user-attributes-map]
     {:GitHub {:Username custom:github_username
               :Token custom:github_token
               :Org custom:github_org}
      :OpenAI {:Key custom:openai_key}
+     :AppId custom:app_id
      :FirstName given_name
      :LastName family_name
      :Email email}))

@@ -26,7 +26,7 @@
 (defn-
  crud-list?
  [xs]
- (every? (fn* [p1__288#] (some #{p1__288#} oprs)) (set xs)))
+ (every? (fn* [p1__276#] (some #{p1__276#} oprs)) (set xs)))
 (entity
  :Fractl.Kernel.Rbac/Privilege
  {:Name {:type :String, :default u/uuid-string, li/guid true},
@@ -64,7 +64,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__289#] (str "'" (str p1__289#) "'")) role-names))
+    (map (fn* [p1__277#] (str "'" (str p1__277#) "'")) role-names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivilegeAssignments
@@ -84,7 +84,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__290#] (str "'" (str p1__290#) "'")) names))
+    (map (fn* [p1__278#] (str "'" (str p1__278#) "'")) names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivileges
@@ -115,4 +115,4 @@
                        :Assignee :String}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "602c223a-b71d-4562-8ded-3032e7a2f0f3")
+ "af8c6fdb-b54e-42ce-8475-f5f0f11db7c5")

@@ -15,7 +15,9 @@
              :optional true}
   :Email {:type :Email
           li/guid true}
-  :UserData {:type :Map :optional true}})
+  :UserData {:type :Map :optional true}
+  :AppId {:type :String
+          :optional true}})
 
 (event
  :SignUp
