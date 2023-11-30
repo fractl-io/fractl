@@ -160,6 +160,10 @@
 (def ^:private repl-mode-key :-*-repl-mode-*-)
 (def ^:private repl-mode? repl-mode-key)
 
+(def ^:private on-init-fn (atom nil))
+
+(defn set-on-init! [f] (reset! on-init-fn f))
+
 (defn- init-runtime [model config]
   (let [store (store-from-config config)
         ev ((if (repl-mode? config)
@@ -176,6 +180,9 @@
         (if has-rbac
           (lr/finalize-events ev)
           (lr/reset-events!))
+        (when-let [f @on-init-fn]
+          (f)
+          (reset! on-init-fn nil))
         (run-appinit-tasks! ev (or (:init-data model)
                                    (:init-data config)))
         (when has-rbac
@@ -324,6 +331,21 @@
      (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
      (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF"))))
 
+(defn- merge-options-with-config [options]
+  (let [basic-config (load-config options)]
+    [basic-config (assoc options config-data-key basic-config)]))
+
+(defn run-script
+  ([script-names options]
+   (let [options (if (config-data-key options)
+                   options
+                   (second (merge-options-with-config options)))]
+     (run-service
+      script-names
+      (read-model-and-config script-names options))))
+  ([script-names]
+   (run-script script-names {:config "config.edn"})))
+
 (defn- attach-params [request]
   (if (:params request)
     request
@@ -440,8 +462,7 @@
     (System/exit 0))
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)
-        basic-config (load-config options)
-        options (assoc options config-data-key basic-config)]
+        [basic-config options] (merge-options-with-config options)]
     (initialize)
     (gs/set-app-config! basic-config)
     (cond
@@ -480,4 +501,4 @@
                                  (db-migrate
                                   (keyword (first %))
                                   (second (read-model-and-config options)))))}))
-          (run-service args (read-model-and-config args options))))))
+          (run-script args options)))))
