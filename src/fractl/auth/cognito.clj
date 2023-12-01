@@ -100,12 +100,11 @@
       (let [user-details (:UserDetails instance)
             cognito-username (get-in req [:user :username])
             inner-user-details (:User user-details)
-            {:keys [FirstName LastName]} inner-user-details
+            {:keys [FirstName LastName AppId]} inner-user-details
             github-details (get-in user-details [:OtherDetails :GitHub])
             {:keys [Username Org Token]} github-details
             refresh-token (get-in user-details [:OtherDetails :RefreshToken])
             open-ai-key (get-in user-details [:OtherDetails :OpenAI])
-            app-id (get-in user-details [:OtherDetails :AppId])
             {:keys [Key]} open-ai-key]
         (try
           (admin-update-user-attributes
@@ -118,7 +117,7 @@
                              ["custom:github_token" Token]
                              ["custom:github_username" Username]
                              ["custom:openai_key" Key]
-                             ["custom:app_id" app-id]])
+                             ["custom:app_id" AppId]])
           ;; Refresh credentials
           (initiate-auth
            (auth/make-client (merge req aws-config))
