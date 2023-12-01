@@ -116,6 +116,15 @@
   ([url options]
    (do-get url options :json identity)))
 
+(defn do-request
+  ([method callback url headers body]
+   (let [req (merge {:url url :method method :headers headers} (when body {:body body}))]
+     #?(:clj @(http/request req)
+        :cljs (go (callback (<! (http/request req)))))))
+  ([method url headers body] (do-request method identity url headers body))
+  ([method url headers] (do-request method url headers nil))
+  ([method url] (do-request method url nil)))
+
 (defn POST
   ([url options request-obj format]
    (do-post
