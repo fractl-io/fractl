@@ -1630,7 +1630,10 @@
   (if-let [rels (contained-children entity-name)]
     (and (every? :cascade-on-delete (map #(fetch-meta (relinfo-name %)) rels))
          (every?
-          #(let [c (check-cascade-delete-children %)] (or (= c :delete) (= c :ignore)))
+          #(let [c (if (= entity-name %)
+                     :delete
+                     (check-cascade-delete-children %))]
+             (or (= c :delete) (= c :ignore)))
           (map relinfo-to rels))
          :delete)
     :ignore))

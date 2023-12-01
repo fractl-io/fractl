@@ -437,7 +437,8 @@
 (defn- delete-children-helper [store record-name path-prefix]
   (loop [rels (cn/contained-children record-name)]
     (if-let [[_ _ child] (first rels)]
-      (when (delete-children-helper store child path-prefix)
+      (when (or (= record-name child)
+                (delete-children-helper store child path-prefix))
         (store/delete-children store child path-prefix)
         (recur (rest rels)))
       record-name)))
