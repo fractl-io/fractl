@@ -1,6 +1,6 @@
 (ns
  fractl.model.fractl.kernel.identity
- (:require [fractl.lang.internal :as li])
+ (:require [fractl.lang.internal :as li] [fractl.util :as u])
  (:use
   [fractl.model.fractl.kernel.lang
    :only
@@ -11,7 +11,8 @@
 (component
  :Fractl.Kernel.Identity
  {:refer [:Fractl.Kernel.Lang],
-  :clj-import '[(:require [fractl.lang.internal :as li])]})
+  :clj-import
+  '[(:require [fractl.lang.internal :as li] [fractl.util :as u])]})
 (entity
  :Fractl.Kernel.Identity/User
  {:Name {:type :String, :optional true},
@@ -19,7 +20,8 @@
   :FirstName {:type :String, :optional true},
   :LastName {:type :String, :optional true},
   :Email {:type :Email, li/guid true},
-  :UserData {:type :Map, :optional true}})
+  :UserData {:type :Map, :optional true},
+  :AppId {:type :UUID, :default u/uuid-string, :indexed true}})
 (event
  :Fractl.Kernel.Identity/SignUp
  {:User :Fractl.Kernel.Identity/User})
@@ -64,4 +66,4 @@
  {:Username :Email})
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "72dc903d-669e-4f59-9d4f-1e2f8fc60215")
+ "963ed7e4-c021-49f8-a8f9-e5f394934063")
