@@ -983,7 +983,7 @@
   (when-not (cn/path-identity-attribute-name child)
     (let [cident (user-defined-identity-attribute-name child)
           child-attrs (preproc-for-built-in-attrs
-                       (raw/entity-attributes-include-inherits child))
+                       (raw/record-attributes-include-inherits child))
           cident-raw-spec (cident child-attrs)
           cident-spec (if (map? cident-raw-spec)
                         cident-raw-spec

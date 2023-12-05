@@ -76,7 +76,7 @@
           res (store/lookup-by-id
                store entity-name
                (cn/identity-attribute-name entity-name) id)]
-      (when-not res
+      (when-not (seq res)
         (u/throw-ex (str "resource not found - " [entity-name id])))
       (when-not is-system-event
         (when-not (cn/user-is-owner? user res)
