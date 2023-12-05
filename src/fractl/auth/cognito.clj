@@ -98,7 +98,7 @@
       ;; Update user
       (or (= :update operation) (= req-type :UpdateUser))
       (if (= req-type :User)
-        (let [{:keys [FirstName Email LastName Email AppId]} instance]
+        (let [{:keys [FirstName LastName Email AppId]} instance]
           (try
             (let
               [queried-user (list-users :user-pool-id user-pool-id
@@ -109,7 +109,9 @@
                 (auth/make-client (merge req aws-config))
                 :username username
                 :user-pool-id user-pool-id
-                :user-attributes [["custom:app_id" AppId]]))
+                :user-attributes [["given_name" FirstName]
+                                  ["family_name" LastName]
+                                  ["custom:app_id" AppId]]))
             (catch Exception e
               (throw (Exception. (get-error-msg-and-log e))))))
         (let [user-details (:UserDetails instance)
