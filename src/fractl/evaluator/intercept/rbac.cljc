@@ -10,6 +10,7 @@
             [fractl.lang.relgraph :as rg]
             [fractl.rbac.core :as rbac]
             [fractl.global-state :as gs]
+            [fractl.evaluator.internal :as ei]
             [fractl.resolver.registry :as rr]
             [fractl.evaluator.intercept.internal :as ii]))
 
@@ -147,12 +148,19 @@
               (and has-owner-privs arg)))
         (let [is-owner (owner? resource)
               has-inst-priv (when-not is-owner (has-instance-privilege? user opr resource))]
-          (if (or is-owner has-inst-priv)
-            arg
-            (if has-base-priv
-              (case opr
-                :read arg
-                (:delete :update) (when-not (owner-exclusive? resource) arg)))))))))
+          (cond
+            (or is-owner has-inst-priv) arg
+            has-base-priv
+            (case opr
+              :read arg
+              (:delete :update) (when-not (owner-exclusive? resource) arg))
+            :else
+            (let [inst-type (when (cn/an-instance? resource) (cn/instance-type-kw resource))
+                  rel-ctx (when inst-type (inst-type (env/relationship-context env)))
+                  p0 (when rel-ctx (maybe-force (:parent rel-ctx)))
+                  parent (or p0 (and inst-type (ei/find-parent-by-full-path env inst-type resource)))]
+              (when parent
+                (or (owner? parent) (has-instance-privilege? user opr parent))))))))))
 
 (defn- first-instance [data]
   (cond
