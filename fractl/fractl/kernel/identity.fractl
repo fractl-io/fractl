@@ -1,7 +1,8 @@
 (component
  :Fractl.Kernel.Identity
  {:refer [:Fractl.Kernel.Lang]
-  :clj-import '[(:require [fractl.lang.internal :as li])]})
+  :clj-import '[(:require [fractl.lang.internal :as li]
+                          [fractl.util :as u])]})
 
 (entity
  :User
@@ -16,8 +17,9 @@
   :Email {:type :Email
           li/guid true}
   :UserData {:type :Map :optional true}
-  :AppId {:type :String
-          :optional true}})
+  :AppId {:type :UUID
+          :default u/uuid-string
+          :indexed true}})
 
 (event
  :SignUp

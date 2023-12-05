@@ -31,9 +31,13 @@
 
 (def client-key :client)
 (def instance-key :instance)
+(def operation-type :operation)
 
-(defn call-upsert-user [client arg user-inst]
-  (upsert-user (assoc arg client-key client instance-key user-inst)))
+(defn call-upsert-user
+  ([client arg action user-inst]
+   (upsert-user (assoc arg client-key client instance-key user-inst operation-type action)))
+  ([client arg user-inst]
+   (upsert-user (assoc arg client-key client instance-key user-inst operation-type :create))))
 
 (defn call-delete-user [client arg user-inst]
   (delete-user (assoc arg client-key client instance-key user-inst)))

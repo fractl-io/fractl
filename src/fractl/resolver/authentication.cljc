@@ -42,6 +42,6 @@
         (r/make-resolver
          resolver-name
          {:create {:handler (partial create client config)}
-          :update {:handler (partial auth/call-upsert-user client config)}
+          :update {:handler (partial auth/call-upsert-user client config :update)}
           :delete {:handler (partial delete client config)}})
         (u/throw-ex (str "failed to create auth-client for " resolver-name))))))

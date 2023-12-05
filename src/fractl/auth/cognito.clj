@@ -84,50 +84,66 @@
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
-(defmethod auth/upsert-user tag [{:keys [instance] :as req}]
-  (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)]
-    (case (last (li/split-path (cn/instance-type instance)))
+(defmethod auth/upsert-user tag [{:keys [instance operation] :as req}]
+  (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)
+        req-type (last (li/split-path (cn/instance-type instance)))]
+    (cond
       ;; Create User
-      :User
+      (= :create operation)
       (let [user instance]
         (when (:Password user)
           (sign-up-user req aws-config client-id user-pool-id whitelist? user))
         nil)
 
       ;; Update user
-      :UpdateUser
-      (let [user-details (:UserDetails instance)
-            cognito-username (get-in req [:user :username])
-            inner-user-details (:User user-details)
-            {:keys [FirstName LastName AppId]} inner-user-details
-            github-details (get-in user-details [:OtherDetails :GitHub])
-            {:keys [Username Org Token]} github-details
-            refresh-token (get-in user-details [:OtherDetails :RefreshToken])
-            open-ai-key (get-in user-details [:OtherDetails :OpenAI])
-            {:keys [Key]} open-ai-key]
-        (try
-          (admin-update-user-attributes
-           (auth/make-client (merge req aws-config))
-           :username cognito-username
-           :user-pool-id user-pool-id
-           :user-attributes [["given_name" FirstName]
-                             ["family_name" LastName]
-                             ["custom:github_org" Org]
-                             ["custom:github_token" Token]
-                             ["custom:github_username" Username]
-                             ["custom:openai_key" Key]
-                             ["custom:app_id" AppId]])
-          ;; Refresh credentials
-          (initiate-auth
-           (auth/make-client (merge req aws-config))
-           :auth-flow "REFRESH_TOKEN_AUTH"
-           :auth-parameters {"USERNAME" cognito-username
-                             "REFRESH_TOKEN" refresh-token}
-           :client-id client-id)
-          (catch Exception e
-            (throw (Exception. (get-error-msg-and-log e))))))
+      (or (= :update operation) (= req-type :UpdateUser))
+      (if (= req-type :User)
+        (let [{:keys [FirstName Email LastName Email AppId]} instance]
+          (try
+            (let
+              [queried-user (list-users :user-pool-id user-pool-id
+                                        :filter (str "email = \"" (str Email) "\""))
+               user (first (:users queried-user))
+               {:keys [username]} user]
+              (admin-update-user-attributes
+                (auth/make-client (merge req aws-config))
+                :username username
+                :user-pool-id user-pool-id
+                :user-attributes [["custom:app_id" AppId]]))
+            (catch Exception e
+              (throw (Exception. (get-error-msg-and-log e))))))
+        (let [user-details (:UserDetails instance)
+              cognito-username (get-in req [:user :username])
+              inner-user-details (:User user-details)
+              {:keys [FirstName LastName AppId]} inner-user-details
+              github-details (get-in user-details [:OtherDetails :GitHub])
+              {:keys [Username Org Token]} github-details
+              refresh-token (get-in user-details [:OtherDetails :RefreshToken])
+              open-ai-key (get-in user-details [:OtherDetails :OpenAI])
+              {:keys [Key]} open-ai-key]
+          (try
+            (admin-update-user-attributes
+              (auth/make-client (merge req aws-config))
+              :username cognito-username
+              :user-pool-id user-pool-id
+              :user-attributes [["given_name" FirstName]
+                                ["family_name" LastName]
+                                ["custom:github_org" Org]
+                                ["custom:github_token" Token]
+                                ["custom:github_username" Username]
+                                ["custom:openai_key" Key]
+                                ["custom:app_id" AppId]])
+            ;; Refresh credentials
+            (initiate-auth
+              (auth/make-client (merge req aws-config))
+              :auth-flow "REFRESH_TOKEN_AUTH"
+              :auth-parameters {"USERNAME"      cognito-username
+                                "REFRESH_TOKEN" refresh-token}
+              :client-id client-id)
+            (catch Exception e
+              (throw (Exception. (get-error-msg-and-log e)))))))
 
-      nil)))
+      :else nil)))
 
 (defmethod auth/refresh-token tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)
