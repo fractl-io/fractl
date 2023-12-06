@@ -8,6 +8,7 @@
             [clojure.walk :as w]
             [fractl.auth.core :as auth]
             [fractl.component :as cn]
+            [buddy.core.keys :as buddykeys]
             [buddy.sign.jwt :as buddyjwt]
             [fractl.compiler :as compiler]
             [fractl.lang :as ln]
@@ -931,12 +932,15 @@
     (internal-error "cannot process sign-up - authentication not enabled")))
 
 (defn- make-magic-link [username op payload description expiry]
-  (buddyjwt/sign {:username username :operation op 
-                  :payload payload :description description
-                  :exp (time/plus (time/now) (time/seconds expiry))} "secret"))
+  (let [privkey (buddykeys/private-key "privatekey.pem")]
+    (buddyjwt/sign {:username username :operation op
+                    :payload payload :description description
+                    :exp (time/plus (time/now) (time/seconds expiry))} 
+                   privkey {:alg :rs256})))
 
 (defn- decode-magic-link-token [token]
-  (buddyjwt/unsign token "secret"))
+  (let [pubkey (buddykeys/public-key "publickey.pem")]
+    (buddyjwt/unsign token pubkey {:alg :rs256})))
 
 (defn- process-register-magiclink [[auth-config _] auth request]
   (if auth-config

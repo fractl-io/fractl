@@ -124,8 +124,20 @@
                   {:Data (or data {})}}))]
     (log-app-init-result! result)))
 
-(defn- run-appinit-tasks! [evaluator init-data]
-    (trigger-appinit-event! evaluator init-data))
+(defn generate-and-save-rsa-keys! []
+  (let [keys (u/generate-key-pair)
+        pubkey (str "-----BEGIN PUBLIC KEY-----" "\n"
+                    (u/encode-base64 (.getEncoded (:public keys))) "\n"
+                    "-----END PUBLIC KEY-----")
+        privkey (str "-----BEGIN PRIVATE KEY-----" "\n"
+                     (u/encode-base64 (.getEncoded (:private keys))) "\n"
+                     "-----END PRIVATE KEY-----")]
+    (spit "publickey.pem" pubkey)
+    (spit "privatekey.pem" privkey)))
+
+(defn- run-appinit-tasks! [evaluator init-data config]
+  (when (:authentication config) (generate-and-save-rsa-keys!))
+  (trigger-appinit-event! evaluator init-data))
 
 (defn- merge-resolver-configs [app-config resolver-configs]
   (let [app-resolvers (:resolvers app-config)]
@@ -176,8 +188,9 @@
         (if has-rbac
           (lr/finalize-events ev)
           (lr/reset-events!))
-        (run-appinit-tasks! ev (or (:init-data model)
-                                   (:init-data config)))
+        (run-appinit-tasks! ev
+                            (or (:init-data model) (:init-data config))
+                            config)
         (when has-rbac
           (when-not (rbac/init (merge (:rbac ins) (:authentication config)))
             (log/error "failed to initialize rbac")))
