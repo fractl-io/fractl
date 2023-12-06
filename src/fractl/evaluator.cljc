@@ -70,7 +70,7 @@
   (when (identical? internal-event-flag (internal-event-key event-instance))
     true))
 
-(declare eval-all-dataflows)
+(declare eval-all-dataflows safe-eval-pattern)
 
 (defn- fire-post-events-for [tag insts]
   (doseq [inst insts]
@@ -135,7 +135,8 @@
    of the provided environment. Each compiled pattern is dispatched to an evaluator,
    where the real evaluation is happening. Return the value produced by the resolver."
   ([evaluator env event-instance df]
-   (let [env (or (cn/event-context-env event-instance) env)
+   (let [env0 (or (cn/event-context-env event-instance) env)
+         env (env/assoc-pattern-evaluator env0 safe-eval-pattern)
          event-instance (maybe-init-event event-instance)
          f (partial eval-dataflow-in-transaction evaluator env event-instance df)]
      (try
@@ -334,6 +335,8 @@
 (defn eval-internal [event-obj]
   (eval-all-dataflows (mark-internal (cn/make-instance event-obj))))
 
-(defn safe-eval-pattern [pattern]
-  (u/safe-ok-result
-   (evaluate-pattern pattern)))
+(defn safe-eval-pattern
+  ([pattern]
+   (safe-eval-pattern nil pattern))
+  ([env pattern]
+   (u/safe-ok-result (evaluate-pattern env pattern))))

@@ -13,6 +13,7 @@
             [fractl.store.util :as stu]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
+            [fractl.paths :as paths]
             [fractl.evaluator.async :as a]
             [fractl.evaluator.match :as m]
             [fractl.evaluator.internal :as i]
@@ -877,19 +878,19 @@
 (defn- maybe-fix-contains-path [env rel-ctx record-name inst]
   (if-let [path (li/path-attr inst)]
     (if-not (li/proper-path? path)
-      (if-let [parent (i/find-parent-by-path env record-name path)]
+      (if-let [parent (paths/find-parent-by-path env record-name path)]
         (and (swap! rel-ctx assoc (li/make-path record-name) {:parent parent})
              (attach-full-path record-name (concat-owners env inst parent) path))
         (u/throw-ex (str "failed to find parent by path - " path)))
       (and (swap! rel-ctx assoc (li/make-path record-name)
-                  {:parent #(i/find-parent-by-path env record-name (li/as-partial-path path))})
+                  {:parent #(paths/find-parent-by-path env record-name (li/as-partial-path path))})
            inst))
     inst))
 
 (defn- ensure-between-refs [env rel-ctx record-name inst]
   (let [[node1 node2] (mapv li/split-path (cn/relationship-nodes record-name))
         [a1 a2] (cn/between-attribute-names record-name node1 node2)
-        lookup (partial i/lookup-ref-inst false)
+        lookup (partial paths/lookup-ref-inst false)
         l1 #(when % (lookup env node1 % (a1 inst)))
         l2 #(when % (lookup env node2 % (a2 inst)))
         [r1 r2] [(or (l1 (cn/identity-attribute-name node1))

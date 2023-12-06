@@ -296,3 +296,8 @@
 
 (defn disable-post-event-triggers [env]
   (dissoc env post-event-trigger-sources))
+
+(def pattern-evaluator :*-*-pattern-evaluator-*-)
+
+(defn assoc-pattern-evaluator [env f]
+  (assoc env pattern-evaluator f))

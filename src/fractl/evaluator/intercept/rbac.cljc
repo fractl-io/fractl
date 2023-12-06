@@ -10,7 +10,7 @@
             [fractl.lang.relgraph :as rg]
             [fractl.rbac.core :as rbac]
             [fractl.global-state :as gs]
-            [fractl.evaluator.internal :as ei]
+            [fractl.paths :as p]
             [fractl.resolver.registry :as rr]
             [fractl.evaluator.intercept.internal :as ii]))
 
@@ -158,7 +158,7 @@
             (let [inst-type (when (cn/an-instance? resource) (cn/instance-type-kw resource))
                   rel-ctx (when inst-type (inst-type (env/relationship-context env)))
                   p0 (when rel-ctx (maybe-force (:parent rel-ctx)))
-                  parent (or p0 (and inst-type (ei/find-parent-by-full-path env inst-type resource)))]
+                  parent (or p0 (and inst-type (p/find-parent-by-full-path env inst-type resource)))]
               (when parent
                 (or (owner? parent) (has-instance-privilege? user opr parent))))))))))
 
