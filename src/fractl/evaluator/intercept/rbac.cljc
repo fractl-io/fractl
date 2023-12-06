@@ -10,6 +10,7 @@
             [fractl.lang.relgraph :as rg]
             [fractl.rbac.core :as rbac]
             [fractl.global-state :as gs]
+            [fractl.paths :as p]
             [fractl.resolver.registry :as rr]
             [fractl.evaluator.intercept.internal :as ii]))
 
@@ -76,7 +77,7 @@
           res (store/lookup-by-id
                store entity-name
                (cn/identity-attribute-name entity-name) id)]
-      (when-not res
+      (when-not (seq res)
         (u/throw-ex (str "resource not found - " [entity-name id])))
       (when-not is-system-event
         (when-not (cn/user-is-owner? user res)
@@ -147,12 +148,19 @@
               (and has-owner-privs arg)))
         (let [is-owner (owner? resource)
               has-inst-priv (when-not is-owner (has-instance-privilege? user opr resource))]
-          (if (or is-owner has-inst-priv)
-            arg
-            (if has-base-priv
-              (case opr
-                :read arg
-                (:delete :update) (when-not (owner-exclusive? resource) arg)))))))))
+          (cond
+            (or is-owner has-inst-priv) arg
+            has-base-priv
+            (case opr
+              :read arg
+              (:delete :update) (when-not (owner-exclusive? resource) arg))
+            :else
+            (let [inst-type (when (cn/an-instance? resource) (cn/instance-type-kw resource))
+                  rel-ctx (when inst-type (inst-type (env/relationship-context env)))
+                  p0 (when rel-ctx (maybe-force (:parent rel-ctx)))
+                  parent (or p0 (and inst-type (p/find-parent-by-full-path env inst-type resource)))]
+              (when parent
+                (or (owner? parent) (has-instance-privilege? user opr parent))))))))))
 
 (defn- first-instance [data]
   (cond

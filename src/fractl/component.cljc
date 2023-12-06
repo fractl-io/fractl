@@ -1898,7 +1898,7 @@
        (let [pp (li/path-attr parent-inst)
              rn (li/encoded-uri-path-part rel)]
          (if pp
-           (str (li/path-query-string pp) "/" rn)
+           (str (li/path-string pp) "/" rn)
            (str "/" (li/encoded-uri-path-part pt)
                 "/" ((identity-attribute-name pt) parent-inst)
                 "/" rn)))

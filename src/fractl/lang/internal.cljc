@@ -12,21 +12,21 @@
 (def path-attr :__path__)
 (def path-attr? :__path__?)
 
-(def path-query-prefix "path:/")
-(def path-query-prefix-len (count path-query-prefix))
+(def path-prefix "path:/")
+(def path-prefix-len (count path-prefix))
 
 (def guid :guid)
 (def path-identity :id)
 
-(defn path-query? [x]
+(defn proper-path? [x]
   (and (string? x)
-       (s/starts-with? x path-query-prefix)))
+       (s/starts-with? x path-prefix)))
 
-(defn path-query-string [s]
-  (subs s path-query-prefix-len))
+(defn path-string [s]
+  (subs s path-prefix-len))
 
 (defn as-partial-path [path]
-  (let [s (path-query-string path)
+  (let [s (path-string path)
         has-child (s/ends-with? s "%")
         idx (s/last-index-of s "/")
         s1 (subs s 0 idx)]
@@ -34,16 +34,15 @@
       (subs s1 0 (s/last-index-of s1 "/"))
       s1)))
 
-(defn maybe-add-path-query-prefix [s]
-  (if (path-query? s)
+(defn maybe-add-path-prefix [s]
+  (if (proper-path? s)
     s
-    (str path-query-prefix
-         (if (= "/" (first s)) s (str "/" s)))))
+    (str path-prefix (if (= "/" (first s)) s (str "/" s)))))
 
 (def path-query-tag :?)
 (defn path-query-tag? [x] (= x :?))
 
-(def ^:private default-path-prefix (str path-query-prefix "/___/"))
+(def ^:private default-path-prefix (str path-prefix "/___/"))
 
 (defn default-path []
   (str default-path-prefix (u/uuid-string)))
@@ -554,10 +553,10 @@
   (keyword (s/replace part "$" "/")))
 
 (defn uri-path-split [path]
-  (vec (filter seq (s/split (path-query-string path) #"/"))))
+  (vec (filter seq (s/split (path-string path) #"/"))))
 
 (defn uri-join-parts [parts]
-  (maybe-add-path-query-prefix (s/join "/" parts)))
+  (maybe-add-path-prefix (s/join "/" parts)))
 
 (defn fully-qualified-path-type [base-component n]
   (if (s/index-of n "$")
@@ -575,7 +574,7 @@
     (str (name base-component) "$" n)))
 
 (defn as-fully-qualified-path [base-component path]
-  (let [path (if (path-query? path) (subs path path-query-prefix-len) path)
+  (let [path (if (proper-path? path) (subs path path-prefix-len) path)
         fqt (partial fully-qualified-path-component base-component)]
     (loop [parts (filter seq (s/split path #"/")), n 0, final-path []]
       (if-let [p (first parts)]
@@ -584,7 +583,7 @@
                          (if (= n 3) 1 (inc n))
                          (conj final-path (fqt p)))
           (recur (rest parts) (inc n) (conj final-path p)))
-        (str path-query-prefix "/" (s/join "/" final-path))))))
+        (str path-prefix "/" (s/join "/" final-path))))))
 
 (defn full-path-name? [n]
   (s/index-of (str n) "/"))

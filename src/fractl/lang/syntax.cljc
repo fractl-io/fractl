@@ -197,7 +197,7 @@
      {alias-tag als})))
 
 (defn- query-attrs? [attrs]
-  (or (li/path-query? attrs) (some li/query-pattern? (keys attrs))))
+  (or (li/proper-path? attrs) (some li/query-pattern? (keys attrs))))
 
 (defn- query-record-name [recname]
   (if (li/query-pattern? recname)
@@ -265,7 +265,7 @@
         attrs (recname pat)]
     (when-not (li/name? recname)
       (u/throw-ex (str "invalid record name - " recname)))
-    (when-not (or (map? attrs) (li/path-query? attrs))
+    (when-not (or (map? attrs) (li/proper-path? attrs))
       (u/throw-ex (str "expected a map or a path query - " attrs)))
     (let [attr-names (and (map? attrs ) (seq (keys attrs)))
           qpat (if attr-names

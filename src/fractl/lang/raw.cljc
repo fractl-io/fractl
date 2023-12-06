@@ -175,16 +175,18 @@
     (last d)))
 
 (def entity-attributes (partial fetch-attributes 'entity))
+(def record-attributes (partial fetch-attributes 'record))
 (def relationship-attributes entity-attributes)
 
 (defn fetch-all-dataflows [component-name]
   (filter #(= 'dataflow (first %)) (get @raw-store component-name)))
 
-(defn entity-attributes-include-inherits [entity-name]
-  (let [raw-attrs (entity-attributes entity-name)
+(defn record-attributes-include-inherits [entity-name]
+  (let [raw-attrs (or (entity-attributes entity-name)
+                      (record-attributes entity-name))
         attrs (apply dissoc raw-attrs li/property-names)]
     (if-let [p (:inherits (:meta raw-attrs))]
-      (merge attrs (entity-attributes-include-inherits p))
+      (merge attrs (record-attributes-include-inherits p))
       attrs)))
 
 (defn as-edn [component-name]

@@ -13,6 +13,7 @@
             [fractl.store.util :as stu]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
+            [fractl.paths :as paths]
             [fractl.evaluator.async :as a]
             [fractl.evaluator.match :as m]
             [fractl.evaluator.internal :as i]
@@ -431,7 +432,7 @@
 (defn- find-path-prefix [record-name inst]
   (or (li/path-attr inst)
       (let [[c n] (li/split-path record-name)]
-        (str li/path-query-prefix "/" (name c) "$" (name n) "/"
+        (str li/path-prefix "/" (name c) "$" (name n) "/"
              ((cn/identity-attribute-name record-name) inst)))))
 
 (defn- delete-children-helper [store record-name path-prefix]
@@ -860,45 +861,6 @@
 (defn- find-reference [env record-name refs]
   (second (env/instance-ref-path env record-name nil refs)))
 
-(defn- name-from-path-component [component n]
-  (let [k (li/fully-qualified-path-type component n)
-        parts (li/split-path k)]
-    (if (= 2 (count parts))
-      k
-      (li/make-path component k))))
-
-(defn- parent-info-from-path [component-name path]
-  (let [parts (filter seq (s/split path #"/"))
-        at-root (= (count parts) 3)
-        ps (if at-root parts (take-last 3 parts))
-        nc (partial name-from-path-component component-name)]
-    [(nc (first ps)) (second ps) (nc (last ps)) at-root]))
-
-(defn- lookup-ref-inst
-  ([cast-val env recname id-attr id-val]
-   (or (first (env/lookup-instances-by-attributes
-               env (li/split-path recname) {id-attr id-val} true))
-       (store/query-by-unique-keys
-        (env/get-store env) recname [id-attr]
-        {id-attr (if cast-val (cn/parse-attribute-value recname id-attr id-val) id-val)})))
-  ([env recname id-attr id-val] (lookup-ref-inst true env recname id-attr id-val)))
-
-(defn- find-parent-by-path [env record-name path]
-  (let [[c n] (li/split-path record-name)
-        [parent pid-val relname at-root] (parent-info-from-path c path)
-        pid-attr (cn/identity-attribute-name parent)]
-    (when-not (cn/parent-via? relname record-name parent)
-      (u/throw-ex (str "not in relationship - " [relname record-name parent])))
-    (when-let [result (if at-root
-                        (lookup-ref-inst env parent pid-attr pid-val)
-                        (let [fq (partial li/as-fully-qualified-path c)
-                              path-val (fq (str li/path-query-prefix (subs path 0 (s/last-index-of path "/"))))]
-                          (or (first (env/lookup-instances-by-attributes
-                                      env (li/split-path parent) {li/path-attr path-val}))
-                              (store/query-by-unique-keys
-                               (env/get-store env) parent [li/path-attr] {li/path-attr path-val}))))]
-      (if (map? result) result (when (seq result) (first result))))))
-
 (defn- attach-full-path [record-name inst path]
   (let [v (str ((cn/path-identity-attribute-name record-name) inst))
         [c n] (li/split-path record-name)]
@@ -915,22 +877,20 @@
 
 (defn- maybe-fix-contains-path [env rel-ctx record-name inst]
   (if-let [path (li/path-attr inst)]
-    (if-not (li/path-query? path)
-      (if-let [parent (find-parent-by-path env record-name path)]
+    (if-not (li/proper-path? path)
+      (if-let [parent (paths/find-parent-by-path env record-name path)]
         (and (swap! rel-ctx assoc (li/make-path record-name) {:parent parent})
              (attach-full-path record-name (concat-owners env inst parent) path))
         (u/throw-ex (str "failed to find parent by path - " path)))
       (and (swap! rel-ctx assoc (li/make-path record-name)
-                  {:parent #(find-parent-by-path
-                             env record-name
-                             (li/as-partial-path path))})
+                  {:parent #(paths/find-parent-by-path env record-name (li/as-partial-path path))})
            inst))
     inst))
 
 (defn- ensure-between-refs [env rel-ctx record-name inst]
   (let [[node1 node2] (mapv li/split-path (cn/relationship-nodes record-name))
         [a1 a2] (cn/between-attribute-names record-name node1 node2)
-        lookup (partial lookup-ref-inst false)
+        lookup (partial paths/lookup-ref-inst false)
         l1 #(when % (lookup env node1 % (a1 inst)))
         l2 #(when % (lookup env node2 % (a2 inst)))
         [r1 r2] [(or (l1 (cn/identity-attribute-name node1))
