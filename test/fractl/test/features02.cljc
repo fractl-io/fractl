@@ -371,7 +371,7 @@
      {:Cblr/D {:Z :Cblr/MakeD.Z} :-> [[:Cblr/S :C]]}))
   (let [c? (partial cn/instance-of? :Cblr/C)
         p? (partial cn/instance-of? :Cblr/P)
-        pid #(second (filter seq (s/split (li/path-query-string (li/path-attr %)) #"/")))
+        pid #(second (filter seq (s/split (li/path-string (li/path-attr %)) #"/")))
         make-c #(tu/first-result
                  {:Cblr/MakeC {:X %1 :Y %2}})
         c1 (make-c 1 10)

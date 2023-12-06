@@ -431,7 +431,7 @@
 (defn- find-path-prefix [record-name inst]
   (or (li/path-attr inst)
       (let [[c n] (li/split-path record-name)]
-        (str li/path-query-prefix "/" (name c) "$" (name n) "/"
+        (str li/path-prefix "/" (name c) "$" (name n) "/"
              ((cn/identity-attribute-name record-name) inst)))))
 
 (defn- delete-children-helper [store record-name path-prefix]
@@ -876,7 +876,7 @@
 
 (defn- maybe-fix-contains-path [env rel-ctx record-name inst]
   (if-let [path (li/path-attr inst)]
-    (if-not (li/path-query? path)
+    (if-not (li/proper-path? path)
       (if-let [parent (i/find-parent-by-path env record-name path)]
         (and (swap! rel-ctx assoc (li/make-path record-name) {:parent parent})
              (attach-full-path record-name (concat-owners env inst parent) path))

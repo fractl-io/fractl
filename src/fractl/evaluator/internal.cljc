@@ -67,7 +67,7 @@
     (when-let [result (if at-root
                         (lookup-ref-inst env parent pid-attr pid-val)
                         (let [fq (partial li/as-fully-qualified-path c)
-                              path-val (fq (str li/path-query-prefix (subs path 0 (s/last-index-of path "/"))))]
+                              path-val (fq (str li/path-prefix (subs path 0 (s/last-index-of path "/"))))]
                           (or (first (env/lookup-instances-by-attributes
                                       env (li/split-path parent) {li/path-attr path-val}))
                               (store/query-by-unique-keys
