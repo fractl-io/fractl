@@ -8,8 +8,11 @@
             [clojure.walk :as w]
             [fractl.auth.core :as auth]
             [fractl.component :as cn]
+            [buddy.core.keys :as buddykeys]
+            [buddy.sign.jwt :as buddyjwt]
             [fractl.compiler :as compiler]
             [fractl.lang :as ln]
+            [clj-time.core :as time]
             [fractl.lang.internal :as li]
             [fractl.util :as u]
             [fractl.util.http :as uh]
@@ -23,7 +26,8 @@
             [org.httpkit.server :as h]
             [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
-            [fractl.util.errors :refer [get-internal-error-message]])
+            [fractl.util.errors :refer [get-internal-error-message]]
+            [fractl.evaluator :as ev])
   (:use [compojure.core :only [routes POST PUT DELETE GET]]
         [compojure.route :only [not-found]]))
 
@@ -112,7 +116,7 @@
 
 (defn- evaluate [evaluator event-instance]
   (let [result (remove-all-read-only-attributes
-                 (evaluator event-instance))]
+                (evaluator event-instance))]
     result))
 
 (defn- extract-status [r]
@@ -927,6 +931,54 @@
          (str "id_token required"))))
     (internal-error "cannot process sign-up - authentication not enabled")))
 
+(defn- make-magic-link [username op payload description expiry]
+  (let [hskey (u/getenv "FRACTL_HS256_KEY")]
+    (buddyjwt/sign {:username username :operation op
+                    :payload payload :description description
+                    :exp (time/plus (time/now) (time/seconds expiry))}
+                   hskey)))
+
+(defn- decode-magic-link-token [token]
+  (let [hskey (u/getenv "FRACTL_HS256_KEY")]
+    (buddyjwt/unsign token hskey)))
+
+(defn- process-register-magiclink [[auth-config _] auth request]
+  (if auth-config
+    (let [[obj _ _] (request-object request)
+          sub (auth/session-sub
+               (assoc auth :request request))]
+      (if-let [username (:email sub)]
+        (if-let [op (:operation obj)]
+          (if-let [payload (:payload obj)]
+            (if-let [expiry (:expiry obj)]
+              (let [code (make-magic-link username op payload (:description obj) expiry)]
+                (ok {:status "ok" :code code}))
+              (bad-request (str "expiry date required"))) 
+            (bad-request (str "payload required")))
+          (bad-request (str "operation required")))
+        (bad-request (str "authentication not valid"))))
+    (internal-error "cannot process register-magiclink - authentication not enabled")))
+
+(defn- process-get-magiclink [_ request]
+  (let [query (when-let [s (:query-string request)]
+                (w/keywordize-keys (codec/form-decode s)))]
+    (if-let [token (:code query)]
+      (let [decoded-token (decode-magic-link-token token)
+            operation (:operation decoded-token)
+            payload (:payload decoded-token)]
+        (if (and operation payload)
+          (let [result (ev/eval-all-dataflows (cn/make-instance {operation payload}))]
+            (ok (dissoc (first result) :env)))
+          (bad-request (str "bad token"))))
+      (bad-request (str "token not specified")))))
+
+(defn- process-preview-magiclink [_ request]
+  (let [[obj _ _] (request-object request)]
+    (if-let [token (:code obj)]
+      (let [decoded-token (decode-magic-link-token token)]
+        (ok {:status "ok" :result decoded-token}))
+      (bad-request (str "token not specified")))))
+
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
@@ -951,6 +1003,9 @@
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (POST uh/ai-prefix [] (:ai handlers))
            (POST uh/auth-callback-prefix [] (:auth-callback handlers))
+           (POST uh/register-magiclink-prefix [] (:register-magiclink handlers))
+           (GET uh/get-magiclink-prefix [] (:get-magiclink handlers))
+           (POST uh/preview-magiclink-prefix [] (:preview-magiclink handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
@@ -993,31 +1048,34 @@
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
          (println (str "The HTTP server is listening on port " (:port config)))
          (h/run-server
-           (make-routes
-             config auth
-             {:login (partial process-login evaluator auth-info)
-              :logout (partial process-logout auth)
-              :signup (partial
-                        process-signup evaluator
-                        (:call-post-sign-up-event config) auth-info)
-              :confirm-sign-up (partial process-confirm-sign-up auth)
-              :get-user (partial process-get-user auth)
-              :update-user (partial process-update-user auth)
-              :forgot-password (partial process-forgot-password auth)
-              :confirm-forgot-password (partial process-confirm-forgot-password auth)
-              :change-password (partial process-change-password auth)
-              :refresh-token (partial process-refresh-token auth)
-              :resend-confirmation-code (partial process-resend-confirmation-code auth)
-              :put-request (partial process-put-request evaluator auth-info)
-              :post-request (partial process-post-request evaluator auth-info)
-              :get-request (partial process-get-request evaluator auth-info)
-              :delete-request (partial process-delete-request evaluator auth-info)
-              :query (partial process-query evaluator auth-info)
-              :eval (partial process-dynamic-eval evaluator auth-info nil)
-              :ai (partial process-gpt-chat auth-info)
-              :auth-callback (partial process-auth-callback evaluator config auth-info)
-              :meta (partial process-meta-request auth-info)})
-           config))
+          (make-routes
+           config auth
+           {:login (partial process-login evaluator auth-info)
+            :logout (partial process-logout auth)
+            :signup (partial
+                     process-signup evaluator
+                     (:call-post-sign-up-event config) auth-info)
+            :confirm-sign-up (partial process-confirm-sign-up auth)
+            :get-user (partial process-get-user auth)
+            :update-user (partial process-update-user auth)
+            :forgot-password (partial process-forgot-password auth)
+            :confirm-forgot-password (partial process-confirm-forgot-password auth)
+            :change-password (partial process-change-password auth)
+            :refresh-token (partial process-refresh-token auth)
+            :resend-confirmation-code (partial process-resend-confirmation-code auth)
+            :put-request (partial process-put-request evaluator auth-info)
+            :post-request (partial process-post-request evaluator auth-info)
+            :get-request (partial process-get-request evaluator auth-info)
+            :delete-request (partial process-delete-request evaluator auth-info)
+            :query (partial process-query evaluator auth-info)
+            :eval (partial process-dynamic-eval evaluator auth-info nil)
+            :ai (partial process-gpt-chat auth-info)
+            :auth-callback (partial process-auth-callback evaluator config auth-info)
+            :register-magiclink (partial process-register-magiclink auth-info auth)
+            :get-magiclink (partial process-get-magiclink auth-info)
+            :preview-magiclink (partial process-preview-magiclink auth-info)
+            :meta (partial process-meta-request auth-info)})
+          config))
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
   ([evaluator]
    (run-server evaluator {})))
