@@ -1214,16 +1214,20 @@
      (first (filter cn/contains-relationship? ks))
      (seq (filter cn/between-relationship? ks))]))
 
-(defn- instance-from-between-obj [obj]
-  (let [vs (vals obj)]
-    (when (and (= 1 (count vs)) (map? (first vs)))
-      obj)))
+(defn- instances-from-between-obj [obj]
+  (cond
+    (li/instance-pattern? obj) [obj]
+    (and (vector? obj) (every? li/instance-pattern? obj)) obj
+    :else nil))
+
+(defn- between-with-aliased-instance [rel-name rel-alias from to inst]
+  (let [inst-alias (newname), inst (assoc inst :as inst-alias)]
+    [inst {rel-name {from (li/id-ref rel-alias) to (li/id-ref inst-alias)}}]))
 
 (defn- process-between-rel-node [tree parent-name alias n]
   (let [obj (n tree), [from to] (cn/between-attribute-names n parent-name)]
-    (if-let [inst (instance-from-between-obj obj)]
-      (let [inst-alias (newname), inst (assoc inst :as inst-alias)]
-        [inst {n {from (li/id-ref alias) to (li/id-ref inst-alias)}}])
+    (if-let [insts (instances-from-between-obj obj)]
+      (vec (apply concat (mapv (partial between-with-aliased-instance n alias from to) insts)))
       [{n (assoc obj from (li/id-ref alias))}])))
 
 (defn parse-relationship-tree
