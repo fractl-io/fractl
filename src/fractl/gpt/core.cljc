@@ -18,11 +18,7 @@
    {:headers {"Content-Type" "application/json"
               "Authorization" (str "Bearer " (:api-key gpt))}}
    {:model (:gpt-model gpt)
-    :messages request
-    :temperature 0.9
-    :top_p 1
-    :frequency_penalty 0.0
-    :presence_penalty 0.6}
+    :messages (into [{:role "system" :content "You generate a Fractl app with rbac features."}] request)}
    :json (fn [{body :body :as response}]
            (let [decoded-body (json/decode body)
                  choices (:choices decoded-body)]
@@ -39,21 +35,21 @@
   {:gpt-model gpt-model-name
    :api-key api-key})
 
-(defn- interactive-generate-helper [gpt seed response-handler request]
+(defn- interactive-generate-helper [gpt response-handler request]
   (post gpt (fn [r]
               (when-let [[choice next-request] (response-handler
-                                                 (choices (:chat-response r)))]
+                                                (choices (:chat-response r)))]
                 (interactive-generate-helper
-                  gpt seed response-handler (add-to-conversation
-                                              (add-to-conversation request "assistant" choice)
-                                              "user" next-request))))
+                 gpt response-handler (add-to-conversation
+                                            (add-to-conversation request "assistant" choice)
+                                            "user" next-request))))
         request))
 
 (defn interactive-generate
-  ([gpt-model-name api-key seed response-handler request]
-   (interactive-generate-helper (init-gpt gpt-model-name api-key) seed response-handler request))
-  ([seed response-handler request]
-   (interactive-generate default-model (u/getenv "OPENAI_API_KEY") seed response-handler request)))
+  ([gpt-model-name api-key response-handler request]
+   (interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
+  ([response-handler request]
+   (interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 
 (declare maybe-intern-component)
 
