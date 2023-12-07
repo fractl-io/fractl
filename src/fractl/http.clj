@@ -967,9 +967,8 @@
             operation (:operation decoded-token)
             payload (:payload decoded-token)]
         (if (and operation payload)
-          (let [result (ev/safe-eval {operation payload})]
-            (println result decoded-token {operation payload})
-            (ok result))
+          (let [result (ev/eval-all-dataflows (cn/make-instance {operation payload}))]
+            (ok (dissoc (first result) :env)))
           (bad-request (str "bad token"))))
       (bad-request (str "token not specified")))))
 
