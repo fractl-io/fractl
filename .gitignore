@@ -34,4 +34,3 @@ app
 cljout/
 db/
 .lein-env
-*.pem
