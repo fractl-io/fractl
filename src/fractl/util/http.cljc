@@ -105,19 +105,28 @@
    (let [[token options] (fetch-auth-token options)]
      #?(:clj
         (let [headers (apply
-                        assoc
-                        (:headers options)
-                        "Content-Type" (content-type format)
-                        (when token
-                          ["Authorization" (str "Bearer " token)]))
+                       assoc
+                       (:headers options)
+                       "Content-Type" (content-type format)
+                       (when token
+                         ["Authorization" (str "Bearer " token)]))
               options (assoc options :headers headers)]
           (response-handler @(http/get url options)))
         :cljs (go
                 (let [k (if (= format :transit+json) :transit-params :json-params)]
                   (response-handler
-                    (<! (http/get url (make-http-request k nil token)))))))))
+                   (<! (http/get url (make-http-request k nil token)))))))))
   ([url options]
    (do-get url options :json identity)))
+
+(defn do-request
+  ([method callback url headers body]
+   (let [req (merge {:url url :method method :headers headers} (when body {:body body}))]
+     #?(:clj @(http/request req)
+        :cljs (go (callback (<! (http/request req)))))))
+  ([method url headers body] (do-request method identity url headers body))
+  ([method url headers] (do-request method url headers nil))
+  ([method url] (do-request method url nil)))
 
 (defn POST
   ([url options request-obj format]

@@ -441,8 +441,9 @@
 
 (defn- filter-attributes
   "Filter attribute names based on the attribute schema check using the predicate."
-  [predic entity-schema]
-  (map first (filter-attribute-schemas predic entity-schema)))
+  [predic ent]
+  (let [entity-schema (if (keyword? ent) (fetch-entity-schema ent) ent)]
+    (map first (filter-attribute-schemas predic entity-schema))))
 
 (defn- make-attributes-filter [predic]
   (partial filter-attributes predic))
@@ -454,6 +455,8 @@
 (def hashed-attributes (make-attributes-filter :secure-hash))
 
 (def write-only-attributes (make-attributes-filter :write-only))
+
+(def read-only-attributes (make-attributes-filter :read-only))
 
 (def ref-attribute-schemas
   "Return the names and schemas of all attributes which has a :ref."
@@ -1627,7 +1630,10 @@
   (if-let [rels (contained-children entity-name)]
     (and (every? :cascade-on-delete (map #(fetch-meta (relinfo-name %)) rels))
          (every?
-          #(let [c (check-cascade-delete-children %)] (or (= c :delete) (= c :ignore)))
+          #(let [c (if (= entity-name %)
+                     :delete
+                     (check-cascade-delete-children %))]
+             (or (= c :delete) (= c :ignore)))
           (map relinfo-to rels))
          :delete)
     :ignore))
@@ -1892,7 +1898,7 @@
        (let [pp (li/path-attr parent-inst)
              rn (li/encoded-uri-path-part rel)]
          (if pp
-           (str (li/path-query-string pp) "/" rn)
+           (str (li/path-string pp) "/" rn)
            (str "/" (li/encoded-uri-path-part pt)
                 "/" ((identity-attribute-name pt) parent-inst)
                 "/" rn)))

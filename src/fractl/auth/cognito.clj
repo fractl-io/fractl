@@ -84,49 +84,68 @@
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
-(defmethod auth/upsert-user tag [{:keys [instance] :as req}]
-  (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)]
-    (case (last (li/split-path (cn/instance-type instance)))
+(defmethod auth/upsert-user tag [{:keys [instance operation] :as req}]
+  (let [{:keys [client-id user-pool-id whitelist?] :as aws-config} (uh/get-aws-config)
+        req-type (last (li/split-path (cn/instance-type instance)))]
+    (cond
       ;; Create User
-      :User
+      (= :create operation)
       (let [user instance]
         (when (:Password user)
           (sign-up-user req aws-config client-id user-pool-id whitelist? user))
         nil)
 
       ;; Update user
-      :UpdateUser
-      (let [user-details (:UserDetails instance)
-            cognito-username (get-in req [:user :username])
-            inner-user-details (:User user-details)
-            {:keys [FirstName LastName]} inner-user-details
-            github-details (get-in user-details [:OtherDetails :GitHub])
-            {:keys [Username Org Token]} github-details
-            refresh-token (get-in user-details [:OtherDetails :RefreshToken])
-            open-ai-key (get-in user-details [:OtherDetails :OpenAI])
-            {:keys [Key]} open-ai-key]
-        (try
-          (admin-update-user-attributes
-           (auth/make-client (merge req aws-config))
-           :username cognito-username
-           :user-pool-id user-pool-id
-           :user-attributes [["given_name" FirstName]
-                             ["family_name" LastName]
-                             ["custom:github_org" Org]
-                             ["custom:github_token" Token]
-                             ["custom:github_username" Username]
-                             ["custom:openai_key" Key]])
-          ;; Refresh credentials
-          (initiate-auth
-           (auth/make-client (merge req aws-config))
-           :auth-flow "REFRESH_TOKEN_AUTH"
-           :auth-parameters {"USERNAME" cognito-username
-                             "REFRESH_TOKEN" refresh-token}
-           :client-id client-id)
-          (catch Exception e
-            (throw (Exception. (get-error-msg-and-log e))))))
+      (or (= :update operation) (= req-type :UpdateUser))
+      (if (= req-type :User)
+        (let [{:keys [FirstName LastName Email AppId]} instance]
+          (try
+            (let
+              [queried-user (list-users :user-pool-id user-pool-id
+                                        :filter (str "email = \"" (str Email) "\""))
+               user (first (:users queried-user))
+               {:keys [username]} user]
+              (admin-update-user-attributes
+                (auth/make-client (merge req aws-config))
+                :username username
+                :user-pool-id user-pool-id
+                :user-attributes [["given_name" FirstName]
+                                  ["family_name" LastName]
+                                  ["custom:app_id" AppId]]))
+            (catch Exception e
+              (throw (Exception. (get-error-msg-and-log e))))))
+        (let [user-details (:UserDetails instance)
+              cognito-username (get-in req [:user :username])
+              inner-user-details (:User user-details)
+              {:keys [FirstName LastName AppId]} inner-user-details
+              github-details (get-in user-details [:OtherDetails :GitHub])
+              {:keys [Username Org Token]} github-details
+              refresh-token (get-in user-details [:OtherDetails :RefreshToken])
+              open-ai-key (get-in user-details [:OtherDetails :OpenAI])
+              {:keys [Key]} open-ai-key]
+          (try
+            (admin-update-user-attributes
+              (auth/make-client (merge req aws-config))
+              :username cognito-username
+              :user-pool-id user-pool-id
+              :user-attributes [["given_name" FirstName]
+                                ["family_name" LastName]
+                                ["custom:github_org" Org]
+                                ["custom:github_token" Token]
+                                ["custom:github_username" Username]
+                                ["custom:openai_key" Key]
+                                ["custom:app_id" AppId]])
+            ;; Refresh credentials
+            (initiate-auth
+              (auth/make-client (merge req aws-config))
+              :auth-flow "REFRESH_TOKEN_AUTH"
+              :auth-parameters {"USERNAME"      cognito-username
+                                "REFRESH_TOKEN" refresh-token}
+              :client-id client-id)
+            (catch Exception e
+              (throw (Exception. (get-error-msg-and-log e)))))))
 
-      nil)))
+      :else nil)))
 
 (defmethod auth/refresh-token tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)
@@ -148,6 +167,7 @@
      :github-token (:custom:github_token user-details)
      :github-org (:custom:github_org user-details)
      :openai-key (:custom:openai_key user-details)
+     :app-id (:custom:app_id user-details)
      :email (or (:email user-details) (:username user-details))
      :sub (:sub user-details)
      :username (or (:cognito:username user-details) (:sub user-details))}))
@@ -187,12 +207,13 @@
                                (assoc attributes-map (keyword (:name attribute-map)) (:value attribute-map)))
                              {}
                              user-attributes)
-        {:keys [custom:github_username custom:github_token custom:github_org custom:openai_key
+        {:keys [custom:github_username custom:github_token custom:github_org custom:openai_key custom:app_id
                 given_name family_name email]} user-attributes-map]
     {:GitHub {:Username custom:github_username
               :Token custom:github_token
               :Org custom:github_org}
      :OpenAI {:Key custom:openai_key}
+     :AppId custom:app_id
      :FirstName given_name
      :LastName family_name
      :Email email}))

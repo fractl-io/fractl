@@ -459,7 +459,7 @@
   (cond
     (complex-query-pattern? pat)
     (let [[k v] [(first (keys pat)) (first (vals pat))]]
-      (if (li/path-query? v)
+      (if (li/proper-path? v)
         (compile-map ctx {(li/normalize-name k) {li/path-query-tag v}})
         (compile-query-command ctx (query-map->command pat))))
 
