@@ -11,8 +11,6 @@
                       [fractl.util :refer [passthru]]))
   #?(:clj
      (:import [java.io File]
-              [java.util Base64]
-              [java.security KeyPairGenerator]
               [org.apache.commons.io FilenameUtils]
               [org.apache.commons.exec CommandLine Executor DefaultExecutor])))
 
@@ -364,16 +362,7 @@
              (binding [*out* out]
                (print {:service {:port 8080}})))))
        (binding [*data-readers* {'$ read-env-var}]
-         (read-string (slurp config-file))))
-     (defn encode-base64 [to-encode]
-       (.encodeToString (Base64/getEncoder) to-encode))
-
-     (defn generate-key-pair []
-       (let [key-gen (KeyPairGenerator/getInstance "RSA")]
-         (.initialize key-gen 512)
-         (let [pair (.generateKeyPair key-gen)]
-           {:public (.getPublic pair)
-            :private (.getPrivate pair)})))))
+         (read-string (slurp config-file))))))
 
 (defn strs
   ([j ss] (string/join j ss))

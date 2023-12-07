@@ -932,15 +932,15 @@
     (internal-error "cannot process sign-up - authentication not enabled")))
 
 (defn- make-magic-link [username op payload description expiry]
-  (let [privkey (buddykeys/private-key "privatekey.pem")]
+  (let [hskey (u/getenv "FRACTL_HS256_KEY")]
     (buddyjwt/sign {:username username :operation op
                     :payload payload :description description
-                    :exp (time/plus (time/now) (time/seconds expiry))} 
-                   privkey {:alg :rs256})))
+                    :exp (time/plus (time/now) (time/seconds expiry))}
+                   hskey)))
 
 (defn- decode-magic-link-token [token]
-  (let [pubkey (buddykeys/public-key "publickey.pem")]
-    (buddyjwt/unsign token pubkey {:alg :rs256})))
+  (let [hskey (u/getenv "FRACTL_HS256_KEY")]
+    (buddyjwt/unsign token hskey)))
 
 (defn- process-register-magiclink [[auth-config _] auth request]
   (if auth-config
