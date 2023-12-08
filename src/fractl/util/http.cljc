@@ -50,6 +50,9 @@
 (def dynamic-eval-prefix "/_dynamic/")
 (def auth-callback-prefix "/_authcallback")
 (def ai-prefix "/_ai/")
+(def register-magiclink-prefix "/_register-magiclink")
+(def get-magiclink-prefix "/_get-magiclink")
+(def preview-magiclink-prefix "/_preview-magiclink")
 
 (defn- remote-resolver-error [response]
   (u/throw-ex (str "remote resolver error - " (or (:error response) response))))
