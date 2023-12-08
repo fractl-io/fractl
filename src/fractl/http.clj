@@ -243,13 +243,12 @@
 
 (defn- process-gpt-chat [[_ maybe-unauth] request]
   (or (maybe-unauth request)
-      (let [[obj _ err-response] (request-object request)]
+      (let [[map-obj _ err-response] (request-object request)]
         (or err-response
             (let [resp (atom nil)
-                  map-obj (first obj)
                   generation (gpt/non-interactive-generate
+                              (get map-obj :model)
                               (get map-obj :key)
-                              (get map-obj :seed-type)
                               (fn [choice history]
                                 (if choice
                                   (reset!
@@ -257,7 +256,7 @@
                                    {:choice choice
                                     :chat-history history})
                                   (u/throw-ex "AI failed to service your request, please try again")))
-                              (list (dissoc map-obj :key :seed-type)))]
+                              (list (dissoc map-obj :model :key)))]
               (reset! resp generation)
               (ok @resp))))))
 
