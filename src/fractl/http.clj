@@ -243,10 +243,9 @@
 
 (defn- process-gpt-chat [[_ maybe-unauth] request]
   (or (maybe-unauth request)
-      (let [[obj _ err-response] (request-object request)]
+      (let [[map-obj _ err-response] (request-object request)]
         (or err-response
             (let [resp (atom nil)
-                  map-obj (first obj)
                   generation (gpt/non-interactive-generate
                               (get map-obj :model)
                               (get map-obj :key)
