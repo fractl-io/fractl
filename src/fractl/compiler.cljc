@@ -1217,15 +1217,14 @@
 (defn- instances-from-between-obj [obj]
   (cond
     (li/instance-pattern? obj) [obj]
-    (and (vector? obj) (every? li/instance-pattern? obj)) obj
-    :else nil))
+    (and (vector? obj) (every? li/instance-pattern? obj)) obj))
 
 (defn- between-with-aliased-instance [rel-name rel-alias from to inst]
-  (let [inst-alias (newname), inst (assoc inst :as inst-alias)]
+  (let [inst-alias (newname) inst (assoc inst :as inst-alias)]
     [inst {rel-name {from (li/id-ref rel-alias) to (li/id-ref inst-alias)}}]))
 
 (defn- process-between-rel-node [tree parent-name alias n]
-  (let [obj (n tree), [from to] (cn/between-attribute-names n parent-name)]
+  (let [obj (n tree) [from to] (cn/between-attribute-names n parent-name)]
     (if-let [insts (instances-from-between-obj obj)]
       (vec (apply concat (mapv (partial between-with-aliased-instance n alias from to) insts)))
       [{n (assoc obj from (li/id-ref alias))}])))
