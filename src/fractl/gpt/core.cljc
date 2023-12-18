@@ -193,13 +193,12 @@
       (apply f (rest exp))))
   exps)
 
-(defn get-model [response]
+(defn get-model [chat-response]
   (try
-    (when-let [c (chat-response response)]
-      (let [exps (rest (u/parse-string (str "(do " c ")")))]
-        (when (= 'component (ffirst exps))
-          {:model (make-model (first exps))
-           :component (verify-component-defs exps)})))
+    (let [exps (rest (u/parse-string (str "(do " chat-response ")")))]
+      (when (= 'component (ffirst exps))
+        {:model     (make-model (first exps))
+         :component (verify-component-defs exps)}))
     (catch #?(:clj Exception :cljs :default) ex
       (log/warn ex))))
 
