@@ -3,7 +3,7 @@
 
 (defn encode [obj]
   #?(:clj (json/generate-string obj)
-     :cljs (.stringify js/JSON (clj->js obj))))
+     :cljs (clj->js obj)))
 
 (def ^:private space-pat #"\s")
 
