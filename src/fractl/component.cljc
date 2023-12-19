@@ -177,8 +177,13 @@
 
 (def meta-of mt/meta-of-key)
 
-(defn- intern-meta [typtag components rec-name meta]
+(defn- intern-meta [components rec-name meta]
   (assoc-in components (conj-meta-key rec-name) meta))
+
+(defn- remove-meta! [rec-name]
+  (u/call-and-set
+   components
+   #(su/dissoc-in @components (conj-meta-key rec-name))))
 
 (defn- component-intern
   "Add or replace a component entry.
@@ -197,7 +202,7 @@
      (u/call-and-set
       components
       #(assoc-in (if meta
-                   (intern-meta typtag @components k meta)
+                   (intern-meta @components k meta)
                    @components)
                  intern-k typdef))
      typname))
@@ -1554,8 +1559,15 @@
   (let [rels (find-relationships recname)]
     (component-intern recname (conj rels relationship-name) :entity-relationship)))
 
+(defn- remove-entity-rel [relationship-name recname]
+  (let [rels (find-relationships recname)]
+    (component-intern recname (remove #(= % relationship-name) rels) :entity-relationship)))
+
 (defn register-relationship [recs-in-relationship relationship-name]
   (mapv (partial intern-entity-rel relationship-name) recs-in-relationship))
+
+(defn deregister-relationship [recs-in-relationship relationship-name]
+  (mapv (partial remove-entity-rel relationship-name) recs-in-relationship))
 
 (defn relationship-attribute-names [rec-a rec-b]
   (let [[_ a] (li/split-path rec-a)
@@ -1752,7 +1764,14 @@
 
     :else (u/throw-ex (str "failed to remove event, invalid event name - " event-name))))
 
-(def remove-relationship remove-entity)
+(defn remove-relationship [relname]
+  (let [isbet (between-relationship? relname)]
+    (when (or (contains-relationship? relname) isbet)
+      (deregister-relationship (relationship-nodes relname) relname)
+      (raw/remove-relationship relname)
+      (when isbet (remove-entity relname))
+      (remove-meta! (li/split-path relname))
+      relname)))
 
 (defn- dissoc-system-attributes [attrs]
   (into
