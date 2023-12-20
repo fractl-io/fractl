@@ -771,3 +771,26 @@
         (is (cn/same-instance? b3 (tu/first-result {:I1183/LookupR1 {:A (:Id a2)}})))
         (let [rs (srt (tu/result {:I1183/LookupR2 {:C (:Id c1)}}))]
           (is (and (= 2 (count rs)) (every? identity (mapv #(cn/same-instance? %1 %2) rs (srt bb2))))))))))
+
+(deftest remove-relationship-bug
+  (defcomponent :Rrb
+    (entity :Rrb/E {:Id :Identity :X :Int})
+    (entity :Rrb/F {:Id :Identity :Y :Int})
+    (entity :Rrb/G {:Id :Identity :Z :Int})
+    (relationship :Rrb/C {:meta {:contains [:Rrb/E :Rrb/F]}})
+    (relationship :Rrb/B {:meta {:between [:Rrb/E :Rrb/G]}}))
+  (is (cn/between-relationship? :Rrb/B))
+  (is (cn/contains-relationship? :Rrb/C))
+  (let [edn (rest (raw/as-edn :Rrb))]
+    (is (and (some #(= :Rrb/C (second %)) edn)
+             (some #(= :Rrb/B (second %)) edn))))
+  (is (cn/remove-relationship :Rrb/B))
+  (is (not (cn/between-relationship? :Rrb/B)))
+  (let [edn (rest (raw/as-edn :Rrb))]
+    (is (and (some #(= :Rrb/C (second %)) edn)
+             (every? #(not= :Rrb/B (second %)) edn))))
+  (is (cn/remove-relationship :Rrb/C))
+  (is (not (cn/contains-relationship? :Rrb/C)))
+  (let [edn (rest (raw/as-edn :Rrb))]
+    (is (and (every? #(not= :Rrb/C (second %)) edn)
+             (every? #(not= :Rrb/B (second %)) edn)))))
