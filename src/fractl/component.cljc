@@ -1765,11 +1765,12 @@
     :else (u/throw-ex (str "failed to remove event, invalid event name - " event-name))))
 
 (defn remove-relationship [relname]
-  (let [isbet (between-relationship? relname)]
-    (when (or (contains-relationship? relname) isbet)
+  (let [isbet (between-relationship? relname)
+        iscont (when-not isbet (contains-relationship? relname))]
+    (when (or iscont isbet)
       (deregister-relationship (relationship-nodes relname) relname)
       (raw/remove-relationship relname)
-      (when isbet (remove-entity relname))
+      ((if isbet remove-entity remove-record) relname)
       (remove-meta! (li/split-path relname))
       relname)))
 
