@@ -17,10 +17,10 @@
    "https://api.openai.com/v1/chat/completions"
    {:headers {"Content-Type" "application/json"
               "Authorization" (str "Bearer " (:api-key gpt))}}
-   {:model (:gpt-model gpt)
-    :messages request-message
-    (when-not (nil? request-tunings)
-      request-tunings)}
+   (into {:model    (:gpt-model gpt)
+          :messages request-message}
+         (when-not (nil? request-tunings)
+           request-tunings))
    :json (fn [{body :body :as response}]
            (let [decoded-body (json/decode body)
                  choices (:choices decoded-body)]
