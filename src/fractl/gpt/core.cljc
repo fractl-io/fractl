@@ -12,13 +12,15 @@
   ([history role s]
    (concat history [{:role role :content s}])))
 
-(defn post [gpt result-handler request]
+(defn post [gpt result-handler request-message request-tunings]
   (http/do-post
    "https://api.openai.com/v1/chat/completions"
    {:headers {"Content-Type" "application/json"
               "Authorization" (str "Bearer " (:api-key gpt))}}
    {:model (:gpt-model gpt)
-    :messages (into [{:role "system" :content "You generate a Fractl app with rbac features."}] request)}
+    :messages request-message
+    (when-not (nil? request-tunings)
+      request-tunings)}
    :json (fn [{body :body :as response}]
            (let [decoded-body (json/decode body)
                  choices (:choices decoded-body)]
@@ -43,7 +45,8 @@
                  gpt response-handler (add-to-conversation
                                             (add-to-conversation request "assistant" choice)
                                             "user" next-request))))
-        request))
+        request
+        nil))
 
 (defn interactive-generate
   ([gpt-model-name api-key response-handler request]
@@ -65,26 +68,32 @@
     (catch #?(:clj Exception :cljs :default) ex
       [nil #?(:clj (.getMessage ex) :cljs ex)])))
 
-(defn non-interactive-generate-helper [gpt response-handler request]
-  (let [orig-request request]
-    (post gpt (fn [r]
-                (let [choices (choices (:chat-response r))
-                      [choice err-msg] (find-choice choices)]
-                  (if-not err-msg
-                    (response-handler choice (add-to-conversation orig-request "assistant" choice))
-                    (do (log/warn (str "attempt to intern component failed: " err-msg))
-                        (response-handler nil nil)))))
-          request)))
+(defn non-interactive-generate-helper
+  ([gpt response-handler request-message request-tunings]
+   (let [orig-request request-message]
+     (post gpt (fn [r]
+                 (let [choices (choices (:chat-response r))
+                       [choice err-msg] (find-choice choices)]
+                   (if-not err-msg
+                     (response-handler choice (add-to-conversation orig-request "assistant" choice))
+                     (do (log/warn (str "attempt to intern component failed: " err-msg))
+                         (response-handler nil nil)))))
+           request-message
+           request-tunings)))
+  ([gpt response-handler request-message]
+   (non-interactive-generate-helper gpt response-handler request-message nil)))
 
 (defn non-interactive-generate
-  ([gpt-model-name api-key response-handler request]
-   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
-  ([api-key response-handler request]
+  ([gpt-model-name api-key response-handler request-message request-tunings]
+   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request-message request-tunings))
+  ([gpt-model-name api-key response-handler request-message]
+   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request-message))
+  ([api-key response-handler request-message]
    (if (nil? api-key)
-     (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)
-     (non-interactive-generate default-model api-key response-handler request)))
-  ([response-handler request]
-   (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
+     (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request-message)
+     (non-interactive-generate default-model api-key response-handler request-message)))
+  ([response-handler request-message]
+   (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request-message)))
 
 (defn- prnf [s]
   #?(:clj
