@@ -31,7 +31,7 @@
 (defn- fetch-declared-names [spec-or-script]
   (loop [exps #?(:clj (if-not (string? spec-or-script)
                         spec-or-script
-                        (read-string (str "(do" (slurp spec-or-script) ")")))
+                        (read-string (str "(do" (slurp spec-or-script) "\n)")))
                  :cljs spec-or-script)
          result {}]
     (if-let [exp (first exps)]
