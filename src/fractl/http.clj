@@ -256,7 +256,8 @@
                                    {:choice choice
                                     :chat-history history})
                                   (u/throw-ex "AI failed to service your request, please try again")))
-                              (list (dissoc map-obj :model :key)))]
+                              (get map-obj :message)
+                              (get map-obj :result-tuning))]
               (reset! resp generation)
               (ok @resp))))))
 
