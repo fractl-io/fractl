@@ -22,6 +22,11 @@
   :Email {:type :Email, li/guid true},
   :UserData {:type :Map, :optional true},
   :AppId {:type :UUID, :default u/uuid-string, :indexed true}})
+(dataflow
+ [:after :delete :Fractl.Kernel.Identity/User]
+ [:delete :Fractl.Kernel.Rbac/InstancePrivilegeAssignment {:Assignee :Instance.Email}]
+ [:delete :Fractl.Kernel.Rbac/OwnershipAssignment {:Assignee :Instance.Email}]
+ [:delete :Fractl.Kernel.Rbac/RoleAssignment {:Assignee :Instance.Email}])
 (event
  :Fractl.Kernel.Identity/SignUp
  {:User :Fractl.Kernel.Identity/User})
