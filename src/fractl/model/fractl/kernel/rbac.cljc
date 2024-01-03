@@ -103,7 +103,7 @@
                         :optional true},
                        :Resource :Path,
                        :ResourceId :Any,
-                       :Assignee :String}})
+                       :Assignee {:type :String, :indexed true}}})
 (entity
  #:Fractl.Kernel.Rbac{:OwnershipAssignment
                       {:Name
@@ -112,7 +112,7 @@
                         li/guid true},
                        :Resource :Path,
                        :ResourceId :Any,
-                       :Assignee :String}})
+                       :Assignee {:type :String, :indexed true}}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "9c5faaeb-c083-4863-9f05-5ce3283d1490")
+ "d314b780-a5ec-4f24-98e7-d16478fdebf7")

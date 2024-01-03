@@ -5,6 +5,7 @@
                      confirm-forgot-password confirm-sign-up forgot-password initiate-auth
                      create-group delete-group admin-add-user-to-group admin-remove-user-from-group resend-confirmation-code]]
             [clojure.string :as str]
+            [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
@@ -297,18 +298,22 @@
 
 (defmethod auth/add-user-to-role tag [{:keys [client role-name username] :as req}]
   (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)
-        client (or client (auth/make-client (merge req cfg)))]
+        client (or client (auth/make-client (merge req cfg)))
+        user-id (find-cognito-username-by-email client user-pool-id username)]
     (admin-add-user-to-group
      client
      :group-name role-name
-     :username (find-cognito-username-by-email client user-pool-id username)
+     :username user-id
      :user-pool-id user-pool-id)))
 
 (defmethod auth/remove-user-from-role tag [{:keys [client role-name username] :as req}]
   (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)
         client (or client (auth/make-client (merge req cfg)))]
-    (admin-remove-user-from-group
-     client
-     :group-name role-name
-     :username (find-cognito-username-by-email client user-pool-id username)
-     :user-pool-id user-pool-id)))
+    (if-let [user-id (find-cognito-username-by-email client user-pool-id username)]
+      (admin-remove-user-from-group
+       client
+       :group-name role-name
+       :username user-id
+       :user-pool-id user-pool-id)
+      (do (log/warn (str "remove-user-from-role: cognito user not found - " username))
+          username))))

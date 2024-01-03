@@ -9,4 +9,4 @@
   :fractl-version "current",
   :components
   [:Fractl.Kernel.Lang :Fractl.Kernel.Identity :Fractl.Kernel.Rbac]})
-(def fractl___MODEL_ID__ "53394138-b2da-4268-ad45-90e8263ed3cc")
+(def fractl___MODEL_ID__ "81244b53-9638-49e9-95c5-fc8b87bc0811")

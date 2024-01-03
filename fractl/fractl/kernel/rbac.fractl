@@ -80,7 +80,7 @@
              :optional true}
    :Resource :Path
    :ResourceId :Any
-   :Assignee :String}})
+   :Assignee {:type :String :indexed true}}})
 
 (entity
  {:OwnershipAssignment
@@ -89,4 +89,4 @@
           li/guid true}
    :Resource :Path
    :ResourceId :Any
-   :Assignee :String}})
+   :Assignee {:type :String :indexed true}}})
