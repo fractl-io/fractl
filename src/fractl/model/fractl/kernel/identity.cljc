@@ -64,6 +64,20 @@
 (event
  :Fractl.Kernel.Identity/ResendConfirmationCode
  {:Username :Email})
+(dataflow
+ [:after :delete :Fractl.Kernel.Identity/User]
+ [:delete
+  :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
+  {:Assignee :Instance.Email}]
+ [:delete :Fractl.Kernel.Rbac/InstancePrivilegeAssignment :purge]
+ [:delete
+  :Fractl.Kernel.Rbac/OwnershipAssignment
+  {:Assignee :Instance.Email}]
+ [:delete :Fractl.Kernel.Rbac/OwnershipAssignment :purge]
+ [:delete
+  :Fractl.Kernel.Rbac/RoleAssignment
+  {:Assignee :Instance.Email}]
+ [:delete :Fractl.Kernel.Rbac/RoleAssignment :purge])
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "963ed7e4-c021-49f8-a8f9-e5f394934063")
+ "0b302446-f031-4b0d-b09b-5bb37406e1f0")
