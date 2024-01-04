@@ -3,6 +3,7 @@
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.seq :as su]
+            [fractl.util.logger :as log]
             [fractl.store :as store]
             [fractl.env :as env]
             [fractl.meta :as mt]
@@ -77,15 +78,16 @@
           res (store/lookup-by-id
                store entity-name
                (cn/identity-attribute-name entity-name) id)]
-      (when-not (seq res)
-        (u/throw-ex (str "resource not found - " [entity-name id])))
-      (when-not is-system-event
-        (when-not (cn/user-is-owner? user res)
-          (u/throw-ex (str "only owner can assign " (name tag) " privileges - " [entity-name id]))))
-      (let [assignee (:Assignee inst)]
-        (if (store/update-instances store entity-name (update-inst res assignee))
-          inst
-          (u/throw-ex (str "failed to assign " (name tag) " privileges - " [entity-name id]))))))
+      (if-not (seq res)
+        (do (log/warn (str "resource not found - " [entity-name id]))
+            inst)
+        (do (when-not is-system-event
+              (when-not (cn/user-is-owner? user res)
+                (u/throw-ex (str "only owner can assign " (name tag) " privileges - " [entity-name id]))))
+            (let [assignee (:Assignee inst)]
+              (if (store/update-instances store entity-name (update-inst res assignee))
+                inst
+                (u/throw-ex (str "failed to assign " (name tag) " privileges - " [entity-name id]))))))))
 
 (def ^:private instance-priv-assignment?
   (partial cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment))
