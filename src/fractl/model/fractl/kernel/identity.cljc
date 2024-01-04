@@ -69,12 +69,15 @@
  [:delete
   :Fractl.Kernel.Rbac/InstancePrivilegeAssignment
   {:Assignee :Instance.Email}]
+ [:delete :Fractl.Kernel.Rbac/InstancePrivilegeAssignment :purge]
  [:delete
   :Fractl.Kernel.Rbac/OwnershipAssignment
   {:Assignee :Instance.Email}]
+ [:delete :Fractl.Kernel.Rbac/OwnershipAssignment :purge]
  [:delete
   :Fractl.Kernel.Rbac/RoleAssignment
-  {:Assignee :Instance.Email}])
+  {:Assignee :Instance.Email}]
+ [:delete :Fractl.Kernel.Rbac/RoleAssignment :purge])
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "bcfdea5f-4b1a-4f3c-a87f-cb41a777cfe5")
+ "0b302446-f031-4b0d-b09b-5bb37406e1f0")
