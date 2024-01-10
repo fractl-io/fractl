@@ -262,6 +262,11 @@
 
    :cljs
    (do
+     (defn get-corrupted-entity-form [entity-name t]
+       `(~'entity
+         ~entity-name
+         {:meta {:corrupt true, :type ~t}}))
+
      (def call-intern {'component ln/component
                        'record ln/record
                        'entity ln/entity
@@ -280,8 +285,12 @@
              fqn (partial nu/fully-qualified-names (fetch-declared-names component-spec))]
          (doseq [exp component-spec]
            (when-let [intern (get call-intern (first exp))]
-             (when-not (apply intern (rest (fqn exp)))
-               (u/throw-ex (str "failed to intern " exp)))))
+             (try
+               (when-not (apply intern (rest (fqn exp)))
+                 (u/throw-ex (str "failed to intern " exp)))
+               (catch js/Object _
+                 (let [corrupted-exp (get-corrupted-entity-form (second exp) (first exp))]
+                   (apply intern (rest (fqn corrupted-exp))))))))
          (raw/intern-component cname component-spec)))
 
      (defn load-components-from-model [model callback]
