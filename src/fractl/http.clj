@@ -579,6 +579,13 @@
     :else
     true))
 
+(defn- get-signup-error-message [ex]
+  (let [message (.getMessage ex)]
+    (cond
+      (re-find #"duplicate key value" message)
+      "A user with the provided email already exists."
+      :else message)))
+
 (defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "sign-up"))
@@ -613,8 +620,9 @@
                     (bad-request (or post-signup-result result) data-fmt))))
               (catch Exception ex
                 (log/warn ex)
-                (unauthorized (str "Sign up failed. " (.getMessage ex))
-                              data-fmt))))))
+                (let [message (get-signup-error-message ex)]
+                  (unauthorized (str "Sign up failed. " message)
+                                data-fmt)))))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request))))))
