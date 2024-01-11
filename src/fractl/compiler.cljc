@@ -1003,14 +1003,15 @@
                                 relattrs relmeta
                                 [pn pat-alias]
                                 [nodetype alias])}]})
-        (let [alias (or (:as nodepat) (newname))
-              nodepat (assoc nodepat :as alias)]
+        (let [pp (maybe-preproc-parent-pat nodepat)
+              alias (find-preproc-alias pp)]
           (when-not (cn/has-between-relationship? pn relname)
             (u/throw-ex (str relname " is not in the between-relationship " relname)))
-          {:patterns [nodepat {relname (add-between-refs
-                                        relattrs relmeta
-                                        [pn pat-alias]
-                                        [(li/normalize-name (li/record-name nodepat)) alias])}]})))))
+          {:patterns (vec (concat (flatten-preproc-patterns pp)
+                                  [{relname (add-between-refs
+                                             relattrs relmeta
+                                             [pn pat-alias]
+                                             [(li/normalize-name (li/record-name nodepat)) alias])}]))})))))
 
 (defn- contains-relationship-pattern [pat]
   (cond
