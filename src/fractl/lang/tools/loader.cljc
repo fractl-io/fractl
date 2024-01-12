@@ -290,8 +290,7 @@
                  (u/throw-ex (str "failed to intern " exp)))
                (catch js/Object _
                  (let [corrupted-exp (get-corrupted-entity-form (second exp) (first exp))]
-                   (apply intern (rest (fqn corrupted-exp))))))))
-         (raw/intern-component cname component-spec)))
+                   (apply intern (rest (fqn corrupted-exp))))))))))
 
      (defn load-components-from-model [model callback]
        (doseq [c (:components model)]
