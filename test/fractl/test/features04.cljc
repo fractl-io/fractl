@@ -319,3 +319,33 @@
         (is (cn/instance-of? :Cewr/R2 r2))
         (is (= (li/id-attr b) (:B r2)))
         (is (= 1 (:C r2)))))))
+
+(deftest allow-underscores
+  (defcomponent :Aus
+    (entity
+     :Aus/E__a
+     {:X__1 :Int :X__2 :Int})
+    (dataflow
+     :Aus/UpdateE__a
+     {:Aus/E__a
+      {:X__1 :Aus/UpdateE__a.X1
+       :X__2 :Aus/UpdateE__a.X2
+       :__Id__? :Aus/UpdateE__a.Id}}))
+  (let [[e1 e2] (mapv #(tu/first-result
+                        {:Aus/Create_E__a
+                         {:Instance
+                          {:Aus/E__a {:X__1 %1 :X__2 %2}}}})
+                      [1 2] [3 4])
+        e? (partial cn/instance-of? :Aus/E__a)]
+    (is (e? e1)) (is (e? e2))
+    (is (cn/same-instance? e1 (tu/first-result
+                               {:Aus/Lookup_E__a
+                                {:__Id__ (:__Id__ e1)}})))
+    (let [e11 (tu/first-result {:Aus/UpdateE__a {:X1 100 :X2 200 :Id (:__Id__ e1)}})
+          e12 (tu/first-result {:Aus/Lookup_E__a {:__Id__ (:__Id__ e1)}})]
+      (is (cn/same-instance? e11 e12))
+      (is (= 100 (:X__1 e12)))
+      (is (= 200 (:X__2 e12))))
+    (is (cn/same-instance? e2 (tu/first-result
+                               {:Aus/Lookup_E__a
+                                {:__Id__ (:__Id__ e2)}})))))

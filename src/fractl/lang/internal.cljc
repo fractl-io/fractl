@@ -116,7 +116,7 @@
     (= (str s1) (s/capitalize s1))))
 
 (defn- no-special-chars? [s]
-  (not-any? #{\_ \- \$ \@ \# \! \& \^ \% \~} s))
+  (not-any? #{\- \$ \@ \# \! \& \^ \% \~} s))
 
 (defn- no-invalid-chars? [s]
   (not-any? #{\+ \* \< \> \=} s))
