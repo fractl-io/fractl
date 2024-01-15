@@ -294,15 +294,15 @@
 (deftest issue-761-relationship-syntax
   (let [pat1 {:Acme/Employee
               {:Name "xyz"}
-              :-> [{:Acme/WorksFor {:Location "south"}} :Dept]}
+              :-> [[{:Acme/WorksFor {:Location "south"}} :Dept]]}
         obj1 (ls/introspect pat1)
         pat2 {:Acme/Employee? {}
-              :-> [:Acme/WorksFor? :Dept]}
+              :-> [[:Acme/WorksFor? :Dept]]}
         obj2 (ls/introspect pat2)
         pat3 {:Acme/Employee? {}
-              :-> [:Acme/WorksFor?
-                   {:Acme/Dept {:No :DeptNo}
-                    :-> [:Acme/PartOf? {:Acme/Company {:Name :CompanyName}}]}]}
+              :-> [[:Acme/WorksFor?
+                    {:Acme/Dept {:No :DeptNo}
+                     :-> [[:Acme/PartOf? {:Acme/Company {:Name :CompanyName}}]]}]]}
         obj3 (ls/introspect pat3)
         pat4 {:C/E {:X 100}
               :-> [[{:C/R1 {}} :A]
@@ -319,18 +319,18 @@
     (let [u1 (ls/upsert {ls/record-tag :Person
                          ls/attrs-tag {:Age :Int :Name :String}
                          ls/alias-tag :P1
-                         ls/rel-tag [{:Spouse {}} :P2]})
+                         ls/rel-tag [[{:Spouse {}} :P2]]})
           qu1 (ls/query {ls/record-tag :Person
                          ls/attrs-tag {:Name? "abc" :Age 100}
                          ls/alias-tag :P1
-                         ls/rel-tag [:Spouse? {:Person {:Name? "xyz"}}]})
+                         ls/rel-tag [[:Spouse? {:Person {:Name? "xyz"}}]]})
           d1 (ls/delete {ls/record-tag :Spouse
-                         ls/rel-tag [{:Person {:Name "xyz"}} {:Person{:Name "abc"}}]})]
+                         ls/rel-tag [[{:Person {:Name "xyz"}} {:Person{:Name "abc"}}]]})]
       (is (ls/upsert? u1))
       (is (ls/query? qu1))
-      (is (= (ls/raw-relationship (ls/rel-tag u1)) [{:Spouse {}} :P2]))
-      (is (= (ls/raw-relationship (ls/rel-tag qu1)) [:Spouse? {:Person {:Name? "xyz"}}]))
-      (is (= (ls/raw-relationship (ls/rel-tag d1)) [{:Person {:Name "xyz"}} {:Person{:Name "abc"}}])))))
+      (is (= (ls/raw-relationship (ls/rel-tag u1)) [[{:Spouse {}} :P2]]))
+      (is (= (ls/raw-relationship (ls/rel-tag qu1)) [[:Spouse? {:Person {:Name? "xyz"}}]]))
+      (is (= (ls/raw-relationship (ls/rel-tag d1)) [[{:Person {:Name "xyz"}} {:Person{:Name "abc"}}]])))))
 
 (deftest issue-765-delete-in-match
   (defcomponent :I765
@@ -361,10 +361,7 @@
     (is (cn/same-instance? e2 r2))))
 
 (deftest issue-775-syntax-api-delete-bug
-  (let [pat [:delete :CommentOnPost
-             [:->
-              {:Post {:Id :DeleteComment.PostId}}
-              {:Comment {:Id :DeleteComment.CommentId}}]]]
+  (let [pat [:delete :CommentOnPost {:Id "1234"}]]
     (is (= pat (ls/raw (ls/introspect pat))))))
 
 (deftest syntax-api-alias-bug
