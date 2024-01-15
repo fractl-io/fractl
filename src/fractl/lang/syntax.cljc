@@ -150,8 +150,13 @@
 
 (declare introspect introspect-attrs)
 
-(defn- introspect-relationship [r]
+(defn- introspect-rels [r]
   (mapv introspect r))
+
+(defn- introspect-relationship [r]
+  (if (vector? (first r))
+    (mapv introspect-rels r)
+    (u/throw-ex (str "invalid relationship object, expected vector - " (first r)))))
 
 (defn upsert
   ([spec]
@@ -252,11 +257,7 @@
 
 (defn- maybe-assoc-relationship [obj pattern]
   (if-let [r (rel-tag pattern)]
-    (assoc
-     obj rel-tag
-     (if (vector? (first r))
-       (mapv introspect-relationship r)
-       (introspect-relationship r)))
+    (assoc obj rel-tag (introspect-relationship r))
     obj))
 
 (defn- introspect-query-upsert [pattern]

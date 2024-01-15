@@ -554,3 +554,11 @@
     (is (= p1 (ls/raw obj1)))
     (is (ls/query-upsert? obj2))
     (is (= p2 (ls/raw obj2)))))
+
+(deftest relationship-syntax
+  (let [p {:Family.Core/Member
+           {:Name "JJ" :Email "jj@email.com"}
+           :-> [[:Family.Core/FamilyMember :F]
+                [{:Family.Core/ProfileUser {}} :U]]}
+        pi (ls/introspect p)]
+    (is (= p (ls/raw pi)))))
