@@ -197,7 +197,7 @@
                               :cljs ex))]
         (log/warn msg)
         (log/exception ex)
-        (i/error (extract-client-message-from-ex ex))))))
+        (i/error (or (extract-client-message-from-ex ex) (.getMessage ex)))))))
 
 (defn- run-dataflows
   "Compile and evaluate all dataflows attached to an event. The query-compiler

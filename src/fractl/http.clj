@@ -44,15 +44,18 @@
    :body ((uh/encoder data-fmt) json-obj)})
 
 (defn- unauthorized
-  ([msg data-fmt]
-   (response {:reason msg} 401 data-fmt))
+  ([msg data-fmt errtype]
+   (response {:reason msg :type errtype} 401 data-fmt))
+  ([data-fmt errtype]
+   (unauthorized "not authorized to access this resource" data-fmt errtype))
   ([data-fmt]
-   (unauthorized "not authorized to access this resource" data-fmt)))
+   (unauthorized "not authorized to access this resource" data-fmt "UNAUTHORIZED")))
 
 (defn- bad-request
-  ([s data-fmt]
-   (response {:reason s} 400 data-fmt))
-  ([s] (bad-request s :json)))
+  ([s data-fmt errtype]
+   (response {:reason s :type errtype} 400 data-fmt))
+  ([s errtype] (bad-request s :json errtype))
+  ([s] (bad-request s :json "BAD_REQUEST")))
 
 (defn- internal-error
   "Logs errors and constructs client-side response based on the type of input."
@@ -129,12 +132,12 @@
   ([on-no-perm r data-fmt]
    (let [status (extract-status r)]
      (case status
-       nil (bad-request "invalid request" data-fmt)
+       nil (bad-request "invalid request" data-fmt "NILL_REQUEST")
        :ok (ok (cleanup-results r) data-fmt)
        :error (if (gs/error-no-perm?)
                 (if on-no-perm
                   (ok on-no-perm data-fmt)
-                  (unauthorized r data-fmt))
+                  (unauthorized r data-fmt "UNAUTHORIZED"))
                 (internal-error r data-fmt))
        (ok r data-fmt))))
   ([r data-fmt]
@@ -201,14 +204,14 @@
    (or (maybe-unauth request)
        (if-let [data-fmt (find-data-format request)]
          (if (cn/an-internal-event? event-name)
-           (bad-request (str "cannot invoke internal event - " event-name) data-fmt)
+           (bad-request (str "cannot invoke internal event - " event-name) data-fmt "INTERNAL_EVENT_ERROR")
            (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
              (if err
-               (bad-request err data-fmt)
+               (bad-request err data-fmt "EVENT_INVOKE_ERROR")
                (maybe-ok #(evaluate evaluator obj) data-fmt))))
          (bad-request
           (str "unsupported content-type in request - "
-               (request-content-type request))))))
+               (request-content-type request)) "UNSUPPORTED_ERROR"))))
   ([evaluator auth-info request]
    (process-dynamic-eval evaluator auth-info nil request)))
 
@@ -219,7 +222,7 @@
         n [component event]]
     (if (cn/find-event-schema n)
       (process-dynamic-eval evaluator auth n request)
-      (bad-request (str "Event not found - " n)))))
+      (bad-request (str "Event not found - " n) "NOT_FOUND"))))
 
 (defn- paths-info [component]
   (mapv (fn [n] {(subs (str n) 1)
@@ -234,7 +237,7 @@
   (if-let [data-fmt (find-data-format request)]
     [(when-let [body (:body request)]
        ((uh/decoder data-fmt) (String. (.bytes body)))) data-fmt nil]
-    [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)))]))
+    [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT")]))
 
 (defn- process-meta-request [[_ maybe-unauth] request]
   (or (maybe-unauth request)
@@ -293,7 +296,7 @@
                                     #(evaluate evaluator evt) data-fmt)
                                    (finally
                                      (when post-fn (post-fn)))))))))
-        (bad-request (str "invalid request uri - " (:* (:params request)))))))
+        (bad-request (str "invalid request uri - " (:* (:params request))) "INVALID_REQUEST_URI"))))
 
 (defn- temp-event-name [component]
   (li/make-path component (li/unq-name)))
@@ -325,7 +328,7 @@
    process-generic-request
    (fn [{entity-name :entity id :id component :component path :path} obj]
      (if-not (or id path)
-       [nil (bad-request (str "id or path required to update " entity-name))]
+       [nil (bad-request (str "id or path required to update " entity-name) "UPDATE_FAILED")]
        [{(cn/crud-event-name component entity-name :Update)
          (merge
           (when-not path
@@ -397,7 +400,7 @@
 (defn- get-tree [evaluator [auth-config maybe-unauth] request
                  component entity-name id path data-fmt]
   (if-not id
-    (bad-request (str "identity of " entity-name " required for tree lookup"))
+    (bad-request (str "identity of " entity-name " required for tree lookup") "IDENTITY_REQUIRED")
     (or (maybe-unauth request)
         (let [evt-context (partial assoc-event-context request auth-config)
               evt (evt-context (make-lookup-event component entity-name id path))
@@ -477,7 +480,7 @@
    process-generic-request
    (fn [{entity-name :entity id :id component :component path :path} _]
      (if-not (or id path)
-       [nil (bad-request (str "id or path required to delete " entity-name))]
+       [nil (bad-request (str "id or path required to delete " entity-name) "ID_PATH_REQUIRED")]
        [{(cn/crud-event-name component entity-name :Delete)
          (merge
           (when-not path
@@ -533,7 +536,7 @@
               (internal-error (get-internal-error-message :query-failure (.getMessage ex))))
             (finally (cn/remove-event evn))))
         (bad-request (str "unsupported content-type in request - "
-                          (request-content-type request))))))
+                          (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (def ^:private post-signup-event-name :Fractl.Kernel.Identity/PostSignUp)
 
@@ -579,6 +582,15 @@
     :else
     true))
 
+(defn- get-signup-error-message [ex]
+  (let [message (.getMessage ex)]
+    (cond
+      (re-find #"duplicate key value" message)
+      ["A user with the provided email already exists." "ALREADY_EXISTS"]
+      (re-find #"Password did not conform" message)
+      ["Password does not conform to the specification. Please choose a stronger password." "INVALID_PASSWORD"]
+      :else [message "SIGNUP_ERROR"])))
+
 (defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "sign-up"))
@@ -587,14 +599,14 @@
         (cond
           err
           (do (log/warn (str "bad sign-up request - " err))
-              (bad-request err data-fmt))
+              (bad-request err data-fmt "BAD_REQUEST_FORMAT"))
 
           (not (cn/instance-of? :Fractl.Kernel.Identity/SignUp evobj))
-          (bad-request (str "not a signup event - " evobj) data-fmt)
+          (bad-request (str "not a signup event - " evobj) data-fmt "BAD_REQUEST_FORMAT")
 
           :else
           (if-not (whitelisted? (:Email (:User evobj)) auth-config)
-            (unauthorized "Your email is not whitelisted yet." data-fmt)
+            (unauthorized "Your email is not whitelisted yet." data-fmt "NOT_WHITELISTED")
             (try
               (let [result (evaluate evaluator evobj)
                     r (eval-ok-result result)]
@@ -610,14 +622,15 @@
                   (if user
                     (ok (or (when (seq post-signup-result) post-signup-result)
                             {:status :ok :result (dissoc user :Password)}) data-fmt)
-                    (bad-request (or post-signup-result result) data-fmt))))
+                    (bad-request (or post-signup-result result) data-fmt "POST_SIGNUP_FAILED"))))
               (catch Exception ex
                 (log/warn ex)
-                (unauthorized (str "Sign up failed. " (.getMessage ex))
-                              data-fmt))))))
+                (let [[message errtype] (get-signup-error-message ex)]
+                  (unauthorized (str "Sign up failed. " message)
+                                data-fmt errtype)))))))
       (bad-request
        (str "unsupported content-type in request - "
-            (request-content-type request))))))
+            (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn decode-jwt-token-from-response [response]
   (-> response
@@ -638,7 +651,7 @@
       (let [[evobj err] (event-from-request request nil data-fmt nil)]
         (if err
           (do (log/warn (str "bad login request - " err))
-              (bad-request err data-fmt))
+              (bad-request err data-fmt "BAD_REQUEST_FORMAT"))
           (try
             (let [result (auth/user-login
                           (assoc
@@ -651,10 +664,10 @@
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Login failed. "
-                                 (.getMessage ex)) data-fmt)))))
+                                 (.getMessage ex) "LOGIN_ERROR") data-fmt )))))
       (bad-request
        (str "unsupported content-type in request - "
-            (request-content-type request))))))
+            (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-resend-confirmation-code [auth-config request]
   (if-not auth-config
@@ -664,10 +677,10 @@
         (cond
           err
           (do (log/warn (str "bad resend-confirmation-code request - " err))
-              (bad-request err data-fmt))
+              (bad-request err data-fmt "BAD_REQUEST_FORMAT"))
 
           (not (cn/instance-of? :Fractl.Kernel.Identity/ResendConfirmationCode evobj))
-          (bad-request (str "not a resend-confirmation event - " evobj) data-fmt)
+          (bad-request (str "not a resend-confirmation event - " evobj) data-fmt "BAD_REQUEST_FORMAT")
 
           :else
           (try
@@ -679,10 +692,10 @@
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Resending confirmation code failed. "
-                                 (.getMessage ex)) data-fmt)))))
+                                 (.getMessage ex)) data-fmt "RESEND_FAILED")))))
       (bad-request
        (str "unsupported content-type in request - "
-            (request-content-type request))))))
+            (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-confirm-sign-up [auth-config request]
   (if-not auth-config
@@ -692,10 +705,10 @@
         (cond
           err
           (do (log/warn (str "bad confirm-sign-up request - " err))
-              (bad-request err data-fmt))
+              (bad-request err data-fmt "BAD_REQUEST_FORMAT"))
 
           (not (cn/instance-of? :Fractl.Kernel.Identity/ConfirmSignUp evobj))
-          (bad-request (str "not a confirm-sign-up event - " evobj) data-fmt)
+          (bad-request (str "not a confirm-sign-up event - " evobj) data-fmt "BAD_REQUEST_FORMAT")
 
           :else
           (try
@@ -710,7 +723,7 @@
                                  (.getMessage ex)) data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - "
-            (request-content-type request))))))
+            (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-forgot-password [auth-config request]
   (if-not auth-config
@@ -720,10 +733,10 @@
         (cond
           err
           (do (log/warn (str "bad forgot-request request - " err))
-              (bad-request err data-fmt))
+              (bad-request err data-fmt "BAD_REQUEST_FORMAT"))
 
           (not (cn/instance-of? :Fractl.Kernel.Identity/ForgotPassword evobj))
-          (bad-request (str "not a forgot-password event - " evobj) data-fmt)
+          (bad-request (str "not a forgot-password event - " evobj) data-fmt "BAD_REQUEST_FORMAT")
 
           :else
           (try
@@ -735,10 +748,10 @@
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Forgot Password failed. "
-                                 (.getMessage ex)) data-fmt)))))
+                                 (.getMessage ex)) data-fmt "FORGET_PASSWORD_FAILED")))))
       (bad-request
        (str "unsupported content-type in request - "
-            (request-content-type request))))))
+            (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-confirm-forgot-password [auth-config request]
   (if-not auth-config
@@ -748,10 +761,10 @@
         (cond
           err
           (do (log/warn (str "bad confirm-forgot-request request - " err))
-              (bad-request err data-fmt))
+              (bad-request err data-fmt "BAD_REQUEST_FORMAT"))
 
           (not (cn/instance-of? :Fractl.Kernel.Identity/ConfirmForgotPassword evobj))
-          (bad-request (str "not a confirm-forgot-password event - " evobj) data-fmt)
+          (bad-request (str "not a confirm-forgot-password event - " evobj) data-fmt "BAD_REQUEST_FORMAT")
 
           :else
           (try
@@ -763,10 +776,10 @@
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Confirm Forgot Password failed. "
-                                 (.getMessage ex)) data-fmt)))))
+                                 (.getMessage ex)) data-fmt "CONFIRM_FAILED")))))
       (bad-request
        (str "unsupported content-type in request - "
-            (request-content-type request))))))
+            (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-change-password [auth-config request]
   (if-not auth-config
@@ -776,10 +789,10 @@
         (cond
           err
           (do (log/warn (str "bad change-password-request request - " err))
-              (bad-request err data-fmt))
+              (bad-request err data-fmt "BAD_REQUEST_FORMAT"))
 
           (not (cn/instance-of? :Fractl.Kernel.Identity/ChangePassword evobj))
-          (bad-request (str "not a change-password event - " evobj) data-fmt)
+          (bad-request (str "not a change-password event - " evobj) data-fmt "BAD_REQUEST_FORMAT")
 
           :else
           (try
@@ -791,10 +804,10 @@
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Change Password failed. "
-                                 (.getMessage ex)) data-fmt)))))
+                                 (.getMessage ex)) data-fmt "CHANGE_PASSWORD_FAILED")))))
       (bad-request
        (str "unsupported content-type in request - "
-            (request-content-type request))))))
+            (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-logout [auth-config request]
   (if-let [data-fmt (find-data-format request)]
@@ -810,11 +823,11 @@
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
-          (unauthorized (str "logout failed. " (ex-message ex)) data-fmt)))
+          (unauthorized (str "logout failed. " (ex-message ex)) data-fmt "LOGOUT_FAILED")))
       (ok {:result :bye} data-fmt))
     (bad-request
      (str "unsupported content-type in request - "
-          (request-content-type request)))))
+          (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE")))
 
 (defn- process-get-user [auth-config request]
   (if-let [data-fmt (find-data-format request)]
@@ -827,11 +840,11 @@
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
-          (unauthorized (str "get-user failed" (ex-message ex)) data-fmt)))
-      (unauthorized "get-user failed" data-fmt))
+          (unauthorized (str "get-user failed" (ex-message ex)) data-fmt "GET_USER_FAILED")))
+      (unauthorized "get-user failed" data-fmt "GET_USER_FAILED"))
     (bad-request
      (str "unsupported content-type in request - "
-          (request-content-type request)))))
+          (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE")))
 
 (defn- process-update-user [auth-config request]
   (if-not auth-config
@@ -841,10 +854,10 @@
         (cond
           err
           (do (log/warn (str "bad update-user request - " err))
-              (bad-request err data-fmt))
+              (bad-request err data-fmt "BAD_REQUEST_FORMAT"))
 
           (not (cn/instance-of? :Fractl.Kernel.Identity/UpdateUser evobj))
-          (bad-request (str "not a UpdateUser event - " evobj) data-fmt)
+          (bad-request (str "not a UpdateUser event - " evobj) data-fmt "BAD_REQUEST_FORMAT")
 
           :else
           (try
@@ -858,9 +871,9 @@
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized (str "update-user failed. " (ex-message ex)) data-fmt)))))
+              (unauthorized (str "update-user failed. " (ex-message ex)) data-fmt "UPDATE_USER_FAILED")))))
       (bad-request
-       (str "unsupported content-type in request - " (request-content-type request))))))
+       (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-refresh-token [auth-config request]
   (if-not auth-config
@@ -870,10 +883,10 @@
         (cond
           err
           (do (log/warn (str "bad refresh-token request - " err))
-              (bad-request err data-fmt))
+              (bad-request err data-fmt "BAD_REQUEST_FORMAT"))
 
           (not (cn/instance-of? :Fractl.Kernel.Identity/RefreshToken evobj))
-          (bad-request (str "not a RefreshToken event - " evobj) data-fmt)
+          (bad-request (str "not a RefreshToken event - " evobj) data-fmt "BAD_REQUEST_FORMAT")
 
           :else
           (try
@@ -887,9 +900,9 @@
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized (str "refresh-token failed. " (ex-message ex)) data-fmt)))))
+              (unauthorized (str "refresh-token failed. " (ex-message ex)) data-fmt "REFRESH_TOKEN_FAILED")))))
       (bad-request
-       (str "unsupported content-type in request - " (request-content-type request))))))
+       (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- verify-token [token]
   (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
@@ -926,9 +939,9 @@
                       (create-event post-signup-event-name)
                       :SignupResult sign-up-result :SignupRequest {:User user})))))
               (ok {:status "ok" :new-sign-up new-sign-up :result user})))
-          (bad-request (str "id_token not valid")))
+          (bad-request (str "id_token not valid") "INVALID_TOKEN"))
         (bad-request
-         (str "id_token required"))))
+         (str "id_token required") "ID_TOKEN_RQUIRED")))
     (internal-error "cannot process sign-up - authentication not enabled")))
 
 (defn- make-magic-link [username op payload description expiry]
@@ -953,10 +966,10 @@
             (if-let [expiry (:expiry obj)]
               (let [code (make-magic-link username op payload (:description obj) expiry)]
                 (ok {:status "ok" :code code}))
-              (bad-request (str "expiry date required"))) 
-            (bad-request (str "payload required")))
-          (bad-request (str "operation required")))
-        (bad-request (str "authentication not valid"))))
+              (bad-request (str "expiry date required") "EXPIRY_DATE_REQUIRED")) 
+            (bad-request (str "payload required") "PAYLOAD_REQUIRED"))
+          (bad-request (str "operation required") "OPERATION_REQUIRED"))
+        (bad-request (str "authentication not valid") "INVALID_AUTHENTICATION")))
     (internal-error "cannot process register-magiclink - authentication not enabled")))
 
 (defn- process-get-magiclink [_ request]
@@ -969,15 +982,15 @@
         (if (and operation payload)
           (let [result (ev/eval-all-dataflows (cn/make-instance {operation payload}))]
             (ok (dissoc (first result) :env)))
-          (bad-request (str "bad token"))))
-      (bad-request (str "token not specified")))))
+          (bad-request (str "bad token") "BAD_TOKEN")))
+      (bad-request (str "token not specified") "ID_TOKEN_REQUIRED"))))
 
 (defn- process-preview-magiclink [_ request]
   (let [[obj _ _] (request-object request)]
     (if-let [token (:code obj)]
       (let [decoded-token (decode-magic-link-token token)]
         (ok {:status "ok" :result decoded-token}))
-      (bad-request (str "token not specified")))))
+      (bad-request (str "token not specified") "ID_TOKEN_REQUIRED"))))
 
 (defn- process-root-get [_]
   (ok {:result :fractl}))
@@ -1031,7 +1044,7 @@
         (unauthorized (find-data-format request)))
       (catch Exception ex
         (log/warn ex)
-        (bad-request "invalid auth data" (find-data-format request))))))
+        (bad-request "invalid auth data" (find-data-format request) "INVALID_AUTH_DATA")))))
 
 (defn- auth-service-supported? [auth]
   (some #{(:service auth)} [:keycloak :cognito :dataflow]))
