@@ -194,7 +194,7 @@
                          event-instance)
                      " - " #?(:clj (str (.getMessage ex)
                                         (ex-data ex))
-                              :cljs ex))]
+                              :cljs (extract-client-message-from-ex ex)))]
         (log/warn msg)
         (log/exception ex)
         (i/error (.getMessage ex))))))
