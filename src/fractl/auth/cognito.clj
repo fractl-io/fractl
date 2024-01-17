@@ -1,17 +1,16 @@
 (ns fractl.auth.cognito
   (:require [amazonica.aws.cognitoidp
-             :refer [sign-up admin-delete-user admin-get-user list-users
+             :refer [admin-add-user-to-group admin-delete-user admin-get-user admin-remove-user-from-group
                      admin-update-user-attributes admin-user-global-sign-out change-password
-                     confirm-forgot-password confirm-sign-up forgot-password initiate-auth
-                     create-group delete-group admin-add-user-to-group admin-remove-user-from-group resend-confirmation-code]]
+                     confirm-forgot-password confirm-sign-up create-group delete-group
+                     forgot-password initiate-auth list-users resend-confirmation-code sign-up]]
             [clojure.string :as str]
-            [fractl.util :as u]
-            [fractl.util.logger :as log]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
-            [fractl.util.http :as uh]))
+            [fractl.util.http :as uh]
+            [fractl.util.logger :as log]))
 
 (def ^:private tag :cognito)
 
@@ -122,8 +121,8 @@
               github-details (get-in user-details [:OtherDetails :GitHub])
               {:keys [Username Org Token]} github-details
               refresh-token (get-in user-details [:OtherDetails :RefreshToken])
-              open-ai-key (get-in user-details [:OtherDetails :OpenAI])
-              {:keys [Key]} open-ai-key]
+              open-ai-info (get-in user-details [:OtherDetails :OpenAI])
+              {:keys [Key FinetunedModel]} open-ai-info]
           (try
             (admin-update-user-attributes
               (auth/make-client (merge req aws-config))
@@ -135,6 +134,7 @@
                                 ["custom:github_token" Token]
                                 ["custom:github_username" Username]
                                 ["custom:openai_key" Key]
+                                ["custom:openai_tuned_model" FinetunedModel]
                                 ["custom:app_id" AppId]])
             ;; Refresh credentials
             (initiate-auth
@@ -168,6 +168,7 @@
      :github-token (:custom:github_token user-details)
      :github-org (:custom:github_org user-details)
      :openai-key (:custom:openai_key user-details)
+     :openai-fine-tuned-model (:custom:openai_tuned_model user-details)
      :app-id (:custom:app_id user-details)
      :email (or (:email user-details) (:username user-details))
      :sub (:sub user-details)
@@ -208,12 +209,18 @@
                                (assoc attributes-map (keyword (:name attribute-map)) (:value attribute-map)))
                              {}
                              user-attributes)
-        {:keys [custom:github_username custom:github_token custom:github_org custom:openai_key custom:app_id
+        {:keys [custom:github_username
+                custom:github_token
+                custom:github_org
+                custom:openai_key
+                custom:openai_tuned_model
+                custom:app_id
                 given_name family_name email]} user-attributes-map]
     {:GitHub {:Username custom:github_username
               :Token custom:github_token
               :Org custom:github_org}
-     :OpenAI {:Key custom:openai_key}
+     :OpenAI {:Key            custom:openai_key
+              :FinetunedModel custom:openai_tuned_model}
      :AppId custom:app_id
      :FirstName given_name
      :LastName family_name
