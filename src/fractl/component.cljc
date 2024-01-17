@@ -1654,10 +1654,9 @@
   (when-let [rels (seq (find-relationships recname))]
     (su/nonils
      (mapv #(let [meta (fetch-meta %)
-                  elems (mt/between meta)]
+                  [a b :as elems] (mt/between meta)]
               (when elems
-                (let [that (or (first (filter (fn [e] (not= recname e)) elems))
-                               recname)]
+                (let [that (if (= a recname) b a)]
                   [% :between that])))
            rels))))
 

@@ -214,9 +214,7 @@
    (let [cnt (count spec)]
      (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid query-upsert spec - " spec))))
-   (let [attrs (attributes spec)]
-     (when-not (seq attrs)
-       (u/throw-ex (str "no valid attributes found - " spec)))
+   (let [attrs (or (attributes spec) {})]
      (query-upsert ($record spec) attrs (alias-tag spec) (rel-tag spec))))
   ([recname attrs rec-alias]
    (query-upsert recname attrs rec-alias nil))
