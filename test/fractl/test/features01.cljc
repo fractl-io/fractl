@@ -561,4 +561,23 @@
            :-> [[:Family.Core/FamilyMember :F]
                 [{:Family.Core/ProfileUser {}} :U]]}
         pi (ls/introspect p)]
-    (is (= p (ls/raw pi)))))
+    (is (= p (ls/raw pi))))
+  (let [pat {:AssessmentsTwo.Core/FamilyMember
+             {:Name :U.Name
+              :FirstName :U.FirstName
+              :LastName :U.LastName}
+             :-> [[{:AssessmentsTwo.Core/Members {}} :F]]
+             :as :FM}
+        pi (ls/upsert
+            {ls/record-tag :AssessmentsTwo.Core/FamilyMember
+             ls/attrs-tag {:Name :U.Name
+                           :FirstName :U.FirstName
+                           :LastName :U.LastName}
+             ls/alias-tag :FM
+             :-> [[(ls/upsert
+                    {ls/record-tag :AssessmentsTwo.Core/Members
+                     ls/attrs-tag {}})
+                   (ls/as-syntax-object
+                    :reference
+                    {ls/name-tag :F})]]})]
+    (is (= pat (ls/raw pi)))))
