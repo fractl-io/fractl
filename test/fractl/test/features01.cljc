@@ -579,5 +579,7 @@
                      ls/attrs-tag {}})
                    (ls/as-syntax-object
                     :reference
-                    {ls/name-tag :F})]]})]
+                    {ls/name-tag :F})]]})
+        piq (ls/query {ls/record-tag :AssessmentsTwo.Core/Profile? ls/attrs-tag {}})]
+    (is (= #:AssessmentsTwo.Core{:Profile? {}} (ls/raw piq)))
     (is (= pat (ls/raw pi)))))
