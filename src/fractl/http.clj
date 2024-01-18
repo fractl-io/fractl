@@ -664,8 +664,9 @@
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
-              (unauthorized (str "Login failed. "
-                                 (.getMessage ex) "LOGIN_ERROR") data-fmt)))))
+              (unauthorized
+               (str "Login failed. "
+                    (.getMessage ex)) data-fmt "LOGIN_ERROR")))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
@@ -721,7 +722,7 @@
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Verify user failed. "
-                                 (.getMessage ex)) data-fmt)))))
+                                 (.getMessage ex)) data-fmt "CONFIRM_SIGNUP_ERROR")))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
