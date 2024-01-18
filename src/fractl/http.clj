@@ -24,6 +24,8 @@
             [fractl.global-state :as gs]
             [fractl.user-session :as us]
             [org.httpkit.server :as h]
+            [org.httpkit.client :as hc]
+            [fractl.datafmt.json :as json]
             [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
             [fractl.util.errors :refer [get-internal-error-message]]
@@ -112,7 +114,6 @@
   (if (cn/an-instance? obj)
     (cn/dissoc-write-only obj)
     obj))
-
 
 (defn- remove-all-read-only-attributes [obj]
   (w/prewalk maybe-remove-read-only-attributes obj))
@@ -664,7 +665,7 @@
             (catch Exception ex
               (log/warn ex)
               (unauthorized (str "Login failed. "
-                                 (.getMessage ex) "LOGIN_ERROR") data-fmt )))))
+                                 (.getMessage ex) "LOGIN_ERROR") data-fmt)))))
       (bad-request
        (str "unsupported content-type in request - "
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
@@ -912,36 +913,56 @@
 
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
   (if auth-config
-    (let [[obj _ _] (request-object request)]
-      (if-let [token (:id_token obj)]
-        (if-let [user (verify-token token)]
-          (when (:email user)
-            (let [user {:Email (:email user)
-                        :Name (str (:given_name user) " " (:family_name user))
-                        :FirstName (:given_name user)
-                        :LastName (:family_name user)}
-                  sign-up-request
-                  {:Fractl.Kernel.Identity/SignUp
-                   {:User {:Fractl.Kernel.Identity/User user}}}
-                  new-sign-up
-                  (= :not-found
-                     (:status
-                      (first
-                       (evaluator
-                        {:Fractl.Kernel.Identity/FindUser
-                         {:Email (:Email user)}}))))]
-              (when new-sign-up
-                (let [sign-up-result (u/safe-ok-result (evaluator sign-up-request))]
-                  (when call-post-signup
-                    (evaluate
-                     evaluator
-                     (assoc
-                      (create-event post-signup-event-name)
-                      :SignupResult sign-up-result :SignupRequest {:User user})))))
-              (ok {:status "ok" :new-sign-up new-sign-up :result user})))
-          (bad-request (str "id_token not valid") "INVALID_TOKEN"))
-        (bad-request
-         (str "id_token required") "ID_TOKEN_RQUIRED")))
+    (let [query (when-let [s (:query-string request)]
+                  (w/keywordize-keys (codec/form-decode s)))
+          code (:code query)
+          model-name (u/getenv "FRACTL_MODEL_NAME")
+          model-short-name (u/getenv "FRACTL_MODEL_SHORT_NAME")
+          user-slug (u/getenv "FRACTL_USER_SLUG")
+          client-id (u/getenv "AWS_COGNITO_CLIENT_ID")
+          region (u/getenv "AWS_REGION")]
+      (try
+        (let [tokens
+              @(hc/post
+                (str "https://fr-" model-name ".auth." region ".amazoncognito.com/oauth2/token")
+                {:headers {"Content-Type" "application/x-www-form-urlencoded"}
+                 :query-params
+                 {:grant_type "authorization_code"
+                  :code code
+                  :client_id client-id
+                  :redirect_uri (str "https://" user-slug ".fractl.dev/" model-short-name "-ui/loginresp")}})
+              tokens (json/decode tokens)]
+          (if-let [token (:id_token tokens)]
+            (if-let [user (verify-token token)]
+              (when (:email user)
+                (let [user {:Email (:email user)
+                            :Name (str (:given_name user) " " (:family_name user))
+                            :FirstName (:given_name user)
+                            :LastName (:family_name user)}
+                      sign-up-request
+                      {:Fractl.Kernel.Identity/SignUp
+                       {:User {:Fractl.Kernel.Identity/User user}}}
+                      new-sign-up
+                      (= :not-found
+                         (:status
+                          (first
+                           (evaluator
+                            {:Fractl.Kernel.Identity/FindUser
+                             {:Email (:Email user)}}))))]
+                  (when new-sign-up
+                    (let [sign-up-result (u/safe-ok-result (evaluator sign-up-request))]
+                      (when call-post-signup
+                        (evaluate
+                         evaluator
+                         (assoc
+                          (create-event post-signup-event-name)
+                          :SignupResult sign-up-result :SignupRequest {:User user})))))
+                  (ok tokens)))
+              (bad-request (str "id_token not valid") "INVALID_TOKEN"))
+            (bad-request
+             (str "error fetching tokens") "ERROR_FETCHING_TOKEN")))
+        (catch Exception _
+          (bad-request (str "error fetching tokens") "ERROR_FETCHING_TOKEN"))))
     (internal-error "cannot process sign-up - authentication not enabled")))
 
 (defn- make-magic-link [username op payload description expiry]
@@ -966,7 +987,7 @@
             (if-let [expiry (:expiry obj)]
               (let [code (make-magic-link username op payload (:description obj) expiry)]
                 (ok {:status "ok" :code code}))
-              (bad-request (str "expiry date required") "EXPIRY_DATE_REQUIRED")) 
+              (bad-request (str "expiry date required") "EXPIRY_DATE_REQUIRED"))
             (bad-request (str "payload required") "PAYLOAD_REQUIRED"))
           (bad-request (str "operation required") "OPERATION_REQUIRED"))
         (bad-request (str "authentication not valid") "INVALID_AUTHENTICATION")))
@@ -1015,7 +1036,7 @@
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (POST uh/ai-prefix [] (:ai handlers))
-           (POST uh/auth-callback-prefix [] (:auth-callback handlers))
+           (GET uh/auth-callback-prefix [] (:auth-callback handlers))
            (POST uh/register-magiclink-prefix [] (:register-magiclink handlers))
            (GET uh/get-magiclink-prefix [] (:get-magiclink handlers))
            (POST uh/preview-magiclink-prefix [] (:preview-magiclink handlers))
