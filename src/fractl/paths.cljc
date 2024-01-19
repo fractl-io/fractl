@@ -2,6 +2,7 @@
   (:require [clojure.string :as s]
             [fractl.lang.internal :as li]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.env :as env]
             [fractl.component :as cn]))
 
@@ -21,13 +22,16 @@
 
 (defn lookup-ref-inst
   ([cast-val env recname id-attr id-val]
-   (or (first (env/lookup-instances-by-attributes
-               env (li/split-path recname) {id-attr id-val} true))
-       (first
-        ((env/pattern-evaluator env)
-         (env/block-interceptors env)
-         {(li/make-path recname)
-          {(li/name-as-query-pattern id-attr) (if cast-val (cn/parse-attribute-value recname id-attr id-val) id-val)}}))))
+   (try
+     (or (first (env/lookup-instances-by-attributes
+                 env (li/split-path recname) {id-attr id-val} true))
+         (first
+          ((env/pattern-evaluator env)
+           (env/block-interceptors env)
+           {(li/make-path recname)
+            {(li/name-as-query-pattern id-attr) (if cast-val (cn/parse-attribute-value recname id-attr id-val) id-val)}})))
+     (catch #?(:clj Exception js/Error) e
+       (do (log/error e) nil))))
   ([env recname id-attr id-val] (lookup-ref-inst true env recname id-attr id-val)))
 
 (defn find-parent-by-path [env record-name path]
