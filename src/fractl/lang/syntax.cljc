@@ -215,8 +215,6 @@
      (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid query-upsert spec - " spec))))
    (let [attrs (attributes spec)]
-     (when-not (seq attrs)
-       (u/throw-ex (str "no valid attributes found - " spec)))
      (query-upsert ($record spec) attrs (alias-tag spec) (rel-tag spec))))
   ([recname attrs rec-alias]
    (query-upsert recname attrs rec-alias nil))
@@ -632,14 +630,26 @@
     (as-syntax-object :query-object {record-tag (li/normalize-name pattern)})
     (as-syntax-object :reference {name-tag pattern})))
 
+(defn reference [n]
+  (if (keyword? n)
+    (as-syntax-object :reference {name-tag n})
+    (u/throw-ex (str "cannot make reference, not a name - " n))))
+
 (def ^:private raw-reference name-tag)
 
 (def reference? (partial has-type? :reference))
 
 (defn- maybe-query [obj]
-  (if (every? li/query-pattern? (keys (attrs-tag obj)))
-    (assoc obj type-tag query-tag)
-    obj))
+  (let [ks (seq (keys (attrs-tag obj)))]
+    (cond
+      (and ks (every? li/query-pattern? ks))
+      (assoc obj type-tag query-tag)
+
+      (and (not ks) (li/query-pattern? (record-tag obj)))
+      (assoc obj type-tag query-tag)
+
+      :else
+      obj)))
 
 (defn introspect [pattern]
   (cond
