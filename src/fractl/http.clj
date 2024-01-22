@@ -917,22 +917,22 @@
     (let [query (when-let [s (:query-string request)]
                   (w/keywordize-keys (codec/form-decode s)))
           code (:code query)
-          model-name (u/getenv "FRACTL_MODEL_NAME")
-          model-short-name (u/getenv "FRACTL_MODEL_SHORT_NAME")
-          user-slug (u/getenv "FRACTL_USER_SLUG")
-          client-id (u/getenv "AWS_COGNITO_CLIENT_ID")
-          region (u/getenv "AWS_REGION")]
+          cognito-domain (u/getenv "AWS_COGNITO_DOMAIN")
+          backend-url (u/getenv "FRACTL_APP_URL")
+          redirect-url (u/getenv "FRACTL_REDIRECT_URL")
+          client-id (u/getenv "AWS_COGNITO_CLIENT_ID")]
       (try
         (let [tokens
               @(hc/post
-                (str "https://fr-" model-name ".auth." region ".amazoncognito.com/oauth2/token")
+                (str cognito-domain "/oauth2/token")
                 {:headers {"Content-Type" "application/x-www-form-urlencoded"}
                  :query-params
                  {:grant_type "authorization_code"
                   :code code
                   :client_id client-id
-                  :redirect_uri (str "https://" user-slug ".fractl.dev/" model-short-name "-ui/loginresp")}})
-              tokens (json/decode tokens)]
+                  :redirect_uri (str backend-url "/_authcallback")}})
+
+              tokens (json/decode (:body tokens))]
           (if-let [token (:id_token tokens)]
             (if-let [user (verify-token token)]
               (when (:email user)
@@ -958,11 +958,16 @@
                          (assoc
                           (create-event post-signup-event-name)
                           :SignupResult sign-up-result :SignupRequest {:User user})))))
-                  (ok tokens)))
+                  {:status  302
+                   :headers {"Location"
+                             (str redirect-url
+                                  "/?id_token=" (:id_token tokens)
+                                  "&refresh_token=" (:refresh_token tokens))}}))
               (bad-request (str "id_token not valid") "INVALID_TOKEN"))
             (bad-request
              (str "error fetching tokens") "ERROR_FETCHING_TOKEN")))
-        (catch Exception _
+        (catch Exception e
+          (log/info (str e))
           (bad-request (str "error fetching tokens") "ERROR_FETCHING_TOKEN"))))
     (internal-error "cannot process sign-up - authentication not enabled")))
 
