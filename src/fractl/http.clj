@@ -959,6 +959,7 @@
                          (assoc
                           (create-event post-signup-event-name)
                           :SignupResult sign-up-result :SignupRequest {:User user})))))
+                  (upsert-user-session (:sub user) true)
                   {:status  302
                    :headers {"Location"
                              (str (or redirect-query redirect-url)
