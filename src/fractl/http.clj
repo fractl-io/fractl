@@ -937,20 +937,20 @@
           (if-let [token (:id_token tokens)]
             (if-let [user (verify-token token)]
               (when (:email user)
-                (let [user {:Email (:email user)
+                (let [user-obj {:Email (:email user)
                             :Name (str (:given_name user) " " (:family_name user))
                             :FirstName (:given_name user)
                             :LastName (:family_name user)}
                       sign-up-request
                       {:Fractl.Kernel.Identity/SignUp
-                       {:User {:Fractl.Kernel.Identity/User user}}}
+                       {:User {:Fractl.Kernel.Identity/User user-obj}}}
                       new-sign-up
                       (= :not-found
                          (:status
                           (first
                            (evaluator
                             {:Fractl.Kernel.Identity/FindUser
-                             {:Email (:Email user)}}))))]
+                             {:Email (:Email user-obj)}}))))]
                   (when new-sign-up
                     (let [sign-up-result (u/safe-ok-result (evaluator sign-up-request))]
                       (when call-post-signup
@@ -958,7 +958,7 @@
                          evaluator
                          (assoc
                           (create-event post-signup-event-name)
-                          :SignupResult sign-up-result :SignupRequest {:User user})))))
+                          :SignupResult sign-up-result :SignupRequest {:User user-obj})))))
                   (upsert-user-session (:sub user) true)
                   {:status  302
                    :headers {"Location"
