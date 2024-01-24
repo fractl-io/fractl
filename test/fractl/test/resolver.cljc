@@ -8,6 +8,7 @@
             [fractl.store :as store]
             [fractl.evaluator :as e]
             [fractl.env :as env]
+            [fractl.lang.internal :as li]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
@@ -381,3 +382,60 @@
       (is (e? e1))
       (is (f? f1))      
       (is (cn/same-instance? e1 (tu/fresult (deref @fut)))))))
+
+(deftest resolver-with-relationships
+  (defcomponent :Rwr
+    (entity
+     :Rwr/P
+     {:X :Int
+      :Id {:type :Int :guid true}})
+    (entity
+     :Rwr/C
+     {:Y :Int
+      :Id {:type :Int :id true}})
+    (relationship
+     :Rwr/R
+     {:meta {:contains [:Rwr/P :Rwr/C]}})
+    (dataflow
+     :Rwr/CreateC
+     {:Rwr/C {:Y :Rwr/CreateC.Y :Id :Rwr/CreateC.Id}
+      :-> [[:Rwr/R {:Rwr/P {:Id? :Rwr/CreateC.P}}]]})
+    (dataflow
+     :Rwr/LookupC
+     {:Rwr/C? {} :-> [[:Rwr/R? {:Rwr/P {:Id? :Rwr/LookupC.P}}]]}))
+  (let [rdb-parents (atom [])
+        rdb-children (atom {})
+        r (r/make-resolver
+           :rwr
+           {:create {:handler (fn [inst]
+                                (if-let [p (li/path-attr inst)]
+                                  (let [k (li/flatten-fully-qualified-path p)]
+                                    (swap! rdb-children assoc-in k inst))
+                                  (swap! rdb-parents conj inst))
+                                inst)}
+            :query {:handler (fn [[a {[_ attr v] :where :as where}]]
+                               (case attr
+                                 :Id (filter #(= v (:Id %)) @rdb-parents)
+                                 :__path__
+                                 (let [fp0 (li/flatten-fully-qualified-path v)
+                                       fp (if-not (last fp0) (butlast fp0) fp0)
+                                       r (get-in @rdb-children fp)]
+                                   (if (map? r)
+                                     (vec (vals r))
+                                     r))))}})]
+    (rg/override-resolver [:Rwr/P :Rwr/C] r)
+    (let [[p1 p2] (mapv #(tu/first-result {:Rwr/Create_P
+                                           {:Instance
+                                            {:Rwr/P {:Id % :X (* % 10)}}}})
+                        [1 2])
+          p? (partial cn/instance-of? :Rwr/P)]
+      (is (every? p? [p1 p2]))
+      (let [[c1 c2] (mapv #(tu/first-result {:Rwr/CreateC {:Y (* % 10) :Id % :P 1}}) [4 5])
+            cs (mapv #(tu/first-result {:Rwr/CreateC {:Y (* % 10) :Id % :P 2}}) [6 7])
+            c? (partial cn/instance-of? :Rwr/C)]
+        (is (every? c? [c1 c2]))
+        (let [cs1 (tu/result {:Rwr/LookupC {:P 1}})
+              cp? #(let [id (:Id %)] (or (= 4 id) (= 5 id)))]
+          (is (= 2 (count cs1)))
+          (is (every? c? cs1))
+          (is (every? cp? cs1)))))))

@@ -585,6 +585,38 @@
           (recur (rest parts) (inc n) (conj final-path p)))
         (str path-prefix "/" (s/join "/" final-path))))))
 
+(defn- parse-fully-qualified-name [n]
+  (let [[c n] (s/split n #"\$")]
+    (keyword (str c "/" n))))
+
+(defn- fully-qualified-parts-as-map [parts]
+  (when (seq parts)
+    (let [[e id rel] parts
+          r0 {:entity [(parse-fully-qualified-name e) id]}]
+      (if rel
+        (assoc
+         r0 rel-tag
+         [(parse-fully-qualified-name rel)
+          (fully-qualified-parts-as-map (nthrest parts 3))])
+        r0))))
+
+(defn parse-fully-qualified-path [path]
+  (when (proper-path? path)
+    (let [path (if (s/ends-with? path "%")
+                 (subs path 0 (dec (count path)))
+                 path)]
+      (fully-qualified-parts-as-map (s/split (subs path (inc path-prefix-len)) #"/")))))
+
+(defn flatten-fully-qualified-path [path]
+  (when-let [p (parse-fully-qualified-path path)]
+    (loop [p p, f []]
+      (if p
+        (let [e (:entity p), [r p1] (rel-tag p)]
+          (if p1
+            (recur p1 (concat f e (when r [r])))
+            (vec (concat f e))))
+        (when (seq f) (vec f))))))
+
 (defn full-path-name? [n]
   (s/index-of (str n) "/"))
 
