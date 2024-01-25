@@ -415,42 +415,34 @@
   ([env record-name instance]
    (chained-delete env record-name instance true)))
 
-(defn- delete-all-children-helper [store record-name purge]
-  (loop [rels (cn/contained-children record-name)]
-    (if-let [[_ _ child] (first rels)]
-      (when (delete-all-children-helper store child purge)
-        (store/delete-all store child purge)
-        (recur (rest rels)))
-      record-name)))
+(defn- delete-all-children [env store record-name purge]
+  (let [res (env/get-resolver env)
+        delf (fn [child-name purge]
+               (let [resolver (rg/resolver-for-path res child-name)
+                     is-composed (rg/composed? resolver)
+                     is-crud (or (not resolver) is-composed)
+                     resolved-result (or
+                                      (when resolver
+                                        (resolver-delete env resolver is-composed :*))
+                                      child-name)]
+                 (when is-crud
+                   (store/delete-all store child-name purge))))]
+    (cn/maybe-delete-all-children delf record-name purge)))
 
-(defn- delete-all-children [store record-name purge]
-  (case (cn/check-cascade-delete-children record-name)
-    :delete (delete-all-children-helper store record-name purge)
-    :ignore record-name
-    (u/throw-ex (str "cannot cascade delete children - " record-name))))
-
-(defn- find-path-prefix [record-name inst]
-  (or (li/path-attr inst)
-      (let [[c n] (li/split-path record-name)]
-        (str li/path-prefix "/" (name c) "$" (name n) "/"
-             ((cn/identity-attribute-name record-name) inst)))))
-
-(defn- delete-children-helper [store record-name path-prefix]
-  (loop [rels (cn/contained-children record-name)]
-    (if-let [[_ _ child] (first rels)]
-      (when (or (= record-name child)
-                (delete-children-helper store child path-prefix))
-        (store/delete-children store child path-prefix)
-        (recur (rest rels)))
-      record-name)))
-
-(defn- delete-children [store record-name inst]
-  (case (cn/check-cascade-delete-children record-name)
-    :delete (delete-children-helper
-             store record-name
-             (str (find-path-prefix record-name inst) "%"))
-    :ignore record-name
-    (u/throw-ex (str "cannot cascade delete children - " record-name))))
+(defn- delete-children [env store record-name inst]
+  (let [res (env/get-resolver env)
+        delf (fn [child-name path-prefix]
+               (let [resolver (rg/resolver-for-path res child-name)
+                     is-composed (rg/composed? resolver)
+                     is-crud (or (not resolver) is-composed)
+                     inst {child-name {li/path-attr path-prefix}}
+                     resolved-result (or
+                                      (when resolver
+                                        (resolver-delete env resolver is-composed inst))
+                                      inst)]
+                 (when is-crud
+                   (store/delete-children store child-name path-prefix))))]
+    (cn/maybe-delete-children delf record-name inst)))
 
 (defn- purge-all [env instances]
   (loop [env env, insts instances]
@@ -1092,7 +1084,7 @@
             (i/ok [(delete-intercept
                     env [record-name nil]
                     (fn [[record-name _]]
-                      (when (delete-all-children store record-name purge)
+                      (when (delete-all-children env store record-name purge)
                         (store/delete-all store record-name purge))))]
                   env))
 
@@ -1104,7 +1096,7 @@
               (doseq [inst insts]
                 (fire-pre-crud-event (partial eval-event-dataflows self) env :delete inst))
               (i/ok insts (reduce (fn [env instance]
-                                    (when (delete-children store record-name instance)
+                                    (when (delete-children env store record-name instance)
                                       (chained-delete env record-name instance)
                                       (env/delete-post-event
                                        (env/purge-instance env record-name id-attr (id-attr instance))

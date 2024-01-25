@@ -4,6 +4,7 @@
             [fractl.lang
              :refer [component attribute event
                      relationship entity record dataflow]]
+            [fractl.util.seq :as us]
             [fractl.component :as cn]
             [fractl.store :as store]
             [fractl.evaluator :as e]
@@ -383,30 +384,40 @@
       (is (f? f1))      
       (is (cn/same-instance? e1 (tu/fresult (deref @fut)))))))
 
-(deftest resolver-with-relationships
-  (defcomponent :Rwr
+(deftest resolved-parent-and-children
+  (defcomponent :Rpc
     (entity
-     :Rwr/P
+     :Rpc/P
      {:X :Int
       :Id {:type :Int :guid true}})
     (entity
-     :Rwr/C
+     :Rpc/C
      {:Y :Int
       :Id {:type :Int :id true}})
     (relationship
-     :Rwr/R
-     {:meta {:contains [:Rwr/P :Rwr/C]}})
+     :Rpc/R
+     {:meta {:contains [:Rpc/P :Rpc/C] :cascade-on-delete true}})
     (dataflow
-     :Rwr/CreateC
-     {:Rwr/C {:Y :Rwr/CreateC.Y :Id :Rwr/CreateC.Id}
-      :-> [[:Rwr/R {:Rwr/P {:Id? :Rwr/CreateC.P}}]]})
+     :Rpc/CreateC
+     {:Rpc/C {:Y :Rpc/CreateC.Y :Id :Rpc/CreateC.Id}
+      :-> [[:Rpc/R {:Rpc/P {:Id? :Rpc/CreateC.P}}]]})
     (dataflow
-     :Rwr/LookupC
-     {:Rwr/C? {} :-> [[:Rwr/R? {:Rwr/P {:Id? :Rwr/LookupC.P}}]]}))
+     :Rpc/LookupC
+     {:Rpc/C? {} :-> [[:Rpc/R? {:Rpc/P {:Id? :Rpc/LookupC.P}}]]}))
   (let [rdb-parents (atom [])
         rdb-children (atom {})
+        del-child (fn [recname p]
+                    (let [k (li/flatten-fully-qualified-path p)]
+                      (swap! rdb-children us/dissoc-in k)
+                      p))
+        del (fn [inst]
+              (cn/maybe-delete-children del-child inst)
+              (let [id (:Id inst)
+                    data (remove #(= id (:Id %)) @rdb-parents)]
+                (reset! rdb-parents (vec data))
+                inst))
         r (r/make-resolver
-           :rwr
+           :rpc
            {:create {:handler (fn [inst]
                                 (if-let [p (li/path-attr inst)]
                                   (let [k (li/flatten-fully-qualified-path p)]
@@ -422,20 +433,143 @@
                                        r (get-in @rdb-children fp)]
                                    (if (map? r)
                                      (vec (vals r))
-                                     r))))}})]
-    (rg/override-resolver [:Rwr/P :Rwr/C] r)
-    (let [[p1 p2] (mapv #(tu/first-result {:Rwr/Create_P
+                                     r))))}
+            :delete {:handler del}})]
+    (rg/override-resolver [:Rpc/P :Rpc/C] r)
+    (let [[p1 p2] (mapv #(tu/first-result {:Rpc/Create_P
                                            {:Instance
-                                            {:Rwr/P {:Id % :X (* % 10)}}}})
+                                            {:Rpc/P {:Id % :X (* % 10)}}}})
                         [1 2])
-          p? (partial cn/instance-of? :Rwr/P)]
+          p? (partial cn/instance-of? :Rpc/P)]
       (is (every? p? [p1 p2]))
-      (let [[c1 c2] (mapv #(tu/first-result {:Rwr/CreateC {:Y (* % 10) :Id % :P 1}}) [4 5])
-            cs (mapv #(tu/first-result {:Rwr/CreateC {:Y (* % 10) :Id % :P 2}}) [6 7])
-            c? (partial cn/instance-of? :Rwr/C)]
+      (let [[c1 c2] (mapv #(tu/first-result {:Rpc/CreateC {:Y (* % 10) :Id % :P 1}}) [4 5])
+            cs (mapv #(tu/first-result {:Rpc/CreateC {:Y (* % 10) :Id % :P 2}}) [6 7])
+            c? (partial cn/instance-of? :Rpc/C)]
         (is (every? c? [c1 c2]))
-        (let [cs1 (tu/result {:Rwr/LookupC {:P 1}})
+        (let [cs1 (tu/result {:Rpc/LookupC {:P 1}})
               cp? #(let [id (:Id %)] (or (= 4 id) (= 5 id)))]
           (is (= 2 (count cs1)))
           (is (every? c? cs1))
-          (is (every? cp? cs1)))))))
+          (is (every? cp? cs1))
+          (is (seq (filter #(= 1 (:Id %)) @rdb-parents)))
+          (is (seq (get-in @rdb-children [:Rpc/P "1"])))
+          (tu/result {:Rpc/Delete_P {:Id 1}})
+          (is (not (seq (filter #(= 1 (:Id %)) @rdb-parents))))
+          (is (seq (filter #(= 2 (:Id %)) @rdb-parents)))
+          (is (not (seq (get-in @rdb-children [:Rpc/P "1"]))))
+          (is (get-in @rdb-children [:Rpc/P "2"])))))))
+
+(deftest resolved-parent
+  (defcomponent :Rp
+    (entity
+     :Rp/P
+     {:X :Int
+      :Id {:type :Int :guid true}})
+    (entity
+     :Rp/C
+     {:Y :Int
+      :Id {:type :Int :id true}})
+    (relationship
+     :Rp/R
+     {:meta {:contains [:Rp/P :Rp/C]}})
+    (dataflow
+     :Rp/CreateC
+     {:Rp/C {:Y :Rp/CreateC.Y :Id :Rp/CreateC.Id}
+      :-> [[:Rp/R {:Rp/P {:Id? :Rp/CreateC.P}}]]})
+    (dataflow
+     :Rp/LookupC
+     {:Rp/C? {} :-> [[:Rp/R? {:Rp/P {:Id? :Rp/LookupC.P}}]]}))
+  (let [rdb-parents (atom [])
+        r (r/make-resolver
+           :rp
+           {:create {:handler (fn [inst]
+                                (swap! rdb-parents conj inst)
+                                inst)}
+            :query {:handler (fn [[a {[_ attr v] :where :as where}]]
+                               (when (= :Id attr)
+                                 (filter #(= v (:Id %)) @rdb-parents)))}
+            :delete {:handler (fn [inst]
+                                (let [id (:Id inst)
+                                      data (remove #(= id (:Id %)) @rdb-parents)]
+                                  (reset! rdb-parents (vec data))
+                                  inst))}})]
+    (rg/override-resolver [:Rp/P] r)
+    (let [[p1 p2] (mapv #(tu/first-result {:Rp/Create_P
+                                           {:Instance
+                                            {:Rp/P {:Id % :X (* % 10)}}}})
+                        [1 2])
+          p? (partial cn/instance-of? :Rp/P)]
+      (is (every? p? [p1 p2]))
+      (let [[c1 c2] (mapv #(tu/first-result {:Rp/CreateC {:Y (* % 10) :Id % :P 1}}) [4 5])
+            cs (mapv #(tu/first-result {:Rp/CreateC {:Y (* % 10) :Id % :P 2}}) [6 7])
+            c? (partial cn/instance-of? :Rp/C)
+            lookup-c (fn [p id1 id2]
+                       (let [cs1 (tu/result {:Rp/LookupC {:P p}})
+                             cp? #(let [id (:Id %)] (or (= id1 id) (= id2 id)))]
+                         (is (= 2 (count cs1)))
+                         (is (every? c? cs1))
+                         (is (every? cp? cs1))))]
+        (is (every? c? [c1 c2]))
+        (lookup-c 1 4 5)
+        (lookup-c 2 6 7)
+        (is (seq (filter #(= 1 (:Id %)) @rdb-parents)))
+        (tu/result {:Rp/Delete_P {:Id 1}})
+        (is (not (seq (filter #(= 1 (:Id %)) @rdb-parents))))
+        (is (tu/not-found? (tu/eval-all-dataflows {:Rp/LookupC {:P 1}})))
+        (lookup-c 2 6 7)))))
+
+;; TODO: fix this test
+(deftest resolved-children
+  (defcomponent :Rc
+    (entity
+     :Rc/P
+     {:X :Int
+      :Id {:type :Int :guid true}})
+    (entity
+     :Rc/C
+     {:Y :Int
+      :Id {:type :Int :id true}})
+    (relationship
+     :Rc/R
+     {:meta {:contains [:Rc/P :Rc/C]}})
+    (dataflow
+     :Rc/CreateC
+     {:Rc/C {:Y :Rc/CreateC.Y :Id :Rc/CreateC.Id}
+      :-> [[:Rc/R {:Rc/P {:Id? :Rc/CreateC.P}}]]})
+    (dataflow
+     :Rc/LookupC
+     {:Rc/C? {} :-> [[:Rc/R? {:Rc/P {:Id? :Rc/LookupC.P}}]]}))
+  (let [rdb-children (atom {})
+        r (r/make-resolver
+           :rc
+           {:create {:handler (fn [inst]
+                                (when-let [p (li/path-attr inst)]
+                                  (let [k (li/flatten-fully-qualified-path p)]
+                                    (swap! rdb-children assoc-in k inst)))
+                                inst)}
+            :query {:handler (fn [[a {[_ attr v] :where :as where}]]
+                               (when (= attr :__path__)
+                                 (let [fp0 (li/flatten-fully-qualified-path v)
+                                       fp (if-not (last fp0) (butlast fp0) fp0)
+                                       r (get-in @rdb-children fp)]
+                                   (if (map? r)
+                                     (vec (vals r))
+                                     r))))}
+            :delete {:handler (fn [inst] (println "@3@" inst) inst)}})]
+    (rg/override-resolver [:Rc/C] r)
+    (let [[p1 p2] (mapv #(tu/first-result {:Rc/Create_P
+                                           {:Instance
+                                            {:Rc/P {:Id % :X (* % 10)}}}})
+                        [1 2])
+          p? (partial cn/instance-of? :Rc/P)]
+      (is (every? p? [p1 p2]))
+      (let [[c1 c2] (mapv #(tu/first-result {:Rc/CreateC {:Y (* % 10) :Id % :P 1}}) [4 5])
+            cs (mapv #(tu/first-result {:Rc/CreateC {:Y (* % 10) :Id % :P 2}}) [6 7])
+            c? (partial cn/instance-of? :Rc/C)]
+        (is (every? c? [c1 c2]))
+        (let [cs1 (tu/result {:Rc/LookupC {:P 1}})
+              cp? #(let [id (:Id %)] (or (= 4 id) (= 5 id)))]
+          (is (= 2 (count cs1)))
+          (is (every? c? cs1))
+          (is (every? cp? cs1))
+          (println (tu/result {:Rp/Delete_P {:Id 1}})))))))
