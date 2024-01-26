@@ -435,7 +435,8 @@
                (let [resolver (rg/resolver-for-path res child-name)
                      is-composed (rg/composed? resolver)
                      is-crud (or (not resolver) is-composed)
-                     inst {child-name {li/path-attr path-prefix}}
+                     inst {cn/instance-type child-name
+                           li/path-attr path-prefix}
                      resolved-result (or
                                       (when resolver
                                         (resolver-delete env resolver is-composed inst))

@@ -518,7 +518,6 @@
         (is (tu/not-found? (tu/eval-all-dataflows {:Rp/LookupC {:P 1}})))
         (lookup-c 2 6 7)))))
 
-;; TODO: fix this test
 (deftest resolved-children
   (defcomponent :Rc
     (entity
@@ -555,7 +554,10 @@
                                    (if (map? r)
                                      (vec (vals r))
                                      r))))}
-            :delete {:handler (fn [inst] (println "@3@" inst) inst)}})]
+            :delete {:handler (fn [inst]
+                                (let [k (li/flatten-fully-qualified-path (li/path-attr inst))]
+                                  (swap! rdb-children us/dissoc-in k)
+                                  inst))}})]
     (rg/override-resolver [:Rc/C] r)
     (let [[p1 p2] (mapv #(tu/first-result {:Rc/Create_P
                                            {:Instance
@@ -567,9 +569,15 @@
             cs (mapv #(tu/first-result {:Rc/CreateC {:Y (* % 10) :Id % :P 2}}) [6 7])
             c? (partial cn/instance-of? :Rc/C)]
         (is (every? c? [c1 c2]))
-        (let [cs1 (tu/result {:Rc/LookupC {:P 1}})
-              cp? #(let [id (:Id %)] (or (= 4 id) (= 5 id)))]
-          (is (= 2 (count cs1)))
-          (is (every? c? cs1))
-          (is (every? cp? cs1))
-          (println (tu/result {:Rp/Delete_P {:Id 1}})))))))
+        (let [lookup-c (fn [p id1 id2]
+                         (let [cs1 (tu/result {:Rc/LookupC {:P p}})
+                               cp? #(let [id (:Id %)] (or (= id id1) (= id id2)))]
+                           (is (= 2 (count cs1)))
+                           (is (every? c? cs1))
+                           (is (every? cp? cs1))))]
+          (lookup-c 1 4 5)
+          (lookup-c 2 6 7)
+          (is (p? (tu/first-result {:Rc/Delete_P {:Id 1}})))
+          (is (tu/not-found? (tu/eval-all-dataflows {:Rc/Lookup_P {:Id 1}})))
+          (is (tu/not-found? (tu/eval-all-dataflows {:Rc/LookupC {:P 1}})))
+          (lookup-c 2 6 7))))))
