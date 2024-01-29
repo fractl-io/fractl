@@ -1976,3 +1976,49 @@
 
 (def fire-post-event (partial fire-prepost-event :after))
 (def fire-pre-event (partial fire-prepost-event :before))
+
+(defn find-path-prefix [record-name inst]
+  (or (li/path-attr inst)
+      (let [[c n] (li/split-path record-name)]
+        (str li/path-prefix "/" (name c) "$" (name n) "/"
+             ((identity-attribute-name record-name) inst)))))
+
+(defn find-path-prefix-with-wildcard
+  ([record-name inst]
+   (str (find-path-prefix record-name inst) "%"))
+  ([inst] (find-path-prefix-with-wildcard (instance-type-kw inst) inst)))
+
+(defn- delete-all-children-helper [delallfn record-name purge]
+  (loop [rels (contained-children record-name)]
+    (if-let [[_ _ child] (first rels)]
+      (when (delete-all-children-helper delallfn child purge)
+        (delallfn child purge)
+        (recur (rest rels)))
+      record-name)))
+
+(defn maybe-delete-all-children [delallfn record-name purge]
+  (let [record-name (li/make-path record-name)]
+    (case (check-cascade-delete-children record-name)
+      :delete (delete-all-children-helper delallfn record-name purge)
+      :ignore record-name
+      (u/throw-ex (str "cannot cascade delete children - " record-name)))))
+
+(defn- delete-children-helper [delfn record-name path-prefix]
+  (loop [rels (contained-children record-name)]
+    (if-let [[_ _ child] (first rels)]
+      (when (or (= record-name child)
+                (delete-children-helper delfn child path-prefix))
+        (delfn child path-prefix)
+        (recur (rest rels)))
+      record-name)))
+
+(defn maybe-delete-children
+  ([delfn record-name inst]
+   (let [record-name (li/make-path record-name)]
+     (case (check-cascade-delete-children record-name)
+       :delete (delete-children-helper
+                delfn record-name
+                (find-path-prefix-with-wildcard record-name inst))
+       :ignore record-name
+       (u/throw-ex (str "cannot cascade delete children - " record-name)))))
+  ([delfn inst] (maybe-delete-children delfn (instance-type-kw inst) inst)))
