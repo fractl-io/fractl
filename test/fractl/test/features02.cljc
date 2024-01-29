@@ -8,7 +8,6 @@
                      entity record relationship
                      dataflow]]
             [fractl.lang.raw :as raw]
-            [fractl.lang.syntax :as ls]
             [fractl.lang.relgraph :as rg]
             [fractl.lang.internal :as li]
             [fractl.evaluator :as e]
