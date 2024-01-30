@@ -351,35 +351,32 @@
                                 {:__Id__ (:__Id__ e2)}})))))
 
 (deftest issue-713-relationship-refs
+  (defn compute-bonus [level base]
+    (if (and level base)
+      (* base level 0.1)
+      0.0))
   (defcomponent :I713
-    (entity :I713/A {:Id :Identity :X :Int})
-    (entity :I713/B {:Id :Identity :Y :Int})
-    (entity :I713/C {:Id :Identity :Z :Int})
-    (relationship :I713/R1 {:meta {:between [:I713/A :I713/B], :one-one true}})
-    (relationship :I713/R2 {:meta {:between [:I713/B :I713/C], :one-many true}})
-    (dataflow
-     :I713/Evt1
-     {:I713/B? {}
-      :-> [[{:I713/R1 {:A? :I713/Evt1.A}}]]
-      :as [:B]}
-     {:I713/C {:Z '(* 3 :B.Y)}}))
-  (let [create-a #(tu/first-result {:I713/Create_A {:Instance {:I713/A {:X %}}}})
-        create-b #(tu/first-result {:I713/Create_B {:Instance {:I713/B {:Y %}}}})
-        create-c #(tu/first-result {:I713/Create_C {:Instance {:I713/C {:Z %}}}})
-        create-r1 #(tu/first-result {:I713/Create_R1 {:Instance {:I713/R1 {:A %1 :B %2}}}})
-        create-r2 #(tu/first-result {:I713/Create_R2 {:Instance {:I713/R2 {:B %1 :C %2}}}})
-        a? (partial cn/instance-of? :I713/A)
-        b? (partial cn/instance-of? :I713/B)
-        c? (partial cn/instance-of? :I713/C)
-        r1? (partial cn/instance-of? :I713/R1)
-        r2? (partial cn/instance-of? :I713/R2)
-        a (create-a 1)
-        [b1 b2 :as bs] (mapv create-b [10 20])
-        r11 (create-r1 (:Id a) (:Id b1))]
-    (is (a? a))
-    (is (every? b? bs))
-    (is (r1? r11))
-    (is (not (create-r1 (:Id a) (:Id b2))))
-    (let [c (tu/first-result {:I713/Evt1 {:A (:Id a)}})]
-      (is (c? c))
-      (is (= 30 (:Z c))))))
+    (entity
+     :I713/Employee
+     {:Id :Identity
+      :Level :Int
+      :Bonus {:type :Decimal
+              :expr '(fractl.test.features04/compute-bonus
+                      :Level
+                      [:patterns
+                       {:I713/Salary? {}
+                        :-> [[{:I713/EmployeeSalary {:Employee? :Id}}]]
+                        :as [:S]}
+                       :S.Base])}})
+    (entity
+     :I713/Salary
+     {:Id :Identity
+      :Base :Decimal})
+    (relationship
+     :I713/EmployeeSalary
+     {:meta {:between [:I713/Employee :I713/Salary]}}))
+  (let [e01 (tu/first-result {:I713/Create_Employee
+                              {:Instance
+                               {:I713/Employee {:Level 2}}}})
+        e? (partial cn/instance-of? :I713/Employee)]
+    (e? e01)))

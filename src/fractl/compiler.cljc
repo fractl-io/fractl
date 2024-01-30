@@ -1192,11 +1192,40 @@
        (not (vector? x))
        (not (string? x))))
 
+(defn- patterns-arg? [x]
+  (and (vector? x) (= :patterns (first x))))
+
+(defn fix-names-in-arg-pattern [arg-lookup pat]
+  (if (keyword? pat)
+    (or (arg-lookup pat) pat)
+    (w/prewalk
+     (fn [pat]
+       (when (map? pat)
+         (println pat (li/record-attributes pat)))
+       (if (map? pat)
+         (if-let [attrs (li/record-attributes pat)]
+           (assoc pat (li/record-name pat)
+                  (into {} (mapv (fn [[k v]] [k (if (keyword? v)
+                                                  (or (arg-lookup v) v)
+                                                  v)])
+                                 attrs)))
+           pat)
+         pat))
+     pat)))
+
 (defn- parse-expr [arg-lookup exp]
   (cond
     (keyword? exp) (arg-lookup exp)
     (maybe-expr? exp)
     `(~(first exp) ~@(map #(parse-expr arg-lookup %) (rest exp)))
+    (patterns-arg? exp)
+    (let [safe-arg-lookup (fn [x]
+                            (try
+                              (arg-lookup x)
+                              (catch #?(:clj Exception :cljs :default) ex
+                                nil)))
+          pats (mapv (partial fix-names-in-arg-pattern safe-arg-lookup) (rest exp))]
+      `(fractl.evaluator/safe-eval-patterns ~runtime-env-var ~pats))
     :else exp))
 
 (defn compile-attribute-expression [rec-name attrs aname aval]

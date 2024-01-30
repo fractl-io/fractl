@@ -340,3 +340,11 @@
    (safe-eval-pattern nil pattern))
   ([env pattern]
    (u/safe-ok-result (evaluate-pattern env pattern))))
+
+(defn safe-eval-patterns [env pats]
+  (loop [pats pats, env env, result nil]
+    (if-let [p (first pats)]
+      (let [r (evaluate-pattern env p)]
+        (when-let [okr (u/safe-ok-result r)]
+          (recur (rest pats) (:env r) okr)))
+      result)))

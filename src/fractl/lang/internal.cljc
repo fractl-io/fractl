@@ -235,14 +235,14 @@
   (if (name? pat)
     pat
     (when (map? pat)
-      (let [n (first (keys pat))]
+      (let [n (ffirst (filter (fn [[_ v]] (map? v)) pat))]
         (when (or (name? n)
-                  (and (string? n) (name (keyword n))))
+                  (and (string? n) (name? (keyword n))))
           n)))))
 
 (defn record-attributes [pat]
   (when (map? pat)
-    (first (vals pat))))
+    (first (filter map? (vals pat)))))
 
 (defn destruct-instance-pattern [pat]
   [(first (keys pat)) (first (vals pat))])
