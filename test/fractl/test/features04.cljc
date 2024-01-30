@@ -374,9 +374,27 @@
       :Base :Decimal})
     (relationship
      :I713/EmployeeSalary
-     {:meta {:between [:I713/Employee :I713/Salary]}}))
+     {:meta {:between [:I713/Employee :I713/Salary]}})
+    (dataflow
+     :I713/FindSalary
+     {:I713/Salary? {}
+      :-> [[{:I713/EmployeeSalary {:Employee? :I713/FindSalary.Employee}}]]
+      :as [:S]})
+    (dataflow
+     :I713/AssignSalary
+     {:I713/Salary
+      {:Base :I713/AssignSalary.Base}
+      :-> [[{:I713/EmployeeSalary {}}
+            {:I713/Employee {:Id? :I713/AssignSalary.Employee}}]]}))
   (let [e01 (tu/first-result {:I713/Create_Employee
                               {:Instance
                                {:I713/Employee {:Level 2}}}})
         e? (partial cn/instance-of? :I713/Employee)]
-    (e? e01)))
+    (is (e? e01))
+    (let [s01 (tu/first-result {:I713/AssignSalary {:Employee (:Id e01) :Base 1450.5}})
+          s? (partial cn/instance-of? :I713/Salary)]
+      (is (s? s01))
+      (is (cn/same-instance? s01 (tu/first-result {:I713/FindSalary {:Employee (:Id e01)}})))
+      (let [e (tu/first-result {:I713/Lookup_Employee {:Id (:Id e01)}})]
+        (is (e? e))
+        (is (= (:Bonus e) (compute-bonus (:Level e) (:Base s01))))))))

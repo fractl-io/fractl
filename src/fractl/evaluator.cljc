@@ -12,6 +12,7 @@
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
             [fractl.policy.logging :as logging]
+            [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
             ;; load kernel components
@@ -319,10 +320,12 @@
 (defn query-fn [store]
   (partial r/find-instances env/EMPTY store))
 
-(defn safe-eval [event-obj]
-  (u/safe-ok-result
-   (eval-all-dataflows
-    (cn/make-instance event-obj))))
+(defn safe-eval
+  ([is-atomic event-obj]
+   (u/safe-ok-result
+    ((if is-atomic eval-all-dataflows-atomic eval-all-dataflows)
+     (cn/make-instance event-obj))))
+  ([event-obj] (safe-eval false event-obj)))
 
 (defn safe-eval-internal
   ([is-atomic event-obj]
@@ -341,10 +344,12 @@
   ([env pattern]
    (u/safe-ok-result (evaluate-pattern env pattern))))
 
-(defn safe-eval-patterns [env pats]
-  (loop [pats pats, env env, result nil]
-    (if-let [p (first pats)]
-      (let [r (evaluate-pattern env p)]
-        (when-let [okr (u/safe-ok-result r)]
-          (recur (rest pats) (:env r) okr)))
-      result)))
+(defn safe-eval-patterns
+  ([is-atomic component pats]
+   (let [event-name (ln/event (li/make-path component (li/unq-name)) {})]
+     (when (apply ln/dataflow event-name pats)
+       (try
+         (safe-eval is-atomic {event-name {}})
+         (finally
+           (cn/remove-event event-name))))))
+  ([component pats] (safe-eval-patterns true component pats)))

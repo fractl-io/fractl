@@ -27,7 +27,7 @@
                  env (li/split-path recname) {id-attr id-val} true))
          (first
           ((env/pattern-evaluator env)
-           (env/block-interceptors env)
+           (env/block-compound-patterns (env/block-interceptors env))
            {(li/make-path recname)
             {(li/name-as-query-pattern id-attr) (if cast-val (cn/parse-attribute-value recname id-attr id-val) id-val)}})))
      (catch #?(:clj Exception js/Error) e

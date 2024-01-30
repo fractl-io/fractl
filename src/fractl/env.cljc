@@ -242,6 +242,13 @@
 
 (def interceptors-blocked? interceptors-blocked-key)
 
+(def ^:private compound-patterns-blocked-key :-*-compound-patterns-blocked-*-)
+
+(defn block-compound-patterns [env]
+  (assoc env compound-patterns-blocked-key true))
+
+(def compound-patterns-blocked? compound-patterns-blocked-key)
+
 (def with-types :with-types)
 
 (defn bind-with-types [env types]

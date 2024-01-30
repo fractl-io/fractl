@@ -1200,8 +1200,6 @@
     (or (arg-lookup pat) pat)
     (w/prewalk
      (fn [pat]
-       (when (map? pat)
-         (println pat (li/record-attributes pat)))
        (if (map? pat)
          (if-let [attrs (li/record-attributes pat)]
            (assoc pat (li/record-name pat)
@@ -1213,11 +1211,11 @@
          pat))
      pat)))
 
-(defn- parse-expr [arg-lookup exp]
+(defn- parse-expr [[c _ :as recname] arg-lookup exp]
   (cond
     (keyword? exp) (arg-lookup exp)
     (maybe-expr? exp)
-    `(~(first exp) ~@(map #(parse-expr arg-lookup %) (rest exp)))
+    `(~(first exp) ~@(map #(parse-expr recname arg-lookup %) (rest exp)))
     (patterns-arg? exp)
     (let [safe-arg-lookup (fn [x]
                             (try
@@ -1225,7 +1223,11 @@
                               (catch #?(:clj Exception :cljs :default) ex
                                 nil)))
           pats (mapv (partial fix-names-in-arg-pattern safe-arg-lookup) (rest exp))]
-      `(fractl.evaluator/safe-eval-patterns ~runtime-env-var ~pats))
+      `(try
+         (when-not (fractl.env/compound-patterns-blocked? ~runtime-env-var)
+           (fractl.evaluator/safe-eval-patterns ~c ~pats))
+         (catch #?(:clj Exception :cljs :default) ex#
+           (log/debug ex#) nil)))
     :else exp))
 
 (defn compile-attribute-expression [rec-name attrs aname aval]
@@ -1233,7 +1235,7 @@
      (do (when-not aval
            (u/throw-ex (str "attribute expression cannot be nil - " [rec-name aname])))
          (let [arg-lookup (partial arg-lookup-fn rec-name attrs (keys attrs) aname)
-               parse-exp (partial parse-expr arg-lookup)
+               parse-exp (partial parse-expr (li/split-path rec-name) arg-lookup)
                exp `(fn [~runtime-env-var ~current-instance-var] ~(parse-exp aval))]
            (li/evaluate exp)))
      :cljs (concat ['quote] [aval])))
