@@ -10,3 +10,8 @@
 
 (defn get-active-evaluator [] (:evaluator @active-state))
 (defn get-active-store [] (:store @active-state))
+
+(def ^:private safe-eval-patterns (atom nil))
+
+(defn set-safe-eval-patterns! [f] (reset! safe-eval-patterns f))
+(defn get-safe-eval-patterns [] @safe-eval-patterns)

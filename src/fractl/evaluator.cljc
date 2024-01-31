@@ -353,3 +353,5 @@
          (finally
            (cn/remove-event event-name))))))
   ([component pats] (safe-eval-patterns true component pats)))
+
+(es/set-safe-eval-patterns! safe-eval-patterns)

@@ -332,13 +332,6 @@
     (find-attribute-schema attr-name)
     attr-name))
 
-(defn fetch-relationship-schema [rel-name]
-  (when-let [scm (fetch-entity-schema rel-name)]
-    (when (mt/relationship? (fetch-meta rel-name))
-      scm)))
-
-(def relationship? fetch-relationship-schema)
-
 (defn find-object-schema [path]
   (or (find-entity-schema path)
       (find-record-schema path)
@@ -919,7 +912,7 @@
                         (:records (get @components component))))]
     (set (mapv (partial full-name component) (keys recs)))))
 
-(declare contains-relationship?)
+(declare contains-relationship? relationship?)
 
 (defn record-names
   ([component exclude-contains]
@@ -1671,6 +1664,10 @@
 (defn between-relationship? [recname]
   (mt/between (fetch-meta recname)))
 
+(defn relationship? [n]
+  (or (contains-relationship? n)
+      (between-relationship? n)))
+
 (defn containing-parent [relname]
   (first (mt/contains (fetch-meta relname))))
 
@@ -1822,6 +1819,16 @@
       (if (some #{n} (between-attribute-names relname))
         n
         (first (find-between-keys relname maybe-node-name))))))
+
+(defn relationship-node-entity [relname node-name]
+  (let [[n1 n2] (relationship-nodes relname)
+        t (:as (fetch-meta relname))
+        [a1 a2 :as aliases] (or t [(second (li/split-path n1))
+                                   (second (li/split-path n2))])]
+    (cond
+      (= node-name a1) n1
+      (= node-name a2) n2
+      :else (u/throw-ex (str "node-name " node-name " is not in relationship aliases - " aliases)))))
 
 (defn fetch-default-attribute-values [schema]
   (into

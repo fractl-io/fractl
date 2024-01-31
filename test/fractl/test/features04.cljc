@@ -362,8 +362,8 @@
       :Level :Int
       :Bonus {:type :Decimal
               :expr '(fractl.test.features04/compute-bonus
-                      :Level
-                      [:patterns
+                      :Level :I713/EmployeeSalary.Salary.Base
+                      #_[:patterns
                        {:I713/Salary? {}
                         :-> [[{:I713/EmployeeSalary {:Employee? :Id}}]]
                         :as [:S]}
