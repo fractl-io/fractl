@@ -117,7 +117,7 @@
 
 (defn- assoc-computed-attributes [env record-name raw-obj eval-opcode]
   (let [env (enrich-environment-with-refs env record-name raw-obj)
-        [efns qfns evattrs] (cn/all-computed-attribute-fns record-name)
+        [efns evattrs] (cn/all-computed-attribute-fns record-name)
         f (partial assoc-fn-attributes env)
         interim-obj (if (seq evattrs)
                       (assoc-evaled-attributes
@@ -126,7 +126,7 @@
                         (li/split-path record-name) raw-obj)
                        raw-obj evattrs eval-opcode)
                       raw-obj)]
-    (f (f (assoc-futures record-name interim-obj) efns) qfns)))
+    (f (assoc-futures record-name interim-obj) efns)))
 
 (defn- set-obj-attr
   ([env attr-name attr-ref attr-value]

@@ -360,6 +360,7 @@
      :I713/Employee
      {:Id :Identity
       :Level :Int
+      :Base {:expr :I713/EmployeeSalary.Salary.Base}
       :Bonus {:type :Decimal
               :expr '(fractl.test.features04/compute-bonus
                       :Level :I713/EmployeeSalary.Salary.Base
@@ -398,4 +399,5 @@
       (is (cn/same-instance? s01 (tu/first-result {:I713/FindSalary {:Employee (:Id e01)}})))
       (let [e (tu/first-result {:I713/Lookup_Employee {:Id (:Id e01)}})]
         (is (e? e))
+        (is (= (:Base e) (:Base s01)))
         (is (= (:Bonus e) (compute-bonus (:Level e) (:Base s01))))))))

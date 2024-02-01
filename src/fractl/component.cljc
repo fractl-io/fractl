@@ -658,7 +658,7 @@
           (if (fn? dval) (dval) dval))))))
 
 (defn- apply-attribute-validation [aname ascm attributes]
-  (if (or (:expr ascm) (:query ascm))
+  (if (:expr ascm)
     attributes
     (if-let [[_ aval] (get-attr-val ascm attributes aname)]
       (do (valid-attribute-value aname aval ascm)
@@ -1119,12 +1119,11 @@
   (computed-attribute-fns :future (find-object-schema record-name)))
 
 (def expr-fns (partial computed-attribute-fns :expr))
-(def query-fns (partial computed-attribute-fns :query))
 (def eval-attrs (partial computed-attribute-fns :eval))
 
 (defn all-computed-attribute-fns [record-name]
   (when-let [scm (find-object-schema record-name)]
-    [(expr-fns scm) (query-fns scm) (eval-attrs scm)]))
+    [(expr-fns scm) (eval-attrs scm)]))
 
 (defn mark-dirty [inst]
   (assoc inst dirty-key true))
@@ -1142,7 +1141,7 @@
     (into {} res)))
 
 (defn- computed? [attr-schema]
-  (or (:expr attr-schema) (:query attr-schema)))
+  (:expr attr-schema))
 
 (defn- pickled [attr-schema attr-val]
   (if-let [p (:writer attr-schema)]

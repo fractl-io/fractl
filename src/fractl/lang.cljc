@@ -179,7 +179,6 @@
         :type (li/validate attribute-type? "invalid :type" v)
         :expr (li/validate fn-or-name? ":expr has invalid value" v)
         :eval (li/validate eval-block? ":eval has invalid value" v)
-        :query (li/validate fn? ":query must be a compiled pattern" v)
         :format (li/validate string? ":format must be a textual pattern" v)
         :listof (li/validate listof-spec? ":listof has invalid type" v)
         :setof (li/validate attribute-type? ":setof has invalid type" v)
@@ -318,14 +317,16 @@
       :eval (assoc ev :opcode (compile-eval-block recname attrs ev))
       :optional true))
     (when-let [expr (:expr v)]
-      (if (fn? expr)
+      (cond
+        (fn? expr)
         (attribute nm v)
-        (attribute
-         nm
-         (merge (if-let [t (:type v)]
-                  {:type t}
-                  (u/throw-ex (str ":type is required for attribute " k " with compound expression")))
-                {:expr (c/compile-attribute-expression recname attrs k expr)}))))))
+
+        :else (attribute
+               nm
+               (merge (if-let [t (:type v)]
+                        {:type t}
+                        (u/throw-ex (str ":type is required for attribute " k " with compound expression")))
+                      {:expr (c/compile-attribute-expression recname attrs k expr)}))))))
 
 (defn- normalize-attr [recname attrs fqn [k v]]
   (let [newv
@@ -433,6 +434,17 @@
                     attrs)]
     (into {} attrs)))
 
+(defn- preproc-attrs [attrs]
+  (let [attrs (mapv (fn [[k v]]
+                      [k (if-let [expr (and (map? v) (:expr v))]
+                           (if (keyword? expr)
+                             (let [t (or (:type v) :Any)]
+                               (assoc v :type t :expr `(clojure.core/identity ~expr)))
+                             v)
+                           v)])
+                    attrs)]
+  (preproc-for-built-in-attrs (into {} attrs))))
+
 (defn- normalized-attributes [rectype recname orig-attrs]
   (let [f (partial cn/canonical-type-name (cn/get-current-component))
         orig-attrs (normalize-kernel-types orig-attrs)
@@ -462,7 +474,7 @@
    (if (map? attrs)
      (let [cn (validated-canonical-type-name n)
            r (cn/intern-record
-              cn (normalized-attributes :record cn (preproc-for-built-in-attrs attrs)))]
+              cn (normalized-attributes :record cn (preproc-attrs attrs)))]
        (when r
          (and (if-not (:contains (:meta attrs))
                 (raw/record n attrs)
@@ -493,7 +505,7 @@
   "An event record with timestamp and other auto-generated meta fields."
   ([n attrs]
    (ensure-no-reserved-event-attrs! attrs)
-   (let [attrs1 (preproc-for-built-in-attrs attrs)
+   (let [attrs1 (preproc-attrs attrs)
          r (event-internal
             n (assoc attrs1 li/event-context (k/event-context-attribute-name))
             true)]
@@ -880,7 +892,7 @@
   "A record that can be persisted with a unique id."
   ([n attrs raw-attrs]
    (let [attrs (if raw-attrs (preproc-path-identity attrs) attrs)]
-     (when-let [r (serializable-entity n (preproc-for-built-in-attrs attrs))]
+     (when-let [r (serializable-entity n (preproc-attrs attrs))]
        (and (if raw-attrs (raw/entity n raw-attrs) true) r))))
   ([n attrs]
    (let [raw-attrs attrs
@@ -982,8 +994,7 @@
 (defn- regen-contains-child-attributes [child meta]
   (when-not (cn/path-identity-attribute-name child)
     (let [cident (user-defined-identity-attribute-name child)
-          child-attrs (preproc-for-built-in-attrs
-                       (raw/record-attributes-include-inherits child))
+          child-attrs (preproc-attrs (raw/record-attributes-include-inherits child))
           cident-raw-spec (cident child-attrs)
           cident-spec (if (map? cident-raw-spec)
                         cident-raw-spec
@@ -1052,7 +1063,7 @@
     :else [meta new-attrs]))
 
 (defn- between-relationship [relname attrs relmeta elems]
-  (let [[node-names new-attrs] (assoc-relnode-attributes (preproc-for-built-in-attrs attrs) elems relmeta)
+  (let [[node-names new-attrs] (assoc-relnode-attributes (preproc-attrs attrs) elems relmeta)
         [meta new-attrs] (between-unique-meta (:meta attrs) relmeta elems node-names new-attrs)
         meta (assoc meta :relationship :between cn/relmeta-key relmeta)
         r (serializable-entity relname (assoc new-attrs :meta meta) attrs)]
