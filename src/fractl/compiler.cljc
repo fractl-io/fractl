@@ -1163,11 +1163,19 @@
 (defn translate-ref-via-relationship [rec-name rec-inst rel-name refs]
   (when-not (cn/in-relationship? rec-name rel-name)
     (u/throw-ex (str rec-name " not in relationship " rel-name)))
-  ;; TODO: translate refs to a pattern as in the example below,
-  [{:I713/Salary? {}
-    :-> [[{:I713/EmployeeSalary {:Employee? (:Id rec-inst)}}]]
-    :as [:S]}
-   :S.Base])
+  (let [has-attr-ref (even? (count refs))]
+    (when (and has-attr-ref (not (cn/one-to-one-relationship? rel-name)))
+      (u/throw-ex (str "Reference to attribute valid only via one-one relationship - " [rel-name refs])))
+    (let [ent (cn/other-relationship-node rel-name rec-name)
+          rel-query {(li/name-as-query-pattern ent) {}
+                     :-> [[{rel-name {(li/name-as-query-pattern
+                                       (first (cn/find-between-keys rel-name rec-name)))
+                                      ((cn/identity-attribute-name rec-name) rec-inst)}}]]}]
+      (if has-attr-ref
+        (let [alias (li/unq-name)]
+          [(assoc rel-query :as [alias])
+           (li/make-ref alias (last refs))])
+        [rel-query]))))
 
 (defn- translate-expr-arg
   ([rec-name attrs attr-names aname arg]
@@ -1244,7 +1252,7 @@
             `(if (cn/relationship? ~r)
                (evaluate-pattern-in-expr
                 ~runtime-env-var ~recname ~attr-name
-                (translate-ref-via-relationship ~recname ~current-instance-var ~r ~(rest ref-parts)))
+                (translate-ref-via-relationship ~recname ~current-instance-var ~r ~(vec (rest ref-parts))))
                (u/throw-ex (str "invalid relationship reference - " ~exp)))
             (throw ex))))
 

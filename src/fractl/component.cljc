@@ -1578,7 +1578,7 @@
 
 (defn other-relationship-node [relname nodename]
   (when-let [[a b] (relationship-nodes relname)]
-    (if (= a nodename) b a)))
+    (if (= a (li/make-path nodename)) b a)))
 
 (defn between-relationship-nodes [relname]
   (mt/between (fetch-meta relname)))
@@ -1667,6 +1667,10 @@
 (defn relationship? [n]
   (or (contains-relationship? n)
       (between-relationship? n)))
+
+(defn one-to-one-relationship? [relname]
+  (and (between-relationship? relname)
+       (:one-one (fetch-meta relname))))
 
 (defn containing-parent [relname]
   (first (mt/contains (fetch-meta relname))))

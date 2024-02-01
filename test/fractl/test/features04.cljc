@@ -374,7 +374,8 @@
       :Base :Decimal})
     (relationship
      :I713/EmployeeSalary
-     {:meta {:between [:I713/Employee :I713/Salary]}})
+     {:meta {:between [:I713/Employee :I713/Salary]
+             :one-one true}})
     (dataflow
      :I713/FindSalary
      {:I713/Salary? {}
