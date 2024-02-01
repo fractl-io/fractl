@@ -437,7 +437,7 @@
 (defn- preproc-attrs [attrs]
   (let [attrs (mapv (fn [[k v]]
                       [k (if-let [expr (and (map? v) (:expr v))]
-                           (if (keyword? expr)
+                           (if (or (keyword? expr) (li/patterns-arg? expr))
                              (let [t (or (:type v) :Any)]
                                (assoc v :type t :expr `(clojure.core/identity ~expr)))
                              v)

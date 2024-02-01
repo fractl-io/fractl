@@ -1215,9 +1215,6 @@
        (not (vector? x))
        (not (string? x))))
 
-(defn- patterns-arg? [x]
-  (and (vector? x) (= :patterns (first x))))
-
 (defn fix-names-in-arg-pattern [arg-lookup pat]
   (if (keyword? pat)
     (or (arg-lookup pat) pat)
@@ -1259,7 +1256,7 @@
       (maybe-expr? exp)
       `(~(first exp) ~@(map #(parse-expr recname arg-lookup attr-name %) (rest exp)))
 
-      (patterns-arg? exp)
+      (li/patterns-arg? exp)
       (let [safe-arg-lookup (fn [x]
                               (try
                                 (arg-lookup x)

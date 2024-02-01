@@ -657,3 +657,6 @@
    [:before :delete entity-name]])
 
 (def event-internal-env :-*-event-internal-env-*-)
+
+(defn patterns-arg? [x]
+  (and (vector? x) (= :patterns (first x))))
