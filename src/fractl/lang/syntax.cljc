@@ -479,31 +479,25 @@
 (defn delete
   ([spec]
    (delete
-    ($record spec) (attrs-tag spec)
-    (alias-tag spec)
-    (when-let [rel (rel-tag spec)]
-      `[~rel-tag ~@rel])))
+    ($record spec)
+    (attrs-tag spec)
+    (alias-tag spec)))
   ([recname attrs result-alias]
-   (delete recname attrs result-alias nil))
-  ([recname attrs result-alias rel]
-   (let [amap (map? attrs)
-         rel (or rel (if-not amap attrs rel))]
+   (let [amap (map? attrs)]
      (when-not (li/name? recname)
        (u/throw-ex (str "invalid record-name in delete - " recname)))
      (if amap
        (when-not (every? valid-attr-spec? attrs)
          (u/throw-ex (str "invalid attribute spec in delete - " attrs)))
-       (when-not (relspec-for-delete? rel)
-         (u/throw-ex (str "invalid relationship delete spec - " rel))))
+       (when-not (or (= :purge attrs) (= :* attrs))
+         (u/throw-ex (str "invalid delete option - " attrs))))
      (validate-alias! result-alias)
      (as-syntax-object
       :delete
       (merge
        {record-tag recname}
-       (if amap
-         {attrs-tag (introspect-attrs attrs)}
-         {rel-tag (introspect-relationship (rest rel))})
-       {alias-tag result-alias})))))
+       {attrs-tag (if amap (introspect-attrs attrs) attrs)}
+       (when result-alias {alias-tag result-alias}))))))
 
 (def delete? (partial has-type? :delete))
 
@@ -516,9 +510,10 @@
   (raw-special-form
    ir
    [:delete ($record ir)
-    (if-let [attrs (attrs-tag ir)]
-      (raw-walk attrs)
-      `[~rel-tag ~@(raw-relationship (rel-tag ir))])]))
+    (let [attrs (attrs-tag ir)]
+      (if (or (= :purge attrs) (= :* attrs))
+        attrs
+        (raw-walk attrs)))]))
 
 (defn query
   ([spec]
