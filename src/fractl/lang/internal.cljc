@@ -272,6 +272,9 @@
     path
     (split-by-delim #"\." (str path))))
 
+(defn partial-name? [x]
+  (= 1 (count (split-path x))))
+
 (defn make-path
   ([component obj-name]
    (when (and component obj-name)

@@ -401,3 +401,21 @@
         (is (e? e))
         (is (= (:Base e) (:Base s01)))
         (is (= (:Bonus e) (compute-bonus (:Level e) (:Base s01))))))))
+
+(deftest issue-713-multi-level-refs
+  (defn add-zs [cs]
+    (reduce (fn [x y] (+ x y)) 0 (mapv :Z cs)))
+  (defcomponent :I713M
+    (entity
+     :I713M/A
+     {:Id :Identity
+      :X :Int
+      :Zs {:type :Int
+           :expr '(fractl.test.features04/add-zs :I713M/R1.B.R2.C)}})
+    (entity :I713M/B {:Id :Identity :Y :Int})
+    (entity :I713M/C {:Id :Identity :Z :Int})
+    (relationship :I713M/R1 {:meta {:between [:I713M/A :I713M/B], :one-one true}})
+    (relationship :I713M/R2 {:meta {:between [:I713M/B :I713M/C]}}))
+  (let [a? (partial cn/instance-of? :I713M/A)
+        a1 (tu/first-result {:I713M/Create_A {:Instance {:I713M/A {:X 1}}}})]
+    (is (a? a1))))

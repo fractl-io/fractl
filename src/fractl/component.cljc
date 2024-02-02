@@ -427,10 +427,12 @@
 
 (def attributes :schema)
 
-(defn has-attribute? [schema attr-name]
-  (if (attr-name (attribute-names schema))
-    true
-    false))
+(defn has-attribute? [schema-or-name attr-name]
+  (if (keyword? schema-or-name)
+    (has-attribute? (fetch-schema schema-or-name) attr-name)
+    (if (attr-name (attribute-names schema-or-name))
+      true
+      false)))
 
 (defn- filter-attribute-schemas [predic entity-schema]
   (filter #(let [ascm (find-attribute-schema (second %))]

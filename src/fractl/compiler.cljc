@@ -1163,19 +1163,32 @@
 (defn translate-ref-via-relationship [rec-name rec-inst rel-name refs]
   (when-not (cn/in-relationship? rec-name rel-name)
     (u/throw-ex (str rec-name " not in relationship " rel-name)))
-  (let [has-attr-ref (even? (count refs))]
-    (when (and has-attr-ref (not (cn/one-to-one-relationship? rel-name)))
-      (u/throw-ex (str "Reference to attribute valid only via one-one relationship - " [rel-name refs])))
-    (let [ent (cn/other-relationship-node rel-name rec-name)
-          rel-query {(li/name-as-query-pattern ent) {}
-                     :-> [[{rel-name {(li/name-as-query-pattern
-                                       (first (cn/find-between-keys rel-name rec-name)))
-                                      ((cn/identity-attribute-name rec-name) rec-inst)}}]]}]
-      (if has-attr-ref
-        (let [alias (li/unq-name)]
-          [(assoc rel-query :as [alias])
-           (li/make-ref alias (last refs))])
-        [rel-query]))))
+  (let [[root-component _] (li/split-path rel-name)]
+    (loop [rec-name rec-name, rec-inst rec-inst, rel-name rel-name, all-refs refs, pats []]
+      (if-let [refs (seq (take 2 all-refs))]
+        (let [has-child-ref (= 2 (count refs))]
+          (when (and has-child-ref (not (cn/one-to-one-relationship? rel-name)))
+            (u/throw-ex (str "Reference to attribute valid only via one-one relationship - " [rel-name refs])))
+          (let [ent (cn/other-relationship-node rel-name rec-name)
+                refname (and has-child-ref (second refs))
+                p0 {(li/name-as-query-pattern ent) {}
+                    :-> [[{rel-name {(li/name-as-query-pattern
+                                      (first (cn/find-between-keys rel-name rec-name)))
+                                     (if (keyword? rec-inst)
+                                       (li/make-ref rec-inst (cn/identity-attribute-name rec-name))
+                                       ((cn/identity-attribute-name rec-name) rec-inst))}}]]}
+                alias (and has-child-ref (li/unq-name))
+                p1 (if alias (assoc p0 :as [alias]) p0)
+                remrefs (drop 2 all-refs)]
+            (if (seq remrefs)
+              (let [relname (if (li/partial-name? refname)
+                              (li/make-path root-component refname)
+                              refname)]
+                (recur ent alias relname remrefs (conj pats p1)))
+              (let [pt0 (conj pats p1)
+                    pt1 (if alias (conj pt0 (li/make-ref alias refname)) pt0)]
+                (vec pt1)))))
+        (vec pats)))))
 
 (defn- translate-expr-arg
   ([rec-name attrs attr-names aname arg]
