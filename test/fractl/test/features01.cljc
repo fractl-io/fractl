@@ -583,3 +583,13 @@
         piq (ls/query {ls/record-tag :AssessmentsTwo.Core/Profile? ls/attrs-tag {}})]
     (is (= #:AssessmentsTwo.Core{:Profile? {}} (ls/raw piq)))
     (is (= pat (ls/raw pi)))))
+
+(deftest purge-in-syntax
+  (let [ps [[:delete :Acme.Core/Employee {:Id 101}]
+            [:delete :Acme.Core/Employee {:Id 101} :as [:E]]
+            [:delete :Acme.Core/Employee :purge]
+            [:delete :Acme.Core/Employee :purge :as :Es]
+            [:delete :Acme.Core/Employee :*]
+            [:delete :Acme.Core/Employee :* :as :Es]]
+        irs (mapv ls/introspect ps)]
+    (is (= ps (mapv ls/raw irs)))))
