@@ -16,6 +16,7 @@
             [fractl.env :as env]
             [fractl.store :as store]
             [fractl.store.util :as stu]
+            [fractl.evaluator.state :as es]
             [fractl.compiler.rule :as rule]
             [fractl.compiler.validation :as cv]
             [fractl.compiler.internal :as i]))
@@ -1159,52 +1160,136 @@
       (u/throw-ex (str "Reference not valid - " ref-attr " - " [entity-name attr-name]
                        " is not unique")))))
 
-(defn- arg-lookup-fn [rec-name attrs attr-names aname arg]
-  (cond
-    (li/literal? arg)
-    arg
+(defn translate-ref-via-relationship [rec-name rec-inst rel-name refs]
+  (when-not (cn/in-relationship? rec-name rel-name)
+    (u/throw-ex (str rec-name " not in relationship " rel-name)))
+  (let [[root-component _] (li/split-path rel-name)]
+    (loop [rec-name rec-name, rec-inst rec-inst, rel-name rel-name, all-refs refs, pats []]
+      (if-let [refs (seq (take 2 all-refs))]
+        (let [has-child-ref (= 2 (count refs))]
+          (when (and has-child-ref (not (cn/one-to-one-relationship? rel-name)))
+            (u/throw-ex (str "Reference to attribute valid only via one-one relationship - " [rel-name refs])))
+          (let [ent (cn/other-relationship-node rel-name rec-name)
+                refname (and has-child-ref (second refs))
+                p0 {(li/name-as-query-pattern ent) {}
+                    :-> [[{rel-name {(li/name-as-query-pattern
+                                      (first (cn/find-between-keys rel-name rec-name)))
+                                     (if (keyword? rec-inst)
+                                       (li/make-ref rec-inst (cn/identity-attribute-name rec-name))
+                                       ((cn/identity-attribute-name rec-name) rec-inst))}}]]}
+                alias (and has-child-ref (li/unq-name))
+                p1 (if alias (assoc p0 :as [alias]) p0)
+                remrefs (drop 2 all-refs)]
+            (if (seq remrefs)
+              (let [relname (if (li/partial-name? refname)
+                              (li/make-path root-component refname)
+                              refname)]
+                (recur ent alias relname remrefs (conj pats p1)))
+              (let [pt0 (conj pats p1)
+                    pt1 (if alias (conj pt0 (li/make-ref alias refname)) pt0)]
+                (vec pt1)))))
+        (vec pats)))))
 
-    (= aname arg)
-    (u/throw-ex (str "self-reference in attribute expression - " [rec-name aname]))
+(defn- translate-expr-arg
+  ([rec-name attrs attr-names aname arg]
+   (cond
+     (li/literal? arg)
+     arg
 
-    (some #{arg} attr-names)
-    `(~arg ~current-instance-var)
+     (= aname arg)
+     (u/throw-ex (str "self-reference in attribute expression - " [rec-name aname]))
 
-    :else
-    (if-let [[refattr attr] (li/split-ref arg)]
-      (if-let [refpath (:ref (get attrs refattr))]
-        (let [{component :component rec :record refs :refs} (li/path-parts refpath)
-              ukattr (first refs)]
-          (assert-unique! [component rec] ukattr refattr)
-          ;; The referenced instance is auto-loaded into the environment by the
-          ;; evaluator, before the following code executes.
-          ;; See evaluator/root/do-load-references
-          `(~attr
-            (first
-             (fractl.env/lookup-instances-by-attributes
-              ~runtime-env-var
-              ~[component rec] [[~ukattr (~refattr ~current-instance-var)]]))))
-        (u/throw-ex (str "not a reference attribute " [rec-name aname arg])))
-      (u/throw-ex (str "invalid reference attribute " [rec-name aname arg])))))
+     (some #{arg} attr-names)
+     `(~arg ~current-instance-var)
+
+     :else
+     (if-let [[refattr attr] (li/split-ref arg)]
+       (if-let [refpath (:ref (get attrs refattr))]
+         (let [{component :component rec :record refs :refs} (li/path-parts refpath)
+               ukattr (first refs)]
+           (assert-unique! [component rec] ukattr refattr)
+           ;; The referenced instance is auto-loaded into the environment by the
+           ;; evaluator, before the following code executes.
+           ;; See evaluator/root/do-load-references
+           `(~attr
+             (first
+              (fractl.env/lookup-instances-by-attributes
+               ~runtime-env-var
+               ~[component rec] [[~ukattr (~refattr ~current-instance-var)]]))))
+         (u/throw-ex (str "not a reference attribute " [rec-name aname arg])))
+       (u/throw-ex (str "invalid reference attribute " [rec-name aname arg])))))
+  ([rec-name aname arg]
+   (if-let [scm (cn/fetch-schema rec-name)]
+     (translate-expr-arg rec-name scm (cn/attribute-names scm) aname arg)
+     (u/throw-ex (str "failed to find schema for "  rec-name)))))
 
 (defn- maybe-expr? [x]
   (and (seqable? x)
        (not (vector? x))
        (not (string? x))))
 
-(defn- parse-expr [arg-lookup exp]
-  (cond
-    (keyword? exp) (arg-lookup exp)
-    (maybe-expr? exp)
-    `(~(first exp) ~@(map #(parse-expr arg-lookup %) (rest exp)))
-    :else exp))
+(defn fix-names-in-arg-pattern [arg-lookup pat]
+  (if (keyword? pat)
+    (or (arg-lookup pat) pat)
+    (w/prewalk
+     (fn [pat]
+       (if (map? pat)
+         (if-let [attrs (li/record-attributes pat)]
+           (assoc pat (li/record-name pat)
+                  (into {} (mapv (fn [[k v]] [k (if (keyword? v)
+                                                  (or (arg-lookup v) v)
+                                                  v)])
+                                 attrs)))
+           pat)
+         pat))
+     pat)))
+
+(defn evaluate-pattern-in-expr [env [c _ :as recname] attr-name generated-pattern]
+  (try
+    (when-not (env/compound-patterns-blocked? env)
+      ((es/get-safe-eval-patterns) c generated-pattern))
+    (catch #?(:clj Exception :cljs :default) ex
+      (log/debug ex) nil)))
+
+(defn parse-expr [[c _ :as recname] arg-lookup attr-name exp]
+  (let [arg-lookup (or arg-lookup #(translate-expr-arg recname attr-name %))]
+    (cond
+      (keyword? exp)
+      (try
+        (arg-lookup exp)
+        (catch #?(:clj Exception :cljs :default) ex
+          (if-let [[r _ :as ref-parts] (li/split-ref exp)]
+            `(if (cn/relationship? ~r)
+               (evaluate-pattern-in-expr
+                ~runtime-env-var ~recname ~attr-name
+                (translate-ref-via-relationship ~recname ~current-instance-var ~r ~(vec (rest ref-parts))))
+               (u/throw-ex (str "invalid relationship reference - " ~exp)))
+            (throw ex))))
+
+      (maybe-expr? exp)
+      `(~(first exp) ~@(map #(parse-expr recname arg-lookup attr-name %) (rest exp)))
+
+      (li/patterns-arg? exp)
+      (let [safe-arg-lookup (fn [x]
+                              (try
+                                (arg-lookup x)
+                                (catch #?(:clj Exception :cljs :default) ex
+                                  nil)))
+            pats (mapv (partial fix-names-in-arg-pattern safe-arg-lookup) (rest exp))]
+        `(try
+           (when-not (fractl.env/compound-patterns-blocked? ~runtime-env-var)
+             (fractl.evaluator/safe-eval-patterns ~c ~pats))
+           (catch #?(:clj Exception :cljs :default) ex#
+             (log/debug ex#) nil)))
+
+      :else exp)))
 
 (defn compile-attribute-expression [rec-name attrs aname aval]
   #?(:clj
      (do (when-not aval
            (u/throw-ex (str "attribute expression cannot be nil - " [rec-name aname])))
-         (let [arg-lookup (partial arg-lookup-fn rec-name attrs (keys attrs) aname)
-               parse-exp (partial parse-expr arg-lookup)
+         (let [arg-lookup (partial translate-expr-arg rec-name attrs (keys attrs) aname)
+               parse-exp (partial parse-expr (li/split-path rec-name) arg-lookup aname)
                exp `(fn [~runtime-env-var ~current-instance-var] ~(parse-exp aval))]
            (li/evaluate exp)))
      :cljs (concat ['quote] [aval])))

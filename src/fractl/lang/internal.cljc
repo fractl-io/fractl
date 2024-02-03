@@ -235,14 +235,14 @@
   (if (name? pat)
     pat
     (when (map? pat)
-      (let [n (first (keys pat))]
+      (let [n (ffirst (filter (fn [[_ v]] (map? v)) pat))]
         (when (or (name? n)
-                  (and (string? n) (name (keyword n))))
+                  (and (string? n) (name? (keyword n))))
           n)))))
 
 (defn record-attributes [pat]
   (when (map? pat)
-    (first (vals pat))))
+    (first (filter map? (vals pat)))))
 
 (defn destruct-instance-pattern [pat]
   [(first (keys pat)) (first (vals pat))])
@@ -271,6 +271,9 @@
   (if (parsed-path? path)
     path
     (split-by-delim #"\." (str path))))
+
+(defn partial-name? [x]
+  (= 1 (count (split-path x))))
 
 (defn make-path
   ([component obj-name]
@@ -657,3 +660,6 @@
    [:before :delete entity-name]])
 
 (def event-internal-env :-*-event-internal-env-*-)
+
+(defn patterns-arg? [x]
+  (and (vector? x) (= :patterns (first x))))

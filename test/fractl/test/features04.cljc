@@ -349,3 +349,94 @@
     (is (cn/same-instance? e2 (tu/first-result
                                {:Aus/Lookup_E__a
                                 {:__Id__ (:__Id__ e2)}})))))
+
+(deftest issue-713-relationship-refs
+  (defn compute-bonus [level base]
+    (if (and level base)
+      (* base level 0.1)
+      0.0))
+  (defcomponent :I713
+    (entity
+     :I713/Employee
+     {:Id :Identity
+      :Level :Int
+      :Base {:expr :I713/EmployeeSalary.Salary.Base}
+      :Bonus {:type :Decimal
+              :expr '(fractl.test.features04/compute-bonus
+                      :Level :I713/EmployeeSalary.Salary.Base
+                      #_[:patterns
+                       {:I713/Salary? {}
+                        :-> [[{:I713/EmployeeSalary {:Employee? :Id}}]]
+                        :as [:S]}
+                       :S.Base])}})
+    (entity
+     :I713/Salary
+     {:Id :Identity
+      :Base :Decimal})
+    (relationship
+     :I713/EmployeeSalary
+     {:meta {:between [:I713/Employee :I713/Salary]
+             :one-one true}})
+    (dataflow
+     :I713/FindSalary
+     {:I713/Salary? {}
+      :-> [[{:I713/EmployeeSalary {:Employee? :I713/FindSalary.Employee}}]]
+      :as [:S]})
+    (dataflow
+     :I713/AssignSalary
+     {:I713/Salary
+      {:Base :I713/AssignSalary.Base}
+      :-> [[{:I713/EmployeeSalary {}}
+            {:I713/Employee {:Id? :I713/AssignSalary.Employee}}]]}))
+  (let [e01 (tu/first-result {:I713/Create_Employee
+                              {:Instance
+                               {:I713/Employee {:Level 2}}}})
+        e? (partial cn/instance-of? :I713/Employee)]
+    (is (e? e01))
+    (let [s01 (tu/first-result {:I713/AssignSalary {:Employee (:Id e01) :Base 1450.5}})
+          s? (partial cn/instance-of? :I713/Salary)]
+      (is (s? s01))
+      (is (cn/same-instance? s01 (tu/first-result {:I713/FindSalary {:Employee (:Id e01)}})))
+      (let [e (tu/first-result {:I713/Lookup_Employee {:Id (:Id e01)}})]
+        (is (e? e))
+        (is (= (:Base e) (:Base s01)))
+        (is (= (:Bonus e) (compute-bonus (:Level e) (:Base s01))))))))
+
+(deftest issue-713-multi-level-refs
+  (defn add-zs [cs]
+    (reduce (fn [x y] (+ x y)) 0 (mapv :Z cs)))
+  (defcomponent :I713M
+    (entity
+     :I713M/A
+     {:Id :Identity
+      :X :Int
+      :Zs {:type :Int
+           :expr '(fractl.test.features04/add-zs :I713M/R1.B.R2.C)}})
+    (entity :I713M/B {:Id :Identity :Y :Int})
+    (entity :I713M/C {:Id :Identity :Z :Int})
+    (relationship :I713M/R1 {:meta {:between [:I713M/A :I713M/B], :one-one true}})
+    (relationship :I713M/R2 {:meta {:between [:I713M/B :I713M/C]}}))
+  (let [a? (partial cn/instance-of? :I713M/A)
+        b? (partial cn/instance-of? :I713M/B)
+        c? (partial cn/instance-of? :I713M/C)
+        a1 (tu/first-result {:I713M/Create_A {:Instance {:I713M/A {:X 1}}}})
+        [b1 b2] (mapv #(tu/first-result {:I713M/Create_B {:Instance {:I713M/B {:Y %}}}}) [2 3])
+        [c1 c2 c3] (mapv #(tu/first-result {:I713M/Create_C {:Instance {:I713M/C {:Z %}}}}) [10 20 30])]
+    (is (a? a1))
+    (is (every? b? [b1 b2]))
+    (is (every? c? [c1 c2]))
+    (let [r1? (partial cn/instance-of? :I713M/R1)
+          r2? (partial cn/instance-of? :I713M/R2)
+          r11 (tu/first-result {:I713M/Create_R1 {:Instance {:I713M/R1 {:A (:Id a1) :B (:Id b1)}}}})
+          a (tu/first-result {:I713M/Lookup_A {:Id (:Id a1)}})]
+      (is (r1? r11))
+      (is (cn/instance-eq? a1 a))
+      (is (zero? (:Zs a)))
+      (let [r21 (tu/first-result {:I713M/Create_R2 {:Instance {:I713M/R2 {:B (:Id b1) :C (:Id c1)}}}})
+            r22 (tu/first-result {:I713M/Create_R2 {:Instance {:I713M/R2 {:B (:Id b1) :C (:Id c2)}}}})
+            r23 (tu/first-result {:I713M/Create_R2 {:Instance {:I713M/R2 {:B (:Id b2) :C (:Id c3)}}}})
+            r24 (tu/first-result {:I713M/Create_R2 {:Instance {:I713M/R2 {:B (:Id b2) :C (:Id c2)}}}})]
+        (is (every? r2? [r21 r22 r23 r24]))
+        (let [a (tu/first-result {:I713M/Lookup_A {:Id (:Id a1)}})]
+          (is (cn/instance-eq? a1 a))
+          (is (= 30 (:Zs a))))))))

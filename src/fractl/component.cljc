@@ -332,13 +332,6 @@
     (find-attribute-schema attr-name)
     attr-name))
 
-(defn fetch-relationship-schema [rel-name]
-  (when-let [scm (fetch-entity-schema rel-name)]
-    (when (mt/relationship? (fetch-meta rel-name))
-      scm)))
-
-(def relationship? fetch-relationship-schema)
-
 (defn find-object-schema [path]
   (or (find-entity-schema path)
       (find-record-schema path)
@@ -434,10 +427,12 @@
 
 (def attributes :schema)
 
-(defn has-attribute? [schema attr-name]
-  (if (attr-name (attribute-names schema))
-    true
-    false))
+(defn has-attribute? [schema-or-name attr-name]
+  (if (keyword? schema-or-name)
+    (has-attribute? (fetch-schema schema-or-name) attr-name)
+    (if (attr-name (attribute-names schema-or-name))
+      true
+      false)))
 
 (defn- filter-attribute-schemas [predic entity-schema]
   (filter #(let [ascm (find-attribute-schema (second %))]
@@ -665,7 +660,7 @@
           (if (fn? dval) (dval) dval))))))
 
 (defn- apply-attribute-validation [aname ascm attributes]
-  (if (or (:expr ascm) (:query ascm))
+  (if (:expr ascm)
     attributes
     (if-let [[_ aval] (get-attr-val ascm attributes aname)]
       (do (valid-attribute-value aname aval ascm)
@@ -919,7 +914,7 @@
                         (:records (get @components component))))]
     (set (mapv (partial full-name component) (keys recs)))))
 
-(declare contains-relationship?)
+(declare contains-relationship? relationship?)
 
 (defn record-names
   ([component exclude-contains]
@@ -1126,12 +1121,11 @@
   (computed-attribute-fns :future (find-object-schema record-name)))
 
 (def expr-fns (partial computed-attribute-fns :expr))
-(def query-fns (partial computed-attribute-fns :query))
 (def eval-attrs (partial computed-attribute-fns :eval))
 
 (defn all-computed-attribute-fns [record-name]
   (when-let [scm (find-object-schema record-name)]
-    [(expr-fns scm) (query-fns scm) (eval-attrs scm)]))
+    [(expr-fns scm) (eval-attrs scm)]))
 
 (defn mark-dirty [inst]
   (assoc inst dirty-key true))
@@ -1149,7 +1143,7 @@
     (into {} res)))
 
 (defn- computed? [attr-schema]
-  (or (:expr attr-schema) (:query attr-schema)))
+  (:expr attr-schema))
 
 (defn- pickled [attr-schema attr-val]
   (if-let [p (:writer attr-schema)]
@@ -1585,7 +1579,7 @@
 
 (defn other-relationship-node [relname nodename]
   (when-let [[a b] (relationship-nodes relname)]
-    (if (= a nodename) b a)))
+    (if (= a (li/make-path nodename)) b a)))
 
 (defn between-relationship-nodes [relname]
   (mt/between (fetch-meta relname)))
@@ -1670,6 +1664,14 @@
 
 (defn between-relationship? [recname]
   (mt/between (fetch-meta recname)))
+
+(defn relationship? [n]
+  (or (contains-relationship? n)
+      (between-relationship? n)))
+
+(defn one-to-one-relationship? [relname]
+  (and (between-relationship? relname)
+       (:one-one (fetch-meta relname))))
 
 (defn containing-parent [relname]
   (first (mt/contains (fetch-meta relname))))
@@ -1822,6 +1824,16 @@
       (if (some #{n} (between-attribute-names relname))
         n
         (first (find-between-keys relname maybe-node-name))))))
+
+(defn relationship-node-entity [relname node-name]
+  (let [[n1 n2] (relationship-nodes relname)
+        t (:as (fetch-meta relname))
+        [a1 a2 :as aliases] (or t [(second (li/split-path n1))
+                                   (second (li/split-path n2))])]
+    (cond
+      (= node-name a1) n1
+      (= node-name a2) n2
+      :else (u/throw-ex (str "node-name " node-name " is not in relationship aliases - " aliases)))))
 
 (defn fetch-default-attribute-values [schema]
   (into
