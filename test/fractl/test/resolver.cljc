@@ -10,6 +10,7 @@
             [fractl.evaluator :as e]
             [fractl.env :as env]
             [fractl.lang.internal :as li]
+            [fractl.paths.internal :as pi]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
@@ -407,7 +408,7 @@
   (let [rdb-parents (atom [])
         rdb-children (atom {})
         del-child (fn [recname p]
-                    (let [k (li/flatten-fully-qualified-path p)]
+                    (let [k (pi/flatten-fully-qualified-path p)]
                       (swap! rdb-children us/dissoc-in k)
                       p))
         del (fn [inst]
@@ -420,7 +421,7 @@
            :rpc
            {:create {:handler (fn [inst]
                                 (if-let [p (li/path-attr inst)]
-                                  (let [k (li/flatten-fully-qualified-path p)]
+                                  (let [k (pi/flatten-fully-qualified-path p)]
                                     (swap! rdb-children assoc-in k inst))
                                   (swap! rdb-parents conj inst))
                                 inst)}
@@ -428,7 +429,7 @@
                                (case attr
                                  :Id (filter #(= v (:Id %)) @rdb-parents)
                                  :__path__
-                                 (let [fp0 (li/flatten-fully-qualified-path v)
+                                 (let [fp0 (pi/flatten-fully-qualified-path v)
                                        fp (if-not (last fp0) (butlast fp0) fp0)
                                        r (get-in @rdb-children fp)]
                                    (if (map? r)
@@ -543,19 +544,19 @@
            :rc
            {:create {:handler (fn [inst]
                                 (when-let [p (li/path-attr inst)]
-                                  (let [k (li/flatten-fully-qualified-path p)]
+                                  (let [k (pi/flatten-fully-qualified-path p)]
                                     (swap! rdb-children assoc-in k inst)))
                                 inst)}
             :query {:handler (fn [[a {[_ attr v] :where :as where}]]
                                (when (= attr :__path__)
-                                 (let [fp0 (li/flatten-fully-qualified-path v)
+                                 (let [fp0 (pi/flatten-fully-qualified-path v)
                                        fp (if-not (last fp0) (butlast fp0) fp0)
                                        r (get-in @rdb-children fp)]
                                    (if (map? r)
                                      (vec (vals r))
                                      r))))}
             :delete {:handler (fn [inst]
-                                (let [k (li/flatten-fully-qualified-path (li/path-attr inst))]
+                                (let [k (pi/flatten-fully-qualified-path (li/path-attr inst))]
                                   (swap! rdb-children us/dissoc-in k)
                                   inst))}})]
     (rg/override-resolver [:Rc/C] r)

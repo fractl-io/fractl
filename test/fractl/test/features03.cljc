@@ -10,6 +10,7 @@
                      entity record relationship
                      dataflow]]
             [fractl.lang.internal :as li]
+            [fractl.paths.internal :as pi]            
             [fractl.lang.syntax :as ls]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -144,7 +145,7 @@
                     {:I962/Lookup_Employee
                      {li/path-attr (li/path-attr e)}}))]
     (is (e? e1))
-    (is (li/null-path? (li/path-attr e1)))
+    (is (pi/null-path? (li/path-attr e1)))
     (is (e? e2))
     (is (pos? (s/index-of (li/path-attr e2) (li/id-attr e1))))
     (is (cn/same-instance? e1 (lookup-e e1)))

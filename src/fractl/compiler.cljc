@@ -10,6 +10,8 @@
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
             [fractl.lang.syntax :as ls]
+            [fractl.paths :as paths]
+            [fractl.paths.internal :as pi]
             [fractl.compiler.context :as ctx]
             [fractl.component :as cn]
             [fractl.meta :as mt]
@@ -460,7 +462,7 @@
   (cond
     (complex-query-pattern? pat)
     (let [[k v] [(first (keys pat)) (first (vals pat))]]
-      (if (li/proper-path? v)
+      (if (pi/proper-path? v)
         (compile-map ctx {(li/normalize-name k) {li/path-query-tag v}})
         (compile-query-command ctx (query-map->command pat))))
 
@@ -1160,26 +1162,52 @@
       (u/throw-ex (str "Reference not valid - " ref-attr " - " [entity-name attr-name]
                        " is not unique")))))
 
+(defn- extract-identity-attribute-value [root-component parent-recname child-inst]
+  (if-let [path (and (map? child-inst) (li/path-attr child-inst))]
+    (let [parts (paths/parent-info-from-path root-component (pi/as-partial-path path))
+          id (loop [ps parts]
+               (when-let [p (first ps)]
+                 (if (= parent-recname p)
+                   (first (rest ps))
+                   (recur (rest ps)))))]
+      (when-not id
+        (u/throw-ex (str "Unable to find the guid of " parent-recname " from " path)))
+      id)
+    (u/throw-ex (str "Path not found in child instance - " child-inst))))
+
 (defn translate-ref-via-relationship [rec-name rec-inst rel-name refs]
   (when-not (cn/in-relationship? rec-name rel-name)
     (u/throw-ex (str rec-name " not in relationship " rel-name)))
   (let [[root-component _] (li/split-path rel-name)]
     (loop [rec-name rec-name, rec-inst rec-inst, rel-name rel-name, all-refs refs, pats []]
       (if-let [refs (seq (take 2 all-refs))]
-        (let [has-child-ref (= 2 (count refs))]
-          (when (and has-child-ref (not (cn/one-to-one-relationship? rel-name)))
-            (u/throw-ex (str "Reference to attribute valid only via one-one relationship - " [rel-name refs])))
+        (let [rec-name (li/make-path rec-name)
+              is-contains (cn/contains-relationship? rel-name)
+              is-child (and is-contains (= rec-name (cn/contained-child rel-name)))
+              has-child-ref (= 2 (count refs))]
+          (when (and has-child-ref (not (or (and is-contains is-child) (cn/one-to-one-relationship? rel-name))))
+            (u/throw-ex (str "Reference to attribute not accessible via this relationship - " [rel-name refs])))
           (let [ent (cn/other-relationship-node rel-name rec-name)
                 refname (and has-child-ref (second refs))
-                p0 {(li/name-as-query-pattern ent) {}
-                    :-> [[{rel-name {(li/name-as-query-pattern
-                                      (first (cn/find-between-keys rel-name rec-name)))
-                                     (if (keyword? rec-inst)
-                                       (li/make-ref rec-inst (cn/identity-attribute-name rec-name))
-                                       ((cn/identity-attribute-name rec-name) rec-inst))}}]]}
+                idattr (cn/identity-attribute-name rec-name)
+                idref (if (keyword? rec-inst)
+                        (li/make-ref rec-inst idattr)
+                        (idattr rec-inst))
+                p0 (if is-contains
+                     (if is-child
+                       {ent {(li/name-as-query-pattern
+                              (cn/identity-attribute-name ent))
+                             (extract-identity-attribute-value root-component ent rec-inst)}}
+                       {(li/name-as-query-pattern ent)
+                        {:where [:like li/path-attr (cn/full-path-from-references rec-inst rel-name ent)]}})
+                     {(li/name-as-query-pattern ent) {}
+                      li/rel-tag
+                      [[{rel-name {(li/name-as-query-pattern
+                                    (first (cn/find-between-keys rel-name rec-name)))
+                                   idref}}]]})
                 alias (and has-child-ref (li/unq-name))
                 p1 (if alias (assoc p0 :as [alias]) p0)
-                remrefs (drop 2 all-refs)]
+                remrefs (when-not is-contains (drop 2 all-refs))]
             (if (seq remrefs)
               (let [relname (if (li/partial-name? refname)
                               (li/make-path root-component refname)
@@ -1284,12 +1312,18 @@
 
       :else exp)))
 
+(defn- cleanup-quotes [exp]
+  (if (and (seqable? exp) (= 'quote (first exp)))
+    (first (rest exp))
+    exp))
+
 (defn compile-attribute-expression [rec-name attrs aname aval]
   #?(:clj
      (do (when-not aval
            (u/throw-ex (str "attribute expression cannot be nil - " [rec-name aname])))
          (let [arg-lookup (partial translate-expr-arg rec-name attrs (keys attrs) aname)
                parse-exp (partial parse-expr (li/split-path rec-name) arg-lookup aname)
+               aval (cleanup-quotes aval)
                exp `(fn [~runtime-env-var ~current-instance-var] ~(parse-exp aval))]
            (li/evaluate exp)))
      :cljs (concat ['quote] [aval])))

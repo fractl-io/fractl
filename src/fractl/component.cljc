@@ -10,6 +10,7 @@
             [fractl.lang.raw :as raw]
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]
+            [fractl.paths.internal :as pi]
             [fractl.util.errors :refer [raise-error throw-ex-info make-error]]))
 
 (def ^:private models (u/make-cell {}))
@@ -1676,6 +1677,9 @@
 (defn containing-parent [relname]
   (first (mt/contains (fetch-meta relname))))
 
+(defn contained-child [relname]
+  (second (mt/contains (fetch-meta relname))))
+
 (defn crud-event-name
   ([component-name entity-name evtname]
    (canonical-type-name
@@ -1857,7 +1861,7 @@
 
 (defn null-parent-path? [inst]
   (when-let [p (li/path-attr inst)]
-    (li/null-path? p)))
+    (pi/null-path? p)))
 
 (defn find-parent-info [rel-inst]
   (let [tp (instance-type-kw rel-inst)]
@@ -1927,10 +1931,10 @@
          ct (li/make-path child-type)]
      (if-let [rel (or relname (parent-relationship pt ct))]
        (let [pp (li/path-attr parent-inst)
-             rn (li/encoded-uri-path-part rel)]
+             rn (pi/encoded-uri-path-part rel)]
          (if pp
-           (str (li/path-string pp) "/" rn)
-           (str "/" (li/encoded-uri-path-part pt)
+           (str (pi/path-string pp) "/" rn)
+           (str "/" (pi/encoded-uri-path-part pt)
                 "/" ((identity-attribute-name pt) parent-inst)
                 "/" rn)))
        (u/throw-ex (str "no parent-child relationship found for - " [pt ct])))))
@@ -1949,8 +1953,8 @@
                        :else parent-inst)]
      (when (entity-instance? parent-inst)
        (let [[c _] (li/split-path child-type)]
-         (str (li/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst relname))
-              "/" (li/encoded-uri-path-part child-type) "/" child-id)))))
+         (str (pi/as-fully-qualified-path c (instance-to-partial-path child-type parent-inst relname))
+              "/" (pi/encoded-uri-path-part child-type) "/" child-id)))))
   ([child-type child-id parent-inst]
    (instance-to-full-path child-type child-id parent-inst nil)))
 
@@ -1992,7 +1996,7 @@
 (defn find-path-prefix [record-name inst]
   (or (li/path-attr inst)
       (let [[c n] (li/split-path record-name)]
-        (str li/path-prefix "/" (name c) "$" (name n) "/"
+        (str pi/path-prefix "/" (name c) "$" (name n) "/"
              ((identity-attribute-name record-name) inst)))))
 
 (defn find-path-prefix-with-wildcard

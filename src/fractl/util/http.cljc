@@ -6,7 +6,7 @@
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.component :as cn]
-            [fractl.lang.internal :as li]
+            [fractl.paths.internal :as pi]
             [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]
             [fractl.global-state :as gs]
@@ -182,7 +182,7 @@
   (let [uri-parts (s/split uri #"/")
         child-path (rest uri-parts)]
     (when (> (count child-path) 2)
-      (li/as-fully-qualified-path (keyword (first uri-parts)) (str "/" (s/join "/" child-path))))))
+      (pi/as-fully-qualified-path (keyword (first uri-parts)) (str "/" (s/join "/" child-path))))))
 
 (defn parse-rest-uri [uri]
   (let [parts (s/split uri #"/")

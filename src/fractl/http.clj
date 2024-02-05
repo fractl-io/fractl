@@ -14,6 +14,7 @@
             [fractl.lang :as ln]
             [clj-time.core :as time]
             [fractl.lang.internal :as li]
+            [fractl.paths.internal :as pi]
             [fractl.util :as u]
             [fractl.util.http :as uh]
             [fractl.util.hash :as hash]
@@ -314,7 +315,7 @@
   (partial
    process-generic-request
    (fn [{entity-name :entity component :component path :path} obj]
-     (let [path-attr (when path {li/path-attr (li/as-partial-path path)})]
+     (let [path-attr (when path {li/path-attr (pi/as-partial-path path)})]
        (if (cn/event? entity-name)
          [obj nil]
          (if-let [evt (maybe-generate-multi-post-event obj component path-attr)]
@@ -419,14 +420,14 @@
 
 (defn- between-rel-path? [path]
   (when path
-    (when-let [p (first (take-last 2 (li/uri-path-split path)))]
-      (cn/between-relationship? (li/decode-uri-path-part p)))))
+    (when-let [p (first (take-last 2 (pi/uri-path-split path)))]
+      (cn/between-relationship? (pi/decode-uri-path-part p)))))
 
 (defn- generate-query-by-between-rel-event [component path]
-  (let [parts (li/uri-path-split path)
-        relname (li/decode-uri-path-part (first (take-last 2 parts)))
-        query-entity (li/decode-uri-path-part (last parts))
-        entity-name (li/decode-uri-path-part (first (take-last 4 parts)))
+  (let [parts (pi/uri-path-split path)
+        relname (pi/decode-uri-path-part (first (take-last 2 parts)))
+        query-entity (pi/decode-uri-path-part (last parts))
+        entity-name (pi/decode-uri-path-part (first (take-last 4 parts)))
         event-name (temp-event-name component)
         pats (if (= 4 (count parts))
                (let [id (get parts 1)]
@@ -436,7 +437,7 @@
                (let [alias (li/unq-name)
                      id (li/make-ref alias li/id-attr)]
                  [{entity-name
-                   {li/path-attr? (li/uri-join-parts (drop-last 2 parts))}
+                   {li/path-attr? (pi/uri-join-parts (drop-last 2 parts))}
                    :as [alias]}
                   {(li/name-as-query-pattern query-entity) {}
                    :-> [[{relname {(li/name-as-query-pattern
