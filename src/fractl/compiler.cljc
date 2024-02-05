@@ -1164,7 +1164,7 @@
 
 (defn- extract-identity-attribute-value [root-component parent-recname child-inst]
   (if-let [path (and (map? child-inst) (li/path-attr child-inst))]
-    (let [parts (paths/parent-info-from-path root-component (pi/as-partial-path path))
+    (let [parts (paths/parent-info-from-path root-component (pi/as-partial-path (pi/as-wildcard-path path)))
           id (loop [ps parts]
                (when-let [p (first ps)]
                  (if (= parent-recname p)
@@ -1207,8 +1207,8 @@
                                    idref}}]]})
                 alias (and has-child-ref (li/unq-name))
                 p1 (if alias (assoc p0 :as [alias]) p0)
-                remrefs (when-not is-contains (drop 2 all-refs))]
-            (if (seq remrefs)
+                remrefs (drop 2 all-refs)]
+            (if (and (not is-contains) (seq remrefs))
               (let [relname (if (li/partial-name? refname)
                               (li/make-path root-component refname)
                               refname)]

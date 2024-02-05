@@ -134,3 +134,10 @@
 
 (defn normalize-path [p]
   (s/replace p "//" "/"))
+
+(defn as-wildcard-path [path]
+  (if (s/ends-with? path "%")
+    path
+    (let [idx (s/last-index-of path "/")
+          s0 (subs path 0 idx)]
+      (str s0 "/%"))))
