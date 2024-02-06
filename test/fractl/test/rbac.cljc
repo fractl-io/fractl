@@ -6,6 +6,7 @@
             [fractl.evaluator :as ev]
             [fractl.auth]
             [fractl.rbac.core :as rbac]
+            [fractl.paths.internal :as pi]
             [fractl.lang.internal :as li]
             [fractl.lang
              :refer [component attribute event
@@ -185,7 +186,7 @@
   (let [e? (partial cn/instance-of? :Wcr/E)]
     (call-with-rbac
      (fn []
-       (let [fq (partial li/as-fully-qualified-path :Wcr)
+       (let [fq (partial pi/as-fully-qualified-path :Wcr)
              e? (partial cn/instance-of? :Wcr/E)
              f? (partial cn/instance-of? :Wcr/F)
              create-e (fn [id]
@@ -330,7 +331,7 @@
        (tu/first-result {:I1018/InitUsers {}})))
   (call-with-rbac
    (fn []
-     (let [fq (partial li/as-fully-qualified-path :I1018)
+     (let [fq (partial pi/as-fully-qualified-path :I1018)
            a? (partial cn/instance-of? :I1018/A)
            b? (partial cn/instance-of? :I1018/B)
            create-a (fn [id]

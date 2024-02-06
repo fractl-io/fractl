@@ -14,6 +14,7 @@
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             [fractl.paths :as paths]
+            [fractl.paths.internal :as pi]
             [fractl.evaluator.async :as a]
             [fractl.evaluator.match :as m]
             [fractl.evaluator.internal :as i]
@@ -857,7 +858,7 @@
 (defn- attach-full-path [record-name inst path]
   (let [v (str ((cn/path-identity-attribute-name record-name) inst))
         [c n] (li/split-path record-name)]
-    (assoc inst li/path-attr (li/as-fully-qualified-path c (str path "/" (name n) "/" v)))))
+    (assoc inst li/path-attr (pi/as-fully-qualified-path c (str path "/" (name n) "/" v)))))
 
 (defn- concat-owners [env inst parent-inst]
   (let [user (active-user env)
@@ -870,13 +871,13 @@
 
 (defn- maybe-fix-contains-path [env rel-ctx record-name inst]
   (if-let [path (li/path-attr inst)]
-    (if-not (li/proper-path? path)
+    (if-not (pi/proper-path? path)
       (if-let [parent (paths/find-parent-by-path env record-name path)]
         (and (swap! rel-ctx assoc (li/make-path record-name) {:parent parent})
              (attach-full-path record-name (concat-owners env inst parent) path))
         (u/throw-ex (str "failed to find parent by path - " path)))
       (and (swap! rel-ctx assoc (li/make-path record-name)
-                  {:parent #(paths/find-parent-by-path env record-name (li/as-partial-path path))})
+                  {:parent #(paths/find-parent-by-path env record-name (pi/as-partial-path path))})
            inst))
     inst))
 

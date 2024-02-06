@@ -10,6 +10,7 @@
             [fractl.lang.raw :as raw]
             [fractl.lang.relgraph :as rg]
             [fractl.lang.internal :as li]
+            [fractl.paths.internal :as pi]
             [fractl.evaluator :as e]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -65,7 +66,7 @@
        :Bcr/WorksFor
        {:meta {:contains [:Bcr/Department :Bcr/Employee]}}))
     (is (cn/parent-via? :Bcr/WorksFor :Bcr/Employee :Bcr/Department))
-    (let [fq (partial li/as-fully-qualified-path :Bcr)
+    (let [fq (partial pi/as-fully-qualified-path :Bcr)
           d1 (tu/first-result
               {:Bcr/Create_Department
                {:Instance
@@ -157,7 +158,7 @@
         b1 (create-b "/A/1/R1" 10)
         b2 (create-b "/A/2/R1" 20)
         c11 (create-c "/A/1/R1/B/10/R2" 100)
-        fq (partial li/as-fully-qualified-path :Mlc)]
+        fq (partial pi/as-fully-qualified-path :Mlc)]
     (is (every? a? as))
     (is (every? b? [b1 b2]))
     (is (c? c11))
@@ -276,7 +277,7 @@
         as (mapv create-a [1 2 3])
         [b1 b2 b3 :as bs] (mapv create-b [1 2 3] [4 5 4])
         cs (mapv create-c [7 8 9])
-        fq (partial li/as-fully-qualified-path :Bac)
+        fq (partial pi/as-fully-qualified-path :Bac)
         rbs (mapv create-rb [(li/id-attr b1) (li/id-attr b3) (li/id-attr b1)] [7 7 9])]
     (is (every? a? as))
     (is (every? b? bs))
@@ -370,7 +371,7 @@
      {:Cblr/D {:Z :Cblr/MakeD.Z} :-> [[:Cblr/S :C]]}))
   (let [c? (partial cn/instance-of? :Cblr/C)
         p? (partial cn/instance-of? :Cblr/P)
-        pid #(second (filter seq (s/split (li/path-string (li/path-attr %)) #"/")))
+        pid #(second (filter seq (s/split (pi/path-string (li/path-attr %)) #"/")))
         make-c #(tu/first-result
                  {:Cblr/MakeC {:X %1 :Y %2}})
         c1 (make-c 1 10)
@@ -457,7 +458,7 @@
                      {:Instance {:Dac/C {:Id % :Y (* 2 %)}}
                       li/path-attr "/P/2/R"}})
                   [10 20])
-        fq (partial li/as-fully-qualified-path :Dac)
+        fq (partial pi/as-fully-qualified-path :Dac)
         allcs (fn [p f chk]
                 (let [cs (f
                           {:Dac/LookupAll_C
@@ -549,7 +550,7 @@
           c3 (create-c 2 3)
           p? (partial cn/instance-of? (mp :P))
           c? (partial cn/instance-of? (mp :C))
-          fq (partial li/as-fully-qualified-path c)
+          fq (partial pi/as-fully-qualified-path c)
           lookup-c #(tu/eval-all-dataflows
                      {(mp :Lookup_C)
                       {li/path-attr (fq (str "path://P/" %1 "/R/C/" %2))}})]

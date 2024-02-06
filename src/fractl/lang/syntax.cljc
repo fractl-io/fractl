@@ -3,6 +3,7 @@
             [clojure.string :as s]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
+            [fractl.paths.internal :as pi]
             [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]))
 
@@ -202,7 +203,7 @@
      {alias-tag als})))
 
 (defn- query-attrs? [attrs]
-  (or (li/proper-path? attrs) (some li/query-pattern? (keys attrs))))
+  (or (pi/proper-path? attrs) (some li/query-pattern? (keys attrs))))
 
 (defn- query-record-name [recname]
   (if (li/query-pattern? recname)
@@ -264,7 +265,7 @@
         attrs (recname pat)]
     (when-not (li/name? recname)
       (u/throw-ex (str "invalid record name - " recname)))
-    (when-not (or (map? attrs) (li/proper-path? attrs))
+    (when-not (or (map? attrs) (pi/proper-path? attrs))
       (u/throw-ex (str "expected a map or a path query - " attrs)))
     (let [attr-names (and (map? attrs ) (seq (keys attrs)))
           qpat (if attr-names
@@ -743,7 +744,7 @@
 
 (defn- full-path-name-info [model-name n]
   (let [{c :component r :record} (li/path-parts n)]
-    (if (li/ref-path-name? c)
+    (if (pi/ref-path-name? c)
       (when-let [info (ref-path-name-info model-name c)]
         (merge info {:record r}))
       {:component c :record r})))
@@ -751,8 +752,8 @@
 (defn name-info
   ([model-name n]
    (cond
-     (li/full-path-name? n) (full-path-name-info model-name n)
-     (li/ref-path-name? n) (ref-path-name-info model-name n)
+     (pi/full-path-name? n) (full-path-name-info model-name n)
+     (pi/ref-path-name? n) (ref-path-name-info model-name n)
      (li/name? n) {:record n}
      :else nil))
   ([n] (name-info nil n)))

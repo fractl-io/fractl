@@ -440,3 +440,59 @@
         (let [a (tu/first-result {:I713M/Lookup_A {:Id (:Id a1)}})]
           (is (cn/instance-eq? a1 a))
           (is (= 30 (:Zs a))))))))
+
+(deftest issue-1211-contains-in-refs
+  (defn add-ys [bs]
+    (reduce (fn [x y] (+ x y)) 0 (mapv :Y bs)))
+  (defcomponent :I1211
+    (entity :I1211/A {:Id :Identity
+                      :X :Int
+                      :Ys {:type :Int
+                           :expr '(fractl.test.features04/add-ys :I1211/R.B)}})
+    (entity :I1211/B {:Id :Identity :Y :Int})
+    (relationship :I1211/R {:meta {:contains [:I1211/A :I1211/B]}})
+    (dataflow
+     :I1211/MakeB
+     {:I1211/B {:Y :I1211/MakeB.Y} :-> [[:I1211/R {:I1211/A {:Id? :I1211/MakeB.A}}]]}))
+  (let [a? (partial cn/instance-of? :I1211/A)
+        b? (partial cn/instance-of? :I1211/B)
+        [a1 a2 :as aa] (mapv #(tu/first-result {:I1211/Create_A {:Instance {:I1211/A {:X %}}}}) [1 2])]
+    (is (every? a? aa))
+    (is (cn/same-instance? a1 (tu/first-result {:I1211/Lookup_A {:Id (:Id a1)}})))
+    (is (b? (tu/first-result {:I1211/MakeB {:A (:Id a1) :Y 100}})))
+    (is (b? (tu/first-result {:I1211/MakeB {:A (:Id a1) :Y 200}})))
+    (is (b? (tu/first-result {:I1211/MakeB {:A (:Id a2) :Y 6}})))
+    (let [a (tu/first-result {:I1211/Lookup_A {:Id (:Id a1)}})]
+      (is (cn/instance-eq? a1 a))
+      (is (= 300 (:Ys a))))
+    (let [a (tu/first-result {:I1211/Lookup_A {:Id (:Id a2)}})]
+      (is (cn/instance-eq? a2 a))
+      (is (= 6 (:Ys a))))))
+
+(deftest issue-1211-refs-from-child
+  (defcomponent :I1211Cr
+    (entity :I1211Cr/A {:Id :Identity :X :Int})
+    (entity :I1211Cr/B {:Id :Identity :K :Int :Y {:type :Int :expr '(* 10 :K :I1211Cr/R.A.X)}})
+    (relationship :I1211Cr/R {:meta {:contains [:I1211Cr/A :I1211Cr/B]}})
+    (dataflow
+     :I1211Cr/MakeB
+     {:I1211Cr/B {:K :I1211Cr/MakeB.K} :-> [[:I1211Cr/R {:I1211Cr/A {:Id? :I1211Cr/MakeB.A}}]]}))
+  (let [a? (partial cn/instance-of? :I1211Cr/A)
+        b? (partial cn/instance-of? :I1211Cr/B)
+        [a1 a2 :as aa] (mapv #(tu/first-result {:I1211Cr/Create_A {:Instance {:I1211Cr/A {:X %}}}}) [1 2])]
+    (is (every? a? aa))
+    (is (cn/same-instance? a1 (tu/first-result {:I1211Cr/Lookup_A {:Id (:Id a1)}})))
+    (let [b1 (tu/first-result {:I1211Cr/MakeB {:A (:Id a1) :K 100}})
+          b2 (tu/first-result {:I1211Cr/MakeB {:A (:Id a1) :K 200}})
+          b3 (tu/first-result {:I1211Cr/MakeB {:A (:Id a2) :K 6}})
+          chk (fn [b a] (is (= (* 10 (:K b) (:X a)) (:Y b))))
+          lkp (fn [b]
+                (is
+                 (cn/same-instance?
+                  b
+                  (tu/first-result {:I1211Cr/Lookup_B {li/path-attr (li/path-attr b)}}))))]
+      (is (every? b? [b1 b2 b3]))
+      (chk b1 a1)
+      (chk b2 a1)
+      (chk b3 a2)
+      (lkp b1) (lkp b2) (lkp b3))))

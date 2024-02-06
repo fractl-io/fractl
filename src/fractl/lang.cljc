@@ -11,6 +11,7 @@
             [fractl.lang.kernel :as k]
             [fractl.lang.raw :as raw]
             [fractl.lang.rbac :as lr]
+            [fractl.paths.internal :as pi]
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
@@ -338,11 +339,12 @@
               (attribute nm {:query (query-eval-fn recname attrs k v)})
               (or (normalize-compound-attr recname attrs nm [k v])
                   (attribute nm v))))
+
           (list? v)
           (attribute
            (fqn (li/unq-name))
-           {:expr (c/compile-attribute-expression
-                   recname attrs k v)})
+           {:expr (c/compile-attribute-expression recname attrs k v)})
+
           :else
           (let [fulln (fqn v)]
             (if (attref? fulln)
@@ -885,7 +887,7 @@
   (if-let [[k v] (first (filter #(let [v (second %)]
                                    (and (map? v) (li/path-identity v)))
                                 attrs))]
-    (assoc attrs k (assoc v :indexed true) li/path-attr li/path-attr-spec)
+    (assoc attrs k (assoc v :indexed true) li/path-attr pi/path-attr-spec)
     attrs))
 
 (defn entity
@@ -929,7 +931,7 @@
        crevt
        {:Instance child
         li/path-attr {:type :Fractl.Kernel.Lang/String
-                      :default li/default-path}
+                      :default pi/default-path}
         li/event-context ctx-aname})
       (cn/register-dataflow
        (ev :Create)
@@ -1012,7 +1014,7 @@
                 :indexed true}
                (when-not cident-spec ;; __Id__
                  {:default u/uuid-string}))
-       li/path-attr li/path-attr-spec))))
+       li/path-attr pi/path-attr-spec))))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
