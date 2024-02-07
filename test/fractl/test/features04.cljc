@@ -350,11 +350,12 @@
                                {:Aus/Lookup_E__a
                                 {:__Id__ (:__Id__ e2)}})))))
 
+(defn compute-bonus [level base]
+  (if (and level base)
+    (* base level 0.1)
+    0.0))
+
 (deftest issue-713-relationship-refs
-  (defn compute-bonus [level base]
-    (if (and level base)
-      (* base level 0.1)
-      0.0))
   (defcomponent :I713
     (entity
      :I713/Employee
@@ -363,12 +364,7 @@
       :Base {:expr :I713/EmployeeSalary.Salary.Base}
       :Bonus {:type :Decimal
               :expr '(fractl.test.features04/compute-bonus
-                      :Level :I713/EmployeeSalary.Salary.Base
-                      #_[:patterns
-                       {:I713/Salary? {}
-                        :-> [[{:I713/EmployeeSalary {:Employee? :Id}}]]
-                        :as [:S]}
-                       :S.Base])}})
+                      :Level :I713/EmployeeSalary.Salary.Base)}})
     (entity
      :I713/Salary
      {:Id :Identity
@@ -401,6 +397,54 @@
         (is (e? e))
         (is (= (:Base e) (:Base s01)))
         (is (= (:Bonus e) (compute-bonus (:Level e) (:Base s01))))))))
+
+(deftest issue-713-relationship-refs-with-patterns
+  (let [patterns [:patterns
+                  {:I713P/Salary? {}
+                   :-> [[{:I713P/EmployeeSalary {:Employee? :Id}}]]
+                   :as [:S]}
+                  :S.Base]]
+    (defcomponent :I713P
+      (entity
+       :I713P/Employee
+       {:Id :Identity
+        :Level :Int
+        :Base {:expr patterns}
+        :Bonus {:type :Decimal
+                :expr `(fractl.test.features04/compute-bonus
+                        :Level ~patterns)}})
+      (entity
+       :I713P/Salary
+       {:Id :Identity
+        :Base :Decimal})
+      (relationship
+       :I713P/EmployeeSalary
+       {:meta {:between [:I713P/Employee :I713P/Salary]
+               :one-one true}})
+      (dataflow
+       :I713P/FindSalary
+       {:I713P/Salary? {}
+        :-> [[{:I713P/EmployeeSalary {:Employee? :I713P/FindSalary.Employee}}]]
+        :as [:S]})
+      (dataflow
+       :I713P/AssignSalary
+       {:I713P/Salary
+        {:Base :I713P/AssignSalary.Base}
+        :-> [[{:I713P/EmployeeSalary {}}
+              {:I713P/Employee {:Id? :I713P/AssignSalary.Employee}}]]}))
+    (let [e01 (tu/first-result {:I713P/Create_Employee
+                                {:Instance
+                                 {:I713P/Employee {:Level 2}}}})
+          e? (partial cn/instance-of? :I713P/Employee)]
+      (is (e? e01))
+      (let [s01 (tu/first-result {:I713P/AssignSalary {:Employee (:Id e01) :Base 1450.5}})
+            s? (partial cn/instance-of? :I713P/Salary)]
+        (is (s? s01))
+        (is (cn/same-instance? s01 (tu/first-result {:I713P/FindSalary {:Employee (:Id e01)}})))
+        (let [e (tu/first-result {:I713P/Lookup_Employee {:Id (:Id e01)}})]
+          (is (e? e))
+          (is (= (:Base e) (:Base s01)))
+          (is (= (:Bonus e) (compute-bonus (:Level e) (:Base s01)))))))))
 
 (deftest issue-713-multi-level-refs
   (defn add-zs [cs]
