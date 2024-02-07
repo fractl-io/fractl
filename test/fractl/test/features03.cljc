@@ -121,35 +121,96 @@
 
 (deftest issue-962-recursive-contains
   (defcomponent :I962
-    (entity
-     :I962/Employee
-     {:Name {:type :String
-             tu/guid true}})
-    (relationship
-     :I962/WorksFor
-     {:meta {:contains [:I962/Employee :I962/Employee]}}))
-  (let [e1 (tu/first-result
-            {:I962/Create_Employee
-             {:Instance
-              {:I962/Employee
-               {:Name "e01"}}}})
-        e2 (tu/first-result
-            {:I962/Create_Employee
-             {:Instance
-              {:I962/Employee
-               {:Name "e02"}}
-              li/path-attr (str "/Employee/" (li/id-attr e1) "/WorksFor")}})
-        e? (partial cn/instance-of? :I962/Employee)
-        lookup-e (fn [e]
-                   (tu/first-result
-                    {:I962/Lookup_Employee
-                     {li/path-attr (li/path-attr e)}}))]
-    (is (e? e1))
-    (is (pi/null-path? (li/path-attr e1)))
-    (is (e? e2))
-    (is (pos? (s/index-of (li/path-attr e2) (li/id-attr e1))))
-    (is (cn/same-instance? e1 (lookup-e e1)))
-    (is (cn/same-instance? e2 (lookup-e e2)))))
+    (entity :I962/Company {:Name {:type :String tu/guid true}})
+    (entity :I962/Department {:No {:type :Int tu/guid true}})
+    (entity :I962/Employee {:Name {:type :String tu/guid true}})
+    (relationship :I962/CompanyDepartment {:meta {:contains [:I962/Company :I962/Department]}})
+    (relationship :I962/DepartmentEmployee {:meta {:contains [:I962/Department :I962/Employee]}})
+    (relationship :I962/ManagerReportee {:meta {:contains [:I962/Employee :I962/Employee :as [:Manager :Reportee]]}})
+    (dataflow
+     :I962/LowLevelEmployee
+     {:I962/Employee
+      {li/path-attr? :I962/LowLevelEmployee.ManagerPath}
+      :as [:M]}
+     {:I962/Employee
+      {:Name :I962/LowLevelEmployee.Name}
+      :-> [[:I962/ManagerReportee :M]]})
+    (dataflow
+     :I962/LookupAllEmployees
+     {:I962/Employee
+      {li/path-attr? [:like :I962/LookupAllEmployees.CompanyPath]}})
+    (dataflow
+     :I962/LookupReportees
+     {:I962/Employee
+      {li/path-attr? [:like :I962/LookupReportees.ManagerPath]}}))
+  (let [[c1 c2] (mapv #(tu/first-result
+                        {:I962/Create_Company
+                         {:Instance
+                          {:I962/Company
+                           {:Name %}}}})
+                      ["a" "b"])
+        create-dept (fn [cname dept-no]
+                      (tu/first-result
+                       {:I962/Create_Department
+                        {:Instance
+                         {:I962/Department
+                          {:No dept-no}}
+                         li/path-attr (str "/Company/" cname "/CompanyDepartment")}}))
+        d11 (create-dept "a" 101)
+        d21 (create-dept "b" 101)
+        c? (partial cn/instance-of? :I962/Company)
+        d? (partial cn/instance-of? :I962/Department)]
+    (is (every? c? [c1 c2]))
+    (is (every? d? [d11 d21]))
+    (let [create-emp (fn [parent-path ename]
+                       (tu/first-result
+                        {:I962/Create_Employee
+                         {:Instance
+                          {:I962/Employee
+                           {:Name ename}}
+                          li/path-attr parent-path}}))
+          mk-path-prefix (fn [cname]
+                           (str "/Company/" cname "/CompanyDepartment/Department/101/DepartmentEmployee"))
+          apath (mk-path-prefix "a")
+          bpath (mk-path-prefix "b")
+          rep-path "/Employee/manager01/ManagerReportee"
+          a-rep-path (str apath rep-path)
+          b-rep-path (str bpath rep-path)
+          e11 (create-emp apath "manager01")
+          e12 (create-emp  a-rep-path "clerk01")
+          e21 (create-emp bpath "manager01")
+          e22 (create-emp b-rep-path "clerk01")
+          e23 (create-emp b-rep-path "clerk02")
+          e24 (tu/result {:I962/LowLevelEmployee {:Name "assistant01" :ManagerPath (li/path-attr e23)}})
+          e? (partial cn/instance-of? :I962/Employee)
+          fq (partial pi/as-fully-qualified-path :I962)]
+      (is (every? e? [e11 e12 e21 e22 e23 e24]))
+      (let [lkup-all (fn [cname cnt]
+                       (let [es (tu/result
+                                 {:I962/LookupAllEmployees
+                                  {:CompanyPath
+                                   (str
+                                    (fq
+                                     (str "path://Company/" cname "/CompanyDepartment/Department"))
+                                    "%")}})]
+                         (is (= cnt (count es)))
+                         (is (every? e? es))))]
+        (lkup-all "a" 2)
+        (lkup-all "b" 4))
+      (let [lkup-reportees (fn [manager]
+                             (tu/result
+                              {:I962/LookupReportees
+                               {:ManagerPath (str (fq (str (li/path-attr manager) "/ManagerReportee")) "%")}}))]
+        (let [es (lkup-reportees e11)]
+          (is (= 1 (count es)))
+          (is (= "clerk01" (:Name (first es)))))
+        (let [es (lkup-reportees e21)]
+          (is (= 3 (count es)))
+          (is (= (set (mapv li/path-attr es))
+                 (set (mapv li/path-attr [e22 e23 e24])))))
+        (let [es (lkup-reportees e23)]
+          (is (= 1 (count es)))
+          (is (= "assistant01" (:Name (first es)))))))))
 
 (deftest generic__id__access
   (defcomponent :Gid
