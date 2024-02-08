@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     defaults:
       run:
-        shell: cmd
+        shell: ${{ matrix.platform == 'windows-latest' && 'cmd' || 'bash' }}
 
     steps:
       - name: Setup postgres
