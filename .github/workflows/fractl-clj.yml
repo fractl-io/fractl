@@ -16,6 +16,9 @@ jobs:
       matrix:
         platform: [ windows-latest ]
     runs-on: ${{ matrix.platform }}
+    defaults:
+      run:
+        shell: cmd
 
     steps:
       - name: Setup postgres
@@ -26,7 +29,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '19'
       - name: Install clojure tools
         uses: DeLaGuardo/setup-clojure@12.3
         with:
@@ -36,7 +39,6 @@ jobs:
           lein -v
           git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
           cd fractl-config-secrets-reader
-          ls
           lein install
       - name: Install dependencies
         run: lein deps
