@@ -465,4 +465,4 @@
   (let [a (tu/first-result {:I1223/Create_A {:Instance {:I1223/A {:X 100}}}})
         a? (partial cn/instance-of? :I1223/A)]
     (is (a? a))
-    (println (tu/eval-all-dataflows {:I1223/LookupC {:A (:Id a) :C "c1" :Z 20}}))))
+    (is (tu/eval-all-dataflows {:I1223/LookupC {:A (:Id a) :C "c1" :Z 20}}))))

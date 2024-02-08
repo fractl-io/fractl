@@ -841,11 +841,40 @@
 
     :else (u/throw-ex (str "invalid path query pattern - " p))))
 
-(defn- compile-path-query [ctx pat]
-  (when-not (map? (first pat))
-    (u/throw-ex (str "root-entry must be an entity pattern - " (first pat))))
-  (let [r (compile-map-entry-in-path (first pat) true)]
-    (mapv dispatch-compile-path-entry (rest pat))))
+(defn- finalize-path-query [child-pat result]
+  (let [path (s/join "/" result)] ;; TODO: fix path generation
+    (cond
+      (map? child-pat)
+      (let [n (li/record-name child-pat), attrs (li/record-attributes child-pat)]
+        (when-not n
+          (u/throw-ex (str "not a valid entity pattern, no name found - " child-pat)))
+        (when-not attrs
+          (u/throw-ex (str "not a valid entity pattern, no attributes found - " child-pat)))
+        (let [attrs (when (seq attrs)
+                      (into
+                       {}
+                       (mapv (fn [[k v]]
+                               [(if (li/query-pattern? k)
+                                  k
+                                  (li/name-as-query-pattern k))
+                                v])
+                             attrs)))]
+          {n (assoc attrs li/path-attr? path)}))
+
+      (li/name? child-pat)
+      {child-pat {li/path-attr? [:like (str path "%")]}}
+
+      :else (u/throw-ex (str "invalid child pattern - " child-pat)))))
+
+(defn- compile-path-query [ctx path-pats]
+  (when-not (map? (first path-pats))
+    (u/throw-ex (str "root-entry must be an entity pattern - " (first path-pats))))
+  (loop [pat (rest path-pats), result [(compile-map-entry-in-path (first path-pats) true)]]
+    (if-let [p (first pat)]
+      (if-not (seq (rest pat))
+        (finalize-path-query p result)
+        (recur (rest pat) (conj result (dispatch-compile-path-entry p))))
+      (u/throw-ex (str "invalid query, no path to child entity - " pat)))))
 
 (def ^:private special-form-handlers
   {:match compile-match
