@@ -694,13 +694,18 @@
     (li/name? alias)))
 
 (defn- compile-query-pattern [ctx query-pat alias]
-  (let [[nm refs] (when (li/name? query-pat)
+  (when-not (or (map? query-pat) (li/name? query-pat))
+    (u/throw-ex (str "invalid query pattern - " query-pat)))
+  (let [path (if (keyword? query-pat)
+               query-pat
+               (when-let [n (query-entity-name (first (keys query-pat)))]
+                 (ctx/put-record! ctx (li/split-path n) true)
+                 n))
+        [nm refs] (when (li/name? path)
                     (let [{component :component
                            record :record refs :refs}
-                          (li/path-parts query-pat)]
+                          (li/path-parts path)]
                       [[component record] refs]))]
-    (when-not (or (map? query-pat) (li/name? query-pat))
-      (u/throw-ex (str "invalid query pattern - " query-pat)))
     (when alias
       (when-not (valid-alias-name? alias)
         (u/throw-ex (str "not a valid name - " alias)))
@@ -803,6 +808,9 @@
 (defn- compile-rethrow-after [ctx pat]
   (op/rethrow-after [(compile-pattern ctx (first pat))]))
 
+(defn- compile-path-query [ctx pat]
+  )
+
 (def ^:private special-form-handlers
   {:match compile-match
    :try compile-try
@@ -811,7 +819,8 @@
    :query compile-query-command
    :delete compile-delete
    :await compile-await
-   :eval compile-eval})
+   :eval compile-eval
+   :? compile-path-query})
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic

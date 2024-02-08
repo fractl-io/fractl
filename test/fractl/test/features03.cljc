@@ -449,3 +449,20 @@
     (is (cn/instance-of? :Cbp/A a))
     (is (cn/instance-of? :Cbp/B b))
     (is (cn/same-instance? b (tu/first-result {:Cbp/FindB {:ParentPath (li/path-attr b)}})))))
+
+(deftest issue-1223-rel-syntax
+  (defcomponent :I1223
+    (entity :I1223/A {:Id :Identity :X :Int})
+    (entity :I1223/B {:Id :Identity :Y {:type :Int :id true}})
+    (entity :I1223/C {:id :Identity :Z :Int :Name {:type :String :id true}})
+    (relationship :I1223/AB {:meta {:contains [:I1223/A :I1223/B]}})
+    (relationship :I1223/BC {:meta {:contains [:I1223/B :I1223/C]}})
+    #_(dataflow
+     :I1223/LookupC
+     [:? {:I1223/A {:Id :I1223/LookupC.A}}
+      :I1223/AB {:I1223/B {:Y 1}}
+      :I1223/BC {:I1223/C {:Name :I1223/LookupC.C, :Z :I1223/LookupC.Z}}])
+    )
+  (let [a (tu/first-result {:I1223/Create_A {:Instance {:I1223/A {:X 100}}}})
+        a? (partial cn/instance-of? :I1223/A)]
+    (is (a? a))))

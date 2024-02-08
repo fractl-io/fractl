@@ -688,3 +688,15 @@
                        {:Id (:Id e)}}))))
       (let [es (tu/result {:I1062/LookupAll_E {}})]
         (is (and (= 1 (count es)) (cn/same-instance? e2 (first es))))))))
+
+(deftest alias-bug-in-where-query
+  (defcomponent :Abwq
+    (entity :Abwq/A {:Id :Identity :X :Int})
+    (dataflow
+     :Abwq/FindX
+     {:Abwq/A? {:where [:= :Id :Abwq/FindX.A]} :as [:A]}
+     :A.X))
+  (let [a1 (tu/first-result {:Abwq/Create_A {:Instance {:Abwq/A {:X 100}}}})
+        a2 (tu/first-result {:Abwq/Create_A {:Instance {:Abwq/A {:X 200}}}})]
+    (is (= 300 (+ (tu/result {:Abwq/FindX {:A (:Id a1)}})
+                  (tu/result {:Abwq/FindX {:A (:Id a2)}}))))))
