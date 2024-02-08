@@ -808,8 +808,44 @@
 (defn- compile-rethrow-after [ctx pat]
   (op/rethrow-after [(compile-pattern ctx (first pat))]))
 
+(defn- compile-map-entry-in-path
+  ([p is-root]
+   (let [n (li/record-name p)
+         attrs (li/record-attributes p)]
+     (when-not (li/name? n)
+       (u/throw-ex (str "invalid pattern, cannot fetch entity-name - " p)))
+     (when-not (map? attrs)
+       (u/throw-ex (str "invalid pattern, cannot fetch attributes - " p)))
+     (let [id-attr (if (and is-root (not (seq (cn/containing-parents n))))
+                     (cn/identity-attribute-name n)
+                     (cn/path-identity-attribute-name n))]
+       (when-not id-attr
+         (u/throw-ex (str "cannot find identity attribute - " p)))
+       (if-let [v (id-attr attrs)]
+         [n v (dissoc attrs id-attr)]
+         (u/throw-ex (str "failed to find identity value - " p))))))
+  ([p] (compile-map-entry-in-path p false)))
+
+(defn- compile-keyword-entry-in-path [p]
+  (when-not (cn/contains-relationship? p)
+    (u/throw-ex (str "not a contains relationship - " p)))
+  p)
+
+(defn- dispatch-compile-path-entry [p]
+  (cond
+    (map? p)
+    (compile-map-entry-in-path p)
+
+    (keyword? p)
+    (compile-keyword-entry-in-path p)
+
+    :else (u/throw-ex (str "invalid path query pattern - " p))))
+
 (defn- compile-path-query [ctx pat]
-  )
+  (when-not (map? (first pat))
+    (u/throw-ex (str "root-entry must be an entity pattern - " (first pat))))
+  (let [r (compile-map-entry-in-path (first pat) true)]
+    (mapv dispatch-compile-path-entry (rest pat))))
 
 (def ^:private special-form-handlers
   {:match compile-match
