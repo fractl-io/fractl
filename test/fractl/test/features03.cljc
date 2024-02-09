@@ -471,8 +471,13 @@
     (dataflow
      :I1223/LookupC
      [:? {:I1223/A {:Id :I1223/LookupC.A}}
-      :I1223/AB {:I1223/B {:Y 1}}
-      :I1223/BC {:I1223/C {:Name :I1223/LookupC.N, :Z :I1223/LookupC.Z}}]))
+      :I1223/AB {:I1223/B {:Y :I1223/LookupC.B}}
+      :I1223/BC {:I1223/C {:Name :I1223/LookupC.N, :Z :I1223/LookupC.Z}}])
+    (dataflow
+     :I1223/LookupAllC
+     [:? {:I1223/A {:Id :I1223/LookupAllC.A}}
+      :I1223/AB {:I1223/B {:Y :I1223/LookupAllC.B}}
+      :I1223/BC :I1223/C]))
   (let [create-a #(tu/first-result {:I1223/Create_A {:Instance {:I1223/A {:X %}}}})
         create-b #(tu/first-result {:I1223/CreateB {:A %1 :Y %2}})
         create-c (fn [a b z n]
@@ -480,11 +485,24 @@
         a? (partial cn/instance-of? :I1223/A)
         b? (partial cn/instance-of? :I1223/B)
         c? (partial cn/instance-of? :I1223/C)
-        a (create-a 100)
-        b (create-b (:Id a) 1)
-        c (create-c (:Id a) 1 10 "abc1")]
-    (is (a? a))
-    (is (b? b))
-    (is (c? c))
-    (is (tu/not-found? (tu/eval-all-dataflows {:I1223/LookupC {:A (:Id a) :N "c1" :Z 10}})))
-    (is (cn/same-instance? c (tu/first-result {:I1223/LookupC {:A (:Id a) :N "abc1" :Z 10}})))))
+        a1 (create-a 100)
+        a (:Id a1)
+        b1 (create-b a 1)
+        b2 (create-b a 2)
+        c1 (create-c a 1 10 "c1")
+        c2 (create-c a 1 20 "c2")
+        c3 (create-c a 2 10 "c3")]
+    (is (a? a1))
+    (is (every? b? [b1 b2]))
+    (is (every? c? [c1 c2 c3]))
+    (is (tu/not-found? (tu/eval-all-dataflows {:I1223/LookupC {:A a :B 1 :N "c0" :Z 10}})))
+    (is (tu/not-found? (tu/eval-all-dataflows {:I1223/LookupC {:A a :B 2 :N "c1" :Z 10}})))
+    (is (cn/same-instance? c3 (tu/first-result {:I1223/LookupC {:A a :B 2 :N "c3" :Z 10}})))
+    (is (cn/same-instance? c1 (tu/first-result {:I1223/LookupC {:A a :B 1 :N "c1" :Z 10}})))
+    (let [lookup-all-c (fn [a b cn z-sum]
+                         (let [cs (tu/result {:I1223/LookupAllC {:A a :B b}})]
+                           (is (= cn (count cs)))
+                           (is (every? c? cs))
+                           (is (= z-sum (reduce + 0 (mapv :Z cs))))))]
+      (lookup-all-c a 1 2 30)
+      (lookup-all-c a 2 1 10))))
