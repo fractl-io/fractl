@@ -454,15 +454,37 @@
   (defcomponent :I1223
     (entity :I1223/A {:Id :Identity :X :Int})
     (entity :I1223/B {:Id :Identity :Y {:type :Int :id true}})
-    (entity :I1223/C {:id :Identity :Z :Int :Name {:type :String :id true}})
+    (entity :I1223/C {:Id :Identity :Z :Int :Name {:type :String :id true}})
     (relationship :I1223/AB {:meta {:contains [:I1223/A :I1223/B]}})
     (relationship :I1223/BC {:meta {:contains [:I1223/B :I1223/C]}})
+    (dataflow
+     :I1223/CreateB
+     {:I1223/B {:Y :I1223/CreateB.Y}
+      :-> [[:I1223/AB {:I1223/A {:Id? :I1223/CreateB.A}}]]})
+    (dataflow
+     :I1223/CreateC
+     [:? {:I1223/A {:Id :I1223/CreateC.A}}
+      :I1223/AB {:I1223/B {:Y :I1223/CreateC.B}}
+      :as [:B]]
+     {:I1223/C {:Name :I1223/CreateC.N :Z :I1223/CreateC.Z}
+      :-> [[:I1223/BC :B]]})
     (dataflow
      :I1223/LookupC
      [:? {:I1223/A {:Id :I1223/LookupC.A}}
       :I1223/AB {:I1223/B {:Y 1}}
-      :I1223/BC {:I1223/C {:Name :I1223/LookupC.C, :Z :I1223/LookupC.Z}}]))
-  (let [a (tu/first-result {:I1223/Create_A {:Instance {:I1223/A {:X 100}}}})
-        a? (partial cn/instance-of? :I1223/A)]
+      :I1223/BC {:I1223/C {:Name :I1223/LookupC.N, :Z :I1223/LookupC.Z}}]))
+  (let [create-a #(tu/first-result {:I1223/Create_A {:Instance {:I1223/A {:X %}}}})
+        create-b #(tu/first-result {:I1223/CreateB {:A %1 :Y %2}})
+        create-c (fn [a b z n]
+                   (tu/first-result {:I1223/CreateC {:A a :B b :Z z :N n}}))
+        a? (partial cn/instance-of? :I1223/A)
+        b? (partial cn/instance-of? :I1223/B)
+        c? (partial cn/instance-of? :I1223/C)
+        a (create-a 100)
+        b (create-b (:Id a) 1)
+        c (create-c (:Id a) 1 10 "abc1")]
     (is (a? a))
-    (is (tu/eval-all-dataflows {:I1223/LookupC {:A (:Id a) :C "c1" :Z 20}}))))
+    (is (b? b))
+    (is (c? c))
+    (is (tu/not-found? (tu/eval-all-dataflows {:I1223/LookupC {:A (:Id a) :N "c1" :Z 10}})))
+    (is (cn/same-instance? c (tu/first-result {:I1223/LookupC {:A (:Id a) :N "abc1" :Z 10}})))))
