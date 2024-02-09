@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.8] - 2024-02-09
+
 ## [0.4.7] - 2023-11-14
 
 -   Change project-prefix for publishing in Clojars
@@ -142,7 +144,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.4.7...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.4.8...HEAD
+
+[0.4.8]: https://github.com/fractl-io/fractl/compare/0.4.7...0.4.8
 
 [0.4.7]: https://github.com/fractl-io/fractl/compare/0.4.7...0.4.7
 
