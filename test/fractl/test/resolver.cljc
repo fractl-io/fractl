@@ -4,6 +4,7 @@
             [fractl.lang
              :refer [component attribute event
                      relationship entity record dataflow]]
+            [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.component :as cn]
             [fractl.store :as store]
@@ -582,3 +583,76 @@
           (is (tu/not-found? (tu/eval-all-dataflows {:Rc/Lookup_P {:Id 1}})))
           (is (tu/not-found? (tu/eval-all-dataflows {:Rc/LookupC {:P 1}})))
           (lookup-c 2 6 7))))))
+
+(deftest issue-1222-relationships-in-resolvers
+  (defcomponent :I1222
+    (entity :I1222/P {:Id {:type :Int :guid true}})
+    (entity :I1222/A {:Id {:type :Int :guid true} :X {:type :Int :id true} :K :Int})
+    (entity :I1222/B {:Id {:type :Int :guid true} :Y {:type :Int :id true} :R :Int})
+    (entity :I1222/C {:Id :Identity :Z :Int})
+    (relationship :I1222/PA {:meta {:contains [:I1222/P :I1222/A]}})
+    (relationship :I1222/AB {:meta {:contains [:I1222/A :I1222/B]}})
+    (relationship :I1222/BC {:meta {:between [:I1222/B :I1222/C]}}))
+  (let [p? (partial cn/instance-of? :I1222/P)
+        a? (partial cn/instance-of? :I1222/A)
+        b? (partial cn/instance-of? :I1222/B)
+        c? (partial cn/instance-of? :I1222/C)
+        bc? (partial cn/instance-of? :I1222/BC)
+        validate-context (fn [recname ctx]
+                           (let [rels (:-> ctx)
+                                 validate-parent
+                                 (fn [pname]
+                                   (let [p (get-in rels [recname :parent])
+                                         pinst (if (fn? p) (p) p)]
+                                     (is (cn/instance-of? pname pinst))))]
+                             (case recname
+                               (:I1222/P :I1222/C) (is (nil? (seq rels)))
+                               :I1222/A (validate-parent :I1222/P)
+                               :I1222/B (validate-parent :I1222/A)
+                               :I1222/BC (do (is (b? (get-in rels [recname :B])))
+                                             (is (c? (get-in rels [recname :C]))))
+                               (u/throw-ex (str "invalid entity-name - " recname)))))
+        inst-type (fn [inst] (li/make-path (cn/instance-type inst)))
+        rdb (atom [])
+        r (r/make-resolver
+           :i1222
+           {:create {:with-context true
+                     :handler (fn [ctx inst]
+                                (validate-context (inst-type inst) ctx)
+                                (swap! rdb conj inst)
+                                inst)}
+            :update {:with-context true
+                     :handler (fn [ctx inst]
+                                (let [recname (inst-type inst), id (:Id inst)]
+                                  (validate-context recname ctx)
+                                  (reset! rdb (loop [insts @rdb, result []]
+                                                (if-let [inst (first insts)]
+                                                  (if (and (cn/instance-of? recname inst)
+                                                           (= id (:Id inst)))
+                                                    (concat result [inst] (rest insts))
+                                                    (recur (rest insts) (conj result inst)))
+                                                  result)))
+                                  inst))}
+            :query {:handler (fn [[n {[_ attr v] :where :as where}]]
+                               (filter #(and (cn/instance-of? n %)
+                                             (= (attr %) v))
+                                       @rdb))}})]
+    (rg/override-resolver [:I1222/P :I1222/A :I1222/B :I1222/D :I1222/BC] r)
+    (let [create-p #(tu/first-result {:I1222/Create_P {:Instance {:I1222/P {:Id %}}}})
+          create-a (fn [p x] (tu/first-result {:I1222/Create_A {:Instance {:I1222/A {:Id (* 2 x) :X x :K (+ x 1)}}
+                                                                li/path-attr (str "/P/" (:Id p) "/PA")}}))
+          create-b (fn [p a y] (tu/first-result {:I1222/Create_B {:Instance {:I1222/B {:Id (* y 10) :Y y :R (+ y 2)}}
+                                                                  li/path-attr (str "/P/" (:Id p) "/PA/A/" (:X a) "/AB")}}))
+          create-c #(tu/first-result {:I1222/Create_C {:Instance {:I1222/C {:Z %}}}})
+          create-bc (fn [b c] (tu/first-result {:I1222/Create_BC {:Instance {:I1222/BC {:B (:Id b) :C (:Id c)}}}}))
+          p1 (create-p 1)
+          a1 (create-a p1 2)
+          [b1 b2] (mapv (partial create-b p1 a1) [10 20])
+          c1 (create-c 1000)
+          bc1 (create-bc b1 c1)]
+      (is (p? p1))
+      (is (a? a1))
+      (is (every? b? [b1 b2]))
+      (is (c? c1))
+      (is (bc? bc1))
+      (is (a? (tu/first-result {:I1222/Update_A {:Data {:K 10} li/path-attr (li/path-attr a1)}}))))))

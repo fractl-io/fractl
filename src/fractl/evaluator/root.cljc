@@ -876,9 +876,11 @@
         (and (swap! rel-ctx assoc (li/make-path record-name) {:parent parent})
              (attach-full-path record-name (concat-owners env inst parent) path))
         (u/throw-ex (str "failed to find parent by path - " path)))
-      (and (swap! rel-ctx assoc (li/make-path record-name)
-                  {:parent #(paths/find-parent-by-path env record-name (pi/as-partial-path path))})
-           inst))
+      (let [i (s/last-index-of path "/")
+            p (str (subs path 0 i) "/%")]
+        (swap! rel-ctx assoc (li/make-path record-name)
+               {:parent #(paths/find-parent-by-path env record-name (pi/as-partial-path p))})
+        inst))
     inst))
 
 (defn- ensure-between-refs [env rel-ctx record-name inst]
