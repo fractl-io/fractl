@@ -673,3 +673,41 @@
       (is (not (r3? (lookup-r3 r31))))
       (is (not (r3? (lookup-r3 r32))))
       (is (r3? (lookup-r3 r33))))))
+
+;; Test added for a copilot use-case. Demonstrates,
+;; 1. how to query all related entities.
+;; 2. how to fallback to a default when no relationship exists.
+(deftest find-rels-with-default
+  (defcomponent :Frwd
+    (entity :Frwd/A {:Id :Identity :X :Int})
+    (entity :Frwd/B {:Id :Identity :Y :Int})
+    (relationship :Frwd/AB {:meta {:between [:Frwd/A :Frwd/B]}})
+    (defn frwd-fn [as bs]
+      (let [bs (mapv first bs)]
+        (reduce + 0 (mapv (fn [a b] (* (:X a) (:Y b))) as bs))))
+    (dataflow
+     :Frwd/E
+     {:Frwd/B {:Id? :Frwd/E.B} :as :DefaultB}
+     {:Frwd/A {:X? :Frwd/E.X} :as :As}
+     [:for-each :As
+      [:try
+       {:Frwd/B? {} :-> [[{:Frwd/AB {:A? :%.Id}}]]}
+       [:error :not-found] :DefaultB]
+      :as :Bs]
+     [:eval '(fractl.test.features02/frwd-fn :As :Bs)]))
+  (let [create-a (fn [x] (tu/first-result {:Frwd/Create_A {:Instance {:Frwd/A {:X x}}}}))
+        create-b (fn [y] (tu/first-result {:Frwd/Create_B {:Instance {:Frwd/B {:Y y}}}}))
+        [a1 a2 a3 a4 a5 a6 :as ainsts] (mapv create-a [1 2 1 2 1 3 1])
+        [b1 b2 b3 b4 b5 b6 :as binsts] (mapv create-b [10 20 30 40 50 60])
+        default-b (create-b 100)
+        abinsts (mapv (fn [a b] (tu/first-result {:Frwd/Create_AB {:Instance {:Frwd/AB {:A (:Id a) :B (:Id b)}}}}))
+                      ainsts binsts)
+        a? (partial cn/instance-of? :Frwd/A)
+        b? (partial cn/instance-of? :Frwd/B)
+        ab? (partial cn/instance-of? :Frwd/AB)]
+    (is (every? a? ainsts))
+    (is (every? b? binsts))
+    (is (every? ab? abinsts))
+    (is (= 180 (tu/result {:Frwd/E {:X 3 :B (:Id default-b)}})))
+    (is (= 120 (tu/result {:Frwd/E {:X 2 :B (:Id default-b)}})))
+    (is (= 190 (tu/result {:Frwd/E {:X 1 :B (:Id default-b)}})))))

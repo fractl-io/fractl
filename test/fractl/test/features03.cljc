@@ -449,3 +449,60 @@
     (is (cn/instance-of? :Cbp/A a))
     (is (cn/instance-of? :Cbp/B b))
     (is (cn/same-instance? b (tu/first-result {:Cbp/FindB {:ParentPath (li/path-attr b)}})))))
+
+(deftest issue-1223-rel-syntax
+  (defcomponent :I1223
+    (entity :I1223/A {:Id :Identity :X :Int})
+    (entity :I1223/B {:Id :Identity :Y {:type :Int :id true}})
+    (entity :I1223/C {:Id :Identity :Z :Int :Name {:type :String :id true}})
+    (relationship :I1223/AB {:meta {:contains [:I1223/A :I1223/B]}})
+    (relationship :I1223/BC {:meta {:contains [:I1223/B :I1223/C]}})
+    (dataflow
+     :I1223/CreateB
+     {:I1223/B {:Y :I1223/CreateB.Y}
+      :-> [[:I1223/AB {:I1223/A {:Id? :I1223/CreateB.A}}]]})
+    (dataflow
+     :I1223/CreateC
+     [:? {:I1223/A {:Id :I1223/CreateC.A}}
+      :I1223/AB {:I1223/B {:Y :I1223/CreateC.B}}
+      :as [:B]]
+     {:I1223/C {:Name :I1223/CreateC.N :Z :I1223/CreateC.Z}
+      :-> [[:I1223/BC :B]]})
+    (dataflow
+     :I1223/LookupC
+     [:? {:I1223/A {:Id :I1223/LookupC.A}}
+      :I1223/AB {:I1223/B {:Y :I1223/LookupC.B}}
+      :I1223/BC {:I1223/C {:Name :I1223/LookupC.N, :Z :I1223/LookupC.Z}}])
+    (dataflow
+     :I1223/LookupAllC
+     [:? {:I1223/A {:Id :I1223/LookupAllC.A}}
+      :I1223/AB {:I1223/B {:Y :I1223/LookupAllC.B}}
+      :I1223/BC :I1223/C]))
+  (let [create-a #(tu/first-result {:I1223/Create_A {:Instance {:I1223/A {:X %}}}})
+        create-b #(tu/first-result {:I1223/CreateB {:A %1 :Y %2}})
+        create-c (fn [a b z n]
+                   (tu/first-result {:I1223/CreateC {:A a :B b :Z z :N n}}))
+        a? (partial cn/instance-of? :I1223/A)
+        b? (partial cn/instance-of? :I1223/B)
+        c? (partial cn/instance-of? :I1223/C)
+        a1 (create-a 100)
+        a (:Id a1)
+        b1 (create-b a 1)
+        b2 (create-b a 2)
+        c1 (create-c a 1 10 "c1")
+        c2 (create-c a 1 20 "c2")
+        c3 (create-c a 2 10 "c3")]
+    (is (a? a1))
+    (is (every? b? [b1 b2]))
+    (is (every? c? [c1 c2 c3]))
+    (is (tu/not-found? (tu/eval-all-dataflows {:I1223/LookupC {:A a :B 1 :N "c0" :Z 10}})))
+    (is (tu/not-found? (tu/eval-all-dataflows {:I1223/LookupC {:A a :B 2 :N "c1" :Z 10}})))
+    (is (cn/same-instance? c3 (tu/first-result {:I1223/LookupC {:A a :B 2 :N "c3" :Z 10}})))
+    (is (cn/same-instance? c1 (tu/first-result {:I1223/LookupC {:A a :B 1 :N "c1" :Z 10}})))
+    (let [lookup-all-c (fn [a b cn z-sum]
+                         (let [cs (tu/result {:I1223/LookupAllC {:A a :B b}})]
+                           (is (= cn (count cs)))
+                           (is (every? c? cs))
+                           (is (= z-sum (reduce + 0 (mapv :Z cs))))))]
+      (lookup-all-c a 1 2 30)
+      (lookup-all-c a 2 1 10))))

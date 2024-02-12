@@ -50,26 +50,30 @@
 (defn- log-warn [s]
   (log/warn s))
 
-(defn- name-in-context [ctx component rec refs]
-  (when (not= rec :%)
-    (if-let [obj (ctx/fetch-record ctx [component rec])]
-      (when (seq refs)
-        (let [p (li/make-path component rec)
-              [_ scm] (cn/find-schema p)]
-          ;; TODO: validate multi-level references.
-          (when-not (cn/inferred-event-schema? scm)
-            (when-not (some #{(first refs)} (or (cn/attribute-names scm) (keys obj)))
-              (if (= (cn/schema-type-tag scm) :event)
-                (u/throw-ex (str "Error in: Event " p " no such attribute - " (first refs)))
-                (u/throw-ex (str "Invalid reference - " [p refs])))))))
-      ((if (ctx/fetch-variable ctx conditional-dataflow-tag)
-         log-warn
-         u/throw-ex)
-       (str "Reference cannot be found for "
-            rec
-            " Did you mean one of: "
-            (first (keys (dissoc @ctx :compile-query-fn)))))))
-  true)
+(defn- name-in-context
+  ([ctx component rec refs]
+   (when (not= rec :%)
+     (if-let [obj (ctx/fetch-record ctx [component rec])]
+       (when (seq refs)
+         (let [p (li/make-path component rec)
+               [_ scm] (cn/find-schema p)]
+           ;; TODO: validate multi-level references.
+           (when-not (cn/inferred-event-schema? scm)
+             (when-not (some #{(first refs)} (or (cn/attribute-names scm) (keys obj)))
+               (if (= (cn/schema-type-tag scm) :event)
+                 (u/throw-ex (str "Error in: Event " p " no such attribute - " (first refs)))
+                 (u/throw-ex (str "Invalid reference - " [p refs])))))))
+       ((if (ctx/fetch-variable ctx conditional-dataflow-tag)
+          log-warn
+          u/throw-ex)
+        (str "Reference cannot be found for "
+             rec
+             " Did you mean one of: "
+             (first (keys (dissoc @ctx :compile-query-fn)))))))
+   true)
+  ([ctx recname]
+   (let [[c n] (li/split-path recname)]
+     (name-in-context ctx c n nil))))
 
 (defn- refers-to-event? [n]
   (let [{component :component rec :record} (li/path-parts n)
@@ -97,7 +101,10 @@
               (aliased-name-in-context ctx schema n))
         true
         (u/throw-ex (str "reference not in schema - " path)))
-      (name-in-context ctx component rec refs))))
+      (cond
+        (and rec refs) (name-in-context ctx component rec refs)
+        path (name-in-context ctx path)
+        :else (name-in-context ctx n)))))
 
 (defn- map->seqable [m]
   (mapv

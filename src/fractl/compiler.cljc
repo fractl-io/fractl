@@ -694,13 +694,18 @@
     (li/name? alias)))
 
 (defn- compile-query-pattern [ctx query-pat alias]
-  (let [[nm refs] (when (li/name? query-pat)
+  (when-not (or (map? query-pat) (li/name? query-pat))
+    (u/throw-ex (str "invalid query pattern - " query-pat)))
+  (let [path (if (keyword? query-pat)
+               query-pat
+               (when-let [n (query-entity-name (first (keys query-pat)))]
+                 (ctx/put-record! ctx (li/split-path n) true)
+                 n))
+        [nm refs] (when (li/name? path)
                     (let [{component :component
                            record :record refs :refs}
-                          (li/path-parts query-pat)]
+                          (li/path-parts path)]
                       [[component record] refs]))]
-    (when-not (or (map? query-pat) (li/name? query-pat))
-      (u/throw-ex (str "invalid query pattern - " query-pat)))
     (when alias
       (when-not (valid-alias-name? alias)
         (u/throw-ex (str "not a valid name - " alias)))
@@ -803,6 +808,103 @@
 (defn- compile-rethrow-after [ctx pat]
   (op/rethrow-after [(compile-pattern ctx (first pat))]))
 
+(defn- compile-map-entry-in-path
+  ([p is-root]
+   (let [n (li/record-name p)
+         attrs (li/record-attributes p)]
+     (when-not (li/name? n)
+       (u/throw-ex (str "invalid pattern, cannot fetch entity-name - " p)))
+     (when-not (map? attrs)
+       (u/throw-ex (str "invalid pattern, cannot fetch attributes - " p)))
+     (let [id-attr (if (and is-root (not (seq (cn/containing-parents n))))
+                     (cn/identity-attribute-name n)
+                     (cn/path-identity-attribute-name n))]
+       (when-not id-attr
+         (u/throw-ex (str "cannot find identity attribute - " p)))
+       (if-let [v (id-attr attrs)]
+         [n v (dissoc attrs id-attr)]
+         (u/throw-ex (str "failed to find identity value - " p))))))
+  ([p] (compile-map-entry-in-path p false)))
+
+(defn- compile-keyword-entry-in-path [p]
+  (when-not (cn/contains-relationship? p)
+    (u/throw-ex (str "not a contains relationship - " p)))
+  p)
+
+(defn- dispatch-compile-path-entry [p]
+  (cond
+    (map? p)
+    (compile-map-entry-in-path p)
+
+    (keyword? p)
+    (compile-keyword-entry-in-path p)
+
+    :else (u/throw-ex (str "invalid path query pattern - " p))))
+
+(defn- encode-path-component [pc]
+  (cond
+    (vector? pc)
+    [(pi/encoded-uri-path-part (first pc)) (second pc)]
+
+    (keyword? pc)
+    (if (cn/contains-relationship? pc)
+      (pi/encoded-uri-path-part pc)
+      pc)
+
+    :else pc))
+
+(defn- path-as-expr
+  ([path child-id]
+   `(~(symbol "clojure.string/join")
+     "/" ~(vec (concat (conj path pi/path-prefix) [(if child-id child-id "%")]))))
+  ([path] (path-as-expr path nil)))
+
+(defn- finalize-path-query [child-pat result alias]
+  (let [path (flatten (mapv encode-path-component result))
+        inst-pat
+        (cond
+          (map? child-pat)
+          (let [n (li/record-name child-pat), attrs (li/record-attributes child-pat)]
+            (when-not n
+              (u/throw-ex (str "not a valid entity pattern, no name found - " child-pat)))
+            (when-not attrs
+              (u/throw-ex (str "not a valid entity pattern, no attributes found - " child-pat)))
+            (let [id-attr (cn/path-identity-attribute-name n)
+                  id-val (id-attr attrs)
+                  attrs (when (seq attrs)
+                          (into
+                           {}
+                           (mapv (fn [[k v]]
+                                   [(if (li/query-pattern? k)
+                                      k
+                                      (li/name-as-query-pattern k))
+                                    v])
+                                 (dissoc attrs id-attr))))
+                  path (concat path [(pi/encoded-uri-path-part n)])]
+              {n (if id-val
+                   (assoc attrs li/path-attr? (path-as-expr path id-val))
+                   (assoc attrs li/path-attr? [:like (path-as-expr path)]))}))
+
+          (li/name? child-pat)
+          (let [path (concat path [(pi/encoded-uri-path-part child-pat)])]
+            {child-pat {li/path-attr? [:like (path-as-expr path)]}})
+
+          :else (u/throw-ex (str "invalid child pattern - " child-pat)))]
+    (if alias
+      (assoc inst-pat :as alias)
+      inst-pat)))
+
+(defn- compile-path-query [ctx query-pat]
+  (when-not (map? (first query-pat))
+    (u/throw-ex (str "root-entry must be an entity pattern - " (first query-pat))))
+  (let [[path-pats alias] (try-alias query-pat)]
+    (loop [pat (rest path-pats), result [(compile-map-entry-in-path (first path-pats) true)]]
+      (if-let [p (first pat)]
+        (if-not (seq (rest pat))
+          (compile-pattern ctx (finalize-path-query p result alias))
+          (recur (rest pat) (conj result (dispatch-compile-path-entry p))))
+        (u/throw-ex (str "invalid query, no path to child entity - " pat))))))
+
 (def ^:private special-form-handlers
   {:match compile-match
    :try compile-try
@@ -811,7 +913,8 @@
    :query compile-query-command
    :delete compile-delete
    :await compile-await
-   :eval compile-eval})
+   :eval compile-eval
+   :? compile-path-query})
 
 (defn- compile-special-form
   "Compile built-in special-forms (or macros) for performing basic
