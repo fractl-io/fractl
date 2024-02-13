@@ -29,18 +29,19 @@
 (def twitter #?(:clj #(TwitterApi/instance) :cljs generic))
 
 ;; Step 1: Initialize an oauth2 client and get the authorization URL.
-(defn service
+(defn initialize
   ([api {client-id :client-id client-secret :client-secret
          scope :scope callback :callback} additional-params]
    #?(:clj
       (let [state (str "secret" (rand-int 999999))
-            ^OAuth20Service service (ServiceBuilder. client-id)]
-        (when scope (.defaultScope service scope))
-        (-> service
-            (.apiSecret client-secret)
-            (.callback callback)
-            (.build (api)))
-        (let [authorization-url
+            ^ServiceBuilder builder (ServiceBuilder. client-id)]
+        (when scope (.defaultScope builder scope))
+        (let [^OAuth20Service service
+              (-> builder
+                  (.apiSecret client-secret)
+                  (.callback callback)
+                  (.build (api)))
+              authorization-url
               (if additional-params
                 (let [^HashMap hm (HashMap.)]
                   (doseq [[^String k ^String v] additional-params]
@@ -50,11 +51,18 @@
                       (.state state)
                       (.additionalParams hm)
                       (.build)))
-                (.getAuthorizationUrl service))]
+                (.getAuthorizationUrl service state))]
           {:auth-url authorization-url
            :state state
            :service service}))))   
-  ([api options] (service api options nil)))
+  ([api options] (initialize api options nil)))
+
+(defn oauth2? [obj]
+  (and (map? obj)
+       (and (= (set (keys obj))
+               #{:auth-url :state :service}))))
+
+(def authorization-url :auth-url)
 
 #?(:clj
    (defn- as-token-map [^OAuth2AccessToken access-token]
@@ -62,13 +70,18 @@
       :handle access-token}))
 
 ;; Step 2: Use the code from the server to get an access token.
-(defn get-access-token [oauth2 code server-state]
-  (when-not (= server-state (:state oauth2))
-    (u/throw-ex (str "State mismatch, expected: " (:state oauth2), " got: " server-state)))
+(defn get-access-token [oauth2 code secret]
+  (when-not (= secret (:state oauth2))
+    (u/throw-ex (str "State mismatch, expected: " (:state oauth2), " got: " secret)))
   #?(:clj
      (let [^OAuth20Service service (:service oauth2)
            ^OAuth2AccessToken access-token (.getAccessToken service code)]
        (as-token-map access-token))))
+
+(defn token? [obj]
+  (and (map? obj)
+       (= (set (keys obj)) #{:token :handle})
+       (seq (:token obj))))
 
 (defn refresh-token [oauth2 token]
   #?(:clj
@@ -82,7 +95,8 @@
   #?(:clj
      (let [^OAuth20Service service (:service oauth2)]
        (.close service)
-       (dissoc oauth2 :service))))
+       (dissoc oauth2 :service)))
+  true)
 
 (defn- http-request [verb oauth2 token url headers body]
   (let [^OAuth20Service service (:service oauth2)

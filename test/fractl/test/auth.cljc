@@ -1,7 +1,29 @@
 (ns fractl.test.auth
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
-            [fractl.auth.oauth2 :as oauth2]))
+            [fractl.util :as u]
+            [fractl.auth.oauth2 :as auth]))
 
+;; This test should not be enabled on CI.
+;; To run locally, set the FRACTL_AUTH_TEST_CLIENT_ID and
+;; FRACTL_AUTH_TEST_CLIENT_SECRET environment variables.
 (deftest basic
-  #?(:clj (is (oauth2/google))))
+  #?(:clj
+     (let [client-id (u/getenv "FRACTL_AUTH_TEST_CLIENT_ID" "")
+           client-secret (u/getenv "FRACTL_AUTH_TEST_CLIENT_SECRET" "")]
+       (when (and (seq client-id) (seq client-secret))
+         (let [api-obj (auth/initialize
+                        auth/git-hub
+                        {:client-id client-id
+                         :client-secret client-secret
+                         :callback "http://localhost:8000/fractl-test/callback"})]
+           (is (auth/oauth2? api-obj))
+           (println (str "please go to " (auth/authorization-url api-obj) " to authorize the client"))
+           (print "once authorized, please enter the code here: ")
+           (flush)
+           (let [code (read-line)]
+             (print "enter the secret: ")
+             (flush)
+             (let [secret (read-line)]
+               (println (auth/get-access-token api-obj code secret))))
+           (is (auth/release api-obj)))))))
