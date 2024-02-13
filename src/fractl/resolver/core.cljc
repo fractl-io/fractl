@@ -1,5 +1,6 @@
 (ns fractl.resolver.core
   (:require [fractl.util :as u]
+            [fractl.env :as env]
             [fractl.component :as cn]
             [fractl.util.seq :as su]
             [fractl.lang.internal :as li]))
@@ -77,6 +78,12 @@
              (apply-xform xf eval-dataflow env arg))
       arg)))
 
+(defn- dispatch-f [method resolver env f arg]
+  (if (get-in resolver [method :with-context])
+    (let [relctx (env/relationship-context env)]
+      (f {:-> relctx} arg))
+    (f arg)))
+
 (defn- invoke-method
   ([method resolver handler handler-tag env arg]
    (let [f (if (= :invoke method)
@@ -85,12 +92,12 @@
      (if-let [in-xforms (get-in resolver [method :xform :in])]
        (let [eval-dataflow (:evt-handler resolver)
              final-arg (apply-xforms in-xforms eval-dataflow env arg)
-             result (f final-arg)]
+             result (dispatch-f method resolver env f final-arg)]
          (if-let [out-xforms (get-in resolver [method :xform :out])]
            (apply-xforms out-xforms eval-dataflow env result)
            result))
        (let [eval-dataflow (:evt-handler resolver)
-             result (f arg)]
+             result (dispatch-f method resolver env f arg)]
          (if-let [out-xforms (get-in resolver [method :xform :out])]
            (apply-xforms out-xforms eval-dataflow env result)
            result)))))
