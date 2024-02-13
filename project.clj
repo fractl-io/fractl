@@ -41,6 +41,8 @@
                  [org.clojure/algo.generic "0.1.3"]
                  [metosin/ring-swagger "0.26.2"]
                  [cheshire "5.11.0"]
+                 [com.github.scribejava/scribejava-core "8.3.3"]
+                 [com.github.scribejava/scribejava-apis "8.3.3"]
                  [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]]
 
   :license {:name "Apache2"}
