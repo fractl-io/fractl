@@ -28,6 +28,8 @@
 (def slack #?(:clj #(SlackApi/instance) :cljs generic))
 (def twitter #?(:clj #(TwitterApi/instance) :cljs generic))
 
+(def ^:private type-tag :-*-tag-*-)
+
 ;; Step 1: Initialize an oauth2 client and get the authorization URL.
 (defn initialize
   ([api {client-id :client-id client-secret :client-secret
@@ -52,55 +54,55 @@
                       (.additionalParams hm)
                       (.build)))
                 (.getAuthorizationUrl service state))]
-          {:auth-url authorization-url
+          {type-tag :oauth2
+           :auth-url authorization-url
            :state state
            :service service}))))   
   ([api options] (initialize api options nil)))
 
 (defn oauth2? [obj]
   (and (map? obj)
-       (and (= (set (keys obj))
-               #{:auth-url :state :service}))))
+       (= :oauth2 (type-tag obj))))
 
 (def authorization-url :auth-url)
 
 #?(:clj
    (defn- as-token-map [^OAuth2AccessToken access-token]
-     {:token (.getRawResponse access-token)
-      :handle access-token}))
+     {:raw-token (.getRawResponse access-token)
+      :token access-token}))
 
 ;; Step 2: Use the code from the server to get an access token.
-(defn get-access-token [oauth2 code secret]
-  (when-not (= secret (:state oauth2))
-    (u/throw-ex (str "State mismatch, expected: " (:state oauth2), " got: " secret)))
+(defn enable-access [auth-obj code secret]
+  (when-not (= secret (:state auth-obj))
+    (u/throw-ex (str "State mismatch, expected: " (:state auth-obj), " got: " secret)))
   #?(:clj
-     (let [^OAuth20Service service (:service oauth2)
+     (let [^OAuth20Service service (:service auth-obj)
            ^OAuth2AccessToken access-token (.getAccessToken service code)]
-       (as-token-map access-token))))
+       (merge auth-obj (as-token-map access-token)))))
 
-(defn token? [obj]
-  (and (map? obj)
-       (= (set (keys obj)) #{:token :handle})
-       (seq (:token obj))))
+(defn access-enabled? [obj]
+  (and (oauth2? obj)
+       (:token obj)))
 
-(defn refresh-token [oauth2 token]
+(defn refresh-token [api-obj]
   #?(:clj
-     (let [^OAuth2AccessToken access-token (:handle token)
-           ^OAuth20Service service (:service oauth2)
+     (let [^OAuth2AccessToken access-token (:token api-obj)
+           ^OAuth20Service service (:service api-obj)
            ^OAuth2AccessToken new-access-token 
            (.refreshAccessToken service (.getRefreshToken access-token))]
-       (as-token-map new-access-token))))
+       (merge api-obj (as-token-map new-access-token)))))
 
-(defn release [oauth2]
-  #?(:clj
-     (let [^OAuth20Service service (:service oauth2)]
-       (.close service)
-       (dissoc oauth2 :service)))
-  true)
+(defn release [api-obj]
+  (when (oauth2? api-obj)
+    #?(:clj
+       (let [^OAuth20Service service (:service api-obj)]
+         (.close service)
+         (dissoc api-obj :service type-tag)))
+    true))
 
-(defn- http-request [verb oauth2 token url headers body]
-  (let [^OAuth20Service service (:service oauth2)
-        ^OAuth2AccessToken access-token (:handle token)
+(defn- http-request [verb api-obj url headers body]
+  (let [^OAuth20Service service (:service api-obj)
+        ^OAuth2AccessToken access-token (:token api-obj)
         ^OAuthRequest request (OAuthRequest. verb url)]
     (when headers
       (doseq [[^String k ^String v] headers]
@@ -112,16 +114,16 @@
        :body (.getBody response)})))
 
 (defn http-post
-  ([oauth2 token url headers body]
-   (http-request Verb/POST oauth2 token url headers body))
-  ([oauth2 token url body] (http-post oauth2 token url nil body)))
+  ([api-obj url headers body]
+   (http-request Verb/POST api-obj url headers body))
+  ([api-obj url body] (http-post api-obj url nil body)))
 
 (defn http-get
-  ([oauth2 token url headers]
-   (http-request Verb/GET oauth2 token url headers nil))
-  ([oauth2 token url] (http-get oauth2 token url nil)))
+  ([api-obj url headers]
+   (http-request Verb/GET api-obj url headers nil))
+  ([api-obj url] (http-get api-obj url nil)))
 
 (defn http-delete
-  ([oauth2 token url headers]
-   (http-request Verb/DELETE oauth2 token url headers nil))
-  ([oauth2 token url] (http-delete oauth2 token url nil)))
+  ([api-obj url headers]
+   (http-request Verb/DELETE api-obj url headers nil))
+  ([api-obj url] (http-delete api-obj url nil)))
