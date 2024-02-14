@@ -24,6 +24,10 @@
            (let [code (read-line)]
              (print "enter the secret: ")
              (flush)
-             (let [secret (read-line)]
-               (println (auth/get-access-token api-obj code secret))))
+             (let [secret (read-line)
+                   token (auth/get-access-token api-obj code secret)]
+               (println "trying to list issues using the access-token " (:token token))
+               (let [response (auth/http-get api-obj token "https://api.github.com/issues")
+                     status (:status response)]
+                 (is (or (= status 200) (= status 404))))))
            (is (auth/release api-obj)))))))
