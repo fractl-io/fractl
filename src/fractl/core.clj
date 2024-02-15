@@ -164,6 +164,11 @@
 
 (defn set-on-init! [f] (reset! on-init-fn f))
 
+(defn- init-schema? [config]
+  (if-let [[_ f] (find config :init-schema?)]
+    f
+    true))
+
 (defn- init-runtime [model config]
   (let [store (store-from-config config)
         ev ((if (repl-mode? config)
@@ -171,7 +176,7 @@
               e/public-evaluator)
             store)
         ins (:interceptors config)]
-    (when (store/init-all-schema store)
+    (when (or (not (init-schema? config)) (store/init-all-schema store))
       (let [resolved-config (run-initconfig config ev)
             has-rbac (some #{:rbac} (keys ins))]
         (register-resolvers! config ev)
