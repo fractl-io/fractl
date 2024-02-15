@@ -165,7 +165,7 @@
 (defn set-on-init! [f] (reset! on-init-fn f))
 
 (defn- init-schema? [config]
-  (if-let [[_ f] (find config :init-schema)]
+  (if-let [[_ f] (find config :init-schema?)]
     f
     true))
 
