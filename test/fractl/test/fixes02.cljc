@@ -704,9 +704,19 @@
 (deftest issue-1234-edn-bug
   (defcomponent :I1234
     (entity :I1234/E {:Id {:type :Int :guid true} :Data :Edn}))
-  (let [e (tu/first-result
-           {:I1234/Create_E
-            {:Instance
-             {:I1234/E {:Id 1 :Data []}}}})]
-    (is (= (:Data e) []))
-    (is (= [] (:Data (tu/first-result {:I1234/Lookup_E {:Id 1}}))))))
+  (let [make-e (fn [id data]
+                 (let [e (first
+                          (:result
+                           (e/evaluate-pattern
+                            nil nil
+                            {:I1234/Create_E
+                             {:Instance
+                              {:I1234/E {:Id id :Data data}}}})))]
+                   (is (cn/instance-of? :I1234/E e))
+                   (is (= (:Data e) data))
+                   (is (= data (:Data (tu/first-result {:I1234/Lookup_E {:Id id}}))))))]
+    (make-e 1 {:Seed [] :Id "1234"}) ; not a good practice, always quote edn.
+    (make-e 2 [:q# {:Seed [] :Id "1234"}])
+    (make-e 3 [:q# {:Seed [{:name "aaaa" :age 12} {:name "bbbb" :age 4}] :Id "10028"}])
+    (make-e 4 [])
+    (make-e 5 [:q# [1 2 3 "abc" :d]])))
