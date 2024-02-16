@@ -700,3 +700,13 @@
         a2 (tu/first-result {:Abwq/Create_A {:Instance {:Abwq/A {:X 200}}}})]
     (is (= 300 (+ (tu/result {:Abwq/FindX {:A (:Id a1)}})
                   (tu/result {:Abwq/FindX {:A (:Id a2)}}))))))
+
+(deftest issue-1234-edn-bug
+  (defcomponent :I1234
+    (entity :I1234/E {:Id {:type :Int :guid true} :Data :Edn}))
+  (let [e (tu/first-result
+           {:I1234/Create_E
+            {:Instance
+             {:I1234/E {:Id 1 :Data []}}}})]
+    (is (= (:Data e) []))
+    (is (= [] (:Data (tu/first-result {:I1234/Lookup_E {:Id 1}}))))))
