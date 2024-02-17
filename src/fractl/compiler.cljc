@@ -115,8 +115,18 @@
     (i/const-value? expr) expr
     (map? expr) (make-map-expr expr)
     (seqable? expr)
-    (let [final-args (map arg-lookup (rest expr))]
-      `(~(first expr) ~@final-args))
+    (cond
+      (li/quoted? expr)
+      (w/prewalk #(if (li/unquoted? %)
+                    (if (> (count %) 2)
+                      (u/throw-ex (str "too many elements in un-quoted pattern - " %))
+                      (expr-with-arg-lookups (second %)))
+                    %)
+                 expr)
+      (not (seq expr)) expr
+      :else
+      (let [final-args (map arg-lookup (rest expr))]
+        `(~(first expr) ~@final-args)))
     :else (arg-lookup expr)))
 
 (defn- expr-as-fn [expr]
