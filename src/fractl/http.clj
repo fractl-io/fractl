@@ -11,8 +11,9 @@
             [buddy.core.keys :as buddykeys]
             [buddy.sign.jwt :as buddyjwt]
             [fractl.compiler :as compiler]
-            [fractl.lang :as ln]
             [clj-time.core :as time]
+            [fractl.lang :as ln]
+            [fractl.lang.raw :as lr]
             [fractl.lang.internal :as li]
             [fractl.paths.internal :as pi]
             [fractl.util :as u]
@@ -232,7 +233,8 @@
         (cn/event-names component)))
 
 (defn- schemas-info [component]
-  (mapv (fn [n] {n (cn/entity-schema n)})
+  (mapv (fn [n]
+          {n (lr/find-entity n)})
         (cn/entity-names component)))
 
 (defn- request-object [request]
