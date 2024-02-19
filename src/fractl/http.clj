@@ -248,8 +248,11 @@
 
 (defn- process-meta-request [[_ maybe-unauth] request]
   (or (maybe-unauth request)
-      (let [c (keyword (get-in request [:params :component]))]
-        (ok {:paths (paths-info c) :schema (schema-info c)}))))
+      (let [params (:params request)]
+        (if-not (seq params)
+          (ok {:components (cn/component-names)})
+          (let [c (keyword (:component params))]
+            (ok {:paths (paths-info c) :schema (schema-info c)}))))))
 
 (defn- process-gpt-chat [[_ maybe-unauth] request]
   (or (maybe-unauth request)
@@ -1054,6 +1057,7 @@
            (POST uh/register-magiclink-prefix [] (:register-magiclink handlers))
            (GET uh/get-magiclink-prefix [] (:get-magiclink handlers))
            (POST uh/preview-magiclink-prefix [] (:preview-magiclink handlers))
+           (GET "/meta/" [] (:meta handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
