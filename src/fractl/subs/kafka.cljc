@@ -20,19 +20,25 @@
          (.setProperty props ConsumerConfig/AUTO_OFFSET_RESET_CONFIG (or (:auto-offset-rest provider-config) "earliest")))
        (.setProperty props ConsumerConfig/KEY_DESERIALIZER_CLASS_CONFIG "org.apache.kafka.common.serialization.StringDeserializer")
        (.setProperty props ConsumerConfig/VALUE_DESERIALIZER_CLASS_CONFIG "org.apache.kafka.common.serialization.StringDeserializer")
-       {:handle (KafkaConsumer. props) :config config})))
+       {:handle (KafkaConsumer. props) :config config :run (atom true)})))
 
-(defn run [conn]
+(defn listen [conn]
   #?(:clj
      (let [^KafkaConsumer consumer (:handle conn)
            config (:config conn)
            topic (or (:topic config) "fractl-events")
-           dur-ms (Duration/ofMillis (or (:poll-duration-millis config) 1000))]
+           dur-ms (Duration/ofMillis (or (:poll-duration-millis config) 1000))
+           run-flag (:run conn)]
        (.subscribe consumer (Arrays/asList (into-array String [topic])))
        (loop []
-         (try
-           (doseq [record (.poll consumer dur-ms)]
-             (si/process-notification (json/decode (.value record))))
-           (catch Exception ex
-             (log/error (str "event-consumer error: " (.getMessage ex)))))
-         (recur)))))
+         (when @run-flag
+           (try
+             (doseq [record (.poll consumer dur-ms)]
+               (si/process-notification (json/decode (.value record))))
+             (catch Exception ex
+               (log/error (str "event-consumer error: " (.getMessage ex)))))
+           (recur))))))
+
+(defn shutdown [conn]
+  (reset! (:run conn) false)
+  conn)

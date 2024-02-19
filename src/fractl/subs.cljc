@@ -7,7 +7,8 @@ backend-systems. A resolver can express interest in these events by implementing
 
 (def ^:private clients
   {:kafka {:open-connection kafka/make-consumer
-           :run kafka/run}})
+           :listen kafka/listen
+           :shutdown kafka/shutdown}})
 
 (defn open-connection [config]
   (let [client-type (:type config)]
@@ -16,5 +17,8 @@ backend-systems. A resolver can express interest in these events by implementing
        :methods methods}
       (u/throw-ex (str "unsupported client-type: " client-type)))))
 
-(defn run [client]
-  ((get-in client [:methods :run]) (:conn client)))
+(defn- dispatch-method [tag client]
+  ((get-in client [:methods tag]) (:conn client)))
+
+(def listen (partial dispatch-method :listen))
+(def shutdown (partial dispatch-method :shutdown))

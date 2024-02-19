@@ -658,36 +658,59 @@
       (is (bc? bc1))
       (is (a? (tu/first-result {:I1222/Update_A {:Data {:K 10} li/path-attr (li/path-attr a1)}}))))))
 
+;; To test push-notifications
+;; - run kafka locally
+;; - set test-change-notifications to true
+;; - run the issue-1227-push-notifications test
+;; - post a message in kafka, similar to:
+;;   "instance": {"I1227/E": {"Id": "abc", "X": 200}}, "operation": "update"}
+(def ^:private test-push-notifications false)
+
 (deftest issue-1227-push-notifications
-  (defcomponent :I1227
-    (entity :I1227/E {:Id {:type :String :guid true} :X :Int})
-    (dataflow
-     :I1227/EChange
-     {:I1227/E
-      {:Id? :I1227/EChange.Id
-       :X :I1227/EChange.X}}))
-  (let [e? (partial cn/instance-of? :I1227/E)
-        rdb (atom [])
-        r (r/make-resolver
-           :i1227
-           {:create {:handler (fn [inst]
-                                (swap! rdb conj inst)
-                                inst)}
-            :update {:handler (fn [inst]
-                                (reset!
-                                 rdb
-                                 (loop [db @rdb, result []]
-                                   (if-let [i (first db)]
-                                     (if (= (:Id i) (:Id inst))
-                                       (concat result [inst] (rest db))
-                                       (recur (rest db) (conj result i)))
-                                     result)))
-                                inst)}
-            :on-change-notification {:handler (fn [inst]
-                                                (println "$$$$$$$$$$$$$$$$$$$$$$$" inst)
-                                                inst)}})]
-    (rg/override-resolver r [:I1227/E])
-    (let [e (tu/first-result {:I1227/Create_E {:Instance {:I1227/E {:Id "abc" :X 10}}}})]
-      (is (e? e))
-      (let [c (subs/open-connection {:type :kafka})]
-        (subs/run c)))))
+  (when test-push-notifications
+    (defcomponent :I1227
+      (entity :I1227/E {:Id {:type :String :guid true} :X :Int})
+      (dataflow
+       :I1227/EChange
+       {:I1227/E
+        {:Id? :I1227/EChange.Id
+         :X :I1227/EChange.X}}))
+    (let [c (subs/open-connection {:type :kafka})
+          e? (partial cn/instance-of? :I1227/E)
+          rdb (atom [])
+          update-e (fn [inst]
+                     (reset!
+                      rdb
+                      (loop [db @rdb, result []]
+                        (if-let [i (first db)]
+                          (if (= (:Id i) (:Id inst))
+                            (concat result [inst] (rest db))
+                            (recur (rest db) (conj result i)))
+                          result)))
+                     inst)
+          new-x (atom 0)
+          r (r/make-resolver
+             :i1227
+             {:create {:handler (fn [inst]
+                                  (swap! rdb conj inst)
+                                  inst)}
+              :update {:handler update-e}
+              :query {:handler (fn [[n {[_ attr v] :where :as where}]]
+                                 (filter #(and (cn/instance-of? n %)
+                                               (= (attr %) v))
+                                         @rdb))}
+              :on-change-notification {:handler (fn [obj]
+                                                  (when (= (:operation obj) :update)
+                                                    (update-e (:instance obj))
+                                                    (reset! new-x (:X (:instance obj)))
+                                                    (subs/shutdown c))
+                                                  obj)}})]
+      (rg/override-resolver [:I1227/E] r)
+      (let [e (tu/first-result {:I1227/Create_E {:Instance {:I1227/E {:Id "abc" :X 10}}}})
+            lookup-e (fn [id x]
+                       (let [e (tu/first-result {:I1227/Lookup_E {:Id id}})]
+                         (is (= x (:X e)))))]
+        (is (e? e))
+        (lookup-e (:Id e) (:X e))
+        (subs/listen c)
+        (lookup-e (:Id e) @new-x)))))
