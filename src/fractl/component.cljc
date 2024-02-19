@@ -2038,3 +2038,21 @@
        :ignore record-name
        (u/throw-ex (str "cannot cascade delete children - " record-name)))))
   ([delfn inst] (maybe-delete-children delfn (instance-type-kw inst) inst)))
+
+(defn encode-expressions-in-schema [scm]
+  (let [norm-scm (mapv (fn [[k v]]
+                         [k (cond
+                              (map? v)
+                              (encode-expressions-in-schema v)
+
+                              (vector? v) v
+
+                              (or (fn? v) (seqable? v)) :fn
+
+                              :else
+                              (let [[c n] (li/split-path v)]
+                                (if (= c :Fractl.Kernel.Lang)
+                                  n
+                                  v)))])
+                       (dissoc scm li/event-context))]
+    (into {} norm-scm)))
