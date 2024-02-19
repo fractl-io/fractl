@@ -10,6 +10,7 @@
             [fractl.store :as store]
             [fractl.evaluator :as e]
             [fractl.env :as env]
+            [fractl.subs :as subs]
             [fractl.lang.internal :as li]
             [fractl.paths.internal :as pi]
             [fractl.resolver.core :as r]
@@ -656,3 +657,37 @@
       (is (c? c1))
       (is (bc? bc1))
       (is (a? (tu/first-result {:I1222/Update_A {:Data {:K 10} li/path-attr (li/path-attr a1)}}))))))
+
+(deftest issue-1227-push-notifications
+  (defcomponent :I1227
+    (entity :I1227/E {:Id {:type :String :guid true} :X :Int})
+    (dataflow
+     :I1227/EChange
+     {:I1227/E
+      {:Id? :I1227/EChange.Id
+       :X :I1227/EChange.X}}))
+  (let [e? (partial cn/instance-of? :I1227/E)
+        rdb (atom [])
+        r (r/make-resolver
+           :i1227
+           {:create {:handler (fn [inst]
+                                (swap! rdb conj inst)
+                                inst)}
+            :update {:handler (fn [inst]
+                                (reset!
+                                 rdb
+                                 (loop [db @rdb, result []]
+                                   (if-let [i (first db)]
+                                     (if (= (:Id i) (:Id inst))
+                                       (concat result [inst] (rest db))
+                                       (recur (rest db) (conj result i)))
+                                     result)))
+                                inst)}
+            :on-change-notification {:handler (fn [inst]
+                                                (println "$$$$$$$$$$$$$$$$$$$$$$$" inst)
+                                                inst)}})]
+    (rg/override-resolver r [:I1227/E])
+    (let [e (tu/first-result {:I1227/Create_E {:Instance {:I1227/E {:Id "abc" :X 10}}}})]
+      (is (e? e))
+      (let [c (subs/open-connection {:type :kafka})]
+        (subs/run c)))))
