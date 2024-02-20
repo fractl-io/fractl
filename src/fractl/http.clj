@@ -252,7 +252,7 @@
         (if-not (seq params)
           (ok {:components (cn/component-names)})
           (let [c (keyword (:component params))]
-            (ok {:paths (paths-info c) :schema (schema-info c)}))))))
+            (ok {:paths (paths-info c) :schema (schema-info c) :component-edn (str (lr/as-edn c))}))))))
 
 (defn- process-gpt-chat [[_ maybe-unauth] request]
   (or (maybe-unauth request)
