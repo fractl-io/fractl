@@ -658,16 +658,51 @@
       (is (bc? bc1))
       (is (a? (tu/first-result {:I1222/Update_A {:Data {:K 10} li/path-attr (li/path-attr a1)}}))))))
 
-;; To test push-notifications
-;; - run kafka locally
-;; - set test-change-notifications to true
-;; - run the issue-1227-push-notifications test
-;; - post a message in kafka, similar to:
-;;   "instance": {"I1227/E": {"Id": "abc", "X": 200}}, "operation": "update"}
-(def ^:private test-push-notifications false)
+(defn- make-change-notifications-resolver [rname subs-client]
+  (let [rdb (atom [])
+        update-e (fn [inst]
+                   (reset!
+                    rdb
+                    (loop [db @rdb, result []]
+                      (if-let [i (first db)]
+                        (if (= (:Id i) (:Id inst))
+                          (concat result [inst] (rest db))
+                          (recur (rest db) (conj result i)))
+                        result)))
+                   inst)
+        new-x (atom 0)]
+    [(r/make-resolver
+      rname
+      {:create {:handler (fn [inst]
+                           (swap! rdb conj inst)
+                           inst)}
+       :update {:handler update-e}
+       :query {:handler (fn [[n {[_ attr v] :where :as where}]]
+                          (filter #(and (cn/instance-of? n %)
+                                        (= (attr %) v))
+                                  @rdb))}
+       :on-change-notification {:handler (fn [obj]
+                                           (when (= (:operation obj) :update)
+                                             (update-e (:instance obj))
+                                             (reset! new-x (:X (:instance obj)))
+                                             (subs/shutdown subs-client))
+                                           obj)}})
+     new-x]))
 
-(deftest issue-1227-push-notifications
-  (when test-push-notifications
+;; Follow these steps to test change-notifications -
+;; 1. run kafka locally:
+;;     $ bin/zookeeper-server-start.sh config/zookeeper.properties
+;;     $ bin/kafka-server-start.sh config/server.properties
+;; 2. set test-change-notifications to true.
+;; 3. run the issue-1227-change-notifications test.
+;; 4. post a message in kafka:
+;;     $ bin/kafka-console-producer.sh --topic fractl-events --bootstrap-server localhost:9092
+;;     > {"instance": {"I1227/E": {"Id": "abc", "X": 200}}, "operation": "update"}
+
+(def ^:private test-change-notifications false)
+
+(deftest issue-1227-change-notifications
+  (when test-change-notifications
     (defcomponent :I1227
       (entity :I1227/E {:Id {:type :String :guid true} :X :Int})
       (dataflow
@@ -677,34 +712,7 @@
          :X :I1227/EChange.X}}))
     (let [c (subs/open-connection {:type :kafka})
           e? (partial cn/instance-of? :I1227/E)
-          rdb (atom [])
-          update-e (fn [inst]
-                     (reset!
-                      rdb
-                      (loop [db @rdb, result []]
-                        (if-let [i (first db)]
-                          (if (= (:Id i) (:Id inst))
-                            (concat result [inst] (rest db))
-                            (recur (rest db) (conj result i)))
-                          result)))
-                     inst)
-          new-x (atom 0)
-          r (r/make-resolver
-             :i1227
-             {:create {:handler (fn [inst]
-                                  (swap! rdb conj inst)
-                                  inst)}
-              :update {:handler update-e}
-              :query {:handler (fn [[n {[_ attr v] :where :as where}]]
-                                 (filter #(and (cn/instance-of? n %)
-                                               (= (attr %) v))
-                                         @rdb))}
-              :on-change-notification {:handler (fn [obj]
-                                                  (when (= (:operation obj) :update)
-                                                    (update-e (:instance obj))
-                                                    (reset! new-x (:X (:instance obj)))
-                                                    (subs/shutdown c))
-                                                  obj)}})]
+          [r new-x] (make-change-notifications-resolver :i1227 c)]
       (rg/override-resolver [:I1227/E] r)
       (let [e (tu/first-result {:I1227/Create_E {:Instance {:I1227/E {:Id "abc" :X 10}}}})
             lookup-e (fn [id x]
@@ -714,3 +722,27 @@
         (lookup-e (:Id e) (:X e))
         (subs/listen c)
         (lookup-e (:Id e) @new-x)))))
+
+(deftest issue-1239-data-transformers
+  (defcomponent :I1239
+    (entity :I1239/E {:Id {:type :String :guid true} :X :Int})
+    (dataflow
+     :I1239/EChange
+     {:I1239/E
+      {:Id? :I1239/EChange.Id
+       :X :I1239/EChange.X}}))
+  (let [c (subs/attach-transformer
+           (subs/open-connection {:type :mem :data [[:update "abc" 500]]})
+           (fn [[opr id x :as arg]]
+             (subs/notification-object opr {:I1239/E {:Id id :X x}})))
+        e? (partial cn/instance-of? :I1239/E)
+        [r new-x] (make-change-notifications-resolver :i1239 c)]
+    (rg/override-resolver [:I1239/E] r)
+    (let [e (tu/first-result {:I1239/Create_E {:Instance {:I1239/E {:Id "abc" :X 10}}}})
+          lookup-e (fn [id x]
+                     (let [e (tu/first-result {:I1239/Lookup_E {:Id id}})]
+                       (is (= x (:X e)))))]
+      (is (e? e))
+      (lookup-e (:Id e) (:X e))
+      (subs/listen c)
+      (lookup-e (:Id e) @new-x))))
