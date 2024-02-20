@@ -1057,7 +1057,7 @@
            (POST uh/register-magiclink-prefix [] (:register-magiclink handlers))
            (GET uh/get-magiclink-prefix [] (:get-magiclink handlers))
            (POST uh/preview-magiclink-prefix [] (:preview-magiclink handlers))
-           (GET "/meta/" [] (:meta handlers))
+           (GET "/meta" [] (:meta handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
