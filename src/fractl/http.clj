@@ -11,8 +11,9 @@
             [buddy.core.keys :as buddykeys]
             [buddy.sign.jwt :as buddyjwt]
             [fractl.compiler :as compiler]
-            [fractl.lang :as ln]
             [clj-time.core :as time]
+            [fractl.lang :as ln]
+            [fractl.lang.raw :as lr]
             [fractl.lang.internal :as li]
             [fractl.paths.internal :as pi]
             [fractl.util :as u]
@@ -228,12 +229,16 @@
 
 (defn- paths-info [component]
   (mapv (fn [n] {(subs (str n) 1)
-                 {"post" {"parameters" (cn/event-schema n)}}})
+                 {"post" {"parameters" (cn/encode-expressions-in-schema (cn/event-schema n))}}})
         (cn/event-names component)))
 
-(defn- schemas-info [component]
-  (mapv (fn [n] {n (cn/entity-schema n)})
-        (cn/entity-names component)))
+(defn- find-schema [fetch-names find-schema]
+  (mapv (fn [n] {n (cn/encode-expressions-in-schema (find-schema n))}) (fetch-names)))
+
+(defn- schema-info [component]
+  {:records (find-schema #(cn/record-names component) lr/find-record)
+   :entities (find-schema #(cn/entity-names component) lr/find-entity)
+   :relationships (find-schema #(cn/relationship-names component) lr/find-relationship)})
 
 (defn- request-object [request]
   (if-let [data-fmt (find-data-format request)]
@@ -243,8 +248,13 @@
 
 (defn- process-meta-request [[_ maybe-unauth] request]
   (or (maybe-unauth request)
-      (let [c (keyword (get-in request [:params :component]))]
-        (ok {:paths (paths-info c) :schemas (schemas-info c)}))))
+      (let [params (:params request)]
+        (if-not (seq params)
+          (ok {:components (cn/component-names)})
+          (let [c (keyword (:component params))]
+            (ok {:paths (paths-info c)
+                 :schema (schema-info c)
+                 :component-edn (str (vec (rest (lr/as-edn c))))}))))))
 
 (defn- process-gpt-chat [[_ maybe-unauth] request]
   (or (maybe-unauth request)
@@ -1049,6 +1059,7 @@
            (POST uh/register-magiclink-prefix [] (:register-magiclink handlers))
            (GET uh/get-magiclink-prefix [] (:get-magiclink handlers))
            (POST uh/preview-magiclink-prefix [] (:preview-magiclink handlers))
+           (GET "/meta" [] (:meta handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
