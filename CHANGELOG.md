@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.8] - 2024-02-09
 
+- Fix for a bug where last line in a `.fractl` file having a `;` comment would lead to parsing error.
+- New path-query syntax
+- Change-notifications from external systems
+- Common auth-interface for resolvers
+- Context support in resolver methods
+- Support for data-migration between fractl versions
+- Fix default port and add a server message
+- Ensure tokens removed from AWS Cognito aren't used to interact with Fractl
+- Update GPT Codebase and API structure
+- Add Magiclinks support
+- Step-wise loader support
+- Add support for fine-tuned OpenAI models
+- New request support of `do-get` in Fractl http
+
 ## [0.4.7] - 2023-11-14
 
 -   Change project-prefix for publishing in Clojars
