@@ -5,7 +5,7 @@
             [fractl.util.seq :as su]
             [fractl.lang.internal :as li]))
 
-(def ^:private valid-resolver-keys #{:update :create :delete :get :query :eval :invoke})
+(def ^:private valid-resolver-keys #{:update :create :delete :query :eval :invoke :on-change-notification})
 
 (defn- preproc-fnmap [fnmap]
   (let [fns (mapv (fn [[k v]]
@@ -120,16 +120,7 @@
 (def call-resolver-query (partial wrap-result :query))
 (def call-resolver-eval (partial wrap-result :eval))
 (def call-resolver-invoke (partial wrap-result :invoke))
-
-(defn- dispatch-method-call [method resolver arg]
-  (:result (method resolver nil arg)))
-
-(def dispatch-create (partial dispatch-method-call call-resolver-create))
-(def dispatch-update (partial dispatch-method-call call-resolver-update))
-(def dispatch-delete (partial dispatch-method-call call-resolver-delete))
-(def dispatch-query (partial dispatch-method-call call-resolver-query))
-(def dispatch-eval (partial dispatch-method-call call-resolver-eval))
-(def dispatch-invoke (partial dispatch-method-call call-resolver-invoke))
+(def call-resolver-on-change-notification (partial wrap-result :on-change-notification))
 
 (defn id-to-delete [arg]
   (if (map? arg)
