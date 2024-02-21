@@ -22,9 +22,10 @@
        (.setProperty props ConsumerConfig/VALUE_DESERIALIZER_CLASS_CONFIG "org.apache.kafka.common.serialization.StringDeserializer")
        {:handle (KafkaConsumer. props) :config config :run (atom true)})))
 
-(defn listen [conn]
+(defn listen [client]
   #?(:clj
-     (let [^KafkaConsumer consumer (:handle conn)
+     (let [conn (si/connection client)
+           ^KafkaConsumer consumer (:handle conn)
            config (:config conn)
            topic (or (:topic config) "fractl-events")
            dur-ms (Duration/ofMillis (or (:poll-duration-millis config) 1000))
@@ -34,11 +35,12 @@
          (when @run-flag
            (try
              (doseq [record (.poll consumer dur-ms)]
-               (si/process-notification (json/decode (.value record))))
+               (si/process-notification client (json/decode (.value record))))
              (catch Exception ex
                (log/error (str "event-consumer error: " (.getMessage ex)))))
            (recur))))))
 
-(defn shutdown [conn]
-  (reset! (:run conn) false)
-  conn)
+(defn shutdown [client]
+  (let [conn (si/connection client)]
+    (reset! (:run conn) false)
+    client))
