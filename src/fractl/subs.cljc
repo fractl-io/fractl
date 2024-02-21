@@ -8,37 +8,30 @@ backend-systems. A resolver can express interest in these events by implementing
             [fractl.subs.kafka :as kafka]))
 
 (def ^:private clients
-  {:kafka {:open-connection kafka/make-consumer
-           :listen kafka/listen
-           :shutdown kafka/shutdown}
-   :mem {:open-connection mem/open
-         :listen mem/listen
-         :shutdown mem/shutdown}})
-
-(defn- maybe-add-xform [methods]
-  (if (:xform methods)
-    methods
-    (assoc methods :xform si/normalize-notification-object)))
+  {:kafka (si/make-client kafka/make-consumer kafka/listen kafka/shutdown)
+   :mem (si/make-client mem/open mem/listen mem/shutdown)})
 
 (defn open-connection [config]
   (let [client-type (:type config)]
     (if-let [methods (client-type clients)]
-      {:conn ((:open-connection methods) (dissoc config :type))
-       :methods (maybe-add-xform methods)}
+      (si/make-client-connection
+       ((si/open-connection methods) (dissoc config :type))
+       methods)
       (u/throw-ex (str "unsupported client-type: " client-type)))))
 
 (def notification-object si/notification-object)
 (def notification-object? si/notification-object?)
 
+;; Enrich a subscription-client with a transformer-function.
 ;; The transformer-fn will take an arbitrary object as argument
-;; and return a notification-object.
-(defn attach-transformer [client transformer-fn]
-  (let [methods (:methods client)]
-    (assoc client :methods (assoc methods :xform transformer-fn))))
+;; and translate that to a notification-object.
+(def with-transformer (partial si/with-fn si/xform))
 
-(defn listen [client]
-  ((get-in client [:methods :listen])
-   (:conn client) (get-in client [:methods :xform])))
+;; Enrich a subscription-client with a filter-predicate.
+;; The predicate will take a notification-object as argument.
+;; Only if the result is true, the notification-object is passed on to
+;; the change-notification handler of the resolver.
+(def with-filter (partial si/with-fn si/_filter))
 
-(defn shutdown [client]
-  ((get-in client [:methods :shutdown]) (:conn client)))
+(def listen si/call-listen)
+(def shutdown si/call-shutdown)

@@ -4,8 +4,8 @@
 
 (defn open [config] {:data (:data config)})
 
-(defn listen [conn transform]
-  (doseq [record (:data conn)]
-    (si/process-notification (transform record))))
+(defn listen [client]
+  (doseq [record (:data (si/connection client))]
+    (si/process-notification client record)))
 
 (defn shutdown [_] {:data nil})
