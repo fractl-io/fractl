@@ -732,13 +732,12 @@
       {:Id? :I1239/EChange.Id
        :X :I1239/EChange.X}}))
   (let [c (subs/with-filter
-            (fn [inst]
-              (println inst)
-              inst)
+            (fn [obj]
+              (= "abc" (:Id (:instance obj))))
             (subs/with-transformer
               (fn [[opr id x :as arg]]
                 (subs/notification-object opr {:I1239/E {:Id id :X x}}))
-              (subs/open-connection {:type :mem :data [[:update "abc" 500]]})))
+              (subs/open-connection {:type :mem :data [[:update "cde" 500] [:update "abc" 500]]})))
         e? (partial cn/instance-of? :I1239/E)
         [r new-x] (make-change-notifications-resolver :i1239 c)]
     (rg/override-resolver [:I1239/E] r)
