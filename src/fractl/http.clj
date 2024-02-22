@@ -269,7 +269,7 @@
     (concat rels01 rels02 rels03)))
 
 (defn- entity-schema-with-relations [entity-name limit]
-  (when-let [attrs (lr/find-entity entity-name)]
+  (when-let [attrs (find-entity-schema entity-name)]
     (let [rel-ents (find-related-entities entity-name limit)
           espec {entity-name attrs}
           spec-cache (atom {})
