@@ -282,7 +282,7 @@
           rel-spec (partial find-spec find-relationship-schema)]
       (assoc espec :->
              (reduce (fn [[rels specs] [r e]]
-                       [(conj rels [r e]) (assoc specs r (rel-spec r) e (entity-spec e))])
+                       [(conj rels {:relationship r :participant e}) (assoc specs r (rel-spec r) e (entity-spec e))])
                      [[] {}]
                      rel-ents)))))
 
