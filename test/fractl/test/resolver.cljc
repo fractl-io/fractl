@@ -694,7 +694,7 @@
 ;;     $ bin/zookeeper-server-start.sh config/zookeeper.properties
 ;;     $ bin/kafka-server-start.sh config/server.properties
 ;; 2. set test-change-notifications to true.
-;; 3. run the issue-1227-change-notifications test.
+;; 3. $ lein test :only fractl.test.resolver/issue-1227-change-notifications
 ;; 4. post a message in kafka:
 ;;     $ bin/kafka-console-producer.sh --topic fractl-events --bootstrap-server localhost:9092
 ;;     > {"instance": {"I1227/E": {"Id": "abc", "X": 200}}, "operation": "update"}
