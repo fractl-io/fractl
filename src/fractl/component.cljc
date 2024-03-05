@@ -1687,10 +1687,9 @@
     (keyword (str (name evtname) "_" (name entity-name)))))
   ([entity-name evtname]
    (let [[c n] (li/split-path entity-name)]
-     (if-not n
-       (canonical-type-name
-        (keyword (str (name evtname) "_" (name n))))
-       (crud-event-name c n evtname)))))
+     (if (and c n)
+       (crud-event-name c n evtname)
+       (u/throw-ex (str "entity name " entity-name " must be fully-qualified."))))))
 
 (declare prepost-event-name)
 
