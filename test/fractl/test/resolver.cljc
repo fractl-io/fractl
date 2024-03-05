@@ -683,9 +683,11 @@
                                   @rdb))}
        :on-change-notification {:handler (fn [obj]
                                            (when (= (:operation obj) :update)
-                                             (update-e (:instance obj))
-                                             (reset! new-x (:X (:instance obj)))
-                                             (subs/shutdown subs-client))
+                                             (let [inst (:instance obj)]
+                                               (update-e inst)
+                                               (reset! new-x (:X inst))
+                                               (e/eval-after-update inst)
+                                               (subs/shutdown subs-client)))
                                            obj)}})
      new-x]))
 
@@ -694,7 +696,7 @@
 ;;     $ bin/zookeeper-server-start.sh config/zookeeper.properties
 ;;     $ bin/kafka-server-start.sh config/server.properties
 ;; 2. set test-change-notifications to true.
-;; 3. run the issue-1227-change-notifications test.
+;; 3. $ lein test :only fractl.test.resolver/issue-1227-change-notifications
 ;; 4. post a message in kafka:
 ;;     $ bin/kafka-console-producer.sh --topic fractl-events --bootstrap-server localhost:9092
 ;;     > {"instance": {"I1227/E": {"Id": "abc", "X": 200}}, "operation": "update"}
@@ -705,11 +707,10 @@
   (when test-change-notifications
     (defcomponent :I1227
       (entity :I1227/E {:Id {:type :String :guid true} :X :Int})
+      (entity :I1227/A {:Y :Int})
       (dataflow
-       :I1227/EChange
-       {:I1227/E
-        {:Id? :I1227/EChange.Id
-         :X :I1227/EChange.X}}))
+       [:after :update :I1227/E]
+       {:I1227/A {:Y :Instance.X}}))
     (let [c (subs/open-connection {:type :kafka})
           e? (partial cn/instance-of? :I1227/E)
           [r new-x] (make-change-notifications-resolver :i1227 c)]
@@ -721,16 +722,18 @@
         (is (e? e))
         (lookup-e (:Id e) (:X e))
         (subs/listen c)
-        (lookup-e (:Id e) @new-x)))))
+        (lookup-e (:Id e) @new-x)
+        (let [all-as (tu/result {:I1227/LookupAll_A {}})]
+          (is (= 1 (count all-as)))
+          (is (= @new-x (:Y (first all-as)))))))))
 
 (deftest issue-1239-data-transformers
   (defcomponent :I1239
     (entity :I1239/E {:Id {:type :String :guid true} :X :Int})
+    (entity :I1239/A {:Y :Int})
     (dataflow
-     :I1239/EChange
-     {:I1239/E
-      {:Id? :I1239/EChange.Id
-       :X :I1239/EChange.X}}))
+     [:after :update :I1239/E]
+     {:I1239/A {:Y :Instance.X}}))
   (let [c (subs/with-filter
             (fn [obj]
               (= "abc" (:Id (:instance obj))))
@@ -748,4 +751,7 @@
       (is (e? e))
       (lookup-e (:Id e) (:X e))
       (subs/listen c)
-      (lookup-e (:Id e) @new-x))))
+      (lookup-e (:Id e) @new-x)
+      (let [all-as (tu/result {:I1239/LookupAll_A {}})]
+        (is (= 1 (count all-as)))
+        (is (= @new-x (:Y (first all-as))))))))

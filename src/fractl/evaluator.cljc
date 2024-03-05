@@ -87,6 +87,13 @@
         (fire-post-events-for tag insts))))
   env)
 
+(defn- fire-post-event-for [tag inst]
+  (fire-post-events-for tag [inst]))
+
+(def eval-after-create (partial fire-post-event-for :create))
+(def eval-after-update (partial fire-post-event-for :update))
+(def eval-after-delete (partial fire-post-event-for :delete))
+
 (defn- eval-dataflow-in-transaction [evaluator env event-instance df txn]
   (binding [gs/active-event-context (or (li/event-context event-instance)
                                         gs/active-event-context)]
