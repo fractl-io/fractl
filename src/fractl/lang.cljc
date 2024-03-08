@@ -691,7 +691,7 @@
 
 (defn- fetch-rule-option
   ([option default args]
-   (or (first (rest (take-while (partial not= option))))
+   (or (first (rest (drop-while (partial not= option) args)))
        default))
   ([option args] (fetch-rule-option option nil args)))
 
@@ -701,7 +701,7 @@
         [conseq-pats args] (split-with (complement keyword?) (rest args))
         priority (fetch-rule-option :priority ##-Inf args)
         passive (us/member? :passive args)
-        cat (fetch-rule-option :category)]
+        cat (fetch-rule-option :category args)]
     {:cond cond-pats
      :then conseq-pats
      :priority priority

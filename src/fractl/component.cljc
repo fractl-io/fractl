@@ -2064,3 +2064,21 @@
           path [component :rules n]]
       (assoc-in ms path spec)))
   rule-name)
+
+(defn fetch-rule [rule-name]
+  (let [[c n] (li/split-path rule-name)]
+    (component-find [c :rules n])))
+
+(defn rule-condition [rule-spec]
+  (vec (:cond rule-spec)))
+
+(defn rule-consequence [rule-spec]
+  (vec (:then rule-spec)))
+
+(def rule-priority :priority)
+
+(defn rule-has-least-priority? [rule-spec]
+  (= ##-Inf (rule-priority rule-spec)))
+
+(def rule-is-passive? :passive)
+(def rule-category :category)
