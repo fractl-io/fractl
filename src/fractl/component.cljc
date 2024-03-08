@@ -2055,3 +2055,12 @@
                                   v)))])
                        (dissoc scm li/event-context))]
     (into {} norm-scm)))
+
+(defn register-rule [rule-name spec]
+  (u/call-and-set
+   components
+   #(let [ms @components
+          [component n] (li/split-path rule-name)
+          path [component :rules n]]
+      (assoc-in ms path spec)))
+  rule-name)

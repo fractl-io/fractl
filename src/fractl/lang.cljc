@@ -689,6 +689,29 @@
       (raw/dataflow match-pat patterns))
     r))
 
+(defn- fetch-rule-option
+  ([option default args]
+   (or (first (rest (take-while (partial not= option))))
+       default))
+  ([option args] (fetch-rule-option option nil args)))
+
+(defn- parse-rules-args [args]
+  (let [not-then (partial not= :then)
+        [cond-pats args] (split-with not-then args)
+        [conseq-pats args] (split-with (complement keyword?) (rest args))
+        priority (fetch-rule-option :priority ##-Inf args)
+        passive (us/member? :passive args)
+        cat (fetch-rule-option :category)]
+    {:cond cond-pats
+     :then conseq-pats
+     :priority priority
+     :passive passive
+     :category cat}))
+
+(defn rule [rule-name & args]
+  (let [spec (parse-rules-args args)]
+    (cn/register-rule rule-name spec)))
+
 (def ^:private crud-evname cn/crud-event-name)
 
 (defn- crud-event-attr-accessor
