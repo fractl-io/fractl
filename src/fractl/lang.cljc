@@ -15,6 +15,7 @@
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
+            [fractl.rule :as rule]
             [fractl.global-state :as gs]
             [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
@@ -703,6 +704,7 @@
         passive (us/member? :passive args)
         cat (fetch-rule-option :category args)]
     {:cond cond-pats
+     :c-cond (rule/compile-conditionals cond-pats)
      :then conseq-pats
      :priority priority
      :passive passive
