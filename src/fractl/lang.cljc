@@ -710,9 +710,15 @@
      :passive passive
      :category cat}))
 
+(defn- rule-event [rule-name conseq]
+  (let [revnt-name (li/rule-event-name rule-name)]
+    (event revnt-name {})
+    (apply dataflow revnt-name conseq)))
+
 (defn rule [rule-name & args]
   (let [spec (parse-rules-args args)]
-    (cn/register-rule rule-name spec)))
+    (when (rule-event rule-name (:then spec))
+      (cn/register-rule rule-name spec))))
 
 (def ^:private crud-evname cn/crud-event-name)
 

@@ -27,7 +27,6 @@
      :passive
      :category :Rule01.Abc))
   (let [spec (cn/fetch-rule :Rule01/R1)]
-    (println (:c-cond spec))
     (is (= [{:Rule01/A {:X 100} :as :A}
             {:Rule01/B {:Y [:<= 200]} :as :B}]
            (cn/rule-condition spec)))
@@ -45,3 +44,26 @@
     (is (= 10 (cn/rule-priority spec)))
     (is (cn/rule-is-passive? spec))
     (is (= :Rule01.Abc (cn/rule-category spec)))))
+
+(deftest rule-fire-01
+  (defcomponent :Rf01
+    (entity :Rf01/A {:Id :Identity :X :Int})
+    (entity :Rf01/B {:Id :Identity :Y :Int :A :UUID})
+    (rule
+     :Rf01/R1
+     {:Rf01/A {:X 100} :as [:A]}
+     :then
+     {:Rf01/B {:Y 100 :A :A.Id}}))
+  (let [make-a (fn [x] (tu/first-result
+                        {:Rf01/Create_A
+                         {:Instance
+                          {:Rf01/A {:X x}}}}))
+        [a1 a2] (mapv make-a [10 100])
+        a? (partial cn/instance-of? :Rf01/A)
+        b? (partial cn/instance-of? :Rf01/B)]
+    (is (every? a? [a1 a2]))
+    (let [bs (tu/result {:Rf01/LookupAll_B {}})]
+      (is (every? b? bs))
+      (is (= 1 (count bs)))
+      (is (= (:A (first bs)) (:Id a2)))
+      (is (= 100 (:Y (first bs)))))))

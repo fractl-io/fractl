@@ -542,3 +542,7 @@
 
 (defn patterns-arg? [x]
   (and (vector? x) (= :patterns (first x))))
+
+(defn rule-event-name [rule-name]
+  (let [[c n] (split-path rule-name)]
+    (make-path c (keyword (str "FireRule_" (name n))))))

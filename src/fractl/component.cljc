@@ -2056,18 +2056,37 @@
                        (dissoc scm li/event-context))]
     (into {} norm-scm)))
 
+(def ^:private rule-registry (u/make-cell {}))
+
+(defn- register-rule-for-entities! [rule-name ent-names]
+  (u/call-and-set
+   rule-registry
+   #(let [rr @rule-registry
+          r (mapv (fn [n] [n (set (conj (get rr n) rule-name))]) ent-names)]
+      (merge rr (into {} r)))))
+
+(def rule-c-cond :c-cond)
+
 (defn register-rule [rule-name spec]
   (u/call-and-set
    components
    #(let [ms @components
           [component n] (li/split-path rule-name)
           path [component :rules n]]
+      (register-rule-for-entities! rule-name (mapv first (rule-c-cond spec)))
       (assoc-in ms path spec)))
   rule-name)
 
 (defn fetch-rule [rule-name]
   (let [[c n] (li/split-path rule-name)]
     (component-find [c :rules n])))
+
+(defn rules-for-entity [entity-name]
+  (get @rule-registry entity-name))
+
+(defn rule-compiled-conditions [rule-spec entity-name]
+  (let [ccs (filter #(= entity-name (first %)) (rule-c-cond rule-spec))]
+    (mapv second ccs)))
 
 (defn rule-condition [rule-spec]
   (vec (:cond rule-spec)))

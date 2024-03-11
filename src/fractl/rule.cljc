@@ -43,13 +43,14 @@
       (when-not (map? attrs)
         (u/throw-ex (str "invalid attributes in pattern " attrs)))
       (let [pattrs (predicated-attributes attrs)]
-        (fn [env inst]
-          (when (and (= recname (cn/instance-type-kw inst))
-                     (every? (fn [[k v]] (v (k inst))) pattrs))
-            (let [env (env/bind-instance recname inst)]
-              (if alias
-                (env/bind-instance-to-alias env alias inst)
-                env))))))
+        [recname
+         (fn [env inst]
+           (when (and (= recname (cn/instance-type-kw inst))
+                      (every? (fn [[k v]] (v (k inst))) pattrs))
+             (let [env (env/bind-instance recname inst)]
+               (if alias
+                 (env/bind-instance-to-alias env alias inst)
+                 env))))]))
     (u/throw-ex (str "invalid conditional-pattern - " pat))))
 
 (defn compile-conditionals [pats]
