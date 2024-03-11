@@ -2065,15 +2065,28 @@
           r (mapv (fn [n] [n (set (conj (get rr n) rule-name))]) ent-names)]
       (merge rr (into {} r)))))
 
-(def rule-c-cond :c-cond)
+(def rule-is-passive? :passive)
+(def rule-category :category)
+(def rule-cc :c-cond)
+(def rule-condition :cond)
+(def rule-consequence :then)
+(def rule-priority :priority)
+(def rule-name :name)
+
+(defn- validate-rule-condition! [spec]
+  (let [conds (rule-condition spec)]
+    (when (and (> (count conds) 1)
+               (some #(and (vector? %) (= :delete (first %))) conds))
+      (u/throw-ex (str "delete rule condition must standalone: " spec)))))
 
 (defn register-rule [rule-name spec]
+  (validate-rule-condition! spec)
   (u/call-and-set
    components
    #(let [ms @components
           [component n] (li/split-path rule-name)
           path [component :rules n]]
-      (register-rule-for-entities! rule-name (mapv first (rule-c-cond spec)))
+      (register-rule-for-entities! rule-name (mapv first (rule-cc spec)))
       (assoc-in ms path spec)))
   rule-name)
 
@@ -2081,23 +2094,47 @@
   (let [[c n] (li/split-path rule-name)]
     (component-find [c :rules n])))
 
-(defn rules-for-entity [entity-name]
-  (get @rule-registry entity-name))
+(defn- rule-for-delete-event? [spec]
+  (let [conds (rule-condition spec)]
+    (and (= 1 (count conds))
+         (vector? (first conds))
+         (= :delete (ffirst conds)))))
+
+(def ^:private rule-for-upsert-event? (complement rule-for-delete-event?))
+
+(defn- filter-rules [predic rule-names]
+  (seq (filter predic (map fetch-rule rule-names))))
+
+(def ^:private filter-delete-rules (partial filter-rules rule-for-delete-event?))
+(def ^:private filter-upsert-rules (partial filter-rules rule-for-upsert-event?))
+
+(defn rules-for-entity [tag entity-name]
+  (when-let [rule-names (seq (get @rule-registry entity-name))]
+    (if (= :delete tag)
+      (filter-delete-rules rule-names)
+      (filter-upsert-rules rule-names))))
 
 (defn rule-compiled-conditions [rule-spec entity-name]
-  (let [ccs (filter #(= entity-name (first %)) (rule-c-cond rule-spec))]
+  (when-let [ccs (seq (filter #(= entity-name (first %)) (rule-cc rule-spec)))]
     (mapv second ccs)))
-
-(defn rule-condition [rule-spec]
-  (vec (:cond rule-spec)))
-
-(defn rule-consequence [rule-spec]
-  (vec (:then rule-spec)))
-
-(def rule-priority :priority)
 
 (defn rule-has-least-priority? [rule-spec]
   (= ##-Inf (rule-priority rule-spec)))
 
-(def rule-is-passive? :passive)
-(def rule-category :category)
+(defn- apply-rule-ccs [env inst ccs]
+  (loop [ccs ccs, env env]
+    (if-let [c (first ccs)]
+      (when-let [env (c env inst)]
+        (recur (rest ccs) env))
+      env)))
+
+(defn run-rules [make-eval env entity-name inst rule-specs]
+  (doseq [rspec rule-specs]
+    (when-let [ccs (rule-compiled-conditions entity-name rspec)]
+      (future
+        (let [rn (rule-name rspec)]
+          (when-let [final-env (apply-rule-ccs env inst ccs)]
+            (log/info (str "invoking rule " rn " for " inst))
+            (let [r ((make-eval final-env) (make-instance (li/rule-event-name rn) {}))]
+              (log/info (str "result of applying rule " rn ": " r))
+              r)))))))

@@ -71,20 +71,28 @@
   (when (identical? internal-event-flag (internal-event-key event-instance))
     true))
 
-(declare eval-all-dataflows safe-eval-pattern)
+(declare eval-all-dataflows evaluator-with-env safe-eval-pattern)
+
+(defn- trigger-rules! [tag env insts]
+  (doseq [inst insts]
+    (let [n (cn/instance-type-kw inst)]
+      (when-let [rules (cn/rules-for-entity tag n)]
+        (cn/run-rules evaluator-with-env env n inst rules)))))
 
 (defn- fire-post-events-for [tag insts]
   (doseq [inst insts]
     (when-let [[event-name r] (cn/fire-post-event eval-all-dataflows tag inst)]
       (when-not (u/safe-ok-result r)
         (log/warn r)
-        (u/throw-ex (str "internal event " event-name " failed."))))))
+        (u/throw-ex (str "internal event " event-name " failed.")))))
+  insts)
 
 (defn fire-post-events [env]
   (let [srcs (env/post-event-trigger-sources env)]
     (doseq [tag [:create :update :delete]]
       (when-let [insts (seq (tag srcs))]
-        (fire-post-events-for tag insts))))
+        (when (fire-post-events-for tag insts)
+          (trigger-rules! tag env insts)))))
   env)
 
 (defn- fire-post-event-for [tag inst]
@@ -271,6 +279,10 @@
      (es/set-active-state! ef store)
      ef))
   ([] (evaluator (es/get-active-store) nil)))
+
+(defn- evaluator-with-env [env]
+  (let [[compile-query-fn evaluator] (make (es/get-active-store))]
+    (partial run-dataflows compile-query-fn evaluator env)))
 
 (defn evaluate-pattern
   ([env store-or-store-config resolver-or-resolver-config pattern]
