@@ -47,7 +47,7 @@
          (fn [env inst]
            (when (and (= recname (cn/instance-type-kw inst))
                       (every? (fn [[k v]] (v (k inst))) pattrs))
-             (let [env (env/bind-instance recname inst)]
+             (let [env (env/bind-instance env (li/split-path recname) inst)]
                (if alias
                  (env/bind-instance-to-alias env alias inst)
                  env))))]))

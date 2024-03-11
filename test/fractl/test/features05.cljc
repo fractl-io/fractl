@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
+            [fractl.env :as env]
             [fractl.lang
              :refer [component event entity relationship dataflow rule]]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
@@ -51,17 +52,22 @@
     (entity :Rf01/B {:Id :Identity :Y :Int :A :UUID})
     (rule
      :Rf01/R1
-     {:Rf01/A {:X 100} :as [:A]}
+     {:Rf01/A {:X 100} :as :A}
      :then
      {:Rf01/B {:Y 100 :A :A.Id}}))
-  (let [make-a (fn [x] (tu/first-result
-                        {:Rf01/Create_A
-                         {:Instance
-                          {:Rf01/A {:X x}}}}))
-        [a1 a2] (mapv make-a [10 100])
+  (let [make-a (fn [x]
+                 (let [r (first
+                          (tu/eval-all-dataflows
+                           {:Rf01/Create_A
+                            {:Instance
+                             {:Rf01/A {:X x}}}}))]
+                   [(:env r) (first (:result r))]))
+        [[env1 a1] [env2 a2]] (mapv make-a [10 100])
         a? (partial cn/instance-of? :Rf01/A)
         b? (partial cn/instance-of? :Rf01/B)]
     (is (every? a? [a1 a2]))
+    (is (nil? (seq (env/rule-futures env1))))
+    (is (b? (first (:result (first (deref (first (env/rule-futures env2))))))))
     (let [bs (tu/result {:Rf01/LookupAll_B {}})]
       (is (every? b? bs))
       (is (= 1 (count bs)))

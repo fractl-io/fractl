@@ -308,3 +308,9 @@
 
 (defn assoc-pattern-evaluator [env f]
   (assoc env pattern-evaluator f))
+
+(def rule-futures :*-*-rule-futures-*-)
+
+(defn assoc-rule-futures [env fs]
+  (let [rfs (rule-futures env)]
+    (assoc env rule-futures (concat rfs fs))))

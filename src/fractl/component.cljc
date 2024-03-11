@@ -2114,7 +2114,7 @@
       (filter-delete-rules rule-names)
       (filter-upsert-rules rule-names))))
 
-(defn rule-compiled-conditions [rule-spec entity-name]
+(defn rule-compiled-conditions [entity-name rule-spec]
   (when-let [ccs (seq (filter #(= entity-name (first %)) (rule-cc rule-spec)))]
     (mapv second ccs)))
 
@@ -2129,12 +2129,19 @@
       env)))
 
 (defn run-rules [make-eval env entity-name inst rule-specs]
-  (doseq [rspec rule-specs]
-    (when-let [ccs (rule-compiled-conditions entity-name rspec)]
-      (future
+  (su/nonils
+   (mapv
+    (fn [rspec]
+      (when-let [ccs (rule-compiled-conditions entity-name rspec)]
         (let [rn (rule-name rspec)]
           (when-let [final-env (apply-rule-ccs env inst ccs)]
-            (log/info (str "invoking rule " rn " for " inst))
-            (let [r ((make-eval final-env) (make-instance (li/rule-event-name rn) {}))]
-              (log/info (str "result of applying rule " rn ": " r))
-              r)))))))
+            (future
+              (log/info (str "invoking rule " rn " for " inst))
+              (try
+                (let [r ((make-eval final-env) (make-instance (li/rule-event-name rn) {}))]
+                  (log/info (str "result of applying rule " rn ": " r))
+                  r)
+                (catch #?(:clj Exception :cljs :default) ex
+                  (log/error (str rn " - rule failed"))
+                  (log/error ex))))))))
+    rule-specs)))

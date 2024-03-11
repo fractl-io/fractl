@@ -73,11 +73,15 @@
 
 (declare eval-all-dataflows evaluator-with-env safe-eval-pattern)
 
-(defn- trigger-rules! [tag env insts]
-  (doseq [inst insts]
-    (let [n (cn/instance-type-kw inst)]
-      (when-let [rules (cn/rules-for-entity tag n)]
-        (cn/run-rules evaluator-with-env env n inst rules)))))
+(defn- trigger-rules [tag insts]
+  (loop [insts insts, env nil, result nil]
+    (if-let [inst (first insts)]
+      (let [n (cn/instance-type-kw inst)]
+        (when-let [rules (cn/rules-for-entity tag n)]
+          (let [env (or env (env/make (es/get-active-store) nil))
+                rs (cn/run-rules evaluator-with-env env n inst rules)]
+            (recur (rest insts) env (concat result rs)))))
+      result)))
 
 (defn- fire-post-events-for [tag insts]
   (doseq [inst insts]
@@ -89,11 +93,14 @@
 
 (defn fire-post-events [env]
   (let [srcs (env/post-event-trigger-sources env)]
-    (doseq [tag [:create :update :delete]]
-      (when-let [insts (seq (tag srcs))]
-        (when (fire-post-events-for tag insts)
-          (trigger-rules! tag env insts)))))
-  env)
+    (loop [tags [:create :update :delete], env env]
+      (if-let [tag (first tags)]
+        (if-let [insts (seq (tag srcs))]
+          (do (fire-post-events-for tag insts)
+              (recur (rest tags)
+                     (env/assoc-rule-futures env (trigger-rules tag insts))))
+          (recur (rest tags) env))
+        env))))
 
 (defn- fire-post-event-for [tag inst]
   (fire-post-events-for tag [inst]))
@@ -134,9 +141,9 @@
                                    result (deref-futures (let [r (dispatch-opcodes evaluator env dc)]
                                                            (if (and (map? r) (not= :ok (:status r)))
                                                              (throw (ex-info "eval failed" {:eval-result r}))
-                                                             r)))]
-                               (fire-post-events (:env result))
-                               result))]
+                                                             r)))
+                                   env0 (fire-post-events (:env result))]
+                               (assoc result :env env0)))]
           (interceptors/eval-intercept env0 event-instance continuation))
         (finally (when @txn-set (gs/set-active-txn! nil)))))))
 
