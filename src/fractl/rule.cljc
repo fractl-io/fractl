@@ -15,7 +15,7 @@
         (case opr
           (:and :or)
           `(~(symbol (name opr)) ~@(map compile-opr-vect (rest v)))
-          `(~(cr/operator-name opr) ~@(rest v) ~(symbol "arg")))]
+          `(~(cr/operator-name opr) ~(symbol "arg") ~@(rest v)))]
     expr))
 
 (defn- compile-opr-vect-as-fn [v]

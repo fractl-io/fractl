@@ -50,11 +50,17 @@
   (defcomponent :Rf01
     (entity :Rf01/A {:Id :Identity :X :Int})
     (entity :Rf01/B {:Id :Identity :Y :Int :A :UUID})
+    (dataflow :Rf01/BbyA {:Rf01/B {:A? :Rf01/BbyA.A}})
     (rule
      :Rf01/R1
      {:Rf01/A {:X 100} :as :A}
      :then
-     {:Rf01/B {:Y 100 :A :A.Id}}))
+     {:Rf01/B {:Y 100 :A :A.Id}})
+    (rule
+     :Rf01/R2
+     {:Rf01/A {:X [:>= 500]} :as :A}
+     :then
+     {:Rf01/B {:Y '(* 100 :A.X) :A :A.Id}}))
   (let [make-a (fn [x]
                  (let [r (first
                           (tu/eval-all-dataflows
@@ -64,7 +70,11 @@
                    [(:env r) (first (:result r))]))
         [[env1 a1] [env2 a2]] (mapv make-a [10 100])
         a? (partial cn/instance-of? :Rf01/A)
-        b? (partial cn/instance-of? :Rf01/B)]
+        b? (partial cn/instance-of? :Rf01/B)
+        is-b-by-a (fn [a]
+                    (let [bs (tu/result {:Rf01/BbyA {:A (:Id a)}})]
+                      (is (= 1 (count bs)))
+                      (is (= (* 100 (:X a)) (:Y (first bs))))))]
     (is (every? a? [a1 a2]))
     (is (nil? (seq (env/rule-futures env1))))
     (is (b? (first (:result (first (deref (first (env/rule-futures env2))))))))
@@ -72,4 +82,8 @@
       (is (every? b? bs))
       (is (= 1 (count bs)))
       (is (= (:A (first bs)) (:Id a2)))
-      (is (= 100 (:Y (first bs)))))))
+      (is (= 100 (:Y (first bs)))))
+    (let [[_ a1] (make-a 500), [_ a2] (make-a 501)]
+      (is (every? a? [a1 a2]))
+      (is-b-by-a a1)
+      (is-b-by-a a2))))
