@@ -696,9 +696,18 @@
        default))
   ([option args] (fetch-rule-option option nil args)))
 
+(defn- maybe-proc-delete-rule [conds]
+  (let [delete-tag (some #(and (vector? %) (= :delete (first %))) conds)]
+    (if delete-tag
+      (do (when (> (count conds) 1)
+            (u/throw-ex (str "no extra rules allowed with :delete - " conds)))
+          [delete-tag [(second (first conds))]])
+      [false conds])))
+
 (defn- parse-rules-args [args]
   (let [not-then (partial not= :then)
         [cond-pats args] (split-with not-then args)
+        [delete-tag cond-pats] (maybe-proc-delete-rule cond-pats)
         [conseq-pats args] (split-with (complement keyword?) (rest args))
         priority (fetch-rule-option :priority ##-Inf args)
         passive (us/member? :passive args)
@@ -708,7 +717,8 @@
      :then conseq-pats
      :priority priority
      :passive passive
-     :category cat}))
+     :category cat
+     :on-delete delete-tag}))
 
 (defn- rule-event [rule-name conseq]
   (let [revnt-name (li/rule-event-name rule-name)]

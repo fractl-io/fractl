@@ -60,7 +60,12 @@
      :Rf01/R2
      {:Rf01/A {:X [:>= 500]} :as :A}
      :then
-     {:Rf01/B {:Y '(* 100 :A.X) :A :A.Id}}))
+     {:Rf01/B {:Y '(* 100 :A.X) :A :A.Id}})
+    (rule
+     :Rf01/R3
+     [:delete {:Rf01/A {:X 100}}]
+     :then
+     [:delete :Rf01/B {:A :Rf01/A.Id}]))
   (let [make-a (fn [x]
                  (let [r (first
                           (tu/eval-all-dataflows
@@ -68,22 +73,45 @@
                             {:Instance
                              {:Rf01/A {:X x}}}}))]
                    [(:env r) (first (:result r))]))
+        delete-a (fn [a]
+                   (let [r (first
+                            (tu/eval-all-dataflows
+                             {:Rf01/Delete_A {:Id (:Id a)}}))]
+                     [(:env r) (first (:result r))]))
         [[env1 a1] [env2 a2]] (mapv make-a [10 100])
         a? (partial cn/instance-of? :Rf01/A)
         b? (partial cn/instance-of? :Rf01/B)
-        is-b-by-a (fn [a]
-                    (let [bs (tu/result {:Rf01/BbyA {:A (:Id a)}})]
+        b-by-a (fn [a] (tu/eval-all-dataflows {:Rf01/BbyA {:A (:Id a)}}))
+        is-no-b-by-a (fn [a] (= :not-found (:status (first (b-by-a a)))))
+        is-b-by-a (fn [rname a]
+                    (let [bs (:result (first (b-by-a a)))]
+                      (is (every? b? bs))
                       (is (= 1 (count bs)))
-                      (is (= (* 100 (:X a)) (:Y (first bs))))))]
+                      (if (= rname :R2)
+                        (is (= (* 100 (:X a)) (:Y (first bs))))
+                        (is (= 100 (:Y (first bs)))))))
+        is-b-in-env (fn [env]
+                      (is (b? (first (:result (first (deref (first (env/rule-futures env)))))))))]
     (is (every? a? [a1 a2]))
     (is (nil? (seq (env/rule-futures env1))))
-    (is (b? (first (:result (first (deref (first (env/rule-futures env2))))))))
-    (let [bs (tu/result {:Rf01/LookupAll_B {}})]
-      (is (every? b? bs))
-      (is (= 1 (count bs)))
-      (is (= (:A (first bs)) (:Id a2)))
-      (is (= 100 (:Y (first bs)))))
-    (let [[_ a1] (make-a 500), [_ a2] (make-a 501)]
-      (is (every? a? [a1 a2]))
-      (is-b-by-a a1)
-      (is-b-by-a a2))))
+    (is-b-in-env env2)
+    (is-no-b-by-a a1)
+    (is-b-by-a :R1 a2)
+    (let [[env3 a3] (make-a 500), [env4 a4] (make-a 501)]
+      (is (every? a? [a3 a4]))
+      (is-b-in-env env3)
+      (is-b-in-env env4)
+      (is-b-by-a :R2 a3)
+      (is-b-by-a :R2 a4)
+      (let [[env a] (delete-a a4)]
+        (is (cn/same-instance? a a4))
+        (is (nil? (seq (env/rule-futures env)))))
+      (is-b-by-a :R2 a4)
+      (is-b-by-a :R1 a2)
+      (let [[env a] (delete-a a2)]
+        (is (cn/same-instance? a a2))
+        (let [bs (:result (first (deref (first (env/rule-futures env)))))]
+          (is (= 1 (count bs)))
+          (is (= 100 (:Y (first bs))))
+          (is (= (:Id a2) (:A (first bs)))))
+        (is-no-b-by-a a2)))))

@@ -2072,15 +2072,9 @@
 (def rule-consequence :then)
 (def rule-priority :priority)
 (def rule-name :name)
-
-(defn- validate-rule-condition! [spec]
-  (let [conds (rule-condition spec)]
-    (when (and (> (count conds) 1)
-               (some #(and (vector? %) (= :delete (first %))) conds))
-      (u/throw-ex (str "delete rule condition must standalone: " spec)))))
+(def rule-on-delete :on-delete)
 
 (defn register-rule [rule-name spec]
-  (validate-rule-condition! spec)
   (u/call-and-set
    components
    #(let [ms @components
@@ -2094,12 +2088,7 @@
   (let [[c n] (li/split-path rule-name)]
     (component-find [c :rules n])))
 
-(defn- rule-for-delete-event? [spec]
-  (let [conds (rule-condition spec)]
-    (and (= 1 (count conds))
-         (vector? (first conds))
-         (= :delete (ffirst conds)))))
-
+(def ^:private rule-for-delete-event? rule-on-delete)
 (def ^:private rule-for-upsert-event? (complement rule-for-delete-event?))
 
 (defn- filter-rules [predic rule-names]
