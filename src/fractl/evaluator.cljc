@@ -73,7 +73,7 @@
 
 (declare eval-all-dataflows evaluator-with-env safe-eval-pattern)
 
-(defn- trigger-rules [tag insts]
+(defn trigger-rules [tag insts]
   (loop [insts insts, env nil, result nil]
     (if-let [inst (first insts)]
       (let [n (cn/instance-type-kw inst)]

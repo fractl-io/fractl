@@ -1,6 +1,5 @@
 (ns fractl.subs.internal
-  (:require [clojure.string :as s]
-            [fractl.util :as u]
+  (:require [fractl.util :as u]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
@@ -74,29 +73,11 @@
   {connection conn-obj
    _methods (add-default-methods methods)})
 
-(defn- process-sfdc-raw [[change-event changed-fields]]
-  (let [cevent (:ChangeEventHeader change-event)
-        entity-name (li/make-path :Salesforce (keyword (:entityName cevent)))
-        id (first (:recordIds cevent))
-        operation (s/lower-case (:changeType cevent))
-        attr-names (mapv keyword changed-fields)
-        attrs (dissoc (into {} (mapv (fn [a] [a (a change-event)]) attr-names)) :LastModifiedDate)]
-    {:instance {entity-name attrs :raw true} :operation operation}))
-
-(defn- maybe-process-raw [obj]
-  (if-let [r (:raw obj)]
-    (if (= "sfdc" r)
-      (process-sfdc-raw (:data obj))
-      (u/throw-ex (str "unsupported raw format: " r)))
-    obj))
-
 (defn process-notification [client arg]
-  (let [arg (maybe-process-raw arg)
-        obj (call-transformer client arg)]
+  (let [obj (call-transformer client arg)]
     (when (call-filter client obj)
       (when-let [r (rg/resolver-for-path
                     (let [inst (:instance obj)]
-                      (if (:raw inst)
-                        (li/split-path (li/record-name (dissoc inst :raw)))
-                        (cn/instance-type inst))))]
+                      (or (cn/instance-type inst)
+                          (li/split-path (li/record-name inst)))))]
         (r/call-resolver-on-change-notification r nil obj)))))
