@@ -93,14 +93,13 @@
 
 (defn fire-post-events [env]
   (let [srcs (env/post-event-trigger-sources env)]
-    (loop [tags [:create :update :delete], env env]
-      (if-let [tag (first tags)]
-        (if-let [insts (seq (tag srcs))]
+    (reduce
+     (fn [env tag]
+       (if-let [insts (seq (tag srcs))]
           (do (fire-post-events-for tag insts)
-              (recur (rest tags)
-                     (env/assoc-rule-futures env (trigger-rules tag insts))))
-          (recur (rest tags) env))
-        env))))
+              (env/assoc-rule-futures env (trigger-rules tag insts)))
+          env))
+     env [:create :update :delete])))
 
 (defn- fire-post-event-for [tag inst]
   (fire-post-events-for tag [inst]))

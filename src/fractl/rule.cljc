@@ -10,13 +10,10 @@
        (cr/operator? (first obj))))
 
 (defn- compile-opr-vect [v]
-  (let [opr (first v)
-        expr
-        (case opr
-          (:and :or)
-          `(~(symbol (name opr)) ~@(map compile-opr-vect (rest v)))
-          `(~(cr/operator-name opr) ~(symbol "arg") ~@(rest v)))]
-    expr))
+  (let [opr (first v)]
+    (if (#{:and :or} opr)
+      `(~(symbol (name opr)) ~@(map compile-opr-vect (rest v)))
+      `(~(cr/operator-name opr) ~(symbol "arg") ~@(rest v)))))
 
 (defn- compile-opr-vect-as-fn [v]
   (li/evaluate `(fn [~(symbol "arg")] ~(compile-opr-vect v))))
