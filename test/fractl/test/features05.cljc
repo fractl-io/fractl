@@ -1,10 +1,12 @@
 (ns fractl.test.features05
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [clojure.pprint :as pp]
             [fractl.component :as cn]
             [fractl.env :as env]
             [fractl.lang
              :refer [component event entity relationship dataflow rule]]
+            [fractl.lang.raw :as lr]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 

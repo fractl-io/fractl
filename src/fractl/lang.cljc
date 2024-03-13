@@ -724,7 +724,9 @@
   (let [s01 (parse-rules-args args)
         spec (assoc s01 :name rule-name)]
     (when (rule-event rule-name (:then spec))
-      (cn/register-rule rule-name spec))))
+      (and (cn/register-rule rule-name spec)
+           (raw/rule rule-name args)
+           rule-name))))
 
 (def ^:private crud-evname cn/crud-event-name)
 
