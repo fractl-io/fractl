@@ -690,12 +690,6 @@
       (raw/dataflow match-pat patterns))
     r))
 
-(defn- fetch-rule-option
-  ([option default args]
-   (or (first (rest (drop-while (partial not= option) args)))
-       default))
-  ([option args] (fetch-rule-option option nil args)))
-
 (defn- maybe-proc-delete-rule [conds]
   (let [delete-tag (some #(and (vector? %) (= :delete (first %))) conds)]
     (if delete-tag
@@ -708,10 +702,11 @@
   (let [not-then (partial not= :then)
         [cond-pats args] (split-with not-then args)
         [delete-tag cond-pats] (maybe-proc-delete-rule cond-pats)
-        [conseq-pats args] (split-with (complement keyword?) (rest args))
-        priority (fetch-rule-option :priority ##-Inf args)
-        passive (us/member? :passive args)
-        cat (fetch-rule-option :category args)]
+        meta (let [l (last args)] (when (li/rule-meta? l) l))
+        priority (li/rule-meta-value meta :priority ##-Inf)
+        passive (li/rule-meta-value meta :passive)
+        cat (li/rule-meta-value meta :category)
+        conseq-pats (if meta (drop-last (rest args)) (rest args))]
     {:cond cond-pats
      :c-cond (rule/compile-conditionals cond-pats)
      :then conseq-pats

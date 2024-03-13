@@ -24,9 +24,7 @@
      {:Rule01/A {:X [:or [:= 0] [:= 100]]} :as :A}
      :then
      {:Rule01/Event3 {:A :A.Id}}
-     :priority 10
-     :passive
-     :category :Rule01.Abc))
+     {:meta {:priority 10 :passive true :category :Rule01.Abc}}))
   (let [spec (cn/fetch-rule :Rule01/R1)]
     (is (= [{:Rule01/A {:X 100} :as :A}
             {:Rule01/B {:Y [:<= 200]} :as :B}]
