@@ -717,8 +717,8 @@
 
 (defn- rule-event [rule-name conseq]
   (let [revnt-name (li/rule-event-name rule-name)]
-    (event revnt-name {})
-    (apply dataflow revnt-name conseq)))
+    (event-internal revnt-name {})
+    (cn/register-dataflow revnt-name conseq)))
 
 (defn rule [rule-name & args]
   (let [s01 (parse-rules-args args)
@@ -727,6 +727,13 @@
       (and (cn/register-rule rule-name spec)
            (raw/rule rule-name args)
            rule-name))))
+
+(defn inference [inference-name spec-map]
+  (when-let [invalid-keys (seq (set/difference (set (keys spec-map)) #{:category :seed :embed}))]
+    (u/throw-ex (str "invalid keys " invalid-keys " in inferenece " inference-name)))
+  (and (cn/register-inference inference-name spec-map)
+       (raw/inference inference-name spec-map)
+       inference-name))
 
 (def ^:private crud-evname cn/crud-event-name)
 

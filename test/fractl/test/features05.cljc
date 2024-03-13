@@ -5,7 +5,7 @@
             [fractl.component :as cn]
             [fractl.env :as env]
             [fractl.lang
-             :refer [component event entity relationship dataflow rule]]
+             :refer [component event entity relationship dataflow rule inference]]
             [fractl.lang.raw :as lr]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -115,3 +115,33 @@
           (is (= 100 (:Y (first bs))))
           (is (= (:Id a2) (:A (first bs)))))
         (is-no-b-by-a a2)))))
+
+(deftest issue-1252-rules-inference-raw-syntax
+  (defcomponent :I1252R
+    (entity :I1252R/A {:Id :Identity :X :Int})
+    (entity :I1252R/B {:Id :Identity :Y :Int})
+    (rule
+     :I1252R/R1
+     {:I1252R/A {:X 10}}
+     :then
+     {:I1252R/B {:Y 200}}
+     {:meta {:priority 1}})
+    (inference
+     :I1252R/I1
+     {:category :I1Rules
+      :seed []
+      :embed [:I1252R/A :I1252R/B]}))
+  (is (= (lr/as-edn :I1252R)
+         '(do
+            (component :I1252R)
+            (entity :I1252R/A {:Id :Identity, :X :Int})
+            (entity :I1252R/B {:Id :Identity, :Y :Int})
+            (rule
+             :I1252R/R1
+             #:I1252R{:A {:X 10}}
+             :then
+             #:I1252R{:B {:Y 200}}
+             {:meta {:priority 1}})
+            (inference
+             :I1252R/I1
+             {:category :I1Rules, :seed [], :embed [:I1252R/A :I1252R/B]})))))

@@ -108,6 +108,7 @@
 (def find-record (partial find-defspec 'record))
 (def find-event (partial find-defspec 'event))
 (def find-rule (partial find-defspec 'rule))
+(def find-inference (partial find-defspec 'inference))
 
 (defn find-attribute [n]
   (when-not (li/internal-attribute-name? n)
@@ -141,6 +142,7 @@
 (def relationship (partial add-definition 'relationship))
 (def dataflow (partial add-definition 'dataflow))
 (def rule (partial add-definition 'rule))
+(def inference (partial add-definition 'inference))
 
 (defn remove-component [cname]
   (u/safe-set raw-store (dissoc @raw-store cname))
@@ -157,6 +159,7 @@
 (def remove-relationship (partial remove-definition 'relationship))
 (def remove-dataflow (partial remove-definition 'dataflow))
 (def remove-rule (partial remove-definition 'rule))
+(def remove-inference (partial remove-definition 'inference))
 
 (defn remove-event [event-name]
   (if (vector? event-name)
@@ -172,6 +175,7 @@
     :event (remove-event record-name)
     :record (remove-record record-name)
     :rule (remove-rule record-name)
+    :inference (remove-inference record-name)
     :attribute (remove-attribute record-name)))
 
 (defn fetch-attributes [tag record-name]

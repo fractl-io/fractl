@@ -2134,3 +2134,12 @@
                   (log/error (str rn " - rule failed"))
                   (log/error ex))))))))
     rule-specs)))
+
+(defn register-inference [inference-name spec]
+  (u/call-and-set
+   components
+   #(let [ms @components
+          [component n] (li/split-path inference-name)
+          path [component :inferences n]]
+      (assoc-in ms path spec)))
+  inference-name)
