@@ -186,8 +186,12 @@
 (def record-attributes (partial fetch-attributes 'record))
 (def relationship-attributes entity-attributes)
 
-(defn fetch-all-dataflows [component-name]
-  (filter #(= 'dataflow (first %)) (get @raw-store component-name)))
+(defn fetch-all-defs [tag component-name]
+  (filter #(= tag (first %)) (get @raw-store component-name)))
+
+(def fetch-all-dataflows (partial fetch-all-defs 'dataflow))
+(def fetch-all-rules (partial fetch-all-defs 'rule))
+(def fetch-all-inferences (partial fetch-all-defs 'inference))
 
 (defn record-attributes-include-inherits [entity-name]
   (let [raw-attrs (or (entity-attributes entity-name)
