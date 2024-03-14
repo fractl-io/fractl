@@ -164,6 +164,9 @@
         proc-body (mapv #(fq-generic % false) body)]
     `(~(symbol "dataflow") ~proc-pat ~@proc-body)))
 
+(defn- fq-preproc-rule-def [exp]
+  `(~(symbol "rule") ~(fq-name (second exp)) ~@(mapv #(fq-generic % false) (nthrest exp 2))))
+
 ;; Preprocssors to add fully-qualified names to each type
 ;; of expression.
 (def ^:private fq-preproc-defs
@@ -172,6 +175,7 @@
    'entity fq-preproc-record-def
    'event fq-preproc-record-def
    'relationship fq-preproc-record-def
+   'rule fq-preproc-rule-def
    'dataflow fq-preproc-dataflow-def})
 
 (defn fully-qualified-names [declared-names exp]

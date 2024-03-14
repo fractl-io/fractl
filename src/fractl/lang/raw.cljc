@@ -107,6 +107,8 @@
 (def find-relationship (partial find-defspec 'relationship))
 (def find-record (partial find-defspec 'record))
 (def find-event (partial find-defspec 'event))
+(def find-rule (partial find-defspec 'rule))
+(def find-inference (partial find-defspec 'inference))
 
 (defn find-attribute [n]
   (when-not (li/internal-attribute-name? n)
@@ -139,6 +141,8 @@
 (def entity (partial add-definition 'entity))
 (def relationship (partial add-definition 'relationship))
 (def dataflow (partial add-definition 'dataflow))
+(def rule (partial add-definition 'rule))
+(def inference (partial add-definition 'inference))
 
 (defn remove-component [cname]
   (u/safe-set raw-store (dissoc @raw-store cname))
@@ -154,6 +158,8 @@
 (def remove-entity (partial remove-definition 'entity))
 (def remove-relationship (partial remove-definition 'relationship))
 (def remove-dataflow (partial remove-definition 'dataflow))
+(def remove-rule (partial remove-definition 'rule))
+(def remove-inference (partial remove-definition 'inference))
 
 (defn remove-event [event-name]
   (if (vector? event-name)
@@ -168,6 +174,8 @@
                 record-name)
     :event (remove-event record-name)
     :record (remove-record record-name)
+    :rule (remove-rule record-name)
+    :inference (remove-inference record-name)
     :attribute (remove-attribute record-name)))
 
 (defn fetch-attributes [tag record-name]
@@ -189,9 +197,17 @@
       (merge attrs (record-attributes-include-inherits p))
       attrs)))
 
+(defn- fix-rules-syntax [defs]
+  (mapv (fn [d]
+          (if (and (seqable? d)
+                   (= 'rule (first d)))
+            `(~(symbol "rule") ~(second d) ~@(first (nthrest d 2)))
+            d))
+        defs))
+
 (defn as-edn [component-name]
   (when-let [defs (seq (get @raw-store component-name))]
-    `(do ~@defs)))
+    `(do ~@(fix-rules-syntax defs))))
 
 (defn raw-store-reset! []
   (u/safe-set raw-store {}))

@@ -542,3 +542,17 @@
 
 (defn patterns-arg? [x]
   (and (vector? x) (= :patterns (first x))))
+
+(defn rule-event-name [rule-name]
+  (let [[c n] (split-path rule-name)]
+    (make-path c (keyword (str "FireRule_" (name n))))))
+
+(defn rule-meta? [obj]
+  (and (map? obj) (= :meta (first (keys obj)))))
+
+(defn rule-meta-value
+  ([meta k not-found]
+   (if meta
+     (get-in meta [:meta k] not-found)
+     not-found))
+  ([meta k] (rule-meta-value meta k nil)))
