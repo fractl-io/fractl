@@ -2055,3 +2055,91 @@
                                   v)))])
                        (dissoc scm li/event-context))]
     (into {} norm-scm)))
+
+(def ^:private rule-registry (u/make-cell {}))
+
+(defn- register-rule-for-entities! [rule-name ent-names]
+  (u/call-and-set
+   rule-registry
+   #(let [rr @rule-registry
+          r (mapv (fn [n] [n (set (conj (get rr n) rule-name))]) ent-names)]
+      (merge rr (into {} r)))))
+
+(def rule-is-passive? :passive)
+(def rule-category :category)
+(def rule-cc :c-cond)
+(def rule-condition :cond)
+(def rule-consequence :then)
+(def rule-priority :priority)
+(def rule-name :name)
+(def rule-on-delete :on-delete)
+
+(defn register-rule [rule-name spec]
+  (u/call-and-set
+   components
+   #(let [ms @components
+          [component n] (li/split-path rule-name)
+          path [component :rules n]]
+      (register-rule-for-entities! rule-name (mapv first (rule-cc spec)))
+      (assoc-in ms path spec)))
+  rule-name)
+
+(defn fetch-rule [rule-name]
+  (let [[c n] (li/split-path rule-name)]
+    (component-find [c :rules n])))
+
+(def ^:private rule-for-delete-event? rule-on-delete)
+(def ^:private rule-for-upsert-event? (complement rule-for-delete-event?))
+
+(defn- filter-rules [predic rule-names]
+  (seq (filter predic (map fetch-rule rule-names))))
+
+(def ^:private filter-delete-rules (partial filter-rules rule-for-delete-event?))
+(def ^:private filter-upsert-rules (partial filter-rules rule-for-upsert-event?))
+
+(defn rules-for-entity [tag entity-name]
+  (when-let [rule-names (seq (get @rule-registry entity-name))]
+    (if (= :delete tag)
+      (filter-delete-rules rule-names)
+      (filter-upsert-rules rule-names))))
+
+(defn rule-compiled-conditions [entity-name rule-spec]
+  (when-let [ccs (seq (filter #(= entity-name (first %)) (rule-cc rule-spec)))]
+    (mapv second ccs)))
+
+(defn rule-has-least-priority? [rule-spec]
+  (= ##-Inf (rule-priority rule-spec)))
+
+(defn- apply-rule-ccs [env inst ccs]
+  (loop [ccs ccs, env env]
+    (if-let [c (first ccs)]
+      (when-let [env (c env inst)]
+        (recur (rest ccs) env))
+      env)))
+
+(defn run-rules [make-eval env entity-name inst rule-specs]
+  (su/nonils
+   (mapv
+    (fn [rspec]
+      (when-let [ccs (rule-compiled-conditions entity-name rspec)]
+        (let [rn (rule-name rspec)]
+          (when-let [final-env (apply-rule-ccs env inst ccs)]
+            (future
+              (log/info (str "invoking rule " rn " for " inst))
+              (try
+                (let [r ((make-eval final-env) (make-instance (li/rule-event-name rn) {}))]
+                  (log/info (str "result of applying rule " rn ": " r))
+                  r)
+                (catch #?(:clj Exception :cljs :default) ex
+                  (log/error (str rn " - rule failed"))
+                  (log/error ex))))))))
+    rule-specs)))
+
+(defn register-inference [inference-name spec]
+  (u/call-and-set
+   components
+   #(let [ms @components
+          [component n] (li/split-path inference-name)
+          path [component :inferences n]]
+      (assoc-in ms path spec)))
+  inference-name)

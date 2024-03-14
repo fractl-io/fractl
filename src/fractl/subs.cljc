@@ -16,7 +16,7 @@ backend-systems. A resolver can express interest in these events by implementing
     (if-let [methods (client-type clients)]
       (si/make-client-connection
        ((si/open-connection methods) (dissoc config :type))
-       methods)
+       (merge methods (:methods config)))
       (u/throw-ex (str "unsupported client-type: " client-type)))))
 
 (def notification-object si/notification-object)

@@ -5,6 +5,11 @@
             [fractl.lang.internal :as li]
             #?(:cljs [cljs.js])))
 
+(def operator-kws #{:= :< :<= :> :>= :<> :and :or :like :in :between})
+
+(defn operator? [x]
+  (some #{x} operator-kws))
+
 (defn in [xs x]
   (some #{x} xs))
 
@@ -34,7 +39,7 @@
              (s/replace b #"\%" "(.+)"))]
     (re-matches pat a)))
 
-(defn- operator-name [x]
+(defn operator-name [x]
   (case x
     :< 'fractl.compiler.rule/lt
     :<= 'fractl.compiler.rule/lteq
