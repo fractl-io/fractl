@@ -98,7 +98,9 @@
                   (response-handler
                    (<! (http/post url (make-http-request k body token)))))))))
   ([url options request-obj]
-   (do-post url options request-obj :json identity)))
+   (do-post url options request-obj :json identity))
+  ([url request-obj]
+   (do-post url nil request-obj)))
 
 (defn do-get
   ([url options format response-handler]
@@ -117,7 +119,8 @@
                   (response-handler
                    (<! (http/get url (make-http-request k nil token)))))))))
   ([url options]
-   (do-get url options :json identity)))
+   (do-get url options :json identity))
+  ([url] (do-get url nil)))
 
 (defn do-request
   ([method callback url headers body]
