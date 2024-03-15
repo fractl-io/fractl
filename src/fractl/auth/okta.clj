@@ -3,7 +3,9 @@
             [fractl.util.http :as http]
             [fractl.util.logger :as log]
             [fractl.datafmt.json :as json]
-            [fractl.global-state :as gs]))
+            [fractl.global-state :as gs]
+            [fractl.auth.jwt :as jwt]
+            [fractl.auth.core :as auth]))
 
 (def ^:private tag :okta)
 
@@ -15,7 +17,7 @@
 (defn get-jwks-url [domain auth-server client-id]
   (let [cfg
         (or @openid-config
-            (safe-set
+            (u/safe-set
              openid-config
              (let [resp (http/do-get
                          (str "https://" domain
