@@ -159,7 +159,7 @@
    decl))
 
 (def ^:private clj-defs #{'def 'defn 'defn-})
-(def ^:private fractl-defs #{'entity 'dataflow 'event 'record 'relationship 'attribute})
+(def ^:private fractl-defs #{'entity 'dataflow 'event 'record 'relationship 'attribute 'rule 'inference})
 
 (defn- update-local-defs [ns-name component]
   (let [local-defs (set
@@ -179,17 +179,14 @@
 
 (def ^:private lang-vars (vec (conj fractl-defs 'component)))
 
-(defn- model-refs-to-use [refs]
+(defn- model-refs-to-use [sanitized-model-name refs]
   (let [spec (mapv
               (fn [r]
-                (let [ss (s/split (s/lower-case (name r)) #"\.")]
+                (let [ss (s/split (s/lower-case (name r)) #"\.")
+                      cid (symbol (str (s/replace (name r) "." "_") "_" component-id-var))]
                   (if (= 1 (count ss))
-                    [(symbol
-                      (str (first ss) ".model.model")
-                      :only [(symbol (str (s/replace (name r) "." "_") "_" model-id-var))])]
-                    [(symbol
-                      (s/join "." (concat [(first ss) "model"] ss)))
-                     :only [(symbol (str (s/replace (name r) "." "_") "_" component-id-var))]])))
+                    [(symbol (str sanitized-model-name ".model." (first ss))) :only [cid]]
+                    [(symbol (s/join "." (concat [(first ss) "model"] ss))) :only [cid]])))
               refs)]
     (concat spec [['fractl.lang :only lang-vars]])))
 
@@ -216,8 +213,9 @@
           component-spec (when (> (count component-decl) 2)
                            (nth component-decl 2))
           cns-name (symbol (s/lower-case (name component-name)))
-          ns-name (symbol (str (sanitize model-name) ".model." cns-name))
-          use-models (model-refs-to-use (:refer component-spec))
+          s-model-name (sanitize model-name)
+          ns-name (symbol (str s-model-name ".model." cns-name))
+          use-models (model-refs-to-use s-model-name (:refer component-spec))
           clj-imports (merge-use-models
                        (normalize-clj-imports (:clj-import component-spec))
                        use-models)
