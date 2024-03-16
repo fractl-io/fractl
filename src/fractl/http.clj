@@ -975,7 +975,7 @@
                   {:status  302
                    :headers {"Location"
                              (str (or redirect-query redirect-url)
-                                  "/?id_token=" (:id_token tokens)
+                                  "?id_token=" (:id_token tokens)
                                   "&refresh_token=" (:refresh_token tokens))}}))
               (bad-request (str "id_token not valid") "INVALID_TOKEN"))
             (bad-request
