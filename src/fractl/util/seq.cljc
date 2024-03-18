@@ -180,3 +180,19 @@
 
 (defn member? [x xs]
   (first (filter (partial = x) xs)))
+
+(defn- char-range [lo hi]
+  (range (int lo) (inc (int hi))))
+
+(def alpha-numeric
+  (map char (concat (char-range \a \z)
+                    (char-range \A \Z)
+                    (char-range \0 \9))))
+
+(defn rand-alpha-numeric []
+  (rand-nth alpha-numeric))
+
+(defn generate-code [length]
+  (apply str
+         (take length
+               (repeatedly rand-alpha-numeric))))

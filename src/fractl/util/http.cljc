@@ -3,6 +3,7 @@
                :cljs [cljs-http.client :as http])
             #?(:clj [org.httpkit.sni-client :as sni-client])
             [clojure.string :as s]
+            [clojure.walk :as w]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.component :as cn]
@@ -10,8 +11,10 @@
             [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]
             [fractl.global-state :as gs]
+            #?(:clj [ring.util.codec :as codec])
             #?(:cljs [cljs.core.async :refer [<!]]))
-  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
+  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]]))
+  #?(:clj (:import [java.net URLEncoder])))
 
 #?(:clj
    (alter-var-root #'org.httpkit.client/*default-client* (fn [_] sni-client/default-client)))
@@ -222,3 +225,10 @@
                       "/" (name entity))
            :vars (map name path)}
           (recur (conj path (-> parent-entity first last))))))))
+
+(defn url-encode [s]
+  #?(:clj
+     (URLEncoder/encode s)))
+
+(defn form-decode [s]
+  (w/keywordize-keys (codec/form-decode s)))

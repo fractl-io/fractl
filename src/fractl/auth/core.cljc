@@ -41,3 +41,10 @@
 
 (defn call-delete-user [client arg user-inst]
   (delete-user (assoc arg client-key client instance-key user-inst)))
+
+(defn service? [tag config]
+  (let [s (:service config)]
+    (= tag s)))
+
+(def okta? (partial service? :okta))
+(def cognito? (partial service? :cognito))

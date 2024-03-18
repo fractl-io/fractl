@@ -21,6 +21,7 @@
             [fractl.util.hash :as hash]
             [fractl.auth.cognito :as cognito]
             [fractl.auth.jwt :as jwt]
+            [fractl.auth.core :as auth]
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
             [fractl.global-state :as gs]
@@ -28,7 +29,6 @@
             [org.httpkit.server :as h]
             [org.httpkit.client :as hc]
             [fractl.datafmt.json :as json]
-            [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
             [fractl.util.errors :refer [get-internal-error-message]]
             [fractl.evaluator :as ev])
@@ -293,8 +293,7 @@
 (defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
   (or (maybe-unauth request)
       (if-let [parsed-path (parse-rest-uri request)]
-        (let [query-params (when-let [s (:query-string request)]
-                             (w/keywordize-keys (codec/form-decode s)))
+        (let [query-params (when-let [s (:query-string request)] (uh/form-decode s))
               [obj data-fmt err-response] (request-object request)
               parsed-path (assoc parsed-path :query-params query-params :data-fmt data-fmt)]
           (or err-response (let [[event-gen resp options] (handler parsed-path obj)]
@@ -671,7 +670,8 @@
                            :event evobj
                            :eval evaluator))
                   user-id (get (decode-jwt-token-from-response result) :sub)]
-              (upsert-user-session user-id true)
+              (when-not (auth/okta? auth-config)
+                (upsert-user-session user-id true))
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
@@ -825,18 +825,20 @@
 (defn- process-logout [auth-config request]
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
-      (try
-        (let [sub (auth/session-sub
-                   (assoc auth-config :request request))
-              result (auth/user-logout
-                      (assoc
-                       auth-config
-                       :sub sub))]
-          (upsert-user-session (:username sub) false)
-          (ok {:result result} data-fmt))
-        (catch Exception ex
-          (log/warn ex)
-          (unauthorized (str "logout failed. " (ex-message ex)) data-fmt "LOGOUT_FAILED")))
+      (if (auth/okta? auth-config)
+        (ok {:result (auth/user-logout (assoc auth-config :request request))})
+        (try
+          (let [sub (auth/session-sub
+                     (assoc auth-config :request request))
+                result (auth/user-logout
+                        (assoc
+                         auth-config
+                         :sub sub))]
+            (upsert-user-session (:username sub) false)
+            (ok {:result result} data-fmt))
+          (catch Exception ex
+            (log/warn ex)
+            (unauthorized (str "logout failed. " (ex-message ex)) data-fmt "LOGOUT_FAILED"))))
       (ok {:result :bye} data-fmt))
     (bad-request
      (str "unsupported content-type in request - "
@@ -924,9 +926,8 @@
      token)))
 
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
-  (if auth-config
-    (let [query (when-let [s (:query-string request)]
-                  (w/keywordize-keys (codec/form-decode s)))
+  (if (auth/cognito? auth-config)
+    (let [query (when-let [s (:query-string request)] (uh/form-decode s))
           code (:code query)
           redirect-query (:redirect query)
           cognito-domain (u/getenv "AWS_COGNITO_DOMAIN")
@@ -1013,8 +1014,7 @@
     (internal-error "cannot process register-magiclink - authentication not enabled")))
 
 (defn- process-get-magiclink [_ request]
-  (let [query (when-let [s (:query-string request)]
-                (w/keywordize-keys (codec/form-decode s)))]
+  (let [query (when-let [s (:query-string request)] (uh/form-decode s))]
     (if-let [token (:code query)]
       (let [decoded-token (decode-magic-link-token token)
             operation (:operation decoded-token)
@@ -1076,11 +1076,11 @@
      :access-control-allow-credentials true
      :access-control-allow-methods [:post :put :delete :get])))
 
-(defn- handle-request-auth [request]
+(defn- handle-request-auth [auth-config request]
   (let [user (get-in request [:identity :sub])]
     (try
       (when-not (and (buddy/authenticated? request)
-                     (us/is-logged-in user))
+                     (or (auth/okta? auth-config) (us/is-logged-in user)))
         (log/info (str "unauthorized request - " request))
         (unauthorized (find-data-format request)))
       (catch Exception ex
@@ -1088,11 +1088,11 @@
         (bad-request "invalid auth data" (find-data-format request) "INVALID_AUTH_DATA")))))
 
 (defn- auth-service-supported? [auth]
-  (some #{(:service auth)} [:keycloak :cognito :dataflow]))
+  (some #{(:service auth)} [:keycloak :cognito :okta :dataflow]))
 
 (defn make-auth-handler [config]
   (let [auth (:authentication config)
-        auth-check (if auth handle-request-auth (constantly false))]
+        auth-check (if auth (partial handle-request-auth auth) (constantly false))]
     [auth auth-check]))
 
 (defn run-server

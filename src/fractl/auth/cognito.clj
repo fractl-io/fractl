@@ -52,7 +52,8 @@
         (jwt/verify-and-extract
          (make-jwks-url region user-pool-id)
          token)
-        (catch Exception e)))))
+        (catch Exception e
+          (log/warn e))))))
 
 (defmethod auth/user-login tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
