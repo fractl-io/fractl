@@ -7,12 +7,14 @@
 ;; The returned function is called every time an API request with Bearer token is received.
 (defmulti make-authfn service-tag)
 (defmulti user-login service-tag)
+(defmulti verify-token service-tag)
 ;; Return user details that you want to attach in EventContext. 
 ;; Include `username` and `sub`.
 (defmulti session-user service-tag)
 ;; Can be same as `session-user`.
 (defmulti session-sub service-tag)
 ;; Logout from the auth broker and return some truthy value.
+
 (defmulti user-logout service-tag)
 ;; Get user details
 (defmulti get-user service-tag)

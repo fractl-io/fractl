@@ -39,14 +39,19 @@
                    (u/throw-ex (str msg " with status: " (:status resp))))))))]
     (:jwks_uri cfg)))
 
-(defmethod auth/make-authfn tag [{domain :domain auth-server :auth-server client-id :client-id}]
-  (fn [_req token]
-    (try
-      (jwt/verify-and-extract
-       (get-jwks-url domain auth-server client-id)
-       token)
-      (catch Exception e
-        (log/warn e)))))
+(defn- verify-and-extract [{domain :domain auth-server :auth-server client-id :client-id} token]
+  (try
+    (jwt/verify-and-extract
+     (get-jwks-url domain auth-server client-id)
+     token)
+    (catch Exception e
+      (log/warn e))))
+
+(defmethod auth/verify-token tag [auth-config token]
+  (verify-and-extract auth-config token))
+
+(defmethod auth/make-authfn tag [auth-config]
+  (fn [_ token] (verify-and-extract auth-config token)))
 
 (def ^:private auth-config (atom nil))
 (def ^:private login-redirect-uri "http://localhost:8080/login/callback")
@@ -55,6 +60,12 @@
   (or @auth-config
       (let [ac (:authentication (gs/get-app-config))]
         (reset! auth-config (assoc ac :login-redirect-uri (http/url-encode login-redirect-uri))))))
+
+(defn- extract-sid [cookie]
+  (when-let [i (s/index-of cookie "sid=")]
+    (let [j (s/index-of cookie ";" i)
+          sid (subs cookie i j)]
+      sid)))
 
 (defn- fetch-id-token [{domain :domain
                         client-id :client-id
@@ -74,7 +85,7 @@
         (when (not= state (:state login-info))
           (u/throw-ex (str "okta/authorize failed with state mismatch - " state " <> " (:state login-info))))
         {:authentication-result
-         {:id-token (:id_token login-info) :state state :set-cookie (:set-cookie (:headers result))}})
+         {:id-token (:id_token login-info) :state state :user-data {:cookie (extract-sid (:set-cookie (:headers result)))}}})
       (u/throw-ex (str "okta/authorize call failed. expected redirect, not " (:status result))))))
 
 (defmethod auth/user-login tag [{:keys [event] :as req}]
@@ -101,7 +112,7 @@
   )
 
 (defmethod auth/session-user tag [all-stuff-map]
-  (let [user (get-in all-stuff-map [:profile :user])]
+  (let [user (get-in all-stuff-map [:request :identity])]
     {:email user
      :sub user
      :username user}))

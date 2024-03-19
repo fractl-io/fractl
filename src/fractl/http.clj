@@ -649,11 +649,15 @@
       (get :id-token)
       (jwt/decode)))
 
-(defn upsert-user-session [user-id logged-in]
+(defn upsert-user-session [user-id logged-in user-data]
   ((if (us/session-exists-for? user-id)
      us/session-update
      us/session-create)
-   user-id logged-in))
+   user-id logged-in user-data))
+
+(defn maybe-create-session-cookie [auth-config login-result]
+  (when-let [cookie (:cookie (:user-data (:authentication-result login-result)))]
+    (us/session-cookie-create cookie (:id-token (:authentication-result login-result)))))
 
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
@@ -670,8 +674,8 @@
                            :event evobj
                            :eval evaluator))
                   user-id (get (decode-jwt-token-from-response result) :sub)]
-              (when-not (auth/okta? auth-config)
-                (upsert-user-session user-id true))
+              (upsert-user-session user-id true result)
+              (maybe-create-session-cookie auth-config result)
               (ok {:result result} data-fmt))
             (catch Exception ex
               (log/warn ex)
@@ -825,20 +829,18 @@
 (defn- process-logout [auth-config request]
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
-      (if (auth/okta? auth-config)
-        (ok {:result (auth/user-logout (assoc auth-config :request request))})
-        (try
-          (let [sub (auth/session-sub
-                     (assoc auth-config :request request))
-                result (auth/user-logout
-                        (assoc
-                         auth-config
-                         :sub sub))]
-            (upsert-user-session (:username sub) false)
-            (ok {:result result} data-fmt))
-          (catch Exception ex
-            (log/warn ex)
-            (unauthorized (str "logout failed. " (ex-message ex)) data-fmt "LOGOUT_FAILED"))))
+      (try
+        (let [sub (auth/session-sub
+                   (assoc auth-config :request request))
+              result (auth/user-logout
+                      (assoc
+                       auth-config
+                       :sub sub))]
+          (upsert-user-session (:username sub) false nil)
+          (ok {:result result} data-fmt))
+        (catch Exception ex
+          (log/warn ex)
+          (unauthorized (str "logout failed. " (ex-message ex)) data-fmt "LOGOUT_FAILED")))
       (ok {:result :bye} data-fmt))
     (bad-request
      (str "unsupported content-type in request - "
@@ -1077,15 +1079,21 @@
      :access-control-allow-methods [:post :put :delete :get])))
 
 (defn- handle-request-auth [auth-config request]
-  (let [user (get-in request [:identity :sub])]
-    (try
+  (try
+    (if-let [user (get-in request [:identity :sub])]
       (when-not (and (buddy/authenticated? request)
-                     (or (auth/okta? auth-config) (us/is-logged-in user)))
+                     (us/is-logged-in user))
         (log/info (str "unauthorized request - " request))
         (unauthorized (find-data-format request)))
-      (catch Exception ex
-        (log/warn ex)
-        (bad-request "invalid auth data" (find-data-format request) "INVALID_AUTH_DATA")))))
+      (let [cookie (get (:headers request) "cookie")
+            token (us/lookup-token-from-session-cookie cookie)
+            user (:sub (auth/verify-token auth-config token))]
+        (when-not (us/is-logged-in user)
+          (log/info (str "unauthorized request - " request))
+          (unauthorized (find-data-format request)))))
+    (catch Exception ex
+      (log/warn ex)
+      (bad-request "invalid auth data" (find-data-format request) "INVALID_AUTH_DATA"))))
 
 (defn- auth-service-supported? [auth]
   (some #{(:service auth)} [:keycloak :cognito :okta :dataflow]))

@@ -37,7 +37,10 @@
  {:User :Fractl.Kernel.Identity/User, :OtherDetails :Map})
 (entity
  :Fractl.Kernel.Identity/UserSession
- {:User :Identity, :LoggedIn :Boolean})
+ {:User {:type :String :guid true} :LoggedIn :Boolean :UserData {:type :Any :optional true}})
+(entity
+ :Fractl.Kernel.Identity/SessionCookie
+ {:Id {:type :String :guid true} :Token :String})
 (event
  :Fractl.Kernel.Identity/UpdateUser
  {:UserDetails :Fractl.Kernel.Identity/UserExtra})

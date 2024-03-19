@@ -41,8 +41,14 @@
 
 (entity
  :UserSession
- {:User :Identity
-  :LoggedIn :Boolean})
+ {:User {:type :String :guid true}
+  :LoggedIn :Boolean
+  :UserData {:type :Any :optional true}})
+
+(entity
+ :SessionCookie
+ {:Id {:type :String :guid true}
+  :Token :String})
 
 (event
  :UpdateUser
