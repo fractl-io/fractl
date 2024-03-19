@@ -42,6 +42,14 @@
      {:Fractl.Kernel.Identity/SessionCookie
       {:Id sid :Token id-token}}}}))
 
+(defn session-cookie-delete [sid]
+  (first
+   (:result
+    (first
+     (ev/eval-internal
+      {:Fractl.Kernel.Identity/Delete_SessionCookie
+       {:Id sid}})))))
+
 (defn lookup-token-from-session-cookie [sid]
   (let [result (ev/eval-internal
                 {:Fractl.Kernel.Identity/Lookup_SessionCookie

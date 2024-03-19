@@ -830,13 +830,13 @@
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
       (try
-        (let [sub (auth/session-sub
-                   (assoc auth-config :request request))
-              result (auth/user-logout
-                      (assoc
-                       auth-config
-                       :sub sub))]
+        (let [auth-config (assoc auth-config :request request)
+              sub (auth/session-sub auth-config)
+              result (auth/user-logout (assoc auth-config :sub sub))]
           (upsert-user-session (:username sub) false nil)
+          (when-let [cookie (get (:headers request) "cookie")]
+            (when-not (us/session-cookie-delete cookie)
+              (log/warn (str "session-cookie not deleted for " cookie))))
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)

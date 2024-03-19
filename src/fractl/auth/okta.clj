@@ -112,7 +112,7 @@
   )
 
 (defmethod auth/session-user tag [all-stuff-map]
-  (let [user (get-in all-stuff-map [:request :identity])]
+  (let [user (get-in all-stuff-map [:request :identity :sub])]
     {:email user
      :sub user
      :username user}))
