@@ -24,7 +24,7 @@
     :auto-refresh-token <boolean> ; default false
     }}
 
-(defmethod auth/make-client tag [{:keys [domain client-id client-secret auth-server] :as _config}]
+(defmethod auth/make-client tag [_config]
   _config)
 
 (def ^:private openid-config (u/make-cell nil))
@@ -53,13 +53,32 @@
     (catch Exception e
       (log/warn e))))
 
-(defmethod auth/verify-token tag [auth-config token]
-  (verify-and-extract auth-config token))
+(defn- introspect [{domain :domain
+                    auth-server :auth-server
+                    client-id :client-id
+                    client-secret :client-secret}
+                   data]
+  (let [authres (:authentication-result data)
+        access-token (:access-token authres)
+        url (str "https://" domain "/oauth2/" auth-server "/v1/introspect")
+        req (str "token=" access-token "&token_type_hint=access_token")
+        resp (http/do-request
+              :post url
+              {"Content-Type" "application/x-www-form-urlencoded"
+               "Authorization" (str "Basic " (b64/encode-string (str client-id ":" client-secret)))}
+              req)]
+    (when (= 200 (:status resp))
+      (json/decode (:body resp)))))
+
+(defmethod auth/verify-token tag [auth-config data]
+  (if (map? data)
+    (if (:introspect auth-config)
+      (introspect auth-config data)
+      (verify-and-extract auth-config (:id-token (:authentication-result data))))
+    (verify-and-extract auth-config data)))
 
 (defmethod auth/make-authfn tag [auth-config]
-  (if (:introspect auth-config)
-    (fn [_ token] #_(okta-introspect token))
-    (fn [_ token] (verify-and-extract auth-config token))))
+  (fn [_ token] (verify-and-extract auth-config token)))
 
 (def ^:private auth-config (atom nil))
 (def ^:private login-redirect-uri "http://localhost:8080/authorization-code/callback")
@@ -143,18 +162,26 @@
   ;; TODO: implement refresh-token
   )
 
-(defmethod auth/session-user tag [all-stuff-map]
-  (let [user (get-in all-stuff-map [:request :identity :sub])]
-    {:email user
-     :sub user
-     :username user}))
+(defmethod auth/session-user tag [{req :request cookie :cookie :as all-stuff-map}]
+  (if cookie
+    (let [result (introspect all-stuff-map cookie)
+          user (:sub result)]
+      {:email user
+       :sub user
+       :username (or (:username result) user)})
+    (let [user (get-in req [:identity :sub])]
+      {:email user
+       :sub user
+       :username user})))
 
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))
 
-(defmethod auth/user-logout tag [{domain :domain auth-server :auth-server req :request}]
+(defmethod auth/user-logout tag [{domain :domain auth-server :auth-server req :request cookie :cookie}]
   (let [redirect-uri (http/url-encode "http://localhost:8080/")
-        id-token (jwt/remove-bearer (get (:headers req) "authorization"))
+        id-token (if cookie
+                   (get-in cookie [:authentication-result :id-token])
+                   (jwt/remove-bearer (get (:headers req) "authorization")))
         url (str "https://" domain "/oauth2/" auth-server "/v1/logout?"
                  "id_token_hint=" id-token "&post_logout_redirect_uri=" redirect-uri)
         resp (http/do-get url {:follow-redirects false})]

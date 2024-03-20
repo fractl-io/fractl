@@ -42,13 +42,12 @@
 (entity
  :UserSession
  {:User {:type :String :guid true}
-  :LoggedIn :Boolean
-  :UserData {:type :Any :optional true}})
+  :LoggedIn :Boolean})
 
 (entity
  :SessionCookie
  {:Id {:type :String :guid true}
-  :Token :String})
+  :UserData :Any})
 
 (event
  :UpdateUser

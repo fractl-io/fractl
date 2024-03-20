@@ -644,20 +644,19 @@
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn decode-jwt-token-from-response [response]
-  (-> response
-      (get :authentication-result)
-      (get :id-token)
-      (jwt/decode)))
+  (let [res (:authentication-result response)
+        token (or (:access-token res) (:id-token res))]
+    (jwt/decode token)))
 
-(defn upsert-user-session [user-id logged-in user-data]
+(defn upsert-user-session [user-id logged-in]
   ((if (us/session-exists-for? user-id)
      us/session-update
      us/session-create)
-   user-id logged-in user-data))
+   user-id logged-in))
 
 (defn maybe-create-session-cookie [auth-config login-result]
   (when-let [cookie (:cookie (:user-data (:authentication-result login-result)))]
-    (us/session-cookie-create cookie (:id-token (:authentication-result login-result)))))
+    (us/session-cookie-create cookie login-result)))
 
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
@@ -674,7 +673,7 @@
                            :event evobj
                            :eval evaluator))
                   user-id (get (decode-jwt-token-from-response result) :sub)]
-              (upsert-user-session user-id true result)
+              (upsert-user-session user-id true)
               (maybe-create-session-cookie auth-config result)
               (ok {:result result} data-fmt))
             (catch Exception ex
@@ -830,11 +829,15 @@
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
       (try
-        (let [auth-config (assoc auth-config :request request)
+        (let [ac (assoc auth-config :request request)
+              cookie (get (:headers request) "cookie")
+              auth-config (if cookie
+                            (assoc ac :cookie (us/lookup-session-cookie-user-data cookie))
+                            ac)
               sub (auth/session-sub auth-config)
               result (auth/user-logout (assoc auth-config :sub sub))]
-          (upsert-user-session (:username sub) false nil)
-          (when-let [cookie (get (:headers request) "cookie")]
+          (upsert-user-session (:username sub) false)
+          (when cookie
             (when-not (us/session-cookie-delete cookie)
               (log/warn (str "session-cookie not deleted for " cookie))))
           (ok {:result result} data-fmt))
@@ -1080,8 +1083,8 @@
         (log/info (str "unauthorized request - " request))
         (unauthorized (find-data-format request)))
       (let [cookie (get (:headers request) "cookie")
-            token (us/lookup-token-from-session-cookie cookie)
-            user (:sub (auth/verify-token auth-config token))]
+            data (us/lookup-session-cookie-user-data cookie)
+            user (:sub (auth/verify-token auth-config data))]
         (when-not (us/is-logged-in user)
           (log/info (str "unauthorized request - " request))
           (unauthorized (find-data-format request)))))

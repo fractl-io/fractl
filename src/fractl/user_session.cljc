@@ -23,24 +23,24 @@
 (defn session-exists-for? [user]
   (not (not-found? (session-lookup user))))
 
-(defn session-create [user logged-in user-data]
+(defn session-create [user logged-in]
   (ev/eval-internal
    {:Fractl.Kernel.Identity/Create_UserSession
     {:Instance
      {:Fractl.Kernel.Identity/UserSession
-      {:User user :LoggedIn logged-in :UserData user-data}}}}))
+      {:User user :LoggedIn logged-in}}}}))
 
-(defn session-update [user logged-in user-data]
+(defn session-update [user logged-in]
   (ev/eval-internal
    {:Fractl.Kernel.Identity/Update_UserSession
-    {:User user :Data {:LoggedIn logged-in :UserData user-data}}}))
+    {:User user :Data {:LoggedIn logged-in}}}))
 
-(defn session-cookie-create [sid id-token]
+(defn session-cookie-create [sid user-data]
   (ev/eval-internal
    {:Fractl.Kernel.Identity/Create_SessionCookie
     {:Instance
      {:Fractl.Kernel.Identity/SessionCookie
-      {:Id sid :Token id-token}}}}))
+      {:Id sid :UserData user-data}}}}))
 
 (defn session-cookie-delete [sid]
   (first
@@ -50,11 +50,10 @@
       {:Fractl.Kernel.Identity/Delete_SessionCookie
        {:Id sid}})))))
 
-(defn lookup-token-from-session-cookie [sid]
+(defn lookup-session-cookie-user-data [sid]
   (let [result (ev/eval-internal
                 {:Fractl.Kernel.Identity/Lookup_SessionCookie
                  {:Id sid}})
         r (if (map? result) result (first result))
-        s (:status r)
-        obj (when (= s :ok) (first (:result r)))]
-    (when obj (:Token obj))))
+        s (:status r)]
+    (when (= s :ok) (:UserData (first (:result r))))))
