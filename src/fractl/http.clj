@@ -921,12 +921,6 @@
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
-(defn- verify-token [token]
-  (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
-    (jwt/verify-and-extract
-     (cognito/make-jwks-url region user-pool-id)
-     token)))
-
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
   (if (auth/cognito? auth-config)
     (let [query (when-let [s (:query-string request)] (uh/form-decode s))
@@ -949,7 +943,7 @@
                                      (when redirect-query (str "?redirect=" redirect-query)))}})
               tokens (json/decode (:body tokens))]
           (if-let [token (:id_token tokens)]
-            (if-let [user (verify-token token)]
+            (if-let [user (auth/verify-token auth-config token)]
               (when (:email user)
                 (let [user-obj {:Email (:email user)
                             :Name (str (:given_name user) " " (:family_name user))

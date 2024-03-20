@@ -10,6 +10,12 @@
      :cljs
      (b64/encodeByteArray bytes)))
 
+(def encode-string
+  #?(:clj
+     (fn [^String s]
+       (encode (.getBytes s "UTF-8")))
+     :cljs encode))
+
 (defn decode [s]
   #?(:clj
      (.decode (Base64/getDecoder) s)

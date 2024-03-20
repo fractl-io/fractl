@@ -45,15 +45,21 @@
         user (first (:users users))]
     (:username user)))
 
+(defn- verify-and-extract [{region :region user-pool-id :user-pool-id} token]
+  (try
+    (jwt/verify-and-extract
+     (make-jwks-url region user-pool-id)
+     token)
+    (catch Exception e
+      (log/warn e))))
+
+(defmethod auth/verify-token tag [_config token]
+  (verify-and-extract (uh/get-aws-config) token))
+
 (defmethod auth/make-authfn tag [_config]
-  (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
+  (let [aws-config (uh/get-aws-config)]
     (fn [_req token]
-      (try
-        (jwt/verify-and-extract
-         (make-jwks-url region user-pool-id)
-         token)
-        (catch Exception e
-          (log/warn e))))))
+      (verify-and-extract aws-config token))))
 
 (defmethod auth/user-login tag [{:keys [event] :as req}]
   (let [{:keys [client-id] :as aws-config} (uh/get-aws-config)]
