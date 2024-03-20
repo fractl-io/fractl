@@ -654,9 +654,9 @@
      us/session-create)
    user-id logged-in))
 
-(defn maybe-create-session-cookie [auth-config login-result]
-  (when-let [cookie (:cookie (:user-data (:authentication-result login-result)))]
-    (us/session-cookie-create cookie login-result)))
+(defn- attach-set-cookie-header [resp cookie]
+  (let [hdrs (:headers resp)]
+    (assoc resp :headers (assoc hdrs "Set-Cookie" cookie))))
 
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
@@ -672,10 +672,14 @@
                            auth-config
                            :event evobj
                            :eval evaluator))
-                  user-id (get (decode-jwt-token-from-response result) :sub)]
+                  user-id (get (decode-jwt-token-from-response result) :sub)
+                  cookie (get-in result [:authentication-result :user-data :cookie])
+                  resp (ok {:result (if cookie {:authentication-result :success} result)} data-fmt)]
               (upsert-user-session user-id true)
-              (maybe-create-session-cookie auth-config result)
-              (ok {:result result} data-fmt))
+              (if cookie
+                (do (us/session-cookie-create cookie result)
+                    (attach-set-cookie-header resp cookie))
+                resp))
             (catch Exception ex
               (log/warn ex)
               (unauthorized
@@ -832,7 +836,7 @@
         (let [ac (assoc auth-config :request request)
               cookie (get (:headers request) "cookie")
               auth-config (if cookie
-                            (assoc ac :cookie (us/lookup-session-cookie-user-data cookie))
+                            (assoc ac :cookie [cookie (us/lookup-session-cookie-user-data cookie)])
                             ac)
               sub (auth/session-sub auth-config)
               result (auth/user-logout (assoc auth-config :sub sub))]
@@ -1084,13 +1088,13 @@
         (unauthorized (find-data-format request)))
       (let [cookie (get (:headers request) "cookie")
             data (us/lookup-session-cookie-user-data cookie)
-            user (:sub (auth/verify-token auth-config data))]
+            user (:sub (auth/verify-token auth-config [cookie data]))]
         (when-not (us/is-logged-in user)
           (log/info (str "unauthorized request - " request))
           (unauthorized (find-data-format request)))))
     (catch Exception ex
       (log/warn ex)
-      (bad-request "invalid auth data" (find-data-format request) "INVALID_AUTH_DATA"))))
+      (unauthorized (find-data-format request)))))
 
 (defn- auth-service-supported? [auth]
   (some #{(:service auth)} [:keycloak :cognito :okta :dataflow]))

@@ -57,3 +57,12 @@
         r (if (map? result) result (first result))
         s (:status r)]
     (when (= s :ok) (:UserData (first (:result r))))))
+
+(defn session-cookie-update-tokens [sid tokens]
+  (when-let [user-data (lookup-session-cookie-user-data sid)]
+    (let [authr (merge (:authentication-result user-data) tokens)
+          user-data (assoc user-data :authentication-result authr)]
+      (ev/eval-internal
+       {:Fractl.Kernel.Identity/Update_SessionCookie
+        {:Id sid :Data {:UserData user-data}}})
+      user-data)))

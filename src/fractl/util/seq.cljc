@@ -1,6 +1,7 @@
 (ns fractl.util.seq
   "Utilities for sequences."
-  (:require [fractl.util :as u]))
+  (:require [clojure.string :as s]
+            [fractl.util :as u]))
 
 (defn truths
   "Return all truth values returned by f when applied to each element of xs."
@@ -196,3 +197,9 @@
   (apply str
          (take length
                (repeatedly rand-alpha-numeric))))
+
+(defn snake-to-kebab-keys [a-map]
+  (let [r (mapv (fn [[k v]]
+                  [(keyword (s/replace (name k) #"_" "-")) v])
+                a-map)]
+    (into {} r)))

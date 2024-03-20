@@ -8,7 +8,8 @@
             [fractl.datafmt.json :as json]
             [fractl.global-state :as gs]
             [fractl.auth.jwt :as jwt]
-            [fractl.auth.core :as auth]))
+            [fractl.auth.core :as auth]
+            [fractl.user-session :as sess]))
 
 (def ^:private tag :okta)
 
@@ -53,28 +54,70 @@
     (catch Exception e
       (log/warn e))))
 
-(defn- introspect [{domain :domain
-                    auth-server :auth-server
-                    client-id :client-id
-                    client-secret :client-secret}
-                   data]
-  (let [authres (:authentication-result data)
-        access-token (:access-token authres)
-        url (str "https://" domain "/oauth2/" auth-server "/v1/introspect")
-        req (str "token=" access-token "&token_type_hint=access_token")
+(declare introspect)
+
+(defn- refresh-tokens [{domain :domain
+                        client-id :client-id
+                        client-secret :client-secret
+                        auth-server :auth-server
+                        login-redirect-uri :login-redirect-uri
+                        :as auth-config}
+                       token sid]
+  (let [url (str "https://" domain "/oauth2/" auth-server "/v1/token")
+        req (str "client_id=" client-id "&client_secret=" client-secret
+                 "&grant_type=refresh_token&redirect_uri=" login-redirect-uri
+                 "&refresh_token=" token)
+        resp (http/do-request :post url {"Content-Type" "application/x-www-form-urlencoded"} req)]
+    (if (= 200 (:status resp))
+      (let [r (us/snake-to-kebab-keys (json/decode (:body resp)))
+            data (sess/session-cookie-update-tokens sid r)]
+        (if data
+          (introspect auth-config [sid data])
+          (log/warn (str "failed to refresh tokens for " sid))))
+      (do (log/error resp)
+          (u/throw-ex (str "failed to refresh access token with error: " (:status resp)))))))
+
+(defn- do-introspect [token-hint domain auth-server client-id client-secret token]
+  (let [url (str "https://" domain "/oauth2/" auth-server "/v1/introspect")
+        req (str "token=" token "&token_type_hint=" token-hint)
         resp (http/do-request
               :post url
               {"Content-Type" "application/x-www-form-urlencoded"
                "Authorization" (str "Basic " (b64/encode-string (str client-id ":" client-secret)))}
               req)]
-    (when (= 200 (:status resp))
-      (json/decode (:body resp)))))
+    (if (= 200 (:status resp))
+      (let [result (json/decode (:body resp))]
+        (if (:active result)
+          result
+          (log/warn (str token-hint " introspect returned inactive state: " result))))
+      (log/warn (str token-hint " introspect returned status: " (:status resp))))))
+
+(def ^:private introspect-access-token (partial do-introspect "access_token"))
+(def ^:private introspect-refresh-token (partial do-introspect "refresh_token"))
+
+(defn- introspect [{domain :domain
+                    auth-server :auth-server
+                    client-id :client-id
+                    client-secret :client-secret
+                    :as auth-config}
+                   [sid data]]
+  (let [authres (:authentication-result data)
+        access-token (:access-token authres)
+        resp (introspect-access-token
+              domain auth-server client-id client-secret
+              access-token)]
+    (or resp
+        (let [reftok (:refresh-token authres)]
+          (when (introspect-refresh-token
+                 domain auth-server client-id client-secret
+                 reftok)
+            (refresh-tokens auth-config reftok sid))))))
 
 (defmethod auth/verify-token tag [auth-config data]
-  (if (map? data)
+  (if (vector? data)
     (if (:introspect auth-config)
       (introspect auth-config data)
-      (verify-and-extract auth-config (:id-token (:authentication-result data))))
+      (verify-and-extract auth-config (:id-token (:authentication-result (second data)))))
     (verify-and-extract auth-config data)))
 
 (defmethod auth/make-authfn tag [auth-config]
@@ -129,13 +172,10 @@
           (u/throw-ex (str "okta/authorize failed with state mismatch - " state " <> " (:state login-info))))
         (let [tokens (code-to-tokens config (:code login-info))]
           {:authentication-result
-           {:state state
-            :user-data {:cookie (extract-sid (:set-cookie (:headers result)))}
-            :id-token (:id_token tokens)
-            :access-token (:access_token tokens)
-            :refresh-token (:refresh_token tokens)
-            :expires-in (:expires_in tokens)
-            :scope (:scope tokens)}}))
+           (merge
+            {:state state
+             :user-data {:cookie (extract-sid (:set-cookie (:headers result)))}}
+            (us/snake-to-kebab-keys tokens))}))
       (do (log/error result)
           (u/throw-ex (str "okta/authorize call failed. expected redirect, not " (:status result)))))))
 
@@ -180,14 +220,15 @@
 (defmethod auth/user-logout tag [{domain :domain auth-server :auth-server req :request cookie :cookie}]
   (let [redirect-uri (http/url-encode "http://localhost:8080/")
         id-token (if cookie
-                   (get-in cookie [:authentication-result :id-token])
+                   (get-in (second cookie) [:authentication-result :id-token])
                    (jwt/remove-bearer (get (:headers req) "authorization")))
         url (str "https://" domain "/oauth2/" auth-server "/v1/logout?"
                  "id_token_hint=" id-token "&post_logout_redirect_uri=" redirect-uri)
         resp (http/do-get url {:follow-redirects false})]
     (if (= 200 (:status resp))
       :bye
-      (str "logout failed with status " (:status resp)))))
+      (do (log/error resp)
+          (str "logout failed with status " (:status resp))))))
 
 (defmethod auth/delete-user tag [_]
   (u/throw-ex "auth/delete-user not implemented for okta"))
