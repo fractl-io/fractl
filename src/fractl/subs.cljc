@@ -8,15 +8,19 @@ backend-systems. A resolver can express interest in these events by implementing
             [fractl.subs.kafka :as kafka]))
 
 (def ^:private clients
-  {:kafka (si/make-client kafka/make-consumer kafka/listen kafka/shutdown)
-   :mem (si/make-client mem/open mem/listen mem/shutdown)})
+  (atom {:kafka (si/make-client kafka/make-consumer kafka/listen kafka/shutdown)
+         :mem (si/make-client mem/open mem/listen mem/shutdown)}))
+
+(defn register-client [name-tag open-fn listen-fn shutdown-fn]
+  (swap! clients assoc name-tag (si/make-client open-fn listen-fn shutdown-fn))
+  name-tag)
 
 (defn open-connection [config]
   (let [client-type (:type config)]
-    (if-let [methods (client-type clients)]
+    (if-let [methods (client-type @clients)]
       (si/make-client-connection
        ((si/open-connection methods) (dissoc config :type))
-       methods)
+       (merge methods (:methods config)))
       (u/throw-ex (str "unsupported client-type: " client-type)))))
 
 (def notification-object si/notification-object)

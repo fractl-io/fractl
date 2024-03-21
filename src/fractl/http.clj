@@ -931,8 +931,8 @@
           code (:code query)
           redirect-query (:redirect query)
           cognito-domain (u/getenv "AWS_COGNITO_DOMAIN")
-          backend-url (u/getenv "FRACTL_APP_URL")
-          redirect-url (u/getenv "FRACTL_REDIRECT_URL")
+          api-url (u/getenv "FRACTL_API_URL")
+          ui-url (u/getenv "FRACTL_UI_URL")
           client-id (u/getenv "AWS_COGNITO_CLIENT_ID")]
       (try
         (let [tokens
@@ -943,7 +943,7 @@
                  {:grant_type "authorization_code"
                   :code code
                   :client_id client-id
-                  :redirect_uri (str backend-url "/_authcallback"
+                  :redirect_uri (str api-url "/_authcallback"
                                      (when redirect-query (str "?redirect=" redirect-query)))}})
               tokens (json/decode (:body tokens))]
           (if-let [token (:id_token tokens)]
@@ -974,8 +974,8 @@
                   (upsert-user-session (:sub user) true)
                   {:status  302
                    :headers {"Location"
-                             (str (or redirect-query redirect-url)
-                                  "?id_token=" (:id_token tokens)
+                             (str (or redirect-query ui-url)
+                                  "/?id_token=" (:id_token tokens)
                                   "&refresh_token=" (:refresh_token tokens))}}))
               (bad-request (str "id_token not valid") "INVALID_TOKEN"))
             (bad-request

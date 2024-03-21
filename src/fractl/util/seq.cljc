@@ -177,3 +177,6 @@
         (recur (rest xs) prev result)
         (recur (rest xs) x (conj result x)))
       result)))
+
+(defn member? [x xs]
+  (first (filter (partial = x) xs)))

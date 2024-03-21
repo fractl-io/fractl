@@ -1,5 +1,6 @@
 (ns fractl.subs.internal
   (:require [fractl.util :as u]
+            [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]))
@@ -75,5 +76,8 @@
 (defn process-notification [client arg]
   (let [obj (call-transformer client arg)]
     (when (call-filter client obj)
-      (when-let [r (rg/resolver-for-path (cn/instance-type (:instance obj)))]
+      (when-let [r (rg/resolver-for-path
+                    (let [inst (:instance obj)]
+                      (or (cn/instance-type inst)
+                          (li/split-path (li/record-name inst)))))]
         (r/call-resolver-on-change-notification r nil obj)))))

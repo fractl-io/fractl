@@ -29,7 +29,8 @@
                  [com.cognitect/transit-clj "1.0.324"]
                  [com.cognitect/transit-cljs "0.8.269"]
                  [buddy/buddy-auth "3.0.323"]
-                 [keycloak-clojure "1.28.3"]
+                 [keycloak-clojure "1.28.3"
+                  :exclusions [io.grpc/grpc-netty-shaded]]
                  [org.bitbucket.b_c/jose4j "0.7.12"]
                  [reagent "1.1.0"]
                  [cljsjs/react "17.0.2-0"]
