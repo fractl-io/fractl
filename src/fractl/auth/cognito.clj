@@ -5,10 +5,14 @@
                      confirm-forgot-password confirm-sign-up create-group delete-group
                      forgot-password initiate-auth list-users resend-confirmation-code sign-up]]
             [clojure.string :as str]
+            [org.httpkit.client :as hc]
+            [fractl.datafmt.json :as json]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
             [fractl.component :as cn]
+            [fractl.user-session :as sess]
             [fractl.lang.internal :as li]
+            [fractl.util :as u]
             [fractl.util.http :as uh]
             [fractl.util.logger :as log]))
 
@@ -183,6 +187,73 @@
 
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))
+
+(defmethod auth/authenticate-session tag [_]
+  (u/throw-ex (str "authenticate-session not implemented for " tag)))
+
+(defn- create-event [event-name]
+  {cn/type-tag-key :event
+   cn/instance-type (keyword event-name)})
+
+(defmethod auth/handle-auth-callback tag [auth-config]
+  (let [{evaluate :evaluate
+         evaluator :evaluator
+         call-post-signup :call-post-signup
+         request :request} (:args auth-config)
+        query (when-let [s (:query-string request)] (uh/form-decode s))
+        code (:code query)
+        redirect-query (:redirect query)
+        cognito-domain (u/getenv "AWS_COGNITO_DOMAIN")
+        backend-url (u/getenv "FRACTL_APP_URL")
+        redirect-url (u/getenv "FRACTL_REDIRECT_URL")
+        client-id (u/getenv "AWS_COGNITO_CLIENT_ID")]
+    (try
+      (let [tokens
+            @(hc/post
+              (str cognito-domain "/oauth2/token")
+              {:headers {"Content-Type" "application/x-www-form-urlencoded"}
+               :query-params
+               {:grant_type "authorization_code"
+                :code code
+                :client_id client-id
+                :redirect_uri (str backend-url "/_authcallback"
+                                   (when redirect-query (str "?redirect=" redirect-query)))}})
+            tokens (json/decode (:body tokens))]
+        (if-let [token (:id_token tokens)]
+          (if-let [user (auth/verify-token auth-config token)]
+            (when (:email user)
+              (let [user-obj {:Email (:email user)
+                              :Name (str (:given_name user) " " (:family_name user))
+                              :FirstName (:given_name user)
+                              :LastName (:family_name user)}
+                    sign-up-request
+                    {:Fractl.Kernel.Identity/SignUp
+                     {:User {:Fractl.Kernel.Identity/User user-obj}}}
+                    new-sign-up
+                    (= :not-found
+                       (:status
+                        (first
+                         (evaluator
+                          {:Fractl.Kernel.Identity/FindUser
+                           {:Email (:Email user-obj)}}))))]
+                (when new-sign-up
+                  (let [sign-up-result (u/safe-ok-result (evaluator sign-up-request))]
+                    (when call-post-signup
+                      (evaluate
+                       evaluator
+                       (assoc
+                        (create-event :Fractl.Kernel.Identity/PostSignUp)
+                        :SignupResult sign-up-result :SignupRequest {:User user-obj})))))
+                (sess/upsert-user-session (:sub user) true)
+                {:status :redirect-found
+                 :location (str (or redirect-query redirect-url)
+                                "/?id_token=" (:id_token tokens)
+                                "&refresh_token=" (:refresh_token tokens))}))
+            {:error "id_token not valid - INVALID_TOKEN"})
+          {:error "error fetching tokens -ERROR_FETCHING_TOKEN"}))
+      (catch Exception e
+        (log/info (str e))
+        {:error "error fetching tokens - ERROR_FETCHING_TOKEN"}))))
 
 (defmethod auth/user-logout tag [{:keys [sub] :as req}]
   (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config)]

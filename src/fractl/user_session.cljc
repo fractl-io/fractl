@@ -35,6 +35,12 @@
    {:Fractl.Kernel.Identity/Update_UserSession
     {:User user :Data {:LoggedIn logged-in}}}))
 
+(defn upsert-user-session [user-id logged-in]
+  ((if (session-exists-for? user-id)
+     session-update
+     session-create)
+   user-id logged-in))
+
 (defn session-cookie-create [sid user-data]
   (ev/eval-internal
    {:Fractl.Kernel.Identity/Create_SessionCookie

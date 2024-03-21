@@ -202,6 +202,20 @@
   ;; TODO: implement refresh-token
   )
 
+(defn- make-authorize-uri [{authorize-uri :authorize-uri
+                            authorize-callback-uri :authorize-callback-uri
+                            client-id :client-id
+                            scope :scope}]
+  (str authorize-uri "?client_id=" client-id "&redirect_uri=" (http/url-encode authorize-callback-uri)
+       "&response_type=code&scope=" scope "&state=" (us/generate-code 10)))
+
+(defmethod auth/authenticate-session tag [{cookie :cookie
+                                           client-uri :client-uri
+                                           :as auth-config}]
+  (if (sess/lookup-session-cookie-user-data cookie)
+    {:status :redirect-found :location client-uri}
+    {:status :redirect-found :location (make-authorize-uri auth-config)}))
+
 (defmethod auth/session-user tag [{req :request cookie :cookie :as all-stuff-map}]
   (if cookie
     (let [result (introspect all-stuff-map cookie)
@@ -213,6 +227,9 @@
       {:email user
        :sub user
        :username user})))
+
+(defmethod auth/handle-auth-callback tag [auth-config]
+  )
 
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))

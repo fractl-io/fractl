@@ -14,8 +14,15 @@
 ;; Can be same as `session-user`.
 (defmulti session-sub service-tag)
 ;; Logout from the auth broker and return some truthy value.
-
 (defmulti user-logout service-tag)
+
+;; Authenticate with a locally cached session-cookie.
+;; If no session-cookie is found, redirect to an auth-uri.
+(defmulti authenticate-session service-tag)
+
+;; Handle the redirect-uri from an external auth-endpoint.
+(defmulti handle-auth-callback service-tag)
+
 ;; Get user details
 (defmulti get-user service-tag)
 (defmulti resend-confirmation-code service-tag)

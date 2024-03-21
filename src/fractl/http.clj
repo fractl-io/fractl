@@ -27,13 +27,21 @@
             [fractl.global-state :as gs]
             [fractl.user-session :as us]
             [org.httpkit.server :as h]
-            [org.httpkit.client :as hc]
-            [fractl.datafmt.json :as json]
             [ring.middleware.cors :as cors]
             [fractl.util.errors :refer [get-internal-error-message]]
             [fractl.evaluator :as ev])
   (:use [compojure.core :only [routes POST PUT DELETE GET]]
         [compojure.route :only [not-found]]))
+
+(defn- headers
+  ([data-fmt]
+   (merge
+    (when data-fmt
+      {"Content-Type" (uh/content-type data-fmt)}
+      {"Access-Control-Allow-Origin" "*"
+       "Access-Control-Allow-Methods" "GET,POST,PUT,DELETE"
+       "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"})))
+  ([] (headers nil)))
 
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
@@ -69,6 +77,10 @@
      (string? s) (response {:reason s} 500 data-fmt)
      :else (response s 500 data-fmt)))
   ([s] (internal-error s :json)))
+
+(defn- redirect-found [location]
+  {:status 302
+   :headers (assoc (headers) "Location" location)})
 
 (defn- sanitize-secrets [obj]
   (let [r (mapv (fn [[k v]]
@@ -107,10 +119,6 @@
    (response (cleanup-results obj) 200 data-fmt))
   ([obj]
    (ok obj :json)))
-
-(defn- create-event [event-name]
-  {cn/type-tag-key :event
-   cn/instance-type (keyword event-name)})
 
 (defn- maybe-remove-read-only-attributes [obj]
   (if (cn/an-instance? obj)
@@ -549,8 +557,6 @@
         (bad-request (str "unsupported content-type in request - "
                           (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
-(def ^:private post-signup-event-name :Fractl.Kernel.Identity/PostSignUp)
-
 (defn- eval-ok-result [eval-result]
   (if (vector? eval-result)
     (eval-ok-result (first eval-result))
@@ -602,6 +608,10 @@
       ["Password does not conform to the specification. Please choose a stronger password." "INVALID_PASSWORD"]
       :else [message "SIGNUP_ERROR"])))
 
+(defn- create-event [event-name]
+  {cn/type-tag-key :event
+   cn/instance-type (keyword event-name)})
+
 (defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "sign-up"))
@@ -628,7 +638,7 @@
                         (evaluate
                          evaluator
                          (assoc
-                          (create-event post-signup-event-name)
+                          (create-event :Fractl.Kernel.Identity/PostSignUp)
                           :SignupResult result :SignupRequest evobj)))]
                   (if user
                     (ok (or (when (seq post-signup-result) post-signup-result)
@@ -647,12 +657,6 @@
   (let [res (:authentication-result response)
         token (or (:access-token res) (:id-token res))]
     (jwt/decode token)))
-
-(defn upsert-user-session [user-id logged-in]
-  ((if (us/session-exists-for? user-id)
-     us/session-update
-     us/session-create)
-   user-id logged-in))
 
 (defn- attach-set-cookie-header [resp cookie]
   (let [hdrs (:headers resp)]
@@ -675,7 +679,7 @@
                   user-id (get (decode-jwt-token-from-response result) :sub)
                   cookie (get-in result [:authentication-result :user-data :cookie])
                   resp (ok {:result (if cookie {:authentication-result :success} result)} data-fmt)]
-              (upsert-user-session user-id true)
+              (us/upsert-user-session user-id true)
               (if cookie
                 (do (us/session-cookie-create cookie result)
                     (attach-set-cookie-header resp cookie))
@@ -840,7 +844,7 @@
                             ac)
               sub (auth/session-sub auth-config)
               result (auth/user-logout (assoc auth-config :sub sub))]
-          (upsert-user-session (:username sub) false)
+          (us/upsert-user-session (:username sub) false)
           (when cookie
             (when-not (us/session-cookie-delete cookie)
               (log/warn (str "session-cookie not deleted for " cookie))))
@@ -928,68 +932,24 @@
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
+(defn- auth-response [result]
+  (case (:status result)
+    :redirect-found (redirect-found (:location result))
+    :ok (ok (:message result))
+    (bad-request (:error result))))
+
 (defn- process-auth [evaluator [auth-config _] request]
-  )
+  (if-let [cookie (get-in request [:headers :cookie])]
+    (auth-response
+     (auth/authenticate-session (assoc auth-config :cookie cookie)))
+    (bad-request (str "session-cookie id not found"))))
 
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
-  (if (auth/cognito? auth-config)
-    (let [query (when-let [s (:query-string request)] (uh/form-decode s))
-          code (:code query)
-          redirect-query (:redirect query)
-          cognito-domain (u/getenv "AWS_COGNITO_DOMAIN")
-          backend-url (u/getenv "FRACTL_APP_URL")
-          redirect-url (u/getenv "FRACTL_REDIRECT_URL")
-          client-id (u/getenv "AWS_COGNITO_CLIENT_ID")]
-      (try
-        (let [tokens
-              @(hc/post
-                (str cognito-domain "/oauth2/token")
-                {:headers {"Content-Type" "application/x-www-form-urlencoded"}
-                 :query-params
-                 {:grant_type "authorization_code"
-                  :code code
-                  :client_id client-id
-                  :redirect_uri (str backend-url "/_authcallback"
-                                     (when redirect-query (str "?redirect=" redirect-query)))}})
-              tokens (json/decode (:body tokens))]
-          (if-let [token (:id_token tokens)]
-            (if-let [user (auth/verify-token auth-config token)]
-              (when (:email user)
-                (let [user-obj {:Email (:email user)
-                            :Name (str (:given_name user) " " (:family_name user))
-                            :FirstName (:given_name user)
-                            :LastName (:family_name user)}
-                      sign-up-request
-                      {:Fractl.Kernel.Identity/SignUp
-                       {:User {:Fractl.Kernel.Identity/User user-obj}}}
-                      new-sign-up
-                      (= :not-found
-                         (:status
-                          (first
-                           (evaluator
-                            {:Fractl.Kernel.Identity/FindUser
-                             {:Email (:Email user-obj)}}))))]
-                  (when new-sign-up
-                    (let [sign-up-result (u/safe-ok-result (evaluator sign-up-request))]
-                      (when call-post-signup
-                        (evaluate
-                         evaluator
-                         (assoc
-                          (create-event post-signup-event-name)
-                          :SignupResult sign-up-result :SignupRequest {:User user-obj})))))
-                  (upsert-user-session (:sub user) true)
-                  {:status  302
-                   :headers {"Location"
-                             (str (or redirect-query redirect-url)
-                                  "/?id_token=" (:id_token tokens)
-                                  "&refresh_token=" (:refresh_token tokens))}}))
-              (bad-request (str "id_token not valid") "INVALID_TOKEN"))
-            (bad-request
-             (str "error fetching tokens") "ERROR_FETCHING_TOKEN")))
-        (catch Exception e
-          (log/info (str e))
-          (bad-request (str "error fetching tokens") "ERROR_FETCHING_TOKEN"))))
-    (internal-error "cannot process sign-up - authentication not enabled")))
+  (auth-response
+   (auth/handle-auth-callback (assoc auth-config :args {:evaluate evaluate
+                                                        :evaluator evaluator
+                                                        :call-post-signup call-post-signup
+                                                        :request request}))))
 
 (defn- make-magic-link [username op payload description expiry]
   (let [hskey (u/getenv "FRACTL_HS256_KEY")]
