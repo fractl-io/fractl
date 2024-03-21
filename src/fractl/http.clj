@@ -78,9 +78,13 @@
      :else (response s 500 data-fmt)))
   ([s] (internal-error s :json)))
 
-(defn- redirect-found [location]
+(defn- redirect-found [location set-cookie]
   {:status 302
-   :headers (assoc (headers) "Location" location)})
+   :headers
+   (let [hdrs (assoc (headers) "Location" location)]
+     (if set-cookie
+       (assoc hdrs "Set-Cookie" set-cookie)
+       hdrs))})
 
 (defn- sanitize-secrets [obj]
   (let [r (mapv (fn [[k v]]
@@ -934,22 +938,22 @@
 
 (defn- auth-response [result]
   (case (:status result)
-    :redirect-found (redirect-found (:location result))
+    :redirect-found (redirect-found (:location result) (:set-cookie result))
     :ok (ok (:message result))
     (bad-request (:error result))))
 
 (defn- process-auth [evaluator [auth-config _] request]
-  (if-let [cookie (get-in request [:headers :cookie])]
+  (let [cookie (get-in request [:headers :cookie])]
     (auth-response
-     (auth/authenticate-session (assoc auth-config :cookie cookie)))
-    (bad-request (str "session-cookie id not found"))))
+     (auth/authenticate-session (assoc auth-config :cookie cookie)))))
 
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
   (auth-response
-   (auth/handle-auth-callback (assoc auth-config :args {:evaluate evaluate
-                                                        :evaluator evaluator
-                                                        :call-post-signup call-post-signup
-                                                        :request request}))))
+   (auth/handle-auth-callback
+    (assoc auth-config :args {:evaluate evaluate
+                              :evaluator evaluator
+                              :call-post-signup call-post-signup
+                              :request request}))))
 
 (defn- make-magic-link [username op payload description expiry]
   (let [hskey (u/getenv "FRACTL_HS256_KEY")]

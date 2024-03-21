@@ -35,7 +35,7 @@
 (defn setup-resolver [config evaluator]
   (let [resolver (authn/make :authentication config)
         admin-email (:superuser-email config)
-        admin-password (u/getenv "FRACTL_SUPERUSER_PASSWORD")]
+        admin-password (u/getenv "FRACTL_SUPERUSER_PASSWORD" "admin")]
     (when-not admin-email
       (u/throw-ex (str "superuser email not set in auth-config")))
     (when-not admin-password
