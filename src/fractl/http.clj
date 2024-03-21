@@ -928,6 +928,9 @@
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
+(defn- process-auth [evaluator [auth-config _] request]
+  )
+
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
   (if (auth/cognito? auth-config)
     (let [query (when-let [s (:query-string request)] (uh/form-decode s))
@@ -1058,6 +1061,7 @@
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (POST uh/ai-prefix [] (:ai handlers))
+           (GET uh/auth-prefix [] (:auth handlers))
            (GET uh/auth-callback-prefix [] (:auth-callback handlers))
            (POST uh/register-magiclink-prefix [] (:register-magiclink handlers))
            (GET uh/get-magiclink-prefix [] (:get-magiclink handlers))
@@ -1133,7 +1137,10 @@
             :query (partial process-query evaluator auth-info)
             :eval (partial process-dynamic-eval evaluator auth-info nil)
             :ai (partial process-gpt-chat auth-info)
-            :auth-callback (partial process-auth-callback evaluator config auth-info)
+            :auth (partial process-auth evaluator auth-info)
+            :auth-callback (partial
+                            process-auth-callback evaluator
+                            (:call-post-sign-up-event config) auth-info)
             :register-magiclink (partial process-register-magiclink auth-info auth)
             :get-magiclink (partial process-get-magiclink auth-info)
             :preview-magiclink (partial process-preview-magiclink auth-info)
