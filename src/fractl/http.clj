@@ -31,7 +31,8 @@
             [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
             [fractl.util.errors :refer [get-internal-error-message]]
-            [fractl.evaluator :as ev])
+            [fractl.evaluator :as ev]
+            [fractl.datafmt.transit :as t])
   (:use [compojure.core :only [routes POST PUT DELETE GET]]
         [compojure.route :only [not-found]]))
 
@@ -949,9 +950,9 @@
             (if-let [user (verify-token token)]
               (when (:email user)
                 (let [user-obj {:Email (:email user)
-                            :Name (str (:given_name user) " " (:family_name user))
-                            :FirstName (:given_name user)
-                            :LastName (:family_name user)}
+                                :Name (str (:given_name user) " " (:family_name user))
+                                :FirstName (:given_name user)
+                                :LastName (:family_name user)}
                       sign-up-request
                       {:Fractl.Kernel.Identity/SignUp
                        {:User {:Fractl.Kernel.Identity/User user-obj}}}
@@ -1032,6 +1033,33 @@
         (ok {:status "ok" :result decoded-token}))
       (bad-request (str "token not specified") "ID_TOKEN_REQUIRED"))))
 
+(defn- process-post-copilot-question [[auth-config _] auth request]
+  (if (and auth-config (nil? (:email (auth/session-sub
+                              (assoc auth :request request)))))
+    (bad-request (str "authentication not valid") "INVALID_AUTHENTICATION")
+    (if-let [copilot-url (System/getenv "COPILOT_URL")]
+      (let [[obj _ _] (request-object request)
+            app-id (:AppUuid obj)
+            chat-uuid (:ChatUuid obj)
+            use-docs (:UseDocs obj)
+            use-schema (:UseSchema obj)
+            question (:Question obj)]
+        (try
+          (let [out (uh/POST
+                      (str copilot-url "/_e/Copilot.Service.Core/PostAppQuestion")
+                      nil
+                      {:Copilot.Service.Core/PostAppQuestion
+                       {:AppUuid app-id
+                        :ChatUuid chat-uuid
+                        :UseDocs use-docs
+                        :UseSchema use-schema
+                        :Question question}})]
+            (ok out))
+          (catch Exception ex
+            (log/info (.getMessage ex))
+            (bad-request "Request to copilot backend failed" "REQUEST_FAILED"))))
+      (internal-error "Copilot not enabled for this application"))))
+
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
@@ -1061,6 +1089,7 @@
            (POST uh/preview-magiclink-prefix [] (:preview-magiclink handlers))
            (GET "/meta" [] (:meta handlers))
            (GET "/meta/:component" [] (:meta handlers))
+           (POST uh/post-copilot-question [] (:post-copilot-question handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
         r-with-auth (if auth-config
@@ -1128,7 +1157,8 @@
             :register-magiclink (partial process-register-magiclink auth-info auth)
             :get-magiclink (partial process-get-magiclink auth-info)
             :preview-magiclink (partial process-preview-magiclink auth-info)
-            :meta (partial process-meta-request auth-info)})
+            :meta (partial process-meta-request auth-info)
+            :post-copilot-question (partial process-post-copilot-question auth-info auth)})
           config))
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
   ([evaluator]
