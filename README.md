@@ -99,7 +99,7 @@ But before you can actually run it, you need to install Fractl. The next section
 
 #### Prerequisites
 
-1. JVM 11 or later (JVM 19+ recommended)
+1. [Java SE 21](https://openjdk.org/projects/jdk/21/) or later
 2. Linux, Mac OSX or a Unix emulator in Windows
 
 Download the [Fractl CLI tool](https://raw.githubusercontent.com/fractl-io/fractl/main/bin/fractl) and execute the model:

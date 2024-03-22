@@ -5,7 +5,9 @@
                      confirm-forgot-password confirm-sign-up create-group delete-group
                      forgot-password initiate-auth list-users resend-confirmation-code sign-up]]
             [clojure.string :as str]
+            [clojure.walk :as w]
             [org.httpkit.client :as hc]
+            [ring.util.codec :as codec]
             [fractl.datafmt.json :as json]
             [fractl.auth.core :as auth]
             [fractl.auth.jwt :as jwt]
@@ -200,12 +202,13 @@
          evaluator :evaluator
          call-post-signup :call-post-signup
          request :request} (:args auth-config)
-        query (when-let [s (:query-string request)] (uh/form-decode s))
+        query (when-let [s (:query-string request)]
+                (w/keywordize-keys (codec/form-decode s)))
         code (:code query)
         redirect-query (:redirect query)
         cognito-domain (u/getenv "AWS_COGNITO_DOMAIN")
-        backend-url (u/getenv "FRACTL_APP_URL")
-        redirect-url (u/getenv "FRACTL_REDIRECT_URL")
+        api-url (u/getenv "FRACTL_API_URL")
+        ui-url (u/getenv "FRACTL_UI_URL")
         client-id (u/getenv "AWS_COGNITO_CLIENT_ID")]
     (try
       (let [tokens
@@ -216,7 +219,7 @@
                {:grant_type "authorization_code"
                 :code code
                 :client_id client-id
-                :redirect_uri (str backend-url "/_authcallback"
+                :redirect_uri (str api-url "/auth/callback"
                                    (when redirect-query (str "?redirect=" redirect-query)))}})
             tokens (json/decode (:body tokens))]
         (if-let [token (:id_token tokens)]
@@ -246,14 +249,14 @@
                         :SignupResult sign-up-result :SignupRequest {:User user-obj})))))
                 (sess/upsert-user-session (:sub user) true)
                 {:status :redirect-found
-                 :location (str (or redirect-query redirect-url)
+                 :location (str (or redirect-query ui-url)
                                 "/?id_token=" (:id_token tokens)
                                 "&refresh_token=" (:refresh_token tokens))}))
-            {:error "id_token not valid - INVALID_TOKEN"})
-          {:error "error fetching tokens -ERROR_FETCHING_TOKEN"}))
+            {:error "id_token not valid"})
+          {:error "error fetching tokens"}))
       (catch Exception e
         (log/info (str e))
-        {:error "error fetching tokens - ERROR_FETCHING_TOKEN"}))))
+        {:error "error fetching tokens"}))))
 
 (defmethod auth/user-logout tag [{:keys [sub] :as req}]
   (let [{:keys [user-pool-id] :as aws-config} (uh/get-aws-config)]
