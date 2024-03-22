@@ -1033,9 +1033,36 @@
         (ok {:status "ok" :result decoded-token}))
       (bad-request (str "token not specified") "ID_TOKEN_REQUIRED"))))
 
+(defn- register-event [component pats]
+  (let [event-name (temp-event-name component)]
+    (and (apply ln/dataflow event-name pats)
+         event-name)))
+
+(defn as-vec [x]
+  (if (vector? x)
+    x
+    [x]))
+
+(defn eval-patterns [fractl-components fractl-patterns] 
+  (println fractl-components fractl-patterns)
+  (try
+    (let [event (-> (first fractl-components)
+                    (register-event (as-vec fractl-patterns)))]
+      (log/debug (str "event " event " generated."))
+      (try
+        (ev/safe-eval {event {}})
+        (finally
+          (cn/remove-event event))))
+    (catch Exception e
+      (log/info (str "Error evaluating patterns: "
+                     fractl-components " " fractl-patterns " "
+                     (.getMessage e)))
+      (.getMessage e)
+      "Error evaluating patterns")))
+
 (defn- process-post-copilot-question [[auth-config _] auth request]
   (if (and auth-config (nil? (:email (auth/session-sub
-                              (assoc auth :request request)))))
+                                      (assoc auth :request request)))))
     (bad-request (str "authentication not valid") "INVALID_AUTHENTICATION")
     (if-let [copilot-url (System/getenv "COPILOT_URL")]
       (let [[obj _ _] (request-object request)
@@ -1043,7 +1070,11 @@
             chat-uuid (:ChatUuid obj)
             use-docs (:UseDocs obj)
             use-schema (:UseSchema obj)
-            question (:Question obj)]
+            question (:Question obj)
+            components (remove #{:Fractl.Kernel.Identity :Fractl.Kernel.Lang
+                                 :Fractl.Kernel.Store :Fractl.Kernel.Rbac
+                                 :raw :-*-containers-*-}
+                               (cn/component-names))]
         (try
           (let [out (uh/POST
                       (str copilot-url "/_e/Copilot.Service.Core/PostAppQuestion")
@@ -1053,8 +1084,17 @@
                         :ChatUuid chat-uuid
                         :UseDocs use-docs
                         :UseSchema use-schema
-                        :Question question}})]
-            (ok out))
+                        :Question question
+                        :EvalPattern false}})
+                result (-> out
+                           first
+                           :result
+                           first)]
+            (log/debug (str "post-copilot-question: " out " " obj))
+            (if (= (:Type result) "pattern")
+              (let [evaluated-result (eval-patterns components (read-string (:Value result)))]
+                (ok (assoc-in out [0 :result 0 :Value] evaluated-result)))
+              (ok out)))
           (catch Exception ex
             (log/info (.getMessage ex))
             (bad-request "Request to copilot backend failed" "REQUEST_FAILED"))))
