@@ -234,3 +234,10 @@
 
 (defn form-decode [s]
   (w/keywordize-keys (codec/form-decode s)))
+
+(defn parse-cookies [cookie-string]
+  (when cookie-string
+    (into {}
+          (for [cookie (.split cookie-string ";")]
+            (let [keyval (map #(.trim %) (.split cookie "=" 2))]
+              [(first keyval) (second keyval)])))))

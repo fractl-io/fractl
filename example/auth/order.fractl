@@ -1,0 +1,11 @@
+(component :Twist)
+
+(entity
+ :Order
+ {:order_id {:type :String :guid true}
+  :customer_id :String
+  :email :Email
+  :order_qty :Int
+  :order_amount :Decimal
+  :tnc_agreement {:type :Boolean :default true}
+  :submission_date :Now})

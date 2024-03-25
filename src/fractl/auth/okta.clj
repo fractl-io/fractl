@@ -206,28 +206,41 @@
   ;; TODO: implement refresh-token
   )
 
+(defn- cookie-to-sid [cookie]
+  (when-let [kvs (http/parse-cookies cookie)]
+    (get kvs "sid")))
+
+(defmethod auth/cookie-to-session-id tag [_ cookie]
+  (cookie-to-sid cookie))
+
 (defmethod auth/authenticate-session tag [{cookie :cookie
                                            client-url :client-url
                                            :as auth-config}]
-  (if (and cookie (sess/lookup-session-cookie-user-data cookie))
-    {:status :redirect-found :location client-url}
+  (if cookie
+    (let [sid (auth/cookie-to-session-id auth-config cookie)]
+      (if (sess/lookup-session-cookie-user-data sid)
+        {:status :redirect-found :location client-url}
+        {:status :redirect-found :location (first (make-authorize-url auth-config))}))
     {:status :redirect-found :location (first (make-authorize-url auth-config))}))
 
 (defmethod auth/handle-auth-callback tag [{client-url :client-url args :args :as auth-config}]
   (let [request (:request args)
+        current-sid (cookie-to-sid (get-in request [:headers "cookie"]))
         params (http/form-decode (:query-string request))
         tokens (code-to-tokens auth-config (:code params))
-        session-id (u/uuid-string)
+        session-id (or current-sid (u/uuid-string))
         result {:authentication-result (us/snake-to-kebab-keys tokens)}
-        user (:sub (auth/verify-token auth-config [session-id result]))]
-    (if user
-      (and (sess/session-create user true)
-           (sess/session-cookie-create
-            session-id
-            {:authentication-result
-             (us/snake-to-kebab-keys tokens)})
-           {:status :redirect-found :location client-url :set-cookie (str "sid=" session-id)})
-      {:message "failed to create session"})))
+        auth-status (auth/verify-token auth-config [session-id result])
+        user (:sub auth-status)]
+    (if (and user (sess/session-create user true)
+             ((if current-sid
+                sess/session-cookie-replace
+                sess/session-cookie-create)
+              session-id result))
+      {:status :redirect-found
+       :location client-url
+       :set-cookie (str "sid=" session-id)}
+      {:error "failed to create session"})))
 
 (defmethod auth/session-user tag [{req :request cookie :cookie :as all-stuff-map}]
   (if cookie

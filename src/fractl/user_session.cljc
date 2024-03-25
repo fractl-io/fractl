@@ -1,7 +1,8 @@
 (ns fractl.user-session
   (:require [clojure.string :as s]
             [fractl.util :as u]
-            [fractl.evaluator :as ev]))
+            [fractl.evaluator :as ev]
+            [fractl.util.logger :as log]))
 
 (defn session-lookup [user]
   (let [result (ev/eval-internal
@@ -61,6 +62,10 @@
      (ev/eval-internal
       {:Fractl.Kernel.Identity/Delete_SessionCookie
        {:Id (normalize-sid sid)}})))))
+
+(defn session-cookie-replace [sid user-data]
+  (session-cookie-delete sid)
+  (session-cookie-create sid user-data))
 
 (defn lookup-session-cookie-user-data [sid]
   (let [result (ev/eval-internal

@@ -23,6 +23,8 @@
 ;; Handle the redirect-uri from an external auth-endpoint.
 (defmulti handle-auth-callback service-tag)
 
+(defmulti cookie-to-session-id service-tag)
+
 ;; Get user details
 (defmulti get-user service-tag)
 (defmulti resend-confirmation-code service-tag)

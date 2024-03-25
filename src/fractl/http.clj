@@ -24,7 +24,7 @@
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
             [fractl.global-state :as gs]
-            [fractl.user-session :as us]
+            [fractl.user-session :as sess]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
             [fractl.util.errors :refer [get-internal-error-message]]
@@ -78,12 +78,12 @@
      :else (response s 500 data-fmt)))
   ([s] (internal-error s :json)))
 
-(defn- redirect-found [location set-cookie]
+(defn- redirect-found [location cookie]
   {:status 302
    :headers
    (let [hdrs (assoc (headers) "Location" location)]
-     (if set-cookie
-       (assoc hdrs "Set-Cookie" set-cookie)
+     (if cookie
+       (assoc hdrs "Set-Cookie" cookie)
        hdrs))})
 
 (defn- sanitize-secrets [obj]
@@ -683,9 +683,9 @@
                   user-id (get (decode-jwt-token-from-response result) :sub)
                   cookie (get-in result [:authentication-result :user-data :cookie])
                   resp (ok {:result (if cookie {:authentication-result :success} result)} data-fmt)]
-              (us/upsert-user-session user-id true)
+              (sess/upsert-user-session user-id true)
               (if cookie
-                (do (us/session-cookie-create cookie result)
+                (do (sess/session-cookie-create cookie result nil)
                     (attach-set-cookie-header resp cookie))
                 resp))
             (catch Exception ex
@@ -844,13 +844,13 @@
         (let [ac (assoc auth-config :request request)
               cookie (get (:headers request) "cookie")
               auth-config (if cookie
-                            (assoc ac :cookie [cookie (us/lookup-session-cookie-user-data cookie)])
+                            (assoc ac :cookie [cookie (sess/lookup-session-cookie-user-data cookie)])
                             ac)
               sub (auth/session-sub auth-config)
               result (auth/user-logout (assoc auth-config :sub sub))]
-          (us/upsert-user-session (:username sub) false)
+          (sess/upsert-user-session (:username sub) false)
           (when cookie
-            (when-not (us/session-cookie-delete cookie)
+            (when-not (sess/session-cookie-delete cookie)
               (log/warn (str "session-cookie not deleted for " cookie))))
           (ok {:result result} data-fmt))
         (catch Exception ex
@@ -943,7 +943,7 @@
     (bad-request (:error result))))
 
 (defn- process-auth [evaluator [auth-config _] request]
-  (let [cookie (get-in request [:headers :cookie])]
+  (let [cookie (get-in request [:headers "cookie"])]
     (auth-response
      (auth/authenticate-session (assoc auth-config :cookie cookie)))))
 
@@ -1119,13 +1119,14 @@
   (try
     (if-let [user (get-in request [:identity :sub])]
       (when-not (and (buddy/authenticated? request)
-                     (us/is-logged-in user))
+                     (sess/is-logged-in user))
         (log/info (str "unauthorized request - " request))
         (unauthorized (find-data-format request)))
       (let [cookie (get (:headers request) "cookie")
-            data (us/lookup-session-cookie-user-data cookie)
-            user (:sub (auth/verify-token auth-config [cookie data]))]
-        (when-not (us/is-logged-in user)
+            sid (auth/cookie-to-session-id auth-config cookie)
+            data (sess/lookup-session-cookie-user-data sid)
+            user (:sub (auth/verify-token auth-config [sid data]))]
+        (when-not (sess/is-logged-in user)
           (log/info (str "unauthorized request - " request))
           (unauthorized (find-data-format request)))))
     (catch Exception ex
