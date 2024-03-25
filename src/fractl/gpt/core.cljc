@@ -1,16 +1,21 @@
 (ns fractl.gpt.core
   (:require [clojure.string :as s]
-            [fractl.util :as u]
-            [fractl.util.logger :as log]
-            [fractl.util.http :as http]
+            [fractl.datafmt.json :as json]
+            [fractl.global-state :as gs]
+            [fractl.gpt.resolver-seed :as rs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
-            [fractl.global-state :as gs]
-            [fractl.datafmt.json :as json]))
+            [fractl.util :as u]
+            [fractl.util.http :as http]
+            [fractl.util.logger :as log]))
+
+(def ^:private resolver-conversation rs/conversation)
 
 (defn add-to-conversation
   ([history role s]
-   (concat history [{:role role :content s}])))
+   (concat history [{:role role :content s}]))
+  ([s]
+   (add-to-conversation resolver-conversation "user" s)))
 
 (defn post [gpt result-handler request-message request-tunings]
   (http/do-post
@@ -38,6 +43,9 @@
    :api-key api-key})
 
 (defn- interactive-generate-helper [gpt response-handler request]
+  (let [request (if (string? request)
+                  (add-to-conversation request)
+                  request)])
   (post gpt (fn [r]
               (when-let [[choice next-request] (response-handler
                                                 (choices (:chat-response r)))]
