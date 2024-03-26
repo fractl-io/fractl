@@ -1,3 +1,1 @@
-{:service {:port 8000}
- :authentication {:service :cognito
-                  :superuser-email "ranganathrao@gmail.com"}}
+{:service {:port 8000}}
