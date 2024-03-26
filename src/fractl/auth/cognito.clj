@@ -211,7 +211,7 @@
         ui-url (u/getenv "FRACTL_UI_URL")
         client-id (u/getenv "AWS_COGNITO_CLIENT_ID")]
     (try
-      (let [tokens
+      (let [resp
             @(hc/post
               (str cognito-domain "/oauth2/token")
               {:headers {"Content-Type" "application/x-www-form-urlencoded"}
@@ -221,7 +221,7 @@
                 :client_id client-id
                 :redirect_uri (str api-url "/auth/callback"
                                    (when redirect-query (str "?redirect=" redirect-query)))}})
-            tokens (json/decode (:body tokens))]
+            tokens (json/decode (:body resp))]
         (if-let [token (:id_token tokens)]
           (if-let [user (auth/verify-token auth-config token)]
             (when (:email user)
