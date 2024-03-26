@@ -1,5 +1,5 @@
-(defproject auth "0.1.0-SNAPSHOT"
-  :description "Session-cookie authentication example"
+(defproject com.github.fractl-io/auth "0.1.0"
+  :description "Session-cookie authentication sample."
   :min-lein-version "2.0.0"
   :dependencies [[org.clojure/clojure "1.10.0"]
                  [compojure "1.6.1"]

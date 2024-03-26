@@ -33,6 +33,17 @@
      [:tr [:td] [:td]]
      [:tr [:td [:input {:type "submit" :value "Submit"}]] [:td]]]]])
 
+(defn- insts-as-table [insts]
+  (let [insts (mapv (fn [inst] (dissoc inst "-*-type-*-" "type-*-tag-*-")) insts)
+        ks (keys (first insts))
+        header (str (reduce (fn [s h] (str s "<th>" h "</th>")) "<tr>" ks) "</tr>")]
+    (str
+     (reduce (fn [s inst]
+               (let [vs (mapv #(get inst %) ks)]
+                 (str s (reduce (fn [s v] (str s "<td>" v "</td>")) "<tr>" vs) "</tr>")))
+             (str "<table>" header) insts)
+     "</table>")))
+
 (defroutes app-routes
   (GET "/" [] (render (home)))
   (GET "/order" [] (render (order)))
@@ -58,9 +69,27 @@
                                                                 :headers {"Content-Type" "application/json"
                                                                           "Cookie" @sid}
                                                                 :body (json/generate-string inst)})]
-                                     {:status (:status result)
-                                      :body (:body result)
-                                      :headers {"Content-Type" "application/json"}}))
+                                         (if (= 200 (:status result))
+                                           {:status 302
+                                            :headers {"Location" "/api/Twist/Order"}}
+                                           {:status (:status result)
+                                            :body (:body result)
+                                            :headers {"Content-Type" "text/html"}})))
+  (GET "/api/Twist/Order" request (let [url "http://localhost:8000/api/Twist/Order"
+                                        result @(http/request {:method :get :url url
+                                                               :headers {"Content-Type" "application/json"
+                                                                         "Cookie" @sid}})]
+                                    (if (= 200 (:status result))
+                                      {:status 200
+                                       :body (str
+                                              "<html><body>"
+                                              (insts-as-table (get (first (json/parse-string (:body result))) "result"))
+                                              "<a href=\"/order\">Place new order</a>"
+                                              "</body></html>")
+                                       :headers {"Content-Type" "text/html"}}
+                                      {:status (:status result)
+                                       :body (:body result)
+                                       :headers {"Content-Type" "text/html"}})))
   (route/not-found "Not Found"))
 
 (def app

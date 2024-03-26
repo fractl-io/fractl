@@ -19,7 +19,7 @@
                  [org.mindrot/jbcrypt "0.4"]
                  [honeysql "1.0.461"]
                  [compojure "1.6.2"]
-                 [http-kit "2.5.3"]
+                 [http-kit "2.7.0"]
                  [cljs-http "0.1.46"]
                  [ring-cors "0.1.13"]
                  [net.cgrand/macrovich "0.2.1"]

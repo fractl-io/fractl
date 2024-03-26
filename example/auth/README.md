@@ -1,6 +1,6 @@
 # auth
 
-FIXME
+Session-cookie authentication sample.
 
 ## Prerequisites
 
@@ -14,6 +14,14 @@ To start a web server for the application, run:
 
     lein ring server
 
-## License
+## Uberjar
 
-Copyright © 2024 FIXME
+    lein ring uberjar
+
+## Docker - build & run
+
+    lein ring uberjar
+    cd ../../
+	lein uberjar
+	docker build -t auth-demo -f example/auth/Dockerfile .
+	docker run -p 8000:8000 -p 3000:3000 auth-demo
