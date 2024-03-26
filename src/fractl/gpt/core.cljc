@@ -45,16 +45,16 @@
 (defn- interactive-generate-helper [gpt response-handler request]
   (let [request (if (string? request)
                   (add-to-conversation request)
-                  request)])
-  (post gpt (fn [r]
-              (when-let [[choice next-request] (response-handler
-                                                (choices (:chat-response r)))]
-                (interactive-generate-helper
-                 gpt response-handler (add-to-conversation
-                                            (add-to-conversation request "assistant" choice)
-                                            "user" next-request))))
-        request
-        nil))
+                  request)]
+    (post gpt (fn [r]
+                (when-let [[choice next-request] (response-handler
+                                                   (choices (:chat-response r)))]
+                  (interactive-generate-helper
+                    gpt response-handler (add-to-conversation
+                                           (add-to-conversation request "assistant" choice)
+                                           "user" next-request))))
+          request
+          nil)))
 
 (defn interactive-generate
   ([gpt-model-name api-key response-handler request]
