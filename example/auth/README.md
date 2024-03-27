@@ -48,3 +48,7 @@ To start a web server for the application, run:
 	lein uberjar
 	docker build -t auth-demo -f example/auth/Dockerfile .
 	docker run -p 8000:8000 auth-demo
+
+To allow the docker container to send logs to the host's syslog,
+
+    docker run --network=host auth-demo

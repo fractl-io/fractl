@@ -172,6 +172,7 @@
   (let [session-token (:sessionToken login-result)
         [url state] (make-authorize-url (assoc config :no-prompt true :session-token session-token))
         result (http/do-get url {:follow-redirects false})]
+    (log/debug (str "okta fetch-tokens from " url " returned status " (:status result)))
     (if (= 302 (:status result))
       (let [loc (:location (:headers result))
             s (subs loc (inc (s/index-of loc "?")))
@@ -238,7 +239,7 @@
         auth-status (auth/verify-token auth-config [session-id result])
         user (:sub auth-status)]
     (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
-    (if (and user (sess/session-create user true)
+    (if (and user (sess/upsert-user-session user true)
              ((if current-sid
                 sess/session-cookie-replace
                 sess/session-cookie-create)

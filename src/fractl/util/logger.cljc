@@ -9,9 +9,12 @@
 
 ;; flag applies only to low-priority log-modes (debug and info)
 (def logging-enabled (atom #?(:clj true :cljs false)))
+(def dev-logging-enabled (atom false))
 
 (defn disable-logging! [] (reset! logging-enabled false))
 (defn enable-logging! [] (reset! logging-enabled true))
+
+(defn enable-dev-logging! [] (reset! dev-logging-enabled true))
 
 #?(:clj (def log-capture! logger/log-capture!))
 
@@ -36,6 +39,10 @@
     (#?(:clj logger/debug
         :cljs prn-debug)
      msg)))
+
+(defn dev-debug [msg]
+  (when @dev-logging-enabled
+    (debug msg)))
 
 (defn info [msg]
   (when @logging-enabled
