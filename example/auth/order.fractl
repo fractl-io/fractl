@@ -1,4 +1,4 @@
-(component :Twist)
+(component :Acme)
 
 (entity
  :Order

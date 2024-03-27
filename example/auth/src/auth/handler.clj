@@ -23,7 +23,7 @@
 (defn order []
   [:div
    [:div [:h2 "New Order"]]
-   [:form {:action "/api/Twist/Order" :method :post}
+   [:form {:action "/api/Acme/Order" :method :post}
     [:table
      [:tr [:td "Order Id"] [:td [:input {:type "text" :id "order_id" :name "order_id"}]]]
      [:tr [:td "Customer Id"] [:td [:input {:type "text" :id "customer_id" :name "customer_id"}]]]
@@ -60,36 +60,36 @@
                                   (reset! sid (:set-cookie headers))
                                   {:status 302
                                    :headers {"Location" (:location headers)}}))
-  (POST "/api/Twist/Order" request (let [params (:params request)
-                                         attrs (assoc params "order_qty" (read-string (get params "order_qty"))
-                                                      "order_amount" (read-string (get params "order_amount")))
-                                         inst {"Twist/Order" attrs}
-                                         url "http://localhost:8000/api/Twist/Order"
-                                         result @(http/request {:method :post :url url
-                                                                :headers {"Content-Type" "application/json"
-                                                                          "Cookie" @sid}
-                                                                :body (json/generate-string inst)})]
-                                         (if (= 200 (:status result))
-                                           {:status 302
-                                            :headers {"Location" "/api/Twist/Order"}}
-                                           {:status (:status result)
-                                            :body (:body result)
-                                            :headers {"Content-Type" "text/html"}})))
-  (GET "/api/Twist/Order" request (let [url "http://localhost:8000/api/Twist/Order"
-                                        result @(http/request {:method :get :url url
+  (POST "/api/Acme/Order" request (let [params (:params request)
+                                        attrs (assoc params "order_qty" (read-string (get params "order_qty"))
+                                                     "order_amount" (read-string (get params "order_amount")))
+                                        inst {"Acme/Order" attrs}
+                                        url "http://localhost:8000/api/Acme/Order"
+                                        result @(http/request {:method :post :url url
                                                                :headers {"Content-Type" "application/json"
-                                                                         "Cookie" @sid}})]
+                                                                         "Cookie" @sid}
+                                                               :body (json/generate-string inst)})]
                                     (if (= 200 (:status result))
-                                      {:status 200
-                                       :body (str
-                                              "<html><body>"
-                                              (insts-as-table (get (first (json/parse-string (:body result))) "result"))
-                                              "<a href=\"/order\">Place new order</a>"
-                                              "</body></html>")
-                                       :headers {"Content-Type" "text/html"}}
+                                      {:status 302
+                                       :headers {"Location" "/api/Acme/Order"}}
                                       {:status (:status result)
                                        :body (:body result)
                                        :headers {"Content-Type" "text/html"}})))
+  (GET "/api/Acme/Order" request (let [url "http://localhost:8000/api/Acme/Order"
+                                       result @(http/request {:method :get :url url
+                                                              :headers {"Content-Type" "application/json"
+                                                                        "Cookie" @sid}})]
+                                   (if (= 200 (:status result))
+                                     {:status 200
+                                      :body (str
+                                             "<html><body>"
+                                             (insts-as-table (get (first (json/parse-string (:body result))) "result"))
+                                             "<a href=\"/order\">Place new order</a>"
+                                             "</body></html>")
+                                      :headers {"Content-Type" "text/html"}}
+                                     {:status (:status result)
+                                      :body (:body result)
+                                      :headers {"Content-Type" "text/html"}})))
   (route/not-found "Not Found"))
 
 (def app

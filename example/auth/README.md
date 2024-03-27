@@ -10,6 +10,28 @@ You will need [Leiningen][] 2.0.0 or above installed.
 
 ## Running
 
+Run fractl:
+
+    lein run -c config.edn example/auth/order.fractl
+
+where `config.edn` should have the following values:
+
+```clojure
+{:service {:port 8000}
+ :store {:type :h2
+         :dbname "./data"}
+ :authentication {:service :okta
+                  :superuser-email "superuser@acme.com"
+                  :domain "dev-04676848.okta.com"
+                  :auth-server "default"
+                  :client-id "okta-app-client-id" ; replace this
+                  :client-secret "okta-app-client-secret" ; replace this
+                  :scope "openid offline_access"
+                  :introspect true
+                  :authorize-redirect-url "http://localhost:3000/auth/callback"
+                  :client-url "http://localhost:3000/order"}}
+```
+
 To start a web server for the application, run:
 
     lein ring server
@@ -20,8 +42,8 @@ To start a web server for the application, run:
 
 ## Docker - build & run
 
-    lein ring uberjar
+    lein ring server
     cd ../../
 	lein uberjar
 	docker build -t auth-demo -f example/auth/Dockerfile .
-	docker run -p 8000:8000 -p 3000:3000 auth-demo
+	docker run -p 8000:8000 auth-demo
