@@ -82,6 +82,7 @@
 
 (defn- do-introspect [token-hint domain auth-server client-id client-secret token]
   (let [url (str "https://" domain "/oauth2/" auth-server "/v1/introspect")
+        _ (log/debug (str "okta introspect for client " client-id ", " url))
         req (str "token=" token "&token_type_hint=" token-hint)
         resp (http/do-request
               :post url
@@ -90,6 +91,7 @@
               req)]
     (if (= 200 (:status resp))
       (let [result (json/decode (:body resp))]
+        (log/debug (str "okta token for client " client-id " active flag is " (:active result)))
         (if (:active result)
           result
           (log/warn (str token-hint " introspect returned inactive state: " result))))
@@ -111,6 +113,7 @@
               access-token)]
     (or resp
         (let [reftok (:refresh-token authres)]
+          (log/debug (str "okta starting refresh token request for client " client-id))
           (when (introspect-refresh-token
                  domain auth-server client-id client-secret
                  reftok)
@@ -186,6 +189,7 @@
 
 (defmethod auth/user-login tag [{event :event domain :domain :as config}]
   (let [url (str "https://" domain "/api/v1/authn")
+        _ (log/debug (str "auth/user-login user: " (:Username event) ", " url))
         result
         (try
           (http/do-post url {"username" (:Username event)
@@ -218,6 +222,7 @@
                                            :as auth-config}]
   (if cookie
     (let [sid (auth/cookie-to-session-id auth-config cookie)]
+      (log/debug (str "auth/authenticate-session with cookie " sid))
       (if (sess/lookup-session-cookie-user-data sid)
         {:status :redirect-found :location client-url}
         {:status :redirect-found :location (first (make-authorize-url auth-config))}))
@@ -232,6 +237,7 @@
         result {:authentication-result (us/snake-to-kebab-keys tokens)}
         auth-status (auth/verify-token auth-config [session-id result])
         user (:sub auth-status)]
+    (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
     (if (and user (sess/session-create user true)
              ((if current-sid
                 sess/session-cookie-replace
