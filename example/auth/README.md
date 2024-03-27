@@ -20,6 +20,7 @@ where `config.edn` should have the following values:
 {:service {:port 8000}
  :store {:type :h2
          :dbname "./data"}
+ :logging {:syslog {}}
  :authentication {:service :okta
                   :superuser-email "superuser@acme.com"
                   :domain "dev-04676848.okta.com"

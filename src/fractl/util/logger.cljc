@@ -1,5 +1,11 @@
 (ns fractl.util.logger
-  #?(:clj (:require [clojure.tools.logging :as logger])))
+  #?(:clj (:require [clojure.tools.logging :as logger]))
+  #?(:clj (:import [org.slf4j LoggerFactory]
+                   [ch.qos.logback.classic Level]
+                   [ch.qos.logback.classic Logger]
+                   [ch.qos.logback.classic LoggerContext]
+                   [ch.qos.logback.classic.spi ILoggingEvent]
+                   [ch.qos.logback.classic.net SyslogAppender])))
 
 ;; flag applies only to low-priority log-modes (debug and info)
 (def logging-enabled (atom #?(:clj true :cljs false)))
@@ -51,3 +57,31 @@
            (.close pw)
            (debug (.toString sw))))
      :cljs (prn-error ex)))
+
+#?(:clj
+   (do
+     (defn- as-level [k]
+       (case k
+         :debug Level/DEBUG
+         :warn Level/WARN
+         :info Level/INFO
+         :error Level/ERROR
+         :trace Level/TRACE
+         Level/ALL))
+
+     (defn create-syslogger
+       ([logger-name config]
+        (let [^LoggerContext lc (LoggerFactory/getILoggerFactory)
+              ^SyslogAppender appender (SyslogAppender.)]
+          (.setSyslogHost appender (or (:syslog-host config) "localhost"))
+          (.setPort appender (or (:port config) 514))
+          (.setFacility appender (or (:facility config) "SYSLOG"))
+          (.setContext appender lc)
+          (.start appender)
+          (let [^Logger logger (LoggerFactory/getLogger logger-name)]
+            (.addAppender logger appender)
+            (.setLevel logger (as-level (or (:level config) :debug)))
+            (.setAdditive logger (or (:is-additive config) false))
+            logger)))
+       ([config] (create-syslogger "ROOT" config))
+       ([] (create-syslogger nil)))))
