@@ -124,6 +124,12 @@
   ([obj]
    (ok obj :json)))
 
+(defn- ok-html [body]
+  {:status 200
+   :body body
+   :headers {"Content-Type" "text/html"
+             "Content-Length" (count body)}})
+
 (defn- maybe-remove-read-only-attributes [obj]
   (if (cn/an-instance? obj)
     (cn/dissoc-write-only obj)
@@ -560,6 +566,25 @@
             (finally (cn/remove-event evn))))
         (bad-request (str "unsupported content-type in request - "
                           (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
+
+(defn- process-start-debug-session [evaluator [auth-config maybe-unauth] request]
+  (or (maybe-unauth request)
+      (if-let [data-fmt (find-data-format request)]
+        (let [[obj _ err-response] (request-object request)]
+          (or err-response
+              (ok-html (ev/debug-dataflow obj))))
+        (bad-request (str "unsupported content-type in request - "
+                          (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
+
+(defn- process-debug-step [evaluator [auth-config maybe-unauth] request]
+  (or (maybe-unauth request)
+      (let [id (get-in request [:params :id])]
+        (ok (ev/debug-step id)))))
+
+(defn- process-delete-debug-session [evaluator [auth-config maybe-unauth] request]
+  (or (maybe-unauth request)
+      (let [id (get-in request [:params :id])]
+        (ok (ev/debug-cancel id)))))
 
 (defn- eval-ok-result [eval-result]
   (if (vector? eval-result)
@@ -1089,6 +1114,9 @@
            (POST (str uh/entity-event-prefix "*") [] (:post-request handlers))
            (GET (str uh/entity-event-prefix "*") [] (:get-request handlers))
            (DELETE (str uh/entity-event-prefix "*") [] (:delete-request handlers))
+           (POST uh/debug-prefix [] (:start-debug-session handlers))
+           (GET (str uh/debug-prefix "/:id") [] (:debug-step handlers))
+           (DELETE (str uh/debug-prefix "/:id") [] (:delete-debug-session handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (POST uh/ai-prefix [] (:ai handlers))
@@ -1167,6 +1195,9 @@
             :post-request (partial process-post-request evaluator auth-info)
             :get-request (partial process-get-request evaluator auth-info)
             :delete-request (partial process-delete-request evaluator auth-info)
+            :start-debug-session (partial process-start-debug-session evaluator auth-info)
+            :debug-step (partial process-debug-step evaluator auth-info)
+            :delete-debug-session (partial process-delete-debug-session evaluator auth-info)
             :query (partial process-query evaluator auth-info)
             :eval (partial process-dynamic-eval evaluator auth-info nil)
             :ai (partial process-gpt-chat auth-info)

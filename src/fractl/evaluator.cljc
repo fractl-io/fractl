@@ -306,8 +306,63 @@
   ([env pattern] (evaluate-pattern env nil nil pattern))
   ([pattern] (evaluate-pattern nil nil pattern)))
 
-(defn debug-dataflow [event-instance]
-  (first (cn/dataflows-for-event (cn/instance-type (cn/make-instance event-instance)))))
+(def ^:private debug-sessions (atom {}))
+
+(defn- save-debug-session [id sess]
+  (swap! debug-sessions assoc id sess)
+  id)
+
+(defn- remove-debug-session [id]
+  (swap! debug-sessions dissoc id)
+  id)
+
+(defn- debug-step-result [df-result]
+  (let [r0 (if (map? df-result) df-result (first df-result))
+        s (:status r0), ir (:result r0)
+        inner-result (when (= :ok s) ir)
+        norm-inner-result (if inner-result
+                            (if (or (map? inner-result)
+                                    (string? inner-result))
+                              inner-result
+                              (vec inner-result))
+                            ir)
+        final-result (if (and (vector? norm-inner-result) (= 1 (count norm-inner-result)))
+                       (first norm-inner-result)
+                       norm-inner-result)]
+    {:status s :result final-result :env (env/cleanup (:env r0))}))
+
+(defn debug-step
+  ([opcode env ev id]
+   (if-let [opc (first opcode)]
+     (let [r (dispatch ev env opc)
+           sess {:opcode (rest opcode) :env (:env r) :eval ev}]
+       [(save-debug-session id sess) (debug-step-result r)])
+     [(remove-debug-session id) nil]))
+  ([id]
+   (when-let [{opcode :opcode env :env ev :eval}
+              (get @debug-sessions id)]
+     (debug-step opcode env ev id))))
+
+(defn debug-dataflow
+  ([event-instance evaluator]
+   (let [store (or (es/get-active-store)
+                   (store-from-config (:store (gs/get-app-config))))
+         [cq ev] (if evaluator
+                   [(partial store/compile-query store) evaluator]
+                   (make store))
+         event-instance (maybe-init-event event-instance)
+         df (first (c/compile-dataflows-for-event cq event-instance))
+         [_ opcs] (cn/dataflow-opcode df cn/with-default-types)
+         env (env/bind-instance
+              (env/make store nil)
+              (li/split-path (cn/instance-type event-instance))
+              event-instance)
+         id (u/uuid-string)
+         sess {:opcode opcs :env env :eval ev}]
+     (save-debug-session id sess)))
+  ([event-instance] (debug-dataflow event-instance nil)))
+
+(def debug-cancel remove-debug-session)
 
 (defn eval-all-dataflows
   ([event-obj store-or-store-config resolver-or-resolver-config]

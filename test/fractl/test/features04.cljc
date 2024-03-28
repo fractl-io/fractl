@@ -1,6 +1,7 @@
 (ns fractl.test.features04
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.evaluator :as ev]
             [fractl.lang.internal :as li]
@@ -551,4 +552,17 @@
      :Dbg01/E
      {:Dbg01/A {:X :Dbg01/E.X} :as :A}
      {:Dbg01/B {:Y '(+ 100 :A.X)}}))
-  (is (ev/debug-dataflow {:Dbg01/E {:X 20}})))
+  (let [dbg-session-id (ev/debug-dataflow {:Dbg01/E {:X 20}})
+        check-step (fn [t v?]
+                     (let [[id r] (ev/debug-step dbg-session-id)]
+                       (is (= id dbg-session-id))
+                       (is (= :ok (:status r)))
+                       (is (cn/instance-of? t (:result r)))
+                       (is (v? (:result r)))))]
+    (is dbg-session-id)
+    (check-step :Dbg01/A #(= 20 (:X %)))
+    (check-step :Dbg01/B #(= 120 (:Y %)))
+    (let [[id r] (ev/debug-step dbg-session-id)]
+      (is (= id dbg-session-id))
+      (is (nil? r)))
+    (is (nil? (ev/debug-step dbg-session-id)))))
