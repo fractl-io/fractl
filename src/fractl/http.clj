@@ -4,33 +4,35 @@
             [buddy.auth.backends :as buddy-back]
             [buddy.auth.middleware :as buddy-midd
              :refer [wrap-authentication]]
+            [buddy.core.keys :as buddykeys]
+            [buddy.sign.jwt :as buddyjwt]
+            [clj-time.core :as time]
             [clojure.string :as s]
             [clojure.walk :as w]
             [fractl.auth.core :as auth]
-            [fractl.component :as cn]
-            [buddy.core.keys :as buddykeys]
-            [buddy.sign.jwt :as buddyjwt]
-            [fractl.compiler :as compiler]
-            [clj-time.core :as time]
-            [fractl.lang :as ln]
-            [fractl.lang.raw :as lr]
-            [fractl.lang.internal :as li]
-            [fractl.paths.internal :as pi]
-            [fractl.util :as u]
-            [fractl.util.http :as uh]
-            [fractl.util.hash :as hash]
             [fractl.auth.jwt :as jwt]
-            [fractl.auth.core :as auth]
-            [fractl.util.logger :as log]
-            [fractl.gpt.core :as gpt]
+            [fractl.compiler :as compiler]
+            [fractl.component :as cn]
+            [fractl.datafmt.json :as json]
+            [fractl.datafmt.transit :as t]
+            [fractl.evaluator :as ev]
             [fractl.global-state :as gs]
+            [fractl.gpt.core :as gpt]
+            [fractl.lang :as ln]
+            [fractl.lang.internal :as li]
+            [fractl.lang.raw :as lr]
+            [fractl.paths.internal :as pi]
             [fractl.user-session :as sess]
+            [fractl.util :as u]
+            [fractl.util.errors :refer [get-internal-error-message]]
+            [fractl.util.hash :as hash]
+            [fractl.util.http :as uh]
+            [fractl.util.logger :as log]
+            [org.httpkit.client :as hc]
             [org.httpkit.server :as h]
             [ring.middleware.cors :as cors]
-            [fractl.util.errors :refer [get-internal-error-message]]
-            [fractl.evaluator :as ev]
-            [fractl.datafmt.transit :as t])
-  (:use [compojure.core :only [routes POST PUT DELETE GET]]
+            [ring.util.codec :as codec])
+  (:use [compojure.core :only [DELETE GET POST PUT routes]]
         [compojure.route :only [not-found]]))
 
 (defn- headers
@@ -280,17 +282,18 @@
         (or err-response
             (let [resp (atom nil)
                   generation (gpt/non-interactive-generate
-                              (get map-obj :model)
-                              (get map-obj :key)
-                              (fn [choice history]
-                                (if choice
-                                  (reset!
-                                   resp
-                                   {:choice choice
-                                    :chat-history history})
-                                  (u/throw-ex "AI failed to service your request, please try again")))
-                              (get map-obj :message)
-                              (get map-obj :result-tuning))]
+                               (if (nil? (get map-obj :type)) "model" (get map-obj :type))
+                               (get map-obj :model)
+                               (get map-obj :key)
+                               (fn [choice history]
+                                 (if choice
+                                   (reset!
+                                     resp
+                                     {:choice       choice
+                                      :chat-history history})
+                                   (u/throw-ex "AI failed to service your request, please try again")))
+                               (get map-obj :message)
+                               (get map-obj :result-tuning))]
               (reset! resp generation)
               (ok @resp))))))
 

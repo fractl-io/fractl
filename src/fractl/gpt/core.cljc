@@ -232,13 +232,11 @@
 
 #?(:clj
    (defn bot [request]
-     (let [seed-type (:seed-type request)
-           type (:type request)
+     (let [type (:type request)
            req [{:role "user" :content (:content request)}]
            resp (atom nil)]
        (non-interactive-generate
          type
-        seed-type
         (fn [choice history]
           (reset!
            resp
