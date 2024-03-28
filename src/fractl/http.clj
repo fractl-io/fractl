@@ -19,22 +19,29 @@
             [fractl.util :as u]
             [fractl.util.http :as uh]
             [fractl.util.hash :as hash]
-            [fractl.auth.cognito :as cognito]
             [fractl.auth.jwt :as jwt]
+            [fractl.auth.core :as auth]
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
             [fractl.global-state :as gs]
-            [fractl.user-session :as us]
+            [fractl.user-session :as sess]
             [org.httpkit.server :as h]
-            [org.httpkit.client :as hc]
-            [fractl.datafmt.json :as json]
-            [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
             [fractl.util.errors :refer [get-internal-error-message]]
             [fractl.evaluator :as ev]
             [fractl.datafmt.transit :as t])
   (:use [compojure.core :only [routes POST PUT DELETE GET]]
         [compojure.route :only [not-found]]))
+
+(defn- headers
+  ([data-fmt]
+   (merge
+    (when data-fmt
+      {"Content-Type" (uh/content-type data-fmt)}
+      {"Access-Control-Allow-Origin" "*"
+       "Access-Control-Allow-Methods" "GET,POST,PUT,DELETE"
+       "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"})))
+  ([] (headers nil)))
 
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
@@ -70,6 +77,14 @@
      (string? s) (response {:reason s} 500 data-fmt)
      :else (response s 500 data-fmt)))
   ([s] (internal-error s :json)))
+
+(defn- redirect-found [location cookie]
+  {:status 302
+   :headers
+   (let [hdrs (assoc (headers) "Location" location)]
+     (if cookie
+       (assoc hdrs "Set-Cookie" cookie)
+       hdrs))})
 
 (defn- sanitize-secrets [obj]
   (let [r (mapv (fn [[k v]]
@@ -108,10 +123,6 @@
    (response (cleanup-results obj) 200 data-fmt))
   ([obj]
    (ok obj :json)))
-
-(defn- create-event [event-name]
-  {cn/type-tag-key :event
-   cn/instance-type (keyword event-name)})
 
 (defn- maybe-remove-read-only-attributes [obj]
   (if (cn/an-instance? obj)
@@ -294,8 +305,7 @@
 (defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
   (or (maybe-unauth request)
       (if-let [parsed-path (parse-rest-uri request)]
-        (let [query-params (when-let [s (:query-string request)]
-                             (w/keywordize-keys (codec/form-decode s)))
+        (let [query-params (when-let [s (:query-string request)] (uh/form-decode s))
               [obj data-fmt err-response] (request-object request)
               parsed-path (assoc parsed-path :query-params query-params :data-fmt data-fmt)]
           (or err-response (let [[event-gen resp options] (handler parsed-path obj)]
@@ -551,8 +561,6 @@
         (bad-request (str "unsupported content-type in request - "
                           (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
-(def ^:private post-signup-event-name :Fractl.Kernel.Identity/PostSignUp)
-
 (defn- eval-ok-result [eval-result]
   (if (vector? eval-result)
     (eval-ok-result (first eval-result))
@@ -604,6 +612,10 @@
       ["Password does not conform to the specification. Please choose a stronger password." "INVALID_PASSWORD"]
       :else [message "SIGNUP_ERROR"])))
 
+(defn- create-event [event-name]
+  {cn/type-tag-key :event
+   cn/instance-type (keyword event-name)})
+
 (defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "sign-up"))
@@ -630,7 +642,7 @@
                         (evaluate
                          evaluator
                          (assoc
-                          (create-event post-signup-event-name)
+                          (create-event :Fractl.Kernel.Identity/PostSignUp)
                           :SignupResult result :SignupRequest evobj)))]
                   (if user
                     (ok (or (when (seq post-signup-result) post-signup-result)
@@ -646,16 +658,13 @@
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn decode-jwt-token-from-response [response]
-  (-> response
-      (get :authentication-result)
-      (get :id-token)
-      (jwt/decode)))
+  (let [res (:authentication-result response)
+        token (or (:access-token res) (:id-token res))]
+    (jwt/decode token)))
 
-(defn upsert-user-session [user-id logged-in]
-  ((if (us/session-exists-for? user-id)
-     us/session-update
-     us/session-create)
-   user-id logged-in))
+(defn- attach-set-cookie-header [resp cookie]
+  (let [hdrs (:headers resp)]
+    (assoc resp :headers (assoc hdrs "Set-Cookie" cookie))))
 
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
@@ -671,9 +680,14 @@
                            auth-config
                            :event evobj
                            :eval evaluator))
-                  user-id (get (decode-jwt-token-from-response result) :sub)]
-              (upsert-user-session user-id true)
-              (ok {:result result} data-fmt))
+                  user-id (get (decode-jwt-token-from-response result) :sub)
+                  cookie (get-in result [:authentication-result :user-data :cookie])
+                  resp (ok {:result (if cookie {:authentication-result :success} result)} data-fmt)]
+              (sess/upsert-user-session user-id true)
+              (if cookie
+                (do (sess/session-cookie-create cookie result nil)
+                    (attach-set-cookie-header resp cookie))
+                resp))
             (catch Exception ex
               (log/warn ex)
               (unauthorized
@@ -827,13 +841,17 @@
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
       (try
-        (let [sub (auth/session-sub
-                   (assoc auth-config :request request))
-              result (auth/user-logout
-                      (assoc
-                       auth-config
-                       :sub sub))]
-          (upsert-user-session (:username sub) false)
+        (let [ac (assoc auth-config :request request)
+              cookie (get (:headers request) "cookie")
+              auth-config (if cookie
+                            (assoc ac :cookie [cookie (sess/lookup-session-cookie-user-data cookie)])
+                            ac)
+              sub (auth/session-sub auth-config)
+              result (auth/user-logout (assoc auth-config :sub sub))]
+          (sess/upsert-user-session (:username sub) false)
+          (when cookie
+            (when-not (sess/session-cookie-delete cookie)
+              (log/warn (str "session-cookie not deleted for " cookie))))
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
@@ -918,72 +936,24 @@
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
-(defn- verify-token [token]
-  (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
-    (jwt/verify-and-extract
-     (cognito/make-jwks-url region user-pool-id)
-     token)))
+(defn- auth-response [result]
+  (case (:status result)
+    :redirect-found (redirect-found (:location result) (:set-cookie result))
+    :ok (ok (:message result))
+    (bad-request (:error result))))
+
+(defn- process-auth [evaluator [auth-config _] request]
+  (let [cookie (get-in request [:headers "cookie"])]
+    (auth-response
+     (auth/authenticate-session (assoc auth-config :cookie cookie)))))
 
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
-  (if auth-config
-    (let [query (when-let [s (:query-string request)]
-                  (w/keywordize-keys (codec/form-decode s)))
-          code (:code query)
-          redirect-query (:redirect query)
-          cognito-domain (u/getenv "AWS_COGNITO_DOMAIN")
-          api-url (u/getenv "FRACTL_API_URL")
-          ui-url (u/getenv "FRACTL_UI_URL")
-          client-id (u/getenv "AWS_COGNITO_CLIENT_ID")]
-      (try
-        (let [tokens
-              @(hc/post
-                (str cognito-domain "/oauth2/token")
-                {:headers {"Content-Type" "application/x-www-form-urlencoded"}
-                 :query-params
-                 {:grant_type "authorization_code"
-                  :code code
-                  :client_id client-id
-                  :redirect_uri (str api-url "/_authcallback"
-                                     (when redirect-query (str "?redirect=" redirect-query)))}})
-              tokens (json/decode (:body tokens))]
-          (if-let [token (:id_token tokens)]
-            (if-let [user (verify-token token)]
-              (when (:email user)
-                (let [user-obj {:Email (:email user)
-                                :Name (str (:given_name user) " " (:family_name user))
-                                :FirstName (:given_name user)
-                                :LastName (:family_name user)}
-                      sign-up-request
-                      {:Fractl.Kernel.Identity/SignUp
-                       {:User {:Fractl.Kernel.Identity/User user-obj}}}
-                      new-sign-up
-                      (= :not-found
-                         (:status
-                          (first
-                           (evaluator
-                            {:Fractl.Kernel.Identity/FindUser
-                             {:Email (:Email user-obj)}}))))]
-                  (when new-sign-up
-                    (let [sign-up-result (u/safe-ok-result (evaluator sign-up-request))]
-                      (when call-post-signup
-                        (evaluate
-                         evaluator
-                         (assoc
-                          (create-event post-signup-event-name)
-                          :SignupResult sign-up-result :SignupRequest {:User user-obj})))))
-                  (upsert-user-session (:sub user) true)
-                  {:status  302
-                   :headers {"Location"
-                             (str (or redirect-query ui-url)
-                                  "/?id_token=" (:id_token tokens)
-                                  "&refresh_token=" (:refresh_token tokens))}}))
-              (bad-request (str "id_token not valid") "INVALID_TOKEN"))
-            (bad-request
-             (str "error fetching tokens") "ERROR_FETCHING_TOKEN")))
-        (catch Exception e
-          (log/info (str e))
-          (bad-request (str "error fetching tokens") "ERROR_FETCHING_TOKEN"))))
-    (internal-error "cannot process sign-up - authentication not enabled")))
+  (auth-response
+   (auth/handle-auth-callback
+    (assoc auth-config :args {:evaluate evaluate
+                              :evaluator evaluator
+                              :call-post-signup call-post-signup
+                              :request request}))))
 
 (defn- make-magic-link [username op payload description expiry]
   (let [hskey (u/getenv "FRACTL_HS256_KEY")]
@@ -1014,8 +984,7 @@
     (internal-error "cannot process register-magiclink - authentication not enabled")))
 
 (defn- process-get-magiclink [_ request]
-  (let [query (when-let [s (:query-string request)]
-                (w/keywordize-keys (codec/form-decode s)))]
+  (let [query (when-let [s (:query-string request)] (uh/form-decode s))]
     (if-let [token (:code query)]
       (let [decoded-token (decode-magic-link-token token)
             operation (:operation decoded-token)
@@ -1123,6 +1092,7 @@
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (POST uh/ai-prefix [] (:ai handlers))
+           (GET uh/auth-prefix [] (:auth handlers))
            (GET uh/auth-callback-prefix [] (:auth-callback handlers))
            (POST uh/register-magiclink-prefix [] (:register-magiclink handlers))
            (GET uh/get-magiclink-prefix [] (:get-magiclink handlers))
@@ -1145,23 +1115,30 @@
      :access-control-allow-credentials true
      :access-control-allow-methods [:post :put :delete :get])))
 
-(defn- handle-request-auth [request]
-  (let [user (get-in request [:identity :sub])]
-    (try
+(defn- handle-request-auth [auth-config request]
+  (try
+    (if-let [user (get-in request [:identity :sub])]
       (when-not (and (buddy/authenticated? request)
-                     (us/is-logged-in user))
+                     (sess/is-logged-in user))
         (log/info (str "unauthorized request - " request))
         (unauthorized (find-data-format request)))
-      (catch Exception ex
-        (log/warn ex)
-        (bad-request "invalid auth data" (find-data-format request) "INVALID_AUTH_DATA")))))
+      (let [cookie (get (:headers request) "cookie")
+            sid (auth/cookie-to-session-id auth-config cookie)
+            data (sess/lookup-session-cookie-user-data sid)
+            user (:sub (auth/verify-token auth-config [sid data]))]
+        (when-not (sess/is-logged-in user)
+          (log/info (str "unauthorized request - " request))
+          (unauthorized (find-data-format request)))))
+    (catch Exception ex
+      (log/warn ex)
+      (unauthorized (find-data-format request)))))
 
 (defn- auth-service-supported? [auth]
-  (some #{(:service auth)} [:keycloak :cognito :dataflow]))
+  (some #{(:service auth)} [:keycloak :cognito :okta :dataflow]))
 
 (defn make-auth-handler [config]
   (let [auth (:authentication config)
-        auth-check (if auth handle-request-auth (constantly false))]
+        auth-check (if auth (partial handle-request-auth auth) (constantly false))]
     [auth auth-check]))
 
 (defn run-server
@@ -1193,7 +1170,10 @@
             :query (partial process-query evaluator auth-info)
             :eval (partial process-dynamic-eval evaluator auth-info nil)
             :ai (partial process-gpt-chat auth-info)
-            :auth-callback (partial process-auth-callback evaluator config auth-info)
+            :auth (partial process-auth evaluator auth-info)
+            :auth-callback (partial
+                            process-auth-callback evaluator
+                            (:call-post-sign-up-event config) auth-info)
             :register-magiclink (partial process-register-magiclink auth-info auth)
             :get-magiclink (partial process-get-magiclink auth-info)
             :preview-magiclink (partial process-preview-magiclink auth-info)
