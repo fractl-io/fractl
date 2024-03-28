@@ -16,6 +16,7 @@
                  [c3p0/c3p0 "0.9.1.2"]
                  [selmer "1.12.58"]
                  [com.h2database/h2 "1.4.200"]
+                 [redis.clients/jedis "4.3.1"]
                  [org.mindrot/jbcrypt "0.4"]
                  [honeysql "1.0.461"]
                  [compojure "1.6.2"]
