@@ -1062,7 +1062,7 @@
             env (env/assoc-active-event env inst)
             df (first
                 (cl/compile-dataflows-for-event
-                 (partial store/compile-query (:store env))
+                 (partial store/compile-query (env/get-store env))
                  (if with-types
                    (assoc inst li/with-types-tag with-types)
                    inst)))
