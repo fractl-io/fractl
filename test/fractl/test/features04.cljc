@@ -2,6 +2,7 @@
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.component :as cn]
+            [fractl.evaluator :as ev]
             [fractl.lang.internal :as li]
             [fractl.lang
              :refer [component attribute event
@@ -540,3 +541,14 @@
       (chk b2 a1)
       (chk b3 a2)
       (lkp b1) (lkp b2) (lkp b3))))
+
+(deftest debugger-01
+  (defcomponent :Dbg01
+    (entity :Dbg01/A {:Id :Identity :X :Int})
+    (entity :Dbg01/B {:Id :Identity :Y :Int})
+    (event :Dbg01/E {:X :Int})
+    (dataflow
+     :Dbg01/E
+     {:Dbg01/A {:X :Dbg01/E.X} :as :A}
+     {:Dbg01/B {:Y '(+ 100 :A.X)}}))
+  (is (ev/debug-dataflow {:Dbg01/E {:X 20}})))

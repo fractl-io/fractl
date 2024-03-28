@@ -306,6 +306,9 @@
   ([env pattern] (evaluate-pattern env nil nil pattern))
   ([pattern] (evaluate-pattern nil nil pattern)))
 
+(defn debug-dataflow [event-instance]
+  (first (cn/dataflows-for-event (cn/instance-type (cn/make-instance event-instance)))))
+
 (defn eval-all-dataflows
   ([event-obj store-or-store-config resolver-or-resolver-config]
    (let [ef (evaluator store-or-store-config resolver-or-resolver-config)]
