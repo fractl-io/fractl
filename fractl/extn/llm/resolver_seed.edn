@@ -1,14 +1,11 @@
-(ns fractl.gpt.resolver-seed)
-
-(def conversation
-  [{:role "system" :content "You are the fractl assistant."},
-   {:role "system" :content "All http requests will be handles using the http-kit library, json handling will be done with the cheshire.core library, aws handling will be done with the amazonica library, and system util processes will be done using fractl.util (i.e. getting system environment variables with fractl.util/getenv)"},
-   {:role "system" :content "Leave no implementation to the user, add all implementation yourself"},
-   {:role "system" :content "All of the resolver functions are to be defined outside of the resolver definition, and will be accessed using the definition below:
+[{:role "system" :content "You are the fractl assistant."},
+ {:role "system" :content "All http requests will be handles using the http-kit library, json handling will be done with the cheshire.core library, aws handling will be done with the amazonica library, and system util processes will be done using fractl.util (i.e. getting system environment variables with fractl.util/getenv)"},
+ {:role "system" :content "Leave no implementation to the user, add all implementation yourself"},
+ {:role "system" :content "All of the resolver functions are to be defined outside of the resolver definition, and will be accessed using the definition below:
 (defmake :<resolver-name>   (fn [resolver-name conf]     (reset! config conf)     (r/make-resolver resolver-name {:create {:handler <create-function-name>}    :update {:handler <update-function-name>} 	 :delete {:handler <delete-function-name>} 	 :query  {:handler <query-function-name>}}))) ```
 Defmake is not an actual call so it needs [fractl.resolver.registry :refer [defmake]] in the requirements as defmake isn’t an actual clojure call. 'r’ in r/make-resolver is also needed as a requirement as [fractl.registry.core :as r]"},
-   {:role "user" :content "generate a resolver for airtable that backs a User entity."},
-   {:role "assistant" :content "Airtable Resolver:
+ {:role "user" :content "generate a resolver for airtable that backs a User entity."},
+ {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -57,8 +54,8 @@ File 1(Resolver):
                       :delete {:handler delete-entity}
                       :query  {:handler query-entities}})))
 "},
-   {:role "user" :content "Instead of handling everything in one file, create a second file to handle the http requests"},
-   {:role "assistant" :content "Airtable Resolver:
+ {:role "user" :content "Instead of handling everything in one file, create a second file to handle the http requests"},
+ {:role "assistant" :content "Airtable Resolver:
 
 File 1(Resolver):
 (ns airtable-resolver.resolver
@@ -140,8 +137,8 @@ File 2(Http):
   (let [response (get endpoint api-key query-params)]
     (json/parse-string (:body response) true)))
 "},
-   {:role "user" :content "in the http file make it so that the *-in-base functions are combined with their request functions for simplicity"},
-   {:role "assistant" :content "Airtable Resolver:
+ {:role "user" :content "in the http file make it so that the *-in-base functions are combined with their request functions for simplicity"},
+ {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -221,8 +218,8 @@ File 2(Http):
                                  :query-params params})]
         (json/parse-string (:body response) true))))
 "},
-   {:role "user" :content "Make it so that query-entities can query either a single record, the whole table, or certain records with parameters"},
-   {:role "assistant" :content "Airtable Resolver:
+ {:role "user" :content "Make it so that query-entities can query either a single record, the whole table, or certain records with parameters"},
+ {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -417,7 +414,7 @@ File 2(Http):
   {:TeamEvent    :EventDetails
    :Participants :Participants}})
 "},
-   {:role "assistant" :content "Airtable Resolver:
+ {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -513,8 +510,8 @@ File 2(Http):
                                   {:headers {\"Authorization\" (str \"Bearer \" api-key)}
                                    :query-params params})]
         (json/parse-string (:body response) true)))))"},
-   {:role "user" :content "Create a version of the resolver that gets the api-key and base-id from the environment variables instead"},
-   {:role "assistant" :content "Airtable Resolver:
+ {:role "user" :content "Create a version of the resolver that gets the api-key and base-id from the environment variables instead"},
+ {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -607,9 +604,9 @@ File 2(Http):
                                   {:headers {\"Authorization\" (str \"Bearer \" api-key)}
                                    :query-params params})]
         (json/parse-string (:body response) true)))))"},
-   {:role "user" :content "Generate a resolver that backs 2 entities, Bucket and Object with the AWS S3 service"},
-   {:role "system" :content "for attributes that AWS automatically creates, such as an ARN when working with SNS, dont use the arn or any other automatically-defined attribute when creating an entity"},
-   {:role "assistant" :content "AWS S3 Resolver:
+ {:role "user" :content "Generate a resolver that backs 2 entities, Bucket and Object with the AWS S3 service"},
+ {:role "system" :content "for attributes that AWS automatically creates, such as an ARN when working with SNS, dont use the arn or any other automatically-defined attribute when creating an entity"},
+ {:role "assistant" :content "AWS S3 Resolver:
 File 1(Resolver):
 (ns aws-s3-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -670,8 +667,8 @@ File 2(Client):
 (defn delete-object [bucket key]
   (s3/delete-object :bucket-name bucket :key key)
 "},
-   {:role "user" :content "Make it so that you have to use AWS login credentials to access buckets (credentials need to have the access-key, secret-key, and endpoint, otherwise they will not work)"}
-   {:role "assistant" :content "AWS S3 Resolver:
+ {:role "user" :content "Make it so that you have to use AWS login credentials to access buckets (credentials need to have the access-key, secret-key, and endpoint, otherwise they will not work)"}
+ {:role "assistant" :content "AWS S3 Resolver:
 File 1(Resolver):
 (ns aws-s3-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -736,8 +733,8 @@ File 2(Client):
 (defn delete-object
   ([cred bucket key]
     (s3/delete-object cred :bucket-name bucket :key key))"},
-   {:role "user" :content "Generate a resolver that backs the following fractl data model with AWS S3: (component :AWS.S3) (entity :AWS.S3/Bucket {:Name :String :Region :String}) (entity :AWS.S3/Object {:Key :String :Bucket :String :File :String}) (relationship :AWS.S3/BucketObject {:meta {:contains [:AWS.S3/Bucket :AWS.S3/Object]}})"},
-   {:role "assistant" :content "AWS S3 Resolver:
+ {:role "user" :content "Generate a resolver that backs the following fractl data model with AWS S3: (component :AWS.S3) (entity :AWS.S3/Bucket {:Name :String :Region :String}) (entity :AWS.S3/Object {:Key :String :Bucket :String :File :String}) (relationship :AWS.S3/BucketObject {:meta {:contains [:AWS.S3/Bucket :AWS.S3/Object]}})"},
+ {:role "assistant" :content "AWS S3 Resolver:
 File 1(Resolver):
 (ns aws-s3-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -812,9 +809,9 @@ File 2(Client):
 (defn delete-object
   ([cred bucket key]
     (s3/delete-object cred :bucket-name bucket :key key))"},
-   {:role "system" :content "There is no query for the BucketObject relationship and query's only work for entities not relationships"},
-   {:role "user" :content "Create a version of the resolver so that the credentials are retrieved from the environment variables rather than from config"},
-   {:role "assistant" :content "AWS S3 Resolver:
+ {:role "system" :content "There is no query for the BucketObject relationship and query's only work for entities not relationships"},
+ {:role "user" :content "Create a version of the resolver so that the credentials are retrieved from the environment variables rather than from config"},
+ {:role "assistant" :content "AWS S3 Resolver:
 File 1(Resolver):
 (ns aws-s3-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -897,13 +894,13 @@ File 2(Client):
 (defn delete-object
   ([cred bucket key]
     (s3/delete-object cred :bucket-name bucket :key key))"},
-   {:role "user" :content "Generate a resolver that backs the following fractl data model with AWS SNS:
+ {:role "user" :content "Generate a resolver that backs the following fractl data model with AWS SNS:
                              (component :AWS.SNS)
                              (entity :AWS.SNS/Topic {:Name :String :TopicArn :String})
                              (entity :AWS.SNS/Subscription {:Endpoint :String :Protocol :String :SubscriptionArn :String})
                              (entity :AWS.SNS/Message {:TopicArn :String :Content :String :Subject :String})
                              (relationship :AWS.SNS/TopicSubscription {:meta {:contains [:AWS.SNS/Topic :AWS.SNS/Subscription]}})"},
-   {:role "assistant" :content "AWS SNS Resolver:
+ {:role "assistant" :content "AWS SNS Resolver:
 File 1(Resolver):
 (ns aws-sns-resolver.resolver
   (:require [fractl.resolver.core :as r]
@@ -979,14 +976,14 @@ File 2(Client):
   (sns/get-subscription-attributes credentials :subscription-arn subscription-arn))
 (defn set-subscription-attributes [credentials subscription-arn attributes]
   (sns/set-subscription-attributes credentials :subscription-arn subscription-arn :attributes attributes))"}
-   {:role "user" :content "Generate a resolver for the following fractl data model using Google Classroom's API:
+ {:role "user" :content "Generate a resolver for the following fractl data model using Google Classroom's API:
                              (component :Google.Classroom)
                              (entity :Google.Classroom/User {:Id {:type :String :identity true} :Name :String :Email :String})
                              (entity :Google.Classroom/Course {:Id {:type :String :identity true} :Title :String :Description :String :CreatedBy {:type :Google.Classroom/User :indexed true} :CreatedOn :DateTime})
                              (entity :Google.Classroom/Assignment {:Id {:type :String :identity true} :Title :String :Description :String :Course {:type :Google.Classroom/Course :indexed true} :CreatedBy {:type :Google.Classroom/User :indexed true} :CreatedOn :DateTime})
                              (relationship :Google.Classroom/Enrollment {:meta {:contains [:Google.Classroom/Course :Google.Classroom/User]}})
                              Use OAuth 2.0 for authentication"},
-   {:role "assistant" :content "Assistant's response: Google Classroom Resolver:
+ {:role "assistant" :content "Assistant's response: Google Classroom Resolver:
 File 1(Resolver):
 ```clojure
 (ns google-classroom-resolver.resolver
@@ -1091,7 +1088,7 @@ File 2(Client):
         :body
         json/parse-string)))
 ```"}
-   {:role "user" :content "Generate a resolver for Box. Which can directly perform actions like:
+ {:role "user" :content "Generate a resolver for Box. Which can directly perform actions like:
                            list-items-in-folder, download-file, download-folder, get-folder-information, etc.
 
                            The request for the API can be:
@@ -1099,7 +1096,7 @@ File 2(Client):
                            POST \"_e/Box/GetFolderInfo\"
                            {\n    \"Box/GetFolderInfo\": {\n        \"FolderId\": \"246847679929\",\n        \"Path\": \"/Users/prertik/Developer/fractl/\"\n    }\n}
                            "}
-   {:role "assistant" :content "Assistant's response: Box Resolver:
+ {:role "assistant" :content "Assistant's response: Box Resolver:
 File 1(Resolver):
 ```clojure
 (ns box-resolver.resolver
@@ -1391,5 +1388,5 @@ File 2(Client):
           decoded-body
           (throw (Exception. (str \"Error listing file collaborations: \" response))))))))
 ```
-"}])
+"}]
 
