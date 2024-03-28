@@ -7,6 +7,7 @@
                  [org.clojure/data.xml "0.2.0-alpha5"]
                  [org.clojure/data.csv "1.0.0"]
                  [org.clojure/tools.logging "1.2.4"]
+                 [org.slf4j/slf4j-api "2.0.12"]
                  [ch.qos.logback/logback-classic "1.5.3"]
                  [environ "1.2.0"]
                  [commons-io/commons-io "2.11.0"]
