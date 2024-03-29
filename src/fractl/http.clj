@@ -581,6 +581,11 @@
       (let [id (get-in request [:params :id])]
         (ok (ev/debug-step id)))))
 
+(defn- process-debug-continue [evaluator [auth-config maybe-unauth] request]
+  (or (maybe-unauth request)
+      (let [id (get-in request [:params :id])]
+        (ok (ev/debug-continue id)))))
+
 (defn- process-delete-debug-session [evaluator [auth-config maybe-unauth] request]
   (or (maybe-unauth request)
       (let [id (get-in request [:params :id])]
@@ -1115,7 +1120,8 @@
            (GET (str uh/entity-event-prefix "*") [] (:get-request handlers))
            (DELETE (str uh/entity-event-prefix "*") [] (:delete-request handlers))
            (POST uh/debug-prefix [] (:start-debug-session handlers))
-           (GET (str uh/debug-prefix "/:id") [] (:debug-step handlers))
+           (PUT (str uh/debug-prefix "/step/:id") [] (:debug-step handlers))
+           (PUT (str uh/debug-prefix "/continue/:id") [] (:debug-continue handlers))
            (DELETE (str uh/debug-prefix "/:id") [] (:delete-debug-session handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
@@ -1197,6 +1203,7 @@
             :delete-request (partial process-delete-request evaluator auth-info)
             :start-debug-session (partial process-start-debug-session evaluator auth-info)
             :debug-step (partial process-debug-step evaluator auth-info)
+            :debug-continue (partial process-debug-continue evaluator auth-info)
             :delete-debug-session (partial process-delete-debug-session evaluator auth-info)
             :query (partial process-query evaluator auth-info)
             :eval (partial process-dynamic-eval evaluator auth-info nil)

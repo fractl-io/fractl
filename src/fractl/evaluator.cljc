@@ -316,9 +316,13 @@
   (swap! debug-sessions dissoc id)
   id)
 
-(defn- debug-step-result [df-result]
-  (let [r0 (if (map? df-result) df-result (first df-result))
-        s (:status r0), ir (:result r0)
+(defn- debug-norm-result [df-result]
+  (if (map? df-result)
+    df-result
+    (first df-result)))
+
+(defn- debug-step-result [r0]
+  (let [s (:status r0), ir (:result r0)
         inner-result (when (= :ok s) ir)
         norm-inner-result (if inner-result
                             (if (or (map? inner-result)
@@ -331,17 +335,29 @@
                        norm-inner-result)]
     {:status s :result final-result :env (env/cleanup (:env r0))}))
 
-(defn debug-step
-  ([opcode env ev id]
-   (if-let [opc (first opcode)]
-     (let [r (dispatch ev env opc)
-           sess {:opcode (rest opcode) :env (:env r) :eval ev}]
-       [(save-debug-session id sess) (debug-step-result r)])
-     [(remove-debug-session id) nil]))
-  ([id]
-   (when-let [{opcode :opcode env :env ev :eval}
-              (get @debug-sessions id)]
-     (debug-step opcode env ev id))))
+(defn debug-step [id]
+  (when-let [{opcode :opcode env :env ev :eval}
+             (get @debug-sessions id)]
+    (if-let [opc (first opcode)]
+      (let [r (debug-norm-result (dispatch ev env opc))
+            sess {:opcode (rest opcode) :env (:env r) :eval ev}]
+        [(save-debug-session id sess)
+         (assoc (debug-step-result r) :pattern (:pattern opc))])
+      [(remove-debug-session id) nil])))
+
+(defn debug-continue [id]
+  (when-let [{opcode :opcode env :env ev :eval}
+             (get @debug-sessions id)]
+    (let [r
+          (loop [opcode opcode, env env, result nil]
+            (if-let [opc (first opcode)]
+              (let [r0 (debug-norm-result (dispatch ev env opc))
+                    s (:status r0), ir (:result r0)]
+                (if (= :ok s)
+                  (recur (rest opcode) (:env r0) r0)
+                  {:status s :result ir :env (env/cleanup (:env r0)) :pattern (:pattern opc)}))
+              {:status (:status result) :result (:result result) :env (env/cleanup (:env result))}))]
+      [(remove-debug-session id) r])))
 
 (defn debug-dataflow
   ([event-instance evaluator]

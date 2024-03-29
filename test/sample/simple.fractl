@@ -22,6 +22,14 @@
  :Q
  {:E1? {}})
 
+(entity :T {:X :Int})
+(entity :U {:Y :Int})
+
+(dataflow
+ :TU
+ {:T {:X :TU.X} :as :T1}
+ {:U {:Y '(* :T1.X 100)}})
+
 (record
  {:Result
   {:Data :Any}})
