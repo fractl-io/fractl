@@ -540,3 +540,46 @@
       (chk b2 a1)
       (chk b3 a2)
       (lkp b1) (lkp b2) (lkp b3))))
+
+(deftest issue-1273-docstrings
+  (defcomponent :I1273
+    (entity
+     :I1273/Company
+     {:Name {:type :String :guid true}})
+    (attribute
+     :I1273/EmployeeEmail
+     {:meta {:doc "Globally unique email"}
+      :type :Email
+      :unique true})
+    (entity
+     :I1273/Employee
+     {:meta {:doc "Represents a company employee"}
+      :Id :Identity
+      :EmpId {:type :String :id true}
+      :Email :I1273/EmployeeEmail
+      :Name :String})
+    (relationship
+     :I1273/CompanyEmployee
+     {:meta {:doc "Group employees under companies"
+             :contains [:I1273/Company :I1273/Employee]}}))
+  (let [[c1 c2] (mapv #(tu/first-result
+                        {:I1273/Create_Company
+                         {:Instance {:I1273/Company {:Name %}}}})
+                      ["a" "b"])
+        cremp (fn [cname emp]
+                (tu/first-result
+                 {:I1273/Create_Employee
+                  {:Instance
+                   {:I1273/Employee emp}
+                   li/path-attr (str "/Company/" cname "/CompanyEmployee")}}))
+        emps (mapv cremp ["a" "b" "a" "b"]
+                   [{:EmpId "a01" :Email "a01@a.com" :Name "a01"}
+                    {:EmpId "b01" :Email "b01@b.com" :Name "b01"}
+                    {:EmpId "x" :Email "x@a.com" :Name "x"}
+                    {:EmpId "x" :Email "x@b.com" :Name "x"}])]
+    (is (every? (tu/type-check :I1273/Company) [c1 c2]))
+    (is (= 4 (count emps)))
+    (is (every? (tu/type-check :I1273/Employee) emps))
+    (is (= "Represents a company employee" (cn/docstring :I1273/Employee)))
+    (is (= "Globally unique email" (cn/docstring :I1273/EmployeeEmail)))
+    (is (= "Group employees under companies" (cn/docstring :I1273/CompanyEmployee)))))
