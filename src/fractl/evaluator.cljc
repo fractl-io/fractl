@@ -321,6 +321,9 @@
     df-result
     (first df-result)))
 
+(defn- make-debug-result [status result env]
+  {:status status :result result :env (env/cleanup env)})
+
 (defn- debug-step-result [r0]
   (let [s (:status r0), ir (:result r0)
         inner-result (when (= :ok s) ir)
@@ -333,7 +336,7 @@
         final-result (if (and (vector? norm-inner-result) (= 1 (count norm-inner-result)))
                        (first norm-inner-result)
                        norm-inner-result)]
-    {:status s :result final-result :env (env/cleanup (:env r0))}))
+    (make-debug-result s final-result (:env r0))))
 
 (defn debug-step [id]
   (when-let [{opcode :opcode env :env ev :eval}
@@ -349,14 +352,17 @@
   (when-let [{opcode :opcode env :env ev :eval}
              (get @debug-sessions id)]
     (let [r
-          (loop [opcode opcode, env env, result nil]
+          (loop [opcode opcode, env env, result []]
             (if-let [opc (first opcode)]
               (let [r0 (debug-norm-result (dispatch ev env opc))
                     s (:status r0), ir (:result r0)]
                 (if (= :ok s)
-                  (recur (rest opcode) (:env r0) r0)
-                  {:status s :result ir :env (env/cleanup (:env r0)) :pattern (:pattern opc)}))
-              {:status (:status result) :result (:result result) :env (env/cleanup (:env result))}))]
+                  (recur
+                   (rest opcode)
+                   (:env r0)
+                   (conj result (make-debug-result s ir (:env r0))))
+                  [(make-debug-result s ir (:env r0))]))
+              (vec result)))]
       [(remove-debug-session id) r])))
 
 (defn debug-dataflow
