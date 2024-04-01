@@ -18,8 +18,11 @@ where `config.edn` should have the following values:
 
 ```clojure
 {:service {:port 8000}
- :store {:type :h2
-         :dbname "./data"}
+ :store {:type :postgres
+         :host #$ POSTGRES_HOST
+         :dbname #$ POSTGRES_DB
+         :username #$ POSTGRES_USER
+         :password #$ POSTGRES_PASSWORD}
  :logging {:syslog {}}
  :authentication {:service :okta
                   :superuser-email "superuser@acme.com"
@@ -30,7 +33,9 @@ where `config.edn` should have the following values:
                   :scope "openid offline_access"
                   :introspect true
                   :authorize-redirect-url "http://localhost:3000/auth/callback"
-                  :client-url "http://localhost:3000/order"}}
+                  :client-url "http://localhost:3000/order"
+                  :cache {:host #$ REDIS_HOST
+                          :port #$ REDIS_PORT}}}
 ```
 
 To start a web server for the application, run:
@@ -44,11 +49,10 @@ To start a web server for the application, run:
 ## Docker - build & run
 
     lein ring server
-    cd ../../
+
+In a new terminal:
+
+    cd /path/to/fractl
 	lein uberjar
 	docker build -t auth-demo -f example/auth/Dockerfile .
-	docker run -p 8000:8000 auth-demo
-
-To allow the docker container to send logs to the host's syslog,
-
-    docker run --network=host auth-demo
+    docker run --network=host -e POSTGRES_HOST=<pg-host> -e POSTGRES_DB=<pg-dbname> -e POSTGRES_USER=<pg-user> -e POSTGRES_PASSWORD=<pg-pswd> -e REDIS_HOST=<redis-host> -e REDIS_PORT=<redis-port> auth-demo
