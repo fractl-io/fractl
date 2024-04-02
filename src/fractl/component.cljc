@@ -785,6 +785,12 @@
 
     :else x))
 
+(defn unmake-instance [inst]
+  (if (an-instance? inst)
+    (let [n (instance-type-kw inst)]
+      {n (instance-attributes inst)})
+    inst))
+
 (defn- maps-to-insts
   "If any of the values in the attributes map itself is the
    map-encoded representation of a record or entity, convert

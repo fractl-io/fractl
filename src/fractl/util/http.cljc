@@ -54,6 +54,7 @@
 (def auth-prefix "/auth")
 (def auth-callback-prefix "/auth/callback")
 (def ai-prefix "/ai")
+(def debug-prefix "/debug")
 (def register-magiclink-prefix "/register-magiclink")
 (def get-magiclink-prefix "/get-magiclink")
 (def preview-magiclink-prefix "/preview-magiclink")
