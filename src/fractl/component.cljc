@@ -2149,3 +2149,6 @@
           path [component :inferences n]]
       (assoc-in ms path spec)))
   inference-name)
+
+(defn docstring [n]
+  (:doc (fetch-meta n)))
