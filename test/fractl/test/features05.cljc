@@ -7,6 +7,7 @@
             [fractl.lang
              :refer [component event entity relationship dataflow rule inference]]
             [fractl.lang.raw :as lr]
+            [fractl.lang.internal :as li]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -53,14 +54,14 @@
     (dataflow :Rf01/BbyA {:Rf01/B {:A? :Rf01/BbyA.A}})
     (rule
      :Rf01/R1
-     {:Rf01/A {:X 100} :as :A}
+     {:Rf01/A {:X 100} :as :InstA}
      :then
-     {:Rf01/B {:Y 100 :A :A.Id}})
+     {:Rf01/B {:Y 100 :A :InstA.Id}})
     (rule
      :Rf01/R2
-     {:Rf01/A {:X [:>= 500]} :as :A}
+     {:Rf01/A {:X [:>= 500]} :as :InstA}
      :then
-     {:Rf01/B {:Y '(* 100 :A.X) :A :A.Id}})
+     {:Rf01/B {:Y '(* 100 :InstA.X) :A :InstA.Id}})
     (rule
      :Rf01/R3
      [:delete {:Rf01/A {:X 100}}]

@@ -79,7 +79,7 @@
       (let [n (cn/instance-type-kw inst)]
         (when-let [rules (cn/rules-for-entity tag n)]
           (let [env (or env (env/make (es/get-active-store) nil))
-                rs (cn/run-rules evaluator-with-env env n inst rules)]
+                rs (cn/run-rules evaluator-with-env [env env/cleanup] n inst rules)]
             (recur (rest insts) env (concat result rs)))))
       result)))
 
