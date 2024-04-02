@@ -11,6 +11,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.datetime :as dt]
             [fractl.paths.internal :as pi]
+            [fractl.compiler.context :as ctx]
             [fractl.util.errors :refer [raise-error throw-ex-info make-error]]))
 
 (def ^:private models (u/make-cell {}))
@@ -2123,7 +2124,7 @@
         (recur (rest ccs) env))
       env)))
 
-(defn run-rules [make-eval env entity-name inst rule-specs]
+(defn run-rules [make-eval [env env-cleanup] entity-name inst rule-specs]
   (su/nonils
    (mapv
     (fn [rspec]
@@ -2133,10 +2134,12 @@
             (future
               (log/info (str "invoking rule " rn " for " inst))
               (try
-                (let [r ((make-eval final-env) (make-instance (li/rule-event-name rn) {}))]
-                  (log/info (str "result of applying rule " rn ": " r))
-                  r)
+                (binding [ctx/dynamic-context (ctx/from-bindings (env-cleanup final-env))]
+                  (let [r ((make-eval final-env) (make-instance (li/rule-event-name rn) {}))]
+                    (log/info (str "result of applying rule " rn ": " r))
+                    r))
                 (catch #?(:clj Exception :cljs :default) ex
+                  (.printStackTrace ex)
                   (log/error (str rn " - rule failed"))
                   (log/error ex))))))))
     rule-specs)))

@@ -7,6 +7,7 @@
             [fractl.lang
              :refer [component event entity relationship dataflow rule inference]]
             [fractl.lang.raw :as lr]
+            [fractl.lang.internal :as li]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
 
@@ -53,14 +54,14 @@
     (dataflow :Rf01/BbyA {:Rf01/B {:A? :Rf01/BbyA.A}})
     (rule
      :Rf01/R1
-     {:Rf01/A {:X 100} :as :A}
+     {:Rf01/A {:X 100} :as :InstA}
      :then
-     {:Rf01/B {:Y 100 :A :A.Id}})
+     {:Rf01/B {:Y 100 :A :InstA.Id}})
     (rule
      :Rf01/R2
-     {:Rf01/A {:X [:>= 500]} :as :A}
+     {:Rf01/A {:X [:>= 500]} :as :InstA}
      :then
-     {:Rf01/B {:Y '(* 100 :A.X) :A :A.Id}})
+     {:Rf01/B {:Y '(* 100 :InstA.X) :A :InstA.Id}})
     (rule
      :Rf01/R3
      [:delete {:Rf01/A {:X 100}}]
@@ -145,3 +146,59 @@
             (inference
              :I1252R/I1
              {:category :I1Rules, :seed [], :embed [:I1252R/A :I1252R/B]})))))
+
+(deftest issue-1255-rules-with-contains
+  (defcomponent :I1255
+    (entity
+     :I1255/Customer
+     {:Email {:type :Email :guid true}
+      :Type {:oneof ["primary" "normal"]}})
+    (entity
+     :I1255/SupportTicket
+     {:No {:type :Int :id true}
+      :Created :Now
+      :Priority {:oneof ["high" "low"]}})
+    (relationship
+     :I1255/CustomerSupportTicket
+     {:meta {:contains [:I1255/Customer :I1255/SupportTicket]}})
+    (entity
+     :I1255/SupportExecutiveAssignment
+     {:SupportExecutiveId {:type :Int :expr '(rand-int 100)}
+      :TicketNo :Int
+      :CustomerEmail :Email})
+    (rule
+     :I1255/HandlePrimaryTicket
+     {:I1255/SupportTicket {:Priority "high"}
+      ;;:-> [[:I1255/CustomerSupportTicket {:I1255/Customer {:Type "primary"}}]]
+      :as :ST}
+     :then
+     {:I1255/SupportExecutiveAssignment
+      {:TicketNo :ST.No
+       :CustomerEmail "b@acme.com"#_:I1255/Customer.Email}}))
+  (let [mk-cust (fn [email type]
+                  (let [c (tu/first-result
+                           {:I1255/Create_Customer
+                            {:Instance
+                             {:I1255/Customer
+                              {:Email email :Type (name type)}}}})]
+                    (is (cn/instance-of? :I1255/Customer c))
+                    c))
+        [c1 c2] (mapv mk-cust ["a@acme.com" "b@acme.com"] [:normal :primary])
+        mk-tkt (fn [cust-email no prio]
+                 (let [r (first
+                          (tu/eval-all-dataflows
+                           {:I1255/Create_SupportTicket
+                            {:Instance
+                             {:I1255/SupportTicket
+                              {:No no :Priority (name prio)}}
+                             li/path-attr (str "/Customer/" cust-email "/CustomerSupportTicket")}}))]
+                   (when (= :ok (:status r))
+                     (let [sp (first (:result r))]
+                       (is (cn/instance-of? :I1255/SupportTicket sp))
+                       [(:env r) sp]))))
+        [[env1 sp1] [env2 sp2]] (mapv mk-tkt ["a@acme.com" "b@acme.com"] [1 2] [:low :high])
+        f1 (seq (env/rule-futures env1))
+        f2 (seq (env/rule-futures env2))]
+    (is (nil? f1))
+    #_(println (deref (first f2)))
+    #_(println (tu/result {:I1255/LookupAll_SupportExecutiveAssignment {}}))))

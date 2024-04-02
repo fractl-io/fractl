@@ -23,7 +23,10 @@
             [fractl.compiler.validation :as cv]
             [fractl.compiler.internal :as i]))
 
-(def make-context ctx/make)
+(defn make-context
+  ([with-types]
+   (or ctx/dynamic-context (ctx/make with-types)))
+  ([] (make-context nil)))
 
 (def ^:dynamic active-event-name nil) ; event for which dataflow is being compiled
 
