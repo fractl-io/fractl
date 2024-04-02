@@ -1,7 +1,9 @@
 (ns fractl.test.features04
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
+            [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.evaluator :as ev]
             [fractl.lang.internal :as li]
             [fractl.lang
              :refer [component attribute event
@@ -540,3 +542,70 @@
       (chk b2 a1)
       (chk b3 a2)
       (lkp b1) (lkp b2) (lkp b3))))
+
+(deftest debugger-01
+  (defcomponent :Dbg01
+    (entity :Dbg01/A {:Id :Identity :X :Int})
+    (entity :Dbg01/B {:Id :Identity :Y :Int})
+    (event :Dbg01/E {:X :Int})
+    (dataflow
+     :Dbg01/E
+     {:Dbg01/A {:X :Dbg01/E.X} :as :A}
+     {:Dbg01/B {:Y '(+ 100 :A.X)}}))
+  (let [dbg-session-id (ev/debug-dataflow {:Dbg01/E {:X 20}})
+        check-step (fn [t v?]
+                     (let [[id r] (ev/debug-step dbg-session-id)]
+                       (is (= id dbg-session-id))
+                       (is (= :ok (:status r)))
+                       (is (cn/instance-of? t (:result r)))
+                       (is (v? (:result r)))))]
+    (is dbg-session-id)
+    (check-step :Dbg01/A #(= 20 (:X %)))
+    (check-step :Dbg01/B #(= 120 (:Y %)))
+    (let [[id r] (ev/debug-step dbg-session-id)]
+      (is (= id dbg-session-id))
+      (is (nil? r)))
+    (is (nil? (ev/debug-step dbg-session-id)))))
+
+(deftest issue-1273-docstrings
+  (defcomponent :I1273
+    (entity
+     :I1273/Company
+     {:Name {:type :String :guid true}})
+    (attribute
+     :I1273/EmployeeEmail
+     {:meta {:doc "Globally unique email"}
+      :type :Email
+      :unique true})
+    (entity
+     :I1273/Employee
+     {:meta {:doc "Represents a company employee"}
+      :Id :Identity
+      :EmpId {:type :String :id true}
+      :Email :I1273/EmployeeEmail
+      :Name :String})
+    (relationship
+     :I1273/CompanyEmployee
+     {:meta {:doc "Group employees under companies"
+             :contains [:I1273/Company :I1273/Employee]}}))
+  (let [[c1 c2] (mapv #(tu/first-result
+                        {:I1273/Create_Company
+                         {:Instance {:I1273/Company {:Name %}}}})
+                      ["a" "b"])
+        cremp (fn [cname emp]
+                (tu/first-result
+                 {:I1273/Create_Employee
+                  {:Instance
+                   {:I1273/Employee emp}
+                   li/path-attr (str "/Company/" cname "/CompanyEmployee")}}))
+        emps (mapv cremp ["a" "b" "a" "b"]
+                   [{:EmpId "a01" :Email "a01@a.com" :Name "a01"}
+                    {:EmpId "b01" :Email "b01@b.com" :Name "b01"}
+                    {:EmpId "x" :Email "x@a.com" :Name "x"}
+                    {:EmpId "x" :Email "x@b.com" :Name "x"}])]
+    (is (every? (tu/type-check :I1273/Company) [c1 c2]))
+    (is (= 4 (count emps)))
+    (is (every? (tu/type-check :I1273/Employee) emps))
+    (is (= "Represents a company employee" (cn/docstring :I1273/Employee)))
+    (is (= "Globally unique email" (cn/docstring :I1273/EmployeeEmail)))
+    (is (= "Group employees under companies" (cn/docstring :I1273/CompanyEmployee)))))

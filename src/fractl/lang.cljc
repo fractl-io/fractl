@@ -286,7 +286,7 @@
       (keyword? v) (when-not (attribute-type? v)
                      (u/throw-ex (str "type not defined - " v)))
       (map? v) (validate-attribute-schema-map-keys v)
-      (not (list? v)) (u/throw-ex (str "invalid attribute specification - " v))))
+      (not (list? v)) (u/throw-ex (str "invalid attribute specification - " [k v]))))
     attrs)
 
 (defn- query-eval-fn [recname attrs k v]

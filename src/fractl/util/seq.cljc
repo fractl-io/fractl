@@ -1,6 +1,7 @@
 (ns fractl.util.seq
   "Utilities for sequences."
-  (:require [fractl.util :as u]))
+  (:require [clojure.string :as s]
+            [fractl.util :as u]))
 
 (defn truths
   "Return all truth values returned by f when applied to each element of xs."
@@ -180,3 +181,25 @@
 
 (defn member? [x xs]
   (first (filter (partial = x) xs)))
+
+(defn- char-range [lo hi]
+  (range (int lo) (inc (int hi))))
+
+(def alpha-numeric
+  (map char (concat (char-range \a \z)
+                    (char-range \A \Z)
+                    (char-range \0 \9))))
+
+(defn rand-alpha-numeric []
+  (rand-nth alpha-numeric))
+
+(defn generate-code [length]
+  (apply str
+         (take length
+               (repeatedly rand-alpha-numeric))))
+
+(defn snake-to-kebab-keys [a-map]
+  (let [r (mapv (fn [[k v]]
+                  [(keyword (s/replace (name k) #"_" "-")) v])
+                a-map)]
+    (into {} r)))

@@ -195,12 +195,12 @@
         inst))))
 
 (defn- log-event [hidden-attrs event-instance]
-  (log/info
+  (log/dev-debug
    (str "evaluating dataflow for event - "
         (remove-hidden-attributes hidden-attrs event-instance))))
 
 (defn- log-result-object [hidden-attrs event-instance obj]
-  (log/debug
+  (log/dev-debug
    (str "dataflow result for " (cn/instance-type event-instance)
         " - " (remove-hidden-attributes hidden-attrs obj))))
 
@@ -305,6 +305,86 @@
    (evaluate-pattern nil store-or-store-config resolver-or-resolver-config pattern))
   ([env pattern] (evaluate-pattern env nil nil pattern))
   ([pattern] (evaluate-pattern nil nil pattern)))
+
+(def ^:private debug-sessions (atom {}))
+
+(defn- save-debug-session [id sess]
+  (swap! debug-sessions assoc id sess)
+  id)
+
+(defn- remove-debug-session [id]
+  (swap! debug-sessions dissoc id)
+  id)
+
+(defn- debug-norm-result [df-result]
+  (if (map? df-result)
+    df-result
+    (first df-result)))
+
+(defn- make-debug-result [status result env]
+  {:status status :result result :env (env/cleanup env)})
+
+(defn- debug-step-result [r0]
+  (let [s (:status r0), ir (:result r0)
+        inner-result (when (= :ok s) ir)
+        norm-inner-result (if inner-result
+                            (if (or (map? inner-result)
+                                    (string? inner-result))
+                              inner-result
+                              (vec inner-result))
+                            ir)
+        final-result (if (and (vector? norm-inner-result) (= 1 (count norm-inner-result)))
+                       (first norm-inner-result)
+                       norm-inner-result)]
+    (make-debug-result s final-result (:env r0))))
+
+(defn debug-step [id]
+  (when-let [{opcode :opcode env :env ev :eval}
+             (get @debug-sessions id)]
+    (if-let [opc (first opcode)]
+      (let [r (debug-norm-result (dispatch ev env opc))
+            sess {:opcode (rest opcode) :env (:env r) :eval ev}]
+        [(save-debug-session id sess)
+         (assoc (debug-step-result r) :pattern (:pattern opc))])
+      [(remove-debug-session id) nil])))
+
+(defn debug-continue [id]
+  (when-let [{opcode :opcode env :env ev :eval}
+             (get @debug-sessions id)]
+    (let [r
+          (loop [opcode opcode, env env, result []]
+            (if-let [opc (first opcode)]
+              (let [r0 (debug-norm-result (dispatch ev env opc))
+                    s (:status r0), ir (:result r0)]
+                (if (= :ok s)
+                  (recur
+                   (rest opcode)
+                   (:env r0)
+                   (conj result (make-debug-result s ir (:env r0))))
+                  [(make-debug-result s ir (:env r0))]))
+              (vec result)))]
+      [(remove-debug-session id) r])))
+
+(defn debug-dataflow
+  ([event-instance evaluator]
+   (let [store (or (es/get-active-store)
+                   (store-from-config (:store (gs/get-app-config))))
+         [cq ev] (if evaluator
+                   [(partial store/compile-query store) evaluator]
+                   (make store))
+         event-instance (maybe-init-event event-instance)
+         df (first (c/compile-dataflows-for-event cq event-instance))
+         [_ opcs] (cn/dataflow-opcode df cn/with-default-types)
+         env (env/bind-instance
+              (env/make store nil)
+              (li/split-path (cn/instance-type event-instance))
+              event-instance)
+         id (u/uuid-string)
+         sess {:opcode opcs :env env :eval ev}]
+     (save-debug-session id sess)))
+  ([event-instance] (debug-dataflow event-instance nil)))
+
+(def debug-cancel remove-debug-session)
 
 (defn eval-all-dataflows
   ([event-obj store-or-store-config resolver-or-resolver-config]

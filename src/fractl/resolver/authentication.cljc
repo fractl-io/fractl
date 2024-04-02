@@ -37,7 +37,7 @@
 
 (defmake :authentication
   (fn [resolver-name config]
-    (let [config (merge config (uh/get-aws-config))]
+    (let [config (merge config (when (auth/cognito? config) (uh/get-aws-config)))]
       (if-let [client (auth/make-client config)]
         (r/make-resolver
          resolver-name

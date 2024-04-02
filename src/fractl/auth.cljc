@@ -1,10 +1,13 @@
 (ns fractl.auth
   (:require [clojure.string :as s]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.auth.cognito]
+            [fractl.auth.okta]
             [fractl.auth.df]
             [fractl.resolver.registry :as rr]
-            [fractl.resolver.authentication :as authn]))
+            [fractl.resolver.authentication :as authn]
+            #?(:clj [fractl.resolver.redis :as cache])))
 
 (defn- maybe-signup-user [evaluator names email password]
   (if-let [user (first
@@ -31,10 +34,18 @@
      :FirstName first-name
      :LastName last-name}))
 
+(defn- setup-cache-resolver [config]
+  #?(:clj
+     (try
+       (let [resolver (cache/make :auth-cache config)]
+         (rr/override-resolver [:Fractl.Kernel.Identity/SessionCookie] resolver))
+       (catch Exception ex
+         (log/error ex)))))
+
 (defn setup-resolver [config evaluator]
   (let [resolver (authn/make :authentication config)
         admin-email (:superuser-email config)
-        admin-password (u/getenv "FRACTL_SUPERUSER_PASSWORD")]
+        admin-password (u/getenv "FRACTL_SUPERUSER_PASSWORD" "admin")]
     (when-not admin-email
       (u/throw-ex (str "superuser email not set in auth-config")))
     (when-not admin-password
@@ -48,4 +59,6 @@
                evaluator (email-to-names admin-email "superuser")
                admin-email admin-password)
       (u/throw-ex (str "failed to create local user for " admin-email)))
+    (when-not (setup-cache-resolver (:cache config))
+      (log/warn "failed to setup cache for authentication"))
     resolver))

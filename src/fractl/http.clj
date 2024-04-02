@@ -19,21 +19,29 @@
             [fractl.util :as u]
             [fractl.util.http :as uh]
             [fractl.util.hash :as hash]
-            [fractl.auth.cognito :as cognito]
             [fractl.auth.jwt :as jwt]
+            [fractl.auth.core :as auth]
             [fractl.util.logger :as log]
             [fractl.gpt.core :as gpt]
             [fractl.global-state :as gs]
-            [fractl.user-session :as us]
+            [fractl.user-session :as sess]
             [org.httpkit.server :as h]
-            [org.httpkit.client :as hc]
-            [fractl.datafmt.json :as json]
-            [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
             [fractl.util.errors :refer [get-internal-error-message]]
-            [fractl.evaluator :as ev])
+            [fractl.evaluator :as ev]
+            [fractl.datafmt.transit :as t])
   (:use [compojure.core :only [routes POST PUT DELETE GET]]
         [compojure.route :only [not-found]]))
+
+(defn- headers
+  ([data-fmt]
+   (merge
+    (when data-fmt
+      {"Content-Type" (uh/content-type data-fmt)}
+      {"Access-Control-Allow-Origin" "*"
+       "Access-Control-Allow-Methods" "GET,POST,PUT,DELETE"
+       "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"})))
+  ([] (headers nil)))
 
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
@@ -71,6 +79,14 @@
      (string? s) (response {:reason s} 500 data-fmt)
      :else (response s 500 data-fmt)))
   ([s] (internal-error s :json)))
+
+(defn- redirect-found [location cookie]
+  {:status 302
+   :headers
+   (let [hdrs (assoc (headers) "Location" location)]
+     (if cookie
+       (assoc hdrs "Set-Cookie" cookie)
+       hdrs))})
 
 (defn- sanitize-secrets [obj]
   (let [r (mapv (fn [[k v]]
@@ -110,9 +126,11 @@
   ([obj]
    (ok obj :json)))
 
-(defn- create-event [event-name]
-  {cn/type-tag-key :event
-   cn/instance-type (keyword event-name)})
+(defn- ok-html [body]
+  {:status 200
+   :body body
+   :headers {"Content-Type" "text/html"
+             "Content-Length" (count body)}})
 
 (defn- maybe-remove-read-only-attributes [obj]
   (if (cn/an-instance? obj)
@@ -161,7 +179,7 @@
 
 (defn- get-query-params [request]
   (when-let [s (:query-string request)]
-    (w/keywordize-keys (codec/form-decode s))))
+    (uh/form-decode s)))
 
 (defn- request-content-type [request]
   (s/lower-case
@@ -597,7 +615,29 @@
         (bad-request (str "unsupported content-type in request - "
                           (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
-(def ^:private post-signup-event-name :Fractl.Kernel.Identity/PostSignUp)
+(defn- process-start-debug-session [evaluator [auth-config maybe-unauth] request]
+  (or (maybe-unauth request)
+      (if-let [data-fmt (find-data-format request)]
+        (let [[obj _ err-response] (request-object request)]
+          (or err-response
+              (ok-html (ev/debug-dataflow obj))))
+        (bad-request (str "unsupported content-type in request - "
+                          (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
+
+(defn- process-debug-step [evaluator [auth-config maybe-unauth] request]
+  (or (maybe-unauth request)
+      (let [id (get-in request [:params :id])]
+        (ok (ev/debug-step id)))))
+
+(defn- process-debug-continue [evaluator [auth-config maybe-unauth] request]
+  (or (maybe-unauth request)
+      (let [id (get-in request [:params :id])]
+        (ok (ev/debug-continue id)))))
+
+(defn- process-delete-debug-session [evaluator [auth-config maybe-unauth] request]
+  (or (maybe-unauth request)
+      (let [id (get-in request [:params :id])]
+        (ok (ev/debug-cancel id)))))
 
 (defn- eval-ok-result [eval-result]
   (if (vector? eval-result)
@@ -650,6 +690,10 @@
       ["Password does not conform to the specification. Please choose a stronger password." "INVALID_PASSWORD"]
       :else [message "SIGNUP_ERROR"])))
 
+(defn- create-event [event-name]
+  {cn/type-tag-key :event
+   cn/instance-type (keyword event-name)})
+
 (defn- process-signup [evaluator call-post-signup [auth-config _] request]
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "sign-up"))
@@ -676,7 +720,7 @@
                         (evaluate
                          evaluator
                          (assoc
-                          (create-event post-signup-event-name)
+                          (create-event :Fractl.Kernel.Identity/PostSignUp)
                           :SignupResult result :SignupRequest evobj)))]
                   (if user
                     (ok (or (when (seq post-signup-result) post-signup-result)
@@ -692,16 +736,13 @@
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn decode-jwt-token-from-response [response]
-  (-> response
-      (get :authentication-result)
-      (get :id-token)
-      (jwt/decode)))
+  (let [res (:authentication-result response)
+        token (or (:access-token res) (:id-token res))]
+    (jwt/decode token)))
 
-(defn upsert-user-session [user-id logged-in]
-  ((if (us/session-exists-for? user-id)
-     us/session-update
-     us/session-create)
-   user-id logged-in))
+(defn- attach-set-cookie-header [resp cookie]
+  (let [hdrs (:headers resp)]
+    (assoc resp :headers (assoc hdrs "Set-Cookie" cookie))))
 
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
   (if-not auth-config
@@ -717,9 +758,14 @@
                            auth-config
                            :event evobj
                            :eval evaluator))
-                  user-id (get (decode-jwt-token-from-response result) :sub)]
-              (upsert-user-session user-id true)
-              (ok {:result result} data-fmt))
+                  user-id (get (decode-jwt-token-from-response result) :sub)
+                  cookie (get-in result [:authentication-result :user-data :cookie])
+                  resp (ok {:result (if cookie {:authentication-result :success} result)} data-fmt)]
+              (sess/upsert-user-session user-id true)
+              (if cookie
+                (do (sess/session-cookie-create cookie result nil)
+                    (attach-set-cookie-header resp cookie))
+                resp))
             (catch Exception ex
               (log/warn ex)
               (unauthorized
@@ -873,13 +919,17 @@
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
       (try
-        (let [sub (auth/session-sub
-                   (assoc auth-config :request request))
-              result (auth/user-logout
-                      (assoc
-                       auth-config
-                       :sub sub))]
-          (upsert-user-session (:username sub) false)
+        (let [ac (assoc auth-config :request request)
+              cookie (get (:headers request) "cookie")
+              auth-config (if cookie
+                            (assoc ac :cookie [cookie (sess/lookup-session-cookie-user-data cookie)])
+                            ac)
+              sub (auth/session-sub auth-config)
+              result (auth/user-logout (assoc auth-config :sub sub))]
+          (sess/upsert-user-session (:username sub) false)
+          (when cookie
+            (when-not (sess/session-cookie-delete cookie)
+              (log/warn (str "session-cookie not deleted for " cookie))))
           (ok {:result result} data-fmt))
         (catch Exception ex
           (log/warn ex)
@@ -964,71 +1014,24 @@
       (bad-request
        (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
-(defn- verify-token [token]
-  (let [{:keys [region user-pool-id] :as _aws-config} (uh/get-aws-config)]
-    (jwt/verify-and-extract
-     (cognito/make-jwks-url region user-pool-id)
-     token)))
+(defn- auth-response [result]
+  (case (:status result)
+    :redirect-found (redirect-found (:location result) (:set-cookie result))
+    :ok (ok (:message result))
+    (bad-request (:error result))))
+
+(defn- process-auth [evaluator [auth-config _] request]
+  (let [cookie (get-in request [:headers "cookie"])]
+    (auth-response
+     (auth/authenticate-session (assoc auth-config :cookie cookie)))))
 
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
-  (if auth-config
-    (let [query (get-query-params request)
-          code (:code query)
-          redirect-query (:redirect query)
-          cognito-domain (u/getenv "AWS_COGNITO_DOMAIN")
-          backend-url (u/getenv "FRACTL_APP_URL")
-          redirect-url (u/getenv "FRACTL_REDIRECT_URL")
-          client-id (u/getenv "AWS_COGNITO_CLIENT_ID")]
-      (try
-        (let [tokens
-              @(hc/post
-                (str cognito-domain "/oauth2/token")
-                {:headers {"Content-Type" "application/x-www-form-urlencoded"}
-                 :query-params
-                 {:grant_type "authorization_code"
-                  :code code
-                  :client_id client-id
-                  :redirect_uri (str backend-url "/_authcallback"
-                                     (when redirect-query (str "?redirect=" redirect-query)))}})
-              tokens (json/decode (:body tokens))]
-          (if-let [token (:id_token tokens)]
-            (if-let [user (verify-token token)]
-              (when (:email user)
-                (let [user-obj {:Email (:email user)
-                            :Name (str (:given_name user) " " (:family_name user))
-                            :FirstName (:given_name user)
-                            :LastName (:family_name user)}
-                      sign-up-request
-                      {:Fractl.Kernel.Identity/SignUp
-                       {:User {:Fractl.Kernel.Identity/User user-obj}}}
-                      new-sign-up
-                      (= :not-found
-                         (:status
-                          (first
-                           (evaluator
-                            {:Fractl.Kernel.Identity/FindUser
-                             {:Email (:Email user-obj)}}))))]
-                  (when new-sign-up
-                    (let [sign-up-result (u/safe-ok-result (evaluator sign-up-request))]
-                      (when call-post-signup
-                        (evaluate
-                         evaluator
-                         (assoc
-                          (create-event post-signup-event-name)
-                          :SignupResult sign-up-result :SignupRequest {:User user-obj})))))
-                  (upsert-user-session (:sub user) true)
-                  {:status  302
-                   :headers {"Location"
-                             (str (or redirect-query redirect-url)
-                                  "/?id_token=" (:id_token tokens)
-                                  "&refresh_token=" (:refresh_token tokens))}}))
-              (bad-request (str "id_token not valid") "INVALID_TOKEN"))
-            (bad-request
-             (str "error fetching tokens") "ERROR_FETCHING_TOKEN")))
-        (catch Exception e
-          (log/info (str e))
-          (bad-request (str "error fetching tokens") "ERROR_FETCHING_TOKEN"))))
-    (internal-error "cannot process sign-up - authentication not enabled")))
+  (auth-response
+   (auth/handle-auth-callback
+    (assoc auth-config :args {:evaluate evaluate
+                              :evaluator evaluator
+                              :call-post-signup call-post-signup
+                              :request request}))))
 
 (defn- make-magic-link [username op payload description expiry]
   (let [hskey (u/getenv "FRACTL_HS256_KEY")]
@@ -1077,6 +1080,73 @@
         (ok {:status "ok" :result decoded-token}))
       (bad-request (str "token not specified") "ID_TOKEN_REQUIRED"))))
 
+(defn- register-event [component pats]
+  (let [event-name (temp-event-name component)]
+    (and (apply ln/dataflow event-name pats)
+         event-name)))
+
+(defn as-vec [x]
+  (if (vector? x)
+    x
+    [x]))
+
+(defn eval-patterns [fractl-components fractl-patterns] 
+  (println fractl-components fractl-patterns)
+  (try
+    (let [event (-> (first fractl-components)
+                    (register-event (as-vec fractl-patterns)))]
+      (log/debug (str "event " event " generated."))
+      (try
+        (ev/safe-eval {event {}})
+        (finally
+          (cn/remove-event event))))
+    (catch Exception e
+      (log/info (str "Error evaluating patterns: "
+                     fractl-components " " fractl-patterns " "
+                     (.getMessage e)))
+      (.getMessage e)
+      "Error evaluating patterns")))
+
+(defn- process-post-copilot-question [[auth-config _] auth request]
+  (if (and auth-config (nil? (:email (auth/session-sub
+                                      (assoc auth :request request)))))
+    (bad-request (str "authentication not valid") "INVALID_AUTHENTICATION")
+    (if-let [copilot-url (System/getenv "COPILOT_URL")]
+      (let [[obj _ _] (request-object request)
+            app-id (:AppUuid obj)
+            chat-uuid (:ChatUuid obj)
+            use-docs (:UseDocs obj)
+            use-schema (:UseSchema obj)
+            question (:Question obj)
+            components (remove #{:Fractl.Kernel.Identity :Fractl.Kernel.Lang
+                                 :Fractl.Kernel.Store :Fractl.Kernel.Rbac
+                                 :raw :-*-containers-*-}
+                               (cn/component-names))]
+        (try
+          (let [out (uh/POST
+                      (str copilot-url "/_e/Copilot.Service.Core/PostAppQuestion")
+                      nil
+                      {:Copilot.Service.Core/PostAppQuestion
+                       {:AppUuid app-id
+                        :ChatUuid chat-uuid
+                        :UseDocs use-docs
+                        :UseSchema use-schema
+                        :Question question
+                        :EvalPattern false}})
+                result (-> out
+                           first
+                           :result
+                           first)]
+            (log/debug (str "post-copilot-question: " out " " obj))
+            (if (= (:Type result) "pattern")
+              (let [evaluated-result (eval-patterns components (read-string (:Value result)))]
+                (ok (assoc-in out [0 :result 0 :Value] evaluated-result)))
+              (ok out)))
+          (catch Exception ex
+            (log/info (.getMessage ex))
+            (bad-request "Request to copilot backend failed" "REQUEST_FAILED"))))
+      (internal-error "Copilot not enabled for this application"))))
+
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
@@ -1097,9 +1167,14 @@
            (POST (str uh/entity-event-prefix "*") [] (:post-request handlers))
            (GET (str uh/entity-event-prefix "*") [] (:get-request handlers))
            (DELETE (str uh/entity-event-prefix "*") [] (:delete-request handlers))
+           (POST uh/debug-prefix [] (:start-debug-session handlers))
+           (PUT (str uh/debug-prefix "/step/:id") [] (:debug-step handlers))
+           (PUT (str uh/debug-prefix "/continue/:id") [] (:debug-continue handlers))
+           (DELETE (str uh/debug-prefix "/:id") [] (:delete-debug-session handlers))
            (POST uh/query-prefix [] (:query handlers))
            (POST uh/dynamic-eval-prefix [] (:eval handlers))
            (POST uh/ai-prefix [] (:ai handlers))
+           (GET uh/auth-prefix [] (:auth handlers))
            (GET uh/auth-callback-prefix [] (:auth-callback handlers))
            (POST uh/register-magiclink-prefix [] (:register-magiclink handlers))
            (GET uh/get-magiclink-prefix [] (:get-magiclink handlers))
@@ -1107,6 +1182,7 @@
            (GET "/meta" [] (:meta handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (GET "/meta/:component/:entity" [] (:meta handlers))
+           (POST uh/post-copilot-question [] (:post-copilot-question handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
         r-with-auth (if auth-config
@@ -1122,23 +1198,30 @@
      :access-control-allow-credentials true
      :access-control-allow-methods [:post :put :delete :get])))
 
-(defn- handle-request-auth [request]
-  (let [user (get-in request [:identity :sub])]
-    (try
+(defn- handle-request-auth [auth-config request]
+  (try
+    (if-let [user (get-in request [:identity :sub])]
       (when-not (and (buddy/authenticated? request)
-                     (us/is-logged-in user))
+                     (sess/is-logged-in user))
         (log/info (str "unauthorized request - " request))
         (unauthorized (find-data-format request)))
-      (catch Exception ex
-        (log/warn ex)
-        (bad-request "invalid auth data" (find-data-format request) "INVALID_AUTH_DATA")))))
+      (let [cookie (get (:headers request) "cookie")
+            sid (auth/cookie-to-session-id auth-config cookie)
+            data (sess/lookup-session-cookie-user-data sid)
+            user (:sub (auth/verify-token auth-config [sid data]))]
+        (when-not (sess/is-logged-in user)
+          (log/info (str "unauthorized request - " request))
+          (unauthorized (find-data-format request)))))
+    (catch Exception ex
+      (log/warn ex)
+      (unauthorized (find-data-format request)))))
 
 (defn- auth-service-supported? [auth]
-  (some #{(:service auth)} [:keycloak :cognito :dataflow]))
+  (some #{(:service auth)} [:keycloak :cognito :okta :dataflow]))
 
 (defn make-auth-handler [config]
   (let [auth (:authentication config)
-        auth-check (if auth handle-request-auth (constantly false))]
+        auth-check (if auth (partial handle-request-auth auth) (constantly false))]
     [auth auth-check]))
 
 (defn run-server
@@ -1167,14 +1250,22 @@
             :post-request (partial process-post-request evaluator auth-info)
             :get-request (partial process-get-request evaluator auth-info)
             :delete-request (partial process-delete-request evaluator auth-info)
+            :start-debug-session (partial process-start-debug-session evaluator auth-info)
+            :debug-step (partial process-debug-step evaluator auth-info)
+            :debug-continue (partial process-debug-continue evaluator auth-info)
+            :delete-debug-session (partial process-delete-debug-session evaluator auth-info)
             :query (partial process-query evaluator auth-info)
             :eval (partial process-dynamic-eval evaluator auth-info nil)
             :ai (partial process-gpt-chat auth-info)
-            :auth-callback (partial process-auth-callback evaluator config auth-info)
+            :auth (partial process-auth evaluator auth-info)
+            :auth-callback (partial
+                            process-auth-callback evaluator
+                            (:call-post-sign-up-event config) auth-info)
             :register-magiclink (partial process-register-magiclink auth-info auth)
             :get-magiclink (partial process-get-magiclink auth-info)
             :preview-magiclink (partial process-preview-magiclink auth-info)
-            :meta (partial process-meta-request auth-info)})
+            :meta (partial process-meta-request auth-info)
+            :post-copilot-question (partial process-post-copilot-question auth-info auth)})
           config))
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
   ([evaluator]

@@ -3,6 +3,7 @@
                :cljs [cljs-http.client :as http])
             #?(:clj [org.httpkit.sni-client :as sni-client])
             [clojure.string :as s]
+            [clojure.walk :as w]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.component :as cn]
@@ -10,8 +11,10 @@
             [fractl.datafmt.json :as json]
             [fractl.datafmt.transit :as t]
             [fractl.global-state :as gs]
+            #?(:clj [ring.util.codec :as codec])
             #?(:cljs [cljs.core.async :refer [<!]]))
-  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]])))
+  #?(:cljs (:require-macros [cljs.core.async.macros :refer [go]]))
+  #?(:clj (:import [java.net URLEncoder])))
 
 #?(:clj
    (alter-var-root #'org.httpkit.client/*default-client* (fn [_] sni-client/default-client)))
@@ -34,25 +37,28 @@
 
 (def content-type (partial get datafmt-content-types))
 
-(def entity-event-prefix "/_e/")
-(def login-prefix "/_login/")
-(def logout-prefix "/_logout/")
-(def signup-prefix "/_signup/")
-(def get-user-prefix "/_get-user/")
-(def update-user-prefix "/_update-user/")
-(def forgot-password-prefix "/_forgot-password/")
-(def confirm-forgot-password-prefix "/_confirm-forgot-password/")
-(def confirm-sign-up-prefix "/_confirm-sign-up/")
-(def change-password-prefix "/_change-password/")
-(def refresh-token-prefix "/_refresh-token/")
-(def resend-confirmation-code-prefix "/_resend-confirmation-code/")
-(def query-prefix "/_q/")
-(def dynamic-eval-prefix "/_dynamic/")
-(def auth-callback-prefix "/_authcallback")
-(def ai-prefix "/_ai/")
-(def register-magiclink-prefix "/_register-magiclink")
-(def get-magiclink-prefix "/_get-magiclink")
-(def preview-magiclink-prefix "/_preview-magiclink")
+(def entity-event-prefix "/api/")
+(def login-prefix "/login")
+(def logout-prefix "/logout")
+(def signup-prefix "/signup")
+(def get-user-prefix "/get-user")
+(def update-user-prefix "/update-user")
+(def forgot-password-prefix "/forgot-password")
+(def confirm-forgot-password-prefix "/confirm-forgot-password")
+(def confirm-sign-up-prefix "/confirm-sign-up")
+(def change-password-prefix "/change-password")
+(def refresh-token-prefix "/refresh-token")
+(def resend-confirmation-code-prefix "/resend-confirmation-code")
+(def query-prefix "/q")
+(def dynamic-eval-prefix "/dynamic")
+(def auth-prefix "/auth")
+(def auth-callback-prefix "/auth/callback")
+(def ai-prefix "/ai")
+(def debug-prefix "/debug")
+(def register-magiclink-prefix "/register-magiclink")
+(def get-magiclink-prefix "/get-magiclink")
+(def preview-magiclink-prefix "/preview-magiclink")
+(def post-copilot-question "/post-copilot-question")
 
 (defn- remote-resolver-error [response]
   (u/throw-ex (str "remote resolver error - " (or (:error response) response))))
@@ -98,7 +104,9 @@
                   (response-handler
                    (<! (http/post url (make-http-request k body token)))))))))
   ([url options request-obj]
-   (do-post url options request-obj :json identity)))
+   (do-post url options request-obj :json identity))
+  ([url request-obj]
+   (do-post url nil request-obj)))
 
 (defn do-get
   ([url options format response-handler]
@@ -117,7 +125,8 @@
                   (response-handler
                    (<! (http/get url (make-http-request k nil token)))))))))
   ([url options]
-   (do-get url options :json identity)))
+   (do-get url options :json identity))
+  ([url] (do-get url nil)))
 
 (defn do-request
   ([method callback url headers body]
@@ -219,3 +228,17 @@
                       "/" (name entity))
            :vars (map name path)}
           (recur (conj path (-> parent-entity first last))))))))
+
+(defn url-encode [s]
+  #?(:clj
+     (URLEncoder/encode s)))
+
+(defn form-decode [s]
+  (w/keywordize-keys (codec/form-decode s)))
+
+(defn parse-cookies [cookie-string]
+  (when cookie-string
+    (into {}
+          (for [cookie (.split cookie-string ";")]
+            (let [keyval (map #(.trim %) (.split cookie "=" 2))]
+              [(first keyval) (second keyval)])))))
