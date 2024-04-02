@@ -29,7 +29,6 @@
       (into {} pattrs))))
 
 (defn- compile-cond-pat [pat]
-  ;; TODO: handle [:delete ...] pattern.
   (if (map? pat)
     (let [alias (:as pat)
           pat (if alias (dissoc pat :as) pat)
