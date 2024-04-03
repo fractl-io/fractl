@@ -1,38 +1,37 @@
 (ns fractl.core
-  (:require [clojure.tools.cli :refer [parse-opts]]
-            [clojure.java.io :as io]
-            [clojure.string :as s]
+  (:require [clojure.java.io :as io]
             [clojure.pprint :as pprint]
-            [fractl.datafmt.json :as json]
-            [fractl.util :as u]
-            [fractl.util.seq :as su]
-            [fractl.util.logger :as log]
-            [fractl.http :as h]
-            [fractl.resolver.registry :as rr]
+            [clojure.string :as s]
+            [clojure.tools.cli :refer [parse-opts]]
+            [fractl-config-secrets-reader.core :as fractl-secret-reader]
+            [fractl.auth :as auth]
             [fractl.compiler :as c]
             [fractl.component :as cn]
+            [fractl.datafmt.json :as json]
             [fractl.evaluator :as e]
             [fractl.evaluator.intercept :as ei]
-            [fractl.store :as store]
-            [fractl.store.migration :as mg]
             [fractl.global-state :as gs]
-            [fractl.lang :as ln]
+            [fractl.gpt.core :as gpt]
+            [fractl.http :as h]
             [fractl.lang.internal :as li]
             [fractl.lang.rbac :as lr]
-            [fractl.lang.tools.loader :as loader]
             [fractl.lang.tools.build :as build]
             [fractl.lang.tools.deploy :as d]
+            [fractl.lang.tools.loader :as loader]
             [fractl.lang.tools.repl :as repl]
-            [fractl.auth :as auth]
             [fractl.rbac.core :as rbac]
-            [fractl.gpt.core :as gpt]
+            [fractl.resolver.registry :as rr]
+            [fractl.store :as store]
+            [fractl.store.migration :as mg]
             [fractl.swagger.doc :as doc]
             [fractl.swagger.docindex :as docindex]
-            [fractl-config-secrets-reader.core :as fractl-secret-reader])
-  (:import [java.util Properties]
-           [java.net URL]
-           [java.io File]
-           [org.apache.commons.exec CommandLine Executor DefaultExecutor])
+            [fractl.tool-generator.core :as tool]
+            [fractl.util :as u]
+            [fractl.util.logger :as log]
+            [fractl.util.seq :as su])
+  (:import (java.io File)
+           (java.util Properties)
+           (org.apache.commons.exec CommandLine DefaultExecutor Executor))
 
   (:gen-class
    :name fractl.core
@@ -260,6 +259,23 @@
         (log-seq! "components" components))
       (build/exec-with-build-model (str "lein run -s " model-name " .") nil model-name))))
 
+(defn generate-schema-defs [model-name args]
+  (let [model-path (first args)]
+    (if (build/compiled-model? model-path model-name)
+      (let [components (remove #{:Fractl.Kernel.Identity :Fractl.Kernel.Lang
+                                 :Fractl.Kernel.Store :Fractl.Kernel.Rbac
+                                 :raw :-*-containers-*-}
+                               (cn/component-names))]
+
+        (.mkdir (File. "tool"))
+
+        (doseq [component components]
+          (with-open [w (clojure.java.io/writer (str "tool/schemas.edn"))]
+            (.write w (with-out-str (pprint/pprint (tool/generate-fetch-maps component))))))
+        (log-seq! "components" components))
+      (build/exec-with-build-model (str "lein run -t " model-name " .") nil model-name)))
+  (System/exit 0))
+
 (defn- find-model-to-read [args config]
   (or (seq (su/nonils args))
       [(:full-model-path config)]))
@@ -396,6 +412,7 @@
   [["-c" "--config CONFIG" "Configuration file"]
    ["-s" "--doc MODEL" "Generate documentation in .html"]
    ["-i" "--interactive 'app-description'" "Invoke AI-assist to model an application"]
+   ["-t" "--tool MODEL" "Generate schema tool from the model"]
    ["-h" "--help"]])
 
 (defn- print-help []
@@ -422,6 +439,7 @@
   (println "  -c --config CONFIG         Configuration file")
   (println "  -s --doc MODEL             Generate HTML documentation")
   (println "  -i --interactive 'desc'    Use AI to generate a model from the textual description")
+  (println "  -t --tool MODEL            Generate a schema tool from the model")
   (println "  -h --help                  Print this help and quit")
   (println)
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
@@ -481,6 +499,9 @@
                       (:doc options)
                       args)
       (:interactive options) (gpt-bot (:interactive options))
+      (:tool options) (generate-schema-defs
+                        (:tool options)
+                        args)
       :else
       (or (some
            identity
