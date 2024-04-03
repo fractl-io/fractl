@@ -71,3 +71,9 @@ jobs:
           rm -r /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}.jar
           rm -r /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}-standalone.jar
           lein clean
+
+      - name: Release to Clojars
+        uses: jlesquembre/clojars-publish-action@0.1
+        env:
+          CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
+          CLOJARS_PASSWORD: ${{ secrets.CLOJARS_PASSWORD }}
