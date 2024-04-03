@@ -26,21 +26,24 @@
   ([s]
    (add-to-conversation resolver-conversation "user" s)))
 
-(defn post [gpt result-handler request-message request-tunings]
-  (http/do-post
-    "https://api.openai.com/v1/chat/completions"
-    {:headers {"Content-Type"  "application/json"
-               "Authorization" (str "Bearer " (:api-key gpt))}}
-    (into {:model    (:gpt-model gpt)
-           :messages request-message}
-          (when-not (nil? request-tunings)
-            request-tunings))
-    :json (fn [{body :body :as response}]
-            (let [decoded-body (json/decode body)
-                  choices (:choices decoded-body)]
-              (if (not (nil? decoded-body))
-                {:chat-response (get-in (first choices) [:message :content])}
-                (u/throw-ex "AI failed to service your request, please try again"))))))
+(defn post
+  ([gpt result-handler request-message request-tunings]
+   (http/do-post
+     "https://api.openai.com/v1/chat/completions"
+     {:headers {"Content-Type"  "application/json"
+                "Authorization" (str "Bearer " (:api-key gpt))}}
+     (into {:model    (:gpt-model gpt)
+            :messages request-message}
+           (when-not (nil? request-tunings)
+             request-tunings))
+     :json (fn [{body :body :as response}]
+             (let [decoded-body (json/decode body)
+                   choices (:choices decoded-body)]
+               (if (not (nil? decoded-body))
+                 {:chat-response (get-in (first choices) [:message :content])}
+                 (u/throw-ex "AI failed to service your request, please try again"))))))
+  ([gpt result-handler request-message]
+   (post gpt result-handler request-message nil)))
 
 (defn- choices [resp]
   (map #(:content (:message %)) (:choices resp)))
@@ -62,8 +65,7 @@
                     type gpt response-handler (add-to-conversation
                                            (add-to-conversation request "assistant" choice)
                                            "user" next-request))))
-          request
-          nil)))
+          request)))
 
 (defn interactive-generate
   ([type gpt-model-name api-key response-handler request]
