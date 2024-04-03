@@ -2,9 +2,7 @@
   (:require [amazonica.aws.s3 :as s3]
             [buddy.auth :as buddy]
             [buddy.auth.backends :as buddy-back]
-            [buddy.auth.middleware :as buddy-midd
-             :refer [wrap-authentication]]
-            [buddy.core.keys :as buddykeys]
+            [buddy.auth.middleware :refer [wrap-authentication]]
             [buddy.sign.jwt :as buddyjwt]
             [clj-time.core :as time]
             [clojure.string :as s]
@@ -13,8 +11,6 @@
             [fractl.auth.jwt :as jwt]
             [fractl.compiler :as compiler]
             [fractl.component :as cn]
-            [fractl.datafmt.json :as json]
-            [fractl.datafmt.transit :as t]
             [fractl.evaluator :as ev]
             [fractl.global-state :as gs]
             [fractl.gpt.core :as gpt]
@@ -28,10 +24,8 @@
             [fractl.util.hash :as hash]
             [fractl.util.http :as uh]
             [fractl.util.logger :as log]
-            [org.httpkit.client :as hc]
             [org.httpkit.server :as h]
-            [ring.middleware.cors :as cors]
-            [ring.util.codec :as codec])
+            [ring.middleware.cors :as cors])
   (:use [compojure.core :only [DELETE GET POST PUT routes]]
         [compojure.route :only [not-found]]))
 
@@ -281,10 +275,17 @@
       (let [[map-obj _ err-response] (request-object request)]
         (or err-response
             (let [resp (atom nil)
+                  type-obj (get map-obj :type)
+                  gpt-model (get map-obj :model)
+                  open-ai-key (get map-obj :key)
+                  request-message (get map-obj :message)
+                  result-tuning (get map-obj :result-tuning)
                   generation (gpt/non-interactive-generate
-                               (if (nil? (get map-obj :type)) "model" (get map-obj :type))
-                               (get map-obj :model)
-                               (get map-obj :key)
+                               (if (nil? type-obj)
+                                 "model"
+                                 type-obj)
+                               gpt-model
+                               open-ai-key
                                (fn [choice history]
                                  (if choice
                                    (reset!
@@ -292,8 +293,8 @@
                                      {:choice       choice
                                       :chat-history history})
                                    (u/throw-ex "AI failed to service your request, please try again")))
-                               (get map-obj :message)
-                               (get map-obj :result-tuning))]
+                               request-message
+                               result-tuning)]
               (reset! resp generation)
               (ok @resp))))))
 
