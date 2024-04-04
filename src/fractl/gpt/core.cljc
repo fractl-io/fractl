@@ -12,8 +12,10 @@
 
 #?(:clj
    (defn read-and-parse-edn-file [filename]
-     (with-open [reader (io/reader filename)]
-       (edn/read-string (slurp reader)))))
+     (let [resource-stream (-> filename io/resource io/input-stream)]
+       (when resource-stream
+         (with-open [reader (io/reader resource-stream)]
+           (edn/read-string (slurp reader)))))))
 
 #?(:clj
    (def ^:private resolver-conversation (read-and-parse-edn-file "fractl/extn/llm/resolver_seed.edn"))
