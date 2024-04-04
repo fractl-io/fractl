@@ -12,13 +12,8 @@
 
 #?(:clj
    (defn read-and-parse-edn-file [filename]
-     (let [resource-url (io/resource filename)]
-       (if resource-url
-         (let [resource-stream (io/input-stream resource-url)]
-           (when resource-stream
-             (with-open [reader (io/reader resource-stream)]
-               (edn/read-string (slurp reader)))))
-         (throw (IllegalArgumentException. (str "Resource not found: " filename)))))))
+     (with-open [reader (io/reader filename)]
+       (edn/read-string (slurp reader)))))
 
 #?(:clj
    (defn- resolver-conversation []
