@@ -114,13 +114,13 @@ We can create a new company using an `HTTP POST` request,
 curl --header "Content-Type: application/json" \
 --request POST \
 --data '{"Accounts.Core/Company": {"Name": "acme"}}' \
-http://localhost:8080/_e/Accounts.Core/Company
+http://localhost:8080/api/Accounts.Core/Company
 ```
 
 To make sure the new company is persisted in the store, try the following `HTTP GET`:
 
 ```shell
-curl http://localhost:8080/_e/Accounts.Core/Company/acme
+curl http://localhost:8080/api/Accounts.Core/Company/acme
 ```
 
 If Fractl is installed correctly, both these requests will return an `OK` status along with a `:Company` instance.
@@ -129,7 +129,7 @@ Listed below are a few more HTTP requests that you can try with our "accounting"
 1. Create an account-head for the new company.
 
 ```shell
-POST /_e/Accounts.Core/Company/acme/CompanyAccounts/AccountHead
+POST /api/Accounts.Core/Company/acme/CompanyAccounts/AccountHead
 
 {"Accounts.Core/AccountHead": {"Name": "Department01"}}
 ```
@@ -137,13 +137,13 @@ POST /_e/Accounts.Core/Company/acme/CompanyAccounts/AccountHead
 2. Make some transactions under the new account-head.
 
 ```shell
-POST /_e/Accounts.Core/Company/acme/CompanyAccounts/AccountHead/Department01/Transactions/Entry
+POST /api/Accounts.Core/Company/acme/CompanyAccounts/AccountHead/Department01/Transactions/Entry
 
 {"Accounts.Core/Entry":
  {"No": 1, "Type": "income",
   "Amount": 2000.0, "Remarks": "Opening balance"}}
 
-POST /_e/Accounts.Core/Company/acme/CompanyAccounts/AccountHead/Department01/Transactions/Entry
+POST /api/Accounts.Core/Company/acme/CompanyAccounts/AccountHead/Department01/Transactions/Entry
 
 {"Accounts.Core/Entry":
  {"No": 2, "Type": "expense",
@@ -153,7 +153,7 @@ POST /_e/Accounts.Core/Company/acme/CompanyAccounts/AccountHead/Department01/Tra
 3. Generate the balance-report for the account-head.
 
 ```shell
-POST /_e/Accounts.Core/GenerateReport
+POST /api/Accounts.Core/GenerateReport
 
 {"Accounts.Core/GenerateReport":
  {"Since": "2023-11-09T00:00:00.00",
