@@ -1,4 +1,4 @@
-(ns fractl.inference.core
+(ns fractl.inference.langchain
   (:require [fractl.util :as u :refer [.i]])
   (:import [java.time Duration]
            [dev.langchain4j.model.openai OpenAiChatModel]))

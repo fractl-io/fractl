@@ -2,7 +2,7 @@
   (:require [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.lang.internal :as li]
-            [fractl.inference.core :as lchain]
+            [fractl.inference.langchain :as lchain]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]))
 
