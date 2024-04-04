@@ -12,21 +12,26 @@
 
 #?(:clj
    (defn read-and-parse-edn-file [filename]
-     (let [resource-stream (-> filename io/resource io/input-stream)]
-       (when resource-stream
-         (with-open [reader (io/reader resource-stream)]
-           (edn/read-string (slurp reader)))))))
+     (let [resource-url (io/resource filename)]
+       (if resource-url
+         (let [resource-stream (io/input-stream resource-url)]
+           (when resource-stream
+             (with-open [reader (io/reader resource-stream)]
+               (edn/read-string (slurp reader)))))
+         (throw (IllegalArgumentException. (str "Resource not found: " filename)))))))
 
 #?(:clj
-   (def ^:private resolver-conversation (read-and-parse-edn-file "fractl/extn/llm/resolver_seed.edn"))
+   (defn- resolver-conversation []
+     (read-and-parse-edn-file "fractl/extn/llm/resolver_seed.edn"))
    :cljs
-   (def ^:private resolver-conversation nil))
+   (defn- resolver-conversation []
+     nil))
 
 (defn add-to-conversation
   ([history role s]
    (concat history [{:role role :content s}]))
   ([s]
-   (add-to-conversation resolver-conversation "user" s)))
+   (add-to-conversation (resolver-conversation) "user" s)))
 
 (defn post
   ([gpt result-handler request-message request-tunings]
