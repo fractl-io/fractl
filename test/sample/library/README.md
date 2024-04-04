@@ -18,7 +18,7 @@ POST _e/Sample.Library.Ledger/UserLogin
 
 ### Member Login Auth
 ```json
-POST /_e/Sample.Library.Ledger/MemberLogin
+POST /api/Sample.Library.Ledger/MemberLogin
 
 {
   "Sample.Library.Ledger/MemberLogin": {

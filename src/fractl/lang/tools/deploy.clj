@@ -19,7 +19,7 @@
     service-info
     (login service-info)))
 
-(def ^:private deploy-api "/_e/FractlDeployment.Core/DeployToCluster")
+(def ^:private deploy-api "/api/FractlDeployment.Core/DeployToCluster")
 
 (defn- deploy-model [service-info model-name]
   (if-let [r (uh/POST

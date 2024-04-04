@@ -1080,7 +1080,7 @@
                                (cn/component-names))]
         (try
           (let [out (uh/POST
-                      (str copilot-url "/_e/Copilot.Service.Core/PostAppQuestion")
+                      (str copilot-url "/api/Copilot.Service.Core/PostAppQuestion")
                       nil
                       {:Copilot.Service.Core/PostAppQuestion
                        {:AppUuid app-id
