@@ -380,3 +380,9 @@
         (let [ret (apply f args)]
           (when-not (nil? ret) (swap! mem assoc args ret))
           ret)))))
+
+#?(:clj
+   (defmacro .i [mem-key java-object arg]
+     `(let [v# ~arg]
+        (when-not (nil? v#)
+          (. ~java-object ~(symbol (name mem-key)) v#)))))
