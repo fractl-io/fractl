@@ -16,15 +16,17 @@
        (edn/read-string (slurp reader)))))
 
 #?(:clj
-   (def ^:private resolver-conversation (read-and-parse-edn-file "fractl/extn/llm/resolver_seed.edn"))
+   (defn- resolver-conversation []
+     (read-and-parse-edn-file "fractl/extn/llm/resolver_seed.edn"))
    :cljs
-   (def ^:private resolver-conversation nil))
+   (defn- resolver-conversation []
+     nil))
 
 (defn add-to-conversation
   ([history role s]
    (concat history [{:role role :content s}]))
   ([s]
-   (add-to-conversation resolver-conversation "user" s)))
+   (add-to-conversation (resolver-conversation) "user" s)))
 
 (defn post
   ([gpt result-handler request-message request-tunings]
