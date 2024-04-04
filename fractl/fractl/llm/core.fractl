@@ -1,164 +1,23 @@
-(component :Fractl.LLM.Core
+(component :Fractl.Llm.Core
            {:refer [:Fractl.Kernel.Lang]})
 
-(entity
- :LanguageModel
- {:Provider {:oneof ["openai"] :default "openai"}
-  :Model :String
-  :Properties {:type :Map :optional true}})
-
-(record
- :InferenceSettings
- {:Variables {:type :Map :optional true} ; variables for placeholders in the prompt
-  :FrequencyPenalty {:type :Int :default 0}
-  :MaxTokens {:type :Int :optional true}
-  :N {:type :Int :default 1}
-  :PresencePenalty {:type :Int :default 0}
-  :Temperature {:type :Int :default 1}
-  :TopP {:type :Int :optional true}
-  :AdditionalProperties {:type :Map :optional true}})
-
-(event
- :RunInference
- {:LangModel :LanguageModel
-  :Prompt {:type :String :optional true}
-  :Settings :InferenceSettings})
-
-(record :Response {:Content :String})
-
-#_(dataflow
-   :Example01
-   {:LanguageModel {:Model "gpt-4"} :as :LM}
-   {:RunInference
-    {:LangModel :LM
-     :Prompt "which country holds the most number of cricket world cup wins?"}}
-   ;; => {:Response {:Content "Australia"}}
-   )
-
-;; Integration with chat models
-(record
- :Function
- {:Name :String
-  :Arguments :String})
-
-(record
- :ToolCall
- {:Id :String
-  :Type {:oneof ["function"] :default "function"}
-  :Function :Function})
-
-(record
- :Message
- {:Type {:oneof ["human" "system" "assistant"]}
-  :Content :String
-  :Name {:type :String :optional true}
-  :ToolCalls {:listof :ToolCall :optional true}})
+(record :ChatLanguageModel {})
 
 (entity
- :ChatPrompt
- {:Id :Identity
-  :Messages {:listof :Message}})
-
-(entity
- :ChatInference
- {:meta {:inherits :LanguageModel}
-  :Prompt :ChatPrompt})
-
-#_(dataflow
-   :Example02
-   {:Message {:Type "system" :Content "You are Micheal Jordan."} :as :M1}
-   {:Message {:Type "human" :Content "Which shoe manufacturer are you associated with?"} :as :M2}
-   {:ChatPrompt {:Messages [:M1 :M2]} :as :P}
-   {:ChatInference {:ModelName "gpt-4" :Prompt :P} :as :CI}
-   {:RunInference {:LangModel :CI}}
-   ;; => {:Response {:Content "Nike"}}
-   )
-
-;; Inference with augmented context (RAG)
-(entity
- :Document
- {:MetaData :Map
-  :Content :String})
-
-(event
- :LoadDocument
- ;; The resolver for this event will infer the source and type of the document from the URI,
- ;; and return a :Fractl.Kernel.Lang/Future which can be realized into a :Document.
- {:URI :String})
-
-(entity
- :RAGChatInference
- {:meta {:inherits :ChatInference}
-  :Context {:listof :Document}})
-
-#_(dataflow
-   :Example03
-   {:LoadDocument {:URI "file:///usr/docs/fractl-tutorial.txt"} :as :D1}
-   {:LoadDocument {:URI "file:///usr/projects/sfdc.fractl"} :as :D2}
-   {:Message
-    {:Type :system
-     :Content "You are the Fractl assistant."}
-    :as :M1}
-   {:Message
-    {:Type :human
-     :Content '(str "How can I retrieve all my Leads? My Id is " :Example03.UserId)}
-    :as :M2}
-   {:ChatPrompt {:Messages [:M1 :M2]} :as :P}
-   {:RAGChatInference
-    {:ModelName "fractl-gpt-4"
-     :Prompt :P
-     :Context [(:Result :D1) (:Result :D2)]}
-    :as :CI}
-   {:RunInference {:LangModel :CI}}
-   ;; => {:Response {:Content [{:Salesforce/Lead {:OwnerId? "bbvag56535"}}]}}
-   )
-
-;; Dataflows for both the following events will return instances list of `:Document`s.
-(event
- :SimilaritySearch
- {:Content :Fractl.LLM.Core/Message
-  :Limit {:type :Int :default 5}
-  :Offset {:type :Int :default 0}})
-
-(event
- :VectorSimilaritySearch
- {:Concepts {:listof :Fractl.LLM/Message}
-  :TargetVectors {:listof :String}
-  :Limit {:type :Int :default 5}})
-
-;; example config for vector-db
-#_{:store
-   {:type :weaviate
-    :host "weaviate.fractl.io"
-    :port 50052
-    :secret #$ WEAVIATE_SECRET}}
-
-#_(dataflow
-   :Example04
-   ;; The loaded documents will be automatically added to the configured vector-db.
-   {:Fractl.LLM.Core/LoadDocument {:URI "file:///usr/projects/workday.fractl"} :as :D1}
-   {:Fractl.LLM.Core/LoadDocument {:URI "file:///usr/projects/sfdc.fractl"} :as :D2}
-   {:Fractl.LLM.Core/Message
-    {:Type :system
-     :Content "You are the Fractl assistant."}
-    :as :M1}
-   {:Fractl.LLM.Core/Message
-    {:Type :human
-     :Content '(str "How can I retrieve all the Leads of my Manager? My Id is " :Example04.UserId}
-     :as :M2}}
-   {:Fractl.LLM.Core/ChatPrompt {:Messages [:M1 :M2]} :as :P}
-   
-   ;; Document similarity-search in the vector-db:
-   {:Fractl.LLM.Core/Document? {:where [:like :Content :M2]
-                                :limit 5}
-    :as :Ds}
-   
-   {:Fractl.LLM.Core/RAGChatInference
-    {:ModelName "fractl-gpt-4"
-     :Prompt :P
-     :Context [(:Result :Ds)]}
-    :as :CI}
-   {:Fractl.LLM.Core/RunInference {:LangModel :CI}}
-   ;; => {:Response {:Content [{:WorkDay/Employee {:Id? "bbvag56535"} :as [:E]}
-   ;;                          {:Salesforce/Lead {:OwnerId? :E.ManagerId}}]}}
-   )
+ :OpenAiChatModel
+ {:meta {:inherits :ChatLanguageModel}
+  :Id :Identity
+  :apiKey :String
+  :modelName {:type :String :optional true}
+  :temperature {:type :Double :optional true}
+  :timeoutInSeconds {:type :Int :optional true}
+  :frequencyPenalty {:type :Double :optional true}
+  :maxTokens {:type :Int :optional true}
+  :maxRetries {:type :Int :optional true}
+  :presencePenalty {:type :Double :optional true}
+  :seed {:type :Int :optional true}
+  :stop {:listof :String :optional true}
+  :topP {:type :Double :optional true}
+  :user {:type :String :optional true}
+  :logRequests {:type :Boolean :optional true}
+  :logResponses {:type :Boolean :optional true}})

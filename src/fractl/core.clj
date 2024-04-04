@@ -26,6 +26,7 @@
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac]
             [fractl.gpt.core :as gpt]
+            [fractl.inference.resolver :as ai-res]
             [fractl.swagger.doc :as doc]
             [fractl.swagger.docindex :as docindex]
             [fractl-config-secrets-reader.core :as fractl-secret-reader])
@@ -91,7 +92,8 @@
       (log-seq! "Resolvers" rns)))
   (when-let [auth-config (:authentication config)]
     (when (auth/setup-resolver auth-config evaluator)
-      (log/info "authentication resolver inited"))))
+      (log/info "authentication resolver inited")))
+  (ai-res/register nil))
 
 (defn- model-name-from-args [args]
   (and (seq (su/nonils args))
