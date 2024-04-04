@@ -13,4 +13,4 @@
    :Fractl.Kernel.Identity
    :Fractl.Kernel.Rbac
    :Fractl.Llm.Core]})
-(def fractl___MODEL_ID__ "88663a26-ee02-41f0-bce9-e32e8805b475")
+(def fractl___MODEL_ID__ "08038746-3d3d-44f6-8e6b-11e0e12b3ed9")

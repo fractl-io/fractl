@@ -268,10 +268,13 @@
     (op/set-literal-attribute attr)))
 
 (defn- build-record-for-upsert? [attrs]
-  (when (or (seq (:compound attrs))
-            (seq (:computed attrs))
-            (seq (:sorted attrs)))
-    true))
+  (if (or (seq (:compound attrs))
+          (seq (:computed attrs))
+          (seq (:sorted attrs)))
+    true
+    ;; Allow upserts with only default values (empty attrs in pattern),
+    ;; but only if not a query-pattern.
+    (not (seq (:query attrs)))))
 
 (defn- emit-build-record-instance [ctx rec-name attrs schema args]
   (let [alias (:alias args)

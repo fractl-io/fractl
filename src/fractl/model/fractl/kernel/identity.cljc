@@ -91,4 +91,4 @@
  [:delete :Fractl.Kernel.Rbac/RoleAssignment :purge])
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "8e74d07d-6fed-449a-9924-9e68ddcca8cc")
+ "53f4f177-3f24-4b8a-b096-e5bcee0c1185")

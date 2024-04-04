@@ -1,13 +1,14 @@
 (component :Fractl.Llm.Core
            {:refer [:Fractl.Kernel.Lang]})
 
-(record :ChatLanguageModel {})
+(record
+ :ChatLanguageModel
+ {:Id :Identity})
 
 (entity
  :OpenAiChatModel
  {:meta {:inherits :ChatLanguageModel}
-  :Id :Identity
-  :apiKey :String
+  :apiKey {:type :String :optional true}
   :modelName {:type :String :optional true}
   :temperature {:type :Double :optional true}
   :timeoutInSeconds {:type :Int :optional true}
@@ -21,3 +22,20 @@
   :user {:type :String :optional true}
   :logRequests {:type :Boolean :optional true}
   :logResponses {:type :Boolean :optional true}})
+
+(record :ChatMessage {})
+
+(record
+ :UserMessage
+ {:meta {:inherits :ChatMessage}
+  :Content {:listof :String}})
+
+(record
+ :AiMessage
+ {:meta {:inherits :ChatMessage}
+  :Text :String})
+
+(event
+ :Generate
+ {:Model :ChatLanguageModel
+  :Messages {:listof :ChatMessage}})

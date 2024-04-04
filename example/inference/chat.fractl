@@ -1,0 +1,10 @@
+(component :Llm.Chat)
+
+(dataflow
+ :BasicChat
+ {:Fractl.Llm.Core/OpenAiChatModel {} :as :M}
+ {:Fractl.Llm.Core/UserMessage
+  {:Content ["My name is Nemo"]}
+  :as :M1}
+ {:Fractl.Llm.Core/Generate
+  {:Model :M :Messages [:M1]}})

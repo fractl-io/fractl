@@ -6,18 +6,49 @@
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]))
 
+(def ^:private llm-handles (atom {}))
+
 (defn- clean-up-attributes [instance]
   (let [attrs (cn/instance-attributes instance)]
     (dissoc attrs :Id li/id-attr li/path-attr)))
 
+(defn- maybe-assoc-openai-defaults [inst]
+  (if (:apiKey inst)
+    inst
+    (assoc inst :apiKey (u/getenv "OPENAI_API_KEY"))))
+
 (defn- llm-create [_ instance]
   (case (cn/instance-type-kw instance)
     :Fractl.Llm.Core/OpenAiChatModel
-    (lchain/make-openai-chatmodel (clean-up-attributes instance))
-    (u/throw-ex (str "unsupported inference provider: " (cn/instance-type-kw instance)))))
+    (let [instance (maybe-assoc-openai-defaults instance)
+          h (lchain/make-openai-chatmodel (clean-up-attributes instance))]
+      (swap! llm-handles assoc (:Id instance) h)
+      instance)
+    (u/throw-ex (str "unsupported llm provider: " (cn/instance-type-kw instance)))))
+
+(defn- preproc-message [msg]
+  (let [t (cn/instance-type-kw msg)
+        cont (:Content msg)]
+    (case t
+      :Fractl.Llm.Core/UserMessage
+      [:user cont]
+      :Fractl.Llm.Core/AiMessage
+      [:ai cont]
+      (u/throw-ex (str "invalid message type: " t)))))
 
 (defn- llm-eval [_ event-instance]
-  event-instance)
+  (let [model (:Model event-instance)
+        model-type (cn/instance-type-kw model)
+        result
+        (case model-type
+          :Fractl.Llm.Core/OpenAiChatModel
+          (lchain/openai-generate
+           (get @llm-handles (:Id model))
+           (mapv preproc-message (:Messages event-instance)))
+          (u/throw-ex (str "invalid llm provider: " model-type)))]
+    (cn/make-instance
+     :Fractl.Llm.Core/AiMessage
+     {:Text result})))
 
 (defn- register-resolver [config entity-names]
   (let [k :fractl-inference]
