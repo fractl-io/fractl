@@ -1,32 +1,49 @@
 (ns fractl.gpt.core
-  (:require [clojure.string :as s]
-            [fractl.util :as u]
-            [fractl.util.logger :as log]
-            [fractl.util.http :as http]
+  (:require [clojure.edn :as edn]
+            [clojure.string :as s]
+            [fractl.datafmt.json :as json]
+            [fractl.global-state :as gs]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
-            [fractl.global-state :as gs]
-            [fractl.datafmt.json :as json]))
+            [fractl.util :as u]
+            [fractl.util.http :as http]
+            [fractl.util.logger :as log])
+  #?(:clj (:require [clojure.java.io :as io])))
+
+#?(:clj
+   (defn read-and-parse-edn-file [filename]
+     (with-open [reader (io/reader filename)]
+       (edn/read-string (slurp reader)))))
+
+#?(:clj
+   (def ^:private resolver-conversation (read-and-parse-edn-file "fractl/extn/llm/resolver_seed.edn"))
+   :cljs
+   (def ^:private resolver-conversation nil))
 
 (defn add-to-conversation
   ([history role s]
-   (concat history [{:role role :content s}])))
+   (concat history [{:role role :content s}]))
+  ([s]
+   (add-to-conversation resolver-conversation "user" s)))
 
-(defn post [gpt result-handler request-message request-tunings]
-  (http/do-post
-   "https://api.openai.com/v1/chat/completions"
-   {:headers {"Content-Type" "application/json"
-              "Authorization" (str "Bearer " (:api-key gpt))}}
-   (into {:model    (:gpt-model gpt)
-          :messages request-message}
-         (when-not (nil? request-tunings)
-           request-tunings))
-   :json (fn [{body :body :as response}]
-           (let [decoded-body (json/decode body)
-                 choices (:choices decoded-body)]
-             (if (not (nil? decoded-body))
-               {:chat-response (get-in (first choices) [:message :content])}
-               (u/throw-ex "AI failed to service your request, please try again"))))))
+(defn post
+  ([gpt result-handler request-message request-tunings]
+   (http/do-post
+     "https://api.openai.com/v1/chat/completions"
+     {:headers {"Content-Type"  "application/json"
+                "Authorization" (str "Bearer " (:api-key gpt))}}
+     (into {:model    (:gpt-model gpt)
+            :messages request-message}
+           (when-not (nil? request-tunings)
+             request-tunings))
+     :json (fn [{body :body :as response}]
+             (let [decoded-body (json/decode body)
+                   choices (:choices decoded-body)]
+               (if (not (nil? decoded-body))
+                 {:chat-response (get-in (first choices) [:message :content])}
+                 (u/throw-ex "AI failed to service your request, please try again"))))))
+  ([gpt result-handler request-message]
+   (post gpt result-handler request-message nil)))
 
 (defn- choices [resp]
   (map #(:content (:message %)) (:choices resp)))
@@ -37,22 +54,24 @@
   {:gpt-model gpt-model-name
    :api-key api-key})
 
-(defn- interactive-generate-helper [gpt response-handler request]
-  (post gpt (fn [r]
-              (when-let [[choice next-request] (response-handler
-                                                (choices (:chat-response r)))]
-                (interactive-generate-helper
-                 gpt response-handler (add-to-conversation
-                                            (add-to-conversation request "assistant" choice)
-                                            "user" next-request))))
-        request
-        nil))
+(defn- interactive-generate-helper [type gpt response-handler request]
+  (let [request (if (and (string? request) (= type "resolver"))
+                  (add-to-conversation request)
+                  request)]
+    (post gpt (fn [r]
+                (when-let [[choice next-request] (response-handler
+                                                   (choices (:chat-response r)))]
+                  (interactive-generate-helper
+                    type gpt response-handler (add-to-conversation
+                                           (add-to-conversation request "assistant" choice)
+                                           "user" next-request))))
+          request)))
 
 (defn interactive-generate
-  ([gpt-model-name api-key response-handler request]
-   (interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request))
-  ([response-handler request]
-   (interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
+  ([type gpt-model-name api-key response-handler request]
+   (interactive-generate-helper type (init-gpt gpt-model-name api-key) response-handler request))
+  ([type response-handler request]
+   (interactive-generate type default-model (u/getenv "OPENAI_API_KEY") response-handler request)))
 
 (declare maybe-intern-component)
 
@@ -69,31 +88,33 @@
       [nil #?(:clj (.getMessage ex) :cljs ex)])))
 
 (defn non-interactive-generate-helper
-  ([gpt response-handler request-message request-tunings]
-   (let [orig-request request-message]
+  ([type gpt response-handler request-message request-tunings]
+   (let [request (if (and (string? request-message) (= type "resolver"))
+                   (add-to-conversation request-message)
+                   request-message)]
      (post gpt (fn [r]
                  (let [choices (choices (:chat-response r))
                        [choice err-msg] (find-choice choices)]
                    (if-not err-msg
-                     (response-handler choice (add-to-conversation orig-request "assistant" choice))
+                     (response-handler choice (add-to-conversation request "assistant" choice))
                      (do (log/warn (str "attempt to intern component failed: " err-msg))
                          (response-handler nil nil)))))
-           request-message
+           request
            request-tunings)))
-  ([gpt response-handler request-message]
-   (non-interactive-generate-helper gpt response-handler request-message nil)))
+  ([type gpt response-handler request-message]
+   (non-interactive-generate-helper type gpt response-handler request-message nil)))
 
 (defn non-interactive-generate
-  ([gpt-model-name api-key response-handler request-message request-tunings]
-   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request-message request-tunings))
-  ([gpt-model-name api-key response-handler request-message]
-   (non-interactive-generate-helper (init-gpt gpt-model-name api-key) response-handler request-message))
-  ([api-key response-handler request-message]
+  ([type gpt-model-name api-key response-handler request-message request-tunings]
+   (non-interactive-generate-helper type (init-gpt gpt-model-name api-key) response-handler request-message request-tunings))
+  ([type gpt-model-name api-key response-handler request-message]
+   (non-interactive-generate-helper type (init-gpt gpt-model-name api-key) response-handler request-message))
+  ([type api-key response-handler request-message]
    (if (nil? api-key)
-     (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request-message)
-     (non-interactive-generate default-model api-key response-handler request-message)))
-  ([response-handler request-message]
-   (non-interactive-generate default-model (u/getenv "OPENAI_API_KEY") response-handler request-message)))
+     (non-interactive-generate type default-model (u/getenv "OPENAI_API_KEY") response-handler request-message)
+     (non-interactive-generate type default-model api-key response-handler request-message)))
+  ([type response-handler request-message]
+   (non-interactive-generate type default-model (u/getenv "OPENAI_API_KEY") response-handler request-message)))
 
 (defn- prnf [s]
   #?(:clj
@@ -213,11 +234,11 @@
 
 #?(:clj
    (defn bot [request]
-     (let [seed-type (:seed-type request)
+     (let [type (:type request)
            req [{:role "user" :content (:content request)}]
            resp (atom nil)]
        (non-interactive-generate
-        seed-type
+         type
         (fn [choice history]
           (reset!
            resp
