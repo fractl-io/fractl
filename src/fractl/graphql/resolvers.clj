@@ -170,50 +170,26 @@
   (fn [context args parent-instance]
     (let [args (:attributes args)
           core-component (first (get-app-components))
-          schema (schema-info core-component)]
+          schema (schema-info core-component)
 
-      ;; Print initial inputs and derived values
-      (println "Initial args:" args)
-      (println "Core component:" core-component)
-      (println "Nice 2 Schema:" schema)
+          parent-guid-attribute (find-guid-or-id-attribute schema parent-name)
+          query-params (append-question-to-keys args)
 
-      ;; Print entity names after forming them
-      (println "Parent name:" parent-name)
-      (println "Child name:" child-name)
-      (println "Relationship name:" relationship-name)
+          dataflow-query [{parent-name
+                           {(append-question-mark parent-guid-attribute) (parent-guid-attribute parent-instance)}
+                           :as :Parent}
+                          {child-name query-params
+                           :-> [[relationship-name :Parent]]}]
 
-      (let [parent-guid-attribute (find-guid-or-id-attribute schema parent-name)
-            query-params (append-question-to-keys args)]
+          results (eval-patterns core-component dataflow-query)
 
-        ;; Print GUID attribute and query parameters
-        (println "Parent GUID attribute:" parent-guid-attribute)
-        (println "Query params:" query-params)
-
-        (let [dataflow-query [{parent-name
-                               {(append-question-mark parent-guid-attribute) (parent-guid-attribute parent-instance)}
-                               :as :Parent}
-                              {child-name query-params
-                               :-> [[relationship-name :Parent]]}]]
-
-          ;; Print the dataflow query
-          (println "Dataflow query:" dataflow-query)
-
-          (let [results (eval-patterns core-component dataflow-query)]
-
-            ;; Print results from the dataflow query
-            (println "Results:" results)
-
-            (let [data (if results
-                         (cond
-                           (map? results) [results]
-                           (coll? results) results
-                           :else [])
-                         [])]
-
-              ;; Print final data being returned
-              (println "Final data:" data)
-              data)))))
-    ))
+          data (if results
+                 (cond
+                   (map? results) [results]
+                   (coll? results) results
+                   :else [])
+                 [])]
+      data)))
 
 (defn between-relationship-resolver
   [relationship-name entity1-name entity2-name]
