@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5] - 2024-04-05
 
 -   api endpoint format change from `_e/` to `_api/` (**Breaking change**)
+-   api change where leading `_` removed from all endpoints (e.g. `_login` to `login`) **Breaking change**
 -   Docstring support in fractl definitions
 -   Redis resolver
 -   Authentication via Okta
