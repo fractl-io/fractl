@@ -7,21 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5] - 2024-04-05
+
+-   api endpoint format change from `_e/` to `_api/` (**Breaking change**)
+-   api change where leading `_` removed from all endpoints (e.g. `_login` to `login`) **Breaking change**
+-   Docstring support in fractl definitions
+-   Redis resolver
+-   Authentication via Okta
+-   Resolver interface extended to support push-events
+-   Rules that can run on CRUD
+-   Support for generating resolver
+-   Copilot support
+
 ## [0.4.8] - 2024-02-09
 
-- Fix for a bug where last line in a `.fractl` file having a `;` comment would lead to parsing error.
-- New path-query syntax
-- Change-notifications from external systems
-- Common auth-interface for resolvers
-- Context support in resolver methods
-- Support for data-migration between fractl versions
-- Fix default port and add a server message
-- Ensure tokens removed from AWS Cognito aren't used to interact with Fractl
-- Update GPT Codebase and API structure
-- Add Magiclinks support
-- Step-wise loader support
-- Add support for fine-tuned OpenAI models
-- HTTP utility function for the GET method
+-   Fix for a bug where last line in a `.fractl` file having a `;` comment would lead to parsing error.
+-   New path-query syntax
+-   Change-notifications from external systems
+-   Common auth-interface for resolvers
+-   Context support in resolver methods
+-   Support for data-migration between fractl versions
+-   Fix default port and add a server message
+-   Ensure tokens removed from AWS Cognito aren't used to interact with Fractl
+-   Update GPT Codebase and API structure
+-   Add Magiclinks support
+-   Step-wise loader support
+-   Add support for fine-tuned OpenAI models
+-   HTTP utility function for the GET method
 
 ## [0.4.7] - 2023-11-14
 
@@ -158,7 +170,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.4.8...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.5...HEAD
+
+[0.5]: https://github.com/fractl-io/fractl/compare/0.4.8...0.5
 
 [0.4.8]: https://github.com/fractl-io/fractl/compare/0.4.7...0.4.8
 
