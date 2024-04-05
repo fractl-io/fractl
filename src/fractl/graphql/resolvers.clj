@@ -43,12 +43,6 @@
     ;; if entity is a symbol, form a new keyword
     :else (keyword (str (name component-name) sep (name entity)))))
 
-(defn check-type [input]
-  (cond
-    (string? input) "string"
-    (keyword? input) "keyword"
-    :else "unknown"))
-
 (defn append-question-mark [k]
   (keyword (namespace k) (str (name k) "?")))
 
@@ -66,31 +60,6 @@
   (let [combined-key (keyword (str (name entity-name) (name attribute-name)))]
     (when (contains? arg-map combined-key)
       {combined-key (arg-map combined-key)})))
-
-(defn fractl-entity-schema
-  [entity-name]
-  (let [entity-obj (:schema (cn/find-entity-schema entity-name))
-        entity-obj (if entity-obj (dissoc entity-obj :__instmeta__)
-                                  (cn/record-schema entity-name))]
-    entity-obj))
-
-(defn attribute-type-recursive [entity-name {key :attr attr-internal-type :attr-internal-type}]
-  (let [initial-type (cn/attribute-type entity-name key)]
-    ;; check if initial-type is not nil and contains "G__"
-    (if (and initial-type (re-find #"G__" (name initial-type)))
-      (let [kernel-type (kernel/find-root-attribute-type initial-type)]
-        kernel-type)
-      (if (nil? initial-type) (let [final-type (kernel/find-root-attribute-type attr-internal-type)]
-                                final-type)
-                              initial-type))))
-
-(defn schema-to-attribute-types [entity-name]
-  "returns schema with fractl attribute types"
-  (let [attr-map (fractl-entity-schema entity-name)]
-    (reduce (fn [acc [k v]]
-              (assoc acc k (attribute-type-recursive entity-name {:attr k :attr-internal-type v})))
-            {}
-            attr-map)))
 
 (defn extract-entity-name [kw]
   "input: :WordCount.Core/Document
