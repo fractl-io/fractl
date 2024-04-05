@@ -7,6 +7,7 @@
 ;; The returned function is called every time an API request with Bearer token is received.
 (defmulti make-authfn service-tag)
 (defmulti user-login service-tag)
+(defmulti verify-token service-tag)
 ;; Return user details that you want to attach in EventContext. 
 ;; Include `username` and `sub`.
 (defmulti session-user service-tag)
@@ -14,6 +15,16 @@
 (defmulti session-sub service-tag)
 ;; Logout from the auth broker and return some truthy value.
 (defmulti user-logout service-tag)
+
+;; Authenticate with a locally cached session-cookie.
+;; If no session-cookie is found, redirect to an auth-uri.
+(defmulti authenticate-session service-tag)
+
+;; Handle the redirect-uri from an external auth-endpoint.
+(defmulti handle-auth-callback service-tag)
+
+(defmulti cookie-to-session-id service-tag)
+
 ;; Get user details
 (defmulti get-user service-tag)
 (defmulti resend-confirmation-code service-tag)
@@ -41,3 +52,10 @@
 
 (defn call-delete-user [client arg user-inst]
   (delete-user (assoc arg client-key client instance-key user-inst)))
+
+(defn service? [tag config]
+  (let [s (:service config)]
+    (= tag s)))
+
+(def okta? (partial service? :okta))
+(def cognito? (partial service? :cognito))

@@ -1,7 +1,8 @@
 (ns fractl.env
   "The environment of instance and variable bindings,
   used for pattern resolution."
-  (:require [fractl.util :as u]
+  (:require [clojure.string :as s]
+            [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.lang.internal :as li]
             [fractl.component :as cn]))
@@ -20,13 +21,8 @@
   (and (map? x)
        (env-tag x)))
 
-(defn get-store
-  [self]
-  (:store self))
-
-(defn get-resolver
-  [self]
-  (:resolver self))
+(def get-store :store)
+(def get-resolver :resolver)
 
 ;; !!NOTE!! This assertion may be removed once the
 ;; pattern-match algorithm is fully implemented.
@@ -304,7 +300,32 @@
 (defn disable-post-event-triggers [env]
   (dissoc env post-event-trigger-sources))
 
-(def pattern-evaluator :*-*-pattern-evaluator-*-)
+(def pattern-evaluator :-*-pattern-evaluator-*-)
 
 (defn assoc-pattern-evaluator [env f]
   (assoc env pattern-evaluator f))
+
+(def rule-futures :*-*-rule-futures-*-)
+
+(defn assoc-rule-futures [env fs]
+  (let [rfs (rule-futures env)]
+    (assoc env rule-futures (concat rfs fs))))
+
+(defn cleanup [env]
+  (let [env (dissoc env :dirty :store :resolver :objstack)
+        df-vals (filter (fn [[k _]]
+                          (if (keyword? k)
+                            (not (s/starts-with? (name k) "-*-"))
+                            true))
+                        env)
+        norm-vals (mapv (fn [[k v]]
+                          [(if (vector? k)
+                             (li/make-path k)
+                             k)
+                           (cond
+                             (map? v) (cn/unmake-instance v)
+                             (string? v) v
+                             (seqable? v) (mapv cn/unmake-instance v)
+                             :else v)])
+                        df-vals)]
+    (into {} norm-vals)))

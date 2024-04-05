@@ -8,5 +8,5 @@ $ fractl run -c github/config.edn run github
 Once the server starts running, issue the following HTTP request:
 
 ```
-GET http://localhost:8080/_e/Github/Issue
+GET http://localhost:8080/api/Github/Issue
 ```

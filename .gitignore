@@ -34,3 +34,4 @@ app
 cljout/
 db/
 .lein-env
+example/auth/package-lock.json

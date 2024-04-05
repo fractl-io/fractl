@@ -3,6 +3,8 @@
   (:require [fractl.util :as u]
             [fractl.lang.internal :as li]))
 
+(def ^:dynamic dynamic-context nil)
+
 (defn make
   ([with-types]
    (u/make-cell
@@ -137,3 +139,15 @@
 
 (defn ignore-relationship-query-constraint? [ctx]
   (fetch-variable ctx :ignore-rel-query-constraint?))
+
+(defn from-bindings [env]
+  (let [ctx (make)]
+    (loop [env env]
+      (when-let [[k v] (first env)]
+        (cond
+          (vector? k) (put-record! ctx (li/make-path k) v)
+          (keyword? k) (if (= 2 (count (li/split-path k)))
+                         (put-record! ctx k v)
+                         (add-alias! ctx k)))
+        (recur (rest env))))
+    ctx))

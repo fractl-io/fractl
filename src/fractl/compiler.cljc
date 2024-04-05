@@ -23,7 +23,10 @@
             [fractl.compiler.validation :as cv]
             [fractl.compiler.internal :as i]))
 
-(def make-context ctx/make)
+(defn make-context
+  ([with-types]
+   (or ctx/dynamic-context (ctx/make with-types)))
+  ([] (make-context nil)))
 
 (def ^:dynamic active-event-name nil) ; event for which dataflow is being compiled
 
@@ -442,10 +445,10 @@
               #(compile-pattern ctx np))))
         opcode inst-alias]))))
 
-(defn- package-opcode [code]
+(defn- package-opcode [code pat]
   (if (and (map? code) (:opcode code))
     code
-    {:opcode code}))
+    {:opcode code :pattern pat}))
 
 (defn- some-query-attrs? [attrs]
   (when (some li/query-pattern? (keys attrs))
@@ -962,7 +965,7 @@
                (i/const-value? pat) compile-literal
                (seqable? pat) compile-fncall-expression)]
     (let [code (c ctx pat)]
-      (package-opcode code))
+      (package-opcode code pat))
     (u/throw-ex (str "cannot compile invalid pattern - " pat))))
 
 (defn- maybe-mark-conditional-df [ctx evt-pattern]
@@ -1231,7 +1234,7 @@
         df-patterns (preproc-patterns df-patterns)
         safe-compile (partial compile-with-error-report df-patterns c)
         result [ec (mapv safe-compile df-patterns (range (count df-patterns)))]]
-    (log/debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result))
+    (log/dev-debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result))
     result))
 
 (defn maybe-compile-dataflow

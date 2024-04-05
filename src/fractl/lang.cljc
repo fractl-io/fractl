@@ -15,6 +15,7 @@
             [fractl.component :as cn]
             [fractl.compiler :as c]
             [fractl.compiler.rule :as rl]
+            [fractl.rule :as rule]
             [fractl.global-state :as gs]
             [fractl.evaluator.state :as es]
             [fractl.compiler.context :as ctx]
@@ -285,7 +286,7 @@
       (keyword? v) (when-not (attribute-type? v)
                      (u/throw-ex (str "type not defined - " v)))
       (map? v) (validate-attribute-schema-map-keys v)
-      (not (list? v)) (u/throw-ex (str "invalid attribute specification - " v))))
+      (not (list? v)) (u/throw-ex (str "invalid attribute specification - " [k v]))))
     attrs)
 
 (defn- query-eval-fn [recname attrs k v]
@@ -688,6 +689,51 @@
     (when (and r (not (preproc-match-pat match-pat)))
       (raw/dataflow match-pat patterns))
     r))
+
+(defn- maybe-proc-delete-rule [conds]
+  (let [delete-tag (some #(and (vector? %) (= :delete (first %))) conds)]
+    (if delete-tag
+      (do (when (> (count conds) 1)
+            (u/throw-ex (str "no extra rules allowed with :delete - " conds)))
+          [delete-tag [(second (first conds))]])
+      [false conds])))
+
+(defn- parse-rules-args [args]
+  (let [not-then (partial not= :then)
+        [cond-pats args] (split-with not-then args)
+        [delete-tag cond-pats] (maybe-proc-delete-rule cond-pats)
+        meta (let [l (last args)] (when (li/rule-meta? l) l))
+        priority (li/rule-meta-value meta :priority ##-Inf)
+        passive (li/rule-meta-value meta :passive)
+        cat (li/rule-meta-value meta :category)
+        conseq-pats (if meta (drop-last (rest args)) (rest args))]
+    {:cond cond-pats
+     :c-cond (rule/compile-conditionals cond-pats)
+     :then conseq-pats
+     :priority priority
+     :passive passive
+     :category cat
+     :on-delete delete-tag}))
+
+(defn- rule-event [rule-name conseq]
+  (let [revnt-name (li/rule-event-name rule-name)]
+    (event-internal revnt-name {})
+    (cn/register-dataflow revnt-name conseq)))
+
+(defn rule [rule-name & args]
+  (let [s01 (parse-rules-args args)
+        spec (assoc s01 :name rule-name)]
+    (when (rule-event rule-name (:then spec))
+      (and (cn/register-rule rule-name spec)
+           (raw/rule rule-name args)
+           rule-name))))
+
+(defn inference [inference-name spec-map]
+  (when-let [invalid-keys (seq (set/difference (set (keys spec-map)) #{:category :seed :embed}))]
+    (u/throw-ex (str "invalid keys " invalid-keys " in inferenece " inference-name)))
+  (and (cn/register-inference inference-name spec-map)
+       (raw/inference inference-name spec-map)
+       inference-name))
 
 (def ^:private crud-evname cn/crud-event-name)
 

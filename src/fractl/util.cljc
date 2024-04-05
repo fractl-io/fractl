@@ -317,6 +317,8 @@
              (pp/write edn :dispatch pp/code-dispatch)))
      :cljs edn))
 
+(def pprint pp/pprint)
+
 (defn trace
   "Prints `msg` and `x`. Returns `x`."
   ([msg x]

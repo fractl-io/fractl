@@ -3,6 +3,7 @@
             [buddy.sign.jwt :as jwt]
             [clojure.algo.generic.functor :refer [fmap]]
             [clojure.string :as str]
+            [fractl.util.logger :as log]
             [fractl.datafmt.json :as json])
   #?(:clj (:import [org.jose4j.jwt JwtClaims]
                    [org.jose4j.jwt.consumer JwtConsumer JwtConsumerBuilder])))
@@ -76,7 +77,7 @@
   If no key is found refreshes"
   (partial resolve-key :public-key))
 
-(defn- remove-bearer [token]
+(defn remove-bearer [token]
   (if (and token (str/starts-with? (str/lower-case token) "bearer "))
     (subs token (count "Bearer "))
     token))
@@ -93,4 +94,5 @@
         token
         (partial resolve-public-key jwks-url)
         (merge {:alg :rs256} opts))
-       (catch Exception e)))))
+       (catch Exception e
+         (log/warn e))))))

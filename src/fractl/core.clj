@@ -495,6 +495,10 @@
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)
         [basic-config options] (merge-options-with-config options)]
+    (when-let [syslog-cfg (get-in basic-config [:logging :syslog])]
+      (log/create-syslogger syslog-cfg))
+    (when (get-in basic-config [:logging :dev-mode])
+      (log/enable-dev-logging!))
     (initialize)
     (gs/set-app-config! basic-config)
     (cond

@@ -33,14 +33,14 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Test.Sample.Library.Identity/User",
+					"raw": "http://localhost:8000/api/Test.Sample.Library.Identity/User",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"_e",
+						"api",
 						"Test.Sample.Library.Identity",
 						"User"
 					]
@@ -76,14 +76,14 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Test.Sample.Library.Catalog/Book",
+					"raw": "http://localhost:8000/api/Test.Sample.Library.Catalog/Book",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"_e",
+						"api",
 						"Test.Sample.Library.Catalog",
 						"Book"
 					]
@@ -119,14 +119,14 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Test.Sample.Library.Identity/Member",
+					"raw": "http://localhost:8000/api/Test.Sample.Library.Identity/Member",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"_e",
+						"api",
 						"Test.Sample.Library.Identity",
 						"Member"
 					]
@@ -162,14 +162,14 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:8000/_e/Test.Sample.Library.Ledger/CheckoutBook",
+					"raw": "http://localhost:8000/api/Test.Sample.Library.Ledger/CheckoutBook",
 					"protocol": "http",
 					"host": [
 						"localhost"
 					],
 					"port": "8000",
 					"path": [
-						"_e",
+						"api",
 						"Test.Sample.Library.Ledger",
 						"CheckoutBook"
 					]

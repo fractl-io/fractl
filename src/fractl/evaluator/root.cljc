@@ -455,7 +455,7 @@
                (rest insts)))
       env)))
 
-(defn- bind-and-persist [env event-evaluator x]
+(defn- bind-and-persist [env x]
   (if (cn/an-instance? x)
     (let [n (li/split-path (cn/instance-type x))]
       [(env/bind-instance env n x) nil])
@@ -997,9 +997,8 @@
                 rel-ctx (atom nil)
                 final-inst (ensure-relationship-constraints env rel-ctx (cn/instance-type inst) inst)
                 env (env/merge-relationship-context env @rel-ctx)
-                event-evaluator (partial eval-event-dataflows self)
                 [env r]
-                (bind-and-persist env event-evaluator final-inst)]
+                (bind-and-persist env final-inst)]
             (i/ok (if r r final-inst) env))
           (if-let [store (env/get-store env)]
             (if (store/reactive? store)
@@ -1063,7 +1062,7 @@
             env (env/assoc-active-event env inst)
             df (first
                 (cl/compile-dataflows-for-event
-                 (partial store/compile-query (:store env))
+                 (partial store/compile-query (env/get-store env))
                  (if with-types
                    (assoc inst li/with-types-tag with-types)
                    inst)))
