@@ -31,8 +31,10 @@
             [ring.util.codec :as codec]
             [ring.middleware.cors :as cors]
             [fractl.util.errors :refer [get-internal-error-message]]
-            [fractl.evaluator :as ev])
-  (:use [compojure.core :only [routes POST PUT DELETE GET]]
+            [fractl.evaluator :as ev]
+            [com.walmartlabs.lacinia :refer [execute]]
+            [fractl.graphql.core :as graphql])
+  (:use [compojure.core :only [defroutes routes POST PUT DELETE GET]]
         [compojure.route :only [not-found]]))
 
 (defn- response
@@ -235,7 +237,7 @@
 (defn- find-schema [fetch-names find-schema]
   (mapv (fn [n] {n (cn/encode-expressions-in-schema (find-schema n))}) (fetch-names)))
 
-(defn- schema-info [component]
+(defn schema-info [component]
   {:records (find-schema #(cn/record-names component) lr/find-record)
    :entities (find-schema #(cn/entity-names component) lr/find-entity)
    :relationships (find-schema #(cn/relationship-names component) lr/find-relationship)})
@@ -1035,8 +1037,26 @@
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
+(defn remove-internal-components [coll]
+  (let [to-remove #{:Fractl.Kernel.Lang :Fractl.Kernel.Identity :Fractl.Kernel.Rbac}]
+    (remove to-remove coll)))
+
+(defn graphql-handler
+  [request]
+  (let [body-as-string (slurp (:body request))
+        body (json/decode body-as-string)
+        query (:query body)
+        variables (:variables body)
+        operation-name (:operationName body)
+        context {:request request}
+        component-name (first (remove-internal-components (cn/component-names)))
+        schema (schema-info component-name)
+        result (execute (graphql/load-graphql-schema component-name schema) query variables context operation-name)]
+    (response result 200 :json)))
+
 (defn- make-routes [config auth-config handlers]
   (let [r (routes
+           (POST "/graphql" [] graphql-handler)
            (POST uh/login-prefix [] (:login handlers))
            (POST uh/logout-prefix [] (:logout handlers))
            (POST uh/signup-prefix [] (:signup handlers))

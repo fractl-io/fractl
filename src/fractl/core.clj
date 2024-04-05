@@ -27,6 +27,8 @@
             [fractl.rbac.core :as rbac]
             [fractl.gpt.core :as gpt]
             [fractl.swagger.doc :as doc]
+            [fractl.graphql.core :as gc]
+            [fractl.graphql.generator :as gn]
             [fractl.swagger.docindex :as docindex]
             [fractl-config-secrets-reader.core :as fractl-secret-reader])
   (:import [java.util Properties]
@@ -37,6 +39,14 @@
   (:gen-class
    :name fractl.core
    :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
+
+(def internal-component-names
+  #{:Fractl.Kernel.Identity
+    :Fractl.Kernel.Lang
+    :Fractl.Kernel.Store
+    :Fractl.Kernel.Rbac
+    :raw
+    :-*-containers-*-})
 
 (defn- complete-model-paths [model current-model-paths config]
   (let [mpkey :model-paths
@@ -234,9 +244,7 @@
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
     (if (build/compiled-model? model-path model-name)
-      (let [components (remove #{:Fractl.Kernel.Identity :Fractl.Kernel.Lang
-                                 :Fractl.Kernel.Store :Fractl.Kernel.Rbac
-                                 :raw :-*-containers-*-}
+      (let [components (remove internal-component-names
                                (cn/component-names))]
         (.mkdir (File. "doc"))
         (.mkdir (File. "doc/api"))
@@ -259,6 +267,23 @@
               (.execute executor cmd-line))))
         (log-seq! "components" components))
       (build/exec-with-build-model (str "lein run -s " model-name " .") nil model-name))))
+
+(defn generate-graphql-schema [model-name args]
+  (let [model-path (first args)]
+    (if (build/compiled-model? model-path model-name)
+      (do
+        (let [components (remove internal-component-names
+                                 (cn/component-names))]
+          (doseq [component components]
+            (let [comp-name (clojure.string/replace
+                             (name component) "." "")]
+              (gc/save-schema (gn/generate-graphql-schema component (h/schema-info component)) "graphql-schema.edn")))
+          (log-seq! "components" components))
+        (println "Finished processing compiled model."))
+      (do
+        (println "Compiled model not found, executing build model for model-name:" model-name)
+        (build/exec-with-build-model (str "lein run -g " model-name " .") nil model-name)
+        (println "Finished executing build model for model-name:" model-name)))))
 
 (defn- find-model-to-read [args config]
   (or (seq (su/nonils args))
@@ -396,7 +421,8 @@
   [["-c" "--config CONFIG" "Configuration file"]
    ["-s" "--doc MODEL" "Generate documentation in .html"]
    ["-i" "--interactive 'app-description'" "Invoke AI-assist to model an application"]
-   ["-h" "--help"]])
+   ["-h" "--help"]
+   ["-g" "--graphql MODEL" "Generate GraphQL schema for reference"]])
 
 (defn- print-help []
   (println "This is the command-line interface for the Fractl language tool-chain which includes the")
@@ -419,10 +445,11 @@
   (println "the fractl command will try to load a model available in the current directory.")
   (println)
   (println "The command-line arguments accepted by fractl are:")
-  (println "  -c --config CONFIG         Configuration file")
+  (println "  -c --config CONFIG          Configuration file")
   (println "  -s --doc MODEL             Generate HTML documentation")
   (println "  -i --interactive 'desc'    Use AI to generate a model from the textual description")
   (println "  -h --help                  Print this help and quit")
+  (println "  -g --graphql MODEL         Generate GraphQL schema for reference")
   (println)
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
@@ -473,6 +500,9 @@
     (cond
       errors (println errors)
       (:help options) (print-help)
+      (:graphql options) (generate-graphql-schema
+                           (:graphql options)
+                           args)
       (:doc options) (generate-swagger-doc
                       (:doc options)
                       args)
