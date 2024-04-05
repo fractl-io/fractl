@@ -36,11 +36,12 @@
 
 (defn- setup-cache-resolver [config]
   #?(:clj
-     (try
-       (let [resolver (cache/make :auth-cache config)]
-         (rr/override-resolver [:Fractl.Kernel.Identity/SessionCookie] resolver))
-       (catch Exception ex
-         (log/error ex)))))
+     (when config
+       (try
+         (let [resolver (cache/make :auth-cache config)]
+           (rr/override-resolver [:Fractl.Kernel.Identity/SessionCookie] resolver))
+         (catch Exception ex
+           (log/error ex))))))
 
 (defn setup-resolver [config evaluator]
   (let [resolver (authn/make :authentication config)
