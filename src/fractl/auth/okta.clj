@@ -249,9 +249,11 @@
        :set-cookie (str "sid=" session-id)}
       {:error "failed to create session"})))
 
-(defmethod auth/session-user tag [{req :request cookie :cookie :as all-stuff-map}]
+(defmethod auth/session-user tag [{req :request cookie :cookie :as auth-config}]
   (if cookie
-    (let [result (introspect all-stuff-map cookie)
+    (let [sid (auth/cookie-to-session-id auth-config cookie)
+          session-data (sess/lookup-session-cookie-user-data sid)
+          result (auth/verify-token auth-config [sid session-data])
           user (:sub result)]
       {:email user
        :sub user

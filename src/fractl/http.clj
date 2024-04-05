@@ -173,7 +173,8 @@
 
 (defn- assoc-event-context [request auth-config event-instance]
   (if auth-config
-    (let [user (auth/session-user (assoc auth-config :request request))
+    (let [user (auth/session-user (assoc auth-config :request request
+                                         :cookie (get (:headers request) "cookie")))
           event-instance (if (cn/an-instance? event-instance)
                            event-instance
                            (cn/make-instance event-instance))]
