@@ -14,19 +14,19 @@
 (def ^:private tag :okta)
 
 ;; config required for okta/auth:
-#_{:authentication
-   {:service :okta
-    :superuser-email "<email>"
-    :client-id "<client-id>"
-
-    :domain "<domain>"
-    :auth-server "<auth-server-name>"
-    :client-secret "<secret>"
-    :introspect <boolean> ; if true, call okta introspect api to verify the token, defaults to false
-    :scope "<string>" ; one or more scopes, separated by space
-    :authorize-redirect-url "<url>" ; redirect url setting for okta authorize
-    :client-url "<url>" ; url of the client app that's being authorized
-    }}
+#_{:authentication {:service :okta
+                    :superuser-email <email>
+                    :domain <okta-domain>
+                    :auth-server <okta-auth-server-name> ; or "default"
+                    :client-id <okta-app-client-id>
+                    :client-secret <okta-app-secret>
+                    :scope "openid offline_access"
+                    :introspect true ; if false token will be verified locally
+                    :authorize-redirect-url "http://localhost:3000/auth/callback"
+                    :client-url "http://localhost:3000/order"
+                    ;; cache is optional
+                    :cache {:host <REDIS_HOST>
+                            :port <REDIS_PORT>}}}
 
 (defmethod auth/make-client tag [_config]
   _config)
