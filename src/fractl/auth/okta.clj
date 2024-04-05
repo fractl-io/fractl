@@ -239,6 +239,8 @@
         auth-status (auth/verify-token auth-config [session-id result])
         user (:sub auth-status)]
     (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
+    (when-not (sess/ensure-local-user user)
+      (log/warn (str "failed to create local user for " user)))
     (if (and user (sess/upsert-user-session user true)
              ((if current-sid
                 sess/session-cookie-replace

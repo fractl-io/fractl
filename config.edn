@@ -1,1 +1,18 @@
-{:service {:port 8000}}
+{:service {:port 8000}
+ :store {:type :postgres
+         :host #$ POSTGRES_HOST
+         :dbname #$ POSTGRES_DB
+         :username #$ POSTGRES_USER
+         :password #$ POSTGRES_PASSWORD}
+ :authentication {:service :okta
+                  :superuser-email "admin@fractl.io"
+                  :domain "dev-04676848.okta.com"
+                  :auth-server "default"         
+                  :client-id "0oafwxbt02F6HgrvS5d7"
+                  :client-secret "kXl0mJztD3EVHA4dGQBbfaydqYxedhYKYYnz2uZ0odxs7ZY4A7gQFYnAgiRZnnYD"
+                  :scope "openid offline_access"
+                  :introspect true
+                  :authorize-redirect-url "http://localhost:3000/auth/callback"
+                  :client-url "http://localhost:3000/order"
+                  :cache {:host #$ REDIS_HOST
+                          :port #$ REDIS_PORT}}}

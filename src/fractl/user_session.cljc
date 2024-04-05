@@ -83,3 +83,23 @@
        {:Fractl.Kernel.Identity/Update_SessionCookie
         {:Id (normalize-sid sid) :Data {:UserData user-data}}})
       user-data)))
+
+(defn ensure-local-user [email]
+  #?(:clj
+     (try
+       (let [r (first
+                (ev/eval-internal
+                 {:Fractl.Kernel.Identity/FindUser
+                  {:Email email}}))]
+         (if (and (= :ok (:status r)) (seq (:result r)))
+           (first (:result r))
+           (let [r (first
+                    (ev/eval-internal
+                     {:Fractl.Kernel.Identity/Create_User
+                      {:Instance
+                       {:Fractl.Kernel.Identity/User
+                        {:Email email}}}}))]
+             (when (= :ok (:status r))
+               (:result r)))))
+       (catch Exception ex
+         (log/error (str "ensure-local-user failed: " (.getMessage ex)))))))
