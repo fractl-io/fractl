@@ -163,7 +163,7 @@
           (concat
            (map
             (fn [[event-name _ _]]
-              {(str "/_e/" (namespace event-name) "/" (name event-name))
+              {(str "/api/" (namespace event-name) "/" (name event-name))
                {:post
                 {:tags
                  [event-name]

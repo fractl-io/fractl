@@ -2,35 +2,31 @@
   (:require [amazonica.aws.s3 :as s3]
             [buddy.auth :as buddy]
             [buddy.auth.backends :as buddy-back]
-            [buddy.auth.middleware :as buddy-midd
-             :refer [wrap-authentication]]
+            [buddy.auth.middleware :refer [wrap-authentication]]
+            [buddy.sign.jwt :as buddyjwt]
+            [clj-time.core :as time]
             [clojure.string :as s]
             [clojure.walk :as w]
             [fractl.auth.core :as auth]
-            [fractl.component :as cn]
-            [buddy.core.keys :as buddykeys]
-            [buddy.sign.jwt :as buddyjwt]
-            [fractl.compiler :as compiler]
-            [clj-time.core :as time]
-            [fractl.lang :as ln]
-            [fractl.lang.raw :as lr]
-            [fractl.lang.internal :as li]
-            [fractl.paths.internal :as pi]
-            [fractl.util :as u]
-            [fractl.util.http :as uh]
-            [fractl.util.hash :as hash]
             [fractl.auth.jwt :as jwt]
-            [fractl.auth.core :as auth]
-            [fractl.util.logger :as log]
-            [fractl.gpt.core :as gpt]
-            [fractl.global-state :as gs]
-            [fractl.user-session :as sess]
-            [org.httpkit.server :as h]
-            [ring.middleware.cors :as cors]
-            [fractl.util.errors :refer [get-internal-error-message]]
+            [fractl.compiler :as compiler]
+            [fractl.component :as cn]
             [fractl.evaluator :as ev]
-            [fractl.datafmt.transit :as t])
-  (:use [compojure.core :only [routes POST PUT DELETE GET]]
+            [fractl.global-state :as gs]
+            [fractl.gpt.core :as gpt]
+            [fractl.lang :as ln]
+            [fractl.lang.internal :as li]
+            [fractl.lang.raw :as lr]
+            [fractl.paths.internal :as pi]
+            [fractl.user-session :as sess]
+            [fractl.util :as u]
+            [fractl.util.errors :refer [get-internal-error-message]]
+            [fractl.util.hash :as hash]
+            [fractl.util.http :as uh]
+            [fractl.util.logger :as log]
+            [org.httpkit.server :as h]
+            [ring.middleware.cors :as cors])
+  (:use [compojure.core :only [DELETE GET POST PUT routes]]
         [compojure.route :only [not-found]]))
 
 (defn- headers
@@ -279,18 +275,26 @@
       (let [[map-obj _ err-response] (request-object request)]
         (or err-response
             (let [resp (atom nil)
+                  type-obj (get map-obj :type)
+                  gpt-model (get map-obj :model)
+                  open-ai-key (get map-obj :key)
+                  request-message (get map-obj :message)
+                  result-tuning (get map-obj :result-tuning)
                   generation (gpt/non-interactive-generate
-                              (get map-obj :model)
-                              (get map-obj :key)
-                              (fn [choice history]
-                                (if choice
-                                  (reset!
-                                   resp
-                                   {:choice choice
-                                    :chat-history history})
-                                  (u/throw-ex "AI failed to service your request, please try again")))
-                              (get map-obj :message)
-                              (get map-obj :result-tuning))]
+                               (if (nil? type-obj)
+                                 "model"
+                                 type-obj)
+                               gpt-model
+                               open-ai-key
+                               (fn [choice history]
+                                 (if choice
+                                   (reset!
+                                     resp
+                                     {:choice       choice
+                                      :chat-history history})
+                                   (u/throw-ex "AI failed to service your request, please try again")))
+                               request-message
+                               result-tuning)]
               (reset! resp generation)
               (ok @resp))))))
 
@@ -1076,7 +1080,7 @@
                                (cn/component-names))]
         (try
           (let [out (uh/POST
-                      (str copilot-url "/_e/Copilot.Service.Core/PostAppQuestion")
+                      (str copilot-url "/api/Copilot.Service.Core/PostAppQuestion")
                       nil
                       {:Copilot.Service.Core/PostAppQuestion
                        {:AppUuid app-id
