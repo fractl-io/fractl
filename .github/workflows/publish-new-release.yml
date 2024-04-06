@@ -14,7 +14,7 @@ jobs:
     if: github.event.pull_request.merged == true # only merged pull requests must trigger this job
     steps:
       - uses: actions/checkout@v2
-      - name: Installing fractl-io dependancies
+      - name: Installing fractl-io dependencies
         run: |
           git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
           cd fractl-config-secrets-reader
@@ -65,6 +65,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
+
+      - name: Release to Clojars
+        uses: jlesquembre/clojars-publish-action@0.1
+        env:
+          CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
+          CLOJARS_PASSWORD: ${{ secrets.CLOJARS_PASSWORD }}
 
       - name: Cleanup jar
         run: |

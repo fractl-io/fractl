@@ -43,7 +43,7 @@ jobs:
           git commit --message "Prepare release ${{ github.event.inputs.version }}"
           echo "::set-output name=commit::$(git rev-parse HEAD)"
       - name: Push new branch
-        run: git push origin release/${{ github.event.inputs.version }}
+        run: git push --verbose origin release/${{ github.event.inputs.version }}
 
       - name: Create pull request
         uses: thomaseizinger/create-pull-request@1.3.0
