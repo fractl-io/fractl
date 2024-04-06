@@ -44,7 +44,9 @@
   (fn [resolver-name config]
     (let [host (or (:host config) "localhost")
           port (or (:port config) 6379)
-          conn (JedisPool. host port)
+          username (:username config)
+          password (:password config)
+          conn (JedisPool. host port username password)
           handlers (map (fn [[k res]]
                           [k {:handler (partial (:handler res) conn config)}])
                         resolver-fns)]
