@@ -28,10 +28,8 @@
 
 (dataflow
  [:after :create :Fractl.Kernel.Identity/User]
- [:match :Instance.Email
-  "admin@fractl.io" :Instance
-  {:Fractl.Kernel.Rbac/RoleAssignment
-   {:Role "user" :Assignee :Instance.Email}}])
+ {:Fractl.Kernel.Rbac/RoleAssignment
+  {:Role "user" :Assignee :Instance.Email}})
 
 (dataflow
  :OrdersBy

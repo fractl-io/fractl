@@ -179,12 +179,12 @@
     (when (or (not (init-schema? config)) (store/init-all-schema store))
       (let [resolved-config (run-initconfig config ev)
             has-rbac (some #{:rbac} (keys ins))]
-        (register-resolvers! config ev)
-        (when (seq (:resolvers resolved-config))
-          (register-resolvers! resolved-config ev))
         (if has-rbac
           (lr/finalize-events ev)
           (lr/reset-events!))
+        (register-resolvers! config ev)
+        (when (seq (:resolvers resolved-config))
+          (register-resolvers! resolved-config ev))
         (when-let [f @on-init-fn]
           (f)
           (reset! on-init-fn nil))
