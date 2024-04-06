@@ -6,11 +6,13 @@
   :order_qty :Int
   :order_amount :Decimal
   :tnc_agreement {:type :Boolean :default true}
-  :submission_date :Now})
+  :submission_date :Now
+  :rbac [{:roles ["user"] :allow [:create]}]})
 
 (relationship
  :UserOrder
- {:meta {:between [:Fractl.Kernel.Identity/User :Acme/Order]}})
+ {:meta {:between [:Fractl.Kernel.Identity/User :Acme/Order]}
+  :rbac [{:roles ["user"] :allow [:create]}]})
 
 (dataflow
  :CreateOrder
@@ -23,6 +25,13 @@
   {:User :CreateOrder.EventContext.User
    :Order :O.order_id}}
  :O)
+
+(dataflow
+ [:after :create :Fractl.Kernel.Identity/User]
+ [:match :Instance.Email
+  "admin@fractl.io" :Instance
+  {:Fractl.Kernel.Rbac/RoleAssignment
+   {:Role "user" :Assignee :Instance.Email}}])
 
 (dataflow
  :OrdersBy

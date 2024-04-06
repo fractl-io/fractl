@@ -14,7 +14,8 @@
 (def ^:private tag :okta)
 
 ;; config required for okta/auth:
-#_{:authentication {:service :okta
+#_{:rbac-enabled true
+   :authentication {:service :okta
                     :superuser-email <email>
                     :domain <okta-domain>
                     :auth-server <okta-auth-server-name> ; or "default"
@@ -303,13 +304,15 @@
   (u/throw-ex "auth/change-password not implemented for okta"))
 
 (defmethod auth/create-role tag [_]
-  (u/throw-ex "auth/create-role not implemented for okta"))
+  (log/warn "auth/create-role not implemented for okta")
+  true)
 
 (defmethod auth/delete-role tag [_]
   (u/throw-ex "auth/delete-role not implemented for okta"))
 
 (defmethod auth/add-user-to-role tag [_]
-  (u/throw-ex "auth/add-user-to-role not implemented for okta"))
+  (log/warn "auth/add-user-to-role not implemented for okta")
+  true)
 
 (defmethod auth/remove-user-from-role tag [_]
   (u/throw-ex "auth/remove-user-from-role not implemented for okta"))
