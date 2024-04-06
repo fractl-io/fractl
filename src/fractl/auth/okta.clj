@@ -25,6 +25,7 @@
                     :introspect true ; if false token will be verified locally
                     :authorize-redirect-url "http://localhost:3000/auth/callback"
                     :client-url "http://localhost:3000/order"
+                    :logout-redirect "http://localhost:3000/bye"
                     ;; cache is optional
                     :cache {:host <REDIS_HOST>
                             :port <REDIS_PORT>}}}
@@ -269,8 +270,12 @@
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))
 
-(defmethod auth/user-logout tag [{domain :domain auth-server :auth-server req :request cookie :cookie}]
-  (let [redirect-uri (http/url-encode "http://localhost:8000")
+(defmethod auth/user-logout tag [{domain :domain
+                                  auth-server :auth-server
+                                  req :request
+                                  cookie :cookie
+                                  logout-redirect :logout-redirect}]
+  (let [redirect-uri (http/url-encode logout-redirect)
         id-token (if cookie
                    (get-in (second cookie) [:authentication-result :id-token])
                    (jwt/remove-bearer (get (:headers req) "authorization")))
