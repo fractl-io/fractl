@@ -85,14 +85,16 @@
 
 (def ^:dynamic internal-post-events false)
 
-(defn- fire-post-events-for [tag is-internal insts]
-  (binding [internal-post-events is-internal]
-    (doseq [inst insts]
-      (when-let [[event-name r] (cn/fire-post-event eval-all-dataflows tag inst)]
-        (when-not (u/safe-ok-result r)
-          (log/warn r)
-          (u/throw-ex (str "internal event " event-name " failed.")))))
-    insts))
+(defn- fire-post-events-for
+  ([tag is-internal insts]
+   (binding [internal-post-events is-internal]
+     (doseq [inst insts]
+       (when-let [[event-name r] (cn/fire-post-event eval-all-dataflows tag inst)]
+         (when-not (u/safe-ok-result r)
+           (log/warn r)
+           (u/throw-ex (str "internal event " event-name " failed.")))))
+     insts))
+  ([tag insts] (fire-post-events-for tag nil insts)))
 
 (defn fire-post-events
   ([env is-internal]
