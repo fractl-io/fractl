@@ -22,6 +22,7 @@ jobs:
 
       - name: Fetch and switch to main branch
         run: |
+          git fetch --verbose --tags
           git checkout tags/${{ github.event.inputs.version }}
       - name: Install dependencies
         run: lein deps
