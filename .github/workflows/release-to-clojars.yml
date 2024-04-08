@@ -39,7 +39,7 @@ jobs:
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{ github.event.inputs.version }}.jar /home/runner/work/fractl/fractl/lib/
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{ github.event.inputs.version }}-standalone.jar /home/runner/work/fractl/fractl/lib/
 
-      - uses: jlesquembre/clojars-publish-action@0.3
+      - uses: jlesquembre/clojars-publish-action@0.4
         env:
           CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
           CLOJARS_PASSWORD: ${{ secrets.CLOJARS_PASSWORD }}
