@@ -22,14 +22,11 @@ jobs:
 
       - name: Fetch and switch to main branch
         run: |
-          git checkout main
-          git fetch origin main
-          git pull origin main
+          git checkout tags/${{ github.event.inputs.version }}
       - name: Install dependencies
         run: lein deps
       - name: Generate pom.xml needed for mvn deploy
         run: lein pom
-
 
       - name: Generate jar, uberjar and copy them to lib.
         run: |
@@ -43,6 +40,7 @@ jobs:
         env:
           CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
           CLOJARS_PASSWORD: ${{ secrets.CLOJARS_PASSWORD }}
+          USE_GIT_REF: false
 
       - name: Cleanup jar
         run: |
