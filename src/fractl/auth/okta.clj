@@ -27,9 +27,10 @@
                     :client-url "http://localhost:3000/order"
                     :logout-redirect "http://localhost:3000/bye"
 
-                    ;; "userRole" is the custom attribute set for Okta users.
-                    ;; More than one role could specified as a comma-separated list.
-                    :role-claim :userRole
+                    ;; "groups" is the custom attribute set for Okta users.
+                    ;; More than one role or group could specified as a comma-delmited string
+                    ;; or as a vector of strings.
+                    :role-claim :groups
 
                     ;; cache is optional
                     :cache {:host <REDIS_HOST>

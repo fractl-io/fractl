@@ -85,7 +85,9 @@
       user-data)))
 
 (defn- maybe-assign-roles [email user-roles]
-  (doseq [role (s/split user-roles #",")]
+  (doseq [role (if (string? user-roles)
+                 (s/split user-roles #",")
+                 user-roles)]
     (let [role-name (str role "-" email)]
       (when-not (ev/safe-eval-internal
                  {:Fractl.Kernel.Rbac/Lookup_Role
