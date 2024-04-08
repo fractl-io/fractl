@@ -7,12 +7,12 @@
   :order_amount :Decimal
   :tnc_agreement {:type :Boolean :default true}
   :submission_date :Now
-  :rbac [{:roles ["user"] :allow [:create]}]})
+  :rbac [{:roles ["order-user"] :allow [:create]}]})
 
 (relationship
  :UserOrder
  {:meta {:between [:Fractl.Kernel.Identity/User :Acme/Order]}
-  :rbac [{:roles ["user"] :allow [:create]}]})
+  :rbac [{:roles ["order-user"] :allow [:create]}]})
 
 (dataflow
  :CreateOrder
@@ -25,13 +25,3 @@
   {:User :CreateOrder.EventContext.User
    :Order :O.order_id}}
  :O)
-
-(dataflow
- [:after :create :Fractl.Kernel.Identity/User]
- {:Fractl.Kernel.Rbac/RoleAssignment
-  {:Role "user" :Assignee :Instance.Email}})
-
-(dataflow
- :OrdersBy
- {:Order? {}
-  :-> [[{:UserOrder {:User? :OrdersBy.User}}]]})

@@ -84,7 +84,20 @@
         {:Id (normalize-sid sid) :Data {:UserData user-data}}})
       user-data)))
 
-(defn ensure-local-user [email]
+(defn- maybe-assign-roles [email user-roles]
+  (doseq [role (s/split user-roles #",")]
+    (let [role-name (str role "-" email)]
+      (when-not (ev/safe-eval-internal
+                 {:Fractl.Kernel.Rbac/Lookup_Role
+                  {:Name role-name}})
+        (when-not (ev/safe-eval-internal
+                   {:Fractl.Kernel.Rbac/Create_RoleAssignment
+                    {:Instance
+                     {:Fractl.Kernel.Rbac/RoleAssignment
+                      {:Name role-name :Role role :Assignee email}}}})
+          (log/warn (str "failed to assign role " role " to " email)))))))
+
+(defn ensure-local-user [email user-roles]
   #?(:clj
      (try
        (let [r (first
@@ -101,5 +114,7 @@
                         {:Email email}}}}))]
              (when (= :ok (:status r))
                (:result r)))))
+       (when user-roles
+         (maybe-assign-roles email user-roles))
        (catch Exception ex
          (log/error (str "ensure-local-user failed: " (.getMessage ex)))))))

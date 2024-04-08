@@ -53,9 +53,9 @@
 
 (defn- verify-and-extract [{domain :domain auth-server :auth-server client-id :client-id} token]
   (try
-    (jwt/verify-and-extract
-     (get-jwks-url domain auth-server client-id)
-     token)
+     (jwt/verify-and-extract
+      (get-jwks-url domain auth-server client-id)
+      token)
     (catch Exception e
       (log/warn e))))
 
@@ -241,7 +241,7 @@
         auth-status (auth/verify-token auth-config [session-id result])
         user (:sub auth-status)]
     (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
-    (when-not (sess/ensure-local-user user)
+    (when-not (sess/ensure-local-user user (get auth-status (:role-claim auth-config)))
       (log/warn (str "failed to create local user for " user)))
     (if (and user (sess/upsert-user-session user true)
              ((if current-sid
