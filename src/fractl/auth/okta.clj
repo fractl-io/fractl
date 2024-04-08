@@ -26,6 +26,11 @@
                     :authorize-redirect-url "http://localhost:3000/auth/callback"
                     :client-url "http://localhost:3000/order"
                     :logout-redirect "http://localhost:3000/bye"
+
+                    ;; "userRole" is the custom attribute set for Okta users.
+                    ;; More than one role could specified as a comma-separated list.
+                    :role-claim :userRole
+
                     ;; cache is optional
                     :cache {:host <REDIS_HOST>
                             :port <REDIS_PORT>}}}
