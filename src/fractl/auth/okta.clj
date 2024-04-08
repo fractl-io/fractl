@@ -27,10 +27,16 @@
                     :client-url "http://localhost:3000/order"
                     :logout-redirect "http://localhost:3000/bye"
 
-                    ;; "groups" is the custom attribute set for Okta users.
-                    ;; More than one role or group could specified as a comma-delmited string
+                    :role-claim :user-roles
+                    ;; "user-roles" is the custom attribute set for Okta users.
+                    ;; More than one role or group can be specified as a comma-delmited string
                     ;; or as a vector of strings.
-                    :role-claim :groups
+                    ;; Okta groups can be automatically set as a role-claim attribute by following
+                    ;; these steps:
+                    ;; In Okta console, navigate to Security > API. Select your authorization server and go to the Claims tab.
+                    ;; Set these values: Name: groups, Include in: Access Token, Value type: Groups,
+                    ;; Filter: Select Matches regex and use .* as the value
+                    ;; Then, click Create. In this config set `:role-claim` to `:groups`.
 
                     ;; cache is optional
                     :cache {:host <REDIS_HOST>
