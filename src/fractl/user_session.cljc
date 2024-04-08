@@ -88,16 +88,25 @@
   (doseq [role (if (string? user-roles)
                  (s/split user-roles #",")
                  user-roles)]
-    (let [role-name (str role "-" email)]
+    (let [role-assignment (str role "-" email)]
       (when-not (ev/safe-eval-internal
                  {:Fractl.Kernel.Rbac/Lookup_Role
-                  {:Name role-name}})
+                  {:Name role}})
+        (when-not (ev/safe-eval-internal
+                   {:Fractl.Kernel.Rbac/Create_Role
+                    {:Instance
+                     {:Fractl.Kernel.Rbac/Role
+                      {:Name role}}}})
+          (u/throw-ex (str "failed to create role " role))))
+      (when-not (ev/safe-eval-internal
+                 {:Fractl.Kernel.Rbac/Lookup_RoleAssignment
+                  {:Name role-assignment}})
         (when-not (ev/safe-eval-internal
                    {:Fractl.Kernel.Rbac/Create_RoleAssignment
                     {:Instance
                      {:Fractl.Kernel.Rbac/RoleAssignment
-                      {:Name role-name :Role role :Assignee email}}}})
-          (log/warn (str "failed to assign role " role " to " email)))))))
+                      {:Name role-assignment :Role role :Assignee email}}}})
+          (u/throw-ex (str "failed to assign role " role " to " email)))))))
 
 (defn ensure-local-user [email user-roles]
   #?(:clj

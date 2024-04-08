@@ -38,6 +38,8 @@
                     ;; Filter: Select Matches regex and use .* as the value
                     ;; Then, click Create. In this config set `:role-claim` to `:groups`.
 
+                    :default-role "guest"
+
                     ;; cache is optional
                     :cache {:host <REDIS_HOST>
                             :port <REDIS_PORT>}}}
@@ -243,6 +245,14 @@
         {:status :redirect-found :location (first (make-authorize-url auth-config))}))
     {:status :redirect-found :location (first (make-authorize-url auth-config))}))
 
+(defn- cleanup-roles [roles default-role]
+  (let [roles (if (vector? roles)
+                (vec (filter #(not= "Everyone" %) roles))
+                roles)]
+    (if (seq roles)
+      roles
+      default-role)))
+
 (defmethod auth/handle-auth-callback tag [{client-url :client-url args :args :as auth-config}]
   (let [request (:request args)
         current-sid (cookie-to-sid (get-in request [:headers "cookie"]))
@@ -253,7 +263,11 @@
         auth-status (auth/verify-token auth-config [session-id result])
         user (:sub auth-status)]
     (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
-    (when-not (sess/ensure-local-user user (get auth-status (:role-claim auth-config)))
+    (when-not (sess/ensure-local-user
+               user
+               (cleanup-roles
+                (get auth-status (:role-claim auth-config))
+                (:default-role auth-config)))
       (log/warn (str "failed to create local user for " user)))
     (if (and user (sess/upsert-user-session user true)
              ((if current-sid
