@@ -60,6 +60,8 @@
     (rg/register-resolver {:name k :type k :paths entity-names})))
 
 (defn register [config]
-  (if-let [ents (seq (cn/entity-names :Fractl.Llm.Core))]
-    (register-resolver config ents)
-    (u/throw-ex "Fractl.Llm model not initialized.")))
+  (let [llmc :Fractl.Llm.Core]
+    (if-let [recs (seq (concat (cn/entity-names llmc)
+                               (cn/event-names llmc)))]
+      (register-resolver config recs)
+      (u/throw-ex "Fractl.Llm model not initialized."))))

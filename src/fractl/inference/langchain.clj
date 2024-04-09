@@ -8,7 +8,19 @@
 (defn make-openai-chatmodel [props]
   (let [builder (OpenAiChatModel/builder)]
     (. builder apiKey (:apiKey props))
-    ;; TODO: set optional properties
+    (. builder modelName (or (:modelName props) "gpt-3.5-turbo"))
+    (when-let [t (:temperature props)] (. builder temperature t))
+    (when-let [t (:timeoutInSeconds props)] (. builder timeoutInSeconds t))
+    (when-let [fp (:frequencyPenalty props)] (. builder frequencyPenalty fp))
+    (when-let [mtk (:maxTokens props)] (. builder maxTokens mtk))
+    (when-let [mr (:maxRetries props)] (. builder maxRetries mr))
+    (when-let [pp (:presencePenalty props)] (. builder presencePenalty pp))
+    (when-let [s (:seed props)] (. builder seed s))
+    (when-let [s (:stop props)] (. builder stop s))
+    (when-let [tp (:topP props)] (. builder topP tp))
+    (when-let [u (:user props)] (. builder user u))
+    (when-not (nil? (:logRequests props)) (. builder logRequests (:logRequests props)))
+    (when-not (nil? (:logResponses props)) (. builder logResponses (:logResponses props)))
     (.build builder)))
 
 (defn- ^UserMessage make-user-message [content]
