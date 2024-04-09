@@ -48,6 +48,7 @@
                  [com.github.scribejava/scribejava-apis "8.3.3"]
                  [org.apache.kafka/kafka-clients "3.6.1"]
                  [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]
+                 [dev.langchain4j/langchain4j "0.29.1"]
                  [dev.langchain4j/langchain4j-open-ai "0.29.1"]]
 
   :license {:name "Apache2"}

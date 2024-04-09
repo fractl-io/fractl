@@ -3,7 +3,11 @@
   (:import [java.time Duration]
            [java.util List ArrayList]
            [dev.langchain4j.model.openai OpenAiChatModel]
-           [dev.langchain4j.data.message AiMessage UserMessage TextContent]))
+           [dev.langchain4j.data.message AiMessage UserMessage TextContent]
+           [dev.langchain4j.memory ChatMemory]
+           [dev.langchain4j.memory.chat MessageWindowChatMemory]
+           [dev.langchain4j.store.memory.chat ChatMemoryStore]
+           [dev.langchain4j.service AiServices]))
 
 (defn make-openai-chatmodel [props]
   (let [builder (OpenAiChatModel/builder)]
@@ -42,3 +46,26 @@
   (let [^List list (as-l4j-messages msgs)
         ^AiMessage ai-msg (.generate model list)]
     (.text ai-msg)))
+
+(definterface Assistant
+  [^String chat [^String message]])
+
+(defn ^Assistant make-assistant-with-memory [^OpenAiChatModel model max-messages mem-store]
+  (let [mem-builder (MessageWindowChatMemory/builder)]
+    (.maxMessages mem-builder max-messages)
+    (when mem-store
+      (.chatMemoryStore mem-builder mem-store))
+    (let [^ChatMemory mem (.build mem-builder)
+          ^AiServices ais (AiServices/builder Assistant)]
+      (.chatLanguageModel ais model)
+      (.chatMemory ais mem)
+      (.build ais))))
+
+(defn assistant-chat [^Assistant a msg]
+  (.chat a msg))
+
+(defn make-persistent-memory [on-update on-get on-delete]
+  (reify ChatMemoryStore
+    (^java.util.List getMessages [_ ^Object memory-id] (on-get memory-id))
+    (^void updateMessages [_ ^Object memory-id ^java.util.List messages] (on-update memory-id messages))
+    (^void deleteMessages [_ ^Object memory-id] (on-delete memory-id))))
