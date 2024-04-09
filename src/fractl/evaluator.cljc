@@ -83,23 +83,30 @@
             (recur (rest insts) env (concat result rs)))))
       result)))
 
-(defn- fire-post-events-for [tag insts]
-  (doseq [inst insts]
-    (when-let [[event-name r] (cn/fire-post-event eval-all-dataflows tag inst)]
-      (when-not (u/safe-ok-result r)
-        (log/warn r)
-        (u/throw-ex (str "internal event " event-name " failed.")))))
-  insts)
+(def ^:dynamic internal-post-events false)
 
-(defn fire-post-events [env]
-  (let [srcs (env/post-event-trigger-sources env)]
-    (reduce
-     (fn [env tag]
-       (if-let [insts (seq (tag srcs))]
-          (do (fire-post-events-for tag insts)
+(defn- fire-post-events-for
+  ([tag is-internal insts]
+   (binding [internal-post-events is-internal]
+     (doseq [inst insts]
+       (when-let [[event-name r] (cn/fire-post-event eval-all-dataflows tag inst)]
+         (when-not (u/safe-ok-result r)
+           (log/warn r)
+           (u/throw-ex (str "internal event " event-name " failed.")))))
+     insts))
+  ([tag insts] (fire-post-events-for tag nil insts)))
+
+(defn fire-post-events
+  ([env is-internal]
+   (let [srcs (env/post-event-trigger-sources env)]
+     (reduce
+      (fn [env tag]
+        (if-let [insts (seq (tag srcs))]
+          (do (fire-post-events-for tag is-internal insts)
               (env/assoc-rule-futures env (trigger-rules tag insts)))
           env))
-     env [:create :update :delete])))
+      env [:create :update :delete])))
+  ([env] (fire-post-events env nil)))
 
 (defn- fire-post-event-for [tag inst]
   (fire-post-events-for tag [inst]))
@@ -116,7 +123,7 @@
         (gs/set-active-txn! txn)
         (reset! txn-set true))
       (try
-        (let [is-internal (internal-event? event-instance)
+        (let [is-internal (or (internal-event? event-instance) internal-post-events)
               event-instance0 (if is-internal
                                 (dissoc event-instance internal-event-key)
                                 event-instance)
@@ -141,7 +148,7 @@
                                                            (if (and (map? r) (not= :ok (:status r)))
                                                              (throw (ex-info "eval failed" {:eval-result r}))
                                                              r)))
-                                   env0 (fire-post-events (:env result))]
+                                   env0 (fire-post-events (:env result) is-internal)]
                                (assoc result :env env0)))]
           (interceptors/eval-intercept env0 event-instance continuation))
         (finally (when @txn-set (gs/set-active-txn! nil)))))))

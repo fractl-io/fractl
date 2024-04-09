@@ -14,19 +14,35 @@
 (def ^:private tag :okta)
 
 ;; config required for okta/auth:
-#_{:authentication
-   {:service :okta
-    :superuser-email "<email>"
-    :client-id "<client-id>"
+#_{:rbac-enabled true
+   :authentication {:service :okta
+                    :superuser-email <email>
+                    :domain <okta-domain>
+                    :auth-server <okta-auth-server-name> ; or "default"
+                    :client-id <okta-app-client-id>
+                    :client-secret <okta-app-secret>
+                    :scope "openid offline_access"
+                    :introspect true ; if false token will be verified locally
+                    :authorize-redirect-url "http://localhost:3000/auth/callback"
+                    :client-url "http://localhost:3000/order"
+                    :logout-redirect "http://localhost:3000/bye"
 
-    :domain "<domain>"
-    :auth-server "<auth-server-name>"
-    :client-secret "<secret>"
-    :introspect <boolean> ; if true, call okta introspect api to verify the token, defaults to false
-    :scope "<string>" ; one or more scopes, separated by space
-    :authorize-redirect-url "<url>" ; redirect url setting for okta authorize
-    :client-url "<url>" ; url of the client app that's being authorized
-    }}
+                    :role-claim :user-roles
+                    ;; "user-roles" is the custom attribute set for Okta users.
+                    ;; More than one role or group can be specified as a comma-delmited string
+                    ;; or as a vector of strings.
+                    ;; Okta groups can be automatically set as a role-claim attribute by following
+                    ;; these steps:
+                    ;; In Okta console, navigate to Security > API. Select your authorization server and go to the Claims tab.
+                    ;; Set these values: Name: groups, Include in: Access Token, Value type: Groups,
+                    ;; Filter: Select Matches regex and use .* as the value
+                    ;; Then, click Create. In this config set `:role-claim` to `:groups`.
+
+                    :default-role "guest"
+
+                    ;; cache is optional
+                    :cache {:host <REDIS_HOST>
+                            :port <REDIS_PORT>}}}
 
 (defmethod auth/make-client tag [_config]
   _config)
@@ -51,9 +67,9 @@
 
 (defn- verify-and-extract [{domain :domain auth-server :auth-server client-id :client-id} token]
   (try
-    (jwt/verify-and-extract
-     (get-jwks-url domain auth-server client-id)
-     token)
+     (jwt/verify-and-extract
+      (get-jwks-url domain auth-server client-id)
+      token)
     (catch Exception e
       (log/warn e))))
 
@@ -229,6 +245,14 @@
         {:status :redirect-found :location (first (make-authorize-url auth-config))}))
     {:status :redirect-found :location (first (make-authorize-url auth-config))}))
 
+(defn- cleanup-roles [roles default-role]
+  (let [roles (if (vector? roles)
+                (vec (filter #(not= "Everyone" %) roles))
+                roles)]
+    (if (seq roles)
+      roles
+      default-role)))
+
 (defmethod auth/handle-auth-callback tag [{client-url :client-url args :args :as auth-config}]
   (let [request (:request args)
         current-sid (cookie-to-sid (get-in request [:headers "cookie"]))
@@ -239,6 +263,12 @@
         auth-status (auth/verify-token auth-config [session-id result])
         user (:sub auth-status)]
     (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
+    (when-not (sess/ensure-local-user
+               user
+               (cleanup-roles
+                (get auth-status (:role-claim auth-config))
+                (:default-role auth-config)))
+      (log/warn (str "failed to create local user for " user)))
     (if (and user (sess/upsert-user-session user true)
              ((if current-sid
                 sess/session-cookie-replace
@@ -249,9 +279,11 @@
        :set-cookie (str "sid=" session-id)}
       {:error "failed to create session"})))
 
-(defmethod auth/session-user tag [{req :request cookie :cookie :as all-stuff-map}]
+(defmethod auth/session-user tag [{req :request cookie :cookie :as auth-config}]
   (if cookie
-    (let [result (introspect all-stuff-map cookie)
+    (let [sid (auth/cookie-to-session-id auth-config cookie)
+          session-data (sess/lookup-session-cookie-user-data sid)
+          result (auth/verify-token auth-config [sid session-data])
           user (:sub result)]
       {:email user
        :sub user
@@ -264,8 +296,12 @@
 (defmethod auth/session-sub tag [req]
   (auth/session-user req))
 
-(defmethod auth/user-logout tag [{domain :domain auth-server :auth-server req :request cookie :cookie}]
-  (let [redirect-uri (http/url-encode "http://localhost:8000")
+(defmethod auth/user-logout tag [{domain :domain
+                                  auth-server :auth-server
+                                  req :request
+                                  cookie :cookie
+                                  logout-redirect :logout-redirect}]
+  (let [redirect-uri (http/url-encode logout-redirect)
         id-token (if cookie
                    (get-in (second cookie) [:authentication-result :id-token])
                    (jwt/remove-bearer (get (:headers req) "authorization")))
@@ -299,13 +335,15 @@
   (u/throw-ex "auth/change-password not implemented for okta"))
 
 (defmethod auth/create-role tag [_]
-  (u/throw-ex "auth/create-role not implemented for okta"))
+  (log/warn "auth/create-role not implemented for okta")
+  true)
 
 (defmethod auth/delete-role tag [_]
   (u/throw-ex "auth/delete-role not implemented for okta"))
 
 (defmethod auth/add-user-to-role tag [_]
-  (u/throw-ex "auth/add-user-to-role not implemented for okta"))
+  (log/warn "auth/add-user-to-role not implemented for okta")
+  true)
 
 (defmethod auth/remove-user-from-role tag [_]
   (u/throw-ex "auth/remove-user-from-role not implemented for okta"))
