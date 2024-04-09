@@ -1,4 +1,4 @@
-(defproject com.github.fractl-io/fractl "0.5.0"
+(defproject com.github.fractl-io/fractl "0.5.1"
   :dependencies [[org.clojure/clojure "1.10.3"]
                  [org.clojure/clojurescript "1.10.896"
                   :exclusions [com.google.code.findbugs/jsr305]]
@@ -75,6 +75,9 @@
   :git-down {de.active-group/active-logger {:coordinates kitrerp/active-logger}}
 
   :repositories [["public-github" {:url "git://github.com" :protocol :https}]]
+
+  :deploy-repositories [["clojars" {:url "https://clojars.org/repo"
+                                    :sign-releases false}]]
 
   :pom-addition [:distributionManagement
                  [:repository
