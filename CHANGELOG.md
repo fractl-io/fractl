@@ -176,7 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/fractl-io/fractl/compare/0.5.1...HEAD
 
-[0.5.1]: https://github.com/fractl-io/fractl/compare/0.5.1...0.5.1
+[0.5.1]: https://github.com/fractl-io/fractl/compare/0.5.0...0.5.1
 
 [0.5.0]: https://github.com/fractl-io/fractl/compare/0.4.8...0.5.0
 
