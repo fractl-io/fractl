@@ -298,7 +298,7 @@
 
 (defn- install-local-dependencies! [model-paths deps]
   (doseq [[model-name spec :as d] (normalize-deps-spec deps)]
-    (when spec (tu/maybe-clone-model spec (first model-paths)))
+    (when spec (tu/maybe-clone-model spec model-paths))
     (if load-model-mode
       (load-model model-name)
       (when-not (install-model model-paths (s/lower-case (name model-name)))

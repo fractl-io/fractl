@@ -248,7 +248,7 @@
        (when-let [deps (:dependencies model)]
          (let [rdm (partial read-model model-paths)]
            (doseq [d deps]
-             (tu/maybe-clone-model d (first model-paths))
+             (tu/maybe-clone-model d model-paths)
              (let [[m mr] (rdm (dependency-model-name d))]
                (load-model m mr model-paths from-resource))))))
 

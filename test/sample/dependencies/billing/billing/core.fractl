@@ -1,16 +1,16 @@
 (component
  :Billing.Core
  ;; clj-import only for testing build
- {:refer [:Banking.Core]
+ {:refer [:Banklib.Core]
   :clj-import '[(:require [fractl.util :as u])
                 (:import [java.io File])]})
 
 (entity
  :Billing.Core/Product
- {:Name {:type :Kernel/String
-         :identity true}
-  :Price :Kernel/Decimal
-  :Stock :Kernel/Int})
+ {:Name {:type :String
+         :guid true}
+  :Price :Decimal
+  :Stock :Int})
 
 (defn update-stock [current-stock purchase-count]
   (let [new-stock (- current-stock purchase-count)]
@@ -23,7 +23,7 @@
 
 (record
  :Billing.Core/PurchaseResult
- {:Result :Kernel/Any})
+ {:Result :Any})
 
 (dataflow
  :Billing.Core/Purchase
@@ -31,7 +31,7 @@
   {:Name? :Billing.Core/Purchase.Product
    :Stock '(update-stock :Stock :Billing.Core/Purchase.Count)}
   :as :Prod}
- {:Banking.Core/Transaction
+ {:Banklib.Core/Transaction
   {:Account "0001"
    :Type "dr"
    :Amount '(amount-to-debit :Prod.Price :Billing.Core/Purchase.Count)}
@@ -40,8 +40,8 @@
   {:Result [:Prod :Acc]}})
 
 (dataflow
- :Kernel/AppInit
- {:Banking.Core/Account
+ :AppInit
+ {:Banklib.Core/Account
   {:No "0001"
    :Balance 1500M}}
  {:Billing.Core/Product

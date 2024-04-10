@@ -10,17 +10,19 @@
        ["."])
      :cljs ["."]))
 
-(defn- repo-exists? [path repo]
+(defn- repo-exists? [paths repo]
   #?(:clj
      (let [dir (last (s/split repo #"/"))]
-       (.isDirectory (io/file (str path u/path-sep dir))))))
+       (some
+        #(.isDirectory (io/file (str % u/path-sep dir)))
+        paths))))
 
-(defn maybe-clone-model [spec path]
+(defn maybe-clone-model [spec paths]
   #?(:clj
      (when-let [repo (and (seq spec)
                           (first (s/split spec #" ")))]
-       (when-not (repo-exists? path repo)
+       (when-not (repo-exists? paths repo)
          (u/exec-in-directory
-          path (str "git clone git@github.com:" repo ".git"))))
+          (first paths) (str "git clone git@github.com:" repo ".git"))))
      :cljs (u/throw-ex "git clone not supported"))
   spec)
