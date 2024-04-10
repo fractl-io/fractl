@@ -18,11 +18,12 @@
         paths))))
 
 (defn maybe-clone-model [spec paths]
-  #?(:clj
-     (when-let [repo (and (seq spec)
-                          (first (s/split spec #" ")))]
-       (when-not (repo-exists? paths repo)
-         (u/exec-in-directory
-          (first paths) (str "git clone git@github.com:" repo ".git"))))
-     :cljs (u/throw-ex "git clone not supported"))
+  (when (seqable? spec)
+    #?(:clj
+       (when-let [repo (and (seq spec)
+                            (first (s/split spec #" ")))]
+         (when-not (repo-exists? paths repo)
+           (u/exec-in-directory
+            (first paths) (str "git clone git@github.com:" repo ".git"))))
+       :cljs (u/throw-ex "git clone not supported")))
   spec)
