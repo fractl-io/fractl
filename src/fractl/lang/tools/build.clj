@@ -124,7 +124,8 @@
      (mapv #(if (keyword? %)
               %
               (let [[n v] (s/split (second %) #" ")
-                    [a b] (s/split n #"/")]
+                    [a b] (s/split n #"/")
+                    b (first (s/split b #":"))]
                 [(symbol (or b a)) (or v "0.0.1")]))
            deps))))
 
