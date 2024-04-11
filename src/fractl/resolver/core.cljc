@@ -119,7 +119,7 @@
 (def call-resolver-delete (partial wrap-result :delete))
 (def call-resolver-query (partial wrap-result :query))
 (def call-resolver-eval (partial wrap-result :eval))
-(def call-resolver-invoke (partial wrap-result :invoke))
+(def call-resolver-on-set-path (partial wrap-result :on-set-path))
 (def call-resolver-on-change-notification (partial wrap-result :on-change-notification))
 
 (defn id-to-delete [arg]

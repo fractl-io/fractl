@@ -47,6 +47,7 @@
                  [com.github.scribejava/scribejava-core "8.3.3"]
                  [com.github.scribejava/scribejava-apis "8.3.3"]
                  [org.apache.kafka/kafka-clients "3.6.1"]
+                 [com.clickhouse/clickhouse-jdbc "0.6.0"]
                  [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]]
 
   :license {:name "Apache2"}
