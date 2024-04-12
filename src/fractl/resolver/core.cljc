@@ -6,7 +6,7 @@
             [fractl.lang.internal :as li]))
 
 (def ^:private valid-resolver-keys #{:update :create :delete :query :eval
-                                     :on-set-path :on-change-notification})
+                                     :invoke :on-set-path :on-change-notification})
 
 (defn- preproc-fnmap [fnmap]
   (let [fns (mapv (fn [[k v]]
