@@ -113,6 +113,7 @@
   [(str (name attr) " " (name opr) " ?") [(as-raw-sql-val v)]])
 
 (defn- ch-query [ds [entity-name {w :where} :as param]]
+  ;; TODO: support patterns with direct `:where` clause.
   (if (or (= w :*) (nil? (seq w)))
     (lookup-all ds entity-name)
     (let [opr (first w)
