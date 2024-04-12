@@ -26,13 +26,18 @@
      (if need-db-name
        [tabname dbname]
        tabname)))
-  ([entity-name] (as-table-name false)))
+  ([entity-name] (as-table-name entity-name false)))
 
-(defn- as-sql-val [v]
-  (cond
-    (string? v) (str "'" v "'")
-    (or (number? v) (boolean? v)) v
-    :else (str "'" v "'")))
+(defn- as-raw-sql-val [v]
+  (if (or (string? v) (number? v) (boolean? v))
+    v
+    (stu/encode-clj-object v)))
+
+(defn- as-quoted-sql-val [v]
+  (let [v (as-raw-sql-val v)]
+    (if (string? v)
+      (str "'" v "'")
+      v)))
 
 (defn- execute-sql [ds sql]
   (let [^Connection conn (ds)]
@@ -49,7 +54,7 @@
         sql (str "INSERT INTO " table-name " ("
                  (str-csv name anames)
                  ") VALUES ("
-                 (str-csv #(as-sql-val (% attrs)) anames)
+                 (str-csv #(as-quoted-sql-val (% attrs)) anames)
                  ")")]
     (execute-sql ds sql)
     instance))
@@ -60,9 +65,9 @@
         anames (keys attrs)
         sql (str "ALTER TABLE " table-name " UPDATE "
                  (str-csv #(let [v (% attrs)]
-                             (str (name %) " = " (as-sql-val v)))
+                             (str (name %) " = " (as-quoted-sql-val v)))
                           anames)
-                 " WHERE " (name id-attr-name) " = " (as-sql-val id-attr-val))]
+                 " WHERE " (name id-attr-name) " = " (as-quoted-sql-val id-attr-val))]
     (execute-sql ds sql)
     instance))
 
@@ -79,7 +84,7 @@
         anames (keys attrs)
         table-name (as-table-name n)
         sql (str "ALTER TABLE " table-name " DELETE WHERE "
-                 (s/join " AND " (mapv #(str (name %) " = " (as-sql-val (% attrs))) anames)))]
+                 (s/join " AND " (mapv #(str (name %) " = " (as-quoted-sql-val (% attrs))) anames)))]
     (execute-sql ds sql)
     instance))
 
@@ -89,32 +94,36 @@
       (let [table-name (as-table-name entity-name)
             pstmt (ji/do-query-statement conn (str "SELECT * FROM " table-name))
             results (ji/execute-stmt-once! conn pstmt nil)]
-        (stu/results-as-instances entity-name results))
+        (stu/results-as-instances entity-name name results))
       (finally
         (.close conn)))))
 
-(defn- lookup-by-attr-val [ds entity-name aname aval]
+(defn- lookup-by-exprs [ds entity-name [where-clause params]]
   (let [^Connection conn (ds)]
     (try
       (let [table-name (as-table-name entity-name)
-            sql (str "SELECT * FROM " table-name " WHERE "
-                     (name aname) " = ?")
+            sql (str "SELECT * FROM " table-name " WHERE " where-clause)
             pstmt (ji/do-query-statement conn sql)
-            results (ji/execute-stmt-once! conn pstmt [(as-sql-val aval)])]
-        (stu/results-as-instances entity-name results))
+            results (ji/execute-stmt-once! conn pstmt params)]
+        (stu/results-as-instances entity-name name results))
       (finally
         (.close conn)))))
 
-(defn- ch-query [ds [entity-name {clause :where} :as param]]
-  (cond
-    (or (= clause :*) (nil? (seq clause)))
+(defn- as-sql-expr [[opr attr v]]
+  [(str (name attr) " " (name opr) " ?") [(as-raw-sql-val v)]])
+
+(defn- ch-query [ds [entity-name {w :where} :as param]]
+  (if (or (= w :*) (nil? (seq w)))
     (lookup-all ds entity-name)
-
-    (= := (first clause))
-    (let [[_ attr v] (first clause)]
-      (lookup-by-attr-val ds entity-name attr v))
-
-    :else (u/throw-ex (str "query expression not supported - " [entity-name clause]))))
+    (let [opr (first w)
+          where-clause (case opr
+                         (:and :or)
+                         (let [sql-exp (mapv as-sql-expr (rest w))
+                               exps (mapv first sql-exp)
+                               params (flatten (mapv second sql-exp))]
+                           [(s/join (str " " (s/upper-case (name opr)) " ") exps) params])
+                         (as-sql-expr w))]
+      (lookup-by-exprs ds entity-name where-clause))))
 
 (defn- as-ch-type [attr-type]
   (if-let [rtp (k/find-root-attribute-type attr-type)]
@@ -122,15 +131,14 @@
           tp (or b a)]
       (case tp
         (:String :Keyword :Email :Password
-                 :Time :Edn :Any :Path :Map :List) "String"
-        :Date "Date"
-        :DateTime "DateTime"
+                 :Time :Edn :Any :Path :Map
+                 :List :DateTime :Date) "String"
         (:UUID :Identity) "UUID"
         (:Int :Int64 :Integer :BigInteger) "Int64"
         :Float "Float32"
         (:Double :Decimal) "Float64"
         :Boolean "Boolean"
-        (u/throw-ex (str "cannot map " tp " to a click-house datatype"))))
+        "String"))
     "String"))
 
 (defn- create-table-sql [table-name entity-name entity-schema]

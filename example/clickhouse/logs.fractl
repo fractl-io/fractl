@@ -7,6 +7,11 @@
   :Created :Now
   :Level {:oneof ["info" "debug" "warn" "error"]}})
 
+(dataflow
+ :RecentErrorLogs
+ {:LogEntry {:Level? "error"
+             :Created? [:> :RecentErrorLogs.Date]}})
+
 (require '[fractl.resolver.registry :as r])
 (use '[fractl.resolver.click-house])
 
