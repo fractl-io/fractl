@@ -92,7 +92,12 @@
 
 (defn- cleanup-inst [obj]
   (cond
-    (cn/an-instance? obj) (dissoc (sanitize-secrets obj) li/meta-attr)
+    (cn/an-instance? obj)
+    (let [r (cn/instance-attributes (sanitize-secrets obj))]
+      (into {} (mapv (fn [[k v]] [k (if (or (map? v) (vector? v))
+                                      (cleanup-inst v)
+                                      v)])
+                     r)))
     (vector? obj) (mapv cleanup-inst obj)
     :else obj))
 
