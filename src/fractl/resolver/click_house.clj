@@ -179,7 +179,7 @@
     (let [^Properties props (as-ch-props (:properties config))
           ^DataSource dsobj (cp/as-pooled
                              (ClickHouseDataSource.
-                              (or (:url config) "jdbc:ch://localhost")
+                              (or (:url config) (u/getenv "CLICK_HOUSE_URL" "jdbc:ch://localhost"))
                               props)
                              (get config :statement-cache-size 10))
           ds #(.getConnection dsobj
