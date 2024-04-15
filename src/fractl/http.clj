@@ -101,17 +101,27 @@
     (vector? obj) (mapv cleanup-inst obj)
     :else obj))
 
+(defn- maybe-assoc-root-type [mode obj result]
+  (if-let [t
+           (case mode
+             :single (cn/instance-type-kw obj)
+             :seq (cn/instance-type-kw (first obj))
+             nil)]
+    (assoc result :type t)
+    result))
+
 (defn- cleanup-result [rs]
   (if-let [result (:result rs)]
-    (assoc rs :result (cond
-                        (cn/an-instance? result)
-                        (cleanup-inst result)
-
-                        (and (seqable? result)
-                             (cn/an-instance? (first result)))
-                        (mapv cleanup-inst result)
-
-                        :else result))
+    (let [mode (cond
+                 (cn/an-instance? result) :single
+                 (and (seqable? result) (seq result) (cn/an-instance? (first result))) :seq
+                 :else :none)]
+      (maybe-assoc-root-type
+       mode result
+       (assoc rs :result (case mode
+                           :single (cleanup-inst result)
+                           :seq (mapv cleanup-inst result)
+                           result))))
     rs))
 
 (defn- cleanup-results [rs]
