@@ -38,6 +38,7 @@
 (def content-type (partial get datafmt-content-types))
 
 (def entity-event-prefix "/api/")
+(def graphql-prefix "/graphql")
 (def login-prefix "/login")
 (def logout-prefix "/logout")
 (def signup-prefix "/signup")

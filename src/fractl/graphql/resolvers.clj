@@ -16,12 +16,8 @@
    :entities (find-schema #(cn/entity-names component) lr/find-entity)
    :relationships (find-schema #(cn/relationship-names component) lr/find-relationship)})
 
-(defn remove-internal-components [coll]
-  (let [to-remove #{:Fractl.Kernel.Lang :Fractl.Kernel.Identity :Fractl.Kernel.Rbac}]
-    (remove to-remove coll)))
-
 (defn get-app-components []
-  (remove-internal-components (cn/component-names)))
+  (cn/remove-internal-components (cn/component-names)))
 
 (defn first-result [r]
   (:result (first r)))
@@ -83,7 +79,6 @@
     [x]))
 
 (defn eval-patterns [component fractl-patterns]
-  (println "fractl-patterns: " fractl-patterns)
   (try
     (let [event (register-event component (as-vec fractl-patterns))]
       (try
@@ -176,7 +171,7 @@
                          [])]
               data)))))))
 
-(defn make-resolver-map [schema]
+(defn generate-resolver-map [schema]
   (let [entities (mapv (fn [entity] (key (first entity))) (:entities schema))
         relationships (into {} (map (fn [rel] [(key (first rel)) (:meta (val (first rel)))]) (:relationships schema)))
         entity-resolvers (reduce (fn [acc entity-key]
@@ -207,7 +202,3 @@
                                                        (fractl.graphql.resolvers/between-relationship-resolver rel entity1 entity2)))))
                                           {} relationships)]
     (merge entity-resolvers relationship-resolvers)))
-
-(defn resolver-map [component-name schema-info]
-  (let [resolver-map (make-resolver-map schema-info)]
-    resolver-map))

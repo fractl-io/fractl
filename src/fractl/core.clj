@@ -30,7 +30,8 @@
             [fractl.graphql.core :as gc]
             [fractl.graphql.generator :as gn]
             [fractl.swagger.docindex :as docindex]
-            [fractl-config-secrets-reader.core :as fractl-secret-reader])
+            [fractl-config-secrets-reader.core :as fractl-secret-reader]
+            [fractl.graphql.generator :as gg])
   (:import [java.util Properties]
            [java.net URL]
            [java.io File]
@@ -39,14 +40,6 @@
   (:gen-class
    :name fractl.core
    :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
-
-(def internal-component-names
-  #{:Fractl.Kernel.Identity
-    :Fractl.Kernel.Lang
-    :Fractl.Kernel.Store
-    :Fractl.Kernel.Rbac
-    :raw
-    :-*-containers-*-})
 
 (defn- complete-model-paths [model current-model-paths config]
   (let [mpkey :model-paths
@@ -244,7 +237,7 @@
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
     (if (build/compiled-model? model-path model-name)
-      (let [components (remove internal-component-names
+      (let [components (remove (cn/internal-component-names)
                                (cn/component-names))]
         (.mkdir (File. "doc"))
         (.mkdir (File. "doc/api"))
@@ -271,19 +264,18 @@
 (defn generate-graphql-schema [model-name args]
   (let [model-path (first args)]
     (if (build/compiled-model? model-path model-name)
-      (do
-        (let [components (remove internal-component-names
+      (let [components (remove (cn/internal-component-names)
                                  (cn/component-names))]
           (doseq [component components]
             (let [comp-name (clojure.string/replace
                              (name component) "." "")]
-              (gc/save-schema (gn/generate-graphql-schema component (h/schema-info component)) "graphql-schema.edn")))
-          (log-seq! "components" components))
-        (println "Finished processing compiled model."))
+              (gc/save-schema (gg/generate-graphql-schema (h/schema-info component)) "graphql-schema.edn")))
+          (log-seq! "components" components)
+        (log/info "Finished processing compiled model."))
       (do
-        (println "Compiled model not found, executing build model for model-name:" model-name)
+        (log/error (str "Compiled model not found, executing build model for model-name:" model-name))
         (build/exec-with-build-model (str "lein run -g " model-name " .") nil model-name)
-        (println "Finished executing build model for model-name:" model-name)))))
+        (log/info (str "Finished executing build model for model-name:" model-name))))))
 
 (defn- find-model-to-read [args config]
   (or (seq (su/nonils args))

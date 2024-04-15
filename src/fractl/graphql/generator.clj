@@ -398,8 +398,8 @@
       (dissoc-if-empty :enums)
       (dissoc-if-empty :input-objects)))
 
-(defn generate-graphql-schema [component-name fractl-schema-info]
-  (let [data (normalize-schema fractl-schema-info)
+(defn generate-graphql-schema [schema-info]
+  (let [data (normalize-schema schema-info)
         records (:records data)
         entities (:entities data)
         relationships (:relationships data)]

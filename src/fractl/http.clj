@@ -36,6 +36,8 @@
   (:use [compojure.core :only [DELETE GET POST PUT routes]]
         [compojure.route :only [not-found]]))
 
+(def graphql-schema (atom {}))
+
 (defn- headers
   ([data-fmt]
    (merge
@@ -1113,26 +1115,20 @@
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
-(defn remove-internal-components [coll]
-  (let [to-remove #{:Fractl.Kernel.Lang :Fractl.Kernel.Identity :Fractl.Kernel.Rbac}]
-    (remove to-remove coll)))
-
 (defn graphql-handler
-  [request]
+  [auth-info request]
   (let [body-as-string (slurp (:body request))
         body (json/decode body-as-string)
         query (:query body)
         variables (:variables body)
         operation-name (:operationName body)
         context {:request request}
-        component-name (first (remove-internal-components (cn/component-names)))
-        schema (schema-info component-name)
-        result (execute (graphql/load-graphql-schema component-name schema) query variables context operation-name)]
+        result (execute @graphql-schema query variables (assoc context :auth-info auth-info) operation-name)]
     (response result 200 :json)))
 
 (defn- make-routes [config auth-config handlers]
   (let [r (routes
-           (POST "/graphql" [] graphql-handler)
+           (POST uh/graphql-prefix [] (:graphql handlers))
            (POST uh/login-prefix [] (:login handlers))
            (POST uh/logout-prefix [] (:logout handlers))
            (POST uh/signup-prefix [] (:signup handlers))
@@ -1206,14 +1202,23 @@
 
 (defn run-server
   ([evaluator config]
-   (let [[auth _ :as auth-info] (make-auth-handler config)]
+   (let [main-component-name (first (cn/remove-internal-components (cn/component-names)))
+         schema (schema-info main-component-name)
+         graphql-schema-details (graphql/compile-graphql-schema schema)
+         [auth _ :as auth-info] (make-auth-handler config)]
+
+     ; save graphql schema to global variable and file
+     (reset! graphql-schema (second graphql-schema-details))
+     (graphql/save-schema (first graphql-schema-details))
+
      (if (or (not auth) (auth-service-supported? auth))
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
          (println (str "The HTTP server is listening on port " (:port config)))
          (h/run-server
           (make-routes
            config auth
-           {:login (partial process-login evaluator auth-info)
+           {:graphql (partial graphql-handler auth-info)
+            :login (partial process-login evaluator auth-info)
             :logout (partial process-logout auth)
             :signup (partial
                      process-signup evaluator

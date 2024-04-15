@@ -1,13 +1,10 @@
 (ns fractl.graphql.core
   (:require [com.walmartlabs.lacinia.schema :as schema]
-            [fractl.graphql.resolvers :as resolvers]
             [com.walmartlabs.lacinia.util :as util]
             [clojure.java.io :as io]
-            [com.walmartlabs.lacinia.util :as util]
-            [com.walmartlabs.lacinia.schema :as schema]
-            [clojure.edn :as edn]
+            [clojure.pprint :as pprint]
             [fractl.graphql.generator :as gg]
-            [clojure.pprint :as pprint]))
+            [fractl.graphql.resolvers :as gr]))
 
 (def default-graphql-schema-path "resources/graphql/graphql-schema.edn")
 
@@ -20,11 +17,11 @@
    (with-open [w (io/writer path)]
      (pprint/pprint schema-edn w))))
 
-(defn load-graphql-schema
-  [component-name schema-info]
-  (let [graphql-schema (gg/generate-graphql-schema component-name schema-info)
+(defn compile-graphql-schema
+  [schema-info]
+  (let [graphql-schema (gg/generate-graphql-schema schema-info)
+        graphql-resolver-map (gr/generate-resolver-map schema-info)
         compiled-schema (-> graphql-schema
-                            (util/inject-resolvers (resolvers/resolver-map component-name schema-info))
+                            (util/inject-resolvers graphql-resolver-map)
                             schema/compile)]
-    (save-schema graphql-schema)
-    compiled-schema))
+    [graphql-schema compiled-schema]))

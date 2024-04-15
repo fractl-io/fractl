@@ -14,6 +14,12 @@
             [fractl.compiler.context :as ctx]
             [fractl.util.errors :refer [raise-error throw-ex-info make-error]]))
 
+(def additional-internal-component-names
+  #{:Fractl.Kernel.Store
+    :raw
+    :-*-containers-*-
+    })
+
 (def ^:private models (u/make-cell {}))
 
 (defn register-model [model-name spec]
@@ -21,12 +27,23 @@
   model-name)
 
 (defn fetch-model [name] (get @models name))
+
 (defn model-version [name] (:version (fetch-model name)))
 
 (defn model-for-component [component-name]
   (ffirst (filter (fn [[_ spec]]
                     (some #{component-name} (:components spec)))
                   @models)))
+
+(defn internal-component-names
+  "Returns vector of internal component names."
+  []
+  (vec (set/union additional-internal-component-names
+                  (set (:components (fetch-model :Fractl))))))
+
+(defn remove-internal-components
+  [components]
+  (vec (set/difference (set components) (set (internal-component-names)))))
 
 (def id-attr li/id-attr)
 (def id-attr-type :Fractl.Kernel.Lang/UUID)
