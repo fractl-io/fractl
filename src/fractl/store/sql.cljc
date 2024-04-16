@@ -35,42 +35,88 @@
 (def ^:private with-not-deleted-clause (partial with-deleted-flag false))
 (def ^:private with-deleted-clause (partial with-deleted-flag true))
 
+(defn- parse-join-table [jquery]
+  [(su/entity-table-name (li/record-name jquery))
+   (li/record-attributes jquery)])
+
+(defn normalize-jattr-name [a]
+  (let [n (str a)]
+    (if (str/ends-with? n "?")
+      (subs n 1 (dec (count n)))
+      a)))
+
+(defn- jattrs-as-on-clause [main-table jtable jattrs]
+  (let [ss (mapv (fn [[k v]]
+                   (let [p (li/path-parts v)]
+                     (str jtable "." (su/attribute-column-name
+                                      (normalize-jattr-name k))
+                          " = " main-table "." (su/attribute-column-name (first (:refs p))))))
+                 jattrs)]
+    (str/join " AND " ss)))
+
+(defn- with-join-attributes [attrs]
+  (reduce (fn [s [n k]]
+            (let [[t c] (str/split (str k) #"\.")]
+              (str s (if (seq s) ", " "")
+                   (su/entity-table-name t) "." (su/attribute-column-name c)
+                   " AS " (name n) " ")))
+          "" attrs))
+
+(defn- format-join-sql [table-name query]
+  (let [wa (:with-attributes query)]
+    (when-not wa
+      (u/throw-ex (str "join requires with-attributes list - " query)))
+    (let [j (:join query)
+          lj (:left-join query)
+          jinfo (mapv parse-join-table (or j lj))
+          d (name su/deleted-flag-col-kw)
+          q (str "SELECT " (with-join-attributes wa) " FROM " table-name
+                 (if j " INNER JOIN " " LEFT JOIN ")
+                 (reduce (fn [s [jtable jattrs]]
+                           (str s jtable " ON " (jattrs-as-on-clause table-name jtable jattrs) " "))
+                         "" jinfo)
+                 " WHERE " table-name "." d " = FALSE")]
+      {:join true :query q})))
+
 (defn format-sql [table-name query]
-  (let [qmap (map? query)
-        group-by (when qmap (:group-by query))
-        query (if group-by (dissoc query :group-by) query)
-        [deleted query] (if qmap
-                          [(:deleted query)
-                           (dissoc query :deleted)]
-                          [nil query])
-        with-deleted-flag (if deleted
-                            with-deleted-clause
-                            with-not-deleted-clause)
-        wildcard (make-wildcard query)
-        interim-pattern
-        (maybe-remove-where
-         (if qmap
-           (merge
-            {:select wildcard :from [(keyword table-name)]}
-            (let [clause (attach-column-name-prefixes query)
-                  where (:where clause)]
-              (assoc clause :where (with-deleted-flag where))))
-           (let [where-clause (attach-column-name-prefixes query)
-                 p {:select wildcard
-                    :from [(keyword table-name)]}]
-             (assoc p :where
-                    (with-deleted-flag
-                      (when where-clause
-                        (let [f (first where-clause)]
-                          (cond
-                            (string? f)
-                            [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
-                            (seqable? f) f
-                            :else where-clause))))))))
-        final-pattern (if group-by
-                        (assoc interim-pattern :group-by (mapv #(keyword (str "_" (name %))) group-by))
-                        interim-pattern)]
-    (hsql/format final-pattern)))
+  (let [qmap (map? query)]
+    (if (and qmap (or (:join query) (:left-join query)))
+      (format-join-sql table-name query)
+      (let [query (if qmap (dissoc query :join :left-join :with-attributes) query)
+            group-by (when qmap (:group-by query))
+            query (if group-by (dissoc query :group-by) query)
+            [deleted query] (if qmap
+                              [(:deleted query)
+                               (dissoc query :deleted)]
+                              [nil query])
+            with-deleted-flag (if deleted
+                                with-deleted-clause
+                                with-not-deleted-clause)
+            wildcard (make-wildcard query)
+            interim-pattern
+            (maybe-remove-where
+             (if qmap
+               (merge
+                {:select wildcard :from [(keyword table-name)]}
+                (let [clause (attach-column-name-prefixes query)
+                      where (:where clause)]
+                  (assoc clause :where (with-deleted-flag where))))
+               (let [where-clause (attach-column-name-prefixes query)
+                     p {:select wildcard
+                        :from [(keyword table-name)]}]
+                 (assoc p :where
+                        (with-deleted-flag
+                          (when where-clause
+                            (let [f (first where-clause)]
+                              (cond
+                                (string? f)
+                                [(keyword f) (keyword (second where-clause)) (nth where-clause 2)]
+                                (seqable? f) f
+                                :else where-clause))))))))
+            final-pattern (if group-by
+                            (assoc interim-pattern :group-by (mapv #(keyword (str "_" (name %))) group-by))
+                            interim-pattern)]
+        (hsql/format final-pattern)))))
 
 (defn- concat-where-clauses [clauses]
   (if (> (count clauses) 1)

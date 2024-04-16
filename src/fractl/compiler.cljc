@@ -370,12 +370,6 @@
         v))
     v))
 
-(defn- complex-query-pattern? [pat]
-  (when-not (ls/rel-tag pat)
-    (let [ks (keys (li/normalize-instance-pattern pat))]
-      (and (= 1 (count ks))
-           (s/ends-with? (str (first ks)) "?")))))
-
 (defn- query-entity-name [k]
   (let [sk (str k)]
     (when-not (s/ends-with? sk "?")
@@ -394,7 +388,12 @@
        (u/throw-ex (str "cannot query undefined entity - " n)))
      (let [q (k pat)
            w (when (seq (:where q)) (w/postwalk process-complex-query (:where q)))
-           c (stu/package-query q ((fetch-compile-query-fn ctx) (assoc q :from n :where w)))]
+           j (:join pat)
+           lj (when-let [lj (seq (:left-join pat))]
+                (when (seq j) (u/throw-ex (str "join and left-join cannot be mixed - " pat)))
+                (vec lj))
+           fp (assoc q :from n :where w :join j :left-join lj :with-attributes (:with-attributes pat))
+           c (stu/package-query q ((fetch-compile-query-fn ctx) fp))]
        (callback [(li/split-path n) c nil]))))
   ([ctx pat]
    (compile-complex-query ctx pat op/query-instances)))
@@ -469,6 +468,15 @@
       (set (mapv #(li/normalize-name (first %))
                  (filter #(li/query-pattern? (first %)) (li/record-attributes filter-pat)))))))
 
+(defn- complex-query-pattern? [pat]
+  (when-not (ls/rel-tag pat)
+    (let [ks (keys (li/normalize-instance-pattern pat))]
+      (and (= 1 (count ks))
+           (s/ends-with? (str (first ks)) "?")))))
+
+(defn- query-with-join-pattern? [pat]
+  (or (:join pat) (:left-join pat)))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -478,6 +486,9 @@
       (if (pi/proper-path? v)
         (compile-map ctx {(li/normalize-name k) {li/path-query-tag v}})
         (compile-query-command ctx (query-map->command pat))))
+
+    (query-with-join-pattern? pat)
+    (compile-query-command ctx (query-map->command pat))
 
     (from-pattern? pat)
     (compile-from-pattern ctx pat)

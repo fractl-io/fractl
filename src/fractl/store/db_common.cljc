@@ -303,13 +303,17 @@
 
 (defn query-all
   ([datasource entity-name rows-to-instances query-sql query-params]
-   (execute-fn!
-    datasource
-    (fn [conn]
-      (rows-to-instances
-       entity-name
-       (let [[pstmt params] (do-query-statement conn query-sql query-params)]
-         [#(execute-stmt-once! conn pstmt params)])))))
+   (let [[is-join query-sql] (if (map? query-sql)
+                               [(:join query-sql) (:query query-sql)]
+                               [false query-sql])]
+     (execute-fn!
+      datasource
+      (fn [conn]
+        (let [qfns (let [[pstmt params] (do-query-statement conn query-sql query-params)]
+                     [#(execute-stmt-once! conn pstmt params)])]
+          (if is-join
+            (raw-results qfns)
+            (rows-to-instances entity-name qfns)))))))
   ([datasource entity-name query-sql]
    (query-all datasource entity-name query-instances query-sql nil)))
 
