@@ -1,10 +1,10 @@
-(component :Banking.Core)
+(component :Banklib.Core)
 
 (entity
  :Account
- {:No {:type :Kernel/String
-       :identity true}
-  :Balance :Kernel/Decimal})
+ {:No {:type :String
+       :guid true}
+  :Balance :Decimal})
 
 (defn set-balance [transaction-type transaction-amount current-balance]
   ((if (= "dr" transaction-type) - +)
@@ -12,9 +12,9 @@
 
 (event
  :Transaction
- {:Account :Kernel/String
-  :Type :Kernel/String
-  :Amount :Kernel/Decimal})
+ {:Account :String
+  :Type :String
+  :Amount :Decimal})
 
 (dataflow
  :Transaction
@@ -26,7 +26,7 @@
               :Balance)}})
 
 (dataflow
- :Kernel/AppInit
+ :AppInit
  {:Account
   {:No "0001"
    :Balance 1500M}})
