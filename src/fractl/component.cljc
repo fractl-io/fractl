@@ -427,6 +427,11 @@
   (when-let [ks (seq (keys (or (:schema schema) schema)))]
     (set ks)))
 
+(defn entity-attribute-names [entity-name]
+  (set/difference
+   (attribute-names (fetch-entity-schema entity-name))
+   #{li/meta-attr}))
+
 (def attributes :schema)
 
 (defn has-attribute? [schema-or-name attr-name]

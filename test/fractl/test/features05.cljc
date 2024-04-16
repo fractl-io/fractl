@@ -164,7 +164,11 @@
       :join [{:I1300J/Customer {:Id? :I1300J/Order.CustomerId}}]
       :with-attributes {:CustomerName :I1300J/Customer.Name
                         :CustomerId :I1300J/Customer.Id
-                        :OrderId :I1300J/Order.Id}}))
+                        :OrderId :I1300J/Order.Id}})
+    (dataflow
+     :I1300J/OrdersWithCustomers
+     {:I1300J/Order? {}
+      :left-join [{:I1300J/Customer {:Id? :I1300J/Order.CustomerId}}]}))
   (let [cust (fn [id name]
                (tu/first-result
                 {:I1300J/Create_Customer
@@ -187,4 +191,9 @@
           p? (fn [ordid] (is (= 1 (count (filter #(= ordid (:OrderId %)) rs1)))))]
       (is (= 2 (count rs1)))
       (p? 1)
-      (p? 3))))
+      (p? 3))
+    (let [rs (tu/result {:I1300J/OrdersWithCustomers {}})]
+      (is (= 5 (count rs)))
+      (is (every? map? rs))
+      (is (= (+ 1 2 3 4 5)
+             (reduce + 0 (mapv :Id rs)))))))

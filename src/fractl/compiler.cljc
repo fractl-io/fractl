@@ -379,6 +379,13 @@
 (defn- cleanup-join [pat]
   (dissoc pat :join :left-join :with-attributes))
 
+(defn- ensure-with-attributes [entity-name attrs]
+  (if (seq attrs)
+    attrs
+    (let [anames (cn/entity-attribute-names entity-name)
+          prefix (subs (str entity-name) 1)]
+      (into {} (mapv (fn [a] [a (keyword (str prefix "." (name a)))]) anames)))))
+
 (defn- compile-complex-query
   "Compile a complex query. Invoke the callback
   function with the compiled query as argument.
@@ -391,11 +398,12 @@
        (u/throw-ex (str "cannot query undefined entity - " n)))
      (let [q (k pat)
            w (when (seq (:where q)) (w/postwalk process-complex-query (:where q)))
-           j (:join pat)
+           j (seq (:join pat))
            lj (when-let [lj (seq (:left-join pat))]
-                (when (seq j) (u/throw-ex (str "join and left-join cannot be mixed - " pat)))
+                (when j (u/throw-ex (str "join and left-join cannot be mixed - " pat)))
                 (vec lj))
-           fp (assoc q :from n :where w :join j :left-join lj :with-attributes (:with-attributes pat))
+           fp (assoc q :from n :where w :join j :left-join lj
+                     :with-attributes (when (or j lj) (ensure-with-attributes (li/normalize-name k) (:with-attributes pat))))
            c (stu/package-query fp ((fetch-compile-query-fn ctx) fp))]
        (callback [(li/split-path n) c nil]))))
   ([ctx pat]
