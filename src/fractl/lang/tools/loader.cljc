@@ -17,14 +17,11 @@
 
 (defn- record-name [obj]
   (let [n (cond
-            (keyword? obj)
-            obj
+            (keyword? obj) obj
 
-            (map? obj)
-            (first (keys obj))
+            (map? obj) (first (keys obj))
 
-            :else
-                 (first obj))
+            :else (first obj))
         [a b] (li/split-path n)]
     (or b a)))
 
@@ -42,7 +39,7 @@
            component
            (assoc result :component (second exp))
 
-           (entity record event rule dataflow relationship attribute)
+           (entity record event rule dataflow relationship attribute inference)
            (assoc
             result :records
             (conj
@@ -273,6 +270,7 @@
                        'event ln/event
                        'rule 'ln/rule
                        'relationship ln/relationship
+                       'inference ln/inference
                        'dataflow ln/dataflow})
 
      (defn intern-component [component-spec]
