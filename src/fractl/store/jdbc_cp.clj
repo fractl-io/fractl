@@ -1,6 +1,10 @@
 (ns fractl.store.jdbc-cp
   "Generic connection pooling for JDBC datasources."
-  (:import [com.mchange.v2.c3p0 ComboPooledDataSource]))
+  (:import [javax.sql DataSource]
+           [com.mchange.v2.c3p0 ComboPooledDataSource DataSources]))
+
+(defn ^DataSource as-pooled [^DataSource unpooled stmt-cache-size]
+  (DataSources/pooledDataSource unpooled stmt-cache-size))
 
 (defn- setup-datasource [^ComboPooledDataSource ds dbspec]
   (if (= :postgres (:dbtype dbspec))
