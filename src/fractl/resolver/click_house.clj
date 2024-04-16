@@ -7,6 +7,7 @@
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :refer [defmake]]
             [fractl.store.util :as stu]
+            [fractl.store.sql :as sql]
             [fractl.store.jdbc-cp :as cp]
             [fractl.store.jdbc-internal :as ji])
   (:import [java.sql Connection DriverManager PreparedStatement
@@ -109,13 +110,39 @@
       (finally
         (.close conn)))))
 
+(defn- format-join-results [rs]
+  (mapv (fn [r]
+          (into
+           {}
+           (mapv (fn [[k v]]
+                   (let [[a b] (s/split (str k) #"/")
+                         n (or b a)]
+                     [(keyword n) v]))
+                 r)))
+        rs))
+
+(defn- lookup-for-join [ds sql]
+  (let [^Connection conn (ds)]
+    (try
+      (let [pstmt (ji/do-query-statement conn sql)
+            results (ji/execute-stmt-once! conn pstmt nil)]
+        (format-join-results results))
+      (finally
+        (.close conn)))))
+
 (defn- as-sql-expr [[opr attr v]]
   [(str (name attr) " " (name opr) " ?") [(as-raw-sql-val v)]])
 
-(defn- ch-query [ds [entity-name {w :where} :as param]]
+(defn- ch-query [ds [entity-name {w :where :as query}]]
   ;; TODO: support patterns with direct `:where` clause.
-  (if (or (= w :*) (nil? (seq w)))
+  (cond
+    (or (:join query) (:left-join query))
+    (lookup-for-join ds (:query (sql/format-join-sql as-table-name name false (as-table-name (:from query)) query)))
+
+    (or (= w :*) (nil? (seq w)))
     (lookup-all ds entity-name)
+
+    :else
     (let [opr (first w)
           where-clause (case opr
                          (:and :or)

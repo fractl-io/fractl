@@ -12,9 +12,32 @@
  {:LogEntry {:Level? "error"
              :Created? [:> :RecentErrorLogs.Date]}})
 
+(entity
+ :Customer
+ {:Id {:type :Int :guid true}
+  :Name :String})
+
+(entity
+ :Order
+ {:Id {:type :Int :guid true}
+  :CustomerId :Int
+  :Date :Now})
+
+(dataflow
+ :CustomerOrders
+ {:Order? {}
+  :join [{:Customer {:Id? :Order.CustomerId}}]
+  :with-attributes {:CustomerName :Customer.Name
+                    :CustomerId :Customer.Id
+                    :OrderId :Order.Id}})
+
+(dataflow
+ :Customers
+ {:Customer {:Id? [:>= :Customers.Id]}})
+
 (require '[fractl.resolver.registry :as r])
 (use '[fractl.resolver.click-house])
 
 (r/register-resolver {:name :click-house-logs
                       :type :click-house
-                      :paths [:Logs/LogEntry]})
+                      :paths [:Logs/LogEntry :Logs/Customer :Logs/Order]})

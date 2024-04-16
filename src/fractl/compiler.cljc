@@ -376,13 +376,16 @@
       (u/throw-ex (str "queried entity-name must end with a `?` - " k)))
     (keyword (subs (apply str (butlast sk)) 1))))
 
+(defn- cleanup-join [pat]
+  (dissoc pat :join :left-join :with-attributes))
+
 (defn- compile-complex-query
   "Compile a complex query. Invoke the callback
   function with the compiled query as argument.
   The default behavior is to pass the compiled query
   to the query-instances opcode generator"
   ([ctx pat callback]
-   (let [k (first (keys pat))
+   (let [k (first (keys (cleanup-join pat)))
          n (ctx/dynamic-type ctx (query-entity-name k))]
      (when-not (cn/find-entity-schema n)
        (u/throw-ex (str "cannot query undefined entity - " n)))
@@ -393,7 +396,7 @@
                 (when (seq j) (u/throw-ex (str "join and left-join cannot be mixed - " pat)))
                 (vec lj))
            fp (assoc q :from n :where w :join j :left-join lj :with-attributes (:with-attributes pat))
-           c (stu/package-query q ((fetch-compile-query-fn ctx) fp))]
+           c (stu/package-query fp ((fetch-compile-query-fn ctx) fp))]
        (callback [(li/split-path n) c nil]))))
   ([ctx pat]
    (compile-complex-query ctx pat op/query-instances)))
