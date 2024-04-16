@@ -76,7 +76,7 @@
                            (str s jtable " ON " (jattrs-as-on-clause table-name jtable jattrs) " "))
                          "" jinfo)
                  " WHERE " table-name "." d " = FALSE")]
-      {:join true :query q})))
+      {:join true :with-attributes (mapv first wa) :query q})))
 
 (defn format-sql [table-name query]
   (let [qmap (map? query)]

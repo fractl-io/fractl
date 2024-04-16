@@ -162,9 +162,9 @@
      :I1300J/CustomerOrders
      {:I1300J/Order? {}
       :join [{:I1300J/Customer {:Id? :I1300J/Order.CustomerId}}]
-      :with-attributes {:Customer_Name :I1300J/Customer.Name
-                        :Customer_Id :I1300J/Customer.Id
-                        :Order_Id :I1300J/Order.Id}}))
+      :with-attributes {:CustomerName :I1300J/Customer.Name
+                        :CustomerId :I1300J/Customer.Id
+                        :OrderId :I1300J/Order.Id}}))
   (let [cust (fn [id name]
                (tu/first-result
                 {:I1300J/Create_Customer
@@ -182,4 +182,9 @@
         os (mapv order [1 2 3 4 5] [1001 1002 1001 1003 1003])
         _ (is (every? order? os))
         rs (tu/result {:I1300J/CustomerOrders {}})]
-    (is (and (= 5 (count rs)) (is (every? map? rs))))))
+    (is (and (= 5 (count rs)) (is (every? map? rs))))
+    (let [rs1 (filter #(= 1001 (:CustomerId %)) rs)
+          p? (fn [ordid] (is (= 1 (count (filter #(= ordid (:OrderId %)) rs1)))))]
+      (is (= 2 (count rs1)))
+      (p? 1)
+      (p? 3))))
