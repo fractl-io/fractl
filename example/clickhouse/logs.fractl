@@ -1,0 +1,20 @@
+(component :Logs)
+
+(entity
+ :LogEntry
+ {:Id {:type :Int :guid true}
+  :Message :String
+  :Created :Now
+  :Level {:oneof ["info" "debug" "warn" "error"]}})
+
+(dataflow
+ :RecentErrorLogs
+ {:LogEntry {:Level? "error"
+             :Created? [:> :RecentErrorLogs.Date]}})
+
+(require '[fractl.resolver.registry :as r])
+(use '[fractl.resolver.click-house])
+
+(r/register-resolver {:name :click-house-logs
+                      :type :click-house
+                      :paths [:Logs/LogEntry]})
