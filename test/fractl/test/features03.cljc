@@ -74,8 +74,11 @@
 
 (deftest unqualified-name
   (is (= :E (ls/unqualified-name :C/E)))
+  (is (= :E (ls/unqualified-name :C.D/E)))
   (is (= :E (ls/unqualified-name [:C :E])))
   (is (= :E (ls/unqualified-name :E)))
+  (is (= :C (ls/unqualified-name :E.C)))
+  (is (= :C.D (ls/unqualified-name :E.C.D)))
   (is (not (ls/unqualified-name "abc"))))
 
 (deftest is-fully-qualified
