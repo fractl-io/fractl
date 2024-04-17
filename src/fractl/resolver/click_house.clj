@@ -99,18 +99,7 @@
       (finally
         (.close conn)))))
 
-(defn- lookup-by-exprs [ds entity-name [where-clause params]]
-  (let [^Connection conn (ds)]
-    (try
-      (let [table-name (as-table-name entity-name)
-            sql (str "SELECT * FROM " table-name " WHERE " where-clause)
-            pstmt (ji/do-query-statement conn sql)
-            results (ji/execute-stmt-once! conn pstmt params)]
-        (stu/results-as-instances entity-name name results))
-      (finally
-        (.close conn)))))
-
-(defn- format-join-results [rs]
+(defn- format-raw-results [rs]
   (mapv (fn [r]
           (into
            {}
@@ -121,12 +110,34 @@
                  r)))
         rs))
 
+(defn- make-select-clause [with-attrs]
+  (reduce (fn [s [n k]]
+            (let [parts (li/path-parts k)
+                  t (li/make-path (:component parts) (:record parts))
+                  c (first (:refs parts))]
+              (str (if (seq s) ", " "") (as-table-name t) "." (name c) " AS " (name n))))
+          "" with-attrs))
+
+(defn- lookup-by-exprs [ds entity-name [where-clause params] with-attrs]
+  (let [^Connection conn (ds)]
+    (try
+      (let [table-name (as-table-name entity-name)
+            select-clause (if with-attrs (make-select-clause with-attrs) "*")
+            sql (str "SELECT " select-clause " FROM " table-name " WHERE " where-clause)
+            pstmt (ji/do-query-statement conn sql)
+            results (ji/execute-stmt-once! conn pstmt params)]
+        (if with-attrs
+          (format-raw-results results)
+          (stu/results-as-instances entity-name name results)))
+      (finally
+        (.close conn)))))
+
 (defn- lookup-for-join [ds sql]
   (let [^Connection conn (ds)]
     (try
       (let [pstmt (ji/do-query-statement conn sql)
             results (ji/execute-stmt-once! conn pstmt nil)]
-        (format-join-results results))
+        (format-raw-results results))
       (finally
         (.close conn)))))
 
@@ -151,7 +162,7 @@
                                params (flatten (mapv second sql-exp))]
                            [(s/join (str " " (s/upper-case (name opr)) " ") exps) params])
                          (as-sql-expr w))]
-      (lookup-by-exprs ds entity-name where-clause))))
+      (lookup-by-exprs ds entity-name where-clause (:with-attributes query)))))
 
 (defn- as-ch-type [attr-type]
   (if-let [rtp (k/find-root-attribute-type attr-type)]

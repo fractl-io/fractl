@@ -31,6 +31,19 @@
                     :CustomerId :Customer.Id
                     :OrderId :Order.Id}})
 
+(view
+ :CustomerOrdersView
+ {:CustomerName :Customer.Name
+  :CustomerId :Customer.Id
+  :OrderId :Order.Id
+  :query {:Order? {}
+          :join [{:Customer {:Id? :Order.CustomerId}}]}})
+
+(view
+ :CustomerNamesView
+ {:name :Customer.Name
+  :query {:Customer? {:where [:> :Id 10]}}})
+
 (dataflow
  :Customers
  {:Customer {:Id? [:>= :Customers.Id]}})

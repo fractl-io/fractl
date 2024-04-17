@@ -5,7 +5,8 @@
             [fractl.component :as cn]
             [fractl.env :as env]
             [fractl.lang
-             :refer [component event entity relationship dataflow rule inference]]
+             :refer [component event entity view
+                     relationship dataflow rule inference]]
             [fractl.lang.raw :as lr]
             [fractl.lang.internal :as li]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
@@ -217,3 +218,53 @@
         es (mapv mke [1 2 3] [5 10 15])]
     (is (every? e? es))
     (is (= 25 (reduce + 0 (mapv :v (tu/result {:Qwa/Q {:X 10}})))))))
+
+(deftest issue-1301-views
+  (defcomponent :I1301
+    (entity
+     :I1301/Customer
+     {:Id {:type :Int :guid true}
+      :Name :String})
+    (entity
+     :I1301/Order
+     {:Id {:type :Int :guid true}
+      :CustomerId :Int
+      :Date :Now})
+    (view
+     :I1301/CustomerOrders
+     {:CustomerName :I1301/Customer.Name
+      :CustomerId :I1301/Customer.Id
+      :OrderId :I1301/Order.Id
+      :query {:I1301/Order? {}
+              :join [{:I1301/Customer {:Id? :I1301/Order.CustomerId}}]}})
+    (view
+     :I1301/CustomerNames
+     {:Name :I1301/Customer.Name
+      :query {:I1301/Customer? {}}}))
+  (let [cust (fn [id name]
+               (tu/first-result
+                {:I1301/Create_Customer
+                 {:Instance
+                  {:I1301/Customer {:Id id :Name name}}}}))
+        cust? (partial cn/instance-of? :I1301/Customer)
+        order (fn [id cust-id]
+                (tu/first-result
+                 {:I1301/Create_Order
+                  {:Instance
+                   {:I1301/Order {:Id id :CustomerId cust-id}}}}))
+        order? (partial cn/instance-of? :I1301/Order)
+        cs (mapv cust [1001 1002 1003] ["jay" "mat" "joe"])
+        _ (is (every? cust? cs))
+        os (mapv order [1 2 3 4 5] [1001 1002 1001 1003 1003])
+        _ (is (every? order? os))
+        rs (tu/result {:I1301/LookupAll_CustomerOrders {}})]
+    (is (and (= 5 (count rs)) (is (every? map? rs))))
+    (let [rs1 (filter #(= 1001 (:CustomerId %)) rs)
+          p? (fn [ordid] (is (= 1 (count (filter #(= ordid (:OrderId %)) rs1)))))]
+      (is (= 2 (count rs1)))
+      (p? 1)
+      (p? 3))
+    (let [rs (tu/result {:I1301/LookupAll_CustomerNames {}})]
+      (is (= 3 (count rs)))
+      (is (= 1 (count (keys (first rs)))))
+      (is (= (set ["jay" "mat" "joe"]) (set (mapv :Name rs)))))))

@@ -865,63 +865,65 @@
                       rec-name
                       (normalized-attributes
                        rectype rec-name attrs))
-                     raw-attrs)
-             ev (partial crud-evname n)
-             ctx-aname (k/event-context-attribute-name)
-             id-attr (identity-attribute-name rec-name)
-             id-attr-type (or (identity-attribute-type id-attr attrs)
-                              :Fractl.Kernel.Lang/Any)
-             id-evattrs {id-attr id-attr-type
-                         li/event-context ctx-aname}
-             cr-evattrs {:Instance n li/event-context ctx-aname}
-             up-id-attr id-attr
-             up-evattrs {up-id-attr id-attr-type
-                         :Data :Fractl.Kernel.Lang/Map}
-             ;; Define CRUD events and dataflows:
-             crevt (ev :Create)
-             upevt (ev :Update)
-             delevt (ev :Delete)
-             lookupevt (ev :Lookup)
-             lookupevt-internal (ev cn/lookup-internal-event-prefix)
-             lookupallevt (ev :LookupAll)]
-         (cn/for-each-entity-event-name
-          rec-name (partial entity-event rec-name))
-         (event-internal delevt id-evattrs)
-         (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
-         (event-internal crevt cr-evattrs)
-         (event-internal upevt up-evattrs)
-         (event-internal lookupevt-internal id-evattrs)
-         (event-internal lookupevt id-evattrs)
-         (event-internal lookupallevt {})
-         (let [rs (mapv (fn [[k v]]
-                          (let [s (cn/find-attribute-schema v)]
-                            [(load-ref-pattern crevt :Instance rec-name k s)
-                             (load-ref-pattern upevt :Data rec-name k s)]))
-                        (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))
-               cr-ref-pats (mapv first rs)
-               up-ref-pats (mapv second rs)]
-           (cn/register-dataflow
-            crevt
-            `[~@cr-ref-pats
-              ~{rec-name
-                {}
-                :from
-                (crud-event-inst-accessor crevt)}])
-           (cn/register-dataflow
-            upevt
-            (concat [up-ref-pats]
-                    [{rec-name
-                      {(li/name-as-query-pattern id-attr) (crud-event-attr-accessor upevt (name up-id-attr))}
-                      :from (crud-event-attr-accessor upevt "Data")}])))
-         (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
-         (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
-         (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)])
-         ;; Install dataflows for implicit events.
-         (when dfexps (mapv eval dfexps))
-         (let [rbac-spec (:rbac attrs)
-               is-rel (:relationship (:meta attrs))]
-           (lr/rbac rec-name rbac-spec))
-         result)
+                     raw-attrs)]
+         (if (:view (:meta raw-attrs))
+           result
+           (let [ev (partial crud-evname n)
+                 ctx-aname (k/event-context-attribute-name)
+                 id-attr (identity-attribute-name rec-name)
+                 id-attr-type (or (identity-attribute-type id-attr attrs)
+                                  :Fractl.Kernel.Lang/Any)
+                 id-evattrs {id-attr id-attr-type
+                             li/event-context ctx-aname}
+                 cr-evattrs {:Instance n li/event-context ctx-aname}
+                 up-id-attr id-attr
+                 up-evattrs {up-id-attr id-attr-type
+                             :Data :Fractl.Kernel.Lang/Map}
+                 ;; Define CRUD events and dataflows:
+                 crevt (ev :Create)
+                 upevt (ev :Update)
+                 delevt (ev :Delete)
+                 lookupevt (ev :Lookup)
+                 lookupevt-internal (ev cn/lookup-internal-event-prefix)
+                 lookupallevt (ev :LookupAll)]
+             (cn/for-each-entity-event-name
+              rec-name (partial entity-event rec-name))
+             (event-internal delevt id-evattrs)
+             (cn/register-dataflow delevt [(crud-event-delete-pattern delevt rec-name)])
+             (event-internal crevt cr-evattrs)
+             (event-internal upevt up-evattrs)
+             (event-internal lookupevt-internal id-evattrs)
+             (event-internal lookupevt id-evattrs)
+             (event-internal lookupallevt {})
+             (let [rs (mapv (fn [[k v]]
+                              (let [s (cn/find-attribute-schema v)]
+                                [(load-ref-pattern crevt :Instance rec-name k s)
+                                 (load-ref-pattern upevt :Data rec-name k s)]))
+                            (cn/ref-attribute-schemas (cn/fetch-schema rec-name)))
+                   cr-ref-pats (mapv first rs)
+                   up-ref-pats (mapv second rs)]
+               (cn/register-dataflow
+                crevt
+                `[~@cr-ref-pats
+                  ~{rec-name
+                    {}
+                    :from
+                    (crud-event-inst-accessor crevt)}])
+               (cn/register-dataflow
+                upevt
+                (concat [up-ref-pats]
+                        [{rec-name
+                          {(li/name-as-query-pattern id-attr) (crud-event-attr-accessor upevt (name up-id-attr))}
+                          :from (crud-event-attr-accessor upevt "Data")}])))
+             (cn/register-dataflow lookupevt-internal [(crud-event-lookup-pattern lookupevt-internal rec-name)])
+             (cn/register-dataflow lookupevt [(crud-event-lookup-pattern lookupevt rec-name)])
+             (cn/register-dataflow lookupallevt [(li/name-as-query-pattern rec-name)])
+             ;; Install dataflows for implicit events.
+             (when dfexps (mapv eval dfexps))
+             (let [rbac-spec (:rbac attrs)
+                   is-rel (:relationship (:meta attrs))]
+               (lr/rbac rec-name rbac-spec))
+             result)))
        (u/throw-ex (str "Syntax error. Check " (name rectype) ": " n)))
      (u/throw-ex (str "Not a serializable record type: " (name rectype)))))
   ([rectype n attrs]
@@ -949,6 +951,29 @@
                  attrs)]
      (entity n attrs raw-attrs)))
   ([schema] (parse-and-define entity schema)))
+
+(defn- validate-view-attrs! [attrs]
+  (doseq [[n k] attrs]
+    (let [p1 (and (keyword? n) (= 1 (count (li/split-path n))))
+          k0 (s/split (str k) #"\.")
+          p2 (and (keyword? k) (= 2 (count k0)))]
+      (when-not (and p1 p2)
+        (u/throw-ex (str "invalid view attribute-specification: " [n k]))))))
+
+(defn view [n spec]
+  (if-let [q (:query spec)]
+    (let [[c vn] (li/split-path n)
+          attrs (dissoc spec :query)
+          ev (partial crud-evname n)]
+      (validate-view-attrs! attrs)
+      (entity n {:meta {:view true}})
+      (dataflow
+       (ev :LookupAll)
+       (if (or (:join q) (:left-join q))
+         (assoc q :with-attributes attrs)
+         (let [clause (assoc (first (vals q)) :with-attributes attrs)]
+           [:query {(first (keys q)) clause}]))))
+    (u/throw-ex (str "query is required to create view " n))))
 
 (defn- extract-rel-meta [meta]
   (when-let [props (seq (filter (fn [[k _]]
