@@ -146,3 +146,54 @@
             (inference
              :I1252R/I1
              {:category :I1Rules, :seed [], :embed [:I1252R/A :I1252R/B]})))))
+
+(deftest issue-1300-joins
+  (defcomponent :I1300J
+    (entity
+     :I1300J/Customer
+     {:Id {:type :Int :guid true}
+      :Name :String})
+    (entity
+     :I1300J/Order
+     {:Id {:type :Int :guid true}
+      :CustomerId :Int
+      :Date :Now})
+    (dataflow
+     :I1300J/CustomerOrders
+     {:I1300J/Order? {}
+      :join [{:I1300J/Customer {:Id? :I1300J/Order.CustomerId}}]
+      :with-attributes {:CustomerName :I1300J/Customer.Name
+                        :CustomerId :I1300J/Customer.Id
+                        :OrderId :I1300J/Order.Id}})
+    (dataflow
+     :I1300J/OrdersWithCustomers
+     {:I1300J/Order? {}
+      :left-join [{:I1300J/Customer {:Id? :I1300J/Order.CustomerId}}]}))
+  (let [cust (fn [id name]
+               (tu/first-result
+                {:I1300J/Create_Customer
+                 {:Instance
+                  {:I1300J/Customer {:Id id :Name name}}}}))
+        cust? (partial cn/instance-of? :I1300J/Customer)
+        order (fn [id cust-id]
+                (tu/first-result
+                 {:I1300J/Create_Order
+                  {:Instance
+                   {:I1300J/Order {:Id id :CustomerId cust-id}}}}))
+        order? (partial cn/instance-of? :I1300J/Order)
+        cs (mapv cust [1001 1002 1003] ["jay" "mat" "joe"])
+        _ (is (every? cust? cs))
+        os (mapv order [1 2 3 4 5] [1001 1002 1001 1003 1003])
+        _ (is (every? order? os))
+        rs (tu/result {:I1300J/CustomerOrders {}})]
+    (is (and (= 5 (count rs)) (is (every? map? rs))))
+    (let [rs1 (filter #(= 1001 (:CustomerId %)) rs)
+          p? (fn [ordid] (is (= 1 (count (filter #(= ordid (:OrderId %)) rs1)))))]
+      (is (= 2 (count rs1)))
+      (p? 1)
+      (p? 3))
+    (let [rs (tu/result {:I1300J/OrdersWithCustomers {}})]
+      (is (= 5 (count rs)))
+      (is (every? map? rs))
+      (is (= (+ 1 2 3 4 5)
+             (reduce + 0 (mapv :Id rs)))))))

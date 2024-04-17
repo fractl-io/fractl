@@ -301,15 +301,35 @@
   ([datasource entity-name unique-keys attribute-values]
    (query-by-unique-keys nil datasource entity-name unique-keys attribute-values)))
 
+(defn- normalize-join-results [attr-names rs]
+  (let [cs (mapv #(keyword (s/upper-case (name %))) attr-names)
+        irs (mapv #(into {} (mapv (fn [[k v]] [(keyword (s/upper-case (name k))) v]) %)) rs)]
+    (vec
+     (mapv
+      (fn [r]
+        (into
+         {}
+         (mapv
+          (fn [c a]
+            [a (get r c)])
+          cs attr-names)))
+      irs))))
+
 (defn query-all
   ([datasource entity-name rows-to-instances query-sql query-params]
-   (execute-fn!
-    datasource
-    (fn [conn]
-      (rows-to-instances
-       entity-name
-       (let [[pstmt params] (do-query-statement conn query-sql query-params)]
-         [#(execute-stmt-once! conn pstmt params)])))))
+   (let [[is-join wa query-sql] (if (map? query-sql)
+                                  [(:join query-sql)
+                                   (:with-attributes query-sql)
+                                   (:query query-sql)]
+                                  [false nil query-sql])]
+     (execute-fn!
+      datasource
+      (fn [conn]
+        (let [qfns (let [[pstmt params] (do-query-statement conn query-sql query-params)]
+                     [#(execute-stmt-once! conn pstmt params)])]
+          (if is-join
+            (normalize-join-results wa (raw-results qfns))
+            (rows-to-instances entity-name qfns)))))))
   ([datasource entity-name query-sql]
    (query-all datasource entity-name query-instances query-sql nil)))
 
