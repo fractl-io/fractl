@@ -397,13 +397,19 @@
      (when-not (cn/find-entity-schema n)
        (u/throw-ex (str "cannot query undefined entity - " n)))
      (let [q (k pat)
-           w (when (seq (:where q)) (w/postwalk process-complex-query (:where q)))
+           w (when (seq (:where q))
+               (w/postwalk process-complex-query (:where q)))
            j (seq (:join pat))
            lj (when-let [lj (seq (:left-join pat))]
                 (when j (u/throw-ex (str "join and left-join cannot be mixed - " pat)))
                 (vec lj))
-           fp (assoc q :from n :where w :join j :left-join lj
-                     :with-attributes (when (or j lj) (ensure-with-attributes (li/normalize-name k) (:with-attributes pat))))
+           fp (assoc q :from n :where w
+                     :join j :left-join lj
+                     :with-attributes (if (or j lj)
+                                        (ensure-with-attributes
+                                         (li/normalize-name k)
+                                         (:with-attributes pat))
+                                        (:with-attributes q)))
            c (stu/package-query fp ((fetch-compile-query-fn ctx) fp))]
        (callback [(li/split-path n) c nil]))))
   ([ctx pat]

@@ -197,3 +197,23 @@
       (is (every? map? rs))
       (is (= (+ 1 2 3 4 5)
              (reduce + 0 (mapv :Id rs)))))))
+
+(deftest query-with-attrs
+  (defcomponent :Qwa
+    (entity
+     :Qwa/E
+     {:Id {:type :Int :guid true}
+      :X :Int})
+    (dataflow
+     :Qwa/Q
+     [:query {:Qwa/E? {:where [:>= :X :Qwa/Q.X]
+                       :with-attributes {:id :Qwa/E.Id :v :Qwa/E.X}}}]))
+  (let [mke (fn [id x]
+              (tu/first-result
+               {:Qwa/Create_E
+                {:Instance
+                 {:Qwa/E {:Id id :X x}}}}))
+        e? (partial cn/instance-of? :Qwa/E)
+        es (mapv mke [1 2 3] [5 10 15])]
+    (is (every? e? es))
+    (is (= 25 (reduce + 0 (mapv :v (tu/result {:Qwa/Q {:X 10}})))))))

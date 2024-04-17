@@ -316,22 +316,28 @@
       irs))))
 
 (defn query-all
-  ([datasource entity-name rows-to-instances query-sql query-params]
-   (let [[is-join wa query-sql] (if (map? query-sql)
-                                  [(:join query-sql)
-                                   (:with-attributes query-sql)
-                                   (:query query-sql)]
-                                  [false nil query-sql])]
+  ([datasource entity-name rows-to-instances query query-params]
+   (let [is-raw (map? query)
+         [q wa] (if is-raw
+                  [(:query query)
+                   (:with-attributes query)]
+                  [query nil])
+         [query-sql query-params] (if (vector? q)
+                                    (let [pp (if is-raw
+                                               ((:parse-params query) (rest q))
+                                               (rest q))]
+                                      [(first q) pp])
+                                    [q query-params])]
      (execute-fn!
       datasource
       (fn [conn]
         (let [qfns (let [[pstmt params] (do-query-statement conn query-sql query-params)]
                      [#(execute-stmt-once! conn pstmt params)])]
-          (if is-join
+          (if is-raw
             (normalize-join-results wa (raw-results qfns))
             (rows-to-instances entity-name qfns)))))))
-  ([datasource entity-name query-sql]
-   (query-all datasource entity-name query-instances query-sql nil)))
+  ([datasource entity-name query]
+   (query-all datasource entity-name query-instances query nil)))
 
 (defn- cols-spec-to-multiple-inserts [from-table to-table cols-spec]
   [(str "SELECT * FROM " from-table)
