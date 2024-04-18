@@ -14,6 +14,8 @@
 
 (def element-names (atom #{}))
 
+(def contains-graph (atom {}))
+
 (def records-code (atom {}))
 
 (def entities-code (atom {}))
@@ -90,21 +92,75 @@
   (let [output (into {} (map (fn [[k v]] [k {:type (:type v)}]) fields))]
     output))
 
-(defn make-graphql-fields-optional [input-map]
-  "Removes non-null from each field, making all fields optional. (non-null (list :String)) will become (list :String)"
-  (let [fields (:fields input-map)]
+(defn find-attribute
+  "Returns vector containing the first attribute name and details found, with fallback mechanism.
+   Accepts an entity name, entities map, a primary attribute, and any number of fallback attributes.
+   For example: [:Email {:guid true, :type (non-null :String)}]"
+  [entity-name entities primary-attr & fallback-attrs]
+  (let [entity-details (get entities entity-name)
+        find-attr (fn [attr]
+                    (some (fn [[attr-name attr-props]]
+                            (when (attr attr-props)
+                              [attr-name attr-props]))
+                          entity-details))
+        search-attrs (cons primary-attr fallback-attrs)
+        search (fn [attrs]
+                 (when-let [attr (first attrs)]
+                   (or (find-attr attr)
+                       (recur (rest attrs)))))]
+    (search search-attrs)))
+
+(defn make-graphql-fields-optional [entity-name input-map make-primary-non-null]
+  (let [fields (:fields input-map)
+        [primary-attr-name _] (find-attribute entity-name @entity-metas :guid :id)]
     (assoc input-map :fields
            (reduce-kv (fn [acc key val]
-                        ;; for each field, remove non-null
-                        (let [type-val (:type val)]
+                        (let [type-val (:type val)
+                              is-primary (= key primary-attr-name)
+                              already-non-null? (and (coll? type-val) (= 'non-null (first type-val)))]
                           (assoc acc key
-                                 (if (and (coll? type-val) (= 'non-null (first type-val)))
-                                   ;; if :type is a collection with non-null, update it to the second element
+                                 (cond
+                                   ;; make primary key non-null if needed
+                                   (and is-primary make-primary-non-null)
+                                   (assoc val :type (if already-non-null? type-val (list 'non-null type-val)))
+
+                                   ;; make others optional
+                                   already-non-null?
                                    (assoc val :type (second type-val))
-                                   ;; if not non-null, leave the field as is
+
+                                   ;; else, leave the field as is
+                                   :else
                                    val))))
                       {}
                       fields))))
+
+(defn build-contains-relationship-graph [edn-input]
+  "Returns a map where keys are parent entities and values are list of contained entities.
+  For example: if user contains document and profile, and document further contains page, index:
+  {:Document [:Index :Page], :User [:Document :Profile]}"
+  (let [relationships (into []
+                            (mapcat (fn [entry]
+                                      (let [[entity details] (first entry)
+                                            meta (get-in details [:meta])]
+                                        (when-let [contains (get meta :contains)]
+                                          (map (fn [child] [(first contains) child])
+                                               (rest contains))))))
+                            edn-input)]
+    (reduce (fn [acc [parent child]]
+              (update acc parent (fnil conj []) child))
+            {}
+            relationships)))
+
+(defn find-parents [graph entity]
+  "Recursively finds all parent entities of the given entity."
+  (letfn [(recursive-find [entity]
+            (reduce-kv (fn [acc key val]
+                         (if (some #(= entity %) val)
+                           (into acc (cons key (recursive-find key)))
+                           acc))
+                       []
+                       graph))]
+    (recursive-find entity)))
 
 (defn remove-wrapper-functions [type-val]
   "(non-null (list :String)) will become :String."
@@ -207,23 +263,6 @@
                                              entity))
                                 {}
                                 entities))))
-(defn find-attribute
-  "Returns vector containing the first attribute name and details found, with fallback mechanism.
-   Accepts an entity name, entities map, a primary attribute, and any number of fallback attributes.
-   For example: [:Email {:guid true, :type (non-null :String)}]"
-  [entity-name entities primary-attr & fallback-attrs]
-  (let [entity-details (get entities entity-name)
-        find-attr (fn [attr]
-                    (some (fn [[attr-name attr-props]]
-                            (when (attr attr-props)
-                              [attr-name attr-props]))
-                          entity-details))
-        search-attrs (cons primary-attr fallback-attrs)
-        search (fn [attrs]
-                 (when-let [attr (first attrs)]
-                   (or (find-attr attr)
-                       (recur (rest attrs)))))]
-    (search search-attrs)))
 
 (defn process-relationship [relationship-name body]
   (let [relationship-key (keyword (name relationship-name))
@@ -302,26 +341,31 @@
                                    (assoc acc
                                           (keyword (str (name k) query-input-object-name-postfix))
                                           ;; making fields optional to allow user query using any attribute
-                                          {:fields (strip-irrelevant-attributes (:fields (append-postfix-to-field-names (make-graphql-fields-optional v) query-input-object-name-postfix true)))}))
+                                          {:fields (strip-irrelevant-attributes (:fields (append-postfix-to-field-names (make-graphql-fields-optional k v false) query-input-object-name-postfix true)))}))
                                  {}
                                  entities-records)]
     input-objects))
 
-(defn generate-mutation-input-objects [entities-records mutation-type]
-  (let [input-objects (reduce-kv (fn [acc k v]
-                                   (assoc acc
-                                     (keyword (str (name k) (str mutation-type mutation-input-object-name-postfix)))
-                                     ;; making fields optional to allow user query using any attribute
-                                     {:fields (strip-irrelevant-attributes (:fields (append-postfix-to-field-names v (str mutation-type mutation-input-object-name-postfix) false)))}))
-                                 {}
-                                 entities-records)]
+(defn generate-mutation-input-objects
+  [entities-records mutation-type make-fields-optional keep-primary-non-null]
+  (let [input-objects (reduce-kv
+                        (fn [acc k v]
+                          (let [processed-v (if make-fields-optional
+                                              (make-graphql-fields-optional k v keep-primary-non-null)
+                                              v)
+                                fields-modified (append-postfix-to-field-names processed-v
+                                                                                (str mutation-type mutation-input-object-name-postfix)
+                                                                                false)]
+                            (assoc acc
+                              (keyword (str (name k) (str mutation-type mutation-input-object-name-postfix)))
+                              {:fields (strip-irrelevant-attributes (:fields fields-modified))})))
+                        {}
+                        entities-records)]
     input-objects))
 
 (defn generate-mutations [entities mutation-type]
   (let [mutation-fields (reduce-kv (fn [acc k v]
-                                     (let [entity-fields (:fields v)
-                                           args (strip-irrelevant-attributes entity-fields)
-                                           mutation-input-object-name (keyword (str (name k) (str mutation-type mutation-input-object-name-postfix)))]
+                                     (let [mutation-input-object-name (keyword (str (name k) (str mutation-type mutation-input-object-name-postfix)))]
                                        (assoc acc (keyword (str mutation-type (name k))) {:type k :args {:input {:type mutation-input-object-name}}})))
                                    {}
                                    entities)]
@@ -398,6 +442,9 @@
       (dissoc-if-empty :enums)
       (dissoc-if-empty :input-objects)))
 
+(defn generate-contains-graph [schema-info]
+  (build-contains-relationship-graph (:relationships (normalize-schema schema-info))))
+
 (defn generate-graphql-schema [schema-info]
   (let [data (normalize-schema schema-info)
         records (:records data)
@@ -407,6 +454,7 @@
     (initialize-atom record-names (extract-names records))
     (initialize-atom entity-names (extract-names entities))
     (initialize-atom relationship-names (extract-names relationships))
+    (reset! contains-graph (build-contains-relationship-graph relationships))
     (merge-element-names)
 
     ;; generate components
@@ -421,8 +469,8 @@
             update-mutations (generate-mutations @entities-code "Update")
             delete-mutations (generate-delete-mutations @entity-metas)
             query-input-objects (generate-query-input-objects combined-objects)
-            create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create")
-            update-mutation-input-objects (generate-mutation-input-objects combined-objects "Update")
+            create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" true false)
+            update-mutation-input-objects (generate-mutation-input-objects combined-objects "Update" true false)
             input-objects (merge query-input-objects create-mutation-input-objects update-mutation-input-objects)]
       (let [initial-schema {:objects (merge {:Query (:Query queries)
                                               :Mutation (:Mutation (merge-mutations create-mutations update-mutations delete-mutations))
@@ -430,4 +478,4 @@
                              :enums @enums-code
                              :input-objects input-objects}
               schema (remove-empty-graphql-constructs initial-schema)]
-          schema))))
+          [schema @entity-metas]))))

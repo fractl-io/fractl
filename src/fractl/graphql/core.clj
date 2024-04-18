@@ -19,9 +19,9 @@
 
 (defn compile-graphql-schema
   [schema-info]
-  (let [graphql-schema (gg/generate-graphql-schema schema-info)
+  (let [[graphql-schema entity-metas] (gg/generate-graphql-schema schema-info)
         graphql-resolver-map (gr/generate-resolver-map schema-info)
         compiled-schema (-> graphql-schema
                             (util/inject-resolvers graphql-resolver-map)
                             schema/compile)]
-    [graphql-schema compiled-schema]))
+    [graphql-schema compiled-schema entity-metas]))

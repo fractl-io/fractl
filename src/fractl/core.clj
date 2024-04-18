@@ -269,7 +269,7 @@
           (doseq [component components]
             (let [comp-name (clojure.string/replace
                              (name component) "." "")]
-              (gc/save-schema (gg/generate-graphql-schema (h/schema-info component)) "graphql-schema.edn")))
+              (gc/save-schema (first (gg/generate-graphql-schema (h/schema-info component))) "graphql-schema.edn")))
           (log-seq! "components" components)
         (log/info "Finished processing compiled model."))
       (do

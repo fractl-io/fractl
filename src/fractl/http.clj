@@ -14,6 +14,7 @@
             [fractl.evaluator :as ev]
             [fractl.global-state :as gs]
             [fractl.gpt.core :as gpt]
+            [fractl.graphql.generator :as gg]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.raw :as lr]
@@ -37,6 +38,8 @@
         [compojure.route :only [not-found]]))
 
 (def graphql-schema (atom {}))
+(def contains-graph (atom {}))
+(def graphql-entity-metas (atom {}))
 
 (defn- headers
   ([data-fmt]
@@ -1122,8 +1125,8 @@
         query (:query body)
         variables (:variables body)
         operation-name (:operationName body)
-        context {:request request}
-        result (execute @graphql-schema query variables (assoc context :auth-info auth-info) operation-name)]
+        context {:request request :auth-info auth-info :contains-graph @contains-graph :entity-metas @graphql-entity-metas}
+        result (execute @graphql-schema query variables context operation-name)]
     (response result 200 :json)))
 
 (defn- make-routes [config auth-config handlers]
@@ -1204,12 +1207,16 @@
   ([evaluator config]
    (let [main-component-name (first (cn/remove-internal-components (cn/component-names)))
          schema (schema-info main-component-name)
-         graphql-schema-details (graphql/compile-graphql-schema schema)
+         contains-graph-map (gg/generate-contains-graph schema)
+         [uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema)
          [auth _ :as auth-info] (make-auth-handler config)]
 
      ; save graphql schema to global variable and file
-     (reset! graphql-schema (second graphql-schema-details))
-     (graphql/save-schema (first graphql-schema-details))
+     (graphql/save-schema uninjected-graphql-schema)
+     (reset! graphql-schema injected-graphql-schema)
+     (reset! graphql-entity-metas entity-metadatas)
+     ; save contains graph for later usage
+     (reset! contains-graph contains-graph-map)
 
      (if (or (not auth) (auth-service-supported? auth))
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
