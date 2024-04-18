@@ -287,21 +287,6 @@
           results (first (eval-patterns core-component delete-pattern))]
        results)))
 
-(defn delete-contained-entity-resolver
-  [relationship-name parent-name child-name]
-  (fn [context args value]
-    (let [core-component (first (get-app-components))
-          schema (schema-info core-component)
-          parent-guid (find-guid-or-id-attribute schema parent-name)
-          parent-guid-arg-pair (get-combined-key-value args parent-name parent-guid)
-          [parent-guid-attribute parent-guid-value] (first (seq parent-guid-arg-pair))
-          child-params (dissoc args parent-guid-attribute)
-          fetch-parent-query {parent-name {(append-question-mark parent-guid) parent-guid-value}}
-          create-child-query {child-name child-params
-                              :-> [[relationship-name fetch-parent-query]]}
-          results (eval-patterns core-component create-child-query)]
-      (assoc results parent-guid-attribute parent-guid-value))))
-
 (defn generate-query-resolver-map [schema]
   (let [entities (mapv (fn [entity] (key (first entity))) (:entities schema))
         relationships (into {} (map (fn [rel] [(key (first rel)) (:meta (val (first rel)))]) (:relationships schema)))
