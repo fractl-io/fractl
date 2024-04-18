@@ -32,7 +32,7 @@
                     :OrderId :Order.Id}})
 
 (view
- :CustomerOrdersView
+ :CustomerOrder
  {:CustomerName :Customer.Name
   :CustomerId :Customer.Id
   :OrderId :Order.Id
@@ -40,9 +40,9 @@
           :join [{:Customer {:Id? :Order.CustomerId}}]}})
 
 (view
- :CustomerNamesView
+ :CustomerName
  {:name :Customer.Name
-  :query {:Customer? {:where [:> :Id 10]}}})
+  :query {:Customer? {}}})
 
 (dataflow
  :Customers
@@ -53,4 +53,5 @@
 
 (r/register-resolver {:name :click-house-logs
                       :type :click-house
-                      :paths [:Logs/LogEntry :Logs/Customer :Logs/Order]})
+                      :paths [:Logs/LogEntry :Logs/Customer :Logs/Order
+                              :Logs/CustomerOrder :Logs/CustomerName]})

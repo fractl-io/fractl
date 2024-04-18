@@ -970,7 +970,7 @@
 (defn- as-view-attributes [attrs]
   (into
    {}
-   (mapv (fn [[k _]] [k :Any]) attrs)))
+   (mapv (fn [[k _]] [k {:type :Any :optional true}]) attrs)))
 
 (defn view [n spec]
   (if-let [q (:query spec)]

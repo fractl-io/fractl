@@ -89,16 +89,6 @@
     (execute-sql ds sql)
     instance))
 
-(defn- lookup-all [ds entity-name]
-  (let [^Connection conn (ds)]
-    (try
-      (let [table-name (as-table-name entity-name)
-            pstmt (ji/do-query-statement conn (str "SELECT * FROM " table-name))
-            results (ji/execute-stmt-once! conn pstmt nil)]
-        (stu/results-as-instances entity-name name results))
-      (finally
-        (.close conn)))))
-
 (defn- format-raw-results [rs]
   (mapv (fn [r]
           (into
@@ -118,40 +108,31 @@
               (str (if (seq s) ", " "") (as-table-name t) "." (name c) " AS " (name n))))
           "" with-attrs))
 
-(defn- lookup-by-exprs [ds entity-name [where-clause params] with-attrs]
+(defn- query-by-sql [ds sql format]
   (let [^Connection conn (ds)]
     (try
-      (let [table-name (as-table-name entity-name)
-            select-clause (if with-attrs (make-select-clause with-attrs) "*")
-            sql (str "SELECT " select-clause " FROM " table-name " WHERE " where-clause)
+      (let [sql (if (string? sql) sql (:query sql))
             pstmt (ji/do-query-statement conn sql)
-            results (ji/execute-stmt-once! conn pstmt params)]
-        (if with-attrs
-          (format-raw-results results)
-          (stu/results-as-instances entity-name name results)))
-      (finally
-        (.close conn)))))
-
-(defn- lookup-for-join [ds sql]
-  (let [^Connection conn (ds)]
-    (try
-      (let [pstmt (ji/do-query-statement conn sql)
             results (ji/execute-stmt-once! conn pstmt nil)]
-        (format-raw-results results))
+        (format results))
       (finally
         (.close conn)))))
 
 (defn- as-sql-expr [[opr attr v]]
   [(str (name attr) " " (name opr) " ?") [(as-raw-sql-val v)]])
 
-(defn- ch-query [ds [entity-name {w :where :as query}]]
+(defn- compile-query [[entity-name {w :where :as query}]]
   ;; TODO: support patterns with direct `:where` clause.
   (cond
     (or (:join query) (:left-join query))
-    (lookup-for-join ds (:query (sql/format-join-sql as-table-name name false (as-table-name (:from query)) query)))
+    [(sql/format-join-sql as-table-name name false (as-table-name (:from query)) query)
+     format-raw-results]
 
     (or (= w :*) (nil? (seq w)))
-    (lookup-all ds entity-name)
+    (let [wa (:with-attributes query)
+          clause (if wa (make-select-clause wa) "*")]
+      [(str "SELECT " clause " FROM " (as-table-name entity-name))
+       (partial stu/results-as-instances entity-name name)])
 
     :else
     (let [opr (first w)
@@ -161,8 +142,16 @@
                                exps (mapv first sql-exp)
                                params (flatten (mapv second sql-exp))]
                            [(s/join (str " " (s/upper-case (name opr)) " ") exps) params])
-                         (as-sql-expr w))]
-      (lookup-by-exprs ds entity-name where-clause (:with-attributes query)))))
+                         (as-sql-expr w))
+          table-name (as-table-name entity-name)
+          with-attrs (:with-attributes query)
+          select-clause (if with-attrs (make-select-clause with-attrs) "*")]
+      [(str "SELECT " select-clause " FROM " table-name " WHERE " where-clause)
+       (if with-attrs format-raw-results (partial stu/results-as-instances entity-name name))])))
+
+(defn- ch-query [ds query-pattern]
+  (let [[sql fmt] (compile-query query-pattern)]
+    (query-by-sql ds sql fmt)))
 
 (defn- as-ch-type [attr-type]
   (if-let [rtp (k/find-root-attribute-type attr-type)]
@@ -187,6 +176,11 @@
          (str-csv #(str (name (first %)) " " (second %)) atypes)
          ") PRIMARY KEY(" (name (cn/identity-attribute-name entity-name)) ")")))
 
+(defn- create-view-sql [table-name view-query]
+  (let [[q _] (compile-query view-query)
+        sql (if (string? q) q (:query q))]
+    (str "CREATE VIEW IF NOT EXISTS " table-name " AS " sql)))
+
 (def ^:private inited-components (atom #{}))
 
 (defn- ch-on-set-path [ds [_ path]]
@@ -200,7 +194,9 @@
             (.execute stmt sql)
             (swap! inited-components conj c)))
         (let [scm (stu/find-entity-schema path)
-              sql (create-table-sql table-name path scm)]
+              sql (if-let [vq (cn/view-query path)]
+                    (create-view-sql table-name [(:from vq) vq])
+                    (create-table-sql table-name path scm))]
           (.execute stmt sql)
           path))
       (finally
