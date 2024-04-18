@@ -156,7 +156,9 @@
 
 (defn- remove-prefix [n]
   (let [s (str n)]
-    (subs s 2)))
+    (if (s/starts-with? s ":_")
+      (subs s 2)
+      (subs s 1))))
 
 (defn- normalize-attribute [schema kw-type-attrs [k v]]
   [k
@@ -168,11 +170,12 @@
 
 (defn result-as-instance
   ([entity-name entity-schema normalize-colname result]
-   (let [attr-names (cn/attribute-names entity-schema)]
+   (let [attr-names (cn/attribute-names entity-schema)
+         rp (or normalize-colname remove-prefix)]
      (loop [result-keys (keys result), obj {}]
        (if-let [rk (first result-keys)]
          (let [[_ b] (li/split-path rk)
-               f ((or normalize-colname remove-prefix) (or b rk))]
+               f (rp (or b rk))]
            (if (sys-col? f)
              (recur (rest result-keys) obj)
              (let [aname (first

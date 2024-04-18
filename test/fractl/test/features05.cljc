@@ -231,14 +231,14 @@
       :CustomerId :Int
       :Date :Now})
     (view
-     :I1301/CustomerOrders
+     :I1301/CustomerOrder
      {:CustomerName :I1301/Customer.Name
       :CustomerId :I1301/Customer.Id
       :OrderId :I1301/Order.Id
       :query {:I1301/Order? {}
               :join [{:I1301/Customer {:Id? :I1301/Order.CustomerId}}]}})
     (view
-     :I1301/CustomerNames
+     :I1301/CustomerName
      {:Name :I1301/Customer.Name
       :query {:I1301/Customer? {}}}))
   (let [cust (fn [id name]
@@ -257,14 +257,16 @@
         _ (is (every? cust? cs))
         os (mapv order [1 2 3 4 5] [1001 1002 1001 1003 1003])
         _ (is (every? order? os))
-        rs (tu/result {:I1301/LookupAll_CustomerOrders {}})]
-    (is (and (= 5 (count rs)) (is (every? map? rs))))
+        rs (tu/result {:I1301/LookupAll_CustomerOrder {}})
+        co? (partial cn/instance-of? :I1301/CustomerOrder)]
+    (is (and (= 5 (count rs)) (is (every? co? rs))))
     (let [rs1 (filter #(= 1001 (:CustomerId %)) rs)
           p? (fn [ordid] (is (= 1 (count (filter #(= ordid (:OrderId %)) rs1)))))]
       (is (= 2 (count rs1)))
       (p? 1)
       (p? 3))
-    (let [rs (tu/result {:I1301/LookupAll_CustomerNames {}})]
+    (let [rs (tu/result {:I1301/LookupAll_CustomerName {}})
+          cn? (partial cn/instance-of? :I1301/CustomerName)]
       (is (= 3 (count rs)))
-      (is (= 1 (count (keys (first rs)))))
+      (is (every? cn? rs))
       (is (= (set ["jay" "mat" "joe"]) (set (mapv :Name rs)))))))

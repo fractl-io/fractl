@@ -386,14 +386,16 @@
           prefix (subs (str entity-name) 1)]
       (into {} (mapv (fn [a] [a (keyword (str prefix "." (name a)))]) anames)))))
 
-(defn- compile-complex-query
+(defn compile-complex-query
   "Compile a complex query. Invoke the callback
   function with the compiled query as argument.
   The default behavior is to pass the compiled query
   to the query-instances opcode generator"
   ([ctx pat callback]
    (let [k (first (keys (cleanup-join pat)))
-         n (ctx/dynamic-type ctx (query-entity-name k))]
+         n (if ctx
+             (ctx/dynamic-type ctx (query-entity-name k))
+             (query-entity-name k))]
      (when-not (cn/find-entity-schema n)
        (u/throw-ex (str "cannot query undefined entity - " n)))
      (let [q (k pat)
@@ -409,11 +411,14 @@
                                         (ensure-with-attributes
                                          (li/normalize-name k)
                                          (:with-attributes pat))
-                                        (:with-attributes q)))
-           c (stu/package-query fp ((fetch-compile-query-fn ctx) fp))]
-       (callback [(li/split-path n) c nil]))))
+                                        (:with-attributes q)))]
+       (if-let [cq (and ctx (fetch-compile-query-fn ctx))]
+         (let [c (stu/package-query fp (cq fp))]
+           (callback [(li/split-path n) c nil]))
+         (if callback (callback fp) fp)))))
   ([ctx pat]
-   (compile-complex-query ctx pat op/query-instances)))
+   (compile-complex-query ctx pat op/query-instances))
+  ([pat] (compile-complex-query nil pat nil)))
 
 (defn- query-map->command [pat]
   (if-let [alias (:as pat)]

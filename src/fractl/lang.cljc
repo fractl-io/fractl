@@ -866,7 +866,7 @@
                       (normalized-attributes
                        rectype rec-name attrs))
                      raw-attrs)]
-         (if (:view (:meta raw-attrs))
+         (if (:view-query (:meta raw-attrs))
            result
            (let [ev (partial crud-evname n)
                  ctx-aname (k/event-context-attribute-name)
@@ -960,19 +960,34 @@
       (when-not (and p1 p2)
         (u/throw-ex (str "invalid view attribute-specification: " [n k]))))))
 
+(defn- preproc-view-query [q attrs]
+  (c/compile-complex-query
+   (if (or (:join q) (:left-join q))
+     (assoc q :with-attributes attrs)
+     (let [clause (assoc (first (vals q)) :with-attributes attrs)]
+       {(first (keys q)) clause}))))
+
+(defn- as-view-attributes [attrs]
+  (into
+   {}
+   (mapv (fn [[k _]] [k :Any]) attrs)))
+
 (defn view [n spec]
   (if-let [q (:query spec)]
     (let [[c vn] (li/split-path n)
           attrs (dissoc spec :query)
           ev (partial crud-evname n)]
       (validate-view-attrs! attrs)
-      (entity n {:meta {:view true}})
+      (entity
+       n
+       (merge
+        (as-view-attributes attrs)
+        {:meta (merge (:meta spec)
+                      {:view-query (preproc-view-query q attrs)})
+         :rbac (:rbac spec) :ui (:ui spec)}))
       (dataflow
        (ev :LookupAll)
-       (if (or (:join q) (:left-join q))
-         (assoc q :with-attributes attrs)
-         (let [clause (assoc (first (vals q)) :with-attributes attrs)]
-           [:query {(first (keys q)) clause}]))))
+       {(li/name-as-query-pattern n) {}}))
     (u/throw-ex (str "query is required to create view " n))))
 
 (defn- extract-rel-meta [meta]

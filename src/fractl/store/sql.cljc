@@ -23,9 +23,6 @@
      (keys (dissoc query :where)))
     [:*]))
 
-(defn- maybe-remove-where [qpat]
-  (if (:where qpat) qpat (dissoc qpat :where)))
-
 (defn- with-deleted-flag [flag where]
   (let [clause [:= su/deleted-flag-col-kw flag]]
     (if where
@@ -88,7 +85,10 @@
             [cn n]))
         with-attrs))
 
-(defn format-sql [table-name query]
+(defn- maybe-remove-where [qpat]
+  (if (:where qpat) qpat (dissoc qpat :where)))
+
+(defn format-sql [table-name is-view query]
   (let [qmap (map? query)]
     (if (and qmap (or (:join query) (:left-join query)))
       (format-join-sql table-name query)
@@ -100,9 +100,9 @@
                               [(:deleted query)
                                (dissoc query :deleted)]
                               [nil query])
-            with-deleted-flag (if deleted
-                                with-deleted-clause
-                                with-not-deleted-clause)
+            with-deleted-flag (cond is-view identity
+                                    deleted with-deleted-clause
+                                    :else with-not-deleted-clause)
             wildcard (if wa (select-for-attrs wa) (make-wildcard query))
             interim-pattern
             (maybe-remove-where
