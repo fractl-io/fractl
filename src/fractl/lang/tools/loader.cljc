@@ -303,6 +303,7 @@
          (callback deps)))
 
      (defn load-model [model callback]
+       (cn/register-model (:name model) model)
        (let [continuation (fn [_] (load-components-from-model model (partial callback :comp)))]
          (load-model-dependencies model (partial callback :deps continuation))))))
 
