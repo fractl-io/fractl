@@ -23,9 +23,6 @@
      (keys (dissoc query :where)))
     [:*]))
 
-(defn- maybe-remove-where [qpat]
-  (if (:where qpat) qpat (dissoc qpat :where)))
-
 (defn- with-deleted-flag [flag where]
   (let [clause [:= su/deleted-flag-col-kw flag]]
     (if where
@@ -78,24 +75,35 @@
                             (str s jtable " ON " (jattrs-as-on-clause attribute-column-name table-name jtable jattrs) " "))
                           "" jinfo)
                   (when check-is-deleted (str " WHERE " table-name "." d " = FALSE")))]
-       {:join true :with-attributes (mapv first wa) :query q})))
+       {:with-attributes (mapv first wa) :query q})))
   ([table-name query] (format-join-sql su/entity-table-name su/attribute-column-name true table-name query)))
 
-(defn format-sql [table-name query]
+(defn- select-for-attrs [with-attrs]
+  (mapv (fn [[n k]]
+          (let [[t c] (str/split (str k) #"\.")
+                cn (keyword (str (su/entity-table-name t) "/" (su/attribute-column-name c)))]
+            [cn n]))
+        with-attrs))
+
+(defn- maybe-remove-where [qpat]
+  (if (:where qpat) qpat (dissoc qpat :where)))
+
+(defn format-sql [table-name is-view query]
   (let [qmap (map? query)]
     (if (and qmap (or (:join query) (:left-join query)))
       (format-join-sql table-name query)
-      (let [query (if qmap (dissoc query :join :left-join :with-attributes) query)
+      (let [wa (when qmap (:with-attributes query))
+            query (if qmap (dissoc query :join :left-join :with-attributes) query)
             group-by (when qmap (:group-by query))
             query (if group-by (dissoc query :group-by) query)
             [deleted query] (if qmap
                               [(:deleted query)
                                (dissoc query :deleted)]
                               [nil query])
-            with-deleted-flag (if deleted
-                                with-deleted-clause
-                                with-not-deleted-clause)
-            wildcard (make-wildcard query)
+            with-deleted-flag (cond is-view identity
+                                    deleted with-deleted-clause
+                                    :else with-not-deleted-clause)
+            wildcard (if wa (select-for-attrs wa) (make-wildcard query))
             interim-pattern
             (maybe-remove-where
              (if qmap
@@ -118,8 +126,11 @@
                                 :else where-clause))))))))
             final-pattern (if group-by
                             (assoc interim-pattern :group-by (mapv #(keyword (str "_" (name %))) group-by))
-                            interim-pattern)]
-        (hsql/format final-pattern)))))
+                            interim-pattern)
+            sql (hsql/format final-pattern)]
+        (if wa
+          {:query sql :with-attributes (mapv first wa)}
+          sql)))))
 
 (defn- concat-where-clauses [clauses]
   (if (> (count clauses) 1)

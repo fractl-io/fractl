@@ -173,6 +173,7 @@
   {'attribute fq-preproc-attribute-def
    'record fq-preproc-record-def
    'entity fq-preproc-record-def
+   'view fq-preproc-record-def
    'event fq-preproc-record-def
    'relationship fq-preproc-record-def
    'rule fq-preproc-rule-def

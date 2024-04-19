@@ -2160,3 +2160,9 @@
 
 (defn docstring [n]
   (:doc (fetch-meta n)))
+
+(defn view-query [entity-name]
+  (:view-query (fetch-meta entity-name)))
+
+(defn view? [entity-name]
+  (if (view-query entity-name) true false))

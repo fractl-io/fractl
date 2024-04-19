@@ -39,7 +39,7 @@
            component
            (assoc result :component (second exp))
 
-           (entity record event rule dataflow relationship attribute inference)
+           (entity record event rule dataflow relationship view attribute inference)
            (assoc
             result :records
             (conj
@@ -270,6 +270,7 @@
                        'record ln/record
                        'entity ln/entity
                        'event ln/event
+                       'view ln/view
                        'rule 'ln/rule
                        'relationship ln/relationship
                        'inference ln/inference

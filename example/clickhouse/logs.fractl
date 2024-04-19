@@ -31,6 +31,19 @@
                     :CustomerId :Customer.Id
                     :OrderId :Order.Id}})
 
+(view
+ :CustomerOrder
+ {:CustomerName :Customer.Name
+  :CustomerId :Customer.Id
+  :OrderId :Order.Id
+  :query {:Order? {}
+          :join [{:Customer {:Id? :Order.CustomerId}}]}})
+
+(view
+ :CustomerName
+ {:name :Customer.Name
+  :query {:Customer? {}}})
+
 (dataflow
  :Customers
  {:Customer {:Id? [:>= :Customers.Id]}})
@@ -40,4 +53,5 @@
 
 (r/register-resolver {:name :click-house-logs
                       :type :click-house
-                      :paths [:Logs/LogEntry :Logs/Customer :Logs/Order]})
+                      :paths [:Logs/LogEntry :Logs/Customer :Logs/Order
+                              :Logs/CustomerOrder :Logs/CustomerName]})
