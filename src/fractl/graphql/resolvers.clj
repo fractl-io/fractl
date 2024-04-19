@@ -175,13 +175,7 @@
           core-component (first (get-app-components))
           query-params (append-question-to-keys args)
           query {relationship-name query-params}
-          results (eval-patterns core-component query context)
-          results (if results
-                         (cond
-                           (map? results) [results]
-                           (coll? results) results
-                           :else [])
-                         [])]
+          results (eval-patterns core-component query context)]
       results)))
 
 (defn create-entity-resolver
@@ -298,6 +292,39 @@
           results (first (eval-patterns core-component delete-pattern context))]
        results)))
 
+(defn delete-contained-entity-resolver
+  [relationship-name parent-name child-name]
+  (fn [context args value]
+    (let [args (:input args)
+          core-component (first (get-app-components))
+          schema (schema-info core-component)
+          parent-guid (find-guid-or-id-attribute schema parent-name)
+          parent-guid-arg-pair (get-combined-key-value args parent-name parent-guid)
+          [parent-guid-attribute parent-guid-value] (first (seq parent-guid-arg-pair))
+          child-guid (find-guid-or-id-attribute schema child-name)
+          child-params (dissoc args parent-guid-attribute)
+          query-children-pattern {child-name (append-question-to-keys child-params)
+                                  :-> [[(append-question-mark relationship-name)
+                                        {parent-name {(append-question-mark parent-guid)
+                                                      parent-guid-value}}]] :as :Cs}
+          delete-children-pattern [:for-each :Cs
+                                     [:delete child-name {child-guid (keyword (str "%." (name child-guid)))}]]
+          results (flatten (eval-patterns core-component [query-children-pattern delete-children-pattern] context))
+          results-with-parent-id (if (and (seq results) (map? (first results))) ;; map isn't returned when no records are deleted
+                                    ;; we received guid of parent, thus returning
+                                    (vec (map #(assoc % parent-guid-attribute parent-guid-value) results))
+                                    {})]
+      results-with-parent-id)))
+
+(defn delete-between-relationship-resolver
+  [relationship-name entity1-name entity2-name]
+  (fn [context args value]
+    (let [args (:input args)
+          core-component (first (get-app-components))
+          create-pattern [[:delete relationship-name args]]
+          results (first (eval-patterns core-component create-pattern context))]
+      results)))
+
 (defn generate-query-resolver-map [schema]
   (let [entities (mapv (fn [entity] (key (first entity))) (:entities schema))
         relationships (into {} (map (fn [rel] [(key (first rel)) (:meta (val (first rel)))]) (:relationships schema)))
@@ -366,5 +393,5 @@
   (let [query-resolvers (generate-query-resolver-map schema)
         create-mutation-resolvers (generate-mutation-resolvers schema "Create")
         update-mutation-resolvers (generate-mutation-resolvers schema "Update")
-        delete-mutation-resolvers (generate-mutation-resolvers schema "Delete" false)]
+        delete-mutation-resolvers (generate-mutation-resolvers schema "Delete")]
     (merge query-resolvers create-mutation-resolvers update-mutation-resolvers delete-mutation-resolvers)))

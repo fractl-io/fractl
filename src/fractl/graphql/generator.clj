@@ -375,15 +375,22 @@
                         entities-records)]
     input-objects))
 
-(defn generate-mutations [entities mutation-type]
-  (let [mutation-fields (reduce-kv (fn [acc k v]
-                                     (let [mutation-input-object-name (keyword (str (name k) (str mutation-type mutation-input-object-name-postfix)))]
-                                       (assoc acc (keyword (str mutation-type (name k))) {:type k :args {:input {:type mutation-input-object-name}}})))
-                                   {}
-                                   entities)]
+(defn generate-mutations [entities mutation-type can-return-list?]
+  (let [mutation-fields (reduce-kv
+                          (fn [acc k v]
+                            (let [mutation-input-object-name (keyword (str (name k) (str mutation-type mutation-input-object-name-postfix)))
+                                  type (if can-return-list?
+                                         (list 'list k)
+                                         k)]
+                              (assoc acc (keyword (str mutation-type (name k)))
+                                     {:type type
+                                      :args {:input {:type mutation-input-object-name}}})))
+                          {}
+                          entities)]
     {:Mutation {:fields mutation-fields}}))
 
 (defn generate-delete-mutations [entities]
+  "Allows deletion only using guid or id."
   (let [find-arg (fn [entity-name entity-details]
                    ;; use :guid, else fallback to :id
                    (let [guid-attr (first (find-attribute entity-name entities :guid))
@@ -476,14 +483,15 @@
 
     ;; generate combined schema
     (let [combined-objects (merge @entities-code @records-code)
-            queries (generate-queries @entities-code)
-            create-mutations (generate-mutations @entities-code "Create")
-            update-mutations (generate-mutations @entities-code "Update")
-            delete-mutations (generate-delete-mutations @entity-metas)
-            query-input-objects (generate-query-input-objects combined-objects)
-            create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" true false)
-            update-mutation-input-objects (generate-mutation-input-objects combined-objects "Update" true false)
-            input-objects (merge query-input-objects create-mutation-input-objects update-mutation-input-objects)]
+          queries (generate-queries @entities-code)
+          create-mutations (generate-mutations @entities-code "Create" false)
+          update-mutations (generate-mutations @entities-code "Update" false)
+          delete-mutations (generate-mutations @entity-metas "Delete" true)
+          query-input-objects (generate-query-input-objects combined-objects)
+          create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" true false)
+          update-mutation-input-objects (generate-mutation-input-objects combined-objects "Update" true false)
+          delete-mutation-input-objects (generate-mutation-input-objects combined-objects "Delete" true false)
+          input-objects (merge query-input-objects create-mutation-input-objects update-mutation-input-objects delete-mutation-input-objects)]
       (let [initial-schema {:objects (merge {:Query (:Query queries)
                                               :Mutation (:Mutation (merge-mutations create-mutations update-mutations delete-mutations))
                                               :Subscription {}} combined-objects)
