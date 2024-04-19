@@ -1,7 +1,8 @@
 (ns fractl.resolver.registry
   (:require [fractl.util :as u]
             [fractl.util.seq :as su]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            [fractl.resolver.core :as r]))
 
 (def ^:private type-tag :-*-resolver-registry-*-)
 (def ^:private parent-tag :-*-parent-*-)
@@ -33,11 +34,13 @@
   ([resolver-db path resolver]
    (if (vector? path)
      (doseq [p path] (override-resolver p resolver))
-     (u/call-and-set
-      resolver-db
-      #(assoc
-        @resolver-db
-        (li/split-path path) resolver))))
+     (do (u/call-and-set
+          resolver-db
+          #(assoc
+            @resolver-db
+            (li/split-path path) resolver))
+         (r/call-resolver-on-set-path resolver nil [:override path])
+         path)))
   ([path resolver]
    (override-resolver root-resolver-db path resolver)))
 
@@ -47,11 +50,13 @@
      (doseq [p path] (compose-resolver p resolver))
      (let [path (li/split-path path)
            resolvers (get @resolver-db path [])]
-       (u/call-and-set
-        resolver-db
-        #(assoc
-          @resolver-db path
-          (conj resolvers resolver))))))
+       (do (u/call-and-set
+            resolver-db
+            #(assoc
+              @resolver-db path
+              (conj resolvers resolver)))
+           (r/call-resolver-on-set-path resolver nil [:compose path])
+           path))))
   ([path resolver]
    (compose-resolver root-resolver-db path resolver)))
 

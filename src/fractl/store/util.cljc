@@ -118,6 +118,17 @@
 (def ^:private obj-prefix "#clj-obj")
 (def ^:private obj-prefix-len (count obj-prefix))
 
+(defn encode-clj-object [obj]
+  (str obj-prefix (str obj)))
+
+(defn decode-clj-object [s]
+  (#?(:clj read-string :cljs clj->js)
+   (let [s (subs s obj-prefix-len)]
+     #?(:clj (if (seq s) s "nil") :cljs s))))
+
+(defn encoded-clj-object? [x]
+  (and (string? x) (s/starts-with? x obj-prefix)))
+
 (defn- serialize-obj-entry [non-serializable-attrs [k v]]
   (if (cn/meta-attribute-name? k)
     [k v]
@@ -127,7 +138,7 @@
             (or (fn? v)
                 (and (seqable? v) (not (string? v))))
             (some #{k} non-serializable-attrs))
-           (str obj-prefix (str v))
+           (encode-clj-object v)
 
            (keyword? v) (subs (str v) 1)
 
@@ -145,26 +156,26 @@
 
 (defn- remove-prefix [n]
   (let [s (str n)]
-    (subs s 2)))
+    (if (s/starts-with? s ":_")
+      (subs s 2)
+      (subs s 1))))
 
 (defn- normalize-attribute [schema kw-type-attrs [k v]]
   [k
    (cond
      (some #{k} kw-type-attrs) (u/string-as-keyword v)
      (uuid? v) (str v)
-     (and (string? v) (s/starts-with? v obj-prefix))
-     (#?(:clj read-string :cljs clj->js)
-      (let [s (subs v obj-prefix-len)]
-        #?(:clj (if (seq s) s "nil") :cljs s)))
+     (encoded-clj-object? v) (decode-clj-object v)
      :else v)])
 
 (defn result-as-instance
-  ([entity-name entity-schema result]
-   (let [attr-names (cn/attribute-names entity-schema)]
+  ([entity-name entity-schema normalize-colname result]
+   (let [attr-names (cn/attribute-names entity-schema)
+         rp (or normalize-colname remove-prefix)]
      (loop [result-keys (keys result), obj {}]
        (if-let [rk (first result-keys)]
          (let [[_ b] (li/split-path rk)
-               f (remove-prefix (or b rk))]
+               f (rp (or b rk))]
            (if (sys-col? f)
              (recur (rest result-keys) obj)
              (let [aname (first
@@ -181,11 +192,16 @@
                           (cn/keyword-type-attributes entity-schema attr-names))
                          obj))
           false)))))
+  ([entity-name entity-schema result]
+   (result-as-instance entity-name entity-schema nil result))
   ([entity-name result]
-   (result-as-instance entity-name (cn/fetch-schema entity-name) result)))
+   (result-as-instance entity-name (cn/fetch-schema entity-name) nil result)))
 
-(defn results-as-instances [entity-name results]
-  (mapv (partial result-as-instance entity-name (cn/fetch-schema entity-name)) results))
+(defn results-as-instances
+  ([entity-name normalize-colname results]
+   (mapv (partial result-as-instance entity-name (cn/fetch-schema entity-name) normalize-colname) results))
+  ([entity-name results]
+   (results-as-instances entity-name nil results)))
 
 (def compiled-query :compiled-query)
 (def raw-query :raw-query)

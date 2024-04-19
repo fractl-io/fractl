@@ -565,8 +565,12 @@
          (stu/results-as-instances entity-name results))
        env])
 
-    (or (string? query) (map? query))
+    (string? query)
     [(store/query-all store entity-name query) env]
+
+    (map? query)
+    (let [f #(first (evaluate-id-result env %))]
+      [(store/query-all store entity-name (assoc query :parse-params f)) env])
 
     :else
     (u/throw-ex (str "invalid query object - " query))))

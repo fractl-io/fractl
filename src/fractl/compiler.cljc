@@ -370,34 +370,55 @@
         v))
     v))
 
-(defn- complex-query-pattern? [pat]
-  (when-not (ls/rel-tag pat)
-    (let [ks (keys (li/normalize-instance-pattern pat))]
-      (and (= 1 (count ks))
-           (s/ends-with? (str (first ks)) "?")))))
-
 (defn- query-entity-name [k]
   (let [sk (str k)]
     (when-not (s/ends-with? sk "?")
       (u/throw-ex (str "queried entity-name must end with a `?` - " k)))
     (keyword (subs (apply str (butlast sk)) 1))))
 
-(defn- compile-complex-query
+(defn- cleanup-join [pat]
+  (dissoc pat :join :left-join :with-attributes))
+
+(defn- ensure-with-attributes [entity-name attrs]
+  (if (seq attrs)
+    attrs
+    (let [anames (cn/entity-attribute-names entity-name)
+          prefix (subs (str entity-name) 1)]
+      (into {} (mapv (fn [a] [a (keyword (str prefix "." (name a)))]) anames)))))
+
+(defn compile-complex-query
   "Compile a complex query. Invoke the callback
   function with the compiled query as argument.
   The default behavior is to pass the compiled query
   to the query-instances opcode generator"
   ([ctx pat callback]
-   (let [k (first (keys pat))
-         n (ctx/dynamic-type ctx (query-entity-name k))]
+   (let [k (first (keys (cleanup-join pat)))
+         n (if ctx
+             (ctx/dynamic-type ctx (query-entity-name k))
+             (query-entity-name k))]
      (when-not (cn/find-entity-schema n)
        (u/throw-ex (str "cannot query undefined entity - " n)))
      (let [q (k pat)
-           w (when (seq (:where q)) (w/postwalk process-complex-query (:where q)))
-           c (stu/package-query q ((fetch-compile-query-fn ctx) (assoc q :from n :where w)))]
-       (callback [(li/split-path n) c nil]))))
+           w (when (seq (:where q))
+               (w/postwalk process-complex-query (:where q)))
+           j (seq (:join pat))
+           lj (when-let [lj (seq (:left-join pat))]
+                (when j (u/throw-ex (str "join and left-join cannot be mixed - " pat)))
+                (vec lj))
+           fp (assoc q :from n :where w
+                     :join j :left-join lj
+                     :with-attributes (if (or j lj)
+                                        (ensure-with-attributes
+                                         (li/normalize-name k)
+                                         (:with-attributes pat))
+                                        (:with-attributes q)))]
+       (if-let [cq (and ctx (fetch-compile-query-fn ctx))]
+         (let [c (stu/package-query fp (cq fp))]
+           (callback [(li/split-path n) c nil]))
+         (if callback (callback fp) fp)))))
   ([ctx pat]
-   (compile-complex-query ctx pat op/query-instances)))
+   (compile-complex-query ctx pat op/query-instances))
+  ([pat] (compile-complex-query nil pat nil)))
 
 (defn- query-map->command [pat]
   (if-let [alias (:as pat)]
@@ -469,6 +490,15 @@
       (set (mapv #(li/normalize-name (first %))
                  (filter #(li/query-pattern? (first %)) (li/record-attributes filter-pat)))))))
 
+(defn- complex-query-pattern? [pat]
+  (when-not (ls/rel-tag pat)
+    (let [ks (keys (li/normalize-instance-pattern pat))]
+      (and (= 1 (count ks))
+           (s/ends-with? (str (first ks)) "?")))))
+
+(defn- query-with-join-pattern? [pat]
+  (or (:join pat) (:left-join pat)))
+
 (declare compile-query-command)
 
 (defn- compile-map [ctx pat]
@@ -478,6 +508,9 @@
       (if (pi/proper-path? v)
         (compile-map ctx {(li/normalize-name k) {li/path-query-tag v}})
         (compile-query-command ctx (query-map->command pat))))
+
+    (query-with-join-pattern? pat)
+    (compile-query-command ctx (query-map->command pat))
 
     (from-pattern? pat)
     (compile-from-pattern ctx pat)

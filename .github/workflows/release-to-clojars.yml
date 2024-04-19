@@ -1,0 +1,50 @@
+name: Release to Clojars
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version you want to release.'
+        required: true
+
+jobs:
+  clojars:
+    runs-on: ubuntu-latest
+
+    steps:
+      # This step checks out a copy of your repository.
+      - uses: actions/checkout@v2
+      - name: Installing fractl-io dependencies
+        run: |
+          git clone https://${{ secrets.REPO_READ_WRITE_TOKEN }}@github.com/fractl-io/fractl-config-secrets-reader
+          cd fractl-config-secrets-reader
+          lein install
+
+      - name: Fetch and switch to main branch
+        run: |
+          git fetch --verbose --tags
+          git checkout tags/${{ github.event.inputs.version }}
+      - name: Install dependencies
+        run: lein deps
+      - name: Generate pom.xml needed for mvn deploy
+        run: lein pom
+
+      - name: Generate jar, uberjar and copy them to lib.
+        run: |
+          lein jar
+          lein uberjar
+          mkdir /home/runner/work/fractl/fractl/lib
+          cp -r /home/runner/work/fractl/fractl/target/fractl-${{ github.event.inputs.version }}.jar /home/runner/work/fractl/fractl/lib/
+          cp -r /home/runner/work/fractl/fractl/target/fractl-${{ github.event.inputs.version }}-standalone.jar /home/runner/work/fractl/fractl/lib/
+
+      - uses: jlesquembre/clojars-publish-action@0.4
+        env:
+          CLOJARS_USERNAME: ${{ secrets.CLOJARS_USERNAME }}
+          CLOJARS_PASSWORD: ${{ secrets.CLOJARS_PASSWORD }}
+          USE_GIT_REF: false
+
+      - name: Cleanup jar
+        run: |
+          rm -r /home/runner/work/fractl/fractl/lib/fractl-${{ github.event.inputs.version }}.jar
+          rm -r /home/runner/work/fractl/fractl/lib/fractl-${{ github.event.inputs.version }}-standalone.jar
+          lein clean

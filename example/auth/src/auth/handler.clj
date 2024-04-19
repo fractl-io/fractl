@@ -26,8 +26,6 @@
    [:form {:action "/api/Acme/Order" :method :post}
     [:table
      [:tr [:td "Order Id"] [:td [:input {:type "text" :id "order_id" :name "order_id"}]]]
-     [:tr [:td "Customer Id"] [:td [:input {:type "text" :id "customer_id" :name "customer_id"}]]]
-     [:tr [:td "Email"] [:td [:input {:type "text" :id "email" :name "email"}]]]
      [:tr [:td "Qty"] [:td [:input {:type "text" :id "order_qty" :name "order_qty"}]]]
      [:tr [:td "Amount"] [:td [:input {:type "text" :id "order_amount" :name "order_amount"}]]]
      [:tr [:td] [:td]]
@@ -63,8 +61,8 @@
   (POST "/api/Acme/Order" request (let [params (:params request)
                                         attrs (assoc params "order_qty" (read-string (get params "order_qty"))
                                                      "order_amount" (read-string (get params "order_amount")))
-                                        inst {"Acme/Order" attrs}
-                                        url "http://localhost:8000/api/Acme/Order"
+                                        inst {"Acme/CreateOrder" attrs}
+                                        url "http://localhost:8000/api/Acme/CreateOrder"
                                         result @(http/request {:method :post :url url
                                                                :headers {"Content-Type" "application/json"
                                                                          "Cookie" @sid}

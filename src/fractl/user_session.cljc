@@ -83,3 +83,49 @@
        {:Fractl.Kernel.Identity/Update_SessionCookie
         {:Id (normalize-sid sid) :Data {:UserData user-data}}})
       user-data)))
+
+(defn- maybe-assign-roles [email user-roles]
+  (doseq [role (if (string? user-roles)
+                 (s/split user-roles #",")
+                 user-roles)]
+    (let [role-assignment (str role "-" email)]
+      (when-not (ev/safe-eval-internal
+                 {:Fractl.Kernel.Rbac/Lookup_Role
+                  {:Name role}})
+        (when-not (ev/safe-eval-internal
+                   {:Fractl.Kernel.Rbac/Create_Role
+                    {:Instance
+                     {:Fractl.Kernel.Rbac/Role
+                      {:Name role}}}})
+          (u/throw-ex (str "failed to create role " role))))
+      (when-not (ev/safe-eval-internal
+                 {:Fractl.Kernel.Rbac/Lookup_RoleAssignment
+                  {:Name role-assignment}})
+        (when-not (ev/safe-eval-internal
+                   {:Fractl.Kernel.Rbac/Create_RoleAssignment
+                    {:Instance
+                     {:Fractl.Kernel.Rbac/RoleAssignment
+                      {:Name role-assignment :Role role :Assignee email}}}})
+          (u/throw-ex (str "failed to assign role " role " to " email)))))))
+
+(defn ensure-local-user [email user-roles]
+  #?(:clj
+     (try
+       (let [r (first
+                (ev/eval-internal
+                 {:Fractl.Kernel.Identity/FindUser
+                  {:Email email}}))]
+         (if (and (= :ok (:status r)) (seq (:result r)))
+           (first (:result r))
+           (let [r (first
+                    (ev/eval-internal
+                     {:Fractl.Kernel.Identity/Create_User
+                      {:Instance
+                       {:Fractl.Kernel.Identity/User
+                        {:Email email}}}}))]
+             (when (= :ok (:status r))
+               (:result r)))))
+       (when user-roles
+         (maybe-assign-roles email user-roles))
+       (catch Exception ex
+         (log/error (str "ensure-local-user failed: " (.getMessage ex)))))))

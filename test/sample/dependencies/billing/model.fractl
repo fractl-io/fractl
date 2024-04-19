@@ -1,13 +1,13 @@
 {:name :Billing
  :components [:Billing.Core]
+ :fractl-version "current"
+ :dependencies [[:banklib "fractl-dev/banklib 0.0.2"]]
 
- ;; NOTE: enable :local-dependencies if the model
- ;; is locally available under a path specified in
- ;; FRACTL_MODEL_PATHS
+ ;;;; set if model is compiled to a clojure project and made available in clojars.
+ ;; :clj-dependencies '[[fractl-dev/banklib "0.0.2"]]
 
- ;; :local-dependencies [[:Banking "0.0.1"]]
-
- :repositories [["github" {:url "https://maven.pkg.github.com/fractl-dev/banking"
-                           :username "private-token"
-                           :password :env/GITHUB_TOKEN}]]
- :clj-dependencies '[[banking "0.0.2"]]}
+ ;;;; set if clj-dependency is private
+ ;; :repositories [["github" {:url "https://maven.pkg.github.com/fractl-dev/banking"
+ ;;                           :username "private-token"
+ ;;                           :password :env/GITHUB_TOKEN}]]
+ }

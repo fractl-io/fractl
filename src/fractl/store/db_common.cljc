@@ -32,6 +32,16 @@
 
 (def id-type (sql/attribute-to-sql-type :Fractl.Kernel.Lang/UUID))
 
+(defn compile-query [query-pattern]
+  (let [ename (:from query-pattern)]
+    (sql/format-sql
+     (stu/entity-table-name ename)
+     (cn/view? ename)
+     (if (> (count (keys query-pattern)) 2)
+       (dissoc query-pattern :from)
+       (let [where-clause (:where query-pattern)]
+         (when (not= :* where-clause) where-clause))))))
+
 (defn- as-col-name [attr-name]
   (str "_" (name attr-name)))
 
@@ -145,11 +155,20 @@
 (defn- normalize-meta-data [[c t u]]
   [c (s/upper-case t) u])
 
+(defn- create-relational-view [connection view-name view-query]
+  (let [q (compile-query view-query)
+        select (if (string? q) q (:query q))
+        sql (str "CREATE VIEW " view-name " AS " (if (string? select) select (first select)))]
+    (when-not (execute-sql! connection [sql])
+      (u/throw-ex (str "Failed to create view - " sql)))
+    view-name))
+
 (defn create-schema
   "Create the schema, tables and indexes for the component."
   [datasource component-name]
   (let [scmname (stu/db-schema-for-component component-name)
         table-data (atom nil)
+        create-views (atom nil)
         component-meta-table (stu/component-meta-table-name component-name)]
     (execute-fn!
      datasource
@@ -157,21 +176,24 @@
        (execute-sql! txn [(create-component-meta-table-sql component-meta-table)])
        (doseq [ename (cn/entity-names component-name false)]
          (when-not (cn/entity-schema-predefined? ename)
-           (let [tabname (stu/entity-table-name ename)
-                 schema (stu/find-entity-schema ename)]
-             (create-relational-table
-              txn schema tabname
-              (cn/indexed-attributes schema)
-              (cn/unique-attributes schema)
-              (cn/compound-unique-attributes ename)
-              table-data)
-             (execute-sql!
-              txn [(insert-entity-meta-sql
-                    component-meta-table tabname
-                    {:columns
-                     (mapv normalize-meta-data (:columns @table-data))})]))))
+           (let [tabname (stu/entity-table-name ename)]
+             (if-let [q (cn/view-query ename)]
+               (swap! create-views conj #(create-relational-view txn tabname q))
+               (let [schema (stu/find-entity-schema ename)]
+                 (create-relational-table
+                  txn schema tabname
+                  (cn/indexed-attributes schema)
+                  (cn/unique-attributes schema)
+                  (cn/compound-unique-attributes ename)
+                  table-data)
+                 (execute-sql!
+                  txn [(insert-entity-meta-sql
+                        component-meta-table tabname
+                        {:columns
+                         (mapv normalize-meta-data (:columns @table-data))})]))))))
        (doseq [sql (:post-init-sqls @table-data)]
          (execute-sql! txn [sql]))
+       (doseq [cv @create-views] (cv))
        component-name))))
 
 (defn drop-schema
@@ -253,14 +275,6 @@
          (execute-stmt-once! conn pstmt nil))))
     entity-name))
 
-(defn compile-query [query-pattern]
-  (sql/format-sql
-   (stu/entity-table-name (:from query-pattern))
-   (if (> (count (keys query-pattern)) 2)
-     (dissoc query-pattern :from)
-     (let [where-clause (:where query-pattern)]
-       (when (not= :* where-clause) where-clause)))))
-
 (defn- raw-results [query-fns]
   (flatten (mapv u/apply0 query-fns)))
 
@@ -301,17 +315,43 @@
   ([datasource entity-name unique-keys attribute-values]
    (query-by-unique-keys nil datasource entity-name unique-keys attribute-values)))
 
+(defn- normalize-join-results [attr-names rs]
+  (let [cs (mapv #(keyword (s/upper-case (name %))) attr-names)
+        irs (mapv #(into {} (mapv (fn [[k v]] [(keyword (s/upper-case (name k))) v]) %)) rs)]
+    (vec
+     (mapv
+      (fn [r]
+        (into
+         {}
+         (mapv
+          (fn [c a]
+            [a (get r c)])
+          cs attr-names)))
+      irs))))
+
 (defn query-all
-  ([datasource entity-name rows-to-instances query-sql query-params]
-   (execute-fn!
-    datasource
-    (fn [conn]
-      (rows-to-instances
-       entity-name
-       (let [[pstmt params] (do-query-statement conn query-sql query-params)]
-         [#(execute-stmt-once! conn pstmt params)])))))
-  ([datasource entity-name query-sql]
-   (query-all datasource entity-name query-instances query-sql nil)))
+  ([datasource entity-name rows-to-instances query query-params]
+   (let [is-raw (map? query)
+         [q wa] (if is-raw
+                  [(:query query)
+                   (:with-attributes query)]
+                  [query nil])
+         [query-sql query-params] (if (vector? q)
+                                    (let [pp (if is-raw
+                                               ((:parse-params query) (rest q))
+                                               (rest q))]
+                                      [(first q) pp])
+                                    [q query-params])]
+     (execute-fn!
+      datasource
+      (fn [conn]
+        (let [qfns (let [[pstmt params] (do-query-statement conn query-sql query-params)]
+                     [#(execute-stmt-once! conn pstmt params)])]
+          (if is-raw
+            (normalize-join-results wa (raw-results qfns))
+            (rows-to-instances entity-name qfns)))))))
+  ([datasource entity-name query]
+   (query-all datasource entity-name query-instances query nil)))
 
 (defn- cols-spec-to-multiple-inserts [from-table to-table cols-spec]
   [(str "SELECT * FROM " from-table)

@@ -444,6 +444,11 @@
   (when-let [ks (seq (keys (or (:schema schema) schema)))]
     (set ks)))
 
+(defn entity-attribute-names [entity-name]
+  (set/difference
+   (attribute-names (fetch-entity-schema entity-name))
+   #{li/meta-attr}))
+
 (def attributes :schema)
 
 (defn has-attribute? [schema-or-name attr-name]
@@ -2172,3 +2177,9 @@
 
 (defn docstring [n]
   (:doc (fetch-meta n)))
+
+(defn view-query [entity-name]
+  (:view-query (fetch-meta entity-name)))
+
+(defn view? [entity-name]
+  (if (view-query entity-name) true false))

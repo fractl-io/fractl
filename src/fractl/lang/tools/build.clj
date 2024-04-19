@@ -118,8 +118,20 @@
 (defn- model-version [model]
   (or (:version model) "0.0.1"))
 
+(defn- fractl-deps-as-clj-deps [deps]
+  (when (seq deps)
+    (su/nonils
+     (mapv #(if (keyword? %)
+              %
+              (let [[n v] (s/split (second %) #" ")
+                    [a b] (s/split n #"/")
+                    b (first (s/split b #":"))]
+                [(symbol (or b a)) (or v "0.0.1")]))
+           deps))))
+
 (defn- update-project-spec [model project-spec]
-  (let [deps (:clj-dependencies model)
+  (let [deps0 (:clj-dependencies model)
+        deps (vec (concat deps0 (fractl-deps-as-clj-deps (:dependencies model))))
         ver (model-version model)]
     (loop [spec project-spec, final-spec []]
       (if-let [s (first spec)]
@@ -272,18 +284,26 @@
           (create-client-project model-name ver fractl-ver (write-config-edn model-root wr))))
       (log/error (str "failed to create clj project for " model-name)))))
 
-(defn- load-clj-project [model-name components]
+(defn- normalize-deps-spec [deps]
+  (map #(if (keyword? %) [%] %) deps))
+
+(declare load-model install-model)
+
+(defn- load-clj-project [model-name _ components]
   (let [f (partial copy-component nil model-name)]
     (doseq [c components]
       (f c))
     model-name))
 
-(declare install-model)
+(def ^:dynamic load-model-mode false)
 
 (defn- install-local-dependencies! [model-paths deps]
-  (doseq [[model-name _ :as d] deps]
-    (when-not (install-model model-paths (s/lower-case (name model-name)))
-      (u/throw-ex (str "failed to install dependency " d)))))
+  (doseq [[model-name spec :as d] (normalize-deps-spec deps)]
+    (when spec (tu/maybe-clone-model spec model-paths))
+    (if load-model-mode
+      (load-model model-name)
+      (when-not (install-model model-paths (s/lower-case (name model-name)))
+        (u/throw-ex (str "failed to install dependency " d))))))
 
 (defn- clj-project-path [model-paths model-name]
   (first
@@ -320,7 +340,7 @@
          [model-name path])
        (let [components (loader/read-components-from-model model model-root)
              projdir (File. (project-dir model-name))]
-         (install-local-dependencies! model-paths (:local-dependencies model))
+         (install-local-dependencies! model-paths (:dependencies model))
          (if (.exists projdir)
            (FileUtils/deleteDirectory projdir)
            (when-not (.exists out-file)
@@ -339,7 +359,7 @@
         (second result))
       (first result))))
 
-(def install-model (partial exec-with-build-model "lein install" nil))
+(def install-model (partial exec-with-build-model "lein install"))
 (def standalone-package (partial exec-with-build-model ["lein install" "lein uberjar"] nil))
 
 (defn- maybe-copy-kernel [model-name]
@@ -360,11 +380,12 @@
         (.printStackTrace ex)
         (log/warn (str "failed to load " (:file f) " - " (str ex)))))))
 
-(defn- handle-load-clj-project [model-name model-root _ components]
-  (load-clj-project model-name components))
+(defn- handle-load-clj-project [model-name model-root model components]
+  (load-clj-project model-name model components))
 
 (defn load-model [model-name]
-  (build-model handle-load-clj-project nil model-name nil))
+  (binding [load-model-mode true]
+    (build-model handle-load-clj-project nil model-name nil)))
 
 (defn- config-file-path [model-name]
   (str (project-dir model-name) config-edn))

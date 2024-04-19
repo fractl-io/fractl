@@ -17,14 +17,11 @@
 
 (defn- record-name [obj]
   (let [n (cond
-            (keyword? obj)
-            obj
+            (keyword? obj) obj
 
-            (map? obj)
-            (first (keys obj))
+            (map? obj) (first (keys obj))
 
-            :else
-                 (first obj))
+            :else (first obj))
         [a b] (li/split-path n)]
     (or b a)))
 
@@ -42,7 +39,7 @@
            component
            (assoc result :component (second exp))
 
-           (entity record event rule dataflow relationship attribute)
+           (entity record event rule dataflow relationship view attribute inference)
            (assoc
             result :records
             (conj
@@ -59,7 +56,8 @@
 
 (defn dependency-model-version [dep]
   (when (vector? dep)
-    (second dep)))
+    (let [xs (s/split (second dep) #" ")]
+      (second xs))))
 
 (declare read-model)
 
@@ -247,6 +245,7 @@
        (when-let [deps (:dependencies model)]
          (let [rdm (partial read-model model-paths)]
            (doseq [d deps]
+             (tu/maybe-clone-model d model-paths)
              (let [[m mr] (rdm (dependency-model-name d))]
                (load-model m mr model-paths from-resource))))))
 
@@ -271,8 +270,10 @@
                        'record ln/record
                        'entity ln/entity
                        'event ln/event
+                       'view ln/view
                        'rule 'ln/rule
                        'relationship ln/relationship
+                       'inference ln/inference
                        'dataflow ln/dataflow})
 
      (defn intern-component [component-spec]
