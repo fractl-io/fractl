@@ -1135,15 +1135,16 @@
   (ok {:result :fractl}))
 
 (defn graphql-handler
-  [auth-info request]
-  (let [body-as-string (slurp (:body request))
+  [[auth-config maybe-unauth] request]
+  (or (maybe-unauth request)
+        (let [body-as-string (slurp (:body request))
         body (json/decode body-as-string)
         query (:query body)
         variables (:variables body)
         operation-name (:operationName body)
-        context {:request request :auth-info auth-info :contains-graph @contains-graph :entity-metas @graphql-entity-metas}
+        context {:request request :auth-config auth-config :contains-graph @contains-graph :entity-metas @graphql-entity-metas}
         result (execute @graphql-schema query variables context operation-name)]
-    (response result 200 :json)))
+    (response result 200 :json))))
 
 (defn- make-routes [config auth-config handlers]
   (let [r (routes

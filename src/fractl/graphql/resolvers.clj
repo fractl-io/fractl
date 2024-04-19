@@ -1,9 +1,9 @@
 (ns fractl.graphql.resolvers
   (:require [clojure.string :as str]
+            [fractl.auth.core :as auth]
             [fractl.component :as cn]
             [fractl.evaluator :as e]
             [fractl.graphql.generator :as gg]
-            [fractl.lang.kernel :as kernel]
             [fractl.lang :as lang]
             [fractl.lang.internal :as fl]
             [fractl.lang.raw :as lr]
@@ -82,15 +82,26 @@
     x
     [x]))
 
-(defn eval-patterns [component fractl-patterns]
-  (let [event (register-event component (as-vec fractl-patterns))]
-      (try
-        (let [result (first (ev/eval-all-dataflows {event {}}))]
-          (if (= (:status result) :error)
-            (u/throw-ex (str "Error: " (:message result)))
-            (:result result)))
-        (finally
-          (cn/remove-event event)))))
+(defn make-auth-event-context [context]
+  (let [auth-config (:auth-config context)
+        request (:request context)]
+    (if (and auth-config request)
+      (let [user (auth/session-user (assoc auth-config :request request))]
+        (when user
+          {:User (:email user)
+           :Sub (:sub user)
+           :UserDetails user})))))
+
+(defn eval-patterns [component patterns context]
+  (let [event (register-event component (as-vec patterns))
+        auth-event-context (make-auth-event-context context)]
+    (try
+      (let [result (first (ev/eval-all-dataflows {event {:EventContext auth-event-context}}))]
+        (if (= (:status result) :error)
+          (u/throw-ex (str "Error: " (:message result)))
+          (:result result)))
+      (finally
+        (cn/remove-event event)))))
 
 (defn query-entity-by-attribute-resolver
   [entity-name]
@@ -99,7 +110,7 @@
           args (:attributes args)
           query-params (append-question-to-keys args)
           dataflow-query {entity-name query-params}]
-        (let [results (eval-patterns core-component dataflow-query)
+        (let [results (eval-patterns core-component dataflow-query context)
               data (if results
                      (cond
                        (map? results) [results]
@@ -148,7 +159,7 @@
                           {child-name query-params
                            :-> [[relationship-name :Parent]]}]
 
-          results (eval-patterns core-component dataflow-query)
+          results (eval-patterns core-component dataflow-query context)
           results (if results
                  (cond
                    (map? results) [results]
@@ -164,7 +175,7 @@
           core-component (first (get-app-components))
           query-params (append-question-to-keys args)
           query {relationship-name query-params}
-          results (eval-patterns core-component query)
+          results (eval-patterns core-component query context)
           results (if results
                          (cond
                            (map? results) [results]
@@ -179,23 +190,23 @@
     (let [args (:input args)
           core-component (first (get-app-components))
           create-pattern {entity-name args}
-          results (eval-patterns core-component create-pattern)]
+          results (eval-patterns core-component create-pattern context)]
       (first results))))
 
 (defn create-contained-entity-resolver
   [relationship-name parent-name child-name]
   (fn [context args value]
-    (let [core-component (first (get-app-components))
+    (let [args (:input args)
+          core-component (first (get-app-components))
           schema (schema-info core-component)
           parent-guid (find-guid-or-id-attribute schema parent-name)
-          args (:input args)
           parent-guid-arg-pair (get-combined-key-value args parent-name parent-guid)
           [parent-guid-attribute parent-guid-value] (first (seq parent-guid-arg-pair))
           child-params (dissoc args parent-guid-attribute)
           fetch-parent-query {parent-name {(append-question-mark parent-guid) parent-guid-value}}
           create-child-query {child-name child-params
                               :-> [[relationship-name fetch-parent-query]]}
-          results (eval-patterns core-component create-child-query)]
+          results (eval-patterns core-component create-child-query context)]
        (assoc results parent-guid-attribute parent-guid-value))))
 
 (defn create-between-relationship-resolver
@@ -204,29 +215,29 @@
     (let [args (:input args)
           core-component (first (get-app-components))
           create-pattern {relationship-name args}
-          results (first (eval-patterns core-component create-pattern))]
+          results (first (eval-patterns core-component create-pattern context))]
       results)))
 
 (defn update-entity-resolver
   [entity-name]
   (fn [context args value]
-    (let [core-component (first (get-app-components))
+    (let [args (:input args)
+          core-component (first (get-app-components))
           schema (schema-info core-component)
-          args (:input args)
           entity-guid-attr (find-guid-or-id-attribute schema entity-name)
           entity-guid-val (entity-guid-attr args)
           update-pattern {(form-pattern-name core-component "Update" (extract-entity-name entity-name))
                             {entity-guid-attr entity-guid-val
                              :Data (dissoc args entity-guid-attr)}}
-          results (first (eval-patterns core-component update-pattern))]
+          results (first (eval-patterns core-component update-pattern context))]
       results)))
 
 (defn update-contained-entity-resolver
   [relationship-name parent-name child-name]
   (fn [context args value]
-    (let [core-component (first (get-app-components))
+    (let [args (:input args)
+          core-component (first (get-app-components))
           schema (schema-info core-component)
-          args (:input args)
           child-guid (find-guid-or-id-attribute schema child-name)
           parent-guid (find-guid-or-id-attribute schema parent-name)
           parent-guid-arg-pair (get-combined-key-value args parent-name parent-guid)]
@@ -256,15 +267,15 @@
               update-pattern {(form-pattern-name core-component "Update" (extract-entity-name child-name))
                               {:Data child-params
                                path-attr (str "path:/" child-path)}}
-              results (eval-patterns core-component update-pattern)]
+              results (eval-patterns core-component update-pattern context)]
           (assoc (first results) parent-guid-attribute parent-guid-value))))))
 
 (defn update-between-relationship-resolver
   [relationship-name entity1-name entity2-name]
   (fn [context args value]
-    (let [core-component (first (get-app-components))
+    (let [args (:input args)
+          core-component (first (get-app-components))
           schema (schema-info core-component)
-          args (:input args)
           extracted-entity1-name (keyword (extract-entity-name entity1-name))
           extracted-entity2-name (keyword (extract-entity-name entity2-name))
           entity1-guid-value (extracted-entity1-name args)
@@ -274,7 +285,7 @@
           relationship-params (dissoc args extracted-entity1-name extracted-entity2-name)
           update-pattern {relationship-name
                             (merge query-params relationship-params)}
-          results (first (eval-patterns core-component update-pattern))]
+          results (first (eval-patterns core-component update-pattern context))]
       results)))
 
 (defn delete-entity-resolver
@@ -284,7 +295,7 @@
           schema (schema-info core-component)
           entity-guid (find-guid-or-id-attribute schema entity-name)
           delete-pattern [[:delete entity-name {entity-guid (entity-guid args)}]]
-          results (first (eval-patterns core-component delete-pattern))]
+          results (first (eval-patterns core-component delete-pattern context))]
        results)))
 
 (defn generate-query-resolver-map [schema]

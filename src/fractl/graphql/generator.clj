@@ -27,6 +27,18 @@
 ;; stores the metadata maps for each attribute of each entity
 (def entity-metas (atom {}))
 
+(defn cleanup-atoms []
+  (reset! record-names #{})
+  (reset! entity-names #{})
+  (reset! relationship-names #{})
+  (reset! element-names #{})
+  (reset! contains-graph {})
+  (reset! records-code {})
+  (reset! entities-code {})
+  (reset! relationships-code {})
+  (reset! enums-code {})
+  (reset! entity-metas {}))
+
 (def fractlType->graphQL
   {:String :String
    :DateTime :String
@@ -445,7 +457,7 @@
 (defn generate-contains-graph [schema-info]
   (build-contains-relationship-graph (:relationships (normalize-schema schema-info))))
 
-(defn generate-graphql-schema [schema-info]
+(defn generate-graphql-schema-code [schema-info]
   (let [data (normalize-schema schema-info)
         records (:records data)
         entities (:entities data)
@@ -479,3 +491,9 @@
                              :input-objects input-objects}
               schema (remove-empty-graphql-constructs initial-schema)]
           [schema @entity-metas]))))
+
+(defn generate-graphql-schema [schema-info]
+  (try
+    (generate-graphql-schema-code schema-info)
+    (finally
+      (cleanup-atoms))))
