@@ -361,37 +361,37 @@
   ([schema mutation-type]
    (generate-mutation-resolvers schema mutation-type true))
   ([schema mutation-type include-relationship-resolvers?]
-  (let [mutation-type-lower-case (str/lower-case mutation-type)
-        entities (mapv (fn [entity] (key (first entity))) (:entities schema))
-        relationships (map (fn [rel] [(key (first rel)) (:meta (val (first rel)))]) (:relationships schema))
-        entity-mutation-resolvers (reduce (fn [acc entity-key]
-                                            (assoc acc
-                                                   (keyword (str "Mutation/" mutation-type (name (last (str/split (name entity-key) #"\.")))))
-                                                   ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-entity-resolver"))) entity-key)))
-                                          {} entities)
-        relationship-mutation-resolvers (if include-relationship-resolvers?
-                                          (reduce (fn [acc [rel-key {:keys [contains between]}]]
-                                                  (cond
-                                                    contains
-                                                    (let [[parent child] contains
-                                                          child-name (name (last (str/split (name child) #"\.")))]
-                                                      (assoc acc
-                                                             (keyword (str "Mutation/" mutation-type child-name))
-                                                             ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-contained-entity-resolver"))) rel-key parent child)))
+   (let [mutation-type-lower-case (str/lower-case mutation-type)
+         entities (mapv (fn [entity] (key (first entity))) (:entities schema))
+         relationships (map (fn [rel] [(key (first rel)) (:meta (val (first rel)))]) (:relationships schema))
+         entity-mutation-resolvers (reduce (fn [acc entity-key]
+                                             (assoc acc
+                                                    (keyword (str "Mutation/" mutation-type (name (last (str/split (name entity-key) #"\.")))))
+                                                    ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-entity-resolver"))) entity-key)))
+                                           {} entities)
+         relationship-mutation-resolvers (if include-relationship-resolvers?
+                                           (reduce (fn [acc [rel-key {:keys [contains between]}]]
+                                                     (cond
+                                                       contains
+                                                       (let [[parent child] contains
+                                                             rel-name (name (last (str/split (name rel-key) #"\.")))] ;
+                                                         (assoc acc
+                                                                (keyword (str "Mutation/" mutation-type rel-name))
+                                                                ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-contained-entity-resolver"))) rel-key parent child)))
 
-                                                    between
-                                                    (let [[entity1 entity2] between
-                                                          relation-name (name (last (str/split (name rel-key) #"\.")))]
-                                                      (assoc acc
-                                                             (keyword (str "Mutation/" mutation-type relation-name))
-                                                             ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-between-relationship-resolver"))) rel-key entity1 entity2)))
-                                                    :else acc))
-                                                {} relationships))]
-    (merge entity-mutation-resolvers relationship-mutation-resolvers))))
+                                                       between
+                                                       (let [[entity1 entity2] between
+                                                             relation-name (name (last (str/split (name rel-key) #"\.")))]
+                                                         (assoc acc
+                                                                (keyword (str "Mutation/" mutation-type relation-name))
+                                                                ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-between-relationship-resolver"))) rel-key entity1 entity2)))
+                                                       :else acc))
+                                                   {} relationships))]
+     (merge entity-mutation-resolvers relationship-mutation-resolvers))))
 
 (defn generate-resolver-map [schema]
   (let [query-resolvers (generate-query-resolver-map schema)
         create-mutation-resolvers (generate-mutation-resolvers schema "Create")
         update-mutation-resolvers (generate-mutation-resolvers schema "Update")
-        delete-mutation-resolvers (generate-mutation-resolvers schema "Delete")]
+        delete-mutation-resolvers (generate-mutation-resolvers schema "Delete" false)]
     (merge query-resolvers create-mutation-resolvers update-mutation-resolvers delete-mutation-resolvers)))

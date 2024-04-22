@@ -1136,15 +1136,17 @@
 
 (defn graphql-handler
   [[auth-config maybe-unauth] request]
-  (or (maybe-unauth request)
-        (let [body-as-string (slurp (:body request))
-        body (json/decode body-as-string)
-        query (:query body)
-        variables (:variables body)
-        operation-name (:operationName body)
-        context {:request request :auth-config auth-config :contains-graph @contains-graph :entity-metas @graphql-entity-metas}
-        result (execute @graphql-schema query variables context operation-name)]
-    (response result 200 :json))))
+  (if (not (empty? @graphql-schema))
+    (or (maybe-unauth request)
+          (let [body-as-string (slurp (:body request))
+          body (json/decode body-as-string)
+          query (:query body)
+          variables (:variables body)
+          operation-name (:operationName body)
+          context {:request request :auth-config auth-config :contains-graph @contains-graph :entity-metas @graphql-entity-metas}
+          result (execute @graphql-schema query variables context operation-name)]
+      (response result 200 :json)))
+    (response {:error "GraphQL schema compilation failed"} 500 :json)))
 
 (defn- make-routes [config auth-config handlers]
   (let [r (routes
@@ -1225,15 +1227,17 @@
    (let [main-component-name (first (cn/remove-internal-components (cn/component-names)))
          schema (schema-info main-component-name)
          contains-graph-map (gg/generate-contains-graph schema)
-         [uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema)
          [auth _ :as auth-info] (make-auth-handler config)]
-
-     ; save graphql schema to global variable and file
-     (graphql/save-schema uninjected-graphql-schema)
-     (reset! graphql-schema injected-graphql-schema)
-     (reset! graphql-entity-metas entity-metadatas)
-     ; save contains graph for later usage
-     (reset! contains-graph contains-graph-map)
+      (try
+       ; attempt to compile the GraphQL schema
+       (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema)]
+         ; save schema to global variable and file
+         (graphql/save-schema uninjected-graphql-schema)
+         (reset! graphql-schema injected-graphql-schema)
+         (reset! graphql-entity-metas entity-metadatas)
+         (reset! contains-graph contains-graph-map))
+       (catch Exception e
+         (log/error (str "Failed to compile GraphQL schema:" (.getMessage e)))))
 
      (if (or (not auth) (auth-service-supported? auth))
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
