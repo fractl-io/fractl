@@ -27,8 +27,11 @@
             [fractl.rbac.core :as rbac]
             [fractl.gpt.core :as gpt]
             [fractl.swagger.doc :as doc]
+            [fractl.graphql.core :as gc]
+            [fractl.graphql.generator :as gn]
             [fractl.swagger.docindex :as docindex]
-            [fractl-config-secrets-reader.core :as fractl-secret-reader])
+            [fractl-config-secrets-reader.core :as fractl-secret-reader]
+            [fractl.graphql.generator :as gg])
   (:import [java.util Properties]
            [java.net URL]
            [java.io File]
@@ -234,9 +237,7 @@
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
     (if (build/compiled-model? model-path model-name)
-      (let [components (remove #{:Fractl.Kernel.Identity :Fractl.Kernel.Lang
-                                 :Fractl.Kernel.Store :Fractl.Kernel.Rbac
-                                 :raw :-*-containers-*-}
+      (let [components (remove (cn/internal-component-names)
                                (cn/component-names))]
         (.mkdir (File. "doc"))
         (.mkdir (File. "doc/api"))
@@ -259,6 +260,22 @@
               (.execute executor cmd-line))))
         (log-seq! "components" components))
       (build/exec-with-build-model (str "lein run -s " model-name " .") nil model-name))))
+
+(defn generate-graphql-schema [model-name args]
+  (let [model-path (first args)]
+    (if (build/compiled-model? model-path model-name)
+      (let [components (remove (cn/internal-component-names)
+                                 (cn/component-names))]
+          (doseq [component components]
+            (let [comp-name (clojure.string/replace
+                             (name component) "." "")]
+              (gc/save-schema (first (gg/generate-graphql-schema (h/schema-info component))) "graphql-schema.edn")))
+          (log-seq! "components" components)
+        (log/info "Finished processing compiled model."))
+      (do
+        (log/error (str "Compiled model not found, executing build model for model-name:" model-name))
+        (build/exec-with-build-model (str "lein run -g " model-name " .") nil model-name)
+        (log/info (str "Finished executing build model for model-name:" model-name))))))
 
 (defn- find-model-to-read [args config]
   (or (seq (su/nonils args))
@@ -396,7 +413,8 @@
   [["-c" "--config CONFIG" "Configuration file"]
    ["-s" "--doc MODEL" "Generate documentation in .html"]
    ["-i" "--interactive 'app-description'" "Invoke AI-assist to model an application"]
-   ["-h" "--help"]])
+   ["-h" "--help"]
+   ["-g" "--graphql MODEL" "Generate GraphQL schema for reference"]])
 
 (defn- print-help []
   (println "This is the command-line interface for the Fractl language tool-chain which includes the")
@@ -419,10 +437,11 @@
   (println "the fractl command will try to load a model available in the current directory.")
   (println)
   (println "The command-line arguments accepted by fractl are:")
-  (println "  -c --config CONFIG         Configuration file")
+  (println "  -c --config CONFIG          Configuration file")
   (println "  -s --doc MODEL             Generate HTML documentation")
   (println "  -i --interactive 'desc'    Use AI to generate a model from the textual description")
   (println "  -h --help                  Print this help and quit")
+  (println "  -g --graphql MODEL         Generate GraphQL schema for reference")
   (println)
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
@@ -477,6 +496,9 @@
     (cond
       errors (println errors)
       (:help options) (print-help)
+      (:graphql options) (generate-graphql-schema
+                           (:graphql options)
+                           args)
       (:doc options) (generate-swagger-doc
                       (:doc options)
                       args)

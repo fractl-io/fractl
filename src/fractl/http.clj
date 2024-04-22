@@ -14,6 +14,7 @@
             [fractl.evaluator :as ev]
             [fractl.global-state :as gs]
             [fractl.gpt.core :as gpt]
+            [fractl.graphql.generator :as gg]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.raw :as lr]
@@ -25,9 +26,20 @@
             [fractl.util.http :as uh]
             [fractl.util.logger :as log]
             [org.httpkit.server :as h]
-            [ring.middleware.cors :as cors])
+            [org.httpkit.client :as hc]
+            [fractl.datafmt.json :as json]
+            [ring.util.codec :as codec]
+            [ring.middleware.cors :as cors]
+            [fractl.util.errors :refer [get-internal-error-message]]
+            [fractl.evaluator :as ev]
+            [com.walmartlabs.lacinia :refer [execute]]
+            [fractl.graphql.core :as graphql])
   (:use [compojure.core :only [DELETE GET POST PUT routes]]
         [compojure.route :only [not-found]]))
+
+(def graphql-schema (atom {}))
+(def contains-graph (atom {}))
+(def graphql-entity-metas (atom {}))
 
 (defn- headers
   ([data-fmt]
@@ -265,7 +277,7 @@
 (defn- find-schema [fetch-names find-schema]
   (mapv (fn [n] {n (cn/encode-expressions-in-schema (find-schema n))}) (fetch-names)))
 
-(defn- schema-info [component]
+(defn schema-info [component]
   {:records (find-schema #(cn/record-names component) lr/find-record)
    :entities (find-schema #(cn/entity-names component) lr/find-entity)
    :relationships (find-schema #(cn/relationship-names component) lr/find-relationship)})
@@ -1122,8 +1134,23 @@
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
+(defn graphql-handler
+  [[auth-config maybe-unauth] request]
+  (if (not (empty? @graphql-schema))
+    (or (maybe-unauth request)
+          (let [body-as-string (slurp (:body request))
+          body (json/decode body-as-string)
+          query (:query body)
+          variables (:variables body)
+          operation-name (:operationName body)
+          context {:request request :auth-config auth-config :contains-graph @contains-graph :entity-metas @graphql-entity-metas}
+          result (execute @graphql-schema query variables context operation-name)]
+      (response result 200 :json)))
+    (response {:error "GraphQL schema compilation failed"} 500 :json)))
+
 (defn- make-routes [config auth-config handlers]
   (let [r (routes
+           (POST uh/graphql-prefix [] (:graphql handlers))
            (POST uh/login-prefix [] (:login handlers))
            (POST uh/logout-prefix [] (:logout handlers))
            (POST uh/signup-prefix [] (:signup handlers))
@@ -1197,14 +1224,29 @@
 
 (defn run-server
   ([evaluator config]
-   (let [[auth _ :as auth-info] (make-auth-handler config)]
+   (let [main-component-name (first (cn/remove-internal-components (cn/component-names)))
+         schema (schema-info main-component-name)
+         contains-graph-map (gg/generate-contains-graph schema)
+         [auth _ :as auth-info] (make-auth-handler config)]
+      (try
+       ; attempt to compile the GraphQL schema
+       (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema)]
+         ; save schema to global variable and file
+         (graphql/save-schema uninjected-graphql-schema)
+         (reset! graphql-schema injected-graphql-schema)
+         (reset! graphql-entity-metas entity-metadatas)
+         (reset! contains-graph contains-graph-map))
+       (catch Exception e
+         (log/error (str "Failed to compile GraphQL schema:" (.getMessage e)))))
+
      (if (or (not auth) (auth-service-supported? auth))
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
          (println (str "The HTTP server is listening on port " (:port config)))
          (h/run-server
           (make-routes
            config auth
-           {:login (partial process-login evaluator auth-info)
+           {:graphql (partial graphql-handler auth-info)
+            :login (partial process-login evaluator auth-info)
             :logout (partial process-logout auth)
             :signup (partial
                      process-signup evaluator
