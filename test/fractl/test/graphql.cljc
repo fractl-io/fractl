@@ -173,20 +173,6 @@
                        :Tag (:Id tag-data)
                        :Awesome "Nice"}
 
-        create-user-pattern "mutation {
-                                CreateUser(input: {
-                                    Id: \"0e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                    Email: \"user17@example.com\",
-                                    Name: \"John Doe\",
-                                    MemberSince: \"2016-08-14\"
-                                }) {
-                                    Id
-                                    Email
-                                    Name
-                                    MemberSince
-                                }
-                            }"
-
         query-by-id-pattern "query {
                                User(attributes: {Id: \"0e977860-5cd4-4bc3-8323-f4f71a66de6d\"}) {
                                    Id
@@ -276,28 +262,6 @@
                                                       }
                                                   }
                                               }")
-
-        create-tag-mutation  "mutation {
-                                CreateTag(input: {
-                                  Id: \"0e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                  Name: \"Tag 1\"
-                                }) {
-                                  Id
-                                  Name
-                                }
-                              }"
-
-        create-user-tag-mutation "mutation {
-                                    CreateUserTag(input: {
-                                      Tag: \"0e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                      User: \"0e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                      Awesome: \"Nice\"
-                                    }) {
-                                      Tag
-                                      User
-                                      Awesome
-                                    }
-                                  }"
 
         query-tag-by-all-attributes "query {
                                         UserTag(attributes: {
@@ -900,152 +864,6 @@
         user-tag-data {:User (:Id parent-user-data)
                        :Tag (:Id tag-data)
                        :Awesome "3Nice"}
-
-        create-user-pattern "mutation {
-                                CreateUser(input: {
-                                    Id: \"3e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                    Email: \"3user17@example.com\",
-                                    Name: \"3John Doe\",
-                                    MemberSince: \"2016-08-13\"
-                                }) {
-                                    Id
-                                    Email
-                                    Name
-                                    MemberSince
-                                }
-                            }"
-
-        query-by-id-pattern "query {
-                               User(attributes: {Id: \"3e977860-5cd4-4bc3-8323-f4f71a66de6d\"}) {
-                                   Id
-                                   Email
-                                   Name
-                                   MemberSince
-                               }
-                             }"
-
-        query-by-email-pattern "query {
-                                   User(attributes: {Email: \"3user17@example.com\"}) {
-                                       Email
-                                       Name
-                                       MemberSince
-                                   }
-                                 }"
-
-        query-by-name-pattern "query {
-                                  User(attributes: {Name: \"3John Doe\"}) {
-                                      Email
-                                      Name
-                                      MemberSince
-                                  }
-                                }"
-
-        parent-user-email "3user17@example.com"
-        child-document-name "3Sample Document"
-        parent-user-id "3e977860-5cd4-4bc3-8323-f4f71a66de6d"
-        child-document-id "3e977860-5cd4-4bc3-8323-f4f71a66de6e"
-
-        create-child-document-mutation "mutation {
-                                          CreateDocument(input: {
-                                            UserId: \"3e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                            Id: \"3e977860-5cd4-4bc3-8323-f4f71a66de6e\",
-                                            Name: \"3Sample Document\",
-                                            Content: \"3This is a sample document content.\",
-                                            Summary: \"3Summary of the document.\"
-                                          }) {
-                                            UserId
-                                            Id
-                                            Name
-                                            Content
-                                            Summary
-                                          }
-                                        }"
-
-        query-all-docs-for-user-pattern (str "query {
-                                                User(attributes: { Email: \"" parent-user-email "\" }) {
-                                                    Email
-                                                    UserDocument {
-                                                        Document {
-                                                            Name
-                                                            Content
-                                                            Summary
-                                                            LastUpdated
-                                                        }
-                                                    }
-                                                }
-                                            }")
-
-        query-by-email-and-doc-id-pattern (str "query {
-                                                    User(attributes: { Email: \"" parent-user-email "\" }) {
-                                                        Email
-                                                        Name
-                                                        MemberSince
-                                                        UserDocument {
-                                                            Document(attributes: { Id: \"" child-document-id "\" }) {
-                                                                Name
-                                                                Content
-                                                                Summary
-                                                                LastUpdated
-                                                            }
-                                                        }
-                                                    }
-                                                }")
-
-        query-by-user-id-and-doc-name-pattern (str "query {
-                                                  User(attributes: { Id: \"" parent-user-id "\" }) {
-                                                      Name
-                                                      UserDocument {
-                                                          Document(attributes: { Name: \"" child-document-name "\" }) {
-                                                              Name
-                                                              Content
-                                                              Summary
-                                                              LastUpdated
-                                                          }
-                                                      }
-                                                  }
-                                              }")
-
-        create-tag-mutation  "mutation {
-                                CreateTag(input: {
-                                  Id: \"32977860-5cd9-4bc3-8323-f4f71a66de6d\",
-                                  Name: \"3Tag 1\"
-                                }) {
-                                  Id
-                                  Name
-                                }
-                              }"
-
-        create-user-tag-mutation "mutation {
-                                    CreateUserTag(input: {
-                                      Tag: \"32977860-5cd9-4bc3-8323-f4f71a66de6d\",
-                                      User: \"3e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                      Awesome: \"3Nice\"
-                                    }) {
-                                      Tag
-                                      User
-                                      Awesome
-                                    }
-                                  }"
-
-        query-tag-by-all-attributes "query {
-                                        UserTag(attributes: {
-                                            User: \"3e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                            Tag: \"3e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                            Awesome: \"3Nice\"
-                                        }) {
-                                            User
-                                            Tag
-                                            Awesome
-                                        }
-                                    }"
-
-        query-tag-by-one-attribute "query {
-                                        UserTag(attributes: {Awesome: \"3Nice\"}) {
-                                            User
-                                            Tag
-                                            Awesome
-                                        }
-                                    }"
 
         delete-user-by-id "mutation {
                               DeleteUser(input: { Id: \"3e977860-5cd4-4bc3-8323-f4f71a66de6d\" }) {
