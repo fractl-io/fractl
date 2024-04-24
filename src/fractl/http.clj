@@ -1237,7 +1237,7 @@
          (reset! graphql-entity-metas entity-metadatas)
          (reset! contains-graph contains-graph-map))
        (catch Exception e
-         (log/error (str "Failed to compile GraphQL schema:" (.getMessage e)))))
+         (log/error (str "Failed to compile GraphQL schema:" e))))
 
      (if (or (not auth) (auth-service-supported? auth))
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
