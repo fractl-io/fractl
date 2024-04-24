@@ -51,9 +51,13 @@
                  jattrs)]
     (str/join " AND " ss)))
 
+(defn- split-col-ref [s]
+  (let [idx (str/last-index-of s ".")]
+    [(subs s 0 idx) (subs s (inc idx))]))
+
 (defn- with-join-attributes [entity-table-name attribute-column-name attrs]
   (reduce (fn [s [n k]]
-            (let [[t c] (str/split (str k) #"\.")]
+            (let [[t c] (split-col-ref (str k))]
               (str s (if (seq s) ", " "")
                    (entity-table-name t) "." (attribute-column-name c)
                    " AS " (name n) " ")))
@@ -80,7 +84,7 @@
 
 (defn- select-for-attrs [with-attrs]
   (mapv (fn [[n k]]
-          (let [[t c] (str/split (str k) #"\.")
+          (let [[t c] (split-col-ref (str k))
                 cn (keyword (str (su/entity-table-name t) "/" (su/attribute-column-name c)))]
             [cn n]))
         with-attrs))
