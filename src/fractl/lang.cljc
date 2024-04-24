@@ -955,7 +955,7 @@
 (defn- validate-view-attrs! [attrs]
   (doseq [[n k] attrs]
     (let [p1 (and (keyword? n) (= 1 (count (li/split-path n))))
-          k0 (s/split (str k) #"\.")
+          k0 (s/split (name k) #"\.")
           p2 (and (keyword? k) (= 2 (count k0)))]
       (when-not (and p1 p2)
         (u/throw-ex (str "invalid view attribute-specification: " [n k]))))))
