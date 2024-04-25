@@ -44,6 +44,8 @@
                     :cache {:host <REDIS_HOST>
                             :port <REDIS_PORT>}}}
 
+(def ^:private local-client-url (atom nil))
+
 (defmethod auth/make-client tag [_config]
   _config)
 
@@ -237,6 +239,7 @@
 (defmethod auth/authenticate-session tag [{cookie :cookie
                                            client-url :client-url
                                            :as auth-config}]
+  (reset! local-client-url client-url)
   (if cookie
     (let [sid (auth/cookie-to-session-id auth-config cookie)]
       (log/debug (str "auth/authenticate-session with cookie " sid))
@@ -261,7 +264,8 @@
         session-id (or current-sid (u/uuid-string))
         result {:authentication-result (us/snake-to-kebab-keys tokens)}
         auth-status (auth/verify-token auth-config [session-id result])
-        user (:sub auth-status)]
+        user (:sub auth-status)
+        client-url (or @local-client-url client-url)]
     (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
     (when-not (sess/ensure-local-user
                user
