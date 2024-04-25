@@ -14,6 +14,14 @@
  :OnCreateAccount
  [:eval '(println "Sfdc Account object created:" :OnCreateAccount.Response)])
 
+;; To trigger OnCreateAccount over HTTP -
+;;
+;; POST api/Sfdc/TriggerOnCreateAccount
+;; {"Sfdc/TriggerOnCreateAccount": {"UserArg": "{\"Name\": \"Hello from Fractl\"}"}}
+;;
+
+
+;; Note: query not yet working.
 (event
  :LookupAllAccount
  {:meta
