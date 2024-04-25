@@ -1,0 +1,20 @@
+(component :Sfdc)
+
+(event
+ :OnCreateAccount
+ {:meta
+  {:trigger
+   {:endpoint "salesforce:createSObject?apiVersion=59.0&rawPayload=true&format=JSON&sObjectName=Account"}}
+  :UserArg {:type :String :optional true}
+  :Response {:type :String :optional true}})
+
+(dataflow
+ :OnCreateAccount
+ [:eval '(println "Sfdc Account object created:" :OnCreateAccount.Response)])
+
+(require '[fractl.resolver.registry :as r])
+(use '[fractl.resolver.camel])
+
+(r/register-resolver {:name :camel-sfdc
+                      :type :camel
+                      :paths [:Sfdc/OnCreateAccount]})

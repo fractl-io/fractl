@@ -1071,12 +1071,13 @@
                    (assoc inst li/with-types-tag with-types)
                    inst)))
             local-result (when df
-                           (let [[_ dc] (cn/dataflow-opcode df (or with-types cn/with-default-types))
-                                 evt-result (eval-opcode self env dc)
-                                 local-result (extract-local-result evt-result)]
-                             (when-not local-result
-                               (log/error (str record-name " - event failed - " (first evt-result))))
-                             local-result))
+                           (when (or (not resolver) composed?)
+                             (let [[_ dc] (cn/dataflow-opcode df (or with-types cn/with-default-types))
+                                   evt-result (eval-opcode self env dc)
+                                   local-result (extract-local-result evt-result)]
+                               (when-not local-result
+                                 (log/error (str record-name " - event failed - " (first evt-result))))
+                               local-result)))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? env inst))
             r (pack-results local-result resolver-results)

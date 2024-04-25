@@ -49,6 +49,10 @@
                  [org.apache.kafka/kafka-clients "3.6.1"]
                  [com.walmartlabs/lacinia "1.2.2"]
                  [com.clickhouse/clickhouse-jdbc "0.6.0"]
+                 [org.apache.camel/camel-core "4.5.0"]
+                 [org.apache.camel/camel-salesforce "4.5.0"]
+                 [org.eclipse.jetty/jetty-client "12.0.8"]
+                 [org.eclipse.jetty/jetty-util "12.0.8"]
                  [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]]
 
   :license {:name "Apache2"}
