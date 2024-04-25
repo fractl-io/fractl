@@ -13,6 +13,12 @@
            [org.apache.camel.support DefaultComponent]
            [org.apache.camel.component.salesforce SalesforceComponent AuthenticationType]))
 
+(ln/component :Camel)
+(ln/record
+ :Camel/EventTemplate
+ {:UserArg :String
+  :Response {:type :Any :optional true}})
+
 (defn- endpoint [event-name]
   (get-in (cn/fetch-meta event-name) [:trigger :endpoint]))
 
@@ -36,44 +42,40 @@
 
 (defn camel-eval [config event-instance]
   (let [ep (endpoint (cn/instance-type event-instance))
+        user-arg (:UserArg event-instance)
+        has-arg (seq user-arg)
         ^CamelContext ctx (context-for-endpoint config ep)
         ^RouteBuilder rb (proxy [RouteBuilder] []
                            (configure []
-                             (-> this
-                                 (.from "direct:send")
-                                 (.to ep)
-                                 (.convertBodyTo String)
-                                 (.process (reify Processor
-                                             (^void process [_ ^Exchange exchange]
-                                              (let [^Message msg (.getIn exchange)
-                                                    body (.getBody msg)]
-                                                (ev/eval-all-dataflows (assoc event-instance :Response body)))))))))]
+                             (let [p (if has-arg
+                                       (-> this
+                                           (.from "direct:send")
+                                           (.to ep))
+                                       (-> this (.from ep)))]
+                               (-> p
+                                   (.convertBodyTo String)
+                                   (.process (reify Processor
+                                               (^void process [_ ^Exchange exchange]
+                                                (let [^Message msg (.getIn exchange)
+                                                      body (.getBody msg)]
+                                                  (ev/eval-all-dataflows (assoc event-instance :Response body))))))))))]
     (.addRoutes ctx rb)
     (.start ctx)
-    (when-let [arg (:UserArg event-instance)]
+    (when has-arg
       (let [^ProducerTemplate t (.createProducerTemplate ctx)]
-        (.requestBody t "direct:send" arg String)))
+        (.requestBody t "direct:send" user-arg String)))
     (.stop ctx)
     event-instance))
-
-(defn- validate-attribute [event-schema attr-name]
-  (if-let [t (cn/attribute-type event-schema attr-name)]
-    (when-not (= :String (second (li/split-path t)))
-      (u/throw-ex (str (name attr-name) " attribute must be of String type")))
-    (u/throw-ex (str "no " (name attr-name) " attribute defined for event"))))
-
-(defn- validate-event-schema [event-name]
-  (let [scm (cn/fetch-event-schema event-name)]
-    (doseq [a [:UserArg :Response]] (validate-attribute scm a))))
 
 (defn- camel-on-set-path [_ [tag path]]
   (when-not (= tag :override)
     (u/throw-ex (str path " needs an override resolver")))
   (when-not (cn/event? path)
     (u/throw-ex (str path " is not an event")))
+  (when-not (cn/inherits? :Camel/EventTemplate path)
+    (u/throw-ex (str path " must inherit :Camel/EventTemplate")))
   (when-not (endpoint path)
     (u/throw-ex (str path " event does not define a trigger endpoint")))
-  (validate-event-schema path)
   (when-not (cn/find-dataflows path)
     (u/throw-ex (str "no dataflow is defined for " path)))
   (let [[c n] (li/split-path path)
