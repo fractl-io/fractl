@@ -19,6 +19,16 @@
  {:UserArg :String
   :Response {:type :Any :optional true}})
 
+(gen-class
+ :name fractl.resolver.camel.MyBean
+ :prefix "-"
+ :main false
+ ;; declare only new methods, not superclass methods
+ :methods [[callback [Object] void]])
+
+(defn -callback [_ obj]
+  (println "Change event:" obj))
+
 (defn- endpoint [event-name]
   (get-in (cn/fetch-meta event-name) [:trigger :endpoint]))
 
@@ -28,12 +38,12 @@
           config (or (:salesforce config) config)
           inst-url (or (:instance-url config)
                        (u/getenv "SFDC_INSTANCE_URL"))]
-      (.setInstanceUrl sfc inst-url)
       (.setClientId sfc (or (:client-id config)
                             (u/getenv "SFDC_CLIENT_ID")))
       (.setClientSecret sfc (or (:client-secret config)
                                 (u/getenv "SFDC_CLIENT_SECRET")))
       (.setAuthenticationType sfc (AuthenticationType/valueOf "CLIENT_CREDENTIALS"))
+      (.setInstanceUrl sfc inst-url)
       (.setLoginUrl sfc inst-url)
       (let [^CamelContext ctx (DefaultCamelContext.)]
         (.addComponent ctx "salesforce" sfc)
@@ -47,6 +57,9 @@
         ^CamelContext ctx (context-for-endpoint config ep)
         ^RouteBuilder rb (proxy [RouteBuilder] []
                            (configure []
+                             #_(-> this
+                                 (.from "salesforce:subscribe:/data/ChangeEvents?rawPayload=true")
+	                         (.bean (fractl.resolver.camel.MyBean.), "callback"))
                              (let [p (if has-arg
                                        (-> this
                                            (.from "direct:send")
@@ -64,7 +77,7 @@
     (when has-arg
       (let [^ProducerTemplate t (.createProducerTemplate ctx)]
         (.requestBody t "direct:send" user-arg String)))
-    (.stop ctx)
+    ;;(.stop ctx)
     event-instance))
 
 (defn- camel-on-set-path [_ [tag path]]

@@ -1,5 +1,16 @@
 (component :Sfdc)
 
+;;; Usage (over HTTP)
+;;
+;;; listen for change-events -
+;; POST /api/Sfdc/TriggerOnChangeEvent
+;; {"Sfdc/TriggerOnChangeEvent": {"UserArg": ""}}
+
+;;; create an account, and see the event captured -
+;; POST api/Sfdc/TriggerOnCreateAccount
+;; {"Sfdc/TriggerOnCreateAccount": {"UserArg": "{\"Name\": \"Hello from Fractl\"}"}}
+;;
+
 (require '[fractl.resolver.registry :as r])
 (use '[fractl.resolver.camel])
 
@@ -14,25 +25,17 @@
  :OnCreateAccount
  [:eval '(println "Sfdc Account object created:" :OnCreateAccount.Response)])
 
-;; To trigger OnCreateAccount over HTTP -
-;;
-;; POST api/Sfdc/TriggerOnCreateAccount
-;; {"Sfdc/TriggerOnCreateAccount": {"UserArg": "{\"Name\": \"Hello from Fractl\"}"}}
-;;
-
-
-;; Note: query not yet working.
 (event
- :LookupAllAccount
+ :OnChangeEvent
  {:meta
   {:inherits :Camel/EventTemplate
    :trigger
-   {:endpoint "salesforce:query?sObjectQuery=SELECT * FROM Account&apiVersion=59.0&rawPayload=true&format=JSON&sObjectName=Account"}}})
+   {:endpoint "salesforce:subscribe:/data/ChangeEvents?rawPayload=true"}}})
 
 (dataflow
- :LookupAllAccount
- [:eval '(println "Sfdc Account query result:" :LookupAllAccount.Response)])
+ :OnChangeEvent
+ [:eval '(println "ChangeEvent:" :OnChangeEvent.Response)])
 
 (r/register-resolver {:name :camel-sfdc
                       :type :camel
-                      :paths [:Sfdc/OnCreateAccount :Sfdc/LookupAllAccount]})
+                      :paths [:Sfdc/OnCreateAccount :Sfdc/OnChangeEvent]})
