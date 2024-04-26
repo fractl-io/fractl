@@ -91,7 +91,7 @@
    :headers
    (let [hdrs (assoc (headers) "Location" location)]
      (if cookie
-       (let [cookie-domain (get-in (gs/get-app-config) [:auth :cookie-domain])]
+       (let [cookie-domain (get-in (gs/get-app-config) [:authentication :cookie-domain])]
          (assoc hdrs "Set-Cookie" (str cookie "; Domain=" cookie-domain "; Path=/")))
        hdrs))})
 
