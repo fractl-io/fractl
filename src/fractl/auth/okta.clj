@@ -44,8 +44,6 @@
                     :cache {:host <REDIS_HOST>
                             :port <REDIS_PORT>}}}
 
-(def ^:private local-client-url (atom nil))
-
 (defmethod auth/make-client tag [_config]
   _config)
 
@@ -169,15 +167,20 @@
       (do (log/error resp)
           (u/throw-ex (str "failed to get access token with error: " (:status resp)))))))
 
+(def ^:private user-state-delim "._.")
+(def ^:private user-state-delim-len (count user-state-delim))
+
 (defn- make-authorize-url [{domain :domain
                             auth-server :auth-server
                             authorize-redirect-url :authorize-redirect-url
                             client-id :client-id
                             no-prompt :no-prompt
                             scope :scope
+                            user-state :user-state
                             session-token :session-token}]
   (let [nonce (str "n-" (us/generate-code 3) "_" (us/generate-code 6))
-        state (us/generate-code 10)
+        s0 (us/generate-code 10)
+        state (if user-state (str s0 user-state-delim user-state) s0)
         url0 (str "https://" domain "/oauth2/" auth-server "/v1/authorize?client_id=" client-id
                   "&response_type=code&scope=" (http/url-encode scope) "&redirect_uri="
                   (http/url-encode authorize-redirect-url) "&state=" state "&nonce=" nonce)
@@ -239,14 +242,15 @@
 (defmethod auth/authenticate-session tag [{cookie :cookie
                                            client-url :client-url
                                            :as auth-config}]
-  (reset! local-client-url client-url)
-  (if cookie
-    (let [sid (auth/cookie-to-session-id auth-config cookie)]
-      (log/debug (str "auth/authenticate-session with cookie " sid))
-      (if (sess/lookup-session-cookie-user-data sid)
-        {:status :redirect-found :location client-url}
-        {:status :redirect-found :location (first (make-authorize-url auth-config))}))
-    {:status :redirect-found :location (first (make-authorize-url auth-config))}))
+  (let [user-state (when client-url (b64/encode-string client-url))
+        auth-config (assoc auth-config :user-state user-state)]
+    (if cookie
+      (let [sid (auth/cookie-to-session-id auth-config cookie)]
+        (log/debug (str "auth/authenticate-session with cookie " sid))
+        (if (sess/lookup-session-cookie-user-data sid)
+          {:status :redirect-found :location client-url}
+          {:status :redirect-found :location (first (make-authorize-url auth-config))}))
+      {:status :redirect-found :location (first (make-authorize-url auth-config))})))
 
 (defn- cleanup-roles [roles default-role]
   (let [roles (if (vector? roles)
@@ -255,6 +259,10 @@
     (if (seq roles)
       roles
       default-role)))
+
+(defn- client-url-from-state [state]
+  (when-let [i (s/last-index-of state user-state-delim)]
+    (b64/decode-to-string (subs state (+ i user-state-delim-len)))))
 
 (defmethod auth/handle-auth-callback tag [{client-url :client-url args :args :as auth-config}]
   (let [request (:request args)
@@ -265,7 +273,7 @@
         result {:authentication-result (us/snake-to-kebab-keys tokens)}
         auth-status (auth/verify-token auth-config [session-id result])
         user (:sub auth-status)
-        client-url (or @local-client-url client-url)]
+        client-url (or (client-url-from-state (:state params)) client-url)]
     (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
     (when-not (sess/ensure-local-user
                user
