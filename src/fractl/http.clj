@@ -1006,9 +1006,10 @@
     (bad-request (:error result))))
 
 (defn- process-auth [evaluator [auth-config _] request]
-  (let [cookie (get-in request [:headers "cookie"])]
+  (let [cookie (get-in request [:headers "cookie"])
+        query-params (when-let [s (:query-string request)] (uh/form-decode s))]
     (auth-response
-     (auth/authenticate-session (assoc auth-config :cookie cookie)))))
+     (auth/authenticate-session (assoc auth-config :cookie cookie :client-url (:origin query-params))))))
 
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
   (auth-response
