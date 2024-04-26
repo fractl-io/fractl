@@ -272,7 +272,7 @@
         session-id (or current-sid (u/uuid-string))
         result {:authentication-result (us/snake-to-kebab-keys tokens)}
         auth-status (auth/verify-token auth-config [session-id result])
-        client-url (or (client-url-from-state (:state params)) client-url)]
+        client-url (or (client-url-from-state (:state params)) client-url)
         user (:username auth-status)]
     (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
     (when-not (sess/ensure-local-user
