@@ -91,7 +91,8 @@
    :headers
    (let [hdrs (assoc (headers) "Location" location)]
      (if cookie
-       (assoc hdrs "Set-Cookie" cookie)
+       (let [cookie-domain (get-in (gs/get-app-config) [:auth :cookie-domain])]
+         (assoc hdrs "Set-Cookie" (str cookie "; Domain=" cookie-domain "; Path=/")))
        hdrs))})
 
 (defn- sanitize-secrets [obj]
@@ -206,7 +207,7 @@
                            event-instance
                            (cn/make-instance event-instance))]
       (cn/assoc-event-context-values
-       {:User (:email user)
+       {:User (or (:username user) (:email user))
         :Sub (:sub user)
         :UserDetails user}
        event-instance))
@@ -1207,7 +1208,7 @@
       (let [cookie (get (:headers request) "cookie")
             sid (auth/cookie-to-session-id auth-config cookie)
             data (sess/lookup-session-cookie-user-data sid)
-            user (:sub (auth/verify-token auth-config [sid data]))]
+            user (:username (auth/verify-token auth-config [sid data]))]
         (when-not (sess/is-logged-in user)
           (log/info (str "unauthorized request - " request))
           (unauthorized (find-data-format request)))))
