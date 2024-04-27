@@ -52,8 +52,10 @@
 (defn dependency-model-name [dep]
   (cond
     (keyword? dep) dep
-    (vector? dep) (first dep)
-    (map? dep) dep))
+    (vector? dep) (if (map? (first dep))
+                    (dependency-model-name (first dep))
+                    (first dep))
+    (map? dep) (get dep :name)))
 
 (defn dependency-model-version [dep]
   (when (vector? dep)
