@@ -1,6 +1,7 @@
 (ns fractl.lang.tools.loader
   "Component script loading with pre-processing."
-  (:require #?(:clj [clojure.java.io :as io])
+  (:require #?(:clj [camel-snake-kebab.core :as csk])
+            #?(:clj [clojure.java.io :as io])
             [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.util :as u]
@@ -66,7 +67,8 @@
 
 (defn load-all-model-info [model-paths model-name model-info]
   (let [model-paths (or model-paths (tu/get-system-model-paths))
-        [model model-root] (or model-info (read-model model-paths model-name))
+        proper-model-name (if (map? model-name) (get model-name :name) model-name)
+        [model model-root] (or model-info (read-model model-paths proper-model-name))
         model-name (or model-name (:name model))]
     (when-not model-name
       (u/throw-ex "model-name is required"))
@@ -192,7 +194,7 @@
             (read-model p)
             (let [s (if (keyword? model-name)
                       (s/lower-case (name model-name))
-                      model-name)]
+                      (csk/->snake_case_string model-name))]
               (loop [mps model-paths]
                 (if-let [mp (first mps)]
                   (if-let [p (fpath mp s)]
