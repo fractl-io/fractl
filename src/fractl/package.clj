@@ -1,9 +1,9 @@
 (ns fractl.package
   (:require [clojure.string :as s]
             [fractl.util :as u])
-  (:import [java.io File]
-           [java.util.regex Pattern]
-           [fractl.filesystem Util]))
+  (:import (fractl.filesystem Util)
+           (java.io File)
+           (java.util.regex Pattern)))
 
 (def ^:private path-split-pat (re-pattern (Pattern/quote u/path-sep)))
 (def ^:private model-resource-root "app")
@@ -17,10 +17,7 @@
     :main ~(symbol "fractl.core")
 
     :repositories [["public-github" {:url "git://github.com"}]
-                   ["private-github" {:url "git://github.com" :protocol :ssh}]]
-
-    ~@(when-let [deps (:clj-dependencies model)]
-        [:dependencies deps])))
+                   ["private-github" {:url "git://github.com" :protocol :ssh}]]))
 
 (defn- fetch-app-config [model-root-dir launch-config]
   (let [^File file (File. (str model-root-dir u/path-sep "config.edn"))]

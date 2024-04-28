@@ -132,8 +132,7 @@
            deps))))
 
 (defn- update-project-spec [model project-spec]
-  (let [deps0 (get model :clj-dependencies)
-        deps (vec (concat deps0 (fractl-deps-as-clj-deps (:dependencies model))))
+  (let [deps (vec (fractl-deps-as-clj-deps (:dependencies model)))
         ver (model-version model)]
     (loop [spec project-spec, final-spec []]
       (if-let [s (first spec)]
@@ -250,7 +249,7 @@
   (let [root-ns-name (symbol (str (sanitize model-name) ".model"))
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c)) :as (symbol (name c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:require ~@req-comp))
-        model (dissoc model :clj-dependencies :repositories)]
+        model (dissoc model :repositories)]
     (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
            [ns-decl (if (map? model) `(fractl.lang/model ~model) model)
             `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))]
