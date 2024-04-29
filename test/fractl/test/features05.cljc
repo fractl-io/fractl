@@ -270,3 +270,46 @@
       (is (= 3 (count rs)))
       (is (every? cn? rs))
       (is (= (set ["jay" "mat" "joe"]) (set (mapv :Name rs)))))))
+
+(deftest views-on-contains
+  (defcomponent :Voc
+    (entity
+     :Voc/Family
+     {:Id :Identity
+      :FamilyName :String})
+    (entity
+     :Voc/FamilyMember
+     {:Id :Identity
+      :Name :String})
+    (relationship
+     :Voc/Members
+     {:meta {:contains [:Voc/Family
+                        :Voc/FamilyMember]
+             :cascade-on-delete true}})
+    (dataflow
+     :Voc/JoinMembers
+     {:Voc/FamilyMember? {}
+      :join [{:Voc/Family {:Id? :Voc/JoinMembers.FamilyId}}]
+      :with-attributes {:FamilyName :Voc/Family.FamilyName
+                        :Name :Voc/FamilyMember.Name}}))
+  (let [mkfm #(tu/first-result
+               {:Voc/Create_Family
+                {:Instance
+                 {:Voc/Family
+                  {:FamilyName %}}}})
+        f? (partial cn/instance-of? :Voc/Family)
+        [f1 f2] (mapv mkfm ["one" "two"])
+        mkfmm (fn [fid n]
+                (tu/first-result
+                 {:Voc/Create_FamilyMember
+                  {:Instance {:Voc/FamilyMember {:Name n}}
+                   li/path-attr (str "/Family/" fid "/Members")}}))
+        fm? (partial cn/instance-of? :Voc/FamilyMember)
+        f1id (:Id f1)
+        f2id (:Id f2)
+        fm1 (mkfmm f1id "a")
+        fm2 (mkfmm f2id "b")
+        fm3 (mkfmm f1id "c")]
+    (is (every? f? [f1 f2]))
+    (is (every? fm? [fm1 fm2 fm3]))
+    (is (seq (tu/result {:Voc/JoinMembers {:FamilyId f1id}})))))
