@@ -91,7 +91,8 @@
    :headers
    (let [hdrs (assoc (headers) "Location" location)]
      (if cookie
-       (assoc hdrs "Set-Cookie" cookie)
+       (let [cookie-domain (get-in (gs/get-app-config) [:authentication :cookie-domain])]
+         (assoc hdrs "Set-Cookie" (str cookie "; Domain=" cookie-domain "; Path=/")))
        hdrs))})
 
 (defn- sanitize-secrets [obj]
@@ -206,7 +207,7 @@
                            event-instance
                            (cn/make-instance event-instance))]
       (cn/assoc-event-context-values
-       {:User (:email user)
+       {:User (or (:username user) (:email user))
         :Sub (:sub user)
         :UserDetails user}
        event-instance))
@@ -1005,9 +1006,10 @@
     (bad-request (:error result))))
 
 (defn- process-auth [evaluator [auth-config _] request]
-  (let [cookie (get-in request [:headers "cookie"])]
+  (let [cookie (get-in request [:headers "cookie"])
+        query-params (when-let [s (:query-string request)] (uh/form-decode s))]
     (auth-response
-     (auth/authenticate-session (assoc auth-config :cookie cookie)))))
+     (auth/authenticate-session (assoc auth-config :cookie cookie :client-url (:origin query-params))))))
 
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
   (auth-response
@@ -1206,7 +1208,7 @@
       (let [cookie (get (:headers request) "cookie")
             sid (auth/cookie-to-session-id auth-config cookie)
             data (sess/lookup-session-cookie-user-data sid)
-            user (:sub (auth/verify-token auth-config [sid data]))]
+            user (:username (auth/verify-token auth-config [sid data]))]
         (when-not (sess/is-logged-in user)
           (log/info (str "unauthorized request - " request))
           (unauthorized (find-data-format request)))))
