@@ -183,18 +183,16 @@
     (let [args (:attributes args)
           core-component (first (get-app-components))
           query-params (append-question-to-keys args)
-          query {relationship-name query-params}
-          results (eval-patterns core-component query context)]
-      results)))
+          query {relationship-name query-params}]
+      (eval-patterns core-component query context))))
 
 (defn create-entity-resolver
   [entity-name]
   (fn [context args value]
     (let [args (:input args)
           core-component (first (get-app-components))
-          create-pattern {entity-name args}
-          results (eval-patterns core-component create-pattern context)]
-      (first results))))
+          create-pattern {entity-name args}]
+      (first (eval-patterns core-component create-pattern context)))))
 
 (defn create-contained-entity-resolver
   [relationship-name parent-name child-name]
@@ -217,9 +215,8 @@
   (fn [context args value]
     (let [args (:input args)
           core-component (first (get-app-components))
-          create-pattern {relationship-name args}
-          results (first (eval-patterns core-component create-pattern context))]
-      results)))
+          create-pattern {relationship-name args}]
+      (first (eval-patterns core-component create-pattern context)))))
 
 (defn update-entity-resolver
   [entity-name]
@@ -231,9 +228,8 @@
           entity-guid-val (entity-guid-attr args)
           update-pattern {(form-pattern-name core-component "Update" (extract-entity-name entity-name))
                             {entity-guid-attr entity-guid-val
-                             :Data (dissoc args entity-guid-attr)}}
-          results (first (eval-patterns core-component update-pattern context))]
-      results)))
+                             :Data (dissoc args entity-guid-attr)}}]
+      (first (eval-patterns core-component update-pattern context)))))
 
 (defn update-contained-entity-resolver
   [relationship-name parent-name child-name]
@@ -270,9 +266,8 @@
               update-pattern {(form-pattern-name core-component "Update" (extract-entity-name child-name))
                               {:Data child-params
                                path-attr (str "path:/" child-path)}}
-              results (eval-patterns core-component update-pattern context)
-              child-with-parent-id (assoc (first results) parent-guid-attribute parent-guid-value)]
-          child-with-parent-id)))))
+              results (eval-patterns core-component update-pattern context)]
+          (assoc (first results) parent-guid-attribute parent-guid-value))))))
 
 (defn update-between-relationship-resolver
   [relationship-name entity1-name entity2-name]
@@ -296,9 +291,8 @@
                           (append-question-mark extracted-entity2-name) entity2-guid-value}
             relationship-params (dissoc args extracted-entity1-name extracted-entity2-name)
             update-pattern {relationship-name
-                            (merge query-params relationship-params)}
-            results (first (eval-patterns core-component update-pattern context))]
-        results))))
+                            (merge query-params relationship-params)}]
+        (first (eval-patterns core-component update-pattern context))))))
 
 
 (defn delete-entity-resolver
@@ -308,9 +302,8 @@
           core-component (first (get-app-components))
           schema (schema-info core-component)
           entity-guid (find-guid-or-id-attribute schema entity-name)
-          delete-pattern [[:delete entity-name {entity-guid (entity-guid args)}]]
-          results (eval-patterns core-component delete-pattern context)]
-      results)))
+          delete-pattern [[:delete entity-name {entity-guid (entity-guid args)}]]]
+      (eval-patterns core-component delete-pattern context))))
 
 (defn delete-contained-entity-resolver
   [relationship-name parent-name child-name]
@@ -397,9 +390,9 @@
                                                   (cond
                                                     contains
                                                     (let [[parent child] contains
-                                                          child-name (name (last (str/split (name child) #"\.")))]
+                                                          relation-name (name (last (str/split (name rel-key) #"\.")))]
                                                       (assoc acc
-                                                             (keyword (str "Mutation/" mutation-type child-name))
+                                                             (keyword (str "Mutation/" mutation-type relation-name))
                                                              ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-contained-entity-resolver"))) rel-key parent child)))
 
                                                     between
@@ -412,9 +405,19 @@
                                                 {} relationships))]
     (merge entity-mutation-resolvers relationship-mutation-resolvers))))
 
-(defn generate-resolver-map [schema]
-  (let [query-resolvers (generate-query-resolver-map schema)
-        create-mutation-resolvers (generate-mutation-resolvers schema "Create")
-        update-mutation-resolvers (generate-mutation-resolvers schema "Update")
-        delete-mutation-resolvers (generate-mutation-resolvers schema "Delete")]
+(defn remove-child-entities [schema contains-graph]
+  (let [children (set (mapcat val contains-graph))
+        filtered-entities (vec (filter
+                                (fn [entity-map]
+                                  (let [entity-key (keyword (name (first (keys entity-map))))]
+                                    (not (children entity-key))))
+                                (:entities schema)))]
+    (assoc schema :entities filtered-entities)))
+
+(defn generate-resolver-map [schema contains-graph]
+  (let [schema-without-children (remove-child-entities schema contains-graph)
+        query-resolvers (generate-query-resolver-map schema)
+        create-mutation-resolvers (generate-mutation-resolvers schema-without-children "Create")
+        update-mutation-resolvers (generate-mutation-resolvers schema-without-children "Update")
+        delete-mutation-resolvers (generate-mutation-resolvers schema-without-children "Delete")]
     (merge query-resolvers create-mutation-resolvers update-mutation-resolvers delete-mutation-resolvers)))

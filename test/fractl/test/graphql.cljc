@@ -45,7 +45,7 @@
   [component-name query]
   (let [schema (http/schema-info component-name)
         contains-graph-map (gg/generate-contains-graph schema)
-        [uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema)]
+        [uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema contains-graph-map)]
     (let [context {:auth-config nil :contains-graph contains-graph-map :entity-metas entity-metadatas}
           result (simplify (execute injected-graphql-schema query nil context))]
         (:data result))))
@@ -202,22 +202,6 @@
         child-document-name "Sample Document"
         parent-user-id "0e977860-5cd4-4bc3-8323-f4f71a66de6d"
         child-document-id "0e977860-5cd4-4bc3-8323-f4f71a66de6e"
-
-        create-child-document-mutation "mutation {
-                                          CreateDocument(input: {
-                                            UserId: \"0e977860-5cd4-4bc3-8323-f4f71a66de6d\",
-                                            Id: \"0e977860-5cd4-4bc3-8323-f4f71a66de6e\",
-                                            Name: \"Sample Document\",
-                                            Content: \"This is a sample document content.\",
-                                            Summary: \"Summary of the document.\"
-                                          }) {
-                                            UserId
-                                            Id
-                                            Name
-                                            Content
-                                            Summary
-                                          }
-                                        }"
 
         query-all-docs-for-user-pattern (str "query {
                                                 User(attributes: { Email: \"" parent-user-email "\" }) {
@@ -447,7 +431,7 @@
         child-document-id "1e977860-5cd4-4bc3-8323-f4f71a66de6e"
 
         create-child-document-mutation "mutation {
-                                          CreateDocument(input: {
+                                          CreateUserDocument(input: {
                                             UserId: \"1e977860-5cd4-4bc3-8323-f4f71a66de6d\",
                                             Id: \"1e977860-5cd4-4bc3-8323-f4f71a66de6e\",
                                             Name: \"1Sample Document\",
@@ -573,7 +557,7 @@
     ;; MUTATE AND QUERY CHILD
     (testing "Create Child Document Instance"
       (let [results (graphql-handler :WordCount.Core create-child-document-mutation)
-            result-data (:CreateDocument results)]
+            result-data (:CreateUserDocument results)]
         (is (= (assoc document-data :UserId (:Id user-data)) result-data))))
 
     (testing "Query All Documents for User"
@@ -660,7 +644,7 @@
                                       }"
 
         update-child-document-using-id-mutation "mutation {
-                                                  UpdateDocument(input: {
+                                                  UpdateUserDocument(input: {
                                                     UserId: \"2e977860-5cd4-4bc3-8323-f4f71a66d100\",
                                                     Name: \"2SampleDocument\",
                                                     Content: \"new2This is a sample document content.\",
@@ -675,7 +659,7 @@
                                                 }"
 
         update-child-document-using-guid-mutation "mutation {
-                                                    UpdateDocument(input: {
+                                                    UpdateUserDocument(input: {
                                                       UserId: \"2e977860-5cd4-4bc3-8323-f4f71a66d100\",
                                                       Content: \"guid2This is a sample document content.\",
                                                       Summary: \"guid2Summary of the document.\"
@@ -688,7 +672,7 @@
                                                   }"
 
         update-child-document-using-no-user-id-mutation "mutation {
-                                                          UpdateDocument(input: {
+                                                          UpdateUserDocument(input: {
                                                             Name: \"noid2SampleDocument\",
                                                             Content: \"noid2This is a sample document content.\",
                                                             Summary: \"noid2Summary of the document.\"
@@ -702,7 +686,7 @@
                                                         }"
 
         update-child-document-using-no-id-mutation "mutation {
-                                                    UpdateDocument(input: {
+                                                    UpdateUserDocument(input: {
                                                       UserId: \"2e977860-5cd4-4bc3-8323-f4f71a66d100\",\n
                                                       Content: \"noid2This is a sample document content.\",
                                                       Summary: \"noid2Summary of the document.\"
@@ -778,7 +762,7 @@
 
     (testing "Update Child Document of User using ID"
       (let [results (graphql-handler :WordCount.Core update-child-document-using-id-mutation)]
-        (is (= updated-document-data (dissoc (:UpdateDocument results) :UserId)))))
+        (is (= updated-document-data (dissoc (:UpdateUserDocument results) :UserId)))))
 
     (testing "Fail to Update Child Document of User When No User ID"
       (let [result (try
@@ -875,7 +859,7 @@
                             }"
 
         delete-child-document-using-id-mutation "mutation {
-                                                  DeleteDocument(input: {
+                                                  DeleteUserDocument(input: {
                                                     UserId: \"32977860-5cd4-4bc3-8323-f4f71a66de6d\",
                                                     Id: \"3e977860-5cd4-4bc3-8323-f4f71a66de6e\",
                                                   }) {
@@ -887,7 +871,7 @@
                                                 }"
 
         delete-child-document-using-several-attrs-mutation "mutation {
-                                                              DeleteDocument(input: {
+                                                              DeleteUserDocument(input: {
                                                                 UserId: \"32977860-5cd4-4bc3-8323-f4f71a66de6d\",
                                                                 Id: \"3e977860-5cd4-4bc3-8323-f4f71a66de6e\",
                                                                 Name: \"3Sample Document\",
@@ -903,7 +887,7 @@
                                                             }"
 
         delete-child-document-without-parent-id-mutation "mutation {
-                                                            DeleteDocument(input: {
+                                                            DeleteUserDocument(input: {
                                                               Id: \"3e977860-5cd4-4bc3-8323-f4f71a66de6e\",
                                                             }) {
                                                               Id
@@ -974,7 +958,7 @@
           (is (= (filter-event-attrs result) document-data)))))
 
     (testing "Delete Child by GUID"
-      (let [delete-results (first (:DeleteDocument (graphql-handler :WordCount.Core delete-child-document-using-id-mutation)))]
+      (let [delete-results (first (:DeleteUserDocument (graphql-handler :WordCount.Core delete-child-document-using-id-mutation)))]
         (is (= delete-results document-data))))
 
     (testing "Manually create instance of another child document"
@@ -993,7 +977,7 @@
 
     (testing "Delete Child by Several Attributes"
       ;; delete
-      (let [delete-results (first (:DeleteDocument (graphql-handler :WordCount.Core delete-child-document-using-several-attrs-mutation)))]
+      (let [delete-results (first (:DeleteUserDocument (graphql-handler :WordCount.Core delete-child-document-using-several-attrs-mutation)))]
         (is (= delete-results (assoc document-data :UserId (:Id parent-user-data))))))
 
     (testing "Fail to Delete Child When Parent GUID Missing"

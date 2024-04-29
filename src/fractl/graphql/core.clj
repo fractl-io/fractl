@@ -18,9 +18,9 @@
      (pprint/pprint schema-edn w))))
 
 (defn compile-graphql-schema
-  [schema-info]
+  [schema-info contains-graph]
   (let [[graphql-schema entity-metas] (gg/generate-graphql-schema schema-info)
-        graphql-resolver-map (gr/generate-resolver-map schema-info)
+        graphql-resolver-map (gr/generate-resolver-map schema-info contains-graph)
         compiled-schema (-> graphql-schema
                             (util/inject-resolvers graphql-resolver-map)
                             schema/compile)]
