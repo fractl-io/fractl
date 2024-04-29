@@ -56,7 +56,7 @@
     (vector? dep) (if (map? (first dep))
                     (dependency-model-name (first dep))
                     (first dep))
-    (map? dep) (get dep :name)))
+    (map? dep) dep))
 
 (defn dependency-model-version [dep]
   (when (vector? dep)
@@ -309,6 +309,7 @@
 
      (defn load-model [model callback]
        (cn/register-model (:name model) model)
-       (let [continuation (fn [_] (load-components-from-model model (partial callback :comp)))]
+       (let [continuation #(load-components-from-model model (partial callback :comp))]
+         (load-components-from-model model (partial callback :comp))
          (load-model-dependencies model (partial callback :deps continuation))))))
 
