@@ -49,13 +49,7 @@
                  [org.apache.kafka/kafka-clients "3.6.1"]
                  [com.walmartlabs/lacinia "1.2.2"]
                  [com.clickhouse/clickhouse-jdbc "0.6.0"]
-                 [org.apache.camel/camel-core "4.6.0-SNAPSHOT"]
-                 [org.apache.camel/camel-main "4.6.0-SNAPSHOT"]
-                 [org.apache.camel/camel-jackson "4.6.0-SNAPSHOT"]
-
-                 ;; camel-salesforce component dependencies
-                 [org.apache.camel/camel-salesforce "4.6.0-SNAPSHOT"]
-                 ;;
+                 [org.apache.camel/camel-core "4.5.0"]
 
                  [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]]
 

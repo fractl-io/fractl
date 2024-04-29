@@ -10,8 +10,7 @@
   (:import [org.apache.camel CamelContext ProducerTemplate Processor Exchange Message]
            [org.apache.camel.impl DefaultCamelContext]
            [org.apache.camel.builder RouteBuilder]
-           [org.apache.camel.support DefaultComponent]
-           [org.apache.camel.component.salesforce SalesforceComponent AuthenticationType]))
+           [org.apache.camel.support DefaultComponent]))
 
 (ln/component :Camel)
 (ln/record
@@ -19,47 +18,32 @@
  {:UserArg :String
   :Response {:type :Any :optional true}})
 
-(gen-class
- :name fractl.resolver.camel.MyBean
- :prefix "-"
- :main false
- ;; declare only new methods, not superclass methods
- :methods [[callback [Object] void]])
+(def ^:private component-register (atom {}))
 
-(defn -callback [_ obj]
-  (println "Change event:" obj))
+(defn register-component [s f]
+  (swap! component-register assoc (keyword s) f)
+  s)
 
 (defn- endpoint [event-name]
   (get-in (cn/fetch-meta event-name) [:trigger :endpoint]))
 
-(defn- ^CamelContext context-for-endpoint [config endpoint]
-  (if (s/starts-with? endpoint "salesforce")
-    (let [^SalesforceComponent sfc (SalesforceComponent.)
-          config (or (:salesforce config) config)
-          inst-url (or (:instance-url config)
-                       (u/getenv "SFDC_INSTANCE_URL"))]
-      (.setClientId sfc (or (:client-id config)
-                            (u/getenv "SFDC_CLIENT_ID")))
-      (.setClientSecret sfc (or (:client-secret config)
-                                (u/getenv "SFDC_CLIENT_SECRET")))
-      (.setAuthenticationType sfc (AuthenticationType/valueOf "CLIENT_CREDENTIALS"))
-      (.setInstanceUrl sfc inst-url)
-      (.setLoginUrl sfc inst-url)
-      (let [^CamelContext ctx (DefaultCamelContext.)]
-        (.addComponent ctx "salesforce" sfc)
-        ctx))
-    (u/throw-ex (str "component not supported for endpoint - " endpoint))))
+(defn- context-for-endpoint [config endpoint]
+  (let [n (first (s/split endpoint #":"))]
+    (if-let [f (get @component-register (keyword n))]
+      (let [r (f config endpoint)
+            ^Component c (:component r)
+            ^CamelContext ctx (DefaultCamelContext.)]
+        (.addComponent ctx n c)
+        [ctx r])
+      (u/throw-ex (str "component not supported for endpoint - " endpoint)))))
 
 (defn camel-eval [config event-instance]
   (let [ep (endpoint (cn/instance-type event-instance))
         user-arg (:UserArg event-instance)
         has-arg (seq user-arg)
-        ^CamelContext ctx (context-for-endpoint config ep)
+        [^CamelContext ctx component-info] (context-for-endpoint config ep)
         ^RouteBuilder rb (proxy [RouteBuilder] []
                            (configure []
-                             #_(-> this
-                                 (.from "salesforce:subscribe:/data/ChangeEvents?rawPayload=true")
-	                         (.bean (fractl.resolver.camel.MyBean.), "callback"))
                              (let [p (if has-arg
                                        (-> this
                                            (.from "direct:send")
@@ -77,7 +61,8 @@
     (when has-arg
       (let [^ProducerTemplate t (.createProducerTemplate ctx)]
         (.requestBody t "direct:send" user-arg String)))
-    ;;(.stop ctx)
+    (when-not (:service component-info)
+      (.stop ctx))
     event-instance))
 
 (defn- camel-on-set-path [_ [tag path]]
