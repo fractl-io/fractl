@@ -1,5 +1,7 @@
 (ns fractl.example.camel
-  (:require [fractl.core :as fractl]
+  (:require [clojure.string :as s]
+            [fractl.core :as fractl]
+            [fractl.util :as u]
             [fractl.resolver.camel :as camel])
   (:import [org.apache.camel Component]
            [org.apache.camel.component.salesforce SalesforceComponent AuthenticationType]))
