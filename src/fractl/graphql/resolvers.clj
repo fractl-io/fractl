@@ -325,21 +325,19 @@
                                                         parent-guid-value}}]] :as :Cs}
             delete-children-pattern [:for-each :Cs
                                        [:delete child-name {child-guid (keyword (str "%." (name child-guid)))}]]
-            results (flatten (eval-patterns core-component [query-children-pattern delete-children-pattern] context))
-            results-with-parent-id (if (and (seq results) (map? (first results))) ;; map isn't returned when no records are deleted
-                                      ;; we received guid of parent, thus returning
-                                      (vec (map #(assoc % parent-guid-attribute parent-guid-value) results))
-                                      {})]
-        results-with-parent-id))))
+            results (flatten (eval-patterns core-component [query-children-pattern delete-children-pattern] context))]
+        (if (and (seq results) (map? (first results))) ;; map isn't returned when no records are deleted
+          ;; we received guid of parent, thus returning
+          (vec (map #(assoc % parent-guid-attribute parent-guid-value) results))
+          {})))))
 
 (defn delete-between-relationship-resolver
   [relationship-name entity1-name entity2-name]
   (fn [context args value]
     (let [args (:input args)
           core-component (first (get-app-components))
-          create-pattern [[:delete relationship-name args]]
-          results (eval-patterns core-component create-pattern context)]
-      results)))
+          create-pattern [[:delete relationship-name args]]]
+      (eval-patterns core-component create-pattern context))))
 
 (defn generate-query-resolver-map [schema]
   (let [entities (mapv (fn [entity] (key (first entity))) (:entities schema))
