@@ -8,16 +8,28 @@
 (def ^:private path-split-pat (re-pattern (Pattern/quote u/path-sep)))
 (def ^:private model-resource-root "app")
 
+(defn get-dependencies [m]
+  (let [dep-map (first (:dependencies m))]
+    (when (:type dep-map)
+      (cond
+        (= :lein (:type dep-map))
+        (let [source-map (:source dep-map)]
+          (when (= :clojars (:type source-map))
+            [(symbol (str (:org source-map) "/" (:package source-map))) (:version dep-map)]))))))
+
 (defn- project-spec [project-name model]
   `(~(symbol "defproject")
-    ~(symbol project-name)
-    ~(or (:version model)
-         "0.1-SNAPSHOT")
+     ~(symbol project-name)
+     ~(or (:version model)
+          "0.1-SNAPSHOT")
 
-    :main ~(symbol "fractl.core")
+     :main ~(symbol "fractl.core")
 
-    :repositories [["public-github" {:url "git://github.com"}]
-                   ["private-github" {:url "git://github.com" :protocol :ssh}]]))
+     :repositories [["public-github" {:url "git://github.com"}]
+                    ["private-github" {:url "git://github.com" :protocol :ssh}]]
+
+     ~@(when-let [deps (get-dependencies model)]
+         [:dependencies deps])))
 
 (defn- fetch-app-config [model-root-dir launch-config]
   (let [^File file (File. (str model-root-dir u/path-sep "config.edn"))]
