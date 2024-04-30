@@ -465,9 +465,11 @@
   (build-contains-relationship-graph (:relationships (normalize-schema schema-info))))
 
 (defn update-child-mutations [mutations relationships mutation-type]
-  "Remove child mutations because children are mutated in the context of parent - via relationship mutations.
-  Simplify relationship mutation to use attributes of child mutation (includes parent guid/id), instead of jhaving all
-  parent attributes as well."
+  "Firstly, this function removes child mutations because children are mutated in the context of parents - via relationship 
+  mutations. For example, if a document is contained by a user and a category, :Mutation/CreateDocument won't work. 
+  Instead, we should identify document via relationship name, such as: :Mutation/CreateUserDocument where UserDocument is
+  the name of contains relationship. Secondly, simplify relationship mutation to use attributes of child mutation 
+  (which includes parent guid/id), instead of having all attributes of parent as well."
   ;; collect and apply removal
   (let [mutations-map (:fields (:Mutation mutations))
         update-info (reduce (fn [acc relationship]
