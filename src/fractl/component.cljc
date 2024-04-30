@@ -2,17 +2,17 @@
   "Components of a model."
   (:require [clojure.set :as set]
             [clojure.string :as s]
-            [fractl.meta :as mt]
-            [fractl.util :as u]
-            [fractl.util.hash :as sh]
-            [fractl.util.seq :as su]
-            [fractl.util.logger :as log]
-            [fractl.lang.raw :as raw]
-            [fractl.lang.internal :as li]
-            [fractl.lang.datetime :as dt]
-            [fractl.paths.internal :as pi]
             [fractl.compiler.context :as ctx]
-            [fractl.util.errors :refer [raise-error throw-ex-info make-error]]))
+            [fractl.lang.datetime :as dt]
+            [fractl.lang.internal :as li]
+            [fractl.lang.raw :as raw]
+            [fractl.meta :as mt]
+            [fractl.paths.internal :as pi]
+            [fractl.util :as u]
+            [fractl.util.errors :refer [make-error raise-error throw-ex-info]]
+            [fractl.util.hash :as sh]
+            [fractl.util.logger :as log]
+            [fractl.util.seq :as su]))
 
 (def additional-internal-component-names
   #{:Fractl.Kernel.Store
