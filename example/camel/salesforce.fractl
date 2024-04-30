@@ -1,0 +1,14 @@
+(component :Salesforce)
+
+(require '[fractl.resolver.registry :as r])
+(use '[fractl.example.camel.sfdc-resolver])
+
+(entity
+ :Account
+ {:Name :String
+  :Id {:type :String :optional true}})
+
+(r/register-resolver
+ {:type :camel-salesforce
+  :name :csf01
+  :paths [:Salesforce/Account]})

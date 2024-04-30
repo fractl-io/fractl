@@ -3,6 +3,5 @@
                  [org.apache.camel/camel-main "4.6.0-SNAPSHOT"]
                  [org.apache.camel/camel-jackson "4.6.0-SNAPSHOT"]
                  [org.apache.camel/camel-salesforce "4.6.0-SNAPSHOT"]]
-
-  :main fractl.example.camel
+  :main fractl.example.camel.core
   :aot :all)
