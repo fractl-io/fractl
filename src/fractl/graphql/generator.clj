@@ -465,7 +465,7 @@
   (build-contains-relationship-graph (:relationships (normalize-schema schema-info))))
 
 (defn update-child-mutations [mutations relationships mutation-type]
-  "Remove child mutations because children mutated in the context of parent - via relationship mutations.
+  "Remove child mutations because children are mutated in the context of parent - via relationship mutations.
   Simplify relationship mutation to use attributes of child mutation (includes parent guid/id), instead of jhaving all
   parent attributes as well."
   ;; collect and apply removal
