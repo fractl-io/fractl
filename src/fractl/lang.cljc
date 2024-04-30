@@ -1079,14 +1079,15 @@
       (u/throw-ex (str "User-defined identity attribute required for " entity-name)))
     ident))
 
-(defn- regen-contains-child-attributes [child meta]
-  (when-not (cn/path-identity-attribute-name child)
+(defn- regen-contains-child-attributes [child parent meta]
+  (if-not (cn/path-identity-attribute-name child)
     (let [cident (user-defined-identity-attribute-name child)
           child-attrs (preproc-attrs (raw/record-attributes-include-inherits child))
           cident-raw-spec (cident child-attrs)
           cident-spec (if (map? cident-raw-spec)
                         cident-raw-spec
-                        (cn/find-attribute-schema cident-raw-spec))]
+                        (cn/find-attribute-schema cident-raw-spec))
+          [c _] (li/split-path child)]
       (when-let [a (some li/reserved-attrs (map #(keyword (s/upper-case (name %))) (keys child-attrs)))]
         (u/throw-ex (str child "." a " - attribute name is reserved")))
       (assoc
@@ -1100,12 +1101,18 @@
                 :indexed true}
                (when-not cident-spec ;; __Id__
                  {:default u/uuid-string}))
-       li/path-attr pi/path-attr-spec))))
+       li/path-attr pi/path-attr-spec
+       li/parent-attr {:type (or (cn/parent-identity-attribute-type parent) :Any)
+                       :expr `'(fractl.paths/parent-id-from-path ~(name c) ~li/path-attr)}))
+    (let [parents (conj (mapv last (cn/containing-parents child)) parent)
+          id-types (mapv cn/parent-identity-attribute-type parents)]
+      (when-not (apply = id-types)
+        (u/throw-ex (str "conficting parent id-types - " (mapv vector parents id-types)))))))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
 
-(defn- contains-relationship [relname attrs relmeta [_ child :as elems]]
+(defn- contains-relationship [relname attrs relmeta [parent child :as elems]]
   (when (seq (keys (cleanup-rel-attrs attrs)))
     (u/throw-ex (str "attributes not allowed for a contains relationship - " relname)))
   (let [raw-attrs attrs
@@ -1113,7 +1120,7 @@
         attrs (assoc attrs :meta
                      (assoc meta cn/relmeta-key
                             relmeta :relationship :contains))
-        child-attrs (regen-contains-child-attributes child meta)]
+        child-attrs (regen-contains-child-attributes child parent meta)]
     (if-let [r (record relname raw-attrs)]
       (if (or (not child-attrs) (entity child child-attrs false))
         (if (cn/register-relationship elems relname)

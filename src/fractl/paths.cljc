@@ -14,6 +14,11 @@
         nc (partial pi/name-from-path-component component-name)]
     [(nc (first ps)) (second ps) (nc (last ps)) at-root]))
 
+(defn parent-id-from-path [component path]
+  (let [c (if (keyword? component) component (keyword component))
+        parts (pi/parse-any-path component path)]
+    (pi/find-parent-id parts)))
+
 (defn lookup-ref-inst
   ([cast-val env recname id-attr id-val]
    (try

@@ -286,12 +286,12 @@
      {:meta {:contains [:Voc/Family
                         :Voc/FamilyMember]
              :cascade-on-delete true}})
-    (dataflow
-     :Voc/JoinMembers
-     {:Voc/FamilyMember? {}
-      :join [{:Voc/Family {:Id? :Voc/JoinMembers.FamilyId}}]
-      :with-attributes {:FamilyName :Voc/Family.FamilyName
-                        :Name :Voc/FamilyMember.Name}}))
+    (view
+     :Voc/MembersView
+     {:query {:Voc/FamilyMember? {}
+              :join [{:Voc/Family {:Id? :Voc/FamilyMember.__parent__}}]}
+      :FamilyName :Voc/Family.FamilyName
+      :Name :Voc/FamilyMember.Name}))
   (let [mkfm #(tu/first-result
                {:Voc/Create_Family
                 {:Instance
@@ -303,7 +303,7 @@
                 (tu/first-result
                  {:Voc/Create_FamilyMember
                   {:Instance {:Voc/FamilyMember {:Name n}}
-                   li/path-attr (str "/Family/" fid "/Members")}}))
+                   li/path-attr (str "/Family/" fid "/Members/")}}))
         fm? (partial cn/instance-of? :Voc/FamilyMember)
         f1id (:Id f1)
         f2id (:Id f2)
@@ -312,4 +312,14 @@
         fm3 (mkfmm f1id "c")]
     (is (every? f? [f1 f2]))
     (is (every? fm? [fm1 fm2 fm3]))
-    (is (seq (tu/result {:Voc/JoinMembers {:FamilyId f1id}})))))
+    (let [rs (tu/result {:Voc/LookupAll_MembersView {}})]
+      (is (every? (partial cn/instance-of? :Voc/MembersView) rs))
+      (is (= 3 (count rs)))
+      (let [r (filter #(= "two" (:FamilyName %)) rs)]
+        (is (= 1 (count r)))
+        (is (= "b" (:Name (first r)))))
+      (let [r (filter #(= "one" (:FamilyName %)) rs)]
+        (is (= 2 (count r)))
+        (is (every? #(let [n (:Name %)]
+                       (or (= n "a") (= n "c")))
+                    r))))))

@@ -1642,6 +1642,11 @@
 (def contained-children (partial contain-rels false))
 (def containing-parents (partial contain-rels true))
 
+(defn parent-identity-attribute-type [parent-recname]
+  (when-let [a (or (path-identity-attribute-name parent-recname)
+                   (identity-attribute-name parent-recname))]
+    (attribute-type parent-recname a)))
+
 (defn parent-of? [child parent]
   (let [child (li/make-path child)
         parent (li/make-path parent)]
