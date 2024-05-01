@@ -50,7 +50,7 @@
                  [com.walmartlabs/lacinia "1.2.2"]
                  [com.clickhouse/clickhouse-jdbc "0.6.0"]
                  [org.apache.camel/camel-core "4.5.0"]
-                 [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]]
+                 [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]
                  [camel-snake-kebab "0.4.3"]]
 
   :license {:name "Apache2"}

@@ -6,11 +6,8 @@
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             [fractl.lang.internal :as li]
-            [fractl.evaluator :as ev])
-  (:import [org.apache.camel CamelContext ProducerTemplate Processor Exchange Message]
-           [org.apache.camel.impl DefaultCamelContext]
-           [org.apache.camel.builder RouteBuilder]
-           [org.apache.camel.support DefaultComponent]))
+            [fractl.evaluator :as ev]
+            [fractl.evaluator.camel :as camel]))
 
 (ln/component :Camel)
 (ln/record
@@ -27,42 +24,21 @@
 (defn- endpoint [event-name]
   (get-in (cn/fetch-meta event-name) [:trigger :endpoint]))
 
-(defn- context-for-endpoint [config endpoint]
+(defn- fetch-component [config endpoint]
   (let [n (first (s/split endpoint #":"))]
     (if-let [f (get @component-register (keyword n))]
-      (let [r (f config endpoint)
-            ^Component c (:component r)
-            ^CamelContext ctx (DefaultCamelContext.)]
-        (.addComponent ctx n c)
-        [ctx r])
+      (let [r (f config endpoint)]
+        (:component r))
       (u/throw-ex (str "component not supported for endpoint - " endpoint)))))
 
 (defn camel-eval [config event-instance]
-  (let [ep (endpoint (cn/instance-type event-instance))
-        user-arg (:UserArg event-instance)
-        has-arg (seq user-arg)
-        [^CamelContext ctx component-info] (context-for-endpoint config ep)
-        ^RouteBuilder rb (proxy [RouteBuilder] []
-                           (configure []
-                             (let [p (if has-arg
-                                       (-> this
-                                           (.from "direct:send")
-                                           (.to ep))
-                                       (-> this (.from ep)))]
-                               (-> p
-                                   (.convertBodyTo String)
-                                   (.process (reify Processor
-                                               (^void process [_ ^Exchange exchange]
-                                                (let [^Message msg (.getIn exchange)
-                                                      body (.getBody msg)]
-                                                  (ev/eval-all-dataflows (assoc event-instance :Response body))))))))))]
-    (.addRoutes ctx rb)
-    (.start ctx)
-    (when has-arg
-      (let [^ProducerTemplate t (.createProducerTemplate ctx)]
-        (.requestBody t "direct:send" user-arg String)))
-    (when-not (:service component-info)
-      (.stop ctx))
+  (let [ep (endpoint (cn/instance-type event-instance))]
+    (camel/exec-route
+     {:endpoint ep
+      :user-arg (:UserArg event-instance)
+      :camel-component (fetch-component config ep)
+      :callback #(ev/eval-all-dataflows (assoc event-instance :Response %))}
+     false)
     event-instance))
 
 (defn- camel-on-set-path [_ [tag path]]
