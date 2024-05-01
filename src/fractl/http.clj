@@ -310,20 +310,20 @@
                   request-message (get map-obj :message)
                   result-tuning (get map-obj :result-tuning)
                   generation (gpt/non-interactive-generate
-                              (if (nil? type-obj)
-                                "model"
-                                type-obj)
-                              gpt-model
-                              open-ai-key
-                              (fn [choice history]
-                                (if choice
-                                  (reset!
-                                   resp
-                                   {:choice       choice
-                                    :chat-history history})
-                                  (u/throw-ex "AI failed to service your request, please try again")))
-                              request-message
-                              result-tuning)]
+                               (if (nil? type-obj)
+                                 "model"
+                                 type-obj)
+                               gpt-model
+                               open-ai-key
+                               (fn [choice history]
+                                 (if choice
+                                   (reset!
+                                     resp
+                                     {:choice       choice
+                                      :chat-history history})
+                                   (u/throw-ex "AI failed to service your request, please try again")))
+                               request-message
+                               result-tuning)]
               (reset! resp generation)
               (ok @resp))))))
 
@@ -1076,7 +1076,7 @@
     x
     [x]))
 
-(defn eval-patterns [fractl-components fractl-patterns]
+(defn eval-patterns [fractl-components fractl-patterns] 
   (println fractl-components fractl-patterns)
   (try
     (let [event (-> (first fractl-components)
@@ -1140,14 +1140,14 @@
   [[auth-config maybe-unauth] request]
   (if (not (empty? @graphql-schema))
     (or (maybe-unauth request)
-        (let [body-as-string (slurp (:body request))
-              body (json/decode body-as-string)
-              query (:query body)
-              variables (:variables body)
-              operation-name (:operationName body)
-              context {:request request :auth-config auth-config :contains-graph @contains-graph :entity-metas @graphql-entity-metas}
-              result (execute @graphql-schema query variables context operation-name)]
-          (response result 200 :json)))
+          (let [body-as-string (slurp (:body request))
+          body (json/decode body-as-string)
+          query (:query body)
+          variables (:variables body)
+          operation-name (:operationName body)
+          context {:request request :auth-config auth-config :contains-graph @contains-graph :entity-metas @graphql-entity-metas}
+          result (execute @graphql-schema query variables context operation-name)]
+      (response result 200 :json)))
     (response {:error "GraphQL schema compilation failed"} 500 :json)))
 
 (defn- make-routes [config auth-config handlers]
@@ -1230,7 +1230,7 @@
          schema (schema-info main-component-name)
          contains-graph-map (gg/generate-contains-graph schema)
          [auth _ :as auth-info] (make-auth-handler config)]
-     (try
+      (try
        ; attempt to compile the GraphQL schema
        (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema)]
          ; save schema to global variable and file
