@@ -11,7 +11,7 @@
   (:import [org.apache.camel Component]
            [org.apache.camel.component.salesforce SalesforceComponent AuthenticationType]))
 
-(defn- ^Component make-component [config]
+(defn ^Component make-component [config]
   (let [^SalesforceComponent sfc (SalesforceComponent.)
         config (or (:salesforce config) config)
         inst-url (or (:instance-url config)

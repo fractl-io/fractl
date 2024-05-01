@@ -27,8 +27,7 @@
 (defn- fetch-component [config endpoint]
   (let [n (first (s/split endpoint #":"))]
     (if-let [f (get @component-register (keyword n))]
-      (let [r (f config endpoint)]
-        (:component r))
+      (f config)
       (u/throw-ex (str "component not supported for endpoint - " endpoint)))))
 
 (defn camel-eval [config event-instance]

@@ -45,7 +45,7 @@
      (when has-arg
        (let [^ProducerTemplate t (.createProducerTemplate ctx)]
          (.requestBody t "direct:send" user-arg String)))
-     (when-not (:is-service request)
+     (when-not (or (:is-service request) (:callback request))
        (.stop ctx))
      (when is-blocking
        (async/<!! chan))))
