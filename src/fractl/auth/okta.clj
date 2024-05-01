@@ -296,10 +296,11 @@
     (let [sid (auth/cookie-to-session-id auth-config cookie)
           session-data (sess/lookup-session-cookie-user-data sid)
           result (auth/verify-token auth-config [sid session-data])
-          user (:sub result)]
-      {:email user
+          user (:sub result)
+          username (or (:username result) user)]
+      {:email username
        :sub user
-       :username (or (:username result) user)})
+       :username username})
     (let [user (get-in req [:identity :sub])]
       {:email user
        :sub user
