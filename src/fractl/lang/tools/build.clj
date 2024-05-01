@@ -1,19 +1,20 @@
 (ns fractl.lang.tools.build
   "Compile a fractl-model to a Java binary package"
-  (:require [clojure.string :as s]
-            [clojure.pprint :as pprint]
+  (:require [camel-snake-kebab.core :as csk]
             [clojure.java.io :as io]
+            [clojure.pprint :as pprint]
+            [clojure.string :as s]
             [clojure.walk :as w]
             [fractl.global-state :as gs]
-            [fractl.util :as u]
-            [fractl.util.seq :as su]
-            [fractl.util.logger :as log]
             [fractl.lang.tools.build.client :as cl]
+            [fractl.lang.tools.loader :as loader]
             [fractl.lang.tools.util :as tu]
-            [fractl.lang.tools.loader :as loader])
-  (:import [java.io File]
-           [org.apache.commons.io FileUtils]
-           [org.apache.commons.io.filefilter IOFileFilter WildcardFileFilter]))
+            [fractl.util :as u]
+            [fractl.util.logger :as log]
+            [fractl.util.seq :as su])
+  (:import (java.io File)
+           (org.apache.commons.io FileUtils)
+           (org.apache.commons.io.filefilter IOFileFilter WildcardFileFilter)))
 
 (def out-dir "out")
 (def ^:private out-file (File. out-dir))
@@ -123,15 +124,15 @@
     (su/nonils
      (mapv #(if (keyword? %)
               %
-              (let [[n v] (s/split (second %) #" ")
-                    [a b] (s/split n #"/")
-                    b (first (s/split b #":"))]
-                [(symbol (or b a)) (or v "0.0.1")]))
+              (when (map? %)
+                (let [model-name (get % :name)
+                      pkg-name (csk/->snake_case_string model-name)
+                      version (get % :version)]
+                  [(symbol pkg-name) (or version "0.0.1")])))
            deps))))
 
 (defn- update-project-spec [model project-spec]
-  (let [deps0 (:clj-dependencies model)
-        deps (vec (concat deps0 (fractl-deps-as-clj-deps (:dependencies model))))
+  (let [deps (vec (fractl-deps-as-clj-deps (:dependencies model)))
         ver (model-version model)]
     (loop [spec project-spec, final-spec []]
       (if-let [s (first spec)]
@@ -224,7 +225,8 @@
     (let [component-name (second component-decl)
           component-spec (when (> (count component-decl) 2)
                            (nth component-decl 2))
-          cns-name (symbol (s/lower-case (name component-name)))
+          cns-name (symbol
+                     (str model-name "." (s/lower-case (last (s/split (name component-name) #"\.")))))
           s-model-name (sanitize model-name)
           ns-name (symbol (str s-model-name ".model." cns-name))
           use-models (model-refs-to-use s-model-name (:refer component-spec))
@@ -247,7 +249,7 @@
   (let [root-ns-name (symbol (str (sanitize model-name) ".model"))
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c)) :as (symbol (name c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:require ~@req-comp))
-        model (dissoc model :clj-dependencies :repositories)]
+        model (dissoc model :repositories)]
     (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
            [ns-decl (if (map? model) `(fractl.lang/model ~model) model)
             `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))]
@@ -285,7 +287,9 @@
       (log/error (str "failed to create clj project for " model-name)))))
 
 (defn- normalize-deps-spec [deps]
-  (map #(if (keyword? %) [%] %) deps))
+  (map (fn [elem]
+         (mapv (fn [[k v]]
+                 {k v}) elem)) deps))
 
 (declare load-model install-model)
 
@@ -297,12 +301,21 @@
 
 (def ^:dynamic load-model-mode false)
 
+(defn- get-proper-model-name [model-name spec]
+  (if spec
+    (let [repo-name (get-in spec [:source :repo])]
+      (if repo-name
+        repo-name
+        (csk/->snake_case_string model-name)))
+    (csk/->snake_case_string model-name)))
+
 (defn- install-local-dependencies! [model-paths deps]
-  (doseq [[model-name spec :as d] (normalize-deps-spec deps)]
-    (when spec (tu/maybe-clone-model spec model-paths))
+  (doseq [[model-name type version spec :as d] (normalize-deps-spec deps)]
+    (when (= :fractl-model (get type :type))
+      (when spec (tu/maybe-clone-model spec model-paths)))
     (if load-model-mode
       (load-model model-name)
-      (when-not (install-model model-paths (s/lower-case (name model-name)))
+      (when-not (install-model model-paths (get-proper-model-name model-name spec))
         (u/throw-ex (str "failed to install dependency " d))))))
 
 (defn- clj-project-path [model-paths model-name]
@@ -325,6 +338,9 @@
          (when (.exists f)
            model-path))))))
 
+(defn- check-local-dependency? [deps]
+  (boolean (some #(= (:type %) :fractl-model) deps)))
+
 (defn build-model
   ([build-load-fn model-paths model-name model-info]
    (let [{model-paths :paths model :model model-root :root model-name :name}
@@ -339,8 +355,10 @@
          (FileUtils/copyDirectory f (File. (project-dir model-name)))
          [model-name path])
        (let [components (loader/read-components-from-model model model-root)
-             projdir (File. (project-dir model-name))]
-         (install-local-dependencies! model-paths (:dependencies model))
+             projdir (File. (project-dir model-name))
+             model-dependencies (:dependencies model)]
+         (when (check-local-dependency? model-dependencies)
+           (install-local-dependencies! model-paths model-dependencies))
          (if (.exists projdir)
            (FileUtils/deleteDirectory projdir)
            (when-not (.exists out-file)

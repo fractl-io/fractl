@@ -1,6 +1,7 @@
 (ns fractl.lang.tools.loader
   "Component script loading with pre-processing."
-  (:require #?(:clj [clojure.java.io :as io])
+  (:require #?(:clj [camel-snake-kebab.core :as csk])
+            #?(:clj [clojure.java.io :as io])
             [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.util :as u]
@@ -52,7 +53,12 @@
 (defn dependency-model-name [dep]
   (cond
     (keyword? dep) dep
-    (vector? dep) (first dep)))
+    (vector? dep) (if (> (count dep) 1)
+                    dep
+                    (if (map? (first dep))
+                      (dependency-model-name (first dep))
+                      (first dep)))
+    (map? dep) dep))
 
 (defn dependency-model-version [dep]
   (when (vector? dep)
@@ -63,7 +69,8 @@
 
 (defn load-all-model-info [model-paths model-name model-info]
   (let [model-paths (or model-paths (tu/get-system-model-paths))
-        [model model-root] (or model-info (read-model model-paths model-name))
+        proper-model-name (if (map? model-name) (get model-name :name) model-name)
+        [model model-root] (or model-info (read-model model-paths proper-model-name))
         model-name (or model-name (:name model))]
     (when-not model-name
       (u/throw-ex "model-name is required"))
@@ -189,7 +196,7 @@
             (read-model p)
             (let [s (if (keyword? model-name)
                       (s/lower-case (name model-name))
-                      model-name)]
+                      (csk/->snake_case_string model-name))]
               (loop [mps model-paths]
                 (if-let [mp (first mps)]
                   (if-let [p (fpath mp s)]
@@ -304,6 +311,7 @@
 
      (defn load-model [model callback]
        (cn/register-model (:name model) model)
-       (let [continuation (fn [_] (load-components-from-model model (partial callback :comp)))]
+       (let [continuation (fn [_]
+                            (load-components-from-model model (partial callback :comp)))]
          (load-model-dependencies model (partial callback :deps continuation))))))
 
