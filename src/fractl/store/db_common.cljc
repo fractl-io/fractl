@@ -158,7 +158,7 @@
 (defn- create-relational-view [connection view-name view-query]
   (let [q (compile-query view-query)
         select (if (string? q) q (:query q))
-        sql (str "CREATE VIEW " view-name " AS " (if (string? select) select (first select)))]
+        sql (str "CREATE OR REPLACE VIEW " view-name " AS " (if (string? select) select (first select)))]
     (when-not (execute-sql! connection [sql])
       (u/throw-ex (str "Failed to create view - " sql)))
     view-name))
