@@ -65,33 +65,38 @@
   (and (string? x)
        (re-matches email-pattern x)))
 
+(def numeric-types
+  [:Fractl.Kernel.Lang/Int
+   :Fractl.Kernel.Lang/Int64
+   :Fractl.Kernel.Lang/BigInteger
+   :Fractl.Kernel.Lang/Float
+   :Fractl.Kernel.Lang/Double
+   :Fractl.Kernel.Lang/Decimal])
+
 ;; TODO: load types from the kernel model by calling
 ;; appropriate component namespace (cn) functions
-(def type-names [:Fractl.Kernel.Lang/String
-                 :Fractl.Kernel.Lang/Keyword
-                 :Fractl.Kernel.Lang/Path
-                 :Fractl.Kernel.Lang/DateTime
-                 :Fractl.Kernel.Lang/Date
-                 :Fractl.Kernel.Lang/Time
-                 :Fractl.Kernel.Lang/UUID
-                 :Fractl.Kernel.Lang/Int
-                 :Fractl.Kernel.Lang/Int64
-                 :Fractl.Kernel.Lang/BigInteger
-                 :Fractl.Kernel.Lang/Float
-                 :Fractl.Kernel.Lang/Double
-                 :Fractl.Kernel.Lang/Decimal
-                 :Fractl.Kernel.Lang/Boolean
-                 :Fractl.Kernel.Lang/Record
-                 :Fractl.Kernel.Lang/Entity
-                 :Fractl.Kernel.Lang/Event
-                 :Fractl.Kernel.Lang/Any
-                 :Fractl.Kernel.Lang/Email
-                 :Fractl.Kernel.Lang/Password
-                 :Fractl.Kernel.Lang/Map
-                 :Fractl.Kernel.Lang/Edn
-                 :Fractl.Kernel.Lang/EventContext
-                 :Fractl.Kernel.Lang/Identity
-                 :Fractl.Kernel.Lang/Now])
+(def type-names
+  (concat
+   numeric-types
+   [:Fractl.Kernel.Lang/String
+    :Fractl.Kernel.Lang/Keyword
+    :Fractl.Kernel.Lang/Path
+    :Fractl.Kernel.Lang/DateTime
+    :Fractl.Kernel.Lang/Date
+    :Fractl.Kernel.Lang/Time
+    :Fractl.Kernel.Lang/UUID
+    :Fractl.Kernel.Lang/Boolean
+    :Fractl.Kernel.Lang/Record
+    :Fractl.Kernel.Lang/Entity
+    :Fractl.Kernel.Lang/Event
+    :Fractl.Kernel.Lang/Any
+    :Fractl.Kernel.Lang/Email
+    :Fractl.Kernel.Lang/Password
+    :Fractl.Kernel.Lang/Map
+    :Fractl.Kernel.Lang/Edn
+    :Fractl.Kernel.Lang/EventContext
+    :Fractl.Kernel.Lang/Identity
+    :Fractl.Kernel.Lang/Now]))
 
 (def ^:private plain-types
   (into {} (mapv (fn [t] [(second (li/split-path t)) t]) type-names)))
@@ -104,6 +109,13 @@
 
 (defn normalize-kernel-type [t]
   (or (t plain-types) t))
+
+(defn numeric-type? [t]
+  (if t
+    (if (some #{t} numeric-types)
+      true
+      false)
+    false))
 
 (defn find-root-attribute-type [n]
   (if (kernel-type? n)
