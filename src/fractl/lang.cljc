@@ -1083,9 +1083,11 @@
   (let [child-attrs (preproc-attrs (raw/record-attributes-include-inherits child))
         raw-meta (raw/entity-meta child)
         [c _] (li/split-path child)
-        parent-attr-spec {:type (or (cn/parent-identity-attribute-type parent) :Any)
+        pidtype (cn/parent-identity-attribute-type parent)
+        parent-attr-spec {:type (or pidtype :Any)
                           :optional true
-                          :expr `'(fractl.paths/parent-id-from-path ~(name c) ~li/path-attr)}]
+                          :expr `'(fractl.paths/parent-id-from-path
+                                   ~(name c) ~li/path-attr ~(k/numeric-type? pidtype))}]
     (if-not (cn/path-identity-attribute-name child)
       (let [cident (user-defined-identity-attribute-name child)
             cident-raw-spec (cident child-attrs)
@@ -1111,8 +1113,9 @@
       (let [parents (conj (mapv last (cn/containing-parents child)) parent)
             id-types (mapv cn/parent-identity-attribute-type parents)]
         (when-not (apply = id-types)
-          (u/throw-ex (str "conficting parent id-types - " (mapv vector parents id-types))))
-        (assoc child-attrs :meta raw-meta li/path-attr pi/path-attr-spec li/parent-attr parent-attr-spec)))))
+          (u/throw-ex (str "conflicting parent id-types - " (mapv vector parents id-types))))
+        (when (some (fn [[_ v]] (and (map? v) (:id v))) child-attrs)
+          (assoc child-attrs :meta raw-meta li/path-attr pi/path-attr-spec li/parent-attr parent-attr-spec))))))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))

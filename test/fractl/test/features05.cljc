@@ -289,7 +289,7 @@
     (view
      :Voc/MembersView
      {:query {:Voc/FamilyMember? {}
-              :join [{:Voc/Family {:Id? :Voc/FamilyMember.__parent__}}]}
+              :join [{:Voc/Family {:Id? (li/make-ref :Voc/FamilyMember li/parent-attr)}}]}
       :FamilyName :Voc/Family.FamilyName
       :Name :Voc/FamilyMember.Name}))
   (let [mkfm #(tu/first-result
@@ -323,3 +323,30 @@
         (is (every? #(let [n (:Name %)]
                        (or (= n "a") (= n "c")))
                     r))))))
+
+(deftest nil-parent-id
+  (defcomponent :Npid
+    (entity :Npid/A {:Id {:type :Int :guid true}})
+    (entity :Npid/B {:Id {:type :Int :guid true}
+                     :No {:type :Int :id true}})
+    (relationship :Npid/AB {:meta {:contains [:Npid/A :Npid/B]}}))
+  (let [a1 (tu/first-result
+            {:Npid/Create_A
+             {:Instance
+              {:Npid/A {:Id 1}}}})
+        b1 (tu/first-result
+            {:Npid/Create_B
+             {:Instance
+              {:Npid/B {:Id 101 :No 23}}}})
+        a? (partial cn/instance-of? :Npid/A)
+        b? (partial cn/instance-of? :Npid/B)]
+    (is (a? a1))
+    (is (b? b1))
+    (is (nil? (li/parent-attr b1)))
+    (let [b2 (tu/first-result
+              {:Npid/Create_B
+               {:Instance
+                {:Npid/B {:Id 102 :No 24}}
+                li/path-attr "/A/1/AB/"}})]
+      (is (b? b2))
+      (is (= 1 (li/parent-attr b2))))))
