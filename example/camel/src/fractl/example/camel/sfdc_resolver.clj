@@ -2,6 +2,7 @@
   (:require [clojure.string :as s]
             [selmer.parser :as st]
             [fractl.util :as u]
+            [fractl.store.util :as stu]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.datafmt.json :as json]
@@ -25,12 +26,13 @@
     (.setLoginUrl sfc inst-url)
     sfc))
 
-(def ^:private create-endpoint-template
-  "salesforce:createSObject?apiVersion=59.0&rawPayload=true&format=JSON&sObjectName={{sObjectName}}")
+(def ^:private endpoint-templates
+  {:create "salesforce:createSObject?apiVersion=59.0&rawPayload=true&format=JSON&sObjectName={{sObjectName}}"
+   :query "salesforce:query?apiVersion=59.0&rawPayload=true&format=JSON&sObjectName={{sObjectName}}"})
 
 (defn- sf-create [camel-component instance]
   (let [[_ n] (li/split-path (cn/instance-type instance))
-        ep (st/render create-endpoint-template {:sObjectName (name n)})
+        ep (st/render (:create endpoint-templates) {:sObjectName (name n)})
         result (camel/exec-route {:endpoint ep
                                   :user-arg (json/encode
                                              (dissoc
@@ -40,8 +42,57 @@
         r (when result (json/decode result))]
     (when (:success r) (assoc instance :Id (:id r)))))
 
-(defn- sf-query [config [entity-name {clause :where} :as param]]
-  [])
+(defn- lookup-all [[_ sobj-name :as entity-name]]
+  (str "SELECT FIELDS(STANDARD) FROM " (name sobj-name)))
+
+(defn- lookup-by-expr [[_ sobj-name :as entity-name]
+                       where-clause]
+  (str "SELECT FIELDS(STANDARD) FROM " (name sobj-name)
+       " WHERE " where-clause))
+
+(defn- as-raw-sql-val [v]
+  (if (or (string? v) (number? v) (boolean? v))
+    v
+    (stu/encode-clj-object v)))
+
+(defn- as-sql-expr [[opr attr v]]
+  [(str (name attr) " " (name opr) " ?") [(as-raw-sql-val v)]])
+
+(defn- replace-placeholders [sql params]
+  (reduce (fn [s p]
+            (s/replace-first
+             s #"\?"
+             (if (string? p)
+               (str "'" p "'")
+               (str p))))
+          sql params))
+
+(defn- sf-query [camel-component [entity-name {clause :where} :as param]]
+  (let [soql (cond
+               (or (= clause :*) (nil? (seq clause)))
+               (lookup-all entity-name)
+
+               :else
+               (let [opr (first clause)
+                     where-clause (case opr
+                                    (:and :or)
+                                    (let [sql-exp (mapv as-sql-expr (rest clause))
+                                          exps (mapv first sql-exp)
+                                          params (flatten (mapv second sql-exp))]
+                                      (replace-placeholders
+                                       (s/join (str " " (s/upper-case (name opr)) " ") exps)
+                                       params))
+                                    (let [[s params] (as-sql-expr clause)]
+                                      (replace-placeholders s params)))]
+                 (lookup-by-expr entity-name where-clause)))
+        [_ n] entity-name
+        ep (st/render
+            (:query endpoint-templates)
+            {:sObjectName (name n)})
+        result (camel/exec-route {:endpoint ep
+                                  :user-arg soql
+                                  :camel-component camel-component})]
+    (:records (json/decode result))))
 
 (rg/register-resolver-type
  :camel-salesforce

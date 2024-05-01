@@ -752,12 +752,21 @@
     scm
     (raise-error :schema-not-found [recname])))
 
+(def ^:private inferred-components (atom []))
+
+(defn inferred-component! [cname]
+  (swap! inferred-components conj cname))
+
+(defn- inferred? [recname]
+  (let [[c _] (li/split-path recname)]
+    (some #{c} @inferred-components)))
+
 (defn validate-record-attributes
   ([recname recattrs schema]
    ;; The :inferred key will be added
    ;; only for inferred events. Do no validate
    ;; the schema of inferred events.
-   (if (:inferred schema)
+   (if (or (:inferred schema) (inferred? recname))
      recattrs
      (validated-attribute-values recname schema recattrs)))
   ([recname recattrs]

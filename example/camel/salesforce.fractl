@@ -1,13 +1,20 @@
 (component :Salesforce)
 
 (require '[fractl.resolver.registry :as r])
+(require '[fractl.component :as cn])
 (use '[fractl.example.camel.sfdc-resolver])
 
 (entity
  :Account
- {:Name :String
+ {:meta {:inferred true}
+  :Name :String
   :Id {:type :String :optional true}})
 
+(dataflow
+ :AccountByName
+ {:Account {:Name? :AccountByName.Name}})
+
+(cn/inferred-component! :Salesforce)
 (r/register-resolver
  {:type :camel-salesforce
   :name :csf01
