@@ -270,3 +270,83 @@
       (is (= 3 (count rs)))
       (is (every? cn? rs))
       (is (= (set ["jay" "mat" "joe"]) (set (mapv :Name rs)))))))
+
+(deftest views-on-contains
+  (defcomponent :Voc
+    (entity
+     :Voc/Family
+     {:Id :Identity
+      :FamilyName :String})
+    (entity
+     :Voc/FamilyMember
+     {:Id :Identity
+      :Name :String})
+    (relationship
+     :Voc/Members
+     {:meta {:contains [:Voc/Family
+                        :Voc/FamilyMember]
+             :cascade-on-delete true}})
+    (view
+     :Voc/MembersView
+     {:query {:Voc/FamilyMember? {}
+              :join [{:Voc/Family {:Id? (li/make-ref :Voc/FamilyMember li/parent-attr)}}]}
+      :FamilyName :Voc/Family.FamilyName
+      :Name :Voc/FamilyMember.Name}))
+  (let [mkfm #(tu/first-result
+               {:Voc/Create_Family
+                {:Instance
+                 {:Voc/Family
+                  {:FamilyName %}}}})
+        f? (partial cn/instance-of? :Voc/Family)
+        [f1 f2] (mapv mkfm ["one" "two"])
+        mkfmm (fn [fid n]
+                (tu/first-result
+                 {:Voc/Create_FamilyMember
+                  {:Instance {:Voc/FamilyMember {:Name n}}
+                   li/path-attr (str "/Family/" fid "/Members/")}}))
+        fm? (partial cn/instance-of? :Voc/FamilyMember)
+        f1id (:Id f1)
+        f2id (:Id f2)
+        fm1 (mkfmm f1id "a")
+        fm2 (mkfmm f2id "b")
+        fm3 (mkfmm f1id "c")]
+    (is (every? f? [f1 f2]))
+    (is (every? fm? [fm1 fm2 fm3]))
+    (let [rs (tu/result {:Voc/LookupAll_MembersView {}})]
+      (is (every? (partial cn/instance-of? :Voc/MembersView) rs))
+      (is (= 3 (count rs)))
+      (let [r (filter #(= "two" (:FamilyName %)) rs)]
+        (is (= 1 (count r)))
+        (is (= "b" (:Name (first r)))))
+      (let [r (filter #(= "one" (:FamilyName %)) rs)]
+        (is (= 2 (count r)))
+        (is (every? #(let [n (:Name %)]
+                       (or (= n "a") (= n "c")))
+                    r))))))
+
+(deftest nil-parent-id
+  (defcomponent :Npid
+    (entity :Npid/A {:Id {:type :Int :guid true}})
+    (entity :Npid/B {:Id {:type :Int :guid true}
+                     :No {:type :Int :id true}})
+    (relationship :Npid/AB {:meta {:contains [:Npid/A :Npid/B]}}))
+  (let [a1 (tu/first-result
+            {:Npid/Create_A
+             {:Instance
+              {:Npid/A {:Id 1}}}})
+        b1 (tu/first-result
+            {:Npid/Create_B
+             {:Instance
+              {:Npid/B {:Id 101 :No 23}}}})
+        a? (partial cn/instance-of? :Npid/A)
+        b? (partial cn/instance-of? :Npid/B)]
+    (is (a? a1))
+    (is (b? b1))
+    (is (nil? (li/parent-attr b1)))
+    (let [b2 (tu/first-result
+              {:Npid/Create_B
+               {:Instance
+                {:Npid/B {:Id 102 :No 24}}
+                li/path-attr "/A/1/AB/"}})]
+      (is (b? b2))
+      (is (= 1 (li/parent-attr b2))))))

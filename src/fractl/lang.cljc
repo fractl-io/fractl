@@ -1078,33 +1078,48 @@
       (u/throw-ex (str "User-defined identity attribute required for " entity-name)))
     ident))
 
-(defn- regen-contains-child-attributes [child meta]
-  (when-not (cn/path-identity-attribute-name child)
-    (let [cident (user-defined-identity-attribute-name child)
-          child-attrs (preproc-attrs (raw/record-attributes-include-inherits child))
-          cident-raw-spec (cident child-attrs)
-          cident-spec (if (map? cident-raw-spec)
-                        cident-raw-spec
-                        (cn/find-attribute-schema cident-raw-spec))]
-      (when-let [a (some li/reserved-attrs (map #(keyword (s/upper-case (name %))) (keys child-attrs)))]
-        (u/throw-ex (str child "." a " - attribute name is reserved")))
-      (assoc
-       child-attrs
-       cident (merge
-               (if (:globally-unique meta)
-                 cident-spec
-                 (dissoc cident-spec li/guid))
-               {:type (or (:type cident-spec) :UUID)
-                li/path-identity true
-                :indexed true}
-               (when-not cident-spec ;; __Id__
-                 {:default u/uuid-string}))
-       li/path-attr pi/path-attr-spec))))
+(defn- regen-contains-child-attributes [child parent meta]
+  (let [child-attrs (preproc-attrs (raw/record-attributes-include-inherits child))
+        raw-meta (raw/entity-meta child)
+        [c _] (li/split-path child)
+        pidtype (cn/parent-identity-attribute-type parent)
+        parent-attr-spec {:type (or pidtype :Any)
+                          :optional true
+                          :expr `'(fractl.paths/parent-id-from-path
+                                   ~(name c) ~li/path-attr ~(k/numeric-type? pidtype))}]
+    (if-not (cn/path-identity-attribute-name child)
+      (let [cident (user-defined-identity-attribute-name child)
+            cident-raw-spec (cident child-attrs)
+            cident-spec (if (map? cident-raw-spec)
+                          cident-raw-spec
+                          (cn/find-attribute-schema cident-raw-spec))]
+        (when-let [a (some li/reserved-attrs (map #(keyword (s/upper-case (name %))) (keys child-attrs)))]
+          (u/throw-ex (str child "." a " - attribute name is reserved")))
+        (assoc
+         child-attrs
+         :meta raw-meta
+         cident (merge
+                 (if (:globally-unique meta)
+                   cident-spec
+                   (dissoc cident-spec li/guid))
+                 {:type (or (:type cident-spec) :UUID)
+                  li/path-identity true
+                  :indexed true}
+                 (when-not cident-spec ;; __Id__
+                   {:default u/uuid-string}))
+         li/path-attr pi/path-attr-spec
+         li/parent-attr parent-attr-spec))
+      (let [parents (conj (mapv last (cn/containing-parents child)) parent)
+            id-types (mapv cn/parent-identity-attribute-type parents)]
+        (when-not (apply = id-types)
+          (u/throw-ex (str "conflicting parent id-types - " (mapv vector parents id-types))))
+        (when (some (fn [[_ v]] (and (map? v) (:id v))) child-attrs)
+          (assoc child-attrs :meta raw-meta li/path-attr pi/path-attr-spec li/parent-attr parent-attr-spec))))))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
 
-(defn- contains-relationship [relname attrs relmeta [_ child :as elems]]
+(defn- contains-relationship [relname attrs relmeta [parent child :as elems]]
   (when (seq (keys (cleanup-rel-attrs attrs)))
     (u/throw-ex (str "attributes not allowed for a contains relationship - " relname)))
   (let [raw-attrs attrs
@@ -1112,7 +1127,7 @@
         attrs (assoc attrs :meta
                      (assoc meta cn/relmeta-key
                             relmeta :relationship :contains))
-        child-attrs (regen-contains-child-attributes child meta)]
+        child-attrs (regen-contains-child-attributes child parent meta)]
     (if-let [r (record relname raw-attrs)]
       (if (or (not child-attrs) (entity child child-attrs false))
         (if (cn/register-relationship elems relname)

@@ -201,6 +201,9 @@
       (merge attrs (record-attributes-include-inherits p))
       attrs)))
 
+(defn entity-meta [entity-name]
+  (:meta (entity-attributes entity-name)))
+
 (defn- fix-rules-syntax [defs]
   (mapv (fn [d]
           (if (and (seqable? d)
