@@ -207,7 +207,7 @@
                            event-instance
                            (cn/make-instance event-instance))]
       (cn/assoc-event-context-values
-       {:User (or (:username user) (:email user))
+       {:User (:email user)
         :Sub (:sub user)
         :UserDetails user}
        event-instance))
