@@ -233,8 +233,9 @@
   )
 
 (defn- cookie-to-sid [cookie]
-  (when-let [kvs (http/parse-cookies cookie)]
-    (get kvs "sid")))
+  (when cookie
+    (when-let [kvs (http/parse-cookies cookie)]
+      (get kvs "sid"))))
 
 (defmethod auth/cookie-to-session-id tag [_ cookie]
   (cookie-to-sid cookie))
@@ -244,8 +245,8 @@
                                            :as auth-config}]
   (let [user-state (when client-url (b64/encode-string client-url))
         auth-config (assoc auth-config :user-state user-state)]
-    (if cookie
-      (let [sid (auth/cookie-to-session-id auth-config cookie)]
+    (if-let [sid (auth/cookie-to-session-id auth-config cookie)]
+      (do
         (log/debug (str "auth/authenticate-session with cookie " sid))
         (if (sess/lookup-session-cookie-user-data sid)
           {:status :redirect-found :location client-url}
@@ -292,9 +293,8 @@
       {:error "failed to create session"})))
 
 (defmethod auth/session-user tag [{req :request cookie :cookie :as auth-config}]
-  (if cookie
-    (let [sid (auth/cookie-to-session-id auth-config cookie)
-          session-data (sess/lookup-session-cookie-user-data sid)
+  (if-let [sid (auth/cookie-to-session-id auth-config cookie)]
+    (let [session-data (sess/lookup-session-cookie-user-data sid)
           result (auth/verify-token auth-config [sid session-data])
           user (:sub result)
           username (or (:username result) user)]
