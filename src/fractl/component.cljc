@@ -752,21 +752,24 @@
     scm
     (raise-error :schema-not-found [recname])))
 
-(def ^:private inferred-components (atom []))
+(def ^:private external-schema-records (atom #{}))
 
-(defn inferred-component! [cname]
-  (swap! inferred-components conj cname))
+(defn with-external-schema [recname]
+  (let [n (li/make-path recname)]
+    (swap! external-schema-records conj n)
+    n))
 
-(defn- inferred? [recname]
-  (let [[c _] (li/split-path recname)]
-    (some #{c} @inferred-components)))
+(defn- has-external-schema? [recname]
+  (let [recname (li/make-path recname)]
+    (when (some #{recname} @external-schema-records)
+      true)))
 
 (defn validate-record-attributes
   ([recname recattrs schema]
    ;; The :inferred key will be added
    ;; only for inferred events. Do no validate
    ;; the schema of inferred events.
-   (if (or (:inferred schema) (inferred? recname))
+   (if (or (:inferred schema) (has-external-schema? recname))
      recattrs
      (validated-attribute-values recname schema recattrs)))
   ([recname recattrs]
@@ -2027,12 +2030,30 @@
 (defn make-post-event [event-name inst]
   (make-instance event-name {:Instance inst}))
 
-(defn fire-prepost-event [selector event-evaluator tag inst]
-  (let [event-name (prepost-event-name selector tag (instance-type inst))]
+(def ^:private post-events-disabled-entities (atom #{}))
+
+(defn disable-post-events [entity-name]
+  (let [n (li/make-path entity-name)]
+    (swap! post-events-disabled-entities conj n)
+    n))
+
+(defn post-events-disabled? [entity-name]
+  (let [entity-name (li/make-path entity-name)]
+    (when (some #{entity-name} @post-events-disabled-entities)
+      true)))
+
+(defn do-fire-prepost-event [selector event-evaluator tag entity-name inst]
+  (let [event-name (prepost-event-name selector tag entity-name)]
     (when (find-dataflows event-name)
       [event-name (event-evaluator (make-post-event event-name inst))])))
 
+(defn fire-prepost-event [selector event-evaluator tag inst]
+  (let [typ (instance-type-kw inst)]
+    (when-not (post-events-disabled? typ)
+      (do-fire-prepost-event selector event-evaluator tag typ inst))))
+
 (def fire-post-event (partial fire-prepost-event :after))
+(def force-fire-post-event (partial do-fire-prepost-event :after))
 (def fire-pre-event (partial fire-prepost-event :before))
 
 (defn find-path-prefix [record-name inst]

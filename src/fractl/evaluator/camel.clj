@@ -4,6 +4,7 @@
             [fractl.lang :as ln]
             [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.evaluator :as ev]
             [fractl.lang.internal :as li])
   (:import [org.apache.camel CamelContext Component
             ProducerTemplate Processor Exchange Message]
@@ -45,8 +46,14 @@
      (when has-arg
        (let [^ProducerTemplate t (.createProducerTemplate ctx)]
          (.requestBody t "direct:send" user-arg String)))
-     (when-not (or (:is-service request) (:callback request))
+     #_(when-not (or (:is-service request) (:callback request))
        (.stop ctx))
      (when is-blocking
        (async/<!! chan))))
   ([request] (exec-route request true)))
+
+(defn exec-route-with-dataflow-callback [request]
+  (let [cb (:callback request)]
+    (exec-route
+     (assoc request :callback #(ev/eval-all-dataflows (cb %)))
+     false)))

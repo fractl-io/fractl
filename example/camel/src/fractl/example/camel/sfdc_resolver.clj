@@ -8,6 +8,7 @@
             [fractl.datafmt.json :as json]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
+            [fractl.evaluator :as ev]
             [fractl.evaluator.camel :as camel])
   (:import [org.apache.camel Component]
            [org.apache.camel.component.salesforce SalesforceComponent AuthenticationType]))
@@ -94,11 +95,43 @@
                                   :camel-component camel-component})]
     (:records (json/decode result))))
 
+(def ^:private registered-paths (atom #{}))
+
+(defn- make-full-path [entity-name]
+  (when-let [[c n] (first (filter (fn [[_ en]] (= entity-name en)) @registered-paths))]
+    (li/make-path c n)))
+
+(defn- crud-info [subs-response]
+  (let [payload (get-in subs-response [:data :payload])
+        evt (:ChangeEventHeader payload)
+        tag (keyword (s/lower-case (:changeType evt)))
+        entity-name (make-full-path (keyword (:entityName evt)))]
+    (when entity-name
+      [tag entity-name (cn/make-instance {entity-name payload})])))
+
+(defn- subscribe-to-change-events [camel-component]
+  (camel/exec-route
+   {:endpoint "salesforce:subscribe:/data/ChangeEvents?rawPayload=true"
+    :camel-component camel-component
+    :callback #(let [r (json/decode %)
+                     [tag entity-name inst :as cinfo] (crud-info r)]
+                 (when cinfo
+                   (cn/force-fire-post-event ev/eval-all-dataflows tag entity-name inst)))}
+   false))
+
+(defn- sf-on-set-path [[tag path]]
+  (when (= tag :override)
+    (-> path cn/disable-post-events cn/with-external-schema))
+  (swap! registered-paths conj (li/split-path path))
+  path)
+
 (rg/register-resolver-type
  :camel-salesforce
  (fn [_ _]
    (let [c (make-component nil)]
+     (subscribe-to-change-events c)
      (r/make-resolver
       :camel-salesforce
       {:create (partial sf-create c)
-       :query (partial sf-query c)}))))
+       :query (partial sf-query c)
+       :on-set-path sf-on-set-path}))))

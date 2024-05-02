@@ -1,7 +1,6 @@
 (component :Salesforce)
 
 (require '[fractl.resolver.registry :as r])
-(require '[fractl.component :as cn])
 (use '[fractl.example.camel.sfdc-resolver])
 
 (entity
@@ -14,7 +13,18 @@
  :AccountByName
  {:Account {:Name? :AccountByName.Name}})
 
-(cn/inferred-component! :Salesforce)
+(dataflow
+ [:after :create :Account]
+ [:eval '(println "Account created: " :Instance)])
+
+(dataflow
+ [:after :update :Account]
+ [:eval '(println "Account updated: " :Instance)])
+
+(dataflow
+ [:after :delete :Account]
+ [:eval '(println "Account deleted: " :Instance)])
+
 (r/register-resolver
  {:type :camel-salesforce
   :name :csf01

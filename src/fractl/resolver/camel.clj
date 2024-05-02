@@ -6,7 +6,6 @@
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             [fractl.lang.internal :as li]
-            [fractl.evaluator :as ev]
             [fractl.evaluator.camel :as camel]))
 
 (ln/component :Camel)
@@ -32,12 +31,11 @@
 
 (defn camel-eval [config event-instance]
   (let [ep (endpoint (cn/instance-type event-instance))]
-    (camel/exec-route
+    (camel/exec-route-with-dataflow-callback
      {:endpoint ep
       :user-arg (:UserArg event-instance)
       :camel-component (fetch-component config ep)
-      :callback #(ev/eval-all-dataflows (assoc event-instance :Response %))}
-     false)
+      :callback #(assoc event-instance :Response %)})
     event-instance))
 
 (defn- camel-on-set-path [_ [tag path]]
