@@ -15,7 +15,7 @@
 (defn- context-for-endpoint [endpoint ^Component c]
   (let [^CamelContext ctx (DefaultCamelContext.)
         n (subs endpoint 0 (s/index-of endpoint ":"))]
-    (.addComponent ctx n c)
+    (when c (.addComponent ctx n c))
     ctx))
 
 (defn exec-route

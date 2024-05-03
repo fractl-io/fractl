@@ -1,6 +1,7 @@
 (component :Salesforce)
 
 (require '[fractl.resolver.registry :as r])
+(use '[fractl.resolver.camel])
 (use '[fractl.example.camel.sfdc-resolver])
 
 (entity
@@ -13,9 +14,21 @@
  :AccountByName
  {:Account {:Name? :AccountByName.Name}})
 
+(event
+ :OnAccountCreate
+ {:meta
+  {:inherits :Camel/EventTemplate
+   :trigger
+   {:endpoint "file:/home/vijay/Projects/fractl/example/camel/target?fileName=account"}}})
+
+(dataflow
+ :OnAccountCreate
+ [:eval '(println "Sfdc Account object created")])
+
 (dataflow
  [:after :create :Account]
- [:eval '(println "Account created: " :Instance)])
+ {:OnAccountCreate
+  {:UserArg '(str :Instance)}})
 
 (dataflow
  [:after :update :Account]
@@ -29,3 +42,7 @@
  {:type :camel-salesforce
   :name :csf01
   :paths [:Salesforce/Account]})
+
+(r/register-resolver {:name :camel-sfdc
+                      :type :camel
+                      :paths [:Salesforce/OnAccountCreate]})

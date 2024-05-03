@@ -3,6 +3,7 @@
             [fractl.lang :as ln]
             [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
             [fractl.lang.internal :as li]
@@ -27,7 +28,7 @@
   (let [n (first (s/split endpoint #":"))]
     (if-let [f (get @component-register (keyword n))]
       (f config)
-      (u/throw-ex (str "component not supported for endpoint - " endpoint)))))
+      (do (log/warn (str "component not supported for endpoint - " endpoint)) nil))))
 
 (defn camel-eval [config event-instance]
   (let [ep (endpoint (cn/instance-type event-instance))]

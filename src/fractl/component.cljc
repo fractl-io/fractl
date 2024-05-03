@@ -2048,8 +2048,9 @@
       [event-name (event-evaluator (make-post-event event-name inst))])))
 
 (defn fire-prepost-event [selector event-evaluator tag inst]
-  (let [typ (instance-type-kw inst)]
-    (when-not (post-events-disabled? typ)
+  (let [typ (instance-type-kw inst)
+        skip (and (= selector :after) (post-events-disabled? typ))]
+    (when-not skip
       (do-fire-prepost-event selector event-evaluator tag typ inst))))
 
 (def fire-post-event (partial fire-prepost-event :after))
