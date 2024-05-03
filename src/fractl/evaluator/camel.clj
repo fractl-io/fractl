@@ -4,6 +4,7 @@
             [fractl.lang :as ln]
             [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.evaluator :as ev]
             [fractl.lang.internal :as li])
   (:import [org.apache.camel CamelContext Component
@@ -22,12 +23,11 @@
   ([request is-blocking]
    (let [ep (:endpoint request)
          user-arg (:user-arg request)
-         has-arg (seq user-arg)
          chan (when is-blocking (async/chan 1))
          ^CamelContext ctx (context-for-endpoint ep (:camel-component request))
          ^RouteBuilder rb (proxy [RouteBuilder] []
                             (configure []
-                              (let [p (if has-arg
+                              (let [p (if user-arg
                                         (-> this
                                             (.from "direct:send")
                                             (.to ep))
@@ -43,13 +43,16 @@
                                                      ((:callback request) body))))))))))]
      (.addRoutes ctx rb)
      (.start ctx)
-     (when has-arg
+     (when user-arg
        (let [^ProducerTemplate t (.createProducerTemplate ctx)]
-         (.requestBody t "direct:send" user-arg String)))
+         (try
+           (.requestBody t "direct:send" user-arg (or (:user-arg-type request) String))
+           (catch Exception ex
+             (log/error ex)))))
      #_(when-not (or (:is-service request) (:callback request))
-       (.stop ctx))
+         (.stop ctx))
      (when is-blocking
-       (async/<!! chan))))
+       (first (async/alts!! [chan (async/timeout 10000)])))))
   ([request] (exec-route request true)))
 
 (defn exec-route-with-dataflow-callback [request]

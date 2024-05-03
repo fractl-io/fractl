@@ -12,7 +12,7 @@
 (ln/component :Camel)
 (ln/record
  :Camel/EventTemplate
- {:UserArg :String
+ {:UserArg :Any
   :Response {:type :Any :optional true}})
 
 (def ^:private component-register (atom {}))
