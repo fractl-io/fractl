@@ -7,7 +7,8 @@
             [fractl.util.logger :as log]
             [fractl.evaluator :as ev]
             [fractl.lang.internal :as li])
-  (:import [org.apache.camel CamelContext Component
+  (:import [java.util Map HashMap]
+           [org.apache.camel CamelContext Component
             ProducerTemplate Processor Exchange Message]
            [org.apache.camel.impl DefaultCamelContext]
            [org.apache.camel.builder RouteBuilder]
@@ -46,7 +47,11 @@
      (when user-arg
        (let [^ProducerTemplate t (.createProducerTemplate ctx)]
          (try
-           (.requestBody t "direct:send" user-arg (or (:user-arg-type request) String))
+           (if-let [hdrs (:headers request)]
+             (let [^Map hdr-map (HashMap.)]
+               (doseq [[k v] hdrs] (.put hdr-map k v))
+               (.requestBodyAndHeaders t "direct:send" user-arg hdr-map))
+             (.requestBody t "direct:send" user-arg (or (:user-arg-type request) String)))
            (catch Exception ex
              (log/error ex)))))
      #_(when-not (or (:is-service request) (:callback request))

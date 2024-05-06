@@ -5,4 +5,4 @@
 
 (defn -main [& args]
   (cr/register-component :salesforce sfr/make-component)
-  (fractl/run-script [(first args)]))
+  (fractl/run-script args))

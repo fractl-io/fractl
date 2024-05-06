@@ -23,10 +23,10 @@
 
 (dataflow
  [:after :create :Account]
- {:LocalAccount
-  {:directory "./target"
-   :fileName "account"
-   :content :Instance}})
+ #_{:LocalAccount
+    {:directory "./target"
+     :fileName "account"
+     :content :Instance}})
 
 (dataflow
  [:after :update :Account]
@@ -36,8 +36,5 @@
  [:after :delete :Account]
  [:eval '(println "Account deleted: " :Instance)])
 
-(entity :Sheet {:Name :String})
-
 (r/register-resolver {:type :camel-salesforce :name :csf01 :paths [:Salesforce/Account]})
 (r/register-resolver {:type :camel-file :name :cf01 :paths [:Salesforce/LocalAccount]})
-(r/register-resolver {:type :camel-google-sheets :name :cgs01 :paths [:Salesforce/Sheet]})
