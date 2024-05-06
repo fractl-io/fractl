@@ -1,6 +1,7 @@
 (ns fractl.example.camel.google-sheets-resolver
   (:require [selmer.parser :as st]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.datafmt.json :as json]
@@ -11,7 +12,7 @@
            [org.apache.camel Component]
            [org.apache.camel.component.google.sheets GoogleSheetsComponent
             GoogleSheetsConfiguration]
-           [com.google.api.services.sheets.v4.model Spreadsheet ValueRange]))
+           [com.google.api.services.sheets.v4.model Spreadsheet SpreadsheetProperties ValueRange]))
 
 (defn ^Component gs-make-component []
   (let [^GoogleSheetsComponent gsc (GoogleSheetsComponent.)
@@ -35,19 +36,32 @@
    :append-data "google-sheets://data/append?spreadsheetId={{spreadsheetId}}&range={{range}}&inBody=values"})
 
 (defn- gs-create [camel-component instance]
-  (let [[_ n] (li/split-path (cn/instance-type instance))]
+  (let [[c n] (li/split-path (cn/instance-type instance))]
     (case n
-      :SpreadSheet
+      :Spreadsheet
       (let [ep (:create-sheet endpoint-templates)
+            title (:title instance)
+            ^SpreadsheetProperties props (SpreadsheetProperties.)
+            _ (.setTitle props title)
+            ^Spreadsheet spreadsheet (Spreadsheet.)
+            _ (.setProperties spreadsheet props)
             result (json/decode
                     (camel/exec-route {:endpoint ep
-                                       :user-arg (Spreadsheet.)
+                                       :user-arg spreadsheet
                                        :user-arg-type Spreadsheet
                                        :camel-component camel-component}))]
-        (assoc instance
-               :properties (:properties result)
-               :spreadsheetId (:spreadsheetId result)
-               :spreadsheetUrl (:spreadsheetUrl result)))
+        (when result
+          (when-let [data (:data instance)]
+            (when-not (gs-create camel-component (cn/make-instance
+                                                  (li/make-path c :CellData)
+                                                  {:spreadsheetId (:spreadsheetId result)
+                                                   :range "A1:Z20"
+                                                   :values data}))
+              (log/warn (str "failed to add data to " title))))
+          (assoc instance
+                 :properties (:properties result)
+                 :spreadsheetId (:spreadsheetId result)
+                 :spreadsheetUrl (:spreadsheetUrl result))))
       :CellData
       (let [ep (st/render (:append-data endpoint-templates) instance)
             data (Arrays/asList (into-array (as-values (:values instance))))

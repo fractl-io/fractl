@@ -4,10 +4,12 @@
 (use '[fractl.example.camel.google-sheets-resolver])
 
 (entity
- :SpreadSheet
- {:properties {:type :Edn :optional true}
+ :Spreadsheet
+ {:title :String
+  :properties {:type :Edn :optional true}
   :spreadsheetId {:type :String :guid true :read-only true}
-  :spreadsheetUrl {:type :String :optional true}})
+  :spreadsheetUrl {:type :String :optional true}
+  :data {:type :Edn :optional true}})
 
 (entity
  :CellData
@@ -15,4 +17,4 @@
   :values :Edn
   :range :String})
 
-(r/register-resolver {:type :camel-google-sheets :name :cgs01 :paths [:GoogleSheets/SpreadSheet :GoogleSheets/CellData]})
+(r/register-resolver {:type :camel-google-sheets :name :cgs01 :paths [:GoogleSheets/Spreadsheet :GoogleSheets/CellData]})
