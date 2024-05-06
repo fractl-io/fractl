@@ -25,7 +25,10 @@
     gsc))
 
 (defn- as-values [xss]
-  (mapv #(Arrays/asList (into-array %)) xss))
+  (if (map? xss)
+    (let [xss (cn/instance-attributes xss)]
+      (as-values [(mapv name (keys xss)) (mapv str (vals xss))]))
+    (mapv #(Arrays/asList (into-array %)) xss)))
 
 (def ^:private endpoint-templates
   {:create-sheet "google-sheets://spreadsheets/create?inBody=content"})

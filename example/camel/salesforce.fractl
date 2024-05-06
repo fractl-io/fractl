@@ -3,7 +3,6 @@
 (require '[fractl.resolver.registry :as r])
 (use '[fractl.example.camel.sfdc-resolver])
 (use '[fractl.example.camel.file-resolver])
-(use '[fractl.example.camel.google-sheets-resolver])
 
 (entity
  :Account
@@ -21,12 +20,19 @@
   :fileName :String
   :content :Any})
 
+(defn clean-up-account [inst]
+  (dissoc inst :CleanStatus :ChangeEventHeader))
+
 (dataflow
  [:after :create :Account]
- #_{:LocalAccount
-    {:directory "./target"
-     :fileName "account"
-     :content :Instance}})
+ {:Google/Data
+  {:SheetId "1tycjnNOZrVsOCo1jtLGSeUZsMBfAGV_KbOL-p3TRx4A"
+   :Range "A1:B10"
+   :Values '(clean-up-account :Instance)}})
+ ;; {:LocalAccount
+ ;;  {:directory "./target"
+ ;;   :fileName "account"
+ ;;   :content :Instance}})
 
 (dataflow
  [:after :update :Account]
