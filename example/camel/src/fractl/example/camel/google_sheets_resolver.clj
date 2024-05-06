@@ -31,12 +31,13 @@
     (mapv #(Arrays/asList (into-array %)) xss)))
 
 (def ^:private endpoint-templates
-  {:create-sheet "google-sheets://spreadsheets/create?inBody=content"})
+  {:create-sheet "google-sheets://spreadsheets/create?inBody=content"
+   :append-data "google-sheets://data/append?spreadsheetId={{spreadsheetId}}&range={{range}}&inBody=values"})
 
 (defn- gs-create [camel-component instance]
   (let [[_ n] (li/split-path (cn/instance-type instance))]
     (case n
-      :Sheet
+      :SpreadSheet
       (let [ep (:create-sheet endpoint-templates)
             result (json/decode
                     (camel/exec-route {:endpoint ep
@@ -44,13 +45,12 @@
                                        :user-arg-type Spreadsheet
                                        :camel-component camel-component}))]
         (assoc instance
-               :Properties (:properties result)
-               :Id (:spreadsheetId result)
-               :Url (:spreadsheetUrl result)))
-      :Data
-      (let [range (:Range instance)
-            ep (str "google-sheets://data/append?spreadsheetId=" (:SheetId instance) "&range=" range "&inBody=values")
-            data (Arrays/asList (into-array (as-values (:Values instance))))
+               :properties (:properties result)
+               :spreadsheetId (:spreadsheetId result)
+               :spreadsheetUrl (:spreadsheetUrl result)))
+      :CellData
+      (let [ep (st/render (:append-data endpoint-templates) instance)
+            data (Arrays/asList (into-array (as-values (:values instance))))
             ^ValueRange values (ValueRange.)]
         (.setValues values data)
         (when-let [result (camel/exec-route {:endpoint ep
@@ -59,7 +59,7 @@
                                              :headers {"CamelGoogleSheets.ValueInputOption" "USER_ENTERED"}
                                              :camel-component camel-component})]
           (let [r (json/decode result)]
-            (when (= (:SheetId instance) (:spreadsheetUrl r))
+            (when (= (:spreadsheetId instance) (:spreadsheetId r))
               instance)))))))
 
 (rg/register-resolver-type

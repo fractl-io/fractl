@@ -25,11 +25,12 @@
 
 (dataflow
  [:after :create :Account]
- {:Google/Data
-  {:SheetId "1tycjnNOZrVsOCo1jtLGSeUZsMBfAGV_KbOL-p3TRx4A"
-   :Range "A1:B10"
-   :Values '(clean-up-account :Instance)}})
- ;; {:LocalAccount
+ {:GoogleSheets/CellData
+  {:spreadsheetId "1tycjnNOZrVsOCo1jtLGSeUZsMBfAGV_KbOL-p3TRx4A"
+   :range "A1:B10"
+   :values '(clean-up-account :Instance)}})
+
+;; {:LocalAccount
  ;;  {:directory "./target"
  ;;   :fileName "account"
  ;;   :content :Instance}})

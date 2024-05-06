@@ -1,18 +1,18 @@
-(component :Google)
+(component :GoogleSheets)
 
 (require '[fractl.resolver.registry :as r])
 (use '[fractl.example.camel.google-sheets-resolver])
 
 (entity
- :Sheet
- {:Properties {:type :Edn :optional true}
-  :Id {:type :String :guid true :default "sheet-01"}
-  :Url {:type :String :optional true}})
+ :SpreadSheet
+ {:properties {:type :Edn :optional true}
+  :spreadsheetId {:type :String :guid true :read-only true}
+  :spreadsheetUrl {:type :String :optional true}})
 
 (entity
- :Data
- {:SheetId :String
-  :Values :Edn
-  :Range :String})
+ :CellData
+ {:spreadsheetId :String
+  :values :Edn
+  :range :String})
 
-(r/register-resolver {:type :camel-google-sheets :name :cgs01 :paths [:Google/Sheet :Google/Data]})
+(r/register-resolver {:type :camel-google-sheets :name :cgs01 :paths [:GoogleSheets/SpreadSheet :GoogleSheets/CellData]})
