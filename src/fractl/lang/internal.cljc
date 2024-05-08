@@ -12,6 +12,8 @@
 (def path-attr :__path__)
 (def path-attr? :__path__?)
 
+(def parent-attr :__parent__)
+
 (def guid :guid)
 (def path-identity :id)
 

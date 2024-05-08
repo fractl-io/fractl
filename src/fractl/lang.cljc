@@ -3,23 +3,22 @@
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [clojure.walk :as w]
-            [fractl.util :as u]
-            [fractl.util.seq :as us]
-            [fractl.meta :as mt]
-            [fractl.util.logger :as log]
+            [fractl.compiler :as c]
+            [fractl.compiler.context :as ctx]
+            [fractl.compiler.rule :as rl]
+            [fractl.component :as cn]
+            [fractl.global-state :as gs]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]
             [fractl.lang.raw :as raw]
             [fractl.lang.rbac :as lr]
+            [fractl.meta :as mt]
             [fractl.paths.internal :as pi]
-            [fractl.component :as cn]
-            [fractl.compiler :as c]
-            [fractl.compiler.rule :as rl]
+            [fractl.resolvers]
             [fractl.rule :as rule]
-            [fractl.global-state :as gs]
-            [fractl.evaluator.state :as es]
-            [fractl.compiler.context :as ctx]
-            [fractl.resolvers]))
+            [fractl.util :as u]
+            [fractl.util.logger :as log]
+            [fractl.util.seq :as us]))
 
 (defn- normalize-imports [imports]
   (let [imps (rest imports)]
@@ -955,7 +954,7 @@
 (defn- validate-view-attrs! [attrs]
   (doseq [[n k] attrs]
     (let [p1 (and (keyword? n) (= 1 (count (li/split-path n))))
-          k0 (s/split (str k) #"\.")
+          k0 (s/split (name k) #"\.")
           p2 (and (keyword? k) (= 2 (count k0)))]
       (when-not (and p1 p2)
         (u/throw-ex (str "invalid view attribute-specification: " [n k]))))))
@@ -1079,33 +1078,48 @@
       (u/throw-ex (str "User-defined identity attribute required for " entity-name)))
     ident))
 
-(defn- regen-contains-child-attributes [child meta]
-  (when-not (cn/path-identity-attribute-name child)
-    (let [cident (user-defined-identity-attribute-name child)
-          child-attrs (preproc-attrs (raw/record-attributes-include-inherits child))
-          cident-raw-spec (cident child-attrs)
-          cident-spec (if (map? cident-raw-spec)
-                        cident-raw-spec
-                        (cn/find-attribute-schema cident-raw-spec))]
-      (when-let [a (some li/reserved-attrs (map #(keyword (s/upper-case (name %))) (keys child-attrs)))]
-        (u/throw-ex (str child "." a " - attribute name is reserved")))
-      (assoc
-       child-attrs
-       cident (merge
-               (if (:globally-unique meta)
-                 cident-spec
-                 (dissoc cident-spec li/guid))
-               {:type (or (:type cident-spec) :UUID)
-                li/path-identity true
-                :indexed true}
-               (when-not cident-spec ;; __Id__
-                 {:default u/uuid-string}))
-       li/path-attr pi/path-attr-spec))))
+(defn- regen-contains-child-attributes [child parent meta]
+  (let [child-attrs (preproc-attrs (raw/record-attributes-include-inherits child))
+        raw-meta (raw/entity-meta child)
+        [c _] (li/split-path child)
+        pidtype (cn/parent-identity-attribute-type parent)
+        parent-attr-spec {:type (or pidtype :Any)
+                          :optional true
+                          :expr `'(fractl.paths/parent-id-from-path
+                                   ~(name c) ~li/path-attr ~(k/numeric-type? pidtype))}]
+    (if-not (cn/path-identity-attribute-name child)
+      (let [cident (user-defined-identity-attribute-name child)
+            cident-raw-spec (cident child-attrs)
+            cident-spec (if (map? cident-raw-spec)
+                          cident-raw-spec
+                          (cn/find-attribute-schema cident-raw-spec))]
+        (when-let [a (some li/reserved-attrs (map #(keyword (s/upper-case (name %))) (keys child-attrs)))]
+          (u/throw-ex (str child "." a " - attribute name is reserved")))
+        (assoc
+         child-attrs
+         :meta raw-meta
+         cident (merge
+                 (if (:globally-unique meta)
+                   cident-spec
+                   (dissoc cident-spec li/guid))
+                 {:type (or (:type cident-spec) :UUID)
+                  li/path-identity true
+                  :indexed true}
+                 (when-not cident-spec ;; __Id__
+                   {:default u/uuid-string}))
+         li/path-attr pi/path-attr-spec
+         li/parent-attr parent-attr-spec))
+      (let [parents (conj (mapv last (cn/containing-parents child)) parent)
+            id-types (mapv cn/parent-identity-attribute-type parents)]
+        (when-not (apply = id-types)
+          (u/throw-ex (str "conflicting parent id-types - " (mapv vector parents id-types))))
+        (when (some (fn [[_ v]] (and (map? v) (:id v))) child-attrs)
+          (assoc child-attrs :meta raw-meta li/path-attr pi/path-attr-spec li/parent-attr parent-attr-spec))))))
 
 (defn- cleanup-rel-attrs [attrs]
   (dissoc attrs :meta :rbac :ui))
 
-(defn- contains-relationship [relname attrs relmeta [_ child :as elems]]
+(defn- contains-relationship [relname attrs relmeta [parent child :as elems]]
   (when (seq (keys (cleanup-rel-attrs attrs)))
     (u/throw-ex (str "attributes not allowed for a contains relationship - " relname)))
   (let [raw-attrs attrs
@@ -1113,7 +1127,7 @@
         attrs (assoc attrs :meta
                      (assoc meta cn/relmeta-key
                             relmeta :relationship :contains))
-        child-attrs (regen-contains-child-attributes child meta)]
+        child-attrs (regen-contains-child-attributes child parent meta)]
     (if-let [r (record relname raw-attrs)]
       (if (or (not child-attrs) (entity child child-attrs false))
         (if (cn/register-relationship elems relname)

@@ -125,7 +125,7 @@
 (deftest issue-962-recursive-contains
   (defcomponent :I962
     (entity :I962/Company {:Name {:type :String tu/guid true}})
-    (entity :I962/Department {:No {:type :Int tu/guid true}})
+    (entity :I962/Department {:No {:type :String tu/guid true}})
     (entity :I962/Employee {:Name {:type :String tu/guid true}})
     (relationship :I962/CompanyDepartment {:meta {:contains [:I962/Company :I962/Department]}})
     (relationship :I962/DepartmentEmployee {:meta {:contains [:I962/Department :I962/Employee]}})
@@ -159,8 +159,8 @@
                          {:I962/Department
                           {:No dept-no}}
                          li/path-attr (str "/Company/" cname "/CompanyDepartment")}}))
-        d11 (create-dept "a" 101)
-        d21 (create-dept "b" 101)
+        d11 (create-dept "a" "101")
+        d21 (create-dept "b" "101")
         c? (partial cn/instance-of? :I962/Company)
         d? (partial cn/instance-of? :I962/Department)]
     (is (every? c? [c1 c2]))

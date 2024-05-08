@@ -8,7 +8,9 @@
       (let [mn (name model-name)
             app-root (:root-entity build-config)
             api-host (:api-host build-config)
-            cognito-ui-url (get build-config :cognito-ui-url "")
+            port (get config [:service :port] 8080)
+            auth-url (get build-config :auth-url (str "http://localhost:" port "/auth"))
+            auth-service (get config [:authentication :service] :none)
             ui-enabled (:ui-enabled config)
             copilot-enabled (:copilot-enabled config)
             copilot-app-id (:copilot-app-id config)
@@ -20,8 +22,8 @@
           (u/throw-ex "required configuration not found - build -> client -> api-host"))
         (u/exec-in-directory
          path (str "lein new fx-app " mn ":" model-version ":" fractl-version
-                   " -- " api-host " " app-root " " build-type " " cognito-ui-url
-                   " " ui-enabled " " copilot-enabled " " copilot-app-id " " 
+                   " -- " api-host " " app-root " " build-type " " auth-url " "
+                   auth-service " " ui-enabled " " copilot-enabled " " copilot-app-id " " 
                    copilot-use-schema " " copilot-use-docs)))
       (println "no build -> client spec in config, skipping client-app generation"))
     model-name))

@@ -141,3 +141,16 @@
     (let [idx (s/last-index-of path "/")
           s0 (subs path 0 idx)]
       (str s0 "/%"))))
+
+(defn parse-any-path [base-component path]
+  (parse-fully-qualified-path
+   (as-fully-qualified-path base-component path)))
+
+(defn find-parent-id [parsed-path]
+  (loop [parsed-path parsed-path]
+    (let [[e id] (:entity parsed-path)]
+      (if-let [[_ r0] (:-> parsed-path)]
+        (if (:-> r0)
+          (recur r0)
+          id)
+        id))))

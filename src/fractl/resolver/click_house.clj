@@ -37,7 +37,7 @@
 (defn- as-quoted-sql-val [v]
   (let [v (as-raw-sql-val v)]
     (if (string? v)
-      (str "'" v "'")
+      (str "'" (s/replace v #"'" "''") "'")
       v)))
 
 (defn- execute-sql [ds sql]

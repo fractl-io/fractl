@@ -22,6 +22,10 @@
      :cljs
      (b64/decodeStringToByteArray s)))
 
+(defn decode-to-string [s]
+  #?(:clj (String. (decode s) "UTF-8")
+     :cljs (b64/decodeString s false)))
+
 (def ^:private b64-pat #"^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$")
 
 (def base64-encoded? (partial re-matches b64-pat))
