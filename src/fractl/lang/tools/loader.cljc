@@ -145,7 +145,7 @@
         (load-script nil file-name-or-input-stream)))
 
      (defn load-expressions
-  "Load, complile and intern the component from a namespace expressions."
+       "Load, complile and intern the component from a namespace expressions."
        ([mns mns-exps convert-fq?]
         (use 'fractl.lang)
         (cn/remove-component mns)
@@ -197,7 +197,8 @@
                     (recur (rest mps)))
                   (u/throw-ex
                    (str model-name " - model not found in any of "
-                        model-paths))))))))
+                        model-paths))
+                  ))))))
        ([model-file]
         (let [model (read-model-expressions model-file)
               root (java.io.File. (.getParent (java.io.File. model-file)))]
