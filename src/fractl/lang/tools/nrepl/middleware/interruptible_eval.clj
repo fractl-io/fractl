@@ -10,7 +10,7 @@
     [nrepl.middleware.print :as print]
     [nrepl.misc :as misc :refer [response-for with-session-classloader]]
     [nrepl.transport :as t]
-    [fractl.util.core :refer [nrepl-eval-init]])
+    [fractl.lang.tools.nrepl.core :refer [nrepl-eval-init]])
   (:import
    (clojure.lang Compiler$CompilerException LineNumberingPushbackReader)
    (java.io StringReader Writer)

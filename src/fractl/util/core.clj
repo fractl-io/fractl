@@ -14,23 +14,18 @@
     [fractl.evaluator.intercept :as ei]
     [fractl.store :as store]
     [fractl.global-state :as gs]
-    [fractl.lang :as ln]
     [fractl.lang.rbac :as lr]
     [fractl.lang.tools.loader :as loader]
     [fractl.lang.tools.build :as build]
-    [fractl.lang.tools.deploy :as d]
-    [fractl.lang.tools.repl :as repl]
     [fractl.auth :as auth]
     [fractl.rbac.core :as rbac]
-    [fractl-config-secrets-reader.core :as fractl-secret-reader]
-    [fractl.lang.tools.replcmds :as replcmds]))
+    [fractl-config-secrets-reader.core :as fractl-secret-reader]))
 
 (def ^:private repl-mode-key :-*-repl-mode-*-)
 (def ^:private repl-mode? repl-mode-key)
 (def ^:private on-init-fn (atom nil))
 (def config-data-key :-*-config-data-*-)
 (def resource-cache (atom nil))
-(defonce nrepl-eval-init (atom nil))
 
 (defn complete-model-paths [model current-model-paths config]
   (let [mpkey :model-paths
@@ -299,30 +294,6 @@
     (catch Exception ex
       (println (str "ERROR - " (.getMessage ex)))
       (f))))
-
-(defn initialize-nrepl-environment [model-name store evaluator]
-  "Initializes the REPL environment for a given model name."
-  (let [model-name (or model-name (repl/infer-model-name))
-        current-cn (cn/get-current-component)
-        decl-names (cn/declared-names current-cn)]
-    (when decl-names
-      (repl/set-declared-names! current-cn decl-names))
-    (use '[fractl.lang])
-    (use '[fractl.lang.tools.replcmds])
-    (ln/component repl/repl-component)
-    (let [cn (if (= model-name :fractl)
-               repl/repl-component
-               current-cn)]
-      (replcmds/switch cn))
-    (partial repl/repl-eval store (atom nil) evaluator)))
-
-(defn init-repl-eval-func [model-name options]
-  (force-call-after-load-model
-    model-name
-    (fn []
-      (let [model-info (read-model-and-config options)
-            [[ev store] _] (prepare-repl-runtime model-info)]
-        (reset! nrepl-eval-init (initialize-nrepl-environment model-name store ev))))))
 
 (defn run-repl-func [options model-fn]
   (fn [args]

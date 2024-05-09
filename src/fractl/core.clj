@@ -3,6 +3,15 @@
             [clojure.java.io :as io]
             [clojure.string :as s]
             [clojure.pprint :as pprint]
+            [nrepl.middleware.dynamic-loader :as dynamic-loader]
+            nrepl.middleware
+            nrepl.middleware.completion
+            nrepl.middleware.load-file
+            nrepl.middleware.lookup
+            nrepl.middleware.session
+            nrepl.middleware.sideloader
+            nrepl.server
+            fractl.lang.tools.nrepl.middleware.interruptible-eval
             [fractl.datafmt.json :as json]
             [fractl.util :as u]
             [fractl.util.seq :as su]
@@ -22,16 +31,7 @@
             [fractl.swagger.docindex :as docindex]
             [fractl.graphql.generator :as gg]
             [fractl.util.core :as uc]
-            [nrepl.server :as nrepl]
-            [nrepl.middleware.dynamic-loader :as dynamic-loader]
-            nrepl.middleware
-            nrepl.middleware.completion
-            nrepl.middleware.interruptible-eval
-            nrepl.middleware.load-file
-            nrepl.middleware.lookup
-            nrepl.middleware.session
-            nrepl.middleware.sideloader
-            fractl.lang.tools.nrepl.middleware.interruptible-eval)
+            [fractl.lang.tools.nrepl.core :as nrepl])
   (:import [java.util Properties]
            [java.io File]
            [org.apache.commons.exec CommandLine Executor DefaultExecutor])
@@ -228,7 +228,7 @@
    This handler bootstraps by initiating with just the dynamic loader, then
    using that to load the other middleware."
   [model-name options & additional-middleware]
-  (uc/init-repl-eval-func model-name options)
+  (nrepl/init-repl-eval-func model-name options)
   (let [initial-handler (dynamic-loader/wrap-dynamic-loader nil)
         state           (atom {:handler initial-handler
                                :stack   [#'nrepl.middleware.dynamic-loader/wrap-dynamic-loader]})]
@@ -282,7 +282,7 @@
                                                            (repl/run model-name store ev)))))))
                  :nrepl (uc/run-repl-func options
                                             (fn [model-name opts]
-                                              (nrepl/start-server :port 7888 :handler (fractl-nrepl-handler model-name opts))))
+                                              (nrepl.server/start-server :port 7888 :handler (fractl-nrepl-handler model-name opts))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(uc/call-after-load-model
