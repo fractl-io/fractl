@@ -20,6 +20,7 @@
             [fractl.lang.raw :as lr]
             [fractl.paths.internal :as pi]
             [fractl.user-session :as sess]
+            [fractl.inference :as i]
             [fractl.util :as u]
             [fractl.util.errors :refer [get-internal-error-message]]
             [fractl.util.hash :as hash]
@@ -360,15 +361,12 @@
                                      (when post-fn (post-fn)))))))))
         (bad-request (str "invalid request uri - " (:* (:params request))) "INVALID_REQUEST_URI"))))
 
-(defn- temp-event-name [component]
-  (li/make-path component (li/unq-name)))
-
 (defn- multi-post-request? [obj]
   (>= (count (keys obj)) 2))
 
 (defn- maybe-generate-multi-post-event [obj component path-attr]
   (when (multi-post-request? obj)
-    (let [event-name (temp-event-name component)]
+    (let [event-name (li/temp-event-name component)]
       (and (apply ln/dataflow event-name (compiler/parse-relationship-tree path-attr obj))
            event-name))))
 
@@ -402,7 +400,7 @@
 
 (defn- generate-filter-query-event
   ([component entity-name query-params deleted]
-   (let [event-name (temp-event-name component)]
+   (let [event-name (li/temp-event-name component)]
      (and (apply ln/dataflow
                  event-name [{(li/name-as-query-pattern entity-name)
                               (merge
@@ -489,7 +487,7 @@
         relname (pi/decode-uri-path-part (first (take-last 2 parts)))
         query-entity (pi/decode-uri-path-part (last parts))
         entity-name (pi/decode-uri-path-part (first (take-last 4 parts)))
-        event-name (temp-event-name component)
+        event-name (li/temp-event-name component)
         pats (if (= 4 (count parts))
                (let [id (get parts 1)]
                  [{(li/name-as-query-pattern query-entity) {}
@@ -1066,72 +1064,17 @@
         (ok {:status "ok" :result decoded-token}))
       (bad-request (str "token not specified") "ID_TOKEN_REQUIRED"))))
 
-(defn- register-event [component pats]
-  (let [event-name (temp-event-name component)]
-    (and (apply ln/dataflow event-name pats)
-         event-name)))
-
-(defn as-vec [x]
-  (if (vector? x)
-    x
-    [x]))
-
-(defn eval-patterns [fractl-components fractl-patterns] 
-  (println fractl-components fractl-patterns)
-  (try
-    (let [event (-> (first fractl-components)
-                    (register-event (as-vec fractl-patterns)))]
-      (log/debug (str "event " event " generated."))
-      (try
-        (ev/safe-eval {event {}})
-        (finally
-          (cn/remove-event event))))
-    (catch Exception e
-      (log/info (str "Error evaluating patterns: "
-                     fractl-components " " fractl-patterns " "
-                     (.getMessage e)))
-      (.getMessage e)
-      "Error evaluating patterns")))
-
 (defn- process-post-copilot-question [[auth-config _] auth request]
   (if (and auth-config (nil? (:email (auth/session-sub
                                       (assoc auth :request request)))))
     (bad-request (str "authentication not valid") "INVALID_AUTHENTICATION")
-    (if-let [copilot-url (System/getenv "COPILOT_URL")]
+    (try
       (let [[obj _ _] (request-object request)
-            app-id (:AppUuid obj)
-            chat-uuid (:ChatUuid obj)
-            use-docs (:UseDocs obj)
-            use-schema (:UseSchema obj)
-            question (:Question obj)
-            components (remove #{:Fractl.Kernel.Identity :Fractl.Kernel.Lang
-                                 :Fractl.Kernel.Store :Fractl.Kernel.Rbac
-                                 :raw :-*-containers-*-}
-                               (cn/component-names))]
-        (try
-          (let [out (uh/POST
-                      (str copilot-url "/api/Copilot.Service.Core/PostAppQuestion")
-                      nil
-                      {:Copilot.Service.Core/PostAppQuestion
-                       {:AppUuid app-id
-                        :ChatUuid chat-uuid
-                        :UseDocs use-docs
-                        :UseSchema use-schema
-                        :Question question
-                        :EvalPattern false}})
-                result (-> out
-                           first
-                           :result
-                           first)]
-            (log/debug (str "post-copilot-question: " out " " obj))
-            (if (= (:Type result) "pattern")
-              (let [evaluated-result (eval-patterns components (read-string (:Value result)))]
-                (ok (assoc-in out [0 :result 0 :Value] evaluated-result)))
-              (ok out)))
-          (catch Exception ex
-            (log/info (.getMessage ex))
-            (bad-request "Request to copilot backend failed" "REQUEST_FAILED"))))
-      (internal-error "Copilot not enabled for this application"))))
+            evaluated-result (i/run-inference (cn/instance-attributes obj) (:Question obj) nil)]
+        (ok evaluated-result))
+      (catch Exception ex
+        (log/info (.getMessage ex))
+        (bad-request "Request to copilot backend failed" "REQUEST_FAILED")))))
 
 (defn- process-root-get [_]
   (ok {:result :fractl}))

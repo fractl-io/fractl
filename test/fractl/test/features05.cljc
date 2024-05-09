@@ -4,6 +4,7 @@
             [clojure.pprint :as pp]
             [fractl.component :as cn]
             [fractl.env :as env]
+            [fractl.inference :as i]
             [fractl.lang
              :refer [component event entity view
                      relationship dataflow rule inference]]
@@ -130,9 +131,7 @@
      {:meta {:priority 1}})
     (inference
      :I1252R/I1
-     {:category :I1Rules
-      :seed []
-      :embed [:I1252R/A :I1252R/B]}))
+     {:instructions "this is a test"}))
   (is (= (lr/as-edn :I1252R)
          '(do
             (component :I1252R)
@@ -146,7 +145,7 @@
              {:meta {:priority 1}})
             (inference
              :I1252R/I1
-             {:category :I1Rules, :seed [], :embed [:I1252R/A :I1252R/B]})))))
+             {:instructions "this is a test"})))))
 
 (deftest issue-1300-joins
   (defcomponent :I1300J
@@ -350,3 +349,11 @@
                 li/path-attr "/A/1/AB/"}})]
       (is (b? b2))
       (is (= 1 (li/parent-attr b2))))))
+
+(deftest run-inference
+  (when (i/mock-mode?)
+    (defcomponent :RI
+      (event :RI/Evt {:X :Int})
+      (inference :RI/Evt {:instructions '(str "event raised with x as: " :RI/Evt.X)}))
+    ;; TODO: check the returned post object and its context.
+    (is (= :ok (:status (first (tu/eval-all-dataflows {:RI/Evt {:X 100}})))))))

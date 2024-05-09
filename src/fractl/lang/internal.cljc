@@ -558,3 +558,6 @@
      (get-in meta [:meta k] not-found)
      not-found))
   ([meta k] (rule-meta-value meta k nil)))
+
+(defn temp-event-name [component]
+  (make-path component (unq-name)))

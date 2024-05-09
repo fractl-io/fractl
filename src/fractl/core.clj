@@ -26,6 +26,7 @@
             [fractl.auth :as auth]
             [fractl.rbac.core :as rbac]
             [fractl.gpt.core :as gpt]
+            [fractl.inference]
             [fractl.swagger.doc :as doc]
             [fractl.graphql.core :as gc]
             [fractl.graphql.generator :as gn]
