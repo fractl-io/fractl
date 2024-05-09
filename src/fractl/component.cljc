@@ -53,11 +53,13 @@
   #?(:clj  (ref {})
      :cljs (atom {})))
 
+(def ^:private kernel-userapp-component :Fractl.Kernel.UserApp)
+
 (def ^:private current-component
   "The name of the active component for the current thread."
   #?(:clj
      (proxy [ThreadLocal] []
-       (initialValue [] :Fractl.Kernel))
+       (initialValue [] kernel-userapp-component))
      :cljs
      (atom nil)))
 
@@ -212,10 +214,10 @@
    (let [[component n :as k] (li/split-path typname)
          intern-k [component typtag n]]
      (when-not (component-exists? component)
-       (throw-ex-info
-        (str "component not found - " component)
-        {type-key typname
-         :tag typtag}))
+      (throw-ex-info
+       (str "component not found - " component)
+       {type-key typname
+        :tag typtag}))
      (when-let [pp (mt/apply-policy-parsers k meta)]
        (log/debug (str "custom parse policies for " typname " - " pp)))
      (u/call-and-set
@@ -2188,3 +2190,5 @@
 
 (defn view? [entity-name]
   (if (view-query entity-name) true false))
+
+(create-component kernel-userapp-component nil)
