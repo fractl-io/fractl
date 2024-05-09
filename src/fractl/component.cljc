@@ -53,11 +53,13 @@
   #?(:clj  (ref {})
      :cljs (atom {})))
 
+(def ^:private kernel-userapp-component :Fractl.Kernel.UserApp)
+
 (def ^:private current-component
   "The name of the active component for the current thread."
   #?(:clj
      (proxy [ThreadLocal] []
-       (initialValue [] :Fractl.Kernel))
+       (initialValue [] kernel-userapp-component))
      :cljs
      (atom nil)))
 
@@ -211,17 +213,11 @@
   ([typname typdef typtag meta]
    (let [[component n :as k] (li/split-path typname)
          intern-k [component typtag n]]
-     ;; Todo: uncomment below and fix root cause
-     ;; Context: It gets triggered with component name: :Fractl.Kernel when model is loaded using nrepl and statement is
-     ;; evaluated, preventing code evaluation and return of output to nrepl client. This is unexpected behavior and root
-     ;; cause may affect other functionalities as well. Root cause is unknown.
-     ;; Unexpectedly, this doesn't get triggered when evaluating code after loading model using repl despite the fact that
-     ;; repl and nrepl use same functions.
-     ;(when-not (and (component-exists? component))
-     ;  (throw-ex-info
-     ;   (str "component not found - " component)
-     ;   {type-key typname
-     ;    :tag typtag}))
+     (when-not (component-exists? component)
+      (throw-ex-info
+       (str "component not found - " component)
+       {type-key typname
+        :tag typtag}))
      (when-let [pp (mt/apply-policy-parsers k meta)]
        (log/debug (str "custom parse policies for " typname " - " pp)))
      (u/call-and-set
@@ -2194,3 +2190,5 @@
 
 (defn view? [entity-name]
   (if (view-query entity-name) true false))
+
+(create-component kernel-userapp-component nil)
