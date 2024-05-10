@@ -15,10 +15,10 @@
             [fractl.env :as env]
             [fractl.global-state :as gs]))
 
-(def ^:private repl-component :Fractl.Kernel.Repl)
-(def ^:private components (atom {}))
+(def repl-component :Fractl.Kernel.Repl)
+(def components (atom {}))
 
-(defn- set-declared-names! [cn decl-names]
+(defn set-declared-names! [cn decl-names]
   (swap! components assoc cn decl-names)
   (replcmds/switch cn))
 
@@ -140,7 +140,7 @@
 
     :else exp))
 
-(defn- repl-eval [store env-handle evaluator exp]
+(defn repl-eval [store env-handle evaluator exp]
   (try
     (let [exp (maybe-preproc-expression exp)
           r (eval exp)]
@@ -153,7 +153,7 @@
     (catch Exception ex
       (println (str "ERROR - " (.getMessage ex))))))
 
-(defn- infer-model-name []
+(defn infer-model-name []
   (try
     (:name (loader/load-default-model-info))
     (catch Exception ex
