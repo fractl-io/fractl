@@ -5,7 +5,7 @@
 
 (defn get-system-model-paths []
   #?(:clj
-     (if-let [paths (u/getenv "FRACTL_MODEL_PATHS")]
+     (if-let [paths (System/getenv "FRACTL_MODEL_PATHS")]
        (s/split paths #":")
        ["."])
      :cljs ["."]))
