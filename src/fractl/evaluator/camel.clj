@@ -54,8 +54,6 @@
              (.requestBody t "direct:send" user-arg (or (:user-arg-type request) String)))
            (catch Exception ex
              (log/error ex)))))
-     #_(when-not (or (:is-service request) (:callback request))
-         (.stop ctx))
      (when is-blocking
        (first (async/alts!! [chan (async/timeout 10000)])))))
   ([request] (exec-route request true)))
