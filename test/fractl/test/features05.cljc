@@ -351,9 +351,13 @@
       (is (= 1 (li/parent-attr b2))))))
 
 (deftest run-inference
+  ;; To enable inference-mock-mode:
+  ;;   export COPILOT_URL=mock:ai
   (when (i/mock-mode?)
     (defcomponent :RI
       (event :RI/Evt {:X :Int})
       (inference :RI/Evt {:instructions '(str "event raised with x as: " :RI/Evt.X)}))
-    ;; TODO: check the returned post object and its context.
-    (is (= :ok (:status (first (tu/eval-all-dataflows {:RI/Evt {:X 100}})))))))
+    (let [result (tu/result {:RI/Evt {:X 100}})
+          attrs (li/record-attributes result)]
+      (is (= (:Question attrs) "event raised with x as: 100"))
+      (is (cn/instance-of? :RI/Evt (:Context attrs))))))
