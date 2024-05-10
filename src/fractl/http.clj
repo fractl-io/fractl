@@ -1070,7 +1070,7 @@
     (bad-request (str "authentication not valid") "INVALID_AUTHENTICATION")
     (try
       (let [[obj _ _] (request-object request)
-            evaluated-result (i/run-inference (cn/instance-attributes obj) (:Question obj) nil)]
+            evaluated-result (i/run-inference (cn/instance-attributes obj) (:question obj) nil)]
         (ok evaluated-result))
       (catch Exception ex
         (log/info (.getMessage ex))
