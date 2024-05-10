@@ -25,6 +25,7 @@
             [fractl.lang.tools.deploy :as d]
             [fractl.lang.tools.repl :as repl]
             [fractl.gpt.core :as gpt]
+            [fractl.inference]
             [fractl.swagger.doc :as doc]
             [fractl.graphql.core :as gc]
             [fractl.graphql.generator :as gn]

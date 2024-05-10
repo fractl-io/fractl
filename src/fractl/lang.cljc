@@ -727,10 +727,20 @@
            (raw/rule rule-name args)
            rule-name))))
 
+(defn register-inference-dataflow [inference-name spec]
+  (let [ins (:instructions spec)
+        p0 (if (string? ins)
+             `[:eval (identity ~ins) :as :I]
+             `[:eval ~ins :as :I])
+        p1 `[:eval (fractl.inference/run-inference :I ~inference-name)]]
+    (cn/register-dataflow inference-name nil [p0 p1])
+    inference-name))
+
 (defn inference [inference-name spec-map]
-  (when-let [invalid-keys (seq (set/difference (set (keys spec-map)) #{:category :seed :embed}))]
+  (when-let [invalid-keys (seq (set/difference (set (keys spec-map)) #{:instructions}))]
     (u/throw-ex (str "invalid keys " invalid-keys " in inferenece " inference-name)))
-  (and (cn/register-inference inference-name spec-map)
+  (and (register-inference-dataflow inference-name spec-map)
+       (cn/register-inference inference-name spec-map)
        (raw/inference inference-name spec-map)
        inference-name))
 
