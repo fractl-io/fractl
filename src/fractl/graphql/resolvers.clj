@@ -21,9 +21,6 @@
    :entities (find-schema #(cn/entity-names component) lr/find-entity)
    :relationships (find-schema #(cn/relationship-names component) lr/find-relationship)})
 
-(defn get-app-components []
-  (cn/remove-internal-components (cn/component-names)))
-
 (defn first-result [r]
   (:result (first r)))
 
@@ -107,7 +104,7 @@
 (defn query-entity-by-attribute-resolver
   [entity-name]
   (fn [context args value]
-    (let [core-component (first (get-app-components))
+    (let [core-component (:core-component context)
           args (:attributes args)
           query-params (append-question-to-keys args)
           dataflow-query {entity-name query-params}]
@@ -149,7 +146,7 @@
   [relationship-name parent-name child-name]
   (fn [context args parent-instance]
     (let [args (:attributes args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           schema (schema-info core-component)
           parent-guid-attribute (find-guid-or-id-attribute schema parent-name)
           parent-id ((find-guid-or-id-attribute schema parent-name) parent-instance)
@@ -181,7 +178,7 @@
   [relationship-name entity1-name entity2-name]
   (fn [context args value]
     (let [args (:attributes args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           query-params (append-question-to-keys args)
           query {relationship-name query-params}]
       (eval-patterns core-component query context))))
@@ -190,7 +187,7 @@
   [entity-name]
   (fn [context args value]
     (let [args (:input args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           create-pattern {entity-name args}]
       (first (eval-patterns core-component create-pattern context)))))
 
@@ -198,7 +195,7 @@
   [relationship-name parent-name child-name]
   (fn [context args value]
     (let [args (:input args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           schema (schema-info core-component)
           parent-guid (find-guid-or-id-attribute schema parent-name)
           parent-guid-arg-pair (get-combined-key-value args parent-name parent-guid)
@@ -214,7 +211,7 @@
   [relationship-name entity1-name entity2-name]
   (fn [context args value]
     (let [args (:input args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           create-pattern {relationship-name args}]
       (first (eval-patterns core-component create-pattern context)))))
 
@@ -222,7 +219,7 @@
   [entity-name]
   (fn [context args value]
     (let [args (:input args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           schema (schema-info core-component)
           entity-guid-attr (find-guid-or-id-attribute schema entity-name)
           entity-guid-val (entity-guid-attr args)
@@ -235,7 +232,7 @@
   [relationship-name parent-name child-name]
   (fn [context args value]
     (let [args (:input args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           schema (schema-info core-component)
           child-guid (find-guid-or-id-attribute schema child-name)
           parent-guid (find-guid-or-id-attribute schema parent-name)
@@ -273,7 +270,7 @@
   [relationship-name entity1-name entity2-name]
   (fn [context args value]
     (let [args (:input args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           schema (schema-info core-component)
           extracted-entity1-name (keyword (extract-entity-name entity1-name))
           extracted-entity2-name (keyword (extract-entity-name entity2-name))
@@ -299,7 +296,7 @@
   [entity-name]
   (fn [context args value]
     (let [args (:input args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           schema (schema-info core-component)
           entity-guid (find-guid-or-id-attribute schema entity-name)
           delete-pattern [[:delete entity-name {entity-guid (entity-guid args)}]]]
@@ -309,7 +306,7 @@
   [relationship-name parent-name child-name]
   (fn [context args value]
     (let [args (:input args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           schema (schema-info core-component)
           parent-guid (find-guid-or-id-attribute schema parent-name)
           parent-guid-arg-pair (get-combined-key-value args parent-name parent-guid)
@@ -335,7 +332,7 @@
   [relationship-name entity1-name entity2-name]
   (fn [context args value]
     (let [args (:input args)
-          core-component (first (get-app-components))
+          core-component (:core-component context)
           create-pattern [[:delete relationship-name args]]]
       (eval-patterns core-component create-pattern context))))
 

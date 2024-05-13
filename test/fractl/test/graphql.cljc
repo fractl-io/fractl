@@ -46,7 +46,7 @@
   (let [schema (http/schema-info component-name)
         contains-graph-map (gg/generate-contains-graph schema)
         [uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema contains-graph-map)]
-    (let [context {:auth-config nil :contains-graph contains-graph-map :entity-metas entity-metadatas}
+    (let [context {:auth-config nil :core-component component-name :contains-graph contains-graph-map :entity-metas entity-metadatas}
           result (simplify (execute injected-graphql-schema query nil context))]
         (:data result))))
 
@@ -314,8 +314,6 @@
                            (cn/make-instance {:WordCount.Core/CreateTestDocument {}}))))]
           (is (cn/instance-of? :WordCount.Core/Document result))
           (is (= (filter-event-attrs result) document-data)))))
-
-
 
     (testing "Query All Documents for User"
       (let [results (graphql-handler :WordCount.Core query-all-docs-for-user-pattern)]
