@@ -51,7 +51,7 @@
       (u/throw-ex (str "superuser email not set in auth-config")))
     (when-not admin-password
       (u/throw-ex (str "FRACTL_SUPERUSER_PASSWORD not set")))
-    (rr/compose-resolver
+    ((if (:is-identity-store config) rr/override-resolver rr/compose-resolver)
      [:Fractl.Kernel.Identity/User
       :Fractl.Kernel.Rbac/Role
       :Fractl.Kernel.Rbac/RoleAssignment]

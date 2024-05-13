@@ -4,6 +4,7 @@
             [fractl.util.http :as http]
             [fractl.util.logger :as log]
             [fractl.util.seq :as us]
+            [fractl.component :as cn]
             [fractl.lang.b64 :as b64]
             [fractl.datafmt.json :as json]
             [fractl.global-state :as gs]
@@ -331,6 +332,39 @@
 
 (defmethod auth/get-user tag [_]
   (u/throw-ex "auth/get-user not implemented for okta"))
+
+(defn- as-identity-user [okta-user]
+  (let [profile (:profile okta-user)]
+    (cn/make-instance
+     :Fractl.Kernel.Identity/User
+     {:Name (:login profile)
+      :FirstName (:firstName profile)
+      :LastName (:lastName profile)
+      :Email (:email profile)
+      :UserData okta-user})))
+
+(defn- clause-as-query-params [clause]
+  (str "email=" (http/url-encode (last clause))))
+
+(defmethod auth/lookup-users tag [{domain :domain api-token :api-token :as config}]
+  (when-not api-token
+    (u/throw-ex "okta api token is required to lookup users"))
+  (let [clause (auth/query-key config)
+        params (clause-as-query-params clause)
+        url (str "https://" domain "/api/v1/users?" params)
+        resp (http/do-get url {:headers {"Authorization" (str "SSWS " api-token)}})]
+    (if (= 200 (:status resp))
+      (mapv as-identity-user (json/decode (:body resp)))
+      (u/throw-ex (str "okta lookup-users failed with status " (:status resp))))))
+
+(defmethod auth/lookup-all-users tag [{domain :domain api-token :api-token}]
+  (when-not api-token
+    (u/throw-ex "okta api token is required to lookup users"))
+  (let [url (str "https://" domain "/api/v1/users")
+        resp (http/do-get url {:headers {"Authorization" (str "SSWS " api-token)}})]
+    (if (= 200 (:status resp))
+      (mapv as-identity-user (json/decode (:body resp)))
+      (u/throw-ex (str "okta lookup-users failed with status " (:status resp))))))
 
 (defmethod auth/resend-confirmation-code tag [_]
   (u/throw-ex "auth/resend-confirmation-code not implemented for okta"))
