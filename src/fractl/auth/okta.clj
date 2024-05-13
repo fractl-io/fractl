@@ -17,6 +17,7 @@
 ;; config required for okta/auth:
 #_{:rbac-enabled true
    :authentication {:service :okta
+                    :is-identity-store true ; use okta as the sole identity/user store
                     :superuser-email <email>
                     :domain <okta-domain>
                     :auth-server <okta-auth-server-name> ; or "default"
