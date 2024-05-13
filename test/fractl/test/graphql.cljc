@@ -52,7 +52,7 @@
 
 (defn filter-event-attrs [event]
   "Removes internal attrs from event."
-    (dissoc (fractl.component/instance-user-attributes event) :EventContext :__path__))
+    (dissoc (fractl.component/instance-user-attributes event) :EventContext :__path__ :__parent__))
 
 (defn build-sample-app []
   (cn/remove-component :GraphQL.Test)
