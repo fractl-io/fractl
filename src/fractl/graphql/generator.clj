@@ -464,6 +464,35 @@
 (defn generate-contains-graph [schema-info]
   (build-contains-relationship-graph (:relationships (normalize-schema schema-info))))
 
+(defn update-child-mutations [mutations relationships mutation-type]
+  "Firstly, this function removes child mutations because children are mutated in the context of parents - via relationship 
+  mutations. For example, if a document is contained by a user and a category, :Mutation/CreateDocument won't work. 
+  Instead, we should identify document via relationship name, such as: :Mutation/CreateUserDocument where UserDocument is
+  the name of contains relationship. Secondly, simplify relationship mutation to use attributes of child mutation 
+  (which includes parent guid/id), instead of having all attributes of parent as well."
+  ;; collect and apply removal
+  (let [mutations-map (:fields (:Mutation mutations))
+        update-info (reduce (fn [acc relationship]
+                              (let [relationship-name (key (first relationship))
+                                    contains (get-in (val (first relationship)) [:meta :contains])]
+                                (if contains
+                                  (let [child (second contains)
+                                        relationship-mutation-key (keyword (str mutation-type (name relationship-name)))
+                                        child-mutation-key (keyword (str mutation-type (name child)))
+                                        child-value (mutations-map child-mutation-key)]
+                                    (assoc acc
+                                      :updates (conj (acc :updates) [relationship-mutation-key child-value])
+                                      :removals (conj (acc :removals) child-mutation-key)))
+                                  acc)))
+                            {:updates [] :removals []}
+                            relationships)
+        updates-map (reduce (fn [m [k v]]
+                              (assoc m k v))
+                            mutations-map
+                            (:updates update-info))
+        final-map (reduce dissoc updates-map (:removals update-info))]
+    {:Mutation {:fields final-map}}))
+
 (defn generate-graphql-schema-code [schema-info]
   (let [data (normalize-schema schema-info)
         records (:records data)
@@ -484,9 +513,9 @@
     ;; generate combined schema
     (let [combined-objects (merge @entities-code @records-code)
           queries (generate-queries @entities-code)
-          create-mutations (generate-mutations @entities-code "Create" false)
-          update-mutations (generate-mutations @entities-code "Update" false)
-          delete-mutations (generate-mutations @entity-metas "Delete" true)
+          create-mutations (update-child-mutations (generate-mutations @entities-code "Create" false) relationships "Create")
+          update-mutations (update-child-mutations (generate-mutations @entities-code "Update" false) relationships "Update")
+          delete-mutations (update-child-mutations (generate-mutations @entity-metas "Delete" true) relationships "Delete")
           query-input-objects (generate-query-input-objects combined-objects)
           create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" true false)
           update-mutation-input-objects (generate-mutation-input-objects combined-objects "Update" true false)
