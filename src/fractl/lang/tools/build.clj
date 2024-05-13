@@ -200,8 +200,11 @@
                   (if (= 1 (count ss))
                     [(symbol (str sanitized-model-name ".model." (first ss))) :only [cid]]
                     [(symbol (s/join "." (concat [(first ss) "model"] ss))) :only [cid]])))
-              refs)]
-    (concat spec [['fractl.model.model] ['fractl.lang :only lang-vars]])))
+              refs)
+        deps (if (= "fractl" sanitized-model-name)
+               [['fractl.lang :only lang-vars]]
+               [['fractl.model.model] ['fractl.lang :only lang-vars]])]
+    (concat spec deps)))
 
 (defn- merge-use-models [import-spec use-models]
   (loop [spec import-spec, result [], merged false]

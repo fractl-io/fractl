@@ -44,7 +44,8 @@
            (log/error ex))))))
 
 (defn setup-resolver [config evaluator]
-  (let [resolver (authn/make :authentication config)
+  (let [r-ident (authn/make :auth-identity config)
+        r-roles (authn/make :auth-roles config)
         admin-email (:superuser-email config)
         admin-password (u/getenv "FRACTL_SUPERUSER_PASSWORD" "admin")]
     (when-not admin-email
@@ -52,14 +53,16 @@
     (when-not admin-password
       (u/throw-ex (str "FRACTL_SUPERUSER_PASSWORD not set")))
     ((if (:is-identity-store config) rr/override-resolver rr/compose-resolver)
-     [:Fractl.Kernel.Identity/User
-      :Fractl.Kernel.Rbac/Role
+     [:Fractl.Kernel.Identity/User]
+     r-ident)
+    (rr/compose-resolver
+     [:Fractl.Kernel.Rbac/Role
       :Fractl.Kernel.Rbac/RoleAssignment]
-     resolver)
+     r-roles)
     (when-not (maybe-signup-user
                evaluator (email-to-names admin-email "superuser")
                admin-email admin-password)
       (u/throw-ex (str "failed to create local user for " admin-email)))
     (when-not (setup-cache-resolver (:cache config))
       (log/warn "failed to setup cache for authentication"))
-    resolver))
+    true))

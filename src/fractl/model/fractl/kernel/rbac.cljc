@@ -50,6 +50,9 @@
  #:Fractl.Kernel.Rbac{:RoleAssignment
                       {:Assignee?
                        :Fractl.Kernel.Rbac/FindRoleAssignments.Assignee}})
+(dataflow
+ :Fractl.Kernel.Rbac/DeleteRoleAssignments
+ [:delete :Fractl.Kernel.Rbac/RoleAssignment {:Assignee :Fractl.Kernel.Rbac/DeleteRoleAssignments.Assignee}])
 (defn-
  priv-assigns-query
  [env]

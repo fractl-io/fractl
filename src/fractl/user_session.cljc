@@ -85,6 +85,9 @@
       user-data)))
 
 (defn- maybe-assign-roles [email user-roles]
+  (ev/safe-eval-internal
+   {:Fractl.Kernel.Rbac/DeleteRoleAssignments
+    {:Assignee email}})
   (doseq [role (if (string? user-roles)
                  (s/split user-roles #",")
                  user-roles)]
@@ -114,18 +117,20 @@
        (let [r (first
                 (ev/eval-internal
                  {:Fractl.Kernel.Identity/FindUser
-                  {:Email email}}))]
-         (if (and (= :ok (:status r)) (seq (:result r)))
-           (first (:result r))
-           (let [r (first
-                    (ev/eval-internal
-                     {:Fractl.Kernel.Identity/Create_User
-                      {:Instance
-                       {:Fractl.Kernel.Identity/User
-                        {:Email email}}}}))]
-             (when (= :ok (:status r))
-               (:result r)))))
-       (when user-roles
-         (maybe-assign-roles email user-roles))
+                  {:Email email}}))
+             user
+             (if (and (= :ok (:status r)) (seq (:result r)))
+               (first (:result r))
+               (let [r (first
+                        (ev/eval-internal
+                         {:Fractl.Kernel.Identity/Create_User
+                          {:Instance
+                           {:Fractl.Kernel.Identity/User
+                            {:Email email}}}}))]
+                 (when (= :ok (:status r))
+                   (:result r))))]
+         (when user-roles
+           (maybe-assign-roles email user-roles))
+         user)
        (catch Exception ex
          (log/error (str "ensure-local-user failed: " (.getMessage ex)))))))
