@@ -228,8 +228,7 @@
     (let [component-name (second component-decl)
           component-spec (when (> (count component-decl) 2)
                            (nth component-decl 2))
-          cns-name (symbol
-                     (str model-name "." (s/lower-case (last (s/split (name component-name) #"\.")))))
+          cns-name (symbol (s/lower-case (name component-name)))
           s-model-name (sanitize model-name)
           ns-name (symbol (str s-model-name ".model." cns-name))
           use-models (model-refs-to-use s-model-name (:refer component-spec))
