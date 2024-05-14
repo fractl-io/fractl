@@ -68,7 +68,7 @@
                 result)
             (or status pat)))
         (catch Exception ex
-          (println (str "WARN - " (.getMessage ex)))
+          (log/warn (str "WARN - " (.getMessage ex)))
           pat)))))
 
 (defn- proc-event-pattern [pat]
@@ -157,7 +157,7 @@
   (try
     (:name (loader/load-default-model-info))
     (catch Exception ex
-      (println (str "WARN - " (.getMessage ex)))
+      (log/warn (str "WARN - " (.getMessage ex)))
       :fractl)))
 
 (defn- maybe-change-model-name [model-name exp]
