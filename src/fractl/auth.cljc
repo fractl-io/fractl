@@ -4,6 +4,7 @@
             [fractl.util.logger :as log]
             [fractl.auth.cognito]
             [fractl.auth.okta]
+            [fractl.auth.keycloak]
             [fractl.auth.df]
             [fractl.resolver.registry :as rr]
             [fractl.resolver.authentication :as authn]

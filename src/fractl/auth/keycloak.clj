@@ -14,7 +14,7 @@
 (def ^:private tag :keycloak)
 (def ^:private non-client-keys [:user-realm :user-client-id
                                 :sub :service :admin :admin-password
-                                :auth-user-type])
+                                :auth-user-type :is-identity-store])
 
 (def ^:private client (atom nil))
 
@@ -143,4 +143,10 @@
   (throw (Exception. "Not implemented")))
 
 (defmethod auth/remove-user-from-role tag [_req]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/lookup-users tag [config]
+  (throw (Exception. "Not implemented")))
+
+(defmethod auth/lookup-all-users tag [config]
   (throw (Exception. "Not implemented")))
