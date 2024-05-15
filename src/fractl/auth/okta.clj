@@ -4,6 +4,7 @@
             [fractl.util.http :as http]
             [fractl.util.logger :as log]
             [fractl.util.seq :as us]
+            [fractl.component :as cn]
             [fractl.lang.b64 :as b64]
             [fractl.datafmt.json :as json]
             [fractl.global-state :as gs]
@@ -16,6 +17,7 @@
 ;; config required for okta/auth:
 #_{:rbac-enabled true
    :authentication {:service :okta
+                    :is-identity-store true ; use okta as the sole identity/user store
                     :superuser-email <email>
                     :domain <okta-domain>
                     :auth-server <okta-auth-server-name> ; or "default"
@@ -281,7 +283,7 @@
                (cleanup-roles
                 (get auth-status (:role-claim auth-config))
                 (:default-role auth-config)))
-      (log/warn (str "failed to create local user for " user)))
+      (log/warn (str "okta - failed to ensure local user " user)))
     (if (and user (sess/upsert-user-session user true)
              ((if current-sid
                 sess/session-cookie-replace
@@ -332,6 +334,59 @@
 (defmethod auth/get-user tag [_]
   (u/throw-ex "auth/get-user not implemented for okta"))
 
+(defn- as-identity-user [okta-user]
+  (let [profile (:profile okta-user)]
+    (cn/make-instance
+     :Fractl.Kernel.Identity/User
+     {:Name (:login profile)
+      :FirstName (:firstName profile)
+      :LastName (:lastName profile)
+      :Email (:email profile)
+      :UserData okta-user})))
+
+(defn- parse-opr [opr]
+  (case opr
+    := "eq"
+    :like "sw" ; starts-with
+    :< "lt"
+    :> "gt"
+    :<= "lteq"
+    :>= "gteq"
+    (u/throw-ex (str "operator not supported by okta: " opr))))
+
+(defn- clause-as-query [clause]
+  (let [opr (first clause)]
+    (when (or (= opr :and) (= opr :or))
+      (u/throw-ex (str "logical oprerator not supported by okta search - " opr)))
+    (let [opr (parse-opr opr)
+          n (second clause)
+          attr (case n
+                 :Email "profile.email"
+                 :FirstName "profile.firstName"
+                 :LastName "profile.lastName"
+                 (name n))]
+      (http/url-encode (str attr " " opr " \"" (last clause) "\"")))))
+
+(defmethod auth/lookup-users tag [{domain :domain api-token :api-token :as config}]
+  (when-not api-token
+    (u/throw-ex "okta api token is required to lookup users"))
+  (let [clause (auth/query-key config)
+        q (clause-as-query clause)
+        url (str "https://" domain "/api/v1/users?search=" q)
+        resp (http/do-get url {:headers {"Authorization" (str "SSWS " api-token)}})]
+    (if (= 200 (:status resp))
+      (mapv as-identity-user (json/decode (:body resp)))
+      (u/throw-ex (str "okta lookup-users failed with status " (:status resp))))))
+
+(defmethod auth/lookup-all-users tag [{domain :domain api-token :api-token}]
+  (when-not api-token
+    (u/throw-ex "okta api token is required to lookup users"))
+  (let [url (str "https://" domain "/api/v1/users")
+        resp (http/do-get url {:headers {"Authorization" (str "SSWS " api-token)}})]
+    (if (= 200 (:status resp))
+      (mapv as-identity-user (json/decode (:body resp)))
+      (u/throw-ex (str "okta lookup-users failed with status " (:status resp))))))
+
 (defmethod auth/resend-confirmation-code tag [_]
   (u/throw-ex "auth/resend-confirmation-code not implemented for okta"))
 
@@ -359,4 +414,5 @@
   true)
 
 (defmethod auth/remove-user-from-role tag [_]
-  (u/throw-ex "auth/remove-user-from-role not implemented for okta"))
+  (log/warn "auth/remove-user-from-role not implemented for okta")
+  true)

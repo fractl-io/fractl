@@ -27,6 +27,8 @@
 
 ;; Get user details
 (defmulti get-user service-tag)
+(defmulti lookup-all-users service-tag)
+(defmulti lookup-users service-tag)
 (defmulti resend-confirmation-code service-tag)
 (defmulti confirm-sign-up service-tag)
 (defmulti upsert-user service-tag)
@@ -43,6 +45,7 @@
 (def client-key :client)
 (def instance-key :instance)
 (def operation-type :operation)
+(def query-key :query-clause)
 
 (defn call-upsert-user
   ([client arg action user-inst]

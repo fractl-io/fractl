@@ -2,6 +2,7 @@
   (:require [fractl.util :as u]
             [fractl.util.http :as uh]
             [fractl.component :as cn]
+            [fractl.lang.internal :as li]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry
              #?(:clj :refer :cljs :refer-macros)
@@ -35,6 +36,12 @@
 (def ^:private create (partial crdel :create))
 (def ^:private delete (partial crdel :delete))
 
+(defn- lookup [auth-service [entity-name {clause :where} :as param]]
+  (when (= (li/split-path entity-name) [:Fractl.Kernel.Identity :User])
+    (if (or (= clause :*) (nil? (seq clause)))
+      (auth/lookup-all-users auth-service)
+      (auth/lookup-users (assoc auth-service auth/query-key clause)))))
+
 (defmake :authentication
   (fn [resolver-name config]
     (let [config (merge config (when (auth/cognito? config) (uh/get-aws-config)))]
@@ -43,5 +50,6 @@
          resolver-name
          {:create {:handler (partial create client config)}
           :update {:handler (partial auth/call-upsert-user client config :update)}
-          :delete {:handler (partial delete client config)}})
+          :delete {:handler (partial delete client config)}
+          :query {:handler (partial lookup (assoc config auth/client-key client))}})
         (u/throw-ex (str "failed to create auth-client for " resolver-name))))))

@@ -11,7 +11,16 @@
    [Fractl_Kernel_Lang___COMPONENT_ID__]]
   [fractl.lang
    :only
-   [dataflow entity attribute relationship component event record]]))
+   [dataflow
+    entity
+    view
+    attribute
+    rule
+    relationship
+    component
+    event
+    inference
+    record]]))
 (component
  :Fractl.Kernel.Rbac
  {:refer [:Fractl.Kernel.Lang],
@@ -26,7 +35,7 @@
 (defn-
  crud-list?
  [xs]
- (every? (fn* [p1__280#] (some #{p1__280#} oprs)) (set xs)))
+ (every? (fn* [p1__286#] (some #{p1__286#} oprs)) (set xs)))
 (entity
  :Fractl.Kernel.Rbac/Privilege
  {:Name {:type :String, :default u/uuid-string, li/guid true},
@@ -50,6 +59,11 @@
  #:Fractl.Kernel.Rbac{:RoleAssignment
                       {:Assignee?
                        :Fractl.Kernel.Rbac/FindRoleAssignments.Assignee}})
+(dataflow
+ :Fractl.Kernel.Rbac/DeleteRoleAssignments
+ [:delete
+  :Fractl.Kernel.Rbac/RoleAssignment
+  {:Assignee :Fractl.Kernel.Rbac/DeleteRoleAssignments.Assignee}])
 (defn-
  priv-assigns-query
  [env]
@@ -64,7 +78,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__281#] (str "'" (str p1__281#) "'")) role-names))
+    (map (fn* [p1__287#] (str "'" (str p1__287#) "'")) role-names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivilegeAssignments
@@ -84,7 +98,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__282#] (str "'" (str p1__282#) "'")) names))
+    (map (fn* [p1__288#] (str "'" (str p1__288#) "'")) names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivileges
@@ -115,4 +129,4 @@
                        :Assignee {:type :String, :indexed true}}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "7fdc59a9-6440-4ab9-a9f7-e46323b6e97a")
+ "2be8de49-1c7e-42d5-9c4e-9c90de82a135")

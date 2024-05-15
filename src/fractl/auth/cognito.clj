@@ -42,13 +42,27 @@
      (or (str/index-of error-msg  "(Service: AWSCognitoIdentityProvider")
          (count error-msg)))))
 
+(defn- parse-user-filter [filter]
+  (if filter
+    (let [opr (first filter)
+          n (str/lower-case (name (second filter)))
+          opr (case opr
+                := "="
+                :like "^="
+                (u/throw-ex (str "operator not support bu cognito list-users - " opr)))]
+      (str n " " opr " \"" (last filter) "\""))
+    ""))
+
+(defn- find-cognito-users
+  ([client user-pool-id filter]
+   (let [filter (if (string? filter) filter (parse-user-filter filter))]
+     (:users (list-users client :user-pool-id user-pool-id :filter filter))))
+  ([client user-pool-id]
+   (find-cognito-users client user-pool-id nil)))
+
 (defn- find-cognito-username-by-email [client user-pool-id email]
-  (let [users
-        (list-users
-         client
-         :user-pool-id user-pool-id
-         :filter (str "email = \"" email "\""))
-        user (first (:users users))]
+  (let [users (find-cognito-users client user-pool-id (str "email = \"" email "\""))
+        user (first users)]
     (:username user)))
 
 (defn- verify-and-extract [{region :region user-pool-id :user-pool-id} token]
@@ -405,3 +419,31 @@
        :user-pool-id user-pool-id)
       (do (log/warn (str "remove-user-from-role: cognito user not found - " username))
           username))))
+
+(defn- find-attribute-value [user-attrs n]
+  (let [n (name n)]
+    (:value (first (filter (fn [x] (= n (:name x))) user-attrs)))))
+
+(defn- as-identity-user [user]
+  (let [attrs (:attributes user)
+        f (partial find-attribute-value attrs)
+        user-name (or (f :name) (:username user))]
+    (cn/make-instance
+     :Fractl.Kernel.Identity/User
+     {:Name user-name
+      :FirstName (or (f :given_name) user-name)
+      :LastName (or (f :family_name) user-name)
+      :Email (f :email)
+      :UserData attrs}
+     false)))
+
+(defmethod auth/lookup-users tag [{client :client :as req}]
+  (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)
+        client (or client (auth/make-client (merge req cfg)))
+        clause (auth/query-key req)]
+    (mapv as-identity-user (find-cognito-users client user-pool-id clause))))
+
+(defmethod auth/lookup-all-users tag [{client :client :as req}]
+  (let [{user-pool-id :user-pool-id :as cfg} (uh/get-aws-config)
+        client (or client (auth/make-client (merge req cfg)))]
+    (mapv as-identity-user (find-cognito-users client user-pool-id))))

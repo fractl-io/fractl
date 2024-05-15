@@ -51,6 +51,10 @@
  {:RoleAssignment
   {:Assignee? :FindRoleAssignments.Assignee}})
 
+(dataflow
+ :DeleteRoleAssignments
+ [:delete :RoleAssignment {:Assignee :DeleteRoleAssignments.Assignee}])
+
 (defn- priv-assigns-query [env]
   (let [role-names (env :Fractl.Kernel.Rbac/FindPrivilegeAssignments.RoleNames)]
     (str "SELECT * FROM " (stu/entity-table-name :Fractl.Kernel.Rbac/PrivilegeAssignment)

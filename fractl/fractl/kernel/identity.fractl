@@ -16,7 +16,7 @@
              :optional true}
   :Email {:type :Email
           li/guid true}
-  :UserData {:type :Map :optional true}
+  :UserData {:type :Any :optional true}
   :AppId {:type :UUID
           :default u/uuid-string
           :indexed true}})
