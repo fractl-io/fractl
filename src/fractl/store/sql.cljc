@@ -42,12 +42,15 @@
       (subs n 1 (dec (count n)))
       a)))
 
-(defn- jattrs-as-on-clause [attribute-column-name main-table jtable jattrs]
+(defn- jattrs-as-on-clause [entity-table-name attribute-column-name main-table jtable jattrs]
   (let [ss (mapv (fn [[k v]]
-                   (let [p (li/path-parts v)]
-                     (str jtable "." (attribute-column-name
-                                      (normalize-jattr-name k))
-                          " = " main-table "." (attribute-column-name (first (:refs p))))))
+                   (let [p (li/path-parts v)
+                         c (:component p), r (:record p)
+                         ref-table (if (and c r)
+                                     (entity-table-name (li/make-path c r))
+                                     main-table)]
+                     (str jtable "." (attribute-column-name (normalize-jattr-name k))
+                          " = " ref-table "." (attribute-column-name (first (:refs p))))))
                  jattrs)]
     (str/join " AND " ss)))
 
@@ -72,11 +75,14 @@
            lj (:left-join query)
            jinfo (mapv (partial parse-join-table entity-table-name) (or j lj))
            d (name su/deleted-flag-col-kw)
+           s-join (if j " INNER JOIN " " LEFT JOIN ")
            q (str "SELECT " (with-join-attributes entity-table-name attribute-column-name wa)
                   " FROM " table-name
-                  (if j " INNER JOIN " " LEFT JOIN ")
                   (reduce (fn [s [jtable jattrs]]
-                            (str s jtable " ON " (jattrs-as-on-clause attribute-column-name table-name jtable jattrs) " "))
+                            (let [on-clause (jattrs-as-on-clause
+                                             entity-table-name
+                                             attribute-column-name table-name jtable jattrs)]
+                              (str s s-join " " jtable " ON " on-clause " ")))
                           "" jinfo)
                   (when check-is-deleted (str " WHERE " table-name "." d " = FALSE")))]
        {:with-attributes (mapv first wa) :query q})))
