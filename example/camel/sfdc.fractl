@@ -1,0 +1,41 @@
+(component :Sfdc)
+
+;;; Usage (over HTTP)
+;;
+;;; listen for change-events -
+;; POST /api/Sfdc/TriggerOnChangeEvent
+;; {"Sfdc/TriggerOnChangeEvent": {"UserArg": ""}}
+
+;;; create an account, and see the event captured -
+;; POST api/Sfdc/TriggerOnCreateAccount
+;; {"Sfdc/TriggerOnCreateAccount": {"UserArg": "{\"Name\": \"Hello from Fractl\"}"}}
+;;
+
+(require '[fractl.resolver.registry :as r])
+(use '[fractl.resolver.camel])
+
+(event
+ :OnCreateAccount
+ {:meta
+  {:inherits :Camel/EventTemplate
+   :trigger
+   {:endpoint "salesforce:createSObject?apiVersion=59.0&rawPayload=true&format=JSON&sObjectName=Account"}}})
+
+(dataflow
+ :OnCreateAccount
+ [:eval '(println "Sfdc Account object created:" :OnCreateAccount.Response)])
+
+(event
+ :OnChangeEvent
+ {:meta
+  {:inherits :Camel/EventTemplate
+   :trigger
+   {:endpoint "salesforce:subscribe:/data/ChangeEvents?rawPayload=true"}}})
+
+(dataflow
+ :OnChangeEvent
+ [:eval '(println "ChangeEvent:" :OnChangeEvent.Response)])
+
+(r/register-resolver {:name :camel-sfdc
+                      :type :camel
+                      :paths [:Sfdc/OnCreateAccount :Sfdc/OnChangeEvent]})

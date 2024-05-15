@@ -38,7 +38,9 @@
        (if (seqable? exp)
          (case (first exp)
            component
-           (assoc result :component (second exp))
+           (if-not (:component result)
+             (assoc result :component (second exp))
+             result)
 
            (entity record event rule dataflow relationship view attribute inference)
            (assoc

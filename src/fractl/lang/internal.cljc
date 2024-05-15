@@ -244,10 +244,11 @@
    (when (and component obj-name)
      (keyword (str (name component) "/" (name obj-name)))))
   ([n]
-   (if (keyword? n)
-     n
-     (let [[component obj-name] n]
-       (make-path component obj-name)))))
+   (cond
+     (keyword? n) n
+     (string? n) (keyword n)
+     :else (let [[component obj-name] n]
+             (make-path component obj-name)))))
 
 (defn make-ref
   ([recname attrname]
