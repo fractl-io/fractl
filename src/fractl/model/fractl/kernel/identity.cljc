@@ -7,7 +7,16 @@
    [Fractl_Kernel_Lang___COMPONENT_ID__]]
   [fractl.lang
    :only
-   [dataflow entity attribute relationship component event record]]))
+   [dataflow
+    entity
+    view
+    attribute
+    rule
+    relationship
+    component
+    event
+    inference
+    record]]))
 (component
  :Fractl.Kernel.Identity
  {:refer [:Fractl.Kernel.Lang],
@@ -20,7 +29,7 @@
   :FirstName {:type :String, :optional true},
   :LastName {:type :String, :optional true},
   :Email {:type :Email, li/guid true},
-  :UserData {:type :Map, :optional true},
+  :UserData {:type :Any, :optional true},
   :AppId {:type :UUID, :default u/uuid-string, :indexed true}})
 (event
  :Fractl.Kernel.Identity/SignUp
@@ -37,10 +46,10 @@
  {:User :Fractl.Kernel.Identity/User, :OtherDetails :Map})
 (entity
  :Fractl.Kernel.Identity/UserSession
- {:User {:type :String :guid true} :LoggedIn :Boolean})
+ {:User {:type :String, :guid true}, :LoggedIn :Boolean})
 (entity
  :Fractl.Kernel.Identity/SessionCookie
- {:Id {:type :String :guid true} :UserData :Any})
+ {:Id {:type :String, :guid true}, :UserData :Any})
 (event
  :Fractl.Kernel.Identity/UpdateUser
  {:UserDetails :Fractl.Kernel.Identity/UserExtra})
@@ -83,4 +92,4 @@
  [:delete :Fractl.Kernel.Rbac/RoleAssignment :purge])
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "0b302446-f031-4b0d-b09b-5bb37406e1f0")
+ "c8474193-2368-4e93-9f49-ef06773b61a4")

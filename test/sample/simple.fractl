@@ -3,12 +3,15 @@
 
 (component :Sample.Simple)
 
-(entity {:E1 {:A :Int
-              :B :Int
-              :C :Int
-              :X {:type :String
-                  :write-only true}
-              :Y :DateTime}})
+(entity
+ :E1
+ {:A :Int
+  :B :Int
+  :C :Int
+  :X {:type :String
+      :write-only true}
+  :Y :DateTime
+  :rbac [{:roles ["order-users"] :allow [:create]}]})
 
 (dataflow
  :K

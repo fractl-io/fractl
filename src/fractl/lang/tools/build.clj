@@ -200,8 +200,11 @@
                   (if (= 1 (count ss))
                     [(symbol (str sanitized-model-name ".model." (first ss))) :only [cid]]
                     [(symbol (s/join "." (concat [(first ss) "model"] ss))) :only [cid]])))
-              refs)]
-    (concat spec [['fractl.model.model] ['fractl.lang :only lang-vars]])))
+              refs)
+        deps (if (= "fractl" sanitized-model-name)
+               [['fractl.lang :only lang-vars]]
+               [['fractl.model.model] ['fractl.lang :only lang-vars]])]
+    (concat spec deps)))
 
 (defn- merge-use-models [import-spec use-models]
   (loop [spec import-spec, result [], merged false]
@@ -225,8 +228,7 @@
     (let [component-name (second component-decl)
           component-spec (when (> (count component-decl) 2)
                            (nth component-decl 2))
-          cns-name (symbol
-                     (str model-name "." (s/lower-case (last (s/split (name component-name) #"\.")))))
+          cns-name (symbol (s/lower-case (name component-name)))
           s-model-name (sanitize model-name)
           ns-name (symbol (str s-model-name ".model." cns-name))
           use-models (model-refs-to-use s-model-name (:refer component-spec))
