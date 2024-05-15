@@ -52,10 +52,12 @@
         table-name (as-table-name n)
         attrs (cn/instance-attributes instance)
         anames (keys attrs)
+        values (str-csv #(as-quoted-sql-val (% attrs)) anames)
+        values (s/replace values #"\\\"" "\\\\\\\\\"")
         sql (str "INSERT INTO " table-name " ("
                  (str-csv name anames)
                  ") VALUES ("
-                 (str-csv #(as-quoted-sql-val (% attrs)) anames)
+                 values
                  ")")]
     (execute-sql ds sql)
     instance))
