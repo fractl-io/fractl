@@ -1,6 +1,5 @@
 (ns fractl.lang.tools.repl
-  (:require [clojure.edn :as edn]
-            [clojure.pprint :as pp]
+  (:require [clojure.pprint :as pp]
             [clojure.string :as s]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
@@ -187,8 +186,7 @@
     (loop [model-name model-name]
       (print (str (name model-name) "> ")) (flush)
       (let [exp (try
-                  (edn/read (java.io.PushbackReader.
-                             (java.io.BufferedReader. *in*)))
+                  (read)
                   (catch Exception ex
                     (println (str "ERROR in input - " (.getMessage ex)))))]
         (if exp
