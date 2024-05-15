@@ -9,7 +9,7 @@
             [fractl.paths.internal :as pi]
             [fractl.lang.internal :as li]
             [fractl.lang
-             :refer [component attribute event
+             :refer [component attribute event view
                      entity record relationship dataflow]]
             #?(:clj  [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -537,3 +537,70 @@
          (is (= #{"u1@i1035.com"} (lookup-owners wu1 (:Id m1))))
          (is (= #{"u1@i1035.com"} (lookup-owners wu1 (:Id m2))))
          (is (= #{"u2@i1035.com"} (lookup-owners wu2 (:Id m3)))))))))
+
+(deftest view-rbac
+  (defcomponent :Vrbac
+    (entity
+     :Vrbac/Customer
+     {:Id {:type :Int :guid true}
+      :Name :String
+      :rbac [{:roles ["vrbac"] :allow [:create]}]})
+    (entity
+     :Vrbac/Order
+     {:Id {:type :Int :guid true}
+      :CustomerId :Int
+      :Date :Now
+      :rbac [{:roles ["vrbac"] :allow [:create]}]})
+    (view
+     :Vrbac/CustomerOrder
+     {:CustomerName :Vrbac/Customer.Name
+      :CustomerId :Vrbac/Customer.Id
+      :OrderId :Vrbac/Order.Id
+      :rbac [{:roles ["vrbac"] :allow [:read]}]
+      :query {:Vrbac/Order? {}
+              :join [{:Vrbac/Customer {:Id? :Vrbac/Order.CustomerId}}]}})
+    (dataflow
+     :Vrbac/InitUsers
+     {:Fractl.Kernel.Identity/User
+      {:Email "u1@vrbac.com"}}
+     {:Fractl.Kernel.Identity/User
+      {:Email "u2@vrbac.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "vrbac" :Assignee "u1@vrbac.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment
+      {:Role "vrbac" :Assignee "u2@vrbac.com"}}))
+  (is (finalize-events))
+  (is (cn/instance-of?
+       :Fractl.Kernel.Rbac/RoleAssignment
+       (tu/first-result {:Vrbac/InitUsers {}})))
+  (call-with-rbac
+   (fn []
+     (let [wu1 (partial with-user "u1@vrbac.com")
+           wu2 (partial with-user "u2@vrbac.com")
+           cust (fn [with-user id name]
+                  (tu/first-result
+                   (with-user
+                     {:Vrbac/Create_Customer
+                      {:Instance
+                       {:Vrbac/Customer {:Id id :Name name}}}})))
+           cust? (partial cn/instance-of? :Vrbac/Customer)
+           order (fn [with-user id cust-id]
+                   (tu/first-result
+                    (with-user
+                      {:Vrbac/Create_Order
+                       {:Instance
+                        {:Vrbac/Order {:Id id :CustomerId cust-id}}}})))
+           order? (partial cn/instance-of? :Vrbac/Order)
+           cs (mapv (partial cust wu1) [1001 1002] ["jay" "mat"])
+           c (cust wu2 1003 "joe")
+           _ (is (every? cust? (concat cs [c])))
+           os (mapv (partial order wu1) [1 2 3 4 5] [1001 1002 1001 1003 1003])
+           _ (is (every? order? os))
+           rs (tu/result (wu1 {:Vrbac/LookupAll_CustomerOrder {}}))
+           co? (partial cn/instance-of? :Vrbac/CustomerOrder)]
+       (is (and (= 5 (count rs)) (is (every? co? rs))))
+       (let [rs1 (filter #(= 1001 (:CustomerId %)) rs)
+             p? (fn [ordid] (is (= 1 (count (filter #(= ordid (:OrderId %)) rs1)))))]
+         (is (= 2 (count rs1)))
+         (p? 1)
+         (p? 3))))))
