@@ -36,6 +36,3 @@ db/
 .lein-env
 example/auth/package-lock.json
 resources/graphql/
-example/camel/target/
-example/camel/config.edn
-example/camel/resources/
