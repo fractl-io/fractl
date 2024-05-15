@@ -12,7 +12,7 @@
             [fractl.lang.internal :as li]
             [fractl.lang.raw :as raw]
             [fractl.lang
-             :refer [component attribute event
+             :refer [component attribute event view
                      entity record relationship dataflow]]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
                :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
@@ -792,3 +792,52 @@
   (let [edn (rest (raw/as-edn :Rrb))]
     (is (and (every? #(not= :Rrb/C (second %)) edn)
              (every? #(not= :Rrb/B (second %)) edn)))))
+
+(deftest issue-1328-joins-bug
+  (defcomponent :I1328
+    (entity
+     :I1328/Customer
+     {:Id {:type :Int :guid true}
+      :Name :String})
+    (entity
+     :I1328/Order
+     {:Id {:type :Int :guid true}
+      :CustomerId :Int
+      :Date :Now})
+    (entity
+     :I1328/OrderItem
+     {:Id {:type :Int :guid true}
+      :OrderId :Int
+      :Name :String
+      :Date :Now})
+    (view
+     :I1328/CustomerOrder
+     {:CustomerName :I1328/Customer.Name
+      :CustomerId :I1328/Customer.Id
+      :OrderId :I1328/Order.Id
+      :Item :I1328/OrderItem.Name
+      :query {:I1328/OrderItem? {}
+              :join [{:I1328/Order {:Id? :I1328/OrderItem.OrderId}}
+                     {:I1328/Customer {:Id? :I1328/Order.CustomerId}}]}}))
+  (let [cust (fn [i n] (tu/first-result
+                        {:I1328/Create_Customer
+                         {:Instance {:I1328/Customer {:Id i :Name n}}}}))
+        ord (fn [i c] (tu/first-result
+                       {:I1328/Create_Order
+                        {:Instance {:I1328/Order {:Id i :CustomerId c}}}}))
+        orditem (fn [i oi n] (tu/first-result
+                              {:I1328/Create_OrderItem
+                               {:Instance {:I1328/OrderItem {:Id i :OrderId oi :Name n}}}}))
+        cust? (partial cn/instance-of? :I1328/Customer)
+        ord? (partial cn/instance-of? :I1328/Order)
+        orditem? (partial cn/instance-of? :I1328/OrderItem)
+        custs (mapv cust [1 2 3] ["c1" "c2" "c3"])
+        _ (is (every? cust? custs))
+        ords (mapv ord [10 20 30] [1 2 1])
+        _ (is (every? ord? ords))
+        orditems (mapv orditem [100 200] [10 20] ["item1" "item3"])
+        _ (is (every? orditem? orditems))
+        custords (tu/result {:I1328/LookupAll_CustomerOrder {}})]
+    (is (every? (partial cn/instance-of? :I1328/CustomerOrder) custords))
+    (is (= 2 (count custords)))
+    (is (= 30 (apply + (mapv :OrderId custords))))))
