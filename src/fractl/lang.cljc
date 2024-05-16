@@ -876,7 +876,10 @@
                        rectype rec-name attrs))
                      raw-attrs)]
          (if (:view-query (:meta raw-attrs))
-           result
+           (do
+             (when-let [rbac-spec (:rbac attrs)]
+               (lr/rbac rec-name rbac-spec))
+             result)
            (let [ev (partial crud-evname n)
                  ctx-aname (k/event-context-attribute-name)
                  id-attr (identity-attribute-name rec-name)
@@ -984,7 +987,7 @@
 (defn view [n spec]
   (if-let [q (:query spec)]
     (let [[c vn] (li/split-path n)
-          attrs (dissoc spec :query)
+          attrs (dissoc spec :query :rbac :meta)
           ev (partial crud-evname n)]
       (validate-view-attrs! attrs)
       (entity
