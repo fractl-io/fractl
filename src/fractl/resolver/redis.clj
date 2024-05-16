@@ -40,7 +40,7 @@
    :delete {:handler redis-delete}
    :query {:handler redis-query}})
 
-(defn make-jedis-pool [config]
+(defn- make-jedis-pool [config]
   (let [host (or (:host config) (u/getenv "REDIS_HOST" "localhost"))
         port (or (:port config) (read-string (u/getenv "REDIS_PORT" "6379")))
         username (or (:username config) (u/getenv "REDIS_USERNAME"))

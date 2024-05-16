@@ -122,11 +122,13 @@
 
 (defn- maybe-publish-add-definition [tag record-name attrs]
   #?(:clj
-     (pubs/publish-event {:operation :add :tag tag :type record-name :schema attrs})))
+     (when (pubs/publish-schema?)
+       (pubs/publish-event {:operation :add :tag tag :type record-name :schema attrs}))))
 
 (defn- maybe-publish-remove-definition [tag record-name]
   #?(:clj
-     (pubs/publish-event {:operation :delete :tag tag :type record-name})))
+     (when (pubs/publish-schema?)
+       (pubs/publish-event {:operation :delete :tag tag :type record-name}))))
 
 (defn add-definition [tag record-name attrs]
   (when (change-defs #(replace-def tag record-name attrs))

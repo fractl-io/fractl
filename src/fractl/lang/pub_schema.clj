@@ -1,15 +1,20 @@
 (ns fractl.lang.pub-schema
   (:require [fractl.util :as u]
             [fractl.global-state :as gs]
-            [fractl.lang :as ln]
-            [fractl.datafmt.json :as json]
-            [fractl.resolver.redis :as r])
+            [fractl.datafmt.json :as json])
   (:import [java.util HashMap]
            [redis.clients.jedis Jedis JedisPool]))
 
-(defn- publish-schema? [] (:publish-schema (gs/get-app-config)))
+(defn publish-schema? [] (:publish-schema (gs/get-app-config)))
 
-(def ^:private get-connection (memoize (fn [] (when publish-schema? (r/make-jedis-pool)))))
+(defn- make-jedis-pool [config]
+  (let [host (or (:host config) (u/getenv "REDIS_HOST" "localhost"))
+        port (or (:port config) (read-string (u/getenv "REDIS_PORT" "6379")))
+        username (or (:username config) (u/getenv "REDIS_USERNAME"))
+        password (or (:password config) (u/getenv "REDIS_PASSWORD"))]
+    (JedisPool. host port username password)))
+
+(def ^:private get-connection (memoize (fn [] (when (publish-schema?) (make-jedis-pool nil)))))
 
 (def ^:private get-app-uuid (memoize (fn [] (u/getenv "FRACTL_APP_UUID" (u/uuid-string)))))
 
@@ -24,7 +29,7 @@
     hm))
 
 (defn publish-event [definition]
-  (when-let [^JedisPool conn (get-connection)]
+  (when-let [^JedisPool pool (get-connection)]
     (let [^Jedis j (.getResource pool)
           ^String k (u/getenv "REDIS_PUB_SCHEMA_STREAM" "fractl:schema")
           ^HashMap data (instance-to-hmap definition)]
