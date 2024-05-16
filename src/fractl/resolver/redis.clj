@@ -13,25 +13,31 @@
   ([n id] (str n "-" id)))
 
 (defn- redis-create [^JedisPool pool _ instance]
-  (let [^Jedis j (.getResource pool)
-        ^String k (make-key instance)
-        ^String v (json/encode instance)]
-    (.set j k v)
-    instance))
+  (let [^Jedis j (.getResource pool)]
+    (try
+      (let [^String k (make-key instance)
+            ^String v (json/encode instance)]
+        (.set j k v)
+        instance)
+      (finally (.close j)))))
 
 (def ^:private redis-update redis-create)
 
 (defn- redis-delete [^JedisPool pool _ instance]
-  (let [^Jedis j (.getResource pool)
-        ^String k (make-key instance)]
-    (.getdel j k)
-    instance))
+  (let [^Jedis j (.getResource pool)]
+    (try
+      (let [^String k (make-key instance)]
+        (.getdel j k)
+        instance)
+      (finally (.close j)))))
 
 (defn- redis-query [^JedisPool pool _ [entity-name {clause :where}]]
   (if (= := (first clause))
     (let [^Jedis j (.getResource pool)]
-      (when-let [v (.get j ^String (make-key (li/make-path entity-name) (last clause)))]
-        [(json/decode v)]))
+      (try
+        (when-let [v (.get j ^String (make-key (li/make-path entity-name) (last clause)))]
+          [(json/decode v)])
+        (finally (.close j))))
     (u/throw-ex (str "query " clause " not supported in redis"))))
 
 (def ^:private resolver-fns
