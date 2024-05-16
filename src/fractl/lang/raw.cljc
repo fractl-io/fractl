@@ -162,9 +162,10 @@
 (def remove-inference (partial remove-definition 'inference))
 
 (defn remove-event [event-name]
-  (if (vector? event-name)
+  (if (vector? event-name) ; pre-post event - e.g: [:after :create :AnEntity]
     (remove-definition 'event event-name)
     (when (remove-dataflow event-name)
+      (remove-inference event-name)
       (remove-definition 'event event-name))))
 
 (defn remove-definition-by-tag [kw-tag record-name]
