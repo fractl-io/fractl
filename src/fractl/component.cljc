@@ -1807,12 +1807,12 @@
 (defn remove-event [event-name]
   (cond
     (keyword? event-name)
-    (remove-record event-name)
+    (when (remove-record event-name)
+      (raw/remove-event event-name))
 
-    (vector? event-name)
-    (let [tag event-name]
-      (when (remove-record (apply prepost-event-name event-name))
-        (raw/remove-event tag)))
+    (vector? event-name) ; pre-post event - e.g: [:after :create :AnEntity]
+    (when (remove-record (apply prepost-event-name event-name))
+      (raw/remove-event event-name))
 
     :else (u/throw-ex (str "failed to remove event, invalid event name - " event-name))))
 

@@ -4,7 +4,8 @@
             [fractl.component :as cn]
             [fractl.lang
              :refer [component attribute event
-                     entity record dataflow]]
+                     entity record dataflow inference]]
+            [fractl.lang.raw :as lr]
             [fractl.evaluator :as e]
             [fractl.lang.datetime :as dt]
             [clojure.java.io :as io]
@@ -720,3 +721,17 @@
     (make-e 3 [:q# {:Seed [{:name "aaaa" :age 12} {:name "bbbb" :age 4}] :Id "10028"}])
     (make-e 4 [])
     (make-e 5 [:q# [1 2 3 "abc" :d]])))
+
+(deftest remove-event-with-inference
+  (defcomponent :Rewi
+    (event :Rewi/Evt {:X :Int})
+    (inference :Rewi/Evt {:instructions '(str "event raised with x as: " :Rewi/Evt.X)}))
+  (is (cn/event? :Rewi/Evt))
+  (is (= '(do
+            (component :Rewi)
+            (event :Rewi/Evt {:X :Int})
+            (inference :Rewi/Evt {:instructions (quote (str "event raised with x as: " :Rewi/Evt.X))}))
+         (lr/as-edn :Rewi)))
+  (is (cn/remove-event :Rewi/Evt))
+  (is (= '(do (component :Rewi)) (lr/as-edn :Rewi)))
+  (is (not (cn/event? :Rewi/Evt))))
