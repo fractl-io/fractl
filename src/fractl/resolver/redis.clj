@@ -40,13 +40,16 @@
    :delete {:handler redis-delete}
    :query {:handler redis-query}})
 
+(defn make-jedis-pool [config]
+  (let [host (or (:host config) (u/getenv "REDIS_HOST" "localhost"))
+        port (or (:port config) (read-string (u/getenv "REDIS_PORT" "6379")))
+        username (or (:username config) (u/getenv "REDIS_USERNAME"))
+        password (or (:password config) (u/getenv "REDIS_PASSWORD"))]
+    (JedisPool. host port username password)))
+
 (defmake :redis
   (fn [resolver-name config]
-    (let [host (or (:host config) "localhost")
-          port (or (:port config) 6379)
-          username (:username config)
-          password (:password config)
-          conn (JedisPool. host port username password)
+    (let [conn (make-jedis-pool config)
           handlers (map (fn [[k res]]
                           [k {:handler (partial (:handler res) conn config)}])
                         resolver-fns)]

@@ -1,7 +1,8 @@
 (ns fractl.lang.raw
   "Raw (edn) representation of all interned component-elements"
   (:require [fractl.util :as u]
-            [fractl.lang.internal :as li]))
+            [fractl.lang.internal :as li]
+            #?(:clj [fractl.lang.pub-schema :as pubs])))
 
 (def ^:private raw-store (u/make-cell {}))
 
@@ -119,8 +120,17 @@
     (u/safe-set raw-store (assoc @raw-store c defs))
     defs))
 
+(defn- maybe-publish-add-definition [tag record-name attrs]
+  #?(:clj
+     (pubs/publish-event {:operation :add :tag tag :type record-name :schema attrs})))
+
+(defn- maybe-publish-remove-definition [tag record-name]
+  #?(:clj
+     (pubs/publish-event {:operation :delete :tag tag :type record-name})))
+
 (defn add-definition [tag record-name attrs]
   (when (change-defs #(replace-def tag record-name attrs))
+    (maybe-publish-add-definition tag record-name attrs)
     record-name))
 
 (defn remove-definition [tag record-name]
@@ -130,6 +140,7 @@
              (remove-definition 'dataflow evt))
     true)
   (when (change-defs #(remove-def tag record-name))
+    (maybe-publish-remove-definition tag record-name)
     record-name))
 
 (defn attribute [n spec]
