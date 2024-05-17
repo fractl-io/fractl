@@ -18,6 +18,7 @@
   #{:Fractl.Kernel.Store
     :raw
     :-*-containers-*-
+    :Fractl.Kernel.UserApp
     })
 
 (def ^:private models (u/make-cell {}))
