@@ -63,3 +63,6 @@
   ([question] (run-inference nil nil question nil))
   ([question context] (run-inference nil nil question context))  
   ([request question context] (run-inference nil request question context)))
+
+(defn run-inference-for-event [question event-instance]
+  (run-inference question {:inference-event event-instance}))

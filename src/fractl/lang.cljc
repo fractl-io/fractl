@@ -732,7 +732,7 @@
         p0 (if (string? ins)
              `[:eval (identity ~ins) :as :I]
              `[:eval ~ins :as :I])
-        p1 `[:eval (fractl.inference/run-inference :I ~inference-name)]]
+        p1 `[:eval (fractl.inference/run-inference-for-event :I ~inference-name)]]
     (cn/register-dataflow inference-name nil [p0 p1])
     inference-name))
 
