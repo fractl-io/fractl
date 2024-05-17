@@ -360,4 +360,4 @@
     (let [result (tu/result {:RI/Evt {:X 100}})
           attrs (li/record-attributes result)]
       (is (= (:Question attrs) "event raised with x as: 100"))
-      (is (cn/instance-of? :RI/Evt (:inference-event (:Context attrs)))))))
+      (is (cn/instance-of? :RI/Evt (:inference-event (:QuestionContext attrs)))))))

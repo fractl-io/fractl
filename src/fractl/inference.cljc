@@ -41,7 +41,7 @@
                :UseDocs use-docs
                :UseSchema use-schema
                :Question question}
-           r (if context (assoc r0 :Context context) r0)
+           r (if context (assoc r0 :QuestionContext context) r0)
            req {:Copilot.Service.Core/PostAppQuestion r}
            mock-ai (= service-url "mock:ai")
            out (if mock-ai
