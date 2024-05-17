@@ -38,7 +38,7 @@
   (:use [compojure.core :only [DELETE GET POST PUT routes]]
         [compojure.route :only [not-found]]))
 
-(def core-component (atom {}))
+(def core-component (atom ""))
 (def graphql-schema (atom {}))
 (def contains-graph (atom {}))
 (def graphql-entity-metas (atom {}))
