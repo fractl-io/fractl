@@ -739,6 +739,7 @@
 (defn inference [inference-name spec-map]
   (when-let [invalid-keys (seq (set/difference (set (keys spec-map)) #{:instructions}))]
     (u/throw-ex (str "invalid keys " invalid-keys " in inferenece " inference-name)))
+  (ensure-event! inference-name)
   (and (register-inference-dataflow inference-name spec-map)
        (cn/register-inference inference-name spec-map)
        (raw/inference inference-name spec-map)
