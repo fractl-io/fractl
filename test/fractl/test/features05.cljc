@@ -355,7 +355,7 @@
   ;;   export COPILOT_URL=mock:ai
   (when (i/mock-mode?)
     (defcomponent :RI
-      (event :RI/Evt {:X :Int})
+      (event :RI/Evt {:X :Int}) ; defining event is optional, just like for dataflows.
       (inference :RI/Evt {:instructions '(str "event raised with x as: " :RI/Evt.X)}))
     (let [result (tu/result {:RI/Evt {:X 100}})
           attrs (li/record-attributes result)]
