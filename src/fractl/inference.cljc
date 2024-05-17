@@ -41,7 +41,7 @@
                :UseDocs use-docs
                :UseSchema use-schema
                :Question question}
-           r (if context (assoc r0 :Context context) r0)
+           r (if context (assoc r0 :QuestionContext context) r0)
            req {:Copilot.Service.Core/PostAppQuestion r}
            mock-ai (= service-url "mock:ai")
            out (if mock-ai
@@ -63,3 +63,6 @@
   ([question] (run-inference nil nil question nil))
   ([question context] (run-inference nil nil question context))  
   ([request question context] (run-inference nil request question context)))
+
+(defn run-inference-for-event [question event-instance]
+  (run-inference question {:inference-event event-instance}))
