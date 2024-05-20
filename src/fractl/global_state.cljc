@@ -13,6 +13,9 @@
 (defn get-app-config []
   @app-config)
 
+(defn audit-trail-enabled? []
+  (:enable-audit-trail @app-config))
+
 (def ^:dynamic active-event-context nil)
 
 (defn active-user [] (:User active-event-context))

@@ -15,6 +15,7 @@
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
+            [fractl.lang.datetime :as dt]
             ;; load kernel components
             [fractl.model.model]
             ;; :~
@@ -83,6 +84,25 @@
             (recur (rest insts) env (concat result rs)))))
       result)))
 
+(defn- maybe-create-audit-trail [env tag insts]
+  #?(:clj
+     (when (gs/audit-trail-enabled?)
+       (if-let [event-context (li/event-context (env/active-event env))]
+         (let [action (name tag)]
+           (doseq [inst insts]
+             (let [attrs {:Entity (cn/instance-type-kw inst)
+                          :Action action
+                          :Timestamp (dt/unix-timestamp)
+                          :User (or (:User event-context) "anonymous")}
+                   trail-data (if-let [sinfo (get-in event-context [:UserDetails :session-info])]
+                                (assoc attrs :SessionInfo sinfo)
+                                attrs)
+                   trail-entry {:Fractl.Kernel.Identity/AuditTrailEntry trail-data}]
+               (when-not (safe-eval-pattern trail-entry)
+                 (log/warn (str "failed to audit " tag " on " inst))))))
+         (log/warn (str "cannot audit " tag " without event-context")))))
+  insts)
+
 (def ^:dynamic internal-post-events false)
 
 (defn- fire-post-events-for
@@ -102,8 +122,9 @@
      (reduce
       (fn [env tag]
         (if-let [insts (seq (tag srcs))]
-          (do (fire-post-events-for tag is-internal insts)
-              (env/assoc-rule-futures env (trigger-rules tag insts)))
+          (and (fire-post-events-for tag is-internal insts)
+               (maybe-create-audit-trail env tag insts)
+               (env/assoc-rule-futures env (trigger-rules tag insts)))
           env))
       env [:create :update :delete])))
   ([env] (fire-post-events env nil)))

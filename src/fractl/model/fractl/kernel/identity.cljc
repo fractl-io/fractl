@@ -90,6 +90,15 @@
   :Fractl.Kernel.Rbac/RoleAssignment
   {:Assignee :Instance.Email}]
  [:delete :Fractl.Kernel.Rbac/RoleAssignment :purge])
+(event
+ :Fractl.Kernel.Identity/AuditTrailEntry
+ {:Id {:type :UUID, :default u/uuid-string, :indexed true},
+  :Entity :String,
+  :Action {:oneof ["create" "update" "delete"]},
+  :Timestamp :Int,
+  :User :String,
+  :SecurityTokens {:type :String, :optional true},
+  :UserData {:type :String, :optional true}})
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "c8474193-2368-4e93-9f49-ef06773b61a4")
+ "7ff9351f-6229-404d-ad56-ca94dbcecf0c")

@@ -137,3 +137,7 @@
 
 (defn difference-in-seconds [dt1 dt2]
   (cu/between cu/seconds dt1 dt2))
+
+#?(:clj
+   (defn unix-timestamp []
+     (quot (System/currentTimeMillis) 1000)))
