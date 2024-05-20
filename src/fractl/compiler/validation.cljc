@@ -17,9 +17,10 @@
   "Return the set of attributes in the pattern, that is not in the
   original schema. Return nil if there is no difference."
   [pattern-attrs schema]
-  (let [orig-attrs (cn/attribute-names schema)
-        pattrs (set (map li/normalize-name (keys pattern-attrs)))]
-    (seq (set/difference pattrs orig-attrs))))
+  (when-not (cn/inferred-event-schema? schema)
+    (let [orig-attrs (cn/attribute-names schema)
+          pattrs (set (map li/normalize-name (keys pattern-attrs)))]
+      (seq (set/difference pattrs orig-attrs)))))
 
 (def validate-attribute-value cn/validate-attribute-value)
 
