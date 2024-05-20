@@ -9,6 +9,7 @@
             [fractl.util.seq :as su]
             [fractl.util.http :as uh]
             [fractl.util.errors :refer [extract-client-message-from-ex]]
+            [fractl.datafmt.json :as json]
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
             [fractl.policy.logging :as logging]
@@ -84,18 +85,27 @@
             (recur (rest insts) env (concat result rs)))))
       result)))
 
+(defn- str-session-info [sinfo]
+  (cond
+    (string? sinfo) sinfo
+    (map? sinfo) (json/encode sinfo)
+    :else (str sinfo)))
+
 (defn- maybe-create-audit-trail [env tag insts]
   #?(:clj
      (when (gs/audit-trail-enabled?)
        (if-let [event-context (li/event-context (env/active-event env))]
          (let [action (name tag)]
            (doseq [inst insts]
-             (let [attrs {:Entity (cn/instance-type-kw inst)
+             (let [entity-name (cn/instance-type-kw inst)
+                   id-val ((cn/identity-attribute-name entity-name) inst)
+                   attrs {:EntityName (subs (str entity-name) 1)
+                          :EntityId (str id-val)
                           :Action action
                           :Timestamp (dt/unix-timestamp)
                           :User (or (:User event-context) "anonymous")}
                    trail-data (if-let [sinfo (get-in event-context [:UserDetails :session-info])]
-                                (assoc attrs :SessionInfo sinfo)
+                                (assoc attrs :SessionToken (str-session-info sinfo))
                                 attrs)
                    trail-entry {:Fractl.Kernel.Identity/AuditTrailEntry trail-data}]
                (when-not (safe-eval-pattern trail-entry)

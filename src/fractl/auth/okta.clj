@@ -302,7 +302,8 @@
           username (or (:username result) user)]
       {:email username
        :sub user
-       :username username})
+       :username username
+       :session-info (:authentication-result session-data)})
     (let [user (get-in req [:identity :sub])]
       {:email user
        :sub user

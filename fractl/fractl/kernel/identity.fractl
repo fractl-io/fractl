@@ -105,13 +105,14 @@
  [:delete :Fractl.Kernel.Rbac/RoleAssignment {:Assignee :Instance.Email}]
  [:delete :Fractl.Kernel.Rbac/RoleAssignment :purge])
 
-(event
+(entity
  :AuditTrailEntry
  {:Id {:type :UUID
        :default u/uuid-string
        :indexed true}
-  :Entity :String
+  :EntityName :String
+  :EntityId :String
   :Action {:oneof ["create" "update" "delete"]}
   :Timestamp :Int
   :User :String
-  :SessionInfo {:type :String :optional true}})
+  :SessionToken {:type :String :optional true}})

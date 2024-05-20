@@ -189,6 +189,10 @@
       (catch Exception e
         (throw (Exception. (get-error-msg-and-log e)))))))
 
+(defn- make-session-info [token]
+  (let [parts (str/split token #" ")]
+    {:token-type (first parts) :id-token (second parts)}))
+
 (defmethod auth/session-user tag [all-stuff-map]
   (let [user-details (get-in all-stuff-map [:request :identity])]
     {:github-username (:custom:github_username user-details)
@@ -197,6 +201,7 @@
      :openai-key (:custom:openai_key user-details)
      :openai-fine-tuned-model (:custom:openai_tuned_model user-details)
      :app-id (:custom:app_id user-details)
+     :session-info (make-session-info (get-in all-stuff-map [:request :headers "authorization"]))
      :email (or (:email user-details) (:username user-details))
      :sub (:sub user-details)
      :username (or (:cognito:username user-details) (:sub user-details))}))
