@@ -297,6 +297,10 @@
   (let [[compile-query-fn evaluator] (make (es/get-active-store))]
     (partial run-dataflows compile-query-fn evaluator env)))
 
+(defn- maybe-enrich-env [env store resolver]
+  (when env
+    (env/maybe-enrich env store resolver)))
+
 (defn evaluate-pattern
   ([env store-or-store-config resolver-or-resolver-config pattern]
    (let [store (if (nil? store-or-store-config)
@@ -305,7 +309,7 @@
                  (store-from-config store-or-store-config))
          resolver (resolver-from-config resolver-or-resolver-config)
          [compile-query-fn evaluator] (make store)
-         env (or env (env/make store resolver))
+         env (or (maybe-enrich-env env store resolver) (env/make store resolver))
          opcode (c/compile-standalone-pattern compile-query-fn pattern)]
      (dispatch evaluator env opcode)))
   ([store-or-store-config resolver-or-resolver-config pattern]
