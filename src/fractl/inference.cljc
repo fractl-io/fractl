@@ -1,5 +1,5 @@
 (ns fractl.inference
-  (:require [clojure.edn :as edn][clojure.pprint :as pp]
+  (:require [clojure.edn :as edn]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.env :as env]
@@ -14,8 +14,7 @@
     [x]))
 
 (defn- eval-patterns [fractl-patterns context-event]
-  (let [env0 (env/make)
-        env (env/bind-instance context-event)]
+  (let [env (env/bind-instance env/EMPTY context-event)]
     (loop [pats (as-vec fractl-patterns), env env, result nil]
       (if-let [p (first pats)]
         (let [r (ev/evaluate-pattern env p)]
@@ -54,7 +53,7 @@
        (if mock-ai
          result
          (let [result (or (:Value result) result)
-               result (if (string? result) (edn/read-string result) result)](pp/pprint result)
+               result (if (string? result) (edn/read-string result) result)]
            (if-let [patterns (:patterns result)]
              (eval-patterns patterns (:inference-event context))
              (u/throw-ex (:errormsg result))))))))
