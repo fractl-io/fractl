@@ -1,5 +1,6 @@
 (ns fractl.inference
-  (:require [fractl.lang :as ln]
+  (:require [clojure.edn :as edn]
+            [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.env :as env]
             [fractl.evaluator :as ev]
@@ -52,9 +53,10 @@
                       first)]
        (if mock-ai
          result
-         (if-let [patterns (:patterns result)]
-           (eval-patterns patterns (:inference-event context))
-           (u/throw-ex (:errormsg result)))))))
+         (let [result (if (string? result) (edn/read-string result) result)]
+           (if-let [patterns (:patterns result)]
+             (eval-patterns patterns (:inference-event context))
+             (u/throw-ex (:errormsg result))))))))
   ([question] (run-inference nil nil question nil))
   ([question context] (run-inference nil nil question context))  
   ([request question context] (run-inference nil request question context)))
