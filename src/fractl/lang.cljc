@@ -588,23 +588,6 @@
   (keyword (str (subs (str n) 1) "."
                 (s/join "." (mapv name refs)))))
 
-(defn- rewrite-on-event-patterns [pats recname evtname]
-  (let [sn (li/split-path recname)
-        refs-prefix [:Instance]]
-    (w/postwalk
-     #(if (li/name? %)
-        (let [{c :component n :record
-               p :path r :refs} (li/path-parts %)
-              refs (seq r)
-              cn [c n]]
-          (if (or (= cn sn) (= sn (li/split-path p)))
-            (if (not refs)
-              (concat-refs evtname refs-prefix)
-              (concat-refs evtname (concat refs-prefix refs)))
-            %))
-        %)
-     pats)))
-
 (defn- event-self-ref-pattern [event-name]
   (if-let [scm (:schema (cn/find-event-schema event-name))]
     (let [prefix (subs (str event-name) 1)

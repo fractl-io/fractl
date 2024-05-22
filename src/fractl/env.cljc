@@ -17,6 +17,10 @@
          :store store
          :resolver resolver))
 
+(defn maybe-enrich [env store resolver]
+  (let [env0 (if-not (:store env) (assoc env :store store) env)]
+    (if-not (:resolver env0) (assoc env0 :resolver resolver) env0)))
+
 (defn env? [x]
   (and (map? x)
        (env-tag x)))
