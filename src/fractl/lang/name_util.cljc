@@ -176,6 +176,7 @@
    'view fq-preproc-record-def
    'event fq-preproc-record-def
    'relationship fq-preproc-record-def
+   'inference fq-preproc-record-def
    'rule fq-preproc-rule-def
    'dataflow fq-preproc-dataflow-def})
 

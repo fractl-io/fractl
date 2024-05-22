@@ -1294,6 +1294,7 @@
 (defn compile-standalone-pattern
   ([compile-query-fn with-types pattern]
    (let [ctx (make-context with-types)]
+     (ctx/bind-variable! ctx i/conditional-dataflow-tag true)
      (ctx/bind-compile-query-fn! ctx compile-query-fn)
      (compile-pattern ctx pattern)))
   ([compile-query-fn pattern]
