@@ -129,4 +129,4 @@
                        :Assignee {:type :String, :indexed true}}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "e0f7a27e-ca08-4ae9-b23b-5593206b44fb")
+ "c0888378-fa1b-4f2f-a974-b92e83b1651f")

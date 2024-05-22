@@ -13,7 +13,6 @@
             [ring.util.response :refer [response]]
             [com.walmartlabs.lacinia :refer [execute]]
             [fractl.component :as cn]
-            [fractl.http :as http]
             [fractl.graphql.generator :as gg]
             [fractl.graphql.core :as graphql]
             [fractl.lang
@@ -43,7 +42,7 @@
 
 (defn graphql-handler
   [component-name query]
-  (let [schema (http/schema-info component-name)
+  (let [schema (cn/schema-info component-name)
         contains-graph-map (gg/generate-contains-graph schema)
         [uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema contains-graph-map)]
     (let [context {:auth-config nil :core-component component-name :contains-graph contains-graph-map :entity-metas entity-metadatas}

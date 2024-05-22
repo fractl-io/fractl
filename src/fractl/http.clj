@@ -277,14 +277,6 @@
                  {"post" {"parameters" (cn/encode-expressions-in-schema (cn/event-schema n))}}})
         (cn/event-names component)))
 
-(defn- find-schema [fetch-names find-schema]
-  (mapv (fn [n] {n (cn/encode-expressions-in-schema (find-schema n))}) (fetch-names)))
-
-(defn schema-info [component]
-  {:records (find-schema #(cn/record-names component) lr/find-record)
-   :entities (find-schema #(cn/entity-names component) lr/find-entity)
-   :relationships (find-schema #(cn/relationship-names component) lr/find-relationship)})
-
 (defn- request-object [request]
   (if-let [data-fmt (find-data-format request)]
     [(when-let [body (:body request)]
@@ -298,7 +290,7 @@
           (ok {:components (cn/component-names)})
           (let [c (keyword (:component params))]
             (ok {:paths (paths-info c)
-                 :schema (schema-info c)
+                 :schema (cn/schema-info c)
                  :component-edn (str (vec (rest (lr/as-edn c))))}))))))
 
 (defn- process-gpt-chat [[_ maybe-unauth] request]
@@ -1171,7 +1163,7 @@
 (defn run-server
   ([evaluator config]
    (let [core-component-name (first (cn/remove-internal-components (cn/component-names)))
-         schema (schema-info core-component-name)
+         schema (cn/schema-info core-component-name)
          contains-graph-map (gg/generate-contains-graph schema)
          [auth _ :as auth-info] (make-auth-handler config)]
       (try

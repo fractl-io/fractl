@@ -128,4 +128,4 @@
     :paths [:Fractl.Kernel.Lang/DataSync]})])
 (def
  Fractl_Kernel_Lang___COMPONENT_ID__
- "1ed94ef2-39b9-485d-a714-7f5662e4317b")
+ "6de04925-7087-483e-8f53-7ac37e122207")
