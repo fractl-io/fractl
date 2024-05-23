@@ -81,7 +81,7 @@
     (li/record-attributes (second exp))
     (nth exp 2)))
 
-(defn- raw-definition [exp]
+(defn- get-raw-definition [exp]
   (when (and (seqable? exp)
              (some #{(first exp)} #{'entity 'relationship}))
     (let [spec (second exp)
@@ -95,7 +95,7 @@
         entity (raw/find-entity rec-name)
         relationship (raw/find-relationship rec-name)))))
 
-(defn- schema-changed? [exp old-def]
+(defn- is-schema-changed? [exp old-def]
   (if old-def
     (let [x (second exp)
           spec (if (map? x)
@@ -111,7 +111,7 @@
 
 (defn- maybe-reinit-schema [store exp old-def]
   (when (and (seqable? exp) (need-schema-init? exp)
-             (schema-changed? exp old-def))
+             (is-schema-changed? exp old-def))
     (let [n (let [r (second exp)]
               (if (map? r)
                 (li/record-name r)
@@ -167,7 +167,7 @@
 (defn repl-eval [store env-handle evaluator exp]
   (try
     (let [exp (maybe-preproc-expression exp)
-          old-def (raw-definition exp)
+          old-def (get-raw-definition exp)
           r (eval exp)]
       (when (maybe-reinit-schema store exp old-def)
         (cond
