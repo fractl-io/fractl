@@ -473,7 +473,7 @@
     (relationship :I991/R2 {:meta {:between [:I991/B :I991/C]}}))
   (is (not (raw/find-record :I991/R1)))
   (is (= #{:I991/D} (cn/record-names :I991)))
-  (is (= #{:I991/A :I991/B :I991/C :I991/AAudit :I991/BAudit :I991/CAudit} (cn/entity-names :I991)))
+  (is (= #{:I991/A :I991/B :I991/C} (cn/entity-names :I991)))
   (is (= #{:I991/F} (set/intersection #{:I991/F} (cn/event-names :I991)))))
 
 (deftest entity-default-id
@@ -512,7 +512,7 @@
     (relationship :Cir/R2 {:meta {:contains [:Cir/B :Cir/C]}})
     (relationship :Cir/R3 {:meta {:between [:Cir/A :Cir/A]}}))
   (is (= (cn/record-names :Cir) #{:Cir/X}))
-  (is (= (cn/entity-names :Cir) #{:Cir/B :Cir/C :Cir/A :Cir/BAudit :Cir/CAudit :Cir/AAudit}))
+  (is (= (cn/entity-names :Cir) #{:Cir/B :Cir/C :Cir/A}))
   (is (= (cn/relationship-names :Cir) #{:Cir/R1 :Cir/R2 :Cir/R3})))
 
 (deftest issue-1067-empty-uuid

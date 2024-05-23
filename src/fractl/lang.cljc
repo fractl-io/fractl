@@ -941,9 +941,11 @@
                   :User :String
                   :SessionToken {:type :String :optional true}}))
 
-(defn- audit-entity [entity-name]
-  (let [n (cn/audit-trail-entity-name entity-name)]
-    (serializable-entity n audit-entity-attrs)))
+(defn- audit-entity [entity-name spec]
+  (if (get-in spec [:meta :audit])
+    (let [n (cn/audit-trail-entity-name entity-name)]
+      (serializable-entity n audit-entity-attrs))
+    entity-name))
 
 (defn entity
   "A record that can be persisted with a unique id."
@@ -951,7 +953,7 @@
    (let [attrs (if raw-attrs (preproc-path-identity attrs) attrs)]
      (when-let [r (serializable-entity n (preproc-attrs attrs))]
        (let [result (and (if raw-attrs (raw/entity n raw-attrs) true) r)]
-         (and (audit-entity n) result)))))
+         (and (audit-entity n raw-attrs) result)))))
   ([n attrs]
    (let [raw-attrs attrs
          attrs (if-not (seq attrs)

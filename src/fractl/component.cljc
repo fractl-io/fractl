@@ -2229,6 +2229,9 @@
   (let [[c n] (li/split-path entity-name)]
     (li/make-path c (str (name n) "Audit"))))
 
+(defn audit-required? [entity-name]
+  (:audit (fetch-meta entity-name)))
+
 (defn- find-schema-info [fetch-names find-schema]
   (su/nonils
    (mapv (fn [n]
