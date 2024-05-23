@@ -622,17 +622,19 @@
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
   ([env record-name eval-opcode validation-required]
-   (if-let [xs (env/pop-obj env)]
-     (let [[env single? [_ x]] xs]
-       (if (maybe-async-channel? x)
-         [x single? env]
-         (let [objs (if single? [x] x)
-               final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
-               insts (if validation-required
-                       (mapv (partial validated-instance record-name) final-objs)
-                       final-objs)
-               bindable (if single? (first insts) insts)]
-           [bindable single? env])))
+   (if (env/can-pop? env record-name)
+     (if-let [xs (env/pop-obj env)]
+       (let [[env single? [_ x]] xs]
+         (if (maybe-async-channel? x)
+           [x single? env]
+           (let [objs (if single? [x] x)
+                 final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
+                 insts (if validation-required
+                         (mapv (partial validated-instance record-name) final-objs)
+                         final-objs)
+                 bindable (if single? (first insts) insts)]
+             [bindable single? env])))
+       [nil false env])
      [nil false env]))
   ([env record-name eval-opcode]
    (pop-instance env record-name eval-opcode true)))
@@ -641,15 +643,17 @@
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
   [env record-name alias eval-opcode]
-  (if-let [xs (env/pop-obj env)]
-    (let [[env single? [_ x]] xs
-          objs (if single? [x] x)
-          final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
-          insts (mapv (partial validated-instance record-name) final-objs)
-          env (env/bind-instances env record-name insts)
-          bindable (if single? (first insts) insts)
-          final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]
-      [bindable final-env])
+  (if (env/can-pop? env record-name)
+    (if-let [xs (env/pop-obj env)]
+      (let [[env single? [_ x]] xs
+            objs (if single? [x] x)
+            final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
+            insts (mapv (partial validated-instance record-name) final-objs)
+            env (env/bind-instances env record-name insts)
+            bindable (if single? (first insts) insts)
+            final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]
+        [bindable final-env])
+      [nil env])
     [nil env]))
 
 (defn- pack-results [local-result resolver-results]
