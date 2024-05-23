@@ -2,6 +2,7 @@
   (:require [clojure.pprint :as pp]
             [clojure.string :as s]
             [fractl.lang :as ln]
+            [fractl.lang.raw :as raw]
             [fractl.lang.internal :as li]
             [fractl.lang.name-util :as nu]
             [fractl.lang.tools.loader :as loader]
@@ -80,13 +81,37 @@
     (li/record-attributes (second exp))
     (nth exp 2)))
 
+(defn- get-raw-definition [exp]
+  (when (and (seqable? exp)
+             (some #{(first exp)} #{'entity 'relationship}))
+    (let [spec (second exp)
+          rec-name (if (map? spec)
+                     (li/record-name spec)
+                     spec)
+          rec-attrs (if (map? spec)
+                      (li/record-attributes spec)
+                      (nth exp 2))]
+      (case (first exp)
+        entity (raw/find-entity rec-name)
+        relationship (raw/find-relationship rec-name)))))
+
+(defn- is-schema-changed? [exp old-def]
+  (if old-def
+    (let [x (second exp)
+          spec (if (map? x)
+                     (li/record-attributes x)
+                     (nth exp 2))]
+      (not= old-def spec))
+    true))
+
 (defn- need-schema-init? [exp]
   (let [n (first exp)]
     (or (= n 'entity)
         (= n 'relationship))))
 
-(defn- maybe-reinit-schema [store exp]
-  (when (and (seqable? exp) (need-schema-init? exp))
+(defn- maybe-reinit-schema [store exp old-def]
+  (when (and (seqable? exp) (need-schema-init? exp)
+             (is-schema-changed? exp old-def))
     (let [n (let [r (second exp)]
               (if (map? r)
                 (li/record-name r)
@@ -142,8 +167,9 @@
 (defn repl-eval [store env-handle evaluator exp]
   (try
     (let [exp (maybe-preproc-expression exp)
+          old-def (get-raw-definition exp)
           r (eval exp)]
-      (when (maybe-reinit-schema store exp)
+      (when (maybe-reinit-schema store exp old-def)
         (cond
           (lang-defn? exp) r
           (or (map? r) (vector? r) (keyword? r))
