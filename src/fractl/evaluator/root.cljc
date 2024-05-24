@@ -635,7 +635,7 @@
                  bindable (if single? (first insts) insts)]
              [bindable single? env])))
        [nil false env])
-     [nil false env]))
+     [nil false (env/reset-objstack env)]))
   ([env record-name eval-opcode]
    (pop-instance env record-name eval-opcode true)))
 
@@ -647,7 +647,7 @@
     (if bindable
       (let [env (env/bind-instances env record-name (if single? [bindable] bindable))]
         [bindable (if alias (env/bind-instance-to-alias env alias bindable) env)])
-      [nil env])))
+      [nil new-env])))
 
 (defn- pack-results [local-result resolver-results]
   [local-result resolver-results])
