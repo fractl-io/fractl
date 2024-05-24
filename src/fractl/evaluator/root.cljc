@@ -643,18 +643,11 @@
   "An instance is built in stages, the partial object is stored in a stack.
    Once an instance is realized, pop it from the stack and bind it to the environment."
   [env record-name alias eval-opcode]
-  (if (env/can-pop? env record-name)
-    (if-let [xs (env/pop-obj env)]
-      (let [[env single? [_ x]] xs
-            objs (if single? [x] x)
-            final-objs (mapv #(assoc-computed-attributes env record-name % eval-opcode) objs)
-            insts (mapv (partial validated-instance record-name) final-objs)
-            env (env/bind-instances env record-name insts)
-            bindable (if single? (first insts) insts)
-            final-env (if alias (env/bind-instance-to-alias env alias bindable) env)]
-        [bindable final-env])
-      [nil env])
-    [nil env]))
+  (let [[bindable single? new-env] (pop-instance env record-name eval-opcode)]
+    (if bindable
+      (let [env (env/bind-instances env record-name (if single? [bindable] bindable))]
+        [bindable (if alias (env/bind-instance-to-alias env alias bindable) env)])
+      [nil env])))
 
 (defn- pack-results [local-result resolver-results]
   [local-result resolver-results])
