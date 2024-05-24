@@ -186,6 +186,14 @@
       [(assoc env :objstack (pop s))
        (map? obj) x])))
 
+(defn reset-objstack [env]
+  (dissoc env :objstack))
+
+(defn can-pop? [env rec-name]
+  (when-let [s (seq (objstack env))]
+    (when-let [[n _] (peek s)]
+      (= (li/make-path n) (li/make-path rec-name)))))
+
 (defn- identity-attribute [inst]
   (or (cn/identity-attribute-name (cn/instance-type inst))
       cn/id-attr))
