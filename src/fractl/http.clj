@@ -65,6 +65,8 @@
              "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"}
    :body ((uh/encoder data-fmt) json-obj)})
 
+(defn- resource-not-found [s] (response s 404 :json))
+
 (defn- unauthorized
   ([msg data-fmt errtype]
    (response {:reason msg :type errtype} 401 data-fmt))
@@ -201,6 +203,25 @@
   ([exp data-fmt]
    (maybe-ok nil exp data-fmt)))
 
+(defn- get-query-params [request]
+  (when-let [s (:query-string request)]
+    (uh/form-decode s)))
+
+(defn- request-content-type [request]
+  (s/lower-case
+   (or (get-in request [:headers "content-type"])
+       "application/json")))
+
+(defn- find-data-format [request]
+  (let [ct (request-content-type request)]
+    (uh/content-types ct)))
+
+(defn- request-object [request]
+  (if-let [data-fmt (find-data-format request)]
+    [(when-let [body (:body request)]
+       ((uh/decoder data-fmt) (String. (.bytes body)))) data-fmt nil]
+    [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT")]))
+
 (defn- assoc-event-context [request auth-config event-instance]
   (if auth-config
     (let [user (auth/session-user (assoc auth-config :request request
@@ -238,15 +259,6 @@
       (log/exception ex)
       [nil (str "Failed to parse request - " (.getMessage ex))])))
 
-(defn- request-content-type [request]
-  (s/lower-case
-   (or (get-in request [:headers "content-type"])
-       "application/json")))
-
-(defn- find-data-format [request]
-  (let [ct (request-content-type request)]
-    (uh/content-types ct)))
-
 (defn- process-dynamic-eval
   ([evaluator [auth-config maybe-unauth] event-name request]
    (or (maybe-unauth request)
@@ -277,29 +289,65 @@
                  {"post" {"parameters" (cn/encode-expressions-in-schema (cn/event-schema n))}}})
         (cn/event-names component)))
 
-(defn- find-schema [fetch-names find-schema]
-  (mapv (fn [n] {n (cn/encode-expressions-in-schema (find-schema n))}) (fetch-names)))
+(defn- find-schema [fetch-names fetch-schema]
+  (mapv (fn [n] {n (cn/encode-expressions-in-schema (fetch-schema n))}) (fetch-names)))
 
 (defn schema-info [component]
   {:records (find-schema #(cn/record-names component) lr/find-record)
    :entities (find-schema #(cn/entity-names component) lr/find-entity)
    :relationships (find-schema #(cn/relationship-names component) lr/find-relationship)})
 
-(defn- request-object [request]
-  (if-let [data-fmt (find-data-format request)]
-    [(when-let [body (:body request)]
-       ((uh/decoder data-fmt) (String. (.bytes body)))) data-fmt nil]
-    [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT")]))
+(defn- find-entity-schema [entity-name]
+  (cn/encode-expressions-in-schema (lr/find-entity entity-name)))
+
+(defn- find-relationship-schema [rel-name]
+  (cn/encode-expressions-in-schema (lr/find-relationship rel-name)))
+
+(defn- take-related-entities [limit entity-name f]
+  (seq (take limit (filter identity (map (fn [[r _ e]] [r e]) (f entity-name))))))
+
+(defn- find-related-entities [entity-name limit]
+  (let [t (partial take-related-entities limit entity-name)
+        rels01 (t cn/containing-parents)
+        rels02 (t cn/contained-children)
+        rels03 (t cn/between-relationships)]
+    (concat rels01 rels02 rels03)))
+
+(defn- entity-schema-with-relations [entity-name limit]
+  (when-let [attrs (find-entity-schema entity-name)]
+    (let [rel-ents (find-related-entities entity-name limit)
+          espec {entity-name attrs}
+          spec-cache (atom {})
+          find-spec (fn [finder n]
+                      (or (get n @spec-cache)
+                          (let [spec (finder n)]
+                            (swap! spec-cache assoc n spec)
+                            spec)))
+          entity-spec (partial find-spec find-entity-schema)
+          rel-spec (partial find-spec find-relationship-schema)]
+      (assoc espec :relationships
+             (reduce (fn [[rels specs] [r e]]
+                       [(conj rels {:relationship r :participant e}) (assoc specs r (rel-spec r) e (entity-spec e))])
+                     [[] {}]
+                     rel-ents)))))
 
 (defn- process-meta-request [[_ maybe-unauth] request]
   (or (maybe-unauth request)
       (let [params (:params request)]
         (if-not (seq params)
           (ok {:components (cn/component-names)})
-          (let [c (keyword (:component params))]
-            (ok {:paths (paths-info c)
-                 :schema (schema-info c)
-                 :component-edn (str (vec (rest (lr/as-edn c))))}))))))
+          (let [c (keyword (:component params))
+                e (keyword (:entity params))]
+            (if e
+              (let [query-params (get-query-params request)
+                    lp (when query-params (:limit query-params))
+                    limit (if lp (Integer/parseInt lp) 3)]
+                (if-let [spec (entity-schema-with-relations (li/make-path c e) limit)]
+                  (ok spec)
+                  (resource-not-found (str (name c) "/" (name e)))))
+              (ok {:paths (paths-info c)
+                   :schema (schema-info c)
+                   :component-edn (str (vec (rest (lr/as-edn c))))})))))))
 
 (defn- process-gpt-chat [[_ maybe-unauth] request]
   (or (maybe-unauth request)
@@ -346,7 +394,7 @@
 (defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
   (or (maybe-unauth request)
       (if-let [parsed-path (parse-rest-uri request)]
-        (let [query-params (when-let [s (:query-string request)] (uh/form-decode s))
+        (let [query-params (get-query-params request)
               [obj data-fmt err-response] (request-object request)
               parsed-path (assoc parsed-path :query-params query-params :data-fmt data-fmt)]
           (or err-response (let [[event-gen resp options] (handler parsed-path obj)]
@@ -1047,7 +1095,7 @@
     (internal-error "cannot process register-magiclink - authentication not enabled")))
 
 (defn- process-get-magiclink [_ request]
-  (let [query (when-let [s (:query-string request)] (uh/form-decode s))]
+  (let [query (get-query-params request)]
     (if-let [token (:code query)]
       (let [decoded-token (decode-magic-link-token token)
             operation (:operation decoded-token)
@@ -1126,6 +1174,7 @@
            (POST uh/preview-magiclink-prefix [] (:preview-magiclink handlers))
            (GET "/meta" [] (:meta handlers))
            (GET "/meta/:component" [] (:meta handlers))
+           (GET "/meta/:component/:entity" [] (:meta handlers))
            (POST uh/post-copilot-question [] (:post-copilot-question handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
