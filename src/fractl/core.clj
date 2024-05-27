@@ -283,7 +283,10 @@
                                                            (repl/run model-name store ev)))))))
                  :nrepl (uc/run-repl-func options
                                             (fn [model-name opts]
-                                              (nrepl.server/start-server :port 7888 :handler (fractl-nrepl-handler model-name opts))))
+                                              (nrepl.server/start-server
+                                               :bind "0.0.0.0"
+                                               :port 7000
+                                               :handler (fractl-nrepl-handler model-name opts))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(uc/call-after-load-model

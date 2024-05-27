@@ -50,7 +50,9 @@
    :indexed true})
 
 (defn null-path? [s]
-  (s/starts-with? s default-path-prefix))
+  (if (seq s)
+    (s/starts-with? s default-path-prefix)
+    true))
 
 (defn encoded-uri-path-part [entity-name]
   (let [[c n] (li/split-path entity-name)]
