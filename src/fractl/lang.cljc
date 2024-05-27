@@ -934,12 +934,26 @@
     (assoc attrs k (assoc v :indexed true) li/path-attr pi/path-attr-spec)
     attrs))
 
+(def ^:private audit-entity-attrs
+  (preproc-attrs {:InstanceId :String
+                  :Action {:oneof ["create" "update" "delete"]}
+                  :Timestamp :Int
+                  :User :String
+                  :SessionToken {:type :String :optional true}}))
+
+(defn- audit-entity [entity-name spec]
+  (if (get-in spec [:meta :audit])
+    (let [n (cn/audit-trail-entity-name entity-name)]
+      (serializable-entity n audit-entity-attrs))
+    entity-name))
+
 (defn entity
   "A record that can be persisted with a unique id."
   ([n attrs raw-attrs]
    (let [attrs (if raw-attrs (preproc-path-identity attrs) attrs)]
      (when-let [r (serializable-entity n (preproc-attrs attrs))]
-       (and (if raw-attrs (raw/entity n raw-attrs) true) r))))
+       (let [result (and (if raw-attrs (raw/entity n raw-attrs) true) r)]
+         (and (audit-entity n raw-attrs) result)))))
   ([n attrs]
    (let [raw-attrs attrs
          attrs (if-not (seq attrs)

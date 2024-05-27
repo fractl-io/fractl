@@ -9,12 +9,14 @@
             [fractl.util.seq :as su]
             [fractl.util.http :as uh]
             [fractl.util.errors :refer [extract-client-message-from-ex]]
+            [fractl.datafmt.json :as json]
             [fractl.store :as store]
             [fractl.resolver.registry :as rr]
             [fractl.policy.logging :as logging]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as opc]
+            [fractl.lang.datetime :as dt]
             ;; load kernel components
             [fractl.model.model]
             ;; :~
@@ -83,6 +85,33 @@
             (recur (rest insts) env (concat result rs)))))
       result)))
 
+(defn- str-session-info [sinfo]
+  (cond
+    (string? sinfo) sinfo
+    (map? sinfo) (json/encode sinfo)
+    :else (str sinfo)))
+
+(defn- maybe-create-audit-trail [env tag insts]
+  #?(:clj
+     (when (gs/audit-trail-enabled?)
+       (when-let [event-context (li/event-context (env/active-event env))]
+         (let [action (name tag)]
+           (doseq [inst insts]
+             (let [entity-name (cn/instance-type inst)]
+               (when (cn/audit-required? entity-name)
+                 (let [id-val ((cn/identity-attribute-name entity-name) inst)
+                       attrs {:InstanceId (str id-val)
+                              :Action action
+                              :Timestamp (dt/unix-timestamp)
+                              :User (or (:User event-context) "anonymous")}
+                       trail-data (if-let [sinfo (get-in event-context [:UserDetails :session-info])]
+                                    (assoc attrs :SessionToken (str-session-info sinfo))
+                                    attrs)
+                       trail-entry {(cn/audit-trail-entity-name entity-name) trail-data}]
+                   (when-not (safe-eval-pattern trail-entry)
+                     (log/warn (str "failed to audit " tag " on " inst)))))))))))
+  insts)
+
 (def ^:dynamic internal-post-events false)
 
 (defn- fire-post-events-for
@@ -102,8 +131,9 @@
      (reduce
       (fn [env tag]
         (if-let [insts (seq (tag srcs))]
-          (do (fire-post-events-for tag is-internal insts)
-              (env/assoc-rule-futures env (trigger-rules tag insts)))
+          (and (fire-post-events-for tag is-internal insts)
+               (maybe-create-audit-trail env tag insts)
+               (env/assoc-rule-futures env (trigger-rules tag insts)))
           env))
       env [:create :update :delete])))
   ([env] (fire-post-events env nil)))

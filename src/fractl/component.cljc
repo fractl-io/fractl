@@ -2224,3 +2224,22 @@
   (if (view-query entity-name) true false))
 
 (create-component kernel-userapp-component nil)
+
+(defn audit-trail-entity-name [entity-name]
+  (let [[c n] (li/split-path entity-name)]
+    (li/make-path c (str (name n) "Audit"))))
+
+(defn audit-required? [entity-name]
+  (:audit (fetch-meta entity-name)))
+
+(defn- find-schema-info [fetch-names find-schema]
+  (su/nonils
+   (mapv (fn [n]
+           (when-let [scm (find-schema n)]
+             {n (encode-expressions-in-schema scm)}))
+         (fetch-names))))
+
+(defn schema-info [component]
+  {:records (find-schema-info #(record-names component) raw/find-record)
+   :entities (find-schema-info #(entity-names component) raw/find-entity)
+   :relationships (find-schema-info #(relationship-names component) raw/find-relationship)})
