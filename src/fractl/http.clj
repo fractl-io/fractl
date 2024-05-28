@@ -251,11 +251,13 @@
   ([evaluator [auth-config maybe-unauth] event-name request]
    (or (maybe-unauth request)
        (if-let [data-fmt (find-data-format request)]
-         (if (cn/an-internal-event? event-name)
-           (bad-request (str "cannot invoke internal event - " event-name) data-fmt "INTERNAL_EVENT_ERROR")
-           (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
-             (if err
-               (bad-request err data-fmt "EVENT_INVOKE_ERROR")
+         (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
+           (if err
+             (bad-request err data-fmt "EVENT_INVOKE_ERROR")
+             (if (cn/an-internal-event? (cn/instance-type-kw obj))
+               (bad-request
+                (str "cannot invoke internal event - " (cn/instance-type-kw obj))
+                data-fmt "INTERNAL_EVENT_ERROR")
                (maybe-ok #(evaluate evaluator obj) data-fmt))))
          (bad-request
           (str "unsupported content-type in request - "

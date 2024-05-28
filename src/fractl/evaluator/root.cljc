@@ -649,26 +649,36 @@
         [bindable (if alias (env/bind-instance-to-alias env alias bindable) env)])
       [nil new-env])))
 
-(defn- pack-results [local-result resolver-results]
-  [local-result resolver-results])
-
 (defn- ok-result [r]
   (when (i/ok? r)
     (:result r)))
 
+(defn- extract-embedded-resolver-result [r]
+  (cond
+    (map? r)
+    (if (cn/an-instance? r) r (or (:result r) r))
+    (vector? r) (extract-embedded-resolver-result (first r))
+    :else r))
+
+(defn- extract-resolver-result [resolver-results]
+  (let [rr (if (map? resolver-results)
+             resolver-results
+             (first resolver-results))
+        res0 (:result rr)]
+    (extract-embedded-resolver-result res0)))
+
 (defn- extract-local-result [r]
   (when (i/ok? r)
     (let [res (:result r)]
-      (if (map? res)
-        res
-        (first res)))))
+      (if (and (vector? res) (vector? (first res)))
+        (first res)
+        res))))
 
 (defn- extract-local-result-as-vec [r]
   (when-let [rs (extract-local-result r)]
-    (when (seq rs)
-      (if (map? rs)
-        [rs]
-        rs))))
+    (if (map? rs)
+      [rs]
+      rs)))
 
 (defn- bind-result-to-alias [result-alias result]
   (if result-alias
@@ -1077,7 +1087,14 @@
                                local-result)))
             resolver-results (when resolver
                                (call-resolver-eval resolver composed? env inst))
-            r (pack-results local-result resolver-results)
+            r (cond
+                (and local-result resolver-results)
+                (let [ls (if (map? local-result) [local-result] local-result)
+                      res0 (extract-resolver-result resolver-results)
+                      res (if (map? res0) [res0] res0)]
+                  (vec (concat ls res)))
+                local-result local-result
+                resolver-results (extract-resolver-result resolver-results))
             env (if alias-name (env/bind-instance-to-alias env alias-name r) env)]
         (i/ok r (env/assoc-active-event env active-event))))
 
