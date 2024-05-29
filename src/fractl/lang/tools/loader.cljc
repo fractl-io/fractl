@@ -206,8 +206,7 @@
                     (recur (rest mps)))
                   (u/throw-ex
                    (str model-name " - model not found in any of "
-                        model-paths))
-                  ))))))
+                        model-paths))))))))
        ([model-file]
         (let [model (read-model-expressions model-file)
               root (java.io.File. (.getParent (java.io.File. model-file)))]
