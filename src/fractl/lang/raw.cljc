@@ -6,11 +6,22 @@
 
 (def ^:private raw-store (u/make-cell {}))
 
+(defn- maybe-publish-add-definition [tag record-name attrs]
+  #?(:clj
+     (when (pubs/publish-schema?)
+       (pubs/publish-event {:operation :add :tag tag :type record-name :schema attrs}))))
+
+(defn- maybe-publish-remove-definition [tag record-name]
+  #?(:clj
+     (when (pubs/publish-schema?)
+       (pubs/publish-event {:operation :delete :tag tag :type record-name}))))
+
 (defn component [component-name spec]
   (let [s @raw-store, cdef (get s component-name '())
         cspec (concat `(~'component ~component-name) (when spec [spec]))
         new-cdef (conj (rest cdef) cspec)]
     (u/safe-set raw-store (assoc s component-name new-cdef))
+    (maybe-publish-add-definition 'component component-name spec)
     component-name))
 
 (defn intern-component [component-name defs]
@@ -120,16 +131,6 @@
     (u/safe-set raw-store (assoc @raw-store c defs))
     defs))
 
-(defn- maybe-publish-add-definition [tag record-name attrs]
-  #?(:clj
-     (when (pubs/publish-schema?)
-       (pubs/publish-event {:operation :add :tag tag :type record-name :schema attrs}))))
-
-(defn- maybe-publish-remove-definition [tag record-name]
-  #?(:clj
-     (when (pubs/publish-schema?)
-       (pubs/publish-event {:operation :delete :tag tag :type record-name}))))
-
 (defn add-definition [tag record-name attrs]
   (when (change-defs #(replace-def tag record-name attrs))
     (maybe-publish-add-definition tag record-name attrs)
@@ -159,6 +160,7 @@
 
 (defn remove-component [cname]
   (u/safe-set raw-store (dissoc @raw-store cname))
+  (maybe-publish-remove-definition 'component cname)
   cname)
 
 (defn event [record-name attrs]

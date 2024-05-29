@@ -122,7 +122,7 @@
 (defn- fractl-deps-as-clj-deps [deps]
   (when (seq deps)
     (su/nonils
-     (mapv #(if (keyword? %)
+     (mapv #(if (vector? %) ; lein dependency of the form [:project-name "version"]
               %
               (when (map? %)
                 (let [model-name (get % :name)
@@ -251,7 +251,7 @@
   (let [root-ns-name (symbol (str (sanitize model-name) ".model"))
         req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c)) :as (symbol (name c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:require ~@req-comp))
-        model (dissoc model :repositories)]
+        model (dissoc model :repositories :dependencies)]
     (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
            [ns-decl (if (map? model) `(fractl.lang/model ~model) model)
             `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))]
