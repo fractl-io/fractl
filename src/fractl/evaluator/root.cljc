@@ -1162,7 +1162,9 @@
     (do-try_ [self env [body handlers alias-name]]
       (let [result (call-with-exception-as-error
                     #(eval-opcode self env body))
-            h ((:status result) handlers)]
+            s0 (:status result)
+            status (if (and (= :ok s0) (not (seq (:result result)))) :not-found s0)
+            h (status handlers)]
         (bind-result-to-alias
          alias-name
          (if h
