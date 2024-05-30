@@ -215,10 +215,8 @@
    (let [[component n :as k] (li/split-path typname)
          intern-k [component typtag n]]
      (when-not (component-exists? component)
-      (throw-ex-info
-       (str "component not found - " component)
-       {type-key typname
-        :tag typtag}))
+       (log/info (str "auto-creating component - " component))
+       (create-component component nil))
      (when-let [pp (mt/apply-policy-parsers k meta)]
        (log/debug (str "custom parse policies for " typname " - " pp)))
      (u/call-and-set
