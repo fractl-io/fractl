@@ -172,7 +172,8 @@
    decl))
 
 (def ^:private clj-defs #{'def 'defn 'defn-})
-(def ^:private fractl-defs #{'entity 'dataflow 'event 'record 'relationship 'view 'attribute 'rule 'inference})
+(def ^:private fractl-defs #{'entity 'dataflow 'event 'record 'relationship
+                             'view 'attribute 'rule 'inference 'resolver})
 
 (defn- update-local-defs [ns-name component]
   (let [local-defs (set

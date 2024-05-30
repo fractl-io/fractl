@@ -236,23 +236,6 @@
    (let [[c n] (li/split-path recname)]
      (component-find [c typetag n]))))
 
-(defn component-resolvers [component]
-  (component-find [component :resolvers :component-level]))
-
-(defn entity-resolvers [component entity-name]
-  (component-find [component :resolvers entity-name]))
-
-(defn install-resolver
-  "Add a resolver for a component or an entity."
-  ([component entity-name spec]
-   (let [resolvers (or (if (= :component-level entity-name)
-                         (component-resolvers component)
-                         (entity-resolvers component entity-name))
-                       [])]
-     (component-intern [component entity-name] (conj resolvers spec) :resolvers)))
-  ([component spec]
-   (install-resolver component :component-level spec)))
-
 (defn intern-attribute
   "Add or replace an attribute in a component.
   The attribute name must be fully-qualified, as in - `:ComponentName/AttrName`.
