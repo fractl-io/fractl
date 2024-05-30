@@ -30,6 +30,7 @@
      :then
      {:Rule01/Event3 {:A :A.Id}}
      {:meta {:priority 10 :passive true :category :Rule01.Abc}}))
+  (is (= #{:R1 :R2} (set (keys (cn/fetch-rules :Rule01)))))
   (let [spec (cn/fetch-rule :Rule01/R1)]
     (is (= [{:Rule01/A {:X 100} :as :A}
             {:Rule01/B {:Y [:<= 200]} :as :B}]
@@ -47,7 +48,11 @@
            (cn/rule-consequence spec)))
     (is (= 10 (cn/rule-priority spec)))
     (is (cn/rule-is-passive? spec))
-    (is (= :Rule01.Abc (cn/rule-category spec)))))
+    (is (= :Rule01.Abc (cn/rule-category spec))))
+  (is (cn/remove-rule :Rule01/R2))
+  (is (not (cn/fetch-rule :Rule01/R2)))
+  (is (cn/fetch-rule :Rule01/R1))
+  (is (= #{:R1} (set (keys (cn/fetch-rules :Rule01))))))
 
 (deftest rule-fire-01
   (defcomponent :Rf01
