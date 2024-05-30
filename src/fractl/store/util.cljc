@@ -123,7 +123,8 @@
 
 (defn decode-clj-object [s]
   (#?(:clj read-string :cljs clj->js)
-   (let [s (subs s obj-prefix-len)]
+   (let [s (s/replace s "\\\\\"" "\\\"")
+         s (subs s obj-prefix-len)]
      #?(:clj (if (seq s) s "nil") :cljs s))))
 
 (defn encoded-clj-object? [x]
