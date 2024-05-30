@@ -30,7 +30,7 @@
       (let [^Jedis j (.getResource pool)]
         (try
           (let [^String channel (u/getenv "REDIS_PUB_SCHEMA_CHANNEL" "fractl:schema")
-                ^String data (json/encode (preproc-definition definition))]
+                ^String data (json/encode (assoc (preproc-definition definition) :app-uuid (get-app-uuid)))]
             (.publish j channel data)
             definition)
           (finally
