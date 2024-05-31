@@ -518,9 +518,9 @@
     (mapv (partial save-model-config-instance app-config) (cn/model-names))))
 
 (defn fetch-model-config-instance [model-name]
-  (let [model-name (if (keyword? model-name)
-                     model-name
-                     (keyword model-name))]
+  (let [model-name (if (li/quoted? model-name)
+                     (second model-name)
+                     model-name)]
     (when-let [ent (cn/model-config-entity model-name)]
       (let [evt-name (cn/crud-event-name ent :LookupAll)]
         (first (safe-eval-internal {evt-name {}}))))))
