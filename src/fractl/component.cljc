@@ -215,10 +215,8 @@
    (let [[component n :as k] (li/split-path typname)
          intern-k [component typtag n]]
      (when-not (component-exists? component)
-      (throw-ex-info
-       (str "component not found - " component)
-       {type-key typname
-        :tag typtag}))
+       (log/info (str "auto-creating component - " component))
+       (create-component component nil))
      (when-let [pp (mt/apply-policy-parsers k meta)]
        (log/debug (str "custom parse policies for " typname " - " pp)))
      (u/call-and-set
@@ -237,23 +235,6 @@
   ([typetag recname]
    (let [[c n] (li/split-path recname)]
      (component-find [c typetag n]))))
-
-(defn component-resolvers [component]
-  (component-find [component :resolvers :component-level]))
-
-(defn entity-resolvers [component entity-name]
-  (component-find [component :resolvers entity-name]))
-
-(defn install-resolver
-  "Add a resolver for a component or an entity."
-  ([component entity-name spec]
-   (let [resolvers (or (if (= :component-level entity-name)
-                         (component-resolvers component)
-                         (entity-resolvers component entity-name))
-                       [])]
-     (component-intern [component entity-name] (conj resolvers spec) :resolvers)))
-  ([component spec]
-   (install-resolver component :component-level spec)))
 
 (defn intern-attribute
   "Add or replace an attribute in a component.

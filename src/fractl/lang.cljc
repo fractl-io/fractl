@@ -3,6 +3,7 @@
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [clojure.walk :as w]
+            [clojure.core.async :as async]
             [fractl.compiler :as c]
             [fractl.compiler.context :as ctx]
             [fractl.compiler.rule :as rl]
@@ -15,6 +16,9 @@
             [fractl.meta :as mt]
             [fractl.paths.internal :as pi]
             [fractl.resolvers]
+            [fractl.resolver.registry :as rr]
+            [fractl.resolver.core :as rc]
+            [fractl.subs :as subs]
             [fractl.rule :as rule]
             [fractl.util :as u]
             [fractl.util.logger :as log]
@@ -1203,34 +1207,27 @@
          n (li/record-name schema)]
      (and (raw/relationship n (li/record-attributes schema)) r))))
 
-(defn- resolver-for-entity [component ename spec]
-  (if (cn/find-entity-schema ename)
-    (cn/install-resolver component ename spec)
-    (u/throw-ex (str "cannot install resolver, schema not found for " ename))))
-
-(defn- resolver-for-component [component spec]
-  (if (cn/component-exists? component)
-    (cn/install-resolver component spec)
-    (u/throw-ex (str "cannot install resolver, component not found - " component))))
-
-(def ^:private resolver-keys #{:type :compose? :config})
-
-(defn- validate-resolver-spec [spec]
-  (if (and (map? spec)
-           (= resolver-keys
-              (set/union resolver-keys
-                         (keys spec))))
-    spec
-    (u/throw-ex (str "invalid key(s) in resolver spec - "
-                     (set/difference (set (keys spec))
-                                     resolver-keys)))))
-
-(defn resolver
-  "Add a resolver for a component or entity.
-  Target should be fully-qualified name of a component or entity."
-  [target spec]
-  (let [spec (validate-resolver-spec spec)
-        [a b] (li/split-path target)]
-    (if (and a b)
-      (resolver-for-entity a b spec)
-      (resolver-for-component target spec))))
+(defn resolver [n spec]
+  #?(:clj
+     (let [req (:require spec)]
+       (when-let [nss (:namespaces req)]
+         (apply require nss))
+       (let [s0 (dissoc spec :require :with-methods :with-subscription)
+             res-spec (assoc s0 :name n)
+             maybe-subs #(when-let [subs (:with-subscription spec)]
+                           (async/thread
+                             (subs/listen
+                              (subs/open-connection subs))))
+             rf #(do (if-let [methods (:with-methods spec)]
+                       ((if (:compose? spec) rr/compose-resolver rr/override-resolver)
+                        (:paths spec)
+                        (rc/make-resolver n methods))
+                       (rr/register-resolver res-spec))
+                     (maybe-subs))]
+         (if-let [precond (:pre-cond req)]
+           (when (precond)
+             (rf))
+           (rf))
+         n))
+     :cljs
+     (u/throw-ex "resolver construct not supported in cljs")))
