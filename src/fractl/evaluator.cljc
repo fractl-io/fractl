@@ -501,3 +501,26 @@
   ([component pats] (safe-eval-patterns true component pats)))
 
 (es/set-safe-eval-patterns! safe-eval-patterns)
+
+(defn- maybe-delete-model-config-instance [entity-name]
+  (let [evt-name (cn/crud-event-name entity-name :Delete)]
+    (safe-eval-internal {evt-name {:Id 1}})))
+
+(defn save-model-config-instance [app-config model-name]
+  (when-let [ent (cn/model-config-entity model-name)]
+    (when-let [attrs (ent app-config)]
+      (maybe-delete-model-config-instance ent)
+      (let [evt-name (cn/crud-event-name ent :Create)]
+        (safe-eval-internal {evt-name {:Instance {ent attrs}}})))))
+
+(defn save-model-config-instances []
+  (when-let [app-config (gs/get-app-config)]
+    (mapv (partial save-model-config-instance app-config) (cn/model-names))))
+
+(defn fetch-model-config-instance [model-name]
+  (let [model-name (if (keyword? model-name)
+                     model-name
+                     (keyword model-name))]
+    (when-let [ent (cn/model-config-entity model-name)]
+      (let [evt-name (cn/crud-event-name ent :LookupAll)]
+        (first (safe-eval-internal {evt-name {}}))))))

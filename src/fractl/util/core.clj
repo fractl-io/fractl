@@ -114,7 +114,8 @@
     (log-app-init-result! result)))
 
 (defn run-appinit-tasks! [evaluator init-data]
-    (trigger-appinit-event! evaluator init-data))
+  (e/save-model-config-instances)
+  (trigger-appinit-event! evaluator init-data))
 
 (defn merge-resolver-configs [app-config resolver-configs]
   (let [app-resolvers (:resolvers app-config)]

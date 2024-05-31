@@ -14,6 +14,7 @@
     rule
     relationship
     component
+    resolver
     event
     inference
     record]]))
@@ -92,4 +93,4 @@
  [:delete :Fractl.Kernel.Rbac/RoleAssignment :purge])
 (def
  Fractl_Kernel_Identity___COMPONENT_ID__
- "4d3d1d49-766b-45b9-9401-61e6e6165ee2")
+ "1e60ab15-6b3c-41a8-bacf-b8a09570a8d1")
