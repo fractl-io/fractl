@@ -2114,6 +2114,14 @@
           r (mapv (fn [n] [n (set (conj (get rr n) rule-name))]) ent-names)]
       (merge rr (into {} r)))))
 
+(defn- unregister-rule-for-entities! [rule-name]
+  (u/call-and-set
+   rule-registry
+   #(let [rr @rule-registry
+          fr0 (mapv (fn [[k rns]] [k (set (filter (partial not= rule-name) rns))]) rr)
+          fr (filter (fn [[_ rns]] (seq rns)) fr0)]
+      (into {} fr))))
+
 (def rule-is-passive? :passive)
 (def rule-category :category)
 (def rule-cc :c-cond)
@@ -2133,9 +2141,26 @@
       (assoc-in ms path spec)))
   rule-name)
 
+(defn unregister-rule [rule-name]
+  (u/call-and-set
+   components
+   #(let [ms @components
+          [component n] (li/split-path rule-name)
+          path [component :rules n]]
+      (unregister-rule-for-entities! rule-name)
+      (su/dissoc-in ms path)))
+  rule-name)
+
+(defn remove-rule [rule-name]
+  (when (unregister-rule rule-name)
+    (raw/remove-rule rule-name)))
+
 (defn fetch-rule [rule-name]
   (let [[c n] (li/split-path rule-name)]
     (component-find [c :rules n])))
+
+(defn fetch-rules [component-name]
+  (component-find [component-name :rules]))
 
 (def ^:private rule-for-delete-event? rule-on-delete)
 (def ^:private rule-for-upsert-event? (complement rule-for-delete-event?))
