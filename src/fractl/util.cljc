@@ -380,3 +380,5 @@
         (let [ret (apply f args)]
           (when-not (nil? ret) (swap! mem assoc args ret))
           ret)))))
+
+(def get-app-uuid (memoize (fn [] (getenv "FRACTL_APP_UUID" (uuid-string)))))
