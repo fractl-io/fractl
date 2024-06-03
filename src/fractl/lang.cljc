@@ -684,6 +684,12 @@
           [delete-tag [(second (first conds))]])
       [false conds])))
 
+(defn- rule-compile-conditionals [cond-pats]
+  (try
+    (rule/compile-conditionals cond-pats)
+    (catch #?(:clj Exception :cljs js/Error) e
+      (log/error (str "rule/compile-conditionals failed: " e)))))
+
 (defn- parse-rules-args [args]
   (let [not-then (partial not= :then)
         [cond-pats args] (split-with not-then args)
@@ -693,8 +699,8 @@
         passive (li/rule-meta-value meta :passive)
         cat (li/rule-meta-value meta :category)
         conseq-pats (if meta (drop-last (rest args)) (rest args))]
-    {:cond cond-pats
-     :c-cond (rule/compile-conditionals cond-pats)
+    {:cond (when-not (li/rule-meta? (first cond-pats)) cond-pats)
+     :c-cond (rule-compile-conditionals cond-pats)
      :then conseq-pats
      :priority priority
      :passive passive
@@ -702,9 +708,12 @@
      :on-delete delete-tag}))
 
 (defn- rule-event [rule-name conseq]
-  (let [revnt-name (li/rule-event-name rule-name)]
-    (event-internal revnt-name {})
-    (cn/register-dataflow revnt-name conseq)))
+  (if conseq
+    (let [revnt-name (li/rule-event-name rule-name)]
+      (event-internal revnt-name {})
+      (cn/register-dataflow revnt-name conseq))
+    (do (log/warn (str rule-name " requires a consequent"))
+        rule-name)))
 
 (defn rule [rule-name & args]
   (let [s01 (parse-rules-args args)

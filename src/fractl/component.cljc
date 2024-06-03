@@ -2134,13 +2134,15 @@
 (def rule-on-delete :on-delete)
 
 (defn register-rule [rule-name spec]
-  (u/call-and-set
-   components
-   #(let [ms @components
-          [component n] (li/split-path rule-name)
-          path [component :rules n]]
-      (register-rule-for-entities! rule-name (mapv first (rule-cc spec)))
-      (assoc-in ms path spec)))
+  (when (and (seq (rule-cc spec))
+             (seq (rule-consequence spec)))
+    (u/call-and-set
+     components
+     #(let [ms @components
+            [component n] (li/split-path rule-name)
+            path [component :rules n]]
+        (register-rule-for-entities! rule-name (mapv first (rule-cc spec)))
+        (assoc-in ms path spec))))
   rule-name)
 
 (defn unregister-rule [rule-name]
