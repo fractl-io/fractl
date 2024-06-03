@@ -310,7 +310,11 @@
          (callback intern-component c)))
 
      (defn load-model-dependencies [model callback]
-       (let [deps (su/nonils (mapv dependency-model-name (:dependencies model)))]
+       (let [mdeps0 (:dependencies model)
+             mdeps (if (and (seqable? mdeps0) (= 'quote (first mdeps0)))
+                     (last mdeps0)
+                     mdeps0)
+             deps (su/nonils (mapv dependency-model-name mdeps))]
          (callback deps)))
 
      (defn load-model [model callback]
