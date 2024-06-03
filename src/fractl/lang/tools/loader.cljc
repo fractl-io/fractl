@@ -58,9 +58,10 @@
     (keyword? dep) dep
     (vector? dep) (if (> (count dep) 1)
                     dep
-                    (if (map? (first dep))
-                      (dependency-model-name (first dep))
-                      (first dep)))
+                    (let [d (first dep)]
+                      (if (or (map? d) (vector? d))
+                        (dependency-model-name d)
+                        d)))
     (map? dep) dep))
 
 (defn dependency-model-version [dep]
@@ -309,7 +310,7 @@
          (callback intern-component c)))
 
      (defn load-model-dependencies [model callback]
-       (let [deps (mapv dependency-model-name (:dependencies model))]
+       (let [deps (su/nonils (mapv dependency-model-name (:dependencies model)))]
          (callback deps)))
 
      (defn load-model [model callback]
