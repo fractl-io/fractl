@@ -99,6 +99,9 @@
   :DestinationUri {:type :String
                    :optional true}})
 
+;; Base-type of model-configuration entities.
+(record :Config {:Id {:type :Int :guid true :default 1 :read-only true}})
+
 (r/register-resolvers
  [{:name :meta
    :type :meta

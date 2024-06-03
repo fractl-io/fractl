@@ -18,6 +18,7 @@
     rule
     relationship
     component
+    resolver
     event
     inference
     record]]))
@@ -35,7 +36,7 @@
 (defn-
  crud-list?
  [xs]
- (every? (fn* [p1__296#] (some #{p1__296#} oprs)) (set xs)))
+ (every? (fn* [p1__288#] (some #{p1__288#} oprs)) (set xs)))
 (entity
  :Fractl.Kernel.Rbac/Privilege
  {:Name {:type :String, :default u/uuid-string, li/guid true},
@@ -78,7 +79,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__297#] (str "'" (str p1__297#) "'")) role-names))
+    (map (fn* [p1__289#] (str "'" (str p1__289#) "'")) role-names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivilegeAssignments
@@ -98,7 +99,7 @@
    " in ("
    (s/join
     ","
-    (map (fn* [p1__298#] (str "'" (str p1__298#) "'")) names))
+    (map (fn* [p1__290#] (str "'" (str p1__290#) "'")) names))
    "))")))
 (dataflow
  :Fractl.Kernel.Rbac/FindPrivileges
@@ -129,4 +130,4 @@
                        :Assignee {:type :String, :indexed true}}})
 (def
  Fractl_Kernel_Rbac___COMPONENT_ID__
- "c0888378-fa1b-4f2f-a974-b92e83b1651f")
+ "62efa96d-e60e-48b4-98aa-e4d0560fade9")

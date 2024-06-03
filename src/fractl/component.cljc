@@ -27,9 +27,11 @@
   (u/safe-set models (assoc @models model-name spec))
   model-name)
 
+(defn model-names [] (keys @models))
 (defn fetch-model [name] (get @models name))
-
-(defn model-version [name] (:version (fetch-model name)))
+(defn model-property [prop name] (prop (fetch-model name)))
+(def model-version (partial model-property :version))
+(def model-config-entity (partial model-property :config-entity))
 
 (defn model-for-component [component-name]
   (ffirst (filter (fn [[_ spec]]

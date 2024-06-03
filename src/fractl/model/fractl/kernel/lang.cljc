@@ -17,6 +17,7 @@
     rule
     relationship
     component
+    resolver
     event
     inference
     record]]))
@@ -33,7 +34,7 @@
 (attribute :Fractl.Kernel.Lang/String {:check k/kernel-string?})
 (attribute
  :Fractl.Kernel.Lang/Keyword
- {:check (fn* [p1__292#] (or (keyword? p1__292#) (string? p1__292#)))})
+ {:check (fn* [p1__284#] (or (keyword? p1__284#) (string? p1__284#)))})
 (attribute :Fractl.Kernel.Lang/Path {:check k/path?})
 (attribute :Fractl.Kernel.Lang/DateTime {:check k/date-time?})
 (attribute :Fractl.Kernel.Lang/Date {:check k/date?})
@@ -104,6 +105,13 @@
  :Fractl.Kernel.Lang/DataSync
  {:Source :Fractl.Kernel.Lang/DataSource,
   :DestinationUri {:type :Fractl.Kernel.Lang/String, :optional true}})
+(record
+ :Fractl.Kernel.Lang/Config
+ {:Id
+  {:type :Fractl.Kernel.Lang/Int,
+   :guid true,
+   :default 1,
+   :read-only true}})
 (r/register-resolvers
  [{:name :meta,
    :type :meta,
@@ -128,4 +136,4 @@
     :paths [:Fractl.Kernel.Lang/DataSync]})])
 (def
  Fractl_Kernel_Lang___COMPONENT_ID__
- "6de04925-7087-483e-8f53-7ac37e122207")
+ "f80edde8-df4d-429f-9429-004c4e21b750")
