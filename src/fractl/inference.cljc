@@ -35,7 +35,7 @@
        (u/throw-ex "AI inference url not configured"))
      (when-not question
        (u/throw-ex "inference cannot run without a question"))
-     (let [r0 {:AppUuid (or appid (u/uuid-string))
+     (let [r0 {:AppUuid (or appid (u/get-app-uuid))
                :ChatUuid (or chatid (u/uuid-string))
                :UseDocs use-docs
                :UseSchema use-schema
