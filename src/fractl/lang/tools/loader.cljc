@@ -303,8 +303,15 @@
          (callback intern-component c)))
 
      (defn load-model-dependencies [model callback]
-       (when-let [deps (seq (filter dependency-model? (:dependencies model)))]
-         (callback deps)))
+       (println "###########" (:dependencies model))
+       (let [mdeps0 (:dependencies model)
+             mdeps (if (and (seqable? mdeps0) (= 'quote (first mdeps0)))
+                     (second mdeps0)
+                     mdeps0)]
+         (println "!!!!!!!!!!!!!!!!!!!!!!!" mdeps)
+         (when-let [deps (seq (filter dependency-model? mdeps))]
+           (println "%%%%%%%%%%%%%%%%%%%%%%%" deps)
+           (callback deps))))
 
      (defn load-model [model callback]
        (cn/register-model (:name model) model)
