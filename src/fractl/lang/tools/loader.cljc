@@ -54,15 +54,8 @@
       result)))
 
 (defn dependency-model-name [dep]
-  (cond
-    (keyword? dep) dep
-    (vector? dep) (if (> (count dep) 1)
-                    dep
-                    (let [d (first dep)]
-                      (if (or (map? d) (vector? d))
-                        (dependency-model-name d)
-                        d)))
-    (map? dep) dep))
+  (when (map? dep)
+    (:name dep)))
 
 (defn dependency-model-version [dep]
   (when (vector? dep)
@@ -256,9 +249,10 @@
        (when-let [deps (:dependencies model)]
          (let [rdm (partial read-model model-paths)]
            (doseq [d deps]
-             (tu/maybe-clone-model d model-paths)
-             (let [[m mr] (rdm (dependency-model-name d))]
-               (load-model m mr model-paths from-resource))))))
+             (when-let [dep-model-name (dependency-model-name d)]
+               (tu/maybe-clone-model d model-paths)
+               (let [[m mr] (rdm dep-model-name)]
+                 (load-model m mr model-paths from-resource)))))))
 
      (defn load-model
        ([model model-root model-paths from-resource]
@@ -310,10 +304,7 @@
          (callback intern-component c)))
 
      (defn load-model-dependencies [model callback]
-       (let [mdeps0 (:dependencies model)
-             mdeps (if (and (seqable? mdeps0) (= 'quote (first mdeps0)))
-                     (last mdeps0)
-                     mdeps0)
+       (let [mdeps (:dependencies model)
              deps (su/nonils (mapv dependency-model-name mdeps))]
          (callback deps)))
 
