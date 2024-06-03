@@ -53,7 +53,7 @@
            result)))
       result)))
 
-(defn dependency-model-name [dep]
+(defn dependency-model? [dep]
   (when (map? dep)
     (:name dep)))
 
@@ -246,13 +246,12 @@
      (declare load-model)
 
      (defn load-model-dependencies [model model-paths from-resource]
-       (when-let [deps (:dependencies model)]
+       (when-let [deps (seq (filter dependency-model? (:dependencies model)))]
          (let [rdm (partial read-model model-paths)]
            (doseq [d deps]
-             (when-let [dep-model-name (dependency-model-name d)]
-               (tu/maybe-clone-model d model-paths)
-               (let [[m mr] (rdm dep-model-name)]
-                 (load-model m mr model-paths from-resource)))))))
+             (tu/maybe-clone-model d model-paths)
+             (let [[m mr] (rdm (:name d))]
+               (load-model m mr model-paths from-resource))))))
 
      (defn load-model
        ([model model-root model-paths from-resource]
@@ -304,8 +303,7 @@
          (callback intern-component c)))
 
      (defn load-model-dependencies [model callback]
-       (let [mdeps (:dependencies model)
-             deps (su/nonils (mapv dependency-model-name mdeps))]
+       (when-let [deps (seq (filter dependency-model? (:dependencies model)))]
          (callback deps)))
 
      (defn load-model [model callback]
