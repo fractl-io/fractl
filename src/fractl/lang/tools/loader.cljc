@@ -303,8 +303,9 @@
          (callback intern-component c)))
 
      (defn load-model-dependencies [model callback]
-       (when-let [deps (seq (filter dependency-model? (:dependencies model)))]
-         (callback deps)))
+       (if-let [deps (seq (filter dependency-model? (:dependencies model)))]
+         (callback deps)
+         model))
 
      (defn load-model [model callback]
        (cn/register-model (:name model) model)
