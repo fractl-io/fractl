@@ -12,9 +12,10 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.util.seq :as su])
-  (:import (java.io File)
-           (org.apache.commons.io FileUtils)
-           (org.apache.commons.io.filefilter IOFileFilter WildcardFileFilter)))
+  (:import [java.io File]
+           [java.util Collection]
+           [org.apache.commons.io FileUtils]
+           [org.apache.commons.io.filefilter IOFileFilter WildcardFileFilter TrueFileFilter]))
 
 (def out-dir "out")
 (def ^:private out-file (File. out-dir))
@@ -243,8 +244,7 @@
                 (update-local-defs ns-name component)
                 [`(def ~(symbol (str (s/replace (name component-name) "." "_") "_" component-id-var)) ~(u/uuid-string))])]
       (if write
-        (write-component-clj
-         model-name cns-name write exps)
+        (write-component-clj model-name cns-name write exps)
         (binding [*ns* *ns*] (doseq [exp exps] (eval exp)))))
     (u/throw-ex "no component declaration found")))
 
@@ -275,6 +275,16 @@
      model-name ver fractl-ver
      (client-path model-name) build-type)))
 
+(defn- copy-user-clj [model-name model-root]
+  (let [^File rootf (File. (str model-root u/path-sep "clj"))]
+    (when (.isDirectory rootf)
+      (doseq [^File file (FileUtils/listFilesAndDirs rootf TrueFileFilter/TRUE nil)]
+        (let [^File outf (File. (str (project-dir model-name) u/path-sep "src" u/path-sep (.getName file)))]
+          (if (.isDirectory file)
+            (FileUtils/copyDirectory file outf)
+            (FileUtils/copyFile file outf)))))
+    model-name))
+
 (defn- build-clj-project [model-name model-root model components]
   (let [ver (model-version model)
         fractl-ver (fetch-fractl-version model)]
@@ -285,6 +295,7 @@
         (wr "project.clj" spec)
         (wr "logback.xml" log-config :spit)
         (let [cmps (mapv (partial copy-component wr model-name) components)]
+          (when wr (copy-user-clj model-name model-root))
           (write-model-clj wr model-name cmps model)
           (create-client-project model-name ver fractl-ver (write-config-edn model-root wr))))
       (log/error (str "failed to create clj project for " model-name)))))
