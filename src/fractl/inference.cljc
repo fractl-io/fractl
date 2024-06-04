@@ -41,6 +41,7 @@
                :UseSchema use-schema
                :Question question}
            r (if context (assoc r0 :QuestionContext context) r0)
+           is-review-mode (when (map? context) (get-in context [:EventContext :inference-review-mode]))
            req {:Copilot.Service.Core/PostAppQuestion r}
            mock-ai (= service-url "mock:ai")
            out (if mock-ai
@@ -55,7 +56,9 @@
          (let [result (or (:Value result) result)
                result (if (string? result) (edn/read-string result) result)]
            (if-let [patterns (:patterns result)]
-             (eval-patterns patterns (:inference-event context))
+             (if is-review-mode
+               patterns
+               (eval-patterns patterns (:inference-event context)))
              (u/throw-ex (:errormsg result))))))))
   ([question] (run-inference nil nil question nil))
   ([question context] (run-inference nil nil question context))  
