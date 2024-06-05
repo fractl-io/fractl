@@ -23,7 +23,7 @@
 
 (def ^:private repl-mode-key :-*-repl-mode-*-)
 (def ^:private repl-mode? repl-mode-key)
-(def ^:private on-init-fn (atom nil))
+(def ^:private on-init-fns (atom []))
 (def config-data-key :-*-config-data-*-)
 (def resource-cache (atom nil))
 
@@ -147,7 +147,7 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
-(defn set-on-init! [f] (reset! on-init-fn f))
+(defn set-on-init! [f] (swap! on-init-fns conj f))
 
 (defn init-schema? [config]
   (if-let [[_ f] (find config :init-schema?)]
@@ -170,9 +170,10 @@
         (register-resolvers! config ev)
         (when (seq (:resolvers resolved-config))
           (register-resolvers! resolved-config ev))
-        (when-let [f @on-init-fn]
-          (f)
-          (reset! on-init-fn nil))
+        (when-let [fns @on-init-fns]
+          (doseq [f fns]
+            (f))
+          (reset! on-init-fns nil))
         (run-appinit-tasks! ev (or (:init-data model)
                                    (:init-data config)))
         (when has-rbac

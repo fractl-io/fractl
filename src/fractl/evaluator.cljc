@@ -517,10 +517,16 @@
   (when-let [app-config (gs/get-app-config)]
     (mapv (partial save-model-config-instance app-config) (cn/model-names))))
 
+(defn- fetch-model-config-declaration [entity-name]
+  (when-let [app-config (gs/get-app-config)]
+    (when-let [rec (entity-name app-config)]
+      (cn/make-instance entity-name rec))))
+
 (defn fetch-model-config-instance [model-name]
   (let [model-name (if (li/quoted? model-name)
                      (second model-name)
                      model-name)]
     (when-let [ent (cn/model-config-entity model-name)]
       (let [evt-name (cn/crud-event-name ent :LookupAll)]
-        (first (safe-eval-internal {evt-name {}}))))))
+        (or (first (safe-eval-internal {evt-name {}}))
+            (fetch-model-config-declaration ent))))))
