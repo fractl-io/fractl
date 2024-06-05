@@ -6,6 +6,7 @@
             [fractl.evaluator :as ev]
             [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.util.http :as uh]))
 
 (defn as-vec [x]
@@ -20,8 +21,10 @@
         (let [r (ev/evaluate-pattern env p)]
           (if (u/safe-ok-result r)
             (recur (rest pats) (:env r) r)
-            r))
-        result))))
+            (do (log/error (str "inferred-pattern " p " failed with result " r))
+                r)))
+        (do (log/info (str "inference succeeded with result " result))
+            result)))))
 
 (defn mock-mode? []
   (= "mock:ai" (System/getenv "COPILOT_URL")))
