@@ -129,12 +129,12 @@
               (do
                 (initialize)
                 (let [[config model components]
-                      (or @uc/resource-cache (ur/load-model-from-resource))]
+                      (or @ur/resource-cache (ur/load-model-from-resource))]
                   (when-not (seq components)
                     (u/throw-ex (str "no components loaded from model " model)))
                   (first (ur/init-runtime model components config)))))
         parsed-request (normalize-external-request request)
-        auth (h/make-auth-handler (first @uc/resource-cache))]
+        auth (h/make-auth-handler (first @ur/resource-cache))]
     [(json/encode (h/process-request e auth parsed-request)) e]))
 
 (defn -process_request [a b]
