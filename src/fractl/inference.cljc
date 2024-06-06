@@ -44,7 +44,7 @@
                :UseSchema use-schema
                :Question question}
            r (if context (assoc r0 :QuestionContext context) r0)
-           is-review-mode (when (map? context) (get-in context [:EventContext :inference-review-mode]))
+           is-review-mode (when (map? context) (get-in context [:EventContext :evaluate-inferred-patterns]))
            req {:Copilot.Service.Core/PostAppQuestion r}
            mock-ai (= service-url "mock:ai")
            out (if mock-ai
