@@ -1230,9 +1230,11 @@
                                 (subs/listen
                                  (subs/open-connection subs))))
                 rf #(do (if-let [methods (:with-methods spec)]
-                          ((if (:compose? spec) rr/compose-resolver rr/override-resolver)
-                           (:paths spec)
-                           (rc/make-resolver n methods))
+                          (if-let [paths (:paths spec)]
+                            ((if (:compose? spec) rr/compose-resolver rr/override-resolver)
+                             paths
+                             (rc/make-resolver n methods))
+                            (rr/register-resolver-type n (fn [_ _] (rc/make-resolver n methods))))
                           (rr/register-resolver res-spec))
                         (maybe-subs))]
             (if-let [precond (:pre-cond req)]
