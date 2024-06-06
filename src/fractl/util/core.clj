@@ -1,4 +1,4 @@
-(ns fractl.util.core
+(ns fractl.util.runtime
   (:require
     clojure.main
     clojure.test
@@ -23,7 +23,6 @@
 
 (def ^:private repl-mode-key :-*-repl-mode-*-)
 (def ^:private repl-mode? repl-mode-key)
-(def ^:private on-init-fns (atom []))
 (def config-data-key :-*-config-data-*-)
 (def resource-cache (atom nil))
 
@@ -147,7 +146,7 @@
       :resolvers resolver-configs)
      (dissoc app-config :resolvers))))
 
-(defn set-on-init! [f] (swap! on-init-fns conj f))
+(def set-on-init! u/set-on-init!)
 
 (defn init-schema? [config]
   (if-let [[_ f] (find config :init-schema?)]
@@ -170,10 +169,7 @@
         (register-resolvers! config ev)
         (when (seq (:resolvers resolved-config))
           (register-resolvers! resolved-config ev))
-        (when-let [fns @on-init-fns]
-          (doseq [f fns]
-            (f))
-          (reset! on-init-fns nil))
+        (u/run-init-fns)
         (run-appinit-tasks! ev (or (:init-data model)
                                    (:init-data config)))
         (when has-rbac

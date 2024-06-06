@@ -31,7 +31,7 @@
             [fractl.graphql.generator :as gn]
             [fractl.swagger.docindex :as docindex]
             [fractl.graphql.generator :as gg]
-            [fractl.util.core :as uc]
+            [fractl.util.runtime :as ur]
             [fractl.lang.tools.nrepl.core :as nrepl])
   (:import [java.util Properties]
            [java.io File]
@@ -43,8 +43,8 @@
 
 (defn run-service
   ([args model-info]
-   (let [[[evaluator _] config] (uc/prepare-runtime args model-info)]
-     (when-let [server-cfg (uc/make-server-config config)]
+   (let [[[evaluator _] config] (ur/prepare-runtime args model-info)]
+     (when-let [server-cfg (ur/make-server-config config)]
        (log/info (str "Server config - " server-cfg))
        (h/run-server evaluator server-cfg))))
   ([model-info] (run-service nil model-info)))
@@ -73,7 +73,7 @@
                    (str "redoc-cli bundle -o " html-file " " json-file))
                   ^Executor executor (DefaultExecutor.)]
               (.execute executor cmd-line))))
-        (uc/log-seq! "components" components))
+        (ur/log-seq! "components" components))
       (build/exec-with-build-model (str "lein run -s " model-name " .") nil model-name))))
 
 (defn generate-graphql-schema [model-name args]
@@ -85,7 +85,7 @@
             (let [comp-name (clojure.string/replace
                              (name component) "." "")]
               (gc/save-schema (first (gg/generate-graphql-schema (cn/schema-info component))) "graphql-schema.edn")))
-          (uc/log-seq! "components" components)
+          (ur/log-seq! "components" components)
         (log/info "Finished processing compiled model."))
       (do
         (log/error (str "Compiled model not found, executing build model for model-name:" model-name))
@@ -100,12 +100,12 @@
 
 (defn run-script
   ([script-names options]
-   (let [options (if (uc/config-data-key options)
+   (let [options (if (ur/config-data-key options)
                    options
-                   (second (uc/merge-options-with-config options)))]
+                   (second (ur/merge-options-with-config options)))]
      (run-service
       script-names
-      (uc/read-model-and-config script-names options))))
+      (ur/read-model-and-config script-names options))))
   ([script-names]
    (run-script script-names {:config "config.edn"})))
 
@@ -129,10 +129,10 @@
               (do
                 (initialize)
                 (let [[config model components]
-                      (or @uc/resource-cache (uc/load-model-from-resource))]
+                      (or @uc/resource-cache (ur/load-model-from-resource))]
                   (when-not (seq components)
                     (u/throw-ex (str "no components loaded from model " model)))
-                  (first (uc/init-runtime model components config)))))
+                  (first (ur/init-runtime model components config)))))
         parsed-request (normalize-external-request request)
         auth (h/make-auth-handler (first @uc/resource-cache))]
     [(json/encode (h/process-request e auth parsed-request)) e]))
@@ -191,7 +191,7 @@
 (defn- db-migrate [model-name config]
   ;; config: {:db:migrate {:from "version"}}
   (if-let [mg-config (:db:migrate config)]
-    (let [store (uc/store-from-config config)]
+    (let [store (ur/store-from-config config)]
       (mg/migrate store model-name mg-config))
     (println "No configuration found for db:migrate.")))
 
@@ -247,7 +247,7 @@
     (System/exit 0))
   (let [{options :options args :arguments
          summary :summary errors :errors} (parse-opts args cli-options)
-        [basic-config options] (uc/merge-options-with-config options)]
+        [basic-config options] (ur/merge-options-with-config options)]
     (when-let [syslog-cfg (get-in basic-config [:logging :syslog])]
       (log/create-syslogger syslog-cfg))
     (when (get-in basic-config [:logging :dev-mode])
@@ -268,31 +268,31 @@
       (or (some
            identity
            (map #(apply (partial run-plain-option args) %)
-                {:run #(uc/call-after-load-model
-                        (first %) (fn [] (run-service (uc/read-model-and-config options))))
+                {:run #(ur/call-after-load-model
+                        (first %) (fn [] (run-service (ur/read-model-and-config options))))
                  :compile #(println (build/compile-model (first %)))
                  :build #(println (build/standalone-package (first %)))
                  :exec #(println (build/run-standalone-package (first %)))
-                 :repl (uc/run-repl-func options
+                 :repl (ur/run-repl-func options
                                            (fn [model-name opts]
-                                             (println (uc/force-call-after-load-model
+                                             (println (ur/force-call-after-load-model
                                                        model-name
                                                        (fn []
-                                                         (let [model-info (uc/read-model-and-config opts)
-                                                               [[ev store] _] (uc/prepare-repl-runtime model-info)]
+                                                         (let [model-info (ur/read-model-and-config opts)
+                                                               [[ev store] _] (ur/prepare-repl-runtime model-info)]
                                                            (repl/run model-name store ev)))))))
-                 :nrepl (uc/run-repl-func options
-                                            (fn [model-name opts]
-                                              (nrepl.server/start-server
-                                               :bind "0.0.0.0"
-                                               :port 7000
-                                               :handler (fractl-nrepl-handler model-name opts))))
+                 :nrepl (ur/run-repl-func options
+                                          (fn [model-name opts]
+                                            (nrepl.server/start-server
+                                             :bind "0.0.0.0"
+                                             :port 7000
+                                             :handler (fractl-nrepl-handler model-name opts))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
-                 :db:migrate #(uc/call-after-load-model
+                 :db:migrate #(ur/call-after-load-model
                                (first %)
                                (fn []
                                  (db-migrate
                                   (keyword (first %))
-                                  (second (uc/read-model-and-config options)))))}))
+                                  (second (ur/read-model-and-config options)))))}))
           (run-script args options)))))
