@@ -14,6 +14,17 @@
               [org.apache.commons.io FilenameUtils]
               [org.apache.commons.exec CommandLine Executor DefaultExecutor])))
 
+(def ^:private on-init-fns (atom []))
+
+(defn set-on-init! [f] (swap! on-init-fns conj f))
+
+(defn run-init-fns []
+  (when-let [fns @on-init-fns]
+    (doseq [f fns]
+      (f))
+    (reset! on-init-fns nil))
+  true)
+
 (def host-runtime #?(:clj :jvm :cljs :js))
 
 (defn host-is-jvm? [] (= host-runtime :jvm))

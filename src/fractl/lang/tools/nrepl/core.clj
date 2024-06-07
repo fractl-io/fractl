@@ -4,7 +4,7 @@
     [fractl.lang :as ln]
     [fractl.lang.tools.repl :as repl]
     [fractl.lang.tools.replcmds :as replcmds]
-    [fractl.util.core :as uc]))
+    [fractl.util.runtime :as ur]))
 
 (defonce nrepl-eval-init (atom nil))
 
@@ -25,9 +25,9 @@
     (partial repl/repl-eval store (atom nil) evaluator)))
 
 (defn init-repl-eval-func [model-name options]
-  (uc/force-call-after-load-model
+  (ur/force-call-after-load-model
     model-name
     (fn []
-      (let [model-info (uc/read-model-and-config options)
-            [[ev store] _] (uc/prepare-repl-runtime model-info)]
+      (let [model-info (ur/read-model-and-config options)
+            [[ev store] _] (ur/prepare-repl-runtime model-info)]
         (reset! nrepl-eval-init (initialize-nrepl-environment model-name store ev))))))

@@ -1216,27 +1216,62 @@
          n (li/record-name schema)]
      (and (raw/relationship n (li/record-attributes schema)) r))))
 
+;;
+;; The resolver construct has the following syntax:
+;; (resolver <name> <specification-map>)
+;; The `name` must be a keyword, like :camel-sfdc-resolver
+;; The `specification-map` can contains the following keys:
+;;  `:require`, `:with-methods`, `:with-subscription`,
+;;  `:paths`, `:type`, `:compose?`, `:config`.
+;; The value of `:require` must be a map with the key-values:
+;; - `:namespaces` - lists clojure namespaces that are required by the resolver.
+;; - `:pre-cond` - a no-argument function that'll be executed before the resolver
+;;                 is initialized. (optional)
+;; `:paths` - the paths to which the resolver is attached (optional).
+;; `:with-methods` - If specified must be a map that specifies the resolver methods.
+;;                   A new resolver-type is created with these methods and if `:paths` is specified,
+;;                   an instance of the resolver will be attached to those paths. (optional)
+;; `:with-subscription` - A new subscriber is started in a new thread for the resolver's
+;;                        on-change-notification method. (optional).
+;; Examples:
+;; A new resolver type is registered:
+;;;; (resolver
+;;;;  :camel-salesforce
+;;;;  {:require {:pre-cond subscribe-to-change-events}
+;;;;   :with-methods
+;;;;   {:create sf-create
+;;;;    :query sf-query
+;;;;    :on-set-path sf-on-set-path}})
+;; A path is registered with the resolver:
+;;;; (resolver
+;;;;  :local-resolver
+;;;;  {:type :camel-salesforce :paths [:Salesforce/Quote]})
+;;
 (defn resolver [n spec]
   #?(:clj
-     (let [req (:require spec)]
-       (when-let [nss (:namespaces req)]
-         (apply require nss))
-       (let [s0 (dissoc spec :require :with-methods :with-subscription)
-             res-spec (assoc s0 :name n)
-             maybe-subs #(when-let [subs (:with-subscription spec)]
-                           (async/thread
-                             (subs/listen
-                              (subs/open-connection subs))))
-             rf #(do (if-let [methods (:with-methods spec)]
-                       ((if (:compose? spec) rr/compose-resolver rr/override-resolver)
-                        (:paths spec)
-                        (rc/make-resolver n methods))
-                       (rr/register-resolver res-spec))
-                     (maybe-subs))]
-         (if-let [precond (:pre-cond req)]
-           (when (precond)
-             (rf))
-           (rf))
-         n))
+     (u/set-on-init!
+      (fn []
+        (let [req (:require spec)]
+          (when-let [nss (:namespaces req)]
+            (apply require nss))
+          (let [s0 (dissoc spec :require :with-methods :with-subscription)
+                res-spec (assoc s0 :name n)
+                maybe-subs #(when-let [subs (:with-subscription spec)]
+                              (async/thread
+                                (subs/listen
+                                 (subs/open-connection subs))))
+                rf #(do (if-let [methods (:with-methods spec)]
+                          (if-let [paths (:paths spec)]
+                            ((if (:compose? spec) rr/compose-resolver rr/override-resolver)
+                             paths
+                             (rc/make-resolver n methods))
+                            (rr/register-resolver-type n (fn [_ _] (rc/make-resolver n methods))))
+                          (rr/register-resolver res-spec))
+                        (maybe-subs))]
+            (if-let [precond (:pre-cond req)]
+              (when (precond)
+                (rf))
+              (rf))
+            n))))
      :cljs
      (u/throw-ex "resolver construct not supported in cljs")))
