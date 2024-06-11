@@ -62,7 +62,7 @@
 (def post-copilot-question "/post-copilot-question")
 
 (defn- remote-resolver-error [response]
-  (u/throw-ex (str "remote resolver error - " (or (:error response) response))))
+  (u/throw-ex (str "remote service error - " (or (:error response) response))))
 
 (defn- response-handler [format callback response]
   ((or callback identity)
