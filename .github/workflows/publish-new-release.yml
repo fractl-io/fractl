@@ -56,15 +56,19 @@ jobs:
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}.jar /home/runner/work/fractl/fractl/lib/
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}-standalone.jar /home/runner/work/fractl/fractl/lib/
 
-      - name: Calculate SHA256 checksum
+      - name: Calculate SHA256 Checksum
+        id: sha
         run: |
-          echo "::set-env name=JAR_CHECKSUM::$(shasum -a 256 /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}.jar | awk '{print $1}')"
-          echo "::set-env name=UBERJAR_CHECKSUM::$(shasum -a 256 /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}-standalone.jar | awk '{print $1}')"
+          echo "Calculating SHA256 Checksum"
+          JAR_CHECKSUM=$(shasum -a 256 lib/*.jar | awk '{print $1}')
+          UBERJAR_CHECKSUM=$(shasum -a 256 lib/*-standalone.jar | awk '{print $1}')
+          echo "JAR_CHECKSUM=$JAR_CHECKSUM" >> $GITHUB_ENV
+          echo "UBERJAR_CHECKSUM=$UBERJAR_CHECKSUM" >> $GITHUB_EN
 
       - name: Print Checksums
         run: |
-          echo "JAR Checksum: ${{env.JAR_CHECKSUM}}"
-          echo "UBERJAR Checksum: ${{env.UBERJAR_CHECKSUM}}"
+          echo "JAR Checksum: ${{process.env.JAR_CHECKSUM}}"
+          echo "UBERJAR Checksum: ${{process.env.UBERJAR_CHECKSUM}}"
 
       - name: Create Release
         uses: ncipollo/release-action@v1
