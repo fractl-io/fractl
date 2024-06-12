@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.2] - 2024-06-12
 
+-   Joins and views in queries
+-   Schema change-notifications
+-   Resolver construct
+-   Audit-trail support
+-   Clickhouse resolver
+-   Use the new dependency format in model file
+-   Fix nREPL by using a host with port
+-   Fix Okta Auth when handling auth redirection
+-   Fix Okta Cookies mechanism to override existing non-Okta Cookies present
+-   Fix Clickhouse query and insert to handle escape and quotation characters
+-   nREPL support to enable interactive development using popular IDEs and remote code execution
+-   Automatic GraphQL schema and resolver code generation to support entity CRUD operations
+
 ## [0.5.1] - 2024-04-09
 
 -   Auto-mapping of Okta users and roles to Fractl.Kernel.Identity entities.
