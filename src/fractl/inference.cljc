@@ -31,7 +31,9 @@
 
 (defn run-inference
   ([service-url {appid :app-id chatid :chat-id
-                 use-docs :use-docs use-schema :use-schema}
+                 use-docs :use-docs use-schema :use-schema
+                 :or {use-docs true
+                      use-schema true}}
     question context]
    (let [service-url (or service-url (System/getenv "COPILOT_URL"))]
      (when-not service-url
@@ -40,16 +42,16 @@
        (u/throw-ex "inference cannot run without a question"))
      (let [r0 {:AppUuid (or appid (u/get-app-uuid))
                :ChatUuid (or chatid (u/uuid-string))
-               :UseDocs use-docs
-               :UseSchema use-schema
+               :QuestionOptions {:UseDocs use-docs
+                                 :UseSchema use-schema}
                :Question question}
            r (if context (assoc r0 :QuestionContext context) r0)
            is-review-mode (when (map? context) (get-in context [:EventContext :evaluate-inferred-patterns]))
-           req {:Copilot.Service.Core/PostAppQuestion r}
+           req {:Inference.Service/Question r}
            mock-ai (= service-url "mock:ai")
            out (if mock-ai
                  [{:result [req]}]
-                 (uh/POST (str service-url "/api/Copilot.Service.Core/PostAppQuestion") nil req))
+                 (uh/POST (str service-url "/api/Inference.Service/Question") nil req))
            result (-> out
                       first
                       :result
