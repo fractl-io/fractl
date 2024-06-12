@@ -1241,12 +1241,15 @@
      attribute-names)))
 
 (defn dissoc-write-only [instance]
-  (let [schema (ensure-schema (instance-type instance))]
-    (if-let [wo-attrs (seq (write-only-attributes schema))]
-      (into {} (filter (fn [[k _]]
-                         (not (some #{k} wo-attrs)))
-                       instance))
-      instance)))
+  (if-let [t (instance-type instance)]
+    (if-let [schema (:schema (find-record-schema t))]
+      (if-let [wo-attrs (seq (write-only-attributes schema))]
+        (into {} (filter (fn [[k _]]
+                           (not (some #{k} wo-attrs)))
+                         instance))
+        instance)
+      instance)
+    instance))
 
 (defn make-future [future-obj timeout-ms]
   (make-instance :Fractl.Kernel.Lang/Future {:Result future-obj
