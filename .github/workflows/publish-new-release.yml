@@ -61,8 +61,8 @@ jobs:
           echo "Calculating SHA256 Checksum"
           JAR_CHECKSUM=$(shasum -a 256 lib/*.jar | awk '{print $1}')
           UBERJAR_CHECKSUM=$(shasum -a 256 lib/*-standalone.jar | awk '{print $1}')
-          echo "JAR_CHECKSUM=$JAR_CHECKSUM" >> $GITHUB_ENV
-          echo "UBERJAR_CHECKSUM=$UBERJAR_CHECKSUM" >> $GITHUB_ENV
+          echo "JAR_CHECKSUM=$JAR_CHECKSUM"
+          echo "UBERJAR_CHECKSUM=$UBERJAR_CHECKSUM"
 
       - name: Create Release
         uses: ncipollo/release-action@v1
@@ -73,23 +73,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
-
-      - name: Update release
-        uses: actions/github-script@v7.0.1
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const fs = require('fs');
-            const releaseBody = `
-              SHA256 checksum for the jar: \`${env.JAR_CHECKSUM}\`\n
-              SHA256 checksum for the uberjar: \`${env.UBERJAR_CHECKSUM}\`
-            `; 
-            fs.writeFile("checksum.txt", releaseBody , function(err) {
-                if(err) {
-                    return console.log(err);
-                }
-                console.log("The file was saved!");
-            }); 
 
       - name: Cleanup jar
         run: |
