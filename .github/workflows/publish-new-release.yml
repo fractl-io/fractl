@@ -67,8 +67,8 @@ jobs:
 
       - name: Print Checksums
         run: |
-          echo "JAR Checksum: ${{process.env.JAR_CHECKSUM}}"
-          echo "UBERJAR Checksum: ${{process.env.UBERJAR_CHECKSUM}}"
+          echo "JAR Checksum: ${{env.JAR_CHECKSUM}}"
+          echo "UBERJAR Checksum: ${{env.UBERJAR_CHECKSUM}}"
 
       - name: Create Release
         uses: ncipollo/release-action@v1
@@ -87,8 +87,8 @@ jobs:
           script: |
             const fs = require('fs');
             const releaseBody = `
-              SHA256 checksum for the jar: \`${process.env.JAR_CHECKSUM}\`\n
-              SHA256 checksum for the uberjar: \`${process.env.UBERJAR_CHECKSUM}\`
+              SHA256 checksum for the jar: \`${env.JAR_CHECKSUM}\`\n
+              SHA256 checksum for the uberjar: \`${env.UBERJAR_CHECKSUM}\`
             `; 
             fs.writeFile("checksum.txt", releaseBody , function(err) {
                 if(err) {
