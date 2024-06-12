@@ -63,7 +63,7 @@ jobs:
           JAR_CHECKSUM=$(shasum -a 256 lib/*.jar | awk '{print $1}')
           UBERJAR_CHECKSUM=$(shasum -a 256 lib/*-standalone.jar | awk '{print $1}')
           echo "JAR_CHECKSUM=$JAR_CHECKSUM" >> $GITHUB_ENV
-          echo "UBERJAR_CHECKSUM=$UBERJAR_CHECKSUM" >> $GITHUB_EN
+          echo "UBERJAR_CHECKSUM=$UBERJAR_CHECKSUM" >> $GITHUB_ENV
 
       - name: Print Checksums
         run: |
