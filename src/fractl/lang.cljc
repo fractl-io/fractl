@@ -1249,11 +1249,11 @@
 ;;
 (defn resolver [n spec]
   #?(:clj
-     (u/set-on-init!
-      (fn []
-        (let [req (:require spec)]
-          (when-let [nss (:namespaces req)]
-            (apply require nss))
+     (let [req (:require spec)]
+       (when-let [nss (:namespaces req)]
+         (apply require nss))
+       (u/set-on-init!
+        (fn []
           (let [s0 (dissoc spec :require :with-methods :with-subscription)
                 res-spec (assoc s0 :name n)
                 maybe-subs #(when-let [subs (:with-subscription spec)]
