@@ -8,9 +8,9 @@ function msg {
     echo "$@" 1>&2
 }
 
-export FRACTL_VERSION="0.5.1"
+export FRACTL_VERSION="0.5.2"
 # Must be sha256sum
-export FRACTL_CHECKSUM='1a3a7287a7ab721bb2686f9e38e742a9ed692571360849e921dad22db277c0ff'
+export FRACTL_CHECKSUM='7beae68a3353377ae77ef3681b03c45911271cec7732fec29c74ac5f03f36098'
 
 if [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
     delimiter=";"
