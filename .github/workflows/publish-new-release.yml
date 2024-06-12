@@ -65,11 +65,6 @@ jobs:
           echo "JAR_CHECKSUM=$JAR_CHECKSUM" >> $GITHUB_ENV
           echo "UBERJAR_CHECKSUM=$UBERJAR_CHECKSUM" >> $GITHUB_ENV
 
-      - name: Print Checksums
-        run: |
-          echo "JAR Checksum: ${{env.JAR_CHECKSUM}}"
-          echo "UBERJAR Checksum: ${{env.UBERJAR_CHECKSUM}}"
-
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
