@@ -56,6 +56,14 @@ jobs:
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}.jar /home/runner/work/fractl/fractl/lib/
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}-standalone.jar /home/runner/work/fractl/fractl/lib/
 
+      - name: Calculate SHA256 checksum
+        run: |
+          echo "Calculating SHA256 Checksum"
+          JAR_CHECKSUM=$(shasum -a 256 /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}.jar | awk '{print $1}')
+          UBERJAR_CHECKSUM=$(shasum -a 256 /home/runner/work/fractl/fractl/lib/fractl-${{env.RELEASE_VERSION}}-standalone.jar | awk '{print $1}')
+          echo "::set-output name=jar_checksum::$JAR_CHECKSUM"
+          echo "::set-output name=uberjar_checksum::$UBERJAR_CHECKSUM"
+
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
@@ -65,6 +73,34 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
+
+      - name: Update release
+        uses: actions/github-script@v7.0.1
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const fs = require('fs');
+             const releaseVersion = "${{ env.RELEASE_VERSION }}"; // The version for this release
+             const changelog = fs.readFileSync('CHANGELOG.md', 'utf8').split('\n'); // The contents of the changelog file
+             const startMarker = `## [${releaseVersion}]`; // The start marker for this version in the changelog
+             const endMarker = '## ['; // Each version starts with '## ['
+             const startPos = changelog.indexOf(startMarker); 
+             let endPos = changelog.slice(startPos+1).findIndex(line => line.startsWith(endMarker)); 
+             endPos = endPos === -1 ? undefined : startPos + endPos + 1; 
+             const releaseNotes = changelog.slice(startPos, endPos).join('\n');
+            
+             const { owner, repo } = context.repo;
+             const { data: release } = await github.repos.getLatestRelease({
+                owner,
+                repo
+             });
+             const newReleaseBody = `**Release Notes**:\n\n${releaseNotes}\n\n**SHA256 Checksum for Fractl JAR:${process.env.jar_checksum}**\n\n**SHA256 Checksum for Fractl Uberjar:${process.env.uberjar_checksum}**`;
+             await github.repos.updateRelease({
+                owner,
+                repo,
+                release_id: release.id,
+                body: newReleaseBody
+             });
 
       - name: Cleanup jar
         run: |
