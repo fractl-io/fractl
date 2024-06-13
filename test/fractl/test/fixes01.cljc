@@ -263,7 +263,9 @@
          r3 (rule/compile-rule-pattern
              [:between "2020-01-20" "2021-01-20" :A.Date])
          r4 (rule/compile-rule-pattern
-             [:in [1 2 3] :A.B])]
+             [:in [1 2 3] :A.B])
+         r5 (rule/compile-rule-pattern
+             [:> :X 100])]
      (is (r1 {:A {:B 1}}))
      (is (not (r1 {:A {:B 2}})))
      (is (r2 {:A {:Name "abc"
@@ -271,7 +273,23 @@
      (is (r3 {:A {:Date "2021-01-10"}}))
      (is (not (r3 {:A {:Date "2021-02-10"}})))
      (is (r4 {:A {:B 2}}))
-     (is (not (r4 {:A {:B 4}}))))))
+     (is (not (r4 {:A {:B 4}})))
+     (is (r5 {:X 200})))
+   (defn i231-extract-x [r]
+     (:X r))
+   (component :I231)
+   (record :I231/R {:X :Int})
+   (dataflow
+    :I231/E
+    {:I231/R {:X :I231/E.X} :as :r}
+    [:eval '(fractl.test.fixes01/i231-extract-x :r) :as :x]
+    [:match
+     [:> :x 10] 1
+     [:= :x 1] 2
+     3])
+   (is (= 1 (tu/result {:I231/E {:X 101}})))
+   (is (= 2 (tu/result {:I231/E {:X 1}})))
+   (is (= 3 (tu/result {:I231/E {:X 9}})))))
 
 (deftest issue-241-lowercase-names
   (#?(:clj do

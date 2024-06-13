@@ -88,6 +88,11 @@
 (defn lookup-instance [env rec-name]
   (cn/maybe-deref (peek (get-instances env rec-name))))
 
+(defn maybe-lookup-instance [env path]
+  (if (vector? path) ; parsed-path
+    (lookup-instance env path)
+    (lookup-by-alias env path)))
+
 (defn purge-instance [env rec-name id-attr-name id]
   (let [insts (filter #(not= (id-attr-name %) id) (get-instances env rec-name))]
     (assoc env rec-name insts)))
