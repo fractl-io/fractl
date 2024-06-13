@@ -674,7 +674,7 @@
       (is (not (r3? (lookup-r3 r32))))
       (is (r3? (lookup-r3 r33))))))
 
-;; Test added for a copilot use-case. Demonstrates,
+;; Test added for an inference-service use-case. Demonstrates,
 ;; 1. how to query all related entities.
 ;; 2. how to fallback to a default when no relationship exists.
 (deftest find-rels-with-default

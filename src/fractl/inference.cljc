@@ -27,7 +27,7 @@
             result)))))
 
 (defn mock-mode? []
-  (= "mock:ai" (System/getenv "COPILOT_URL")))
+  (= "mock:ai" (System/getenv "INFERENCE_SERVICE_URL")))
 
 (defn run-inference
   ([service-url {appid :app-id chatid :chat-id
@@ -35,7 +35,7 @@
                  :or {use-docs true
                       use-schema true}}
     question context]
-   (let [service-url (or service-url (System/getenv "COPILOT_URL"))]
+   (let [service-url (or service-url (System/getenv "INFERENCE_SERVICE_URL"))]
      (when-not service-url
        (u/throw-ex "AI inference url not configured"))
      (when-not question
