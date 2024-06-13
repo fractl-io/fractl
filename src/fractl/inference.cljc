@@ -58,7 +58,7 @@
                       first)]
        (if mock-ai
          result
-         (let [result (or (:Value result) result)
+         (let [result (or (:QuestionResponse result) result)
                result (if (string? result) (edn/read-string result) result)]
            (if-let [patterns (:patterns result)]
              (if is-review-mode
