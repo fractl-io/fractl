@@ -50,11 +50,19 @@ jobs:
 
       - name: Generate jar, uberjar and copy them to lib.
         run: |
-          lein jar
           lein uberjar
           mkdir /home/runner/work/fractl/fractl/lib
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}.jar /home/runner/work/fractl/fractl/lib/
           cp -r /home/runner/work/fractl/fractl/target/fractl-${{env.RELEASE_VERSION}}-standalone.jar /home/runner/work/fractl/fractl/lib/
+
+      - name: Calculate SHA256 Checksum
+        id: sha
+        run: |
+          echo "Calculating SHA256 Checksum"
+          JAR_CHECKSUM=$(shasum -a 256 lib/*.jar | awk '{print $1}')
+          UBERJAR_CHECKSUM=$(shasum -a 256 lib/*-standalone.jar | awk '{print $1}')
+          echo "JAR_CHECKSUM=$JAR_CHECKSUM"
+          echo "UBERJAR_CHECKSUM=$UBERJAR_CHECKSUM"
 
       - name: Create Release
         uses: ncipollo/release-action@v1
