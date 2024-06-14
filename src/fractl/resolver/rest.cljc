@@ -11,7 +11,7 @@
   (if (map? response)
     (if-let [status (:status response)]
       (if (< 199 status 299)
-        {:status status :response (read-string (:body response))}
+        {:status status :response (json/decode (:body response))}
         {:status status :error (or (:error response) (:body response))})
       {:error (or (:error response) (:body response))})
     (do (log/warn (str "rest-resolver: invalid HTTP response - " response))
