@@ -728,7 +728,7 @@
 (defn- eval-condition [evaluator env eval-opcode conds alternative result-alias]
   (bind-result-to-alias
    result-alias
-   (let [arg (partial env/lookup-instance env)]
+   (let [arg (partial env/maybe-lookup-instance env)]
      (loop [main-clauses conds]
        (if-let [[condition body] (first main-clauses)]
          (if (condition arg)
