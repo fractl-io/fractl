@@ -21,10 +21,9 @@
      (let [^Properties props (Properties.)]
        (.setProperty props ConsumerConfig/BOOTSTRAP_SERVERS_CONFIG
                      (or (:servers config) "localhost:9092"))
-       (let [provider-config (:provider config)]
-         (.setProperty props ConsumerConfig/GROUP_ID_CONFIG
-                       (or (:group-id provider-config) "fractl-consumers"))
-         (.setProperty props ConsumerConfig/AUTO_OFFSET_RESET_CONFIG (or (:auto-offset-rest provider-config) "earliest")))
+       (.setProperty props ConsumerConfig/GROUP_ID_CONFIG
+                     (or (:group-id config) "fractl-consumers"))
+       (.setProperty props ConsumerConfig/AUTO_OFFSET_RESET_CONFIG (or (:auto-offset-rest config) "earliest"))
        (.setProperty props ConsumerConfig/ENABLE_AUTO_COMMIT_CONFIG "false")
        (.setProperty props ConsumerConfig/KEY_DESERIALIZER_CLASS_CONFIG "org.apache.kafka.common.serialization.StringDeserializer")
        (.setProperty props ConsumerConfig/VALUE_DESERIALIZER_CLASS_CONFIG "org.apache.kafka.common.serialization.StringDeserializer")
