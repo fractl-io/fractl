@@ -1,5 +1,6 @@
 (ns fractl.subs.kafka
-  (:require [fractl.util.logger :as log]
+  (:require [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.datafmt.json :as json]
             [fractl.subs.internal :as si])
   #?(:clj
@@ -8,6 +9,8 @@
               [org.apache.kafka.clients.consumer
                ConsumerConfig ConsumerRecord KafkaConsumer
                ConsumerRebalanceListener]
+              [org.apache.kafka.clients CommonClientConfigs]
+              [org.apache.kafka.common.config SaslConfigs]
               [org.apache.kafka.common.serialization
                StringDeserializer StringSerializer]
               [org.apache.kafka.common.errors WakeupException]
@@ -16,13 +19,23 @@
 (defn make-consumer [config]
   #?(:clj
      (let [^Properties props (Properties.)]
-       (.setProperty props ConsumerConfig/BOOTSTRAP_SERVERS_CONFIG (or (:servers config) "localhost:9092"))
+       (.setProperty props ConsumerConfig/BOOTSTRAP_SERVERS_CONFIG
+                     (or (:servers config) "localhost:9092"))
        (let [provider-config (:provider config)]
-         (.setProperty props ConsumerConfig/GROUP_ID_CONFIG (or (:group-id provider-config) "fractl-consumers"))
+         (.setProperty props ConsumerConfig/GROUP_ID_CONFIG
+                       (or (:group-id provider-config) "fractl-consumers"))
          (.setProperty props ConsumerConfig/AUTO_OFFSET_RESET_CONFIG (or (:auto-offset-rest provider-config) "earliest")))
        (.setProperty props ConsumerConfig/ENABLE_AUTO_COMMIT_CONFIG "false")
        (.setProperty props ConsumerConfig/KEY_DESERIALIZER_CLASS_CONFIG "org.apache.kafka.common.serialization.StringDeserializer")
        (.setProperty props ConsumerConfig/VALUE_DESERIALIZER_CLASS_CONFIG "org.apache.kafka.common.serialization.StringDeserializer")
+       (let [username (u/getenv "KAFKA_USERNAME" "")
+             password (u/getenv "KAFKA_PASSWORD" "")]
+         (when (and (seq username) (seq password))
+           (.setProperty props CommonClientConfigs/SECURITY_PROTOCOL_CONFIG "SASL_SSL")
+           (.setProperty props SaslConfigs/SASL_MECHANISM "PLAIN")
+           (.setProperty props SaslConfigs/SASL_JAAS_CONFIG
+                         (str "org.apache.kafka.common.security.plain.PlainLoginModule required username=\""  username
+                              "\" password=\""  password  "\";"))))
        (let [^KafkaConsumer consumer (KafkaConsumer. props)
              ^ConsumerRebalanceListener rebalance-listener (HandleRebalance. consumer)]
          {:consumer consumer :rebalance-listener rebalance-listener :config config}))))
