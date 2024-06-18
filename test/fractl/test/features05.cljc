@@ -366,3 +366,19 @@
           attrs (li/record-attributes result)]
       (is (= (:Question attrs) "event raised with x as: 100"))
       (is (cn/instance-of? :RI/Evt (:inference-event (:QuestionContext attrs)))))))
+
+(deftest issue-1377-pattern-doc
+  (defcomponent :I1377
+    (entity :I1377/E {:X :Int})
+    (dataflow
+     :I1377/MakeE
+     {:meta {:doc "Create a new instance of E"}
+      :I1377/E {:X :I1377/MakeE.X}})
+    (dataflow
+     :I1377/FindE
+     {:meta {:doc "Find instances of E by X"}
+      :I1377/E {:X? :I1377/FindE.X}}))
+  (let [e1 (tu/first-result {:I1377/MakeE {:X 100}})
+        e2 (tu/first-result {:I1377/MakeE {:X 200}})]
+    (is (every? (partial cn/instance-of? :I1377/E) [e1 e2]))
+    (is (cn/same-instance? e1 (tu/first-result {:I1377/FindE {:X 100}})))))
