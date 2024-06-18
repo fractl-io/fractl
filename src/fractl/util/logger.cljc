@@ -16,6 +16,9 @@
 
 (defn enable-dev-logging! [] (reset! dev-logging-enabled true))
 
+(defn logging-enabled? [] @logging-enabled)
+(defn dev-logging-enabled? [] @dev-logging-enabled)
+
 #?(:clj (def log-capture! logger/log-capture!))
 
 #?(:cljs
@@ -29,41 +32,54 @@
      (def prn-info (partial prn-log :INFO))
      (def prn-warn (partial prn-log :WARN))))
 
-(defn error [msg]
-  (#?(:clj logger/error
-      :cljs prn-error)
-   msg))
+#?(:clj
+   (defmacro error [msg] `(logger/error ~msg))
+   :cljs
+   (defn error [msg] (prn-error msg)))
 
-(defn debug [msg]
-  (when @logging-enabled
-    (#?(:clj logger/debug
-        :cljs prn-debug)
-     msg)))
+#?(:clj
+   (defmacro debug [msg]
+     `(when (logging-enabled?)
+        (logger/debug ~msg)))
+   :cljs
+   (defn debug [msg]
+     (when @logging-enabled
+       (prn-debug msg))))
 
-(defn dev-debug [msg]
-  (when @dev-logging-enabled
-    (debug msg)))
+#?(:clj
+   (defmacro dev-debug [msg]
+     `(when (dev-logging-enabled?)
+        (debug ~msg)))
+   :cljs
+   (defn dev-debug [msg]
+     (when @dev-logging-enabled
+       (debug msg))))
 
-(defn info [msg]
-  (when @logging-enabled
-    (#?(:clj logger/info
-        :cljs prn-info)
-     msg)))
+#?(:clj
+   (defmacro info [msg]
+     `(when (logging-enabled?)
+        (logger/info ~msg)))
+   :cljs
+   (defn info [msg]
+     (when @logging-enabled
+       (prn-info msg))))
 
-(defn warn [msg]
-  (#?(:clj logger/warn
-      :cljs prn-warn)
-   msg))
+#?(:clj
+   (defmacro warn [msg] `(logger/warn ~msg))
+   :cljs
+   (defn warn [msg] (prn-warn msg)))
 
-(defn exception [ex]
-  #?(:clj
-     (do (error (.getMessage ex))
-         (let [^java.io.StringWriter sw (java.io.StringWriter.)
-               ^java.io.PrintWriter pw (java.io.PrintWriter. sw)]
-           (.printStackTrace ex pw)
-           (.close pw)
-           (debug (.toString sw))))
-     :cljs (prn-error ex)))
+#?(:clj
+   (defmacro exception [ex]
+     `(do (error (.getMessage ~ex))
+          (let [^java.io.StringWriter sw# (java.io.StringWriter.)
+                ^java.io.PrintWriter pw# (java.io.PrintWriter. sw#)]
+            (.printStackTrace ~ex pw#)
+            (.close pw#)
+            (debug (.toString sw#)))))
+   :cljs
+   (defn exception [ex]
+     (prn-error ex)))
 
 #?(:clj
    (do

@@ -96,8 +96,8 @@
   (cond
     (map? result)
     (let [f (if (= :ok (:status result))
-              log/info
-              log/error)]
+              #(log/info %)
+              #(log/error %))]
       (f (str "app-init: " result)))
 
     (seqable? result)
