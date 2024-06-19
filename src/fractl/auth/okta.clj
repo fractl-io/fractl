@@ -23,6 +23,7 @@
                     :auth-server <okta-auth-server-name> ; or "default"
                     :client-id <okta-app-client-id>
                     :client-secret <okta-app-secret>
+                    :api-token <okta-api-token>
                     :scope "openid offline_access"
                     :introspect true ; if false token will be verified locally
                     :authorize-redirect-url "http://localhost:3000/auth/callback"
