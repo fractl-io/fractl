@@ -63,7 +63,7 @@
     (when-not (maybe-signup-user
                evaluator (email-to-names admin-email "superuser")
                admin-email admin-password)
-      (u/throw-ex (str "failed to create local user for " admin-email)))
+      (log/error (str "failed to create local user for " admin-email)))
     (when-not (setup-cache-resolver (:cache config))
       (log/warn "failed to setup cache for authentication"))
     true))
