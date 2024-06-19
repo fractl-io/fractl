@@ -741,7 +741,7 @@
                   resp (ok {:result (if cookie {:authentication-result :success} result)} data-fmt)]
               (sess/upsert-user-session user-id true)
               (if cookie
-                (do (sess/session-cookie-create cookie result nil)
+                (do (sess/session-cookie-create cookie result)
                     (attach-set-cookie-header resp cookie))
                 resp))
             (catch Exception ex
