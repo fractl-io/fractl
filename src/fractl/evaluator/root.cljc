@@ -1063,7 +1063,6 @@
                         nil (partial eval-opcode self))
             resolver (resolver-for-instance (env/get-resolver env) inst)
             composed? (rg/composed? resolver)
-            eval-env (env/make (env/get-store env) (env/get-resolver env))
             with-types (merge (env/with-types env) with-types)
             active-event (env/active-event env)
             inst (if active-event
@@ -1077,16 +1076,16 @@
                  (if with-types
                    (assoc inst li/with-types-tag with-types)
                    inst)))
-            local-result (when df
-                           (when (or (not resolver) composed?)
-                             (let [[_ dc] (cn/dataflow-opcode df (or with-types cn/with-default-types))
-                                   evt-result (eval-opcode self env dc)
-                                   local-result (extract-local-result evt-result)]
-                               (when-not local-result
-                                 (log/error (str record-name " - event failed - " (first evt-result))))
-                               local-result)))
-            resolver-results (when resolver
-                               (call-resolver-eval resolver composed? env inst))
+            [local-result evt-env]
+            (when df
+              (when (or (not resolver) composed?)
+                (let [[_ dc] (cn/dataflow-opcode df (or with-types cn/with-default-types))
+                      evt-result (eval-opcode self env dc)
+                      local-result (extract-local-result evt-result)]
+                  (when-not local-result
+                    (log/error (str record-name " - event failed - " (first evt-result))))
+                  [local-result (:env evt-result)])))
+            resolver-results (when resolver (call-resolver-eval resolver composed? env inst))
             r (cond
                 (and local-result resolver-results)
                 (let [ls (if (map? local-result) [local-result] local-result)
@@ -1095,7 +1094,8 @@
                   (vec (concat ls res)))
                 local-result local-result
                 resolver-results (extract-resolver-result resolver-results))
-            env (if alias-name (env/bind-instance-to-alias env alias-name r) env)]
+            env0 (if alias-name (env/bind-instance-to-alias env alias-name r) env)
+            env (if evt-env (env/merge-post-event-trigger-sources evt-env env0) env0)]
         (i/ok r (env/assoc-active-event env active-event))))
 
     (do-delete-instance [self env [record-name queries]]
