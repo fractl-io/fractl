@@ -310,6 +310,18 @@
     (assoc env post-event-trigger-sources
            (assoc new-trigger-sources tag (conj srcs inst)))))
 
+(defn merge-post-event-trigger-sources [src-env target-env]
+  (let [src-trigs (post-event-trigger-sources src-env)]
+    (loop [tags [:create :update :delete], result-env target-env]
+      (if-let [tag (first tags)]
+        (if-let [src-insts (seq (tag src-trigs))]
+          (recur (rest tags) (reduce (fn [env inst]
+                                       (add-post-event-trigger-source
+                                        tag env inst))
+                                     result-env src-insts))
+          (recur (rest tags) result-env))
+        result-env))))
+
 (def create-post-event (partial add-post-event-trigger-source :create))
 (def update-post-event (partial add-post-event-trigger-source :update))
 (def delete-post-event (partial add-post-event-trigger-source :delete))
