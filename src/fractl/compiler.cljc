@@ -990,16 +990,22 @@
 (defn- compile-fncall-expression [_ pat]
   (op/call-function (compound-expr-as-fn pat)))
 
+(defn- maybe-dissoc-meta [pat]
+  (if (map? pat)
+    (dissoc pat :meta)
+    pat))
+
 (defn compile-pattern [ctx pat]
-  (if-let [c (cond
-               (li/pathname? pat) compile-pathname
-               (map? pat) compile-map
-               (vector? pat) compile-vector
-               (i/const-value? pat) compile-literal
-               (seqable? pat) compile-fncall-expression)]
-    (let [code (c ctx pat)]
-      (package-opcode code pat))
-    (u/throw-ex (str "cannot compile invalid pattern - " pat))))
+  (let [pat (maybe-dissoc-meta pat)]
+    (if-let [c (cond
+                 (li/pathname? pat) compile-pathname
+                 (map? pat) compile-map
+                 (vector? pat) compile-vector
+                 (i/const-value? pat) compile-literal
+                 (seqable? pat) compile-fncall-expression)]
+      (let [code (c ctx pat)]
+        (package-opcode code pat))
+      (u/throw-ex (str "cannot compile invalid pattern - " pat)))))
 
 (defn- maybe-mark-conditional-df [ctx evt-pattern]
   (when (li/name? evt-pattern)

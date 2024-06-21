@@ -28,6 +28,7 @@
 (def check-tag :check)
 (def path-tag :path)
 (def name-tag :name)
+(def meta-tag :meta)
 
 (def rel-tag li/rel-tag)
 (def timeout-ms-tag li/timeout-ms-tag)
@@ -164,16 +165,18 @@
    (let [cnt (count spec)]
      (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid upsert spec - " spec))))
-   (upsert ($record spec) ($attrs spec) (alias-tag spec) (rel-tag spec)))
-  ([recname rec-attrs rec-alias]
-   (upsert recname rec-attrs rec-alias nil))
-  ([recname rec-attrs rec-alias rel]
+   (upsert ($record spec) ($attrs spec) (alias-tag spec) (meta-tag spec) (rel-tag spec)))
+  ([recname rec-attrs rec-alias meta]
+   (upsert recname rec-attrs rec-alias meta nil))
+  ([recname rec-attrs rec-alias meta rel]
    (when-not (li/name? recname)
      (u/throw-ex (str "invalid record name - " recname)))
    (when (li/query-pattern? recname)
      (u/throw-ex (str "looks like a query-only pattern - " recname)))
    (when-not (and (map? rec-attrs) (every? valid-attr-spec? rec-attrs))
      (u/throw-ex (str "invalid attribute spec - " rec-attrs)))
+   (when (and meta (not (map? meta)))
+     (u/throw-ex (str "meta must be a map - " meta)))
    (when-let [aname (some query-attr-name (keys rec-attrs))]
      (u/throw-ex
       (str "query attributes cannot be specified in upsert - "
@@ -184,10 +187,9 @@
     (merge
      {record-tag recname
       attrs-tag (introspect-attrs rec-attrs)}
-     (when rel
-       {rel-tag (introspect-relationship rel)})
-     (when rec-alias
-       {alias-tag rec-alias})))))
+     (when meta {meta-tag meta})
+     (when rel {rel-tag (introspect-relationship rel)})
+     (when rec-alias {alias-tag rec-alias})))))
 
 (def upsert? (partial has-type? :upsert))
 
@@ -197,10 +199,9 @@
   (merge
    {($record ir)
     (raw-walk ($attrs ir))}
-   (when-let [rel (rel-tag ir)]
-     {rel-tag (raw-relationship rel)})
-   (when-let [als (alias-tag ir)]
-     {alias-tag als})))
+   (when-let [meta (meta-tag ir)] {meta-tag meta})
+   (when-let [rel (rel-tag ir)] {rel-tag (raw-relationship rel)})
+   (when-let [als (alias-tag ir)] {alias-tag als})))
 
 (defn- query-attrs? [attrs]
   (or (pi/proper-path? attrs) (some li/query-pattern? (keys attrs))))
@@ -216,14 +217,16 @@
      (when (or (< cnt 2) (> cnt 4))
        (u/throw-ex (str "invalid query-upsert spec - " spec))))
    (let [attrs (attributes spec)]
-     (query-upsert ($record spec) attrs (alias-tag spec) (rel-tag spec))))
-  ([recname attrs rec-alias]
-   (query-upsert recname attrs rec-alias nil))
-  ([recname attrs rec-alias rel]
+     (query-upsert ($record spec) attrs (alias-tag spec) (meta-tag spec) (rel-tag spec))))
+  ([recname attrs rec-alias meta]
+   (query-upsert recname attrs rec-alias meta nil))
+  ([recname attrs rec-alias meta rel]
    (when-not (or (li/query-pattern? recname)
                  (query-attrs? attrs))
      (u/throw-ex
       (str "not a valid query-upsert pattern - " {recname attrs})))
+   (when (and meta (not (map? meta)))
+     (u/throw-ex (str "meta must be a map - " meta)))
    (validate-alias! rec-alias)
    (as-syntax-object
     :query-upsert
@@ -232,10 +235,9 @@
      (if (map? attrs)
        {attrs-tag (introspect-attrs attrs)}
        {path-tag attrs})
-     (when rel
-       {rel-tag (introspect-relationship rel)})
-     (when rec-alias
-       {alias-tag rec-alias})))))
+     (when meta {meta-tag meta})
+     (when rel {rel-tag (introspect-relationship rel)})
+     (when rec-alias {alias-tag rec-alias})))))
 
 (def query-upsert? (partial has-type? :query-upsert))
 
@@ -247,10 +249,9 @@
     (merge
      {($record ir)
       (or path (raw-walk obj))}
-     (when-let [rel (rel-tag ir)]
-       {rel-tag (raw-relationship rel)})
-     (when-let [als (alias-tag ir)]
-       {alias-tag als}))))
+     (when-let [meta (meta-tag ir)] {meta-tag meta})
+     (when-let [rel (rel-tag ir)] {rel-tag (raw-relationship rel)})
+     (when-let [als (alias-tag ir)] {alias-tag als}))))
 
 (def raw-relationship raw-walk)
 
@@ -261,7 +262,7 @@
 
 (defn- introspect-query-upsert [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
-        recname (first (keys pat))
+        recname (first (keys (dissoc pat meta-tag)))
         attrs (recname pat)]
     (when-not (li/name? recname)
       (u/throw-ex (str "invalid record name - " recname)))
@@ -273,16 +274,15 @@
                  (li/query-pattern? recname))]
       (maybe-assoc-relationship
        ((if qpat query-upsert upsert)
-        recname attrs
-        (alias-tag pattern))
+        recname attrs (alias-tag pattern) (meta-tag pattern))
        pattern))))
 
 (defn query-object
   ([spec]
-   (when (> (count spec) 3)
+   (when (> (count (dissoc spec meta-tag)) 3)
      (u/throw-ex (str "invalid query spec - " spec)))
-   (query-object ($record spec) (query-pattern spec) (alias-tag spec)))
-  ([recname query-pat rec-alias]
+   (query-object ($record spec) (query-pattern spec) (alias-tag spec) (meta-tag spec)))
+  ([recname query-pat rec-alias meta]
    (when (and query-pat (not (:where query-pat)))
      (u/throw-ex
       (str "not a valid query pattern - " {recname query-pat})))
@@ -291,10 +291,9 @@
     :query-object
     (merge
      {record-tag recname}
-     (when query-pat
-       {query-tag query-pat})
-     (when rec-alias
-       {alias-tag rec-alias})))))
+     (when meta {meta-tag meta})
+     (when query-pat {query-tag query-pat})
+     (when rec-alias {alias-tag rec-alias})))))
 
 (def query-object? (partial has-type? :query-object))
 
@@ -303,8 +302,8 @@
     (merge
      {($record ir)
       (raw-walk obj)}
-     (when-let [als (alias-tag ir)]
-       {alias-tag als}))
+     (when-let [meta (meta-tag ir)] {meta-tag meta})
+     (when-let [als (alias-tag ir)] {alias-tag als}))
     (let [n ($record ir)]
       (if (li/query-pattern? n)
         n
@@ -312,15 +311,13 @@
 
 (defn- introspect-query-object [pattern]
   (let [pat (li/normalize-upsert-pattern pattern)
-        recname (first (keys pat))
+        recname (first (keys (dissoc pat meta-tag)))
         qpat (recname pat)]
     (when-not (li/name? recname)
       (u/throw-ex (str "invalid record name - " recname)))
     (when-not (:where qpat)
       (u/throw-ex (str "invalid query pattern - " qpat)))
-    (query-object
-     recname qpat
-     (alias-tag pattern))))
+    (query-object recname qpat (alias-tag pattern) (meta-tag pattern))))
 
 (def relationship-object rel-tag)
 
@@ -532,8 +529,8 @@
        (query-object? query-pat) query-pat
        (query-upsert? query-pat) query-pat
        (map? query-pat)
-       (let [recname (first (keys query-pat))]
-         (query-object recname (recname query-pat) nil))
+       (let [recname (first (keys (dissoc query-pat meta-tag)))]
+         (query-object recname (recname query-pat) nil (meta-tag query-pat)))
        :else
        query-pat)
      alias-tag result-alias})))
@@ -618,7 +615,7 @@
 
 (defn- pure-query-map? [obj]
   (let [pat (li/normalize-upsert-pattern obj)
-        attrs ((first (keys pat)) pat)]
+        attrs ((first (keys (dissoc pat meta-tag))) pat)]
     (and (map? attrs) (:where attrs))))
 
 (defn- introspect-name [pattern]
