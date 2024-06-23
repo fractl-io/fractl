@@ -8,6 +8,7 @@
             [fractl.lang
              :refer [component event entity view
                      relationship dataflow rule inference]]
+            [fractl.lang.syntax :as ls]
             [fractl.lang.raw :as lr]
             [fractl.lang.internal :as li]
             #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
@@ -366,3 +367,39 @@
           attrs (li/record-attributes result)]
       (is (= (:Question attrs) "event raised with x as: 100"))
       (is (cn/instance-of? :RI/Evt (:inference-event (:QuestionContext attrs)))))))
+
+(deftest issue-1377-pattern-doc
+  (defcomponent :I1377
+    (entity :I1377/E {:X :Int})
+    (dataflow
+     :I1377/MakeE
+     {:I1377/E {:X :I1377/MakeE.X}
+      :meta {:doc "Create a new instance of E"}})
+    (dataflow
+     :I1377/FindE
+     {:I1377/E {:X? :I1377/FindE.X}
+      :meta {:doc "Find instances of E by X"}}))
+  (let [e1 (tu/first-result {:I1377/MakeE {:X 100}})
+        e2 (tu/first-result {:I1377/MakeE {:X 200}})]
+    (is (every? (partial cn/instance-of? :I1377/E) [e1 e2]))
+    (is (cn/same-instance? e1 (tu/first-result {:I1377/FindE {:X 100}})))))
+
+(deftest issue-1377-syntax
+  (let [p1 (ls/upsert {ls/record-tag :Acme/Person
+                       ls/meta-tag {:doc "Create a new Person"}
+                       ls/attrs-tag {:Name "Joe"}
+                       ls/alias-tag :P})
+        p2 (ls/query-upsert {ls/record-tag :Acme/Person
+                             ls/meta-tag {:doc "Fetch Person by name"}
+                             ls/attrs-tag {:Name? "Joe"}
+                             ls/alias-tag :P})
+        p3 (ls/query-object {ls/record-tag :Acme/Person?
+                             ls/meta-tag {:doc "Query Person by name"}
+                             ls/query-tag {:where [:= :Name "Joe"]}
+                             ls/alias-tag [:P]})
+        has-doc? #(string? (:doc (ls/meta-tag %)))]
+    (is (every? has-doc? [p1 p2 p3]))
+    (is (= (ls/raw p1) {:Acme/Person {:Name "Joe"}, :meta {:doc "Create a new Person"}, :as :P}))
+    (is (= (ls/raw p2) {:Acme/Person {:Name? "Joe"}, :meta {:doc "Fetch Person by name"}, :as :P}))
+    (is (= (ls/raw p3) {:Acme/Person? {:where [:= :Name "Joe"]}, :meta {:doc "Query Person by name"}, :as [:P]}))
+    (is (every? has-doc? (mapv #(ls/introspect (ls/raw %)) [p1 p2 p3])))))
