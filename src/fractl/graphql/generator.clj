@@ -69,12 +69,27 @@
           :String)) ;; default to :String if type not found
       type-kw))) ;; if a record, keep original
 
-(defn field-type [type-name type-info]
-  (letfn [(transform-type [info]
+(defn field-type
+  ([type-name type-info]
+   ;; Lacinia and Fractl have different rules for Enum value formats. So, disabling enum parsing for now and treating
+   ;; enum as a string in GraphQL schema. Fractl will automatically parse and handle value validation
+
+   ;; More context:
+   ;; Lacinia Enum values must be GraphQL Names: they may contain only letters, numbers, and underscores.
+   ;; Enums are case-sensitive; by convention they are in all upper-case.
+
+   ;; We're keeping enum mapping logic in case we'd like to handle this difference using resolvers by sanitizing
+   ;; values to generate their corresponding GraphQL name forms.
+
+   (field-type type-name type-info false))
+  ([type-name type-info enums-enabled?]
+    (letfn [(transform-type [info]
             (cond
               (:oneof info)
               (let [oneof-values (mapv keyword (:oneof info))]
-                [type-name {:meta {:type :enum :values oneof-values}}])
+                (if enums-enabled?
+                  [type-name {:meta {:type :enum :values oneof-values}}]
+                  [:String {:meta {:type :basic}}]))
 
               (:listof info)
               (let [listof-type (type->GraphQL (:listof info))]
@@ -94,10 +109,11 @@
           updated-meta (if is-guid?
                          (assoc-in (second parsed-info) [:meta :guid] true)
                          (second parsed-info))]
+
       ;; wrapping in 'non-null' if not optional
       (if non-null?
         [{:type (list 'non-null (first parsed-info))} updated-meta]
-        [{:type (first parsed-info)} updated-meta]))))
+        [{:type (first parsed-info)} updated-meta])))))
 
 (defn strip-irrelevant-attributes [fields]
   "Removes any attributes besides :type"
@@ -214,12 +230,20 @@
                       {}
                       fields))))
 
-(defn update-entity-meta [entity-name attribute-name meta]
-  (swap! entity-metas
-         (fn [current-metas]
-           (update current-metas entity-name
-                   (fn [entity-meta]
-                     (assoc (or entity-meta {}) attribute-name meta))))))
+(defn update-entity-meta
+  ([entity-name]
+   ;; init with {}
+   (swap! entity-metas
+          (fn [current-metas]
+            (if (contains? current-metas entity-name)
+              current-metas
+              (assoc current-metas entity-name {})))))
+  ([entity-name attribute-name meta]
+   (swap! entity-metas
+          (fn [current-metas]
+            (update current-metas entity-name
+                    (fn [entity-meta]
+                      (assoc (or entity-meta {}) attribute-name meta)))))))
 
 (defn enrich-field-meta [type-info meta]
   "Additional fields inside the fractl field type should flow to metadata for later code extension."
@@ -237,6 +261,9 @@
   (dissoc attributes :rbac))
 
 (defn process-attributes [entity-name attributes]
+  (if (empty? attributes)
+    ;; only true when between relationship doesn't have attributes
+    {})
   (reduce-kv (fn [acc key val]
                (let [type-info (field-type key val)
                      field-datatype (first type-info)
@@ -326,6 +353,12 @@
                        (let [current-fields (:fields (get current-code relationship-key {}))
                              merged-fields (merge current-fields processed-attributes)
                              updated-fields (assoc merged-fields alias1 {:type entity1-guid-datatype} alias2 {:type entity2-guid-datatype})]
+
+                         (if (empty? processed-attributes)
+                           (do
+                             (update-entity-meta relationship-name)
+                             (update-entity-meta relationship-key alias1 {:type entity1-guid-datatype})
+                             (update-entity-meta relationship-key alias2 {:type entity2-guid-datatype})))
                          (assoc current-code relationship-key {:fields updated-fields})))))
 
             :else
