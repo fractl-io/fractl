@@ -30,6 +30,7 @@
 
 (defn- sanitized? [v]
   (or (keyword? v)
+      (symbol? v)
       (map? v)
       (string? v)
       (number? v)

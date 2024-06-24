@@ -200,7 +200,7 @@
                       cid (symbol (str (s/replace (name r) "." "_") "_" component-id-var))]
                   (if (= 1 (count ss))
                     [(symbol (str sanitized-model-name ".model." (first ss))) :only [cid]]
-                    [(symbol (s/join "." (concat [(first ss) "model"] ss))) :only [cid]])))
+                    [(symbol (s/join "." (concat [sanitized-model-name "model"] ss))) :only [cid]])))
               refs)
         deps (if (= "fractl" sanitized-model-name)
                [['fractl.lang :only lang-vars]]
