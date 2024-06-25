@@ -1,5 +1,6 @@
 (ns fractl.evaluator.intercept
-  (:require [fractl.util.logger :as log]
+  (:require #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.evaluator.intercept.rbac :as irbac]
             [fractl.evaluator.intercept.core :as interceptors]))
 

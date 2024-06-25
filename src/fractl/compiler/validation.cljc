@@ -2,7 +2,8 @@
   "Compile-time schema and data validation."
   (:require [clojure.set :as set]
             [fractl.util :as u]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.lang.internal :as li]
             [fractl.component :as cn]))
 

@@ -3,7 +3,8 @@
             [fractl.util.http :as uh]
             [cheshire.core :as json]
             [clojure.string :as str]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [clojure.set :refer [union]]))
 
 (def fractlType->swaggerType

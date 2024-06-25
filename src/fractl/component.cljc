@@ -11,7 +11,8 @@
             [fractl.util :as u]
             [fractl.util.errors :refer [make-error raise-error throw-ex-info]]
             [fractl.util.hash :as sh]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.util.seq :as su]))
 
 (def additional-internal-component-names

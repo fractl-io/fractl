@@ -2,7 +2,8 @@
   (:require [clojure.string :as s]
             [fractl.util :as u]
             [fractl.evaluator :as ev]
-            [fractl.util.logger :as log]))
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])))
 
 (defn session-lookup [user]
   (let [result (ev/eval-internal

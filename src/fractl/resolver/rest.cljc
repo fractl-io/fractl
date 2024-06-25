@@ -1,5 +1,6 @@
 (ns fractl.resolver.rest
-  (:require [fractl.util.logger :as log]
+  (:require #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.util.http :as http]
             [fractl.datafmt.json :as json]
             [fractl.resolver.core :as r]
