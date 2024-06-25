@@ -186,9 +186,13 @@ if $cygterm; then
   stty -icanon min 1 -echo > /dev/null 2>&1
 fi
 
-if [ ! -r "$FRACTL_JAR" ]; then
+present_dir=`pwd`
+CALIBRATED_FRACTL_JAR="${present_dir}/.runtime/fractl-calibrated-$FRACTL_VERSION-standalone.jar"
+
+if [ -r "$CALIBRATED_FRACTL_JAR" ]; then
+    FRACTL_JAR=$CALIBRATED_FRACTL_JAR
+elif [ ! -r "$FRACTL_JAR" ]; then
     self_install
-    present_dir=`pwd`
     rm -rf $FRACTL_HOME/self-installs/fractl-lein-template
     cd $FRACTL_HOME/self-installs
     git clone https://github.com/fractl-io/fractl-lein-template.git || exit 1
