@@ -9,7 +9,8 @@
             [fractl.store.util :as stu]
             [fractl.store.sql :as sql]
             [fractl.util.seq :as su]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             #?(:clj [fractl.store.jdbc-internal :as ji])
             #?(:cljs [fractl.store.alasql-internal :as aqi])))
 

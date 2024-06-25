@@ -1,7 +1,8 @@
 (ns fractl.evaluator.intercept.instance-meta
   (:require [fractl.component :as cn]
             [fractl.util.seq :as su]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.lang.datetime :as dt]
             [fractl.env :as env]
             [fractl.store :as store]

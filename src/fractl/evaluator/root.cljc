@@ -8,7 +8,8 @@
             [fractl.util :as u]
             [fractl.util.hash :as h]
             [fractl.util.seq :as su]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.store :as store]
             [fractl.store.util :as stu]
             [fractl.resolver.core :as r]

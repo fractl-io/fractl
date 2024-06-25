@@ -3,7 +3,8 @@
             [fractl.lang.internal :as li]
             [fractl.paths.internal :as pi]
             [fractl.util :as u]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.env :as env]
             [fractl.component :as cn]))
 

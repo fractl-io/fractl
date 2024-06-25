@@ -6,7 +6,8 @@
             [fractl.util :as u]
             [fractl.util.graph :as ug]
             [fractl.util.seq :as us]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.lang.internal :as li]
             [fractl.lang.opcode :as op]
             [fractl.lang.syntax :as ls]

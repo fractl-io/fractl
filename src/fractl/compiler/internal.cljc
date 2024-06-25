@@ -2,7 +2,8 @@
   (:require [fractl.util :as u]
             [fractl.util.seq :as su]
             [fractl.util.graph :as g]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.component :as cn]
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as lk]

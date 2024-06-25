@@ -5,7 +5,8 @@
             [fractl.compiler :as c]
             [fractl.env :as env]
             [fractl.util :as u]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.util.seq :as su]
             [fractl.util.http :as uh]
             [fractl.util.errors :refer [extract-client-message-from-ex]]

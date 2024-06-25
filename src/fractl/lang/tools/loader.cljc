@@ -6,7 +6,8 @@
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.seq :as su]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.lang :as ln]
             [fractl.lang.raw :as raw]
             [fractl.lang.name-util :as nu]

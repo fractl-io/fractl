@@ -1,7 +1,8 @@
 (ns fractl.auth
   (:require [clojure.string :as s]
             [fractl.util :as u]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.auth.cognito]
             [fractl.auth.okta]
             [fractl.auth.keycloak]
