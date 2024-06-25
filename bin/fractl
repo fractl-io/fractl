@@ -186,8 +186,12 @@ if $cygterm; then
   stty -icanon min 1 -echo > /dev/null 2>&1
 fi
 
+if [ "$1" = "calibrate-runtime" ]; then
+    rm -rf ".runtime"
+fi
+
 present_dir=`pwd`
-CALIBRATED_FRACTL_JAR="${present_dir}/.runtime/fractl-calibrated-$FRACTL_VERSION-standalone.jar"
+CALIBRATED_FRACTL_JAR="${present_dir}/.runtime/target/fractl-calibrated-$FRACTL_VERSION-standalone.jar"
 
 if [ -r "$CALIBRATED_FRACTL_JAR" ]; then
     FRACTL_JAR=$CALIBRATED_FRACTL_JAR
