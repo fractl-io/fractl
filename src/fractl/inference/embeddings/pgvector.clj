@@ -5,14 +5,17 @@
             [next.jdbc :as jdbc]
             [cheshire.core :as json]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.inference.embeddings.model :as model]
             [fractl.inference.embeddings.provider.openai :as openai]))
 
+(def ^:private dbtype "postgresql")
+
 (defn open-connection [config]
-  (merge {:dbtype "postgresql"} config))
+  (merge {:dbtype dbtype} config))
 
 (defn close-connection [db-conn]
-  (when (= "postgresql" (:dbtype db-conn))
+  (when (= dbtype (:dbtype db-conn))
     true))
 
 (defn- pg-floats
@@ -116,7 +119,7 @@
          (jdbc/execute! db-conn)
          (mapv :text_embedding/text_content))))
 
-(defn delete-planner-tool [db-conn app-uuid tag type]
+(defn delete-planner-tool [db-conn {app-uuid :app-uuid tag :tag type :type}]
   (delete-selected db-conn app-uuid tag type))
 
 (defn- form-to-json [clj-form-str]
@@ -139,15 +142,31 @@
       {"type" data-key
        "attributes" (into {} (map (fn [[k v]] [(name k) (process v)]) attributes))}})))
 
-(defn add-planner-tool [db-conn app-uuid tool-spec meta-content]
+(defn add-planner-tool [db-conn {app-uuid :app-uuid tool-spec :tool-spec meta-content :meta-content}]
   (let [document-classname (get-planner-classname app-uuid)
         tool-text (pr-str tool-spec)
         embedding (openai/make-openai-embedding {:text_content tool-text})]
-    (create-object (model/as-object {:classname document-classname
-                                     :text_content tool-text
-                                     :meta_content (form-to-json meta-content)
-                                     :embedding embedding}))))
+    (create-object db-conn (model/as-object {:classname document-classname
+                                             :text_content tool-text
+                                             :meta_content (form-to-json meta-content)
+                                             :embedding embedding}))))
 
-(defn update-planner-tool [db-conn app-uuid tool-spec meta-content tag type]
-  (delete-planner-tool db-conn app-uuid tag type)
-  (add-planner-tool db-conn app-uuid tool-spec meta-content))
+(defn update-planner-tool [db-conn spec]
+  (delete-planner-tool db-conn spec)
+  (add-planner-tool db-conn spec))
+
+(defn embed-planner-tool [db-conn {tool-name :tool-name tool-spec :tool-spec
+                                   tag :tag operation :operation :as spec}]
+  (log/debug (pretty-str "Ingesting planner tool" spec))
+  (if (or (and (nil? tool-name)
+               (nil? tool-spec))
+          (= tag "component"))
+    (log/info (pretty-str "Ignoring insertion of component for now..."))
+    (case operation
+      "add"
+      (let [spec (if (and tool-spec tool-name)
+                   (assoc spec :tool-spec (assoc tool-spec :tool-name tool-name))
+                   spec)]
+        (update-planner-tool db-conn spec))
+      "delete" (delete-planner-tool db-conn spec)
+      (throw (ex-info "Expected operation 'add' or 'delete'" {:operation operation})))))

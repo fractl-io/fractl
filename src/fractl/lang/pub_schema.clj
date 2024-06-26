@@ -3,7 +3,9 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.global-state :as gs]
-            [fractl.datafmt.json :as json])
+            [fractl.datafmt.json :as json]
+            [fractl.inference.embeddings.core :as e]
+            [fractl.inference.embeddings.pgvec :as pgvec])
   (:import [redis.clients.jedis Jedis JedisPool]))
 
 (defn publish-schema? [] (:publish-schema (gs/get-app-config)))
@@ -22,7 +24,9 @@
 (defn- preproc-definition [d]
   (w/prewalk #(if (fn? %) :fn %) d))
 
-(defn publish-event [definition]
+(def ^:private redis-pub-schema false)
+
+(defn- publish-event-on-redis [definition]
   (try
     (when-let [^JedisPool pool (get-connection)]
       (let [^Jedis j (.getResource pool)]
@@ -35,3 +39,8 @@
             (.close j)))))
     (catch Exception ex
       (log/error ex))))
+
+(defn publish-event [definition]
+  (if redis-pub-schema
+    (publish-event-on-redis definition)
+    (e/embed-schema (pgvec/fetch-db) definition)))
