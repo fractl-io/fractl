@@ -1,5 +1,5 @@
 (ns fractl.util.http
-  (:require #?(:clj  [org.httpkit.client :as http]
+  (:require #?(:clj [org.httpkit.client :as http]
                :cljs [cljs-http.client :as http])
             #?(:clj [org.httpkit.sni-client :as sni-client])
             [clojure.string :as s]

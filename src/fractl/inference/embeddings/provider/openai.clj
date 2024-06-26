@@ -1,8 +1,8 @@
 (ns fractl.inference.embeddings.provider.openai
   (:require [cheshire.core :as json]
+            [org.httpkit.client :as http]
             [fractl.util :as u]
-            [fractl.util.logger :as log]
-            [fractl.util.http :as http]))
+            [fractl.util.logger :as log]))
 
 (def ^:private openai-key-env-var "OPENAI_API_KEY")
 (def ^:private env-openai-api-key (System/getenv openai-key-env-var))
@@ -29,11 +29,12 @@
   (let [model-name (or model-name openai-default-embedding-model)
         embedding-endpoint (or embedding-endpoint openai-embedding-api-endpoint)
         openai-api-key (or openai-api-key (get-env-openai-api-key))
-        response (http/POST embedding-endpoint {:headers {"Authorization" (str "Bearer " openai-api-key)}}
-                            (json/generate-string {"input" text-content
-                                                   "model" model-name
-                                                   "encoding_format" "float"})
-                            :json)
+        options {:headers {"Authorization" (str "Bearer " openai-api-key)
+                           "Content-Type" "application/json"}
+                 :body (json/generate-string {"input" text-content
+                                              "model" model-name
+                                              "encoding_format" "float"})}
+        response (http/post embedding-endpoint options)
         status (:status response)]
     (if (<= 200 status 299)
       (or (-> (:body response)

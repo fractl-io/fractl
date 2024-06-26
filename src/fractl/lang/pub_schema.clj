@@ -5,7 +5,7 @@
             [fractl.global-state :as gs]
             [fractl.datafmt.json :as json]
             [fractl.inference.embeddings.core :as e]
-            [fractl.inference.embeddings.pgvec :as pgvec])
+            [fractl.inference.embeddings.pgvector :as pgvec])
   (:import [redis.clients.jedis Jedis JedisPool]))
 
 (defn publish-schema? [] (:publish-schema (gs/get-app-config)))

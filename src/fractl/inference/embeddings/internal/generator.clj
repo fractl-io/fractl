@@ -1,0 +1,213 @@
+(ns fractl.inference.embeddings.internal.generator
+  (:require [clojure.string :as s]
+            [fractl.util :as u]
+            [fractl.util.logger :as log]
+            #_[fractl.component :as cn]
+            #_[fractl.swagger.doc :as doc]))
+
+(defn get-clojure-type [attr]
+  {:type "string"}
+  #_(let [attr (if (string? attr)
+                 (keyword (str "Fractl.Kernel.Lang/" attr))
+                 attr)]
+      (if-let [type (get doc/fractlType->swaggerType attr)]
+        type
+        (if-let [attr (cn/find-attribute-schema attr)]
+          (get doc/fractlType->swaggerType (get attr :type) {:type "string"})
+          {:type "string"}))))
+
+(defn generate-clojure-type [attr]
+  (map (fn [[k v]]
+         (when-not (or (nil? v)
+                       (nil? k))
+           (if (keyword? v)
+             {:name (name k)
+              :type {:type (name v)}
+              :required true}
+             {:name (name k)
+              :type {:type (if-not (nil? (get v :type))
+                             (name (get v :type))
+                             "String")}
+              :required (not (or (true? (:optional v)) (true? (:read-only v))))})))
+       attr))
+
+(defn fractl-entity-to-tool-type
+  "Fractl entity to Tool type compatible schema"
+  [entity-name entity-schema]
+  (let [entity-obj (dissoc entity-schema :path-info :__instmeta__ :path, :meta :rbac)
+        entity-obj-keys (keys entity-obj)
+        entity-obj-values (vals entity-obj)
+        names (doall (map name entity-obj-keys))
+        types (doall (map get-clojure-type entity-obj-values))
+        inner-maps (map (fn [n t]
+                          (merge {:name n} {:type t} {:required true})) names types)]
+    {entity-name inner-maps :has-uniqueness true}))
+
+;; Note: The plan later is to use this function for tool type generation
+;; as, this is a better implementation than the previous one with some modification.
+(defn fractl-entity-to-tool-type-for-create-operation
+  "Fractl entity to Tool type compatible schema"
+  [entity-name entity-schema]
+  (let [entity-obj (dissoc entity-schema :path-info :__instmeta__ :path, :meta :rbac)
+        inner-maps (doall
+                     (generate-clojure-type entity-obj))]
+    {entity-name inner-maps :has-uniqueness true}))
+
+(defn transform-data [data-seq]
+  (reduce
+    (fn [result {:keys [name type]}]
+      (assoc result (keyword name) (keyword (s/capitalize type))))
+    {}
+    data-seq))
+
+(defn fractl-event-to-tool-type
+  "Fractl event to Tool type compatible schema"
+  [event-name event-schema]
+  (let [event-schema (if (string? event-schema)
+                       (read-string event-schema)
+                       event-schema)
+        event-obj (dissoc event-schema :path-info :__instmeta__ :path :EventContext :meta :rbac)
+        event-obj-keys (keys event-obj)
+        event-obj-values (vals event-obj)
+        names (doall (map name event-obj-keys))
+        types (doall (map get-clojure-type event-obj-values))
+        inner-maps (map (fn [n t] (merge {:name n} {:type t} {:required true})) names types)]
+    {event-name inner-maps}))
+
+(defn get-key-from-fetch-string [fetch-string]
+  (let [parts (s/split fetch-string #"By" 2)]
+    (if (> (count parts) 1)
+      (second parts)
+      "Id")))
+
+(defn filter-maps-by-name [maps name]
+  (filter #(= (:name %) name) maps))
+
+(defn generate-fetch-strings-key [filtered-keys en coll]
+  (cons (str "fetch" (name en))
+        (map (fn [k]
+               (str "fetch"
+                    (name en)
+                    (when (and coll (not (= :Id k))) (str "s")) "By" (name k))) filtered-keys)))
+
+(defn generate-create-strings-key [en]
+  (str "Create" (name en)))
+
+(defn generate-description-string [entity key coll]
+  (when (not (nil? key))
+    (str "Fetch "
+         (when (and coll (not (= :Id (keyword key)))) (str "list of "))
+         (name entity)
+         " details for given " (name key))))
+
+(defn generate-create-description [entity entity-map]
+  (let [attributes (->> (get entity-map entity)
+                        (map (fn [entry]
+                               (when (:required entry)
+                                 (:name entry))))
+                        (remove nil?)
+                        (s/join " "))]
+    (str "Create " (name entity) ". Requires attributes: " attributes)))
+
+(defn generate-returns-string [key attrs coll]
+  (when (not (nil? key))
+    (str ""
+         (when (and coll (not (= :Id (keyword key)))) (str "List of objects with "))
+         "Attributes: " (s/join ", " attrs))))
+
+(defn generate-df-pattern-entity [entity key]
+  (binding [*print-namespace-maps* false]
+    (pr-str [(hash-map entity
+                       {(keyword (str key "?")) (keyword (str "param/" key))})])))
+
+(defn generate-df-pattern-entity-create [entity entity-map]
+  (let [required-params (->> (get entity-map entity)
+                             (filter :required)
+                             (map :name)
+                             (map (fn [k] [(keyword k) (keyword (str "param/" k))]))
+                             (into {}))]
+    (binding [*print-namespace-maps* false]
+      (pr-str [(hash-map entity required-params)]))))
+
+(defn generate-df-pattern-event [keys]
+  (binding [*print-namespace-maps* false]
+    (pr-str [(into {} (map (fn [key] {(keyword (name key)) (keyword "params" (name key))}) keys))])))
+
+(defn calculate-returns-many [fetch-string]
+  (if (> (count (s/split fetch-string #"By")) 1)
+    true
+    false))
+
+(defn generate-tool-for-event [event-name event-schema]
+  (let [event-name (keyword event-name)
+        event-tool-maps (fractl-event-to-tool-type event-name event-schema)
+        map-of-types (get event-tool-maps event-name)
+        event-keys (keys event-schema)
+        filtered-keys (remove #(or (= "__instmeta__" (name %))
+                                   (= "__path__" (name %))
+                                   (= "__Id__" (name %))
+                                   (= "Password" (name %))
+                                   (= "EventContext" (name %))
+                                   (= "meta" (name %))) event-keys)
+        meta-keys (get event-schema :meta)
+        fetch-maps {(name event-name)
+                    {:description (get meta-keys :description)
+                     :returns (or (get meta-keys :returns)
+                                  (get meta-keys :return))
+                     :returns-many (get meta-keys :returns-many)
+                     :params (into [] map-of-types)
+                     :df-patterns (generate-df-pattern-event filtered-keys)}}]
+    (log/info (str "Generating tools complete for event: " event-name))
+    fetch-maps))
+
+(defn generate-tool-for-entity [entity-name entity-schema]
+  (let [entity-name (keyword entity-name)
+        entity-tool-maps (fractl-entity-to-tool-type entity-name entity-schema)
+        map-of-types (get entity-tool-maps entity-name)
+        is-coll (get entity-tool-maps :has-uniqueness)
+        entity-keys (keys entity-schema)
+        filtered-keys (remove #(or (= "__instmeta__" (name %))
+                                   (= "__path__" (name %))
+                                   (= "__Id__" (name %))
+                                   (= "Password" (name %))
+                                   (= "meta" (name %))) entity-keys)
+        fetch-strings (generate-fetch-strings-key filtered-keys entity-name is-coll)
+        fetch-maps (map (fn [fetch-string]
+                          (let [key-name (get-key-from-fetch-string fetch-string)
+                                filtered-maps-name (filter-maps-by-name map-of-types key-name)
+                                filtered-maps-data-by-name (if (and (or (nil? filtered-maps-name)
+                                                                        (empty? filtered-maps-name))
+                                                                    (= "Id" key-name))
+                                                             {:name "Id"
+                                                              :type {:type "string" :format "uuid"}
+                                                              :required true}
+                                                             (first filtered-maps-name))
+                                returns-many (calculate-returns-many fetch-string)]
+                            {fetch-string {:description (generate-description-string entity-name
+                                                                                     key-name
+                                                                                     is-coll)
+                                           :returns (generate-returns-string key-name
+                                                                               (map name filtered-keys)
+                                                                               is-coll)
+                                           :params [filtered-maps-data-by-name]
+                                           :df-patterns (generate-df-pattern-entity entity-name key-name)
+                                           :returns-many returns-many}}))
+                        fetch-strings)
+        fetch-maps-formatted (into {} fetch-maps)
+        create-string-name (generate-create-strings-key entity-name)
+        entity-tool-map (fractl-entity-to-tool-type-for-create-operation entity-name entity-schema)
+        create-map {create-string-name {:description (if (nil? (get-in entity-schema [:meta :comment]))
+                                                       (generate-create-description entity-name entity-tool-map)
+                                                       (get-in entity-schema [:meta :comment]))
+                                        :returns entity-name
+                                        :params (into [] (get entity-tool-map entity-name))
+                                        :df-patterns (generate-df-pattern-entity-create entity-name entity-tool-map)
+                                        :returns-many false}}]
+    (log/info (str "Generating tools complete for entity: " entity-name))
+    (merge fetch-maps-formatted create-map)))
+
+(defn generate-tool-for-data [tag type schema]
+  (case tag
+    "entity" (generate-tool-for-entity type schema)
+    "event" (generate-tool-for-event type schema)
+    :else (u/throw-ex (str "Don't know how to handle " tag))))

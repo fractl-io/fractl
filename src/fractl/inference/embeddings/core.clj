@@ -1,7 +1,7 @@
 (ns fractl.inference.embeddings.core
   (:require [fractl.util :as u]
             [fractl.util.logger :as log]
-            [fractl.inference.embeddings.generator :as g]
+            [fractl.inference.embeddings.internal.generator :as g]
             [fractl.inference.embeddings.protocol :as p]))
 
 (defn rearrange-data [data-edn]
