@@ -460,7 +460,7 @@
 
 (defn calibrate-runtime [model-name]
   (let [{model :model} (loader/load-all-model-info nil model-name nil)]
-    (when-let [deps (seq (filter vector? (:dependencies model)))]
+    (when-let [deps (fractl-deps-as-clj-deps (:dependencies model))]
       (let [rdir (File. runtime-dir)]
         (FileUtils/deleteDirectory rdir)
         (.mkdir rdir)
