@@ -71,21 +71,23 @@
       (log/warn (str "standalone-jar - " (.getMessage ex)))
       nil)))
 
-(defn- make-writer [prefix]
-  (fn [file-name contents & options]
-    (let [f (File. (str prefix file-name))]
-      (FileUtils/createParentDirectories f)
-      (with-open [w (io/writer f)]
-        (cond
-          (some #{:spit} options)
-          (spit w contents)
+(defn- make-writer
+  ([prefix]
+   (fn [file-name contents & options]
+     (let [f (File. (if prefix (str prefix file-name) file-name))]
+       (FileUtils/createParentDirectories f)
+       (with-open [w (io/writer f)]
+         (cond
+           (some #{:spit} options)
+           (spit w contents)
 
-          (some #{:write-each} options)
-          (doseq [exp contents]
-            (pprint/pprint exp w))
+           (some #{:write-each} options)
+           (doseq [exp contents]
+             (pprint/pprint exp w))
 
-          :else
-          (pprint/pprint contents w))))))
+           :else
+           (pprint/pprint contents w))))))
+  ([] (make-writer nil)))
 
 (defn- client-path [model-name]
   (let [path (str (project-dir model-name) "client" u/path-sep)
@@ -294,15 +296,13 @@
          (mapv (fn [[k v]]
                  {k v}) elem)) deps))
 
-(declare load-model install-model)
+(declare install-model)
 
 (defn- load-clj-project [model-name _ components]
   (let [f (partial copy-component nil model-name)]
     (doseq [c components]
       (f c))
     model-name))
-
-(def ^:dynamic load-model-mode false)
 
 (defn- get-proper-model-name [model-name spec]
   (if spec
@@ -316,10 +316,8 @@
   (doseq [[model-name type version spec :as d] (normalize-deps-spec deps)]
     (when (= :fractl-model (get type :type))
       (when spec (tu/maybe-clone-model spec model-paths)))
-    (if load-model-mode
-      (load-model model-name)
-      (when-not (install-model model-paths (get-proper-model-name model-name spec))
-        (u/throw-ex (str "failed to install dependency " d))))))
+    (when-not (install-model model-paths (get-proper-model-name model-name spec))
+      (u/throw-ex (str "failed to install dependency " d)))))
 
 (defn- clj-project-path [model-paths model-name]
   (first
@@ -381,7 +379,7 @@
       (first result))))
 
 (def install-model (partial exec-with-build-model "lein install"))
-(def standalone-package (partial exec-with-build-model ["lein install" "lein uberjar"] nil))
+(def standalone-package (partial exec-with-build-model "lein uberjar" nil))
 
 (defn- maybe-copy-kernel [model-name]
   (when (= model-name "fractl")
@@ -405,8 +403,11 @@
   (load-clj-project model-name model components))
 
 (defn load-model [model-name]
-  (binding [load-model-mode true]
-    (build-model handle-load-clj-project nil model-name nil)))
+  (log/info (str "loading model " model-name))
+  (let [{model :model model-root :root} (loader/load-all-model-info nil model-name nil)]
+    (if (loader/load-components-from-model model model-root)
+      (:name model)
+      (log/error (str "failed to load components from " model-name)))))
 
 (defn- config-file-path [model-name]
   (str (project-dir model-name) config-edn))
@@ -428,3 +429,41 @@
               :clojars "lein deploy clojars"
               :github "lein deploy github")]
     (exec-with-build-model cmd nil model-name)))
+
+(def ^:private runtime-dir ".runtime")
+(def ^:private calib-proj-name "fractl-calibrated")
+(def ^:private calib-src-dir (s/replace calib-proj-name "-" "_"))
+
+(defn- emit-calibration-project [fractl-version deps]
+  (let [final-deps (vec (concat [['com.github.fractl-io/fractl fractl-version]]
+                                deps))
+        ns-name (symbol (str calib-proj-name ".core"))
+        project-spec `(~'defproject ~(symbol calib-proj-name) ~fractl-version
+                       :dependencies ~final-deps
+                       :aot :all
+                       :main ~ns-name)
+        args 'args
+        core-content `((~'ns ~ns-name
+                        (:require [~'fractl.core :as ~'fractl])
+                        (:gen-class))
+                       (~'defn ~(symbol "-main") [& ~args] (apply fractl/-main ~args)))
+        core-src (str runtime-dir u/path-sep "src" u/path-sep calib-src-dir u/path-sep "core.clj")
+        w (make-writer)]
+    (w (str runtime-dir u/path-sep "project.clj") project-spec)
+    (FileUtils/createParentDirectories (File. core-src))
+    (w core-src core-content :write-each)
+    true))
+
+(defn- build-calibrated-runtime []
+  (u/exec-in-directory runtime-dir "lein uberjar")
+  true)
+
+(defn calibrate-runtime [model-name]
+  (let [{model :model} (loader/load-all-model-info nil model-name nil)]
+    (when-let [deps (fractl-deps-as-clj-deps (:dependencies model))]
+      (let [rdir (File. runtime-dir)]
+        (FileUtils/deleteDirectory rdir)
+        (.mkdir rdir)
+        (and (emit-calibration-project (fetch-fractl-version model) (vec deps))
+             (build-calibrated-runtime)
+             (:name model))))))
