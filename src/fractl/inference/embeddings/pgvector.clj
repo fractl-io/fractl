@@ -1,6 +1,7 @@
 (ns fractl.inference.embeddings.pgvector
   (:require [fractl.util :as u]
             [fractl.inference.embeddings.protocol :as p]
+            [fractl.inference.embeddings.internal.registry :as r]
             [fractl.inference.embeddings.internal.pgvector :as pgv]))
 
 ;;;; sample config.edn entry:
@@ -30,3 +31,5 @@
      (let [db (make)]
       (when (p/open-connection db config)
         db)))))
+
+(r/register-db :pgvector fetch-db)

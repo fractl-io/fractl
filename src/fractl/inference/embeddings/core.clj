@@ -3,14 +3,15 @@
             [fractl.util.logger :as log]
             [fractl.inference.embeddings.internal.generator :as g]
             [fractl.inference.embeddings.internal.queue :as queue]
-            [fractl.inference.embeddings.pgvector :as pgv]
+            [fractl.inference.embeddings.internal.registry :as r]
+            [fractl.inference.embeddings.pgvector]
             [fractl.inference.embeddings.protocol :as p]))
 
 (declare embed-schema)
 
 (defn init [config]
-  (if (= :pgvector (:vectordb config))
-    (queue/process (partial embed-schema (pgv/fetch-db (:config config))))
+  (if-let [connector (r/fetch-db-connector (:vectordb config))]
+    (queue/process (partial embed-schema (connector (:config config))))
     (u/throw-ex (str "Unsupported embbeddings database type: " (:vectordb config))))
   config)
 
