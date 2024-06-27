@@ -54,8 +54,12 @@
       result)))
 
 (defn dependency-model? [dep]
-  (when (map? dep)
-    (:name dep)))
+  (cond
+    (vector? dep) (if (> (count dep) 1)
+                    dep
+                    (when (map? (first dep))
+                      (dependency-model? (first dep))))
+    (map? dep) (:name dep)))
 
 (defn dependency-model-version [dep]
   (when (vector? dep)
