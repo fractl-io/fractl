@@ -4,7 +4,7 @@
             [fractl.inference.embeddings.internal.pgvector :as pgv]))
 
 ;;;; sample config.edn entry:
-;; {:publish-schema {:target :pgvector
+;; {:publish-schema {:vectordb :pgvector
 ;;                   :config {:host #$ [PGVECTOR_DB_HOST "localhost"]
 ;;                            :port #$ [PGVECTOR_DB_PORT 5432]
 ;;                            :dbname #$ [PGVECTOR_DB_NAME "postgres"]

@@ -9,9 +9,9 @@
 (declare embed-schema)
 
 (defn init [config]
-  (if (= :pgvector (:target config))
+  (if (= :pgvector (:vectordb config))
     (queue/process (partial embed-schema (pgv/fetch-db (:config config))))
-    (u/throw-ex (str "Unsupported embbeddings database type: " (:target config))))
+    (u/throw-ex (str "Unsupported embbeddings database type: " (:vectordb config))))
   config)
 
 (defn- rearrange-data [data-edn]
