@@ -1,6 +1,6 @@
 (ns fractl.inference.embeddings.internal.queue
   (:require [clojure.core.async :as async]
-            [fractl.util :as u])
+            [fractl.util.logger :as log])
   (:import [java.util.concurrent ConcurrentLinkedQueue]))
 
 (def ^:private ^ConcurrentLinkedQueue q (ConcurrentLinkedQueue.))
@@ -9,10 +9,15 @@
   (async/thread
     (loop [obj (.poll q)]
       (if obj
-        (do (handler obj)
-            (recur (.poll q)))
-        (do (Thread/sleep 5000)
-            (recur (.poll q)))))))
+        (try
+          (handler obj)
+          (catch Exception ex
+            (log/error ex)))
+        (try
+          (Thread/sleep 5000)
+          (catch InterruptedException _
+            )))
+      (recur (.poll q)))))
 
 (defn enqueue [obj]
   (.add q obj)
