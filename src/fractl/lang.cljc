@@ -1273,6 +1273,7 @@
               (when (precond)
                 (rf))
               (rf))
-            n))))
+            n)))
+       (raw/resolver n spec))
      :cljs
      (u/throw-ex "resolver construct not supported in cljs")))

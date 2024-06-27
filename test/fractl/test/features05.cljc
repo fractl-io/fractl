@@ -7,7 +7,8 @@
             [fractl.inference :as i]
             [fractl.lang
              :refer [component event entity view
-                     relationship dataflow rule inference]]
+                     relationship dataflow rule
+                     resolver inference]]
             [fractl.lang.syntax :as ls]
             [fractl.lang.raw :as lr]
             [fractl.lang.internal :as li]
@@ -403,3 +404,21 @@
     (is (= (ls/raw p2) {:Acme/Person {:Name? "Joe"}, :meta {:doc "Fetch Person by name"}, :as :P}))
     (is (= (ls/raw p3) {:Acme/Person? {:where [:= :Name "Joe"]}, :meta {:doc "Query Person by name"}, :as [:P]}))
     (is (every? has-doc? (mapv #(ls/introspect (ls/raw %)) [p1 p2 p3])))))
+
+(deftest raw-resolver
+  (defcomponent :RR
+    (entity :RR/E {:X :Int})
+    (resolver
+     :RR/R1
+     {:type :remote :path [:RR/E]})
+    (event :RR/Evt {:Y :Int})
+    (dataflow
+     :RR/Evt
+     {:RR/E {:X :RR/Evt.Y}}))
+  (= (lr/as-edn :RR)
+     '(do
+        (component :RR)
+        (entity :RR/E {:X :Int})
+        (resolver :RR/R1 {:type :remote, :path [:RR/E]})
+        (event :RR/Evt {:Y :Int})
+        (dataflow :RR/Evt #:RR{:E {:X :RR/Evt.Y}}))))
