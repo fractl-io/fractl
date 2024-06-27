@@ -4,8 +4,7 @@
             [fractl.util.logger :as log]
             [fractl.global-state :as gs]
             [fractl.datafmt.json :as json]
-            [fractl.inference.embeddings.core :as e]
-            [fractl.inference.embeddings.pgvector :as pgvec])
+            [fractl.inference.embeddings :as e])
   (:import [redis.clients.jedis Jedis JedisPool]))
 
 (defn publish-schema? [] (:publish-schema (gs/get-app-config)))
@@ -22,7 +21,8 @@
 (def ^:private get-connection (memoize (fn [] (when (publish-schema?) (make-jedis-pool nil)))))
 
 (defn- preproc-definition [d]
-  (w/prewalk #(if (fn? %) :fn %) d))
+  (let [d (w/prewalk #(if (fn? %) :fn %) d)]
+    (assoc d :app-uuid (u/get-app-uuid))))
 
 (def ^:private redis-pub-schema false)
 
@@ -32,7 +32,7 @@
       (let [^Jedis j (.getResource pool)]
         (try
           (let [^String channel (u/getenv "REDIS_PUB_SCHEMA_CHANNEL" "fractl:schema")
-                ^String data (json/encode (assoc (preproc-definition definition) :app-uuid (u/get-app-uuid)))]
+                ^String data (json/encode definition)]
             (.publish j channel data)
             definition)
           (finally
@@ -41,6 +41,7 @@
       (log/error ex))))
 
 (defn publish-event [definition]
-  (if redis-pub-schema
-    (publish-event-on-redis definition)
-    (e/embed-schema (pgvec/fetch-db) definition)))
+  (let [definition (preproc-definition definition)]
+    (if redis-pub-schema
+      (publish-event-on-redis definition)
+      (e/embed-schema definition))))

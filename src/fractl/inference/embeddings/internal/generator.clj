@@ -2,19 +2,18 @@
   (:require [clojure.string :as s]
             [fractl.util :as u]
             [fractl.util.logger :as log]
-            #_[fractl.component :as cn]
-            #_[fractl.swagger.doc :as doc]))
+            [fractl.component :as cn]
+            [fractl.swagger.doc :as doc]))
 
 (defn get-clojure-type [attr]
-  {:type "string"}
-  #_(let [attr (if (string? attr)
-                 (keyword (str "Fractl.Kernel.Lang/" attr))
-                 attr)]
-      (if-let [type (get doc/fractlType->swaggerType attr)]
-        type
-        (if-let [attr (cn/find-attribute-schema attr)]
-          (get doc/fractlType->swaggerType (get attr :type) {:type "string"})
-          {:type "string"}))))
+  (let [attr (if (string? attr)
+               (keyword (str "Fractl.Kernel.Lang/" attr))
+               attr)]
+    (if-let [type (get doc/fractlType->swaggerType attr)]
+      type
+      (if-let [attr (cn/find-attribute-schema attr)]
+        (get doc/fractlType->swaggerType (get attr :type) {:type "string"})
+        {:type "string"}))))
 
 (defn generate-clojure-type [attr]
   (map (fn [[k v]]
@@ -208,6 +207,6 @@
 
 (defn generate-tool-for-data [tag type schema]
   (case tag
-    "entity" (generate-tool-for-entity type schema)
-    "event" (generate-tool-for-event type schema)
-    :else (u/throw-ex (str "Don't know how to handle " tag))))
+    entity (generate-tool-for-entity type schema)
+    event (generate-tool-for-event type schema)
+    (log/warn (str "Cannot generate tool for " [tag type]))))

@@ -8,7 +8,7 @@
        (string? text-content)
        (string? meta-content)
        (every? float? embedding)
-       (if embedding-model (string? embedding-model) true)))
+       (string? embedding-model)))
 
 (defn as-object [attrs]
   (if (object? attrs)

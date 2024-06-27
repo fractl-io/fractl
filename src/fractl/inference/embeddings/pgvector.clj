@@ -3,26 +3,30 @@
             [fractl.inference.embeddings.protocol :as p]
             [fractl.inference.embeddings.internal.pgvector :as pgv]))
 
+;;;; sample config.edn entry:
+;; {:publish-schema {:target :pgvector
+;;                   :config {:host #$ [PGVECTOR_DB_HOST "localhost"]
+;;                            :port #$ [PGVECTOR_DB_PORT 5432]
+;;                            :dbname #$ [PGVECTOR_DB_NAME "postgres"]
+;;                            :user #$ [PGVECTOR_DB_USERNAME "postgres"]
+;;                            :password #$ [PGVECTOR_DB_PASSWORD "postgres"]}}}
+
 (defn make []
   (let [db-conn (u/make-cell)]
     (reify p/EmbeddingDb
       (open-connection [this config]
-        (u/safe-set-once db-conn (pgv/open-connection config))
+        (u/safe-set-once db-conn #(pgv/open-connection config))
         this)
       (close-connection [_]
         (when (pgv/close-connection @db-conn)
-          (u/safe-set-once db-conn nil)
+          (u/safe-set db-conn nil)
           true))
       (embed-tool [_ spec]
         (pgv/embed-planner-tool @db-conn spec)))))
 
 (def fetch-db
   (memoize
-   #(let [db (make)]
-      (when (p/open-connection
-             db {:host (u/getenv "PGVECTOR_DB_HOST")
-                 :port (u/getenv "PGVECTOR_DB_PORT")
-                 :dbname (u/getenv "PGVECTOR_DB_NAME")
-                 :user (u/getenv "PGVECTOR_DB_USERNAME")
-                 :password (u/getenv "PGVECTOR_DB_PASSWORD")})
-        db))))
+   (fn [config]
+     (let [db (make)]
+      (when (p/open-connection db config)
+        db)))))

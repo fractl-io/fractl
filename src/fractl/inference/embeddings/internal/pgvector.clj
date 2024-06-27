@@ -60,8 +60,8 @@
   (let [embedding-classname (get-planner-classname app-uuid)]
     (jdbc/execute! db-conn [delete-selected-sql
                             embedding-classname
-                            tag
-                            type])))
+                            (name tag)
+                            (str type)])))
 
 (defn- assert-object! [obj]
   (when-not (model/object? obj)
@@ -149,6 +149,7 @@
     (create-object db-conn (model/as-object {:classname document-classname
                                              :text_content tool-text
                                              :meta_content (form-to-json meta-content)
+                                             :embedding_model openai/openai-default-embedding-model
                                              :embedding embedding}))))
 
 (defn update-planner-tool [db-conn spec]
@@ -160,13 +161,13 @@
   (log/debug (u/pretty-str "Ingesting planner tool" spec))
   (if (or (and (nil? tool-name)
                (nil? tool-spec))
-          (= tag "component"))
+          (= tag 'component))
     (log/info (u/pretty-str "Ignoring insertion of component for now..."))
     (case operation
-      "add"
+      :add
       (let [spec (if (and tool-spec tool-name)
                    (assoc spec :tool-spec (assoc tool-spec :tool-name tool-name))
                    spec)]
         (update-planner-tool db-conn spec))
-      "delete" (delete-planner-tool db-conn spec)
+      :delete (delete-planner-tool db-conn spec)
       (throw (ex-info "Expected operation 'add' or 'delete'" {:operation operation})))))

@@ -14,7 +14,7 @@
             openai-key-env-var " is set"))))
 
 (def ^:private openai-embedding-api-endpoint  "https://api.openai.com/v1/embeddings")
-(def ^:private openai-default-embedding-model "text-embedding-3-small")
+(def openai-default-embedding-model "text-embedding-3-small")
 ;; -- OpenAI embedding models
 ;-- +------------------------+-----------------+---------+
 ;-- | OpenAI Embedding Model | Dimensions      | Remarks |
@@ -34,7 +34,7 @@
                  :body (json/generate-string {"input" text-content
                                               "model" model-name
                                               "encoding_format" "float"})}
-        response (http/post embedding-endpoint options)
+        response @(http/post embedding-endpoint options)
         status (:status response)]
     (if (<= 200 status 299)
       (or (-> (:body response)
