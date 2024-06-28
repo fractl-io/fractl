@@ -1,6 +1,7 @@
 (ns fractl.resolver.timer
   (:require [fractl.util :as u]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry

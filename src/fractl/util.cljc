@@ -2,7 +2,8 @@
   (:require [clojure.string :as string]
             [clojure.pprint :as pp]
             #?(:clj [clojure.java.io :as io])
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.datafmt.json :as json])
   #?(:clj
      (:require [net.cgrand.macrovich :as macros])

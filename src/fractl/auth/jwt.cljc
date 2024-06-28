@@ -3,7 +3,8 @@
             [buddy.sign.jwt :as jwt]
             [clojure.algo.generic.functor :refer [fmap]]
             [clojure.string :as str]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.datafmt.json :as json])
   #?(:clj (:import [org.jose4j.jwt JwtClaims]
                    [org.jose4j.jwt.consumer JwtConsumer JwtConsumerBuilder])))

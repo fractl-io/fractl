@@ -1,6 +1,7 @@
 (ns fractl.subs.kafka
   (:require [fractl.util :as u]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.datafmt.json :as json]
             [fractl.subs.internal :as si])
   #?(:clj

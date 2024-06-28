@@ -7,7 +7,8 @@
             [fractl.lang.internal :as li]
             [fractl.util :as u]
             [fractl.util.http :as http]
-            [fractl.util.logger :as log])
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log]))
   #?(:clj (:require [clojure.java.io :as io])))
 
 #?(:clj

@@ -6,7 +6,8 @@
             [fractl.evaluator :as ev]
             [fractl.component :as cn]
             [fractl.util :as u]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.util.http :as uh]))
 
 (defn as-vec [x]

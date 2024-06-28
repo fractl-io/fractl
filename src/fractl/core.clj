@@ -272,7 +272,9 @@
                         (first %) (fn [] (run-service (ur/read-model-and-config options))))
                  :compile #(println (build/compile-model (first %)))
                  :build #(println (build/standalone-package (first %)))
+                 :install #(println (build/install-model nil (first %)))
                  :exec #(println (build/run-standalone-package (first %)))
+                 :calibrate-runtime #(println (build/calibrate-runtime (first %)))
                  :repl (ur/run-repl-func options
                                            (fn [model-name opts]
                                              (println (ur/force-call-after-load-model

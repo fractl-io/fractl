@@ -21,7 +21,8 @@
             [fractl.subs :as subs]
             [fractl.rule :as rule]
             [fractl.util :as u]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.util.seq :as us]))
 
 (defn- normalize-imports [imports]

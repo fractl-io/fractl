@@ -1176,7 +1176,8 @@
          (reset! core-component core-component-name)
          (reset! graphql-schema injected-graphql-schema)
          (reset! graphql-entity-metas entity-metadatas)
-         (reset! contains-graph contains-graph-map))
+         (reset! contains-graph contains-graph-map)
+         (log/info (str "GraphQL schema generation and resolver injection succeeded.")))
        (catch Exception e
          (log/error (str "Failed to compile GraphQL schema:" e))))
 

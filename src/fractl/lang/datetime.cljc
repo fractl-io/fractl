@@ -1,7 +1,8 @@
 (ns fractl.lang.datetime
   (:require [clojure.string :as str]
             [fractl.util :as u]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [tick.core :as t]
             [tick.locale-en-us]
             [cljc.java-time.local-date :as ld]

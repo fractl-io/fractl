@@ -3,7 +3,8 @@
             #?(:clj [fractl.store.postgres :as postgres])
             [fractl.store.mem.core :as mem]
             [fractl.component :as cn]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.store.util :as su]
             [fractl.store.protocol :as p]
             [fractl.global-state :as gs]

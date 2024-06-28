@@ -1,7 +1,8 @@
 (ns fractl.compiler.rule
   "Parsing and compilations of the embedded rule language"
   (:require [clojure.string :as s]
-            [fractl.util.logger :as log]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.lang.internal :as li]
             #?(:cljs [cljs.js])))
 
