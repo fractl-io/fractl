@@ -122,12 +122,8 @@
 (defn delete-planner-tool [db-conn {app-uuid :app-uuid tag :tag type :type}]
   (delete-selected db-conn app-uuid tag type))
 
-(defn- form-to-json [clj-form-str]
-  (let [data-list (clojure.edn/read-string clj-form-str)
-        data-key (second data-list)
-        entity-type (first data-list)
-        attributes (nth data-list 2)
-        process (fn [v]
+(defn- form-to-json [{data-key :type entity-type :tag attributes :schema}]
+  (let [process (fn [v]
                   (cond
                     (map? v) (into {}
                                    (for [[k v] v]

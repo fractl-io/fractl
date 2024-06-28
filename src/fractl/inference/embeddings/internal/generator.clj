@@ -132,7 +132,7 @@
 
 (defn generate-create-strings-key [en]
   (reset! uniqueness false)
-  (str "Create" (name en)))
+  (str "create" (name en)))
 
 (defn generate-description-string [entity key coll]
   (when (not (nil? key))
@@ -157,9 +157,8 @@
          "Attributes: " (string/join ", " attrs))))
 
 (defn generate-df-pattern-entity [entity key]
-  (binding [*print-namespace-maps* false]
-    (pr-str [(hash-map entity
-                       {(keyword (str key "?")) (keyword (str "param/" key))})])))
+  [(hash-map entity
+             {(keyword (str key "?")) (keyword (str "param/" key))})])
 
 (defn generate-df-pattern-entity-create [entity entity-map]
   (let [required-params (->> (get entity-map entity)
@@ -167,12 +166,10 @@
                              (map :name)
                              (map (fn [k] [(keyword k) (keyword (str "param/" k))]))
                              (into {}))]
-    (binding [*print-namespace-maps* false]
-      (pr-str [(hash-map entity required-params)]))))
+    [(hash-map entity required-params)]))
 
 (defn generate-df-pattern-event [keys]
-  (binding [*print-namespace-maps* false]
-    (pr-str [(into {} (map (fn [key] {(keyword (name key)) (keyword "params" (name key))}) keys))])))
+  [(into {} (map (fn [key] {(keyword (name key)) (keyword "params" (name key))}) keys))])
 
 (defn calculate-returns-many [fetch-string]
   (if (> (count (string/split fetch-string #"By")) 1)

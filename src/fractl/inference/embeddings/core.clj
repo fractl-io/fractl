@@ -16,9 +16,10 @@
   config)
 
 (defn- rearrange-data [data-edn]
-  (map (fn [[tool-name tool-spec]]
-         {:tool-name tool-name
-          :tool-spec tool-spec}) data-edn))
+  (mapv (fn [[tool-name tool-spec]]
+          {:tool-name tool-name
+           :tool-spec tool-spec})
+        data-edn))
 
 (defn- send-data-for-embedding [tool-seq db schema-obj]
   (mapv #(p/embed-tool db (merge schema-obj %)) tool-seq))
@@ -27,7 +28,7 @@
                         tag :tag type :type schema :schema :as obj}]
   (when-not db (u/throw-ex "Embedding-db not initialized"))
   (let [app-uuid (or app-uuid (u/get-app-uuid))
-        meta-content-data (pr-str (symbol (str "(" tag " " type " " (str schema) ")")))
+        meta-content-data obj
         schema-obj (assoc obj :meta-content meta-content-data)]
     (log/info (str "embedding schema: " [operation tag type]))
     (if (= tag 'component)
