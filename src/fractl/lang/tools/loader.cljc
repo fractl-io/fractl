@@ -57,9 +57,10 @@
   (cond
     (vector? dep) (if (> (count dep) 1)
                     dep
-                    (when (map? (first dep))
-                      (dependency-model? (first dep))))
-    (map? dep) (:name dep)))
+                    (if (map? (first dep))
+                      (dependency-model? (first dep))
+                      (first dep)))
+    (map? dep) dep))
 
 (defn dependency-model-version [dep]
   (when (vector? dep)
@@ -254,7 +255,7 @@
          (let [rdm (partial read-model model-paths)]
            (doseq [d deps]
              (tu/maybe-clone-model d model-paths)
-             (let [[m mr] (rdm (:name d))]
+             (let [[m mr] (rdm (dependency-model? d))]
                (load-model m mr model-paths from-resource))))))
 
      (defn load-model
@@ -307,7 +308,7 @@
          (callback intern-component c)))
 
      (defn load-model-dependencies [model callback]
-       (if-let [deps (seq (filter dependency-model? (:dependencies model)))]
+       (if-let [deps (mapv dependency-model? (:dependencies model))]
          (callback deps)
          model))
 
