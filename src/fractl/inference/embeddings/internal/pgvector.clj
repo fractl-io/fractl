@@ -158,11 +158,11 @@
 
 (defn embed-planner-tool [db-conn {tool-name :tool-name tool-spec :tool-spec
                                    tag :tag operation :operation :as spec}]
-  (log/debug (u/pretty-str "Ingesting planner tool" spec))
+  (log/debug (str "Ingesting planner tool: " spec))
   (if (or (and (nil? tool-name)
                (nil? tool-spec))
           (= tag 'component))
-    (log/info (u/pretty-str "Ignoring insertion of component for now..."))
+    (log/info (str "Ignoring insertion of component for now..."))
     (case operation
       :add
       (let [spec (if (and tool-spec tool-name)

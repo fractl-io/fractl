@@ -1,9 +1,12 @@
 (ns fractl.inference.embeddings.internal.generator
-  (:require [clojure.string :as s]
-            [fractl.util :as u]
+  (:require [clojure.string :as string]
             [fractl.util.logger :as log]
             [fractl.component :as cn]
+            [fractl.lang :refer :all]
             [fractl.swagger.doc :as doc]))
+
+;; TODO: Remove global atom.
+(def uniqueness (atom false))
 
 (defn get-clojure-type [attr]
   (let [attr (if (string? attr)
@@ -12,7 +15,11 @@
     (if-let [type (get doc/fractlType->swaggerType attr)]
       type
       (if-let [attr (cn/find-attribute-schema attr)]
-        (get doc/fractlType->swaggerType (get attr :type) {:type "string"})
+        (do
+          (when (or (= true (get attr :unique))
+                    (= true (get attr :guid)))
+            (reset! uniqueness true))
+          (get doc/fractlType->swaggerType (get attr :type) {:type "string"}))
         {:type "string"}))))
 
 (defn generate-clojure-type [attr]
@@ -32,15 +39,32 @@
 
 (defn fractl-entity-to-tool-type
   "Fractl entity to Tool type compatible schema"
-  [entity-name entity-schema]
-  (let [entity-obj (dissoc entity-schema :path-info :__instmeta__ :path, :meta :rbac)
-        entity-obj-keys (keys entity-obj)
-        entity-obj-values (vals entity-obj)
-        names (doall (map name entity-obj-keys))
-        types (doall (map get-clojure-type entity-obj-values))
-        inner-maps (map (fn [n t]
-                          (merge {:name n} {:type t} {:required true})) names types)]
-    {entity-name inner-maps :has-uniqueness true}))
+  ([entity-name]
+   (let [entity-obj (:schema (cn/find-entity-schema entity-name))
+         entity-obj (if entity-obj (dissoc entity-obj :path-info :__instmeta__ :path :meta :rbac)
+                                   (cn/entity-schema entity-name))
+         entity-obj-keys (keys entity-obj)
+         entity-obj-values (vals entity-obj)
+         names (doall (map name entity-obj-keys))
+         types (doall (map get-clojure-type entity-obj-values))
+         inner-maps (map (fn [n t] (merge {:name n} t {:required true})) names types)]
+     (when (and (= false @uniqueness)
+                (or (empty? (some #{:Id} entity-obj-keys))
+                    (nil? (some #{:Id} entity-obj-keys))))
+       (reset! uniqueness true))
+     {entity-name inner-maps :has-uniqueness @uniqueness}))
+  ([entity-name entity-schema]
+   (let [entity-obj (dissoc entity-schema :path-info :__instmeta__ :path, :meta :rbac)
+         entity-obj-keys (keys entity-obj)
+         entity-obj-values (vals entity-obj)
+         names (doall (map name entity-obj-keys))
+         types (doall (map get-clojure-type entity-obj-values))
+         inner-maps (map (fn [n t]
+                           (merge {:name n} {:type t} {:required true})) names types)]
+     (when (and (= false @uniqueness)
+                (not (contains? (set entity-obj-keys) :Id)))
+       (reset! uniqueness true))
+     {entity-name inner-maps :has-uniqueness @uniqueness})))
 
 ;; Note: The plan later is to use this function for tool type generation
 ;; as, this is a better implementation than the previous one with some modification.
@@ -55,26 +79,40 @@
 (defn transform-data [data-seq]
   (reduce
     (fn [result {:keys [name type]}]
-      (assoc result (keyword name) (keyword (s/capitalize type))))
+      (assoc result (keyword name) (keyword (clojure.string/capitalize type))))
     {}
     data-seq))
 
 (defn fractl-event-to-tool-type
   "Fractl event to Tool type compatible schema"
-  [event-name event-schema]
-  (let [event-schema (if (string? event-schema)
-                       (read-string event-schema)
-                       event-schema)
-        event-obj (dissoc event-schema :path-info :__instmeta__ :path :EventContext :meta :rbac)
-        event-obj-keys (keys event-obj)
-        event-obj-values (vals event-obj)
-        names (doall (map name event-obj-keys))
-        types (doall (map get-clojure-type event-obj-values))
-        inner-maps (map (fn [n t] (merge {:name n} {:type t} {:required true})) names types)]
-    {event-name inner-maps}))
+  ([event-name]
+   (let [event-obj (:schema (cn/find-event-schema event-name))
+         event-obj (if event-obj (dissoc event-obj :path-info :__instmeta__ :path :EventContext :meta :rbac)
+                                 (cn/event-schema event-name))
+         event-obj-keys (keys event-obj)
+         event-obj-values (vals event-obj)
+         names (doall (map name event-obj-keys))
+         types (doall (map get-clojure-type event-obj-values))
+         inner-maps (map (fn [n t] (merge {:name n} t {:required true})) names types)]
+     (when (and (= false @uniqueness)
+                (or (empty? (some #{:Id} event-obj-keys))
+                    (nil? (some #{:Id} event-obj-keys))))
+       (reset! uniqueness true))
+     {event-name (transform-data (into [] inner-maps)) :has-uniqueness @uniqueness}))
+  ([event-name event-schema]
+   (let [event-schema (if (string? event-schema)
+                        (read-string event-schema)
+                        event-schema)
+         event-obj (dissoc event-schema :path-info :__instmeta__ :path :EventContext :meta :rbac)
+         event-obj-keys (keys event-obj)
+         event-obj-values (vals event-obj)
+         names (doall (map name event-obj-keys))
+         types (doall (map get-clojure-type event-obj-values))
+         inner-maps (map (fn [n t] (merge {:name n} {:type t} {:required true})) names types)]
+     {event-name inner-maps})))
 
 (defn get-key-from-fetch-string [fetch-string]
-  (let [parts (s/split fetch-string #"By" 2)]
+  (let [parts (clojure.string/split fetch-string #"By" 2)]
     (if (> (count parts) 1)
       (second parts)
       "Id")))
@@ -85,11 +123,15 @@
 (defn generate-fetch-strings-key [filtered-keys en coll]
   (cons (str "fetch" (name en))
         (map (fn [k]
+               (if (or (= k :Id) (string/includes? k "Id"))
+                 (reset! uniqueness false)
+                 (reset! uniqueness true))
                (str "fetch"
                     (name en)
                     (when (and coll (not (= :Id k))) (str "s")) "By" (name k))) filtered-keys)))
 
 (defn generate-create-strings-key [en]
+  (reset! uniqueness false)
   (str "Create" (name en)))
 
 (defn generate-description-string [entity key coll]
@@ -105,14 +147,14 @@
                                (when (:required entry)
                                  (:name entry))))
                         (remove nil?)
-                        (s/join " "))]
+                        (string/join " "))]
     (str "Create " (name entity) ". Requires attributes: " attributes)))
 
 (defn generate-returns-string [key attrs coll]
   (when (not (nil? key))
     (str ""
          (when (and coll (not (= :Id (keyword key)))) (str "List of objects with "))
-         "Attributes: " (s/join ", " attrs))))
+         "Attributes: " (string/join ", " attrs))))
 
 (defn generate-df-pattern-entity [entity key]
   (binding [*print-namespace-maps* false]
@@ -133,8 +175,8 @@
     (pr-str [(into {} (map (fn [key] {(keyword (name key)) (keyword "params" (name key))}) keys))])))
 
 (defn calculate-returns-many [fetch-string]
-  (if (> (count (s/split fetch-string #"By")) 1)
-    true
+  (if (> (count (string/split fetch-string #"By")) 1)
+    @uniqueness
     false))
 
 (defn generate-tool-for-event [event-name event-schema]
@@ -156,7 +198,6 @@
                      :returns-many (get meta-keys :returns-many)
                      :params (into [] map-of-types)
                      :df-patterns (generate-df-pattern-event filtered-keys)}}]
-    (log/info (str "Generating tools complete for event: " event-name))
     fetch-maps))
 
 (defn generate-tool-for-entity [entity-name entity-schema]
@@ -186,8 +227,8 @@
                                                                                      key-name
                                                                                      is-coll)
                                            :returns (generate-returns-string key-name
-                                                                               (map name filtered-keys)
-                                                                               is-coll)
+                                                                             (map name filtered-keys)
+                                                                             is-coll)
                                            :params [filtered-maps-data-by-name]
                                            :df-patterns (generate-df-pattern-entity entity-name key-name)
                                            :returns-many returns-many}}))
@@ -202,11 +243,10 @@
                                         :params (into [] (get entity-tool-map entity-name))
                                         :df-patterns (generate-df-pattern-entity-create entity-name entity-tool-map)
                                         :returns-many false}}]
-    (log/info (str "Generating tools complete for entity: " entity-name))
     (merge fetch-maps-formatted create-map)))
 
 (defn generate-tool-for-data [tag type schema]
   (case tag
     entity (generate-tool-for-entity type schema)
     event (generate-tool-for-event type schema)
-    (log/warn (str "Cannot generate tool for " [tag type]))))
+    (log/warn (str "Don't know how to handle " tag))))
