@@ -604,3 +604,49 @@
          (is (= 2 (count rs1)))
          (p? 1)
          (p? 3))))))
+
+(deftest rbac-on-joins
+  (reset-events!)
+  (defcomponent :RbacJ
+    (entity
+     :RbacJ/Customer
+     {:Id {:type :Int :guid true}
+      :Name :String
+      :rbac [{:roles ["rbacj-manager"] :allow [:create]}]})
+    (entity
+     :RbacJ/Order
+     {:Id {:type :Int :guid true}
+      :CustomerId :Int
+      :Date :Now
+      :rbac [{:roles ["rbacj-user"] :allow [:read]}
+             {:roles ["rbacj-manager"] :allow [:create]}]})
+    (dataflow
+     :RbacJ/CustomerOrders
+     {:RbacJ/Order? {}
+      :join [{:RbacJ/Customer {:Id? :RbacJ/Order.CustomerId}}]
+      :with-attributes {:CustomerName :RbacJ/Customer.Name
+                        :CustomerId :RbacJ/Customer.Id
+                        :OrderId :RbacJ/Order.Id}})
+    (dataflow
+     :RbacJ/InitUsers
+     {:Fractl.Kernel.Identity/User {:Email "u1@rbacj.com"}}
+     {:Fractl.Kernel.Identity/User {:Email "u2@rbacj.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment {:Role "rbacj-user" :Assignee "u2@rbacj.com"}}
+     {:Fractl.Kernel.Rbac/RoleAssignment {:Role "rbacj-manager" :Assignee "u1@rbacj.com"}}))
+  (is (finalize-events))
+  (is (cn/instance-of? :Fractl.Kernel.Rbac/RoleAssignment (tu/first-result {:Rbacj/InitUsers {}})))
+  (call-with-rbac
+   (fn []
+     (let [cust? (partial cn/instance-of? :RbacJ/Customer)
+           ord? (partial cn/instance-of? :RbacJ/Order)
+           create-cust (fn [id name]
+                         {:RbacJ/Create_Customer
+                          {:Instance
+                           {:RbacJ/Customer {:Id id :Name name}}}})
+           create-order (fn [id cust-id]
+                          {:RbacJ/Create_Order
+                           {:Instance
+                            {:RbacJ/Order {:Id id :CustomerId cust-id}}}})]
+       (is (cust? (tu/first-result (with-user "u1@rbacj.com" (create-cust 1 "abc")))))
+       (is (ord? (tu/first-result (with-user "u2@rbacj.com" (create-order 101 1)))))
+       (tu/result (with-user "u1@rbacj.com" {:RbacJ/CustomerOrders {}}))))))
