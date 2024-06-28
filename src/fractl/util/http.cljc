@@ -59,7 +59,7 @@
 (def register-magiclink-prefix "/register-magiclink")
 (def get-magiclink-prefix "/get-magiclink")
 (def preview-magiclink-prefix "/preview-magiclink")
-(def post-copilot-question "/post-copilot-question")
+(def post-inference-service-question "/post-inference-service-question")
 
 (defn- remote-resolver-error [response]
   (u/throw-ex (str "remote service error - " (or (:error response) response))))

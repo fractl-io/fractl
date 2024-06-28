@@ -358,7 +358,7 @@
 
 (deftest run-inference
   ;; To enable inference-mock-mode:
-  ;;   export COPILOT_URL=mock:ai
+  ;;   export INFERENCE_SERVICE_URL=mock:ai
   (when (i/mock-mode?)
     (defcomponent :RI
       (event :RI/Evt {:X :Int}) ; defining event is optional, just like for dataflows.
