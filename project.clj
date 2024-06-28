@@ -27,6 +27,7 @@
                  [net.cgrand/macrovich "0.2.1"]
                  [cljsjs/alasql "0.6.5-0"]
                  [org.postgresql/postgresql "42.3.1"]
+                 [com.pgvector/pgvector "0.1.4"]
                  [cljc.java-time "0.1.18"]
                  [com.cognitect/transit-clj "1.0.324"]
                  [com.cognitect/transit-cljs "0.8.269"]
