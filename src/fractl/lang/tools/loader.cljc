@@ -57,9 +57,8 @@
   (cond
     (vector? dep) (if (> (count dep) 1)
                     dep
-                    (if (map? (first dep))
-                      (dependency-model? (first dep))
-                      (first dep)))
+                    (when (map? (first dep))
+                      (dependency-model? (first dep))))
     (map? dep) dep))
 
 (defn dependency-model-version [dep]
