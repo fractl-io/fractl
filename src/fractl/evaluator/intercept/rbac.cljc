@@ -21,16 +21,14 @@
         p (partial rbac-predic user)
         rec-name
         (cond
-          (keyword? data) data
-
           (cn/an-instance? data)
           (cn/instance-type data)
 
           (li/parsed-path? data)
           (li/make-path data)
 
-          :else
-          (u/throw-ex (str "invalid argument for rbac interceptor - " data)))]
+          :else ; non-instance data
+          data)]
     (if rec-name
       (p (assoc arg :data rec-name))
       (let [rs (set (map cn/instance-type data))]
@@ -173,6 +171,13 @@
     (first data)
     :else data))
 
+(defn- valid-instances [xs]
+  (if (cn/an-instance? xs)
+    xs
+    (when (and (seqable? xs)
+               (cn/an-instance? (first xs)))
+      xs)))
+
 (defn- apply-rbac-for-user [user env opr arg]
   (let [check (partial apply-rbac-checks user env opr arg)]
     (if-let [data (ii/data-input arg)]
@@ -187,7 +192,7 @@
         (if (ii/skip-for-output? data)
           arg
           (if (= opr :read)
-            (if-let [rs (seq (extract-read-results data))]
+            (if-let [rs (valid-instances (seq (extract-read-results data)))]
               (when-let [rslt (seq (filter #(check % {:data % :ignore-refs true}) rs))]
                 (ii/assoc-data-output arg (set-read-results data rslt)))
               arg)

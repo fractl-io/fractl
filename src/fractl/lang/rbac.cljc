@@ -4,6 +4,7 @@
             [fractl.lang.internal :as li]
             [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.util.logger :as log]
             [fractl.util.seq :as su]))
 
 (def ^:private postproc-events (u/make-cell []))
@@ -77,7 +78,9 @@
           event-name (li/make-path c (keyword (str (name n) "_reg_rbac")))]
       (cn/intern-event event-name {})
       (cn/register-dataflow event-name pats)
-      (evaluator {event-name {}}))))
+      (let [result (evaluator {event-name {}})]
+        (and (cn/remove-event event-name)
+             result)))))
 
 (defn- raw-spec [spec]
   (if (map? spec)
@@ -93,13 +96,16 @@
   recname)
 
 (defn rbac [recname spec]
-  (if (map? spec)
-    (verify-rbac-spec recname spec) ; used later by the interceptor
-    (let [cont (fn [evaluator]
-                 (when-let [spec (or (raw-spec spec) spec)]
-                   (intern-rbac evaluator recname spec)))]
-      (u/safe-set postproc-events (conj @postproc-events cont))
-      recname)))
+  (if spec
+    (if (map? spec)
+      (verify-rbac-spec recname spec) ; used later by the interceptor
+      (let [cont (fn [evaluator]
+                   (when-let [spec (or (raw-spec spec) spec)]
+                     (or (intern-rbac evaluator recname spec)
+                         (log/warn (str "failed to intern rbac: " spec)))))]
+        (u/safe-set postproc-events (conj @postproc-events cont))
+        recname))
+    recname))
 
 (defn eval-events [evaluator]
   (su/nonils
