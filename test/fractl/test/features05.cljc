@@ -415,10 +415,17 @@
     (dataflow
      :RR/Evt
      {:RR/E {:X :RR/Evt.Y}}))
-  (= (lr/as-edn :RR)
-     '(do
-        (component :RR)
-        (entity :RR/E {:X :Int})
-        (resolver :RR/R1 {:type :remote, :path [:RR/E]})
-        (event :RR/Evt {:Y :Int})
-        (dataflow :RR/Evt #:RR{:E {:X :RR/Evt.Y}}))))
+  (is (= (lr/as-edn :RR)
+         '(do
+            (component :RR)
+            (entity :RR/E {:X :Int})
+            (resolver :RR/R1 {:type :remote, :path [:RR/E]})
+            (event :RR/Evt {:Y :Int})
+            (dataflow :RR/Evt #:RR{:E {:X :RR/Evt.Y}}))))
+  (cn/remove-resolver :RR/R1)
+  (is (= (lr/as-edn :RR)
+         '(do
+            (component :RR)
+            (entity :RR/E {:X :Int})
+            (event :RR/Evt {:Y :Int})
+            (dataflow :RR/Evt #:RR{:E {:X :RR/Evt.Y}})))))

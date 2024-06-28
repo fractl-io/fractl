@@ -1811,6 +1811,8 @@
       (remove-meta! (li/split-path relname))
       relname)))
 
+(def remove-resolver raw/remove-resolver)
+
 (defn- dissoc-system-attributes [attrs]
   (into
    {}
