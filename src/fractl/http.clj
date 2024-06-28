@@ -1059,7 +1059,7 @@
         (ok {:status "ok" :result decoded-token}))
       (bad-request (str "token not specified") "ID_TOKEN_REQUIRED"))))
 
-(defn- process-post-copilot-question [[auth-config _] auth request]
+(defn- process-post-inference-service-question [[auth-config _] auth request]
   (if (and auth-config (nil? (:email (auth/session-sub
                                       (assoc auth :request request)))))
     (bad-request (str "authentication not valid") "INVALID_AUTHENTICATION")
@@ -1069,7 +1069,7 @@
         (ok evaluated-result))
       (catch Exception ex
         (log/info (.getMessage ex))
-        (bad-request "Request to copilot backend failed" "REQUEST_FAILED")))))
+        (bad-request "Request to inference-service backend failed" "REQUEST_FAILED")))))
 
 (defn- process-root-get [_]
   (ok {:result :fractl}))
@@ -1120,7 +1120,7 @@
            (POST uh/preview-magiclink-prefix [] (:preview-magiclink handlers))
            (GET "/meta" [] (:meta handlers))
            (GET "/meta/:component" [] (:meta handlers))
-           (POST uh/post-copilot-question [] (:post-copilot-question handlers))
+           (POST uh/post-inference-service-question [] (:post-inference-service-question handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
         r-with-auth (if auth-config
@@ -1220,7 +1220,7 @@
             :get-magiclink (partial process-get-magiclink auth-info)
             :preview-magiclink (partial process-preview-magiclink auth-info)
             :meta (partial process-meta-request auth-info)
-            :post-copilot-question (partial process-post-copilot-question auth-info auth)})
+            :post-inference-service-question (partial process-post-inference-service-question auth-info auth)})
           config))
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
   ([evaluator]
