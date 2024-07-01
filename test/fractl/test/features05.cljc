@@ -4,6 +4,7 @@
             [clojure.pprint :as pp]
             [fractl.component :as cn]
             [fractl.env :as env]
+            [fractl.util :as u]
             [fractl.inference :as i]
             [fractl.lang
              :refer [component event entity view
@@ -429,3 +430,47 @@
             (entity :RR/E {:X :Int})
             (event :RR/Evt {:Y :Int})
             (dataflow :RR/Evt #:RR{:E {:X :RR/Evt.Y}})))))
+
+(deftest resolver-component-api
+  (let [db (atom nil)]
+    (defcomponent :Rc1
+      (entity :Rc1/E1 {:X :Int})
+      (entity :Rc1/E2 {:Y :Int})
+      (resolver
+       :Rc1/R1
+       {:paths [:Rc1/E1]
+        :with-methods {:create #(swap! db conj %)
+                       :query (fn [_] @db)}})
+      (require '[fractl.resolver.remote])
+      (resolver
+       :Rc1/R2
+       {:paths [:Rc2/E2]
+        :type :remote})))
+  (let [db (atom nil)]
+    (defcomponent :Rc2
+      (entity :Rc2/E1 {:X :Int})
+      (resolver
+       :Rc2/R1
+       {:require {:precond #(reset! db [])}
+        :paths [:Rc2/E1]
+        :with-methods {:create #(reset! db %)}})))
+  (u/run-init-fns)
+  (let [cr-e1 #(tu/first-result {:Rc1/Create_E1
+                                 {:Instance
+                                  {:Rc1/E1 {:X %}}}})
+        e1? (partial cn/instance-of? :Rc1/E1)
+        e1s (mapv cr-e1 [1 2 3])]
+    (is (every? e1? e1s))
+    (let [e1s (tu/result {:Rc1/LookupAll_E1 {}})]
+      (is (and (= 3 (count e1s)) (every? e1? e1s)))))
+  (let [res? (fn [m k] (map? (k m)))
+        rs (cn/find-resolvers :Rc1)]
+    (is (= 2 (count (keys rs))))
+    (is (every? (partial res? rs) [:R1 :R2]))
+    (is (cn/remove-resolver :Rc1/R1))
+    (let [rs (cn/find-resolvers :Rc1)]
+      (is (= 1 (count (keys rs))))
+      (is (every? (partial res? rs) [:R2])))
+    (let [rs (cn/find-resolvers :Rc2)]
+      (is (= 1 (count (keys rs))))
+      (is (every? (partial res? rs) [:R1])))))

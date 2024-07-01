@@ -1217,6 +1217,11 @@
          n (li/record-name schema)]
      (and (raw/relationship n (li/record-attributes schema)) r))))
 
+(defn- validate-resolver-name [rn]
+  (let [[c n :as cn] (li/split-path rn)]
+    (if (and (li/name? c) (li/name? n))
+      rn
+      (u/throw-ex (str "Invalid resolver name - " rn ", valid form is :Component/ResolverName")))))
 ;;
 ;; The resolver construct has the following syntax:
 ;; (resolver <name> <specification-map>)
@@ -1250,7 +1255,8 @@
 ;;
 (defn resolver [n spec]
   #?(:clj
-     (let [req (:require spec)]
+     (let [n (validate-resolver-name n)
+           req (:require spec)]
        (when-let [nss (:namespaces req)]
          (apply require nss))
        (u/set-on-init!
@@ -1274,6 +1280,7 @@
                 (rf))
               (rf))
             n)))
-       (raw/resolver n spec))
+       (and (cn/register-resolver n spec)
+            (raw/resolver n spec)))
      :cljs
      (u/throw-ex "resolver construct not supported in cljs")))
