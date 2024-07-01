@@ -1,6 +1,7 @@
 (ns fractl.util
   (:require [clojure.string :as string]
             [clojure.pprint :as pp]
+            [clojure.walk :as walk]
             #?(:clj [clojure.java.io :as io])
             #?(:clj [fractl.util.logger :as log]
                :cljs [fractl.util.jslogger :as log])
@@ -328,6 +329,37 @@
            (with-out-str
              (pp/write edn :dispatch pp/code-dispatch)))
      :cljs edn))
+
+(defn pretty-str
+  ([data]
+   (with-out-str
+     (pp/pprint
+      (walk/postwalk
+       (fn [v]
+         (cond
+           ;; embedding vector?
+           (and (vector? v)
+                (seq v)
+                (every? float? v))
+           [(symbol (str "embedding-vector-" (count v)))]
+           ;; vector or map
+           (and (counted? v)
+                (> (count v) 10))
+           (-> (empty v)
+               (into (take 10 v))
+               (into (if (map? v)
+                       [['...snipped... '...snipped...]]
+                       ['...snipped...])))
+           ;; string
+           (and (string? v)
+                (> (count v) 255))
+           (str (subs v 0 256) "...snipped...")
+           ;; else
+           :else
+           v))
+       data))))
+  ([label data]
+   (str label " " (pretty-str data))))
 
 (def pprint pp/pprint)
 

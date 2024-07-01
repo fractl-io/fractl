@@ -19,6 +19,7 @@
     [fractl.lang.tools.build :as build]
     [fractl.auth :as auth]
     [fractl.rbac.core :as rbac]
+    [fractl.inference.embeddings.core :as ec]
     [fractl-config-secrets-reader.core :as fractl-secret-reader]))
 
 (def ^:private repl-mode-key :-*-repl-mode-*-)
@@ -160,6 +161,8 @@
               e/public-evaluator)
             store)
         ins (:interceptors config)]
+    (when-let [ps (:publish-schema config)]
+      (when (map? ps) (ec/init ps)))
     (when (or (not (init-schema? config)) (store/init-all-schema store))
       (let [resolved-config (run-initconfig config ev)
             has-rbac (some #{:rbac} (keys ins))]
