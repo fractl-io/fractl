@@ -526,8 +526,20 @@
         final-map (reduce dissoc updates-map (:removals update-info))]
     {:Mutation {:fields final-map}}))
 
+(defn remove-rbac-from-relationships [relationships]
+  (map (fn [relationship]
+         (let [key (first (keys relationship))
+               value-map (first (vals relationship))]
+           {key (dissoc value-map :rbac)}))
+       relationships))
+
+(defn preprocess-schema-info [schema-info]
+      (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))
+            schema-info (normalize-schema schema-info)]
+           schema-info))
+
 (defn generate-graphql-schema-code [schema-info]
-  (let [data (normalize-schema schema-info)
+  (let [data (preprocess-schema-info schema-info)
         records (:records data)
         entities (:entities data)
         relationships (:relationships data)]
