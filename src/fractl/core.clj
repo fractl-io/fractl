@@ -281,18 +281,23 @@
                                                          (let [model-info (ur/read-model-and-config opts)
                                                                [[ev store] _] (ur/prepare-repl-runtime model-info)]
                                                            (repl/run model-name store ev)))))))
-                 :nrepl (ur/run-repl-func options
-                                          (fn [model-name opts]
-                                            (nrepl.server/start-server
-                                             :bind "0.0.0.0"
-                                             :port 7000
-                                             :handler (fractl-nrepl-handler model-name opts))))
+:nrepl (ur/run-repl-func options
+                         (fn [model-name opts]
+                           (let [nrepl-config (get-in opts [:-*-config-data-*- :nrepl] {})
+                                 bind (:bind nrepl-config)
+                                 port (or (:port nrepl-config) 7888)
+                                 server-opts (cond-> {:port port
+                                                      :handler (fractl-nrepl-handler model-name opts)}
+                                               bind (assoc :bind bind))]
+                             (apply nrepl.server/start-server (mapcat identity server-opts))
+                             (println (str "nREPL server running on port " port
+                                           (when bind (str " and bound to " bind)))))))
                  :publish #(println (publish-library %))
                  :deploy #(println (d/deploy (:deploy basic-config) (first %)))
                  :db:migrate #(ur/call-after-load-model
-                               (first %)
-                               (fn []
-                                 (db-migrate
-                                  (keyword (first %))
-                                  (second (ur/read-model-and-config options)))))}))
+                                (first %)
+                                (fn []
+                                  (db-migrate
+                                    (keyword (first %))
+                                    (second (ur/read-model-and-config options)))))}))
           (run-script args options)))))
