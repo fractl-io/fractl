@@ -7,8 +7,7 @@
             [fractl.inference.embeddings.internal.registry :as r]
             [fractl.inference.embeddings.protocol :as p]
             [fractl.inference.service.lib.agent :as agent]
-            [fractl.inference.service.lib.prompt :as prompt]
-            [fractl.inference.util :as util])
+            [fractl.inference.service.lib.prompt :as prompt])
   (:import (clojure.lang ExceptionInfo)))
 
 (defn- get-vectdb-connection []
@@ -26,17 +25,13 @@
     (p/embed-document-chunk (get-vectdb-connection) app-uuid doc-chunk)
     instance))
 
-(def tool-spec-validator
-  (util/make-validator-explainer prompt/schema-for-tool-spec {:validate? true}))
-
 (defn post-planner-tool [instance]
   (let [planner-tool (fc/instance-attributes instance)
         app-uuid (:AppUuid planner-tool)
         tool-name (:ToolName planner-tool)
         tool-spec (when-let [tspec (:ToolSpec planner-tool)]
                     (-> tspec
-                        (update :df-patterns edn/read-string)
-                        tool-spec-validator))
+                        (update :df-patterns edn/read-string)))
         tag (:Tag planner-tool)
         type (:Type planner-tool)
         meta-content (:MetaContent planner-tool)

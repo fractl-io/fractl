@@ -2,8 +2,7 @@
   (:require [cheshire.core :as json]
             [org.httpkit.client :as http]
             [fractl.util :as u]
-            [fractl.util.logger :as log]
-            [fractl.inference.util :as util]))
+            [fractl.util.logger :as log]))
 
 (def ^:private openai-key-env-var "OPENAI_API_KEY")
 (def ^:private env-openai-api-key (System/getenv openai-key-env-var))
@@ -59,26 +58,21 @@
 (def default-temperature 0)
 (def default-max-tokens 500)
 
-(def args-validator-make-openai-completion
-  (util/make-validator-explainer
-    [:map
-     [:messages [:vector [:map
-                          [:role [:enum :system :user :assistant]]
-                          [:content :string]]]]
-     [:model-name {:default openai-default-completion-model} :string]
-     [:openai-api-key {:optional true} :string]
-     [:completion-endpoint {:default openai-completion-api-endpoint} :string]
-     [:temperature {:default default-temperature} :int]
-     [:max-tokens {:default default-max-tokens} :int]]))
+(defn- assert-message! [message]
+  (when-not (and (map? message)
+                 (some #{(:role message)} #{:system :user :assistant})
+                 (string? (:content message)))
+    (u/throw-ex (str "invalid message: " message))))
 
-(defn make-openai-completion [options]
-  (let [{:keys [messages
-                model-name
-                openai-api-key
-                completion-endpoint
-                temperature
-                max-tokens
-                ]} (args-validator-make-openai-completion options)
+(defn make-openai-completion [{messages :messages model-name :model-name
+                               openai-api-key :openai-api-key
+                               completion-endpoint :completion-endpoint
+                               temperature :temperature max-tokens :max-tokens}]
+  (doseq [m messages] (assert-message! m))
+  (let [model-name (or model-name openai-default-completion-model)
+        completion-endpoint (or completion-endpoint openai-completion-api-endpoint)
+        temperature (or temperature default-temperature)
+        max-tokens (or max-tokens default-max-tokens)
         openai-api-key (or openai-api-key
                            (get-env-openai-api-key))
         options {:headers {"Content-type"  "application/json"

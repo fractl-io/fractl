@@ -53,8 +53,6 @@
                  [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]
                  [nrepl "1.1.1"]
                  [camel-snake-kebab "0.4.3"]
-                 [metosin/malli "0.15.0"]
-                 [pjstadig/assertions "0.2.0"]
                  [stringer "0.4.1"]]
 
   :license {:name "Apache2"}

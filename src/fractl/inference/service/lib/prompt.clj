@@ -3,7 +3,8 @@
             [clojure.string :as string]
             [cheshire.core :as json]
             [stringer.core :as stringer]
-            [fractl.inference.util :as util]))
+            [fractl.util :as u]
+            [fractl.inference.service.model :as m]))
 
 (defn make-system-message [system-message-text]
   {:role :system :content system-message-text})
@@ -99,25 +100,16 @@ in a JSON format as follows:
   "Background: {background}
 Question: {delimiter}{question}{delimiter}")
 
-(def args-schema-make-classify-intent-messages
-  [:map
-   [:few-shot-params {:default []} [:vector [:map
-                                             [:user-background :map]
-                                             [:user-question :string]
-                                             [:assistant-intent :string]
-                                             [:assistant-params :map]]]]
-   [:background {:default {}} :map]
-   [:question :string]])
-
-(def args-validator-make-classify-intent-messages
-  (util/make-validator-explainer args-schema-make-classify-intent-messages))
-
-
-(defn make-classify-intent-messages [options]
-  (let [{:keys [few-shot-params
-                background
-                question]} (args-validator-make-classify-intent-messages options)
-        system-message (-> classify-intent-system-template
+;; [:map
+;;  [:few-shot-params {:default []} [:vector [:map
+;;                                            [:user-background :map]
+;;                                            [:user-question :string]
+;;                                            [:assistant-intent :string]
+;;                                            [:assistant-params :map]]]]
+;;  [:background {:default {}} :map]
+;;  [:question :string]]
+(defn make-classify-intent-messages [{few-shot-params :few-shot-params background :background question :question}]
+  (let [system-message (-> classify-intent-system-template
                            (stringer/nrender {:delimiter classify-intent-delimiter})
                            make-system-message)
         few-shot-messages (->> few-shot-params
@@ -173,22 +165,16 @@ Answer:
 
 Share the reasoning for your answer.")
 
-(def args-validator-make-docs-rag-text
-  (util/make-validator-explainer
-    [:map
-     [:all-docs [:vector :string]]
-     [:background {:optional true} :map]
-     [:user-question :string]]))
-
-(defn make-docs-rag-text [options]
-  (let [{:keys [all-docs
-                background
-                user-question]} (args-validator-make-docs-rag-text options)]
-    (stringer/nrender docs-rag-template {:docs-context (render-docs-template all-docs)
-                                         :background (-> background
-                                                         (assoc :date-today (str (t/today)))
-                                                         json/generate-string)
-                                         :question user-question})))
+;; [:map
+;;  [:all-docs [:vector :string]]
+;;  [:background {:optional true} :map]
+;;  [:user-question :string]]
+(defn make-docs-rag-text [{all-docs :all-docs background :background user-question :user-question}]
+  (stringer/nrender docs-rag-template {:docs-context (render-docs-template all-docs)
+                                       :background (-> background
+                                                       (assoc :date-today (str (t/today)))
+                                                       json/generate-string)
+                                       :question user-question}))
 
 (defn make-docs-rag-messages [options]
   [(make-system-message (make-docs-rag-text options))])
@@ -223,31 +209,15 @@ Background (as JSON): {background}
 Question: {question}
 Thought: {scratchpad}")
 
-(def schema-for-tool-spec
-  (let [schema-for-params [:map
-                           [:name string?]
-                           [:type [:map
-                                   [:type :string]
-                                   [:format {:optional true} :string]]]
-                           [:required boolean?]]]
-    [:map
-     [:description string?]
-     [:params [:vector schema-for-params]]
-     [:df-patterns vector?]]))
-
-(def args-schema-make-planner-text
-  [:map
-   [:all-docs {:default []} [:vector :string]]
-   [:all-tools [:map-of
-                :string schema-for-tool-spec]]])
-
-(def args-validator-make-planner-text
-  (util/make-validator-explainer args-schema-make-planner-text))
-
-(defn make-planner-text [options]
-  (let [{:keys [all-docs
-                all-tools]} (args-validator-make-planner-text options)
-        tool-names (keys all-tools)
+;; [:map
+;;  [:all-docs {:default []} [:vector :string]]
+;;  [:all-tools [:map-of
+;;               :string schema-for-tool-spec]]]
+(defn make-planner-text [{all-docs :all-docs all-tools :all-tools}]
+  (when (seq all-docs)
+    (when-not (every? string? all-docs)
+      (u/throw-ex "make-planner-text: all-docs must be a vector of strings")))
+  (let [tool-names (keys all-tools)
         comma-separated-tool-names (string/join ", " tool-names)
         tool-template "{tool-name}: {tool-details}"
         tool-details (->> all-tools

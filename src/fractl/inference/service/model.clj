@@ -26,11 +26,30 @@
   :DocName :String
   :DocChunk :Any})
 
+(defn tool-spec-param-type? [t]
+  (and (map? t)
+       (string? (:type t))
+       (if-let [f (:format t)]
+         (string? f)
+         true)))
+
+(defn tool-spec-param? [p]
+  (and (map? p)
+       (string? (:name p))
+       (tool-spec-param-type? (:type p))
+       (boolean? (:required p))))
+
+(defn tool-spec? [obj]
+  (and (map? obj)
+       (string? (:description obj))
+       (every? tool-spec-param? (:params obj))
+       (vector? (:df-patterns obj))))
+
 (entity
  :Fractl.Inference.Service/PlannerTool
  {:AppUuid {:type :UUID :default u/uuid-string}
   :ToolName {:type :String :optional true}
-  :ToolSpec {:type :Map :optional true}
+  :ToolSpec {:check tool-spec?}
   :Tag :String
   :Type :String
   :MetaContent :String

@@ -5,19 +5,14 @@
             [fractl.inference.service.lib.prompt :as prompt]
             [fractl.inference.service.lib.output-parser :as output]
             [fractl.inference.service.lib.retriever :as retriever]
-            [fractl.inference.service.lib.agent-planner :as planner]
-            [fractl.inference.util :as util]))
+            [fractl.inference.service.lib.agent-planner :as planner]))
 
-(def args-validator-make-docs-agent
-  (util/make-validator-explainer
-    [:map
-     [:user-question :string]
-     [:question-context :map]
-     [:app-uuid :string]]))
-
+;; [:map
+;;  [:user-question :string]
+;;  [:question-context :map]
+;;  [:app-uuid :string]]
 (defn make-docs-rag-agent [options]
   (compose/chain {:chain-name "DOCS-AGENT"}
-                 args-validator-make-docs-agent
                  (fn [m] (set/rename-keys m {:user-question :text-content}))
                  ;; ---
                  (compose/assok :embedding p/make-openai-embedding) ; needs :text-content
@@ -26,14 +21,11 @@
                  (compose/assok :answer-text p/make-openai-completion)
                  (fn [m] (select-keys m [:answer-text]))))
 
-(def args-validator-make-planner-agent
-  (util/make-validator-explainer
-    [:map
-     [:user-question :string]
-     [:background    :map]
-     [:use-docs?     :boolean]
-     [:app-uuid      :string]]))
-
+;; [:map
+;;  [:user-question :string]
+;;  [:background    :map]
+;;  [:use-docs?     :boolean]
+;;  [:app-uuid      :string]]
 (defn make-planner-agent
   [options]
   ;; TODO: output-checking
@@ -49,10 +41,8 @@
                                       (fn [m] (try
                                                 (assoc m :patterns (f m))
                                                 (catch Exception e
-                                                  (.printStackTrace e)
                                                   (assoc m :errormsg m))))))]
     (compose/chain {:chain-name "PLANNER-AGENT"}
-                   args-validator-make-planner-agent ; validate args
                    ;;-- classification
                    (fn [m] (assoc m :question (:user-question m)))
                    (compose/assok :messages prompt/make-classify-intent-messages)
