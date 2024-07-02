@@ -23,7 +23,7 @@
         (log/exception ex)))))
 
 (defn register-resolver []
-  (let [ents (seq (cn/entity-names :Inference.Service))]
+  (let [ents (seq (cn/entity-names :Fractl.Inference.Service))]
     (rg/register-resolver-type
       :inference
       (fn [_ _]

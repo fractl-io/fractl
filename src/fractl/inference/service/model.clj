@@ -9,7 +9,7 @@
             [fractl.util :as u])
   (:import [java.net MalformedURLException]))
 
-(component :Inference.Service)
+(component :Fractl.Inference.Service)
 
 (defn url?
   "Return true if supplied string is a URL, false otherwise."
@@ -21,13 +21,13 @@
       false)))
 
 (entity
- :Inference.Service/DocChunk
+ :Fractl.Inference.Service/DocChunk
  {:AppUuid {:type :UUID :default u/uuid-string}
   :DocName :String
   :DocChunk :Any})
 
 (entity
- :Inference.Service/PlannerTool
+ :Fractl.Inference.Service/PlannerTool
  {:AppUuid {:type :UUID :default u/uuid-string}
   :ToolName {:type :String :optional true}
   :ToolSpec {:type :Map :optional true}
@@ -37,7 +37,7 @@
   :Operation :String})
 
 (record
- :Inference.Service/QuestionOptions
+ :Fractl.Inference.Service/QuestionOptions
  {:UseDocs {:type :Boolean :default true}
   :UseTools {:type :Boolean :default true}
   ;; tools related options (applicable if :UseTools is true)
@@ -45,7 +45,7 @@
   :ChainOfThought {:type :Boolean :default true}})
 
 (entity
- :Inference.Service/Question
+ :Fractl.Inference.Service/Question
  {:ChatUuid {:type :UUID :default u/uuid-string}
   :AppUuid :UUID
   :Question :String

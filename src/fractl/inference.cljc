@@ -27,8 +27,7 @@
         (do (log/info (str "inference succeeded with result " result))
             result)))))
 
-(defn mock-mode? []
-  (= "mock:ai" (System/getenv "INFERENCE_SERVICE_URL")))
+(def ^:dynamic mock-ai false)
 
 (defn run-inference
   ([service-url {appid :app-id chatid :chat-id
@@ -36,36 +35,34 @@
                  :or {use-docs true
                       use-schema true}}
     question context]
-   (let [service-url (or service-url (System/getenv "INFERENCE_SERVICE_URL"))]
-     (when-not service-url
-       (u/throw-ex "AI inference url not configured"))
-     (when-not question
-       (u/throw-ex "inference cannot run without a question"))
-     (let [r0 {:AppUuid (or appid (u/get-app-uuid))
-               :ChatUuid (or chatid (u/uuid-string))
-               :QuestionOptions {:UseDocs use-docs
-                                 :UseSchema use-schema}
-               :Question question}
-           r (if context (assoc r0 :QuestionContext context) r0)
-           is-review-mode (when (map? context) (get-in context [:EventContext :evaluate-inferred-patterns]))
-           req {:Inference.Service/Question r}
-           mock-ai (= service-url "mock:ai")
-           out (if mock-ai
-                 [{:result [req]}]
-                 (uh/POST (str service-url "/api/Inference.Service/Question") nil req))
-           result (-> out
-                      first
-                      :result
-                      first)]
-       (if mock-ai
-         result
-         (let [result (or (:QuestionResponse result) result)
-               result (if (string? result) (edn/read-string result) result)]
-           (if-let [patterns (:patterns result)]
-             (if is-review-mode
-               patterns
-               (eval-patterns patterns (:inference-event context)))
-             (u/throw-ex (:errormsg result))))))))
+   (when-not question
+     (u/throw-ex "inference cannot run without a question"))
+   (let [r0 {:AppUuid (or appid (u/get-app-uuid))
+             :ChatUuid (or chatid (u/uuid-string))
+             :QuestionOptions {:UseDocs use-docs
+                               :UseSchema use-schema}
+             :Question question}
+         r (if context (assoc r0 :QuestionContext context) r0)
+         is-review-mode (when (map? context) (get-in context [:EventContext :evaluate-inferred-patterns]))
+         req {:Fractl.Inference.Service/Question r}
+         out (if mock-ai
+               [{:result [req]}]
+               (ev/eval-all-dataflows
+                {:Fractl.Inference.Service/Create_Question
+                 {:Instance req}}))
+         result (-> out
+                    first
+                    :result
+                    first)]
+     (if mock-ai
+       result
+       (let [result (or (:QuestionResponse result) result)
+             result (if (string? result) (edn/read-string result) result)]
+         (if-let [patterns (:patterns result)]
+           (if is-review-mode
+             patterns
+             (eval-patterns patterns (:inference-event context)))
+           (u/throw-ex (:errormsg result)))))))
   ([question] (run-inference nil nil question nil))
   ([question context] (run-inference nil nil question context))  
   ([request question context] (run-inference nil request question context)))
