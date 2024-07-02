@@ -1,8 +1,9 @@
-(ns fractl.inference.embeddings.provider.openai
+(ns fractl.inference.provider.openai
   (:require [cheshire.core :as json]
             [org.httpkit.client :as http]
             [fractl.util :as u]
-            [fractl.util.logger :as log]))
+            [fractl.util.logger :as log]
+            [fractl.inference.util :as util]))
 
 (def ^:private openai-key-env-var "OPENAI_API_KEY")
 (def ^:private env-openai-api-key (System/getenv openai-key-env-var))
@@ -52,3 +53,41 @@
           (format "Failed to generate OpenAI embedding (status %s):" status)
           response))
         nil))))
+
+(def openai-completion-api-endpoint  "https://api.openai.com/v1/chat/completions")
+(def openai-default-completion-model "gpt-3.5-turbo")
+(def default-temperature 0)
+(def default-max-tokens 500)
+
+(def args-validator-make-openai-completion
+  (util/make-validator-explainer
+    [:map
+     [:messages [:vector [:map
+                          [:role [:enum :system :user :assistant]]
+                          [:content :string]]]]
+     [:model-name {:default openai-default-completion-model} :string]
+     [:openai-api-key {:optional true} :string]
+     [:completion-endpoint {:default openai-completion-api-endpoint} :string]
+     [:temperature {:default default-temperature} :int]
+     [:max-tokens {:default default-max-tokens} :int]]))
+
+(defn make-openai-completion [options]
+  (let [{:keys [messages
+                model-name
+                openai-api-key
+                completion-endpoint
+                temperature
+                max-tokens
+                ]} (args-validator-make-openai-completion options)
+        openai-api-key (or openai-api-key
+                           (get-env-openai-api-key))
+        options {:headers {"Content-type"  "application/json"
+                           "Authorization" (str "Bearer " openai-api-key)}
+                 :body (json/generate-string {:model model-name
+                                              :messages messages
+                                              :temperature temperature
+                                              :max_tokens max-tokens})}
+        response @(http/request completion-endpoint options)]
+    (-> (:body response)
+        (json/parse-string)
+        (get-in ["choices" 0 "message" "content"]))))
