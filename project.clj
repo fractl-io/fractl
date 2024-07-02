@@ -1,6 +1,6 @@
 (defproject com.github.fractl-io/fractl "0.5.3-SNAPSHOT"
-  :dependencies [[org.clojure/clojure "1.10.3"]
-                 [org.clojure/clojurescript "1.10.896"
+  :dependencies [[org.clojure/clojure "1.11.3"]
+                 [org.clojure/clojurescript "1.11.132"
                   :exclusions [com.google.code.findbugs/jsr305]]
                  [org.clojure/core.memoize "1.0.257"]
                  [org.clojure/tools.cli "1.0.206"]
@@ -52,7 +52,8 @@
                  [com.clickhouse/clickhouse-jdbc "0.6.0"]
                  [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]
                  [nrepl "1.1.1"]
-                 [camel-snake-kebab "0.4.3"]]
+                 [camel-snake-kebab "0.4.3"]
+                 [stringer "0.4.1"]]
 
   :license {:name "Apache2"}
 

@@ -6,8 +6,8 @@
             [cheshire.core :as json]
             [fractl.util :as u]
             [fractl.util.logger :as log]
-            [fractl.inference.embeddings.internal.model :as model]
-            [fractl.inference.embeddings.provider.openai :as openai]))
+            [fractl.inference.provider.openai :as openai]
+            [fractl.inference.embeddings.internal.model :as model]))
 
 (def ^:private dbtype "postgresql")
 
@@ -167,3 +167,13 @@
         (update-planner-tool db-conn spec))
       :delete (delete-planner-tool db-conn spec)
       (throw (ex-info "Expected operation 'add' or 'delete'" {:operation operation})))))
+
+(defn add-document-chunk [db-conn app-uuid text-chunk]
+  (let [document-classname (get-document-classname app-uuid)
+        embedding (openai/make-openai-embedding {:text-content text-chunk})
+        embedding-model openai/openai-default-embedding-model]
+    (create-object {:classname document-classname
+                    :text-content text-chunk
+                    :meta-content (json/generate-string text-chunk)
+                    :embedding embedding
+                    :embedding-model embedding-model})))

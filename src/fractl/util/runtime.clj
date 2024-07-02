@@ -20,6 +20,7 @@
     [fractl.auth :as auth]
     [fractl.rbac.core :as rbac]
     [fractl.inference.embeddings.core :as ec]
+    [fractl.inference.service.core :as isc]
     [fractl-config-secrets-reader.core :as fractl-secret-reader]))
 
 (def ^:private repl-mode-key :-*-repl-mode-*-)
@@ -162,7 +163,8 @@
             store)
         ins (:interceptors config)]
     (when-let [ps (:publish-schema config)]
-      (when (map? ps) (ec/init ps)))
+      (when (and (map? ps) (:inference-service-enabled config))
+        (ec/init ps)))
     (when (or (not (init-schema? config)) (store/init-all-schema store))
       (let [resolved-config (run-initconfig config ev)
             has-rbac (some #{:rbac} (keys ins))]
@@ -173,6 +175,8 @@
         (when (seq (:resolvers resolved-config))
           (register-resolvers! resolved-config ev))
         (u/run-init-fns)
+        (when (:inference-service-enabled config)
+          (isc/init))
         (run-appinit-tasks! ev (or (:init-data model)
                                    (:init-data config)))
         (when has-rbac

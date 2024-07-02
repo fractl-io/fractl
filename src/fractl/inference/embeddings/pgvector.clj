@@ -23,7 +23,13 @@
           (u/safe-set db-conn nil)
           true))
       (embed-tool [_ spec]
-        (pgv/embed-planner-tool @db-conn spec)))))
+        (pgv/embed-planner-tool @db-conn spec))
+      (update-tool [_ spec]
+        (pgv/update-planner-tool @db-conn spec))
+      (delete-tool [_ spec]
+        (pgv/delete-planner-tool @db-conn spec))
+      (embed-document-chunk [_ app-uuid text-chunk]
+        (pgv/add-document-chunk @db-conn app-uuid text-chunk)))))
 
 (def fetch-db
   (memoize
