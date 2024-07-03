@@ -79,9 +79,9 @@
     ?, ?, ?::json, ?, ?
   )")
 
-(defn create-object [db-conn {classname :classname text-content :text_content
-                              meta-content :meta_content embedding :embedding
-                              embedding-model :embedding_model :as obj}]
+(defn create-object [db-conn {classname :classname text-content :text-content
+                              meta-content :meta-content embedding :embedding
+                              embedding-model :embedding-model :as obj}]
   (assert-object! obj)
   (let [create-object-sql (format create-object-sql-template (count embedding))]
     (jdbc/execute! db-conn [create-object-sql
@@ -141,11 +141,11 @@
 (defn add-planner-tool [db-conn {app-uuid :app-uuid tool-spec :tool-spec meta-content :meta-content}]
   (let [document-classname (get-planner-classname app-uuid)
         tool-text (pr-str tool-spec)
-        embedding (openai/make-openai-embedding {:text_content tool-text})]
+        embedding (openai/make-openai-embedding {:text-content tool-text})]
     (create-object db-conn (model/as-object {:classname document-classname
-                                             :text_content tool-text
-                                             :meta_content (form-to-json meta-content)
-                                             :embedding_model openai/openai-default-embedding-model
+                                             :text-content tool-text
+                                             :meta-content (form-to-json meta-content)
+                                             :embedding-model openai/openai-default-embedding-model
                                              :embedding embedding}))))
 
 (defn update-planner-tool [db-conn spec]

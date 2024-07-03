@@ -7,4 +7,7 @@
   (embed-tool [db spec])
   (update-tool [db spec])
   (delete-tool [db spec])
-  (embed-document-chunk [db app-uuid text-chunk]))
+  (embed-document-chunk [db app-uuid text-chunk])
+  (get-document-classname [db app-uuid])
+  (get-planner-classname [db app-uuid])
+  (find-similar-objects [db query-spec limit]))

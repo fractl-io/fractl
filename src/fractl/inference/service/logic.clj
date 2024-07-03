@@ -4,17 +4,10 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.global-state :as gs]
-            [fractl.inference.embeddings.internal.registry :as r]
-            [fractl.inference.embeddings.protocol :as p]
+            [fractl.inference.embeddings.core :as ec]
             [fractl.inference.service.lib.agent :as agent]
             [fractl.inference.service.lib.prompt :as prompt])
   (:import (clojure.lang ExceptionInfo)))
-
-(defn- get-vectdb-connection []
-  (let [config (gs/get-app-config)]
-    (if-let [connector (r/fetch-db-connector (:vectordb config))]
-      (connector (:config config))
-      (u/throw-ex (str "Unsupported embbeddings database type: " (:vectordb config))))))
 
 (defn post-doc-chunk [instance]
   (let [doc-chunk (fc/instance-attributes instance)
@@ -22,7 +15,7 @@
         doc-name (:DocName doc-chunk)
         chunk-text (:DocChunk doc-chunk)]
     (log/debug (u/pretty-str "Ingesting doc chunk" doc-chunk))
-    (p/embed-document-chunk (get-vectdb-connection) app-uuid doc-chunk)
+    (ec/embed-document-chunk app-uuid doc-chunk)
     instance))
 
 (defn post-planner-tool [instance]
@@ -35,21 +28,20 @@
         tag (:Tag planner-tool)
         type (:Type planner-tool)
         meta-content (:MetaContent planner-tool)
-        operation (:Operation planner-tool)
-        db-conn (get-vectdb-connection)]
+        operation (:Operation planner-tool)]
     (log/debug (u/pretty-str "Ingesting planner tool" planner-tool))
     (if (or (and (nil? tool-name)
                  (nil? tool-spec))
             (= tag 'component))
       (log/info (u/pretty-str "Ignoring insertion of component for now..."))
       (case operation
-        :add (p/update-tool db-conn {:app-uuid app-uuid
-                                     :tool-spec (-> tool-spec
-                                                    (assoc :tool-name tool-name))
-                                     :meta-content meta-content
-                                     :tag tag
-                                     :type type})
-        :delete (p/delete-tool db-conn {:app-uuid app-uuid :tag tag :type type})
+        :add (ec/update-tool {:app-uuid app-uuid
+                              :tool-spec (-> tool-spec
+                                             (assoc :tool-name tool-name))
+                              :meta-content meta-content
+                              :tag tag
+                              :type type})
+        :delete (ec/delete-tool {:app-uuid app-uuid :tag tag :type type})
         (throw (ex-info "Expected operation :add or :delete" {:operation operation}))))
     instance))
 

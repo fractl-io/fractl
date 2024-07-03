@@ -24,8 +24,8 @@
 ;-- | text-embedding-ada-002 | 1536            | Older   |
 ;-- +------------------------+-----------------+---------+
 
-(defn make-openai-embedding [{text-content :text_content model-name :model_name
-                              openai-api-key :openai_api_key embedding-endpoint :embedding_endpoint}]
+(defn make-openai-embedding [{text-content :text-content model-name :model-name
+                              openai-api-key :openai-api-key embedding-endpoint :embedding-endpoint :as args}]
   (let [model-name (or model-name openai-default-embedding-model)
         embedding-endpoint (or embedding-endpoint openai-embedding-api-endpoint)
         openai-api-key (or openai-api-key (get-env-openai-api-key))
@@ -81,7 +81,7 @@
                                               :messages messages
                                               :temperature temperature
                                               :max_tokens max-tokens})}
-        response @(http/request completion-endpoint options)]
+        response @(http/post completion-endpoint options)]
     (-> (:body response)
         (json/parse-string)
         (get-in ["choices" 0 "message" "content"]))))
