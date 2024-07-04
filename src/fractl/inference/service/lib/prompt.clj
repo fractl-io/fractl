@@ -222,7 +222,7 @@ Thought: {scratchpad}")
         tool-template "{tool-name}: {tool-details}"
         tool-details (->> all-tools
                           (reduce-kv (fn [rows tool-name tool-spec]
-                                       (->> {:tool-name    tool-name
+                                       (->> {:tool-name tool-name
                                              :tool-details (-> tool-spec
                                                                (dissoc :df-patterns)
                                                                json/generate-string)}

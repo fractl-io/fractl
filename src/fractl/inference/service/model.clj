@@ -47,13 +47,13 @@
 
 (entity
  :Fractl.Inference.Service/PlannerTool
- {:AppUuid {:type :UUID :default u/uuid-string}
+ {:Id {:type :String :guid true :read-only true :default u/uuid-string}
+  :AppUuid {:type :UUID :default u/uuid-string}
   :ToolName {:type :String :optional true}
   :ToolSpec {:check tool-spec?}
   :Tag :String
   :Type :String
-  :MetaContent :String
-  :Operation :String})
+  :MetaContent :String})
 
 (record
  :Fractl.Inference.Service/QuestionOptions
