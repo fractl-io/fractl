@@ -683,8 +683,16 @@
             attributes
             (raise-error :no-default-value [aname])))))))
 
+(declare make-instance)
+
+(defn- map-as-instance [obj]
+  (when (map? obj)
+    (if (an-instance? obj)
+      obj
+      (make-instance obj))))
+
 (defn- ensure-attribute-is-instance-of [recname attrname attributes]
-  (if-let [aval (get attributes attrname)]
+  (if-let [aval (map-as-instance (get attributes attrname))]
     (if (instance-of? recname aval)
       attributes
       (raise-error :attribute-type-mismatch [attrname recname]))
@@ -780,8 +788,6 @@
   (let [tp (keyword (type-tag-key x))
         nm (deserialize-name x)]
     (assoc x type-tag-key tp type-key nm)))
-
-(declare make-instance)
 
 (defn- maybe-instance [x validate?]
   (cond
