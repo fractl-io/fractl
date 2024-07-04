@@ -1,4 +1,4 @@
-(ns fractl.inference.embeddings.provider.openai
+(ns fractl.inference.provider.openai
   (:require [cheshire.core :as json]
             [org.httpkit.client :as http]
             [fractl.util :as u]
@@ -24,8 +24,8 @@
 ;-- | text-embedding-ada-002 | 1536            | Older   |
 ;-- +------------------------+-----------------+---------+
 
-(defn make-openai-embedding [{text-content :text_content model-name :model_name
-                              openai-api-key :openai_api_key embedding-endpoint :embedding_endpoint}]
+(defn make-openai-embedding [{text-content :text-content model-name :model-name
+                              openai-api-key :openai-api-key embedding-endpoint :embedding-endpoint :as args}]
   (let [model-name (or model-name openai-default-embedding-model)
         embedding-endpoint (or embedding-endpoint openai-embedding-api-endpoint)
         openai-api-key (or openai-api-key (get-env-openai-api-key))
@@ -52,3 +52,36 @@
           (format "Failed to generate OpenAI embedding (status %s):" status)
           response))
         nil))))
+
+(def openai-completion-api-endpoint  "https://api.openai.com/v1/chat/completions")
+(def openai-default-completion-model "gpt-3.5-turbo")
+(def default-temperature 0)
+(def default-max-tokens 500)
+
+(defn- assert-message! [message]
+  (when-not (and (map? message)
+                 (some #{(:role message)} #{:system :user :assistant})
+                 (string? (:content message)))
+    (u/throw-ex (str "invalid message: " message))))
+
+(defn make-openai-completion [{messages :messages model-name :model-name
+                               openai-api-key :openai-api-key
+                               completion-endpoint :completion-endpoint
+                               temperature :temperature max-tokens :max-tokens}]
+  (doseq [m messages] (assert-message! m))
+  (let [model-name (or model-name openai-default-completion-model)
+        completion-endpoint (or completion-endpoint openai-completion-api-endpoint)
+        temperature (or temperature default-temperature)
+        max-tokens (or max-tokens default-max-tokens)
+        openai-api-key (or openai-api-key
+                           (get-env-openai-api-key))
+        options {:headers {"Content-type"  "application/json"
+                           "Authorization" (str "Bearer " openai-api-key)}
+                 :body (json/generate-string {:model model-name
+                                              :messages messages
+                                              :temperature temperature
+                                              :max_tokens max-tokens})}
+        response @(http/post completion-endpoint options)]
+    (-> (:body response)
+        (json/parse-string)
+        (get-in ["choices" 0 "message" "content"]))))
