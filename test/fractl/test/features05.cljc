@@ -359,9 +359,7 @@
       (is (= 1 (li/parent-attr b2))))))
 
 (deftest run-inference
-  ;; To enable inference-mock-mode:
-  ;;   export INFERENCE_SERVICE_URL=mock:ai
-  (when (i/mock-mode?)
+  (binding [i/mock-ai true]
     (defcomponent :RI
       (event :RI/Evt {:X :Int}) ; defining event is optional, just like for dataflows.
       (inference :RI/Evt {:instructions '(str "event raised with x as: " :RI/Evt.X)}))

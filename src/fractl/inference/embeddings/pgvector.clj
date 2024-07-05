@@ -23,13 +23,25 @@
           (u/safe-set db-conn nil)
           true))
       (embed-tool [_ spec]
-        (pgv/embed-planner-tool @db-conn spec)))))
+        (pgv/embed-planner-tool @db-conn spec))
+      (update-tool [_ spec]
+        (pgv/update-planner-tool @db-conn spec))
+      (delete-tool [_ spec]
+        (pgv/delete-planner-tool @db-conn spec))
+      (embed-document-chunk [_ app-uuid text-chunk]
+        (pgv/add-document-chunk @db-conn app-uuid text-chunk))
+      (get-document-classname [_ app-uuid]
+        (pgv/get-document-classname app-uuid))
+      (get-planner-classname [_ app-uuid]
+        (pgv/get-planner-classname app-uuid))
+      (find-similar-objects [_ query-spec limit]
+        (pgv/find-similar-objects @db-conn query-spec limit)))))
 
-(def fetch-db
+(def make-db
   (memoize
    (fn [config]
      (let [db (make)]
       (when (p/open-connection db config)
         db)))))
 
-(r/register-db :pgvector fetch-db)
+(r/register-db :pgvector make-db)

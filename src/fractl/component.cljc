@@ -15,12 +15,26 @@
                :cljs [fractl.util.jslogger :as log])
             [fractl.util.seq :as su]))
 
+(def ^:private type-key :-*-type-*-)
+(def ^:private dirty-key :-*-dirty-*-)
+(def type-tag-key :type-*-tag-*-)
+(def id-attr-type :Fractl.Kernel.Lang/UUID)
+(def id-attr li/id-attr)
+(def instance->map identity)
+(def instance-type-tag type-tag-key)
+(def schema-type-tag type-tag-key)
+(def instance-type type-key)
+
 (def additional-internal-component-names
   #{:Fractl.Kernel.Store
     :raw
     :-*-containers-*-
     :Fractl.Kernel.UserApp
+    :Fractl.Kernel.Repl
     })
+
+(def non-instance-user-attr-keys
+  #{type-tag-key id-attr type-key dirty-key})
 
 (def ^:private models (u/make-cell {}))
 
@@ -48,9 +62,6 @@
 (defn remove-internal-components
   [components]
   (vec (set/difference (set components) (set (internal-component-names)))))
-
-(def id-attr li/id-attr)
-(def id-attr-type :Fractl.Kernel.Lang/UUID)
 
 (def ^:private components
   "Table that maps component names to their definitions."
@@ -163,15 +174,6 @@
   (if (component-exists? component)
     (get-in @components [component :alias alias-entry])
     (log/error (str "Component " component " is not present!"))))
-
-(def ^:private type-key :-*-type-*-)
-(def ^:private dirty-key :-*-dirty-*-)
-(def type-tag-key :type-*-tag-*-)
-
-(def instance->map identity)
-(def instance-type-tag type-tag-key)
-(def schema-type-tag type-tag-key)
-(def instance-type type-key)
 
 (defn instance-type-kw [inst]
   (when-let [t (instance-type inst)]
@@ -411,7 +413,7 @@
    Excludes id-attr in its return"
   [inst]
   (when (an-instance? inst)
-    (dissoc inst type-tag-key id-attr type-key dirty-key)))
+    (apply dissoc inst non-instance-user-attr-keys)))
 
 (def set-attribute-value assoc)
 
@@ -691,8 +693,16 @@
             attributes
             (raise-error :no-default-value [aname])))))))
 
+(declare make-instance)
+
+(defn- map-as-instance [obj]
+  (when (map? obj)
+    (if (an-instance? obj)
+      obj
+      (make-instance obj))))
+
 (defn- ensure-attribute-is-instance-of [recname attrname attributes]
-  (if-let [aval (get attributes attrname)]
+  (if-let [aval (map-as-instance (get attributes attrname))]
     (if (instance-of? recname aval)
       attributes
       (raise-error :attribute-type-mismatch [attrname recname]))
@@ -788,8 +798,6 @@
   (let [tp (keyword (type-tag-key x))
         nm (deserialize-name x)]
     (assoc x type-tag-key tp type-key nm)))
-
-(declare make-instance)
 
 (defn- maybe-instance [x validate?]
   (cond
