@@ -43,7 +43,8 @@
              (assoc result :component (second exp))
              result)
 
-           (entity record event rule dataflow relationship view attribute inference)
+           (entity record event rule dataflow relationship
+                   view attribute inference resolver)
            (assoc
             result :records
             (conj
@@ -284,7 +285,8 @@
                        'rule 'ln/rule
                        'relationship ln/relationship
                        'inference ln/inference
-                       'dataflow ln/dataflow})
+                       'dataflow ln/dataflow
+                       'resolver ln/resolver})
 
      (defn intern-component [component-spec]
        (let [component-spec (if (= 'do (first component-spec))
