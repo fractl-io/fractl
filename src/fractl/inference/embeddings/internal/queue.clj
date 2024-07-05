@@ -5,19 +5,22 @@
 
 (def ^:private ^ConcurrentLinkedQueue q (ConcurrentLinkedQueue.))
 
+(defn- wait-to-poll! []
+  (try
+    (Thread/sleep 5000)
+    (catch InterruptedException _)))
+
 (defn process [handler]
   (async/thread
-    (loop [obj (.poll q)]
-      (if obj
-        (try
-          (handler obj)
-          (catch Exception ex
-            (log/error ex)))
-        (try
-          (Thread/sleep 5000)
-          (catch InterruptedException _
-            )))
-      (recur (.poll q)))))
+    (do (wait-to-poll!)
+        (loop [obj (.poll q)]
+          (if obj
+            (try
+              (handler obj)
+              (catch Exception ex
+                (log/error ex)))
+            (wait-to-poll!))
+          (recur (.poll q))))))
 
 (defn enqueue [obj]
   (.add q obj)

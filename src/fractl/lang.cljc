@@ -179,6 +179,7 @@
          :cascade-on-delete :var :secure-hash)
         (li/validate-bool k v)
         :check (li/validate fn? ":check is not a predicate" v)
+        :parse (li/validate fn? ":parse is not a function" v)
         :default (when-not (fn? v)
                    (when-let [predic (:check scm)]
                      (li/validate predic "invalid value for :default" v)))

@@ -386,19 +386,13 @@
       (inherits? base-type t))
     false))
 
-(declare make-instance)
-
 (defn instance-of?
   "Return true if the fully-qualified name is the same as that of the instance."
-  ([nm inst]
-   (and (an-instance? inst)
-        (or (= (li/split-path nm)
-               (parsed-instance-type inst))
-            (inherits? nm (instance-type inst)))))
-  ([nm inst force]
-   (or (instance-of? nm inst)
-       (when (and force (map? inst))
-         (instance-of? nm (make-instance inst))))))
+  [nm inst]
+  (and (an-instance? inst)
+       (or (= (li/split-path nm)
+              (parsed-instance-type inst))
+           (inherits? nm (instance-type inst)))))
 
 (defn instance-attributes
   ([x include-meta]
@@ -686,18 +680,29 @@
         (when-not (nil? dval)
           (if (fn? dval) (dval) dval))))))
 
+(defn- maybe-parse-attribute-value [aname ascm attributes]
+  (if-let [p (:parse ascm)]
+    (if-let [v (aname attributes)]
+      (assoc attributes aname (p v))
+      attributes)
+    attributes))
+
 (defn- apply-attribute-validation [aname ascm attributes]
-  (if (:expr ascm)
-    attributes
-    (if-let [[_ aval] (get-attr-val ascm attributes aname)]
-      (do (valid-attribute-value aname aval ascm)
-          attributes)
-      (let [dval (valid-attribute-value aname nil ascm)]
-        (if-not (nil? dval)
-          (assoc attributes aname dval)
-          (if (:optional ascm)
-            attributes
-            (raise-error :no-default-value [aname])))))))
+  (maybe-parse-attribute-value
+   aname ascm
+   (if (:expr ascm)
+     attributes
+     (if-let [[_ aval] (get-attr-val ascm attributes aname)]
+       (do (valid-attribute-value aname aval ascm)
+           attributes)
+       (let [dval (valid-attribute-value aname nil ascm)]
+         (if-not (nil? dval)
+           (assoc attributes aname dval)
+           (if (:optional ascm)
+             attributes
+             (raise-error :no-default-value [aname]))))))))
+
+(declare make-instance)
 
 (defn- map-as-instance [obj]
   (when (map? obj)
@@ -874,6 +879,11 @@
    (if (an-instance? m)
      m
      (make-instance (li/record-name m) (li/record-attributes m)))))
+
+(defn maybe-make-instance [n obj]
+  (if (instance-of? n obj)
+    obj
+    (make-instance n obj)))
 
 (defn- make-X-instance
   "Make a new instance of the record, entity or event with the name `xname`.

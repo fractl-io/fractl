@@ -82,7 +82,7 @@
         {:errormsg (.getMessage e)}))))
 
 (defn handle-app-question [operation instance]
-  (when (= :add operation)
+  (if (= :add operation)
     (let [app-uuid (:AppUuid instance)
           question (:Question instance)
           qcontext (:QuestionContext instance)
