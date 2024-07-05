@@ -61,7 +61,7 @@
     (jdbc/execute! db-conn [delete-selected-sql
                             embedding-classname
                             (name tag)
-                            (str type)])))
+                            (subs (str type) 1)])))
 
 (defn- assert-object! [obj]
   (when-not (model/object? obj)
