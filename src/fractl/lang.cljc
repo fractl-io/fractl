@@ -3,7 +3,7 @@
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [clojure.walk :as w]
-            [clojure.core.async :as async]
+            #?(:clj [clojure.core.async :as async])
             [fractl.compiler :as c]
             [fractl.compiler.context :as ctx]
             [fractl.compiler.rule :as rl]
@@ -1217,7 +1217,7 @@
          n (li/record-name schema)]
      (and (raw/relationship n (li/record-attributes schema)) r))))
 
-(defn- validate-resolver-name [rn]
+(defn- validate-resolver-name! [rn]
   (let [[c n :as cn] (li/split-path rn)]
     (if (and (li/name? c) (li/name? n))
       rn
@@ -1254,9 +1254,9 @@
 ;;;;  {:type :camel-salesforce :paths [:Salesforce/Quote]})
 ;;
 (defn resolver [n spec]
+  (validate-resolver-name! n)
   #?(:clj
-     (let [n (validate-resolver-name n)
-           req (:require spec)]
+     (let [req (:require spec)]
        (when-let [nss (:namespaces req)]
          (apply require nss))
        (u/set-on-init!
@@ -1279,8 +1279,6 @@
               (when (precond)
                 (rf))
               (rf))
-            n)))
-       (and (cn/register-resolver n spec)
-            (raw/resolver n spec)))
-     :cljs
-     (u/throw-ex "resolver construct not supported in cljs")))
+            n)))))
+  (and (cn/register-resolver n spec)
+       (raw/resolver n spec)))
