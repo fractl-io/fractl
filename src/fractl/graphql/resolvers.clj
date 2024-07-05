@@ -17,8 +17,8 @@
   (mapv (fn [n] {n (cn/encode-expressions-in-schema (find-schema n))}) (fetch-names)))
 
 (defn schema-info [component]
-  {:records (find-schema #(cn/record-names component) lr/find-record)
-   :entities (find-schema #(cn/entity-names component) lr/find-entity)
+  {:records       (find-schema #(cn/record-names component) lr/find-record)
+   :entities      (find-schema #(cn/entity-names component) lr/find-entity)
    :relationships (find-schema #(cn/relationship-names component) lr/find-relationship)})
 
 (defn first-result [r]
@@ -42,7 +42,9 @@
     :else (keyword (str (name component-name) sep (name entity)))))
 
 (defn append-question-mark [k]
-  (keyword (namespace k) (str (name k) "?")))
+  (if-let [ns (namespace k)]
+    (keyword ns (str (name k) "?"))
+    (keyword (str (name k) "?"))))
 
 (defn append-question-to-keys [m]
   (into {} (map (fn [[k v]] [(append-question-mark k) v]) m)))
@@ -86,8 +88,8 @@
     (if (and auth-config request)
       (let [user (auth/session-user (assoc auth-config :request request))]
         (when user
-          {:User (:email user)
-           :Sub (:sub user)
+          {:User        (:email user)
+           :Sub         (:sub user)
            :UserDetails user})))))
 
 (defn eval-patterns [component patterns context]
@@ -107,15 +109,17 @@
     (let [core-component (:core-component context)
           args (:attributes args)
           query-params (append-question-to-keys args)
-          dataflow-query {entity-name query-params}]
-        (let [results (eval-patterns core-component dataflow-query context)
-              data (if results
-                     (cond
-                       (map? results) [results]
-                       (coll? results) results
-                       :else [])
-                     [])]
-          data))))
+          dataflow-query (if (empty? query-params)
+                           {(append-question-mark entity-name) {}}
+                           {entity-name query-params})]
+      (let [results (eval-patterns core-component dataflow-query context)
+            data (if results
+                   (cond
+                     (map? results) [results]
+                     (coll? results) results
+                     :else [])
+                   [])]
+        data))))
 
 (defn query-parent-children-resolver
   []
@@ -156,15 +160,14 @@
           dataflow-result (if (nil? args)
                             (let [fq (partial pi/as-fully-qualified-path core-component)
                                   all-children-pattern {(form-pattern-name core-component "LookupAll" extracted-child-name)
-                                                        {li/path-attr (fq (str "path://" extracted-parent-name "/" parent-id "/" extract-entity-name "/" extracted-child-name "/%"))}}
-                                  result (eval-patterns core-component all-children-pattern context)]
-                              result)
+                                                        {li/path-attr (fq (str "path://" extracted-parent-name "/" parent-id "/" extract-entity-name "/" extracted-child-name "/%"))}}]
+                              (eval-patterns core-component all-children-pattern context))
                             (let [query-params (append-question-to-keys args)
-                              dataflow-query [{parent-name
-                                               {(append-question-mark parent-guid-attribute) (parent-guid-attribute parent-instance)}
-                                               :as :Parent}
-                                              {child-name query-params
-                                               :-> [[relationship-name :Parent]]}]]
+                                  dataflow-query [{parent-name
+                                                   {(append-question-mark parent-guid-attribute) (parent-guid-attribute parent-instance)}
+                                                   :as :Parent}
+                                                  {child-name query-params
+                                                   :->        [[relationship-name :Parent]]}]]
                               (eval-patterns core-component dataflow-query context)))
           results (if dataflow-result
                     (cond
@@ -180,7 +183,9 @@
     (let [args (:attributes args)
           core-component (:core-component context)
           query-params (append-question-to-keys args)
-          query {relationship-name query-params}]
+          query (if (empty? query-params)
+                  {(append-question-mark relationship-name) {}}
+                  {relationship-name query-params})]
       (eval-patterns core-component query context))))
 
 (defn create-entity-resolver
@@ -203,9 +208,9 @@
           child-params (dissoc args parent-guid-attribute)
           fetch-parent-query {parent-name {(append-question-mark parent-guid) parent-guid-value}}
           create-child-query {child-name child-params
-                              :-> [[relationship-name fetch-parent-query]]}
+                              :->        [[relationship-name fetch-parent-query]]}
           results (eval-patterns core-component create-child-query context)]
-       (assoc results parent-guid-attribute parent-guid-value))))
+      (assoc results parent-guid-attribute parent-guid-value))))
 
 (defn create-between-relationship-resolver
   [relationship-name entity1-name entity2-name]
@@ -224,8 +229,8 @@
           entity-guid-attr (find-guid-or-id-attribute schema entity-name)
           entity-guid-val (entity-guid-attr args)
           update-pattern {(form-pattern-name core-component "Update" (extract-entity-name entity-name))
-                            {entity-guid-attr entity-guid-val
-                             :Data (dissoc args entity-guid-attr)}}]
+                          {entity-guid-attr entity-guid-val
+                           :Data            (dissoc args entity-guid-attr)}}]
       (first (eval-patterns core-component update-pattern context)))))
 
 (defn update-contained-entity-resolver
@@ -261,7 +266,7 @@
                                                  (extract-entity-name child-name)
                                                  child-id-value])))
               update-pattern {(form-pattern-name core-component "Update" (extract-entity-name child-name))
-                              {:Data child-params
+                              {:Data     child-params
                                path-attr (str "path:/" child-path)}}
               results (eval-patterns core-component update-pattern context)]
           (assoc (first results) parent-guid-attribute parent-guid-value))))))
@@ -321,9 +326,9 @@
                                           {parent-name {(append-question-mark parent-guid)
                                                         parent-guid-value}}]] :as :Cs}
             delete-children-pattern [:for-each :Cs
-                                       [:delete child-name {child-guid (keyword (str "%." (name child-guid)))}]]
+                                     [:delete child-name {child-guid (keyword (str "%." (name child-guid)))}]]
             results (flatten (eval-patterns core-component [query-children-pattern delete-children-pattern] context))]
-        (if (and (seq results) (map? (first results))) ;; map isn't returned when no records are deleted
+        (if (and (seq results) (map? (first results)))      ;; map isn't returned when no records are deleted
           ;; we received guid of parent, thus returning
           (vec (map #(assoc % parent-guid-attribute parent-guid-value) results))
           {})))))
@@ -341,9 +346,9 @@
         relationships (into {} (map (fn [rel] [(key (first rel)) (:meta (val (first rel)))]) (:relationships schema)))
         entity-resolvers (reduce (fn [acc entity-key]
                                    (assoc acc
-                                          (keyword (str "Query/"
-                                                        (name (last (str/split (name entity-key) #"\.")))))
-                                          (fractl.graphql.resolvers/query-entity-by-attribute-resolver entity-key)))
+                                     (keyword (str "Query/"
+                                                   (name (last (str/split (name entity-key) #"\.")))))
+                                     (fractl.graphql.resolvers/query-entity-by-attribute-resolver entity-key)))
                                  {} entities)
         relationship-resolvers (reduce-kv (fn [acc rel {:keys [contains between]}]
                                             (cond
@@ -363,8 +368,8 @@
                                                     entity2-name (name (last (str/split (name entity2) #"\.")))
                                                     relation-name (name (last (str/split (name rel) #"\.")))]
                                                 (assoc acc
-                                                       (keyword (str "Query/" relation-name))
-                                                       (fractl.graphql.resolvers/query-between-relationship-resolver rel entity1 entity2)))))
+                                                  (keyword (str "Query/" relation-name))
+                                                  (fractl.graphql.resolvers/query-between-relationship-resolver rel entity1 entity2)))))
                                           {} relationships)]
     (merge entity-resolvers relationship-resolvers)))
 
@@ -372,41 +377,41 @@
   ([schema mutation-type]
    (generate-mutation-resolvers schema mutation-type true))
   ([schema mutation-type include-relationship-resolvers?]
-  (let [mutation-type-lower-case (str/lower-case mutation-type)
-        entities (mapv (fn [entity] (key (first entity))) (:entities schema))
-        relationships (map (fn [rel] [(key (first rel)) (:meta (val (first rel)))]) (:relationships schema))
-        entity-mutation-resolvers (reduce (fn [acc entity-key]
-                                            (assoc acc
-                                                   (keyword (str "Mutation/" mutation-type (name (last (str/split (name entity-key) #"\.")))))
-                                                   ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-entity-resolver"))) entity-key)))
-                                          {} entities)
-        relationship-mutation-resolvers (if include-relationship-resolvers?
-                                          (reduce (fn [acc [rel-key {:keys [contains between]}]]
-                                                  (cond
-                                                    contains
-                                                    (let [[parent child] contains
-                                                          relation-name (name (last (str/split (name rel-key) #"\.")))]
-                                                      (assoc acc
-                                                             (keyword (str "Mutation/" mutation-type relation-name))
-                                                             ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-contained-entity-resolver"))) rel-key parent child)))
+   (let [mutation-type-lower-case (str/lower-case mutation-type)
+         entities (mapv (fn [entity] (key (first entity))) (:entities schema))
+         relationships (map (fn [rel] [(key (first rel)) (:meta (val (first rel)))]) (:relationships schema))
+         entity-mutation-resolvers (reduce (fn [acc entity-key]
+                                             (assoc acc
+                                               (keyword (str "Mutation/" mutation-type (name (last (str/split (name entity-key) #"\.")))))
+                                               ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-entity-resolver"))) entity-key)))
+                                           {} entities)
+         relationship-mutation-resolvers (if include-relationship-resolvers?
+                                           (reduce (fn [acc [rel-key {:keys [contains between]}]]
+                                                     (cond
+                                                       contains
+                                                       (let [[parent child] contains
+                                                             relation-name (name (last (str/split (name rel-key) #"\.")))]
+                                                         (assoc acc
+                                                           (keyword (str "Mutation/" mutation-type relation-name))
+                                                           ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-contained-entity-resolver"))) rel-key parent child)))
 
-                                                    between
-                                                    (let [[entity1 entity2] between
-                                                          relation-name (name (last (str/split (name rel-key) #"\.")))]
-                                                      (assoc acc
-                                                             (keyword (str "Mutation/" mutation-type relation-name))
-                                                             ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-between-relationship-resolver"))) rel-key entity1 entity2)))
-                                                    :else acc))
-                                                {} relationships))]
-    (merge entity-mutation-resolvers relationship-mutation-resolvers))))
+                                                       between
+                                                       (let [[entity1 entity2] between
+                                                             relation-name (name (last (str/split (name rel-key) #"\.")))]
+                                                         (assoc acc
+                                                           (keyword (str "Mutation/" mutation-type relation-name))
+                                                           ((resolve (symbol (str "fractl.graphql.resolvers/" mutation-type-lower-case "-between-relationship-resolver"))) rel-key entity1 entity2)))
+                                                       :else acc))
+                                                   {} relationships))]
+     (merge entity-mutation-resolvers relationship-mutation-resolvers))))
 
 (defn remove-child-entities [schema contains-graph]
   (let [children (set (mapcat val contains-graph))
         filtered-entities (vec (filter
-                                (fn [entity-map]
-                                  (let [entity-key (keyword (name (first (keys entity-map))))]
-                                    (not (children entity-key))))
-                                (:entities schema)))]
+                                 (fn [entity-map]
+                                   (let [entity-key (keyword (name (first (keys entity-map))))]
+                                     (not (children entity-key))))
+                                 (:entities schema)))]
     (assoc schema :entities filtered-entities)))
 
 (defn generate-resolver-map [schema contains-graph]

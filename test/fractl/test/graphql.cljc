@@ -158,12 +158,10 @@
 
         user-data {:Id "0e977860-5cd4-4bc3-8323-f4f71a66de6d"
                    :Email "user17@example.com"
-                   :Name "John Doe"
-                   :MemberSince "2016-08-14"}
+                   :Name "John Doe"}
 
         parent-user-data {:Email "user17@example.com"
-                         :Name "John Doe"
-                         :MemberSince "2016-08-14"}
+                         :Name "John Doe"}
 
         tag-data {:Id "0e977860-5cd4-4bc3-8323-f4f71a66de6d"
                   :Name "Tag 1"}
@@ -177,7 +175,6 @@
                                    Id
                                    Email
                                    Name
-                                   MemberSince
                                }
                              }"
 
@@ -185,7 +182,6 @@
                                    User(attributes: {Email: \"user17@example.com\"}) {
                                        Email
                                        Name
-                                       MemberSince
                                    }
                                  }"
 
@@ -193,7 +189,6 @@
                                   User(attributes: {Name: \"John Doe\"}) {
                                       Email
                                       Name
-                                      MemberSince
                                   }
                                 }"
 
@@ -220,7 +215,6 @@
                                                     User(attributes: { Email: \"" parent-user-email "\" }) {
                                                         Email
                                                         Name
-                                                        MemberSince
                                                         UserDocument {
                                                             Document(attributes: { Id: \"" child-document-id "\" }) {
                                                                 Name
@@ -369,12 +363,10 @@
 
         user-data {:Id "1e977860-5cd4-4bc3-8323-f4f71a66de6d"
                    :Email "1user17@example.com"
-                   :Name "1John Doe"
-                   :MemberSince "2016-08-11"}
+                   :Name "1John Doe"}
 
         parent-user-data {:Email "1user17@example.com"
-                         :Name "1John Doe"
-                         :MemberSince "2016-08-11"}
+                         :Name "1John Doe"}
 
         tag-data {:Id "11977860-5cd4-4bc3-8323-f4f71a66de6d"
                   :Name "1Tag 1"}
@@ -388,12 +380,10 @@
                                     Id: \"1e977860-5cd4-4bc3-8323-f4f71a66de6d\",
                                     Email: \"1user17@example.com\",
                                     Name: \"1John Doe\",
-                                    MemberSince: \"2016-08-11\"
                                 }) {
                                     Id
                                     Email
                                     Name
-                                    MemberSince
                                 }
                             }"
 
@@ -402,7 +392,6 @@
                                    Id
                                    Email
                                    Name
-                                   MemberSince
                                }
                              }"
 
@@ -410,7 +399,6 @@
                                    User(attributes: {Email: \"1user17@example.com\"}) {
                                        Email
                                        Name
-                                       MemberSince
                                    }
                                  }"
 
@@ -418,7 +406,6 @@
                                   User(attributes: {Name: \"1John Doe\"}) {
                                       Email
                                       Name
-                                      MemberSince
                                   }
                                 }"
 
@@ -461,7 +448,6 @@
                                                     User(attributes: { Email: \"" parent-user-email "\" }) {
                                                         Email
                                                         Name
-                                                        MemberSince
                                                         UserDocument {
                                                             Document(attributes: { Id: \"" child-document-id "\" }) {
                                                                 Name
@@ -603,18 +589,15 @@
 
         user-data {:Id "2e977860-5cd4-4bc3-8323-f4f71a66de6d"
                    :Email "2user17@example.com"
-                   :Name "2John Doe"
-                   :MemberSince "2016-08-12"}
+                   :Name "2John Doe"}
 
         updated-user-data {:Id "2e977860-5cd4-4bc3-8323-f4f71a66de6d"
                            :Email "newuser17@example.com"
-                           :Name "newJohn Doe"
-                           :MemberSince "2016-08-12"}
+                           :Name "newJohn Doe"}
 
         parent-user-data {:Id "2e977860-5cd4-4bc3-8323-f4f71a66d100"
                           :Email "2user17@example.com"
-                          :Name "2John Doe"
-                          :MemberSince "2016-08-12"}
+                          :Name "2John Doe"}
 
         tag-data {:Id "2e977860-5cd4-4bc3-8323-f4f71a66de6d"
                   :Name "2Tag 1"}
@@ -636,7 +619,6 @@
                                               Id
                                               Email
                                               Name
-                                              MemberSince
                                           }
                                       }"
 
@@ -831,13 +813,11 @@
 
         user-data {:Id "3e977860-5cd4-4bc3-8323-f4f71a66de6d"
                    :Email "3user17@example.com"
-                   :Name "3John Doe"
-                   :MemberSince "2016-08-13"}
+                   :Name "3John Doe"}
 
         parent-user-data {:Id "32977860-5cd4-4bc3-8323-f4f71a66de6d"
                           :Email "3user17@example.com"
-                          :Name "3John Doe"
-                          :MemberSince "2016-08-13"}
+                          :Name "3John Doe"}
 
         tag-data {:Id "32977860-5cd9-4bc3-8323-f4f71a66de6d"
                   :Name "3Tag 1"}
@@ -851,7 +831,6 @@
                                 Id
                                 Email
                                 Name
-                                MemberSince
                               }
                             }"
 
