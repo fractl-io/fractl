@@ -234,6 +234,14 @@
   ([typname typdef typtag]
    (component-intern typname typdef typtag nil)))
 
+(defn- component-remove [typname typtag]
+  (let [[component n :as k] (li/split-path typname)
+        intern-k [component typtag n]]
+    (u/call-and-set
+     components
+     #(su/dissoc-in @components intern-k))
+    typname))
+
 (defn- component-find
   ([path]
    (get-in @components path))
@@ -1819,6 +1827,8 @@
       (remove-meta! (li/split-path relname))
       relname)))
 
+(def remove-resolver raw/remove-resolver)
+
 (defn- dissoc-system-attributes [attrs]
   (into
    {}
@@ -2262,3 +2272,13 @@
   {:records (find-schema-info #(record-names component) raw/find-record)
    :entities (find-schema-info #(entity-names component) raw/find-entity)
    :relationships (find-schema-info #(relationship-names component) raw/find-relationship)})
+
+(defn register-resolver [res-name res-spec]
+  (component-intern res-name res-spec :resolvers))
+
+(defn remove-resolver [res-name]
+  (and (raw/remove-resolver res-name)
+       (component-remove res-name :resolvers)))
+
+(defn find-resolvers [component-name]
+  (get-in @components [component-name :resolvers]))
