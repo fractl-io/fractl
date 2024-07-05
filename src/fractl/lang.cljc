@@ -3,7 +3,7 @@
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [clojure.walk :as w]
-            [clojure.core.async :as async]
+            #?(:clj [clojure.core.async :as async])
             [fractl.compiler :as c]
             [fractl.compiler.context :as ctx]
             [fractl.compiler.rule :as rl]
@@ -1254,33 +1254,31 @@
 ;;;;  {:type :camel-salesforce :paths [:Salesforce/Quote]})
 ;;
 (defn resolver [n spec]
-  #?(:clj
-     (let [n (validate-resolver-name n)
-           req (:require spec)]
-       (when-let [nss (:namespaces req)]
-         (apply require nss))
-       (u/set-on-init!
-        (fn []
-          (let [s0 (dissoc spec :require :with-methods :with-subscription)
-                res-spec (assoc s0 :name n)
-                maybe-subs #(when-let [subs (:with-subscription spec)]
-                              (async/thread
-                                (subs/listen
-                                 (subs/open-connection subs))))
-                rf #(do (if-let [methods (:with-methods spec)]
-                          (if-let [paths (:paths spec)]
-                            ((if (:compose? spec) rr/compose-resolver rr/override-resolver)
-                             paths
-                             (rc/make-resolver n methods))
-                            (rr/register-resolver-type n (fn [_ _] (rc/make-resolver n methods))))
-                          (rr/register-resolver res-spec))
-                        (maybe-subs))]
-            (if-let [precond (:pre-cond req)]
-              (when (precond)
-                (rf))
-              (rf))
-            n)))
-       (and (cn/register-resolver n spec)
-            (raw/resolver n spec)))
-     :cljs
-     (u/throw-ex "resolver construct not supported in cljs")))
+  (let [n (validate-resolver-name n)
+        req (:require spec)]
+    (when-let [nss (:namespaces req)]
+      (apply require nss))
+    (u/set-on-init!
+     (fn []
+       (let [s0 (dissoc spec :require :with-methods :with-subscription)
+             res-spec (assoc s0 :name n)
+             maybe-subs #(when-let [subs (:with-subscription spec)]
+                           #?(:clj (async/thread
+                                     (subs/listen
+                                      (subs/open-connection subs)))
+                              :cljs subs))
+             rf #(do (if-let [methods (:with-methods spec)]
+                       (if-let [paths (:paths spec)]
+                         ((if (:compose? spec) rr/compose-resolver rr/override-resolver)
+                          paths
+                          (rc/make-resolver n methods))
+                         (rr/register-resolver-type n (fn [_ _] (rc/make-resolver n methods))))
+                       (rr/register-resolver res-spec))
+                     (maybe-subs))]
+         (if-let [precond (:pre-cond req)]
+           (when (precond)
+             (rf))
+           (rf))
+         n)))
+    (and (cn/register-resolver n spec)
+         (raw/resolver n spec))))
