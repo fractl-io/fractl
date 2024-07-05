@@ -179,7 +179,8 @@
    'relationship fq-preproc-record-def
    'inference fq-preproc-record-def
    'rule fq-preproc-rule-def
-   'dataflow fq-preproc-dataflow-def})
+   'dataflow fq-preproc-dataflow-def
+   'resolver fq-preproc-record-def})
 
 (defn fully-qualified-names [declared-names exp]
   (binding [fq-name (make-fq-name declared-names)]
