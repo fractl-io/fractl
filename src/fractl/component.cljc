@@ -388,11 +388,15 @@
 
 (defn instance-of?
   "Return true if the fully-qualified name is the same as that of the instance."
-  [nm inst]
-  (and (an-instance? inst)
-       (or (= (li/split-path nm)
-              (parsed-instance-type inst))
-           (inherits? nm (instance-type inst)))))
+  ([nm inst]
+   (and (an-instance? inst)
+        (or (= (li/split-path nm)
+               (parsed-instance-type inst))
+            (inherits? nm (instance-type inst)))))
+  ([nm inst force]
+   (or (instance-of? nm inst)
+       (when (and force (map? inst))
+         (instance-of? nm (make-instance inst))))))
 
 (defn instance-attributes
   ([x include-meta]

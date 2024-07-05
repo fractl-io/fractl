@@ -55,8 +55,8 @@
 
 (def openai-completion-api-endpoint  "https://api.openai.com/v1/chat/completions")
 (def openai-default-completion-model "gpt-3.5-turbo")
-(def default-temperature 0)
-(def default-max-tokens 500)
+(def ^:private default-temperature 0)
+(def ^:private default-max-tokens 500)
 
 (defn- assert-message! [message]
   (when-not (and (map? message)

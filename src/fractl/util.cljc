@@ -13,6 +13,7 @@
                       [fractl.util :refer [passthru]]))
   #?(:clj
      (:import [java.io File]
+              [java.net MalformedURLException]
               [org.apache.commons.io FilenameUtils]
               [org.apache.commons.exec CommandLine Executor DefaultExecutor])))
 
@@ -426,3 +427,14 @@
           ret)))))
 
 (def get-app-uuid (memoize (fn [] (getenv "FRACTL_APP_UUID" (uuid-string)))))
+
+(defn url?
+  "Return true if supplied string is a URL, false otherwise."
+  [u]
+  #?(:clj
+     (try
+       (and (io/as-url u)
+            true)
+       (catch MalformedURLException _
+         false))
+     :cljs (string? u))) ; TODO: implement format check in cljs.
