@@ -33,7 +33,7 @@
 
 (defn verify-config [config]
   (when (= (:Provider config) :openai)
-    (when-not (cn/instace-of :Fractl.Inference.Provider/OpenAiConfig (:OpenAiConfig config) true)
+    (when-not (cn/instance-of? :Fractl.Inference.Provider/OpenAiConfig (:OpenAiConfig config) true)
       (u/throw-ex "OpenAiConfig is required")))
   config)
 

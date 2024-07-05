@@ -386,6 +386,8 @@
       (inherits? base-type t))
     false))
 
+(declare make-instance)
+
 (defn instance-of?
   "Return true if the fully-qualified name is the same as that of the instance."
   ([nm inst]
@@ -696,8 +698,6 @@
           (if (:optional ascm)
             attributes
             (raise-error :no-default-value [aname])))))))
-
-(declare make-instance)
 
 (defn- map-as-instance [obj]
   (when (map? obj)
