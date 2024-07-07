@@ -31,6 +31,7 @@
     :-*-containers-*-
     :Fractl.Kernel.UserApp
     :Fractl.Kernel.Repl
+    :Fractl.Inference.Service
     })
 
 (def non-instance-user-attr-keys
