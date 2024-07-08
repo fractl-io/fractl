@@ -125,6 +125,11 @@
 (defn component-init-event-name [component]
   (keyword (str (name component) "_Init")))
 
+(defn- upsert-component! [component spec]
+  (u/call-and-set
+   components
+   #(assoc @components component spec)))
+
 (declare intern-attribute intern-event)
 
 (defn create-component
@@ -132,9 +137,7 @@
   the components in the imports list. If a component already exists with
   the same name, it will be overwritten. Returns the name of the new component."
   [component spec]
-  (u/call-and-set
-   components
-   #(assoc @components component spec))
+  (upsert-component! component spec)
   (intern-attribute
    [component id-attr]
    {:type :Fractl.Kernel.Lang/UUID
@@ -166,9 +169,31 @@
 (defn component-definition [component]
   (find @components component))
 
+(defn component-specification [component]
+  (second (component-definition component)))
+
 (defn declared-names [component]
   (when-let [defs (second (component-definition component))]
     (set (keys (dissoc defs :attributes :records :events :entity-relationship)))))
+
+(defn component-clj-imports [component]
+  (when-let [imps (seq (:clj-import (component-specification component)))]
+    (into {} (mapv (fn [xs] [(first xs) (vec (rest xs))]) imps))))
+
+(defn set-component-clj-imports! [component spec]
+  (when-let [clj-spec (component-specification component)]
+    (upsert-component!
+     component
+     (assoc clj-spec :clj-import (vec (mapv (fn [[k v]] `(~k ~@v)) spec))))))
+
+(defn component-references [component]
+  (:refer (component-specification component)))
+
+(defn set-component-references! [component spec]
+  (when-let [clj-spec (component-specification component)]
+    (upsert-component!
+     component
+     (assoc clj-spec :refer spec))))
 
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)

@@ -472,3 +472,30 @@
     (let [rs (cn/find-resolvers :Rc2)]
       (is (= 1 (count (keys rs))))
       (is (every? (partial res? rs) [:R1])))))
+
+(deftest component-definition
+  (component
+   :Cd01
+   {:clj-import '[(:require [fractl.lang.datetime :as dt]
+                          [clojure.java.io :as io])
+                  (:use [fractl.util])]
+    :refer [:Acme.Core]})
+  (entity :Cd01/R {:X :Int})
+  (let [[_ cdef] (cn/component-definition :Cd01)]
+    (is (= '[(:require [fractl.lang.datetime :as dt]
+                       [clojure.java.io :as io])
+             (:use [fractl.util])]
+           (:clj-import cdef)))
+    (is (= [:Acme.Core] (cn/component-references :Cd01)))
+    (is (= {:require '[[fractl.lang.datetime :as dt] [clojure.java.io :as io]],
+            :use '[[fractl.util]]}
+           (cn/component-clj-imports :Cd01)))
+    (cn/set-component-clj-imports!
+     :Cd01
+     {:require '[[java.io :as io] [abc.kk :as kk]]
+      :use '[fractl.util]})
+    (is (= {:require '[[java.io :as io] [abc.kk :as kk]]
+            :use '[fractl.util]}
+           (cn/component-clj-imports :Cd01)))
+    (cn/set-component-references! :Cd01 [:Acme.Core :Accounts.Core])
+    (is (= [:Acme.Core :Accounts.Core] (cn/component-references :Cd01)))))
