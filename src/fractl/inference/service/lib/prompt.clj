@@ -38,25 +38,12 @@ may have the following values:
 
 (def analyze-delimiter "####")
 
-(def hardcoded-information-type "Amazon product review")
-(def hardcoded-user-statement "Analyze given product review for product quality and price.")
-(def hardcoded-output-keys [:ReviewId
-                            :Quality
-                            :Price])
-(def hardcoded-output-key-values
-  "Quality: Either of [Bad, Terrible, Neutral, Good, Excellent]
-Price: Either of [Cheap, Affordable, Neutral, Overpriced, Expensive]")
-
 (defn make-analyze-as-json-prompt
   [{:keys [information-type
            user-statement
            output-keys
            output-keys-values
-           payload]
-    :or {information-type   hardcoded-information-type
-         user-statement     hardcoded-user-statement
-         output-keys        hardcoded-output-keys
-         output-keys-values hardcoded-output-key-values}}]
+           payload] :as arg}]
   (let [system-message (make-system-message (stringer/nrender analyze-as-json-template
                                                               {:information-type  information-type
                                                                :delimiter         analyze-delimiter

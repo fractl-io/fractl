@@ -81,11 +81,10 @@
         (log/error e)
         {:errormsg (.getMessage e)}))))
 
-(defn answer-question-analyze [app-uuid question-text qcontext {:keys [use-docs?
-                                                                       use-schema?]
-                                                                :as   options}]
-  (let [agent-args {:user-statement question-text
-                    :payload        qcontext}]
+(defn answer-question-analyze [app-uuid question-text qcontext options]
+  (let [agent-args (merge {:user-statement question-text
+                           :payload qcontext}
+                          (:config options))]
     (try
       (-> (agent/make-analyzer-agent agent-args)
           (apply [agent-args])
@@ -106,9 +105,13 @@
           qcontext (:QuestionContext instance)
           in-event (when-let [inference-event (first (:inference-event qcontext))]
                      (val inference-event))
+          agent-config (:AgentConfig instance)
           options {:use-schema? (get-in instance [:QuestionOptions :UseSchema])
                    :use-docs? (get-in instance [:QuestionOptions :UseDocs])}
-          response (answer-question-analyze app-uuid question (or qcontext {}) options)]
+          response (if (= :analyzer (:name agent-config))
+                     (answer-question-analyze app-uuid question (or qcontext {})
+                                              (merge options agent-config))
+                     (answer-question app-uuid question (or qcontext {}) options))]
       (assoc instance
              :QuestionContext {} ; empty :QuestionContext to avoid entity-name conflict
              :QuestionResponse (pr-str response)))

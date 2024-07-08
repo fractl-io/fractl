@@ -730,12 +730,12 @@
         p0 (if (string? ins)
              `[:eval (identity ~ins) :as :I]
              `[:eval ~ins :as :I])
-        p1 `[:eval (fractl.inference/run-inference-for-event :I ~inference-name)]]
+        p1 `[:eval (fractl.inference/run-inference-for-event :I ~(:agent spec) ~inference-name)]]
     (cn/register-dataflow inference-name nil [p0 p1])
     inference-name))
 
 (defn inference [inference-name spec-map]
-  (when-let [invalid-keys (seq (set/difference (set (keys spec-map)) #{:instructions}))]
+  (when-let [invalid-keys (seq (set/difference (set (keys spec-map)) #{:instructions :agent}))]
     (u/throw-ex (str "invalid keys " invalid-keys " in inferenece " inference-name)))
   (ensure-event! inference-name)
   (and (register-inference-dataflow inference-name spec-map)

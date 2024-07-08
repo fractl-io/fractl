@@ -40,6 +40,7 @@
      (u/throw-ex "inference cannot run without a question"))
    (let [r0 {:AppUuid (or appid (u/get-app-uuid))
              :ChatUuid (or chatid (u/uuid-string))
+             :AgentConfig (:agent-config context)
              :QuestionOptions {:UseDocs use-docs
                                :UseSchema use-schema}
              :Question question}
@@ -68,5 +69,11 @@
   ([question context] (run-inference nil nil question context))  
   ([request question context] (run-inference nil request question context)))
 
-(defn run-inference-for-event [question event-instance]
-  (run-inference question {:inference-event event-instance}))
+(defn run-inference-for-event [question agent-config event-instance]
+  (let [agent-config (cond
+                       (map? agent-config) agent-config
+                       (li/quoted? agent-config) (second agent-config))]
+    (when (and agent-config (not (map? agent-config)))
+      (u/throw-ex (str "invalid agent config: " agent-config)))
+    (run-inference question {:inference-event event-instance
+                             :agent-config agent-config})))
