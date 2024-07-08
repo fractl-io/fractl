@@ -1,6 +1,6 @@
 (ns fractl.inference.service.lib.agent
   (:require [clojure.set :as set]
-            [fractl.inference.provider.openai :as provider]
+            [fractl.inference.provider :as provider]
             [fractl.inference.service.lib.compose :as compose]
             [fractl.inference.service.lib.prompt :as prompt]
             [fractl.inference.service.lib.output-parser :as output]
@@ -15,10 +15,10 @@
   (compose/chain {:chain-name "DOCS-AGENT"}
                  (fn [m] (set/rename-keys m {:user-question :text-content}))
                  ;; ---
-                 (compose/assok :embedding provider/make-openai-embedding) ; needs :text-content
+                 (compose/assok :embedding provider/get-embedding) ; needs :text-content
                  (compose/assok :all-tools retriever/retrieve-docs) ; needs :app-uuid and embedding
                  (compose/assok :messages  prompt/make-docs-rag-messages)
-                 (compose/assok :answer-text provider/make-openai-completion)
+                 (compose/assok :answer-text provider/get-completion)
                  (fn [m] (select-keys m [:answer-text]))))
 
 ;; [:map
@@ -35,7 +35,7 @@
          :or {max-retries 2}} options
         planner-core (compose/chain {:chain-name "PLANNER-AGENT-CORE"
                                      :max-retries max-retries}
-                                    (compose/assok :answer-text provider/make-openai-completion)
+                                    (compose/assok :answer-text provider/get-completion)
                                     (compose/assok :plantext (compose/applyk output/llm-plan-parser :answer-text))
                                     (let [f (compose/applyk planner/compose-datafow :plantext :all-tools)]
                                       (fn [m] (try
@@ -46,10 +46,10 @@
                    ;;-- classification
                    (fn [m] (assoc m :question (:user-question m)))
                    (compose/assok :messages prompt/make-classify-intent-messages)
-                   (compose/assok :analysis-text provider/make-openai-completion)
+                   (compose/assok :analysis-text provider/get-completion)
                    ;;-- planner
                    (fn [m] (set/rename-keys m {:user-question :text-content})) ; next step needs :text-content
-                   (compose/assok :embedding provider/make-openai-embedding) ; needs :text-content
+                   (compose/assok :embedding provider/get-embedding) ; needs :text-content
                    (compose/assok :all-tools retriever/retrieve-tools) ; needs :app-uuid and embedding
                    (if (:use-docs? options)
                      (compose/assok :all-docs retriever/retrieve-docs)

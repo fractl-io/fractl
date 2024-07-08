@@ -28,5 +28,5 @@
          (reduce (fn [result each]
                    (let [m (edn/read-string each)]
                      (assoc result (:tool-name m)
-                                   (dissoc m :tool-name))))
+                            (dissoc m :tool-name))))
                  {}))))

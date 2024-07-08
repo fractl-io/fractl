@@ -41,13 +41,15 @@
     m))
 
 (defn graphql-handler
-  [component-name query]
-  (let [schema (cn/schema-info component-name)
+  ([component-name query variables]
+   (let [schema (cn/schema-info component-name)
         contains-graph-map (gg/generate-contains-graph schema)
         [uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema contains-graph-map)]
     (let [context {:auth-config nil :core-component component-name :contains-graph contains-graph-map :entity-metas entity-metadatas}
-          result (simplify (execute injected-graphql-schema query nil context))]
+          result (simplify (execute injected-graphql-schema query variables context))]
         (:data result))))
+  ([component-name query]
+   (graphql-handler component-name query nil)))
 
 (defn filter-event-attrs [event]
   "Removes internal attrs from event."
@@ -92,6 +94,13 @@
              :Email {:type :Email}
              :Name :String
              :MemberSince {:type :Date :optional true}})
+
+   (entity :WordCount.Core/Hero
+           {:Id {:type :Int :guid true}
+            :Name :String
+            :HomePlanet :String
+            :Age :Int
+            :ForceSensitive :Boolean})
 
     (entity :WordCount.Core/Profile
             {:Id :Identity
@@ -159,6 +168,11 @@
         user-data {:Id "0e977860-5cd4-4bc3-8323-f4f71a66de6d"
                    :Email "user17@example.com"
                    :Name "John Doe"}
+
+        heroes [{:Id 1 :Name "Luke Skywalker" :HomePlanet "Tatooine" :Age 23 :ForceSensitive true}
+               {:Id 2 :Name "Leia Organa" :HomePlanet "Alderaan" :Age 23 :ForceSensitive true}
+               {:Id 3 :Name "Han Solo" :HomePlanet "Corellia" :Age 32 :ForceSensitive false}
+               {:Id 4 :Name "Chewbacca" :HomePlanet "Kashyyyk" :Age 200 :ForceSensitive false}]
 
         parent-user-data {:Email "user17@example.com"
                          :Name "John Doe"}
@@ -286,6 +300,169 @@
       (let [results (graphql-handler :WordCount.Core query-by-name-pattern)
             result-data  (first (:User results))]
         (is (= (dissoc user-data :Id) result-data))))
+
+    (testing "Multi-Condition Filter Query"
+      (let [multi-condition-query "query getMultiConditionFilteredHeros($filter: HeroFilter) {
+                                      Hero (filter: $filter) {
+                                        Id
+                                        Name
+                                        HomePlanet
+                                        Age
+                                        ForceSensitive
+                                      }
+                                    }"
+            multi-condition-variables
+            {:filter
+             {:and [
+                    {:or [
+                          {:Age {:gte 30 :lt 100}}
+                          {:and [
+                                 {:Age {:gte 20 :lt 30}}
+                                 {:ForceSensitive true}
+                                 ]}
+                          ]}
+                    {:not {:HomePlanet {:eq "Kashyyyk"}}}
+                    {:or [
+                          {:Name {:contains "a"}}
+                          {:HomePlanet {:in ["Tatooine" "Alderaan"]}}
+                          ]}
+                    ]}}]
+
+      (mapv
+        (fn [hero]
+          (tu/fresult
+            (e/eval-all-dataflows
+              (cn/make-instance
+                :WordCount.Core/Create_Hero
+                {:Instance
+                 (cn/make-instance :WordCount.Core/Hero hero)}))))
+        heroes)
+      (let [results (graphql-handler :WordCount.Core multi-condition-query multi-condition-variables)
+            results (:Hero results)]
+        (doseq [[result expected] (map vector results heroes)]
+          (is (= result expected) (str "Mismatch for hero " (:Name expected)))))))
+
+    (testing "Filtered Heroes Query"
+      (let [filtered-heroes-query "query getFilteredHeroes($filter: HeroFilter, $limit: Int, $offset: Int) {
+                                     Hero(filter: $filter, limit: $limit, offset: $offset) {
+                                       Id Name HomePlanet Age ForceSensitive
+                                     }
+                                   }"
+            filtered-heroes-variables {:filter {:and [{:Name {:startsWith "L"}}
+                                                      {:HomePlanet {:contains "oo"}}
+                                                      {:Age {:between [20 30]}}
+                                                      {:ForceSensitive true}]}
+                                       :limit  2
+                                       :offset 0}
+            results (graphql-handler :WordCount.Core filtered-heroes-query filtered-heroes-variables)
+            results (:Hero results)]
+
+        (is (= 1 (count results)) "Filtered heroes query returned wrong number of results")
+          (is (= "Luke Skywalker" (:Name (first results))) "Filtered heroes query returned wrong hero")))
+
+    (testing "Complex Filtered Heroes Query"
+      (let [complex-filter-query "query getComplexFilteredHeros($filter: HeroFilter) {
+              Hero(filter: $filter) {
+                Id Name HomePlanet Age ForceSensitive
+              }
+            }"
+            complex-filter-variables {:filter {:or [{:and [{:HomePlanet {:endsWith "ne"}}
+                                                           {:ForceSensitive true}]}
+                                                    {:and [{:Name {:contains "a"}}
+                                                           {:Age {:gt 30}}]}
+                                                    {:and [{:Age {:gte 100}}
+                                                           {:ForceSensitive false}]}]}}]
+
+        (let [results (graphql-handler :WordCount.Core complex-filter-query complex-filter-variables)
+              results (:Hero results)]
+          (is (= 3 (count results)) "Complex filtered heroes query returned wrong number of results")
+          (is (some #(= "Chewbacca" (:Name %)) results) "Complex filtered heroes query should include Chewbacca")
+          (is (some #(= "Luke Skywalker" (:Name %)) results) "Complex filtered heroes query should include Luke Skywalker"))))
+
+    (testing "Deep Nested Filtered Heroes Query"
+      (let [deep-nested-filter-query "query getDeepNestedFilteredHeros($filter: HeroFilter) {
+              Hero(filter: $filter) {
+                Id Name HomePlanet Age ForceSensitive
+              }
+            }"
+            deep-nested-filter-variables {:filter
+                                          {:and [
+                                                 {:or [
+                                                       {:and [
+                                                              {:not {:Age {:lt 23}}}
+                                                              {:HomePlanet {:eq "Tatooine"}}
+                                                              ]}
+                                                       {:and [
+                                                              {:ForceSensitive true}
+                                                              {:not {:or [
+                                                                          {:Name {:contains "Solo"}}
+                                                                          {:Name {:contains "Chewbacca"}}
+                                                                          ]}}
+                                                              ]}
+                                                       ]}
+                                                 {:or [
+                                                       {:not {:and [
+                                                                    {:Age {:gte 30}}
+                                                                    {:Age {:lte 100}}
+                                                                    ]}}
+                                                       {:HomePlanet {:in ["Alderaan" "Tatooine"]}}
+                                                       ]}
+                                                 ]}}]
+
+        (let [results (graphql-handler :WordCount.Core deep-nested-filter-query deep-nested-filter-variables)
+              results (:Hero results)]
+          (is (= 2 (count results)) "Deep nested filtered heroes query returned wrong number of results")
+          (is (some #(= "Luke Skywalker" (:Name %)) results) "Deep nested filtered heroes query should include Luke Skywalker")
+          (is (some #(= "Leia Organa" (:Name %)) results) "Deep nested filtered heroes query should include Leia Organa"))))
+
+    (testing "Very Complex Filtered Heroes Query"
+      (let [very-complex-filter-query "query getVeryComplexFilteredHeros($filter: HeroFilter) {
+              Hero(filter: $filter) {
+                Id Name HomePlanet Age ForceSensitive
+              }
+            }"
+            very-complex-filter-variables
+            {:filter
+             {:or [
+                   {:and [
+                          {:not {:or [
+                                      {:Age {:lt 20}}
+                                      {:Age {:gt 50}}
+                                      ]}}
+                          {:HomePlanet {:in ["Tatooine" "Alderaan" "Corellia"]}}
+                          {:or [
+                                {:Name {:startsWith "L"}}
+                                {:Name {:endsWith "lo"}}
+                                {:not {:Name {:contains "Chew"}}}
+                                ]}
+                          ]}
+                   {:not {:and [
+                                {:ForceSensitive false}
+                                {:or [
+                                      {:Age {:between [30 50]}}
+                                      {:not {:HomePlanet {:in ["Kashyyyk" "Tatooine"]}}}
+                                      ]}
+                                ]}}
+                   {:and [
+                          {:Age {:gt 100}}
+                          {:not {:or [
+                                      {:Name {:startsWith "L"}}
+                                      {:Name {:endsWith "a"}}
+                                      ]}}
+                          {:or [
+                                {:HomePlanet {:eq "Kashyyyk"}}
+                                {:ForceSensitive false}
+                                ]}
+                          ]}
+                   ]}}]
+
+        (let [results (graphql-handler :WordCount.Core very-complex-filter-query very-complex-filter-variables)
+              results (:Hero results)]
+          (is (= 4 (count results)) "Very complex filtered heroes query returned wrong number of results")
+          (is (some #(= "Luke Skywalker" (:Name %)) results) "Very complex filtered heroes query should include Luke Skywalker")
+          (is (some #(= "Leia Organa" (:Name %)) results) "Very complex filtered heroes query should include Leia Organa")
+          (is (some #(= "Han Solo" (:Name %)) results) "Very complex filtered heroes query should include Han Solo")
+          (is (some #(= "Chewbacca" (:Name %)) results) "Very complex filtered heroes query should include Chewbacca"))))
 
     ;; CREATE AND QUERY CHILD
     (testing "Manually create instances of parent and child entities"

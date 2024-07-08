@@ -82,6 +82,44 @@
     x
     [x]))
 
+(defn apply-comparison [instance field op value]
+  (let [instance-value (get instance field)]
+    (case op
+      :eq (= instance-value value)
+      :ne (not= instance-value value)
+      :gt (> instance-value value)
+      :gte (>= instance-value value)
+      :lt (< instance-value value)
+      :lte (<= instance-value value)
+      :in (contains? (set value) instance-value)
+      :contains (str/includes? (str instance-value) (str value))
+      :startsWith (str/starts-with? (str instance-value) (str value))
+      :endsWith (str/ends-with? (str instance-value) (str value))
+      :between (and (>= instance-value (first value)) (<= instance-value (second value)))
+      :not (not (apply-comparison instance-value field (first (keys value)) (first (vals value))))
+      (= instance-value op))))
+
+(defn apply-filter [instance filter]
+  (if (map? filter)
+    (every? (fn [[k v]]
+              (let [result (case k
+                             :and (every? #(apply-filter instance %) v)
+                             :or (some #(apply-filter instance %) v)
+                             :not (not (apply-filter instance v))
+                             (if (map? v)
+                               (every? #(apply-comparison instance k % (get v %)) (keys v))
+                               (apply-comparison instance k :eq v)))]
+                result))
+            filter)
+    true))
+
+(defn apply-filters [instances filters]
+  (if (nil? filters)
+    instances
+    (if (empty? instances)
+      []
+      (filter #(apply-filter % filters) instances))))
+
 (defn make-auth-event-context [context]
   (let [auth-config (:auth-config context)
         request (:request context)]
@@ -107,19 +145,24 @@
   [entity-name]
   (fn [context args value]
     (let [core-component (:core-component context)
-          args (:attributes args)
-          query-params (append-question-to-keys args)
+          attrs (:attributes args)
+          filters (:filter args)
+          limit (:limit args)
+          offset (or (:offset args) 0)
+          query-params (append-question-to-keys attrs)
           dataflow-query (if (empty? query-params)
                            {(append-question-mark entity-name) {}}
                            {entity-name query-params})]
       (let [results (eval-patterns core-component dataflow-query context)
-            data (if results
-                   (cond
-                     (map? results) [results]
-                     (coll? results) results
-                     :else [])
-                   [])]
-        data))))
+            results (if results
+                      (cond
+                        (map? results) [results]
+                        (coll? results) results
+                        :else [])
+                      [])]
+        (cond->> (apply-filters results filters)
+                 true (drop offset)
+                 limit (take limit))))))
 
 (defn query-parent-children-resolver
   []
@@ -149,7 +192,10 @@
 (defn query-contained-entity-resolver
   [relationship-name parent-name child-name]
   (fn [context args parent-instance]
-    (let [args (:attributes args)
+    (let [attrs (:attributes args)
+          filters (:filter args)
+          limit (:limit args)
+          offset (:offset args 0)
           core-component (:core-component context)
           schema (schema-info core-component)
           parent-guid-attribute (find-guid-or-id-attribute schema parent-name)
@@ -157,12 +203,12 @@
           extracted-parent-name (extract-entity-name parent-name)
           extracted-child-name (extract-entity-name child-name)
           extract-entity-name (extract-entity-name relationship-name)
-          dataflow-result (if (nil? args)
+          dataflow-result (if (nil? attrs)
                             (let [fq (partial pi/as-fully-qualified-path core-component)
                                   all-children-pattern {(form-pattern-name core-component "LookupAll" extracted-child-name)
                                                         {li/path-attr (fq (str "path://" extracted-parent-name "/" parent-id "/" extract-entity-name "/" extracted-child-name "/%"))}}]
                               (eval-patterns core-component all-children-pattern context))
-                            (let [query-params (append-question-to-keys args)
+                            (let [query-params (append-question-to-keys attrs)
                                   dataflow-query [{parent-name
                                                    {(append-question-mark parent-guid-attribute) (parent-guid-attribute parent-instance)}
                                                    :as :Parent}
@@ -175,18 +221,26 @@
                       (coll? dataflow-result) dataflow-result
                       :else [])
                     [])]
-      results)))
+      (cond->> (apply-filters results filters)
+               true (drop offset)
+               limit (take limit)))))
 
 (defn query-between-relationship-resolver
   [relationship-name entity1-name entity2-name]
   (fn [context args value]
-    (let [args (:attributes args)
+    (let [attrs (:attributes args)
+          filters (:filter args)
+          limit (:limit args)
+          offset (:offset args 0)
           core-component (:core-component context)
-          query-params (append-question-to-keys args)
+          query-params (append-question-to-keys attrs)
           query (if (empty? query-params)
                   {(append-question-mark relationship-name) {}}
-                  {relationship-name query-params})]
-      (eval-patterns core-component query context))))
+                  {relationship-name query-params})
+          results (eval-patterns core-component query context)]
+      (cond->> (apply-filters results filters)
+               true (drop offset)
+               limit (take limit)))))
 
 (defn create-entity-resolver
   [entity-name]
