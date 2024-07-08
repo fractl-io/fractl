@@ -5,7 +5,8 @@
             [clojure.string :as s]
             [cheshire.core :as json]
             [instaparse.core :as insta]
-            [instaparse.transform :as instf]))
+            [instaparse.transform :as instf]
+            [fractl.util.logger :as log]))
 
 (defn json-parser [output-text]
   (json/parse-string output-text))
@@ -96,10 +97,12 @@
                    (if (and action-name
                             action-input
                             action-result)
-                     {:action-name   action-name
-                      :action-input  action-input
+                     {:action-name action-name
+                      :action-input action-input
                       :action-result action-result}
-                     (throw (ex-info "Error parsing action name/input/result"
+                     (log/error (str "Error parsing action name/input/result"
                                      {:lines [line-1
                                               line-2
-                                              line-3]})))))))))
+                                              line-3]}))))))
+         (filter map?)
+         (vec))))

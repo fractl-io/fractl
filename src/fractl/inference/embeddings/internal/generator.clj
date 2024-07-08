@@ -1,5 +1,5 @@
 (ns fractl.inference.embeddings.internal.generator
-  (:require [clojure.string :as string]
+  (:require [clojure.string :as s]
             [fractl.util.logger :as log]
             [fractl.component :as cn]
             [fractl.lang :refer :all]
@@ -79,7 +79,7 @@
 (defn transform-data [data-seq]
   (reduce
     (fn [result {:keys [name type]}]
-      (assoc result (keyword name) (keyword (clojure.string/capitalize type))))
+      (assoc result (keyword name) (keyword (s/capitalize type))))
     {}
     data-seq))
 
@@ -112,7 +112,7 @@
      {event-name inner-maps})))
 
 (defn get-key-from-fetch-string [fetch-string]
-  (let [parts (clojure.string/split fetch-string #"By" 2)]
+  (let [parts (s/split fetch-string #"By" 2)]
     (if (> (count parts) 1)
       (second parts)
       "Id")))
@@ -123,7 +123,7 @@
 (defn generate-fetch-strings-key [filtered-keys en coll]
   (cons (str "fetch" (name en))
         (map (fn [k]
-               (if (or (= k :Id) (string/includes? k "Id"))
+               (if (or (= k :Id) (s/includes? k "Id"))
                  (reset! uniqueness false)
                  (reset! uniqueness true))
                (str "fetch"
@@ -147,14 +147,14 @@
                                (when (:required entry)
                                  (:name entry))))
                         (remove nil?)
-                        (string/join " "))]
+                        (s/join " "))]
     (str "Create " (name entity) ". Requires attributes: " attributes)))
 
 (defn generate-returns-string [key attrs coll]
   (when (not (nil? key))
     (str ""
          (when (and coll (not (= :Id (keyword key)))) (str "List of objects with "))
-         "Attributes: " (string/join ", " attrs))))
+         "Attributes: " (s/join ", " attrs))))
 
 (defn generate-df-pattern-entity [entity key]
   [(hash-map entity
@@ -172,7 +172,7 @@
   [(into {} (map (fn [key] {(keyword (name key)) (keyword "params" (name key))}) keys))])
 
 (defn calculate-returns-many [fetch-string]
-  (if (> (count (string/split fetch-string #"By")) 1)
+  (if (> (count (s/split fetch-string #"By")) 1)
     @uniqueness
     false))
 

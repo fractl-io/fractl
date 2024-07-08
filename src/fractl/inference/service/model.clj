@@ -1,24 +1,13 @@
 (ns fractl.inference.service.model
-  (:require [clojure.java.io :as io]
-            [fractl.lang :refer [component
+  (:require [fractl.lang :refer [component
                                  dataflow
                                  entity
                                  event
                                  record
                                  relationship]]
-            [fractl.util :as u])
-  (:import [java.net MalformedURLException]))
+            [fractl.util :as u]))
 
 (component :Fractl.Inference.Service)
-
-(defn url?
-  "Return true if supplied string is a URL, false otherwise."
-  [u]
-  (try
-    (and (io/as-url u)
-         true)
-    (catch MalformedURLException _
-      false)))
 
 (entity
  :Fractl.Inference.Service/DocChunk
@@ -47,13 +36,13 @@
 
 (entity
  :Fractl.Inference.Service/PlannerTool
- {:AppUuid {:type :UUID :default u/uuid-string}
+ {:Id {:type :String :guid true :read-only true :default u/uuid-string}
+  :AppUuid {:type :UUID :default u/uuid-string}
   :ToolName {:type :String :optional true}
   :ToolSpec {:check tool-spec?}
   :Tag :String
   :Type :String
-  :MetaContent :String
-  :Operation :String})
+  :MetaContent :String})
 
 (record
  :Fractl.Inference.Service/QuestionOptions
