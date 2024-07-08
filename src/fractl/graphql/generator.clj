@@ -1,6 +1,8 @@
 (ns fractl.graphql.generator
-  (:require [fractl.util.logger :as log]
-            [clojure.set :as set]))
+  (:require [clojure.string :as str]
+            [fractl.util.logger :as log]
+            [clojure.set :as set]
+            ))
 
 (def query-input-object-name-postfix "QueryAttributes")
 
@@ -40,20 +42,20 @@
   (reset! entity-metas {}))
 
 (def fractlType->graphQL
-  {:String :String
+  {:String   :String
    :DateTime :String
-   :Date :String
+   :Date     :String
    :Password :String
-   :Time :String
-   :UUID :String
-   :Int :Int
-   :Int64 :Int
-   :Float :Float
-   :Double :Float
-   :Boolean :Boolean
-   :Email :String
-   :Map :Object
-   :Any :String
+   :Time     :String
+   :UUID     :String
+   :Int      :Int
+   :Int64    :Int
+   :Float    :Float
+   :Double   :Float
+   :Boolean  :Boolean
+   :Email    :String
+   :Map      :Object
+   :Any      :String
    :Identity :String})
 
 (defn type->GraphQL [type-info]
@@ -61,13 +63,13 @@
                   (string? type-info) (keyword type-info)
                   (keyword? type-info) type-info
                   (map? type-info) (keyword (:type type-info))
-                  :else nil)] ; unsupported type-info
+                  :else nil)]                               ; unsupported type-info
     (if (and type-kw (not (@element-names type-kw)))
       (let [mapped-type (get fractlType->graphQL type-kw)]
         (if mapped-type
           (keyword mapped-type)
-          :String)) ;; default to :String if type not found
-      type-kw))) ;; if a record, keep original
+          :String))                                         ;; default to :String if type not found
+      type-kw)))                                            ;; if a record, keep original
 
 (defn field-type
   ([type-name type-info]
@@ -83,37 +85,37 @@
 
    (field-type type-name type-info false))
   ([type-name type-info enums-enabled?]
-    (letfn [(transform-type [info]
-            (cond
-              (:oneof info)
-              (let [oneof-values (mapv keyword (:oneof info))]
-                (if enums-enabled?
-                  [type-name {:meta {:type :enum :values oneof-values}}]
-                  [:String {:meta {:type :basic}}]))
+   (letfn [(transform-type [info]
+             (cond
+               (:oneof info)
+               (let [oneof-values (mapv keyword (:oneof info))]
+                 (if enums-enabled?
+                   [type-name {:meta {:type :enum :values oneof-values}}]
+                   [:String {:meta {:type :basic}}]))
 
-              (:listof info)
-              (let [listof-type (type->GraphQL (:listof info))]
-                [(list 'list listof-type) {:meta {:type :list :item-type listof-type}}])
+               (:listof info)
+               (let [listof-type (type->GraphQL (:listof info))]
+                 [(list 'list listof-type) {:meta {:type :list :item-type listof-type}}])
 
-              (:setof info)
-              (let [setof-type (type->GraphQL (:setof info))]
-                [(list 'list setof-type) {:meta {:type :set :item-type setof-type}}])
+               (:setof info)
+               (let [setof-type (type->GraphQL (:setof info))]
+                 [(list 'list setof-type) {:meta {:type :set :item-type setof-type}}])
 
-              :else
-              [(type->GraphQL info) {:meta {:type :basic}}]))]
-    ;; parsing type-info to further determine the field type structure
-    (let [parsed-info (transform-type type-info)
-          non-null?   (not (:optional type-info))
-          is-guid?    (or (:guid type-info) (= :Identity type-info))
-          ;; adding GUID metadata if applicable
-          updated-meta (if is-guid?
-                         (assoc-in (second parsed-info) [:meta :guid] true)
-                         (second parsed-info))]
+               :else
+               [(type->GraphQL info) {:meta {:type :basic}}]))]
+     ;; parsing type-info to further determine the field type structure
+     (let [parsed-info (transform-type type-info)
+           non-null? (not (:optional type-info))
+           is-guid? (or (:guid type-info) (= :Identity type-info))
+           ;; adding GUID metadata if applicable
+           updated-meta (if is-guid?
+                          (assoc-in (second parsed-info) [:meta :guid] true)
+                          (second parsed-info))]
 
-      ;; wrapping in 'non-null' if not optional
-      (if non-null?
-        [{:type (list 'non-null (first parsed-info))} updated-meta]
-        [{:type (first parsed-info)} updated-meta])))))
+       ;; wrapping in 'non-null' if not optional
+       (if non-null?
+         [{:type (list 'non-null (first parsed-info))} updated-meta]
+         [{:type (first parsed-info)} updated-meta])))))
 
 (defn strip-irrelevant-attributes [fields]
   "Removes any attributes besides :type"
@@ -142,25 +144,25 @@
   (let [fields (:fields input-map)
         [primary-attr-name _] (find-attribute entity-name @entity-metas :guid :id)]
     (assoc input-map :fields
-           (reduce-kv (fn [acc key val]
-                        (let [type-val (:type val)
-                              is-primary (= key primary-attr-name)
-                              already-non-null? (and (coll? type-val) (= 'non-null (first type-val)))]
-                          (assoc acc key
-                                 (cond
-                                   ;; make primary key non-null if needed
-                                   (and is-primary make-primary-non-null)
-                                   (assoc val :type (if already-non-null? type-val (list 'non-null type-val)))
+                     (reduce-kv (fn [acc key val]
+                                  (let [type-val (:type val)
+                                        is-primary (= key primary-attr-name)
+                                        already-non-null? (and (coll? type-val) (= 'non-null (first type-val)))]
+                                    (assoc acc key
+                                               (cond
+                                                 ;; make primary key non-null if needed
+                                                 (and is-primary make-primary-non-null)
+                                                 (assoc val :type (if already-non-null? type-val (list 'non-null type-val)))
 
-                                   ;; make others optional
-                                   already-non-null?
-                                   (assoc val :type (second type-val))
+                                                 ;; make others optional
+                                                 already-non-null?
+                                                 (assoc val :type (second type-val))
 
-                                   ;; else, leave the field as is
-                                   :else
-                                   val))))
-                      {}
-                      fields))))
+                                                 ;; else, leave the field as is
+                                                 :else
+                                                 val))))
+                                {}
+                                fields))))
 
 (defn build-contains-relationship-graph [edn-input]
   "Returns a map where keys are parent entities and values are list of contained entities.
@@ -195,8 +197,8 @@
   (let [unwrap (fn [val] (if (coll? val) (last val) val))]
     (loop [current-val type-val]
       (if (coll? current-val)
-        (let [next-val (unwrap current-val)] ;; use the unwrap helper to get the next value
-          (recur next-val)) ;; continue with the next value
+        (let [next-val (unwrap current-val)]                ;; use the unwrap helper to get the next value
+          (recur next-val))                                 ;; continue with the next value
         current-val))))
 
 (defn replace-wrapped-type [type-val new-root-type]
@@ -206,29 +208,29 @@
     (loop [current-val type-val]
       (if (coll? current-val)
         (let [next-val (unwrap current-val)]
-          (if (empty? next-val) ;; if we've unwrapped everything, replace the root
+          (if (empty? next-val)                             ;; if we've unwrapped everything, replace the root
             new-root-type
             (recur (replace-last next-val new-root-type))))
-        new-root-type)))) ;; if not a collection, just return the new root type
+        new-root-type))))                                   ;; if not a collection, just return the new root type
 
 (defn append-postfix-to-field-names [input-map postfix remove-wrappers]
   "Appends a postfix to field names if attribute is of entity/record/relationship type. Assumes all fields can be null (non-null isn't present)."
   (let [fields (:fields input-map)]
     (assoc input-map :fields
-           (reduce-kv (fn [acc key val]
-                        ;; determine if we need to append the postfix based on the field's type
-                        (let [type-val (:type val)
-                              type-name (remove-wrapper-functions type-val)
-                              type-info (if remove-wrappers (remove-wrapper-functions type-val) type-val) ;; unwrap to remove list & non-null functions
-                              updated-type-info (if (contains? @element-names type-name)
-                                                  ;; append postfix if type-name is in element-names
-                                                  ;; this should refer to nested input object
-                                                  (replace-wrapped-type type-info (keyword (str (name type-name) postfix)))
-                                                  ;; otherwise, keep the original type name
-                                                  type-info)]
-                          (assoc acc key (assoc val :type updated-type-info))))
-                      {}
-                      fields))))
+                     (reduce-kv (fn [acc key val]
+                                  ;; determine if we need to append the postfix based on the field's type
+                                  (let [type-val (:type val)
+                                        type-name (remove-wrapper-functions type-val)
+                                        type-info (if remove-wrappers (remove-wrapper-functions type-val) type-val) ;; unwrap to remove list & non-null functions
+                                        updated-type-info (if (contains? @element-names type-name)
+                                                            ;; append postfix if type-name is in element-names
+                                                            ;; this should refer to nested input object
+                                                            (replace-wrapped-type type-info (keyword (str (name type-name) postfix)))
+                                                            ;; otherwise, keep the original type name
+                                                            type-info)]
+                                    (assoc acc key (assoc val :type updated-type-info))))
+                                {}
+                                fields))))
 
 (defn update-entity-meta
   ([entity-name]
@@ -295,13 +297,13 @@
 
 (defn entities->GraphQL-schema [entities code-atom]
   (swap! code-atom (fn [_]
-                        (reduce (fn [acc entity]
-                                  (reduce-kv (fn [a entity-name attributes]
-                                               (merge a (process-entity entity-name attributes)))
-                                             acc
-                                             entity))
-                                {}
-                                entities))))
+                     (reduce (fn [acc entity]
+                               (reduce-kv (fn [a entity-name attributes]
+                                            (merge a (process-entity entity-name attributes)))
+                                          acc
+                                          entity))
+                             {}
+                             entities))))
 
 (defn process-relationship [relationship-name body]
   (let [relationship-key (keyword (name relationship-name))
@@ -329,64 +331,69 @@
                assoc
                relationship-key
                {:fields {(keyword (name child-name)) {:type (list 'list child-name)
-                                                                  :args {:attributes
-                                                                         {:type (keyword (str (name child-name) query-input-object-name-postfix))}}}}}))
+                                                      :args {:attributes {:type (keyword (str (name child-name) query-input-object-name-postfix))}
+                                                             :filter      {:type (keyword (str (name child-name) "Filter"))}
+                                                             :limit      {:type :Int}
+                                                             :offset     {:type :Int}}}}}))
 
       (contains? fields :between)
       (let [between-value (:between fields)
-                  ;; split the between-value based on presence of :as to extract entity names and aliases
-                  ;; example between value: (:DocumentName1 :DocumentName2 :as (:Document1 :Document2))
-                  [entities aliases] (if (contains? (set between-value) :as)
-                                       (split-with #(not= % :as) between-value)
-                                       [between-value nil])
-                  [entity1-name entity2-name] entities
-                  alias-pair (when aliases (first (drop 1 aliases)))
-                  [alias1 alias2] (if alias-pair alias-pair [entity1-name entity2-name])
-                  processed-attributes (process-attributes relationship-name (sanitize-attributes (dissoc body :meta)))
-                  entity1-guid-details (find-attribute entity1-name @entity-metas :guid)
-                  entity2-guid-details (find-attribute entity2-name @entity-metas :guid)
-                  entity1-guid-datatype (remove-wrapper-functions (:type (second entity1-guid-details)))
-                  entity2-guid-datatype (remove-wrapper-functions (:type (second entity2-guid-details)))]
-              ;; create a new entity representing between relationship
-              (swap! entities-code
-                     (fn [current-code]
-                       (let [current-fields (:fields (get current-code relationship-key {}))
-                             merged-fields (merge current-fields processed-attributes)
-                             updated-fields (assoc merged-fields alias1 {:type entity1-guid-datatype} alias2 {:type entity2-guid-datatype})]
+            ;; split the between-value based on presence of :as to extract entity names and aliases
+            ;; example between value: (:DocumentName1 :DocumentName2 :as (:Document1 :Document2))
+            [entities aliases] (if (contains? (set between-value) :as)
+                                 (split-with #(not= % :as) between-value)
+                                 [between-value nil])
+            [entity1-name entity2-name] entities
+            alias-pair (when aliases (first (drop 1 aliases)))
+            [alias1 alias2] (if alias-pair alias-pair [entity1-name entity2-name])
+            processed-attributes (process-attributes relationship-name (sanitize-attributes (dissoc body :meta)))
+            entity1-guid-details (find-attribute entity1-name @entity-metas :guid)
+            entity2-guid-details (find-attribute entity2-name @entity-metas :guid)
+            entity1-guid-datatype (remove-wrapper-functions (:type (second entity1-guid-details)))
+            entity2-guid-datatype (remove-wrapper-functions (:type (second entity2-guid-details)))]
+        ;; create a new entity representing between relationship
+        (swap! entities-code
+               (fn [current-code]
+                 (let [current-fields (:fields (get current-code relationship-key {}))
+                       merged-fields (merge current-fields processed-attributes)
+                       updated-fields (assoc merged-fields alias1 {:type entity1-guid-datatype} alias2 {:type entity2-guid-datatype})]
 
-                         (if (empty? processed-attributes)
-                           (do
-                             (update-entity-meta relationship-name)
-                             (update-entity-meta relationship-key alias1 {:type entity1-guid-datatype})
-                             (update-entity-meta relationship-key alias2 {:type entity2-guid-datatype})))
-                         (assoc current-code relationship-key {:fields updated-fields})))))
+                   (if (empty? processed-attributes)
+                     (do
+                       (update-entity-meta relationship-name)
+                       (update-entity-meta relationship-key alias1 {:type entity1-guid-datatype})
+                       (update-entity-meta relationship-key alias2 {:type entity2-guid-datatype})))
+                   (assoc current-code relationship-key {:fields updated-fields})))))
 
-            :else
-            (log/warn (str "Warning: unexpected relationships keys - relationship name: " relationship-name "relationship body: " body)))))
+      :else
+      (log/warn (str "Warning: unexpected relationships keys - relationship name: " relationship-name "relationship body: " body)))))
 
 (defn relationships->GraphQL-schema [entities code-atom]
   (swap! code-atom (fn [_]
-                        (reduce (fn [acc entity]
-                                  (reduce-kv (fn [a name body]
-                                               (merge a (process-relationship name body)))
-                                             acc
-                                             entity))
-                                {}
-                                entities))))
+                     (reduce (fn [acc entity]
+                               (reduce-kv (fn [a name body]
+                                            (merge a (process-relationship name body)))
+                                          acc
+                                          entity))
+                             {}
+                             entities))))
 
 (defn generate-queries [entities]
   (let [fields (reduce-kv (fn [acc k v]
                             (assoc acc k {:type (list 'list k)
-                                          :args {:attributes {:type (keyword (str (name k) query-input-object-name-postfix))}}}))
+                                          :args {:attributes {:type (keyword (str (name k) query-input-object-name-postfix))}
+                                                 :filter     {:type (keyword (str (name k) "Filter"))}
+                                                 :limit      {:type :Int}
+                                                 :offset     {:type :Int}}}))
                           {} entities)]
     {:Query {:fields fields}}))
 
 (defn generate-query-input-objects [entities-records]
   (let [input-objects (reduce-kv (fn [acc k v]
                                    (assoc acc
-                                          (keyword (str (name k) query-input-object-name-postfix))
-                                          ;; making fields optional to allow user query using any attribute
-                                          {:fields (strip-irrelevant-attributes (:fields (append-postfix-to-field-names (make-graphql-fields-optional k v false) query-input-object-name-postfix true)))}))
+                                     (keyword (str (name k) query-input-object-name-postfix))
+                                     ;; making fields optional to allow user query using any attribute
+                                     {:fields (strip-irrelevant-attributes (:fields (append-postfix-to-field-names (make-graphql-fields-optional k v false) query-input-object-name-postfix true)))}))
                                  {}
                                  entities-records)]
     input-objects))
@@ -399,8 +406,8 @@
                                               (make-graphql-fields-optional k v keep-primary-non-null)
                                               v)
                                 fields-modified (append-postfix-to-field-names processed-v
-                                                                                (str mutation-type mutation-input-object-name-postfix)
-                                                                                false)]
+                                                                               (str mutation-type mutation-input-object-name-postfix)
+                                                                               false)]
                             (assoc acc
                               (keyword (str (name k) (str mutation-type mutation-input-object-name-postfix)))
                               {:fields (strip-irrelevant-attributes (:fields fields-modified))})))
@@ -416,8 +423,8 @@
                                          (list 'list k)
                                          k)]
                               (assoc acc (keyword (str mutation-type (name k)))
-                                     {:type type
-                                      :args {:input {:type mutation-input-object-name}}})))
+                                         {:type type
+                                          :args {:input {:type mutation-input-object-name}}})))
                           {}
                           entities)]
     {:Mutation {:fields mutation-fields}}))
@@ -467,13 +474,13 @@
 
 (defn normalize-schema [element]
   (cond
-    (map? element) ;; recursively normalize its keys and values
+    (map? element)                                          ;; recursively normalize its keys and values
     (into {} (map (fn [[k v]] [(normalize-schema k) (normalize-schema v)]) element))
 
-    (keyword? element) ;; convert namespaced keyword to non-namespaced keyword
+    (keyword? element)                                      ;; convert namespaced keyword to non-namespaced keyword
     (keyword (name element))
 
-    (coll? element) ;; normalize elements
+    (coll? element)                                         ;; normalize elements
     (map normalize-schema element)
 
     :else
@@ -534,9 +541,56 @@
        relationships))
 
 (defn preprocess-schema-info [schema-info]
-      (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))
-            schema-info (normalize-schema schema-info)]
-           schema-info))
+  (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))
+        schema-info (normalize-schema schema-info)]
+    schema-info))
+
+(def filter-input-objects
+  {:StringComparison
+   {:fields
+    {:eq         {:type :String}
+     :ne         {:type :String}
+     :in         {:type '(list String)}
+     :contains   {:type :String}
+     :startsWith {:type :String}
+     :endsWith   {:type :String}}}
+
+   :IntComparison
+   {:fields
+    {:eq      {:type :Int}
+     :ne      {:type :Int}
+     :gt      {:type :Int}
+     :gte     {:type :Int}
+     :lt      {:type :Int}
+     :lte     {:type :Int}
+     :in      {:type '(list Int)}
+     :between {:type '(list Int)}}}})
+
+(defn generate-filter-map [entity-name attributes]
+  (let [filter-name (keyword (str (name entity-name) "Filter"))
+        filter-fields (into {:and {:type (list 'list filter-name)}
+                             :or  {:type (list 'list filter-name)}
+                             :not {:type filter-name}}
+                            (comp
+                              (remove (fn [[field-name _]]
+                                        (contains? @element-names field-name)))
+                              (map (fn [[field-name {:keys [type]}]]
+                                     (let [base-type (if (list? type) (second type) type)]
+                                       [(keyword (name field-name))
+                                        {:type (if (= base-type :Boolean)
+                                                 :Boolean
+                                                 (keyword (str (name base-type) "Comparison")))}]))))
+                            attributes)]
+    {filter-name {:fields filter-fields}}))
+
+(defn generate-entity-filter-input-objects [entities]
+  (reduce (fn [acc [entity-name entity-spec]]
+            (merge acc (generate-filter-map entity-name (:fields entity-spec))))
+          {}
+          entities))
+
+(defn get-filter-input-objects []
+  (merge filter-input-objects (generate-entity-filter-input-objects @entities-code)))
 
 (defn generate-graphql-schema-code [schema-info]
   (let [data (preprocess-schema-info schema-info)
@@ -565,14 +619,14 @@
           create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" true false)
           update-mutation-input-objects (generate-mutation-input-objects combined-objects "Update" true false)
           delete-mutation-input-objects (generate-mutation-input-objects combined-objects "Delete" true false)
-          input-objects (merge query-input-objects create-mutation-input-objects update-mutation-input-objects delete-mutation-input-objects)]
-      (let [initial-schema {:objects (merge {:Query (:Query queries)
-                                              :Mutation (:Mutation (merge-mutations create-mutations update-mutations delete-mutations))
-                                              :Subscription {}} combined-objects)
-                             :enums @enums-code
-                             :input-objects input-objects}
-              schema (remove-empty-graphql-constructs initial-schema)]
-          [schema @entity-metas]))))
+          input-objects (merge (get-filter-input-objects) query-input-objects create-mutation-input-objects update-mutation-input-objects delete-mutation-input-objects)]
+      (let [initial-schema {:objects       (merge {:Query        (:Query queries)
+                                                   :Mutation     (:Mutation (merge-mutations create-mutations update-mutations delete-mutations))
+                                                   :Subscription {}} combined-objects)
+                            :enums         @enums-code
+                            :input-objects input-objects}
+            schema (remove-empty-graphql-constructs initial-schema)]
+        [schema @entity-metas]))))
 
 (defn generate-graphql-schema [schema-info]
   (try
