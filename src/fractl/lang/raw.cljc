@@ -16,17 +16,33 @@
      (when (pubs/publish-schema?)
        (pubs/publish-event {:operation :delete :tag tag :type record-name}))))
 
+(defn- process-component-spec [spec]
+  (if-let [clj-imps (:clj-import spec)]
+    (if-not (= 'quote (first clj-imps))
+      (assoc spec :clj-import `(~'quote ~clj-imps))
+      spec)
+    spec))
+
 (defn component [component-name spec]
-  (let [s @raw-store, cdef (get s component-name '())
-        cspec (concat `(~'component ~component-name) (when spec [spec]))
+  (let [cdef (get @raw-store component-name '())
+        cspec (concat `(~'component ~component-name) (when spec [(process-component-spec spec)]))
         new-cdef (conj (rest cdef) cspec)]
-    (u/safe-set raw-store (assoc s component-name new-cdef))
+    (u/safe-set raw-store (assoc @raw-store component-name new-cdef))
     (maybe-publish-add-definition 'component component-name spec)
     component-name))
 
 (defn intern-component [component-name defs]
   (u/safe-set raw-store (assoc @raw-store component-name (seq defs)))
   component-name)
+
+(defn update-component-spec! [component-name spec-key spec]
+  (when-let [cdef (get @raw-store component-name)]
+    (let [cn (first cdef)
+          [_ _ cspec] cn
+          new-cspec (process-component-spec (assoc cspec spec-key spec))
+          new-cdef (conj (rest cdef) `(~'component ~component-name ~new-cspec))]
+      (u/safe-set raw-store (assoc @raw-store component-name new-cdef))
+      component-name)))
 
 (defn- infer-component-name [defs]
   (when (seqable? defs)
