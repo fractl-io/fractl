@@ -186,7 +186,7 @@
     (let [q? (= 'quote (first spec)) ; cljs can may quote the list
           spec (if q? (second spec) spec)
           clj-spec-0 (vec (mapv (fn [[k v]] `(~k ~@v)) spec))
-          clj-spec (if q? `(~'quote ~@clj-spec-0) clj-spec-0)]
+          clj-spec (if q? `(~'quote ~clj-spec-0) clj-spec-0)]
       (raw/update-component-spec! component :clj-import clj-spec)
       (upsert-component!
        component
