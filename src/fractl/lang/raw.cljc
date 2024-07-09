@@ -17,16 +17,25 @@
        (pubs/publish-event {:operation :delete :tag tag :type record-name}))))
 
 (defn component [component-name spec]
-  (let [s @raw-store, cdef (get s component-name '())
+  (let [cdef (get @raw-store component-name '())
         cspec (concat `(~'component ~component-name) (when spec [spec]))
         new-cdef (conj (rest cdef) cspec)]
-    (u/safe-set raw-store (assoc s component-name new-cdef))
+    (u/safe-set raw-store (assoc @raw-store component-name new-cdef))
     (maybe-publish-add-definition 'component component-name spec)
     component-name))
 
 (defn intern-component [component-name defs]
   (u/safe-set raw-store (assoc @raw-store component-name (seq defs)))
   component-name)
+
+(defn update-component-spec! [component-name spec-key spec]
+  (when-let [cdef (get @raw-store component-name)]
+    (let [cn (first cdef)
+          [_ _ cspec] cn
+          new-cspec (assoc cspec spec-key spec)
+          new-cdef (conj (rest cdef) `(~'component ~component-name ~new-cspec))]
+      (u/safe-set raw-store (assoc @raw-store component-name new-cdef))
+      component-name)))
 
 (defn- infer-component-name [defs]
   (when (seqable? defs)

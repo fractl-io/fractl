@@ -182,20 +182,23 @@
     (into {} (mapv (fn [xs] [(first xs) (vec (rest xs))]) imps))))
 
 (defn set-component-clj-imports! [component spec]
-  (when-let [clj-spec (component-specification component)]
-    (upsert-component!
-     component
-     (assoc clj-spec :clj-import (vec (mapv (fn [[k v]] `(~k ~@v)) spec))))
+  (when-let [old-spec (component-specification component)]
+    (let [clj-spec (vec (mapv (fn [[k v]] `(~k ~@v)) spec))]
+      (raw/update-component-spec! component :clj-import clj-spec)
+      (upsert-component!
+       component
+       (assoc old-spec :clj-import clj-spec)))
     component))
 
 (defn component-references [component]
   (:refer (component-specification component)))
 
 (defn set-component-references! [component spec]
-  (when-let [clj-spec (component-specification component)]
+  (when-let [old-spec (component-specification component)]
+    (raw/update-component-spec! component :refer spec)
     (upsert-component!
      component
-     (assoc clj-spec :refer spec))
+     (assoc old-spec :refer spec))
     component))
 
 (defn extract-alias-of-component [component alias-entry]
