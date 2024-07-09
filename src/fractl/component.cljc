@@ -179,7 +179,8 @@
 
 (defn component-clj-imports [component]
   (when-let [imps (seq (:clj-import (component-specification component)))]
-    (into {} (mapv (fn [xs] [(first xs) (vec (rest xs))]) imps))))
+    (let [imps (if (= 'quote (first imps)) (second imps) imps)] ; check for quote literal in cljs
+      (into {} (mapv (fn [xs] [(first xs) (vec (rest xs))]) imps)))))
 
 (defn set-component-clj-imports! [component spec]
   (when-let [old-spec (component-specification component)]
