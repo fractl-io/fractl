@@ -185,7 +185,8 @@
   (when-let [clj-spec (component-specification component)]
     (upsert-component!
      component
-     (assoc clj-spec :clj-import (vec (mapv (fn [[k v]] `(~k ~@v)) spec))))))
+     (assoc clj-spec :clj-import (vec (mapv (fn [[k v]] `(~k ~@v)) spec))))
+    component))
 
 (defn component-references [component]
   (:refer (component-specification component)))
@@ -194,7 +195,8 @@
   (when-let [clj-spec (component-specification component)]
     (upsert-component!
      component
-     (assoc clj-spec :refer spec))))
+     (assoc clj-spec :refer spec))
+    component))
 
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)
