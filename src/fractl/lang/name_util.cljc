@@ -178,6 +178,7 @@
    'event fq-preproc-record-def
    'relationship fq-preproc-record-def
    'inference fq-preproc-record-def
+   'agent fq-preproc-record-def
    'rule fq-preproc-rule-def
    'dataflow fq-preproc-dataflow-def
    'resolver fq-preproc-record-def})

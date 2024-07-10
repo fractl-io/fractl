@@ -137,6 +137,7 @@
 (def find-event (partial find-defspec 'event))
 (def find-rule (partial find-defspec 'rule))
 (def find-inference (partial find-defspec 'inference))
+(def find-agent (partial find-defspec 'agent))
 (def find-resolver (partial find-defspec 'resolver))
 
 (defn find-attribute [n]
@@ -174,6 +175,7 @@
 (def dataflow (partial add-definition 'dataflow))
 (def rule (partial add-definition 'rule))
 (def inference (partial add-definition 'inference))
+(def agent (partial add-definition 'agent))
 (def resolver (partial add-definition 'resolver))
 
 (defn remove-component [cname]
@@ -193,6 +195,7 @@
 (def remove-dataflow (partial remove-definition 'dataflow))
 (def remove-rule (partial remove-definition 'rule))
 (def remove-inference (partial remove-definition 'inference))
+(def remove-agent (partial remove-definition 'agent))
 (def remove-resolver (partial remove-definition 'resolver))
 
 (defn remove-event [event-name]
@@ -211,6 +214,7 @@
     :record (remove-record record-name)
     :rule (remove-rule record-name)
     :inference (remove-inference record-name)
+    :agent (remove-agent record-name)
     :resolver (remove-resolver record-name)
     :attribute (remove-attribute record-name)))
 
@@ -228,6 +232,7 @@
 (def fetch-all-dataflows (partial fetch-all-defs 'dataflow))
 (def fetch-all-rules (partial fetch-all-defs 'rule))
 (def fetch-all-inferences (partial fetch-all-defs 'inference))
+(def fetch-all-agents (partial fetch-all-defs 'agent))
 (def fetch-all-resolvers (partial fetch-all-defs 'resolver))
 
 (defn record-attributes-include-inherits [entity-name]

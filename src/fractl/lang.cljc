@@ -734,14 +734,43 @@
     (cn/register-dataflow inference-name nil [p0 p1])
     inference-name))
 
+(defn- ensure-spec-keys! [tag label expected-keys spec-keys]
+  (when-let [invalid-keys (seq (set/difference (set spec-keys) expected-keys))]
+    (u/throw-ex (str "invalid keys " invalid-keys " in " tag " " label)))
+  spec-keys)
+
+(defn- normalize-inference-spec [spec]
+  (if-let [agent (cn/find-agent (:agent spec))]
+    (if (= :analyzer (:type agent))
+      (let [out-type (:output agent)
+            out-scm (cn/ensure-schema out-type)
+            out-keys (vec (cn/user-attribute-names out-scm))
+            agent-spec {:name (:type agent)
+                        :config {:result-entity out-type
+                                 :information-type (:label agent)
+                                 :output-keys out-keys
+                                 :output-key-values (cn/schema-as-string out-scm)}}]
+        (assoc spec :agent `[:q# ~agent-spec]))
+      spec) ; try to use the default ai-provider.
+    spec))
+
 (defn inference [inference-name spec-map]
-  (when-let [invalid-keys (seq (set/difference (set (keys spec-map)) #{:instructions :agent}))]
-    (u/throw-ex (str "invalid keys " invalid-keys " in inferenece " inference-name)))
+  (ensure-spec-keys! 'inference inference-name
+                     #{:instructions :agent} (keys spec-map))
   (ensure-event! inference-name)
-  (and (register-inference-dataflow inference-name spec-map)
-       (cn/register-inference inference-name spec-map)
-       (raw/inference inference-name spec-map)
-       inference-name))
+  (let [norm-spec (normalize-inference-spec spec-map)]
+    (and (register-inference-dataflow inference-name norm-spec)
+         (cn/register-inference inference-name norm-spec)
+         (raw/inference inference-name spec-map)
+         inference-name)))
+
+(defn agent [agent-name agent-spec]
+  (ensure-spec-keys! 'agent agent-name
+                     #{:type :label :llm :tools :docs :seed :input :output}
+                     (keys agent-spec))
+  (and (cn/register-agent agent-name agent-spec)
+       (raw/agent agent-name agent-spec)
+       agent-name))
 
 (def ^:private crud-evname cn/crud-event-name)
 
