@@ -748,8 +748,10 @@
             agent-spec {:name (:type agent)
                         :config {:result-entity out-type
                                  :information-type (:label agent)
-                                 :output-keys out-keys
-                                 :output-key-values (cn/schema-as-string out-scm)}}]
+                                 :provider (:llm agent)
+                                 :output-keys (or (:output-attributes agent) out-keys)
+                                 :output-key-values (or (:output-attribute-values agent)
+                                                        (cn/schema-as-string out-scm))}}]
         (assoc spec :agent `[:q# ~agent-spec]))
       spec) ; try to use the default ai-provider.
     spec))
@@ -766,7 +768,9 @@
 
 (defn agent [agent-name agent-spec]
   (ensure-spec-keys! 'agent agent-name
-                     #{:type :label :llm :tools :docs :seed :input :output}
+                     #{:type :label :llm :tools :docs
+                       :seed :input :output :output-attributes
+                       :output-attribute-values}
                      (keys agent-spec))
   (and (cn/register-agent agent-name agent-spec)
        (raw/agent agent-name agent-spec)

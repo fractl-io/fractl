@@ -6,6 +6,7 @@
             [fractl.evaluator :as ev]
             [fractl.component :as cn]
             [fractl.util :as u]
+            [fractl.inference.provider :as provider]
             [fractl.inference.provider.openai]
             #?(:clj [fractl.util.logger :as log]
                :cljs [fractl.util.jslogger :as log])
@@ -49,9 +50,10 @@
          req {:Fractl.Inference.Service/Question r}
          out (if mock-ai
                [{:result [req]}]
-               (ev/eval-all-dataflows
-                {:Fractl.Inference.Service/Create_Question
-                 {:Instance req}}))
+               (binding [provider/current-provider (get-in context [:agent-config :config :provider])]
+                 (ev/eval-all-dataflows
+                  {:Fractl.Inference.Service/Create_Question
+                   {:Instance req}})))
          result (-> out
                     first
                     :result
