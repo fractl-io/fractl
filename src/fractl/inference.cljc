@@ -6,11 +6,10 @@
             [fractl.evaluator :as ev]
             [fractl.component :as cn]
             [fractl.util :as u]
-            [fractl.inference.provider :as provider]
-            [fractl.inference.provider.openai]
             #?(:clj [fractl.util.logger :as log]
                :cljs [fractl.util.jslogger :as log])
-            [fractl.util.http :as uh]))
+            [fractl.util.http :as uh]
+            [fractl.inference.service.core :as inference]))
 
 (defn as-vec [x]
   (if (vector? x)
@@ -48,12 +47,10 @@
          r (if context (assoc r0 :QuestionContext context) r0)
          is-review-mode (when (map? context) (get-in context [:EventContext :evaluate-inferred-patterns]))
          req {:Fractl.Inference.Service/Question r}
+         provider (get-in context [:agent-config :config :provider])
          out (if mock-ai
                [{:result [req]}]
-               (binding [provider/current-provider (get-in context [:agent-config :config :provider])]
-                 (ev/eval-all-dataflows
-                  {:Fractl.Inference.Service/Create_Question
-                   {:Instance req}})))
+               (inference/post-question provider req))
          result (-> out
                     first
                     :result
