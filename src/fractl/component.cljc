@@ -2295,12 +2295,6 @@
   construct-name)
 
 (def register-inference (partial register-llm-construct :inferences))
-(def register-agent (partial register-llm-construct :agents))
-
-(defn find-agent [agent-name]
-  (let [[component n] (li/split-path agent-name)
-        path [component :agents n]]
-    (get-in @components path)))
 
 (defn docstring [n]
   (:doc (fetch-meta n)))

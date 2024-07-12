@@ -740,20 +740,19 @@
   spec-keys)
 
 (defn- normalize-inference-spec [spec]
-  (if-let [agent (cn/find-agent (:agent spec))]
-    (if (= :analyzer (:type agent))
+  (if-let [agent (:agent spec)]
+    (if-not (:planner agent)
       (let [out-type (:output agent)
             out-scm (cn/ensure-schema out-type)
             out-keys (vec (cn/user-attribute-names out-scm))
-            agent-spec {:name (:type agent)
-                        :config {:result-entity out-type
-                                 :information-type (:label agent)
+            agent-spec {:config {:result-entity out-type
+                                 :information-type (:comment agent)
                                  :provider (:llm agent)
                                  :output-keys (or (:output-attributes agent) out-keys)
                                  :output-key-values (or (:output-attribute-values agent)
                                                         (cn/schema-as-string out-scm))}}]
         (assoc spec :agent `[:q# ~agent-spec]))
-      spec) ; try to use the default ai-provider.
+      spec) ; TODO: parse planner spec, currently use default planner.
     spec))
 
 (defn inference [inference-name spec-map]
@@ -765,16 +764,6 @@
          (cn/register-inference inference-name norm-spec)
          (raw/inference inference-name spec-map)
          inference-name)))
-
-(defn agent [agent-name agent-spec]
-  (ensure-spec-keys! 'agent agent-name
-                     #{:type :label :llm :tools :docs
-                       :seed :input :output :output-attributes
-                       :output-attribute-values}
-                     (keys agent-spec))
-  (and (cn/register-agent agent-name agent-spec)
-       (raw/agent agent-name agent-spec)
-       agent-name))
 
 (def ^:private crud-evname cn/crud-event-name)
 

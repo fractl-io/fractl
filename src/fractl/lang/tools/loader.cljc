@@ -44,7 +44,7 @@
              result)
 
            (entity record event rule dataflow relationship
-                   view attribute inference resolver agent)
+                   view attribute inference resolver)
            (assoc
             result :records
             (conj
@@ -285,7 +285,6 @@
                        'rule 'ln/rule
                        'relationship ln/relationship
                        'inference ln/inference
-                       'agent ln/agent
                        'dataflow ln/dataflow
                        'resolver ln/resolver})
 
