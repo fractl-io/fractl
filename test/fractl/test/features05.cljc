@@ -499,3 +499,37 @@
            (cn/component-clj-imports :Cd01)))
     (cn/set-component-references! :Cd01 [:Acme.Core :Accounts.Core])
     (is (= [:Acme.Core :Accounts.Core] (cn/component-references :Cd01)))))
+
+(deftest fns-in-raw
+  (component :Fir)
+  (entity :Fir/E {:X :Int})
+  (event :Fir/Evt {:X :Int})
+  (is (= '(do
+            (component :Fir)
+            (entity :Fir/E {:X :Int})
+            (event :Fir/Evt {:X :Int}))
+         (lr/as-edn :Fir)))
+  (lr/create-function :Fir 'compute-x '[event-x] '(* event-x 10))
+  (is (= '(do
+            (component :Fir)
+            (entity :Fir/E {:X :Int})
+            (event :Fir/Evt {:X :Int})
+            (defn compute-x [event-x] (* event-x 10)))
+         (lr/as-edn :Fir)))
+  (dataflow :Fir/Evt {:Fir/E {:X '(compute-x :Fir/Evt.X)}})
+  (is (= '(do
+            (component :Fir)
+            (entity :Fir/E {:X :Int})
+            (event :Fir/Evt {:X :Int})
+            (defn compute-x [event-x] (* event-x 10))
+            (dataflow :Fir/Evt #:Fir{:E {:X '(compute-x :Fir/Evt.X)}}))
+         (lr/as-edn :Fir)))
+  (is (= '[event-x] (lr/get-function-params :Fir 'compute-x)))
+  (is (= '(* event-x 10) (lr/get-function-body :Fir 'compute-x)))
+  (lr/delete-function :Fir 'compute-x)
+  (is (= '(do
+            (component :Fir)
+            (entity :Fir/E {:X :Int})
+            (event :Fir/Evt {:X :Int})
+            (dataflow :Fir/Evt #:Fir{:E {:X '(compute-x :Fir/Evt.X)}}))
+         (lr/as-edn :Fir))))

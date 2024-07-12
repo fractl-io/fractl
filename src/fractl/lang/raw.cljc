@@ -35,6 +35,47 @@
   (u/safe-set raw-store (assoc @raw-store component-name (seq defs)))
   component-name)
 
+(defn update-component-defs [component-name f]
+  (u/call-and-set
+   raw-store
+   #(let [rs @raw-store]
+      (if-let [cdef (get rs component-name)]
+        (assoc rs component-name (f cdef))
+        rs)))
+  component-name)
+
+(defn append-to-component [component-name definition]
+  (update-component-defs component-name #(concat % [definition])))
+
+(defn remove-from-component [component-name predic]
+  (update-component-defs component-name #(filter (complement predic) %)))
+
+(defn find-in-component [component-name predic]
+  (when-let [cdef (get @raw-store component-name)]
+    (filter predic cdef)))
+
+(defn create-function [component-name function-name params-vector body]
+  (when-not (symbol? function-name)
+    (u/throw-ex (str "invalid function name: " function-name)))
+  (when-not (vector? params-vector)
+    (u/throw-ex (str "not a vector: " params-vector)))
+  (append-to-component component-name `(~'defn ~function-name ~params-vector ~body)))
+
+(defn- clj-def? [tag n x]
+  (and (seqable? x) (= (first x) tag) (= (second x) n)))
+
+(defn delete-function [component-name function-name]
+  (remove-from-component component-name (partial clj-def? 'defn function-name)))
+
+(defn- find-defn [component-name function-name]
+  (first (find-in-component component-name (partial clj-def? 'defn function-name))))
+
+(defn get-function-params [component-name function-name]
+  (nth (find-defn component-name function-name) 2))
+
+(defn get-function-body [component-name function-name]
+  (nth (find-defn component-name function-name) 3))
+
 (defn update-component-spec! [component-name spec-key spec]
   (when-let [cdef (get @raw-store component-name)]
     (let [cn (first cdef)
