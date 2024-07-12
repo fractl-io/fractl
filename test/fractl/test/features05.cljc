@@ -526,6 +526,14 @@
          (lr/as-edn :Fir)))
   (is (= '[event-x] (lr/get-function-params :Fir 'compute-x)))
   (is (= '(* event-x 10) (lr/get-function-body :Fir 'compute-x)))
+  (lr/update-function :Fir 'compute-x '[x] '(- x 100))
+  (is (= '(do
+            (component :Fir)
+            (entity :Fir/E {:X :Int})
+            (event :Fir/Evt {:X :Int})
+            (defn compute-x [x] (- x 100))
+            (dataflow :Fir/Evt #:Fir{:E {:X '(compute-x :Fir/Evt.X)}}))
+         (lr/as-edn :Fir)))
   (lr/delete-function :Fir 'compute-x)
   (is (= '(do
             (component :Fir)
