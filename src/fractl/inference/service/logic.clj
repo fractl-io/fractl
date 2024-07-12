@@ -108,7 +108,7 @@
           agent-config (:AgentConfig instance)
           options {:use-schema? (get-in instance [:QuestionOptions :UseSchema])
                    :use-docs? (get-in instance [:QuestionOptions :UseDocs])}
-          response (if-not (:is-planner? agent-config)
+          response (if-not (:is-planner? (:config agent-config))
                      (answer-question-analyze app-uuid question (or qcontext {})
                                               (merge options agent-config))
                      (answer-question app-uuid question (or qcontext {}) options))]

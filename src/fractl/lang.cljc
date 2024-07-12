@@ -752,7 +752,11 @@
                                  :output-key-values (or (:output-attribute-values agent)
                                                         (cn/schema-as-string out-scm))}}]
         (assoc spec :agent `[:q# ~agent-spec]))
-      spec) ; TODO: parse planner spec, currently use default planner.
+      (assoc spec :agent
+             [:q#
+              {:config
+               {:is-planner? true
+                :provider (:llm agent)}}])) ; TODO: handle more planner options.
     spec))
 
 (defn inference [inference-name spec-map]

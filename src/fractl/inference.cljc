@@ -44,7 +44,11 @@
              :QuestionOptions {:UseDocs use-docs
                                :UseSchema use-schema}
              :Question question}
-         r (if context (assoc r0 :QuestionContext context) r0)
+         is-planner (get-in context [:agent-config :config :is-planner?])
+         r (if context
+             (assoc r0 :QuestionContext
+                    (if is-planner (dissoc context :agent-config) context))
+               r0)
          is-review-mode (when (map? context) (get-in context [:EventContext :evaluate-inferred-patterns]))
          req {:Fractl.Inference.Service/Question r}
          provider (get-in context [:agent-config :config :provider])
