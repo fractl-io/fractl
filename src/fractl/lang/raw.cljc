@@ -68,8 +68,11 @@
       (assoc rs component-name new-cdef)))
   component-name)
 
-(defn- tagged-expr? [tag n x]
-  (and (seqable? x) (= (first x) tag) (= (second x) n)))
+(defn- tagged-expr?
+  ([tag n x]
+   (and (seqable? x) (= (first x) tag) (= (second x) n)))
+  ([tag x]
+   (and (seqable? x) (= (first x) tag))))
 
 (def ^:private clj-defn? (partial tagged-expr? 'defn))
 (def ^:private clj-def? (partial tagged-expr? 'def))
@@ -104,6 +107,10 @@
 
 (defn get-function-body [component-name function-name]
   (nth (find-defn component-name function-name) 3))
+
+(defn get-function-names [component-name]
+  (when-let [cdef (get @raw-store component-name)]
+    (mapv second (filter clj-defn? cdef))))
 
 (defn create-definition [component-name varname expr]
   (when-not (symbol? varname)

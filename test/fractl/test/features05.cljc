@@ -534,10 +534,12 @@
             (defn compute-x [x] (- x 100))
             (dataflow :Fir/Evt #:Fir{:E {:X '(compute-x :Fir/Evt.X)}}))
          (lr/as-edn :Fir)))
+  (is (= '[compute-x] (lr/get-function-names :Fir)))
   (lr/delete-function :Fir 'compute-x)
   (is (= '(do
             (component :Fir)
             (entity :Fir/E {:X :Int})
             (event :Fir/Evt {:X :Int})
             (dataflow :Fir/Evt #:Fir{:E {:X '(compute-x :Fir/Evt.X)}}))
-         (lr/as-edn :Fir))))
+         (lr/as-edn :Fir)))
+  (is (nil? (seq (lr/get-function-names :Fir)))))
