@@ -277,16 +277,23 @@
          ~entity-name
          {:meta {:corrupt true, :type ~t}}))
 
-     (def call-intern {'component ln/component
-                       'record ln/record
-                       'entity ln/entity
-                       'event ln/event
-                       'view ln/view
-                       'rule 'ln/rule
-                       'relationship ln/relationship
-                       'inference ln/inference
-                       'dataflow ln/dataflow
-                       'resolver ln/resolver})
+     (def intern-fns {'component ln/component
+                      'record ln/record
+                      'entity ln/entity
+                      'event ln/event
+                      'view ln/view
+                      'rule 'ln/rule
+                      'relationship ln/relationship
+                      'inference ln/inference
+                      'dataflow ln/dataflow
+                      'resolver ln/resolver})
+
+     (defn maybe-def-expr [exp]
+       (when (seqable? exp)
+         (let [tag (first exp)]
+           (case tag
+             defn [:defn (second exp) [(nth exp 2) (nth exp 3)]]
+             def [:def (second exp) (nth exp 2)]))))
 
      (defn intern-component [component-spec]
        (let [component-spec (if (= 'do (first component-spec))
@@ -298,13 +305,17 @@
                      (u/throw-ex (str "expected a component declaration, not " (first component-spec))))
              fqn (partial nu/fully-qualified-names (fetch-declared-names component-spec))]
          (doseq [exp component-spec]
-           (when-let [intern (get call-intern (first exp))]
-             (try
-               (when-not (apply intern (rest (fqn exp)))
-                 (u/throw-ex (str "failed to intern " exp)))
-               (catch js/Object _
-                 (let [corrupted-exp (get-corrupted-entity-form (second exp) (first exp))]
-                   (apply intern (rest (fqn corrupted-exp))))))))))
+           (if-let [[tag n v] (maybe-def-expr exp)]
+             (if (= tag :defn)
+               (raw/create-function cname n (first v) (second v))
+               (raw/create-definition cname n v))
+             (when-let [intern (get intern-fns (first exp))]
+               (try
+                 (when-not (apply intern (rest (fqn exp)))
+                   (u/throw-ex (str "failed to intern " exp)))
+                 (catch js/Object _
+                   (let [corrupted-exp (get-corrupted-entity-form (second exp) (first exp))]
+                     (apply intern (rest (fqn corrupted-exp)))))))))))
 
      (defn load-components-from-model [model callback]
        (doseq [c (:components model)]
