@@ -293,7 +293,8 @@
          (let [tag (first exp)]
            (case tag
              defn [:defn (second exp) [(nth exp 2) (nth exp 3)]]
-             def [:def (second exp) (nth exp 2)]))))
+             def [:def (second exp) (nth exp 2)]
+             nil))))
 
      (defn intern-component [component-spec]
        (let [component-spec (if (= 'do (first component-spec))
