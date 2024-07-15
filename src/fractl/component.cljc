@@ -621,12 +621,12 @@
      :cljs
      (float x)))
 
-(declare apply-attribute-validation)
+(declare apply-attribute-validation maybe-make-instance)
 
 (defn- element-type-check [tpname [tptag tpscm] x]
   (case tptag
     :attribute (apply-attribute-validation tpname tpscm {tpname x})
-    (vec :record :entity) (instance-of? tpname x)
+    (vec :record :entity) (maybe-make-instance tpname x)
     nil))
 
 (defn- merge-attr-schema [parent-scm child-scm]
@@ -915,7 +915,10 @@
 (defn maybe-make-instance [n obj]
   (if (instance-of? n obj)
     obj
-    (make-instance n obj)))
+    (let [obj (if (instantiable-map-of? n obj)
+                (li/record-attributes obj)
+                obj)]
+      (make-instance n obj))))
 
 (defn- make-X-instance
   "Make a new instance of the record, entity or event with the name `xname`.
