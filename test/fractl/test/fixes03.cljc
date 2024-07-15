@@ -841,3 +841,32 @@
     (is (every? (partial cn/instance-of? :I1328/CustomerOrder) custords))
     (is (= 2 (count custords)))
     (is (= 30 (apply + (mapv :OrderId custords))))))
+
+(deftest listof-rec-update-bug
+  (defcomponent :Lrub
+    (record :Lrub/R {:X :Int :Y :String})
+    (entity :Lrub/E {:Id {:type :Int :guid true}
+                     :S :String
+                     :Rs {:listof :Lrub/R}}))
+  (let [e? (partial cn/instance-of? :Lrub/E)
+        r? (partial cn/instance-of? :Lrub/R)
+        e1 (tu/first-result {:Lrub/Create_E
+                             {:Instance
+                              {:Lrub/E {:Id 1
+                                        :S "abc"
+                                        :Rs [{:Lrub/R {:X 1 :Y "hello"}}]}}}})]
+    (is (e? e1))
+    (is (= 1 (count (:Rs e1))))
+    (is (every? r? (:Rs e1)))
+    (is (cn/same-instance? e1 (tu/first-result {:Lrub/Lookup_E {:Id 1}})))
+    (is (e? (tu/first-result
+             {:Lrub/Update_E
+              {:Id 1
+               :Data {:S "xyz"
+                      :Rs [{:Lrub/R {:X 1 :Y "hello"}}
+                           {:Lrub/R {:X 2 :Y "bye"}}]}}})))
+    (let [e1 (tu/first-result {:Lrub/Lookup_E {:Id 1}})]
+      (is (= "xyz" (:S e1)))
+      (is (= 2 (count (:Rs e1))))
+      (is (every? r? (:Rs e1)))
+      (is (= 3 (apply + (mapv :X (:Rs e1))))))))
