@@ -748,6 +748,7 @@
             agent-spec {:config {:result-entity out-type
                                  :information-type (:comment agent)
                                  :provider (:llm agent)
+                                 :make-prompt (:make-prompt agent)
                                  :output-keys (or (:output-attributes agent) out-keys)
                                  :output-key-values (or (:output-attribute-values agent)
                                                         (cn/schema-as-string out-scm))}}]
@@ -758,6 +759,7 @@
                {:is-planner? true
                 :tools (:tools agent)
                 :docs (:docs agent)
+                :make-prompt (:make-prompt agent)
                 :provider (:llm agent)}}])) ; TODO: handle more planner options.
     spec))
 

@@ -59,7 +59,7 @@
                    (if (:use-docs? options)
                      (compose/assok :all-docs #(or (:docs agent-config) (retriever/retrieve-docs %)))
                      identity)
-                   (compose/assok :messages (or (:make-messages agent-config) prompt/make-planner-messages))
+                   (compose/assok :messages (or (:make-prompt agent-config) prompt/make-planner-messages))
                    ;; retry-enabled
                    planner-core
                    (fn [m] (select-keys m [:answer-text :patterns])))))
@@ -70,10 +70,11 @@
   (let [{:keys [max-retries]
          :or {max-retries 2}} options
         entity-name (:result-entity options)
-        json->entity (fn [m] {entity-name (walk/keywordize-keys m)})]
+        json->entity (fn [m] {entity-name (walk/keywordize-keys m)})
+        agent-config (:config (:agent-config options))]
     (compose/chain {:chain-name "ANALYZER-AGENT"}
                    ;;(fn [m] (assoc m :payload (:event m)))
-                   (compose/assok :messages prompt/make-analyze-as-json-prompt)
+                   (compose/assok :messages (or (:make-prompt agent-config) prompt/make-analyze-as-json-prompt))
                    (compose/assok :answer-text provider/get-completion)
                    (compose/assok :answer-json (compose/applyk output/json-parser :answer-text))
                    (compose/assok :answer-entity (compose/applyk json->entity :answer-json))
