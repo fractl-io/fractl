@@ -1,17 +1,24 @@
 (ns fractl.inference.embeddings.internal.generator
   (:require [clojure.string :as s]
-            [fractl.util.logger :as log]
             [fractl.component :as cn]
             [fractl.lang :refer :all]
-            [fractl.swagger.doc :as doc]))
+            [fractl.swagger.doc :as doc]
+            [fractl.util.logger :as log]))
 
 ;; TODO: Remove global atom.
 (def uniqueness (atom false))
 
+(defn convert-keyword [data]
+  (let [data-contents (if (map? data) (get data :type) data)
+        data-str (str data-contents)
+        prefix "Fractl.Kernel.Lang/"
+        keyword-data (if (clojure.string/includes? data-str (str prefix))
+                       data-contents
+                       (keyword (str prefix (name data-contents))))]
+    keyword-data))
+
 (defn get-clojure-type [attr]
-  (let [attr (if (string? attr)
-               (keyword (str "Fractl.Kernel.Lang/" attr))
-               attr)]
+  (let [attr (convert-keyword attr)]
     (if-let [type (get doc/fractlType->swaggerType attr)]
       type
       (if-let [attr (cn/find-attribute-schema attr)]
@@ -189,12 +196,12 @@
                                    (= "meta" (name %))) event-keys)
         meta-keys (get event-schema :meta)
         fetch-maps {(name event-name)
-                    {:description (get meta-keys :description)
-                     :returns (or (get meta-keys :returns)
-                                  (get meta-keys :return))
+                    {:description  (or (get meta-keys :description) (get meta-keys :doc))
+                     :returns      (or (get meta-keys :returns)
+                                       (get meta-keys :return))
                      :returns-many (get meta-keys :returns-many)
-                     :params (into [] map-of-types)
-                     :df-patterns (generate-df-pattern-event filtered-keys)}}]
+                     :params       (into [] map-of-types)
+                     :df-patterns  (generate-df-pattern-event filtered-keys)}}]
     fetch-maps))
 
 (defn generate-tool-for-entity [entity-name entity-schema]
@@ -233,11 +240,13 @@
         fetch-maps-formatted (into {} fetch-maps)
         create-string-name (generate-create-strings-key entity-name)
         entity-tool-map (fractl-entity-to-tool-type-for-create-operation entity-name entity-schema)
-        create-map {create-string-name {:description (if (nil? (get-in entity-schema [:meta :comment]))
+        create-map {create-string-name {:description  (if (or (nil? (get-in entity-schema [:meta :comment]))
+                                                              (nil? (get-in entity-schema [:meta :doc])))
                                                        (generate-create-description entity-name entity-tool-map)
-                                                       (get-in entity-schema [:meta :comment]))
-                                        :returns entity-name
-                                        :params (into [] (get entity-tool-map entity-name))
+                                                       (or (get-in entity-schema [:meta :comment])
+                                                           (get-in entity-schema [:meta :doc])))
+                                        :returns      entity-name
+                                        :params       (into [] (get entity-tool-map entity-name))
                                         :df-patterns (generate-df-pattern-entity-create entity-name entity-tool-map)
                                         :returns-many false}}]
     (merge fetch-maps-formatted create-map)))

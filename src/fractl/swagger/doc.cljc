@@ -30,7 +30,7 @@
    :Fractl.Kernel.Lang/Email {:type "string"
                               :format "email"}
    :Fractl.Kernel.Lang/Map {:type "object"}
-   :Fractl.Kernel.Lang/Any {:type "string"}})
+   :Fractl.Kernel.Lang/Any {:type "any"}})
 
 (defn get-clojure-type [attr]
   (if-let [type (get fractlType->swaggerType attr)]

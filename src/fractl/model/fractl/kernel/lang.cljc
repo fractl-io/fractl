@@ -81,7 +81,7 @@
  :Fractl.Kernel.Lang/Timer
  {:Expiry :Fractl.Kernel.Lang/Int,
   :ExpiryUnit
-  {:oneof [:Seconds :Minutes :Hours :Days], :default :Seconds},
+  {:oneof ["Seconds" "Minutes" "Hours" "Days"], :default "Seconds"},
   :ExpiryEvent :Fractl.Kernel.Lang/Map,
   :TaskHandle {:type :Fractl.Kernel.Lang/Any, :optional true}})
 (dataflow

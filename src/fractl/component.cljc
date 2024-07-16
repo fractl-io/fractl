@@ -473,6 +473,11 @@
   (when-let [ks (seq (keys (or (:schema schema) schema)))]
     (set ks)))
 
+(defn user-attribute-names [schema]
+  (set/difference (attribute-names schema)
+                  #{li/id-attr li/path-attr
+                    li/parent-attr li/meta-attr}))
+
 (defn entity-attribute-names [entity-name]
   (set/difference
    (attribute-names (fetch-entity-schema entity-name))
@@ -2283,14 +2288,16 @@
                   (log/error ex))))))))
     rule-specs)))
 
-(defn register-inference [inference-name spec]
+(defn- register-llm-construct [tag construct-name spec]
   (u/call-and-set
    components
    #(let [ms @components
-          [component n] (li/split-path inference-name)
-          path [component :inferences n]]
+          [component n] (li/split-path construct-name)
+          path [component tag n]]
       (assoc-in ms path spec)))
-  inference-name)
+  construct-name)
+
+(def register-inference (partial register-llm-construct :inferences))
 
 (defn docstring [n]
   (:doc (fetch-meta n)))
@@ -2331,3 +2338,14 @@
 
 (defn find-resolvers [component-name]
   (get-in @components [component-name :resolvers]))
+
+(defn attribute-type-as-string [attr-name]
+  (let [scm (find-attribute-schema attr-name)]
+    (if-let [choices (:oneof scm)]
+      (str "Either of " (vec choices))
+      (str "A value of type " (or (:type scm) "String")))))
+
+(defn schema-as-string [scm]
+  (reduce (fn [s [n t]]
+            (str s (name n) ": " (attribute-type-as-string t) "\n"))
+          "" scm))

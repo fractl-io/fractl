@@ -23,6 +23,40 @@
           []
           user-assistant-text-pairs))
 
+(def analyze-as-json-template
+  "You will be provided with JSON-structured information about {information-type}.
+The information will be delimited with {delimiter} characters. Analyze the information
+based on the below statement:
+
+Statement: {user-statement}
+
+Provide your output as a JSON map including {output-keys} attributes. The output map
+may have the following values:
+
+{output-key-values}
+")
+
+(def analyze-delimiter "####")
+
+(defn make-analyze-as-json-prompt
+  [{:keys [information-type
+           user-statement
+           output-keys
+           output-keys-values
+           payload] :as arg}]
+  (let [system-message (make-system-message (stringer/nrender analyze-as-json-template
+                                                              {:information-type  information-type
+                                                               :delimiter         analyze-delimiter
+                                                               :user-statement    user-statement
+                                                               :output-keys       (json/generate-string output-keys)
+                                                               :output-key-values output-keys-values}))
+        user-message (make-user-message (stringer/nrender "{delimiter}{user-question}{delimiter}"
+                                                          {:delimiter analyze-delimiter
+                                                           :user-question (json/generate-string payload)}))]
+    [system-message
+     user-message]))
+
+
 (def classify-primary-secondary-template
   "
 You will be provided with {question-type}. The {question-type} will be
