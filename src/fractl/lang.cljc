@@ -756,6 +756,8 @@
              [:q#
               {:config
                {:is-planner? true
+                :tools (:tools agent)
+                :docs (:docs agent)
                 :provider (:llm agent)}}])) ; TODO: handle more planner options.
     spec))
 

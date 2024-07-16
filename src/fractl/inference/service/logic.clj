@@ -57,22 +57,25 @@
         (throw (ex-info "Expected operation :add or :delete" {:operation operation}))))
     instance))
 
-(defn answer-question [app-uuid question-text qcontext {:keys [use-docs?
-                                                               use-schema?]
-                                                        :as options}]
+(defn answer-question [app-uuid question-text
+                       qcontext {:keys [use-docs?
+                                        use-schema?]
+                                 :as options}
+                       agent-config]
   (let [agent-args {:user-question question-text
                     :background qcontext
                     :use-docs? use-docs?
-                    :app-uuid app-uuid}]
+                    :app-uuid app-uuid
+                    :agent-config (:config agent-config)}]
     (try
       (if use-schema?
         (-> (agent/make-planner-agent agent-args)
-            (apply [agent-args])
+            (apply [(dissoc agent-args :agent-config)])
             (select-keys [:answer-text
                           :patterns
                           :errormsg]))
         (-> (agent/make-docs-rag-agent agent-args)
-            (apply [agent-args])
+            (apply [(dissoc agent-args :agent-config)])
             (select-keys [:answer-text])))
       (catch ExceptionInfo e
         (log/error e)
@@ -111,7 +114,7 @@
           response (if-not (:is-planner? (:config agent-config))
                      (answer-question-analyze app-uuid question (or qcontext {})
                                               (merge options agent-config))
-                     (answer-question app-uuid question (or qcontext {}) options))]
+                     (answer-question app-uuid question (or qcontext {}) options agent-config))]
       (assoc instance
              :QuestionContext {} ; empty :QuestionContext to avoid entity-name conflict
              :QuestionResponse (pr-str response)))

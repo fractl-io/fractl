@@ -32,7 +32,9 @@
   ;; TODO: output-checking
   ;; TODO: evaluation
   ;; TODO: retries (with max-retries option)
-  (let [{:keys [max-retries]
+  (let [agent-config (:agent-config options)
+        options (dissoc options :agent-config)
+        {:keys [max-retries]
          :or {max-retries 2}} options
         planner-core (compose/chain {:chain-name "PLANNER-AGENT-CORE"
                                      :max-retries max-retries}
@@ -51,11 +53,13 @@
                    ;;-- planner
                    (fn [m] (set/rename-keys m {:user-question :text-content})) ; next step needs :text-content
                    (compose/assok :embedding provider/get-embedding) ; needs :text-content
-                   (compose/assok :all-tools retriever/retrieve-tools) ; needs :app-uuid and embedding
+                   (compose/assok
+                    :all-tools
+                    #(or (:tools agent-config) (retriever/retrieve-tools %))) ; needs :app-uuid and embedding
                    (if (:use-docs? options)
-                     (compose/assok :all-docs retriever/retrieve-docs)
+                     (compose/assok :all-docs #(or (:docs agent-config) (retriever/retrieve-docs %)))
                      identity)
-                   (compose/assok :messages prompt/make-planner-messages)
+                   (compose/assok :messages (or (:make-messages agent-config) prompt/make-planner-messages))
                    ;; retry-enabled
                    planner-core
                    (fn [m] (select-keys m [:answer-text :patterns])))))

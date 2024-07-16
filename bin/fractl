@@ -8,7 +8,7 @@ function msg {
     echo "$@" 1>&2
 }
 
-export FRACTL_VERSION="0.5.2"
+export FRACTL_VERSION="0.5.3"
 # Must be sha256sum
 export FRACTL_CHECKSUM='7beae68a3353377ae77ef3681b03c45911271cec7732fec29c74ac5f03f36098'
 
