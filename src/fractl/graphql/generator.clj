@@ -213,24 +213,26 @@
             (recur (replace-last next-val new-root-type))))
         new-root-type))))                                   ;; if not a collection, just return the new root type
 
+(defn update-nested-type [type-val update-fn]
+  (if (list? type-val)
+    (let [inner-type (last type-val)
+          wrapper-fns (butlast type-val)]
+      (concat wrapper-fns [(update-nested-type inner-type update-fn)]))
+    (update-fn type-val)))
+
 (defn append-postfix-to-field-names [input-map postfix remove-wrappers]
-  "Appends a postfix to field names if attribute is of entity/record/relationship type. Assumes all fields can be null (non-null isn't present)."
+  "Appends a postfix to field names if attribute is of entity/record/relationship type. Preserves list and non-null wrappers."
   (let [fields (:fields input-map)]
     (assoc input-map :fields
-                     (reduce-kv (fn [acc key val]
-                                  ;; determine if we need to append the postfix based on the field's type
-                                  (let [type-val (:type val)
-                                        type-name (remove-wrapper-functions type-val)
-                                        type-info (if remove-wrappers (remove-wrapper-functions type-val) type-val) ;; unwrap to remove list & non-null functions
-                                        updated-type-info (if (contains? @element-names type-name)
-                                                            ;; append postfix if type-name is in element-names
-                                                            ;; this should refer to nested input object
-                                                            (replace-wrapped-type type-info (keyword (str (name type-name) postfix)))
-                                                            ;; otherwise, keep the original type name
-                                                            type-info)]
-                                    (assoc acc key (assoc val :type updated-type-info))))
-                                {}
-                                fields))))
+           (reduce-kv (fn [acc key val]
+                        (let [type-val (:type val)
+                              type-name (remove-wrapper-functions type-val)
+                              updated-type-val (if (contains? @element-names type-name)
+                                                 (update-nested-type type-val #(keyword (str (name %) postfix)))
+                                                 type-val)]
+                          (assoc acc key (assoc val :type updated-type-val))))
+                      {}
+                      fields))))
 
 (defn update-entity-meta
   ([entity-name]
@@ -572,14 +574,21 @@
                              :or  {:type (list 'list filter-name)}
                              :not {:type filter-name}}
                             (comp
-                              (remove (fn [[field-name _]]
-                                        (contains? @element-names field-name)))
+                              (remove (fn [[field-name {:keys [type]}]]
+                                        (or (contains? @element-names field-name)
+                                            (and (list? type) (not= (first type) 'non-null))
+                                            (and (list? type) (= (first type) 'non-null) (list? (second type))))))
                               (map (fn [[field-name {:keys [type]}]]
-                                     (let [base-type (if (list? type) (second type) type)]
+                                     (let [base-type (if (and (list? type) (= (first type) 'non-null))
+                                                       (second type)
+                                                       type)
+                                           comparison-type (cond
+                                                             (= base-type :Boolean) :Boolean
+                                                             (= base-type :Int) :IntComparison
+                                                             (= base-type :Float) :FloatComparison
+                                                             :else :StringComparison)]
                                        [(keyword (name field-name))
-                                        {:type (if (= base-type :Boolean)
-                                                 :Boolean
-                                                 (keyword (str (name base-type) "Comparison")))}]))))
+                                        {:type comparison-type}]))))
                             attributes)]
     {filter-name {:fields filter-fields}}))
 
