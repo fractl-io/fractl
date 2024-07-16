@@ -6,7 +6,7 @@
             [cheshire.core :as json]
             [fractl.util :as u]
             [fractl.util.logger :as log]
-            [fractl.inference.provider.openai :as openai]
+            [fractl.inference.provider :as provider]
             [fractl.inference.embeddings.internal.model :as model]))
 
 (def ^:private dbtype "postgresql")
@@ -61,7 +61,7 @@
     (jdbc/execute! db-conn [delete-selected-sql
                             embedding-classname
                             (name tag)
-                            (str type)])))
+                            (subs (str type) 1)])))
 
 (defn- assert-object! [obj]
   (when-not (model/object? obj)
@@ -141,11 +141,11 @@
 (defn add-planner-tool [db-conn {app-uuid :app-uuid tool-spec :tool-spec meta-content :meta-content}]
   (let [document-classname (get-planner-classname app-uuid)
         tool-text (pr-str tool-spec)
-        embedding (openai/make-openai-embedding {:text-content tool-text})]
+        [embedding embedding-model] (provider/make-embedding {:text-content tool-text})]
     (create-object db-conn (model/as-object {:classname document-classname
                                              :text-content tool-text
                                              :meta-content (form-to-json meta-content)
-                                             :embedding-model openai/openai-default-embedding-model
+                                             :embedding-model embedding-model
                                              :embedding embedding}))))
 
 (defn update-planner-tool [db-conn spec]
@@ -170,8 +170,7 @@
 
 (defn add-document-chunk [db-conn app-uuid text-chunk]
   (let [document-classname (get-document-classname app-uuid)
-        embedding (openai/make-openai-embedding {:text-content text-chunk})
-        embedding-model openai/openai-default-embedding-model]
+        [embedding embedding-model] (provider/make-embedding {:text-content text-chunk})]
     (create-object {:classname document-classname
                     :text-content text-chunk
                     :meta-content (json/generate-string text-chunk)

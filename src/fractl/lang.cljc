@@ -3,7 +3,7 @@
   (:require [clojure.set :as set]
             [clojure.string :as s]
             [clojure.walk :as w]
-            [clojure.core.async :as async]
+            #?(:clj [clojure.core.async :as async])
             [fractl.compiler :as c]
             [fractl.compiler.context :as ctx]
             [fractl.compiler.rule :as rl]
@@ -179,6 +179,7 @@
          :cascade-on-delete :var :secure-hash)
         (li/validate-bool k v)
         :check (li/validate fn? ":check is not a predicate" v)
+        :parse (li/validate fn? ":parse is not a function" v)
         :default (when-not (fn? v)
                    (when-let [predic (:check scm)]
                      (li/validate predic "invalid value for :default" v)))
@@ -1217,6 +1218,11 @@
          n (li/record-name schema)]
      (and (raw/relationship n (li/record-attributes schema)) r))))
 
+(defn- validate-resolver-name! [rn]
+  (let [[c n :as cn] (li/split-path rn)]
+    (if (and (li/name? c) (li/name? n))
+      rn
+      (u/throw-ex (str "Invalid resolver name - " rn ", valid form is :Component/ResolverName")))))
 ;;
 ;; The resolver construct has the following syntax:
 ;; (resolver <name> <specification-map>)
@@ -1249,6 +1255,7 @@
 ;;;;  {:type :camel-salesforce :paths [:Salesforce/Quote]})
 ;;
 (defn resolver [n spec]
+  (validate-resolver-name! n)
   #?(:clj
      (let [req (:require spec)]
        (when-let [nss (:namespaces req)]
@@ -1273,6 +1280,6 @@
               (when (precond)
                 (rf))
               (rf))
-            n))))
-     :cljs
-     (u/throw-ex "resolver construct not supported in cljs")))
+            n)))))
+  (and (cn/register-resolver n spec)
+       (raw/resolver n spec)))

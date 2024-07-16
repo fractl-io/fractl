@@ -4,23 +4,31 @@
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
             [fractl.resolver.registry :as rg]
+            [fractl.lang.internal :as li]
             [fractl.inference.service.logic :as logic]))
 
-(defn resolver-create [instance]
-  (let [entity-name (:-*-type-*- instance)
-        [entity-ns entity-name] (if (keyword? entity-name)
-                                  [(keyword (namespace entity-name))
-                                   (keyword (name entity-name))]
-                                  entity-name)
-        entity-data (apply dissoc instance [:type-*-tag-*- :-*-type-*-])]
+(def ^:private create-handlers
+  {:DocChunk (partial logic/handle-doc-chunk :add)
+   :PlannerTool (partial logic/handle-planner-tool :add)
+   :Question (partial logic/handle-app-question :add)})
+
+(def ^:private delete-handlers
+  {:PlannerTool (partial logic/handle-planner-tool :delete)})
+
+(defn- get-handler [handlers instance]
+  (let [[_ n] (li/split-path (cn/instance-type instance))]
+    (n handlers)))
+
+(defn- resolver-crud [operation handlers instance]
+  (if-let [handler (get-handler handlers instance)]
     (try
-      (case entity-name
-        :DocChunk (logic/post-doc-chunk instance)
-        :PlannerTool (logic/post-planner-tool instance)
-        :Question (logic/post-app-question instance)
-        (log/error (str "Cannot process entity-name: " entity-name)))
+      (handler instance)
       (catch Exception ex
-        (log/exception ex)))))
+        (log/exception ex)))
+    (log/warn (str "Cannot " (name operation) " " (cn/instance-type instance)))))
+
+(def ^:private resolver-create (partial resolver-crud :create create-handlers))
+(def ^:private resolver-delete (partial resolver-crud :delete delete-handlers))
 
 (defn register-resolver []
   (let [ents (seq (cn/entity-names :Fractl.Inference.Service))]
@@ -29,7 +37,8 @@
       (fn [_ _]
         (r/make-resolver
           :inference
-          {:create resolver-create})))
+          {:create resolver-create
+           :delete resolver-delete})))
     (rg/register-resolver
      {:name :inference
        :type :inference

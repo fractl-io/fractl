@@ -126,6 +126,11 @@
 (defn component-init-event-name [component]
   (keyword (str (name component) "_Init")))
 
+(defn- upsert-component! [component spec]
+  (u/call-and-set
+   components
+   #(assoc @components component spec)))
+
 (declare intern-attribute intern-event)
 
 (defn create-component
@@ -133,9 +138,7 @@
   the components in the imports list. If a component already exists with
   the same name, it will be overwritten. Returns the name of the new component."
   [component spec]
-  (u/call-and-set
-   components
-   #(assoc @components component spec))
+  (upsert-component! component spec)
   (intern-attribute
    [component id-attr]
    {:type :Fractl.Kernel.Lang/UUID
@@ -167,9 +170,37 @@
 (defn component-definition [component]
   (find @components component))
 
+(defn component-specification [component]
+  (second (component-definition component)))
+
 (defn declared-names [component]
   (when-let [defs (second (component-definition component))]
     (set (keys (dissoc defs :attributes :records :events :entity-relationship)))))
+
+(defn component-clj-imports [component]
+  (when-let [imps (seq (:clj-import (component-specification component)))]
+    (let [imps (if (= 'quote (first imps)) (second imps) imps)] ; check for quote literal in cljs
+      (into {} (mapv (fn [xs] [(first xs) (vec (rest xs))]) imps)))))
+
+(defn set-component-clj-imports! [component spec]
+  (when-let [old-spec (component-specification component)]
+    (let [clj-spec (vec (mapv (fn [[k v]] `(~k ~@v)) spec))]
+      (raw/update-component-spec! component :clj-import clj-spec)
+      (upsert-component!
+       component
+       (assoc old-spec :clj-import clj-spec)))
+    component))
+
+(defn component-references [component]
+  (:refer (component-specification component)))
+
+(defn set-component-references! [component spec]
+  (when-let [old-spec (component-specification component)]
+    (raw/update-component-spec! component :refer spec)
+    (upsert-component!
+     component
+     (assoc old-spec :refer spec))
+    component))
 
 (defn extract-alias-of-component [component alias-entry]
   (if (component-exists? component)
@@ -234,6 +265,14 @@
      typname))
   ([typname typdef typtag]
    (component-intern typname typdef typtag nil)))
+
+(defn- component-remove [typname typtag]
+  (let [[component n :as k] (li/split-path typname)
+        intern-k [component typtag n]]
+    (u/call-and-set
+     components
+     #(su/dissoc-in @components intern-k))
+    typname))
 
 (defn- component-find
   ([path]
@@ -582,12 +621,12 @@
      :cljs
      (float x)))
 
-(declare apply-attribute-validation)
+(declare apply-attribute-validation maybe-make-instance)
 
 (defn- element-type-check [tpname [tptag tpscm] x]
   (case tptag
     :attribute (apply-attribute-validation tpname tpscm {tpname x})
-    (vec :record :entity) (instance-of? tpname x)
+    (vec :record :entity) (maybe-make-instance tpname x)
     nil))
 
 (defn- merge-attr-schema [parent-scm child-scm]
@@ -673,18 +712,27 @@
         (when-not (nil? dval)
           (if (fn? dval) (dval) dval))))))
 
+(defn- maybe-parse-attribute-value [aname ascm attributes]
+  (if-let [p (:parse ascm)]
+    (if-let [v (aname attributes)]
+      (assoc attributes aname (p v))
+      attributes)
+    attributes))
+
 (defn- apply-attribute-validation [aname ascm attributes]
-  (if (:expr ascm)
-    attributes
-    (if-let [[_ aval] (get-attr-val ascm attributes aname)]
-      (do (valid-attribute-value aname aval ascm)
-          attributes)
-      (let [dval (valid-attribute-value aname nil ascm)]
-        (if-not (nil? dval)
-          (assoc attributes aname dval)
-          (if (:optional ascm)
-            attributes
-            (raise-error :no-default-value [aname])))))))
+  (maybe-parse-attribute-value
+   aname ascm
+   (if (:expr ascm)
+     attributes
+     (if-let [[_ aval] (get-attr-val ascm attributes aname)]
+       (do (valid-attribute-value aname aval ascm)
+           attributes)
+       (let [dval (valid-attribute-value aname nil ascm)]
+         (if-not (nil? dval)
+           (assoc attributes aname dval)
+           (if (:optional ascm)
+             attributes
+             (raise-error :no-default-value [aname]))))))))
 
 (declare make-instance)
 
@@ -863,6 +911,14 @@
    (if (an-instance? m)
      m
      (make-instance (li/record-name m) (li/record-attributes m)))))
+
+(defn maybe-make-instance [n obj]
+  (if (instance-of? n obj)
+    obj
+    (let [obj (if (instantiable-map-of? n obj)
+                (li/record-attributes obj)
+                obj)]
+      (make-instance n obj))))
 
 (defn- make-X-instance
   "Make a new instance of the record, entity or event with the name `xname`.
@@ -1820,6 +1876,8 @@
       (remove-meta! (li/split-path relname))
       relname)))
 
+(def remove-resolver raw/remove-resolver)
+
 (defn- dissoc-system-attributes [attrs]
   (into
    {}
@@ -2263,3 +2321,13 @@
   {:records (find-schema-info #(record-names component) raw/find-record)
    :entities (find-schema-info #(entity-names component) raw/find-entity)
    :relationships (find-schema-info #(relationship-names component) raw/find-relationship)})
+
+(defn register-resolver [res-name res-spec]
+  (component-intern res-name res-spec :resolvers))
+
+(defn remove-resolver [res-name]
+  (and (raw/remove-resolver res-name)
+       (component-remove res-name :resolvers)))
+
+(defn find-resolvers [component-name]
+  (get-in @components [component-name :resolvers]))
