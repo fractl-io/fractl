@@ -14,6 +14,8 @@
 
 (def relationship-names (atom #{}))
 
+(def between-relationship-names (atom #{}))
+
 (def element-names (atom #{}))
 
 (def contains-graph (atom {}))
@@ -33,6 +35,7 @@
   (reset! record-names #{})
   (reset! entity-names #{})
   (reset! relationship-names #{})
+  (reset! between-relationship-names #{})
   (reset! element-names #{})
   (reset! contains-graph {})
   (reset! records-code {})
@@ -116,6 +119,12 @@
        (if non-null?
          [{:type (list 'non-null (first parsed-info))} updated-meta]
          [{:type (first parsed-info)} updated-meta])))))
+
+(defn extract-between-relationship-names [relationships]
+  (->> relationships
+       (filter #(contains? (:meta (val (first %))) :between))
+       (map (comp keyword name key first))
+       (into [])))
 
 (defn strip-irrelevant-attributes [fields]
   "Removes any attributes besides :type"
@@ -568,6 +577,13 @@
      :in      {:type '(list Int)}
      :between {:type '(list Int)}}}})
 
+(defn extract-entities-inside-between-rel [relationship-name]
+  "Returns names of entities part of given between relationship as a set."
+  (let [found-value (get @relationships-code relationship-name)
+        fields (get found-value :fields)
+        result (into #{} (filter #(contains? fields %) @entity-names))]
+    result))
+
 (defn generate-filter-map [entity-name attributes]
   (let [filter-name (keyword (str (name entity-name) "Filter"))
         filter-fields (into {:and {:type (list 'list filter-name)}
@@ -575,7 +591,10 @@
                              :not {:type filter-name}}
                             (comp
                               (remove (fn [[field-name {:keys [type]}]]
-                                        (or (contains? @element-names field-name)
+                                        (or (if (contains? @between-relationship-names entity-name)
+                                                              (and (contains? @element-names field-name)
+                                                                   (not (contains? (extract-entities-inside-between-rel entity-name) field-name)))
+                                                              (contains? @element-names field-name))
                                             (and (list? type) (not= (first type) 'non-null))
                                             (and (list? type) (= (first type) 'non-null) (list? (second type))))))
                               (map (fn [[field-name {:keys [type]}]]
@@ -610,6 +629,7 @@
     (initialize-atom record-names (extract-names records))
     (initialize-atom entity-names (extract-names entities))
     (initialize-atom relationship-names (extract-names relationships))
+    (initialize-atom between-relationship-names (extract-between-relationship-names relationships))
     (reset! contains-graph (build-contains-relationship-graph relationships))
     (merge-element-names)
 
