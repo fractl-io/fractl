@@ -2350,3 +2350,7 @@
   (reduce (fn [s [n t]]
             (str s (name n) ": " (attribute-type-as-string t) "\n"))
           "" scm))
+
+(defn system-component-names []
+  (when-let [cns (seq (filter #(s/starts-with? (str %) ":Fractl") (component-names)))]
+    (vec cns)))
