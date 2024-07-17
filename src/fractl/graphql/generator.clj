@@ -564,7 +564,11 @@
      :in         {:type '(list String)}
      :contains   {:type :String}
      :startsWith {:type :String}
-     :endsWith   {:type :String}}}
+     :endsWith   {:type :String}
+     :gt         {:type :String}
+     :gte        {:type :String}
+     :lt         {:type :String}
+     :lte        {:type :String}}}
 
    :IntComparison
    {:fields
