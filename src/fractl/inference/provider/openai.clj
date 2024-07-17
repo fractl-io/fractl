@@ -3,11 +3,8 @@
             [org.httpkit.client :as http]
             [fractl.util :as u]
             [fractl.util.logger :as log]
-            [fractl.inference.provider.model :as model]
             [fractl.inference.provider.protocol :as p]
             [fractl.inference.provider.registry :as r]))
-
-(defn- fetch-openai-config [] (:OpenAiConfig (model/fetch-config)))
 
 ;; -- OpenAI embedding models
 ;-- +------------------------+-----------------+---------+
@@ -22,7 +19,7 @@
                               model-name :model-name
                               openai-api-key :openai-api-key
                               embedding-endpoint :embedding-endpoint :as args}]
-  (let [openai-config (fetch-openai-config)
+  (let [openai-config (r/fetch-active-provider-config)
         model-name (or model-name (:EmbeddingModel openai-config))
         embedding-endpoint (or embedding-endpoint (:EmbeddingApiEndpoint openai-config))
         openai-api-key (or openai-api-key (:ApiKey openai-config))
@@ -67,7 +64,7 @@
                                temperature :temperature
                                max-tokens :max-tokens}]
   (doseq [m messages] (assert-message! m))
-  (let [openai-config (fetch-openai-config)
+  (let [openai-config (r/fetch-active-provider-config)
         model-name (or model-name (:CompletionModel openai-config))
         completion-endpoint (or completion-endpoint (:CompletionApiEndpoint openai-config))
         temperature (or temperature default-temperature)

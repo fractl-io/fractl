@@ -6,10 +6,10 @@
             [fractl.evaluator :as ev]
             [fractl.component :as cn]
             [fractl.util :as u]
-            [fractl.inference.provider.openai]
             #?(:clj [fractl.util.logger :as log]
                :cljs [fractl.util.jslogger :as log])
-            [fractl.util.http :as uh]))
+            [fractl.util.http :as uh]
+            [fractl.inference.service.core :as inference]))
 
 (defn as-vec [x]
   (if (vector? x)
@@ -40,17 +40,21 @@
      (u/throw-ex "inference cannot run without a question"))
    (let [r0 {:AppUuid (or appid (u/get-app-uuid))
              :ChatUuid (or chatid (u/uuid-string))
+             :AgentConfig (:agent-config context)
              :QuestionOptions {:UseDocs use-docs
                                :UseSchema use-schema}
              :Question question}
-         r (if context (assoc r0 :QuestionContext context) r0)
+         is-planner (get-in context [:agent-config :config :is-planner?])
+         r (if context
+             (assoc r0 :QuestionContext
+                    (if is-planner (dissoc context :agent-config) context))
+               r0)
          is-review-mode (when (map? context) (get-in context [:EventContext :evaluate-inferred-patterns]))
          req {:Fractl.Inference.Service/Question r}
+         provider (get-in context [:agent-config :config :provider])
          out (if mock-ai
                [{:result [req]}]
-               (ev/eval-all-dataflows
-                {:Fractl.Inference.Service/Create_Question
-                 {:Instance req}}))
+               (inference/post-question provider req))
          result (-> out
                     first
                     :result
@@ -68,5 +72,11 @@
   ([question context] (run-inference nil nil question context))  
   ([request question context] (run-inference nil request question context)))
 
-(defn run-inference-for-event [question event-instance]
-  (run-inference question {:inference-event event-instance}))
+(defn run-inference-for-event [question agent-config event-instance]
+  (let [agent-config (cond
+                       (map? agent-config) agent-config
+                       (li/quoted? agent-config) (second agent-config))]
+    (when (and agent-config (not (map? agent-config)))
+      (u/throw-ex (str "invalid agent config: " agent-config)))
+    (run-inference question {:inference-event event-instance
+                             :agent-config agent-config})))

@@ -1,21 +1,17 @@
 (ns fractl.inference.provider
   (:require [fractl.util :as u]
             [fractl.inference.provider.protocol :as p]
-            [fractl.inference.provider.model :as model]
+            [fractl.inference.provider.model]
+            [fractl.inference.provider.openai]
             [fractl.inference.provider.registry :as r]))
 
-(defn- active-provider []  
-  (:Provider (model/fetch-config)))
+(defn- make-provider-request [pfn spec]
+  (if-let [active-provider (r/fetch-active-provider)]
+    (pfn active-provider spec)
+    (u/throw-ex "No active LLM provider")))
 
-(defn make-embedding [spec]
-  (if-let [provider (r/fetch-provider (active-provider))]
-    (p/make-embedding provider spec)
-    (u/throw-ex "make-embedding failed, no provider registered")))
-
-(defn make-completion [spec]
-  (if-let [provider (r/fetch-provider (active-provider))]
-    (p/make-completion provider spec)
-    (u/throw-ex "make-completion failed, no provider registered")))
+(def make-embedding (partial make-provider-request p/make-embedding))
+(def make-completion (partial make-provider-request p/make-completion))
 
 (def get-embedding (comp first make-embedding))
 (def get-completion (comp first make-completion))

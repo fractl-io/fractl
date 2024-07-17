@@ -40,7 +40,7 @@
 
 (defn- expiry-as-ms [inst]
   (let [n (:Expiry inst)]
-    (case (:ExpiryUnit inst)
+    (case (u/string-as-keyword (:ExpiryUnit inst))
       :Seconds (* 1000 n)
       :Minutes (* 60 1000 n)
       :Hours (* 60 60 1000 n)
@@ -49,10 +49,7 @@
 (defn- sleep [inst]
   #?(:clj
      (try
-       (let [eu (:ExpiryUnit inst)
-             unit (if (keyword? eu)
-                    eu
-                    (keyword eu))]
+       (let [unit (u/string-as-keyword (:ExpiryUnit inst))]
          (.sleep
           (case unit
             :Seconds TimeUnit/SECONDS

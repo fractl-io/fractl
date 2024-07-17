@@ -60,8 +60,8 @@
 (entity
  :Timer
  {:Expiry :Int
-  :ExpiryUnit {:oneof [:Seconds :Minutes :Hours :Days]
-               :default :Seconds}
+  :ExpiryUnit {:oneof ["Seconds" "Minutes" "Hours" "Days"]
+               :default "Seconds"}
   :ExpiryEvent :Map
   ;; :TaskHandle is set by the runtime, represents the
   ;; thread that execute the event after timer expiry.

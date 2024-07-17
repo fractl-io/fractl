@@ -353,8 +353,8 @@
                        ['...snipped...])))
            ;; string
            (and (string? v)
-                (> (count v) 255))
-           (str (subs v 0 256) "...snipped...")
+                (> (count v) 32767))
+           (str (subs v 0 32768) "...snipped...")
            ;; else
            :else
            v))

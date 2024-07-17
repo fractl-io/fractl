@@ -56,6 +56,7 @@
  :Fractl.Inference.Service/Question
  {:ChatUuid {:type :UUID :default u/uuid-string}
   :AppUuid :UUID
+  :AgentConfig {:type :Map :optional true}
   :Question :String
   :QuestionContext {:type :Map :default {}}
   :QuestionOptions {:type :Map :default {}}

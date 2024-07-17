@@ -730,18 +730,44 @@
         p0 (if (string? ins)
              `[:eval (identity ~ins) :as :I]
              `[:eval ~ins :as :I])
-        p1 `[:eval (fractl.inference/run-inference-for-event :I ~inference-name)]]
+        p1 `[:eval (fractl.inference/run-inference-for-event :I ~(:agent spec) ~inference-name)]]
     (cn/register-dataflow inference-name nil [p0 p1])
     inference-name))
 
+(defn- ensure-spec-keys! [tag label expected-keys spec-keys]
+  (when-let [invalid-keys (seq (set/difference (set spec-keys) expected-keys))]
+    (u/throw-ex (str "invalid keys " invalid-keys " in " tag " " label)))
+  spec-keys)
+
+(defn- normalize-inference-spec [spec]
+  (if-let [agent (:agent spec)]
+    (if-not (:planner agent)
+      (let [out-type (:output agent)
+            out-scm (cn/ensure-schema out-type)
+            out-keys (vec (cn/user-attribute-names out-scm))
+            agent-spec {:config {:result-entity out-type
+                                 :information-type (:comment agent)
+                                 :provider (:llm agent)
+                                 :output-keys (or (:output-attributes agent) out-keys)
+                                 :output-key-values (or (:output-attribute-values agent)
+                                                        (cn/schema-as-string out-scm))}}]
+        (assoc spec :agent `[:q# ~agent-spec]))
+      (assoc spec :agent
+             [:q#
+              {:config
+               {:is-planner? true
+                :provider (:llm agent)}}])) ; TODO: handle more planner options.
+    spec))
+
 (defn inference [inference-name spec-map]
-  (when-let [invalid-keys (seq (set/difference (set (keys spec-map)) #{:instructions}))]
-    (u/throw-ex (str "invalid keys " invalid-keys " in inferenece " inference-name)))
+  (ensure-spec-keys! 'inference inference-name
+                     #{:instructions :agent} (keys spec-map))
   (ensure-event! inference-name)
-  (and (register-inference-dataflow inference-name spec-map)
-       (cn/register-inference inference-name spec-map)
-       (raw/inference inference-name spec-map)
-       inference-name))
+  (let [norm-spec (normalize-inference-spec spec-map)]
+    (and (register-inference-dataflow inference-name norm-spec)
+         (cn/register-inference inference-name norm-spec)
+         (raw/inference inference-name spec-map)
+         inference-name)))
 
 (def ^:private crud-evname cn/crud-event-name)
 
