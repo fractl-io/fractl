@@ -543,3 +543,31 @@
             (dataflow :Fir/Evt #:Fir{:E {:X '(compute-x :Fir/Evt.X)}}))
          (lr/as-edn :Fir)))
   (is (nil? (seq (lr/get-function-names :Fir)))))
+
+(deftest before-update-return-value
+  (defcomponent :Burv
+    (entity
+     :Burv/E
+     {:Id {:type :Int :guid true}
+      :X :Int
+      :Y {:type :Int :default 0}})
+    (defn calculate-y [inst]
+      (assoc inst :Y (* 10 (:X inst))))
+    (dataflow
+     [:before :update :Burv/E]
+     [:eval '(fractl.test.features05/calculate-y :Instance) :as :new-y]))
+  (let [e1 (tu/first-result
+            {:Burv/Create_E
+             {:Instance
+              {:Burv/E {:Id 1 :X 20}}}})]
+    (is (cn/instance-of? :Burv/E e1))
+    (is (zero? (:Y e1)))
+    (let [e2 (tu/first-result
+              {:Burv/Update_E
+               {:Id 1 :Data {:X 30}}})]
+      (is (cn/instance-eq? e1 e2))
+      (is (= 30 (:X e2)))
+      (is (= 300 (:Y e2)))
+      (let [e3 (tu/first-result
+                {:Burv/Lookup_E {:Id 1}})]
+        (is (cn/same-instance? e2 e3))))))
