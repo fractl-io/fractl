@@ -555,7 +555,7 @@
       (assoc inst :Y (* 10 (:X inst))))
     (dataflow
      [:before :update :Burv/E]
-     [:eval '(fractl.test.features05/calculate-y :Instance) :as :new-y]))
+     [:eval '(fractl.test.features05/calculate-y :Instance)]))
   (let [e1 (tu/first-result
             {:Burv/Create_E
              {:Instance
