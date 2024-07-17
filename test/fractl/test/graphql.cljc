@@ -43,11 +43,11 @@
 (defn graphql-handler
   ([component-name query variables]
    (let [schema (cn/schema-info component-name)
-        contains-graph-map (gg/generate-contains-graph schema)
-        [uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema contains-graph-map)]
+         contains-graph-map (gg/generate-contains-graph schema)
+         [uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema contains-graph-map)]
     (let [context {:auth-config nil :core-component component-name :contains-graph contains-graph-map :entity-metas entity-metadatas}
           result (simplify (execute injected-graphql-schema query variables context))]
-        (:data result))))
+       (:data result))))
   ([component-name query]
    (graphql-handler component-name query nil)))
 
@@ -126,6 +126,19 @@
             {:Id :Identity
              :Name :String})
 
+    (record :WordCount.Core/SubSubAttribute {:name :String :value :String})
+
+    (record :WordCount.Core/SubAttribute {:name :String :value :String :SubSubAttribute :WordCount.Core/SubSubAttribute})
+
+    (record :WordCount.Core/Attribute {:name :String :value :String :SubAttribute :WordCount.Core/SubAttribute})
+
+    (entity
+     :WordCount.Core/Customer
+     {:Id {:type :Int :guid true}
+      :Name :String
+      :ListOfNames {:listof :String}
+      :Attributes {:listof :WordCount.Core/Attribute}})
+
     ;; RELATIONSHIPS
 
     (relationship :WordCount.Core/UserDocument
@@ -157,6 +170,18 @@
      {:WordCount.Core/DocumentTag
       {:Document? :WordCount.Core/LookupTags.Document
        :Tag? :WordCount.Core/LookupTags.Tag}})))
+
+(defn compare-instance-maps [subset superset id-attr]
+    "Checks if all maps in 'subset' exist in 'superset' with exact equality on all nested keys and values.
+    Uniquely identifies instances using given Id attribute."
+  (let [subset-map (into {} (map (juxt id-attr identity) subset))
+        matching-pairs (for [super-item superset
+                             :let [subset-item (get subset-map (id-attr super-item))]
+                             :when subset-item]
+                         [subset-item super-item])]
+    (if (= (count matching-pairs) (count subset))
+      (every? (fn [[subset-item super-item]] (= subset-item super-item)) matching-pairs)
+      false)))
 
 (deftest test-queries-for-word-count-app
   (build-word-count-app)
@@ -529,7 +554,112 @@
     (testing "Query between instance by one attribute"
       (let [results (graphql-handler :WordCount.Core query-tag-by-one-attribute)
             result-data (first (:UserTag results))]
-        (is (= user-tag-data result-data))))))
+        (is (= user-tag-data result-data))))
+
+    (testing "Create instances of customers and query them"
+      (let [customer-data-1 {:Id          10000,
+                             :Name        "Muhammad Hasnain Naeem",
+                             :ListOfNames ["Name1" "Name2" "Name3"],
+                             :Attributes
+                             [{:WordCount.Core/Attribute {:name  "Personal",
+                                                          :value "Info",
+                                                          :SubAttribute
+                                                          {:WordCount.Core/SubAttribute {:name            "Details",
+                                                                                         :value           "More Info",
+                                                                                         :SubSubAttribute {:WordCount.Core/SubSubAttribute {:name "Age", :value "30"}}}}}}
+                              {:WordCount.Core/Attribute {:name  "Professional",
+                                                          :value "Work Info",
+                                                          :SubAttribute
+                                                          {:WordCount.Core/SubAttribute {:name            "Job",
+                                                                                         :value           "Details",
+                                                                                         :SubSubAttribute {:WordCount.Core/SubSubAttribute {:name "Occupation", :value "Software Engineer"}}}}}}]}
+
+            customer-data-2 {:Id          3001,
+                             :Name        "Hasnain Naeem",
+                             :ListOfNames ["Alice" "Bob" "Charlie"],
+                             :Attributes
+                             [{:WordCount.Core/Attribute {:name  "Personal",
+                                                          :value "Info",
+                                                          :SubAttribute
+                                                          {:WordCount.Core/SubAttribute {:name            "Details",
+                                                                                         :value           "More Info",
+                                                                                         :SubSubAttribute {:WordCount.Core/SubSubAttribute {:name "Age", :value "30"}}}}}}
+                              {:WordCount.Core/Attribute {:name  "Professional",
+                                                          :value "Work Info",
+                                                          :SubAttribute
+                                                          {:WordCount.Core/SubAttribute {:name            "Job",
+                                                                                         :value           "Details",
+                                                                                         :SubSubAttribute {:WordCount.Core/SubSubAttribute {:name "Occupation", :value "Engineer"}}}}}}]}
+
+
+            graphql-customer-data-1 {:Id          10000,
+                                     :Name        "Muhammad Hasnain Naeem",
+                                     :ListOfNames ["Name1" "Name2" "Name3"],
+                                     :Attributes
+                                     [{:name  "Personal",
+                                       :value "Info",
+                                       :SubAttribute
+                                       {:name            "Details",
+                                        :value           "More Info",
+                                        :SubSubAttribute {:name "Age", :value "30"}}}
+                                      {:name  "Professional",
+                                       :value "Work Info",
+                                       :SubAttribute
+                                       {:name            "Job",
+                                        :value           "Details",
+                                        :SubSubAttribute {:name "Occupation", :value "Software Engineer"}}}]}
+            graphql-customer-data-2 {:Id          3001,
+                                     :Name        "Hasnain Naeem",
+                                     :ListOfNames ["Alice" "Bob" "Charlie"],
+                                     :Attributes
+                                     [{:name  "Personal",
+                                       :value "Info",
+                                       :SubAttribute
+                                       {:name            "Details",
+                                        :value           "More Info",
+                                        :SubSubAttribute {:name "Age", :value "30"}}}
+                                      {:name  "Professional",
+                                       :value "Work Info",
+                                       :SubAttribute
+                                       {:name            "Job",
+                                        :value           "Details",
+                                        :SubSubAttribute {:name "Occupation", :value "Engineer"}}}]}
+
+            instance1 (e/eval-all-dataflows
+                        (cn/make-instance
+                          :WordCount.Core/Create_Customer
+                          {:Instance
+                           (cn/make-instance :WordCount.Core/Customer customer-data-1)}))
+            instance2 (e/eval-all-dataflows
+                        (cn/make-instance
+                          :WordCount.Core/Create_Customer
+                          {:Instance
+                           (cn/make-instance :WordCount.Core/Customer customer-data-2)}))
+
+            fetch-all-customers-query "query Customer {
+                                            Customer {
+                                                Id
+                                                ListOfNames
+                                                Name
+                                                Attributes {
+                                                    SubAttribute {
+                                                        name
+                                                        value
+                                                        SubSubAttribute {
+                                                            name
+                                                            value
+                                                        }
+                                                    }
+                                                    name
+                                                    value
+                                                }
+                                            }
+                                        }"
+            results (graphql-handler :WordCount.Core fetch-all-customers-query)
+            customers (get results :Customer)]
+        (let [subset [graphql-customer-data-1 graphql-customer-data-2]
+              superset customers]
+          (compare-instance-maps subset superset :Id))))))
 
 (deftest test-create-mutations-for-word-count-app
   (build-word-count-app)
@@ -551,6 +681,23 @@
         user-tag-data {:User (:Id user-data)
                        :Tag (:Id tag-data)
                        :Awesome "1Nice"}
+
+        customer-data {:Id          1000,
+                       :Name        "Hasnain Naeem",
+                       :ListOfNames ["Alice" "Bob" "Charlie"],
+                       :Attributes
+                       [{:name  "Personal",
+                         :value "Info",
+                         :SubAttribute
+                         {:name            "Details",
+                          :value           "More Info",
+                          :SubSubAttribute {:name "Age", :value "30"}}}
+                        {:name  "Professional",
+                         :value "Work Info",
+                         :SubAttribute
+                         {:name            "Job",
+                          :value           "Details",
+                          :SubSubAttribute {:name "Occupation", :value "Engineer"}}}]}
 
         create-user-pattern "mutation {
                                 CreateUser(input: {
@@ -672,6 +819,56 @@
                                     }
                                   }"
 
+        create-customer-mutation "mutation CreateCustomer {
+                                    CreateCustomer(input: {
+                                      Id: 1000,
+                                      Name: \"Hasnain Naeem\",
+                                      ListOfNames: [\"Alice\", \"Bob\", \"Charlie\"],
+                                      Attributes: [
+                                        {
+                                          name: \"Personal\",
+                                          value: \"Info\",
+                                          SubAttribute: {
+                                            name: \"Details\",
+                                            value: \"More Info\",
+                                            SubSubAttribute: {
+                                              name: \"Age\",
+                                              value: \"30\"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          name: \"Professional\",
+                                          value: \"Work Info\",
+                                          SubAttribute: {
+                                            name: \"Job\",
+                                            value: \"Details\",
+                                            SubSubAttribute: {
+                                              name: \"Occupation\",
+                                              value: \"Engineer\"
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }) {
+                                      Id
+                                      Name
+                                      ListOfNames
+                                      Attributes {
+                                        name
+                                        value
+                                        SubAttribute {
+                                          name
+                                          value
+                                          SubSubAttribute {
+                                            name
+                                            value
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }"
+
         query-tag-by-all-attributes "query {
                                         UserTag(attributes: {
                                             User: \"1e977860-5cd4-4bc3-8323-f4f71a66de6d\",
@@ -750,7 +947,13 @@
     (testing "Query between instance by one attribute"
       (let [results (graphql-handler :WordCount.Core query-tag-by-one-attribute)
             result-data (first (:UserTag results))]
-        (is (= user-tag-data result-data))))))
+        (is (= user-tag-data result-data))))
+
+    ;; MUTATE A DEEP ENTITY WITH SEVERAL LEVELS OF RECORDS AND LIST ATTRIBUTES
+    (testing "Create Customer Instance Having Several Levels of Records and List Attributes"
+      (let [results (graphql-handler :WordCount.Core create-customer-mutation)
+            result-data (:CreateCustomer results)]
+        (is (= customer-data result-data))))))
 
 (deftest test-update-mutations-for-word-count-app
   (build-word-count-app)
@@ -768,7 +971,41 @@
                    :Email "2user17@example.com"
                    :Name "2John Doe"}
 
-        updated-user-data {:Id "2e977860-5cd4-4bc3-8323-f4f71a66de6d"
+        customer-data {:Id          1001,
+                       :Name        "Hasnain Naeem",
+                       :ListOfNames ["Alice" "Bob" "Charlie"],
+                       :Attributes
+                       [{:WordCount.Core/Attribute {:name  "Personal",
+                                                    :value "Info",
+                                                    :SubAttribute
+                                                    {:WordCount.Core/SubAttribute {:name            "Details",
+                                                                                   :value           "More Info",
+                                                                                   :SubSubAttribute {:WordCount.Core/SubSubAttribute {:name "Age", :value "30"}}}}}}
+                        {:WordCount.Core/Attribute {:name  "Professional",
+                                                    :value "Work Info",
+                                                    :SubAttribute
+                                                    {:WordCount.Core/SubAttribute {:name            "Job",
+                                                                                   :value           "Details",
+                                                                                   :SubSubAttribute {:WordCount.Core/SubSubAttribute {:name "Occupation", :value "Engineer"}}}}}}]}
+
+        updated-customer-data {:Id          1001,
+                               :Name        "Muhammad Hasnain Naeem", ;; changed
+                               :ListOfNames ["Name1" "Name2" "Name3"], ;; changed
+                               :Attributes
+                               [{:name  "Personal",
+                                 :value "Info",
+                                 :SubAttribute
+                                 {:name            "Details",
+                                  :value           "More Info",
+                                  :SubSubAttribute {:name "Age", :value "30"}}}
+                                {:name  "Professional",
+                                 :value "Work Info",
+                                 :SubAttribute
+                                 {:name            "Job",
+                                  :value           "Details",
+                                  :SubSubAttribute {:name "Occupation", :value "Software Engineer"}}}]} ;; changed
+
+        updated-user-data {:Id    "2e977860-5cd4-4bc3-8323-f4f71a66de6d"
                            :Email "newuser17@example.com"
                            :Name "newJohn Doe"}
 
@@ -877,9 +1114,59 @@
                                                     Awesome
                                                   }
                                                 }"
+
+        update-customer-mutation "mutation UpdateCustomer {
+                                    UpdateCustomer(input: {
+                                      Id: 1001,
+                                      Name: \"Muhammad Hasnain Naeem\",
+                                      ListOfNames: [\"Name1\", \"Name2\", \"Name3\"],
+                                      Attributes: [
+                                        {
+                                          name: \"Personal\",
+                                          value: \"Info\",
+                                          SubAttribute: {
+                                            name: \"Details\",
+                                            value: \"More Info\",
+                                            SubSubAttribute: {
+                                              name: \"Age\",
+                                              value: \"30\"
+                                            }
+                                          }
+                                        },
+                                        {
+                                          name: \"Professional\",
+                                          value: \"Work Info\",
+                                          SubAttribute: {
+                                            name: \"Job\",
+                                            value: \"Details\",
+                                            SubSubAttribute: {
+                                              name: \"Occupation\",
+                                              value: \"Software Engineer\"
+                                            }
+                                          }
+                                        }
+                                      ]
+                                    }) {
+                                      Id
+                                      Name
+                                      ListOfNames
+                                      Attributes {
+                                        name
+                                        value
+                                        SubAttribute {
+                                          name
+                                          value
+                                          SubSubAttribute {
+                                            name
+                                            value
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }"
         ]
 
-    ;; CREATE AND UPATE PARENT
+    ;; CREATE AND UPDATE PARENT
     (testing "Create instance of parent entity"
       (let [user-instance (first (tu/fresult
                                    (e/eval-all-dataflows
@@ -974,7 +1261,25 @@
                      (graphql-handler :WordCount.Core update-user-tag-mutation-without-tag-id)
                      (catch Exception e e))]
         (is (instance? Exception result))
-        (is (.contains (.getMessage result) "Error: GUID for ':WordCount.Core/Tag' not provided."))))))
+        (is (.contains (.getMessage result) "Error: GUID for ':WordCount.Core/Tag' not provided."))))
+
+    ;; CREATE AND UPDATE A DEEP ENTITY WITH SEVERAL LEVELS OF RECORDS AND LIST ATTRIBUTES
+    (testing "Create instance of customer - an entity with deeply nested attributes"
+      (let [customer-instance (first (tu/fresult
+                                   (e/eval-all-dataflows
+                                     (cn/make-instance
+                                      :WordCount.Core/Create_Customer
+                                      {:Instance
+                                       (cn/make-instance :WordCount.Core/Customer customer-data)}))))]
+        (is (cn/instance-of? :WordCount.Core/Customer customer-instance))))
+
+    (testing "Update Customer Instance Having Several Levels of Records and List Attributes"
+      (let [results (graphql-handler :WordCount.Core update-customer-mutation)
+            result-data (:UpdateCustomer results)]
+        (is (= (:Id updated-customer-data) (:Id result-data)))
+        (is (= (:Name updated-customer-data) (:Name result-data)))
+        (is (= (:ListOfNames updated-customer-data) (:ListOfNames result-data)))
+        (is (= (count (:Attributes updated-customer-data)) (count (:Attributes result-data))))))))
 
 (deftest test-delete-mutations-for-word-count-app
   (build-word-count-app)
@@ -1170,5 +1475,4 @@
            (cn/make-instance :WordCount.Core/UserTag user-tag-data)}))
       (let [results (graphql-handler :WordCount.Core delete-user-tag-mutation-without-tag-id)
             result-data (first (:DeleteUserTag results))]
-        (is (= user-tag-data result-data))))
-     ))
+        (is (= user-tag-data result-data))))))

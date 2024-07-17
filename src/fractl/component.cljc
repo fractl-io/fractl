@@ -32,6 +32,7 @@
     :Fractl.Kernel.UserApp
     :Fractl.Kernel.Repl
     :Fractl.Inference.Service
+    :Fractl.Inference.Provider
     })
 
 (def non-instance-user-attr-keys
