@@ -95,12 +95,17 @@
              :Name :String
              :MemberSince {:type :Date :optional true}})
 
-   (entity :WordCount.Core/Hero
+    (entity :WordCount.Core/Hero
            {:Id {:type :Int :guid true}
             :Name :String
             :HomePlanet :String
             :Age :Int
             :ForceSensitive :Boolean})
+
+    (entity :WordCount.Core/Order
+        {:Id        :Int
+         :Details   :String
+         :CreatedAt :DateTime})
 
     (entity :WordCount.Core/Profile
             {:Id :Identity
@@ -529,7 +534,84 @@
     (testing "Query between instance by one attribute"
       (let [results (graphql-handler :WordCount.Core query-tag-by-one-attribute)
             result-data (first (:UserTag results))]
-        (is (= user-tag-data result-data))))))
+        (is (= user-tag-data result-data))))
+
+    (testing "Date and DateTime Comparison Operators"
+      (let [base-date "2024-07-17T10:00"
+            orders (vec (for [i (range 1 11)]
+                          (let [date-time (-> (java.time.LocalDateTime/parse base-date)
+                                              (.plusDays (dec i))
+                                              (.truncatedTo java.time.temporal.ChronoUnit/MINUTES)
+                                              .toString)
+                                order (cn/make-instance
+                                        :WordCount.Core/Order
+                                        {:Id        i
+                                         :Details   (str "Order #" i)
+                                         :CreatedAt date-time})]
+                            (first (tu/fresult
+                                     (e/eval-all-dataflows
+                                       (cn/make-instance
+                                         :WordCount.Core/Create_Order
+                                         {:Instance order})))))))
+            query-template "query getOrders($dateFilter: String!) {
+                              Order(filter: {
+                                CreatedAt: {
+                                  %s: $dateFilter
+                                }
+                              }) {
+                                Id
+                                Details
+                                CreatedAt
+                              }
+                            }"]
+
+        (testing "Less than or equal (lte) operator"
+          (let [lte-query (format query-template "lte")
+                lte-variables {:dateFilter "2024-07-21T10:00"}
+                results (:Order (graphql-handler :WordCount.Core lte-query lte-variables))]
+            (is (= 5 (count results)))
+            (is (every? #(<= (:Id %) 5) results))))
+
+        (testing "Less than (lt) operator"
+          (let [lt-query (format query-template "lt")
+                lt-variables {:dateFilter "2024-07-21T10:00"}
+                results (:Order (graphql-handler :WordCount.Core lt-query lt-variables))]
+            (is (= 4 (count results)))
+            (is (every? #(< (:Id %) 5) results))))
+
+        (testing "Greater than or equal (gte) operator"
+          (let [gte-query (format query-template "gte")
+                gte-variables {:dateFilter "2024-07-21T10:00"}
+                results (:Order (graphql-handler :WordCount.Core gte-query gte-variables))]
+            (is (= 6 (count results)))
+            (is (every? #(>= (:Id %) 5) results))))
+
+        (testing "Greater than (gt) operator"
+          (let [gt-query (format query-template "gt")
+                gt-variables {:dateFilter "2024-07-21T10:00"}
+                results (:Order (graphql-handler :WordCount.Core gt-query gt-variables))]
+            (is (= 5 (count results)))
+            (is (every? #(> (:Id %) 5) results))))
+
+        (testing "Edge case: Exact date match"
+          (let [eq-query (format query-template "eq")
+                eq-variables {:dateFilter "2024-07-21T10:00"}
+                results (:Order (graphql-handler :WordCount.Core eq-query eq-variables))]
+            (is (= 1 (count results)))
+            (is (= 5 (:Id (first results))))))
+
+        (testing "No results case"
+          (let [gt-query (format query-template "gt")
+                gt-variables {:dateFilter "2024-07-27T10:00"}
+                results (:Order (graphql-handler :WordCount.Core gt-query gt-variables))]
+            (is (empty? results))))
+
+        (testing "All results case"
+          (let [gte-query (format query-template "gte")
+                gte-variables {:dateFilter "2024-07-17T10:00"}
+                results (:Order (graphql-handler :WordCount.Core gte-query gte-variables))]
+            (is (= 10 (count results)))
+            (is (= (set (range 1 11)) (set (map :Id results))))))))))
 
 (deftest test-create-mutations-for-word-count-app
   (build-word-count-app)
