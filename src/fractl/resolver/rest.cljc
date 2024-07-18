@@ -9,6 +9,7 @@
              [defmake]]))
 
 (defn- response-handler [response]
+  (log/info (str "rest-resolver response: " (json/decode (:body response))))
   (if (map? response)
     (if-let [status (:status response)]
       (if (< 199 status 299)
@@ -24,6 +25,8 @@
     (json/encode body)))
 
 (defn rest-request [method inst]
+  (log/info (str "rest-resolver called " method " " (:Url inst) "\n "
+                 (:Body inst)))
   (response-handler
    (http/do-request
     method (:Url inst) (:Headers inst)
