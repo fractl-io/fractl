@@ -8,7 +8,21 @@ function msg {
     echo "$@" 1>&2
 }
 
-export FRACTL_VERSION="0.5.3"
+export CURRENT_FRACTL_VERSION="0.5.3"
+
+if [ -e model.fractl ]; then
+    fractl_version_in_model=`grep ":fractl-version" model.fractl | sed -E  's/(.*) {1}(.*)/\2/' | xargs`
+    if [ -z "$fractl_version_in_model" ] || [ "$fractl_version_in_model" == "latest" ]; then
+	export FRACTL_VERSION=${CURRENT_FRACTL_VERSION}
+    else
+	export FRACTL_VERSION=${fractl_version_in_model}
+    fi
+else
+    export FRACTL_VERSION=${CURRENT_FRACTL_VERSION}
+fi
+
+echo "Fractl ${FRACTL_VERSION}"
+
 # Must be sha256sum
 export FRACTL_CHECKSUM='7beae68a3353377ae77ef3681b03c45911271cec7732fec29c74ac5f03f36098'
 
@@ -92,14 +106,18 @@ function self_install {
   local exit_code=$?
   if [ $exit_code == 0 ]; then
       printf "$FRACTL_CHECKSUM  $FRACTL_JAR.pending\n" > "$FRACTL_JAR.pending.shasum"
-      $SHASUM_CMD -c "$FRACTL_JAR.pending.shasum"
-      if [ $? == 0 ]; then
-        mv -f "$FRACTL_JAR.pending" "$FRACTL_JAR"
+      if [ $FRACTL_VERSION == $CURRENT_FRACTL_VERSION ]; then
+	  $SHASUM_CMD -c "$FRACTL_JAR.pending.shasum"
+	  if [ $? == 0 ]; then
+              mv -f "$FRACTL_JAR.pending" "$FRACTL_JAR"
+	  else
+              got_sum="$($SHASUM_CMD "$FRACTL_JAR.pending" | cut -f 1 -d ' ')"
+              checksum_failed_message "$FRACTL_URL" "$FRACTL_CHECKSUM" "$got_sum"
+              rm "$FRACTL_JAR.pending" 2> /dev/null
+              exit 1
+	  fi
       else
-        got_sum="$($SHASUM_CMD "$FRACTL_JAR.pending" | cut -f 1 -d ' ')"
-        checksum_failed_message "$FRACTL_URL" "$FRACTL_CHECKSUM" "$got_sum"
-        rm "$FRACTL_JAR.pending" 2> /dev/null
-        exit 1
+	  mv -f "$FRACTL_JAR.pending" "$FRACTL_JAR"
       fi
   else
       rm "$FRACTL_JAR.pending" 2> /dev/null
