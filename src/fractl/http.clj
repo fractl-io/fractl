@@ -5,6 +5,7 @@
             [buddy.auth.middleware :refer [wrap-authentication]]
             [buddy.sign.jwt :as buddyjwt]
             [clj-time.core :as time]
+            [clojure.string :as str]
             [clojure.string :as s]
             [clojure.walk :as w]
             [fractl.auth.core :as auth]
@@ -1168,9 +1169,9 @@
          schema (cn/schema-info core-component-name)
          contains-graph-map (gg/generate-contains-graph schema)
          [auth _ :as auth-info] (make-auth-handler config)]
-      (try
-       ; attempt to compile the GraphQL schema
-       (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema contains-graph-map)]
+       (try
+         ; attempt to compile the GraphQL schema
+         (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema contains-graph-map)]
          ; save schema to global variable and file
          (graphql/save-schema uninjected-graphql-schema)
          (reset! core-component core-component-name)
@@ -1178,8 +1179,9 @@
          (reset! graphql-entity-metas entity-metadatas)
          (reset! contains-graph contains-graph-map)
          (log/info (str "GraphQL schema generation and resolver injection succeeded.")))
-       (catch Exception e
-         (log/error (str "Failed to compile GraphQL schema:" e))))
+         (catch Exception e
+           (log/error (str "Failed to compile GraphQL schema:"
+                           (str/join "\n" (.getStackTrace e))))))
 
      (if (or (not auth) (auth-service-supported? auth))
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]

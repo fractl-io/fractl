@@ -120,7 +120,7 @@
     (evaluate-request-and-verify-client-error-response {:Api.Test/MakeF {:Name "Nice Name"
                                                                          :Y 100
                                                                          :ExtraUndefinedAttribute "Some value"}}
-                                                       ":Api.Test/MakeF - invalid attribute(s) found - (:ExtraUndefinedAttribute)")))
+                                                       "[:Api.Test :MakeF] - invalid attribute(s) found - (:ExtraUndefinedAttribute)")))
 
 (deftest verify-various-client-msg-configuration-scenarios-for-raised-errors
   (testing "With client message same as internal error message"

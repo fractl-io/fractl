@@ -32,7 +32,9 @@
   ;; TODO: output-checking
   ;; TODO: evaluation
   ;; TODO: retries (with max-retries option)
-  (let [{:keys [max-retries]
+  (let [agent-config (:agent-config options)
+        options (dissoc options :agent-config)
+        {:keys [max-retries]
          :or {max-retries 2}} options
         planner-core (compose/chain {:chain-name "PLANNER-AGENT-CORE"
                                      :max-retries max-retries}
@@ -51,11 +53,13 @@
                    ;;-- planner
                    (fn [m] (set/rename-keys m {:user-question :text-content})) ; next step needs :text-content
                    (compose/assok :embedding provider/get-embedding) ; needs :text-content
-                   (compose/assok :all-tools retriever/retrieve-tools) ; needs :app-uuid and embedding
+                   (compose/assok
+                    :all-tools
+                    #(or (:tools agent-config) (retriever/retrieve-tools %))) ; needs :app-uuid and embedding
                    (if (:use-docs? options)
-                     (compose/assok :all-docs retriever/retrieve-docs)
+                     (compose/assok :all-docs #(or (:docs agent-config) (retriever/retrieve-docs %)))
                      identity)
-                   (compose/assok :messages prompt/make-planner-messages)
+                   (compose/assok :messages (or (:make-prompt agent-config) prompt/make-planner-messages))
                    ;; retry-enabled
                    planner-core
                    (fn [m] (select-keys m [:answer-text :patterns])))))
@@ -66,10 +70,11 @@
   (let [{:keys [max-retries]
          :or {max-retries 2}} options
         entity-name (:result-entity options)
-        json->entity (fn [m] {entity-name (walk/keywordize-keys m)})]
+        json->entity (fn [m] {entity-name (walk/keywordize-keys m)})
+        agent-config (:config (:agent-config options))]
     (compose/chain {:chain-name "ANALYZER-AGENT"}
                    ;;(fn [m] (assoc m :payload (:event m)))
-                   (compose/assok :messages prompt/make-analyze-as-json-prompt)
+                   (compose/assok :messages (or (:make-prompt agent-config) prompt/make-analyze-as-json-prompt))
                    (compose/assok :answer-text provider/get-completion)
                    (compose/assok :answer-json (compose/applyk output/json-parser :answer-text))
                    (compose/assok :answer-entity (compose/applyk json->entity :answer-json))

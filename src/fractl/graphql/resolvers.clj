@@ -87,10 +87,18 @@
     (case op
       :eq (= instance-value value)
       :ne (not= instance-value value)
-      :gt (> instance-value value)
-      :gte (>= instance-value value)
-      :lt (< instance-value value)
-      :lte (<= instance-value value)
+      :gt (if (and (string? instance-value) (string? value))
+            (pos? (compare instance-value value))
+            (> instance-value value))
+      :gte (if (and (string? instance-value) (string? value))
+             (not (neg? (compare instance-value value)))
+             (>= instance-value value))
+      :lt (if (and (string? instance-value) (string? value))
+            (neg? (compare instance-value value))
+            (< instance-value value))
+      :lte (if (and (string? instance-value) (string? value))
+             (not (pos? (compare instance-value value)))
+             (<= instance-value value))
       :in (contains? (set value) instance-value)
       :contains (str/includes? (str instance-value) (str value))
       :startsWith (str/starts-with? (str instance-value) (str value))
@@ -242,12 +250,43 @@
                true (drop offset)
                limit (take limit)))))
 
+(defn transform-pattern
+  "Transforms a pattern by wrapping maps with their corresponding record types."
+  [records pattern]
+  (letfn [(find-record-type [value]
+            (some (fn [record]
+                    (when (= (set (keys (val (first record)))) (set (keys value)))
+                      (key (first record))))
+                  records))
+          (wrap-record [record-type data]
+            (if (map? data)
+              {record-type data}
+              data))
+          (process-value [value]
+            (cond
+              (vector? value)
+              (mapv process-value value)
+
+              (map? value)
+              (if-let [record-type (find-record-type value)]
+                (wrap-record record-type (into {} (map (fn [[k v]] [k (process-value v)]) value)))
+                (into {} (map (fn [[k v]] [k (process-value v)]) value)))
+              :else
+              value))]
+    (process-value pattern)))
+
 (defn create-entity-resolver
   [entity-name]
   (fn [context args value]
     (let [args (:input args)
           core-component (:core-component context)
-          create-pattern {entity-name args}]
+          schema-info (schema-info core-component)
+          records (:records schema-info)
+          create-pattern {entity-name args}
+          attr-map-key (first (keys create-pattern))
+          attr-map-value (get create-pattern attr-map-key)
+          transformed-attr-map (transform-pattern records attr-map-value)
+          create-pattern {attr-map-key transformed-attr-map}]
       (first (eval-patterns core-component create-pattern context)))))
 
 (defn create-contained-entity-resolver
@@ -274,17 +313,29 @@
           create-pattern {relationship-name args}]
       (first (eval-patterns core-component create-pattern context)))))
 
+(defn transform-update-pattern
+  [records pattern]
+  (let [update-key (first (keys pattern))
+        update-value (get pattern update-key)
+        id (:Id update-value)
+        data (:Data update-value)
+        transformed-data (transform-pattern records data)
+        result {update-key {:Id id :Data transformed-data}}]
+    result))
+
 (defn update-entity-resolver
   [entity-name]
   (fn [context args value]
     (let [args (:input args)
           core-component (:core-component context)
-          schema (schema-info core-component)
-          entity-guid-attr (find-guid-or-id-attribute schema entity-name)
+          schema-info (schema-info core-component)
+          entity-guid-attr (find-guid-or-id-attribute schema-info entity-name)
           entity-guid-val (entity-guid-attr args)
           update-pattern {(form-pattern-name core-component "Update" (extract-entity-name entity-name))
                           {entity-guid-attr entity-guid-val
-                           :Data            (dissoc args entity-guid-attr)}}]
+                           :Data            (dissoc args entity-guid-attr)}}
+          records (:records schema-info)
+          update-pattern (transform-update-pattern records update-pattern)]
       (first (eval-patterns core-component update-pattern context)))))
 
 (defn update-contained-entity-resolver

@@ -32,6 +32,7 @@
     :Fractl.Kernel.UserApp
     :Fractl.Kernel.Repl
     :Fractl.Inference.Service
+    :Fractl.Inference.Provider
     })
 
 (def non-instance-user-attr-keys
@@ -902,7 +903,8 @@
    full-record-name must be in the form - :ComponentName/RecordName.
    Return the new record on success, return an :error record on failure."
   ([record-name attributes validate?]
-   (let [schema (ensure-schema record-name)
+   (let [record-name (li/split-path record-name)
+         schema (ensure-schema record-name)
          attrs-with-insts (maps-to-insts attributes validate?)
          attrs (if validate?
                  (validate-record-attributes record-name attrs-with-insts schema)
@@ -2349,3 +2351,7 @@
   (reduce (fn [s [n t]]
             (str s (name n) ": " (attribute-type-as-string t) "\n"))
           "" scm))
+
+(defn system-component-names []
+  (when-let [cns (seq (filter #(s/starts-with? (str %) ":Fractl") (component-names)))]
+    (vec cns)))

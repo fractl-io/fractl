@@ -348,9 +348,10 @@
   (when-let [[event-name r] (cn/fire-pre-event
                              (partial event-evaluator (env/disable-post-event-triggers env))
                              tag inst)]
-    (when-not (u/safe-ok-result r)
-      (log/warn r)
-      (u/throw-ex (str "internal event " event-name " failed.")))))
+    (if-let [result (u/safe-ok-result r)]
+      result
+      (let [msg (if (map? r) (:message r) (:message (first r)))]
+        (u/throw-ex (str "event " event-name " failed: " msg))))))
 
 (defn- chained-upsert [env event-evaluator record-name insts]
   (let [store (env/get-store env)
@@ -369,10 +370,14 @@
                      env inst
                      (fn [inst]
                        (let [store-f (if is-queried store/update-instances store/create-instances)
-                             _ (fire-pre-crud-event
-                                event-evaluator env
-                                (if is-queried :update :create)
-                                inst)
+                             result (fire-pre-crud-event
+                                     event-evaluator env
+                                     (if is-queried :update :create)
+                                     inst)
+                             inst (if (and (cn/an-instance? result)
+                                           (cn/instance-eq? inst result))
+                                    result
+                                    inst)
                              resolver-f (if is-queried resolver-update resolver-create)
                              result
                              (chained-crud
