@@ -190,7 +190,7 @@
   (println "optional configuration (--config)"))
 
 (defn- print-version []
-  (println (str "Fractl " (gs/fractl-version))))
+  (println (gs/fractl-version)))
 
 (defn- db-migrate [model-name config]
   ;; config: {:db:migrate {:from "version"}}
