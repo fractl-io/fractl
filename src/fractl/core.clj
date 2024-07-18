@@ -155,6 +155,7 @@
    ["-s" "--doc MODEL" "Generate documentation in .html"]
    ["-i" "--interactive 'app-description'" "Invoke AI-assist to model an application"]
    ["-h" "--help"]
+   ["-v" "--version"]
    ["-g" "--graphql MODEL" "Generate GraphQL schema for reference"]
    ["-n" "--nrepl" "Start nREPL server"]])
 
@@ -187,6 +188,9 @@
   (println)
   (println "To run a model script, pass the .fractl filename as the command-line argument, with")
   (println "optional configuration (--config)"))
+
+(defn- print-version []
+  (println (str "Fractl " (gs/fractl-version))))
 
 (defn- db-migrate [model-name config]
   ;; config: {:db:migrate {:from "version"}}
@@ -257,6 +261,7 @@
     (cond
       errors (println errors)
       (:help options) (print-help)
+      (:version options) (print-version)
       (:graphql options) (generate-graphql-schema
                            (:graphql options)
                            args)
