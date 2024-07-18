@@ -85,7 +85,9 @@
            (let [continue
                  (try
                    (do (doseq [^ConsumerRecord record (.poll consumer dur-ms)]
-                         (si/process-notification client (json/decode (.value record)))
+                         (let [value (json/decode (.value record))]
+                           (log/info (str "event-consumer polled: " value))
+                           (si/process-notification client value))
                          (.addOffset rebalance-listener record))
                        (.commitAsync consumer (.getCurrentOffsets rebalance-listener) nil)
                        (.resetCurrentOffsets rebalance-listener)
