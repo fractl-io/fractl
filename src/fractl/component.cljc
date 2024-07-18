@@ -85,7 +85,7 @@
   #?(:clj (ref [])
      :cljs (atom [])))
 
-(defn- set-current-component [n]
+(defn set-current-component [n]
   #?(:clj (dosync (.set current-component n)
                   (ref-set components-inited (conj @components-inited n)))
      :cljs (do (reset! current-component n)
