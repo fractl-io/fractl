@@ -174,6 +174,7 @@
     :else data))
 
 (defn- apply-rbac-for-user [user env opr arg]
+  (log/info (str "Applying rbac check " opr " for user " user))
   (let [check (partial apply-rbac-checks user env opr arg)]
     (if-let [data (ii/data-input arg)]
       (if (or (ii/skip-for-input? data) (= opr :read))
@@ -241,6 +242,7 @@
         [(as-node (first spec)) (as-node (nth spec 2))]))))
 
 (defn- maybe-delegate-ownership! [env inst]
+  (log/info (str "Delegating ownership - " inst))
   (when-let [[from to] (parse-ownership-spec inst)]
     (let [rel-ctx ((cn/instance-type-kw inst) (env/relationship-context env))
           from-inst (from rel-ctx)
@@ -259,6 +261,7 @@
             (handle-ownership-assignment nil env :create inst true)))))))
 
 (defn- maybe-revoke-ownership! [env inst]
+  (log/info (str "Revoking ownership - " inst))
   (when-let [[from to] (parse-ownership-spec inst)]
     (let [rel-ctx ((env/load-between-refs env) inst)
           from-inst (from rel-ctx)

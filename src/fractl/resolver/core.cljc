@@ -3,6 +3,8 @@
             [fractl.env :as env]
             [fractl.component :as cn]
             [fractl.util.seq :as su]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.lang.internal :as li]))
 
 (def ^:private valid-resolver-keys #{:update :create :delete :query :eval
@@ -106,6 +108,7 @@
    (invoke-method method resolver handler nil env arg)))
 
 (defn- wrap-result [method resolver env arg]
+  (log/info (str "Calling method " method " in resolver " (:name resolver) " for " arg))
   (if-let [m (get-in resolver [method :handler])]
     {:resolver (:name resolver)
      :method method
