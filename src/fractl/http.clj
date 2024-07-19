@@ -21,7 +21,6 @@
             [fractl.lang.raw :as lr]
             [fractl.paths.internal :as pi]
             [fractl.user-session :as sess]
-            [fractl.inference :as i]
             [fractl.util :as u]
             [fractl.util.errors :refer [get-internal-error-message]]
             [fractl.util.hash :as hash]
@@ -1060,18 +1059,6 @@
         (ok {:status "ok" :result decoded-token}))
       (bad-request (str "token not specified") "ID_TOKEN_REQUIRED"))))
 
-(defn- process-post-inference-service-question [[auth-config _] auth request]
-  (if (and auth-config (nil? (:email (auth/session-sub
-                                      (assoc auth :request request)))))
-    (bad-request (str "authentication not valid") "INVALID_AUTHENTICATION")
-    (try
-      (let [[obj _ _] (request-object request)
-            evaluated-result (i/run-inference (cn/instance-attributes obj) (:question obj) nil)]
-        (ok evaluated-result))
-      (catch Exception ex
-        (log/info (.getMessage ex))
-        (bad-request "Request to inference-service backend failed" "REQUEST_FAILED")))))
-
 (defn- process-root-get [_]
   (ok {:result :fractl}))
 
@@ -1221,8 +1208,7 @@
             :register-magiclink (partial process-register-magiclink auth-info auth)
             :get-magiclink (partial process-get-magiclink auth-info)
             :preview-magiclink (partial process-preview-magiclink auth-info)
-            :meta (partial process-meta-request auth-info)
-            :post-inference-service-question (partial process-post-inference-service-question auth-info auth)})
+            :meta (partial process-meta-request auth-info)})
           config))
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
   ([evaluator]

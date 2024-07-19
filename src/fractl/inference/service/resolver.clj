@@ -10,7 +10,9 @@
 (def ^:private create-handlers
   {:DocChunk (partial logic/handle-doc-chunk :add)
    :PlannerTool (partial logic/handle-planner-tool :add)
-   :Question (partial logic/handle-app-question :add)})
+   :Question (partial logic/handle-app-question :add)
+   :PlannerAgent (partial logic/handle-planner-agent :add)
+   :AnalysisAgent (partial logic/handle-analysis-agent :add)})
 
 (def ^:private delete-handlers
   {:PlannerTool (partial logic/handle-planner-tool :delete)})

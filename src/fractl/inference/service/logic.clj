@@ -1,10 +1,11 @@
 (ns fractl.inference.service.logic
   (:require [clojure.edn :as edn]
             [clojure.string :as s]
-            [fractl.component :as fc]
+            [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.global-state :as gs]
+            [fractl.inference.provider.core :as p]
             [fractl.inference.embeddings.core :as ec]
             [fractl.inference.service.lib.agent :as agent]
             [fractl.inference.service.lib.prompt :as prompt])
@@ -12,7 +13,7 @@
 
 (defn handle-doc-chunk [operation instance]
   (when (= :add operation)
-    (let [doc-chunk (fc/instance-attributes instance)
+    (let [doc-chunk (cn/instance-attributes instance)
           app-uuid (:AppUuid doc-chunk)
           doc-name (:DocName doc-chunk)
           chunk-text (:DocChunk doc-chunk)]
@@ -30,7 +31,7 @@
     {:app-uuid app-uuid :tag tag :type type}))
 
 (defn handle-planner-tool [operation instance]
-  (let [planner-tool (fc/instance-attributes instance)
+  (let [planner-tool (cn/instance-attributes instance)
         app-uuid (:AppUuid planner-tool)
         tool-name (:ToolName planner-tool)
         tool-spec (when-let [tspec (:ToolSpec planner-tool)]
@@ -66,7 +67,7 @@
                     :background qcontext
                     :use-docs? use-docs?
                     :app-uuid app-uuid
-                    :agent-config (:config agent-config)}]
+                    :agent-config agent-config}]
     (try
       (if use-schema?
         (-> (agent/make-planner-agent agent-args)
@@ -87,7 +88,7 @@
 (defn answer-question-analyze [app-uuid question-text qcontext options]
   (let [agent-args (merge {:user-statement question-text
                            :payload qcontext}
-                          (:config options))]
+                          (:agent-config options))]
     (try
       (-> (agent/make-analyzer-agent agent-args)
           (apply [agent-args])
@@ -111,11 +112,55 @@
           agent-config (:AgentConfig instance)
           options {:use-schema? (get-in instance [:QuestionOptions :UseSchema])
                    :use-docs? (get-in instance [:QuestionOptions :UseDocs])}
-          response (if-not (:is-planner? (:config agent-config))
+          response (if-not (:is-planner? agent-config)
                      (answer-question-analyze app-uuid question (or qcontext {})
-                                              (merge options agent-config))
+                                              (merge options {:agent-config agent-config}))
                      (answer-question app-uuid question (or qcontext {}) options agent-config))]
       (assoc instance
              :QuestionContext {} ; empty :QuestionContext to avoid entity-name conflict
              :QuestionResponse (pr-str response)))
     instance))
+
+(defn- cleanup-agent [inst]
+  (dissoc inst :Context))
+
+(defn handle-planner-agent [operation instance]
+  (log/info (str "Triggering planner agent - " (u/pretty-str instance)))
+  (cleanup-agent
+   (if (= :add operation)
+     (p/call-with-provider
+      (:LLM instance)
+      #(let [app-uuid (:AppUuid instance)
+             question (:UserInstruction instance)
+             qcontext (:Context instance)
+             agent-config {:is-planner? true
+                           :tools (:Tools instance)
+                           :docs (:Docs instance)
+                           :make-prompt (:PromptFn instance)}
+             options {:use-schema? true :use-docs? true}
+             response (answer-question app-uuid question (or qcontext {}) options agent-config)]
+         (assoc instance :Response response)))
+     instance)))
+
+(defn handle-analysis-agent [operation instance]
+  (log/info (str "Triggering analysis agent - " (u/pretty-str instance)))
+  (cleanup-agent
+   (if (= :add operation)
+     (p/call-with-provider
+      (:LLM instance)
+      #(let [app-uuid (:AppUuid instance)
+             question (:UserInstruction instance)
+             qcontext (:Context instance)
+             options {:use-schema? true :use-docs? true}
+             out-type (:OutputEntityType instance)
+             out-scm (cn/ensure-schema out-type)
+             agent-config {:result-entity out-type
+                           :make-prompt (:PromptFn instance)
+                           :output-keys (or (:OutputAttributes instance)
+                                            (vec (cn/user-attribute-names out-scm)))
+                           :output-key-values (or (:OutputAttributeValues instance)
+                                                  (cn/schema-as-string out-scm))}
+             response (answer-question-analyze app-uuid question (or qcontext {})
+                                               (merge options {:agent-config agent-config}))]
+         (assoc instance :Response response)))
+     instance)))

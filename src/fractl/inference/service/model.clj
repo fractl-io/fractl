@@ -5,6 +5,7 @@
                                  event
                                  record
                                  relationship]]
+            [fractl.component :as cn]
             [fractl.util :as u]))
 
 (component :Fractl.Inference.Service)
@@ -61,3 +62,33 @@
   :QuestionContext {:type :Map :default {}}
   :QuestionOptions {:type :Map :default {}}
   :QuestionResponse {:type :Any :optional true :read-only true}})
+
+(defn llm-spec? [x]
+  (or (string? x) ;; llm-instance name
+      (cn/instance-of? :Fractl.Inference.Provider/LLM x)))
+
+(record
+ :Fractl.Inference.Service/Agent
+ {:Name {:type :String :guid true}
+  :AppUuid {:type :UUID :default u/get-app-uuid}
+  :ChatUuid {:type :UUID :default u/uuid-string}
+  :LLM {:check llm-spec?}
+  :Messages {:listof :String :optional true}
+  :UserInstruction {:type :String :optional true}
+  :PromptFn {:check fn? :optional true}
+  :Context {:type :Map :optional true}
+  :Response {:type :Any :read-only true}})
+
+(entity
+ :Fractl.Inference.Service/AnalysisAgent
+ {:meta {:inherits :Fractl.Inference.Service/Agent}
+  :Comment :String
+  :OutputEntityType :Keyword
+  :OutputAttributes {:listof :Keyword :optional true}
+  :OutputAttributeValues {:type :String :optional true}})
+
+(entity
+ :Fractl.Inference.Service/PlannerAgent
+ {:meta {:inherits :Fractl.Inference.Service/Agent}
+  :Tools {:listof :Map :optional true}
+  :Docs {:listof :String :optional true}})

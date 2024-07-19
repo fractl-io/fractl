@@ -70,11 +70,10 @@
   (let [{:keys [max-retries]
          :or {max-retries 2}} options
         entity-name (:result-entity options)
-        json->entity (fn [m] {entity-name (walk/keywordize-keys m)})
-        agent-config (:config (:agent-config options))]
+        json->entity (fn [m] {entity-name (walk/keywordize-keys m)})]
     (compose/chain {:chain-name "ANALYZER-AGENT"}
                    ;;(fn [m] (assoc m :payload (:event m)))
-                   (compose/assok :messages (or (:make-prompt agent-config) prompt/make-analyze-as-json-prompt))
+                   (compose/assok :messages (or (:make-prompt options) prompt/make-analyze-as-json-prompt))
                    (compose/assok :answer-text provider/get-completion)
                    (compose/assok :answer-json (compose/applyk output/json-parser :answer-text))
                    (compose/assok :answer-entity (compose/applyk json->entity :answer-json))
