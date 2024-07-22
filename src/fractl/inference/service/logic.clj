@@ -7,6 +7,7 @@
             [fractl.global-state :as gs]
             [fractl.inference.provider.core :as p]
             [fractl.inference.embeddings.core :as ec]
+            [fractl.inference.service.model :as model]
             [fractl.inference.service.lib.agent :as agent]
             [fractl.inference.service.lib.prompt :as prompt])
   (:import (clojure.lang ExceptionInfo)))
@@ -129,7 +130,7 @@
   (cleanup-agent
    (if (= :add operation)
      (p/call-with-provider
-      (:LLM instance)
+      (model/ensure-llm-for-agent instance)
       #(let [app-uuid (:AppUuid instance)
              question (:UserInstruction instance)
              qcontext (:Context instance)
@@ -147,7 +148,7 @@
   (cleanup-agent
    (if (= :add operation)
      (p/call-with-provider
-      (:LLM instance)
+      (model/ensure-llm-for-agent instance)
       #(let [app-uuid (:AppUuid instance)
              question (:UserInstruction instance)
              qcontext (:Context instance)

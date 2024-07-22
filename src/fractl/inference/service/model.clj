@@ -6,7 +6,10 @@
                                  record
                                  relationship]]
             [fractl.component :as cn]
-            [fractl.util :as u]))
+            [fractl.util :as u]
+            [fractl.evaluator :as e]
+            [fractl.lang.internal :as li]
+            [fractl.inference.provider.model]))
 
 (component :Fractl.Inference.Service)
 
@@ -63,16 +66,11 @@
   :QuestionOptions {:type :Map :default {}}
   :QuestionResponse {:type :Any :optional true :read-only true}})
 
-(defn llm-spec? [x]
-  (or (string? x) ;; llm-instance name
-      (cn/instance-of? :Fractl.Inference.Provider/LLM x)))
-
 (record
  :Fractl.Inference.Service/Agent
  {:Name {:type :String :guid true}
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :ChatUuid {:type :UUID :default u/uuid-string}
-  :LLM {:check llm-spec?}
   :Messages {:listof :String :optional true}
   :UserInstruction {:type :String :optional true}
   :PromptFn {:check fn? :optional true}
@@ -87,8 +85,27 @@
   :OutputAttributes {:listof :Keyword :optional true}
   :OutputAttributeValues {:type :String :optional true}})
 
+(relationship
+ :Fractl.Inference.Service/AnalysisAgentLLM
+ {:meta {:between [:Fractl.Inference.Service/AnalysisAgent :Fractl.Inference.Provider/LLM]}})
+
 (entity
  :Fractl.Inference.Service/PlannerAgent
  {:meta {:inherits :Fractl.Inference.Service/Agent}
   :Tools {:listof :Map :optional true}
   :Docs {:listof :String :optional true}})
+
+(relationship
+ :Fractl.Inference.Service/PlannerAgentLLM
+ {:meta {:between [:Fractl.Inference.Service/PlannerAgent :Fractl.Inference.Provider/LLM]}})
+
+(defn lookup-llms-for-agent [agent-instance]
+  (let [[c n] (li/split-path (cn/instance-type agent-instance))
+        rel-name (li/make-path c (keyword (str (name n) "LLM")))]
+    (when-let [llms (e/safe-eval-pattern {rel-name {(li/name-as-query-pattern n) (:Name agent-instance)}})]
+      (map :LLM llms))))
+
+(defn ensure-llm-for-agent [agent-instance]
+  (if-let [llm (seq (lookup-llms-for-agent agent-instance))]
+    llm
+    (u/throw-ex (str "No LLM attached to agent " (:Name agent-instance)))))
