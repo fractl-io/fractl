@@ -554,9 +554,8 @@
        relationships))
 
 (defn preprocess-schema-info [schema-info]
-  (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))
-        schema-info (normalize-schema schema-info)]
-    schema-info))
+  (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))]
+    (normalize-schema schema-info)))
 
 (def filter-input-objects
   {:StringComparison
@@ -594,7 +593,6 @@
      :in      {:type '(list Float)}
      :between {:type '(list Float)}}}
 
-
    :BooleanComparison
    {:fields
     {:eq  {:type :Boolean}
@@ -603,23 +601,23 @@
 (defn extract-entities-inside-between-rel [relationship-name]
   "Returns names of entities part of given between relationship as a set."
   (let [found-value (get @relationships-code relationship-name)
-        fields (get found-value :fields)
-        result (into #{} (filter #(contains? fields %) @entity-names))]
-    result))
+        fields (get found-value :fields)]
+    (into #{} (filter #(contains? fields %) @entity-names))))
 
 (defn generate-entity-filter-input-objects [entities-records]
   (reduce-kv
-   (fn [acc entity-name entity-spec]
-     (let [filter-name (keyword (str (name entity-name) filter-input-object-name-postfix))
-           optional-fields (make-graphql-fields-optional entity-name entity-spec false)
-           fields-with-postfix (append-postfix-to-field-names optional-fields filter-input-object-name-postfix true)
-           base-fields (strip-irrelevant-attributes (:fields fields-with-postfix))
-           filter-fields (into {:and {:type (list 'list filter-name)}
-                                :or  {:type (list 'list filter-name)}
-                                :not {:type filter-name}}
-                               (comp
-                                (remove (fn [[field-name {:keys [type]}]]
-                                          (seq? type)))
+    (fn [acc entity-name entity-spec]
+      (let [filter-name (keyword (str (name entity-name) filter-input-object-name-postfix))
+            optional-fields (make-graphql-fields-optional entity-name entity-spec false)
+            fields-with-postfix (append-postfix-to-field-names optional-fields filter-input-object-name-postfix true)
+            base-fields (strip-irrelevant-attributes (:fields fields-with-postfix))
+            filter-fields (merge
+                            {:and {:type (list 'list filter-name)}
+                             :or  {:type (list 'list filter-name)}
+                             :not {:type filter-name}}
+                            (into {}
+                              (comp
+                                (remove #(seq? (:type (second %))))
                                 (map (fn [[field-name {:keys [type]}]]
                                        (let [base-type (if (and (list? type) (= (first type) 'non-null))
                                                          (second type)
@@ -632,10 +630,10 @@
                                                                :else :StringComparison)]
                                          [(keyword (name field-name))
                                           {:type comparison-type}]))))
-                               base-fields)]
-       (assoc acc filter-name {:fields filter-fields})))
-   {}
-   entities-records))
+                              base-fields))]
+        (assoc acc filter-name {:fields filter-fields})))
+    {}
+    entities-records))
 
 (defn get-filter-input-objects [entities-records]
   (merge filter-input-objects (generate-entity-filter-input-objects entities-records)))
