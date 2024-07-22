@@ -1,5 +1,6 @@
 (ns fractl.inference.service.resolver
   (:require [clojure.pprint :as pp]
+            [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
@@ -10,9 +11,7 @@
 (def ^:private create-handlers
   {:DocChunk (partial logic/handle-doc-chunk :add)
    :PlannerTool (partial logic/handle-planner-tool :add)
-   :Question (partial logic/handle-app-question :add)
-   :PlannerAgent (partial logic/handle-planner-agent :add)
-   :AnalysisAgent (partial logic/handle-analysis-agent :add)})
+   :Question (partial logic/handle-app-question :add)})
 
 (def ^:private delete-handlers
   {:PlannerTool (partial logic/handle-planner-tool :delete)})
@@ -33,15 +32,17 @@
 (def ^:private resolver-delete (partial resolver-crud :delete delete-handlers))
 
 (defn register-resolver []
-  (let [ents (seq (cn/entity-names :Fractl.Inference.Service))]
+  (let [ents [:Fractl.Inference.Service/DocChunk
+              :Fractl.Inference.Service/PlannerTool
+              :Fractl.Inference.Service/Question]]
     (rg/register-resolver-type
-      :inference
+     :inference
       (fn [_ _]
         (r/make-resolver
-          :inference
+         :inference
           {:create resolver-create
            :delete resolver-delete})))
     (rg/register-resolver
      {:name :inference
-       :type :inference
-       :paths ents})))
+      :type :inference
+      :paths ents})))

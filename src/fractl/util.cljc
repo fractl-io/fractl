@@ -1,5 +1,6 @@
 (ns fractl.util
   (:require [clojure.string :as string]
+            [clojure.set :as set]
             [clojure.pprint :as pp]
             [clojure.walk :as walk]
             #?(:clj [clojure.java.io :as io])
@@ -438,3 +439,9 @@
        (catch MalformedURLException _
          false))
      :cljs (string? u))) ; TODO: implement format check in cljs.
+
+(defn keys-in-set?
+  "Return true if a-map contains keys only from the expected-keys set.
+  Not all keys are mandatory, and a-map may be empty."
+  [a-map expected-keys]
+  (= (set/union expected-keys (keys a-map)) expected-keys))

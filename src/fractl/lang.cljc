@@ -727,11 +727,12 @@
 
 (defn register-inference-dataflow [inference-name spec]
   (let [ins (:instructions spec)
-        agent0 (:agent spec)
+        orig-agent (:agent spec)
+        agent0 (dissoc (:agent spec) :->)
         agent-attrs (li/record-attributes agent0)
         agent {(li/record-name agent0)
                (assoc agent-attrs :UserInstruction ins :Context inference-name)}
-        p0 (assoc agent :as :Agent)
+        p0 (assoc agent :as :Agent :-> (:-> orig-agent))
         p1 `[:eval (fractl.inference/run-inference-for-event ~inference-name :Agent)]]
     (cn/register-dataflow inference-name nil [p0 p1])
     inference-name))

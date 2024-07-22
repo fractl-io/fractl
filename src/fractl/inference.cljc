@@ -9,6 +9,7 @@
             #?(:clj [fractl.util.logger :as log]
                :cljs [fractl.util.jslogger :as log])
             [fractl.util.http :as uh]
+            [fractl.inference.service.agent-registry :as ar]
             [fractl.inference.service.core :as inference]))
 
 (defn as-vec [x]
@@ -28,10 +29,19 @@
         (do (log/info (str "inference succeeded with result " result))
             result)))))
 
+(defn- cleanup-agent [inst]
+  (dissoc inst :Context))
+
+(defn handle-generic-agent [instance]
+  (if-let [handler (ar/fetch-agent-handler (:Type instance))]
+    (cleanup-agent (handler instance))
+    (u/throw-ex (str "No handler for agent type " (:Type instance)))))
+
 (defn run-inference-for-event [event agent-instance]
   (log/info (str "Processing response for inference " (cn/instance-type event)
                  " - " (u/pretty-str agent-instance)))
-  (let [r0 (or (:Response agent-instance) agent-instance)
+  (let [agent-instance (handle-generic-agent agent-instance)
+        r0 (or (:Response agent-instance) agent-instance)
         result (if (string? r0) (edn/read-string r0) r0)
         is-review-mode (get-in event [:EventContext :evaluate-inferred-patterns])]
     (if-let [patterns (:patterns result)]

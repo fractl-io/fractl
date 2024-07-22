@@ -66,46 +66,35 @@
   :QuestionOptions {:type :Map :default {}}
   :QuestionResponse {:type :Any :optional true :read-only true}})
 
-(record
+(entity
  :Fractl.Inference.Service/Agent
  {:Name {:type :String :guid true}
+  :Type {:type :String :unique true}
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :ChatUuid {:type :UUID :default u/uuid-string}
-  :Messages {:listof :String :optional true}
   :UserInstruction {:type :String :optional true}
   :PromptFn {:check fn? :optional true}
+  :Extension {:type :Map :optional true}
   :Context {:type :Map :optional true}
   :Response {:type :Any :read-only true}})
 
-(entity
- :Fractl.Inference.Service/AnalysisAgent
- {:meta {:inherits :Fractl.Inference.Service/Agent}
-  :Comment :String
-  :OutputEntityType :Keyword
-  :OutputAttributes {:listof :Keyword :optional true}
-  :OutputAttributeValues {:type :String :optional true}})
-
 (relationship
- :Fractl.Inference.Service/AnalysisAgentLLM
- {:meta {:between [:Fractl.Inference.Service/AnalysisAgent :Fractl.Inference.Provider/LLM]}})
+ :Fractl.Inference.Service/AgentLLM
+ {:meta {:between [:Fractl.Inference.Service/Agent :Fractl.Inference.Provider/LLM]}})
 
-(entity
- :Fractl.Inference.Service/PlannerAgent
- {:meta {:inherits :Fractl.Inference.Service/Agent}
-  :Tools {:listof :Map :optional true}
-  :Docs {:listof :String :optional true}})
-
-(relationship
- :Fractl.Inference.Service/PlannerAgentLLM
- {:meta {:between [:Fractl.Inference.Service/PlannerAgent :Fractl.Inference.Provider/LLM]}})
+(dataflow
+ :Fractl.Inference.Service/LLMsForAgent
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent? :Fractl.Inference.Service/LLMsForAgent.Agent}})
 
 (defn lookup-llms-for-agent [agent-instance]
-  (let [[c n] (li/split-path (cn/instance-type agent-instance))
-        rel-name (li/make-path c (keyword (str (name n) "LLM")))]
-    (when-let [llms (e/safe-eval-pattern {rel-name {(li/name-as-query-pattern n) (:Name agent-instance)}})]
-      (map :LLM llms))))
+  (when-let [result (first (e/eval-all-dataflows
+                            {:Fractl.Inference.Service/LLMsForAgent
+                             {:Agent (:Name agent-instance)}}))]
+    (when (= :ok (:status result))
+      (map :LLM (:result result)))))
 
 (defn ensure-llm-for-agent [agent-instance]
-  (if-let [llm (seq (lookup-llms-for-agent agent-instance))]
+  (if-let [llm (first (lookup-llms-for-agent agent-instance))]
     llm
     (u/throw-ex (str "No LLM attached to agent " (:Name agent-instance)))))

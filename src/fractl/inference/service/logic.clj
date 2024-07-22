@@ -122,46 +122,53 @@
              :QuestionResponse (pr-str response)))
     instance))
 
-(defn- cleanup-agent [inst]
-  (dissoc inst :Context))
+(defn- verify-planner-extension [ext]
+  (when ext
+    (when-not (u/keys-in-set? ext #{:Tools :Docs})
+      (u/throw-ex (str "Invalid keys in planner agent extension")))
+    ext))
 
-(defn handle-planner-agent [operation instance]
+(defn handle-planner-agent [instance]
   (log/info (str "Triggering planner agent - " (u/pretty-str instance)))
-  (cleanup-agent
-   (if (= :add operation)
-     (p/call-with-provider
-      (model/ensure-llm-for-agent instance)
-      #(let [app-uuid (:AppUuid instance)
-             question (:UserInstruction instance)
-             qcontext (:Context instance)
-             agent-config {:is-planner? true
-                           :tools (:Tools instance)
-                           :docs (:Docs instance)
-                           :make-prompt (:PromptFn instance)}
-             options {:use-schema? true :use-docs? true}
-             response (answer-question app-uuid question (or qcontext {}) options agent-config)]
-         (assoc instance :Response response)))
-     instance)))
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(let [app-uuid (:AppUuid instance)
+          question (:UserInstruction instance)
+          qcontext (:Context instance)
+          ext (verify-planner-extension (:Extension instance))
+          agent-config {:is-planner? true
+                        :tools (:Tools ext)
+                        :docs (:Docs ext)
+                        :make-prompt (:PromptFn instance)}
+          options {:use-schema? true :use-docs? true}
+          response (answer-question app-uuid question (or qcontext {}) options agent-config)]
+      (assoc instance :Response response))))
 
-(defn handle-analysis-agent [operation instance]
+(defn- verify-analyzer-extension [ext]
+  (when ext
+    (when-not (u/keys-in-set? ext #{:Comment :OutputEntityType
+                                    :OutputAttributes :OutputAttributeValues})
+      (u/throw-ex (str "Invalid keys in analyzer agent extension")))
+    ext))
+
+(defn handle-analysis-agent [instance]
   (log/info (str "Triggering analysis agent - " (u/pretty-str instance)))
-  (cleanup-agent
-   (if (= :add operation)
-     (p/call-with-provider
-      (model/ensure-llm-for-agent instance)
-      #(let [app-uuid (:AppUuid instance)
-             question (:UserInstruction instance)
-             qcontext (:Context instance)
-             options {:use-schema? true :use-docs? true}
-             out-type (:OutputEntityType instance)
-             out-scm (cn/ensure-schema out-type)
-             agent-config {:result-entity out-type
-                           :make-prompt (:PromptFn instance)
-                           :output-keys (or (:OutputAttributes instance)
-                                            (vec (cn/user-attribute-names out-scm)))
-                           :output-key-values (or (:OutputAttributeValues instance)
-                                                  (cn/schema-as-string out-scm))}
-             response (answer-question-analyze app-uuid question (or qcontext {})
-                                               (merge options {:agent-config agent-config}))]
-         (assoc instance :Response response)))
-     instance)))
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(let [app-uuid (:AppUuid instance)
+          question (:UserInstruction instance)
+          qcontext (:Context instance)
+          options {:use-schema? true :use-docs? true}
+          ext (verify-analyzer-extension (:Extension instance))
+          out-type (:OutputEntityType ext)
+          out-scm (cn/ensure-schema out-type)
+          agent-config {:result-entity out-type
+                        :information-type (:Comment ext)
+                        :make-prompt (:PromptFn instance)
+                        :output-keys (or (:OutputAttributes ext)
+                                         (vec (cn/user-attribute-names out-scm)))
+                        :output-key-values (or (:OutputAttributeValues ext)
+                                               (cn/schema-as-string out-scm))}
+          response (answer-question-analyze app-uuid question (or qcontext {})
+                                            (merge options {:agent-config agent-config}))]
+      (assoc instance :Response response))))
