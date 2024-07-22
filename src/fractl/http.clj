@@ -247,8 +247,16 @@
   (let [ct (request-content-type request)]
     (uh/content-types ct)))
 
+(defn- filter-request-for-logging [request]
+  (let [r0 (dissoc request :body :async-channel)]
+    (assoc r0 :headers (dissoc (:headers request) :cookie))))
+
+(defmacro log-request [msg request]
+  `(log/info (str ~msg " - " (filter-request-for-logging ~request))))
+
 (defn- process-dynamic-eval
   ([evaluator [auth-config maybe-unauth] event-name request]
+   (log-request (str "HTTP request received to process event " event-name) request)
    (or (maybe-unauth request)
        (if-let [data-fmt (find-data-format request)]
          (let [[obj err] (event-from-request request event-name data-fmt auth-config)]
@@ -338,6 +346,7 @@
     {li/path-attr path}))
 
 (defn- process-generic-request [handler evaluator [auth-config maybe-unauth] request]
+  (log-request "Processing HTTP request" request)
   (or (maybe-unauth request)
       (if-let [parsed-path (parse-rest-uri request)]
         (let [query-params (when-let [s (:query-string request)] (uh/form-decode s))
@@ -574,6 +583,7 @@
     q))
 
 (defn- process-query [evaluator [auth-config maybe-unauth] request]
+  (log-request "Processing HTTP query request" request)
   (or (maybe-unauth request)
       (if-let [data-fmt (find-data-format request)]
         (let [reqobj ((uh/decoder data-fmt) (String. (.bytes (:body request))))
@@ -594,6 +604,7 @@
                           (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-start-debug-session [evaluator [auth-config maybe-unauth] request]
+  (log-request "Start debug request received" request)
   (or (maybe-unauth request)
       (if-let [data-fmt (find-data-format request)]
         (let [[obj _ err-response] (request-object request)]
@@ -603,16 +614,19 @@
                           (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-debug-step [evaluator [auth-config maybe-unauth] request]
+  (log-request "Debug-step request received" request)
   (or (maybe-unauth request)
       (let [id (get-in request [:params :id])]
         (ok (ev/debug-step id)))))
 
 (defn- process-debug-continue [evaluator [auth-config maybe-unauth] request]
+  (log-request "Debug-continue request received" request)
   (or (maybe-unauth request)
       (let [id (get-in request [:params :id])]
         (ok (ev/debug-continue id)))))
 
 (defn- process-delete-debug-session [evaluator [auth-config maybe-unauth] request]
+  (log-request "Debug-delete request received" request)
   (or (maybe-unauth request)
       (let [id (get-in request [:params :id])]
         (ok (ev/debug-cancel id)))))
@@ -673,6 +687,7 @@
    cn/instance-type (keyword event-name)})
 
 (defn- process-signup [evaluator call-post-signup [auth-config _] request]
+  (log-request "Signup request received" request)
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "sign-up"))
     (if-let [data-fmt (find-data-format request)]
@@ -723,6 +738,7 @@
     (assoc resp :headers (assoc hdrs "Set-Cookie" cookie))))
 
 (defn- process-login [evaluator [auth-config _ :as _auth-info] request]
+  (log-request "Login request received" request)
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "login"))
     (if-let [data-fmt (find-data-format request)]
@@ -754,6 +770,7 @@
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-resend-confirmation-code [auth-config request]
+  (log-request "Resend confirmation code request received" request)
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "resend-confirmation-code"))
     (if-let [data-fmt (find-data-format request)]
@@ -782,6 +799,7 @@
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-confirm-sign-up [auth-config request]
+  (log-request "Confirm-signup request received" request)
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "process-confirm-sign-up"))
     (if-let [data-fmt (find-data-format request)]
@@ -810,6 +828,7 @@
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-forgot-password [auth-config request]
+  (log-request "Forgot-password request received" request)
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "forgot-password"))
     (if-let [data-fmt (find-data-format request)]
@@ -838,6 +857,7 @@
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-confirm-forgot-password [auth-config request]
+  (log-request "Confirm-forgot-password request received" request)
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "confirm-forgot-password"))
     (if-let [data-fmt (find-data-format request)]
@@ -866,6 +886,7 @@
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-change-password [auth-config request]
+  (log-request "Change-password request received" request)
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "change-password"))
     (if-let [data-fmt (find-data-format request)]
@@ -894,6 +915,7 @@
             (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-logout [auth-config request]
+  (log-request "Logout request received" request)
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
       (try
@@ -918,6 +940,7 @@
           (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE")))
 
 (defn- process-get-user [auth-config request]
+  (log-request "Get-user request" request)
   (if-let [data-fmt (find-data-format request)]
     (if auth-config
       (try
@@ -935,6 +958,7 @@
           (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE")))
 
 (defn- process-update-user [auth-config request]
+  (log-request "Update-user request" request)
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "update-user"))
     (if-let [data-fmt (find-data-format request)]
@@ -964,6 +988,7 @@
        (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT_TYPE"))))
 
 (defn- process-refresh-token [auth-config request]
+  (log-request "Refresh-token request" request)
   (if-not auth-config
     (internal-error (get-internal-error-message :auth-disabled "refresh-token"))
     (if-let [data-fmt (find-data-format request)]
@@ -999,12 +1024,14 @@
     (bad-request (:error result))))
 
 (defn- process-auth [evaluator [auth-config _] request]
+  (log-request "Auth request" request)
   (let [cookie (get-in request [:headers "cookie"])
         query-params (when-let [s (:query-string request)] (uh/form-decode s))]
     (auth-response
      (auth/authenticate-session (assoc auth-config :cookie cookie :client-url (:origin query-params))))))
 
 (defn- process-auth-callback [evaluator call-post-signup [auth-config _] request]
+  (log-request "Auth-callback request" request)
   (auth-response
    (auth/handle-auth-callback
     (assoc auth-config :args {:evaluate evaluate
@@ -1024,6 +1051,7 @@
     (buddyjwt/unsign token hskey)))
 
 (defn- process-register-magiclink [[auth-config _] auth request]
+  (log-request "Register-magiclink request" request)
   (if auth-config
     (let [[obj _ _] (request-object request)
           sub (auth/session-sub
@@ -1041,6 +1069,7 @@
     (internal-error "cannot process register-magiclink - authentication not enabled")))
 
 (defn- process-get-magiclink [_ request]
+  (log-request "Get-magiclink request" request)
   (let [query (when-let [s (:query-string request)] (uh/form-decode s))]
     (if-let [token (:code query)]
       (let [decoded-token (decode-magic-link-token token)
@@ -1053,6 +1082,7 @@
       (bad-request (str "token not specified") "ID_TOKEN_REQUIRED"))))
 
 (defn- process-preview-magiclink [_ request]
+  (log-request "Preview-magiclink request" request)
   (let [[obj _ _] (request-object request)]
     (if-let [token (:code obj)]
       (let [decoded-token (decode-magic-link-token token)]
@@ -1129,14 +1159,14 @@
     (if-let [user (get-in request [:identity :sub])]
       (when-not (and (buddy/authenticated? request)
                      (sess/is-logged-in user))
-        (log/info (str "unauthorized request - " request))
+        (log-request "unauthorized request" request)
         (unauthorized (find-data-format request)))
       (let [cookie (get (:headers request) "cookie")
             sid (auth/cookie-to-session-id auth-config cookie)
             data (sess/lookup-session-cookie-user-data sid)
             user (:username (auth/verify-token auth-config [sid data]))]
         (when-not (sess/is-logged-in user)
-          (log/info (str "unauthorized request - " request))
+          (log-request "unauthorized request" request)
           (unauthorized (find-data-format request)))))
     (catch Exception ex
       (log/warn ex)
@@ -1156,20 +1186,20 @@
          schema (cn/schema-info core-component-name)
          contains-graph-map (gg/generate-contains-graph schema)
          [auth _ :as auth-info] (make-auth-handler config)]
-       (try
-         ; attempt to compile the GraphQL schema
-         (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas] (graphql/compile-graphql-schema schema contains-graph-map)]
-         ; save schema to global variable and file
+     (try
+         ;; attempt to compile the GraphQL schema
+       (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas]
+             (graphql/compile-graphql-schema schema contains-graph-map)]
+         ;; save schema to global variable and file
          (graphql/save-schema uninjected-graphql-schema)
          (reset! core-component core-component-name)
          (reset! graphql-schema injected-graphql-schema)
          (reset! graphql-entity-metas entity-metadatas)
          (reset! contains-graph contains-graph-map)
-         (log/info (str "GraphQL schema generation and resolver injection succeeded.")))
-         (catch Exception e
-           (log/error (str "Failed to compile GraphQL schema:"
-                           (str/join "\n" (.getStackTrace e))))))
-
+         (log/info "GraphQL schema generation and resolver injection succeeded."))
+       (catch Exception e
+         (log/error (str "Failed to compile GraphQL schema:"
+                         (str/join "\n" (.getStackTrace e))))))
      (if (or (not auth) (auth-service-supported? auth))
        (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
          (println (str "The HTTP server is listening on port " (:port config)))

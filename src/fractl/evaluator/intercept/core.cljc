@@ -1,5 +1,7 @@
 (ns fractl.evaluator.intercept.core
   (:require [fractl.util :as u]
+            #?(:clj [fractl.util.logger :as log]
+               :cljs [fractl.util.jslogger :as log])
             [fractl.component :as cn]
             [fractl.env :as env]
             [fractl.global-state :as gs]
@@ -54,8 +56,11 @@
   (loop [ins @interceptors
          result (ii/encode-output-arg event-instance data ins)]
     (if-let [i (first ins)]
-      (if-let [r ((ii/intercept-fn i)
-                  (when (system-interceptor? i) env) opr result)]
+      (if-let [r
+               (do
+                 (log/info (str "Invoking output interceptor " (:name i) " on " (u/pretty-str result)))
+                 ((ii/intercept-fn i)
+                  (when (system-interceptor? i) env) opr result))]
         (recur (rest ins) r)
         (do (gs/set-error-no-perm!)
             (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i) " for output"))))
@@ -69,8 +74,11 @@
         (loop [ins ins
                result (ii/encode-input-arg event-instance data ins)]
           (if-let [i (first ins)]
-            (if-let [r ((ii/intercept-fn i)
-                        (when (system-interceptor? i) env) opr result)]
+            (if-let [r
+                     (do
+                       (log/info (str "Invoking input interceptor " (:name i) " on " (u/pretty-str result)))
+                       ((ii/intercept-fn i)
+                        (when (system-interceptor? i) env) opr result))]
               (recur (rest ins) r)
               (do (gs/set-error-no-perm!)
                   (u/throw-ex (str "operation " opr " blocked by interceptor " (ii/intercept-name i)))))
