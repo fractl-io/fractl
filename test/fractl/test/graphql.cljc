@@ -131,6 +131,11 @@
             {:Id :Identity
              :Name :String})
 
+   (entity :WordCount.Core/Tasks
+            {:Id :Identity
+             :Title :String
+             :Completed :Boolean})
+
     (record :WordCount.Core/SubSubAttribute {:name :String :value :String})
 
     (record :WordCount.Core/SubAttribute {:name :String :value :String :SubSubAttribute :WordCount.Core/SubSubAttribute})
@@ -143,6 +148,18 @@
       :Name :String
       :ListOfNames {:listof :String}
       :Attributes {:listof :WordCount.Core/Attribute}})
+
+    (record :WordCount.Core/DetailValue {:key :String :data :String})
+
+    (record :WordCount.Core/NestedDetail {:key :String :data :String :DetailValue :WordCount.Core/DetailValue})
+
+    (record :WordCount.Core/ProfileDetail {:key :String :data :String :NestedDetail :WordCount.Core/NestedDetail})
+
+    (entity
+     :WordCount.Core/UserProfileDetails
+     {:UserId {:type :Int :guid true}
+      :DisplayName :String
+      :ProfileDetails :WordCount.Core/ProfileDetail})
 
     ;; RELATIONSHIPS
 
@@ -330,6 +347,58 @@
       (let [results (graphql-handler :WordCount.Core query-by-name-pattern)
             result-data  (first (:User results))]
         (is (= (dissoc user-data :Id) result-data))))
+
+(testing "Multi-Condition Filter Query to Test Booleans and String Filters"
+  (let [tasks [{:Title "Complete project report Task" :Completed false}
+               {:Title "Attend team meeting" :Completed true}
+               {:Title "Review code changes Task" :Completed false}
+               {:Title "Update project timeline" :Completed true}
+               {:Title "Prepare for client presentation Task" :Completed false}
+               {:Title "Cancelled meeting" :Completed true}
+               {:Title "Submit expense report Task" :Completed false}
+               {:Title "Plan new project phases" :Completed true}
+               {:Title "Follow up with stakeholders Task" :Completed false}
+               {:Title "Conduct code review meeting" :Completed true}]
+        multi-condition-query "query getMultiConditionFilteredTasks($filter: TasksFilter) {
+                                  Tasks (filter: $filter) {
+                                    Title
+                                    Completed
+                                  }
+                                }"
+        multi-condition-variables
+        {:filter
+         {:and [
+                {:Completed false}
+                {:or [
+                      {:Title {:contains "project"}}
+                      {:Title {:contains "Task"}}
+                     ]}
+                {:not {:Title {:eq "Cancelled meeting"}}}
+                ]}}]
+
+  ;; Create task instances
+  (mapv
+    (fn [task]
+      (tu/fresult
+        (e/eval-all-dataflows
+          (cn/make-instance
+            :WordCount.Core/Create_Tasks
+            {:Instance
+             (cn/make-instance :WordCount.Core/Tasks task)}))))
+    tasks)
+
+  (let [results (graphql-handler :WordCount.Core multi-condition-query multi-condition-variables)
+        results (:Tasks results)
+        expected-results (filter
+                           (fn [task]
+                             (and
+                               (not (:Completed task))
+                               (or (clojure.string/includes? (:Title task) "project")
+                                   (clojure.string/includes? (:Title task) "Task"))
+                               (not= (:Title task) "Cancelled meeting")))
+                           tasks)]
+    (is (= (set results) (set expected-results))
+        (str "Mismatch in filtered results. Expected: " expected-results ", Got: " results)))))
 
     (testing "Multi-Condition Filter Query"
       (let [multi-condition-query "query getMultiConditionFilteredHeros($filter: HeroFilter) {
@@ -638,7 +707,7 @@
             (is (= 10 (count results)))
             (is (= (set (range 1 11)) (set (map :Id results))))))))
 
-    (testing "Create instances of customers and query them"
+    (testing "Query deeply nested records"
       (let [customer-data-1 {:Id          10000,
                              :Name        "Muhammad Hasnain Naeem",
                              :ListOfNames ["Name1" "Name2" "Name3"],
@@ -741,8 +810,83 @@
             customers (get results :Customer)]
         (let [subset [graphql-customer-data-1 graphql-customer-data-2]
               superset customers]
-          (compare-instance-maps subset superset :Id))))))
+          (compare-instance-maps subset superset :Id))))
 
+    (testing "Create instances of user profiles and query them with nested profile detail filters"
+      (let [profile-data-1 {:UserId      10010,
+                            :DisplayName "Muhammad Hasnain Naeem",
+                            :ProfileDetails
+                            {:WordCount.Core/ProfileDetail
+                             {:key  "Personal",
+                              :data "Info",
+                              :NestedDetail
+                              {:WordCount.Core/NestedDetail
+                               {:key         "Details",
+                                :data        "More Info",
+                                :DetailValue {:WordCount.Core/DetailValue
+                                              {:key "Age", :data "30"}}}}}}}
+
+            profile-data-2 {:UserId      40000,
+                            :DisplayName "Hasnain Naeem",
+                            :ProfileDetails
+                            {:WordCount.Core/ProfileDetail
+                             {:key  "Personal",
+                              :data "Info",
+                              :NestedDetail
+                              {:WordCount.Core/NestedDetail
+                               {:key         "Details",
+                                :data        "More Info",
+                                :DetailValue {:WordCount.Core/DetailValue
+                                              {:key "Age", :data "25"}}}}}}}
+
+            profile1-instance (e/eval-all-dataflows
+                                (cn/make-instance
+                                  :WordCount.Core/Create_UserProfileDetails
+                                  {:Instance
+                                   (cn/make-instance :WordCount.Core/UserProfileDetails profile-data-1)}))
+            profile2-instance (e/eval-all-dataflows
+                                (cn/make-instance
+                                  :WordCount.Core/Create_UserProfileDetails
+                                  {:Instance
+                                   (cn/make-instance :WordCount.Core/UserProfileDetails profile-data-2)}))
+
+            nested-filter-query "query UserProfileDetailsWithNestedFilter($filter: UserProfileDetailsFilter) {
+                           UserProfileDetails(filter: $filter) {
+                             UserId
+                             DisplayName
+                             ProfileDetails {
+                               key
+                               data
+                               NestedDetail {
+                                 key
+                                 data
+                                 DetailValue {
+                                   key
+                                   data
+                                 }
+                               }
+                             }
+                           }
+                         }"
+            nested-filter-variables {:filter
+                                     {:ProfileDetails
+                                       {:NestedDetail
+                                        {:DetailValue
+                                         {:data {:eq "30"}}}}}}
+
+            results (graphql-handler :WordCount.Core nested-filter-query nested-filter-variables)
+            filtered-profiles (get results :UserProfileDetails)]
+
+        (is (= 1 (count filtered-profiles))
+            "Expected only one user profile to match the nested filter")
+
+        (let [filtered-profile (first filtered-profiles)]
+          (is (= 10010 (:UserId filtered-profile))
+              "Expected the filtered profile to have UserId 10010")
+          (is (= "Muhammad Hasnain Naeem" (:DisplayName filtered-profile))
+              "Expected the filtered profile to be Muhammad Hasnain Naeem")
+          (is (= "30" (get-in filtered-profile [:ProfileDetails :NestedDetail :DetailValue :data]))
+              "Expected the filtered profile to have a Personal detail with Age 30"))))))
 
 (deftest test-create-mutations-for-word-count-app
   (build-word-count-app)
