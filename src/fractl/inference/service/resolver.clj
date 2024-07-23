@@ -9,12 +9,7 @@
             [fractl.inference.service.logic :as logic]))
 
 (def ^:private create-handlers
-  {:DocChunk (partial logic/handle-doc-chunk :add)
-   :PlannerTool (partial logic/handle-planner-tool :add)
-   :Question (partial logic/handle-app-question :add)})
-
-(def ^:private delete-handlers
-  {:PlannerTool (partial logic/handle-planner-tool :delete)})
+  {:DocChunk (partial logic/handle-doc-chunk :add)})
 
 (defn- get-handler [handlers instance]
   (let [[_ n] (li/split-path (cn/instance-type instance))]
@@ -29,19 +24,15 @@
     (log/warn (str "Cannot " (name operation) " " (cn/instance-type instance)))))
 
 (def ^:private resolver-create (partial resolver-crud :create create-handlers))
-(def ^:private resolver-delete (partial resolver-crud :delete delete-handlers))
 
 (defn register-resolver []
-  (let [ents [:Fractl.Inference.Service/DocChunk
-              :Fractl.Inference.Service/PlannerTool
-              :Fractl.Inference.Service/Question]]
+  (let [ents [:Fractl.Inference.Service/DocChunk]]
     (rg/register-resolver-type
      :inference
       (fn [_ _]
         (r/make-resolver
          :inference
-          {:create resolver-create
-           :delete resolver-delete})))
+         {:create resolver-create})))
     (rg/register-resolver
      {:name :inference
       :type :inference

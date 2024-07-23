@@ -31,34 +31,6 @@
   (let [[app-uuid tag type] (s/split (:Id instance) #"__")]
     {:app-uuid app-uuid :tag tag :type type}))
 
-(defn handle-planner-tool [operation instance]
-  (let [planner-tool (cn/instance-attributes instance)
-        app-uuid (:AppUuid planner-tool)
-        tool-name (:ToolName planner-tool)
-        tool-spec (when-let [tspec (:ToolSpec planner-tool)]
-                    (-> tspec
-                        (update :df-patterns edn/read-string)))
-        tag (:Tag planner-tool)
-        type (:Type planner-tool)
-        meta-content (:MetaContent planner-tool)]
-    (log/debug (u/pretty-str "Ingesting planner tool" planner-tool))
-    (if (or (and (nil? tool-name)
-                 (nil? tool-spec))
-            (= tag 'component))
-      (log/info (u/pretty-str "Ignoring insertion of component for now..."))
-      (case operation
-        :add (do (ec/update-tool {:app-uuid app-uuid
-                                  :tool-spec (-> tool-spec
-                                                 (assoc :tool-name tool-name))
-                                  :meta-content meta-content
-                                  :tag tag
-                                  :type type})
-                 (assoc-tool-id instance))
-        :delete (let [args (parse-tool-id instance)]
-                  (ec/delete-tool args))
-        (throw (ex-info "Expected operation :add or :delete" {:operation operation}))))
-    instance))
-
 (defn answer-question [app-uuid question-text
                        qcontext {:keys [use-docs?
                                         use-schema?]
@@ -102,25 +74,6 @@
       (catch Exception e
         (log/error e)
         {:errormsg (.getMessage e)}))))
-
-(defn handle-app-question [operation instance]
-  (if (= :add operation)
-    (let [app-uuid (:AppUuid instance)
-          question (:Question instance)
-          qcontext (:QuestionContext instance)
-          in-event (when-let [inference-event (first (:inference-event qcontext))]
-                     (val inference-event))
-          agent-config (:AgentConfig instance)
-          options {:use-schema? (get-in instance [:QuestionOptions :UseSchema])
-                   :use-docs? (get-in instance [:QuestionOptions :UseDocs])}
-          response (if-not (:is-planner? agent-config)
-                     (answer-question-analyze app-uuid question (or qcontext {})
-                                              (merge options {:agent-config agent-config}))
-                     (answer-question app-uuid question (or qcontext {}) options agent-config))]
-      (assoc instance
-             :QuestionContext {} ; empty :QuestionContext to avoid entity-name conflict
-             :QuestionResponse (pr-str response)))
-    instance))
 
 (defn handle-planner-agent [instance]
   (log/info (str "Triggering planner agent - " (u/pretty-str instance)))
