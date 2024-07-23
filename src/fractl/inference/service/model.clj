@@ -78,9 +78,32 @@
   :Context {:type :Map :optional true}
   :Response {:type :Any :read-only true}})
 
+(record
+ :Fractl.Inference.Service/ToolParam
+ {:name :String
+  :type :Any
+  :required {:type :Boolean :default true}})
+
+(entity
+ :Fractl.Inference.Service/Tool
+ {:name {:type :String :guid true}
+  :description :String
+  :returns {:type :Keyword :optional true}
+  :returns_many {:type :Boolean :default false}
+  :params {:listof :Fractl.Inference.Service/ToolParam}
+  :df_patterns :Edn})
+
 (relationship
  :Fractl.Inference.Service/AgentLLM
  {:meta {:between [:Fractl.Inference.Service/Agent :Fractl.Inference.Provider/LLM]}})
+
+(relationship
+ :Fractl.Inference.Service/AgentTool
+ {:meta {:between [:Fractl.Inference.Service/Agent :Fractl.Inference.Service/Tool]}})
+
+(relationship
+ :Fractl.Inference.Service/AgentDocChunk
+ {:meta {:between [:Fractl.Inference.Service/Agent :Fractl.Inference.Service/DocChunk]}})
 
 (dataflow
  :Fractl.Inference.Service/LLMsForAgent
