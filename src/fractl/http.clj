@@ -1202,7 +1202,7 @@
          [auth _ :as auth-info] (make-auth-handler config)]
      (let [app-config (gs/get-app-config)
            graphql-enabled (get-in app-config [:graphql :enabled] true)]
-       (if graphql-enabled
+       (when graphql-enabled
          (try
            ;; attempt to compile the GraphQL schema
            (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas]
