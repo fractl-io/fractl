@@ -20,6 +20,11 @@
   :DocName :String
   :DocChunk :Any})
 
+(record
+ :Fractl.Inference.Service/Message
+ {:role {:oneof ["system" "user" "assistant"]}
+  :content :String})
+
 (entity
  :Fractl.Inference.Service/Agent
  {:Name {:type :String :guid true}
@@ -27,6 +32,7 @@
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :ChatUuid {:type :UUID :default u/uuid-string}
   :UserInstruction {:type :String :optional true}
+  :Messages {:listof :Fractl.Inference.Service/Message :optional true}
   :PromptFn {:check fn? :optional true}
   :Extension {:type :Map :optional true}
   :Context {:type :Map :optional true}

@@ -58,7 +58,7 @@
         (log/error e)
         {:errormsg (.getMessage e)}))))
 
-(defn answer-question-analyze [app-uuid question-text qcontext options]
+(defn answer-question-analyze [question-text qcontext options]
   (let [agent-args (merge {:user-statement question-text
                            :payload qcontext}
                           (:agent-config options))]
@@ -85,7 +85,8 @@
           agent-config {:is-planner? true
                         :tools (model/lookup-agent-tools instance)
                         :docs (model/lookup-agent-docs instance)
-                        :make-prompt (:PromptFn instance)}
+                        :make-prompt (when-let [pfn (:PromptFn instance)]
+                                       (partial pfn instance))}
           options {:use-schema? true :use-docs? true}
           response (answer-question app-uuid question (or qcontext {}) options agent-config)]
       (assoc instance :Response response))))
@@ -101,20 +102,18 @@
   (log/info (str "Triggering analysis agent - " (u/pretty-str instance)))
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
-   #(let [app-uuid (:AppUuid instance)
-          question (:UserInstruction instance)
+   #(let [question (:UserInstruction instance)
           qcontext (:Context instance)
-          options {:use-schema? true :use-docs? true}
           ext (verify-analyzer-extension (:Extension instance))
           out-type (:OutputEntityType ext)
           out-scm (cn/ensure-schema out-type)
           agent-config {:result-entity out-type
                         :information-type (:Comment ext)
-                        :make-prompt (:PromptFn instance)
+                        :make-prompt (when-let [pfn (:PromptFn instance)]
+                                       (partial pfn instance))
                         :output-keys (or (:OutputAttributes ext)
                                          (vec (cn/user-attribute-names out-scm)))
                         :output-key-values (or (:OutputAttributeValues ext)
                                                (cn/schema-as-string out-scm))}
-          response (answer-question-analyze app-uuid question (or qcontext {})
-                                            (merge options {:agent-config agent-config}))]
+          response (answer-question-analyze question (or qcontext {}) {:agent-config agent-config})]
       (assoc instance :Response response))))
