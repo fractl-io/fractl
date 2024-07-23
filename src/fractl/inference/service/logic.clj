@@ -58,10 +58,10 @@
         (log/error e)
         {:errormsg (.getMessage e)}))))
 
-(defn answer-question-analyze [question-text qcontext options]
+(defn answer-question-analyze [question-text qcontext agent-config]
   (let [agent-args (merge {:user-statement question-text
                            :payload qcontext}
-                          (:agent-config options))]
+                          agent-config)]
     (try
       (-> (agent/make-analyzer-agent agent-args)
           (apply [agent-args])
@@ -107,13 +107,16 @@
           ext (verify-analyzer-extension (:Extension instance))
           out-type (:OutputEntityType ext)
           out-scm (cn/ensure-schema out-type)
-          agent-config {:result-entity out-type
-                        :information-type (:Comment ext)
-                        :make-prompt (when-let [pfn (:PromptFn instance)]
-                                       (partial pfn instance))
-                        :output-keys (or (:OutputAttributes ext)
-                                         (vec (cn/user-attribute-names out-scm)))
-                        :output-key-values (or (:OutputAttributeValues ext)
-                                               (cn/schema-as-string out-scm))}
-          response (answer-question-analyze question (or qcontext {}) {:agent-config agent-config})]
+          pfn (:PromptFn instance)
+          agent-config
+          (assoc
+           (if pfn
+             {:make-prompt (partial pfn instance)}
+             {:information-type (:Comment ext)
+              :output-keys (or (:OutputAttributes ext)
+                               (vec (cn/user-attribute-names out-scm)))
+              :output-key-values (or (:OutputAttributeValues ext)
+                                     (cn/schema-as-string out-scm))})
+           :result-entity out-type)
+          response (answer-question-analyze question (or qcontext {}) agent-config)]
       (assoc instance :Response response))))

@@ -64,7 +64,6 @@
                    planner-core
                    (fn [m] (select-keys m [:answer-text :patterns])))))
 
-
 (defn make-analyzer-agent
   [options]
   (let [{:keys [max-retries]
