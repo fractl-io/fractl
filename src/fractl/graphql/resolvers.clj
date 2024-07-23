@@ -83,7 +83,7 @@
     [x]))
 
 (defn apply-comparison [instance field op value]
-  (let [instance-value (get instance field)]
+  (let [instance-value (get-in instance (as-vec field))]
     (case op
       :eq (= instance-value value)
       :ne (not= instance-value value)
@@ -104,7 +104,7 @@
       :startsWith (str/starts-with? (str instance-value) (str value))
       :endsWith (str/ends-with? (str instance-value) (str value))
       :between (and (>= instance-value (first value)) (<= instance-value (second value)))
-      :not (not (apply-comparison instance-value field (first (keys value)) (first (vals value))))
+      :not (not (apply-comparison instance field (first (keys value)) (first (vals value))))
       (= instance-value op))))
 
 (defn apply-filter [instance filter]
@@ -115,7 +115,9 @@
                              :or (some #(apply-filter instance %) v)
                              :not (not (apply-filter instance v))
                              (if (map? v)
-                               (every? #(apply-comparison instance k % (get v %)) (keys v))
+                               (if (some #(map? (val %)) v)
+                                 (apply-filter (get instance k) v)
+                                 (every? #(apply-comparison instance k % (get v %)) (keys v)))
                                (apply-comparison instance k :eq v)))]
                 result))
             filter)

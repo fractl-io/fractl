@@ -6,6 +6,8 @@
 
 (def query-input-object-name-postfix "QueryAttributes")
 
+(def filter-input-object-name-postfix "Filter")
+
 (def mutation-input-object-name-postfix "MutationAttributes")
 
 (def record-names (atom #{}))
@@ -343,7 +345,7 @@
                relationship-key
                {:fields {(keyword (name child-name)) {:type (list 'list child-name)
                                                       :args {:attributes {:type (keyword (str (name child-name) query-input-object-name-postfix))}
-                                                             :filter      {:type (keyword (str (name child-name) "Filter"))}
+                                                             :filter      {:type (keyword (str (name child-name) filter-input-object-name-postfix))}
                                                              :limit      {:type :Int}
                                                              :offset     {:type :Int}}}}}))
 
@@ -393,7 +395,7 @@
   (let [fields (reduce-kv (fn [acc k v]
                             (assoc acc k {:type (list 'list k)
                                           :args {:attributes {:type (keyword (str (name k) query-input-object-name-postfix))}
-                                                 :filter     {:type (keyword (str (name k) "Filter"))}
+                                                 :filter     {:type (keyword (str (name k) filter-input-object-name-postfix))}
                                                  :limit      {:type :Int}
                                                  :offset     {:type :Int}}}))
                           {} entities)]
@@ -552,9 +554,8 @@
        relationships))
 
 (defn preprocess-schema-info [schema-info]
-  (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))
-        schema-info (normalize-schema schema-info)]
-    schema-info))
+  (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))]
+    (normalize-schema schema-info)))
 
 (def filter-input-objects
   {:StringComparison
@@ -579,50 +580,63 @@
      :lt      {:type :Int}
      :lte     {:type :Int}
      :in      {:type '(list Int)}
-     :between {:type '(list Int)}}}})
+     :between {:type '(list Int)}}}
+
+   :FloatComparison
+   {:fields
+    {:eq      {:type :Float}
+     :ne      {:type :Float}
+     :gt      {:type :Float}
+     :gte     {:type :Float}
+     :lt      {:type :Float}
+     :lte     {:type :Float}
+     :in      {:type '(list Float)}
+     :between {:type '(list Float)}}}
+
+   :BooleanComparison
+   {:fields
+    {:eq  {:type :Boolean}
+     :ne  {:type :Boolean}}}})
 
 (defn extract-entities-inside-between-rel [relationship-name]
   "Returns names of entities part of given between relationship as a set."
   (let [found-value (get @relationships-code relationship-name)
-        fields (get found-value :fields)
-        result (into #{} (filter #(contains? fields %) @entity-names))]
-    result))
+        fields (get found-value :fields)]
+    (into #{} (filter #(contains? fields %) @entity-names))))
 
-(defn generate-filter-map [entity-name attributes]
-  (let [filter-name (keyword (str (name entity-name) "Filter"))
-        filter-fields (into {:and {:type (list 'list filter-name)}
+(defn generate-entity-filter-input-objects [entities-records]
+  (reduce-kv
+    (fn [acc entity-name entity-spec]
+      (let [filter-name (keyword (str (name entity-name) filter-input-object-name-postfix))
+            optional-fields (make-graphql-fields-optional entity-name entity-spec false)
+            fields-with-postfix (append-postfix-to-field-names optional-fields filter-input-object-name-postfix true)
+            base-fields (strip-irrelevant-attributes (:fields fields-with-postfix))
+            filter-fields (merge
+                            {:and {:type (list 'list filter-name)}
                              :or  {:type (list 'list filter-name)}
                              :not {:type filter-name}}
-                            (comp
-                              (remove (fn [[field-name {:keys [type]}]]
-                                        (or (if (contains? @between-relationship-names entity-name)
-                                                              (and (contains? @element-names field-name)
-                                                                   (not (contains? (extract-entities-inside-between-rel entity-name) field-name)))
-                                                              (contains? @element-names field-name))
-                                            (and (list? type) (not= (first type) 'non-null))
-                                            (and (list? type) (= (first type) 'non-null) (list? (second type))))))
-                              (map (fn [[field-name {:keys [type]}]]
-                                     (let [base-type (if (and (list? type) (= (first type) 'non-null))
-                                                       (second type)
-                                                       type)
-                                           comparison-type (cond
-                                                             (= base-type :Boolean) :Boolean
-                                                             (= base-type :Int) :IntComparison
-                                                             (= base-type :Float) :FloatComparison
-                                                             :else :StringComparison)]
-                                       [(keyword (name field-name))
-                                        {:type comparison-type}]))))
-                            attributes)]
-    {filter-name {:fields filter-fields}}))
+                            (into {}
+                              (comp
+                                (remove #(seq? (:type (second %))))
+                                (map (fn [[field-name {:keys [type]}]]
+                                       (let [base-type (if (and (list? type) (= (first type) 'non-null))
+                                                         (second type)
+                                                         type)
+                                             comparison-type (cond
+                                                               (= base-type :Boolean) :Boolean
+                                                               (= base-type :Int) :IntComparison
+                                                               (= base-type :Float) :FloatComparison
+                                                               (str/includes? (name base-type) "Filter") base-type
+                                                               :else :StringComparison)]
+                                         [(keyword (name field-name))
+                                          {:type comparison-type}]))))
+                              base-fields))]
+        (assoc acc filter-name {:fields filter-fields})))
+    {}
+    entities-records))
 
-(defn generate-entity-filter-input-objects [entities]
-  (reduce (fn [acc [entity-name entity-spec]]
-            (merge acc (generate-filter-map entity-name (:fields entity-spec))))
-          {}
-          entities))
-
-(defn get-filter-input-objects []
-  (merge filter-input-objects (generate-entity-filter-input-objects @entities-code)))
+(defn get-filter-input-objects [entities-records]
+  (merge filter-input-objects (generate-entity-filter-input-objects entities-records)))
 
 (defn generate-graphql-schema-code [schema-info]
   (let [data (preprocess-schema-info schema-info)
@@ -652,7 +666,8 @@
           create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" true false)
           update-mutation-input-objects (generate-mutation-input-objects combined-objects "Update" true false)
           delete-mutation-input-objects (generate-mutation-input-objects combined-objects "Delete" true false)
-          input-objects (merge (get-filter-input-objects) query-input-objects create-mutation-input-objects update-mutation-input-objects delete-mutation-input-objects)]
+          filter-input-objects (get-filter-input-objects combined-objects)
+          input-objects (merge filter-input-objects query-input-objects create-mutation-input-objects update-mutation-input-objects delete-mutation-input-objects)]
       (let [initial-schema {:objects       (merge {:Query        (:Query queries)
                                                    :Mutation     (:Mutation (merge-mutations create-mutations update-mutations delete-mutations))
                                                    :Subscription {}} combined-objects)
