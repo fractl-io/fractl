@@ -15,7 +15,8 @@
 
 (entity
  :Fractl.Inference.Service/DocChunk
- {:AppUuid {:type :UUID :default u/uuid-string}
+ {:Id :Identity
+  :AppUuid {:type :UUID :default u/uuid-string}
   :DocName :String
   :DocChunk :Any})
 
@@ -110,14 +111,50 @@
  {:Fractl.Inference.Service/AgentLLM
   {:Agent? :Fractl.Inference.Service/LLMsForAgent.Agent}})
 
-(defn lookup-llms-for-agent [agent-instance]
+(dataflow
+ :Fractl.Inference.Service/AgentTools
+ {:Fractl.Inference.Service/AgentTool
+  {:Agent? :Fractl.Inference.Service/AgentTools.Agent} :as :R}
+ [:for-each :R
+  {:Fractl.Inference.Service/Tool
+   {:name? :%.Tool}}])
+
+(dataflow
+ :Fractl.Inference.Service/AgentDocChunks
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent? :Fractl.Inference.Service/AgentDocChunks.Agent} :as :R}
+ [:for-each :R
+  {:Fractl.Inference.Service/DocChunk
+   {:Id? :%.DocChunk}}])
+
+(defn- lookup-for-agent [event-name proc agent-instance]
   (when-let [result (first (e/eval-all-dataflows
-                            {:Fractl.Inference.Service/LLMsForAgent
+                            {event-name
                              {:Agent (:Name agent-instance)}}))]
     (when (= :ok (:status result))
-      (map :LLM (:result result)))))
+      (mapv proc (:result result)))))
+
+(def lookup-llms-for-agent (partial lookup-for-agent :Fractl.Inference.Service/LLMsForAgent :LLM))
 
 (defn ensure-llm-for-agent [agent-instance]
   (if-let [llm (first (lookup-llms-for-agent agent-instance))]
     llm
     (u/throw-ex (str "No LLM attached to agent " (:Name agent-instance)))))
+
+(defn- normalize-tool [tool]
+  (let [tool (if (map? tool) tool (first tool))
+        attrs (cn/instance-attributes tool)]
+    (dissoc
+     (assoc
+      attrs
+      :returns-many (:returns_many attrs)
+      :df-patterns (:df_patterns attrs))
+     :returns_many :df_patterns)))
+
+(def lookup-agent-tools (partial lookup-for-agent :Fractl.Inference.Service/AgentTools normalize-tool))
+
+(defn- normalize-docchunk [docchunk]
+  (let [docchunk (if (map? docchunk) docchunk (first docchunk))]
+    (str (:DocName docchunk) " " (:DocChunk docchunk))))
+
+(def lookup-agent-docs (partial lookup-for-agent :Fractl.Inference.Service/AgentDocChunks normalize-docchunk))

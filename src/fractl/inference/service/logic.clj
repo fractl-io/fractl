@@ -122,12 +122,6 @@
              :QuestionResponse (pr-str response)))
     instance))
 
-(defn- verify-planner-extension [ext]
-  (when ext
-    (when-not (u/keys-in-set? ext #{:Tools :Docs})
-      (u/throw-ex (str "Invalid keys in planner agent extension")))
-    ext))
-
 (defn handle-planner-agent [instance]
   (log/info (str "Triggering planner agent - " (u/pretty-str instance)))
   (p/call-with-provider
@@ -135,10 +129,9 @@
    #(let [app-uuid (:AppUuid instance)
           question (:UserInstruction instance)
           qcontext (:Context instance)
-          ext (verify-planner-extension (:Extension instance))
           agent-config {:is-planner? true
-                        :tools (:Tools ext)
-                        :docs (:Docs ext)
+                        :tools (model/lookup-agent-tools instance)
+                        :docs (model/lookup-agent-docs instance)
                         :make-prompt (:PromptFn instance)}
           options {:use-schema? true :use-docs? true}
           response (answer-question app-uuid question (or qcontext {}) options agent-config)]
