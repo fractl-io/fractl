@@ -48,13 +48,16 @@
   :type :Any
   :required {:type :Boolean :default true}})
 
+(defn- tool-param? [xs]
+  (every? #(cn/make-instance :Fractl.Inference.Service/ToolParam %) xs))
+
 (entity
  :Fractl.Inference.Service/Tool
  {:name {:type :String :guid true}
   :description :String
   :returns {:type :Keyword :optional true}
   :returns_many {:type :Boolean :default false}
-  :params {:listof :Fractl.Inference.Service/ToolParam}
+  :params {:check tool-param?}
   :df_patterns :Edn})
 
 (relationship
