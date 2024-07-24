@@ -725,10 +725,27 @@
            (raw/rule rule-name args)
            rule-name))))
 
+(defn- preproc-agent-messages [agent]
+  (if-let [messages (:Messages agent)]
+    (if (li/quoted? messages)
+      agent
+      (assoc agent :Messages (li/as-quoted messages)))
+    agent))
+
+(defn- preproc-inference-agent [agent-spec]
+  (when agent-spec
+    (if-let [llm-name (:with-llm agent-spec)]
+      {:Fractl.Inference.Service/Agent
+       (preproc-agent-messages (dissoc agent-spec :with-llm))
+       :-> [[{:Fractl.Inference.Service/AgentLLM {}}
+             {:Fractl.Inference.Provider/LLM
+              {:Name? llm-name}}]]}
+      agent-spec)))
+
 (defn register-inference-dataflow [inference-name spec]
   (let [ins (:instructions spec)
-        orig-agent (:agent spec)
-        agent0 (dissoc (:agent spec) :->)
+        orig-agent (preproc-inference-agent (:agent spec))
+        agent0 (dissoc orig-agent :->)
         agent-attrs (li/record-attributes agent0)
         agent {(li/record-name agent0)
                (assoc agent-attrs :UserInstruction ins :Context inference-name)}

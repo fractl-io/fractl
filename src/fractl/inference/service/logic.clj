@@ -5,6 +5,7 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.global-state :as gs]
+            [fractl.inference.provider :as provider]
             [fractl.inference.provider.core :as p]
             [fractl.inference.embeddings.core :as ec]
             [fractl.inference.service.model :as model]
@@ -87,9 +88,8 @@
                         :docs (model/lookup-agent-docs instance)
                         :make-prompt (when-let [pfn (:PromptFn instance)]
                                        (partial pfn instance))}
-          options {:use-schema? true :use-docs? true}
-          response (answer-question app-uuid question (or qcontext {}) options agent-config)]
-      (assoc instance :Response response))))
+          options {:use-schema? true :use-docs? true}]
+      (answer-question app-uuid question (or qcontext {}) options agent-config))))
 
 (defn- verify-analyzer-extension [ext]
   (when ext
@@ -117,6 +117,11 @@
                                (vec (cn/user-attribute-names out-scm)))
               :output-key-values (or (:OutputAttributeValues ext)
                                      (cn/schema-as-string out-scm))})
-           :result-entity out-type)
-          response (answer-question-analyze question (or qcontext {}) agent-config)]
-      (assoc instance :Response response))))
+           :result-entity out-type)]
+      (answer-question-analyze question (or qcontext {}) agent-config))))
+
+(defn handle-chat-agent [instance]
+  (log/info (str "Triggering chat agent - " (u/pretty-str instance)))
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(provider/make-completion instance)))

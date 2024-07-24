@@ -10,5 +10,6 @@
 (defn fetch-agent-handler [agent-type]
   (get @agent-registry agent-type))
 
-(register-agent-handler "Planner" logic/handle-planner-agent)
-(register-agent-handler "Analyzer" logic/handle-analysis-agent)
+(register-agent-handler "planner" logic/handle-planner-agent)
+(register-agent-handler "analyzer" logic/handle-analysis-agent)
+(register-agent-handler "chat" logic/handle-chat-agent)

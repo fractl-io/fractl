@@ -120,6 +120,9 @@
   (and (vector? x)
        (= unquote-tag (first x))))
 
+(defn as-quoted [x]
+  [quote-tag x])
+
 (defn special-form? [x]
   (and (vector? x)
        (some #{(first x)} special-form-names)))

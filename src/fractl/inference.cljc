@@ -17,24 +17,29 @@
     x
     [x]))
 
+(defn- can-eval? [r]
+  (not (string? r)))
+
 (defn- eval-patterns [fractl-patterns context-event]
-  (let [env (env/bind-instance env/EMPTY context-event)]
-    (loop [pats (as-vec fractl-patterns), env env, result nil]
-      (if-let [p (first pats)]
-        (let [r (ev/evaluate-pattern env p)]
-          (if (u/safe-ok-result r)
-            (recur (rest pats) (:env r) r)
-            (do (log/error (str "inferred-pattern " p " failed with result " r))
-                r)))
-        (do (log/info (str "inference succeeded with result " result))
-            result)))))
+  (if (can-eval? fractl-patterns)
+    (let [env (env/bind-instance env/EMPTY context-event)]
+      (loop [pats (as-vec fractl-patterns), env env, result nil]
+        (if-let [p (first pats)]
+          (let [r (ev/evaluate-pattern env p)]
+            (if (u/safe-ok-result r)
+              (recur (rest pats) (:env r) r)
+              (do (log/error (str "inferred-pattern " p " failed with result " r))
+                  r)))
+          (do (log/info (str "inference succeeded with result " result))
+              result))))
+    fractl-patterns))
 
 (defn- cleanup-agent [inst]
   (dissoc inst :Context))
 
 (defn handle-generic-agent [instance]
   (if-let [handler (ar/fetch-agent-handler (:Type instance))]
-    (cleanup-agent (handler instance))
+    (cleanup-agent (assoc instance :Response (handler instance)))
     (u/throw-ex (str "No handler for agent type " (:Type instance)))))
 
 (defn run-inference-for-event [event agent-instance]
@@ -48,4 +53,6 @@
       (if is-review-mode
         patterns
         (eval-patterns patterns event))
-      (u/throw-ex (:errormsg result)))))
+      (if-let [errmsg (:errormsg result)]
+        (u/throw-ex errmsg)
+        result))))
