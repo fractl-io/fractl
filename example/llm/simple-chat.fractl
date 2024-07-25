@@ -1,7 +1,9 @@
 (component :SimpleChat)
 
 
-(inference :TellAJoke {:agent "agent01"})
+(inference
+ :TellAJoke
+ {:agent "agent01"})
 
 (dataflow
  :InitJokeAgent
@@ -13,8 +15,7 @@
          {:Name? "llm01"}}]]
   :as :Agent}
  {:Fractl.Inference.Service/ChatSession
-  {:Messages [:q# [{:role "system" :content "I am an AI bot who tell jokes"}
-                   {:role "user" :content "OK, then tell me a joke about AI bots"}]]}
+  {:Messages [:q# [{:role :system :content "I am an AI bot who tell jokes"}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  :Agent)
 

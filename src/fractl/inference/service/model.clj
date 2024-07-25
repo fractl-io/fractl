@@ -24,7 +24,7 @@
   (if (seq xs)
     (every? #(and (map? %)
                   (= 2 (count (keys %)))
-                  (some #{(:role %)} #{"system" "user" "assistant"})
+                  (some #{(:role %)} #{:system :user :assistant})
                   (string? (:content %)))
             xs)
     true))
@@ -55,6 +55,12 @@
  {:Fractl.Inference.Service/ChatSession? {}
   :-> [[:Fractl.Inference.Service/AgentChatSession?
         :Fractl.Inference.Service/LookupAgentChatSessions.Agent]]})
+
+(dataflow
+ :Fractl.Inference.Service/UpdateAgentChatSession
+ {:Fractl.Inference.Service/ChatSession
+  {li/id-attr? :Fractl.Inference.Service/UpdateAgentChatSession.SessionId
+   :Messages :Fractl.Inference.Service/UpdateAgentChatSession.Messages}})
 
 (record
  :Fractl.Inference.Service/ToolParam
@@ -107,12 +113,16 @@
   {:Fractl.Inference.Service/DocChunk
    {:Id? :%.DocChunk}}])
 
-(defn- lookup-for-agent [event-name proc agent-instance]
-  (when-let [result (first (e/eval-all-dataflows
-                            {event-name
-                             {:Agent (:Name agent-instance)}}))]
+(defn- eval-event [event callback]
+  (when-let [result (first (e/eval-all-dataflows event))]
     (when (= :ok (:status result))
-      (mapv proc (:result result)))))
+      (callback (:result result)))))
+
+(defn- lookup-for-agent [event-name proc agent-instance]
+  (eval-event
+   {event-name
+    {:Agent (:Name agent-instance)}}
+   #(mapv proc %)))
 
 (def lookup-llms-for-agent (partial lookup-for-agent :Fractl.Inference.Service/LLMsForAgent :LLM))
 
@@ -140,8 +150,14 @@
 (def lookup-agent-docs (partial lookup-for-agent :Fractl.Inference.Service/AgentDocChunks normalize-docchunk))
 
 (defn lookup-agent-chat-session [agent-instance]
-  (when-let [result (first (e/eval-all-dataflows
-                            {:Fractl.Inference.Service/LookupAgentChatSessions
-                             {:Agent agent-instance}}))]
-    (when (= :ok (:status result))
-      (first (:result result)))))
+  (eval-event
+   {:Fractl.Inference.Service/LookupAgentChatSessions
+    {:Agent agent-instance}}
+   first))
+
+(defn update-agent-chat-session [chat-session messages]
+  (eval-event
+   {:Fractl.Inference.Service/UpdateAgentChatSession
+    {:SessionId (li/id-attr chat-session)
+     :Messages messages}}
+   identity))

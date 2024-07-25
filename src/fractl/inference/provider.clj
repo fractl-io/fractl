@@ -29,20 +29,36 @@
       %))
    msgs))
 
+(defn- add-user-instruction [agent-instance msgs]
+  (if-let [ins (or (:UserInstruction agent-instance)
+                   (get-in agent-instance [:Context :UserInstruction]))]
+    (vec (concat msgs [{:role :user :content ins}]))
+    msgs))
+
 (defn- fetch-messages [agent-instance]
   (when-let [sess (model/lookup-agent-chat-session agent-instance)]
-    (preproc-messages (:Messages sess))))
+    [(add-user-instruction agent-instance (preproc-messages (:Messages sess))) sess]))
 
 (defn- maybe-agent-to-spec [obj]
-  (cond
-    (inference-agent? obj)
-    {:messages (fetch-messages obj)}
-    (inference-agent? (:agent obj))
-    (assoc (dissoc obj :agent) :messages (fetch-messages (:agent obj)))
-    :else obj))
+  (if (inference-agent? obj)
+    (let [[msgs chat-session] (fetch-messages obj)]
+      [{:messages msgs} obj chat-session])
+    (if-let [agent (:agent obj)]
+      (if (inference-agent? agent)
+        (let [[msgs chat-session] (fetch-messages agent)]
+          [(assoc (dissoc obj :agent) :messages msgs) agent chat-session])
+        [obj nil nil])
+      [obj nil nil])))
 
-(defn make-completion [spec]
-  (make-provider-request p/make-completion (maybe-agent-to-spec spec)))
+(defn make-completion [agent-spec]
+  (let [[spec agent-inst chat-session] (maybe-agent-to-spec agent-spec)
+        msgs (:messages spec)
+        result (make-provider-request p/make-completion spec)]
+    (when (and chat-session (seq msgs))
+      (model/update-agent-chat-session
+       chat-session
+       (vec (concat msgs [{:role :assistant :content (first result)}]))))
+    result))
 
 (def get-embedding (comp first make-embedding))
 (def get-completion (comp first make-completion))

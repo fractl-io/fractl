@@ -7,6 +7,7 @@
                [cljs.js :refer [eval empty-state js-eval]])))
 
 (def id-attr :__Id__)
+(def id-attr? :__Id__?)
 (def with-types-tag :with-types)
 
 (def path-attr :__path__)
