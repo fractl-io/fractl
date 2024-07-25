@@ -732,24 +732,30 @@
       (assoc agent :Messages (li/as-quoted messages)))
     agent))
 
-(defn- preproc-inference-agent [agent-spec]
+(defn- preproc-inference-agent [is-query agent-spec]
   (when agent-spec
-    (if-let [llm-name (:with-llm agent-spec)]
-      {:Fractl.Inference.Service/Agent
-       (preproc-agent-messages (dissoc agent-spec :with-llm))
-       :-> [[{:Fractl.Inference.Service/AgentLLM {}}
-             {:Fractl.Inference.Provider/LLM
-              {:Name? llm-name}}]]}
-      agent-spec)))
+    (if is-query
+      {:Fractl.Inference.Service/Agent {:Name? agent-spec}}
+      (if-let [llm-name (:with-llm agent-spec)]
+        {:Fractl.Inference.Service/Agent
+         (preproc-agent-messages (dissoc agent-spec :with-llm))
+         :-> [[{:Fractl.Inference.Service/AgentLLM {}}
+               {:Fractl.Inference.Provider/LLM
+                {:Name? llm-name}}]]}
+        agent-spec))))
 
 (defn register-inference-dataflow [inference-name spec]
   (let [ins (:instructions spec)
-        orig-agent (preproc-inference-agent (:agent spec))
-        agent0 (dissoc orig-agent :->)
-        agent-attrs (li/record-attributes agent0)
-        agent {(li/record-name agent0)
+        agent-spec (:agent spec)
+        is-agent-query (string? agent-spec)
+        agent0 (preproc-inference-agent is-agent-query agent-spec)
+        agent1 (dissoc agent0 :->)
+        agent-attrs (li/record-attributes agent1)
+        agent {(li/record-name agent1)
                (assoc agent-attrs :UserInstruction ins :Context inference-name)}
-        p0 (assoc agent :as :Agent :-> (:-> orig-agent))
+        p0 (if is-agent-query
+             (assoc agent :as [:Agent])
+             (assoc agent :as :Agent :-> (:-> agent0)))
         p1 `[:eval (fractl.inference/run-inference-for-event ~inference-name :Agent)]]
     (cn/register-dataflow inference-name nil [p0 p1])
     inference-name))

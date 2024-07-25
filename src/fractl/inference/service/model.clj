@@ -36,11 +36,25 @@
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :ChatUuid {:type :UUID :default u/uuid-string}
   :UserInstruction {:type :String :optional true}
-  :Messages {:check agent-messages? :optional true}
   :PromptFn {:check fn? :optional true}
   :Extension {:type :Map :optional true}
   :Context {:type :Map :optional true}
   :Response {:type :Any :read-only true}})
+
+(entity
+ :Fractl.Inference.Service/ChatSession
+ {:Id {:type :UUID :id true :default u/uuid-string}
+  :Messages {:check agent-messages?}})
+
+(relationship
+ :Fractl.Inference.Service/AgentChatSession
+ {:meta {:contains [:Fractl.Inference.Service/Agent :Fractl.Inference.Service/ChatSession]}})
+
+(dataflow
+ :Fractl.Inference.Service/LookupAgentChatSessions
+ {:Fractl.Inference.Service/ChatSession? {}
+  :-> [[:Fractl.Inference.Service/AgentChatSession?
+        :Fractl.Inference.Service/LookupAgentChatSessions.Agent]]})
 
 (record
  :Fractl.Inference.Service/ToolParam
@@ -124,3 +138,10 @@
     (str (:DocName docchunk) " " (:DocChunk docchunk))))
 
 (def lookup-agent-docs (partial lookup-for-agent :Fractl.Inference.Service/AgentDocChunks normalize-docchunk))
+
+(defn lookup-agent-chat-session [agent-instance]
+  (when-let [result (first (e/eval-all-dataflows
+                            {:Fractl.Inference.Service/LookupAgentChatSessions
+                             {:Agent agent-instance}}))]
+    (when (= :ok (:status result))
+      (first (:result result)))))

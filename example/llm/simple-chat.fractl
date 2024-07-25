@@ -1,12 +1,22 @@
 (component :SimpleChat)
 
-(inference
- :TellAJoke
- {:agent {:Name "agent01"
-          :Type "chat"
-          :Messages [{:role "system" :content "I am an AI bot who tell jokes"}
-                     {:role "user" :content "OK, then tell me a joke about AI bots"}]
-          :with-llm "llm01"}})
+
+(inference :TellAJoke {:agent "agent01"})
+
+(dataflow
+ :InitJokeAgent
+ {:Fractl.Inference.Service/Agent
+  {:Name "agent01"
+   :Type "chat"}
+  :-> [[{:Fractl.Inference.Service/AgentLLM {}}
+        {:Fractl.Inference.Provider/LLM
+         {:Name? "llm01"}}]]
+  :as :Agent}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages [:q# [{:role "system" :content "I am an AI bot who tell jokes"}
+                   {:role "user" :content "OK, then tell me a joke about AI bots"}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ :Agent)
 
 (dataflow
  :Fractl.Kernel.Lang/AppInit
@@ -17,4 +27,7 @@
             :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-            :CompletionModel "gpt-3.5-turbo"}}})
+            :CompletionModel "gpt-3.5-turbo"}}}
+ [:try
+  {:Fractl.Inference.Service/Agent {:Name? "agent01"}}
+  :not-found {:InitJokeAgent {}}])

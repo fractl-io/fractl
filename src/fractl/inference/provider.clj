@@ -1,6 +1,7 @@
 (ns fractl.inference.provider
   (:require [fractl.util :as u]
             [fractl.component :as cn]
+            [fractl.inference.service.model :as model]
             [fractl.inference.provider.protocol :as p]
             [fractl.inference.provider.model]
             [fractl.inference.provider.openai]
@@ -28,13 +29,16 @@
       %))
    msgs))
 
+(defn- fetch-messages [agent-instance]
+  (when-let [sess (model/lookup-agent-chat-session agent-instance)]
+    (preproc-messages (:Messages sess))))
+
 (defn- maybe-agent-to-spec [obj]
   (cond
     (inference-agent? obj)
-    {:messages (preproc-messages (:Messages obj))}
+    {:messages (fetch-messages obj)}
     (inference-agent? (:agent obj))
-    (assoc (dissoc obj :agent)
-           :messages (preproc-messages (get-in obj [:agent :Messages])))
+    (assoc (dissoc obj :agent) :messages (fetch-messages (:agent obj)))
     :else obj))
 
 (defn make-completion [spec]
