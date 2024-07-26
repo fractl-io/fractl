@@ -4,11 +4,13 @@
 
 (def ^:dynamic active-llm nil)
 
-(defn lookup-provider-by-name [provider-name]
-  (when provider-name
-    (first (ev/safe-eval-internal
-            false {:Fractl.Inference.Provider/FindLLM
-                   {:Name provider-name}}))))
+(def lookup-provider-by-name
+  (memoize
+   (fn [provider-name]
+     (when provider-name
+       (first (ev/safe-eval-internal
+               false {:Fractl.Inference.Provider/FindLLM
+                      {:Name provider-name}}))))))
 
 (defn call-with-provider [provider-name f]
   (if-let [provider (lookup-provider-by-name provider-name)]
