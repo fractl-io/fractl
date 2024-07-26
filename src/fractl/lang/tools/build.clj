@@ -151,13 +151,13 @@
     (when (= 'component (first f))
       f)))
 
-(defn- write-component-clj [model-name component-name write component]
+(defn- write-component-clj [component-name write component]
   (let [parts (s/split (str component-name) #"\.")
         compname (last parts)
         dirs (butlast parts)
         file-name
         (str
-         "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep
+         "src" u/path-sep
          (s/join u/path-sep (concat dirs [(str compname ".cljc")])))]
     (write file-name component :write-each)
     component-name))
@@ -201,8 +201,8 @@
                 (let [ss (s/split (s/lower-case (name r)) #"\.")
                       cid (symbol (str (s/replace (name r) "." "_") "_" component-id-var))]
                   (if (= 1 (count ss))
-                    [(symbol (str sanitized-model-name ".model." (first ss))) :only [cid]]
-                    [(symbol (s/join "." (concat [sanitized-model-name "model"] ss))) :only [cid]])))
+                    [(symbol (first ss)) :only [cid]]
+                    [(symbol (s/join "." ss)) :only [cid]])))
               refs)
         deps (if (= "fractl" sanitized-model-name)
                [['fractl.lang :only lang-vars]]
@@ -231,10 +231,8 @@
     (let [component-name (second component-decl)
           component-spec (when (> (count component-decl) 2)
                            (nth component-decl 2))
-          cns-name (symbol (s/lower-case (name component-name)))
-          s-model-name (sanitize model-name)
-          ns-name (symbol (str s-model-name ".model." cns-name))
-          use-models (model-refs-to-use s-model-name (:refer component-spec))
+          ns-name (symbol (s/lower-case (name component-name)))
+          use-models (model-refs-to-use (sanitize model-name) (:refer component-spec))
           clj-imports (merge-use-models
                        (normalize-clj-imports (:clj-import component-spec))
                        use-models)
@@ -245,17 +243,17 @@
                 (update-local-defs ns-name component)
                 [`(def ~(symbol (str (s/replace (name component-name) "." "_") "_" component-id-var)) ~(u/uuid-string))])]
       (if write
-        (write-component-clj
-         model-name cns-name write exps)
+        (write-component-clj ns-name write exps)
         (binding [*ns* *ns*] (doseq [exp exps] (eval exp)))))
     (u/throw-ex "no component declaration found")))
 
-(defn- write-model-clj [write model-name component-names model]
-  (let [root-ns-name (symbol (str (sanitize model-name) ".model"))
-        req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c)) :as (symbol (name c))]) component-names)
+(defn- write-model-clj [write component-names model]
+  (let [model-name (:name model)
+        root-ns-name (symbol (str (sanitize model-name) ".model"))
+        req-comp (mapv (fn [c] [c :as (symbol (name c))]) component-names)
         ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:require ~@req-comp))
         model (dissoc model :repositories :dependencies)]
-    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
+    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model.cljc")
            [ns-decl (if (map? model) `(fractl.lang/model ~model) model)
             `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))]
            :write-each)))
@@ -287,7 +285,7 @@
         (wr "project.clj" spec)
         (wr "logback.xml" log-config :spit)
         (let [cmps (mapv (partial copy-component wr model-name) components)]
-          (write-model-clj wr model-name cmps model)
+          (write-model-clj wr cmps model)
           (create-client-project model-name ver fractl-ver (write-config-edn model-root wr))))
       (log/error (str "failed to create clj project for " model-name)))))
 
