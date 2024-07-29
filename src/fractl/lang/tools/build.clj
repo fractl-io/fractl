@@ -363,8 +363,9 @@
 
 (defn build-model
   ([model-paths model-name model-info]
-   (let [{model-paths :paths model :model model-root :root}
+   (let [{model-paths :paths model :model model-root :root :as rs}
          (loader/load-all-model-info model-paths model-name model-info)
+         model-name (or model-name (:name model))
          result [model model-root]
          fvers (fetch-fractl-version model)
          orig-model-name model-name
