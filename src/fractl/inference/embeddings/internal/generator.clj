@@ -2,6 +2,7 @@
   (:require [clojure.string :as s]
             [fractl.component :as cn]
             [fractl.lang :refer :all]
+            [fractl.lang.kernel :as k]
             [fractl.swagger.doc :as doc]
             [fractl.util.logger :as log]))
 
@@ -9,13 +10,14 @@
 (def uniqueness (atom false))
 
 (defn convert-keyword [data]
-  (let [data-contents (if (map? data) (get data :type) data)
-        data-str (str data-contents)
-        prefix "Fractl.Kernel.Lang/"
-        keyword-data (if (clojure.string/includes? data-str (str prefix))
-                       data-contents
-                       (keyword (str prefix (name data-contents))))]
-    keyword-data))
+  (let [data-type (if (map? data) (get data :type) data)]
+    (if data-type
+      (cond
+        (k/plain-kernel-type? data-type)
+        (keyword (str "Fractl.Kernel.Lang/" (name data-type)))
+        (k/kernel-type? data-type) data-type
+        :else :Fractl.Kernel.Lang/Any)
+      :Fractl.Kernel.Lang/Any)))
 
 (defn get-clojure-type [attr]
   (let [attr (convert-keyword attr)]
