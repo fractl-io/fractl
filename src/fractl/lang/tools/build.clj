@@ -123,7 +123,7 @@
 
 (defn- create-clj-project [model-dir-name model]
   (let [model-name (:name model)
-        ns-name (symbol (str model-name ".model"))
+        ns-name (symbol (str model-name ".modelmain"))
         deps (vec
               (concat
                [['com.github.fractl-io/fractl (fetch-fractl-version model)]]
@@ -253,17 +253,26 @@
   (let [model-name (:name model)
         s-model-name (str model-name)
         root-ns-name (symbol (str s-model-name ".model"))
-        req-comp (vec
-                  (concat [['fractl.core :as 'fractl]]
-                          (mapv (fn [c] [c :as (symbol (name c))]) component-names)))
+        req-comp (mapv (fn [c] [c :as (symbol (name c))]) component-names)
         ns-decl `(~'ns ~root-ns-name
-                  (:require ~@req-comp)
-                  (:gen-class))
+                  (:require ~@req-comp))
         model (dissoc model :repositories :dependencies)
         model-path (s/join u/path-sep (s/split s-model-name #"\."))]
     (write (str "src" u/path-sep model-path u/path-sep "model.cljc")
            [ns-decl (if (map? model) `(fractl.lang/model ~model) model)
-            `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))
+            `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))]
+           :write-each)
+    [s-model-name model-path root-ns-name]))
+
+(defn- write-core-clj [write s-model-name model-path model-ns]
+  (let [req-comp [['fractl.core :as 'fractl]
+                  [model-ns :as model-ns]]
+        root-ns-name (symbol (str s-model-name ".modelmain"))
+        ns-decl `(~'ns ~root-ns-name
+                  (:require ~@req-comp)
+                  (:gen-class))]
+    (write (str "src" u/path-sep model-path u/path-sep "modelmain.clj")
+           [ns-decl
             `(~'defn ~'-main [& ~'args] (apply ~'fractl/-main ~'args))]
            :write-each)))
 
@@ -276,13 +285,13 @@
         (write config-edn cfg :spit)
         cfg))))
 
-(defn- create-client-project [model-name ver fractl-ver app-config]
+(defn- create-client-project [orig-model-name model-name ver fractl-ver app-config]
   (let [build-type (if (:service (:authentication app-config))
                      'prod
                      'dev)]
     (cl/build-project
      model-name ver fractl-ver
-     (client-path model-name) build-type)))
+     (client-path orig-model-name) build-type)))
 
 (defn- build-clj-project [orig-model-name model-root model components]
   (if (create-clj-project orig-model-name model)
@@ -291,9 +300,11 @@
           fractl-ver (fetch-fractl-version model)
           log-config (make-log-config orig-model-name ver)]
       (wr "logback.xml" log-config :spit)
-      (let [cmps (mapv (partial copy-component wr (:name model)) components)]
-        (write-model-clj wr cmps model)
-        (create-client-project orig-model-name ver fractl-ver (write-config-edn model-root wr))))
+      (let [model-name (:name model)
+            cmps (mapv (partial copy-component wr model-name) components)]
+        (let [rs (write-model-clj wr cmps model)]
+          (apply write-core-clj wr rs))
+        (create-client-project orig-model-name model-name ver fractl-ver (write-config-edn model-root wr))))
     (log/error (str "failed to create clj project for " orig-model-name))))
 
 (defn- normalize-deps-spec [deps]
