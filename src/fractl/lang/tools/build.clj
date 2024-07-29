@@ -121,8 +121,21 @@
     (conj proj-spec :repositories repos)
     proj-spec))
 
+(defn- normalize-model-name [model-name]
+  (s/replace model-name #"[\-_]" "."))
+
+(defn- model-name-as-string [model-name]
+  (cond
+    (keyword? model-name)
+    (s/lower-case (subs (str model-name) 1))
+
+    (string? model-name)
+    (normalize-model-name model-name)
+
+    :else (u/throw-ex (str "invalid model name " model-name ", must be keyword or string"))))
+
 (defn- create-clj-project [model-dir-name model]
-  (let [model-name (:name model)
+  (let [model-name (model-name-as-string (:name model))
         ns-name (symbol (str model-name ".modelmain"))
         deps (vec
               (concat
@@ -250,7 +263,7 @@
     (u/throw-ex "no component declaration found")))
 
 (defn- write-model-clj [write component-names model]
-  (let [model-name (:name model)
+  (let [model-name (model-name-as-string (:name model))
         s-model-name (str model-name)
         root-ns-name (symbol (str s-model-name ".model"))
         req-comp (mapv (fn [c] [c :as (symbol (name c))]) component-names)
@@ -300,7 +313,7 @@
           fractl-ver (fetch-fractl-version model)
           log-config (make-log-config orig-model-name ver)]
       (wr "logback.xml" log-config :spit)
-      (let [model-name (:name model)
+      (let [model-name (model-name-as-string (:name model))
             cmps (mapv (partial copy-component wr model-name) components)]
         (let [rs (write-model-clj wr cmps model)]
           (apply write-core-clj wr rs))
@@ -358,20 +371,18 @@
 (defn- check-local-dependency? [deps]
   (boolean (some #(= (:type %) :fractl-model) deps)))
 
-(defn- normalize-model-name [model-name]
-  (s/replace model-name #"[\-_]" "."))
-
 (defn build-model
   ([model-paths model-name model-info]
    (let [{model-paths :paths model :model model-root :root :as rs}
          (loader/load-all-model-info model-paths model-name model-info)
-         model-name (or model-name (:name model))
+         s-model-name (model-name-as-string (:name model))
+         model-name (or model-name s-model-name)
          result [model model-root]
          fvers (fetch-fractl-version model)
          orig-model-name model-name
          model-name (normalize-model-name model-name)
          projdir (File. (project-dir orig-model-name))]
-     (when-not (= model-name (:name model))
+     (when-not (= model-name s-model-name)
        (u/throw-ex (str "model-name must match directory name - " orig-model-name " <> " (:name model))))
      (when-not (= fvers (gs/fractl-version))
        (u/throw-ex (str "runtime version mismatch - required " fvers ", found " (gs/fractl-version))))
