@@ -485,9 +485,9 @@
               cn (normalized-attributes :record cn (preproc-attrs attrs)))]
        (when r
          (and (if-not (:contains (:meta attrs))
-                (raw/record n attrs)
-                n)
-              r)))
+                (raw/record cn attrs)
+                cn)
+              cn)))
      (u/throw-ex (str "Syntax error in record. Check record: " n))))
   ([schema]
    (parse-and-define record schema)))
@@ -517,7 +517,7 @@
          r (event-internal
             n (assoc attrs1 li/event-context (k/event-context-attribute-name))
             true)]
-     (and (raw/event n attrs) r)))
+     (and (raw/event r attrs) r)))
   ([schema]
    (parse-and-define event schema)))
 
@@ -650,10 +650,16 @@
     match-pat
     {:preproc match-pat}))
 
+(defn- canonical-dataflow-match-pattern [pat]
+  (if (and (keyword? pat) (= 1 (count (li/split-path pat))))
+    (cn/canonical-type-name pat)
+    pat))
+
 (defn dataflow
   "A declarative data transformation pipeline."
   [match-pat & patterns]
-  (let [r (cond
+  (let [match-pat (canonical-dataflow-match-pattern match-pat)
+        r (cond
             (prepost-crud-dataflow? match-pat)
             (let [event-name (parse-prepost-crud-header match-pat)
                   pats (parse-prepost-patterns event-name patterns)]
@@ -766,13 +772,14 @@
   spec-keys)
 
 (defn inference [inference-name spec-map]
-  (ensure-spec-keys! 'inference inference-name
-                     #{:instructions :agent} (keys spec-map))
-  (ensure-event! inference-name)
-  (and (register-inference-dataflow inference-name spec-map)
-       (cn/register-inference inference-name spec-map)
-       (raw/inference inference-name spec-map)
-       inference-name))
+  (let [inference-name (cn/canonical-type-name inference-name)]
+    (ensure-spec-keys! 'inference inference-name
+                       #{:instructions :agent} (keys spec-map))
+    (ensure-event! inference-name)
+    (and (register-inference-dataflow inference-name spec-map)
+         (cn/register-inference inference-name spec-map)
+         (raw/inference inference-name spec-map)
+         inference-name)))
 
 (def ^:private crud-evname cn/crud-event-name)
 
@@ -910,7 +917,7 @@
              (when-let [rbac-spec (:rbac attrs)]
                (lr/rbac rec-name rbac-spec))
              result)
-           (let [ev (partial crud-evname n)
+           (let [ev (partial crud-evname rec-name)
                  ctx-aname (k/event-context-attribute-name)
                  id-attr (identity-attribute-name rec-name)
                  id-attr-type (or (identity-attribute-type id-attr attrs)
@@ -998,8 +1005,8 @@
   ([n attrs raw-attrs]
    (let [attrs (if raw-attrs (preproc-path-identity attrs) attrs)]
      (when-let [r (serializable-entity n (preproc-attrs attrs))]
-       (let [result (and (if raw-attrs (raw/entity n raw-attrs) true) r)]
-         (and (audit-entity n raw-attrs) result)))))
+       (let [result (and (if raw-attrs (raw/entity r raw-attrs) true) r)]
+         (and (audit-entity r raw-attrs) result)))))
   ([n attrs]
    (let [raw-attrs attrs
          attrs (if-not (seq attrs)
@@ -1231,7 +1238,8 @@
 
 (defn relationship
   ([relation-name attrs]
-   (let [meta (let [m (:meta attrs)]
+   (let [relation-name (cn/canonical-type-name relation-name)
+         meta (let [m (:meta attrs)]
                 (if (some #{:cascade-on-delete} (keys m))
                   m
                   (assoc m :cascade-on-delete true)))
