@@ -147,6 +147,8 @@
      {:Id {:type :Int :guid true}
       :Name :String
       :ListOfNames {:listof :String}
+      :FavoriteIntNumbers {:listof :Int :optional true}
+      :FavoriteFloatNumbers {:listof :Float :optional true}
       :Attributes {:listof :WordCount.Core/Attribute}})
 
     (record :WordCount.Core/DetailValue {:key :String :data :String})
@@ -368,7 +370,7 @@
         multi-condition-variables
         {:filter
          {:and [
-                {:Completed false}
+                {:Completed {:eq false}}
                 {:or [
                       {:Title {:contains "project"}}
                       {:Title {:contains "Task"}}
@@ -417,7 +419,7 @@
                           {:Age {:gte 30 :lt 100}}
                           {:and [
                                  {:Age {:gte 20 :lt 30}}
-                                 {:ForceSensitive true}
+                                 {:ForceSensitive {:eq true}}
                                  ]}
                           ]}
                     {:not {:HomePlanet {:eq "Kashyyyk"}}}
@@ -450,7 +452,7 @@
             filtered-heroes-variables {:filter {:and [{:Name {:startsWith "L"}}
                                                       {:HomePlanet {:contains "oo"}}
                                                       {:Age {:between [20 30]}}
-                                                      {:ForceSensitive true}]}
+                                                      {:ForceSensitive {:eq true}}]}
                                        :limit  2
                                        :offset 0}
             results (graphql-handler :WordCount.Core filtered-heroes-query filtered-heroes-variables)
@@ -466,11 +468,11 @@
               }
             }"
             complex-filter-variables {:filter {:or [{:and [{:HomePlanet {:endsWith "ne"}}
-                                                           {:ForceSensitive true}]}
+                                                           {:ForceSensitive {:eq true}}]}
                                                     {:and [{:Name {:contains "a"}}
                                                            {:Age {:gt 30}}]}
                                                     {:and [{:Age {:gte 100}}
-                                                           {:ForceSensitive false}]}]}}]
+                                                           {:ForceSensitive {:eq false}}]}]}}]
 
         (let [results (graphql-handler :WordCount.Core complex-filter-query complex-filter-variables)
               results (:Hero results)]
@@ -492,7 +494,7 @@
                                                               {:HomePlanet {:eq "Tatooine"}}
                                                               ]}
                                                        {:and [
-                                                              {:ForceSensitive true}
+                                                              {:ForceSensitive {:eq true}}
                                                               {:not {:or [
                                                                           {:Name {:contains "Solo"}}
                                                                           {:Name {:contains "Chewbacca"}}
@@ -536,7 +538,7 @@
                                 ]}
                           ]}
                    {:not {:and [
-                                {:ForceSensitive false}
+                                {:ForceSensitive {:eq false}}
                                 {:or [
                                       {:Age {:between [30 50]}}
                                       {:not {:HomePlanet {:in ["Kashyyyk" "Tatooine"]}}}
@@ -550,7 +552,7 @@
                                       ]}}
                           {:or [
                                 {:HomePlanet {:eq "Kashyyyk"}}
-                                {:ForceSensitive false}
+                                {:ForceSensitive {:eq false}}
                                 ]}
                           ]}
                    ]}}]
@@ -812,6 +814,228 @@
               superset customers]
           (compare-instance-maps subset superset :Id))))
 
+    (testing "Filters for String and Integer list attributes: contains, containsAll, containsAny, isEmpty"
+      (let [customer-data-1 {:Id          10001,
+                             :Name        "Muhammad Hasnain Naeem",
+                             :ListOfNames ["Alice" "Bob" "Charlie"],
+                             :FavoriteIntNumbers [1 2 3 4 5]
+                             :Attributes
+                             [{:WordCount.Core/Attribute {:name  "Personal",
+                                                          :value "Info",
+                                                          :SubAttribute
+                                                          {:WordCount.Core/SubAttribute {:name            "Details",
+                                                                                         :value           "More Info",
+                                                                                         :SubSubAttribute
+                                                                                         {:WordCount.Core/SubSubAttribute
+                                                                                          {:name "Age",
+                                                                                           :value "30"}}}}}}
+                              {:WordCount.Core/Attribute {:name  "Professional",
+                                                          :value "Work Info",
+                                                          :SubAttribute
+                                                          {:WordCount.Core/SubAttribute {:name            "Job",
+                                                                                         :value           "Details",
+                                                                                         :SubSubAttribute
+                                                                                         {:WordCount.Core/SubSubAttribute
+                                                                                          {:name "Occupation",
+                                                                                           :value "Software Engineer"}}}}}}]}
+
+            customer-data-2 {:Id          1000000,
+                             :Name        "Hasnain Naeem",
+                             :ListOfNames ["David" "Eve" "Frank"],
+                             :FavoriteIntNumbers [3 4 5 6 7],
+                             :Attributes
+                             [{:WordCount.Core/Attribute {:name  "Personal",
+                                                          :value "Info",
+                                                          :SubAttribute
+                                                          {:WordCount.Core/SubAttribute {:name            "Details",
+                                                                                         :value           "More Info",
+                                                                                         :SubSubAttribute
+                                                                                         {:WordCount.Core/SubSubAttribute
+                                                                                          {:name "Age",
+                                                                                           :value "25"}}}}}}
+                              {:WordCount.Core/Attribute {:name  "Professional",
+                                                          :value "Work Info",
+                                                          :SubAttribute
+                                                          {:WordCount.Core/SubAttribute {:name            "Job",
+                                                                                         :value           "Details",
+                                                                                         :SubSubAttribute
+                                                                                         {:WordCount.Core/SubSubAttribute
+                                                                                          {:name "Occupation",
+                                                                                           :value "Engineer"}}}}}}]}
+
+
+            graphql-customer-data-1 {:Id          10001,
+                                     :Name        "Muhammad Hasnain Naeem",
+                                     :ListOfNames ["Alice" "Bob" "Charlie"],
+                                     :FavoriteIntNumbers [1 2 3 4 5],
+                                     :Attributes
+                                     [{:name  "Personal",
+                                       :value "Info",
+                                       :SubAttribute
+                                       {:name            "Details",
+                                        :value           "More Info",
+                                        :SubSubAttribute {:name "Age", :value "30"}}}
+                                      {:name  "Professional",
+                                       :value "Work Info",
+                                       :SubAttribute
+                                       {:name            "Job",
+                                        :value           "Details",
+                                        :SubSubAttribute {:name "Occupation", :value "Software Engineer"}}}]}
+
+            graphql-customer-data-2 {:Id          1000000,
+                                     :Name        "Hasnain Naeem",
+                                     :ListOfNames ["David" "Eve" "Frank"],
+                                     :FavoriteIntNumbers [3 4 5 6 7],
+                                     :Attributes
+                                     [{:name  "Personal",
+                                       :value "Info",
+                                       :SubAttribute
+                                       {:name            "Details",
+                                        :value           "More Info",
+                                        :SubSubAttribute {:name "Age", :value "25"}}}
+                                      {:name  "Professional",
+                                       :value "Work Info",
+                                       :SubAttribute
+                                       {:name            "Job",
+                                        :value           "Details",
+                                        :SubSubAttribute {:name "Occupation", :value "Engineer"}}}]}
+
+            instance1 (e/eval-all-dataflows
+                        (cn/make-instance
+                          :WordCount.Core/Create_Customer
+                          {:Instance
+                           (cn/make-instance :WordCount.Core/Customer customer-data-1)}))
+            instance2 (e/eval-all-dataflows
+                        (cn/make-instance
+                          :WordCount.Core/Create_Customer
+                          {:Instance
+                           (cn/make-instance :WordCount.Core/Customer customer-data-2)}))
+
+            int-list-query "query Customer {
+                              Customer(filter: {
+                                or: [
+                                  {and: [
+                                    {Id: {gte: 10000}},
+                                    {Id: {lte: 100000}},
+                                    {FavoriteIntNumbers: {contains: 3}},
+                                    {FavoriteIntNumbers: {containsAll: [4, 5]}},
+                                    {FavoriteIntNumbers: {containsAny: [1, 3, 7]}},
+                                    {FavoriteIntNumbers: {isEmpty: false}}
+                                  ]}
+                                ]
+                              }) {
+                                Id
+                                Name
+                                ListOfNames
+                                FavoriteIntNumbers
+                                Attributes {
+                                  name
+                                  value
+                                  SubAttribute {
+                                    name
+                                    value
+                                    SubSubAttribute {
+                                      name
+                                      value
+                                    }
+                                  }
+                                }
+                              }
+                            }"
+
+            string-list-query "query Customer {
+                                  Customer(filter: {
+                                    or: [
+                                      {and: [
+                                        {Id: {gte: 1000000}},
+                                        {ListOfNames: {contains: \"David\"}},
+                                        {ListOfNames: {containsAll: [\"Eve\", \"Frank\"]}},
+                                        {ListOfNames: {containsAny: [\"Alice\", \"David\"]}},
+                                        {ListOfNames: {isEmpty: false}}
+                                      ]}
+                                    ]
+                                  }) {
+                                    Id
+                                    Name
+                                    ListOfNames
+                                    FavoriteIntNumbers
+                                    Attributes {
+                                      name
+                                      value
+                                      SubAttribute {
+                                        name
+                                        value
+                                        SubSubAttribute {
+                                          name
+                                          value
+                                        }
+                                      }
+                                    }
+                                  }
+                                }"
+
+            no_result_int_list_query "query Customer {
+                                    Customer(filter: {
+                                      and: [
+                                        {Id: {gte: 10000}},
+                                        {Id: {lte: 100000}},
+                                        {FavoriteIntNumbers: {contains: 10}},
+                                        {FavoriteIntNumbers: {containsAll: [11, 12]}},
+                                        {FavoriteIntNumbers: {containsAny: [13, 14, 15]}},
+                                        {FavoriteIntNumbers: {isEmpty: false}}
+                                      ]
+                                    }) {
+                                      Id
+                                      Name
+                                      ListOfNames
+                                      FavoriteIntNumbers
+                                    }
+                                  }"
+
+            no_result_string_list_query "query Customer {
+                                       Customer(filter: {
+                                         and: [
+                                           {Id: {gte: 1000000}},
+                                           {ListOfNames: {contains: \"Zack\"}},
+                                           {ListOfNames: {containsAll: [\"Yvonne\", \"Xavier\"]}},
+                                           {ListOfNames: {containsAny: [\"Walter\", \"Victor\"]}},
+                                           {ListOfNames: {isEmpty: false}}
+                                         ]
+                                       }) {
+                                         Id
+                                         Name
+                                         ListOfNames
+                                         FavoriteIntNumbers
+                                       }
+                                     }"
+
+
+            int-list-results (graphql-handler :WordCount.Core int-list-query)
+            string-list-results (graphql-handler :WordCount.Core string-list-query)
+            int-list-customers (get int-list-results :Customer)
+            string-list-customers (get string-list-results :Customer)
+
+            no_result_int_list_results (graphql-handler :WordCount.Core no_result_int_list_query)
+            no_result_string_list_results (graphql-handler :WordCount.Core no_result_string_list_query)
+            no_result_int_list_customers (get no_result_int_list_results :Customer)
+            no_result_string_list_customers (get no_result_string_list_results :Customer)]
+
+        (testing "Integer list filters"
+          (let [expected-int-subset [graphql-customer-data-1]]
+            (is (= 1 (count int-list-customers)))
+            (is (compare-instance-maps expected-int-subset int-list-customers :Id))))
+
+        (testing "String list filters"
+          (let [expected-string-subset [graphql-customer-data-2]]
+            (is (= 1 (count string-list-customers)))
+            (is (compare-instance-maps expected-string-subset string-list-customers :Id))))
+
+        (testing "No results for Integer list filters"
+          (is (empty? no_result_int_list_customers) "Expected no results for impossible integer list filter conditions"))
+
+        (testing "No results for String list filters"
+          (is (empty? no_result_string_list_customers) "Expected no results for impossible string list filter conditions"))))
+
     (testing "Create instances of user profiles and query them with nested profile detail filters"
       (let [profile-data-1 {:UserId      10010,
                             :DisplayName "Muhammad Hasnain Naeem",
@@ -844,6 +1068,7 @@
                                   :WordCount.Core/Create_UserProfileDetails
                                   {:Instance
                                    (cn/make-instance :WordCount.Core/UserProfileDetails profile-data-1)}))
+
             profile2-instance (e/eval-all-dataflows
                                 (cn/make-instance
                                   :WordCount.Core/Create_UserProfileDetails
