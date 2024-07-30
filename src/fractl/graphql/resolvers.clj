@@ -82,9 +82,11 @@
     x
     [x]))
 
+(declare apply-filter)
+
 (defn apply-comparison [instance field op value]
   (let [instance-value (get-in instance (as-vec field))]
-    (case op
+    (let [result (case op
       :eq (= instance-value value)
       :ne (not= instance-value value)
       :gt (if (and (string? instance-value) (string? value))
@@ -100,12 +102,31 @@
              (not (pos? (compare instance-value value)))
              (<= instance-value value))
       :in (contains? (set value) instance-value)
-      :contains (str/includes? (str instance-value) (str value))
       :startsWith (str/starts-with? (str instance-value) (str value))
       :endsWith (str/ends-with? (str instance-value) (str value))
       :between (and (>= instance-value (first value)) (<= instance-value (second value)))
       :not (not (apply-comparison instance field (first (keys value)) (first (vals value))))
-      (= instance-value op))))
+      :contains (if (and (sequential? instance-value) (number? value))
+                  (some #(== % value) instance-value)
+                  (str/includes? (str instance-value) (str value)))
+      :containsAny (when (sequential? instance-value)
+                     (some #(if (number? %)
+                              (some (fn [x] (== % x)) instance-value)
+                              (some (fn [x] (= (str %) (str x))) instance-value))
+                           value))
+      :containsAll (when (sequential? instance-value)
+                     (every? #(if (number? %)
+                                (some (fn [x] (== % x)) instance-value)
+                                (some (fn [x] (= (str %) (str x))) instance-value))
+                             value))
+      :isEmpty (let [is-empty (if (coll? instance-value)
+                                (empty? instance-value)
+                                (nil? instance-value))]
+                 (if value
+                   is-empty
+                   (not is-empty)))
+      (= value op))]
+      result)))
 
 (defn apply-filter [instance filter]
   (if (map? filter)
@@ -128,7 +149,8 @@
     instances
     (if (empty? instances)
       []
-      (filter #(apply-filter % filters) instances))))
+      (let [filtered (filter #(apply-filter % filters) instances)]
+        filtered))))
 
 (defn make-auth-event-context [context]
   (let [auth-config (:auth-config context)

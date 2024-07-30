@@ -8,8 +8,8 @@
             [fractl.compiler :as c]
             [fractl.lang
              :as ln
-             :refer [component attribute event
-                     entity record dataflow]]
+             :refer [component attribute event relationship
+                     entity record dataflow inference]]
             [fractl.lang.internal :as li]
             [fractl.api :as api]
             [fractl.evaluator :as e]
@@ -1644,3 +1644,17 @@
              {:PswdEnc/E {:X "hello" :Y "jjj3223"}}}})]
     (is (cn/instance-of? :PswdEnc/E e))
     (is (fractl.util.hash/crypto-hash? (:Y e)))))
+
+(deftest default-component
+  (component :Dc01)
+  (component :Dc02)
+  (cn/set-current-component :Dc02)
+  (is (= :Dc02/A (entity :A {:Id :Identity :X :Int})))
+  (is (= :Dc02/B (record :B {:Name :String})))
+  (is (= :Dc02/C (event :C {:A :UUID :B :String})))
+  (is (= :Dc02/C (dataflow :C {:Dc02/A {:X :C.X}})))
+  (is (= :Dc02/OnA (inference :OnA {:instructions "handle new A"})))
+  (is (= :Dc02/R (relationship :R {:meta {:between [:Dc02/A :Dc02/A]}})))
+  (cn/set-current-component :Dc01)
+  (is (= :Dc01/A (entity :A {:Id :Identity :X :Int})))
+  (is (= :Dc01/B (record :B {:Name :String}))))
