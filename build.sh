@@ -40,7 +40,7 @@ function clean() {
 
 
 function build() {
-    docker build \
+    docker build --no-cache \
       -t $IMG_NAME .
 }
 
