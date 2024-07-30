@@ -19,6 +19,54 @@
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  :Agent)
 
+(inference :TellAJoke {:agent "agent01"})
+
+(dataflow
+ :InitSupportAgent
+ {:Fractl.Inference.Service/Agent
+  {:Name "agent02"
+   :Type "chat"}
+  :-> [[{:Fractl.Inference.Service/AgentLLM {}}
+        {:Fractl.Inference.Provider/LLM
+         {:Name? "llm01"}}]]
+  :as :Agent}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages [:q# [{:role :system
+                    :content (str "You are a support agent for Photographers."
+                                  "Please use the documentation from the appropriate "
+                                  "camera manufacturer to answer user queries.")}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ {:Fractl.Inference.Service/DocChunk
+  {:DocName "Panasonic Lumix"
+   :DocChunk (str "Finely adjusting the white balance:\n"
+                  "1. Select the white balance and then press the down-button.\n"
+                  "2. Press the left/right down/up buttons to make fine adjustments to color tone.\n"
+                  "3. Press [Menu/Set] to save the white balance. To reset, press the [DISP] button.\n\n"
+                  "Manual exposure:\n"
+                  "1. Set the exposure-mode dial to [M].\n"
+                  "2. Rotate the rear dial to set the shutter speed.\n"
+                  "3. Rotate the front dial to set the aperture value.\n\n")}
+  :as :Panasonic}
+ {:Fractl.Inference.Service/DocChunk
+  {:DocName "Canon"
+   :DocChunk (str "Manually setting white balance:\n"
+                  "1. Press the [FUNC/SET] button.\n"
+                  "2. Use the left/right, up/down buttons to adjust white balance.\n"
+                  "3. Press the [FUNC/SET] button.\n\n"
+                  "Adjusting exposure compensation:\n"
+                  "1. Turn on the LCD monitor.\n"
+                  "2. Press the [+/-] button until the exposure compensation bar is displayed.\n"
+                  "3. Adjust using the control dial. Press the [+/-] button.\n"
+                  "To cancel exposure compensation, follow step 3 to reset the value to 0.\n\n")}
+  :as :Canon}
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent :Agent.Name :DocChunk :Panasonic.Id}}
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent :Agent.Name :DocChunk :Canon.Id}}
+ :Agent)
+
+(inference :CameraSupport {:agent "agent02"})
+
 (dataflow
  :Fractl.Kernel.Lang/AppInit
  {:Fractl.Inference.Provider/LLM
@@ -31,4 +79,7 @@
             :CompletionModel "gpt-3.5-turbo"}}}
  [:try
   {:Fractl.Inference.Service/Agent {:Name? "agent01"}}
-  :not-found {:InitJokeAgent {}}])
+  :not-found {:InitJokeAgent {}}]
+ [:try
+  {:Fractl.Inference.Service/Agent {:Name? "agent02"}}
+  :not-found {:InitSupportAgent {}}])

@@ -32,7 +32,7 @@
 (entity
  :Fractl.Inference.Service/Agent
  {:Name {:type :String :guid true}
-  :Type {:type :String :unique true}
+  :Type :String
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :ChatUuid {:type :UUID :default u/uuid-string}
   :UserInstruction {:type :String :optional true}

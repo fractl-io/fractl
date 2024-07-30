@@ -1,5 +1,6 @@
 (ns fractl.inference.provider
-  (:require [fractl.util :as u]
+  (:require [clojure.string :as s]
+            [fractl.util :as u]
             [fractl.component :as cn]
             [fractl.inference.service.model :as model]
             [fractl.inference.provider.protocol :as p]
@@ -39,10 +40,33 @@
   (when-let [sess (model/lookup-agent-chat-session agent-instance)]
     [(add-user-instruction agent-instance (preproc-messages (:Messages sess))) sess]))
 
+(def ^:private docs-start "BEGIN DOCUMENTATION")
+(def ^:private docs-end "END DOCUMENTATION")
+
+(defn- maybe-add-docs [docs msgs]
+  (if docs
+    (let [sys-msg (first msgs)]
+      (if (= :system (:role sys-msg))
+        (let [content-with-docs
+              (str (:content sys-msg) docs-start docs docs-end)]
+          (assoc msgs 0 (assoc sys-msg :content content-with-docs)))
+        msgs))
+    msgs))
+
+(defn- maybe-cleanup-docs [msgs]
+  (let [sys-msg (first msgs)
+        content (:content sys-msg)
+        idx (s/index-of content docs-start)]
+    (if idx
+      (let [content-without-docs (subs content 0 idx)]
+        (assoc msgs 0 (assoc sys-msg :content content-without-docs)))
+      msgs)))
+
 (defn- maybe-agent-to-spec [obj]
   (if (inference-agent? obj)
-    (let [[msgs chat-session] (fetch-messages obj)]
-      [{:messages msgs} obj chat-session])
+    (let [[msgs chat-session] (fetch-messages obj)
+          docs (model/lookup-agent-docs obj)]
+      [{:messages (maybe-add-docs docs msgs)} obj chat-session])
     (if-let [agent (:agent obj)]
       (if (inference-agent? agent)
         (let [[msgs chat-session] (fetch-messages agent)]
@@ -57,7 +81,7 @@
     (when (and chat-session (seq msgs))
       (model/update-agent-chat-session
        chat-session
-       (vec (concat msgs [{:role :assistant :content (first result)}]))))
+       (vec (concat (maybe-cleanup-docs msgs) [{:role :assistant :content (first result)}]))))
     result))
 
 (def get-embedding (comp first make-embedding))
