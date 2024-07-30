@@ -750,25 +750,31 @@
                 {:Name? llm-name}}]]}
         agent-spec))))
 
+(defn instance-assoc [inst & params]
+  (loop [inst inst, params params]
+    (if-let [k (first params)]
+      (recur (assoc inst (keyword k) (second params))
+             (rest (rest params)))
+      inst)))
+
 (defn register-inference-dataflow [inference-name spec]
   (let [ins (:instructions spec)
         agent-spec (:agent spec)
         is-agent-query (string? agent-spec)
         agent0 (preproc-inference-agent is-agent-query agent-spec)
         agent1 (dissoc agent0 :->)
-        agent-attrs0 (li/record-attributes agent1)
-        pfn (:with-prompt-fn spec)
-        rh (:with-response-handler spec)
-        agent-attrs (merge agent-attrs0
-                           (when pfn {:PromptFn {:fn pfn}})
-                           (when rh {:ResponseHandler {:fn rh}}))
+        agent-attrs (li/record-attributes agent1)
         agent {(li/record-name agent1)
                (assoc agent-attrs :UserInstruction ins :Context inference-name)}
         p0 (if is-agent-query
              (assoc agent :as [:Agent])
              (assoc agent :as :Agent :-> (:-> agent0)))
+        pfn (:with-prompt-fn spec)
+        rh (:with-response-handler spec)
+        pfns (when (or pfn rh)
+               `[:eval (fractl.lang/instance-assoc :Agent "PromptFn" ~pfn "ResponseHandler" ~rh) :as :Agent])
         p1 `[:eval (fractl.inference/run-inference-for-event ~inference-name :Agent)]]
-    (cn/register-dataflow inference-name nil [p0 p1])
+    (cn/register-dataflow inference-name nil (if pfns [p0 pfns p1] [p0 p1]))
     inference-name))
 
 (defn- ensure-spec-keys! [tag label expected-keys spec-keys]

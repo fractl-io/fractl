@@ -29,9 +29,6 @@
             xs)
     true))
 
-(defn fn-map? [x]
-  (and (map? x) (fn? (:fn x))))
-
 (entity
  :Fractl.Inference.Service/Agent
  {:Name {:type :String :guid true}
@@ -39,10 +36,10 @@
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :ChatUuid {:type :UUID :default u/uuid-string}
   :UserInstruction {:type :String :optional true}
-  :PromptFn {:check fn-map? :optional true}
+  :PromptFn {:check fn? :optional true}
   :Extension {:type :Map :optional true}
   :Context {:type :Map :optional true}
-  :ResponseHandler {:check fn-map? :optional true}
+  :ResponseHandler {:check fn? :optional true}
   :Response {:type :Any :read-only true}})
 
 (entity

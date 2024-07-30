@@ -91,9 +91,9 @@
 (defn process-chained-response [[s _]]
   (let [pat "ANSWER is: "
         idx (clojure.string/index-of s pat)
-        answer (if idx (subs s (+ idx (count pat))) s)]
+        answer (if idx (subs s (+ idx (count pat))) "<invalid-response-from-llm>")]
     {:answer answer
-     :steps (clojure.string/split s "\n")}))
+     :steps (clojure.string/split-lines s)}))
 
 (inference :ChainOfThoughtExample {:agent "agent03" :with-response-handler process-chained-response})
 ;; Example:
