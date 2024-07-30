@@ -2,7 +2,8 @@
   (:require [clojure.string :as str]
             [fractl.util.logger :as log]
             [clojure.set :as set]
-            ))
+            )
+  (:import (clojure.lang LazySeq PersistentList)))
 
 (def query-input-object-name-postfix "QueryAttributes")
 
@@ -47,28 +48,33 @@
   (reset! entity-metas {}))
 
 (def fractlType->graphQL
-  {:String   :String
-   :DateTime :String
-   :Date     :String
-   :Password :String
-   :Time     :String
-   :UUID     :String
-   :Int      :Int
-   :Int64    :Int
-   :Float    :Float
-   :Double   :Float
-   :Boolean  :Boolean
-   :Email    :String
-   :Map      :Object
-   :Any      :String
-   :Identity :String})
+  {:String     :String
+   :DateTime   :String
+   :Date       :String
+   :Password   :String
+   :Time       :String
+   :UUID       :String
+   :Int        :Int
+   :Int64      :Int
+   :Float      :Float
+   :Double     :Float
+   :Decimal    :Float
+   :Boolean    :Boolean
+   :Email      :String
+   :Map        :Object
+   :Any        :String
+   :Identity   :String
+   :Keyword    :String
+   :Path       :String
+   :BigInteger :Int
+   :Edn        :Object})
 
 (defn type->GraphQL [type-info]
   (let [type-kw (cond
                   (string? type-info) (keyword type-info)
                   (keyword? type-info) type-info
                   (map? type-info) (keyword (:type type-info))
-                  :else nil)]                               ; unsupported type-info
+                  :else nil)]                               ;; unsupported type-info
     (if (and type-kw (not (@element-names type-kw)))
       (let [mapped-type (get fractlType->graphQL type-kw)]
         (if mapped-type
@@ -557,12 +563,22 @@
   (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))]
     (normalize-schema schema-info)))
 
+(def scalars
+  {:AnyScalar
+   {:parse (fn [value]
+             (cond
+               (string? value) value
+               (number? value) (str value)
+               (boolean? value) (str value)
+               :else (str value)))
+    :serialize str}})
+
 (def filter-input-objects
   {:StringComparison
    {:fields
     {:eq         {:type :String}
      :ne         {:type :String}
-     :in         {:type '(list String)}
+     :in         {:type '(list :String)}
      :contains   {:type :String}
      :startsWith {:type :String}
      :endsWith   {:type :String}
@@ -579,8 +595,8 @@
      :gte     {:type :Int}
      :lt      {:type :Int}
      :lte     {:type :Int}
-     :in      {:type '(list Int)}
-     :between {:type '(list Int)}}}
+     :in      {:type '(list :Int)}
+     :between {:type '(list :Int)}}}
 
    :FloatComparison
    {:fields
@@ -590,13 +606,22 @@
      :gte     {:type :Float}
      :lt      {:type :Float}
      :lte     {:type :Float}
-     :in      {:type '(list Float)}
-     :between {:type '(list Float)}}}
+     :in      {:type '(list :Float)}
+     :between {:type '(list :Float)}}}
 
    :BooleanComparison
    {:fields
     {:eq  {:type :Boolean}
-     :ne  {:type :Boolean}}}})
+     :ne  {:type :Boolean}}}
+
+   :ListComparison
+   {:fields
+    {:contains    {:type :AnyScalar}
+     :containsAll {:type '(list :AnyScalar)}
+     :containsAny {:type '(list :AnyScalar)}
+     :eq          {:type '(list :AnyScalar)}
+     :ne          {:type '(list :AnyScalar)}
+     :isEmpty     {:type :Boolean}}}})
 
 (defn extract-entities-inside-between-rel [relationship-name]
   "Returns names of entities part of given between relationship as a set."
@@ -617,15 +642,16 @@
                              :not {:type filter-name}}
                             (into {}
                               (comp
-                                (remove #(seq? (:type (second %))))
                                 (map (fn [[field-name {:keys [type]}]]
                                        (let [base-type (if (and (list? type) (= (first type) 'non-null))
                                                          (second type)
                                                          type)
                                              comparison-type (cond
-                                                               (= base-type :Boolean) :Boolean
+                                                               (= base-type :Boolean) :BooleanComparison
                                                                (= base-type :Int) :IntComparison
                                                                (= base-type :Float) :FloatComparison
+                                                               (or (= (class base-type) PersistentList)
+                                                                   (= (class base-type) LazySeq)) :ListComparison
                                                                (str/includes? (name base-type) "Filter") base-type
                                                                :else :StringComparison)]
                                          [(keyword (name field-name))
@@ -672,6 +698,7 @@
                                                    :Mutation     (:Mutation (merge-mutations create-mutations update-mutations delete-mutations))
                                                    :Subscription {}} combined-objects)
                             :enums         @enums-code
+                            :scalars scalars
                             :input-objects input-objects}
             schema (remove-empty-graphql-constructs initial-schema)]
         [schema @entity-metas]))))
