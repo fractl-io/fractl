@@ -87,7 +87,7 @@
                         :tools (model/lookup-agent-tools instance)
                         :docs (model/lookup-agent-docs instance)
                         :make-prompt (when-let [pfn (:PromptFn instance)]
-                                       (partial pfn instance))}
+                                       (partial (:fn pfn) instance))}
           options {:use-schema? true :use-docs? true}]
       (answer-question app-uuid question (or qcontext {}) options agent-config))))
 
@@ -111,7 +111,7 @@
           agent-config
           (assoc
            (if pfn
-             {:make-prompt (partial pfn instance)}
+             {:make-prompt (partial (:fn pfn) instance)}
              {:information-type (:Comment ext)
               :output-keys (or (:OutputAttributes ext)
                                (vec (cn/user-attribute-names out-scm)))

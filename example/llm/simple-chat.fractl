@@ -20,6 +20,8 @@
  :Agent)
 
 (inference :TellAJoke {:agent "agent01"})
+;; POST api/SimpleChat/TellAJoke
+;; {"SimpleChat/TellAJoke": {"UserInstruction": "OK, tell me a joke about AGI?"}}
 
 (dataflow
  :InitSupportAgent
@@ -66,6 +68,39 @@
  :Agent)
 
 (inference :CameraSupport {:agent "agent02"})
+;; POST api/SimpleChat/CameraSupport
+;; {"SimpleChat/CameraSupport": {"UserInstruction": "How to adjust white balance on my Panasonic G9?"}}
+
+(dataflow
+ :InitChainOfThoughtAgent
+ {:Fractl.Inference.Service/Agent
+  {:Name "agent03"
+   :Type "chat"}
+  :-> [[{:Fractl.Inference.Service/AgentLLM {}}
+        {:Fractl.Inference.Provider/LLM
+         {:Name? "llm01"}}]]
+  :as :Agent}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages [:q# [{:role :system
+                    :content (str "You are an agent who answer user queries by taking advantage of "
+                                  "a chain-of-thought. That means, you will take a step-by-step approach "
+                                  "in your response, cite sources and give reasoning before sharing final answer "
+                                  "in the below format: ANSWER is: <name>")}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]})
+
+(defn process-chained-response [[s _]]
+  (let [pat "ANSWER is: "
+        idx (clojure.string/index-of s pat)
+        answer (if idx (subs s (+ idx (count pat))) s)]
+    {:answer answer
+     :steps (clojure.string/split s "\n")}))
+
+(inference :ChainOfThoughtExample {:agent "agent03" :with-response-handler process-chained-response})
+;; Example:
+;; POST api/SimpleChat/ChainOfThoughtExample
+;; {"SimpleChat/ChainOfThoughtExample":
+;;     {"UserInstruction": "Who was the most decorated (maximum medals)
+;; individual athlete in the Olympic games that were held at Sydney?"}}
 
 (dataflow
  :Fractl.Kernel.Lang/AppInit
@@ -82,4 +117,7 @@
   :not-found {:InitJokeAgent {}}]
  [:try
   {:Fractl.Inference.Service/Agent {:Name? "agent02"}}
-  :not-found {:InitSupportAgent {}}])
+  :not-found {:InitSupportAgent {}}]
+  [:try
+   {:Fractl.Inference.Service/Agent {:Name? "agent03"}}
+   :not-found {:InitChainOfThoughtAgent {}}])

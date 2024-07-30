@@ -756,7 +756,12 @@
         is-agent-query (string? agent-spec)
         agent0 (preproc-inference-agent is-agent-query agent-spec)
         agent1 (dissoc agent0 :->)
-        agent-attrs (li/record-attributes agent1)
+        agent-attrs0 (li/record-attributes agent1)
+        pfn (:with-prompt-fn spec)
+        rh (:with-response-handler spec)
+        agent-attrs (merge agent-attrs0
+                           (when pfn {:PromptFn {:fn pfn}})
+                           (when rh {:ResponseHandler {:fn rh}}))
         agent {(li/record-name agent1)
                (assoc agent-attrs :UserInstruction ins :Context inference-name)}
         p0 (if is-agent-query
@@ -774,7 +779,9 @@
 (defn inference [inference-name spec-map]
   (let [inference-name (cn/canonical-type-name inference-name)]
     (ensure-spec-keys! 'inference inference-name
-                       #{:instructions :agent} (keys spec-map))
+                       #{:instructions :agent
+                         :with-prompt-fn :with-response-handler}
+                       (keys spec-map))
     (ensure-event! inference-name)
     (and (register-inference-dataflow inference-name spec-map)
          (cn/register-inference inference-name spec-map)

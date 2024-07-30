@@ -47,7 +47,8 @@
                  " - " (u/pretty-str agent-instance)))
   (let [agent-instance (handle-generic-agent agent-instance)
         r0 (or (:Response agent-instance) agent-instance)
-        result (if (string? r0) (edn/read-string r0) r0)
+        r1 (if (string? r0) (edn/read-string r0) r0)
+        result (if-let [f (:ResponseHandler agent-instance)] ((:fn f) r1) r1)
         is-review-mode (get-in event [:EventContext :evaluate-inferred-patterns])]
     (if-let [patterns (:patterns result)]
       (if is-review-mode
