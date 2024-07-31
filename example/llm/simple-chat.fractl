@@ -1,25 +1,21 @@
 (component :SimpleChat)
 
-(inference
- :TellAJoke
- {:agent "agent01"})
-
 (dataflow
  :InitJokeAgent
  [:agent
-  {:Name "agent01"
+  {:Name "joke-agent"
    :Type "chat"
    :with-llm "llm01"
    :with-messages [:q# [{:role :system :content "I am an AI bot who tell jokes"}]]}])
 
-(inference :TellAJoke {:agent "agent01"})
+(inference :TellAJoke {:agent "joke-agent"})
 ;; POST api/SimpleChat/TellAJoke
 ;; {"SimpleChat/TellAJoke": {"UserInstruction": "OK, tell me a joke about AGI?"}}
 
 (dataflow
  :InitSupportAgent
  [:agent
-  {:Name "agent02"
+  {:Name "support-agent"
    :Type "chat"
    :with-llm "llm01"
    :with-messages
@@ -30,14 +26,14 @@
    :with-documents ["example/llm/docs/panasonic_lumix.md"
                     "example/llm/docs/canon.md"]}])
 
-(inference :CameraSupport {:agent "agent02"})
+(inference :CameraSupport {:agent "support-agent"})
 ;; POST api/SimpleChat/CameraSupport
 ;; {"SimpleChat/CameraSupport": {"UserInstruction": "How to adjust white balance on my Panasonic G9?"}}
 
 (dataflow
  :InitChainOfThoughtAgent
  [:agent
-  {:Name "agent03"
+  {:Name "chain-of-thought-agent"
    :Type "chat"
    :with-llm "llm01"
    :with-messages
@@ -47,14 +43,23 @@
                         "in your response, cite sources and give reasoning before sharing final answer "
                         "in the below format: ANSWER is: <name>")}]]}])
 
+(def ^:private failed-to-parse "<failed-to-parse>")
+
+(defn- try-delimited-parsing [s]
+  (if-let [id0 (clojure.string/index-of s "**")]
+    (let [id0 (+ id0 2)
+          id1 (clojure.string/index-of s "**" id0)]
+      (if id1 (subs s id0 id1) failed-to-parse))
+    failed-to-parse))
+
 (defn process-chained-response [[s _]]
   (let [pat "ANSWER is: "
         idx (clojure.string/index-of s pat)
-        answer (if idx (subs s (+ idx (count pat))) "<invalid-response-from-llm>")]
+        answer (if idx (subs s (+ idx (count pat))) (try-delimited-parsing s))]
     {:answer answer
      :steps (clojure.string/split-lines s)}))
 
-(inference :ChainOfThoughtExample {:agent "agent03" :with-response-handler process-chained-response})
+(inference :ChainOfThoughtExample {:agent "chain-of-thought-agent" :with-response-handler process-chained-response})
 ;; Example:
 ;; POST api/SimpleChat/ChainOfThoughtExample
 ;; {"SimpleChat/ChainOfThoughtExample":
@@ -62,32 +67,35 @@
 ;; individual athlete in the Olympic games that were held at Sydney?"}}
 
 (dataflow
- :AgentCompositionExample
+ :InitVerificationAgent
  [:agent
-  {:Name? "agent03"
-   :UserInstruction :AgentCompositionExample.Instruction
-   :Context :AgentCompositionExample}
-  :as [:Agent1]]
- [:invoke :Agent1]
- [:agent
-  {:Name "agent04"
-   :UserInstruction '(str "The query posted to the other agent was: " :AgentCompositionExample.Instruction ". "
-                          "It responded with this text: " :Agent1.Response
-                          "Please analyse it and provide your conclusion.")
-   :Context :AgentCompositionExample
+  {:Name "verification-agent"
    :Type "chat"
    :with-llm "llm01"
-   :with-messages [:q# [{:role :system
-                         :content (str "You are an agent who verifies the answer returned by another agent. "
-                                       "Analyse the chain-of-thought returned by the other agent and return YES "
-                                       "if its conlusion is correct. Otherwise return NO. The final answer will be "
-                                       "encoded by the other agent as - ANSWER is: <some-text>")}]]}
-  :as :Agent2]
- [:invoke :Agent2])
-;; Usage:
-;; POST api/SimpleChat/AgentCompositionExample
-;; {"SimpleChat/AgentCompositionExample":
-;;  {"Instruction": "Who was the most decorated (maximum medals) individual athlete in the Olympic games that were held at Sydney?"}}
+   :with-messages
+   [:q# [{:role :system
+          :content (str "You are an agent who verifies the answer returned by another agent. "
+                        "Analyse the chain-of-thought returned by the other agent and return YES "
+                        "if its conlusion is correct. Otherwise return NO. The final answer will be "
+                        "encoded by the other agent as - ANSWER is: <some-text>")}]]}])
+(dataflow
+ :AgentCompositionExample
+ ;; Usage:
+ ;; POST api/SimpleChat/AgentCompositionExample
+ ;; {"SimpleChat/AgentCompositionExample":
+ ;;  {"Instruction": "Who was the most decorated (maximum medals) individual athlete in the Olympic games that were held at Sydney?"}}
+ [:agent
+  {:Name? "chain-of-thought-agent"
+   :UserInstruction :AgentCompositionExample.Instruction}
+  :as [:HelperAgent]]
+ [:invoke :HelperAgent :as [:Response]]
+ [:agent
+  {:Name? "verification-agent"
+   :UserInstruction '(str "The query posted to the other agent was: " :AgentCompositionExample.Instruction ". "
+                          "It responded with this text: \"" :Response "\" - "
+                          "Please analyse it and provide your conclusion.")}
+  :as [:VerificationAgent]]
+ [:invoke :VerificationAgent])
 
 (dataflow
  :Fractl.Kernel.Lang/AppInit
@@ -99,6 +107,7 @@
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
- [:try [:agent {:Name? "agent01"}] :not-found {:InitJokeAgent {}}]
- [:try [:agent {:Name? "agent02"}] :not-found {:InitSupportAgent {}}]
- [:try [:agent {:Name? "agent03"}] :not-found {:InitChainOfThoughtAgent {}}])
+ [:try [:agent {:Name? "joke-agent"}] :not-found {:InitJokeAgent {}}]
+ [:try [:agent {:Name? "support-agent"}] :not-found {:InitSupportAgent {}}]
+ [:try [:agent {:Name? "chain-of-thought-agent"}] :not-found {:InitChainOfThoughtAgent {}}]
+ [:try [:agent {:Name? "verification-agent"}] :not-found {:InitVerificationAgent {}}])
