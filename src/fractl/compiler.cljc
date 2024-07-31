@@ -1275,6 +1275,19 @@
      {:Messages msgs}
      :-> [[:Fractl.Inference.Service/AgentChatSession alias]]}))
 
+(defn- expand-with-documents [docs alias]
+  (when docs
+    (mapv (fn [doc]
+            (let [doc-alias (li/unq-name)]
+              [{:Fractl.Inference.Service/DocChunk
+                {:DocName doc
+                 :DocChunk `(quote (slurp ~doc))}
+                :as doc-alias}
+               {:Fractl.Inference.Service/AgentDocChunk
+                {:Agent (li/make-ref alias :Name)
+                 :DocChunk (li/make-ref doc-alias :Id)}}]))
+          docs)))
+
 (defn- agent-alias [pat]
   (second (drop-while #(not= % :as) pat)))
 
@@ -1292,13 +1305,17 @@
             llm-pat (expand-with-llm (:with-llm spec))
             agent-pat (merge
                        {:Fractl.Inference.Service/Agent
-                        (dissoc spec :with-llm :with-messages)}
+                        (dissoc spec :with-llm :with-messages :with-documents)}
                        (when llm-pat {:-> llm-pat})
                        {:as alias})
-            msgs-pat (expand-with-messages (:with-messages spec) alias)]
-        (if msgs-pat
-          (concat [agent-pat] [msgs-pat])
-          [agent-pat]))
+            msgs-pat (expand-with-messages (:with-messages spec) alias)
+            docs-pats (expand-with-documents (:with-documents spec) alias)
+            pats0 (if msgs-pat
+                    (concat [agent-pat] [msgs-pat])
+                    [agent-pat])]
+        (if docs-pats
+          (concat pats0 docs-pats)
+          pats0))
 
       :invoke
       (let [agent (second pat)
