@@ -1263,6 +1263,54 @@
       (log/exception ex)
       #?(:clj (throw (Exception. "Error in dataflow, pre-processing failed"))))))
 
+(defn- expand-with-llm [llm]
+  (when (string? llm)
+    [[{:Fractl.Inference.Service/AgentLLM {}}
+      {:Fractl.Inference.Provider/LLM
+       {:Name? llm}}]]))
+
+(defn- expand-with-messages [msgs alias]
+  (when msgs
+    {:Fractl.Inference.Service/ChatSession
+     {:Messages msgs}
+     :-> [[:Fractl.Inference.Service/AgentChatSession alias]]}))
+
+(defn- agent-alias [pat]
+  (second (drop-while #(not= % :as) pat)))
+
+(defn- enforce-agent-alias [pat]
+  (if-let [a (agent-alias pat)]
+    a
+    (li/unq-name)))
+
+(defn- expand-agent [pat]
+  (if (vector? pat)
+    (case (first pat)
+      :agent
+      (let [spec (second pat)
+            alias (enforce-agent-alias pat)
+            llm-pat (expand-with-llm (:with-llm spec))
+            agent-pat (merge
+                       {:Fractl.Inference.Service/Agent
+                        (dissoc spec :with-llm :with-messages)}
+                       (when llm-pat {:-> llm-pat})
+                       {:as alias})
+            msgs-pat (expand-with-messages (:with-messages spec) alias)]
+        (if msgs-pat
+          (concat [agent-pat] [msgs-pat])
+          [agent-pat]))
+
+      :invoke
+      (let [agent (second pat)
+            alias (or (agent-alias pat) agent)]
+        [[:eval `(fractl.inference/run-inference-for-event ~agent) :as alias]])
+
+      :try
+      [`[:try ~@(expand-agent (second pat)) ~@(nthrest pat 2)]]
+
+      [pat])
+    [pat]))
+
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
            compile-pattern
@@ -1271,7 +1319,7 @@
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
-        df-patterns (preproc-patterns df-patterns)
+        df-patterns (preproc-patterns (apply concat (mapv expand-agent df-patterns)))
         safe-compile (partial compile-with-error-report df-patterns c)
         result [ec (mapv safe-compile df-patterns (range (count df-patterns)))]]
     (log/dev-debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result))

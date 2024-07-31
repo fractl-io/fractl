@@ -42,18 +42,21 @@
     (cleanup-agent (assoc instance :Response (handler instance)))
     (u/throw-ex (str "No handler for agent type " (:Type instance)))))
 
-(defn run-inference-for-event [event agent-instance]
-  (log/info (str "Processing response for inference " (cn/instance-type event)
-                 " - " (u/pretty-str agent-instance)))
-  (let [agent-instance (handle-generic-agent agent-instance)
-        r0 (or (:Response agent-instance) agent-instance)
-        r1 (if (string? r0) (edn/read-string r0) r0)
-        result (if-let [f (:ResponseHandler agent-instance)] (f r1) r1)
-        is-review-mode (get-in event [:EventContext :evaluate-inferred-patterns])]
-    (if-let [patterns (:patterns result)]
-      (if is-review-mode
-        patterns
-        (eval-patterns patterns event))
-      (if-let [errmsg (:errormsg result)]
-        (u/throw-ex errmsg)
-        result))))
+(defn run-inference-for-event
+  ([event agent-instance]
+   (log/info (str "Processing response for inference " (cn/instance-type event)
+                  " - " (u/pretty-str agent-instance)))
+   (let [agent-instance (handle-generic-agent agent-instance)
+         r0 (or (:Response agent-instance) agent-instance)
+         r1 (if (string? r0) (edn/read-string r0) r0)
+         result (if-let [f (:ResponseHandler agent-instance)] (f r1) r1)
+         is-review-mode (get-in event [:EventContext :evaluate-inferred-patterns])]
+     (if-let [patterns (:patterns result)]
+       (if is-review-mode
+         patterns
+         (eval-patterns patterns event))
+       (if-let [errmsg (:errormsg result)]
+         (u/throw-ex errmsg)
+         result))))
+  ([agent-instance]
+   (run-inference-for-event (:Context agent-instance) agent-instance)))

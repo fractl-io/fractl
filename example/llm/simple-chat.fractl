@@ -1,6 +1,5 @@
 (component :SimpleChat)
 
-
 (inference
  :TellAJoke
  {:agent "agent01"})
@@ -73,20 +72,16 @@
 
 (dataflow
  :InitChainOfThoughtAgent
- {:Fractl.Inference.Service/Agent
+ [:agent
   {:Name "agent03"
-   :Type "chat"}
-  :-> [[{:Fractl.Inference.Service/AgentLLM {}}
-        {:Fractl.Inference.Provider/LLM
-         {:Name? "llm01"}}]]
-  :as :Agent}
- {:Fractl.Inference.Service/ChatSession
-  {:Messages [:q# [{:role :system
-                    :content (str "You are an agent who answer user queries by taking advantage of "
-                                  "a chain-of-thought. That means, you will take a step-by-step approach "
-                                  "in your response, cite sources and give reasoning before sharing final answer "
-                                  "in the below format: ANSWER is: <name>")}]]}
-  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]})
+   :Type "chat"
+   :with-llm "llm01"
+   :with-messages
+   [:q# [{:role :system
+          :content (str "You are an agent who answer user queries by taking advantage of "
+                        "a chain-of-thought. That means, you will take a step-by-step approach "
+                        "in your response, cite sources and give reasoning before sharing final answer "
+                        "in the below format: ANSWER is: <name>")}]]}])
 
 (defn process-chained-response [[s _]]
   (let [pat "ANSWER is: "
@@ -103,6 +98,34 @@
 ;; individual athlete in the Olympic games that were held at Sydney?"}}
 
 (dataflow
+ :AgentCompositionExample
+ [:agent
+  {:Name? "agent03"
+   :UserInstruction :AgentCompositionExample.Instruction
+   :Context :AgentCompositionExample}
+  :as [:Agent1]]
+ [:invoke :Agent1]
+ [:agent
+  {:Name "agent04"
+   :UserInstruction '(str "The query posted to the other agent was: " :AgentCompositionExample.Instruction ". "
+                          "It responded with this text: " :Agent1.Response
+                          "Please analyse it and provide your conclusion.")
+   :Context :AgentCompositionExample
+   :Type "chat"
+   :with-llm "llm01"
+   :with-messages [:q# [{:role :system
+                         :content (str "You are an agent who verifies the answer returned by another agent. "
+                                       "Analyse the chain-of-thought returned by the other agent and return YES "
+                                       "if its conlusion is correct. Otherwise return NO. The final answer will be "
+                                       "encoded by the other agent as - ANSWER is: <some-text>")}]]}
+  :as :Agent2]
+ [:invoke :Agent2])
+;; Usage:
+;; POST api/SimpleChat/AgentCompositionExample
+;; {"SimpleChat/AgentCompositionExample":
+;;  {"Instruction": "Who was the most decorated (maximum medals) individual athlete in the Olympic games that were held at Sydney?"}}
+
+(dataflow
  :Fractl.Kernel.Lang/AppInit
  {:Fractl.Inference.Provider/LLM
   {:Type "openai"
@@ -112,12 +135,6 @@
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
- [:try
-  {:Fractl.Inference.Service/Agent {:Name? "agent01"}}
-  :not-found {:InitJokeAgent {}}]
- [:try
-  {:Fractl.Inference.Service/Agent {:Name? "agent02"}}
-  :not-found {:InitSupportAgent {}}]
-  [:try
-   {:Fractl.Inference.Service/Agent {:Name? "agent03"}}
-   :not-found {:InitChainOfThoughtAgent {}}])
+ [:try [:agent {:Name? "agent01"}] :not-found {:InitJokeAgent {}}]
+ [:try [:agent {:Name? "agent02"}] :not-found {:InitSupportAgent {}}]
+ [:try [:agent {:Name? "agent03"}] :not-found {:InitChainOfThoughtAgent {}}])
