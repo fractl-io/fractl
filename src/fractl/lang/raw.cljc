@@ -1,19 +1,26 @@
 (ns fractl.lang.raw
   "Raw (edn) representation of all interned component-elements"
-  (:require [fractl.util :as u]
+  (:require [clojure.string :as s]
+            [fractl.util :as u]
             [fractl.lang.internal :as li]
             #?(:clj [fractl.lang.pub-schema :as pubs])))
 
 (def ^:private raw-store (u/make-cell {}))
 
+(defn- publish-schema? [record-name]
+  (and (pubs/publish-schema?)
+       (not (s/starts-with?
+             (s/lower-case (subs (str (first (li/split-path record-name))) 1))
+             "fractl"))))
+
 (defn- maybe-publish-add-definition [tag record-name attrs]
   #?(:clj
-     (when (pubs/publish-schema?)
+     (when (publish-schema? record-name)
        (pubs/publish-event {:operation :add :tag tag :type record-name :schema attrs}))))
 
 (defn- maybe-publish-remove-definition [tag record-name]
   #?(:clj
-     (when (pubs/publish-schema?)
+     (when (publish-schema? record-name)
        (pubs/publish-event {:operation :delete :tag tag :type record-name}))))
 
 (defn- process-component-spec [spec]
