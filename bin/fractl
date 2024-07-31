@@ -8,7 +8,7 @@ function msg {
     echo "$@" 1>&2
 }
 
-export CURRENT_FRACTL_VERSION="0.5.2"
+export CURRENT_FRACTL_VERSION="0.5.3"
 
 if [ -e model.fractl ]; then
     fractl_version_in_model=`grep ":fractl-version" model.fractl | sed -E  's/(.*) {1}(.*)/\2/' | xargs`
