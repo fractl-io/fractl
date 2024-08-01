@@ -8,7 +8,7 @@ function msg {
     echo "$@" 1>&2
 }
 
-export CURRENT_FRACTL_VERSION="0.5.2"
+export CURRENT_FRACTL_VERSION="0.5.3"
 
 if [ -e model.fractl ]; then
     fractl_version_in_model=`grep ":fractl-version" model.fractl | sed -E  's/(.*) {1}(.*)/\2/' | xargs`
@@ -24,7 +24,7 @@ fi
 echo "Fractl ${FRACTL_VERSION}"
 
 # Must be sha256sum
-export FRACTL_CHECKSUM='7beae68a3353377ae77ef3681b03c45911271cec7732fec29c74ac5f03f36098'
+export FRACTL_CHECKSUM='7460c399d539be3de933f1d0ffbf01a575726c87dbcaa6b2f594f9cc677350dd'
 
 if [[ "$OSTYPE" == "cygwin" ]] || [[ "$OSTYPE" == "msys" ]]; then
     delimiter=";"
