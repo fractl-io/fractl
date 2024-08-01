@@ -5,6 +5,7 @@
             [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.global-state :as gs]
+            [fractl.evaluator :as e]
             [fractl.inference.provider :as provider]
             [fractl.inference.provider.core :as p]
             [fractl.inference.embeddings.core :as ec]
@@ -151,7 +152,19 @@
     result))
 
 (defn handle-chat-agent [instance]
-  (log/info (str "Triggering chat agent - " (u/pretty-str instance)))
+  (log/info (str "Triggering " (:Type instance) " agent - " (u/pretty-str instance)))
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
    #(compose-agents instance (provider/make-completion instance))))
+
+(defn- maybe-eval-patterns [[response _]]
+  (if-let [pats
+           (let [exp (read-string response)]
+             (cond
+               (vector? exp) exp
+               (map? exp) [exp]))]
+    (mapv e/safe-eval-pattern pats)
+    response))
+
+(defn handle-eval-agent [instance]
+  (maybe-eval-patterns (handle-chat-agent instance)))

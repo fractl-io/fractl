@@ -11,7 +11,7 @@
  :InitSummaryAgent
  [:agent
   {:Name "summary-agent"
-   :Type "chat"
+   :Type "eval"
    :with-llm "llm01"
    :with-messages
    [:q# [{:role :system
@@ -20,22 +20,10 @@
                         "[{:ExpenseWorkflow/Expense {:Title \"air ticket\" :Amount 200}}, "
                           "{:ExpenseWorkflow/Expense {:Title \"food\", :Amount 80}}]")}]]}])
 
-(defn maybe-eval-patterns [[response _]]
-  (if-let [pats
-           (let [exp (read-string response)]
-             (cond
-               (vector? exp) exp
-               (map? exp) [exp]))]
-    (mapv fractl.evaluator/safe-eval-pattern pats)
-    response))
-
 ;; Usage:
 ;; POST api/ExpenseWorkflow/ReportToExpense
 ;; {"ExpenseWorkflow/ReportToExpense": {"UserInstruction": "Here's my expense summary: hotel bill is $340 and bus fare is $10"}}
-(inference
- :ReportToExpense
- {:agent "summary-agent"
-  :with-response-handler maybe-eval-patterns})
+(inference :ReportToExpense {:agent "summary-agent"})
 
 (dataflow
  :Fractl.Kernel.Lang/AppInit
