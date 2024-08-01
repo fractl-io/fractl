@@ -1,6 +1,7 @@
 (ns fractl.inference.service.lib.agent
   (:require [clojure.set :as set]
             [clojure.walk :as walk]
+            [fractl.util :as u]
             [fractl.inference.provider :as provider]
             [fractl.inference.service.lib.compose :as compose]
             [fractl.inference.service.lib.prompt :as prompt]
@@ -55,7 +56,7 @@
                    (compose/assok :embedding provider/get-embedding) ; needs :text-content
                    (compose/assok
                     :all-tools
-                    #(or (:tools agent-config) (retriever/retrieve-tools %))) ; needs :app-uuid and embedding
+                    #(u/trace (or (:tools agent-config) (retriever/retrieve-tools %)))) ; needs :app-uuid and embedding
                    (if (:use-docs? options)
                      (compose/assok :all-docs #(or (:docs agent-config) (retriever/retrieve-docs %)))
                      identity)

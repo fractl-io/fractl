@@ -34,19 +34,11 @@
               result))))
     fractl-patterns))
 
-(defn- cleanup-agent [inst]
-  (dissoc inst :Context))
-
-(defn handle-generic-agent [instance]
-  (if-let [handler (ar/fetch-agent-handler (:Type instance))]
-    (cleanup-agent (assoc instance :Response (handler instance)))
-    (u/throw-ex (str "No handler for agent type " (:Type instance)))))
-
 (defn run-inference-for-event
   ([event agent-instance]
    (log/info (str "Processing response for inference " (cn/instance-type event)
                   " - " (u/pretty-str agent-instance)))
-   (let [agent-instance (handle-generic-agent agent-instance)
+   (let [agent-instance (ar/handle-generic-agent agent-instance)
          r0 (or (:Response agent-instance) agent-instance)
          r1 (if (string? r0) (edn/read-string r0) r0)
          result (if-let [f (:ResponseHandler agent-instance)] (f r1) r1)

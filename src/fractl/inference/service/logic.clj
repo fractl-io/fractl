@@ -13,6 +13,11 @@
             [fractl.inference.service.lib.prompt :as prompt])
   (:import (clojure.lang ExceptionInfo)))
 
+(def ^:private generic-agent-handler (atom nil))
+
+(defn set-generic-agent-handler! [f]
+  (reset! generic-agent-handler f))
+
 (defn handle-doc-chunk [operation instance]
   (when (= :add operation)
     (let [doc-chunk (cn/instance-attributes instance)
@@ -81,7 +86,8 @@
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
    #(let [app-uuid (:AppUuid instance)
-          question (:UserInstruction instance)
+          question (str (:UserInstruction instance)
+                        (or (get-in instance [:Context :UserInstruction]) ""))
           qcontext (:Context instance)
           agent-config {:is-planner? true
                         :tools (model/lookup-agent-tools instance)
@@ -120,12 +126,15 @@
            :result-entity out-type)]
       (answer-question-analyze question (or qcontext {}) agent-config))))
 
-(declare handle-chat-agent)
-
 (defn- format-as-agent-response [agent-instance result]
-  (if (vector? result)
-    (let [[response _] result]
-      (str "### " (:Name agent-instance) "\n\n" response))
+  ;; TODO: response parsing should also move to agent-registry,
+  ;; one handler will be needed for each type of agent.
+  (if-let [response
+           (cond
+             (string? result) result
+             (map? result) (first (:Response result))
+             (vector? result) (first result))]
+    (str "### " (:Name agent-instance) "\n\n" response)
     result))
 
 (defn- compose-agents [agent-instance result]
@@ -136,7 +145,7 @@
         (let [n (:Name agent-instance)
               ins (str "Instruction for agent " n " was ### " (:UserInstruction agent-instance) " ### "
                        "The response from " n " is ### " response " ###")
-              rs (mapv #(format-as-agent-response % (handle-chat-agent (assoc % :UserInstruction ins))) delegates)]
+              rs (mapv #(format-as-agent-response % (@generic-agent-handler (assoc % :UserInstruction ins))) delegates)]
           [(str (format-as-agent-response agent-instance response) "\n\n" (apply str rs)) model-info])
         result))
     result))

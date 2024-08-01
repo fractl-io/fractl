@@ -28,7 +28,7 @@
   :as :Agent]
  {:Fractl.Inference.Service/AgentDelegate
   {:Delegator "chain-of-thought-agent"
-   :Delegatee "verification-agent"} :as :R}
+   :Delegatee "verification-agent"}}
  :Agent)
 
 (inference :AnswerWithVerification {:agent "chain-of-thought-agent"})

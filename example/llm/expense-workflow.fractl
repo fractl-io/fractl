@@ -1,0 +1,50 @@
+(component :ExpenseWorkflow)
+
+(entity
+ :Expense
+ {:Id :Identity
+  :Title :String
+  :Amount :Int})
+
+;; TODO: Delegate expense summary extraction from bills to an OCR agent.
+(dataflow
+ :InitSummaryAgent
+ [:agent
+  {:Name "summary-agent"
+   :Type "chat"
+   :with-llm "llm01"
+   :with-messages
+   [:q# [{:role :system
+          :content (str "You are an intelligent agent who summarizes an expense report as a list of expense instances. For example, "
+                        "if the report is \"I spent $200 on air ticket and $80 on food\", the summary should be "
+                        "[{:ExpenseWorkflow/Expense {:Title \"air ticket\" :Amount 200}}, "
+                          "{:ExpenseWorkflow/Expense {:Title \"food\", :Amount 80}}]")}]]}])
+
+(defn maybe-eval-patterns [[response _]]
+  (if-let [pats
+           (let [exp (read-string response)]
+             (cond
+               (vector? exp) exp
+               (map? exp) [exp]))]
+    (mapv fractl.evaluator/safe-eval-pattern pats)
+    response))
+
+;; Usage:
+;; POST api/ExpenseWorkflow/ReportToExpense
+;; {"ExpenseWorkflow/ReportToExpense": {"UserInstruction": "Here's my expense summary: hotel bill is $340 and bus fare is $10"}}
+(inference
+ :ReportToExpense
+ {:agent "summary-agent"
+  :with-response-handler maybe-eval-patterns})
+
+(dataflow
+ :Fractl.Kernel.Lang/AppInit
+ {:Fractl.Inference.Provider/LLM
+  {:Type "openai"
+   :Name "llm01"
+   :Config {:ApiKey (fractl.util/getenv "OPENAI_API_KEY")
+            :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+            :EmbeddingModel "text-embedding-3-small"
+            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+            :CompletionModel "gpt-3.5-turbo"}}}
+ [:try [:agent {:Name? "summary-agent"}] :not-found {:InitSummaryAgent {}}])

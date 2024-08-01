@@ -48,14 +48,6 @@
                    :Fractl.Inference.Service/Agent
                    :as [:Delegator :Delegatee]]}})
 
-(relationship
- :Fractl.Inference.Service/AgentPeer
- {:meta {:between [:Fractl.Inference.Service/Agent
-                   :Fractl.Inference.Service/Agent
-                   :as [:Peer1 :Peer2]]
-         :one-one true}
-  :ChatRoundTrips {:type :Int :default 3}})
-
 (dataflow
  :Fractl.Inference.Service/FindAgentDelegates
  {:Fractl.Inference.Service/AgentDelegate
@@ -64,31 +56,6 @@
  [:for-each :Delegates
   {:Fractl.Inference.Service/Agent
    {:Name? :%.Delegatee}}])
-
-(record
- :Fractl.Inference.Service/PeerInfo
- {:Peer :Fractl.Inference.Service/Agent
-  :ChatRoundTrips :Int})
-
-(dataflow
- :Fractl.Inference.Service/FindAgent1Peer
- {:Fractl.Inference.Service/AgentPeer
-  {:Peer1? :Fractl.Inference.Service/FindAgent1Peer.Agent}
-  :as [:P]}
- {:Fractl.Inference.Service/Agent
-  {:Name? :P.Peer2} :as [:Peer]}
- {:Fractl.Inference.Service/PeerInfo
-  {:Peer :Peer :ChatRoundTrips :P.ChatRoundTrips}})
-
-(dataflow
- :Fractl.Inference.Service/FindAgent2Peer
- {:Fractl.Inference.Service/AgentPeer
-  {:Peer1? :Fractl.Inference.Service/FindAgent2Peer.Agent}
-  :as [:P]}
- {:Fractl.Inference.Service/Agent
-  {:Name? :P.Peer2} :as [:Peer]}
- {:Fractl.Inference.Service/PeerInfo
-  {:Peer :Peer :ChatRoundTrips :P.ChatRoundTrips}})
 
 (entity
  :Fractl.Inference.Service/ChatSession
@@ -174,15 +141,6 @@
    (eval-event
     {:Fractl.Inference.Service/FindAgentDelegates
      {:Agent (:Name agent-instance)}})))
-
-(defn find-agent-peer [agent-instance]
-  (let [n (:Name agent-instance)]
-    (or (eval-event
-         {:Fractl.Inference.Service/FindAgent1Peer
-          {:Agent n}})
-        (eval-event
-         {:Fractl.Inference.Service/FindAgent2Peer
-          {:Agent n}}))))
 
 (defn- lookup-for-agent [event-name proc agent-instance]
   (eval-event
