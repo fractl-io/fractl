@@ -1,0 +1,47 @@
+(component :AgentComposition)
+
+(dataflow
+ :InitVerificationAgent
+ [:agent
+  {:Name "verification-agent"
+   :Type "chat"
+   :with-llm "llm01"
+   :with-messages
+   [:q# [{:role :system
+          :content (str "You are an agent who verifies the answer returned by another agent. "
+                        "Analyse the chain-of-thought returned by the other agent and return YES "
+                        "if its conlusion is correct. Otherwise return NO. The final answer will be "
+                        "encoded by the other agent as - ANSWER is: <some-text>")}]]}])
+
+(dataflow
+ :InitChainOfThoughtAgent
+ [:agent
+  {:Name "chain-of-thought-agent"
+   :Type "chat"
+   :with-llm "llm01"
+   :with-messages
+   [:q# [{:role :system
+          :content (str "You are an agent who answer user queries by taking advantage of "
+                        "a chain-of-thought. That means, you will take a step-by-step approach "
+                        "in your response, cite sources and give reasoning before sharing final answer "
+                        "in the below format: ANSWER is: <name>")}]]}
+  :as :Agent]
+ {:Fractl.Inference.Service/AgentDelegate
+  {:Delegator "chain-of-thought-agent"
+   :Delegatee "verification-agent"} :as :R}
+ :Agent)
+
+(inference :AnswerWithVerification {:agent "chain-of-thought-agent"})
+
+(dataflow
+ :Fractl.Kernel.Lang/AppInit
+ {:Fractl.Inference.Provider/LLM
+  {:Type "openai"
+   :Name "llm01"
+   :Config {:ApiKey (fractl.util/getenv "OPENAI_API_KEY")
+            :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+            :EmbeddingModel "text-embedding-3-small"
+            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+            :CompletionModel "gpt-3.5-turbo"}}}
+ [:try [:agent {:Name? "verification-agent"}] :not-found {:InitVerificationAgent {}}]
+ [:try [:agent {:Name? "chain-of-thought-agent"}] :not-found {:InitChainOfThoughtAgent {}}])

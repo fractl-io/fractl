@@ -120,8 +120,29 @@
            :result-entity out-type)]
       (answer-question-analyze question (or qcontext {}) agent-config))))
 
+(declare handle-chat-agent)
+
+(defn- format-as-agent-response [agent-instance result]
+  (if (vector? result)
+    (let [[response _] result]
+      (str "### " (:Name agent-instance) "\n\n" response))
+    result))
+
+(defn- compose-agents [agent-instance result]
+  (if (vector? result)
+    (let [[response model-info] result
+          delegates (model/find-agent-delegates agent-instance)]
+      (if (seq delegates)
+        (let [n (:Name agent-instance)
+              ins (str "Instruction for agent " n " was ### " (:UserInstruction agent-instance) " ### "
+                       "The response from " n " is ### " response " ###")
+              rs (mapv #(format-as-agent-response % (handle-chat-agent (assoc % :UserInstruction ins))) delegates)]
+          [(str (format-as-agent-response agent-instance response) "\n\n" (apply str rs)) model-info])
+        result))
+    result))
+
 (defn handle-chat-agent [instance]
   (log/info (str "Triggering chat agent - " (u/pretty-str instance)))
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
-   #(provider/make-completion instance)))
+   #(compose-agents instance (provider/make-completion instance))))

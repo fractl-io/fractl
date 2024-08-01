@@ -42,6 +42,54 @@
   :ResponseHandler {:check fn? :optional true}
   :Response {:type :Any :read-only true}})
 
+(relationship
+ :Fractl.Inference.Service/AgentDelegate
+ {:meta {:between [:Fractl.Inference.Service/Agent
+                   :Fractl.Inference.Service/Agent
+                   :as [:Delegator :Delegatee]]}})
+
+(relationship
+ :Fractl.Inference.Service/AgentPeer
+ {:meta {:between [:Fractl.Inference.Service/Agent
+                   :Fractl.Inference.Service/Agent
+                   :as [:Peer1 :Peer2]]
+         :one-one true}
+  :ChatRoundTrips {:type :Int :default 3}})
+
+(dataflow
+ :Fractl.Inference.Service/FindAgentDelegates
+ {:Fractl.Inference.Service/AgentDelegate
+  {:Delegator? :Fractl.Inference.Service/FindAgentDelegates.Agent}
+  :as :Delegates}
+ [:for-each :Delegates
+  {:Fractl.Inference.Service/Agent
+   {:Name? :%.Delegatee}}])
+
+(record
+ :Fractl.Inference.Service/PeerInfo
+ {:Peer :Fractl.Inference.Service/Agent
+  :ChatRoundTrips :Int})
+
+(dataflow
+ :Fractl.Inference.Service/FindAgent1Peer
+ {:Fractl.Inference.Service/AgentPeer
+  {:Peer1? :Fractl.Inference.Service/FindAgent1Peer.Agent}
+  :as [:P]}
+ {:Fractl.Inference.Service/Agent
+  {:Name? :P.Peer2} :as [:Peer]}
+ {:Fractl.Inference.Service/PeerInfo
+  {:Peer :Peer :ChatRoundTrips :P.ChatRoundTrips}})
+
+(dataflow
+ :Fractl.Inference.Service/FindAgent2Peer
+ {:Fractl.Inference.Service/AgentPeer
+  {:Peer1? :Fractl.Inference.Service/FindAgent2Peer.Agent}
+  :as [:P]}
+ {:Fractl.Inference.Service/Agent
+  {:Name? :P.Peer2} :as [:Peer]}
+ {:Fractl.Inference.Service/PeerInfo
+  {:Peer :Peer :ChatRoundTrips :P.ChatRoundTrips}})
+
 (entity
  :Fractl.Inference.Service/ChatSession
  {:Id {:type :UUID :id true :default u/uuid-string}
@@ -114,10 +162,27 @@
   {:Fractl.Inference.Service/DocChunk
    {:Id? :%.DocChunk}}])
 
-(defn- eval-event [event callback]
-  (when-let [result (first (e/eval-all-dataflows event))]
-    (when (= :ok (:status result))
-      (callback (:result result)))))
+(defn- eval-event
+  ([event callback]
+   (when-let [result (first (e/eval-all-dataflows event))]
+     (when (= :ok (:status result))
+       (callback (:result result)))))
+  ([event] (eval-event event identity)))
+
+(defn find-agent-delegates [agent-instance]
+  (first
+   (eval-event
+    {:Fractl.Inference.Service/FindAgentDelegates
+     {:Agent (:Name agent-instance)}})))
+
+(defn find-agent-peer [agent-instance]
+  (let [n (:Name agent-instance)]
+    (or (eval-event
+         {:Fractl.Inference.Service/FindAgent1Peer
+          {:Agent n}})
+        (eval-event
+         {:Fractl.Inference.Service/FindAgent2Peer
+          {:Agent n}}))))
 
 (defn- lookup-for-agent [event-name proc agent-instance]
   (eval-event
