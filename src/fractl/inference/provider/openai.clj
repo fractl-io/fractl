@@ -57,6 +57,18 @@
                  (string? (:content message)))
     (u/throw-ex (str "invalid message: " message))))
 
+(defn- chat-completion-response [model-name response]
+  (let [status (:status response)]
+    (if (<= 200 status 299)
+      [(-> (:body response)
+           (json/parse-string)
+           (get-in ["choices" 0 "message" "content"]))
+       model-name]
+      (do (log/error
+           (u/pretty-str (str "OpenAI chat-competion failed with status: " status)
+                         response))
+          nil))))
+
 (defn make-openai-completion [{messages :messages
                                model-name :model-name
                                openai-api-key :openai-api-key
@@ -77,10 +89,29 @@
                                               :temperature temperature
                                               :max_tokens max-tokens})}
         response @(http/post completion-endpoint options)]
-    [(-> (:body response)
-         (json/parse-string)
-         (get-in ["choices" 0 "message" "content"]))
-     model-name]))
+    (chat-completion-response model-name response)))
+
+(defn make-openai-ocr-completion [{user-instruction :user-instruction
+                                   image-url :image-url}]
+  (let [openai-config (r/fetch-active-provider-config)
+        model-name "gpt-4o"
+        completion-endpoint (:CompletionApiEndpoint openai-config)
+        max-tokens 300
+        openai-api-key (:ApiKey openai-config)
+        messages
+        [{"role" "user"
+          "content"
+          [{"type" "text"
+            "text" user-instruction}
+           {"type" "image_url"
+            "image_url" {"url" image-url}}]}]
+        options {:headers {"Content-type"  "application/json"
+                           "Authorization" (str "Bearer " openai-api-key)}
+                 :body (json/generate-string {:model model-name
+                                              :messages messages
+                                              :max_tokens max-tokens})}
+        response @(http/post completion-endpoint options)]
+    (chat-completion-response model-name response)))
 
 (r/register-provider
  :openai
@@ -88,4 +119,6 @@
    (make-embedding [_ spec]
      (make-openai-embedding spec))
    (make-completion [_ spec]
-     (make-openai-completion spec))))
+     (make-openai-completion spec))
+   (make-ocr-completion [_ spec]
+     (make-openai-ocr-completion spec))))

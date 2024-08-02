@@ -765,7 +765,9 @@
         agent1 (dissoc agent0 :->)
         agent-attrs (li/record-attributes agent1)
         agent {(li/record-name agent1)
-               (assoc agent-attrs :UserInstruction ins :Context inference-name)}
+               (merge
+                (assoc agent-attrs :Context inference-name)
+                (when ins {:UserInstruction ins}))}
         p0 (if is-agent-query
              (assoc agent :as [:Agent])
              (assoc agent :as :Agent :-> (:-> agent0)))

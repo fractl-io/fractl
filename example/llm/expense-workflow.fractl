@@ -4,13 +4,24 @@
  :Expense
  {:Id :Identity
   :Title :String
-  :Amount :Int})
+  :Amount :Double})
 
-;; TODO: Delegate expense summary extraction from bills to an OCR agent.
 (dataflow
- :InitSummaryAgent
+ :InitOcrAgent
  {:Fractl.Inference.Service/Agent
-  {:Name "summary-agent"
+  {:Name "receipt-ocr-agent"
+   :Type "ocr"
+   :UserInstruction (str "Analyse the image of a receipt and return only the items and their amounts. "
+                         "No need to include sub-totals, totals and other data.")}
+  :as :Agent}
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ :Agent)
+
+(dataflow
+ :InitExpenseAgent
+ {:Fractl.Inference.Service/Agent
+  {:Name "expense-agent"
    :Type "eval"}
   :as :Agent}
  {:Fractl.Inference.Service/AgentLLM
@@ -23,12 +34,16 @@
                         "[{:ExpenseWorkflow/Expense {:Title \"air ticket\" :Amount 200}}, "
                         "{:ExpenseWorkflow/Expense {:Title \"food\", :Amount 80}}]")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ {:Fractl.Inference.Service/AgentDelegate
+  {:Delegator "expense-agent"
+   :Delegatee "receipt-ocr-agent"
+   :Preprocessor true}}
  :Agent)
 
 ;; Usage:
 ;; POST api/ExpenseWorkflow/ReportToExpense
-;; {"ExpenseWorkflow/ReportToExpense": {"UserInstruction": "Here's my expense summary: hotel bill is $340 and bus fare is $10"}}
-(inference :ReportToExpense {:agent "summary-agent"})
+;; {"ExpenseWorkflow/SaveExpenses": {"UserInstruction": "https://acme.com/bill/myexpense.jpg"}}
+(inference :SaveExpenses {:agent "expense-agent"})
 
 (dataflow
  :Fractl.Kernel.Lang/AppInit
@@ -40,4 +55,5 @@
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
- [:try {:Fractl.Inference.Service/Agent {:Name? "summary-agent"}} :not-found {:InitSummaryAgent {}}])
+ [:try {:Fractl.Inference.Service/Agent {:Name? "receipt-ocr-agent"}} :not-found {:InitOcrAgent {}}]
+ [:try {:Fractl.Inference.Service/Agent {:Name? "expense-agent"}} :not-found {:InitExpenseAgent {}}])

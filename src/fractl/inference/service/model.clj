@@ -46,12 +46,14 @@
  :Fractl.Inference.Service/AgentDelegate
  {:meta {:between [:Fractl.Inference.Service/Agent
                    :Fractl.Inference.Service/Agent
-                   :as [:Delegator :Delegatee]]}})
+                   :as [:Delegator :Delegatee]]}
+  :Preprocessor {:type :Boolean :default false}})
 
 (dataflow
  :Fractl.Inference.Service/FindAgentDelegates
  {:Fractl.Inference.Service/AgentDelegate
-  {:Delegator? :Fractl.Inference.Service/FindAgentDelegates.Agent}
+  {:Delegator? :Fractl.Inference.Service/FindAgentDelegates.Agent
+   :Preprocessor? :Fractl.Inference.Service/FindAgentDelegates.Preprocessor}
   :as :Delegates}
  [:for-each :Delegates
   {:Fractl.Inference.Service/Agent
@@ -136,11 +138,15 @@
        (callback (:result result)))))
   ([event] (eval-event event identity)))
 
-(defn find-agent-delegates [agent-instance]
+(defn- find-agent-delegates [preproc agent-instance]
   (first
    (eval-event
     {:Fractl.Inference.Service/FindAgentDelegates
-     {:Agent (:Name agent-instance)}})))
+     {:Agent (:Name agent-instance)
+      :Preprocessor preproc}})))
+
+(def find-agent-pre-delegates (partial find-agent-delegates true))
+(def find-agent-post-delegates (partial find-agent-delegates false))
 
 (defn- lookup-for-agent [event-name proc agent-instance]
   (eval-event

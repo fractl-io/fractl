@@ -84,5 +84,11 @@
        (vec (concat (maybe-cleanup-docs msgs) [{:role :assistant :content (first result)}]))))
     result))
 
+(defn make-ocr-completion [agent-spec]
+  (make-provider-request
+   p/make-ocr-completion
+   {:user-instruction (:UserInstruction agent-spec)
+    :image-url (get-in agent-spec [:Context :UserInstruction])}))
+
 (def get-embedding (comp first make-embedding))
 (def get-completion (comp first make-completion))

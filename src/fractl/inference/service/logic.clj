@@ -141,7 +141,7 @@
 (defn- compose-agents [agent-instance result]
   (if (vector? result)
     (let [[response model-info] result
-          delegates (model/find-agent-delegates agent-instance)]
+          delegates (model/find-agent-post-delegates agent-instance)]
       (if (seq delegates)
         (let [n (:Name agent-instance)
               ins (str "Instruction for agent " n " was ### " (:UserInstruction agent-instance) " ### "
@@ -151,11 +151,25 @@
         result))
     result))
 
+(defn- call-preprocess-agents [agent-instance]
+  (when-let [delegates (seq (model/find-agent-pre-delegates agent-instance))]
+    (let [d (first delegates)
+          [response model-info]
+          (:Response
+           (@generic-agent-handler
+            (assoc d :Context (:Context agent-instance))))]
+      (log/debug (str "Response from pre-processor agent " (:Name d) "using llm " model-info " - " response))
+      response)))
+
 (defn handle-chat-agent [instance]
   (log/info (str "Triggering " (:Type instance) " agent - " (u/pretty-str instance)))
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
-   #(compose-agents instance (provider/make-completion instance))))
+   #(let [preprocessed-instruction (call-preprocess-agents instance)
+          instance (if preprocessed-instruction
+                     (assoc-in instance [:Context :UserInstruction] preprocessed-instruction)
+                     instance)]
+      (compose-agents instance (provider/make-completion instance)))))
 
 (defn- maybe-eval-patterns [[response _]]
   (if (string? response)
@@ -170,3 +184,8 @@
 
 (defn handle-eval-agent [instance]
   (maybe-eval-patterns (handle-chat-agent instance)))
+
+(defn handle-ocr-agent [instance]
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(provider/make-ocr-completion instance)))

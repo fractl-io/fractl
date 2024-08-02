@@ -15,6 +15,7 @@
 (register-agent-handler "analyzer" logic/handle-analysis-agent)
 (register-agent-handler "chat" logic/handle-chat-agent)
 (register-agent-handler "eval" logic/handle-eval-agent)
+(register-agent-handler "ocr" logic/handle-ocr-agent)
 
 (defn- cleanup-agent [inst]
   (dissoc inst :Context))
