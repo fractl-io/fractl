@@ -9,16 +9,21 @@
 ;; TODO: Delegate expense summary extraction from bills to an OCR agent.
 (dataflow
  :InitSummaryAgent
- [:agent
+ {:Fractl.Inference.Service/Agent
   {:Name "summary-agent"
-   :Type "eval"
-   :with-llm "llm01"
-   :with-messages
+   :Type "eval"}
+  :as :Agent}
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages
    [:q# [{:role :system
           :content (str "You are an intelligent agent who summarizes an expense report as a list of expense instances. For example, "
                         "if the report is \"I spent $200 on air ticket and $80 on food\", the summary should be "
                         "[{:ExpenseWorkflow/Expense {:Title \"air ticket\" :Amount 200}}, "
-                          "{:ExpenseWorkflow/Expense {:Title \"food\", :Amount 80}}]")}]]}])
+                        "{:ExpenseWorkflow/Expense {:Title \"food\", :Amount 80}}]")}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ :Agent)
 
 ;; Usage:
 ;; POST api/ExpenseWorkflow/ReportToExpense
@@ -35,4 +40,4 @@
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
- [:try [:agent {:Name? "summary-agent"}] :not-found {:InitSummaryAgent {}}])
+ [:try {:Fractl.Inference.Service/Agent {:Name? "summary-agent"}} :not-found {:InitSummaryAgent {}}])

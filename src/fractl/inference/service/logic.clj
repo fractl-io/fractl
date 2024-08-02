@@ -158,12 +158,14 @@
    #(compose-agents instance (provider/make-completion instance))))
 
 (defn- maybe-eval-patterns [[response _]]
-  (if-let [pats
-           (let [exp (read-string response)]
-             (cond
-               (vector? exp) exp
-               (map? exp) [exp]))]
-    (mapv e/safe-eval-pattern pats)
+  (if (string? response)
+    (if-let [pats
+             (let [exp (read-string response)]
+               (cond
+                 (vector? exp) exp
+                 (map? exp) [exp]))]
+      (mapv e/safe-eval-pattern pats)
+      response)
     response))
 
 (defn handle-eval-agent [instance]

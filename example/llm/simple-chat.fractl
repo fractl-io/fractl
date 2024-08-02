@@ -121,14 +121,14 @@
   {:Name? "chain-of-thought-agent"
    :UserInstruction :AgentCompositionExample.Instruction}
   :as [:HelperAgent]}
- [:invoke :HelperAgent :as [:Response]]
+ [:eval '(fractl.inference/run-inference-for-event :HelperAgent) :as :Response]
  {:Fractl.Inference.Service/Agent
   {:Name? "verification-agent"
    :UserInstruction '(str "The query posted to the other agent was: " :AgentCompositionExample.Instruction ". "
                           "It responded with this text: \"" :Response "\" - "
                           "Please analyse it and provide your conclusion.")}
   :as [:VerificationAgent]}
- [:invoke :VerificationAgent])
+ [:eval '(fractl.inference/run-inference-for-event :VerificationAgent)])
 
 (dataflow
  :Fractl.Kernel.Lang/AppInit
