@@ -41,7 +41,7 @@
  :Agent)
 
 ;; Usage:
-;; POST api/ExpenseWorkflow/ReportToExpense
+;; POST api/ExpenseWorkflow/SaveExpenses
 ;; {"ExpenseWorkflow/SaveExpenses": {"UserInstruction": "https://acme.com/bill/myexpense.jpg"}}
 (inference :SaveExpenses {:agent "expense-agent"})
 

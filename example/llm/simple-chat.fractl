@@ -90,8 +90,7 @@
 ;; Example:
 ;; POST api/SimpleChat/ChainOfThoughtExample
 ;; {"SimpleChat/ChainOfThoughtExample":
-;;     {"UserInstruction": "Who was the most decorated (maximum medals)
-;; individual athlete in the Olympic games that were held at Sydney?"}}
+;;  {"UserInstruction": "Who was the most decorated (maximum medals) individual athlete in the Olympic games that were held at Sydney?"}}
 
 (dataflow
  :InitVerificationAgent

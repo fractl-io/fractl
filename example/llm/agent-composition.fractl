@@ -39,6 +39,10 @@
    :Delegatee "verification-agent"}}
  :Agent)
 
+;; Usage:
+;; POST api/AgentComposition/AnswerWithVerification
+;; {"AgentComposition/AnswerWithVerification":
+;;  {"UserInstruction": "Who was the most decorated (maximum medals) individual athlete in the Olympic games that were held at Sydney?"}}
 (inference :AnswerWithVerification {:agent "chain-of-thought-agent"})
 
 (dataflow
