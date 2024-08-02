@@ -2,11 +2,16 @@
 
 (dataflow
  :InitJokeAgent
- [:agent
+ {:Fractl.Inference.Service/Agent
   {:Name "joke-agent"
-   :Type "chat"
-   :with-llm "llm01"
-   :with-messages [:q# [{:role :system :content "I am an AI bot who tell jokes"}]]}])
+   :Type "chat"}
+  :as :Agent}
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages [:q# [{:role :system :content "I am an AI bot who tell jokes"}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ :Agent)
 
 (inference :TellAJoke {:agent "joke-agent"})
 ;; POST api/SimpleChat/TellAJoke
@@ -14,17 +19,34 @@
 
 (dataflow
  :InitSupportAgent
- [:agent
+ {:Fractl.Inference.Service/Agent
   {:Name "support-agent"
-   :Type "chat"
-   :with-llm "llm01"
-   :with-messages
+   :Type "chat"}
+  :as :Agent}
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages
    [:q# [{:role :system
           :content (str "You are a support agent for Photographers."
                         "Please use the documentation from the appropriate "
-                        "camera manufacturer to answer user queries.")}]]
-   :with-documents ["example/llm/docs/panasonic_lumix.md"
-                    "example/llm/docs/canon.md"]}])
+                        "camera manufacturer to answer user queries.")}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ {:Fractl.Inference.Service/DocChunk
+  {:DocName "Panasonic User Manual"
+   :DocChunk (slurp "example/llm/docs/panasonic_lumix.md")}
+  :as :Doc1}
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent :Agent.Name
+   :DocChunk :Doc1.Id}}
+ {:Fractl.Inference.Service/DocChunk
+  {:DocName "Canon User Manual"
+   :DocChunk (slurp "example/llm/docs/canon.md")}
+  :as :Doc2}
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent :Agent.Name
+   :DocChunk :Doc2.Id}}
+ :Agent)
 
 (inference :CameraSupport {:agent "support-agent"})
 ;; POST api/SimpleChat/CameraSupport
@@ -32,16 +54,21 @@
 
 (dataflow
  :InitChainOfThoughtAgent
- [:agent
+ {:Fractl.Inference.Service/Agent
   {:Name "chain-of-thought-agent"
-   :Type "chat"
-   :with-llm "llm01"
-   :with-messages
+   :Type "chat"}
+  :as :Agent}
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages
    [:q# [{:role :system
           :content (str "You are an agent who answer user queries by taking advantage of "
                         "a chain-of-thought. That means, you will take a step-by-step approach "
                         "in your response, cite sources and give reasoning before sharing final answer "
-                        "in the below format: ANSWER is: <name>")}]]}])
+                        "in the below format: ANSWER is: <name>")}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ :Agent)
 
 (def ^:private failed-to-parse "<failed-to-parse>")
 
@@ -68,33 +95,39 @@
 
 (dataflow
  :InitVerificationAgent
- [:agent
+ {:Fractl.Inference.Service/Agent
   {:Name "verification-agent"
-   :Type "chat"
-   :with-llm "llm01"
-   :with-messages
+   :Type "chat"}
+  :as :Agent}
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages
    [:q# [{:role :system
           :content (str "You are an agent who verifies the answer returned by another agent. "
                         "Analyse the chain-of-thought returned by the other agent and return YES "
                         "if its conlusion is correct. Otherwise return NO. The final answer will be "
-                        "encoded by the other agent as - ANSWER is: <some-text>")}]]}])
+                        "encoded by the other agent as - ANSWER is: <some-text>")}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ :Agent)
+
 (dataflow
  :AgentCompositionExample
  ;; Usage:
  ;; POST api/SimpleChat/AgentCompositionExample
  ;; {"SimpleChat/AgentCompositionExample":
  ;;  {"Instruction": "Who was the most decorated (maximum medals) individual athlete in the Olympic games that were held at Sydney?"}}
- [:agent
+ {:Fractl.Inference.Service/Agent
   {:Name? "chain-of-thought-agent"
    :UserInstruction :AgentCompositionExample.Instruction}
-  :as [:HelperAgent]]
+  :as [:HelperAgent]}
  [:invoke :HelperAgent :as [:Response]]
- [:agent
+ {:Fractl.Inference.Service/Agent
   {:Name? "verification-agent"
    :UserInstruction '(str "The query posted to the other agent was: " :AgentCompositionExample.Instruction ". "
                           "It responded with this text: \"" :Response "\" - "
                           "Please analyse it and provide your conclusion.")}
-  :as [:VerificationAgent]]
+  :as [:VerificationAgent]}
  [:invoke :VerificationAgent])
 
 (dataflow
@@ -107,7 +140,7 @@
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
- [:try [:agent {:Name? "joke-agent"}] :not-found {:InitJokeAgent {}}]
- [:try [:agent {:Name? "support-agent"}] :not-found {:InitSupportAgent {}}]
- [:try [:agent {:Name? "chain-of-thought-agent"}] :not-found {:InitChainOfThoughtAgent {}}]
- [:try [:agent {:Name? "verification-agent"}] :not-found {:InitVerificationAgent {}}])
+ [:try {:Fractl.Inference.Service/Agent {:Name? "joke-agent"}} :not-found {:InitJokeAgent {}}]
+ [:try {:Fractl.Inference.Service/Agent {:Name? "support-agent"}} :not-found {:InitSupportAgent {}}]
+ [:try {:Fractl.Inference.Service/Agent {:Name? "chain-of-thought-agent"}} :not-found {:InitChainOfThoughtAgent {}}]
+ [:try {:Fractl.Inference.Service/Agent {:Name? "verification-agent"}} :not-found {:InitVerificationAgent {}}])
