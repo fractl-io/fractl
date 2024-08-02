@@ -51,6 +51,9 @@
       (gs/fractl-version)
       v)))
 
+(defn- model-version [model]
+  (or (:version model) "0.0.1"))
+
 (defn- as-path [s]
   (s/replace s #"[\.\-_]" u/path-sep))
 
@@ -101,26 +104,6 @@
     [#(read-string (slurp (str prefix %)))
      (make-writer prefix)]))
 
-(defn- create-clj-project [model-name version fractl-version]
-  (let [app-name (if version (str model-name ":" version ":" fractl-version) model-name)
-        cmd (str "lein new fractl-model " app-name)]
-    (u/exec-in-directory out-file cmd)))
-
-(defn- exec-for-model [model-name cmd]
-  (let [f (partial u/exec-in-directory (project-dir model-name))]
-    (if (string? cmd)
-      (f cmd)
-      ;; else, a vector of commands
-      (every? f cmd))))
-
-(defn- maybe-add-repos [proj-spec model]
-  (if-let [repos (:repositories model)]
-    (conj proj-spec :repositories repos)
-    proj-spec))
-
-(defn- model-version [model]
-  (or (:version model) "0.0.1"))
-
 (defn- fractl-deps-as-clj-deps [deps]
   (when (seq deps)
     (su/nonils
@@ -133,31 +116,59 @@
                   [(symbol pkg-name) (or version "0.0.1")])))
            deps))))
 
-(defn- update-project-spec [model project-spec]
-  (let [deps (vec (fractl-deps-as-clj-deps (:dependencies model)))
-        ver (model-version model)]
-    (loop [spec project-spec, final-spec []]
-      (if-let [s (first spec)]
-        (if (= :dependencies s)
-          (recur (rest (rest spec))
-                 (conj
-                  final-spec :dependencies
-                  (vec (concat (second spec) deps))))
-          (recur (rest spec) (conj final-spec s)))
-        (seq (maybe-add-repos final-spec model))))))
+(defn- maybe-add-repos [proj-spec model]
+  (if-let [repos (:repositories model)]
+    (conj proj-spec :repositories repos)
+    proj-spec))
+
+(defn- normalize-model-name [model-name]
+  (s/replace model-name #"[\-_]" "."))
+
+(defn- model-name-as-string [model-name]
+  (cond
+    (keyword? model-name)
+    (s/lower-case (subs (str model-name) 1))
+
+    (string? model-name)
+    (normalize-model-name model-name)
+
+    :else (u/throw-ex (str "invalid model name " model-name ", must be keyword or string"))))
+
+(defn- create-clj-project [model-dir-name model]
+  (let [model-name (model-name-as-string (:name model))
+        ns-name (symbol (str model-name ".modelmain"))
+        deps (vec
+              (concat
+               [['com.github.fractl-io/fractl (fetch-fractl-version model)]]
+               (fractl-deps-as-clj-deps (:dependencies model))))
+        spec0 `(~'defproject ~(symbol model-name) ~(model-version model)
+                :dependencies ~deps
+                :aot :all
+                :main ~ns-name)
+        project-spec (maybe-add-repos spec0 model)
+        w (make-writer)]
+    (w (str out-file u/path-sep model-dir-name u/path-sep "project.clj") project-spec)
+    model-dir-name))
+
+(defn- exec-for-model [model-name cmd]
+  (let [f (partial u/exec-in-directory (project-dir model-name))]
+    (if (string? cmd)
+      (f cmd)
+      ;; else, a vector of commands
+      (every? f cmd))))
 
 (defn- find-component-declaration [component]
   (let [f (first component)]
     (when (= 'component (first f))
       f)))
 
-(defn- write-component-clj [model-name component-name write component]
+(defn- write-component-clj [component-name write component]
   (let [parts (s/split (str component-name) #"\.")
         compname (last parts)
         dirs (butlast parts)
         file-name
         (str
-         "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep
+         "src" u/path-sep
          (s/join u/path-sep (concat dirs [(str compname ".cljc")])))]
     (write file-name component :write-each)
     component-name))
@@ -195,16 +206,16 @@
 
 (def ^:private lang-vars (vec (conj fractl-defs 'component)))
 
-(defn- model-refs-to-use [sanitized-model-name refs]
+(defn- model-refs-to-use [model-name refs]
   (let [spec (mapv
               (fn [r]
                 (let [ss (s/split (s/lower-case (name r)) #"\.")
                       cid (symbol (str (s/replace (name r) "." "_") "_" component-id-var))]
                   (if (= 1 (count ss))
-                    [(symbol (str sanitized-model-name ".model." (first ss))) :only [cid]]
-                    [(symbol (s/join "." (concat [sanitized-model-name "model"] ss))) :only [cid]])))
+                    [(symbol (first ss)) :only [cid]]
+                    [(symbol (s/join "." ss)) :only [cid]])))
               refs)
-        deps (if (= "fractl" sanitized-model-name)
+        deps (if (= "fractl" model-name)
                [['fractl.lang :only lang-vars]]
                [['fractl.model.model] ['fractl.lang :only lang-vars]])]
     (concat spec deps)))
@@ -226,38 +237,56 @@
     (second spec)
     spec))
 
+(defn- verify-component-name [model-name cn]
+  (when-not (s/starts-with? (s/lower-case (subs (str cn) 1)) model-name)
+    (u/throw-ex (str "component name " cn " must start with the model prefix " model-name)))
+  cn)
+
 (defn- copy-component [write model-name component]
   (if-let [component-decl (find-component-declaration component)]
-    (let [component-name (second component-decl)
+    (let [component-name (verify-component-name model-name (second component-decl))
           component-spec (when (> (count component-decl) 2)
                            (nth component-decl 2))
-          cns-name (symbol (s/lower-case (name component-name)))
-          s-model-name (sanitize model-name)
-          ns-name (symbol (str s-model-name ".model." cns-name))
-          use-models (model-refs-to-use s-model-name (:refer component-spec))
+          ns-name (symbol (s/lower-case (name component-name)))
+          use-models (model-refs-to-use model-name (:refer component-spec))
           clj-imports (merge-use-models
                        (normalize-clj-imports (:clj-import component-spec))
                        use-models)
-          ns-decl `(~(symbol "ns") ~ns-name
-                                   ~@clj-imports)
+          ns-decl `(~(symbol "ns") ~ns-name ~@clj-imports)
           exps (concat
                 [ns-decl]
                 (update-local-defs ns-name component)
                 [`(def ~(symbol (str (s/replace (name component-name) "." "_") "_" component-id-var)) ~(u/uuid-string))])]
       (if write
-        (write-component-clj
-         model-name cns-name write exps)
+        (write-component-clj ns-name write exps)
         (binding [*ns* *ns*] (doseq [exp exps] (eval exp)))))
     (u/throw-ex "no component declaration found")))
 
-(defn- write-model-clj [write model-name component-names model]
-  (let [root-ns-name (symbol (str (sanitize model-name) ".model"))
-        req-comp (mapv (fn [c] [(symbol (str root-ns-name "." c)) :as (symbol (name c))]) component-names)
-        ns-decl `(~'ns ~(symbol (str root-ns-name ".model")) (:require ~@req-comp))
-        model (dissoc model :repositories :dependencies)]
-    (write (str "src" u/path-sep (sanitize model-name) u/path-sep "model" u/path-sep "model.cljc")
+(defn- write-model-clj [write component-names model]
+  (let [model-name (model-name-as-string (:name model))
+        s-model-name (str model-name)
+        root-ns-name (symbol (str s-model-name ".model"))
+        req-comp (mapv (fn [c] [c :as (symbol (name c))]) component-names)
+        ns-decl `(~'ns ~root-ns-name
+                  (:require ~@req-comp))
+        model (dissoc model :repositories :dependencies)
+        model-path (s/join u/path-sep (s/split s-model-name #"\."))]
+    (write (str "src" u/path-sep model-path u/path-sep "model.cljc")
            [ns-decl (if (map? model) `(fractl.lang/model ~model) model)
             `(def ~(symbol (str (s/replace (name model-name) "." "_") "_" model-id-var)) ~(u/uuid-string))]
+           :write-each)
+    [s-model-name model-path root-ns-name]))
+
+(defn- write-core-clj [write s-model-name model-path model-ns]
+  (let [req-comp [['fractl.core :as 'fractl]
+                  [model-ns :as model-ns]]
+        root-ns-name (symbol (str s-model-name ".modelmain"))
+        ns-decl `(~'ns ~root-ns-name
+                  (:require ~@req-comp)
+                  (:gen-class))]
+    (write (str "src" u/path-sep model-path u/path-sep "modelmain.clj")
+           [ns-decl
+            `(~'defn ~'-main [& ~'args] (apply ~'fractl/-main ~'args))]
            :write-each)))
 
 (def ^:private config-edn "config.edn")
@@ -269,27 +298,27 @@
         (write config-edn cfg :spit)
         cfg))))
 
-(defn- create-client-project [model-name ver fractl-ver app-config]
+(defn- create-client-project [orig-model-name model-name ver fractl-ver app-config]
   (let [build-type (if (:service (:authentication app-config))
                      'prod
                      'dev)]
     (cl/build-project
      model-name ver fractl-ver
-     (client-path model-name) build-type)))
+     (client-path orig-model-name) build-type)))
 
-(defn- build-clj-project [model-name model-root model components]
-  (let [ver (model-version model)
-        fractl-ver (fetch-fractl-version model)]
-    (if (create-clj-project model-name ver fractl-ver)
-      (let [[rd wr] (clj-io model-name)
-            spec (update-project-spec model (rd "project.clj"))
-            log-config (make-log-config model-name ver)]
-        (wr "project.clj" spec)
-        (wr "logback.xml" log-config :spit)
-        (let [cmps (mapv (partial copy-component wr model-name) components)]
-          (write-model-clj wr model-name cmps model)
-          (create-client-project model-name ver fractl-ver (write-config-edn model-root wr))))
-      (log/error (str "failed to create clj project for " model-name)))))
+(defn- build-clj-project [orig-model-name model-root model components]
+  (if (create-clj-project orig-model-name model)
+    (let [[rd wr] (clj-io orig-model-name)
+          ver (model-version model)
+          fractl-ver (fetch-fractl-version model)
+          log-config (make-log-config orig-model-name ver)]
+      (wr "logback.xml" log-config :spit)
+      (let [model-name (model-name-as-string (:name model))
+            cmps (mapv (partial copy-component wr model-name) components)]
+        (let [rs (write-model-clj wr cmps model)]
+          (apply write-core-clj wr rs))
+        (create-client-project orig-model-name model-name ver fractl-ver (write-config-edn model-root wr))))
+    (log/error (str "failed to create clj project for " orig-model-name))))
 
 (defn- normalize-deps-spec [deps]
   (map (fn [elem]
@@ -343,20 +372,26 @@
   (boolean (some #(= (:type %) :fractl-model) deps)))
 
 (defn build-model
-  ([build-load-fn model-paths model-name model-info]
-   (let [{model-paths :paths model :model model-root :root model-name :name}
+  ([model-paths model-name model-info]
+   (let [{model-paths :paths model :model model-root :root :as rs}
          (loader/load-all-model-info model-paths model-name model-info)
+         s-model-name (model-name-as-string (:name model))
+         model-name (or model-name s-model-name)
          result [model model-root]
-         fvers (fetch-fractl-version model)]
+         fvers (fetch-fractl-version model)
+         orig-model-name model-name
+         model-name (normalize-model-name model-name)
+         projdir (File. (project-dir orig-model-name))]
+     (when-not (= model-name s-model-name)
+       (u/throw-ex (str "model-name must match directory name - " orig-model-name " <> " (:name model))))
      (when-not (= fvers (gs/fractl-version))
        (u/throw-ex (str "runtime version mismatch - required " fvers ", found " (gs/fractl-version))))
-     (if-let [path (clj-project-path model-paths model-name)]
+     (if-let [path (clj-project-path model-paths orig-model-name)]
        (let [^File f (File. path)]
          (FileUtils/createParentDirectories f)
-         (FileUtils/copyDirectory f (File. (project-dir model-name)))
+         (FileUtils/copyDirectory f projdir)
          [model-name path])
        (let [components (loader/read-components-from-model model model-root)
-             projdir (File. (project-dir model-name))
              model-dependencies (:dependencies model)]
          (when (check-local-dependency? model-dependencies)
            (install-local-dependencies! model-paths model-dependencies))
@@ -364,12 +399,10 @@
            (FileUtils/deleteDirectory projdir)
            (when-not (.exists out-file)
              (.mkdir out-file)))
-         (when (build-load-fn model-name model-root model components)
-           [model-name result])))))
+         (when (build-clj-project orig-model-name model-root model components)
+           [orig-model-name result])))))
   ([model-paths model-name]
-   (build-model build-clj-project model-paths model-name nil))
-  ([model-name]
-   (build-model nil model-name)))
+   (build-model model-paths model-name nil)))
 
 (defn exec-with-build-model [cmd model-paths model-name]
   (when-let [result (build-model model-paths model-name)]
