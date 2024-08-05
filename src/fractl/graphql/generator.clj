@@ -559,8 +559,29 @@
            {key (dissoc value-map :rbac)}))
        relationships))
 
+(defn make-fields-with-default-vals-optional
+  [schema]
+  (letfn [(transform [item]
+            (cond
+              (map? item) (into {} (map (fn [[k v]]
+                                          (if (= k :default)
+                                            [:optional true]
+                                            [k (transform v)])) item))
+              (vector? item) (mapv transform item)
+              (seq? item) (map transform item)
+              :else
+                (let [special-set #{:Now :Identity}
+                      type-dict {:Now :Now :Identity :String}]
+                  (if (contains? special-set item)
+                    (cond-> {:type (get type-dict item item)
+                             :optional true}
+                      (= item :Identity) (assoc :guid true))
+                    item))))]
+    (transform schema)))
+
 (defn preprocess-schema-info [schema-info]
-  (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))]
+  (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))
+        schema-info (make-fields-with-default-vals-optional schema-info)]
     (normalize-schema schema-info)))
 
 (def scalars
@@ -689,7 +710,7 @@
           update-mutations (update-child-mutations (generate-mutations @entities-code "Update" false) relationships "Update")
           delete-mutations (update-child-mutations (generate-mutations @entity-metas "Delete" true) relationships "Delete")
           query-input-objects (generate-query-input-objects combined-objects)
-          create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" true false)
+          create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" false false)
           update-mutation-input-objects (generate-mutation-input-objects combined-objects "Update" true false)
           delete-mutation-input-objects (generate-mutation-input-objects combined-objects "Delete" true false)
           filter-input-objects (get-filter-input-objects combined-objects)
