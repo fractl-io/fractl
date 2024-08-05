@@ -1,16 +1,12 @@
 (ns fractl.test.graphql
   (:require [clojure.test :refer :all]
+            [fractl.util :as fu]
             [fractl.util.errors :refer :all]
             [fractl.test.util :as test-util]
-            [clojure.spec.alpha :as s]
-            [cheshire.core :as json]
-            [clojure.java.io :as io]
-            [ring.util.response :refer [response]]
             [clojure.test :refer [deftest is testing]]
             [fractl.test.util :as tu :refer [defcomponent]]
             [fractl.api :as api]
             [fractl.evaluator :as e]
-            [ring.util.response :refer [response]]
             [com.walmartlabs.lacinia :refer [execute]]
             [fractl.component :as cn]
             [fractl.graphql.generator :as gg]
@@ -18,9 +14,9 @@
             [fractl.lang
              :as ln
              :refer [component attribute event entity record dataflow relationship]]
-            [fractl.lang.internal :as li]
             [clojure.walk :as walk]
-            [fractl.graphql.resolvers :as gr])
+            [clojure.string :as str]
+            [java-time :as t])
   (:import (clojure.lang IPersistentMap)))
 
 (defn simplify
@@ -54,6 +50,23 @@
 (defn filter-event-attrs [event]
   "Removes internal attrs from event."
     (dissoc (fractl.component/instance-user-attributes event) :EventContext :__path__ :__parent__))
+
+(defn transform-address [address]
+  (if (and (map? address)
+           (contains? address :type-*-tag-*-)
+           (contains? address :-*-type-*-))
+    (let [address-data (dissoc address :type-*-tag-*- :-*-type-*-)]
+      {:WordCount.Core/Address address-data})
+    address))
+
+(defn transform-user-data [user-data]
+  (let [transformed (update user-data :Addresses
+                            (fn [addresses]
+                              (when (seq addresses)
+                                (mapv transform-address addresses))))]
+    (if (empty? (:Addresses transformed))
+      (dissoc transformed :Addresses)
+      transformed)))
 
 (defn build-sample-app []
   (cn/remove-component :GraphQL.Test)
@@ -89,11 +102,19 @@
 (defn build-word-count-app []
   (cn/remove-component :WordCount.Core)
   (defcomponent :WordCount.Core
+
+    (record :WordCount.Core/Address
+            {:City :String
+             :Zip :String
+             :StreetNumber :Int
+             :MoreDetails {:type :String :optional true}})
+
     (entity :WordCount.Core/User
             {:Id :Identity
              :Email {:type :Email}
              :Name :String
-             :MemberSince {:type :Date :optional true}})
+             :MemberSince {:type :Date :optional true}
+             :Addresses {:listof :WordCount.Core/Address :optional true}})
 
     (entity :WordCount.Core/Hero
            {:Id {:type :Int :guid true}
@@ -1111,7 +1132,243 @@
           (is (= "Muhammad Hasnain Naeem" (:DisplayName filtered-profile))
               "Expected the filtered profile to be Muhammad Hasnain Naeem")
           (is (= "30" (get-in filtered-profile [:ProfileDetails :NestedDetail :DetailValue :data]))
-              "Expected the filtered profile to have a Personal detail with Age 30"))))))
+              "Expected the filtered profile to have a Personal detail with Age 30"))))
+
+    (testing "Filters on list of addresses nested inside user entities"
+      (let [user1-data {:Id        (fu/uuid-string)
+                        :Email     "user1@example.com"
+                        :Name      "John Doe"
+                        :Addresses [{:WordCount.Core/Address
+                                     {:City         "New York"
+                                      :Zip          "10001"
+                                      :StreetNumber 123
+                                      :MoreDetails  "Apartment 4B"}}
+                                    {:WordCount.Core/Address
+                                     {:City         "Los Angeles"
+                                      :Zip          "90001"
+                                      :StreetNumber 456}}]}
+            user2-data {:Id        (fu/uuid-string)
+                        :Email     "user2@example.com"
+                        :Name      "Jane Smith"
+                        :Addresses [{:WordCount.Core/Address
+                                     {:City         "Chicago"
+                                      :Zip          "60601"
+                                      :StreetNumber 789}}]}
+            user3-data {:Id        (fu/uuid-string)
+                        :Email     "user3@example.com"
+                        :Name      "Bob Johnson"
+                        :Addresses [{:WordCount.Core/Address
+                                     {:City         "San Francisco"
+                                      :Zip          "94105"
+                                      :StreetNumber 101
+                                      :MoreDetails  "Suite 500"}}
+                                    {:WordCount.Core/Address
+                                     {:City         "Seattle"
+                                      :Zip          "98101"
+                                      :StreetNumber 202}}
+                                    {:WordCount.Core/Address
+                                     {:City         "Portland"
+                                      :Zip          "97201"
+                                      :StreetNumber 303}}]}
+            user4-data {:Id    (fu/uuid-string)
+                        :Email "user4@example.com"
+                        :Name  "Alice Brown"}
+            user5-data {:Id        (fu/uuid-string)
+                        :Email     "user5@example.com"
+                        :Name      "Charlie Davis"
+                        :Addresses [{:WordCount.Core/Address
+                                     {:City         "Miami"
+                                      :Zip          "33101"
+                                      :StreetNumber 555
+                                      :MoreDetails  "Beach House"}}]}
+            users-data [user1-data user2-data user3-data user4-data user5-data]
+            user-instances (mapv #(first (tu/fresult
+                                           (e/eval-all-dataflows
+                                             (cn/make-instance
+                                               :WordCount.Core/Create_User
+                                               {:Instance
+                                                (cn/make-instance :WordCount.Core/User %)}))))
+                                 users-data)]
+
+        ;; Verify instances are created correctly
+        (doseq [[user-instance user-data] (map vector user-instances users-data)]
+          (is (cn/instance-of? :WordCount.Core/User user-instance))
+          (is (= (filter-event-attrs (transform-user-data user-instance)) user-data)))
+
+        (testing "String attribute filter - Filter users with zip codes starting with 9"
+          (let [query "query {
+              User(filter: { Addresses: { some: { Zip: { startsWith: \"9\" } } } }) {
+                Id
+                Name
+                Addresses {
+                  City
+                  Zip
+                }
+              }
+            }"
+                results (graphql-handler :WordCount.Core query)
+                filtered-users (:User results)]
+            (is (= 2 (count filtered-users)))
+            (is (every? #(some (fn [addr] (str/starts-with? (:Zip addr) "9")) (:Addresses %)) filtered-users))))
+
+        (testing "Nested conditions - Users with addresses in either Los Angeles or Chicago"
+          (let [query "query {
+                    User(filter: {
+                      Addresses: {
+                        some: {
+                          or: [
+                            { City: { eq: \"Los Angeles\" } },
+                            { City: { eq: \"Chicago\" } }
+                          ]
+                        }
+                      }
+                    }) {
+                      Id
+                      Name
+                      Addresses {
+                        City
+                        Zip
+                      }
+                    }
+                  }"
+                results (graphql-handler :WordCount.Core query)
+                filtered-users (get results :User)]
+            (is (= 2 (count filtered-users)))
+            (is (every? #(some (fn [addr] (contains? #{"Los Angeles" "Chicago"} (:City addr))) (:Addresses %)) filtered-users)))))
+
+      (testing "Count, gt operators on attrs of record in list - Users with at least three addresses,
+                where one address has a StreetNumber greater than 200"
+        (let [query "query {
+            User(filter: {
+              and: [
+                { Addresses: { count: { gte: 3 } } },
+                { Addresses: { some: { StreetNumber: { gt: 200 } } } }
+              ]
+            }) {
+              Id
+              Name
+              Addresses {
+                City
+                StreetNumber
+                MoreDetails
+              }
+            }
+          }"
+              results (graphql-handler :WordCount.Core query)
+              filtered-users (:User results)]
+
+          (is (= 1 (count filtered-users)) "Expected exactly one user to match the criteria")
+
+          (when (= 1 (count filtered-users))
+            (let [user (first filtered-users)
+                  addresses (:Addresses user)]
+              (is (= "Bob Johnson" (:Name user)) "Expected user to be Bob Johnson")
+              (is (>= (count addresses) 3) "User should have at least three addresses")
+              (is (some #(> (:StreetNumber %) 200) addresses) "At least one address should have StreetNumber > 200")))))
+
+      (testing "Complex address filter - Users with at least one address in zip code range 90000-95000 and street number > 400"
+        (let [query "query {
+                  User(filter: {
+                    Addresses: {
+                      some: {
+                        and: [
+                          { Zip: { gte: \"90000\", lt: \"95000\" } },
+                          { StreetNumber: { gt: 400 } }
+                        ]
+                      }
+                    }
+                  }) {
+                    Id
+                    Name
+                    Addresses {
+                      City
+                      Zip
+                      StreetNumber
+                    }
+                  }
+                }"
+              results (graphql-handler :WordCount.Core query {})
+              filtered-users (:User results)]
+
+          (is (= 1 (count filtered-users)) "Expected exactly one user to match the criteria")
+
+          (when (= 1 (count filtered-users))
+            (let [user (first filtered-users)
+                  matching-addresses (filter #(and (>= (compare (:Zip %) "90000") 0)
+                                                   (< (compare (:Zip %) "95000") 0)
+                                                   (> (:StreetNumber %) 400))
+                                             (:Addresses user))]
+              (is (= "John Doe" (:Name user)) "Expected user to be John Doe")
+              (is (seq matching-addresses) "User should have at least one address matching the criteria")
+              (is (every? #(and (>= (compare (:Zip %) "90000") 0)
+                                (< (compare (:Zip %) "95000") 0)
+                                (> (:StreetNumber %) 400))
+                          matching-addresses)
+                  "All matching addresses should satisfy the filter conditions")))))
+
+      (testing "Complex user and address filter - Users with specific email domain, all addresses in certain states,
+                at least one address with high street number, and name containing specific substring"
+        (let [query "query {
+                  User(filter: {
+                    and: [
+                      { Email: { endsWith: \"@example.com\" } },
+                      { Addresses: {
+                          every: {
+                            or: [
+                              { City: { in: [\"New York\", \"Los Angeles\", \"Chicago\", \"Houston\"] } },
+                              { Zip: { startsWith: \"9\" } }
+                            ]
+                          },
+                          some: { StreetNumber: { gt: 1000 } },
+                          count: { gte: 2 }
+                        }
+                      },
+                      { Name: { contains: \"oh\" } },
+                      { or: [
+                          { MemberSince: { lt: \"2020-01-01\" } },
+                          { Addresses: { containsAll: [
+                            { City: { eq: \"New York\" } },
+                            { MoreDetails: { isNull: false } }
+                          ] } }
+                        ]
+                      }
+                    ]
+                  }) {
+                    Id
+                    Name
+                    Email
+                    MemberSince
+                    Addresses {
+                      City
+                      Zip
+                      StreetNumber
+                      MoreDetails
+                    }
+                  }
+                }"
+              results (graphql-handler :WordCount.Core query {})
+              filtered-users (:User results)]
+
+          (is (<= (count filtered-users) 1) "Expected at most one user to match these complex criteria")
+
+          (when (= 1 (count filtered-users))
+            (let [user (first filtered-users)
+                  addresses (:Addresses user)]
+              (is (str/ends-with? (:Email user) "@example.com") "User's email should end with @example.com")
+              (is (str/includes? (:Name user) "oh") "User's name should contain 'oh'")
+              (is (>= (count addresses) 2) "User should have at least two addresses")
+              (is (every? #(or (contains? #{"New York" "Los Angeles" "Chicago" "Houston"} (:City %))
+                               (str/starts-with? (:Zip %) "9"))
+                          addresses)
+                  "All addresses should be in specified cities or have zip starting with 9")
+              (is (some #(> (:StreetNumber %) 1000) addresses) "At least one address should have StreetNumber > 1000")
+              (is (or (when-let [member-since (:MemberSince user)]
+                        (t/before? (t/local-date member-since)
+                                   (t/local-date "2020-01-01")))
+                      (and (some #(= (:City %) "New York") addresses)
+                           (some #(some? (:MoreDetails %)) addresses)))
+                  "User should either be a member before 2020 or have a New York address with MoreDetails")))))
+      )))
 
 (deftest test-create-mutations-for-word-count-app
   (build-word-count-app)
