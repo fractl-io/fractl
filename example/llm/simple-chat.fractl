@@ -33,15 +33,15 @@
                         "camera manufacturer to answer user queries.")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/DocChunk
-  {:DocName "Panasonic User Manual"
-   :DocChunk (slurp "example/llm/docs/panasonic_lumix.md")}
+  {:Title "Panasonic User Manual"
+   :Content (slurp "example/llm/docs/panasonic_lumix.md")}
   :as :Doc1}
  {:Fractl.Inference.Service/AgentDocChunk
   {:Agent :Agent.Name
    :DocChunk :Doc1.Id}}
  {:Fractl.Inference.Service/DocChunk
-  {:DocName "Canon User Manual"
-   :DocChunk (slurp "example/llm/docs/canon.md")}
+  {:Title "Canon User Manual"
+   :Content (slurp "example/llm/docs/canon.md")}
   :as :Doc2}
  {:Fractl.Inference.Service/AgentDocChunk
   {:Agent :Agent.Name

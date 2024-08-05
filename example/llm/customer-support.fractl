@@ -1,0 +1,113 @@
+(component :CustomerSupport)
+
+(dataflow
+ :InitTechnicalSupportAgent
+ {:Fractl.Inference.Service/Agent
+  {:Name "technical-support-agent"
+   :Type "chat"}
+  :as :Agent}
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages
+   [:q# [{:role :system
+          :content (str "You are a support agent for a Camera store. "
+                        "You are supposed to handle technical queries on camera gear "
+                        "that customer may have. "
+                        "Please use the documentation from the appropriate "
+                        "camera manufacturer to answer these queries. "
+                        "If you get a query on the pricing of camera gear, respond with the text: NA")}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ {:Fractl.Inference.Service/DocChunk
+  {:Title "Panasonic User Manual"
+   :Content (slurp "example/llm/docs/panasonic_lumix.md")}
+  :as :Doc1}
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent :Agent.Name
+   :DocChunk :Doc1.Id}}
+ {:Fractl.Inference.Service/DocChunk
+  {:Title "Canon User Manual"
+   :Content (slurp "example/llm/docs/canon.md")}
+  :as :Doc2}
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent :Agent.Name
+   :DocChunk :Doc2.Id}}
+ :Agent)
+
+(dataflow
+ :InitPriceEnquiryAgent
+ {:Fractl.Inference.Service/Agent
+  {:Name "price-enquiry-agent"
+   :Type "chat"}
+  :as :Agent}
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages
+   [:q# [{:role :system
+          :content (str "You are a support agent for a Camera store. "
+                        "Customers will raise price enquiries for camera gear. "
+                        "Please use the price-list from the appropriate camera "
+                        "manufacturer to answer the query. If you get a technical question, "
+                        "please respond with the simple text: NA")}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ {:Fractl.Inference.Service/DocChunk
+  {:Title "Panasonic Price List"
+   :Content "G9 - $850\nS5II - $2000"}
+  :as :Doc1}
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent :Agent.Name
+   :DocChunk :Doc1.Id}}
+ {:Fractl.Inference.Service/DocChunk
+  {:Title "Canon User Manual"
+   :Content "G7mIII - $350\nR5 - $500"}
+  :as :Doc2}
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent :Agent.Name
+   :DocChunk :Doc2.Id}}
+ :Agent)
+
+(dataflow
+ :InitCameraSupportAgent
+ {:Fractl.Inference.Service/Agent
+  {:Name "camera-support-agent"
+   :Type "chat"}
+  :as :Agent}
+ {:Fractl.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ {:Fractl.Inference.Service/ChatSession
+  {:Messages
+   [:q# [{:role :system
+          :content (str "You are an agent that classifies a customer query into two categories - either "
+                        "\"agent: technical-support-agent\" or \"agent: price-enquiry-agent\". "
+                        "Analyse the user query and return only one of those strings.")}]]}
+  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+ {:Fractl.Inference.Service/AgentDelegate
+  {:Delegator "camera-support-agent"
+   :Delegatee "technical-support-agent"}}
+ {:Fractl.Inference.Service/AgentDelegate
+  {:Delegator "camera-support-agent"
+   :Delegatee "price-enquiry-agent"}}
+ :Agent)
+
+;; Usage:
+;; POST api/CustomerSupport/CameraStore
+;; {"CustomerSupport/CameraStore": {"UserInstruction": "What's the price of Panasonic G9?"}}
+(inference :CameraStore {:agent "camera-support-agent"})
+
+(dataflow
+ :Fractl.Kernel.Lang/AppInit
+ {:Fractl.Inference.Provider/LLM
+  {:Type "openai"
+   :Name "llm01"
+   :Config {:ApiKey (fractl.util/getenv "OPENAI_API_KEY")
+            :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+            :EmbeddingModel "text-embedding-3-small"
+            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+            :CompletionModel "gpt-3.5-turbo"}}}
+ [:try {:Fractl.Inference.Service/Agent {:Name? "technical-support-agent"}}
+  :not-found {:InitTechnicalSupportAgent {}}]
+ [:try {:Fractl.Inference.Service/Agent {:Name? "price-enquiry-agent"}}
+  :not-found {:InitPriceEnquiryAgent {}}]
+ [:try {:Fractl.Inference.Service/Agent {:Name? "camera-support-agent"}}
+  :not-found {:InitCameraSupportAgent {}}])

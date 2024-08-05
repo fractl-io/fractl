@@ -23,8 +23,8 @@
   (when (= :add operation)
     (let [doc-chunk (cn/instance-attributes instance)
           app-uuid (:AppUuid doc-chunk)
-          doc-name (:DocName doc-chunk)
-          chunk-text (:DocChunk doc-chunk)]
+          doc-name (:Title doc-chunk)
+          chunk-text (:Content doc-chunk)]
       (log/debug (u/pretty-str "Ingesting doc chunk" doc-chunk))
       (ec/embed-document-chunk app-uuid doc-chunk)
       instance)))
@@ -130,25 +130,43 @@
 (defn- format-as-agent-response [agent-instance result]
   ;; TODO: response parsing should also move to agent-registry,
   ;; one handler will be needed for each type of agent.
+  (log/debug (str "### " (:Name agent-instance) "\n\n" result))
   (if-let [response
            (cond
              (string? result) result
              (map? result) (first (:Response result))
              (vector? result) (first result))]
-    (str "### " (:Name agent-instance) "\n\n" response)
+    response
     result))
+
+(def ^:private agent-prefix "agent:")
+(def ^:private agent-prefix-len (count agent-prefix))
+
+(defn- agent-filter-response [s]
+  (when-let [idx (s/index-of s agent-prefix)]
+    (s/trim (subs s (+ idx agent-prefix-len)))))
+
+(defn- respond-with-agent [agent-name agents user-instruction]
+  (if-let [agent (first (filter #(= agent-name (:Name %)) agents))]
+    (:Response (@generic-agent-handler (assoc agent :UserInstruction user-instruction)))
+    [(str "No delegate with name " agent-name) nil]))
 
 (defn- compose-agents [agent-instance result]
   (if (vector? result)
     (let [[response model-info] result
-          delegates (model/find-agent-post-delegates agent-instance)]
-      (if (seq delegates)
-        (let [n (:Name agent-instance)
-              ins (str "Instruction for agent " n " was ### " (:UserInstruction agent-instance) " ### "
-                       "The response from " n " is ### " response " ###")
-              rs (mapv #(format-as-agent-response % (@generic-agent-handler (assoc % :UserInstruction ins))) delegates)]
-          [(str (format-as-agent-response agent-instance response) "\n\n" (apply str rs)) model-info])
-        result))
+          delegates (model/find-agent-post-delegates agent-instance)
+          ins (or (get-in agent-instance [:Context :UserInstruction])
+                  (:UserInstruction agent-instance))]
+      (log/debug (str "Response from agent " (:Name agent-instance) " - " response))
+      (if-let [agent-name (agent-filter-response response)]
+        (respond-with-agent agent-name delegates ins)
+        (if (seq delegates)
+          (let [n (:Name agent-instance)
+                ins (str "Instruction for agent " n " was ### " ins " ### "
+                         "The response from " n " is ### " response " ###")
+                rs (mapv #(format-as-agent-response % (@generic-agent-handler (assoc % :UserInstruction ins))) delegates)]
+            [(apply str rs) model-info])
+          result)))
     result))
 
 (defn- call-preprocess-agents [agent-instance]

@@ -17,8 +17,8 @@
  :Fractl.Inference.Service/DocChunk
  {:Id {:type :UUID :default u/uuid-string :guid true}
   :AppUuid {:type :UUID :default u/uuid-string}
-  :DocName :String
-  :DocChunk :Any})
+  :Title :String
+  :Content :Any})
 
 (defn- agent-messages? [xs]
   (if (seq xs)
@@ -49,6 +49,9 @@
                    :as [:Delegator :Delegatee]]}
   :Preprocessor {:type :Boolean :default false}})
 
+(defn concat-results [rs]
+  (vec (apply concat rs)))
+
 (dataflow
  :Fractl.Inference.Service/FindAgentDelegates
  {:Fractl.Inference.Service/AgentDelegate
@@ -57,7 +60,9 @@
   :as :Delegates}
  [:for-each :Delegates
   {:Fractl.Inference.Service/Agent
-   {:Name? :%.Delegatee}}])
+   {:Name? :%.Delegatee}}
+  :as :Rs]
+ [:eval '(fractl.inference.service.model/concat-results :Rs)])
 
 (entity
  :Fractl.Inference.Service/ChatSession
@@ -139,11 +144,10 @@
   ([event] (eval-event event identity)))
 
 (defn- find-agent-delegates [preproc agent-instance]
-  (first
-   (eval-event
-    {:Fractl.Inference.Service/FindAgentDelegates
-     {:Agent (:Name agent-instance)
-      :Preprocessor preproc}})))
+  (eval-event
+   {:Fractl.Inference.Service/FindAgentDelegates
+    {:Agent (:Name agent-instance)
+     :Preprocessor preproc}}))
 
 (def find-agent-pre-delegates (partial find-agent-delegates true))
 (def find-agent-post-delegates (partial find-agent-delegates false))
@@ -175,7 +179,7 @@
 
 (defn- normalize-docchunk [docchunk]
   (let [docchunk (if (map? docchunk) docchunk (first docchunk))]
-    (str (:DocName docchunk) " " (:DocChunk docchunk))))
+    (str (:Title docchunk) " " (:Content docchunk))))
 
 (def lookup-agent-docs (partial lookup-for-agent :Fractl.Inference.Service/AgentDocChunks normalize-docchunk))
 

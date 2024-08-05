@@ -1263,78 +1263,6 @@
       (log/exception ex)
       #?(:clj (throw (Exception. "Error in dataflow, pre-processing failed"))))))
 
-(defn- expand-with-llm [llm]
-  (when (string? llm)
-    [[{:Fractl.Inference.Service/AgentLLM {}}
-      {:Fractl.Inference.Provider/LLM
-       {:Name? llm}}]]))
-
-(defn- expand-with-messages [msgs alias]
-  (when msgs
-    {:Fractl.Inference.Service/ChatSession
-     {:Messages msgs}
-     :-> [[:Fractl.Inference.Service/AgentChatSession alias]]}))
-
-(defn- expand-with-documents [docs alias]
-  (when docs
-    (apply
-     concat
-     (mapv (fn [doc]
-             (let [doc-alias (li/unq-name)]
-               [{:Fractl.Inference.Service/DocChunk
-                 {:DocName doc
-                  :DocChunk `(slurp ~doc)}
-                 :as doc-alias}
-                {:Fractl.Inference.Service/AgentDocChunk
-                 {:Agent (li/make-ref alias :Name)
-                  :DocChunk (li/make-ref doc-alias :Id)}}]))
-           docs))))
-
-(defn- agent-alias [pat]
-  (second (drop-while #(not= % :as) pat)))
-
-(defn- enforce-agent-alias [pat]
-  (if-let [a (agent-alias pat)]
-    a
-    (li/unq-name)))
-
-(defn- maybe-assoc-agent-context [spec event-name]
-  (if (and (li/name? event-name) (not (:Context spec)))
-    (assoc spec :Context event-name)
-    spec))
-
-(defn- expand-agent [event-name pat]
-  (if (vector? pat)
-    (case (first pat)
-      :agent
-      (let [spec (maybe-assoc-agent-context (second pat) event-name)
-            alias (enforce-agent-alias pat)
-            llm-pat (expand-with-llm (:with-llm spec))
-            agent-pat (merge
-                       {:Fractl.Inference.Service/Agent
-                        (dissoc spec :with-llm :with-messages :with-documents)}
-                       (when llm-pat {:-> llm-pat})
-                       {:as alias})
-            msgs-pat (expand-with-messages (:with-messages spec) alias)
-            docs-pats (expand-with-documents (:with-documents spec) alias)
-            pats0 (if msgs-pat
-                    (concat [agent-pat] [msgs-pat])
-                    [agent-pat])]
-        (if docs-pats
-          (concat pats0 docs-pats)
-          pats0))
-
-      :invoke
-      (let [agent (second pat)
-            alias (or (agent-alias pat) agent)]
-        [[:eval `(fractl.inference/run-inference-for-event ~agent) :as alias]])
-
-      :try
-      [`[:try ~@(expand-agent event-name (second pat)) ~@(nthrest pat 2)]]
-
-      [pat])
-    [pat]))
-
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
            compile-pattern
@@ -1343,7 +1271,7 @@
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
-        df-patterns (preproc-patterns (apply concat (mapv (partial expand-agent evt-pattern) df-patterns)))
+        df-patterns (preproc-patterns df-patterns)
         safe-compile (partial compile-with-error-report df-patterns c)
         result [ec (mapv safe-compile df-patterns (range (count df-patterns)))]]
     (log/dev-debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result))
