@@ -85,7 +85,7 @@
 (declare apply-filter)
 
 (defn apply-comparison [instance field op value]
-  (let [instance-value (get-in instance (as-vec field))]
+  (let [instance-value (get instance field)]
     (let [result (case op
       :eq (= instance-value value)
       :ne (not= instance-value value)
@@ -128,6 +128,27 @@
       (= value op))]
       result)))
 
+(defn apply-attribute-filter [attribute filter]
+  (every? (fn [[k v]]
+            (if (map? v)
+              (every? #(apply-comparison attribute k % (get v %)) (keys v))
+              (apply-comparison attribute k :eq v)))
+          filter))
+
+(defn apply-list-comparison [attribute-list comparison-type filter]
+  (case comparison-type
+    :some (some #(apply-filter % filter) attribute-list)
+    :every (every? #(apply-filter % filter) attribute-list)
+    :none (not-any? #(apply-filter % filter) attribute-list)
+    :count (let [count-value (count attribute-list)]
+             (apply-comparison {:count count-value} :count (first (keys filter)) (first (vals filter))))
+    :isEmpty (let [is-empty (empty? attribute-list)]
+               (if filter
+                 is-empty
+                 (not is-empty)))
+    :containsAll (every? #(some (fn [attr] (apply-filter attr %)) attribute-list) filter)
+    :containsAny (some #(some (fn [attr] (apply-filter attr %)) attribute-list) filter)))
+
 (defn apply-filter [instance filter]
   (if (map? filter)
     (every? (fn [[k v]]
@@ -135,10 +156,12 @@
                              :and (every? #(apply-filter instance %) v)
                              :or (some #(apply-filter instance %) v)
                              :not (not (apply-filter instance v))
+                             :Addresses (let [[comparison-type attr-filter] (first v)]
+                                          (apply-list-comparison (:Addresses instance) comparison-type attr-filter))
                              (if (map? v)
                                (if (some #(map? (val %)) v)
                                  (apply-filter (get instance k) v)
-                                 (every? #(apply-comparison instance k % (get v %)) (keys v)))
+                                 (apply-attribute-filter instance {k v}))
                                (apply-comparison instance k :eq v)))]
                 result))
             filter)
