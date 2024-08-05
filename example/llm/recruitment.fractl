@@ -1,5 +1,6 @@
 (component :RecruitmentWorkflow)
 
+;; TODO: add doc-search support
 (entity
  :InterviewSlot
  {:Id :Identity
