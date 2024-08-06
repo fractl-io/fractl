@@ -4,6 +4,7 @@
             [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.logger :as log]
+            [fractl.datafmt.json :as json]
             [fractl.global-state :as gs]
             [fractl.evaluator :as e]
             [fractl.inference.provider :as provider]
@@ -87,12 +88,11 @@
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
    #(let [app-uuid (:AppUuid instance)
-          question (str (:UserInstruction instance)
-                        (or (get-in instance [:Context :UserInstruction]) ""))
+          question (:UserInstruction instance)
           qcontext (:Context instance)
           agent-config {:is-planner? true
                         :tools (model/lookup-agent-tools instance)
-                        :docs (model/lookup-agent-docs instance)
+                        :docs "" ; TODO: lookup agent docs
                         :make-prompt (when-let [pfn (:PromptFn instance)]
                                        (partial pfn instance))}
           options {:use-schema? true :use-docs? true}]
@@ -155,9 +155,7 @@
   (if (vector? result)
     (let [[response model-info] result
           delegates (model/find-agent-post-delegates agent-instance)
-          ins (str (or (get-in agent-instance [:Context :UserInstruction]) "")
-                   "\n"
-                   (or (:UserInstruction agent-instance) ""))]
+          ins (:UserInstruction agent-instance)]
       (log/debug (str "Response from agent " (:Name agent-instance) " - " response))
       (if-let [agent-name (agent-filter-response response)]
         (respond-with-agent agent-name delegates ins)
@@ -180,14 +178,32 @@
       (log/debug (str "Response from pre-processor agent " (:Name d) "using llm " model-info " - " response))
       response)))
 
+(defn- maybe-add-docs [docs user-ins]
+  (if (seq docs)
+    (str user-ins "\n Make use of the following knowledge-base:\n" (json/encode docs))
+    user-ins))
+
+(def ^:private agent-documents-limit 20)
+
+(defn- maybe-lookup-agent-docs [agent-instance]
+  (when (model/has-agent-docs? agent-instance)
+    (let [embedding (provider/get-embedding {:text-content
+                                             (json/encode {:Agent (:Name agent-instance)
+                                                           :Content (:UserInstruction agent-instance)})})]
+      (ec/find-similar-objects
+       {:classname (ec/get-document-classname (:AppUuid agent-instance))
+        :embedding embedding}
+       agent-documents-limit))))
+
 (defn handle-chat-agent [instance]
   (log/info (str "Triggering " (:Type instance) " agent - " (u/pretty-str instance)))
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
-   #(let [preprocessed-instruction (call-preprocess-agents instance)
-          instance (if preprocessed-instruction
-                     (assoc-in instance [:Context :UserInstruction] preprocessed-instruction)
-                     instance)]
+   #(let [ins (:UserInstruction instance)
+          docs (maybe-lookup-agent-docs instance)
+          preprocessed-instruction (call-preprocess-agents instance)
+          final-instruction (maybe-add-docs docs (or preprocessed-instruction ins))
+          instance (assoc instance :UserInstruction final-instruction)]
       (compose-agents instance (provider/make-completion instance)))))
 
 (defn- maybe-eval-patterns [[response _]]

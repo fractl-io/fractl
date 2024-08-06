@@ -1,5 +1,16 @@
 (component :CustomerSupport)
 
+;; Note: the following settings should be in config.edn
+;; { ; ...
+;;  :inference-service-enabled true
+;;  :publish-schema {:vectordb :pgvector
+;;                   :config {:llm-provider "llm01"
+;;                            :host #$ [PGVECTOR_DB_HOST "localhost"]
+;;                            :port #$ [PGVECTOR_DB_PORT 5432]
+;;                            :dbname #$ [PGVECTOR_DB_NAME "postgres"]
+;;                            :user #$ [PGVECTOR_DB_USERNAME "postgres"]
+;;                            :password #$ [PGVECTOR_DB_PASSWORD "postgres"]}}}
+
 (dataflow
  :InitTechnicalSupportAgent
  {:Fractl.Inference.Service/Agent
@@ -20,14 +31,16 @@
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/DocChunk
   {:Title "Panasonic User Manual"
-   :Content (slurp "example/llm/docs/panasonic_lumix.md")}
+   :Content (slurp "example/llm/docs/panasonic_lumix.md")
+   :Agent :Agent.Name}
   :as :Doc1}
  {:Fractl.Inference.Service/AgentDocChunk
   {:Agent :Agent.Name
    :DocChunk :Doc1.Id}}
  {:Fractl.Inference.Service/DocChunk
   {:Title "Canon User Manual"
-   :Content (slurp "example/llm/docs/canon.md")}
+   :Content (slurp "example/llm/docs/canon.md")
+   :Agent :Agent.Name}
   :as :Doc2}
  {:Fractl.Inference.Service/AgentDocChunk
   {:Agent :Agent.Name

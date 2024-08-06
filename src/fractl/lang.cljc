@@ -773,7 +773,7 @@
         rh (:with-response-handler spec)
         pfns (when (or pfn rh)
                `[:eval (fractl.lang/instance-assoc :Agent "PromptFn" ~pfn "ResponseHandler" ~rh) :as :Agent])
-        p1 `[:eval (fractl.inference/run-inference-for-event ~inference-name :Agent)]]
+        p1 `[:eval (fractl.inference/run-inference-for-event ~inference-name ~ins :Agent)]]
     (cn/register-dataflow inference-name nil (if pfns [p0 pfns p1] [p0 p1]))
     inference-name))
 

@@ -1,5 +1,6 @@
 (ns fractl.inference
   (:require [clojure.edn :as edn]
+            [clojure.string :as s]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.env :as env]
@@ -35,10 +36,17 @@
     fractl-patterns))
 
 (defn run-inference-for-event
-  ([event agent-instance]
+  ([event instructions agent-instance]
    (log/info (str "Processing response for inference " (cn/instance-type event)
                   " - " (u/pretty-str agent-instance)))
-   (let [agent-instance (ar/handle-generic-agent agent-instance)
+   (let [agent-instance
+         (ar/handle-generic-agent (assoc agent-instance :UserInstruction
+                                         (s/trim
+                                          (str (or (:UserInstruction agent-instance) "")
+                                               "\n"
+                                               (or instructions "")
+                                               "\n"
+                                               (or (get-in agent-instance [:Context :UserInstruction]) "")))))
          r0 (or (:Response agent-instance) agent-instance)
          r1 (if (string? r0) (edn/read-string r0) r0)
          result (if-let [f (:ResponseHandler agent-instance)] (f r1) r1)

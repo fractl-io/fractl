@@ -16,7 +16,8 @@
 (entity
  :Fractl.Inference.Service/DocChunk
  {:Id {:type :UUID :default u/uuid-string :guid true}
-  :AppUuid {:type :UUID :default u/uuid-string}
+  :AppUuid {:type :UUID :default u/get-app-uuid}
+  :Agent {:type :String :optional true}
   :Title :String
   :Content :Any})
 
@@ -129,6 +130,11 @@
    {:name? :%.Tool}}])
 
 (dataflow
+ :Fractl.Inference.Service/HasAgentDocChunks
+ {:Fractl.Inference.Service/AgentDocChunk
+  {:Agent? :Fractl.Inference.Service/HasAgentDocChunks.Agent}})
+
+(dataflow
  :Fractl.Inference.Service/AgentDocChunks
  {:Fractl.Inference.Service/AgentDocChunk
   {:Agent? :Fractl.Inference.Service/AgentDocChunks.Agent} :as :R}
@@ -182,6 +188,7 @@
     (str (:Title docchunk) " " (:Content docchunk))))
 
 (def lookup-agent-docs (partial lookup-for-agent :Fractl.Inference.Service/AgentDocChunks normalize-docchunk))
+(def has-agent-docs? (partial lookup-for-agent :Fractl.Inference.Service/HasAgentDocChunks seq))
 
 (defn lookup-agent-chat-session [agent-instance]
   (eval-event

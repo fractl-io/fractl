@@ -36,4 +36,5 @@
     (rg/register-resolver
      {:name :inference
       :type :inference
+      :compose? true
       :paths ents})))
