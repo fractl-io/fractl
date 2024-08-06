@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2024-08-06
+
 ## [0.5.2] - 2024-06-12
 
 -   Joins and views in queries
@@ -189,7 +191,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 -   Everything since the beginning!
 
-[Unreleased]: https://github.com/fractl-io/fractl/compare/0.5.2...HEAD
+[Unreleased]: https://github.com/fractl-io/fractl/compare/0.5.4...HEAD
+
+[0.5.4]: https://github.com/fractl-io/fractl/compare/0.5.2...0.5.4
 
 [0.5.2]: https://github.com/fractl-io/fractl/compare/0.5.1...0.5.2
 
