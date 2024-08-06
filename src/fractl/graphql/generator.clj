@@ -559,8 +559,29 @@
            {key (dissoc value-map :rbac)}))
        relationships))
 
+(defn make-fields-with-default-vals-optional
+  [schema]
+  (letfn [(transform [item]
+            (cond
+              (map? item) (into {} (map (fn [[k v]]
+                                          (if (= k :default)
+                                            [:optional true]
+                                            [k (transform v)])) item))
+              (vector? item) (mapv transform item)
+              (seq? item) (map transform item)
+              :else
+                (let [special-set #{:Now :Identity}
+                      type-dict {:Now :Now :Identity :String}]
+                  (if (contains? special-set item)
+                    (cond-> {:type (get type-dict item item)
+                             :optional true}
+                      (= item :Identity) (assoc :guid true))
+                    item))))]
+    (transform schema)))
+
 (defn preprocess-schema-info [schema-info]
-  (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))]
+  (let [schema-info (assoc schema-info :relationships (remove-rbac-from-relationships (:relationships schema-info)))
+        schema-info (make-fields-with-default-vals-optional schema-info)]
     (normalize-schema schema-info)))
 
 (def scalars
@@ -629,37 +650,83 @@
         fields (get found-value :fields)]
     (into #{} (filter #(contains? fields %) @entity-names))))
 
+(defn generate-comparison-type [base-type element-names relationship-names]
+  (cond
+    (= base-type :Boolean) :BooleanComparison
+    (= base-type :Int) :IntComparison
+    (= base-type :Float) :FloatComparison
+    (or (= (class base-type) PersistentList)
+        (= (class base-type) LazySeq))
+    (let [filter-obj-name (second base-type)
+          inner-type (keyword (str/replace (name filter-obj-name) #"Filter$" ""))
+          is-element-name? (contains? @element-names inner-type)]
+      (if (and is-element-name? (not (contains? @relationship-names inner-type)))
+        (keyword (str (name inner-type) "ListComparison"))
+        :ListComparison))
+    (str/includes? (name base-type) "Filter") base-type
+    :else :StringComparison))
+
+(defn generate-filter-fields [base-fields element-names relationship-names filter-name]
+  (merge
+   {:and {:type (list 'list filter-name)}
+    :or  {:type (list 'list filter-name)}
+    :not {:type filter-name}}
+   (into {}
+         (comp
+          (map (fn [[field-name {:keys [type]}]]
+                 (let [base-type (if (and (list? type) (= (first type) 'non-null))
+                                   (second type)
+                                   type)
+                       comparison-type (generate-comparison-type base-type element-names relationship-names)]
+                   [(keyword (name field-name))
+                    {:type comparison-type}])))
+          (filter identity))
+         base-fields)))
+
+(defn generate-list-comparison-fields [list-comparison-type]
+  (let [inner-type (str/replace (name list-comparison-type) #"ListComparison$" "")]
+    {:some        {:type (keyword (str inner-type "Filter"))}
+     :every       {:type (keyword (str inner-type "Filter"))}
+     :none        {:type (keyword (str inner-type "Filter"))}
+     :count       {:type :IntComparison}
+     :isEmpty     {:type :Boolean}
+     :containsAll {:type (list 'list (keyword (str inner-type "Filter")))}
+     :containsAny {:type (list 'list (keyword (str inner-type "Filter")))}}))
+
+(defn create-filter-name [entity-name]
+  (keyword (str (name entity-name) filter-input-object-name-postfix)))
+
+(defn find-list-comparison-field [filter-fields]
+  (first (filter (fn [[_ v]]
+                   (and (map? v)
+                        (:type v)
+                        (keyword? (:type v))
+                        (str/ends-with? (name (:type v)) "ListComparison")
+                        (not= (:type v) :ListComparison)))
+                 filter-fields)))
+
+(defn add-list-comparison-fields [acc filter-name filter-fields [_ list-comparison-field]]
+  (let [list-comparison-type (:type list-comparison-field)
+        list-comparison-fields (generate-list-comparison-fields list-comparison-type)]
+    (-> acc
+        (assoc filter-name {:fields filter-fields})
+        (assoc list-comparison-type {:fields list-comparison-fields}))))
+
 (defn generate-entity-filter-input-objects [entities-records]
-  (reduce-kv
-    (fn [acc entity-name entity-spec]
-      (let [filter-name (keyword (str (name entity-name) filter-input-object-name-postfix))
-            optional-fields (make-graphql-fields-optional entity-name entity-spec false)
-            fields-with-postfix (append-postfix-to-field-names optional-fields filter-input-object-name-postfix true)
-            base-fields (strip-irrelevant-attributes (:fields fields-with-postfix))
-            filter-fields (merge
-                            {:and {:type (list 'list filter-name)}
-                             :or  {:type (list 'list filter-name)}
-                             :not {:type filter-name}}
-                            (into {}
-                              (comp
-                                (map (fn [[field-name {:keys [type]}]]
-                                       (let [base-type (if (and (list? type) (= (first type) 'non-null))
-                                                         (second type)
-                                                         type)
-                                             comparison-type (cond
-                                                               (= base-type :Boolean) :BooleanComparison
-                                                               (= base-type :Int) :IntComparison
-                                                               (= base-type :Float) :FloatComparison
-                                                               (or (= (class base-type) PersistentList)
-                                                                   (= (class base-type) LazySeq)) :ListComparison
-                                                               (str/includes? (name base-type) "Filter") base-type
-                                                               :else :StringComparison)]
-                                         [(keyword (name field-name))
-                                          {:type comparison-type}]))))
-                              base-fields))]
-        (assoc acc filter-name {:fields filter-fields})))
-    {}
-    entities-records))
+  (reduce-kv (fn [acc entity-name entity-spec]
+               (let [filter-name (create-filter-name entity-name)
+                     base-fields (-> entity-name
+                                     (make-graphql-fields-optional entity-spec false)
+                                     (append-postfix-to-field-names filter-input-object-name-postfix true)
+                                     :fields
+                                     strip-irrelevant-attributes)
+                     filter-fields (generate-filter-fields base-fields element-names relationship-names filter-name)
+                     list-comparison-field (find-list-comparison-field filter-fields)]
+                 (if list-comparison-field
+                   (add-list-comparison-fields acc filter-name filter-fields list-comparison-field)
+                   (assoc acc filter-name {:fields filter-fields}))))
+             {}
+             entities-records))
 
 (defn get-filter-input-objects [entities-records]
   (merge filter-input-objects (generate-entity-filter-input-objects entities-records)))
@@ -689,7 +756,7 @@
           update-mutations (update-child-mutations (generate-mutations @entities-code "Update" false) relationships "Update")
           delete-mutations (update-child-mutations (generate-mutations @entity-metas "Delete" true) relationships "Delete")
           query-input-objects (generate-query-input-objects combined-objects)
-          create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" true false)
+          create-mutation-input-objects (generate-mutation-input-objects combined-objects "Create" false false)
           update-mutation-input-objects (generate-mutation-input-objects combined-objects "Update" true false)
           delete-mutation-input-objects (generate-mutation-input-objects combined-objects "Delete" true false)
           filter-input-objects (get-filter-input-objects combined-objects)
