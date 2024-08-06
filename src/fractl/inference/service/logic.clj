@@ -155,8 +155,9 @@
   (if (vector? result)
     (let [[response model-info] result
           delegates (model/find-agent-post-delegates agent-instance)
-          ins (or (get-in agent-instance [:Context :UserInstruction])
-                  (:UserInstruction agent-instance))]
+          ins (str (or (get-in agent-instance [:Context :UserInstruction]) "")
+                   "\n"
+                   (or (:UserInstruction agent-instance) ""))]
       (log/debug (str "Response from agent " (:Name agent-instance) " - " response))
       (if-let [agent-name (agent-filter-response response)]
         (respond-with-agent agent-name delegates ins)
