@@ -1,0 +1,17 @@
+(component :WeatherService)
+
+(entity
+ :Weather
+ {:Id :Identity
+  :Date :DateTime
+  :City {:type :String :indexed true}
+  :Temperature :Float
+  :Description :String})
+
+(event
+ :GetWeatherForCity
+ {:City :String})
+
+(dataflow
+ :GetWeatherForCity
+ {:Weather {:City? :GetWeatherForCity.City}})

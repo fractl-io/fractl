@@ -11,6 +11,7 @@
             [fractl.inference.provider.core :as p]
             [fractl.inference.embeddings.core :as ec]
             [fractl.inference.service.model :as model]
+            [fractl.inference.service.tools :as tools]
             [fractl.inference.service.lib.agent :as agent]
             [fractl.inference.service.lib.prompt :as prompt])
   (:import (clojure.lang ExceptionInfo)))
@@ -83,8 +84,11 @@
         (log/error e)
         {:errormsg (.getMessage e)}))))
 
-(defn handle-planner-agent [instance]
-  (log/info (str "Triggering planner agent - " (u/pretty-str instance)))
+(defn- log-trigger-agent! [instance]
+  (log/info (str "Triggering " (:Type instance) " agent - " (u/pretty-str instance))))
+
+(defn handle-planner-agent-deperecated [instance]
+  (log-trigger-agent! instance)
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
    #(let [app-uuid (:AppUuid instance)
@@ -106,7 +110,7 @@
     ext))
 
 (defn handle-analysis-agent [instance]
-  (log/info (str "Triggering analysis agent - " (u/pretty-str instance)))
+  (log-trigger-agent! instance)
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
    #(let [question (:UserInstruction instance)
@@ -196,7 +200,7 @@
        agent-documents-limit))))
 
 (defn handle-chat-agent [instance]
-  (log/info (str "Triggering " (:Type instance) " agent - " (u/pretty-str instance)))
+  (log-trigger-agent! instance)
   (p/call-with-provider
    (model/ensure-llm-for-agent instance)
    #(let [ins (:UserInstruction instance)
@@ -219,6 +223,14 @@
 
 (defn handle-eval-agent [instance]
   (maybe-eval-patterns (handle-chat-agent instance)))
+
+(defn handle-planner-agent [instance]
+  (log-trigger-agent! instance)
+  (let [tools (vec (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance))))
+        [result model-name] (handle-chat-agent (assoc instance :tools tools))
+        _ (log/info (str "Planner raw result: " result))
+        patterns (mapv tools/tool-call-to-pattern result)]
+    [(mapv e/safe-eval-pattern patterns) model-name]))
 
 (defn handle-ocr-agent [instance]
   (p/call-with-provider

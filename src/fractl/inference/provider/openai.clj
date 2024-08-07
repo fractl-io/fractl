@@ -57,12 +57,12 @@
                  (string? (:content message)))
     (u/throw-ex (str "invalid message: " message))))
 
-(defn- chat-completion-response [model-name response]
+(defn- chat-completion-response [model-name with-tools response]
   (let [status (:status response)]
     (if (<= 200 status 299)
       [(-> (:body response)
            (json/parse-string)
-           (get-in ["choices" 0 "message" "content"]))
+           (get-in ["choices" 0 "message" (if with-tools "tool_calls" "content")]))
        model-name]
       (do (log/error
            (u/pretty-str (str "OpenAI chat-competion failed with status: " status)
@@ -74,7 +74,8 @@
                                openai-api-key :openai-api-key
                                completion-endpoint :completion-endpoint
                                temperature :temperature
-                               max-tokens :max-tokens}]
+                               max-tokens :max-tokens
+                               tools :tools}]
   (doseq [m messages] (assert-message! m))
   (let [openai-config (r/fetch-active-provider-config)
         model-name (or model-name (:CompletionModel openai-config))
@@ -84,12 +85,17 @@
         openai-api-key (or openai-api-key (:ApiKey openai-config))
         options {:headers {"Content-type"  "application/json"
                            "Authorization" (str "Bearer " openai-api-key)}
-                 :body (json/generate-string {:model model-name
-                                              :messages messages
-                                              :temperature temperature
-                                              :max_tokens max-tokens})}
+                 :body (json/generate-string
+                        (merge
+                         {:model model-name
+                          :messages messages
+                          :temperature temperature
+                          :max_tokens max-tokens}
+                         (when tools
+                           {:tools tools
+                            :tool_choice "auto"})))}
         response @(http/post completion-endpoint options)]
-    (chat-completion-response model-name response)))
+    (chat-completion-response model-name (and tools true) response)))
 
 (defn make-openai-ocr-completion [{user-instruction :user-instruction
                                    image-url :image-url}]

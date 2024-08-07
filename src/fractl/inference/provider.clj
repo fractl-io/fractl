@@ -36,13 +36,14 @@
     msgs))
 
 (defn- fetch-messages [agent-instance]
-  (when-let [sess (model/lookup-agent-chat-session agent-instance)]
-    [(add-user-instruction agent-instance (preproc-messages (:Messages sess))) sess]))
+  (if-let [sess (model/lookup-agent-chat-session agent-instance)]
+    [(add-user-instruction agent-instance (preproc-messages (:Messages sess))) sess]
+    [(add-user-instruction agent-instance nil) nil]))
 
 (defn- maybe-agent-to-spec [obj]
   (if (inference-agent? obj)
     (let [[msgs chat-session] (fetch-messages obj)]
-      [{:messages msgs} obj chat-session])
+      [{:messages msgs :tools (:tools obj)} obj chat-session])
     (if-let [agent (:agent obj)]
       (if (inference-agent? agent)
         (let [[msgs chat-session] (fetch-messages agent)]
