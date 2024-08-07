@@ -17,16 +17,25 @@
   (keyword (s/replace fname "__" "/")))
 
 (defn- find-root-type [attr-type]
-  (cond
-    (k/plain-kernel-type? attr-type)
-    (s/lower-case (name attr-type))
+  (let [s
+        (case attr-type
+          (:Now :Identity) "string"
+          (cond
+            (k/plain-kernel-type? attr-type)
+            (s/lower-case (name attr-type))
 
-    (k/kernel-type? attr-type)
-    (s/lower-case (name (second (li/split-path attr-type))))
+            (k/kernel-type? attr-type)
+            (s/lower-case (name (second (li/split-path attr-type))))
 
-    (cn/find-schema attr-type) "object"
+            (cn/find-schema attr-type) "object"
 
-    :else nil))
+            :else nil))]
+    ;; TODO: check the root-type keyword and return the appropriate type.
+    ;; Do not compare strings.
+    (cond
+      (or (= s "uuid") (= s "datetime")) "string"
+      (or (= s "double") (= s "float") (= s "int")) "number"
+      :else s)))
 
 (defn- as-tool-type [attr-type]
   (let [is-map (map? attr-type)
@@ -61,7 +70,7 @@
 (defn event-to-tool [event-name]
   (if-let [scm (raw/find-event event-name)]
     (let [tool-name (event-name-as-function-name event-name)
-          props (mapv (partial attribute-to-property event-name) scm)]
+          props (mapv (partial attribute-to-property event-name) (dissoc scm :meta))]
       {:type "function"
        :function
        {:name tool-name

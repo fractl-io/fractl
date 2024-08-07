@@ -25,4 +25,8 @@
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
  [:try {:Fractl.Inference.Service/Agent {:Name? "weather-planner-agent"}}
-  :not-found {:InitWeatherPlannerAgent {}}])
+  :not-found {:InitWeatherPlannerAgent {}}]
+ {:WeatherService/Weather
+  {:City "Boston" :Temperature 70.4}}
+ {:WeatherService/Weather
+  {:City "NY" :Temperature 72.0}})

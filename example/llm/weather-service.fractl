@@ -3,15 +3,20 @@
 (entity
  :Weather
  {:Id :Identity
-  :Date :DateTime
+  :Date :Now
   :City {:type :String :indexed true}
-  :Temperature :Float
-  :Description :String})
+  :Temperature :Double
+  :Description {:type :String :optional true}})
 
 (event
  :GetWeatherForCity
- {:City :String})
+ {:meta {:doc "Get the latest weather report for a given city."}
+  :City :String})
 
 (dataflow
  :GetWeatherForCity
- {:Weather {:City? :GetWeatherForCity.City}})
+ {:Weather?
+  {:where [:= :City :GetWeatherForCity.City]
+   :order-by [:Date]}
+  :as [:Result]}
+ :Result)

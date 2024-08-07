@@ -57,17 +57,19 @@
                  (string? (:content message)))
     (u/throw-ex (str "invalid message: " message))))
 
-(defn- chat-completion-response [model-name with-tools response]
-  (let [status (:status response)]
-    (if (<= 200 status 299)
-      [(-> (:body response)
-           (json/parse-string)
-           (get-in ["choices" 0 "message" (if with-tools "tool_calls" "content")]))
-       model-name]
-      (do (log/error
-           (u/pretty-str (str "OpenAI chat-competion failed with status: " status)
-                         response))
-          nil))))
+(defn- chat-completion-response
+  ([model-name with-tools response]
+   (let [status (:status response)]
+     (if (<= 200 status 299)
+       [(-> (:body response)
+            (json/parse-string)
+            (get-in ["choices" 0 "message" (if with-tools "tool_calls" "content")]))
+        model-name]
+       (do (log/error
+            (u/pretty-str (str "OpenAI chat-competion failed with status: " status)
+                          response))
+           nil))))
+  ([model-name response] (chat-completion-response model-name false response)))
 
 (defn make-openai-completion [{messages :messages
                                model-name :model-name

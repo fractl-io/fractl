@@ -56,7 +56,7 @@
    :Slot :UpdatedSlot}}
  :UpdatedSlot)
 
-(event :ProfileRejected {:CandidateEmail :Email})
+(event :ProfileRejected {:CandidateEmail :Email :Reason :String})
 
 (dataflow
  :ProfileRejected
@@ -69,7 +69,8 @@
    :Type "chat"
    :UserInstruction (str "You are a recruiter that analyses a resume and provides a summary of the "
                          "skills and experience of the candidate. The summary must be in the format - "
-                         "<summary-text>. Name: <candidate-name>, Email: <candidate-email>")}
+                         "Skills: <major-skills-of-the-candidate>, Experience in years: <years>, "
+                         "Name: <candidate-name>, Email: <candidate-email>")}
   :as :Agent}
  {:Fractl.Inference.Service/AgentLLM
   {:Agent :Agent.Name :LLM "llm01"}}
@@ -94,7 +95,10 @@
                         "[{:RecruitmentWorkflow/ScheduleInterview {:CandidateEmail \"sam@me.com\" :CandidateName \"Sam\" :CandidateProfile \"Python programmer with 3+ years experience.\" :AssignedTo \"ravi@acme.com\"}}]."
                         "Make sure to distribute interview assignments as evenly as possible. If the profile summary does not match "
                         "the requirement, the return: "
-                        "[{:RecruitmentWorkflow/ProfileRejected {:CandidateEmail \"sam@me.com\"}}]")}]]}
+                        "[{:RecruitmentWorkflow/ProfileRejected {:CandidateEmail \"sam@me.com\", :Reason \"not enough experience\"}}]"
+                        "\n"
+                        "In the current application, you need to review summarized resumes of C++ programmers "
+                        "and schedule interviews  with candidates with good experience.")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/AgentDelegate
   {:Delegator "interview-scheduler-agent"
@@ -105,7 +109,7 @@
 ;; Usage:
 ;; POST api/RecruitmentWorkflow/InvokeAgent
 ;; {"RecruitmentWorkflow/InvokeAgent":
-;;  {"UserInstruction": "We need to hire a C++ programmer with 2+ years of experience. Here's a resume: <some-resume-text>"}}
+;;  {"UserInstruction": "Here's a resume: <some-resume-text>"}}
 (inference :InvokeAgent {:agent "interview-scheduler-agent"})
 
 (def slot-data

@@ -172,13 +172,20 @@
           result)))
     result))
 
+(defn- update-delegate-user-instruction [delegate agent-instance]
+  (if (= "ocr" (:Type delegate))
+    (assoc delegate :Context (:Context agent-instance))
+    (assoc delegate
+           :Context (:Context agent-instance)
+           :UserInstruction (str (or (:UserInstruction delegate) "")
+                                 "\n"
+                                 (:UserInstruction agent-instance)))))
+
 (defn- call-preprocess-agents [agent-instance]
   (when-let [delegates (seq (model/find-agent-pre-delegates agent-instance))]
     (let [d (first delegates)
           [response model-info]
-          (:Response
-           (@generic-agent-handler
-            (assoc d :Context (:Context agent-instance))))]
+          (:Response (@generic-agent-handler (update-delegate-user-instruction d agent-instance)))]
       (log/debug (str "Response from pre-processor agent " (:Name d) "using llm " model-info " - " response))
       response)))
 
