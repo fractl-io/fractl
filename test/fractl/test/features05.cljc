@@ -578,12 +578,12 @@
     (defn raise-an-error [] (u/throw-ex "ERROR!"))
     (dataflow
      :Rethrow/Error
-     [:rethrow
-      [:eval '(fractl.test.features05/raise-an-error)]
-      :error {:Rethrow/E {:Id 1 :X 200}}])
+     [:eval '(fractl.test.features05/raise-an-error)
+      :throw
+      [:error {:Rethrow/E {:Id 1 :X 200}}]])
     (dataflow
      :Rethrow/FindE
-     [:rethrow
+     [:throw
       {:Rethrow/E {:X? :Rethrow/FindE.E}}
       :not-found {:Rethrow/E {:Id :Rethrow/FindE.E :X 200}}]))
   (let [r (first (tu/eval-all-dataflows {:Rethrow/Error {}}))]
@@ -607,7 +607,7 @@
       (resolver
        :IRethrow/R
        {:paths [:IRethrow/E]
-        :with-methods {:create #(do (assert-id! %) (swap! db conj %))
+        :with-methods {:create #(do (assert-id! %) (swap! db conj %) %)
                        :query (fn [[_ {[_ _ id] :where}]]
                                 (assert-id! {:Id id})
                                 (when-let [e (first (filter #(= id (:Id %)) @db))]
@@ -618,7 +618,16 @@
         {:Id? :IRethrow/FindE.E}
         :as :E1
         :throw
-        [:not-found {:IRethrow/FailureInfo {:Reason '(str "Data not found for Id " :IRethrow/FindE.E)}}]}))
+        [:not-found {:IRethrow/FailureInfo {:Reason '(str "Data not found for Id " :IRethrow/FindE.E)}}
+         :error {:IRethrow/FailureInfo {:Reason :Error}}]}
+       :E1)
+      (dataflow
+       :IRethrow/CreateE
+       {:IRethrow/E
+        {:Id :IRethrow/CreateE.Id
+         :X :IRethrow/CreateE.X}
+        :throw
+        [:error {:IRethrow/FailureInfo {:Reason :Error}}]}))
     (u/run-init-fns)
     (let [e? (partial cn/instance-of? :IRethrow/E)
           fi? (partial cn/instance-of? :IRethrow/FailureInfo)]
@@ -632,4 +641,18 @@
                 {:Instance
                  {:IRethrow/E {:Id 100 :X 20}}}})]
         (is (e? e))
-        (is (cn/same-instance? e (tu/first-result {:IRethrow/FindE {:E 100}})))))))
+        (is (cn/same-instance? e (tu/first-result {:IRethrow/FindE {:E 100}}))))
+      (let [r (first (tu/eval-all-dataflows {:IRethrow/FindE {:E -1}}))
+            obj (first (:result r))]
+        (is (= :error (:status r)))
+        (is (fi? obj))
+        (is (= :error (get-in obj [:Reason :status])))
+        (is (= (get-in obj [:Reason :message]) (:message r))))
+      (let [r (first (tu/eval-all-dataflows {:IRethrow/CreateE {:Id 2 :X 20}}))]
+        (is (e? (first (:result r)))))
+      (let [r (first (tu/eval-all-dataflows {:IRethrow/CreateE {:Id -2 :X 20}}))
+            obj (first (:result r))]
+        (is (= :error (:status r)))
+        (is (fi? obj))
+        (is (= :error (get-in obj [:Reason :status])))
+        (is (= (get-in obj [:Reason :message]) (:message r)))))))

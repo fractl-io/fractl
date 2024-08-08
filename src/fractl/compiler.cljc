@@ -957,7 +957,7 @@
 (def ^:private special-form-handlers
   {:match compile-match
    :try compile-try
-   :rethrow (partial compile-try true)
+   :throw (partial compile-try true)
    :rethrow-after compile-rethrow-after
    :for-each compile-for-each
    :query compile-query-command
@@ -1266,12 +1266,26 @@
       (log/exception ex)
       #?(:clj (throw (Exception. "Error in dataflow, pre-processing failed"))))))
 
+(defn- fetch-throw [pat]
+  (when-not (= :throw (first pat))
+    (seq (drop-while #(not= :throw %) pat))))
+
+(defn- remove-throw [pat throw]
+  (let [a (take-while #(not= :throw %) pat)
+        b (nthrest throw 2)]
+    (vec (concat a b))))
+
 (defn- lift-throw [pat]
   (if-let [handlers (and (map? pat) (:throw pat))]
-    `[:rethrow
+    `[:throw
       ~(dissoc pat :throw)
       ~@handlers]
-    pat))
+    (if-let [throw (and (vector? pat) (fetch-throw pat))]
+      (let [handlers (second throw)]
+        `[:throw
+          ~(remove-throw pat throw)
+          ~@handlers])
+      pat)))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
