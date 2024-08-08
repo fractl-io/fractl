@@ -7,7 +7,7 @@
             [fractl.util :as u]
             [fractl.inference :as i]
             [fractl.lang
-             :refer [component event entity view
+             :refer [component record event entity view
                      relationship dataflow rule
                      resolver inference]]
             [fractl.lang.syntax :as ls]
@@ -595,3 +595,41 @@
     (is (cn/instance-of? :Rethrow/E (first (:result r))))
     (is (= 100 (:Id (first (:result r)))))
     (is (nil? (:message r)))))
+
+(deftest implicit-rethrow
+  (let [db (atom [])
+        assert-id! (fn [e]
+                     (when (neg? (:Id e))
+                       (u/throw-ex "Id cannot be a negative integer")))]
+    (defcomponent :IRethrow
+      (entity :IRethrow/E {:Id {:type :Int :guid true} :X :Int})
+      (record :IRethrow/FailureInfo {:Reason :Any})
+      (resolver
+       :IRethrow/R
+       {:paths [:IRethrow/E]
+        :with-methods {:create #(do (assert-id! %) (swap! db conj %))
+                       :query (fn [[_ {[_ _ id] :where}]]
+                                (assert-id! {:Id id})
+                                (when-let [e (first (filter #(= id (:Id %)) @db))]
+                                  [e]))}})
+      (dataflow
+       :IRethrow/FindE
+       {:IRethrow/E
+        {:Id? :IRethrow/FindE.E}
+        :as :E1
+        :throw
+        [:not-found {:IRethrow/FailureInfo {:Reason '(str "Data not found for Id " :IRethrow/FindE.E)}}]}))
+    (u/run-init-fns)
+    (let [e? (partial cn/instance-of? :IRethrow/E)
+          fi? (partial cn/instance-of? :IRethrow/FailureInfo)]
+      (let [r (first (tu/eval-all-dataflows {:IRethrow/FindE {:E 100}}))
+            obj (first (:result r))]
+        (is (= :not-found (:status r)))
+        (is (fi? obj))
+        (is (= "Data not found for Id 100" (:Reason obj))))
+      (let [e (tu/first-result
+               {:IRethrow/Create_E
+                {:Instance
+                 {:IRethrow/E {:Id 100 :X 20}}}})]
+        (is (e? e))
+        (is (cn/same-instance? e (tu/first-result {:IRethrow/FindE {:E 100}})))))))

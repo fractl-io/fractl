@@ -208,7 +208,7 @@
   (if-let [result (:result (method resolver env inst))]
     (if (map? result)
       (merge inst result)
-      (merge-async-result inst result))
+      result)
     inst))
 
 (defn- call-resolver-upsert [f env resolver composed? data]

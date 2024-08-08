@@ -1266,6 +1266,13 @@
       (log/exception ex)
       #?(:clj (throw (Exception. "Error in dataflow, pre-processing failed"))))))
 
+(defn- lift-throw [pat]
+  (if-let [handlers (and (map? pat) (:throw pat))]
+    `[:rethrow
+      ~(dissoc pat :throw)
+      ~@handlers]
+    pat))
+
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
            compile-pattern
@@ -1274,7 +1281,7 @@
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
-        df-patterns (preproc-patterns df-patterns)
+        df-patterns (preproc-patterns (mapv lift-throw df-patterns))
         safe-compile (partial compile-with-error-report df-patterns c)
         result [ec (mapv safe-compile df-patterns (range (count df-patterns)))]]
     (log/dev-debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result))
