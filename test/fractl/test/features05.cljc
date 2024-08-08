@@ -571,3 +571,27 @@
       (let [e3 (tu/first-result
                 {:Burv/Lookup_E {:Id 1}})]
         (is (cn/same-instance? e2 e3))))))
+
+(deftest rethrow
+  (defcomponent :Rethrow
+    (entity :Rethrow/E {:Id {:type :Int :guid true} :X :Int})
+    (defn raise-an-error [] (u/throw-ex "ERROR!"))
+    (dataflow
+     :Rethrow/Error
+     [:rethrow
+      [:eval '(fractl.test.features05/raise-an-error)]
+      :error {:Rethrow/E {:Id 1 :X 200}}])
+    (dataflow
+     :Rethrow/FindE
+     [:rethrow
+      {:Rethrow/E {:X? :Rethrow/FindE.E}}
+      :not-found {:Rethrow/E {:Id :Rethrow/FindE.E :X 200}}]))
+  (let [r (first (tu/eval-all-dataflows {:Rethrow/Error {}}))]
+    (is (= :error (:status r)))
+    (is (cn/instance-of? :Rethrow/E (first (:result r))))
+    (is (= "ERROR!" (:message r))))
+  (let [r (first (tu/eval-all-dataflows {:Rethrow/FindE {:E 100}}))]
+    (is (= :not-found (:status r)))
+    (is (cn/instance-of? :Rethrow/E (first (:result r))))
+    (is (= 100 (:Id (first (:result r)))))
+    (is (nil? (:message r)))))

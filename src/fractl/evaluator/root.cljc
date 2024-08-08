@@ -1165,7 +1165,7 @@
             (eval-cases self (:env result) eval-opcode r cases-code alternative-code result-alias)))
         (eval-condition self env eval-opcode cases-code alternative-code result-alias)))
 
-    (do-try_ [self env [body handlers alias-name]]
+    (do-try_ [self env [rethrow? body handlers alias-name]]
       (let [result (call-with-exception-as-error
                     #(eval-opcode self env body))
             s0 (:status result)
@@ -1174,7 +1174,11 @@
         (bind-result-to-alias
          alias-name
          (if h
-           (eval-opcode self (env/bind-active-error-result (or (:env result) env) result) h)
+           (let [env (env/bind-active-error-result (or (:env result) env) result)
+                 handler-result (eval-opcode self env h)]
+             (if rethrow?
+               (assoc handler-result :status status :message (:message result))
+               handler-result))
            result))))
 
     (do-rethrow-after [self env [handler]]

@@ -51,8 +51,8 @@
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
 
-(defn- emit-try [body handlers alias-name]
-  (op/try_ [body handlers alias-name]))
+(defn- emit-try [rethrow? body handlers alias-name]
+  (op/try_ [rethrow? body handlers alias-name]))
 
 (def ^:private runtime-env-var '--env--)
 (def ^:private current-instance-var '--inst--)
@@ -725,12 +725,14 @@
       [(vec (reverse (nthrest rpat 2))) (first rpat)]
       [pat nil])))
 
-(defn- compile-try [ctx pat]
-  (let [[pat alias-name] (try-alias pat)
-        [body handlers] (compile-construct-with-handlers ctx pat)]
-    (when alias-name
-      (ctx/add-alias! ctx alias-name))
-    (emit-try body handlers alias-name)))
+(defn- compile-try
+  ([rethrow? ctx pat]
+   (let [[pat alias-name] (try-alias pat)
+         [body handlers] (compile-construct-with-handlers ctx pat)]
+     (when alias-name
+       (ctx/add-alias! ctx alias-name))
+     (emit-try rethrow? body handlers alias-name)))
+  ([ctx pat] (compile-try false ctx pat)))
 
 (defn- valid-alias-name? [alias]
   (if (vector? alias)
@@ -955,6 +957,7 @@
 (def ^:private special-form-handlers
   {:match compile-match
    :try compile-try
+   :rethrow (partial compile-try true)
    :rethrow-after compile-rethrow-after
    :for-each compile-for-each
    :query compile-query-command
