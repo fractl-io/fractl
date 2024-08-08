@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.4] - 2024-08-06
 
+-   `fractl build` to emit namespaces that directly corresponds to component names (**Breaking change**)
+-   `resolver` construct support in cljs
+-   Vectordb support in the fractl runtime.
+-   Docstrings for dataflow patterns.
+-   Basic REST resolver.
+
 ## [0.5.2] - 2024-06-12
 
 -   Joins and views in queries
