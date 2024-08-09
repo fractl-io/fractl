@@ -1268,7 +1268,8 @@
       #?(:clj (throw (Exception. "Error in dataflow, pre-processing failed"))))))
 
 (defn- fetch-throw [pat]
-  (when-not (= :throws (first pat))
+  (if (= :throws (first pat))
+    (u/throw-ex (str ":throws cannot be a standalone expression - " pat))
     (seq (drop-while #(not= :throws %) pat))))
 
 (defn- remove-throw [pat throw]
