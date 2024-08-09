@@ -5,12 +5,17 @@
 
 (def ^:dynamic dynamic-context nil)
 
+(declare add-alias!)
+
 (defn make
   ([with-types]
-   (u/make-cell
-    (if (map? with-types)
-      {:with-types with-types}
-      {})))
+   (let [ctx
+         (u/make-cell
+          (if (map? with-types)
+            {:with-types with-types}
+            {}))]
+     (add-alias! ctx :Error)
+     ctx))
   ([] (make nil)))
 
 (defn put-record!

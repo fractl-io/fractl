@@ -51,8 +51,8 @@
 (defn- emit-delete [recname id-pat-code]
   (op/delete-instance [recname id-pat-code]))
 
-(defn- emit-try [body handlers alias-name]
-  (op/try_ [body handlers alias-name]))
+(defn- emit-try [rethrow? body handlers alias-name]
+  (op/try_ [rethrow? body handlers alias-name]))
 
 (def ^:private runtime-env-var '--env--)
 (def ^:private current-instance-var '--inst--)
@@ -712,8 +712,9 @@
 
 (defn- compile-construct-with-handlers [ctx pat]
   (let [body (compile-pattern ctx (first pat))
+        hpats (us/flatten-map (rest pat))
         handler-pats (distribute-handler-keys
-                      (into {} (map vec (partition 2 (rest pat)))))
+                      (into {} (map vec (partition 2 hpats))))
         handlers (mapv (partial compile-try-handler ctx) handler-pats)]
     (when-not (seq handlers)
       (u/throw-ex "proper handlers are required for :try"))
@@ -725,12 +726,14 @@
       [(vec (reverse (nthrest rpat 2))) (first rpat)]
       [pat nil])))
 
-(defn- compile-try [ctx pat]
-  (let [[pat alias-name] (try-alias pat)
-        [body handlers] (compile-construct-with-handlers ctx pat)]
-    (when alias-name
-      (ctx/add-alias! ctx alias-name))
-    (emit-try body handlers alias-name)))
+(defn- compile-try
+  ([rethrow? ctx pat]
+   (let [[pat alias-name] (try-alias pat)
+         [body handlers] (compile-construct-with-handlers ctx pat)]
+     (when alias-name
+       (ctx/add-alias! ctx alias-name))
+     (emit-try rethrow? body handlers alias-name)))
+  ([ctx pat] (compile-try false ctx pat)))
 
 (defn- valid-alias-name? [alias]
   (if (vector? alias)
@@ -955,6 +958,7 @@
 (def ^:private special-form-handlers
   {:match compile-match
    :try compile-try
+   :throws (partial compile-try true)
    :rethrow-after compile-rethrow-after
    :for-each compile-for-each
    :query compile-query-command
@@ -1263,6 +1267,28 @@
       (log/exception ex)
       #?(:clj (throw (Exception. "Error in dataflow, pre-processing failed"))))))
 
+(defn- fetch-throw [pat]
+  (if (= :throws (first pat))
+    (u/throw-ex (str ":throws cannot be a standalone expression - " pat))
+    (seq (drop-while #(not= :throws %) pat))))
+
+(defn- remove-throw [pat throw]
+  (let [a (take-while #(not= :throws %) pat)
+        b (nthrest throw 2)]
+    (vec (concat a b))))
+
+(defn- lift-throw [pat]
+  (if-let [handlers (and (map? pat) (:throws pat))]
+    `[:throws
+      ~(dissoc pat :throws)
+      ~@(us/flatten-map handlers)]
+    (if-let [throw (and (vector? pat) (fetch-throw pat))]
+      (let [handlers (second throw)]
+        `[:throws
+          ~(remove-throw pat throw)
+          ~@(us/flatten-map handlers)])
+      pat)))
+
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
            compile-pattern
@@ -1271,7 +1297,7 @@
         ename (if (li/name? evt-pattern)
                 evt-pattern
                 (first (keys evt-pattern)))
-        df-patterns (preproc-patterns df-patterns)
+        df-patterns (preproc-patterns (mapv lift-throw df-patterns))
         safe-compile (partial compile-with-error-report df-patterns c)
         result [ec (mapv safe-compile df-patterns (range (count df-patterns)))]]
     (log/dev-debug (str "compile-dataflow (" evt-pattern " " df-patterns ") => " result))

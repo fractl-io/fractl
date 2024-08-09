@@ -203,3 +203,8 @@
                   [(keyword (s/replace (name k) #"_" "-")) v])
                 a-map)]
     (into {} r)))
+
+(defn flatten-map [obj]
+  (if (map? obj)
+    (vec (apply concat obj))
+    obj))
