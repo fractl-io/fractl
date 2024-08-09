@@ -386,21 +386,25 @@
          (zero? (.execute executor cmd-line))))
 
      (defn read-env-var [x]
-       (cond
-         (symbol? x)
-         (when-let [v (System/getenv (name x))]
-           (let [s (try
-                     (read-string v)
-                     (catch Exception _e v))]
+       (let [v
              (cond
-               (not= (str s) v) v
-               (symbol? s) (str s)
-               :else s)))
+               (symbol? x)
+               (when-let [v (System/getenv (name x))]
+                 (let [s (try
+                           (read-string v)
+                           (catch Exception _e v))]
+                   (cond
+                     (not= (str s) v) v
+                     (symbol? s) (str s)
+                     :else s)))
 
-         (vector? x)
-         (first (filter identity (mapv read-env-var x)))
+               (vector? x)
+               (first (filter identity (mapv read-env-var x)))
 
-         :else x))
+               :else x)]
+         (when (not v)
+           (throw-ex (str "Environment variable " x " is not set.")))
+         v))
 
      (defn read-config-file [config-file]
        (let [f (io/file config-file)]
