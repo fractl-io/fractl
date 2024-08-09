@@ -712,8 +712,9 @@
 
 (defn- compile-construct-with-handlers [ctx pat]
   (let [body (compile-pattern ctx (first pat))
+        hpats (us/flatten-map (rest pat))
         handler-pats (distribute-handler-keys
-                      (into {} (map vec (partition 2 (rest pat)))))
+                      (into {} (map vec (partition 2 hpats))))
         handlers (mapv (partial compile-try-handler ctx) handler-pats)]
     (when-not (seq handlers)
       (u/throw-ex "proper handlers are required for :try"))
@@ -957,7 +958,7 @@
 (def ^:private special-form-handlers
   {:match compile-match
    :try compile-try
-   :throw (partial compile-try true)
+   :throws (partial compile-try true)
    :rethrow-after compile-rethrow-after
    :for-each compile-for-each
    :query compile-query-command
@@ -1267,24 +1268,24 @@
       #?(:clj (throw (Exception. "Error in dataflow, pre-processing failed"))))))
 
 (defn- fetch-throw [pat]
-  (when-not (= :throw (first pat))
-    (seq (drop-while #(not= :throw %) pat))))
+  (when-not (= :throws (first pat))
+    (seq (drop-while #(not= :throws %) pat))))
 
 (defn- remove-throw [pat throw]
-  (let [a (take-while #(not= :throw %) pat)
+  (let [a (take-while #(not= :throws %) pat)
         b (nthrest throw 2)]
     (vec (concat a b))))
 
 (defn- lift-throw [pat]
-  (if-let [handlers (and (map? pat) (:throw pat))]
-    `[:throw
-      ~(dissoc pat :throw)
-      ~@handlers]
+  (if-let [handlers (and (map? pat) (:throws pat))]
+    `[:throws
+      ~(dissoc pat :throws)
+      ~@(us/flatten-map handlers)]
     (if-let [throw (and (vector? pat) (fetch-throw pat))]
       (let [handlers (second throw)]
-        `[:throw
+        `[:throws
           ~(remove-throw pat throw)
-          ~@handlers])
+          ~@(us/flatten-map handlers)])
       pat)))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]

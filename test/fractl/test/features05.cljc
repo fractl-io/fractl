@@ -579,11 +579,11 @@
     (dataflow
      :Rethrow/Error
      [:eval '(fractl.test.features05/raise-an-error)
-      :throw
+      :throws
       [:error {:Rethrow/E {:Id 1 :X 200}}]])
     (dataflow
      :Rethrow/FindE
-     [:throw
+     [:throws
       {:Rethrow/E {:X? :Rethrow/FindE.E}}
       :not-found {:Rethrow/E {:Id :Rethrow/FindE.E :X 200}}]))
   (let [r (first (tu/eval-all-dataflows {:Rethrow/Error {}}))]
@@ -617,17 +617,17 @@
        {:IRethrow/E
         {:Id? :IRethrow/FindE.E}
         :as :E1
-        :throw
-        [:not-found {:IRethrow/FailureInfo {:Reason '(str "Data not found for Id " :IRethrow/FindE.E)}}
-         :error {:IRethrow/FailureInfo {:Reason :Error}}]}
+        :throws
+        {:not-found {:IRethrow/FailureInfo {:Reason '(str "Data not found for Id " :IRethrow/FindE.E)}}
+         :error {:IRethrow/FailureInfo {:Reason :Error}}}}
        :E1)
       (dataflow
        :IRethrow/CreateE
        {:IRethrow/E
         {:Id :IRethrow/CreateE.Id
          :X :IRethrow/CreateE.X}
-        :throw
-        [:error {:IRethrow/FailureInfo {:Reason :Error}}]}))
+        :throws
+        {:error {:IRethrow/FailureInfo {:Reason :Error}}}}))
     (u/run-init-fns)
     (let [e? (partial cn/instance-of? :IRethrow/E)
           fi? (partial cn/instance-of? :IRethrow/FailureInfo)]
