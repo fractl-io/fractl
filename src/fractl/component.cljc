@@ -474,10 +474,14 @@
   (when-let [ks (seq (keys (or (:schema schema) schema)))]
     (set ks)))
 
+(def ^:private system-attribute-names #{li/id-attr li/path-attr
+                                        li/parent-attr li/meta-attr
+                                        li/event-context})
+
 (defn user-attribute-names [schema]
-  (set/difference (attribute-names schema)
-                  #{li/id-attr li/path-attr
-                    li/parent-attr li/meta-attr}))
+  (set/difference (attribute-names schema) system-attribute-names))
+
+(defn user-attributes [schema] (apply dissoc schema system-attribute-names))
 
 (defn entity-attribute-names [entity-name]
   (set/difference

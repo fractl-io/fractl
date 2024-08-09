@@ -7,7 +7,7 @@
   (and (string? classname)
        (if text-content (string? text-content) true)
        (if meta-content (string? meta-content) true)
-       (every? float? embedding)
+       (float? (first embedding)) ; (every? float? embedding) can be expensive
        (if embedding-model (string? embedding-model) true)))
 
 (defn as-object [attrs]

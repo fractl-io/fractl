@@ -6,10 +6,3 @@
             [fractl.inference.provider.core :as p]))
 
 (defn init [] (api-resolver/register-resolver))
-
-(defn post-question [provider-name question-inst]
-  (p/call-with-provider
-   provider-name
-   #(ev/eval-all-dataflows
-     {:Fractl.Inference.Service/Create_Question
-      {:Instance question-inst}})))

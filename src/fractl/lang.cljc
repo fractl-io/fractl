@@ -731,13 +731,50 @@
            (raw/rule rule-name args)
            rule-name))))
 
+(defn- preproc-agent-messages [agent]
+  (if-let [messages (:Messages agent)]
+    (if (li/quoted? messages)
+      agent
+      (assoc agent :Messages (li/as-quoted messages)))
+    agent))
+
+(defn- preproc-inference-agent [is-query agent-spec]
+  (when agent-spec
+    (if is-query
+      {:Fractl.Inference.Service/Agent {:Name? agent-spec}}
+      (if-let [llm-name (:with-llm agent-spec)]
+        {:Fractl.Inference.Service/Agent
+         (preproc-agent-messages (dissoc agent-spec :with-llm))
+         :-> [[{:Fractl.Inference.Service/AgentLLM {}}
+               {:Fractl.Inference.Provider/LLM
+                {:Name? llm-name}}]]}
+        agent-spec))))
+
+(defn instance-assoc [inst & params]
+  (loop [inst inst, params params]
+    (if-let [k (first params)]
+      (recur (assoc inst (keyword k) (second params))
+             (rest (rest params)))
+      inst)))
+
 (defn register-inference-dataflow [inference-name spec]
   (let [ins (:instructions spec)
-        p0 (if (string? ins)
-             `[:eval (identity ~ins) :as :I]
-             `[:eval ~ins :as :I])
-        p1 `[:eval (fractl.inference/run-inference-for-event :I ~(:agent spec) ~inference-name)]]
-    (cn/register-dataflow inference-name nil [p0 p1])
+        agent-spec (:agent spec)
+        is-agent-query (string? agent-spec)
+        agent0 (preproc-inference-agent is-agent-query agent-spec)
+        agent1 (dissoc agent0 :->)
+        agent-attrs (li/record-attributes agent1)
+        agent {(li/record-name agent1)
+               (assoc agent-attrs :Context inference-name)}
+        p0 (if is-agent-query
+             (assoc agent :as [:Agent])
+             (assoc agent :as :Agent :-> (:-> agent0)))
+        pfn (:with-prompt-fn spec)
+        rh (:with-response-handler spec)
+        pfns (when (or pfn rh)
+               `[:eval (fractl.lang/instance-assoc :Agent "PromptFn" ~pfn "ResponseHandler" ~rh) :as :Agent])
+        p1 `[:eval (fractl.inference/run-inference-for-event ~inference-name ~ins :Agent)]]
+    (cn/register-dataflow inference-name nil (if pfns [p0 pfns p1] [p0 p1]))
     inference-name))
 
 (defn- ensure-spec-keys! [tag label expected-keys spec-keys]
@@ -745,40 +782,17 @@
     (u/throw-ex (str "invalid keys " invalid-keys " in " tag " " label)))
   spec-keys)
 
-(defn- normalize-inference-spec [spec]
-  (if-let [agent (:agent spec)]
-    (if-not (:planner agent)
-      (let [out-type (:output agent)
-            out-scm (cn/ensure-schema out-type)
-            out-keys (vec (cn/user-attribute-names out-scm))
-            agent-spec {:config {:result-entity out-type
-                                 :information-type (:comment agent)
-                                 :provider (:llm agent)
-                                 :make-prompt (:make-prompt agent)
-                                 :output-keys (or (:output-attributes agent) out-keys)
-                                 :output-key-values (or (:output-attribute-values agent)
-                                                        (cn/schema-as-string out-scm))}}]
-        (assoc spec :agent `[:q# ~agent-spec]))
-      (assoc spec :agent
-             [:q#
-              {:config
-               {:is-planner? true
-                :tools (:tools agent)
-                :docs (:docs agent)
-                :make-prompt (:make-prompt agent)
-                :provider (:llm agent)}}])) ; TODO: handle more planner options.
-    spec))
-
 (defn inference [inference-name spec-map]
   (let [inference-name (cn/canonical-type-name inference-name)]
     (ensure-spec-keys! 'inference inference-name
-                       #{:instructions :agent} (keys spec-map))
+                       #{:instructions :agent
+                         :with-prompt-fn :with-response-handler}
+                       (keys spec-map))
     (ensure-event! inference-name)
-    (let [norm-spec (normalize-inference-spec spec-map)]
-      (and (register-inference-dataflow inference-name norm-spec)
-           (cn/register-inference inference-name norm-spec)
-           (raw/inference inference-name spec-map)
-           inference-name))))
+    (and (register-inference-dataflow inference-name spec-map)
+         (cn/register-inference inference-name spec-map)
+         (raw/inference inference-name spec-map)
+         inference-name)))
 
 (def ^:private crud-evname cn/crud-event-name)
 

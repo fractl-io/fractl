@@ -28,14 +28,15 @@
 (def ^:private llm-registry (atom nil))
 
 (defn- upsert-llm [inst]
-  (swap! llm-registry assoc (u/string-as-keyword (:Type inst)) inst)
+  (swap! llm-registry assoc (:Name inst) inst)
   inst)
 
 (defn- lookup-llm-by-name [[opr attr attrval]]
   (when (and (= := opr) (= attr :Name))
-    (vec (filter #(= attrval (:Name %)) (vals @llm-registry)))))
+    (when-let [r (get @llm-registry attrval)]
+      [r])))
 
-(resolver
+#_(resolver
  :Fractl.Inference.Provider/LLMResolver
  {:paths [:Fractl.Inference.Provider/LLM]
   :with-methods

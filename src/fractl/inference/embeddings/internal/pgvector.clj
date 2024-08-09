@@ -170,9 +170,11 @@
 
 (defn add-document-chunk [db-conn app-uuid text-chunk]
   (let [document-classname (get-document-classname app-uuid)
-        [embedding embedding-model] (provider/make-embedding {:text-content text-chunk})]
-    (create-object {:classname document-classname
-                    :text-content text-chunk
-                    :meta-content (json/generate-string text-chunk)
-                    :embedding embedding
-                    :embedding-model embedding-model})))
+        text-content (json/generate-string (dissoc text-chunk :Id :AppUuid))
+        [embedding embedding-model] (provider/make-embedding {:text-content text-content})]
+    (create-object db-conn {:classname document-classname
+                            :text-content text-content
+                            :meta-content (json/generate-string
+                                           {:Title (get text-chunk :Title "")})
+                            :embedding embedding
+                            :embedding-model embedding-model})))

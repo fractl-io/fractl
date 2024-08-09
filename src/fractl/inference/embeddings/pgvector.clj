@@ -31,9 +31,9 @@
       (update-tool [_ spec]
         (cwp #(pgv/update-planner-tool @db-conn spec)))
       (delete-tool [_ spec]
-        (cwp (pgv/delete-planner-tool @db-conn spec)))
+        (cwp #(pgv/delete-planner-tool @db-conn spec)))
       (embed-document-chunk [_ app-uuid text-chunk]
-        (cwp (pgv/add-document-chunk @db-conn app-uuid text-chunk)))
+        (cwp #(pgv/add-document-chunk @db-conn app-uuid text-chunk)))
       (get-document-classname [_ app-uuid]
         (pgv/get-document-classname app-uuid))
       (get-planner-classname [_ app-uuid]
