@@ -580,12 +580,12 @@
      :Rethrow/Error
      [:eval '(fractl.test.features05/raise-an-error)
       :throws
-      [:error {:Rethrow/E {:Id 1 :X 200}}]])
+      {:error {:Rethrow/E {:Id 1 :X 200}}}])
     (dataflow
      :Rethrow/FindE
      {:Rethrow/E {:X? :Rethrow/FindE.E}
       :throws
-      [:not-found {:Rethrow/E {:Id :Rethrow/FindE.E :X 200}}]}))
+      {:not-found {:Rethrow/E {:Id :Rethrow/FindE.E :X 200}}}}))
   (let [r (first (tu/eval-all-dataflows {:Rethrow/Error {}}))]
     (is (= :error (:status r)))
     (is (cn/instance-of? :Rethrow/E (first (:result r))))
