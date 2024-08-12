@@ -11,10 +11,10 @@
 
 (defn- event-name-as-function-name [event-name]
   (let [event-name (li/make-path event-name)]
-    (s/replace (subs (str event-name) 1) "/" "__")))
+    (s/replace (s/replace (subs (str event-name) 1) "." "__p__") "/" "__")))
 
 (defn- function-name-as-event-name [fname]
-  (keyword (s/replace fname "__" "/")))
+  (keyword (s/replace (s/replace fname "__p__" ".") "__" "/")))
 
 (defn- find-root-type [attr-type]
   (let [s
