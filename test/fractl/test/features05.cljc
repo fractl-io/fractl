@@ -404,8 +404,13 @@
                              ls/alias-tag [:P]})
         has-doc? #(string? (:doc (ls/meta-tag %)))]
     (is (every? has-doc? [p1 p2 p3]))
-    (u/pprint (ls/raw p1))
-    ;;(is (= (ls/raw p1) {:Acme/Person {:Name "Joe"}, :meta {:doc "Create a new Person"}, :as :P}))
+    (is (= (ls/raw p1)
+           {:Acme/Person {:Name "Joe"},
+            :meta {:doc "Create a new Person"},
+            :as :P,
+            :throws
+            {:error #:Acme{:Error {:Message "Pattern error"}},
+             :not-found #:Acme{:NoData {:Message "No data found"}}}}))
     (is (= (ls/raw p2) {:Acme/Person {:Name? "Joe"}, :meta {:doc "Fetch Person by name"}, :as :P}))
     (is (= (ls/raw p3) {:Acme/Person? {:where [:= :Name "Joe"]}, :meta {:doc "Query Person by name"}, :as [:P]}))
     (is (every? has-doc? (mapv #(ls/introspect (ls/raw %)) [p1 p2 p3])))))
