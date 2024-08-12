@@ -1,4 +1,4 @@
-(component :ExpenseWorkflow)
+(component :Expense.Workflow)
 
 (entity
  :Expense
@@ -31,8 +31,8 @@
    [:q# [{:role :system
           :content (str "You are an intelligent agent who summarizes an expense report as a list of expense instances. For example, "
                         "if the report is \"I spent $200 on air ticket and $80 on food\", the summary should be "
-                        "[{:ExpenseWorkflow/Expense {:Title \"air ticket\" :Amount 200}}, "
-                        "{:ExpenseWorkflow/Expense {:Title \"food\", :Amount 80}}]")}]]}
+                        "[{:Expense.Workflow/Expense {:Title \"air ticket\" :Amount 200}}, "
+                        "{:Expense.Workflow/Expense {:Title \"food\", :Amount 80}}]")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/AgentDelegate
   {:Delegator "expense-agent"
@@ -41,8 +41,8 @@
  :Agent)
 
 ;; Usage:
-;; POST api/ExpenseWorkflow/SaveExpenses
-;; {"ExpenseWorkflow/SaveExpenses": {"UserInstruction": "https://acme.com/bill/myexpense.jpg"}}
+;; POST api/Expense.Workflow/SaveExpenses
+;; {"Expense.Workflow/SaveExpenses": {"UserInstruction": "https://acme.com/bill/myexpense.jpg"}}
 (inference :SaveExpenses {:agent "expense-agent"})
 
 (dataflow

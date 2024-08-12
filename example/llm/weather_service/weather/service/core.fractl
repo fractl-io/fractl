@@ -33,6 +33,9 @@
   {:Agent :Agent.Name :LLM "llm01"}}
  :Agent)
 
+;; Usage:
+;; POST api/Weather.Service.Core/InvokePlanner
+;; {"Weather.Service.Core/InvokePlanner": {"UserInstruction": "What's the weather for Boston today?"}}
 (inference :InvokePlanner {:agent "weather-planner-agent"})
 
 (dataflow
