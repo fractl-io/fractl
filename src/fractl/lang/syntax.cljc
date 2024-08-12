@@ -269,7 +269,8 @@
       (or path (raw-walk obj))}
      (when-let [meta (meta-tag ir)] {meta-tag meta})
      (when-let [rel (rel-tag ir)] {rel-tag (raw-relationship rel)})
-     (when-let [als (alias-tag ir)] {alias-tag als}))))
+     (when-let [als (alias-tag ir)] {alias-tag als})
+     (when-let [t (throws-tag ir)] {throws-tag (raw-throws t)}))))
 
 (def raw-relationship raw-walk)
 

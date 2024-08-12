@@ -667,3 +667,35 @@
         (is (fi? obj))
         (is (= :error (get-in obj [:Reason :status])))
         (is (= (get-in obj [:Reason :message]) (:message r)))))))
+
+(deftest throws-syntax
+  (let [p (fn [p1]
+            (let [ir1  (ls/introspect p1)]
+              (is (= p1 (ls/raw ir1)))))]
+    (p {:Acme/Employee
+        {:Email "joe@acme.com"
+         :Id 101}
+        :as :E
+        :throws
+        {:error {:Acme/FailedToCreateEmployee {}}}})
+    (p {:Acme/Employee
+        {:Email? "joe@acme.com"
+         :Id 102}
+        :as [:E]
+        :throws
+        {:error {:Acme/FailedToUpdateEmployee {:Email "joe@acme.com"}}
+         :not-found {:Acme/EmployeeNotFound {:Email "joe@acme.com"}}}})
+    (p {:Acme/Employee? {:where [:= :Email "joe@acme.com"]}
+        :as [:E]
+        :throws
+        {:error {:Acme/FailedToLookupEmployee {:Email "joe@acme.com"}}
+         :not-found {:Acme/EmployeeNotFound {:Email "joe@acme.com"}}}})
+    (p [:delete :Acme/Employee {:Email "joe@acme.com"}
+        :as :E
+        :throws
+        {:error {:Acme/FailedToUpdateEmployee {:Email "joe@acme.com"}}
+         :not-found {:Acme/EmployeeNotFound {:Email "joe@acme.com"}}}])
+    (p [:eval `(~'(symbol "quote") (~(symbol "some-fn") :A :B))
+        :as :Result
+        :throws
+        {:error {:Acme/FailedToCallFn {:Name "some-fn"}}}])))
