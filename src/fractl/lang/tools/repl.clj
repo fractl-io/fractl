@@ -195,11 +195,14 @@
         model-name))
     model-name))
 
+(def ^:private eof-object (Object.))
+
 (defn run [model-name store evaluator]
   (let [model-name (or model-name (infer-model-name))
         reval (partial repl-eval store (atom nil) evaluator)
         current-cn (cn/get-current-component)
-        decl-names (cn/declared-names current-cn)]
+        decl-names (cn/declared-names current-cn)
+        opts {:eof eof-object}]
     (when decl-names
       (set-declared-names! current-cn decl-names))
     (use '[fractl.lang])
@@ -212,12 +215,12 @@
     (loop [model-name model-name]
       (print (str (name model-name) "> ")) (flush)
       (let [exp (try
-                  (read)
+                  (read opts *in*)
                   (catch Exception ex
                     (println (str "ERROR in input - " (.getMessage ex)))))]
         (if exp
           (cond
-            (= exp :quit)
+            (or (identical? exp eof-object) (= exp :quit))
             (do
               (println 'bye)
               (System/exit 0))
