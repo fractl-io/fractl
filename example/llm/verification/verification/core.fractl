@@ -1,5 +1,6 @@
-(component :AgentComposition)
+(component :Verification.Core)
 
+;; Demonstrates agent-composition, where the answer of one agent is verified by another.
 (dataflow
  :InitVerificationAgent
  {:Fractl.Inference.Service/Agent
@@ -40,8 +41,8 @@
  :Agent)
 
 ;; Usage:
-;; POST api/AgentComposition/AnswerWithVerification
-;; {"AgentComposition/AnswerWithVerification":
+;; POST api/Verification.Core/AnswerWithVerification
+;; {"Verification.Core/AnswerWithVerification":
 ;;  {"UserInstruction": "Who was the most decorated (maximum medals) individual athlete in the Olympic games that were held at Sydney?"}}
 (inference :AnswerWithVerification {:agent "chain-of-thought-agent"})
 
