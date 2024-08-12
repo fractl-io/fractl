@@ -1,4 +1,4 @@
-(component :CustomerSupport)
+(component :Customer.Support.Core)
 
 ;; Note: the following settings should be in config.edn
 ;; { ; ...
@@ -31,7 +31,7 @@
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/DocChunk
   {:Title "Panasonic User Manual"
-   :Content (slurp "example/llm/docs/panasonic_lumix.md")
+   :Content (slurp "docs/panasonic_lumix.md")
    :Agent :Agent.Name}
   :as :Doc1}
  {:Fractl.Inference.Service/AgentDocChunk
@@ -39,7 +39,7 @@
    :DocChunk :Doc1.Id}}
  {:Fractl.Inference.Service/DocChunk
   {:Title "Canon User Manual"
-   :Content (slurp "example/llm/docs/canon.md")
+   :Content (slurp "docs/canon.md")
    :Agent :Agent.Name}
   :as :Doc2}
  {:Fractl.Inference.Service/AgentDocChunk
@@ -104,8 +104,8 @@
  :Agent)
 
 ;; Usage:
-;; POST api/CustomerSupport/CameraStore
-;; {"CustomerSupport/CameraStore": {"UserInstruction": "What's the price of Panasonic G9?"}}
+;; POST api/Customer.Support.Core/CameraStore
+;; {"Customer.Support.Core/CameraStore": {"UserInstruction": "What's the price of Panasonic G9?"}}
 (inference :CameraStore {:agent "camera-support-agent"})
 
 (dataflow
