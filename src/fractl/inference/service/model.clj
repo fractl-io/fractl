@@ -84,6 +84,11 @@
   :-> [[:Fractl.Inference.Service/AgentChatSession?
         :Fractl.Inference.Service/LookupAgentChatSessions.Agent]]})
 
+(dataflow
+ :Fractl.Inference.Service/ResetAgentChatSessions
+ [:eval '(fractl.inference.service.model/reset-agent-chat-session
+          :Fractl.Inference.Service/ResetAgentChatSessions.Agent)])
+
 (record
  :Fractl.Inference.Service/ToolParam
  {:name :String
@@ -204,3 +209,14 @@
     {li/path-attr (li/path-attr chat-session)
      :Data {:Messages messages}}}
    identity true))
+
+(defn reset-agent-chat-session [agent]
+  (if (string? agent)
+    (when-let [agent-instance (eval-event
+                      {:Fractl.Inference.Service/Lookup_Agent
+                       {:Name agent}}
+                      first)]
+      (reset-agent-chat-session agent-instance))
+    (when-let [sess (lookup-agent-chat-session agent)]
+      (let [msgs (vec (filter #(= :system (:role %)) (:Messages sess)))]
+        (update-agent-chat-session sess msgs)))))
