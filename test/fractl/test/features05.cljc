@@ -7,7 +7,7 @@
             [fractl.util :as u]
             [fractl.inference :as i]
             [fractl.lang
-             :refer [component event entity view
+             :refer [component record event entity view
                      relationship dataflow rule
                      resolver inference]]
             [fractl.lang.syntax :as ls]
@@ -385,10 +385,15 @@
     (is (cn/same-instance? e1 (tu/first-result {:I1377/FindE {:X 100}})))))
 
 (deftest issue-1377-syntax
-  (let [p1 (ls/upsert {ls/record-tag :Acme/Person
+  (let [e1 (ls/upsert {ls/record-tag :Acme/Error
+                       ls/attrs-tag {:Message "Pattern error"}})
+        e2 (ls/upsert {ls/record-tag :Acme/NoData
+                       ls/attrs-tag {:Message "No data found"}})
+        p1 (ls/upsert {ls/record-tag :Acme/Person
                        ls/meta-tag {:doc "Create a new Person"}
                        ls/attrs-tag {:Name "Joe"}
-                       ls/alias-tag :P})
+                       ls/alias-tag :P
+                       ls/throws-tag {ls/error-tag e1 ls/not-found-tag e2}})
         p2 (ls/query-upsert {ls/record-tag :Acme/Person
                              ls/meta-tag {:doc "Fetch Person by name"}
                              ls/attrs-tag {:Name? "Joe"}
@@ -399,7 +404,13 @@
                              ls/alias-tag [:P]})
         has-doc? #(string? (:doc (ls/meta-tag %)))]
     (is (every? has-doc? [p1 p2 p3]))
-    (is (= (ls/raw p1) {:Acme/Person {:Name "Joe"}, :meta {:doc "Create a new Person"}, :as :P}))
+    (is (= (ls/raw p1)
+           {:Acme/Person {:Name "Joe"},
+            :meta {:doc "Create a new Person"},
+            :as :P,
+            :throws
+            {:error #:Acme{:Error {:Message "Pattern error"}},
+             :not-found #:Acme{:NoData {:Message "No data found"}}}}))
     (is (= (ls/raw p2) {:Acme/Person {:Name? "Joe"}, :meta {:doc "Fetch Person by name"}, :as :P}))
     (is (= (ls/raw p3) {:Acme/Person? {:where [:= :Name "Joe"]}, :meta {:doc "Query Person by name"}, :as [:P]}))
     (is (every? has-doc? (mapv #(ls/introspect (ls/raw %)) [p1 p2 p3])))))
@@ -571,3 +582,188 @@
       (let [e3 (tu/first-result
                 {:Burv/Lookup_E {:Id 1}})]
         (is (cn/same-instance? e2 e3))))))
+
+(deftest rethrow
+  (defcomponent :Rethrow
+    (entity :Rethrow/E {:Id {:type :Int :guid true} :X :Int})
+    (defn raise-an-error [] (u/throw-ex "ERROR!"))
+    (dataflow
+     :Rethrow/Error
+     [:eval '(fractl.test.features05/raise-an-error)
+      :throws
+      {:error {:Rethrow/E {:Id 1 :X 200}}}])
+    (dataflow
+     :Rethrow/FindE
+     {:Rethrow/E {:X? :Rethrow/FindE.E}
+      :throws
+      {:not-found {:Rethrow/E {:Id :Rethrow/FindE.E :X 200}}}}))
+  (let [r (first (tu/eval-all-dataflows {:Rethrow/Error {}}))]
+    (is (= :error (:status r)))
+    (is (cn/instance-of? :Rethrow/E (first (:result r))))
+    (is (= "ERROR!" (:message r))))
+  (let [r (first (tu/eval-all-dataflows {:Rethrow/FindE {:E 100}}))]
+    (is (= :not-found (:status r)))
+    (is (cn/instance-of? :Rethrow/E (first (:result r))))
+    (is (= 100 (:Id (first (:result r)))))
+    (is (nil? (:message r)))))
+
+(deftest implicit-rethrow
+  (let [db (atom [])
+        assert-id! (fn [e]
+                     (when (neg? (:Id e))
+                       (u/throw-ex "Id cannot be a negative integer")))]
+    (defcomponent :IRethrow
+      (entity :IRethrow/E {:Id {:type :Int :guid true} :X :Int})
+      (record :IRethrow/FailureInfo {:Reason :Any})
+      (resolver
+       :IRethrow/R
+       {:paths [:IRethrow/E]
+        :with-methods {:create #(do (assert-id! %) (swap! db conj %) %)
+                       :query (fn [[_ {[_ _ id] :where}]]
+                                (assert-id! {:Id id})
+                                (when-let [e (first (filter #(= id (:Id %)) @db))]
+                                  [e]))}})
+      (dataflow
+       :IRethrow/FindE
+       {:IRethrow/E
+        {:Id? :IRethrow/FindE.E}
+        :as :E1
+        :throws
+        {:not-found {:IRethrow/FailureInfo {:Reason '(str "Data not found for Id " :IRethrow/FindE.E)}}
+         :error {:IRethrow/FailureInfo {:Reason :Error}}}}
+       :E1)
+      (dataflow
+       :IRethrow/CreateE
+       {:IRethrow/E
+        {:Id :IRethrow/CreateE.Id
+         :X :IRethrow/CreateE.X}
+        :throws
+        {:error {:IRethrow/FailureInfo {:Reason :Error}}}}))
+    (u/run-init-fns)
+    (let [e? (partial cn/instance-of? :IRethrow/E)
+          fi? (partial cn/instance-of? :IRethrow/FailureInfo)]
+      (let [r (first (tu/eval-all-dataflows {:IRethrow/FindE {:E 100}}))
+            obj (first (:result r))]
+        (is (= :not-found (:status r)))
+        (is (fi? obj))
+        (is (= "Data not found for Id 100" (:Reason obj))))
+      (let [e (tu/first-result
+               {:IRethrow/Create_E
+                {:Instance
+                 {:IRethrow/E {:Id 100 :X 20}}}})]
+        (is (e? e))
+        (is (cn/same-instance? e (tu/first-result {:IRethrow/FindE {:E 100}}))))
+      (let [r (first (tu/eval-all-dataflows {:IRethrow/FindE {:E -1}}))
+            obj (first (:result r))]
+        (is (= :error (:status r)))
+        (is (fi? obj))
+        (is (= :error (get-in obj [:Reason :status])))
+        (is (= (get-in obj [:Reason :message]) (:message r))))
+      (let [r (first (tu/eval-all-dataflows {:IRethrow/CreateE {:Id 2 :X 20}}))]
+        (is (e? (first (:result r)))))
+      (let [r (first (tu/eval-all-dataflows {:IRethrow/CreateE {:Id -2 :X 20}}))
+            obj (first (:result r))]
+        (is (= :error (:status r)))
+        (is (fi? obj))
+        (is (= :error (get-in obj [:Reason :status])))
+        (is (= (get-in obj [:Reason :message]) (:message r)))))))
+
+(deftest throws-syntax
+  (let [p (fn [p1]
+            (let [ir1  (ls/introspect p1)]
+              (is (= p1 (ls/raw ir1)))))]
+    (p {:Acme/Employee
+        {:Email "joe@acme.com"
+         :Id 101}
+        :as :E
+        :throws
+        {:error {:Acme/FailedToCreateEmployee {}}}})
+    (p {:Acme/Employee
+        {:Email? "joe@acme.com"
+         :Id 102}
+        :as [:E]
+        :throws
+        {:error {:Acme/FailedToUpdateEmployee {:Email "joe@acme.com"}}
+         :not-found {:Acme/EmployeeNotFound {:Email "joe@acme.com"}}}})
+    (p {:Acme/Employee? {:where [:= :Email "joe@acme.com"]}
+        :as [:E]
+        :throws
+        {:error {:Acme/FailedToLookupEmployee {:Email "joe@acme.com"}}
+         :not-found {:Acme/EmployeeNotFound {:Email "joe@acme.com"}}}})
+    (p [:delete :Acme/Employee {:Email "joe@acme.com"}
+        :as :E
+        :throws
+        {:error {:Acme/FailedToUpdateEmployee {:Email "joe@acme.com"}}
+         :not-found {:Acme/EmployeeNotFound {:Email "joe@acme.com"}}}])
+    (p [:eval `(~'(symbol "quote") (~(symbol "some-fn") :A :B))
+        :as :Result
+        :throws
+        {:error {:Acme/FailedToCallFn {:Name "some-fn"}}}])))
+
+(deftest throws-raw
+  (defcomponent :ThrowsRaw
+    (entity
+     :ThrowsRaw/Employee
+     {:Email {:type :Email :guid true}
+      :Name :String})
+    (record :ThrowsRaw/Error {:Message :String})
+    (record :ThrowsRaw/NotFound {:Message :String})
+    (dataflow
+     :ThrowsRaw/E
+     {:ThrowsRaw/Employee
+      {:Email :ThrowsRaw/E.Email
+       :Name "Jojo"}
+      :as [:E0]
+      :throws
+      {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}}}
+     {:ThrowsRaw/Employee
+      {:Email? :ThrowsRaw/E.Email
+       :Name "Toto"}
+      :as [:E1]
+      :throws
+      {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
+       :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}}
+     {:ThrowsRaw/Employee? {:where [:= :Email :ThrowsRaw/E.Email]}
+      :as [:E2]
+      :throws
+      {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
+       :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}}
+     [:delete :ThrowsRaw/Employee {:Email :ThrowsRaw/E.Email}
+      :as :E3
+      :throws
+      {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
+       :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}]))
+  (is (= (lr/as-edn :ThrowsRaw)
+         '(do
+            (component :ThrowsRaw)
+            (entity
+             :ThrowsRaw/Employee
+             {:Email {:type :Email :guid true}
+              :Name :String})
+            (record :ThrowsRaw/Error {:Message :String})
+            (record :ThrowsRaw/NotFound {:Message :String})
+            (dataflow
+             :ThrowsRaw/E
+             {:ThrowsRaw/Employee
+              {:Email :ThrowsRaw/E.Email
+               :Name "Jojo"}
+              :as [:E0]
+              :throws
+              {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}}}
+             {:ThrowsRaw/Employee
+              {:Email? :ThrowsRaw/E.Email
+               :Name "Toto"}
+              :as [:E1]
+              :throws
+              {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
+               :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}}
+             {:ThrowsRaw/Employee? {:where [:= :Email :ThrowsRaw/E.Email]}
+              :as [:E2]
+              :throws
+              {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
+               :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}}
+             [:delete :ThrowsRaw/Employee {:Email :ThrowsRaw/E.Email}
+              :as :E3
+              :throws
+              {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
+               :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}])))))
