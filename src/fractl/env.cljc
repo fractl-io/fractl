@@ -279,7 +279,7 @@
 (def active-error-result :-*-active-error-result-*-)
 
 (defn bind-active-error-result [env r]
-  (assoc env active-error-result r))
+  (assoc env active-error-result r :Error r))
 
 (def relationship-context :-*-rel-context-*-)
 
