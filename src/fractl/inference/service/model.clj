@@ -71,7 +71,7 @@
 
 (entity
  :Fractl.Inference.Service/ChatSession
- {:Id {:type :UUID :id true :default u/uuid-string}
+ {:Id {:type :UUID :guid true :default u/uuid-string}
   :Messages {:check agent-messages?}})
 
 (relationship
@@ -83,12 +83,6 @@
  {:Fractl.Inference.Service/ChatSession? {}
   :-> [[:Fractl.Inference.Service/AgentChatSession?
         :Fractl.Inference.Service/LookupAgentChatSessions.Agent]]})
-
-(dataflow
- :Fractl.Inference.Service/UpdateAgentChatSession
- {:Fractl.Inference.Service/ChatSession
-  {li/id-attr? :Fractl.Inference.Service/UpdateAgentChatSession.SessionId
-   :Messages :Fractl.Inference.Service/UpdateAgentChatSession.Messages}})
 
 (record
  :Fractl.Inference.Service/ToolParam
@@ -147,10 +141,14 @@
    {:Id? :%.DocChunk}}])
 
 (defn- eval-event
-  ([event callback]
-   (when-let [result (first (e/eval-all-dataflows event))]
+  ([event callback atomic?]
+   (when-let [result (first ((if atomic?
+                               e/eval-all-dataflows-atomic
+                               e/eval-all-dataflows)
+                             event))]
      (when (= :ok (:status result))
        (callback (:result result)))))
+  ([event callback] (eval-event event callback false))
   ([event] (eval-event event identity)))
 
 (defn- find-agent-delegates [preproc agent-instance]
@@ -202,7 +200,7 @@
 
 (defn update-agent-chat-session [chat-session messages]
   (eval-event
-   {:Fractl.Inference.Service/UpdateAgentChatSession
-    {:SessionId (li/id-attr chat-session)
-     :Messages messages}}
-   identity))
+   {:Fractl.Inference.Service/Update_ChatSession
+    {li/path-attr (li/path-attr chat-session)
+     :Data {:Messages messages}}}
+   identity true))
