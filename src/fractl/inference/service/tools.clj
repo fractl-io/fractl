@@ -9,11 +9,11 @@
             [fractl.lang.internal :as li]
             [fractl.lang.kernel :as k]))
 
-(defn- event-name-as-function-name [event-name]
-  (let [event-name (li/make-path event-name)]
-    (s/replace (s/replace (subs (str event-name) 1) "." "__p__") "/" "__")))
+(defn- record-name-as-function-name [rec-name]
+  (let [rec-name (li/make-path rec-name)]
+    (s/replace (s/replace (subs (str rec-name) 1) "." "__p__") "/" "__")))
 
-(defn- function-name-as-event-name [fname]
+(defn- function-name-as-record-name [fname]
   (keyword (s/replace (s/replace fname "__p__" ".") "__" "/")))
 
 (defn- find-root-type [attr-type]
@@ -54,9 +54,14 @@
               {:type "object"}
               {:type (find-root-type (:type attr-type))}))
           {:type (find-root-type attr-type)})
-        required (if is-map
-                   (not (:optional attr-type))
-                   true)]
+        required (cond
+                   is-map
+                   (not (or (:optional attr-type) (:default attr-type)))
+
+                   (= :Identity attr-type)
+                   false
+
+                   :else true)]
     [spec required]))
 
 (defn- attribute-to-property [event-name [attr-name attr-type]]
@@ -67,24 +72,33 @@
                        " to an appropriate tool-type")))
     [(name attr-name) tool-type required]))
 
-(defn event-to-tool [event-name]
-  (if-let [scm (raw/find-event event-name)]
-    (let [tool-name (event-name-as-function-name event-name)
-          props (mapv (partial attribute-to-property event-name) (dissoc scm :meta))]
+(defn- record-to-tool
+  ([find-schema rec-name docstring]
+   (if-let [scm (find-schema rec-name)]
+    (let [tool-name (record-name-as-function-name rec-name)
+          props (mapv (partial attribute-to-property rec-name) (dissoc scm :meta))]
       {:type "function"
        :function
        {:name tool-name
-        :description (or (cn/docstring event-name) tool-name)
+        :description (or docstring (cn/docstring rec-name) tool-name)
         :parameters
         {:type "object"
          :properties (into {} (mapv (comp vec (partial take 2)) props))
          :required (vec (mapv first (filter last props)))}}})
-    (log/warn (str "no schema found for event: " event-name))))
+    (log/warn (str "cannot generate tool, no schema found for - " rec-name))))
+  ([find-schema rec-name] (record-to-tool find-schema rec-name nil)))
+
+(def event-to-tool (partial record-to-tool raw/find-event))
+
+(defn entity-to-tool [entity-name]
+  (record-to-tool raw/find-entity entity-name (str "Create an instance of " entity-name)))
 
 (defn all-tools-for-component [component]
-  (us/nonils (mapv event-to-tool (cn/event-names component))))
+  (let [event-tools (mapv event-to-tool (cn/event-names component))
+        entity-tools (mapv entity-to-tool (cn/entity-names component))]
+    (u/pretty-trace (vec (us/nonils (concat event-tools entity-tools))))))
 
 (defn tool-call-to-pattern [tool-call]
   (if-let [{fname "name" args "arguments"} (get tool-call "function")]
-    {(function-name-as-event-name fname) (json/decode args)}
+    {(function-name-as-record-name fname) (json/decode args)}
     (u/throw-ex (str "Invalid tool-call: " tool-call))))
