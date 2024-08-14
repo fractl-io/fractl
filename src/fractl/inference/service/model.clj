@@ -15,7 +15,7 @@
 (component :Fractl.Inference.Service)
 
 (def ^:private doc-scheme-handlers {"file" slurp})
-(def ^:private doc-schems (keys doc-scheme-handlers))
+(def ^:private doc-schemes (keys doc-scheme-handlers))
 (def ^:private scheme-suffix "://")
 
 (defn- document-resource-scheme [s]
@@ -31,7 +31,7 @@
   (when-let [idx (s/index-of s scheme-suffix)]
     (subs s (+ idx 3))))
 
-(defn read-doument-resource [uri]
+(defn read-document-resource [uri]
   (when-let [h (get doc-scheme-handlers (document-resource-scheme uri))]
     (h (document-resource-name uri))))
 
