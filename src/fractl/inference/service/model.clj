@@ -1,5 +1,6 @@
 (ns fractl.inference.service.model
-  (:require [fractl.lang :refer [component
+  (:require [clojure.string :as s]
+            [fractl.lang :refer [component
                                  dataflow
                                  entity
                                  event
@@ -13,13 +14,35 @@
 
 (component :Fractl.Inference.Service)
 
+(def ^:private doc-scheme-handlers {"file" slurp})
+(def ^:private doc-schems (keys doc-scheme-handlers))
+(def ^:private scheme-suffix "://")
+
+(defn- document-resource-scheme [s]
+  (when-let [idx (s/index-of s scheme-suffix)]
+    (subs s 0 idx)))
+
+(defn- document-uri? [s]
+  (and (string? s)
+       (when-let [scm (document-resource-scheme s)]
+         (some #{s} doc-schemes))))
+
+(defn- document-resource-name [s]
+  (when-let [idx (s/index-of s scheme-suffix)]
+    (subs s (+ idx 3))))
+
+(defn read-doument-resource [uri]
+  (when-let [h (get doc-scheme-handlers (document-resource-scheme uri))]
+    (h (document-resource-name uri))))
+
 (entity
- :Fractl.Inference.Service/DocChunk
+ :Fractl.Inference.Service/Document
  {:Id {:type :UUID :default u/uuid-string :guid true}
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :Agent {:type :String :optional true}
+  :Uri {:check document-uri?}
   :Title :String
-  :Content :Any})
+  :Content '(fractl.inference.service.model/read-document-resource :Uri)})
 
 (defn- agent-messages? [xs]
   (if (seq xs)
@@ -116,8 +139,8 @@
  {:meta {:between [:Fractl.Inference.Service/Agent :Fractl.Inference.Service/Tool]}})
 
 (relationship
- :Fractl.Inference.Service/AgentDocChunk
- {:meta {:between [:Fractl.Inference.Service/Agent :Fractl.Inference.Service/DocChunk]}})
+ :Fractl.Inference.Service/AgentDocument
+ {:meta {:between [:Fractl.Inference.Service/Agent :Fractl.Inference.Service/Document]}})
 
 (dataflow
  :Fractl.Inference.Service/LLMsForAgent
@@ -133,17 +156,17 @@
    {:name? :%.Tool}}])
 
 (dataflow
- :Fractl.Inference.Service/HasAgentDocChunks
- {:Fractl.Inference.Service/AgentDocChunk
-  {:Agent? :Fractl.Inference.Service/HasAgentDocChunks.Agent}})
+ :Fractl.Inference.Service/HasAgentDocuments
+ {:Fractl.Inference.Service/AgentDocument
+  {:Agent? :Fractl.Inference.Service/HasAgentDocuments.Agent}})
 
 (dataflow
- :Fractl.Inference.Service/AgentDocChunks
- {:Fractl.Inference.Service/AgentDocChunk
-  {:Agent? :Fractl.Inference.Service/AgentDocChunks.Agent} :as :R}
+ :Fractl.Inference.Service/AgentDocuments
+ {:Fractl.Inference.Service/AgentDocument
+  {:Agent? :Fractl.Inference.Service/AgentDocuments.Agent} :as :R}
  [:for-each :R
-  {:Fractl.Inference.Service/DocChunk
-   {:Id? :%.DocChunk}}])
+  {:Fractl.Inference.Service/Document
+   {:Id? :%.Document}}])
 
 (defn- eval-event
   ([event callback atomic?]
@@ -194,8 +217,8 @@
   (let [docchunk (if (map? docchunk) docchunk (first docchunk))]
     (str (:Title docchunk) " " (:Content docchunk))))
 
-(def lookup-agent-docs (partial lookup-for-agent :Fractl.Inference.Service/AgentDocChunks normalize-docchunk))
-(def has-agent-docs? (partial lookup-for-agent :Fractl.Inference.Service/HasAgentDocChunks seq))
+(def lookup-agent-docs (partial lookup-for-agent :Fractl.Inference.Service/AgentDocuments normalize-docchunk))
+(def has-agent-docs? (partial lookup-for-agent :Fractl.Inference.Service/HasAgentDocuments seq))
 
 (defn lookup-agent-chat-session [agent-instance]
   (eval-event

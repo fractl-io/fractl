@@ -1,5 +1,5 @@
-Panasonic Lumix
-===============
+ABC Camera Manual
+=================
 
 Finely adjusting the white balance:
 -----------------------------------

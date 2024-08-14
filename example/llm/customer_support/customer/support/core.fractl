@@ -29,22 +29,22 @@
                         "camera manufacturer to answer these queries. "
                         "If you get a query on the pricing of camera gear, respond with the text: NA")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
- {:Fractl.Inference.Service/DocChunk
-  {:Title "Panasonic User Manual"
-   :Content (slurp "docs/panasonic_lumix.md")
+ {:Fractl.Inference.Service/Document
+  {:Title "ABC User Manual"
+   :Uri "file://./docs/abc.md"
    :Agent :Agent.Name}
   :as :Doc1}
- {:Fractl.Inference.Service/AgentDocChunk
+ {:Fractl.Inference.Service/AgentDocument
   {:Agent :Agent.Name
-   :DocChunk :Doc1.Id}}
- {:Fractl.Inference.Service/DocChunk
-  {:Title "Canon User Manual"
-   :Content (slurp "docs/canon.md")
+   :Document :Doc1.Id}}
+ {:Fractl.Inference.Service/Document
+  {:Title "XYZ User Manual"
+   :Uri "file://./docs/xyz.md"
    :Agent :Agent.Name}
   :as :Doc2}
- {:Fractl.Inference.Service/AgentDocChunk
+ {:Fractl.Inference.Service/AgentDocument
   {:Agent :Agent.Name
-   :DocChunk :Doc2.Id}}
+   :Document :Doc2.Id}}
  :Agent)
 
 (dataflow
@@ -64,20 +64,20 @@
                         "manufacturer to answer the query. If you get a technical question, "
                         "please respond with the simple text: NA")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
- {:Fractl.Inference.Service/DocChunk
-  {:Title "Panasonic Price List"
-   :Content "G9 - $850\nS5II - $2000"}
+ {:Fractl.Inference.Service/Document
+  {:Title "ABC Price List"
+   :Uri "file://./docs/abc_prices.md"}
   :as :Doc1}
- {:Fractl.Inference.Service/AgentDocChunk
+ {:Fractl.Inference.Service/AgentDocument
   {:Agent :Agent.Name
-   :DocChunk :Doc1.Id}}
- {:Fractl.Inference.Service/DocChunk
-  {:Title "Canon User Manual"
-   :Content "G7mIII - $350\nR5 - $500"}
+   :Document :Doc1.Id}}
+ {:Fractl.Inference.Service/Document
+  {:Title  "XYZ Price List"
+   :Uri "file://./docs/xyz_prices.md"}
   :as :Doc2}
- {:Fractl.Inference.Service/AgentDocChunk
+ {:Fractl.Inference.Service/AgentDocument
   {:Agent :Agent.Name
-   :DocChunk :Doc2.Id}}
+   :Document :Doc2.Id}}
  :Agent)
 
 (dataflow

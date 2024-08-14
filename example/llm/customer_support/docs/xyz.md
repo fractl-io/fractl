@@ -1,5 +1,5 @@
-Canon
-=====
+XYZ
+===
 
 Manually setting white balance:
 -------------------------------
