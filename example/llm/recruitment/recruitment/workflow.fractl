@@ -101,8 +101,8 @@
                         "and schedule interviews  with candidates with good experience.")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/AgentDelegate
-  {:Delegator "interview-scheduler-agent"
-   :Delegatee "summary-agent"
+  {:From "interview-scheduler-agent"
+   :To "summary-agent"
    :Preprocessor true}}
  :Agent)
 

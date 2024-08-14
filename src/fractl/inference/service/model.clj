@@ -51,7 +51,7 @@
  :Fractl.Inference.Service/AgentDelegate
  {:meta {:between [:Fractl.Inference.Service/Agent
                    :Fractl.Inference.Service/Agent
-                   :as [:Delegator :Delegatee]]}
+                   :as [:From :To]]}
   :Preprocessor {:type :Boolean :default false}})
 
 (defn concat-results [rs]
@@ -60,7 +60,7 @@
 (dataflow
  :Fractl.Inference.Service/FindAgentDelegates
  {:Fractl.Inference.Service/AgentDelegate
-  {:Delegator? :Fractl.Inference.Service/FindAgentDelegates.Agent
+  {:From? :Fractl.Inference.Service/FindAgentDelegates.Agent
    :Preprocessor? :Fractl.Inference.Service/FindAgentDelegates.Preprocessor}
   :as :Delegates}
  [:for-each :Delegates

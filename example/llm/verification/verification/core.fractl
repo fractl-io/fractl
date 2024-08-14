@@ -36,8 +36,8 @@
                         "in the below format: ANSWER is: <name>")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/AgentDelegate
-  {:Delegator "chain-of-thought-agent"
-   :Delegatee "verification-agent"}}
+  {:From "chain-of-thought-agent"
+   :To "verification-agent"}}
  :Agent)
 
 ;; Usage:

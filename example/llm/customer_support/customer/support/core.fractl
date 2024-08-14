@@ -96,11 +96,11 @@
                         "Analyse the user query and return only one of those strings.")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/AgentDelegate
-  {:Delegator "camera-support-agent"
-   :Delegatee "technical-support-agent"}}
+  {:From "camera-support-agent"
+   :To "technical-support-agent"}}
  {:Fractl.Inference.Service/AgentDelegate
-  {:Delegator "camera-support-agent"
-   :Delegatee "price-enquiry-agent"}}
+  {:From "camera-support-agent"
+   :To "price-enquiry-agent"}}
  :Agent)
 
 ;; Usage:

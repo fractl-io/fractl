@@ -35,8 +35,8 @@
                         "{:Expense.Workflow/Expense {:Title \"food\", :Amount 80}}]")}]]}
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/AgentDelegate
-  {:Delegator "expense-agent"
-   :Delegatee "receipt-ocr-agent"
+  {:From "expense-agent"
+   :To "receipt-ocr-agent"
    :Preprocessor true}}
  :Agent)
 
