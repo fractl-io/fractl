@@ -25,7 +25,7 @@
 (defn- document-uri? [s]
   (and (string? s)
        (when-let [scm (document-resource-scheme s)]
-         (some #{s} doc-schemes))))
+         (some #{scm} doc-schemes))))
 
 (defn- document-resource-name [s]
   (when-let [idx (s/index-of s scheme-suffix)]
@@ -88,7 +88,7 @@
   :as :Delegates}
  [:for-each :Delegates
   {:Fractl.Inference.Service/Agent
-   {:Name? :%.Delegatee}}
+   {:Name? :%.To}}
   :as :Rs]
  [:eval '(fractl.inference.service.model/concat-results :Rs)])
 

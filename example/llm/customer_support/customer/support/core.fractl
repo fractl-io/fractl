@@ -66,14 +66,14 @@
   :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
  {:Fractl.Inference.Service/Document
   {:Title "ABC Price List"
-   :Uri "file://./docs/abc_prices.md"}
+   :Uri "file://./docs/abc_prices.txt"}
   :as :Doc1}
  {:Fractl.Inference.Service/AgentDocument
   {:Agent :Agent.Name
    :Document :Doc1.Id}}
  {:Fractl.Inference.Service/Document
   {:Title  "XYZ Price List"
-   :Uri "file://./docs/xyz_prices.md"}
+   :Uri "file://./docs/xyz_prices.txt"}
   :as :Doc2}
  {:Fractl.Inference.Service/AgentDocument
   {:Agent :Agent.Name

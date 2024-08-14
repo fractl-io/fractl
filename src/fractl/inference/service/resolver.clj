@@ -9,7 +9,7 @@
             [fractl.inference.service.logic :as logic]))
 
 (def ^:private create-handlers
-  {:DocChunk (partial logic/handle-doc-chunk :add)})
+  {:Document (partial logic/handle-doc-chunk :add)})
 
 (defn- get-handler [handlers instance]
   (let [[_ n] (li/split-path (cn/instance-type instance))]
@@ -26,7 +26,7 @@
 (def ^:private resolver-create (partial resolver-crud :create create-handlers))
 
 (defn register-resolver []
-  (let [ents [:Fractl.Inference.Service/DocChunk]]
+  (let [ents [:Fractl.Inference.Service/Document]]
     (rg/register-resolver-type
      :inference
       (fn [_ _]
