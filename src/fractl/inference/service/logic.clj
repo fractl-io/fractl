@@ -1,21 +1,32 @@
 (ns fractl.inference.service.logic
   (:require [clojure.edn :as edn]
             [clojure.string :as s]
-            [fractl.component :as fc]
+            [fractl.component :as cn]
             [fractl.util :as u]
             [fractl.util.logger :as log]
+            [fractl.datafmt.json :as json]
             [fractl.global-state :as gs]
+            [fractl.evaluator :as e]
+            [fractl.inference.provider :as provider]
+            [fractl.inference.provider.core :as p]
             [fractl.inference.embeddings.core :as ec]
+            [fractl.inference.service.model :as model]
+            [fractl.inference.service.tools :as tools]
             [fractl.inference.service.lib.agent :as agent]
             [fractl.inference.service.lib.prompt :as prompt])
   (:import (clojure.lang ExceptionInfo)))
 
+(def ^:private generic-agent-handler (atom nil))
+
+(defn set-generic-agent-handler! [f]
+  (reset! generic-agent-handler f))
+
 (defn handle-doc-chunk [operation instance]
   (when (= :add operation)
-    (let [doc-chunk (fc/instance-attributes instance)
+    (let [doc-chunk (cn/instance-attributes instance)
           app-uuid (:AppUuid doc-chunk)
-          doc-name (:DocName doc-chunk)
-          chunk-text (:DocChunk doc-chunk)]
+          doc-name (:Title doc-chunk)
+          chunk-text (:Content doc-chunk)]
       (log/debug (u/pretty-str "Ingesting doc chunk" doc-chunk))
       (ec/embed-document-chunk app-uuid doc-chunk)
       instance)))
@@ -29,34 +40,6 @@
   (let [[app-uuid tag type] (s/split (:Id instance) #"__")]
     {:app-uuid app-uuid :tag tag :type type}))
 
-(defn handle-planner-tool [operation instance]
-  (let [planner-tool (fc/instance-attributes instance)
-        app-uuid (:AppUuid planner-tool)
-        tool-name (:ToolName planner-tool)
-        tool-spec (when-let [tspec (:ToolSpec planner-tool)]
-                    (-> tspec
-                        (update :df-patterns edn/read-string)))
-        tag (:Tag planner-tool)
-        type (:Type planner-tool)
-        meta-content (:MetaContent planner-tool)]
-    (log/debug (u/pretty-str "Ingesting planner tool" planner-tool))
-    (if (or (and (nil? tool-name)
-                 (nil? tool-spec))
-            (= tag 'component))
-      (log/info (u/pretty-str "Ignoring insertion of component for now..."))
-      (case operation
-        :add (do (ec/update-tool {:app-uuid app-uuid
-                                  :tool-spec (-> tool-spec
-                                                 (assoc :tool-name tool-name))
-                                  :meta-content meta-content
-                                  :tag tag
-                                  :type type})
-                 (assoc-tool-id instance))
-        :delete (let [args (parse-tool-id instance)]
-                  (ec/delete-tool args))
-        (throw (ex-info "Expected operation :add or :delete" {:operation operation}))))
-    instance))
-
 (defn answer-question [app-uuid question-text
                        qcontext {:keys [use-docs?
                                         use-schema?]
@@ -66,7 +49,7 @@
                     :background qcontext
                     :use-docs? use-docs?
                     :app-uuid app-uuid
-                    :agent-config (:config agent-config)}]
+                    :agent-config agent-config}]
     (try
       (if use-schema?
         (-> (agent/make-planner-agent agent-args)
@@ -84,10 +67,10 @@
         (log/error e)
         {:errormsg (.getMessage e)}))))
 
-(defn answer-question-analyze [app-uuid question-text qcontext options]
+(defn answer-question-analyze [question-text qcontext agent-config]
   (let [agent-args (merge {:user-statement question-text
                            :payload qcontext}
-                          (:config options))]
+                          agent-config)]
     (try
       (-> (agent/make-analyzer-agent agent-args)
           (apply [agent-args])
@@ -101,21 +84,162 @@
         (log/error e)
         {:errormsg (.getMessage e)}))))
 
-(defn handle-app-question [operation instance]
-  (if (= :add operation)
-    (let [app-uuid (:AppUuid instance)
-          question (:Question instance)
-          qcontext (:QuestionContext instance)
-          in-event (when-let [inference-event (first (:inference-event qcontext))]
-                     (val inference-event))
-          agent-config (:AgentConfig instance)
-          options {:use-schema? (get-in instance [:QuestionOptions :UseSchema])
-                   :use-docs? (get-in instance [:QuestionOptions :UseDocs])}
-          response (if-not (:is-planner? (:config agent-config))
-                     (answer-question-analyze app-uuid question (or qcontext {})
-                                              (merge options agent-config))
-                     (answer-question app-uuid question (or qcontext {}) options agent-config))]
-      (assoc instance
-             :QuestionContext {} ; empty :QuestionContext to avoid entity-name conflict
-             :QuestionResponse (pr-str response)))
-    instance))
+(defn- log-trigger-agent! [instance]
+  (log/info (str "Triggering " (:Type instance) " agent - " (u/pretty-str instance))))
+
+(defn handle-planner-agent-deperecated [instance]
+  (log-trigger-agent! instance)
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(let [app-uuid (:AppUuid instance)
+          question (:UserInstruction instance)
+          qcontext (:Context instance)
+          agent-config {:is-planner? true
+                        :tools (model/lookup-agent-tools instance)
+                        :docs "" ; TODO: lookup agent docs
+                        :make-prompt (when-let [pfn (:PromptFn instance)]
+                                       (partial pfn instance))}
+          options {:use-schema? true :use-docs? true}]
+      (answer-question app-uuid question (or qcontext {}) options agent-config))))
+
+(defn- verify-analyzer-extension [ext]
+  (when ext
+    (when-not (u/keys-in-set? ext #{:Comment :OutputEntityType
+                                    :OutputAttributes :OutputAttributeValues})
+      (u/throw-ex (str "Invalid keys in analyzer agent extension")))
+    ext))
+
+(defn handle-analysis-agent [instance]
+  (log-trigger-agent! instance)
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(let [question (:UserInstruction instance)
+          qcontext (:Context instance)
+          ext (verify-analyzer-extension (:Extension instance))
+          out-type (:OutputEntityType ext)
+          out-scm (cn/ensure-schema out-type)
+          pfn (:PromptFn instance)
+          agent-config
+          (assoc
+           (if pfn
+             {:make-prompt (partial pfn instance)}
+             {:information-type (:Comment ext)
+              :output-keys (or (:OutputAttributes ext)
+                               (vec (cn/user-attribute-names out-scm)))
+              :output-key-values (or (:OutputAttributeValues ext)
+                                     (cn/schema-as-string out-scm))})
+           :result-entity out-type)]
+      (answer-question-analyze question (or qcontext {}) agent-config))))
+
+(defn- format-as-agent-response [agent-instance result]
+  ;; TODO: response parsing should also move to agent-registry,
+  ;; one handler will be needed for each type of agent.
+  (log/debug (str "### " (:Name agent-instance) "\n\n" result))
+  (if-let [response
+           (cond
+             (string? result) result
+             (map? result) (first (:Response result))
+             (vector? result) (first result))]
+    response
+    result))
+
+(def ^:private agent-prefix "agent:")
+(def ^:private agent-prefix-len (count agent-prefix))
+
+(defn- agent-filter-response [s]
+  (when-let [idx (s/index-of s agent-prefix)]
+    (s/trim (subs s (+ idx agent-prefix-len)))))
+
+(defn- respond-with-agent [agent-name agents user-instruction]
+  (if-let [agent (first (filter #(= agent-name (:Name %)) agents))]
+    (:Response (@generic-agent-handler (assoc agent :UserInstruction user-instruction)))
+    [(str "No delegate with name " agent-name) nil]))
+
+(defn- compose-agents [agent-instance result]
+  (if (vector? result)
+    (let [[response model-info] result
+          delegates (model/find-agent-post-delegates agent-instance)
+          ins (:UserInstruction agent-instance)]
+      (log/debug (str "Response from agent " (:Name agent-instance) " - " response))
+      (if-let [agent-name (agent-filter-response response)]
+        (respond-with-agent agent-name delegates ins)
+        (if (seq delegates)
+          (let [n (:Name agent-instance)
+                ins (str "Instruction for agent " n " was ### " ins " ### "
+                         "The response from " n " is ### " response " ###")
+                rs (mapv #(format-as-agent-response % (@generic-agent-handler (assoc % :UserInstruction ins))) delegates)]
+            [(apply str rs) model-info])
+          result)))
+    result))
+
+(defn- update-delegate-user-instruction [delegate agent-instance]
+  (if (= "ocr" (:Type delegate))
+    (assoc delegate :Context (:Context agent-instance))
+    (assoc delegate
+           :Context (:Context agent-instance)
+           :UserInstruction (str (or (:UserInstruction delegate) "")
+                                 "\n"
+                                 (:UserInstruction agent-instance)))))
+
+(defn- call-preprocess-agents [agent-instance]
+  (when-let [delegates (seq (model/find-agent-pre-delegates agent-instance))]
+    (let [d (first delegates)
+          [response model-info]
+          (:Response (@generic-agent-handler (update-delegate-user-instruction d agent-instance)))]
+      (log/debug (str "Response from pre-processor agent " (:Name d) "using llm " model-info " - " response))
+      response)))
+
+(defn- maybe-add-docs [docs user-ins]
+  (if (seq docs)
+    (str user-ins "\n Make use of the following knowledge-base:\n" (json/encode docs))
+    user-ins))
+
+(def ^:private agent-documents-limit 20)
+
+(defn- maybe-lookup-agent-docs [agent-instance]
+  (when (model/has-agent-docs? agent-instance)
+    (let [embedding (provider/get-embedding {:text-content
+                                             (json/encode {:Agent (:Name agent-instance)
+                                                           :Content (:UserInstruction agent-instance)})})]
+      (ec/find-similar-objects
+       {:classname (ec/get-document-classname (:AppUuid agent-instance))
+        :embedding embedding}
+       agent-documents-limit))))
+
+(defn handle-chat-agent [instance]
+  (log-trigger-agent! instance)
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(let [ins (:UserInstruction instance)
+          docs (maybe-lookup-agent-docs instance)
+          preprocessed-instruction (call-preprocess-agents instance)
+          final-instruction (maybe-add-docs docs (or preprocessed-instruction ins))
+          instance (assoc instance :UserInstruction final-instruction)]
+      (compose-agents instance (provider/make-completion instance)))))
+
+(defn- maybe-eval-patterns [[response _]]
+  (if (string? response)
+    (if-let [pats
+             (let [exp (read-string response)]
+               (cond
+                 (vector? exp) exp
+                 (map? exp) [exp]))]
+      (mapv e/safe-eval-pattern pats)
+      response)
+    response))
+
+(defn handle-eval-agent [instance]
+  (maybe-eval-patterns (handle-chat-agent instance)))
+
+(defn handle-planner-agent [instance]
+  (log-trigger-agent! instance)
+  (let [tools (vec (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance))))
+        [result model-name] (handle-chat-agent (assoc instance :tools tools))
+        _ (log/info (str "Planner raw result: " result))
+        patterns (mapv tools/tool-call-to-pattern result)]
+    [(mapv e/safe-eval-pattern patterns) model-name]))
+
+(defn handle-ocr-agent [instance]
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(provider/make-ocr-completion instance)))

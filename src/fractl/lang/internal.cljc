@@ -7,6 +7,7 @@
                [cljs.js :refer [eval empty-state js-eval]])))
 
 (def id-attr :__Id__)
+(def id-attr? :__Id__?)
 (def with-types-tag :with-types)
 
 (def path-attr :__path__)
@@ -53,8 +54,10 @@
                    :offset :join :left-join
                    :right-join :desc])
 (def oprs (concat query-cmpr-oprs sql-keywords [:not :and :or :between :in]))
+
 (def macro-names #{:match :try :throws :rethrow-after :for-each :delete
                    :query :await :entity :eval :?})
+
 (def property-names #{:meta :ui :rbac})
 
 (defn operator? [x]
@@ -120,6 +123,9 @@
 (defn unquoted? [x]
   (and (vector? x)
        (= unquote-tag (first x))))
+
+(defn as-quoted [x]
+  [quote-tag x])
 
 (defn special-form? [x]
   (and (vector? x)

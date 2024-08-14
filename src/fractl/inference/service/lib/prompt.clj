@@ -42,14 +42,14 @@ may have the following values:
   [{:keys [information-type
            user-statement
            output-keys
-           output-keys-values
+           output-key-values
            payload] :as arg}]
   (let [system-message (make-system-message (stringer/nrender analyze-as-json-template
                                                               {:information-type  information-type
                                                                :delimiter         analyze-delimiter
                                                                :user-statement    user-statement
                                                                :output-keys       (json/generate-string output-keys)
-                                                               :output-key-values output-keys-values}))
+                                                               :output-key-values output-key-values}))
         user-message (make-user-message (stringer/nrender "{delimiter}{user-question}{delimiter}"
                                                           {:delimiter analyze-delimiter
                                                            :user-question (json/generate-string payload)}))]

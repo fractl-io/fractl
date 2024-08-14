@@ -1,5 +1,6 @@
 (ns fractl.util
   (:require [clojure.string :as string]
+            [clojure.set :as set]
             [clojure.pprint :as pp]
             [clojure.walk :as walk]
             #?(:clj [clojure.java.io :as io])
@@ -385,7 +386,7 @@
          (.setWorkingDirectory executor (if (string? path) (File. path) path))
          (zero? (.execute executor cmd-line))))
 
-     (defn read-env-var [x]
+     (defn- read-env-var-helper [x]
        (let [v
              (cond
                (symbol? x)
@@ -399,9 +400,13 @@
                      :else s)))
 
                (vector? x)
-               (first (filter identity (mapv read-env-var x)))
+               (first (filter identity (mapv read-env-var-helper x)))
 
                :else x)]
+         v))
+
+     (defn read-env-var [x]
+       (let [v (read-env-var-helper x)]
          (when (not v)
            (throw-ex (str "Environment variable " x " is not set.")))
          v))
@@ -442,3 +447,9 @@
        (catch MalformedURLException _
          false))
      :cljs (string? u))) ; TODO: implement format check in cljs.
+
+(defn keys-in-set?
+  "Return true if a-map contains keys only from the expected-keys set.
+  Not all keys are mandatory, and a-map may be empty."
+  [a-map expected-keys]
+  (= (set/union expected-keys (keys a-map)) expected-keys))

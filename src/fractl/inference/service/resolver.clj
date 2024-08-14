@@ -1,5 +1,6 @@
 (ns fractl.inference.service.resolver
   (:require [clojure.pprint :as pp]
+            [fractl.util :as u]
             [fractl.util.logger :as log]
             [fractl.component :as cn]
             [fractl.resolver.core :as r]
@@ -8,12 +9,7 @@
             [fractl.inference.service.logic :as logic]))
 
 (def ^:private create-handlers
-  {:DocChunk (partial logic/handle-doc-chunk :add)
-   :PlannerTool (partial logic/handle-planner-tool :add)
-   :Question (partial logic/handle-app-question :add)})
-
-(def ^:private delete-handlers
-  {:PlannerTool (partial logic/handle-planner-tool :delete)})
+  {:Document (partial logic/handle-doc-chunk :add)})
 
 (defn- get-handler [handlers instance]
   (let [[_ n] (li/split-path (cn/instance-type instance))]
@@ -28,18 +24,17 @@
     (log/warn (str "Cannot " (name operation) " " (cn/instance-type instance)))))
 
 (def ^:private resolver-create (partial resolver-crud :create create-handlers))
-(def ^:private resolver-delete (partial resolver-crud :delete delete-handlers))
 
 (defn register-resolver []
-  (let [ents (seq (cn/entity-names :Fractl.Inference.Service))]
+  (let [ents [:Fractl.Inference.Service/Document]]
     (rg/register-resolver-type
-      :inference
+     :inference
       (fn [_ _]
         (r/make-resolver
-          :inference
-          {:create resolver-create
-           :delete resolver-delete})))
+         :inference
+         {:create resolver-create})))
     (rg/register-resolver
      {:name :inference
-       :type :inference
-       :paths ents})))
+      :type :inference
+      :compose? true
+      :paths ents})))

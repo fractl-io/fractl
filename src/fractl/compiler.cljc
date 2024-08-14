@@ -1147,8 +1147,8 @@
 (defn- add-between-refs [relattrs relmeta [from-recname from-alias] [to-recname to-alias]]
   (let [[a1 a2] (li/between-nodenames from-recname to-recname relmeta)
         ids (name li/id-attr)
-        f #(keyword (str (name %) "." ids))]
-    (assoc relattrs a1 (f from-alias) a2 (f to-alias))))
+        f #(keyword (str (name %2) "." (name (cn/identity-attribute-name %1))))]
+    (assoc relattrs a1 (f from-recname from-alias) a2 (f to-recname to-alias))))
 
 (defn- preproc-between-spec [pat pat-alias relpat nodepat idpat]
   (when-not (li/query-instance-pattern? relpat)

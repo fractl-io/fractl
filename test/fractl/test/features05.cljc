@@ -358,16 +358,6 @@
       (is (b? b2))
       (is (= 1 (li/parent-attr b2))))))
 
-(deftest run-inference
-  (binding [i/mock-ai true]
-    (defcomponent :RI
-      (event :RI/Evt {:X :Int}) ; defining event is optional, just like for dataflows.
-      (inference :RI/Evt {:instructions '(str "event raised with x as: " :RI/Evt.X)}))
-    (let [result (tu/result {:RI/Evt {:X 100}})
-          attrs (li/record-attributes result)]
-      (is (= (:Question attrs) "event raised with x as: 100"))
-      (is (cn/instance-of? :RI/Evt (:inference-event (:QuestionContext attrs)))))))
-
 (deftest issue-1377-pattern-doc
   (defcomponent :I1377
     (entity :I1377/E {:X :Int})

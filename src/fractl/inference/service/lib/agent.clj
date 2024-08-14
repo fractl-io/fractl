@@ -1,6 +1,7 @@
 (ns fractl.inference.service.lib.agent
   (:require [clojure.set :as set]
             [clojure.walk :as walk]
+            [fractl.util :as u]
             [fractl.inference.provider :as provider]
             [fractl.inference.service.lib.compose :as compose]
             [fractl.inference.service.lib.prompt :as prompt]
@@ -55,7 +56,7 @@
                    (compose/assok :embedding provider/get-embedding) ; needs :text-content
                    (compose/assok
                     :all-tools
-                    #(or (:tools agent-config) (retriever/retrieve-tools %))) ; needs :app-uuid and embedding
+                    #(u/trace (or (:tools agent-config) (retriever/retrieve-tools %)))) ; needs :app-uuid and embedding
                    (if (:use-docs? options)
                      (compose/assok :all-docs #(or (:docs agent-config) (retriever/retrieve-docs %)))
                      identity)
@@ -64,17 +65,15 @@
                    planner-core
                    (fn [m] (select-keys m [:answer-text :patterns])))))
 
-
 (defn make-analyzer-agent
   [options]
   (let [{:keys [max-retries]
          :or {max-retries 2}} options
         entity-name (:result-entity options)
-        json->entity (fn [m] {entity-name (walk/keywordize-keys m)})
-        agent-config (:config (:agent-config options))]
+        json->entity (fn [m] {entity-name (walk/keywordize-keys m)})]
     (compose/chain {:chain-name "ANALYZER-AGENT"}
                    ;;(fn [m] (assoc m :payload (:event m)))
-                   (compose/assok :messages (or (:make-prompt agent-config) prompt/make-analyze-as-json-prompt))
+                   (compose/assok :messages (or (:make-prompt options) prompt/make-analyze-as-json-prompt))
                    (compose/assok :answer-text provider/get-completion)
                    (compose/assok :answer-json (compose/applyk output/json-parser :answer-text))
                    (compose/assok :answer-entity (compose/applyk json->entity :answer-json))

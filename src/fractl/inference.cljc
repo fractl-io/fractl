@@ -1,5 +1,6 @@
 (ns fractl.inference
   (:require [clojure.edn :as edn]
+            [clojure.string :as s]
             [fractl.lang :as ln]
             [fractl.lang.internal :as li]
             [fractl.env :as env]
@@ -9,6 +10,7 @@
             #?(:clj [fractl.util.logger :as log]
                :cljs [fractl.util.jslogger :as log])
             [fractl.util.http :as uh]
+            [fractl.inference.service.agent-registry :as ar]
             [fractl.inference.service.core :as inference]))
 
 (defn as-vec [x]
@@ -16,67 +18,45 @@
     x
     [x]))
 
+(defn- can-eval? [r]
+  (not (string? r)))
+
 (defn- eval-patterns [fractl-patterns context-event]
-  (let [env (env/bind-instance env/EMPTY context-event)]
-    (loop [pats (as-vec fractl-patterns), env env, result nil]
-      (if-let [p (first pats)]
-        (let [r (ev/evaluate-pattern env p)]
-          (if (u/safe-ok-result r)
-            (recur (rest pats) (:env r) r)
-            (do (log/error (str "inferred-pattern " p " failed with result " r))
-                r)))
-        (do (log/info (str "inference succeeded with result " result))
-            result)))))
+  (if (can-eval? fractl-patterns)
+    (let [env (env/bind-instance env/EMPTY context-event)]
+      (loop [pats (as-vec fractl-patterns), env env, result nil]
+        (if-let [p (first pats)]
+          (let [r (ev/evaluate-pattern env p)]
+            (if (u/safe-ok-result r)
+              (recur (rest pats) (:env r) r)
+              (do (log/error (str "inferred-pattern " p " failed with result " r))
+                  r)))
+          (do (log/info (str "inference succeeded with result " result))
+              result))))
+    fractl-patterns))
 
-(def ^:dynamic mock-ai false)
-
-(defn run-inference
-  ([service-url {appid :app-id chatid :chat-id
-                 use-docs :use-docs use-schema :use-schema
-                 :or {use-docs true
-                      use-schema true}}
-    question context]
-   (when-not question
-     (u/throw-ex "inference cannot run without a question"))
-   (let [r0 {:AppUuid (or appid (u/get-app-uuid))
-             :ChatUuid (or chatid (u/uuid-string))
-             :AgentConfig (:agent-config context)
-             :QuestionOptions {:UseDocs use-docs
-                               :UseSchema use-schema}
-             :Question question}
-         is-planner (get-in context [:agent-config :config :is-planner?])
-         r (if context
-             (assoc r0 :QuestionContext
-                    (if is-planner (dissoc context :agent-config) context))
-               r0)
-         is-review-mode (when (map? context) (get-in context [:EventContext :evaluate-inferred-patterns]))
-         req {:Fractl.Inference.Service/Question r}
-         provider (get-in context [:agent-config :config :provider])
-         out (if mock-ai
-               [{:result [req]}]
-               (inference/post-question provider req))
-         result (-> out
-                    first
-                    :result
-                    first)]
-     (if mock-ai
-       result
-       (let [result (or (:QuestionResponse result) result)
-             result (if (string? result) (edn/read-string result) result)]
-         (if-let [patterns (:patterns result)]
-           (if is-review-mode
-             patterns
-             (eval-patterns patterns (:inference-event context)))
-           (u/throw-ex (:errormsg result)))))))
-  ([question] (run-inference nil nil question nil))
-  ([question context] (run-inference nil nil question context))  
-  ([request question context] (run-inference nil request question context)))
-
-(defn run-inference-for-event [question agent-config event-instance]
-  (let [agent-config (cond
-                       (map? agent-config) agent-config
-                       (li/quoted? agent-config) (second agent-config))]
-    (when (and agent-config (not (map? agent-config)))
-      (u/throw-ex (str "invalid agent config: " agent-config)))
-    (run-inference question {:inference-event event-instance
-                             :agent-config agent-config})))
+(defn run-inference-for-event
+  ([event instructions agent-instance]
+   (log/info (str "Processing response for inference " (cn/instance-type event)
+                  " - " (u/pretty-str agent-instance)))
+   (let [agent-instance
+         (ar/handle-generic-agent (assoc agent-instance :UserInstruction
+                                         (s/trim
+                                          (str (or (:UserInstruction agent-instance) "")
+                                               "\n"
+                                               (or instructions "")
+                                               "\n"
+                                               (or (get-in agent-instance [:Context :UserInstruction]) "")))))
+         r0 (or (:Response agent-instance) agent-instance)
+         r1 (if (string? r0) (edn/read-string r0) r0)
+         result (if-let [f (:ResponseHandler agent-instance)] (f r1) r1)
+         is-review-mode (get-in event [:EventContext :evaluate-inferred-patterns])]
+     (if-let [patterns (:patterns result)]
+       (if is-review-mode
+         patterns
+         (eval-patterns patterns event))
+       (if-let [errmsg (:errormsg result)]
+         (u/throw-ex errmsg)
+         result))))
+  ([agent-instance]
+   (run-inference-for-event (:Context agent-instance) agent-instance)))
