@@ -16,6 +16,9 @@
 (defn- function-name-as-record-name [fname]
   (keyword (s/replace (s/replace fname "__p__" ".") "__" "/")))
 
+(def ^:private string-types #{"uuid" "datetime" "email" "date" "time"})
+(def ^:private number-types #{"double" "float" "decimal" "int" "int64" "biginteger"})
+
 (defn- find-root-type [attr-type]
   (let [s
         (case attr-type
@@ -33,8 +36,8 @@
     ;; TODO: check the root-type keyword and return the appropriate type.
     ;; Do not compare strings.
     (cond
-      (or (= s "uuid") (= s "datetime")) "string"
-      (or (= s "double") (= s "float") (= s "int")) "number"
+      (some #{s} string-types) "string"
+      (some #{s} number-types) "number"
       :else s)))
 
 (defn- as-tool-type [attr-type]
@@ -96,9 +99,18 @@
 (defn all-tools-for-component [component]
   (let [event-tools (mapv event-to-tool (cn/event-names component))
         entity-tools (mapv entity-to-tool (cn/entity-names component))]
-    (u/pretty-trace (vec (us/nonils (concat event-tools entity-tools))))))
+    (vec (us/nonils (concat event-tools entity-tools)))))
+
+(defn- maybe-dissoc-attributes-with-defaults [recname attrs]
+  (if-let [scm (or (raw/find-event recname) (raw/find-entity recname))]
+    (if-let [anames (seq (map first (filter (fn [[k v]] (or (= v :Now) (= v :Identity))) scm)))]
+      (apply dissoc attrs anames)
+      attrs)
+    attrs))
 
 (defn tool-call-to-pattern [tool-call]
   (if-let [{fname "name" args "arguments"} (get tool-call "function")]
-    {(function-name-as-record-name fname) (json/decode args)}
+    (let [recname (function-name-as-record-name fname)
+          attrs (maybe-dissoc-attributes-with-defaults recname (json/decode args))]
+      {recname attrs})
     (u/throw-ex (str "Invalid tool-call: " tool-call))))

@@ -51,21 +51,21 @@
         [obj nil nil])
       [obj nil nil])))
 
-(defn make-completion [agent-spec]
-  (let [[spec agent-inst chat-session] (maybe-agent-to-spec agent-spec)
+(defn make-completion [agent-instance]
+  (let [[spec agent-inst chat-session] (maybe-agent-to-spec agent-instance)
         msgs (:messages spec)
         result (make-provider-request p/make-completion spec)]
-    (when (and chat-session (seq msgs))
+    (when (and chat-session (:CacheChatSession agent-instance) (seq msgs))
       (model/update-agent-chat-session
        chat-session
        (vec (concat msgs [{:role :assistant :content (first result)}]))))
     result))
 
-(defn make-ocr-completion [agent-spec]
+(defn make-ocr-completion [agent-instance]
   (make-provider-request
    p/make-ocr-completion
-   {:user-instruction (:UserInstruction agent-spec)
-    :image-url (get-in agent-spec [:Context :UserInstruction])}))
+   {:user-instruction (:UserInstruction agent-instance)
+    :image-url (get-in agent-instance [:Context :UserInstruction])}))
 
 (def get-embedding (comp first make-embedding))
 (def get-completion (comp first make-completion))
