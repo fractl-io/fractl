@@ -1,10 +1,10 @@
 {:name :banklib
  :version "0.0.2"
- :fractl-version "current"
+ :agentlang-version "current"
  :components [:Banklib.Core]
- :repositories [["github" {:url "https://maven.pkg.github.com/fractl-dev/banking"
+ :repositories [["github" {:url "https://maven.pkg.github.com/agentlang-dev/banking"
                            ;; NOTE^ a repository named "banking" should be already
-                           ;; existing under the fractl-dev org. Otherwise, the package
+                           ;; existing under the agentlang-dev org. Otherwise, the package
                            ;; may fail to upload.
 
                            :username "private-token"

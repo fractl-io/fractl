@@ -14,5 +14,5 @@
   :Y '(tiny-f :X)})
 
 (dataflow
- :Fractl.Kernel.Identity/PostSignUp
+ :Agentlang.Kernel.Identity/PostSignUp
  {:A {:X 200}})

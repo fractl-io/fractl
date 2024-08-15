@@ -1,19 +1,19 @@
-(ns fractl.test.fixes01
+(ns agentlang.test.fixes01
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.string :as s]
-            [fractl.component :as cn]
-            [fractl.util :as u]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.util :as u]
+            [agentlang.lang
              :refer [component attribute event
                      entity record dataflow relationship]]
-            [fractl.evaluator :as e]
-            [fractl.lang.datetime :as dt]
-            [fractl.lang.raw :as raw]
-            [fractl.lang.internal :as li]
-            [fractl.compiler.rule :as rule]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.evaluator :as e]
+            [agentlang.lang.datetime :as dt]
+            [agentlang.lang.raw :as raw]
+            [agentlang.lang.internal :as li]
+            [agentlang.compiler.rule :as rule]
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest issue-195
   (#?(:clj do
@@ -27,9 +27,9 @@
                {:I195/E1 {:A '(+ 5 :B)
                           :B 10
                           :C '(+ 10 :A)
-                          :Y '(fractl.lang.datetime/now)}})
+                          :Y '(agentlang.lang.datetime/now)}})
      (entity {:I195/E2 {:Y :DateTime}})
-     (dataflow :I195/KK {:I195/E2 {:Y '(fractl.lang.datetime/now)}}))
+     (dataflow :I195/KK {:I195/E2 {:Y '(agentlang.lang.datetime/now)}}))
    (let [evt (cn/make-instance :I195/K {})
          r (first (tu/fresult (e/eval-all-dataflows evt)))]
      (is (cn/instance-of? :I195/E1 r))
@@ -282,7 +282,7 @@
    (dataflow
     :I231/E
     {:I231/R {:X :I231/E.X} :as :r}
-    [:eval '(fractl.test.fixes01/i231-extract-x :r) :as :x]
+    [:eval '(agentlang.test.fixes01/i231-extract-x :r) :as :x]
     [:match
      [:> :x 10] 1
      [:= :x 1] 2

@@ -1,14 +1,14 @@
-(ns fractl.test.features01
+(ns agentlang.test.features01
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
-            [fractl.component :as cn]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.lang
              :refer [component attribute event
                      entity record dataflow]]
-            [fractl.lang.syntax :as ls]
-            [fractl.evaluator :as e]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.lang.syntax :as ls]
+            [agentlang.evaluator :as e]
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest eval-block
   (#?(:clj do
@@ -527,7 +527,7 @@
     (is (= d (ls/introspect r)))))
 
 (deftest issue-637-eval
-  #_[:eval '(fractl.test.fixes03/i585-f1 :I585/E)
+  #_[:eval '(agentlang.test.fixes03/i585-f1 :I585/E)
      :check :I585/R :as :Result]
   (let [f (ls/introspect '(f :E))
         e (ls/_eval {ls/exp-tag f

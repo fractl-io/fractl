@@ -1,17 +1,17 @@
-(ns fractl.test.fixes02
+(ns agentlang.test.fixes02
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
-            [fractl.component :as cn]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.lang
              :refer [component attribute event
                      entity record dataflow inference]]
-            [fractl.lang.raw :as lr]
-            [fractl.evaluator :as e]
-            [fractl.lang.datetime :as dt]
+            [agentlang.lang.raw :as lr]
+            [agentlang.evaluator :as e]
+            [agentlang.lang.datetime :as dt]
             [clojure.java.io :as io]
-            #?(:clj [fractl.datafmt.csv :as csv])
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            #?(:clj [agentlang.datafmt.csv :as csv])
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest issue-352-datetime-index
   (#?(:clj do
@@ -105,9 +105,9 @@
          :Salary :Decimal})
        (dataflow
         :I358Csv01/ImportEmployees
-        {:Fractl.Kernel.Lang/DataSync
+        {:Agentlang.Kernel.Lang/DataSync
          {:Source
-          {:Fractl.Kernel.Lang/DataSource
+          {:Agentlang.Kernel.Lang/DataSource
            {:Uri "file://test/sample/emp.csv"
             :Entity "I358Csv01/Employee"
             :AttributeMapping
@@ -116,9 +116,9 @@
              "salary" "Salary"}}}}})
        (dataflow
         :I358Csv01/ExportEmployees
-        {:Fractl.Kernel.Lang/DataSync
+        {:Agentlang.Kernel.Lang/DataSync
          {:Source
-          {:Fractl.Kernel.Lang/DataSource
+          {:Agentlang.Kernel.Lang/DataSource
            {:Entity "I358Csv01/Employee"
             :AttributeMapping
             {"FirstName" "first_name"
@@ -402,9 +402,9 @@
 (defn- make-object [api-token]
   {:ApiToken api-token,
    :Email "testuser@ventur8.io",
-   :AuthDomain "fractl.us.auth0.com",
+   :AuthDomain "agentlang.us.auth0.com",
    cn/id-attr "8dd4b088-1e51-4efe-9385-018783b96eb4"
-   :-*-name-*- [:Fractl.Kernel :OAuthAnyRequest],
+   :-*-name-*- [:Agentlang.Kernel :OAuthAnyRequest],
    :UserName "testuser",
    :Password "P@s$w0rd123",
    :ClientSecret "DSiQSiVT7Sd0RJwxdQ4gCfjLUA495PjlVNKhkgB6yFgpH2rgt9kpRbxJLPOcAaXH",
@@ -461,7 +461,7 @@
      (dataflow
       :I450/Main
       {:I450/Evt {:Y 100} :as :R}
-      {:I450/E {:X '(fractl.test.fixes02/add-to-x :R 5)}}))
+      {:I450/E {:X '(agentlang.test.fixes02/add-to-x :R 5)}}))
    (let [r (tu/first-result
             {:I450/Main {}})]
      (is (cn/instance-of? :I450/E r))
@@ -661,10 +661,10 @@
                  :Data {:X x}}})))
     (dataflow
      :I1062/CreateE
-     [:eval '(fractl.test.fixes02/i1062f1 :I1062/CreateE.X)])
+     [:eval '(agentlang.test.fixes02/i1062f1 :I1062/CreateE.X)])
     (dataflow
      :I1062/UpdateE
-     [:eval '(fractl.test.fixes02/i1062f2 :I1062/UpdateE.Id :I1062/UpdateE.X)]))
+     [:eval '(agentlang.test.fixes02/i1062f2 :I1062/UpdateE.Id :I1062/UpdateE.X)]))
   (let [r (tu/result {:I1062/CreateE {:X 100}})
         res (fn [r] (first (:result (first @r))))
         e (res r)

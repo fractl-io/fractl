@@ -1,12 +1,12 @@
 (component
  :Github
- {:clj-import '[(:require [fractl.component :as cn]
-                          [fractl.util :as u]
-                          [fractl.global-state :as gs]
-                          [fractl.resolver.core :as r]
-                          [fractl.resolver.registry :as rg]
-                          [fractl.auth.oauth2 :as auth]
-                          [fractl.datafmt.json :as json])]})
+ {:clj-import '[(:require [agentlang.component :as cn]
+                          [agentlang.util :as u]
+                          [agentlang.global-state :as gs]
+                          [agentlang.resolver.core :as r]
+                          [agentlang.resolver.registry :as rg]
+                          [agentlang.auth.oauth2 :as auth]
+                          [agentlang.datafmt.json :as json])]})
 
 (entity :Issue {:Data :Any})
 
@@ -26,7 +26,7 @@
               auth/git-hub
               {:client-id (:client-id config)
                :client-secret (:client-secret config)
-               :callback (:callback "http://localhost:8000/fractl-test/callback")})]
+               :callback (:callback "http://localhost:8000/agentlang-test/callback")})]
     (when-not (auth/oauth2? auth)
       (u/throw-ex "Failed to initialize api"))
     (println (str "please go to " (auth/authorization-url auth) " to authorize the client."))

@@ -1,10 +1,10 @@
 (ns sample.library.catalog
   "Manage a list of books in the library"
-  (:use [fractl.lang]
-        [fractl.lang.datetime]
-        [fractl.lang.string]
-        [fractl.lang.b64])
-  (:require [fractl.component :as cn]))
+  (:use [agentlang.lang]
+        [agentlang.lang.datetime]
+        [agentlang.lang.string]
+        [agentlang.lang.b64])
+  (:require [agentlang.component :as cn]))
 
 (component :Test.Sample.Library.Catalog)
 

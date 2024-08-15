@@ -1,58 +1,58 @@
-(ns fractl.test.rbac
+(ns agentlang.test.rbac
   (:require #?(:clj  [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.string :as s]
-            [fractl.component :as cn]
-            [fractl.evaluator :as ev]
-            [fractl.auth]
-            [fractl.rbac.core :as rbac]
-            [fractl.paths.internal :as pi]
-            [fractl.lang.internal :as li]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.evaluator :as ev]
+            [agentlang.auth]
+            [agentlang.rbac.core :as rbac]
+            [agentlang.paths.internal :as pi]
+            [agentlang.lang.internal :as li]
+            [agentlang.lang
              :refer [component attribute event view
                      entity record relationship dataflow]]
-            #?(:clj  [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            #?(:clj  [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest role-management
   (defcomponent :RoleMgmt
     (dataflow
      :RoleMgmt/CreateUsers
-     {:Fractl.Kernel.Identity/User {:Email "abc@abc.com"}}
-     {:Fractl.Kernel.Identity/User {:Email "xyz@xyz.com"}})
+     {:Agentlang.Kernel.Identity/User {:Email "abc@abc.com"}}
+     {:Agentlang.Kernel.Identity/User {:Email "xyz@xyz.com"}})
     (dataflow
      :RoleMgmt/CreateRoles
-     {:Fractl.Kernel.Rbac/Role {:Name "r1"}}
-     {:Fractl.Kernel.Rbac/Role {:Name "r2"}})
+     {:Agentlang.Kernel.Rbac/Role {:Name "r1"}}
+     {:Agentlang.Kernel.Rbac/Role {:Name "r2"}})
     (dataflow
      :RoleMgmt/AssignPrivileges
-     {:Fractl.Kernel.Rbac/Privilege
+     {:Agentlang.Kernel.Rbac/Privilege
       {:Name "p1"
        :Actions [:q# [:read :create :update]]
        :Resource [:q# [:A :B]]}}
-     {:Fractl.Kernel.Rbac/Privilege
+     {:Agentlang.Kernel.Rbac/Privilege
       {:Name "p2"
        :Actions [:q# [:read]]
        :Resource [:q# [:C]]}}
-     {:Fractl.Kernel.Rbac/PrivilegeAssignment
+     {:Agentlang.Kernel.Rbac/PrivilegeAssignment
       {:Role "r1" :Privilege "p1"}}
-     {:Fractl.Kernel.Rbac/PrivilegeAssignment
+     {:Agentlang.Kernel.Rbac/PrivilegeAssignment
       {:Role "r1" :Privilege "p2"}}
-     {:Fractl.Kernel.Rbac/PrivilegeAssignment
+     {:Agentlang.Kernel.Rbac/PrivilegeAssignment
       {:Role "r2" :Privilege "p2"}})
     (dataflow
      :RoleMgmt/AssignRoles
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "r1" :Assignee "abc@abc.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "r2" :Assignee "xyz@xyz.com"}}))
   (let [[r1 r2 r3 r4]
         (mapv tu/result [:RoleMgmt/CreateUsers :RoleMgmt/CreateRoles
                          :RoleMgmt/AssignPrivileges :RoleMgmt/AssignRoles])]
-    (is (cn/instance-of? :Fractl.Kernel.Identity/User (first r1)))
-    (is (cn/instance-of? :Fractl.Kernel.Rbac/Role (first r2)))
-    (is (cn/instance-of? :Fractl.Kernel.Rbac/PrivilegeAssignment (first r3)))
-    (is (cn/instance-of? :Fractl.Kernel.Rbac/RoleAssignment (first r4)))
+    (is (cn/instance-of? :Agentlang.Kernel.Identity/User (first r1)))
+    (is (cn/instance-of? :Agentlang.Kernel.Rbac/Role (first r2)))
+    (is (cn/instance-of? :Agentlang.Kernel.Rbac/PrivilegeAssignment (first r3)))
+    (is (cn/instance-of? :Agentlang.Kernel.Rbac/RoleAssignment (first r4)))
     (let [ps1 (rbac/privileges "abc@abc.com")
           ps2 (rbac/privileges "xyz@xyz.com")
           p2 (first ps2)]
@@ -78,19 +78,19 @@
       :X :Int})
     (dataflow
      :Brd/InitUsers
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u1@brd.com"}}
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u2@brd.com"}}
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u3@brd.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "brd-user" :Assignee "u2@brd.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "brd-manager" :Assignee "u1@brd.com"}}))
   (is (finalize-events))
   (is (cn/instance-of?
-       :Fractl.Kernel.Rbac/RoleAssignment
+       :Agentlang.Kernel.Rbac/RoleAssignment
        (tu/first-result {:Brd/InitUsers {}})))
   (let [e? (partial cn/instance-of? :Brd/E)]
     (call-with-rbac
@@ -173,15 +173,15 @@
      {:meta {:contains [:Wcr/E :Wcr/F]}})
     (dataflow
      :Wcr/InitUsers
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u1@wcr.com"}}
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u2@wcr.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "wcr-user" :Assignee "u1@wcr.com"}}))
   (is (finalize-events))
   (is (cn/instance-of?
-       :Fractl.Kernel.Rbac/RoleAssignment
+       :Agentlang.Kernel.Rbac/RoleAssignment
        (tu/first-result {:Wcr/InitUsers {}})))
   (let [e? (partial cn/instance-of? :Wcr/E)]
     (call-with-rbac
@@ -230,17 +230,17 @@
       :X :Int})
     (dataflow
      :Ipv/InitUsers
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u1@ipv.com"}}
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u2@ipv.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "ipv-user" :Assignee "u1@ipv.com"}})
-    {:Fractl.Kernel.Rbac/RoleAssignment
+    {:Agentlang.Kernel.Rbac/RoleAssignment
      {:Role "ipv-guest" :Assignee "u2@ipv.com"}})
   (is (finalize-events))
   (is (cn/instance-of?
-       :Fractl.Kernel.Rbac/RoleAssignment
+       :Agentlang.Kernel.Rbac/RoleAssignment
        (tu/first-result {:Ipv/InitUsers {}})))
   (call-with-rbac
    (fn []
@@ -269,15 +269,15 @@
                        (tu/first-result
                         (with-user
                           owner
-                          {:Fractl.Kernel.Rbac/Create_InstancePrivilegeAssignment
+                          {:Agentlang.Kernel.Rbac/Create_InstancePrivilegeAssignment
                            {:Instance
-                            {:Fractl.Kernel.Rbac/InstancePrivilegeAssignment
+                            {:Agentlang.Kernel.Rbac/InstancePrivilegeAssignment
                              {:Resource :Ipv/E
                               :ResourceId id
                               :Assignee assignee
                               :Actions actions}}}})))
            del-inst-priv (fn [owner assignee id] (inst-priv owner assignee nil id))
-           ip? (partial cn/instance-of? :Fractl.Kernel.Rbac/InstancePrivilegeAssignment)
+           ip? (partial cn/instance-of? :Agentlang.Kernel.Rbac/InstancePrivilegeAssignment)
            e1 (create-e "u1@ipv.com" 1)]
        (is (e? e1))
        (is (not (create-e "u2@ipv.com" 2)))
@@ -317,17 +317,17 @@
      {:meta {:contains [:I1018/A :I1018/B]}})
     (dataflow
      :I1018/InitUsers
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u1@i1018.com"}}
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u2@i1018.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "i1018-admin" :Assignee "u1@i1018.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "i1018-user" :Assignee "u2@i1018.com"}}))
   (is (finalize-events))
   (is (cn/instance-of?
-       :Fractl.Kernel.Rbac/RoleAssignment
+       :Agentlang.Kernel.Rbac/RoleAssignment
        (tu/first-result {:I1018/InitUsers {}})))
   (call-with-rbac
    (fn []
@@ -387,17 +387,17 @@
            [{:I1025/AssessementBy {}} {:I1025/Member {:Id? :I1025/CreateAssessment.By}}]]})
     (dataflow
      :I1025/InitUsers
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u1@i1025.com"}}
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u2@i1025.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "i1025" :Assignee "u1@i1025.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "i1025" :Assignee "u2@i1025.com"}}))
   (is (finalize-events))
   (is (cn/instance-of?
-       :Fractl.Kernel.Rbac/RoleAssignment
+       :Agentlang.Kernel.Rbac/RoleAssignment
        (tu/first-result {:I1025/InitUsers {}})))
   (call-with-rbac
    (fn []
@@ -420,15 +420,15 @@
                                             {:Of of :By by}})))
            assign-ownership (fn [with-user id]
                               (tu/first-result
-                               (with-user {:Fractl.Kernel.Rbac/Create_OwnershipAssignment
+                               (with-user {:Agentlang.Kernel.Rbac/Create_OwnershipAssignment
                                            {:Instance
-                                            {:Fractl.Kernel.Rbac/OwnershipAssignment
+                                            {:Agentlang.Kernel.Rbac/OwnershipAssignment
                                              {:Resource :I1025/Member
                                               :ResourceId id
                                               :Assignee "u2@i1025.com"}}}})))
            remove-ownership (fn [with-user id]
                               (tu/first-result
-                               (with-user {:Fractl.Kernel.Rbac/Delete_OwnershipAssignment
+                               (with-user {:Agentlang.Kernel.Rbac/Delete_OwnershipAssignment
                                            {:Name id}})))
            m? (partial cn/instance-of? :I1025/Member)
            a? (partial cn/instance-of? :I1025/Assessment)
@@ -444,7 +444,7 @@
        (is (a? (create-assessment wu1 (:Id m1) (:Id m2))))
        (is (tu/is-error #(create-assessment wu2 (:Id m1) (:Id m2))))
        (let [res (mapv (partial assign-ownership wu1) [(:Id m1) (:Id m2)])
-             oa? (partial cn/instance-of? :Fractl.Kernel.Rbac/OwnershipAssignment)]
+             oa? (partial cn/instance-of? :Agentlang.Kernel.Rbac/OwnershipAssignment)]
          (is (every? oa? res))
          (is (a? (create-assessment wu2 (:Id m1) (:Id m2))))
          (is (every? oa? (mapv (partial remove-ownership wu1) (mapv :Name res))))
@@ -470,17 +470,17 @@
       :-> [[:I1035/ScoreFor {:I1035/Member {:Id? :I1035/AssignScore.Member}}]]})
     (dataflow
      :I1035/InitUsers
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u1@i1035.com"}}
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u2@i1035.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "i1035" :Assignee "u1@i1035.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "i1035" :Assignee "u2@i1035.com"}}))
   (is (finalize-events))
   (is (cn/instance-of?
-       :Fractl.Kernel.Rbac/RoleAssignment
+       :Agentlang.Kernel.Rbac/RoleAssignment
        (tu/first-result {:I1035/InitUsers {}})))
   (call-with-rbac
    (fn []
@@ -561,17 +561,17 @@
               :join [{:Vrbac/Customer {:Id? :Vrbac/Order.CustomerId}}]}})
     (dataflow
      :Vrbac/InitUsers
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u1@vrbac.com"}}
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u2@vrbac.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "vrbac" :Assignee "u1@vrbac.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "vrbac" :Assignee "u2@vrbac.com"}}))
   (is (finalize-events))
   (is (cn/instance-of?
-       :Fractl.Kernel.Rbac/RoleAssignment
+       :Agentlang.Kernel.Rbac/RoleAssignment
        (tu/first-result {:Vrbac/InitUsers {}})))
   (call-with-rbac
    (fn []

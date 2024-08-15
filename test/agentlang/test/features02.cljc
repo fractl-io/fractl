@@ -1,19 +1,19 @@
-(ns fractl.test.features02
+(ns agentlang.test.features02
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.string :as s]
-            [fractl.component :as cn]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.lang
              :refer [component attribute event
                      entity record relationship
                      dataflow]]
-            [fractl.lang.raw :as raw]
-            [fractl.lang.relgraph :as rg]
-            [fractl.lang.internal :as li]
-            [fractl.paths.internal :as pi]
-            [fractl.evaluator :as e]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.lang.raw :as raw]
+            [agentlang.lang.relgraph :as rg]
+            [agentlang.lang.internal :as li]
+            [agentlang.paths.internal :as pi]
+            [agentlang.evaluator :as e]
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest issue-840-raw-attributes
   (defcomponent :I840
@@ -363,7 +363,7 @@
     (dataflow
      :Cblr/FindC
      {:Cblr/P {:Id? :Cblr/FindC.P} :as [:P]}
-     [:eval '(fractl.test.features02/cblr-make-p-path :P :Cblr/FindC.C) :as :P]
+     [:eval '(agentlang.test.features02/cblr-make-p-path :P :Cblr/FindC.C) :as :P]
      {:Cblr/C {:Y? :Cblr/FindC.Y li/path-attr? :P}})
     (dataflow
      :Cblr/MakeD
@@ -413,7 +413,7 @@
        {:Evt :I1138/Evt})
       (dataflow
        :I1138/Evt
-       [:eval '(fractl.test.features02/add-to-x! :I1138/Evt.X)]
+       [:eval '(agentlang.test.features02/add-to-x! :I1138/Evt.X)]
        :I1138/Evt)
       (dataflow
        :I1138/FireEvt
@@ -694,7 +694,7 @@
        {:Frwd/B? {} :-> [[{:Frwd/AB {:A? :%.Id}}]]}
        [:error :not-found] :DefaultB]
       :as :Bs]
-     [:eval '(fractl.test.features02/frwd-fn :As :Bs)]))
+     [:eval '(agentlang.test.features02/frwd-fn :As :Bs)]))
   (let [create-a (fn [x] (tu/first-result {:Frwd/Create_A {:Instance {:Frwd/A {:X x}}}}))
         create-b (fn [y] (tu/first-result {:Frwd/Create_B {:Instance {:Frwd/B {:Y y}}}}))
         [a1 a2 a3 a4 a5 a6 :as ainsts] (mapv create-a [1 2 1 2 1 3 1])

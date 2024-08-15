@@ -1,5 +1,5 @@
 (ns model1.c1
-  (:use [fractl.lang]))
+  (:use [agentlang.lang]))
 
 (component :Model1.C1)
 

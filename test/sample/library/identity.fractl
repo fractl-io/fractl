@@ -1,16 +1,16 @@
 (ns sample.library.identity
   "Simple user-identity management for the library"
   (:require [clojure.string :as s])
-  (:use [fractl.lang]
-        [fractl.lang.datetime]
-        [fractl.lang.string]))
+  (:use [agentlang.lang]
+        [agentlang.lang.datetime]
+        [agentlang.lang.string]))
 
 (component :Test.Sample.Library.Identity)
 
 (def user-name? (partial string-in-range? 2 50))
 
 (defn password? [s]
-  (or (fractl.util.hash/crypto-hash? s)
+  (or (agentlang.util.hash/crypto-hash? s)
       (string-in-range? 3 20 s)))
 
 (entity {:User

@@ -8,8 +8,8 @@
   ;; :launch-js ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" "--headless" "--disable-gpu" "--repl" :open-url]
   ;; :launch-js ["/opt/google/chrome/chrome" "--headless" "--disable-gpu" "--repl" "--disable-dev-shm" :open-url]
   :watch-dirs ["src" "test"]
-  ;:extra-main-files {:testing {:main fractl.test-runner}}
+  ;:extra-main-files {:testing {:main agentlang.test-runner}}
   :log-syntax-error-style :concise
   }
 
-{:main fractl.test-runner}
+{:main agentlang.test-runner}

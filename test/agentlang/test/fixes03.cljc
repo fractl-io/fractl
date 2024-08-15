@@ -1,21 +1,21 @@
-(ns fractl.test.fixes03
+(ns agentlang.test.fixes03
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.set :as set]
-            [fractl.component :as cn]
-            [fractl.resolver.core :as r]
-            [fractl.resolver.registry :as rg]
-            [fractl.util :as u]
-            [fractl.util.hash :as sh]
-            [fractl.lang.syntax :as ls]
-            [fractl.lang.datetime :as dt]
-            [fractl.lang.internal :as li]
-            [fractl.lang.raw :as raw]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :as rg]
+            [agentlang.util :as u]
+            [agentlang.util.hash :as sh]
+            [agentlang.lang.syntax :as ls]
+            [agentlang.lang.datetime :as dt]
+            [agentlang.lang.internal :as li]
+            [agentlang.lang.raw :as raw]
+            [agentlang.lang
              :refer [component attribute event view
                      entity record relationship dataflow]]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest issue-576-alias
   (defcomponent :I576
@@ -77,19 +77,19 @@
     (dataflow
      :I585/Evt1
      {:I585/E {:K? :I585/Evt1.K}}
-     [:eval '(fractl.test.fixes03/i585-f1 :I585/E)
+     [:eval '(agentlang.test.fixes03/i585-f1 :I585/E)
       :check :I585/R :as :Result]
      {:I585/E {:K "result" :X :Result.Y}})
     (dataflow
      :I585/Evt2
      {:I585/E {:K? :I585/Evt2.K}}
-     [:eval '(fractl.test.fixes03/i585-f2 :I585/E)
-      :check fractl.test.fixes03/i585-seq-of-r? :as [:R1]]
+     [:eval '(agentlang.test.fixes03/i585-f2 :I585/E)
+      :check agentlang.test.fixes03/i585-seq-of-r? :as [:R1]]
      {:I585/E {:K "result" :X :R1.Y}})
     (dataflow
      :I585/Evt3
      {:I585/E {:K? :I585/Evt3.K}}
-     [:eval '(fractl.test.fixes03/i585-f1 :I585/E)]))
+     [:eval '(agentlang.test.fixes03/i585-f1 :I585/E)]))
   (let [e1 (tu/first-result
             {:I585/Create_E
              {:Instance
@@ -255,7 +255,7 @@
      [:for-each :I686/GetEs.Names
       {:I686/E {:Name? :%}}
       :as :Es]
-     {:I686/Result {:Es '(fractl.test.fixes03/first-result :Es)}}))
+     {:I686/Result {:Es '(agentlang.test.fixes03/first-result :Es)}}))
   (let [names [:A :B :C]
         es01 (mapv
               #(tu/first-result
@@ -491,7 +491,7 @@
            preproc-spec (map (fn [x]
                                (if (seqable? x)
                                  (let [n (first x) xs (rest x)]
-                                   `(~(symbol (str "fractl.lang/" (name n))) ~@xs))
+                                   `(~(symbol (str "agentlang.lang/" (name n))) ~@xs))
                                  x))
                              spec)
            third #(nth % 2)

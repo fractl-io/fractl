@@ -1,13 +1,13 @@
-(ns fractl.test.reagent
+(ns agentlang.test.reagent
   (:require [cljs.test :refer-macros [deftest is]]
-            [fractl.lang
+            [agentlang.lang
              :refer [event entity dataflow]]
-            [fractl.component :as cn]
-            [fractl.evaluator :as e]
-            [fractl.store :as store]
-            [fractl.resolver.core :as r]
-            [fractl.resolver.registry :as rg]
-            [fractl.test.util :as tu :refer-macros [defcomponent]]))
+            [agentlang.component :as cn]
+            [agentlang.evaluator :as e]
+            [agentlang.store :as store]
+            [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :as rg]
+            [agentlang.test.util :as tu :refer-macros [defcomponent]]))
 
 (def store (store/open-mem-store nil))
 

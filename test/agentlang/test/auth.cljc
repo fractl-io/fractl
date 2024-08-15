@@ -1,22 +1,22 @@
-(ns fractl.test.auth
+(ns agentlang.test.auth
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
-            [fractl.util.logger :as log]
-            [fractl.util :as u]
-            [fractl.auth.oauth2 :as auth]))
+            [agentlang.util.logger :as log]
+            [agentlang.util :as u]
+            [agentlang.auth.oauth2 :as auth]))
 
 ;; This test should not be enabled on CI.
 ;; Follow these steps to run locally:
 ;; 1. Go to https://api.slack.com/apps and create an app.
 ;; 2. Set app scopes as: channels:read,groups:read,im:read,mpim:read.
 ;; 3. Set redirect url as: https://localhost/slack/redirect
-;; 4. $ export FRACTL_AUTH_TEST_CLIENT_ID=client-id-of-the-app
-;; 5. $ export FRACTL_AUTH_TEST_CLIENT_SECRET=client-secret-of-the-app
-;; 6. $ lein test :only fractl.test.auth/basic
+;; 4. $ export AGENTLANG_AUTH_TEST_CLIENT_ID=client-id-of-the-app
+;; 5. $ export AGENTLANG_AUTH_TEST_CLIENT_SECRET=client-secret-of-the-app
+;; 6. $ lein test :only agentlang.test.auth/basic
 (deftest basic
   #?(:clj
-     (let [client-id (u/getenv "FRACTL_AUTH_TEST_CLIENT_ID" "")
-           client-secret (u/getenv "FRACTL_AUTH_TEST_CLIENT_SECRET" "")]
+     (let [client-id (u/getenv "AGENTLANG_AUTH_TEST_CLIENT_ID" "")
+           client-secret (u/getenv "AGENTLANG_AUTH_TEST_CLIENT_SECRET" "")]
        (when (and (seq client-id) (seq client-secret))
          (let [auth-obj (auth/initialize
                          auth/slack

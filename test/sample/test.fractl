@@ -1,5 +1,5 @@
 (ns sample.test
-  (:use [fractl.lang]))
+  (:use [agentlang.lang]))
 
 (component :Sample.Test)
 

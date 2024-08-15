@@ -1,20 +1,20 @@
-(ns fractl.test.features05
+(ns agentlang.test.features05
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.pprint :as pp]
-            [fractl.component :as cn]
-            [fractl.env :as env]
-            [fractl.util :as u]
-            [fractl.inference :as i]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.env :as env]
+            [agentlang.util :as u]
+            [agentlang.inference :as i]
+            [agentlang.lang
              :refer [component record event entity view
                      relationship dataflow rule
                      resolver inference]]
-            [fractl.lang.syntax :as ls]
-            [fractl.lang.raw :as lr]
-            [fractl.lang.internal :as li]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.lang.syntax :as ls]
+            [agentlang.lang.raw :as lr]
+            [agentlang.lang.internal :as li]
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest rule-basic
   (defcomponent :Rule01
@@ -440,7 +440,7 @@
        {:paths [:Rc1/E1]
         :with-methods {:create #(swap! db conj %)
                        :query (fn [_] @db)}})
-      (require '[fractl.resolver.remote])
+      (require '[agentlang.resolver.remote])
       (resolver
        :Rc1/R2
        {:paths [:Rc2/E2]
@@ -477,26 +477,26 @@
 (deftest component-definition
   (component
    :Cd01
-   {:clj-import '[(:require [fractl.lang.datetime :as dt]
+   {:clj-import '[(:require [agentlang.lang.datetime :as dt]
                           [clojure.java.io :as io])
-                  (:use [fractl.util])]
+                  (:use [agentlang.util])]
     :refer [:Acme.Core]})
   (entity :Cd01/R {:X :Int})
   (let [[_ cdef] (cn/component-definition :Cd01)]
-    (is (= '[(:require [fractl.lang.datetime :as dt]
+    (is (= '[(:require [agentlang.lang.datetime :as dt]
                        [clojure.java.io :as io])
-             (:use [fractl.util])]
+             (:use [agentlang.util])]
            (:clj-import cdef)))
     (is (= [:Acme.Core] (cn/component-references :Cd01)))
-    (is (= {:require '[[fractl.lang.datetime :as dt] [clojure.java.io :as io]],
-            :use '[[fractl.util]]}
+    (is (= {:require '[[agentlang.lang.datetime :as dt] [clojure.java.io :as io]],
+            :use '[[agentlang.util]]}
            (cn/component-clj-imports :Cd01)))
     (cn/set-component-clj-imports!
      :Cd01
      {:require '[[java.io :as io] [abc.kk :as kk]]
-      :use '[fractl.util]})
+      :use '[agentlang.util]})
     (is (= {:require '[[java.io :as io] [abc.kk :as kk]]
-            :use '[fractl.util]}
+            :use '[agentlang.util]}
            (cn/component-clj-imports :Cd01)))
     (cn/set-component-references! :Cd01 [:Acme.Core :Accounts.Core])
     (is (= [:Acme.Core :Accounts.Core] (cn/component-references :Cd01)))))
@@ -556,7 +556,7 @@
       (assoc inst :Y (* 10 (:X inst))))
     (dataflow
      [:before :update :Burv/E]
-     [:eval '(fractl.test.features05/calculate-y :Instance)]))
+     [:eval '(agentlang.test.features05/calculate-y :Instance)]))
   (let [e1 (tu/first-result
             {:Burv/Create_E
              {:Instance
@@ -579,7 +579,7 @@
     (defn raise-an-error [] (u/throw-ex "ERROR!"))
     (dataflow
      :Rethrow/Error
-     [:eval '(fractl.test.features05/raise-an-error)
+     [:eval '(agentlang.test.features05/raise-an-error)
       :throws
       {:error {:Rethrow/E {:Id 1 :X 200}}}])
     (dataflow

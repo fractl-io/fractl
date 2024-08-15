@@ -1,13 +1,13 @@
-(ns fractl.test.loader
+(ns agentlang.test.loader
   "Loader specific tests. Only work for Clojure."
   (:require [clojure.test :refer [deftest is]]
-            [fractl.util.runtime :as ur]
-            [fractl.component :as cn]
-            [fractl.lang :refer [entity dataflow]]
-            [fractl.lang.raw :as raw]
-            [fractl.lang.tools.loader :as loader]
-            [fractl.evaluator :as e]
-            [fractl.test.util :as tu]))
+            [agentlang.util.runtime :as ur]
+            [agentlang.component :as cn]
+            [agentlang.lang :refer [entity dataflow]]
+            [agentlang.lang.raw :as raw]
+            [agentlang.lang.tools.loader :as loader]
+            [agentlang.evaluator :as e]
+            [agentlang.test.util :as tu]))
 
 (deftest test-load-script
   (is :Sample.Simple (loader/load-script nil "test/sample/simple.fractl"))
@@ -41,7 +41,7 @@
                            (entity :Sample.Tiny/A {:Id :Identity, :X :Int})
                            (defn tiny-f [x] (* 100 x))
                            (entity :Sample.Tiny/B {:Id :Identity, :X :Int, :Y '(tiny-f :X)})
-                           (dataflow :Fractl.Kernel.Identity/PostSignUp #:Sample.Tiny{:A {:X 200}}))
+                           (dataflow :Agentlang.Kernel.Identity/PostSignUp #:Sample.Tiny{:A {:X 200}}))
         b-update-exp '(entity :Sample.Tiny/B {:Id :Identity :K :Int :Y '(tiny-f :K)})
         new-df '(dataflow :Sample.Tiny/Evt
                           [:eval '(* :Sample.Tiny/Evt.X 2) :as :P]

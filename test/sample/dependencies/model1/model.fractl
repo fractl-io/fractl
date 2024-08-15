@@ -1,5 +1,5 @@
 {:name :Model1
- :fractl-version "current"
+ :agentlang-version "current"
  :components [:Model1.C1]
  :dependencies [:Model2]
  :model-paths ["./test/sample/dependencies"]

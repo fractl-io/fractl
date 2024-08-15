@@ -1,5 +1,5 @@
 {:name :Library
- :fractl-version "current"
+ :agentlang-version "current"
  :components [:Test.Sample/Library/Identity
               :Test.Sample/Library/Catalog
               :Test.Sample/Library/Ledger]

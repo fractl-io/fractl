@@ -46,7 +46,7 @@
      (keyword (first (string/split (string/lower-case (System/getProperty "os.name")) #" ")))
      :cljs :js))
 
-(def ^:private script-extn (atom ".agentlang"))
+(def ^:private script-extn (atom ".fractl"))
 
 (defn set-script-extn! [extn]
   (reset! script-extn extn))

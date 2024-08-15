@@ -23,13 +23,13 @@
 
 (dataflow
  :InitWeatherPlannerAgent
- {:Fractl.Inference.Service/Agent
+ {:Agentlang.Inference.Service/Agent
   {:Name "weather-planner-agent"
    :Type "planner"
    :ToolComponents [:q# [:Weather.Service.Core]]
    :UserInstruction "You are an agent that figures out which tool to use to answer a user query."}
   :as :Agent}
- {:Fractl.Inference.Service/AgentLLM
+ {:Agentlang.Inference.Service/AgentLLM
   {:Agent :Agent.Name :LLM "llm01"}}
  :Agent)
 
@@ -39,16 +39,16 @@
 (inference :InvokePlanner {:agent "weather-planner-agent"})
 
 (dataflow
- :Fractl.Kernel.Lang/AppInit
- {:Fractl.Inference.Provider/LLM
+ :Agentlang.Kernel.Lang/AppInit
+ {:Agentlang.Inference.Provider/LLM
   {:Type "openai"
    :Name "llm01"
-   :Config {:ApiKey (fractl.util/getenv "OPENAI_API_KEY")
+   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
             :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
- [:try {:Fractl.Inference.Service/Agent {:Name? "weather-planner-agent"}}
+ [:try {:Agentlang.Inference.Service/Agent {:Name? "weather-planner-agent"}}
   :not-found {:InitWeatherPlannerAgent {}}]
  {:Weather.Service.Core/Weather
   {:City "Boston" :Temperature 70.4}}

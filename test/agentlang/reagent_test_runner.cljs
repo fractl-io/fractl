@@ -1,8 +1,8 @@
-(ns fractl.reagent-test-runner
+(ns agentlang.reagent-test-runner
   "This ns should be used to run tests with `figwheel-main` test runner."
   (:require [cljs-test-display.core]
             [figwheel.main.testing :refer-macros [run-tests run-tests-async]]
-            [fractl.test.reagent]))
+            [agentlang.test.reagent]))
 
 (defn -main [& args]
   (run-tests-async 100000)

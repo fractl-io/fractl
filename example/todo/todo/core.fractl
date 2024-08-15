@@ -40,9 +40,9 @@
     (mapv as-todo-entry entries)))
 
 (def todo-resolver
-  (fractl.resolver.core/make-resolver
+  (agentlang.resolver.core/make-resolver
    :todo.resolver ; a unique name for the resolver.
    {:create upsert
     :query lookup-entries}))
 
-(fractl.resolver.registry/override-resolver :Todo.Core/TodoEntry todo-resolver)
+(agentlang.resolver.registry/override-resolver :Todo.Core/TodoEntry todo-resolver)

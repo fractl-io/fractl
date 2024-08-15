@@ -1,14 +1,14 @@
-(ns fractl.test.timer
+(ns agentlang.test.timer
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
-            [fractl.component :as cn]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.lang
              :refer [component attribute event
                      entity record dataflow]]
-            [fractl.evaluator :as e]
-            [fractl.lang.datetime :as dt]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.evaluator :as e]
+            [agentlang.lang.datetime :as dt]
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest basic-timer
   (#?(:clj do
@@ -23,7 +23,7 @@
       {:X :Int})
      (dataflow
       :BasicTimer/StartTimer
-      {:Fractl.Kernel.Lang/Timer
+      {:Agentlang.Kernel.Lang/Timer
        {:Expiry 1
         :ExpiryEvent
         [:q# {:BasicTimer/OnTimer
@@ -44,5 +44,5 @@
    (let [r (tu/first-result
             {:BasicTimer/StartTimer
              {:X 100}})]
-     (is (cn/instance-of? :Fractl.Kernel.Lang/Timer r))
+     (is (cn/instance-of? :Agentlang.Kernel.Lang/Timer r))
      (tu/sleep 3000 #(query-e 100)))))

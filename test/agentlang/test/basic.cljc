@@ -1,23 +1,23 @@
-(ns fractl.test.basic
+(ns agentlang.test.basic
   (:require #?(:clj [clojure.test :refer [deftest is testing]]
                :cljs [cljs.test :refer-macros [deftest is testing]])
-            [fractl.util :as u]
-            [fractl.util.hash :as sh]
-            [fractl.store :as store]
-            [fractl.component :as cn]
-            [fractl.compiler :as c]
-            [fractl.lang
+            [agentlang.util :as u]
+            [agentlang.util.hash :as sh]
+            [agentlang.store :as store]
+            [agentlang.component :as cn]
+            [agentlang.compiler :as c]
+            [agentlang.lang
              :as ln
              :refer [component attribute event relationship
                      entity record dataflow inference]]
-            [fractl.lang.internal :as li]
-            [fractl.api :as api]
-            [fractl.evaluator :as e]
-            [fractl.lang.opcode :as opc]
-            [fractl.compiler.context :as ctx]
-            [fractl.lang.datetime :as dt]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.lang.internal :as li]
+            [agentlang.api :as api]
+            [agentlang.evaluator :as e]
+            [agentlang.lang.opcode :as opc]
+            [agentlang.compiler.context :as ctx]
+            [agentlang.lang.datetime :as dt]
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 #? (:clj
     (def store (store/open-default-store nil))
@@ -1351,9 +1351,9 @@
                        (map :RefCheck2/E14.AIdId data))))))))
 
 #?(:clj
-   (deftest data-generation-and-validation-for-fractl-types []
+   (deftest data-generation-and-validation-for-agentlang-types []
      (component :RefCheck3)
-     (testing "fractl type"
+     (testing "agentlang type"
        (testing "entity"
          (entity {:RefCheck3/E
                   {:X :Int
@@ -1522,15 +1522,15 @@
     (attribute
      :AMeta/Name
      {:type :String
-      :meta {:instance {:ui {:Fractl.Fx/Input {}}}}}))
-  (is (= {:unique false, :immutable false, :type :Fractl.Kernel.Lang/String}
+      :meta {:instance {:ui {:Agentlang.Fx/Input {}}}}}))
+  (is (= {:unique false, :immutable false, :type :Agentlang.Kernel.Lang/String}
          (dissoc (cn/find-attribute-schema :AMeta/Name) :check)))
-  (is (= {:instance {:ui #:Fractl.Fx{:Input {}}}}
+  (is (= {:instance {:ui #:Agentlang.Fx{:Input {}}}}
          (cn/fetch-meta :AMeta/Name))))
 
 (deftest model-spec
   (let [spec {:name :crm :version "1.0.2"
-              :fractl-version "current"
+              :agentlang-version "current"
               :components [:Crm.Core :Crm.Sales]}]
     (ln/model spec)
     (is (= spec (cn/fetch-model :crm)))
@@ -1635,7 +1635,7 @@
      :PswdEnc/E
      {:X :String
       :Y {:type :Password :optional true
-          :check #(or (fractl.util.hash/crypto-hash? %)
+          :check #(or (agentlang.util.hash/crypto-hash? %)
                       (let [c (count %)]
                         (< 2 c 10)))}}))
   (let [e (tu/first-result
@@ -1643,7 +1643,7 @@
             {:Instance
              {:PswdEnc/E {:X "hello" :Y "jjj3223"}}}})]
     (is (cn/instance-of? :PswdEnc/E e))
-    (is (fractl.util.hash/crypto-hash? (:Y e)))))
+    (is (agentlang.util.hash/crypto-hash? (:Y e)))))
 
 (deftest default-component
   (component :Dc01)

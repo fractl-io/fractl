@@ -1,16 +1,16 @@
-(ns fractl.test.features04
+(ns agentlang.test.features04
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
-            [fractl.util :as u]
-            [fractl.component :as cn]
-            [fractl.evaluator :as ev]
-            [fractl.lang.internal :as li]
-            [fractl.lang
+            [agentlang.util :as u]
+            [agentlang.component :as cn]
+            [agentlang.evaluator :as ev]
+            [agentlang.lang.internal :as li]
+            [agentlang.lang
              :refer [component attribute event
                      entity record relationship
                      dataflow]]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest issue-926-rbac-ui-apis
   (let [rbac-spec [{:roles ["user" "manager"] :allow :*}
@@ -48,7 +48,7 @@
      :I980/R2
      {:meta {:between [:I980/B :I980/C]}}))
   (apply dataflow :I980/Temp
-         (fractl.compiler/parse-relationship-tree
+         (agentlang.compiler/parse-relationship-tree
           {:I980/A {:Id 1 :X 10}
            :I980/R1
            [{:I980/B {:Id 2 :Y 20}
@@ -87,17 +87,17 @@
              :assign {:ownership [:I1051/B :-> :I1051/A]}}})
     (dataflow
      :I1051/InitUsers
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u1@i1051.com"}}
-     {:Fractl.Kernel.Identity/User
+     {:Agentlang.Kernel.Identity/User
       {:Email "u2@i1051.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "i1051-user" :Assignee "u2@i1051.com"}}
-     {:Fractl.Kernel.Rbac/RoleAssignment
+     {:Agentlang.Kernel.Rbac/RoleAssignment
       {:Role "i1051-user" :Assignee "u1@i1051.com"}}))
   (is (tu/finalize-events))
   (is (cn/instance-of?
-       :Fractl.Kernel.Rbac/RoleAssignment
+       :Agentlang.Kernel.Rbac/RoleAssignment
        (tu/first-result {:I1051/InitUsers {}})))
   (tu/call-with-rbac
    (fn []
@@ -365,7 +365,7 @@
       :Level :Int
       :Base {:expr :I713/EmployeeSalary.Salary.Base}
       :Bonus {:type :Decimal
-              :expr '(fractl.test.features04/compute-bonus
+              :expr '(agentlang.test.features04/compute-bonus
                       :Level :I713/EmployeeSalary.Salary.Base)}})
     (entity
      :I713/Salary
@@ -413,7 +413,7 @@
         :Level :Int
         :Base {:expr patterns}
         :Bonus {:type :Decimal
-                :expr `(fractl.test.features04/compute-bonus
+                :expr `(agentlang.test.features04/compute-bonus
                         :Level ~patterns)}})
       (entity
        :I713P/Salary
@@ -457,7 +457,7 @@
      {:Id :Identity
       :X :Int
       :Zs {:type :Int
-           :expr '(fractl.test.features04/add-zs :I713M/R1.B.R2.C)}})
+           :expr '(agentlang.test.features04/add-zs :I713M/R1.B.R2.C)}})
     (entity :I713M/B {:Id :Identity :Y :Int})
     (entity :I713M/C {:Id :Identity :Z :Int})
     (relationship :I713M/R1 {:meta {:between [:I713M/A :I713M/B], :one-one true}})
@@ -494,7 +494,7 @@
     (entity :I1211/A {:Id :Identity
                       :X :Int
                       :Ys {:type :Int
-                           :expr '(fractl.test.features04/add-ys :I1211/R.B)}})
+                           :expr '(agentlang.test.features04/add-ys :I1211/R.B)}})
     (entity :I1211/B {:Id :Identity :Y :Int})
     (relationship :I1211/R {:meta {:contains [:I1211/A :I1211/B]}})
     (dataflow

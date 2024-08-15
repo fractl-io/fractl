@@ -1,17 +1,17 @@
-(ns fractl.test.graphql
+(ns agentlang.test.graphql
   (:require [clojure.test :refer :all]
-            [fractl.util :as fu]
-            [fractl.util.errors :refer :all]
-            [fractl.test.util :as test-util]
+            [agentlang.util :as fu]
+            [agentlang.util.errors :refer :all]
+            [agentlang.test.util :as test-util]
             [clojure.test :refer [deftest is testing]]
-            [fractl.test.util :as tu :refer [defcomponent]]
-            [fractl.api :as api]
-            [fractl.evaluator :as e]
+            [agentlang.test.util :as tu :refer [defcomponent]]
+            [agentlang.api :as api]
+            [agentlang.evaluator :as e]
             [com.walmartlabs.lacinia :refer [execute]]
-            [fractl.component :as cn]
-            [fractl.graphql.generator :as gg]
-            [fractl.graphql.core :as graphql]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.graphql.generator :as gg]
+            [agentlang.graphql.core :as graphql]
+            [agentlang.lang
              :as ln
              :refer [component attribute event entity record dataflow relationship]]
             [clojure.walk :as walk]
@@ -49,7 +49,7 @@
 
 (defn filter-event-attrs [event]
   "Removes internal attrs from event."
-    (dissoc (fractl.component/instance-user-attributes event) :EventContext :__path__ :__parent__))
+    (dissoc (agentlang.component/instance-user-attributes event) :EventContext :__path__ :__parent__))
 
 (defn transform-address [address]
   (if (and (map? address)

@@ -1,19 +1,19 @@
-(ns fractl.test.features03
+(ns agentlang.test.features03
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.string :as s]
             [clojure.set :as set]
-            [fractl.component :as cn]
-            [fractl.util.seq :as su]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.util.seq :as su]
+            [agentlang.lang
              :refer [component attribute event
                      entity record relationship
                      dataflow]]
-            [fractl.lang.internal :as li]
-            [fractl.paths.internal :as pi]            
-            [fractl.lang.syntax :as ls]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.lang.internal :as li]
+            [agentlang.paths.internal :as pi]
+            [agentlang.lang.syntax :as ls]
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest issue-845-all-dataflows
   (defcomponent :I845

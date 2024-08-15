@@ -1,22 +1,22 @@
-(ns fractl.test.resolver
+(ns agentlang.test.resolver
   (:require #?(:clj [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
-            [fractl.lang
+            [agentlang.lang
              :refer [component attribute event
                      relationship entity record dataflow]]
-            [fractl.util :as u]
-            [fractl.util.seq :as us]
-            [fractl.component :as cn]
-            [fractl.store :as store]
-            [fractl.evaluator :as e]
-            [fractl.env :as env]
-            [fractl.subs :as subs]
-            [fractl.lang.internal :as li]
-            [fractl.paths.internal :as pi]
-            [fractl.resolver.core :as r]
-            [fractl.resolver.registry :as rg]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.util :as u]
+            [agentlang.util.seq :as us]
+            [agentlang.component :as cn]
+            [agentlang.store :as store]
+            [agentlang.evaluator :as e]
+            [agentlang.env :as env]
+            [agentlang.subs :as subs]
+            [agentlang.lang.internal :as li]
+            [agentlang.paths.internal :as pi]
+            [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :as rg]
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 #?(:clj
    (def store (store/open-default-store nil))
@@ -255,25 +255,25 @@
 
 (defn- deployment-resolver [call-count]
   (let [r (r/make-resolver
-           :fractl-deploy
+           :agentlang-deploy
            {:create
             {:handler
              (fn [inst]
                (swap! call-count inc)
                inst)}})]
-    (rg/compose-resolver :FractlDeployment.Core/Deployment r)))
+    (rg/compose-resolver :AgentlangDeployment.Core/Deployment r)))
 
 (deftest duplicate-eval-bug
-  (defcomponent :FractlDeployment.Core
+  (defcomponent :AgentlangDeployment.Core
     (entity
-     :FractlDeployment.Core/User
+     :AgentlangDeployment.Core/User
      {:Email {:type :String
               :indexed true
               :unique true}
       :UserSlug :String})
 
     (entity
-     :FractlDeployment.Core/Deployment
+     :AgentlangDeployment.Core/Deployment
      {:Id :Identity
       :Model :String
       :Org :String
@@ -285,44 +285,44 @@
       :CreatedDate :Now})
 
     (relationship
-     :FractlDeployment.Core/UserDeployment
-     {:meta {:contains [:FractlDeployment.Core/User :FractlDeployment.Core/Deployment
+     :AgentlangDeployment.Core/UserDeployment
+     {:meta {:contains [:AgentlangDeployment.Core/User :AgentlangDeployment.Core/Deployment
                         :cascade-on-delete true]}})
 
     (event
-     :FractlDeployment.Core/CreateDeployment
+     :AgentlangDeployment.Core/CreateDeployment
      {:Model :String
       :Org :String
       :Config {:type :Map :optional true}})
 
     (dataflow
-     :FractlDeployment.Core/CreateDeployment
-     {:FractlDeployment.Core/User
-      {:Email? :FractlDeployment.Core/CreateDeployment.EventContext.User}
+     :AgentlangDeployment.Core/CreateDeployment
+     {:AgentlangDeployment.Core/User
+      {:Email? :AgentlangDeployment.Core/CreateDeployment.EventContext.User}
       :as :U}
-     {:FractlDeployment.Core/Deployment
-      {:Model :FractlDeployment.Core/CreateDeployment.Model
-       :Org :FractlDeployment.Core/CreateDeployment.Org
-       :Config :FractlDeployment.Core/CreateDeployment.Config}
-      :-> [[{:FractlDeployment.Core/UserDeployment {}} :U]]}))
+     {:AgentlangDeployment.Core/Deployment
+      {:Model :AgentlangDeployment.Core/CreateDeployment.Model
+       :Org :AgentlangDeployment.Core/CreateDeployment.Org
+       :Config :AgentlangDeployment.Core/CreateDeployment.Config}
+      :-> [[{:AgentlangDeployment.Core/UserDeployment {}} :U]]}))
   (let [call-count (atom 0)]
     (deployment-resolver call-count)
     (is (cn/instance-of?
-         :FractlDeployment.Core/User
+         :AgentlangDeployment.Core/User
          (tu/first-result
-          {:FractlDeployment.Core/Create_User
+          {:AgentlangDeployment.Core/Create_User
            {:Instance
-            {:FractlDeployment.Core/User
-             {:Email "deployer@fractl.io"
+            {:AgentlangDeployment.Core/User
+             {:Email "deployer@agentlang.io"
               :UserSlug "ok"}}}})))
     (is (cn/instance-of?
-         :FractlDeployment.Core/Deployment
+         :AgentlangDeployment.Core/Deployment
          (tu/first-result
-          {:FractlDeployment.Core/CreateDeployment
+          {:AgentlangDeployment.Core/CreateDeployment
            {:Model "blog"
-            :Org "fractl"
+            :Org "agentlang"
             :Config {:service 8080}
-            :EventContext {:User "deployer@fractl.io"}}})))
+            :EventContext {:User "deployer@agentlang.io"}}})))
     (is (= 1 @call-count))))
 
 (deftest issue-1091-delete
@@ -696,9 +696,9 @@
 ;;     $ bin/zookeeper-server-start.sh config/zookeeper.properties
 ;;     $ bin/kafka-server-start.sh config/server.properties
 ;; 2. set test-change-notifications to true.
-;; 3. $ lein test :only fractl.test.resolver/issue-1227-change-notifications
+;; 3. $ lein test :only agentlang.test.resolver/issue-1227-change-notifications
 ;; 4. post a message in kafka:
-;;     $ bin/kafka-console-producer.sh --topic fractl-events --bootstrap-server localhost:9092
+;;     $ bin/kafka-console-producer.sh --topic agentlang-events --bootstrap-server localhost:9092
 ;;     > {"instance": {"I1227/E": {"Id": "abc", "X": 200}}, "operation": "update"}
 
 (def ^:private test-change-notifications false)

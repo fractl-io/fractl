@@ -3,15 +3,15 @@
 ;; An agent that tells a joke, while maintaining a chat history.
 (dataflow
  :InitJokeAgent
- {:Fractl.Inference.Service/Agent
+ {:Agentlang.Inference.Service/Agent
   {:Name "joke-agent"
    :Type "chat"}
   :as :Agent}
- {:Fractl.Inference.Service/AgentLLM
+ {:Agentlang.Inference.Service/AgentLLM
   {:Agent :Agent.Name :LLM "llm01"}}
- {:Fractl.Inference.Service/ChatSession
+ {:Agentlang.Inference.Service/ChatSession
   {:Messages [:q# [{:role :system :content "I am an AI bot who tell jokes"}]]}
-  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
+  :-> [[:Agentlang.Inference.Service/AgentChatSession :Agent]]}
  :Agent)
 
 ;; Usage:
@@ -20,13 +20,13 @@
 (inference :TellAJoke {:agent "joke-agent"})
 
 (dataflow
- :Fractl.Kernel.Lang/AppInit
- {:Fractl.Inference.Provider/LLM
+ :Agentlang.Kernel.Lang/AppInit
+ {:Agentlang.Inference.Provider/LLM
   {:Type "openai"
    :Name "llm01"
-   :Config {:ApiKey (fractl.util/getenv "OPENAI_API_KEY")
+   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
             :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
- [:try {:Fractl.Inference.Service/Agent {:Name? "joke-agent"}} :not-found {:InitJokeAgent {}}])
+ [:try {:Agentlang.Inference.Service/Agent {:Name? "joke-agent"}} :not-found {:InitJokeAgent {}}])

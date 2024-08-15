@@ -64,7 +64,7 @@
 
 (dataflow
  :InitSummaryAgent
- {:Fractl.Inference.Service/Agent
+ {:Agentlang.Inference.Service/Agent
   {:Name "summary-agent"
    :Type "chat"
    :UserInstruction (str "You are a recruiter that analyses a resume and provides a summary of the "
@@ -72,19 +72,19 @@
                          "Skills: <major-skills-of-the-candidate>, Experience in years: <years>, "
                          "Name: <candidate-name>, Email: <candidate-email>")}
   :as :Agent}
- {:Fractl.Inference.Service/AgentLLM
+ {:Agentlang.Inference.Service/AgentLLM
   {:Agent :Agent.Name :LLM "llm01"}}
  :Agent)
 
 (dataflow
  :InitInterviewSchedulerAgent
- {:Fractl.Inference.Service/Agent
+ {:Agentlang.Inference.Service/Agent
   {:Name "interview-scheduler-agent"
    :Type "eval"}
   :as :Agent}
- {:Fractl.Inference.Service/AgentLLM
+ {:Agentlang.Inference.Service/AgentLLM
   {:Agent :Agent.Name :LLM "llm01"}}
- {:Fractl.Inference.Service/ChatSession
+ {:Agentlang.Inference.Service/ChatSession
   {:Messages
    [:q# [{:role :system
           :content (str "You are an intelligent agent who schedules an interview if the profile summary of a candidate meets "
@@ -99,8 +99,8 @@
                         "\n"
                         "In the current application, you need to review summarized resumes of C++ programmers "
                         "and schedule interviews  with candidates with good experience.")}]]}
-  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
- {:Fractl.Inference.Service/AgentDelegate
+  :-> [[:Agentlang.Inference.Service/AgentChatSession :Agent]]}
+ {:Agentlang.Inference.Service/AgentDelegate
   {:From "interview-scheduler-agent"
    :To "summary-agent"
    :Preprocessor true}}
@@ -119,17 +119,17 @@
          :Time "04:00 PM"}]])
 
 (dataflow
- :Fractl.Kernel.Lang/AppInit
- {:Fractl.Inference.Provider/LLM
+ :Agentlang.Kernel.Lang/AppInit
+ {:Agentlang.Inference.Provider/LLM
   {:Type "openai"
    :Name "llm01"
-   :Config {:ApiKey (fractl.util/getenv "OPENAI_API_KEY")
+   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
             :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
- [:try {:Fractl.Inference.Service/Agent {:Name? "summary-agent"}}
+ [:try {:Agentlang.Inference.Service/Agent {:Name? "summary-agent"}}
   :not-found {:InitSummaryAgent {}}]
- [:try {:Fractl.Inference.Service/Agent {:Name? "interview-scheduler-agent"}}
+ [:try {:Agentlang.Inference.Service/Agent {:Name? "interview-scheduler-agent"}}
   :not-found {:InitInterviewSchedulerAgent {}}]
  [:for-each slot-data {:InterviewSlot {} :from :%}])

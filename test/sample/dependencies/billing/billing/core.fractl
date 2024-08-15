@@ -2,7 +2,7 @@
  :Billing.Core
  ;; clj-import only for testing build
  {:refer [:Banklib.Core]
-  :clj-import '[(:require [fractl.util :as u])
+  :clj-import '[(:require [agentlang.util :as u])
                 (:import [java.io File])]})
 
 (entity

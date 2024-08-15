@@ -1,15 +1,15 @@
-(ns fractl.test.util
-  (:require [fractl.evaluator :as e]
-            [fractl.evaluator.internal :as ei]
-            [fractl.evaluator.intercept :as ec]
-            [fractl.component :as cn]
-            [fractl.lang.internal :as li]
+(ns agentlang.test.util
+  (:require [agentlang.evaluator :as e]
+            [agentlang.evaluator.internal :as ei]
+            [agentlang.evaluator.intercept :as ec]
+            [agentlang.component :as cn]
+            [agentlang.lang.internal :as li]
             #?(:clj  [clojure.test :refer [is]]
                :cljs [cljs.test :refer-macros [is]])
-            [fractl.util :as u]
-            [fractl.store :as store]
-            [fractl.rbac.core :as rbac]
-            [fractl.lang.rbac :as lr]
+            [agentlang.util :as u]
+            [agentlang.store :as store]
+            [agentlang.rbac.core :as rbac]
+            [agentlang.lang.rbac :as lr]
             [clojure.spec.gen.alpha :as gen]
             [clojure.spec.alpha :as s]
             [cljc.java-time.local-date-time :as local-date-time]
@@ -41,9 +41,9 @@
                    (report-expected-ex e))))))
 
 (defn- finalize-kernel-components []
-  (doseq [cn [:Fractl.Kernel.Lang
-              :Fractl.Kernel.Identity
-              :Fractl.Kernel.Rbac]]
+  (doseq [cn [:Agentlang.Kernel.Lang
+              :Agentlang.Kernel.Identity
+              :Agentlang.Kernel.Rbac]]
     (store/force-init-schema (store/get-default-store) cn)))
 
 (defn finalize-component [component]
@@ -51,7 +51,7 @@
   (store/force-init-schema (store/get-default-store) component))
 
 (defmacro defcomponent [component & body]
-  `(do (fractl.lang/component ~component)
+  `(do (agentlang.lang/component ~component)
        ~@body
        ~component
        (finalize-component ~component)))
@@ -138,26 +138,26 @@
                         (local-time/to-nano-of-day (local-time/of 23 59))))
 
 (comment
-  {:Fractl.Kernel.Lang/UUID (list `s/with-gen string?
+  {:Agentlang.Kernel.Lang/UUID (list `s/with-gen string?
                       #(gen/fmap str (s/gen uuid?)))})
 
-(def fractl-type->spec-clj-type
-  {:Fractl.Kernel.Lang/String string?
-   :Fractl.Kernel.Lang/Keyword keyword?
-   :Fractl.Kernel.Lang/Int int?
-   :Fractl.Kernel.Lang/Int64 int?
-   :Fractl.Kernel.Lang/BigInteger integer?
-   :Fractl.Kernel.Lang/Float float?
-   :Fractl.Kernel.Lang/Double double?
-   :Fractl.Kernel.Lang/Decimal #?(:clj decimal?
+(def agentlang-type->spec-clj-type
+  {:Agentlang.Kernel.Lang/String string?
+   :Agentlang.Kernel.Lang/Keyword keyword?
+   :Agentlang.Kernel.Lang/Int int?
+   :Agentlang.Kernel.Lang/Int64 int?
+   :Agentlang.Kernel.Lang/BigInteger integer?
+   :Agentlang.Kernel.Lang/Float float?
+   :Agentlang.Kernel.Lang/Double double?
+   :Agentlang.Kernel.Lang/Decimal #?(:clj decimal?
                       :cljs float?)
-   :Fractl.Kernel.Lang/Boolean boolean?
-   :Fractl.Kernel.Lang/Any any?
-   :Fractl.Kernel.Lang/Map map?
-   :Fractl.Kernel.Lang/UUID uuid?
-   :Fractl.Kernel.Lang/Path (list `s/or :string (list `s/and string? (complement clojure.string/blank?))
+   :Agentlang.Kernel.Lang/Boolean boolean?
+   :Agentlang.Kernel.Lang/Any any?
+   :Agentlang.Kernel.Lang/Map map?
+   :Agentlang.Kernel.Lang/UUID uuid?
+   :Agentlang.Kernel.Lang/Path (list `s/or :string (list `s/and string? (complement clojure.string/blank?))
                       :keyword keyword?)
-   :Fractl.Kernel.Lang/Edn (list `s/or :vector vector?
+   :Agentlang.Kernel.Lang/Edn (list `s/or :vector vector?
                      :map map?
                      :symbol symbol?
                      :keyword keyword?
@@ -167,15 +167,15 @@
                      :nil nil?
                      :list list?
                      :set set?)
-   :Fractl.Kernel.Lang/Date (list `s/with-gen (partial instance? java.time.LocalDate)
+   :Agentlang.Kernel.Lang/Date (list `s/with-gen (partial instance? java.time.LocalDate)
                       #(gen/fmap (fn [ms]
                                    (local-date/of-epoch-day ms))
                                  (s/gen ::past-and-future-date)))
-   :Fractl.Kernel.Lang/Time (list `s/with-gen (partial instance? java.time.LocalTime)
+   :Agentlang.Kernel.Lang/Time (list `s/with-gen (partial instance? java.time.LocalTime)
                       #(gen/fmap (fn [ms]
                                    (local-time/of-nano-of-day ms))
                                  (s/gen ::time)))
-   :Fractl.Kernel.Lang/DateTime (list `s/with-gen (partial instance? java.time.LocalDateTime)
+   :Agentlang.Kernel.Lang/DateTime (list `s/with-gen (partial instance? java.time.LocalDateTime)
                           #(gen/fmap (fn [ms]
                                        (local-date-time/of-epoch-second ms 0 utc))
                                      (s/gen ::past-and-future-date-time)))})
@@ -200,9 +200,9 @@
 (comment
   ;;[com.gfredericks/test.chuck "0.2.13"] can be used for predefined regex patterns
   (defcomponent :RefCheck
-                #_(entity {:RefCheck/E3 {:AIdId {:type :Fractl.Kernel.Lang/String
+                #_(entity {:RefCheck/E3 {:AIdId {:type :Agentlang.Kernel.Lang/String
                                                :format "^((19|2[0-9])[0-9]{2})-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$"}}}))
-  (defmethod define-spec :Fractl.Kernel.Lang/String [{:keys [spec-entity-name property-details]}]
+  (defmethod define-spec :Agentlang.Kernel.Lang/String [{:keys [spec-entity-name property-details]}]
     (let [spec-fn (if (:format property-details)
                     (list `s/def spec-entity-name (list `s/and string? #(re-matches (re-pattern (:format property-details)) %)))
                     (list `s/def spec-entity-name string?))]
@@ -213,11 +213,11 @@
     (eval spec-fn)))
 
 (defmethod define-spec :listof [{:keys [spec-entity-name property-details]}]
-  (let [spec-fn (list `s/def spec-entity-name (list `s/coll-of (-> :listof-type property-details fractl-type->spec-clj-type)))]
+  (let [spec-fn (list `s/def spec-entity-name (list `s/coll-of (-> :listof-type property-details agentlang-type->spec-clj-type)))]
     (eval spec-fn)))
 
 (defmethod define-spec :default [{:keys [spec-entity-name property-type]}]
-  (let [validator (or (fractl-type->spec-clj-type property-type)
+  (let [validator (or (agentlang-type->spec-clj-type property-type)
                       property-type)
         spec-fn (list `s/def spec-entity-name validator)]
     (eval spec-fn)))
@@ -240,7 +240,7 @@
   (cond
     (-> attr-schema :oneof seq) {:type :oneof
                                  :vals (-> attr-schema :oneof set)}
-    (= (-> attr-schema :type) :Fractl.Kernel.Lang/String) {:type :Fractl.Kernel.Lang/String
+    (= (-> attr-schema :type) :Agentlang.Kernel.Lang/String) {:type :Agentlang.Kernel.Lang/String
                                                     :format (-> attr-schema :format-str)}
     (-> attr-schema :listof some?) {:type :listof
                                     :listof-type (:listof attr-schema)}

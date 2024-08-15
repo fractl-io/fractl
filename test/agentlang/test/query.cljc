@@ -1,15 +1,15 @@
-(ns fractl.test.query
+(ns agentlang.test.query
   (:require #?(:clj  [clojure.test :refer [deftest is]]
                :cljs [cljs.test :refer-macros [deftest is]])
             [clojure.string :as s]
-            [fractl.component :as cn]
-            [fractl.evaluator :as e]
-            [fractl.lang
+            [agentlang.component :as cn]
+            [agentlang.evaluator :as e]
+            [agentlang.lang
              :refer [component attribute event
                      entity record dataflow]]
-            [fractl.store.util :as stu]
-            #?(:clj  [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.store.util :as stu]
+            #?(:clj  [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 (deftest q01
   (defcomponent :Q01
@@ -486,7 +486,7 @@
     (dataflow
      :I766/Q
      {:I766/E
-      {:X? [:>= :I766/Q.X] :Y? '(fractl.test.query/i766-f :I766/Q.Y)}}))
+      {:X? [:>= :I766/Q.X] :Y? '(agentlang.test.query/i766-f :I766/Q.Y)}}))
   (let [es (mapv #(tu/first-result
                    {:I766/Create_E
                     {:Instance

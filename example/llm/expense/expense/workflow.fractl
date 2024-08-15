@@ -8,33 +8,33 @@
 
 (dataflow
  :InitOcrAgent
- {:Fractl.Inference.Service/Agent
+ {:Agentlang.Inference.Service/Agent
   {:Name "receipt-ocr-agent"
    :Type "ocr"
    :UserInstruction (str "Analyse the image of a receipt and return only the items and their amounts. "
                          "No need to include sub-totals, totals and other data.")}
   :as :Agent}
- {:Fractl.Inference.Service/AgentLLM
+ {:Agentlang.Inference.Service/AgentLLM
   {:Agent :Agent.Name :LLM "llm01"}}
  :Agent)
 
 (dataflow
  :InitExpenseAgent
- {:Fractl.Inference.Service/Agent
+ {:Agentlang.Inference.Service/Agent
   {:Name "expense-agent"
    :Type "eval"}
   :as :Agent}
- {:Fractl.Inference.Service/AgentLLM
+ {:Agentlang.Inference.Service/AgentLLM
   {:Agent :Agent.Name :LLM "llm01"}}
- {:Fractl.Inference.Service/ChatSession
+ {:Agentlang.Inference.Service/ChatSession
   {:Messages
    [:q# [{:role :system
           :content (str "You are an intelligent agent who summarizes an expense report as a list of expense instances. For example, "
                         "if the report is \"I spent $200 on air ticket and $80 on food\", the summary should be "
                         "[{:Expense.Workflow/Expense {:Title \"air ticket\" :Amount 200}}, "
                         "{:Expense.Workflow/Expense {:Title \"food\", :Amount 80}}]")}]]}
-  :-> [[:Fractl.Inference.Service/AgentChatSession :Agent]]}
- {:Fractl.Inference.Service/AgentDelegate
+  :-> [[:Agentlang.Inference.Service/AgentChatSession :Agent]]}
+ {:Agentlang.Inference.Service/AgentDelegate
   {:From "expense-agent"
    :To "receipt-ocr-agent"
    :Preprocessor true}}
@@ -46,14 +46,14 @@
 (inference :SaveExpenses {:agent "expense-agent"})
 
 (dataflow
- :Fractl.Kernel.Lang/AppInit
- {:Fractl.Inference.Provider/LLM
+ :Agentlang.Kernel.Lang/AppInit
+ {:Agentlang.Inference.Provider/LLM
   {:Type "openai"
    :Name "llm01"
-   :Config {:ApiKey (fractl.util/getenv "OPENAI_API_KEY")
+   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
             :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
             :EmbeddingModel "text-embedding-3-small"
             :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
             :CompletionModel "gpt-3.5-turbo"}}}
- [:try {:Fractl.Inference.Service/Agent {:Name? "receipt-ocr-agent"}} :not-found {:InitOcrAgent {}}]
- [:try {:Fractl.Inference.Service/Agent {:Name? "expense-agent"}} :not-found {:InitExpenseAgent {}}])
+ [:try {:Agentlang.Inference.Service/Agent {:Name? "receipt-ocr-agent"}} :not-found {:InitOcrAgent {}}]
+ [:try {:Agentlang.Inference.Service/Agent {:Name? "expense-agent"}} :not-found {:InitExpenseAgent {}}])

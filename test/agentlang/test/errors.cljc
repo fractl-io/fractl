@@ -1,14 +1,14 @@
-(ns fractl.test.errors
+(ns agentlang.test.errors
   (:require [clojure.test :refer :all]
-            [fractl.util.errors :refer :all]
-            [fractl.test.util :as test-util]
+            [agentlang.util.errors :refer :all]
+            [agentlang.test.util :as test-util]
             [clojure.spec.alpha :as s]
             #?(:clj [clojure.test :refer [deftest is testing]]
                :cljs [cljs.test :refer-macros [deftest is testing]])
-            [fractl.api :as api]
-            [fractl.evaluator :as e]
-            #?(:clj [fractl.test.util :as tu :refer [defcomponent]]
-               :cljs [fractl.test.util :as tu :refer-macros [defcomponent]])))
+            [agentlang.api :as api]
+            [agentlang.evaluator :as e]
+            #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
+               :cljs [agentlang.test.util :as tu :refer-macros [defcomponent]])))
 
 ;; specs for the expected structure of the error response
 (s/def ::status (s/and keyword? #(= % :error)))
@@ -130,7 +130,7 @@
                                      "TestRecord - invalid attribute(s) found - attr1"))
 
   (testing "With overridden client message"
-    (let [client-invalid-attribute-error (ns-resolve 'fractl.util.errors 'client-invalid-attribute-error)]
+    (let [client-invalid-attribute-error (ns-resolve 'agentlang.util.errors 'client-invalid-attribute-error)]
       (evaluate-raised-error-test-case :invalid-attribute
                                        ["TestRecord" "attr1"]
                                        "TestRecord - invalid attribute(s) found - attr1"

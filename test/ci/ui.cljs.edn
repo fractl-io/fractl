@@ -4,8 +4,8 @@
   :open-url "http://[[server-hostname]]:[[server-port]]"
 
   :watch-dirs ["src" "test"]
-  ;; :extra-main-files {:testing {:main fractl.test-runner}}
+  ;; :extra-main-files {:testing {:main agentlang.test-runner}}
   :log-syntax-error-style :concise
   }
 
-{:main fractl.client.core}
+{:main agentlang.client.core}
