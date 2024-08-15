@@ -1,0 +1,96 @@
+(ns
+ agentlang.model.agentlang.kernel.identity
+ (:require [agentlang.lang.internal :as li] [agentlang.util :as u])
+ (:use
+  [agentlang.model.agentlang.kernel.lang
+   :only
+   [Agentlang_Kernel_Lang___COMPONENT_ID__]]
+  [agentlang.lang
+   :only
+   [dataflow
+    entity
+    view
+    attribute
+    rule
+    relationship
+    component
+    resolver
+    event
+    inference
+    record]]))
+(component
+ :Agentlang.Kernel.Identity
+ {:refer [:Agentlang.Kernel.Lang],
+  :clj-import
+  '[(:require [agentlang.lang.internal :as li] [agentlang.util :as u])]})
+(entity
+ :Agentlang.Kernel.Identity/User
+ {:Name {:type :String, :optional true},
+  :Password {:type :Password, :optional true},
+  :FirstName {:type :String, :optional true},
+  :LastName {:type :String, :optional true},
+  :Email {:type :Email, li/guid true},
+  :UserData {:type :Any, :optional true},
+  :AppId {:type :UUID, :default u/uuid-string, :indexed true}})
+(event
+ :Agentlang.Kernel.Identity/SignUp
+ {:User :Agentlang.Kernel.Identity/User})
+(event
+ :Agentlang.Kernel.Identity/PostSignUp
+ {:SignupRequest :Agentlang.Kernel.Identity/SignUp, :SignupResult :Any})
+(dataflow
+ :Agentlang.Kernel.Identity/SignUp
+ {:Agentlang.Kernel.Identity/User {},
+  :from :Agentlang.Kernel.Identity/SignUp.User})
+(entity
+ :Agentlang.Kernel.Identity/UserExtra
+ {:User :Agentlang.Kernel.Identity/User, :OtherDetails :Map})
+(entity
+ :Agentlang.Kernel.Identity/UserSession
+ {:User {:type :String, :guid true}, :LoggedIn :Boolean})
+(entity
+ :Agentlang.Kernel.Identity/SessionCookie
+ {:Id {:type :String, :guid true}, :UserData :Any})
+(event
+ :Agentlang.Kernel.Identity/UpdateUser
+ {:UserDetails :Agentlang.Kernel.Identity/UserExtra})
+(event :Agentlang.Kernel.Identity/ForgotPassword {:Username :Email})
+(event
+ :Agentlang.Kernel.Identity/ConfirmForgotPassword
+ {:Username :Email, :ConfirmationCode :String, :Password :String})
+(event
+ :Agentlang.Kernel.Identity/ConfirmSignUp
+ {:Username :Email, :ConfirmationCode :String})
+(event
+ :Agentlang.Kernel.Identity/ChangePassword
+ {:AccessToken :String, :CurrentPassword :String, :NewPassword :String})
+(event :Agentlang.Kernel.Identity/RefreshToken {:RefreshToken :String})
+(event
+ :Agentlang.Kernel.Identity/UserLogin
+ {:Username :String, :Password :Password})
+(event :Agentlang.Kernel.Identity/FindUser {:Email :Email})
+(dataflow
+ :Agentlang.Kernel.Identity/FindUser
+ #:Agentlang.Kernel.Identity{:User
+                          {:Email?
+                           :Agentlang.Kernel.Identity/FindUser.Email}})
+(event
+ :Agentlang.Kernel.Identity/ResendConfirmationCode
+ {:Username :Email})
+(dataflow
+ [:after :delete :Agentlang.Kernel.Identity/User]
+ [:delete
+  :Agentlang.Kernel.Rbac/InstancePrivilegeAssignment
+  {:Assignee :Instance.Email}]
+ [:delete :Agentlang.Kernel.Rbac/InstancePrivilegeAssignment :purge]
+ [:delete
+  :Agentlang.Kernel.Rbac/OwnershipAssignment
+  {:Assignee :Instance.Email}]
+ [:delete :Agentlang.Kernel.Rbac/OwnershipAssignment :purge]
+ [:delete
+  :Agentlang.Kernel.Rbac/RoleAssignment
+  {:Assignee :Instance.Email}]
+ [:delete :Agentlang.Kernel.Rbac/RoleAssignment :purge])
+(def
+ Agentlang_Kernel_Identity___COMPONENT_ID__
+ "1e60ab15-6b3c-41a8-bacf-b8a09570a8d1")

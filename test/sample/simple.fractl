@@ -1,5 +1,5 @@
 (ns sample.simple
-  (:use [fractl.lang]))
+  (:use [agentlang.lang]))
 
 (component :Sample.Simple)
 
@@ -19,7 +19,7 @@
        :B :K.Data.I
        :C '(+ 10 :A)
        :X "secret"
-       :Y '(fractl.lang.datetime/now)}})
+       :Y '(agentlang.lang.datetime/now)}})
 
 (dataflow
  :Q
@@ -57,4 +57,4 @@
          {:Name {:check valid-name?}
           :Field {:type :StringField}}})
 
-(dataflow :KK {:E2 {:Y '(fractl.lang.datetime/now)}})
+(dataflow :KK {:E2 {:Y '(agentlang.lang.datetime/now)}})
