@@ -66,7 +66,7 @@
    (def agentlang-version
      (memoize (fn []
                 (or (:agentlang-version environ/env)
-                    (let [projfile (io/resource "META-INF/leiningen/com.github.agentlang-io/agentlang/project.clj")
+                    (let [projfile (io/resource "META-INF/leiningen/com.github.agentlang-ai/agentlang/project.clj")
                           project (read-string (slurp projfile))]
                       (nth project 2))))))
 

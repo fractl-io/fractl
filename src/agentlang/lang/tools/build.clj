@@ -139,7 +139,7 @@
         ns-name (symbol (str model-name ".modelmain"))
         deps (vec
               (concat
-               [['com.github.agentlang-io/agentlang (fetch-agentlang-version model)]]
+               [['com.github.agentlang-ai/agentlang (fetch-agentlang-version model)]]
                (agentlang-deps-as-clj-deps (:dependencies model))))
         spec0 `(~'defproject ~(symbol model-name) ~(model-version model)
                 :dependencies ~deps
@@ -468,7 +468,7 @@
 (def ^:private calib-src-dir (s/replace calib-proj-name "-" "_"))
 
 (defn- emit-calibration-project [agentlang-version deps]
-  (let [final-deps (vec (concat [['com.github.agentlang-io/agentlang agentlang-version]]
+  (let [final-deps (vec (concat [['com.github.agentlang-ai/agentlang agentlang-version]]
                                 deps))
         ns-name (symbol (str calib-proj-name ".core"))
         project-spec `(~'defproject ~(symbol calib-proj-name) ~agentlang-version

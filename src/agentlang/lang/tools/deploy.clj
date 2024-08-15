@@ -26,7 +26,7 @@
               (str (:host service-info) deploy-api)
               {:auth-token (:auth-token service-info)
                ;; TODO: remove these long timeouts once
-               ;; https://github.com/agentlang-io/agentlang-deployment-service/issues/11
+               ;; https://github.com/fractl-io/fractl-deployment-service/issues/11
                ;; is done.
                :keepalive 3600000
                :timeout 3600000} ; 1 hour in ms

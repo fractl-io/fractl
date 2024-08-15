@@ -9,7 +9,7 @@
 
 (defn- load-model-from-meta [model-name]
   ;; TODO: implement model-loading from store
-  ;; See https://github.com/agentlang-io/agentlang/issues/471
+  ;; See https://github.com/fractl-io/fractl/issues/471
   )
 
 (defn- meta-eval [agentlang-api event-instance]

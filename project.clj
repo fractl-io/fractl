@@ -1,4 +1,4 @@
-(defproject com.github.agentlang-ai/agentlang "0.0.1"
+(defproject com.github.agentlang-ai/agentlang "0.5.4"
   :dependencies [[org.clojure/clojure "1.11.3"]
                  [org.clojure/clojurescript "1.11.132"
                   :exclusions [com.google.code.findbugs/jsr305]]
