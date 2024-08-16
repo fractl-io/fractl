@@ -1278,16 +1278,19 @@
     (vec (concat a b))))
 
 (defn- lift-throw [pat]
-  (if-let [handlers (and (map? pat) (:catch pat))]
-    `[:catch
-      ~(dissoc pat :catch)
-      ~@(us/flatten-map handlers)]
-    (if-let [throw (and (vector? pat) (fetch-throw pat))]
-      (let [handlers (second throw)]
-        `[:catch
-          ~(remove-throw pat throw)
-          ~@(us/flatten-map handlers)])
-      pat)))
+  (w/prewalk
+   (fn [pat]
+     (if-let [handlers (and (map? pat) (:catch pat))]
+       `[:catch
+         ~(dissoc pat :catch)
+         ~@(us/flatten-map handlers)]
+       (if-let [throw (and (vector? pat) (fetch-throw pat))]
+         (let [handlers (second throw)]
+           `[:catch
+             ~(remove-throw pat throw)
+             ~@(us/flatten-map handlers)])
+         pat)))
+   pat))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
