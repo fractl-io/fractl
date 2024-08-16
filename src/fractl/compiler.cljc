@@ -699,7 +699,7 @@
 (defn- compile-try-handler [ctx [k pat]]
   (when-not (op/result-tag? k)
     (u/throw-ex (str "invalid try handler " k)))
-  [k (compile-pattern ctx pat)])
+  [k (compile-maybe-pattern-list ctx pat)])
 
 (defn- distribute-handler-keys [handler-spec]
   (loop [hs handler-spec, final-spec {}]

@@ -872,30 +872,39 @@
       (is (= 3 (apply + (mapv :X (:Rs e1))))))))
 
 (deftest issue-1461-nested-catch
-  (defcomponent :I1461
-    (entity :I1461/A {:X :Int})
-    (record :I1461/Invalid {:X :Int})
-    (record :I1461/NotFound {:X :Int})
-    (dataflow
-     :I1461/FindA
-     [:match :I1461/FindA.X
-      1 {:I1461/Invalid {:X 1}}
-      3 {:I1461/Invalid {:X 3}}
-      {:I1461/A {:X? :I1461/FindA.X}
-       :catch
-       {:not-found {:I1461/NotFound {:X :I1461/FindA.X}}}}]))
-  (let [as (mapv #(tu/first-result
-                   {:I1461/Create_A
-                    {:Instance
-                     {:I1461/A {:X %}}}})
-                 [10 20 30 40])
-        a? (partial cn/instance-of? :I1461/A)
-        _ (is (seq as))
-        _ (is (every? a? as))
-        rs (tu/result {:I1461/FindA {:X 10}})]
-    (is (and (= 1 (count rs)) (a? (first rs))))
-    (let [r (tu/first-result {:I1461/FindA {:X 100}})]
-      (is (cn/instance-of? :I1461/NotFound r)))
-    (let [r (tu/first-result {:I1461/FindA {:X 3}})]
+  (let [not-found-flag (atom nil)]
+    (defn issue-1461-reset-not-found-flag! []
+      (reset! not-found-flag (not @not-found-flag)))
+    (defcomponent :I1461
+      (entity :I1461/A {:X :Int})
+      (record :I1461/Invalid {:X :Int})
+      (record :I1461/NotFound {:X :Int})
+      (dataflow
+       :I1461/FindA
+       [:match :I1461/FindA.X
+        1 {:I1461/Invalid {:X 1}}
+        3 {:I1461/Invalid {:X 3}}
+        {:I1461/A {:X? :I1461/FindA.X}
+         :catch
+         {:not-found
+          ;; Multiple pattern support in handler.
+          [[:eval '(fractl.test.fixes03/issue-1461-reset-not-found-flag!)]
+           {:I1461/NotFound {:X :I1461/FindA.X}}]}}]))
+    (let [as (mapv #(tu/first-result
+                     {:I1461/Create_A
+                      {:Instance
+                       {:I1461/A {:X %}}}})
+                   [10 20 30 40])
+          a? (partial cn/instance-of? :I1461/A)
+          _ (is (seq as))
+          _ (is (every? a? as))
+          rs (tu/result {:I1461/FindA {:X 10}})]
+      (is (and (= 1 (count rs)) (a? (first rs))))
+      (is (not @not-found-flag))
+      (let [r (tu/first-result {:I1461/FindA {:X 100}})]
+        (is (cn/instance-of? :I1461/NotFound r)))
+      (is @not-found-flag)
+      (issue-1461-reset-not-found-flag!)
+      (let [r (tu/first-result {:I1461/FindA {:X 3}})]
       (is (and (cn/instance-of? :I1461/Invalid r)
-               (= 3 (:X r)))))))
+               (= 3 (:X r))))))))
