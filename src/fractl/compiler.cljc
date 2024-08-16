@@ -958,7 +958,7 @@
 (def ^:private special-form-handlers
   {:match compile-match
    :try compile-try
-   :throws (partial compile-try true)
+   :catch (partial compile-try true)
    :rethrow-after compile-rethrow-after
    :for-each compile-for-each
    :query compile-query-command
@@ -1268,23 +1268,23 @@
       #?(:clj (throw (Exception. "Error in dataflow, pre-processing failed"))))))
 
 (defn- fetch-throw [pat]
-  (if (= :throws (first pat))
-    (u/throw-ex (str ":throws cannot be a standalone expression - " pat))
-    (seq (drop-while #(not= :throws %) pat))))
+  (if (= :catch (first pat))
+    (u/throw-ex (str ":catch cannot be a standalone expression - " pat))
+    (seq (drop-while #(not= :catch %) pat))))
 
 (defn- remove-throw [pat throw]
-  (let [a (take-while #(not= :throws %) pat)
+  (let [a (take-while #(not= :catch %) pat)
         b (nthrest throw 2)]
     (vec (concat a b))))
 
 (defn- lift-throw [pat]
-  (if-let [handlers (and (map? pat) (:throws pat))]
-    `[:throws
-      ~(dissoc pat :throws)
+  (if-let [handlers (and (map? pat) (:catch pat))]
+    `[:catch
+      ~(dissoc pat :catch)
       ~@(us/flatten-map handlers)]
     (if-let [throw (and (vector? pat) (fetch-throw pat))]
       (let [handlers (second throw)]
-        `[:throws
+        `[:catch
           ~(remove-throw pat throw)
           ~@(us/flatten-map handlers)])
       pat)))
