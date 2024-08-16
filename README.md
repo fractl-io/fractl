@@ -3,95 +3,73 @@
 [![AgentLang cljs CI](https://github.com/agentlang-ai/agentlang/actions/workflows/agentlang-cljs.yml/badge.svg)](https://github.com/agentlang-ai/agentlang/actions/workflows/agentlang-cljs.yml)
 
 # The AgentLang Programming Language
+AgentLang is an open-source programming language and framework for solving complex tasks with the help of AI agents.
+A typical AgentLang program involves multiple, interacting agents. An agent can be enhanced with tools, knowledge bases and
+chat prompts with history. Agents can also form complex graphs of inter-relationships, which allows agents to interact in complex
+ways to solve a problem. The declarative nature of AgentLang makes it really easy define all the agent execution context and their
+inter-dependencies using a simple and intuitive syntax.
 
-Generative AI is poised to revolutionize the entire software development landscape, with the promise of fluently writing code on behalf of programmers. However, programming is a discipline that requires precision and deep reasoning, not just fluency: minor nuances in code can lead to wildly different outcomes. As a result, AI-driven code generation needs to involve a human (developer) in the loop. Developers still need to meticulously review, refactor, and test AI-generated code (aided by AI, of course) before incorporating it into their projects. Traditional programming languages are a poor fit for this human-in-the-loop workflow: generated code is too low-level, syntactically verbose, and comprehensible only by highly-trained experts, even then requiring significant effort.
-
-## AgentLang Loves Gen AI
-As a language, AgentLang is data-oriented and declarative, with an abstraction that is closer to natural languages than traditional programming languages. This makes agentlang a much better fit for Gen AI-powered code generation. Users can rapidly build business application in AgentLang from high-level specifications - typically more than 10x faster than traditional programming languages.
-
-## AgentLang is a bridge between Code and Low-code/No-code
-With the rising popularity of Low-code/No-code tools, a growing chasm has emerged between traditional programming and visual building. Traditional programming by professional developers offers immense power and flexiblity, but tends to be slow, expensive and constrained by the availability of skilled developers. In contrast, low-code/no-code tools provide speed and simplicity, but are often limited to simple use cases, lead to strong vendor lock-ins, and, as a result, have been strongly rejected by professional developers.
-
-AgentLang, with its high-level of abstraction and data-oriented syntax, bridges this chasm by being a single abstraction for both traditional programming and visual building. Code blocks in the AgentLang programming language can be directly represented as visual elements in AgentLang Design Studio, without any translation, and vice versa. This unique characteristic of AgentLang makes it possible for developers to concurrently use multiple ways of building:
-
-* Traditional coding in IDEs,
-* Visual development in a no-code builder, and,
-* Code generation with generative-AI.
+While most AI programming frameworks limit themselves to LLM based text-processing and generation tasks, AgentLang is designed
+as a complete tool for real-world application development. As a language, AgentLang is data-oriented and declarative, with
+an abstraction that is closer to natural languages than traditional programming languages. This makes AgentLang a much better
+fit for Gen AI-powered code generation. Users can rapidly build business application in AgentLang from high-level
+specifications - typically more than 10x faster than traditional programming languages.
 
 ## AgentLang is open
 The AgentLang language specification, its compiler and runtime are open source.
 
-The code you build in AgentLang can be run anywhere using the open source compiler and runtime, thereby avoiding the vendor lock-in of other low-code/no-code platforms.
+The code you build in AgentLang can be run anywhere using the open source compiler and runtime, thereby avoiding the vendor
+lock-in of other AI programming platforms.
 
 ## AgentLang is innovative
 AgentLang introduces a number of innovative concepts to programming:
 
-1. **Graph-based Hierarchical Data Model** - compose the high-level data model of an application as a hierarchical graph of business entities with relationships. Such [entities and relationships](https://docs.agentlang.io/docs/concepts/data-model) are first-class constructs in AgentLang.
-2. **Zero-trust Programming** - tightly control operations on business entities through [declarative access-control](https://docs.agentlang.io/docs/concepts/zero-trust-programming) encoded directly in the model itself.
-3. **Declarative Dataflow** - express business logic as [purely-declarative patterns of data](https://docs.agentlang.io/docs/concepts/declarative-dataflow).
-4. **Resolvers** - use a simple, but [powerful mechanism](https://docs.agentlang.io/docs/concepts/resolvers) to interface with external systems.
-5. **Interceptors** - [extend the agentlang runtime](https://docs.agentlang.io/docs/concepts/interceptors) with custom capabilities.
-6. **Entity-graph-Database Mapping** - take advantage of an [abstract persistence layer](https://docs.agentlang.io/docs/concepts/entity-db-mapping) for fully-automated storage of entity instances.
+1. **First-class AI Agents** - interacting AI Agents as a language concept, developers can choose from one of the built-in agent-types, or easily add their own new types.
+2. **Graph-based Hierarchical Data Model** - compose the high-level data model of an application as a hierarchical graph of business entities with relationships. Such [entities and relationships](https://docs.agentlang.io/docs/concepts/data-model) are first-class constructs in AgentLang.
+3. **Zero-trust Programming** - tightly control operations on business entities through [declarative access-control](https://docs.agentlang.io/docs/concepts/zero-trust-programming) encoded directly in the model itself.
+4. **Declarative Dataflow** - express business logic as [purely-declarative patterns of data](https://docs.agentlang.io/docs/concepts/declarative-dataflow).
+5. **Resolvers** - use a simple, but [powerful mechanism](https://docs.agentlang.io/docs/concepts/resolvers) to interface with external systems.
+6. **Interceptors** - [extend the agentlang runtime](https://docs.agentlang.io/docs/concepts/interceptors) with custom capabilities.
+7. **Entity-graph-Database Mapping** - take advantage of an [abstract persistence layer](https://docs.agentlang.io/docs/concepts/entity-db-mapping) for fully-automated storage of entity instances.
 
 ## A Taste of AgentLang
 
-The following code snippet shows the AgentLang model (i.e., program) for a simple accounting application. 
+The following code snippet shows a simple agent that can interact with a human user:
 
 ```clojure
-(component :Accounts.Core)
+(component :Chat)
 
-(entity :Company
- {:Name {:type :String :guid true}
-  :rbac [{:roles ["manager"] :allow [:create]}]})
+(dataflow
+ :InitChatAgent
+ {:Agentlang.Inference.Service/Agent
+  {:Name "a-chat-agent"
+   :Type "chat"}
+  :as :Agent}
+ {:Agentlang.Inference.Service/AgentLLM
+  {:Agent :Agent.Name :LLM "llm01"}}
+ {:Agentlang.Inference.Service/ChatSession
+  {:Messages [:q# [{:role :system :content "Ask me anything, I can even tell jokes!"}]]}
+  :-> [[:Agentlang.Inference.Service/AgentChatSession :Agent]]}
+ :Agent)
 
-(entity :AccountHead
- {:Name {:type :String :id true}
-  :rbac [{:roles ["accountant"] :allow [:create]}]})
+(inference :Session {:agent "a-chat-agent"})
 
-(entity :Entry
- {:No {:type :Int :id true}
-  :Type {:oneof ["income" "expense"]}
-  :Amount :Decimal
-  :Remarks {:type :String :optional true}
-  :DateCreated :Now})
-
-(relationship :CompanyAccounts
- {:meta {:contains [:Company :AccountHead]}})
-
-(relationship :Transactions
- {:meta {:contains [:AccountHead :Entry]}})
-
-(record :BalanceReport
- {:Balance :Decimal
-  :GeneratedOn :Now})
-
-(defn- find-balance [entries]
-  (reduce (fn [b t]
-            (let [op (if (= "income" (:Type t)) + -)]
-              (op b (:Amount t))))
-          0 entries))
-
-(event :GenerateReport
- {:Since :DateTime
-  :Company :String
-  :AccountHead :String})
-
-(dataflow :GenerateReport
- {:AccountHead? {}
-  :-> [[:CompanyAccounts?
-        {:Company {:Name? :GenerateReport.Company}}
-        :GenerateReport.AccountHead]]
-  :as [:A]}
- {:Entry
-  {:DateCreated? [:>= :GenerateReport.Since]}
-  :-> [[:Transactions? :A]]
-  :as :Es}
- {:BalanceReport
-  {:Balance '(find-balance :Es)}})
+(dataflow
+ :Agentlang.Kernel.Lang/AppInit
+ {:Agentlang.Inference.Provider/LLM
+  {:Type "openai"
+   :Name "llm01"
+   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+            :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+            :EmbeddingModel "text-embedding-3-small"
+            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+            :CompletionModel "gpt-3.5-turbo"}}}
+ [:try {:Agentlang.Inference.Service/Agent {:Name? "a-chat-agent"}} :not-found {:InitChatAgent {}}])
 ```
 
-Save this code to a file named `accounts.agentlang` and its ready to be run as a highly-scalable accounting service with RESTful APIs to perform CRUD operations and generate balance report!
-But before you can actually run it, you need to install AgentLang. The next section will help you with that.
+Save this code to a file named `chat.al` and its ready to be run as a highly-scalable agent service with ready-to-use
+HTTP APIs to interact with the agent. But before you can actually run it, you need to install AgentLang.
+The next section will help you with that.
 
 ## Download and Install
 
@@ -100,66 +78,26 @@ But before you can actually run it, you need to install AgentLang. The next sect
 1. [Java SE 21](https://openjdk.org/projects/jdk/21/) or later
 2. Linux, Mac OSX or a Unix emulator in Windows
 
-Download the [AgentLang CLI tool](https://raw.githubusercontent.com/agentlang-ai/agentlang/main/bin/agentlang) and execute the model:
+Set the `OPENAI_API_KEY` environment variable to a valid API key from OpenAI:
 
 ```shell
-./agentlang /path/to/accounts.agentlang
+export OPENAI_API_KEY="<openai-api-key>"
 ```
 
-We can create a new company using an `HTTP POST` request,
+Download the [AgentLang CLI tool](https://raw.githubusercontent.com/agentlang-ai/agentlang/main/bin/agentlang) and run the agent:
+
+```shell
+./agent /path/to/chat.al
+```
+
+We can start a chat with the agent with the following HTTP POST:
 
 ```shell
 curl --header "Content-Type: application/json" \
 --request POST \
---data '{"Accounts.Core/Company": {"Name": "acme"}}' \
-http://localhost:8080/api/Accounts.Core/Company
+--data '{"Chat/Session": {"UserInstruction": "tell me a joke about AI agents"}}' \
+http://localhost:8080/api/Chat/Session
 ```
-
-To make sure the new company is persisted in the store, try the following `HTTP GET`:
-
-```shell
-curl http://localhost:8080/api/Accounts.Core/Company/acme
-```
-
-If AgentLang is installed correctly, both these requests will return an `OK` status along with a `:Company` instance.
-Listed below are a few more HTTP requests that you can try with our "accounting" application:
-
-1. Create an account-head for the new company.
-
-```shell
-POST /api/Accounts.Core/Company/acme/CompanyAccounts/AccountHead
-
-{"Accounts.Core/AccountHead": {"Name": "Department01"}}
-```
-
-2. Make some transactions under the new account-head.
-
-```shell
-POST /api/Accounts.Core/Company/acme/CompanyAccounts/AccountHead/Department01/Transactions/Entry
-
-{"Accounts.Core/Entry":
- {"No": 1, "Type": "income",
-  "Amount": 2000.0, "Remarks": "Opening balance"}}
-
-POST /api/Accounts.Core/Company/acme/CompanyAccounts/AccountHead/Department01/Transactions/Entry
-
-{"Accounts.Core/Entry":
- {"No": 2, "Type": "expense",
-  "Amount": 500.0, "Remarks": "Rent paid"}}
-```
-
-3. Generate the balance-report for the account-head.
-
-```shell
-POST /api/Accounts.Core/GenerateReport
-
-{"Accounts.Core/GenerateReport":
- {"Since": "2023-11-09T00:00:00.00",
-  "Company": "acme",
-  "AccountHead": "Department01"}}
-```
-
-You're all set to further explore **AgentLang**. Please proceed to the official [documentation](https://docs.agentlang.io/docs/intro) pages.
 
 ## License
 

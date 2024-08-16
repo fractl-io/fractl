@@ -1,16 +1,16 @@
-[{:role "system" :content "You are the fractl assistant."},
- {:role "system" :content "All http requests will be handles using the http-kit library, json handling will be done with the cheshire.core library, aws handling will be done with the amazonica library, and system util processes will be done using fractl.util (i.e. getting system environment variables with fractl.util/getenv)"},
+[{:role "system" :content "You are the agentlang assistant."},
+ {:role "system" :content "All http requests will be handles using the http-kit library, json handling will be done with the cheshire.core library, aws handling will be done with the amazonica library, and system util processes will be done using agentlang.util (i.e. getting system environment variables with agentlang.util/getenv)"},
  {:role "system" :content "Leave no implementation to the user, add all implementation yourself"},
  {:role "system" :content "All of the resolver functions are to be defined outside of the resolver definition, and will be accessed using the definition below:
 (defmake :<resolver-name>   (fn [resolver-name conf]     (reset! config conf)     (r/make-resolver resolver-name {:create {:handler <create-function-name>}    :update {:handler <update-function-name>} 	 :delete {:handler <delete-function-name>} 	 :query  {:handler <query-function-name>}}))) ```
-Defmake is not an actual call so it needs [fractl.resolver.registry :refer [defmake]] in the requirements as defmake isn’t an actual clojure call. 'r’ in r/make-resolver is also needed as a requirement as [fractl.registry.core :as r]"},
+Defmake is not an actual call so it needs [agentlang.resolver.registry :refer [defmake]] in the requirements as defmake isn’t an actual clojure call. 'r’ in r/make-resolver is also needed as a requirement as [agentlang.registry.core :as r]"},
  {:role "user" :content "generate a resolver for airtable that backs a User entity."},
  {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [org.httpkit.client :as http]
             [cheshire.core :as json]
             [clojure.string :as string]))
@@ -59,9 +59,9 @@ File 1(Resolver):
 
 File 1(Resolver):
 (ns airtable-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [cheshire.core :as json]
             [clojure.string :as string]))
 (def entity-table-mapping
@@ -141,9 +141,9 @@ File 2(Http):
  {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [cheshire.core :as json]
             [clojure.string :as string]))
 (def entity-table-mapping
@@ -222,9 +222,9 @@ File 2(Http):
  {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [cheshire.core :as json]
             [clojure.string :as string]))
 (def entity-table-mapping
@@ -312,7 +312,7 @@ File 2(Http):
                                   {:headers {\"Authorization\" (str \"Bearer \" api-key)}
                                    :query-params params})]
         (json/parse-string (:body response) true)))))
-"}, {:role "user" :content "Generate a resolver that backs the following fractl data model with airtable: (component :Planner.App)
+"}, {:role "user" :content "Generate a resolver that backs the following agentlang data model with airtable: (component :Planner.App)
 (entity
  {:User
   {:Username    {:type     :Kernel/String
@@ -417,9 +417,9 @@ File 2(Http):
  {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [cheshire.core :as json]
             [clojure.string :as string]))
 (def entity-table-mapping
@@ -514,10 +514,10 @@ File 2(Http):
  {:role "assistant" :content "Airtable Resolver:
 File 1(Resolver):
 (ns airtable-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
-            [fractl.util :as u]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
+            [agentlang.util :as u]
             [cheshire.core :as json]
             [clojure.string :as string]))
 (def entity-table-mapping
@@ -609,9 +609,9 @@ File 2(Http):
  {:role "assistant" :content "AWS S3 Resolver:
 File 1(Resolver):
 (ns aws-s3-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [clojure.java.io :as io]
             [aws-s3-resolver.client :as client]))
 (def config (atom {}))
@@ -671,9 +671,9 @@ File 2(Client):
  {:role "assistant" :content "AWS S3 Resolver:
 File 1(Resolver):
 (ns aws-s3-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [aws-s3-resolver.client :as client]
             [clojure.java.io :as io]))
 (def config (atom {}))
@@ -733,13 +733,13 @@ File 2(Client):
 (defn delete-object
   ([cred bucket key]
     (s3/delete-object cred :bucket-name bucket :key key))"},
- {:role "user" :content "Generate a resolver that backs the following fractl data model with AWS S3: (component :AWS.S3) (entity :AWS.S3/Bucket {:Name :String :Region :String}) (entity :AWS.S3/Object {:Key :String :Bucket :String :File :String}) (relationship :AWS.S3/BucketObject {:meta {:contains [:AWS.S3/Bucket :AWS.S3/Object]}})"},
+ {:role "user" :content "Generate a resolver that backs the following agentlang data model with AWS S3: (component :AWS.S3) (entity :AWS.S3/Bucket {:Name :String :Region :String}) (entity :AWS.S3/Object {:Key :String :Bucket :String :File :String}) (relationship :AWS.S3/BucketObject {:meta {:contains [:AWS.S3/Bucket :AWS.S3/Object]}})"},
  {:role "assistant" :content "AWS S3 Resolver:
 File 1(Resolver):
 (ns aws-s3-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [aws-s3-resolver.client :as client]
             [clojure.java.io :as io]))
 (def config (atom {}))
@@ -814,10 +814,10 @@ File 2(Client):
  {:role "assistant" :content "AWS S3 Resolver:
 File 1(Resolver):
 (ns aws-s3-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
-            [fractl.util :as u]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
+            [agentlang.util :as u]
             [aws-s3-resolver.client :as client]
             [clojure.java.io :as io]))
 (defn create-entity [entity]
@@ -894,7 +894,7 @@ File 2(Client):
 (defn delete-object
   ([cred bucket key]
     (s3/delete-object cred :bucket-name bucket :key key))"},
- {:role "user" :content "Generate a resolver that backs the following fractl data model with AWS SNS:
+ {:role "user" :content "Generate a resolver that backs the following agentlang data model with AWS SNS:
                              (component :AWS.SNS)
                              (entity :AWS.SNS/Topic {:Name :String :TopicArn :String})
                              (entity :AWS.SNS/Subscription {:Endpoint :String :Protocol :String :SubscriptionArn :String})
@@ -903,9 +903,9 @@ File 2(Client):
  {:role "assistant" :content "AWS SNS Resolver:
 File 1(Resolver):
 (ns aws-sns-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [aws-sns-resolver.client :as client]))
 (def config (atom {}))
 (defn create-entity [entity]
@@ -976,7 +976,7 @@ File 2(Client):
   (sns/get-subscription-attributes credentials :subscription-arn subscription-arn))
 (defn set-subscription-attributes [credentials subscription-arn attributes]
   (sns/set-subscription-attributes credentials :subscription-arn subscription-arn :attributes attributes))"}
- {:role "user" :content "Generate a resolver for the following fractl data model using Google Classroom's API:
+ {:role "user" :content "Generate a resolver for the following agentlang data model using Google Classroom's API:
                              (component :Google.Classroom)
                              (entity :Google.Classroom/User {:Id {:type :String :identity true} :Name :String :Email :String})
                              (entity :Google.Classroom/Course {:Id {:type :String :identity true} :Title :String :Description :String :CreatedBy {:type :Google.Classroom/User :indexed true} :CreatedOn :DateTime})
@@ -987,9 +987,9 @@ File 2(Client):
 File 1(Resolver):
 ```clojure
 (ns google-classroom-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [defmake]]
-            [fractl.component :as cn]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [defmake]]
+            [agentlang.component :as cn]
             [clj-http.client :as http]
             [cheshire.core :as json]))
 (def config (atom {}))
@@ -1094,20 +1094,20 @@ File 2(Client):
                            The request for the API can be:
 
                            POST \"_e/Box/GetFolderInfo\"
-                           {\n    \"Box/GetFolderInfo\": {\n        \"FolderId\": \"246847679929\",\n        \"Path\": \"/Users/prertik/Developer/fractl/\"\n    }\n}
+                           {\n    \"Box/GetFolderInfo\": {\n        \"FolderId\": \"246847679929\",\n        \"Path\": \"/Users/prertik/Developer/agentlang/\"\n    }\n}
                            "}
  {:role "assistant" :content "Assistant's response: Box Resolver:
 File 1(Resolver):
 ```clojure
 (ns box-resolver.resolver
-  (:require [fractl.resolver.core :as r]
-            [fractl.resolver.registry :refer [compose-resolver]]
-            [fractl.component :as cn]
-            [fractl.lang.internal :as li]
+  (:require [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :refer [compose-resolver]]
+            [agentlang.component :as cn]
+            [agentlang.lang.internal :as li]
             [clojure.java.io :as io]
-            [fractl.util :as u]
+            [agentlang.util :as u]
             [box-resolver.client :as client])
-  (:use [fractl.lang]))
+  (:use [agentlang.lang]))
 
 (component :Box
            {:clj-import (quote [(:require [box-resolver.client])])})
@@ -1208,12 +1208,12 @@ File 2(Client):
 ```clojure
 (ns box-resolver.client
   (:require [clojure.java.io :as io]
-            [fractl.util :as util]
-            [fractl.component :as cn]
-            [fractl.util.http :as http]
-            [fractl.datafmt.json :as json]
-            [fractl.resolver.core :as r]
-            [fractl.resolver.registry :as rg]))
+            [agentlang.util :as util]
+            [agentlang.component :as cn]
+            [agentlang.util.http :as http]
+            [agentlang.datafmt.json :as json]
+            [agentlang.resolver.core :as r]
+            [agentlang.resolver.registry :as rg]))
 
 (def ^:private box-api-url \"https://api.box.com/2.0\")
 
