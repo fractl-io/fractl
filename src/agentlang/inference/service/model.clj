@@ -68,7 +68,8 @@
   :Extension {:type :Map :optional true}
   :Context {:type :Map :optional true}
   :ResponseHandler {:check fn? :optional true}
-  :Response {:type :Any :read-only true}})
+  :Response {:type :Any :read-only true}
+  :CacheChatSession {:type :Boolean :default true}})
 
 (relationship
  :Agentlang.Inference.Service/AgentDelegate

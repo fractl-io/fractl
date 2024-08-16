@@ -378,6 +378,10 @@
   (println msg (pr-str x) (pr-str (f x)))
   x)
 
+(defn pretty-trace [x]
+  (pprint x)
+  x)
+
 #?(:clj
    (do
      (defn exec-in-directory [path cmd]
