@@ -699,7 +699,7 @@
 (defn- compile-try-handler [ctx [k pat]]
   (when-not (op/result-tag? k)
     (u/throw-ex (str "invalid try handler " k)))
-  [k (compile-pattern ctx pat)])
+  [k (compile-maybe-pattern-list ctx pat)])
 
 (defn- distribute-handler-keys [handler-spec]
   (loop [hs handler-spec, final-spec {}]
@@ -1278,16 +1278,19 @@
     (vec (concat a b))))
 
 (defn- lift-throw [pat]
-  (if-let [handlers (and (map? pat) (:throws pat))]
-    `[:throws
-      ~(dissoc pat :throws)
-      ~@(us/flatten-map handlers)]
-    (if-let [throw (and (vector? pat) (fetch-throw pat))]
-      (let [handlers (second throw)]
-        `[:throws
-          ~(remove-throw pat throw)
-          ~@(us/flatten-map handlers)])
-      pat)))
+  (w/prewalk
+   (fn [pat]
+     (if-let [handlers (and (map? pat) (:throws pat))]
+       `[:throws
+         ~(dissoc pat :throws)
+         ~@(us/flatten-map handlers)]
+       (if-let [throw (and (vector? pat) (fetch-throw pat))]
+         (let [handlers (second throw)]
+           `[:throws
+             ~(remove-throw pat throw)
+             ~@(us/flatten-map handlers)])
+         pat)))
+   pat))
 
 (defn- compile-dataflow [ctx evt-pattern df-patterns]
   (let [c (partial
