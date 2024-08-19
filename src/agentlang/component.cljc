@@ -2359,3 +2359,34 @@
 (defn system-component-names []
   (when-let [cns (seq (filter #(s/starts-with? (str %) ":Agentlang") (component-names)))]
     (vec cns)))
+
+(def ^:private extension-attributes (u/make-cell {}))
+
+(defn intern-extension-attribute [entity-name attr-name attr-type-name]
+  (u/call-and-set
+   extension-attributes
+   #(let [exts @extension-attributes
+          attr-names (entity-name exts)]
+      (assoc exts entity-name (conj attr-names [attr-name attr-type-name]))))
+  attr-type-name)
+
+(defn find-extension-attributes [entity-name]
+  (let [entity-name (li/make-path entity-name)]
+    (entity-name @extension-attributes)))
+
+(def extension-attribute-name first)
+
+(defn find-extension-attribute-names [entity-name]
+  (when-let [attrs (find-extension-attributes entity-name)]
+    (mapv extension-attribute-name attrs)))
+
+(defn extension-attribute-info [[_ attr-type-name]]
+  (if-let [meta (fetch-attribute-meta attr-type-name)]
+    {:reltype (:reltype meta)
+     :relationship (:rel meta)}
+    (u/throw-ex (str "no meta defined for " attr-type-name))))
+
+(defn extension-attribute? [attr-name-or-scm]
+  (if (keyword? attr-name-or-scm)
+    (extension-attribute? (find-attribute-schema attr-name-or-scm))
+    (and (:relationship attr-name-or-scm) (:extend attr-name-or-scm))))

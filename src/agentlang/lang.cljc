@@ -194,6 +194,8 @@
         :writer (li/validate fn? ":writer must be a function" v)
         :oneof v
         :label (li/validate symbol? ":label must be a symbol" v)
+        :relationship (li/validate cn/relationship? "not a valid relationship name" v)
+        :extend (li/validate cn/entity? "not a valid entity name" v)
         (:ui :rbac :meta) v
         (u/throw-ex (str "invalid constraint in attribute definition - " k)))))
   (merge-attribute-meta
@@ -269,14 +271,40 @@
      (validate-name canon)))
   ([n] (validated-canonical-type-name nil n)))
 
+(defn- validate-extension-attribute! [attr-name attr-scm extend-entity]
+  (let [rel (:relationship attr-scm)]
+    (when (not= (get-in attr-scm [:meta :reltype])
+                (cn/other-relationship-node rel extend-entity))
+      (u/throw-ex (str "invalid relationship " rel " on " extend-entity " in attribute " attr-name)))))
+
+(defn- maybe-parse-ext-attr-name [attr-name attr-scm]
+  (when-let [ent-name (:extend attr-scm)]
+    (validate-extension-attribute! attr-name attr-scm ent-name)
+    [ent-name (second (li/split-path attr-name))]))
+
+(defn- maybe-handle-extension-attribute [attr-name attr-scm]
+  (if-let [[ent-name new-attr-name] (maybe-parse-ext-attr-name attr-name attr-scm)]
+    (if-let [scm (cn/fetch-entity-schema ent-name)]
+      (and (cn/intern-entity ent-name (assoc scm new-attr-name attr-name))
+           (cn/intern-extension-attribute ent-name new-attr-name attr-name))
+      (u/throw-ex (str "attribute with relationship refers to invalid entity - " ent-name)))
+    attr-name))
+
 (defn- intern-attribute
   "Add a new attribute definition to the component."
   ([validate-name n scm]
-   (let [r (cn/intern-attribute
+   (let [raw-scm scm
+         scm (if (cn/extension-attribute? scm)
+               (assoc
+                scm :optional true
+                :type :Agentlang.Kernel.Lang/Any
+                :meta (assoc (:meta scm) :reltype (:type scm) :rel (:relationship scm)))
+               scm)
+         r (cn/intern-attribute
             (validate-name n)
             (normalize-attribute-schema
              (validate-attribute-schema n scm)))]
-     (and (raw/attribute n scm) r)))
+     (and (maybe-handle-extension-attribute n scm) (raw/attribute n raw-scm) r)))
   ([n scm]
    (intern-attribute li/validate-name-relaxed n scm)))
 

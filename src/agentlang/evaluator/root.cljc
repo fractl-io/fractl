@@ -930,12 +930,46 @@
     (ensure-between-refs env rel-ctx relname inst)
     (relname @rel-ctx)))
 
+(defn- extension-attribute-to-pattern [inst-alias extn-attrs attr-name attr-val]
+  (let [attr-val (if (li/quoted? attr-val) (second attr-val) attr-val)]
+    (when-not (map? attr-val)
+      (u/throw-ex (str "invalid value " attr-val " for " attr-name)))
+    (let [{reltype :reltype rel :relationship}
+          (cn/extension-attribute-info (first (filter #(= attr-name (first %)) extn-attrs)))
+          attr-val {reltype attr-val}]
+      (if (cn/contains-relationship? rel)
+        [(assoc attr-val :-> [[rel inst-alias]])]
+        [(assoc attr-val :-> [[{rel {}} inst-alias]])]))))
+
+(defn- maybe-upsert-relationships-from-extensions [env record-name dataflow-eval insts]
+  (let [[cn alias] (li/split-path record-name)
+        extn-attrs (cn/find-extension-attributes record-name)
+        extn-attr-names (set (mapv cn/extension-attribute-name extn-attrs))]
+    (doseq [inst insts]
+      (when (some extn-attr-names (keys inst))
+        (let [env (env/bind-instance-to-alias env alias inst)
+              pats (apply concat (mapv #(extension-attribute-to-pattern alias extn-attrs % (get inst %)) extn-attr-names))
+              event-name (li/make-path [cn (li/unq-name)])]
+          (try
+            (if (apply ln/dataflow event-name pats)
+              (dataflow-eval env {event-name {}})
+              (u/throw-ex (str "failed to generate dataflow for relationships upsert - " record-name)))
+            (finally
+              (cn/remove-event event-name))))))))
+
 (defn- intern-instance [self env eval-opcode eval-event-dataflows
                         record-name inst-alias validation-required upsert-required]
   (let [[insts single? env] (pop-instance env record-name (partial eval-opcode self) validation-required)
-        scm (cn/ensure-schema record-name)]
+        scm (cn/ensure-schema record-name)
+        extn-attrs (cn/find-extension-attribute-names record-name)
+        orig-insts insts
+        insts (if extn-attrs
+                (if single?
+                  (apply dissoc insts extn-attrs)
+                  (mapv #(apply dissoc % extn-attrs) insts))
+                insts)]
     (when validation-required
-      (doseq [inst insts]
+      (doseq [inst (if single? [insts] insts)]
         (when-let [attrs (cn/instance-attributes inst)]
           (cn/validate-record-attributes record-name attrs scm))))
     (cond
@@ -949,11 +983,14 @@
                            (if single? [insts] (vec insts)))]
                     (if single? (first r) r))
             env (env/merge-relationship-context env @rel-ctx)
+            dataflow-eval (partial eval-event-dataflows self)
             [env local-result] (if upsert-required
-                                 (chained-upsert
-                                  env (partial eval-event-dataflows self)
-                                  record-name insts)
+                                 (chained-upsert env dataflow-eval record-name insts)
                                  [env (if single? (seq [insts]) insts)])]
+        (when (and extn-attrs upsert-required)
+          (maybe-upsert-relationships-from-extensions
+           env record-name dataflow-eval
+           (if single? [orig-insts] orig-insts)))
         (if-let [bindable (if single? (first local-result) local-result)]
           (let [env-with-inst (env/bind-instances env record-name local-result)
                 final-env (if inst-alias
