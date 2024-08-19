@@ -383,7 +383,7 @@
                        ls/meta-tag {:doc "Create a new Person"}
                        ls/attrs-tag {:Name "Joe"}
                        ls/alias-tag :P
-                       ls/catch-tag {ls/error-tag e1 ls/not-found-tag e2}})
+                       ls/throws-tag {ls/error-tag e1 ls/not-found-tag e2}})
         p2 (ls/query-upsert {ls/record-tag :Acme/Person
                              ls/meta-tag {:doc "Fetch Person by name"}
                              ls/attrs-tag {:Name? "Joe"}
@@ -398,7 +398,7 @@
            {:Acme/Person {:Name "Joe"},
             :meta {:doc "Create a new Person"},
             :as :P,
-            :catch
+            :throws
             {:error #:Acme{:Error {:Message "Pattern error"}},
              :not-found #:Acme{:NoData {:Message "No data found"}}}}))
     (is (= (ls/raw p2) {:Acme/Person {:Name? "Joe"}, :meta {:doc "Fetch Person by name"}, :as :P}))
@@ -580,12 +580,12 @@
     (dataflow
      :Rethrow/Error
      [:eval '(fractl.test.features05/raise-an-error)
-      :catch
+      :throws
       {:error {:Rethrow/E {:Id 1 :X 200}}}])
     (dataflow
      :Rethrow/FindE
      {:Rethrow/E {:X? :Rethrow/FindE.E}
-      :catch
+      :throws
       {:not-found {:Rethrow/E {:Id :Rethrow/FindE.E :X 200}}}}))
   (let [r (first (tu/eval-all-dataflows {:Rethrow/Error {}}))]
     (is (= :error (:status r)))
@@ -618,7 +618,7 @@
        {:IRethrow/E
         {:Id? :IRethrow/FindE.E}
         :as :E1
-        :catch
+        :throws
         {:not-found {:IRethrow/FailureInfo {:Reason '(str "Data not found for Id " :IRethrow/FindE.E)}}
          :error {:IRethrow/FailureInfo {:Reason :Error}}}}
        :E1)
@@ -627,7 +627,7 @@
        {:IRethrow/E
         {:Id :IRethrow/CreateE.Id
          :X :IRethrow/CreateE.X}
-        :catch
+        :throws
         {:error {:IRethrow/FailureInfo {:Reason :Error}}}}))
     (u/run-init-fns)
     (let [e? (partial cn/instance-of? :IRethrow/E)
@@ -658,7 +658,7 @@
         (is (= :error (get-in obj [:Reason :status])))
         (is (= (get-in obj [:Reason :message]) (:message r)))))))
 
-(deftest catch-syntax
+(deftest throws-syntax
   (let [p (fn [p1]
             (let [ir1  (ls/introspect p1)]
               (is (= p1 (ls/raw ir1)))))]
@@ -666,94 +666,94 @@
         {:Email "joe@acme.com"
          :Id 101}
         :as :E
-        :catch
+        :throws
         {:error {:Acme/FailedToCreateEmployee {}}}})
     (p {:Acme/Employee
         {:Email? "joe@acme.com"
          :Id 102}
         :as [:E]
-        :catch
+        :throws
         {:error {:Acme/FailedToUpdateEmployee {:Email "joe@acme.com"}}
          :not-found {:Acme/EmployeeNotFound {:Email "joe@acme.com"}}}})
     (p {:Acme/Employee? {:where [:= :Email "joe@acme.com"]}
         :as [:E]
-        :catch
+        :throws
         {:error {:Acme/FailedToLookupEmployee {:Email "joe@acme.com"}}
          :not-found {:Acme/EmployeeNotFound {:Email "joe@acme.com"}}}})
     (p [:delete :Acme/Employee {:Email "joe@acme.com"}
         :as :E
-        :catch
+        :throws
         {:error {:Acme/FailedToUpdateEmployee {:Email "joe@acme.com"}}
          :not-found {:Acme/EmployeeNotFound {:Email "joe@acme.com"}}}])
     (p [:eval `(~'(symbol "quote") (~(symbol "some-fn") :A :B))
         :as :Result
-        :catch
+        :throws
         {:error {:Acme/FailedToCallFn {:Name "some-fn"}}}])))
 
-(deftest catch-raw
-  (defcomponent :CatchRaw
+(deftest throws-raw
+  (defcomponent :throwsRaw
     (entity
-     :CatchRaw/Employee
+     :throwsRaw/Employee
      {:Email {:type :Email :guid true}
       :Name :String})
-    (record :CatchRaw/Error {:Message :String})
-    (record :CatchRaw/NotFound {:Message :String})
+    (record :throwsRaw/Error {:Message :String})
+    (record :throwsRaw/NotFound {:Message :String})
     (dataflow
-     :CatchRaw/E
-     {:CatchRaw/Employee
-      {:Email :CatchRaw/E.Email
+     :throwsRaw/E
+     {:throwsRaw/Employee
+      {:Email :throwsRaw/E.Email
        :Name "Jojo"}
       :as [:E0]
-      :catch
-      {:error {:CatchRaw/Error {:Message :CatchRaw/E.Email}}}}
-     {:CatchRaw/Employee
-      {:Email? :CatchRaw/E.Email
+      :throws
+      {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}}}
+     {:throwsRaw/Employee
+      {:Email? :throwsRaw/E.Email
        :Name "Toto"}
       :as [:E1]
-      :catch
-      {:error {:CatchRaw/Error {:Message :CatchRaw/E.Email}}
-       :not-found {:CatchRaw/NotFound {:Message :CatchRaw/E.Email}}}}
-     {:CatchRaw/Employee? {:where [:= :Email :CatchRaw/E.Email]}
+      :throws
+      {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+       :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}}
+     {:throwsRaw/Employee? {:where [:= :Email :throwsRaw/E.Email]}
       :as [:E2]
-      :catch
-      {:error {:CatchRaw/Error {:Message :CatchRaw/E.Email}}
-       :not-found {:CatchRaw/NotFound {:Message :CatchRaw/E.Email}}}}
-     [:delete :CatchRaw/Employee {:Email :CatchRaw/E.Email}
+      :throws
+      {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+       :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}}
+     [:delete :throwsRaw/Employee {:Email :throwsRaw/E.Email}
       :as :E3
-      :catch
-      {:error {:CatchRaw/Error {:Message :CatchRaw/E.Email}}
-       :not-found {:CatchRaw/NotFound {:Message :CatchRaw/E.Email}}}]))
-  (is (= (lr/as-edn :CatchRaw)
+      :throws
+      {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+       :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}]))
+  (is (= (lr/as-edn :throwsRaw)
          '(do
-            (component :CatchRaw)
+            (component :throwsRaw)
             (entity
-             :CatchRaw/Employee
+             :throwsRaw/Employee
              {:Email {:type :Email :guid true}
               :Name :String})
-            (record :CatchRaw/Error {:Message :String})
-            (record :CatchRaw/NotFound {:Message :String})
+            (record :throwsRaw/Error {:Message :String})
+            (record :throwsRaw/NotFound {:Message :String})
             (dataflow
-             :CatchRaw/E
-             {:CatchRaw/Employee
-              {:Email :CatchRaw/E.Email
+             :throwsRaw/E
+             {:throwsRaw/Employee
+              {:Email :throwsRaw/E.Email
                :Name "Jojo"}
               :as [:E0]
-              :catch
-              {:error {:CatchRaw/Error {:Message :CatchRaw/E.Email}}}}
-             {:CatchRaw/Employee
-              {:Email? :CatchRaw/E.Email
+              :throws
+              {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}}}
+             {:throwsRaw/Employee
+              {:Email? :throwsRaw/E.Email
                :Name "Toto"}
               :as [:E1]
-              :catch
-              {:error {:CatchRaw/Error {:Message :CatchRaw/E.Email}}
-               :not-found {:CatchRaw/NotFound {:Message :CatchRaw/E.Email}}}}
-             {:CatchRaw/Employee? {:where [:= :Email :CatchRaw/E.Email]}
+              :throws
+              {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+               :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}}
+             {:throwsRaw/Employee? {:where [:= :Email :throwsRaw/E.Email]}
               :as [:E2]
-              :catch
-              {:error {:CatchRaw/Error {:Message :CatchRaw/E.Email}}
-               :not-found {:CatchRaw/NotFound {:Message :CatchRaw/E.Email}}}}
-             [:delete :CatchRaw/Employee {:Email :CatchRaw/E.Email}
+              :throws
+              {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+               :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}}
+             [:delete :throwsRaw/Employee {:Email :throwsRaw/E.Email}
               :as :E3
-              :catch
-              {:error {:CatchRaw/Error {:Message :CatchRaw/E.Email}}
-               :not-found {:CatchRaw/NotFound {:Message :CatchRaw/E.Email}}}])))))
+              :throws
+              {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+               :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}])))))

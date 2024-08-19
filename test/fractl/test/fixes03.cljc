@@ -885,7 +885,7 @@
         1 {:I1461/Invalid {:X 1}}
         3 {:I1461/Invalid {:X 3}}
         {:I1461/A {:X? :I1461/FindA.X}
-         :catch
+         :throws
          {:not-found
           ;; Multiple pattern support in handler.
           [[:eval '(fractl.test.fixes03/issue-1461-reset-not-found-flag!)]
