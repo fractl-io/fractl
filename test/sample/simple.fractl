@@ -21,6 +21,16 @@
        :X "secret"
        :Y '(agentlang.lang.datetime/now)}})
 
+(record
+ {:Result
+  {:Data :Any}})
+
+(dataflow
+ :RaiseError
+ [:match :RaiseError.I
+  0 [:eval '(fractl.util/throw-ex "blah!")]
+  1 {:Result {:Data "hello"}}])
+
 (dataflow
  :Q
  {:E1? {}})
@@ -32,10 +42,6 @@
  :TU
  {:T {:X :TU.X} :as :T1}
  {:U {:Y '(* :T1.X 100)}})
-
-(record
- {:Result
-  {:Data :Any}})
 
 (dataflow
  :F
