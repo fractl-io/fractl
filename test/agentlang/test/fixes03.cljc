@@ -888,7 +888,7 @@
          :throws
          {:not-found
           ;; Multiple pattern support in handler.
-          [[:eval '(fractl.test.fixes03/issue-1461-reset-not-found-flag!)]
+          [[:eval '(agentlang.test.fixes03/issue-1461-reset-not-found-flag!)]
            {:I1461/NotFound {:X :I1461/FindA.X}}]}}]))
     (let [as (mapv #(tu/first-result
                      {:I1461/Create_A
