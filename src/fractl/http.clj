@@ -144,9 +144,20 @@
     (cleanup-result rs)
     (mapv cleanup-result rs)))
 
+(defn- maybe-non-ok-result [rs]
+  (if (map? rs)
+    (case (:status rs)
+      :ok 200
+      :not-found 404
+      :error 500
+      ;; TODO: handle other cases, like :timeout
+      500)
+    (maybe-non-ok-result (first rs))))
+
 (defn- ok
   ([obj data-fmt]
-   (response (cleanup-results obj) 200 data-fmt))
+   (let [status (maybe-non-ok-result obj)]
+     (response (cleanup-results obj) status data-fmt)))
   ([obj]
    (ok obj :json)))
 
