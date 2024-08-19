@@ -1166,8 +1166,7 @@
         (eval-condition self env eval-opcode cases-code alternative-code result-alias)))
 
     (do-try_ [self env [rethrow? body handlers alias-name]]
-      (let [result (call-with-exception-as-error
-                    #(eval-opcode self env body))
+      (let [result (call-with-exception-as-error #(eval-opcode self env body))
             s0 (:status result)
             status (if (and (= :ok s0) (not (seq (:result result)))) :not-found s0)
             h (status handlers)]
@@ -1175,7 +1174,7 @@
          alias-name
          (if h
            (let [env (env/bind-active-error-result (or (:env result) env) result)
-                 handler-result (eval-opcode self env h)]
+                 handler-result (eval-opcode-list self env eval-opcode (if (map? h) [h] h))]
              (if rethrow?
                (assoc handler-result :status status :message (:message result))
                handler-result))

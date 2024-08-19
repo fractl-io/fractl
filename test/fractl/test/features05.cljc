@@ -691,69 +691,69 @@
         {:error {:Acme/FailedToCallFn {:Name "some-fn"}}}])))
 
 (deftest throws-raw
-  (defcomponent :ThrowsRaw
+  (defcomponent :throwsRaw
     (entity
-     :ThrowsRaw/Employee
+     :throwsRaw/Employee
      {:Email {:type :Email :guid true}
       :Name :String})
-    (record :ThrowsRaw/Error {:Message :String})
-    (record :ThrowsRaw/NotFound {:Message :String})
+    (record :throwsRaw/Error {:Message :String})
+    (record :throwsRaw/NotFound {:Message :String})
     (dataflow
-     :ThrowsRaw/E
-     {:ThrowsRaw/Employee
-      {:Email :ThrowsRaw/E.Email
+     :throwsRaw/E
+     {:throwsRaw/Employee
+      {:Email :throwsRaw/E.Email
        :Name "Jojo"}
       :as [:E0]
       :throws
-      {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}}}
-     {:ThrowsRaw/Employee
-      {:Email? :ThrowsRaw/E.Email
+      {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}}}
+     {:throwsRaw/Employee
+      {:Email? :throwsRaw/E.Email
        :Name "Toto"}
       :as [:E1]
       :throws
-      {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
-       :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}}
-     {:ThrowsRaw/Employee? {:where [:= :Email :ThrowsRaw/E.Email]}
+      {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+       :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}}
+     {:throwsRaw/Employee? {:where [:= :Email :throwsRaw/E.Email]}
       :as [:E2]
       :throws
-      {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
-       :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}}
-     [:delete :ThrowsRaw/Employee {:Email :ThrowsRaw/E.Email}
+      {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+       :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}}
+     [:delete :throwsRaw/Employee {:Email :throwsRaw/E.Email}
       :as :E3
       :throws
-      {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
-       :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}]))
-  (is (= (lr/as-edn :ThrowsRaw)
+      {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+       :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}]))
+  (is (= (lr/as-edn :throwsRaw)
          '(do
-            (component :ThrowsRaw)
+            (component :throwsRaw)
             (entity
-             :ThrowsRaw/Employee
+             :throwsRaw/Employee
              {:Email {:type :Email :guid true}
               :Name :String})
-            (record :ThrowsRaw/Error {:Message :String})
-            (record :ThrowsRaw/NotFound {:Message :String})
+            (record :throwsRaw/Error {:Message :String})
+            (record :throwsRaw/NotFound {:Message :String})
             (dataflow
-             :ThrowsRaw/E
-             {:ThrowsRaw/Employee
-              {:Email :ThrowsRaw/E.Email
+             :throwsRaw/E
+             {:throwsRaw/Employee
+              {:Email :throwsRaw/E.Email
                :Name "Jojo"}
               :as [:E0]
               :throws
-              {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}}}
-             {:ThrowsRaw/Employee
-              {:Email? :ThrowsRaw/E.Email
+              {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}}}
+             {:throwsRaw/Employee
+              {:Email? :throwsRaw/E.Email
                :Name "Toto"}
               :as [:E1]
               :throws
-              {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
-               :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}}
-             {:ThrowsRaw/Employee? {:where [:= :Email :ThrowsRaw/E.Email]}
+              {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+               :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}}
+             {:throwsRaw/Employee? {:where [:= :Email :throwsRaw/E.Email]}
               :as [:E2]
               :throws
-              {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
-               :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}}
-             [:delete :ThrowsRaw/Employee {:Email :ThrowsRaw/E.Email}
+              {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+               :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}}
+             [:delete :throwsRaw/Employee {:Email :throwsRaw/E.Email}
               :as :E3
               :throws
-              {:error {:ThrowsRaw/Error {:Message :ThrowsRaw/E.Email}}
-               :not-found {:ThrowsRaw/NotFound {:Message :ThrowsRaw/E.Email}}}])))))
+              {:error {:throwsRaw/Error {:Message :throwsRaw/E.Email}}
+               :not-found {:throwsRaw/NotFound {:Message :throwsRaw/E.Email}}}])))))
