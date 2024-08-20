@@ -101,6 +101,11 @@
       m)
     (dissoc m k)))
 
+(defn dissoc-nils [a-map]
+  (into
+   {}
+   (filter (fn [[_ v]] (not (nil? v))) a-map)))
+
 (defn contains-any [xs ys]
   "Return the first element from xs that exists also in ys.
    If no element from xs is found in ys, return nil."

@@ -1,11 +1,12 @@
 (ns agentlang.inference.service.model
   (:require [clojure.string :as s]
             [agentlang.lang :refer [component
-                                 dataflow
-                                 entity
-                                 event
-                                 record
-                                 relationship]]
+                                    dataflow
+                                    entity
+                                    event
+                                    record
+                                    attribute
+                                    relationship]]
             [agentlang.component :as cn]
             [agentlang.util :as u]
             [agentlang.evaluator :as e]
@@ -102,6 +103,12 @@
  :Agentlang.Inference.Service/AgentChatSession
  {:meta {:contains [:Agentlang.Inference.Service/Agent :Agentlang.Inference.Service/ChatSession]}})
 
+(attribute
+ :Agentlang.Inference.Service/Chat
+ {:extend :Agentlang.Inference.Service/Agent
+  :type :Agentlang.Inference.Service/ChatSession
+  :relationship :Agentlang.Inference.Service/AgentChatSession})
+
 (dataflow
  :Agentlang.Inference.Service/LookupAgentChatSessions
  {:Agentlang.Inference.Service/ChatSession? {}
@@ -135,13 +142,31 @@
  :Agentlang.Inference.Service/AgentLLM
  {:meta {:between [:Agentlang.Inference.Service/Agent :Agentlang.Inference.Provider/LLM]}})
 
+(attribute
+ :Agentlang.Inference.Service/LLM
+ {:extend :Agentlang.Inference.Service/Agent
+  :type :Agentlang.Inference.Provider/LLM
+  :relationship :Agentlang.Inference.Service/AgentLLM})
+
 (relationship
  :Agentlang.Inference.Service/AgentTool
  {:meta {:between [:Agentlang.Inference.Service/Agent :Agentlang.Inference.Service/Tool]}})
 
+(attribute
+ :Agentlang.Inference.Service/Tools
+ {:extend :Agentlang.Inference.Service/Agent
+  :type :Agentlang.Inference.Service/Tool
+  :relationship :Agentlang.Inference.Service/AgentTool})
+
 (relationship
  :Agentlang.Inference.Service/AgentDocument
  {:meta {:between [:Agentlang.Inference.Service/Agent :Agentlang.Inference.Service/Document]}})
+
+(attribute
+ :Agentlang.Inference.Service/Documents
+ {:extend :Agentlang.Inference.Service/Agent
+  :type :Agentlang.Inference.Service/Document
+  :relationship :Agentlang.Inference.Service/AgentDocument})
 
 (dataflow
  :Agentlang.Inference.Service/LLMsForAgent

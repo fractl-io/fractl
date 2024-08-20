@@ -935,7 +935,10 @@
     (relname @rel-ctx)))
 
 (defn- extension-attribute-to-pattern [record-name inst-alias extn-attrs attr-name attr-val]
-  (let [attr-val (if (li/quoted? attr-val) (second attr-val) attr-val)]
+  (if (vector? attr-val)
+    (if (li/quoted? attr-val)
+      (extension-attribute-to-pattern record-name inst-alias extn-attrs attr-name (second attr-val))
+      (apply concat (mapv (partial extension-attribute-to-pattern record-name inst-alias extn-attrs attr-name) attr-val)))
     (let [{reltype :reltype rel :relationship}
           (cn/extension-attribute-info (first (filter #(= attr-name (first %)) extn-attrs)))
           attr-val {reltype attr-val}
@@ -955,7 +958,7 @@
         extn-attrs (cn/find-extension-attributes record-name)
         extn-attr-names (set (mapv cn/extension-attribute-name extn-attrs))]
     (doseq [inst insts]
-      (when (some extn-attr-names (keys inst))
+      (when (some extn-attr-names (keys (su/dissoc-nils inst)))
         (let [env (env/bind-instance-to-alias env alias inst)
               pats (apply concat (mapv #(extension-attribute-to-pattern
                                          record-name alias extn-attrs %
