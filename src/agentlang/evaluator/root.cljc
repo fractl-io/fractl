@@ -960,9 +960,11 @@
     (doseq [inst insts]
       (when (some extn-attr-names (keys (su/dissoc-nils inst)))
         (let [env (env/bind-instance-to-alias env alias inst)
-              pats (apply concat (mapv #(extension-attribute-to-pattern
-                                         record-name alias extn-attrs %
-                                         (get inst %)) extn-attr-names))
+              pats (apply concat (su/nonils
+                                  (mapv #(when-let [attr-val (get inst %)]
+                                           (extension-attribute-to-pattern
+                                            record-name alias extn-attrs %
+                                            attr-val)) extn-attr-names)))
               event-name (li/make-path [cn (li/unq-name)])]
           (try
             (if (apply ln/dataflow event-name pats)

@@ -107,6 +107,16 @@
 
     :else (log/error (str "app-init: " result))))
 
+(defn- run-standalone-patterns! [evaluator]
+  (when-let [pats (seq @gs/standalone-patterns)]
+    (let [event-name :Agentlang.Kernel.Lang/PreAppInit]
+      (when (and (cn/intern-event event-name {})
+                 (cn/register-dataflow event-name pats))
+        (try
+          (evaluator {event-name {}})
+          (finally
+            (cn/remove-event event-name)))))))
+
 (defn trigger-appinit-event! [evaluator data]
   (let [result (evaluator
                 (cn/make-instance
@@ -116,6 +126,7 @@
 
 (defn run-appinit-tasks! [evaluator init-data]
   (e/save-model-config-instances)
+  (run-standalone-patterns! evaluator)
   (trigger-appinit-event! evaluator init-data))
 
 (defn merge-resolver-configs [app-config resolver-configs]

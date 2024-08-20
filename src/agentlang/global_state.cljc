@@ -61,7 +61,6 @@
 (defn error-no-perm? []
   (= (get-error-code) :no-permission))
 
-
 #?(:clj
    (def agentlang-version
      (memoize (fn []
@@ -73,3 +72,6 @@
    :cljs
    (def agentlang-version
      (memoize (fn [] (:agentlang-version environ/env)))))
+
+(def standalone-patterns (atom []))
+(def install-init-pattern! (partial swap! standalone-patterns conj))

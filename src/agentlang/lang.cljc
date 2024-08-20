@@ -1363,3 +1363,13 @@
             n)))))
   (and (cn/register-resolver n spec)
        (raw/resolver n spec)))
+
+(defmacro syntax [syntax-name entity-name spec]
+  (let [ident (:ident spec)
+        ident? (li/name-as-query-pattern ident)]
+    `(defn ~syntax-name [n# attrs#]
+       (let [ident-val# (if (keyword? n#) (str n#) n#)]
+         (gs/install-init-pattern!
+          [:try
+           {~entity-name {~ident? ident-val#}}
+           :not-found {~entity-name (assoc attrs# ~ident ident-val#)}])))))

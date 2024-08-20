@@ -1,32 +1,18 @@
 (component :Joke.Core)
 
-;; An agent that tells a joke, while maintaining a chat history.
-(dataflow
- :InitJokeAgent
- {:Agentlang.Inference.Service/Agent
-  {:Name "joke-agent"
-   :Type "chat"}
-  :as :Agent}
- {:Agentlang.Inference.Service/AgentLLM
-  {:Agent :Agent.Name :LLM "llm01"}}
- {:Agentlang.Inference.Service/ChatSession
-  {:Messages [:q# [{:role :system :content "I am an AI bot who tell jokes"}]]}
-  :-> [[:Agentlang.Inference.Service/AgentChatSession :Agent]]}
- :Agent)
+(agentlang.inference.service.model/ai-agent
+ "joke-agent"
+ {:Type "chat"
+  :LLM {:Type "openai"
+        :Name "llm01"
+        :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+                 :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+                 :EmbeddingModel "text-embedding-3-small"
+                 :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+                 :CompletionModel "gpt-3.5-turbo"}}
+  :Chat {:Messages [:q# [{:role :system :content "I am an AI bot who tell jokes"}]]}})
 
 ;; Usage:
 ;; POST api/Joke.Core/TellAJoke
 ;; {"Joke.Core/TellAJoke": {"UserInstruction": "OK, tell me a joke about AGI?"}}
 (inference :TellAJoke {:agent "joke-agent"})
-
-(dataflow
- :Agentlang.Kernel.Lang/AppInit
- {:Agentlang.Inference.Provider/LLM
-  {:Type "openai"
-   :Name "llm01"
-   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
-            :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
-            :EmbeddingModel "text-embedding-3-small"
-            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-            :CompletionModel "gpt-3.5-turbo"}}}
- [:try {:Agentlang.Inference.Service/Agent {:Name? "joke-agent"}} :not-found {:InitJokeAgent {}}])

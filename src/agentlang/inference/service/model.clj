@@ -6,7 +6,8 @@
                                     event
                                     record
                                     attribute
-                                    relationship]]
+                                    relationship
+                                    syntax]]
             [agentlang.component :as cn]
             [agentlang.util :as u]
             [agentlang.evaluator :as e]
@@ -269,3 +270,5 @@
     (when-let [sess (lookup-agent-chat-session agent)]
       (let [msgs (vec (filter #(= :system (:role %)) (:Messages sess)))]
         (update-agent-chat-session sess msgs)))))
+
+(syntax ai-agent :Agentlang.Inference.Service/Agent {:ident :Name})
