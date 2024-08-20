@@ -930,16 +930,21 @@
     (ensure-between-refs env rel-ctx relname inst)
     (relname @rel-ctx)))
 
-(defn- extension-attribute-to-pattern [inst-alias extn-attrs attr-name attr-val]
+(defn- extension-attribute-to-pattern [record-name inst-alias extn-attrs attr-name attr-val]
   (let [attr-val (if (li/quoted? attr-val) (second attr-val) attr-val)]
-    (when-not (map? attr-val)
-      (u/throw-ex (str "invalid value " attr-val " for " attr-name)))
     (let [{reltype :reltype rel :relationship}
           (cn/extension-attribute-info (first (filter #(= attr-name (first %)) extn-attrs)))
-          attr-val {reltype attr-val}]
-      (if (cn/contains-relationship? rel)
-        [(assoc attr-val :-> [[rel inst-alias]])]
-        [(assoc attr-val :-> [[{rel {}} inst-alias]])]))))
+          attr-val {reltype attr-val}
+          is-contains (cn/contains-relationship? rel)]
+      (if (map? attr-val)
+        (if is-contains
+          [(assoc attr-val :-> [[rel inst-alias]])]
+          [(assoc attr-val :-> [[{rel {}} inst-alias]])])
+        (if-not is-contains
+          (let [ident-attr (cn/identity-attribute-name record-name)]
+            [{rel {(cn/find-between-keys rel record-name) (li/make-ref record-name ident-attr)
+                   (cn/find-between-keys rel reltype) attr-val}}])
+          (u/throw-ex (str "cannot establish contains relationship " rel " by identity value alone: " attr-val)))))))
 
 (defn- maybe-upsert-relationships-from-extensions [env record-name dataflow-eval insts]
   (let [[cn alias] (li/split-path record-name)
@@ -948,7 +953,9 @@
     (doseq [inst insts]
       (when (some extn-attr-names (keys inst))
         (let [env (env/bind-instance-to-alias env alias inst)
-              pats (apply concat (mapv #(extension-attribute-to-pattern alias extn-attrs % (get inst %)) extn-attr-names))
+              pats (apply concat (mapv #(extension-attribute-to-pattern
+                                         record-name alias extn-attrs %
+                                         (get inst %)) extn-attr-names))
               event-name (li/make-path [cn (li/unq-name)])]
           (try
             (if (apply ln/dataflow event-name pats)
