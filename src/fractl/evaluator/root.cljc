@@ -805,15 +805,19 @@
         result)
       final-list)))
 
+(defn- get-ex-info [ex]
+  (if-let [d (ex-data ex)]
+    {:cause (or (ex-cause ex) (ex-message ex))
+     :data d}
+    (ex-message ex)))
+
 (defn- call-with-exception-as-error [f]
   (try
     (f)
     #?(:clj
-       (catch Exception e
-         (or (ex-data e) (i/error (.getMessage e))))
+       (catch Exception e (i/error (get-ex-info e)))
        :cljs
-       (catch js/Error e
-         (or (.-ex-data e) (i/error e))))))
+       (catch js/Error e (i/error e)))))
 
 (defn- ensure-instances [xs]
   (when (and (seq xs) (cn/an-instance? (first xs)))

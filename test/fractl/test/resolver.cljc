@@ -3,7 +3,7 @@
                :cljs [cljs.test :refer-macros [deftest is]])
             [fractl.lang
              :refer [component attribute event
-                     relationship entity record dataflow]]
+                     relationship entity record dataflow resolver]]
             [fractl.util :as u]
             [fractl.util.seq :as us]
             [fractl.component :as cn]
@@ -755,3 +755,40 @@
       (let [all-as (tu/result {:I1239/LookupAll_A {}})]
         (is (= 1 (count all-as)))
         (is (= @new-x (:Y (first all-as))))))))
+
+(deftest throws-handler
+  (defcomponent :Rth
+    (entity :Rth/E {:Id {:type :Int :guid true} :X :Int})
+    (record :Rth/Err {:Reason :Any})
+    (dataflow
+     :Rth/MakeE
+     {:Rth/E {:Id :Rth/MakeE.Id :X :Rth/MakeE.X}
+      :throws
+      {:error {:Rth/Err {:Reason :Error.message}}}}))
+  (let [rdb (atom [])]
+    (resolver
+     :Rth/R
+     {:with-methods
+      {:create (fn [inst]
+                 (when-not (pos? (:Id inst))
+                   (throw (ex-info "Id must be a positive integer" {:id (:Id inst)})))
+                 (swap! rdb conj inst) inst)
+       :query (fn [[_ {where :where}]]
+                (let [[_ _ id] where]
+                  (filter #(= (:Id %) id) @rdb)))}
+      :paths [:Rth/E]})
+    (u/run-init-fns)
+    (let [cr (fn [id x] {:Rth/MakeE {:Id id :X x}})
+          e1 (tu/first-result (cr 1 10))
+          e? (partial cn/instance-of? :Rth/E)]
+      (is (e? e1))
+      (is (cn/same-instance? e1 (tu/first-result
+                                 {:Rth/Lookup_E
+                                  {:Id (:Id e1)}})))
+      (let [r (first (tu/eval-all-dataflows (cr 0 100)))
+            err (first (:result r))
+            reason (:Reason err)]
+        (is (= :error (:status r)))
+        (is (cn/instance-of? :Rth/Err err))
+        (is (and (map? reason) (string? (:cause reason))))
+        (is (zero? (get-in reason [:data :id])))))))
