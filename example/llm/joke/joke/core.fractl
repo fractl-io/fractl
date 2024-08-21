@@ -1,6 +1,6 @@
 (component :Joke.Core)
 
-(agentlang.inference.service.model/ai-agent
+(agent
  "joke-agent"
  {:Type "chat"
   :LLM {:Type "openai"

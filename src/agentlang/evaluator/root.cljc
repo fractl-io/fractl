@@ -939,26 +939,25 @@
     (if (li/quoted? attr-val)
       (extension-attribute-to-pattern record-name inst-alias extn-attrs attr-name (second attr-val))
       (apply concat (mapv (partial extension-attribute-to-pattern record-name inst-alias extn-attrs attr-name) attr-val)))
-    (let [{reltype :reltype rel :relationship}
+    (let [{reltype :ext-reltype rel :ext-rel}
           (cn/extension-attribute-info (first (filter #(= attr-name (first %)) extn-attrs)))
-          attr-val {reltype attr-val}
           is-contains (cn/contains-relationship? rel)]
       (if (map? attr-val)
         (if is-contains
-          [(assoc attr-val :-> [[rel inst-alias]])]
-          [(assoc attr-val :-> [[{rel {}} inst-alias]])])
+          [(assoc {reltype attr-val} :-> [[rel inst-alias]])]
+          [(assoc {reltype attr-val} :-> [[{rel {}} inst-alias]])])
         (if-not is-contains
           (let [ident-attr (cn/identity-attribute-name record-name)]
-            [{rel {(cn/find-between-keys rel record-name) (li/make-ref record-name ident-attr)
-                   (cn/find-between-keys rel reltype) attr-val}}])
+            [{rel {(cn/maybe-between-node-as-attribute rel record-name) (li/make-ref inst-alias ident-attr)
+                   (cn/maybe-between-node-as-attribute rel reltype) attr-val}}])
           (u/throw-ex (str "cannot establish contains relationship " rel " by identity value alone: " attr-val)))))))
 
 (defn- maybe-upsert-relationships-from-extensions [env record-name dataflow-eval insts]
   (let [[cn alias] (li/split-path record-name)
         extn-attrs (cn/find-extension-attributes record-name)
-        extn-attr-names (set (mapv cn/extension-attribute-name extn-attrs))]
+        extn-attr-names (mapv cn/extension-attribute-name extn-attrs)]
     (doseq [inst insts]
-      (when (some extn-attr-names (keys (su/dissoc-nils inst)))
+      (when (some (set extn-attr-names) (keys (su/dissoc-nils inst)))
         (let [env (env/bind-instance-to-alias env alias inst)
               pats (apply concat (su/nonils
                                   (mapv #(when-let [attr-val (get inst %)]

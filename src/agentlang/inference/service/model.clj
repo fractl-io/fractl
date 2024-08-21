@@ -80,8 +80,7 @@
                    :as [:From :To]]}
   :Preprocessor {:type :Boolean :default false}})
 
-(defn concat-results [rs]
-  (vec (apply concat rs)))
+(defn concat-results [rs] (vec (apply concat rs)))
 
 (dataflow
  :Agentlang.Inference.Service/FindAgentDelegates
@@ -147,7 +146,8 @@
  :Agentlang.Inference.Service/LLM
  {:extend :Agentlang.Inference.Service/Agent
   :type :Agentlang.Inference.Provider/LLM
-  :relationship :Agentlang.Inference.Service/AgentLLM})
+  :relationship :Agentlang.Inference.Service/AgentLLM
+  :order 0})
 
 (relationship
  :Agentlang.Inference.Service/AgentTool
@@ -271,4 +271,4 @@
       (let [msgs (vec (filter #(= :system (:role %)) (:Messages sess)))]
         (update-agent-chat-session sess msgs)))))
 
-(syntax ai-agent :Agentlang.Inference.Service/Agent {:ident :Name})
+(syntax agent :Agentlang.Inference.Service/Agent {:ident :Name})

@@ -89,6 +89,10 @@
 (defn load-default-model-info []
   (load-all-model-info nil nil nil))
 
+(defn use-lang []
+  (use '[agentlang.lang])
+  (require '[agentlang.inference.service.model :refer [agent]]))
+
 #?(:clj
    (do
      (def ^:dynamic *parse-expressions* true)
@@ -108,7 +112,7 @@
                     (partial nu/fully-qualified-names declared-names)
                     identity)
               parser (if *parse-expressions* eval identity)]
-          (use '[agentlang.lang])
+          (use-lang)
           (try
             (loop [exp (rdf), raw-exps [], exps []]
               (if (= exp :done)
@@ -158,7 +162,7 @@
      (defn load-expressions
        "Load, complile and intern the component from a namespace expressions."
        ([mns mns-exps convert-fq?]
-        (use 'agentlang.lang)
+        (use-lang)
         (cn/remove-component mns)
         (binding [*ns* *ns*]
           (into

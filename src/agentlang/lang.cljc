@@ -196,6 +196,7 @@
         :label (li/validate symbol? ":label must be a symbol" v)
         :relationship (li/validate cn/relationship? "not a valid relationship name" v)
         :extend (li/validate cn/entity? "not a valid entity name" v)
+        :order (li/validate int? "order must be an integer" v)
         (:ui :rbac :meta) v
         (u/throw-ex (str "invalid constraint in attribute definition - " k)))))
   (merge-attribute-meta
@@ -273,7 +274,7 @@
 
 (defn- validate-extension-attribute! [attr-name attr-scm extend-entity]
   (let [rel (:relationship attr-scm)]
-    (when (not= (get-in attr-scm [:meta :reltype])
+    (when (not= (get-in attr-scm [:meta :ext-reltype])
                 (cn/other-relationship-node rel extend-entity))
       (u/throw-ex (str "invalid relationship " rel " on " extend-entity " in attribute " attr-name)))))
 
@@ -286,7 +287,7 @@
   (if-let [[ent-name new-attr-name] (maybe-parse-ext-attr-name attr-name attr-scm)]
     (if-let [scm (cn/fetch-entity-schema ent-name)]
       (and (cn/intern-entity ent-name (assoc scm new-attr-name attr-name))
-           (cn/intern-extension-attribute ent-name new-attr-name attr-name))
+           (cn/intern-extension-attribute ent-name new-attr-name attr-name (get-in attr-scm [:meta :ext-order])))
       (u/throw-ex (str "attribute with relationship refers to invalid entity - " ent-name)))
     attr-name))
 
@@ -296,9 +297,14 @@
    (let [raw-scm scm
          scm (if (cn/extension-attribute? scm)
                (assoc
-                scm :optional true
+                scm
+                :optional true
                 :type :Agentlang.Kernel.Lang/Any
-                :meta (assoc (:meta scm) :reltype (:type scm) :rel (:relationship scm)))
+                :meta (assoc
+                       (:meta scm)
+                       :ext-reltype (:type scm)
+                       :ext-rel (:relationship scm)
+                       :ext-order (or (:order scm) 1)))
                scm)
          r (cn/intern-attribute
             (validate-name n)

@@ -327,9 +327,8 @@
   (op/dynamic-upsert
    [pat-name pat-attrs (partial compile-pattern ctx) (:alias args)]))
 
-(defn- emit-realize-map-literal [ctx pat]
-  ;; TODO: implement support for map literals.
-  (u/throw-ex (str "cannot compile map literal " pat)))
+(defn- emit-realize-map-literal [_ pat]
+  (emit-load-literal pat))
 
 (defn- compile-fetch-all-query
   "Generate code for the wildcard query pattern (:EntityName?) to retrieve
