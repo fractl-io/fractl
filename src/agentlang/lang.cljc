@@ -273,10 +273,11 @@
   ([n] (validated-canonical-type-name nil n)))
 
 (defn- validate-extension-attribute! [attr-name attr-scm extend-entity]
-  (let [rel (:relationship attr-scm)]
-    (when (not= (get-in attr-scm [:meta :ext-reltype])
-                (cn/other-relationship-node rel extend-entity))
-      (u/throw-ex (str "invalid relationship " rel " on " extend-entity " in attribute " attr-name)))))
+  (let [rel (:relationship attr-scm)
+        reltype (get-in attr-scm [:meta :ext-reltype])]
+    (when (not= rel reltype)
+      (when (not= reltype (cn/other-relationship-node rel extend-entity))
+        (u/throw-ex (str "invalid relationship " rel " on " extend-entity " in attribute " attr-name))))))
 
 (defn- maybe-parse-ext-attr-name [attr-name attr-scm]
   (when-let [ent-name (:extend attr-scm)]

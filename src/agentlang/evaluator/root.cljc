@@ -22,6 +22,7 @@
             [agentlang.evaluator.intercept.core :as interceptors]
             [agentlang.global-state :as gs]
             [agentlang.compiler :as cl]
+            [agentlang.compiler.context :as ctx]
             [agentlang.lang :as ln]
             [agentlang.lang.syntax :as ls]
             [agentlang.lang.opcode :as opc]
@@ -945,7 +946,11 @@
       (if (map? attr-val)
         (if is-contains
           [(assoc {reltype attr-val} :-> [[rel inst-alias]])]
-          [(assoc {reltype attr-val} :-> [[{rel {}} inst-alias]])])
+          (if (= rel reltype)
+            (let [betattrs (set (cn/between-attribute-names reltype))
+                  node (first (set/difference betattrs (set (keys attr-val))))]
+              [{reltype (assoc attr-val node (li/make-ref inst-alias (cn/identity-attribute-name record-name)))}])
+            [(assoc {reltype attr-val} :-> [[{rel {}} inst-alias]])]))
         (if-not is-contains
           (let [ident-attr (cn/identity-attribute-name record-name)]
             [{rel {(cn/maybe-between-node-as-attribute rel record-name) (li/make-ref inst-alias ident-attr)
@@ -966,9 +971,10 @@
                                             attr-val)) extn-attr-names)))
               event-name (li/make-path [cn (li/unq-name)])]
           (try
-            (if (apply ln/dataflow event-name pats)
-              (dataflow-eval env {event-name {}})
-              (u/throw-ex (str "failed to generate dataflow for relationships upsert - " record-name)))
+            (binding [ctx/dynamic-context (ctx/add-alias (ctx/make) alias)]
+              (if (apply ln/dataflow event-name pats)
+                (dataflow-eval env {event-name {}})
+                (u/throw-ex (str "failed to generate dataflow for relationships upsert - " record-name))))
             (finally
               (cn/remove-event event-name))))))))
 

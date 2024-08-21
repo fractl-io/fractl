@@ -101,7 +101,7 @@
       (if (or (cn/has-attribute? schema path)
               (aliased-name-in-context ctx schema n))
         true
-        (u/throw-ex (str "reference not in schema - " path)))
+        (u/throw-ex (str "reference not in schema - " n)))
       (cond
         (and rec refs) (name-in-context ctx component rec refs)
         path (name-in-context ctx path)

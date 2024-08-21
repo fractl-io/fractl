@@ -80,6 +80,12 @@
                    :as [:From :To]]}
   :Preprocessor {:type :Boolean :default false}})
 
+(attribute
+ :Agentlang.Inference.Service/Delegates
+ {:extend :Agentlang.Inference.Service/Agent
+  :type :Agentlang.Inference.Service/AgentDelegate
+  :relationship :Agentlang.Inference.Service/AgentDelegate})
+
 (defn concat-results [rs] (vec (apply concat rs)))
 
 (dataflow

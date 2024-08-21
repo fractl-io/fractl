@@ -77,7 +77,7 @@
     (keyword (str "A" (hash alias)))
     alias))
 
-(defn add-alias!
+(defn add-alias
   ([ctx nm alias]
    (let [alias-name (alias-name alias)
          aliases (or (second (fetch-variable ctx :aliases)) {})
@@ -85,9 +85,12 @@
      (bind-variable! ctx :aliases (assoc aliases alias-name v))
      (when (vector? alias)
        (doseq [a alias]
-         (add-sub-alias! ctx a alias-name)))))
+         (add-sub-alias! ctx a alias-name))))
+   ctx)
   ([ctx alias]
-   (add-alias! ctx (alias-name alias) alias)))
+   (add-alias ctx (alias-name alias) alias)))
+
+(def add-alias! add-alias)
 
 (defn redirect? [a]
   (and (vector? a) (= :alias (first a))))
