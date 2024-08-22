@@ -572,3 +572,10 @@
 
 (defn temp-event-name [component]
   (make-path component (unq-name)))
+
+(defn split-varname [sym]
+  (let [s (str sym)
+        parts (s/split s #"/")]
+    (if (= 1 (count parts))
+      [*ns* sym]
+      [(symbol (first parts)) (symbol (second parts))])))

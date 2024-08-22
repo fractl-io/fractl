@@ -277,4 +277,4 @@
       (let [msgs (vec (filter #(= :system (:role %)) (:Messages sess)))]
         (update-agent-chat-session sess msgs)))))
 
-(syntax agent :Agentlang.Inference.Service/Agent {:ident :Name})
+(syntax 'agent {:Agentlang.Inference.Service/Agent {:ident :Name}})

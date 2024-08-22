@@ -30,12 +30,25 @@
       spec)
     spec))
 
+(def ^:private active-component
+  #?(:clj (ThreadLocal.)
+     :cljs (atom nil)))
+
+(defn set-active-component! [component-name]
+  #?(:clj (.set active-component component-name)
+     :cljs (reset! active-component component-name)))
+
+(defn get-active-component []
+  #?(:clj (.get active-component)
+     :cljs @active-component))
+
 (defn component [component-name spec]
   (let [cdef (get @raw-store component-name '())
         cspec (concat `(~'component ~component-name) (when spec [(process-component-spec spec)]))
         new-cdef (conj (rest cdef) cspec)]
     (u/safe-set raw-store (assoc @raw-store component-name new-cdef))
     (maybe-publish-add-definition 'component component-name spec)
+    (set-active-component! component-name)
     component-name))
 
 (defn intern-component [component-name defs]
@@ -227,24 +240,25 @@
             (recur (rest defs) found (conj new-defs d)))
           [c (seq (if found new-defs (conj new-defs ndef)))])))))
 
-(defn- find-defspec [tag full-recname]
+(defn find-definition [tag full-recname]
   (when-let [d (find-def tag full-recname)]
     (let [s (second d)]
       (if (keyword? s)
         (nth d 2)
         (li/record-attributes d)))))
 
-(def find-entity (partial find-defspec 'entity))
-(def find-relationship (partial find-defspec 'relationship))
-(def find-record (partial find-defspec 'record))
-(def find-event (partial find-defspec 'event))
-(def find-rule (partial find-defspec 'rule))
-(def find-inference (partial find-defspec 'inference))
-(def find-resolver (partial find-defspec 'resolver))
+(def find-entity (partial find-definition 'entity))
+(def find-relationship (partial find-definition 'relationship))
+(def find-record (partial find-definition 'record))
+(def find-event (partial find-definition 'event))
+(def find-rule (partial find-definition 'rule))
+(def find-inference (partial find-definition 'inference))
+(def find-resolver (partial find-definition 'resolver))
+(def find-syntax (partial find-definition 'syntax))
 
 (defn find-attribute [n]
   (when-not (li/internal-attribute-name? n)
-    (find-defspec 'attribute n)))
+    (find-definition 'attribute n)))
 
 (defn- change-defs [f]
   (when-let [[c defs] (f)]
@@ -255,6 +269,17 @@
   (when (change-defs #(replace-def tag record-name attrs))
     (maybe-publish-add-definition tag record-name attrs)
     record-name))
+
+(defn remove-syntax-definition [cn def]
+  (remove-from-component cn (partial = def)))
+
+(defn add-syntax-definition [tag n attrs]
+  (if-let [cn (get-active-component)]
+    (let [def `(~tag ~n ~attrs)]
+      (remove-syntax-definition cn def)
+      (append-to-component cn def)
+      tag)
+    (u/throw-ex (str "no active component to define " tag))))
 
 (defn remove-definition [tag record-name]
   (case (symbol tag)
@@ -278,6 +303,20 @@
 (def rule (partial add-definition 'rule))
 (def inference (partial add-definition 'inference))
 (def resolver (partial add-definition 'resolver))
+
+(defn- syntax? [syntax-name spec]
+  (and (= 'syntax (first spec))
+       (= syntax-name (second spec))))
+
+(defn remove-syntax [cn syntax-name]
+  (remove-from-component cn (partial syntax? syntax-name)))
+
+(defn syntax [syntax-name syntax-spec]
+  (if-let [cn (get-active-component)]
+    (do (remove-syntax cn syntax-name)
+        (append-to-component cn `(~'syntax ~syntax-name ~syntax-spec))
+        syntax-name)
+    (u/throw-ex (str "no active component to define syntax " syntax-name))))
 
 (defn remove-component [cname]
   (u/safe-set raw-store (dissoc @raw-store cname))
@@ -315,7 +354,8 @@
     :rule (remove-rule record-name)
     :inference (remove-inference record-name)
     :resolver (remove-resolver record-name)
-    :attribute (remove-attribute record-name)))
+    :attribute (remove-attribute record-name)
+    :syntax (remove-syntax record-name)))
 
 (defn fetch-attributes [tag record-name]
   (when-let [d (find-def tag record-name)]
@@ -344,7 +384,7 @@
 (defn entity-meta [entity-name]
   (:meta (entity-attributes entity-name)))
 
-(defn- fix-rules-syntax [defs]
+(defn- fix-rules [defs]
   (mapv (fn [d]
           (if (and (seqable? d)
                    (= 'rule (first d)))
@@ -354,7 +394,7 @@
 
 (defn as-edn [component-name]
   (when-let [defs (seq (get @raw-store component-name))]
-    `(do ~@(fix-rules-syntax defs))))
+    `(do ~@(fix-rules defs))))
 
 (defn raw-store-reset! []
   (u/safe-set raw-store {}))
