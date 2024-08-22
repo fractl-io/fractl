@@ -212,13 +212,13 @@
                 (let [ss (s/split (s/lower-case (name r)) #"\.")
                       cid (symbol (str (s/replace (name r) "." "_") "_" component-id-var))]
                   (if (= 1 (count ss))
-                    [(symbol (first ss)) :only [cid]]
-                    [(symbol (s/join "." ss)) :only [cid]])))
+                    [(symbol (first ss)) :refer [cid]]
+                    [(symbol (s/join "." ss)) :refer [cid]])))
               refs)
         deps (if (= "agentlang" model-name)
-               [['agentlang.lang :only lang-vars]]
-               [['agentlang.model.model] ['agentlang.lang :only lang-vars]
-                ['agentlang.inference.service :only ['agent]]])]
+               [['agentlang.lang :refer lang-vars]]
+               [['agentlang.model.model] ['agentlang.lang :refer lang-vars]
+                ['agentlang.inference.service :refer ['agent]]])]
     (concat spec deps)))
 
 (defn- merge-use-models [import-spec use-models]
@@ -226,12 +226,12 @@
     (if merged
       (concat result spec)
       (if-let [s (first spec)]
-        (let [m (= :use (first s))]
+        (let [m (= :require (first s))]
           (recur (rest spec)
                  (if m
                    (conj result (concat s use-models))
                    (conj result s)) m))
-        (conj result `(:use ~@use-models))))))
+        (conj result `(:require ~@use-models))))))
 
 (defn- normalize-clj-imports [spec]
   (if (= 'quote (first spec))
@@ -285,7 +285,7 @@
         ns-decl `(~'ns ~root-ns-name
                   (:require ~@req-comp)
                   (:gen-class))]
-    (write (str "src" u/path-sep model-path u/path-sep "modelmain.clj")
+    (write (str "src" u/path-sep model-path u/path-sep "modelmain.cljc")
            [ns-decl
             `(~'defn ~'-main [& ~'args] (apply ~'agentlang/-main ~'args))]
            :write-each)))

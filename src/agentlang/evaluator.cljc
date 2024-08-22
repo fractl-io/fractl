@@ -233,14 +233,14 @@
         inst))))
 
 (defn- log-event [hidden-attrs event-instance]
-  (log/dev-debug
-   (str "evaluating dataflow for event - "
-        (remove-hidden-attributes hidden-attrs event-instance))))
+  #?(:clj (log/dev-debug
+           (str "evaluating dataflow for event - "
+                (remove-hidden-attributes hidden-attrs event-instance)))))
 
 (defn- log-result-object [hidden-attrs event-instance obj]
-  (log/dev-debug
-   (str "dataflow result for " (cn/instance-type event-instance)
-        " - " (remove-hidden-attributes hidden-attrs obj))))
+  #?(:clj (log/dev-debug
+           (str "dataflow result for " (cn/instance-type event-instance)
+                " - " (remove-hidden-attributes hidden-attrs obj)))))
 
 (defn- eval-dataflow-with-logs [evaluator env event-instance hidden-attrs df]
   (try
