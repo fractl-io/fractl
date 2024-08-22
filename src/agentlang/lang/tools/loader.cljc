@@ -13,7 +13,8 @@
             [agentlang.lang.name-util :as nu]
             [agentlang.lang.internal :as li]
             [agentlang.lang.tools.util :as tu]
-            [agentlang.evaluator.state :as es])
+            [agentlang.evaluator.state :as es]
+            [agentlang.inference.service.model :as ism])
   #?(:clj
      (:import [java.io FileInputStream InputStreamReader PushbackReader])))
 
@@ -290,6 +291,8 @@
                       'relationship ln/relationship
                       'inference ln/inference
                       'dataflow ln/dataflow
+                      'syntax ln/syntax
+                      'agent ism/agent
                       'resolver ln/resolver})
 
      (defn maybe-def-expr [exp]

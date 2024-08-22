@@ -62,29 +62,26 @@
  :ProfileRejected
  [:eval '(println "Rejected profile: " :ProfileRejected.CandidateEmail)])
 
-(dataflow
- :InitSummaryAgent
- {:Agentlang.Inference.Service/Agent
-  {:Name "summary-agent"
-   :Type "chat"
-   :UserInstruction (str "You are a recruiter that analyses a resume and provides a summary of the "
-                         "skills and experience of the candidate. The summary must be in the format - "
-                         "Skills: <major-skills-of-the-candidate>, Experience in years: <years>, "
-                         "Name: <candidate-name>, Email: <candidate-email>")}
-  :as :Agent}
- {:Agentlang.Inference.Service/AgentLLM
-  {:Agent :Agent.Name :LLM "llm01"}}
- :Agent)
+(agent
+ "summary-agent"
+ {:Type "chat"
+  :UserInstruction (str "You are a recruiter that analyses a resume and provides a summary of the "
+                        "skills and experience of the candidate. The summary must be in the format - "
+                        "Skills: <major-skills-of-the-candidate>, Experience in years: <years>, "
+                        "Name: <candidate-name>, Email: <candidate-email>")
+  :LLM {:Type "openai"
+        :Name "llm01"
+        :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+                 :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+                 :EmbeddingModel "text-embedding-3-small"
+                 :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+                 :CompletionModel "gpt-3.5-turbo"}}})
 
-(dataflow
- :InitInterviewSchedulerAgent
- {:Agentlang.Inference.Service/Agent
-  {:Name "interview-scheduler-agent"
-   :Type "eval"}
-  :as :Agent}
- {:Agentlang.Inference.Service/AgentLLM
-  {:Agent :Agent.Name :LLM "llm01"}}
- {:Agentlang.Inference.Service/ChatSession
+(agent
+ "interview-scheduler-agent"
+ {:Type "eval"
+  :LLM "llm01"
+  :Chat
   {:Messages
    [:q# [{:role :system
           :content (str "You are an intelligent agent who schedules an interview if the profile summary of a candidate meets "
@@ -99,12 +96,7 @@
                         "\n"
                         "In the current application, you need to review summarized resumes of C++ programmers "
                         "and schedule interviews  with candidates with good experience.")}]]}
-  :-> [[:Agentlang.Inference.Service/AgentChatSession :Agent]]}
- {:Agentlang.Inference.Service/AgentDelegate
-  {:From "interview-scheduler-agent"
-   :To "summary-agent"
-   :Preprocessor true}}
- :Agent)
+  :Delegates {:To "summary-agent" :Preprocessor true}})
 
 ;; Usage:
 ;; POST api/Recruitment.Workflow/InvokeAgent
@@ -120,16 +112,4 @@
 
 (dataflow
  :Agentlang.Kernel.Lang/AppInit
- {:Agentlang.Inference.Provider/LLM
-  {:Type "openai"
-   :Name "llm01"
-   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
-            :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
-            :EmbeddingModel "text-embedding-3-small"
-            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-            :CompletionModel "gpt-3.5-turbo"}}}
- [:try {:Agentlang.Inference.Service/Agent {:Name? "summary-agent"}}
-  :not-found {:InitSummaryAgent {}}]
- [:try {:Agentlang.Inference.Service/Agent {:Name? "interview-scheduler-agent"}}
-  :not-found {:InitInterviewSchedulerAgent {}}]
  [:for-each slot-data {:InterviewSlot {} :from :%}])

@@ -1,60 +1,38 @@
 (component :Verification.Core)
 
 ;; Demonstrates agent-composition, where the answer of one agent is verified by another.
-(dataflow
- :InitVerificationAgent
- {:Agentlang.Inference.Service/Agent
-  {:Name "verification-agent"
-   :Type "chat"}
-  :as :Agent}
- {:Agentlang.Inference.Service/AgentLLM
-  {:Agent :Agent.Name :LLM "llm01"}}
- {:Agentlang.Inference.Service/ChatSession
+(agent
+ "verification-agent"
+ {:Type "chat"
+  :LLM {:Type "openai"
+        :Name "llm01"
+        :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+                 :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+                 :EmbeddingModel "text-embedding-3-small"
+                 :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+                 :CompletionModel "gpt-3.5-turbo"}}
+  :Chat
   {:Messages
    [:q# [{:role :system
           :content (str "You are an agent who verifies the answer returned by another agent. "
                         "Analyse the chain-of-thought returned by the other agent and return YES "
                         "if its conlusion is correct. Otherwise return NO. The final answer will be "
-                        "encoded by the other agent as - ANSWER is: <some-text>")}]]}
-  :-> [[:Agentlang.Inference.Service/AgentChatSession :Agent]]}
- :Agent)
-
-(dataflow
- :InitChainOfThoughtAgent
- {:Agentlang.Inference.Service/Agent
-  {:Name "chain-of-thought-agent"
-   :Type "chat"}
-  :as :Agent}
- {:Agentlang.Inference.Service/AgentLLM
-  {:Agent :Agent.Name :LLM "llm01"}}
- {:Agentlang.Inference.Service/ChatSession
+                        "encoded by the other agent as - ANSWER is: <some-text>")}]]}})
+(agent
+ "chain-of-thought-agent"
+ {:Type "chat"
+  :LLM "llm01"
+  :Chat
   {:Messages
    [:q# [{:role :system
           :content (str "You are an agent who answer user queries by taking advantage of "
                         "a chain-of-thought. That means, you will take a step-by-step approach "
                         "in your response, cite sources and give reasoning before sharing final answer "
                         "in the below format: ANSWER is: <name>")}]]}
-  :-> [[:Agentlang.Inference.Service/AgentChatSession :Agent]]}
- {:Agentlang.Inference.Service/AgentDelegate
-  {:From "chain-of-thought-agent"
-   :To "verification-agent"}}
- :Agent)
+  :Delegates {:To "verification-agent"}})
 
 ;; Usage:
 ;; POST api/Verification.Core/AnswerWithVerification
 ;; {"Verification.Core/AnswerWithVerification":
 ;;  {"UserInstruction": "Who was the most decorated (maximum medals) individual athlete in the Olympic games that were held at Sydney?"}}
 (inference :AnswerWithVerification {:agent "chain-of-thought-agent"})
-
-(dataflow
- :Agentlang.Kernel.Lang/AppInit
- {:Agentlang.Inference.Provider/LLM
-  {:Type "openai"
-   :Name "llm01"
-   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
-            :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
-            :EmbeddingModel "text-embedding-3-small"
-            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-            :CompletionModel "gpt-3.5-turbo"}}}
- [:try {:Agentlang.Inference.Service/Agent {:Name? "verification-agent"}} :not-found {:InitVerificationAgent {}}]
- [:try {:Agentlang.Inference.Service/Agent {:Name? "chain-of-thought-agent"}} :not-found {:InitChainOfThoughtAgent {}}])
