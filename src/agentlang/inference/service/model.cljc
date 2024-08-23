@@ -66,12 +66,24 @@
   :ChatUuid {:type :UUID :default u/uuid-string}
   :UserInstruction {:type :String :optional true}
   :ToolComponents {:check tool-components-list? :optional true}
-  :PromptFn {:check fn? :optional true}
   :Extension {:type :Map :optional true}
   :Context {:type :Map :optional true}
-  :ResponseHandler {:check fn? :optional true}
   :Response {:type :Any :read-only true}
   :CacheChatSession {:type :Boolean :default true}})
+
+(def ^:private agent-callbacks (atom nil))
+
+(defn- set-agent-callback! [tag agent-name f]
+  (let [cbs (assoc (get @agent-callbacks tag) agent-name f)]
+    (swap! agent-callbacks assoc tag cbs)))
+
+(defn- get-agent-callback [tag agent-instance]
+  (get-in @agent-callbacks [tag (:Name agent-instance)]))
+
+(def agent-response-handler (partial get-agent-callback :rh))
+(def agent-prompt-fn (partial get-agent-callback :pfn))
+(def set-agent-response-handler! (partial set-agent-callback! :rh))
+(def set-agent-prompt-fn! (partial set-agent-callback! :pfn))
 
 (relationship
  :Agentlang.Inference.Service/AgentDelegate

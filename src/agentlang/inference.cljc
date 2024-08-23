@@ -11,6 +11,7 @@
                :cljs [agentlang.util.jslogger :as log])
             [agentlang.util.http :as uh]
             [agentlang.inference.service.agent-registry :as ar]
+            [agentlang.inference.service.model :as model]
             [agentlang.inference.service.core :as inference]))
 
 (defn as-vec [x]
@@ -49,7 +50,7 @@
                                                (or (get-in agent-instance [:Context :UserInstruction]) "")))))
          r0 (or (:Response agent-instance) agent-instance)
          r1 (if (string? r0) (edn/read-string r0) r0)
-         result (if-let [f (:ResponseHandler agent-instance)] (f r1) r1)
+         result (if-let [f (model/agent-response-handler agent-instance)] (f r1) r1)
          is-review-mode (get-in event [:EventContext :evaluate-inferred-patterns])]
      (if-let [patterns (:patterns result)]
        (if is-review-mode

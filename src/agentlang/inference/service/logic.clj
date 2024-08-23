@@ -97,7 +97,7 @@
           agent-config {:is-planner? true
                         :tools (model/lookup-agent-tools instance)
                         :docs "" ; TODO: lookup agent docs
-                        :make-prompt (when-let [pfn (:PromptFn instance)]
+                        :make-prompt (when-let [pfn (model/agent-prompt-fn instance)]
                                        (partial pfn instance))}
           options {:use-schema? true :use-docs? true}]
       (answer-question app-uuid question (or qcontext {}) options agent-config))))
@@ -118,7 +118,7 @@
           ext (verify-analyzer-extension (:Extension instance))
           out-type (:OutputEntityType ext)
           out-scm (cn/ensure-schema out-type)
-          pfn (:PromptFn instance)
+          pfn (model/agent-prompt-fn instance)
           agent-config
           (assoc
            (if pfn

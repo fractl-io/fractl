@@ -1,7 +1,12 @@
 (component :Agentgen.Core)
 
+(require '[agentlang.datafmt.json :as json])
+(require '[agentlang.inference.service.model :as model])
+
+(def agent-name "agent-generator-agent")
+
 (agent
- "agent-generator-agent"
+ agent-name
  {:Type "chat"
   :LLM {:Type "openai"
         :Name "llm01"
@@ -28,4 +33,25 @@
                         "User: I want an agent to analyse images of receipts and make summary reports. Another agent will take the summary report and use the following entity to insert each expense item into the databse: (entity :Acme/Expense {:Title :String :Amount :Double}). For example, if the summary report is \"I spent $200 on air ticket and $80 on food\", the summary should be [{:Acme/Expense {:Title \"air ticket\" :Amount 200}}, {:Acme/Expense {:Title \"food\", :Amount 80}}]\n"
                         "AgentGenerator: [{\"name\": \"receipt-image-analyser\", \"type\": \"ocr\", \"instruction\": \"Analyse the image of a receipt and return a summary report with items and totals.\"}, {\"name\": \"expense-creator\", \"type\": \"eval\", \"instruction\": \"You are an intelligent agent who summarizes an expense report as a list of expense instances. For example, if the report is \"I spent $200 on air ticket and $80 on food\", the summary should be [{:Acme/Expense {:Title \"air ticket\" :Amount 200}}, {:Acme/Expense {:Title \"food\", :Amount 80}}]")}]]}})
 
-(inference :GenerateAgent {:agent "agent-generator-agent"})
+(defn map-to-agent [obj]
+  `(agent
+    ~(:name obj)
+    ~(merge
+      {:Type (:type obj)
+       :UserInstruction (or (:instruction obj) "")
+       :LLM "your-llm-spec-or-name"}
+      (when-let [message (:chat obj)]
+        {:Chat [:q# message]}))))
+
+(defn generate-agent [spec]
+  (cond
+    (map? spec) (map-to-agent spec)
+    (vector? spec) (mapv generate-agent spec)
+    :else spec))
+
+(model/set-agent-response-handler!
+ agent-name
+ (fn [s]
+   [(pr-str (generate-agent (json/decode (first s)))) (second s)]))
+
+(inference :GenerateAgent {:agent agent-name})
