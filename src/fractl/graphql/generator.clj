@@ -47,6 +47,8 @@
   (reset! enums-code {})
   (reset! entity-metas {}))
 
+(def graphql-primitive-types #{:String :Int :Float :Boolean})
+
 (def fractlType->graphQL
   {:String     :String
    :DateTime   :String
