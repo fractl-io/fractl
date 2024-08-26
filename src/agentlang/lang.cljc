@@ -794,7 +794,10 @@
 
 (defn register-inference-dataflow [inference-name spec]
   (let [ins (:instructions spec)
-        agent-spec (:agent spec)
+        agent-spec (let [aspec (:agent spec)]
+                     (if (keyword? aspec)
+                       (str aspec)
+                       aspec))
         is-agent-query (string? agent-spec)
         agent0 (preproc-inference-agent is-agent-query agent-spec)
         agent1 (dissoc agent0 :->)
