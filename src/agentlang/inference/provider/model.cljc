@@ -1,17 +1,17 @@
 (ns agentlang.inference.provider.model
   (:require [agentlang.lang :refer [component
-                                 entity
-                                 dataflow
-                                 resolver]]
-            [agentlang.util :as u]))
+                                    entity
+                                    dataflow
+                                    resolver]]
+            [agentlang.util.seq :as us]))
 
 (component :Agentlang.Inference.Provider)
 
 (entity
  :Agentlang.Inference.Provider/LLM
- {:Type :Keyword ; e.g :openai
-  :Name {:type :String :guid true}
-  :Config :Map
+ {:Type {:type :String :default "openai"} ; e.g "openai"
+  :Name {:type :String :guid true :default #(us/generate-code 5)}
+  :Config {:type :Map :optional true}
   ;; example config for openai:
   ;; {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
   ;;  :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"

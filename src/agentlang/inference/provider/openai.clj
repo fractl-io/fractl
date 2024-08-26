@@ -6,23 +6,20 @@
             [agentlang.inference.provider.protocol :as p]
             [agentlang.inference.provider.registry :as r]))
 
-;; -- OpenAI embedding models
-;-- +------------------------+-----------------+---------+
-;-- | OpenAI Embedding Model | Dimensions      | Remarks |
-;-- +------------------------+-----------------+---------+
-;-- | text-embedding-3-small | 512, 1536       |         |
-;-- | text-embedding-3-large | 256, 1024, 3072 |         |
-;-- | text-embedding-ada-002 | 1536            | Older   |
-;-- +------------------------+-----------------+---------+
+
+(def ^:private default-embedding-endpoint "https://api.openai.com/v1/embeddings")
+(def ^:private default-embedding-model "text-embedding-3-small")
+
+(defn- get-openai-api-key [] (u/getenv "OPENAI_API_KEY"))
 
 (defn make-openai-embedding [{text-content :text-content
                               model-name :model-name
                               openai-api-key :openai-api-key
                               embedding-endpoint :embedding-endpoint :as args}]
   (let [openai-config (r/fetch-active-provider-config)
-        model-name (or model-name (:EmbeddingModel openai-config))
-        embedding-endpoint (or embedding-endpoint (:EmbeddingApiEndpoint openai-config))
-        openai-api-key (or openai-api-key (:ApiKey openai-config))
+        model-name (or model-name (:EmbeddingModel openai-config) default-embedding-model)
+        embedding-endpoint (or embedding-endpoint (:EmbeddingApiEndpoint openai-config) default-embedding-endpoint)
+        openai-api-key (or openai-api-key (:ApiKey openai-config) (get-openai-api-key))
         options {:headers {"Authorization" (str "Bearer " openai-api-key)
                            "Content-Type" "application/json"}
                  :body (json/generate-string {"input" text-content
@@ -71,6 +68,10 @@
            nil))))
   ([model-name response] (chat-completion-response model-name false response)))
 
+(def ^:private default-completion-endpoint "https://api.openai.com/v1/chat/completions")
+(def ^:private default-ocr-completion-model "gpt-4o")
+(def ^:private default-completion-model "gpt-3.5-turbo")
+
 (defn make-openai-completion [{messages :messages
                                model-name :model-name
                                openai-api-key :openai-api-key
@@ -80,11 +81,11 @@
                                tools :tools}]
   (doseq [m messages] (assert-message! m))
   (let [openai-config (r/fetch-active-provider-config)
-        model-name (or model-name (:CompletionModel openai-config))
-        completion-endpoint (or completion-endpoint (:CompletionApiEndpoint openai-config))
+        model-name (or model-name (:CompletionModel openai-config) default-completion-model)
+        completion-endpoint (or completion-endpoint (:CompletionApiEndpoint openai-config) default-completion-endpoint)
         temperature (or temperature default-temperature)
         max-tokens (or max-tokens default-max-tokens)
-        openai-api-key (or openai-api-key (:ApiKey openai-config))
+        openai-api-key (or openai-api-key (:ApiKey openai-config) (get-openai-api-key))
         options {:headers {"Content-type"  "application/json"
                            "Authorization" (str "Bearer " openai-api-key)}
                  :body (json/generate-string
@@ -102,10 +103,10 @@
 (defn make-openai-ocr-completion [{user-instruction :user-instruction
                                    image-url :image-url}]
   (let [openai-config (r/fetch-active-provider-config)
-        model-name "gpt-4o"
-        completion-endpoint (:CompletionApiEndpoint openai-config)
+        model-name default-ocr-completion-model
+        completion-endpoint (or (:CompletionApiEndpoint openai-config) default-completion-endpoint)
         max-tokens 300
-        openai-api-key (:ApiKey openai-config)
+        openai-api-key (or (:ApiKey openai-config) (get-openai-api-key))
         messages
         [{"role" "user"
           "content"

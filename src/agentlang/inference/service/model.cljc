@@ -61,7 +61,7 @@
 (entity
  :Agentlang.Inference.Service/Agent
  {:Name {:type :String :guid true}
-  :Type :String
+  :Type {:type :String :default "chat"}
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :ChatUuid {:type :UUID :default u/uuid-string}
   :UserInstruction {:type :String :optional true}
