@@ -32,5 +32,4 @@
         compiled-schema (-> graphql-schema
                             (util/inject-resolvers graphql-resolver-map)
                             schema/compile)]
-    (println "entity-metas: " entity-metas)
     [graphql-schema compiled-schema entity-metas]))
