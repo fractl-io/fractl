@@ -24,14 +24,3 @@
  :Agentlang.Inference.Provider/FindLLM
  {:Agentlang.Inference.Provider/LLM
   {:Name? :Agentlang.Inference.Provider/FindLLM.Name}})
-
-(def ^:private llm-registry (atom nil))
-
-(defn- upsert-llm [inst]
-  (swap! llm-registry assoc (:Name inst) inst)
-  inst)
-
-(defn- lookup-llm-by-name [[opr attr attrval]]
-  (when (and (= := opr) (= attr :Name))
-    (when-let [r (get @llm-registry attrval)]
-      [r])))
