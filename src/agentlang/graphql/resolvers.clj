@@ -1,5 +1,6 @@
 (ns agentlang.graphql.resolvers
   (:require [clojure.string :as str]
+            [clojure.walk :as walk]
             [agentlang.auth.core :as auth]
             [agentlang.component :as cn]
             [agentlang.evaluator :as e]
@@ -81,6 +82,21 @@
   (if (vector? x)
     x
     [x]))
+
+(defn separate-primitive-types [entity-meta]
+  (reduce-kv
+    (fn [acc attr-name attr-info]
+      (let [type-info (:type attr-info)
+            base-type (if (and (coll? type-info)
+                               (= (first type-info) 'non-null))
+                        (second type-info)
+                        type-info)
+            category (if (contains? gg/graphql-primitive-types base-type)
+                       :primitive
+                       :non-primitive)]
+        (update acc category conj attr-name)))
+    {:primitive #{}, :non-primitive #{}}
+    entity-meta))
 
 (declare apply-filter)
 
@@ -167,6 +183,74 @@
             filter)
     true))
 
+(declare process-node)
+
+(defn process-comparison [attr op-or-map complex-attributes]
+  (let [attr-keyword (keyword attr)]
+    (if (contains? complex-attributes attr)
+      nil
+      (if (map? op-or-map)
+        (let [comparisons (map (fn [[op val]]
+                                 (case op
+                                   :eq [:= attr-keyword val]
+                                   :ne [:not= attr-keyword val]
+                                   :gt [:> attr-keyword val]
+                                   :lt [:< attr-keyword val]
+                                   :gte [:>= attr-keyword val]
+                                   :lte [:<= attr-keyword val]
+                                   :in [:in attr-keyword val]
+                                   :contains [:like attr-keyword (str "%" val "%")]
+                                   :startsWith [:like attr-keyword (str val "%")]
+                                   :endsWith [:like attr-keyword (str "%" val)]
+                                   :between [:between attr-keyword (first val) (second val)]
+                                   [op attr-keyword val]))
+                               op-or-map)]
+          (if (= 1 (count comparisons))
+            (first comparisons)
+            (into [:and] comparisons)))
+        [op-or-map attr-keyword]))))
+
+(defn flatten-logic [op nodes]
+  (reduce (fn [acc node]
+            (if (and (sequential? node) (= (first node) op))
+              (into acc (rest node))
+              (conj acc node)))
+          []
+          nodes))
+
+(defn process-node [node complex-attributes]
+  (cond
+    (and (map? node) (= 1 (count node)))
+    (let [[k v] (first node)]
+      (cond
+        (= k :filter) (process-node v complex-attributes)
+        (#{:and :or} k) (let [processed (keep #(process-node % complex-attributes) v)
+                              flattened (flatten-logic k processed)]
+                          (when (seq flattened)
+                            (if (= 1 (count flattened))
+                              (first flattened)
+                              (into [k] flattened))))
+        (= k :not) (when-let [processed (process-node v complex-attributes)]
+                     [:not processed])
+        :else (process-comparison k v complex-attributes)))
+    (map? node)
+    (into {} (keep (fn [[k v]]
+                     (when-let [processed (process-node v complex-attributes)]
+                       [k processed]))
+                   node))
+    :else node))
+
+(defn generate-fractl-query [entity-name filters complex-attributes & {:keys [alias order-by limit offset]}]
+  (let [processed-filters (process-node filters complex-attributes)
+        query {(append-question-mark entity-name)
+               (cond-> {}
+                 processed-filters (assoc :where processed-filters)
+                 alias (assoc :as alias)
+                 order-by (assoc :order-by order-by)
+                 limit (assoc :limit limit)
+                 offset (assoc :offset offset))}]
+    query))
+
 (defn apply-filters [instances filters]
   (if (nil? filters)
     instances
@@ -196,28 +280,50 @@
       (finally
         (cn/remove-event event)))))
 
+(defn extract-entity-meta-context [entity-name context]
+  (let [{:keys [core-component entity-metas]} context
+        entity-meta ((keyword (extract-entity-name entity-name)) entity-metas)]
+    [core-component entity-meta]))
+
+(defn extract-args [args]
+  (let [{:keys [attributes filter limit offset]} args]
+    [attributes filter limit (or offset 0)]))
+
+(defn build-dataflow-query [entity-name attrs filters non-primitive-attrs]
+  (if (empty? attrs)
+    (generate-fractl-query entity-name filters non-primitive-attrs)
+    {entity-name (append-question-to-keys attrs)}))
+
+(defn normalize-results
+  "Normalizes the results of a dataflow pattern"
+  [results]
+  (if results
+    (cond
+      (map? results) [results]
+      (coll? results) results
+      :else [results])
+    []))
+
+(defn apply-final-filters [results filters offset limit]
+  (cond->> (apply-filters results filters)
+    true (drop offset)
+    limit (take limit)))
+
 (defn query-entity-by-attribute-resolver
   [entity-name]
   (fn [context args value]
-    (let [core-component (:core-component context)
-          attrs (:attributes args)
-          filters (:filter args)
-          limit (:limit args)
-          offset (or (:offset args) 0)
-          query-params (append-question-to-keys attrs)
-          dataflow-query (if (empty? query-params)
-                           {(append-question-mark entity-name) {}}
-                           {entity-name query-params})]
-      (let [results (eval-patterns core-component dataflow-query context)
-            results (if results
-                      (cond
-                        (map? results) [results]
-                        (coll? results) results
-                        :else [])
-                      [])]
-        (cond->> (apply-filters results filters)
-                 true (drop offset)
-                 limit (take limit))))))
+    (let [[core-component entity-meta] (extract-entity-meta-context entity-name context)
+          {_ :primitive non-primitive-attrs :non-primitive} (separate-primitive-types entity-meta)
+          [attrs filters limit offset] (extract-args args)
+          dataflow-query (build-dataflow-query entity-name attrs filters non-primitive-attrs)
+          results (eval-patterns core-component dataflow-query context)
+          normalized-results (if results
+                               (cond
+                                 (map? results) [results]
+                                 (coll? results) results
+                                 :else [])
+                               [])]
+      (apply-final-filters normalized-results filters offset limit))))
 
 (defn query-parent-children-resolver
   []
@@ -244,58 +350,51 @@
                           entity-def)]
         (or identity-attr guid-attr id-attr)))))
 
+(defn- query-all-children [core-component parent-name parent-id relationship-name child-name context]
+  (let [fq (partial pi/as-fully-qualified-path core-component)
+        all-children-pattern {(form-pattern-name core-component "LookupAll" child-name)
+                              {li/path-attr (fq (str "path://" parent-name "/" parent-id "/" relationship-name "/" child-name "/%"))}}]
+    (eval-patterns core-component all-children-pattern context)))
+
+(defn- query-children-using-attributes [core-component parent-name child-name relationship-name parent-guid-attribute parent-instance attrs context]
+  (let [query-params (append-question-to-keys attrs)
+        dataflow-query [{parent-name
+                         {(append-question-mark parent-guid-attribute) (parent-guid-attribute parent-instance)}
+                         :as :Parent}
+                        {child-name query-params
+                         :->        [[relationship-name :Parent]]}]]
+    (eval-patterns core-component dataflow-query context)))
+
 (defn query-contained-entity-resolver
   [relationship-name parent-name child-name]
   (fn [context args parent-instance]
-    (let [attrs (:attributes args)
-          filters (:filter args)
-          limit (:limit args)
-          offset (:offset args 0)
-          core-component (:core-component context)
+    (let [{:keys [core-component]} context
           schema (schema-info core-component)
+          [attrs filters limit offset] (extract-args args)
           parent-guid-attribute (find-guid-or-id-attribute schema parent-name)
-          parent-id ((find-guid-or-id-attribute schema parent-name) parent-instance)
-          extracted-parent-name (extract-entity-name parent-name)
-          extracted-child-name (extract-entity-name child-name)
-          extract-entity-name (extract-entity-name relationship-name)
-          dataflow-result (if (nil? attrs)
-                            (let [fq (partial pi/as-fully-qualified-path core-component)
-                                  all-children-pattern {(form-pattern-name core-component "LookupAll" extracted-child-name)
-                                                        {li/path-attr (fq (str "path://" extracted-parent-name "/" parent-id "/" extract-entity-name "/" extracted-child-name "/%"))}}]
-                              (eval-patterns core-component all-children-pattern context))
-                            (let [query-params (append-question-to-keys attrs)
-                                  dataflow-query [{parent-name
-                                                   {(append-question-mark parent-guid-attribute) (parent-guid-attribute parent-instance)}
-                                                   :as :Parent}
-                                                  {child-name query-params
-                                                   :->        [[relationship-name :Parent]]}]]
-                              (eval-patterns core-component dataflow-query context)))
-          results (if dataflow-result
-                    (cond
-                      (map? dataflow-result) [dataflow-result]
-                      (coll? dataflow-result) dataflow-result
-                      :else [])
-                    [])]
-      (cond->> (apply-filters results filters)
-               true (drop offset)
-               limit (take limit)))))
+          parent-id (parent-guid-attribute parent-instance)
+          [extracted-parent-name extracted-child-name extracted-relationship-name]
+          (map extract-entity-name [parent-name child-name relationship-name])
+
+          dataflow-result
+          (if (nil? attrs)
+            (query-all-children core-component extracted-parent-name parent-id extracted-relationship-name extracted-child-name context)
+            (query-children-using-attributes core-component parent-name child-name relationship-name parent-guid-attribute parent-instance attrs context))
+
+          results (normalize-results dataflow-result)]
+      (apply-final-filters results filters offset limit))))
 
 (defn query-between-relationship-resolver
   [relationship-name entity1-name entity2-name]
   (fn [context args value]
-    (let [attrs (:attributes args)
-          filters (:filter args)
-          limit (:limit args)
-          offset (:offset args 0)
+    (let [[attrs filters limit offset] (extract-args args)
           core-component (:core-component context)
           query-params (append-question-to-keys attrs)
           query (if (empty? query-params)
                   {(append-question-mark relationship-name) {}}
                   {relationship-name query-params})
           results (eval-patterns core-component query context)]
-      (cond->> (apply-filters results filters)
-               true (drop offset)
-               limit (take limit)))))
+      (apply-final-filters results filters offset limit))))
 
 (defn transform-pattern
   "Transforms a pattern by wrapping maps with their corresponding record types."
