@@ -36,6 +36,14 @@
               result))))
     agentlang-patterns))
 
+(defn- maybe-feature-instruction [agent-instance]
+  (when (= "classifier" (:Type agent-instance))
+    (when-let [delegates (seq (map #(str "\"agent: " (:Name %) "\"")
+                                   (model/find-agent-post-delegates agent-instance)))]
+      (str "Classify a user query into one of the sub-agent categories - "
+           (s/join "," delegates) ". "
+           "Analyse the user query and return only one of those strings."))))
+
 (defn run-inference-for-event
   ([event instructions agent-instance]
    (when-not agent-instance (u/throw-ex (str "Agent not initialized for " event)))
@@ -45,6 +53,7 @@
          (ar/handle-generic-agent (assoc agent-instance :UserInstruction
                                          (s/trim
                                           (str (or (:UserInstruction agent-instance) "")
+                                               (or (maybe-feature-instruction agent-instance) "")
                                                "\n"
                                                (or instructions "")
                                                "\n"

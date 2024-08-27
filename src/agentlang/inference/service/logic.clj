@@ -162,7 +162,7 @@
           ins (:UserInstruction agent-instance)]
       (log/debug (str "Response from agent " (:Name agent-instance) " - " response))
       (if-let [agent-name (agent-filter-response response)]
-        (respond-with-agent agent-name delegates ins)
+        (respond-with-agent agent-name delegates (or (get-in agent-instance [:Context :UserInstruction]) ins))
         (if (seq delegates)
           (let [n (:Name agent-instance)
                 ins (str "Instruction for agent " n " was ### " ins " ### "
