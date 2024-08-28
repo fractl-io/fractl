@@ -113,10 +113,9 @@
       (when (and (cn/intern-event event-name {})
                  (cn/register-dataflow event-name pats))
         (try
-          (let [r (evaluator {event-name {}})]
-            (gs/uninstall-standalone-patterns!)
-            r)
+          (evaluator {event-name {}})
           (finally
+            (gs/uninstall-standalone-patterns!)
             (cn/remove-event event-name)))))))
 
 (defn trigger-appinit-event! [evaluator data]

@@ -585,6 +585,8 @@
        (let [ks (keys (dissoc pat :as))
              n (first ks)]
          (and (= 1 (count ks))
-              (keyword? n)
+              ;; entity name is usually a keyword,
+              ;; but it could also be a bound-variable (i.e a symbol like `Agent`).
+              (or (keyword? n) (symbol? n))
               ;; is there an attributes map?
               (map? (get pat n))))))
