@@ -6,22 +6,25 @@
   :Title :String
   :Amount :Double})
 
-(agent
- "receipt-ocr-agent"
- {:Type "ocr"
+{LLM
+ {:Type "openai"
+  :Name "llm01"
+  :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+           :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+           :EmbeddingModel "text-embedding-3-small"
+           :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+           :CompletionModel "gpt-3.5-turbo"}}}
+
+{Agent
+ {:Name "receipt-ocr-agent"
+  :Type "ocr"
   :UserInstruction (str "Analyse the image of a receipt and return only the items and their amounts. "
                         "No need to include sub-totals, totals and other data.")
-  :LLM {:Type "openai"
-        :Name "llm01"
-        :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
-                 :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
-                 :EmbeddingModel "text-embedding-3-small"
-                 :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-                 :CompletionModel "gpt-3.5-turbo"}}})
+  :LLM "llm01"}}
 
-(agent
- "expense-agent"
- {:Type "eval"
+{Agent
+ {:Name "expense-agent"
+  :Type "eval"
   :LLM "llm01"
   :Chat
   {:Messages
@@ -31,7 +34,7 @@
                         "[{:Expense.Workflow/Expense {:Title \"air ticket\" :Amount 200}}, "
                         "{:Expense.Workflow/Expense {:Title \"food\", :Amount 80}}]")}]]}
   :Delegates {:To "receipt-ocr-agent"
-              :Preprocessor true}})
+              :Preprocessor true}}}
 
 ;; Usage:
 ;; POST api/Expense.Workflow/SaveExpenses

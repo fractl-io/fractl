@@ -62,24 +62,27 @@
  :ProfileRejected
  [:eval '(println "Rejected profile: " :ProfileRejected.CandidateEmail)])
 
-(agent
- "summary-agent"
- {:Type "chat"
+{LLM
+ {:Type "openai"
+  :Name "llm01"
+  :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+           :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+           :EmbeddingModel "text-embedding-3-small"
+           :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+           :CompletionModel "gpt-3.5-turbo"}}}
+
+{Agent
+ {:Name "summary-agent"
+  :Type "chat"
   :UserInstruction (str "You are a recruiter that analyses a resume and provides a summary of the "
                         "skills and experience of the candidate. The summary must be in the format - "
                         "Skills: <major-skills-of-the-candidate>, Experience in years: <years>, "
                         "Name: <candidate-name>, Email: <candidate-email>")
-  :LLM {:Type "openai"
-        :Name "llm01"
-        :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
-                 :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
-                 :EmbeddingModel "text-embedding-3-small"
-                 :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-                 :CompletionModel "gpt-3.5-turbo"}}})
+  :LLM "llm01"}}
 
-(agent
- "interview-scheduler-agent"
- {:Type "eval"
+{Agent
+ {:Name "interview-scheduler-agent"
+  :Type "eval"
   :LLM "llm01"
   :Chat
   {:Messages
@@ -96,7 +99,7 @@
                         "\n"
                         "In the current application, you need to review summarized resumes of C++ programmers "
                         "and schedule interviews  with candidates with good experience.")}]]}
-  :Delegates {:To "summary-agent" :Preprocessor true}})
+  :Delegates {:To "summary-agent" :Preprocessor true}}}
 
 ;; Usage:
 ;; POST api/Recruitment.Workflow/InvokeAgent

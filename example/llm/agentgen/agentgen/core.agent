@@ -5,16 +5,19 @@
 
 (def agent-name "agent-generator-agent")
 
-(agent
- agent-name
- {:Type "chat"
-  :LLM {:Type "openai"
-        :Name "llm01"
-        :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
-                 :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
-                 :EmbeddingModel "text-embedding-3-small"
-                 :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-                 :CompletionModel "gpt-3.5-turbo"}}
+{LLM
+ {:Type "openai"
+  :Name "llm01"
+  :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+           :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+           :EmbeddingModel "text-embedding-3-small"
+           :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+           :CompletionModel "gpt-3.5-turbo"}}}
+
+{Agent
+ {:Name agent-name
+  :Type "chat"
+  :LLM "llm01"
   :Chat
   {:Messages
    [:q# [{:role :system
@@ -31,7 +34,7 @@
                         "User: I want an agent to analyse images of receipts and make summary reports\n"
                         "AgentGenerator: {\"name\": \"receipt-image-analyser\", \"type\": \"ocr\", \"instruction\": \"Analyse the image of a receipt and return a summary report with items and totals.\"}"
                         "User: I want an agent to analyse images of receipts and make summary reports. Another agent will take the summary report and use the following entity to insert each expense item into the databse: (entity :Acme/Expense {:Title :String :Amount :Double}). For example, if the summary report is \"I spent $200 on air ticket and $80 on food\", the summary should be [{:Acme/Expense {:Title \"air ticket\" :Amount 200}}, {:Acme/Expense {:Title \"food\", :Amount 80}}]\n"
-                        "AgentGenerator: [{\"name\": \"receipt-image-analyser\", \"type\": \"ocr\", \"instruction\": \"Analyse the image of a receipt and return a summary report with items and totals.\"}, {\"name\": \"expense-creator\", \"type\": \"eval\", \"instruction\": \"You are an intelligent agent who summarizes an expense report as a list of expense instances. For example, if the report is \"I spent $200 on air ticket and $80 on food\", the summary should be [{:Acme/Expense {:Title \"air ticket\" :Amount 200}}, {:Acme/Expense {:Title \"food\", :Amount 80}}]")}]]}})
+                        "AgentGenerator: [{\"name\": \"receipt-image-analyser\", \"type\": \"ocr\", \"instruction\": \"Analyse the image of a receipt and return a summary report with items and totals.\"}, {\"name\": \"expense-creator\", \"type\": \"eval\", \"instruction\": \"You are an intelligent agent who summarizes an expense report as a list of expense instances. For example, if the report is \"I spent $200 on air ticket and $80 on food\", the summary should be [{:Acme/Expense {:Title \"air ticket\" :Amount 200}}, {:Acme/Expense {:Title \"food\", :Amount 80}}]")}]]}}}
 
 (defn map-to-agent [obj]
   `(agent

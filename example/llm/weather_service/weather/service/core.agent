@@ -21,18 +21,21 @@
   :as [:Result]}
  :Result)
 
-(agent
- "weather-planner-agent"
- {:Type "planner"
+{LLM
+ {:Type "openai"
+  :Name "llm01"
+  :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+           :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+           :EmbeddingModel "text-embedding-3-small"
+           :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+           :CompletionModel "gpt-3.5-turbo"}}}
+
+{Agent
+ {:Name "weather-planner-agent"
+  :Type "planner"
   :ToolComponents [:q# [:Weather.Service.Core]]
   :UserInstruction "You are an agent that figures out which tool to use to answer a user query."
-  :LLM {:Type "openai"
-        :Name "llm01"
-        :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
-                 :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
-                 :EmbeddingModel "text-embedding-3-small"
-                 :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-                 :CompletionModel "gpt-3.5-turbo"}}})
+  :LLM "llm01"}}
 
 ;; Usage:
 ;; POST api/Weather.Service.Core/InvokePlanner

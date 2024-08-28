@@ -11,18 +11,21 @@
 ;;                            :user #$ [PGVECTOR_DB_USERNAME "postgres"]
 ;;                            :password #$ [PGVECTOR_DB_PASSWORD "postgres"]}}}
 
+{LLM
+ {:Type "openai"
+  :Name "llm01"
+  :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+           :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+           :EmbeddingModel "text-embedding-3-small"
+           :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+           :CompletionModel "gpt-3.5-turbo"}}}
+
 (def technical-support-agent "technical-support-agent")
 
-(agent
- technical-support-agent
- {:Type "chat"
-  :LLM {:Type "openai"
-        :Name "llm01"
-        :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
-                 :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
-                 :EmbeddingModel "text-embedding-3-small"
-                 :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-                 :CompletionModel "gpt-3.5-turbo"}}
+{Agent
+ {:Name technical-support-agent
+  :Type "chat"
+  :LLM "llm01"
   :Chat {:Messages
          [:q# [{:role :system
                 :content (str "You are a support agent for a Camera store. "
@@ -37,13 +40,13 @@
     :Agent technical-support-agent}
    {:Title "XYZ User Manual"
     :Uri "file://./docs/xyz.md"
-    :Agent technical-support-agent}]})
+    :Agent technical-support-agent}]}}
 
 (def price-enquiry-agent "price-enquiry-agent")
 
-(agent
- price-enquiry-agent
- {:Type "chat"
+{Agent
+ {:Name price-enquiry-agent
+  :Type "chat"
   :LLM "llm01"
   :Chat {:Messages
          [:q# [{:role :system
@@ -58,11 +61,11 @@
     :Agent price-enquiry-agent}
    {:Title  "XYZ Price List"
     :Uri "file://./docs/xyz_prices.txt"
-    :Agent price-enquiry-agent}]})
+    :Agent price-enquiry-agent}]}}
 
-(agent
- "camera-support-agent"
- {:Type "chat"
+{Agent
+ {:Name "camera-support-agent"
+  :Type "chat"
   :LLM "llm01"
   :Chat
   {:Messages
@@ -72,7 +75,7 @@
                         "Analyse the user query and return only one of those strings.")}]]}
   :Delegates
   [{:To technical-support-agent}
-   {:To price-enquiry-agent}]})
+   {:To price-enquiry-agent}]}}
 
 ;; Usage:
 ;; POST api/Customer.Support.Core/CameraStore
