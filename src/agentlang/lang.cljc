@@ -1399,3 +1399,5 @@
             sym-name syntax-fn)
     (raw/syntax syntax-name syntax-spec)
     syntax-name))
+
+(defn pattern [pat] (gs/install-init-pattern! pat))

@@ -579,3 +579,12 @@
     (if (= 1 (count parts))
       [*ns* sym]
       [(symbol (first parts)) (symbol (second parts))])))
+
+(defn maybe-upsert-instance-pattern? [pat]
+  (and (map? pat)
+       (let [ks (keys (dissoc pat :as))
+             n (first ks)]
+         (and (= 1 (count ks))
+              (keyword? n)
+              ;; is there an attributes map?
+              (map? (get pat n))))))

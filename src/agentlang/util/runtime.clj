@@ -87,7 +87,7 @@
   (and (seq (su/nonils args))
        (= (count args) 1)
        (let [f (first args)]
-         (and (s/ends-with? f (u/get-model-script-name))
+         (and (s/ends-with? f u/model-script-name)
               f))))
 
 (defn maybe-read-model [args]
@@ -113,7 +113,9 @@
       (when (and (cn/intern-event event-name {})
                  (cn/register-dataflow event-name pats))
         (try
-          (evaluator {event-name {}})
+          (let [r (evaluator {event-name {}})]
+            (gs/uninstall-standalone-patterns!)
+            r)
           (finally
             (cn/remove-event event-name)))))))
 
@@ -267,7 +269,7 @@
 (defn read-model-from-resource [component-root]
   (let [^String s (slurp
                    (io/resource
-                    (str "model/" component-root "/" (u/get-model-script-name))))]
+                    (str "model/" component-root "/" u/model-script-name)))]
     (if-let [model (loader/read-model-expressions (io/input-stream (.getBytes s)))]
       model
       (u/throw-ex (str "failed to load model from " component-root)))))

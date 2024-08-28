@@ -75,3 +75,4 @@
 
 (def standalone-patterns (atom []))
 (def install-init-pattern! (partial swap! standalone-patterns conj))
+(defn uninstall-standalone-patterns! [] (reset! standalone-patterns nil))

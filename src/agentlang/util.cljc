@@ -46,7 +46,7 @@
      (keyword (first (string/split (string/lower-case (System/getProperty "os.name")) #" ")))
      :cljs :js))
 
-(def ^:private script-extn (atom ".fractl"))
+(def ^:private script-extn (atom ".agent"))
 
 (defn set-script-extn! [extn]
   (reset! script-extn extn))
@@ -54,10 +54,7 @@
 (defn get-script-extn []
   @script-extn)
 
-(def ^:private model-script-name (atom ""))
-
-(defn get-model-script-name []
-  (str "model" @script-extn))
+(def model-script-name "model.edn")
 
 (defn file-extension [s]
   #?(:clj

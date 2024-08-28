@@ -168,6 +168,9 @@
 (defn- fq-preproc-rule-def [exp]
   `(~(symbol "rule") ~(fq-name (second exp)) ~@(mapv #(fq-generic % false) (nthrest exp 2))))
 
+(defn- fq-preproc-pattern-def [exp]
+  `(~(symbol "pattern") ~(fq-named-df-pat (second exp))))
+
 ;; Preprocssors to add fully-qualified names to each type
 ;; of expression.
 (def ^:private fq-preproc-defs
@@ -180,7 +183,8 @@
    'inference fq-preproc-record-def
    'rule fq-preproc-rule-def
    'dataflow fq-preproc-dataflow-def
-   'resolver fq-preproc-record-def})
+   'resolver fq-preproc-record-def
+   'pattern fq-preproc-pattern-def})
 
 (defn fully-qualified-names [declared-names exp]
   (binding [fq-name (make-fq-name declared-names)]

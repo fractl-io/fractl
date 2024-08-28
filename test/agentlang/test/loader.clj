@@ -10,24 +10,24 @@
             [agentlang.test.util :as tu]))
 
 (deftest test-load-script
-  (is :Sample.Simple (loader/load-script nil "test/sample/simple.fractl"))
-  (is (nil? (loader/load-script "test/sample/dependencies" "model1/model.fractl"))))
+  (is :Sample.Simple (loader/load-script nil "test/sample/simple.agent"))
+  (is (nil? (loader/load-script "test/sample/dependencies" "model1/model.edn"))))
 
 (deftest test-read-expressions
-  (is :Sample.Simple/LoggingPolicy (first (loader/read-expressions "test/sample/simple.fractl")))
-  (is (some #{:Sample.Simple/E2} (loader/read-expressions "test/sample/simple.fractl")))
-  (let [exp (first (loader/read-expressions "test/sample/dependencies/model1/model.fractl"))]
+  (is :Sample.Simple/LoggingPolicy (first (loader/read-expressions "test/sample/simple.agent")))
+  (is (some #{:Sample.Simple/E2} (loader/read-expressions "test/sample/simple.agent")))
+  (let [exp (first (loader/read-expressions "test/sample/dependencies/model1/model.edn"))]
     (is [:Model1.C1] (:components exp))
     (is [:Model2] (:dependencies exp))))
 
 (deftest test-load-dependencies
-  (let [[model model-root] (loader/read-model "test/sample/dependencies/model1/model.fractl")]
+  (let [[model model-root] (loader/read-model "test/sample/dependencies/model1/model.edn")]
     (is (= [:Model1.C1] (ur/load-model model model-root [] nil)))
     (is (cn/component-exists? :Model1.C1))
     (is (cn/component-exists? :Model2.C1))))
 
 (deftest issue-321
-  (is :Sample.Test (loader/load-script nil "test/sample/test.fractl"))
+  (is :Sample.Test (loader/load-script nil "test/sample/test.agent"))
   (let [evt (cn/make-instance {:Sample.Test/SayHello {:Name "Clojure"}})
         r (first (tu/fresult (e/eval-all-dataflows evt)))]
     (is (cn/instance-of? :Sample.Test/HelloWorld r))
@@ -35,7 +35,7 @@
     (is (= (:Name r) "Clojure"))))
 
 (deftest test-load-script-with-raw
-  (is :Sample.Tiny (loader/load-script nil "test/sample/tiny.fractl"))
+  (is :Sample.Tiny (loader/load-script nil "test/sample/tiny.agent"))
   (tu/finalize-component :Sample.Tiny)
   (let [expected-spec '(do (component :Sample.Tiny)
                            (entity :Sample.Tiny/A {:Id :Identity, :X :Int})

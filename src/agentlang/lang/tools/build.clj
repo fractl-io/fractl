@@ -186,7 +186,7 @@
 
 (def ^:private clj-defs #{'def 'defn 'defn-})
 (def ^:private agentlang-defs #{'entity 'dataflow 'event 'record 'relationship
-                                'view 'attribute 'rule 'inference 'resolver 'syntax})
+                                'view 'attribute 'rule 'inference 'resolver 'syntax 'pattern})
 
 (defn- update-local-defs [ns-name component]
   (let [local-defs (set
@@ -218,7 +218,7 @@
         deps (if (= "agentlang" model-name)
                [['agentlang.lang :refer lang-vars]]
                [['agentlang.model.model] ['agentlang.lang :refer lang-vars]
-                ['agentlang.inference.service.model :refer ['agent]]])]
+                ['agentlang.inference.service.model :refer ['Agent 'LLM]]])]
     (concat spec deps)))
 
 (defn- merge-use-models [import-spec use-models]

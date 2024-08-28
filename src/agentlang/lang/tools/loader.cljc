@@ -13,8 +13,7 @@
             [agentlang.lang.name-util :as nu]
             [agentlang.lang.internal :as li]
             [agentlang.lang.tools.util :as tu]
-            [agentlang.evaluator.state :as es]
-            [agentlang.inference.service.model :as ism])
+            [agentlang.evaluator.state :as es])
   #?(:clj
      (:import [java.io FileInputStream InputStreamReader PushbackReader])))
 
@@ -92,7 +91,12 @@
 
 (defn use-lang []
   (use '[agentlang.lang])
-  (require '[agentlang.inference.service.model :refer [agent]]))
+  (require '[agentlang.inference.service.model :refer [Agent LLM]]))
+
+(defn maybe-preproc-standalone-pattern [pat]
+  (if (li/maybe-upsert-instance-pattern? pat)
+    `(~'pattern ~pat)
+    pat))
 
 #?(:clj
    (do
@@ -108,7 +112,7 @@
                        (if (string? file-name-or-input-stream)
                          (FileInputStream. file-name-or-input-stream)
                          (io/input-stream file-name-or-input-stream))))
-              rdf #(read reader nil :done)
+              rdf #(maybe-preproc-standalone-pattern (read reader nil :done))
               fqn (if declared-names
                     (partial nu/fully-qualified-names declared-names)
                     identity)
@@ -133,7 +137,7 @@
         (log/info (str "Component root path: " component-root-path))
         (log/info (str "File name: " file-name-or-input-stream))
         (let [input-reader? (not (string? file-name-or-input-stream))
-        file-ident
+              file-ident
               (if input-reader?
                 (InputStreamReader. (io/input-stream file-name-or-input-stream))
                 (if (and
@@ -199,8 +203,7 @@
 
      (defn read-model
        ([model-paths model-name]
-        (let [fpath (partial verified-model-file-path
-                             (u/get-model-script-name))]
+        (let [fpath (partial verified-model-file-path u/model-script-name)]
           (if-let [p (fpath ".")]
             (read-model p)
             (let [s (if (keyword? model-name)
@@ -292,7 +295,6 @@
                       'inference ln/inference
                       'dataflow ln/dataflow
                       'syntax ln/syntax
-                      'agent ism/agent
                       'resolver ln/resolver})
 
      (defn maybe-def-expr [exp]
@@ -317,7 +319,9 @@
              (if (= tag :defn)
                (raw/create-function cname n (first v) (second v))
                (raw/create-definition cname n v))
-             (when-let [intern (get intern-fns (first exp))]
+             (when-let [intern (if (li/maybe-upsert-instance-pattern? exp)
+                                 gs/install-init-pattern!
+                                 (get intern-fns (first exp)))]
                (try
                  (when-not (apply intern (rest (fqn exp)))
                    (u/throw-ex (str "failed to intern " exp)))
