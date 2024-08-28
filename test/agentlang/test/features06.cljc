@@ -4,7 +4,7 @@
             [agentlang.component :as cn]
             [agentlang.util :as u]
             [agentlang.lang
-             :refer [component entity relationship dataflow attribute syntax]]
+             :refer [component entity relationship dataflow attribute syntax pattern]]
             [agentlang.lang.raw :as lr]
             [agentlang.lang.syntax :as ls]
             #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
@@ -68,3 +68,27 @@
              {:extend :Rsd/A, :type :Rsd/B, :relationship :Rsd/AB})
             (syntax ab #:Rsd{:A {:ident :Id}})
             (entity :Rsd/E {:K :Int})))))
+
+(deftest pattern-raw-test
+  (defcomponent :Prt
+    (entity :Prt/E {:Id {:type :Int :guid true} :X :Int})
+    (pattern {:Prt/E {:Id 1 :X 100}})
+    (entity :Prt/F {:Id {:type :Int :guid true} :Y :Int})
+    (pattern {:Prt/E {:Id 2 :X 200}})
+    (pattern {:Prt/F {:Id 3 :X 300}}))
+  (is (= (lr/as-edn :Prt)
+         '(do
+            (component :Prt)
+            (entity :Prt/E {:Id {:type :Int, :guid true}, :X :Int})
+            #:Prt{:E {:Id 1, :X 100}}
+            (entity :Prt/F {:Id {:type :Int, :guid true}, :Y :Int})
+            #:Prt{:E {:Id 2, :X 200}}
+            #:Prt{:F {:Id 3, :X 300}})))
+  (lr/remove-pattern :Prt 1)
+  (is (= (lr/as-edn :Prt)
+         '(do
+            (component :Prt)
+            (entity :Prt/E {:Id {:type :Int, :guid true}, :X :Int})
+            #:Prt{:E {:Id 1, :X 100}}
+            (entity :Prt/F {:Id {:type :Int, :guid true}, :Y :Int})
+            #:Prt{:F {:Id 3, :X 300}}))))

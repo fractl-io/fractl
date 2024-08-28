@@ -64,6 +64,10 @@
         rs)))
   component-name)
 
+(defn- count-defs [tag component-name]
+  (let [cdef (get @raw-store component-name)]
+    (count (filter #(= tag (first %)) cdef))))
+
 (defn append-to-component [component-name definition]
   (update-component-defs component-name #(concat % [definition])))
 
@@ -315,8 +319,26 @@
   (if-let [cn (get-active-component)]
     (do (remove-syntax cn syntax-name)
         (append-to-component cn `(~'syntax ~syntax-name ~syntax-spec))
-        syntax-name)
+        [cn syntax-name])
     (u/throw-ex (str "no active component to define syntax " syntax-name))))
+
+(def ^:private count-patterns (partial count-defs 'pattern))
+
+(defn pattern [pat]
+  (if-let [cn (get-active-component)]
+    (let [pns (count-patterns cn)]
+      [(append-to-component cn `(~'pattern ~pat)) pns])
+    (u/throw-ex (str "no active component to add pattern - " pat))))
+
+(defn remove-pattern [cn pattern-index]
+  (let [pn (atom pattern-index)]
+    (remove-from-component
+     cn #(let [c @pn]
+           (if (neg? c)
+             false
+             (when (= 'pattern (first %))
+               (swap! pn dec)
+               (zero? c)))))))
 
 (defn remove-component [cname]
   (u/safe-set raw-store (dissoc @raw-store cname))
@@ -384,17 +406,19 @@
 (defn entity-meta [entity-name]
   (:meta (entity-attributes entity-name)))
 
-(defn- fix-rules [defs]
+(defn- normalize-expressions [defs]
   (mapv (fn [d]
-          (if (and (seqable? d)
-                   (= 'rule (first d)))
-            `(~(symbol "rule") ~(second d) ~@(first (nthrest d 2)))
+          (if (seqable? d)
+            (case (first d)
+              rule `(~(symbol "rule") ~(second d) ~@(first (nthrest d 2)))
+              pattern (second d)
+              d)
             d))
         defs))
 
 (defn as-edn [component-name]
   (when-let [defs (seq (get @raw-store component-name))]
-    `(do ~@(fix-rules defs))))
+    `(do ~@(normalize-expressions defs))))
 
 (defn raw-store-reset! []
   (u/safe-set raw-store {}))
