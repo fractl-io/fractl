@@ -165,9 +165,9 @@
         (respond-with-agent agent-name delegates (or (get-in agent-instance [:Context :UserInstruction]) ins))
         (if (seq delegates)
           (let [n (:Name agent-instance)
-                ins (str "Instruction for agent " n " was ### " ins " ### "
-                         "The response from " n " is ### " response " ###")
-                rs (mapv #(format-as-agent-response % (@generic-agent-handler (assoc % :UserInstruction ins))) delegates)]
+                rs (mapv #(let [ins (str (or (:UserInstruction %) "") "\n" response)]
+                            (format-as-agent-response % (@generic-agent-handler (assoc % :UserInstruction ins))))
+                         delegates)]
             [(apply str rs) model-info])
           result)))
     result))

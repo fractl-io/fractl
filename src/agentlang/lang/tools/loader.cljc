@@ -95,7 +95,7 @@
 
 (defn maybe-preproc-standalone-pattern [pat]
   (if (li/maybe-upsert-instance-pattern? pat)
-    `(~'pattern ~pat)
+    `(~'pattern [:try ~pat :error [:eval (~'quote (~'agentlang.util.logger/warn :Error))]])
     pat))
 
 #?(:clj

@@ -168,8 +168,10 @@
 (defn- fq-preproc-rule-def [exp]
   `(~(symbol "rule") ~(fq-name (second exp)) ~@(mapv #(fq-generic % false) (nthrest exp 2))))
 
-(defn- fq-preproc-pattern-def [exp]
-  `(~(symbol "pattern") ~(fq-named-df-pat (second exp))))
+(defn- fq-preproc-pattern-def [pat-exp]
+  (let [orig-exp (second pat-exp)
+        exp (fq-generic orig-exp false)]
+    `(~(symbol "pattern") ~exp)))
 
 ;; Preprocssors to add fully-qualified names to each type
 ;; of expression.
