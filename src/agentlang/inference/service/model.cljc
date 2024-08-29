@@ -56,7 +56,7 @@
     true))
 
 (defn- tool-components-list? [xs]
-  (and (vector? xs) (every? li/name? xs)))
+  (and (vector? xs) (every? #(or (string? %) (li/name? %)) xs)))
 
 (entity
  :Agentlang.Inference.Service/Agent

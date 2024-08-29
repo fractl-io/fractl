@@ -97,7 +97,8 @@
   (record-to-tool raw/find-entity entity-name (str "Create an instance of " entity-name)))
 
 (defn all-tools-for-component [component]
-  (let [event-tools (mapv event-to-tool (cn/event-names component))
+  (let [component (if (string? component) (keyword component) component)
+        event-tools (mapv event-to-tool (cn/event-names component))
         entity-tools (mapv entity-to-tool (cn/entity-names component))]
     (vec (us/nonils (concat event-tools entity-tools)))))
 
