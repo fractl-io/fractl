@@ -1,5 +1,6 @@
 (ns agentlang.inference.service.model
   (:require [clojure.string :as s]
+            [clojure.set :as set]
             [agentlang.lang :refer [component
                                     dataflow
                                     entity
@@ -76,10 +77,29 @@
 (defn- tool-components-list? [xs]
   (and (vector? xs) (every? #(or (string? %) (li/name? %)) xs)))
 
+(def ^:private ft-chain-of-thought (str "In your response please include the step-by-step thought-process "
+                                        "that led you to your answer or conclusion."))
+(def ^:private ft-self-critique (str "In your response please include a self-criticism of your answer or conclusion."
+                                     "You may use questions like \"what's a different way to solve this problem?\","
+                                     "\"Is there an unconventional solution?\" etc for formulating your self-critique."))
+
+(def ^:private feature-set {"chain-of-thought" ft-chain-of-thought
+                            "self-critique" ft-self-critique})
+
+(def ^:private feature-set-keys (set (keys feature-set)))
+
+(defn- feature-list? [xs]
+  (when (seq xs)
+    (and (vector? xs)
+         (= feature-set-keys (set/union feature-set-keys (set xs))))))
+
+(defn get-feature-prompt [ft] (get feature-set ft ""))
+
 (entity
  :Agentlang.Core/Agent
  {:Name {:type :String :guid true}
   :Type {:type :String :default "chat"}
+  :Features {:check feature-list? :optional true}
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :ChatUuid {:type :UUID :default u/uuid-string}
   :UserInstruction {:type :String :optional true}

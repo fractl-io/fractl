@@ -91,9 +91,12 @@
 
 (defn use-lang [] (use '[agentlang.lang]))
 
+(defn standalone-pattern-error [error pat]
+  (log/warn (u/pretty-str (assoc error :pattern (second pat)))))
+
 (defn maybe-preproc-standalone-pattern [pat]
   (if (li/maybe-upsert-instance-pattern? pat)
-    `(~'pattern [:try ~pat :error [:eval (~'quote (~'agentlang.util.logger/warn :Error))]])
+    `(~'pattern [:try ~pat :error [:eval (~'quote (~'agentlang.lang.tools.loader/standalone-pattern-error :Error [:q# ~pat]))]])
     pat))
 
 #?(:clj
