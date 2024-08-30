@@ -1,6 +1,6 @@
 (component :Joke.Core)
 
-{LLM
+{:Agentlang.Core/LLM
  {:Type "openai"
   :Name "llm01"
   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
@@ -9,7 +9,7 @@
            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
            :CompletionModel "gpt-3.5-turbo"}}}
 
-{Agent
+{:Agentlang.Core/Agent
  {:Name "joke-agent"
   :Type "chat"
   :LLM "llm01"

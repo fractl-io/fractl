@@ -62,7 +62,7 @@
  :ProfileRejected
  [:eval '(println "Rejected profile: " :ProfileRejected.CandidateEmail)])
 
-{LLM
+{:Agentlang.Core/LLM
  {:Type "openai"
   :Name "llm01"
   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
@@ -71,7 +71,7 @@
            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
            :CompletionModel "gpt-3.5-turbo"}}}
 
-{Agent
+{:Agentlang.Core/Agent
  {:Name "summary-agent"
   :Type "chat"
   :UserInstruction (str "You are a recruiter that analyses a resume and provides a summary of the "
@@ -80,7 +80,7 @@
                         "Name: <candidate-name>, Email: <candidate-email>")
   :LLM "llm01"}}
 
-{Agent
+{:Agentlang.Core/Agent
  {:Name "interview-scheduler-agent"
   :Type "eval"
   :LLM "llm01"

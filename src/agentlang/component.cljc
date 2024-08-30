@@ -31,8 +31,7 @@
     :-*-containers-*-
     :Agentlang.Kernel.UserApp
     :Agentlang.Kernel.Repl
-    :Agentlang.Inference.Service
-    :Agentlang.Inference.Provider
+    :Agentlang.Core
     })
 
 (def non-instance-user-attr-keys

@@ -9,12 +9,12 @@
    (fn [provider-name]
      (when provider-name
        (first (ev/safe-eval-internal
-               false {:Agentlang.Inference.Provider/FindLLM
+               false {:Agentlang.Core/FindLLM
                       {:Name provider-name}}))))))
 
 (defn find-first-provider []
   (if-let [provider (first (ev/safe-eval-internal
-                            false {:Agentlang.Inference.Provider/LookupAll_LLM {}}))]
+                            false {:Agentlang.Core/LookupAll_LLM {}}))]
     provider
     (u/throw-ex "No default LLM provider found")))
 

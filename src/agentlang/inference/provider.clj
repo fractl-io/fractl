@@ -4,7 +4,6 @@
             [agentlang.component :as cn]
             [agentlang.inference.service.model :as model]
             [agentlang.inference.provider.protocol :as p]
-            [agentlang.inference.provider.model]
             [agentlang.inference.provider.openai]
             [agentlang.inference.provider.registry :as r]))
 
@@ -15,9 +14,7 @@
 
 (def make-embedding (partial make-provider-request p/make-embedding))
 
-(defn- inference-agent? [x]
-  (when x
-    (cn/instance-of? :Agentlang.Inference.Service/Agent x)))
+(defn- inference-agent? [x] (when x (cn/instance-of? :Agentlang.Core/Agent x)))
 
 (defn- preproc-messages [msgs]
   (mapv

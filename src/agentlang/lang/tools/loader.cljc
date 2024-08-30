@@ -89,9 +89,7 @@
 (defn load-default-model-info []
   (load-all-model-info nil nil nil))
 
-(defn use-lang []
-  (use '[agentlang.lang])
-  (require '[agentlang.inference.service.model :refer [Agent LLM]]))
+(defn use-lang [] (use '[agentlang.lang]))
 
 (defn maybe-preproc-standalone-pattern [pat]
   (if (li/maybe-upsert-instance-pattern? pat)

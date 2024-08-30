@@ -1,6 +1,6 @@
 (component :Verification.Core)
 
-{LLM
+{:Agentlang.Core/LLM
  {:Type "openai"
   :Name "llm01"
   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
@@ -10,7 +10,7 @@
            :CompletionModel "gpt-3.5-turbo"}}}
 
 ;; Demonstrates agent-composition, where the answer of one agent is verified by another.
-{Agent
+{:Agentlang.Core/Agent
  {:Name "verification-agent"
   :Type "chat"
   :LLM "llm01"
@@ -21,7 +21,7 @@
                         "Analyse the chain-of-thought returned by the other agent and return YES "
                         "if its conlusion is correct. Otherwise return NO. The final answer will be "
                         "encoded by the other agent as - ANSWER is: <some-text>")}]]}}}
-{Agent
+{:Agentlang.Core/Agent
  {:Name "chain-of-thought-agent"
   :Type "chat"
   :LLM "llm01"

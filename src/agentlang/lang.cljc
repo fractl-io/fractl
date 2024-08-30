@@ -776,13 +776,12 @@
 (defn- preproc-inference-agent [is-query agent-spec]
   (when agent-spec
     (if is-query
-      {:Agentlang.Inference.Service/Agent {:Name? agent-spec}}
+      {:Agentlang.Core/Agent {:Name? agent-spec}}
       (if-let [llm-name (:with-llm agent-spec)]
-        {:Agentlang.Inference.Service/Agent
+        {:Agentlang.Core/Agent
          (preproc-agent-messages (dissoc agent-spec :with-llm))
-         :-> [[{:Agentlang.Inference.Service/AgentLLM {}}
-               {:Agentlang.Inference.Provider/LLM
-                {:Name? llm-name}}]]}
+         :-> [[{:Agentlang.Core/AgentLLM {}}
+               {:Agentlang.Core/LLM {:Name? llm-name}}]]}
         agent-spec))))
 
 (defn instance-assoc [inst & params]

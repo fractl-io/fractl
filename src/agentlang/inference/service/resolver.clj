@@ -26,7 +26,7 @@
 (def ^:private resolver-create (partial resolver-crud :create create-handlers))
 
 (defn register-resolver []
-  (let [ents [:Agentlang.Inference.Service/Document]]
+  (let [ents [:Agentlang.Core/Document]]
     (rg/register-resolver-type
      :inference
       (fn [_ _]

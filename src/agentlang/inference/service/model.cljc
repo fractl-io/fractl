@@ -10,11 +10,29 @@
                                     syntax]]
             [agentlang.component :as cn]
             [agentlang.util :as u]
+            [agentlang.util.seq :as us]
             [agentlang.evaluator :as e]
-            [agentlang.lang.internal :as li]
-            [agentlang.inference.provider.model]))
+            [agentlang.lang.internal :as li]))
 
-(component :Agentlang.Inference.Service)
+(component :Agentlang.Core)
+
+(entity
+ :Agentlang.Core/LLM
+ {:Type {:type :String :default "openai"} ; e.g "openai"
+  :Name {:type :String :guid true :default #(us/generate-code 5)}
+  :Config {:type :Map :optional true}
+  ;; example config for openai:
+  ;; {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+  ;;  :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+  ;;  :EmbeddingModel "text-embedding-3-small"
+  ;;  :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+  ;;  :CompletionModel "gpt-3.5-turbo"}
+  })
+
+(dataflow
+ :Agentlang.Core/FindLLM
+ {:Agentlang.Core/LLM
+  {:Name? :Agentlang.Core/FindLLM.Name}})
 
 (def ^:private doc-scheme-handlers {"file" slurp})
 (def ^:private doc-schemes (keys doc-scheme-handlers))
@@ -38,7 +56,7 @@
     (h (document-resource-name uri))))
 
 (entity
- :Agentlang.Inference.Service/Document
+ :Agentlang.Core/Document
  {:Id {:type :UUID :default u/uuid-string :guid true}
   :AppUuid {:type :UUID :default u/get-app-uuid}
   :Agent {:type :String :optional true}
@@ -59,7 +77,7 @@
   (and (vector? xs) (every? #(or (string? %) (li/name? %)) xs)))
 
 (entity
- :Agentlang.Inference.Service/Agent
+ :Agentlang.Core/Agent
  {:Name {:type :String :guid true}
   :Type {:type :String :default "chat"}
   :AppUuid {:type :UUID :default u/get-app-uuid}
@@ -86,69 +104,69 @@
 (def set-agent-prompt-fn! (partial set-agent-callback! :pfn))
 
 (relationship
- :Agentlang.Inference.Service/AgentDelegate
- {:meta {:between [:Agentlang.Inference.Service/Agent
-                   :Agentlang.Inference.Service/Agent
+ :Agentlang.Core/AgentDelegate
+ {:meta {:between [:Agentlang.Core/Agent
+                   :Agentlang.Core/Agent
                    :as [:From :To]]}
   :Preprocessor {:type :Boolean :default false}})
 
 (attribute
- :Agentlang.Inference.Service/Delegates
- {:extend :Agentlang.Inference.Service/Agent
-  :type :Agentlang.Inference.Service/AgentDelegate
-  :relationship :Agentlang.Inference.Service/AgentDelegate})
+ :Agentlang.Core/Delegates
+ {:extend :Agentlang.Core/Agent
+  :type :Agentlang.Core/AgentDelegate
+  :relationship :Agentlang.Core/AgentDelegate})
 
 (defn concat-results [rs] (vec (apply concat rs)))
 
 (dataflow
- :Agentlang.Inference.Service/FindAgentDelegates
- {:Agentlang.Inference.Service/AgentDelegate
-  {:From? :Agentlang.Inference.Service/FindAgentDelegates.Agent
-   :Preprocessor? :Agentlang.Inference.Service/FindAgentDelegates.Preprocessor}
+ :Agentlang.Core/FindAgentDelegates
+ {:Agentlang.Core/AgentDelegate
+  {:From? :Agentlang.Core/FindAgentDelegates.Agent
+   :Preprocessor? :Agentlang.Core/FindAgentDelegates.Preprocessor}
   :as :Delegates}
  [:for-each :Delegates
-  {:Agentlang.Inference.Service/Agent
+  {:Agentlang.Core/Agent
    {:Name? :%.To}}
   :as :Rs]
  [:eval '(agentlang.inference.service.model/concat-results :Rs)])
 
 (entity
- :Agentlang.Inference.Service/ChatSession
+ :Agentlang.Core/ChatSession
  {:Id {:type :UUID :guid true :default u/uuid-string}
   :Messages {:check agent-messages?}})
 
 (relationship
- :Agentlang.Inference.Service/AgentChatSession
- {:meta {:contains [:Agentlang.Inference.Service/Agent :Agentlang.Inference.Service/ChatSession]}})
+ :Agentlang.Core/AgentChatSession
+ {:meta {:contains [:Agentlang.Core/Agent :Agentlang.Core/ChatSession]}})
 
 (attribute
- :Agentlang.Inference.Service/Chat
- {:extend :Agentlang.Inference.Service/Agent
-  :type :Agentlang.Inference.Service/ChatSession
-  :relationship :Agentlang.Inference.Service/AgentChatSession})
+ :Agentlang.Core/Chat
+ {:extend :Agentlang.Core/Agent
+  :type :Agentlang.Core/ChatSession
+  :relationship :Agentlang.Core/AgentChatSession})
 
 (dataflow
- :Agentlang.Inference.Service/LookupAgentChatSessions
- {:Agentlang.Inference.Service/ChatSession? {}
-  :-> [[:Agentlang.Inference.Service/AgentChatSession?
-        :Agentlang.Inference.Service/LookupAgentChatSessions.Agent]]})
+ :Agentlang.Core/LookupAgentChatSessions
+ {:Agentlang.Core/ChatSession? {}
+  :-> [[:Agentlang.Core/AgentChatSession?
+        :Agentlang.Core/LookupAgentChatSessions.Agent]]})
 
 (dataflow
- :Agentlang.Inference.Service/ResetAgentChatSessions
+ :Agentlang.Core/ResetAgentChatSessions
  [:eval '(agentlang.inference.service.model/reset-agent-chat-session
-          :Agentlang.Inference.Service/ResetAgentChatSessions.Agent)])
+          :Agentlang.Core/ResetAgentChatSessions.Agent)])
 
 (record
- :Agentlang.Inference.Service/ToolParam
+ :Agentlang.Core/ToolParam
  {:name :String
   :type :Any
   :required {:type :Boolean :default true}})
 
 (defn- tool-param? [xs]
-  (every? #(cn/make-instance :Agentlang.Inference.Service/ToolParam %) xs))
+  (every? #(cn/make-instance :Agentlang.Core/ToolParam %) xs))
 
 (entity
- :Agentlang.Inference.Service/Tool
+ :Agentlang.Core/Tool
  {:name {:type :String :guid true}
   :description :String
   :returns {:type :Keyword :optional true}
@@ -157,60 +175,60 @@
   :df_patterns :Edn})
 
 (relationship
- :Agentlang.Inference.Service/AgentLLM
- {:meta {:between [:Agentlang.Inference.Service/Agent :Agentlang.Inference.Provider/LLM]}})
+ :Agentlang.Core/AgentLLM
+ {:meta {:between [:Agentlang.Core/Agent :Agentlang.Core/LLM]}})
 
 (attribute
- :Agentlang.Inference.Service/LLM
- {:extend :Agentlang.Inference.Service/Agent
-  :type :Agentlang.Inference.Provider/LLM
-  :relationship :Agentlang.Inference.Service/AgentLLM
+ :Agentlang.Core/LLM
+ {:extend :Agentlang.Core/Agent
+  :type :Agentlang.Core/LLM
+  :relationship :Agentlang.Core/AgentLLM
   :order 0})
 
 (relationship
- :Agentlang.Inference.Service/AgentTool
- {:meta {:between [:Agentlang.Inference.Service/Agent :Agentlang.Inference.Service/Tool]}})
+ :Agentlang.Core/AgentTool
+ {:meta {:between [:Agentlang.Core/Agent :Agentlang.Core/Tool]}})
 
 (attribute
- :Agentlang.Inference.Service/Tools
- {:extend :Agentlang.Inference.Service/Agent
-  :type :Agentlang.Inference.Service/Tool
-  :relationship :Agentlang.Inference.Service/AgentTool})
+ :Agentlang.Core/Tools
+ {:extend :Agentlang.Core/Agent
+  :type :Agentlang.Core/Tool
+  :relationship :Agentlang.Core/AgentTool})
 
 (relationship
- :Agentlang.Inference.Service/AgentDocument
- {:meta {:between [:Agentlang.Inference.Service/Agent :Agentlang.Inference.Service/Document]}})
+ :Agentlang.Core/AgentDocument
+ {:meta {:between [:Agentlang.Core/Agent :Agentlang.Core/Document]}})
 
 (attribute
- :Agentlang.Inference.Service/Documents
- {:extend :Agentlang.Inference.Service/Agent
-  :type :Agentlang.Inference.Service/Document
-  :relationship :Agentlang.Inference.Service/AgentDocument})
+ :Agentlang.Core/Documents
+ {:extend :Agentlang.Core/Agent
+  :type :Agentlang.Core/Document
+  :relationship :Agentlang.Core/AgentDocument})
 
 (dataflow
- :Agentlang.Inference.Service/LLMsForAgent
- {:Agentlang.Inference.Service/AgentLLM
-  {:Agent? :Agentlang.Inference.Service/LLMsForAgent.Agent}})
+ :Agentlang.Core/LLMsForAgent
+ {:Agentlang.Core/AgentLLM
+  {:Agent? :Agentlang.Core/LLMsForAgent.Agent}})
 
 (dataflow
- :Agentlang.Inference.Service/AgentTools
- {:Agentlang.Inference.Service/AgentTool
-  {:Agent? :Agentlang.Inference.Service/AgentTools.Agent} :as :R}
+ :Agentlang.Core/AgentTools
+ {:Agentlang.Core/AgentTool
+  {:Agent? :Agentlang.Core/AgentTools.Agent} :as :R}
  [:for-each :R
-  {:Agentlang.Inference.Service/Tool
+  {:Agentlang.Core/Tool
    {:name? :%.Tool}}])
 
 (dataflow
- :Agentlang.Inference.Service/HasAgentDocuments
- {:Agentlang.Inference.Service/AgentDocument
-  {:Agent? :Agentlang.Inference.Service/HasAgentDocuments.Agent}})
+ :Agentlang.Core/HasAgentDocuments
+ {:Agentlang.Core/AgentDocument
+  {:Agent? :Agentlang.Core/HasAgentDocuments.Agent}})
 
 (dataflow
- :Agentlang.Inference.Service/AgentDocuments
- {:Agentlang.Inference.Service/AgentDocument
-  {:Agent? :Agentlang.Inference.Service/AgentDocuments.Agent} :as :R}
+ :Agentlang.Core/AgentDocuments
+ {:Agentlang.Core/AgentDocument
+  {:Agent? :Agentlang.Core/AgentDocuments.Agent} :as :R}
  [:for-each :R
-  {:Agentlang.Inference.Service/Document
+  {:Agentlang.Core/Document
    {:Id? :%.Document}}])
 
 (defn- eval-event
@@ -226,7 +244,7 @@
 
 (defn- find-agent-delegates [preproc agent-instance]
   (eval-event
-   {:Agentlang.Inference.Service/FindAgentDelegates
+   {:Agentlang.Core/FindAgentDelegates
     {:Agent (:Name agent-instance)
      :Preprocessor preproc}}))
 
@@ -239,7 +257,7 @@
     {:Agent (:Name agent-instance)}}
    #(mapv proc %)))
 
-(def lookup-llms-for-agent (partial lookup-for-agent :Agentlang.Inference.Service/LLMsForAgent :LLM))
+(def lookup-llms-for-agent (partial lookup-for-agent :Agentlang.Core/LLMsForAgent :LLM))
 
 (defn ensure-llm-for-agent [agent-instance]
   (if-let [llm (first (lookup-llms-for-agent agent-instance))]
@@ -256,24 +274,24 @@
       :df-patterns (:df_patterns attrs))
      :returns_many :df_patterns)))
 
-(def lookup-agent-tools (partial lookup-for-agent :Agentlang.Inference.Service/AgentTools normalize-tool))
+(def lookup-agent-tools (partial lookup-for-agent :Agentlang.Core/AgentTools normalize-tool))
 
 (defn- normalize-docchunk [docchunk]
   (let [docchunk (if (map? docchunk) docchunk (first docchunk))]
     (str (:Title docchunk) " " (:Content docchunk))))
 
-(def lookup-agent-docs (partial lookup-for-agent :Agentlang.Inference.Service/AgentDocuments normalize-docchunk))
-(def has-agent-docs? (partial lookup-for-agent :Agentlang.Inference.Service/HasAgentDocuments seq))
+(def lookup-agent-docs (partial lookup-for-agent :Agentlang.Core/AgentDocuments normalize-docchunk))
+(def has-agent-docs? (partial lookup-for-agent :Agentlang.Core/HasAgentDocuments seq))
 
 (defn lookup-agent-chat-session [agent-instance]
   (eval-event
-   {:Agentlang.Inference.Service/LookupAgentChatSessions
+   {:Agentlang.Core/LookupAgentChatSessions
     {:Agent agent-instance}}
    first))
 
 (defn update-agent-chat-session [chat-session messages]
   (eval-event
-   {:Agentlang.Inference.Service/Update_ChatSession
+   {:Agentlang.Core/Update_ChatSession
     {li/path-attr (li/path-attr chat-session)
      :Data {:Messages messages}}}
    identity true))
@@ -281,13 +299,10 @@
 (defn reset-agent-chat-session [agent]
   (if (string? agent)
     (when-let [agent-instance (eval-event
-                      {:Agentlang.Inference.Service/Lookup_Agent
+                      {:Agentlang.Core/Lookup_Agent
                        {:Name agent}}
                       first)]
       (reset-agent-chat-session agent-instance))
     (when-let [sess (lookup-agent-chat-session agent)]
       (let [msgs (vec (filter #(= :system (:role %)) (:Messages sess)))]
         (update-agent-chat-session sess msgs)))))
-
-(def Agent :Agentlang.Inference.Service/Agent)
-(def LLM :Agentlang.Inference.Provider/LLM)

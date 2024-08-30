@@ -11,7 +11,7 @@
 ;;                            :user #$ [PGVECTOR_DB_USERNAME "postgres"]
 ;;                            :password #$ [PGVECTOR_DB_PASSWORD "postgres"]}}}
 
-{LLM
+{:Agentlang.Core/LLM
  {:Type "openai"
   :Name "llm01"
   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
@@ -22,7 +22,7 @@
 
 (def technical-support-agent "technical-support-agent")
 
-{Agent
+{:Agentlang.Core/Agent
  {:Name technical-support-agent
   :Type "chat"
   :LLM "llm01"
@@ -44,7 +44,7 @@
 
 (def price-enquiry-agent "price-enquiry-agent")
 
-{Agent
+{:Agentlang.Core/Agent
  {:Name price-enquiry-agent
   :Type "chat"
   :LLM "llm01"
@@ -63,7 +63,7 @@
     :Uri "file://./docs/xyz_prices.txt"
     :Agent price-enquiry-agent}]}}
 
-{Agent
+{:Agentlang.Core/Agent
  {:Name "camera-support-agent"
   :Type "chat"
   :LLM "llm01"
