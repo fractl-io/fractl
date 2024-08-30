@@ -33,7 +33,7 @@
 {:Agentlang.Core/Agent
  {:Name "weather-planner-agent"
   :Type "planner"
-  :ToolComponents [:q# [:Weather.Service.Core]]
+  :ToolComponents ["Weather.Service.Core"]
   :UserInstruction "You are an agent that figures out which tool to use to answer a user query."
   :LLM "llm01"}}
 

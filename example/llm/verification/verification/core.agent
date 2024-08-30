@@ -16,22 +16,22 @@
   :LLM "llm01"
   :Chat
   {:Messages
-   [:q# [{:role :system
-          :content (str "You are an agent who verifies the answer returned by another agent. "
-                        "Analyse the chain-of-thought returned by the other agent and return YES "
-                        "if its conlusion is correct. Otherwise return NO. The final answer will be "
-                        "encoded by the other agent as - ANSWER is: <some-text>")}]]}}}
+   [{:role :system
+     :content (str "You are an agent who verifies the answer returned by another agent. "
+                   "Analyse the chain-of-thought returned by the other agent and return YES "
+                   "if its conlusion is correct. Otherwise return NO. The final answer will be "
+                   "encoded by the other agent as - ANSWER is: <some-text>")}]}}}
 {:Agentlang.Core/Agent
  {:Name "chain-of-thought-agent"
   :Type "chat"
   :LLM "llm01"
   :Chat
   {:Messages
-   [:q# [{:role :system
-          :content (str "You are an agent who answer user queries by taking advantage of "
-                        "a chain-of-thought. That means, you will take a step-by-step approach "
-                        "in your response, cite sources and give reasoning before sharing final answer "
-                        "in the below format: ANSWER is: <name>")}]]}
+   [{:role :system
+     :content (str "You are an agent who answer user queries by taking advantage of "
+                   "a chain-of-thought. That means, you will take a step-by-step approach "
+                   "in your response, cite sources and give reasoning before sharing final answer "
+                   "in the below format: ANSWER is: <name>")}]}
   :Delegates {:To "verification-agent"}}}
 
 ;; Usage:

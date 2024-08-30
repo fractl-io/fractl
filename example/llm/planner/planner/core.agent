@@ -26,7 +26,7 @@
 {:Agentlang.Core/Agent
  {:Name "planner-agent"
   :Type "planner"
-  :ToolComponents [:q# [:Planner.Core]]
+  :ToolComponents ["Planner.Core"]
   :UserInstruction "You are an agent that use tools to create entity instances from text descritpions."
   :LLM "llm01"}}
 
@@ -37,10 +37,10 @@
   :LLM "llm01"
   :Chat
   {:Messages
-   [:q# [{:role :system
-          :content (str "You are an agent who translates a text to a data-summary. For example, if the input text is "
-                        "\"A new premium customer needs to be added to the system with email joe@acme.com and name Joe J\", "
-                        "your response should be - \"Customer: type - premium, email - joe@acme.com, name - Joe J\"")}]]}
+   [{:role :system
+     :content (str "You are an agent who translates a text to a data-summary. For example, if the input text is "
+                   "\"A new premium customer needs to be added to the system with email joe@acme.com and name Joe J\", "
+                   "your response should be - \"Customer: type - premium, email - joe@acme.com, name - Joe J\"")}]}
   :Delegates {:To "planner-agent"}}}
 
 ;; Usage:

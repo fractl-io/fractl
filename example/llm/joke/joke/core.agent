@@ -13,7 +13,7 @@
  {:Name "joke-agent"
   :Type "chat"
   :LLM "llm01"
-  :Chat {:Messages [:q# [{:role :system :content "I am an AI bot who tell jokes"}]]}}}
+  :Chat {:Messages [{:role :system :content "I am an AI bot who tell jokes"}]}}}
 
 ;; Usage:
 ;; POST api/Joke.Core/TellAJoke

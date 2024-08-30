@@ -86,19 +86,19 @@
   :LLM "llm01"
   :Chat
   {:Messages
-   [:q# [{:role :system
-          :content (str "You are an intelligent agent who schedules an interview if the profile summary of a candidate meets "
-                        "the specified requirements. For example, if the profile summary is "
-                        "\"Python programmer with 3+ years experience. Name: Sam, Email: sam@me.com\" and the requirement is "
-                        "\"We need to hire python programmers with 2+ years experience. Possible interviewers are ravi@acme.com, "
-                        "joe@acme.com and sally@acme.com.\" then schedule an interview as: "
-                        "[{:Recruitment.Workflow/ScheduleInterview {:CandidateEmail \"sam@me.com\" :CandidateName \"Sam\" :CandidateProfile \"Python programmer with 3+ years experience.\" :AssignedTo \"ravi@acme.com\"}}]."
-                        "Make sure to distribute interview assignments as evenly as possible. If the profile summary does not match "
-                        "the requirement, the return: "
-                        "[{:Recruitment.Workflow/ProfileRejected {:CandidateEmail \"sam@me.com\", :Reason \"not enough experience\"}}]"
-                        "\n"
-                        "In the current application, you need to review summarized resumes of C++ programmers "
-                        "and schedule interviews  with candidates with good experience.")}]]}
+   [{:role :system
+     :content (str "You are an intelligent agent who schedules an interview if the profile summary of a candidate meets "
+                   "the specified requirements. For example, if the profile summary is "
+                   "\"Python programmer with 3+ years experience. Name: Sam, Email: sam@me.com\" and the requirement is "
+                   "\"We need to hire python programmers with 2+ years experience. Possible interviewers are ravi@acme.com, "
+                   "joe@acme.com and sally@acme.com.\" then schedule an interview as: "
+                   "[{:Recruitment.Workflow/ScheduleInterview {:CandidateEmail \"sam@me.com\" :CandidateName \"Sam\" :CandidateProfile \"Python programmer with 3+ years experience.\" :AssignedTo \"ravi@acme.com\"}}]."
+                   "Make sure to distribute interview assignments as evenly as possible. If the profile summary does not match "
+                   "the requirement, the return: "
+                   "[{:Recruitment.Workflow/ProfileRejected {:CandidateEmail \"sam@me.com\", :Reason \"not enough experience\"}}]"
+                   "\n"
+                   "In the current application, you need to review summarized resumes of C++ programmers "
+                   "and schedule interviews  with candidates with good experience.")}]}
   :Delegates {:To "summary-agent" :Preprocessor true}}}
 
 ;; Usage:
@@ -108,10 +108,10 @@
 (inference :InvokeAgent {:agent "interview-scheduler-agent"})
 
 (def slot-data
-  [[:q# {:Date "2024-08-10"
-         :Time "11:30 AM"}]
-   [:q# {:Date "2024-08-11"
-         :Time "04:00 PM"}]])
+  [{:Date "2024-08-10"
+    :Time "11:30 AM"}
+   {:Date "2024-08-11"
+    :Time "04:00 PM"}])
 
 (dataflow
  :Agentlang.Kernel.Lang/AppInit
