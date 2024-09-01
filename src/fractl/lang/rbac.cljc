@@ -48,7 +48,10 @@
                          "_" (s/join "_" roles))]
           (concat
            [[:try
-             {:Fractl.Kernel.Rbac/Privilege {:Name? pname}}
+             {:Fractl.Kernel.Rbac/Privilege
+              {:Name? pname
+               :Actions [:q# allow]
+               :Resource [:q# [recname]]}}
              :not-found
              {:Fractl.Kernel.Rbac/Privilege
               {:Name pname
