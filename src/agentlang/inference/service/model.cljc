@@ -7,8 +7,7 @@
                                     event
                                     record
                                     attribute
-                                    relationship
-                                    syntax]]
+                                    relationship]]
             [agentlang.component :as cn]
             [agentlang.util :as u]
             [agentlang.util.seq :as us]

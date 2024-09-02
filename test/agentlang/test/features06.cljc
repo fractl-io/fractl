@@ -47,7 +47,7 @@
     (is (r? r1))
     (is (= 1 (:A r1)))))
 
-(deftest syntax-raw-test
+#_(deftest syntax-raw-test
   (defcomponent :Rsd
     (entity :Rsd/A {:Id {:type :Int :guid true} :X :Int})
     (entity :Rsd/B {:Id {:type :Int :guid true} :Y :Int})

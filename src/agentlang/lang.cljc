@@ -1373,7 +1373,7 @@
   (and (cn/register-resolver n spec)
        (raw/resolver n spec)))
 
-(defn syntax [syntax-name syntax-spec]
+#_(defn syntax [syntax-name syntax-spec]
   (let [spec-is-map (map? syntax-spec)
         entity-name (if spec-is-map (first (keys syntax-spec)) spec-is-map)
         spec (when spec-is-map (entity-name syntax-spec))
