@@ -89,8 +89,6 @@
 (defn load-default-model-info []
   (load-all-model-info nil nil nil))
 
-(defn use-lang [] (use '[agentlang.lang]))
-
 (defn standalone-pattern-error [error pat]
   (log/warn (u/pretty-str (assoc error :pattern (second pat)))))
 
@@ -102,6 +100,9 @@
 #?(:clj
    (do
      (def ^:dynamic *parse-expressions* true)
+
+     (defn use-lang []
+       (use '[agentlang.lang]))
 
      (defn read-expressions
   "Read expressions in sequence from a agentlang component file. Each expression read
