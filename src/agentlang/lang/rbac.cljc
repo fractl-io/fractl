@@ -48,7 +48,10 @@
                          "_" (s/join "_" roles))]
           (concat
            [[:try
-             {:Agentlang.Kernel.Rbac/Privilege {:Name? pname}}
+             {:Agentlang.Kernel.Rbac/Privilege
+              {:Name? pname
+               :Actions [:q# allow]
+               :Resource [:q# [recname]]}}
              :not-found
              {:Agentlang.Kernel.Rbac/Privilege
               {:Name pname
