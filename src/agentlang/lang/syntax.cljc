@@ -50,6 +50,21 @@
 (def ^:private $body (partial get-spec-val body-tag))
 (def ^:private $query (partial get-spec-val query-tag))
 
+(defn- skip-root-component [n]
+  (let [parts (s/split (name n) #"\.")]
+    (if (> (count parts) 1)
+      (keyword (s/join "." (rest parts)))
+      n)))
+
+(defn unqualified-name [x]
+  (cond
+    (li/name? x)
+    (let [[c n] (li/split-path x)]
+      (or n (skip-root-component c)))
+
+    (li/parsed-path? x)
+    (second x)))
+
 (defn as-syntax-object [t obj]
   (assoc obj type-tag t syntax-object-tag true))
 
@@ -761,21 +776,6 @@
      (= model-name n) false
      (s/starts-with? (str n) (str model-name)) true
      :else false)))
-
-(defn- skip-root-component [n]
-  (let [parts (s/split (name n) #"\.")]
-    (if (> (count parts) 1)
-      (keyword (s/join "." (rest parts)))
-      n)))
-
-(defn unqualified-name [x]
-  (cond
-    (li/name? x)
-    (let [[c n] (li/split-path x)]
-      (or n (skip-root-component c)))
-
-    (li/parsed-path? x)
-    (second x)))
 
 (defn- ref-path-name-info [model-name n]
   (let [root-parts (li/split-ref n)
