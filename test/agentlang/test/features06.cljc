@@ -84,7 +84,15 @@
             (entity :Prt/F {:Id {:type :Int, :guid true}, :Y :Int})
             #:Prt{:E {:Id 2, :X 200}}
             #:Prt{:F {:Id 3, :X 300}})))
-  (lr/remove-pattern :Prt 1)
+  (let [check-pts (fn [ids]
+                    (let [pts (lr/fetch-all-patterns :Prt)]
+                      (is (= (count ids) (count pts)))
+                      (mapv (fn [id inst]
+                              (is (= id (:Id (first (vals inst))))))
+                            ids pts)))]
+    (check-pts [1 2 3])
+    (lr/remove-pattern :Prt 1)
+    (check-pts [1 3]))
   (is (= (lr/as-edn :Prt)
          '(do
             (component :Prt)

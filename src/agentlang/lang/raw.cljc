@@ -394,6 +394,7 @@
 (def fetch-all-rules (partial fetch-all-defs 'rule))
 (def fetch-all-inferences (partial fetch-all-defs 'inference))
 (def fetch-all-resolvers (partial fetch-all-defs 'resolver))
+(def fetch-all-patterns (comp (partial mapv second) (partial fetch-all-defs 'pattern)))
 
 (defn record-attributes-include-inherits [entity-name]
   (let [raw-attrs (or (entity-attributes entity-name)
