@@ -4,7 +4,7 @@
             [agentlang.component :as cn]
             [agentlang.util :as u]
             [agentlang.lang
-             :refer [component entity relationship dataflow attribute syntax pattern]]
+             :refer [component entity relationship dataflow attribute pattern]]
             [agentlang.lang.raw :as lr]
             [agentlang.lang.syntax :as ls]
             #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
@@ -46,28 +46,6 @@
     (is (b? b1))
     (is (r? r1))
     (is (= 1 (:A r1)))))
-
-#_(deftest syntax-raw-test
-  (defcomponent :Rsd
-    (entity :Rsd/A {:Id {:type :Int :guid true} :X :Int})
-    (entity :Rsd/B {:Id {:type :Int :guid true} :Y :Int})
-    (relationship :Rsd/AB {:meta {:between [:Rsd/A :Rsd/B]}})
-    (attribute :Rsd/Bs {:extend :Rsd/A :type :Rsd/B :relationship :Rsd/AB})
-    (syntax 'ab {:Rsd/A {:ident :Id}})
-    (entity :Rsd/E {:K :Int}))
-  (is (= (lr/as-edn :Rsd)
-         '(do
-            (component :Rsd)
-            (entity :Rsd/A {:Id {:type :Int, :guid true}, :X :Int})
-            (entity :Rsd/B {:Id {:type :Int, :guid true}, :Y :Int})
-            (relationship
-             :Rsd/AB
-             {:meta {:between [:Rsd/A :Rsd/B], :cascade-on-delete true}})
-            (attribute
-             :Rsd/Bs
-             {:extend :Rsd/A, :type :Rsd/B, :relationship :Rsd/AB})
-            (syntax ab #:Rsd{:A {:ident :Id}})
-            (entity :Rsd/E {:K :Int})))))
 
 (deftest pattern-raw-test
   (defcomponent :Prt

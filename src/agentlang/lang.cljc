@@ -1373,32 +1373,6 @@
   (and (cn/register-resolver n spec)
        (raw/resolver n spec)))
 
-#_(defn syntax [syntax-name syntax-spec]
-  (let [spec-is-map (map? syntax-spec)
-        entity-name (if spec-is-map (first (keys syntax-spec)) spec-is-map)
-        spec (when spec-is-map (entity-name syntax-spec))
-        ident (if spec (:ident spec) (cn/identity-attribute-name entity-name))
-        _ (when-not ident
-            (u/throw-ex
-             (str "identity attribute required for syntax definition "
-                  syntax-name " with entity " entity-name)))
-        ident? (li/name-as-query-pattern ident)
-        syntax-fn (fn [n attrs]
-                    (raw/add-syntax-definition syntax-name n attrs)
-                    (let [ident-val (if (keyword? n) (str n) n)]
-                      (gs/install-init-pattern!
-                       [:try
-                        {entity-name {ident? ident-val}}
-                        :not-found {entity-name (assoc attrs ident ident-val)}])))
-        [curns sym-name] (li/split-varname syntax-name)]
-    (intern (if (symbol? curns)
-              (do (create-ns curns)
-                  curns)
-              (ns-name curns))
-            sym-name syntax-fn)
-    (raw/syntax syntax-name syntax-spec)
-    syntax-name))
-
 (defn pattern [pat]
   (gs/install-init-pattern! pat)
   (raw/pattern pat))
