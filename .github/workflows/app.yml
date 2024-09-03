@@ -53,7 +53,7 @@ jobs:
         run: npm install -g newman
       - name: Run lein library app & Newman API test
         run: |
-          lein run test/sample/library/model.edn &
+          lein run test/sample/library/model.al &
           sleep 180
           newman run test/sample/library/library-ci.postman_collection.json
           kill -9 `lsof -i:8000 -t`
