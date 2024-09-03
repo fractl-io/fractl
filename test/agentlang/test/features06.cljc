@@ -78,3 +78,22 @@
             #:Prt{:E {:Id 1, :X 100}}
             (entity :Prt/F {:Id {:type :Int, :guid true}, :Y :Int})
             #:Prt{:F {:Id 3, :X 300}}))))
+
+(deftest map-syntax-bug
+  (let [pats [{:Agentlang.Core/Agent {:Name "AgeantOne"}}
+              {:Agentlang.Core/Agent {:Name "AgentTwo"}}
+              {:Agentlang.Core/Agent
+               {:Name "technical-support-agent"
+                :Type "chat"
+                :LLM "llm01"
+                :Chat {:Messages
+                       [{:role :system
+                         :content (str "You are a support agent for a Camera store. "
+                                       "You are supposed to handle technical queries on camera gear "
+                                       "that customer may have. "
+                                       "Please use the documentation from the appropriate "
+                                       "camera manufacturer to answer these queries. "
+                                       "If you get a query on the pricing of camera gear, respond with the text: NA")}]}}}]]
+    (defcomponent :Msb (doseq [p pats] (pattern p)))
+    (let [rs (mapv ls/introspect (lr/fetch-all-patterns :Msb))]
+      (is (= pats (mapv ls/raw rs))))))

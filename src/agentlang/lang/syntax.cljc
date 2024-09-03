@@ -670,7 +670,7 @@
 
 (defn- introspect-attrs [attrs]
   (let [rs (mapv (fn [[k v]]
-                   [k (introspect v)])
+                   [k (introspect v true)])
                  attrs)]
     (into {} rs)))
 
@@ -710,32 +710,42 @@
       :else
       obj)))
 
-(defn introspect [pattern]
-  (cond
-    (syntax-object? pattern) pattern
+(defn- maybe-map-literal? [obj]
+  ;; Do a best attempt to distinguish an attribute value
+  ;; that is a literal map vs an instance pattern.
+  (let [ks (keys obj)]
+    (or (some (complement keyword?) ks)
+        (not (some #(= 2 (count (li/split-path %))) ks)))))
 
-    (seqable? pattern)
-    (cond
-      (not (seq pattern))
-      pattern
+(defn introspect
+  ([pattern is-attr-val]
+   (cond
+     (syntax-object? pattern) pattern
 
-      (or (list? pattern) (= 'quote (first pattern)))
-      (introspect-exp pattern)
+     (seqable? pattern)
+     (cond
+       (or (not (seq pattern)) (li/quoted? pattern))
+       pattern
 
-      (map? pattern)
-      (if (pure-query-map? pattern)
-        (introspect-query-object pattern)
-        (maybe-query (introspect-query-upsert pattern)))
+       (or (list? pattern) (= 'quote (first pattern)))
+       (introspect-exp pattern)
 
-      (vector? pattern)
-      (introspect-special-form pattern)
+       (map? pattern)
+       (cond
+         (and is-attr-val (maybe-map-literal? pattern)) pattern
+         (pure-query-map? pattern) (introspect-query-object pattern)
+         :else (maybe-query (introspect-query-upsert pattern)))
 
-      :else pattern)
+       (vector? pattern)
+       (introspect-special-form pattern)
 
-    (li/name? pattern)
-    (introspect-name pattern)
+       :else pattern)
 
-    :else pattern))
+     (li/name? pattern)
+     (introspect-name pattern)
+
+     :else pattern))
+  ([pattern] (introspect pattern false)))
 
 (def introspect-json (comp introspect json/decode))
 (def introspect-transit (comp introspect t/decode))
