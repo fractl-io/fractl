@@ -296,7 +296,6 @@
                       'relationship ln/relationship
                       'inference ln/inference
                       'dataflow ln/dataflow
-                      'syntax ln/syntax
                       'resolver ln/resolver})
 
      (defn maybe-def-expr [exp]
@@ -322,7 +321,7 @@
                (raw/create-function cname n (first v) (second v))
                (raw/create-definition cname n v))
              (when-let [intern (if (li/maybe-upsert-instance-pattern? exp)
-                                 gs/install-init-pattern!
+                                 ln/pattern
                                  (get intern-fns (first exp)))]
                (try
                  (when-not (apply intern (rest (fqn exp)))

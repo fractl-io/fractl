@@ -278,7 +278,6 @@
 (def find-rule (partial find-definition 'rule))
 (def find-inference (partial find-definition 'inference))
 (def find-resolver (partial find-definition 'resolver))
-(def find-syntax (partial find-definition 'syntax))
 
 (defn find-attribute [n]
   (when-not (li/internal-attribute-name? n)
@@ -293,17 +292,6 @@
   (when (change-defs #(replace-def tag record-name attrs))
     (maybe-publish-add-definition tag record-name attrs)
     record-name))
-
-(defn remove-syntax-definition [cn def]
-  (remove-from-component cn (partial = def)))
-
-(defn add-syntax-definition [tag n attrs]
-  (if-let [cn (get-active-component)]
-    (let [def `(~tag ~n ~attrs)]
-      (remove-syntax-definition cn def)
-      (append-to-component cn def)
-      tag)
-    (u/throw-ex (str "no active component to define " tag))))
 
 (defn remove-definition [tag record-name]
   (case (symbol tag)
@@ -327,20 +315,6 @@
 (def rule (partial add-definition 'rule))
 (def inference (partial add-definition 'inference))
 (def resolver (partial add-definition 'resolver))
-
-(defn- syntax? [syntax-name spec]
-  (and (= 'syntax (first spec))
-       (= syntax-name (second spec))))
-
-(defn remove-syntax [cn syntax-name]
-  (remove-from-component cn (partial syntax? syntax-name)))
-
-(defn syntax [syntax-name syntax-spec]
-  (if-let [cn (get-active-component)]
-    (do (remove-syntax cn syntax-name)
-        (append-to-component cn `(~'syntax ~syntax-name ~syntax-spec))
-        [cn syntax-name])
-    (u/throw-ex (str "no active component to define syntax " syntax-name))))
 
 (def ^:private count-patterns (partial count-defs 'pattern))
 
@@ -392,8 +366,7 @@
     :rule (remove-rule record-name)
     :inference (remove-inference record-name)
     :resolver (remove-resolver record-name)
-    :attribute (remove-attribute record-name)
-    :syntax (remove-syntax record-name)))
+    :attribute (remove-attribute record-name)))
 
 (defn fetch-attributes [tag record-name]
   (when-let [d (find-def tag record-name)]
