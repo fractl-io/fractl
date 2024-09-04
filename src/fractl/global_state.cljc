@@ -42,6 +42,8 @@
 
 (defn in-script-mode? [] @script-mode)
 
+(def ^:dynamic audit-trail-mode nil)
+
 #?(:clj
    (def ^ThreadLocal error-code (ThreadLocal.))
    :cljs

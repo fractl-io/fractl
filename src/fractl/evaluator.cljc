@@ -109,8 +109,9 @@
                                     (assoc attrs :SessionToken (str-session-info sinfo))
                                     attrs)
                        trail-entry {(cn/audit-trail-entity-name entity-name) trail-data}]
-                   (when-not (safe-eval-pattern trail-entry)
-                     (log/warn (str "failed to audit " tag " on " inst)))))))))))
+                   (binding [gs/audit-trail-mode true]
+                     (when-not (safe-eval-pattern trail-entry)
+                       (log/warn (str "failed to audit " tag " on " inst))))))))))))
   insts)
 
 (def ^:dynamic internal-post-events false)

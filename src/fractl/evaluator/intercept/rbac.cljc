@@ -288,17 +288,19 @@
   arg)
 
 (defn- run [env opr arg]
-  (let [user (or (cn/event-context-user (ii/event arg))
-                 (gs/active-user))]
-    (if (or (rbac/superuser-email? user)
-            (system-event? (ii/event arg)))
-      (maybe-handle-system-objects user env opr arg)
-      (let [is-ups (or (= opr :update) (= opr :create))
-            arg (if is-ups (ii/assoc-user-state arg) arg)]
-        (when-let [r (apply-rbac-for-user user env opr arg)]
-          (and (post-process env opr arg) r))
-        ;; TODO: call check-upsert-on-attributes for create/update
-        ))))
+  (if-not gs/audit-trail-mode
+    (let [user (or (cn/event-context-user (ii/event arg))
+                   (gs/active-user))]
+      (if (or (rbac/superuser-email? user)
+              (system-event? (ii/event arg)))
+        (maybe-handle-system-objects user env opr arg)
+        (let [is-ups (or (= opr :update) (= opr :create))
+              arg (if is-ups (ii/assoc-user-state arg) arg)]
+          (when-let [r (apply-rbac-for-user user env opr arg)]
+            (and (post-process env opr arg) r))
+          ;; TODO: call check-upsert-on-attributes for create/update
+          )))
+    arg))
 
 (defn make [_] ; config is not used
   (ii/make-interceptor :rbac run))
