@@ -463,8 +463,8 @@
                                evaluator evt-context data-fmt
                                c child-entity (cleanup-inst (:result rs)))
                        rels (li/rel-tag parent-inst)]
-                   (assoc parent-inst li/rel-tag (assoc rels relname result)))
-                 parent-inst)))
+                   (assoc (cleanup-inst parent-inst) li/rel-tag (assoc rels relname result)))
+                 (cleanup-inst parent-inst))))
            r children))
         parent-insts))
 
@@ -484,7 +484,7 @@
                    (if (map? rs) rs (first rs)))
               status (extract-status rs)]
           (if (= :ok status)
-            (let [result (cleanup-inst (:result rs))]
+            (let [result (:result rs)]
               (if (seq result)
                 (ok (maybe-merge-child-uris
                      evaluator evt-context data-fmt
