@@ -74,6 +74,26 @@
 (defn remove-from-component [component-name predic]
   (update-component-defs component-name #(filter (complement predic) %)))
 
+(defn- replace-in-component-by-tag [component-name tag index newdef]
+  (u/call-and-set
+   raw-store
+   #(let [rs @raw-store]
+      (loop [cdef (get rs component-name), i index, fs []]
+        (if (neg? i)
+          rs
+          (if-let [def (first cdef)]
+            (if (seqable? def)
+              (let [has-tag (= tag (first def))]
+                (if (and has-tag (zero? i))
+                  (assoc rs component-name (concat fs (when newdef [newdef]) (rest cdef)))
+                  (recur (rest cdef) (if has-tag (dec i) i) (conj fs def))))
+              (recur (rest cdef) i (conj fs def)))
+            rs)))))
+  component-name)
+
+(defn- remove-from-component-by-tag [component-name tag index]
+  (replace-in-component-by-tag component-name tag index nil))
+
 (defn find-in-component [component-name predic]
   (when-let [cdef (get @raw-store component-name)]
     (filter predic cdef)))
@@ -331,14 +351,10 @@
     (u/throw-ex (str "no active component to add pattern - " pat))))
 
 (defn remove-pattern [cn pattern-index]
-  (let [pn (atom pattern-index)]
-    (remove-from-component
-     cn #(let [c @pn]
-           (if (neg? c)
-             false
-             (when (= 'pattern (first %))
-               (swap! pn dec)
-               (zero? c)))))))
+  (remove-from-component-by-tag cn 'pattern pattern-index))
+
+(defn replace-pattern [cn pattern-index new-pattern]
+  (replace-in-component-by-tag cn 'pattern pattern-index `(~'pattern ~new-pattern)))
 
 (defn remove-component [cname]
   (u/safe-set raw-store (dissoc @raw-store cname))

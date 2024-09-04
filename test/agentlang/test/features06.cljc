@@ -77,7 +77,16 @@
             (entity :Prt/E {:Id {:type :Int, :guid true}, :X :Int})
             #:Prt{:E {:Id 1, :X 100}}
             (entity :Prt/F {:Id {:type :Int, :guid true}, :Y :Int})
-            #:Prt{:F {:Id 3, :X 300}}))))
+            #:Prt{:F {:Id 3, :X 300}})))
+  (lr/replace-pattern :Prt 0 {:Prt/E {:Id 10 :X 1000}})
+  (lr/replace-pattern :Prt 1 {:Prt/F {:Id 30 :X 3000}})
+  (is (= (lr/as-edn :Prt)
+         '(do
+            (component :Prt)
+            (entity :Prt/E {:Id {:type :Int, :guid true}, :X :Int})
+            #:Prt{:E {:Id 10, :X 1000}}
+            (entity :Prt/F {:Id {:type :Int, :guid true}, :Y :Int})
+            #:Prt{:F {:Id 30, :X 3000}}))))
 
 (deftest map-syntax-bug
   (let [pats [{:Agentlang.Core/Agent {:Name "AgeantOne"}}
