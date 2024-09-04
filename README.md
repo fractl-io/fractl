@@ -101,7 +101,7 @@ http://localhost:8080/api/Chat/Session
 
 ## License
 
-Copyright 2022 Fractl Inc.
+Copyright 2024 Fractl Inc.
 
 Licensed under the Apache License, Version 2.0:
 http://www.apache.org/licenses/LICENSE-2.0
