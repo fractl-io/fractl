@@ -175,23 +175,20 @@
  [:eval '(agentlang.inference.service.model/reset-agent-chat-session
           :Agentlang.Core/ResetAgentChatSessions.Agent)])
 
-(record
- :Agentlang.Core/ToolParam
- {:name :String
-  :type :Any
-  :required {:type :Boolean :default true}})
-
-(defn- tool-param? [xs]
-  (every? #(cn/make-instance :Agentlang.Core/ToolParam %) xs))
+(defn- tool-param? [x]
+  (and (map? x)
+       (string? (:type x))
+       (map? (:properties x))
+       (if-let [r (:required x)]
+         (every? string? r)
+         true)))
 
 (entity
  :Agentlang.Core/Tool
  {:name {:type :String :guid true}
-  :description :String
-  :returns {:type :Keyword :optional true}
-  :returns_many {:type :Boolean :default false}
-  :params {:check tool-param?}
-  :df_patterns :Edn})
+  :type {:type :String :default "function"}
+  :description {:type :String :optional true}
+  :parameters {:check tool-param? :optional true}})
 
 (relationship
  :Agentlang.Core/AgentLLM
@@ -285,13 +282,9 @@
 
 (defn- normalize-tool [tool]
   (let [tool (if (map? tool) tool (first tool))
-        attrs (cn/instance-attributes tool)]
-    (dissoc
-     (assoc
-      attrs
-      :returns-many (:returns_many attrs)
-      :df-patterns (:df_patterns attrs))
-     :returns_many :df_patterns)))
+        attrs (cn/instance-attributes tool)
+        tp (:type tool)]
+    {:type tp (keyword tp) (dissoc attrs :type)}))
 
 (def lookup-agent-tools (partial lookup-for-agent :Agentlang.Core/AgentTools normalize-tool))
 

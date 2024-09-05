@@ -75,20 +75,27 @@
                        " to an appropriate tool-type")))
     [(name attr-name) tool-type required]))
 
+(def ^:private tool-cache (atom nil))
+
 (defn- record-to-tool
   ([find-schema rec-name docstring]
-   (if-let [scm (find-schema rec-name)]
-    (let [tool-name (record-name-as-function-name rec-name)
-          props (mapv (partial attribute-to-property rec-name) (dissoc scm :meta))]
-      {:type "function"
-       :function
-       {:name tool-name
-        :description (or docstring (cn/docstring rec-name) tool-name)
-        :parameters
-        {:type "object"
-         :properties (into {} (mapv (comp vec (partial take 2)) props))
-         :required (vec (mapv first (filter last props)))}}})
-    (log/warn (str "cannot generate tool, no schema found for - " rec-name))))
+   (or (get @tool-cache rec-name)
+       (when-let [tool-spec
+                  (if-let [scm (find-schema rec-name)]
+                    (let [tool-name (record-name-as-function-name rec-name)
+                          props (mapv (partial attribute-to-property rec-name) (dissoc scm :meta))]
+                      {:type "function"
+                       :function
+                       {:name tool-name
+                        :description (or docstring (cn/docstring rec-name) tool-name)
+                        :parameters
+                        {:type "object"
+                         :properties (into {} (mapv (comp vec (partial take 2)) props))
+                         :required (vec (mapv first (filter last props)))}}})
+                    (do (log/warn (str "cannot generate tool, no schema found for - " rec-name))
+                        nil))]
+         (swap! tool-cache assoc rec-name tool-spec)
+         tool-spec)))
   ([find-schema rec-name] (record-to-tool find-schema rec-name nil)))
 
 (def event-to-tool (partial record-to-tool raw/find-event))

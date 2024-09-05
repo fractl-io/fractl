@@ -231,9 +231,20 @@
 (defn handle-eval-agent [instance]
   (maybe-eval-patterns (handle-chat-agent instance)))
 
+(defn- maybe-add-tool-params [tool-instance]
+  (let [f ((keyword (:type tool-instance)) tool-instance)]
+    (if-not (:parameters f)
+      (let [n (keyword (:name f))]
+        (if (cn/entity? n)
+          (tools/entity-to-tool n)
+          (tools/event-to-tool n)))
+      tool-instance)))
+
 (defn handle-planner-agent [instance]
   (log-trigger-agent! instance)
-  (let [tools (vec (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance))))
+  (let [tools (vec (concat
+                    (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
+                    (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
         [result model-name] (handle-chat-agent (assoc instance :tools tools))
         _ (log/info (str "Planner raw result: " result))
         patterns (mapv tools/tool-call-to-pattern result)]
