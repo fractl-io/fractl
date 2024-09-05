@@ -7,8 +7,8 @@
   ;; you will have to figure out the path to chrome on your system
   :launch-js ["/opt/google/chrome/chrome" "--headless" "--disable-gpu" "--repl" "--disable-dev-shm" :open-url]
   :watch-dirs ["src" "test"]
-  ;; :extra-main-files {:testing {:main fractl.test-runner}}
+  ;; :extra-main-files {:testing {:main agentlang.test-runner}}
   :log-syntax-error-style :concise
   }
 
-{:main fractl.test-runner}
+{:main agentlang.test-runner}

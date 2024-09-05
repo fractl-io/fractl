@@ -48,8 +48,8 @@
  :Customers
  {:Customer {:Id? [:>= :Customers.Id]}})
 
-(require '[fractl.resolver.registry :as r])
-(use '[fractl.resolver.click-house])
+(require '[agentlang.resolver.registry :as r])
+(use '[agentlang.resolver.click-house])
 
 (r/register-resolver {:name :click-house-logs
                       :type :click-house

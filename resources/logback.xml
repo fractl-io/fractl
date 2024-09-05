@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <configuration>
   <appender name="ROLLING" class="ch.qos.logback.core.rolling.RollingFileAppender">
-    <file>logs/fractl.log</file>
+    <file>logs/agentlang.log</file>
     <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-      <fileNamePattern>logs/fractl-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+      <fileNamePattern>logs/agentlang-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
       <maxFileSize>20MB</maxFileSize>    
       <maxHistory>30</maxHistory>
       <totalSizeCap>1GB</totalSizeCap>

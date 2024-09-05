@@ -1,3 +1,0 @@
-{:name :Joke
- :fractl-version "latest"
- :components [:Joke.Core]}

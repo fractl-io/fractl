@@ -1,4 +1,4 @@
-(defproject com.github.fractl-io/fractl "0.5.4"
+(defproject com.github.agentlang-ai/agentlang "0.5.4"
   :dependencies [[org.clojure/clojure "1.11.3"]
                  [org.clojure/clojurescript "1.11.132"
                   :exclusions [com.google.code.findbugs/jsr305]]
@@ -59,13 +59,13 @@
 
   :java-source-paths ["src/java"]
 
-  :main fractl.core
+  :main agentlang.core
   :aot :all
   ;;:omit-source true
 
-  :jar-exclusions [#"(?:^|/).fractl/" #"(?:^|/).db/" #"(?:^|/).json/"]
+  :jar-exclusions [#"(?:^|/).agentlang/" #"(?:^|/).db/" #"(?:^|/).json/"]
 
-  :uberjar-exclusions [#"(?:^|/).fractl/" #"(?:^|/).db/" #"(?:^|/).json/"]
+  :uberjar-exclusions [#"(?:^|/).agentlang/" #"(?:^|/).db/" #"(?:^|/).json/"]
 
   :plugins [[lein-cljsbuild "1.1.8" :exclusions [[org.clojure/clojure]]]
             [lein-environ "1.2.0"]
@@ -88,8 +88,8 @@
   :pom-addition [:distributionManagement
                  [:repository
                   ["id" "github"]
-                  ["name" "GitHub fractl.io Apache Maven Packages"]
-                  ["url" "https://maven.pkg.github.com/fractl-io/fractl"]]]
+                  ["name" "GitHub agentlang-ai Apache Maven Packages"]
+                  ["url" "https://maven.pkg.github.com/agentlang-ai/agentlang"]]]
 
   :profiles {:dev {:dependencies [[com.bhauman/rebel-readline-cljs "0.1.4" :exclusions [args4j]]
                                   [com.bhauman/figwheel-main "0.2.15"
@@ -104,10 +104,10 @@
                               "fig:ui" ["trampoline" "run" "-m" "figwheel.main" "-co" "test/ci/ui.cljs.edn" "-r"]
                               "fig:build" ["trampoline" "run" "-m" "figwheel.main" "-b" "dev" "-r"]
                               "fig:min"   ["run" "-m" "figwheel.main" "-O" "advanced" "-bo" "dev"]
-                              "fig:test"  ["run" "-m" "figwheel.main" "-co" "test/ci/test.cljs.edn" "-m" "fractl.test-runner"]
-                              "fig:rtest"  ["run" "-m" "figwheel.main" "-co" "test/ci/test.cljs.edn" "-m" "fractl.reagent-test-runner"]
-                              "fig:ci"  ["run" "-m" "figwheel.main" "-co" "test/ci/ci.cljs.edn" "-m" "fractl.test-runner"]
-                              "fig:rci"  ["run" "-m" "figwheel.main" "-co" "test/ci/ci.cljs.edn" "-m" "fractl.reagent-test-runner"]}
+                              "fig:test"  ["run" "-m" "figwheel.main" "-co" "test/ci/test.cljs.edn" "-m" "agentlang.test-runner"]
+                              "fig:rtest"  ["run" "-m" "figwheel.main" "-co" "test/ci/test.cljs.edn" "-m" "agentlang.reagent-test-runner"]
+                              "fig:ci"  ["run" "-m" "figwheel.main" "-co" "test/ci/ci.cljs.edn" "-m" "agentlang.test-runner"]
+                              "fig:rci"  ["run" "-m" "figwheel.main" "-co" "test/ci/ci.cljs.edn" "-m" "agentlang.reagent-test-runner"]}
                    :clean-targets  ^{:protect false} ["target" "out"]}
              :with-model {:javac-options ["-target" "11" "-source" "11" "-Xlint:-options"]
                           :resource-paths ["app"]}})

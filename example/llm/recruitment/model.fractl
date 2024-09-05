@@ -1,3 +1,0 @@
-{:name :Recruitment
- :fractl-version "latest"
- :components [:Recruitment.Workflow]}

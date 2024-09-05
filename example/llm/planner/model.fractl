@@ -1,3 +1,0 @@
-{:name :Planner
- :fractl-version "latest"
- :components [:Planner.Core]}

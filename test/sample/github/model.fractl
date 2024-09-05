@@ -1,3 +1,0 @@
-{:name :github
- :fractl-version "current"
- :components [:Github]}

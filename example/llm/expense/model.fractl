@@ -1,3 +1,0 @@
-{:name :Expense
- :fractl-version "latest"
- :components [:Expense.Workflow]}

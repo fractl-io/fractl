@@ -1,3 +1,0 @@
-{:name :Weather.Service
- :fractl-version "latest"
- :components [:Weather.Service.Core]}

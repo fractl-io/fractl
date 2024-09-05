@@ -1,3 +1,0 @@
-{:name :Verification
- :fractl-version "latest"
- :components [:Verification.Core]}

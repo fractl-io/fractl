@@ -1,3 +1,0 @@
-{:github {:client-id #$ FRACTL_AUTH_TEST_CLIENT_ID
-          :client-secret #$ FRACTL_AUTH_TEST_CLIENT_SECRET
-          :callback "http://localhost:8000/fractl-test/callback"}}

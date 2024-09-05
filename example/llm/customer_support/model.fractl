@@ -1,3 +1,0 @@
-{:name :Customer.Support
- :fractl-version "latest"
- :components [:Customer.Support.Core]}

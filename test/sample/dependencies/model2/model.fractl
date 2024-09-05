@@ -1,3 +1,0 @@
-{:name :Model2
- :fractl-version "current"
- :components [:Model2.C1]}
