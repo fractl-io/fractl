@@ -320,15 +320,16 @@
              (if (= tag :defn)
                (raw/create-function cname n (first v) (second v))
                (raw/create-definition cname n v))
-             (when-let [intern (if (li/maybe-upsert-instance-pattern? exp)
-                                 ln/pattern
-                                 (get intern-fns (first exp)))]
-               (try
-                 (when-not (apply intern (rest (fqn exp)))
-                   (u/throw-ex (str "failed to intern " exp)))
-                 (catch js/Object _
-                   (let [corrupted-exp (get-corrupted-entity-form (second exp) (first exp))]
-                     (apply intern (rest (fqn corrupted-exp)))))))))))
+             (let [is-standalone-pattern (li/maybe-upsert-instance-pattern? exp)]
+               (when-let [intern (if is-standalone-pattern
+                                   ln/pattern
+                                   (get intern-fns (first exp)))]
+                 (try
+                   (when-not (if is-standalone-pattern (intern (fqn exp)) (apply intern (rest (fqn exp))))
+                     (u/throw-ex (str "failed to intern " exp)))
+                   (catch js/Object _
+                     (let [corrupted-exp (get-corrupted-entity-form (second exp) (first exp))]
+                       (apply intern (rest (fqn corrupted-exp))))))))))))
 
      (defn load-components-from-model [model callback]
        (doseq [c (:components model)]
