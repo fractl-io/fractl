@@ -18,6 +18,7 @@
     [agentlang.lang.tools.loader :as loader]
     [agentlang.lang.tools.build :as build]
     [agentlang.auth :as auth]
+    [agentlang.telemetry :as telemetry]
     [agentlang.rbac.core :as rbac]
     [agentlang.inference.embeddings.core :as ec]
     [agentlang.inference.service.core :as isc]
@@ -195,6 +196,8 @@
           (when-not (rbac/init (merge (:rbac ins) (:authentication config)))
             (log/error "failed to initialize rbac")))
         (ei/init-interceptors ins)
+        (when-let [tcfg (:telemetry config)]
+          (telemetry/init tcfg))
         [ev store]))))
 
 (defn finalize-config [model config]

@@ -16,6 +16,8 @@
 (defn audit-trail-enabled? []
   (:enable-audit-trail @app-config))
 
+(defn telemetry-config [] (:telemetry @app-config))
+
 (def ^:dynamic active-event-context nil)
 
 (defn active-user [] (:User active-event-context))

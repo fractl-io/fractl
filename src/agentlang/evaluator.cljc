@@ -22,6 +22,7 @@
             [agentlang.model.model]
             ;; :~
             [agentlang.global-state :as gs]
+            #?(:clj [agentlang.telemetry :as telemetry])
             [agentlang.evaluator.state :as es]
             [agentlang.evaluator.internal :as i]
             [agentlang.evaluator.root :as r]
@@ -181,6 +182,8 @@
                                                              (throw (ex-info "eval failed" {:eval-result r}))
                                                              r)))
                                    env0 (fire-post-events (:env result) is-internal)]
+                               #?(:clj (when (telemetry/enabled?)
+                                         (telemetry/publish! event-instance result)))
                                (assoc result :env env0)))]
           (interceptors/eval-intercept env0 event-instance continuation))
         (finally (when @txn-set (gs/set-active-txn! nil)))))))
