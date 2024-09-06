@@ -26,7 +26,8 @@
 {:Agentlang.Core/Agent
  {:Name "planner-agent"
   :Type "planner"
-  :ToolComponents ["Planner.Core"]
+  ;;:ToolComponents ["Planner.Core"]
+  :Tools [{:name "Planner.Core/Customer"} {:name "Planner.Core/Employee"}]
   :UserInstruction "You are an agent that use tools to create entity instances from text descritpions."
   :LLM "llm01"}}
 
