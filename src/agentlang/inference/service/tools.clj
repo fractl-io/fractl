@@ -23,6 +23,7 @@
   (let [s
         (case attr-type
           (:Now :Identity) "string"
+          :Edn "object"
           (cond
             (k/plain-kernel-type? attr-type)
             (s/lower-case (name attr-type))
@@ -59,7 +60,7 @@
           {:type (find-root-type attr-type)})
         required (cond
                    is-map
-                   (not (or (:optional attr-type) (:default attr-type)))
+                   (not (or (:optional attr-type) (:default attr-type) (:read-only attr-type)))
 
                    (= :Identity attr-type)
                    false
