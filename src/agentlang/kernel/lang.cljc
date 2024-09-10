@@ -1,18 +1,18 @@
 (ns
- agentlang.model.agentlang.kernel.lang
+ agentlang.kernel.lang
  (:require
   [agentlang.util :as u]
   [agentlang.lang.kernel :as k]
   [agentlang.lang.internal :as li]
   [agentlang.lang.datetime :as dt]
   [agentlang.resolver.registry :as r]
-  [agentlang.component :as cn])
- (:use
+  [agentlang.component :as cn]
   [agentlang.lang
-   :only
+   :refer
    [dataflow
     entity
     view
+    pattern
     attribute
     rule
     relationship
@@ -34,7 +34,7 @@
 (attribute :Agentlang.Kernel.Lang/String {:check k/kernel-string?})
 (attribute
  :Agentlang.Kernel.Lang/Keyword
- {:check (fn* [p1__284#] (or (keyword? p1__284#) (string? p1__284#)))})
+ {:check (fn* [p1__380#] (or (keyword? p1__380#) (string? p1__380#)))})
 (attribute :Agentlang.Kernel.Lang/Path {:check k/path?})
 (attribute :Agentlang.Kernel.Lang/DateTime {:check k/date-time?})
 (attribute :Agentlang.Kernel.Lang/Date {:check k/date?})
@@ -56,7 +56,9 @@
 (attribute :Agentlang.Kernel.Lang/Edn {:check k/edn?})
 (attribute
  :Agentlang.Kernel.Lang/Identity
- {:type :Agentlang.Kernel.Lang/UUID, :default u/uuid-string, li/guid true})
+ {:type :Agentlang.Kernel.Lang/UUID,
+  :default u/uuid-string,
+  li/guid true})
 (attribute
  :Agentlang.Kernel.Lang/Now
  {:type :Agentlang.Kernel.Lang/DateTime, :default dt/now})
@@ -87,11 +89,13 @@
 (dataflow
  :Agentlang.Kernel.Lang/LoadPolicies
  #:Agentlang.Kernel.Lang{:Policy
-                      {:Intercept?
-                       :Agentlang.Kernel.Lang/LoadPolicies.Intercept,
-                       :Resource?
-                       :Agentlang.Kernel.Lang/LoadPolicies.Resource}})
-(event :Agentlang.Kernel.Lang/AppInit {:Data :Agentlang.Kernel.Lang/Map})
+                         {:Intercept?
+                          :Agentlang.Kernel.Lang/LoadPolicies.Intercept,
+                          :Resource?
+                          :Agentlang.Kernel.Lang/LoadPolicies.Resource}})
+(event
+ :Agentlang.Kernel.Lang/AppInit
+ {:Data :Agentlang.Kernel.Lang/Map})
 (event :Agentlang.Kernel.Lang/InitConfig {})
 (record
  :Agentlang.Kernel.Lang/InitConfigResult
@@ -104,7 +108,8 @@
 (event
  :Agentlang.Kernel.Lang/DataSync
  {:Source :Agentlang.Kernel.Lang/DataSource,
-  :DestinationUri {:type :Agentlang.Kernel.Lang/String, :optional true}})
+  :DestinationUri
+  {:type :Agentlang.Kernel.Lang/String, :optional true}})
 (record
  :Agentlang.Kernel.Lang/Config
  {:Id
@@ -112,6 +117,10 @@
    :guid true,
    :default 1,
    :read-only true}})
+(defn- http-response? [x] (and (map? x) (int? (:status x))))
+(record
+ :Agentlang.Kernel.Lang/Response
+ {:HTTP {:check agentlang.kernel.lang/http-response?, :optional true}})
 (r/register-resolvers
  [{:name :meta,
    :type :meta,
@@ -136,4 +145,4 @@
     :paths [:Agentlang.Kernel.Lang/DataSync]})])
 (def
  Agentlang_Kernel_Lang___COMPONENT_ID__
- "f80edde8-df4d-429f-9429-004c4e21b750")
+ "a7a28707-8621-41f8-b98a-070f75d131ee")

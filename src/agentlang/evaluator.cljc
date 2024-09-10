@@ -19,7 +19,7 @@
             [agentlang.lang.opcode :as opc]
             [agentlang.lang.datetime :as dt]
             ;; load kernel components
-            [agentlang.model.model]
+            [agentlang.model]
             ;; :~
             [agentlang.global-state :as gs]
             [agentlang.evaluator.state :as es]
