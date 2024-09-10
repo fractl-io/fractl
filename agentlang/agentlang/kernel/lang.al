@@ -108,7 +108,7 @@
 
 ;; Various responses that a dataflow-pattern may return and processed
 ;; at the "edge" (like the http server endpoint).
-(record :Response {:Http {:check http-response? :optional true}})
+(record :Response {:HTTP {:check http-response? :optional true}})
 
 (r/register-resolvers
  [{:name :meta

@@ -28,12 +28,14 @@
 (dataflow
  :RaiseError
  [:match :RaiseError.I
-  0 [:eval '(fractl.util/throw-ex "blah!")]
+  0 [:eval '(agentlang.util/throw-ex "blah!")]
   1 {:Result {:Data "hello"}}])
 
 (dataflow
  :Q
- {:E1? {}})
+ [:try
+  {:E1? {}}
+  :not-found {:Agentlang.Kernel.Lang/Response {:HTTP {:status 422 :body "no issues"}}}])
 
 (entity :T {:X :Int})
 (entity :U {:Y :Int})
