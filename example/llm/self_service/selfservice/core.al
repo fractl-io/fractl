@@ -1,15 +1,20 @@
 (component :Selfservice.Core)
 
+(require '[agentlang.util :as u])
+(require '[agentlang.util.logger :as log])
+(require '[agentlang.util.http :as http])
+(require '[agentlang.datafmt.json :as json])
+
 (entity
  :Ticket
  {:Id {:type :Int :guid true}
   :Title :String
   :Content {:type :String :optional true}})
 
-(require '[agentlang.util :as u])
-(require '[agentlang.util.logger :as log])
-(require '[agentlang.util.http :as http])
-(require '[agentlang.datafmt.json :as json])
+(entity
+ :GithubMember
+ {:Org :String
+  :Email :Email})
 
 (defn- extract-contents [content]
   (cond
@@ -58,6 +63,27 @@
                                  :token (u/getenv "TICKETS_TOKEN")})}
   :paths [:Selfservice.Core/Ticket]})
 
+(defn- github-member-post [api-token inst]
+  (let [result (http/do-post
+                (str "https://api.github.com/orgs/" (:Org inst) "/invitations")
+                {:headers
+                 {"Accept" "application/vnd.github+json"
+                  "Authorization" (str "Bearer " api-token)
+                  "X-GitHub-Api-Version" "2022-11-28"}}
+                {:email (:Email inst) :role "direct_member"})
+        status (:status result)]
+    (if (<= 200 status 300)
+      inst
+      (u/throw-ex (str "failed to add user " (:Email inst)
+                       " to github org " (:Org inst)
+                       ", with status " status " and reason " (:body result))))))
+
+(resolver
+ :GithubResolver
+ {:with-methods
+  {:create (partial github-member-post (u/getenv "GITHUB_API_TOKEN"))}
+  :paths [:Selfservice.Core/GithubMember]})
+
 {:Agentlang.Core/LLM
  {:Type "openai"
   :Name "llm01"
@@ -66,6 +92,16 @@
            :EmbeddingModel "text-embedding-3-small"
            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
            :CompletionModel "gpt-3.5-turbo"}}}
+
+{:Agentlang.Core/Agent
+ {:Name "planner-agent"
+  :Type "planner"
+  :Tools [{:name "Selfservice.Core/GithubMember"}]
+  :UserInstruction (str "You are an agent who use tools to create entity instances from json objects. For example, \n"
+                        "you'll convert the array of json objects `[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}]` \n"
+                        "to the instances `[{:Selfservice.Core/GithubMember {:Org \"acme-dev\" :Email \"kate@acme.com\"}}].` \n"
+                        "Now try to convert the following objects: ")
+  :LLM "llm01"}}
 
 {:Agentlang.Core/Agent
  {:Name "self-service-agent"
@@ -79,9 +115,10 @@
                           :Content "Please add me (kate@acme.com) to the acme-dev organization."}])
        "`. Analyze the tickets and return the github org and the email of the user as JSON. "
        "For instance, with the above payload you should return: "
-       "`[{\"org\": \"acme-dev\", \"email\": \"kate@acme.com\"}]`. If the payload does not contain a ticket \n"
+       "`[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}]`. If the payload does not contain a ticket \n"
        "for github user addition, simply return an empty array, i.e `[]`. Do not return any other text.\n"
-       "Now try to analyze the following payload:\n")}}
+       "Now try to analyze the following payload:")
+  :Delegates {:To "planner-agent"}}}
 
 (inference :InvokeSelfService {:agent "self-service-agent"})
 
