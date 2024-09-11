@@ -38,8 +38,12 @@
     method (:Url inst) (:Headers inst)
     (maybe-encode-body (:Body inst)))))
 
+(defn handle-create [inst]
+  (let [method (case (:Method inst) "post" :post "get" :get :post)]
+    (rest-request method inst)))
+
 (def ^:private resolver-fns
-  {:create {:handler (partial rest-request :post)}
+  {:create {:handler handle-create}
    :update {:handler (partial rest-request :put)}
    :delete {:handler (partial rest-request :delete)}})
 
