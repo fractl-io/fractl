@@ -217,7 +217,7 @@
               refs)
         deps (if (= "agentlang" model-name)
                [['agentlang.lang :refer lang-vars]]
-               [['agentlang.model.model] ['agentlang.lang :refer lang-vars]])]
+               [['agentlang.model] ['agentlang.lang :refer lang-vars]])]
     (concat spec deps)))
 
 (defn- merge-use-models [import-spec use-models]
@@ -417,8 +417,8 @@
 (defn- maybe-copy-kernel [model-name]
   (when (= model-name "agentlang")
     (FileUtils/copyDirectory
-     (File. "out/agentlang/src/agentlang/model/agentlang/kernel")
-     (File. "src/agentlang/model/agentlang/kernel")))
+     (File. "out/agentlang/src/agentlang/kernel")
+     (File. "src/agentlang/kernel")))
   model-name)
 
 (defn compile-model [model-name]

@@ -53,17 +53,39 @@
        "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"})))
   ([] (headers nil)))
 
+(defn- maybe-extract-http-response [json-obj]
+  (when (and (map? json-obj) (= :Agentlang.Kernel.Lang/Response (:type json-obj)))
+    (let [res (:result json-obj)
+          resp (if (map? res) res (first res))]
+      (:HTTP resp))))
+
+(defn- make-headers [data-fmt]
+  {"Content-Type" (uh/content-type data-fmt)
+   "Access-Control-Allow-Origin" "*"
+   "Access-Control-Allow-Methods" "GET,POST,PUT,DELETE"
+   "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"})
+
+(defn- maybe-kernel-response [json-obj data-fmt]
+  (if (vector? json-obj)
+    (maybe-kernel-response (first json-obj) data-fmt)
+    (when-let [http-resp (maybe-extract-http-response json-obj)]
+      (merge
+       {:status (:status http-resp)
+        :headers (make-headers data-fmt)}
+       (when-let [body (:body http-resp)]
+         {:body (if (string? body)
+                  body
+                  ((uh/encoder data-fmt) body))})))))
+
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
    The map object will be encoded as JSON in the response.
    Also see: https://github.com/ring-clojure/ring/wiki/Creating-responses"
   [json-obj status data-fmt]
-  {:status status
-   :headers {"Content-Type" (uh/content-type data-fmt)
-             "Access-Control-Allow-Origin" "*"
-             "Access-Control-Allow-Methods" "GET,POST,PUT,DELETE"
-             "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"}
-   :body ((uh/encoder data-fmt) json-obj)})
+  (or (maybe-kernel-response json-obj data-fmt)
+      {:status status
+       :headers (make-headers data-fmt)
+       :body ((uh/encoder data-fmt) json-obj)}))
 
 (defn- unauthorized
   ([msg data-fmt errtype]

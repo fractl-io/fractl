@@ -102,6 +102,14 @@
 ;; Base-type of model-configuration entities.
 (record :Config {:Id {:type :Int :guid true :default 1 :read-only true}})
 
+(defn- http-response? [x]
+  (and (map? x)
+       (int? (:status x))))
+
+;; Various responses that a dataflow-pattern may return and processed
+;; at the "edge" (like the http server endpoint).
+(record :Response {:HTTP {:check http-response? :optional true}})
+
 (r/register-resolvers
  [{:name :meta
    :type :meta

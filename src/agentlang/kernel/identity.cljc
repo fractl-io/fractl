@@ -1,15 +1,17 @@
 (ns
- agentlang.model.agentlang.kernel.identity
- (:require [agentlang.lang.internal :as li] [agentlang.util :as u])
- (:use
-  [agentlang.model.agentlang.kernel.lang
-   :only
+ agentlang.kernel.identity
+ (:require
+  [agentlang.lang.internal :as li]
+  [agentlang.util :as u]
+  [agentlang.kernel.lang
+   :refer
    [Agentlang_Kernel_Lang___COMPONENT_ID__]]
   [agentlang.lang
-   :only
+   :refer
    [dataflow
     entity
     view
+    pattern
     attribute
     rule
     relationship
@@ -22,7 +24,9 @@
  :Agentlang.Kernel.Identity
  {:refer [:Agentlang.Kernel.Lang],
   :clj-import
-  '[(:require [agentlang.lang.internal :as li] [agentlang.util :as u])]})
+  '[(:require
+     [agentlang.lang.internal :as li]
+     [agentlang.util :as u])]})
 (entity
  :Agentlang.Kernel.Identity/User
  {:Name {:type :String, :optional true},
@@ -72,8 +76,8 @@
 (dataflow
  :Agentlang.Kernel.Identity/FindUser
  #:Agentlang.Kernel.Identity{:User
-                          {:Email?
-                           :Agentlang.Kernel.Identity/FindUser.Email}})
+                             {:Email?
+                              :Agentlang.Kernel.Identity/FindUser.Email}})
 (event
  :Agentlang.Kernel.Identity/ResendConfirmationCode
  {:Username :Email})
@@ -93,4 +97,4 @@
  [:delete :Agentlang.Kernel.Rbac/RoleAssignment :purge])
 (def
  Agentlang_Kernel_Identity___COMPONENT_ID__
- "1e60ab15-6b3c-41a8-bacf-b8a09570a8d1")
+ "bffea2fc-6bd6-424e-bc79-0961a3efe65a")
