@@ -87,17 +87,33 @@
 
       :else nil)))
 
+(defn- http-status-as-code [status]
+  (if (<= status 399)
+    :ok
+    (case status
+      400 :bad-request
+      401 :unauthorized
+      404 :not-found
+      :error)))
+
 (defn- maybe-kernel-response [json-obj data-fmt]
   (if (vector? json-obj)
     (maybe-kernel-response (first json-obj) data-fmt)
     (when-let [http-resp (maybe-extract-http-response json-obj)]
-      (merge
-       {:status (:status http-resp)
-        :headers (headers data-fmt)}
-       (when-let [body (:body http-resp)]
-         {:body (if (string? body)
-                  body
-                  ((uh/encoder data-fmt) (cleanup-inst body)))})))))
+      (let [status (:status http-resp)]
+        (merge
+         {:status status
+          :headers (headers data-fmt)}
+         (when-let [body (:body http-resp)]
+           {:body
+            ((uh/encoder data-fmt)
+             (let [[t r] (if (and (map? body) (cn/an-instance? body))
+                           [(cn/instance-type-kw body) [(cleanup-inst body)]]
+                           [nil body])]
+                   (merge
+                    {:status (http-status-as-code status)
+                     :result r}
+                    (when t {:type t}))))}))))))
 
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.

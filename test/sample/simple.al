@@ -46,7 +46,7 @@
 
 (dataflow
  :Test3
- {:Result {:Data "hello, world"}
+ {:Result {:Data "bye, bye"}
   :as :A}
  {:Agentlang.Kernel.Lang/Response {:HTTP {:status 422 :body :A}}})
 
