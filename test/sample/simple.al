@@ -31,6 +31,25 @@
   0 [:eval '(agentlang.util/throw-ex "blah!")]
   1 {:Result {:Data "hello"}}])
 
+(defn err []
+  (agentlang.util/throw-ex "an error occured"))
+
+(dataflow
+ :JJ
+ [:eval '(sample.simple/err)
+  :throws
+  [:error {:Agentlang.Kernel.Lang/Response {:HTTP {:status 422 :body "some error"}}}]])
+
+(dataflow
+ :Test2
+ {:Result {:Data "hello, world"}})
+
+(dataflow
+ :Test3
+ {:Result {:Data "bye, bye"}
+  :as :A}
+ {:Agentlang.Kernel.Lang/Response {:HTTP {:status 422 :body :A}}})
+
 (dataflow
  :Q
  [:try

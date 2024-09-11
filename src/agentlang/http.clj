@@ -43,39 +43,77 @@
 (def contains-graph (atom {}))
 (def graphql-entity-metas (atom {}))
 
+(defn- sanitize-secrets [obj]
+  (let [r (mapv (fn [[k v]]
+                  [k (if (hash/crypto-hash? v)
+                       "*********"
+                       v)])
+                obj)]
+    (into {} r)))
+
+(defn- cleanup-inst [obj]
+  (cond
+    (cn/an-instance? obj)
+    (let [r (cn/instance-attributes (sanitize-secrets obj))]
+      (into {} (mapv (fn [[k v]] [k (if (or (map? v) (vector? v))
+                                      (cleanup-inst v)
+                                      v)])
+                     r)))
+    (vector? obj) (mapv cleanup-inst obj)
+    :else obj))
+
 (defn- headers
   ([data-fmt]
    (merge
     (when data-fmt
-      {"Content-Type" (uh/content-type data-fmt)}
-      {"Access-Control-Allow-Origin" "*"
-       "Access-Control-Allow-Methods" "GET,POST,PUT,DELETE"
-       "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"})))
+      {"Content-Type" (uh/content-type data-fmt)})
+    {"Access-Control-Allow-Origin" "*"
+     "Access-Control-Allow-Methods" "GET,POST,PUT,DELETE"
+     "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"}))
   ([] (headers nil)))
 
 (defn- maybe-extract-http-response [json-obj]
-  (when (and (map? json-obj) (= :Agentlang.Kernel.Lang/Response (:type json-obj)))
-    (let [res (:result json-obj)
-          resp (if (map? res) res (first res))]
-      (:HTTP resp))))
+  (when (map? json-obj)
+    (cond
+      (= :Agentlang.Kernel.Lang/Response (:type json-obj))
+      (let [res (:result json-obj)
+            resp (if (map? res) res (first res))]
+        (:HTTP resp))
 
-(defn- make-headers [data-fmt]
-  {"Content-Type" (uh/content-type data-fmt)
-   "Access-Control-Allow-Origin" "*"
-   "Access-Control-Allow-Methods" "GET,POST,PUT,DELETE"
-   "Access-Control-Allow-Headers" "X-Requested-With,Content-Type,Cache-Control,Origin,Accept,Authorization"})
+      (= :error (:status json-obj))
+      (let [res (first (:result json-obj))]
+        (when (cn/instance-of? :Agentlang.Kernel.Lang/Response res)
+          (:HTTP res)))
+
+      :else nil)))
+
+(defn- http-status-as-code [status]
+  (if (<= status 399)
+    :ok
+    (case status
+      400 :bad-request
+      401 :unauthorized
+      404 :not-found
+      :error)))
 
 (defn- maybe-kernel-response [json-obj data-fmt]
   (if (vector? json-obj)
     (maybe-kernel-response (first json-obj) data-fmt)
     (when-let [http-resp (maybe-extract-http-response json-obj)]
-      (merge
-       {:status (:status http-resp)
-        :headers (make-headers data-fmt)}
-       (when-let [body (:body http-resp)]
-         {:body (if (string? body)
-                  body
-                  ((uh/encoder data-fmt) body))})))))
+      (let [status (:status http-resp)]
+        (merge
+         {:status status
+          :headers (headers data-fmt)}
+         (when-let [body (:body http-resp)]
+           {:body
+            ((uh/encoder data-fmt)
+             (let [[t r] (if (and (map? body) (cn/an-instance? body))
+                           [(cn/instance-type-kw body) [(cleanup-inst body)]]
+                           [nil body])]
+                   (merge
+                    {:status (http-status-as-code status)
+                     :result r}
+                    (when t {:type t}))))}))))))
 
 (defn- response
   "Create a Ring response from a map object and an HTTP status code.
@@ -84,7 +122,7 @@
   [json-obj status data-fmt]
   (or (maybe-kernel-response json-obj data-fmt)
       {:status status
-       :headers (make-headers data-fmt)
+       :headers (headers data-fmt)
        :body ((uh/encoder data-fmt) json-obj)}))
 
 (defn- unauthorized
@@ -118,25 +156,6 @@
        (let [cookie-domain (get-in (gs/get-app-config) [:authentication :cookie-domain])]
          (assoc hdrs "Set-Cookie" (str cookie "; Domain=" cookie-domain "; Path=/")))
        hdrs))})
-
-(defn- sanitize-secrets [obj]
-  (let [r (mapv (fn [[k v]]
-                  [k (if (hash/crypto-hash? v)
-                       "*********"
-                       v)])
-                obj)]
-    (into {} r)))
-
-(defn- cleanup-inst [obj]
-  (cond
-    (cn/an-instance? obj)
-    (let [r (cn/instance-attributes (sanitize-secrets obj))]
-      (into {} (mapv (fn [[k v]] [k (if (or (map? v) (vector? v))
-                                      (cleanup-inst v)
-                                      v)])
-                     r)))
-    (vector? obj) (mapv cleanup-inst obj)
-    :else obj))
 
 (defn- maybe-assoc-root-type [mode obj result]
   (if-let [t
