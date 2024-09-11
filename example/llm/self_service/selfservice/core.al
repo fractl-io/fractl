@@ -55,8 +55,8 @@
  {:with-methods
   {:query (partial ticket-query {:root-url (u/getenv "TICKETS_ROOT_URL")
                                  :user (u/getenv "TICKETS_USER")
-                                 :token (u/getenv "TICKETS_TOKEN")})
-   :paths [:Selfservice.Core/Ticket]})
+                                 :token (u/getenv "TICKETS_TOKEN")})}
+  :paths [:Selfservice.Core/Ticket]})
 
 {:Agentlang.Core/LLM
  {:Type "openai"
@@ -74,11 +74,22 @@
   :UserInstruction
   (str "You are an agent that identifies a self-service ticket for adding a user to a github organization. "
        "Tickets will be passed to you as a JSON payload, an example of which is "
-       "`" (json/encode [{:Id 10001, :Title "Laptop request", :Content "Please issue a laptop for json@acme.com"}
-                         {:Id 10000, :Title "Please add me to the github org",
+       "`" (json/encode [{:Id 101, :Title "Laptop request", :Content "Please issue a laptop for json@acme.com"}
+                         {:Id 102, :Title "Please add me to the github org",
                           :Content "Please add me (kate@acme.com) to the acme-dev organization."}])
        "`. Analyze the tickets and return the github org and the email of the user as JSON. "
        "For instance, with the above payload you should return: "
-       "`[{\"org\": \"acme-dev\", \"email\": \"kate@acme.com\"}]`")}}
+       "`[{\"org\": \"acme-dev\", \"email\": \"kate@acme.com\"}]`. If the payload does not contain a ticket \n"
+       "for github user addition, simply return an empty array, i.e `[]`. Do not return any other text.\n"
+       "Now try to analyze the following payload:\n")}}
 
 (inference :InvokeSelfService {:agent "self-service-agent"})
+
+(defn as-json [result]
+  (json/encode (mapv agentlang.component/instance-attributes result)))
+
+(dataflow
+ :ProcessTickets
+ {:Ticket? {} :as :Result}
+ [:eval '(user/as-json :Result) :as :S]
+ {:InvokeSelfService {:UserInstruction :S}})
