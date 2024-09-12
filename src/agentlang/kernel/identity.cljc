@@ -54,7 +54,7 @@
  {:User {:type :String, :guid true}, :LoggedIn :Boolean})
 (entity
  :Agentlang.Kernel.Identity/SessionCookie
- {:Id {:type :String, :guid true}, :UserData :Any})
+ {:Id {:type :String, :guid true}, :UserData :Any, :CreatedTimeMillis :Int64})
 (event
  :Agentlang.Kernel.Identity/UpdateUser
  {:UserDetails :Agentlang.Kernel.Identity/UserExtra})
