@@ -111,7 +111,10 @@
 (deftest await
   (let [a (atom nil), done (atom nil)]
     (defn reset-done! [] (reset! done true))
-    (defn reset-a! [inst] (reset! a inst))
+    (defn reset-a! [inst]
+      (if-let [old-inst @a]
+        (reset! a (assoc old-inst :X (+ (:X old-inst) (:X inst))))
+        (reset! a inst)))
     (defcomponent :Await
       (entity :Await/A {:Id {:type :Int :guid true} :X :Int})
       (dataflow
@@ -135,4 +138,5 @@
     (Thread/sleep 4000)
     (let [a @a]
       (is (cn/instance-of? :Await/A a))
-      (is (= 1 (:Id a))))))
+      (is (= 1 (:Id a)))
+      (is (= 100 (:X a))))))
