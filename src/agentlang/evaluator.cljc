@@ -140,6 +140,8 @@
       env [:create :update :delete])))
   ([env] (fire-post-events env nil)))
 
+(reset! gs/fire-post-events fire-post-events)
+
 (defn- fire-post-event-for [tag inst]
   (fire-post-events-for tag [inst]))
 

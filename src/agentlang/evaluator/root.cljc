@@ -203,7 +203,10 @@
             :else (<! result))
 
           updated-env (env/bind-instances env final-result)]
-      (eval-opcode updated-env code))))
+      (let [r (eval-opcode updated-env code)]
+        (when-let [env (:env r)]
+          (@gs/fire-post-events env))
+        r))))
 
 (defn- process-resolver-upsert [resolver method env inst]
   (if-let [result (:result (method resolver env inst))]

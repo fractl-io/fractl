@@ -709,15 +709,19 @@
                (assoc final-spec k v)))
       final-spec)))
 
-(defn- compile-construct-with-handlers [ctx pat]
-  (let [body (compile-pattern ctx (first pat))
-        hpats (us/flatten-map (rest pat))
-        handler-pats (distribute-handler-keys
-                      (into {} (map vec (partition 2 hpats))))
-        handlers (mapv (partial compile-try-handler ctx) handler-pats)]
-    (when-not (seq handlers)
-      (u/throw-ex "proper handlers are required for :try"))
-    [body (into {} handlers)]))
+(defn- compile-construct-with-handlers
+  ([ctx pat default-handlers]
+   (let [body (compile-pattern ctx (first pat))
+         hpats (us/flatten-map (rest pat))
+         handler-pats (if (seq hpats)
+                        (distribute-handler-keys
+                         (into {} (map vec (partition 2 hpats))))
+                        default-handlers)
+         handlers (mapv (partial compile-try-handler ctx) handler-pats)]
+     (when-not (seq handlers)
+       (u/throw-ex (str "missing status handlers in " (u/pretty-str pat))))
+     [body (into {} handlers)]))
+  ([ctx pat] (compile-construct-with-handlers ctx pat nil)))
 
 (defn- try-alias [pat]
   (let [rpat (reverse pat)]
@@ -833,7 +837,7 @@
   (w/prewalk (partial compile-quoted-expression ctx) pat))
 
 (defn- compile-await [ctx pat]
-  (op/await_ (compile-construct-with-handlers ctx pat)))
+  (op/await_ (compile-construct-with-handlers ctx pat {:ok "done"})))
 
 (defn- maybe-as-eval-event [pat]
   (let [f (first pat)]

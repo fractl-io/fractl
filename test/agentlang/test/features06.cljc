@@ -4,7 +4,8 @@
             [agentlang.component :as cn]
             [agentlang.util :as u]
             [agentlang.lang
-             :refer [component entity relationship dataflow attribute pattern]]
+             :refer [component entity event relationship dataflow
+                     attribute pattern resolver]]
             [agentlang.lang.raw :as lr]
             [agentlang.lang.syntax :as ls]
             #?(:clj [agentlang.test.util :as tu :refer [defcomponent]]
@@ -106,3 +107,32 @@
     (defcomponent :Msb (doseq [p pats] (pattern p)))
     (let [rs (mapv ls/introspect (lr/fetch-all-patterns :Msb))]
       (is (= pats (mapv ls/raw rs))))))
+
+(deftest await
+  (let [a (atom nil), done (atom nil)]
+    (defn reset-done! [] (reset! done true))
+    (defn reset-a! [inst] (reset! a inst))
+    (defcomponent :Await
+      (entity :Await/A {:Id {:type :Int :guid true} :X :Int})
+      (dataflow
+       [:after :create :Await/A]
+       [:eval '(agentlang.test.features06/reset-a! :Instance)]
+       :Instance)
+      (dataflow
+       :Await/Exec
+       [:await {:Await/A {:Id :Await/Exec.Id, :X :Await/Exec.X} :as :A}]
+       [:eval '(agentlang.test.features06/reset-done!)])
+      (resolver
+       :Await/R
+       {:with-methods
+        {:create (fn [inst] (Thread/sleep 2000) inst)}
+        :paths [:Await/A]}))
+    (u/run-init-fns)
+    (is (not @done))
+    (is (tu/result {:Await/Exec {:Id 1 :X 100}}))
+    (is @done)
+    (is (not @a))
+    (Thread/sleep 4000)
+    (let [a @a]
+      (is (cn/instance-of? :Await/A a))
+      (is (= 1 (:Id a))))))
