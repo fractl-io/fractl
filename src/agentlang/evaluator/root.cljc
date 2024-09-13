@@ -181,7 +181,7 @@
 (defn- merge-async-result [inst async-result]
   (assoc inst async-result-key async-result))
 
-(defn- realize-async-result [eval-opcode env code result]
+(defn- realize-async-result [eval-opcode env code orig-status result]
   (go
     (let [final-result
           (cond
@@ -203,7 +203,13 @@
             :else (<! result))
 
           updated-env (env/bind-instances env final-result)]
-      (eval-opcode updated-env code))))
+      (let [r (eval-opcode updated-env code)
+            s (:status r)]
+        (if (= :ok orig-status r)
+          (@gs/fire-post-events (:env r))
+          (when (= :ok s)
+            (@gs/fire-post-events (:env r))))
+        r))))
 
 (defn- process-resolver-upsert [resolver method env inst]
   (if-let [result (:result (method resolver env inst))]
@@ -1249,10 +1255,10 @@
         (go
           (let [result (call-with-exception-as-error
                         #(eval-opcode self env body))
-                h ((:status result) continuation)]
-            (realize-async-result
-             (partial eval-opcode self)
-             (:env result) h (:result result))))
+                status (:status result)
+                new-env (:env result)
+                h (status continuation)]
+            (realize-async-result (partial eval-opcode self) new-env h status (:result result))))
         (i/ok [:await :ok] env)))
 
     (do-for-each [self env [bind-pattern-code elem-alias body-code result-alias]]
