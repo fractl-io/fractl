@@ -13,13 +13,13 @@
 
 (defn kernel-float? [x]
   #?(:clj
-     (instance? Float x)
+     (or (int? x) (instance? Float x))
      :cljs
      (float? x)))
 
 (defn kernel-double? [x]
   #?(:clj
-     (instance? Double x)
+     (or (int? x) (instance? Double x))
      :cljs
      (float? x)))
 
