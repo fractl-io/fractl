@@ -138,9 +138,14 @@
                  reftok)
             (refresh-tokens auth-config reftok sid))))))
 
-(defmethod auth/verify-token tag [auth-config data]
+(defn- introspection-required? [auth-config cookie-created-millis]
+  (if-let [ttl-ms (:cookie-ttl-ms auth-config)]
+    (< ttl-ms (- (System/currentTimeMillis) cookie-created-millis))
+    (:introspect auth-config)))
+
+(defmethod auth/verify-token tag [auth-config [data cookie-created-millis]]
   (if (vector? data)
-    (if (:introspect auth-config)
+    (if (introspection-required? auth-config cookie-created-millis)
       (introspect auth-config data)
       (verify-and-extract auth-config (:id-token (:authentication-result (second data)))))
     (verify-and-extract auth-config data)))
@@ -297,7 +302,7 @@
 
 (defmethod auth/session-user tag [{req :request cookie :cookie :as auth-config}]
   (if-let [sid (auth/cookie-to-session-id auth-config cookie)]
-    (let [session-data (sess/lookup-session-cookie-user-data sid)
+    (let [[session-data _] (sess/lookup-session-cookie-user-data sid)
           result (auth/verify-token auth-config [sid session-data])
           user (:sub result)
           username (or (:username result) user)]

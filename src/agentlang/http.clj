@@ -979,7 +979,7 @@
         (let [ac (assoc auth-config :request request)
               cookie (get (:headers request) "cookie")
               auth-config (if cookie
-                            (assoc ac :cookie [cookie (sess/lookup-session-cookie-user-data cookie)])
+                            (assoc ac :cookie [cookie (first (sess/lookup-session-cookie-user-data cookie))])
                             ac)
               sub (auth/session-sub auth-config)
               result (auth/user-logout (assoc auth-config :sub sub))]
@@ -1220,8 +1220,8 @@
         (unauthorized (find-data-format request)))
       (let [cookie (get (:headers request) "cookie")
             sid (auth/cookie-to-session-id auth-config cookie)
-            data (sess/lookup-session-cookie-user-data sid)
-            user (:username (auth/verify-token auth-config [sid data]))]
+            sinfo (sess/lookup-session-cookie-user-data sid)
+            user (:username (auth/verify-token auth-config [sid sinfo]))]
         (when-not (sess/is-logged-in user)
           (log-request "unauthorized request" request)
           (unauthorized (find-data-format request)))))
