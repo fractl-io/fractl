@@ -47,7 +47,8 @@
 (entity
  :SessionCookie
  {:Id {:type :String :guid true}
-  :UserData :Any})
+  :UserData :Any
+  :CreatedTimeMillis :Int64})
 
 (event
  :UpdateUser

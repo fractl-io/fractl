@@ -404,7 +404,11 @@
       (if-let [parsed-path (parse-rest-uri request)]
         (let [query-params (when-let [s (:query-string request)] (uh/form-decode s))
               [obj data-fmt err-response] (request-object request)
-              parsed-path (assoc parsed-path :query-params query-params :data-fmt data-fmt)]
+              parsed-path (assoc parsed-path :query-params query-params :data-fmt data-fmt)
+              ent (:entity parsed-path)
+              err-response (or err-response
+                               (when (and obj ent (not (some #{ent} (keys obj))))
+                                 (bad-request (str "invalid object type in request, expected " ent))))]
           (or err-response (let [[event-gen resp options] (handler parsed-path obj)]
                              (if resp
                                resp
@@ -975,7 +979,7 @@
         (let [ac (assoc auth-config :request request)
               cookie (get (:headers request) "cookie")
               auth-config (if cookie
-                            (assoc ac :cookie [cookie (sess/lookup-session-cookie-user-data cookie)])
+                            (assoc ac :cookie [cookie (first (sess/lookup-session-cookie-user-data cookie))])
                             ac)
               sub (auth/session-sub auth-config)
               result (auth/user-logout (assoc auth-config :sub sub))]
@@ -1216,8 +1220,8 @@
         (unauthorized (find-data-format request)))
       (let [cookie (get (:headers request) "cookie")
             sid (auth/cookie-to-session-id auth-config cookie)
-            data (sess/lookup-session-cookie-user-data sid)
-            user (:username (auth/verify-token auth-config [sid data]))]
+            sinfo (sess/lookup-session-cookie-user-data sid)
+            user (:username (auth/verify-token auth-config [sid sinfo]))]
         (when-not (sess/is-logged-in user)
           (log-request "unauthorized request" request)
           (unauthorized (find-data-format request)))))

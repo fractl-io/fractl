@@ -13,13 +13,13 @@
 
 (defn kernel-float? [x]
   #?(:clj
-     (instance? Float x)
+     (or (int? x) (instance? Float x))
      :cljs
      (float? x)))
 
 (defn kernel-double? [x]
   #?(:clj
-     (instance? Double x)
+     (or (int? x) (instance? Double x))
      :cljs
      (float? x)))
 
@@ -59,7 +59,7 @@
      (li/split-path k))))
 
 (def ^:private email-pattern
-  #"[a-z0-9!#$%&'*+/=?^_`{|}~\-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~\-]+)*@(?:[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9\-]*[a-z0-9])?")
+  #"[a-zA-Z0-9!#$%&'*+/=?^_`{|}~\-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~\-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9\-]*[a-zA-Z0-9])?")
 
 (defn email? [x]
   (and (string? x)
