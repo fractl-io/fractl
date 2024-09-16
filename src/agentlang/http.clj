@@ -404,7 +404,11 @@
       (if-let [parsed-path (parse-rest-uri request)]
         (let [query-params (when-let [s (:query-string request)] (uh/form-decode s))
               [obj data-fmt err-response] (request-object request)
-              parsed-path (assoc parsed-path :query-params query-params :data-fmt data-fmt)]
+              parsed-path (assoc parsed-path :query-params query-params :data-fmt data-fmt)
+              ent (:entity parsed-path)
+              err-response (or err-response
+                               (when (and obj ent (not (some #{ent} (keys obj))))
+                                 (bad-request (str "invalid object type in request, expected " ent))))]
           (or err-response (let [[event-gen resp options] (handler parsed-path obj)]
                              (if resp
                                resp
