@@ -1,3 +1,3 @@
 {:name :Selfservice
  :agentlang-version "current"
- :components [:Selfservice.Core]}
+ :components [:Selfservice.Slack :Selfservice.Core]}

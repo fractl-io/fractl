@@ -84,6 +84,16 @@
   {:create (partial github-member-post (u/getenv "GITHUB_API_TOKEN"))}
   :paths [:Selfservice.Core/GithubMember]})
 
+(event :SubmitForApproval {:text :String})
+
+(dataflow
+ :SubmitForApproval
+ {:Selfservice.Slack/Chat {:text :SubmitForApproval.text} :as :Chat}
+ [:await
+  {:Selfservice.Slack/Approval {:thread? :Chat.thread :channel?
+                                :Chat.channel} :as :Approval}
+  :ok {:Selfservice.Core/GithubMember {:Org :Approval.data.Org :Email :Approval.data.Email}}])
+
 {:Agentlang.Core/LLM
  {:Type "openai"
   :Name "llm01"
@@ -96,11 +106,11 @@
 {:Agentlang.Core/Agent
  {:Name "planner-agent"
   :Type "planner"
-  :Tools [{:name "Selfservice.Core/GithubMember"}]
+  :Tools [{:name "Selfservice.Core/SubmitForApproval"}]
   :UserInstruction (str "You are an agent who use tools to create entity instances from json objects. For example, \n"
                         "you'll convert the array of json objects `[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}]` \n"
-                        "to the instances `[{:Selfservice.Core/GithubMember {:Org \"acme-dev\" :Email \"kate@acme.com\"}}].` \n"
-                        "Now try to convert the following objects: ")
+                        "to the instances `[{:Selfservice.Core/SubmitForApproval {:text \"Please *approve* or *reject* the Github membership request `{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}`\"}}]`. (Make sure you do not include this sample in your response).\n"
+                        "Now try to convert the following objects:")
   :LLM "llm01"}}
 
 {:Agentlang.Core/Agent
