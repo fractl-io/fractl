@@ -90,9 +90,13 @@
  :SubmitForApproval
  {:Selfservice.Slack/Chat {:text :SubmitForApproval.text} :as :Chat}
  [:await
-  {:Selfservice.Slack/Approval {:thread? :Chat.thread :channel?
-                                :Chat.channel} :as :Approval}
-  :ok {:Selfservice.Core/GithubMember {:Org :Approval.data.Org :Email :Approval.data.Email}}])
+  {:Selfservice.Slack/Approval
+   {:thread? :Chat.thread
+    :channel? :Chat.channel}
+   :as :Approval}
+  :ok {:Selfservice.Core/GithubMember
+       {:Org :Approval.data.Org
+        :Email :Approval.data.Email}}])
 
 {:Agentlang.Core/LLM
  {:Type "openai"
