@@ -173,10 +173,9 @@
               e/internal-evaluator
               e/public-evaluator)
             store)
-        ins (:interceptors config)]
-    (when-let [ps (:publish-schema config)]
-      (when (and (map? ps) (:inference-service-enabled config))
-        (ec/init ps)))
+        ins (:interceptors config)
+        embeddings-config (:embeddings config)]
+    (when embeddings-config (ec/init embeddings-config))
     (when (or (not (init-schema? config)) (store/init-all-schema store))
       (let [resolved-config (run-initconfig config ev)
             has-rbac (some #{:rbac} (keys ins))]
@@ -187,10 +186,10 @@
         (when (seq (:resolvers resolved-config))
           (register-resolvers! resolved-config ev))
         (u/run-init-fns)
-        (when (:inference-service-enabled config)
-          (isc/init))
+        (isc/init)
         (run-appinit-tasks! ev (or (:init-data model)
                                    (:init-data config)))
+        (when embeddings-config (isc/setup-agent-documents))
         (when has-rbac
           (when-not (rbac/init (merge (:rbac ins) (:authentication config)))
             (log/error "failed to initialize rbac")))

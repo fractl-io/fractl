@@ -12,7 +12,7 @@
             auth-url (get build-config :auth-url (str "http://localhost:" port "/auth"))
             auth-service (get-in config [:authentication :service] :none)
             ui-enabled (:ui-enabled config)
-            inference-service-enabled (:inference-service-enabled config)
+            inference-service-enabled (:inference-service-enabled config) ; this should always be true
             inference-service-app-id (:inference-service-app-id config)
             inference-service-use-schema (:inference-service-use-schema config)
             inference-service-use-docs (:inference-service-use-docs config)]
