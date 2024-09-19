@@ -1,11 +1,11 @@
-(component :Selfservice.Slack)
-
-(require '[clojure.string :as s])
-(require '[agentlang.component :as cn])
-(require '[agentlang.util :as u])
-(require '[agentlang.util.http :as http])
-(require '[agentlang.datafmt.json :as json])
-(require '[agentlang.lang.internal :as li])
+(component
+ :Slack.Core
+ {:clj-import '[(:require [clojure.string :as s]
+                          [agentlang.component :as cn]
+                          [agentlang.util :as u]
+                          [agentlang.util.http :as http]
+                          [agentlang.datafmt.json :as json]
+                          [agentlang.lang.internal :as li])]})
 
 (entity
  :Chat
@@ -79,7 +79,7 @@
               (let [resp (:text (second messages))
                     approved (= "approve" resp)]
                 (cn/make-instance
-                 :Selfservice.Slack/Approval
+                 :Slack.Core/Approval
                  {:approved approved
                   :data (parse-approval-data (:text (first messages)))})))))))))
 
@@ -102,13 +102,13 @@
         (u/trace
          (loop [response (f), retries 50]
            (if (zero? retries)
-             [(cn/make-instance :Selfservice.Slack/Approval {})] ; reject approval after `n` retries.
+             [(cn/make-instance :Slack.Core/Approval {})] ; reject approval after `n` retries.
              (if-let [r (extract-approval-instance response)]
                [r]
                (recur (f) (dec retries))))))))))
 
 (resolver
- :Selfservice.Slack/Resolver
+ :Slack.Core/Resolver
  {:with-methods {:create create-entity
                  :query get-entity}
-  :paths [:Selfservice.Slack/Chat :Selfservice.Slack/Approval]})
+  :paths [:Slack.Core/Chat :Slack.Core/Approval]})

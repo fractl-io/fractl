@@ -1,3 +1,4 @@
 {:name :Selfservice
  :agentlang-version "current"
- :components [:Selfservice.Slack :Selfservice.Core]}
+ :dependencies '[[ticket "0.0.1"] [slack "0.0.1"]]
+ :components [:Selfservice.Core]}
