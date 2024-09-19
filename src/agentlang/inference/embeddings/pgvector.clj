@@ -6,12 +6,12 @@
             [agentlang.inference.embeddings.internal.pgvector :as pgv]))
 
 ;;;; sample config.edn entry:
-;; {:publish-schema {:vectordb :pgvector
-;;                   :config {:host #$ [PGVECTOR_DB_HOST "localhost"]
-;;                            :port #$ [PGVECTOR_DB_PORT 5432]
-;;                            :dbname #$ [PGVECTOR_DB_NAME "postgres"]
-;;                            :user #$ [PGVECTOR_DB_USERNAME "postgres"]
-;;                            :password #$ [PGVECTOR_DB_PASSWORD "postgres"]}}}
+;; {:embeddings {:vectordb :pgvector
+;;               :config {:host #$ [PGVECTOR_DB_HOST "localhost"]
+;;                        :port #$ [PGVECTOR_DB_PORT 5432]
+;;                        :dbname #$ [PGVECTOR_DB_NAME "postgres"]
+;;                        :user #$ [PGVECTOR_DB_USERNAME "postgres"]
+;;                        :password #$ [PGVECTOR_DB_PASSWORD "postgres"]}}}
 
 (defn make []
   (let [db-conn (u/make-cell)

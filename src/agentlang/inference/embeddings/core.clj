@@ -10,7 +10,8 @@
 (declare embed-schema)
 
 (defn init [config]
-  (if-let [db (r/get-db config)]
+  ;; Publish schema disabled, as tools are directly built from model.
+  #_(if-let [db (r/get-db config)]
     (queue/process (partial embed-schema db))
     (u/throw-ex (str "Unsupported embbeddings database type: " (:vectordb config))))
   config)

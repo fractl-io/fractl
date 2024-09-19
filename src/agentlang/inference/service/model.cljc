@@ -215,6 +215,16 @@
  :Agentlang.Core/AgentDocument
  {:meta {:between [:Agentlang.Core/Agent :Agentlang.Core/Document]}})
 
+(dataflow
+ :Agentlang.Core/AddAgentDocument
+ {:Agentlang.Core/Document
+  {:Agent :Agentlang.Core/AddAgentDocument.Agent
+   :Uri :Agentlang.Core/AddAgentDocument.Uri
+   :Title :Agentlang.Core/AddAgentDocument.Title}
+  :as :Doc}
+ {:Agentlang.Core/AgentDocument {:Agent :Doc.Agent :Document :Doc.Id}}
+ :Doc)
+
 (attribute
  :Agentlang.Core/Documents
  {:extend :Agentlang.Core/Agent
@@ -294,6 +304,13 @@
 
 (def lookup-agent-docs (partial lookup-for-agent :Agentlang.Core/AgentDocuments normalize-docchunk))
 (def has-agent-docs? (partial lookup-for-agent :Agentlang.Core/HasAgentDocuments seq))
+
+(defn add-agent-document [agent-name doc-title doc-uri]
+  (eval-event
+   {:Agentlang.Core/AddAgentDocument
+    {:Agent agent-name
+     :Uri doc-uri
+     :Title doc-title}}))
 
 (defn lookup-agent-chat-session [agent-instance]
   (eval-event
