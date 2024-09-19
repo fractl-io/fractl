@@ -32,14 +32,7 @@
                          "You are supposed to handle technical queries that customers ask on camera gear. "
                          "Please use the documentation from the appropriate "
                          "camera manufacturer to answer these queries. "
-                         "If you get a query on the pricing of camera gear, respond with the text: NA")}]}
-  :Documents
-  [{:Title "ABC User Manual"
-    :Uri "file://./docs/abc.md"
-    :Agent technical-support-agent}
-   {:Title "XYZ User Manual"
-    :Uri "file://./docs/xyz.md"
-    :Agent technical-support-agent}]}}
+                         "If you get a query on the pricing of camera gear, respond with the text: NA")}]}}}
 
 (def price-enquiry-agent "price-enquiry-agent")
 
@@ -53,14 +46,17 @@
                          "Customers will raise price enquiries for camera gear. "
                          "Please use the price-list from the appropriate camera "
                          "manufacturer to answer the query. If you get a technical question, "
-                         "please respond with the simple text: NA")}]}
-  :Documents
-  [{:Title "ABC Price List"
-    :Uri "file://./docs/abc_prices.txt"
-    :Agent price-enquiry-agent}
-   {:Title  "XYZ Price List"
-    :Uri "file://./docs/xyz_prices.txt"
-    :Agent price-enquiry-agent}]}}
+                         "please respond with the simple text: NA")}]}}}
+
+;;;; If not provided in config, documents maybe attached to an agent as the `:Documents` attribute:
+;; {
+;;  :Documents
+;;   [{:Title "ABC Price List"
+;;     :Uri "file://./docs/abc_prices.txt"
+;;     :Agent price-enquiry-agent}
+;;    {:Title  "XYZ Price List"
+;;     :Uri "file://./docs/xyz_prices.txt"
+;;     :Agent price-enquiry-agent}]}
 
 {:Agentlang.Core/Agent
  {:Name "camera-support-agent"

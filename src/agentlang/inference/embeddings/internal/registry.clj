@@ -13,7 +13,7 @@
 (defn get-db
   ([]
    (get-db
-    (:publish-schema (gs/get-app-config))))
+    (:embeddings (gs/get-app-config))))
   ([cfg]
    (when-let [f (make-db-fn (:vectordb cfg))]
      (f (:config cfg)))))

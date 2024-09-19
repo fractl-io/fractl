@@ -1,9 +1,11 @@
 {:service {:port 8080}
- :inference-service-enabled true
- :publish-schema {:vectordb :pgvector
-                  :config {:llm-provider "llm01"
-                           :host #$ [PGVECTOR_DB_HOST "localhost"]
-                           :port #$ [PGVECTOR_DB_PORT 5432]
-                           :dbname #$ [PGVECTOR_DB_NAME "postgres"]
-                           :user #$ [PGVECTOR_DB_USERNAME "postgres"]
-                           :password #$ [PGVECTOR_DB_PASSWORD "postgres"]}}}
+ :embeddings {:vectordb :pgvector
+              :config {:llm-provider "llm01"
+                       :host #$ [PGVECTOR_DB_HOST "localhost"]
+                       :port #$ [PGVECTOR_DB_PORT 5432]
+                       :dbname #$ [PGVECTOR_DB_NAME "postgres"]
+                       :user #$ [PGVECTOR_DB_USERNAME "postgres"]
+                       :password #$ [PGVECTOR_DB_PASSWORD "postgres"]}}
+ :agent-documents
+ {"technical-support-agent" ["file://./docs/abc.md" "file://./docs/xyz.md"]
+  "price-enquiry-agent" ["file://./docs/abc_prices.txt" "file://./docs/xyz_prices.txt"]}}
