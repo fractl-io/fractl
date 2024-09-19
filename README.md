@@ -39,32 +39,22 @@ The following code snippet shows a simple agent that can interact with a human u
 ```clojure
 (component :Chat)
 
-(dataflow
- :InitChatAgent
- {:Agentlang.Inference.Service/Agent
-  {:Name "a-chat-agent"
-   :Type "chat"}
-  :as :Agent}
- {:Agentlang.Inference.Service/AgentLLM
-  {:Agent :Agent.Name :LLM "llm01"}}
- {:Agentlang.Inference.Service/ChatSession
-  {:Messages [:q# [{:role :system :content "Ask me anything, I can even tell jokes!"}]]}
-  :-> [[:Agentlang.Inference.Service/AgentChatSession :Agent]]}
- :Agent)
+{:Agentlang.Core/LLM
+ {:Type "openai"
+  :Name "llm01"
+  :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
+           :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
+           :EmbeddingModel "text-embedding-3-small"
+           :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
+           :CompletionModel "gpt-3.5-turbo"}}}
 
-(inference :Session {:agent "a-chat-agent"})
+{:Agentlang.Core/Agent
+ {:Name "agent01"
+  :Type "chat"
+  :LLM "llm01"
+  :Chat {:Messages [{:role :system :content "I am an AI bot who tell jokes"}]}}}
 
-(dataflow
- :Agentlang.Kernel.Lang/AppInit
- {:Agentlang.Inference.Provider/LLM
-  {:Type "openai"
-   :Name "llm01"
-   :Config {:ApiKey (agentlang.util/getenv "OPENAI_API_KEY")
-            :EmbeddingApiEndpoint "https://api.openai.com/v1/embeddings"
-            :EmbeddingModel "text-embedding-3-small"
-            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
-            :CompletionModel "gpt-3.5-turbo"}}}
- [:try {:Agentlang.Inference.Service/Agent {:Name? "a-chat-agent"}} :not-found {:InitChatAgent {}}])
+(inference :Session {:agent "agent01"})
 ```
 
 Save this code to a file named `chat.al` and its ready to be run as a highly-scalable agent service with ready-to-use
@@ -105,4 +95,3 @@ Copyright 2024 Fractl Inc.
 
 Licensed under the Apache License, Version 2.0:
 http://www.apache.org/licenses/LICENSE-2.0
-
