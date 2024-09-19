@@ -20,7 +20,9 @@
      (if-let [status (:status response)]
        (if (< 199 status 299)
          {:status status :response (json/decode (:body response))}
-         {:status status :error (or (:error response) (:body response))})
+         (do (log/info(str "rest-resolver: error HTTP response"
+                           " - status: " status "\n - response: " response))
+           {:status status :error (or (:error response) (:body response))}))
        {:error (or (:error response) (:body response))})
      (do (log/warn (str "rest-resolver: invalid HTTP response - " response))
          {:error "invalid HTTP response"}))))
