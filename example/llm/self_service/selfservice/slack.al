@@ -20,6 +20,7 @@
  :Approval
  {:thread {:type :String :optional true}
   :channel {:type :String :optional true}
+  :approved {:type :Boolean :default false}
   :data {:type :Any :optional true}})
 
 (def slack-api-key (System/getenv "SLACK_API_KEY"))
@@ -74,8 +75,13 @@
       (let [output-decoded (json/decode body)]
         (when (:ok output-decoded)
           (let [messages (:messages output-decoded)]
-            (when (and (= 2 (count messages)) (= "approve" (:text (second messages))))
-              (u/trace (cn/make-instance :Selfservice.Slack/Approval {:data (parse-approval-data (:text (first messages)))})))))))))
+            (when (>= (count messages) 2)
+              (let [resp (:text (second messages))
+                    approved (= "approve" resp)]
+                (cn/make-instance
+                 :Selfservice.Slack/Approval
+                 {:approved approved
+                  :data (parse-approval-data (:text (first messages)))})))))))))
 
 (defn- extract-query-params [where]
   (when (= :and (first where))
@@ -93,10 +99,13 @@
     (when-let [[ts channel] (extract-query-params where)]
       (let [url (get-url (str "/conversations.replies?ts=" ts "&channel=" channel))
             f (fn [] (Thread/sleep (* 10 1000)) (http/do-get url http-opts))]
-        (loop [response (f)]
-          (if-let [r (extract-approval-instance response)]
-            [r]
-            (recur (f))))))))
+        (u/trace
+         (loop [response (f), retries 50]
+           (if (zero? retries)
+             [(cn/make-instance :Selfservice.Slack/Approval {})] ; reject approval after `n` retries.
+             (if-let [r (extract-approval-instance response)]
+               [r]
+               (recur (f) (dec retries))))))))))
 
 (resolver
  :Selfservice.Slack/Resolver

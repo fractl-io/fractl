@@ -12,6 +12,11 @@
   :Content {:type :String :optional true}})
 
 (entity
+ :TicketComment
+ {:TicketId :Int
+  :Body :String})
+
+(entity
  :GithubMember
  {:Org :String
   :Email :Email})
@@ -45,23 +50,49 @@
     (when-let [ids (seq (apply concat (mapv (fn [sec] (mapv :id (:issues sec))) secs)))]
       (vec (agentlang.util.seq/nonils (mapv (partial lookup-ticket url basic-auth) ids))))))
 
+(defn- ticket-basic-auth [connection]
+  (str "Basic " (agentlang.lang.b64/encode-string (str (:user connection) ":" (:token connection)))))
+
+(defn- make-headers [connection]
+  (let [basic-auth (ticket-basic-auth connection)]
+    {:headers {"Authorization" basic-auth "Accept" "application/json"}}))
+
 (defn ticket-query [connection _]
-  (let [basic-auth (str "Basic " (agentlang.lang.b64/encode-string (str (:user connection) ":" (:token connection))))
-        url (str (:root-url connection) "/rest/api/3/issue/")
-        {status :status body :body}
-        (http/do-get (str url "picker")
-         {:headers {"Authorization" basic-auth "Accept" "application/json"}})]
+  (let [url (str (:root-url connection) "/rest/api/3/issue/")
+        headers (make-headers connection)
+        {status :status body :body} (http/do-get (str url "picker") headers)
+        basic-auth (get-in headers [:headers "Authorization"])]
     (if (= 200 status)
       (fetch-individual-tickets url basic-auth (json/decode body))
       (log/warn (str "lookup tickets failed with status: " status)))))
 
+(defn- make-comment-body [text]
+  {"content"
+   [{"content" [{"text" text "type" "text"}]
+     "type" "paragraph"}]
+   "type" "doc"
+   "version" 1})
+
+(defn ticket-comment-create [connection instance]
+  (let [url (str (:root-url connection) "/rest/api/3/issue/" (:TicketId instance) "/comment")
+        headers (make-headers connection)
+        body {:body (make-comment-body (:Body instance))}
+        {status :status :as response} (http/do-post url headers body)]
+    (if (or (= 201 status) (= 200 status))
+      instance
+      (log/warn (str "create ticket-comment returned status: " status)))))
+
+(def tickets-connection-info
+  {:root-url (u/getenv "TICKETS_ROOT_URL")
+   :user (u/getenv "TICKETS_USER")
+   :token (u/getenv "TICKETS_TOKEN")})
+
 (resolver
  :TicketResolver
  {:with-methods
-  {:query (partial ticket-query {:root-url (u/getenv "TICKETS_ROOT_URL")
-                                 :user (u/getenv "TICKETS_USER")
-                                 :token (u/getenv "TICKETS_TOKEN")})}
-  :paths [:Selfservice.Core/Ticket]})
+  {:query (partial ticket-query tickets-connection-info)
+   :create (partial ticket-comment-create tickets-connection-info)}
+  :paths [:Selfservice.Core/Ticket :Selfservice.Core/TicketComment]})
 
 (defn- github-member-post [api-token inst]
   (let [result (http/do-post
@@ -84,6 +115,15 @@
   {:create (partial github-member-post (u/getenv "GITHUB_API_TOKEN"))}
   :paths [:Selfservice.Core/GithubMember]})
 
+(dataflow
+ :FinalizeApproval
+ {:Selfservice.Core/TicketComment
+  {:TicketId :FinalizeApproval.data.Id
+   :Body "approved"}}
+ {:Selfservice.Core/GithubMember
+  {:Org :FinalizeApproval.data.Org
+   :Email :FinalizeApproval.data.Email}})
+
 (event :SubmitForApproval {:text :String})
 
 (dataflow
@@ -93,10 +133,13 @@
   {:Selfservice.Slack/Approval
    {:thread? :Chat.thread
     :channel? :Chat.channel}
-   :as :Approval}
-  :ok {:Selfservice.Core/GithubMember
-       {:Org :Approval.data.Org
-        :Email :Approval.data.Email}}])
+   :as [:Approval]}
+  :ok
+  [:match
+   [:= :Approval.approved true] {:FinalizeApproval {:data :Approval.data}}
+   {:Selfservice.Core/TicketComment
+    {:TicketId :Approval.data.Id
+     :Body "rejected"}}]])
 
 {:Agentlang.Core/LLM
  {:Type "openai"
@@ -129,7 +172,7 @@
                           :Content "Please add me (kate@acme.com) to the acme-dev organization."}])
        "`. Analyze the tickets and return the github org and the email of the user as JSON. "
        "For instance, with the above payload you should return: "
-       "`[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}]`. If the payload does not contain a ticket \n"
+       "`[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\", \"Id\": 102}]`. If the payload does not contain a ticket \n"
        "for github user addition, simply return an empty array, i.e `[]`. Do not return any other text.\n"
        "Now try to analyze the following payload:")
   :Delegates {:To "planner-agent"}}}
