@@ -186,7 +186,7 @@
     (mapv cleanup-result rs)))
 
 (defn- maybe-non-ok-result [rs]
-  (when (and (:status rs) (not= (:status rs) 200))
+  (when (and (:status rs) (not= (:status rs) :ok))
     (log/info (str "maybe-non-ok-result not ok - " rs)))
   (if (map? rs)
     (case (:status rs)
