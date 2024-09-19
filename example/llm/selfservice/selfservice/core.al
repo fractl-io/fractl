@@ -1,9 +1,11 @@
 (component
  :Selfservice.Core
- {:clj-import '[(:require [ticket.core :as ticket])
+ {:clj-import '[(:require [agentlang.util :as u]
+                          [agentlang.datafmt.json :as json])
                 (:use [slack.model] [ticket.model])]})
 
 (event :SubmitForApproval {:text :String})
+(event :FinalizeApproval {:data :Any})
 
 (dataflow
  :SubmitForApproval
@@ -16,16 +18,16 @@
   :ok
   [:match
    [:= :Approval.approved true] {:FinalizeApproval {:data :Approval.data}}
-   {:Slack.Core/TicketComment
+   {:Ticket.Core/TicketComment
     {:TicketId :Approval.data.Id
      :Body "rejected"}}]])
 
 (dataflow
  :FinalizeApproval
- {:Slack.Core/TicketComment
+ {:Ticket.Core/TicketComment
   {:TicketId :FinalizeApproval.data.Id
    :Body "approved"}}
- {:Slack.Core/GithubMember
+ {:Ticket.Core/GithubMember
   {:Org :FinalizeApproval.data.Org
    :Email :FinalizeApproval.data.Email}})
 
@@ -69,6 +71,6 @@
 
 (dataflow
  :ProcessTickets
- {:Ticket? {} :as :Result}
- [:eval '(ticket/as-json :Result) :as :S]
+ {:Ticket.Core/Ticket? {} :as :Result}
+ [:eval '(ticket.core/as-json :Result) :as :S]
  {:InvokeSelfService {:UserInstruction :S}})
