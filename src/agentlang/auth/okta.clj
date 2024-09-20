@@ -148,8 +148,10 @@
 (defmethod auth/verify-token tag [auth-config [data cookie-created-millis]]
   (if (vector? data)
     (if (introspection-required? auth-config cookie-created-millis)
-      (introspect auth-config data)
-      (verify-and-extract auth-config (:id-token (:authentication-result (second data)))))
+      (do (log/debug (str "auth/okta: introspecting token remotely - " data))
+          (introspect auth-config data))
+      (do (log/debug (str "auth/okta: verifying token locally - " data))
+          (verify-and-extract auth-config (:id-token (:authentication-result (second data))))))
     (verify-and-extract auth-config data)))
 
 (defmethod auth/make-authfn tag [auth-config]
