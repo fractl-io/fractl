@@ -147,11 +147,15 @@
 
 (defmethod auth/verify-token tag [auth-config [data cookie-created-millis]]
   (if (vector? data)
-    (if (introspection-required? auth-config cookie-created-millis)
-      (do (log/debug (str "auth/okta: introspecting token remotely - " data))
-          (introspect auth-config data))
-      (do (log/debug (str "auth/okta: verifying token locally - " data))
-          (verify-and-extract auth-config (:id-token (:authentication-result (second data))))))
+    (let [result
+          (if (introspection-required? auth-config cookie-created-millis)
+            (do (log/debug (str "auth/okta: introspecting token remotely - " data))
+                (introspect auth-config data))
+            (do (log/debug (str "auth/okta: verifying token locally - " data))
+                (verify-and-extract auth-config (:id-token (:authentication-result (second data))))))]
+      (if-not (:username result)
+        (assoc result :username (:username (second data)))
+        result))
     (verify-and-extract auth-config data)))
 
 (defmethod auth/make-authfn tag [auth-config]
@@ -298,7 +302,7 @@
              ((if current-sid
                 sess/session-cookie-replace
                 sess/session-cookie-create)
-              session-id result))
+              session-id (assoc result :username user)))
       {:status :redirect-found
        :location client-url
        :set-cookie (str "sid=" session-id)}

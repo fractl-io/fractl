@@ -201,15 +201,17 @@
     (mapv cleanup-result rs)))
 
 (defn- maybe-non-ok-result [rs]
-  (if (map? rs)
-    (case (:status rs)
-      :ok 200
-      :not-found 404
-      :error 500
-      nil 200
-      ;; TODO: handle other cases, like :timeout
-      500)
-    (maybe-non-ok-result (first rs))))
+  (if rs
+    (if (map? rs)
+      (case (:status rs)
+        :ok 200
+        :not-found 404
+        :error 500
+        nil 200
+        ;; TODO: handle other cases, like :timeout
+        500)
+      (maybe-non-ok-result (first rs)))
+    500))
 
 (defn- ok
   ([obj data-fmt]
