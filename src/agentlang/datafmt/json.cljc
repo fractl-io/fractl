@@ -1,5 +1,6 @@
 (ns agentlang.datafmt.json
-  #?(:clj (:require [cheshire.core :as json])))
+  (:require #?(:clj [cheshire.core :as json])
+            [clojure.string :as s]))
 
 (defn encode [obj]
   #?(:clj (json/generate-string obj)
@@ -9,7 +10,8 @@
 
 (defn- keywordify [k]
   (if (and (string? k) (not (re-find space-pat k)))
-    (keyword k)
+    (let [k (if (s/starts-with? k ":") (subs k 1) k)]
+      (keyword k))
     k))
 
 (defn decode [s]

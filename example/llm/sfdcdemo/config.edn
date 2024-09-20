@@ -1,0 +1,10 @@
+{:service {:port 8000}
+ :graphql {:enabled false}
+ :Camel.Sfdc.Resolver.Core/Config {:InstanceUrl #$ SFDC_INSTANCE_URL
+                                   :ClientSecret #$ SFDC_CLIENT_SECRET
+                                   :ClientId #$ SFDC_CLIENT_ID}
+ :Camel.Googlesheets.Resolver.Core/Config {:AccessToken #$ GOOGLE_SHEETS_ACCESS_TOKEN
+                                           :RefreshToken #$ GOOGLE_SHEETS_REFRESH_TOKEN
+                                           :ClientId #$ GOOGLE_SHEETS_CLIENT_ID
+                                           :ClientSecret #$ GOOGLE_SHEETS_CLIENT_SECRET
+                                           :ApplicationName "sfdcdemo"}}
