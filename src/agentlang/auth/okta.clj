@@ -70,9 +70,9 @@
 
 (defn- verify-and-extract [{domain :domain auth-server :auth-server client-id :client-id} token]
   (try
-     (jwt/verify-and-extract
-      (get-jwks-url domain auth-server client-id)
-      token)
+    (jwt/verify-and-extract
+     (get-jwks-url domain auth-server client-id)
+     token)
     (catch Exception e
       (log/warn e))))
 
@@ -139,15 +139,23 @@
             (refresh-tokens auth-config reftok sid))))))
 
 (defn- introspection-required? [auth-config cookie-created-millis]
-  (if-let [ttl-ms (:cookie-ttl-ms auth-config)]
-    (< ttl-ms (- (System/currentTimeMillis) cookie-created-millis))
+  (if cookie-created-millis
+    (if-let [ttl-ms (:cookie-ttl-ms auth-config)]
+      (< ttl-ms (- (System/currentTimeMillis) cookie-created-millis))
+      (:introspect auth-config))
     (:introspect auth-config)))
 
 (defmethod auth/verify-token tag [auth-config [data cookie-created-millis]]
   (if (vector? data)
-    (if (introspection-required? auth-config cookie-created-millis)
-      (introspect auth-config data)
-      (verify-and-extract auth-config (:id-token (:authentication-result (second data)))))
+    (let [result
+          (if (introspection-required? auth-config cookie-created-millis)
+            (do (log/debug (str "auth/okta: introspecting token remotely - " data))
+                (introspect auth-config data))
+            (do (log/debug (str "auth/okta: verifying token locally - " data))
+                (verify-and-extract auth-config (:id-token (:authentication-result (second data))))))]
+      (if-not (:username result)
+        (assoc result :username (:username (second data)))
+        result))
     (verify-and-extract auth-config data)))
 
 (defmethod auth/make-authfn tag [auth-config]
@@ -280,7 +288,7 @@
         tokens (code-to-tokens auth-config (:code params))
         session-id (or current-sid (u/uuid-string))
         result {:authentication-result (us/snake-to-kebab-keys tokens)}
-        auth-status (auth/verify-token auth-config [session-id result])
+        auth-status (auth/verify-token auth-config [[session-id result] nil])
         client-url (or (client-url-from-state (:state params)) client-url)
         user (:username auth-status)]
     (log/debug (str "auth/handle-auth-callback returning session-cookie " session-id " to " client-url))
@@ -294,7 +302,7 @@
              ((if current-sid
                 sess/session-cookie-replace
                 sess/session-cookie-create)
-              session-id result))
+              session-id (assoc result :username user)))
       {:status :redirect-found
        :location client-url
        :set-cookie (str "sid=" session-id)}
@@ -302,8 +310,8 @@
 
 (defmethod auth/session-user tag [{req :request cookie :cookie :as auth-config}]
   (if-let [sid (auth/cookie-to-session-id auth-config cookie)]
-    (let [[session-data _] (sess/lookup-session-cookie-user-data sid)
-          result (auth/verify-token auth-config [sid session-data])
+    (let [[session-data ttl] (sess/lookup-session-cookie-user-data sid)
+          result (auth/verify-token auth-config [[sid session-data] ttl])
           user (:sub result)
           username (or (:username result) user)]
       {:email username
