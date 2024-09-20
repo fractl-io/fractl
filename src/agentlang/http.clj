@@ -1226,8 +1226,8 @@
         (unauthorized (find-data-format request)))
       (let [cookie (get (:headers request) "cookie")
             sid (auth/cookie-to-session-id auth-config cookie)
-            sinfo (sess/lookup-session-cookie-user-data sid)
-            user (:username (auth/verify-token auth-config [sid sinfo]))]
+            [data ttl] (sess/lookup-session-cookie-user-data sid)
+            user (:username (auth/verify-token auth-config [[sid data] ttl]))]
         (when-not (sess/is-logged-in user)
           (log-request "unauthorized request" request)
           (unauthorized (find-data-format request)))))
