@@ -166,6 +166,21 @@
     (assoc result :type t)
     result))
 
+(defn- request-content-type [request]
+  (s/lower-case
+   (or (get-in request [:headers "content-type"])
+       "application/json")))
+
+(defn- find-data-format [request]
+  (let [ct (request-content-type request)]
+    (uh/content-types ct)))
+
+(defn- request-object [request]
+  (if-let [data-fmt (find-data-format request)]
+    [(when-let [body (:body request)]
+       ((uh/decoder data-fmt) (String. (.bytes body)))) data-fmt nil]
+    [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT")]))
+
 (defn- cleanup-result [rs]
   (if-let [result (:result rs)]
     (let [mode (cond
@@ -244,15 +259,21 @@
    (wrap-result nil r data-fmt)))
 
 (defn- maybe-ok
-  ([on-no-perm exp data-fmt]
+  ([on-no-perm exp data-fmt request]
    (try
-     (let [r (exp)]
+     (let [r (exp)
+           s (extract-status r)]
+       (when (and s (not= s :ok))
+         (if request
+           (log/error (str "agentlang.http maybe-ok: error: status not ok evaluating http request - "
+                          request " - " (request-object request) " - response: " r))
+           (log/error (str "agentlang.http maybe-ok: error: status not ok - " r))))
        (wrap-result on-no-perm r data-fmt))
      (catch Exception ex
        (log/exception ex)
        (internal-error (.getMessage ex) data-fmt))))
-  ([exp data-fmt]
-   (maybe-ok nil exp data-fmt)))
+  ([exp data-fmt request]
+   (maybe-ok nil exp data-fmt request)))
 
 (defn- assoc-event-context [request auth-config event-instance]
   (if auth-config
@@ -291,15 +312,6 @@
       (log/exception ex)
       [nil (str "Failed to parse request - " (.getMessage ex))])))
 
-(defn- request-content-type [request]
-  (s/lower-case
-   (or (get-in request [:headers "content-type"])
-       "application/json")))
-
-(defn- find-data-format [request]
-  (let [ct (request-content-type request)]
-    (uh/content-types ct)))
-
 (defn- filter-request-for-logging [request]
   (let [r0 (dissoc request :body :async-channel)]
     (assoc r0 :headers (dissoc (:headers request) :cookie))))
@@ -319,7 +331,7 @@
                (bad-request
                 (str "cannot invoke internal event - " (cn/instance-type-kw obj))
                 data-fmt "INTERNAL_EVENT_ERROR")
-               (maybe-ok #(evaluate evaluator obj) data-fmt))))
+               (maybe-ok #(evaluate evaluator obj) data-fmt nil))))
          (bad-request
           (str "unsupported content-type in request - "
                (request-content-type request)) "UNSUPPORTED_ERROR"))))
@@ -339,12 +351,6 @@
   (mapv (fn [n] {(subs (str n) 1)
                  {"post" {"parameters" (cn/encode-expressions-in-schema (cn/event-schema n))}}})
         (cn/event-names component)))
-
-(defn- request-object [request]
-  (if-let [data-fmt (find-data-format request)]
-    [(when-let [body (:body request)]
-       ((uh/decoder data-fmt) (String. (.bytes body)))) data-fmt nil]
-    [nil nil (bad-request (str "unsupported content-type in request - " (request-content-type request)) "UNSUPPORTED_CONTENT")]))
 
 (defn- process-meta-request [[_ maybe-unauth] request]
   (or (maybe-unauth request)
@@ -417,7 +423,7 @@
                                  (try
                                    (maybe-ok
                                     (and options (:on-no-perm options))
-                                    #(evaluate evaluator evt) data-fmt)
+                                    #(evaluate evaluator evt) data-fmt request)
                                    (finally
                                      (when post-fn (post-fn)))))))))
         (bad-request (str "invalid request uri - " (:* (:params request))) "INVALID_REQUEST_URI"))))
@@ -652,7 +658,7 @@
               evn (generate-filter-query-event component entity-name (:where q) deleted)
               evt (assoc-event-context request auth-config {evn {}})]
           (try
-            (maybe-ok #(evaluate evaluator evt) data-fmt)
+            (maybe-ok #(evaluate evaluator evt) data-fmt request)
             (catch Exception ex
               (log/exception ex)
               (internal-error (get-internal-error-message :query-failure (.getMessage ex))))
