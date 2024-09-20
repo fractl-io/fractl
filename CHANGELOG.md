@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-alpha1] - 2024-09-20
+
+-  rename to agentlang
+-  standalone create patterns
+-  extension attributes for defining relationships
+-  various enhancements to the agent construct
+
 ## [0.5.4] - 2024-08-06
 
 -   `fractl build` to emit namespaces that directly corresponds to component names (**Breaking change**)
