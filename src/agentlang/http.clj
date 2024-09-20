@@ -244,15 +244,21 @@
    (wrap-result nil r data-fmt)))
 
 (defn- maybe-ok
-  ([on-no-perm exp data-fmt]
+  ([on-no-perm exp data-fmt request]
    (try
-     (let [r (exp)]
+     (let [r (exp)
+           s (extract-status r)]
+       (when (and s (not= s :ok))
+         (if request
+           (log/error (str "maybe-ok: error: status not ok evaluating http request - "
+                           request " - response: " r))
+           (log/error (str "maybe-ok: error: status not ok - " r))))
        (wrap-result on-no-perm r data-fmt))
      (catch Exception ex
        (log/exception ex)
        (internal-error (.getMessage ex) data-fmt))))
-  ([exp data-fmt]
-   (maybe-ok nil exp data-fmt)))
+  ([exp data-fmt request]
+   (maybe-ok nil exp data-fmt request)))
 
 (defn- assoc-event-context [request auth-config event-instance]
   (if auth-config
@@ -319,7 +325,7 @@
                (bad-request
                 (str "cannot invoke internal event - " (cn/instance-type-kw obj))
                 data-fmt "INTERNAL_EVENT_ERROR")
-               (maybe-ok #(evaluate evaluator obj) data-fmt))))
+               (maybe-ok #(evaluate evaluator obj) data-fmt nil))))
          (bad-request
           (str "unsupported content-type in request - "
                (request-content-type request)) "UNSUPPORTED_ERROR"))))
@@ -417,7 +423,7 @@
                                  (try
                                    (maybe-ok
                                     (and options (:on-no-perm options))
-                                    #(evaluate evaluator evt) data-fmt)
+                                    #(evaluate evaluator evt) data-fmt request)
                                    (finally
                                      (when post-fn (post-fn)))))))))
         (bad-request (str "invalid request uri - " (:* (:params request))) "INVALID_REQUEST_URI"))))
@@ -652,7 +658,7 @@
               evn (generate-filter-query-event component entity-name (:where q) deleted)
               evt (assoc-event-context request auth-config {evn {}})]
           (try
-            (maybe-ok #(evaluate evaluator evt) data-fmt)
+            (maybe-ok #(evaluate evaluator evt) data-fmt request)
             (catch Exception ex
               (log/exception ex)
               (internal-error (get-internal-error-message :query-failure (.getMessage ex))))
