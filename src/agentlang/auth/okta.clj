@@ -70,9 +70,9 @@
 
 (defn- verify-and-extract [{domain :domain auth-server :auth-server client-id :client-id} token]
   (try
-     (jwt/verify-and-extract
-      (get-jwks-url domain auth-server client-id)
-      token)
+    (jwt/verify-and-extract
+     (get-jwks-url domain auth-server client-id)
+     token)
     (catch Exception e
       (log/warn e))))
 

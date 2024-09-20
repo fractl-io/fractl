@@ -1227,10 +1227,15 @@
       (let [cookie (get (:headers request) "cookie")
             sid (auth/cookie-to-session-id auth-config cookie)
             [data ttl] (sess/lookup-session-cookie-user-data sid)
-            user (:username (auth/verify-token auth-config [[sid data] ttl]))]
-        (when-not (sess/is-logged-in user)
-          (log-request "unauthorized request" request)
-          (unauthorized (find-data-format request)))))
+            verification (auth/verify-token auth-config [[sid data] ttl])
+            user (:username verification)]
+        (if user
+          (when-not (sess/is-logged-in user)
+            (log-request "unauthorized request" request)
+            (unauthorized (find-data-format request)))
+          (when-not (:sub verification)
+            (log-request "token verification failed" request)
+            (unauthorized (find-data-format request))))))
     (catch Exception ex
       (log/warn ex)
       (unauthorized (find-data-format request)))))
