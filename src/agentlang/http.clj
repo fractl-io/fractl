@@ -364,6 +364,29 @@
                  :schema (cn/schema-info c)
                  :component-edn (str (vec (rest (lr/as-edn c))))}))))))
 
+;; TODO: Added for testing jira-webhooks, should be moved to the jira-resolver.
+(defn- process-webhooks [request]
+  (let [issue (:issue (json/decode (String. (.bytes (:body request)))))
+        fields (:fields issue)
+        desc (:description fields)]
+    (if (seq desc)
+      (let [inst (cn/make-instance
+                  :Ticket.Core/Ticket
+                  {:Id (read-string (:id issue))
+                   :Title (:summary fields)
+                   :Content (if (string? desc)
+                              desc
+                              (:content desc))})
+            result (first
+                    (ev/eval-all-dataflows
+                     (cn/make-instance {:Selfservice.Core/ProcessWebhook
+                                        {:Tickets [inst]}})))
+            final-result (dissoc result :env)]
+        (if (= :ok (:status final-result))
+          (ok final-result)
+          (internal-error final-result)))
+      (ok {:result "done"}))))
+
 (defn- process-gpt-chat [[_ maybe-unauth] request]
   (or (maybe-unauth request)
       (let [[map-obj _ err-response] (request-object request)]
@@ -1204,6 +1227,7 @@
            (GET "/meta" [] (:meta handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (POST uh/post-inference-service-question [] (:post-inference-service-question handlers))
+           (POST "/webhooks" [] (:webhooks handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
         r-with-auth (if auth-config
@@ -1311,6 +1335,7 @@
             :register-magiclink (partial process-register-magiclink auth-info auth)
             :get-magiclink (partial process-get-magiclink auth-info)
             :preview-magiclink (partial process-preview-magiclink auth-info)
+            :webhooks process-webhooks
             :meta (partial process-meta-request auth-info)})
           config))
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))

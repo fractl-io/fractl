@@ -262,7 +262,9 @@
                    (if (string? result)
                      (read-string result)
                      result))]
-    [(format-planner-result (u/safe-ok-result (e/eval-patterns :Agentlang.Core patterns))) model-name]))
+    (if (seq patterns)
+      [(format-planner-result (u/safe-ok-result (e/eval-patterns :Agentlang.Core patterns))) model-name]
+      [{:result :noop} model-name])))
 
 (defn handle-ocr-agent [instance]
   (p/call-with-provider

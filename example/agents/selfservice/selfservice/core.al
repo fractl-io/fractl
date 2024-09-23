@@ -44,3 +44,8 @@
  {:Ticket.Core/Ticket? {} :as :Result}
  [:eval '(ticket.core/as-json :Result) :as :S]
  {:InvokeSelfService {:UserInstruction :S}})
+
+(dataflow
+ :ProcessWebhook
+ [:eval '(ticket.core/as-json :ProcessWebhook.Tickets) :as :S]
+ {:InvokeSelfService {:UserInstruction :S}})
