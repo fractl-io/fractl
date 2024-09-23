@@ -1,35 +1,9 @@
 (component
  :Selfservice.Core
  {:clj-import '[(:require [agentlang.util :as u]
-                          [agentlang.datafmt.json :as json])
+                          [agentlang.datafmt.json :as json]
+                          [slack.core :as sc])
                 (:use [slack.model] [ticket.model])]})
-
-(event :SubmitForApproval {:text :String})
-(event :FinalizeApproval {:data :Any})
-
-(dataflow
- :SubmitForApproval
- {:Slack.Core/Chat {:text :SubmitForApproval.text} :as :Chat}
- [:await
-  {:Slack.Core/Approval
-   {:thread? :Chat.thread
-    :channel? :Chat.channel}
-   :as [:Approval]}
-  :ok
-  [:match
-   [:= :Approval.approved true] {:FinalizeApproval {:data :Approval.data}}
-   {:Ticket.Core/TicketComment
-    {:TicketId :Approval.data.Id
-     :Body "rejected"}}]])
-
-(dataflow
- :FinalizeApproval
- {:Ticket.Core/TicketComment
-  {:TicketId :FinalizeApproval.data.Id
-   :Body "approved"}}
- {:Ticket.Core/GithubMember
-  {:Org :FinalizeApproval.data.Org
-   :Email :FinalizeApproval.data.Email}})
 
 {:Agentlang.Core/LLM
  {:Type "openai"
@@ -43,11 +17,7 @@
 {:Agentlang.Core/Agent
  {:Name "planner-agent"
   :Type "planner"
-  :Tools [{:name "Selfservice.Core/SubmitForApproval"}]
-  :UserInstruction (str "You are an agent who use tools to create entity instances from json objects. For example, \n"
-                        "you'll convert the array of json objects `[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}]` \n"
-                        "to the instances `[{:Selfservice.Core/SubmitForApproval {:text \"Please *approve* or *reject* the Github membership request `{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}`\"}}]`. (Make sure you do not include this sample in your response).\n"
-                        "Now try to convert the following objects:")
+  :UserInstruction (str sc/agent-instructions "\n" "Now try to convert the following input to a dataflow:")
   :LLM "llm01"}}
 
 {:Agentlang.Core/Agent

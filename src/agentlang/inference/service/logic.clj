@@ -240,15 +240,29 @@
           (tools/event-to-tool n)))
       tool-instance)))
 
+(defn- format-planner-result [r]
+  (cond
+    (or (vector? r) (map? r) (string? r)) r
+    (seqable? r) (vec r)
+    :else r))
+
 (defn handle-planner-agent [instance]
   (log-trigger-agent! instance)
   (let [tools (vec (concat
                     (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
                     (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
-        [result model-name] (handle-chat-agent (assoc instance :tools tools))
-        _ (log/info (str "Planner raw result: " result))
-        patterns (mapv tools/tool-call-to-pattern result)]
-    [(mapv e/safe-eval-pattern patterns) model-name]))
+        has-tools (seq tools)
+        [result model-name] (handle-chat-agent
+                             (if has-tools
+                               (assoc instance :tools tools)
+                               instance))
+        _ (log/debug (str "Planner " (:Name instance) " raw result: " result))
+        patterns (if has-tools
+                   (mapv tools/tool-call-to-pattern result)
+                   (if (string? result)
+                     (read-string result)
+                     result))]
+    [(format-planner-result (u/safe-ok-result (e/eval-patterns :Agentlang.Core patterns))) model-name]))
 
 (defn handle-ocr-agent [instance]
   (p/call-with-provider

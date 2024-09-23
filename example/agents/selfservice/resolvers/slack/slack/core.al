@@ -112,3 +112,30 @@
  {:with-methods {:create create-entity
                  :query get-entity}
   :paths [:Slack.Core/Chat :Slack.Core/Approval]})
+
+(def agent-instructions
+  (str "Convert an array of json objects into a sequence of dataflows that represent a specific business process. An example \n"
+       "input is `[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}]` and it represents a sequence of user-requests to join \n"
+       "a Github organization. These requests needs to be pushed to a slack channel, where they are reviewed and either approved \n"
+       "or rejected by a manager. This can be accomplished by the following dataflow: \n"
+       (u/pretty-str
+        [{:Slack.Core/Chat {:text "Please *approve* or *reject* the Github membership request `{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}`"} :as :Chat}
+         [:await
+          {:Slack.Core/Approval
+           {:thread? :Chat.thread
+            :channel? :Chat.channel}
+           :as [:Approval]}
+          :ok
+          [:match
+           [:= :Approval.approved true] [{:Ticket.Core/TicketComment
+                                          {:TicketId :Approval.data.Id
+                                           :Body "approved"}}
+                                         {:Ticket.Core/GithubMember
+                                          {:Org :Approval.data.Org
+                                           :Email :Approval.data.Email}}]
+           ;; else
+           {:Ticket.Core/TicketComment
+            {:TicketId :Approval.data.Id
+             :Body "rejected"}}]]])
+       "\n\nFor any input you receive return a similar sequence of dataflow patterns. Do not return any other text or \n"
+       "include data from the above example in your response, consider only the input you receive.\n"))

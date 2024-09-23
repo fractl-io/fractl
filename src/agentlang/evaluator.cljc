@@ -506,6 +506,14 @@
 
 (es/set-safe-eval-patterns! safe-eval-patterns)
 
+(defn eval-patterns [component pats]
+  (let [event-name (ln/event (li/make-path component (li/unq-name)) {})]
+    (when (apply ln/dataflow event-name pats)
+      (try
+        (eval-all-dataflows (cn/make-instance event-name {}))
+        (finally
+          (cn/remove-event event-name))))))
+
 (defn- maybe-delete-model-config-instance [entity-name]
   (let [evt-name (cn/crud-event-name entity-name :Delete)]
     (safe-eval-internal {evt-name {:Id 1}})))
