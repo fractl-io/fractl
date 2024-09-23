@@ -34,8 +34,13 @@
             [agentlang.util.errors :refer [get-internal-error-message]]
             [agentlang.evaluator :as ev]
             [com.walmartlabs.lacinia :refer [execute]]
-            [agentlang.graphql.core :as graphql])
-  (:use [compojure.core :only [DELETE GET POST PUT routes]]
+            [agentlang.graphql.core :as graphql]
+            [agentlang.graphql.core :as graphql]
+            [ring.middleware.params :refer [wrap-params]]
+            [ring.middleware.keyword-params :refer [wrap-keyword-params]]
+            [ring.middleware.nested-params :refer [wrap-nested-params]]
+            [drawbridge.core :as drawbridge])
+  (:use [compojure.core :only [DELETE GET POST PUT routes ANY]]
         [compojure.route :only [not-found]]))
 
 (def core-component (atom ""))
@@ -1171,9 +1176,23 @@
       (response result 200 :json)))
     (response {:error "GraphQL schema compilation failed"} 500 :json)))
 
+(defn nrepl-http-handler
+  [[auth-config maybe-unauth] nrepl-handler request]
+  (or (maybe-unauth request)
+        (let [handler (drawbridge/ring-handler :nrepl-handler nrepl-handler
+                                               :default-read-timeout 200)]
+          (handler request))))
+
+(defn wrap-nrepl-middleware [handler]
+  (-> handler
+      wrap-params
+      wrap-keyword-params
+      wrap-nested-params))
+
 (defn- make-routes [config auth-config handlers]
   (let [r (routes
            (POST uh/graphql-prefix [] (:graphql handlers))
+           (ANY uh/nrepl-prefix [] (wrap-nrepl-middleware (:nrepl handlers)))
            (POST uh/login-prefix [] (:login handlers))
            (POST uh/logout-prefix [] (:logout handlers))
            (POST uh/signup-prefix [] (:signup handlers))
@@ -1250,69 +1269,79 @@
         auth-check (if auth (partial handle-request-auth auth) (constantly false))]
     [auth auth-check]))
 
+(defn- generate-graphql-schema [core-component-name schema contains-graph-map]
+  (try
+    (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas]
+          (graphql/compile-graphql-schema schema contains-graph-map)]
+      (graphql/save-schema uninjected-graphql-schema)
+      (reset! core-component core-component-name)
+      (reset! graphql-schema injected-graphql-schema)
+      (reset! graphql-entity-metas entity-metadatas)
+      (reset! contains-graph contains-graph-map)
+      (log/info "GraphQL schema generation and resolver injection succeeded."))
+    (catch Exception e
+      (log/error (str "Failed to compile GraphQL schema:"
+                      (str/join "\n" (.getStackTrace e)))))))
+
+(defn- create-route-handlers [evaluator auth auth-info config]
+  {:graphql                  (partial graphql-handler auth-info)
+   :login                    (partial process-login evaluator auth-info)
+   :logout                   (partial process-logout auth)
+   :signup                   (partial process-signup evaluator (:call-post-sign-up-event config) auth-info)
+   :confirm-sign-up           (partial process-confirm-sign-up auth)
+   :get-user                 (partial process-get-user auth)
+   :update-user              (partial process-update-user auth)
+   :forgot-password          (partial process-forgot-password auth)
+   :confirm-forgot-password   (partial process-confirm-forgot-password auth)
+   :change-password          (partial process-change-password auth)
+   :refresh-token            (partial process-refresh-token auth)
+   :resend-confirmation-code  (partial process-resend-confirmation-code auth)
+   :put-request              (partial process-put-request evaluator auth-info)
+   :post-request             (partial process-post-request evaluator auth-info)
+   :get-request              (partial process-get-request evaluator auth-info)
+   :delete-request           (partial process-delete-request evaluator auth-info)
+   :start-debug-session      (partial process-start-debug-session evaluator auth-info)
+   :debug-step               (partial process-debug-step evaluator auth-info)
+   :debug-continue           (partial process-debug-continue evaluator auth-info)
+   :delete-debug-session     (partial process-delete-debug-session evaluator auth-info)
+   :query                    (partial process-query evaluator auth-info)
+   :eval                     (partial process-dynamic-eval evaluator auth-info nil)
+   :ai                       (partial process-gpt-chat auth-info)
+   :auth                     (partial process-auth evaluator auth-info)
+   :auth-callback            (partial process-auth-callback evaluator (:call-post-sign-up-event config) auth-info)
+   :register-magiclink       (partial process-register-magiclink auth-info auth)
+   :get-magiclink            (partial process-get-magiclink auth-info)
+   :preview-magiclink        (partial process-preview-magiclink auth-info)
+   :meta                     (partial process-meta-request auth-info)})
+
+(defn- start-http-server [evaluator config auth auth-info contains-graph-map nrepl-enabled nrepl-handler]
+  (if (or (not auth) (auth-service-supported? auth))
+    (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
+      (println (str "The HTTP server is listening on port " (:port config)))
+      (h/run-server
+        (make-routes
+          config auth
+          (merge
+            (create-route-handlers evaluator auth auth-info config)
+            (when nrepl-enabled
+              {:nrepl (partial nrepl-http-handler auth-info nrepl-handler)})))
+        config))
+    (u/throw-ex (str "authentication service not supported - " (:service auth)))))
+
+
 (defn run-server
-  ([evaluator config]
+  ([evaluator config nrepl-handler]
    (let [core-component-name (first (cn/remove-internal-components (cn/component-names)))
          schema (cn/schema-info core-component-name)
          contains-graph-map (gg/generate-contains-graph schema)
-         [auth _ :as auth-info] (make-auth-handler config)]
-     (let [app-config (gs/get-app-config)
-           graphql-enabled (get-in app-config [:graphql :enabled] true)]
-       (when graphql-enabled
-         (try
-           ;; attempt to compile the GraphQL schema
-           (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas]
-                 (graphql/compile-graphql-schema schema contains-graph-map)]
-             ;; save schema to global variable and file
-             (graphql/save-schema uninjected-graphql-schema)
-             (reset! core-component core-component-name)
-             (reset! graphql-schema injected-graphql-schema)
-             (reset! graphql-entity-metas entity-metadatas)
-             (reset! contains-graph contains-graph-map)
-             (log/info "GraphQL schema generation and resolver injection succeeded."))
-           (catch Exception e
-             (log/error (str "Failed to compile GraphQL schema:"
-                             (str/join "\n" (.getStackTrace e))))))))
-     (if (or (not auth) (auth-service-supported? auth))
-       (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
-         (println (str "The HTTP server is listening on port " (:port config)))
-         (h/run-server
-          (make-routes
-           config auth
-           {:graphql (partial graphql-handler auth-info)
-            :login (partial process-login evaluator auth-info)
-            :logout (partial process-logout auth)
-            :signup (partial
-                     process-signup evaluator
-                     (:call-post-sign-up-event config) auth-info)
-            :confirm-sign-up (partial process-confirm-sign-up auth)
-            :get-user (partial process-get-user auth)
-            :update-user (partial process-update-user auth)
-            :forgot-password (partial process-forgot-password auth)
-            :confirm-forgot-password (partial process-confirm-forgot-password auth)
-            :change-password (partial process-change-password auth)
-            :refresh-token (partial process-refresh-token auth)
-            :resend-confirmation-code (partial process-resend-confirmation-code auth)
-            :put-request (partial process-put-request evaluator auth-info)
-            :post-request (partial process-post-request evaluator auth-info)
-            :get-request (partial process-get-request evaluator auth-info)
-            :delete-request (partial process-delete-request evaluator auth-info)
-            :start-debug-session (partial process-start-debug-session evaluator auth-info)
-            :debug-step (partial process-debug-step evaluator auth-info)
-            :debug-continue (partial process-debug-continue evaluator auth-info)
-            :delete-debug-session (partial process-delete-debug-session evaluator auth-info)
-            :query (partial process-query evaluator auth-info)
-            :eval (partial process-dynamic-eval evaluator auth-info nil)
-            :ai (partial process-gpt-chat auth-info)
-            :auth (partial process-auth evaluator auth-info)
-            :auth-callback (partial
-                            process-auth-callback evaluator
-                            (:call-post-sign-up-event config) auth-info)
-            :register-magiclink (partial process-register-magiclink auth-info auth)
-            :get-magiclink (partial process-get-magiclink auth-info)
-            :preview-magiclink (partial process-preview-magiclink auth-info)
-            :meta (partial process-meta-request auth-info)})
-          config))
-       (u/throw-ex (str "authentication service not supported - " (:service auth))))))
-  ([evaluator]
-   (run-server evaluator {})))
+         [auth _ :as auth-info] (make-auth-handler config)
+         app-config (gs/get-app-config)
+         graphql-enabled (get-in app-config [:graphql :enabled] true)
+         nrepl-enabled (get-in app-config [:nrepl :enabled] false)]
+
+     (when graphql-enabled
+       (generate-graphql-schema core-component-name schema contains-graph-map))
+
+     (start-http-server evaluator config auth auth-info contains-graph-map nrepl-enabled nrepl-handler)))
+  ([evaluator nrepl-handler]
+   (run-server evaluator {} nrepl-handler)))

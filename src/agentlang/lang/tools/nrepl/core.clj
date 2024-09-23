@@ -24,7 +24,7 @@
       (replcmds/switch cn))
     (partial repl/repl-eval store (atom nil) evaluator)))
 
-(defn init-repl-eval-func [model-name options]
+(defn init-nrepl-eval-func [model-name options]
   (ur/force-call-after-load-model
     model-name
     (fn []
