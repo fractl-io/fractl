@@ -1276,8 +1276,7 @@
          contains-graph-map (gg/generate-contains-graph schema)
          [auth _ :as auth-info] (make-auth-handler config)]
      (let [app-config (gs/get-app-config)
-           graphql-enabled (get-in app-config [:graphql :enabled] true)
-           nrepl-enabled (get-in app-config [:nrepl :enabled] false)]
+           graphql-enabled (get-in app-config [:graphql :enabled] true)]
        ;; GraphQL schema generation
        (when graphql-enabled
          (try
@@ -1334,10 +1333,8 @@
                 :register-magiclink (partial process-register-magiclink auth-info auth)
                 :get-magiclink (partial process-get-magiclink auth-info)
                 :preview-magiclink (partial process-preview-magiclink auth-info)
-                :meta (partial process-meta-request auth-info)}
-               ;; Conditional nREPL route
-               (when nrepl-enabled
-                {:nrepl (partial nrepl-http-handler auth-info nrepl-handler)})))
+                :meta (partial process-meta-request auth-info)
+                :nrepl (partial nrepl-http-handler auth-info nrepl-handler)}))
             config))
          (u/throw-ex (str "authentication service not supported - " (:service auth)))))))
   ([evaluator nrepl-handler]
