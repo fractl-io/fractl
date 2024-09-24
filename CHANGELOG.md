@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-alpha2] - 2024-09-24
+
+-  added optional nREPL REST endpoint support to allow execution of arbitrary Fractl code
+-  fix name truncation issue in postgres
+
 ## [0.6.0-alpha1] - 2024-09-20
 
 -  rename to agentlang
