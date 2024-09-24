@@ -13,6 +13,23 @@
            :CompletionApiEndpoint "https://api.openai.com/v1/chat/completions"
            :CompletionModel "gpt-3.5-turbo"}}}
 
+{:Agentlang.Core/Agent
+ {:Name "request-classifier"
+  :Type "chat"
+  :LLM "llm01"
+  :UserInstruction (str "Classify the input text to one of the categories - approve or reject. "
+                        "For example if the input is `you can join the team`, your response must be `approve`. "
+                        "If the input is `sorry, can't allow`, your response must be `reject`.\n"
+                        "If you are unable to classify the text, simply return `reject`.\n"
+                        "(Do not include the ticks (`) in your response).\n"
+                        "Now please classify the following text following these rules.\n")}}
+
+(event
+ :InvokeClassifier
+ {:UserInstruction :String})
+
+(inference :InvokeClassifier {:agent "request-classifier"})
+
 (def planner-instructions
   (str "Convert an array of json objects that represent request to join Github organizations into a dataflow that first "
        "raises an approval request through a slack-channel and only if the request is approved the user is added to the "
@@ -22,8 +39,10 @@
        "Each chat message must have its text set as the following example: \n"
        "\"Please *approve* or *reject* the Github membership request `{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}` \n"
        "The format must be closely followed. Once the message is in the slack channel, a manager will review the request and "
-       "respond with either `approve` or `reject`.\n"
-       "  - If the response is `approve` \n"
+       "respond with a message and this will be in the :response attribute of the slack-chat. To generate the final dataflow, \n"
+       "You have to,\n"
+       "  - invoke the classifier agent with the manager response as the user-instruction."
+       "  - If the classifier says `approve`, then \n"
        "  ---- create a ticket-comment with the body \"approved\"\n"
        "  ---- create a github-member with the appropriate org and email values.\n"
        "  - else \n"
@@ -35,7 +54,8 @@
 {:Agentlang.Core/Agent
  {:Name "planner-agent"
   :Type "planner"
-  :Tools (u/as-agent-tools [:Slack.Core/Chat :Ticket.Core/Ticket :Ticket.Core/TicketComment :Ticket.Core/GithubMember])
+  :Tools (u/as-agent-tools [:Slack.Core/Chat :Ticket.Core/Ticket :Ticket.Core/TicketComment :Ticket.Core/GithubMember
+                            :Selfservice.Core/InvokeClassifier])
   :UserInstruction (str planner-instructions "\n" "Now try to convert the following input to a dataflow:")
   :LLM "llm01"}}
 

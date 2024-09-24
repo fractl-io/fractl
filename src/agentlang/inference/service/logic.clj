@@ -292,6 +292,18 @@
        "is an example of a condition. `[:Customer]` is its consequence. There is also an `else` part for `:match`, which is a "
        "pattern that will be evaluated if all conditions return false. In this example "
        "`[{:Acme.Core/PlatinumCustomer {:Email :Customer.Email}}]` is the else-pattern.\n"
+       "In addition to entities, you may also create patterns to invoke AI agents. Such invocations will look like:\n"
+       (u/pretty-str
+        {:Acme.Core/InvokeAnAgent
+         {:UserInstruction "hello, there"}
+         :as [:ResponseFromAgent]})
+       "\n\nResponse from an agent is usually some text and can be handled in a `:match` patterns as:\n"
+       (u/pretty-str
+        [:match :ResponseFromAgent
+         "hi" "happy"
+         "hello" "happy"
+         "sad"])
+       "\n\nThat was a simple example on invoking ai agents from dataflow patterns.\n"
        "Now that you understand how to translate business workflows (or dataflows) into entity and `:match` patterns "
        "consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns. "
        "An important note: do not return any plain text in your response, only return the vector of dataflow patterns.\n\n"))
