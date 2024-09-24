@@ -43,13 +43,16 @@
        (let [where-clause (:where query-pattern)]
          (when (not= :* where-clause) where-clause))))))
 
+(defn- norm-constraint-name [s]
+  (s/replace s "_" ""))
+
 (defn- as-col-name [attr-name]
   (str "_" (name attr-name)))
 
 (defn- append-fkeys [table-name [attr-name [refspec cascade-on-delete]]]
   (let [n (name attr-name)
         ename [(:component refspec) (:record refspec)]]
-    (let [constraint-name (str "_" table-name "_" n "_fkey")]
+    (let [constraint-name (norm-constraint-name (str "_" table-name "_" n "FK"))]
       [(str "ALTER TABLE " table-name " DROP CONSTRAINT IF EXISTS " constraint-name)
        (str "ALTER TABLE " table-name " ADD CONSTRAINT " constraint-name
             " FOREIGN KEY(_" n ") "
@@ -62,13 +65,13 @@
   (str s ", _" stu/deleted-flag-col " BOOLEAN DEFAULT false"))
 
 (defn- uk [table-name col-name]
-  (str table-name col-name "_uk"))
+  (norm-constraint-name (str table-name col-name "UK")))
 
 (defn- idx [table-name col-name]
-  (str table-name col-name "_Idx"))
+  (norm-constraint-name (str table-name col-name "_IDX")))
 
 (defn- pk [table-name]
-  (str table-name "_pk"))
+  (norm-constraint-name (str table-name "PK")))
 
 (defn- concat-post-init-sql! [out-table-data sqls]
   (let [d (concat (:post-init-sqls @out-table-data) sqls)]
