@@ -7,6 +7,7 @@
             [agentlang.datafmt.json :as json]
             [agentlang.global-state :as gs]
             [agentlang.evaluator :as e]
+            [agentlang.lang.raw :as raw]
             [agentlang.inference.provider :as provider]
             [agentlang.inference.provider.core :as p]
             [agentlang.inference.embeddings.core :as ec]
@@ -246,9 +247,73 @@
     (seqable? r) (vec r)
     :else r))
 
+(def ^:private generic-planner-instructions
+  (str "Consider the following entity definitions:\n"
+       (u/pretty-str
+        '(entity
+          :Acme.Core/Customer
+          {:Email {:type :Email :guid true}
+           :Name :String
+           :Address {:type :String :optional true}
+           :LoyaltyPoints {:type :Int :default 50}}))
+       "\n\n"
+       (u/pretty-str
+        '(entity
+          :Acme.Core/PlatinumCustomer
+          {:Email :Email}))
+       "\n\n"
+       (u/pretty-str
+        '(entity
+          :Acme.Core/GoldenCustomer
+          {:Email :Email}))
+       "\n\nIf the instruction given to you is to construct a customer instance with name `joe` and email `joe@acme.com`,\n"
+       "you must return the pattern:\n"
+       (u/pretty-str
+        [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe"} :as :Customer}])
+       "\nThere's no need to fill in attributes marked `:optional true` or those with a `:default`, unless explicitly instructed\n"
+       "For example, if the instruction is to create customer `joe` with email `joe@acme.com` and loyalty points 6700, then you must return\n"
+       (u/pretty-str
+        [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe", :LoyaltyPoints 6700} :as :Customer}])
+       "\nYou can also generate patterns that are evaluated against conditions, using the `:match` clause. For example,\n"
+       "if the instruction is to create a customer named `joe` with email `joe@acme.com` and then apply the following \n"
+       "business rules:\n"
+       "1. If the loyalty-points is 50, return the customer instance.\n"
+       "2. If the loyalty-points is greater than 50 and less than 1000, mark the customer as golden.\n"
+       "3. Otherwise, mark the customer as platinum\n"
+       "Given the above instruction, you must return the following dataflow patterns:\n"
+       (u/pretty-str
+        [{:Acme.Core/Customer {:Name "joe" :Email "joe@acme.com"} :as :Customer}
+         [:match
+          [:= :Customer.LoyaltyPoints 50] [:Customer]
+          [:and [:> :Customer.LoyaltyPoints 50] [:< :Customer.LoyaltyPoints 1000]]
+          [{:Acme.Core/GoldenCustomer {:Email :Customer.Email}}]
+          [{:Acme.Core/PlatinumCustomer {:Email :Customer.Email}}]]])
+       "\n\nConsider the syntax of the `:match` pattern - there are conditions and consequences. `[:= :Customer.LoyaltyPoints 50]` "
+       "is an example of a condition. `[:Customer]` is its consequence. There is also an `else` part for `:match`, which is a "
+       "pattern that will be evaluated if all conditions return false. In this example "
+       "`[{:Acme.Core/PlatinumCustomer {:Email :Customer.Email}}]` is the else-pattern.\n"
+       "Now that you understand how to translate business workflows (or dataflows) into entity and `:match` patterns "
+       "consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns.\n\n"))
+
+(defn- agent-tools-as-definitions [instance]
+  (loop [tools (model/lookup-agent-tools instance), s ""]
+    (if-let [tool (first tools)]
+      (let [f ((keyword (:type tool)) tool)
+            n (keyword (:name f))]
+        (if-let [spec (if (cn/entity? n)
+                        `(~'entity ~n ~(raw/find-entity n))
+                        `(~'event ~n ~(raw/find-event n)))]
+          (recur (rest tools) (str s (u/pretty-str spec) "\n\n"))
+          (u/throw-ex (str "Invalid tool - " n))))
+      s)))
+
 (defn handle-planner-agent [instance]
   (log-trigger-agent! instance)
-  (let [tools (vec (concat
+  (let [instance (assoc instance :UserInstruction
+                        (str generic-planner-instructions
+                             "Entity definitions from user:\n\n" (agent-tools-as-definitions instance)
+                             "Instruction from user:\n\n" (:UserInstruction instance)))
+        tools []#_(vec (concat
                     (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
                     (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
         has-tools (seq tools)
@@ -257,11 +322,14 @@
                                (assoc instance :tools tools)
                                instance))
         _ (log/debug (str "Planner " (:Name instance) " raw result: " result))
+        _ (u/pprint instance)
+        _ (println "#######################" (type result) result)
         patterns (if has-tools
                    (mapv tools/tool-call-to-pattern result)
                    (if (string? result)
                      (read-string result)
                      result))]
+    (u/pprint patterns)
     (if (seq patterns)
       [(format-planner-result (u/safe-ok-result (e/eval-patterns :Agentlang.Core patterns))) model-name]
       [{:result :noop} model-name])))
