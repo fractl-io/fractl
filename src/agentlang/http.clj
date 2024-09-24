@@ -1335,10 +1335,19 @@
          [auth _ :as auth-info] (make-auth-handler config)
          app-config (gs/get-app-config)
          graphql-enabled (get-in app-config [:graphql :enabled] true)
-         nrepl-enabled (get-in app-config [:nrepl :enabled] false)]
+         nrepl-env-enabled (some-> (System/getenv "NREPL_ENDPOINT_ENABLED")
+                                   Boolean/parseBoolean)
+         nrepl-config-enabled (get-in app-config [:nrepl :enabled] false)
+         nrepl-enabled (if (some? nrepl-env-enabled)
+                         ;; env value should override config
+                         nrepl-env-enabled
+                         nrepl-config-enabled)]
 
      (when graphql-enabled
        (generate-graphql-schema core-component-name schema contains-graph-map))
-     (start-http-server evaluator config auth auth-info nrepl-enabled nrepl-handler)))
+
+     (if nrepl-enabled
+       (start-http-server evaluator config auth auth-info true nrepl-handler)
+       (start-http-server evaluator config auth auth-info false nil))))
   ([evaluator nrepl-handler]
    (run-server evaluator {} nrepl-handler)))
