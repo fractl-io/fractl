@@ -140,14 +140,9 @@
    (let [options (if (ur/config-data-key options)
                    options
                    (second (ur/merge-options-with-config options)))
-         model-info (ur/read-model-and-config script-names options)
-         model-name (:name (ffirst model-info))
-         lower-model-name (s/lower-case (name model-name))]
+         model-info (ur/read-model-and-config script-names options)]
      (run-service script-names
-                  model-info
-                   ;; this is problematic, agentlang-nrepl-handler relies on loaded model but it leads to error:
-                  ;;  model not found in any of ["/Users/macbook/code/fractl/agentlang/agentlang/test/sample/"]
-                  (agentlang-nrepl-handler model-name options))))
+                  model-info)))
   ([script-names]
    (run-script script-names {:config "config.edn"})))
 
