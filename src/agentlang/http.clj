@@ -1313,6 +1313,7 @@
             :preview-magiclink (partial process-preview-magiclink auth-info)
             :meta (partial process-meta-request auth-info)})
           config))
+
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
   ([evaluator]
    (run-server evaluator {})))
