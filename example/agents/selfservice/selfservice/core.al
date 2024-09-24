@@ -1,8 +1,8 @@
 (component
  :Selfservice.Core
- {:clj-import '[(:require [agentlang.util :as u]
-                          [agentlang.datafmt.json :as json])
-                (:use [slack.model] [ticket.model])]})
+ {:refer [:Slack.Core :Ticket.Core]
+  :clj-import (quote [(:require [agentlang.util :as u]
+                                [agentlang.datafmt.json :as json])])})
 
 {:Agentlang.Core/LLM
  {:Type "openai"
@@ -18,17 +18,17 @@
        "raises an approval request through a slack-channel and only if the request is approved the user is added to the "
        "Github organization. An example input is \n"
        "`[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}]` and it represents a sequence of user-requests to join "
-       "a Github organization. These requests should be pushed to a slack channel as an instance of the :Slack.Core/Chat entity. \n"
-       "Each request will become the following value for the `:text` attribute of the slack-chat instance: \n"
+       "a Github organization. These requests should be pushed to a slack channel as chat messages. \n"
+       "Each chat message must have its text set as the following example: \n"
        "\"Please *approve* or *reject* the Github membership request `{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}` \n"
        "The format must be closely followed. Once the message is in the slack channel, a manager will review the request and "
-       "set the slack chat's `response` attribute to either `approve` or `reject`.\n"
+       "respond with either `approve` or `reject`.\n"
        "  - If the response is `approve` \n"
-       "  ---- create a :Ticket.Core/TicketComment with the body \"approved\"\n"
-       "  ---- create a :Ticket.Core/GithubMember with the appropriate org and email values.\n"
+       "  ---- create a ticket-comment with the body \"approved\"\n"
+       "  ---- create a github-member with the appropriate org and email values.\n"
        "  - else \n"
        "  ---- create a ticket-comment with body \"rejected\"\n\n"
-       "The :TicketId for the ticket-comment can be accessed from the `data.Id` field of the slack-chat instance.\n"
+       "The ticket-id for the ticket-comment can be accessed from the `data.Id` field of the slack-chat instance.\n"
        "The org and email for the github-member will be available as the chat's `data.Org` and `data.Email` fields. \n"
        "You must not create a github-member for a rejected request.\n"))
 
@@ -61,10 +61,10 @@
 (dataflow
  :ProcessTickets
  {:Ticket.Core/Ticket? {} :as :Result}
- [:eval '(ticket.core/as-json :Result) :as :S]
+ [:eval (quote (ticket.core/as-json :Result)) :as :S]
  {:InvokeSelfService {:UserInstruction :S}})
 
 (dataflow
  :ProcessWebhook
- [:eval '(ticket.core/as-json :ProcessWebhook.Tickets) :as :S]
+ [:eval (quote (ticket.core/as-json :ProcessWebhook.Tickets)) :as :S]
  {:InvokeSelfService {:UserInstruction :S}})
