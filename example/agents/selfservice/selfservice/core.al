@@ -31,8 +31,8 @@
 (inference :InvokeClassifier {:agent "request-classifier"})
 
 (def planner-instructions
-  (str "Convert an array of json objects that represent request to join Github organizations into a dataflow that first "
-       "raises an approval request through a slack-channel and only if the request is approved the user is added to the "
+  (str "Convert an array of json objects that represent request to join Github organizations into a dataflow which will first "
+       "raise an approval request through a slack-channel and only if the request is approved the user is added to the "
        "Github organization. An example input is \n"
        "`[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}]` and it represents a sequence of user-requests to join "
        "a Github organization. These requests should be pushed to a slack channel as chat messages. \n"
