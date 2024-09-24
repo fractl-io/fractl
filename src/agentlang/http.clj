@@ -34,8 +34,12 @@
             [agentlang.util.errors :refer [get-internal-error-message]]
             [agentlang.evaluator :as ev]
             [com.walmartlabs.lacinia :refer [execute]]
-            [agentlang.graphql.core :as graphql])
-  (:use [compojure.core :only [DELETE GET POST PUT routes]]
+            [agentlang.graphql.core :as graphql]
+            [ring.middleware.params :refer [wrap-params]]
+            [ring.middleware.keyword-params :refer [wrap-keyword-params]]
+            [ring.middleware.nested-params :refer [wrap-nested-params]]
+            [drawbridge.core :as drawbridge])
+  (:use [compojure.core :only [DELETE GET POST PUT routes ANY]]
         [compojure.route :only [not-found]]))
 
 (def core-component (atom ""))
@@ -1171,6 +1175,19 @@
       (response result 200 :json)))
     (response {:error "GraphQL schema compilation failed"} 500 :json)))
 
+(defn nrepl-http-handler
+  [[auth-config maybe-unauth] nrepl-handler request]
+  (or (maybe-unauth request)
+        (let [handler (drawbridge/ring-handler :nrepl-handler nrepl-handler
+                                               :default-read-timeout 200)]
+          (handler request))))
+
+(defn wrap-nrepl-middleware [handler]
+  (-> handler
+      wrap-params
+      wrap-keyword-params
+      wrap-nested-params))
+
 (defn- make-routes [config auth-config handlers]
   (let [r (routes
            (POST uh/graphql-prefix [] (:graphql handlers))
@@ -1251,13 +1268,14 @@
     [auth auth-check]))
 
 (defn run-server
-  ([evaluator config]
+  ([evaluator config nrepl-handler]
    (let [core-component-name (first (cn/remove-internal-components (cn/component-names)))
          schema (cn/schema-info core-component-name)
          contains-graph-map (gg/generate-contains-graph schema)
          [auth _ :as auth-info] (make-auth-handler config)]
      (let [app-config (gs/get-app-config)
            graphql-enabled (get-in app-config [:graphql :enabled] true)]
+       ;; GraphQL schema generation
        (when graphql-enabled
          (try
            ;; attempt to compile the GraphQL schema
@@ -1314,5 +1332,5 @@
             :meta (partial process-meta-request auth-info)})
           config))
        (u/throw-ex (str "authentication service not supported - " (:service auth))))))
-  ([evaluator]
-   (run-server evaluator {})))
+  ([evaluator nrepl-handler]
+   (run-server evaluator {} nrepl-handler)))

@@ -42,12 +42,12 @@
    :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
 
 (defn run-service
-  ([args model-info]
+  ([args model-info nrepl-handler]
    (let [[[evaluator _] config] (ur/prepare-runtime args model-info)]
      (when-let [server-cfg (ur/make-server-config config)]
        (log/info (str "Server config - " server-cfg))
-       (h/run-server evaluator server-cfg))))
-  ([model-info] (run-service nil model-info)))
+       (h/run-server evaluator server-cfg nrepl-handler))))
+  ([model-info nrepl-handler] (run-service nil model-info nrepl-handler)))
 
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
@@ -99,15 +99,15 @@
      (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF"))))
 
 (defn run-script
-  ([script-names options]
+  ([script-names nrepl-handler options]
    (let [options (if (ur/config-data-key options)
                    options
                    (second (ur/merge-options-with-config options)))]
-     (run-service
-      script-names
-      (ur/read-model-and-config script-names options))))
-  ([script-names]
-   (run-script script-names {:config "config.edn"})))
+     (run-service script-names
+                  (ur/read-model-and-config script-names options)
+                  nrepl-handler)))
+  ([script-names nrepl-handler]
+   (run-script script-names nrepl-handler {:config "config.edn"})))
 
 (defn- attach-params [request]
   (if (:params request)
@@ -233,13 +233,13 @@
    This handler bootstraps by initiating with just the dynamic loader, then
    using that to load the other middleware."
   [model-name options & additional-middleware]
-  (nrepl/init-repl-eval-func model-name options)
+  (nrepl/init-nrepl-eval-func model-name options)
   (let [initial-handler (dynamic-loader/wrap-dynamic-loader nil)
-        state           (atom {:handler initial-handler
-                               :stack   [#'nrepl.middleware.dynamic-loader/wrap-dynamic-loader]})]
+        state (atom {:handler initial-handler
+                     :stack   [#'nrepl.middleware.dynamic-loader/wrap-dynamic-loader]})]
     (binding [dynamic-loader/*state* state]
-      (initial-handler {:op          "swap-middleware"
-                        :state       state
+      (initial-handler {:op         "swap-middleware"
+                        :state      state
                         :middleware (concat default-middleware additional-middleware)}))
     (fn [msg]
       (binding [dynamic-loader/*state* state]
@@ -274,7 +274,9 @@
            identity
            (map #(apply (partial run-plain-option args) %)
                 {:run #(ur/call-after-load-model
-                        (first %) (fn [] (run-service (ur/read-model-and-config options))))
+                        (first %) (fn [] (run-service
+                                           (ur/read-model-and-config options)
+                                           (agentlang-nrepl-handler (first %) options))))
                  :compile #(println (build/compile-model (first %)))
                  :build #(println (build/standalone-package (first %)))
                  :install #(println (build/install-model nil (first %)))
@@ -307,4 +309,4 @@
                                   (db-migrate
                                     (keyword (first %))
                                     (second (ur/read-model-and-config options)))))}))
-          (run-script args options)))))
+          (run-script args (agentlang-nrepl-handler (first args) options) options)))))
