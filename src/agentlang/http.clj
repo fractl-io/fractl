@@ -35,7 +35,6 @@
             [agentlang.evaluator :as ev]
             [com.walmartlabs.lacinia :refer [execute]]
             [agentlang.graphql.core :as graphql]
-            [agentlang.graphql.core :as graphql]
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.keyword-params :refer [wrap-keyword-params]]
             [ring.middleware.nested-params :refer [wrap-nested-params]]
