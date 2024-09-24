@@ -13,6 +13,8 @@
             :guid true
             :default (System/getenv "SLACK_CHANNEL_ID")}
   :text :String
+  :response {:type :String :optional true}
+  :data {:type :Any :optional true}
   :mrkdwn {:type :Boolean :default true}
   :thread {:type :String :optional true}})
 
@@ -42,17 +44,26 @@
 (def ^:private http-opts {:headers {"Authorization" (str "Bearer " slack-api-key)
                                   "Content-Type" "application/json"}})
 
-(defn- create-chat [api-name instance]
-  (let [data (dissoc instance :-*-type-*- :type-*-tag-*- :thread)
-        url (get-url (str "/" api-name))
-        response (http/do-post url http-opts data)]
-    (handle-response response instance)))
+(defn- extract-approval [response]
+  (let [status (:status response)
+        body (:body response)]
+    (when (= 200 status)
+      (let [output-decoded (json/decode body)]
+        (when (:ok output-decoded)
+          (let [messages (:messages output-decoded)]
+            (when (>= (count messages) 2)
+              (s/lower-case (s/trim (:text (second messages)))))))))))
 
-(defn create-entity [instance]
-  (let [[c n] (li/split-path (cn/instance-type instance))]
-    (if (= n :Chat)
-      (create-chat "chat.postMessage" instance)
-      instance)))
+(defn wait-for-reply [{channel :channel ts :thread}]
+  (let [url (get-url (str "/conversations.replies?ts=" ts "&channel=" channel))
+        f (fn [] (Thread/sleep (* 10 1000)) (http/do-get url http-opts))]
+    (u/trace
+     (loop [response (f), retries 50]
+       (if (zero? retries)
+         "reject"
+         (if-let [r (extract-approval response)]
+           r
+           (recur (f) (dec retries))))))))
 
 (defn- normalize-email [email]
   (if-let [idx (s/index-of email ":")]
@@ -67,6 +78,20 @@
       (if-let [email (:Email data)]
         (assoc data :Email (normalize-email email))
         data))))
+
+(defn- create-chat [api-name instance]
+  (let [data (dissoc instance :-*-type-*- :type-*-tag-*- :thread)
+        url (get-url (str "/" api-name))
+        response (http/do-post url http-opts data)
+        new-instance (handle-response response instance)]
+    (u/trace (assoc new-instance :response (wait-for-reply new-instance)
+                    :data (parse-approval-data (:text instance))))))
+
+(defn create-entity [instance]
+  (let [[c n] (li/split-path (cn/instance-type instance))]
+    (if (= n :Chat)
+      (create-chat "chat.postMessage" instance)
+      instance)))
 
 (defn- extract-approval-instance [response]
   (let [status (:status response)
@@ -120,22 +145,16 @@
        "or rejected by a manager. This can be accomplished by the following dataflow: \n"
        (u/pretty-str
         [{:Slack.Core/Chat {:text "Please *approve* or *reject* the Github membership request `{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}`"} :as :Chat}
-         [:await
-          {:Slack.Core/Approval
-           {:thread? :Chat.thread
-            :channel? :Chat.channel}
-           :as [:Approval]}
-          :ok
-          [:match
-           [:= :Approval.approved true] [{:Ticket.Core/TicketComment
-                                          {:TicketId :Approval.data.Id
-                                           :Body "approved"}}
-                                         {:Ticket.Core/GithubMember
-                                          {:Org :Approval.data.Org
-                                           :Email :Approval.data.Email}}]
+         [:match :Chat.response
+          "approve" [{:Ticket.Core/TicketComment
+                      {:TicketId :Chat.data.Id
+                       :Body "approved"}}
+                     {:Ticket.Core/GithubMember
+                      {:Org :Chat.data.Org
+                       :Email :Chat.data.Email}}]
            ;; else
            {:Ticket.Core/TicketComment
-            {:TicketId :Approval.data.Id
-             :Body "rejected"}}]]])
+            {:TicketId :Chat.data.Id
+             :Body "rejected"}}]])
        "\n\nFor any input you receive return a similar sequence of dataflow patterns. Do not return any other text or \n"
        "include data from the above example in your response, consider only the input you receive.\n"))
