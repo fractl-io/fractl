@@ -1313,7 +1313,7 @@
    :preview-magiclink        (partial process-preview-magiclink auth-info)
    :meta                     (partial process-meta-request auth-info)})
 
-(defn- start-http-server [evaluator config auth auth-info contains-graph-map nrepl-enabled nrepl-handler]
+(defn- start-http-server [evaluator config auth auth-info nrepl-enabled nrepl-handler]
   (if (or (not auth) (auth-service-supported? auth))
     (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
       (println (str "The HTTP server is listening on port " (:port config)))
@@ -1322,11 +1322,10 @@
           config auth
           (merge
             (create-route-handlers evaluator auth auth-info config)
-            (when nrepl-enabled
+            (when (and nrepl-handler nrepl-enabled)
               {:nrepl (partial nrepl-http-handler auth-info nrepl-handler)})))
         config))
     (u/throw-ex (str "authentication service not supported - " (:service auth)))))
-
 
 (defn run-server
   ([evaluator config nrepl-handler]
@@ -1340,7 +1339,6 @@
 
      (when graphql-enabled
        (generate-graphql-schema core-component-name schema contains-graph-map))
-
-     (start-http-server evaluator config auth auth-info contains-graph-map nrepl-enabled nrepl-handler)))
+     (start-http-server evaluator config auth auth-info nrepl-enabled nrepl-handler)))
   ([evaluator nrepl-handler]
    (run-server evaluator {} nrepl-handler)))

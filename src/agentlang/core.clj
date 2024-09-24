@@ -139,10 +139,11 @@
   ([script-names options]
    (let [options (if (ur/config-data-key options)
                    options
-                   (second (ur/merge-options-with-config options)))
-         model-info (ur/read-model-and-config script-names options)]
-     (run-service script-names
-                  model-info)))
+                   (second (ur/merge-options-with-config options)))]
+     (run-service
+      script-names
+      (ur/read-model-and-config script-names options)
+      nil)))
   ([script-names]
    (run-script script-names {:config "config.edn"})))
 
