@@ -39,6 +39,7 @@
 
 (def entity-event-prefix "/api/")
 (def graphql-prefix "/graphql")
+(def nrepl-prefix "/nrepl")
 (def login-prefix "/login")
 (def logout-prefix "/logout")
 (def signup-prefix "/signup")

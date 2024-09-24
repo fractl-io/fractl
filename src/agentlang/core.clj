@@ -42,12 +42,12 @@
    :methods [#^{:static true} [process_request [Object Object] clojure.lang.IFn]]))
 
 (defn run-service
-  ([args model-info]
+  ([args model-info nrepl-handler]
    (let [[[evaluator _] config] (ur/prepare-runtime args model-info)]
      (when-let [server-cfg (ur/make-server-config config)]
        (log/info (str "Server config - " server-cfg))
-       (h/run-server evaluator server-cfg))))
-  ([model-info] (run-service nil model-info)))
+       (h/run-server evaluator server-cfg nrepl-handler))))
+  ([model-info nrepl-handler] (run-service nil model-info nrepl-handler)))
 
 (defn generate-swagger-doc [model-name args]
   (let [model-path (first args)]
@@ -98,6 +98,43 @@
      (.put "com.mchange.v2.log.MLog" "com.mchange.v2.log.FallbackMLog")
      (.put "com.mchange.v2.log.FallbackMLog.DEFAULT_CUTOFF_LEVEL" "OFF"))))
 
+(def default-middleware
+  "Middleware vars that are implicitly merged with any additional
+   middleware provided to nrepl.server/default-handler."
+  [#'nrepl.middleware/wrap-describe
+   #'nrepl.middleware.completion/wrap-completion
+   #'agentlang.lang.tools.nrepl.middleware.interruptible-eval/interruptible-eval
+   #'nrepl.middleware.load-file/wrap-load-file
+   #'nrepl.middleware.lookup/wrap-lookup
+   #'nrepl.middleware.session/add-stdin
+   #'nrepl.middleware.session/session
+   #'nrepl.middleware.sideloader/wrap-sideloader
+   #'nrepl.middleware.dynamic-loader/wrap-dynamic-loader])
+
+(defn agentlang-nrepl-handler
+  "A handler supporting interruptible evaluation, stdin, sessions,
+   readable representations of evaluated expressions via `pr`, sideloading, and
+   dynamic loading of middleware.
+
+   Additional middleware to mix into the default stack may be provided; these
+   should all be values (usually vars) that have an nREPL middleware descriptor
+   in their metadata (see `nrepl.middleware/set-descriptor!`).
+
+   This handler bootstraps by initiating with just the dynamic loader, then
+   using that to load the other middleware."
+  [model-name options & additional-middleware]
+  (nrepl/init-nrepl-eval-func model-name options)
+  (let [initial-handler (dynamic-loader/wrap-dynamic-loader nil)
+        state (atom {:handler initial-handler
+                     :stack   [#'nrepl.middleware.dynamic-loader/wrap-dynamic-loader]})]
+    (binding [dynamic-loader/*state* state]
+      (initial-handler {:op         "swap-middleware"
+                        :state      state
+                        :middleware (concat default-middleware additional-middleware)}))
+    (fn [msg]
+      (binding [dynamic-loader/*state* state]
+        ((:handler @state) msg)))))
+
 (defn run-script
   ([script-names options]
    (let [options (if (ur/config-data-key options)
@@ -105,7 +142,8 @@
                    (second (ur/merge-options-with-config options)))]
      (run-service
       script-names
-      (ur/read-model-and-config script-names options))))
+      (ur/read-model-and-config script-names options)
+      nil)))
   ([script-names]
    (run-script script-names {:config "config.edn"})))
 
@@ -208,43 +246,6 @@
       (println "ERROR: GPT failed to generate model, please try again."))
     (println "Please enter a description of the app after the -i option.")))
 
-(def default-middleware
-  "Middleware vars that are implicitly merged with any additional
-   middleware provided to nrepl.server/default-handler."
-  [#'nrepl.middleware/wrap-describe
-   #'nrepl.middleware.completion/wrap-completion
-   #'agentlang.lang.tools.nrepl.middleware.interruptible-eval/interruptible-eval
-   #'nrepl.middleware.load-file/wrap-load-file
-   #'nrepl.middleware.lookup/wrap-lookup
-   #'nrepl.middleware.session/add-stdin
-   #'nrepl.middleware.session/session
-   #'nrepl.middleware.sideloader/wrap-sideloader
-   #'nrepl.middleware.dynamic-loader/wrap-dynamic-loader])
-
-(defn agentlang-nrepl-handler
-  "A handler supporting interruptible evaluation, stdin, sessions,
-   readable representations of evaluated expressions via `pr`, sideloading, and
-   dynamic loading of middleware.
-
-   Additional middleware to mix into the default stack may be provided; these
-   should all be values (usually vars) that have an nREPL middleware descriptor
-   in their metadata (see `nrepl.middleware/set-descriptor!`).
-
-   This handler bootstraps by initiating with just the dynamic loader, then
-   using that to load the other middleware."
-  [model-name options & additional-middleware]
-  (nrepl/init-repl-eval-func model-name options)
-  (let [initial-handler (dynamic-loader/wrap-dynamic-loader nil)
-        state           (atom {:handler initial-handler
-                               :stack   [#'nrepl.middleware.dynamic-loader/wrap-dynamic-loader]})]
-    (binding [dynamic-loader/*state* state]
-      (initial-handler {:op          "swap-middleware"
-                        :state       state
-                        :middleware (concat default-middleware additional-middleware)}))
-    (fn [msg]
-      (binding [dynamic-loader/*state* state]
-        ((:handler @state) msg)))))
-
 (defn -main [& args]
   (when-not args
     (print-help)
@@ -271,40 +272,43 @@
       (:interactive options) (gpt-bot (:interactive options))
       :else
       (or (some
-           identity
-           (map #(apply (partial run-plain-option args) %)
-                {:run #(ur/call-after-load-model
-                        (first %) (fn [] (run-service (ur/read-model-and-config options))))
-                 :compile #(println (build/compile-model (first %)))
-                 :build #(println (build/standalone-package (first %)))
-                 :install #(println (build/install-model nil (first %)))
-                 :exec #(println (build/run-standalone-package (first %)))
-                 :calibrate-runtime #(println (build/calibrate-runtime (first %)))
-                 :repl (ur/run-repl-func options
-                                           (fn [model-name opts]
-                                             (println (ur/force-call-after-load-model
-                                                       model-name
-                                                       (fn []
-                                                         (let [model-info (ur/read-model-and-config opts)
-                                                               [[ev store] _] (ur/prepare-repl-runtime model-info)]
-                                                           (repl/run model-name store ev)))))))
-                 :nrepl (ur/run-repl-func options
-                                          (fn [model-name opts]
-                                            (let [nrepl-config (get-in opts [:-*-config-data-*- :nrepl] {})
-                                                  bind (:bind nrepl-config)
-                                                  port (or (:port nrepl-config) 7888)
-                                                  server-opts (cond-> {:port    port
-                                                                       :handler (agentlang-nrepl-handler model-name opts)}
-                                                                      bind (assoc :bind bind))]
-                                              (apply nrepl.server/start-server (mapcat identity server-opts))
-                                              (println (str "nREPL server running on port " port
-                                                            (when bind (str " and bound to " bind)))))))
-                 :publish #(println (publish-library %))
-                 :deploy #(println (d/deploy (:deploy basic-config) (first %)))
-                 :db:migrate #(ur/call-after-load-model
-                                (first %)
-                                (fn []
-                                  (db-migrate
-                                    (keyword (first %))
-                                    (second (ur/read-model-and-config options)))))}))
+            identity
+            (map #(apply (partial run-plain-option args) %)
+                 {:run               #(ur/call-after-load-model
+                                        (first %) (fn []
+                                                    (run-service
+                                                      (ur/read-model-and-config options)
+                                                      (agentlang-nrepl-handler (first %) options))))
+                  :compile           #(println (build/compile-model (first %)))
+                  :build             #(println (build/standalone-package (first %)))
+                  :install           #(println (build/install-model nil (first %)))
+                  :exec              #(println (build/run-standalone-package (first %)))
+                  :calibrate-runtime #(println (build/calibrate-runtime (first %)))
+                  :repl              (ur/run-repl-func options
+                                                       (fn [model-name opts]
+                                                         (println (ur/force-call-after-load-model
+                                                                    model-name
+                                                                    (fn []
+                                                                      (let [model-info (ur/read-model-and-config opts)
+                                                                            [[ev store] _] (ur/prepare-repl-runtime model-info)]
+                                                                        (repl/run model-name store ev)))))))
+                  :nrepl             (ur/run-repl-func options
+                                                       (fn [model-name opts]
+                                                         (let [nrepl-config (get-in opts [:-*-config-data-*- :nrepl] {})
+                                                               bind (:bind nrepl-config)
+                                                               port (or (:port nrepl-config) 7888)
+                                                               server-opts (cond-> {:port    port
+                                                                                    :handler (agentlang-nrepl-handler model-name opts)}
+                                                                                   bind (assoc :bind bind))]
+                                                           (apply nrepl.server/start-server (mapcat identity server-opts))
+                                                           (println (str "nREPL server running on port " port
+                                                                         (when bind (str " and bound to " bind)))))))
+                  :publish           #(println (publish-library %))
+                  :deploy            #(println (d/deploy (:deploy basic-config) (first %)))
+                  :db:migrate        #(ur/call-after-load-model
+                                        (first %)
+                                        (fn []
+                                          (db-migrate
+                                            (keyword (first %))
+                                            (second (ur/read-model-and-config options)))))}))
           (run-script args options)))))
