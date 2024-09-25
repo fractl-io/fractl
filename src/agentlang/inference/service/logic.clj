@@ -271,6 +271,7 @@
        (u/pretty-str
         [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe"} :as :Customer}])
        "\nThere's no need to fill in attributes marked `:optional true` or those with a `:default`, unless explicitly instructed\n"
+       "You can also ignore attributes with types `:Now` and `:Identity` - these will be automatically filled-in by the system.\n"
        "For example, if the instruction is to create customer `joe` with email `joe@acme.com` and loyalty points 6700, then you must return\n"
        (u/pretty-str
         [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe", :LoyaltyPoints 6700} :as :Customer}])
