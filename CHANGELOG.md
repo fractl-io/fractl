@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0-alpha2] - 2024-09-24
+
+- Added optional nREPL REST endpoint support to allow execution of arbitrary AgentLang code
+- Fix name truncation issue in postgres
+
 ## [0.6.0-alpha1] - 2024-09-20
 
 -  rename to agentlang
