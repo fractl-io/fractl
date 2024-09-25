@@ -7,7 +7,6 @@
             [agentlang.datafmt.json :as json]
             [agentlang.global-state :as gs]
             [agentlang.evaluator :as e]
-            [agentlang.lang.raw :as raw]
             [agentlang.inference.provider :as provider]
             [agentlang.inference.provider.core :as p]
             [agentlang.inference.embeddings.core :as ec]
@@ -310,16 +309,14 @@
        "An important note: do not return any plain text in your response, only return the vector of dataflow patterns.\n\n"))
 
 (defn- agent-tools-as-definitions [instance]
-  (loop [tools (model/lookup-agent-tools instance), s ""]
-    (if-let [tool (first tools)]
-      (let [f ((keyword (:type tool)) tool)
-            n (keyword (:name f))]
-        (if-let [spec (if (cn/entity? n)
-                        `(~'entity ~n ~(raw/find-entity n))
-                        `(~'event ~n ~(raw/find-event n)))]
-          (recur (rest tools) (str s (u/pretty-str spec) "\n\n"))
-          (u/throw-ex (str "Invalid tool - " n))))
-      s)))
+  (str
+   (when-let [cns (:ToolComponents instance)]
+     (tools/raw-components cns))
+   (tools/raw-records
+    (mapv (fn [tool]
+            (let [f ((keyword (:type tool)) tool)]
+              (keyword (:name f))))
+          (model/lookup-agent-tools instance)))))
 
 (defn handle-planner-agent [instance]
   (log-trigger-agent! instance)
@@ -327,9 +324,9 @@
                         (str generic-planner-instructions
                              "Entity definitions from user:\n\n" (agent-tools-as-definitions instance)
                              "Instruction from user:\n\n" (:UserInstruction instance)))
-        tools []#_(vec (concat
-                    (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
-                    (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
+        tools [] #_(vec (concat
+                         (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
+                         (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
         has-tools (seq tools)
         [result model-name] (handle-chat-agent
                              (if has-tools

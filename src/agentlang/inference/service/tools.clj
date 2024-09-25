@@ -123,3 +123,34 @@
           attrs (maybe-dissoc-attributes-with-defaults recname (json/decode args))]
       {recname attrs})
     (u/throw-ex (str "Invalid tool-call: " tool-call))))
+
+(defn- raw-tool [tag find-spec n]
+  (when-let [spec (find-spec n)]
+    (u/pretty-str `(~tag ~n ~spec))))
+
+(def ^:private raw-event-tool (partial raw-tool 'event raw/find-event))
+(def ^:private raw-entity-tool (partial raw-tool 'entity raw/find-entity))
+
+(defn raw-components [components]
+  (let [tools
+        (mapv (fn [component]
+                (let [component (if (string? component) (keyword component) component)
+                      event-tools (s/join
+                                   "\n"
+                                   (filter seq (mapv raw-event-tool (cn/event-names component))))
+                      entity-tools (s/join
+                                    "\n"
+                                    (filter seq (mapv raw-entity-tool (cn/entity-names component))))]
+                  (str event-tools "\n" entity-tools)))
+              components)]
+    (str (s/join "\n" tools) "\n")))
+
+(defn raw-records [names]
+  (let [tools (filter
+               seq
+               (mapv (fn [n]
+                       (if (cn/entity? n)
+                         (raw-entity-tool n)
+                         (raw-event-tool n)))
+                     names))]
+    (str (s/join "\n" tools) "\n")))
