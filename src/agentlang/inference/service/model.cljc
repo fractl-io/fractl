@@ -94,6 +94,10 @@
 
 (defn get-feature-prompt [ft] (get feature-set ft ""))
 
+(record
+ :Agentlang.Core/Inference
+ {:UserInstruction :String})
+
 (entity
  :Agentlang.Core/Agent
  {:Name {:type :String :guid true}
