@@ -130,27 +130,35 @@
 
 (def ^:private raw-event-tool (partial raw-tool 'event raw/find-event))
 (def ^:private raw-entity-tool (partial raw-tool 'entity raw/find-entity))
+(def ^:private raw-record-tool (partial raw-tool 'record raw/find-record))
+
+(defn- raw-tools [raw-tool rec-names]
+  (s/join
+   "\n"
+   (filter seq (mapv raw-tool rec-names))))
+
+(def ^:private raw-event-tools (partial raw-tools raw-event-tool))
+(def ^:private raw-entity-tools (partial raw-tools raw-entity-tool))
+(def ^:private raw-record-tools (partial raw-tools raw-record-tool))
 
 (defn raw-components [components]
   (let [tools
         (mapv (fn [component]
                 (let [component (if (string? component) (keyword component) component)
-                      event-tools (s/join
-                                   "\n"
-                                   (filter seq (mapv raw-event-tool (cn/event-names component))))
-                      entity-tools (s/join
-                                    "\n"
-                                    (filter seq (mapv raw-entity-tool (cn/entity-names component))))]
-                  (str event-tools "\n" entity-tools)))
+                      event-tools (raw-event-tools (cn/event-names component))
+                      entity-tools (raw-entity-tools (cn/entity-names component))
+                      record-tools (raw-record-tools (cn/record-names component))]
+                  (str event-tools "\n" entity-tools "\n" record-tools)))
               components)]
     (str (s/join "\n" tools) "\n")))
 
-(defn raw-records [names]
+(defn as-raw-tools [names]
   (let [tools (filter
                seq
                (mapv (fn [n]
-                       (if (cn/entity? n)
-                         (raw-entity-tool n)
-                         (raw-event-tool n)))
+                       (cond
+                         (cn/entity? n) (raw-entity-tool n)
+                         (cn/event? n) (raw-event-tool n)
+                         :else (raw-record-tool n)))
                      names))]
     (str (s/join "\n" tools) "\n")))

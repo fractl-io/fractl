@@ -189,7 +189,8 @@
 
 (entity
  :Agentlang.Core/Tool
- {:name {:type :String :guid true}
+ {:id {:type :UUID :guid true :default u/uuid-string}
+  :name :String
   :type {:type :String :default "function"}
   :description {:type :String :optional true}
   :parameters {:check tool-param? :optional true}})
@@ -246,7 +247,7 @@
   {:Agent? :Agentlang.Core/AgentTools.Agent} :as :R}
  [:for-each :R
   {:Agentlang.Core/Tool
-   {:name? :%.Tool}}])
+   {:id? :%.Tool}}])
 
 (dataflow
  :Agentlang.Core/HasAgentDocuments
