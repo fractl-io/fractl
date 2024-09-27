@@ -979,7 +979,7 @@
           (try
             (binding [ctx/dynamic-context (ctx/add-alias (ctx/make) alias)]
               (if (apply ln/dataflow event-name pats)
-                (dataflow-eval env {event-name {}})
+                (dataflow-eval (env/disable-post-event-triggers env) {event-name {}})
                 (u/throw-ex (str "failed to generate dataflow for relationships upsert - " record-name))))
             (finally
               (cn/remove-event event-name))))))))

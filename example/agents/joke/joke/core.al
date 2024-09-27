@@ -13,9 +13,9 @@
  {:Name "joke-agent"
   :Type "chat"
   :LLM "llm01"
+  :Input "Joke.Core/TellAJoke"
   :Chat {:Messages [{:role :system :content "I am an AI bot who tell jokes"}]}}}
 
 ;; Usage:
 ;; POST api/Joke.Core/TellAJoke
 ;; {"Joke.Core/TellAJoke": {"UserInstruction": "OK, tell me a joke about AGI?"}}
-(inference :TellAJoke {:agent "joke-agent"})
