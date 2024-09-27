@@ -217,7 +217,9 @@
               refs)
         deps (if (= "agentlang" model-name)
                [['agentlang.lang :refer lang-vars]]
-               [['agentlang.model] ['agentlang.lang :refer lang-vars]])]
+               [['agentlang.model]
+                ['agentlang.inference.service.model]
+                ['agentlang.lang :refer lang-vars]])]
     (concat spec deps)))
 
 (defn- merge-use-models [import-spec use-models]

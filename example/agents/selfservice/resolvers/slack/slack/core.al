@@ -4,7 +4,9 @@
                           [agentlang.component :as cn]
                           [agentlang.util :as u]
                           [agentlang.util.http :as http]
+                          [agentlang.util.logger :as log]
                           [agentlang.datafmt.json :as json]
+                          [agentlang.evaluator :as ev]
                           [agentlang.lang.internal :as li])]})
 
 (entity
@@ -13,6 +15,8 @@
             :guid true
             :default (System/getenv "SLACK_CHANNEL_ID")}
   :text :String
+  :response {:type :String :optional true}
+  :data {:type :Any :optional true}
   :mrkdwn {:type :Boolean :default true}
   :thread {:type :String :optional true}})
 
@@ -42,17 +46,34 @@
 (def ^:private http-opts {:headers {"Authorization" (str "Bearer " slack-api-key)
                                   "Content-Type" "application/json"}})
 
-(defn- create-chat [api-name instance]
-  (let [data (dissoc instance :-*-type-*- :type-*-tag-*- :thread)
-        url (get-url (str "/" api-name))
-        response (http/do-post url http-opts data)]
-    (handle-response response instance)))
+(defn- extract-approval [response]
+  (let [status (:status response)
+        body (:body response)]
+    (when (= 200 status)
+      (let [output-decoded (json/decode body)]
+        (when (:ok output-decoded)
+          (let [messages (:messages output-decoded)]
+            (when (>= (count messages) 2)
+              (let [r (first
+                       (ev/safe-eval
+                        {:Slack.Core/InvokeResponseClassifier
+                         {:UserInstruction
+                          (s/lower-case (s/trim (:text (second messages))))}}))]
+                (log/debug (str "slack-resolver/extract-approval: " r))
+                r))))))))
 
-(defn create-entity [instance]
-  (let [[c n] (li/split-path (cn/instance-type instance))]
-    (if (= n :Chat)
-      (create-chat "chat.postMessage" instance)
-      instance)))
+(defn wait-for-reply [{channel :channel ts :thread}]
+  (let [url (get-url (str "/conversations.replies?ts=" ts "&channel=" channel))
+        f (fn [] (Thread/sleep (* 10 1000)) (http/do-get url http-opts))
+        r
+        (loop [response (f), retries 50]
+          (if (zero? retries)
+            "reject"
+            (if-let [r (extract-approval response)]
+              r
+              (recur (f) (dec retries)))))]
+    (log/debug (str "slack-resolver/wait-for-reply: " r))
+    r))
 
 (defn- normalize-email [email]
   (if-let [idx (s/index-of email ":")]
@@ -62,11 +83,31 @@
     email))
 
 (defn- parse-approval-data [s]
-  (when-let [idx (s/index-of s "{")]
-    (let [data (json/decode (subs s idx))]
-      (if-let [email (:Email data)]
-        (assoc data :Email (normalize-email email))
-        data))))
+  (let [r (first
+           (ev/safe-eval
+            {:Slack.Core/InvokeDataExtractor
+             {:UserInstruction s}}))]
+    (log/debug (str "slack-resolver/parse-approval-data: " s ", result: " r))
+    r)
+  #_(when-let [idx (s/index-of s "{")]
+      (let [data (json/decode (subs s idx))]
+        (if-let [email (:Email data)]
+          (assoc data :Email (normalize-email email))
+          data))))
+
+(defn- create-chat [api-name instance]
+  (let [data (dissoc instance :-*-type-*- :type-*-tag-*- :thread)
+        url (get-url (str "/" api-name))
+        response (http/do-post url http-opts data)
+        new-instance (handle-response response instance)]
+    (assoc new-instance :response (wait-for-reply new-instance)
+           :data (parse-approval-data (:text instance)))))
+
+(defn create-entity [instance]
+  (let [[c n] (li/split-path (cn/instance-type instance))]
+    (if (= n :Chat)
+      (create-chat "chat.postMessage" instance)
+      instance)))
 
 (defn- extract-approval-instance [response]
   (let [status (:status response)
@@ -99,43 +140,44 @@
     (when-let [[ts channel] (extract-query-params where)]
       (let [url (get-url (str "/conversations.replies?ts=" ts "&channel=" channel))
             f (fn [] (Thread/sleep (* 10 1000)) (http/do-get url http-opts))]
-        (u/trace
-         (loop [response (f), retries 50]
-           (if (zero? retries)
-             [(cn/make-instance :Slack.Core/Approval {})] ; reject approval after `n` retries.
-             (if-let [r (extract-approval-instance response)]
-               [r]
-               (recur (f) (dec retries))))))))))
+        (loop [response (f), retries 50]
+          (if (zero? retries)
+            [(cn/make-instance :Slack.Core/Approval {})] ; reject approval after `n` retries.
+            (if-let [r (extract-approval-instance response)]
+              [r]
+              (recur (f) (dec retries)))))))))
+
+{:Agentlang.Core/LLM {:Type "openai" :Name "slack-resolver-llm"}}
+
+{:Agentlang.Core/Agent
+ {:Name "slack-response-classifier"
+  :Type "chat"
+  :LLM "slack-resolver-llm"
+  :UserInstruction
+  "Classify the input text to one of the categories - approve or reject.
+For example if the input is `you can join the team`, your response must be `approve`.
+If the input is `sorry, can't allow`, your response must be `reject`.
+If you are unable to classify the text, simply return `reject`.
+(Do not include the ticks (`) in your response).
+Now please classify the following text following these rules.\n\n"}}
+
+(event :InvokeResponseClassifier {:meta {:inherits :Agentlang.Core/Inference}})
+(inference :InvokeResponseClassifier {:agent "slack-response-classifier"})
+
+{:Agentlang.Core/Agent
+ {:Name "slack-data-extactor"
+  :Type "chat"
+  :LLM "slack-resolver-llm"
+  :UserInstruction
+  "Extract the user email, github organization and ticket Id from a given text.
+For example, if the input text is \"Please approve jane@acme.com to join the github org acme. The request id is 23445.\",
+then your response must be `{:Email \"jane@acme.com\" :Org \"acme\" :Id \"23445\"}`."}}
+
+(event :InvokeDataExtractor {:meta {:inherits :Agentlang.Core/Inference}})
+(inference :InvokeDataExtractor {:agent "slack-data-extactor"})
 
 (resolver
  :Slack.Core/Resolver
  {:with-methods {:create create-entity
                  :query get-entity}
   :paths [:Slack.Core/Chat :Slack.Core/Approval]})
-
-(def agent-instructions
-  (str "Convert an array of json objects into a sequence of dataflows that represent a specific business process. An example \n"
-       "input is `[{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}]` and it represents a sequence of user-requests to join \n"
-       "a Github organization. These requests needs to be pushed to a slack channel, where they are reviewed and either approved \n"
-       "or rejected by a manager. This can be accomplished by the following dataflow: \n"
-       (u/pretty-str
-        [{:Slack.Core/Chat {:text "Please *approve* or *reject* the Github membership request `{\"Org\": \"acme-dev\", \"Email\": \"kate@acme.com\"}`"} :as :Chat}
-         [:await
-          {:Slack.Core/Approval
-           {:thread? :Chat.thread
-            :channel? :Chat.channel}
-           :as [:Approval]}
-          :ok
-          [:match
-           [:= :Approval.approved true] [{:Ticket.Core/TicketComment
-                                          {:TicketId :Approval.data.Id
-                                           :Body "approved"}}
-                                         {:Ticket.Core/GithubMember
-                                          {:Org :Approval.data.Org
-                                           :Email :Approval.data.Email}}]
-           ;; else
-           {:Ticket.Core/TicketComment
-            {:TicketId :Approval.data.Id
-             :Body "rejected"}}]]])
-       "\n\nFor any input you receive return a similar sequence of dataflow patterns. Do not return any other text or \n"
-       "include data from the above example in your response, consider only the input you receive.\n"))
