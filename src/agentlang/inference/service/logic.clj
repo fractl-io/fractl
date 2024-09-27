@@ -87,50 +87,6 @@
 (defn- log-trigger-agent! [instance]
   (log/info (str "Triggering " (:Type instance) " agent - " (u/pretty-str instance))))
 
-(defn handle-planner-agent-deperecated [instance]
-  (log-trigger-agent! instance)
-  (p/call-with-provider
-   (model/ensure-llm-for-agent instance)
-   #(let [app-uuid (:AppUuid instance)
-          question (:UserInstruction instance)
-          qcontext (:Context instance)
-          agent-config {:is-planner? true
-                        :tools (model/lookup-agent-tools instance)
-                        :docs "" ; TODO: lookup agent docs
-                        :make-prompt (when-let [pfn (model/agent-prompt-fn instance)]
-                                       (partial pfn instance))}
-          options {:use-schema? true :use-docs? true}]
-      (answer-question app-uuid question (or qcontext {}) options agent-config))))
-
-(defn- verify-analyzer-extension [ext]
-  (when ext
-    (when-not (u/keys-in-set? ext #{:Comment :OutputEntityType
-                                    :OutputAttributes :OutputAttributeValues})
-      (u/throw-ex (str "Invalid keys in analyzer agent extension")))
-    ext))
-
-(defn handle-analysis-agent [instance]
-  (log-trigger-agent! instance)
-  (p/call-with-provider
-   (model/ensure-llm-for-agent instance)
-   #(let [question (:UserInstruction instance)
-          qcontext (:Context instance)
-          ext (verify-analyzer-extension (:Extension instance))
-          out-type (:OutputEntityType ext)
-          out-scm (cn/ensure-schema out-type)
-          pfn (model/agent-prompt-fn instance)
-          agent-config
-          (assoc
-           (if pfn
-             {:make-prompt (partial pfn instance)}
-             {:information-type (:Comment ext)
-              :output-keys (or (:OutputAttributes ext)
-                               (vec (cn/user-attribute-names out-scm)))
-              :output-key-values (or (:OutputAttributeValues ext)
-                                     (cn/schema-as-string out-scm))})
-           :result-entity out-type)]
-      (answer-question-analyze question (or qcontext {}) agent-config))))
-
 (defn- format-as-agent-response [agent-instance result]
   ;; TODO: response parsing should also move to agent-registry,
   ;; one handler will be needed for each type of agent.
@@ -314,6 +270,7 @@
          {:Email :E1.Email
           :Message '(str "hello " :E1.Name ", welcome aboard!")}
          :as :AnEmailMessage})
+       "\nIf the user instruction contains an `:Input` instance, please add that also to the top of the dataflow."
        "\nNote the function call expression is preceded by a single-quote and references uses a simple dot-notation. "
        "There's no parenthesis needed for references."
        "\nAnother important thing you should keep in mind: your response must not include any objects from the previous "
@@ -336,6 +293,7 @@
                              "Entity definitions from user:\n\n" (agent-tools-as-definitions instance)
                              "Instruction from user:\n\n" (:UserInstruction instance)))
         _ (log/debug (str "Updated instruction for agent " (:Name instance) ": " (:UserInstruction instance)))
+        _ (println (:UserInstruction instance))
         tools [] #_(vec (concat
                          (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
                          (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
