@@ -1,4 +1,4 @@
-(defproject com.github.agentlang-ai/agentlang "0.6.0-alpha1"
+(defproject com.github.agentlang-ai/agentlang "0.6.0-alpha2"
   :dependencies [[org.clojure/clojure "1.12.0"]
                  [org.clojure/clojurescript "1.11.132"
                   :exclusions [com.google.code.findbugs/jsr305]]
@@ -53,7 +53,8 @@
                  [com.github.fractl-io/fractl-config-secrets-reader "0.1.0"]
                  [nrepl "1.1.1"]
                  [camel-snake-kebab "0.4.3"]
-                 [stringer "0.4.1"]]
+                 [stringer "0.4.1"]
+                 [nrepl/drawbridge "0.2.1"]]
 
   :license {:name "Apache2"}
 

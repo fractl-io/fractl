@@ -246,11 +246,99 @@
     (seqable? r) (vec r)
     :else r))
 
+(def ^:private generic-planner-instructions
+  (str "Consider the following entity definitions:\n"
+       (u/pretty-str
+        '(entity
+          :Acme.Core/Customer
+          {:Email {:type :Email :guid true}
+           :Name :String
+           :Address {:type :String :optional true}
+           :LoyaltyPoints {:type :Int :default 50}}))
+       "\n\n"
+       (u/pretty-str
+        '(entity
+          :Acme.Core/PlatinumCustomer
+          {:Email :Email}))
+       "\n\n"
+       (u/pretty-str
+        '(entity
+          :Acme.Core/GoldenCustomer
+          {:Email :Email}))
+       "\n\nIf the instruction given to you is to construct a customer instance with name `joe` and email `joe@acme.com`,\n"
+       "you must return the pattern:\n"
+       (u/pretty-str
+        [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe"} :as :Customer}])
+       "\nThere's no need to fill in attributes marked `:optional true` or those with a `:default`, unless explicitly instructed\n"
+       "You can also ignore attributes with types `:Now` and `:Identity` - these will be automatically filled-in by the system.\n"
+       "For example, if the instruction is to create customer `joe` with email `joe@acme.com` and loyalty points 6700, then you must return\n"
+       (u/pretty-str
+        [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe", :LoyaltyPoints 6700} :as :Customer}])
+       "\nYou can also generate patterns that are evaluated against conditions, using the `:match` clause. For example,\n"
+       "if the instruction is to create a customer named `joe` with email `joe@acme.com` and then apply the following \n"
+       "business rules:\n"
+       "1. If the loyalty-points is 50, return the customer instance.\n"
+       "2. If the loyalty-points is greater than 50 and less than 1000, mark the customer as golden.\n"
+       "3. Otherwise, mark the customer as platinum\n"
+       "Given the above instruction, you must return the following dataflow patterns:\n"
+       (u/pretty-str
+        [{:Acme.Core/Customer {:Name "joe" :Email "joe@acme.com"} :as :Customer}
+         [:match
+          [:= :Customer.LoyaltyPoints 50] [:Customer]
+          [:and [:> :Customer.LoyaltyPoints 50] [:< :Customer.LoyaltyPoints 1000]]
+          [{:Acme.Core/GoldenCustomer {:Email :Customer.Email}}]
+          [{:Acme.Core/PlatinumCustomer {:Email :Customer.Email}}]]])
+       "\n\nConsider the syntax of the `:match` pattern - there are conditions and consequences. `[:= :Customer.LoyaltyPoints 50]` "
+       "is an example of a condition. `[:Customer]` is its consequence. There is also an `else` part for `:match`, which is a "
+       "pattern that will be evaluated if all conditions return false. In this example "
+       "`[{:Acme.Core/PlatinumCustomer {:Email :Customer.Email}}]` is the else-pattern.\n"
+       "In addition to entities, you may also create patterns to invoke AI agents. Such invocations will look like:\n"
+       (u/pretty-str
+        {:Acme.Core/InvokeAnAgent
+         {:UserInstruction "hello, there"}
+         :as [:ResponseFromAgent]})
+       "\n\nResponse from an agent is usually some text and can be handled in a `:match` patterns as:\n"
+       (u/pretty-str
+        [:match :ResponseFromAgent
+         "hi" "happy"
+         "hello" "happy"
+         "sad"])
+       "\n\nThat was a simple example on invoking ai agents from dataflow patterns.\n"
+       "Now that you understand how to translate business workflows (or dataflows) into entity and `:match` patterns "
+       "consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns. "
+       "An important note: do not return any plain text in your response, only return the vector of dataflow patterns.\n"
+       "If your input contains patterns of instances like `{:Acme.Core/Employee {:Name \"sam\" :Salary 1000 :Email \"sam@came.com\"} :as :E1}`, keep those "
+       "at the top of the generated dataflow so that reference to `:E1` can be used later. An example of such usage is: \n"
+       (u/pretty-str
+        {:Acme.Core/EmailMessage
+         {:Email :E1.Email
+          :Message '(str "hello " :E1.Name ", welcome aboard!")}
+         :as :AnEmailMessage})
+       "\nNote the function call expression is preceded by a single-quote and references uses a simple dot-notation. "
+       "There's no parenthesis needed for references."
+       "\nAnother important thing you should keep in mind: your response must not include any objects from the previous "
+       "examples. Your response should only make use of the entities and other definitions provided by the user below.\n\n"))
+
+(defn- agent-tools-as-definitions [instance]
+  (str
+   (when-let [cns (:ToolComponents instance)]
+     (tools/raw-components cns))
+   (tools/as-raw-tools
+    (mapv (fn [tool]
+            (let [f ((keyword (:type tool)) tool)]
+              (keyword (:name f))))
+          (model/lookup-agent-tools instance)))))
+
 (defn handle-planner-agent [instance]
   (log-trigger-agent! instance)
-  (let [tools (vec (concat
-                    (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
-                    (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
+  (let [instance (assoc instance :UserInstruction
+                        (str generic-planner-instructions
+                             "Entity definitions from user:\n\n" (agent-tools-as-definitions instance)
+                             "Instruction from user:\n\n" (:UserInstruction instance)))
+        _ (log/debug (str "Updated instruction for agent " (:Name instance) ": " (:UserInstruction instance)))
+        tools [] #_(vec (concat
+                         (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
+                         (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
         has-tools (seq tools)
         [result model-name] (handle-chat-agent
                              (if has-tools
@@ -263,7 +351,9 @@
                      (read-string result)
                      result))]
     (if (seq patterns)
-      [(format-planner-result (u/safe-ok-result (e/eval-patterns :Agentlang.Core patterns))) model-name]
+      (do (log/debug (str "Patterns generated by " (:Name instance) ": "
+                          (u/pretty-str patterns)))
+          [(format-planner-result (u/safe-ok-result (e/eval-patterns :Agentlang.Core patterns))) model-name])
       [{:result :noop} model-name])))
 
 (defn handle-ocr-agent [instance]

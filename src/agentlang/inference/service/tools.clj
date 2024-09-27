@@ -123,3 +123,42 @@
           attrs (maybe-dissoc-attributes-with-defaults recname (json/decode args))]
       {recname attrs})
     (u/throw-ex (str "Invalid tool-call: " tool-call))))
+
+(defn- raw-tool [tag find-spec n]
+  (when-let [spec (find-spec n)]
+    (u/pretty-str `(~tag ~n ~spec))))
+
+(def ^:private raw-event-tool (partial raw-tool 'event raw/find-event))
+(def ^:private raw-entity-tool (partial raw-tool 'entity raw/find-entity))
+(def ^:private raw-record-tool (partial raw-tool 'record raw/find-record))
+
+(defn- raw-tools [raw-tool rec-names]
+  (s/join
+   "\n"
+   (filter seq (mapv raw-tool rec-names))))
+
+(def ^:private raw-event-tools (partial raw-tools raw-event-tool))
+(def ^:private raw-entity-tools (partial raw-tools raw-entity-tool))
+(def ^:private raw-record-tools (partial raw-tools raw-record-tool))
+
+(defn raw-components [components]
+  (let [tools
+        (mapv (fn [component]
+                (let [component (if (string? component) (keyword component) component)
+                      event-tools (raw-event-tools (cn/event-names component))
+                      entity-tools (raw-entity-tools (cn/entity-names component))
+                      record-tools (raw-record-tools (cn/record-names component))]
+                  (str event-tools "\n" entity-tools "\n" record-tools)))
+              components)]
+    (str (s/join "\n" tools) "\n")))
+
+(defn as-raw-tools [names]
+  (let [tools (filter
+               seq
+               (mapv (fn [n]
+                       (cond
+                         (cn/entity? n) (raw-entity-tool n)
+                         (cn/event? n) (raw-event-tool n)
+                         :else (raw-record-tool n)))
+                     names))]
+    (str (s/join "\n" tools) "\n")))
