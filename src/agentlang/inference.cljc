@@ -61,8 +61,13 @@
                                                (or (maybe-feature-instruction agent-instance) "")
                                                "\n"
                                                (or instructions "")
-                                               "\n"
-                                               (or (get-in agent-instance [:Context :UserInstruction]) "")))))
+                                               (when-let [ctx (:Context agent-instance)]
+                                                 (str "\n" (or (:UserInstruction ctx) "")
+                                                      (when-let [input-type (:Input agent-instance)]
+                                                        (str "\nFull input object to agent instance:\n"
+                                                             (u/pretty-str {(u/string-as-keyword input-type)
+                                                                            (cn/instance-attributes ctx)
+                                                                            :as :Input})))))))))
          r0 (or (:Response agent-instance) agent-instance)
          r1 (if (string? r0) (edn/read-string r0) r0)
          result (if-let [f (model/agent-response-handler agent-instance)] (f r1) r1)
