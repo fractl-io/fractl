@@ -368,6 +368,29 @@
                  :schema (cn/schema-info c)
                  :component-edn (str (vec (rest (lr/as-edn c))))}))))))
 
+;; TODO: Added for testing jira-webhooks, should be moved to the jira-resolver.
+(defn- process-webhooks [request]
+  (let [issue (:issue (json/decode (String. (.bytes (:body request)))))
+        fields (:fields issue)
+        desc (:description fields)]
+    (if (seq desc)
+      (let [inst (cn/make-instance
+                  :Ticket.Core/Ticket
+                  {:Id (read-string (:id issue))
+                   :Title (:summary fields)
+                   :Content (if (string? desc)
+                              desc
+                              (:content desc))})
+            result (first
+                    (ev/eval-all-dataflows
+                     (cn/make-instance {:Selfservice.Core/ProcessWebhook
+                                        {:Tickets [inst]}})))
+            final-result (dissoc result :env)]
+        (if (= :ok (:status final-result))
+          (ok final-result)
+          (internal-error final-result)))
+      (ok {:result "done"}))))
+
 (defn- process-gpt-chat [[_ maybe-unauth] request]
   (or (maybe-unauth request)
       (let [[map-obj _ err-response] (request-object request)]
@@ -1222,6 +1245,7 @@
            (GET "/meta" [] (:meta handlers))
            (GET "/meta/:component" [] (:meta handlers))
            (POST uh/post-inference-service-question [] (:post-inference-service-question handlers))
+           (POST "/webhooks" [] (:webhooks handlers))
            (GET "/" [] process-root-get)
            (not-found "<p>Resource not found</p>"))
         r-with-auth (if auth-config
@@ -1332,20 +1356,65 @@
    (let [core-component-name (first (cn/remove-internal-components (cn/component-names)))
          schema (cn/schema-info core-component-name)
          contains-graph-map (gg/generate-contains-graph schema)
-         [auth _ :as auth-info] (make-auth-handler config)
-         app-config (gs/get-app-config)
-         graphql-enabled (get-in app-config [:graphql :enabled] true)
-         nrepl-env-value (System/getenv "NREPL_ENDPOINT_ENABLED")
-         nrepl-config-enabled (get-in app-config [:nrepl :enabled] false)
-         nrepl-enabled (if (some? nrepl-env-value)
-                         (Boolean/parseBoolean nrepl-env-value)
-                         nrepl-config-enabled)]
-
-     (when graphql-enabled
-       (generate-graphql-schema core-component-name schema contains-graph-map))
-
-     (if nrepl-enabled
-       (start-http-server evaluator config auth auth-info true nrepl-handler)
-       (start-http-server evaluator config auth auth-info false nil))))
-  ([evaluator nrepl-handler]
-   (run-server evaluator {} nrepl-handler)))
+         [auth _ :as auth-info] (make-auth-handler config)]
+     (let [app-config (gs/get-app-config)
+           graphql-enabled (get-in app-config [:graphql :enabled] true)]
+       (when graphql-enabled
+         (try
+           ;; attempt to compile the GraphQL schema
+           (let [[uninjected-graphql-schema injected-graphql-schema entity-metadatas]
+                 (graphql/compile-graphql-schema schema contains-graph-map)]
+             ;; save schema to global variable and file
+             (graphql/save-schema uninjected-graphql-schema)
+             (reset! core-component core-component-name)
+             (reset! graphql-schema injected-graphql-schema)
+             (reset! graphql-entity-metas entity-metadatas)
+             (reset! contains-graph contains-graph-map)
+             (log/info "GraphQL schema generation and resolver injection succeeded."))
+           (catch Exception e
+             (log/error (str "Failed to compile GraphQL schema:"
+                             (str/join "\n" (.getStackTrace e))))))))
+     (if (or (not auth) (auth-service-supported? auth))
+       (let [config (merge {:port 8080 :thread (+ 1 (u/n-cpu))} config)]
+         (println (str "The HTTP server is listening on port " (:port config)))
+         (h/run-server
+          (make-routes
+           config auth
+           {:graphql (partial graphql-handler auth-info)
+            :login (partial process-login evaluator auth-info)
+            :logout (partial process-logout auth)
+            :signup (partial
+                     process-signup evaluator
+                     (:call-post-sign-up-event config) auth-info)
+            :confirm-sign-up (partial process-confirm-sign-up auth)
+            :get-user (partial process-get-user auth)
+            :update-user (partial process-update-user auth)
+            :forgot-password (partial process-forgot-password auth)
+            :confirm-forgot-password (partial process-confirm-forgot-password auth)
+            :change-password (partial process-change-password auth)
+            :refresh-token (partial process-refresh-token auth)
+            :resend-confirmation-code (partial process-resend-confirmation-code auth)
+            :put-request (partial process-put-request evaluator auth-info)
+            :post-request (partial process-post-request evaluator auth-info)
+            :get-request (partial process-get-request evaluator auth-info)
+            :delete-request (partial process-delete-request evaluator auth-info)
+            :start-debug-session (partial process-start-debug-session evaluator auth-info)
+            :debug-step (partial process-debug-step evaluator auth-info)
+            :debug-continue (partial process-debug-continue evaluator auth-info)
+            :delete-debug-session (partial process-delete-debug-session evaluator auth-info)
+            :query (partial process-query evaluator auth-info)
+            :eval (partial process-dynamic-eval evaluator auth-info nil)
+            :ai (partial process-gpt-chat auth-info)
+            :auth (partial process-auth evaluator auth-info)
+            :auth-callback (partial
+                            process-auth-callback evaluator
+                            (:call-post-sign-up-event config) auth-info)
+            :register-magiclink (partial process-register-magiclink auth-info auth)
+            :get-magiclink (partial process-get-magiclink auth-info)
+            :preview-magiclink (partial process-preview-magiclink auth-info)
+            :webhooks process-webhooks
+            :meta (partial process-meta-request auth-info)})
+          config))
+       (u/throw-ex (str "authentication service not supported - " (:service auth))))))
+  ([evaluator]
+   (run-server evaluator {})))

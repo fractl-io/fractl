@@ -454,3 +454,6 @@
   Not all keys are mandatory, and a-map may be empty."
   [a-map expected-keys]
   (= (set/union expected-keys (keys a-map)) expected-keys))
+
+(defn as-agent-tools [ks]
+  (mapv (fn [k] {:name (subs (str k) 1)}) ks))
