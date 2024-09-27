@@ -10,13 +10,13 @@
 
 (entity
  :Ticket
- {:Id {:type :Int :guid true}
+ {:Id {:type :Any :guid true}
   :Title :String
   :Content {:type :String :optional true}})
 
 (entity
  :TicketComment
- {:TicketId :Int
+ {:TicketId :Any
   :Body :String})
 
 (entity
