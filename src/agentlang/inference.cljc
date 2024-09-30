@@ -49,6 +49,12 @@
         (str s (s/join "\n" fts)))
       s)))
 
+(defn input-instance [agent ctx]
+  (when-let [input-type (:Input agent)]
+    (let [attrs (dissoc (cn/instance-attributes ctx) :UserInstruction :EventContext)]
+      (when (seq attrs)
+        {(u/string-as-keyword input-type) attrs}))))
+
 (defn run-inference-for-event
   ([event instructions agent-instance]
    (when-not agent-instance (u/throw-ex (str "Agent not initialized for " event)))
@@ -63,11 +69,9 @@
                                                (or instructions "")
                                                (when-let [ctx (:Context agent-instance)]
                                                  (str "\n" (or (:UserInstruction ctx) "")
-                                                      (when-let [input-type (:Input agent-instance)]
+                                                      (when-let [input-inst (input-instance agent-instance ctx)]
                                                         (str "\nFull input object to agent instance:\n"
-                                                             (u/pretty-str {(u/string-as-keyword input-type)
-                                                                            (cn/instance-attributes ctx)
-                                                                            :as :Input})))))))))
+                                                             (u/pretty-str (assoc input-inst :as :Input))))))))))
          r0 (or (:Response agent-instance) agent-instance)
          r1 (if (string? r0) (edn/read-string r0) r0)
          result (if-let [f (model/agent-response-handler agent-instance)] (f r1) r1)

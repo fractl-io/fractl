@@ -6,11 +6,12 @@
                           [agentlang.util.seq :as us]
                           [agentlang.datafmt.json :as json]
                           [agentlang.component :as cn]
+                          [agentlang.lang.internal :as li]
                           [agentlang.lang.b64 :as b64])]})
 
 (entity
  :Ticket
- {:Id {:type :Any :guid true}
+ {:Id {:type :Any :guid true :read-only true}
   :Title :String
   :Content {:type :String :optional true}})
 
@@ -76,7 +77,7 @@
    "type" "doc"
    "version" 1})
 
-(defn ticket-comment-create [connection instance]
+(defn create-comment [connection instance]
   (let [url (str (:root-url connection) "/rest/api/3/issue/" (:TicketId instance) "/comment")
         headers (make-headers connection)
         body {:body (make-comment-body (:Body instance))}
@@ -84,6 +85,28 @@
     (if (or (= 201 status) (= 200 status))
       instance
       (log/warn (str "create ticket-comment returned status: " status)))))
+
+(defn create-issue [connection instance]
+  (let [url (str (:root-url connection) "/rest/api/3/issue")
+        headers (make-headers connection)
+        body {"fields" {"description"
+                        {"content" [{"content" [{"text" (:Content instance) "type" "text"}]
+                                     "type" "paragraph"}]
+                         "type" "doc"
+                         "version" 1}
+                        "issuetype" {"id" "10001"}
+                        "project" {"key" "SCRUM"}
+                        "summary" (:Title instance)}}
+        {status :status :as response} (http/do-post url headers body)]
+    (if (or (= 201 status) (= 200 status))
+      instance
+      (log/warn (str "create ticket failed with: " status ", " response)))))
+
+(defn ticket-create [connection instance]
+  ((case (second (li/split-path (cn/instance-type instance)))
+     :Comment create-comment
+     :Ticket create-issue)
+   connection instance))
 
 (def tickets-connection-info
   {:root-url (u/getenv "TICKETS_ROOT_URL")
@@ -94,7 +117,7 @@
  :TicketResolver
  {:with-methods
   {:query (partial ticket-query tickets-connection-info)
-   :create (partial ticket-comment-create tickets-connection-info)}
+   :create (partial ticket-create tickets-connection-info)}
   :paths [:Ticket.Core/Ticket :Ticket.Core/TicketComment]})
 
 (defn- github-member-post [api-token inst]

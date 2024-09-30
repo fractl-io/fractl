@@ -51,3 +51,26 @@ github org, email and ticket id as attributes."
  :ProcessWebhook
  [:eval (quote (ticket.core/as-json :ProcessWebhook.Tickets)) :as :S]
  {:InvokeSelfService {:UserInstruction :S}})
+
+{:Agentlang.Core/Agent
+ {:Name "tickets-agent"
+  :Type "planner"
+  :LLM "llm01"
+  :Tools [{:name "Ticket.Core/Ticket"}]
+  :UserInstruction
+  "You are an agent that converts a sequence of requests to join a github organization to tickets.
+The content of the ticket must contain both the github org and the user's email."}}
+
+{:Agentlang.Core/Agent
+ {:Name "orchestrator-agent"
+  :Type "orchestrator"
+  :Chat {:Messages [{:role :system
+                     :content (str "You are an agent who help users provision github accounts. "
+                                   "For this a user has to provide his/her email address and the name of the "
+                                   "Github organization.\nOnce you have all the details, return the organization and email in the format:\n"
+                                   "{\"Organization\": <user-provided-github-org-name-here>, \"Email\": <user's-email-here>}.\n"
+                                   "Do not add any other text to your final response.")}]}
+  :LLM "llm01"
+  :Delegates {:To "tickets-agent"}}}
+
+(inference :InvokeOrchestrator {:agent "orchestrator-agent"})

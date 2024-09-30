@@ -173,6 +173,48 @@
           instance (assoc instance :UserInstruction final-instruction)]
       (compose-agents instance (provider/make-completion instance)))))
 
+(defn- start-chat [agent-instance]
+  ;; TODO: integrate messaging resolver
+  (println (str (:Name agent-instance) ": " (:UserInstruction agent-instance)))
+  (:ChatUuid agent-instance))
+
+(defn- get-next-chat-message [_]
+  ;; TODO: integrate messaging resolver
+  (print " ? ")
+  (flush)
+  (read-line))
+
+(defn- make-chat-completion [instance]
+  (let [agent-name (:Name instance)
+        chat-id (start-chat instance)]
+    (loop [iter 0, instance instance]
+      (if (< iter 5)
+        (let [[result _ :as r] (provider/make-completion instance)
+              chat-session (model/lookup-agent-chat-session instance)
+              msgs (:Messages chat-session)]
+          (log/debug (str "Response " iter " from " agent-name " - " result))
+          (if (= \{ (first (s/trim result)))
+            (do (println (str agent-name ": Thanks, your request is queued for processing."))
+                r)
+            (do (println (str agent-name ": " result))
+                (model/update-agent-chat-session
+                 chat-session
+                 (vec (concat msgs [{:role :user :content (get-next-chat-message chat-id)}])))
+                (recur (inc iter) (if (zero? iter) (dissoc instance :UserInstruction) instance)))))
+        (do (println (str agent-name ": session expired"))
+            [(json/encode {:error "chat session with agent " agent-name " has expired."}) "agentlang"])))))
+
+(defn handle-orchestrator-agent [instance]
+  (log-trigger-agent! instance)
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(let [ins (:UserInstruction instance)
+          docs (maybe-lookup-agent-docs instance)
+          preprocessed-instruction (call-preprocess-agents instance)
+          final-instruction (maybe-add-docs docs (or preprocessed-instruction ins))
+          instance (assoc instance :UserInstruction final-instruction)]
+      (compose-agents instance (make-chat-completion instance)))))
+
 (defn- maybe-eval-patterns [[response _]]
   (if (string? response)
     (if-let [pats
@@ -225,7 +267,7 @@
        "you must return the pattern:\n"
        (u/pretty-str
         [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe"} :as :Customer}])
-       "\nThere's no need to fill in attributes marked `:optional true` or those with a `:default`, unless explicitly instructed\n"
+       "\nThere's no need to fill in attributes marked `:optional true`, `:read-only true` or those with a `:default` value, unless explicitly instructed.\n"
        "You can also ignore attributes with types `:Now` and `:Identity` - these will be automatically filled-in by the system.\n"
        "For example, if the instruction is to create customer `joe` with email `joe@acme.com` and loyalty points 6700, then you must return\n"
        (u/pretty-str
@@ -293,7 +335,6 @@
                              "Entity definitions from user:\n\n" (agent-tools-as-definitions instance)
                              "Instruction from user:\n\n" (:UserInstruction instance)))
         _ (log/debug (str "Updated instruction for agent " (:Name instance) ": " (:UserInstruction instance)))
-        _ (println (:UserInstruction instance))
         tools [] #_(vec (concat
                          (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
                          (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
