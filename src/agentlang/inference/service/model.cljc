@@ -3,6 +3,7 @@
             [clojure.set :as set]
             [agentlang.lang :refer [component
                                     dataflow
+                                    inference
                                     entity
                                     event
                                     record
@@ -107,10 +108,28 @@
   :ChatUuid {:type :UUID :default u/uuid-string}
   :UserInstruction {:type :String :optional true}
   :ToolComponents {:check tool-components-list? :optional true}
-  :Extension {:type :Map :optional true}
+  :Input {:type :String :optional true}
   :Context {:type :Map :optional true}
   :Response {:type :Any :read-only true}
   :CacheChatSession {:type :Boolean :default true}})
+
+(defn maybe-define-inference-event [event-name]
+  (if (cn/find-schema event-name)
+    (if (cn/event? event-name)
+      event-name
+      (u/throw-ex (str "not an event - " event-name)))
+    (event {event-name {:UserInstruction :Agentlang.Kernel.Lang/String}})))
+
+(defn maybe-input-as-inference [agent]
+  (when-let [input (:Input agent)]
+    (let [n (u/string-as-keyword input)]
+      (when (maybe-define-inference-event n)
+        (inference n {:agent (:Name agent)}))))
+  agent)
+
+(dataflow
+ [:after :create :Agentlang.Core/Agent]
+ [:eval '(agentlang.inference.service.model/maybe-input-as-inference :Instance)])
 
 (def ^:private agent-callbacks (atom nil))
 

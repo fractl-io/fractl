@@ -87,21 +87,6 @@
 (defn- log-trigger-agent! [instance]
   (log/info (str "Triggering " (:Type instance) " agent - " (u/pretty-str instance))))
 
-(defn handle-planner-agent-deperecated [instance]
-  (log-trigger-agent! instance)
-  (p/call-with-provider
-   (model/ensure-llm-for-agent instance)
-   #(let [app-uuid (:AppUuid instance)
-          question (:UserInstruction instance)
-          qcontext (:Context instance)
-          agent-config {:is-planner? true
-                        :tools (model/lookup-agent-tools instance)
-                        :docs "" ; TODO: lookup agent docs
-                        :make-prompt (when-let [pfn (model/agent-prompt-fn instance)]
-                                       (partial pfn instance))}
-          options {:use-schema? true :use-docs? true}]
-      (answer-question app-uuid question (or qcontext {}) options agent-config))))
-
 (defn- verify-analyzer-extension [ext]
   (when ext
     (when-not (u/keys-in-set? ext #{:Comment :OutputEntityType
@@ -217,6 +202,48 @@
           instance (assoc instance :UserInstruction final-instruction)]
       (compose-agents instance (provider/make-completion instance)))))
 
+(defn- start-chat [agent-instance]
+  ;; TODO: integrate messaging resolver
+  (println (str (:Name agent-instance) ": " (:UserInstruction agent-instance)))
+  (:ChatUuid agent-instance))
+
+(defn- get-next-chat-message [_]
+  ;; TODO: integrate messaging resolver
+  (print " ? ")
+  (flush)
+  (read-line))
+
+(defn- make-chat-completion [instance]
+  (let [agent-name (:Name instance)
+        chat-id (start-chat instance)]
+    (loop [iter 0, instance instance]
+      (if (< iter 5)
+        (let [[result _ :as r] (provider/make-completion instance)
+              chat-session (model/lookup-agent-chat-session instance)
+              msgs (:Messages chat-session)]
+          (log/debug (str "Response " iter " from " agent-name " - " result))
+          (if (= \{ (first (s/trim result)))
+            (do (println (str agent-name ": Thanks, your request is queued for processing."))
+                r)
+            (do (println (str agent-name ": " result))
+                (model/update-agent-chat-session
+                 chat-session
+                 (vec (concat msgs [{:role :user :content (get-next-chat-message chat-id)}])))
+                (recur (inc iter) (if (zero? iter) (dissoc instance :UserInstruction) instance)))))
+        (do (println (str agent-name ": session expired"))
+            [(json/encode {:error "chat session with agent " agent-name " has expired."}) "agentlang"])))))
+
+(defn handle-orchestrator-agent [instance]
+  (log-trigger-agent! instance)
+  (p/call-with-provider
+   (model/ensure-llm-for-agent instance)
+   #(let [ins (:UserInstruction instance)
+          docs (maybe-lookup-agent-docs instance)
+          preprocessed-instruction (call-preprocess-agents instance)
+          final-instruction (maybe-add-docs docs (or preprocessed-instruction ins))
+          instance (assoc instance :UserInstruction final-instruction)]
+      (compose-agents instance (make-chat-completion instance)))))
+
 (defn- maybe-eval-patterns [[response _]]
   (if (string? response)
     (if-let [pats
@@ -247,7 +274,7 @@
     :else r))
 
 (def ^:private generic-planner-instructions
-  (str "Consider the following entity definitions:\n"
+  (str "Consider the following entity and event definitions:\n"
        (u/pretty-str
         '(entity
           :Acme.Core/Customer
@@ -255,6 +282,11 @@
            :Name :String
            :Address {:type :String :optional true}
            :LoyaltyPoints {:type :Int :default 50}}))
+       "\n\n"
+       (u/pretty-str
+        '(event
+          :Acme.Core/LookupCustomerByEmail
+          {:Email :Email}))
        "\n\n"
        (u/pretty-str
         '(entity
@@ -269,11 +301,14 @@
        "you must return the pattern:\n"
        (u/pretty-str
         [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe"} :as :Customer}])
-       "\nThere's no need to fill in attributes marked `:optional true` or those with a `:default`, unless explicitly instructed\n"
+       "\nThere's no need to fill in attributes marked `:optional true`, `:read-only true` or those with a `:default` value, unless explicitly instructed.\n"
        "You can also ignore attributes with types `:Now` and `:Identity` - these will be automatically filled-in by the system.\n"
        "For example, if the instruction is to create customer `joe` with email `joe@acme.com` and loyalty points 6700, then you must return\n"
        (u/pretty-str
         [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe", :LoyaltyPoints 6700} :as :Customer}])
+       "\nIf the instruction is to lookup a customer, then you can create an event pattern:\n"
+       (u/pretty-str
+        [{:Acme.Core/LookupCustomerByEmail {:Email "joe@acme.com"} :as :Customer}])
        "\nYou can also generate patterns that are evaluated against conditions, using the `:match` clause. For example,\n"
        "if the instruction is to create a customer named `joe` with email `joe@acme.com` and then apply the following \n"
        "business rules:\n"
@@ -314,6 +349,7 @@
          {:Email :E1.Email
           :Message '(str "hello " :E1.Name ", welcome aboard!")}
          :as :AnEmailMessage})
+       "\nIf the user instruction contains an `:Input` instance, please add that also to the top of the dataflow."
        "\nNote the function call expression is preceded by a single-quote and references uses a simple dot-notation. "
        "There's no parenthesis needed for references."
        "\nAnother important thing you should keep in mind: your response must not include any objects from the previous "

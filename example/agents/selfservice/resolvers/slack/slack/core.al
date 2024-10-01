@@ -11,9 +11,8 @@
 
 (entity
  :Chat
- {:channel {:type :String
-            :guid true
-            :default (System/getenv "SLACK_CHANNEL_ID")}
+ {:channel {:type :String :guid true}
+  ;;:default (System/getenv "SLACK_CHANNEL_ID")}
   :text :String
   :response {:type :String :optional true}
   :data {:type :Any :optional true}
