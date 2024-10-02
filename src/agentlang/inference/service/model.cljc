@@ -1,14 +1,16 @@
 (ns agentlang.inference.service.model
   (:require [clojure.string :as s]
             [clojure.set :as set]
-            [agentlang.lang :refer [component
-                                    dataflow
-                                    inference
-                                    entity
-                                    event
-                                    record
-                                    attribute
-                                    relationship]]
+            [agentlang.lang
+             :refer [component
+                     dataflow
+                     inference
+                     entity
+                     event
+                     record
+                     attribute
+                     relationship]
+             :as ln]
             [agentlang.component :as cn]
             [agentlang.util :as u]
             [agentlang.util.seq :as us]
@@ -112,6 +114,32 @@
   :Context {:type :Map :optional true}
   :Response {:type :Any :read-only true}
   :CacheChatSession {:type :Boolean :default true}})
+
+(defn- preproc-agent-tools-spec [tools]
+  (when tools
+    (mapv (fn [x]
+            (cond
+              (map? x) x
+              (string? x) {:name x}
+              (keyword? x) {:name (subs (str x) 1)}
+              :else (u/throw-ex (str "Invalid tool: " x))))
+          tools)))
+
+(defn- preproc-agent-input-spec [input]
+  (when input
+    (cond
+      (string? input) input
+      (keyword? input) (subs (str input) 1)
+      :else (u/throw-ex (str "Invalid agent input: " input)))))
+
+(ln/install-standalone-pattern-preprocessor!
+ :Agentlang.Core/Agent
+ (fn [pat]
+   (let [attrs (li/record-attributes pat)
+         input (preproc-agent-input-spec  (:Input attrs))
+         tools (preproc-agent-tools-spec (:Tools attrs))]
+     (assoc pat :Agentlang.Core/Agent
+            (merge attrs (when input {:Input input}) (when tools {:Tools tools}))))))
 
 (defn maybe-define-inference-event [event-name]
   (if (cn/find-schema event-name)

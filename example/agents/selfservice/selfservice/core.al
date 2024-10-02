@@ -22,24 +22,22 @@ For example if the input is `you can join the team`, your response must be `appr
 If the input is `sorry, can't allow`, your response must be `reject`.
 If you are unable to classify the text, simply return `reject`.
 (Do not include the ticks (`) in your response).
-Now please classify the following text following these rules.\n\n"}}
-
-(event :InvokeResponseClassifier {:UserInstruction :String})
-(inference :InvokeResponseClassifier {:agent "response-classifier"})
+Now please classify the following text following these rules.\n\n"
+  :Input :Selfservice.Core/InvokeResponseClassifier}}
 
 {:Agentlang.Core/Agent
  {:Name "workflow-agent"
   :Type "planner"
-  :Tools [{:name "Selfservice.Core/Request"}
-          {:name "Selfservice.Core/InvokeResponseClassifier"}
-          {:name "Slack.Core/Chat"}
-          {:name "Ticket.Core/Ticket"}
-          {:name "Ticket.Core/TicketComment"}
-          {:name "Ticket.Core/GithubMember"}
-          {:name "Ticket.Core/TicketManager"}
-          {:name "Ticket.Core/ManagerSlackChannel"}
-          {:name "Ticket.Core/LookupTicketManagerByTicketId"}
-          {:name "Ticket.Core/LookupManagerSlackChannel"}]
+  :Tools [:Selfservice.Core/Request
+          :Selfservice.Core/InvokeResponseClassifier
+          :Slack.Core/Chat
+          :Ticket.Core/Ticket
+          :Ticket.Core/TicketComment
+          :Ticket.Core/GithubMember
+          :Ticket.Core/TicketManager
+          :Ticket.Core/ManagerSlackChannel
+          :Ticket.Core/LookupTicketManagerByTicketId
+          :Ticket.Core/LookupManagerSlackChannel]
   :UserInstruction "You'll receive some tickets with requests from users to join GitHub organizations. Follow the following steps:
 1. Find the manager for the ticket, you can query on the ticket Id.
 2. Find the slack-channel for the manager.
@@ -55,22 +53,21 @@ Now please classify the following text following these rules.\n\n"}}
  {:Name "self-service-agent"
   :Type "planner"
   :LLM "llm01"
-  :Tools [{:name "Selfservice.Core/Request"}]
+  :Tools [:Selfservice.Core/Request]
   :UserInstruction
   "You are an agent that identifies a self-service ticket for adding a user to a github organization.
 Tickets will be passed to you as a JSON payload. Analyze the tickets and return instances of Request with the
 github org, email and ticket id as attributes."
-  :Delegates {:To "workflow-agent"}}}
-
-(inference :InvokeSelfService {:agent "self-service-agent"})
+  :Delegates {:To "workflow-agent"}
+  :Input :Selfservice.Core/InvokeSelfService}}
 
 (dataflow
  :ProcessTickets
  {:Ticket.Core/Ticket? {} :as :Result}
  [:eval (quote (ticket.core/as-json :Result)) :as :S]
- {:InvokeSelfService {:UserInstruction :S}})
+ {:Selfservice.Core/InvokeSelfService {:UserInstruction :S}})
 
-(dataflow
- :ProcessWebhook
- [:eval (quote (ticket.core/as-json :ProcessWebhook.Tickets)) :as :S]
- {:InvokeSelfService {:UserInstruction :S}})
+;; (dataflow
+;;  :ProcessWebhook
+;;  [:eval (quote (ticket.core/as-json :ProcessWebhook.Tickets)) :as :S]
+;;  {:Selfservice.Core/InvokeSelfService {:UserInstruction :S}})

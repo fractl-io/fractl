@@ -206,7 +206,7 @@
   (if (name? pat)
     pat
     (when (map? pat)
-      (let [pat (dissoc pat :meta)
+      (let [pat (dissoc pat :meta :as)
             n (ffirst (filter (fn [[_ v]] (map? v)) pat))]
         (when (or (name? n)
                   (and (string? n) (name? (keyword n))))
@@ -214,11 +214,11 @@
 
 (defn record-attributes [pat]
   (when (map? pat)
-    (let [pat (dissoc pat :meta)]
+    (let [pat (dissoc pat :meta :as)]
       (first (filter map? (vals pat))))))
 
 (defn destruct-instance-pattern [pat]
-  (let [pat (dissoc pat :meta)]
+  (let [pat (dissoc pat :meta :as)]
     [(first (keys pat)) (first (vals pat))]))
 
 (defn split-by-delim

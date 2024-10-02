@@ -68,12 +68,12 @@
                                                "\n"
                                                (or instructions "")
                                                "\n"
-                                               ;;(or (get-in agent-instance [:Context :UserInstruction]) "")))))
-                                               (when-let [ctx (:Context agent-instance)]
-                                                 (str "\n" (or (:UserInstruction ctx) "")
-                                                      (when-let [input-inst (input-instance agent-instance ctx)]
-                                                        (str "\nFull input object to agent instance:\n"
-                                                             (u/pretty-str (assoc input-inst :as :Input))))))))))
+                                               (or (get-in agent-instance [:Context :UserInstruction]) "")))))
+                                               ;; (when-let [ctx (:Context agent-instance)]
+                                               ;;   (str "\n" (or (:UserInstruction ctx) "")
+                                               ;;        (when-let [input-inst (input-instance agent-instance ctx)]
+                                               ;;          (str "\nFull input object to agent instance:\n"
+                                               ;;               (u/pretty-str (assoc input-inst :as :Input))))))))))
          r0 (or (:Response agent-instance) agent-instance)
          r1 (if (string? r0) (edn/read-string r0) r0)
          r2 (if-let [f (model/agent-response-handler agent-instance)] (f r1) r1)

@@ -339,9 +339,7 @@
        ;;   "hello" "happy"
        ;;   "sad"])
        ;; "\n\nThat was a simple example on invoking ai agents from dataflow patterns.\n"
-       "A note about aliases - the standalone alias `{:as :SomeName}` is invalid, never include that in your response. Also, there's no "
-       "need to add aliases to patterns in a `:match`.\n"
-       "Now that you understand how to translate business workflows (or dataflows) into entity and `:match` patterns "
+       "Now that you understand how to translate business workflows (or dataflows) into entity and `:match` patterns, "
        "consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns. "
        "An important note: do not return any plain text in your response, only return the vector of dataflow patterns.\n"
        "If your input contains patterns of instances like `{:Acme.Core/Employee {:Name \"sam\" :Salary 1000 :Email \"sam@came.com\"} :as :E1}`, keep those "
@@ -351,9 +349,10 @@
          {:Email :E1.Email
           :Message '(str "hello " :E1.Name ", welcome aboard!")}
          :as :AnEmailMessage})
-       "\nIf the user instruction contains an `:Input` instance, please add that also to the top of the dataflow."
+       ;; "\nIf the user instruction contains an `:Input` instance, please add that also to the top of the dataflow."
        "\nNote the function call expression is preceded by a single-quote and references uses a simple dot-notation. "
-       "There's no parenthesis needed for references."
+       "There's no parenthesis needed for references.\n"
+       "A note about aliases, i.e `:as :SomeName` attached to a pattern - never add aliases to patterns in a `:match`."
        "\nAnother important thing you should keep in mind: your response must not include any objects from the previous "
        "examples. Your response should only make use of the entities and other definitions provided by the user below.\n\n"))
 

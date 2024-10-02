@@ -89,19 +89,9 @@
 (defn load-default-model-info []
   (load-all-model-info nil nil nil))
 
-(defn standalone-pattern-error [error pat]
-  (log/warn (u/pretty-str (assoc error :pattern (second pat)))))
-
-(defn- cleanup-standalone-pattern [pat]
-  (if (map? pat)
-    (first (keys (dissoc pat :as :async :throws)))
-    pat))
-
 (defn maybe-preproc-standalone-pattern [pat]
   (if (li/maybe-upsert-instance-pattern? pat)
-    `(~'pattern [:try ~pat :error
-                 [:eval (~'quote (~'agentlang.lang.tools.loader/standalone-pattern-error
-                                  :Error [:q# ~(cleanup-standalone-pattern pat)]))]])
+    `(~'pattern ~pat)
     pat))
 
 #?(:clj
