@@ -13,9 +13,25 @@
   :Name "llm01"}}
 
 {:Agentlang.Core/Agent
+ {:Name "response-classifier"
+  :Type "chat"
+  :LLM "llm01"
+  :UserInstruction
+  "Classify the input text to one of the categories - approve or reject.
+For example if the input is `you can join the team`, your response must be `approve`.
+If the input is `sorry, can't allow`, your response must be `reject`.
+If you are unable to classify the text, simply return `reject`.
+(Do not include the ticks (`) in your response).
+Now please classify the following text following these rules.\n\n"}}
+
+(event :InvokeResponseClassifier {:UserInstruction :String})
+(inference :InvokeResponseClassifier {:agent "response-classifier"})
+
+{:Agentlang.Core/Agent
  {:Name "workflow-agent"
   :Type "planner"
   :Tools [{:name "Selfservice.Core/Request"}
+          {:name "Selfservice.Core/InvokeResponseClassifier"}
           {:name "Slack.Core/Chat"}
           {:name "Ticket.Core/Ticket"}
           {:name "Ticket.Core/TicketComment"}
@@ -28,7 +44,8 @@
 1. Find the manager for the ticket, you can query on the ticket Id.
 2. Find the slack-channel for the manager.
 3. For each ticket, send an approval request as a slack message on the manager's channel. This message must include the user's email, github org name and the ticket Id.
-4. If the slack chat response is to approve the request, then
+4. Get the slack chat's response and classify it as either approve or reject.
+5. If the classification result is to approve the request, then
      a. update the ticket with the comment \"approved\".
      b. add the user as a member to the github org.
    If the response is not to approve, then update the ticket with the comment \"rejected\"."
