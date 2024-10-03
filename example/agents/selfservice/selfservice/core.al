@@ -36,7 +36,7 @@
   :UserInstruction
   "You are an agent that identifies a self-service ticket for adding a user to a github organization.
 Tickets will be passed to you as a JSON payload. Analyze the tickets and return instances of Request with the
-github org, email and ticket id as attributes."
+github org, email and ticket id as attributes. If the org or email is empty, ignore that ticket."
   :Delegates {:To "workflow-agent"}}}
 
 (inference :InvokeSelfService {:agent "self-service-agent"})

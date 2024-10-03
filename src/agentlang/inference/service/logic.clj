@@ -12,6 +12,7 @@
             [agentlang.inference.embeddings.core :as ec]
             [agentlang.inference.service.model :as model]
             [agentlang.inference.service.tools :as tools]
+            [agentlang.inference.service.planner :as planner]
             [agentlang.inference.service.lib.agent :as agent]
             [agentlang.inference.service.lib.prompt :as prompt])
   (:import (clojure.lang ExceptionInfo)))
@@ -268,12 +269,28 @@
        "\n\nIf the instruction given to you is to construct a customer instance with name `joe` and email `joe@acme.com`,\n"
        "you must return the following clojure expression:\n"
        (u/pretty-str
-        '(def customer (make-instance :Acme.Core/Customer {:Email "joe@acme.com" :Name "joe"})))
+        '(def customer (make :Acme.Core/Customer {:Email "joe@acme.com" :Name "joe"})))
        "\nThere's no need to fill in attributes marked `:optional true`, :read-only true` or those with a `:default`, unless explicitly instructed.\n"
        "You can also ignore attributes with types `:Now` and `:Identity` - these will be automatically filled-in by the system.\n"
        "For example, if the instruction is to create customer `joe` with email `joe@acme.com` and loyalty points 6700, then you should return\n"
        (u/pretty-str
-        '(def customer (make-instance :Acme.Core/Customer {:Email "joe@acme.com" :Name "joe", :LoyaltyPoints 6700})))
+        '(def customer (make :Acme.Core/Customer {:Email "joe@acme.com" :Name "joe", :LoyaltyPoints 6700})))
+       "\nMaking an instance of a customer will save it to a peristent store or database. To query or lookup instances of an entity, "
+       "you can generate the following expressions:\n"
+       (u/pretty-str
+        '(def customer (lookup-one :Acme.Core/Customer {:Email "joe@acme.com"})))
+       "\nThe preceding expression will lookup a customer with email `joe@acme.com`. Here's another example lookup, that will return "
+       "all customers whose loyalty-points are greater than 1000:\n"
+       (u/pretty-str
+        '(def customers (lookup-many :Acme.Core/Customer {:LoyaltyPoints [> 1000]})))
+       "\nBasically to fetch a single instance, call the `lookup-one` function and to fetch multiple instances, use `lookup-many`. "
+       "To do something for each instance in a query, use the for-each expression. For example, the following example will create "
+       "a PlatinumCustomer instance for each customer from the preceding lookup:\n"
+       (u/pretty-str
+        `(for-each
+          customers
+          (make :Acme.Core/PlatinumCustomer {:Email (:Email %)})))
+       "\nThe special variable `%` will be bound to each element in the sequence, i.e `customers` in this example.\n"
        "\nYou can also generate patterns that are evaluated against conditions, using the `cond` expression. For example,\n"
        "if the instruction is to create a customer named `joe` with email `joe@acme.com` and then apply the following \n"
        "business rules:\n"
@@ -282,13 +299,13 @@
        "3. Otherwise, mark the customer as platinum\n"
        "Given the above instruction, you must return the following dataflow patterns:\n"
        (u/pretty-str
-        '(do (def customer (make-instance :Acme.Core/Customer {:Name "joe" :Email "joe@acme.com"}))
+        '(do (def customer (make :Acme.Core/Customer {:Name "joe" :Email "joe@acme.com"}))
              (cond
                (= (:LoyaltyPoints customer) 50) customer
                (and (> (:LoyaltyPoints customer) 50)
                     (< (:LoyaltyPoints customer) 1000))
-               (make-instance :Acme.Core/GoldenCustomer {:Email (:Email customer)})
-               :else (make-instance :Acme.Core/PlatinumCustomer {:Email (:Email customer)}))))
+               (make :Acme.Core/GoldenCustomer {:Email (:Email customer)})
+               :else (make :Acme.Core/PlatinumCustomer {:Email (:Email customer)}))))
        "\n\nNote that you are generating code in a subset of Clojure. In your response, you should not use "
        "any feature of the language that's not present in the above examples.\n"
        "Now consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns. "
@@ -305,6 +322,11 @@
             (let [f ((keyword (:type tool)) tool)]
               (keyword (:name f))))
           (model/lookup-agent-tools instance)))))
+
+(defn- normalize-planner-expressions [s]
+  (if-not (s/starts-with? (s/triml s) "(do")
+    (str "(do " s ")")
+    s))
 
 (defn handle-planner-agent [instance]
   (log-trigger-agent! instance)
@@ -324,9 +346,11 @@
         _ (log/debug (str "Planner " (:Name instance) " raw result: " result))
         patterns (if has-tools
                    (mapv tools/tool-call-to-pattern result)
-                   (if (string? result)
-                     (read-string result)
-                     result))]
+                   (planner/expressions-to-patterns
+                    (if (string? result)
+                      (read-string (normalize-planner-expressions result))
+                      result)))]
+    (u/pprint patterns)
     (if (seq patterns)
       (do (log/debug (str "Patterns generated by " (:Name instance) ": "
                           (u/pretty-str patterns)))
