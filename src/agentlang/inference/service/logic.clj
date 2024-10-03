@@ -282,40 +282,17 @@
        "3. Otherwise, mark the customer as platinum\n"
        "Given the above instruction, you must return the following dataflow patterns:\n"
        (u/pretty-str
-        [{:Acme.Core/Customer {:Name "joe" :Email "joe@acme.com"} :as :Customer}
-         [:match
-          [:= :Customer.LoyaltyPoints 50] [:Customer]
-          [:and [:> :Customer.LoyaltyPoints 50] [:< :Customer.LoyaltyPoints 1000]]
-          [{:Acme.Core/GoldenCustomer {:Email :Customer.Email}}]
-          [{:Acme.Core/PlatinumCustomer {:Email :Customer.Email}}]]])
-       "\n\nConsider the syntax of the `:match` pattern - there are conditions and consequences. `[:= :Customer.LoyaltyPoints 50]` "
-       "is an example of a condition. `[:Customer]` is its consequence. There is also an `else` part for `:match`, which is a "
-       "pattern that will be evaluated if all conditions return false. In this example "
-       "`[{:Acme.Core/PlatinumCustomer {:Email :Customer.Email}}]` is the else-pattern.\n"
-       "In addition to entities, you may also create patterns to invoke AI agents. Such invocations will look like:\n"
-       (u/pretty-str
-        {:Acme.Core/InvokeAnAgent
-         {:UserInstruction "hello, there"}
-         :as [:ResponseFromAgent]})
-       "\n\nResponse from an agent is usually some text and can be handled in a `:match` patterns as:\n"
-       (u/pretty-str
-        [:match :ResponseFromAgent
-         "hi" "happy"
-         "hello" "happy"
-         "sad"])
-       "\n\nThat was a simple example on invoking ai agents from dataflow patterns.\n"
-       "Now that you understand how to translate business workflows (or dataflows) into entity and `:match` patterns "
-       "consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns. "
-       "An important note: do not return any plain text in your response, only return the vector of dataflow patterns.\n"
-       "If your input contains patterns of instances like `{:Acme.Core/Employee {:Name \"sam\" :Salary 1000 :Email \"sam@came.com\"} :as :E1}`, keep those "
-       "at the top of the generated dataflow so that reference to `:E1` can be used later. An example of such usage is: \n"
-       (u/pretty-str
-        {:Acme.Core/EmailMessage
-         {:Email :E1.Email
-          :Message '(str "hello " :E1.Name ", welcome aboard!")}
-         :as :AnEmailMessage})
-       "\nNote the function call expression is preceded by a single-quote and references uses a simple dot-notation. "
-       "There's no parenthesis needed for references."
+        '(do (def customer (make-instance :Acme.Core/Customer {:Name "joe" :Email "joe@acme.com"}))
+             (cond
+               (= (:LoyaltyPoints customer) 50) customer
+               (and (> (:LoyaltyPoints customer) 50)
+                    (< (:LoyaltyPoints customer) 1000))
+               (make-instance :Acme.Core/GoldenCustomer {:Email (:Email customer)})
+               :else (make-instance :Acme.Core/PlatinumCustomer {:Email (:Email customer)}))))
+       "\n\nNote that you are generating code in a subset of Clojure. In your response, you should not use "
+       "any feature of the language that's not present in the above examples.\n"
+       "Now consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns. "
+       "An important note: do not return any plain text in your response, only return valid clojure expressions. "
        "\nAnother important thing you should keep in mind: your response must not include any objects from the previous "
        "examples. Your response should only make use of the entities and other definitions provided by the user below.\n\n"))
 
