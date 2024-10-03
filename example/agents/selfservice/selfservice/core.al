@@ -9,13 +9,13 @@
   :Id :String})
 
 {:Agentlang.Core/LLM
- {:Type "openai"
-  :Name "llm01"}}
+ {:Type :openai
+  :Name :llm01}}
 
 {:Agentlang.Core/Agent
- {:Name "response-classifier"
-  :Type "chat"
-  :LLM "llm01"
+ {:Name :ResponseClassifierAgent
+  :Type :chat
+  :LLM :llm01
   :UserInstruction
   "Classify the input text to one of the categories - approve or reject.
 For example if the input is `you can join the team`, your response must be `approve`.
@@ -26,8 +26,8 @@ Now please classify the following text following these rules.\n\n"
   :Input :Selfservice.Core/InvokeResponseClassifier}}
 
 {:Agentlang.Core/Agent
- {:Name "workflow-agent"
-  :Type "planner"
+ {:Name :WorkflowAgent
+  :Type :planner
   :Tools [:Selfservice.Core/Request
           :Selfservice.Core/InvokeResponseClassifier
           :Slack.Core/Chat
@@ -47,18 +47,18 @@ Now please classify the following text following these rules.\n\n"
      a. update the ticket with the comment \"approved\".
      b. add the user as a member to the github org.
    If the response is not to approve, then update the ticket with the comment \"rejected\"."
-  :LLM "llm01"}}
+  :LLM :llm01}}
 
 {:Agentlang.Core/Agent
- {:Name "self-service-agent"
-  :Type "planner"
-  :LLM "llm01"
+ {:Name :SelfServiceAgent
+  :Type :planner
+  :LLM :llm01
   :Tools [:Selfservice.Core/Request]
   :UserInstruction
   "You are an agent that identifies a self-service ticket for adding a user to a github organization.
 Tickets will be passed to you as a JSON payload. Analyze the tickets and return instances of Request with the
 github org, email and ticket id as attributes."
-  :Delegates {:To "workflow-agent"}
+  :Delegates {:To :WorkflowAgent}
   :Input :Selfservice.Core/InvokeSelfService}}
 
 (dataflow

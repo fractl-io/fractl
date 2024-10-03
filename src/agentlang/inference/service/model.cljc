@@ -37,6 +37,18 @@
  {:Agentlang.Core/LLM
   {:Name? :Agentlang.Core/FindLLM.Name}})
 
+(ln/install-standalone-pattern-preprocessor!
+ :Agentlang.Core/LLM
+ (fn [pat]
+   (let [attrs (li/record-attributes pat)
+         tp (:Type attrs)
+         nm (:Name attrs)]
+     (assoc pat :Agentlang.Core/LLM
+            (-> attrs
+                (cond->
+                    tp (assoc :Type (u/keyword-as-string tp))
+                    nm (assoc :Name (u/keyword-as-string nm))))))))
+
 (def ^:private doc-scheme-handlers {"file" slurp})
 (def ^:private doc-schemes (keys doc-scheme-handlers))
 (def ^:private scheme-suffix "://")
@@ -132,14 +144,39 @@
       (keyword? input) (subs (str input) 1)
       :else (u/throw-ex (str "Invalid agent input: " input)))))
 
+(defn- preproc-agent-delegate [d]
+  (let [from (:From d) to (:To d)]
+    (-> d
+        (cond->
+            from (assoc :From (u/keyword-as-string from))
+            to (assoc :To (u/keyword-as-string to))))))
+
+(defn- preproc-agent-delegates [delegs]
+  (when delegs
+    (cond
+      (map? delegs) (preproc-agent-delegate delegs)
+      (vector? delegs) (mapv preproc-agent-delegates delegs)
+      :else delegs)))
+
 (ln/install-standalone-pattern-preprocessor!
  :Agentlang.Core/Agent
  (fn [pat]
    (let [attrs (li/record-attributes pat)
+         nm (:Name attrs)
          input (preproc-agent-input-spec  (:Input attrs))
-         tools (preproc-agent-tools-spec (:Tools attrs))]
+         tools (preproc-agent-tools-spec (:Tools attrs))
+         delegates (preproc-agent-delegates (:Delegates attrs))
+         tp (:Type attrs)
+         llm (:LLM attrs)]
      (assoc pat :Agentlang.Core/Agent
-            (merge attrs (when input {:Input input}) (when tools {:Tools tools}))))))
+            (-> attrs
+                (cond->
+                    nm (assoc :Name (u/keyword-as-string nm))
+                    input (assoc :Input input)
+                    tools (assoc :Tools tools)
+                    delegates (assoc :Delegates delegates)
+                    tp (assoc :Type (u/keyword-as-string tp))
+                    llm (assoc :LLM (u/keyword-as-string llm))))))))
 
 (defn maybe-define-inference-event [event-name]
   (if (cn/find-schema event-name)
