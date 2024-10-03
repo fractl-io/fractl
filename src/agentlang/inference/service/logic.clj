@@ -247,7 +247,7 @@
     :else r))
 
 (def ^:private generic-planner-instructions
-  (str "Consider the following entity definitions:\n"
+  (str "Consider the following entity definitions in a subset of the Clojure programming language:\n"
        (u/pretty-str
         '(entity
           :Acme.Core/Customer
@@ -266,15 +266,15 @@
           :Acme.Core/GoldenCustomer
           {:Email :Email}))
        "\n\nIf the instruction given to you is to construct a customer instance with name `joe` and email `joe@acme.com`,\n"
-       "you must return the pattern:\n"
+       "you must return the following clojure expression:\n"
        (u/pretty-str
-        [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe"} :as :Customer}])
-       "\nThere's no need to fill in attributes marked `:optional true` or those with a `:default`, unless explicitly instructed\n"
+        '(def customer (make-instance :Acme.Core/Customer {:Email "joe@acme.com" :Name "joe"})))
+       "\nThere's no need to fill in attributes marked `:optional true`, :read-only true` or those with a `:default`, unless explicitly instructed.\n"
        "You can also ignore attributes with types `:Now` and `:Identity` - these will be automatically filled-in by the system.\n"
-       "For example, if the instruction is to create customer `joe` with email `joe@acme.com` and loyalty points 6700, then you must return\n"
+       "For example, if the instruction is to create customer `joe` with email `joe@acme.com` and loyalty points 6700, then you should return\n"
        (u/pretty-str
-        [{:Acme.Core/Customer {:Email "joe@acme.com" :Name "joe", :LoyaltyPoints 6700} :as :Customer}])
-       "\nYou can also generate patterns that are evaluated against conditions, using the `:match` clause. For example,\n"
+        '(def customer (make-instance :Acme.Core/Customer {:Email "joe@acme.com" :Name "joe", :LoyaltyPoints 6700})))
+       "\nYou can also generate patterns that are evaluated against conditions, using the `cond` expression. For example,\n"
        "if the instruction is to create a customer named `joe` with email `joe@acme.com` and then apply the following \n"
        "business rules:\n"
        "1. If the loyalty-points is 50, return the customer instance.\n"
