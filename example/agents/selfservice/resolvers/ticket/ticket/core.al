@@ -120,3 +120,60 @@
 
 (defn as-json [result]
   (json/encode (mapv cn/instance-attributes result)))
+
+(entity
+ :TicketManager
+ {:TicketId {:type :Any :optional true}
+  :Manager :String})
+
+(entity
+ :ManagerSlackChannel
+ {:Manager {:type :String :optional true}
+  :SlackChannelId {:type :String :optional true}})
+
+(event
+ :LookupTicketManagerByTicketId
+ {:TicketId :Any})
+
+(dataflow
+ :LookupTicketManagerByTicketId
+ {:TicketManager {:TicketId? :LookupTicketManagerByTicketId.TicketId}})
+
+(event
+ :LookupManagerSlackChannel
+ {:Manager :String})
+
+(dataflow
+ :LookupManagerSlackChannel
+ {:ManagerSlackChannel {:Manager? :LookupManagerSlackChannel.Manager}})
+
+(defn- make-slack-channel [channel-id]
+  (cn/make-instance
+   :Ticket.Core/ManagerSlackChannel
+   {:SlackChannelId channel-id}))
+
+(defn- make-ticket-manager [n]
+  (cn/make-instance
+   :Ticket.Core/TicketManager
+   {:Manager n}))
+
+(def manager-db {"10000" (make-ticket-manager "mgr01@acme.com")})
+(def slack-channel-db {"mgr01@acme.com" (make-slack-channel (System/getenv "SLACK_CHANNEL_ID"))})
+
+(defn- get-manager-info [[[_ n] {where :where}]]
+  (let [[_ _ v] where]
+    (case n
+      :TicketManager
+      (when-let [mgr (get manager-db (str v))]
+        [(assoc mgr :TicketId v)])
+
+      :ManagerSlackChannel
+      (when-let [ch (get slack-channel-db v)]
+        [(assoc ch :Manager v)]))))
+
+(resolver
+ :ManagerResolver
+ {:with-methods
+  {:query get-manager-info}
+  :paths [:Ticket.Core/TicketManager
+          :Ticket.Core/ManagerSlackChannel]})
