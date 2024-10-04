@@ -352,7 +352,9 @@
        ;; "\nIf the user instruction contains an `:Input` instance, please add that also to the top of the dataflow."
        "\nNote the function call expression is preceded by a single-quote and references uses a simple dot-notation. "
        "There's no parenthesis needed for references.\n"
-       "A note about aliases, i.e `:as :SomeName` attached to a pattern - never add aliases to patterns in a `:match`."
+       "A note about aliases - aliases are names defiled as `:as :SomeName` and attached to a pattern - never add aliases to patterns in a `:match`.\n"
+       "Always attach aliases to instance patterns outside of a `:match` and references like `:Customer.Email` must be preceded by an instance "
+       "pattern attached to the alias `:Customer`."
        "\nAnother important thing you should keep in mind: your response must not include any objects from the previous "
        "examples. Your response should only make use of the entities and other definitions provided by the user below.\n\n"))
 

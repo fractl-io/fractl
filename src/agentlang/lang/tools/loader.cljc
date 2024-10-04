@@ -94,12 +94,20 @@
     `(~'pattern ~pat)
     pat))
 
+
 #?(:clj
    (do
      (def ^:dynamic *parse-expressions* true)
 
      (defn use-lang []
        (use '[agentlang.lang]))
+
+     (defn evaluate-expression [exp]
+       (when (and (seqable? exp) (= 'component (first exp)))
+         (doseq [dep (:refer (first (nthrest exp 2)))]
+           (let [dep-ns (symbol (s/lower-case (subs (str dep) 1)))]
+             (use [dep-ns]))))
+       (eval exp))
 
      (defn read-expressions
   "Read expressions in sequence from a agentlang component file. Each expression read
@@ -115,7 +123,7 @@
               fqn (if declared-names
                     (partial nu/fully-qualified-names declared-names)
                     identity)
-              parser (if *parse-expressions* eval identity)]
+              parser (if *parse-expressions* evaluate-expression identity)]
           (use-lang)
           (try
             (loop [exp (rdf), raw-exps [], exps []]
