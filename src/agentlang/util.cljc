@@ -284,10 +284,14 @@
       (recur (rest ss) (str result line-sep s))
       result)))
 
-(defn string-as-keyword [x]
-  (if (string? x)
-    (keyword x)
-    x))
+(defn- x-as-keyword [x? x]
+  (cond
+    (x? x) (keyword x)
+    (keyword? x) x
+    :else nil))
+
+(def string-as-keyword (partial x-as-keyword string?))
+(def symbol-as-keyword (partial x-as-keyword symbol?))
 
 (defn keyword-as-string [x]
   (if (keyword? x)

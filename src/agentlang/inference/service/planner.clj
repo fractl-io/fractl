@@ -15,21 +15,28 @@
         (u/throw-ex (str "Invalid alias " alias " for expression " expr)))))
   n)
 
-(defn- rename-attrs-for-query [attrs]
-  ;; TODO: rename attr-keys with a ?
-  )
+(defn- parse-ref-or-expr [v]
+  (cond
+    (list? v) (li/make-ref (u/symbol-as-keyword (second v)) (first v)) ; TODO: handle references more than one level deep
+    (vector? v) [(u/symbol-as-keyword (first v)) (second v)]
+    :else v))
 
-(defn- parse-value-refs-and-exprs [attrs]
-  ;; TODO: parse attributes refs like `(:AttrName var)` and comparison expressions like `[= 500]` and `[> (:AttrName varname)]`
-  )
+(defn- parse-value-refs-and-exprs
+  ([keyfmt attrs]
+   (into
+    {}
+    (fn [[k v]] [(keyfmt k) (parse-ref-or-expr v)])))
+  ([attrs] (parse-value-refs-and-exprs identity atts)))
 
 (defn- parse-make [[n attrs :as expr] alias]
   (when (validate-record-expr expr alias)
-    {n (parse-value-refs-and-exprs attrs) :as alias}))
+    (merge {n (parse-value-refs-and-exprs attrs)}
+           (when alias {:as alias}))))
 
 (defn- parse-lookup [[n attrs :as expr] alias]
   (when (validate-record-expr expr alias)
-    {n (parse-value-refs-and-exprs (rename-attrs-for-query attrs)) :as alias}))
+    (merge {n (parse-value-refs-and-exprs li/name-as-query-pattern attrs)}
+           (when alias {:as alias}))))
 
 (defn- parse-lookup-one [expr alias]
   (parse-lookup expr [alias]))
@@ -37,8 +44,20 @@
 (def ^:private parse-lookup-many parse-lookup)
 
 (defn- parse-cond [expr alias]
-  ;; TODO parse conditional expression into a :match clause.
-  )
+  (loop [expr expr, pats []]
+    (let [[condition consequent] expr]
+      (if (and condition consequent)
+        (recur
+         (nthrest expr 2)
+         (conj
+          pats
+          (if (= :else condition)
+            [(expression-to-pattern consequent)]
+            [(parse-ref-or-expr condition) (expression-to-pattern consequent)])))
+        (let [result (apply concat [:match] pats)]
+          (if alias
+            (concat result [:as alias])
+            result))))))
 
 (defn- parse-binding-error [expr _]
   (u/throw-ex (str "Cannot parse expression " expr)))
@@ -57,7 +76,7 @@
 (defn expression-to-pattern [expr]
   (if (seqable? expr)
     (case (first expr)
-      def (parse-binding (nth expr 2) (second expr))
+      def (parse-binding (nth expr 2) (u/symbol-as-keyword (second expr)))
       cond (parse-cond (second expr 2) nil)
       do (expressions-to-patterns expr)
       (u/throw-ex (str "Cannot convert expression to pattern: " expr)))
