@@ -65,9 +65,11 @@ github org, email and ticket id as attributes."
  :ProcessTickets
  {:Ticket.Core/Ticket? {} :as :Result}
  [:eval (quote (ticket.core/as-json :Result)) :as :S]
+ [:eval '(println "Processing tickets:" :S)]
  {:Selfservice.Core/InvokeSelfService {:UserInstruction :S}})
 
-;; (dataflow
-;;  :ProcessWebhook
-;;  [:eval (quote (ticket.core/as-json :ProcessWebhook.Tickets)) :as :S]
-;;  {:Selfservice.Core/InvokeSelfService {:UserInstruction :S}})
+(dataflow
+ :ProcessWebhook
+ [:eval (quote (ticket.core/as-json :ProcessWebhook.Tickets)) :as :S]
+ [:eval '(println "Processing tickets:" :S)]
+ {:Selfservice.Core/InvokeSelfService {:UserInstruction :S}})

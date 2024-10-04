@@ -24,17 +24,26 @@
  {:Org :String
   :Email :Email})
 
-(defn- extract-contents [content]
-  (cond
-    (vector? content)
-    (apply #(if (seq %) (str "\n" %) "") (mapv extract-contents content))
+(defn- maybe-parse-paragraphs [content]
+  (if (vector? content)
+    (let [f (first content)]
+      (if (and (map? f) (:text f))
+        {:text (apply str (mapv :text content))}
+        content))
+    content))
 
-    (map? content)
-    (if-let [cnts (:content content)]
-      (extract-contents cnts)
-      (or (:text content) ""))
+(defn- extract-contents [content]
+  (let [content (maybe-parse-paragraphs content)]
+    (cond
+      (vector? content)
+      (apply #(if (seq %) (str "\n" %) "") (mapv extract-contents content))
+
+      (map? content)
+      (if-let [cnts (:content content)]
+        (extract-contents cnts)
+        (or (:text content) ""))
     
-    :else ""))
+      :else "")))
 
 (defn- lookup-ticket [url basic-auth id]
   (let [{status :status body :body}
@@ -157,18 +166,21 @@
    :Ticket.Core/TicketManager
    {:Manager n}))
 
+(def default-manager (make-ticket-manager "admin@acme.com"))
+(def default-slack-channel (make-slack-channel (System/getenv "SLACK_CHANNEL_ID")))
+
 (def manager-db {"10000" (make-ticket-manager "mgr01@acme.com")})
-(def slack-channel-db {"mgr01@acme.com" (make-slack-channel (System/getenv "SLACK_CHANNEL_ID"))})
+(def slack-channel-db {"mgr01@acme.com" default-slack-channel})
 
 (defn- get-manager-info [[[_ n] {where :where}]]
   (let [[_ _ v] where]
     (case n
       :TicketManager
-      (when-let [mgr (get manager-db (str v))]
+      (when-let [mgr (get manager-db (str v) default-manager)]
         [(assoc mgr :TicketId v)])
 
       :ManagerSlackChannel
-      (when-let [ch (get slack-channel-db v)]
+      (when-let [ch (get slack-channel-db v default-slack-channel)]
         [(assoc ch :Manager v)]))))
 
 (resolver
