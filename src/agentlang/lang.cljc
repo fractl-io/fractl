@@ -1404,4 +1404,4 @@
                     [:eval (~'quote (~'agentlang.lang/standalone-pattern-error
                                      :Error [:q# ~(cleanup-standalone-pattern raw-pat)]))]]]
     (gs/install-init-pattern! final-pat)
-    (raw/pattern pat)))
+    (raw/pattern raw-pat)))
