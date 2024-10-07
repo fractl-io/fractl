@@ -26,7 +26,7 @@
    (into
     {}
     (fn [[k v]] [(keyfmt k) (parse-ref-or-expr v)])))
-  ([attrs] (parse-value-refs-and-exprs identity atts)))
+  ([attrs] (parse-value-refs-and-exprs identity attrs)))
 
 (defn- parse-make [[n attrs :as expr] alias]
   (when (validate-record-expr expr alias)
@@ -40,6 +40,8 @@
 
 (defn- parse-lookup-one [expr alias]
   (parse-lookup expr [alias]))
+
+(declare expression-to-pattern)
 
 (def ^:private parse-lookup-many parse-lookup)
 

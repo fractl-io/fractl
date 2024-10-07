@@ -1,13 +1,16 @@
 (ns agentlang.inference.service.model
   (:require [clojure.string :as s]
             [clojure.set :as set]
-            [agentlang.lang :refer [component
-                                    dataflow
-                                    entity
-                                    event
-                                    record
-                                    attribute
-                                    relationship]]
+            [agentlang.lang
+             :refer [component
+                     dataflow
+                     inference
+                     entity
+                     event
+                     record
+                     attribute
+                     relationship]
+             :as ln]
             [agentlang.component :as cn]
             [agentlang.util :as u]
             [agentlang.util.seq :as us]
@@ -33,6 +36,18 @@
  :Agentlang.Core/FindLLM
  {:Agentlang.Core/LLM
   {:Name? :Agentlang.Core/FindLLM.Name}})
+
+(ln/install-standalone-pattern-preprocessor!
+ :Agentlang.Core/LLM
+ (fn [pat]
+   (let [attrs (li/record-attributes pat)
+         tp (:Type attrs)
+         nm (:Name attrs)]
+     (assoc pat :Agentlang.Core/LLM
+            (-> attrs
+                (cond->
+                    tp (assoc :Type (u/keyword-as-string tp))
+                    nm (assoc :Name (u/keyword-as-string nm))))))))
 
 (def ^:private doc-scheme-handlers {"file" slurp})
 (def ^:private doc-schemes (keys doc-scheme-handlers))
@@ -107,10 +122,79 @@
   :ChatUuid {:type :UUID :default u/uuid-string}
   :UserInstruction {:type :String :optional true}
   :ToolComponents {:check tool-components-list? :optional true}
-  :Extension {:type :Map :optional true}
+  :Input {:type :String :optional true}
   :Context {:type :Map :optional true}
   :Response {:type :Any :read-only true}
   :CacheChatSession {:type :Boolean :default true}})
+
+(defn- preproc-agent-tools-spec [tools]
+  (when tools
+    (mapv (fn [x]
+            (cond
+              (map? x) x
+              (string? x) {:name x}
+              (keyword? x) {:name (subs (str x) 1)}
+              :else (u/throw-ex (str "Invalid tool: " x))))
+          tools)))
+
+(defn- preproc-agent-input-spec [input]
+  (when input
+    (cond
+      (string? input) input
+      (keyword? input) (subs (str input) 1)
+      :else (u/throw-ex (str "Invalid agent input: " input)))))
+
+(defn- preproc-agent-delegate [d]
+  (let [from (:From d) to (:To d)]
+    (-> d
+        (cond->
+            from (assoc :From (u/keyword-as-string from))
+            to (assoc :To (u/keyword-as-string to))))))
+
+(defn- preproc-agent-delegates [delegs]
+  (when delegs
+    (cond
+      (map? delegs) (preproc-agent-delegate delegs)
+      (vector? delegs) (mapv preproc-agent-delegates delegs)
+      :else delegs)))
+
+(ln/install-standalone-pattern-preprocessor!
+ :Agentlang.Core/Agent
+ (fn [pat]
+   (let [attrs (li/record-attributes pat)
+         nm (:Name attrs)
+         input (preproc-agent-input-spec  (:Input attrs))
+         tools (preproc-agent-tools-spec (:Tools attrs))
+         delegates (preproc-agent-delegates (:Delegates attrs))
+         tp (:Type attrs)
+         llm (:LLM attrs)]
+     (assoc pat :Agentlang.Core/Agent
+            (-> attrs
+                (cond->
+                    nm (assoc :Name (u/keyword-as-string nm))
+                    input (assoc :Input input)
+                    tools (assoc :Tools tools)
+                    delegates (assoc :Delegates delegates)
+                    tp (assoc :Type (u/keyword-as-string tp))
+                    llm (assoc :LLM (u/keyword-as-string llm))))))))
+
+(defn maybe-define-inference-event [event-name]
+  (if (cn/find-schema event-name)
+    (if (cn/event? event-name)
+      event-name
+      (u/throw-ex (str "not an event - " event-name)))
+    (event {event-name {:UserInstruction :Agentlang.Kernel.Lang/String}})))
+
+(defn maybe-input-as-inference [agent]
+  (when-let [input (:Input agent)]
+    (let [n (u/string-as-keyword input)]
+      (when (maybe-define-inference-event n)
+        (inference n {:agent (:Name agent)}))))
+  agent)
+
+(dataflow
+ [:after :create :Agentlang.Core/Agent]
+ [:eval '(agentlang.inference.service.model/maybe-input-as-inference :Instance)])
 
 (def ^:private agent-callbacks (atom nil))
 

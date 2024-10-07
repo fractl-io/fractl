@@ -1373,6 +1373,35 @@
   (and (cn/register-resolver n spec)
        (raw/resolver n spec)))
 
-(defn pattern [pat]
-  (gs/install-init-pattern! pat)
-  (raw/pattern pat))
+(def ^:private standalone-pattern-preprocecssors (atom nil))
+
+(defn install-standalone-pattern-preprocessor! [n f]
+  (swap! standalone-pattern-preprocecssors assoc n f)
+  n)
+
+(defn- standalone-pattern-preprocecssor [n]
+  (get @standalone-pattern-preprocecssors n))
+
+(defn preprocess-standalone-pattern [pat]
+  (if (map? pat)
+    (let [n (li/record-name pat)]
+      (if-let [f (standalone-pattern-preprocecssor n)]
+        (f pat)
+        pat))
+    pat))
+
+(defn standalone-pattern-error [error pat]
+  (log/warn (u/pretty-str (assoc error :pattern (second pat)))))
+
+(defn- cleanup-standalone-pattern [pat]
+  (if (map? pat)
+    (first (keys (dissoc pat :as :async :throws)))
+    pat))
+
+(defn pattern [raw-pat]
+  (let [pat (preprocess-standalone-pattern raw-pat)
+        final-pat `[:try ~pat :error
+                    [:eval (~'quote (~'agentlang.lang/standalone-pattern-error
+                                     :Error [:q# ~(cleanup-standalone-pattern raw-pat)]))]]]
+    (gs/install-init-pattern! final-pat)
+    (raw/pattern pat)))

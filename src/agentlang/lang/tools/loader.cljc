@@ -89,20 +89,11 @@
 (defn load-default-model-info []
   (load-all-model-info nil nil nil))
 
-(defn standalone-pattern-error [error pat]
-  (log/warn (u/pretty-str (assoc error :pattern (second pat)))))
-
-(defn- cleanup-standalone-pattern [pat]
-  (if (map? pat)
-    (first (keys (dissoc pat :as :async :throws)))
-    pat))
-
 (defn maybe-preproc-standalone-pattern [pat]
   (if (li/maybe-upsert-instance-pattern? pat)
-    `(~'pattern [:try ~pat :error
-                 [:eval (~'quote (~'agentlang.lang.tools.loader/standalone-pattern-error
-                                  :Error [:q# ~(cleanup-standalone-pattern pat)]))]])
+    `(~'pattern ~pat)
     pat))
+
 
 #?(:clj
    (do
@@ -110,6 +101,13 @@
 
      (defn use-lang []
        (use '[agentlang.lang]))
+
+     (defn evaluate-expression [exp]
+       (when (and (seqable? exp) (= 'component (first exp)))
+         (doseq [dep (:refer (first (nthrest exp 2)))]
+           (let [dep-ns (symbol (s/lower-case (subs (str dep) 1)))]
+             (use [dep-ns]))))
+       (eval exp))
 
      (defn read-expressions
   "Read expressions in sequence from a agentlang component file. Each expression read
@@ -125,7 +123,7 @@
               fqn (if declared-names
                     (partial nu/fully-qualified-names declared-names)
                     identity)
-              parser (if *parse-expressions* eval identity)]
+              parser (if *parse-expressions* evaluate-expression identity)]
           (use-lang)
           (try
             (loop [exp (rdf), raw-exps [], exps []]
