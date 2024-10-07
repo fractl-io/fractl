@@ -338,6 +338,22 @@
                     (< (:LoyaltyPoints customer) 1000))
                (make :Acme.Core/GoldenCustomer {:Email (:Email customer)})
                :else (make :Acme.Core/PlatinumCustomer {:Email (:Email customer)}))))
+       "\n\nTwo entities can form relationships between them. For example, consider the following entity that represents a person:\n"
+       (u/pretty-str
+        '(entity
+          :Family.Core/Person
+          {:Email {:type :Email :guid true}
+           :Name :String
+           :Age :String}))
+       "\nA possible relationship between two persons is:\n"
+       (u/pretty-str
+        '(relationship
+          :Family.Core/Spouse
+          {:meta {:between [:Person :Person :as [:Husband :Wife]]}}))
+       "\nGiven the email of a wife, her husband can be queried as:\n"
+       (u/pretty-str
+        '(do (def spouse (lookup-one :Family.Core/Spouse {:Wife "mary@family.org"}))
+             (def husband (lookup-one :Family.Core/Person {:Email (:Husband spouse)}))))
        "\n\nNote that you are generating code in a subset of Clojure. In your response, you should not use "
        "any feature of the language that's not present in the above examples.\n"
        "Now consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns. "

@@ -14,6 +14,17 @@
   :Created :Now
   :Department {:oneof ["sales" "accounting"]}})
 
+(relationship
+ :EmployeeManager
+ {:meta {:between [:Employee :Employee :as [:Manager :Reportee]]}})
+
+(entity
+ :EmailMessage
+ {:To :Email
+  :From :Email
+  :Subject :String
+  :Body :String})
+
 {:Agentlang.Core/LLM
  {:Type :openai
   :Name :llm01
@@ -26,7 +37,6 @@
 {:Agentlang.Core/Agent
  {:Name :planner-agent
   :Type :planner
-  ;;:ToolComponents ["Planner.Core"]
   :Tools [:Planner.Core/Customer :Planner.Core/Employee]
   :UserInstruction "You are an agent that use tools to create entity instances from text descritpions."
   :LLM :llm01}}
@@ -54,3 +64,12 @@
 ;; {"Planner.Core/InvokePlanner":
 ;;   {"UserInstruction": "Add a new employee named Mat to the sales department. His email is mat@acme.com"}}
 
+{:Agentlang.Core/Agent
+ {:Name :complex-planner
+  :Type :planner
+  :LLM :llm01
+  :UserInstruction (str "You are an agent who forward's leave requests from employees to their managers.\n"
+                        "From the leave request message, find the employee's email address and use that to lookup the assigned manager.\n"
+                        "Then forward the message to the manager'e email.")
+  :Tools [:Planner.Core/Employee :Planner.Core/EmployeeManager :Planner.Core/EmailMessage]
+  :Input :InvokeComplexPlanner}}
