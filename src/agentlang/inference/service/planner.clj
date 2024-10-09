@@ -15,13 +15,19 @@
         (u/throw-ex (str "Invalid alias " alias " for expression " expr)))))
   n)
 
+(defn- maybe-alias [x]
+  (when (symbol? x) (keyword x)))
+
 (defn- parse-ref-or-expr [v]
   (cond
     (list? v)
-    (if (some #{(first v)} '(= < > <= >= and or))
-      (parse-ref-or-expr (vec v))
-      (li/make-ref (u/symbol-as-keyword (second v)) (first v))) ; TODO: handle references more than one level deep
-    (vector? v) [(u/symbol-as-keyword (first v)) (parse-ref-or-expr (second v)) (parse-ref-or-expr (last v))]
+    (cond
+      (some #{(first v)} '(= < > <= >= and or)) (parse-ref-or-expr (vec v))
+      (keyword? (first v)) (li/make-ref (u/symbol-as-keyword (second v)) (first v)) ; TODO: handle references more than one level deep
+      :else (reverse (into '() (mapv parse-ref-or-expr v))))
+    (vector? v) [(u/symbol-as-keyword (first v))
+                 (or (maybe-alias (second v)) (parse-ref-or-expr (second v)))
+                 (or (maybe-alias (last v)) (parse-ref-or-expr (last v)))]
     :else v))
 
 (defn- parse-value-refs-and-exprs
@@ -94,5 +100,9 @@
         (parse-binding expr nil))
       (u/throw-ex (str "Invalid expression: " expr)))))
 
+(defn maybe-expressions? [exprs]
+  (and (seqable? exprs) (= 'do (first exprs))))
+
 (defn expressions-to-patterns [exprs]
-  (mapv expression-to-pattern (rest exprs)))
+  (when (maybe-expressions? exprs)
+    (mapv expression-to-pattern (rest exprs))))

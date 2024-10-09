@@ -69,7 +69,7 @@
   :Type :planner
   :LLM :llm01
   :UserInstruction (str "You are an agent who forward's leave requests from employees to their managers.\n"
-                        "From the leave request message, find the employee's email address and use that to lookup the assigned manager.\n"
+                        "From the leave request message that follows, find the employee's email address and use that to lookup the assigned manager.\n"
                         "Then forward the message to the manager'e email.")
   :Tools [:Planner.Core/Employee :Planner.Core/EmployeeManager :Planner.Core/EmailMessage]
   :Input :InvokeComplexPlanner}}

@@ -23,21 +23,19 @@ If the input is `sorry, can't allow`, your response must be `reject`.
 If you are unable to classify the text, simply return `reject`.
 (Do not include the ticks (`) in your response).
 Now please classify the following text following these rules.\n\n"
-  :Input :Selfservice.Core/InvokeResponseClassifier}}
+  :Input :Selfservice.Core/InvokeResponseClassifierAgent}}
 
 {:Agentlang.Core/Agent
  {:Name :WorkflowAgent
   :Type :planner
   :Tools [:Selfservice.Core/Request
-          :Selfservice.Core/InvokeResponseClassifier
+          :Selfservice.Core/InvokeResponseClassifierAgent
           :Slack.Core/Chat
           :Ticket.Core/Ticket
           :Ticket.Core/TicketComment
           :Ticket.Core/GithubMember
           :Ticket.Core/TicketManager
-          :Ticket.Core/ManagerSlackChannel
-          :Ticket.Core/LookupTicketManagerByTicketId
-          :Ticket.Core/LookupManagerSlackChannel]
+          :Ticket.Core/ManagerSlackChannel]
   :UserInstruction "You'll receive some tickets with requests from users to join GitHub organizations. Follow the following steps:
 1. Find the manager for the ticket, you can query on the ticket Id.
 2. Find the slack-channel for the manager.

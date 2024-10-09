@@ -151,8 +151,9 @@
         (respond-with-agent agent-name delegates (or (get-in agent-instance [:Context :UserInstruction]) ins))
         (if (seq delegates)
           (let [n (:Name agent-instance)
-                rs (mapv #(let [ins (str (or (:UserInstruction %) "") "\n" response)]
-                            (format-as-agent-response % (@generic-agent-handler (assoc % :UserInstruction ins))))
+                rs (mapv #(let [ins (str (or (:UserInstruction %) "") "\n" response)
+                                ctx (assoc (:Context ins) :ParentResponse response)]
+                            (format-as-agent-response % (@generic-agent-handler (assoc % :UserInstruction ins :Context ctx))))
                          delegates)]
             [(apply str rs) model-info])
           result)))
@@ -285,11 +286,6 @@
            :LoyaltyPoints {:type :Int :default 50}}))
        "\n\n"
        (u/pretty-str
-        '(event
-          :Acme.Core/LookupCustomerByEmail
-          {:Email :Email}))
-       "\n\n"
-       (u/pretty-str
         '(entity
           :Acme.Core/PlatinumCustomer
           {:Email :Email}))
@@ -354,12 +350,26 @@
        (u/pretty-str
         '(do (def spouse (lookup-one :Family.Core/Spouse {:Wife "mary@family.org"}))
              (def husband (lookup-one :Family.Core/Person {:Email (:Husband spouse)}))))
-       "\n\nNote that you are generating code in a subset of Clojure. In your response, you should not use "
+       "\n\nIn addition to entities, you may also have events in a model, as the one shown below:\n"
+       (u/pretty-str
+        '(event
+          :Acme.Core/InvokeSummaryAgent
+          {:UserInstruction :String}))
+       "\nYou can call `make` on an event, and it will trigger some actions:\n"
+       (u/pretty-str
+        '(def summary-result (make :Acme.Core/InvokeSummaryAgent {:UserInstruction "a long essay on my trip to the USA...."})))
+       "\nKeep in mind that you cannot call `lookup-one` or `lookup-many` on an event. They are both reserved for entities only.\n"
+       "Also note that an event that invokes an agent usually returns a text or string. So you can use the result as it is in the rest of "
+       "the program, i.e use `summary-result` as an atomic value not a composite - so some refence like `summary-result.text` will be invalid, "
+       "just say `summary-result`.\n"
+       "Note that you are generating code in a subset of Clojure. In your response, you should not use "
        "any feature of the language that's not present in the above examples.\n"
        "Now consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns. "
        "An important note: do not return any plain text in your response, only return valid clojure expressions. "
        "\nAnother important thing you should keep in mind: your response must not include any objects from the previous "
-       "examples. Your response should only make use of the entities and other definitions provided by the user below.\n\n"))
+       "examples. Your response should only make use of the entities and other definitions provided by the user below. "
+       "The only function calls allowed are `make`, `lookup-one` and `lookup-many`. If you need to extract some data "
+       "from the user input, do that yourself and do not call Clojure functions like `re-find`.\n\n"))
 
 (defn- agent-tools-as-definitions [instance]
   (str
@@ -386,6 +396,24 @@
       true)
     false))
 
+(defn- block-expressions [exprs]
+  (if (planner/maybe-expressions? exprs)
+    (rest exprs)
+    exprs))
+
+(defn- splice-parent-expressions [instance result]
+  (let [orig-exprs (if (string? result)
+                     (read-string result)
+                     result)
+        exprs (block-expressions orig-exprs)]
+    (if-let [parent-response (:ParentResponse (:Context instance))]
+      (let [pexprs (block-expressions
+                    (if (string? parent-response)
+                      (read-string parent-response)
+                      parent-response))]
+        `(~'do ~@pexprs ~@exprs))
+      orig-exprs)))
+
 (defn handle-planner-agent [instance]
   (log-trigger-agent! instance)
   (let [instance (assoc instance :UserInstruction
@@ -397,11 +425,12 @@
                          (apply concat (mapv tools/all-tools-for-component (:ToolComponents instance)))
                          (mapv maybe-add-tool-params (model/lookup-agent-tools instance))))
         has-tools (seq tools)
-        [result model-name] (handle-chat-agent
-                             (if has-tools
-                               (assoc instance :tools tools)
-                               instance))
-        _ (log/debug (str "Planner " (:Name instance) " raw result: " result))
+        [orig-result model-name] (handle-chat-agent
+                                  (if has-tools
+                                    (assoc instance :tools tools)
+                                    instance))
+        _ (log/debug (str "Planner " (:Name instance) " raw result: " orig-result))
+        result (splice-parent-expressions instance orig-result)
         patterns (if has-tools
                    (mapv tools/tool-call-to-pattern result)
                    (planner/expressions-to-patterns
@@ -409,14 +438,13 @@
                       (read-string (normalize-planner-expressions result))
                       result)))]
     (if (seq patterns)
-      (do (log/debug (str "Patterns generated by " (:Name instance) ": "
-                          (u/pretty-str patterns)))
+      (do (log/debug (str "Patterns generated by " (:Name instance) ": " (u/pretty-str patterns)))
           [(format-planner-result
             (if (dataflow-patterns? patterns)
               (u/safe-ok-result (e/eval-patterns :Agentlang.Core patterns))
               patterns))
            model-name])
-      [{:result :noop} model-name])))
+      [result model-name])))
 
 (defn handle-ocr-agent [instance]
   (p/call-with-provider
