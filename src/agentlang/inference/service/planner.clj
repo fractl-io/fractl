@@ -24,10 +24,11 @@
     (cond
       (some #{(first v)} '(= < > <= >= and or)) (parse-ref-or-expr (vec v))
       (keyword? (first v)) (li/make-ref (u/symbol-as-keyword (second v)) (first v)) ; TODO: handle references more than one level deep
-      :else (reverse (into '() (mapv parse-ref-or-expr v))))
+      :else `(~(first v) ~@(reverse (into '() (mapv parse-ref-or-expr (rest v))))))
     (vector? v) [(u/symbol-as-keyword (first v))
                  (or (maybe-alias (second v)) (parse-ref-or-expr (second v)))
                  (or (maybe-alias (last v)) (parse-ref-or-expr (last v)))]
+    (symbol? v) (keyword? v)
     :else v))
 
 (defn- parse-value-refs-and-exprs
@@ -70,8 +71,23 @@
                  (concat result [:as alias])
                  result)))))))
 
-(defn- parse-binding-error [expr _]
-  (u/throw-ex (str "Cannot parse expression " expr)))
+(defn- parse-update [[n attrs new-attrs] alias]
+  (let [qexpr (parse-lookup-one [n attrs] nil)
+        qattrs (li/record-attributes qexpr)]
+    {n (merge qattrs (parse-value-refs-and-exprs new-attrs)
+              (when alias {:as alias}))}))
+
+(defn- parse-delete [[n attrs] alias]
+  (let [pat [:delete n attrs]]
+    (if alias
+      (vec (concat pat [:as alias]))
+      pat)))
+
+(defn- parse-fn-call [expr alias]
+  (let [pat [:eval `~'(~(first expr) ~@(mapv parse-ref-or-expr (rest expr)))]]
+    (if alias
+      (vec (concat pat [:as alias]))
+      pat)))
 
 (defn- parse-binding [expr alias]
   ((case (first expr)
@@ -79,7 +95,9 @@
      cond parse-cond
      lookup-one parse-lookup-one
      lookup-many parse-lookup-many
-     parse-binding-error)
+     update parse-update
+     delete parse-delete
+     parse-fn-call)
    (rest expr) alias))
 
 (defn- const-expr? [expr]
@@ -101,7 +119,8 @@
       (u/throw-ex (str "Invalid expression: " expr)))))
 
 (defn maybe-expressions? [exprs]
-  (and (seqable? exprs) (= 'do (first exprs))))
+  (when-not (string? exprs)
+    (and (seqable? exprs) (= 'do (first exprs)))))
 
 (defn expressions-to-patterns [exprs]
   (when (maybe-expressions? exprs)

@@ -22,7 +22,7 @@ For example if the input is `you can join the team`, your response must be `appr
 If the input is `sorry, can't allow`, your response must be `reject`.
 If you are unable to classify the text, simply return `reject`.
 (Do not include the ticks (`) in your response).
-Now please classify the following text following these rules.\n\n"
+Now please classify the following text based on these rules.\n\n"
   :Input :Selfservice.Core/InvokeResponseClassifierAgent}}
 
 {:Agentlang.Core/Agent
@@ -42,9 +42,9 @@ Now please classify the following text following these rules.\n\n"
 3. For each ticket, send an approval request as a slack message on the manager's channel. This message must include the user's email, github org name and the ticket Id.
 4. Get the slack chat's response and classify it as either approve or reject.
 5. If the classification result is to approve the request, then
-     a. update the ticket with the comment \"approved\".
+     a. create a ticket comment with the text \"approved\".
      b. add the user as a member to the github org.
-   If the response is not to approve, then update the ticket with the comment \"rejected\"."
+   If the response is not to approve, then create a ticket comment - \"rejected\"."
   :LLM :llm01}}
 
 {:Agentlang.Core/Agent

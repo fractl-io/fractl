@@ -316,6 +316,11 @@
   #?(:clj read-string
      :cljs cljs.reader/read-string))
 
+(defn safe-read-string [s]
+  (try
+    (parse-string s)
+    (catch #?(:clj Exception :cljs :default) _ nil)))
+
 (defn safe-close [obj]
   #?(:clj
      (try
