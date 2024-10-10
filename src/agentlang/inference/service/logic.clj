@@ -86,7 +86,8 @@
         {:errormsg (.getMessage e)}))))
 
 (defn- log-trigger-agent! [instance]
-  (log/info (str "Triggering " (:Type instance) " agent - " (u/pretty-str instance))))
+  (log/info (str "Triggering " (:Type instance) " agent - " (:Name instance)
+                 " with instructions " (:UserInstruction instance))))
 
 (defn- verify-analyzer-extension [ext]
   (when ext
@@ -312,7 +313,10 @@
        (u/pretty-str
         '(def customers (lookup-many :Acme.Core/Customer {:LoyaltyPoints [> 1000]})))
        "\nBasically to fetch a single instance, call the `lookup-one` function and to fetch multiple instances, use `lookup-many`. "
-       "To do something for each instance in a query, use the for-each expression. For example, the following example will create "
+       "To fetch all instances of an entity, call `lookup-many` as:\n"
+       (u/pretty-str
+        '(def all-customers (lookup-many :Acme.Core/Customer {})))
+       "\nTo do something for each instance in a query, use the for-each expression. For example, the following example will create "
        "a PlatinumCustomer instance for each customer from the preceding lookup:\n"
        (u/pretty-str
         '(for-each
@@ -367,10 +371,14 @@
        "\nYou can call `make` on an event, and it will trigger some actions:\n"
        (u/pretty-str
         '(def summary-result (make :Acme.Core/InvokeSummaryAgent {:UserInstruction "a long essay on my trip to the USA...."})))
-       "\nKeep in mind that you cannot call `lookup-one` or `lookup-many` on an event. They are both reserved for entities only.\n"
-       "Also note that an event that invokes an agent usually returns a text or string. So you can use the result as it is in the rest of "
-       "the program, i.e use `summary-result` as an atomic value not a composite - so some refence like `summary-result.text` will be invalid, "
-       "just say `summary-result`.\n"
+       "\nNote that an event that invokes an agent will return a string. So you can use the result as it is in the rest of "
+       "the program, i.e use `summary-result` as an atomic value and not a composite - so a reference like `summary-result.text` will be invalid, "
+       "just say `summary-result`, as shown below:\n"
+       (u/pretty-str
+        '(cond
+           (= summary-result "trip to USA") "YES"
+           :else "NO"))
+       "\nAlso keep in mind that you can call only `make` on events, `update`, `delete`, `lookup-one` and `lookup-many` are reserved for entities.\n"
        "Note that you are generating code in a subset of Clojure. In your response, you should not use "
        "any feature of the language that's not present in the above examples.\n"
        "Now consider the entity definitions and user-instructions that follows to generate fresh dataflow patterns. "
@@ -389,8 +397,13 @@
           (model/lookup-agent-tools instance)))))
 
 (defn- normalize-planner-expressions [s]
-  (if-not (s/starts-with? (s/triml s) "(do")
-    (str "(do " s ")")
+  (if-let [exprs (if (string? s)
+                   (u/safe-read-string s)
+                   s)]
+    (cond
+      (planner/maybe-expressions? exprs) exprs
+      (planner/maybe-an-expression? exprs) `(do ~exprs)
+      :else exprs)
     s))
 
 (defn- instance-results? [xs]
@@ -438,6 +451,7 @@
         _ (log/debug (str "Planner " (:Name instance) " raw result: " orig-result))
         r0 (normalize-planner-expressions orig-result)
         result (splice-parent-expressions instance r0)
+        _ (log/debug (str "Planner " (:Name instance) " final result: " result))
         patterns (if has-tools
                    (mapv tools/tool-call-to-pattern result)
                    (planner/expressions-to-patterns

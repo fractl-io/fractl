@@ -57,8 +57,7 @@
 
 (defn run-inference-for-event [event instructions agent-instance]
   (when-not agent-instance (u/throw-ex (str "Agent not initialized for " event)))
-  (log/info (str "Processing response for inference " (cn/instance-type event)
-                 " - " (u/pretty-str agent-instance)))
+  (log/debug (str "Processing response for inference " (cn/instance-type event) " - " (u/pretty-str agent-instance)))
   (let [agent-instance
         (ar/handle-generic-agent (assoc agent-instance :UserInstruction
                                         (s/trim

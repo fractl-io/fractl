@@ -75,7 +75,7 @@
 
 (defn create-entity [instance]
   (if test-mode
-    (print-instance (assoc instance :text (u/trace ">>> " (rand-nth ["approve" "reject"]))))
+    (print-instance (assoc instance :text (u/trace ">>> " (rand-nth ["this request is approved" "this is rejected"]))))
     (let [[c n] (li/split-path (cn/instance-type instance))]
       (if (= n :Chat)
         (create-chat "chat.postMessage" instance)

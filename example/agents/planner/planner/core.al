@@ -65,11 +65,15 @@
 ;;   {"UserInstruction": "Add a new employee named Mat to the sales department. His email is mat@acme.com"}}
 
 {:Agentlang.Core/Agent
- {:Name :complex-planner
+ {:Name :employee-agent
   :Type :planner
   :LLM :llm01
-  :UserInstruction (str "You are an agent who forward's leave requests from employees to their managers.\n"
-                        "From the leave request message that follows, extract the employee's email address and use that to lookup the assigned manager.\n"
-                        "Then forward the message to the manager'e email.\n")
-  :Tools [:Planner.Core/Employee :Planner.Core/EmployeeManager :Planner.Core/EmailMessage]
-  :Input :InvokeComplexPlanner}}
+  :Tools [:Planner.Core/Employee :Planner.Core/EmailMessage]
+  :UserInstruction (str "You are an agent who manages employee records. Based on the user instruction that follows, either create, "
+                        "update, delete or lookup employee instances.\n")
+  :Input :InvokeEmployeeAgent}}
+
+;; Usage:
+;; POST api/Planner.Core/InvokeEmployeeAgent
+;; {"Planner.Core/InvokeEmployeeAgent":
+;;   {"UserInstruction": "lookup all employees and for each employee send an email to manager@abc.com intrroducing themselves"}}

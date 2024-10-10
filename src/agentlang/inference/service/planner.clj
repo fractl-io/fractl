@@ -28,7 +28,7 @@
     (vector? v) [(u/symbol-as-keyword (first v))
                  (or (maybe-alias (second v)) (parse-ref-or-expr (second v)))
                  (or (maybe-alias (last v)) (parse-ref-or-expr (last v)))]
-    (symbol? v) (keyword? v)
+    (symbol? v) (keyword v)
     :else v))
 
 (defn- parse-value-refs-and-exprs
@@ -45,11 +45,14 @@
 
 (defn- parse-lookup [[n attrs :as expr] alias]
   (when (validate-record-expr expr alias)
-    (merge {n (parse-value-refs-and-exprs li/name-as-query-pattern attrs)}
-           (when alias {:as alias}))))
+    (merge
+     (if (seq attrs)
+       {n (parse-value-refs-and-exprs li/name-as-query-pattern attrs)}
+       {(li/name-as-query-pattern n) {}})
+     (when alias {:as alias}))))
 
 (defn- parse-lookup-one [expr alias]
-  (parse-lookup expr [alias]))
+  (parse-lookup expr (when alias [alias])))
 
 (declare expression-to-pattern)
 
@@ -84,7 +87,7 @@
       pat)))
 
 (defn- parse-fn-call [expr alias]
-  (let [pat [:eval `~'(~(first expr) ~@(mapv parse-ref-or-expr (rest expr)))]]
+  (let [pat [:eval `'(~(first expr) ~@(mapv parse-ref-or-expr (rest expr)))]]
     (if alias
       (vec (concat pat [:as alias]))
       pat)))
@@ -100,10 +103,16 @@
      parse-fn-call)
    (rest expr) alias))
 
+(declare expressions-to-patterns expression-to-pattern)
+
+(defn- parse-for-each [[n expr] alias]
+  (let [pat [:for-each (parse-ref-or-expr n) (expression-to-pattern expr)]]
+    (if alias
+      (vec (concat pat [:as alias]))
+      pat)))
+
 (defn- const-expr? [expr]
   (or (string? expr) (number? expr)))
-
-(declare expressions-to-patterns)
 
 (defn expression-to-pattern [expr]
   (cond
@@ -114,9 +123,13 @@
       (case (first expr)
         def (parse-binding (nth expr 2) (u/symbol-as-keyword (second expr)))
         cond (parse-cond (rest expr) nil)
+        for-each (parse-for-each (rest expr) nil)
         do (expressions-to-patterns expr)
         (parse-binding expr nil))
       (u/throw-ex (str "Invalid expression: " expr)))))
+
+(defn maybe-an-expression? [expr]
+  (and (seqable? expr) (some #{(first expr)} '(def cond for-each))))
 
 (defn maybe-expressions? [exprs]
   (when-not (string? exprs)
