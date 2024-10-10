@@ -86,8 +86,7 @@
         {:errormsg (.getMessage e)}))))
 
 (defn- log-trigger-agent! [instance]
-  (log/info (str "Triggering " (:Type instance) " agent - " (:Name instance)
-                 " with instructions " (:UserInstruction instance))))
+  (log/info (str "Triggering " (:Type instance) " agent - " (:Name instance))))
 
 (defn- verify-analyzer-extension [ext]
   (when ext
